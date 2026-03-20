@@ -2,12 +2,35 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid Margin="24">
-        <StackPanel MaxWidth="760">
-            <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,12" />
-            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,12" />
-            <Border Padding="12" Background="{StaticResource KgvSurfaceBrush}">
-                <TextBlock Text="{Binding RecoveryHint}" TextWrapping="Wrap" />
-            </Border>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,8" />
+            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
         </StackPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+            <Button Content="Aktualisieren" Command="{Binding RefreshCommand}" Margin="0,0,8,0" Style="{StaticResource PrimaryButton}"/>
+            <Button Content="Mitglied öffnen" Command="{Binding OpenMemberCommand}" Margin="0,0,8,0"/>
+            <Button Content="Dokumente öffnen" Command="{Binding OpenDokumenteCommand}"/>
+        </StackPanel>
+
+        <ListView Grid.Row="2" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="Garten" Width="140" DisplayMemberBinding="{Binding GartenNr}"/>
+                    <GridViewColumn Header="Anlage" Width="180" DisplayMemberBinding="{Binding Anlage}"/>
+                    <GridViewColumn Header="Status" Width="100" DisplayMemberBinding="{Binding StatusText}"/>
+                    <GridViewColumn Header="Mitglied" Width="260" DisplayMemberBinding="{Binding MitgliedName}"/>
+                </GridView>
+            </ListView.View>
+        </ListView>
+
+        <TextBlock Grid.Row="3" Margin="0,12,0,0" Text="{Binding StatusMessage}" TextWrapping="Wrap" Foreground="DarkSlateBlue"/>
     </Grid>
 </UserControl>

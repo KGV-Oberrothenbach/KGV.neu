@@ -58,6 +58,16 @@ namespace KGV.Infrastructure.Services
                 return new MemberSearchViewModel(_supabaseService, mainVm);
             }
 
+            if (viewModelType == typeof(HomeViewModel))
+            {
+                return new HomeViewModel(mainVm);
+            }
+
+            if (viewModelType == typeof(ParzellenVerwaltungViewModel))
+            {
+                return new ParzellenVerwaltungViewModel(_supabaseService, mainVm);
+            }
+
             // Detail
             if (viewModelType == typeof(MemberDetailViewModel))
             {

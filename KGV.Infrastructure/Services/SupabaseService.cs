@@ -111,11 +111,84 @@ namespace KGV.Infrastructure.Services
                 return true;
             },
             false);
-        public Task<ParzelleRecord?> GetParzelleByNumberAsync(string gartenNr) => Unavailable<ParzelleRecord?>();
-        public Task<List<ParzelleRecord>> GetAllParzellenAsync() => Unavailable<List<ParzelleRecord>>();
-        public Task<ParzellenBelegungRecord?> GetCurrentBelegungForParzelleAsync(int parzelleId) => Unavailable<ParzellenBelegungRecord?>();
-        public Task<List<ParzellenBelegungRecord>> GetBelegungenForMitgliedAsync(int mitgliedId) => Unavailable<List<ParzellenBelegungRecord>>();
-        public Task<List<ParzellenBelegungRecord>> GetAllParzellenBelegungenAsync() => Unavailable<List<ParzellenBelegungRecord>>();
+        public Task<ParzelleRecord?> GetParzelleByNumberAsync(string gartenNr) => ExecuteAsync<ParzelleRecord?>(
+            "GetParzelleByNumberAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<ParzelleRecord>()
+                    .Where(x => x.GartenNr == gartenNr)
+                    .Get();
+
+                return response?.Models?.FirstOrDefault();
+            },
+            null);
+
+        public Task<List<ParzelleRecord>> GetAllParzellenAsync() => ExecuteAsync(
+            "GetAllParzellenAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client.From<ParzelleRecord>().Get();
+
+                return response?.Models?
+                    .OrderBy(x => GetGartenNrSortKey(x.GartenNr))
+                    .ThenBy(x => x.GartenNr, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList()
+                    ?? new List<ParzelleRecord>();
+            },
+            new List<ParzelleRecord>());
+
+        public Task<ParzellenBelegungRecord?> GetCurrentBelegungForParzelleAsync(int parzelleId) => ExecuteAsync<ParzellenBelegungRecord?>(
+            "GetCurrentBelegungForParzelleAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<ParzellenBelegungRecord>()
+                    .Where(x => x.ParzelleId == parzelleId)
+                    .Get();
+
+                return response?.Models?
+                    .Where(x => IsBelegungActiveOn(x, DateTime.Today))
+                    .OrderByDescending(x => x.VonDatum ?? DateTime.MinValue)
+                    .FirstOrDefault();
+            },
+            null);
+
+        public Task<List<ParzellenBelegungRecord>> GetBelegungenForMitgliedAsync(int mitgliedId) => ExecuteAsync(
+            "GetBelegungenForMitgliedAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<ParzellenBelegungRecord>()
+                    .Where(x => x.MitgliedId == mitgliedId)
+                    .Get();
+
+                return response?.Models?
+                    .OrderByDescending(x => x.BisDatum == null)
+                    .ThenByDescending(x => x.VonDatum ?? DateTime.MinValue)
+                    .ToList()
+                    ?? new List<ParzellenBelegungRecord>();
+            },
+            new List<ParzellenBelegungRecord>());
+
+        public Task<List<ParzellenBelegungRecord>> GetAllParzellenBelegungenAsync() => ExecuteAsync(
+            "GetAllParzellenBelegungenAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client.From<ParzellenBelegungRecord>().Get();
+
+                return response?.Models?
+                    .OrderBy(x => x.ParzelleId)
+                    .ThenByDescending(x => x.VonDatum ?? DateTime.MinValue)
+                    .ToList()
+                    ?? new List<ParzellenBelegungRecord>();
+            },
+            new List<ParzellenBelegungRecord>());
         public Task<bool> AssignParzelleToMitgliedAsync(int mitgliedId, int parzelleId, DateTime startDatum) => Unavailable<bool>();
         public Task<bool> EndParzellenBelegungAsync(int belegungId, DateTime bisDatum) => Unavailable<bool>();
         public Task<List<ZaehlerAblesungDTO>> GetStromAblesungenAsync(int parzelleId) => Unavailable<List<ZaehlerAblesungDTO>>();
@@ -417,6 +490,23 @@ namespace KGV.Infrastructure.Services
         private static string? CleanOptionalText(string? value)
         {
             return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
+
+        private static bool IsBelegungActiveOn(ParzellenBelegungRecord belegung, DateTime date)
+        {
+            var onDate = date.Date;
+            var von = (belegung.VonDatum ?? DateTime.MinValue).Date;
+            var bis = belegung.BisDatum?.Date;
+            return von <= onDate && (bis == null || bis.Value >= onDate);
+        }
+
+        private static int GetGartenNrSortKey(string? gartenNr)
+        {
+            if (string.IsNullOrWhiteSpace(gartenNr))
+                return int.MaxValue;
+
+            var digits = new string(gartenNr.TakeWhile(char.IsDigit).ToArray());
+            return int.TryParse(digits, out var value) ? value : int.MaxValue;
         }
 
         private static string? FormatMemberName(MitgliedRecord? member)

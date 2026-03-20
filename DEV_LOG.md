@@ -291,6 +291,52 @@
 
 ---
 
+## 2026-03-20 – Kontrollierter Wiederaufbau: Parzellenverwaltung, Dokumente und Home fachlich angeschlossen
+
+### Erledigt
+- In `SupabaseService` die für WPF jetzt direkt benötigten Parzellen-Lesepfade rekonstruiert:
+  - `GetParzelleByNumberAsync`
+  - `GetAllParzellenAsync`
+  - `GetCurrentBelegungForParzelleAsync`
+  - `GetBelegungenForMitgliedAsync`
+  - `GetAllParzellenBelegungenAsync`
+- Den provisorischen `NotSupportedException`-Fallback in `MemberDetailViewModel.OnNavigatedToAsync()` entfernt; `LoadParzellenAsync()` läuft jetzt über echte Servicepfade
+- `ParzellenVerwaltungViewModel` fachlich angeschlossen:
+  - Laden der Parzellen
+  - Laden der aktuellen Mitgliedsbezüge
+  - Öffnen des zugeordneten Mitglieds
+  - Öffnen der Parzellendokumente über den bestehenden `GartenDokumenteViewModel`-Pfad
+- `ParzellenVerwaltungView` von Placeholder auf belastbare Listen-/Navigationsansicht umgestellt
+- `HomeViewModel` / `HomeView` an die bestehende Navigation und Rechteauswertung angeschlossen:
+  - Startseite zeigt die aktuell aus Rechten/Navigation belastbar ableitbaren Module
+  - keine spekulativen Dashboard-Zahlen eingeführt
+- `MainWindowViewModel` um `Startseite` und `Parzellenverwaltung` in der Hauptnavigation ergänzt
+- `NavigationService` kann jetzt `HomeViewModel` und `ParzellenVerwaltungViewModel` gezielt erzeugen
+- Dokumentpfade für Mitglieder/Parzellen blieben beim bestehenden Service-/Signed-URL-Pfad; keine neue Dateilogik eingeführt
+- Build-Reihenfolge erneut geprüft: `KGV.Core` erfolgreich, `KGV.Infrastructure` erfolgreich, `KGV.Wpf` erfolgreich
+
+### Verwendete Quellen / Spuren
+- Aktuelle WPF-Aufrufstellen und ViewModels: `MemberDetailViewModel`, `MemberSearchViewModel`, `GartenDokumenteViewModel`, `MainWindowViewModel`, `ParzellenVerwaltungViewModel`, `HomeViewModel`
+- Vorhandene Modelle/DTOs: `ParzelleRecord`, `ParzellenBelegungRecord`, `ParzellenBelegungDTO`, `ParzelleVerwaltungItem`, `DocumentInfo`
+- Bestehende Dokumentpfade: `DokumenteViewModel`, `GartenDokumenteViewModel`, `CreateDokumentSignedUrlAsync`
+- Recovery-/PDB-Spuren: `_Recovery\PdbDocumentLists\KGV.Wpf.txt`, `_Recovery\PdbDocumentLists\KGV.Infrastructure.txt`
+
+### Ersetzte tolerante Pfade
+- `MemberDetailViewModel` nutzt keinen stillen Parzellen-Fallback mehr
+- `ParzellenVerwaltungViewModel` und `HomeViewModel` sind nicht mehr bloße Placeholder-Hüllen
+
+### Weiter offen
+- Parzellen-Bearbeitung/Zuweisung selbst bleibt weiterhin offen, solange `AssignParzelleToMitgliedAsync` und `EndParzellenBelegungAsync` noch Platzhalter sind
+- `DokumenteParzellenView` als separates Host-Fenster bleibt weiterhin unverdrahtet; fachlich genutzt wird aktuell der bestehende `GartenDokumenteViewModel`-/`GartenDokumenteListeView`-Pfad
+- Keine Dashboard-Statistiken ergänzt, da dafür keine belastbaren Startseiten-Records oder Berechnungsregeln rekonstruiert wurden
+- Demo-/Play-Store-Testdaten waren in diesem Block fachlich nicht ausschlaggebend, weil keine Summen-/Auswertungslogik ergänzt wurde
+
+### Risiken / Hinweise
+- `KGV.Infrastructure` baut weiter mit den bereits bekannten Nullable-Warnungen in `SupabaseService.cs`; kein Blocker für diesen Block
+- Git hat in diesem Block weder beim Commit noch beim Push nach einem Konto gefragt
+
+---
+
 ## Nächste Schritte
 
 1. SupabaseService minimal implementieren, um Login und Stammdaten zu testen  

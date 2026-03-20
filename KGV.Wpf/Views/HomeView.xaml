@@ -2,12 +2,37 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid Margin="24">
-        <StackPanel MaxWidth="760">
-            <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,12" />
-            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,12" />
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,8" />
+            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,8" />
             <Border Padding="12" Background="{StaticResource KgvSurfaceBrush}">
-                <TextBlock Text="{Binding RecoveryHint}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding UserContextText}" TextWrapping="Wrap" />
             </Border>
+        </StackPanel>
+
+        <TextBlock Grid.Row="1" Text="Verfügbare Module" FontWeight="SemiBold" Margin="0,0,0,12" />
+
+        <StackPanel Grid.Row="2">
+            <ItemsControl ItemsSource="{Binding ModuleItems}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Content="{Binding Title}"
+                                Command="{Binding DataContext.OpenModuleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                Margin="0,0,0,8"
+                                Height="36"
+                                HorizontalContentAlignment="Left"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Foreground="DarkSlateBlue"/>
         </StackPanel>
     </Grid>
 </UserControl>

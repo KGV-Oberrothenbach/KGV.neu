@@ -165,13 +165,7 @@ namespace KGV.ViewModels
         public async Task OnNavigatedToAsync()
         {
             await LoadMemberAsync();
-            try
-            {
-                await LoadParzellenAsync();
-            }
-            catch (NotSupportedException)
-            {
-            }
+            await LoadParzellenAsync();
             await RefreshNebenmitgliedAsync();
 
             IsEditMode = false;

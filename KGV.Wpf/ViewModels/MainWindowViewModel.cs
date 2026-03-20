@@ -210,6 +210,13 @@ namespace KGV.ViewModels
         {
             NavigationItems.Clear();
 
+            NavigationItems.Add(new NavigationItem
+            {
+                Title = "Startseite",
+                ViewModelType = typeof(HomeViewModel),
+                IsVisible = true
+            });
+
             if (UserContext.Has(PermissionFlags.CanSearchMembers))
             {
                 // Mitgliedersuche
@@ -237,6 +244,17 @@ namespace KGV.ViewModels
                 {
                     Title = "Benutzerverwaltung",
                     ViewModelType = typeof(UserManagementViewModel),
+                    IsVisible = true,
+                    IsAdminOnly = true
+                });
+            }
+
+            if (UserContext.Has(PermissionFlags.CanEditAllMembers))
+            {
+                NavigationItems.Add(new NavigationItem
+                {
+                    Title = "Parzellenverwaltung",
+                    ViewModelType = typeof(ParzellenVerwaltungViewModel),
                     IsVisible = true,
                     IsAdminOnly = true
                 });
