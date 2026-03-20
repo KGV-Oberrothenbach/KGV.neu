@@ -106,6 +106,37 @@
 
 ---
 
+## 2026-03-20 – Kontrollierter Wiederaufbau: Basis ladbar gemacht
+
+### Erledigt
+- `KGV.slnx` und die Projektdateien von `KGV.Core`, `KGV.Infrastructure` und `KGV.Wpf` gegen den aktuellen Ordnerstand geprüft
+- Veralteten expliziten Compile-Eintrag für die fehlende Datei `KGV.Core\Security\PasswordPolicy.cs` aus `KGV.Core.csproj` entfernt
+- Beschädigte binäre Datei `KGV.Infrastructure\Services\SupabaseService.cs` durch eine minimale textuelle Platzhalter-Implementierung ersetzt
+- Fehlende `KGV.Wpf\AppSettings.cs` in kleiner WPF-tauglicher Form wiederhergestellt
+- Build-Reihenfolge geprüft: `KGV.Core` erfolgreich, `KGV.Infrastructure` erfolgreich, `KGV.Wpf` erfolgreich
+- Gesamter Workspace-Build geprüft: verbleibender Blocker aktuell in `KGV.Maui`
+
+### Erkenntnisse
+- Der erste echte Wiederaufbau-Blocker saß wie vermutet in `KGV.Core`: die Datei `PasswordPolicy.cs` fehlt physisch, der csproj-Eintrag war veraltet
+- `KGV.Infrastructure` enthielt mindestens eine beschädigte Recovery-Datei, die nicht als C#-Quelltext vorlag
+- `KGV.Wpf` ist projektstrukturell wieder brauchbar; der nächste WPF-Fehler war kein csproj-Problem, sondern eine fehlende `AppSettings`-Klasse
+- Die Recovery-Spuren zeigen deutliche Verluste gegenüber dem neueren Stand, insbesondere bei WPF-Views, Core-Modellen und `KGV.ReleaseManager`
+- `KGV.Maui` ist noch nicht baubar, weil mindestens `Resources\Splash\splash.svg` fehlt und lokal die Android-API 35 nicht installiert ist
+
+### Erste Lückenliste
+- Sicher fehlt: `KGV.Core\Security\PasswordPolicy.cs`
+- Sicher fehlt: `KGV.ReleaseManager\KGV.ReleaseManager.csproj` bzw. das gesamte Projektverzeichnis im aktuellen Arbeitsstand
+- Sicher fehlt in WPF u. a.: `ChangeEmailWindow`, `UserManagementView`, `ResetPasswordWindow`, `RfidEinrichtenView`, `RfidScanContextView`, `FaelligeZaehlerView`, `HomeView`, `ParzellenVerwaltungView`, `MemberWartungsvertraegeView`, `SaisonView`, `ZaehlerwechselAusbauView`, `ZaehlerwechselEinbauView`, `ZaehlerwechselScanView`, `ArbeitseinsaetzeVerwaltungView`, `BekanntmachungenVerwaltungView`, `ImpressumView`, `TermineVerwaltungView`, `WartungsvertraegeVerwaltungView`, `UpdateAvailableWindow`
+- Sicher fehlt in Core laut Recovery/PDB-Spuren u. a.: `RfidScanContextRecord`, `WartungsvertragRecord`, `WartungsvertragZuordnungRecord`, `WasseruhrVorschauItem`, `UpdateCheckModels`, `AppUserDTO`, `DeleteUserAccountResult`, `InviteUserAccountResult`, `OAuthSignInStartResult`, `PrepareAddUserResult`, `ParzelleVerwaltungItem`
+- Vorhanden bzw. wiederhergestellt: `KGV.Core`, `KGV.Infrastructure`, `KGV.Wpf`, gültige `KGV.Wpf.csproj`, zentrale bestehende WPF-Views wie `DokumenteParzellenView`, `ZaehlerTauschDialog`, `GartenWasserView`, `GartenStromView`, `DokumenteView`
+
+### Offene Aufgaben
+- `KGV.Maui` separat stabilisieren (`splash.svg`, Android-SDK/API-Stand, danach Projektdatei/Assets erneut prüfen)
+- `SupabaseService` fachlich aus Recovery-/Referenzspuren gezielt rekonstruieren, da aktuell nur ein Build-Platzhalter vorliegt
+- Verlustliste mit `_Recovery\HotFileLists` und weiteren Recovery-Indizes schrittweise vertiefen
+
+---
+
 ## Nächste Schritte
 
 1. SupabaseService minimal implementieren, um Login und Stammdaten zu testen  
