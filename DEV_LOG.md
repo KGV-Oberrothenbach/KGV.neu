@@ -337,6 +337,54 @@
 
 ---
 
+## 2026-03-20 – Pflichtabschluss: Zähler-/Ablesungsblock gezielt eingegrenzt und abgeschlossen
+
+### Erledigt
+- Den zu breit begonnenen Block bewusst auf den belastbar ableitbaren Zähler-/Ablesungsbereich eingegrenzt
+- In `SupabaseService` die direkt von `GartenStromViewModel` und `GartenWasserViewModel` benötigten Methoden rekonstruiert:
+  - `GetStromAblesungenAsync`
+  - `GetWasserAblesungenAsync`
+  - `GetActiveStromzaehlerAsync`
+  - `GetActiveWasserzaehlerAsync`
+  - `AddStromzaehlerAsync`
+  - `AddWasserzaehlerAsync`
+  - `SetStromzaehlerAusgebautAmAsync`
+  - `SetWasserzaehlerAusgebautAmAsync`
+  - `AddAblesungAsync`
+  - `UpdateAblesungAsync`
+- Nur direkt nötige Hilfsfunktionen ergänzt:
+  - Datumsnormalisierung für Zähler-/Ablesungsoperationen
+  - aktive-Zähler-Prüfung
+  - Laden der Parzellen-Zähler
+  - Mapping von `AblesungRecord` nach `ZaehlerAblesungDTO`
+- Keine zusätzlichen WPF-Module oder neuen Placeholder-Views angefasst; die bestehenden Garten-Strom-/Wasser-Pfade nutzen jetzt die rekonstruierten Servicepfade
+- Build-Reihenfolge erneut geprüft: `KGV.Core` erfolgreich, `KGV.Infrastructure` erfolgreich, `KGV.Wpf` erfolgreich
+
+### Verwendete Quellen / Spuren
+- Reale vorhandene Core-Modelle: `AblesungRecord`, `ZaehlerAblesungDTO`, `StromzaehlerRecord`, `WasserzaehlerRecord`
+- Reale WPF-Aufrufstellen: `GartenStromViewModel`, `GartenWasserViewModel`
+- Bestehende Service-Schnittstelle: `ISupabaseService`
+- Keine RFID-/Wartungsvertragslogik allein aus PDB-Spuren abgeleitet
+
+### Bewusst NICHT umgesetzt
+- RFID blieb offen:
+  - aktuell nur `RfidScanContextRecord` als kleiner Modelltyp belastbar vorhanden
+  - keine belastbar vorhandenen Servicepfade oder ausreichend gestützte Hardware-/Zuordnungslogik im Workspace
+- Wartungsverträge blieben offen:
+  - `WartungsvertragRecord` und `WartungsvertragZuordnungRecord` sind im aktuellen Workspace nicht als belastbare Quellbasis verfügbar, trotz PDB-Spuren
+  - daher keine spekulative Rekonstruktion der Vertragslogik
+- Demo-/Play-Store-Testdaten-Ausschluss in Code bewusst nicht umgesetzt:
+  - im eingegrenzten Zähler-/Ablesungsblock gibt es an den tatsächlich betroffenen Aufrufstellen keine belastbaren vorhandenen Erkennungsmerkmale oder Filter
+- Wasseruhr-Vorschauwarnung bewusst offen gelassen:
+  - die zugrunde liegenden belastbaren Aufrufstellen/Regelmarker sind im aktuellen Workspace nicht ausreichend vorhanden
+
+### Risiken / Hinweise
+- `KGV.Infrastructure` baut weiterhin mit bekannten Nullable-Warnungen in `SupabaseService.cs`; kein Blocker für diesen Zähler-Teilblock
+- Git fragte beim Push nicht nach einem Konto
+- Die Meldung `credential-manager-core` wurde in diesem Zähler-Teilblock nicht beobachtet
+
+---
+
 ## Nächste Schritte
 
 1. SupabaseService minimal implementieren, um Login und Stammdaten zu testen  

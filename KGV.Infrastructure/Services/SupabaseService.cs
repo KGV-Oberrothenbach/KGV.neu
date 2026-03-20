@@ -191,16 +191,154 @@ namespace KGV.Infrastructure.Services
             new List<ParzellenBelegungRecord>());
         public Task<bool> AssignParzelleToMitgliedAsync(int mitgliedId, int parzelleId, DateTime startDatum) => Unavailable<bool>();
         public Task<bool> EndParzellenBelegungAsync(int belegungId, DateTime bisDatum) => Unavailable<bool>();
-        public Task<List<ZaehlerAblesungDTO>> GetStromAblesungenAsync(int parzelleId) => Unavailable<List<ZaehlerAblesungDTO>>();
-        public Task<List<ZaehlerAblesungDTO>> GetWasserAblesungenAsync(int parzelleId) => Unavailable<List<ZaehlerAblesungDTO>>();
-        public Task<StromzaehlerRecord?> GetActiveStromzaehlerAsync(int parzelleId, DateTime onDate) => Unavailable<StromzaehlerRecord?>();
-        public Task<WasserzaehlerRecord?> GetActiveWasserzaehlerAsync(int parzelleId, DateTime onDate) => Unavailable<WasserzaehlerRecord?>();
-        public Task<bool> AddStromzaehlerAsync(int parzelleId, string zaehlernummer, DateTime eichdatum, DateTime eingebautAm) => Unavailable<bool>();
-        public Task<bool> AddWasserzaehlerAsync(int parzelleId, string zaehlernummer, DateTime eichdatum, DateTime eingebautAm) => Unavailable<bool>();
-        public Task<bool> SetStromzaehlerAusgebautAmAsync(long stromzaehlerId, DateTime ausgebautAm) => Unavailable<bool>();
-        public Task<bool> SetWasserzaehlerAusgebautAmAsync(long wasserzaehlerId, DateTime ausgebautAm) => Unavailable<bool>();
-        public Task<bool> AddAblesungAsync(short zaehlerTyp, long zaehlerId, DateTime ablesedatum, decimal stand, string? fotoPfad) => Unavailable<bool>();
-        public Task<bool> UpdateAblesungAsync(long ablesungId, DateTime ablesedatum, decimal stand, string? fotoPfad) => Unavailable<bool>();
+        public Task<List<ZaehlerAblesungDTO>> GetStromAblesungenAsync(int parzelleId) => ExecuteAsync(
+            "GetStromAblesungenAsync",
+            async () =>
+            {
+                var meters = await GetStromzaehlerForParzelleAsync(parzelleId);
+                return await GetAblesungenAsync(meters, zaehlerTyp: 1);
+            },
+            new List<ZaehlerAblesungDTO>());
+
+        public Task<List<ZaehlerAblesungDTO>> GetWasserAblesungenAsync(int parzelleId) => ExecuteAsync(
+            "GetWasserAblesungenAsync",
+            async () =>
+            {
+                var meters = await GetWasserzaehlerForParzelleAsync(parzelleId);
+                return await GetAblesungenAsync(meters, zaehlerTyp: 2);
+            },
+            new List<ZaehlerAblesungDTO>());
+
+        public Task<StromzaehlerRecord?> GetActiveStromzaehlerAsync(int parzelleId, DateTime onDate) => ExecuteAsync<StromzaehlerRecord?>(
+            "GetActiveStromzaehlerAsync",
+            async () =>
+            {
+                var meters = await GetStromzaehlerForParzelleAsync(parzelleId);
+                return meters
+                    .Where(x => IsMeterActiveOn(x.EingebautAm, x.AusgebautAm, onDate))
+                    .OrderByDescending(x => x.EingebautAm)
+                    .FirstOrDefault();
+            },
+            null);
+
+        public Task<WasserzaehlerRecord?> GetActiveWasserzaehlerAsync(int parzelleId, DateTime onDate) => ExecuteAsync<WasserzaehlerRecord?>(
+            "GetActiveWasserzaehlerAsync",
+            async () =>
+            {
+                var meters = await GetWasserzaehlerForParzelleAsync(parzelleId);
+                return meters
+                    .Where(x => IsMeterActiveOn(x.EingebautAm, x.AusgebautAm, onDate))
+                    .OrderByDescending(x => x.EingebautAm)
+                    .FirstOrDefault();
+            },
+            null);
+
+        public Task<bool> AddStromzaehlerAsync(int parzelleId, string zaehlernummer, DateTime eichdatum, DateTime eingebautAm) => ExecuteAsync(
+            "AddStromzaehlerAsync",
+            async () =>
+            {
+                if (string.IsNullOrWhiteSpace(zaehlernummer))
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client.From<StromzaehlerRecord>().Insert(new StromzaehlerRecord
+                {
+                    ParzelleId = parzelleId,
+                    Zaehlernummer = zaehlernummer.Trim(),
+                    Eichdatum = NormalizeDateTime(eichdatum),
+                    EingebautAm = NormalizeDateTime(eingebautAm.Date)
+                });
+
+                return true;
+            },
+            false);
+
+        public Task<bool> AddWasserzaehlerAsync(int parzelleId, string zaehlernummer, DateTime eichdatum, DateTime eingebautAm) => ExecuteAsync(
+            "AddWasserzaehlerAsync",
+            async () =>
+            {
+                if (string.IsNullOrWhiteSpace(zaehlernummer))
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client.From<WasserzaehlerRecord>().Insert(new WasserzaehlerRecord
+                {
+                    ParzelleId = parzelleId,
+                    Zaehlernummer = zaehlernummer.Trim(),
+                    Eichdatum = NormalizeDateTime(eichdatum),
+                    EingebautAm = NormalizeDateTime(eingebautAm.Date)
+                });
+
+                return true;
+            },
+            false);
+
+        public Task<bool> SetStromzaehlerAusgebautAmAsync(long stromzaehlerId, DateTime ausgebautAm) => ExecuteAsync(
+            "SetStromzaehlerAusgebautAmAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                await client
+                    .From<StromzaehlerRecord>()
+                    .Where(x => x.Id == stromzaehlerId)
+                    .Set(x => x.AusgebautAm, NormalizeDateTime(ausgebautAm.Date))
+                    .Update();
+
+                return true;
+            },
+            false);
+
+        public Task<bool> SetWasserzaehlerAusgebautAmAsync(long wasserzaehlerId, DateTime ausgebautAm) => ExecuteAsync(
+            "SetWasserzaehlerAusgebautAmAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                await client
+                    .From<WasserzaehlerRecord>()
+                    .Where(x => x.Id == wasserzaehlerId)
+                    .Set(x => x.AusgebautAm, NormalizeDateTime(ausgebautAm.Date))
+                    .Update();
+
+                return true;
+            },
+            false);
+
+        public Task<bool> AddAblesungAsync(short zaehlerTyp, long zaehlerId, DateTime ablesedatum, decimal stand, string? fotoPfad) => ExecuteAsync(
+            "AddAblesungAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                await client.From<AblesungRecord>().Insert(new AblesungRecord
+                {
+                    ZaehlerTyp = zaehlerTyp,
+                    ZaehlerId = zaehlerId,
+                    Ablesedatum = NormalizeDateTime(ablesedatum),
+                    Stand = stand,
+                    Freigegeben = true,
+                    FotoPfad = CleanOptionalText(fotoPfad)
+                });
+
+                return true;
+            },
+            false);
+
+        public Task<bool> UpdateAblesungAsync(long ablesungId, DateTime ablesedatum, decimal stand, string? fotoPfad) => ExecuteAsync(
+            "UpdateAblesungAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                await client
+                    .From<AblesungRecord>()
+                    .Where(x => x.Id == ablesungId)
+                    .Set(x => x.Ablesedatum, NormalizeDateTime(ablesedatum))
+                    .Set(x => x.Stand, stand)
+                    .Set(x => x.FotoPfad, CleanOptionalText(fotoPfad))
+                    .Set(x => x.Freigegeben, true)
+                    .Update();
+
+                return true;
+            },
+            false);
         public Task<MitgliedRecord?> GetNebenmitgliedByHauptmitgliedIdAsync(int hauptmitgliedId) => ExecuteAsync<MitgliedRecord?>(
             "GetNebenmitgliedByHauptmitgliedIdAsync",
             async () =>
@@ -482,6 +620,11 @@ namespace KGV.Infrastructure.Services
             return DateTime.SpecifyKind(normalized, DateTimeKind.Unspecified);
         }
 
+        private static DateTime NormalizeDateTime(DateTime value)
+        {
+            return DateTime.SpecifyKind(value, DateTimeKind.Unspecified);
+        }
+
         private static string CleanRequiredText(string? value)
         {
             return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
@@ -507,6 +650,84 @@ namespace KGV.Infrastructure.Services
 
             var digits = new string(gartenNr.TakeWhile(char.IsDigit).ToArray());
             return int.TryParse(digits, out var value) ? value : int.MaxValue;
+        }
+
+        private static bool IsMeterActiveOn(DateTime eingebautAm, DateTime? ausgebautAm, DateTime onDate)
+        {
+            var date = onDate.Date;
+            return eingebautAm.Date <= date && (ausgebautAm == null || ausgebautAm.Value.Date >= date);
+        }
+
+        private async Task<List<StromzaehlerRecord>> GetStromzaehlerForParzelleAsync(int parzelleId)
+        {
+            var client = await EnsureClientAsync();
+            var response = await client
+                .From<StromzaehlerRecord>()
+                .Where(x => x.ParzelleId == parzelleId)
+                .Get();
+
+            return response?.Models?
+                .OrderByDescending(x => x.EingebautAm)
+                .ToList()
+                ?? new List<StromzaehlerRecord>();
+        }
+
+        private async Task<List<WasserzaehlerRecord>> GetWasserzaehlerForParzelleAsync(int parzelleId)
+        {
+            var client = await EnsureClientAsync();
+            var response = await client
+                .From<WasserzaehlerRecord>()
+                .Where(x => x.ParzelleId == parzelleId)
+                .Get();
+
+            return response?.Models?
+                .OrderByDescending(x => x.EingebautAm)
+                .ToList()
+                ?? new List<WasserzaehlerRecord>();
+        }
+
+        private async Task<List<ZaehlerAblesungDTO>> GetAblesungenAsync<TMeter>(IReadOnlyCollection<TMeter> meters, short zaehlerTyp)
+            where TMeter : class
+        {
+            if (meters.Count == 0)
+                return new List<ZaehlerAblesungDTO>();
+
+            var client = await EnsureClientAsync();
+            var response = await client.From<AblesungRecord>().Get();
+            var ablesungen = response?.Models ?? new List<AblesungRecord>();
+
+            if (typeof(TMeter) == typeof(StromzaehlerRecord))
+            {
+                var meterById = meters.Cast<StromzaehlerRecord>().ToDictionary(x => x.Id, x => x);
+                return ablesungen
+                    .Where(x => x.ZaehlerTyp == zaehlerTyp && meterById.ContainsKey(x.ZaehlerId))
+                    .OrderByDescending(x => x.Ablesedatum)
+                    .ThenByDescending(x => x.Id)
+                    .Select(x => MapZaehlerAblesungDto(x, meterById[x.ZaehlerId].Zaehlernummer, meterById[x.ZaehlerId].Eichdatum))
+                    .ToList();
+            }
+
+            var wasserById = meters.Cast<WasserzaehlerRecord>().ToDictionary(x => x.Id, x => x);
+            return ablesungen
+                .Where(x => x.ZaehlerTyp == zaehlerTyp && wasserById.ContainsKey(x.ZaehlerId))
+                .OrderByDescending(x => x.Ablesedatum)
+                .ThenByDescending(x => x.Id)
+                .Select(x => MapZaehlerAblesungDto(x, wasserById[x.ZaehlerId].Zaehlernummer, wasserById[x.ZaehlerId].Eichdatum))
+                .ToList();
+        }
+
+        private static ZaehlerAblesungDTO MapZaehlerAblesungDto(AblesungRecord record, string zaehlernummer, DateTime eichdatum)
+        {
+            return new ZaehlerAblesungDTO
+            {
+                AblesungId = record.Id,
+                ZaehlerId = record.ZaehlerId,
+                Ablesedatum = record.Ablesedatum,
+                Stand = record.Stand,
+                Zaehlernummer = zaehlernummer,
+                Eichdatum = eichdatum,
+                FotoPfad = record.FotoPfad
+            };
         }
 
         private static string? FormatMemberName(MitgliedRecord? member)
