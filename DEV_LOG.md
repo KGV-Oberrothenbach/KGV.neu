@@ -184,6 +184,56 @@
 
 ---
 
+## 2026-03-20 – Kontrollierter Wiederaufbau: `SupabaseService` für WPF/Auth/Stammdaten gezielt rekonstruiert
+
+### Erledigt
+- `KGV.Infrastructure/Services/SupabaseService.cs` für priorisierte WPF/Auth/Stammdaten-Methoden gezielt rekonstruiert:
+  - `GetMitgliederAsync`
+  - `GetMitgliedByIdAsync`
+  - `UpdateMitgliedAsync`
+  - `TryLockMitgliedAsync`
+  - `ReleaseLockMitgliedAsync`
+  - `GetNebenmitgliedByHauptmitgliedIdAsync`
+  - `GetSaisonRecordsAsync`
+  - `GetArbeitsstundenAsync`
+  - `UpdateArbeitsstundeAsync`
+  - `GetMitgliedDokumenteAsync`
+  - `GetParzelleDokumenteAsync`
+- Als direkt benötigte Hilfen zusätzlich rekonstruiert:
+  - `GetSeasonsAsync`
+  - `GetMitgliedByAuthUserIdAsync(Guid)`
+  - `GetMitgliedByAuthUserIdAsync(string)`
+  - `CreateDokumentSignedUrlAsync`
+- Kleine WPF-Anschlusskorrekturen vorgenommen:
+  - `Mobilnummer`-Mapping in `MemberDetailViewModel`, `NebenmitgliedDetailViewModel` und `AdminRoleViewModel` ergänzt
+  - `MemberDetailViewModel.OnNavigatedToAsync()` toleriert die weiterhin offenen Parzellenmethoden vorläufig, damit Stammdaten-/Nebenmitglied-Pfade nicht mehr direkt am Platzhalter abbrechen
+- Build-Reihenfolge erneut geprüft: `KGV.Core` erfolgreich, `KGV.Infrastructure` erfolgreich, `KGV.Wpf` erfolgreich
+
+### Verwendete Quellen / Spuren
+- Aktuelle Interfaces und reale WPF-Aufrufstellen (`MemberSearchViewModel`, `MemberDetailViewModel`, `NebenmitgliedDetailViewModel`, `AdminRoleViewModel`, `ArbeitsstundenViewModel`, `DokumenteViewModel`, `GartenDokumenteViewModel`)
+- Vorhandene Records/DTOs: `MitgliedRecord`, `ArbeitsstundeRecord`, `ArbeitsstundeDTO`, `DokumentRecord`, `DocumentInfo`, `MemberDTO`
+- Recovery-/PDB-Spur: `_Recovery\PdbDocumentLists\KGV.Infrastructure.txt` bestätigt weiterhin die ursprüngliche Existenz von `SupabaseService.cs`
+- Paket-/API-Spuren aus lokal installierten Supabase-.NET-Paketen für `Set(...)`, `Update(...)` und `CreateSignedUrl(...)`
+- Keine verwertbare Recovery-Quellkopie von `SupabaseService.cs` gefunden; `_Recovery\HotFileLists\KGV.Infrastructure.csproj.FileListAbsolute.txt` ist fachlich unbrauchbar / beschädigt
+
+### Verbleibende Platzhalter in `SupabaseService`
+- Weiterhin Platzhalter u. a. für:
+  - Parzellen-/Belegungslogik
+  - RFID-/Zählerlogik
+  - `AddArbeitsstundeAsync`, `DeleteArbeitsstundeAsync`, Arbeitsstunden-Locking
+  - Storage-/Dokument-Uploadthemen jenseits `CreateDokumentSignedUrlAsync`
+
+### Risiken / Hinweise
+- `KGV.Infrastructure` baut aktuell mit Nullable-Warnungen in `SupabaseService.cs`; funktional blockiert das den Build nicht, sollte aber im nächsten Service-Block bereinigt werden
+- Der Workspace-Gesamtbuild scheitert weiterhin außerhalb dieses Blocks an `KGV.Maui` (`Resources\Splash\splash.svg`, lokales Android-SDK/API 35)
+- Zusätzliche `XLS0414`-Meldungen aus dem Workspace-Gesamtcheck verhalten sich weiterhin wie Design-Time/XAML-Designer-Spuren; der gezielte `dotnet build` von `KGV.Wpf` ist erfolgreich
+
+### Nächster Block
+- Parzellen-/Belegungsmethoden im `SupabaseService` rekonstruieren, damit `MemberDetailViewModel.LoadParzellenAsync()` nicht mehr im Fallback läuft
+- Danach gezielt RFID-/Zähler-Methoden und die dazugehörigen WPF-Bausteine anbinden
+
+---
+
 ## Nächste Schritte
 
 1. SupabaseService minimal implementieren, um Login und Stammdaten zu testen  

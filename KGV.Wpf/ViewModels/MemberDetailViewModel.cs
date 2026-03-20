@@ -165,7 +165,13 @@ namespace KGV.ViewModels
         public async Task OnNavigatedToAsync()
         {
             await LoadMemberAsync();
-            await LoadParzellenAsync();
+            try
+            {
+                await LoadParzellenAsync();
+            }
+            catch (NotSupportedException)
+            {
+            }
             await RefreshNebenmitgliedAsync();
 
             IsEditMode = false;
@@ -280,6 +286,7 @@ namespace KGV.ViewModels
             SelectedMember.Ort = rec.Ort ?? "";
 
             SelectedMember.Telefon = rec.Telefon ?? "";
+            SelectedMember.Mobilnummer = rec.Handy ?? "";
             SelectedMember.Email = rec.Email ?? "";
 
             SelectedMember.Bemerkungen = rec.Bemerkung ?? "";

@@ -77,6 +77,7 @@ namespace KGV.ViewModels
 
             SelectedMember.Vorname = rec.Vorname ?? string.Empty;
             SelectedMember.Nachname = rec.Name ?? string.Empty;
+            SelectedMember.Mobilnummer = rec.Handy ?? string.Empty;
             SelectedMember.Role = rec.Role ?? "user";
 
             SelectedRole = SelectedMember.Role;
@@ -146,6 +147,7 @@ namespace KGV.ViewModels
                     PLZ = rec.Plz ?? string.Empty,
                     Ort = rec.Ort ?? string.Empty,
                     Telefon = rec.Telefon ?? string.Empty,
+                    Mobilnummer = rec.Handy ?? string.Empty,
                     Bemerkungen = rec.Bemerkung ?? string.Empty,
                     WhatsappEinwilligung = rec.WhatsappEinwilligung,
                     MitgliedSeit = rec.MitgliedSeit,
