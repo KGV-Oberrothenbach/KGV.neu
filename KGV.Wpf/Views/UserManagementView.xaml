@@ -2,12 +2,43 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid Margin="24">
-        <StackPanel MaxWidth="760">
-            <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,12" />
-            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,12" />
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,8" />
+            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,8" />
             <Border Padding="12" Background="{StaticResource KgvSurfaceBrush}">
-                <TextBlock Text="{Binding RecoveryHint}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding AdminHint}" TextWrapping="Wrap" />
             </Border>
         </StackPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+            <Button Content="Aktualisieren" Command="{Binding RefreshCommand}" Margin="0,0,8,0" Style="{StaticResource PrimaryButton}"/>
+            <Button Content="E-Mail ändern" Command="{Binding ChangeEmailCommand}" Margin="0,0,8,0"/>
+            <Button Content="Passwort-Reset senden" Command="{Binding ResetPasswordCommand}"/>
+        </StackPanel>
+
+        <DataGrid Grid.Row="2"
+                  ItemsSource="{Binding Users}"
+                  SelectedItem="{Binding SelectedUser, Mode=TwoWay}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  IsReadOnly="True"
+                  SelectionMode="Single">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="2*"/>
+                <DataGridTextColumn Header="E-Mail" Binding="{Binding Email}" Width="2*"/>
+                <DataGridTextColumn Header="Rolle" Binding="{Binding Role}" Width="*"/>
+                <DataGridTextColumn Header="Mitglied" Binding="{Binding MitgliedId}" Width="*"/>
+                <DataGridCheckBoxColumn Header="Aktiv" Binding="{Binding Aktiv}" Width="Auto"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <TextBlock Grid.Row="3" Margin="0,12,0,0" Text="{Binding StatusMessage}" TextWrapping="Wrap" Foreground="DarkSlateBlue"/>
     </Grid>
 </UserControl>

@@ -6,9 +6,14 @@ namespace KGV.Views
     public partial class ResetPasswordWindow : Window
     {
         public ResetPasswordWindow()
+            : this(null)
+        {
+        }
+
+        public ResetPasswordWindow(ResetPasswordViewModel? viewModel)
         {
             InitializeComponent();
-            DataContext ??= new ResetPasswordViewModel();
+            DataContext = viewModel ?? new ResetPasswordViewModel();
         }
     }
 }

@@ -231,6 +231,17 @@ namespace KGV.ViewModels
                 });
             }
 
+            if (UserContext.Has(PermissionFlags.CanManageRoles) || UserContext.Has(PermissionFlags.CanEditAllMembers))
+            {
+                NavigationItems.Add(new NavigationItem
+                {
+                    Title = "Benutzerverwaltung",
+                    ViewModelType = typeof(UserManagementViewModel),
+                    IsVisible = true,
+                    IsAdminOnly = true
+                });
+            }
+
             // Admin-Menü wird nur im Mitglied-Kontext angeboten (siehe MemberNavigationItems)
 
             // Export (immer sichtbar)

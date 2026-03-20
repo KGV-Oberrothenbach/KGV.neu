@@ -234,6 +234,63 @@
 
 ---
 
+## 2026-03-20 – Kontrollierter Wiederaufbau: Auth-/UserManagement-Flows in WPF fachlich angeschlossen
+
+### Erledigt
+- `IAuthService` um die aktuell belastbar ableitbaren Auth-/UserManagement-Pfade erweitert:
+  - `GetAppUsersAsync`
+  - `ChangeEmailAsync`
+  - `SendPasswordResetEmailAsync`
+- `AuthService` fachlich angebunden für:
+  - Laden einer belastbaren Benutzerliste aus `app_user` + `mitglied`
+  - session-basierte E-Mail-Änderungsanforderung über die vorhandene Supabase-Auth-API
+  - Passwort-Reset-Mail über den vorhandenen Supabase-Reset-Pfad
+- `UserManagementViewModel` von Placeholder auf belastbaren Admin-Minimalfluss umgestellt:
+  - Laden der Benutzer-/Mitgliedseinträge
+  - Refresh
+  - Dialogstart für E-Mail-Änderung und Passwort-Reset
+- `ChangeEmailViewModel` / `ChangeEmailWindow` fachlich angeschlossen:
+  - aktuelles E-Mail-Ziel
+  - neue E-Mail erfassen
+  - vorhandenen Supabase-Änderungspfad anstoßen
+  - bewusst nur für den aktuell angemeldeten Benutzer freigegeben
+- `ResetPasswordViewModel` / `ResetPasswordWindow` fachlich angeschlossen:
+  - E-Mail-Ziel erfassen/vorbelegen
+  - Reset-Mail anstoßen
+- WPF-Navigation ergänzt:
+  - `NavigationService` kann `UserManagementViewModel` instanziieren
+  - `MainWindowViewModel` zeigt `Benutzerverwaltung` für Admin-/Rollenrechte an
+- Build-Reihenfolge erneut geprüft: `KGV.Core` erfolgreich, `KGV.Infrastructure` erfolgreich, `KGV.Wpf` erfolgreich
+
+### Behobener Buildfehler
+- Der begonnene Block war zunächst an `KGV.Infrastructure/Authentication/AuthService.cs` blockiert:
+  - Mehrdeutigkeit zwischen `Supabase.Gotrue.Client` und `Supabase.Client`
+  - zusätzlich Namespace-Schatten durch `KGV.Infrastructure.Supabase`
+- Behoben durch:
+  - eindeutige Verwendung von `global::Supabase.Client`
+  - Alias für `Supabase.Gotrue.UserAttributes`
+
+### Verwendete Quellen / Spuren
+- Aktuelle WPF-Aufrufstellen und View-Hüllen: `UserManagementViewModel`, `ChangeEmailViewModel`, `ResetPasswordViewModel`, `UserManagementView`, `ChangeEmailWindow`, `ResetPasswordWindow`
+- Bestehende Modelle/Typen: `AppUserDTO`, `InviteUserAccountResult`, `DeleteUserAccountResult`, `PrepareAddUserResult`, `OAuthSignInStartResult`, `AppUserRecord`, `MitgliedRecord`
+- Bestehende Auth-Architektur: `IAuthService`, `AuthService`, `LoginViewModel`, `App.xaml.cs`
+- Recovery-/PDB-Spuren: `_Recovery\PdbDocumentLists\KGV.Wpf.txt`, `_Recovery\PdbDocumentLists\KGV.Core.txt`
+- Lokale Supabase-Gotrue-Paketspuren für `IGotrueClient.Update(...)` und `ResetPasswordForEmail(...)`
+
+### Weiter offen
+- Noch nicht belastbar rekonstruiert im Auth-/UserManagement-Bereich:
+  - echte Admin-Invite-/Delete-Flows trotz vorhandener Resultmodelle
+  - OTP-/Bestätigungsabschluss im WPF-Client nach E-Mail-Wechsel
+  - weitergehende Benutzerverwaltungsaktionen jenseits Listen-/Dialog-Minimalfluss
+- `EmailBestaetigt` bleibt aktuell mangels belastbarer Quelle unverdrahtet
+
+### Risiken / Hinweise
+- Der angeschlossene E-Mail-Änderungspfad bleibt bewusst session-basiert; keine spekulative Admin-Änderung fremder Benutzer eingeführt
+- `KGV.Infrastructure` baut weiterhin mit den bereits bekannten Nullable-Warnungen in `SupabaseService.cs`; kein Blocker für diesen Auth-Block
+- Git hat in diesem Block weder beim Commit noch beim Push nach einem Konto gefragt
+
+---
+
 ## Nächste Schritte
 
 1. SupabaseService minimal implementieren, um Login und Stammdaten zu testen  

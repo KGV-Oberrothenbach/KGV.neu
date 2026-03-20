@@ -1,11 +1,15 @@
 ﻿using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Infrastructure.Models;
 using KGV.Infrastructure.Supabase;
 using Supabase;
 using Supabase.Gotrue.Exceptions;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using GotrueUserAttributes = Supabase.Gotrue.UserAttributes;
 
 namespace KGV.Infrastructure.Authentication
 {
@@ -13,7 +17,7 @@ namespace KGV.Infrastructure.Authentication
     {
         private readonly ISupabaseClientFactory _clientFactory;
         private readonly ILogger<AuthService>? _logger;
-        private Client? _client;
+        private global::Supabase.Client? _client;
 
         public AuthService(ISupabaseClientFactory clientFactory, ILogger<AuthService>? logger = null)
         {
@@ -28,7 +32,7 @@ namespace KGV.Infrastructure.Authentication
         /// <summary>
         /// Supabase Client initialisieren oder zurückgeben
         /// </summary>
-        public async Task<Client> GetClientAsync()
+        public async Task<global::Supabase.Client> GetClientAsync()
         {
             if (_client == null)
             {
@@ -128,6 +132,138 @@ namespace KGV.Infrastructure.Authentication
                 _logger?.LogError(ex, "Unexpected error during SignIn for {EmailMasked}", MaskEmail(email));
                 return false;
             }
+        }
+
+        public async Task<List<AppUserDTO>> GetAppUsersAsync()
+        {
+            try
+            {
+                var client = await GetClientAsync();
+
+                var appUsersResponse = await client.From<AppUserRecord>().Get();
+                var membersResponse = await client.From<MitgliedRecord>().Get();
+
+                var appUsers = appUsersResponse?.Models?.ToList() ?? new List<AppUserRecord>();
+                var members = membersResponse?.Models?.ToList() ?? new List<MitgliedRecord>();
+
+                var result = new Dictionary<Guid, AppUserDTO>();
+
+                foreach (var appUser in appUsers)
+                {
+                    var member = members.FirstOrDefault(x => x.AuthUserId == appUser.UserId);
+                    result[appUser.UserId] = CreateAppUserDto(appUser, member);
+                }
+
+                foreach (var member in members.Where(x => x.AuthUserId.HasValue))
+                {
+                    var authUserId = member.AuthUserId!.Value;
+                    if (result.ContainsKey(authUserId))
+                        continue;
+
+                    result[authUserId] = CreateAppUserDto(appUser: null, member);
+                }
+
+                return result.Values
+                    .OrderBy(x => x.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(x => x.Email, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "GetAppUsersAsync failed.");
+                return new List<AppUserDTO>();
+            }
+        }
+
+        public async Task<bool> ChangeEmailAsync(string newEmail)
+        {
+            if (string.IsNullOrWhiteSpace(newEmail))
+                return false;
+
+            try
+            {
+                var client = await GetClientAsync();
+                await client.Auth.Update(new GotrueUserAttributes
+                {
+                    Email = newEmail.Trim()
+                });
+
+                return true;
+            }
+            catch (GotrueException ex)
+            {
+                _logger?.LogError(ex, "ChangeEmailAsync failed for {EmailMasked}: {Message}", MaskEmail(newEmail), ex.Message);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "ChangeEmailAsync failed for {EmailMasked}", MaskEmail(newEmail));
+                return false;
+            }
+        }
+
+        public async Task<bool> SendPasswordResetEmailAsync(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return false;
+
+            try
+            {
+                var client = await GetClientAsync();
+                await client.Auth.ResetPasswordForEmail(email.Trim());
+                return true;
+            }
+            catch (GotrueException ex)
+            {
+                _logger?.LogError(ex, "SendPasswordResetEmailAsync failed for {EmailMasked}: {Message}", MaskEmail(email), ex.Message);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "SendPasswordResetEmailAsync failed for {EmailMasked}", MaskEmail(email));
+                return false;
+            }
+        }
+
+        private static AppUserDTO CreateAppUserDto(AppUserRecord? appUser, MitgliedRecord? member)
+        {
+            var authUserId = appUser?.UserId ?? member?.AuthUserId;
+            var memberId = member?.Id;
+
+            if (!memberId.HasValue && appUser?.MitgliedId is >= int.MinValue and <= int.MaxValue)
+                memberId = (int)appUser.MitgliedId.Value;
+
+            return new AppUserDTO
+            {
+                AuthUserId = authUserId,
+                MitgliedId = memberId,
+                Email = member?.Email ?? string.Empty,
+                DisplayName = FormatDisplayName(member),
+                Role = FirstNonEmpty(appUser?.Role, member?.Role),
+                Aktiv = member?.Aktiv ?? true,
+                EmailBestaetigt = false,
+                CreatedAt = appUser?.CreatedAt
+            };
+        }
+
+        private static string FormatDisplayName(MitgliedRecord? member)
+        {
+            if (member == null)
+                return string.Empty;
+
+            var displayName = $"{member.Vorname} {member.Name}".Trim();
+            return string.IsNullOrWhiteSpace(displayName) ? (member.Email ?? string.Empty) : displayName;
+        }
+
+        private static string FirstNonEmpty(params string?[] values)
+        {
+            foreach (var value in values)
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                    return value.Trim();
+            }
+
+            return string.Empty;
         }
 
         private static string MaskEmail(string? email)

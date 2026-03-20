@@ -91,6 +91,11 @@ namespace KGV.Infrastructure.Services
                 return new AdminRoleViewModel(_supabaseService, _authService, member);
             }
 
+            if (viewModelType == typeof(UserManagementViewModel))
+            {
+                return new UserManagementViewModel(_authService);
+            }
+
             if (viewModelType == typeof(GartenStromViewModel))
             {
                 if (parameter is not ParzellenBelegungDTO belegung)

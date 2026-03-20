@@ -2,16 +2,39 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="E-Mail ändern"
-        Height="260"
-        Width="520"
+        Height="320"
+        Width="560"
         WindowStartupLocation="CenterOwner">
     <Grid Margin="24">
-        <StackPanel>
-            <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,12" />
-            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,12" />
-            <Border Padding="12" Background="{StaticResource KgvSurfaceBrush}">
-                <TextBlock Text="{Binding RecoveryHint}" TextWrapping="Wrap" />
-            </Border>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="{Binding Title}" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,8" />
+        <TextBlock Grid.Row="1" Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,12" />
+
+        <StackPanel Grid.Row="2" Margin="0,0,0,12">
+            <TextBlock Text="Aktuelle E-Mail" Margin="0,0,0,4"/>
+            <TextBox Text="{Binding CurrentEmail}" IsReadOnly="True"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="3" Margin="0,0,0,12">
+            <TextBlock Text="Neue E-Mail" Margin="0,0,0,4"/>
+            <TextBox Text="{Binding NewEmail, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditEmail}"/>
+        </StackPanel>
+
+        <Border Grid.Row="4" Padding="12" Background="{StaticResource KgvSurfaceBrush}" Margin="0,0,0,12">
+            <TextBlock Text="{Binding RecoveryHint}" TextWrapping="Wrap" />
+        </Border>
+
+        <StackPanel Grid.Row="5">
+            <Button Content="Änderung anstoßen" Command="{Binding SubmitCommand}" Width="180" Height="32" HorizontalAlignment="Left" Style="{StaticResource PrimaryButton}"/>
+            <TextBlock Margin="0,12,0,0" Text="{Binding StatusMessage}" TextWrapping="Wrap" Foreground="DarkSlateBlue"/>
         </StackPanel>
     </Grid>
 </Window>

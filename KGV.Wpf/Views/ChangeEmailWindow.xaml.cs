@@ -6,9 +6,14 @@ namespace KGV.Views
     public partial class ChangeEmailWindow : Window
     {
         public ChangeEmailWindow()
+            : this(null)
+        {
+        }
+
+        public ChangeEmailWindow(ChangeEmailViewModel? viewModel)
         {
             InitializeComponent();
-            DataContext ??= new ChangeEmailViewModel();
+            DataContext = viewModel ?? new ChangeEmailViewModel();
         }
     }
 }

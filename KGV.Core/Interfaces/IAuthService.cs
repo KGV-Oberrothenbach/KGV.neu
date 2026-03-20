@@ -1,5 +1,7 @@
 using Supabase;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using KGV.Core.Models;
 
 namespace KGV.Core.Interfaces
 {
@@ -9,6 +11,10 @@ namespace KGV.Core.Interfaces
         /// Login mit Email + Passwort
         /// </summary>
         Task<bool> LoginAsync(string email, string password);
+
+        Task<List<AppUserDTO>> GetAppUsersAsync();
+        Task<bool> ChangeEmailAsync(string newEmail);
+        Task<bool> SendPasswordResetEmailAsync(string email);
 
         /// <summary>
         /// Supabase-Client, um weitere Abfragen zu machen
