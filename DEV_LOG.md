@@ -137,6 +137,53 @@
 
 ---
 
+## 2026-03-20 – Kontrollierter Wiederaufbau: Core-/WPF-Bausteine gezielt rekonstruiert
+
+### Erledigt
+- Kleine fehlende Core-Typen rekonstruiert: `AppUserDTO`, `DeleteUserAccountResult`, `InviteUserAccountResult`, `OAuthSignInStartResult`, `PrepareAddUserResult`, `UpdateCheckModels`, `WasseruhrVorschauItem`, `RfidScanContextRecord`, `ParzelleVerwaltungItem`
+- `PasswordPolicy` bewusst noch nicht rekonstruiert, da weiterhin keine belastbare aktuelle Verwendung oder Validierungslogik vorliegt
+- Priorisierte WPF-Placeholder-ViewModels rekonstruiert: `UserManagementViewModel`, `ChangeEmailViewModel`, `ResetPasswordViewModel`, `RfidEinrichtenViewModel`, `RfidScanContextViewModel`, `FaelligeZaehlerViewModel`, `ParzellenVerwaltungViewModel`, `MemberWartungsvertraegeViewModel`, `WartungsvertraegeVerwaltungViewModel`, `HomeViewModel`, `ZaehlerwechselAusbauViewModel`, `ZaehlerwechselEinbauViewModel`, `ZaehlerwechselScanViewModel`
+- Priorisierte WPF-Views/Windows rekonstruiert: `UserManagementView`, `ChangeEmailWindow`, `ResetPasswordWindow`, `RfidEinrichtenView`, `RfidScanContextView`, `FaelligeZaehlerView`, `ParzellenVerwaltungView`, `MemberWartungsvertraegeView`, `WartungsvertraegeVerwaltungView`, `HomeView`, `ZaehlerwechselAusbauView`, `ZaehlerwechselEinbauView`, `ZaehlerwechselScanView`
+- `App.xaml` um passende `DataTemplate`-Zuordnungen für die neuen UserControl-ViewModels erweitert
+- Build-Reihenfolge erneut geprüft: `KGV.Core` erfolgreich, `KGV.Infrastructure` erfolgreich, `KGV.Wpf` erfolgreich
+
+### Erkenntnisse
+- Die aktuell fehlenden kleinen Core-Typen werden im laufenden Code noch nicht direkt verwendet; sie stammen derzeit belastbar aus Recovery-/PDB-Spuren und wurden deshalb bewusst nur als neutrale Datencontainer rekonstruiert
+- Die fehlenden priorisierten WPF-Bausteine sind aktuell ebenfalls noch nicht in die laufende Navigation eingehängt; die strukturelle Wiederherstellung erfolgt daher zunächst über ViewModels, Views und `DataTemplate`-Registrierung
+- Der `SupabaseService` muss im nächsten fachlichen Block nicht pauschal, sondern methodenpriorisiert rekonstruiert werden
+
+### Vorbereitete `SupabaseService`-Priorisierung
+- Sofort nötig für bestehendes WPF/Auth/Stammdaten:
+  - `GetMitgliedByIdAsync`
+  - `GetMitgliederAsync`
+  - `UpdateMitgliedAsync`
+  - `TryLockMitgliedAsync`
+  - `ReleaseLockMitgliedAsync`
+  - `GetNebenmitgliedByHauptmitgliedIdAsync`
+  - `GetArbeitsstundenAsync`
+  - `UpdateArbeitsstundeAsync`
+  - `GetSaisonRecordsAsync`
+  - `GetMitgliedDokumenteAsync`
+  - `GetParzelleDokumenteAsync`
+- Nötig für RFID/Zähler und die jetzt vorbereiteten WPF-Bausteine:
+  - `GetStromAblesungenAsync`
+  - `GetWasserAblesungenAsync`
+  - `SetStromzaehlerAusgebautAmAsync`
+  - `SetWasserzaehlerAusgebautAmAsync`
+  - `UpdateAblesungAsync`
+  - später zusätzlich neue Methoden für RFID-/Wartungsvertrags-/Parzellenverwaltungslogik, sobald deren ViewModels fachlich rekonstruiert werden
+- Später nötig für MAUI:
+  - `AddArbeitsstundeAsync`
+  - `GetUnapprovedArbeitsstundenByMitgliedAsync`
+  - `UpdateOwnContactAsync`
+  - `GetMitgliedByAuthUserIdAsync`
+
+### Verbleibende Lücken
+- Weiter offen: `PasswordPolicy`, `WartungsvertragRecord`, `WartungsvertragZuordnungRecord`, weitere Startseiten-/ReleaseManager-/Update-Komponenten
+- Weiter offen in WPF: `SaisonView`, `UpdateAvailableWindow`, `ImpressumView`, `ArbeitseinsaetzeVerwaltungView`, `BekanntmachungenVerwaltungView`, `TermineVerwaltungView` und zugehörige fachliche ViewModels
+
+---
+
 ## Nächste Schritte
 
 1. SupabaseService minimal implementieren, um Login und Stammdaten zu testen  

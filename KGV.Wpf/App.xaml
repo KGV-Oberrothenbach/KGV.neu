@@ -53,6 +53,50 @@
                 <views:ExportView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type vm:HomeViewModel}">
+                <views:HomeView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:UserManagementViewModel}">
+                <views:UserManagementView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:RfidEinrichtenViewModel}">
+                <views:RfidEinrichtenView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:RfidScanContextViewModel}">
+                <views:RfidScanContextView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:FaelligeZaehlerViewModel}">
+                <views:FaelligeZaehlerView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:ParzellenVerwaltungViewModel}">
+                <views:ParzellenVerwaltungView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:MemberWartungsvertraegeViewModel}">
+                <views:MemberWartungsvertraegeView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:WartungsvertraegeVerwaltungViewModel}">
+                <views:WartungsvertraegeVerwaltungView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:ZaehlerwechselAusbauViewModel}">
+                <views:ZaehlerwechselAusbauView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:ZaehlerwechselEinbauViewModel}">
+                <views:ZaehlerwechselEinbauView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:ZaehlerwechselScanViewModel}">
+                <views:ZaehlerwechselScanView />
+            </DataTemplate>
+
         </ResourceDictionary>
     </Application.Resources>
 </Application>
