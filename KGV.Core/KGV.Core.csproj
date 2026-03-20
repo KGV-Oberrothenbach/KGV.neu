@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  
+
+  <ItemGroup>
+    <Compile Remove="Security\PasswordPolicy.cs" />
+    <Compile Include="Security\PasswordPolicy.cs" />
+    <PackageReference Include="supabase" Version="1.1.1" />
+    <PackageReference Include="Supabase.Postgrest" Version="4.1.0" />
+  </ItemGroup>
+
+</Project>

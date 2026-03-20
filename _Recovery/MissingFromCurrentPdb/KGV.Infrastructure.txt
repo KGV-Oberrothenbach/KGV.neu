@@ -1,0 +1,5 @@
+DiagnosticsFileLog.cs
+HttpDiagnosticsHandler.cs
+KgvSupabaseSessionHandler.cs
+g.cs
+AssemblyAttributes.cs

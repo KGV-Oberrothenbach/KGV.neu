@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KGV.Core\KGV.Core.csproj" />
+    <ProjectReference Include="..\KGV.Infrastructure\KGV.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\appsettings.json" Link="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Link existing WPF UI sources (incremental split without moving files yet) -->
+    <Page Include="..\Views\**\*.xaml" Link="Views\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\Views\**\*.xaml.cs" Link="Views\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\ViewModels\**\*.cs" Link="ViewModels\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\Helpers\**\*.cs" Link="Helpers\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\Messages\**\*.cs" Link="Messages\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\AppSettings.cs" Link="AppSettings.cs" />
+    <Compile Include="..\AssemblyInfo.cs" Link="AssemblyInfo.cs" />
+
+    <!-- WPF-spezifische 'Infrastructure' Dateien, die NICHT nach `KGV.Infrastructure` sollen -->
+    <Compile Include="..\Infrastructure\Services\NavigationService.cs" Link="Infrastructure\Services\NavigationService.cs" />
+    <Compile Include="..\Infrastructure\Behaviors\PasswordBoxHelper.cs" Link="Infrastructure\Behaviors\PasswordBoxHelper.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.3" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="KGV.Core/KGV.Core.csproj" />
+  <Project Path="KGV.Infrastructure/KGV.Infrastructure.csproj" />
+  <Project Path="KGV.Maui/KGV.Maui.csproj">
+    <Deploy />
+  </Project>
+  <Project Path="KGV.Wpf/KGV.Wpf.csproj" />
+</Solution>

@@ -1,0 +1,13 @@
+AuthService.cs
+ServiceCollectionExtensions.cs
+DiagnosticsFileLog.cs
+HttpDiagnosticsHandler.cs
+MockAuthService.cs
+AppUserRecord.cs
+SupabaseService.cs
+UserContextService.cs
+KgvSupabaseSessionHandler.cs
+SupabaseClientFactory.cs
+g.cs
+AssemblyAttributes.cs
+AssemblyInfo.cs
