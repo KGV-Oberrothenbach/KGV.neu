@@ -1,0 +1,13 @@
+D:\Programmieren\KGV\KGV.Core\bin\Debug\net8.0\KGV.Core.deps.json
+D:\Programmieren\KGV\KGV.Core\bin\Debug\net8.0\KGV.Core.dll
+D:\Programmieren\KGV\KGV.Core\bin\Debug\net8.0\KGV.Core.pdb
+D:\Programmieren\KGV\KGV.Core\obj\Debug\net8.0\KGV.Core.csproj.AssemblyReference.cache
+D:\Programmieren\KGV\KGV.Core\obj\Debug\net8.0\KGV.Core.GeneratedMSBuildEditorConfig.editorconfig
+D:\Programmieren\KGV\KGV.Core\obj\Debug\net8.0\KGV.Core.AssemblyInfoInputs.cache
+D:\Programmieren\KGV\KGV.Core\obj\Debug\net8.0\KGV.Core.AssemblyInfo.cs
+D:\Programmieren\KGV\KGV.Core\obj\Debug\net8.0\KGV.Core.csproj.CoreCompileInputs.cache
+D:\Programmieren\KGV\KGV.Core\obj\Debug\net8.0\KGV.Core.sourcelink.json
+D:\Programmieren\KGV\KGV.Core\obj\Debug\net8.0\KGV.Core.dll
+D:\Programmieren\KGV\KGV.Core\obj\Debug\net8.0\refint\KGV.Core.dll
+D:\Programmieren\KGV\KGV.Core\obj\Debug\net8.0\KGV.Core.pdb
+D:\Programmieren\KGV\KGV.Core\obj\Debug\net8.0\ref\KGV.Core.dll
