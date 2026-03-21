@@ -2,6 +2,24 @@
 
 ---
 
+## 2026-03-21 – Block 1/3 Abschluss: Konsolidierung verifiziert und abgeschlossen
+
+- Git-Istzustand geprüft: Arbeitsbaum vor dem Abschlusslauf sauber; der Konsolidierungsstand lag bereits vollständig im aktuellen Stand vor.
+- Root-/Doku-/Meta-Dateien gezielt verifiziert: zentraler Einstieg über `README.md`, Recovery-Bereiche als Referenz markiert, Mehrprojektstruktur dokumentiert, lokale Entwicklungsdoku vorhanden und keine fachlichen Codepfade erweitert.
+- Kleine Restfehler bereinigt: beschädigte Zeichen in `Documentation/DEV_LOG.md` und `Documentation/CHANGELOG.md` auf saubere Hinweistexte korrigiert.
+- Kurze technische Verifikation ausgeführt: `KGV.Wpf` und `KGV.Tests` bauen im Abschlusslauf erfolgreich; sichtbar bleiben nur die bereits bestehenden, nicht blockierenden Warnungen aus der rekonstruierten Basis, insbesondere Nullable-Warnungen in `KGV.Infrastructure\Services\SupabaseService.cs`.
+- Block 1 damit inhaltlich abgeschlossen: aktive Arbeitsbasis, Recovery-Kontext, Dokumentation und Einstiegspunkte sind klar voneinander getrennt.
+
+## 2026-03-21 – Block 1/3: Quellstand als aktive Entwicklungsbasis konsolidiert
+
+- Root-Aufbau und Meta-Dokumente geprüft: `README_RETTUNG.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `DEV_LOG.md`, `ci.yml`, `KGV.slnx`, `Dateistruktur.txt`, `Documentation` sowie `_Recovery` und `_RecoveredArtifacts` gegen den tatsächlichen Mehrprojektstand abgeglichen.
+- Zentralen aktiven Einstieg ergänzt: neues `README.md` als Startpunkt für Entwicklung, Build und Repo-Einordnung.
+- Recovery-Bereiche klar gekennzeichnet: `_Recovery` und `_RecoveredArtifacts` jeweils mit eigener `README.md` als reine Archiv-/Referenzbereiche dokumentiert; `README_RETTUNG.md` auf Herkunfts-/Recovery-Kontext zurückgeführt.
+- Architektur- und Entscheidungsdoku auf den realen Stand umgestellt: Mehrprojektstruktur mit `KGV.Core`, `KGV.Infrastructure`, `KGV.Wpf`, `KGV.Maui` und `KGV.Tests` dokumentiert; offene Unsicherheiten bewusst ehrlich benannt.
+- Pragmatische Entwicklungsdoku ergänzt: `Documentation/DEVELOPMENT.md` beschreibt den empfohlenen Einstieg, lokale Voraussetzungen, typische Builds und die aktuelle Rolle von WPF, MAUI und Tests.
+- Irreführende Root-/Doku-Einstiegspunkte bereinigt: `Dateistruktur.txt` als historischer Snapshot umgewidmet, `Documentation/DEV_LOG.md` und `Documentation/CHANGELOG.md` von beschädigten/irreführenden Restinhalten auf klare Hinweisdateien umgestellt.
+- Kleine technische Konsolidierung durchgeführt: `KGV.slnx` um `KGV.Tests` ergänzt und das bisher wirkungslose Root-`ci.yml` in eine echte GitHub-Workflow-Datei unter `.github/workflows/ci.yml` überführt; Workflow auf den aktuellen SDK-Stand und die lokal belastbar prüfbaren Projekte ausgerichtet.
+
 ## 2026-03-21 – Prompt 1/2: Home/Startseite – Bekanntmachungen + Bearbeiten-Buttons angeglichen
 
 - Istzustand geprüft: `HomeViewModel`/`HomeView` in WPF war bisher nur Modulübersicht; `HomePage` in MAUI war noch Platzhalter. Eine belastbare bestehende Bekanntmachungs-Datenquelle ist im aktuellen Workspace derzeit nicht vorhanden.
@@ -319,7 +337,7 @@
   - `GetParzelleByNumberAsync`
   - `GetAllParzellenAsync`
   - `GetCurrentBelegungForParzelleAsync`
-  - `GetBelegungenForMitgliedAsync`
+  - `GetBelegungenFürMitgliedAsync`
   - `GetAllParzellenBelegungenAsync`
 - Den provisorischen `NotSupportedException`-Fallback in `MemberDetailViewModel.OnNavigatedToAsync()` entfernt; `LoadParzellenAsync()` läuft jetzt über echte Servicepfade
 - `ParzellenVerwaltungViewModel` fachlich angeschlossen:

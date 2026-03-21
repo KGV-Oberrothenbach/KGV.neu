@@ -1,46 +1,47 @@
-# KGV – rekonstruierter Projektordner (Best Effort)
+# README_RETTUNG – Herkunft und Recovery-Kontext
 
-Dieser Ordner wurde aus drei Quellen aufgebaut:
+Diese Datei beschreibt die Herkunft des heutigen Repository-Bestands.
 
-1. der alten/flachen `KGV.zip` als Quellbasis,
-2. den neueren WPF/Core/Infrastructure-Artefakten (`.dll`, `.pdb`, `.deps.json`, `.runtimeconfig.json`),
-3. den Android-Artefakten (`.aab`, `.apk`) als spätere Referenz für MAUI.
+## Wichtig
 
-## Was hier drin ist
+- Für die tägliche Entwicklung ist `README.md` der zentrale Einstieg.
+- Diese Datei ist kein primärer Entwicklungsleitfaden, sondern dokumentiert, warum im Repository zusätzlich Archiv- und Referenzbereiche existieren.
 
-- `KGV.Core`, `KGV.Infrastructure`, `KGV.Wpf`, `KGV.Maui`, `KGV.Tests`: bestmöglich sortierte Projektordner
-- `_RecoveredArtifacts/Wpf`: neuere Build-Artefakte inkl. PDBs
-- `_RecoveredArtifacts/Android`: AAB/APK
-- `_Recovery/PdbDocumentLists`: Dateinamen, die in den neueren PDBs gefunden wurden
-- `_Recovery/MissingFromCurrentPdb`: Dateien, die laut PDB im neueren Stand existierten, aber in der alten ZIP nicht mehr enthalten waren
-- `_Recovery/OriginalMetadata`: Zusatzinfos, originale flache Projektdateien und Android-Inhaltsübersicht
+## Herkunft des Bestands
 
-## Wichtiger Stand
+Der heutige Arbeitsstand wurde ursprünglich aus mehreren Quellen zusammengeführt:
 
-- Die PDBs enthalten einen SourceLink auf:
-  - Repo: `KGV-Oberrothenbach/KGV-WPF`
-  - Commit: `5f195fbe4607bc18a20c0391f7a0a7a8b29aeecd`
-- Die WPF-Artefakte gehören zum Stand `0.2.7` (aus `KGV.Wpf.deps.json` / Build-Artefakten).
-- Die alte ZIP ist älter als dieser Buildstand. Deshalb ist dieser Ordner **kein perfekter letzter Live-Stand**, sondern eine **kombinierte Rettungsbasis**.
+1. einer älteren flachen `KGV.zip` als Quellbasis,
+2. neueren WPF-/Core-/Infrastructure-Artefakten (`.dll`, `.pdb`, `.deps.json`, `.runtimeconfig.json`),
+3. Android-Artefakten (`.aab`, `.apk`) als Referenz für die spätere MAUI-Rekonstruktion.
 
-## Ehrliche Einschätzung
+## Was heute aktiv ist
 
-- `KGV.Core`, `KGV.Infrastructure` und `KGV.Wpf` sind hier deutlich besser rekonstruierbar als `KGV.Maui`.
-- Für MAUI fehlen direkte Quelltexte des neueren Standes; AAB/APK sind deshalb separat abgelegt.
-- Einige Dateien wurden nur als **Hinweislisten** rekonstruiert, nicht als echter Quelltext.
-- Die Projektdateien (`.csproj`) wurden für diese rekonstruierte Ordnerstruktur **vereinfacht/normalisiert**. Sie sind eine Arbeitsbasis, nicht garantiert 1:1 der Originalzustand.
+- `KGV.Core`
+- `KGV.Infrastructure`
+- `KGV.Wpf`
+- `KGV.Maui`
+- `KGV.Tests`
 
-## Empfehlung
+Diese Projekte bilden die aktuelle aktive Entwicklungsbasis.
 
-1. Diesen Ordner lokal entpacken.
-2. Zuerst `KGV.slnx` in Visual Studio öffnen.
-3. Danach die Dateien aus `_Recovery/MissingFromCurrentPdb` mit den Artefakten unter `_RecoveredArtifacts/Wpf` gezielt nachziehen/dekompilieren.
-4. Für MAUI bei Bedarf separat aus AAB/APK dekompilieren.
+## Was Referenz bleibt
 
-## Kurzbilanz
+- `_Recovery` – Listen, Metadaten und Wiederaufbauhinweise
+- `_RecoveredArtifacts` – wiedergefundene Artefakte
 
-- Gemappte Dateien aus der alten ZIP: 152
-- Fehlende Dateien laut neuerem PDB-Stand:
-  - KGV.Core: 32
-  - KGV.Infrastructure: 5
-  - KGV.Wpf: 64
+Diese Bereiche bleiben bewusst erhalten, sind aber nicht die produktive Quellbasis.
+
+## Weiterhin relevante Recovery-Fakten
+
+- Die PDBs verweisen per SourceLink auf das frühere Repo `KGV-Oberrothenbach/KGV-WPF`.
+- Der rekonstruierte Stand war nie ein perfekter letzter Live-Stand, sondern eine kombinierte Rettungsbasis.
+- `KGV.Core`, `KGV.Infrastructure` und `KGV.Wpf` waren belastbarer rekonstruierbar als `KGV.Maui`.
+
+## Aktuelle Nutzung dieser Datei
+
+Diese Datei dient nur noch dazu,
+
+- den Recovery-Ursprung nachvollziehbar zu halten,
+- die Archivbereiche im Repo einzuordnen,
+- und Missverständnisse zwischen aktiver Basis und Recovery-Referenzen zu vermeiden.

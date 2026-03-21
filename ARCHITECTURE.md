@@ -1,139 +1,76 @@
-# KGV Oberrothenbach – Architektur
+# KGV – aktuelle Architekturübersicht
 
-## Projektziel
+## Zweck dieses Dokuments
 
-Desktop-Anwendung zur Verwaltung eines Kleingartenvereins mit:
+Dieses Dokument beschreibt den realen aktuellen Repository-Stand. Es ist keine historische Soll-Architektur und keine Ein-Projekt-WPF-Beschreibung mehr.
 
-- Login (Supabase Auth)
-- Mitgliederverwaltung (Stammdaten, Arbeitsstunden, Parzellen, Dokumente)
-- Exportfunktionen
-- Rollenbasiertem Zugriff (Admin)
+## Aktive Projektstruktur
 
----
+- `KGV.Core`
+  - gemeinsame Modelle, DTOs, Interfaces und Sicherheits-/Rechtegrundlagen
+- `KGV.Infrastructure`
+  - konkrete technische Anbindung, insbesondere Auth- und Supabase-Zugriffe
+- `KGV.Wpf`
+  - aktive Windows-Desktop-Anwendung auf WPF
+- `KGV.Maui`
+  - aktive mobile Anwendung auf .NET MAUI
+- `KGV.Tests`
+  - Testprojekt für die aktuelle Codebasis
 
-## Technologiestack
+## Nicht-produktive Referenzbereiche
 
-- WPF (.NET 8 LTS)
-- CommunityToolkit.Mvvm
+- `_Recovery`
+  - PDB-Dokumentlisten, Recovery-Metadaten, Missing-Listen und weitere Wiederaufbauhilfen
+- `_RecoveredArtifacts`
+  - wiedergefundene WPF-/Android-Artefakte
+
+Diese Bereiche sind Archiv-/Referenzmaterial und nicht Teil der produktiven Laufzeitbasis.
+
+## Architekturrichtung
+
+- Mehrprojektstruktur statt Monolith
+- Trennung zwischen fachlichen Verträgen (`KGV.Core`) und technischer Infrastruktur (`KGV.Infrastructure`)
+- UI-spezifische Umsetzung getrennt für Desktop (`KGV.Wpf`) und mobil (`KGV.Maui`)
+- WPF und MAUI werden parallel gedacht; mobile Wege sind nicht nur Nebenprodukt
+- Recovery-Material wird als Quelle für Rekonstruktion genutzt, aber nicht als aktive Produktstruktur dargestellt
+
+## Technologiestand
+
+- .NET 8 für zentrale Bibliotheken und WPF
+- .NET 9 / .NET MAUI für die mobile App
+- CommunityToolkit.Mvvm in der bestehenden MVVM-Basis
+- Microsoft.Extensions.DependencyInjection / Configuration
 - Supabase .NET SDK
-- Dependency Injection (Microsoft.Extensions.DependencyInjection)
 
----
+## Grober Datenfluss
 
-## Architekturprinzipien
+`UI (WPF/MAUI) -> ViewModel -> Interface aus KGV.Core -> Implementierung in KGV.Infrastructure -> Supabase`
 
-- MVVM Pattern
-- Keine SQL-Logik im UI
-- Services kapseln Datenzugriff
-- DTOs für Supabase
-- UI-Modelle getrennt von DB-Modellen
-- Navigation über ContentControl
-- Keine Reflection
-- Keine RPC-Experimente
-- Saubere Trennung von Verantwortlichkeiten
+## Rolle der UI-Projekte
 
----
+### `KGV.Wpf`
+- derzeit die belastbarere Desktop-Arbeitsoberfläche
+- enthält weiterhin den größten Teil der rekonstruierbaren Verwaltungsoberfläche
 
-## Projektstruktur
+### `KGV.Maui`
+- aktive mobile Arbeitsoberfläche
+- wird bewusst parallel mitgeführt und lokal mitgebaut
+- enthält weiterhin rekonstruierte bzw. schrittweise angeglichene Pfade; nicht jede Funktion ist bereits auf dem gleichen Reifegrad wie in WPF
 
-KGV  
-├── Views  
-├── ViewModels  
-├── Services  
-├── Models  
-├── Infrastructure  
-├── Documentation  
+## Tests
 
----
+- `KGV.Tests` ist Teil der aktiven Struktur.
+- Der aktuelle Wiederaufbau-Stand bedeutet aber nicht automatisch, dass schon eine breite Testabdeckung vorhanden ist.
+- Fehlende oder noch nicht belastbare Tests sollen offen benannt werden.
 
-## Navigation
+## Offene Unsicherheiten
 
-MainWindow enthält:
+- Nicht alle ursprünglich vorhandenen fachlichen Bereiche sind bereits vollständig rekonstruiert.
+- Teile der heutigen Basis stammen aus kontrolliertem Wiederaufbau und nicht aus einem vollständig erhaltenen Original-Repository.
+- Recovery-Listen und Artefakte bleiben deshalb relevant, sind aber bewusst vom aktiven Code getrennt.
 
-ContentControl → bindet an CurrentViewModel
+## Praktischer Einstieg
 
-Flow:
-
-App  
- └── MainWindow  
-       └── MainViewModel  
-             └── CurrentViewModel (Login oder Dashboard)
-
----
-
-## Login-Verhalten
-
-- E-Mail wird lokal gespeichert
-- Wenn E-Mail leer → Fokus in E-Mail-Feld
-- Wenn E-Mail vorhanden → Fokus in Passwort
-- ENTER in jedem Feld löst Login aus
-- Nach Login → Wechsel zum Hauptbereich
-
----
-
-## Dashboard-Layout
-
-Zweiteilig:
-
-Links:
-- Saison Dropdown (Standard: aktuelles Jahr)
-- Mitgliedersuche (Name/Vorname)
-- Dynamische Navigation:
-  - Stammdaten
-  - Arbeitsstunden
-  - Parzellen → Strom, Wasser, Dokumente
-  - Dokumente
-  - Mitglied Neu
-  - Admin-Menü (sichtbar nur für Admin)
-  - Export (immer sichtbar)
-
-Rechts:
-- Arbeits-/Anzeige-Bereich
-
----
-
-## Stammdaten – Felder
-
-### Sichtbare Felder für UI
-
-- Vorname  
-- Nachname  
-- Straße  
-- PLZ  
-- Ort  
-- Telefon  
-- E-Mail  
-- Bemerkungen (optional, mehrzeilig)  
-- Whatsapp_Einwilligung (Checkbox)  
-
-### Interne / Admin-Felder
-
-- auth_user_id (UUID/Text, nicht editierbar)  
-- ist_kgv (Boolean, intern für Umlagen, nicht editierbar)  
-- aktiv (Boolean, Mitglied aktiv/inaktiv)  
-- role (Text/Enum, nur Admin sichtbar, änderbar über Dropdown)  
-
----
-
-## Rollenmodell
-
-- Admin: Vollzugriff auf alle Funktionen, kann Rollen ändern  
-- Vorstand: Zugriff auf relevante Daten (Arbeitsstunden, Parzellen)  
-- Mitglied: Zugriff nur auf eigene Daten  
-- Berechtigungen über Supabase Row-Level Policies umgesetzt  
-
----
-
-## Datenfluss
-
-UI → ViewModel → Service → Supabase
-
----
-
-## Nächste Schritte
-
-1. MemberDTO / ViewModel für Stammdaten erstellen  
-2. Login und Password-Visible-Funktionalität stabilisieren  
-3. Dashboard-Navigation dynamisch anpassen  
-4. Arbeitsstunden- und Parzellenservices vorbereiten  
-5. Rollen- und Policy-Handling in Services integrieren
+- `README.md` als zentraler Einstieg
+- `Documentation/DEVELOPMENT.md` für lokalen Build und Entwicklungsablauf
+- `DEV_LOG.md` für den tatsächlichen Arbeitsfortschritt
