@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-03-21 – Archivblock 1/1: Root-Struktur nach Block 2 aufgeräumt
+
+- Root-Istzustand nach Abschluss von Block 2 geprüft und archivwürdige Bereiche eingegrenzt: sicher `_Recovery`, `_RecoveredArtifacts` und auf ausdrücklichen Wunsch auch `KGV.Tests`; zusätzlich nur klar nicht aktive Root-Hilfsdateien wie `Dateistruktur.txt`, `copilot-instructions.md` und `vergleich_android_wpf_memberdetail.png` in den Archivbereich überführt.
+- Neuen Sammelordner `_Archiv` im Root angelegt und die bestätigten Archivbereiche dorthin verschoben, damit die aktive Entwicklungsbasis im Root sichtbar auf `KGV.Core`, `KGV.Infrastructure`, `KGV.Wpf`, `KGV.Maui`, `supabase` und die nötigen Meta-Dateien reduziert ist.
+- Aktive Verweise bereinigt: `KGV.slnx` enthält nur noch die nicht archivierten Projekte; `.github/workflows/ci.yml` baut nur noch die aktive Basis ohne das archivierte Testprojekt.
+- Root- und Metadokumente auf die neue Struktur nachgezogen: `README.md`, `README_RETTUNG.md`, `ARCHITECTURE.md`, `DECISIONS.md` und `Documentation/DEVELOPMENT.md` ordnen `_Archiv` jetzt sauber ein; zusätzlich beschreibt `_Archiv/README.md` den Zweck des Sammelordners.
+- Fachlogik unverändert gelassen: keine Änderungen an Auth-, Home-, Parzellen-, Rollen- oder Release-Pfaden; der Schritt blieb rein strukturell.
+- Abschluss technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem Archivschritt weiterhin erfolgreich; `KGV.Tests` bleibt bewusst außerhalb der aktiven Lösung und des aktiven CI-Laufs archiviert.
+
 ## 2026-03-21 – Block 2/3 Abschluss: Einladung, Erstlogin und Mailänderung technisch verifiziert
 
 - Den nach dem fachlichen Abschluss abgebrochenen Stand gezielt technisch nachgeprüft: nur die tatsächlich geänderten Auth-Dateien, WPF-/MAUI-Anschlüsse und `supabase/config.toml` erneut gesichtet.

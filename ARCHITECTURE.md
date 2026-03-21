@@ -14,15 +14,15 @@ Dieses Dokument beschreibt den realen aktuellen Repository-Stand. Es ist keine h
   - aktive Windows-Desktop-Anwendung auf WPF
 - `KGV.Maui`
   - aktive mobile Anwendung auf .NET MAUI
-- `KGV.Tests`
-  - Testprojekt für die aktuelle Codebasis
 
 ## Nicht-produktive Referenzbereiche
 
-- `_Recovery`
+- `_Archiv/_Recovery`
   - PDB-Dokumentlisten, Recovery-Metadaten, Missing-Listen und weitere Wiederaufbauhilfen
-- `_RecoveredArtifacts`
+- `_Archiv/_RecoveredArtifacts`
   - wiedergefundene WPF-/Android-Artefakte
+- `_Archiv/KGV.Tests`
+  - auf Wunsch archiviertes Testprojekt; nicht Teil der aktiven Root-Basis, Lösung oder CI
 
 Diese Bereiche sind Archiv-/Referenzmaterial und nicht Teil der produktiven Laufzeitbasis.
 
@@ -59,9 +59,9 @@ Diese Bereiche sind Archiv-/Referenzmaterial und nicht Teil der produktiven Lauf
 
 ## Tests
 
-- `KGV.Tests` ist Teil der aktiven Struktur.
-- Der aktuelle Wiederaufbau-Stand bedeutet aber nicht automatisch, dass schon eine breite Testabdeckung vorhanden ist.
-- Fehlende oder noch nicht belastbare Tests sollen offen benannt werden.
+- `KGV.Tests` wurde auf Wunsch in `_Archiv/KGV.Tests` verschoben.
+- Die aktive Root-Basis und der aktuelle CI-Lauf bauen deshalb nur noch `KGV.Core`, `KGV.Infrastructure`, `KGV.Wpf` und `KGV.Maui`.
+- Fehlende oder künftig wieder aktivierte Tests sollen weiterhin offen benannt werden.
 
 ## Offene Unsicherheiten
 

@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  build-test:
+  build-active:
     runs-on: windows-latest
 
     steps:
@@ -26,8 +26,3 @@ jobs:
       - name: Build WPF
         run: dotnet build KGV.Wpf/KGV.Wpf.csproj -c Release
 
-      - name: Build Tests Project
-        run: dotnet build KGV.Tests/KGV.Tests.csproj -c Release
-
-      - name: Test
-        run: dotnet test KGV.Tests/KGV.Tests.csproj -c Release --no-build

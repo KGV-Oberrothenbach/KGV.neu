@@ -21,16 +21,16 @@ Der heutige Arbeitsstand wurde ursprünglich aus mehreren Quellen zusammengefüh
 - `KGV.Infrastructure`
 - `KGV.Wpf`
 - `KGV.Maui`
-- `KGV.Tests`
 
 Diese Projekte bilden die aktuelle aktive Entwicklungsbasis.
 
 ## Was Referenz bleibt
 
-- `_Recovery` – Listen, Metadaten und Wiederaufbauhinweise
-- `_RecoveredArtifacts` – wiedergefundene Artefakte
+- `_Archiv/_Recovery` – Listen, Metadaten und Wiederaufbauhinweise
+- `_Archiv/_RecoveredArtifacts` – wiedergefundene Artefakte
+- `_Archiv/KGV.Tests` – auf Wunsch archiviertes Testprojekt
 
-Diese Bereiche bleiben bewusst erhalten, sind aber nicht die produktive Quellbasis.
+Diese Bereiche bleiben bewusst erhalten, sind aber nicht die produktive Quellbasis im Root.
 
 ## Weiterhin relevante Recovery-Fakten
 
@@ -43,5 +43,5 @@ Diese Bereiche bleiben bewusst erhalten, sind aber nicht die produktive Quellbas
 Diese Datei dient nur noch dazu,
 
 - den Recovery-Ursprung nachvollziehbar zu halten,
-- die Archivbereiche im Repo einzuordnen,
+- die Archivbereiche unter `_Archiv` im Repo einzuordnen,
 - und Missverständnisse zwischen aktiver Basis und Recovery-Referenzen zu vermeiden.

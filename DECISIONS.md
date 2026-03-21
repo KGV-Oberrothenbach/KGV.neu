@@ -29,20 +29,28 @@ Die aktive Arbeitsbasis wird ausdrücklich als Mehrprojektstruktur geführt:
 - `KGV.Infrastructure`
 - `KGV.Wpf`
 - `KGV.Maui`
-- `KGV.Tests`
 
 Grund:
-- entspricht dem realen Stand des Repositories
-- trennt fachliche Verträge, Infrastruktur, Desktop, mobil und Tests sauberer
+- entspricht dem realen aktiven Stand des Repositories nach dem Archivschritt
+- trennt fachliche Verträge, Infrastruktur, Desktop und mobil klar von archivierten Alt-/Hilfsbereichen
 
 ## Recovery bleibt Referenz, nicht Produktbasis
 
-`_Recovery` und `_RecoveredArtifacts` bleiben im Repository, werden aber dokumentarisch als Archiv-/Referenzbereiche behandelt.
+`_Archiv/_Recovery` und `_Archiv/_RecoveredArtifacts` bleiben im Repository, werden aber dokumentarisch als Archiv-/Referenzbereiche behandelt.
 
 Gründe:
 - Wiederaufbau ist noch nicht in allen Bereichen abgeschlossen
 - Recovery-Material ist weiterhin nützlich
 - aktive Quellbasis und Referenzmaterial müssen klar getrennt sein
+
+## Tests archiviert statt aktiv mitgeführt
+
+`KGV.Tests` ist auf Wunsch nicht mehr Teil der aktiven Root-Basis, sondern nach `_Archiv/KGV.Tests` verschoben.
+
+Grund:
+- der aktuelle Fokus liegt auf der aktiven Entwicklungsbasis aus `KGV.Core`, `KGV.Infrastructure`, `KGV.Wpf` und `KGV.Maui`
+- das Testprojekt soll leicht separat auslagerbar bleiben
+- Lösung und CI sollen nur noch die nicht archivierte Basis abbilden
 
 ## Zentrale Einstiegspunkte
 
