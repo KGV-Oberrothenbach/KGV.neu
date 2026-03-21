@@ -227,7 +227,11 @@
 
                         <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="5">
                             <TextBlock Text="E-Mail"/>
-                            <TextBox Text="{Binding SelectedMember.Email, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox Text="{Binding SelectedMember.Email, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True"/>
+                            <TextBlock Text="{Binding ChangeEmailHint}" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="Gray"/>
+                            <Button Content="Mailadresse ändern" Margin="0,8,0,0" Width="180"
+                                    Command="{Binding ChangeEmailCommand}"
+                                    Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVisibility}}"/>
                         </StackPanel>
                     </Grid>
                 </GroupBox>

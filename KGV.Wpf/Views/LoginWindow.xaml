@@ -30,7 +30,7 @@
                             Click="TogglePasswordVisibility_Click"/>
                 </Grid>
 
-                <Button Content="Erstlogin / OTP anfordern"
+                <Button Content="Einladung / Erstlogin-Code anfordern"
                         Height="30"
                         Margin="0,0,0,8"
                         Command="{Binding RequestOtpCommand}" />

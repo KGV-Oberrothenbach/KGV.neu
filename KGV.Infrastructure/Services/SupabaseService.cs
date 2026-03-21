@@ -93,7 +93,7 @@ namespace KGV.Infrastructure.Services
                     .Where(x => x.Id == dto.Id)
                     .Set(x => x.Vorname, CleanRequiredText(dto.Vorname))
                     .Set(x => x.Name, CleanRequiredText(dto.Nachname))
-                    .Set(x => x.Email, CleanOptionalText(dto.Email))
+                    .Set(x => x.Email, existing.Email)
                     .Set(x => x.Role, string.IsNullOrWhiteSpace(dto.Role) ? existing.Role : dto.Role.Trim())
                     .Set(x => x.Geburtsdatum, NormalizeDate(dto.Geburtsdatum))
                     .Set(x => x.Adresse, CleanOptionalText(dto.Strasse))

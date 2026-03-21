@@ -13,8 +13,8 @@ namespace KGV.ViewModels
         private bool _isBusy;
 
         public string Title => "Passwort zurücksetzen";
-        public string Description => "Startet den vorhandenen Supabase-Reset-Mailpfad für die ausgewählte E-Mail-Adresse.";
-        public string RecoveryHint => "Der Versand nutzt den bereits vorhandenen Supabase-Reset-Flow. Link- oder Browser-Folgeschritte werden in diesem Block nicht neu erfunden.";
+        public string Description => "Startet den produktiven OTP-basierten Passwort-vergessen-Flow für die ausgewählte E-Mail-Adresse.";
+        public string RecoveryHint => "Der Versand nutzt denselben Recovery-/OTP-Hauptweg wie Erstlogin und Passwort-Neusetzen. Die eigentliche Codeeingabe erfolgt danach wieder im Login.";
 
         public string Email
         {
@@ -80,7 +80,7 @@ namespace KGV.ViewModels
             {
                 var success = await _authService.SendPasswordResetEmailAsync(Email.Trim());
                 StatusMessage = success
-                    ? "Passwort-Reset-Mail wurde angestoßen. Die weitere Abwicklung bleibt beim bestehenden Supabase-Reset-Flow."
+                    ? "OTP-Code für Passwort-vergessen wurde versendet. Bitte danach im Login den Code prüfen und ein neues Passwort setzen."
                     : "Passwort-Reset-Mail konnte nicht angestoßen werden.";
             }
             catch (Exception ex)

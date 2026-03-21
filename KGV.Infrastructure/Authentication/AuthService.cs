@@ -20,6 +20,7 @@ namespace KGV.Infrastructure.Authentication
         private readonly ILogger<AuthService>? _logger;
         private global::Supabase.Client? _client;
         private string? _verifiedOtpEmail;
+        private string? _pendingEmailChangeTarget;
 
         public AuthService(ISupabaseClientFactory clientFactory, ILogger<AuthService>? logger = null)
         {
@@ -53,49 +54,11 @@ namespace KGV.Infrastructure.Authentication
 
             try
             {
-                var client = await GetClientAsync();
-                var authClient = client.Auth;
-                var emailOtpType = authClient.GetType().Assembly
-                    .GetTypes()
-                    .FirstOrDefault(t => t.Name == "EmailOtpType" && t.IsEnum);
-
-                if (emailOtpType == null)
-                {
-                    _logger?.LogError("VerifyOtpAsync failed: EmailOtpType enum not found.");
+                var ok = await VerifyOtpInternalAsync(email.Trim(), code.Trim(), "Recovery");
+                if (!ok)
                     return false;
-                }
-
-                var recoveryOtpType = Enum.Parse(emailOtpType, "Recovery", ignoreCase: true);
-                var verifyOtpMethod = authClient.GetType()
-                    .GetMethods(BindingFlags.Instance | BindingFlags.Public)
-                    .FirstOrDefault(m =>
-                    {
-                        var parameters = m.GetParameters();
-                        return m.Name == "VerifyOTP"
-                               && parameters.Length == 3
-                               && parameters[0].ParameterType == typeof(string)
-                               && parameters[1].ParameterType == typeof(string)
-                               && parameters[2].ParameterType == emailOtpType;
-                    });
-
-                if (verifyOtpMethod == null)
-                {
-                    _logger?.LogError("VerifyOtpAsync failed: VerifyOTP(email, code, EmailOtpType) not found.");
-                    return false;
-                }
-
-                var result = verifyOtpMethod.Invoke(authClient, new[] { email.Trim(), code.Trim(), recoveryOtpType });
-                var session = await AwaitMethodResultAsync(result);
-                var currentUserId = ExtractUserId(session) ?? authClient.CurrentUser?.Id;
-
-                if (string.IsNullOrWhiteSpace(currentUserId))
-                {
-                    _logger?.LogWarning("VerifyOtpAsync returned no authenticated user for {EmailMasked}", MaskEmail(email));
-                    return false;
-                }
 
                 _verifiedOtpEmail = email.Trim();
-                CurrentUserId = currentUserId;
                 IsVorstand = false;
                 IsAdmin = false;
                 return true;
@@ -272,6 +235,7 @@ namespace KGV.Infrastructure.Authentication
                 var members = membersResponse?.Models?.ToList() ?? new List<MitgliedRecord>();
 
                 var result = new Dictionary<Guid, AppUserDTO>();
+                var orphanMembers = new List<AppUserDTO>();
 
                 foreach (var appUser in appUsers)
                 {
@@ -279,16 +243,23 @@ namespace KGV.Infrastructure.Authentication
                     result[appUser.UserId] = CreateAppUserDto(appUser, member);
                 }
 
-                foreach (var member in members.Where(x => x.AuthUserId.HasValue))
+                foreach (var member in members)
                 {
-                    var authUserId = member.AuthUserId!.Value;
-                    if (result.ContainsKey(authUserId))
-                        continue;
+                    if (member.AuthUserId.HasValue)
+                    {
+                        var authUserId = member.AuthUserId.Value;
+                        if (result.ContainsKey(authUserId))
+                            continue;
 
-                    result[authUserId] = CreateAppUserDto(appUser: null, member);
+                        result[authUserId] = CreateAppUserDto(appUser: null, member);
+                        continue;
+                    }
+
+                    orphanMembers.Add(CreateAppUserDto(appUser: null, member));
                 }
 
                 return result.Values
+                    .Concat(orphanMembers)
                     .OrderBy(x => x.DisplayName, StringComparer.CurrentCultureIgnoreCase)
                     .ThenBy(x => x.Email, StringComparer.CurrentCultureIgnoreCase)
                     .ToList();
@@ -300,31 +271,123 @@ namespace KGV.Infrastructure.Authentication
             }
         }
 
-        public async Task<bool> ChangeEmailAsync(string newEmail)
+        public async Task<InviteUserAccountResult> InviteUserAsync(AppUserDTO user)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            var email = user.Email?.Trim();
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return new InviteUserAccountResult
+                {
+                    Success = false,
+                    Message = "Für die Einladung fehlt eine E-Mail-Adresse."
+                };
+            }
+
+            try
+            {
+                var authUserId = user.AuthUserId ?? await EnsureAuthUserForInviteAsync(email);
+                if (!authUserId.HasValue)
+                {
+                    return new InviteUserAccountResult
+                    {
+                        Success = false,
+                        Email = email,
+                        Message = "Auth-Konto konnte für die Einladung nicht vorbereitet werden."
+                    };
+                }
+
+                await EnsureMemberInviteMappingAsync(authUserId.Value, user.MitgliedId, email);
+                await EnsureAppUserRecordAsync(authUserId.Value, user.MitgliedId, NormalizeRole(user.Role));
+
+                var requested = await RequestRecoveryOtpAsync(email, "invite");
+                return new InviteUserAccountResult
+                {
+                    Success = requested,
+                    AuthUserId = authUserId,
+                    Email = email,
+                    Message = requested
+                        ? "Einladungs-/Erstlogin-Code wurde versendet. Der Einstieg erfolgt jetzt über E-Mail + OTP + neues Passwort."
+                        : "Einladungs-/Erstlogin-Code konnte nicht versendet werden."
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "InviteUserAsync failed for {EmailMasked}", MaskEmail(email));
+                return new InviteUserAccountResult
+                {
+                    Success = false,
+                    Email = email,
+                    Message = "Einladung fehlgeschlagen. Details stehen im Log."
+                };
+            }
+        }
+
+        public async Task<bool> RequestEmailChangeAsync(string newEmail)
         {
             if (string.IsNullOrWhiteSpace(newEmail))
                 return false;
 
             try
             {
+                var emailTrim = newEmail.Trim();
                 var client = await GetClientAsync();
                 await client.Auth.Update(new GotrueUserAttributes
                 {
-                    Email = newEmail.Trim()
+                    Email = emailTrim
                 });
 
+                _pendingEmailChangeTarget = emailTrim;
+                _logger?.LogInformation("Email change OTP requested for {EmailMasked}", MaskEmail(emailTrim));
                 return true;
             }
             catch (GotrueException ex)
             {
-                _logger?.LogError(ex, "ChangeEmailAsync failed for {EmailMasked}: {Message}", MaskEmail(newEmail), ex.Message);
+                _logger?.LogError(ex, "RequestEmailChangeAsync failed for {EmailMasked}: {Message}", MaskEmail(newEmail), ex.Message);
                 return false;
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "ChangeEmailAsync failed for {EmailMasked}", MaskEmail(newEmail));
+                _logger?.LogError(ex, "RequestEmailChangeAsync failed for {EmailMasked}", MaskEmail(newEmail));
                 return false;
             }
+        }
+
+        public async Task<bool> VerifyEmailChangeOtpAsync(string newEmail, string code)
+        {
+            if (string.IsNullOrWhiteSpace(newEmail) || string.IsNullOrWhiteSpace(code))
+                return false;
+
+            var emailTrim = newEmail.Trim();
+            if (!string.Equals(_pendingEmailChangeTarget, emailTrim, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            try
+            {
+                var ok = await VerifyOtpInternalAsync(emailTrim, code.Trim(), "EmailChange");
+                if (!ok)
+                    return false;
+
+                _pendingEmailChangeTarget = null;
+                return true;
+            }
+            catch (GotrueException ex)
+            {
+                _logger?.LogError(ex, "VerifyEmailChangeOtpAsync failed for {EmailMasked}: {Message}", MaskEmail(newEmail), ex.Message);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "VerifyEmailChangeOtpAsync failed for {EmailMasked}", MaskEmail(newEmail));
+                return false;
+            }
+        }
+
+        public async Task<bool> ChangeEmailAsync(string newEmail)
+        {
+            return await RequestEmailChangeAsync(newEmail);
         }
 
         public async Task<bool> SendPasswordResetEmailAsync(string email)
@@ -407,6 +470,53 @@ namespace KGV.Infrastructure.Authentication
             return "***";
         }
 
+        private async Task<bool> VerifyOtpInternalAsync(string email, string code, string otpTypeName)
+        {
+            var client = await GetClientAsync();
+            var authClient = client.Auth;
+            var emailOtpType = authClient.GetType().Assembly
+                .GetTypes()
+                .FirstOrDefault(t => t.Name == "EmailOtpType" && t.IsEnum);
+
+            if (emailOtpType == null)
+            {
+                _logger?.LogError("VerifyOtpInternalAsync failed: EmailOtpType enum not found.");
+                return false;
+            }
+
+            var otpType = Enum.Parse(emailOtpType, otpTypeName, ignoreCase: true);
+            var verifyOtpMethod = authClient.GetType()
+                .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .FirstOrDefault(m =>
+                {
+                    var parameters = m.GetParameters();
+                    return m.Name == "VerifyOTP"
+                           && parameters.Length == 3
+                           && parameters[0].ParameterType == typeof(string)
+                           && parameters[1].ParameterType == typeof(string)
+                           && parameters[2].ParameterType == emailOtpType;
+                });
+
+            if (verifyOtpMethod == null)
+            {
+                _logger?.LogError("VerifyOtpInternalAsync failed: VerifyOTP(email, code, EmailOtpType) not found.");
+                return false;
+            }
+
+            var result = verifyOtpMethod.Invoke(authClient, new[] { email, code, otpType });
+            var session = await AwaitMethodResultAsync(result);
+            var currentUserId = ExtractUserId(session) ?? authClient.CurrentUser?.Id ?? CurrentUserId;
+
+            if (string.IsNullOrWhiteSpace(currentUserId))
+            {
+                _logger?.LogWarning("VerifyOtpInternalAsync returned no authenticated user for {EmailMasked}", MaskEmail(email));
+                return false;
+            }
+
+            CurrentUserId = currentUserId;
+            return true;
+        }
+
         private async Task<bool> RequestRecoveryOtpAsync(string email, string flowKind)
         {
             ResetAuthState();
@@ -417,9 +527,118 @@ namespace KGV.Infrastructure.Authentication
             return true;
         }
 
+        private async Task<Guid?> EnsureAuthUserForInviteAsync(string email)
+        {
+            var isolatedClient = new global::Supabase.Client(_clientFactory.Url, _clientFactory.Key);
+            await isolatedClient.InitializeAsync();
+
+            try
+            {
+                var signUpMethod = isolatedClient.Auth.GetType()
+                    .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                    .FirstOrDefault(m =>
+                    {
+                        if (m.Name != "SignUp")
+                            return false;
+
+                        var parameters = m.GetParameters();
+                        return parameters.Length >= 2
+                               && parameters[0].ParameterType == typeof(string)
+                               && parameters[1].ParameterType == typeof(string);
+                    });
+
+                if (signUpMethod == null)
+                {
+                    _logger?.LogError("EnsureAuthUserForInviteAsync failed: SignUp(email, password, ...) not found.");
+                    return null;
+                }
+
+                var args = new object?[signUpMethod.GetParameters().Length];
+                args[0] = email;
+                args[1] = GenerateTemporaryPassword();
+                for (var i = 2; i < args.Length; i++)
+                    args[i] = null;
+
+                var signUpResult = signUpMethod.Invoke(isolatedClient.Auth, args);
+                var result = await AwaitMethodResultAsync(signUpResult);
+                var userId = ExtractUserId(result) ?? isolatedClient.Auth.CurrentUser?.Id;
+                if (!Guid.TryParse(userId, out var authUserId))
+                    return null;
+
+                return authUserId;
+            }
+            catch (GotrueException ex) when (ex.Message.Contains("already", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger?.LogWarning(ex, "EnsureAuthUserForInviteAsync detected an existing auth user for {EmailMasked} without recoverable user id.", MaskEmail(email));
+                return null;
+            }
+            finally
+            {
+                await TrySignOutAsync(isolatedClient);
+            }
+        }
+
+        private async Task EnsureMemberInviteMappingAsync(Guid authUserId, int? mitgliedId, string email)
+        {
+            if (!mitgliedId.HasValue)
+                return;
+
+            var client = await GetClientAsync();
+            await client
+                .From<MitgliedRecord>()
+                .Where(x => x.Id == mitgliedId.Value)
+                .Set(x => x.AuthUserId, authUserId)
+                .Set(x => x.Email, email)
+                .Update();
+        }
+
+        private async Task EnsureAppUserRecordAsync(Guid authUserId, int? mitgliedId, string role)
+        {
+            var client = await GetClientAsync();
+            var existing = await client
+                .From<AppUserRecord>()
+                .Where(x => x.UserId == authUserId)
+                .Get();
+
+            var record = existing?.Models?.FirstOrDefault();
+            if (record != null)
+            {
+                await client
+                    .From<AppUserRecord>()
+                    .Where(x => x.UserId == authUserId)
+                    .Set(x => x.MitgliedId, mitgliedId.HasValue ? (long?)mitgliedId.Value : null)
+                    .Set(x => x.Role, role)
+                    .Update();
+                return;
+            }
+
+            await client.From<AppUserRecord>().Insert(new AppUserRecord
+            {
+                UserId = authUserId,
+                MitgliedId = mitgliedId,
+                Role = role,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+
+        private static string GenerateTemporaryPassword()
+        {
+            return $"Tmp!{Guid.NewGuid():N}aA1";
+        }
+
+        private static string NormalizeRole(string? role)
+        {
+            if (string.IsNullOrWhiteSpace(role))
+                return "user";
+
+            return role.Trim().ToLowerInvariant();
+        }
+
         private void ResetAuthState()
         {
             _verifiedOtpEmail = null;
+            _pendingEmailChangeTarget = null;
             CurrentUserId = null;
             IsVorstand = false;
             IsAdmin = false;

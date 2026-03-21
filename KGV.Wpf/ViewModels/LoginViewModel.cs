@@ -88,7 +88,7 @@ namespace KGV.ViewModels
                 OtpCode = string.Empty;
                 NewPassword = string.Empty;
                 NewPasswordConfirm = string.Empty;
-                StatusMessage = "Code wurde versendet. Bitte OTP eingeben.";
+                StatusMessage = "Einladungs-/Erstlogin-Code wurde versendet. Bitte OTP eingeben.";
             }
             else
             {

@@ -20,6 +20,7 @@ namespace KGV.ViewModels
         private readonly IAuthService _authService;
 
         private string? _lockUserId;
+        private int? _currentUserMemberId;
 
         public MemberDTO SelectedMember { get; }
 
@@ -113,6 +114,7 @@ namespace KGV.ViewModels
         public RelayCommand<object?> ToggleEditCommand { get; }
         public RelayCommand<object?> SaveCommand { get; }
         public RelayCommand<object?> CancelCommand { get; }
+        public RelayCommand<object?> ChangeEmailCommand { get; }
         public RelayCommand<object?> NebenmitgliedCommand { get; }
         public RelayCommand<object?> CopyAddressFromHauptmitgliedCommand { get; }
 
@@ -122,6 +124,11 @@ namespace KGV.ViewModels
         public RelayCommand<object?> AssignParzelleCommand { get; }
         public RelayCommand<object?> EndBelegungCommand { get; }
         public RelayCommand<object?> OpenSelectedParzelleCommand { get; }
+
+        public bool CanChangeEmail => IsEditMode && _currentUserMemberId == SelectedMember.Id;
+        public string ChangeEmailHint => CanChangeEmail
+            ? "Mailadresse wird separat per OTP-Code geändert und nicht über das normale Stammdaten-Speichern."
+            : "Mailadresse kann nur vom aktuell angemeldeten Benutzer über den separaten OTP-Flow geändert werden.";
 
         public MemberDetailViewModel(ISupabaseService supabaseService, IAuthService authService, MemberDTO member)
         {
@@ -143,6 +150,7 @@ namespace KGV.ViewModels
             ToggleEditCommand = new RelayCommand<object?>(_ => _ = ToggleEditAsync());
             SaveCommand = new RelayCommand<object?>(_ => _ = SaveAsync(), _ => CanSave());
             CancelCommand = new RelayCommand<object?>(_ => _ = CancelAsync(), _ => CanCancel());
+            ChangeEmailCommand = new RelayCommand<object?>(_ => _ = ChangeEmailAsync(), _ => CanChangeEmail);
             AssignParzelleCommand = new RelayCommand<object?>(_ => _ = AssignParzelleAsync(), _ => CanAssignParzelle());
             EndBelegungCommand = new RelayCommand<object?>(_ => _ = EndBelegungAsync(), _ => CanEndBelegung());
             OpenSelectedParzelleCommand = new RelayCommand<object?>(_ => OpenSelectedParzelle(), _ => SelectedBelegung != null);
@@ -164,6 +172,7 @@ namespace KGV.ViewModels
 
         public async Task OnNavigatedToAsync()
         {
+            await LoadCurrentUserMemberAsync();
             await LoadMemberAsync();
             await LoadParzellenAsync();
             await RefreshNebenmitgliedAsync();
@@ -291,6 +300,21 @@ namespace KGV.ViewModels
 
             SelectedMember.Role = rec.Role ?? "";
             _originalSnapshot = SelectedMember.Clone();
+            OnPropertyChanged(nameof(ChangeEmailHint));
+        }
+
+        private async Task LoadCurrentUserMemberAsync()
+        {
+            _currentUserMemberId = null;
+
+            if (string.IsNullOrWhiteSpace(_authService.CurrentUserId))
+                return;
+
+            var currentMember = await _supabaseService.GetMitgliedByAuthUserIdAsync(_authService.CurrentUserId);
+            _currentUserMemberId = currentMember?.Id;
+            OnPropertyChanged(nameof(CanChangeEmail));
+            OnPropertyChanged(nameof(ChangeEmailHint));
+            ChangeEmailCommand.RaiseCanExecuteChanged();
         }
 
         private async Task LoadParzellenAsync()
@@ -380,6 +404,9 @@ namespace KGV.ViewModels
                 IsDirty = false;
 
                 OnPropertyChanged(nameof(ShowNebenmitgliedButton));
+                OnPropertyChanged(nameof(CanChangeEmail));
+                OnPropertyChanged(nameof(ChangeEmailHint));
+                ChangeEmailCommand.RaiseCanExecuteChanged();
                 NebenmitgliedCommand.RaiseCanExecuteChanged();
             }
             else
@@ -423,6 +450,9 @@ namespace KGV.ViewModels
 
                 IsEditMode = false;
                 InvalidateCommands();
+                OnPropertyChanged(nameof(CanChangeEmail));
+                OnPropertyChanged(nameof(ChangeEmailHint));
+                ChangeEmailCommand.RaiseCanExecuteChanged();
 
                 WeakReferenceMessenger.Default.Send(new MemberSavedMessage(SelectedMember.Clone()));
 
@@ -451,6 +481,9 @@ namespace KGV.ViewModels
                 InvalidateCommands();
 
                 OnPropertyChanged(nameof(ShowNebenmitgliedButton));
+                OnPropertyChanged(nameof(CanChangeEmail));
+                OnPropertyChanged(nameof(ChangeEmailHint));
+                ChangeEmailCommand.RaiseCanExecuteChanged();
                 NebenmitgliedCommand.RaiseCanExecuteChanged();
             }
             catch (Exception ex)
@@ -551,10 +584,23 @@ namespace KGV.ViewModels
         {
             SaveCommand.RaiseCanExecuteChanged();
             CancelCommand.RaiseCanExecuteChanged();
+            ChangeEmailCommand.RaiseCanExecuteChanged();
             AssignParzelleCommand.RaiseCanExecuteChanged();
             EndBelegungCommand.RaiseCanExecuteChanged();
             OpenSelectedParzelleCommand.RaiseCanExecuteChanged();
             NebenmitgliedCommand.RaiseCanExecuteChanged();
+        }
+
+        private async Task ChangeEmailAsync()
+        {
+            var vm = new ChangeEmailViewModel(_authService, SelectedMember.Email, CanChangeEmail);
+            var window = new ChangeEmailWindow(vm)
+            {
+                Owner = Application.Current?.MainWindow
+            };
+
+            window.ShowDialog();
+            await LoadMemberAsync();
         }
 
         private static int GetGartenNrSortKey(string? gartenNr)

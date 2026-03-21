@@ -47,7 +47,7 @@ public class LoginPage : ContentPage
         var loginButton = new Button { Text = "Anmelden" };
         var setPasswordButton = new Button { Text = "Neues Passwort setzen", IsVisible = false };
         var verifyOtpButton = new Button { Text = "Code prüfen", IsVisible = false };
-        var requestOtpButton = new Button { Text = "Erstlogin / OTP anfordern" };
+        var requestOtpButton = new Button { Text = "Einladung / Erstlogin-Code anfordern" };
         var forgotPasswordButton = new Button { Text = "Passwort vergessen" };
 
         void ShowNormalLogin()
@@ -135,7 +135,7 @@ public class LoginPage : ContentPage
             {
                 otpEntry.Text = string.Empty;
                 ShowOtpVerification();
-                _statusLabel.Text = "Code wurde versendet. Bitte OTP eingeben.";
+                _statusLabel.Text = "Einladungs-/Erstlogin-Code wurde versendet. Bitte OTP eingeben.";
             }
             else
             {
@@ -190,7 +190,7 @@ public class LoginPage : ContentPage
 
             var ok = await _authService.SendPasswordResetEmailAsync(email);
             _statusLabel.Text = ok
-                ? "Passwort-Reset wurde versendet."
+                ? "OTP-Code für Passwort-vergessen wurde versendet. Bitte danach im Login den Code prüfen und ein neues Passwort setzen."
                 : "Passwort-Reset konnte nicht versendet werden.";
         };
 

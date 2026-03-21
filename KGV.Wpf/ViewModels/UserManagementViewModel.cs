@@ -17,8 +17,8 @@ namespace KGV.ViewModels
         private bool _isBusy;
 
         public string Title => "Benutzerverwaltung";
-        public string Description => "Lädt die aktuell belastbar ableitbaren App-User-/Mitgliedszuordnungen und bietet die ersten Auth-Admin-Aktionen an.";
-        public string AdminHint => "Passwort-Reset kann für die ausgewählte E-Mail angestoßen werden. Eine E-Mail-Änderung ist im aktuellen Wiederaufbau nur für den aktuell angemeldeten Benutzer belastbar anschließbar.";
+        public string Description => "Lädt App-User-/Mitgliedszuordnungen und bietet die produktiven Auth-Admin-Aktionen für Einladung, Erstlogin und Passwort-Reset an.";
+        public string AdminHint => "Einladungen und Erstlogin laufen über E-Mail + OTP + Passwort-Neusetzen. Eine E-Mail-Änderung bleibt ein separater codebasierter Flow und ist weiterhin nur für das aktuell angemeldete Konto belastbar anschließbar.";
 
         public ObservableCollection<AppUserDTO> Users { get; } = new();
 
@@ -31,6 +31,7 @@ namespace KGV.ViewModels
                     return;
 
                 OnPropertyChanged(nameof(CanChangeSelectedEmail));
+                InviteCommand.NotifyCanExecuteChanged();
                 ChangeEmailCommand.NotifyCanExecuteChanged();
                 ResetPasswordCommand.NotifyCanExecuteChanged();
             }
@@ -51,6 +52,7 @@ namespace KGV.ViewModels
                     return;
 
                 RefreshCommand.NotifyCanExecuteChanged();
+                InviteCommand.NotifyCanExecuteChanged();
                 ChangeEmailCommand.NotifyCanExecuteChanged();
                 ResetPasswordCommand.NotifyCanExecuteChanged();
             }
@@ -60,6 +62,7 @@ namespace KGV.ViewModels
             SelectedUser?.AuthUserId?.ToString().Equals(_authService.CurrentUserId, StringComparison.OrdinalIgnoreCase) == true;
 
         public IAsyncRelayCommand RefreshCommand { get; }
+        public IAsyncRelayCommand InviteCommand { get; }
         public IAsyncRelayCommand ChangeEmailCommand { get; }
         public IAsyncRelayCommand ResetPasswordCommand { get; }
 
@@ -68,6 +71,7 @@ namespace KGV.ViewModels
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
 
             RefreshCommand = new AsyncRelayCommand(LoadAsync, () => !IsBusy);
+            InviteCommand = new AsyncRelayCommand(SendInviteAsync, () => !IsBusy && SelectedUser != null && !string.IsNullOrWhiteSpace(SelectedUser.Email));
             ChangeEmailCommand = new AsyncRelayCommand(OpenChangeEmailAsync, () => !IsBusy && SelectedUser != null && CanChangeSelectedEmail);
             ResetPasswordCommand = new AsyncRelayCommand(OpenResetPasswordAsync, () => !IsBusy && SelectedUser != null && !string.IsNullOrWhiteSpace(SelectedUser.Email));
         }
@@ -126,6 +130,30 @@ namespace KGV.ViewModels
 
             window.ShowDialog();
             await LoadAsync();
+        }
+
+        private async Task SendInviteAsync()
+        {
+            if (SelectedUser == null)
+                return;
+
+            IsBusy = true;
+            StatusMessage = string.Empty;
+
+            try
+            {
+                var result = await _authService.InviteUserAsync(SelectedUser);
+                StatusMessage = result.Message ?? (result.Success ? "Einladung angestoßen." : "Einladung fehlgeschlagen.");
+                await LoadAsync();
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Einladung fehlgeschlagen: {ex.Message}";
+            }
+            finally
+            {
+                IsBusy = false;
+            }
         }
 
         private async Task OpenResetPasswordAsync()

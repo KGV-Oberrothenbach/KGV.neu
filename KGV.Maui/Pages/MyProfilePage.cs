@@ -11,6 +11,7 @@ public sealed class MyProfilePage : ContentPage
     private static readonly Regex PlzRegex = new("^\\d{5}$", RegexOptions.Compiled);
 
     private readonly ISupabaseService _supabaseService;
+    private readonly IAuthService _authService;
     private readonly UserContextState _state;
 
     private MitgliedRecord? _member;
@@ -26,12 +27,14 @@ public sealed class MyProfilePage : ContentPage
     private readonly Entry _ortEntry;
 
     private readonly Label _statusLabel;
+    private readonly Button _changeEmailButton;
     private readonly Button _saveButton;
     private readonly Button _checkAddressButton;
 
-    public MyProfilePage(ISupabaseService supabaseService, UserContextState state)
+    public MyProfilePage(ISupabaseService supabaseService, IAuthService authService, UserContextState state)
     {
         _supabaseService = supabaseService;
+        _authService = authService;
         _state = state;
 
         Title = "Meine Stammdaten";
@@ -47,6 +50,9 @@ public sealed class MyProfilePage : ContentPage
         _ortEntry = new Entry { Placeholder = "Ort (Pflicht)" };
 
         _statusLabel = new Label { TextColor = Colors.Red };
+
+        _changeEmailButton = new Button { Text = "Mailadresse ändern" };
+        _changeEmailButton.Clicked += OnChangeEmailClicked;
 
         _checkAddressButton = new Button { Text = "Adresse prüfen" };
         _checkAddressButton.Clicked += OnCheckAddressClicked;
@@ -119,7 +125,7 @@ public sealed class MyProfilePage : ContentPage
         var actions = new HorizontalStackLayout
         {
             Spacing = 12,
-            Children = { _checkAddressButton, _saveButton }
+            Children = { _checkAddressButton, _changeEmailButton, _saveButton }
         };
 
         Content = new ScrollView
@@ -139,6 +145,58 @@ public sealed class MyProfilePage : ContentPage
         };
 
         Appearing += OnAppearing;
+    }
+
+    private async void OnChangeEmailClicked(object? sender, EventArgs e)
+    {
+        var currentEmail = _emailLabel.Text?.Trim() ?? string.Empty;
+        var newEmail = await DisplayPromptAsync("Mailadresse ändern", "Neue Mailadresse eingeben", initialValue: currentEmail, keyboard: Keyboard.Email);
+        if (string.IsNullOrWhiteSpace(newEmail))
+            return;
+
+        newEmail = newEmail.Trim();
+        if (string.Equals(newEmail, currentEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            await DisplayAlert("Hinweis", "Bitte eine andere Mailadresse eingeben.", "OK");
+            return;
+        }
+
+        SetBusy(true);
+        try
+        {
+            var requested = await _authService.RequestEmailChangeAsync(newEmail);
+            if (!requested)
+            {
+                await DisplayAlert("Fehler", "OTP-Code für die Mailadressänderung konnte nicht angefordert werden.", "OK");
+                return;
+            }
+
+            var code = await DisplayPromptAsync("OTP-Code", "Code aus der neuen Mailadresse eingeben", keyboard: Keyboard.Numeric);
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                await DisplayAlert("Hinweis", "Die Mailadressänderung bleibt unbestätigt, bis der OTP-Code eingegeben wurde.", "OK");
+                return;
+            }
+
+            var verified = await _authService.VerifyEmailChangeOtpAsync(newEmail, code.Trim());
+            if (!verified)
+            {
+                await DisplayAlert("Fehler", "OTP-Code konnte nicht bestätigt werden.", "OK");
+                return;
+            }
+
+            await DisplayAlert("OK", "Mailadresse erfolgreich geändert.", "OK");
+            _loaded = false;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Fehler", ex.Message, "OK");
+        }
+        finally
+        {
+            SetBusy(false);
+        }
     }
 
     private async void OnAppearing(object? sender, EventArgs e)
@@ -276,5 +334,6 @@ public sealed class MyProfilePage : ContentPage
     {
         _saveButton.IsEnabled = !busy;
         _checkAddressButton.IsEnabled = !busy;
+        _changeEmailButton.IsEnabled = !busy;
     }
 }

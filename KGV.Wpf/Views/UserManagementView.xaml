@@ -19,6 +19,7 @@
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
             <Button Content="Aktualisieren" Command="{Binding RefreshCommand}" Margin="0,0,8,0" Style="{StaticResource PrimaryButton}"/>
+            <Button Content="Einladung / Erstlogin-Code senden" Command="{Binding InviteCommand}" Margin="0,0,8,0"/>
             <Button Content="E-Mail ändern" Command="{Binding ChangeEmailCommand}" Margin="0,0,8,0"/>
             <Button Content="Passwort-Reset senden" Command="{Binding ResetPasswordCommand}"/>
         </StackPanel>

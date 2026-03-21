@@ -2,6 +2,14 @@
 
 ---
 
+## 2026-03-21 – Block 2/3 Abschluss: Einladung, Erstlogin und Mailänderung technisch verifiziert
+
+- Den nach dem fachlichen Abschluss abgebrochenen Stand gezielt technisch nachgeprüft: nur die tatsächlich geänderten Auth-Dateien, WPF-/MAUI-Anschlüsse und `supabase/config.toml` erneut gesichtet.
+- Echte Restfehler bereinigt statt neu umzubauen: die syntaktisch beschädigte `KGV.Maui\Pages\MyProfilePage.cs` sauber geschlossen und die fehlende WPF-Command-Methode für `Mailadresse ändern` in `MemberDetailViewModel` ergänzt.
+- Auth-Abschlusslogik inhaltlich bestätigt: Admin-Einladung/Erstlogin, OTP-basierter Passwortwechsel, Passwort-vergessen entlang des OTP-Hauptwegs, separater OTP-Mailänderungsflow sowie gesperrtes E-Mail-Feld in den WPF-Stammdaten bleiben im korrigierten Stand konsistent.
+- Technische Verifikation erfolgreich ausgeführt: `KGV.Wpf` baut im Abschlusslauf erfolgreich; anschließend baut auch `KGV.Maui` erfolgreich. Sichtbar bleiben nur die bereits bekannten, nicht blockierenden Warnungen aus der rekonstruierten Basis.
+- Git-Abschluss für diesen Teilblock vorbereitet: nur die tatsächlich zugehörigen Auth-/UI-/Konfigurationsdateien werden committed; blockfremde untracked Artefakte bleiben weiterhin bewusst außen vor.
+
 ## 2026-03-21 – Block 2/3: OTP-/Auth-Unterbau auf Client-Flow konsolidiert
 
 - Istzustand des Auth-/OTP-Unterbaus geprüft: `IAuthService`, `AuthService`, `SupabaseClientFactory`, WPF-/MAUI-Konfigurationszugriffe und aktive Recovery-/OTP-Pfade gegen den bereits bereinigten Client-Flow abgeglichen.
