@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using GotrueUserAttributes = Supabase.Gotrue.UserAttributes;
 
@@ -18,11 +19,137 @@ namespace KGV.Infrastructure.Authentication
         private readonly ISupabaseClientFactory _clientFactory;
         private readonly ILogger<AuthService>? _logger;
         private global::Supabase.Client? _client;
+        private string? _verifiedOtpEmail;
 
         public AuthService(ISupabaseClientFactory clientFactory, ILogger<AuthService>? logger = null)
         {
             _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
             _logger = logger;
+        }
+
+        public async Task<bool> RequestOtpAsync(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return false;
+
+            try
+            {
+                _verifiedOtpEmail = null;
+                return await SendPasswordResetEmailAsync(email.Trim());
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "RequestOtpAsync failed for {EmailMasked}", MaskEmail(email));
+                return false;
+            }
+        }
+
+        public async Task<bool> VerifyOtpAsync(string email, string code)
+        {
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(code))
+            {
+                _logger?.LogInformation("VerifyOtpAsync: missing email or code");
+                return false;
+            }
+
+            try
+            {
+                var client = await GetClientAsync();
+                var authClient = client.Auth;
+                var emailOtpType = authClient.GetType().Assembly
+                    .GetTypes()
+                    .FirstOrDefault(t => t.Name == "EmailOtpType" && t.IsEnum);
+
+                if (emailOtpType == null)
+                {
+                    _logger?.LogError("VerifyOtpAsync failed: EmailOtpType enum not found.");
+                    return false;
+                }
+
+                var recoveryOtpType = Enum.Parse(emailOtpType, "Recovery", ignoreCase: true);
+                var verifyOtpMethod = authClient.GetType()
+                    .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                    .FirstOrDefault(m =>
+                    {
+                        var parameters = m.GetParameters();
+                        return m.Name == "VerifyOTP"
+                               && parameters.Length == 3
+                               && parameters[0].ParameterType == typeof(string)
+                               && parameters[1].ParameterType == typeof(string)
+                               && parameters[2].ParameterType == emailOtpType;
+                    });
+
+                if (verifyOtpMethod == null)
+                {
+                    _logger?.LogError("VerifyOtpAsync failed: VerifyOTP(email, code, EmailOtpType) not found.");
+                    return false;
+                }
+
+                var result = verifyOtpMethod.Invoke(authClient, new[] { email.Trim(), code.Trim(), recoveryOtpType });
+                var session = await AwaitMethodResultAsync(result);
+                var currentUserId = ExtractUserId(session) ?? authClient.CurrentUser?.Id;
+
+                if (string.IsNullOrWhiteSpace(currentUserId))
+                {
+                    _logger?.LogWarning("VerifyOtpAsync returned no authenticated user for {EmailMasked}", MaskEmail(email));
+                    return false;
+                }
+
+                _verifiedOtpEmail = email.Trim();
+                CurrentUserId = currentUserId;
+                IsVorstand = false;
+                IsAdmin = false;
+                return true;
+            }
+            catch (GotrueException ex)
+            {
+                _logger?.LogError(ex, "VerifyOtpAsync failed for {EmailMasked}: {Message}", MaskEmail(email), ex.Message);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "VerifyOtpAsync failed for {EmailMasked}", MaskEmail(email));
+                return false;
+            }
+        }
+
+        public async Task<bool> SetPasswordWithOtpAsync(string email, string code, string newPassword)
+        {
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(newPassword))
+                return false;
+
+            if (newPassword.Length < 8)
+                return false;
+
+            var emailTrim = email.Trim();
+            if (!string.Equals(_verifiedOtpEmail, emailTrim, StringComparison.OrdinalIgnoreCase) && !await VerifyOtpAsync(emailTrim, code))
+                return false;
+
+            try
+            {
+                var client = await GetClientAsync();
+                await client.Auth.Update(new GotrueUserAttributes
+                {
+                    Password = newPassword
+                });
+
+                _verifiedOtpEmail = null;
+                CurrentUserId = null;
+                IsVorstand = false;
+                IsAdmin = false;
+                _logger?.LogInformation("SetPasswordWithOtpAsync succeeded for {EmailMasked}", MaskEmail(email));
+                return true;
+            }
+            catch (GotrueException ex)
+            {
+                _logger?.LogError(ex, "SetPasswordWithOtpAsync failed for {EmailMasked}: {Message}", MaskEmail(email), ex.Message);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "SetPasswordWithOtpAsync failed for {EmailMasked}", MaskEmail(email));
+                return false;
+            }
         }
 
         public bool IsVorstand { get; private set; } = false;
@@ -282,6 +409,29 @@ namespace KGV.Infrastructure.Authentication
                 return $"{email.Substring(0, 1)}***{email.Substring(email.Length - 1)}";
 
             return "***";
+        }
+
+        private static async Task<object?> AwaitMethodResultAsync(object? invocationResult)
+        {
+            if (invocationResult is not Task task)
+                return invocationResult;
+
+            await task.ConfigureAwait(false);
+
+            var taskType = task.GetType();
+            return taskType.IsGenericType
+                ? taskType.GetProperty("Result")?.GetValue(task)
+                : null;
+        }
+
+        private static string? ExtractUserId(object? session)
+        {
+            if (session == null)
+                return null;
+
+            var sessionType = session.GetType();
+            var user = sessionType.GetProperty("User")?.GetValue(session);
+            return user?.GetType().GetProperty("Id")?.GetValue(user) as string;
         }
     }
 }

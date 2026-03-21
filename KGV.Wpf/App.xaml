@@ -12,6 +12,8 @@
                 <ResourceDictionary Source="Themes/Controls.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+
             <!-- ViewModel-first Navigation -->
             <DataTemplate DataType="{x:Type vm:MemberSearchViewModel}">
                 <views:MemberSearchView />

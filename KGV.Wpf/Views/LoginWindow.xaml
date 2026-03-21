@@ -3,45 +3,83 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:KGV.Helpers"
         xmlns:vm="clr-namespace:KGV.ViewModels"
-        Title="Login" Height="250" Width="400"
+        Title="Login" Width="420" SizeToContent="Height" MinHeight="360"
         KeyDown="Window_KeyDown">
 
     <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock Text="Anmeldung" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,12" />
 
-        <!-- Email -->
-        <TextBox Grid.Row="0" Margin="0,0,0,10"
-                 local:WatermarkHelper.Watermark="E-Mail"
-                 Text="{Binding Email, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <TextBox Margin="0,0,0,10"
+                     local:WatermarkHelper.Watermark="E-Mail"
+                     Text="{Binding Email, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-        <!-- PasswordBox + TextBox Overlay -->
-        <Grid Grid.Row="1" Margin="0,0,0,10">
-            <PasswordBox x:Name="PasswordBox"
-                         PasswordChanged="PasswordBox_PasswordChanged"
-                         Width="Auto" Height="30" />
-            <TextBox x:Name="PasswordTextBox"
-                     TextChanged="PasswordTextBox_TextChanged"
-                     Visibility="Collapsed"
-                     Width="Auto" Height="30" />
-            <!-- Toggle Auge -->
-            <Button Content="👁"
-                    Width="30" Height="30"
-                    HorizontalAlignment="Right"
-                    Style="{StaticResource IconButton}"
-                    Click="TogglePasswordVisibility_Click"/>
-        </Grid>
+            <StackPanel Visibility="{Binding IsNormalLoginVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <Grid Margin="0,0,0,10">
+                    <PasswordBox x:Name="PasswordBox"
+                                 PasswordChanged="PasswordBox_PasswordChanged"
+                                 Width="Auto" Height="30" />
+                    <TextBox x:Name="PasswordTextBox"
+                             TextChanged="PasswordTextBox_TextChanged"
+                             Visibility="Collapsed"
+                             Width="Auto" Height="30" />
+                    <Button Content="👁"
+                            Width="30" Height="30"
+                            HorizontalAlignment="Right"
+                            Style="{StaticResource IconButton}"
+                            Click="TogglePasswordVisibility_Click"/>
+                </Grid>
 
-        <!-- Login Button -->
-        <Button Grid.Row="2" Content="Login" Height="30"
-                Style="{StaticResource PrimaryButton}"
-                Command="{Binding LoginCommand}" />
+                <Button Content="Erstlogin / OTP anfordern"
+                        Height="30"
+                        Margin="0,0,0,8"
+                        Command="{Binding RequestOtpCommand}" />
 
-        <!-- Optional Status / Fehlermeldung -->
-        <TextBlock Grid.Row="3" Text="{Binding StatusMessage}" Foreground="Red"/>
+                <Button Content="Passwort vergessen"
+                        Height="30"
+                        Margin="0,0,0,8"
+                        Click="OpenResetPassword_Click" />
+
+                <Button Content="Login"
+                        Height="30"
+                        Style="{StaticResource PrimaryButton}"
+                        Command="{Binding LoginCommand}" />
+            </StackPanel>
+
+            <StackPanel Visibility="{Binding IsOtpEntryVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="OTP-Code" Margin="0,0,0,6"/>
+                <TextBox Text="{Binding OtpCode, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" />
+                <Button Content="Code prüfen"
+                        Width="140"
+                        Height="30"
+                        Command="{Binding VerifyOtpCommand}" />
+            </StackPanel>
+
+            <StackPanel Visibility="{Binding IsSetPasswordVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="Neues Passwort" Margin="0,0,0,6"/>
+                <PasswordBox x:Name="NewPasswordBox" PasswordChanged="NewPasswordBox_PasswordChanged" Margin="0,0,0,8" />
+                <TextBlock Text="Passwort wiederholen" Margin="0,0,0,6"/>
+                <PasswordBox x:Name="NewPasswordConfirmBox" PasswordChanged="NewPasswordConfirmBox_PasswordChanged" Margin="0,0,0,8" />
+
+                <Border Background="{StaticResource KgvSurfaceBrush}" BorderBrush="{StaticResource KgvBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="Passwortbedingungen" FontWeight="SemiBold" Margin="0,0,0,6" />
+                        <TextBlock Text="• mindestens 8 Zeichen" Foreground="Gray" />
+                        <TextBlock Text="• Passwort und Wiederholung müssen übereinstimmen" />
+                    </StackPanel>
+                </Border>
+
+                <Button Content="Neues Passwort setzen"
+                        Height="30"
+                        Style="{StaticResource PrimaryButton}"
+                        Command="{Binding SetPasswordCommand}" />
+            </StackPanel>
+
+            <TextBlock Text="{Binding StatusMessage}"
+                       Margin="0,12,0,0"
+                       Foreground="Red"
+                       TextWrapping="Wrap"
+                       Visibility="{Binding IsStatusVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+        </StackPanel>
     </Grid>
 </Window>

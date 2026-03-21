@@ -1,4 +1,5 @@
 using KGV.Maui.ViewModels;
+using System.Linq;
 
 namespace KGV.Maui.Pages;
 
@@ -33,6 +34,6 @@ public partial class MemberSearchPage : ContentPage
         if (member == null)
             return;
 
-        await DisplayAlert("Mitglied gewählt", $"{member.DisplayName} (Id: {member.Id})", "OK");
+        await DisplayAlert("Mitglied gewählt", $"{member.DisplayName} (Id: {member.MemberId})", "OK");
     }
 }
