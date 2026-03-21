@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-21 – Block 2/3: OTP-/Auth-Unterbau auf Client-Flow konsolidiert
+
+- Istzustand des Auth-/OTP-Unterbaus geprüft: `IAuthService`, `AuthService`, `SupabaseClientFactory`, WPF-/MAUI-Konfigurationszugriffe und aktive Recovery-/OTP-Pfade gegen den bereits bereinigten Client-Flow abgeglichen.
+- Recovery-/OTP-Hauptweg im `AuthService` konsolidiert: `RequestOtpAsync` und der separate Passwort-vergessen-Pfad laufen jetzt kontrolliert über denselben Recovery-Unterbau, ohne konkurrierende alternative Hauptpfade im Service stehen zu lassen.
+- Service-Zustände bereinigt: Recovery-/OTP-Start setzt veraltete Auth-Zustände zurück; erfolgreicher Passwortwechsel beendet die Recovery-Session zusätzlich per `SignOut`, damit der Client wie vorgesehen sauber in den normalen Re-Login zurückkehrt.
+- Login-/Recovery-Zustände aufeinander abgestimmt: erfolgreicher Passwort-Login räumt alte OTP-Zustände auf, damit kein halbfertiger Recovery-Kontext in den regulären Loginpfad hineinragt.
+- Publishable-Key-Umstellung nachgeschärft: `SupabaseClientFactory` und WPF-Startup akzeptieren jetzt primär `Supabase:PublishableKey` und bleiben nur kompatibel zu `Supabase:Key`; `appsettings.json` ist auf `PublishableKey` umgestellt.
+- Toten Auth-Helfer bereinigt: die leere Datei `KGV.Infrastructure\MockAuthService.cs` aus der aktiven Codebasis entfernt.
+- Endstand verifiziert: `KGV.Wpf` und `KGV.Maui` bauen erfolgreich; verbleibend sind nur die bereits bekannten, nicht blockierenden Warnungen aus der rekonstruierten Basis.
+
 ## 2026-03-21 – Block 2/3: Auth- und Login-Einstiegspunkte clientseitig konsolidiert
 
 - Istzustand der Auth-Einstiegspunkte in WPF und MAUI geprüft: aktiver Loginpfad, OTP-Anforderung, OTP-Prüfung, Passwort-neu-setzen, Passwort-vergessen und Navigation nach erfolgreichem Login gegen Alt-/Platzhalterpfade abgeglichen.

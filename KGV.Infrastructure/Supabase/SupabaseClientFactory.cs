@@ -23,8 +23,9 @@ namespace KGV.Infrastructure.Supabase
 
             Url = _config["Supabase:Url"]
                   ?? throw new InvalidOperationException("Supabase URL fehlt in appsettings.json");
-            Key = _config["Supabase:Key"]
-                  ?? throw new InvalidOperationException("Supabase Key fehlt in appsettings.json");
+            Key = _config["Supabase:PublishableKey"]
+                  ?? _config["Supabase:Key"]
+                  ?? throw new InvalidOperationException("Supabase Publishable Key fehlt in appsettings.json");
         }
 
         public async Task<SupabaseClient> CreateAsync()

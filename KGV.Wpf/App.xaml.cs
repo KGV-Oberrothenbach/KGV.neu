@@ -69,14 +69,17 @@ namespace KGV.Wpf
 
             var config = builder.Build();
 
+            var supabaseUrl = config["Supabase:Url"];
+            var supabasePublishableKey = config["Supabase:PublishableKey"] ?? config["Supabase:Key"];
+
             // Fail-fast mit brauchbarer Diagnose, bevor wir tief im Startup eine Exception bekommen.
-            if (string.IsNullOrWhiteSpace(config["Supabase:Url"]) || string.IsNullOrWhiteSpace(config["Supabase:Key"]))
+            if (string.IsNullOrWhiteSpace(supabaseUrl) || string.IsNullOrWhiteSpace(supabasePublishableKey))
             {
                 var msg =
                     "Supabase-Konfiguration fehlt.\n\n" +
                     $"Gesucht in:\n- {appSettingsInCurrentDir} (exists: {File.Exists(appSettingsInCurrentDir)})\n" +
                     $"- {appSettingsInOutput} (exists: {File.Exists(appSettingsInOutput)})\n\n" +
-                    "Erwartete JSON-Struktur:\n{\n  \"Supabase\": {\n    \"Url\": \"...\",\n    \"Key\": \"...\"\n  }\n}";
+                    "Erwartete JSON-Struktur:\n{\n  \"Supabase\": {\n    \"Url\": \"...\",\n    \"PublishableKey\": \"sb_publishable_...\"\n  }\n}";
 
                 MessageBox.Show(msg, "Konfiguration fehlt", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();

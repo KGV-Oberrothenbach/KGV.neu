@@ -34,8 +34,7 @@ namespace KGV.Infrastructure.Authentication
 
             try
             {
-                _verifiedOtpEmail = null;
-                return await SendPasswordResetEmailAsync(email.Trim());
+                return await RequestRecoveryOtpAsync(email.Trim(), "first-login");
             }
             catch (Exception ex)
             {
@@ -133,10 +132,8 @@ namespace KGV.Infrastructure.Authentication
                     Password = newPassword
                 });
 
-                _verifiedOtpEmail = null;
-                CurrentUserId = null;
-                IsVorstand = false;
-                IsAdmin = false;
+                await TrySignOutAsync(client);
+                ResetAuthState();
                 _logger?.LogInformation("SetPasswordWithOtpAsync succeeded for {EmailMasked}", MaskEmail(email));
                 return true;
             }
@@ -205,6 +202,7 @@ namespace KGV.Infrastructure.Authentication
 
                 _logger?.LogInformation("SignIn successful for {EmailMasked}", MaskEmail(email));
 
+                _verifiedOtpEmail = null;
                 CurrentUserId = user.Id;
 
                 // Rollen setzen – MitgliedRecord anhand AuthUserId (uuid) abrufen
@@ -336,9 +334,7 @@ namespace KGV.Infrastructure.Authentication
 
             try
             {
-                var client = await GetClientAsync();
-                await client.Auth.ResetPasswordForEmail(email.Trim());
-                return true;
+                return await RequestRecoveryOtpAsync(email.Trim(), "password-reset");
             }
             catch (GotrueException ex)
             {
@@ -409,6 +405,36 @@ namespace KGV.Infrastructure.Authentication
                 return $"{email.Substring(0, 1)}***{email.Substring(email.Length - 1)}";
 
             return "***";
+        }
+
+        private async Task<bool> RequestRecoveryOtpAsync(string email, string flowKind)
+        {
+            ResetAuthState();
+
+            var client = await GetClientAsync();
+            await client.Auth.ResetPasswordForEmail(email);
+            _logger?.LogInformation("Recovery OTP requested for {FlowKind} and {EmailMasked}", flowKind, MaskEmail(email));
+            return true;
+        }
+
+        private void ResetAuthState()
+        {
+            _verifiedOtpEmail = null;
+            CurrentUserId = null;
+            IsVorstand = false;
+            IsAdmin = false;
+        }
+
+        private async Task TrySignOutAsync(global::Supabase.Client client)
+        {
+            try
+            {
+                await client.Auth.SignOut();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "SignOut after password update failed.");
+            }
         }
 
         private static async Task<object?> AwaitMethodResultAsync(object? invocationResult)

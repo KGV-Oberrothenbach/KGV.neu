@@ -14,11 +14,14 @@ namespace KGV.Core.Interfaces
 
         Task<List<AppUserDTO>> GetAppUsersAsync();
         Task<bool> ChangeEmailAsync(string newEmail);
+        /// <summary>
+        /// Startet den separaten Passwort-vergessen-/Recovery-Pfad für die angegebene E-Mail-Adresse.
+        /// Der konkrete Versand kann serverseitig ebenfalls als OTP-basierter Recovery-Flow umgesetzt sein.
+        /// </summary>
         Task<bool> SendPasswordResetEmailAsync(string email);
 
         /// <summary>
-        /// Request an OTP (or similar first-login code) for the given email.
-        /// Minimal contract used by the UI; implementation may reuse existing reset flows.
+        /// Request an OTP-based recovery/first-login code for the given email.
         /// </summary>
         Task<bool> RequestOtpAsync(string email);
 
