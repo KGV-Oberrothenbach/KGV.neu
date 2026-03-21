@@ -72,15 +72,10 @@ namespace KGV.Views
 
         private void OpenResetPassword_Click(object sender, RoutedEventArgs e)
         {
-            var email = string.Empty;
-            if (DataContext is ViewModels.LoginViewModel vm)
-                email = vm.Email ?? string.Empty;
+            if (DataContext is not ViewModels.LoginViewModel vm)
+                return;
 
-            var dlg = new ResetPasswordWindow();
-            if (dlg.DataContext is ViewModels.ResetPasswordViewModel rvm)
-            {
-                rvm.Email = email;
-            }
+            var dlg = new ResetPasswordWindow(vm.CreateResetPasswordViewModel());
 
             dlg.Owner = this;
             dlg.ShowDialog();

@@ -44,18 +44,66 @@ public class LoginPage : ContentPage
         var confirmPasswordEntry = new Entry { Placeholder = "Passwort wiederholen", IsPassword = true, IsVisible = false };
         var passwordHintLabel = new Label { Text = "Passwortbedingungen: mindestens 8 Zeichen und identische Wiederholung.", TextColor = Colors.Gray, IsVisible = false };
         var togglePasswordButton = new Button { Text = "Passwort anzeigen" };
+        var loginButton = new Button { Text = "Anmelden" };
+        var setPasswordButton = new Button { Text = "Neues Passwort setzen", IsVisible = false };
+        var verifyOtpButton = new Button { Text = "Code prüfen", IsVisible = false };
+        var requestOtpButton = new Button { Text = "Erstlogin / OTP anfordern" };
+        var forgotPasswordButton = new Button { Text = "Passwort vergessen" };
+
+        void ShowNormalLogin()
+        {
+            _passwordEntry.IsVisible = true;
+            togglePasswordButton.IsVisible = true;
+            loginButton.IsVisible = true;
+            requestOtpButton.IsVisible = true;
+            forgotPasswordButton.IsVisible = true;
+
+            otpEntry.IsVisible = false;
+            verifyOtpButton.IsVisible = false;
+            newPasswordEntry.IsVisible = false;
+            confirmPasswordEntry.IsVisible = false;
+            passwordHintLabel.IsVisible = false;
+            setPasswordButton.IsVisible = false;
+        }
+
+        void ShowOtpVerification()
+        {
+            _passwordEntry.IsVisible = false;
+            togglePasswordButton.IsVisible = false;
+            loginButton.IsVisible = false;
+            requestOtpButton.IsVisible = false;
+            forgotPasswordButton.IsVisible = false;
+
+            otpEntry.IsVisible = true;
+            verifyOtpButton.IsVisible = true;
+            newPasswordEntry.IsVisible = false;
+            confirmPasswordEntry.IsVisible = false;
+            passwordHintLabel.IsVisible = false;
+            setPasswordButton.IsVisible = false;
+        }
+
+        void ShowSetPassword()
+        {
+            _passwordEntry.IsVisible = false;
+            togglePasswordButton.IsVisible = false;
+            loginButton.IsVisible = false;
+            requestOtpButton.IsVisible = false;
+            forgotPasswordButton.IsVisible = false;
+
+            otpEntry.IsVisible = false;
+            verifyOtpButton.IsVisible = false;
+            newPasswordEntry.IsVisible = true;
+            confirmPasswordEntry.IsVisible = true;
+            passwordHintLabel.IsVisible = true;
+            setPasswordButton.IsVisible = true;
+        }
+
         togglePasswordButton.Clicked += (s, e) =>
         {
             _passwordEntry.IsPassword = !_passwordEntry.IsPassword;
             togglePasswordButton.Text = _passwordEntry.IsPassword ? "Passwort anzeigen" : "Passwort ausblenden";
         };
-
-        var loginButton = new Button { Text = "Anmelden" };
         loginButton.Clicked += OnLoginClicked;
-
-        var setPasswordButton = new Button { Text = "Neues Passwort setzen", IsVisible = false };
-
-        var verifyOtpButton = new Button { Text = "Code prüfen", IsVisible = false };
         verifyOtpButton.Clicked += async (s, e) =>
         {
             _statusLabel.Text = string.Empty;
@@ -63,11 +111,7 @@ public class LoginPage : ContentPage
             var code = otpEntry.Text ?? string.Empty;
             if (await _authService.VerifyOtpAsync(email, code))
             {
-                newPasswordEntry.IsVisible = true;
-                confirmPasswordEntry.IsVisible = true;
-                passwordHintLabel.IsVisible = true;
-                setPasswordButton.IsVisible = true;
-                verifyOtpButton.IsVisible = false;
+                ShowSetPassword();
                 _statusLabel.Text = "Code bestätigt. Neues Passwort setzen.";
             }
             else
@@ -76,7 +120,6 @@ public class LoginPage : ContentPage
             }
         };
 
-        var requestOtpButton = new Button { Text = "Erstlogin / OTP anfordern" };
         requestOtpButton.Clicked += async (s, e) =>
         {
             _statusLabel.Text = string.Empty;
@@ -90,12 +133,8 @@ public class LoginPage : ContentPage
             var ok = await _authService.RequestOtpAsync(email);
             if (ok)
             {
-                otpEntry.IsVisible = true;
-                verifyOtpButton.IsVisible = true;
-                newPasswordEntry.IsVisible = false;
-                confirmPasswordEntry.IsVisible = false;
-                passwordHintLabel.IsVisible = false;
-                setPasswordButton.IsVisible = false;
+                otpEntry.Text = string.Empty;
+                ShowOtpVerification();
                 _statusLabel.Text = "Code wurde versendet. Bitte OTP eingeben.";
             }
             else
@@ -127,15 +166,11 @@ public class LoginPage : ContentPage
             if (ok)
             {
                 _statusLabel.Text = "Passwort gesetzt. Bitte normal anmelden.";
-                otpEntry.IsVisible = false;
-                newPasswordEntry.IsVisible = false;
-                confirmPasswordEntry.IsVisible = false;
-                passwordHintLabel.IsVisible = false;
-                setPasswordButton.IsVisible = false;
                 otpEntry.Text = string.Empty;
                 newPasswordEntry.Text = string.Empty;
                 confirmPasswordEntry.Text = string.Empty;
                 _passwordEntry.Text = string.Empty;
+                ShowNormalLogin();
             }
             else
             {
@@ -143,7 +178,6 @@ public class LoginPage : ContentPage
             }
         };
 
-        var forgotPasswordButton = new Button { Text = "Passwort vergessen" };
         forgotPasswordButton.Clicked += async (s, e) =>
         {
             _statusLabel.Text = string.Empty;
@@ -182,6 +216,8 @@ public class LoginPage : ContentPage
                 _statusLabel
             }
         };
+
+        ShowNormalLogin();
     }
 
     private async void OnLoginClicked(object? sender, EventArgs e)

@@ -1,10 +1,19 @@
+using KGV.Maui.Pages;
+
 namespace KGV.Maui;
 
 public partial class App : Application
 {
-    public App()
+    private readonly LoginPage _loginPage;
+
+    public App(LoginPage loginPage)
     {
         InitializeComponent();
-        MainPage = new ContentPage { Content = new Label { Text = "Recovered placeholder App.xaml.cs" } };
+        _loginPage = loginPage;
+    }
+
+    protected override Window CreateWindow(IActivationState? activationState)
+    {
+        return new Window(new NavigationPage(_loginPage));
     }
 }

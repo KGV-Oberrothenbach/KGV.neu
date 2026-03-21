@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-03-21 – Block 2/3: Auth- und Login-Einstiegspunkte clientseitig konsolidiert
+
+- Istzustand der Auth-Einstiegspunkte in WPF und MAUI geprüft: aktiver Loginpfad, OTP-Anforderung, OTP-Prüfung, Passwort-neu-setzen, Passwort-vergessen und Navigation nach erfolgreichem Login gegen Alt-/Platzhalterpfade abgeglichen.
+- WPF-Loginpfad bereinigt: der Passwort-vergessen-Dialog wird jetzt aus dem aktiven `LoginViewModel` mit demselben `IAuthService` erzeugt, statt einen unverdrahteten Fallback-Dialog ohne Auth-Kontext zu öffnen.
+- Toten WPF-Altpfad entfernt: `StartViewModel` als alter Platzhalter-Loginpfad aus der aktiven Codebasis entfernt.
+- MAUI-Loginstart bereinigt: `App.xaml.cs` startet die App jetzt über eine echte `NavigationPage` mit `LoginPage` statt über den bisherigen App-Platzhalter.
+- MAUI-Loginflow geschärft: normales Login, OTP-Prüfung und Passwort-neu-setzen werden in `LoginPage` jetzt als getrennte Zustände geführt; dadurch bleiben keine parallel sichtbaren konkurrierenden Auth-Teileinstiege mehr aktiv.
+- Nach Passwortsetzen bleibt die Client-Führung sauber: Rückkehr in den normalen Loginzustand mit erneuter Anmeldung über das neue Passwort.
+- Toten MAUI-Altpfad entfernt: der veraltete, nicht mehr verwendete `AppShell`-Pfad wurde aus der aktiven Codebasis entfernt; aktiv bleiben nur `LoginPage`, `RoleChoicePage`, `AdminShell` und `UserShell`.
+- Mailänderung bewusst getrennt gelassen: keine Vermischung des Login-/Reset-Einstiegs mit dem vorhandenen `ChangeEmail`-Pfad.
+- Endstand verifiziert: `KGV.Wpf` und `KGV.Maui` bauen erfolgreich; verbleibend sind nur die bereits bekannten, nicht blockierenden Warnungen aus der rekonstruierten Basis.
+
 ## 2026-03-21 – Block 1/3 Abschluss: Konsolidierung verifiziert und abgeschlossen
 
 - Git-Istzustand geprüft: Arbeitsbaum vor dem Abschlusslauf sauber; der Konsolidierungsstand lag bereits vollständig im aktuellen Stand vor.

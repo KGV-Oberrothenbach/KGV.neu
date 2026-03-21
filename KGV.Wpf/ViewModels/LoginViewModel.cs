@@ -239,6 +239,11 @@ namespace KGV.ViewModels
             OnPropertyChanged(nameof(IsStatusVisible));
         }
 
+        public ResetPasswordViewModel CreateResetPasswordViewModel()
+        {
+            return new ResetPasswordViewModel(_authService, Email?.Trim());
+        }
+
         private void ResetOtpFlow(bool clearLoginPassword)
         {
             IsSetPasswordVisible = false;
