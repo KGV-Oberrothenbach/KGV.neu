@@ -19,6 +19,20 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
         Items.Add(new FlyoutItem
         {
+            Title = "Startseite",
+            Items =
+            {
+                new ShellContent
+                {
+                    Title = "Startseite",
+                    Route = "home",
+                    ContentTemplate = new DataTemplate(() => _services.GetRequiredService<HomePage>())
+                }
+            }
+        });
+
+        Items.Add(new FlyoutItem
+        {
             Title = "Mitgliedersuche",
             Items =
             {

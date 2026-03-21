@@ -16,23 +16,82 @@
             </Border>
         </StackPanel>
 
-        <TextBlock Grid.Row="1" Text="Verfügbare Module" FontWeight="SemiBold" Margin="0,0,0,12" />
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.1*" />
+                <ColumnDefinition Width="1.4*" />
+            </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Row="2">
-            <ItemsControl ItemsSource="{Binding ModuleItems}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Button Content="{Binding Title}"
-                                Command="{Binding DataContext.OpenModuleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                CommandParameter="{Binding}"
-                                Margin="0,0,0,8"
-                                Height="36"
-                                HorizontalContentAlignment="Left"/>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="Verfügbare Module" FontWeight="SemiBold" Margin="0,0,0,12" />
 
-            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Foreground="DarkSlateBlue"/>
-        </StackPanel>
+                <ItemsControl ItemsSource="{Binding ModuleItems}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Content="{Binding Title}"
+                                    Command="{Binding DataContext.OpenModuleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}"
+                                    Margin="0,0,0,8"
+                                    Height="36"
+                                    HorizontalContentAlignment="Left"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Foreground="DarkSlateBlue"/>
+            </StackPanel>
+
+            <Border Grid.Column="1"
+                    Margin="24,0,0,0"
+                    Padding="16"
+                    Background="{StaticResource KgvSurfaceBrush}"
+                    BorderBrush="{StaticResource KgvBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="180" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <TextBlock Text="Bekanntmachungen" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <ListBox ItemsSource="{Binding Announcements}"
+                                 SelectedItem="{Binding SelectedAnnouncement, Mode=TwoWay}"
+                                 DisplayMemberPath="Title"
+                                 Visibility="{Binding HasAnnouncements, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                 BorderThickness="0"
+                                 MinHeight="80" />
+                        <TextBlock Text="{Binding AnnouncementEmptyText}"
+                                   TextWrapping="Wrap"
+                                   Visibility="{Binding ShowAnnouncementEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                        <DockPanel Margin="0,0,0,8">
+                            <TextBlock Text="Detail" FontWeight="SemiBold" DockPanel.Dock="Left" />
+                            <Button Content="Bearbeiten"
+                                    Width="110"
+                                    DockPanel.Dock="Right"
+                                    Visibility="{Binding CanEditAnnouncements, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                    IsEnabled="False" />
+                        </DockPanel>
+
+                        <TextBlock Text="{Binding SelectedAnnouncement.Title}"
+                                   FontWeight="SemiBold"
+                                   FontSize="16"
+                                   Visibility="{Binding HasSelectedAnnouncement, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      Visibility="{Binding HasSelectedAnnouncement, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="{Binding SelectedAnnouncement.Content}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        </ScrollViewer>
+
+                        <TextBlock Text="{Binding AnnouncementHintText}"
+                                   TextWrapping="Wrap"
+                                   Visibility="{Binding ShowAnnouncementHint, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

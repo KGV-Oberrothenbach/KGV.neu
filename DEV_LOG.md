@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-21 – Prompt 1/2: Home/Startseite – Bekanntmachungen + Bearbeiten-Buttons angeglichen
+
+- Istzustand geprüft: `HomeViewModel`/`HomeView` in WPF war bisher nur Modulübersicht; `HomePage` in MAUI war noch Platzhalter. Eine belastbare bestehende Bekanntmachungs-Datenquelle ist im aktuellen Workspace derzeit nicht vorhanden.
+- WPF-Startseite gezielt erweitert: `Bekanntmachungen` zeigt jetzt nur Titel als Liste und die Detailfläche erst nach Auswahl; ohne Auswahl erscheint ein kompakter Hinweis, ohne Einträge ein kompakter Empty-State.
+- MAUI-Startseite parallel angeglichen: `HomePage` ist jetzt als echte Startseite im Shell-Menü verdrahtet und nutzt denselben Listen-/Detail-Grundaufbau für `Bekanntmachungen`.
+- Rollenlogik vereinheitlicht: `Bearbeiten` auf Home/Start ist nur für `admin` und `vorstand` sichtbar, über die vorhandene `UserContext.Role`-Logik in WPF und MAUI.
+- Block bewusst klein gehalten: keine neue Backend-Architektur, keine neue Volltextdarstellung aller Bekanntmachungen auf der Startseite, keine fachfremden Umbauten.
+- Abschluss technisch verifiziert: `KGV.Wpf` baut erfolgreich; `KGV.Maui` baut erfolgreich und enthält nach Korrektur der neuen Home-Layoutstellen nur noch die bereits bekannte, nicht blockierende Warnung zu `Application.MainPage.set` in `KGV.Maui\App.xaml.cs`.
+- Datenquelle erneut geprüft: weiterhin keine belastbare bestehende fachliche Quelle für `Bekanntmachungen` im aktuellen Workspace gefunden; deshalb bleibt bewusst der saubere strukturelle Listen-/Detail-Mechanismus mit kompaktem Leerzustand ohne Fake-Fachlogik aktiv.
+
 ## 2026-03-21 – Block 1: Auth/Login final abgeschlossen
 
 - `AuthService`-OTP-/Recovery-Flow von lokalem Dev-Bypass auf echte Supabase-Recovery-Verifikation umgestellt; Passwortsetzen nutzt danach die authentifizierte Recovery-Session.

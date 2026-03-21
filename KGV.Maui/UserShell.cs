@@ -21,7 +21,20 @@ public sealed class UserShell : Shell, IAppShellInitializer
     {
         Items.Clear();
 
-        // Start: direkt "Meine Stammdaten"
+        Items.Add(new FlyoutItem
+        {
+            Title = "Startseite",
+            Items =
+            {
+                new ShellContent
+                {
+                    Title = "Startseite",
+                    Route = "home",
+                    ContentTemplate = new DataTemplate(() => _services.GetRequiredService<HomePage>())
+                }
+            }
+        });
+
         Items.Add(new FlyoutItem
         {
             Title = "Meine Stammdaten",
