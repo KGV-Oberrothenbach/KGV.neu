@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-03-22 – Home-Diagnose: bestätigte Pflichtstunden- und Startseiten-Views sauber auf den realen DB-Stand korrigiert
+
+- Den aktuellen Home-Istzustand in `ISupabaseService`, `SupabaseService`, den Home-Records/DTOs sowie `HomeViewModel` gezielt gegen den inzwischen bestätigten DB-Schema-Stand geprüft; dabei zeigte sich, dass die Home-Anbindung zwar grundsätzlich auf Startseiten-Views setzte, aber bei `Termine` und `Bekanntmachungen` noch falsche Singular-Viewnamen im Code hinterlegt waren.
+- Die bestätigten Startseiten-Views sauber nachgezogen: `StartseiteTerminRecord` verwendet jetzt `public.v_startseite_termine` statt des bisherigen falschen `v_startseite_termin`, und `StartseiteBekanntmachungRecord` zeigt auf `public.v_startseite_bekanntmachungen` statt auf einen veralteten Singular-Namen.
+- Den Pflichtstundenpfad gegen den bestätigten Kern geschärft, ohne neue App-Logik einzuführen: `PflichtstundenUebersichtRecord` bildet jetzt zusätzlich `saison_id` ab, und `SupabaseService.LoadPflichtstundenSummaryAsync(...)` löst zuerst die aktuelle Saison über `saison` auf und greift dann bevorzugt genau auf den passenden Datensatz aus `v_pflichtstunden_uebersicht` zu, statt nur lose über ein Jahres-Fallback zu gehen.
+- Keine lokale Sollstunden-Berechnung aufgebaut oder beibehalten: Home liest `pflichtstunden_soll`, `geleistete_stunden`, `offene_stunden` und die Regelhinweise weiter direkt aus `v_pflichtstunden_uebersicht`; zusätzliche Alters-, Wartungsvertrags- oder Nebenmitglied-Logik wird in der App nicht nachkonstruiert.
+- Die restliche Home-Mappinglogik bewusst klein gehalten: vorhandene Text-/Markup-Normalisierung bleibt nur soweit erhalten, dass echte Startseiteninhalte nicht künstlich verloren gehen; der wesentliche Datenverlust lag im geprüften Stand an den falschen Viewnamen und der zu schwachen Saisonzuordnung.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach der Korrektur weiterhin erfolgreich.
+
 ## 2026-03-22 – Arbeitsstunden-Flow Prompt 3: Letzte kleine Restlücke über MAUI-Prüfstatus geschlossen und Block abgeschlossen
 
 - Den verbliebenen Restzustand erneut gegen die zwei möglichen Abschlussoptionen geprüft: ein echter gemeinsamer Ablehnungs-/Rückgabe-/Kommentarpfad wäre trotz vorhandenem Statusstring weiterhin nicht belastbar genug, weil dafür im aktiven Modell und Servicepfad keine saubere fachliche Rückgabe-/Kommentarbasis vorhanden ist; der bereits existierende MAUI-Prüfpfad war dagegen der klar belastbarere Abschlusskandidat.

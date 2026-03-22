@@ -961,14 +961,23 @@ namespace KGV.Infrastructure.Services
         private async Task<HomeWorkHoursSummary?> LoadPflichtstundenSummaryAsync(int mitgliedId, int year)
         {
             var client = await EnsureClientAsync();
+            var currentSeason = (await GetSaisonRecordsAsync())
+                .OrderByDescending(x => x.Jahr == year)
+                .ThenByDescending(x => x.Jahr)
+                .FirstOrDefault();
+
             var response = await client
                 .From<PflichtstundenUebersichtRecord>()
                 .Where(x => x.MitgliedId == mitgliedId)
                 .Get();
 
             var record = response?.Models?
-                .OrderByDescending(GetPflichtstundenYear)
-                .FirstOrDefault(x => GetPflichtstundenYear(x) == year)
+                .OrderByDescending(x => x.SaisonId == currentSeason?.Id)
+                .ThenByDescending(GetPflichtstundenYear)
+                .FirstOrDefault(x => x.SaisonId == currentSeason?.Id)
+                ?? response?.Models?
+                    .OrderByDescending(GetPflichtstundenYear)
+                    .FirstOrDefault(x => GetPflichtstundenYear(x) == year)
                 ?? response?.Models?
                     .OrderByDescending(GetPflichtstundenYear)
                     .FirstOrDefault();

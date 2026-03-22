@@ -10,6 +10,9 @@ public sealed class PflichtstundenUebersichtRecord : BaseModel
     [Column("mitglied_id")]
     public int MitgliedId { get; set; }
 
+    [Column("saison_id")]
+    public int? SaisonId { get; set; }
+
     [Column("jahr")]
     public int? Jahr { get; set; }
 

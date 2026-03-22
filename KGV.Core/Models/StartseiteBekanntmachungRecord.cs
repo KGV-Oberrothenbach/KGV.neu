@@ -4,7 +4,7 @@ using Supabase.Postgrest.Models;
 
 namespace KGV.Core.Models;
 
-[Table("v_startseite_bekanntmachung")]
+[Table("v_startseite_bekanntmachungen")]
 public sealed class StartseiteBekanntmachungRecord : BaseModel
 {
     [PrimaryKey("id", false)]

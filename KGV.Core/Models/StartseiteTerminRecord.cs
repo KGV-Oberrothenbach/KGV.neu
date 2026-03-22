@@ -4,7 +4,7 @@ using Supabase.Postgrest.Models;
 
 namespace KGV.Core.Models;
 
-[Table("v_startseite_termin")]
+[Table("v_startseite_termine")]
 public sealed class StartseiteTerminRecord : BaseModel
 {
     [PrimaryKey("id", false)]
