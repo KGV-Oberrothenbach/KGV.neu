@@ -47,6 +47,20 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
         Items.Add(new FlyoutItem
         {
+            Title = "Parzellen",
+            Items =
+            {
+                new ShellContent
+                {
+                    Title = "Parzellen",
+                    Route = "parzellen",
+                    ContentTemplate = new DataTemplate(() => _services.GetRequiredService<ParzellenPage>())
+                }
+            }
+        });
+
+        Items.Add(new FlyoutItem
+        {
             Title = "Arbeitsstunden prüfen",
             Items =
             {

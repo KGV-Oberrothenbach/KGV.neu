@@ -13,11 +13,13 @@ namespace KGV.ViewModels
         private readonly ISupabaseService _supabaseService;
         private readonly MainWindowViewModel _mainVm;
         private ParzelleVerwaltungItem? _selectedItem;
+        private ParzelleDetailDTO? _selectedDetail;
         private string _statusMessage = string.Empty;
         private bool _isBusy;
 
         public string Title => "Parzellenverwaltung";
-        public string Description => "Zeigt die aktuell belastbar ableitbaren Parzellen mit ihren aktuellen Mitgliedsbezügen und vorhandenen Dokumentpfaden.";
+        public string Description => "Zeigt die aktuell belastbar ableitbaren Parzellen mit Mitgliedsbezug, Wasser-/Stromstatus und Dokumentbezug in einer zentralen Detailansicht.";
+        public string DetailHint => "Separate Wasser-/Strom-Anschlussflags liegen aktuell nicht als eigenes Feld vor. Sichtbar ist deshalb der belastbare Status aus vorhandenen Zählern, Ablesungen und Dokumentpfaden.";
 
         public ObservableCollection<ParzelleVerwaltungItem> Items { get; } = new();
 
@@ -31,8 +33,32 @@ namespace KGV.ViewModels
 
                 OpenMemberCommand.NotifyCanExecuteChanged();
                 OpenDokumenteCommand.NotifyCanExecuteChanged();
+                OpenStromCommand.NotifyCanExecuteChanged();
+                OpenWasserCommand.NotifyCanExecuteChanged();
+
+                _ = LoadSelectedDetailAsync();
             }
         }
+
+        public ParzelleDetailDTO? SelectedDetail
+        {
+            get => _selectedDetail;
+            private set
+            {
+                if (!SetProperty(ref _selectedDetail, value))
+                    return;
+
+                OnPropertyChanged(nameof(HasSelectedDetail));
+                OnPropertyChanged(nameof(ShowSelectionHint));
+                OpenMemberCommand.NotifyCanExecuteChanged();
+                OpenDokumenteCommand.NotifyCanExecuteChanged();
+                OpenStromCommand.NotifyCanExecuteChanged();
+                OpenWasserCommand.NotifyCanExecuteChanged();
+            }
+        }
+
+        public bool HasSelectedDetail => SelectedDetail != null;
+        public bool ShowSelectionHint => !HasSelectedDetail;
 
         public string StatusMessage
         {
@@ -51,12 +77,16 @@ namespace KGV.ViewModels
                 RefreshCommand.NotifyCanExecuteChanged();
                 OpenMemberCommand.NotifyCanExecuteChanged();
                 OpenDokumenteCommand.NotifyCanExecuteChanged();
+                OpenStromCommand.NotifyCanExecuteChanged();
+                OpenWasserCommand.NotifyCanExecuteChanged();
             }
         }
 
         public IAsyncRelayCommand RefreshCommand { get; }
         public IAsyncRelayCommand OpenMemberCommand { get; }
         public IAsyncRelayCommand OpenDokumenteCommand { get; }
+        public IAsyncRelayCommand OpenStromCommand { get; }
+        public IAsyncRelayCommand OpenWasserCommand { get; }
 
         public ParzellenVerwaltungViewModel(ISupabaseService supabaseService, MainWindowViewModel mainVm)
         {
@@ -66,6 +96,8 @@ namespace KGV.ViewModels
             RefreshCommand = new AsyncRelayCommand(LoadAsync, () => !IsBusy);
             OpenMemberCommand = new AsyncRelayCommand(OpenMemberAsync, () => !IsBusy && SelectedItem?.MitgliedId is > 0);
             OpenDokumenteCommand = new AsyncRelayCommand(OpenDokumenteAsync, () => !IsBusy && SelectedItem != null);
+            OpenStromCommand = new AsyncRelayCommand(OpenStromAsync, () => !IsBusy && SelectedItem != null);
+            OpenWasserCommand = new AsyncRelayCommand(OpenWasserAsync, () => !IsBusy && SelectedItem != null);
         }
 
         public async Task OnNavigatedToAsync()
@@ -97,6 +129,7 @@ namespace KGV.ViewModels
                     .ToDictionary(x => x!.ParzelleId, x => x!);
 
                 Items.Clear();
+                SelectedDetail = null;
 
                 foreach (var parzelle in parzellen
                              .OrderBy(x => GetGartenNrSortKey(x.GartenNr))
@@ -150,18 +183,61 @@ namespace KGV.ViewModels
 
         private async Task OpenDokumenteAsync()
         {
-            if (SelectedItem == null)
+            var belegung = CreateParzellenContext();
+            if (belegung == null)
                 return;
 
-            var belegung = new ParzellenBelegungDTO
+            await _mainVm.NavigateToAsync(new GartenDokumenteViewModel(_supabaseService, belegung));
+        }
+
+        private async Task OpenStromAsync()
+        {
+            var belegung = CreateParzellenContext();
+            if (belegung == null)
+                return;
+
+            await _mainVm.NavigateToAsync(new GartenStromViewModel(_supabaseService, belegung));
+        }
+
+        private async Task OpenWasserAsync()
+        {
+            var belegung = CreateParzellenContext();
+            if (belegung == null)
+                return;
+
+            await _mainVm.NavigateToAsync(new GartenWasserViewModel(_supabaseService, belegung));
+        }
+
+        private async Task LoadSelectedDetailAsync()
+        {
+            var selected = SelectedItem;
+            if (selected == null)
+            {
+                SelectedDetail = null;
+                return;
+            }
+
+            var detail = await _supabaseService.GetParzelleDetailAsync(selected.ParzelleId);
+            if (SelectedItem?.ParzelleId != selected.ParzelleId)
+                return;
+
+            SelectedDetail = detail;
+        }
+
+        private ParzellenBelegungDTO? CreateParzellenContext()
+        {
+            if (SelectedItem == null)
+                return null;
+
+            return new ParzellenBelegungDTO
             {
                 ParzelleId = SelectedItem.ParzelleId,
                 MitgliedId = SelectedItem.MitgliedId ?? 0,
                 GartenNr = SelectedItem.GartenNr,
-                Anlage = SelectedItem.Anlage
+                Anlage = SelectedItem.Anlage,
+                VonDatum = SelectedDetail?.VonDatum,
+                BisDatum = SelectedDetail?.BisDatum
             };
-
-            await _mainVm.NavigateToAsync(new GartenDokumenteViewModel(_supabaseService, belegung));
         }
 
         private static MemberDTO ToMemberDto(MitgliedRecord record)

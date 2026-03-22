@@ -140,6 +140,51 @@ namespace KGV.Infrastructure.Services
             },
             new List<ParzelleRecord>());
 
+        public Task<ParzelleDetailDTO?> GetParzelleDetailAsync(int parzelleId) => ExecuteAsync<ParzelleDetailDTO?>(
+            "GetParzelleDetailAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<ParzelleRecord>()
+                    .Where(x => x.Id == parzelleId)
+                    .Get();
+
+                var parzelle = response?.Models?.FirstOrDefault();
+                if (parzelle == null)
+                    return null;
+
+                var belegung = await GetCurrentBelegungForParzelleAsync(parzelleId);
+                MitgliedRecord? mitglied = null;
+                if (belegung != null)
+                    mitglied = await GetMitgliedByIdAsync(belegung.MitgliedId);
+
+                var stromzaehler = await GetActiveStromzaehlerAsync(parzelleId, DateTime.Today);
+                var wasserzaehler = await GetActiveWasserzaehlerAsync(parzelleId, DateTime.Today);
+                var stromAblesungen = await GetStromAblesungenAsync(parzelleId);
+                var wasserAblesungen = await GetWasserAblesungenAsync(parzelleId);
+                var dokumente = await GetParzelleDokumenteAsync(parzelleId);
+
+                return new ParzelleDetailDTO
+                {
+                    ParzelleId = parzelle.Id,
+                    GartenNr = parzelle.GartenNr,
+                    Anlage = parzelle.Anlage,
+                    IstVergeben = belegung != null,
+                    MitgliedId = belegung?.MitgliedId,
+                    MitgliedName = FormatMemberName(mitglied),
+                    MitgliedEmail = mitglied?.Email ?? string.Empty,
+                    VonDatum = belegung?.VonDatum,
+                    BisDatum = belegung?.BisDatum,
+                    AktiverStromzaehler = stromzaehler,
+                    AktiverWasserzaehler = wasserzaehler,
+                    StromAblesungenCount = stromAblesungen.Count,
+                    WasserAblesungenCount = wasserAblesungen.Count,
+                    Dokumente = dokumente
+                };
+            },
+            null);
+
         public Task<ParzellenBelegungRecord?> GetCurrentBelegungForParzelleAsync(int parzelleId) => ExecuteAsync<ParzellenBelegungRecord?>(
             "GetCurrentBelegungForParzelleAsync",
             async () =>

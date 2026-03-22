@@ -12,24 +12,112 @@
         <StackPanel Grid.Row="0" Margin="0,0,0,16">
             <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,8" />
             <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+            <Border Margin="0,10,0,0" Padding="12" Background="{StaticResource KgvSurfaceBrush}">
+                <TextBlock Text="{Binding DetailHint}" TextWrapping="Wrap" />
+            </Border>
         </StackPanel>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
             <Button Content="Aktualisieren" Command="{Binding RefreshCommand}" Margin="0,0,8,0" Style="{StaticResource PrimaryButton}"/>
             <Button Content="Mitglied öffnen" Command="{Binding OpenMemberCommand}" Margin="0,0,8,0"/>
+            <Button Content="Strom öffnen" Command="{Binding OpenStromCommand}" Margin="0,0,8,0"/>
+            <Button Content="Wasser öffnen" Command="{Binding OpenWasserCommand}" Margin="0,0,8,0"/>
             <Button Content="Dokumente öffnen" Command="{Binding OpenDokumenteCommand}"/>
         </StackPanel>
 
-        <ListView Grid.Row="2" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}">
-            <ListView.View>
-                <GridView>
-                    <GridViewColumn Header="Garten" Width="140" DisplayMemberBinding="{Binding GartenNr}"/>
-                    <GridViewColumn Header="Anlage" Width="180" DisplayMemberBinding="{Binding Anlage}"/>
-                    <GridViewColumn Header="Status" Width="100" DisplayMemberBinding="{Binding StatusText}"/>
-                    <GridViewColumn Header="Mitglied" Width="260" DisplayMemberBinding="{Binding MitgliedName}"/>
-                </GridView>
-            </ListView.View>
-        </ListView>
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="3*"/>
+            </Grid.ColumnDefinitions>
+
+            <ListView Grid.Column="0" Margin="0,0,16,0" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="Garten" Width="120" DisplayMemberBinding="{Binding GartenNr}"/>
+                        <GridViewColumn Header="Anlage" Width="140" DisplayMemberBinding="{Binding Anlage}"/>
+                        <GridViewColumn Header="Status" Width="90" DisplayMemberBinding="{Binding StatusText}"/>
+                        <GridViewColumn Header="Mitglied" Width="220" DisplayMemberBinding="{Binding MitgliedName}"/>
+                    </GridView>
+                </ListView.View>
+            </ListView>
+
+            <Border Grid.Column="1" Padding="16" Background="{StaticResource KgvSurfaceBrush}" BorderBrush="{StaticResource KgvBorderBrush}" BorderThickness="1" CornerRadius="12">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="Parzellen-Detail" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,12"/>
+
+                        <TextBlock Text="Bitte links eine Parzelle auswählen." Foreground="Gray"
+                                   Visibility="{Binding ShowSelectionHint, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                        <StackPanel Visibility="{Binding HasSelectedDetail, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <GroupBox Header="Stammdaten" Margin="0,0,0,12">
+                                <Grid Margin="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Parzellen-ID:" FontWeight="SemiBold" Margin="0,0,12,6"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedDetail.ParzelleId}" Margin="0,0,0,6"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Garten:" FontWeight="SemiBold" Margin="0,0,12,6"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedDetail.GartenNr}" Margin="0,0,0,6"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Anlage:" FontWeight="SemiBold" Margin="0,0,12,0"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedDetail.Anlage}"/>
+                                </Grid>
+                            </GroupBox>
+
+                            <GroupBox Header="Belegung / Zuordnung" Margin="0,0,0,12">
+                                <Grid Margin="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Status:" FontWeight="SemiBold" Margin="0,0,12,6"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedDetail.StatusText}" Margin="0,0,0,6"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Mitglied:" FontWeight="SemiBold" Margin="0,0,12,6"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedDetail.MitgliedDisplayText}" Margin="0,0,0,6"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Kontakt:" FontWeight="SemiBold" Margin="0,0,12,6"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedDetail.MitgliedKontaktText}" Margin="0,0,0,6"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Zeitraum:" FontWeight="SemiBold" Margin="0,0,12,0"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedDetail.BelegungText}" TextWrapping="Wrap"/>
+                                </Grid>
+                            </GroupBox>
+
+                            <GroupBox Header="Anschlüsse / Zähler" Margin="0,0,0,12">
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="{Binding SelectedDetail.StromStatusText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                    <TextBlock Text="{Binding SelectedDetail.WasserStatusText}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <GroupBox Header="Dokumente" Margin="0,0,0,12">
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="{Binding SelectedDetail.DokumenteText}" Margin="0,0,0,8"/>
+                                    <ItemsControl ItemsSource="{Binding SelectedDetail.DokumenteVorschau}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Name}" Margin="0,0,0,4"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
 
         <TextBlock Grid.Row="3" Margin="0,12,0,0" Text="{Binding StatusMessage}" TextWrapping="Wrap" Foreground="DarkSlateBlue"/>
     </Grid>

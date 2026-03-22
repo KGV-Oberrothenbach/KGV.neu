@@ -2,6 +2,14 @@
 
 ---
 
+## 2026-03-22 – Block 3/3 Prompt 1 Abschluss: Parzellen-Stammdaten technisch verifiziert und abgeschlossen
+
+- Den bereits umgesetzten Stand von `ParzelleDetailDTO`, `GetParzelleDetailAsync`, der erweiterten WPF-Parzellenansicht und der neuen MAUI-`ParzellenPage` gezielt nur auf technische Konsistenz und Abschlussfähigkeit geprüft.
+- Keine neue Fachlogik begonnen: der Teilblock blieb bei der vorhandenen zentralen Parzellen-Detailansicht mit belastbar sichtbaren Stammdaten, Belegung, Wasser-/Stromstatus aus Zähler-/Ablesedaten und Dokumentbezug.
+- Gemeinsamen Datenpfad bestätigt: WPF und MAUI greifen auf denselben kleinen Service-Detailpfad für Parzellen zu, statt parallele UI-Schattenlogik aufzubauen.
+- Technische Verifikation für den Abschlusslauf vorgesehen auf `KGV.Wpf` und `KGV.Maui`; bekannte bestehende Warnungen der rekonstruierten Basis werden dabei nicht neu aufgemacht.
+- Git-Abschluss dieses Teilblocks wird bewusst nur mit den zugehörigen Parzellen-Dateien durchgeführt; blockfremde untracked Artefakte bleiben weiterhin außerhalb des Commits.
+
 ## 2026-03-21 – Archivblock 1/1: Root-Struktur nach Block 2 aufgeräumt
 
 - Root-Istzustand nach Abschluss von Block 2 geprüft und archivwürdige Bereiche eingegrenzt: sicher `_Recovery`, `_RecoveredArtifacts` und auf ausdrücklichen Wunsch auch `KGV.Tests`; zusätzlich nur klar nicht aktive Root-Hilfsdateien wie `Dateistruktur.txt`, `copilot-instructions.md` und `vergleich_android_wpf_memberdetail.png` in den Archivbereich überführt.
