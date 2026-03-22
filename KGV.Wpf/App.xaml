@@ -67,6 +67,18 @@
                 <views:HomeSectionDetailView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type vm:ArbeitseinsaetzeVerwaltungViewModel}">
+                <views:ArbeitseinsaetzeVerwaltungView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:TermineVerwaltungViewModel}">
+                <views:TermineVerwaltungView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:BekanntmachungenVerwaltungViewModel}">
+                <views:BekanntmachungenVerwaltungView />
+            </DataTemplate>
+
             <DataTemplate DataType="{x:Type vm:UserManagementViewModel}">
                 <views:UserManagementView />
             </DataTemplate>

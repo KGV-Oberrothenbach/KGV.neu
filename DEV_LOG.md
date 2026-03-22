@@ -2,6 +2,23 @@
 
 ---
 
+## 2026-03-22 – Home-Admin-Bearbeiten entzerrt: separate Verwaltungsviews statt Bearbeitung auf Home
+
+- Den aktuellen Home-/Navigationsstand erneut geprüft: Home zeigt bereits nur Listen und separate Detailviews, aber für Admin/Vorstand fehlte noch eine saubere Verwaltungsarchitektur für `Arbeitseinsätze`, `Termine` und `Bekanntmachungen`; zugleich waren im aktiven Repo keine belastbar verifizierten Schreibmodelle/-services für diese drei Bereiche vorhanden.
+- Home deshalb bewusst schlank gehalten: normale Nutzer sehen weiter nur die Übersichtslisten; Admin/Vorstand erhalten auf Home jetzt zusätzlich nur drei kleine Bearbeiten-Einstiege (`Arbeitseinsätze bearbeiten`, `Termine bearbeiten`, `Bekanntmachungen bearbeiten`) statt Bearbeitung direkt in der Startseite.
+- Für WPF echte separate Verwaltungsansichten aufgebaut: `ArbeitseinsaetzeVerwaltungView`, `TermineVerwaltungView` und `BekanntmachungenVerwaltungView` sind jetzt produktiv navigierbar und folgen alle demselben Zielaufbau mit linker Datenliste und rechter Editorfläche.
+- Die Listen nutzen reale Datenpfade statt Home-Umweg oder Platzhalterdaten: über neue gemeinsame Servicezugriffe werden die bestätigten Startseiten-Lesepfade `v_startseite_arbeitseinsatz`, `v_startseite_termine` und `v_startseite_bekanntmachungen` direkt auch für die Verwaltungslisten bereitgestellt.
+- Der rechte Bereich bleibt bewusst feldarm, solange der Schreibvertrag nicht belastbar genug im Repo vorhanden ist: bei keinem geöffneten Datensatz bleibt der Editorbereich leer; bei `Neu` oder Doppelklick wird der echte Editierzustand geöffnet, aber ohne geratene Formularfelder oder erfundene Pflichtdefinitionen.
+- Rechte sauber am bestehenden Pfad eingehängt: die drei Verwaltungsviews sind in WPF-Navigation und Home-Einstiegen nur für Admin/Vorstand verfügbar und blähen MAUI nicht mit neuen Platzhalterseiten auf; die gemeinsame Serviceerweiterung bleibt aber für spätere MAUI-Parität nutzbar.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem Block weiterhin erfolgreich.
+
+## 2026-03-22 – Nachtrag Home-Diagnose: aktuell laden stabil nur Arbeitseinsätze und Termine
+
+- Im aktuellen WPF-Nachtest bestätigt: `Arbeitseinsätze` und `Termine` laden über die Startseiten-Views stabil; die verbleibenden Auffälligkeiten betreffen weiterhin den Pflichtstundenbereich und den Bereich `Bekanntmachungen`.
+- Der Pflichtstundenfehler ist technisch konkret belegt: im Debug-Log schlägt `LoadPflichtstundenSummaryAsync(...)` mit `column v_pflichtstunden_uebersicht.mitglied_id does not exist` fehl. Maßgeblich ist damit nicht ein allgemeiner Home-Fehler, sondern eine falsche serverseitige Spaltenannahme im bisherigen Filterpfad auf die bestätigte View.
+- Für `Bekanntmachungen` zeigt sich im Gegenzug aktuell kein gleichartiger harter Section-Crash, sondern eher ein leerer bzw. fachlich irreführender Placeholderzustand trotz vorhandener Startseiten-Anbindung; die Restprüfung bleibt daher auf tatsächliche Rückgabefelder bzw. reale Datensätze der View fokussiert.
+- Der UX-Nachzug für Home bleibt davon getrennt: auf der Startseite werden jetzt nur Listen angezeigt; Details von Arbeitseinsätzen, Terminen und Bekanntmachungen öffnen in einer eigenen View statt in Inline-Teilbereichen der `HomeView`.
+
 ## 2026-03-22 – Home-UX-Nachzug: Startseite zeigt nur Listen, Details öffnen in eigener View
 
 - Den Home-Stand für Arbeitseinsätze, Termine und Bekanntmachungen auf den gewünschten UX-Pfad umgestellt: die Startseite zeigt jetzt nur noch Listen-/Kartenübersichten, während Details nicht mehr in kleinen Teilbereichen innerhalb der `HomeView` erscheinen.

@@ -71,6 +71,21 @@ namespace KGV.Infrastructure.Services
                 return new HomeSectionDetailViewModel(mainVm, context);
             }
 
+            if (viewModelType == typeof(ArbeitseinsaetzeVerwaltungViewModel))
+            {
+                return new ArbeitseinsaetzeVerwaltungViewModel(_supabaseService);
+            }
+
+            if (viewModelType == typeof(TermineVerwaltungViewModel))
+            {
+                return new TermineVerwaltungViewModel(_supabaseService);
+            }
+
+            if (viewModelType == typeof(BekanntmachungenVerwaltungViewModel))
+            {
+                return new BekanntmachungenVerwaltungViewModel(_supabaseService);
+            }
+
             if (viewModelType == typeof(ParzellenVerwaltungViewModel))
             {
                 return new ParzellenVerwaltungViewModel(_supabaseService, mainVm);

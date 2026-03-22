@@ -1,0 +1,88 @@
+<UserControl x:Class="KGV.Views.TermineVerwaltungView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,16">
+            <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" DockPanel.Dock="Left" />
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="Aktualisieren" Margin="0,0,10,0" Command="{Binding AktualisierenCommand}" />
+                <Button Content="Öffnen" Margin="0,0,10,0" Command="{Binding OeffnenCommand}" />
+                <Button Content="Neu" Command="{Binding NeuCommand}" />
+            </StackPanel>
+        </DockPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.05*" />
+                <ColumnDefinition Width="1.35*" />
+            </Grid.ColumnDefinitions>
+
+            <GroupBox Grid.Column="0" Header="Vorhandene Termine" Margin="0,0,12,0">
+                <Grid Margin="8">
+                    <ListBox ItemsSource="{Binding Entries}"
+                             SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                             BorderThickness="0"
+                             Visibility="{Binding HasEntries, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ListBox.InputBindings>
+                            <MouseBinding Gesture="LeftDoubleClick" Command="{Binding OeffnenCommand}" />
+                        </ListBox.InputBindings>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,0,0,8">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding Subtitle}" Foreground="Gray" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <TextBlock Text="{Binding EmptyText}"
+                               TextWrapping="Wrap"
+                               Visibility="{Binding ShowEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                </Grid>
+            </GroupBox>
+
+            <Border Grid.Column="1"
+                    Padding="18"
+                    Background="{StaticResource KgvSurfaceBrush}"
+                    BorderBrush="{StaticResource KgvBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="16"
+                    Visibility="{Binding IsEditorOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel>
+                    <TextBlock Text="{Binding EditorCaption}" FontSize="18" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding EditorTitle}"
+                               Margin="0,16,0,0"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Visibility="{Binding HasEditorTitle, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <TextBlock Text="{Binding EditorSubtitle}"
+                               Margin="0,4,0,0"
+                               Foreground="Gray"
+                               Visibility="{Binding HasEditorSubtitle, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <ScrollViewer Margin="0,16,0,0"
+                                  VerticalScrollBarVisibility="Auto"
+                                  Visibility="{Binding HasEditorContent, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="{Binding EditorContent}" TextWrapping="Wrap" />
+                    </ScrollViewer>
+                    <Border Margin="0,16,0,0" Padding="12" Background="{StaticResource KgvBackgroundBrush}" CornerRadius="12">
+                        <StackPanel>
+                            <TextBlock Text="{Binding ReadPathText}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding WritePathText}" Margin="0,8,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="{Binding EditorAdditionalInfo}"
+                               Margin="0,16,0,0"
+                               Foreground="DarkSlateBlue"
+                               TextWrapping="Wrap"
+                               Visibility="{Binding HasEditorAdditionalInfo, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -260,6 +260,30 @@ namespace KGV.ViewModels
                     IsVisible = true,
                     IsAdminOnly = true
                 });
+
+                NavigationItems.Add(new NavigationItem
+                {
+                    Title = "Arbeitseinsätze bearbeiten",
+                    ViewModelType = typeof(ArbeitseinsaetzeVerwaltungViewModel),
+                    IsVisible = true,
+                    IsAdminOnly = true
+                });
+
+                NavigationItems.Add(new NavigationItem
+                {
+                    Title = "Termine bearbeiten",
+                    ViewModelType = typeof(TermineVerwaltungViewModel),
+                    IsVisible = true,
+                    IsAdminOnly = true
+                });
+
+                NavigationItems.Add(new NavigationItem
+                {
+                    Title = "Bekanntmachungen bearbeiten",
+                    ViewModelType = typeof(BekanntmachungenVerwaltungViewModel),
+                    IsVisible = true,
+                    IsAdminOnly = true
+                });
             }
 
             if (UserContext.Has(PermissionFlags.CanEditAllMembers))
@@ -556,6 +580,21 @@ namespace KGV.ViewModels
         public BaseViewModel? NavigateToHomeSectionDetailViewModel(HomeSectionDetailContext context)
         {
             return _navigationService.CreateViewModel(typeof(HomeSectionDetailViewModel), this, context) as BaseViewModel;
+        }
+
+        public BaseViewModel? NavigateToArbeitseinsaetzeVerwaltungViewModel()
+        {
+            return _navigationService.CreateViewModel(typeof(ArbeitseinsaetzeVerwaltungViewModel), this) as BaseViewModel;
+        }
+
+        public BaseViewModel? NavigateToTermineVerwaltungViewModel()
+        {
+            return _navigationService.CreateViewModel(typeof(TermineVerwaltungViewModel), this) as BaseViewModel;
+        }
+
+        public BaseViewModel? NavigateToBekanntmachungenVerwaltungViewModel()
+        {
+            return _navigationService.CreateViewModel(typeof(BekanntmachungenVerwaltungViewModel), this) as BaseViewModel;
         }
 
         private async Task RefreshArbeitsstundenPruefungStatusAsync()

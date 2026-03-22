@@ -821,6 +821,21 @@ namespace KGV.Infrastructure.Services
             },
             HomeOverviewFactory.Build(role));
 
+        public Task<List<HomeWorkAssignmentItem>> GetStartseiteArbeitseinsaetzeAsync() => ExecuteAsync(
+            "GetStartseiteArbeitseinsaetzeAsync",
+            LoadStartseiteArbeitseinsaetzeAsync,
+            new List<HomeWorkAssignmentItem>());
+
+        public Task<List<HomeAppointmentItem>> GetStartseiteTermineAsync() => ExecuteAsync(
+            "GetStartseiteTermineAsync",
+            LoadStartseiteTermineAsync,
+            new List<HomeAppointmentItem>());
+
+        public Task<List<HomeAnnouncementItem>> GetStartseiteBekanntmachungenAsync() => ExecuteAsync(
+            "GetStartseiteBekanntmachungenAsync",
+            LoadStartseiteBekanntmachungenAsync,
+            new List<HomeAnnouncementItem>());
+
         private async Task<(T Result, bool Success)> TryLoadHomeSectionAsync<T>(string sectionName, Func<Task<T>> loader, T fallback)
         {
             try

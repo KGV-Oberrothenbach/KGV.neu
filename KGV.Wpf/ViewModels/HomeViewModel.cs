@@ -37,14 +37,12 @@ namespace KGV.ViewModels
 
         public string WorkAssignmentsTitle => "Arbeitseinsätze";
         public string WorkAssignmentsEmptyText => _overview.WorkAssignmentsEmptyText;
-        public string WorkAssignmentsAdminHint => "Eine Anmeldung oder Pflege ist auf Home nur dort verdrahtet, wo bereits ein belastbarer Produktpfad vorhanden ist.";
         public string AppointmentsTitle => "Termine";
         public string AppointmentsEmptyText => _overview.AppointmentsEmptyText;
-        public string AppointmentsAdminHint => "Details werden in einer eigenen Ansicht auf dem belastbaren Startseiten-Stand geöffnet.";
         public string AnnouncementTitle => _overview.AnnouncementTitle;
         public string AnnouncementEmptyText => _overview.AnnouncementEmptyText;
-        public string AnnouncementsAdminHint => "Die Home-Seite verwendet nur die vorhandene Startseiten-View für Bekanntmachungen.";
         public bool IsAdminContext => _mainVm.UserContext.Role is UserRole.Admin or UserRole.Vorstand;
+        public bool ShowAdminManagementSection => IsAdminContext;
         public bool HasWorkAssignments => WorkAssignments.Count > 0;
         public bool ShowWorkAssignmentsEmptyState => !HasWorkAssignments;
         public bool HasAppointments => Appointments.Count > 0;
@@ -57,6 +55,9 @@ namespace KGV.ViewModels
         public ObservableCollection<HomeAnnouncementItem> Announcements { get; } = new();
 
         public RelayCommand<object?> OpenWorkedHoursCommand { get; }
+        public RelayCommand<object?> OpenWorkAssignmentsManagementCommand { get; }
+        public RelayCommand<object?> OpenAppointmentsManagementCommand { get; }
+        public RelayCommand<object?> OpenAnnouncementsManagementCommand { get; }
         public RelayCommand<HomeWorkAssignmentItem> OpenWorkAssignmentDetailCommand { get; }
         public RelayCommand<HomeAppointmentItem> OpenAppointmentDetailCommand { get; }
         public RelayCommand<HomeAnnouncementItem> OpenAnnouncementDetailCommand { get; }
@@ -65,6 +66,9 @@ namespace KGV.ViewModels
         {
             _mainVm = mainVm ?? throw new ArgumentNullException(nameof(mainVm));
             OpenWorkedHoursCommand = new RelayCommand<object?>(_ => _ = OpenWorkedHoursAsync(), _ => _mainVm.UserContext.MitgliedId is > 0);
+            OpenWorkAssignmentsManagementCommand = new RelayCommand<object?>(_ => _ = OpenWorkAssignmentsManagementAsync(), _ => IsAdminContext);
+            OpenAppointmentsManagementCommand = new RelayCommand<object?>(_ => _ = OpenAppointmentsManagementAsync(), _ => IsAdminContext);
+            OpenAnnouncementsManagementCommand = new RelayCommand<object?>(_ => _ = OpenAnnouncementsManagementAsync(), _ => IsAdminContext);
             OpenWorkAssignmentDetailCommand = new RelayCommand<HomeWorkAssignmentItem>(item => _ = OpenWorkAssignmentDetailAsync(item), item => item != null);
             OpenAppointmentDetailCommand = new RelayCommand<HomeAppointmentItem>(item => _ = OpenAppointmentDetailAsync(item), item => item != null);
             OpenAnnouncementDetailCommand = new RelayCommand<HomeAnnouncementItem>(item => _ = OpenAnnouncementDetailAsync(item), item => item != null);
@@ -98,6 +102,7 @@ namespace KGV.ViewModels
             OnPropertyChanged(nameof(AppointmentsEmptyText));
             OnPropertyChanged(nameof(AnnouncementEmptyText));
             OnPropertyChanged(nameof(IsAdminContext));
+            OnPropertyChanged(nameof(ShowAdminManagementSection));
             OnPropertyChanged(nameof(HasWorkAssignments));
             OnPropertyChanged(nameof(ShowWorkAssignmentsEmptyState));
             OnPropertyChanged(nameof(HasAppointments));
@@ -113,6 +118,27 @@ namespace KGV.ViewModels
                 return;
 
             var created = _mainVm.NavigateToArbeitsstundenViewModel(member);
+            if (created != null)
+                await _mainVm.NavigateToAsync(created);
+        }
+
+        private async Task OpenWorkAssignmentsManagementAsync()
+        {
+            var created = _mainVm.NavigateToArbeitseinsaetzeVerwaltungViewModel();
+            if (created != null)
+                await _mainVm.NavigateToAsync(created);
+        }
+
+        private async Task OpenAppointmentsManagementAsync()
+        {
+            var created = _mainVm.NavigateToTermineVerwaltungViewModel();
+            if (created != null)
+                await _mainVm.NavigateToAsync(created);
+        }
+
+        private async Task OpenAnnouncementsManagementAsync()
+        {
+            var created = _mainVm.NavigateToBekanntmachungenVerwaltungViewModel();
             if (created != null)
                 await _mainVm.NavigateToAsync(created);
         }

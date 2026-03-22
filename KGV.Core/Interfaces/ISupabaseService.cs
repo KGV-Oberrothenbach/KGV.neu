@@ -80,5 +80,8 @@ namespace KGV.Core.Interfaces
         Task<string?> CreateDokumentSignedUrlAsync(string storagePath, int expiresInSeconds = 3600);
 
         Task<HomeOverviewDTO> GetHomeOverviewAsync(KGV.Core.Security.UserRole role, int? mitgliedId);
+        Task<List<HomeWorkAssignmentItem>> GetStartseiteArbeitseinsaetzeAsync();
+        Task<List<HomeAppointmentItem>> GetStartseiteTermineAsync();
+        Task<List<HomeAnnouncementItem>> GetStartseiteBekanntmachungenAsync();
     }
 }
