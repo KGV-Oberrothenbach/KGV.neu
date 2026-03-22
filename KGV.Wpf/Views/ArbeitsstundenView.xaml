@@ -6,10 +6,14 @@
     <Grid Margin="30">
         <StackPanel>
             <DockPanel LastChildFill="False">
-                <TextBlock Text="Arbeitsstunden" FontSize="24" FontWeight="Bold" DockPanel.Dock="Left" />
+                <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="Bold" DockPanel.Dock="Left" />
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                     <Button Content="Neu" Width="120" Height="30" Margin="0,0,10,0"
+                            Visibility="{Binding ShowNeuButton, Converter={StaticResource BooleanToVisibilityConverter}}"
                             Command="{Binding NeueArbeitsstundeCommand}" />
+                    <Button Content="Freigeben" Width="120" Height="30" Margin="0,0,10,0"
+                            Visibility="{Binding ShowFreigebenButton, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Command="{Binding FreigebenCommand}" />
                     <Button Content="Bearbeiten" Width="120" Height="30"
                             Command="{Binding BearbeitenCommand}" />
                 </StackPanel>
@@ -20,13 +24,24 @@
                 <Run Text="{Binding Hauptmitglied.DisplayName}" FontWeight="SemiBold" />
             </TextBlock>
 
+            <TextBlock Margin="0,10,0,0"
+                       Text="{Binding HintText}"
+                       TextWrapping="Wrap"
+                       Foreground="DarkSlateBlue" />
+
+            <TextBlock Margin="0,15,0,0"
+                       Text="{Binding EmptyText}"
+                       TextWrapping="Wrap"
+                       Visibility="{Binding ShowEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
             <DataGrid ItemsSource="{Binding Arbeitsstunden}"
                       SelectedItem="{Binding SelectedArbeitsstunde}"
                       AutoGenerateColumns="False"
                       IsReadOnly="True"
                       CanUserAddRows="False"
                       Margin="0,15,0,0"
-                      Height="520">
+                       Height="520"
+                       Visibility="{Binding HasArbeitsstunden, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <DataGrid.InputBindings>
                     <MouseBinding Gesture="LeftDoubleClick" Command="{Binding BearbeitenCommand}" />
                 </DataGrid.InputBindings>
@@ -38,6 +53,7 @@
                     <DataGridTextColumn Header="Saison" Binding="{Binding SaisonJahr}" Width="80" />
                     <DataGridTextColumn Header="Stunden" Binding="{Binding Stunden}" Width="80" />
                     <DataGridTextColumn Header="Beschreibung" Binding="{Binding Beschreibung}" Width="*" />
+                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100" />
                     <DataGridCheckBoxColumn Header="Freigabe" Binding="{Binding Freigegeben}" Width="80" />
                     <DataGridTextColumn Header="Freigegeben am" Binding="{Binding FreigegebenAm, StringFormat=g}" Width="140" />
                     <DataGridTextColumn Header="Freigegeben von" Binding="{Binding FreigegebenVonName}" Width="160" />

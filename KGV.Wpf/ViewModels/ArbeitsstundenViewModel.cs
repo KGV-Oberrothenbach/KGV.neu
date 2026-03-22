@@ -18,6 +18,9 @@ namespace KGV.ViewModels
     {
         private readonly ISupabaseService _supabaseService;
         private readonly IAuthService _authService;
+        private readonly bool _reviewMode;
+        private readonly bool _showOnlyPending;
+        private readonly bool _includeNebenmitglied;
 
         public MemberDTO Hauptmitglied { get; }
 
@@ -37,25 +40,58 @@ namespace KGV.ViewModels
             set
             {
                 if (SetProperty(ref _selectedArbeitsstunde, value))
+                {
                     BearbeitenCommand.RaiseCanExecuteChanged();
+                    FreigebenCommand.RaiseCanExecuteChanged();
+                }
             }
         }
 
         public ObservableCollection<SaisonRecord> Saisons { get; } = new();
 
+        public string Title => _reviewMode ? "Arbeitsstunden prüfen" : "Arbeitsstunden";
+        public bool IsReviewMode => _reviewMode;
+        public bool ShowNeuButton => !_reviewMode;
+        public bool ShowFreigebenButton => _reviewMode;
+        public bool HasArbeitsstunden => Arbeitsstunden.Count > 0;
+        public bool ShowEmptyState => !HasArbeitsstunden;
+        public string EmptyText => _reviewMode
+            ? "Für dieses Mitglied liegen aktuell keine offenen Arbeitsstunden mehr zur Prüfung vor."
+            : "Für dieses Mitglied liegen aktuell keine Arbeitsstunden vor.";
+        public string HintText => _reviewMode
+            ? "Öffne einen Eintrag per Doppelklick oder gib den ausgewählten Datensatz direkt frei."
+            : "Doppelklick öffnet den ausgewählten Datensatz zur Bearbeitung.";
+
         public RelayCommand<object?> NeueArbeitsstundeCommand { get; }
         public RelayCommand<object?> BearbeitenCommand { get; }
+        public RelayCommand<object?> FreigebenCommand { get; }
 
         private int? _currentUserMitgliedId;
 
         public ArbeitsstundenViewModel(ISupabaseService supabaseService, IAuthService authService, MemberDTO hauptmitglied)
+            : this(supabaseService, authService, new ArbeitsstundenNavigationContext
+            {
+                Member = hauptmitglied,
+                IncludeNebenmitglied = true,
+                ReviewMode = false,
+                ShowOnlyPending = false
+            })
         {
-            _supabaseService = supabaseService;
-            _authService = authService;
-            Hauptmitglied = hauptmitglied;
+        }
 
-            NeueArbeitsstundeCommand = new RelayCommand<object?>(_ => _ = NeueArbeitsstundeAsync());
+        public ArbeitsstundenViewModel(ISupabaseService supabaseService, IAuthService authService, ArbeitsstundenNavigationContext context)
+        {
+            _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
+            _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            Hauptmitglied = context.Member ?? throw new ArgumentNullException(nameof(context.Member));
+            _includeNebenmitglied = context.IncludeNebenmitglied;
+            _reviewMode = context.ReviewMode;
+            _showOnlyPending = context.ShowOnlyPending;
+
+            NeueArbeitsstundeCommand = new RelayCommand<object?>(_ => _ = NeueArbeitsstundeAsync(), _ => ShowNeuButton);
             BearbeitenCommand = new RelayCommand<object?>(_ => _ = BearbeitenAsync(), _ => SelectedArbeitsstunde != null);
+            FreigebenCommand = new RelayCommand<object?>(_ => _ = FreigebenAsync(), _ => CanFreigebenSelected());
         }
 
         public async Task OnNavigatedToAsync()
@@ -67,8 +103,15 @@ namespace KGV.ViewModels
 
         private async Task LoadAsync()
         {
-            var nebenRec = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(Hauptmitglied.Id);
-            Nebenmitglied = nebenRec != null ? new MemberDTO { Id = nebenRec.Id, Vorname = nebenRec.Vorname ?? "", Nachname = nebenRec.Name ?? "" } : null;
+            if (_includeNebenmitglied)
+            {
+                var nebenRec = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(Hauptmitglied.Id);
+                Nebenmitglied = nebenRec != null ? new MemberDTO { Id = nebenRec.Id, Vorname = nebenRec.Vorname ?? "", Nachname = nebenRec.Name ?? "" } : null;
+            }
+            else
+            {
+                Nebenmitglied = null;
+            }
 
             var saisonen = await _supabaseService.GetSaisonRecordsAsync();
             Saisons.Clear();
@@ -76,14 +119,34 @@ namespace KGV.ViewModels
                 Saisons.Add(s);
 
             var ids = new List<int> { Hauptmitglied.Id };
-            if (Nebenmitglied != null) ids.Add(Nebenmitglied.Id);
+            if (_includeNebenmitglied && Nebenmitglied != null)
+                ids.Add(Nebenmitglied.Id);
 
             var items = await _supabaseService.GetArbeitsstundenAsync(ids.ToArray());
+            if (_showOnlyPending)
+            {
+                items = items
+                    .Where(IsPending)
+                    .OrderBy(x => x.Datum)
+                    .ThenBy(x => x.Id)
+                    .ToList();
+            }
+
             Arbeitsstunden.Clear();
             foreach (var i in items)
                 Arbeitsstunden.Add(i);
 
+            SelectedArbeitsstunde = Arbeitsstunden.FirstOrDefault();
             await EnsureCurrentUserMitgliedIdAsync();
+            OnPropertyChanged(nameof(HasArbeitsstunden));
+            OnPropertyChanged(nameof(ShowEmptyState));
+            OnPropertyChanged(nameof(EmptyText));
+            OnPropertyChanged(nameof(HintText));
+            OnPropertyChanged(nameof(Title));
+            OnPropertyChanged(nameof(ShowNeuButton));
+            OnPropertyChanged(nameof(ShowFreigebenButton));
+            NeueArbeitsstundeCommand.RaiseCanExecuteChanged();
+            FreigebenCommand.RaiseCanExecuteChanged();
         }
 
         private async Task EnsureCurrentUserMitgliedIdAsync()
@@ -107,7 +170,7 @@ namespace KGV.ViewModels
             };
 
             var memberOptions = new List<MemberDTO> { Hauptmitglied };
-            if (Nebenmitglied != null) memberOptions.Add(Nebenmitglied);
+            if (_includeNebenmitglied && Nebenmitglied != null) memberOptions.Add(Nebenmitglied);
 
             dlg.SetOptions(memberOptions, Saisons.ToList());
             var today = DateTime.Today;
@@ -179,7 +242,7 @@ namespace KGV.ViewModels
             };
 
             var memberOptions = new List<MemberDTO> { Hauptmitglied };
-            if (Nebenmitglied != null) memberOptions.Add(Nebenmitglied);
+            if (_includeNebenmitglied && Nebenmitglied != null) memberOptions.Add(Nebenmitglied);
 
             dlg.SetOptions(memberOptions, Saisons.ToList());
             dlg.SetInitialValues(
@@ -250,7 +313,7 @@ namespace KGV.ViewModels
                 Freigegeben = freigegeben,
                 GenehmigtAm = genehmigtAm,
                 GenehmigtVon = genehmigtVon,
-                Status = "offen"
+                Status = string.IsNullOrWhiteSpace(SelectedArbeitsstunde.Status) ? "offen" : SelectedArbeitsstunde.Status
             };
 
             var ok = await _supabaseService.UpdateArbeitsstundeAsync(update);
@@ -262,6 +325,59 @@ namespace KGV.ViewModels
 
             WeakReferenceMessenger.Default.Send(new ArbeitsstundenChangedMessage());
             await LoadAsync();
+        }
+
+        private async Task FreigebenAsync()
+        {
+            if (SelectedArbeitsstunde == null)
+                return;
+
+            if (!_authService.IsAdmin && !_authService.IsVorstand)
+                return;
+
+            await EnsureCurrentUserMitgliedIdAsync();
+            if (!_currentUserMitgliedId.HasValue)
+            {
+                MessageBox.Show("Freigabe nicht möglich: aktueller Benutzer ist keinem Mitglied zugeordnet (auth_user_id fehlt).", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var update = new ArbeitsstundeRecord
+            {
+                Id = SelectedArbeitsstunde.Id,
+                MitgliedId = SelectedArbeitsstunde.MitgliedId,
+                SaisonId = SelectedArbeitsstunde.SaisonId,
+                Datum = SelectedArbeitsstunde.Datum.Date,
+                Stunden = SelectedArbeitsstunde.Stunden,
+                ArtDerArbeit = SelectedArbeitsstunde.Beschreibung,
+                Freigegeben = true,
+                GenehmigtAm = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+                GenehmigtVon = _currentUserMitgliedId,
+                Status = string.IsNullOrWhiteSpace(SelectedArbeitsstunde.Status) ? "offen" : SelectedArbeitsstunde.Status
+            };
+
+            var ok = await _supabaseService.UpdateArbeitsstundeAsync(update);
+            if (!ok)
+            {
+                MessageBox.Show("Arbeitsstunde konnte nicht freigegeben werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            WeakReferenceMessenger.Default.Send(new ArbeitsstundenChangedMessage());
+            await LoadAsync();
+        }
+
+        private bool CanFreigebenSelected()
+        {
+            return _reviewMode
+                   && SelectedArbeitsstunde != null
+                   && !SelectedArbeitsstunde.Freigegeben
+                   && (_authService.IsAdmin || _authService.IsVorstand);
+        }
+
+        private static bool IsPending(ArbeitsstundeDTO item)
+        {
+            return !item.Freigegeben && (string.IsNullOrWhiteSpace(item.Status) || item.Status.Equals("offen", StringComparison.OrdinalIgnoreCase));
         }
     }
 }

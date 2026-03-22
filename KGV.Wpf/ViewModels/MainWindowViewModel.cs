@@ -543,6 +543,11 @@ namespace KGV.ViewModels
             return _navigationService.CreateViewModel(typeof(ArbeitsstundenViewModel), this, member) as BaseViewModel;
         }
 
+        public BaseViewModel? NavigateToArbeitsstundenViewModel(ArbeitsstundenNavigationContext context)
+        {
+            return _navigationService.CreateViewModel(typeof(ArbeitsstundenViewModel), this, context) as BaseViewModel;
+        }
+
         private async Task RefreshArbeitsstundenPruefungStatusAsync()
         {
             if (!UserContext.Has(PermissionFlags.CanManageWorkHours))

@@ -87,6 +87,9 @@ namespace KGV.Infrastructure.Services
 
             if (viewModelType == typeof(ArbeitsstundenViewModel))
             {
+                if (parameter is ArbeitsstundenNavigationContext context)
+                    return new ArbeitsstundenViewModel(_supabaseService, _authService, context);
+
                 if (parameter is not MemberDTO member)
                     return null;
 

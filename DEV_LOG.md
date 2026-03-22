@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-03-22 – Arbeitsstunden-Flow Prompt 2: Admin-/Vorstands-Prüfflow in WPF bis zur Freigabe vervollständigt
+
+- Den aktuellen WPF-Istzustand für `ArbeitsstundenPruefungView`, `ArbeitsstundenView`, Dialog, Navigation und die Arbeitsstunden-Servicepfade erneut geprüft: belastbar vorhanden waren bereits Prüfliste, Badge/Zähler und die bestehende Bearbeitungsansicht, aber aus der Prüfliste heraus lief der Weg noch zu unspezifisch nur in die allgemeine Mitgliedsliste der Arbeitsstunden.
+- Den Prüfpfad gezielt auf den bestehenden WPF-Arbeitsstundenpfad zurückgeführt statt neue Parallelansicht zu bauen: aus `Arbeitsstunden prüfen` wird jetzt die vorhandene `ArbeitsstundenView` im kleinen Prüfmodus geöffnet, gefiltert auf die tatsächlich offenen Datensätze des ausgewählten Mitglieds.
+- Dafür nur einen kleinen Navigationskontext ergänzt, keine neue Gesamtarchitektur: `ArbeitsstundenNavigationContext` steuert für die bestehende `ArbeitsstundenViewModel`-Logik, ob Nebenmitglied-Daten einbezogen werden oder ob nur offene Prüfeinträge des konkret ausgewählten Mitglieds im Prüfmodus erscheinen.
+- Admin/Vorstand können im Prüfmodus jetzt nicht nur sichten, sondern auch entscheiden: die bestehende Arbeitsstundenansicht bietet dort zusätzlich eine direkte `Freigeben`-Aktion für den ausgewählten offenen Datensatz; Doppelklick/Bearbeiten bleibt als vorhandener Produktpfad weiter nutzbar.
+- Ablehnen/Rückgabe weiterhin bewusst nicht erfunden: im aktiven Modell gibt es zwar einen Statusstring, aber kein belastbar vorhandenes UI-/Service-Fachmodell für einen sauberen Rückgabe- oder Kommentarpfad; daher wurde dieser Zweig in diesem Block nicht spekulativ aufgebaut.
+- Zustandskonsistenz nach Entscheidungen gesichert: nach Freigabe oder Bearbeitung werden Arbeitsstundenliste, Prüfliste und Badge/Zähler weiterhin über den bestehenden `ArbeitsstundenChangedMessage`-Pfad bzw. den vorhandenen gemeinsamen Prüfservice `GetUnapprovedArbeitsstundenByMitgliedAsync()` aktualisiert.
+- Die bestehende Arbeitsstundenansicht im Prüfmodus fachlich geschärft: klarer Titel, Hinweistext, leerer Prüfzustand ohne Restdaten sowie Statusspalte in der Liste, damit offene/erledigte Zustände für Admin/Vorstand nachvollziehbar bleiben.
+- Demo-/Play-Store-Testdaten bleiben auch in diesem Block aus Prüfliste und Prüfzähler ausgeschlossen, weil weiterhin ausschließlich der gemeinsame operative Prüfpfad verwendet wird.
+- Technisch verifiziert: `KGV.Wpf` baut nach der Vervollständigung des Prüfflows erfolgreich; zur Konsistenz wurde auch `KGV.Maui` mitgebaut und bleibt buildfähig.
+
 ## 2026-03-22 – Arbeitsstunden-Flow Prompt 1: Home-Einstieg, Neu-Erfassung und Prüfstatus in WPF angeschlossen
 
 - Den aktuellen Istzustand für `HomeView`/`HomeViewModel`, `ArbeitsstundenViewModel`, `ArbeitsstundeDialog`, Navigation und den gemeinsamen Prüfpfad erneut geprüft: ein belastbarer Listen-/Detailpfad für Arbeitsstunden war bereits vorhanden, aber aus Home noch nicht nutzbar, die Neu-Erfassung hing weiterhin an einem noch nicht produktiven `AddArbeitsstundeAsync`, und ein echter WPF-Prüfstatus in der Navigation fehlte komplett.

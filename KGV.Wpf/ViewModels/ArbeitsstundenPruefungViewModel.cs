@@ -89,7 +89,13 @@ namespace KGV.ViewModels
             };
 
             _mainWindowViewModel.SelectedMember = dto;
-            var created = _mainWindowViewModel.NavigateToArbeitsstundenViewModel(dto);
+            var created = _mainWindowViewModel.NavigateToArbeitsstundenViewModel(new ArbeitsstundenNavigationContext
+            {
+                Member = dto,
+                ReviewMode = true,
+                ShowOnlyPending = true,
+                IncludeNebenmitglied = false
+            });
             if (created != null)
                 await _mainWindowViewModel.NavigateToAsync(created);
         }

@@ -42,7 +42,7 @@
                        Visibility="{Binding ShowEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
             <Button Grid.Row="1"
-                    Content="Ausgewähltes Mitglied öffnen"
+                    Content="Prüffälle öffnen"
                     Margin="0,16,0,0"
                     HorizontalAlignment="Right"
                     Command="{Binding OeffnenCommand}" />
