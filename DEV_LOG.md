@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-03-22 – Block 6 Prompt 1b: Archiviertes KGV.Tests sauber mit aktivem Root-Stand zusammengeführt
+
+- Den Istzustand von aktivem Root-`KGV.Tests` und `_Archiv\KGV.Tests` erneut gegeneinander geprüft: im Root lag bislang nur der neue kleine `OperationalDataFilter`-Block, im Archiv dagegen die frühere WPF-nahe Teststruktur mit `ExportViewModelTests` und Windows-zielender Projektdatei.
+- Das archivierte Testprojekt nicht blind zurückgezogen, sondern sinnvoll zusammengeführt: die aktive Root-Projektdatei übernimmt jetzt wieder die für den aktuellen Stand passende Windows-/WPF-Teststruktur aus dem Archiv, während der neue `OperationalDataFilter`-Block vollständig erhalten bleibt.
+- Fachlich passende ältere Tests sauber zurückgeholt: `ExportViewModelTests` wurden als weiterhin sinnvoller, kleiner Prüfpfad für den aktuellen produktiven Export-Code reaktiviert, statt als bloßes Archivmaterial liegen zu bleiben.
+- Veraltete Recovery-/Archivannahmen bewusst nicht breit aktiviert: nur die fachlich weiterhin passende Struktur und der konkrete Export-Test wurden übernommen; keine pauschale Reaktivierung weiterer Altlasten.
+- Aktives `KGV.Tests` ist damit wieder ein sauber zusammengeführtes Testprojekt aus aktuellem Root-Stand plus sinnvoller Archivstruktur, nicht zwei konkurrierende Testansätze nebeneinander.
+- Technisch verifiziert: `KGV.Tests` baut im wiederhergestellten Stand, `dotnet test KGV.Tests\KGV.Tests.csproj -c Debug --no-build` läuft erfolgreich, und die aktive Produktbasis (`KGV.Wpf`, `KGV.Maui`) bleibt buildfähig.
+
 ## 2026-03-22 – Block 6 Prompt 1: Kleine aktive Testbasis für Demo-/Testdatenfilter zurückgeholt
 
 - Die aktuelle Testlage geprüft: im aktiven Root fehlte weiterhin ein reales `KGV.Tests`-Projekt, obwohl die Lösung bereits auf diesen Pfad zeigte; im Archiv lag noch eine ältere Testidee für `ExportViewModel`, die für den jetzigen Fokus aber nicht der passendste Wiedereinstieg war.
