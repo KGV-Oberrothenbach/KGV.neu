@@ -1,5 +1,7 @@
 namespace KGV.Core.Security
 {
+    using System.Collections.Generic;
+
     public enum UserRole
     {
         User = 0,
@@ -12,6 +14,7 @@ namespace KGV.Core.Security
         public const string User = "user";
         public const string Vorstand = "vorstand";
         public const string Admin = "admin";
+        public static IReadOnlyList<string> AssignableRoles { get; } = new[] { Admin, Vorstand, User };
 
         public static UserRole Parse(string? role)
         {

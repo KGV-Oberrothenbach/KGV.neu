@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Helpers;
 
 namespace KGV.ViewModels
@@ -17,7 +18,7 @@ namespace KGV.ViewModels
 
         public MemberDTO SelectedMember { get; }
 
-        public ObservableCollection<string> Roles { get; } = new() { "admin", "vorstand", "user" };
+        public ObservableCollection<string> Roles { get; } = new(UserRoles.AssignableRoles);
 
         private string _selectedRole = "user";
         public string SelectedRole

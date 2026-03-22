@@ -64,6 +64,35 @@ public sealed class UserManagementPage : ContentPage
         selectedSection.Children.Add(CreateValueLabel("Rolle", "SelectedUser.Role"));
         selectedSection.Children.Add(CreateValueLabel("Mitglied", "SelectedUser.MitgliedId"));
 
+        var rolePicker = new Picker { Title = "Rolle wählen" };
+        rolePicker.SetBinding(Picker.ItemsSourceProperty, nameof(UserManagementViewModel.Roles));
+        rolePicker.SetBinding(Picker.SelectedItemProperty, nameof(UserManagementViewModel.SelectedRole), BindingMode.TwoWay);
+        rolePicker.SetBinding(IsEnabledProperty, nameof(UserManagementViewModel.IsRoleEditable));
+
+        var roleHintLabel = new Label
+        {
+            Text = "Rollenbearbeitung für dieses Mitglied ist gesperrt.",
+            TextColor = Colors.DarkRed,
+            LineBreakMode = LineBreakMode.WordWrap
+        };
+        roleHintLabel.SetBinding(IsVisibleProperty, nameof(UserManagementViewModel.IsRoleEditable), converter: new InverseBooleanConverter());
+
+        var saveRoleButton = new Button { Text = "Rolle speichern" };
+        saveRoleButton.SetBinding(IsEnabledProperty, nameof(UserManagementViewModel.CanSaveRole));
+        saveRoleButton.Clicked += async (_, _) =>
+        {
+            var ok = await _viewModel.SaveRoleAsync();
+            if (ok)
+                await DisplayAlert("OK", "Rolle gespeichert.", "OK");
+        };
+
+        var roleSection = new VerticalStackLayout { Spacing = 8 };
+        roleSection.SetBinding(IsVisibleProperty, nameof(UserManagementViewModel.HasSelectedUser));
+        roleSection.Children.Add(new Label { Text = "Rolle", FontAttributes = FontAttributes.Bold });
+        roleSection.Children.Add(rolePicker);
+        roleSection.Children.Add(roleHintLabel);
+        roleSection.Children.Add(saveRoleButton);
+
         var inviteButton = new Button { Text = "Einladung / Erstlogin-Code senden" };
         inviteButton.SetBinding(IsEnabledProperty, nameof(UserManagementViewModel.CanInvite));
         inviteButton.Clicked += async (_, _) =>
@@ -130,6 +159,7 @@ public sealed class UserManagementPage : ContentPage
                     refreshButton,
                     usersView,
                     selectedSection,
+                    roleSection,
                     emailHintLabel,
                     inviteButton,
                     resetButton,
@@ -165,5 +195,14 @@ public sealed class UserManagementPage : ContentPage
                 valueLabel
             }
         };
+    }
+
+    private sealed class InverseBooleanConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+            => value is bool b ? !b : true;
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+            => throw new NotSupportedException();
     }
 }

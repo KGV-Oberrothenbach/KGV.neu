@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-22 – Block 5 Prompt 2: Nächste mobile Admin-Parität mit Rollenbearbeitung geschlossen
+
+- Die verbleibenden mobilen Admin-Lücken erneut gegen die produktiven WPF-Wege geprüft: nach der mobilen Benutzerverwaltung blieb die Rollenbearbeitung die nächste kleine, aber fachlich wichtige Paritätslücke, weil WPF dafür bereits einen belastbaren Sperr-/Update-Pfad im `AdminRoleViewModel` nutzt, MAUI in der neuen Benutzerverwaltung aber bislang nur lese- und Einladungsaktionen bot.
+- Genau diese eine Paritätslücke priorisiert und geschlossen: die mobile `UserManagementPage` kann jetzt für belastbar zugeordnete Mitglieder auch die Rolle ändern und speichern, statt an dieser Stelle weiter als Admin-Sackgasse zu enden.
+- Bestehenden Unterbau wiederverwendet statt neue Schattenlogik aufzubauen: MAUI nutzt jetzt für Rollenänderungen denselben Kern aus `TryLockMitgliedAsync`, `GetMitgliedByIdAsync`, `UpdateMitgliedAsync` und `ReleaseLockMitgliedAsync`, den der WPF-Adminpfad bereits verwendet.
+- Rollenliste zwischen WPF und MAUI auf einen gemeinsamen Core-Stand gebracht: `UserRoles.AssignableRoles` liefert jetzt die zulässigen Rollen zentral, sodass beide Clients denselben belastbaren Auswahlumfang nutzen.
+- Gemeinsame Anzeige nach dem Speichern geschärft: die operative Benutzerliste bevorzugt nun die tatsächliche Mitgliedsrolle vor einem evtl. älteren `app_user`-Wert, damit Rollenänderungen nach Refresh in WPF und MAUI konsistent sichtbar sind.
+- Demo-/Play-Store-Testdaten bleiben auch in diesem Block draußen: die bereits im gemeinsamen Benutzerlistenpfad eingeführte Filterung greift weiterhin, sodass keine Testkonten in die mobile Rollenverwaltung hineinlaufen.
+- Abschluss technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach diesem zweiten mobilen Admin-Paritätsschritt weiterhin erfolgreich.
+
 ## 2026-03-22 – Block 5 Prompt 1: Nächste mobile Admin-Parität mit Benutzerverwaltung geschlossen
 
 - Den Istzustand der mobilen Admin-Parität erneut gegen die aktiven WPF-Verwaltungswege geprüft: die deutlichste belastbare Lücke lag bei der `Benutzerverwaltung`, weil WPF bereits einen produktiven Pfad für Benutzer-/Mitgliedszuordnungen, Einladung/Erstlogin und Passwort-Reset hatte, MAUI dafür aber noch gar keinen echten Admin-Arbeitsweg bot.

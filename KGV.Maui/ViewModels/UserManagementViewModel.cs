@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -11,18 +12,22 @@ namespace KGV.Maui.ViewModels;
 public sealed class UserManagementViewModel : INotifyPropertyChanged
 {
     private readonly IAuthService _authService;
+    private readonly ISupabaseService _supabaseService;
     private AppUserDTO? _selectedUser;
+    private string _selectedRole = UserRoles.User;
     private string _statusMessage = string.Empty;
     private bool _isBusy;
 
-    public UserManagementViewModel(IAuthService authService)
+    public UserManagementViewModel(IAuthService authService, ISupabaseService supabaseService)
     {
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+        _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ObservableCollection<AppUserDTO> Users { get; } = new();
+    public ObservableCollection<string> Roles { get; } = new(UserRoles.AssignableRoles);
 
     public string Title => "Benutzerverwaltung";
     public string Description => "Lädt App-User-/Mitgliedszuordnungen und bietet die produktiven Auth-Admin-Aktionen für Einladung, Erstlogin und Passwort-Reset auch mobil an.";
@@ -31,6 +36,23 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
     public bool CanInvite => !IsBusy && SelectedUser != null && !string.IsNullOrWhiteSpace(SelectedUser.Email);
     public bool CanResetPassword => !IsBusy && SelectedUser != null && !string.IsNullOrWhiteSpace(SelectedUser.Email);
     public bool CanChangeSelectedEmail => !IsBusy && SelectedUser?.AuthUserId?.ToString().Equals(_authService.CurrentUserId, StringComparison.OrdinalIgnoreCase) == true;
+    public bool IsRoleEditable => SelectedUser?.MitgliedId is > 0 and not 7;
+    public bool CanSaveRole => !IsBusy && _authService.IsAdmin && IsRoleEditable && SelectedUser != null && !string.Equals(SelectedRole, NormalizeRole(SelectedUser.Role), StringComparison.OrdinalIgnoreCase);
+
+    public string SelectedRole
+    {
+        get => _selectedRole;
+        set
+        {
+            var normalized = NormalizeRole(value);
+            if (string.Equals(_selectedRole, normalized, StringComparison.Ordinal))
+                return;
+
+            _selectedRole = normalized;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanSaveRole));
+        }
+    }
 
     public AppUserDTO? SelectedUser
     {
@@ -46,6 +68,8 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(CanResetPassword));
             OnPropertyChanged(nameof(CanChangeSelectedEmail));
             OnPropertyChanged(nameof(HasSelectedUser));
+            OnPropertyChanged(nameof(IsRoleEditable));
+            _ = LoadSelectedRoleAsync(value);
         }
     }
 
@@ -62,6 +86,83 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
             _statusMessage = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasStatusMessage));
+        }
+    }
+
+    public async Task<bool> SaveRoleAsync()
+    {
+        if (!CanSaveRole || SelectedUser?.MitgliedId is not > 0)
+            return false;
+
+        var userId = _authService.CurrentUserId;
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            StatusMessage = "Nicht angemeldet. Bitte erneut einloggen.";
+            return false;
+        }
+
+        IsBusy = true;
+        StatusMessage = string.Empty;
+        var lockAcquired = false;
+
+        try
+        {
+            var memberId = SelectedUser.MitgliedId.Value;
+            lockAcquired = await _supabaseService.TryLockMitgliedAsync(memberId, userId);
+            if (!lockAcquired)
+            {
+                StatusMessage = "Datensatz ist aktuell gesperrt. Bitte später erneut versuchen.";
+                return false;
+            }
+
+            var rec = await _supabaseService.GetMitgliedByIdAsync(memberId);
+            if (rec == null)
+            {
+                StatusMessage = "Mitglied konnte nicht geladen werden.";
+                return false;
+            }
+
+            var dto = new MemberDTO
+            {
+                Id = rec.Id,
+                Vorname = rec.Vorname ?? string.Empty,
+                Nachname = rec.Name ?? string.Empty,
+                Email = rec.Email ?? string.Empty,
+                Role = SelectedRole,
+                Geburtsdatum = rec.Geburtsdatum,
+                Strasse = rec.Adresse ?? string.Empty,
+                PLZ = rec.Plz ?? string.Empty,
+                Ort = rec.Ort ?? string.Empty,
+                Telefon = rec.Telefon ?? string.Empty,
+                Mobilnummer = rec.Handy ?? string.Empty,
+                Bemerkungen = rec.Bemerkung ?? string.Empty,
+                WhatsappEinwilligung = rec.WhatsappEinwilligung,
+                MitgliedSeit = rec.MitgliedSeit,
+                MitgliedEnde = rec.MitgliedEnde
+            };
+
+            var ok = await _supabaseService.UpdateMitgliedAsync(dto, userId);
+            if (!ok)
+            {
+                StatusMessage = "Speichern fehlgeschlagen (ggf. Lock verloren oder keine Berechtigung).";
+                return false;
+            }
+
+            StatusMessage = "Rolle gespeichert.";
+            await LoadAsync(reselectSelected: SelectedUser);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Fehler beim Speichern: {ex.Message}";
+            return false;
+        }
+        finally
+        {
+            if (lockAcquired)
+                await _supabaseService.ReleaseLockMitgliedAsync(SelectedUser!.MitgliedId!.Value, userId!, force: false);
+
+            IsBusy = false;
         }
     }
 
@@ -236,6 +337,9 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
                 ? null
                 : FindMatchingUser(reselectSelected.AuthUserId, reselectSelected.MitgliedId, reselectSelected.Email);
 
+            if (SelectedUser == null)
+                SelectedRole = UserRoles.User;
+
             StatusMessage = Users.Count == 0
                 ? "Keine belastbar ableitbaren Benutzer-/Mitgliedszuordnungen gefunden."
                 : $"{Users.Count} Benutzer-/Mitgliedseinträge geladen.";
@@ -265,6 +369,39 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
         }
 
         return null;
+    }
+
+    private async Task LoadSelectedRoleAsync(AppUserDTO? user)
+    {
+        if (user?.MitgliedId is not > 0)
+        {
+            SelectedRole = UserRoles.User;
+            return;
+        }
+
+        try
+        {
+            var member = await _supabaseService.GetMitgliedByIdAsync(user.MitgliedId.Value);
+            if (SelectedUser?.MitgliedId != user.MitgliedId)
+                return;
+
+            SelectedRole = NormalizeRole(member?.Role ?? user.Role);
+        }
+        catch
+        {
+            if (SelectedUser?.MitgliedId == user.MitgliedId)
+                SelectedRole = NormalizeRole(user.Role);
+        }
+    }
+
+    private static string NormalizeRole(string? role)
+    {
+        return UserRoles.Parse(role) switch
+        {
+            UserRole.Admin => UserRoles.Admin,
+            UserRole.Vorstand => UserRoles.Vorstand,
+            _ => UserRoles.User
+        };
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

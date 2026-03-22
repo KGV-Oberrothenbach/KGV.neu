@@ -432,7 +432,7 @@ namespace KGV.Infrastructure.Authentication
                 MitgliedId = memberId,
                 Email = member?.Email ?? string.Empty,
                 DisplayName = FormatDisplayName(member),
-                Role = FirstNonEmpty(appUser?.Role, member?.Role),
+                Role = FirstNonEmpty(member?.Role, appUser?.Role),
                 Aktiv = member?.Aktiv ?? true,
                 EmailBestaetigt = false,
                 CreatedAt = appUser?.CreatedAt
