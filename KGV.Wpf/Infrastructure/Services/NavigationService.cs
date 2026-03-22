@@ -93,6 +93,11 @@ namespace KGV.Infrastructure.Services
                 return new ArbeitsstundenViewModel(_supabaseService, _authService, member);
             }
 
+            if (viewModelType == typeof(ArbeitsstundenPruefungViewModel))
+            {
+                return new ArbeitsstundenPruefungViewModel(_supabaseService, mainVm);
+            }
+
             if (viewModelType == typeof(AdminRoleViewModel))
             {
                 if (parameter is not MemberDTO member)

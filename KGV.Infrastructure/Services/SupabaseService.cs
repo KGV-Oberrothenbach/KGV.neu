@@ -543,7 +543,30 @@ namespace KGV.Infrastructure.Services
                 }).ToList();
             },
             new List<ArbeitsstundeDTO>());
-        public Task<bool> AddArbeitsstundeAsync(ArbeitsstundeRecord record) => Unavailable<bool>();
+        public Task<bool> AddArbeitsstundeAsync(ArbeitsstundeRecord record) => ExecuteAsync(
+            "AddArbeitsstundeAsync",
+            async () =>
+            {
+                if (record == null || record.MitgliedId <= 0 || record.SaisonId <= 0 || record.Stunden <= 0 || string.IsNullOrWhiteSpace(record.ArtDerArbeit))
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client.From<ArbeitsstundeRecord>().Insert(new ArbeitsstundeRecord
+                {
+                    MitgliedId = record.MitgliedId,
+                    SaisonId = record.SaisonId,
+                    Datum = NormalizeDateTime(record.Datum.Date),
+                    Stunden = record.Stunden,
+                    ArtDerArbeit = record.ArtDerArbeit.Trim(),
+                    Status = string.IsNullOrWhiteSpace(record.Status) ? "offen" : record.Status.Trim(),
+                    Freigegeben = record.Freigegeben,
+                    GenehmigtAm = record.GenehmigtAm,
+                    GenehmigtVon = record.GenehmigtVon
+                });
+
+                return true;
+            },
+            false);
         public Task<bool> UpdateArbeitsstundeAsync(ArbeitsstundeRecord record) => ExecuteAsync(
             "UpdateArbeitsstundeAsync",
             async () =>
@@ -569,7 +592,22 @@ namespace KGV.Infrastructure.Services
                 return true;
             },
             false);
-        public Task<bool> DeleteArbeitsstundeAsync(int arbeitsstundeId) => Unavailable<bool>();
+        public Task<bool> DeleteArbeitsstundeAsync(int arbeitsstundeId) => ExecuteAsync(
+            "DeleteArbeitsstundeAsync",
+            async () =>
+            {
+                if (arbeitsstundeId <= 0)
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client
+                    .From<ArbeitsstundeRecord>()
+                    .Where(x => x.Id == arbeitsstundeId)
+                    .Delete();
+
+                return true;
+            },
+            false);
         public Task<List<(int MitgliedId, string Vorname, string Nachname, int Count)>> GetUnapprovedArbeitsstundenByMitgliedAsync() => ExecuteAsync(
             "GetUnapprovedArbeitsstundenByMitgliedAsync",
             async () =>

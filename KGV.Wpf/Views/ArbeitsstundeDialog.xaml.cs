@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
+using System.Windows.Media;
 using KGV.Core.Models;
 
 namespace KGV.Views
@@ -87,6 +88,9 @@ namespace KGV.Views
 
         private void Ok_Click(object sender, RoutedEventArgs e)
         {
+            if (!ValidateInput())
+                return;
+
             DialogResult = true;
         }
 
@@ -98,6 +102,38 @@ namespace KGV.Views
 
             DeleteRequested = true;
             DialogResult = true;
+        }
+
+        private bool ValidateInput()
+        {
+            var membershipValid = SelectedMitgliedId.HasValue;
+            var dateValid = Datum.HasValue;
+            var saisonValid = SelectedSaisonId.HasValue;
+            var stundenValid = Stunden.HasValue && Stunden.Value > 0;
+            var beschreibungValid = !string.IsNullOrWhiteSpace(Beschreibung);
+
+            HighlightControl(MitgliedComboBox, membershipValid);
+            HighlightControl(DatumPicker, dateValid);
+            HighlightControl(SaisonComboBox, saisonValid);
+            HighlightControl(StundenTextBox, stundenValid);
+            HighlightControl(BeschreibungTextBox, beschreibungValid);
+
+            if (membershipValid && dateValid && saisonValid && stundenValid && beschreibungValid)
+                return true;
+
+            MessageBox.Show("Bitte alle Pflichtfelder ausfüllen. Fehlende Felder sind rot markiert.", "Pflichtfelder fehlen", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
+
+        private void HighlightControl(System.Windows.Controls.Control control, bool isValid)
+        {
+            control.BorderThickness = isValid ? new Thickness(1) : new Thickness(2);
+            control.BorderBrush = isValid ? ResolveBrush("KgvBorderBrush", Brushes.Gray) : Brushes.IndianRed;
+        }
+
+        private Brush ResolveBrush(string resourceKey, Brush fallback)
+        {
+            return TryFindResource(resourceKey) as Brush ?? fallback;
         }
     }
 }

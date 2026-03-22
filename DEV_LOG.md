@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-03-22 – Arbeitsstunden-Flow Prompt 1: Home-Einstieg, Neu-Erfassung und Prüfstatus in WPF angeschlossen
+
+- Den aktuellen Istzustand für `HomeView`/`HomeViewModel`, `ArbeitsstundenViewModel`, `ArbeitsstundeDialog`, Navigation und den gemeinsamen Prüfpfad erneut geprüft: ein belastbarer Listen-/Detailpfad für Arbeitsstunden war bereits vorhanden, aber aus Home noch nicht nutzbar, die Neu-Erfassung hing weiterhin an einem noch nicht produktiven `AddArbeitsstundeAsync`, und ein echter WPF-Prüfstatus in der Navigation fehlte komplett.
+- Den ersten Interaktionsschritt aus Home sauber angeschlossen: der Wert `geleistete Stunden` im oberen Bereich `Meine Arbeitsstunden` ist jetzt klickbar und öffnet belastbar die bestehende WPF-`ArbeitsstundenView` für das aktuelle Mitglied statt neuer Schattenlogik.
+- Dafür den MainWindow-Kontext minimal erweitert statt neue Navigationsarchitektur zu bauen: das aktuelle Mitglied kann nun bei Bedarf auch für Admin/Vorstand aus dem Benutzerkontext geladen werden, damit der Home-Einstieg in die eigenen Arbeitsstunden zuverlässig funktioniert.
+- Bestehende Arbeitsstundenansicht produktiv nutzbar gemacht: `AddArbeitsstundeAsync` und `DeleteArbeitsstundeAsync` im `SupabaseService` sind jetzt aktiv, sodass die vorhandene WPF-`Neu`-/Bearbeiten-Logik nicht mehr am Platzhalter hängt.
+- Die neue Erfassung fachlich auf den echten Statuspfad gezogen: normale Benutzer erfassen weiterhin nicht freigegebene Einträge, Vorstand/Admin können wie bisher direkt freigeben; es wurde keine lokale Freigabesimulation oder neue Freigabearchitektur eingeführt.
+- Das Arbeitsstunden-Formular geschärft statt neu erfunden: Pflichtfelder sind jetzt mit `*` markiert, fehlende Eingaben werden direkt im bestehenden `ArbeitsstundeDialog` rot umrandet, und der Aktionsbutton am Formularende heißt konsistent `Speichern`.
+- Kleinen WPF-Prüfpfad für offene Arbeitsstunden ergänzt: neue `ArbeitsstundenPruefungViewModel`/`ArbeitsstundenPruefungView` nutzen den vorhandenen gemeinsamen Servicepfad `GetUnapprovedArbeitsstundenByMitgliedAsync()` und führen von der Prüfliste direkt in die bestehende Arbeitsstundenansicht des betroffenen Mitglieds.
+- Navigation auf echten Prüfstatus gestellt: der Eintrag `Arbeitsstunden prüfen` erscheint für berechtigte Benutzer jetzt nur bei tatsächlich offenen Prüffällen, zeigt einen kleinen Zähler mit der Zahl offener Datensätze und wird bei offenem Prüfstand sichtbar hervorgehoben; Aktualisierung läuft nach Änderungen über den bestehenden `ArbeitsstundenChangedMessage`-Pfad.
+- Demo-/Play-Store-Testdaten bleiben auch in diesem Block aus Prüflisten und Prüfzählern ausgeschlossen, weil weiterhin ausschließlich der gemeinsame operative Prüfpfad genutzt wird.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem Arbeitsstunden-Hotfix erfolgreich; zur Konsistenz wurde auch `KGV.Maui` gebaut und bleibt weiterhin buildfähig.
+
 ## 2026-03-22 – WPF-Home-Datenbankanbindung: Startseiten-Views und Pflichtstundenpfad eingebunden
 
 - Den aktuellen Istzustand für `HomeViewModel`, `HomeView`, `HomeOverviewDTO`, `ISupabaseService` und `SupabaseService` erneut gegen die geklärten produktiven DB-Pfade geprüft: der obere Arbeitsstundenbereich rechnete noch lokal aus `arbeitsstunde`, während `Arbeitseinsätze`, `Termine` und `Bekanntmachungen` auf WPF-Home weiterhin nur Platzhalter-/Leerzustände nutzten.

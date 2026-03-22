@@ -65,6 +65,7 @@ namespace KGV.ViewModels
         public ObservableCollection<HomeAppointmentItem> Appointments { get; } = new();
         public ObservableCollection<HomeAnnouncementItem> Announcements { get; } = new();
 
+        public RelayCommand<object?> OpenWorkedHoursCommand { get; }
         public RelayCommand<object?> CloseAppointmentCommand { get; }
         public RelayCommand<object?> CloseAnnouncementCommand { get; }
 
@@ -107,6 +108,7 @@ namespace KGV.ViewModels
         public HomeViewModel(MainWindowViewModel mainVm)
         {
             _mainVm = mainVm ?? throw new ArgumentNullException(nameof(mainVm));
+            OpenWorkedHoursCommand = new RelayCommand<object?>(_ => _ = OpenWorkedHoursAsync(), _ => _mainVm.UserContext.MitgliedId is > 0);
             CloseAppointmentCommand = new RelayCommand<object?>(_ => CloseAppointmentDetail(), _ => HasSelectedAppointment);
             CloseAnnouncementCommand = new RelayCommand<object?>(_ => CloseAnnouncementDetail(), _ => HasSelectedAnnouncement);
         }
@@ -157,6 +159,17 @@ namespace KGV.ViewModels
         {
             SelectedAppointment = null;
             CloseAppointmentCommand.RaiseCanExecuteChanged();
+        }
+
+        private async Task OpenWorkedHoursAsync()
+        {
+            var member = await _mainVm.EnsureCurrentMemberSelectedAsync();
+            if (member == null)
+                return;
+
+            var created = _mainVm.NavigateToArbeitsstundenViewModel(member);
+            if (created != null)
+                await _mainVm.NavigateToAsync(created);
         }
 
         private void CloseAnnouncementDetail()

@@ -122,9 +122,9 @@ namespace KGV.ViewModels
             if (dlg.ShowDialog() != true)
                 return;
 
-            if (!dlg.Datum.HasValue || !dlg.Stunden.HasValue || dlg.SelectedMitgliedId == null || dlg.SelectedSaisonId == null)
+            if (!dlg.Datum.HasValue || !dlg.Stunden.HasValue || dlg.SelectedMitgliedId == null || dlg.SelectedSaisonId == null || string.IsNullOrWhiteSpace(dlg.Beschreibung))
             {
-                MessageBox.Show("Bitte Mitglied, Datum, Saison und Stunden angeben.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Bitte Mitglied, Datum, Saison, Stunden und Beschreibung angeben.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
@@ -210,9 +210,9 @@ namespace KGV.ViewModels
                 return;
             }
 
-            if (!dlg.Datum.HasValue || !dlg.Stunden.HasValue || dlg.SelectedMitgliedId == null || dlg.SelectedSaisonId == null)
+            if (!dlg.Datum.HasValue || !dlg.Stunden.HasValue || dlg.SelectedMitgliedId == null || dlg.SelectedSaisonId == null || string.IsNullOrWhiteSpace(dlg.Beschreibung))
             {
-                MessageBox.Show("Bitte Mitglied, Datum, Saison und Stunden angeben.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Bitte Mitglied, Datum, Saison, Stunden und Beschreibung angeben.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 

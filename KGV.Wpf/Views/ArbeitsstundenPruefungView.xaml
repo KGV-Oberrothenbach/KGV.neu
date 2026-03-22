@@ -1,0 +1,51 @@
+<UserControl x:Class="KGV.Views.ArbeitsstundenPruefungView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,16">
+            <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" DockPanel.Dock="Left" />
+            <Button Content="Aktualisieren"
+                    DockPanel.Dock="Right"
+                    Command="{Binding AktualisierenCommand}" />
+        </DockPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <DataGrid Grid.Row="0"
+                      ItemsSource="{Binding OffenePruefungen}"
+                      SelectedItem="{Binding SelectedEintrag, Mode=TwoWay}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserAddRows="False"
+                      Visibility="{Binding HasEntries, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <DataGrid.InputBindings>
+                    <MouseBinding Gesture="LeftDoubleClick" Command="{Binding OeffnenCommand}" />
+                </DataGrid.InputBindings>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Mitglied" Binding="{Binding DisplayName}" Width="*" />
+                    <DataGridTextColumn Header="Offene Einträge" Binding="{Binding OffeneAnzahl}" Width="140" />
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <TextBlock Grid.Row="0"
+                       Text="{Binding EmptyText}"
+                       TextWrapping="Wrap"
+                       Visibility="{Binding ShowEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+            <Button Grid.Row="1"
+                    Content="Ausgewähltes Mitglied öffnen"
+                    Margin="0,16,0,0"
+                    HorizontalAlignment="Right"
+                    Command="{Binding OeffnenCommand}" />
+        </Grid>
+    </Grid>
+</UserControl>

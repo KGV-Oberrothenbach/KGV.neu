@@ -32,13 +32,32 @@
                 <ItemsControl ItemsSource="{Binding NavigationItems}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Button Content="{Binding Title}" Margin="{Binding ButtonMargin}"
+                            <Button Margin="{Binding ButtonMargin}"
                                     Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}"
                                     Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibilityConverterLocal}}">
+                                <Button.Content>
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                                        <Border DockPanel.Dock="Right"
+                                                Margin="8,0,0,0"
+                                                Padding="6,1"
+                                                Background="{StaticResource KgvAccentBrush}"
+                                                CornerRadius="10"
+                                                Visibility="{Binding HasBadge, Converter={StaticResource BoolToVisibilityConverterLocal}}">
+                                            <TextBlock Text="{Binding BadgeCount}"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource KgvTextBrush}" />
+                                        </Border>
+                                    </DockPanel>
+                                </Button.Content>
                                 <Button.Style>
                                     <Style TargetType="{x:Type Button}" BasedOn="{StaticResource NavigationButton}">
                                         <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsAttention}" Value="True">
+                                                <Setter Property="Background" Value="#22EFCD54" />
+                                            </DataTrigger>
                                             <DataTrigger Value="True">
                                                 <DataTrigger.Binding>
                                                     <MultiBinding Converter="{StaticResource IsCurrentViewModelTypeConverter}">
@@ -64,13 +83,32 @@
                     <ItemsControl ItemsSource="{Binding MemberNavigationItems}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Button Content="{Binding Title}" Margin="{Binding ButtonMargin}"
+                            <Button Margin="{Binding ButtonMargin}"
                                         Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                         CommandParameter="{Binding}"
                                         Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibilityConverterLocal}}">
+                                    <Button.Content>
+                                        <DockPanel LastChildFill="False">
+                                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                                            <Border DockPanel.Dock="Right"
+                                                    Margin="8,0,0,0"
+                                                    Padding="6,1"
+                                                    Background="{StaticResource KgvAccentBrush}"
+                                                    CornerRadius="10"
+                                                    Visibility="{Binding HasBadge, Converter={StaticResource BoolToVisibilityConverterLocal}}">
+                                                <TextBlock Text="{Binding BadgeCount}"
+                                                           FontSize="11"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource KgvTextBrush}" />
+                                            </Border>
+                                        </DockPanel>
+                                    </Button.Content>
                                     <Button.Style>
                                         <Style TargetType="{x:Type Button}" BasedOn="{StaticResource NavigationButton}">
                                             <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsAttention}" Value="True">
+                                                    <Setter Property="Background" Value="#22EFCD54" />
+                                                </DataTrigger>
                                                 <DataTrigger Value="True">
                                                     <DataTrigger.Binding>
                                                         <MultiBinding Converter="{StaticResource IsCurrentViewModelTypeConverter}">

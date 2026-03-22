@@ -5,6 +5,7 @@ using KGV.Helpers;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -137,6 +138,10 @@ namespace KGV.ViewModels
             WeakReferenceMessenger.Default.Register<NebenmitgliedSelectedMessage>(this, (_, msg) =>
                 _ = OnNebenmitgliedSelectedAsync(msg.Context));
 
+            WeakReferenceMessenger.Default.Register<ArbeitsstundenChangedMessage>(this, (_, _) =>
+                _ = RefreshArbeitsstundenPruefungStatusAsync());
+
+            _ = RefreshArbeitsstundenPruefungStatusAsync();
             _ = InitializeHomeStartAsync();
         }
 
@@ -145,7 +150,7 @@ namespace KGV.ViewModels
             try
             {
                 if (!UserContext.Has(PermissionFlags.CanSearchMembers))
-                    await LoadCurrentMemberContextAsync();
+                    await EnsureCurrentMemberSelectedAsync();
 
                 var created = _navigationService.CreateViewModel(typeof(HomeViewModel), this);
                 if (created is BaseViewModel vm)
@@ -156,31 +161,34 @@ namespace KGV.ViewModels
             }
         }
 
-        private async Task LoadCurrentMemberContextAsync()
+        public async Task<MemberDTO?> EnsureCurrentMemberSelectedAsync()
         {
             try
             {
                 if (!UserContext.MitgliedId.HasValue)
-                    return;
+                    return SelectedMember;
 
                 if (UserContext.MitgliedId.Value > int.MaxValue)
-                    return;
+                    return SelectedMember;
 
                 var myId = (int)UserContext.MitgliedId.Value;
 
-                // Minimalen Placeholder setzen, damit Navigation ("Meine Daten") nicht leer läuft,
-                // selbst wenn der Detail-Load fehlschlägt.
+                if (SelectedMember?.Id == myId && !string.IsNullOrWhiteSpace(SelectedMember.Vorname + SelectedMember.Nachname + SelectedMember.Email))
+                    return SelectedMember;
+
                 SelectedMember ??= new MemberDTO { Id = myId };
 
                 var rec = await _supabaseService.GetMitgliedByIdAsync(myId);
                 if (rec == null)
-                    return;
+                    return SelectedMember;
 
                 var dto = MapToDTO(rec);
                 SelectedMember = dto.Clone();
+                return SelectedMember;
             }
             catch
             {
+                return SelectedMember;
             }
         }
 
@@ -262,6 +270,18 @@ namespace KGV.ViewModels
                     ViewModelType = typeof(ParzellenVerwaltungViewModel),
                     IsVisible = true,
                     IsAdminOnly = true
+                });
+            }
+
+            if (UserContext.Has(PermissionFlags.CanManageWorkHours))
+            {
+                NavigationItems.Add(new NavigationItem
+                {
+                    Title = "Arbeitsstunden prüfen",
+                    ViewModelType = typeof(ArbeitsstundenPruefungViewModel),
+                    IsVisible = false,
+                    IsAttention = false,
+                    BadgeCount = 0
                 });
             }
 
@@ -384,6 +404,9 @@ namespace KGV.ViewModels
         {
             foreach (var item in NavigationItems)
             {
+                if (item.ViewModelType == typeof(ArbeitsstundenPruefungViewModel))
+                    continue;
+
                 item.IsVisible = !item.IsAdminOnly || IsAdmin;
             }
 
@@ -513,6 +536,35 @@ namespace KGV.ViewModels
         public void NavigateTo(BaseViewModel viewModel)
         {
             _ = NavigateToAsync(viewModel);
+        }
+
+        public BaseViewModel? NavigateToArbeitsstundenViewModel(MemberDTO member)
+        {
+            return _navigationService.CreateViewModel(typeof(ArbeitsstundenViewModel), this, member) as BaseViewModel;
+        }
+
+        private async Task RefreshArbeitsstundenPruefungStatusAsync()
+        {
+            if (!UserContext.Has(PermissionFlags.CanManageWorkHours))
+                return;
+
+            try
+            {
+                var navItem = NavigationItems.FirstOrDefault(x => x.ViewModelType == typeof(ArbeitsstundenPruefungViewModel));
+                if (navItem == null)
+                    return;
+
+                var offene = await _supabaseService.GetUnapprovedArbeitsstundenByMitgliedAsync();
+                var count = offene.Sum(x => x.Count);
+
+                navItem.BadgeCount = count;
+                navItem.IsAttention = count > 0;
+                navItem.IsVisible = count > 0;
+                OnPropertyChanged(nameof(NavigationItems));
+            }
+            catch
+            {
+            }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

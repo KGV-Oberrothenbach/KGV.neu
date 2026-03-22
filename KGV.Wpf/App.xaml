@@ -39,6 +39,10 @@
                 <views:ArbeitsstundenView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type vm:ArbeitsstundenPruefungViewModel}">
+                <views:ArbeitsstundenPruefungView />
+            </DataTemplate>
+
             <DataTemplate DataType="{x:Type vm:NebenmitgliedDetailViewModel}">
                 <views:MemberDetailView />
             </DataTemplate>
