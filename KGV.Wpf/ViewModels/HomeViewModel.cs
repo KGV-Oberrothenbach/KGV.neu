@@ -9,26 +9,28 @@ using System.Threading.Tasks;
 
 namespace KGV.ViewModels
 {
-    public sealed class HomeViewModel : BaseViewModel, INavigationAware
+    public sealed class HomeViewModel : BaseViewModel, KGV.Core.Interfaces.INavigationAware
     {
         private readonly MainWindowViewModel _mainVm;
+            private HomeOverviewDTO _overview = HomeOverviewFactory.Build(UserRole.User);
 
         public string Title => "Startseite";
-        public string Description => "Zeigt die aktuell aus Rechten und Navigation belastbar ableitbaren Verwaltungszugänge an.";
+            public string Description => _overview.Description;
         public string UserContextText => $"Kontext: {UserRoles.ToStorageValue(_mainVm.UserContext.Role)}";
-        public string StatusMessage => ModuleItems.Count == 0 ? "Für diesen Benutzerkontext sind aktuell keine zusätzlichen Verwaltungszugänge verfügbar." : string.Empty;
-        public string AnnouncementHintText => "Bitte eine Bekanntmachung aus der Liste auswählen.";
-        public string AnnouncementEmptyText => "Aktuell sind keine Bekanntmachungen vorhanden.";
+            public string StatusMessage => QuickLinks.Count == 0 ? _overview.QuickLinksEmptyText : string.Empty;
+            public string QuickLinksTitle => _overview.QuickLinksTitle;
+            public string AnnouncementTitle => _overview.AnnouncementTitle;
+            public string AnnouncementHintText => _overview.AnnouncementHintText;
+            public string AnnouncementEmptyText => _overview.AnnouncementEmptyText;
         public bool HasAnnouncements => Announcements.Count > 0;
         public bool HasSelectedAnnouncement => SelectedAnnouncement != null;
         public bool ShowAnnouncementHint => HasAnnouncements && !HasSelectedAnnouncement;
         public bool ShowAnnouncementEmptyState => !HasAnnouncements;
-        public bool CanEditAnnouncements => _mainVm.UserContext.Role is UserRole.Admin or UserRole.Vorstand;
 
-        public ObservableCollection<NavigationItem> ModuleItems { get; } = new();
+            public ObservableCollection<HomeQuickLinkItem> QuickLinks { get; } = new();
         public ObservableCollection<HomeAnnouncementItem> Announcements { get; } = new();
 
-        public RelayCommand<NavigationItem> OpenModuleCommand { get; }
+            public RelayCommand<HomeQuickLinkItem> OpenModuleCommand { get; }
 
         private HomeAnnouncementItem? _selectedAnnouncement;
         public HomeAnnouncementItem? SelectedAnnouncement
@@ -49,7 +51,7 @@ namespace KGV.ViewModels
         public HomeViewModel(MainWindowViewModel mainVm)
         {
             _mainVm = mainVm ?? throw new ArgumentNullException(nameof(mainVm));
-            OpenModuleCommand = new RelayCommand<NavigationItem>(OpenModule, item => item?.ViewModelType != null && item.IsVisible);
+                OpenModuleCommand = new RelayCommand<HomeQuickLinkItem>(OpenModule, item => item != null);
         }
 
         public Task OnNavigatedToAsync()
@@ -63,23 +65,18 @@ namespace KGV.ViewModels
 
         private void BuildModules()
         {
-            ModuleItems.Clear();
+            _overview = HomeOverviewFactory.Build(_mainVm.UserContext.Role);
 
-            foreach (var item in _mainVm.NavigationItems
-                         .Where(x => x.IsVisible && x.ViewModelType != null && x.ViewModelType != typeof(HomeViewModel)))
-            {
-                ModuleItems.Add(new NavigationItem
-                {
-                    Title = item.Title,
-                    ViewModelType = item.ViewModelType,
-                    Parameter = item.Parameter,
-                    IsVisible = item.IsVisible,
-                    IsAdminOnly = item.IsAdminOnly,
-                    ButtonMargin = item.ButtonMargin
-                });
-            }
+            QuickLinks.Clear();
+            foreach (var item in _overview.QuickLinks)
+                QuickLinks.Add(item);
 
             OnPropertyChanged(nameof(StatusMessage));
+            OnPropertyChanged(nameof(Description));
+            OnPropertyChanged(nameof(QuickLinksTitle));
+            OnPropertyChanged(nameof(AnnouncementTitle));
+            OnPropertyChanged(nameof(AnnouncementHintText));
+            OnPropertyChanged(nameof(AnnouncementEmptyText));
         }
 
         private void LoadAnnouncements()
@@ -92,12 +89,21 @@ namespace KGV.ViewModels
             OnPropertyChanged(nameof(ShowAnnouncementEmptyState));
         }
 
-        private void OpenModule(NavigationItem? item)
+        private void OpenModule(HomeQuickLinkItem? item)
         {
             if (item == null)
                 return;
 
-            _mainVm.NavigateCommand.Execute(item);
+            var target = item.Key switch
+            {
+                HomeQuickLinkKey.MemberSearch => _mainVm.NavigationItems.FirstOrDefault(x => x.ViewModelType == typeof(MemberSearchViewModel) && x.IsVisible),
+                HomeQuickLinkKey.PlotManagement => _mainVm.NavigationItems.FirstOrDefault(x => x.ViewModelType == typeof(ParzellenVerwaltungViewModel) && x.IsVisible),
+                HomeQuickLinkKey.MyProfile => _mainVm.NavigationItems.FirstOrDefault(x => x.ViewModelType == typeof(MemberDetailViewModel) && x.IsVisible),
+                _ => null
+            };
+
+            if (target != null)
+                _mainVm.NavigateCommand.Execute(target);
         }
     }
 }

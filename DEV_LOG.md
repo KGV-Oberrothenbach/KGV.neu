@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-22 – Block 4/3 Prompt 1: Home-/Startseiten auf gemeinsamen Kernstand gebracht
+
+- Den Istzustand der aktiven Startseiten geprüft: WPF-`HomeViewModel` zeigte bisher eine rein aus Desktop-Navigation abgeleitete Modulliste plus leere Bekanntmachungen; MAUI-`HomeViewModel` zeigte nur Kontext und dieselbe leere Bekanntmachungssektion ohne gleichwertige Schnellzugriffe.
+- Kleinsten belastbaren gemeinsamen Home-Umfang auf einen gemeinsamen Core-Pfad gezogen: neues `HomeOverviewDTO` mit `HomeQuickLinkItem`/`HomeQuickLinkKey` bündelt jetzt den fachlichen Kern für Home zentral in `KGV.Core`, statt Schnellzugriffslogik getrennt in WPF und MAUI auszudrücken.
+- Gemeinsame Home-Aussagen vereinheitlicht: beide Clients nutzen jetzt dieselbe Beschreibung des Home-Kerns, dieselben gemeinsamen Schnellzugriffe pro Rolle und dieselbe ehrliche Bekanntmachungs-Aussage, dass aktuell noch kein belastbarer Bekanntmachungs-Pfad für Home angebunden ist.
+- WPF-Home auf den gemeinsamen Kernstand umgestellt: die bisher rein desktop-spezifische Modulauflistung wurde für Home auf die gemeinsamen Kern-Schnellzugriffe reduziert; der tote Bekanntmachungs-`Bearbeiten`-Platzhalter wurde entfernt.
+- MAUI-Home fachlich nachgezogen: gemeinsame Schnellzugriffe sind jetzt direkt von der Startseite aus erreichbar und springen auf die vorhandenen Shell-Routen für Mitgliedersuche, Parzellen bzw. eigene Stammdaten.
+- Demo-/Play-Store-Testdaten bewusst nicht in Home-Kennzahlen oder Hinweise eingerechnet: für diesen Block wurde keine Summen-/Kennzahlenlogik aufgebaut, solange dafür noch kein belastbarer gemeinsamer Auswertungspfad vorliegt.
+- Abschluss technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem Home-Abgleich weiterhin erfolgreich.
+
 ## 2026-03-22 – Block 3/3 Prompt 3: Parzellen-Kernlücken und mobile Admin-Parität abgeschlossen
 
 - Den Istzustand der Parzellenzentrale erneut gegen die vorhandenen Fachpfade geprüft: belastbar verfügbar waren bereits aktive Zähler, Ablesungen, Belegungsstatus und Parzellen-Dokumente, aber MAUI nutzte davon in der Zentrale bislang nur einen Teil und ließ Strom-/Wasser-Verwaltung als Sackgasse stehen.

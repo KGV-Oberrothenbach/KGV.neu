@@ -11,6 +11,7 @@ public sealed class HomeViewModel : INotifyPropertyChanged
 {
     private readonly UserContextState _userContextState;
     private HomeAnnouncementItem? _selectedAnnouncement;
+    private HomeOverviewDTO _overview = HomeOverviewFactory.Build(UserRole.User);
 
     public HomeViewModel(UserContextState userContextState)
     {
@@ -20,16 +21,21 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ObservableCollection<HomeAnnouncementItem> Announcements { get; } = new();
+    public ObservableCollection<HomeQuickLinkItem> QuickLinks { get; } = new();
 
     public string Title => "Startseite";
+    public string Description => _overview.Description;
     public string UserContextText => $"Kontext: {UserRoles.ToStorageValue(_userContextState.CurrentUserContext?.Role ?? UserRole.User)}";
-    public string AnnouncementHintText => "Bitte eine Bekanntmachung aus der Liste auswählen.";
-    public string AnnouncementEmptyText => "Aktuell sind keine Bekanntmachungen vorhanden.";
+    public string QuickLinksTitle => _overview.QuickLinksTitle;
+    public string QuickLinksEmptyText => _overview.QuickLinksEmptyText;
+    public string AnnouncementTitle => _overview.AnnouncementTitle;
+    public string AnnouncementHintText => _overview.AnnouncementHintText;
+    public string AnnouncementEmptyText => _overview.AnnouncementEmptyText;
+    public bool HasQuickLinks => QuickLinks.Count > 0;
     public bool HasAnnouncements => Announcements.Count > 0;
     public bool HasSelectedAnnouncement => SelectedAnnouncement != null;
     public bool ShowAnnouncementHint => HasAnnouncements && !HasSelectedAnnouncement;
     public bool ShowAnnouncementEmptyState => !HasAnnouncements;
-    public bool CanEditAnnouncements => (_userContextState.CurrentUserContext?.Role ?? UserRole.User) is UserRole.Admin or UserRole.Vorstand;
 
     public HomeAnnouncementItem? SelectedAnnouncement
     {
@@ -48,14 +54,26 @@ public sealed class HomeViewModel : INotifyPropertyChanged
 
     public void Initialize()
     {
+        _overview = HomeOverviewFactory.Build(_userContextState.CurrentUserContext?.Role ?? UserRole.User);
+
+        QuickLinks.Clear();
+        foreach (var item in _overview.QuickLinks)
+            QuickLinks.Add(item);
+
         Announcements.Clear();
         SelectedAnnouncement = null;
 
+        OnPropertyChanged(nameof(Description));
         OnPropertyChanged(nameof(UserContextText));
+        OnPropertyChanged(nameof(QuickLinksTitle));
+        OnPropertyChanged(nameof(QuickLinksEmptyText));
+        OnPropertyChanged(nameof(AnnouncementTitle));
         OnPropertyChanged(nameof(HasAnnouncements));
+        OnPropertyChanged(nameof(HasQuickLinks));
         OnPropertyChanged(nameof(ShowAnnouncementHint));
         OnPropertyChanged(nameof(ShowAnnouncementEmptyState));
-        OnPropertyChanged(nameof(CanEditAnnouncements));
+        OnPropertyChanged(nameof(AnnouncementHintText));
+        OnPropertyChanged(nameof(AnnouncementEmptyText));
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

@@ -23,17 +23,21 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0">
-                <TextBlock Text="Verfügbare Module" FontWeight="SemiBold" Margin="0,0,0,12" />
+                <TextBlock Text="{Binding QuickLinksTitle}" FontWeight="SemiBold" Margin="0,0,0,12" />
 
-                <ItemsControl ItemsSource="{Binding ModuleItems}">
+                <ItemsControl ItemsSource="{Binding QuickLinks}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Button Content="{Binding Title}"
-                                    Command="{Binding DataContext.OpenModuleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            <Button Command="{Binding DataContext.OpenModuleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding}"
                                     Margin="0,0,0,8"
-                                    Height="36"
-                                    HorizontalContentAlignment="Left"/>
+                                    MinHeight="52"
+                                    HorizontalContentAlignment="Left">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontSize="11" Foreground="Gray"/>
+                                </StackPanel>
+                            </Button>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -55,7 +59,7 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel>
-                        <TextBlock Text="Bekanntmachungen" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <TextBlock Text="{Binding AnnouncementTitle}" FontWeight="SemiBold" Margin="0,0,0,12" />
                         <ListBox ItemsSource="{Binding Announcements}"
                                  SelectedItem="{Binding SelectedAnnouncement, Mode=TwoWay}"
                                  DisplayMemberPath="Title"
@@ -68,14 +72,7 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Margin="16,0,0,0">
-                        <DockPanel Margin="0,0,0,8">
-                            <TextBlock Text="Detail" FontWeight="SemiBold" DockPanel.Dock="Left" />
-                            <Button Content="Bearbeiten"
-                                    Width="110"
-                                    DockPanel.Dock="Right"
-                                    Visibility="{Binding CanEditAnnouncements, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                    IsEnabled="False" />
-                        </DockPanel>
+                        <TextBlock Text="Detail" FontWeight="SemiBold" Margin="0,0,0,8" />
 
                         <TextBlock Text="{Binding SelectedAnnouncement.Title}"
                                    FontWeight="SemiBold"

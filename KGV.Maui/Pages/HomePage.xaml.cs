@@ -18,10 +18,54 @@ public class HomePage : ContentPage
         var titleLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold };
         titleLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.Title));
 
+        var descriptionLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
+        descriptionLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.Description));
+
         var contextLabel = new Label { TextColor = Colors.Gray, FontSize = 12 };
         contextLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.UserContextText));
 
-        var sectionLabel = new Label { Text = "Bekanntmachungen", FontSize = 18, FontAttributes = FontAttributes.Bold };
+        var quickLinksLabel = new Label { FontSize = 18, FontAttributes = FontAttributes.Bold };
+        quickLinksLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.QuickLinksTitle));
+
+        var quickLinksView = new CollectionView
+        {
+            SelectionMode = SelectionMode.Single,
+            HeightRequest = 180,
+            ItemTemplate = new DataTemplate(() =>
+            {
+                var itemTitle = new Label { FontAttributes = FontAttributes.Bold };
+                itemTitle.SetBinding(Label.TextProperty, nameof(HomeQuickLinkItem.Title));
+
+                var itemDescription = new Label { FontSize = 12, TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+                itemDescription.SetBinding(Label.TextProperty, nameof(HomeQuickLinkItem.Description));
+
+                return new VerticalStackLayout
+                {
+                    Padding = new Thickness(0, 8),
+                    Children = { itemTitle, itemDescription }
+                };
+            })
+        };
+        quickLinksView.SetBinding(ItemsView.ItemsSourceProperty, nameof(HomeViewModel.QuickLinks));
+        quickLinksView.SetBinding(IsVisibleProperty, nameof(HomeViewModel.HasQuickLinks));
+        quickLinksView.SelectionChanged += async (_, e) =>
+        {
+            var selected = e.CurrentSelection?.FirstOrDefault() as HomeQuickLinkItem;
+            if (selected == null)
+                return;
+
+            if (TryGetRoute(selected, out var route))
+                await Shell.Current.GoToAsync($"//{route}");
+
+            quickLinksView.SelectedItem = null;
+        };
+
+        var quickLinksEmptyLabel = new Label { TextColor = Colors.Gray };
+        quickLinksEmptyLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.QuickLinksEmptyText));
+        quickLinksEmptyLabel.SetBinding(IsVisibleProperty, nameof(HomeViewModel.HasQuickLinks), converter: new InverseBooleanConverter());
+
+        var sectionLabel = new Label { FontSize = 18, FontAttributes = FontAttributes.Bold };
+        sectionLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.AnnouncementTitle));
 
         var announcementsView = new CollectionView
         {
@@ -51,8 +95,6 @@ public class HomePage : ContentPage
         emptyLabel.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowAnnouncementEmptyState));
 
         var detailLabel = new Label { Text = "Detail", FontAttributes = FontAttributes.Bold, VerticalOptions = LayoutOptions.Center };
-        var editButton = new Button { Text = "Bearbeiten", IsEnabled = false, HorizontalOptions = LayoutOptions.End };
-        editButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.CanEditAnnouncements));
 
         var selectedTitle = new Label { FontAttributes = FontAttributes.Bold, FontSize = 16 };
         selectedTitle.SetBinding(Label.TextProperty, "SelectedAnnouncement.Title");
@@ -77,9 +119,6 @@ public class HomePage : ContentPage
         };
         detailHeader.Children.Add(detailLabel);
         Grid.SetColumn(detailLabel, 0);
-        detailHeader.Children.Add(editButton);
-        Grid.SetColumn(editButton, 1);
-
         Content = new VerticalStackLayout
         {
             Padding = 24,
@@ -87,7 +126,11 @@ public class HomePage : ContentPage
             Children =
             {
                 titleLabel,
+                descriptionLabel,
                 contextLabel,
+                quickLinksLabel,
+                quickLinksView,
+                quickLinksEmptyLabel,
                 sectionLabel,
                 announcementsView,
                 emptyLabel,
@@ -108,5 +151,27 @@ public class HomePage : ContentPage
 
         _viewModel.Initialize();
         _initialized = true;
+    }
+
+    private static bool TryGetRoute(HomeQuickLinkItem item, out string route)
+    {
+        route = item.Key switch
+        {
+            HomeQuickLinkKey.MemberSearch => "membersearch",
+            HomeQuickLinkKey.PlotManagement => "parzellen",
+            HomeQuickLinkKey.MyProfile => "myprofile",
+            _ => string.Empty
+        };
+
+        return !string.IsNullOrWhiteSpace(route);
+    }
+
+    private sealed class InverseBooleanConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+            => value is bool b ? !b : true;
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+            => throw new NotSupportedException();
     }
 }
