@@ -911,6 +911,76 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
+        public Task<List<BekanntmachungRecord>> GetBekanntmachungenVerwaltungAsync() => ExecuteAsync(
+            "GetBekanntmachungenVerwaltungAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client.From<BekanntmachungRecord>().Get();
+
+                return response?.Models?
+                    .OrderBy(x => x.SortOrder ?? int.MaxValue)
+                    .ThenByDescending(x => x.SichtbarAb ?? x.CreatedAt ?? DateTime.MinValue)
+                    .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList()
+                    ?? new List<BekanntmachungRecord>();
+            },
+            new List<BekanntmachungRecord>());
+
+        public Task<BekanntmachungRecord?> CreateBekanntmachungAsync(BekanntmachungRecord record) => ExecuteAsync<BekanntmachungRecord?>(
+            "CreateBekanntmachungAsync",
+            async () =>
+            {
+                if (record == null || string.IsNullOrWhiteSpace(record.Titel) || string.IsNullOrWhiteSpace(record.InhaltHtml))
+                    return null;
+
+                var client = await EnsureClientAsync();
+                var insertRecord = new BekanntmachungRecord
+                {
+                    Titel = CleanRequiredText(record.Titel),
+                    InhaltHtml = CleanRequiredText(record.InhaltHtml),
+                    SichtbarAb = record.SichtbarAb.HasValue ? NormalizeDateTime(record.SichtbarAb.Value) : null,
+                    SichtbarBis = record.SichtbarBis.HasValue ? NormalizeDateTime(record.SichtbarBis.Value) : null,
+                    SortOrder = record.SortOrder,
+                    Aktiv = record.Aktiv
+                };
+
+                await client.From<BekanntmachungRecord>().Insert(insertRecord);
+                var reloadResponse = await client.From<BekanntmachungRecord>().Get();
+                var created = reloadResponse?.Models?
+                    .Where(x => IsSameBekanntmachungForReload(x, insertRecord))
+                    .OrderByDescending(x => x.Id)
+                    .FirstOrDefault();
+
+                _logger?.LogInformation("CreateBekanntmachungAsync created bekanntmachung {BekanntmachungId}", created?.Id);
+                return created;
+            },
+            null);
+
+        public Task<bool> UpdateBekanntmachungAsync(BekanntmachungRecord record) => ExecuteAsync(
+            "UpdateBekanntmachungAsync",
+            async () =>
+            {
+                if (record == null || record.Id <= 0 || string.IsNullOrWhiteSpace(record.Titel) || string.IsNullOrWhiteSpace(record.InhaltHtml))
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client
+                    .From<BekanntmachungRecord>()
+                    .Where(x => x.Id == record.Id)
+                    .Set(x => x.Titel, CleanRequiredText(record.Titel))
+                    .Set(x => x.InhaltHtml, CleanRequiredText(record.InhaltHtml))
+                    .Set(x => x.SichtbarAb, record.SichtbarAb.HasValue ? NormalizeDateTime(record.SichtbarAb.Value) : null)
+                    .Set(x => x.SichtbarBis, record.SichtbarBis.HasValue ? NormalizeDateTime(record.SichtbarBis.Value) : null)
+                    .Set(x => x.SortOrder, record.SortOrder)
+                    .Set(x => x.Aktiv, record.Aktiv)
+                    .Update();
+
+                _logger?.LogInformation("UpdateBekanntmachungAsync updated bekanntmachung {BekanntmachungId}", record.Id);
+                return true;
+            },
+            false);
+
         private async Task<(T Result, bool Success)> TryLoadHomeSectionAsync<T>(string sectionName, Func<Task<T>> loader, T fallback)
         {
             try
@@ -1027,6 +1097,16 @@ namespace KGV.Infrastructure.Services
                 && left.Aktiv == right.Aktiv
                 && left.SichtbarAb == right.SichtbarAb
                 && left.SichtbarBis == right.SichtbarBis;
+        }
+
+        private static bool IsSameBekanntmachungForReload(BekanntmachungRecord left, BekanntmachungRecord right)
+        {
+            return string.Equals(CleanRequiredText(left.Titel), CleanRequiredText(right.Titel), StringComparison.CurrentCulture)
+                && string.Equals(CleanRequiredText(left.InhaltHtml), CleanRequiredText(right.InhaltHtml), StringComparison.CurrentCulture)
+                && left.SichtbarAb == right.SichtbarAb
+                && left.SichtbarBis == right.SichtbarBis
+                && left.SortOrder == right.SortOrder
+                && left.Aktiv == right.Aktiv;
         }
 
         private async Task<List<StromzaehlerRecord>> GetStromzaehlerForParzelleAsync(int parzelleId)

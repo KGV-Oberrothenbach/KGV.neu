@@ -86,5 +86,8 @@ namespace KGV.Core.Interfaces
         Task<List<TerminRecord>> GetTermineVerwaltungAsync();
         Task<TerminRecord?> CreateTerminAsync(TerminRecord record);
         Task<bool> UpdateTerminAsync(TerminRecord record);
+        Task<List<BekanntmachungRecord>> GetBekanntmachungenVerwaltungAsync();
+        Task<BekanntmachungRecord?> CreateBekanntmachungAsync(BekanntmachungRecord record);
+        Task<bool> UpdateBekanntmachungAsync(BekanntmachungRecord record);
     }
 }

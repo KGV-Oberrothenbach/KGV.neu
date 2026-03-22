@@ -2,6 +2,49 @@
 
 ---
 
+## 2026-03-22 – Prompt 3/5: Bekanntmachungen-Verwaltung produktiv an `bekanntmachung` angeschlossen, inklusive kleinem HTML-Editor
+
+- Den aktuellen Istzustand der vorbereiteten Bekanntmachungen-Verwaltung vor dem Umbau erneut geprüft: `BekanntmachungenVerwaltungViewModel` war bislang noch nur strukturell aus dem gemeinsamen Verwaltungsgerüst abgeleitet, die Listenladung lief nur über den Startseiten-Lesepfad, und es gab noch keinen produktiven Editor für `inhalt_html`.
+- Den bestätigten Tabellenvertrag von `bekanntmachung` jetzt direkt produktiv an die WPF-Verwaltung angebunden. Bearbeitet werden genau die bestätigten Fachfelder:
+  - `titel` *(Pflichtfeld)*
+  - `inhalt_html` *(Pflichtfeld)*
+  - `sichtbar_ab`
+  - `sichtbar_bis`
+  - `sort_order`
+  - `aktiv`
+- Technische Felder wie `created_at` und `updated_at` bleiben weiterhin bewusst außerhalb der normalen Bearbeitung; es wurden keine zusätzlichen Fantasiefelder ergänzt.
+- Gemeinsamen produktiven Basistabellenpfad ergänzt:
+  - `GetBekanntmachungenVerwaltungAsync()`
+  - `CreateBekanntmachungAsync(...)`
+  - `UpdateBekanntmachungAsync(...)`
+  Diese Methoden lesen/schreiben direkt auf `bekanntmachung`; es wird ausdrücklich nicht gegen `v_startseite_bekanntmachungen` geschrieben.
+- Die linke Verwaltungsseite nutzt jetzt reale Datensätze aus `bekanntmachung` statt einer Home-/View-Strukturableitung. Dadurch bleibt die Admin-/Vorstandsverwaltung auch für noch nicht sichtbare oder inaktive Bekanntmachungen fachlich korrekt.
+- Das rechte Verhalten ist jetzt produktiv und konsistent:
+  - ohne `Neu` oder Doppelklick bleibt rechts leer
+  - Doppelklick öffnet den Editor mit echten Werten
+  - `Neu` öffnet einen leeren Editorzustand
+  - `Abbrechen` verwirft den Bearbeitungszustand vollständig
+  - `Speichern` bleibt wie gefordert am Ende des Formulars
+- HTML-Editor-Entscheidung bewusst klein und kontrolliert gehalten: im Repo gab es vor dem Block keine belastbare kleine HTML-/Preview-Komponente und keine bereits genutzte leichte Editorabhängigkeit. Deshalb wurde keine schwere neue Editor-Architektur eingeführt, sondern eine produktive Bordmittel-Lösung umgesetzt:
+  - HTML-Quellbearbeitung in einem dedizierten Editorbereich
+  - kleine Snippet-Leiste für häufige HTML-Bausteine (`Absatz`, `Überschrift`, `Fett`, `Link`, `Liste`)
+  - integrierte Live-Vorschau über den vorhandenen WPF-`WebBrowser`
+- Damit bleibt `inhalt_html` nicht auf ein bloßes Plaintext-Endfeld reduziert, ohne einen übergroßen Richtext-Baukasten neu zu erfinden.
+- Bestätigte Validierungsregeln direkt umgesetzt:
+  - `Titel` darf nicht leer oder nur Leerzeichen sein
+  - `inhalt_html` darf nicht leer oder nur Leerzeichen sein
+  - `sichtbar_bis < sichtbar_ab` ist ungültig
+  - für `sichtbar_ab`/`sichtbar_bis` werden Datum und Uhrzeit gemeinsam benötigt, sobald eines davon befüllt wird, damit keine stillen Timestamp-Annahmen entstehen
+  - `sort_order` ist optional, muss aber bei Eingabe eine ganze Zahl sein
+- Das Validierungs-/Fokusmuster aus `Termine` wurde bewusst wiederverwendet:
+  - rote Hervorhebung fehlerhafter Felder
+  - Fokus springt beim Speichern auf das erste fehlerhafte Feld von oben
+  - dieselbe tolerante Zeitlogik für die Sichtbarkeits-Timestamps
+- Nach erfolgreichem Speichern wird die Liste neu geladen und der gespeicherte Datensatz wieder selektiert/erneut angezeigt, damit Änderungen unmittelbar nachvollziehbar bleiben.
+- Kleiner technischer Aufräumcheck bewusst klein gehalten: die ältere strukturelle `BekanntmachungenVerwaltungView` bleibt vorerst noch im Repo, produktiv verdrahtet ist jetzt aber die neue Editoransicht mit HTML-Vorschau; eine Bereinigung kann später separat folgen, ohne diesen Block aufzublähen.
+- Offene Punkte für das nächste Modul: `Arbeitseinsätze` sind weiterhin das letzte der drei Home-nahen Verwaltungsfelder ohne bestätigten produktiven Editor; dort fehlen im aktiven Stand noch die sauber verifizierten Schreibfelder/-pfade analog zu `termin` und `bekanntmachung`.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem produktiven Bekanntmachungen-Block erfolgreich.
+
 ## 2026-03-22 – Prompt 2/5: Termine-Verwaltung als erster echter Editor produktiv an `termin` angeschlossen
 
 - Den aktuellen Istzustand der vorbereiteten Termine-Verwaltung vor dem Umbau erneut geprüft: `TermineVerwaltungViewModel` war bislang noch nur strukturell aus dem gemeinsamen Verwaltungsgerüst abgeleitet, die Listenladung lief nicht über die bestätigte Basistabelle `termin`, und im rechten Bereich gab es noch keinen produktiven Editor mit bestätigten Feldern.
