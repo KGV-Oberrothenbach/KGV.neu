@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-03-22 – WPF-Home-Datenbankanbindung: Startseiten-Views und Pflichtstundenpfad eingebunden
+
+- Den aktuellen Istzustand für `HomeViewModel`, `HomeView`, `HomeOverviewDTO`, `ISupabaseService` und `SupabaseService` erneut gegen die geklärten produktiven DB-Pfade geprüft: der obere Arbeitsstundenbereich rechnete noch lokal aus `arbeitsstunde`, während `Arbeitseinsätze`, `Termine` und `Bekanntmachungen` auf WPF-Home weiterhin nur Platzhalter-/Leerzustände nutzten.
+- Gemeinsamen Home-Datenpfad auf den belastbaren Stand erweitert statt UI-Logik weiter aufzublähen: `HomeOverviewDTO` trägt jetzt zusätzlich gemeinsame Startseiten-Daten für Pflichtstunden, Arbeitseinsätze und Termine; `SupabaseService.GetHomeOverviewAsync(...)` lädt diese Inhalte direkt aus den geklärten View-Pfaden.
+- Oberen Bereich `Meine Arbeitsstunden` sauber auf `v_pflichtstunden_uebersicht` umgestellt: Soll-, geleistete und offene Stunden werden nicht mehr lokal in WPF berechnet, sondern aus dem zentralen Pflichtstundenpfad gelesen; zusätzlich werden die Befreiungs-/Regelhinweise (`hat_wartungsvertrag`, `altersbefreit`, `ist_befreit`, `regelgrund`) für die Home-Ausgabe mitgeführt.
+- Bereich `Arbeitseinsätze` an `v_startseite_arbeitseinsatz` angebunden: echte Einträge mit Titel, Datum/Zeit, Treffpunkt sowie Kapazitäts-/Anmeldehinweisen werden jetzt auf Home angezeigt; ein eigener Anmelde-Flow wurde bewusst nicht erfunden, weil dafür im aktiven WPF-Stand weiterhin kein belastbarer Produktpfad vorhanden ist.
+- Bereich `Termine` an `v_startseite_termin` angebunden: echte Einträge erscheinen jetzt klickbar im WPF-Home; der Detailbereich zeigt Thema, Datum/Zeit, Ort und weiterführende Informationen nur aus den belastbar vorhandenen View-Feldern und lässt sich wieder mit `Schließen` beenden.
+- Bereich `Bekanntmachungen` an die vorhandene Startseiten-View für Bekanntmachungen angebunden: echte Einträge werden geladen, Titel bleiben anklickbar und der Detailbereich zeigt die verfügbaren Inhalte statt des bisherigen künstlichen Leerstands; eine neue HTML-Redaktionsplattform wurde bewusst nicht begonnen.
+- Kleine Anzeige-Normalisierung ergänzt: Startseiten-Texte aus Termin-/Bekanntmachungsviews werden für Home kompakt aus vorhandenem Markup bereinigt, ohne eine neue Inhaltsarchitektur einzuführen.
+- Demo-/Play-Store-Testdaten bleiben beim Pflichtstunden-/Home-Kontext ausgeschlossen: die obere Pflichtstundenanzeige wird für nicht operative Mitgliedskontexte weiterhin nicht gebildet.
+- Technisch verifiziert: `KGV.Wpf` baut nach der Umstellung erfolgreich; zur Konsistenz wurde auch `KGV.Maui` mitgebaut und bleibt buildfähig.
+
 ## 2026-03-22 – WPF-Hotfixblock: Login-Lesbarkeit, Home-Start und Home-Zielzustand auf belastbaren Stand gebracht
 
 - Den aktuellen WPF-Istzustand für Login, Startnavigation und Home erneut gegen den aktiven Produktstand geprüft: konkret auffällig waren schlecht lesbare Login-Aktionsbuttons, ein zu kleiner Passwort-Zusatzbutton, der Start auf `Mitgliedersuche` statt `Startseite` sowie eine Home-Ansicht, deren bisheriger Aufbau nicht dem gewünschten Zielzustand entsprach.

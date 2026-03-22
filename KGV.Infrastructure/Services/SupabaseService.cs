@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
@@ -713,39 +714,22 @@ namespace KGV.Infrastructure.Services
             {
                 var overview = HomeOverviewFactory.Build(role);
                 var operationalItems = new List<HomeOperationalItem>();
+                HomeWorkHoursSummary? workHoursSummary = null;
 
                 if (mitgliedId is > 0)
                 {
                     var hauptmitglied = await GetMitgliedByIdAsync(mitgliedId.Value);
-                    MitgliedRecord? nebenmitglied = null;
-
                     if (OperationalDataFilter.IsOperationalMember(hauptmitglied))
-                        nebenmitglied = await GetNebenmitgliedByHauptmitgliedIdAsync(mitgliedId.Value);
-
-                    var includeHaupt = OperationalDataFilter.IsOperationalMember(hauptmitglied);
-                    var includeNeben = OperationalDataFilter.IsOperationalMember(nebenmitglied);
-                    var ids = new List<int>();
-                    if (includeHaupt && hauptmitglied != null)
-                        ids.Add(hauptmitglied.Id);
-                    if (includeNeben && nebenmitglied != null)
-                        ids.Add(nebenmitglied.Id);
-
-                    if (ids.Count > 0)
                     {
-                        var saisonen = await GetSaisonRecordsAsync();
-                        var currentSeason = saisonen
-                            .OrderByDescending(x => x.Jahr == DateTime.Today.Year)
-                            .ThenByDescending(x => x.Jahr)
-                            .FirstOrDefault();
-
-                        var arbeitsstunden = await GetArbeitsstundenAsync(ids.ToArray());
-                        var relevant = currentSeason != null
-                            ? arbeitsstunden.Where(x => x.SaisonId == currentSeason.Id).ToList()
-                            : arbeitsstunden.Where(x => x.Datum.Year == DateTime.Today.Year).ToList();
-
-                        operationalItems.Add(BuildWorkHoursItem(relevant, currentSeason?.Jahr ?? DateTime.Today.Year, includeNeben));
+                        workHoursSummary = await LoadPflichtstundenSummaryAsync(mitgliedId.Value, DateTime.Today.Year);
+                        if (workHoursSummary != null)
+                            operationalItems.Add(BuildWorkHoursItem(workHoursSummary));
                     }
                 }
+
+                var workAssignments = await LoadStartseiteArbeitseinsaetzeAsync();
+                var appointments = await LoadStartseiteTermineAsync();
+                var announcements = await LoadStartseiteBekanntmachungenAsync();
 
                 return new HomeOverviewDTO
                 {
@@ -757,9 +741,14 @@ namespace KGV.Infrastructure.Services
                     AnnouncementTitle = overview.AnnouncementTitle,
                     AnnouncementHintText = overview.AnnouncementHintText,
                     AnnouncementEmptyText = overview.AnnouncementEmptyText,
+                    WorkAssignmentsEmptyText = "Für Home sind aktuell keine Arbeitseinsätze in der Startseiten-View vorhanden.",
+                    AppointmentsEmptyText = "Für Home sind aktuell keine Termine in der Startseiten-View vorhanden.",
+                    WorkHoursSummary = workHoursSummary,
+                    WorkAssignments = workAssignments,
+                    Appointments = appointments,
                     QuickLinks = overview.QuickLinks,
                     OperationalItems = operationalItems,
-                    Announcements = overview.Announcements
+                    Announcements = announcements
                 };
             },
             HomeOverviewFactory.Build(role));
@@ -931,32 +920,225 @@ namespace KGV.Infrastructure.Services
             return string.IsNullOrWhiteSpace(fullName) ? member.Email : fullName;
         }
 
-        private static HomeOperationalItem BuildWorkHoursItem(IReadOnlyCollection<ArbeitsstundeDTO> arbeitsstunden, int jahr, bool includesNebenmitglied)
+        private async Task<HomeWorkHoursSummary?> LoadPflichtstundenSummaryAsync(int mitgliedId, int year)
         {
-            var suffix = includesNebenmitglied ? " inkl. Nebenmitglied" : string.Empty;
-            if (arbeitsstunden.Count == 0)
+            var client = await EnsureClientAsync();
+            var response = await client
+                .From<PflichtstundenUebersichtRecord>()
+                .Where(x => x.MitgliedId == mitgliedId)
+                .Get();
+
+            var record = response?.Models?
+                .OrderByDescending(GetPflichtstundenYear)
+                .FirstOrDefault(x => GetPflichtstundenYear(x) == year)
+                ?? response?.Models?
+                    .OrderByDescending(GetPflichtstundenYear)
+                    .FirstOrDefault();
+
+            if (record == null)
+                return null;
+
+            return new HomeWorkHoursSummary
             {
-                return new HomeOperationalItem
-                {
-                    Title = $"Arbeitsstunden {jahr}{suffix}",
-                    Message = "Aktuell sind für diesen Home-Kontext noch keine Arbeitsstunden im aktuellen Saisonbezug erfasst.",
-                    IsWarning = false
-                };
-            }
+                Year = GetPflichtstundenYear(record),
+                RequiredHours = record.PflichtstundenSoll,
+                WorkedHours = record.GeleisteteStunden,
+                OpenHours = record.OffeneStunden,
+                HasMaintenanceContract = record.HatWartungsvertrag,
+                IsAgeExempt = record.Altersbefreit,
+                IsExempt = record.IstBefreit,
+                RuleReason = record.Regelgrund?.Trim() ?? string.Empty
+            };
+        }
 
-            var offene = arbeitsstunden.Count(x => !x.Freigegeben && (string.IsNullOrWhiteSpace(x.Status) || x.Status.Equals("offen", StringComparison.OrdinalIgnoreCase)));
-            var abgelehnt = arbeitsstunden.Count(x => string.Equals(x.Status, "abgelehnt", StringComparison.OrdinalIgnoreCase));
+        private async Task<List<HomeWorkAssignmentItem>> LoadStartseiteArbeitseinsaetzeAsync()
+        {
+            var client = await EnsureClientAsync();
+            var response = await client.From<StartseiteArbeitseinsatzRecord>().Get();
 
-            var message = offene > 0
-                ? $"{offene} Eintrag/Einträge warten aktuell noch auf Prüfung.{(abgelehnt > 0 ? $" Zusätzlich {abgelehnt} abgelehnt." : string.Empty)}"
-                : $"{arbeitsstunden.Count} Eintrag/Einträge liegen im aktuellen Saisonbezug vor, aktuell ohne offene Prüfung.{(abgelehnt > 0 ? $" {abgelehnt} davon abgelehnt." : string.Empty)}";
+            return response?.Models?
+                .OrderBy(x => x.Datum ?? DateTime.MaxValue)
+                .ThenBy(x => FirstNonEmpty(x.Titel, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                .Select(MapHomeWorkAssignment)
+                .ToList()
+                ?? new List<HomeWorkAssignmentItem>();
+        }
+
+        private async Task<List<HomeAppointmentItem>> LoadStartseiteTermineAsync()
+        {
+            var client = await EnsureClientAsync();
+            var response = await client.From<StartseiteTerminRecord>().Get();
+
+            return response?.Models?
+                .OrderBy(x => x.Datum ?? DateTime.MaxValue)
+                .ThenBy(x => FirstNonEmpty(x.Titel, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                .Select(MapHomeAppointment)
+                .ToList()
+                ?? new List<HomeAppointmentItem>();
+        }
+
+        private async Task<List<HomeAnnouncementItem>> LoadStartseiteBekanntmachungenAsync()
+        {
+            var client = await EnsureClientAsync();
+            var response = await client.From<StartseiteBekanntmachungRecord>().Get();
+
+            return response?.Models?
+                .OrderByDescending(x => x.VeroeffentlichtAm ?? x.UpdatedAt ?? DateTime.MinValue)
+                .ThenBy(x => FirstNonEmpty(x.Titel, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                .Select(MapHomeAnnouncement)
+                .ToList()
+                ?? new List<HomeAnnouncementItem>();
+        }
+
+        private static HomeOperationalItem BuildWorkHoursItem(HomeWorkHoursSummary summary)
+        {
+            var parts = new List<string>();
+            if (summary.RequiredHours.HasValue)
+                parts.Add($"Soll {FormatHours(summary.RequiredHours.Value)}");
+            if (summary.WorkedHours.HasValue)
+                parts.Add($"geleistet {FormatHours(summary.WorkedHours.Value)}");
+            if (summary.OpenHours.HasValue)
+                parts.Add($"offen {FormatHours(summary.OpenHours.Value)}");
+            if (!string.IsNullOrWhiteSpace(summary.RuleReason))
+                parts.Add(summary.RuleReason);
 
             return new HomeOperationalItem
             {
-                Title = $"Arbeitsstunden {jahr}{suffix}",
-                Message = message,
-                IsWarning = offene > 0
+                Title = $"Arbeitsstunden {summary.Year}",
+                Message = string.Join(" · ", parts),
+                IsWarning = summary.OpenHours.GetValueOrDefault() > 0
             };
+        }
+
+        private static HomeWorkAssignmentItem MapHomeWorkAssignment(StartseiteArbeitseinsatzRecord record)
+        {
+            var details = new List<string>();
+            if (!string.IsNullOrWhiteSpace(record.Treffpunkt))
+                details.Add($"Treffpunkt: {record.Treffpunkt.Trim()}");
+
+            var description = NormalizeHomeText(record.Beschreibung);
+            if (!string.IsNullOrWhiteSpace(description))
+                details.Add(description);
+
+            var capacityText = BuildCapacityText(record.AngemeldetCount, record.FreiePlaetze);
+
+            return new HomeWorkAssignmentItem
+            {
+                Title = FirstNonEmpty(record.Titel, record.Thema) ?? "Arbeitseinsatz",
+                Subtitle = BuildDateSubtitle(record.Datum, record.Beginn, record.Ende),
+                Details = string.Join(Environment.NewLine, details.Where(x => !string.IsNullOrWhiteSpace(x))),
+                RegistrationInfo = !string.IsNullOrWhiteSpace(capacityText)
+                    ? capacityText
+                    : record.AnmeldungMoeglich == true
+                        ? "Eine Anmeldung ist im aktuellen WPF-Stand noch nicht belastbar verdrahtet."
+                        : string.Empty,
+                CanRegister = false
+            };
+        }
+
+        private static HomeAppointmentItem MapHomeAppointment(StartseiteTerminRecord record)
+        {
+            var details = new List<string>();
+            if (!string.IsNullOrWhiteSpace(record.Ort))
+                details.Add($"Ort: {record.Ort.Trim()}");
+
+            var description = NormalizeHomeText(FirstNonEmpty(record.Inhalt, record.Beschreibung));
+            if (!string.IsNullOrWhiteSpace(description))
+                details.Add(description);
+
+            return new HomeAppointmentItem
+            {
+                Title = FirstNonEmpty(record.Titel, record.Thema) ?? "Termin",
+                Subtitle = BuildDateSubtitle(record.Datum, record.Beginn, record.Ende),
+                Details = string.Join(Environment.NewLine + Environment.NewLine, details.Where(x => !string.IsNullOrWhiteSpace(x)))
+            };
+        }
+
+        private static HomeAnnouncementItem MapHomeAnnouncement(StartseiteBekanntmachungRecord record)
+        {
+            var published = record.VeroeffentlichtAm ?? record.UpdatedAt;
+            return new HomeAnnouncementItem
+            {
+                Title = FirstNonEmpty(record.Titel, record.Thema) ?? "Bekanntmachung",
+                Subtitle = published.HasValue ? published.Value.ToString("dd.MM.yyyy") : string.Empty,
+                Content = NormalizeHomeText(FirstNonEmpty(record.Inhalt, record.Beschreibung))
+            };
+        }
+
+        private static int GetPflichtstundenYear(PflichtstundenUebersichtRecord record)
+        {
+            return record.Jahr ?? record.SaisonJahr ?? 0;
+        }
+
+        private static string BuildDateSubtitle(DateTime? date, string? begin, string? end)
+        {
+            var parts = new List<string>();
+            if (date.HasValue)
+                parts.Add(date.Value.ToString("dd.MM.yyyy"));
+
+            var timePart = BuildTimeRange(begin, end);
+            if (!string.IsNullOrWhiteSpace(timePart))
+                parts.Add(timePart);
+
+            return string.Join(" · ", parts);
+        }
+
+        private static string BuildTimeRange(string? begin, string? end)
+        {
+            begin = NormalizeTimeValue(begin);
+            end = NormalizeTimeValue(end);
+
+            if (string.IsNullOrWhiteSpace(begin) && string.IsNullOrWhiteSpace(end))
+                return string.Empty;
+            if (string.IsNullOrWhiteSpace(end))
+                return begin ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(begin))
+                return end ?? string.Empty;
+
+            return $"{begin} – {end}";
+        }
+
+        private static string? NormalizeTimeValue(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+
+            value = value.Trim();
+            return TimeSpan.TryParse(value, out var time)
+                ? time.ToString(@"hh\:mm")
+                : value;
+        }
+
+        private static string BuildCapacityText(int? angemeldetCount, int? freiePlaetze)
+        {
+            var parts = new List<string>();
+            if (angemeldetCount.HasValue)
+                parts.Add($"Angemeldet: {angemeldetCount.Value}");
+            if (freiePlaetze.HasValue)
+                parts.Add($"Freie Plätze: {freiePlaetze.Value}");
+
+            return string.Join(" · ", parts);
+        }
+
+        private static string NormalizeHomeText(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            var normalized = value
+                .Replace("<br>", Environment.NewLine, StringComparison.OrdinalIgnoreCase)
+                .Replace("<br/>", Environment.NewLine, StringComparison.OrdinalIgnoreCase)
+                .Replace("<br />", Environment.NewLine, StringComparison.OrdinalIgnoreCase)
+                .Replace("</p>", Environment.NewLine + Environment.NewLine, StringComparison.OrdinalIgnoreCase);
+
+            normalized = Regex.Replace(normalized, "<[^>]+>", string.Empty);
+            normalized = normalized.Replace("&nbsp;", " ", StringComparison.OrdinalIgnoreCase);
+            return normalized.Trim();
+        }
+
+        private static string FormatHours(decimal value)
+        {
+            return $"{value:0.##} h";
         }
 
         private static DocumentInfo MapDocumentInfo(DokumentRecord record)

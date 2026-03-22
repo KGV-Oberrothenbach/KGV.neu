@@ -35,6 +35,11 @@ namespace KGV.Core.Models
         public string AnnouncementTitle { get; init; } = "Bekanntmachungen";
         public string AnnouncementHintText { get; init; } = "Bitte eine Bekanntmachung aus der Liste auswählen.";
         public string AnnouncementEmptyText { get; init; } = "Für Home ist aktuell kein belastbarer Bekanntmachungs-Pfad angebunden.";
+        public string WorkAssignmentsEmptyText { get; init; } = "Für Home sind aktuell keine Arbeitseinsätze vorhanden.";
+        public string AppointmentsEmptyText { get; init; } = "Für Home sind aktuell keine Termine vorhanden.";
+        public HomeWorkHoursSummary? WorkHoursSummary { get; init; }
+        public List<HomeWorkAssignmentItem> WorkAssignments { get; init; } = new();
+        public List<HomeAppointmentItem> Appointments { get; init; } = new();
         public List<HomeQuickLinkItem> QuickLinks { get; init; } = new();
         public List<HomeOperationalItem> OperationalItems { get; init; } = new();
         public List<HomeAnnouncementItem> Announcements { get; init; } = new();

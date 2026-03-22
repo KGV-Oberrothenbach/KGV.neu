@@ -3,7 +3,6 @@ using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Helpers;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
@@ -15,91 +14,77 @@ namespace KGV.ViewModels
     {
         private readonly MainWindowViewModel _mainVm;
         private HomeOverviewDTO _overview = HomeOverviewFactory.Build(UserRole.User);
-        private string _workHoursHeader = $"Meine Arbeitsstunden {DateTime.Today.Year}";
-        private string _requiredHoursValue = "–";
-        private string _requiredHoursHint = "Aktuell ist kein belastbarer Sollstundenpfad im aktiven Stand vorhanden.";
-        private string _workedHoursValue = "0 h";
-        private string _workedHoursHint = "Freigegebene Arbeitsstunden im aktuellen Kalenderjahr.";
-        private string _openHoursValue = "0 h";
-        private string _openHoursHint = "Noch offene Arbeitsstunden im aktuellen Kalenderjahr.";
-        private string _workHoursInfoText = "Für diesen Home-Kontext liegen aktuell noch keine Arbeitsstunden im aktuellen Kalenderjahr vor.";
 
         public string Title => "Startseite";
         public string Description => _overview.Description;
-        public string UserContextText => $"Kontext: {UserRoles.ToStorageValue(_mainVm.UserContext.Role)}";
-        public bool HasQuickLinks => QuickLinks.Count > 0;
-        public string StatusMessage => QuickLinks.Count == 0 ? _overview.QuickLinksEmptyText : string.Empty;
-        public string QuickLinksTitle => "Schnellzugriffe";
-        public string WorkHoursHeader
-        {
-            get => _workHoursHeader;
-            private set => SetProperty(ref _workHoursHeader, value);
-        }
-
-        public string RequiredHoursValue
-        {
-            get => _requiredHoursValue;
-            private set => SetProperty(ref _requiredHoursValue, value);
-        }
-
-        public string RequiredHoursHint
-        {
-            get => _requiredHoursHint;
-            private set => SetProperty(ref _requiredHoursHint, value);
-        }
-
-        public string WorkedHoursValue
-        {
-            get => _workedHoursValue;
-            private set => SetProperty(ref _workedHoursValue, value);
-        }
-
-        public string WorkedHoursHint
-        {
-            get => _workedHoursHint;
-            private set => SetProperty(ref _workedHoursHint, value);
-        }
-
-        public string OpenHoursValue
-        {
-            get => _openHoursValue;
-            private set => SetProperty(ref _openHoursValue, value);
-        }
-
-        public string OpenHoursHint
-        {
-            get => _openHoursHint;
-            private set => SetProperty(ref _openHoursHint, value);
-        }
-
-        public string WorkHoursInfoText
-        {
-            get => _workHoursInfoText;
-            private set => SetProperty(ref _workHoursInfoText, value);
-        }
+        public string WorkHoursHeader => $"Meine Arbeitsstunden {(_overview.WorkHoursSummary?.Year ?? DateTime.Today.Year)}";
+        public string RequiredHoursValue => FormatHours(_overview.WorkHoursSummary?.RequiredHours);
+        public string WorkedHoursValue => FormatHours(_overview.WorkHoursSummary?.WorkedHours);
+        public string OpenHoursValue => FormatHours(_overview.WorkHoursSummary?.OpenHours);
+        public string RequiredHoursHint => _overview.WorkHoursSummary == null
+            ? "Für diesen Home-Kontext liegt aktuell kein belastbarer Pflichtstundenstand aus der Startseiten-View vor."
+            : !string.IsNullOrWhiteSpace(_overview.WorkHoursSummary.RuleReason)
+                ? _overview.WorkHoursSummary.RuleReason
+                : "Sollstunden laut zentraler Pflichtstunden-Übersicht.";
+        public string WorkedHoursHint => _overview.WorkHoursSummary == null
+            ? "Noch keine Daten aus der Pflichtstunden-Übersicht geladen."
+            : "Geleistete Stunden laut zentraler Pflichtstunden-Übersicht.";
+        public string OpenHoursHint => _overview.WorkHoursSummary == null
+            ? "Noch keine Daten aus der Pflichtstunden-Übersicht geladen."
+            : "Offene Stunden laut zentraler Pflichtstunden-Übersicht.";
+        public string WorkHoursInfoText => _overview.WorkHoursSummary == null
+            ? "Für diesen Home-Kontext ist aktuell keine belastbare Pflichtstunden-Übersicht verfügbar."
+            : BuildWorkHoursInfoText(_overview.WorkHoursSummary);
 
         public string WorkAssignmentsTitle => "Arbeitseinsätze";
-        public string WorkAssignmentsEmptyText => "Für Home ist aktuell kein belastbarer Arbeitseinsatz-Pfad angebunden.";
-        public string WorkAssignmentsAdminHint => "Für Arbeitseinsätze ist aktuell kein belastbarer Verwaltungsweg im aktiven WPF-Stand vorhanden.";
+        public string WorkAssignmentsEmptyText => _overview.WorkAssignmentsEmptyText;
+        public string WorkAssignmentsAdminHint => "Eine Anmeldung oder Pflege ist auf Home nur dort verdrahtet, wo bereits ein belastbarer Produktpfad vorhanden ist.";
         public string AppointmentsTitle => "Termine";
-        public string AppointmentsEmptyText => "Für Home ist aktuell kein belastbarer Termin-Pfad angebunden.";
-        public string AppointmentsAdminHint => "Für Termine ist aktuell kein belastbarer Verwaltungsweg im aktiven WPF-Stand vorhanden.";
+        public string AppointmentsEmptyText => _overview.AppointmentsEmptyText;
+        public string AppointmentsAdminHint => "Die Detailansicht zeigt nur die Felder, die über die Startseiten-View belastbar vorliegen.";
+        public string AppointmentHintText => "Bitte einen Termin aus der Liste auswählen.";
         public string AnnouncementTitle => _overview.AnnouncementTitle;
         public string AnnouncementHintText => _overview.AnnouncementHintText;
         public string AnnouncementEmptyText => _overview.AnnouncementEmptyText;
-        public string AnnouncementsAdminHint => "Für Bekanntmachungen ist aktuell kein belastbarer Verwaltungsweg im aktiven WPF-Stand vorhanden.";
+        public string AnnouncementsAdminHint => "Die Home-Seite verwendet nur die vorhandene Startseiten-View für Bekanntmachungen.";
         public bool IsAdminContext => _mainVm.UserContext.Role is UserRole.Admin or UserRole.Vorstand;
+        public bool HasWorkAssignments => WorkAssignments.Count > 0;
+        public bool ShowWorkAssignmentsEmptyState => !HasWorkAssignments;
+        public bool HasAppointments => Appointments.Count > 0;
+        public bool HasSelectedAppointment => SelectedAppointment != null;
+        public bool ShowAppointmentHint => HasAppointments && !HasSelectedAppointment;
+        public bool ShowAppointmentEmptyState => !HasAppointments;
+        public bool ShowAppointmentDetail => HasSelectedAppointment;
         public bool HasAnnouncements => Announcements.Count > 0;
         public bool HasSelectedAnnouncement => SelectedAnnouncement != null;
         public bool ShowAnnouncementHint => HasAnnouncements && !HasSelectedAnnouncement;
         public bool ShowAnnouncementEmptyState => !HasAnnouncements;
         public bool ShowAnnouncementDetail => HasSelectedAnnouncement;
 
-        public ObservableCollection<HomeQuickLinkItem> QuickLinks { get; } = new();
+        public ObservableCollection<HomeWorkAssignmentItem> WorkAssignments { get; } = new();
+        public ObservableCollection<HomeAppointmentItem> Appointments { get; } = new();
         public ObservableCollection<HomeAnnouncementItem> Announcements { get; } = new();
 
-        public RelayCommand<HomeQuickLinkItem> OpenModuleCommand { get; }
+        public RelayCommand<object?> CloseAppointmentCommand { get; }
         public RelayCommand<object?> CloseAnnouncementCommand { get; }
+
+        private HomeAppointmentItem? _selectedAppointment;
+        public HomeAppointmentItem? SelectedAppointment
+        {
+            get => _selectedAppointment;
+            set
+            {
+                if (_selectedAppointment == value)
+                    return;
+
+                _selectedAppointment = value;
+                OnPropertyChanged(nameof(SelectedAppointment));
+                OnPropertyChanged(nameof(HasSelectedAppointment));
+                OnPropertyChanged(nameof(ShowAppointmentHint));
+                OnPropertyChanged(nameof(ShowAppointmentDetail));
+                CloseAppointmentCommand.RaiseCanExecuteChanged();
+            }
+        }
 
         private HomeAnnouncementItem? _selectedAnnouncement;
         public HomeAnnouncementItem? SelectedAnnouncement
@@ -122,7 +107,7 @@ namespace KGV.ViewModels
         public HomeViewModel(MainWindowViewModel mainVm)
         {
             _mainVm = mainVm ?? throw new ArgumentNullException(nameof(mainVm));
-            OpenModuleCommand = new RelayCommand<HomeQuickLinkItem>(OpenModule, item => item != null);
+            CloseAppointmentCommand = new RelayCommand<object?>(_ => CloseAppointmentDetail(), _ => HasSelectedAppointment);
             CloseAnnouncementCommand = new RelayCommand<object?>(_ => CloseAnnouncementDetail(), _ => HasSelectedAnnouncement);
         }
 
@@ -135,131 +120,75 @@ namespace KGV.ViewModels
 
         private async Task LoadAsync()
         {
-            var mitgliedId = ToInt32(_mainVm.UserContext.MitgliedId);
             _overview = await _mainVm.SupabaseService.GetHomeOverviewAsync(_mainVm.UserContext.Role, ToInt32(_mainVm.UserContext.MitgliedId));
 
-            FillCollection(QuickLinks, _overview.QuickLinks);
+            FillCollection(WorkAssignments, _overview.WorkAssignments);
+            FillCollection(Appointments, _overview.Appointments);
             FillCollection(Announcements, _overview.Announcements);
+            SelectedAppointment = null;
             SelectedAnnouncement = null;
-            await LoadWorkHoursSummaryAsync(mitgliedId);
 
             OnPropertyChanged(nameof(Description));
-            OnPropertyChanged(nameof(HasQuickLinks));
-            OnPropertyChanged(nameof(StatusMessage));
-            OnPropertyChanged(nameof(QuickLinksTitle));
-            OnPropertyChanged(nameof(AnnouncementTitle));
-            OnPropertyChanged(nameof(AnnouncementHintText));
+            OnPropertyChanged(nameof(WorkHoursHeader));
+            OnPropertyChanged(nameof(RequiredHoursValue));
+            OnPropertyChanged(nameof(WorkedHoursValue));
+            OnPropertyChanged(nameof(OpenHoursValue));
+            OnPropertyChanged(nameof(RequiredHoursHint));
+            OnPropertyChanged(nameof(WorkedHoursHint));
+            OnPropertyChanged(nameof(OpenHoursHint));
+            OnPropertyChanged(nameof(WorkHoursInfoText));
+            OnPropertyChanged(nameof(WorkAssignmentsEmptyText));
+            OnPropertyChanged(nameof(AppointmentsEmptyText));
             OnPropertyChanged(nameof(AnnouncementEmptyText));
             OnPropertyChanged(nameof(IsAdminContext));
+            OnPropertyChanged(nameof(HasWorkAssignments));
+            OnPropertyChanged(nameof(ShowWorkAssignmentsEmptyState));
+            OnPropertyChanged(nameof(HasAppointments));
+            OnPropertyChanged(nameof(ShowAppointmentHint));
+            OnPropertyChanged(nameof(ShowAppointmentEmptyState));
+            OnPropertyChanged(nameof(ShowAppointmentDetail));
             OnPropertyChanged(nameof(HasAnnouncements));
             OnPropertyChanged(nameof(ShowAnnouncementHint));
             OnPropertyChanged(nameof(ShowAnnouncementEmptyState));
             OnPropertyChanged(nameof(ShowAnnouncementDetail));
         }
 
-        private void OpenModule(HomeQuickLinkItem? item)
+        private void CloseAppointmentDetail()
         {
-            if (item == null)
-                return;
-
-            var target = item.Key switch
-            {
-                HomeQuickLinkKey.MemberSearch => _mainVm.NavigationItems.FirstOrDefault(x => x.ViewModelType == typeof(MemberSearchViewModel) && x.IsVisible),
-                HomeQuickLinkKey.PlotManagement => _mainVm.NavigationItems.FirstOrDefault(x => x.ViewModelType == typeof(ParzellenVerwaltungViewModel) && x.IsVisible),
-                HomeQuickLinkKey.MyProfile => _mainVm.NavigationItems.FirstOrDefault(x => x.ViewModelType == typeof(MemberDetailViewModel) && x.IsVisible),
-                HomeQuickLinkKey.MyWorkHours => CreateWorkHoursNavigationItem(),
-                _ => null
-            };
-
-            if (target != null)
-                _mainVm.NavigateCommand.Execute(target);
+            SelectedAppointment = null;
+            CloseAppointmentCommand.RaiseCanExecuteChanged();
         }
 
         private void CloseAnnouncementDetail()
         {
             SelectedAnnouncement = null;
             CloseAnnouncementCommand.RaiseCanExecuteChanged();
-            OnPropertyChanged(nameof(ShowAnnouncementDetail));
         }
 
-        private async Task LoadWorkHoursSummaryAsync(int? mitgliedId)
+        private static string BuildWorkHoursInfoText(HomeWorkHoursSummary summary)
         {
-            var year = DateTime.Today.Year;
-            WorkHoursHeader = $"Meine Arbeitsstunden {year}";
-            RequiredHoursValue = "–";
-            RequiredHoursHint = "Aktuell ist kein belastbarer Sollstundenpfad im aktiven Stand vorhanden.";
-            WorkedHoursValue = "0 h";
-            WorkedHoursHint = "Freigegebene Arbeitsstunden im aktuellen Kalenderjahr.";
-            OpenHoursValue = "0 h";
-            OpenHoursHint = "Noch offene Arbeitsstunden im aktuellen Kalenderjahr.";
-            WorkHoursInfoText = "Für diesen Home-Kontext liegen aktuell noch keine Arbeitsstunden im aktuellen Kalenderjahr vor.";
+            var parts = new ObservableCollection<string>();
+            if (summary.IsExempt)
+                parts.Add("Der aktuelle Mitgliedskontext ist laut Pflichtstunden-Übersicht befreit.");
+            if (summary.HasMaintenanceContract)
+                parts.Add("Ein Wartungsvertrag ist in der zentralen Regelbewertung berücksichtigt.");
+            if (!string.IsNullOrWhiteSpace(summary.RuleReason))
+                parts.Add(summary.RuleReason);
 
-            if (mitgliedId is not > 0)
-            {
-                WorkHoursInfoText = "Für diesen Benutzerkontext ist aktuell kein belastbarer Arbeitsstundenpfad auf Home verfügbar.";
-                return;
-            }
+            if (parts.Count == 0)
+                return "Die Werte stammen direkt aus der zentralen Pflichtstunden-Übersicht für Startseite/Home.";
 
-            var hauptmitglied = await _mainVm.SupabaseService.GetMitgliedByIdAsync(mitgliedId.Value);
-            if (!OperationalDataFilter.IsOperationalMember(hauptmitglied))
-            {
-                WorkHoursInfoText = "Für Demo-/Testdaten werden auf Home keine Arbeitsstunden-Zusammenfassungen gebildet.";
-                WorkedHoursValue = "–";
-                OpenHoursValue = "–";
-                return;
-            }
-
-            var ids = new List<int> { mitgliedId.Value };
-            var includesNebenmitglied = false;
-            var nebenmitglied = await _mainVm.SupabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(mitgliedId.Value);
-            if (OperationalDataFilter.IsOperationalMember(nebenmitglied) && nebenmitglied != null)
-            {
-                ids.Add(nebenmitglied.Id);
-                includesNebenmitglied = true;
-            }
-
-            var arbeitsstunden = await _mainVm.SupabaseService.GetArbeitsstundenAsync(ids.ToArray());
-            var relevant = arbeitsstunden.Where(x => x.Datum.Year == year).ToList();
-            var geleistet = relevant.Where(x => x.Freigegeben).Sum(x => x.Stunden);
-            var offen = relevant.Where(x => !x.Freigegeben && (string.IsNullOrWhiteSpace(x.Status) || x.Status.Equals("offen", StringComparison.OrdinalIgnoreCase))).Sum(x => x.Stunden);
-            var abgelehnt = relevant.Where(x => string.Equals(x.Status, "abgelehnt", StringComparison.OrdinalIgnoreCase)).Sum(x => x.Stunden);
-
-            WorkedHoursValue = FormatHours(geleistet);
-            WorkedHoursHint = includesNebenmitglied
-                ? "Freigegebene Arbeitsstunden im aktuellen Kalenderjahr inkl. Nebenmitglied."
-                : "Freigegebene Arbeitsstunden im aktuellen Kalenderjahr.";
-
-            OpenHoursValue = FormatHours(offen);
-            OpenHoursHint = includesNebenmitglied
-                ? "Noch offene Arbeitsstunden im aktuellen Kalenderjahr inkl. Nebenmitglied."
-                : "Noch offene Arbeitsstunden im aktuellen Kalenderjahr.";
-
-            WorkHoursInfoText = relevant.Count == 0
-                ? "Für diesen Home-Kontext sind im aktuellen Kalenderjahr noch keine Arbeitsstunden erfasst."
-                : offen > 0
-                    ? $"{relevant.Count} Eintrag/Einträge im aktuellen Kalenderjahr; {FormatHours(offen)} davon warten noch auf Prüfung.{(abgelehnt > 0 ? $" Zusätzlich {FormatHours(abgelehnt)} abgelehnt." : string.Empty)}"
-                    : $"{relevant.Count} Eintrag/Einträge im aktuellen Kalenderjahr, aktuell ohne offene Prüfung.{(abgelehnt > 0 ? $" {FormatHours(abgelehnt)} davon abgelehnt." : string.Empty)}";
+            return string.Join(" ", parts);
         }
 
-        private static string FormatHours(decimal value)
+        private static string FormatHours(decimal? value)
         {
-            return $"{value.ToString("0.##", CultureInfo.CurrentCulture)} h";
+            return value.HasValue
+                ? $"{value.Value.ToString("0.##", CultureInfo.CurrentCulture)} h"
+                : "–";
         }
 
-        private NavigationItem? CreateWorkHoursNavigationItem()
-        {
-            if (_mainVm.SelectedMember == null)
-                return null;
-
-            return new NavigationItem
-            {
-                Title = "Arbeitsstunden",
-                ViewModelType = typeof(ArbeitsstundenViewModel),
-                IsVisible = true
-            };
-        }
-
-        private static void FillCollection<T>(ObservableCollection<T> target, IEnumerable<T> source)
+        private static void FillCollection<T>(ObservableCollection<T> target, System.Collections.Generic.IEnumerable<T> source)
         {
             target.Clear();
             foreach (var item in source)
