@@ -82,6 +82,12 @@
                 </Grid>
 
                 <TextBlock Text="{Binding WorkHoursInfoText}" TextWrapping="Wrap" />
+
+                <Button Content="Arbeitsstunden erfassen"
+                        Margin="0,14,0,0"
+                        HorizontalAlignment="Left"
+                        Command="{Binding OpenWorkHoursEntryCommand}"
+                        Visibility="{Binding CanOpenWorkHoursEntry, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </StackPanel>
         </Border>
 

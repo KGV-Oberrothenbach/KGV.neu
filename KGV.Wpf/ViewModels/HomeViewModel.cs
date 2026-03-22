@@ -42,6 +42,7 @@ namespace KGV.ViewModels
         public string AnnouncementTitle => _overview.AnnouncementTitle;
         public string AnnouncementEmptyText => _overview.AnnouncementEmptyText;
         public bool IsAdminContext => _mainVm.UserContext.Role is UserRole.Admin or UserRole.Vorstand;
+        public bool CanOpenWorkHoursEntry => _mainVm.UserContext.MitgliedId is > 0 and <= int.MaxValue;
         public bool ShowAdminManagementSection => IsAdminContext;
         public bool HasWorkAssignments => WorkAssignments.Count > 0;
         public bool ShowWorkAssignmentsEmptyState => !HasWorkAssignments;
@@ -55,6 +56,7 @@ namespace KGV.ViewModels
         public ObservableCollection<HomeAnnouncementItem> Announcements { get; } = new();
 
         public RelayCommand<object?> OpenWorkedHoursCommand { get; }
+        public RelayCommand<object?> OpenWorkHoursEntryCommand { get; }
         public RelayCommand<object?> OpenWorkAssignmentsManagementCommand { get; }
         public RelayCommand<object?> OpenAppointmentsManagementCommand { get; }
         public RelayCommand<object?> OpenAnnouncementsManagementCommand { get; }
@@ -66,6 +68,7 @@ namespace KGV.ViewModels
         {
             _mainVm = mainVm ?? throw new ArgumentNullException(nameof(mainVm));
             OpenWorkedHoursCommand = new RelayCommand<object?>(_ => _ = OpenWorkedHoursAsync(), _ => _mainVm.UserContext.MitgliedId is > 0);
+            OpenWorkHoursEntryCommand = new RelayCommand<object?>(_ => _ = OpenWorkHoursEntryAsync(), _ => CanOpenWorkHoursEntry);
             OpenWorkAssignmentsManagementCommand = new RelayCommand<object?>(_ => _ = OpenWorkAssignmentsManagementAsync(), _ => IsAdminContext);
             OpenAppointmentsManagementCommand = new RelayCommand<object?>(_ => _ = OpenAppointmentsManagementAsync(), _ => IsAdminContext);
             OpenAnnouncementsManagementCommand = new RelayCommand<object?>(_ => _ = OpenAnnouncementsManagementAsync(), _ => IsAdminContext);
@@ -102,6 +105,7 @@ namespace KGV.ViewModels
             OnPropertyChanged(nameof(AppointmentsEmptyText));
             OnPropertyChanged(nameof(AnnouncementEmptyText));
             OnPropertyChanged(nameof(IsAdminContext));
+            OnPropertyChanged(nameof(CanOpenWorkHoursEntry));
             OnPropertyChanged(nameof(ShowAdminManagementSection));
             OnPropertyChanged(nameof(HasWorkAssignments));
             OnPropertyChanged(nameof(ShowWorkAssignmentsEmptyState));
@@ -118,6 +122,13 @@ namespace KGV.ViewModels
                 return;
 
             var created = _mainVm.NavigateToArbeitsstundenViewModel(member);
+            if (created != null)
+                await _mainVm.NavigateToAsync(created);
+        }
+
+        private async Task OpenWorkHoursEntryAsync()
+        {
+            var created = _mainVm.NavigateToArbeitsstundenErfassungViewModel();
             if (created != null)
                 await _mainVm.NavigateToAsync(created);
         }

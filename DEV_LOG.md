@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-03-22 – Arbeitsstunden-Userflow klargezogen: eigenes Erfassungs-View + vorbereiteter Freigabe-Indikator
+
+- Den aktuellen Arbeitsstunden-Istzustand vor dem Umbau erneut geprüft: belastbar vorhanden waren bereits `ArbeitsstundenView`/`ArbeitsstundenViewModel`, `ArbeitsstundeDialog`, der produktive Servicepfad `AddArbeitsstundeAsync(...)`, die bestehende offene Prüfgruppenlogik `GetUnapprovedArbeitsstundenByMitgliedAsync()` sowie der WPF-/MAUI-Badgepfad für offene Fälle.
+- Den bestehenden Unterbau bewusst weiterverwendet statt neue Arbeitsstunden-Architektur aufzubauen: neue Erfassung schreibt weiter über `AddArbeitsstundeAsync(...)`, offene Freigaben laufen weiter über `GetUnapprovedArbeitsstundenByMitgliedAsync()` und Aktualisierungen werden weiterhin über `ArbeitsstundenChangedMessage` verteilt.
+- Für normale Nutzer jetzt einen klaren eigenen Erfassungsweg ergänzt: neue WPF-Ansicht `ArbeitsstundenErfassungView` plus `ArbeitsstundenErfassungViewModel` bietet genau den einfachen Userflow für `Datum`, `Stunden` und `Art der Arbeit` – ohne zusätzliche Fachfelder und ohne neue Freigabeoberfläche.
+- Der neue Einstieg ist bewusst sichtbar und eigenständig statt Inline-Home-Bereich: es gibt jetzt einen klaren Navigationspunkt `Arbeitsstunden erfassen` für Benutzer mit eigenem Mitgliedskontext; zusätzlich erscheint auf Home im Bereich `Meine Arbeitsstunden` ein eigener Button `Arbeitsstunden erfassen`, der in dieselbe neue View führt.
+- Das Userformular bleibt fachlich bewusst klein: sichtbar sind nur `Datum`, `Stunden` und `Art der Arbeit`; `freigegeben` wird im Usermodus nicht angezeigt und beim Speichern immer automatisch `false` gesetzt.
+- Die Validierung für den Userflow folgt dem inzwischen etablierten Muster der Verwaltungseditoren: Pflichtfelder sind gekennzeichnet, fehlende Eingaben werden rot markiert und der Fokus springt beim Speichern auf das erste fehlerhafte Feld. Für `Stunden` bleibt die fachliche Minimalregel produktnah: Wert muss numerisch und größer als `0` sein.
+- Für Admin/Vorstand wurde in diesem Block bewusst keine neue Freigabeansicht erfunden: stattdessen wurde die bestehende Prüf-/Review-Navigation sauber auf die Zielbezeichnung `Arbeitsstunden freigeben` konsolidiert.
+- Der offene Freigabe-Indikator bleibt auf dem vorhandenen Pfad: WPF-Hauptnavigation und bestehendes MAUI-Adminmenü zeigen den Punkt `Arbeitsstunden freigeben` nur dann an bzw. hervorgehoben, wenn offene Datensätze mit `freigegeben = false` vorhanden sind; der Badge/Zähler zeigt weiter die tatsächliche Anzahl offener Prüffälle.
+- Keine Doppelnavigation stehen gelassen: der bisherige Begriff `Arbeitsstunden prüfen` wurde entlang der betroffenen Navigations-/Titelflächen auf `Arbeitsstunden freigeben` konsolidiert, ohne parallel einen zweiten Zweckpfad aufzubauen.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem Userflow-Block weiterhin erfolgreich.
+
 ## 2026-03-22 – Verwaltungseditoren konsolidiert: alte Strukturviews entfernt, produktive Pfade klargezogen
 
 - Den aktuellen Abschlussstand der drei Verwaltungsbereiche erneut geprüft: `Termine`, `Bekanntmachungen` und `Arbeitseinsätze` waren bereits produktiv an ihre Basistabellen angebunden, während im Repo noch die älteren rein strukturellen Verwaltungsviews parallel neben den inzwischen produktiven Editor-Views lagen.

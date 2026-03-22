@@ -2,6 +2,51 @@
 
 ---
 
+## 2026-03-22 – Prompt 1/2: Arbeitsstunden-Unterbau für einfachen Userflow wiederverwendet und Freigabe-Navigation vorbereitet
+
+- Den aktuellen Arbeitsstunden-Istzustand vor dem Umbau erneut geprüft: produktiv vorhanden waren bereits `ArbeitsstundenView`/`ArbeitsstundenViewModel`, `ArbeitsstundeDialog`, `AddArbeitsstundeAsync(...)`, `GetUnapprovedArbeitsstundenByMitgliedAsync()`, die bestehende Review-Ansicht für Admin/Vorstand sowie der WPF-/MAUI-Badgepfad über `ArbeitsstundenChangedMessage`.
+- Den vorhandenen Unterbau bewusst weiterverwendet statt neue Gesamtarchitektur zu bauen:
+  - Speichern neuer User-Einträge läuft weiter über `AddArbeitsstundeAsync(...)`
+  - offene Freigabefälle werden weiter über `GetUnapprovedArbeitsstundenByMitgliedAsync()` ermittelt
+  - Badge-/Sichtbarkeitsaktualisierung bleibt am vorhandenen `ArbeitsstundenChangedMessage`-Pfad angeschlossen
+  - die bestehende Admin-/Vorstands-Reviewansicht wird nicht ersetzt, sondern nur sprachlich/navigativ konsolidiert
+- Für normale Nutzer jetzt einen eigenen klaren WPF-Erfassungsweg ergänzt: `ArbeitsstundenErfassungViewModel` + `ArbeitsstundenErfassungView` bilden ein separates einfaches View nur für die Erfassung, ohne den bisherigen Review-/Bearbeitungspfad zu verdoppeln.
+- Das neue Userformular zeigt bewusst nur die fachlich geforderten Felder:
+  - `Datum` *(Pflichtfeld)*
+  - `Stunden` *(Pflichtfeld)*
+  - `Art der Arbeit` *(Pflichtfeld)*
+- `freigegeben` ist in diesem Userflow kein sichtbares Feld; neue Datensätze werden im Usermodus immer automatisch mit `freigegeben = false` und dem bestehenden Statuspfad `offen` gespeichert.
+- Keine spekulativen Zusatzfelder eingeführt: insbesondere kein sichtbares Mitgliedsfeld, keine zusätzliche Freigabesteuerung, keine neue Kommentierungs-/Ablehnungslogik und keine neue Saison-/Admin-Facharchitektur im Formular.
+- Der neue Einstieg ist jetzt klar und eigenständig statt als Inline-Teil auf Home:
+  - neues WPF-Hauptnavigationselement `Arbeitsstunden erfassen` für Benutzer mit eigenem Mitgliedskontext
+  - zusätzlicher klarer Button `Arbeitsstunden erfassen` im Home-Bereich `Meine Arbeitsstunden`, der in dieselbe eigene View navigiert
+- Die neue WPF-Erfassungsansicht bleibt einfach, aber produktiv:
+  - aktueller eigener Mitgliedskontext wird über den vorhandenen MainWindow-/UserContext-Pfad aufgelöst
+  - aktuelle Saison wird über den vorhandenen `GetSaisonRecordsAsync()`-Pfad ermittelt
+  - `Abbrechen` setzt das Formular sauber zurück
+  - `Speichern` steht am Ende des Formulars
+- Validierung für den Userflow fachlich klein und produktnah umgesetzt:
+  - Pflichtfelder werden markiert
+  - fehlende Eingaben werden rot hervorgehoben
+  - Fokus springt auf das erste fehlerhafte Feld von oben
+  - `Stunden` müssen numerisch und größer als `0` sein
+  - keine künstlich schärferen Zusatzregeln wurden eingeführt
+- Für Admin/Vorstand wurde in diesem Block bewusst noch keine neue Freigabe-Oberfläche gebaut; stattdessen wurde der bestehende Pfad nur vorbereitet/konsolidiert:
+  - WPF-Navigationseintrag wird jetzt als `Arbeitsstunden freigeben` geführt
+  - vorhandene WPF-Reviewtitel wurden auf `freigeben` umbenannt
+  - bestehendes MAUI-Adminmenü und die mobile Reviewtitel wurden ebenfalls auf `freigeben` konsolidiert
+  - es bleibt bei derselben bestehenden Review-Mechanik, keine zweite parallele Adminansicht
+- Der offene Freigabe-Indikator funktioniert weiter auf dem vorhandenen Produktpfad:
+  - sichtbar nur für Admin/Vorstand bzw. Rollen mit `CanManageWorkHours`
+  - sichtbar/hervorgehoben nur bei tatsächlich offenen Datensätzen mit `freigegeben = false`
+  - Badge/Zähler zeigt die Anzahl offener Prüffälle
+  - nach neuer User-Erfassung aktualisiert sich dieser Pfad weiter über `ArbeitsstundenChangedMessage`
+- MAUI wurde nicht mit Platzhalterseiten aufgebläht: der Block beschränkt sich mobil auf die sprachliche Konsolidierung der vorhandenen Arbeitsstunden-/Freigabebegriffe; der gemeinsame Service- und Statusunterbau bleibt damit für spätere Parität offen und unverletzt.
+- Für den nächsten Freigabe-Block bleibt bewusst noch offen:
+  - ob und wie die bestehende Freigabe-/Reviewoberfläche fachlich weiter vereinfacht oder umgestaltet wird
+  - mögliche weitergehende Admin-/Vorstandsentscheidungen jenseits der hier nur vorbereiteten Freigabenavigation
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem Userflow-Block erfolgreich.
+
 ## 2026-03-22 – Prompt 5/5: Verwaltungseditoren konsolidiert, alte Strukturreste entfernt und Abschlussstand für WPF/MAUI geschärft
 
 - Den aktuellen Abschlussstand der drei Verwaltungseditoren vor dem Konsolidierungsschritt nochmals gezielt geprüft: produktiv verdrahtet waren bereits `ArbeitseinsaetzeVerwaltungEditorView`, `TermineVerwaltungEditorView` und `BekanntmachungenVerwaltungEditorView`; parallel lagen im Repo aber noch die älteren vorbereitenden Strukturviews ohne produktive Verdrahtung.

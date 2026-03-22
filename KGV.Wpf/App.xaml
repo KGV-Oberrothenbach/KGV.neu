@@ -39,6 +39,10 @@
                 <views:ArbeitsstundenView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type vm:ArbeitsstundenErfassungViewModel}">
+                <views:ArbeitsstundenErfassungView />
+            </DataTemplate>
+
             <DataTemplate DataType="{x:Type vm:ArbeitsstundenPruefungViewModel}">
                 <views:ArbeitsstundenPruefungView />
             </DataTemplate>

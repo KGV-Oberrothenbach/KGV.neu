@@ -77,13 +77,13 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
         _workhoursReviewItem = new FlyoutItem
         {
-            Title = "Arbeitsstunden prüfen",
+            Title = "Arbeitsstunden freigeben",
             IsVisible = false,
             Items =
             {
                 new ShellContent
                 {
-                    Title = "Arbeitsstunden prüfen",
+                    Title = "Arbeitsstunden freigeben",
                     Route = "workhours_review",
                     ContentTemplate = new DataTemplate(() => _services.GetRequiredService<ArbeitsstundenReviewPage>())
                 }
@@ -124,8 +124,8 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             var count = offene.Sum(x => x.Count);
 
             _workhoursReviewItem.Title = count > 0
-                ? $"Arbeitsstunden prüfen ({count})"
-                : "Arbeitsstunden prüfen";
+                ? $"Arbeitsstunden freigeben ({count})"
+                : "Arbeitsstunden freigeben";
             _workhoursReviewItem.IsVisible = count > 0;
 
             if (!_workhoursReviewItem.IsVisible && CurrentItem == _workhoursReviewItem && Items.Count > 0)
@@ -133,7 +133,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         }
         catch
         {
-            _workhoursReviewItem.Title = "Arbeitsstunden prüfen";
+            _workhoursReviewItem.Title = "Arbeitsstunden freigeben";
             _workhoursReviewItem.IsVisible = false;
         }
     }

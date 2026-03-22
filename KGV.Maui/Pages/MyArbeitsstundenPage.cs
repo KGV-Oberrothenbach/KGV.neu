@@ -29,7 +29,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
         _supabaseService = supabaseService;
         _state = state;
 
-        Title = "Meine Arbeitsstunden";
+        Title = "Arbeitsstunden erfassen";
 
         _forWhomPicker = new Picker { Title = "Für wen?" };
         _forWhomPicker.ItemDisplayBinding = new Binding(nameof(MemberOption.Display));

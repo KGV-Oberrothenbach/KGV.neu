@@ -26,8 +26,8 @@ namespace KGV.ViewModels
             }
         }
 
-        public string Title => "Arbeitsstunden prüfen";
-        public string EmptyText => "Aktuell liegen keine Arbeitsstunden zur Prüfung vor.";
+        public string Title => "Arbeitsstunden freigeben";
+        public string EmptyText => "Aktuell liegen keine Arbeitsstunden zur Freigabe vor.";
         public bool HasEntries => OffenePruefungen.Count > 0;
         public bool ShowEmptyState => !HasEntries;
 

@@ -49,14 +49,14 @@ namespace KGV.ViewModels
 
         public ObservableCollection<SaisonRecord> Saisons { get; } = new();
 
-        public string Title => _reviewMode ? "Arbeitsstunden prüfen" : "Arbeitsstunden";
+        public string Title => _reviewMode ? "Arbeitsstunden freigeben" : "Arbeitsstunden";
         public bool IsReviewMode => _reviewMode;
         public bool ShowNeuButton => !_reviewMode;
         public bool ShowFreigebenButton => _reviewMode;
         public bool HasArbeitsstunden => Arbeitsstunden.Count > 0;
         public bool ShowEmptyState => !HasArbeitsstunden;
         public string EmptyText => _reviewMode
-            ? "Für dieses Mitglied liegen aktuell keine offenen Arbeitsstunden mehr zur Prüfung vor."
+            ? "Für dieses Mitglied liegen aktuell keine offenen Arbeitsstunden mehr zur Freigabe vor."
             : "Für dieses Mitglied liegen aktuell keine Arbeitsstunden vor.";
         public string HintText => _reviewMode
             ? "Öffne einen Eintrag per Doppelklick oder gib den ausgewählten Datensatz direkt frei."

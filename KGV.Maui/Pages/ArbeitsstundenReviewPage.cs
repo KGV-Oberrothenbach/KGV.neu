@@ -18,7 +18,7 @@ public sealed class ArbeitsstundenReviewPage : ContentPage
         _supabaseService = supabaseService;
         _state = state;
 
-        Title = "Arbeitsstunden prüfen";
+        Title = "Arbeitsstunden freigeben";
 
         _status = new Label { TextColor = Colors.Red };
 

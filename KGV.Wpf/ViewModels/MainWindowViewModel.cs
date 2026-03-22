@@ -251,6 +251,16 @@ namespace KGV.ViewModels
                 });
             }
 
+            if (UserContext.MitgliedId.HasValue && UserContext.MitgliedId.Value > 0 && UserContext.MitgliedId.Value <= int.MaxValue)
+            {
+                NavigationItems.Add(new NavigationItem
+                {
+                    Title = "Arbeitsstunden erfassen",
+                    ViewModelType = typeof(ArbeitsstundenErfassungViewModel),
+                    IsVisible = true
+                });
+            }
+
             if (UserContext.Has(PermissionFlags.CanManageRoles) || UserContext.Has(PermissionFlags.CanEditAllMembers))
             {
                 NavigationItems.Add(new NavigationItem
@@ -301,7 +311,7 @@ namespace KGV.ViewModels
             {
                 NavigationItems.Add(new NavigationItem
                 {
-                    Title = "Arbeitsstunden prüfen",
+                    Title = "Arbeitsstunden freigeben",
                     ViewModelType = typeof(ArbeitsstundenPruefungViewModel),
                     IsVisible = false,
                     IsAttention = false,
@@ -577,6 +587,11 @@ namespace KGV.ViewModels
             return _navigationService.CreateViewModel(typeof(ArbeitsstundenViewModel), this, context) as BaseViewModel;
         }
 
+        public BaseViewModel? NavigateToArbeitsstundenErfassungViewModel()
+        {
+            return _navigationService.CreateViewModel(typeof(ArbeitsstundenErfassungViewModel), this) as BaseViewModel;
+        }
+
         public BaseViewModel? NavigateToHomeSectionDetailViewModel(HomeSectionDetailContext context)
         {
             return _navigationService.CreateViewModel(typeof(HomeSectionDetailViewModel), this, context) as BaseViewModel;
@@ -611,6 +626,9 @@ namespace KGV.ViewModels
                 var offene = await _supabaseService.GetUnapprovedArbeitsstundenByMitgliedAsync();
                 var count = offene.Sum(x => x.Count);
 
+                navItem.Title = count > 0
+                    ? $"Arbeitsstunden freigeben ({count})"
+                    : "Arbeitsstunden freigeben";
                 navItem.BadgeCount = count;
                 navItem.IsAttention = count > 0;
                 navItem.IsVisible = count > 0;
