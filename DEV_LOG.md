@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-03-22 – Termine-Verwaltung produktiv gemacht: echter Editor gegen `termin`
+
+- Den aktuellen Istzustand der bereits vorbereiteten `TermineVerwaltungView` erneut geprüft: belastbar vorhanden waren bisher nur Listenstruktur, Navigation und der Lesepfad; der rechte Bereich war noch kein echter Editor und es gab noch keinen bestätigten Schreibpfad auf die Basistabelle.
+- Den bestätigten Tabellenvertrag von `termin` jetzt direkt produktiv angeschlossen: `titel`, `beschreibung`, `datum`, `start_uhrzeit`, `end_uhrzeit`, `sichtbar_ab`, `sichtbar_bis` und `aktiv` werden im WPF-Editor exakt als bestätigte Bearbeitungsfelder verwendet; technische Felder wie `created_at` und `updated_at` bleiben bewusst außerhalb der normalen Bearbeitung.
+- Den echten Schreibpfad sauber auf die Basistabelle gelegt und nicht auf Home-Views: gemeinsamer Service lädt die Verwaltungs-Liste jetzt aus `termin` und schreibt neue bzw. geänderte Datensätze direkt per Create/Update wieder nach `termin` zurück.
+- Die Termine-Verwaltung ist damit erstmals fachlich produktiv: Doppelklick auf einen Datensatz öffnet rechts den Editor mit echten Werten, `Neu` öffnet einen leeren Editorzustand, `Abbrechen` verwirft den Bearbeitungszustand wieder vollständig, und `Speichern` bleibt am Ende des Formulars.
+- Bestätigte Validierungsregeln direkt umgesetzt statt zu raten: `Titel` und `Datum` sind Pflichtfelder, `Titel` darf nicht nur aus Leerzeichen bestehen, `Enduhrzeit` darf nicht vor `Startuhrzeit` liegen, und `Sichtbar bis` darf nicht vor `Sichtbar ab` liegen.
+- Für Zeitfelder eine wiederverwendbare tolerante Eingabelogik ergänzt: Eingaben wie `8`, `08`, `830`, `8:30` und `8.30` werden auf `HH:mm` normalisiert; offensichtlich ungültige Zeiten bleiben sichtbar und werden nicht still korrigiert, sondern sauber als Fehler markiert.
+- Das WPF-Bedienmuster für Folgemodule vorbereitet: fehlerhafte Pflicht-/Zeitfelder werden rot hervorgehoben, und beim Speichern springt der Fokus automatisch auf das erste fehlerhafte Feld von oben; dieses Muster ist damit für `Bekanntmachungen` und `Arbeitseinsätze` wiederverwendbar.
+- Nach erfolgreichem Speichern wird die Terminliste neu geladen und der gespeicherte Datensatz erneut selektiert/angezeigt; gezielte, knappe Diagnose-Logs im Service ergänzen die bisherige Fehlerbehandlung, statt Fehler stumm zu verschlucken.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach der produktiven Termin-Verwaltung weiterhin erfolgreich.
+
 ## 2026-03-22 – Home-Admin-Bearbeiten entzerrt: separate Verwaltungsviews statt Bearbeitung auf Home
 
 - Den aktuellen Home-/Navigationsstand erneut geprüft: Home zeigt bereits nur Listen und separate Detailviews, aber für Admin/Vorstand fehlte noch eine saubere Verwaltungsarchitektur für `Arbeitseinsätze`, `Termine` und `Bekanntmachungen`; zugleich waren im aktiven Repo keine belastbar verifizierten Schreibmodelle/-services für diese drei Bereiche vorhanden.

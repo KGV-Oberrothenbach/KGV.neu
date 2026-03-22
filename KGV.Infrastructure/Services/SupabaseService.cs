@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
+using KGV.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using Supabase;
 
@@ -836,6 +837,80 @@ namespace KGV.Infrastructure.Services
             LoadStartseiteBekanntmachungenAsync,
             new List<HomeAnnouncementItem>());
 
+        public Task<List<TerminRecord>> GetTermineVerwaltungAsync() => ExecuteAsync(
+            "GetTermineVerwaltungAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client.From<TerminRecord>().Get();
+
+                return response?.Models?
+                    .OrderBy(x => x.Datum)
+                    .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
+                    .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList()
+                    ?? new List<TerminRecord>();
+            },
+            new List<TerminRecord>());
+
+        public Task<TerminRecord?> CreateTerminAsync(TerminRecord record) => ExecuteAsync<TerminRecord?>(
+            "CreateTerminAsync",
+            async () =>
+            {
+                if (record == null || string.IsNullOrWhiteSpace(record.Titel))
+                    return null;
+
+                var client = await EnsureClientAsync();
+                var insertRecord = new TerminRecord
+                {
+                    Titel = CleanRequiredText(record.Titel),
+                    Beschreibung = CleanOptionalText(record.Beschreibung),
+                    Datum = NormalizeDateTime(record.Datum.Date),
+                    StartUhrzeit = NormalizeTerminTime(record.StartUhrzeit),
+                    EndUhrzeit = NormalizeTerminTime(record.EndUhrzeit),
+                    SichtbarAb = record.SichtbarAb.HasValue ? NormalizeDateTime(record.SichtbarAb.Value) : null,
+                    SichtbarBis = record.SichtbarBis.HasValue ? NormalizeDateTime(record.SichtbarBis.Value) : null,
+                    Aktiv = record.Aktiv
+                };
+
+                await client.From<TerminRecord>().Insert(insertRecord);
+                var reloadResponse = await client.From<TerminRecord>().Get();
+                var created = reloadResponse?.Models?
+                    .Where(x => IsSameTerminForReload(x, insertRecord))
+                    .OrderByDescending(x => x.Id)
+                    .FirstOrDefault();
+
+                _logger?.LogInformation("CreateTerminAsync created termin {TerminId}", created?.Id);
+                return created;
+            },
+            null);
+
+        public Task<bool> UpdateTerminAsync(TerminRecord record) => ExecuteAsync(
+            "UpdateTerminAsync",
+            async () =>
+            {
+                if (record == null || record.Id <= 0 || string.IsNullOrWhiteSpace(record.Titel))
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client
+                    .From<TerminRecord>()
+                    .Where(x => x.Id == record.Id)
+                    .Set(x => x.Titel, CleanRequiredText(record.Titel))
+                    .Set(x => x.Beschreibung, CleanOptionalText(record.Beschreibung))
+                    .Set(x => x.Datum, NormalizeDateTime(record.Datum.Date))
+                    .Set(x => x.StartUhrzeit, NormalizeTerminTime(record.StartUhrzeit))
+                    .Set(x => x.EndUhrzeit, NormalizeTerminTime(record.EndUhrzeit))
+                    .Set(x => x.SichtbarAb, record.SichtbarAb.HasValue ? NormalizeDateTime(record.SichtbarAb.Value) : null)
+                    .Set(x => x.SichtbarBis, record.SichtbarBis.HasValue ? NormalizeDateTime(record.SichtbarBis.Value) : null)
+                    .Set(x => x.Aktiv, record.Aktiv)
+                    .Update();
+
+                _logger?.LogInformation("UpdateTerminAsync updated termin {TerminId}", record.Id);
+                return true;
+            },
+            false);
+
         private async Task<(T Result, bool Success)> TryLoadHomeSectionAsync<T>(string sectionName, Func<Task<T>> loader, T fallback)
         {
             try
@@ -933,6 +1008,25 @@ namespace KGV.Infrastructure.Services
         {
             var date = onDate.Date;
             return eingebautAm.Date <= date && (ausgebautAm == null || ausgebautAm.Value.Date >= date);
+        }
+
+        private static TimeSpan? NormalizeTerminTime(TimeSpan? value)
+        {
+            return value.HasValue
+                ? new TimeSpan(value.Value.Hours, value.Value.Minutes, 0)
+                : null;
+        }
+
+        private static bool IsSameTerminForReload(TerminRecord left, TerminRecord right)
+        {
+            return string.Equals(CleanRequiredText(left.Titel), CleanRequiredText(right.Titel), StringComparison.CurrentCulture)
+                && string.Equals(CleanOptionalText(left.Beschreibung), CleanOptionalText(right.Beschreibung), StringComparison.CurrentCulture)
+                && left.Datum.Date == right.Datum.Date
+                && NormalizeTerminTime(left.StartUhrzeit) == NormalizeTerminTime(right.StartUhrzeit)
+                && NormalizeTerminTime(left.EndUhrzeit) == NormalizeTerminTime(right.EndUhrzeit)
+                && left.Aktiv == right.Aktiv
+                && left.SichtbarAb == right.SichtbarAb
+                && left.SichtbarBis == right.SichtbarBis;
         }
 
         private async Task<List<StromzaehlerRecord>> GetStromzaehlerForParzelleAsync(int parzelleId)
