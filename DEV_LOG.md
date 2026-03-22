@@ -2,6 +2,14 @@
 
 ---
 
+## 2026-03-22 – Block 6 Prompt 2: Gemeinsamen HomeOverviewFactory als nächsten Prüfpfad abgesichert
+
+- Den Istzustand von `KGV.Tests` erneut geprüft: aktiv vorhanden waren jetzt der Demo-/Testdatenfilter-Block und der wiederhergestellte Export-Test, während der gemeinsame Home-Kern trotz hoher fachlicher Relevanz für WPF und MAUI noch ungetestet blieb.
+- Als nächsten kleinen Prüfpfad bewusst den `HomeOverviewFactory` gewählt: er ist ein klar abgegrenzter produktiver Core-Pfad, steuert die gemeinsamen Home-Schnellzugriffe für Desktop und Mobil und lässt sich ohne zusätzliche Testinfrastruktur direkt prüfen.
+- Dafür `HomeOverviewFactoryTests` in die bestehende aktive Teststruktur ergänzt statt weitere Archivideen zu reaktivieren: abgesichert werden jetzt die fachlich erwarteten Schnellzugriffs-Sets für `Admin`, `Vorstand` und `User`.
+- Der Testblock bleibt bewusst klein: keine UI-Tests, keine Shell-/Navigations-Infrastruktur und keine künstlichen String-Volltests, sondern nur der belastbare Shared-Core-Entscheidungspfad für die Home-Quicklinks.
+- Technisch verifiziert: `KGV.Tests` baut weiter, die Tests laufen erfolgreich, und die aktive Produktbasis (`KGV.Wpf`, `KGV.Maui`) bleibt buildfähig.
+
 ## 2026-03-22 – Block 6 Prompt 1b: Archiviertes KGV.Tests sauber mit aktivem Root-Stand zusammengeführt
 
 - Den Istzustand von aktivem Root-`KGV.Tests` und `_Archiv\KGV.Tests` erneut gegeneinander geprüft: im Root lag bislang nur der neue kleine `OperationalDataFilter`-Block, im Archiv dagegen die frühere WPF-nahe Teststruktur mit `ExportViewModelTests` und Windows-zielender Projektdatei.
