@@ -569,7 +569,42 @@ namespace KGV.Infrastructure.Services
             },
             false);
         public Task<bool> DeleteArbeitsstundeAsync(int arbeitsstundeId) => Unavailable<bool>();
-        public Task<List<(int MitgliedId, string Vorname, string Nachname, int Count)>> GetUnapprovedArbeitsstundenByMitgliedAsync() => Unavailable<List<(int MitgliedId, string Vorname, string Nachname, int Count)>>();
+        public Task<List<(int MitgliedId, string Vorname, string Nachname, int Count)>> GetUnapprovedArbeitsstundenByMitgliedAsync() => ExecuteAsync(
+            "GetUnapprovedArbeitsstundenByMitgliedAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client.From<ArbeitsstundeRecord>().Get();
+                var offeneArbeitsstunden = response?.Models?
+                    .Where(x => !x.Freigegeben && (string.IsNullOrWhiteSpace(x.Status) || x.Status.Equals("offen", StringComparison.OrdinalIgnoreCase)))
+                    .ToList()
+                    ?? new List<ArbeitsstundeRecord>();
+
+                if (offeneArbeitsstunden.Count == 0)
+                    return new List<(int MitgliedId, string Vorname, string Nachname, int Count)>();
+
+                var mitglieder = await GetMitgliederAsync();
+                var operativeMitglieder = mitglieder
+                    .Where(OperationalDataFilter.IsOperationalMember)
+                    .ToDictionary(x => x.Id, x => x);
+
+                return offeneArbeitsstunden
+                    .Where(x => operativeMitglieder.ContainsKey(x.MitgliedId))
+                    .GroupBy(x => x.MitgliedId)
+                    .Select(g =>
+                    {
+                        var mitglied = operativeMitglieder[g.Key];
+                        return (
+                            MitgliedId: g.Key,
+                            Vorname: mitglied.Vorname ?? string.Empty,
+                            Nachname: mitglied.Name ?? string.Empty,
+                            Count: g.Count());
+                    })
+                    .OrderBy(x => x.Nachname, StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(x => x.Vorname, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList();
+            },
+            new List<(int MitgliedId, string Vorname, string Nachname, int Count)>());
         public Task<bool> TryLockMitgliedAsync(int mitgliedId, string userId, int timeoutMinutes = 10) => ExecuteAsync(
             "TryLockMitgliedAsync",
             async () =>

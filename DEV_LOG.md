@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-03-22 – Block 5 Prompt 3: Letzte kleine mobile Admin-Parität mit Arbeitsstunden-Prüfung geschlossen
+
+- Die verbleibenden mobilen Admin-Lücken erneut gegen belastbare WPF-/MAUI-Pfade geprüft: die wichtigste kleine Rest-Sackgasse lag bei `Arbeitsstunden prüfen`, weil der mobile Admin-Pfad bereits in der `AdminShell` existierte, fachlich aber weiterhin am fehlenden gemeinsamen Servicepfad `GetUnapprovedArbeitsstundenByMitgliedAsync()` hing.
+- Genau diese letzte kleine Paritätslücke für Block 5 priorisiert und geschlossen: der gemeinsame Supabase-Service liefert jetzt wieder belastbar die Mitgliedergruppen mit offenen Arbeitsstunden, sodass die bestehende mobile Prüfseite ohne neue Architektur auf ihrem vorhandenen Pfad nutzbar wird.
+- Keine neue Schattenlogik eingeführt: die Umsetzung bleibt vollständig im gemeinsamen `SupabaseService` und verwendet die bereits vorhandenen `ArbeitsstundeRecord`-/`MitgliedRecord`-Modelle sowie die bestehende mobile `ArbeitsstundenReviewPage`.
+- Demo-/Play-Store-Testdaten direkt im betroffenen Verwaltungsweg ausgeschlossen: die neue Gruppenbildung für offene Arbeitsstunden berücksichtigt nur operative Mitglieder über den bestehenden `OperationalDataFilter`, damit keine Testkonten in die mobile Arbeitsstunden-Prüfung hineinlaufen.
+- Nur den blockrelevanten Kern geschlossen: keine neue Gesamtplattform für Arbeitsstunden, keine zusätzlichen WPF-Oberflächen und keine Ausweitung auf weitere Admin-Baustellen.
+- Abschluss technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach diesem dritten Block-5-Schritt weiterhin erfolgreich; Block 5 ist damit sauber abgeschlossen.
+
 ## 2026-03-22 – Block 5 Prompt 2: Nächste mobile Admin-Parität mit Rollenbearbeitung geschlossen
 
 - Die verbleibenden mobilen Admin-Lücken erneut gegen die produktiven WPF-Wege geprüft: nach der mobilen Benutzerverwaltung blieb die Rollenbearbeitung die nächste kleine, aber fachlich wichtige Paritätslücke, weil WPF dafür bereits einen belastbaren Sperr-/Update-Pfad im `AdminRoleViewModel` nutzt, MAUI in der neuen Benutzerverwaltung aber bislang nur lese- und Einladungsaktionen bot.
