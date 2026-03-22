@@ -78,5 +78,7 @@ namespace KGV.Core.Interfaces
         Task<List<DocumentInfo>> GetMitgliedDokumenteAsync(int mitgliedId);
         Task<List<DocumentInfo>> GetParzelleDokumenteAsync(int parzelleId);
         Task<string?> CreateDokumentSignedUrlAsync(string storagePath, int expiresInSeconds = 3600);
+
+        Task<HomeOverviewDTO> GetHomeOverviewAsync(KGV.Core.Security.UserRole role, int? mitgliedId);
     }
 }

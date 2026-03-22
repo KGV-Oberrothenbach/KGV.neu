@@ -672,6 +672,63 @@ namespace KGV.Infrastructure.Services
             },
             new List<DocumentInfo>());
 
+        public Task<HomeOverviewDTO> GetHomeOverviewAsync(UserRole role, int? mitgliedId) => ExecuteAsync(
+            "GetHomeOverviewAsync",
+            async () =>
+            {
+                var overview = HomeOverviewFactory.Build(role);
+                var operationalItems = new List<HomeOperationalItem>();
+
+                if (mitgliedId is > 0)
+                {
+                    var hauptmitglied = await GetMitgliedByIdAsync(mitgliedId.Value);
+                    MitgliedRecord? nebenmitglied = null;
+
+                    if (OperationalDataFilter.IsOperationalMember(hauptmitglied))
+                        nebenmitglied = await GetNebenmitgliedByHauptmitgliedIdAsync(mitgliedId.Value);
+
+                    var includeHaupt = OperationalDataFilter.IsOperationalMember(hauptmitglied);
+                    var includeNeben = OperationalDataFilter.IsOperationalMember(nebenmitglied);
+                    var ids = new List<int>();
+                    if (includeHaupt && hauptmitglied != null)
+                        ids.Add(hauptmitglied.Id);
+                    if (includeNeben && nebenmitglied != null)
+                        ids.Add(nebenmitglied.Id);
+
+                    if (ids.Count > 0)
+                    {
+                        var saisonen = await GetSaisonRecordsAsync();
+                        var currentSeason = saisonen
+                            .OrderByDescending(x => x.Jahr == DateTime.Today.Year)
+                            .ThenByDescending(x => x.Jahr)
+                            .FirstOrDefault();
+
+                        var arbeitsstunden = await GetArbeitsstundenAsync(ids.ToArray());
+                        var relevant = currentSeason != null
+                            ? arbeitsstunden.Where(x => x.SaisonId == currentSeason.Id).ToList()
+                            : arbeitsstunden.Where(x => x.Datum.Year == DateTime.Today.Year).ToList();
+
+                        operationalItems.Add(BuildWorkHoursItem(relevant, currentSeason?.Jahr ?? DateTime.Today.Year, includeNeben));
+                    }
+                }
+
+                return new HomeOverviewDTO
+                {
+                    Description = overview.Description,
+                    QuickLinksTitle = overview.QuickLinksTitle,
+                    QuickLinksEmptyText = overview.QuickLinksEmptyText,
+                    OperationalTitle = overview.OperationalTitle,
+                    OperationalEmptyText = overview.OperationalEmptyText,
+                    AnnouncementTitle = overview.AnnouncementTitle,
+                    AnnouncementHintText = overview.AnnouncementHintText,
+                    AnnouncementEmptyText = overview.AnnouncementEmptyText,
+                    QuickLinks = overview.QuickLinks,
+                    OperationalItems = operationalItems,
+                    Announcements = overview.Announcements
+                };
+            },
+            HomeOverviewFactory.Build(role));
+
         public Task<string?> CreateDokumentSignedUrlAsync(string storagePath, int expiresInSeconds = 3600) => ExecuteAsync<string?>(
             "CreateDokumentSignedUrlAsync",
             async () =>
@@ -837,6 +894,34 @@ namespace KGV.Infrastructure.Services
 
             var fullName = $"{member.Vorname} {member.Name}".Trim();
             return string.IsNullOrWhiteSpace(fullName) ? member.Email : fullName;
+        }
+
+        private static HomeOperationalItem BuildWorkHoursItem(IReadOnlyCollection<ArbeitsstundeDTO> arbeitsstunden, int jahr, bool includesNebenmitglied)
+        {
+            var suffix = includesNebenmitglied ? " inkl. Nebenmitglied" : string.Empty;
+            if (arbeitsstunden.Count == 0)
+            {
+                return new HomeOperationalItem
+                {
+                    Title = $"Arbeitsstunden {jahr}{suffix}",
+                    Message = "Aktuell sind für diesen Home-Kontext noch keine Arbeitsstunden im aktuellen Saisonbezug erfasst.",
+                    IsWarning = false
+                };
+            }
+
+            var offene = arbeitsstunden.Count(x => !x.Freigegeben && (string.IsNullOrWhiteSpace(x.Status) || x.Status.Equals("offen", StringComparison.OrdinalIgnoreCase)));
+            var abgelehnt = arbeitsstunden.Count(x => string.Equals(x.Status, "abgelehnt", StringComparison.OrdinalIgnoreCase));
+
+            var message = offene > 0
+                ? $"{offene} Eintrag/Einträge warten aktuell noch auf Prüfung.{(abgelehnt > 0 ? $" Zusätzlich {abgelehnt} abgelehnt." : string.Empty)}"
+                : $"{arbeitsstunden.Count} Eintrag/Einträge liegen im aktuellen Saisonbezug vor, aktuell ohne offene Prüfung.{(abgelehnt > 0 ? $" {abgelehnt} davon abgelehnt." : string.Empty)}";
+
+            return new HomeOperationalItem
+            {
+                Title = $"Arbeitsstunden {jahr}{suffix}",
+                Message = message,
+                IsWarning = offene > 0
+            };
         }
 
         private static DocumentInfo MapDocumentInfo(DokumentRecord record)

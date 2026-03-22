@@ -105,6 +105,7 @@ namespace KGV.ViewModels
         }
 
         public IAuthService AuthService => _authService;
+        public ISupabaseService SupabaseService => _supabaseService;
 
         public MainWindowViewModel(
             IAuthService authService,

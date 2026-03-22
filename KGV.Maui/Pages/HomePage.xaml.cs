@@ -64,6 +64,40 @@ public class HomePage : ContentPage
         quickLinksEmptyLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.QuickLinksEmptyText));
         quickLinksEmptyLabel.SetBinding(IsVisibleProperty, nameof(HomeViewModel.HasQuickLinks), converter: new InverseBooleanConverter());
 
+        var operationalLabel = new Label { FontSize = 18, FontAttributes = FontAttributes.Bold };
+        operationalLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.OperationalTitle));
+
+        var operationalView = new CollectionView
+        {
+            SelectionMode = SelectionMode.None,
+            HeightRequest = 160,
+            ItemTemplate = new DataTemplate(() =>
+            {
+                var itemTitle = new Label { FontAttributes = FontAttributes.Bold };
+                itemTitle.SetBinding(Label.TextProperty, nameof(HomeOperationalItem.Title));
+
+                var itemMessage = new Label { FontSize = 12, LineBreakMode = LineBreakMode.WordWrap };
+                itemMessage.SetBinding(Label.TextProperty, nameof(HomeOperationalItem.Message));
+
+                return new Border
+                {
+                    Padding = 12,
+                    Stroke = Colors.LightGray,
+                    Content = new VerticalStackLayout
+                    {
+                        Spacing = 4,
+                        Children = { itemTitle, itemMessage }
+                    }
+                };
+            })
+        };
+        operationalView.SetBinding(ItemsView.ItemsSourceProperty, nameof(HomeViewModel.OperationalItems));
+        operationalView.SetBinding(IsVisibleProperty, nameof(HomeViewModel.HasOperationalItems));
+
+        var operationalEmptyLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+        operationalEmptyLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.OperationalEmptyText));
+        operationalEmptyLabel.SetBinding(IsVisibleProperty, nameof(HomeViewModel.HasOperationalItems), converter: new InverseBooleanConverter());
+
         var sectionLabel = new Label { FontSize = 18, FontAttributes = FontAttributes.Bold };
         sectionLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.AnnouncementTitle));
 
@@ -131,6 +165,9 @@ public class HomePage : ContentPage
                 quickLinksLabel,
                 quickLinksView,
                 quickLinksEmptyLabel,
+                operationalLabel,
+                operationalView,
+                operationalEmptyLabel,
                 sectionLabel,
                 announcementsView,
                 emptyLabel,
@@ -142,14 +179,14 @@ public class HomePage : ContentPage
         };
     }
 
-    protected override void OnAppearing()
+    protected override async void OnAppearing()
     {
         base.OnAppearing();
 
         if (_initialized)
             return;
 
-        _viewModel.Initialize();
+        await _viewModel.InitializeAsync();
         _initialized = true;
     }
 

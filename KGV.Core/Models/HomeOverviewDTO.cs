@@ -17,15 +17,25 @@ namespace KGV.Core.Models
         public string Description { get; init; } = string.Empty;
     }
 
+    public sealed class HomeOperationalItem
+    {
+        public string Title { get; init; } = string.Empty;
+        public string Message { get; init; } = string.Empty;
+        public bool IsWarning { get; init; }
+    }
+
     public sealed class HomeOverviewDTO
     {
         public string Description { get; init; } = string.Empty;
         public string QuickLinksTitle { get; init; } = "Schnellzugriffe";
         public string QuickLinksEmptyText { get; init; } = "Für diesen Benutzerkontext sind aktuell keine gemeinsamen Schnellzugriffe verfügbar.";
+        public string OperationalTitle { get; init; } = "Operative Hinweise";
+        public string OperationalEmptyText { get; init; } = "Aktuell sind keine zusätzlichen belastbaren Home-Hinweise vorhanden.";
         public string AnnouncementTitle { get; init; } = "Bekanntmachungen";
         public string AnnouncementHintText { get; init; } = "Bitte eine Bekanntmachung aus der Liste auswählen.";
         public string AnnouncementEmptyText { get; init; } = "Für Home ist aktuell kein belastbarer Bekanntmachungs-Pfad angebunden.";
         public List<HomeQuickLinkItem> QuickLinks { get; init; } = new();
+        public List<HomeOperationalItem> OperationalItems { get; init; } = new();
         public List<HomeAnnouncementItem> Announcements { get; init; } = new();
     }
 

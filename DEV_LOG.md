@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-22 – Block 4/3 Prompt 2: Operative Home-Inhalte auf gemeinsamen Kern gesetzt
+
+- Den aktuellen Stand der operativen Home-Inhalte geprüft: belastbar vorhanden waren vor allem bestehende Schnellzugriffe sowie der Arbeitsstunden-Datenpfad des aktuellen Mitgliedskontexts; ein gemeinsamer Prüf-/Bekanntmachungs-Backendpfad für Home ist dagegen weiterhin nicht belastbar genug für neue Schnellzugriffe.
+- Gemeinsamen Home-Datenpfad gezielt erweitert statt neue Client-Schattenlogik zu bauen: `ISupabaseService.GetHomeOverviewAsync(...)` liefert jetzt den Home-Kern zusammen mit operativen Hinweisen aus demselben Pfad für WPF und MAUI.
+- Nächste belastbare operative Home-Erweiterung auf Basis vorhandener Fachmodule umgesetzt: Home zeigt jetzt einen kompakten Arbeitsstunden-Hinweis für den aktuellen Mitgliedskontext im laufenden Saisonbezug, inklusive offener Prüfstände und automatischer Einbeziehung des vorhandenen Nebenmitglied-Pfads, wenn dieser fachlich belastbar vorhanden ist.
+- Demo-/Play-Store-Testdaten dabei gezielt aus Home-Hinweisen herausgehalten: ein kleiner gemeinsamer Filter blendet offensichtliche Demo-/Test-/Play-Store-Mitglieder aus operativen Home-Zusammenfassungen aus, statt diese in Home-Aussagen mitzuzählen.
+- WPF- und MAUI-Startseite fachlich parallel nachgezogen: beide Clients lesen denselben Home-Überblick, zeigen dieselben operativen Hinweise an und behalten nur die gemeinsamen lebenden Schnellzugriffe auf tatsächlich nutzbare Pfade.
+- Tote oder unsichere Home-Pfade bewusst nicht aufgenommen: die vorhandene mobile Arbeitsstunden-Prüfseite bleibt aus dem gemeinsamen Home-Kern heraus, solange der zugehörige gemeinsame Prüfpfad im aktiven `SupabaseService` noch nicht rekonstruiert ist.
+- Abschluss technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem zweiten Home-Teilblock weiterhin erfolgreich.
+
 ## 2026-03-22 – Block 4/3 Prompt 1: Home-/Startseiten auf gemeinsamen Kernstand gebracht
 
 - Den Istzustand der aktiven Startseiten geprüft: WPF-`HomeViewModel` zeigte bisher eine rein aus Desktop-Navigation abgeleitete Modulliste plus leere Bekanntmachungen; MAUI-`HomeViewModel` zeigte nur Kontext und dieselbe leere Bekanntmachungssektion ohne gleichwertige Schnellzugriffe.
