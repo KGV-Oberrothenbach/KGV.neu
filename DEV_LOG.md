@@ -2,6 +2,14 @@
 
 ---
 
+## 2026-03-22 – Block 6 Prompt 3: Gemeinsamen UserRoles-Kern als letzten Prüfpfad abgesichert
+
+- Den Istzustand von `KGV.Tests` und den aktiven Produktpfaden erneut geprüft: vorhanden waren bereits Filter-, Export- und Home-Kern-Tests; weiterhin ungetestet blieb aber der kleine gemeinsame Rollen-Kern `UserRoles`, der inzwischen in WPF, MAUI, Home-Logik und Benutzerverwaltung zentral mitverwendet wird.
+- Als letzten sinnvollen Prüfpfad für Block 6 bewusst genau diesen Core-Baustein gewählt: fachlich wichtig, technisch klar abgegrenzt und ohne zusätzliche Infrastruktur direkt testbar.
+- Dafür `UserRolesTests` in die bestehende aktive Teststruktur ergänzt: abgesichert werden jetzt die robuste Rolleninterpretation per `Parse(...)`, die normalisierten Storage-Werte aus `ToStorageValue(...)` sowie die stabile gemeinsame Reihenfolge von `AssignableRoles`.
+- Der Block bleibt bewusst klein und produktnah: keine UI-Tests, keine künstlichen Mocks und keine Archivannahmen, sondern nur der aktuelle Shared-Core-Pfad, von dem mehrere aktive Produktstellen direkt abhängen.
+- Technisch verifiziert: `KGV.Tests` baut, alle aktiven Tests laufen erfolgreich, und die aktive Produktbasis (`KGV.Wpf`, `KGV.Maui`) bleibt buildfähig; Block 6 ist damit sauber abgeschlossen.
+
 ## 2026-03-22 – Block 6 Prompt 2: Gemeinsamen HomeOverviewFactory als nächsten Prüfpfad abgesichert
 
 - Den Istzustand von `KGV.Tests` erneut geprüft: aktiv vorhanden waren jetzt der Demo-/Testdatenfilter-Block und der wiederhergestellte Export-Test, während der gemeinsame Home-Kern trotz hoher fachlicher Relevanz für WPF und MAUI noch ungetestet blieb.
