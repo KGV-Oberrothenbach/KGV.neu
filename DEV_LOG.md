@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-22 – Arbeitsstunden-Flow Prompt 3: Letzte kleine Restlücke über MAUI-Prüfstatus geschlossen und Block abgeschlossen
+
+- Den verbliebenen Restzustand erneut gegen die zwei möglichen Abschlussoptionen geprüft: ein echter gemeinsamer Ablehnungs-/Rückgabe-/Kommentarpfad wäre trotz vorhandenem Statusstring weiterhin nicht belastbar genug, weil dafür im aktiven Modell und Servicepfad keine saubere fachliche Rückgabe-/Kommentarbasis vorhanden ist; der bereits existierende MAUI-Prüfpfad war dagegen der klar belastbarere Abschlusskandidat.
+- Deshalb bewusst Option B gewählt und den vorhandenen mobilen Prüfpfad auf denselben gemeinsamen Statuskern wie in WPF gebracht, statt einen neuen Ablehnungs-Workflow zu erfinden.
+- `AdminShell` zeigt `Arbeitsstunden prüfen` mobil jetzt nur noch dann an, wenn über den bestehenden gemeinsamen Servicepfad `GetUnapprovedArbeitsstundenByMitgliedAsync()` tatsächlich offene Prüffälle vorliegen; zusätzlich erscheint die aktuelle Anzahl offener Datensätze direkt im Titel des Menüpunkts.
+- Die bestehende mobile `ArbeitsstundenReviewPage` aktualisiert diesen Shell-Status jetzt nach dem Laden sowie nach Genehmigen/Ablehnen direkt wieder über denselben gemeinsamen Prüfpfad, sodass Menüeintrag und tatsächliche offene Fälle konsistent bleiben.
+- Keine neue MAUI-Schattenlogik eingeführt: die mobile Seite bleibt vollständig auf dem bereits produktiven Review-Unterbau mit `GetUnapprovedArbeitsstundenByMitgliedAsync()`, `GetArbeitsstundenAsync()` und `UpdateArbeitsstundeAsync()`.
+- Demo-/Play-Store-Testdaten bleiben auch im Abschlussstand aus der mobilen Prüfstatusanzeige draußen, weil weiterhin ausschließlich der gemeinsame operative Prüfpfad verwendet wird.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach diesem letzten kleinen Schritt weiterhin erfolgreich; der Arbeitsstunden-Block ist damit fachlich sauber abgeschlossen.
+
 ## 2026-03-22 – Arbeitsstunden-Flow Prompt 2: Admin-/Vorstands-Prüfflow in WPF bis zur Freigabe vervollständigt
 
 - Den aktuellen WPF-Istzustand für `ArbeitsstundenPruefungView`, `ArbeitsstundenView`, Dialog, Navigation und die Arbeitsstunden-Servicepfade erneut geprüft: belastbar vorhanden waren bereits Prüfliste, Badge/Zähler und die bestehende Bearbeitungsansicht, aber aus der Prüfliste heraus lief der Weg noch zu unspezifisch nur in die allgemeine Mitgliedsliste der Arbeitsstunden.

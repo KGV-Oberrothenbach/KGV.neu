@@ -1,3 +1,4 @@
+using KGV.Core.Interfaces;
 using KGV.Maui.Pages;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -6,6 +7,7 @@ namespace KGV.Maui;
 public sealed class AdminShell : Shell, IAppShellInitializer
 {
     private readonly IServiceProvider _services;
+    private FlyoutItem? _workhoursReviewItem;
 
     public AdminShell(IServiceProvider services)
     {
@@ -73,9 +75,10 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             }
         });
 
-        Items.Add(new FlyoutItem
+        _workhoursReviewItem = new FlyoutItem
         {
             Title = "Arbeitsstunden prüfen",
+            IsVisible = false,
             Items =
             {
                 new ShellContent
@@ -85,7 +88,9 @@ public sealed class AdminShell : Shell, IAppShellInitializer
                     ContentTemplate = new DataTemplate(() => _services.GetRequiredService<ArbeitsstundenReviewPage>())
                 }
             }
-        });
+        };
+
+        Items.Add(_workhoursReviewItem);
 
         Items.Add(new FlyoutItem
         {
@@ -103,5 +108,33 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
         if (Items.Count > 0)
             CurrentItem = Items[0];
+
+        _ = RefreshWorkhoursReviewMenuAsync();
+    }
+
+    public async Task RefreshWorkhoursReviewMenuAsync()
+    {
+        if (_workhoursReviewItem == null)
+            return;
+
+        try
+        {
+            var supabaseService = _services.GetRequiredService<ISupabaseService>();
+            var offene = await supabaseService.GetUnapprovedArbeitsstundenByMitgliedAsync();
+            var count = offene.Sum(x => x.Count);
+
+            _workhoursReviewItem.Title = count > 0
+                ? $"Arbeitsstunden prüfen ({count})"
+                : "Arbeitsstunden prüfen";
+            _workhoursReviewItem.IsVisible = count > 0;
+
+            if (!_workhoursReviewItem.IsVisible && CurrentItem == _workhoursReviewItem && Items.Count > 0)
+                CurrentItem = Items[0];
+        }
+        catch
+        {
+            _workhoursReviewItem.Title = "Arbeitsstunden prüfen";
+            _workhoursReviewItem.IsVisible = false;
+        }
     }
 }

@@ -12,7 +12,6 @@ public sealed class ArbeitsstundenReviewPage : ContentPage
     private readonly List<ArbeitsstundeDTO> _items = new();
     private readonly CollectionView _list;
     private readonly Label _status;
-    private bool _loaded;
 
     public ArbeitsstundenReviewPage(ISupabaseService supabaseService, UserContextState state)
     {
@@ -74,8 +73,6 @@ public sealed class ArbeitsstundenReviewPage : ContentPage
 
     private async void OnAppearing(object? sender, EventArgs e)
     {
-        if (_loaded) return;
-        _loaded = true;
         await LoadAsync();
     }
 
@@ -107,6 +104,9 @@ public sealed class ArbeitsstundenReviewPage : ContentPage
 
             if (_items.Count == 0)
                 _status.Text = "Keine offenen Arbeitsstunden.";
+
+            if (Shell.Current is AdminShell shell)
+                await shell.RefreshWorkhoursReviewMenuAsync();
         }
         catch (Exception ex)
         {
