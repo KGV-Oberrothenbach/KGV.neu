@@ -6,9 +6,12 @@ namespace KGV.Core.Models;
 [Table("v_pflichtstunden_uebersicht")]
 public sealed class PflichtstundenUebersichtRecord : BaseModel
 {
-    [PrimaryKey("mitglied_id", false)]
+[PrimaryKey("hauptmitglied_id", false)]
     [Column("mitglied_id")]
     public int MitgliedId { get; set; }
+
+    [Column("hauptmitglied_id")]
+    public int? HauptmitgliedId { get; set; }
 
     [Column("saison_id")]
     public int? SaisonId { get; set; }

@@ -756,7 +756,7 @@ namespace KGV.Infrastructure.Services
                 HomeWorkHoursSummary? workHoursSummary = null;
                 var workAssignmentsEmptyText = "Für Home sind aktuell keine Arbeitseinsätze in der Startseiten-View vorhanden.";
                 var appointmentsEmptyText = "Für Home sind aktuell keine Termine in der Startseiten-View vorhanden.";
-                var announcementEmptyText = overview.AnnouncementEmptyText;
+                var announcementEmptyText = "Für Home sind aktuell keine Bekanntmachungen in der Startseiten-View vorhanden.";
 
                 if (mitgliedId is > 0)
                 {
@@ -796,6 +796,8 @@ namespace KGV.Infrastructure.Services
 
                 if (!announcementsLoaded)
                     announcementEmptyText = "Bekanntmachungen konnten aktuell nicht geladen werden. Details stehen im Debug-/Anwendungslog.";
+                else if (announcements.Count == 0)
+                    LogHomeLoadInfo("LoadStartseiteBekanntmachungenAsync", "Die Startseiten-View lieferte aktuell keine Bekanntmachungen.");
 
                 return new HomeOverviewDTO
                 {
@@ -1005,6 +1007,12 @@ namespace KGV.Infrastructure.Services
             Debug.WriteLine($"[HomeLoad] {sectionName} failed: {ex}");
         }
 
+        private void LogHomeLoadInfo(string sectionName, string message)
+        {
+            _logger?.LogInformation("Home load section {SectionName}: {Message}", sectionName, message);
+            Debug.WriteLine($"[HomeLoad] {sectionName}: {message}");
+        }
+
         private async Task<HomeWorkHoursSummary?> LoadPflichtstundenSummaryAsync(int mitgliedId, int year)
         {
             var client = await EnsureClientAsync();
@@ -1013,35 +1021,32 @@ namespace KGV.Infrastructure.Services
                 .ThenByDescending(x => x.Jahr)
                 .FirstOrDefault();
 
+            var allResponse = await client
+                .From<PflichtstundenUebersichtRecord>()
+                .Get();
+
+            var allRecords = allResponse?.Models?.ToList() ?? new List<PflichtstundenUebersichtRecord>();
+            LogHomeLoadInfo("LoadPflichtstundenSummaryAsync", $"Pflichtstunden-View lieferte {allRecords.Count} Datensätze vor dem Home-Filter.");
+
+            var matchingRecords = allRecords
+                .Where(x => MatchesHomeMitglied(x, mitgliedId))
+                .ToList();
+
+            LogHomeLoadInfo("LoadPflichtstundenSummaryAsync", $"Pflichtstunden-View lieferte {matchingRecords.Count} Datensätze für Mitglied/Hauptmitglied {mitgliedId}.");
+
             PflichtstundenUebersichtRecord? record = null;
 
             if (currentSeason != null)
-            {
-                var currentSeasonResponse = await client
-                    .From<PflichtstundenUebersichtRecord>()
-                    .Where(x => x.MitgliedId == mitgliedId)
-                    .Where(x => x.SaisonId == currentSeason.Id)
-                    .Get();
+                record = matchingRecords.FirstOrDefault(x => x.SaisonId == currentSeason.Id);
 
-                record = currentSeasonResponse?.Models?.FirstOrDefault();
-            }
+            record ??= matchingRecords
+                .OrderByDescending(GetPflichtstundenYear)
+                .FirstOrDefault(x => GetPflichtstundenYear(x) == year);
 
-            if (record == null)
-            {
-                var yearResponse = await client
-                    .From<PflichtstundenUebersichtRecord>()
-                    .Where(x => x.MitgliedId == mitgliedId)
-                    .Get();
-
-                record = yearResponse?.Models?
-                    .OrderByDescending(x => x.SaisonId == currentSeason?.Id)
-                    .ThenByDescending(GetPflichtstundenYear)
-                    .FirstOrDefault(x => GetPflichtstundenYear(x) == year)
-                    ?? yearResponse?.Models?
-                        .OrderByDescending(x => x.SaisonId == currentSeason?.Id)
-                        .ThenByDescending(GetPflichtstundenYear)
-                        .FirstOrDefault();
-            }
+            record ??= matchingRecords
+                .OrderByDescending(x => x.SaisonId == currentSeason?.Id)
+                .ThenByDescending(GetPflichtstundenYear)
+                .FirstOrDefault();
 
             if (record == null)
                 return null;
@@ -1180,6 +1185,12 @@ namespace KGV.Infrastructure.Services
                 return member.HauptmitgliedId.Value;
 
             return mitgliedId;
+        }
+
+        private static bool MatchesHomeMitglied(PflichtstundenUebersichtRecord record, int mitgliedId)
+        {
+            return record.HauptmitgliedId == mitgliedId
+                || record.MitgliedId == mitgliedId;
         }
 
         private static int GetPflichtstundenYear(PflichtstundenUebersichtRecord record)

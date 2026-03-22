@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-22 – HomeView-Reparatur Teil 3: Ursachenanalyse für verbleibende Pflichtstunden-/Bekanntmachungsprobleme und gezielter Fix
+
+- Den verbleibenden Restzustand gezielt gegen die zwei noch fehlerhaften Home-Bereiche geprüft. Die entscheidende technische Ursache für den Pflichtstundenfehler ließ sich jetzt direkt aus dem WPF-Debug-Log bestätigen: `LoadPflichtstundenSummaryAsync(...)` erzeugte eine PostgREST-Fehlermeldung `column v_pflichtstunden_uebersicht.mitglied_id does not exist`.
+- Damit war der Kernfehler klar: der Home-Pfad filterte serverseitig auf eine im bestätigten View-Kontext nicht vorhandene Spalte `mitglied_id`; die Pflichtstunden-Section fiel deshalb trotz vorhandener Viewdaten in den Fehlerpfad, während `Arbeitseinsätze` und `Termine` weiter sauber laden konnten.
+- Den Pflichtstundenpfad deshalb gezielt repariert, ohne neue Fachlogik zu bauen: `v_pflichtstunden_uebersicht` wird für Home jetzt zunächst ohne den fehlerhaften serverseitigen Mitgliedsfilter gelesen; die Auswahl des passenden Datensatzes erfolgt anschließend robust clientseitig über den relevanten Home-Bezug `hauptmitglied_id` bzw. vorhandene Mitgliedszuordnungen und die aktuelle Saison.
+- Die Record-Abbildung für Pflichtstunden ergänzt den wahrscheinlichen Hauptmitgliedsbezug (`hauptmitglied_id`) jetzt explizit, damit der bestätigte DB-Kern auch im App-Mapping nachvollziehbar ausgewertet werden kann.
+- Für Bekanntmachungen ergab die Ursachenanalyse kein erneutes Section-Ladeversagen, sondern einen irreführenden leeren Placeholder-Zustand bei erfolgreichem Laden ohne zurückgelieferte Einträge. Deshalb wurde der alte Text `kein belastbarer Bekanntmachungs-Pfad angebunden` durch einen fachlich ehrlicheren Empty-State ersetzt und die leere Section zusätzlich gezielt im Logger/Debug-Ausgabekanal protokolliert.
+- Kleine technische Transparenz ergänzt: der Home-Pfad schreibt jetzt für Pflichtstunden und leere Bekanntmachungs-Sections nachvollziehbare Diagnosehinweise in Logger/Debug-Ausgabe, ohne zusätzliche Logging-Flut im Normalfall zu erzeugen.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach der Ursachenreparatur weiterhin erfolgreich.
+
 ## 2026-03-22 – HomeView-Reparatur Teil 2: Pflichtstunden über Hauptmitglied/Saison präzisiert und Bekanntmachungen robuster gemappt
 
 - Den verbleibenden Home-Restzustand erneut gegen die beiden Problemfelder geprüft: da `Arbeitseinsätze` und `Termine` bereits erschienen, war ein global falscher Home-Grundpfad weniger wahrscheinlich als zwei gezieltere Ursachen – Pflichtstunden über den falschen Mitgliedsbezug bzw. zu grobe Saisonauflösung und Bekanntmachungen über ein zu starres Record-Mapping auf die Startseiten-View.
