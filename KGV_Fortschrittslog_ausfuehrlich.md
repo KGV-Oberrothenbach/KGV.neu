@@ -2,6 +2,37 @@
 
 ---
 
+## 2026-03-22 – Prompt 5/5: Verwaltungseditoren konsolidiert, alte Strukturreste entfernt und Abschlussstand für WPF/MAUI geschärft
+
+- Den aktuellen Abschlussstand der drei Verwaltungseditoren vor dem Konsolidierungsschritt nochmals gezielt geprüft: produktiv verdrahtet waren bereits `ArbeitseinsaetzeVerwaltungEditorView`, `TermineVerwaltungEditorView` und `BekanntmachungenVerwaltungEditorView`; parallel lagen im Repo aber noch die älteren vorbereitenden Strukturviews ohne produktive Verdrahtung.
+- Die produktive Navigation nochmals gegen `App.xaml`, `NavigationService`, `MainWindowViewModel` und `HomeViewModel` abgesichert:
+  - `App.xaml` mappt die drei Verwaltungs-ViewModels ausschließlich auf die produktiven Editor-Views
+  - `NavigationService` erzeugt weiterhin nur die drei produktiven Verwaltungs-ViewModels
+  - `MainWindowViewModel` bietet die drei Verwaltungswege nur im Admin-/Vorstandskontext an
+  - `HomeViewModel` öffnet aus Home heraus ebenfalls nur diese produktiven Verwaltungs-ViewModels
+- Die alten strukturellen Verwaltungsviews wurden jetzt konsequent entfernt, weil sie nicht mehr produktiv genutzt wurden und nur noch doppeldeutige Koexistenz erzeugten:
+  - `ArbeitseinsaetzeVerwaltungView.xaml` / `.xaml.cs`
+  - `TermineVerwaltungView.xaml` / `.xaml.cs`
+  - `BekanntmachungenVerwaltungView.xaml` / `.xaml.cs`
+- Auch der frühere gemeinsame Strukturunterbau wurde bereinigt:
+  - `HomeVerwaltungViewModelBase.cs`
+  - `HomeVerwaltungListItem.cs`
+  Diese Bausteine waren nach der Umstellung aller drei Bereiche auf echte Basistabellen-Editoren nicht mehr produktiv in Verwendung.
+- Die Benennung/Architektur bleibt damit im Abschlussstand klar lesbar: die produktiven WPF-Verwaltungsoberflächen tragen bewusst den Suffix `EditorView`, und es existiert daneben kein konkurrierender Alt-View-Pfad mehr.
+- Einen größeren Umbenennungsblock bewusst nicht eröffnet: da die produktiven Editor-Views bereits eindeutig und direkt in `App.xaml` verdrahtet sind, hätte ein zusätzlicher Klassen-/Datei-Rename in diesem Abschlussblock mehr mechanische Bewegung als fachlichen Nutzen erzeugt.
+- Gemeinsame Muster wurden nicht künstlich überabstrahiert: Validierungs-, Fokus- und Zeitlogik bleiben zwischen den drei Editor-ViewModels fachlich parallel und weiterhin gut nachvollziehbar. Größere neue Basisklassen/Abstraktionen wurden bewusst nicht mehr eingezogen, um den Abschlussblock nicht unnötig zu verbreitern.
+- Home-/Rechtepfad final abgesichert: Bearbeiten-Einstiege bleiben nur für Admin/Vorstand sichtbar und nutzbar; normale Nutzer bleiben sauber im lesenden Home-Modus. Es gibt im aktuellen Stand keine produktive Navigation mehr in veraltete Strukturviews und keine Bearbeitung direkt auf Home.
+- MAUI-Parität für späteren Anschluss fachlich abgesichert, ohne neue Platzhalterseiten zu bauen:
+  - die produktiven Lese-/Create-/Update-Pfade für `termin`, `bekanntmachung` und `arbeitseinsatz` liegen jetzt vollständig in den gemeinsamen Services/Modellen
+  - damit ist die fachliche Grundlage für spätere mobile Verwaltungsoberflächen plattformneutral vorhanden
+  - WPF-spezifisch bleiben aktuell nur die drei tatsächlichen Editor-UIs inkl. Fokussteuerung/HTML-Vorschau
+- Kleiner Qualitätsblock erfolgreich abgeschlossen: keine neue Fachlogik eröffnet, keine Home-Bearbeitung ergänzt, keine zusätzliche Doppelverdrahtung stehen gelassen, und die aktive WPF-/MAUI-Basis bleibt buildfähig.
+- Reale Restoffenheiten nach dem Abschlussblock:
+  - die drei produktiven WPF-Verwaltungseditoren stehen jetzt vollständig
+  - für MAUI existiert bewusst noch keine produktive Verwaltungsoberfläche für diese drei Bereiche, aber der gemeinsame Unterbau ist vorbereitet
+  - verbleibend sind außerhalb dieses Blocks nur noch getrennte, nicht blockrelevante Arbeitsbaum-Artefakte bzw. unabhängige UI-Themen wie die bereits offene `LoginWindow.xaml`
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach der Konsolidierung und Altlast-Bereinigung erfolgreich.
+
 ## 2026-03-22 – Prompt 4/5: Arbeitseinsätze-Verwaltung produktiv an `arbeitseinsatz` angeschlossen, inklusive Sonderregeln für Teilnehmergrenze und Stundenwert
 
 - Den aktuellen Istzustand der vorbereiteten Arbeitseinsätze-Verwaltung vor dem Umbau erneut geprüft: `ArbeitseinsaetzeVerwaltungViewModel` war bislang noch nur strukturell aus dem gemeinsamen Verwaltungsgerüst abgeleitet, die Liste kam nur aus dem Startseiten-Lesepfad, und rechts gab es noch keinen produktiven Editor mit bestätigten Basistabellenfeldern.

@@ -2,6 +2,17 @@
 
 ---
 
+## 2026-03-22 – Verwaltungseditoren konsolidiert: alte Strukturviews entfernt, produktive Pfade klargezogen
+
+- Den aktuellen Abschlussstand der drei Verwaltungsbereiche erneut geprüft: `Termine`, `Bekanntmachungen` und `Arbeitseinsätze` waren bereits produktiv an ihre Basistabellen angebunden, während im Repo noch die älteren rein strukturellen Verwaltungsviews parallel neben den inzwischen produktiven Editor-Views lagen.
+- Die produktive WPF-Verdrahtung final geschärft: `App.xaml` bleibt klar auf die drei produktiven Editor-Views gemappt (`ArbeitseinsaetzeVerwaltungEditorView`, `TermineVerwaltungEditorView`, `BekanntmachungenVerwaltungEditorView`), sodass die tatsächlich genutzte Verwaltungsarchitektur jetzt ohne Doppelpfad lesbar bleibt.
+- Technisch überholte Altlasten bereinigt statt weiter mitzuschleppen: die alten strukturellen Views `ArbeitseinsaetzeVerwaltungView`, `TermineVerwaltungView` und `BekanntmachungenVerwaltungView` inklusive zugehöriger Code-behind-Dateien wurden entfernt, weil sie nicht mehr produktiv verdrahtet waren und nur noch Verwirrung erzeugten.
+- Auch der frühere gemeinsame Strukturunterbau wurde entfernt: `HomeVerwaltungViewModelBase` und `HomeVerwaltungListItem` werden im aktuellen produktiven Stand nicht mehr verwendet, seit alle drei Verwaltungseditoren auf eigene echte Basistabellen-Editoren umgestellt wurden.
+- Home-/Rechtepfad nochmals gegen den Abschlusszustand geprüft: die Bearbeiten-Einstiege auf Home sowie in der Hauptnavigation bleiben ausschließlich für Admin/Vorstand sichtbar; normale Nutzer bleiben weiter im lesenden Home-Modus ohne Bearbeitung direkt auf der Startseite.
+- Die gemeinsame Service-/Modellebene bleibt für spätere MAUI-Parität anschlussfähig: die produktiven Lese-/Create-/Update-Pfade für `termin`, `bekanntmachung` und `arbeitseinsatz` liegen jetzt vollständig im plattformneutralen Shared-Core-/Infrastructure-Bereich, während die eigentlichen Editoroberflächen weiterhin bewusst WPF-spezifisch bleiben.
+- Keine neue Fachlogik eröffnet: der Block blieb bewusst bei Konsolidierung, Aufräumen und Architekturabschluss; es wurden keine neuen Verwaltungsfeatures, keine neuen MAUI-Platzhalterseiten und keine Home-Bearbeitung ergänzt.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach der Konsolidierung weiterhin erfolgreich.
+
 ## 2026-03-22 – Arbeitseinsätze-Verwaltung produktiv gemacht: Basistabelle `arbeitseinsatz` + Sonderregeln für Teilnehmer/Stundenwert
 
 - Den aktuellen Istzustand der vorbereiteten Arbeitseinsätze-Verwaltung erneut geprüft: vorhanden waren bisher Verwaltungsnavigation, die strukturelle WPF-Ansicht und eine Leseliste über `v_startseite_arbeitseinsatz`, aber noch kein produktiver Editor und kein bestätigter Schreibpfad gegen die Basistabelle.
