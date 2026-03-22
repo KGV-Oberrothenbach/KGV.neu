@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-22 – Block 4/3 Prompt 3: Home fachlich sauber abgeschlossen
+
+- Den verbleibenden Home-Istzustand erneut gegen belastbare Pfade geprüft: offen war vor allem noch die Nutzer-Parität zwischen WPF und MAUI beim direkten Zugang zu eigenen Arbeitsstunden; der Bekanntmachungs-Homepfad und der Prüfpfad `Arbeitsstunden prüfen` bleiben dagegen weiterhin bewusst außerhalb des belastbaren Home-Kerns.
+- Letzten gemeinsamen Home-Schnellzugriff nachgezogen: `Meine Arbeitsstunden` ist jetzt Teil des gemeinsamen `HomeOverview`-Kerns für den eigenen Benutzerkontext und zeigt in WPF und MAUI auf vorhandene lebende Pfade statt auf neue Schattenlogik.
+- WPF-Nutzerpfad an den bereits vorhandenen Fachstand angepasst: der bestehende `ArbeitsstundenViewModel`-Pfad wird im Eigenkontext jetzt nicht nur indirekt, sondern auch sichtbar und sauber aus Home heraus nutzbar; damit schließt sich die bisherige Home-/Pfad-Lücke gegenüber MAUI.
+- Irreführende leere Bekanntmachungs-Detailflächen entschärft: WPF und MAUI blenden den Detailbereich jetzt aus, solange auf Home kein belastbarer Bekanntmachungsinhalt vorhanden ist, statt eine tote Detailspalte bzw. einen leeren Detailkopf stehen zu lassen.
+- Weiterhin bewusst nicht erweitert: keine neue Bekanntmachungs-Gesamtarchitektur, keine neue Kennzahlenplattform und keine Home-Verlinkung auf den weiterhin nicht rekonstruierten gemeinsamen Prüfpfad für `Arbeitsstunden prüfen`.
+- Demo-/Play-Store-Testdaten bleiben auch im Abschlussstand aus Home-Aussagen ausgeschlossen; es wurde kein neuer Auswertungspfad ohne belastbare Filterbasis eingeführt.
+- Abschluss technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem dritten Home-Teilblock weiterhin erfolgreich; Block 4 ist damit fachlich sauber abgeschlossen.
+
 ## 2026-03-22 – Block 4/3 Prompt 2: Operative Home-Inhalte auf gemeinsamen Kern gesetzt
 
 - Den aktuellen Stand der operativen Home-Inhalte geprüft: belastbar vorhanden waren vor allem bestehende Schnellzugriffe sowie der Arbeitsstunden-Datenpfad des aktuellen Mitgliedskontexts; ein gemeinsamer Prüf-/Bekanntmachungs-Backendpfad für Home ist dagegen weiterhin nicht belastbar genug für neue Schnellzugriffe.

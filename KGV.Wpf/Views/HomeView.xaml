@@ -107,7 +107,9 @@
                                    Visibility="{Binding ShowAnnouncementEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                    <StackPanel Grid.Column="1"
+                                Margin="16,0,0,0"
+                                Visibility="{Binding HasAnnouncements, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <TextBlock Text="Detail" FontWeight="SemiBold" Margin="0,0,0,8" />
 
                         <TextBlock Text="{Binding SelectedAnnouncement.Title}"

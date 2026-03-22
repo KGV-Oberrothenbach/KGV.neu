@@ -7,7 +7,8 @@ namespace KGV.Core.Models
     {
         MemberSearch,
         PlotManagement,
-        MyProfile
+        MyProfile,
+        MyWorkHours
     }
 
     public sealed class HomeQuickLinkItem
@@ -66,7 +67,7 @@ namespace KGV.Core.Models
                 },
                 _ => new HomeOverviewDTO
                 {
-                    Description = "Zeigt den gemeinsamen Kernzugriff für eigene Stammdaten auf Desktop und Mobil, ohne zusätzliche Dashboard-Schattenlogik.",
+                    Description = "Zeigt den gemeinsamen Kernzugriff für eigene Stammdaten und Arbeitsstunden auf Desktop und Mobil, ohne zusätzliche Dashboard-Schattenlogik.",
                     QuickLinks = new List<HomeQuickLinkItem>
                     {
                         new()
@@ -74,6 +75,12 @@ namespace KGV.Core.Models
                             Key = HomeQuickLinkKey.MyProfile,
                             Title = "Meine Stammdaten",
                             Description = "Eigene Kontaktdaten und die vorhandenen persönlichen Verwaltungswege öffnen."
+                        },
+                        new()
+                        {
+                            Key = HomeQuickLinkKey.MyWorkHours,
+                            Title = "Meine Arbeitsstunden",
+                            Description = "Eigene Arbeitsstunden direkt über den bestehenden Erfassungs- und Übersichtsweg öffnen."
                         }
                     }
                 }

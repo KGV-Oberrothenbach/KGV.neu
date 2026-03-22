@@ -151,6 +151,7 @@ public class HomePage : ContentPage
             },
             ColumnSpacing = 12
         };
+        detailHeader.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowAnnouncementDetail));
         detailHeader.Children.Add(detailLabel);
         Grid.SetColumn(detailLabel, 0);
         Content = new VerticalStackLayout
@@ -197,6 +198,7 @@ public class HomePage : ContentPage
             HomeQuickLinkKey.MemberSearch => "membersearch",
             HomeQuickLinkKey.PlotManagement => "parzellen",
             HomeQuickLinkKey.MyProfile => "myprofile",
+            HomeQuickLinkKey.MyWorkHours => "workhours",
             _ => string.Empty
         };
 

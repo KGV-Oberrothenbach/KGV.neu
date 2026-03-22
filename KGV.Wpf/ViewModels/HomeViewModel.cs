@@ -101,11 +101,25 @@ namespace KGV.ViewModels
                 HomeQuickLinkKey.MemberSearch => _mainVm.NavigationItems.FirstOrDefault(x => x.ViewModelType == typeof(MemberSearchViewModel) && x.IsVisible),
                 HomeQuickLinkKey.PlotManagement => _mainVm.NavigationItems.FirstOrDefault(x => x.ViewModelType == typeof(ParzellenVerwaltungViewModel) && x.IsVisible),
                 HomeQuickLinkKey.MyProfile => _mainVm.NavigationItems.FirstOrDefault(x => x.ViewModelType == typeof(MemberDetailViewModel) && x.IsVisible),
+                HomeQuickLinkKey.MyWorkHours => CreateWorkHoursNavigationItem(),
                 _ => null
             };
 
             if (target != null)
                 _mainVm.NavigateCommand.Execute(target);
+        }
+
+        private NavigationItem? CreateWorkHoursNavigationItem()
+        {
+            if (_mainVm.SelectedMember == null)
+                return null;
+
+            return new NavigationItem
+            {
+                Title = "Arbeitsstunden",
+                ViewModelType = typeof(ArbeitsstundenViewModel),
+                IsVisible = true
+            };
         }
 
         private static void FillCollection<T>(ObservableCollection<T> target, IEnumerable<T> source)

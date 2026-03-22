@@ -41,6 +41,7 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     public bool HasQuickLinks => QuickLinks.Count > 0;
     public bool HasOperationalItems => OperationalItems.Count > 0;
     public bool HasAnnouncements => Announcements.Count > 0;
+    public bool ShowAnnouncementDetail => HasAnnouncements;
     public bool HasSelectedAnnouncement => SelectedAnnouncement != null;
     public bool ShowAnnouncementHint => HasAnnouncements && !HasSelectedAnnouncement;
     public bool ShowAnnouncementEmptyState => !HasAnnouncements;
@@ -79,6 +80,7 @@ public sealed class HomeViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(OperationalEmptyText));
         OnPropertyChanged(nameof(AnnouncementTitle));
         OnPropertyChanged(nameof(HasAnnouncements));
+        OnPropertyChanged(nameof(ShowAnnouncementDetail));
         OnPropertyChanged(nameof(HasQuickLinks));
         OnPropertyChanged(nameof(HasOperationalItems));
         OnPropertyChanged(nameof(ShowAnnouncementHint));

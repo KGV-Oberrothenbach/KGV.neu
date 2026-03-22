@@ -288,7 +288,7 @@ namespace KGV.ViewModels
             {
                 Title = "Arbeitsstunden",
                 ViewModelType = typeof(ArbeitsstundenViewModel),
-                IsVisible = SelectedMember != null && UserContext.Has(PermissionFlags.CanManageWorkHours),
+                IsVisible = SelectedMember != null && (UserContext.Has(PermissionFlags.CanManageWorkHours) || UserContext.Has(PermissionFlags.CanSeeOwnDataOnly)),
                 ButtonMargin = new System.Windows.Thickness(5)
             });
 
