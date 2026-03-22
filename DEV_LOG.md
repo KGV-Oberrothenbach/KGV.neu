@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-22 – Block 5 Prompt 1: Nächste mobile Admin-Parität mit Benutzerverwaltung geschlossen
+
+- Den Istzustand der mobilen Admin-Parität erneut gegen die aktiven WPF-Verwaltungswege geprüft: die deutlichste belastbare Lücke lag bei der `Benutzerverwaltung`, weil WPF bereits einen produktiven Pfad für Benutzer-/Mitgliedszuordnungen, Einladung/Erstlogin und Passwort-Reset hatte, MAUI dafür aber noch gar keinen echten Admin-Arbeitsweg bot.
+- Diese Lücke als nächsten kleinen Kernblock priorisiert: sie ist fachlich relevant für Admin/Vorstand, baut vollständig auf bestehenden `IAuthService`-/`AuthService`-Pfaden auf und braucht keine neue Gesamtarchitektur.
+- Neue mobile `UserManagementPage` plus `UserManagementViewModel` für MAUI ergänzt und in die `AdminShell` aufgenommen: Benutzerliste laden, Einladung/Erstlogin-Code anstoßen und Passwort-Reset versenden laufen mobil jetzt über denselben belastbaren Auth-Pfad wie in WPF.
+- Die belastbar vorhandene E-Mail-Änderungsgrenze auch mobil sauber berücksichtigt: eine E-Mail-Änderung wird in der neuen mobilen Benutzerverwaltung weiterhin nur für das aktuell angemeldete Konto angeboten und nutzt denselben bestehenden OTP-/Verifikationsfluss statt neuer Admin-Schattenlogik.
+- Demo-/Play-Store-Testdaten für diese Verwaltungsliste direkt auf dem gemeinsamen Pfad ausgeschlossen: `AuthService.GetAppUsersAsync()` filtert offensichtliche Demo-/Test-/Play-Store-Mitglieder jetzt aus der operativen Benutzerverwaltung heraus, sodass WPF und MAUI dieselbe saubere Admin-Liste sehen.
+- Nur notwendige WPF-Konsistenz bleibt implizit über den gemeinsamen Auth-Pfad erhalten; keine neue WPF-Oberfläche aufgebaut, weil der Desktop-Pfad bereits fachlich vorhanden war.
+- Abschluss technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach diesem mobilen Admin-Paritätsschritt weiterhin erfolgreich.
+
 ## 2026-03-22 – Block 4/3 Prompt 3: Home fachlich sauber abgeschlossen
 
 - Den verbleibenden Home-Istzustand erneut gegen belastbare Pfade geprüft: offen war vor allem noch die Nutzer-Parität zwischen WPF und MAUI beim direkten Zugang zu eigenen Arbeitsstunden; der Bekanntmachungs-Homepfad und der Prüfpfad `Arbeitsstunden prüfen` bleiben dagegen weiterhin bewusst außerhalb des belastbaren Home-Kerns.

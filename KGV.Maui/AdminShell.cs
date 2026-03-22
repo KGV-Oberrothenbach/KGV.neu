@@ -47,6 +47,20 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
         Items.Add(new FlyoutItem
         {
+            Title = "Benutzerverwaltung",
+            Items =
+            {
+                new ShellContent
+                {
+                    Title = "Benutzerverwaltung",
+                    Route = "usermanagement",
+                    ContentTemplate = new DataTemplate(() => _services.GetRequiredService<UserManagementPage>())
+                }
+            }
+        });
+
+        Items.Add(new FlyoutItem
+        {
             Title = "Parzellen",
             Items =
             {

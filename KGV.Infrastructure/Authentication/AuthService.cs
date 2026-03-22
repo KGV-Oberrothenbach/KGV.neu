@@ -240,11 +240,18 @@ namespace KGV.Infrastructure.Authentication
                 foreach (var appUser in appUsers)
                 {
                     var member = members.FirstOrDefault(x => x.AuthUserId == appUser.UserId);
-                    result[appUser.UserId] = CreateAppUserDto(appUser, member);
+                    var dto = CreateAppUserDto(appUser, member);
+                    if (!OperationalDataFilter.IsOperationalAppUser(member, dto.DisplayName, dto.Email))
+                        continue;
+
+                    result[appUser.UserId] = dto;
                 }
 
                 foreach (var member in members)
                 {
+                    if (!OperationalDataFilter.IsOperationalMember(member))
+                        continue;
+
                     if (member.AuthUserId.HasValue)
                     {
                         var authUserId = member.AuthUserId.Value;

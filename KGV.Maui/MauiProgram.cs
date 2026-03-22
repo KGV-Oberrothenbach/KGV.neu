@@ -40,6 +40,8 @@ public static class MauiProgram
         builder.Services.AddTransient<HomePage>();
         builder.Services.AddTransient<MemberSearchViewModel>();
         builder.Services.AddTransient<MemberSearchPage>();
+        builder.Services.AddTransient<UserManagementViewModel>();
+        builder.Services.AddTransient<UserManagementPage>();
         builder.Services.AddTransient<ParzellenViewModel>();
         builder.Services.AddTransient<ParzellenPage>();
         builder.Services.AddTransient<MyProfilePage>();

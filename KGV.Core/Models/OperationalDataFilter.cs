@@ -14,6 +14,15 @@ namespace KGV.Core.Models
                 && !ContainsMarker(member.Email);
         }
 
+        public static bool IsOperationalAppUser(MitgliedRecord? member, string? displayName, string? email)
+        {
+            if (member != null)
+                return IsOperationalMember(member);
+
+            return !ContainsMarker(displayName)
+                && !ContainsMarker(email);
+        }
+
         private static bool ContainsMarker(string? value)
         {
             if (string.IsNullOrWhiteSpace(value))
