@@ -95,10 +95,32 @@
                             </GroupBox>
 
                             <GroupBox Header="Anschlüsse / Zähler" Margin="0,0,0,12">
-                                <StackPanel Margin="10">
-                                    <TextBlock Text="{Binding SelectedDetail.StromStatusText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
-                                    <TextBlock Text="{Binding SelectedDetail.WasserStatusText}" TextWrapping="Wrap"/>
-                                </StackPanel>
+                                <Grid Margin="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Stromzähler:" FontWeight="SemiBold" Margin="0,0,12,6"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedDetail.AktiverStromzaehler.Zaehlernummer}" Margin="0,0,0,6"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Strom eingebaut:" FontWeight="SemiBold" Margin="0,0,12,6"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedDetail.AktiverStromzaehler.EingebautAm, StringFormat={}{0:dd.MM.yyyy}}" Margin="0,0,0,6"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Stromstatus:" FontWeight="SemiBold" Margin="0,0,12,6"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedDetail.StromStatusText}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Wasserzähler:" FontWeight="SemiBold" Margin="0,0,12,6"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedDetail.AktiverWasserzaehler.Zaehlernummer}" Margin="0,0,0,6"/>
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Wasser eingebaut:" FontWeight="SemiBold" Margin="0,0,12,6"/>
+                                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedDetail.AktiverWasserzaehler.EingebautAm, StringFormat={}{0:dd.MM.yyyy}}" Margin="0,0,0,6"/>
+                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Wasserstatus:" FontWeight="SemiBold" Margin="0,0,12,0"/>
+                                    <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedDetail.WasserStatusText}" TextWrapping="Wrap"/>
+                                </Grid>
                             </GroupBox>
 
                             <GroupBox Header="Dokumente" Margin="0,0,0,12">
@@ -107,7 +129,12 @@
                                     <ItemsControl ItemsSource="{Binding SelectedDetail.DokumenteVorschau}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding Name}" Margin="0,0,0,4"/>
+                                                <StackPanel Margin="0,0,0,6">
+                                                    <TextBlock Text="{Binding Name}"/>
+                                                    <TextBlock Text="{Binding UpdatedAt, StringFormat=Stand {0:dd.MM.yyyy HH:mm}}"
+                                                               Foreground="Gray"
+                                                               FontSize="11"/>
+                                                </StackPanel>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>

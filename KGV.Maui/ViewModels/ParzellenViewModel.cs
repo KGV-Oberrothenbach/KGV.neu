@@ -30,6 +30,9 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
 
     public ObservableCollection<ParzelleVerwaltungItem> Items { get; } = new();
     public ObservableCollection<MemberDTO> AssignableMembers { get; } = new();
+    public ObservableCollection<ZaehlerAblesungDTO> StromAblesungen { get; } = new();
+    public ObservableCollection<ZaehlerAblesungDTO> WasserAblesungen { get; } = new();
+    public ObservableCollection<DocumentInfo> Dokumente { get; } = new();
 
     public string Title => "Parzellen";
     public string Description => "Zentrale Parzellenübersicht mit Stammdaten, Belegung, Wasser/Strom und Dokumentbezug.";
@@ -72,6 +75,9 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     public bool CanManageAssignment => HasSelectedDetail && !IsBusy;
     public bool CanAssign => CanManageAssignment && SelectedAssignMember != null;
     public bool CanEndAssignment => CanManageAssignment && SelectedDetail?.BelegungId is > 0 && SelectedDetail.BisDatum == null;
+    public bool HasStromAblesungen => StromAblesungen.Count > 0;
+    public bool HasWasserAblesungen => WasserAblesungen.Count > 0;
+    public bool HasDokumente => Dokumente.Count > 0;
 
     public MemberDTO? SelectedAssignMember
     {
@@ -163,6 +169,127 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         await Launcher.Default.OpenAsync(url);
     }
 
+    public async Task<bool> SaveStromReadingAsync(DateTime ablesedatum, decimal stand, string? fotoPfad, ZaehlerAblesungDTO? existing = null)
+    {
+        if (SelectedItem == null)
+            return false;
+
+        var meterId = existing?.ZaehlerId;
+        if (!meterId.HasValue)
+        {
+            var meter = await _supabaseService.GetActiveStromzaehlerAsync(SelectedItem.ParzelleId, ablesedatum);
+            meterId = meter?.Id;
+        }
+
+        if (!meterId.HasValue)
+        {
+            StatusMessage = "Kein aktiver Stromzähler für dieses Datum gefunden.";
+            return false;
+        }
+
+        var ok = existing == null
+            ? await _supabaseService.AddAblesungAsync(1, meterId.Value, ablesedatum, stand, NormalizeOptionalText(fotoPfad))
+            : await _supabaseService.UpdateAblesungAsync(existing.AblesungId, ablesedatum, stand, NormalizeOptionalText(fotoPfad));
+
+        StatusMessage = ok ? "Strom-Ablesung gespeichert." : "Strom-Ablesung konnte nicht gespeichert werden.";
+        if (!ok)
+            return false;
+
+        await ReloadSelectedDetailAsync();
+        return true;
+    }
+
+    public async Task<bool> SaveWasserReadingAsync(DateTime ablesedatum, decimal stand, string? fotoPfad, ZaehlerAblesungDTO? existing = null)
+    {
+        if (SelectedItem == null)
+            return false;
+
+        var meterId = existing?.ZaehlerId;
+        if (!meterId.HasValue)
+        {
+            var meter = await _supabaseService.GetActiveWasserzaehlerAsync(SelectedItem.ParzelleId, ablesedatum);
+            meterId = meter?.Id;
+        }
+
+        if (!meterId.HasValue)
+        {
+            StatusMessage = "Kein aktiver Wasserzähler für dieses Datum gefunden.";
+            return false;
+        }
+
+        var ok = existing == null
+            ? await _supabaseService.AddAblesungAsync(2, meterId.Value, ablesedatum, stand, NormalizeOptionalText(fotoPfad))
+            : await _supabaseService.UpdateAblesungAsync(existing.AblesungId, ablesedatum, stand, NormalizeOptionalText(fotoPfad));
+
+        StatusMessage = ok ? "Wasser-Ablesung gespeichert." : "Wasser-Ablesung konnte nicht gespeichert werden.";
+        if (!ok)
+            return false;
+
+        await ReloadSelectedDetailAsync();
+        return true;
+    }
+
+    public async Task<bool> ReplaceStromMeterAsync(string zaehlernummer, DateTime eichdatum, DateTime eingebautAm)
+    {
+        if (SelectedItem == null)
+            return false;
+
+        var parzelleId = SelectedItem.ParzelleId;
+        var current = await _supabaseService.GetActiveStromzaehlerAsync(parzelleId, eingebautAm);
+        if (current != null)
+        {
+            var ended = await _supabaseService.SetStromzaehlerAusgebautAmAsync(current.Id, eingebautAm.Date);
+            if (!ended)
+            {
+                StatusMessage = "Alter Stromzähler konnte nicht beendet werden.";
+                return false;
+            }
+        }
+
+        var ok = await _supabaseService.AddStromzaehlerAsync(parzelleId, zaehlernummer.Trim(), eichdatum, eingebautAm.Date);
+        StatusMessage = ok ? "Stromzähler gespeichert." : "Stromzähler konnte nicht gespeichert werden.";
+        if (!ok)
+            return false;
+
+        await ReloadSelectedDetailAsync();
+        return true;
+    }
+
+    public async Task<bool> InstallWasserMeterAsync(string zaehlernummer, DateTime eichdatum, DateTime eingebautAm)
+    {
+        if (SelectedItem == null)
+            return false;
+
+        var ok = await _supabaseService.AddWasserzaehlerAsync(SelectedItem.ParzelleId, zaehlernummer.Trim(), eichdatum, eingebautAm.Date);
+        StatusMessage = ok ? "Wasserzähler gespeichert." : "Wasserzähler konnte nicht gespeichert werden.";
+        if (!ok)
+            return false;
+
+        await ReloadSelectedDetailAsync();
+        return true;
+    }
+
+    public async Task<bool> RemoveWasserMeterAsync(DateTime ausgebautAm)
+    {
+        if (SelectedItem == null)
+            return false;
+
+        var meter = await _supabaseService.GetActiveWasserzaehlerAsync(SelectedItem.ParzelleId, ausgebautAm);
+        if (meter == null)
+        {
+            StatusMessage = "Kein aktiver Wasserzähler für dieses Datum gefunden.";
+            return false;
+        }
+
+        var ok = await _supabaseService.SetWasserzaehlerAusgebautAmAsync(meter.Id, ausgebautAm.Date);
+        StatusMessage = ok ? "Wasserzähler ausgebaut." : "Wasserzähler konnte nicht ausgebaut werden.";
+        if (!ok)
+            return false;
+
+        await ReloadSelectedDetailAsync();
+        return true;
+    }
+
     public async Task<bool> AssignAsync()
     {
         if (SelectedItem == null || SelectedAssignMember == null)
@@ -211,6 +338,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
                 Items.Clear();
                 AssignableMembers.Clear();
                 SelectedAssignMember = null;
+                ClearDetailCollections();
             }
 
             var parzellen = await _supabaseService.GetAllParzellenAsync();
@@ -269,6 +397,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         if (selected == null)
         {
             SelectedDetail = null;
+            ClearDetailCollections();
             return;
         }
 
@@ -279,6 +408,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
                 return;
 
             SelectedDetail = detail;
+            await LoadDetailCollectionsAsync(selected.ParzelleId);
         }
         catch (Exception ex)
         {
@@ -286,8 +416,49 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
                 return;
 
             SelectedDetail = null;
+            ClearDetailCollections();
             StatusMessage = $"Parzellendetail konnte nicht geladen werden: {ex.Message}";
         }
+    }
+
+    private async Task ReloadSelectedDetailAsync()
+    {
+        if (SelectedItem == null)
+            return;
+
+        await LoadSelectedDetailAsync();
+    }
+
+    private async Task LoadDetailCollectionsAsync(int parzelleId)
+    {
+        var strom = await _supabaseService.GetStromAblesungenAsync(parzelleId);
+        var wasser = await _supabaseService.GetWasserAblesungenAsync(parzelleId);
+        var dokumente = await _supabaseService.GetParzelleDokumenteAsync(parzelleId);
+
+        FillCollection(StromAblesungen, strom);
+        FillCollection(WasserAblesungen, wasser);
+        FillCollection(Dokumente, dokumente);
+
+        OnPropertyChanged(nameof(HasStromAblesungen));
+        OnPropertyChanged(nameof(HasWasserAblesungen));
+        OnPropertyChanged(nameof(HasDokumente));
+    }
+
+    private void ClearDetailCollections()
+    {
+        StromAblesungen.Clear();
+        WasserAblesungen.Clear();
+        Dokumente.Clear();
+        OnPropertyChanged(nameof(HasStromAblesungen));
+        OnPropertyChanged(nameof(HasWasserAblesungen));
+        OnPropertyChanged(nameof(HasDokumente));
+    }
+
+    private static void FillCollection<T>(ObservableCollection<T> target, IEnumerable<T> source)
+    {
+        target.Clear();
+        foreach (var item in source)
+            target.Add(item);
     }
 
     private static bool IsActiveOn(ParzellenBelegungRecord belegung, DateTime date)
@@ -318,6 +489,11 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
             Role = record.Role ?? string.Empty,
             MitgliedEnde = record.MitgliedEnde
         };
+    }
+
+    private static string? NormalizeOptionalText(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

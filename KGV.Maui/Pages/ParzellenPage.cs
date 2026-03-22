@@ -15,6 +15,9 @@ public sealed class ParzellenPage : ContentPage
         BindingContext = _viewModel;
         Title = "Parzellen";
 
+        ZaehlerAblesungDTO? selectedStromReading = null;
+        ZaehlerAblesungDTO? selectedWasserReading = null;
+
         var titleLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold };
         titleLabel.SetBinding(Label.TextProperty, nameof(ParzellenViewModel.Title));
 
@@ -67,6 +70,10 @@ public sealed class ParzellenPage : ContentPage
             CreateValueLabel("Zeitraum", "SelectedDetail.BelegungText")));
 
         detailContainer.Children.Add(CreateSection("Anschlüsse / Zähler",
+            CreateValueLabel("Aktiver Stromzähler", "SelectedDetail.AktiverStromzaehler.Zaehlernummer"),
+            CreateValueLabel("Strom eingebaut seit", "SelectedDetail.AktiverStromzaehler.EingebautAm"),
+            CreateValueLabel("Aktiver Wasserzähler", "SelectedDetail.AktiverWasserzaehler.Zaehlernummer"),
+            CreateValueLabel("Wasser eingebaut seit", "SelectedDetail.AktiverWasserzaehler.EingebautAm"),
             CreateBoundLabel("SelectedDetail.StromStatusText"),
             CreateBoundLabel("SelectedDetail.WasserStatusText")));
 
@@ -101,6 +108,217 @@ public sealed class ParzellenPage : ContentPage
             documentsView.SelectedItem = null;
         };
 
+        var stromMeterNumber = new Entry { Placeholder = "Neue Stromzählernummer" };
+        var stromMeterEichdatum = new DatePicker { Date = DateTime.Today };
+        var stromMeterWechselDatum = new DatePicker { Date = DateTime.Today };
+        var stromReadingDate = new DatePicker { Date = DateTime.Today };
+        var stromReadingStand = new Entry { Placeholder = "Zählerstand", Keyboard = Keyboard.Numeric };
+        var stromReadingFoto = new Entry { Placeholder = "Foto-URL oder Pfad (optional)" };
+        var stromSelectionLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap, IsVisible = false };
+
+        var stromReadingsView = new CollectionView
+        {
+            SelectionMode = SelectionMode.Single,
+            HeightRequest = 180,
+            ItemTemplate = new DataTemplate(() =>
+            {
+                var date = new Label { FontAttributes = FontAttributes.Bold };
+                date.SetBinding(Label.TextProperty, new Binding(nameof(ZaehlerAblesungDTO.Ablesedatum), stringFormat: "{0:dd.MM.yyyy}"));
+
+                var stand = new Label { TextColor = Colors.Gray };
+                stand.SetBinding(Label.TextProperty, new Binding(nameof(ZaehlerAblesungDTO.Stand), stringFormat: "Stand: {0}"));
+
+                return new VerticalStackLayout { Padding = new Thickness(0, 6), Children = { date, stand } };
+            })
+        };
+        stromReadingsView.SetBinding(ItemsView.ItemsSourceProperty, nameof(ParzellenViewModel.StromAblesungen));
+        stromReadingsView.SelectionChanged += (_, e) =>
+        {
+            selectedStromReading = e.CurrentSelection?.FirstOrDefault() as ZaehlerAblesungDTO;
+            if (selectedStromReading == null)
+            {
+                stromSelectionLabel.IsVisible = false;
+                return;
+            }
+
+            stromReadingDate.Date = selectedStromReading.Ablesedatum.Date;
+            stromReadingStand.Text = selectedStromReading.Stand.ToString();
+            stromReadingFoto.Text = selectedStromReading.FotoPfad ?? string.Empty;
+            stromSelectionLabel.Text = $"Bearbeite Strom-Ablesung vom {selectedStromReading.Ablesedatum:dd.MM.yyyy}.";
+            stromSelectionLabel.IsVisible = true;
+        };
+
+        var saveStromReadingButton = new Button { Text = "Strom-Ablesung speichern" };
+        saveStromReadingButton.Clicked += async (_, _) =>
+        {
+            if (!TryParseDecimal(stromReadingStand.Text, out var stand))
+            {
+                await DisplayAlert("Fehler", "Bitte einen gültigen Strom-Zählerstand eingeben.", "OK");
+                return;
+            }
+
+            var ok = await _viewModel.SaveStromReadingAsync(stromReadingDate.Date, stand, stromReadingFoto.Text, selectedStromReading);
+            if (!ok)
+                return;
+
+            selectedStromReading = null;
+            stromReadingsView.SelectedItem = null;
+            stromReadingStand.Text = string.Empty;
+            stromReadingFoto.Text = string.Empty;
+            stromSelectionLabel.IsVisible = false;
+            await DisplayAlert("OK", "Strom-Ablesung gespeichert.", "OK");
+        };
+
+        var replaceStromMeterButton = new Button { Text = "Stromzähler tauschen" };
+        replaceStromMeterButton.Clicked += async (_, _) =>
+        {
+            if (string.IsNullOrWhiteSpace(stromMeterNumber.Text))
+            {
+                await DisplayAlert("Fehler", "Bitte eine Stromzählernummer eingeben.", "OK");
+                return;
+            }
+
+            var ok = await _viewModel.ReplaceStromMeterAsync(stromMeterNumber.Text, stromMeterEichdatum.Date, stromMeterWechselDatum.Date);
+            if (!ok)
+                return;
+
+            stromMeterNumber.Text = string.Empty;
+            await DisplayAlert("OK", "Stromzähler gespeichert.", "OK");
+        };
+
+        detailContainer.Children.Add(CreateSection("Strom",
+            CreateBoundLabel("SelectedDetail.StromStatusText"),
+            new Label { Text = "Ablesungen", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+            stromReadingsView,
+            stromSelectionLabel,
+            new Label { Text = "Ablesedatum", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+            stromReadingDate,
+            new Label { Text = "Zählerstand", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+            stromReadingStand,
+            new Label { Text = "Foto", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+            stromReadingFoto,
+            saveStromReadingButton,
+            new Label { Text = "Zählernummer", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+            stromMeterNumber,
+            new Label { Text = "Eichdatum", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+            stromMeterEichdatum,
+            new Label { Text = "Wechseldatum", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+            stromMeterWechselDatum,
+            replaceStromMeterButton));
+
+        var wasserMeterNumber = new Entry { Placeholder = "Neue Wasserzählernummer" };
+        var wasserMeterEichdatum = new DatePicker { Date = DateTime.Today };
+        var wasserMeterEinbauDatum = new DatePicker { Date = DateTime.Today };
+        var wasserMeterAusbauDatum = new DatePicker { Date = DateTime.Today };
+        var wasserReadingDate = new DatePicker { Date = DateTime.Today };
+        var wasserReadingStand = new Entry { Placeholder = "Zählerstand", Keyboard = Keyboard.Numeric };
+        var wasserReadingFoto = new Entry { Placeholder = "Foto-URL oder Pfad (optional)" };
+        var wasserSelectionLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap, IsVisible = false };
+
+        var wasserReadingsView = new CollectionView
+        {
+            SelectionMode = SelectionMode.Single,
+            HeightRequest = 180,
+            ItemTemplate = new DataTemplate(() =>
+            {
+                var date = new Label { FontAttributes = FontAttributes.Bold };
+                date.SetBinding(Label.TextProperty, new Binding(nameof(ZaehlerAblesungDTO.Ablesedatum), stringFormat: "{0:dd.MM.yyyy}"));
+
+                var stand = new Label { TextColor = Colors.Gray };
+                stand.SetBinding(Label.TextProperty, new Binding(nameof(ZaehlerAblesungDTO.Stand), stringFormat: "Stand: {0}"));
+
+                return new VerticalStackLayout { Padding = new Thickness(0, 6), Children = { date, stand } };
+            })
+        };
+        wasserReadingsView.SetBinding(ItemsView.ItemsSourceProperty, nameof(ParzellenViewModel.WasserAblesungen));
+        wasserReadingsView.SelectionChanged += (_, e) =>
+        {
+            selectedWasserReading = e.CurrentSelection?.FirstOrDefault() as ZaehlerAblesungDTO;
+            if (selectedWasserReading == null)
+            {
+                wasserSelectionLabel.IsVisible = false;
+                return;
+            }
+
+            wasserReadingDate.Date = selectedWasserReading.Ablesedatum.Date;
+            wasserReadingStand.Text = selectedWasserReading.Stand.ToString();
+            wasserReadingFoto.Text = selectedWasserReading.FotoPfad ?? string.Empty;
+            wasserSelectionLabel.Text = $"Bearbeite Wasser-Ablesung vom {selectedWasserReading.Ablesedatum:dd.MM.yyyy}.";
+            wasserSelectionLabel.IsVisible = true;
+        };
+
+        var saveWasserReadingButton = new Button { Text = "Wasser-Ablesung speichern" };
+        saveWasserReadingButton.Clicked += async (_, _) =>
+        {
+            if (!TryParseDecimal(wasserReadingStand.Text, out var stand))
+            {
+                await DisplayAlert("Fehler", "Bitte einen gültigen Wasser-Zählerstand eingeben.", "OK");
+                return;
+            }
+
+            var ok = await _viewModel.SaveWasserReadingAsync(wasserReadingDate.Date, stand, wasserReadingFoto.Text, selectedWasserReading);
+            if (!ok)
+                return;
+
+            selectedWasserReading = null;
+            wasserReadingsView.SelectedItem = null;
+            wasserReadingStand.Text = string.Empty;
+            wasserReadingFoto.Text = string.Empty;
+            wasserSelectionLabel.IsVisible = false;
+            await DisplayAlert("OK", "Wasser-Ablesung gespeichert.", "OK");
+        };
+
+        var installWasserMeterButton = new Button { Text = "Wasserzähler einbauen" };
+        installWasserMeterButton.Clicked += async (_, _) =>
+        {
+            if (string.IsNullOrWhiteSpace(wasserMeterNumber.Text))
+            {
+                await DisplayAlert("Fehler", "Bitte eine Wasserzählernummer eingeben.", "OK");
+                return;
+            }
+
+            var ok = await _viewModel.InstallWasserMeterAsync(wasserMeterNumber.Text, wasserMeterEichdatum.Date, wasserMeterEinbauDatum.Date);
+            if (!ok)
+                return;
+
+            wasserMeterNumber.Text = string.Empty;
+            await DisplayAlert("OK", "Wasserzähler gespeichert.", "OK");
+        };
+
+        var removeWasserMeterButton = new Button { Text = "Wasserzähler ausbauen" };
+        removeWasserMeterButton.Clicked += async (_, _) =>
+        {
+            var ok = await _viewModel.RemoveWasserMeterAsync(wasserMeterAusbauDatum.Date);
+            if (!ok)
+                return;
+
+            await DisplayAlert("OK", "Wasserzähler ausgebaut.", "OK");
+        };
+
+        detailContainer.Children.Add(CreateSection("Wasser",
+            CreateBoundLabel("SelectedDetail.WasserStatusText"),
+            new Label { Text = "Ablesungen", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+            wasserReadingsView,
+            wasserSelectionLabel,
+            new Label { Text = "Ablesedatum", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+            wasserReadingDate,
+            new Label { Text = "Zählerstand", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+            wasserReadingStand,
+            new Label { Text = "Foto", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+            wasserReadingFoto,
+            saveWasserReadingButton,
+            new Label { Text = "Zählernummer", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+            wasserMeterNumber,
+            new Label { Text = "Eichdatum", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+            wasserMeterEichdatum,
+            new Label { Text = "Einbaudatum", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+            wasserMeterEinbauDatum,
+            installWasserMeterButton,
+            new Label { Text = "Ausbaudatum", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+            wasserMeterAusbauDatum,
+            removeWasserMeterButton));
+
+        documentsView.SetBinding(ItemsView.ItemsSourceProperty, nameof(ParzellenViewModel.Dokumente));
         detailContainer.Children.Add(CreateSection("Dokumente", documentsLabel, documentsView));
 
         var assignPicker = new Picker { Title = "Mitglied auswählen" };
@@ -218,4 +436,10 @@ public sealed class ParzellenPage : ContentPage
             }
         };
      }
+
+    private static bool TryParseDecimal(string? value, out decimal result)
+    {
+        return decimal.TryParse(value, out result)
+               || decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out result);
+    }
  }

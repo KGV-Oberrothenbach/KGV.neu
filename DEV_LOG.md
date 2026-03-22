@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-03-22 – Block 3/3 Prompt 3: Parzellen-Kernlücken und mobile Admin-Parität abgeschlossen
+
+- Den Istzustand der Parzellenzentrale erneut gegen die vorhandenen Fachpfade geprüft: belastbar verfügbar waren bereits aktive Zähler, Ablesungen, Belegungsstatus und Parzellen-Dokumente, aber MAUI nutzte davon in der Zentrale bislang nur einen Teil und ließ Strom-/Wasser-Verwaltung als Sackgasse stehen.
+- Mobile Kernpfade ohne neue Parallelarchitektur direkt in der bestehenden `ParzellenPage` geschlossen: vorhandene Strom-/Wasser-Ablesungen und Parzellen-Dokumente werden jetzt vollständig aus dem bestehenden Servicepfad geladen und in der zentralen Parzellenansicht angezeigt.
+- Mobile Admin-Parität im Kern weiter angehoben: aus der MAUI-Parzellenzentrale sind jetzt auch Strom-Ablesungen speichern/bearbeiten, Stromzähler tauschen, Wasser-Ablesungen speichern/bearbeiten, Wasserzähler einbauen und ausbauen sowie das Öffnen aller Parzellen-Dokumente direkt erreichbar.
+- WPF-Zentralansicht fachlich nachgezogen, ohne neue Logik zu erfinden: bereits im DTO vorhandene aktive Strom-/Wasserzählerdaten und Dokument-Zeitpunkte werden in der Parzellen-Detailansicht jetzt klarer sichtbar gemacht.
+- Weiterhin bewusst nicht erfunden: separate Anschlussflags, zusätzliche Parzellen-Stammdaten oder neue Dokument-/Zähler-Gesamtarchitektur wurden nicht aufgebaut; sichtbar bleibt nur, was im aktiven Modell, DTO und Servicepfad belastbar vorhanden ist.
+- Abschluss technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem dritten Teilblock weiterhin erfolgreich; Block 3 ist damit für das Parzellenmodul fachlich und technisch im direkten Anschlussbereich abgeschlossen.
+
 ## 2026-03-22 – Block 3/3 Prompt 2: Parzellen-Aktionen und MemberDetail-Sichtbarkeit nachgezogen
 
 - Offene Parzellen-Verwaltungswege gezielt geprüft: zentrale Detailansicht aus Prompt 1 war vorhanden, aber die Servicepfade für Zuordnung und Beendigungen waren im aktiven `SupabaseService` noch nicht umgesetzt und MAUI bot dafür noch keinen echten Arbeitsweg.
