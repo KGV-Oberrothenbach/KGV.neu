@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -753,21 +754,47 @@ namespace KGV.Infrastructure.Services
                 var overview = HomeOverviewFactory.Build(role);
                 var operationalItems = new List<HomeOperationalItem>();
                 HomeWorkHoursSummary? workHoursSummary = null;
+                var workAssignmentsEmptyText = "Für Home sind aktuell keine Arbeitseinsätze in der Startseiten-View vorhanden.";
+                var appointmentsEmptyText = "Für Home sind aktuell keine Termine in der Startseiten-View vorhanden.";
+                var announcementEmptyText = overview.AnnouncementEmptyText;
 
                 if (mitgliedId is > 0)
                 {
-                    var hauptmitglied = await GetMitgliedByIdAsync(mitgliedId.Value);
-                    if (OperationalDataFilter.IsOperationalMember(hauptmitglied))
-                    {
-                        workHoursSummary = await LoadPflichtstundenSummaryAsync(mitgliedId.Value, DateTime.Today.Year);
-                        if (workHoursSummary != null)
-                            operationalItems.Add(BuildWorkHoursItem(workHoursSummary));
-                    }
+                    var (loadedSummary, summaryLoaded) = await TryLoadHomeSectionAsync(
+                        "LoadPflichtstundenSummaryAsync",
+                        () => LoadPflichtstundenSummaryAsync(mitgliedId.Value, DateTime.Today.Year),
+                        (HomeWorkHoursSummary?)null);
+
+                    workHoursSummary = loadedSummary;
+                    if (workHoursSummary != null)
+                        operationalItems.Add(BuildWorkHoursItem(workHoursSummary));
+                    else if (!summaryLoaded)
+                        workHoursSummary = new HomeWorkHoursSummary { Year = DateTime.Today.Year, RuleReason = "Pflichtstunden konnten aktuell nicht geladen werden. Details stehen im Debug-/Anwendungslog." };
                 }
 
-                var workAssignments = await LoadStartseiteArbeitseinsaetzeAsync();
-                var appointments = await LoadStartseiteTermineAsync();
-                var announcements = await LoadStartseiteBekanntmachungenAsync();
+                var (workAssignments, workAssignmentsLoaded) = await TryLoadHomeSectionAsync(
+                    "LoadStartseiteArbeitseinsaetzeAsync",
+                    LoadStartseiteArbeitseinsaetzeAsync,
+                    new List<HomeWorkAssignmentItem>());
+
+                var (appointments, appointmentsLoaded) = await TryLoadHomeSectionAsync(
+                    "LoadStartseiteTermineAsync",
+                    LoadStartseiteTermineAsync,
+                    new List<HomeAppointmentItem>());
+
+                var (announcements, announcementsLoaded) = await TryLoadHomeSectionAsync(
+                    "LoadStartseiteBekanntmachungenAsync",
+                    LoadStartseiteBekanntmachungenAsync,
+                    new List<HomeAnnouncementItem>());
+
+                if (!workAssignmentsLoaded)
+                    workAssignmentsEmptyText = "Arbeitseinsätze konnten aktuell nicht geladen werden. Details stehen im Debug-/Anwendungslog.";
+
+                if (!appointmentsLoaded)
+                    appointmentsEmptyText = "Termine konnten aktuell nicht geladen werden. Details stehen im Debug-/Anwendungslog.";
+
+                if (!announcementsLoaded)
+                    announcementEmptyText = "Bekanntmachungen konnten aktuell nicht geladen werden. Details stehen im Debug-/Anwendungslog.";
 
                 return new HomeOverviewDTO
                 {
@@ -778,9 +805,9 @@ namespace KGV.Infrastructure.Services
                     OperationalEmptyText = overview.OperationalEmptyText,
                     AnnouncementTitle = overview.AnnouncementTitle,
                     AnnouncementHintText = overview.AnnouncementHintText,
-                    AnnouncementEmptyText = overview.AnnouncementEmptyText,
-                    WorkAssignmentsEmptyText = "Für Home sind aktuell keine Arbeitseinsätze in der Startseiten-View vorhanden.",
-                    AppointmentsEmptyText = "Für Home sind aktuell keine Termine in der Startseiten-View vorhanden.",
+                    AnnouncementEmptyText = announcementEmptyText,
+                    WorkAssignmentsEmptyText = workAssignmentsEmptyText,
+                    AppointmentsEmptyText = appointmentsEmptyText,
                     WorkHoursSummary = workHoursSummary,
                     WorkAssignments = workAssignments,
                     Appointments = appointments,
@@ -790,6 +817,19 @@ namespace KGV.Infrastructure.Services
                 };
             },
             HomeOverviewFactory.Build(role));
+
+        private async Task<(T Result, bool Success)> TryLoadHomeSectionAsync<T>(string sectionName, Func<Task<T>> loader, T fallback)
+        {
+            try
+            {
+                return (await loader(), true);
+            }
+            catch (Exception ex)
+            {
+                LogHomeLoadFailure(sectionName, ex);
+                return (fallback, false);
+            }
+        }
 
         public Task<string?> CreateDokumentSignedUrlAsync(string storagePath, int expiresInSeconds = 3600) => ExecuteAsync<string?>(
             "CreateDokumentSignedUrlAsync",
@@ -956,6 +996,12 @@ namespace KGV.Infrastructure.Services
 
             var fullName = $"{member.Vorname} {member.Name}".Trim();
             return string.IsNullOrWhiteSpace(fullName) ? member.Email : fullName;
+        }
+
+        private void LogHomeLoadFailure(string sectionName, Exception ex)
+        {
+            _logger?.LogError(ex, "Home load section {SectionName} failed.", sectionName);
+            Debug.WriteLine($"[HomeLoad] {sectionName} failed: {ex}");
         }
 
         private async Task<HomeWorkHoursSummary?> LoadPflichtstundenSummaryAsync(int mitgliedId, int year)

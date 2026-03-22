@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-22 – HomeView-Reparatur: globalen Leerlauf durch geschluckte Home-Section-Fehler behoben
+
+- Den aktuellen Home-Ladepfad in `SupabaseService.GetHomeOverviewAsync(...)`, den Startseiten-Records und `HomeViewModel` erneut geprüft; dabei zeigte sich als wahrscheinlichster Kernfehler nicht mehr das grundlegende View-Naming, sondern das Fehlerverhalten des Gesamtladers: sobald eine einzelne Home-Section beim Laden/Mappen scheitert, fällt wegen des globalen `ExecuteAsync(..., fallback)` bislang der komplette Home-Block still auf einen leeren Factory-Stand zurück.
+- Den Verdacht technisch abgesichert: ein direkter Test auf den bestätigten Termin-View lieferte im isolierten REST-Zugriff einen Berechtigungsfehler; unabhängig vom konkreten DB-/Session-Kontext ist damit bestätigt, dass einzelne Section-Fehler im Home-Pfad realistisch sind und bisher den kompletten Home-Inhalt leerfallen lassen konnten.
+- `GetHomeOverviewAsync(...)` deshalb gezielt robust gemacht statt neu designt: Pflichtstunden, Arbeitseinsätze, Termine und Bekanntmachungen werden jetzt jeweils separat geladen; wenn eine Section scheitert, bleiben die anderen Section-Daten erhalten und die Home-Seite fällt nicht mehr komplett auf leere Platzhalter zurück.
+- Kleine, gezielte technische Transparenz ergänzt: fehlgeschlagene Home-Sections werden jetzt im vorhandenen Logger und zusätzlich per `Debug.WriteLine` mit Section-Namen protokolliert, ohne dauerhafte Log-Flut im Normalfall zu erzeugen.
+- Die Empty-State-Texte für die drei Startseitenbereiche unterscheiden jetzt zwischen `keine Daten vorhanden` und `Laden der Section fehlgeschlagen`; damit bleibt der echte Grund im WPF-/MAUI-Test nachvollziehbar, statt pauschal eine leere Startseiten-View zu behaupten.
+- Den Pflichtstundenpfad zusätzlich vereinfacht und näher auf den bestätigten DB-Kern gezogen: die Home-Zusammenfassung wird jetzt für das aktuelle Mitglied direkt aus `v_pflichtstunden_uebersicht` geladen, ohne dass ein zusätzlicher App-seitiger Demo-/Test-Filter den View-Datensatz schon vorab ausblendet; die Filterregel bleibt damit dort, wo sie fachlich hingehört – im bestätigten DB-/Produktpfad.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach der Reparatur weiterhin erfolgreich.
+
 ## 2026-03-22 – Home-Diagnose: bestätigte Pflichtstunden- und Startseiten-Views sauber auf den realen DB-Stand korrigiert
 
 - Den aktuellen Home-Istzustand in `ISupabaseService`, `SupabaseService`, den Home-Records/DTOs sowie `HomeViewModel` gezielt gegen den inzwischen bestätigten DB-Schema-Stand geprüft; dabei zeigte sich, dass die Home-Anbindung zwar grundsätzlich auf Startseiten-Views setzte, aber bei `Termine` und `Bekanntmachungen` noch falsche Singular-Viewnamen im Code hinterlegt waren.
