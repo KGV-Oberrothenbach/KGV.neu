@@ -68,7 +68,7 @@
             </DataTemplate>
 
             <DataTemplate DataType="{x:Type vm:ArbeitseinsaetzeVerwaltungViewModel}">
-                <views:ArbeitseinsaetzeVerwaltungView />
+                <views:ArbeitseinsaetzeVerwaltungEditorView />
             </DataTemplate>
 
             <DataTemplate DataType="{x:Type vm:TermineVerwaltungViewModel}">

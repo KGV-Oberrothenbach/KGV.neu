@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-03-22 – Arbeitseinsätze-Verwaltung produktiv gemacht: Basistabelle `arbeitseinsatz` + Sonderregeln für Teilnehmer/Stundenwert
+
+- Den aktuellen Istzustand der vorbereiteten Arbeitseinsätze-Verwaltung erneut geprüft: vorhanden waren bisher Verwaltungsnavigation, die strukturelle WPF-Ansicht und eine Leseliste über `v_startseite_arbeitseinsatz`, aber noch kein produktiver Editor und kein bestätigter Schreibpfad gegen die Basistabelle.
+- Den bestätigten Tabellenvertrag von `arbeitseinsatz` jetzt direkt produktiv an die WPF-Verwaltung angeschlossen: `titel`, `beschreibung`, `datum`, `start_uhrzeit`, `end_uhrzeit`, `treffpunkt`, `max_teilnehmer`, `stunden_wert`, `sichtbar_ab`, `sichtbar_bis`, `anmeldung_bis` und `aktiv` sind jetzt die echten Bearbeitungsfelder; `created_at`, `updated_at` und `is_demo` bleiben bewusst keine normalen UI-Standardfelder.
+- Echten Basistabellenpfad ergänzt und nicht über Startseiten-Views geschrieben: gemeinsamer Service lädt die Verwaltungs-Liste jetzt direkt aus `arbeitseinsatz` und schreibt neue bzw. geänderte Datensätze per `CreateArbeitseinsatzAsync(...)` und `UpdateArbeitseinsatzAsync(...)` wieder gegen `arbeitseinsatz` zurück.
+- Das Validierungs-/Fokusmuster aus `Termine` und `Bekanntmachungen` bewusst wiederverwendet: Pflichtfelder werden rot markiert, beim Speichern springt der Fokus auf das erste fehlerhafte Feld von oben, und die zentrale tolerante Zeitlogik wird auch für `Arbeitseinsätze` erneut genutzt.
+- Sonderregel `max_teilnehmer` explizit fachlich sauber umgesetzt: Teilnehmerbegrenzung ist kein Pflichtfeld; im Zustand `ohne Begrenzung` bleibt das eigentliche Eingabefeld unsichtbar und gespeichert wird `NULL` statt `0`. Sobald eine Begrenzung aktiv ist, muss der Wert größer als `0` sein.
+- Sonderregel `stunden_wert` ebenfalls sauber umgesetzt: das Feld bleibt optional, eine leere Eingabe führt nicht zu einem Fehler und wird beim Speichern DB-konform auf den operativen Wert `0` geführt; nur negative Eingaben werden als Fehler markiert.
+- Weitere bestätigte Validierungsregeln produktiv angeschlossen: `Titel` darf nicht leer sein, `Datum` ist Pflicht, `Enduhrzeit` darf nicht vor `Startuhrzeit` liegen, und `Sichtbar bis` darf nicht vor `Sichtbar ab` liegen. `Anmeldung bis` wird zusätzlich als optionaler, aber formal konsistenter Timestamp behandelt.
+- Nach erfolgreichem Speichern wird die Arbeitseinsatzliste neu geladen und der gespeicherte Datensatz erneut selektiert/angezeigt; knappe Diagnose-Logs im Service ergänzen die Fehlerbehandlung, statt Fehler stumm zu verschlucken.
+- Kleinen Aufräumcheck bewusst klein gehalten: die ältere strukturelle `ArbeitseinsaetzeVerwaltungView` bleibt vorerst noch im Repo, produktiv verdrahtet ist jetzt aber die neue Editoransicht; größere Bereinigung wird nicht in diesen Block hineingezogen.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem produktiven Arbeitseinsätze-Block weiterhin erfolgreich.
+
 ## 2026-03-22 – Bekanntmachungen-Verwaltung produktiv gemacht: Basistabelle `bekanntmachung` + kleiner HTML-Editor
 
 - Den aktuellen Istzustand der vorbereiteten Bekanntmachungen-Verwaltung erneut geprüft: belastbar vorhanden waren bisher nur Verwaltungsnavigation, Strukturansicht und Home-nahe Leseliste über die Startseiten-View; ein echter Editor, ein produktiver Schreibpfad auf die Basistabelle und eine HTML-taugliche Bearbeitung fehlten noch.

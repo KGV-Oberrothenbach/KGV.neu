@@ -83,6 +83,9 @@ namespace KGV.Core.Interfaces
         Task<List<HomeWorkAssignmentItem>> GetStartseiteArbeitseinsaetzeAsync();
         Task<List<HomeAppointmentItem>> GetStartseiteTermineAsync();
         Task<List<HomeAnnouncementItem>> GetStartseiteBekanntmachungenAsync();
+        Task<List<ArbeitseinsatzRecord>> GetArbeitseinsaetzeVerwaltungAsync();
+        Task<ArbeitseinsatzRecord?> CreateArbeitseinsatzAsync(ArbeitseinsatzRecord record);
+        Task<bool> UpdateArbeitseinsatzAsync(ArbeitseinsatzRecord record);
         Task<List<TerminRecord>> GetTermineVerwaltungAsync();
         Task<TerminRecord?> CreateTerminAsync(TerminRecord record);
         Task<bool> UpdateTerminAsync(TerminRecord record);

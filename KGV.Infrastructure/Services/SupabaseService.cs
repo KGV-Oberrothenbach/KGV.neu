@@ -837,6 +837,90 @@ namespace KGV.Infrastructure.Services
             LoadStartseiteBekanntmachungenAsync,
             new List<HomeAnnouncementItem>());
 
+        public Task<List<ArbeitseinsatzRecord>> GetArbeitseinsaetzeVerwaltungAsync() => ExecuteAsync(
+            "GetArbeitseinsaetzeVerwaltungAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client.From<ArbeitseinsatzRecord>().Get();
+
+                return response?.Models?
+                    .OrderBy(x => x.Datum)
+                    .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
+                    .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList()
+                    ?? new List<ArbeitseinsatzRecord>();
+            },
+            new List<ArbeitseinsatzRecord>());
+
+        public Task<ArbeitseinsatzRecord?> CreateArbeitseinsatzAsync(ArbeitseinsatzRecord record) => ExecuteAsync<ArbeitseinsatzRecord?>(
+            "CreateArbeitseinsatzAsync",
+            async () =>
+            {
+                if (record == null || string.IsNullOrWhiteSpace(record.Titel))
+                    return null;
+
+                var client = await EnsureClientAsync();
+                var insertRecord = new ArbeitseinsatzRecord
+                {
+                    Titel = CleanRequiredText(record.Titel),
+                    Beschreibung = CleanOptionalText(record.Beschreibung),
+                    Datum = NormalizeDateTime(record.Datum.Date),
+                    StartUhrzeit = NormalizeTerminTime(record.StartUhrzeit),
+                    EndUhrzeit = NormalizeTerminTime(record.EndUhrzeit),
+                    Treffpunkt = CleanOptionalText(record.Treffpunkt),
+                    MaxTeilnehmer = record.MaxTeilnehmer,
+                    StundenWert = record.StundenWert < 0 ? 0 : record.StundenWert,
+                    SichtbarAb = record.SichtbarAb.HasValue ? NormalizeDateTime(record.SichtbarAb.Value) : null,
+                    SichtbarBis = record.SichtbarBis.HasValue ? NormalizeDateTime(record.SichtbarBis.Value) : null,
+                    AnmeldungBis = record.AnmeldungBis.HasValue ? NormalizeDateTime(record.AnmeldungBis.Value) : null,
+                    Aktiv = record.Aktiv,
+                    IsDemo = record.IsDemo
+                };
+
+                await client.From<ArbeitseinsatzRecord>().Insert(insertRecord);
+                var reloadResponse = await client.From<ArbeitseinsatzRecord>().Get();
+                var created = reloadResponse?.Models?
+                    .Where(x => IsSameArbeitseinsatzForReload(x, insertRecord))
+                    .OrderByDescending(x => x.Id)
+                    .FirstOrDefault();
+
+                _logger?.LogInformation("CreateArbeitseinsatzAsync created arbeitseinsatz {ArbeitseinsatzId}", created?.Id);
+                return created;
+            },
+            null);
+
+        public Task<bool> UpdateArbeitseinsatzAsync(ArbeitseinsatzRecord record) => ExecuteAsync(
+            "UpdateArbeitseinsatzAsync",
+            async () =>
+            {
+                if (record == null || record.Id <= 0 || string.IsNullOrWhiteSpace(record.Titel))
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client
+                    .From<ArbeitseinsatzRecord>()
+                    .Where(x => x.Id == record.Id)
+                    .Set(x => x.Titel, CleanRequiredText(record.Titel))
+                    .Set(x => x.Beschreibung, CleanOptionalText(record.Beschreibung))
+                    .Set(x => x.Datum, NormalizeDateTime(record.Datum.Date))
+                    .Set(x => x.StartUhrzeit, NormalizeTerminTime(record.StartUhrzeit))
+                    .Set(x => x.EndUhrzeit, NormalizeTerminTime(record.EndUhrzeit))
+                    .Set(x => x.Treffpunkt, CleanOptionalText(record.Treffpunkt))
+                    .Set(x => x.MaxTeilnehmer, record.MaxTeilnehmer)
+                    .Set(x => x.StundenWert, record.StundenWert < 0 ? 0 : record.StundenWert)
+                    .Set(x => x.SichtbarAb, record.SichtbarAb.HasValue ? NormalizeDateTime(record.SichtbarAb.Value) : null)
+                    .Set(x => x.SichtbarBis, record.SichtbarBis.HasValue ? NormalizeDateTime(record.SichtbarBis.Value) : null)
+                    .Set(x => x.AnmeldungBis, record.AnmeldungBis.HasValue ? NormalizeDateTime(record.AnmeldungBis.Value) : null)
+                    .Set(x => x.Aktiv, record.Aktiv)
+                    .Set(x => x.IsDemo, record.IsDemo)
+                    .Update();
+
+                _logger?.LogInformation("UpdateArbeitseinsatzAsync updated arbeitseinsatz {ArbeitseinsatzId}", record.Id);
+                return true;
+            },
+            false);
+
         public Task<List<TerminRecord>> GetTermineVerwaltungAsync() => ExecuteAsync(
             "GetTermineVerwaltungAsync",
             async () =>
@@ -1107,6 +1191,23 @@ namespace KGV.Infrastructure.Services
                 && left.SichtbarBis == right.SichtbarBis
                 && left.SortOrder == right.SortOrder
                 && left.Aktiv == right.Aktiv;
+        }
+
+        private static bool IsSameArbeitseinsatzForReload(ArbeitseinsatzRecord left, ArbeitseinsatzRecord right)
+        {
+            return string.Equals(CleanRequiredText(left.Titel), CleanRequiredText(right.Titel), StringComparison.CurrentCulture)
+                && string.Equals(CleanOptionalText(left.Beschreibung), CleanOptionalText(right.Beschreibung), StringComparison.CurrentCulture)
+                && left.Datum.Date == right.Datum.Date
+                && NormalizeTerminTime(left.StartUhrzeit) == NormalizeTerminTime(right.StartUhrzeit)
+                && NormalizeTerminTime(left.EndUhrzeit) == NormalizeTerminTime(right.EndUhrzeit)
+                && string.Equals(CleanOptionalText(left.Treffpunkt), CleanOptionalText(right.Treffpunkt), StringComparison.CurrentCulture)
+                && left.MaxTeilnehmer == right.MaxTeilnehmer
+                && left.StundenWert == right.StundenWert
+                && left.SichtbarAb == right.SichtbarAb
+                && left.SichtbarBis == right.SichtbarBis
+                && left.AnmeldungBis == right.AnmeldungBis
+                && left.Aktiv == right.Aktiv
+                && left.IsDemo == right.IsDemo;
         }
 
         private async Task<List<StromzaehlerRecord>> GetStromzaehlerForParzelleAsync(int parzelleId)

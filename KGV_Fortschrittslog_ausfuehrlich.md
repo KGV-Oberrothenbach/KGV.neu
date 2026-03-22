@@ -2,6 +2,64 @@
 
 ---
 
+## 2026-03-22 – Prompt 4/5: Arbeitseinsätze-Verwaltung produktiv an `arbeitseinsatz` angeschlossen, inklusive Sonderregeln für Teilnehmergrenze und Stundenwert
+
+- Den aktuellen Istzustand der vorbereiteten Arbeitseinsätze-Verwaltung vor dem Umbau erneut geprüft: `ArbeitseinsaetzeVerwaltungViewModel` war bislang noch nur strukturell aus dem gemeinsamen Verwaltungsgerüst abgeleitet, die Liste kam nur aus dem Startseiten-Lesepfad, und rechts gab es noch keinen produktiven Editor mit bestätigten Basistabellenfeldern.
+- Den bestätigten Tabellenvertrag von `arbeitseinsatz` jetzt direkt produktiv an die WPF-Verwaltung angebunden. Bearbeitet werden genau die bestätigten Fachfelder:
+  - `titel` *(Pflichtfeld)*
+  - `beschreibung`
+  - `datum` *(Pflichtfeld)*
+  - `start_uhrzeit`
+  - `end_uhrzeit`
+  - `treffpunkt`
+  - `max_teilnehmer`
+  - `stunden_wert`
+  - `sichtbar_ab`
+  - `sichtbar_bis`
+  - `anmeldung_bis`
+  - `aktiv`
+- Technische Felder wie `created_at` und `updated_at` sowie das technische Flag `is_demo` werden nicht als normale UI-Bearbeitungsfelder in den Vordergrund gestellt; `is_demo` wird im Produktpfad intern erhalten und nicht spekulativ umgedeutet.
+- Gemeinsamen produktiven Basistabellenpfad ergänzt:
+  - `GetArbeitseinsaetzeVerwaltungAsync()`
+  - `CreateArbeitseinsatzAsync(...)`
+  - `UpdateArbeitseinsatzAsync(...)`
+  Diese Methoden lesen/schreiben direkt auf `arbeitseinsatz`; es wird ausdrücklich nicht gegen `v_startseite_arbeitseinsatz` geschrieben.
+- Die linke Verwaltungsseite nutzt damit jetzt reale Datensätze aus `arbeitseinsatz` statt einer bloßen Home-/View-Strukturableitung. Dadurch bleiben auch inaktive oder intern markierte Datensätze im Admin-/Vorstandskontext sauber bearbeitbar.
+- Das rechte Bearbeitungsverhalten ist jetzt produktiv und konsistent:
+  - ohne `Neu` oder Doppelklick bleibt rechts leer
+  - Doppelklick öffnet den Editor mit echten Werten
+  - `Neu` öffnet einen leeren Editorzustand
+  - `Abbrechen` verwirft den Bearbeitungszustand vollständig
+  - `Speichern` bleibt wie gefordert am Ende des Formulars
+- Sonderregel `max_teilnehmer` fachlich sauber umgesetzt:
+  - das Feld ist nicht verpflichtend
+  - in der UI gibt es einen expliziten Zustand `ohne Begrenzung`
+  - in diesem Zustand bleibt das eigentliche Zahlenfeld unsichtbar
+  - gespeichert wird dann `NULL`, nie `0`
+  - sobald eine Begrenzung aktiv ist, muss `max_teilnehmer > 0` gelten
+- Sonderregel `stunden_wert` ebenfalls sauber umgesetzt:
+  - das Feld ist nicht verpflichtend
+  - leere Eingabe bleibt im Editor als optionaler Zustand zulässig
+  - beim Speichern wird der DB-konforme operative Wert `0` verwendet, damit der NOT-NULL-/Default-Vertrag sauber eingehalten bleibt
+  - eingegebene Werte müssen `>= 0` sein
+- Bestätigte Validierungsregeln direkt umgesetzt:
+  - `Titel` darf nicht leer oder nur Leerzeichen sein
+  - `Datum` ist Pflicht
+  - `Enduhrzeit < Startuhrzeit` ist ungültig
+  - `Sichtbar bis < Sichtbar ab` ist ungültig
+  - `max_teilnehmer <= 0` bei aktiver Begrenzung ist ungültig
+  - `stunden_wert < 0` ist ungültig
+  - `anmeldung_bis` wird als optionaler Timestamp mit vollständigem Datum+Uhrzeit-Paar geprüft, sobald das Feld genutzt wird
+- Das Validierungs-/Fokusmuster aus `Termine` und `Bekanntmachungen` wurde bewusst wiederverwendet:
+  - rote Hervorhebung fehlerhafter Felder
+  - Fokus springt beim Speichern auf das erste fehlerhafte Feld von oben
+  - dieselbe zentrale tolerante Zeitlogik für `Startuhrzeit`, `Enduhrzeit`, `Sichtbar ab`, `Sichtbar bis` und `Anmeldung bis`
+- Für `Stundenwert` wurde ergänzend eine kleine tolerante numerische Parse-Logik eingebracht, damit Eingaben kulturrobust verarbeitet werden, ohne daraus ein neues größeres Shared-Parsing-Subsystem zu machen.
+- Nach erfolgreichem Speichern wird die Liste neu geladen und der gespeicherte Datensatz wieder selektiert/erneut angezeigt, damit Änderungen unmittelbar nachvollziehbar bleiben.
+- Kleiner technischer Aufräumcheck bewusst klein gehalten: die ältere strukturelle `ArbeitseinsaetzeVerwaltungView` bleibt vorerst noch im Repo, produktiv verdrahtet ist jetzt aber die neue Editoransicht; größere Bereinigung wird nicht in diesen Block hineingezogen.
+- Offene Punkte für den letzten Paritäts-/Aufräumblock: die drei produktiven Verwaltungseditoren stehen jetzt, offen bleibt vor allem die kleine Konsolidierung/Parität der verbliebenen Altstrukturen und der anschließende Abschluss-/Aufräumpfad.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem produktiven Arbeitseinsätze-Block erfolgreich.
+
 ## 2026-03-22 – Prompt 3/5: Bekanntmachungen-Verwaltung produktiv an `bekanntmachung` angeschlossen, inklusive kleinem HTML-Editor
 
 - Den aktuellen Istzustand der vorbereiteten Bekanntmachungen-Verwaltung vor dem Umbau erneut geprüft: `BekanntmachungenVerwaltungViewModel` war bislang noch nur strukturell aus dem gemeinsamen Verwaltungsgerüst abgeleitet, die Listenladung lief nur über den Startseiten-Lesepfad, und es gab noch keinen produktiven Editor für `inhalt_html`.
