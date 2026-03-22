@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-03-22 – Block 6 Prompt 1: Kleine aktive Testbasis für Demo-/Testdatenfilter zurückgeholt
+
+- Die aktuelle Testlage geprüft: im aktiven Root fehlte weiterhin ein reales `KGV.Tests`-Projekt, obwohl die Lösung bereits auf diesen Pfad zeigte; im Archiv lag noch eine ältere Testidee für `ExportViewModel`, die für den jetzigen Fokus aber nicht der passendste Wiedereinstieg war.
+- Als ersten kleinen Prüfpfad bewusst die Demo-/Play-Store-Testdatenfilterung gewählt: sie ist fachlich wichtig, technisch klar abgegrenzt und wirkt inzwischen in mehreren produktiven Pfaden (`Home`, Benutzerverwaltung, mobile Arbeitsstunden-Prüfung) ohne dass dafür eine große Testinfrastruktur nötig wäre.
+- Dafür eine kleine aktive Testbasis im Root zurückgeholt: neues aktives `KGV.Tests`-Projekt mit minimalem xUnit-Unterbau und direkter Referenz auf `KGV.Core`, statt Archiv-/Recovery-Annahmen ungeprüft zurückzuziehen.
+- Den gewählten Prüfpfad mit fokussierten Tests abgesichert: `OperationalDataFilterTests` prüfen jetzt belastbar, dass offensichtliche Demo-/Test-/Play-Store-Marker bei Mitgliedern und App-User-Kontexten aus operativen Pfaden ausgeschlossen werden, reale Daten aber durchlaufen.
+- Archivierte Export-Tests bewusst nicht mit zurückgezogen: sie waren für diesen ersten kleinen Testblock nicht der beste fachliche Kandidat und hätten den Wiedereinstieg unnötig verbreitert.
+- Technisch verifiziert: `KGV.Tests`, `KGV.Wpf` und `KGV.Maui` bauen; zusätzlich läuft `dotnet test KGV.Tests\KGV.Tests.csproj -c Debug --no-build` erfolgreich mit 4/4 grünen Tests.
+
 ## 2026-03-22 – Block 5 Prompt 3: Letzte kleine mobile Admin-Parität mit Arbeitsstunden-Prüfung geschlossen
 
 - Die verbleibenden mobilen Admin-Lücken erneut gegen belastbare WPF-/MAUI-Pfade geprüft: die wichtigste kleine Rest-Sackgasse lag bei `Arbeitsstunden prüfen`, weil der mobile Admin-Pfad bereits in der `AdminShell` existierte, fachlich aber weiterhin am fehlenden gemeinsamen Servicepfad `GetUnapprovedArbeitsstundenByMitgliedAsync()` hing.
