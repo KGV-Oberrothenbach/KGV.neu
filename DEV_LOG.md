@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-03-22 – HomeView-Reparatur Teil 2: Pflichtstunden über Hauptmitglied/Saison präzisiert und Bekanntmachungen robuster gemappt
+
+- Den verbleibenden Home-Restzustand erneut gegen die beiden Problemfelder geprüft: da `Arbeitseinsätze` und `Termine` bereits erschienen, war ein global falscher Home-Grundpfad weniger wahrscheinlich als zwei gezieltere Ursachen – Pflichtstunden über den falschen Mitgliedsbezug bzw. zu grobe Saisonauflösung und Bekanntmachungen über ein zu starres Record-Mapping auf die Startseiten-View.
+- Den Pflichtstundenpfad für Home deshalb final präzisiert, ohne neue Fachlogik zu bauen: vor dem Laden aus `v_pflichtstunden_uebersicht` wird jetzt der für Home relevante Hauptmitgliedsbezug aufgelöst; liegt beim aktuellen Mitglied ein `hauptmitglied_id` vor, wird die Pflichtstundenübersicht über dieses Hauptmitglied geladen.
+- Zusätzlich wird die bestätigte aktuelle Saison jetzt nicht mehr nur lose bei der Nachsortierung berücksichtigt, sondern zuerst direkt für die View-Abfrage verwendet; Home fragt damit bevorzugt exakt den Datensatz `(haupt- bzw. zielmitglied, aktuelle saison_id)` aus `v_pflichtstunden_uebersicht` ab und fällt erst danach auf Jahres-/letzten Datensatz zurück.
+- Den Bekanntmachungs-Record auf realistischere View-Abweichungen tolerant gemacht: `StartseiteBekanntmachungRecord` bildet jetzt zusätzlich mögliche Aliasfelder wie `bekanntmachung_id`, `betreff`, `text`, `inhalt_html`, `kurztext`, `datum` und `erstellt_am` ab, damit produktive Startseiten-Views nicht schon an kleineren Spaltenabweichungen leer laufen.
+- Das Home-Mapping für Bekanntmachungen nutzt diese Felder jetzt gezielt als Fallback-Kette für Titel, Inhalt und Veröffentlichungsdatum; dadurch bleibt der vorhandene Detailbereich unverändert klein, zeigt aber reale View-Daten robuster an, statt früh in den Placeholderzustand zu fallen.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem Restfix weiterhin erfolgreich.
+
 ## 2026-03-22 – HomeView-Reparatur: globalen Leerlauf durch geschluckte Home-Section-Fehler behoben
 
 - Den aktuellen Home-Ladepfad in `SupabaseService.GetHomeOverviewAsync(...)`, den Startseiten-Records und `HomeViewModel` erneut geprüft; dabei zeigte sich als wahrscheinlichster Kernfehler nicht mehr das grundlegende View-Naming, sondern das Fehlerverhalten des Gesamtladers: sobald eine einzelne Home-Section beim Laden/Mappen scheitert, fällt wegen des globalen `ExecuteAsync(..., fallback)` bislang der komplette Home-Block still auf einen leeren Factory-Stand zurück.

@@ -760,9 +760,10 @@ namespace KGV.Infrastructure.Services
 
                 if (mitgliedId is > 0)
                 {
+                    var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId.Value);
                     var (loadedSummary, summaryLoaded) = await TryLoadHomeSectionAsync(
                         "LoadPflichtstundenSummaryAsync",
-                        () => LoadPflichtstundenSummaryAsync(mitgliedId.Value, DateTime.Today.Year),
+                        () => LoadPflichtstundenSummaryAsync(homeMitgliedId, DateTime.Today.Year),
                         (HomeWorkHoursSummary?)null);
 
                     workHoursSummary = loadedSummary;
@@ -1012,21 +1013,35 @@ namespace KGV.Infrastructure.Services
                 .ThenByDescending(x => x.Jahr)
                 .FirstOrDefault();
 
-            var response = await client
-                .From<PflichtstundenUebersichtRecord>()
-                .Where(x => x.MitgliedId == mitgliedId)
-                .Get();
+            PflichtstundenUebersichtRecord? record = null;
 
-            var record = response?.Models?
-                .OrderByDescending(x => x.SaisonId == currentSeason?.Id)
-                .ThenByDescending(GetPflichtstundenYear)
-                .FirstOrDefault(x => x.SaisonId == currentSeason?.Id)
-                ?? response?.Models?
-                    .OrderByDescending(GetPflichtstundenYear)
+            if (currentSeason != null)
+            {
+                var currentSeasonResponse = await client
+                    .From<PflichtstundenUebersichtRecord>()
+                    .Where(x => x.MitgliedId == mitgliedId)
+                    .Where(x => x.SaisonId == currentSeason.Id)
+                    .Get();
+
+                record = currentSeasonResponse?.Models?.FirstOrDefault();
+            }
+
+            if (record == null)
+            {
+                var yearResponse = await client
+                    .From<PflichtstundenUebersichtRecord>()
+                    .Where(x => x.MitgliedId == mitgliedId)
+                    .Get();
+
+                record = yearResponse?.Models?
+                    .OrderByDescending(x => x.SaisonId == currentSeason?.Id)
+                    .ThenByDescending(GetPflichtstundenYear)
                     .FirstOrDefault(x => GetPflichtstundenYear(x) == year)
-                ?? response?.Models?
-                    .OrderByDescending(GetPflichtstundenYear)
-                    .FirstOrDefault();
+                    ?? yearResponse?.Models?
+                        .OrderByDescending(x => x.SaisonId == currentSeason?.Id)
+                        .ThenByDescending(GetPflichtstundenYear)
+                        .FirstOrDefault();
+            }
 
             if (record == null)
                 return null;
@@ -1149,13 +1164,22 @@ namespace KGV.Infrastructure.Services
 
         private static HomeAnnouncementItem MapHomeAnnouncement(StartseiteBekanntmachungRecord record)
         {
-            var published = record.VeroeffentlichtAm ?? record.UpdatedAt;
+            var published = record.VeroeffentlichtAm ?? record.Datum ?? record.ErstelltAm ?? record.UpdatedAt;
             return new HomeAnnouncementItem
             {
-                Title = FirstNonEmpty(record.Titel, record.Thema) ?? "Bekanntmachung",
+                Title = FirstNonEmpty(record.Titel, record.Betreff, record.Thema) ?? "Bekanntmachung",
                 Subtitle = published.HasValue ? published.Value.ToString("dd.MM.yyyy") : string.Empty,
-                Content = NormalizeHomeText(FirstNonEmpty(record.Inhalt, record.Beschreibung))
+                Content = NormalizeHomeText(FirstNonEmpty(record.Inhalt, record.Text, record.InhaltHtml, record.Beschreibung, record.Kurztext))
             };
+        }
+
+        private async Task<int> ResolveHomeMitgliedIdAsync(int mitgliedId)
+        {
+            var member = await GetMitgliedByIdAsync(mitgliedId);
+            if (member?.HauptmitgliedId is > 0)
+                return member.HauptmitgliedId.Value;
+
+            return mitgliedId;
         }
 
         private static int GetPflichtstundenYear(PflichtstundenUebersichtRecord record)
