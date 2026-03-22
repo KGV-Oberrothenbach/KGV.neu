@@ -137,18 +137,26 @@ namespace KGV.ViewModels
             WeakReferenceMessenger.Default.Register<NebenmitgliedSelectedMessage>(this, (_, msg) =>
                 _ = OnNebenmitgliedSelectedAsync(msg.Context));
 
-            // Start: Admin/Vorstand mit Suche, User direkt in "Meine Daten"
-            if (UserContext.Has(PermissionFlags.CanSearchMembers))
+            _ = InitializeHomeStartAsync();
+        }
+
+        private async Task InitializeHomeStartAsync()
+        {
+            try
             {
-                _ = NavigateToAsync((BaseViewModel)_navigationService.CreateViewModel(typeof(MemberSearchViewModel), this)!);
+                if (!UserContext.Has(PermissionFlags.CanSearchMembers))
+                    await LoadCurrentMemberContextAsync();
+
+                var created = _navigationService.CreateViewModel(typeof(HomeViewModel), this);
+                if (created is BaseViewModel vm)
+                    await NavigateToAsync(vm);
             }
-            else
+            catch
             {
-                _ = InitializeMyDataAsync();
             }
         }
 
-        private async Task InitializeMyDataAsync()
+        private async Task LoadCurrentMemberContextAsync()
         {
             try
             {
@@ -170,10 +178,6 @@ namespace KGV.ViewModels
 
                 var dto = MapToDTO(rec);
                 SelectedMember = dto.Clone();
-
-                var created = _navigationService.CreateViewModel(typeof(MemberDetailViewModel), this, SelectedMember);
-                if (created is BaseViewModel vm)
-                    await NavigateToAsync(vm);
             }
             catch
             {

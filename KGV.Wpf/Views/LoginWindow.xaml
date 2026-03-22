@@ -3,8 +3,32 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:KGV.Helpers"
         xmlns:vm="clr-namespace:KGV.ViewModels"
-        Title="Login" Width="420" SizeToContent="Height" MinHeight="360"
+        Title="Login" Width="460" SizeToContent="Height" MinHeight="360"
         KeyDown="Window_KeyDown">
+
+    <Window.Resources>
+        <Style x:Key="LoginActionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinHeight" Value="42" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style x:Key="LoginPrimaryButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="MinHeight" Value="42" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style x:Key="PasswordAssistButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinWidth" Value="92" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource KgvBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+    </Window.Resources>
 
     <Grid Margin="20">
         <StackPanel>
@@ -70,8 +94,7 @@
                 </Border>
 
                 <Button Content="Neues Passwort setzen"
-                        Height="30"
-                        Style="{StaticResource PrimaryButton}"
+                        Style="{StaticResource LoginPrimaryButton}"
                         Command="{Binding SetPasswordCommand}" />
             </StackPanel>
 

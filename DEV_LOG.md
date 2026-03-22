@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-22 – WPF-Hotfixblock: Login-Lesbarkeit, Home-Start und Home-Zielzustand auf belastbaren Stand gebracht
+
+- Den aktuellen WPF-Istzustand für Login, Startnavigation und Home erneut gegen den aktiven Produktstand geprüft: konkret auffällig waren schlecht lesbare Login-Aktionsbuttons, ein zu kleiner Passwort-Zusatzbutton, der Start auf `Mitgliedersuche` statt `Startseite` sowie eine Home-Ansicht, deren bisheriger Aufbau nicht dem gewünschten Zielzustand entsprach.
+- Lesbarkeit und Bedienbarkeit im WPF-Login gezielt korrigiert: die Aktionsbuttons verwenden jetzt einen größeren, lesbaren Login-spezifischen Zuschnitt mit sauberer Umbruchdarstellung; zusätzlich wurde der Passwort-Zusatzbutton rechts im Passwortbereich von einem zu kleinen Overlay auf einen klar bedienbaren `Anzeigen`-Button mit eigenem Platz umgestellt.
+- WPF-Startpfad nach Login auf die `Startseite` zurückgeführt: `MainWindowViewModel` lädt für den Eigenkontext weiter den nötigen Mitgliedskontext vor, navigiert danach aber standardmäßig nach `Home` statt direkt in die `Mitgliedersuche` bzw. `Meine Daten`.
+- WPF-Home fachlich auf einen belastbaren Zielaufbau umgebaut: oben steht jetzt ein klarer Bereich `Meine Arbeitsstunden` für das aktuelle Kalenderjahr mit belastbar ableitbaren Werten für freigegebene und noch offene Stunden; `Sollstunden` bleibt bewusst ehrlich als derzeit nicht belastbar verfügbar gekennzeichnet, weil im aktiven Stand kein belastbarer Sollstundenpfad vorhanden ist.
+- Darunter die gewünschte Dreiteilung fachlich sauber auf den aktiven Stand gezogen: `Arbeitseinsätze`, `Termine` und `Bekanntmachungen` erscheinen jetzt als klare Spaltenbereiche; für `Bekanntmachungen` bleibt die vorhandene Listen-/Detaillogik aktiv und wurde um einen `Schließen`-Button ergänzt.
+- Weiterhin bewusst nicht erfunden: für `Arbeitseinsätze`, sonstige `Termine` und belastbare `Bekanntmachungs`-Verwaltung existieren im aktiven Workspace weiterhin keine tragfähigen WPF-Service-/View-Pfade; deshalb zeigt Home dort ehrliche Empty-/Admin-Hinweise statt neuer Schattenarchitektur oder Fake-Formulare.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem Hotfixblock weiterhin erfolgreich; die aktive MAUI-Basis wurde zur Konsistenz ebenfalls mitgeprüft und bleibt buildfähig.
+
 ## 2026-03-22 – Block 6 Prompt 3: Gemeinsamen UserRoles-Kern als letzten Prüfpfad abgesichert
 
 - Den Istzustand von `KGV.Tests` und den aktiven Produktpfaden erneut geprüft: vorhanden waren bereits Filter-, Export- und Home-Kern-Tests; weiterhin ungetestet blieb aber der kleine gemeinsame Rollen-Kern `UserRoles`, der inzwischen in WPF, MAUI, Home-Logik und Benutzerverwaltung zentral mitverwendet wird.

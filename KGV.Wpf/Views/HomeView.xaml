@@ -3,91 +3,121 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid Margin="24">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Margin="0,0,0,16">
             <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,8" />
             <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,8" />
-            <Border Padding="12" Background="{StaticResource KgvSurfaceBrush}">
+            <Border Padding="12" Background="{StaticResource KgvSurfaceBrush}" CornerRadius="12">
                 <TextBlock Text="{Binding UserContextText}" TextWrapping="Wrap" />
             </Border>
         </StackPanel>
 
-        <Grid Grid.Row="2">
+        <StackPanel Grid.Row="1" Margin="0,0,0,16">
+            <TextBlock Text="{Binding QuickLinksTitle}" FontWeight="SemiBold" Margin="0,0,0,8" />
+            <ItemsControl ItemsSource="{Binding QuickLinks}" Visibility="{Binding HasQuickLinks, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Command="{Binding DataContext.OpenModuleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                Margin="0,0,8,8"
+                                MinWidth="180"
+                                HorizontalContentAlignment="Left">
+                            <StackPanel>
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontSize="11" Foreground="Gray" />
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Foreground="DarkSlateBlue" />
+        </StackPanel>
+
+        <Border Grid.Row="2"
+                Margin="0,0,0,16"
+                Padding="18"
+                Background="{StaticResource KgvSurfaceBrush}"
+                BorderBrush="{StaticResource KgvBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="16">
+            <StackPanel>
+                <TextBlock Text="{Binding WorkHoursHeader}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12" />
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Margin="0,0,12,0" Padding="12" Background="{StaticResource KgvBackgroundBrush}" CornerRadius="12">
+                        <StackPanel>
+                            <TextBlock Text="Sollstunden" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding RequiredHoursValue}" FontSize="22" FontWeight="SemiBold" Margin="0,8,0,4" />
+                            <TextBlock Text="{Binding RequiredHoursHint}" TextWrapping="Wrap" Foreground="Gray" FontSize="11" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1" Margin="0,0,12,0" Padding="12" Background="{StaticResource KgvBackgroundBrush}" CornerRadius="12">
+                        <StackPanel>
+                            <TextBlock Text="Geleistete Stunden" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding WorkedHoursValue}" FontSize="22" FontWeight="SemiBold" Margin="0,8,0,4" />
+                            <TextBlock Text="{Binding WorkedHoursHint}" TextWrapping="Wrap" Foreground="Gray" FontSize="11" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="2" Padding="12" Background="{StaticResource KgvBackgroundBrush}" CornerRadius="12">
+                        <StackPanel>
+                            <TextBlock Text="Offene Stunden" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding OpenHoursValue}" FontSize="22" FontWeight="SemiBold" Margin="0,8,0,4" />
+                            <TextBlock Text="{Binding OpenHoursHint}" TextWrapping="Wrap" Foreground="Gray" FontSize="11" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <TextBlock Text="{Binding WorkHoursInfoText}" TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1.1*" />
-                <ColumnDefinition Width="1.1*" />
-                <ColumnDefinition Width="1.4*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="1.15*" />
             </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0">
-                <TextBlock Text="{Binding QuickLinksTitle}" FontWeight="SemiBold" Margin="0,0,0,12" />
-
-                <ItemsControl ItemsSource="{Binding QuickLinks}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Button Command="{Binding DataContext.OpenModuleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    CommandParameter="{Binding}"
-                                    Margin="0,0,0,8"
-                                    MinHeight="52"
-                                    HorizontalContentAlignment="Left">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
-                                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontSize="11" Foreground="Gray"/>
-                                </StackPanel>
-                            </Button>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Foreground="DarkSlateBlue"/>
-            </StackPanel>
-
-            <Border Grid.Column="1"
-                    Margin="24,0,0,0"
-                    Padding="16"
-                    Background="{StaticResource KgvSurfaceBrush}"
-                    BorderBrush="{StaticResource KgvBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="12">
+            <GroupBox Grid.Column="0" Header="Arbeitseinsätze" Margin="0,0,12,0">
                 <StackPanel>
-                    <TextBlock Text="{Binding OperationalTitle}" FontWeight="SemiBold" Margin="0,0,0,12" />
-
-                    <ItemsControl ItemsSource="{Binding OperationalItems}"
-                                  Visibility="{Binding HasOperationalItems, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Margin="0,0,0,8"
-                                        Padding="12"
-                                        Background="{StaticResource KgvBackgroundBrush}"
-                                        BorderBrush="{StaticResource KgvBorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="10">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                        <TextBlock Text="{Binding Message}" TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-
-                    <TextBlock Text="{Binding OperationalEmptyText}"
+                    <TextBlock Text="{Binding WorkAssignmentsEmptyText}" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding WorkAssignmentsAdminHint}"
+                               Margin="0,10,0,0"
+                               Foreground="DarkSlateBlue"
                                TextWrapping="Wrap"
-                               Visibility="{Binding ShowOperationalEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                               Visibility="{Binding IsAdminContext, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 </StackPanel>
-            </Border>
+            </GroupBox>
 
-            <Border Grid.Column="2"
-                    Margin="24,0,0,0"
-                    Padding="16"
-                    Background="{StaticResource KgvSurfaceBrush}"
-                    BorderBrush="{StaticResource KgvBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="12">
+            <GroupBox Grid.Column="1" Header="Termine" Margin="0,0,12,0">
+                <StackPanel>
+                    <TextBlock Text="{Binding AppointmentsEmptyText}" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding AppointmentsAdminHint}"
+                               Margin="0,10,0,0"
+                               Foreground="DarkSlateBlue"
+                               TextWrapping="Wrap"
+                               Visibility="{Binding IsAdminContext, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Grid.Column="2" Header="Bekanntmachungen">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="180" />
@@ -95,38 +125,51 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel>
-                        <TextBlock Text="{Binding AnnouncementTitle}" FontWeight="SemiBold" Margin="0,0,0,12" />
                         <ListBox ItemsSource="{Binding Announcements}"
                                  SelectedItem="{Binding SelectedAnnouncement, Mode=TwoWay}"
                                  DisplayMemberPath="Title"
                                  Visibility="{Binding HasAnnouncements, Converter={StaticResource BooleanToVisibilityConverter}}"
                                  BorderThickness="0"
-                                 MinHeight="80" />
+                                 MinHeight="120" />
+
                         <TextBlock Text="{Binding AnnouncementEmptyText}"
                                    TextWrapping="Wrap"
-                                   Visibility="{Binding ShowAnnouncementEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                   Visibility="{Binding ShowAnnouncementEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                        <TextBlock Text="{Binding AnnouncementsAdminHint}"
+                                   Margin="0,10,0,0"
+                                   Foreground="DarkSlateBlue"
+                                   TextWrapping="Wrap"
+                                   Visibility="{Binding IsAdminContext, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     </StackPanel>
 
-                    <StackPanel Grid.Column="1"
-                                Margin="16,0,0,0"
-                                Visibility="{Binding HasAnnouncements, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <TextBlock Text="Detail" FontWeight="SemiBold" Margin="0,0,0,8" />
+                    <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                        <DockPanel LastChildFill="False"
+                                   Visibility="{Binding ShowAnnouncementDetail, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="Detail" FontWeight="SemiBold" DockPanel.Dock="Left" Margin="0,0,8,8" />
+                            <Button Content="Schließen"
+                                    DockPanel.Dock="Right"
+                                    Padding="10,4"
+                                    Command="{Binding CloseAnnouncementCommand}" />
+                        </DockPanel>
 
                         <TextBlock Text="{Binding SelectedAnnouncement.Title}"
                                    FontWeight="SemiBold"
                                    FontSize="16"
-                                   Visibility="{Binding HasSelectedAnnouncement, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                   Visibility="{Binding ShowAnnouncementDetail, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
                         <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                      Visibility="{Binding HasSelectedAnnouncement, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Text="{Binding SelectedAnnouncement.Content}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                                      Margin="0,8,0,0"
+                                      Visibility="{Binding ShowAnnouncementDetail, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="{Binding SelectedAnnouncement.Content}" TextWrapping="Wrap" />
                         </ScrollViewer>
 
                         <TextBlock Text="{Binding AnnouncementHintText}"
                                    TextWrapping="Wrap"
-                                   Visibility="{Binding ShowAnnouncementHint, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                   Visibility="{Binding ShowAnnouncementHint, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     </StackPanel>
                 </Grid>
-            </Border>
+            </GroupBox>
         </Grid>
     </Grid>
 </UserControl>
