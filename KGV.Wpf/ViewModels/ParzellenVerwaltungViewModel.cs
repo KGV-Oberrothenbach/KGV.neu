@@ -14,6 +14,8 @@ namespace KGV.ViewModels
         private readonly MainWindowViewModel _mainVm;
         private ParzelleVerwaltungItem? _selectedItem;
         private ParzelleDetailDTO? _selectedDetail;
+        private MemberDTO? _selectedAssignMember;
+        private DateTime? _assignVonDatum = DateTime.Today;
         private string _statusMessage = string.Empty;
         private bool _isBusy;
 
@@ -22,6 +24,7 @@ namespace KGV.ViewModels
         public string DetailHint => "Separate Wasser-/Strom-Anschlussflags liegen aktuell nicht als eigenes Feld vor. Sichtbar ist deshalb der belastbare Status aus vorhandenen Zählern, Ablesungen und Dokumentpfaden.";
 
         public ObservableCollection<ParzelleVerwaltungItem> Items { get; } = new();
+        public ObservableCollection<MemberDTO> AssignableMembers { get; } = new();
 
         public ParzelleVerwaltungItem? SelectedItem
         {
@@ -50,15 +53,43 @@ namespace KGV.ViewModels
 
                 OnPropertyChanged(nameof(HasSelectedDetail));
                 OnPropertyChanged(nameof(ShowSelectionHint));
+                OnPropertyChanged(nameof(CanManageAssignment));
                 OpenMemberCommand.NotifyCanExecuteChanged();
                 OpenDokumenteCommand.NotifyCanExecuteChanged();
                 OpenStromCommand.NotifyCanExecuteChanged();
                 OpenWasserCommand.NotifyCanExecuteChanged();
+                AssignCommand.NotifyCanExecuteChanged();
+                EndAssignmentCommand.NotifyCanExecuteChanged();
             }
         }
 
         public bool HasSelectedDetail => SelectedDetail != null;
         public bool ShowSelectionHint => !HasSelectedDetail;
+        public bool CanManageAssignment => HasSelectedDetail;
+
+        public MemberDTO? SelectedAssignMember
+        {
+            get => _selectedAssignMember;
+            set
+            {
+                if (!SetProperty(ref _selectedAssignMember, value))
+                    return;
+
+                AssignCommand.NotifyCanExecuteChanged();
+            }
+        }
+
+        public DateTime? AssignVonDatum
+        {
+            get => _assignVonDatum;
+            set
+            {
+                if (!SetProperty(ref _assignVonDatum, value?.Date))
+                    return;
+
+                AssignCommand.NotifyCanExecuteChanged();
+            }
+        }
 
         public string StatusMessage
         {
@@ -79,6 +110,8 @@ namespace KGV.ViewModels
                 OpenDokumenteCommand.NotifyCanExecuteChanged();
                 OpenStromCommand.NotifyCanExecuteChanged();
                 OpenWasserCommand.NotifyCanExecuteChanged();
+                AssignCommand.NotifyCanExecuteChanged();
+                EndAssignmentCommand.NotifyCanExecuteChanged();
             }
         }
 
@@ -87,6 +120,8 @@ namespace KGV.ViewModels
         public IAsyncRelayCommand OpenDokumenteCommand { get; }
         public IAsyncRelayCommand OpenStromCommand { get; }
         public IAsyncRelayCommand OpenWasserCommand { get; }
+        public IAsyncRelayCommand AssignCommand { get; }
+        public IAsyncRelayCommand EndAssignmentCommand { get; }
 
         public ParzellenVerwaltungViewModel(ISupabaseService supabaseService, MainWindowViewModel mainVm)
         {
@@ -98,6 +133,8 @@ namespace KGV.ViewModels
             OpenDokumenteCommand = new AsyncRelayCommand(OpenDokumenteAsync, () => !IsBusy && SelectedItem != null);
             OpenStromCommand = new AsyncRelayCommand(OpenStromAsync, () => !IsBusy && SelectedItem != null);
             OpenWasserCommand = new AsyncRelayCommand(OpenWasserAsync, () => !IsBusy && SelectedItem != null);
+            AssignCommand = new AsyncRelayCommand(AssignAsync, CanAssign);
+            EndAssignmentCommand = new AsyncRelayCommand(EndAssignmentAsync, CanEndAssignment);
         }
 
         public async Task OnNavigatedToAsync()
@@ -119,6 +156,14 @@ namespace KGV.ViewModels
                 var mitglieder = await _supabaseService.GetMitgliederAsync();
 
                 var mitgliederById = mitglieder.ToDictionary(x => x.Id, x => x);
+                AssignableMembers.Clear();
+                foreach (var member in mitglieder
+                             .Where(x => x.Aktiv)
+                             .OrderBy(x => FormatMemberName(x), StringComparer.CurrentCultureIgnoreCase))
+                {
+                    AssignableMembers.Add(ToMemberDto(member));
+                }
+
                 var today = DateTime.Today;
                 var currentByParzelle = belegungen
                     .GroupBy(x => x.ParzelleId)
@@ -130,6 +175,8 @@ namespace KGV.ViewModels
 
                 Items.Clear();
                 SelectedDetail = null;
+                SelectedAssignMember = null;
+                AssignVonDatum = DateTime.Today;
 
                 foreach (var parzelle in parzellen
                              .OrderBy(x => GetGartenNrSortKey(x.GartenNr))
@@ -222,6 +269,62 @@ namespace KGV.ViewModels
                 return;
 
             SelectedDetail = detail;
+            OnPropertyChanged(nameof(CanManageAssignment));
+            AssignCommand.NotifyCanExecuteChanged();
+            EndAssignmentCommand.NotifyCanExecuteChanged();
+        }
+
+        private bool CanAssign()
+        {
+            return !IsBusy
+                && SelectedItem != null
+                && SelectedAssignMember != null
+                && AssignVonDatum.HasValue;
+        }
+
+        private async Task AssignAsync()
+        {
+            if (SelectedItem == null || SelectedAssignMember == null || !AssignVonDatum.HasValue)
+                return;
+
+            var parzelleId = SelectedItem.ParzelleId;
+
+            var ok = await _supabaseService.AssignParzelleToMitgliedAsync(SelectedAssignMember.Id, parzelleId, AssignVonDatum.Value);
+            if (!ok)
+            {
+                StatusMessage = "Parzelle konnte nicht zugeordnet werden. Möglicherweise ist sie zum gewählten Datum bereits belegt.";
+                return;
+            }
+
+            StatusMessage = "Parzelle erfolgreich zugeordnet.";
+            await LoadAsync();
+            SelectedItem = Items.FirstOrDefault(x => x.ParzelleId == parzelleId);
+        }
+
+        private bool CanEndAssignment()
+        {
+            return !IsBusy
+                && SelectedDetail?.BelegungId is > 0
+                && SelectedDetail.BisDatum == null;
+        }
+
+        private async Task EndAssignmentAsync()
+        {
+            if (SelectedItem == null || SelectedDetail?.BelegungId is not > 0)
+                return;
+
+            var parzelleId = SelectedItem.ParzelleId;
+
+            var ok = await _supabaseService.EndParzellenBelegungAsync(SelectedDetail.BelegungId.Value, DateTime.Today);
+            if (!ok)
+            {
+                StatusMessage = "Aktive Belegung konnte nicht beendet werden.";
+                return;
+            }
+
+            StatusMessage = "Aktive Belegung beendet.";
+            await LoadAsync();
+            SelectedItem = Items.FirstOrDefault(x => x.ParzelleId == parzelleId);
         }
 
         private ParzellenBelegungDTO? CreateParzellenContext()

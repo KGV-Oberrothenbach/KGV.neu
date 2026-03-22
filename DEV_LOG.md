@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-03-22 – Block 3/3 Prompt 2: Parzellen-Aktionen und MemberDetail-Sichtbarkeit nachgezogen
+
+- Offene Parzellen-Verwaltungswege gezielt geprüft: zentrale Detailansicht aus Prompt 1 war vorhanden, aber die Servicepfade für Zuordnung und Beendigungen waren im aktiven `SupabaseService` noch nicht umgesetzt und MAUI bot dafür noch keinen echten Arbeitsweg.
+- Parzellen-Belegungsaktionen auf den bestehenden Pfad zurückgeführt statt neue Architektur aufzubauen: `AssignParzelleToMitgliedAsync` und `EndParzellenBelegungAsync` im `SupabaseService` implementiert; dabei werden Überschneidungen gegen den gewählten Starttag geprüft und Beendigungen direkt auf dem aktiven Belegungsdatensatz aktualisiert.
+- Zentrale WPF-Parzellenansicht um direkte Verwaltungsaktionen ergänzt: Mitglied zuordnen, Startdatum wählen und aktive Belegung beenden jetzt direkt in der Detailansicht; bestehende Fachanschlüsse zu Mitglied, Strom, Wasser und Dokumenten bleiben erhalten.
+- MAUI-Adminansicht `ParzellenPage` parallel nachgezogen: mobile Parzellenübersicht bietet jetzt ebenfalls direkte Zuordnung und Beendigung über denselben gemeinsamen Servicepfad, damit die zentrale mobile Parzellenansicht keine reine Sackgasse bleibt.
+- Das alte Sichtbarkeitsproblem der `MemberDetailView` an der Ursache geprüft und global behoben: das `GroupBox`-Template in `Themes/Controls.xaml` rendert Header und Inhalt jetzt in getrennten Zeilen statt überlagernd, sodass Eingabefelder nicht mehr unter farbigen Header-/Bereichselementen verschwinden.
+- Abschluss technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem Teilblock weiterhin erfolgreich; bekannte bestehende Warnungen der rekonstruierten Basis wurden nicht als neuer Nebenblock aufgemacht.
+
 ## 2026-03-22 – Block 3/3 Prompt 1 Abschluss: Parzellen-Stammdaten technisch verifiziert und abgeschlossen
 
 - Den bereits umgesetzten Stand von `ParzelleDetailDTO`, `GetParzelleDetailAsync`, der erweiterten WPF-Parzellenansicht und der neuen MAUI-`ParzellenPage` gezielt nur auf technische Konsistenz und Abschlussfähigkeit geprüft.

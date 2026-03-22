@@ -16,6 +16,8 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     private readonly ISupabaseService _supabaseService;
     private ParzelleVerwaltungItem? _selectedItem;
     private ParzelleDetailDTO? _selectedDetail;
+    private MemberDTO? _selectedAssignMember;
+    private DateTime _assignVonDatum = DateTime.Today;
     private string _statusMessage = string.Empty;
     private bool _isBusy;
 
@@ -27,6 +29,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ObservableCollection<ParzelleVerwaltungItem> Items { get; } = new();
+    public ObservableCollection<MemberDTO> AssignableMembers { get; } = new();
 
     public string Title => "Parzellen";
     public string Description => "Zentrale Parzellenübersicht mit Stammdaten, Belegung, Wasser/Strom und Dokumentbezug.";
@@ -58,11 +61,44 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasSelectedDetail));
             OnPropertyChanged(nameof(ShowSelectionHint));
+            OnPropertyChanged(nameof(CanManageAssignment));
+            OnPropertyChanged(nameof(CanAssign));
+            OnPropertyChanged(nameof(CanEndAssignment));
         }
     }
 
     public bool HasSelectedDetail => SelectedDetail != null;
     public bool ShowSelectionHint => !HasSelectedDetail;
+    public bool CanManageAssignment => HasSelectedDetail && !IsBusy;
+    public bool CanAssign => CanManageAssignment && SelectedAssignMember != null;
+    public bool CanEndAssignment => CanManageAssignment && SelectedDetail?.BelegungId is > 0 && SelectedDetail.BisDatum == null;
+
+    public MemberDTO? SelectedAssignMember
+    {
+        get => _selectedAssignMember;
+        set
+        {
+            if (_selectedAssignMember == value)
+                return;
+
+            _selectedAssignMember = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanAssign));
+        }
+    }
+
+    public DateTime AssignVonDatum
+    {
+        get => _assignVonDatum;
+        set
+        {
+            if (_assignVonDatum == value.Date)
+                return;
+
+            _assignVonDatum = value.Date;
+            OnPropertyChanged();
+        }
+    }
 
     public string StatusMessage
     {
@@ -90,6 +126,9 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
 
             _isBusy = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(CanManageAssignment));
+            OnPropertyChanged(nameof(CanAssign));
+            OnPropertyChanged(nameof(CanEndAssignment));
         }
     }
 
@@ -98,7 +137,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         if (Items.Count > 0)
             return;
 
-        await LoadAsync();
+        await LoadAsync(resetItems: true);
     }
 
     public async Task RefreshAsync()
@@ -106,7 +145,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         Items.Clear();
         SelectedItem = null;
         SelectedDetail = null;
-        await LoadAsync();
+        await LoadAsync(resetItems: true);
     }
 
     public async Task OpenDocumentAsync(DocumentInfo? document)
@@ -124,18 +163,68 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         await Launcher.Default.OpenAsync(url);
     }
 
-    private async Task LoadAsync()
+    public async Task<bool> AssignAsync()
+    {
+        if (SelectedItem == null || SelectedAssignMember == null)
+            return false;
+
+        var parzelleId = SelectedItem.ParzelleId;
+        var ok = await _supabaseService.AssignParzelleToMitgliedAsync(SelectedAssignMember.Id, parzelleId, AssignVonDatum);
+        StatusMessage = ok
+            ? "Parzelle erfolgreich zugeordnet."
+            : "Parzelle konnte nicht zugeordnet werden. Möglicherweise ist sie zum gewählten Datum bereits belegt.";
+
+        if (!ok)
+            return false;
+
+        await LoadAsync(resetItems: true);
+        SelectedItem = Items.FirstOrDefault(x => x.ParzelleId == parzelleId);
+        return true;
+    }
+
+    public async Task<bool> EndAssignmentAsync()
+    {
+        if (SelectedItem == null || SelectedDetail?.BelegungId is not > 0)
+            return false;
+
+        var parzelleId = SelectedItem.ParzelleId;
+        var ok = await _supabaseService.EndParzellenBelegungAsync(SelectedDetail.BelegungId.Value, DateTime.Today);
+        StatusMessage = ok ? "Aktive Belegung beendet." : "Aktive Belegung konnte nicht beendet werden.";
+
+        if (!ok)
+            return false;
+
+        await LoadAsync(resetItems: true);
+        SelectedItem = Items.FirstOrDefault(x => x.ParzelleId == parzelleId);
+        return true;
+    }
+
+    private async Task LoadAsync(bool resetItems = false)
     {
         try
         {
             IsBusy = true;
             StatusMessage = string.Empty;
 
+            if (resetItems)
+            {
+                Items.Clear();
+                AssignableMembers.Clear();
+                SelectedAssignMember = null;
+            }
+
             var parzellen = await _supabaseService.GetAllParzellenAsync();
             var belegungen = await _supabaseService.GetAllParzellenBelegungenAsync();
             var mitglieder = await _supabaseService.GetMitgliederAsync();
 
             var mitgliederById = mitglieder.ToDictionary(x => x.Id, x => x);
+            foreach (var member in mitglieder
+                         .Where(x => x.Aktiv)
+                         .OrderBy(x => FormatMemberName(x), StringComparer.CurrentCultureIgnoreCase))
+            {
+                AssignableMembers.Add(ToMemberDto(member));
+            }
+
             var today = DateTime.Today;
             var currentByParzelle = belegungen
                 .GroupBy(x => x.ParzelleId)
@@ -216,6 +305,19 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
 
         var name = $"{member.Vorname} {member.Name}".Trim();
         return string.IsNullOrWhiteSpace(name) ? (member.Email ?? string.Empty) : name;
+    }
+
+    private static MemberDTO ToMemberDto(MitgliedRecord record)
+    {
+        return new MemberDTO
+        {
+            Id = record.Id,
+            Vorname = record.Vorname ?? string.Empty,
+            Nachname = record.Name ?? string.Empty,
+            Email = record.Email ?? string.Empty,
+            Role = record.Role ?? string.Empty,
+            MitgliedEnde = record.MitgliedEnde
+        };
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

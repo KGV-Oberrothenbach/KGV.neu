@@ -7,6 +7,7 @@ namespace KGV.Core.Models
     public sealed class ParzelleDetailDTO
     {
         public int ParzelleId { get; set; }
+        public int? BelegungId { get; set; }
         public string GartenNr { get; set; } = string.Empty;
         public string Anlage { get; set; } = string.Empty;
         public bool IstVergeben { get; set; }

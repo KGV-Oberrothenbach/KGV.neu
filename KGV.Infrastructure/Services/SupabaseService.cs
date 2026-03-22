@@ -168,6 +168,7 @@ namespace KGV.Infrastructure.Services
                 return new ParzelleDetailDTO
                 {
                     ParzelleId = parzelle.Id,
+                    BelegungId = belegung?.Id,
                     GartenNr = parzelle.GartenNr,
                     Anlage = parzelle.Anlage,
                     IstVergeben = belegung != null,
@@ -234,8 +235,62 @@ namespace KGV.Infrastructure.Services
                     ?? new List<ParzellenBelegungRecord>();
             },
             new List<ParzellenBelegungRecord>());
-        public Task<bool> AssignParzelleToMitgliedAsync(int mitgliedId, int parzelleId, DateTime startDatum) => Unavailable<bool>();
-        public Task<bool> EndParzellenBelegungAsync(int belegungId, DateTime bisDatum) => Unavailable<bool>();
+        public Task<bool> AssignParzelleToMitgliedAsync(int mitgliedId, int parzelleId, DateTime startDatum) => ExecuteAsync(
+            "AssignParzelleToMitgliedAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var normalizedStart = NormalizeDate(startDatum) ?? startDatum.Date;
+
+                var response = await client
+                    .From<ParzellenBelegungRecord>()
+                    .Where(x => x.ParzelleId == parzelleId)
+                    .Get();
+
+                var existing = response?.Models ?? new List<ParzellenBelegungRecord>();
+                if (existing.Any(x => IsBelegungActiveOn(x, normalizedStart)))
+                    return false;
+
+                await client.From<ParzellenBelegungInsertRecord>().Insert(new ParzellenBelegungInsertRecord
+                {
+                    ParzelleId = parzelleId,
+                    MitgliedId = mitgliedId,
+                    VonDatum = normalizedStart,
+                    BisDatum = null
+                });
+
+                return true;
+            },
+            false);
+
+        public Task<bool> EndParzellenBelegungAsync(int belegungId, DateTime bisDatum) => ExecuteAsync(
+            "EndParzellenBelegungAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<ParzellenBelegungRecord>()
+                    .Where(x => x.Id == belegungId)
+                    .Get();
+
+                var existing = response?.Models?.FirstOrDefault();
+                if (existing == null)
+                    return false;
+
+                var normalizedEnd = NormalizeDate(bisDatum) ?? bisDatum.Date;
+                var normalizedStart = existing.VonDatum?.Date ?? DateTime.MinValue;
+                if (normalizedEnd.Date < normalizedStart)
+                    return false;
+
+                await client
+                    .From<ParzellenBelegungRecord>()
+                    .Where(x => x.Id == belegungId)
+                    .Set(x => x.BisDatum, normalizedEnd)
+                    .Update();
+
+                return true;
+            },
+            false);
         public Task<List<ZaehlerAblesungDTO>> GetStromAblesungenAsync(int parzelleId) => ExecuteAsync(
             "GetStromAblesungenAsync",
             async () =>

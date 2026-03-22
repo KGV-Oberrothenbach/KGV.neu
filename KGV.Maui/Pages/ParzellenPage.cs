@@ -103,6 +103,51 @@ public sealed class ParzellenPage : ContentPage
 
         detailContainer.Children.Add(CreateSection("Dokumente", documentsLabel, documentsView));
 
+        var assignPicker = new Picker { Title = "Mitglied auswählen" };
+        assignPicker.SetBinding(Picker.ItemsSourceProperty, nameof(ParzellenViewModel.AssignableMembers));
+        assignPicker.SetBinding(Picker.SelectedItemProperty, nameof(ParzellenViewModel.SelectedAssignMember), BindingMode.TwoWay);
+        assignPicker.ItemDisplayBinding = new Binding(nameof(MemberDTO.DisplayName));
+        assignPicker.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanManageAssignment));
+
+        var assignDatePicker = new DatePicker();
+        assignDatePicker.SetBinding(DatePicker.DateProperty, nameof(ParzellenViewModel.AssignVonDatum), BindingMode.TwoWay);
+        assignDatePicker.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanManageAssignment));
+
+        var assignButton = new Button { Text = "Zuordnen" };
+        assignButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanAssign));
+        assignButton.Clicked += async (_, _) =>
+        {
+            var ok = await _viewModel.AssignAsync();
+            if (ok)
+                await DisplayAlert("OK", "Parzelle erfolgreich zugeordnet.", "OK");
+        };
+
+        var endButton = new Button { Text = "Aktive Belegung beenden" };
+        endButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanEndAssignment));
+        endButton.Clicked += async (_, _) =>
+        {
+            var ok = await _viewModel.EndAssignmentAsync();
+            if (ok)
+                await DisplayAlert("OK", "Aktive Belegung beendet.", "OK");
+        };
+
+        detailContainer.Children.Add(CreateSection("Verwaltung",
+            CreateValueLabel("Mitglied zuordnen", null),
+            assignPicker,
+            CreateValueLabel("Start", null),
+            assignDatePicker,
+            new HorizontalStackLayout
+            {
+                Spacing = 8,
+                Children = { assignButton, endButton }
+            },
+            new Label
+            {
+                Text = "Zuordnung und Beendigung laufen mobil über denselben Parzellen-Belegungspfad wie in WPF.",
+                TextColor = Colors.Gray,
+                LineBreakMode = LineBreakMode.WordWrap
+            }));
+
         var statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
         statusLabel.SetBinding(Label.TextProperty, nameof(ParzellenViewModel.StatusMessage));
         statusLabel.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.HasStatusMessage));
@@ -161,7 +206,7 @@ public sealed class ParzellenPage : ContentPage
         return label;
     }
 
-    private View CreateValueLabel(string title, string path)
+    private View CreateValueLabel(string title, string? path)
     {
         return new VerticalStackLayout
         {
@@ -169,7 +214,7 @@ public sealed class ParzellenPage : ContentPage
             Children =
             {
                 new Label { Text = title, FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
-                CreateBoundLabel(path)
+                string.IsNullOrWhiteSpace(path) ? new Label() : CreateBoundLabel(path)
             }
         };
      }

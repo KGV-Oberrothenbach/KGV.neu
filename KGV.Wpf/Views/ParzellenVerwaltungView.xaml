@@ -113,6 +113,55 @@
                                     </ItemsControl>
                                 </StackPanel>
                             </GroupBox>
+
+                            <GroupBox Header="Verwaltung">
+                                <Grid Margin="10">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="2*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,12,8">
+                                        <TextBlock Text="Mitglied zuordnen" Margin="0,0,0,4"/>
+                                        <ComboBox ItemsSource="{Binding AssignableMembers}"
+                                                  SelectedItem="{Binding SelectedAssignMember, Mode=TwoWay}"
+                                                  DisplayMemberPath="DisplayName"
+                                                  IsEnabled="{Binding CanManageAssignment}"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,12,8">
+                                        <TextBlock Text="Start" Margin="0,0,0,4"/>
+                                        <DatePicker Width="140"
+                                                    SelectedDate="{Binding AssignVonDatum, UpdateSourceTrigger=PropertyChanged}"
+                                                    IsEnabled="{Binding CanManageAssignment}"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal">
+                                        <Button Content="Zuordnen"
+                                                Width="140"
+                                                Height="32"
+                                                Margin="0,0,8,0"
+                                                Style="{StaticResource PrimaryButton}"
+                                                Command="{Binding AssignCommand}"/>
+                                        <Button Content="Aktive Belegung beenden"
+                                                Width="200"
+                                                Height="32"
+                                                Command="{Binding EndAssignmentCommand}"/>
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3"
+                                               Margin="0,8,0,0"
+                                               Foreground="Gray"
+                                               TextWrapping="Wrap"
+                                               Text="Zuordnung und Beendigungen laufen direkt über denselben Parzellen-Belegungspfad wie in den bestehenden Fachansichten."/>
+                                </Grid>
+                            </GroupBox>
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
