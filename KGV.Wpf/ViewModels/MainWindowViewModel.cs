@@ -543,9 +543,19 @@ namespace KGV.ViewModels
             return _navigationService.CreateViewModel(typeof(ArbeitsstundenViewModel), this, member) as BaseViewModel;
         }
 
+        public BaseViewModel? NavigateToHomeViewModel()
+        {
+            return _navigationService.CreateViewModel(typeof(HomeViewModel), this) as BaseViewModel;
+        }
+
         public BaseViewModel? NavigateToArbeitsstundenViewModel(ArbeitsstundenNavigationContext context)
         {
             return _navigationService.CreateViewModel(typeof(ArbeitsstundenViewModel), this, context) as BaseViewModel;
+        }
+
+        public BaseViewModel? NavigateToHomeSectionDetailViewModel(HomeSectionDetailContext context)
+        {
+            return _navigationService.CreateViewModel(typeof(HomeSectionDetailViewModel), this, context) as BaseViewModel;
         }
 
         private async Task RefreshArbeitsstundenPruefungStatusAsync()

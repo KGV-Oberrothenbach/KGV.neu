@@ -5,7 +5,6 @@ using KGV.Helpers;
 using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace KGV.ViewModels
@@ -41,76 +40,34 @@ namespace KGV.ViewModels
         public string WorkAssignmentsAdminHint => "Eine Anmeldung oder Pflege ist auf Home nur dort verdrahtet, wo bereits ein belastbarer Produktpfad vorhanden ist.";
         public string AppointmentsTitle => "Termine";
         public string AppointmentsEmptyText => _overview.AppointmentsEmptyText;
-        public string AppointmentsAdminHint => "Die Detailansicht zeigt nur die Felder, die über die Startseiten-View belastbar vorliegen.";
-        public string AppointmentHintText => "Bitte einen Termin aus der Liste auswählen.";
+        public string AppointmentsAdminHint => "Details werden in einer eigenen Ansicht auf dem belastbaren Startseiten-Stand geöffnet.";
         public string AnnouncementTitle => _overview.AnnouncementTitle;
-        public string AnnouncementHintText => _overview.AnnouncementHintText;
         public string AnnouncementEmptyText => _overview.AnnouncementEmptyText;
         public string AnnouncementsAdminHint => "Die Home-Seite verwendet nur die vorhandene Startseiten-View für Bekanntmachungen.";
         public bool IsAdminContext => _mainVm.UserContext.Role is UserRole.Admin or UserRole.Vorstand;
         public bool HasWorkAssignments => WorkAssignments.Count > 0;
         public bool ShowWorkAssignmentsEmptyState => !HasWorkAssignments;
         public bool HasAppointments => Appointments.Count > 0;
-        public bool HasSelectedAppointment => SelectedAppointment != null;
-        public bool ShowAppointmentHint => HasAppointments && !HasSelectedAppointment;
         public bool ShowAppointmentEmptyState => !HasAppointments;
-        public bool ShowAppointmentDetail => HasSelectedAppointment;
         public bool HasAnnouncements => Announcements.Count > 0;
-        public bool HasSelectedAnnouncement => SelectedAnnouncement != null;
-        public bool ShowAnnouncementHint => HasAnnouncements && !HasSelectedAnnouncement;
         public bool ShowAnnouncementEmptyState => !HasAnnouncements;
-        public bool ShowAnnouncementDetail => HasSelectedAnnouncement;
 
         public ObservableCollection<HomeWorkAssignmentItem> WorkAssignments { get; } = new();
         public ObservableCollection<HomeAppointmentItem> Appointments { get; } = new();
         public ObservableCollection<HomeAnnouncementItem> Announcements { get; } = new();
 
         public RelayCommand<object?> OpenWorkedHoursCommand { get; }
-        public RelayCommand<object?> CloseAppointmentCommand { get; }
-        public RelayCommand<object?> CloseAnnouncementCommand { get; }
-
-        private HomeAppointmentItem? _selectedAppointment;
-        public HomeAppointmentItem? SelectedAppointment
-        {
-            get => _selectedAppointment;
-            set
-            {
-                if (_selectedAppointment == value)
-                    return;
-
-                _selectedAppointment = value;
-                OnPropertyChanged(nameof(SelectedAppointment));
-                OnPropertyChanged(nameof(HasSelectedAppointment));
-                OnPropertyChanged(nameof(ShowAppointmentHint));
-                OnPropertyChanged(nameof(ShowAppointmentDetail));
-                CloseAppointmentCommand.RaiseCanExecuteChanged();
-            }
-        }
-
-        private HomeAnnouncementItem? _selectedAnnouncement;
-        public HomeAnnouncementItem? SelectedAnnouncement
-        {
-            get => _selectedAnnouncement;
-            set
-            {
-                if (_selectedAnnouncement == value)
-                    return;
-
-                _selectedAnnouncement = value;
-                OnPropertyChanged(nameof(SelectedAnnouncement));
-                OnPropertyChanged(nameof(HasSelectedAnnouncement));
-                OnPropertyChanged(nameof(ShowAnnouncementHint));
-                OnPropertyChanged(nameof(ShowAnnouncementDetail));
-                CloseAnnouncementCommand.RaiseCanExecuteChanged();
-            }
-        }
+        public RelayCommand<HomeWorkAssignmentItem> OpenWorkAssignmentDetailCommand { get; }
+        public RelayCommand<HomeAppointmentItem> OpenAppointmentDetailCommand { get; }
+        public RelayCommand<HomeAnnouncementItem> OpenAnnouncementDetailCommand { get; }
 
         public HomeViewModel(MainWindowViewModel mainVm)
         {
             _mainVm = mainVm ?? throw new ArgumentNullException(nameof(mainVm));
             OpenWorkedHoursCommand = new RelayCommand<object?>(_ => _ = OpenWorkedHoursAsync(), _ => _mainVm.UserContext.MitgliedId is > 0);
-            CloseAppointmentCommand = new RelayCommand<object?>(_ => CloseAppointmentDetail(), _ => HasSelectedAppointment);
-            CloseAnnouncementCommand = new RelayCommand<object?>(_ => CloseAnnouncementDetail(), _ => HasSelectedAnnouncement);
+            OpenWorkAssignmentDetailCommand = new RelayCommand<HomeWorkAssignmentItem>(item => _ = OpenWorkAssignmentDetailAsync(item), item => item != null);
+            OpenAppointmentDetailCommand = new RelayCommand<HomeAppointmentItem>(item => _ = OpenAppointmentDetailAsync(item), item => item != null);
+            OpenAnnouncementDetailCommand = new RelayCommand<HomeAnnouncementItem>(item => _ = OpenAnnouncementDetailAsync(item), item => item != null);
         }
 
         public async Task OnNavigatedToAsync()
@@ -127,8 +84,6 @@ namespace KGV.ViewModels
             FillCollection(WorkAssignments, _overview.WorkAssignments);
             FillCollection(Appointments, _overview.Appointments);
             FillCollection(Announcements, _overview.Announcements);
-            SelectedAppointment = null;
-            SelectedAnnouncement = null;
 
             OnPropertyChanged(nameof(Description));
             OnPropertyChanged(nameof(WorkHoursHeader));
@@ -146,19 +101,9 @@ namespace KGV.ViewModels
             OnPropertyChanged(nameof(HasWorkAssignments));
             OnPropertyChanged(nameof(ShowWorkAssignmentsEmptyState));
             OnPropertyChanged(nameof(HasAppointments));
-            OnPropertyChanged(nameof(ShowAppointmentHint));
             OnPropertyChanged(nameof(ShowAppointmentEmptyState));
-            OnPropertyChanged(nameof(ShowAppointmentDetail));
             OnPropertyChanged(nameof(HasAnnouncements));
-            OnPropertyChanged(nameof(ShowAnnouncementHint));
             OnPropertyChanged(nameof(ShowAnnouncementEmptyState));
-            OnPropertyChanged(nameof(ShowAnnouncementDetail));
-        }
-
-        private void CloseAppointmentDetail()
-        {
-            SelectedAppointment = null;
-            CloseAppointmentCommand.RaiseCanExecuteChanged();
         }
 
         private async Task OpenWorkedHoursAsync()
@@ -172,10 +117,56 @@ namespace KGV.ViewModels
                 await _mainVm.NavigateToAsync(created);
         }
 
-        private void CloseAnnouncementDetail()
+        private async Task OpenWorkAssignmentDetailAsync(HomeWorkAssignmentItem? item)
         {
-            SelectedAnnouncement = null;
-            CloseAnnouncementCommand.RaiseCanExecuteChanged();
+            if (item == null)
+                return;
+
+            var created = _mainVm.NavigateToHomeSectionDetailViewModel(new HomeSectionDetailContext
+            {
+                SectionTitle = "Arbeitseinsatz",
+                Title = item.Title,
+                Subtitle = item.Subtitle,
+                Content = item.Details,
+                AdditionalInfo = item.RegistrationInfo
+            });
+
+            if (created != null)
+                await _mainVm.NavigateToAsync(created);
+        }
+
+        private async Task OpenAppointmentDetailAsync(HomeAppointmentItem? item)
+        {
+            if (item == null)
+                return;
+
+            var created = _mainVm.NavigateToHomeSectionDetailViewModel(new HomeSectionDetailContext
+            {
+                SectionTitle = "Termin",
+                Title = item.Title,
+                Subtitle = item.Subtitle,
+                Content = item.Details
+            });
+
+            if (created != null)
+                await _mainVm.NavigateToAsync(created);
+        }
+
+        private async Task OpenAnnouncementDetailAsync(HomeAnnouncementItem? item)
+        {
+            if (item == null)
+                return;
+
+            var created = _mainVm.NavigateToHomeSectionDetailViewModel(new HomeSectionDetailContext
+            {
+                SectionTitle = "Bekanntmachung",
+                Title = item.Title,
+                Subtitle = item.Subtitle,
+                Content = item.Content
+            });
+
+            if (created != null)
+                await _mainVm.NavigateToAsync(created);
         }
 
         private static string BuildWorkHoursInfoText(HomeWorkHoursSummary summary)

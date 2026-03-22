@@ -63,6 +63,14 @@ namespace KGV.Infrastructure.Services
                 return new HomeViewModel(mainVm);
             }
 
+            if (viewModelType == typeof(HomeSectionDetailViewModel))
+            {
+                if (parameter is not HomeSectionDetailContext context)
+                    return null;
+
+                return new HomeSectionDetailViewModel(mainVm, context);
+            }
+
             if (viewModelType == typeof(ParzellenVerwaltungViewModel))
             {
                 return new ParzellenVerwaltungViewModel(_supabaseService, mainVm);

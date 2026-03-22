@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-03-22 – Home-UX-Nachzug: Startseite zeigt nur Listen, Details öffnen in eigener View
+
+- Den Home-Stand für Arbeitseinsätze, Termine und Bekanntmachungen auf den gewünschten UX-Pfad umgestellt: die Startseite zeigt jetzt nur noch Listen-/Kartenübersichten, während Details nicht mehr in kleinen Teilbereichen innerhalb der `HomeView` erscheinen.
+- Dafür eine eigenständige WPF-Detailansicht für Home-Elemente ergänzt (`HomeSectionDetailViewModel` + `HomeSectionDetailView`) und in die bestehende ViewModel-first-Navigation eingebunden.
+- `HomeViewModel` verwendet jetzt explizite Öffnen-Kommandos für Arbeitseinsätze, Termine und Bekanntmachungen; aus den Home-Listen wird jeweils in die neue Detailansicht navigiert statt lokale Inline-Detailzustände in `HomeView` zu verwalten.
+- Die bisherige Inline-Detailanzeige für Termine/Bekanntmachungen wurde aus `HomeView.xaml` entfernt. Gleichzeitig wurde auch der Arbeitseinsatz-Bereich auf eine reine Liste reduziert, damit alle drei Startseitenbereiche konsistent denselben Detailfluss nutzen.
+- Kleine Navigationshilfe ergänzt: aus der neuen Detailansicht kann direkt wieder auf die Startseite zurückgesprungen werden, ohne neue Gesamtarchitektur oder separaten Historienmechanismus einzuführen.
+- Technisch verifiziert: `KGV.Wpf` baut nach der Home-UX-Umstellung weiterhin erfolgreich.
+
 ## 2026-03-22 – HomeView-Reparatur Teil 3: Ursachenanalyse für verbleibende Pflichtstunden-/Bekanntmachungsprobleme und gezielter Fix
 
 - Den verbleibenden Restzustand gezielt gegen die zwei noch fehlerhaften Home-Bereiche geprüft. Die entscheidende technische Ursache für den Pflichtstundenfehler ließ sich jetzt direkt aus dem WPF-Debug-Log bestätigen: `LoadPflichtstundenSummaryAsync(...)` erzeugte eine PostgREST-Fehlermeldung `column v_pflichtstunden_uebersicht.mitglied_id does not exist`.
