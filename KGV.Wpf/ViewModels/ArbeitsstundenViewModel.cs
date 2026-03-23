@@ -217,7 +217,7 @@ namespace KGV.ViewModels
                 Freigegeben = approveImmediately,
                 GenehmigtVon = approverId,
                 GenehmigtAm = approvedAt,
-                Status = "offen"
+                Status = null
             };
 
             var ok = await _supabaseService.AddArbeitsstundeAsync(rec);
@@ -313,7 +313,7 @@ namespace KGV.ViewModels
                 Freigegeben = freigegeben,
                 GenehmigtAm = genehmigtAm,
                 GenehmigtVon = genehmigtVon,
-                Status = string.IsNullOrWhiteSpace(SelectedArbeitsstunde.Status) ? "offen" : SelectedArbeitsstunde.Status
+                Status = string.IsNullOrWhiteSpace(SelectedArbeitsstunde.Status) ? null : SelectedArbeitsstunde.Status
             };
 
             var ok = await _supabaseService.UpdateArbeitsstundeAsync(update);
@@ -353,7 +353,7 @@ namespace KGV.ViewModels
                 Freigegeben = true,
                 GenehmigtAm = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
                 GenehmigtVon = _currentUserMitgliedId,
-                Status = string.IsNullOrWhiteSpace(SelectedArbeitsstunde.Status) ? "offen" : SelectedArbeitsstunde.Status
+                Status = string.IsNullOrWhiteSpace(SelectedArbeitsstunde.Status) ? null : SelectedArbeitsstunde.Status
             };
 
             var ok = await _supabaseService.UpdateArbeitsstundeAsync(update);
@@ -377,7 +377,7 @@ namespace KGV.ViewModels
 
         private static bool IsPending(ArbeitsstundeDTO item)
         {
-            return !item.Freigegeben && (string.IsNullOrWhiteSpace(item.Status) || item.Status.Equals("offen", StringComparison.OrdinalIgnoreCase));
+            return !item.Freigegeben;
         }
     }
 }

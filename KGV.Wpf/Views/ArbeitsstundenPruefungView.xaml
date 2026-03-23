@@ -5,47 +5,83 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,16">
             <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" DockPanel.Dock="Left" />
-            <Button Content="Aktualisieren"
-                    DockPanel.Dock="Right"
-                    Command="{Binding AktualisierenCommand}" />
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="Aktualisieren" Margin="0,0,10,0" Command="{Binding AktualisierenCommand}" />
+                <Button Content="Speichern"
+                        Command="{Binding SpeichernCommand}" />
+            </StackPanel>
         </DockPanel>
 
-        <Grid Grid.Row="1">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
+        <StackPanel Grid.Row="1">
+            <Border Padding="12"
+                    Margin="0,0,0,12"
+                    Background="{StaticResource KgvBackgroundBrush}"
+                    CornerRadius="12"
+                    Visibility="{Binding ShowLockMessage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="{Binding LockMessage}" TextWrapping="Wrap" />
+            </Border>
 
-            <DataGrid Grid.Row="0"
-                      ItemsSource="{Binding OffenePruefungen}"
-                      SelectedItem="{Binding SelectedEintrag, Mode=TwoWay}"
+            <TextBlock Text="{Binding StatusMessage}"
+                       Margin="0,0,0,12"
+                       Foreground="DarkSlateBlue"
+                       TextWrapping="Wrap"
+                       Visibility="{Binding ShowStatusMessage, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+            <DataGrid ItemsSource="{Binding OffenePruefungen}"
                       AutoGenerateColumns="False"
-                      IsReadOnly="True"
                       CanUserAddRows="False"
-                      Visibility="{Binding HasEntries, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <DataGrid.InputBindings>
-                    <MouseBinding Gesture="LeftDoubleClick" Command="{Binding OeffnenCommand}" />
-                </DataGrid.InputBindings>
+                      CanUserDeleteRows="False"
+                      Margin="0,0,0,12"
+                      Visibility="{Binding ShowTable, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Mitglied" Binding="{Binding DisplayName}" Width="*" />
-                    <DataGridTextColumn Header="Offene Einträge" Binding="{Binding OffeneAnzahl}" Width="140" />
+                    <DataGridTextColumn Header="Mitglied" Binding="{Binding MitgliedDisplayName}" Width="180" IsReadOnly="True" />
+                    <DataGridTextColumn Header="Datum" Binding="{Binding Datum, StringFormat={}{0:dd.MM.yyyy}}" Width="110" IsReadOnly="True" />
+                    <DataGridTextColumn Header="Saison" Binding="{Binding SaisonJahr}" Width="80" IsReadOnly="True" />
+                    <DataGridTextColumn Header="Stunden" Binding="{Binding Stunden, StringFormat={}{0:0.##}}" Width="90" IsReadOnly="True" />
+                    <DataGridTextColumn Header="Art der Arbeit" Binding="{Binding ArtDerArbeit}" Width="2*" IsReadOnly="True" />
+                    <DataGridTemplateColumn Header="Status / Anmerkung" Width="2*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding StatusText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         AcceptsReturn="True"
+                                         TextWrapping="Wrap"
+                                         VerticalScrollBarVisibility="Auto"
+                                         MinHeight="52" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridCheckBoxColumn Header="Freigeben" Binding="{Binding Freigeben, Mode=TwoWay}" Width="95" />
+                    <DataGridTemplateColumn Header="Aktion" Width="120">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="Bearbeiten"
+                                        Command="{Binding DataContext.BearbeitenCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
 
-            <TextBlock Grid.Row="0"
-                       Text="{Binding EmptyText}"
+            <TextBlock Text="{Binding EmptyText}"
                        TextWrapping="Wrap"
                        Visibility="{Binding ShowEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}" />
+        </StackPanel>
 
-            <Button Grid.Row="1"
-                    Content="Prüffälle öffnen"
-                    Margin="0,16,0,0"
-                    HorizontalAlignment="Right"
-                    Command="{Binding OeffnenCommand}" />
-        </Grid>
+        <DockPanel Grid.Row="2" LastChildFill="False">
+            <TextBlock Text="Nur markierte oder geänderte Zeilen werden gespeichert. Nicht bearbeitete offene Datensätze bleiben unverändert offen."
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"
+                       Width="620" />
+            <Button Content="Speichern"
+                    DockPanel.Dock="Right"
+                    Width="120"
+                    Command="{Binding SpeichernCommand}" />
+        </DockPanel>
     </Grid>
 </UserControl>

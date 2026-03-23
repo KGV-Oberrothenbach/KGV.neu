@@ -91,10 +91,6 @@ public sealed class ArbeitsstundenReviewPage : ContentPage
                 {
                     if (a.Freigegeben) continue;
 
-                    var status = (a.Status ?? string.Empty).Trim();
-                    if (!string.IsNullOrEmpty(status) && !status.Equals("offen", StringComparison.OrdinalIgnoreCase))
-                        continue;
-
                     _items.Add(a);
                 }
             }

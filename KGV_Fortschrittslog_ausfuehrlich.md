@@ -2,6 +2,53 @@
 
 ---
 
+## 2026-03-22 – Prompt 2/2: Arbeitsstunden-Freigabe sauber abgeschlossen mit globalem Review-Lock, Prüftabelle und wiederverwendetem Editor
+
+- Den begonnenen Arbeitsstunden-Freigabe-Block zuerst gegen den realen Arbeitsbaum konsolidiert statt neu aufgemacht: die vorbereiteten Änderungen für Prüftabelle, globalen Lock auf `arbeitstunde`, Wiederverwendung des Erfassungseditors und die Umstellung auf `Arbeitsstunden freigeben` waren bereits im Repo angelegt, mussten aber noch sauber verifiziert, klein bereinigt und dokumentiert werden.
+- Die realen Felder für den Produktpfad nochmals explizit gegen Modell und Service geprüft und dann unverändert korrekt genutzt:
+  - `freigegeben`
+  - `status`
+  - `genehmigt_am`
+  - `genehmigt_von`
+  - `lockedbyuserid`
+  - `lockat`
+- Den offenen Prüfzustand fachlich endgültig von `status` entkoppelt: offene Arbeitsstunden basieren jetzt konsistent auf `freigegeben = false`; `status` wird nicht mehr künstlich als Workflowwert `offen` erzwungen, sondern bleibt das Anmerkungsfeld für Admin/Vorstand.
+- Die WPF-Ansicht `Arbeitsstunden freigeben` dient jetzt wirklich primär der Prüfung/Freigabe offener Arbeitsstunden und nicht mehr einer vorgelagerten Mitglieder-Sammelliste:
+  - Darstellung als Tabelle
+  - Sortierung nach `datum` aufsteigend *(älteste zuerst)*
+  - pro Zeile sichtbar: Mitglied, Datum, Saison, Stunden, Art der Arbeit
+  - zusätzlich bearbeitbares `status`-Feld als Anmerkungsbereich
+  - Checkbox `Freigeben`
+  - Button `Bearbeiten`
+- Selektives Sitzungsspeichern produktiv umgesetzt: gespeichert werden ausdrücklich nur markierte/geänderte Zeilen; unbearbeitete offene Datensätze bleiben offen. Damit ist die fachliche Vorgabe erfüllt, dass nicht jede Sitzung alle offenen Fälle abschließen muss.
+- Die eigentliche Freigabelogik nutzt die realen Freigabefelder korrekt:
+  - `freigegeben = true`
+  - `genehmigt_am` wird beim Speichern gesetzt
+  - `genehmigt_von` wird auf das aktuelle Mitglied des prüfenden Admins/Vorstands gesetzt
+  - geänderte, aber nicht freigegebene Zeilen bleiben mit `freigegeben = false` in der offenen Liste
+- `Bearbeiten` verwendet jetzt bewusst denselben Arbeitsstunden-Erfassungseditor weiter, statt einen zweiten parallelen Prüfeditor zu erfinden:
+  - Wiederverwendung über `ArbeitsstundenErfassungViewModel` / `ArbeitsstundenErfassungView`
+  - im Prüf-/Adminkontext zusätzlich sichtbares `status`-Feld
+  - Öffnung in einem kleinen Host-Window, damit der bestehende Editorpfad auch modal im Reviewkontext nutzbar bleibt
+  - nach dem Speichern wird die Prüftabelle wieder frisch geladen
+- Globaler Review-Lock klein und nachvollziehbar auf dem vorhandenen Tabellenmodell umgesetzt:
+  - beim Öffnen der Freigabeansicht wird eine globale Prüfsperre für die offenen `arbeitstunde`-Datensätze gesetzt
+  - andere Prüfer können währenddessen nicht parallel produktiv dieselbe Freigabesitzung bearbeiten
+  - falls real auflösbar, wird angezeigt, wer gesperrt hat und seit wann
+  - ein Heartbeat verlängert die Sperre während der Sitzung
+  - beim Verlassen der Ansicht wird die Sperre wieder freigegeben
+  - hängende Locks laufen nach Timeout aus und können danach kontrolliert übernommen werden
+- Die bestehende Badge-/Zählerlogik wurde bewusst weiterverwendet: Änderungen und Freigaben senden weiterhin `ArbeitsstundenChangedMessage`, damit WPF-Navigation und vorhandene mobile Reviewindikatoren korrekt nachziehen.
+- MAUI wurde in diesem Block nicht mit neuer Review-UI ausgebaut; konsistent mitgezogen wurde aber die zugrunde liegende Regel, dass offene Arbeitsstunden über `freigegeben = false` laufen und `status` kein künstlicher Workflowwert mehr ist.
+- Kleine technische Abschlussbereinigung des halbfertigen Zustands durchgeführt:
+  - verbleibende Nullability-Warnung im WPF-Review-ViewModel bereinigt
+  - Statusmeldung der Prüfansicht von der Locknachricht entkoppelt, damit Rückmeldungen unabhängig sichtbar bleiben
+  - die kurz sichtbare Design-Time-XAML-Meldung zu `ArbeitsstundenErfassungView` war nicht buildrelevant; der tatsächliche WPF-Build läuft erfolgreich durch
+- Offene Restpunkte nach diesem Block bewusst klein gehalten:
+  - die produktive WPF-Freigabe steht jetzt fachlich
+  - ein späterer separater Block könnte nur noch UX-Feinschliff oder weitergehende Reviewentscheidungen behandeln, ohne dass der Produktpfad aktuell unvollständig wäre
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem sauber abgeschlossenen Arbeitsstunden-Freigabe-Block erfolgreich.
+
 ## 2026-03-22 – Prompt 1/2: Arbeitsstunden-Unterbau für einfachen Userflow wiederverwendet und Freigabe-Navigation vorbereitet
 
 - Den aktuellen Arbeitsstunden-Istzustand vor dem Umbau erneut geprüft: produktiv vorhanden waren bereits `ArbeitsstundenView`/`ArbeitsstundenViewModel`, `ArbeitsstundeDialog`, `AddArbeitsstundeAsync(...)`, `GetUnapprovedArbeitsstundenByMitgliedAsync()`, die bestehende Review-Ansicht für Admin/Vorstand sowie der WPF-/MAUI-Badgepfad über `ArbeitsstundenChangedMessage`.

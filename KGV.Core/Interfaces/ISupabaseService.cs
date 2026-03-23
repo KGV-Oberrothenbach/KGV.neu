@@ -61,10 +61,14 @@ namespace KGV.Core.Interfaces
 
         Task<bool> UpdateOwnContactAsync(int mitgliedId, string? telefon, string? handy, string? adresse, string? plz, string? ort);
         Task<List<ArbeitsstundeDTO>> GetArbeitsstundenAsync(params int[] mitgliedIds);
+        Task<List<ArbeitsstundeDTO>> GetOffeneArbeitsstundenZurFreigabeAsync();
         Task<bool> AddArbeitsstundeAsync(ArbeitsstundeRecord record);
         Task<bool> UpdateArbeitsstundeAsync(ArbeitsstundeRecord record);
         Task<bool> DeleteArbeitsstundeAsync(int arbeitsstundeId);
         Task<List<(int MitgliedId, string Vorname, string Nachname, int Count)>> GetUnapprovedArbeitsstundenByMitgliedAsync();
+        Task<ArbeitsstundenReviewLockResult> TryAcquireArbeitsstundenReviewLockAsync(string userId, int timeoutMinutes = 10);
+        Task<bool> RefreshArbeitsstundenReviewLockAsync(string userId, int timeoutMinutes = 10);
+        Task<bool> ReleaseArbeitsstundenReviewLockAsync(string userId, bool force = false);
 
         Task<bool> TryLockMitgliedAsync(int mitgliedId, string userId, int timeoutMinutes = 10);
         Task<bool> ReleaseLockMitgliedAsync(int mitgliedId, string userId, bool force = false);

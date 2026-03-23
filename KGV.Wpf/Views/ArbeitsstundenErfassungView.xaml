@@ -59,6 +59,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="160" />
@@ -94,10 +95,27 @@
                              Style="{StaticResource ValidationTextBoxStyle}"
                              Tag="{Binding IsArtDerArbeitInvalid}"
                              Text="{Binding ArtDerArbeit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Grid.Row="3"
+                               Grid.Column="0"
+                               Text="Status / Anmerkung"
+                               VerticalAlignment="Top"
+                               Margin="0,12,12,0"
+                               Visibility="{Binding ShowStatusField, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <TextBox Grid.Row="3"
+                             Grid.Column="1"
+                             x:Name="StatusTextBox"
+                             Margin="0,12,0,0"
+                             Height="90"
+                             AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto"
+                             TextWrapping="Wrap"
+                             Visibility="{Binding ShowStatusField, Converter={StaticResource BooleanToVisibilityConverter}}"
+                             Text="{Binding StatusText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 </Grid>
 
                 <Border Margin="0,18,0,0" Padding="12" Background="{StaticResource KgvBackgroundBrush}" CornerRadius="12">
-                    <TextBlock Text="Neue Einträge werden in diesem Userflow immer mit `freigegeben = false` gespeichert und erscheinen danach im offenen Freigabeindikator für Admin/Vorstand." TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding InfoText}" TextWrapping="Wrap" />
                 </Border>
 
                 <DockPanel Margin="0,18,0,0" LastChildFill="False">

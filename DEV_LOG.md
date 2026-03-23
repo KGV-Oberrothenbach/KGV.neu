@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-03-22 – Arbeitsstunden-Freigabe produktiv abgeschlossen: globaler Review-Lock, Prüftabelle und Editor-Wiederverwendung
+
+- Den begonnenen Arbeitsstunden-Freigabe-Block gegen den realen Arbeitsbaum erneut geprüft und nur konsolidiert statt neu umgebaut: vorhanden waren bereits die neue Prüftabelle, der globale Lock-Unterbau auf `arbeitstunde`, die Wiederverwendung des Erfassungseditors im Prüfkontext sowie die sprachliche Konsolidierung auf `Arbeitsstunden freigeben`.
+- Die real verwendeten `arbeitstunde`-Felder nochmals gegen Modell und Servicepfad abgesichert: Freigaben laufen über `freigegeben`, `genehmigt_am` und `genehmigt_von`; Anmerkungen laufen über `status`; die globale Prüfsperre nutzt die real vorhandenen Lockfelder `lockedbyuserid` und `lockat`.
+- Den offenen Prüfpfad fachlich sauber vom Textfeld `status` entkoppelt: offene Arbeitsstunden basieren jetzt konsistent auf `freigegeben = false`; `status` wird nicht mehr künstlich als Workflowwert `offen` erzwungen, sondern bleibt das fachliche Anmerkungsfeld für Admin/Vorstand.
+- Die WPF-Freigabeansicht ist jetzt produktiv als Tabelle aufgebaut statt als frühere Mitglieder-Sammelliste:
+  - Sortierung nach `datum` aufsteigend *(älteste zuerst)*
+  - pro Zeile sichtbare Prüfinformationen zu Mitglied, Datum, Saison, Stunden und Art der Arbeit
+  - bearbeitbares Feld `status / Anmerkung`
+  - Checkbox `Freigeben`
+  - Button `Bearbeiten`
+- Selektives Speichern umgesetzt: gespeichert werden nur tatsächlich geänderte oder zur Freigabe markierte Zeilen; unbearbeitete offene Datensätze bleiben unverändert offen und fallen nicht still mit in dieselbe Sitzung.
+- Die eigentliche Freigabe setzt beim Speichern die realen Freigabefelder korrekt: `freigegeben = true`, `genehmigt_am` wird gesetzt, `genehmigt_von` wird auf das aktuelle Mitglied des prüfenden Benutzers gesetzt. Nicht freigegebene, aber geänderte Zeilen behalten `freigegeben = false` und bleiben in der offenen Liste.
+- Der vorhandene Arbeitsstunden-Erfassungseditor wird jetzt auch im Prüf-/Adminkontext wiederverwendet statt eine zweite Schatten-Editorarchitektur zu bauen: im Bearbeiten-Fall öffnet derselbe Editorpfad mit den normalen Arbeitsstundenfeldern plus zusätzlich sichtbarem `status`-Feld.
+- Globaler Review-Lock klein und robust umgesetzt:
+  - beim Öffnen der Freigabeansicht wird eine globale Prüfsperre über die offenen `arbeitstunde`-Datensätze gesetzt
+  - andere Prüfer erhalten bei aktiver Fremdsperre nur eine saubere Rückmeldung statt paralleler produktiver Bearbeitung
+  - soweit auflösbar wird angezeigt, wer gesperrt hat und seit wann
+  - ein Heartbeat verlängert die Sperre während der Sitzung
+  - beim Verlassen der Ansicht wird die Sperre wieder freigegeben
+  - hängende Locks laufen nach Timeout kontrolliert aus und sind danach übernehmbar
+- Die bestehende Badge-/Zählerlogik bleibt weiterverwendet: Änderungen und Freigaben senden weiterhin `ArbeitsstundenChangedMessage`, sodass WPF-Navigation und bestehende mobile Reviewindikatoren konsistent aktualisiert werden.
+- MAUI wurde in diesem Abschlussblock bewusst nicht mit neuer Freigabeoberfläche erweitert; der gemeinsame Unterbau wurde aber konsistent mitgezogen, insbesondere die Entkopplung von offenem Zustand und `status`-Textfeld.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem sauber abgeschlossenen Arbeitsstunden-Freigabe-Block erfolgreich. Die kurz sichtbare XAML-Design-Time-Meldung zu `ArbeitsstundenErfassungView` war nicht buildrelevant; der Produktbuild ist erfolgreich.
+
 ## 2026-03-22 – Arbeitsstunden-Userflow klargezogen: eigenes Erfassungs-View + vorbereiteter Freigabe-Indikator
 
 - Den aktuellen Arbeitsstunden-Istzustand vor dem Umbau erneut geprüft: belastbar vorhanden waren bereits `ArbeitsstundenView`/`ArbeitsstundenViewModel`, `ArbeitsstundeDialog`, der produktive Servicepfad `AddArbeitsstundeAsync(...)`, die bestehende offene Prüfgruppenlogik `GetUnapprovedArbeitsstundenByMitgliedAsync()` sowie der WPF-/MAUI-Badgepfad für offene Fälle.

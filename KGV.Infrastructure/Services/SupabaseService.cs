@@ -545,6 +545,64 @@ namespace KGV.Infrastructure.Services
                 }).ToList();
             },
             new List<ArbeitsstundeDTO>());
+
+        public Task<List<ArbeitsstundeDTO>> GetOffeneArbeitsstundenZurFreigabeAsync() => ExecuteAsync(
+            "GetOffeneArbeitsstundenZurFreigabeAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client.From<ArbeitsstundeRecord>().Get();
+                var records = response?.Models?
+                    .Where(IsArbeitsstundeOffen)
+                    .OrderBy(x => x.Datum)
+                    .ThenBy(x => x.Id)
+                    .ToList()
+                    ?? new List<ArbeitsstundeRecord>();
+
+                if (records.Count == 0)
+                    return new List<ArbeitsstundeDTO>();
+
+                var mitglieder = await GetMitgliederAsync();
+                var operativeMitglieder = mitglieder
+                    .Where(OperationalDataFilter.IsOperationalMember)
+                    .ToDictionary(x => x.Id, x => x);
+
+                records = records
+                    .Where(x => operativeMitglieder.ContainsKey(x.MitgliedId))
+                    .ToList();
+
+                if (records.Count == 0)
+                    return new List<ArbeitsstundeDTO>();
+
+                var saisonById = (await GetSaisonRecordsAsync()).ToDictionary(x => x.Id, x => x);
+
+                return records.Select(record =>
+                {
+                    operativeMitglieder.TryGetValue(record.MitgliedId, out var mitglied);
+                    MitgliedRecord? approver = null;
+                    if (record.GenehmigtVon.HasValue)
+                        operativeMitglieder.TryGetValue(record.GenehmigtVon.Value, out approver);
+
+                    return new ArbeitsstundeDTO
+                    {
+                        Id = record.Id,
+                        MitgliedId = record.MitgliedId,
+                        Vorname = mitglied?.Vorname ?? string.Empty,
+                        Nachname = mitglied?.Name ?? string.Empty,
+                        Datum = record.Datum,
+                        SaisonId = record.SaisonId,
+                        SaisonJahr = saisonById.TryGetValue(record.SaisonId, out var saison) ? saison.Jahr : 0,
+                        Stunden = record.Stunden,
+                        Beschreibung = record.ArtDerArbeit ?? string.Empty,
+                        Status = record.Status,
+                        Freigegeben = record.Freigegeben,
+                        FreigegebenAm = record.GenehmigtAm,
+                        FreigegebenVonId = record.GenehmigtVon,
+                        FreigegebenVonName = FormatMemberName(approver)
+                    };
+                }).ToList();
+            },
+            new List<ArbeitsstundeDTO>());
         public Task<bool> AddArbeitsstundeAsync(ArbeitsstundeRecord record) => ExecuteAsync(
             "AddArbeitsstundeAsync",
             async () =>
@@ -560,10 +618,12 @@ namespace KGV.Infrastructure.Services
                     Datum = NormalizeDateTime(record.Datum.Date),
                     Stunden = record.Stunden,
                     ArtDerArbeit = record.ArtDerArbeit.Trim(),
-                    Status = string.IsNullOrWhiteSpace(record.Status) ? "offen" : record.Status.Trim(),
+                    Status = CleanOptionalText(record.Status),
                     Freigegeben = record.Freigegeben,
                     GenehmigtAm = record.GenehmigtAm,
-                    GenehmigtVon = record.GenehmigtVon
+                    GenehmigtVon = record.GenehmigtVon,
+                    LockedByUserId = null,
+                    LockedAt = null
                 });
 
                 return true;
@@ -585,7 +645,7 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.Datum, record.Datum.Date)
                     .Set(x => x.Stunden, record.Stunden)
                     .Set(x => x.ArtDerArbeit, record.ArtDerArbeit ?? string.Empty)
-                    .Set(x => x.Status, string.IsNullOrWhiteSpace(record.Status) ? "offen" : record.Status)
+                    .Set(x => x.Status, CleanOptionalText(record.Status))
                     .Set(x => x.Freigegeben, record.Freigegeben)
                     .Set(x => x.GenehmigtAm, record.GenehmigtAm)
                     .Set(x => x.GenehmigtVon, record.GenehmigtVon)
@@ -617,7 +677,7 @@ namespace KGV.Infrastructure.Services
                 var client = await EnsureClientAsync();
                 var response = await client.From<ArbeitsstundeRecord>().Get();
                 var offeneArbeitsstunden = response?.Models?
-                    .Where(x => !x.Freigegeben && (string.IsNullOrWhiteSpace(x.Status) || x.Status.Equals("offen", StringComparison.OrdinalIgnoreCase)))
+                    .Where(IsArbeitsstundeOffen)
                     .ToList()
                     ?? new List<ArbeitsstundeRecord>();
 
@@ -646,6 +706,91 @@ namespace KGV.Infrastructure.Services
                     .ToList();
             },
             new List<(int MitgliedId, string Vorname, string Nachname, int Count)>());
+
+        public Task<ArbeitsstundenReviewLockResult> TryAcquireArbeitsstundenReviewLockAsync(string userId, int timeoutMinutes = 10) => ExecuteAsync(
+            "TryAcquireArbeitsstundenReviewLockAsync",
+            async () =>
+            {
+                if (string.IsNullOrWhiteSpace(userId))
+                    return new ArbeitsstundenReviewLockResult();
+
+                var client = await EnsureClientAsync();
+                var response = await client.From<ArbeitsstundeRecord>().Get();
+                var offeneArbeitsstunden = response?.Models?
+                    .Where(IsArbeitsstundeOffen)
+                    .ToList()
+                    ?? new List<ArbeitsstundeRecord>();
+
+                if (offeneArbeitsstunden.Count == 0)
+                    return new ArbeitsstundenReviewLockResult { Acquired = true, LockedByUserId = userId };
+
+                var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+                var aktiveFremdsperre = offeneArbeitsstunden
+                    .FirstOrDefault(x => HasActiveArbeitsstundenLock(x, userId, now, timeoutMinutes));
+
+                if (aktiveFremdsperre != null)
+                {
+                    var blocked = await BuildArbeitsstundenReviewLockResultAsync(false, aktiveFremdsperre.LockedByUserId, aktiveFremdsperre.LockedAt);
+                    _logger?.LogInformation("Arbeitsstunden review lock blocked by {LockedByUserId} since {LockedAt}", blocked.LockedByUserId, blocked.LockedAt);
+                    return blocked;
+                }
+
+                foreach (var record in offeneArbeitsstunden)
+                {
+                    await client
+                        .From<ArbeitsstundeRecord>()
+                        .Where(x => x.Id == record.Id)
+                        .Set(x => x.LockedByUserId, userId)
+                        .Set(x => x.LockedAt, now)
+                        .Update();
+                }
+
+                _logger?.LogInformation("Arbeitsstunden review lock acquired by {UserId} for {Count} rows", userId, offeneArbeitsstunden.Count);
+                return await BuildArbeitsstundenReviewLockResultAsync(true, userId, now);
+            },
+            new ArbeitsstundenReviewLockResult());
+
+        public Task<bool> RefreshArbeitsstundenReviewLockAsync(string userId, int timeoutMinutes = 10) => ExecuteAsync(
+            "RefreshArbeitsstundenReviewLockAsync",
+            async () =>
+            {
+                var result = await TryAcquireArbeitsstundenReviewLockAsync(userId, timeoutMinutes);
+                return result.Acquired;
+            },
+            false);
+
+        public Task<bool> ReleaseArbeitsstundenReviewLockAsync(string userId, bool force = false) => ExecuteAsync(
+            "ReleaseArbeitsstundenReviewLockAsync",
+            async () =>
+            {
+                if (string.IsNullOrWhiteSpace(userId) && !force)
+                    return false;
+
+                var client = await EnsureClientAsync();
+                var response = await client.From<ArbeitsstundeRecord>().Get();
+                var lockedRows = response?.Models?
+                    .Where(x => force
+                        ? !string.IsNullOrWhiteSpace(x.LockedByUserId)
+                        : string.Equals(x.LockedByUserId, userId, StringComparison.OrdinalIgnoreCase))
+                    .ToList()
+                    ?? new List<ArbeitsstundeRecord>();
+
+                foreach (var record in lockedRows)
+                {
+                    await client
+                        .From<ArbeitsstundeRecord>()
+                        .Where(x => x.Id == record.Id)
+                        .Set(x => x.LockedByUserId, (string?)null)
+                        .Set(x => x.LockedAt, (DateTime?)null)
+                        .Update();
+                }
+
+                if (lockedRows.Count > 0)
+                    _logger?.LogInformation("Arbeitsstunden review lock released by {UserId} for {Count} rows", userId, lockedRows.Count);
+
+                return true;
+            },
+            false);
         public Task<bool> TryLockMitgliedAsync(int mitgliedId, string userId, int timeoutMinutes = 10) => ExecuteAsync(
             "TryLockMitgliedAsync",
             async () =>
@@ -1169,6 +1314,39 @@ namespace KGV.Infrastructure.Services
             return value.HasValue
                 ? new TimeSpan(value.Value.Hours, value.Value.Minutes, 0)
                 : null;
+        }
+
+        private static bool IsArbeitsstundeOffen(ArbeitsstundeRecord record)
+        {
+            return !record.Freigegeben;
+        }
+
+        private static bool HasActiveArbeitsstundenLock(ArbeitsstundeRecord record, string currentUserId, DateTime now, int timeoutMinutes)
+        {
+            return !string.IsNullOrWhiteSpace(record.LockedByUserId)
+                && !string.Equals(record.LockedByUserId, currentUserId, StringComparison.OrdinalIgnoreCase)
+                && record.LockedAt.HasValue
+                && record.LockedAt.Value.AddMinutes(timeoutMinutes) > now;
+        }
+
+        private async Task<ArbeitsstundenReviewLockResult> BuildArbeitsstundenReviewLockResultAsync(bool acquired, string? lockedByUserId, DateTime? lockedAt)
+        {
+            var displayName = lockedByUserId;
+            if (Guid.TryParse(lockedByUserId, out var authGuid))
+            {
+                var mitglieder = await GetMitgliederAsync();
+                var mitglied = mitglieder.FirstOrDefault(x => x.AuthUserId == authGuid);
+                if (mitglied != null)
+                    displayName = FormatMemberName(mitglied);
+            }
+
+            return new ArbeitsstundenReviewLockResult
+            {
+                Acquired = acquired,
+                LockedByUserId = lockedByUserId,
+                LockedByDisplayName = displayName,
+                LockedAt = lockedAt
+            };
         }
 
         private static bool IsSameTerminForReload(TerminRecord left, TerminRecord right)

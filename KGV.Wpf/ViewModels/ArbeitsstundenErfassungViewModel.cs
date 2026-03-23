@@ -16,24 +16,46 @@ namespace KGV.ViewModels
         public const string FocusDatum = "Datum";
         public const string FocusStunden = "Stunden";
         public const string FocusArtDerArbeit = "ArtDerArbeit";
+        public const string FocusStatus = "Status";
 
         private readonly ISupabaseService _supabaseService;
         private readonly MainWindowViewModel _mainWindowViewModel;
+        private readonly ArbeitsstundenErfassungContext? _context;
 
         private int? _mitgliedId;
         private int? _saisonId;
+        private int? _arbeitsstundeId;
+        private bool _freigegeben;
+        private DateTime? _genehmigtAm;
+        private int? _genehmigtVon;
+
+        public event EventHandler? CloseRequested;
 
         public ArbeitsstundenErfassungViewModel(ISupabaseService supabaseService, MainWindowViewModel mainWindowViewModel)
+            : this(supabaseService, mainWindowViewModel, null)
+        {
+        }
+
+        public ArbeitsstundenErfassungViewModel(ISupabaseService supabaseService, MainWindowViewModel mainWindowViewModel, ArbeitsstundenErfassungContext? context)
         {
             _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
             _mainWindowViewModel = mainWindowViewModel ?? throw new ArgumentNullException(nameof(mainWindowViewModel));
+            _context = context;
 
             SpeichernCommand = new RelayCommand<object?>(_ => _ = SaveAsync(), _ => IsReadyForInput);
-            AbbrechenCommand = new RelayCommand<object?>(_ => ResetForm(), _ => IsReadyForInput);
+            AbbrechenCommand = new RelayCommand<object?>(_ => Cancel(), _ => true);
         }
 
-        public string Title => "Arbeitsstunden erfassen";
-        public string Description => "Erfasse eine neue Arbeitsstunde für deinen eigenen Mitgliedskontext. Neue Einträge werden in diesem Flow immer zunächst als nicht freigegeben gespeichert.";
+        public bool IsEditMode => _context?.ExistingEntry != null;
+        public bool IsDialogMode => _context?.OpenAsDialog == true;
+        public bool ShowStatusField => _context?.IsAdminEditMode == true;
+        public string Title => IsEditMode ? "Arbeitsstunde bearbeiten" : "Arbeitsstunden erfassen";
+        public string Description => IsEditMode
+            ? "Bearbeite den bestehenden Arbeitsstunden-Eintrag im Prüf-/Adminkontext. Die eigentliche Freigabe erfolgt weiter separat über die Prüftabelle."
+            : "Erfasse eine neue Arbeitsstunde für deinen eigenen Mitgliedskontext. Neue Einträge werden in diesem Flow immer zunächst als nicht freigegeben gespeichert.";
+        public string InfoText => ShowStatusField
+            ? "Im Prüf-/Adminkontext können dieselben Arbeitsstundenfelder bearbeitet werden; `status` dient hier als Anmerkungsfeld. Die eigentliche Freigabe bleibt weiter Teil der Prüftabelle."
+            : "Neue Einträge werden in diesem Userflow immer mit `freigegeben = false` gespeichert und erscheinen danach im offenen Freigabeindikator für Admin/Vorstand.";
         public string CurrentMemberText => !string.IsNullOrWhiteSpace(_currentMemberDisplayName)
             ? _currentMemberDisplayName
             : "Aktuell konnte kein eigener Mitgliedskontext geladen werden.";
@@ -83,6 +105,13 @@ namespace KGV.ViewModels
                 if (SetProperty(ref _artDerArbeit, value))
                     ClearFieldValidation(nameof(IsArtDerArbeitInvalid));
             }
+        }
+
+        private string _statusText = string.Empty;
+        public string StatusText
+        {
+            get => _statusText;
+            set => SetProperty(ref _statusText, value);
         }
 
         private bool _isDatumInvalid;
@@ -157,27 +186,55 @@ namespace KGV.ViewModels
             StatusMessage = string.Empty;
             ValidationMessage = string.Empty;
 
-            var member = await _mainWindowViewModel.EnsureCurrentMemberSelectedAsync();
-            _mitgliedId = member?.Id;
-            CurrentMemberDisplayName = member?.DisplayName ?? string.Empty;
+            if (IsEditMode)
+            {
+                var existing = _context!.ExistingEntry!;
+                _arbeitsstundeId = existing.Id;
+                _mitgliedId = existing.MitgliedId;
+                _saisonId = existing.SaisonId;
+                _freigegeben = existing.Freigegeben;
+                _genehmigtAm = existing.FreigegebenAm;
+                _genehmigtVon = existing.FreigegebenVonId;
+                CurrentMemberDisplayName = BuildDisplayName(existing.Nachname, existing.Vorname);
+                Datum = existing.Datum.Date;
+                StundenText = existing.Stunden.ToString("0.##", CultureInfo.CurrentCulture);
+                ArtDerArbeit = existing.Beschreibung ?? string.Empty;
+                StatusText = existing.Status ?? string.Empty;
+            }
+            else
+            {
+                var member = await _mainWindowViewModel.EnsureCurrentMemberSelectedAsync();
+                _mitgliedId = member?.Id;
+                CurrentMemberDisplayName = member?.DisplayName ?? string.Empty;
 
-            var saisonen = await _supabaseService.GetSaisonRecordsAsync();
-            var todayYear = DateTime.Today.Year;
-            _saisonId = saisonen.FirstOrDefault(x => x.Jahr == todayYear)?.Id
-                ?? saisonen.OrderByDescending(x => x.Jahr).FirstOrDefault()?.Id;
+                var saisonen = await _supabaseService.GetSaisonRecordsAsync();
+                var todayYear = DateTime.Today.Year;
+                _saisonId = saisonen.FirstOrDefault(x => x.Jahr == todayYear)?.Id
+                    ?? saisonen.OrderByDescending(x => x.Jahr).FirstOrDefault()?.Id;
 
-            Datum = DateTime.Today;
-            StundenText = string.Empty;
-            ArtDerArbeit = string.Empty;
+                _arbeitsstundeId = null;
+                _freigegeben = false;
+                _genehmigtAm = null;
+                _genehmigtVon = null;
+                Datum = DateTime.Today;
+                StundenText = string.Empty;
+                ArtDerArbeit = string.Empty;
+                StatusText = string.Empty;
 
-            if (!_mitgliedId.HasValue)
-                StatusMessage = "Der eigene Mitgliedskontext konnte aktuell nicht geladen werden.";
-            else if (!_saisonId.HasValue)
-                StatusMessage = "Die aktuelle Saison konnte aktuell nicht geladen werden.";
+                if (!_mitgliedId.HasValue)
+                    StatusMessage = "Der eigene Mitgliedskontext konnte aktuell nicht geladen werden.";
+                else if (!_saisonId.HasValue)
+                    StatusMessage = "Die aktuelle Saison konnte aktuell nicht geladen werden.";
+            }
 
+            OnPropertyChanged(nameof(IsEditMode));
+            OnPropertyChanged(nameof(IsDialogMode));
+            OnPropertyChanged(nameof(ShowStatusField));
+            OnPropertyChanged(nameof(Title));
+            OnPropertyChanged(nameof(Description));
+            OnPropertyChanged(nameof(InfoText));
             OnPropertyChanged(nameof(IsReadyForInput));
             SpeichernCommand.RaiseCanExecuteChanged();
-            AbbrechenCommand.RaiseCanExecuteChanged();
             RequestFocus(FocusDatum);
         }
 
@@ -186,19 +243,35 @@ namespace KGV.ViewModels
             if (!TryBuildRecord(out var record))
                 return;
 
-            var ok = await _supabaseService.AddArbeitsstundeAsync(record);
+            var ok = IsEditMode
+                ? await _supabaseService.UpdateArbeitsstundeAsync(record)
+                : await _supabaseService.AddArbeitsstundeAsync(record);
+
             if (!ok)
             {
-                ValidationMessage = "Die Arbeitsstunde konnte nicht gespeichert werden. Details stehen im Debug-/Anwendungslog.";
+                ValidationMessage = IsEditMode
+                    ? "Die Arbeitsstunde konnte nicht gespeichert werden. Details stehen im Debug-/Anwendungslog."
+                    : "Die Arbeitsstunde konnte nicht gespeichert werden. Details stehen im Debug-/Anwendungslog.";
                 return;
             }
 
             WeakReferenceMessenger.Default.Send(new ArbeitsstundenChangedMessage());
+
+            if (IsEditMode)
+            {
+                StatusMessage = "Arbeitsstunde wurde gespeichert.";
+                ValidationMessage = string.Empty;
+                if (IsDialogMode)
+                    CloseRequested?.Invoke(this, EventArgs.Empty);
+                return;
+            }
+
             StatusMessage = "Arbeitsstunde wurde zur späteren Freigabe gespeichert.";
             ValidationMessage = string.Empty;
             Datum = DateTime.Today;
             StundenText = string.Empty;
             ArtDerArbeit = string.Empty;
+            StatusText = string.Empty;
             RequestFocus(FocusDatum);
         }
 
@@ -213,7 +286,7 @@ namespace KGV.ViewModels
 
             if (!_mitgliedId.HasValue || !_saisonId.HasValue)
             {
-                ValidationMessage = "Arbeitsstunden können aktuell nicht erfasst werden, weil Mitglied oder Saison fehlen.";
+                ValidationMessage = "Arbeitsstunden können aktuell nicht gespeichert werden, weil Mitglied oder Saison fehlen.";
                 return false;
             }
 
@@ -251,15 +324,16 @@ namespace KGV.ViewModels
 
             record = new ArbeitsstundeRecord
             {
+                Id = _arbeitsstundeId.GetValueOrDefault(),
                 MitgliedId = _mitgliedId.Value,
                 SaisonId = _saisonId.Value,
                 Datum = Datum!.Value.Date,
                 Stunden = stunden,
                 ArtDerArbeit = ArtDerArbeit.Trim(),
-                Freigegeben = false,
-                Status = "offen",
-                GenehmigtAm = null,
-                GenehmigtVon = null
+                Freigegeben = IsEditMode ? _freigegeben : false,
+                Status = string.IsNullOrWhiteSpace(StatusText) ? null : StatusText.Trim(),
+                GenehmigtAm = IsEditMode ? _genehmigtAm : null,
+                GenehmigtVon = IsEditMode ? _genehmigtVon : null
             };
 
             return true;
@@ -281,11 +355,18 @@ namespace KGV.ViewModels
             return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
         }
 
-        private void ResetForm()
+        private void Cancel()
         {
+            if (IsDialogMode || IsEditMode)
+            {
+                CloseRequested?.Invoke(this, EventArgs.Empty);
+                return;
+            }
+
             Datum = DateTime.Today;
             StundenText = string.Empty;
             ArtDerArbeit = string.Empty;
+            StatusText = string.Empty;
             ClearValidation();
             StatusMessage = string.Empty;
             RequestFocus(FocusDatum);
@@ -321,6 +402,12 @@ namespace KGV.ViewModels
             }
 
             ValidationMessage = string.Empty;
+        }
+
+        private static string BuildDisplayName(string? nachname, string? vorname)
+        {
+            var combined = $"{nachname} {vorname}".Trim();
+            return string.IsNullOrWhiteSpace(combined) ? "Unbekanntes Mitglied" : combined;
         }
     }
 }

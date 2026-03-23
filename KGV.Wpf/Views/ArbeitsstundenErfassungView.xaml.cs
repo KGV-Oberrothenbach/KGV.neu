@@ -52,6 +52,10 @@ namespace KGV.Views
                     ArtDerArbeitTextBox.Focus();
                     ArtDerArbeitTextBox.SelectAll();
                     break;
+                case ArbeitsstundenErfassungViewModel.FocusStatus:
+                    StatusTextBox.Focus();
+                    StatusTextBox.SelectAll();
+                    break;
             }
         }
     }

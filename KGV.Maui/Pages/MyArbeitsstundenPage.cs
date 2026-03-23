@@ -203,7 +203,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
                 Datum = _datePicker.Date.Date,
                 Stunden = hours,
                 ArtDerArbeit = desc,
-                Status = "offen",
+                Status = null,
                 Freigegeben = false
             };
 

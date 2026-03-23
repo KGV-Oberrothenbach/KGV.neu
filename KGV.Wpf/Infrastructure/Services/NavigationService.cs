@@ -65,6 +65,9 @@ namespace KGV.Infrastructure.Services
 
             if (viewModelType == typeof(ArbeitsstundenErfassungViewModel))
             {
+                if (parameter is ArbeitsstundenErfassungContext context)
+                    return new ArbeitsstundenErfassungViewModel(_supabaseService, mainVm, context);
+
                 return new ArbeitsstundenErfassungViewModel(_supabaseService, mainVm);
             }
 
