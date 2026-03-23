@@ -2,6 +2,21 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Arbeitseinsatz-Block final geprüft, gebaut und sauber abgeschlossen
+
+- Den aktuellen Arbeitsbaum nochmals gezielt gegen den Auftrag geprüft. Ergebnis: die fachlichen und technischen Änderungen dieses Blocks waren bereits im Repo umgesetzt; lokal offen waren nur blockfremde Dateien und Artefakte, die bewusst nicht aufgenommen wurden.
+- Die Zielpunkte des Blocks nochmals real bestätigt:
+  - `Anmelden` ist sichtbar, wenn Anmeldung fachlich möglich ist
+  - Home und Detail nutzen denselben echten Pfad `SignUpForArbeitseinsatzAsync(...)`
+  - dieser Shared-Service schreibt weiter produktiv über `sign_up_for_arbeitseinsatz(...)`
+  - Teilnehmerliste nur für Admin/Vorstand in der Detailview
+  - `Hinzufügen` nur für Admin/Vorstand
+  - `Hinzufügen` verwendet die bestehende Maske `Mitglied suchen`
+  - das ausgewählte bestehende Mitglied wird über denselben Anmeldungspfad eingetragen wie bei Selbstanmeldung
+- Die Ursache für das frühere Verschwinden von `Anmelden` bleibt damit klar bestätigt: nicht der RPC war defekt, sondern die Sichtbarkeit hing zu eng nur am Startseitenzustand. Der Shared-Service bestimmt die Anmeldbarkeit jetzt belastbar aus realem `arbeitseinsatz`- und `arbeitseinsatz_anmeldung`-Zustand gegen Frist, Platzgrenze und bestehende Anmeldung.
+- Den technischen Abschluss ebenfalls nochmals sauber verifiziert: `KGV.Wpf` final gebaut. Ein erster Lauf scheiterte nur an einer gesperrten laufenden `KGV.Wpf`-Instanz; nach Beenden des Prozesses lief der Build erfolgreich durch. Kein neuer Codepfad und keine neue Fachlogik waren dafür mehr nötig.
+- Der Block ist damit jetzt wirklich abgeschlossen; für diesen finalen Schritt werden nur die fortgeführten Logdateien committed und gepusht, blockfremde lokale Änderungen bleiben unberührt.
+
 ## 2026-03-24 – Prompt 1/1: Arbeitseinsatz-Regression bei `Anmelden` und Admin-/Vorstand-Teilnehmerblock sauber abgeschlossen
 
 - Den begonnenen Block zuerst wieder gegen den realen Arbeitsbaum und ausdrücklich gegen den lokalen DB-Analyseexport `_AI_DB_EXPORT` geprüft. Für diesen Abschluss waren erneut relevant:

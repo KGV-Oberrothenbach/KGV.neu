@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-03-24 – Arbeitseinsatz-Block final verifiziert und sauber abgeschlossen
+
+- Den aktuellen Arbeitsbaum erneut geprüft: blockeigene Codeänderungen aus diesem Arbeitseinsatz-Block waren bereits im Repo enthalten; lokal offen blieben nur blockfremde Änderungen und Artefakte wie `KGV.Wpf/Views/LoginWindow.xaml` sowie untracked Hilfs-/Exportdateien.
+- Den bereits implementierten Zustand nochmals final verifiziert:
+  - `Anmelden` bleibt in Home und Detail am selben echten Pfad `SignUpForArbeitseinsatzAsync(...)`
+  - der Shared-Service nutzt weiter produktiv `sign_up_for_arbeitseinsatz(...)`
+  - Teilnehmerliste erscheint nur für Admin/Vorstand in der Detailview
+  - `Hinzufügen` erscheint nur für Admin/Vorstand
+  - `Hinzufügen` verwendet die bestehende Maske `Mitglied suchen` im Auswahlmodus
+  - das ausgewählte bestehende Mitglied wird über denselben RPC-Pfad eingetragen wie bei Selbstanmeldung
+- Die Sichtbarkeit von `Anmelden` wird weiterhin belastbar aus realem Zustand bestimmt: Basisdaten aus `arbeitseinsatz` plus aktive `arbeitseinsatz_anmeldung` gegen Frist, Platzgrenze und bereits vorhandene Anmeldung des aktuellen Mitglieds.
+- `KGV.Wpf` wurde final erfolgreich gebaut. Ein erster Buildlauf scheiterte nur an einer laufenden gesperrten `KGV.Wpf`-Instanz; nach Beenden der App lief der Build sauber durch. Der Block ist damit technisch und fachlich abgeschlossen.
+
 ## 2026-03-24 – Arbeitseinsatz: `Anmelden`-Regression und Admin-/Vorstand-Teilnehmerblock sauber abgeschlossen
 
 - Den begonnenen Block erneut gegen den realen Arbeitsbaum und ausdrücklich gegen `_AI_DB_EXPORT` geprüft. Belastbar herangezogen wurden wieder `database.types.ts` mit `sign_up_for_arbeitseinsatz(...)` und `arbeitseinsatz_anmeldung`; `roles.sql` enthält dafür keine abweichende Zusatzregel, `AI_DATABASE_CONTEXT.sql` liefert hier keinen zusätzlichen App-Pfad.
