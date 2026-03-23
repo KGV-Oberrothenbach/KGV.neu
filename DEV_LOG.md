@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-03-24 – Start- und Endzeit im tatsächlich sichtbaren WPF-Pfad final sichtbar gemacht
+
+- Den sichtbaren Restfehler nochmals Ende-zu-Ende gegen den tatsächlichen WPF-Pfad geprüft: `SupabaseService`, Home-Items, `HomeViewModel`, `HomeSectionDetailContext`, `HomeSectionDetailViewModel`, `HomeView.xaml` und `HomeSectionDetailView.xaml`. Ergebnis: `start_uhrzeit`/`end_uhrzeit` kamen im Mapping als normalisierte Werte an, hingen im sichtbaren UI aber weiterhin zu stark an einem zusammengesetzten Zeittext bzw. indirekten Anzeigeweg.
+- Die endgültige Korrektur setzt deshalb nicht mehr nur auf einen abstrakten Sammelstring, sondern auf explizite Start-/Endzeit-Properties im tatsächlich sichtbaren Pfad: `HomeWorkAssignmentItem` und `HomeAppointmentItem` tragen jetzt `StartTimeText` und `EndTimeText`; der Detailkontext übernimmt dieselben Felder 1:1 für genau den ausgewählten Datensatz.
+- In `SupabaseService` werden die vorhandenen `Beginn`-/`Ende`-Werte weiterhin zentral über `NormalizeTimeValue(...)` normalisiert und jetzt explizit in diese Start-/Endfelder geschrieben. Damit ist belastbar nachvollziehbar: die Zeitwerte kommen im Modell an und werden nicht mehr erst spät oder indirekt aus Nebenfeldern zusammengesetzt.
+- Der sichtbare WPF-Pfad wurde anschließend passend darauf verdrahtet: auf Home bleibt die Zeitzeile als klarer Zeitraum aus genau dieser Quelle sichtbar; in der Detailansicht werden `Beginn` und `Ende` jetzt explizit als eigene Datensatzangaben gerendert statt nur als zusammengesetzte Sammelzeile.
+- `Bekanntmachung` bleibt unverändert stabil: dort werden die neuen Zeitfelder leer übergeben, sodass keine Regression in der generischen Detailstruktur entsteht.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem finalen Sichtbarkeitsfix erfolgreich; MAUI wurde durch die kleinen Modell-/Kontextergänzungen nicht beschädigt.
+
 ## 2026-03-24 – Home-/Detailanzeige für Arbeitseinsatz und Termin korrigiert: Uhrzeit explizit sichtbar, doppelte `Angemeldet`-Anzeige entfernt
 
 - Den aktuellen Istzustand des bestehenden Anzeige-/Mappingpfads erneut gegen `HomeView.xaml`, `HomeSectionDetailView.xaml`, `HomeViewModel`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, `HomeDashboardItems` und `SupabaseService` geprüft. Ergebnis: die Uhrzeit lief bislang teils nur indirekt im `Subtitle` bzw. als separater Beginn-Text, während `Arbeitseinsatz`-Kapazitätsinfos zugleich in `DetailInfo` und `RegistrationInfo` landeten.

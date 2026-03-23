@@ -26,10 +26,14 @@
                            Margin="0,6,0,0"
                            Foreground="Gray"
                            Visibility="{Binding HasSubtitle, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                <TextBlock Text="{Binding TimeText, StringFormat=Uhrzeit: {0}}"
+                <TextBlock Text="{Binding StartTimeText, StringFormat=Beginn: {0}}"
                            Margin="0,8,0,0"
                            Foreground="Gray"
-                           Visibility="{Binding HasTimeText, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                           Visibility="{Binding HasStartTimeText, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <TextBlock Text="{Binding EndTimeText, StringFormat=Ende: {0}}"
+                           Margin="0,4,0,0"
+                           Foreground="Gray"
+                           Visibility="{Binding HasEndTimeText, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <Border Margin="0,16,0,0"
                         Padding="12"
                         Background="{StaticResource KgvBackgroundBrush}"

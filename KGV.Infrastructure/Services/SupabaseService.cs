@@ -1681,7 +1681,6 @@ namespace KGV.Infrastructure.Services
             var title = FirstNonEmpty(record.Titel, record.Thema) ?? "Arbeitseinsatz";
             var begin = NormalizeTimeValue(record.Beginn);
             var end = NormalizeTimeValue(record.Ende);
-            var timeText = BuildTimeRange(record.Beginn, record.Ende);
             var detailInfoLines = new List<string>();
 
             AddDetailLine(detailInfoLines, "Thema", record.Thema, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase));
@@ -1695,7 +1694,8 @@ namespace KGV.Infrastructure.Services
             {
                 Title = title,
                 Subtitle = record.Datum?.ToString("dd.MM.yyyy") ?? string.Empty,
-                TimeText = timeText,
+                StartTimeText = begin ?? string.Empty,
+                EndTimeText = end ?? string.Empty,
                 Details = description,
                 DetailInfo = string.Join(Environment.NewLine, detailInfoLines),
                 RegistrationInfo = !string.IsNullOrWhiteSpace(capacityText)
@@ -1712,7 +1712,8 @@ namespace KGV.Infrastructure.Services
             var title = FirstNonEmpty(record.Titel, record.Thema) ?? "Termin";
             var details = NormalizeHomeText(FirstNonEmpty(record.Inhalt, record.Beschreibung));
             var detailInfoLines = new List<string>();
-            var timeText = BuildTimeRange(record.Beginn, record.Ende);
+            var begin = NormalizeTimeValue(record.Beginn);
+            var end = NormalizeTimeValue(record.Ende);
 
             AddDetailLine(detailInfoLines, "Thema", record.Thema, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase));
             AddDetailLine(detailInfoLines, "Datum", record.Datum?.ToString("dd.MM.yyyy"));
@@ -1722,7 +1723,8 @@ namespace KGV.Infrastructure.Services
             {
                 Title = title,
                 Subtitle = record.Datum?.ToString("dd.MM.yyyy") ?? string.Empty,
-                TimeText = timeText,
+                StartTimeText = begin ?? string.Empty,
+                EndTimeText = end ?? string.Empty,
                 Details = details,
                 DetailInfo = string.Join(Environment.NewLine, detailInfoLines)
             };

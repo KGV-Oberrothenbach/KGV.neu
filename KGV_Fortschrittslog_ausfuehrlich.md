@@ -2,6 +2,52 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Start- und Endzeit im tatsächlich sichtbaren WPF-Pfad final sichtbar gemacht
+
+- Den sichtbaren Restfehler ausdrücklich nochmals Ende-zu-Ende gegen den real gerenderten WPF-Pfad geprüft: `SupabaseService`, Home-Items, `HomeViewModel`, `HomeSectionDetailContext`, `HomeSectionDetailViewModel`, `HomeView.xaml` und `HomeSectionDetailView.xaml` waren gemeinsam die tatsächlich sichtbare Strecke dieses Blocks.
+- Ergebnis der Prüfung: `start_uhrzeit` und `end_uhrzeit` kamen im Mapping als normalisierte Werte grundsätzlich an, blieben im UI aber weiterhin nicht zuverlässig genug sichtbar, weil der letzte Pfad noch zu stark an einem zusammengesetzten Zeitfeld hing und die Detailansicht die Zeiten nicht als eigene Datensatzangaben renderte.
+- Die Korrektur deshalb jetzt am tatsächlich sichtbaren Anzeigeursprung umgesetzt:
+  - `HomeWorkAssignmentItem` und `HomeAppointmentItem` tragen jetzt explizit `StartTimeText` und `EndTimeText`
+  - der Home-/Detailkontext übernimmt dieselben Felder 1:1 für genau den ausgewählten Datensatz
+  - `SupabaseService` schreibt die vorhandenen `Beginn`-/`Ende`-Werte nach `NormalizeTimeValue(...)` gezielt in diese Felder
+- Damit war belastbar abgesichert:
+  - `start_uhrzeit` / `end_uhrzeit` kommen im Modell an
+  - sie werden nicht mehr erst spät oder indirekt aus `Subtitle`, `AdditionalInfo` oder anderen Nebenfeldern abgeleitet
+  - die final sichtbare Bindung greift direkt auf diese expliziten Start-/Endfelder zu
+- Home-Anzeige finaler Sichtpfad:
+  - `HomeView.xaml` zeigt den Zeitraum weiter als klare Zeitzeile aus genau dieser einen Quelle
+  - wenn nur eine Zeit vorhanden ist, bleibt genau diese sichtbar
+  - wenn beide Zeiten vorhanden sind, erscheint konsistent `Start - Ende`
+- Detailanzeige finaler Sichtpfad:
+  - `HomeSectionDetailView.xaml` rendert `Beginn` und `Ende` jetzt als eigene sichtbare Datensatzangaben
+  - die Zeit ist damit für `Arbeitseinsatz` und `Termin` nicht nur implizit oder im Fließtext vorhanden, sondern explizit im sichtbaren UI erkennbar
+  - der Detailpfad bleibt weiterhin auf die Skalardaten des ausgewählten Datensatzes beschränkt
+- `Bekanntmachung` wurde erneut mitgeprüft und nicht verschlechtert: dort bleiben die neuen Zeitfelder leer, während die generische Detailstruktur unverändert funktioniert.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem finalen Sichtbarkeitsfix erfolgreich; MAUI wurde durch die kleinen Modell-/Kontextergänzungen nicht beschädigt.
+
+## 2026-03-24 – Prompt 1/1: Start- und Endzeit im tatsächlich sichtbaren WPF-Pfad final sichtbar gemacht
+
+- Den sichtbaren Restfehler ausdrücklich nochmals Ende-zu-Ende gegen den real gerenderten WPF-Pfad geprüft: `SupabaseService`, Home-Items, `HomeViewModel`, `HomeSectionDetailContext`, `HomeSectionDetailViewModel`, `HomeView.xaml` und `HomeSectionDetailView.xaml` waren gemeinsam die tatsächlich sichtbare Strecke dieses Blocks.
+- Ergebnis der Prüfung: `start_uhrzeit` und `end_uhrzeit` kamen im Mapping als normalisierte Werte grundsätzlich an, blieben im UI aber weiterhin nicht zuverlässig genug sichtbar, weil der letzte Pfad noch zu stark an einem zusammengesetzten Zeitfeld hing und die Detailansicht die Zeiten nicht als eigene Datensatzangaben renderte.
+- Die Korrektur deshalb jetzt am tatsächlich sichtbaren Anzeigeursprung umgesetzt:
+  - `HomeWorkAssignmentItem` und `HomeAppointmentItem` tragen jetzt explizit `StartTimeText` und `EndTimeText`
+  - der Home-/Detailkontext übernimmt dieselben Felder 1:1 für genau den ausgewählten Datensatz
+  - `SupabaseService` schreibt die vorhandenen `Beginn`-/`Ende`-Werte nach `NormalizeTimeValue(...)` gezielt in diese Felder
+- Damit war belastbar abgesichert:
+  - `start_uhrzeit` / `end_uhrzeit` kommen im Modell an
+  - sie werden nicht mehr erst spät oder indirekt aus `Subtitle`, `AdditionalInfo` oder anderen Nebenfeldern abgeleitet
+  - die final sichtbare Bindung greift direkt auf diese expliziten Start-/Endfelder zu
+- Home-Anzeige finaler Sichtpfad:
+  - `HomeView.xaml` zeigt den Zeitraum weiter als klare Zeitzeile aus genau dieser einen Quelle
+  - wenn nur eine Zeit vorhanden ist, bleibt genau diese sichtbar
+  - wenn beide Zeiten vorhanden sind, erscheint konsistent `Start - Ende`
+- Detailanzeige finaler Sichtpfad:
+  - `HomeSectionDetailView.xaml` rendert `Beginn` und `Ende` jetzt als eigene sichtbare Datensatzangaben
+  - die Zeit ist damit für `Arbeitseinsatz` und `Termin` nicht nur implizit oder im Fließtext vorhanden, sondern explizit im sichtbaren UI erkennbar
+  - der Detailpfad bleibt weiterhin auf die Skalardaten des ausgewählten Datensatzes beschränkt
+- `Bekanntmachung` wurde erneut mitgeprüft und nicht verschlechtert: dort bleiben die neuen Zeitfelder leer, während die generische Detailstruktur unverändert funktioniert.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem finalen Sichtbarkeitsfix erfolgreich; MAUI wurde durch die kleinen Modell-/Kontextergänzungen nicht beschädigt.
+
 ## 2026-03-24 – Prompt 1/1: Home-/Detailanzeige für Arbeitseinsatz und Termin gezielt korrigiert: Uhrzeit sichtbar, doppelte `Angemeldet`-Anzeige entfernt
 
 - Den bestehenden Anzeige-/Mappingpfad erneut gegen den realen Istzustand geprüft: `HomeView.xaml`, `HomeSectionDetailView.xaml`, `HomeViewModel`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, `HomeDashboardItems` und das Home-Mapping in `SupabaseService` waren der tatsächliche Fehlerort dieses Blocks.

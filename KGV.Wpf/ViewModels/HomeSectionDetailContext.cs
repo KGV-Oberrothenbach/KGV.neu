@@ -5,7 +5,8 @@ namespace KGV.ViewModels
         public string SectionTitle { get; init; } = string.Empty;
         public string Title { get; init; } = string.Empty;
         public string Subtitle { get; init; } = string.Empty;
-        public string TimeText { get; init; } = string.Empty;
+        public string StartTimeText { get; init; } = string.Empty;
+        public string EndTimeText { get; init; } = string.Empty;
         public string Content { get; init; } = string.Empty;
         public string AdditionalInfo { get; init; } = string.Empty;
         public string RegistrationInfo { get; init; } = string.Empty;
