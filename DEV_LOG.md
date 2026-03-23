@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-23 – Zwei echte Arbeitsstundenfehler behoben: `id = 0` bei Neuanlage unterbunden und Freigabe-Checkbox aktiviert Speichern wieder sofort
+
+- Den realen Produktfehler im Arbeitsstunden-Insertpfad diesmal bewusst bis zur tatsächlich laufenden Payload verfolgt statt nur den Service isoliert zu betrachten: WPF-Usererfassung (`ArbeitsstundenErfassungViewModel`), WPF-Dialogerfassung (`ArbeitsstundenViewModel`) und MAUI (`MyArbeitsstundenPage`) erzeugen alle neue `ArbeitsstundeRecord`-Instanzen ohne explizite `Id`-Zuweisung, damit aber typbedingt mit lokalem Default `Id = 0`.
+- Die eigentliche Ursache lag im Modellvertrag von `ArbeitsstundeRecord`: anders als bei den übrigen produktiven Create-Modellen stand dort noch `[PrimaryKey("id")]` ohne explizites `shouldInsert = false`. Im aktuell laufenden Paketstand `Supabase.Postgrest 4.1.0` konnte die Primärschlüsselspalte dadurch im realen Insertpfad weiter in die Payload gelangen; genau so ließ sich der reproduzierte neue Datensatz mit `id = 0` erklären.
+- Den Fix deshalb am tatsächlichen Fehlerursprung gesetzt: `ArbeitsstundeRecord` verwendet jetzt wie die übrigen produktiven Create-Modelle explizit `[PrimaryKey("id", false)]`. Damit bleibt die `Id` für Update-/PrimaryKey-Zwecke vorhanden, wird bei Neuanlagen aber nicht mehr in die Insert-Payload aufgenommen.
+- Die zweite reale Störung in `Arbeitsstunden freigeben` ebenfalls bis zur konkreten UI-Ursache zurückgeführt: `status` war fachlich bereits optional und wurde in `HasChanges` nicht als Pflichtfeld behandelt. Das Problem lag stattdessen an der WPF-Spalte `DataGridCheckBoxColumn` für `Freigeben`; deren Wert wurde im laufenden UI-Pfad nicht zuverlässig sofort in das Item zurückgeschrieben, sodass `PropertyChanged`, `HasPendingChanges` und damit `SpeichernCommand` beim bloßen Setzen der Checkbox nicht unmittelbar anzogen.
+- Den Fix daher klein und UI-seitig gehalten: die Checkboxspalte läuft jetzt als `DataGridTemplateColumn` mit explizitem `CheckBox`-Binding `Mode=TwoWay, UpdateSourceTrigger=PropertyChanged`. Damit gilt schon das reine Setzen von `Freigeben` sofort als speicherrelevante Änderung.
+- Fachregeln bleiben unverändert: offen bleibt `freigegeben = false`, `status` bleibt nur optionales Anmerkungsfeld, Freigabe setzt weiter `freigegeben = true`, `genehmigt_am`, `genehmigt_von`, und es wurde keine neue Freigabearchitektur oder App-seitige `lastrow+1`-Logik eingeführt.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Fixblock erfolgreich; MAUI wurde im selben Shared-Pfad mitgedacht und nicht beschädigt.
+
 ## 2026-03-23 – WPF-Bindingfix in `ArbeitsstundenErfassungView`: `CurrentMemberText` als reine OneWay-Anzeige verdrahtet
 
 - Den aktuellen Bindingfehler in `ArbeitsstundenErfassungView` gezielt auf die einzige Bindungsstelle von `CurrentMemberText` zurückgeführt: der Wert dient fachlich nur der Anzeige des aktuellen Mitgliedskontexts.

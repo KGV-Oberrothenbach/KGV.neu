@@ -7,7 +7,7 @@ namespace KGV.Core.Models
     [Table("arbeitsstunde")]
     public class ArbeitsstundeRecord : BaseModel
     {
-        [PrimaryKey("id")]
+        [PrimaryKey("id", false)]
         [Column("id")]
         public int Id { get; set; }
 

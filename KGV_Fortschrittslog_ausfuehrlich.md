@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-03-23 – Prompt 1/1: zwei echte Arbeitsstundenfehler am realen Produktpfad behoben (`id = 0` bei Insert, Speichern in Freigabeansicht reagiert nicht auf Checkbox)
+
+- Den Block ausdrücklich gegen die zwei real reproduzierten Fehler geführt und nicht als Vermutungslösung umgesetzt.
+- Ersten Fehler `id = 0` im echten Neuanlagepfad vollständig zurückverfolgt:
+  - WPF-Usererfassung über `ArbeitsstundenErfassungViewModel`
+  - WPF-Dialogpfad über `ArbeitsstundenViewModel`
+  - MAUI-Usererfassung über `MyArbeitsstundenPage`
+  - gemeinsamer Persistenzpfad über `SupabaseService.AddArbeitsstundeAsync(...)`
+  - in allen drei Aufrufern wird für neue Arbeitsstunden keine fachliche `Id` gesetzt; die erzeugten `ArbeitsstundeRecord`-Instanzen tragen aber typbedingt lokal weiter den Defaultwert `0`
+  - der entscheidende Unterschied zu den übrigen produktiven Create-Modellen lag im Modellattribut: `ArbeitsstundeRecord` verwendete noch `[PrimaryKey("id")]`, während die übrigen Insert-relevanten Tabellen bereits explizit `[PrimaryKey("id", false)]` verwenden
+  - damit war die reale Ursache belastbar: im laufenden Paketstand konnte die Primärschlüsselspalte im Insertpfad weiterhin serialisiert werden und `Id = 0` in die Payload gelangen
+- Korrekturpfad für den Insertfehler:
+  - `ArbeitsstundeRecord` auf `[PrimaryKey("id", false)]` umgestellt
+  - keine App-seitige `lastrow+1`-Logik
+  - keine Änderung am Updatepfad; bestehende Datensätze verwenden ihre `Id` weiter normal
+  - Ergebnis: bei Neuanlagen wird die `id` nicht mehr aus der App in die Create-Payload aufgenommen
+- Zweiten Fehler in `Arbeitsstunden freigeben` ebenfalls bis zum realen UI-Pfad geprüft:
+  - `status` / Anmerkung war fachlich und technisch bereits optional
+  - `HasChanges` in `PruefungseintragItem` wertet bereits korrekt `Freigeben || Status geändert`
+  - die tatsächliche Störung lag nicht in einer Pflichtlogik für `status`, sondern an der WPF-Darstellung der Freigabe-Checkbox über `DataGridCheckBoxColumn`
+  - im laufenden Gridpfad wurde die Checkboxänderung nicht zuverlässig sofort in das Item zurückgeschrieben; dadurch zogen `PropertyChanged`, `HasPendingChanges` und `SpeichernCommand` beim bloßen Setzen der Checkbox nicht unmittelbar an
+- Korrekturpfad für die Freigabeansicht:
+  - die Spalte `Freigeben` wurde auf `DataGridTemplateColumn` mit explizitem `CheckBox`-Binding umgestellt
+  - Binding jetzt mit `Mode=TwoWay, UpdateSourceTrigger=PropertyChanged`
+  - dadurch gilt das Setzen der Checkbox sofort als relevante Änderung und aktiviert den Speichernpfad ohne zusätzliche Statuspflicht
+- Fachregeln bewusst unverändert gelassen:
+  - offen bleibt `freigegeben = false`
+  - `status` bleibt reines optionales Anmerkungsfeld
+  - Freigabe setzt weiter `freigegeben = true`, `genehmigt_am`, `genehmigt_von`
+  - keine neue Freigabearchitektur
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Fixblock erfolgreich; MAUI wurde im Shared-Pfad mitgedacht und nicht beschädigt.
+
 ## 2026-03-23 – Prompt 1/1: WPF-Bindingfehler in `ArbeitsstundenErfassungView` mit reinem Anzeige-Fix sauber abgeschlossen
 
 - Den gemeldeten Fehler auf die reale Bindungsstelle in `KGV.Wpf/Views/ArbeitsstundenErfassungView.xaml` zurückgeführt: `CurrentMemberText` ist im `ArbeitsstundenErfassungViewModel` bewusst nur als schreibgeschützte Anzeigeproperty vorhanden.

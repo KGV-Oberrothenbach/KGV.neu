@@ -55,7 +55,15 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridCheckBoxColumn Header="Freigeben" Binding="{Binding Freigeben, Mode=TwoWay}" Width="95" />
+                    <DataGridTemplateColumn Header="Freigeben" Width="95">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <CheckBox HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          IsChecked="{Binding Freigeben, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTemplateColumn Header="Aktion" Width="120">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
