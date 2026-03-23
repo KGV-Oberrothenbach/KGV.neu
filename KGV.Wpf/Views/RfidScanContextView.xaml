@@ -1,13 +1,80 @@
 <UserControl x:Class="KGV.Views.RfidScanContextView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid Margin="24">
-        <StackPanel MaxWidth="760">
-            <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,12" />
-            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,12" />
-            <Border Padding="12" Background="{StaticResource KgvSurfaceBrush}">
-                <TextBlock Text="{Binding RecoveryHint}" TextWrapping="Wrap" />
+    <Border Padding="16"
+            Background="{StaticResource KgvSurfaceBrush}"
+            BorderBrush="{StaticResource KgvBorderBrush}"
+            BorderThickness="1"
+            CornerRadius="16">
+        <StackPanel>
+            <TextBlock Text="RFID-UID" FontWeight="SemiBold" />
+            <TextBox Margin="0,8,0,0"
+                     Text="{Binding UidInput, UpdateSourceTrigger=PropertyChanged}" />
+            <TextBlock Text="Manuelle Eingabe ist nutzbar; UID wird zentral normalisiert und produktiv über `v_rfid_scan_context` aufgelöst."
+                       Margin="0,8,0,0"
+                       TextWrapping="Wrap"
+                       Foreground="Gray" />
+            <Button Content="RFID-Kontext prüfen"
+                    Width="180"
+                    Margin="0,16,0,0"
+                    HorizontalAlignment="Left"
+                    Command="{Binding ResolveCommand}" />
+
+            <TextBlock Text="{Binding StatusMessage}"
+                       Margin="0,12,0,0"
+                       TextWrapping="Wrap"
+                       Foreground="DarkSlateBlue"
+                       Visibility="{Binding HasStatusMessage, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+            <Border Margin="0,16,0,0"
+                    Padding="12"
+                    Background="{StaticResource KgvBackgroundBrush}"
+                    CornerRadius="12"
+                    Visibility="{Binding HasResolution, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel>
+                    <TextBlock Text="{Binding StateDisplay}" FontWeight="SemiBold" />
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="RFID:" FontWeight="SemiBold" Margin="0,0,12,6" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding NormalizedUid}" Margin="0,0,0,6" />
+
+                        <TextBlock Grid.Row="1" Text="Anlage / Garten:" FontWeight="SemiBold" Margin="0,0,12,6" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ParzelleDisplayName}" Margin="0,0,0,6" />
+
+                        <TextBlock Grid.Row="2" Text="Medium:" FontWeight="SemiBold" Margin="0,0,12,6" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding MediumDisplay}" Margin="0,0,0,6" />
+
+                        <TextBlock Grid.Row="3" Text="Aktiver Zähler:" FontWeight="SemiBold" Margin="0,0,12,6" />
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ActiveMeterDisplay}" Margin="0,0,0,6" />
+
+                        <TextBlock Grid.Row="4" Text="Zählernummer:" FontWeight="SemiBold" Margin="0,0,12,6" />
+                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding ZaehlernummerDisplay}" Margin="0,0,0,6" />
+
+                        <TextBlock Grid.Row="5" Text="Status:" FontWeight="SemiBold" Margin="0,0,12,6" />
+                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding StatusDisplay}" Margin="0,0,0,6" />
+
+                        <TextBlock Grid.Row="6" Text="Eichdatum:" FontWeight="SemiBold" Margin="0,0,12,6" />
+                        <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding EichdatumDisplay}" Margin="0,0,0,6" />
+
+                        <TextBlock Grid.Row="7" Text="Eichfälligkeit:" FontWeight="SemiBold" />
+                        <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding EichfaelligDisplay}" />
+                    </Grid>
+                </StackPanel>
             </Border>
         </StackPanel>
-    </Grid>
+    </Border>
 </UserControl>

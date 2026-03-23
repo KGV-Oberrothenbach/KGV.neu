@@ -1,13 +1,25 @@
 <UserControl x:Class="KGV.Views.AblesungErfassenView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid Margin="24">
-        <StackPanel MaxWidth="760">
-            <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,12" />
-            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,12" />
-            <Border Padding="12" Background="{StaticResource KgvSurfaceBrush}">
-                <TextBlock Text="{Binding RecoveryHint}" TextWrapping="Wrap" />
-            </Border>
-        </StackPanel>
-    </Grid>
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:KGV.Views">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="24">
+            <StackPanel MaxWidth="820">
+                <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,18" />
+
+                <views:RfidScanContextView DataContext="{Binding ScanContext}" />
+
+                <Border Margin="0,16,0,0"
+                        Padding="14"
+                        Background="{StaticResource KgvBackgroundBrush}"
+                        CornerRadius="12">
+                    <StackPanel>
+                        <TextBlock Text="Einordnung für Ablesung" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding WorkflowDecisionText}" Margin="0,8,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
 </UserControl>

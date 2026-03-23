@@ -25,6 +25,7 @@ namespace KGV.Core.Interfaces
         Task<RfidAssignmentCheckResult> CheckParzelleRfidAssignmentAsync(int parzelleId, string medium, string uid);
         Task<RfidAssignmentResult> AssignParzelleRfidAsync(int parzelleId, string medium, string uid, bool overwriteExisting = false);
         Task<List<ZaehlerEichstatusRecord>> GetZaehlerEichstatusAsync();
+        Task<RfidScanContextResult> ResolveRfidScanContextAsync(string uid);
 
         Task<ParzellenBelegungRecord?> GetCurrentBelegungForParzelleAsync(int parzelleId);
 

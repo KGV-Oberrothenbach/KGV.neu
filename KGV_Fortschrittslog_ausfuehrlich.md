@@ -2,6 +2,55 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Gemeinsamen RFID-Scan-Kontext für `Ablesung erfassen` und `Zählerwechsel` produktiv umgesetzt
+
+- Den Block erneut mit echter Istzustandsprüfung begonnen.
+- Einordnung vor dem Umbau:
+  - Dateien dieses Blocks waren die Placeholder für `Ablesung erfassen`, `Zählerwechsel` und `RfidScanContext` in WPF sowie die mobilen Placeholder für `AblesungErfassenPage` und `ZaehlerwechselPage`
+  - blockfremde offene WPF-Dateien und `supabase/migrations/20260323093513_remote_schema.sql` blieben bewusst unangetastet
+  - `_Archiv/_Recovery`, `_Archiv/_RecoveredArtifacts` und `_AI_DB_EXPORT/*` wurden nicht als fachliche Grundlage verwendet
+- Fachlich fehlte bisher der gemeinsame produktive RFID-Lesekern für beide Workflows.
+- Shared-Service nun klein und produktiv erweitert:
+  - `RfidScanContextState` mit den drei fachlichen Zuständen
+  - `RfidScanContextResult` als gemeinsames Ergebnisobjekt
+  - `ResolveRfidScanContextAsync(string uid)` in `ISupabaseService` / `SupabaseService`
+  - UID-Normalisierung zentral im Service, damit WPF und MAUI keine abweichende Logik bauen
+  - Auflösung ausschließlich über `v_rfid_scan_context`
+- Zustandslogik jetzt fachlich klar und zentral:
+  - kein Treffer in `v_rfid_scan_context` => `Unknown`
+  - Treffer mit `aktiver_zaehler_id` => `KnownWithActiveMeter`
+  - Treffer ohne `aktiver_zaehler_id` => `KnownWithoutActiveMeter`
+- `RfidScanContextRecord` nur am echten View-Vertrag orientiert und mit Anzeigehilfen ergänzt:
+  - Medium-Anzeige
+  - RFID-Anzeige
+  - aktiver Zähler ja/nein
+  - Zählernummer
+  - Status
+  - Eichdatum / Eichfälligkeit
+- WPF konkret umgesetzt:
+  - den vorhandenen `RfidScanContextViewModel`-Placeholder in eine echte gemeinsame WPF-Kontextlogik umgebaut
+  - den vorhandenen `RfidScanContextView`-Placeholder in eine echte UID-Eingabe- und Ergebnisanzeige umgebaut
+  - `AblesungErfassenViewModel` bindet diesen gemeinsamen Kontext jetzt produktiv ein
+  - `ZaehlerwechselScanViewModel` bindet denselben gemeinsamen Kontext ebenfalls ein
+  - beide WPF-Seiten zeigen danach dieselben Kontextdaten, aber unterschiedliche workflow-spezifische Einordnung an
+- MAUI konkret umgesetzt:
+  - neues gemeinsames `RfidScanContextViewModel`
+  - neue gemeinsame Basispage `RfidScanWorkflowPage`
+  - `AblesungErfassenPage` von Placeholder auf produktive UID-Eingabe und Kontextanzeige umgestellt
+  - `ZaehlerwechselPage` ebenso auf denselben gemeinsamen Kern umgestellt
+  - beide mobilen Seiten unterscheiden nun ebenfalls sauber zwischen unbekanntem Tag, bekanntem Tag mit aktivem Zähler und bekanntem Tag ohne aktiven Zähler
+- Workflow-Einordnung nach Aufrufziel:
+  - `Ablesung erfassen`: bekannter Kontext wird angezeigt; mit aktivem Zähler ist der Ablese-Kontext vorbereitet, ohne aktiven Zähler wird sauber erklärt, dass Ablesung noch nicht sinnvoll ist
+  - `Zählerwechsel`: mit aktivem Zähler wird Ausbau als nächster Schritt angezeigt, ohne aktiven Zähler Einbau
+- Rechte/Konsistenz:
+  - Bereich bleibt fachlich auf Admin/Vorstand begrenzt
+  - WPF und MAUI nutzen denselben Shared-Servicepfad und dieselbe Zustandsableitung
+  - keine QR- oder sonstige Schattenlogik ergänzt
+- Verifikation:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - Block ist damit als gemeinsamer produktiver RFID-Kontextkern für beide späteren Fachflows buildfähig abgeschlossen
+
 ## 2026-03-24 – Prompt 1/1: `Fällige Zähler` auf `v_zaehler_eichstatus` produktiv umgesetzt
 
 - Den Block wieder mit echter Vorprüfung gegen den aktuellen Repo- und Arbeitsbaumstand begonnen.

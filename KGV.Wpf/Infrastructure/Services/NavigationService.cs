@@ -68,6 +68,16 @@ namespace KGV.Infrastructure.Services
                 return new AblesenOverviewViewModel(mainVm);
             }
 
+            if (viewModelType == typeof(AblesungErfassenViewModel))
+            {
+                return new AblesungErfassenViewModel(_supabaseService, mainVm);
+            }
+
+            if (viewModelType == typeof(ZaehlerwechselScanViewModel))
+            {
+                return new ZaehlerwechselScanViewModel(_supabaseService, mainVm);
+            }
+
             if (viewModelType == typeof(ArbeitsstundenErfassungViewModel))
             {
                 if (parameter is ArbeitsstundenErfassungContext context)

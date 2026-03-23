@@ -1,5 +1,6 @@
 using Supabase.Postgrest.Attributes;
 using Supabase.Postgrest.Models;
+using System;
 
 namespace KGV.Core.Models
 {
@@ -43,5 +44,15 @@ namespace KGV.Core.Models
         public string? Status { get; set; }
 
         public string ParzelleDisplayName => string.IsNullOrWhiteSpace(Anlage) ? GartenNr ?? string.Empty : $"{GartenNr} - {Anlage}";
+        public bool HasActiveMeter => AktiverZaehlerId.HasValue && AktiverZaehlerId.Value > 0;
+        public string MediumDisplay => string.Equals(Medium, "wasser", StringComparison.OrdinalIgnoreCase) ? "Wasser" : "Strom";
+        public string RfidDisplay => string.IsNullOrWhiteSpace(RfidTagUid) ? "—" : RfidTagUid.Trim();
+        public string ZaehlernummerDisplay => string.IsNullOrWhiteSpace(Zaehlernummer) ? "—" : Zaehlernummer.Trim();
+        public string StatusDisplay => HasActiveMeter
+            ? (string.IsNullOrWhiteSpace(Status) ? "Aktiv" : Status.Trim())
+            : "Kein aktiver Zähler";
+        public string EichdatumDisplay => Eichdatum?.ToString("dd.MM.yyyy") ?? "—";
+        public string EichfaelligDisplay => EichfaelligAm?.ToString("dd.MM.yyyy") ?? "—";
+        public string ActiveMeterDisplay => HasActiveMeter ? "Ja" : "Nein";
     }
 }

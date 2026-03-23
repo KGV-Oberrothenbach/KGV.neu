@@ -310,6 +310,63 @@ namespace KGV.Infrastructure.Services
             },
             new List<ZaehlerEichstatusRecord>());
 
+        public Task<RfidScanContextResult> ResolveRfidScanContextAsync(string uid) => ExecuteAsync(
+            "ResolveRfidScanContextAsync",
+            async () =>
+            {
+                var normalizedUid = NormalizeRfidTagUid(uid);
+                if (normalizedUid == null)
+                {
+                    return new RfidScanContextResult
+                    {
+                        State = RfidScanContextState.Unknown,
+                        Message = "Bitte eine RFID-UID eingeben.",
+                        NormalizedUid = string.Empty
+                    };
+                }
+
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<RfidScanContextRecord>()
+                    .Where(x => x.RfidTagUid == normalizedUid)
+                    .Get();
+
+                var context = response?.Models?
+                    .OrderByDescending(x => x.HasActiveMeter)
+                    .FirstOrDefault();
+
+                if (context == null)
+                {
+                    return new RfidScanContextResult
+                    {
+                        State = RfidScanContextState.Unknown,
+                        Message = $"Für die UID {normalizedUid} wurde kein RFID-Kontext gefunden.",
+                        NormalizedUid = normalizedUid
+                    };
+                }
+
+                var state = context.HasActiveMeter
+                    ? RfidScanContextState.KnownWithActiveMeter
+                    : RfidScanContextState.KnownWithoutActiveMeter;
+
+                var message = state == RfidScanContextState.KnownWithActiveMeter
+                    ? $"RFID-Kontext für {context.ParzelleDisplayName} mit aktivem {context.MediumDisplay.ToLowerInvariant()}zähler geladen."
+                    : $"RFID-Kontext für {context.ParzelleDisplayName} geladen, aktuell jedoch ohne aktiven Zähler.";
+
+                return new RfidScanContextResult
+                {
+                    State = state,
+                    Message = message,
+                    NormalizedUid = normalizedUid,
+                    Context = context
+                };
+            },
+            new RfidScanContextResult
+            {
+                State = RfidScanContextState.Unknown,
+                Message = "Der RFID-Kontext konnte aktuell nicht geladen werden."
+            });
+
         public Task<ParzellenBelegungRecord?> GetCurrentBelegungForParzelleAsync(int parzelleId) => ExecuteAsync<ParzellenBelegungRecord?>(
             "GetCurrentBelegungForParzelleAsync",
             async () =>

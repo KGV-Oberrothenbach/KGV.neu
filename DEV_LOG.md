@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-03-24 – Gemeinsamen RFID-Scan-Kontext für `Ablesung erfassen` und `Zählerwechsel` produktiv umgesetzt
+
+- Vor dem Umbau erneut den realen Repo-/Arbeitsbaumstand geprüft und blockfremde offene Dateien bewusst unberührt gelassen.
+- Den gemeinsamen produktiven RFID-Lesepfad im Shared-Service ergänzt:
+  - neues Enum `RfidScanContextState`
+  - neues Ergebnis-DTO `RfidScanContextResult`
+  - neue Service-Methode `ResolveRfidScanContextAsync(...)`
+  - UID-Normalisierung bleibt zentral im `SupabaseService`
+  - produktiver Lesepfad ist `v_rfid_scan_context`
+- `RfidScanContextRecord` am echten View-Vertrag belassen und nur um Anzeige-/Statushilfen ergänzt.
+- Fachliche Zustandsableitung jetzt zentral und für beide Clients gleich:
+  - `Unknown`
+  - `KnownWithActiveMeter`
+  - `KnownWithoutActiveMeter`
+- WPF:
+  - vorhandenen Placeholder `RfidScanContextViewModel` / `RfidScanContextView` in echte gemeinsame RFID-Kontextanzeige umgebaut
+  - `AblesungErfassenViewModel` und `ZaehlerwechselScanViewModel` auf produktive UID-Eingabe + Kontextauflösung umgestellt
+  - Ergebnisanzeige mit Anlage, Garten, Medium, RFID, aktivem Zähler, Zählernummer, Status, Eichdaten
+  - workflow-spezifische Einordnung für Ablesung bzw. Zählerwechsel ergänzt
+- MAUI:
+  - gemeinsames `RfidScanContextViewModel` und gemeinsame Basispage `RfidScanWorkflowPage` ergänzt
+  - `AblesungErfassenPage` und `ZaehlerwechselPage` auf denselben produktiven Kontextpfad umgestellt
+  - manuelle UID-Eingabe, Kontextauflösung und workflow-spezifische Einordnung mobil nutzbar
+- Rechte:
+  - Bereich bleibt auf Admin/Vorstand begrenzt
+  - keine QR- oder Schattenlogik eingeführt
+- Technisch verifiziert:
+  - `KGV.Wpf` baut erfolgreich
+  - `KGV.Maui` baut erfolgreich
+
 ## 2026-03-24 – `Fällige Zähler` produktiv auf Basis von `v_zaehler_eichstatus` umgesetzt
 
 - Vor Start den realen Repo-/Arbeitsbaumzustand erneut geprüft; keine Recovery-Reste als fachliche Grundlage verwendet.
