@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-03-23 – Prompt 1/1: produktive Insert-Pfade auf feste ID-Mitgabe geprüft und als aktuell korrekt dokumentiert
+
+- Den gewünschten Block zuerst vollständig als Istzustandsprüfung statt als Vorab-Fix angegangen: geprüft wurden der aktuelle `SupabaseService`, alle relevanten produktiven Create-/Add-/Insert-Pfade, die beteiligten Record-/Request-Modelle sowie die WPF-/MAUI-Aufrufer für Neuanlagen.
+- Den stärksten Verdachtspfad `arbeitstunde` konkret bis zur tatsächlichen Insert-Stelle zurückverfolgt:
+  - WPF erzeugt neue Arbeitsstunden in `ArbeitsstundenViewModel`
+  - MAUI erzeugt neue Arbeitsstunden in `MyArbeitsstundenPage`
+  - beide erzeugen neue `ArbeitsstundeRecord`-Objekte **ohne** explizite `Id`
+  - `SupabaseService.AddArbeitsstundeAsync(...)` baut daraus nochmals ein frisches Insert-Objekt und setzt ebenfalls **keine** `Id`
+  - im aktuell produktiven Insert-Pfad konnte damit kein `id = 0` oder sonstige feste ID-Mitgabe aus der App nachgewiesen werden
+- Danach die übrigen produktiven Verwaltungs-Neuanlagen geprüft:
+  - `CreateTerminAsync(...)`
+  - `CreateBekanntmachungAsync(...)`
+  - `CreateArbeitseinsatzAsync(...)`
+  - in den WPF-ViewModels laufen neue Editorzustände zwar als normale Record-Objekte, wobei `Id` im New-Mode lokal auf den Typdefault `0` fällt
+  - entscheidend ist aber der Servicepfad: die drei Create-Methoden erzeugen vor dem tatsächlichen PostgREST-Insert jeweils ein separates Insert-Objekt und übernehmen die lokale `Id` gerade nicht in die Payload
+  - Ergebnis: auch diese produktiven Neuanlagen senden aktuell keine feste ID aus der App
+- Einen möglichen Produktpfad `arbeitseinsatz_anmeldung` gesondert gesucht, weil er laut Zielarchitektur ebenfalls DB-gesteuert laufen müsste. Im aktuellen Repo existiert dafür aber weiterhin kein echter Schreibpfad; der vorhandene `Anmelden`-Button auf Home bleibt eine reine Hinweis-/Info-Aktion. Entsprechend war dort aktuell auch kein produktiver Insertpfad mit ID-Mitgabe vorhanden.
+- Den Serializer-/Bibliotheksaspekt zusätzlich gegen den real verwendeten Paketstand abgesichert: im eingebundenen `Supabase.Postgrest` besitzt `PrimaryKeyAttribute` den optionalen Parameter `shouldInsert`, dessen Defaultwert `false` ist. Der verbleibende Arbeitsstunden-Record mit `[PrimaryKey("id")]` sendet seine Primärschlüsselspalte damit im Insert-Kontext ebenfalls nicht automatisch mit. Das erklärt, warum auch dieser Pfad trotz impliziter Schreibweise aktuell korrekt bleibt.
+- Wichtiges Ergebnis des Blocks:
+  - in den geprüften produktiven Insert-Pfaden wurde aktuell **kein** `id = 0` aus der App nachgewiesen
+  - es wurde auch keine feste `id` indirekt über Mapper, Defaultkonstruktoren oder Insert-Helfer in die produktive Payload übernommen
+  - Unterschiede zwischen WPF und MAUI bestehen für `arbeitsstunde` nicht; beide laufen über denselben korrekten Shared-Servicepfad
+- Deshalb bewusst **kein** Codeumbau auf Verdacht:
+  - keine `lastrow+1`-Logik
+  - keine unnötigen zusätzlichen Insert-Modelle nur zur kosmetischen Doppelabsicherung
+  - keine DB-Migration ohne versionierte Repo-Basis
+  - stattdessen saubere Dokumentation, dass das Zielmuster im aktuellen Produktstand bereits eingehalten wird: `Insert ohne feste ID`, `Update mit vorhandener ID`
+- Repo-seitig zusätzlich verifiziert: im aktuellen Arbeitsstand liegen keine SQL-/Migrationsdateien vor, über die sich die Tabellen-Defaults oder Sequences versioniert nachprüfen ließen. Eine DB-seitige Sequence-/Defaultkorrektur war für diesen Block aber auch nicht nötig, weil auf App-Seite kein fehlerhafter Insertpfad mehr vorliegt.
+- Technisch verifiziert: Workspace-Build erfolgreich; WPF bleibt buildbar und MAUI wurde durch diesen Analyse-/Dokublock nicht beschädigt.
+
 ## 2026-03-23 – Prompt 1/1: begonnenen Home-/Detail-Block für Arbeitseinsatz sauber abgeschlossen, ohne Fake-Anmeldepfad
 
 - Den aktuellen Istzustand des begonnenen Blocks zuerst gegen den realen Arbeitsbaum geprüft und nur konsolidiert: bereits vorhanden waren erweiterte Home-Items, ein optionaler `CanRegister`-/Detailkontext, vorbereitete Änderungen im `HomeViewModel` sowie ein halbfertig angefasster Mappingblock im `SupabaseService`; sichtbar offen waren vor allem die WPF-XAMLs `HomeView.xaml` und `HomeSectionDetailView.xaml`, außerdem war der hintere Helper-Tail des `SupabaseService` beschädigt/abgeschnitten.

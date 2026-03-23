@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-03-23 – Insert-Pfade auf explizite ID-Mitgabe geprüft: produktive Neuanlagen senden aktuell keine feste ID aus der App
+
+- Den aktuellen produktiven Insert-/Create-Stand zuerst gegen den realen Arbeitsbaum geprüft statt auf Verdacht umzubauen: gesichtet wurden `SupabaseService`, die betroffenen Records/Modelle, die WPF-/MAUI-Neuanlagepfade für `arbeitsstunde`, `termin`, `bekanntmachung` und `arbeitseinsatz` sowie ein möglicher Pfad für `arbeitseinsatz_anmeldung`.
+- Für `arbeitsstunde` den konkreten Verdacht am echten Produktpfad geprüft: WPF (`ArbeitsstundenViewModel`) und MAUI (`MyArbeitsstundenPage`) bauen neue `ArbeitsstundeRecord`-Instanzen ohne gesetzte `Id`; `AddArbeitsstundeAsync(...)` erstellt daraus wiederum ein neues Insert-Objekt ebenfalls ohne `Id`-Zuweisung und sendet nur die fachlichen Felder an PostgREST.
+- Für die drei Verwaltungs-Neuanlagen denselben Punkt abgesichert: die WPF-Editoren bauen im New-Mode zwar Arbeitsobjekte mit `Id = 0` als lokalem Defaultwert, aber die produktiven Service-Create-Pfade `CreateTerminAsync(...)`, `CreateBekanntmachungAsync(...)` und `CreateArbeitseinsatzAsync(...)` übernehmen diese `Id` gerade **nicht** in ihre tatsächlichen Insert-Objekte. Gesendet werden dort nur die fachlichen Spalten; Updates laufen weiterhin separat über die vorhandene Datensatz-`Id`.
+- Einen echten produktiven Insert-Pfad für `arbeitseinsatz_anmeldung` gibt es im aktuellen Repo weiterhin nicht: der vorhandene `Anmelden`-Pfad auf Home ist nach wie vor nur eine ehrliche Info-Aktion ohne Schreibzugriff. Entsprechend war dort aktuell auch kein produktiver ID-Insertpfad zu korrigieren.
+- Zusätzlich den Library-Unterbau gegen den aktuellen Paketstand geprüft: im verwendeten `Supabase.Postgrest`-Paket ist beim `PrimaryKey`-Attribut der Parameter `shouldInsert` standardmäßig `false`. Damit wird die Primärschlüsselspalte auch beim verbleibenden Muster `[PrimaryKey("id")]` nicht automatisch in Insert-Payloads aufgenommen, solange sie nicht explizit gesetzt und bewusst anderweitig serialisiert wird.
+- Ergebnis der Prüfung: im aktuellen produktiven App-Code ließ sich für die geprüften Neuanlagepfade keine Stelle nachweisen, an der bei Inserts eine feste `id` oder konkret `id = 0` aus der App mitgesendet wird.
+- Deshalb bewusst **kein** Vermutungsfix eingebaut: keine `lastrow+1`-Logik, keine unnötige Schatten-Insertarchitektur und keine DB-Migrationsänderung auf Verdacht. Der Block bleibt bei der belastbaren Analyse und Dokumentation des aktuell bereits korrekten Insert-Musters `Insert ohne feste ID, Update mit bestehender ID`.
+- Repo-seitig zusätzlich verifiziert: im aktuellen Arbeitsstand liegen keine versionierten SQL-/Migrationsdateien für die betroffenen Tabellen vor; eine DB-seitige Sequence-/Default-Prüfung war im Repo daher nicht weiter nachvollziehbar, wurde aber für diesen Block auch nicht benötigt, weil auf App-Seite kein fehlerhafter ID-Insertpfad mehr vorliegt.
+- Technisch verifiziert: Workspace-Build erfolgreich; WPF bleibt buildbar und MAUI wird durch diesen Dokumentations-/Analyseblock nicht beschädigt.
+
 ## 2026-03-23 – Home-/Detail-Block für Arbeitseinsätze sauber abgeschlossen: Beginn sichtbar, Detaildaten vervollständigt, Anmelden ehrlich nur informativ
 
 - Den begonnenen Home-/Detail-Block zuerst gegen den realen Arbeitsbaum konsolidiert statt neu aufzuziehen: bereits halbfertig vorhanden waren erweiterte Home-/Detailmodelle, ein vorbereiteter optionaler `Anmelden`-Pfad im Detailkontext und erste Anpassungen im `HomeViewModel`, aber die sichtbaren WPF-XAML-Schritte und der hintere Helper-Tail des `SupabaseService` waren noch nicht sauber abgeschlossen.
