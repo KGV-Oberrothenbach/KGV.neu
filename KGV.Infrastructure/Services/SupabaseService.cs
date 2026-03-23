@@ -984,6 +984,66 @@ namespace KGV.Infrastructure.Services
             LoadStartseiteTermineAsync,
             new List<HomeAppointmentItem>());
 
+        public Task<WorkAssignmentRegistrationResult> SignUpForArbeitseinsatzAsync(int arbeitseinsatzId, int mitgliedId) => ExecuteAsync(
+            "SignUpForArbeitseinsatzAsync",
+            async () =>
+            {
+                if (arbeitseinsatzId <= 0 || mitgliedId <= 0)
+                    return CreateRegistrationResult(false, "Die Anmeldung konnte nicht gestartet werden, weil Arbeitseinsatz oder Mitglied fehlen.");
+
+                var client = await EnsureClientAsync();
+                var arbeitseinsatz = await GetArbeitseinsatzByIdAsync(client, arbeitseinsatzId);
+                if (arbeitseinsatz == null)
+                    return CreateRegistrationResult(false, "Der ausgewählte Arbeitseinsatz konnte nicht geladen werden.");
+
+                var aktiveAnmeldungen = await GetAktiveArbeitseinsatzAnmeldungenAsync(client, arbeitseinsatzId);
+                if (aktiveAnmeldungen.Any(x => x.MitgliedId == mitgliedId))
+                {
+                    var existingItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId, forceDisableRegistration: true);
+                    return CreateRegistrationResult(false, "Für diesen Arbeitseinsatz besteht bereits eine Anmeldung.", existingItem);
+                }
+
+                var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+                if (arbeitseinsatz.AnmeldungBis.HasValue && arbeitseinsatz.AnmeldungBis.Value < now)
+                {
+                    var expiredItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId, forceDisableRegistration: true);
+                    return CreateRegistrationResult(false, "Die Anmeldefrist für diesen Arbeitseinsatz ist bereits abgelaufen.", expiredItem);
+                }
+
+                if (arbeitseinsatz.MaxTeilnehmer.HasValue && aktiveAnmeldungen.Count >= arbeitseinsatz.MaxTeilnehmer.Value)
+                {
+                    var fullItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId, forceDisableRegistration: true);
+                    return CreateRegistrationResult(false, "Für diesen Arbeitseinsatz sind aktuell keine freien Plätze mehr verfügbar.", fullItem);
+                }
+
+                try
+                {
+                    await client.Rpc<ArbeitseinsatzAnmeldungRecord>(
+                        "sign_up_for_arbeitseinsatz",
+                        new
+                        {
+                            p_arbeitseinsatz_id = arbeitseinsatzId,
+                            p_mitglied_id = mitgliedId
+                        });
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "SignUpForArbeitseinsatzAsync RPC failed for arbeitseinsatz {ArbeitseinsatzId} and mitglied {MitgliedId}", arbeitseinsatzId, mitgliedId);
+
+                    var refreshedActiveAnmeldungen = await GetAktiveArbeitseinsatzAnmeldungenAsync(client, arbeitseinsatzId);
+                    var refreshedItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId, forceDisableRegistration: refreshedActiveAnmeldungen.Any(x => x.MitgliedId == mitgliedId));
+
+                    if (refreshedActiveAnmeldungen.Any(x => x.MitgliedId == mitgliedId))
+                        return CreateRegistrationResult(false, "Für diesen Arbeitseinsatz besteht bereits eine Anmeldung.", refreshedItem);
+
+                    return CreateRegistrationResult(false, "Die Anmeldung konnte aktuell nicht gespeichert werden. Bitte versuche es erneut.", refreshedItem);
+                }
+
+                var updatedItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId, forceDisableRegistration: true);
+                return CreateRegistrationResult(true, "Die Anmeldung zum Arbeitseinsatz wurde gespeichert.", updatedItem);
+            },
+            new WorkAssignmentRegistrationResult());
+
         public Task<List<HomeAnnouncementItem>> GetStartseiteBekanntmachungenAsync() => ExecuteAsync(
             "GetStartseiteBekanntmachungenAsync",
             LoadStartseiteBekanntmachungenAsync,
@@ -1619,8 +1679,11 @@ namespace KGV.Infrastructure.Services
         {
             var client = await EnsureClientAsync();
             var response = await client.From<StartseiteArbeitseinsatzRecord>().Get();
+            var records = response?.Models?.ToList() ?? new List<StartseiteArbeitseinsatzRecord>();
 
-            return response?.Models?
+            await EnrichStartseiteArbeitseinsatzTimesAsync(client, records);
+
+            return records
                 .OrderBy(x => x.Datum ?? DateTime.MaxValue)
                 .ThenBy(x => FirstNonEmpty(x.Titel, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                 .Select(MapHomeWorkAssignment)
@@ -1632,8 +1695,11 @@ namespace KGV.Infrastructure.Services
         {
             var client = await EnsureClientAsync();
             var response = await client.From<StartseiteTerminRecord>().Get();
+            var records = response?.Models?.ToList() ?? new List<StartseiteTerminRecord>();
 
-            return response?.Models?
+            await EnrichStartseiteTerminTimesAsync(client, records);
+
+            return records
                 .OrderBy(x => x.Datum ?? DateTime.MaxValue)
                 .ThenBy(x => FirstNonEmpty(x.Titel, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                 .Select(MapHomeAppointment)
@@ -1793,6 +1859,127 @@ namespace KGV.Infrastructure.Services
                 parts.Add(timePart);
 
             return string.Join(" · ", parts);
+        }
+
+        private static WorkAssignmentRegistrationResult CreateRegistrationResult(bool success, string message, HomeWorkAssignmentItem? updatedItem = null)
+        {
+            return new WorkAssignmentRegistrationResult
+            {
+                Success = success,
+                Message = message,
+                UpdatedItem = updatedItem
+            };
+        }
+
+        private async Task<ArbeitseinsatzRecord?> GetArbeitseinsatzByIdAsync(global::Supabase.Client client, int arbeitseinsatzId)
+        {
+            var response = await client
+                .From<ArbeitseinsatzRecord>()
+                .Where(x => x.Id == arbeitseinsatzId)
+                .Get();
+
+            return response?.Models?
+                .Select(NormalizeArbeitseinsatzRecord)
+                .FirstOrDefault();
+        }
+
+        private async Task<List<ArbeitseinsatzAnmeldungRecord>> GetAktiveArbeitseinsatzAnmeldungenAsync(global::Supabase.Client client, int arbeitseinsatzId)
+        {
+            var response = await client
+                .From<ArbeitseinsatzAnmeldungRecord>()
+                .Where(x => x.ArbeitseinsatzId == arbeitseinsatzId)
+                .Where(x => x.Status == "angemeldet")
+                .Get();
+
+            return response?.Models?.ToList() ?? new List<ArbeitseinsatzAnmeldungRecord>();
+        }
+
+        private async Task<HomeWorkAssignmentItem?> TryLoadHomeWorkAssignmentItemAsync(global::Supabase.Client client, int arbeitseinsatzId, bool forceDisableRegistration)
+        {
+            var response = await client
+                .From<StartseiteArbeitseinsatzRecord>()
+                .Where(x => x.Id == arbeitseinsatzId)
+                .Get();
+
+            var record = response?.Models?.FirstOrDefault();
+            if (record == null)
+                return null;
+
+            await EnrichStartseiteArbeitseinsatzTimesAsync(client, new List<StartseiteArbeitseinsatzRecord> { record });
+            var item = MapHomeWorkAssignment(record);
+
+            if (!forceDisableRegistration)
+                return item;
+
+            return new HomeWorkAssignmentItem
+            {
+                Id = item.Id,
+                Title = item.Title,
+                Subtitle = item.Subtitle,
+                StartTimeText = item.StartTimeText,
+                EndTimeText = item.EndTimeText,
+                Details = item.Details,
+                DetailInfo = item.DetailInfo,
+                RegistrationInfo = item.RegistrationInfo,
+                CanRegister = false
+            };
+        }
+
+        private static async Task EnrichStartseiteArbeitseinsatzTimesAsync(global::Supabase.Client client, List<StartseiteArbeitseinsatzRecord> records)
+        {
+            if (records.Count == 0 || records.All(HasStartseiteTimeValues))
+                return;
+
+            var response = await client.From<ArbeitseinsatzRecord>().Get();
+            var lookup = response?.Models?
+                .Where(x => x.Id > 0)
+                .ToDictionary(x => (int)x.Id)
+                ?? new Dictionary<int, ArbeitseinsatzRecord>();
+
+            foreach (var record in records)
+            {
+                if (HasStartseiteTimeValues(record) || !lookup.TryGetValue(record.Id, out var source))
+                    continue;
+
+                record.Beginn ??= FormatTimeValue(source.StartUhrzeit);
+                record.Ende ??= FormatTimeValue(source.EndUhrzeit);
+            }
+        }
+
+        private static async Task EnrichStartseiteTerminTimesAsync(global::Supabase.Client client, List<StartseiteTerminRecord> records)
+        {
+            if (records.Count == 0 || records.All(HasStartseiteTimeValues))
+                return;
+
+            var response = await client.From<TerminRecord>().Get();
+            var lookup = response?.Models?
+                .Where(x => x.Id > 0)
+                .ToDictionary(x => (int)x.Id)
+                ?? new Dictionary<int, TerminRecord>();
+
+            foreach (var record in records)
+            {
+                if (HasStartseiteTimeValues(record) || !lookup.TryGetValue(record.Id, out var source))
+                    continue;
+
+                record.Beginn ??= FormatTimeValue(source.StartUhrzeit);
+                record.Ende ??= FormatTimeValue(source.EndUhrzeit);
+            }
+        }
+
+        private static bool HasStartseiteTimeValues(StartseiteArbeitseinsatzRecord record)
+        {
+            return !string.IsNullOrWhiteSpace(record.Beginn) || !string.IsNullOrWhiteSpace(record.Ende);
+        }
+
+        private static bool HasStartseiteTimeValues(StartseiteTerminRecord record)
+        {
+            return !string.IsNullOrWhiteSpace(record.Beginn) || !string.IsNullOrWhiteSpace(record.Ende);
+        }
+
+        private static string? FormatTimeValue(TimeSpan? value)
+        {
+            return value?.ToString(@"hh\:mm");
         }
 
         private static string BuildTimeRange(string? begin, string? end)

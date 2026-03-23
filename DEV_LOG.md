@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-03-24 – RPC-Anmeldeblock für Arbeitseinsatz final verifiziert, committed und gepusht
+
+- Den bereits umgesetzten RPC-Pfad für `Anmelden` nochmals final gegen den realen Arbeitsbaum geprüft und `KGV.Wpf` erfolgreich gebaut.
+- Für den Abschluss wurden ausschließlich die zu diesem Block gehörenden Dateien gestaged; blockfremde lokale Änderungen wie `KGV.Wpf/Views/LoginWindow.xaml` sowie untracked Artefakte blieben unberührt.
+- Kurz funktional verifiziert per Codepfad: Home und Detailview rufen denselben Shared-Service `SignUpForArbeitseinsatzAsync(...)` auf; Doppelanmeldung, Frist und Platzgrenze werden vor dem RPC geprüft und zusätzlich im RPC-Fehlerfall sauber in verständliche Rückmeldungen übersetzt.
+- Der Block ist damit sauber als eigener Commit abgeschlossen und direkt gepusht.
+
+## 2026-03-24 – `Anmelden` für Arbeitseinsatz produktiv über den echten DB-Funktionspfad angebunden
+
+- Den Block ausdrücklich gegen den referenzierten DB-Export `_AI_DB_EXPORT` geführt. Belastbar genutzt wurden vor allem `database.types.ts` sowie die dort bestätigten Funktionen `sign_up_for_arbeitseinsatz(p_arbeitseinsatz_id, p_mitglied_id)` und `sign_off_from_arbeitseinsatz(...)`, außerdem die Tabelle `arbeitseinsatz_anmeldung` und das Enum `arbeitseinsatz_anmeldung_status`. `roles.sql` wurde als Zusatzkontext geprüft; dort liegen keine abweichenden App-seitigen Sonderregeln für diesen Block.
+- Daraus den fachlich richtigen Schreibpfad abgeleitet: die App schreibt die Anmeldung nicht als Schatteninsert direkt in `arbeitseinsatz_anmeldung`, sondern nutzt produktiv die vorhandene DB-Funktion `sign_up_for_arbeitseinsatz(...)`. Der direkte Tabellenzugriff bleibt nur lesend für Vorabprüfungen und Status-/Kapazitätsbewertung.
+- Im Shared-Service wurde dafür ein echter Produktpfad ergänzt: `SignUpForArbeitseinsatzAsync(int arbeitseinsatzId, int mitgliedId)` prüft zuerst sauber Mitglied, bestehenden Datensatz, aktive Anmeldungen, Frist und Platzgrenze und ruft dann den bestätigten RPC-Pfad auf.
+- Doppelanmeldungen werden dabei zweistufig verhindert: vor dem RPC über eine gezielte Lesesicht auf `arbeitseinsatz_anmeldung` mit `status = angemeldet`, zusätzlich über den DB-Funktionspfad selbst. Falls der RPC in einem Rennen dennoch in einen bereits angemeldeten Zustand läuft, wird das klein abgefangen und als verständliche Rückmeldung ausgegeben statt als technischer Rohfehler.
+- Home und Detailview verwenden jetzt denselben echten Servicepfad statt doppelter ViewModel-Logik:
+  - Home nutzt weiter `RegisterForWorkAssignmentCommand`, ruft aber jetzt den Shared-Service auf
+  - die Detailansicht nutzt denselben Servicepfad über den im Kontext mitgegebenen `WorkAssignmentId`
+  - beide erhalten dieselbe verständliche Erfolgs-/Fehlerrückmeldung
+- Der Mitgliedsbezug bleibt beim real vorhandenen Benutzerpfad: bevorzugt wird `UserContext.MitgliedId`, mit kleinem Fallback über `EnsureCurrentMemberSelectedAsync()`; es wurde keine neue Sonderzuordnung eingeführt.
+- Nach erfolgreicher Anmeldung wird der sichtbare Zustand klein aktualisiert: der betroffene Home-Eintrag bzw. der Detailkontext erhält den aktualisierten Startseiten-Datensatz zurück und der Button wird ehrlich deaktiviert, damit keine zweite sofortige Anmeldung ausgelöst wird. Eine Abmeldung oder Warteliste wurde bewusst nicht neu eröffnet.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem produktiven Arbeitseinsatz-Anmeldeblock erfolgreich; MAUI wurde im Shared-Core-/Servicepfad mitgedacht und nicht beschädigt.
+
+## 2026-03-24 – Home-Zeitwerte für Arbeitseinsatz und Termin final aus dem echten Home-Lesepfad nachgereicht
+
+- Den verbleibenden Sichtbarkeitsfehler nach dem expliziten WPF-Binding nochmals gegen den kompletten sichtbaren Pfad geprüft. Ergebnis: die WPF-Views waren bereits korrekt auf Start-/Endzeit gebunden; der Restfehler saß davor im Home-Lesepfad, weil `v_startseite_arbeitseinsatz` bzw. `v_startseite_termine` die Zeitfelder im aktuellen Stand nicht in jedem Fall belastbar lieferten.
+- Der finale Fix bleibt deshalb klein und produktnah im bestehenden Home-Servicepfad: `LoadStartseiteArbeitseinsaetzeAsync()` und `LoadStartseiteTermineAsync()` laden die Startseiten-Records weiter aus den bestehenden Views, reichern fehlende `Beginn`-/`Ende`-Werte bei Bedarf aber gezielt aus den Basistabellen `arbeitseinsatz` bzw. `termin` anhand der bereits vorhandenen Datensatz-`Id` an.
+- Damit ist jetzt belastbar abgesichert: `start_uhrzeit` und `end_uhrzeit` kommen nicht nur in der Basistabelle vor, sondern erreichen den tatsächlich sichtbaren WPF-Pfad auch dann, wenn die Startseiten-View sie im aktuellen Stand leer lässt. Die sichtbare Bindung in Home und Detail kann damit auf denselben expliziten Start-/Endfeldern bleiben.
+- Keine neue Fachlogik, keine neue Navigation und keine Home-Schattenarchitektur: es bleibt beim vorhandenen Home-Lesepfad plus kleiner Fallback-Anreicherung nur für fehlende Zeitwerte.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem finalen Home-Zeitfix erfolgreich; MAUI wurde durch die kleine Shared-Service-Ergänzung nicht beschädigt.
+
 ## 2026-03-24 – Start- und Endzeit im tatsächlich sichtbaren WPF-Pfad final sichtbar gemacht
 
 - Den sichtbaren Restfehler nochmals Ende-zu-Ende gegen den tatsächlichen WPF-Pfad geprüft: `SupabaseService`, Home-Items, `HomeViewModel`, `HomeSectionDetailContext`, `HomeSectionDetailViewModel`, `HomeView.xaml` und `HomeSectionDetailView.xaml`. Ergebnis: `start_uhrzeit`/`end_uhrzeit` kamen im Mapping als normalisierte Werte an, hingen im sichtbaren UI aber weiterhin zu stark an einem zusammengesetzten Zeittext bzw. indirekten Anzeigeweg.

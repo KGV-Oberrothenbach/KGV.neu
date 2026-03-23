@@ -2,6 +2,75 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: RPC-Anmeldeblock für Arbeitseinsatz sauber abgeschlossen, committed und gepusht
+
+- Den begonnenen Arbeitseinsatz-Anmeldeblock ohne neue Fachlogik sauber abgeschlossen.
+- Abschlussverifikation: `KGV.Wpf` baut erfolgreich; der produktive Pfad bleibt `sign_up_for_arbeitseinsatz(...)` über den Shared-Service `SignUpForArbeitseinsatzAsync(...)`.
+- Home und Detailview nutzen weiterhin denselben Servicepfad; es wurde kein zweiter ViewModel-Schreibpfad eröffnet.
+- Doppelanmeldung, abgelaufene Frist und volle Platzgrenze bleiben vor dem RPC geprüft und werden zusätzlich bei einem möglichen RPC-Rennen verständlich abgefangen.
+- Für Commit und Push wurden ausschließlich die Blockdateien aufgenommen; blockfremde lokale Änderungen und Artefakte blieben bewusst unberührt.
+
+## 2026-03-24 – Prompt 1/1: `Anmelden` für Arbeitseinsatz produktiv über den echten DB-Funktionspfad angeschlossen
+
+- Den Block zuerst ausdrücklich gegen den lokalen DB-Analyseexport `_AI_DB_EXPORT` geführt und nicht gegen Vermutungen. Belastbar geprüft wurden `database.types.ts`, `roles.sql` sowie der mitreferenzierte SQL-Kontext. Ausschlaggebend war dabei die in `database.types.ts` bestätigte DB-Struktur:
+  - Tabelle `arbeitseinsatz_anmeldung`
+  - Enum `arbeitseinsatz_anmeldung_status` mit u. a. `angemeldet`
+  - Funktion `sign_up_for_arbeitseinsatz(p_arbeitseinsatz_id, p_mitglied_id)` mit Rückgabe eines `arbeitseinsatz_anmeldung`-Datensatzes
+  - Funktion `sign_off_from_arbeitseinsatz(...)`, die für diesen Block bewusst noch nicht produktiv geöffnet wurde
+- Daraus den fachlich richtigen Produktpfad abgeleitet: für die Anmeldung wird produktiv der vorhandene RPC-/DB-Funktionspfad `sign_up_for_arbeitseinsatz(...)` verwendet statt eines App-seitigen Direktinserts in `arbeitseinsatz_anmeldung`.
+- Den aktuellen Repo-Istzustand davor nochmals geprüft:
+  - Home und Detailview hatten bereits sichtbare `Anmelden`-Buttons
+  - beide hingen aber noch an einer reinen Hinweislogik in `HomeViewModel` bzw. `HomeSectionDetailViewModel`
+  - ein echter Schreibpfad im `SupabaseService` existierte dafür im aktuellen Repo noch nicht
+- Den produktiven Shared-Servicepfad deshalb klein ergänzt: `SignUpForArbeitseinsatzAsync(int arbeitseinsatzId, int mitgliedId)` läuft jetzt zentral über `SupabaseService` und wird über `ISupabaseService` bereitgestellt.
+- Vor dem eigentlichen RPC werden die geforderten Mindestregeln real und klein geprüft:
+  - fehlender Arbeitseinsatz-/Mitgliedsbezug -> verständliche Rückmeldung
+  - bestehende aktive Anmeldung (`arbeitseinsatz_anmeldung.status = angemeldet`) -> keine Doppelanmeldung, verständliche Rückmeldung
+  - `anmeldung_bis` abgelaufen -> verständliche Rückmeldung
+  - `max_teilnehmer` gesetzt und bereits erreicht -> verständliche Rückmeldung
+  - `max_teilnehmer = NULL` -> normale Anmeldung zulässig
+  - keine Warteliste und keine Abmeldung in diesem Block
+- Für den eigentlichen Schreibschritt wird anschließend der bestätigte DB-Funktionspfad genutzt:
+  - `client.Rpc<ArbeitseinsatzAnmeldungRecord>("sign_up_for_arbeitseinsatz", ...)`
+  - damit bleibt die App auf dem vorhandenen DB-Vertrag statt neuer Schattenarchitektur
+  - falls im Rennen zwischen Vorabprüfung und RPC doch ein DB-seitiger Konflikt auftritt, wird dieser klein in eine verständliche App-Rückmeldung übersetzt
+- Home und Detailview nutzen jetzt denselben echten Servicepfad statt doppelter Logik:
+  - `HomeViewModel.RegisterForWorkAssignmentCommand` ruft den Shared-Service auf
+  - `HomeSectionDetailViewModel.AnmeldenCommand` ruft denselben Shared-Service über den im Detailkontext mitgegebenen `WorkAssignmentId` auf
+  - die Detailansicht erhielt dafür nur den kleinen zusätzlichen Kontextwert `WorkAssignmentId`, keine neue Navigation
+- Den Mitgliedsbezug bewusst am real vorhandenen Benutzerpfad gehalten:
+  - bevorzugt `UserContext.MitgliedId`
+  - kleiner Fallback über `EnsureCurrentMemberSelectedAsync()`
+  - keine neue Sonderzuordnung
+- UI-Verhalten nach erfolgreicher Anmeldung produktiv klein gehalten:
+  - Home und Detail erhalten den aktualisierten Startseiten-Datensatz zurück
+  - Registrierungs-/Kapazitätsanzeige wird damit direkt nachgezogen
+  - der Button wird ehrlich deaktiviert, damit keine zweite direkte Anmeldung aus derselben Sitzung ausgelöst wird
+  - keine neue große UI-Architektur
+- MAUI wurde in diesem Block nicht mit neuer Oberfläche ausgebaut, aber der produktive Anmeldepfad liegt jetzt im Shared-Service und ist damit für spätere mobile Parität vorbereitet statt verbaut.
+- Offene Restpunkte bewusst klein gelassen:
+  - `sign_off_from_arbeitseinsatz(...)` bleibt für einen späteren separaten Block offen
+  - keine Warteliste
+  - keine zusätzliche Anmeldehistorien-UI
+- Technisch verifiziert: `KGV.Wpf` baut nach dem produktiven Arbeitseinsatz-Anmeldeblock erfolgreich; MAUI wurde durch die Shared-Service-Erweiterung nicht beschädigt.
+
+## 2026-03-24 – Prompt 1/1: Start-/Endzeit für Arbeitseinsatz und Termin final aus dem echten Home-Lesepfad nachgereicht
+
+- Den verbleibenden Restfehler nach der expliziten WPF-Bindung nochmals bewusst Ende-zu-Ende geprüft: `SupabaseService`, Home-Items, `HomeViewModel`, `HomeSectionDetailContext`, `HomeSectionDetailViewModel`, `HomeView.xaml` und `HomeSectionDetailView.xaml` waren weiterhin die sichtbare Strecke; dort war die Bindung inzwischen korrekt.
+- Der tatsächliche Hänger saß davor im Datenursprung des Home-Pfads: die Startseiten-Views `v_startseite_arbeitseinsatz` und `v_startseite_termine` lieferten `Beginn`/`Ende` im aktuellen Stand nicht in jedem Fall belastbar, obwohl die Zeiten in den Basistabellen `arbeitseinsatz.start_uhrzeit`, `arbeitseinsatz.end_uhrzeit`, `termin.start_uhrzeit` und `termin.end_uhrzeit` vorhanden sein konnten.
+- Den finalen Fix deshalb klein am vorhandenen Home-Servicepfad umgesetzt statt nochmals an der View zu drehen:
+  - `LoadStartseiteArbeitseinsaetzeAsync()` lädt weiter aus `v_startseite_arbeitseinsatz`
+  - `LoadStartseiteTermineAsync()` lädt weiter aus `v_startseite_termine`
+  - wenn dort `Beginn`/`Ende` leer ankommen, werden die Zeitwerte gezielt über die vorhandene Datensatz-`Id` aus `arbeitseinsatz` bzw. `termin` nachangereichert
+  - die Nachanreicherung greift nur für fehlende Zeitwerte; bestehende View-Werte bleiben unverändert
+- Damit ist jetzt final abgesichert:
+  - `start_uhrzeit` und `end_uhrzeit` erreichen den tatsächlich sichtbaren WPF-Pfad auch dann, wenn die Startseiten-View sie im aktuellen Stand leer lässt
+  - Home zeigt den Zeitraum weiter aus derselben einen Zeitquelle
+  - die Detailansicht rendert `Beginn` und `Ende` weiter explizit als eigene Datensatzangaben
+  - `Bekanntmachung` bleibt unverändert unbeeinträchtigt
+- Fachlich bleibt der Block bewusst klein: keine neue Home-Architektur, keine neue Navigation, keine Schattenlogik, sondern nur eine gezielte Fallback-Anreicherung im bestehenden Lese-/Mappingpfad.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem finalen Home-Zeitfix erfolgreich; MAUI wurde durch die kleine Shared-Service-Ergänzung nicht beschädigt.
+
 ## 2026-03-24 – Prompt 1/1: Start- und Endzeit im tatsächlich sichtbaren WPF-Pfad final sichtbar gemacht
 
 - Den sichtbaren Restfehler ausdrücklich nochmals Ende-zu-Ende gegen den real gerenderten WPF-Pfad geprüft: `SupabaseService`, Home-Items, `HomeViewModel`, `HomeSectionDetailContext`, `HomeSectionDetailViewModel`, `HomeView.xaml` und `HomeSectionDetailView.xaml` waren gemeinsam die tatsächlich sichtbare Strecke dieses Blocks.

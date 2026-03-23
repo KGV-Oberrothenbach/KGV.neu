@@ -75,7 +75,7 @@ namespace KGV.ViewModels
             OpenAppointmentsManagementCommand = new RelayCommand<object?>(_ => _ = OpenAppointmentsManagementAsync(), _ => IsAdminContext);
             OpenAnnouncementsManagementCommand = new RelayCommand<object?>(_ => _ = OpenAnnouncementsManagementAsync(), _ => IsAdminContext);
             OpenWorkAssignmentDetailCommand = new RelayCommand<HomeWorkAssignmentItem>(item => _ = OpenWorkAssignmentDetailAsync(item), item => item != null);
-            RegisterForWorkAssignmentCommand = new RelayCommand<HomeWorkAssignmentItem>(ShowRegistrationHint, item => item != null);
+            RegisterForWorkAssignmentCommand = new RelayCommand<HomeWorkAssignmentItem>(item => _ = RegisterForWorkAssignmentAsync(item), item => item?.CanRegister == true);
             OpenAppointmentDetailCommand = new RelayCommand<HomeAppointmentItem>(item => _ = OpenAppointmentDetailAsync(item), item => item != null);
             OpenAnnouncementDetailCommand = new RelayCommand<HomeAnnouncementItem>(item => _ = OpenAnnouncementDetailAsync(item), item => item != null);
         }
@@ -164,6 +164,7 @@ namespace KGV.ViewModels
 
             var created = _mainVm.NavigateToHomeSectionDetailViewModel(new HomeSectionDetailContext
             {
+                WorkAssignmentId = item.Id,
                 SectionTitle = "Arbeitseinsatz",
                 Title = item.Title,
                 Subtitle = item.Subtitle,
@@ -223,13 +224,69 @@ namespace KGV.ViewModels
                 await _mainVm.NavigateToAsync(created);
         }
 
-        private static void ShowRegistrationHint(HomeWorkAssignmentItem? item)
+        private async Task RegisterForWorkAssignmentAsync(HomeWorkAssignmentItem? item)
         {
+            if (item == null)
+                return;
+
+            var mitgliedId = await ResolveCurrentMemberIdAsync();
+            if (!mitgliedId.HasValue)
+            {
+                MessageBox.Show(
+                    "Der aktuelle Benutzer ist keinem Mitglied zugeordnet.",
+                    "Anmeldung",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var result = await _mainVm.SupabaseService.SignUpForArbeitseinsatzAsync(item.Id, mitgliedId.Value);
+            if (result.UpdatedItem != null)
+                ReplaceWorkAssignmentItem(result.UpdatedItem, forceDisableRegistration: !result.Success || result.UpdatedItem.CanRegister == false);
+
             MessageBox.Show(
-                "Die Anmeldung zu Arbeitseinsätzen ist im aktuellen WPF-Stand noch nicht an einen belastbaren Schreibpfad angebunden.",
+                result.Message,
                 "Anmeldung",
                 MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                result.Success ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        }
+
+        private async Task<int?> ResolveCurrentMemberIdAsync()
+        {
+            if (_mainVm.UserContext.MitgliedId is > 0 and <= int.MaxValue)
+                return (int)_mainVm.UserContext.MitgliedId.Value;
+
+            var member = await _mainVm.EnsureCurrentMemberSelectedAsync();
+            return member?.Id > 0 ? member.Id : null;
+        }
+
+        private void ReplaceWorkAssignmentItem(HomeWorkAssignmentItem item, bool forceDisableRegistration)
+        {
+            var index = WorkAssignments
+                .Select((current, currentIndex) => new { current, currentIndex })
+                .FirstOrDefault(x => x.current.Id == item.Id)
+                ?.currentIndex;
+
+            if (!index.HasValue)
+                return;
+
+            WorkAssignments[index.Value] = CreateUpdatedWorkAssignmentItem(item, forceDisableRegistration);
+        }
+
+        private static HomeWorkAssignmentItem CreateUpdatedWorkAssignmentItem(HomeWorkAssignmentItem item, bool forceDisableRegistration)
+        {
+            return new HomeWorkAssignmentItem
+            {
+                Id = item.Id,
+                Title = item.Title,
+                Subtitle = item.Subtitle,
+                StartTimeText = item.StartTimeText,
+                EndTimeText = item.EndTimeText,
+                Details = item.Details,
+                DetailInfo = item.DetailInfo,
+                RegistrationInfo = item.RegistrationInfo,
+                CanRegister = forceDisableRegistration ? false : item.CanRegister
+            };
         }
 
         private static string BuildWorkHoursInfoText(HomeWorkHoursSummary summary)

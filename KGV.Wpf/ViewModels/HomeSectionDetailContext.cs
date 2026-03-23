@@ -2,6 +2,7 @@ namespace KGV.ViewModels
 {
     public sealed class HomeSectionDetailContext
     {
+        public int WorkAssignmentId { get; init; }
         public string SectionTitle { get; init; } = string.Empty;
         public string Title { get; init; } = string.Empty;
         public string Subtitle { get; init; } = string.Empty;
