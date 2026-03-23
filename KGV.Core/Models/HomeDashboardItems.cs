@@ -29,6 +29,8 @@ public sealed class HomeAppointmentItem
 {
     public string Title { get; init; } = string.Empty;
     public string Subtitle { get; init; } = string.Empty;
+    public string BeginText { get; init; } = string.Empty;
+    public bool HasBeginText => !string.IsNullOrWhiteSpace(BeginText);
     public string Details { get; init; } = string.Empty;
     public string DetailInfo { get; init; } = string.Empty;
 }

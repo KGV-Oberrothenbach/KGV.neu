@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Home-/Detailansicht für Arbeitseinsätze und Termine sichtbar vervollständigt, ohne neue Schattenlogik
+
+- Den vorhandenen Home-/Detailpfad zuerst vollständig gegen den realen Arbeitsbaum geprüft: `HomeView.xaml`, `HomeViewModel`, `HomeSectionDetailView.xaml`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, die Home-Item-Modelle sowie das Mapping in `SupabaseService` waren bereits produktiv vorhanden und dienten als Basis des Blocks.
+- Ergebnis der Istzustandsprüfung:
+  - `Arbeitseinsatz` trug die Startzeit im Home-Item bereits separat als `BeginText`
+  - `Termin` hatte die Zeit zwar indirekt im Untertitel/Detailmapping, aber noch nicht separat sichtbar in der Home-Karte
+  - die Detailansicht arbeitete bereits mit einem generischen Kontext aus Skalardaten, zeigte aber die Registrierungsinformation des ausgewählten Datensatzes noch nicht separat an
+  - der `Anmelden`-Button war im Detailpfad nicht konsistent genug an den Arbeitseinsatz-Kontext gebunden
+- Die Home-Übersicht deshalb gezielt fachlich vervollständigt und nicht umgebaut:
+  - `HomeAppointmentItem` wurde um `BeginText`/`HasBeginText` ergänzt
+  - das Termin-Mapping in `SupabaseService` reicht den normalisierten Beginn jetzt explizit in das Home-Item durch
+  - `HomeView.xaml` zeigt damit bei `Termin` den Beginn sichtbar in derselben kleinen Kartenlogik wie bei `Arbeitseinsatz`
+  - `Arbeitseinsatz` blieb bei der bereits passenden sichtbaren Beginn-Anzeige
+- Die Detailansicht innerhalb des bestehenden generischen Pfads vervollständigt:
+  - `HomeSectionDetailContext` trägt jetzt zusätzlich `RegistrationInfo` und einen expliziten Schalter für die Sichtbarkeit der Anmelden-Aktion
+  - `HomeSectionDetailViewModel` reicht diese Daten 1:1 an die View weiter, ohne neue Sammel- oder Listenlogik
+  - `HomeSectionDetailView.xaml` zeigt die Registrierungsinformation des ausgewählten Datensatzes jetzt in derselben Detailkarte zusätzlich an
+  - der `Anmelden`-Button bleibt in der Detailansicht für `Arbeitseinsatz` sichtbar und verwendet denselben ehrlichen Hinweisdialog wie auf Home
+- Den Punkt „Detailview zeigt nur den ausgewählten Datensatz“ bewusst am bestehenden Architekturpfad abgesichert:
+  - `HomeViewModel` übergibt beim Öffnen der Detailansicht ausschließlich die Skalardaten des konkret ausgewählten Home-Items
+  - keine Listen, keine Mehrfachobjekte und kein nachträgliches Nachladen eines unscharfen Datensatzpools im Detailpfad
+  - dadurch bleibt die Detailansicht auf genau den angeklickten Datensatz begrenzt
+- `Termin`, `Arbeitseinsatz` und `Bekanntmachung` bleiben dabei im selben generischen Detailgerüst:
+  - `Arbeitseinsatz` erhält zusätzliche sichtbare Registrierungs-/Aktionskonsistenz
+  - `Termin` erhält die separate Startzeit auf Home und behält die Datensatzdetails im Detailkontext
+  - `Bekanntmachung` verliert keine bestehenden Felder; die generische Detaildarstellung bleibt intakt
+- Offener Restpunkt bleibt bewusst unverändert klein: der echte produktive Schreibpfad für `Anmelden` ist im Repo weiterhin nicht belastbar vorhanden. Deshalb bleibt die Aktion auf Home und in der Detailansicht eine ehrliche Info-Verdrahtung statt neuer Fake-Fachlogik.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Home-/Detailblock erfolgreich; MAUI wurde durch die kleinen Kontext-/Darstellungsänderungen nicht beschädigt.
+
 ## 2026-03-24 – Prompt 1/1: Arbeitsstunden endgültig gegen `id = 0` abgesichert, Save-Rücknavigation abgeschlossen, Arbeitseinsatz-Home-Buttons korrigiert
 
 - Den Block erneut bewusst gegen den realen laufenden Produktpfad geführt, weil der erneute Datensatz `arbeitsstunde.id = 0` belegt hat, dass der vorige Schutz im tatsächlichen Laufzeitverhalten noch nicht ausreichte.
@@ -31,6 +60,35 @@
   - stattdessen bleibt dort `Anmelden` sichtbar
   - weil weiterhin kein belastbarer produktiver Schreibpfad für echte Anmeldungen im Repo nachweisbar ist, bleibt der Button bewusst eine ehrliche Info-Aktion statt neuer Schattenlogik
 - Technisch verifiziert: `KGV.Wpf` baut nach dem Abschlussblock erfolgreich; MAUI wurde im Shared-Arbeitsstundenpfad mitgedacht und nicht beschädigt.
+
+## 2026-03-24 – Prompt 1/1: Home-/Detailansicht für Arbeitseinsätze und Termine sichtbar vervollständigt, ohne neue Schattenlogik
+
+- Den vorhandenen Home-/Detailpfad zuerst vollständig gegen den realen Arbeitsbaum geprüft: `HomeView.xaml`, `HomeViewModel`, `HomeSectionDetailView.xaml`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, die Home-Item-Modelle sowie das Mapping in `SupabaseService` waren bereits produktiv vorhanden und dienten als Basis des Blocks.
+- Ergebnis der Istzustandsprüfung:
+  - `Arbeitseinsatz` trug die Startzeit im Home-Item bereits separat als `BeginText`
+  - `Termin` hatte die Zeit zwar indirekt im Untertitel/Detailmapping, aber noch nicht separat sichtbar in der Home-Karte
+  - die Detailansicht arbeitete bereits mit einem generischen Kontext aus Skalardaten, zeigte aber die Registrierungsinformation des ausgewählten Datensatzes noch nicht separat an
+  - der `Anmelden`-Button war im Detailpfad nicht konsistent genug an den Arbeitseinsatz-Kontext gebunden
+- Die Home-Übersicht deshalb gezielt fachlich vervollständigt und nicht umgebaut:
+  - `HomeAppointmentItem` wurde um `BeginText`/`HasBeginText` ergänzt
+  - das Termin-Mapping in `SupabaseService` reicht den normalisierten Beginn jetzt explizit in das Home-Item durch
+  - `HomeView.xaml` zeigt damit bei `Termin` den Beginn sichtbar in derselben kleinen Kartenlogik wie bei `Arbeitseinsatz`
+  - `Arbeitseinsatz` blieb bei der bereits passenden sichtbaren Beginn-Anzeige
+- Die Detailansicht innerhalb des bestehenden generischen Pfads vervollständigt:
+  - `HomeSectionDetailContext` trägt jetzt zusätzlich `RegistrationInfo` und einen expliziten Schalter für die Sichtbarkeit der Anmelden-Aktion
+  - `HomeSectionDetailViewModel` reicht diese Daten 1:1 an die View weiter, ohne neue Sammel- oder Listenlogik
+  - `HomeSectionDetailView.xaml` zeigt die Registrierungsinformation des ausgewählten Datensatzes jetzt in derselben Detailkarte zusätzlich an
+  - der `Anmelden`-Button bleibt in der Detailansicht für `Arbeitseinsatz` sichtbar und verwendet denselben ehrlichen Hinweisdialog wie auf Home
+- Den Punkt „Detailview zeigt nur den ausgewählten Datensatz“ bewusst am bestehenden Architekturpfad abgesichert:
+  - `HomeViewModel` übergibt beim Öffnen der Detailansicht ausschließlich die Skalardaten des konkret ausgewählten Home-Items
+  - keine Listen, keine Mehrfachobjekte und kein nachträgliches Nachladen eines unscharfen Datensatzpools im Detailpfad
+  - dadurch bleibt die Detailansicht auf genau den angeklickten Datensatz begrenzt
+- `Termin`, `Arbeitseinsatz` und `Bekanntmachung` bleiben dabei im selben generischen Detailgerüst:
+  - `Arbeitseinsatz` erhält zusätzliche sichtbare Registrierungs-/Aktionskonsistenz
+  - `Termin` erhält die separate Startzeit auf Home und behält die Datensatzdetails im Detailkontext
+  - `Bekanntmachung` verliert keine bestehenden Felder; die generische Detaildarstellung bleibt intakt
+- Offener Restpunkt bleibt bewusst unverändert klein: der echte produktive Schreibpfad für `Anmelden` ist im Repo weiterhin nicht belastbar vorhanden. Deshalb bleibt die Aktion auf Home und in der Detailansicht eine ehrliche Info-Verdrahtung statt neuer Fake-Fachlogik.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Home-/Detailblock erfolgreich; MAUI wurde durch die kleinen Kontext-/Darstellungsänderungen nicht beschädigt.
 
 ## 2026-03-24 – Prompt 1/1: Arbeitsstunden endgültig gegen `id = 0` abgesichert, Save-Rücknavigation abgeschlossen, Arbeitseinsatz-Home-Buttons korrigiert
 

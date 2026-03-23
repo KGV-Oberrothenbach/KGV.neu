@@ -169,7 +169,8 @@ namespace KGV.ViewModels
                 Subtitle = item.Subtitle,
                 Content = item.Details,
                 AdditionalInfo = item.DetailInfo,
-                CanRegister = item.CanRegister
+                RegistrationInfo = item.RegistrationInfo,
+                ShowRegisterButton = true
             });
 
             if (created != null)
@@ -187,7 +188,9 @@ namespace KGV.ViewModels
                 Title = item.Title,
                 Subtitle = item.Subtitle,
                 Content = item.Details,
-                AdditionalInfo = item.DetailInfo
+                AdditionalInfo = item.DetailInfo,
+                RegistrationInfo = string.Empty,
+                ShowRegisterButton = false
             });
 
             if (created != null)
@@ -205,7 +208,9 @@ namespace KGV.ViewModels
                 Title = item.Title,
                 Subtitle = item.Subtitle,
                 Content = item.Content,
-                AdditionalInfo = item.DetailInfo
+                AdditionalInfo = item.DetailInfo,
+                RegistrationInfo = string.Empty,
+                ShowRegisterButton = false
             });
 
             if (created != null)

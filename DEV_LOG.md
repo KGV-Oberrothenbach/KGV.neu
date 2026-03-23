@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-24 – Home-/Detailansicht für Arbeitseinsätze und Termine vervollständigt: Startzeit sichtbar, Detailinfos vollständig, Detailkontext bleibt beim ausgewählten Datensatz
+
+- Den bestehenden Home-/Detailpfad vor dem Fix gegen die realen WPF-Dateien und das aktuelle Mapping geprüft: `HomeView`, `HomeViewModel`, `HomeSectionDetailView`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, die Home-Items sowie das Mapping in `SupabaseService` waren bereits generisch vorhanden; `Arbeitseinsatz` zeigte die Startzeit auf Home schon separat, `Termin` dagegen noch nicht.
+- Die Home-Übersicht wurde deshalb gezielt vervollständigt, ohne neue Sondernavigation zu bauen: `Termin` zeigt die Startzeit jetzt wie `Arbeitseinsatz` zusätzlich sichtbar in der Karte an. Für `Arbeitseinsatz` blieb die vorhandene konsistente Darstellung mit sichtbarem Beginn erhalten.
+- Die Detailview wurde innerhalb der bestehenden Struktur ergänzt statt neu aufgebaut: zusätzlich zu `Title`, `Subtitle`, `AdditionalInfo` und `Content` zeigt sie jetzt auch die bereits aus dem gewählten Datensatz stammende Registrierungsinformation an. Dadurch bleiben für `Arbeitseinsatz` und `Termin` die restlichen zum Datensatz gehörenden Angaben sichtbar, ohne Felder aus anderen Einträgen zu vermischen.
+- Den Punkt „nur ausgewählten Datensatz anzeigen“ explizit auf den bestehenden Kontextpfad abgesichert: `HomeViewModel` übergibt an die Detailansicht weiterhin nur skalare Kontextdaten des konkret angeklickten Eintrags (`Title`, `Subtitle`, `Content`, `AdditionalInfo`, Registrierungsinfo/Anmeldeaktion). Es wird keine Liste und kein unscharfer Sammelkontext an die Detailview gereicht.
+- Der `Anmelden`-Button ist in der Detailview jetzt konsistent für `Arbeitseinsatz` sichtbar und nutzt denselben ehrlichen Pfad wie auf Home: derselbe Hinweisdialog, keine neue Fake-Fachlogik und weiterhin kein erfundener Schreibzugriff, solange der echte belastbare Anmeldepfad im Repo fehlt.
+- `Bekanntmachung` wurde im selben generischen Detailpfad mitgeprüft: die bestehende Darstellung über `Title`, `Subtitle`, `AdditionalInfo` und `Content` bleibt erhalten; es geht dort kein Feld verloren und es wurde keine kaputte Spezialdarstellung eingeführt.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Home-/Detailblock erfolgreich; MAUI wurde durch die gezielten Shared-/Kontextanpassungen nicht beschädigt.
+
 ## 2026-03-24 – Arbeitsstunden endgültig gegen `id = 0` abgesichert, Save-Rücknavigation nachgezogen, Arbeitseinsatz-Home-Buttons korrigiert
 
 - Den erneuten realen Fehlernachweis `arbeitsstunde.id = 0` nach dem vorigen Fix ausdrücklich als Beleg genommen, dass Attributverhalten allein im laufenden Pfad nicht reicht. Deshalb den kompletten Produktpfad nochmals bis zur tatsächlichen Create-Payload geprüft: WPF-Erfassung (`ArbeitsstundenErfassungViewModel`), WPF-Dialogpfad (`ArbeitsstundenViewModel`), MAUI-Erfassung (`MyArbeitsstundenPage`) und `SupabaseService.AddArbeitsstundeAsync(...)`.

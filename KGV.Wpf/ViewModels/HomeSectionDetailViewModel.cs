@@ -16,10 +16,12 @@ namespace KGV.ViewModels
         public string Subtitle => _context.Subtitle;
         public string Content => _context.Content;
         public string AdditionalInfo => _context.AdditionalInfo;
+        public string RegistrationInfo => _context.RegistrationInfo;
         public bool HasSubtitle => !string.IsNullOrWhiteSpace(Subtitle);
         public bool HasContent => !string.IsNullOrWhiteSpace(Content);
         public bool HasAdditionalInfo => !string.IsNullOrWhiteSpace(AdditionalInfo);
-        public bool ShowRegisterButton => _context.CanRegister;
+        public bool HasRegistrationInfo => !string.IsNullOrWhiteSpace(RegistrationInfo);
+        public bool ShowRegisterButton => _context.ShowRegisterButton;
 
         public RelayCommand<object?> ZurueckCommand { get; }
         public RelayCommand<object?> AnmeldenCommand { get; }

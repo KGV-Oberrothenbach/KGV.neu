@@ -26,6 +26,13 @@
                            Margin="0,6,0,0"
                            Foreground="Gray"
                            Visibility="{Binding HasSubtitle, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <Border Margin="0,16,0,0"
+                        Padding="12"
+                        Background="{StaticResource KgvBackgroundBrush}"
+                        CornerRadius="12"
+                        Visibility="{Binding HasRegistrationInfo, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="{Binding RegistrationInfo}" TextWrapping="Wrap" Foreground="DarkSlateBlue" />
+                </Border>
                 <Button Content="Anmelden"
                         Margin="0,16,0,0"
                         HorizontalAlignment="Left"

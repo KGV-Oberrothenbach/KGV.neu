@@ -1731,6 +1731,7 @@ namespace KGV.Infrastructure.Services
             {
                 Title = title,
                 Subtitle = BuildDateSubtitle(record.Datum, record.Beginn, record.Ende),
+                BeginText = begin ?? string.Empty,
                 Details = details,
                 DetailInfo = string.Join(Environment.NewLine, detailInfoLines)
             };

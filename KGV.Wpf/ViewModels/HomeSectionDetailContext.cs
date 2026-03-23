@@ -7,6 +7,7 @@ namespace KGV.ViewModels
         public string Subtitle { get; init; } = string.Empty;
         public string Content { get; init; } = string.Empty;
         public string AdditionalInfo { get; init; } = string.Empty;
-        public bool CanRegister { get; init; }
+        public string RegistrationInfo { get; init; } = string.Empty;
+        public bool ShowRegisterButton { get; init; }
     }
 }

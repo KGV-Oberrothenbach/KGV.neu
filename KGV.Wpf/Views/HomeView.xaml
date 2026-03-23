@@ -162,6 +162,10 @@
                                     <StackPanel>
                                         <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                                         <TextBlock Text="{Binding Subtitle}" Foreground="Gray" />
+                                        <TextBlock Text="{Binding BeginText, StringFormat=Beginn: {0}}"
+                                                   Margin="0,4,0,0"
+                                                   Foreground="Gray"
+                                                   Visibility="{Binding HasBeginText, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                     </StackPanel>
                                 </Button>
                             </DataTemplate>
