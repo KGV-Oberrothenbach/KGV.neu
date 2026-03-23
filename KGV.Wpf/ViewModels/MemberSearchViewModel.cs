@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -67,6 +68,7 @@ namespace KGV.ViewModels
 
         private readonly System.Collections.Generic.List<MemberDTO> _allMembers;
         private readonly System.Collections.Generic.List<ParzelleRecord> _allParzellen;
+        private readonly Dictionary<int, List<GartenDTO>> _gartenLookup;
 
         public MemberSearchViewModel(ISupabaseService supabaseService, MainWindowViewModel mainVm, bool isSelectionMode = false)
         {
@@ -79,6 +81,7 @@ namespace KGV.ViewModels
 
             _allMembers = new System.Collections.Generic.List<MemberDTO>();
             _allParzellen = new System.Collections.Generic.List<ParzelleRecord>();
+            _gartenLookup = new Dictionary<int, List<GartenDTO>>();
 
             WeakReferenceMessenger.Default.Register<MemberSearchViewModel, MemberSavedMessage>(
                 this,
@@ -189,9 +192,18 @@ namespace KGV.ViewModels
                         return;
                     }
 
+                    var parzellen = await _supabaseService.GetAllParzellenAsync();
+                    var belegungen = await _supabaseService.GetAllParzellenBelegungenAsync();
+                    if (parzellen != null && _allParzellen.Count == 0)
+                        _allParzellen.AddRange(parzellen);
+
+                    _gartenLookup.Clear();
+                    foreach (var pair in BuildGartenLookup(parzellen ?? new List<ParzelleRecord>(), belegungen ?? new List<ParzellenBelegungRecord>()))
+                        _gartenLookup[pair.Key] = pair.Value;
+
                     foreach (var m in members)
                     {
-                        var dto = MapToDTO(m);
+                        var dto = MapToDTO(m, _gartenLookup);
                         _allMembers.Add(dto);
                         DebugMessages.Add($"✅ Mitglied geladen: {dto.DisplayName}");
                     }
@@ -251,6 +263,44 @@ namespace KGV.ViewModels
                 Results.Add(m);
         }
 
+        private static Dictionary<int, List<GartenDTO>> BuildGartenLookup(IReadOnlyCollection<ParzelleRecord> parzellen, IReadOnlyCollection<ParzellenBelegungRecord> belegungen)
+        {
+            var now = DateTime.Today;
+            var parzellenById = parzellen
+                .Where(p => p.Id > 0)
+                .ToDictionary(p => p.Id);
+
+            return belegungen
+                .Where(b => b.MitgliedId > 0 && b.ParzelleId > 0 && IsActiveBelegungOn(b, now))
+                .GroupBy(b => b.MitgliedId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g
+                        .Select(b => parzellenById.TryGetValue(b.ParzelleId, out var parzelle)
+                            ? new GartenDTO
+                            {
+                                Id = parzelle.Id,
+                                Name = $"Garten {parzelle.GartenNr}",
+                                Nummer = parzelle.GartenNr ?? string.Empty
+                            }
+                            : null)
+                        .Where(x => x != null)
+                        .Cast<GartenDTO>()
+                        .OrderBy(x => GetGartenNrSortKey(x.Nummer))
+                        .ThenBy(x => x.Nummer, StringComparer.CurrentCultureIgnoreCase)
+                        .ToList());
+        }
+
+        private static bool IsActiveBelegungOn(ParzellenBelegungRecord belegung, DateTime date)
+        {
+            var target = date.Date;
+            var start = belegung.VonDatum?.Date;
+            var end = belegung.BisDatum?.Date;
+
+            return (!start.HasValue || start.Value <= target)
+                && (!end.HasValue || end.Value >= target);
+        }
+
         private static int GetGartenNrSortKey(string? gartenNr)
         {
             if (string.IsNullOrWhiteSpace(gartenNr))
@@ -261,7 +311,7 @@ namespace KGV.ViewModels
         }
 
         // bewusst "light" – Detail lädt komplett per GetMitgliedByIdAsync
-        private static MemberDTO MapToDTO(MitgliedRecord m)
+        private static MemberDTO MapToDTO(MitgliedRecord m, IReadOnlyDictionary<int, List<GartenDTO>> gartenLookup)
         {
             return new MemberDTO
             {
@@ -269,7 +319,11 @@ namespace KGV.ViewModels
                 Vorname = m.Vorname ?? string.Empty,
                 Nachname = m.Name ?? string.Empty,
                 Email = m.Email ?? string.Empty,
-                Role = m.Role ?? string.Empty
+                Role = m.Role ?? string.Empty,
+                IstHauptmitglied = !m.HauptmitgliedId.HasValue || m.HauptmitgliedId.Value <= 0,
+                Gärten = gartenLookup.TryGetValue(m.Id, out var gaerten)
+                    ? gaerten.Select(g => new GartenDTO { Id = g.Id, Name = g.Name, Nummer = g.Nummer }).ToList()
+                    : new List<GartenDTO>()
             };
         }
 
@@ -291,7 +345,7 @@ namespace KGV.ViewModels
                     var members = await _supabaseService.GetMitgliederAsync();
                     var mit = members.FirstOrDefault(m => m.Id == beleg.MitgliedId);
                     if (mit != null)
-                        selected = MapToDTO(mit);
+                        selected = MapToDTO(mit, _gartenLookup);
                 }
             }
 

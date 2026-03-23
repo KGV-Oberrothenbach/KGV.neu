@@ -61,6 +61,37 @@
                                 <Binding Path="Vorname" />
                             </GridViewColumn.DisplayMemberBinding>
                         </GridViewColumn>
+
+                        <GridViewColumn>
+                            <GridViewColumn.Header>
+                                <GridViewColumnHeader Content="E-Mail" Click="GridViewColumnHeader_Click" Tag="Email" />
+                            </GridViewColumn.Header>
+                            <GridViewColumn.DisplayMemberBinding>
+                                <Binding Path="Email" />
+                            </GridViewColumn.DisplayMemberBinding>
+                        </GridViewColumn>
+
+                        <GridViewColumn>
+                            <GridViewColumn.Header>
+                                <GridViewColumnHeader Content="Gartennummern" Click="GridViewColumnHeader_Click" Tag="GartenNummernText" />
+                            </GridViewColumn.Header>
+                            <GridViewColumn.DisplayMemberBinding>
+                                <Binding Path="GartenNummernText" />
+                            </GridViewColumn.DisplayMemberBinding>
+                        </GridViewColumn>
+
+                        <GridViewColumn>
+                            <GridViewColumn.Header>
+                                <GridViewColumnHeader Content="Hauptmitglied" Click="GridViewColumnHeader_Click" Tag="IstHauptmitglied" />
+                            </GridViewColumn.Header>
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IstHauptmitglied}"
+                                              HorizontalAlignment="Center"
+                                              IsEnabled="False" />
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
                     </GridView>
                 </ListView.View>
             </ListView>

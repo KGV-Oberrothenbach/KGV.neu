@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 
 namespace KGV.Core.Models
 {
@@ -161,12 +162,27 @@ namespace KGV.Core.Models
             set => SetField(ref _role, value ?? "", nameof(Role));
         }
 
+        private bool _istHauptmitglied = true;
+        public bool IstHauptmitglied
+        {
+            get => _istHauptmitglied;
+            set => SetField(ref _istHauptmitglied, value, nameof(IstHauptmitglied));
+        }
+
         private List<GartenDTO> _gärten = new();
         public List<GartenDTO> Gärten
         {
             get => _gärten;
-            set => SetField(ref _gärten, value ?? new List<GartenDTO>(), nameof(Gärten));
+            set => SetField(ref _gärten, value ?? new List<GartenDTO>(), nameof(Gärten), nameof(GartenNummernText));
         }
+
+        public string GartenNummernText =>
+            Gärten == null || Gärten.Count == 0
+                ? string.Empty
+                : string.Join(", ", Gärten
+                    .Where(g => !string.IsNullOrWhiteSpace(g?.Nummer))
+                    .Select(g => g!.Nummer.Trim())
+                    .Distinct(StringComparer.CurrentCultureIgnoreCase));
 
         // WPF kann bei manchen Controls/Templates (z.B. ComboBox) intern eine TwoWay-Bindung erzeugen.
         // Damit es dabei nicht zu "TwoWay ... funktioniert nicht mit schreibgeschützter Eigenschaft" kommt,
@@ -215,6 +231,7 @@ namespace KGV.Core.Models
                 MitgliedEnde = other.MitgliedEnde;
 
                 Role = other.Role;
+                IstHauptmitglied = other.IstHauptmitglied;
 
                 Gärten = other.Gärten != null ? new List<GartenDTO>(other.Gärten) : new List<GartenDTO>();
             }
@@ -243,7 +260,9 @@ namespace KGV.Core.Models
                 WhatsappEinwilligung == other.WhatsappEinwilligung &&
                 MitgliedSeit == other.MitgliedSeit &&
                 MitgliedEnde == other.MitgliedEnde &&
-                string.Equals(Role ?? "", other.Role ?? "", StringComparison.Ordinal);
+                string.Equals(Role ?? "", other.Role ?? "", StringComparison.Ordinal) &&
+                IstHauptmitglied == other.IstHauptmitglied &&
+                string.Equals(GartenNummernText, other.GartenNummernText, StringComparison.Ordinal);
         }
     }
 }

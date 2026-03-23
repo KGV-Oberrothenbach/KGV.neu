@@ -31,9 +31,18 @@
                         SelectionChanged="ResultsCollectionView_SelectionChanged">
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="viewmodels:MemberSearchResultItem">
-                    <Grid Padding="12" RowDefinitions="Auto,Auto" RowSpacing="2">
+                    <Grid Padding="12" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="2">
                         <Label Text="{Binding Title}" FontAttributes="Bold" />
                         <Label Grid.Row="1" Text="{Binding Subtitle}" FontSize="12" Opacity="0.8" />
+                        <Label Grid.Row="2"
+                               Text="{Binding GartenNummernText, StringFormat='Gärten: {0}'}"
+                               FontSize="12"
+                               Opacity="0.8"
+                               IsVisible="{Binding HasGartenNummern}" />
+                        <HorizontalStackLayout Grid.Row="3" Spacing="8" IsVisible="{Binding IsMemberResult}">
+                            <CheckBox IsChecked="{Binding IstHauptmitglied}" IsEnabled="False" />
+                            <Label Text="Hauptmitglied" VerticalTextAlignment="Center" FontSize="12" />
+                        </HorizontalStackLayout>
                     </Grid>
                 </DataTemplate>
             </CollectionView.ItemTemplate>

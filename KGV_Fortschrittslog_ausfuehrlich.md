@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Mitgliedersuche um E-Mail, Gartennummern und Hauptmitglied-Markierung erweitert
+
+- Den Block zuerst gegen den aktuellen Repo-Stand geprüft. Die bestehende Mitgliedersuche war bereits vorhanden; erweitert werden sollte nur die Ergebnisliste, ohne neuen Suchdialog und ohne neue Fachlogik.
+- Für die zusätzliche Übersicht wurden keine neuen Backendpfade eingeführt. Die Erweiterung nutzt ausschließlich vorhandene Datenquellen:
+  - Mitglieder über `GetMitgliederAsync()`
+  - Parzellen über `GetAllParzellenAsync()`
+  - Belegungen über `GetAllParzellenBelegungenAsync()`
+- Aus diesen vorhandenen Daten wird die Ergebnisliste jetzt angereichert um:
+  - E-Mailadresse
+  - Gartennummern aus aktuell aktiven Belegungen, falls vorhanden
+  - Hauptmitglied-Markierung auf Basis von `hauptmitglied_id`
+- WPF konkret umgesetzt:
+  - bestehende GridView der Mitgliedersuche erweitert
+  - zusätzliche Spalten `E-Mail`, `Gartennummern`, `Hauptmitglied`
+  - `Hauptmitglied` als deaktivierte Checkbox zur reinen Übersicht
+  - kein Wechsel des Suchdialogs und keine neue Selektionslogik
+- MAUI mitgedacht und gleichgezogen:
+  - bestehende Suchliste um Gartennummern und Hauptmitglied-Markierung ergänzt
+  - E-Mail bleibt sichtbar in den Ergebnisinfos
+  - keine zweite Suchimplementierung neben der vorhandenen Seite
+- Technisch verifiziert:
+  - `KGV.Wpf` baut erfolgreich
+  - `KGV.Maui` baut erfolgreich
+  - damit ist der Block sowohl im WPF- als auch im MAUI-Pfad belastbar abgeschlossen
+
 ## 2026-03-24 – Prompt 1/1: Arbeitseinsatz-Teilnehmerliste für Admin/Vorstand um `Abmelden` pro Zeile ergänzt
 
 - Den Block zuerst wieder gegen den realen Istzustand und ausdrücklich gegen `_AI_DB_EXPORT` geprüft. Belastbar bestätigt wurden dabei in `database.types.ts` beide echten DB-Funktionspfade des An-/Abmeldekonzepts:

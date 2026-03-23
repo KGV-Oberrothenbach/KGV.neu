@@ -2,6 +2,21 @@
 
 ---
 
+## 2026-03-24 – Mitgliedersuche um E-Mail, Gartennummern und Hauptmitglied-Markierung erweitert
+
+- Den Istzustand zuerst im Repo geprüft: die bestehende Mitgliedersuche zeigte bisher in WPF nur Name/Vorname und in MAUI nur Titel/Unterzeile. Ein neuer Suchdialog oder neue Fachlogik waren dafür nicht nötig.
+- Die Erweiterung bleibt im bestehenden Suchpfad und nutzt nur bereits vorhandene Datenquellen:
+  - Mitgliedsdaten aus `GetMitgliederAsync()`
+  - Parzellen aus `GetAllParzellenAsync()`
+  - aktuelle Belegungen aus `GetAllParzellenBelegungenAsync()`
+- Daraus wird jetzt für die Ergebnisliste angereichert:
+  - E-Mailadresse
+  - Gartennummern aus aktuell aktiven Belegungen, falls vorhanden
+  - Hauptmitglied-Markierung aus `hauptmitglied_id`
+- WPF wurde direkt in der bestehenden GridView erweitert um die zusätzlichen Spalten `E-Mail`, `Gartennummern` und `Hauptmitglied` als deaktivierte Checkbox.
+- MAUI wurde passend mitgedacht und die bestehende Suchliste ebenfalls um Gartennummern und Hauptmitglied-Markierung ergänzt; die E-Mail bleibt dort Teil der sichtbaren Ergebnisinfos. Es wurde kein zweiter Suchpfad aufgebaut.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach der Erweiterung erfolgreich.
+
 ## 2026-03-24 – Arbeitseinsatz-Teilnehmerliste: `Abmelden` pro Zeile produktiv über echten DB-Pfad ergänzt
 
 - Den Istzustand zuerst gegen Repo und `_AI_DB_EXPORT` geprüft. `database.types.ts` bestätigt für diesen Block ausdrücklich neben `sign_up_for_arbeitseinsatz(...)` auch `sign_off_from_arbeitseinsatz(p_arbeitseinsatz_id, p_mitglied_id)` als echten DB-Funktionspfad; `roles.sql` enthält dafür keine abweichende App-Sonderregel, `AI_DATABASE_CONTEXT.sql` liefert keinen alternativen Pfad.

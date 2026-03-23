@@ -17,6 +17,7 @@ public class MemberSearchViewModel : INotifyPropertyChanged
     private readonly List<MemberSearchResultItem> _allMembers = new();
     private readonly List<ParzelleRecord> _allParzellen = new();
     private readonly Dictionary<int, MitgliedRecord> _membersById = new();
+    private readonly Dictionary<int, List<GartenDTO>> _gartenLookup = new();
 
     private string _searchText = string.Empty;
     private string _statusMessage = string.Empty;
@@ -111,14 +112,19 @@ public class MemberSearchViewModel : INotifyPropertyChanged
             _membersById.Clear();
 
             foreach (var member in members ?? new List<MitgliedRecord>())
-            {
                 _membersById[member.Id] = member;
-                _allMembers.Add(MapToMemberResult(member));
-            }
 
             var parzellen = await _supabaseService.GetAllParzellenAsync();
             _allParzellen.Clear();
             _allParzellen.AddRange(parzellen ?? new List<ParzelleRecord>());
+
+            var belegungen = await _supabaseService.GetAllParzellenBelegungenAsync();
+            _gartenLookup.Clear();
+            foreach (var pair in BuildGartenLookup(_allParzellen, belegungen ?? new List<ParzellenBelegungRecord>()))
+                _gartenLookup[pair.Key] = pair.Value;
+
+            foreach (var member in members ?? new List<MitgliedRecord>())
+                _allMembers.Add(MapToMemberResultWithDetails(member));
 
             DebugMessages.Add($"Mitglieder geladen: {_allMembers.Count}");
             DebugMessages.Add($"Parzellen geladen: {_allParzellen.Count}");
@@ -192,14 +198,14 @@ public class MemberSearchViewModel : INotifyPropertyChanged
             return null;
 
         if (_membersById.TryGetValue(belegung.MitgliedId, out var existingMember))
-            return MapToMemberResult(existingMember);
+            return MapToMemberResultWithDetails(existingMember);
 
         var member = await _supabaseService.GetMitgliedByIdAsync(belegung.MitgliedId);
         if (member == null)
             return null;
 
         _membersById[member.Id] = member;
-        return MapToMemberResult(member);
+        return MapToMemberResultWithDetails(member);
     }
 
     private static MemberSearchResultItem MapToMemberResult(MitgliedRecord member)
@@ -208,13 +214,29 @@ public class MemberSearchViewModel : INotifyPropertyChanged
         if (string.IsNullOrWhiteSpace(displayName))
             displayName = member.Email ?? $"Mitglied {member.Id}";
 
+        var gartenNummernText = string.Empty;
+
         return new MemberSearchResultItem(
             member.Id,
             null,
             displayName,
             member.Email ?? string.Empty,
             displayName,
-            member.Email ?? string.Empty);
+            member.Email ?? string.Empty,
+            gartenNummernText,
+            !member.HauptmitgliedId.HasValue || member.HauptmitgliedId.Value <= 0,
+            true,
+            false);
+    }
+
+    private MemberSearchResultItem MapToMemberResultWithDetails(MitgliedRecord member)
+    {
+        var baseResult = MapToMemberResult(member);
+        var gartenNummernText = _gartenLookup.TryGetValue(member.Id, out var gaerten)
+            ? string.Join(", ", gaerten.Select(g => g.Nummer).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.CurrentCultureIgnoreCase))
+            : string.Empty;
+
+        return baseResult with { GartenNummernText = gartenNummernText, HasGartenNummern = !string.IsNullOrWhiteSpace(gartenNummernText) };
     }
 
     private static MemberSearchResultItem MapToParzelleResult(ParzelleRecord parzelle)
@@ -226,7 +248,43 @@ public class MemberSearchViewModel : INotifyPropertyChanged
             $"Garten {gartenNr}",
             string.Empty,
             $"Garten {gartenNr}",
-            "Parzelle");
+            "Parzelle",
+            string.Empty,
+            false,
+            false,
+            false);
+    }
+
+    private static Dictionary<int, List<GartenDTO>> BuildGartenLookup(IReadOnlyCollection<ParzelleRecord> parzellen, IReadOnlyCollection<ParzellenBelegungRecord> belegungen)
+    {
+        var now = DateTime.Today;
+        var parzellenById = parzellen
+            .Where(p => p.Id > 0)
+            .ToDictionary(p => p.Id);
+
+        return belegungen
+            .Where(b => b.MitgliedId > 0 && b.ParzelleId > 0 && IsActiveBelegungOn(b, now))
+            .GroupBy(b => b.MitgliedId)
+            .ToDictionary(
+                g => g.Key,
+                g => g
+                    .Select(b => parzellenById.TryGetValue(b.ParzelleId, out var parzelle)
+                        ? new GartenDTO { Id = parzelle.Id, Name = $"Garten {parzelle.GartenNr}", Nummer = parzelle.GartenNr ?? string.Empty }
+                        : null)
+                    .Where(x => x != null)
+                    .Cast<GartenDTO>()
+                    .OrderBy(x => x.Nummer, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList());
+    }
+
+    private static bool IsActiveBelegungOn(ParzellenBelegungRecord belegung, DateTime date)
+    {
+        var target = date.Date;
+        var start = belegung.VonDatum?.Date;
+        var end = belegung.BisDatum?.Date;
+
+        return (!start.HasValue || start.Value <= target)
+            && (!end.HasValue || end.Value >= target);
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
@@ -235,4 +293,4 @@ public class MemberSearchViewModel : INotifyPropertyChanged
     }
 }
 
-public sealed record MemberSearchResultItem(int? MemberId, int? ParzelleId, string DisplayName, string Email, string Title, string Subtitle);
+public sealed record MemberSearchResultItem(int? MemberId, int? ParzelleId, string DisplayName, string Email, string Title, string Subtitle, string GartenNummernText, bool IstHauptmitglied, bool IsMemberResult, bool HasGartenNummern);
