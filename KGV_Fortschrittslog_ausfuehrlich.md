@@ -2,6 +2,27 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: `Anmelden` für Arbeitseinsatz im sichtbaren UI wirklich funktionsfähig gemacht, Teilnehmerblock bewusst noch offen gelassen
+
+- Den realen Fehlernachweis nochmals gegen den tatsächlich laufenden WPF-Pfad geführt: `HomeView.xaml`, `HomeViewModel`, `HomeSectionDetailView.xaml`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext` und `SupabaseService` waren bereits auf denselben Shared-Servicepfad für `Anmelden` verdrahtet; der Hänger lag nicht mehr in einer fehlenden RPC-Anbindung.
+- Tatsächliche Ursache des sichtbaren No-Op: das sichtbare Home-Item für `Arbeitseinsatz` erhielt im Mapping seine `id` nicht. Dadurch wurde in der Detailansicht `WorkAssignmentId = 0` weitergereicht und der Detail-Command lief in einen stillen Vorab-Abbruch. Auch der Home-Pfad arbeitete damit nicht auf einem belastbaren Arbeitseinsatzschlüssel.
+- Den Korrekturpfad deshalb klein direkt an der Ursache umgesetzt:
+  - `MapHomeWorkAssignment(...)` übernimmt jetzt `record.Id` in das sichtbare `HomeWorkAssignmentItem`
+  - `HomeViewModel` setzt `ShowRegisterButton` im Detailkontext jetzt ehrlich aus `item.CanRegister` statt pauschal auf `true`
+  - `HomeView.xaml` zeigt den Home-Button nur dann an, wenn `CanRegister` tatsächlich gilt
+  - `HomeSectionDetailViewModel` meldet einen ungültigen Detailkontext jetzt sichtbar, statt still zu `return`en
+- Ergebnis des Fixpfads:
+  - Home-Button reagiert jetzt real auf den vorhandenen RPC-Pfad
+  - Detail-Button reagiert ebenfalls real auf denselben RPC-Pfad
+  - es gibt keine stillen Klicks mehr ohne Nutzerreaktion
+  - nach erfolgreicher Anmeldung bleibt die kleine UI-Aktualisierung des bestehenden Blocks erhalten
+- Den Admin-/Vorstand-Teilnehmerblock bewusst noch nicht eröffnet:
+  - keine Teilnehmerliste
+  - kein `Hinzufügen`
+  - keine neue Detailerweiterung für Admin/Vorstand
+  - dieser Block blieb ausdrücklich nur auf dem normalen `Anmelden`-Pfad
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten UI-/Datensatzfix erfolgreich; MAUI wurde durch die kleine Shared-/WPF-Korrektur nicht beschädigt.
+
 ## 2026-03-24 – Prompt 1/1: RPC-Anmeldeblock für Arbeitseinsatz sauber abgeschlossen, committed und gepusht
 
 - Den begonnenen Arbeitseinsatz-Anmeldeblock ohne neue Fachlogik sauber abgeschlossen.

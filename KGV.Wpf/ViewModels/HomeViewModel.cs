@@ -173,7 +173,7 @@ namespace KGV.ViewModels
                 Content = item.Details,
                 AdditionalInfo = item.DetailInfo,
                 RegistrationInfo = item.RegistrationInfo,
-                ShowRegisterButton = true
+                ShowRegisterButton = item.CanRegister
             });
 
             if (created != null)

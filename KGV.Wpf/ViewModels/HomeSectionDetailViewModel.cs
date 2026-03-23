@@ -65,7 +65,14 @@ namespace KGV.ViewModels
         private async Task RegisterAsync()
         {
             if (_context.WorkAssignmentId <= 0)
+            {
+                MessageBox.Show(
+                    "Die Anmeldung konnte nicht gestartet werden, weil dem ausgewählten Arbeitseinsatz keine gültige ID zugeordnet ist.",
+                    "Anmeldung",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
                 return;
+            }
 
             var mitgliedId = await ResolveCurrentMemberIdAsync();
             if (!mitgliedId.HasValue)

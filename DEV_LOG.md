@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-03-24 – `Anmelden` für Arbeitseinsatz im sichtbaren UI tatsächlich funktionsfähig gemacht
+
+- Den realen Fehler ausdrücklich am laufenden WPF-Pfad geprüft: Home-Button und Detail-Button waren bereits an denselben Shared-Servicepfad gebunden, der sichtbare Hänger lag aber davor im übergebenen Datensatz.
+- Die konkrete Ursache: `MapHomeWorkAssignment(...)` übernahm die `id` des Arbeitseinsatzes nicht in das sichtbare `HomeWorkAssignmentItem`. Dadurch lief die Detailansicht mit `WorkAssignmentId = 0` in einen stillen Vorab-Abbruch und auch der Home-Pfad arbeitete nicht auf einem belastbaren Datensatzschlüssel.
+- Der Fix bleibt klein und ehrlich:
+  - `SupabaseService` schreibt `record.Id` jetzt in das sichtbare Home-Item
+  - `HomeViewModel` übergibt den Detailbutton nur noch dann als sichtbar, wenn `CanRegister` tatsächlich gilt
+  - `HomeView.xaml` zeigt den Home-Button ebenfalls nur bei `CanRegister`
+  - `HomeSectionDetailViewModel` meldet einen ungültigen Detailkontext jetzt sichtbar statt still zu returnen
+- Ergebnis: Home und Detail nutzen weiterhin denselben RPC-Servicepfad, reagieren jetzt aber auch im sichtbaren UI belastbar statt mit stillem No-Op. Der Admin-/Vorstand-Teilnehmerblock blieb bewusst unberührt.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten UI-/Datensatzfix erfolgreich; MAUI wurde nicht beschädigt.
+
 ## 2026-03-24 – RPC-Anmeldeblock für Arbeitseinsatz final verifiziert, committed und gepusht
 
 - Den bereits umgesetzten RPC-Pfad für `Anmelden` nochmals final gegen den realen Arbeitsbaum geprüft und `KGV.Wpf` erfolgreich gebaut.
