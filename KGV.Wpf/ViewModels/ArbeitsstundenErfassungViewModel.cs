@@ -256,23 +256,23 @@ namespace KGV.ViewModels
             }
 
             WeakReferenceMessenger.Default.Send(new ArbeitsstundenChangedMessage());
+            ValidationMessage = string.Empty;
 
-            if (IsEditMode)
+            if (IsDialogMode)
             {
                 StatusMessage = "Arbeitsstunde wurde gespeichert.";
-                ValidationMessage = string.Empty;
-                if (IsDialogMode)
-                    CloseRequested?.Invoke(this, EventArgs.Empty);
+                CloseRequested?.Invoke(this, EventArgs.Empty);
                 return;
             }
 
-            StatusMessage = "Arbeitsstunde wurde zur späteren Freigabe gespeichert.";
-            ValidationMessage = string.Empty;
-            Datum = DateTime.Today;
-            StundenText = string.Empty;
-            ArtDerArbeit = string.Empty;
-            StatusText = string.Empty;
-            RequestFocus(FocusDatum);
+            await NavigateHomeAsync();
+        }
+
+        private async Task NavigateHomeAsync()
+        {
+            var created = _mainWindowViewModel.NavigateToHomeViewModel();
+            if (created != null)
+                await _mainWindowViewModel.NavigateToAsync(created);
         }
 
         private bool TryBuildRecord(out ArbeitsstundeRecord record)

@@ -611,24 +611,31 @@ namespace KGV.Infrastructure.Services
                     return false;
 
                 var client = await EnsureClientAsync();
-                await client.From<ArbeitsstundeRecord>().Insert(new ArbeitsstundeRecord
-                {
-                    MitgliedId = record.MitgliedId,
-                    SaisonId = record.SaisonId,
-                    Datum = NormalizeDateOnly(record.Datum),
-                    Stunden = record.Stunden,
-                    ArtDerArbeit = record.ArtDerArbeit.Trim(),
-                    Status = CleanOptionalText(record.Status),
-                    Freigegeben = record.Freigegeben,
-                    GenehmigtAm = record.GenehmigtAm,
-                    GenehmigtVon = record.GenehmigtVon,
-                    LockedByUserId = null,
-                    LockedAt = null
-                });
+                var payload = CreateArbeitsstundeInsertPayload(record);
+                await client.From<ArbeitsstundeInsertRecord>().Insert(payload);
 
                 return true;
             },
             false);
+
+        private ArbeitsstundeInsertRecord CreateArbeitsstundeInsertPayload(ArbeitsstundeRecord record)
+        {
+            return new ArbeitsstundeInsertRecord
+            {
+                MitgliedId = record.MitgliedId,
+                SaisonId = record.SaisonId,
+                Datum = NormalizeDateOnly(record.Datum),
+                Stunden = record.Stunden,
+                ArtDerArbeit = record.ArtDerArbeit.Trim(),
+                Status = CleanOptionalText(record.Status),
+                Freigegeben = record.Freigegeben,
+                GenehmigtAm = record.GenehmigtAm,
+                GenehmigtVon = record.GenehmigtVon,
+                LockedByUserId = null,
+                LockedAt = null
+            };
+        }
+
         public Task<bool> UpdateArbeitsstundeAsync(ArbeitsstundeRecord record) => ExecuteAsync(
             "UpdateArbeitsstundeAsync",
             async () =>
@@ -1067,7 +1074,6 @@ namespace KGV.Infrastructure.Services
                 return true;
             },
             false);
-
         public Task<List<TerminRecord>> GetTermineVerwaltungAsync() => ExecuteAsync(
             "GetTermineVerwaltungAsync",
             async () =>

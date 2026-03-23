@@ -2,6 +2,66 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Arbeitsstunden endgültig gegen `id = 0` abgesichert, Save-Rücknavigation abgeschlossen, Arbeitseinsatz-Home-Buttons korrigiert
+
+- Den Block erneut bewusst gegen den realen laufenden Produktpfad geführt, weil der erneute Datensatz `arbeitsstunde.id = 0` belegt hat, dass der vorige Schutz im tatsächlichen Laufzeitverhalten noch nicht ausreichte.
+- Den kompletten Create-Pfad für `arbeitsstunde` nochmals Ende-zu-Ende geprüft:
+  - WPF-Erfassung über `ArbeitsstundenErfassungViewModel`
+  - WPF-Dialogpfad über `ArbeitsstundenViewModel`
+  - MAUI-Erfassung über `MyArbeitsstundenPage`
+  - Persistenzpfad über `SupabaseService.AddArbeitsstundeAsync(...)`
+  - Ergebnis: die Aufrufer erzeugen weiterhin neue `ArbeitsstundeRecord`-Instanzen ohne fachliche `Id`, typbedingt aber mit lokalem Default `0`
+- Daraus die jetzt robuste technische Konsequenz gezogen: auf Attributverhalten allein wird für `arbeitsstunde` nicht mehr vertraut. Stattdessen verwendet der Create-Pfad nun einen expliziten Insert-Payloadtyp ohne `Id` (`ArbeitsstundeInsertRecord`).
+- Der tatsächliche Korrekturpfad für den Insertfehler ist damit jetzt zweistufig belastbar:
+  - `AddArbeitsstundeAsync(...)` mappt neue Datensätze in einen separaten Insert-Payload ohne Primärschlüsselspalte
+  - die Create-Payload übernimmt `Id` grundsätzlich überhaupt nicht mehr; damit kann auch ein ankommendes `ArbeitsstundeRecord` mit `Id <= 0` technisch nicht mehr in einen Insert mit `id = 0` münden
+  - Updates bleiben unverändert über `UpdateArbeitsstundeAsync(...)` und die echte bestehende `Id`
+  - keine `lastrow+1`-Logik
+- Den Abschluss des Userflows für Arbeitsstunden zugleich produktiv nachgezogen:
+  - nach erfolgreichem Speichern in `Arbeitsstunden erfassen` bleibt die Eingabemaske nicht mehr offen stehen
+  - im Dialogkontext schließt sich das Fenster wie bisher
+  - im normalen WPF-Erfassungspfad wird nach erfolgreichem Save sauber zurück auf `Home` navigiert
+- Dasselbe Abschlussverhalten jetzt auch für `Arbeitsstunden freigeben` umgesetzt:
+  - Checkbox-/Status-Speichern bleibt wie im letzten Fix möglich
+  - wenn alle geänderten/markierten Zeilen erfolgreich gespeichert wurden, navigiert die WPF-Prüfansicht anschließend wieder auf `Home` zurück
+  - der Fachpfad bleibt klein: `status` bleibt optionales Anmerkungsfeld, offen bleibt `freigegeben = false`, Freigabe setzt weiter `freigegeben = true`, `genehmigt_am`, `genehmigt_von`
+- Zusätzlich den Home-Pfad für `Arbeitseinsatz` auf den gewünschten Interaktionsstand zurückgezogen:
+  - der separate `Details`-Button wurde entfernt
+  - Detailöffnung läuft jetzt per Doppelklick auf die Karte
+  - stattdessen bleibt dort `Anmelden` sichtbar
+  - weil weiterhin kein belastbarer produktiver Schreibpfad für echte Anmeldungen im Repo nachweisbar ist, bleibt der Button bewusst eine ehrliche Info-Aktion statt neuer Schattenlogik
+- Technisch verifiziert: `KGV.Wpf` baut nach dem Abschlussblock erfolgreich; MAUI wurde im Shared-Arbeitsstundenpfad mitgedacht und nicht beschädigt.
+
+## 2026-03-24 – Prompt 1/1: Arbeitsstunden endgültig gegen `id = 0` abgesichert, Save-Rücknavigation abgeschlossen, Arbeitseinsatz-Home-Buttons korrigiert
+
+- Den Block erneut bewusst gegen den realen laufenden Produktpfad geführt, weil der erneute Datensatz `arbeitsstunde.id = 0` belegt hat, dass der vorige Schutz im tatsächlichen Laufzeitverhalten noch nicht ausreichte.
+- Den kompletten Create-Pfad für `arbeitsstunde` nochmals Ende-zu-Ende geprüft:
+  - WPF-Erfassung über `ArbeitsstundenErfassungViewModel`
+  - WPF-Dialogpfad über `ArbeitsstundenViewModel`
+  - MAUI-Erfassung über `MyArbeitsstundenPage`
+  - Persistenzpfad über `SupabaseService.AddArbeitsstundeAsync(...)`
+  - Ergebnis: die Aufrufer erzeugen weiterhin neue `ArbeitsstundeRecord`-Instanzen ohne fachliche `Id`, typbedingt aber mit lokalem Default `0`
+- Daraus die jetzt robuste technische Konsequenz gezogen: auf Attributverhalten allein wird für `arbeitsstunde` nicht mehr vertraut. Stattdessen verwendet der Create-Pfad nun einen expliziten Insert-Payloadtyp ohne `Id` (`ArbeitsstundeInsertRecord`).
+- Der tatsächliche Korrekturpfad für den Insertfehler ist damit jetzt zweistufig belastbar:
+  - `AddArbeitsstundeAsync(...)` mappt neue Datensätze in einen separaten Insert-Payload ohne Primärschlüsselspalte
+  - die Create-Payload übernimmt `Id` grundsätzlich überhaupt nicht mehr; damit kann auch ein ankommendes `ArbeitsstundeRecord` mit `Id <= 0` technisch nicht mehr in einen Insert mit `id = 0` münden
+  - Updates bleiben unverändert über `UpdateArbeitsstundeAsync(...)` und die echte bestehende `Id`
+  - keine `lastrow+1`-Logik
+- Den Abschluss des Userflows für Arbeitsstunden zugleich produktiv nachgezogen:
+  - nach erfolgreichem Speichern in `Arbeitsstunden erfassen` bleibt die Eingabemaske nicht mehr offen stehen
+  - im Dialogkontext schließt sich das Fenster wie bisher
+  - im normalen WPF-Erfassungspfad wird nach erfolgreichem Save sauber zurück auf `Home` navigiert
+- Dasselbe Abschlussverhalten jetzt auch für `Arbeitsstunden freigeben` umgesetzt:
+  - Checkbox-/Status-Speichern bleibt wie im letzten Fix möglich
+  - wenn alle geänderten/markierten Zeilen erfolgreich gespeichert wurden, navigiert die WPF-Prüfansicht anschließend wieder auf `Home` zurück
+  - der Fachpfad bleibt klein: `status` bleibt optionales Anmerkungsfeld, offen bleibt `freigegeben = false`, Freigabe setzt weiter `freigegeben = true`, `genehmigt_am`, `genehmigt_von`
+- Zusätzlich den Home-Pfad für `Arbeitseinsatz` auf den gewünschten Interaktionsstand zurückgezogen:
+  - der separate `Details`-Button wurde entfernt
+  - Detailöffnung läuft jetzt per Doppelklick auf die Karte
+  - stattdessen bleibt dort `Anmelden` sichtbar
+  - weil weiterhin kein belastbarer produktiver Schreibpfad für echte Anmeldungen im Repo nachweisbar ist, bleibt der Button bewusst eine ehrliche Info-Aktion statt neuer Schattenlogik
+- Technisch verifiziert: `KGV.Wpf` baut nach dem Abschlussblock erfolgreich; MAUI wurde im Shared-Arbeitsstundenpfad mitgedacht und nicht beschädigt.
+
 ## 2026-03-23 – Prompt 1/1: zwei echte Arbeitsstundenfehler am realen Produktpfad behoben (`id = 0` bei Insert, Speichern in Freigabeansicht reagiert nicht auf Checkbox)
 
 - Den Block ausdrücklich gegen die zwei real reproduzierten Fehler geführt und nicht als Vermutungslösung umgesetzt.

@@ -205,9 +205,16 @@ namespace KGV.ViewModels
             }
 
             WeakReferenceMessenger.Default.Send(new ArbeitsstundenChangedMessage());
-            StatusMessage = savedCount == changedRows.Count
+            var allRowsSaved = savedCount == changedRows.Count;
+            StatusMessage = allRowsSaved
                 ? $"{savedCount} Arbeitsstunden wurden gespeichert/freigegeben."
                 : $"{savedCount} von {changedRows.Count} geänderten Arbeitsstunden wurden gespeichert.";
+
+            if (allRowsSaved && savedCount > 0)
+            {
+                await NavigateHomeAsync();
+                return;
+            }
 
             await LoadEntriesAsync();
         }
@@ -235,6 +242,13 @@ namespace KGV.ViewModels
 
             window.ShowDialog();
             await LoadEntriesAsync();
+        }
+
+        private async Task NavigateHomeAsync()
+        {
+            var created = _mainWindowViewModel.NavigateToHomeViewModel();
+            if (created != null)
+                await _mainWindowViewModel.NavigateToAsync(created);
         }
 
         private void StartLockHeartbeat()

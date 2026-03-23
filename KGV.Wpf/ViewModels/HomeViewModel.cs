@@ -75,7 +75,7 @@ namespace KGV.ViewModels
             OpenAppointmentsManagementCommand = new RelayCommand<object?>(_ => _ = OpenAppointmentsManagementAsync(), _ => IsAdminContext);
             OpenAnnouncementsManagementCommand = new RelayCommand<object?>(_ => _ = OpenAnnouncementsManagementAsync(), _ => IsAdminContext);
             OpenWorkAssignmentDetailCommand = new RelayCommand<HomeWorkAssignmentItem>(item => _ = OpenWorkAssignmentDetailAsync(item), item => item != null);
-            RegisterForWorkAssignmentCommand = new RelayCommand<HomeWorkAssignmentItem>(ShowRegistrationHint, item => item?.CanRegister == true);
+            RegisterForWorkAssignmentCommand = new RelayCommand<HomeWorkAssignmentItem>(ShowRegistrationHint, item => item != null);
             OpenAppointmentDetailCommand = new RelayCommand<HomeAppointmentItem>(item => _ = OpenAppointmentDetailAsync(item), item => item != null);
             OpenAnnouncementDetailCommand = new RelayCommand<HomeAnnouncementItem>(item => _ = OpenAnnouncementDetailAsync(item), item => item != null);
         }
@@ -214,9 +214,6 @@ namespace KGV.ViewModels
 
         private static void ShowRegistrationHint(HomeWorkAssignmentItem? item)
         {
-            if (item?.CanRegister != true)
-                return;
-
             MessageBox.Show(
                 "Die Anmeldung zu Arbeitseinsätzen ist im aktuellen WPF-Stand noch nicht an einen belastbaren Schreibpfad angebunden.",
                 "Anmeldung",

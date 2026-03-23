@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-03-24 – Arbeitsstunden endgültig gegen `id = 0` abgesichert, Save-Rücknavigation nachgezogen, Arbeitseinsatz-Home-Buttons korrigiert
+
+- Den erneuten realen Fehlernachweis `arbeitsstunde.id = 0` nach dem vorigen Fix ausdrücklich als Beleg genommen, dass Attributverhalten allein im laufenden Pfad nicht reicht. Deshalb den kompletten Produktpfad nochmals bis zur tatsächlichen Create-Payload geprüft: WPF-Erfassung (`ArbeitsstundenErfassungViewModel`), WPF-Dialogpfad (`ArbeitsstundenViewModel`), MAUI-Erfassung (`MyArbeitsstundenPage`) und `SupabaseService.AddArbeitsstundeAsync(...)`.
+- Die robuste Korrektur liegt jetzt nicht mehr nur im Record-Attribut, sondern technisch im Insertmodell selbst: für `arbeitsstunde` gibt es nun einen expliziten Payloadtyp ohne `Id` (`ArbeitsstundeInsertRecord`), und `AddArbeitsstundeAsync(...)` schreibt beim Insert nur noch über genau diesen Typ. Damit kann `Id` – auch wenn aufrufende `ArbeitsstundeRecord`-Instanzen lokal weiter mit Default `0` ankommen – technisch nicht mehr in die Create-Payload gelangen.
+- Als zusätzliche Guard-Absicherung übernimmt der Create-Pfad die `Id` grundsätzlich überhaupt nicht mehr. Es wird weder auf positive noch auf nichtpositive `Id` vertraut; Updates bleiben weiterhin separat über `UpdateArbeitsstundeAsync(...)` mit echter bestehender `Id` bestehen. Eine App-seitige `lastrow+1`-Logik wurde bewusst nicht eingeführt.
+- Die Arbeitsstunden-Erfassungsansicht wurde im Abschlusszug ebenfalls auf das gewünschte Produktverhalten gezogen: nach erfolgreichem Speichern bleibt die Eingabemaske nicht mehr offen stehen, sondern verlässt den Pfad sauber. Im Dialogkontext schließt sich das Fenster wie bisher; im normalen WPF-Erfassungspfad wird nach erfolgreichem Save zurück auf `Home` navigiert.
+- Die Arbeitsstunden-Freigabeansicht zieht jetzt dasselbe Abschlussverhalten nach: wenn alle markierten/geänderten Zeilen erfolgreich gespeichert wurden, wird nicht in der Prüfansicht verharrt, sondern wieder sauber auf `Home` zurücknavigiert. Der bestehende Fachpfad bleibt unverändert; `status` bleibt optionales Anmerkungsfeld.
+- Den Home-Eintrag für `Arbeitseinsatz` auf den gewünschten Interaktionsstand korrigiert: der separate `Details`-Button wurde entfernt, Detailöffnung läuft jetzt per Doppelklick auf die Karte. Stattdessen bleibt dort der Button `Anmelden` sichtbar. Weil weiterhin kein belastbarer produktiver Schreibpfad für die echte Anmeldung vorhanden ist, bleibt dieser Button bewusst eine ehrliche Info-Aktion statt neuer Fake-Fachlogik.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Abschlussblock erfolgreich; MAUI wurde im Shared-Arbeitsstundenpfad mitgedacht und nicht beschädigt.
+
 ## 2026-03-23 – Zwei echte Arbeitsstundenfehler behoben: `id = 0` bei Neuanlage unterbunden und Freigabe-Checkbox aktiviert Speichern wieder sofort
 
 - Den realen Produktfehler im Arbeitsstunden-Insertpfad diesmal bewusst bis zur tatsächlich laufenden Payload verfolgt statt nur den Service isoliert zu betrachten: WPF-Usererfassung (`ArbeitsstundenErfassungViewModel`), WPF-Dialogerfassung (`ArbeitsstundenViewModel`) und MAUI (`MyArbeitsstundenPage`) erzeugen alle neue `ArbeitsstundeRecord`-Instanzen ohne explizite `Id`-Zuweisung, damit aber typbedingt mit lokalem Default `Id = 0`.
