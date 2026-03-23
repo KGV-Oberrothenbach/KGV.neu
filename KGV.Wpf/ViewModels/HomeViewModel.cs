@@ -6,6 +6,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace KGV.ViewModels
 {
@@ -61,6 +62,7 @@ namespace KGV.ViewModels
         public RelayCommand<object?> OpenAppointmentsManagementCommand { get; }
         public RelayCommand<object?> OpenAnnouncementsManagementCommand { get; }
         public RelayCommand<HomeWorkAssignmentItem> OpenWorkAssignmentDetailCommand { get; }
+        public RelayCommand<HomeWorkAssignmentItem> RegisterForWorkAssignmentCommand { get; }
         public RelayCommand<HomeAppointmentItem> OpenAppointmentDetailCommand { get; }
         public RelayCommand<HomeAnnouncementItem> OpenAnnouncementDetailCommand { get; }
 
@@ -73,6 +75,7 @@ namespace KGV.ViewModels
             OpenAppointmentsManagementCommand = new RelayCommand<object?>(_ => _ = OpenAppointmentsManagementAsync(), _ => IsAdminContext);
             OpenAnnouncementsManagementCommand = new RelayCommand<object?>(_ => _ = OpenAnnouncementsManagementAsync(), _ => IsAdminContext);
             OpenWorkAssignmentDetailCommand = new RelayCommand<HomeWorkAssignmentItem>(item => _ = OpenWorkAssignmentDetailAsync(item), item => item != null);
+            RegisterForWorkAssignmentCommand = new RelayCommand<HomeWorkAssignmentItem>(ShowRegistrationHint, item => item?.CanRegister == true);
             OpenAppointmentDetailCommand = new RelayCommand<HomeAppointmentItem>(item => _ = OpenAppointmentDetailAsync(item), item => item != null);
             OpenAnnouncementDetailCommand = new RelayCommand<HomeAnnouncementItem>(item => _ = OpenAnnouncementDetailAsync(item), item => item != null);
         }
@@ -165,7 +168,8 @@ namespace KGV.ViewModels
                 Title = item.Title,
                 Subtitle = item.Subtitle,
                 Content = item.Details,
-                AdditionalInfo = item.RegistrationInfo
+                AdditionalInfo = item.DetailInfo,
+                CanRegister = item.CanRegister
             });
 
             if (created != null)
@@ -182,7 +186,8 @@ namespace KGV.ViewModels
                 SectionTitle = "Termin",
                 Title = item.Title,
                 Subtitle = item.Subtitle,
-                Content = item.Details
+                Content = item.Details,
+                AdditionalInfo = item.DetailInfo
             });
 
             if (created != null)
@@ -199,11 +204,24 @@ namespace KGV.ViewModels
                 SectionTitle = "Bekanntmachung",
                 Title = item.Title,
                 Subtitle = item.Subtitle,
-                Content = item.Content
+                Content = item.Content,
+                AdditionalInfo = item.DetailInfo
             });
 
             if (created != null)
                 await _mainVm.NavigateToAsync(created);
+        }
+
+        private static void ShowRegistrationHint(HomeWorkAssignmentItem? item)
+        {
+            if (item?.CanRegister != true)
+                return;
+
+            MessageBox.Show(
+                "Die Anmeldung zu Arbeitseinsätzen ist im aktuellen WPF-Stand noch nicht an einen belastbaren Schreibpfad angebunden.",
+                "Anmeldung",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
         }
 
         private static string BuildWorkHoursInfoText(HomeWorkHoursSummary summary)

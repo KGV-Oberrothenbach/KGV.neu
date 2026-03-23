@@ -26,11 +26,11 @@
                            Margin="0,6,0,0"
                            Foreground="Gray"
                            Visibility="{Binding HasSubtitle, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                <ScrollViewer Margin="0,16,0,0"
-                              VerticalScrollBarVisibility="Auto"
-                              Visibility="{Binding HasContent, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TextBlock Text="{Binding Content}" TextWrapping="Wrap" />
-                </ScrollViewer>
+                <Button Content="Anmelden"
+                        Margin="0,16,0,0"
+                        HorizontalAlignment="Left"
+                        Command="{Binding AnmeldenCommand}"
+                        Visibility="{Binding ShowRegisterButton, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <Border Margin="0,16,0,0"
                         Padding="12"
                         Background="{StaticResource KgvBackgroundBrush}"
@@ -38,6 +38,11 @@
                         Visibility="{Binding HasAdditionalInfo, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TextBlock Text="{Binding AdditionalInfo}" TextWrapping="Wrap" Foreground="DarkSlateBlue" />
                 </Border>
+                <ScrollViewer Margin="0,16,0,0"
+                              VerticalScrollBarVisibility="Auto"
+                              Visibility="{Binding HasContent, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="{Binding Content}" TextWrapping="Wrap" />
+                </ScrollViewer>
             </StackPanel>
         </Border>
     </Grid>

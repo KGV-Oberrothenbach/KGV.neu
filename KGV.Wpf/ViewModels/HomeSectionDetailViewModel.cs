@@ -2,6 +2,7 @@ using KGV.Core.Interfaces;
 using KGV.Helpers;
 using System;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace KGV.ViewModels
 {
@@ -18,14 +19,17 @@ namespace KGV.ViewModels
         public bool HasSubtitle => !string.IsNullOrWhiteSpace(Subtitle);
         public bool HasContent => !string.IsNullOrWhiteSpace(Content);
         public bool HasAdditionalInfo => !string.IsNullOrWhiteSpace(AdditionalInfo);
+        public bool ShowRegisterButton => _context.CanRegister;
 
         public RelayCommand<object?> ZurueckCommand { get; }
+        public RelayCommand<object?> AnmeldenCommand { get; }
 
         public HomeSectionDetailViewModel(MainWindowViewModel mainVm, HomeSectionDetailContext context)
         {
             _mainVm = mainVm ?? throw new ArgumentNullException(nameof(mainVm));
             _context = context ?? throw new ArgumentNullException(nameof(context));
             ZurueckCommand = new RelayCommand<object?>(_ => _ = ZurueckAsync());
+            AnmeldenCommand = new RelayCommand<object?>(_ => ShowRegistrationHint(), _ => ShowRegisterButton);
         }
 
         public Task OnNavigatedToAsync() => Task.CompletedTask;
@@ -37,6 +41,15 @@ namespace KGV.ViewModels
             var created = _mainVm.NavigateToHomeViewModel();
             if (created != null)
                 await _mainVm.NavigateToAsync(created);
+        }
+
+        private static void ShowRegistrationHint()
+        {
+            MessageBox.Show(
+                "Die Anmeldung zu Arbeitseinsätzen ist im aktuellen WPF-Stand noch nicht an einen belastbaren Schreibpfad angebunden.",
+                "Anmeldung",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
         }
     }
 }

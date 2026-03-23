@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="KGV.Views.TermineVerwaltungEditorView"
+<UserControl x:Class="KGV.Views.TermineVerwaltungEditorView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <UserControl.Resources>
@@ -34,9 +34,8 @@
         <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,16">
             <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" DockPanel.Dock="Left" />
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                <Button Content="Zurück" Margin="0,0,10,0" Command="{Binding ZurueckCommand}" />
+                <Button Content="Zur&#xFC;ck" Margin="0,0,10,0" Command="{Binding ZurueckCommand}" />
                 <Button Content="Aktualisieren" Margin="0,0,10,0" Command="{Binding AktualisierenCommand}" />
-                <Button Content="Oeffnen" Margin="0,0,10,0" Command="{Binding OeffnenCommand}" />
                 <Button Content="Neu" Command="{Binding NeuCommand}" />
             </StackPanel>
         </DockPanel>
@@ -52,10 +51,8 @@
                     <ListBox ItemsSource="{Binding Entries}"
                              SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
                              BorderThickness="0"
+                             MouseDoubleClick="OnEntriesListBoxMouseDoubleClick"
                              Visibility="{Binding HasEntries, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <ListBox.InputBindings>
-                <Button Content="Oeffnen" Margin="0,0,10,0" Command="{Binding OeffnenCommand}" />
-                        </ListBox.InputBindings>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border Margin="0,0,0,8"
@@ -230,5 +227,8 @@
         </Grid>
     </Grid>
 </UserControl>
+
+
+
 
 

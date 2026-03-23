@@ -105,20 +105,35 @@
                         <ItemsControl ItemsSource="{Binding WorkAssignments}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Button Margin="0,0,0,8"
+                                    <Border Margin="0,0,0,8"
                                             Padding="12"
                                             Background="{StaticResource KgvBackgroundBrush}"
                                             BorderBrush="{StaticResource KgvBorderBrush}"
-                                            BorderThickness="1"
-                                            HorizontalContentAlignment="Stretch"
-                                            Command="{Binding DataContext.OpenWorkAssignmentDetailCommand, RelativeSource={RelativeSource AncestorType=GroupBox}}"
-                                            CommandParameter="{Binding}">
+                                            BorderThickness="1">
                                         <StackPanel>
                                             <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                                             <TextBlock Text="{Binding Subtitle}" Margin="0,4,0,0" Foreground="Gray" />
-                                            <TextBlock Text="{Binding RegistrationInfo}" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="DarkSlateBlue" />
+                                            <TextBlock Text="{Binding BeginText, StringFormat=Beginn: {0}}"
+                                                       Margin="0,4,0,0"
+                                                       Foreground="Gray"
+                                                       Visibility="{Binding HasBeginText, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                            <TextBlock Text="{Binding RegistrationInfo}"
+                                                       Margin="0,8,0,0"
+                                                       TextWrapping="Wrap"
+                                                       Foreground="DarkSlateBlue"
+                                                       Visibility="{Binding HasRegistrationInfo, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                            <WrapPanel Margin="0,10,0,0">
+                                                <Button Content="Details"
+                                                        Margin="0,0,10,0"
+                                                        Command="{Binding DataContext.OpenWorkAssignmentDetailCommand, RelativeSource={RelativeSource AncestorType=GroupBox}}"
+                                                        CommandParameter="{Binding}" />
+                                                <Button Content="Anmelden"
+                                                        Command="{Binding DataContext.RegisterForWorkAssignmentCommand, RelativeSource={RelativeSource AncestorType=GroupBox}}"
+                                                        CommandParameter="{Binding}"
+                                                        Visibility="{Binding CanRegister, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                            </WrapPanel>
                                         </StackPanel>
-                                    </Button>
+                                    </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

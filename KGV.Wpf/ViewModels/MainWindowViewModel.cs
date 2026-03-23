@@ -1,4 +1,4 @@
-﻿using KGV.Core.Interfaces;
+using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Helpers;
@@ -247,16 +247,6 @@ namespace KGV.ViewModels
                 {
                     Title = "Meine Daten",
                     ViewModelType = typeof(MemberDetailViewModel),
-                    IsVisible = true
-                });
-            }
-
-            if (UserContext.MitgliedId.HasValue && UserContext.MitgliedId.Value > 0 && UserContext.MitgliedId.Value <= int.MaxValue)
-            {
-                NavigationItems.Add(new NavigationItem
-                {
-                    Title = "Arbeitsstunden erfassen",
-                    ViewModelType = typeof(ArbeitsstundenErfassungViewModel),
                     IsVisible = true
                 });
             }

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Threading;
 using KGV.ViewModels;
 
@@ -35,6 +36,21 @@ namespace KGV.Views
                 return;
 
             Dispatcher.BeginInvoke(() => FocusRequestedControl(vm.FocusTarget), DispatcherPriority.Input);
+        }
+
+        private void OnEntriesListBoxMouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not ListBox { SelectedItem: not null } listBox)
+                return;
+
+            if (DataContext is not TermineVerwaltungViewModel vm)
+                return;
+
+            if (!vm.OeffnenCommand.CanExecute(listBox.SelectedItem))
+                return;
+
+            vm.OeffnenCommand.Execute(listBox.SelectedItem);
+            e.Handled = true;
         }
 
         private void FocusRequestedControl(string target)

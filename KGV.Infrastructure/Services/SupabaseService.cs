@@ -1642,7 +1642,7 @@ namespace KGV.Infrastructure.Services
 
             return response?.Models?
                 .OrderByDescending(x => x.VeroeffentlichtAm ?? x.UpdatedAt ?? DateTime.MinValue)
-                .ThenBy(x => FirstNonEmpty(x.Titel, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(x => FirstNonEmpty(x.Titel, x.Betreff, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                 .Select(MapHomeAnnouncement)
                 .ToList()
                 ?? new List<HomeAnnouncementItem>();
@@ -1670,57 +1670,96 @@ namespace KGV.Infrastructure.Services
 
         private static HomeWorkAssignmentItem MapHomeWorkAssignment(StartseiteArbeitseinsatzRecord record)
         {
-            var details = new List<string>();
-            if (!string.IsNullOrWhiteSpace(record.Treffpunkt))
-                details.Add($"Treffpunkt: {record.Treffpunkt.Trim()}");
-
             var description = NormalizeHomeText(record.Beschreibung);
-            if (!string.IsNullOrWhiteSpace(description))
-                details.Add(description);
-
             var capacityText = BuildCapacityText(record.AngemeldetCount, record.FreiePlaetze);
+            var title = FirstNonEmpty(record.Titel, record.Thema) ?? "Arbeitseinsatz";
+            var begin = NormalizeTimeValue(record.Beginn);
+            var end = NormalizeTimeValue(record.Ende);
+            var detailInfoLines = new List<string>();
+
+            AddDetailLine(detailInfoLines, "Thema", record.Thema, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase));
+            AddDetailLine(detailInfoLines, "Datum", record.Datum?.ToString("dd.MM.yyyy"));
+            AddDetailLine(detailInfoLines, "Beginn", begin);
+            AddDetailLine(detailInfoLines, "Ende", end);
+            AddDetailLine(detailInfoLines, "Treffpunkt", record.Treffpunkt);
+            AddDetailLine(detailInfoLines, "Angemeldet", record.AngemeldetCount?.ToString());
+            AddDetailLine(detailInfoLines, "Freie Plätze", record.FreiePlaetze?.ToString());
+
+            if (record.AngemeldetCount.HasValue && record.FreiePlaetze.HasValue)
+                AddDetailLine(detailInfoLines, "Max. Teilnehmer", (record.AngemeldetCount.Value + record.FreiePlaetze.Value).ToString());
+
+            if (!string.IsNullOrWhiteSpace(capacityText))
+                detailInfoLines.Add(capacityText);
 
             return new HomeWorkAssignmentItem
             {
-                Title = FirstNonEmpty(record.Titel, record.Thema) ?? "Arbeitseinsatz",
+                Title = title,
                 Subtitle = BuildDateSubtitle(record.Datum, record.Beginn, record.Ende),
-                Details = string.Join(Environment.NewLine, details.Where(x => !string.IsNullOrWhiteSpace(x))),
+                BeginText = begin ?? string.Empty,
+                Details = description,
+                DetailInfo = string.Join(Environment.NewLine, detailInfoLines),
                 RegistrationInfo = !string.IsNullOrWhiteSpace(capacityText)
                     ? capacityText
                     : record.AnmeldungMoeglich == true
-                        ? "Eine Anmeldung ist im aktuellen WPF-Stand noch nicht belastbar verdrahtet."
+                        ? "Anmeldung möglich"
                         : string.Empty,
-                CanRegister = false
+                CanRegister = record.AnmeldungMoeglich == true
             };
         }
 
         private static HomeAppointmentItem MapHomeAppointment(StartseiteTerminRecord record)
         {
-            var details = new List<string>();
-            if (!string.IsNullOrWhiteSpace(record.Ort))
-                details.Add($"Ort: {record.Ort.Trim()}");
+            var title = FirstNonEmpty(record.Titel, record.Thema) ?? "Termin";
+            var details = NormalizeHomeText(FirstNonEmpty(record.Inhalt, record.Beschreibung));
+            var detailInfoLines = new List<string>();
+            var begin = NormalizeTimeValue(record.Beginn);
+            var end = NormalizeTimeValue(record.Ende);
 
-            var description = NormalizeHomeText(FirstNonEmpty(record.Inhalt, record.Beschreibung));
-            if (!string.IsNullOrWhiteSpace(description))
-                details.Add(description);
+            AddDetailLine(detailInfoLines, "Thema", record.Thema, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase));
+            AddDetailLine(detailInfoLines, "Datum", record.Datum?.ToString("dd.MM.yyyy"));
+            AddDetailLine(detailInfoLines, "Beginn", begin);
+            AddDetailLine(detailInfoLines, "Ende", end);
+            AddDetailLine(detailInfoLines, "Ort", record.Ort);
 
             return new HomeAppointmentItem
             {
-                Title = FirstNonEmpty(record.Titel, record.Thema) ?? "Termin",
+                Title = title,
                 Subtitle = BuildDateSubtitle(record.Datum, record.Beginn, record.Ende),
-                Details = string.Join(Environment.NewLine + Environment.NewLine, details.Where(x => !string.IsNullOrWhiteSpace(x)))
+                Details = details,
+                DetailInfo = string.Join(Environment.NewLine, detailInfoLines)
             };
         }
 
         private static HomeAnnouncementItem MapHomeAnnouncement(StartseiteBekanntmachungRecord record)
         {
             var published = record.VeroeffentlichtAm ?? record.Datum ?? record.ErstelltAm ?? record.UpdatedAt;
+            var title = FirstNonEmpty(record.Titel, record.Betreff, record.Thema) ?? "Bekanntmachung";
+            var detailInfoLines = new List<string>();
+
+            AddDetailLine(detailInfoLines, "Betreff", record.Betreff, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase));
+            AddDetailLine(detailInfoLines, "Thema", record.Thema, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase) && !string.Equals(value, record.Betreff, StringComparison.CurrentCultureIgnoreCase));
+            AddDetailLine(detailInfoLines, "Veröffentlicht am", published?.ToString("dd.MM.yyyy HH:mm"));
+            AddDetailLine(detailInfoLines, "Kurztext", record.Kurztext);
+
             return new HomeAnnouncementItem
             {
-                Title = FirstNonEmpty(record.Titel, record.Betreff, record.Thema) ?? "Bekanntmachung",
+                Title = title,
                 Subtitle = published.HasValue ? published.Value.ToString("dd.MM.yyyy") : string.Empty,
-                Content = NormalizeHomeText(FirstNonEmpty(record.Inhalt, record.Text, record.InhaltHtml, record.Beschreibung, record.Kurztext))
+                Content = NormalizeHomeText(FirstNonEmpty(record.Inhalt, record.Text, record.InhaltHtml, record.Beschreibung, record.Kurztext)),
+                DetailInfo = string.Join(Environment.NewLine, detailInfoLines)
             };
+        }
+
+        private static void AddDetailLine(List<string> lines, string label, string? value, Func<string, bool>? predicate = null)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return;
+
+            var trimmed = value.Trim();
+            if (predicate != null && !predicate(trimmed))
+                return;
+
+            lines.Add($"{label}: {trimmed}");
         }
 
         private async Task<int> ResolveHomeMitgliedIdAsync(int mitgliedId)
@@ -1833,15 +1872,14 @@ namespace KGV.Infrastructure.Services
         private static string ComposeStorageReference(DokumentRecord record)
         {
             var path = (record.StoragePath ?? string.Empty).Trim().TrimStart('/');
-            var bucket = (record.Bucket ?? string.Empty).Trim().Trim('/');
+            var bucket = (record.Bucket ?? string.Empty).Trim();
 
             if (string.IsNullOrWhiteSpace(bucket))
                 return path;
+            if (string.IsNullOrWhiteSpace(path))
+                return bucket;
 
-            if (path.StartsWith(bucket + "/", StringComparison.OrdinalIgnoreCase))
-                return path;
-
-            return string.IsNullOrWhiteSpace(path) ? bucket : $"{bucket}/{path}";
+            return $"{bucket}:{path}";
         }
 
         private static bool TryParseStorageReference(string? storageReference, out string bucket, out string path)
@@ -1852,30 +1890,30 @@ namespace KGV.Infrastructure.Services
             if (string.IsNullOrWhiteSpace(storageReference))
                 return false;
 
-            var normalized = storageReference.Trim().Replace('\\', '/').TrimStart('/');
-            var separatorIndex = normalized.IndexOf('/');
-            if (separatorIndex <= 0 || separatorIndex == normalized.Length - 1)
+            var normalized = storageReference.Trim().Replace('\\', '/');
+            var separatorIndex = normalized.IndexOf(':');
+            if (separatorIndex <= 0 || separatorIndex >= normalized.Length - 1)
                 return false;
 
-            bucket = normalized[..separatorIndex];
-            path = normalized[(separatorIndex + 1)..];
+            bucket = normalized[..separatorIndex].Trim();
+            path = normalized[(separatorIndex + 1)..].Trim().TrimStart('/');
             return !string.IsNullOrWhiteSpace(bucket) && !string.IsNullOrWhiteSpace(path);
         }
 
-        private static string FirstNonEmpty(params string?[] candidates)
+        private static string? FirstNonEmpty(params string?[] values)
         {
-            foreach (var candidate in candidates)
+            foreach (var value in values)
             {
-                if (!string.IsNullOrWhiteSpace(candidate))
-                    return candidate.Trim();
+                if (!string.IsNullOrWhiteSpace(value))
+                    return value.Trim();
             }
 
-            return string.Empty;
+            return null;
         }
 
-        private static NotSupportedException CreateUnavailableException()
+        private InvalidOperationException CreateUnavailableException()
         {
-            return new NotSupportedException("SupabaseService wurde im Wiederaufbau nur minimal als Platzhalter wiederhergestellt und ist fachlich noch nicht rekonstruiert.");
+            return new InvalidOperationException("SupabaseService ist aktuell nicht initialisiert.");
         }
     }
 }

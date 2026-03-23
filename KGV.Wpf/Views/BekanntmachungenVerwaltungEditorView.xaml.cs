@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Threading;
 using KGV.ViewModels;
 
@@ -43,6 +44,21 @@ namespace KGV.Views
             {
                 Dispatcher.BeginInvoke(RefreshPreview, DispatcherPriority.Background);
             }
+        }
+
+        private void OnEntriesListBoxMouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not ListBox { SelectedItem: not null } listBox)
+                return;
+
+            if (DataContext is not BekanntmachungenVerwaltungViewModel vm)
+                return;
+
+            if (!vm.OeffnenCommand.CanExecute(listBox.SelectedItem))
+                return;
+
+            vm.OeffnenCommand.Execute(listBox.SelectedItem);
+            e.Handled = true;
         }
 
         private void FocusRequestedControl(string target)
