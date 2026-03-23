@@ -2,6 +2,40 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Appuser-Verwaltung in `Admin-Menü` umgezogen und an das ausgewählte Mitglied gebunden
+
+- Den Block zuerst gegen den aktuellen Repo-Stand geprüft. Ergebnis:
+  - `Benutzerverwaltung` hing in WPF noch als globaler Navigationseintrag
+  - `Admin-Menü` existierte bereits im Mitgliedskontext
+  - der produktive Add-/Invite-Pfad für Appuser lief bereits über `InviteUserAsync(...)`
+  - ein separater frei eingebetteter Mitgliedsbezug für die Benutzerverwaltung fehlte bisher
+- Die Navigation wurde deshalb bewusst ohne Doppelpunkte neu geordnet:
+  - globales `Benutzerverwaltung` aus der WPF-Hauptnavigation entfernt
+  - neuer Unterpunkt `Benutzerverwaltung` im Mitgliedsbereich direkt unter `Admin-Menü`
+  - der Unterpunkt ist eingerückt und folgt damit sichtbar dem Admin-Menü statt einer zweiten parallelen Route
+- Der Mitgliedsbezug wird jetzt strikt erzwungen:
+  - der neue Unterpunkt navigiert mit dem aktuell ausgewählten `MemberDTO`
+  - die WPF-`UserManagementViewModel`-Instanz ist damit an genau dieses Mitglied gebunden
+  - beim Laden werden nur noch Appuser-Daten dieses Mitglieds betrachtet
+  - gibt es noch keinen Appuser, wird ein Mitglieds-Platzhalter aufgebaut, damit `Nutzer hinzufügen` weiterhin sauber auf genau diesem ausgewählten Datensatz arbeitet
+- Die produktiven Nutzerpfade wurden nicht ersetzt, sondern weiterverwendet:
+  - `Nutzer hinzufügen` nutzt weiter `InviteUserAsync(...)`
+  - `Nutzer entfernen` arbeitet auf der bestehenden Auth-/Mitglied-/`app_user`-Zuordnung und entfernt die Appuser-Verknüpfung des ausgewählten Mitglieds
+  - es wurde keine zweite Benutzerverwaltungsarchitektur daneben eröffnet
+- Die UI-/Bedienlogik wurde fachlich nachgezogen:
+  - ohne ausgewähltes Mitglied keine Ausführung
+  - stattdessen klare fachliche Rückmeldung
+  - `Nutzer hinzufügen` und `Nutzer entfernen` beziehen sich jetzt sichtbar auf das ausgewählte Mitglied und nicht auf eine freischwebende Benutzerzeile
+  - keine Verwechslung mit Löschen des Mitglieds selbst
+- Rechte sauber getrennt:
+  - WPF-Unterpunkt `Benutzerverwaltung` nur für Admin sichtbar
+  - Vorstand sieht den Punkt nicht mehr
+  - in MAUI wurde zumindest die Menü-Sichtbarkeit ebenfalls auf Admin begrenzt, ohne unnötigen UI-Umbau zu starten
+- Technisch verifiziert:
+  - `KGV.Wpf` baut erfolgreich
+  - der Shared-/Auth-Pfad bleibt konsistent
+  - MAUI wurde im Rechtepfad mitgezogen und nicht beschädigt
+
 ## 2026-03-24 – Prompt 1/1: Mitgliedersuche um E-Mail, Gartennummern und Hauptmitglied-Markierung erweitert
 
 - Den Block zuerst gegen den aktuellen Repo-Stand geprüft. Die bestehende Mitgliedersuche war bereits vorhanden; erweitert werden sollte nur die Ergebnisliste, ohne neuen Suchdialog und ohne neue Fachlogik.

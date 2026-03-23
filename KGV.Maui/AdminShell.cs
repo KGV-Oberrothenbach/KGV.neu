@@ -7,11 +7,13 @@ namespace KGV.Maui;
 public sealed class AdminShell : Shell, IAppShellInitializer
 {
     private readonly IServiceProvider _services;
+    private readonly IAuthService _authService;
     private FlyoutItem? _workhoursReviewItem;
 
-    public AdminShell(IServiceProvider services)
+    public AdminShell(IServiceProvider services, IAuthService authService)
     {
         _services = services;
+        _authService = authService;
         FlyoutBehavior = FlyoutBehavior.Flyout;
     }
 
@@ -47,19 +49,22 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             }
         });
 
-        Items.Add(new FlyoutItem
+        if (_authService.IsAdmin)
         {
-            Title = "Benutzerverwaltung",
-            Items =
+            Items.Add(new FlyoutItem
             {
-                new ShellContent
+                Title = "Benutzerverwaltung",
+                Items =
                 {
-                    Title = "Benutzerverwaltung",
-                    Route = "usermanagement",
-                    ContentTemplate = new DataTemplate(() => _services.GetRequiredService<UserManagementPage>())
+                    new ShellContent
+                    {
+                        Title = "Benutzerverwaltung",
+                        Route = "usermanagement",
+                        ContentTemplate = new DataTemplate(() => _services.GetRequiredService<UserManagementPage>())
+                    }
                 }
-            }
-        });
+            });
+        }
 
         Items.Add(new FlyoutItem
         {

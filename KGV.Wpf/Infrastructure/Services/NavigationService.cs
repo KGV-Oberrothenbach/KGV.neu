@@ -142,7 +142,7 @@ namespace KGV.Infrastructure.Services
 
             if (viewModelType == typeof(UserManagementViewModel))
             {
-                return new UserManagementViewModel(_authService);
+                return new UserManagementViewModel(_authService, parameter as MemberDTO);
             }
 
             if (viewModelType == typeof(GartenStromViewModel))

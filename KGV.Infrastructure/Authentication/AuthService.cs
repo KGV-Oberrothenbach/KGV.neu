@@ -332,6 +332,44 @@ namespace KGV.Infrastructure.Authentication
             }
         }
 
+        public async Task<bool> RemoveUserAsync(AppUserDTO user)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            if (!user.AuthUserId.HasValue && !user.MitgliedId.HasValue)
+                return false;
+
+            try
+            {
+                var client = await GetClientAsync();
+
+                if (user.MitgliedId.HasValue)
+                {
+                    await client
+                        .From<MitgliedRecord>()
+                        .Where(x => x.Id == user.MitgliedId.Value)
+                        .Set(x => x.AuthUserId, (Guid?)null)
+                        .Update();
+                }
+
+                if (user.AuthUserId.HasValue)
+                {
+                    await client
+                        .From<AppUserRecord>()
+                        .Where(x => x.UserId == user.AuthUserId.Value)
+                        .Delete();
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "RemoveUserAsync failed for auth user {AuthUserId} and mitglied {MitgliedId}", user.AuthUserId, user.MitgliedId);
+                return false;
+            }
+        }
+
         public async Task<bool> RequestEmailChangeAsync(string newEmail)
         {
             if (string.IsNullOrWhiteSpace(newEmail))

@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-03-24 – Appuser-Verwaltung ins `Admin-Menü` verschoben und an das ausgewählte Mitglied gebunden
+
+- Den Istzustand zuerst im Repo geprüft: `Benutzerverwaltung` hing in WPF noch als globale Navigation, obwohl die fachlichen Appuser-Aktionen immer auf ein konkretes Mitglied zielen sollen. Gleichzeitig war die produktive Nutzeraktion `InviteUserAsync(...)` bereits vorhanden, ein sauberer Entfernen-Pfad aber nicht als eigene UI-gebundene Aktion organisiert.
+- Die Menüstruktur wurde deshalb neu geordnet:
+  - globaler Top-Level-Eintrag `Benutzerverwaltung` in WPF entfernt
+  - stattdessen `Benutzerverwaltung` als eingerückter Unterpunkt im Mitgliedskontext unter `Admin-Menü`
+  - damit bleibt die Navigation eindeutig und es gibt keine Doppelnavigation alt/neu
+- Die WPF-`Benutzerverwaltung` arbeitet jetzt strikt auf dem zuvor ausgewählten Mitglied:
+  - der Unterpunkt bekommt den aktuellen `SelectedMember` als Parameter
+  - beim Laden wird nur noch die Appuser-Zuordnung dieses Mitglieds geladen
+  - falls noch kein Appuser existiert, wird ein Platzhalter aus dem ausgewählten Mitglied aufgebaut, damit `Nutzer hinzufügen` trotzdem sauber auf genau diesen Datensatz arbeitet
+- Die Aktionen wurden fachlich passend umgestellt:
+  - `Nutzer hinzufügen` nutzt weiter den bestehenden produktiven Pfad `InviteUserAsync(...)`
+  - `Nutzer entfernen` entfernt die Appuser-Zuordnung des ausgewählten Mitglieds, nicht das Mitglied selbst
+  - ohne Mitgliedskontext laufen die Aktionen nicht und liefern eine klare fachliche Rückmeldung statt technischer Fehler
+- Rechte wurden sauber getrennt:
+  - `Benutzerverwaltung` ist in WPF nur noch im Admin-Mitgliedskontext sichtbar
+  - in MAUI wurde die Menü-Sichtbarkeit ebenfalls auf echte Admins beschränkt; Vorstand sieht den Punkt dort ebenfalls nicht
+- Technisch verifiziert: `KGV.Wpf` baut nach der Umordnung erfolgreich; der MAUI-Pfad wurde im Menü-/Rechteverhalten mitgezogen und nicht beschädigt.
+
 ## 2026-03-24 – Mitgliedersuche um E-Mail, Gartennummern und Hauptmitglied-Markierung erweitert
 
 - Den Istzustand zuerst im Repo geprüft: die bestehende Mitgliedersuche zeigte bisher in WPF nur Name/Vorname und in MAUI nur Titel/Unterzeile. Ein neuer Suchdialog oder neue Fachlogik waren dafür nicht nötig.

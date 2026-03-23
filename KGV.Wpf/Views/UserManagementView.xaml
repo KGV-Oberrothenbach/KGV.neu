@@ -12,6 +12,9 @@
         <StackPanel Grid.Row="0" Margin="0,0,0,16">
             <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,8" />
             <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,8" />
+            <Border Padding="12" Background="{StaticResource KgvBackgroundBrush}" Visibility="{Binding HasBoundMember, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="{Binding BoundMemberInfo}" TextWrapping="Wrap" FontWeight="SemiBold" />
+            </Border>
             <Border Padding="12" Background="{StaticResource KgvSurfaceBrush}">
                 <TextBlock Text="{Binding AdminHint}" TextWrapping="Wrap" />
             </Border>
@@ -19,7 +22,8 @@
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
             <Button Content="Aktualisieren" Command="{Binding RefreshCommand}" Margin="0,0,8,0" Style="{StaticResource PrimaryButton}"/>
-            <Button Content="Einladung / Erstlogin-Code senden" Command="{Binding InviteCommand}" Margin="0,0,8,0"/>
+            <Button Content="Nutzer hinzufügen" Command="{Binding InviteCommand}" Margin="0,0,8,0"/>
+            <Button Content="Nutzer entfernen" Command="{Binding RemoveUserCommand}" Margin="0,0,8,0"/>
             <Button Content="E-Mail ändern" Command="{Binding ChangeEmailCommand}" Margin="0,0,8,0"/>
             <Button Content="Passwort-Reset senden" Command="{Binding ResetPasswordCommand}"/>
         </StackPanel>

@@ -14,6 +14,7 @@ namespace KGV.Core.Interfaces
 
         Task<List<AppUserDTO>> GetAppUsersAsync();
         Task<InviteUserAccountResult> InviteUserAsync(AppUserDTO user);
+        Task<bool> RemoveUserAsync(AppUserDTO user);
         Task<bool> ChangeEmailAsync(string newEmail);
         Task<bool> RequestEmailChangeAsync(string newEmail);
         Task<bool> VerifyEmailChangeOtpAsync(string newEmail, string code);

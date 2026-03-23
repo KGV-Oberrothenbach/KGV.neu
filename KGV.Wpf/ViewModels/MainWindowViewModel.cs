@@ -251,17 +251,6 @@ namespace KGV.ViewModels
                 });
             }
 
-            if (UserContext.Has(PermissionFlags.CanManageRoles) || UserContext.Has(PermissionFlags.CanEditAllMembers))
-            {
-                NavigationItems.Add(new NavigationItem
-                {
-                    Title = "Benutzerverwaltung",
-                    ViewModelType = typeof(UserManagementViewModel),
-                    IsVisible = true,
-                    IsAdminOnly = true
-                });
-            }
-
             if (UserContext.Has(PermissionFlags.CanEditAllMembers))
             {
                 NavigationItems.Add(new NavigationItem
@@ -331,6 +320,15 @@ namespace KGV.ViewModels
                 ViewModelType = typeof(AdminRoleViewModel),
                 IsAdminOnly = true,
                 IsVisible = SelectedMember != null
+            });
+
+            MemberNavigationItems.Add(new NavigationItem
+            {
+                Title = "Benutzerverwaltung",
+                ViewModelType = typeof(UserManagementViewModel),
+                IsAdminOnly = true,
+                IsVisible = SelectedMember != null,
+                ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
             });
 
             if (SelectedMember == null || SelectedParzelle == null)
@@ -481,6 +479,12 @@ namespace KGV.ViewModels
             }
 
             if (item.ViewModelType == typeof(AdminRoleViewModel))
+            {
+                if (SelectedMember == null) return;
+                parameter = SelectedMember;
+            }
+
+            if (item.ViewModelType == typeof(UserManagementViewModel))
             {
                 if (SelectedMember == null) return;
                 parameter = SelectedMember;
