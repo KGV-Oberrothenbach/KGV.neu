@@ -2,6 +2,46 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Navigationsbereich `Ablesen` mit Übersichtsseite in WPF und MAUI angelegt
+
+- Den Block zuerst gegen den realen Repo-Iststand geprüft und nichts geraten.
+- Ergebnis der Istzustandsprüfung:
+  - WPF hatte bereits vorbereitete Einzelbausteine für `RfidEinrichten`, `Fällige Zähler` und `Zählerwechsel`, aber keinen zusammenhängenden Navigationspunkt `Ablesen`
+  - für `Ablesung erfassen` existierte im WPF-Stand noch kein eigener Seitenpfad, nur Dialog-/Teilfragmente
+  - MAUI hatte noch keinen eigenen Menüpunkt und keine Übersichtsseite für den gesamten Ablese-Bereich
+  - die bestehende Rollen-/Rechtebasis war bereits vorhanden: WPF über `UserContext.Role`, MAUI über `IAuthService.IsAdmin` / `IsVorstand`
+- Den globalen Einstieg deshalb klein und sauber ergänzt statt direkt tiefe Fachlogik vorzuziehen:
+  - neuer Menüpunkt `Ablesen` in WPF
+  - neuer Menüpunkt `Ablesen` im MAUI-Admin-/Vorstand-Flyout
+  - normale Nutzer sehen diesen Bereich nicht
+- WPF konkret umgesetzt:
+  - neue `AblesenOverviewViewModel` + `AblesenOverviewView`
+  - vier große Kacheln mit den geforderten Texten und Untertiteln
+  - Navigationsverkabelung zu:
+    - `AblesungErfassenViewModel` *(neu als schlanker Platzhalter)*
+    - `ZaehlerwechselScanViewModel` *(bestehender vorbereiteter Pfad)*
+    - `RfidEinrichtenViewModel` *(bestehender vorbereiteter Pfad)*
+    - `FaelligeZaehlerViewModel` *(bestehender vorbereiteter Pfad)*
+  - `App.xaml`, `NavigationService` und `MainWindowViewModel` dafür sauber erweitert
+- MAUI konkret umgesetzt:
+  - neue mobile Übersichtsseite `AblesenOverviewPage`
+  - vier große tappbare Kacheln für dieselben Funktionen
+  - vier schlanke Zielseiten angelegt und als Shell-Routen registriert:
+    - `AblesungErfassenPage`
+    - `ZaehlerwechselPage`
+    - `RfidEinrichtenPage`
+    - `FaelligeZaehlerPage`
+  - damit ist der Navigationsfluss mobil bereits vollständig, ohne die Fachflows dieses Folgeblocks vorwegzunehmen
+- Rechte und Konsistenz:
+  - WPF zeigt `Ablesen` nur für `Admin`/`Vorstand`
+  - MAUI zeigt `Ablesen` nur im Admin-/Vorstand-Shell und zusätzlich explizit nur bei `IsAdmin || IsVorstand`
+  - keine neue Schattenprüfung neben der vorhandenen Rollenbasis
+- Der Block bleibt bewusst klein:
+  - keine RFID-Scanlogik vorgezogen
+  - kein Zählerwechsel-Workflow vorgezogen
+  - keine fälligen Zähler fachlich umgesetzt
+  - nur Struktur, Navigation, Rechte und vorbereitete Zielseiten
+
 ## 2026-03-24 – Prompt 1/1: veralteten Remote-Snapshot von fachlichen QR-Resten bereinigt
 
 - Den Zusatzblock zuerst gegen den Repo-Iststand geprüft. Nach der Live-Bereinigung lagen fachliche QR-Reste nur noch im veralteten Snapshot `supabase/migrations/20260323093513_remote_schema.sql`.

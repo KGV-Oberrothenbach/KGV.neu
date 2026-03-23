@@ -9,12 +9,27 @@ public sealed class AdminShell : Shell, IAppShellInitializer
     private readonly IServiceProvider _services;
     private readonly IAuthService _authService;
     private FlyoutItem? _workhoursReviewItem;
+    private static bool _readingRoutesRegistered;
 
     public AdminShell(IServiceProvider services, IAuthService authService)
     {
         _services = services;
         _authService = authService;
         FlyoutBehavior = FlyoutBehavior.Flyout;
+        RegisterReadingRoutes();
+    }
+
+    private static void RegisterReadingRoutes()
+    {
+        if (_readingRoutesRegistered)
+            return;
+
+        Routing.RegisterRoute(nameof(AblesungErfassenPage), typeof(AblesungErfassenPage));
+        Routing.RegisterRoute(nameof(ZaehlerwechselPage), typeof(ZaehlerwechselPage));
+        Routing.RegisterRoute(nameof(RfidEinrichtenPage), typeof(RfidEinrichtenPage));
+        Routing.RegisterRoute(nameof(FaelligeZaehlerPage), typeof(FaelligeZaehlerPage));
+
+        _readingRoutesRegistered = true;
     }
 
     public void BuildMenu()
@@ -79,6 +94,23 @@ public sealed class AdminShell : Shell, IAppShellInitializer
                 }
             }
         });
+
+        if (_authService.IsAdmin || _authService.IsVorstand)
+        {
+            Items.Add(new FlyoutItem
+            {
+                Title = "Ablesen",
+                Items =
+                {
+                    new ShellContent
+                    {
+                        Title = "Ablesen",
+                        Route = "ablesen",
+                        ContentTemplate = new DataTemplate(() => new AblesenOverviewPage())
+                    }
+                }
+            });
+        }
 
         _workhoursReviewItem = new FlyoutItem
         {

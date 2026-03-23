@@ -67,6 +67,10 @@
                 <views:HomeView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type vm:AblesenOverviewViewModel}">
+                <views:AblesenOverviewView />
+            </DataTemplate>
+
             <DataTemplate DataType="{x:Type vm:HomeSectionDetailViewModel}">
                 <views:HomeSectionDetailView />
             </DataTemplate>
@@ -89,6 +93,10 @@
 
             <DataTemplate DataType="{x:Type vm:RfidEinrichtenViewModel}">
                 <views:RfidEinrichtenView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:AblesungErfassenViewModel}">
+                <views:AblesungErfassenView />
             </DataTemplate>
 
             <DataTemplate DataType="{x:Type vm:RfidScanContextViewModel}">

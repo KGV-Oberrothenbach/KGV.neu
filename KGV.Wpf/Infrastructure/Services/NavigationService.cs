@@ -63,6 +63,11 @@ namespace KGV.Infrastructure.Services
                 return new HomeViewModel(mainVm);
             }
 
+            if (viewModelType == typeof(AblesenOverviewViewModel))
+            {
+                return new AblesenOverviewViewModel(mainVm);
+            }
+
             if (viewModelType == typeof(ArbeitsstundenErfassungViewModel))
             {
                 if (parameter is ArbeitsstundenErfassungContext context)

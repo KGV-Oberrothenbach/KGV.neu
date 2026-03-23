@@ -262,6 +262,17 @@ namespace KGV.ViewModels
                 });
             }
 
+            if (UserContext.Role is UserRole.Admin or UserRole.Vorstand)
+            {
+                NavigationItems.Add(new NavigationItem
+                {
+                    Title = "Ablesen",
+                    ViewModelType = typeof(AblesenOverviewViewModel),
+                    IsVisible = true,
+                    IsAdminOnly = true
+                });
+            }
+
             if (UserContext.Has(PermissionFlags.CanManageWorkHours))
             {
                 NavigationItems.Add(new NavigationItem
@@ -580,6 +591,31 @@ namespace KGV.ViewModels
         public BaseViewModel? NavigateToBekanntmachungenVerwaltungViewModel()
         {
             return _navigationService.CreateViewModel(typeof(BekanntmachungenVerwaltungViewModel), this) as BaseViewModel;
+        }
+
+        public BaseViewModel? NavigateToAblesenOverviewViewModel()
+        {
+            return _navigationService.CreateViewModel(typeof(AblesenOverviewViewModel), this) as BaseViewModel;
+        }
+
+        public BaseViewModel? NavigateToAblesungErfassenViewModel()
+        {
+            return _navigationService.CreateViewModel(typeof(AblesungErfassenViewModel), this) as BaseViewModel;
+        }
+
+        public BaseViewModel? NavigateToZaehlerwechselScanViewModel()
+        {
+            return _navigationService.CreateViewModel(typeof(ZaehlerwechselScanViewModel), this) as BaseViewModel;
+        }
+
+        public BaseViewModel? NavigateToRfidEinrichtenViewModel()
+        {
+            return _navigationService.CreateViewModel(typeof(RfidEinrichtenViewModel), this) as BaseViewModel;
+        }
+
+        public BaseViewModel? NavigateToFaelligeZaehlerViewModel()
+        {
+            return _navigationService.CreateViewModel(typeof(FaelligeZaehlerViewModel), this) as BaseViewModel;
         }
 
         private async Task RefreshArbeitsstundenPruefungStatusAsync()

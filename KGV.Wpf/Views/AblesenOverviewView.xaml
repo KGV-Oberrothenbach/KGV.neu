@@ -1,0 +1,83 @@
+<UserControl x:Class="KGV.Views.AblesenOverviewView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="24">
+            <StackPanel MaxWidth="1040">
+                <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,18" />
+
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Row="0" Grid.Column="0"
+                            Margin="0,0,12,12"
+                            Padding="18"
+                            MinHeight="150"
+                            HorizontalContentAlignment="Stretch"
+                            Command="{Binding OpenAblesungErfassenCommand}">
+                        <StackPanel>
+                            <TextBlock Text="Ablesung erfassen" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="RFID scannen und Ablesung aufnehmen"
+                                       Margin="0,10,0,0"
+                                       TextWrapping="Wrap"
+                                       Foreground="Gray" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button Grid.Row="0" Grid.Column="1"
+                            Margin="12,0,0,12"
+                            Padding="18"
+                            MinHeight="150"
+                            HorizontalContentAlignment="Stretch"
+                            Command="{Binding OpenZaehlerwechselCommand}">
+                        <StackPanel>
+                            <TextBlock Text="Zählerwechsel" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="Tag scannen und je nach Zustand Ausbau oder Einbau starten"
+                                       Margin="0,10,0,0"
+                                       TextWrapping="Wrap"
+                                       Foreground="Gray" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button Grid.Row="1" Grid.Column="0"
+                            Margin="0,12,12,0"
+                            Padding="18"
+                            MinHeight="150"
+                            HorizontalContentAlignment="Stretch"
+                            Command="{Binding OpenRfidEinrichtenCommand}">
+                        <StackPanel>
+                            <TextBlock Text="RFID einrichten" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="Parzelle wählen, Medium wählen und Tag zuordnen"
+                                       Margin="0,10,0,0"
+                                       TextWrapping="Wrap"
+                                       Foreground="Gray" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button Grid.Row="1" Grid.Column="1"
+                            Margin="12,12,0,0"
+                            Padding="18"
+                            MinHeight="150"
+                            HorizontalContentAlignment="Stretch"
+                            Command="{Binding OpenFaelligeZaehlerCommand}">
+                        <StackPanel>
+                            <TextBlock Text="Fällige Zähler" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="Zähler mit naher Eichfälligkeit anzeigen"
+                                       Margin="0,10,0,0"
+                                       TextWrapping="Wrap"
+                                       Foreground="Gray" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

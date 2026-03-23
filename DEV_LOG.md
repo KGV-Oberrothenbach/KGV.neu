@@ -2,6 +2,24 @@
 
 ---
 
+## 2026-03-24 – `Ablesen` als eigener Navigationsbereich für Admin/Vorstand in WPF und MAUI angelegt
+
+- Den realen Istzustand vor dem Block geprüft:
+  - WPF hatte bereits vorbereitete ViewModels für `RfidEinrichten`, `Fällige Zähler` und `Zählerwechsel`, aber noch keinen zentralen Einstiegsbereich `Ablesen`
+  - MAUI hatte noch keinen eigenen Ablese-Menüpunkt und keine Übersichtsseite für diese vier Funktionen
+  - die bestehende Rollen-/Rechtebasis war bereits vorhanden (`UserContext.Role` in WPF, `IsAdmin` / `IsVorstand` im MAUI-Authpfad)
+- Den neuen globalen Menüpunkt `Ablesen` deshalb nur für Admin/Vorstand in beiden UIs ergänzt.
+- WPF:
+  - neue Übersichtsseite `Ablesen` mit vier großen Kacheln angelegt
+  - Kacheln navigieren zu `Ablesung erfassen`, `Zählerwechsel`, `RFID einrichten`, `Fällige Zähler`
+  - vorhandene vorbereitete WPF-ViewModels für `Zählerwechsel`, `RFID einrichten` und `Fällige Zähler` weiterverwendet
+  - für `Ablesung erfassen` eine schlanke Platzhalterseite ergänzt
+- MAUI:
+  - neuer Flyout-Eintrag `Ablesen` im Admin-/Vorstand-Shell-Menü
+  - neue mobile Übersichtsseite mit vier gut tappbaren Kacheln angelegt
+  - vier schlanke Zielseiten/Platzhalter für den weiteren Ablese-Ausbau registriert
+- Der Block bleibt bewusst auf Navigation, Rechte und Übersichtsseite beschränkt; tiefe Fachflows folgen erst in den nächsten Blöcken.
+
 ## 2026-03-24 – Veralteten Remote-Snapshot um fachliche QR-Reste bereinigt
 
 - Den aktuellen Repo-Stand zuerst geprüft: fachliche QR-Reste existierten nach der Live-Bereinigung nur noch im veralteten Snapshot `supabase/migrations/20260323093513_remote_schema.sql`.
