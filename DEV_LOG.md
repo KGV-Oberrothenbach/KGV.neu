@@ -2,6 +2,37 @@
 
 ---
 
+## 2026-03-24 – Veralteten Remote-Snapshot um fachliche QR-Reste bereinigt
+
+- Den aktuellen Repo-Stand zuerst geprüft: fachliche QR-Reste existierten nach der Live-Bereinigung nur noch im veralteten Snapshot `supabase/migrations/20260323093513_remote_schema.sql`.
+- Gegen den bereits bereinigten Istzustand aus `_AI_DB_EXPORT/database.types.ts` abgeglichen: `public.parzelle` enthält dort keine QR-Spalten mehr, sondern nur noch die RFID-Felder.
+- Den veralteten Remote-Snapshot deshalb auf den aktuellen fachlichen Stand gezogen:
+  - `qr_code_wasser` aus der `parzelle`-Tabellendefinition entfernt
+  - `qr_code_strom` aus der `parzelle`-Tabellendefinition entfernt
+  - die veralteten Unique-Constraints `parzelle_qr_code_wasser_key` und `parzelle_qr_code_strom_key` entfernt
+- Ergebnis: im Repo verbleiben in diesem Snapshot keine fachlichen QR-Reste mehr; der Snapshot passt damit wieder zum bereinigten Live-/Types-Stand.
+
+## 2026-03-24 – WPF Button-Höhen projektweit auf kleine feste Fälle geprüft und angehoben
+
+- Nach dem Fix in der Parzellenzuordnung wurden die WPF-Buttons mit kleinen festen Höhen projektweit geprüft.
+- Alle expliziten WPF-Buttonhöhen unter `35` wurden auf `35` angehoben, damit Beschriftungen nicht mehr zu knapp sitzen.
+- Konkret angepasst wurden die betroffenen Buttons in:
+  - `GartenStromView`
+  - `GartenWasserView`
+  - `ArbeitsstundenView`
+  - `ChangeEmailWindow`
+  - `ResetPasswordWindow`
+- Der Fix bleibt rein visuell; Fachlogik und Command-Pfade wurden nicht verändert.
+
+## 2026-03-24 – WPF `MemberDetailView`: Parzellenzuordnungs-Zeile leicht erhöht
+
+- Den aktuellen Arbeitsbaum vor dem UI-Fix geprüft; blockfremde lokale Änderungen wie `KGV.Wpf/Views/LoginWindow.xaml` und `KGV.Wpf/Views/MemberDetailView.xaml.cs` bleiben weiter unberührt.
+- Die zu kleine Höhe lag nicht in der `MemberDetailView` selbst, sondern in der ausgelagerten `MemberParzellenSection` bei der Zeile für freie Parzelle, Startdatum und die beiden Aktionsbuttons.
+- Für den kleinen WPF-UI-Fix wurde nur diese Zeile leicht erhöht:
+  - Zeilen-`StackPanel` mit `MinHeight="36"`
+  - Button-Höhen von `30` auf `35` erhöht
+- Damit passt die Beschriftung wieder sauber in die Buttons, ohne die restliche Detailansicht oder Fachlogik zu verändern.
+
 ## 2026-03-24 – Appuser-Verwaltung ins `Admin-Menü` verschoben und an das ausgewählte Mitglied gebunden
 
 - Den Istzustand zuerst im Repo geprüft: `Benutzerverwaltung` hing in WPF noch als globale Navigation, obwohl die fachlichen Appuser-Aktionen immer auf ein konkretes Mitglied zielen sollen. Gleichzeitig war die produktive Nutzeraktion `InviteUserAsync(...)` bereits vorhanden, ein sauberer Entfernen-Pfad aber nicht als eigene UI-gebundene Aktion organisiert.

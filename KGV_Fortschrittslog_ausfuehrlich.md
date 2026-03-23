@@ -2,6 +2,39 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: veralteten Remote-Snapshot von fachlichen QR-Resten bereinigt
+
+- Den Zusatzblock zuerst gegen den Repo-Iststand geprüft. Nach der Live-Bereinigung lagen fachliche QR-Reste nur noch im veralteten Snapshot `supabase/migrations/20260323093513_remote_schema.sql`.
+- Abgleich gegen `_AI_DB_EXPORT/database.types.ts` bestätigt den aktuellen Stand:
+  - `public.parzelle` enthält dort keine `qr_code_*`-Felder mehr
+  - fachlich relevant sind nur noch `rfid_wasser` und `rfid_strom`
+- Der alte Snapshot wurde daher gezielt bereinigt statt eine neue Migrationslogik daneben aufzubauen:
+  - `qr_code_wasser` aus `public.parzelle` entfernt
+  - `qr_code_strom` aus `public.parzelle` entfernt
+  - die alten Unique-Constraints auf beiden QR-Spalten entfernt
+- Damit entspricht der Repo-Snapshot wieder dem bereinigten fachlichen Stand der Live-DB bzw. der aktuellen Typdefinitionen; es verbleiben keine fachlichen QR-Reste mehr im Snapshot.
+
+## 2026-03-24 – Prompt 1/1: kleine feste WPF-Buttonhöhen projektweit geprüft und vereinheitlicht
+
+- Ausgehend vom Layoutproblem in Strom/Wasser wurden die WPF-XAML-Dateien gezielt auf kleine feste Buttonhöhen geprüft.
+- Ergebnis: mehrere Buttons hatten noch feste Höhen von `30` bzw. `32`, was für die aktuelle Schrift-/Padding-Kombination zu knapp war.
+- Daher wurden die betroffenen expliziten Höhen in WPF einheitlich auf `35` angehoben.
+- Angepasst wurden die Buttons in:
+  - `KGV.Wpf/Views/GartenStromView.xaml`
+  - `KGV.Wpf/Views/GartenWasserView.xaml`
+  - `KGV.Wpf/Views/ArbeitsstundenView.xaml`
+  - `KGV.Wpf/Views/ChangeEmailWindow.xaml`
+  - `KGV.Wpf/Views/ResetPasswordWindow.xaml`
+- Die bereits angehobene Parzellenzuordnungszeile bleibt davon unberührt; zusammen ergibt sich jetzt ein konsistenteres WPF-Buttonbild.
+
+## 2026-03-24 – Prompt 1/1: `MemberDetailView`-Parzellenzuordnung in der Höhe leicht erhöht
+
+- Den Istzustand zuerst geprüft. Die betroffene Zeile sitzt nicht direkt in `MemberDetailView.xaml`, sondern in der ausgelagerten `KGV.Wpf/Views/MemberParzellenSection.xaml`.
+- Der Fix bleibt bewusst klein und rein visuell:
+  - Zeile der Parzellenzuordnung über `MinHeight="36"` leicht erhöht
+  - die beiden Buttons `Garten zuordnen` und `Belegung beenden` jeweils von Höhe `30` auf `35` angehoben
+- Ziel erreicht: die Beschriftungen passen wieder besser in die Buttons; Fachlogik, Bindings und Navigation bleiben unverändert.
+
 ## 2026-03-24 – Prompt 1/1: Appuser-Verwaltung in `Admin-Menü` umgezogen und an das ausgewählte Mitglied gebunden
 
 - Den Block zuerst gegen den aktuellen Repo-Stand geprüft. Ergebnis:
