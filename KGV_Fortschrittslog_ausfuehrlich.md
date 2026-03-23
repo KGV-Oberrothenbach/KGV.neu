@@ -2,6 +2,32 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Arbeitseinsatz-Teilnehmerliste für Admin/Vorstand um `Abmelden` pro Zeile ergänzt
+
+- Den Block zuerst wieder gegen den realen Istzustand und ausdrücklich gegen `_AI_DB_EXPORT` geprüft. Belastbar bestätigt wurden dabei in `database.types.ts` beide echten DB-Funktionspfade des An-/Abmeldekonzepts:
+  - `sign_up_for_arbeitseinsatz(p_arbeitseinsatz_id, p_mitglied_id)`
+  - `sign_off_from_arbeitseinsatz(p_arbeitseinsatz_id, p_mitglied_id)`
+- `roles.sql` enthält für diesen Block keine zusätzliche App-Regel; `AI_DATABASE_CONTEXT.sql` liefert keinen alternativen App-Schreibpfad. Daraus wurde der vorhandene echte Abmeldepfad direkt als Primärweg verwendet.
+- Vor dem Fix geprüft: Teilnehmerliste und `Hinzufügen` für Admin/Vorstand waren bereits vorhanden; `sign_off_from_arbeitseinsatz(...)` wurde App-seitig aber noch nicht produktiv genutzt.
+- Den Shared-Service deshalb klein ergänzt statt eine Sonderlogik daneben zu bauen:
+  - `SignOffFromArbeitseinsatzAsync(int arbeitseinsatzId, int mitgliedId)`
+  - fachliche Vorabprüfung auf gültigen Arbeitseinsatz/Mitgliedsbezug
+  - Prüfung, ob überhaupt eine aktive Anmeldung für dieses Mitglied besteht
+  - produktiver RPC-Aufruf über `sign_off_from_arbeitseinsatz(...)`
+  - verständliche Rückmeldung statt technischer Rohfehler
+- Die WPF-Detailview wurde für Admin/Vorstand gezielt erweitert:
+  - pro Teilnehmerzeile zusätzlicher Button `Abmelden`
+  - kleine Rückfrage vor der Aktion
+  - keine neue Dialogstrecke und keine freie Eingabe
+  - normale Nutzeransicht bleibt unverändert
+- Nach erfolgreichem oder fachlich abgefangenem Abmelden werden Teilnehmerliste und Detailzustand direkt neu geladen. Dadurch aktualisieren sich über den bestehenden Detailpfad auch Kapazitäts- und Anmeldeinformationen mit.
+- Der Block bleibt bewusst klein:
+  - keine Warteliste
+  - keine Historienlogik
+  - kein direkter Tabellenhack
+  - kein Schattenpfad neben den echten DB-Funktionen
+- Technisch verifiziert: `KGV.Wpf` baut nach dem neuen Abmeldepfad erfolgreich; MAUI wurde durch die kleine Shared-Service-Erweiterung nicht beschädigt.
+
 ## 2026-03-24 – Prompt 1/1: Arbeitseinsatz-Block final geprüft, gebaut und sauber abgeschlossen
 
 - Den aktuellen Arbeitsbaum nochmals gezielt gegen den Auftrag geprüft. Ergebnis: die fachlichen und technischen Änderungen dieses Blocks waren bereits im Repo umgesetzt; lokal offen waren nur blockfremde Dateien und Artefakte, die bewusst nicht aufgenommen wurden.

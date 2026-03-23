@@ -52,6 +52,7 @@ namespace KGV.ViewModels
         public RelayCommand<object?> ZurueckCommand { get; }
         public RelayCommand<object?> AnmeldenCommand { get; }
         public RelayCommand<object?> AddParticipantCommand { get; }
+        public RelayCommand<WorkAssignmentParticipantItem> RemoveParticipantCommand { get; }
 
         public HomeSectionDetailViewModel(MainWindowViewModel mainVm, HomeSectionDetailContext context)
         {
@@ -62,6 +63,7 @@ namespace KGV.ViewModels
             ZurueckCommand = new RelayCommand<object?>(_ => _ = ZurueckAsync());
             AnmeldenCommand = new RelayCommand<object?>(_ => _ = RegisterAsync(), _ => ShowRegisterButton);
             AddParticipantCommand = new RelayCommand<object?>(_ => _ = AddParticipantAsync(), _ => ShowParticipantsSection && !_isBusy && _context.WorkAssignmentId > 0);
+            RemoveParticipantCommand = new RelayCommand<WorkAssignmentParticipantItem>(participant => _ = RemoveParticipantAsync(participant), participant => ShowParticipantsSection && !_isBusy && participant?.MitgliedId > 0);
         }
 
         public async Task OnNavigatedToAsync()
@@ -178,6 +180,7 @@ namespace KGV.ViewModels
 
             AnmeldenCommand.RaiseCanExecuteChanged();
             AddParticipantCommand.RaiseCanExecuteChanged();
+            RemoveParticipantCommand.RaiseCanExecuteChanged();
         }
 
         private void ApplyRegistrationUpdate(HomeWorkAssignmentItem item)
@@ -208,6 +211,53 @@ namespace KGV.ViewModels
 
             var dialogResult = window.ShowDialog();
             return Task.FromResult(dialogResult == true ? searchVm.SelectionResult : null);
+        }
+
+        private async Task RemoveParticipantAsync(WorkAssignmentParticipantItem? participant)
+        {
+            if (participant == null || participant.MitgliedId <= 0 || _context.WorkAssignmentId <= 0)
+            {
+                MessageBox.Show(
+                    "Der ausgewählte Teilnehmer konnte nicht eindeutig abgemeldet werden.",
+                    "Teilnehmer abmelden",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var participantDisplayName = string.IsNullOrWhiteSpace(participant.DisplayName)
+                ? $"Mitglied #{participant.MitgliedId}"
+                : participant.DisplayName;
+
+            var confirmation = MessageBox.Show(
+                $"Soll {participantDisplayName} von diesem Arbeitseinsatz abgemeldet werden?",
+                "Teilnehmer abmelden",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (confirmation != MessageBoxResult.Yes)
+                return;
+
+            _isBusy = true;
+            AddParticipantCommand.RaiseCanExecuteChanged();
+            RemoveParticipantCommand.RaiseCanExecuteChanged();
+            try
+            {
+                var result = await _mainVm.SupabaseService.SignOffFromArbeitseinsatzAsync(_context.WorkAssignmentId, participant.MitgliedId);
+                await RefreshDetailStateAsync(result.UpdatedItem);
+
+                MessageBox.Show(
+                    result.Message,
+                    "Teilnehmer abmelden",
+                    MessageBoxButton.OK,
+                    result.Success ? MessageBoxImage.Information : MessageBoxImage.Warning);
+            }
+            finally
+            {
+                _isBusy = false;
+                AddParticipantCommand.RaiseCanExecuteChanged();
+                RemoveParticipantCommand.RaiseCanExecuteChanged();
+            }
         }
     }
 }

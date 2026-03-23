@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-03-24 – Arbeitseinsatz-Teilnehmerliste: `Abmelden` pro Zeile produktiv über echten DB-Pfad ergänzt
+
+- Den Istzustand zuerst gegen Repo und `_AI_DB_EXPORT` geprüft. `database.types.ts` bestätigt für diesen Block ausdrücklich neben `sign_up_for_arbeitseinsatz(...)` auch `sign_off_from_arbeitseinsatz(p_arbeitseinsatz_id, p_mitglied_id)` als echten DB-Funktionspfad; `roles.sql` enthält dafür keine abweichende App-Sonderregel, `AI_DATABASE_CONTEXT.sql` liefert keinen alternativen Pfad.
+- `sign_off_from_arbeitseinsatz(...)` war App-seitig vor diesem Block noch nicht produktiv verwendet. Der neue Abmeldepfad wurde deshalb sauber in den Shared-Service ergänzt statt als direkter Tabellenhack daneben aufgebaut.
+- In der Arbeitseinsatz-Detailview für Admin/Vorstand wurde pro Teilnehmerzeile der Button `Abmelden` ergänzt. Normale Nutzer sehen weiterhin weder Teilnehmerliste noch Zeilenaktion.
+- Der Button läuft mit kleiner Rückfrage und ruft danach produktiv `SignOffFromArbeitseinsatzAsync(...)` auf; dieser Shared-Service nutzt den echten RPC-/DB-Funktionspfad `sign_off_from_arbeitseinsatz(...)`.
+- Nach erfolgreicher oder fachlich abgefangener Rückmeldung werden Teilnehmerliste und Detailzustand direkt neu geladen; damit aktualisieren sich auch Kapazitäts-/Anmeldeinformationen über den bestehenden Detailpfad mit.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem neuen Abmeldepfad erfolgreich; MAUI wurde im Shared-Servicepfad mitgedacht und nicht beschädigt.
+
 ## 2026-03-24 – Arbeitseinsatz-Block final verifiziert und sauber abgeschlossen
 
 - Den aktuellen Arbeitsbaum erneut geprüft: blockeigene Codeänderungen aus diesem Arbeitseinsatz-Block waren bereits im Repo enthalten; lokal offen blieben nur blockfremde Änderungen und Artefakte wie `KGV.Wpf/Views/LoginWindow.xaml` sowie untracked Hilfs-/Exportdateien.
