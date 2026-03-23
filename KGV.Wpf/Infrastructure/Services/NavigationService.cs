@@ -104,6 +104,11 @@ namespace KGV.Infrastructure.Services
                 return new RfidEinrichtenViewModel(_supabaseService, mainVm);
             }
 
+            if (viewModelType == typeof(FaelligeZaehlerViewModel))
+            {
+                return new FaelligeZaehlerViewModel(_supabaseService, mainVm);
+            }
+
             if (viewModelType == typeof(ParzellenVerwaltungViewModel))
             {
                 return new ParzellenVerwaltungViewModel(_supabaseService, mainVm);

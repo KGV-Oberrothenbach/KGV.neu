@@ -293,6 +293,23 @@ namespace KGV.Infrastructure.Services
                 Message = "Die RFID konnte aktuell nicht gespeichert werden."
             });
 
+        public Task<List<ZaehlerEichstatusRecord>> GetZaehlerEichstatusAsync() => ExecuteAsync(
+            "GetZaehlerEichstatusAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client.From<ZaehlerEichstatusRecord>().Get();
+
+                return response?.Models?
+                    .OrderBy(x => x.SortPriority)
+                    .ThenBy(x => x.SortDays)
+                    .ThenBy(x => x.GartenSortKey, StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(x => x.AnlageDisplay, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList()
+                    ?? new List<ZaehlerEichstatusRecord>();
+            },
+            new List<ZaehlerEichstatusRecord>());
+
         public Task<ParzellenBelegungRecord?> GetCurrentBelegungForParzelleAsync(int parzelleId) => ExecuteAsync<ParzellenBelegungRecord?>(
             "GetCurrentBelegungForParzelleAsync",
             async () =>

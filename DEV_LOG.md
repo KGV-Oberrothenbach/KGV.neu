@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-03-24 – `Fällige Zähler` produktiv auf Basis von `v_zaehler_eichstatus` umgesetzt
+
+- Vor Start den realen Repo-/Arbeitsbaumzustand erneut geprüft; keine Recovery-Reste als fachliche Grundlage verwendet.
+- `Fällige Zähler` in WPF und MAUI war vorher nur als Placeholder vorhanden.
+- Gemeinsamen Produktivpfad im Shared-Service ergänzt:
+  - neues Model `ZaehlerEichstatusRecord` für `v_zaehler_eichstatus`
+  - neue Service-Methode `GetZaehlerEichstatusAsync()`
+  - Sortierung zentral im Service: zuerst kritisch/fällig, dann nach Tagen, dann Garten/Anlage
+- WPF:
+  - `FaelligeZaehlerViewModel` von Placeholder auf echte Übersicht umgestellt
+  - Textfilter, Statusfilter und `Aktualisieren`
+  - Tabelle mit Anlage, Garten, Medium, Zähler, Eichdatum, Eichfälligkeit, Status und Tage
+  - saubere Leer-/Fehlerzustände
+- MAUI:
+  - `FaelligeZaehlerPage` auf produktive mobile Übersicht umgestellt
+  - gleiches Datenmodell und gleicher Shared-Servicepfad
+  - Textfilter, Statusfilter, `Aktualisieren`
+  - mobile Kartenansicht statt breiter Tabelle
+- Rechte explizit auf Admin/Vorstand gehalten.
+- Technisch verifiziert:
+  - keine passenden Testfälle in `KGV.Tests` für diesen Block gefunden
+  - `KGV.Wpf` baut erfolgreich
+  - `KGV.Maui` baut erfolgreich
+
 ## 2026-03-24 – `RFID einrichten` produktiv auf neuem DB-Vertrag umgesetzt
 
 - Den aktuellen Repo- und Git-Stand vor dem Umbau erneut geprüft.

@@ -45,6 +45,7 @@ public static class MauiProgram
         builder.Services.AddTransient<ParzellenViewModel>();
         builder.Services.AddTransient<ParzellenPage>();
         builder.Services.AddTransient<RfidEinrichtenViewModel>();
+        builder.Services.AddTransient<FaelligeZaehlerViewModel>();
         builder.Services.AddTransient<MyProfilePage>();
         builder.Services.AddTransient<NebenmitgliedPage>();
         builder.Services.AddTransient<MyArbeitsstundenPage>();

@@ -2,6 +2,60 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: `Fällige Zähler` auf `v_zaehler_eichstatus` produktiv umgesetzt
+
+- Den Block wieder mit echter Vorprüfung gegen den aktuellen Repo- und Arbeitsbaumstand begonnen.
+- Blockeinordnung vor Umsetzung:
+  - Dateien dieses Blocks: `FaelligeZaehler`-Placeholder in WPF und MAUI plus fehlender Shared-Servicepfad für `v_zaehler_eichstatus`
+  - blockfremde Altänderungen sollten ausdrücklich unangetastet bleiben
+  - `_Archiv/_Recovery`, `_Archiv/_RecoveredArtifacts` und `_AI_DB_EXPORT/AI_DATABASE_CONTEXT.sql` wurden bewusst nicht als fachliche Grundlage verwendet
+- Fachlich war im aktiven Codepfad vorhanden:
+  - WPF-Placeholder `FaelligeZaehlerViewModel` / `FaelligeZaehlerView`
+  - MAUI-Placeholder `FaelligeZaehlerPage`
+  - noch kein produktiver Service-/Modelpfad für `v_zaehler_eichstatus`
+- Gemeinsamen Datenpfad klein und produktiv hergestellt:
+  - neues Model `ZaehlerEichstatusRecord` direkt für die View `v_zaehler_eichstatus`
+  - neue Shared-Service-Methode `GetZaehlerEichstatusAsync()` in `ISupabaseService` / `SupabaseService`
+  - Sortierung zentral im Service:
+    - `ueberfaellig` zuerst
+    - dann `bald_faellig`
+    - danach `ok`
+    - innerhalb dessen nach Tagen
+    - anschließend nach Garten und Anlage
+- WPF konkret umgesetzt:
+  - Placeholder-ViewModel ersetzt durch echte Übersicht
+  - Textfilter
+  - Statusfilter
+  - `Aktualisieren`-Button
+  - Tabelle mit:
+    - Anlage
+    - Garten
+    - Medium
+    - Zähler
+    - Eichdatum
+    - Eichfälligkeit
+    - Status
+    - Tage
+  - Leer- und Fehlerzustände sauber sichtbar
+  - NavigationService auf den neuen ViewModel-Konstruktor angepasst
+- MAUI konkret umgesetzt:
+  - neue mobile ViewModel-Klasse `FaelligeZaehlerViewModel`
+  - `FaelligeZaehlerPage` von Placeholder auf echte Liste/Kartenansicht umgestellt
+  - gleicher Shared-Servicepfad wie in WPF
+  - Textfilter
+  - Statusfilter
+  - `Aktualisieren`
+  - leere Ergebnisse und Fehler werden klar angezeigt
+- Rechte/Konsistenz:
+  - Bereich bleibt in WPF und MAUI explizit auf Admin/Vorstand begrenzt
+  - kein neuer Schattenpfad in der UI
+  - keine fachfremden Ablesen-/Zählerwechsel-/RFID-Workflows mit hineingezogen
+- Verifikation:
+  - `get_tests` für `KGV.Tests` ergab keine passenden Testfälle für diesen Block
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - nach kleiner MAUI-Nachkorrektur blieb der Block ohne neue eigene Buildwarnung aus der neuen Seite buildfähig abgeschlossen
+
 ## 2026-03-24 – Prompt 1/1: `RFID einrichten` fachlich auf neuem DB-Vertrag nutzbar gemacht
 
 - Den Block wieder ausdrücklich gegen den realen Istzustand geführt und nicht gegen Restore-/Recovery-Reste.

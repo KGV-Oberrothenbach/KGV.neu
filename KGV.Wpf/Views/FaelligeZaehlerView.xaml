@@ -1,13 +1,75 @@
 <UserControl x:Class="KGV.Views.FaelligeZaehlerView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid Margin="24">
-        <StackPanel MaxWidth="760">
-            <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,12" />
-            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,12" />
-            <Border Padding="12" Background="{StaticResource KgvSurfaceBrush}">
-                <TextBlock Text="{Binding RecoveryHint}" TextWrapping="Wrap" />
-            </Border>
-        </StackPanel>
-    </Grid>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="24">
+            <StackPanel>
+                <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,18" />
+
+                <Border Padding="16"
+                        Background="{StaticResource KgvSurfaceBrush}"
+                        BorderBrush="{StaticResource KgvBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="16">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox Grid.Column="0"
+                                     Margin="0,0,12,0"
+                                     Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <ComboBox Grid.Column="1"
+                                      Width="170"
+                                      Margin="0,0,12,0"
+                                      ItemsSource="{Binding StatusFilters}"
+                                      SelectedItem="{Binding SelectedStatusFilter, Mode=TwoWay}" />
+
+                            <Button Grid.Column="2"
+                                    Width="130"
+                                    Content="Aktualisieren"
+                                    Command="{Binding RefreshCommand}" />
+                        </Grid>
+
+                        <TextBlock Text="{Binding StatusMessage}"
+                                   Margin="0,12,0,0"
+                                   TextWrapping="Wrap"
+                                   Foreground="DarkSlateBlue"
+                                   Visibility="{Binding HasStatusMessage, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                        <TextBlock Text="{Binding EmptyStateMessage}"
+                                   Margin="0,12,0,0"
+                                   TextWrapping="Wrap"
+                                   Foreground="Gray"
+                                   Visibility="{Binding HasEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                        <DataGrid Margin="0,16,0,0"
+                                  ItemsSource="{Binding Items}"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  CanUserDeleteRows="False"
+                                  IsReadOnly="True"
+                                  HeadersVisibility="Column"
+                                  Visibility="{Binding HasItems, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Anlage" Binding="{Binding AnlageDisplay}" Width="*" />
+                                <DataGridTextColumn Header="Garten" Binding="{Binding GartenDisplay}" Width="Auto" />
+                                <DataGridTextColumn Header="Medium" Binding="{Binding MediumDisplay}" Width="Auto" />
+                                <DataGridTextColumn Header="Zähler" Binding="{Binding ZaehlerDisplay}" Width="*" />
+                                <DataGridTextColumn Header="Eichdatum" Binding="{Binding EichdatumDisplay}" Width="Auto" />
+                                <DataGridTextColumn Header="Eichfälligkeit" Binding="{Binding EichfaelligDisplay}" Width="Auto" />
+                                <DataGridTextColumn Header="Status" Binding="{Binding EichstatusDisplay}" Width="Auto" />
+                                <DataGridTextColumn Header="Tage" Binding="{Binding TageDisplay}" Width="Auto" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
 </UserControl>
