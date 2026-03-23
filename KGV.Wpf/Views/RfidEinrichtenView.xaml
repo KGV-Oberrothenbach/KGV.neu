@@ -1,13 +1,78 @@
 <UserControl x:Class="KGV.Views.RfidEinrichtenView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid Margin="24">
-        <StackPanel MaxWidth="760">
-            <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,12" />
-            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,12" />
-            <Border Padding="12" Background="{StaticResource KgvSurfaceBrush}">
-                <TextBlock Text="{Binding RecoveryHint}" TextWrapping="Wrap" />
-            </Border>
-        </StackPanel>
-    </Grid>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="24">
+            <StackPanel MaxWidth="820">
+                <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,18" />
+
+                <Border Padding="16"
+                        Background="{StaticResource KgvSurfaceBrush}"
+                        BorderBrush="{StaticResource KgvBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="16">
+                    <StackPanel>
+                        <TextBlock Text="Parzelle" FontWeight="SemiBold" />
+                        <ComboBox Margin="0,8,0,0"
+                                  ItemsSource="{Binding Parzellen}"
+                                  SelectedItem="{Binding SelectedParzelle, Mode=TwoWay}"
+                                  DisplayMemberPath="DisplayName" />
+
+                        <Grid Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Margin="0,0,8,0" Padding="12" Background="{StaticResource KgvBackgroundBrush}" CornerRadius="12">
+                                <StackPanel>
+                                    <TextBlock Text="Aktuelle Strom-RFID" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding CurrentStromRfid}" Margin="0,8,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="1" Margin="8,0,0,0" Padding="12" Background="{StaticResource KgvBackgroundBrush}" CornerRadius="12">
+                                <StackPanel>
+                                    <TextBlock Text="Aktuelle Wasser-RFID" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding CurrentWasserRfid}" Margin="0,8,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <TextBlock Text="Medium" FontWeight="SemiBold" Margin="0,16,0,0" />
+                        <ComboBox Margin="0,8,0,0"
+                                  ItemsSource="{Binding MediumOptions}"
+                                  SelectedItem="{Binding SelectedMedium, Mode=TwoWay}"
+                                  DisplayMemberPath="DisplayName" />
+
+                        <TextBlock Text="UID" FontWeight="SemiBold" Margin="0,16,0,0" />
+                        <TextBox Margin="0,8,0,0"
+                                 Text="{Binding UidInput, UpdateSourceTrigger=PropertyChanged}" />
+
+                        <TextBlock Text="UID wird vor Prüfung/Speicherung getrimmt und in Großbuchstaben normalisiert."
+                                   Margin="0,8,0,0"
+                                   Foreground="Gray"
+                                   TextWrapping="Wrap" />
+
+                        <TextBlock Text="{Binding StatusMessage}"
+                                   Margin="0,16,0,0"
+                                   TextWrapping="Wrap"
+                                   Foreground="DarkSlateBlue"
+                                   Visibility="{Binding HasStatusMessage, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                        <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
+                            <Button Content="Prüfen"
+                                    Width="140"
+                                    Margin="0,0,12,0"
+                                    Command="{Binding CheckCommand}" />
+                            <Button Content="Speichern"
+                                    Width="140"
+                                    Command="{Binding SaveCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
 </UserControl>

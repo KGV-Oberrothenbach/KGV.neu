@@ -99,6 +99,11 @@ namespace KGV.Infrastructure.Services
                 return new BekanntmachungenVerwaltungViewModel(_supabaseService, mainVm);
             }
 
+            if (viewModelType == typeof(RfidEinrichtenViewModel))
+            {
+                return new RfidEinrichtenViewModel(_supabaseService, mainVm);
+            }
+
             if (viewModelType == typeof(ParzellenVerwaltungViewModel))
             {
                 return new ParzellenVerwaltungViewModel(_supabaseService, mainVm);

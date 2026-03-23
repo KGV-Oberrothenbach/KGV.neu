@@ -2,6 +2,69 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: `RFID einrichten` fachlich auf neuem DB-Vertrag nutzbar gemacht
+
+- Den Block wieder ausdrücklich gegen den realen Istzustand geführt und nicht gegen Restore-/Recovery-Reste.
+- Git-/Arbeitsbaumprüfung vor dem Umbau:
+  - für diesen Block gab es anfangs noch keine offenen RFID-Implementierungsdateien
+  - blockfremd offen waren weiterhin mehrere WPF-UI-Dateien, lokale Artefakte sowie `supabase/migrations/20260323093513_remote_schema.sql`
+  - `_Archiv/_Recovery`, `_Archiv/_RecoveredArtifacts` und `_AI_DB_EXPORT/AI_DATABASE_CONTEXT.sql` wurden bewusst nicht als fachliche Grundlage verwendet
+- Fachliche Grundlage des Blocks sauber auf den neuen DB-Vertrag gezogen:
+  - produktiver Schreibpfad `assign_parzelle_rfid(...)`
+  - Datenbasis `parzelle.rfid_strom` / `parzelle.rfid_wasser`
+  - Konflikt-/Scanreferenz aus `v_rfid_scan_context`
+  - keine neue Schattenarchitektur neben dem vorhandenen DB-Vertrag
+- Den Shared-Service dafür klein, aber belastbar ergänzt:
+  - `CheckParzelleRfidAssignmentAsync(...)`
+  - `AssignParzelleRfidAsync(...)`
+  - UID wird vor Prüfung/Speicherung konsistent getrimmt und in Großbuchstaben normalisiert
+  - Vorabprüfung auf:
+    - Parzelle vorhanden
+    - Medium gültig
+    - UID vorhanden
+    - Medium passt zur Parzelle (`hat_strom` / `hat_wasser`)
+  - zusätzliche Konfliktprüfung gegen den realen DB-Bestand aus `v_rfid_scan_context`
+- Konfliktverhalten jetzt fachlich klar:
+  - hängt die UID bereits an anderer Parzelle oder anderem Medium, wird Speichern blockiert und verständlich erklärt
+  - ist an derselben Parzelle für dasselbe Medium bereits dieselbe UID hinterlegt, wird dies als bereits erfüllt erkannt statt unnötig nochmals zu schreiben
+  - existiert an derselben Parzelle für dasselbe Medium bereits eine andere UID, erfolgt kein stilles Überschreiben; erst nach ausdrücklicher Bestätigung wird über den RPC gespeichert
+- `ParzelleRecord` nur minimal für diesen Block auf den neuen Stand gezogen:
+  - `Anlage`
+  - `hat_strom`
+  - `hat_wasser`
+  - `rfid_strom`
+  - `rfid_wasser`
+  - kleine Anzeigehilfen für benutzerfreundliche Parzellen-/RFID-Darstellung
+- WPF konkret umgesetzt:
+  - Placeholder-`RfidEinrichtenViewModel` ersetzt durch echte Admin-/Vorstand-Maske
+  - Parzellenauswahl mit benutzerfreundlicher Anzeige `GartenNr - Anlage`
+  - aktuelle Strom-/Wasser-RFID sichtbar
+  - Mediumauswahl nur aus tatsächlich passenden Medien der gewählten Parzelle
+  - UID-Eingabe
+  - `Prüfen`
+  - `Speichern`
+  - Überschreib-Bestätigung per `MessageBox`
+  - ViewModel-Fabrik in `NavigationService` passend erweitert
+- MAUI konkret umgesetzt:
+  - mobile `RfidEinrichtenPage` von Placeholder auf echte Maske umgestellt
+  - dieselben Fachschritte wie in WPF
+  - gleicher Shared-Servicepfad für Prüfen und Speichern
+  - Überschreib-Bestätigung per mobiler Dialogabfrage
+  - kein separater mobiler Schattenpfad
+- Rechte sauber gehalten:
+  - WPF bleibt über Admin/Vorstand-Kontext begrenzt
+  - MAUI bleibt über AdminShell plus expliziten ViewModel-Check auf Admin/Vorstand begrenzt
+  - normales `CanManageReadings` wurde für diesen Bereich bewusst nicht als alleinige Freigabe verwendet
+- Bewusst nicht in diesen Block gezogen:
+  - kein großer Umbau von `Ablesung erfassen`
+  - kein Zählerwechsel-Workflow
+  - kein Komplettaustausch der alten Split-Modelle in allen Bereichen
+  - keine Bereinigung aller Altpfade im selben Schritt
+- Technisch verifiziert:
+  - `KGV.Wpf` baut erfolgreich
+  - `KGV.Maui` baut erfolgreich
+  - der Block bleibt damit klein, buildfähig und fachlich auf dem neuen RFID-DB-Vertrag abgeschlossen
+
 ## 2026-03-24 – Prompt 1/1: Navigationsbereich `Ablesen` mit Übersichtsseite in WPF und MAUI angelegt
 
 - Den Block zuerst gegen den realen Repo-Iststand geprüft und nichts geraten.

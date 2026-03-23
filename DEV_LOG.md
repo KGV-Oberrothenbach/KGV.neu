@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-03-24 – `RFID einrichten` produktiv auf neuem DB-Vertrag umgesetzt
+
+- Den aktuellen Repo- und Git-Stand vor dem Umbau erneut geprüft.
+- Blockfremde offene Dateien im Arbeitsbaum bewusst nicht angerührt; insbesondere offene WPF-UI-Dateien, lokale Artefakte, `_Archiv/_Recovery` und `_AI_DB_EXPORT/AI_DATABASE_CONTEXT.sql` blieben außen vor.
+- Für die RFID-Zuordnung wurde der gemeinsame Produktivpfad im Shared-Service ergänzt:
+  - Prüfung und Speichern laufen jetzt zentral über `ISupabaseService` / `SupabaseService`
+  - produktiver Schreibpfad ist `assign_parzelle_rfid(...)`
+  - Konfliktprüfung nutzt den realen DB-Bestand über `parzelle` plus `v_rfid_scan_context`
+  - UID wird konsistent getrimmt und in Großbuchstaben normalisiert
+- `ParzelleRecord` wurde nur minimal auf den neuen DB-Vertrag erweitert:
+  - `Anlage`
+  - `hat_strom`
+  - `hat_wasser`
+  - `rfid_strom`
+  - `rfid_wasser`
+  - bestehende Altpfade auf getrennten Split-Tabellen wurden in diesem Block nicht zur neuen Grundlage gemacht
+- WPF:
+  - bestehende Seite `RFID einrichten` von Placeholder auf echte Maske umgestellt
+  - Parzellenauswahl, aktuelle Strom-/Wasser-RFID, Medium, UID, `Prüfen`, `Speichern`
+  - Überschreiben vorhandener RFID an derselben Parzelle nur nach expliziter Bestätigung
+  - Konflikt bei bereits anderweitig vergebener UID wird klar blockiert
+- MAUI:
+  - mobile `RfidEinrichtenPage` auf denselben Shared-Servicepfad umgestellt
+  - gleiche Fachschritte wie in WPF
+  - Überschreib-Bestätigung mobil per Dialog
+- Rechte:
+  - Bereich bleibt explizit auf Admin/Vorstand begrenzt
+  - keine Öffnung über das zu breite Flag `CanManageReadings`
+- Technisch verifiziert:
+  - `KGV.Wpf` baut erfolgreich
+  - `KGV.Maui` baut erfolgreich
+
 ## 2026-03-24 – `Ablesen` als eigener Navigationsbereich für Admin/Vorstand in WPF und MAUI angelegt
 
 - Den realen Istzustand vor dem Block geprüft:

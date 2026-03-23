@@ -189,6 +189,110 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
+        public Task<RfidAssignmentCheckResult> CheckParzelleRfidAssignmentAsync(int parzelleId, string medium, string uid) => ExecuteAsync(
+            "CheckParzelleRfidAssignmentAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                return await CheckParzelleRfidAssignmentInternalAsync(client, parzelleId, medium, uid);
+            },
+            new RfidAssignmentCheckResult
+            {
+                IsValid = false,
+                Message = "Die RFID-Zuordnung konnte aktuell nicht geprüft werden."
+            });
+
+        public Task<RfidAssignmentResult> AssignParzelleRfidAsync(int parzelleId, string medium, string uid, bool overwriteExisting = false) => ExecuteAsync(
+            "AssignParzelleRfidAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var check = await CheckParzelleRfidAssignmentInternalAsync(client, parzelleId, medium, uid);
+
+                if (!check.IsValid)
+                {
+                    return new RfidAssignmentResult
+                    {
+                        Success = false,
+                        Message = check.Message,
+                        NormalizedUid = check.NormalizedUid
+                    };
+                }
+
+                if (check.AlreadyAssignedToTarget)
+                {
+                    return new RfidAssignmentResult
+                    {
+                        Success = true,
+                        Message = check.Message,
+                        NormalizedUid = check.NormalizedUid,
+                        UpdatedParzelle = await GetParzelleByIdInternalAsync(client, parzelleId)
+                    };
+                }
+
+                if (check.RequiresOverwriteConfirmation && !overwriteExisting)
+                {
+                    return new RfidAssignmentResult
+                    {
+                        Success = false,
+                        RequiresOverwriteConfirmation = true,
+                        Message = check.Message,
+                        NormalizedUid = check.NormalizedUid
+                    };
+                }
+
+                try
+                {
+                    await client.Rpc<ParzelleRecord>(
+                        "assign_parzelle_rfid",
+                        new
+                        {
+                            p_parzelle_id = parzelleId,
+                            p_medium = NormalizeRfidMedium(medium),
+                            p_rfid_tag_uid = check.NormalizedUid
+                        });
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "AssignParzelleRfidAsync RPC failed for parzelle {ParzelleId} and medium {Medium}", parzelleId, medium);
+
+                    var refreshedCheck = await CheckParzelleRfidAssignmentInternalAsync(client, parzelleId, medium, uid);
+                    if (refreshedCheck.AlreadyAssignedToTarget)
+                    {
+                        return new RfidAssignmentResult
+                        {
+                            Success = true,
+                            Message = $"Die RFID {refreshedCheck.NormalizedUid} ist jetzt für {MediumDisplayName(medium)} bei der gewählten Parzelle hinterlegt.",
+                            NormalizedUid = refreshedCheck.NormalizedUid,
+                            UpdatedParzelle = await GetParzelleByIdInternalAsync(client, parzelleId)
+                        };
+                    }
+
+                    return new RfidAssignmentResult
+                    {
+                        Success = false,
+                        Message = refreshedCheck.IsValid
+                            ? "Die RFID konnte aktuell nicht gespeichert werden. Bitte versuche es erneut."
+                            : refreshedCheck.Message,
+                        NormalizedUid = refreshedCheck.NormalizedUid
+                    };
+                }
+
+                var updatedParzelle = await GetParzelleByIdInternalAsync(client, parzelleId);
+                return new RfidAssignmentResult
+                {
+                    Success = true,
+                    Message = $"Die RFID {check.NormalizedUid} wurde für {MediumDisplayName(medium)} gespeichert.",
+                    NormalizedUid = check.NormalizedUid,
+                    UpdatedParzelle = updatedParzelle
+                };
+            },
+            new RfidAssignmentResult
+            {
+                Success = false,
+                Message = "Die RFID konnte aktuell nicht gespeichert werden."
+            });
+
         public Task<ParzellenBelegungRecord?> GetCurrentBelegungForParzelleAsync(int parzelleId) => ExecuteAsync<ParzellenBelegungRecord?>(
             "GetCurrentBelegungForParzelleAsync",
             async () =>
@@ -2230,6 +2334,159 @@ namespace KGV.Infrastructure.Services
             }
 
             return null;
+        }
+
+        private async Task<ParzelleRecord?> GetParzelleByIdInternalAsync(Client client, int parzelleId)
+        {
+            var response = await client
+                .From<ParzelleRecord>()
+                .Where(x => x.Id == parzelleId)
+                .Get();
+
+            return response?.Models?.FirstOrDefault();
+        }
+
+        private async Task<RfidAssignmentCheckResult> CheckParzelleRfidAssignmentInternalAsync(Client client, int parzelleId, string medium, string uid)
+        {
+            var normalizedMedium = NormalizeRfidMedium(medium);
+            if (parzelleId <= 0)
+            {
+                return new RfidAssignmentCheckResult
+                {
+                    IsValid = false,
+                    Message = "Bitte zuerst eine Parzelle auswählen."
+                };
+            }
+
+            if (normalizedMedium == null)
+            {
+                return new RfidAssignmentCheckResult
+                {
+                    IsValid = false,
+                    Message = "Bitte ein gültiges Medium auswählen."
+                };
+            }
+
+            var normalizedUid = NormalizeRfidTagUid(uid);
+            if (normalizedUid == null)
+            {
+                return new RfidAssignmentCheckResult
+                {
+                    IsValid = false,
+                    Message = "Bitte eine RFID-UID eingeben.",
+                    NormalizedUid = string.Empty
+                };
+            }
+
+            var parzelle = await GetParzelleByIdInternalAsync(client, parzelleId);
+            if (parzelle == null)
+            {
+                return new RfidAssignmentCheckResult
+                {
+                    IsValid = false,
+                    Message = "Die gewählte Parzelle konnte nicht geladen werden.",
+                    NormalizedUid = normalizedUid
+                };
+            }
+
+            if (normalizedMedium == "strom" && !parzelle.HatStrom)
+            {
+                return new RfidAssignmentCheckResult
+                {
+                    IsValid = false,
+                    Message = "Für diese Parzelle ist kein Stromanschluss hinterlegt.",
+                    NormalizedUid = normalizedUid
+                };
+            }
+
+            if (normalizedMedium == "wasser" && !parzelle.HatWasser)
+            {
+                return new RfidAssignmentCheckResult
+                {
+                    IsValid = false,
+                    Message = "Für diese Parzelle ist kein Wasseranschluss hinterlegt.",
+                    NormalizedUid = normalizedUid
+                };
+            }
+
+            var currentTargetRfid = normalizedMedium == "strom"
+                ? NormalizeRfidTagUid(parzelle.RfidStrom)
+                : NormalizeRfidTagUid(parzelle.RfidWasser);
+
+            var scanContextResponse = await client.From<RfidScanContextRecord>().Get();
+            var scanContexts = scanContextResponse?.Models ?? new List<RfidScanContextRecord>();
+
+            var conflictingAssignment = scanContexts
+                .FirstOrDefault(x => NormalizeRfidTagUid(x.RfidTagUid) == normalizedUid
+                    && (x.ParzelleId != parzelleId || !string.Equals(NormalizeRfidMedium(x.Medium), normalizedMedium, StringComparison.OrdinalIgnoreCase)));
+
+            if (conflictingAssignment != null)
+            {
+                return new RfidAssignmentCheckResult
+                {
+                    IsValid = false,
+                    Message = $"Die UID {normalizedUid} ist bereits bei {conflictingAssignment.ParzelleDisplayName} für {MediumDisplayName(conflictingAssignment.Medium)} hinterlegt.",
+                    NormalizedUid = normalizedUid,
+                    ConflictParzelleId = conflictingAssignment.ParzelleId,
+                    ConflictGartenNr = conflictingAssignment.GartenNr ?? string.Empty,
+                    ConflictAnlage = conflictingAssignment.Anlage ?? string.Empty,
+                    ConflictMedium = NormalizeRfidMedium(conflictingAssignment.Medium) ?? string.Empty
+                };
+            }
+
+            if (string.Equals(currentTargetRfid, normalizedUid, StringComparison.OrdinalIgnoreCase))
+            {
+                return new RfidAssignmentCheckResult
+                {
+                    IsValid = true,
+                    AlreadyAssignedToTarget = true,
+                    Message = $"Die UID {normalizedUid} ist für {MediumDisplayName(normalizedMedium)} bei {parzelle.DisplayName} bereits hinterlegt.",
+                    NormalizedUid = normalizedUid,
+                    CurrentTargetRfid = currentTargetRfid ?? string.Empty
+                };
+            }
+
+            if (!string.IsNullOrWhiteSpace(currentTargetRfid))
+            {
+                return new RfidAssignmentCheckResult
+                {
+                    IsValid = true,
+                    RequiresOverwriteConfirmation = true,
+                    Message = $"Für {MediumDisplayName(normalizedMedium)} ist bei {parzelle.DisplayName} bereits die RFID {currentTargetRfid} hinterlegt. Bitte das Überschreiben ausdrücklich bestätigen.",
+                    NormalizedUid = normalizedUid,
+                    CurrentTargetRfid = currentTargetRfid ?? string.Empty
+                };
+            }
+
+            return new RfidAssignmentCheckResult
+            {
+                IsValid = true,
+                Message = $"Prüfung erfolgreich. Die UID {normalizedUid} kann für {MediumDisplayName(normalizedMedium)} bei {parzelle.DisplayName} gespeichert werden.",
+                NormalizedUid = normalizedUid,
+                CurrentTargetRfid = string.Empty
+            };
+        }
+
+        private static string? NormalizeRfidTagUid(string? uid)
+        {
+            if (string.IsNullOrWhiteSpace(uid))
+                return null;
+
+            return uid.Trim().ToUpperInvariant();
+        }
+
+        private static string? NormalizeRfidMedium(string? medium)
+        {
+            if (string.IsNullOrWhiteSpace(medium))
+                return null;
+
+            var normalized = medium.Trim().ToLowerInvariant();
+            return normalized is "strom" or "wasser" ? normalized : null;
+        }
+
+        private static string MediumDisplayName(string? medium)
+        {
+            return NormalizeRfidMedium(medium) == "wasser" ? "Wasser" : "Strom";
         }
 
         private InvalidOperationException CreateUnavailableException()

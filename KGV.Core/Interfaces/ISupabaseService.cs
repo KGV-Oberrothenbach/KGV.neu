@@ -22,6 +22,8 @@ namespace KGV.Core.Interfaces
         Task<ParzelleRecord?> GetParzelleByNumberAsync(string gartenNr);
         Task<List<ParzelleRecord>> GetAllParzellenAsync();
         Task<ParzelleDetailDTO?> GetParzelleDetailAsync(int parzelleId);
+        Task<RfidAssignmentCheckResult> CheckParzelleRfidAssignmentAsync(int parzelleId, string medium, string uid);
+        Task<RfidAssignmentResult> AssignParzelleRfidAsync(int parzelleId, string medium, string uid, bool overwriteExisting = false);
 
         Task<ParzellenBelegungRecord?> GetCurrentBelegungForParzelleAsync(int parzelleId);
 
