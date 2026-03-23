@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-03-24 – Arbeitseinsatz: `Anmelden`-Regression und Admin-/Vorstand-Teilnehmerblock sauber abgeschlossen
+
+- Den begonnenen Block erneut gegen den realen Arbeitsbaum und ausdrücklich gegen `_AI_DB_EXPORT` geprüft. Belastbar herangezogen wurden wieder `database.types.ts` mit `sign_up_for_arbeitseinsatz(...)` und `arbeitseinsatz_anmeldung`; `roles.sql` enthält dafür keine abweichende Zusatzregel, `AI_DATABASE_CONTEXT.sql` liefert hier keinen zusätzlichen App-Pfad.
+- Die Regression beim verschwundenen `Anmelden` lag nicht am RPC selbst, sondern an der Sichtbarkeit: `CanRegister` wurde im sichtbaren UI zu eng nur aus dem Startseitenpfad übernommen. Der Shared-Service bestimmt die sichtbare Anmeldung jetzt wieder aus den realen Basisdaten von `arbeitseinsatz` plus aktiven `arbeitseinsatz_anmeldung`-Datensätzen für den aktuellen Benutzerkontext, inklusive Frist, Platzgrenze und bestehender Anmeldung.
+- Home und Detail bleiben auf demselben echten Produktpfad: beide rufen weiterhin `SignUpForArbeitseinsatzAsync(...)` auf, das produktiv über `sign_up_for_arbeitseinsatz(...)` schreibt. Es wurde keine zweite Schreiblogik eröffnet.
+- Für Admin/Vorstand wurde die Detailview klein und rollenabhängig ergänzt:
+  - reale Teilnehmerliste über aktive `arbeitseinsatz_anmeldung`
+  - `Hinzufügen`-Button nur für Admin/Vorstand
+  - Auswahl ausschließlich über die bestehende Maske `Mitglied suchen` im Auswahlmodus
+  - das ausgewählte bestehende Mitglied wird danach über denselben RPC-Pfad angemeldet wie bei Selbstanmeldung
+- Dabei gibt es bewusst keine freie Texteingabe und keine Prüfung, ob das gewählte Mitglied App-User ist. Normale Nutzer sehen weiterhin weder Teilnehmerliste noch `Hinzufügen`.
+- Technisch finalisiert: kleine Warnungsbereinigung im Auswahlpfad abgeschlossen und `KGV.Wpf` baut erfolgreich; der Block ist damit jetzt sauber abschließbar.
+
 ## 2026-03-24 – `Anmelden` für Arbeitseinsatz im sichtbaren UI tatsächlich funktionsfähig gemacht
 
 - Den realen Fehler ausdrücklich am laufenden WPF-Pfad geprüft: Home-Button und Detail-Button waren bereits an denselben Shared-Servicepfad gebunden, der sichtbare Hänger lag aber davor im übergebenen Datensatz.

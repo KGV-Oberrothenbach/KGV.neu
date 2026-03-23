@@ -165,6 +165,7 @@ namespace KGV.ViewModels
             var created = _mainVm.NavigateToHomeSectionDetailViewModel(new HomeSectionDetailContext
             {
                 WorkAssignmentId = item.Id,
+                IsWorkAssignment = true,
                 SectionTitle = "Arbeitseinsatz",
                 Title = item.Title,
                 Subtitle = item.Subtitle,
@@ -187,6 +188,7 @@ namespace KGV.ViewModels
 
             var created = _mainVm.NavigateToHomeSectionDetailViewModel(new HomeSectionDetailContext
             {
+                IsWorkAssignment = false,
                 SectionTitle = "Termin",
                 Title = item.Title,
                 Subtitle = item.Subtitle,
@@ -209,6 +211,7 @@ namespace KGV.ViewModels
 
             var created = _mainVm.NavigateToHomeSectionDetailViewModel(new HomeSectionDetailContext
             {
+                IsWorkAssignment = false,
                 SectionTitle = "Bekanntmachung",
                 Title = item.Title,
                 Subtitle = item.Subtitle,
@@ -242,7 +245,7 @@ namespace KGV.ViewModels
 
             var result = await _mainVm.SupabaseService.SignUpForArbeitseinsatzAsync(item.Id, mitgliedId.Value);
             if (result.UpdatedItem != null)
-                ReplaceWorkAssignmentItem(result.UpdatedItem, forceDisableRegistration: !result.Success || result.UpdatedItem.CanRegister == false);
+                ReplaceWorkAssignmentItem(result.UpdatedItem, forceDisableRegistration: result.UpdatedItem.CanRegister == false);
 
             MessageBox.Show(
                 result.Message,

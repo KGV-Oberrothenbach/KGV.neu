@@ -15,9 +15,13 @@ namespace KGV.ViewModels
     {
         private readonly ISupabaseService _supabaseService;
         private readonly MainWindowViewModel _mainVm;
+        private readonly bool _isSelectionMode;
 
         public ObservableCollection<object> Results { get; } = new();
         public ObservableCollection<string> DebugMessages { get; } = new();
+        public string ViewTitle => _isSelectionMode ? "Mitglied suchen" : "Mitgliedersuche";
+        public MemberDTO? SelectionResult { get; private set; }
+        public event EventHandler? CloseRequested;
 
         private string _searchText = string.Empty;
         public string SearchText
@@ -64,10 +68,11 @@ namespace KGV.ViewModels
         private readonly System.Collections.Generic.List<MemberDTO> _allMembers;
         private readonly System.Collections.Generic.List<ParzelleRecord> _allParzellen;
 
-        public MemberSearchViewModel(ISupabaseService supabaseService, MainWindowViewModel mainVm)
+        public MemberSearchViewModel(ISupabaseService supabaseService, MainWindowViewModel mainVm, bool isSelectionMode = false)
         {
             _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
             _mainVm = mainVm ?? throw new ArgumentNullException(nameof(mainVm));
+            _isSelectionMode = isSelectionMode;
 
             SearchCommand = new KGV.Helpers.RelayCommand<object?>(_ => UpdateFilter());
             SelectCommand = new KGV.Helpers.RelayCommand<object?>(_ => _ = SelectResultAsync(SelectedResult));
@@ -291,6 +296,13 @@ namespace KGV.ViewModels
             }
 
             if (selected == null) return;
+
+            if (_isSelectionMode)
+            {
+                SelectionResult = selected.Clone();
+                CloseRequested?.Invoke(this, EventArgs.Empty);
+                return;
+            }
 
             // Clone, damit Liste nicht "unsaved" live mitläuft – Refresh kommt per MemberSavedMessage
             var memberForDetail = selected.Clone();

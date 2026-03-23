@@ -979,6 +979,48 @@ namespace KGV.Infrastructure.Services
             LoadStartseiteArbeitseinsaetzeAsync,
             new List<HomeWorkAssignmentItem>());
 
+        public Task<HomeWorkAssignmentItem?> GetStartseiteArbeitseinsatzByIdAsync(int arbeitseinsatzId) => ExecuteAsync<HomeWorkAssignmentItem?>(
+            "GetStartseiteArbeitseinsatzByIdAsync",
+            async () =>
+            {
+                if (arbeitseinsatzId <= 0)
+                    return null;
+
+                var client = await EnsureClientAsync();
+                return await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
+            },
+            null);
+
+        public Task<List<WorkAssignmentParticipantItem>> GetArbeitseinsatzParticipantsAsync(int arbeitseinsatzId) => ExecuteAsync(
+            "GetArbeitseinsatzParticipantsAsync",
+            async () =>
+            {
+                if (arbeitseinsatzId <= 0)
+                    return new List<WorkAssignmentParticipantItem>();
+
+                var client = await EnsureClientAsync();
+                var activeRegistrations = await GetAktiveArbeitseinsatzAnmeldungenAsync(client, arbeitseinsatzId);
+                if (activeRegistrations.Count == 0)
+                    return new List<WorkAssignmentParticipantItem>();
+
+                var members = await GetMitgliederAsync();
+                var memberById = members.ToDictionary(x => x.Id, x => x);
+
+                return activeRegistrations
+                    .OrderBy(x => x.AngemeldetAm)
+                    .ThenBy(x => x.MitgliedId)
+                    .Select(x => new WorkAssignmentParticipantItem
+                    {
+                        MitgliedId = x.MitgliedId,
+                        DisplayName = memberById.TryGetValue(x.MitgliedId, out var member)
+                            ? (FormatMemberName(member) ?? $"Mitglied #{x.MitgliedId}")
+                            : $"Mitglied #{x.MitgliedId}",
+                        StatusText = $"Angemeldet am {x.AngemeldetAm:dd.MM.yyyy HH:mm}"
+                    })
+                    .ToList();
+            },
+            new List<WorkAssignmentParticipantItem>());
+
         public Task<List<HomeAppointmentItem>> GetStartseiteTermineAsync() => ExecuteAsync(
             "GetStartseiteTermineAsync",
             LoadStartseiteTermineAsync,
@@ -999,20 +1041,20 @@ namespace KGV.Infrastructure.Services
                 var aktiveAnmeldungen = await GetAktiveArbeitseinsatzAnmeldungenAsync(client, arbeitseinsatzId);
                 if (aktiveAnmeldungen.Any(x => x.MitgliedId == mitgliedId))
                 {
-                    var existingItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId, forceDisableRegistration: true);
+                    var existingItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
                     return CreateRegistrationResult(false, "Für diesen Arbeitseinsatz besteht bereits eine Anmeldung.", existingItem);
                 }
 
                 var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
                 if (arbeitseinsatz.AnmeldungBis.HasValue && arbeitseinsatz.AnmeldungBis.Value < now)
                 {
-                    var expiredItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId, forceDisableRegistration: true);
+                    var expiredItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
                     return CreateRegistrationResult(false, "Die Anmeldefrist für diesen Arbeitseinsatz ist bereits abgelaufen.", expiredItem);
                 }
 
                 if (arbeitseinsatz.MaxTeilnehmer.HasValue && aktiveAnmeldungen.Count >= arbeitseinsatz.MaxTeilnehmer.Value)
                 {
-                    var fullItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId, forceDisableRegistration: true);
+                    var fullItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
                     return CreateRegistrationResult(false, "Für diesen Arbeitseinsatz sind aktuell keine freien Plätze mehr verfügbar.", fullItem);
                 }
 
@@ -1031,7 +1073,7 @@ namespace KGV.Infrastructure.Services
                     _logger?.LogWarning(ex, "SignUpForArbeitseinsatzAsync RPC failed for arbeitseinsatz {ArbeitseinsatzId} and mitglied {MitgliedId}", arbeitseinsatzId, mitgliedId);
 
                     var refreshedActiveAnmeldungen = await GetAktiveArbeitseinsatzAnmeldungenAsync(client, arbeitseinsatzId);
-                    var refreshedItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId, forceDisableRegistration: refreshedActiveAnmeldungen.Any(x => x.MitgliedId == mitgliedId));
+                    var refreshedItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
 
                     if (refreshedActiveAnmeldungen.Any(x => x.MitgliedId == mitgliedId))
                         return CreateRegistrationResult(false, "Für diesen Arbeitseinsatz besteht bereits eine Anmeldung.", refreshedItem);
@@ -1039,7 +1081,7 @@ namespace KGV.Infrastructure.Services
                     return CreateRegistrationResult(false, "Die Anmeldung konnte aktuell nicht gespeichert werden. Bitte versuche es erneut.", refreshedItem);
                 }
 
-                var updatedItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId, forceDisableRegistration: true);
+                var updatedItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
                 return CreateRegistrationResult(true, "Die Anmeldung zum Arbeitseinsatz wurde gespeichert.", updatedItem);
             },
             new WorkAssignmentRegistrationResult());
@@ -1682,6 +1724,7 @@ namespace KGV.Infrastructure.Services
             var records = response?.Models?.ToList() ?? new List<StartseiteArbeitseinsatzRecord>();
 
             await EnrichStartseiteArbeitseinsatzTimesAsync(client, records);
+            await EnrichStartseiteArbeitseinsatzRegistrationStateAsync(client, records);
 
             return records
                 .OrderBy(x => x.Datum ?? DateTime.MaxValue)
@@ -1895,7 +1938,7 @@ namespace KGV.Infrastructure.Services
             return response?.Models?.ToList() ?? new List<ArbeitseinsatzAnmeldungRecord>();
         }
 
-        private async Task<HomeWorkAssignmentItem?> TryLoadHomeWorkAssignmentItemAsync(global::Supabase.Client client, int arbeitseinsatzId, bool forceDisableRegistration)
+        private async Task<HomeWorkAssignmentItem?> TryLoadHomeWorkAssignmentItemAsync(global::Supabase.Client client, int arbeitseinsatzId)
         {
             var response = await client
                 .From<StartseiteArbeitseinsatzRecord>()
@@ -1907,23 +1950,66 @@ namespace KGV.Infrastructure.Services
                 return null;
 
             await EnrichStartseiteArbeitseinsatzTimesAsync(client, new List<StartseiteArbeitseinsatzRecord> { record });
-            var item = MapHomeWorkAssignment(record);
+            await EnrichStartseiteArbeitseinsatzRegistrationStateAsync(client, new List<StartseiteArbeitseinsatzRecord> { record });
+            return MapHomeWorkAssignment(record);
+        }
 
-            if (!forceDisableRegistration)
-                return item;
+        private async Task EnrichStartseiteArbeitseinsatzRegistrationStateAsync(global::Supabase.Client client, List<StartseiteArbeitseinsatzRecord> records)
+        {
+            if (records.Count == 0)
+                return;
 
-            return new HomeWorkAssignmentItem
+            var arbeitseinsatzResponse = await client.From<ArbeitseinsatzRecord>().Get();
+            var arbeitseinsatzById = arbeitseinsatzResponse?.Models?
+                .Where(x => x.Id > 0)
+                .Select(NormalizeArbeitseinsatzRecord)
+                .ToDictionary(x => (int)x.Id)
+                ?? new Dictionary<int, ArbeitseinsatzRecord>();
+
+            var anmeldungenResponse = await client
+                .From<ArbeitseinsatzAnmeldungRecord>()
+                .Where(x => x.Status == "angemeldet")
+                .Get();
+
+            var anmeldungenByArbeitseinsatzId = anmeldungenResponse?.Models?
+                .GroupBy(x => x.ArbeitseinsatzId)
+                .ToDictionary(x => x.Key, x => x.ToList())
+                ?? new Dictionary<int, List<ArbeitseinsatzAnmeldungRecord>>();
+
+            var currentMemberId = TryGetCurrentMitgliedId();
+            var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+
+            foreach (var record in records)
             {
-                Id = item.Id,
-                Title = item.Title,
-                Subtitle = item.Subtitle,
-                StartTimeText = item.StartTimeText,
-                EndTimeText = item.EndTimeText,
-                Details = item.Details,
-                DetailInfo = item.DetailInfo,
-                RegistrationInfo = item.RegistrationInfo,
-                CanRegister = false
-            };
+                if (!arbeitseinsatzById.TryGetValue(record.Id, out var arbeitseinsatz))
+                    continue;
+
+                anmeldungenByArbeitseinsatzId.TryGetValue(record.Id, out var anmeldungen);
+                anmeldungen ??= new List<ArbeitseinsatzAnmeldungRecord>();
+
+                record.AngemeldetCount = anmeldungen.Count;
+
+                if (arbeitseinsatz.MaxTeilnehmer.HasValue)
+                    record.FreiePlaetze = Math.Max(0, arbeitseinsatz.MaxTeilnehmer.Value - anmeldungen.Count);
+
+                var isAlreadyRegistered = currentMemberId.HasValue && anmeldungen.Any(x => x.MitgliedId == currentMemberId.Value);
+                var isDeadlineOpen = !arbeitseinsatz.AnmeldungBis.HasValue || arbeitseinsatz.AnmeldungBis.Value >= now;
+                var hasCapacity = !arbeitseinsatz.MaxTeilnehmer.HasValue || anmeldungen.Count < arbeitseinsatz.MaxTeilnehmer.Value;
+
+                record.AnmeldungMoeglich = currentMemberId.HasValue
+                    && arbeitseinsatz.Aktiv
+                    && !isAlreadyRegistered
+                    && isDeadlineOpen
+                    && hasCapacity;
+            }
+        }
+
+        private int? TryGetCurrentMitgliedId()
+        {
+            var userContext = _currentUserContextAccessor?.Invoke();
+            return userContext?.MitgliedId is > 0 and <= int.MaxValue
+                ? (int)userContext.MitgliedId.Value
+                : null;
         }
 
         private static async Task EnrichStartseiteArbeitseinsatzTimesAsync(global::Supabase.Client client, List<StartseiteArbeitseinsatzRecord> records)

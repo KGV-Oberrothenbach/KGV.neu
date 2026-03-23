@@ -1,9 +1,13 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Helpers;
 using System;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using KGV.Views;
 
 namespace KGV.ViewModels
 {
@@ -13,6 +17,7 @@ namespace KGV.ViewModels
         private readonly HomeSectionDetailContext _context;
         private string _registrationInfo;
         private bool _showRegisterButton;
+        private bool _isBusy;
 
         public string SectionTitle => _context.SectionTitle;
         public string Title => _context.Title;
@@ -32,14 +37,21 @@ namespace KGV.ViewModels
         public bool HasContent => !string.IsNullOrWhiteSpace(Content);
         public bool HasAdditionalInfo => !string.IsNullOrWhiteSpace(AdditionalInfo);
         public bool HasRegistrationInfo => !string.IsNullOrWhiteSpace(RegistrationInfo);
+        public bool IsAdminContext => _mainVm.UserContext.Role is UserRole.Admin or UserRole.Vorstand;
+        public bool ShowParticipantsSection => _context.IsWorkAssignment && IsAdminContext;
+        public bool HasParticipants => Participants.Count > 0;
+        public bool ShowParticipantsEmptyState => ShowParticipantsSection && !HasParticipants;
+        public string ParticipantsEmptyText => "Aktuell keine angemeldeten Teilnehmer.";
         public bool ShowRegisterButton
         {
             get => _showRegisterButton;
             private set => SetProperty(ref _showRegisterButton, value);
         }
+        public ObservableCollection<WorkAssignmentParticipantItem> Participants { get; } = new();
 
         public RelayCommand<object?> ZurueckCommand { get; }
         public RelayCommand<object?> AnmeldenCommand { get; }
+        public RelayCommand<object?> AddParticipantCommand { get; }
 
         public HomeSectionDetailViewModel(MainWindowViewModel mainVm, HomeSectionDetailContext context)
         {
@@ -49,9 +61,13 @@ namespace KGV.ViewModels
             _showRegisterButton = context.ShowRegisterButton;
             ZurueckCommand = new RelayCommand<object?>(_ => _ = ZurueckAsync());
             AnmeldenCommand = new RelayCommand<object?>(_ => _ = RegisterAsync(), _ => ShowRegisterButton);
+            AddParticipantCommand = new RelayCommand<object?>(_ => _ = AddParticipantAsync(), _ => ShowParticipantsSection && !_isBusy && _context.WorkAssignmentId > 0);
         }
 
-        public Task OnNavigatedToAsync() => Task.CompletedTask;
+        public async Task OnNavigatedToAsync()
+        {
+            await RefreshDetailStateAsync();
+        }
 
         public Task OnNavigatedFromAsync() => Task.CompletedTask;
 
@@ -86,8 +102,7 @@ namespace KGV.ViewModels
             }
 
             var result = await _mainVm.SupabaseService.SignUpForArbeitseinsatzAsync(_context.WorkAssignmentId, mitgliedId.Value);
-            if (result.UpdatedItem != null)
-                ApplyRegistrationUpdate(result.UpdatedItem, disableButton: true);
+            await RefreshDetailStateAsync(result.UpdatedItem);
 
             MessageBox.Show(
                 result.Message,
@@ -105,11 +120,94 @@ namespace KGV.ViewModels
             return member?.Id > 0 ? member.Id : null;
         }
 
-        private void ApplyRegistrationUpdate(HomeWorkAssignmentItem item, bool disableButton)
+        private async Task AddParticipantAsync()
+        {
+            if (_context.WorkAssignmentId <= 0)
+            {
+                MessageBox.Show(
+                    "Der ausgewählte Arbeitseinsatz konnte nicht eindeutig geladen werden.",
+                    "Teilnehmer hinzufügen",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var member = await PickMemberAsync();
+            if (member == null)
+                return;
+
+            _isBusy = true;
+            AddParticipantCommand.RaiseCanExecuteChanged();
+            try
+            {
+                var result = await _mainVm.SupabaseService.SignUpForArbeitseinsatzAsync(_context.WorkAssignmentId, member.Id);
+                await RefreshDetailStateAsync(result.UpdatedItem);
+
+                MessageBox.Show(
+                    result.Message,
+                    "Teilnehmer hinzufügen",
+                    MessageBoxButton.OK,
+                    result.Success ? MessageBoxImage.Information : MessageBoxImage.Warning);
+            }
+            finally
+            {
+                _isBusy = false;
+                AddParticipantCommand.RaiseCanExecuteChanged();
+            }
+        }
+
+        private async Task RefreshDetailStateAsync(HomeWorkAssignmentItem? updatedItem = null)
+        {
+            if (_context.IsWorkAssignment && _context.WorkAssignmentId > 0)
+            {
+                var item = updatedItem ?? await _mainVm.SupabaseService.GetStartseiteArbeitseinsatzByIdAsync(_context.WorkAssignmentId);
+                if (item != null)
+                    ApplyRegistrationUpdate(item);
+            }
+
+            if (ShowParticipantsSection && _context.WorkAssignmentId > 0)
+            {
+                var participants = await _mainVm.SupabaseService.GetArbeitseinsatzParticipantsAsync(_context.WorkAssignmentId);
+                Participants.Clear();
+                foreach (var participant in participants)
+                    Participants.Add(participant);
+
+                OnPropertyChanged(nameof(HasParticipants));
+                OnPropertyChanged(nameof(ShowParticipantsEmptyState));
+            }
+
+            AnmeldenCommand.RaiseCanExecuteChanged();
+            AddParticipantCommand.RaiseCanExecuteChanged();
+        }
+
+        private void ApplyRegistrationUpdate(HomeWorkAssignmentItem item)
         {
             RegistrationInfo = item.RegistrationInfo;
-            ShowRegisterButton = disableButton ? false : item.CanRegister;
-            AnmeldenCommand.RaiseCanExecuteChanged();
+            ShowRegisterButton = item.CanRegister;
+        }
+
+        private Task<MemberDTO?> PickMemberAsync()
+        {
+            var searchVm = new MemberSearchViewModel(_mainVm.SupabaseService, _mainVm, isSelectionMode: true);
+            var searchView = new MemberSearchView { DataContext = searchVm };
+            var window = new Window
+            {
+                Title = "Mitglied suchen",
+                Content = searchView,
+                Owner = Application.Current?.Windows.OfType<Window>().FirstOrDefault(x => x.IsActive) ?? Application.Current?.MainWindow,
+                Width = 720,
+                Height = 640,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+
+            searchVm.CloseRequested += (_, _) =>
+            {
+                window.DialogResult = true;
+                window.Close();
+            };
+
+            var dialogResult = window.ShowDialog();
+            return Task.FromResult(dialogResult == true ? searchVm.SelectionResult : null);
         }
     }
 }

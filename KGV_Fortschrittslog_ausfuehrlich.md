@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Arbeitseinsatz-Regression bei `Anmelden` und Admin-/Vorstand-Teilnehmerblock sauber abgeschlossen
+
+- Den begonnenen Block zuerst wieder gegen den realen Arbeitsbaum und ausdrücklich gegen den lokalen DB-Analyseexport `_AI_DB_EXPORT` geprüft. Für diesen Abschluss waren erneut relevant:
+  - `database.types.ts` mit Tabelle `arbeitseinsatz_anmeldung`
+  - Enum `arbeitseinsatz_anmeldung_status`
+  - Funktion `sign_up_for_arbeitseinsatz(p_arbeitseinsatz_id, p_mitglied_id)` als echter Schreibpfad
+  - `roles.sql` ohne abweichende zusätzliche App-Regeln
+  - `AI_DATABASE_CONTEXT.sql` ohne zusätzlichen alternativen App-Schreibpfad
+- Tatsächliche Ursache der neuen Regression: `Anmelden` war nicht wegen eines fehlenden RPC verschwunden, sondern wegen der Sichtbarkeit. `CanRegister` hing im sichtbaren UI zu eng nur am Startseitenzustand. Der Shared-Service ermittelt den Anmeldestatus jetzt wieder aus den realen Basisdaten von `arbeitseinsatz` plus aktiven `arbeitseinsatz_anmeldung`-Datensätzen gegen Frist, Platzgrenze und bereits vorhandene Anmeldung im aktuellen Benutzerkontext.
+- Damit ist die Sichtbarkeit jetzt wieder fachlich belastbar bestimmt:
+  - sichtbar, wenn Anmeldung im echten Zustand möglich ist
+  - nicht sichtbar, wenn bereits angemeldet, Frist abgelaufen oder keine Plätze frei
+  - kein zweiter Schattenpfad neben dem RPC
+- Home und Detail nutzen weiterhin denselben echten Produktpfad:
+  - Home ruft `SignUpForArbeitseinsatzAsync(...)`
+  - Detail ruft ebenfalls `SignUpForArbeitseinsatzAsync(...)`
+  - beide schreiben produktiv über `sign_up_for_arbeitseinsatz(...)`
+- Die Detailview wurde für Admin/Vorstand jetzt gezielt erweitert, ohne die normale Ansicht zu verändern:
+  - Teilnehmerliste nur für Admin/Vorstand
+  - `Hinzufügen` nur für Admin/Vorstand
+  - reale Teilnehmerdaten aus aktiven `arbeitseinsatz_anmeldung`-Datensätzen
+  - keine Teilnehmerliste für normale Nutzer
+- `Hinzufügen` läuft ausschließlich über Modell A:
+  - bestehende Maske `Mitglied suchen` wird im Auswahlmodus wiederverwendet
+  - keine freie Texteingabe
+  - keine Prüfung, ob das gewählte Mitglied App-User ist
+  - ausgewähltes bestehendes Mitglied wird anschließend über denselben RPC-Pfad angemeldet wie bei Selbstanmeldung
+- Den begonnenen technischen Randpunkt ebenfalls sauber finalisiert:
+  - kleine Warnungsbereinigung im Auswahlpfad abgeschlossen
+  - `KGV.Wpf` baut danach erfolgreich
+  - der Block ist damit jetzt wirklich abgeschlossen und commit-/push-fähig
+
 ## 2026-03-24 – Prompt 1/1: `Anmelden` für Arbeitseinsatz im sichtbaren UI wirklich funktionsfähig gemacht, Teilnehmerblock bewusst noch offen gelassen
 
 - Den realen Fehlernachweis nochmals gegen den tatsächlich laufenden WPF-Pfad geführt: `HomeView.xaml`, `HomeViewModel`, `HomeSectionDetailView.xaml`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext` und `SupabaseService` waren bereits auf denselben Shared-Servicepfad für `Anmelden` verdrahtet; der Hänger lag nicht mehr in einer fehlenden RPC-Anbindung.

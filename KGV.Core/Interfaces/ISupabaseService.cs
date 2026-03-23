@@ -85,6 +85,8 @@ namespace KGV.Core.Interfaces
 
         Task<HomeOverviewDTO> GetHomeOverviewAsync(KGV.Core.Security.UserRole role, int? mitgliedId);
         Task<List<HomeWorkAssignmentItem>> GetStartseiteArbeitseinsaetzeAsync();
+        Task<HomeWorkAssignmentItem?> GetStartseiteArbeitseinsatzByIdAsync(int arbeitseinsatzId);
+        Task<List<WorkAssignmentParticipantItem>> GetArbeitseinsatzParticipantsAsync(int arbeitseinsatzId);
         Task<WorkAssignmentRegistrationResult> SignUpForArbeitseinsatzAsync(int arbeitseinsatzId, int mitgliedId);
         Task<List<HomeAppointmentItem>> GetStartseiteTermineAsync();
         Task<List<HomeAnnouncementItem>> GetStartseiteBekanntmachungenAsync();

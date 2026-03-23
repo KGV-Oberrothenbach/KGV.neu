@@ -17,7 +17,7 @@
             <RowDefinition Height="100" />
         </Grid.RowDefinitions>
 
-        <TextBlock Text="Mitgliedersuche" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="{Binding ViewTitle}" FontSize="18" FontWeight="Bold" />
 
         <StackPanel Orientation="Horizontal" Grid.Row="1" Margin="0,8,0,8">
             <TextBox Width="300" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
