@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Home-/Detailanzeige für Arbeitseinsatz und Termin gezielt korrigiert: Uhrzeit sichtbar, doppelte `Angemeldet`-Anzeige entfernt
+
+- Den bestehenden Anzeige-/Mappingpfad erneut gegen den realen Istzustand geprüft: `HomeView.xaml`, `HomeSectionDetailView.xaml`, `HomeViewModel`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, `HomeDashboardItems` und das Home-Mapping in `SupabaseService` waren der tatsächliche Fehlerort dieses Blocks.
+- Sichtbarer Hauptbefund: die Uhrzeit hing bislang nicht an einem eindeutigen Anzeigeweg. Sie lief teils im `Subtitle`, teils als separater Beginn-Text und in der Detailansicht zusätzlich in `AdditionalInfo`, wodurch sie im aktuellen UI nicht verlässlich bzw. nicht klar genug sichtbar war.
+- Den Zeitpfad deshalb gezielt auf eine einzige explizite Anzeigeform gezogen:
+  - `HomeWorkAssignmentItem` und `HomeAppointmentItem` tragen jetzt `TimeText` statt eines bloßen Beginnfelds
+  - `SupabaseService` erzeugt diesen Wert zentral über `BuildTimeRange(...)` aus Start- und Endzeit
+  - `HomeView.xaml` rendert `Uhrzeit: {TimeText}` jetzt für `Arbeitseinsatz` und `Termin` sichtbar in der Übersicht
+  - damit ist mindestens die Startzeit sichtbar; wenn Ende vorhanden ist, erscheint konsistent `Start – Ende`
+- Dieselbe Korrektur auf den Detailpfad übertragen:
+  - `HomeSectionDetailContext` wurde um `TimeText` ergänzt
+  - `HomeSectionDetailViewModel` reicht ihn unverändert nur für den ausgewählten Datensatz weiter
+  - `HomeSectionDetailView.xaml` zeigt `Uhrzeit` jetzt separat sichtbar an
+  - dadurch sind Start- und Endzeit für den ausgewählten `Arbeitseinsatz` und `Termin` in der Detailansicht klar sichtbar, ohne neue Navigation oder Mehrfachanzeige
+- Die doppelte Anzeige `Angemeldet: 0` konkret am Mappingursprung beseitigt:
+  - bislang kamen Kapazitätsdaten zweimal aus demselben Datensatzpfad
+  - einmal als einzelne Zeilen `Angemeldet` / `Freie Plätze` in `DetailInfo`
+  - zusätzlich nochmals zusammengefasst in `RegistrationInfo` über `BuildCapacityText(...)`
+  - der `Arbeitseinsatz`-Mappingpfad wurde deshalb bereinigt: `RegistrationInfo` bleibt als einzige Kapazitätsanzeige erhalten; die redundanten Einzelzeilen wurden aus `DetailInfo` entfernt
+- Ergebnis des Korrekturpfads:
+  - Home zeigt die Uhrzeit jetzt sichtbar und eindeutig für `Arbeitseinsatz` und `Termin`
+  - die Detailansicht zeigt Start-/Endzeit des ausgewählten Datensatzes sichtbar an
+  - `Angemeldet: 0` erscheint für `Arbeitseinsatz` nicht mehr mehrfach
+  - die Detailview bleibt auf die Skalardaten des konkret ausgewählten Datensatzes beschränkt und zeigt keine Sammel-/Mehrfachanzeige
+- `Bekanntmachung` und die generische Detailstruktur wurden mitgeprüft und nicht verschlechtert: dort bleibt `TimeText` leer, während `Subtitle`, `AdditionalInfo` und `Content` unverändert funktionieren.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Anzeige-Fixblock erfolgreich; MAUI wurde durch die kleinen Home-/Detailmodell- und Mappinganpassungen nicht beschädigt.
+
 ## 2026-03-24 – Prompt 1/1: Home-/Detailansicht für Arbeitseinsätze und Termine sichtbar vervollständigt, ohne neue Schattenlogik
 
 - Den vorhandenen Home-/Detailpfad zuerst vollständig gegen den realen Arbeitsbaum geprüft: `HomeView.xaml`, `HomeViewModel`, `HomeSectionDetailView.xaml`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, die Home-Item-Modelle sowie das Mapping in `SupabaseService` waren bereits produktiv vorhanden und dienten als Basis des Blocks.
@@ -60,6 +87,33 @@
   - stattdessen bleibt dort `Anmelden` sichtbar
   - weil weiterhin kein belastbarer produktiver Schreibpfad für echte Anmeldungen im Repo nachweisbar ist, bleibt der Button bewusst eine ehrliche Info-Aktion statt neuer Schattenlogik
 - Technisch verifiziert: `KGV.Wpf` baut nach dem Abschlussblock erfolgreich; MAUI wurde im Shared-Arbeitsstundenpfad mitgedacht und nicht beschädigt.
+
+## 2026-03-24 – Prompt 1/1: Home-/Detailanzeige für Arbeitseinsatz und Termin gezielt korrigiert: Uhrzeit sichtbar, doppelte `Angemeldet`-Anzeige entfernt
+
+- Den bestehenden Anzeige-/Mappingpfad erneut gegen den realen Istzustand geprüft: `HomeView.xaml`, `HomeSectionDetailView.xaml`, `HomeViewModel`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, `HomeDashboardItems` und das Home-Mapping in `SupabaseService` waren der tatsächliche Fehlerort dieses Blocks.
+- Sichtbarer Hauptbefund: die Uhrzeit hing bislang nicht an einem eindeutigen Anzeigeweg. Sie lief teils im `Subtitle`, teils als separater Beginn-Text und in der Detailansicht zusätzlich in `AdditionalInfo`, wodurch sie im aktuellen UI nicht verlässlich bzw. nicht klar genug sichtbar war.
+- Den Zeitpfad deshalb gezielt auf eine einzige explizite Anzeigeform gezogen:
+  - `HomeWorkAssignmentItem` und `HomeAppointmentItem` tragen jetzt `TimeText` statt eines bloßen Beginnfelds
+  - `SupabaseService` erzeugt diesen Wert zentral über `BuildTimeRange(...)` aus Start- und Endzeit
+  - `HomeView.xaml` rendert `Uhrzeit: {TimeText}` jetzt für `Arbeitseinsatz` und `Termin` sichtbar in der Übersicht
+  - damit ist mindestens die Startzeit sichtbar; wenn Ende vorhanden ist, erscheint konsistent `Start – Ende`
+- Dieselbe Korrektur auf den Detailpfad übertragen:
+  - `HomeSectionDetailContext` wurde um `TimeText` ergänzt
+  - `HomeSectionDetailViewModel` reicht ihn unverändert nur für den ausgewählten Datensatz weiter
+  - `HomeSectionDetailView.xaml` zeigt `Uhrzeit` jetzt separat sichtbar an
+  - dadurch sind Start- und Endzeit für den ausgewählten `Arbeitseinsatz` und `Termin` in der Detailansicht klar sichtbar, ohne neue Navigation oder Mehrfachanzeige
+- Die doppelte Anzeige `Angemeldet: 0` konkret am Mappingursprung beseitigt:
+  - bislang kamen Kapazitätsdaten zweimal aus demselben Datensatzpfad
+  - einmal als einzelne Zeilen `Angemeldet` / `Freie Plätze` in `DetailInfo`
+  - zusätzlich nochmals zusammengefasst in `RegistrationInfo` über `BuildCapacityText(...)`
+  - der `Arbeitseinsatz`-Mappingpfad wurde deshalb bereinigt: `RegistrationInfo` bleibt als einzige Kapazitätsanzeige erhalten; die redundanten Einzelzeilen wurden aus `DetailInfo` entfernt
+- Ergebnis des Korrekturpfads:
+  - Home zeigt die Uhrzeit jetzt sichtbar und eindeutig für `Arbeitseinsatz` und `Termin`
+  - die Detailansicht zeigt Start-/Endzeit des ausgewählten Datensatzes sichtbar an
+  - `Angemeldet: 0` erscheint für `Arbeitseinsatz` nicht mehr mehrfach
+  - die Detailview bleibt auf die Skalardaten des konkret ausgewählten Datensatzes beschränkt und zeigt keine Sammel-/Mehrfachanzeige
+- `Bekanntmachung` und die generische Detailstruktur wurden mitgeprüft und nicht verschlechtert: dort bleibt `TimeText` leer, während `Subtitle`, `AdditionalInfo` und `Content` unverändert funktionieren.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Anzeige-Fixblock erfolgreich; MAUI wurde durch die kleinen Home-/Detailmodell- und Mappinganpassungen nicht beschädigt.
 
 ## 2026-03-24 – Prompt 1/1: Home-/Detailansicht für Arbeitseinsätze und Termine sichtbar vervollständigt, ohne neue Schattenlogik
 

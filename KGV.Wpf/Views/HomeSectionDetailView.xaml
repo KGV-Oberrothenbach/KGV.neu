@@ -26,6 +26,10 @@
                            Margin="0,6,0,0"
                            Foreground="Gray"
                            Visibility="{Binding HasSubtitle, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <TextBlock Text="{Binding TimeText, StringFormat=Uhrzeit: {0}}"
+                           Margin="0,8,0,0"
+                           Foreground="Gray"
+                           Visibility="{Binding HasTimeText, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <Border Margin="0,16,0,0"
                         Padding="12"
                         Background="{StaticResource KgvBackgroundBrush}"

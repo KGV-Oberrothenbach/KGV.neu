@@ -1681,27 +1681,21 @@ namespace KGV.Infrastructure.Services
             var title = FirstNonEmpty(record.Titel, record.Thema) ?? "Arbeitseinsatz";
             var begin = NormalizeTimeValue(record.Beginn);
             var end = NormalizeTimeValue(record.Ende);
+            var timeText = BuildTimeRange(record.Beginn, record.Ende);
             var detailInfoLines = new List<string>();
 
             AddDetailLine(detailInfoLines, "Thema", record.Thema, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase));
             AddDetailLine(detailInfoLines, "Datum", record.Datum?.ToString("dd.MM.yyyy"));
-            AddDetailLine(detailInfoLines, "Beginn", begin);
-            AddDetailLine(detailInfoLines, "Ende", end);
             AddDetailLine(detailInfoLines, "Treffpunkt", record.Treffpunkt);
-            AddDetailLine(detailInfoLines, "Angemeldet", record.AngemeldetCount?.ToString());
-            AddDetailLine(detailInfoLines, "Freie Plätze", record.FreiePlaetze?.ToString());
 
             if (record.AngemeldetCount.HasValue && record.FreiePlaetze.HasValue)
                 AddDetailLine(detailInfoLines, "Max. Teilnehmer", (record.AngemeldetCount.Value + record.FreiePlaetze.Value).ToString());
 
-            if (!string.IsNullOrWhiteSpace(capacityText))
-                detailInfoLines.Add(capacityText);
-
             return new HomeWorkAssignmentItem
             {
                 Title = title,
-                Subtitle = BuildDateSubtitle(record.Datum, record.Beginn, record.Ende),
-                BeginText = begin ?? string.Empty,
+                Subtitle = record.Datum?.ToString("dd.MM.yyyy") ?? string.Empty,
+                TimeText = timeText,
                 Details = description,
                 DetailInfo = string.Join(Environment.NewLine, detailInfoLines),
                 RegistrationInfo = !string.IsNullOrWhiteSpace(capacityText)
@@ -1718,20 +1712,17 @@ namespace KGV.Infrastructure.Services
             var title = FirstNonEmpty(record.Titel, record.Thema) ?? "Termin";
             var details = NormalizeHomeText(FirstNonEmpty(record.Inhalt, record.Beschreibung));
             var detailInfoLines = new List<string>();
-            var begin = NormalizeTimeValue(record.Beginn);
-            var end = NormalizeTimeValue(record.Ende);
+            var timeText = BuildTimeRange(record.Beginn, record.Ende);
 
             AddDetailLine(detailInfoLines, "Thema", record.Thema, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase));
             AddDetailLine(detailInfoLines, "Datum", record.Datum?.ToString("dd.MM.yyyy"));
-            AddDetailLine(detailInfoLines, "Beginn", begin);
-            AddDetailLine(detailInfoLines, "Ende", end);
             AddDetailLine(detailInfoLines, "Ort", record.Ort);
 
             return new HomeAppointmentItem
             {
                 Title = title,
-                Subtitle = BuildDateSubtitle(record.Datum, record.Beginn, record.Ende),
-                BeginText = begin ?? string.Empty,
+                Subtitle = record.Datum?.ToString("dd.MM.yyyy") ?? string.Empty,
+                TimeText = timeText,
                 Details = details,
                 DetailInfo = string.Join(Environment.NewLine, detailInfoLines)
             };

@@ -14,10 +14,12 @@ namespace KGV.ViewModels
         public string SectionTitle => _context.SectionTitle;
         public string Title => _context.Title;
         public string Subtitle => _context.Subtitle;
+        public string TimeText => _context.TimeText;
         public string Content => _context.Content;
         public string AdditionalInfo => _context.AdditionalInfo;
         public string RegistrationInfo => _context.RegistrationInfo;
         public bool HasSubtitle => !string.IsNullOrWhiteSpace(Subtitle);
+        public bool HasTimeText => !string.IsNullOrWhiteSpace(TimeText);
         public bool HasContent => !string.IsNullOrWhiteSpace(Content);
         public bool HasAdditionalInfo => !string.IsNullOrWhiteSpace(AdditionalInfo);
         public bool HasRegistrationInfo => !string.IsNullOrWhiteSpace(RegistrationInfo);

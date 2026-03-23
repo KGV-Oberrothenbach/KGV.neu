@@ -118,10 +118,10 @@
                                         <StackPanel>
                                             <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                                             <TextBlock Text="{Binding Subtitle}" Margin="0,4,0,0" Foreground="Gray" />
-                                            <TextBlock Text="{Binding BeginText, StringFormat=Beginn: {0}}"
+                                            <TextBlock Text="{Binding TimeText, StringFormat=Uhrzeit: {0}}"
                                                        Margin="0,4,0,0"
                                                        Foreground="Gray"
-                                                       Visibility="{Binding HasBeginText, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                       Visibility="{Binding HasTimeText, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                             <TextBlock Text="{Binding RegistrationInfo}"
                                                        Margin="0,8,0,0"
                                                        TextWrapping="Wrap"
@@ -162,10 +162,10 @@
                                     <StackPanel>
                                         <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                                         <TextBlock Text="{Binding Subtitle}" Foreground="Gray" />
-                                        <TextBlock Text="{Binding BeginText, StringFormat=Beginn: {0}}"
+                                        <TextBlock Text="{Binding TimeText, StringFormat=Uhrzeit: {0}}"
                                                    Margin="0,4,0,0"
                                                    Foreground="Gray"
-                                                   Visibility="{Binding HasBeginText, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                   Visibility="{Binding HasTimeText, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                     </StackPanel>
                                 </Button>
                             </DataTemplate>
