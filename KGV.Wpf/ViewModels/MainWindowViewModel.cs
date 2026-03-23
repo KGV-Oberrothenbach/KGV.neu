@@ -270,30 +270,6 @@ namespace KGV.ViewModels
                     IsVisible = true,
                     IsAdminOnly = true
                 });
-
-                NavigationItems.Add(new NavigationItem
-                {
-                    Title = "Arbeitseinsätze bearbeiten",
-                    ViewModelType = typeof(ArbeitseinsaetzeVerwaltungViewModel),
-                    IsVisible = true,
-                    IsAdminOnly = true
-                });
-
-                NavigationItems.Add(new NavigationItem
-                {
-                    Title = "Termine bearbeiten",
-                    ViewModelType = typeof(TermineVerwaltungViewModel),
-                    IsVisible = true,
-                    IsAdminOnly = true
-                });
-
-                NavigationItems.Add(new NavigationItem
-                {
-                    Title = "Bekanntmachungen bearbeiten",
-                    ViewModelType = typeof(BekanntmachungenVerwaltungViewModel),
-                    IsVisible = true,
-                    IsAdminOnly = true
-                });
             }
 
             if (UserContext.Has(PermissionFlags.CanEditAllMembers))

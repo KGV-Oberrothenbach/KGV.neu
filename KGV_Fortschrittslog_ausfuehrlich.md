@@ -2,6 +2,54 @@
 
 ---
 
+## 2026-03-23 – Prompt 1/1: Zeit-/Datumsbug der drei Verwaltungseditoren zentral behoben, Editorverhalten abgeschlossen und Navigation auf Home-only zurückgezogen
+
+- Den begonnenen Bugfix-/UX-Block zuerst gegen den realen Arbeitsbaum konsolidiert: im halbfertigen Stand lagen bereits ein neuer zentraler Typ-/Mappingansatz, Zurück-/Dirty-Check-Grundlagen und die Rücknahme der Hauptnavigation vor, aber noch nicht sauber verifiziert, dokumentiert und bis zum Build-/Abschlusszustand durchgezogen.
+- Die tatsächliche Ursache des Verschiebungsfehlers wurde im gemeinsamen Typ-/Serialisierungs-/Mappingpfad verortet und nicht pro Formular erraten:
+  - `termin.datum` ist fachlich eine PostgreSQL-`date`-Spalte
+  - `arbeitseinsatz.sichtbar_ab`, `sichtbar_bis`, `anmeldung_bis`, `termin.sichtbar_ab`, `sichtbar_bis` sowie `bekanntmachung.sichtbar_ab`, `sichtbar_bis` sind fachlich `timestamp without time zone`
+  - im App-Pfad liefen diese Werte aber als normale `DateTime`-Werte ohne explizite JSON-Konverter für den tatsächlichen DB-Typ
+  - dadurch konnten beim PostgREST-/JSON-Transport implizite `DateTimeKind`-/UTC-/Local-Interpretationen greifen, was die beobachteten `-1 Tag`- bzw. `-1/-2 Stunden`-Verschiebungen beim wiederholten Bearbeiten/Speichern erklärt
+- Die Korrektur deshalb zentral im Shared-Pfad umgesetzt und nicht als View-Hotfix:
+  - neue JSON-Konverter `PostgresDateOnlyJsonConverter` und `NullablePostgresTimestampWithoutTimeZoneJsonConverter`
+  - gezielte Annotation der betroffenen Record-Felder in `ArbeitseinsatzRecord`, `TerminRecord` und `BekanntmachungRecord`
+  - zusätzliche zentrale Normalisierung im `SupabaseService` für geladene Verwaltungsdatensätze sowie für `Create*Async(...)` und `Update*Async(...)`
+  - die letzte verbliebene abweichende Datumsnormalisierung im `CreateArbeitseinsatzAsync(...)`-Pfad wurde noch auf denselben date-only-Pfad vereinheitlicht
+- Damit werden die fachlich kritischen Felder jetzt konsistent ohne Zeitzonenverschiebung behandelt:
+  - `arbeitseinsatz.sichtbar_ab`
+  - `arbeitseinsatz.sichtbar_bis`
+  - `arbeitseinsatz.anmeldung_bis`
+  - `termin.datum`
+  - `termin.start_uhrzeit`
+  - `termin.end_uhrzeit`
+  - `termin.sichtbar_ab`
+  - `termin.sichtbar_bis`
+  - `bekanntmachung.sichtbar_ab`
+  - `bekanntmachung.sichtbar_bis`
+  Erneutes Speichern erzeugt damit keine weitere fachliche Verschiebung mehr.
+- Das Editorverhalten der drei bestehenden WPF-Verwaltungseditoren produktiv abgeschlossen, ohne neue Views oder neue Dialogarchitektur zu bauen:
+  - alle drei ViewModels erhalten den vorhandenen `MainWindowViewModel`-Kontext
+  - nach erfolgreichem Speichern wird nicht mehr in der Bearbeiten-View verharrt, sondern über den bestehenden Navigationspfad zurück auf `Home` gegangen
+  - alle drei Editor-Views besitzen jetzt einen `Zurück`-Button
+  - `Zurück` und `Abbrechen` verwenden denselben kleinen Dirty-Check über einen initialen Snapshot des Editorzustands
+  - Rückfrage erscheint nur bei echten Änderungen; nach erfolgreichem Speichern ist der Zustand wieder sauber
+- Die Navigation wurde auf den gewünschten Produktpfad zurückgezogen:
+  - `Arbeitseinsätze bearbeiten`
+  - `Termine bearbeiten`
+  - `Bekanntmachungen bearbeiten`
+  sind nicht mehr Teil der Hauptnavigation
+  - erreichbar bleiben sie nur über die vorhandenen Home-Buttons für Admin/Vorstand
+  - damit bleibt kein Doppelpfad Home + Hauptnavigation stehen
+- Kleine Abschlussbereinigung des halbfertigen Zustands zusätzlich erledigt:
+  - die drei Top-Leisten der Editor-Views wurden mit `Zurück` ergänzt
+  - der zwischenzeitliche Encodingrest beim Label `Öffnen` wurde bereinigt
+- WPF wurde konkret angepasst; MAUI wurde nicht mit neuer Editoroberfläche erweitert. Da die eigentliche Ursache im Shared-Core-/Service-/Typmapping lag, zieht MAUI fachlich denselben Fixpfad mit, ohne dass die mobile Oberfläche beschädigt wird.
+- Technisch verifiziert:
+  - `KGV.Wpf` baut erfolgreich
+  - `KGV.Maui` baut erfolgreich
+  - verbleibende Warnungen liegen im bestehenden `SupabaseService.Set(...)`-Pfad und sind reine Nullability-Hinweise, kein verbleibender Zeit-/Datumsfehler
+- Ergebnis: der begonnene Bugfix-/UX-Block für die drei bestehenden Verwaltungseditoren ist jetzt sauber abgeschlossen, dokumentiert, build-verifiziert und bereit für Commit/Push.
+
 ## 2026-03-22 – Prompt 2/2: Arbeitsstunden-Freigabe sauber abgeschlossen mit globalem Review-Lock, Prüftabelle und wiederverwendetem Editor
 
 - Den begonnenen Arbeitsstunden-Freigabe-Block zuerst gegen den realen Arbeitsbaum konsolidiert statt neu aufgemacht: die vorbereiteten Änderungen für Prüftabelle, globalen Lock auf `arbeitstunde`, Wiederverwendung des Erfassungseditors und die Umstellung auf `Arbeitsstunden freigeben` waren bereits im Repo angelegt, mussten aber noch sauber verifiziert, klein bereinigt und dokumentiert werden.

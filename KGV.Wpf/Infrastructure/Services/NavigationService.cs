@@ -81,17 +81,17 @@ namespace KGV.Infrastructure.Services
 
             if (viewModelType == typeof(ArbeitseinsaetzeVerwaltungViewModel))
             {
-                return new ArbeitseinsaetzeVerwaltungViewModel(_supabaseService);
+                return new ArbeitseinsaetzeVerwaltungViewModel(_supabaseService, mainVm);
             }
 
             if (viewModelType == typeof(TermineVerwaltungViewModel))
             {
-                return new TermineVerwaltungViewModel(_supabaseService);
+                return new TermineVerwaltungViewModel(_supabaseService, mainVm);
             }
 
             if (viewModelType == typeof(BekanntmachungenVerwaltungViewModel))
             {
-                return new BekanntmachungenVerwaltungViewModel(_supabaseService);
+                return new BekanntmachungenVerwaltungViewModel(_supabaseService, mainVm);
             }
 
             if (viewModelType == typeof(ParzellenVerwaltungViewModel))

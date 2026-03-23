@@ -615,7 +615,7 @@ namespace KGV.Infrastructure.Services
                 {
                     MitgliedId = record.MitgliedId,
                     SaisonId = record.SaisonId,
-                    Datum = NormalizeDateTime(record.Datum.Date),
+                    Datum = NormalizeDateOnly(record.Datum),
                     Stunden = record.Stunden,
                     ArtDerArbeit = record.ArtDerArbeit.Trim(),
                     Status = CleanOptionalText(record.Status),
@@ -990,6 +990,7 @@ namespace KGV.Infrastructure.Services
                 var response = await client.From<ArbeitseinsatzRecord>().Get();
 
                 return response?.Models?
+                    .Select(NormalizeArbeitseinsatzRecord)
                     .OrderBy(x => x.Datum)
                     .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
                     .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
@@ -1010,15 +1011,15 @@ namespace KGV.Infrastructure.Services
                 {
                     Titel = CleanRequiredText(record.Titel),
                     Beschreibung = CleanOptionalText(record.Beschreibung),
-                    Datum = NormalizeDateTime(record.Datum.Date),
+                    Datum = NormalizeDateOnly(record.Datum),
                     StartUhrzeit = NormalizeTerminTime(record.StartUhrzeit),
                     EndUhrzeit = NormalizeTerminTime(record.EndUhrzeit),
                     Treffpunkt = CleanOptionalText(record.Treffpunkt),
                     MaxTeilnehmer = record.MaxTeilnehmer,
                     StundenWert = record.StundenWert < 0 ? 0 : record.StundenWert,
-                    SichtbarAb = record.SichtbarAb.HasValue ? NormalizeDateTime(record.SichtbarAb.Value) : null,
-                    SichtbarBis = record.SichtbarBis.HasValue ? NormalizeDateTime(record.SichtbarBis.Value) : null,
-                    AnmeldungBis = record.AnmeldungBis.HasValue ? NormalizeDateTime(record.AnmeldungBis.Value) : null,
+                    SichtbarAb = NormalizeTimestampWithoutTimeZone(record.SichtbarAb),
+                    SichtbarBis = NormalizeTimestampWithoutTimeZone(record.SichtbarBis),
+                    AnmeldungBis = NormalizeTimestampWithoutTimeZone(record.AnmeldungBis),
                     Aktiv = record.Aktiv,
                     IsDemo = record.IsDemo
                 };
@@ -1026,6 +1027,7 @@ namespace KGV.Infrastructure.Services
                 await client.From<ArbeitseinsatzRecord>().Insert(insertRecord);
                 var reloadResponse = await client.From<ArbeitseinsatzRecord>().Get();
                 var created = reloadResponse?.Models?
+                    .Select(NormalizeArbeitseinsatzRecord)
                     .Where(x => IsSameArbeitseinsatzForReload(x, insertRecord))
                     .OrderByDescending(x => x.Id)
                     .FirstOrDefault();
@@ -1048,15 +1050,15 @@ namespace KGV.Infrastructure.Services
                     .Where(x => x.Id == record.Id)
                     .Set(x => x.Titel, CleanRequiredText(record.Titel))
                     .Set(x => x.Beschreibung, CleanOptionalText(record.Beschreibung))
-                    .Set(x => x.Datum, NormalizeDateTime(record.Datum.Date))
+                    .Set(x => x.Datum, NormalizeDateOnly(record.Datum))
                     .Set(x => x.StartUhrzeit, NormalizeTerminTime(record.StartUhrzeit))
                     .Set(x => x.EndUhrzeit, NormalizeTerminTime(record.EndUhrzeit))
                     .Set(x => x.Treffpunkt, CleanOptionalText(record.Treffpunkt))
                     .Set(x => x.MaxTeilnehmer, record.MaxTeilnehmer)
                     .Set(x => x.StundenWert, record.StundenWert < 0 ? 0 : record.StundenWert)
-                    .Set(x => x.SichtbarAb, record.SichtbarAb.HasValue ? NormalizeDateTime(record.SichtbarAb.Value) : null)
-                    .Set(x => x.SichtbarBis, record.SichtbarBis.HasValue ? NormalizeDateTime(record.SichtbarBis.Value) : null)
-                    .Set(x => x.AnmeldungBis, record.AnmeldungBis.HasValue ? NormalizeDateTime(record.AnmeldungBis.Value) : null)
+                    .Set(x => x.SichtbarAb, NormalizeTimestampWithoutTimeZone(record.SichtbarAb))
+                    .Set(x => x.SichtbarBis, NormalizeTimestampWithoutTimeZone(record.SichtbarBis))
+                    .Set(x => x.AnmeldungBis, NormalizeTimestampWithoutTimeZone(record.AnmeldungBis))
                     .Set(x => x.Aktiv, record.Aktiv)
                     .Set(x => x.IsDemo, record.IsDemo)
                     .Update();
@@ -1074,6 +1076,7 @@ namespace KGV.Infrastructure.Services
                 var response = await client.From<TerminRecord>().Get();
 
                 return response?.Models?
+                    .Select(NormalizeTerminRecord)
                     .OrderBy(x => x.Datum)
                     .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
                     .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
@@ -1094,17 +1097,18 @@ namespace KGV.Infrastructure.Services
                 {
                     Titel = CleanRequiredText(record.Titel),
                     Beschreibung = CleanOptionalText(record.Beschreibung),
-                    Datum = NormalizeDateTime(record.Datum.Date),
+                    Datum = NormalizeDateOnly(record.Datum),
                     StartUhrzeit = NormalizeTerminTime(record.StartUhrzeit),
                     EndUhrzeit = NormalizeTerminTime(record.EndUhrzeit),
-                    SichtbarAb = record.SichtbarAb.HasValue ? NormalizeDateTime(record.SichtbarAb.Value) : null,
-                    SichtbarBis = record.SichtbarBis.HasValue ? NormalizeDateTime(record.SichtbarBis.Value) : null,
+                    SichtbarAb = NormalizeTimestampWithoutTimeZone(record.SichtbarAb),
+                    SichtbarBis = NormalizeTimestampWithoutTimeZone(record.SichtbarBis),
                     Aktiv = record.Aktiv
                 };
 
                 await client.From<TerminRecord>().Insert(insertRecord);
                 var reloadResponse = await client.From<TerminRecord>().Get();
                 var created = reloadResponse?.Models?
+                    .Select(NormalizeTerminRecord)
                     .Where(x => IsSameTerminForReload(x, insertRecord))
                     .OrderByDescending(x => x.Id)
                     .FirstOrDefault();
@@ -1127,11 +1131,11 @@ namespace KGV.Infrastructure.Services
                     .Where(x => x.Id == record.Id)
                     .Set(x => x.Titel, CleanRequiredText(record.Titel))
                     .Set(x => x.Beschreibung, CleanOptionalText(record.Beschreibung))
-                    .Set(x => x.Datum, NormalizeDateTime(record.Datum.Date))
+                    .Set(x => x.Datum, NormalizeDateOnly(record.Datum))
                     .Set(x => x.StartUhrzeit, NormalizeTerminTime(record.StartUhrzeit))
                     .Set(x => x.EndUhrzeit, NormalizeTerminTime(record.EndUhrzeit))
-                    .Set(x => x.SichtbarAb, record.SichtbarAb.HasValue ? NormalizeDateTime(record.SichtbarAb.Value) : null)
-                    .Set(x => x.SichtbarBis, record.SichtbarBis.HasValue ? NormalizeDateTime(record.SichtbarBis.Value) : null)
+                    .Set(x => x.SichtbarAb, NormalizeTimestampWithoutTimeZone(record.SichtbarAb))
+                    .Set(x => x.SichtbarBis, NormalizeTimestampWithoutTimeZone(record.SichtbarBis))
                     .Set(x => x.Aktiv, record.Aktiv)
                     .Update();
 
@@ -1148,6 +1152,7 @@ namespace KGV.Infrastructure.Services
                 var response = await client.From<BekanntmachungRecord>().Get();
 
                 return response?.Models?
+                    .Select(NormalizeBekanntmachungRecord)
                     .OrderBy(x => x.SortOrder ?? int.MaxValue)
                     .ThenByDescending(x => x.SichtbarAb ?? x.CreatedAt ?? DateTime.MinValue)
                     .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
@@ -1168,8 +1173,8 @@ namespace KGV.Infrastructure.Services
                 {
                     Titel = CleanRequiredText(record.Titel),
                     InhaltHtml = CleanRequiredText(record.InhaltHtml),
-                    SichtbarAb = record.SichtbarAb.HasValue ? NormalizeDateTime(record.SichtbarAb.Value) : null,
-                    SichtbarBis = record.SichtbarBis.HasValue ? NormalizeDateTime(record.SichtbarBis.Value) : null,
+                    SichtbarAb = NormalizeTimestampWithoutTimeZone(record.SichtbarAb),
+                    SichtbarBis = NormalizeTimestampWithoutTimeZone(record.SichtbarBis),
                     SortOrder = record.SortOrder,
                     Aktiv = record.Aktiv
                 };
@@ -1177,6 +1182,7 @@ namespace KGV.Infrastructure.Services
                 await client.From<BekanntmachungRecord>().Insert(insertRecord);
                 var reloadResponse = await client.From<BekanntmachungRecord>().Get();
                 var created = reloadResponse?.Models?
+                    .Select(NormalizeBekanntmachungRecord)
                     .Where(x => IsSameBekanntmachungForReload(x, insertRecord))
                     .OrderByDescending(x => x.Id)
                     .FirstOrDefault();
@@ -1199,8 +1205,8 @@ namespace KGV.Infrastructure.Services
                     .Where(x => x.Id == record.Id)
                     .Set(x => x.Titel, CleanRequiredText(record.Titel))
                     .Set(x => x.InhaltHtml, CleanRequiredText(record.InhaltHtml))
-                    .Set(x => x.SichtbarAb, record.SichtbarAb.HasValue ? NormalizeDateTime(record.SichtbarAb.Value) : null)
-                    .Set(x => x.SichtbarBis, record.SichtbarBis.HasValue ? NormalizeDateTime(record.SichtbarBis.Value) : null)
+                    .Set(x => x.SichtbarAb, NormalizeTimestampWithoutTimeZone(record.SichtbarAb))
+                    .Set(x => x.SichtbarBis, NormalizeTimestampWithoutTimeZone(record.SichtbarBis))
                     .Set(x => x.SortOrder, record.SortOrder)
                     .Set(x => x.Aktiv, record.Aktiv)
                     .Update();
@@ -1314,6 +1320,77 @@ namespace KGV.Infrastructure.Services
             return value.HasValue
                 ? new TimeSpan(value.Value.Hours, value.Value.Minutes, 0)
                 : null;
+        }
+
+        private static DateTime NormalizeDateOnly(DateTime value)
+        {
+            return new DateTime(value.Year, value.Month, value.Day, 0, 0, 0, DateTimeKind.Unspecified);
+        }
+
+        private static DateTime? NormalizeTimestampWithoutTimeZone(DateTime? value)
+        {
+            if (!value.HasValue)
+                return null;
+
+            var timestamp = value.Value;
+            return new DateTime(timestamp.Year, timestamp.Month, timestamp.Day, timestamp.Hour, timestamp.Minute, timestamp.Second, timestamp.Millisecond, DateTimeKind.Unspecified);
+        }
+
+        private static ArbeitseinsatzRecord NormalizeArbeitseinsatzRecord(ArbeitseinsatzRecord record)
+        {
+            return new ArbeitseinsatzRecord
+            {
+                Id = record.Id,
+                Titel = record.Titel,
+                Beschreibung = record.Beschreibung,
+                Datum = NormalizeDateOnly(record.Datum),
+                StartUhrzeit = NormalizeTerminTime(record.StartUhrzeit),
+                EndUhrzeit = NormalizeTerminTime(record.EndUhrzeit),
+                Treffpunkt = record.Treffpunkt,
+                MaxTeilnehmer = record.MaxTeilnehmer,
+                StundenWert = record.StundenWert,
+                SichtbarAb = NormalizeTimestampWithoutTimeZone(record.SichtbarAb),
+                SichtbarBis = NormalizeTimestampWithoutTimeZone(record.SichtbarBis),
+                AnmeldungBis = NormalizeTimestampWithoutTimeZone(record.AnmeldungBis),
+                Aktiv = record.Aktiv,
+                CreatedAt = record.CreatedAt,
+                UpdatedAt = record.UpdatedAt,
+                IsDemo = record.IsDemo
+            };
+        }
+
+        private static TerminRecord NormalizeTerminRecord(TerminRecord record)
+        {
+            return new TerminRecord
+            {
+                Id = record.Id,
+                Titel = record.Titel,
+                Beschreibung = record.Beschreibung,
+                Datum = NormalizeDateOnly(record.Datum),
+                StartUhrzeit = NormalizeTerminTime(record.StartUhrzeit),
+                EndUhrzeit = NormalizeTerminTime(record.EndUhrzeit),
+                SichtbarAb = NormalizeTimestampWithoutTimeZone(record.SichtbarAb),
+                SichtbarBis = NormalizeTimestampWithoutTimeZone(record.SichtbarBis),
+                Aktiv = record.Aktiv,
+                CreatedAt = record.CreatedAt,
+                UpdatedAt = record.UpdatedAt
+            };
+        }
+
+        private static BekanntmachungRecord NormalizeBekanntmachungRecord(BekanntmachungRecord record)
+        {
+            return new BekanntmachungRecord
+            {
+                Id = record.Id,
+                Titel = record.Titel,
+                InhaltHtml = record.InhaltHtml,
+                SichtbarAb = NormalizeTimestampWithoutTimeZone(record.SichtbarAb),
+                SichtbarBis = NormalizeTimestampWithoutTimeZone(record.SichtbarBis),
+                SortOrder = record.SortOrder,
+                Aktiv = record.Aktiv,
+                CreatedAt = record.CreatedAt,
+                UpdatedAt = record.UpdatedAt
+            };
         }
 
         private static bool IsArbeitsstundeOffen(ArbeitsstundeRecord record)

@@ -6,6 +6,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace KGV.ViewModels
 {
@@ -18,16 +19,20 @@ namespace KGV.ViewModels
         public const string FocusSortOrder = "SortOrder";
 
         private readonly ISupabaseService _supabaseService;
+        private readonly MainWindowViewModel _mainWindowViewModel;
         private long? _editingBekanntmachungId;
+        private EditorStateSnapshot? _initialEditorState;
 
-        public BekanntmachungenVerwaltungViewModel(ISupabaseService supabaseService)
+        public BekanntmachungenVerwaltungViewModel(ISupabaseService supabaseService, MainWindowViewModel mainWindowViewModel)
         {
             _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
+            _mainWindowViewModel = mainWindowViewModel ?? throw new ArgumentNullException(nameof(mainWindowViewModel));
             AktualisierenCommand = new RelayCommand<object?>(_ => _ = LoadAsync());
             NeuCommand = new RelayCommand<object?>(_ => OpenNewEditor());
             OeffnenCommand = new RelayCommand<object?>(_ => OpenSelectedEditor(), _ => SelectedEntry != null);
             AbbrechenCommand = new RelayCommand<object?>(_ => CancelEdit(), _ => IsEditorOpen);
             SpeichernCommand = new RelayCommand<object?>(_ => _ = SaveAsync(), _ => IsEditorOpen);
+            ZurueckCommand = new RelayCommand<object?>(_ => _ = NavigateBackAsync());
         }
 
         public string Title => "Bekanntmachungen bearbeiten";
@@ -229,6 +234,7 @@ namespace KGV.ViewModels
         public RelayCommand<object?> OeffnenCommand { get; }
         public RelayCommand<object?> AbbrechenCommand { get; }
         public RelayCommand<object?> SpeichernCommand { get; }
+        public RelayCommand<object?> ZurueckCommand { get; }
 
         public async Task OnNavigatedToAsync()
         {
@@ -259,6 +265,9 @@ namespace KGV.ViewModels
 
         private void OpenSelectedEditor()
         {
+            if (IsEditorOpen && !CanCloseEditor())
+                return;
+
             if (SelectedEntry == null)
                 return;
 
@@ -267,6 +276,9 @@ namespace KGV.ViewModels
 
         private void OpenNewEditor()
         {
+            if (IsEditorOpen && !CanCloseEditor())
+                return;
+
             _editingBekanntmachungId = null;
             IsEditorOpen = true;
             IsNewMode = true;
@@ -280,6 +292,7 @@ namespace KGV.ViewModels
             SortOrderText = string.Empty;
             Aktiv = true;
             ClearValidation();
+            _initialEditorState = CaptureEditorState();
         }
 
         private void OpenEditor(BekanntmachungRecord record, bool isNew)
@@ -297,10 +310,14 @@ namespace KGV.ViewModels
             SortOrderText = record.SortOrder?.ToString() ?? string.Empty;
             Aktiv = record.Aktiv;
             ClearValidation();
+            _initialEditorState = CaptureEditorState();
         }
 
         private void CancelEdit()
         {
+            if (!CanCloseEditor())
+                return;
+
             ResetEditor();
         }
 
@@ -318,7 +335,8 @@ namespace KGV.ViewModels
                     return;
                 }
 
-                await LoadAsync(created.Id);
+                _initialEditorState = CaptureEditorState();
+                await NavigateHomeAsync();
                 return;
             }
 
@@ -329,7 +347,8 @@ namespace KGV.ViewModels
                 return;
             }
 
-            await LoadAsync(record.Id);
+            _initialEditorState = CaptureEditorState();
+            await NavigateHomeAsync();
         }
 
         private bool TryBuildRecord(out BekanntmachungRecord record)
@@ -451,6 +470,55 @@ namespace KGV.ViewModels
             FocusRequestToken++;
         }
 
+        private bool CanCloseEditor()
+        {
+            if (!IsEditorOpen)
+                return true;
+
+            if (!HasUnsavedChanges())
+                return true;
+
+            return MessageBox.Show(
+                "Es liegen ungespeicherte Änderungen vor. Änderungen verwerfen?",
+                "Ungespeicherte Änderungen",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning) == MessageBoxResult.Yes;
+        }
+
+        private bool HasUnsavedChanges()
+        {
+            return IsEditorOpen && _initialEditorState != null && _initialEditorState != CaptureEditorState();
+        }
+
+        private async Task NavigateBackAsync()
+        {
+            if (!CanCloseEditor())
+                return;
+
+            await NavigateHomeAsync();
+        }
+
+        private async Task NavigateHomeAsync()
+        {
+            var home = _mainWindowViewModel.NavigateToHomeViewModel();
+            if (home != null)
+                await _mainWindowViewModel.NavigateToAsync(home);
+        }
+
+        private EditorStateSnapshot CaptureEditorState()
+        {
+            return new EditorStateSnapshot(
+                Titel?.Trim() ?? string.Empty,
+                InhaltHtml?.Trim() ?? string.Empty,
+                SichtbarAbDatum?.Date,
+                SichtbarAbZeitText?.Trim() ?? string.Empty,
+                SichtbarBisDatum?.Date,
+                SichtbarBisZeitText?.Trim() ?? string.Empty,
+                SortOrderText?.Trim() ?? string.Empty,
+                Aktiv,
+                IsNewMode);
+        }
+
         private void ResetEditor()
         {
             _editingBekanntmachungId = null;
@@ -466,6 +534,7 @@ namespace KGV.ViewModels
             SortOrderText = string.Empty;
             Aktiv = true;
             ClearValidation();
+            _initialEditorState = null;
         }
 
         private void ClearValidation()
@@ -501,5 +570,16 @@ namespace KGV.ViewModels
 
             ValidationMessage = string.Empty;
         }
+
+        private sealed record EditorStateSnapshot(
+            string Titel,
+            string InhaltHtml,
+            DateTime? SichtbarAbDatum,
+            string SichtbarAbZeitText,
+            DateTime? SichtbarBisDatum,
+            string SichtbarBisZeitText,
+            string SortOrderText,
+            bool Aktiv,
+            bool IsNewMode);
     }
 }

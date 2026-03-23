@@ -1,4 +1,4 @@
-<UserControl x:Class="KGV.Views.BekanntmachungenVerwaltungEditorView"
+﻿<UserControl x:Class="KGV.Views.BekanntmachungenVerwaltungEditorView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <UserControl.Resources>
@@ -34,8 +34,9 @@
         <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,16">
             <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" DockPanel.Dock="Left" />
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="Zurück" Margin="0,0,10,0" Command="{Binding ZurueckCommand}" />
                 <Button Content="Aktualisieren" Margin="0,0,10,0" Command="{Binding AktualisierenCommand}" />
-                <Button Content="Öffnen" Margin="0,0,10,0" Command="{Binding OeffnenCommand}" />
+                <Button Content="Oeffnen" Margin="0,0,10,0" Command="{Binding OeffnenCommand}" />
                 <Button Content="Neu" Command="{Binding NeuCommand}" />
             </StackPanel>
         </DockPanel>
@@ -53,7 +54,7 @@
                              BorderThickness="0"
                              Visibility="{Binding HasEntries, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <ListBox.InputBindings>
-                            <MouseBinding Gesture="LeftDoubleClick" Command="{Binding OeffnenCommand}" />
+                <Button Content="Oeffnen" Margin="0,0,10,0" Command="{Binding OeffnenCommand}" />
                         </ListBox.InputBindings>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
@@ -131,7 +132,7 @@
                             <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,12,0,0">
                                 <WrapPanel Margin="0,0,0,8">
                                     <Button Content="Absatz" Margin="0,0,8,8" Tag="paragraph" Click="InsertHtmlSnippet_Click" />
-                                    <Button Content="Überschrift" Margin="0,0,8,8" Tag="heading" Click="InsertHtmlSnippet_Click" />
+                                    <Button Content="Ãœberschrift" Margin="0,0,8,8" Tag="heading" Click="InsertHtmlSnippet_Click" />
                                     <Button Content="Fett" Margin="0,0,8,8" Tag="strong" Click="InsertHtmlSnippet_Click" />
                                     <Button Content="Link" Margin="0,0,8,8" Tag="link" Click="InsertHtmlSnippet_Click" />
                                     <Button Content="Liste" Margin="0,0,8,8" Tag="list" Click="InsertHtmlSnippet_Click" />
@@ -229,3 +230,5 @@
         </Grid>
     </Grid>
 </UserControl>
+
+

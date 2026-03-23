@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-03-23 – Verwaltungseditoren sauber abgeschlossen: Zeit-/Datumsbug zentral behoben, Zurück-/Dirty-Check ergänzt, Navigation auf Home-only zurückgezogen
+
+- Den halbfertigen Stand der drei produktiven Verwaltungseditoren (`Arbeitseinsätze`, `Termine`, `Bekanntmachungen`) zuerst gegen Arbeitsbaum, Records, `SupabaseService`, WPF-ViewModels und Navigation geprüft und nur den begonnenen Block konsolidiert statt neue Fachlogik zu eröffnen.
+- Der reproduzierbare Verschiebungsfehler ließ sich auf den gemeinsamen Typ-/Mappingpfad eingrenzen, nicht auf einzelne Formulare:
+  - `termin.datum` lief als `DateTime`, fachlich ist die Spalte aber `date`
+  - `sichtbar_ab`, `sichtbar_bis`, `anmeldung_bis` liefen als `DateTime`, fachlich sind sie `timestamp without time zone`
+  - dadurch konnten beim JSON-/PostgREST-Transport implizite `DateTimeKind`-/Zeitzoneninterpretationen greifen, was die beobachteten `-1 Tag`- bzw. `-1/-2 Stunden`-Verschiebungen beim erneuten Bearbeiten/Speichern erklärte
+- Die Ursache deshalb zentral und nachvollziehbar im Shared-Pfad korrigiert:
+  - neue explizite JSON-Konverter für PostgreSQL-`date` und `timestamp without time zone`
+  - gezielte Annotation der betroffenen Felder in `ArbeitseinsatzRecord`, `TerminRecord` und `BekanntmachungRecord`
+  - zusätzliche zentrale Normalisierung im `SupabaseService` für geladene Verwaltungsdatensätze sowie für die Create-/Update-Pfade der drei Module
+  - die letzte verbliebene abweichende Datumsnormalisierung im `arbeitseinsatz`-Create-Pfad wurde ebenfalls auf denselben date-only-Pfad gezogen
+- Ergebnis des Fixpfads:
+  - `arbeitseinsatz.sichtbar_ab`, `sichtbar_bis`, `anmeldung_bis` bleiben stabil
+  - `termin.datum`, `start_uhrzeit`, `end_uhrzeit`, `sichtbar_ab`, `sichtbar_bis` bleiben stabil
+  - `bekanntmachung.sichtbar_ab` und `sichtbar_bis` bleiben stabil
+  - erneutes Speichern erzeugt keine weitere fachliche Verschiebung mehr
+- Das Editorverhalten der drei bestehenden WPF-Verwaltungsviews jetzt sauber abgeschlossen:
+  - nach erfolgreichem Speichern wird die Bearbeiten-View automatisch geschlossen
+  - Rückkehr erfolgt über den vorhandenen Navigationspfad zurück zur `HomeView`
+  - alle drei Editor-Views haben jetzt einen `Zurück`-Button
+  - `Zurück` und `Abbrechen` prüfen auf echte ungespeicherte Änderungen
+  - die Rückfrage erscheint nur bei tatsächlichen Änderungen; nach erfolgreichem Speichern gilt der Zustand wieder als sauber
+- Die Navigation wurde auf den gewünschten Produktpfad zurückgezogen:
+  - `Arbeitseinsätze bearbeiten`, `Termine bearbeiten` und `Bekanntmachungen bearbeiten` sind nicht mehr in der Hauptnavigation verlinkt
+  - erreichbar bleiben sie nur noch über die vorhandenen Home-Buttons für Admin/Vorstand
+  - der Doppelpfad Home + Hauptnavigation wurde damit beseitigt
+- WPF konkret angepasst, MAUI bewusst nicht mit neuer Verwaltungsoberfläche erweitert; da die eigentliche Ursache im Shared-Core-/Service-/Typmapping lag, profitiert MAUI vom zentralen Fix ohne zusätzlichen UI-Umbau.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen erfolgreich. Verbleibende Buildwarnungen liegen im bestehenden `SupabaseService.Set(...)`-Pfad und sind reine Nullability-Hinweise, kein verbleibender Zeit-/Datumsfehler.
+
 ## 2026-03-22 – Arbeitsstunden-Freigabe produktiv abgeschlossen: globaler Review-Lock, Prüftabelle und Editor-Wiederverwendung
 
 - Den begonnenen Arbeitsstunden-Freigabe-Block gegen den realen Arbeitsbaum erneut geprüft und nur konsolidiert statt neu umgebaut: vorhanden waren bereits die neue Prüftabelle, der globale Lock-Unterbau auf `arbeitstunde`, die Wiederverwendung des Erfassungseditors im Prüfkontext sowie die sprachliche Konsolidierung auf `Arbeitsstunden freigeben`.

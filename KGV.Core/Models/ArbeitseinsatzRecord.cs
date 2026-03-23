@@ -1,6 +1,8 @@
 using System;
+using System.Text.Json.Serialization;
 using Supabase.Postgrest.Attributes;
 using Supabase.Postgrest.Models;
+using KGV.Core.Utilities;
 
 namespace KGV.Core.Models;
 
@@ -18,6 +20,7 @@ public sealed class ArbeitseinsatzRecord : BaseModel
     public string? Beschreibung { get; set; }
 
     [Column("datum")]
+    [JsonConverter(typeof(PostgresDateOnlyJsonConverter))]
     public DateTime Datum { get; set; }
 
     [Column("start_uhrzeit")]
@@ -36,12 +39,15 @@ public sealed class ArbeitseinsatzRecord : BaseModel
     public decimal StundenWert { get; set; }
 
     [Column("sichtbar_ab")]
+    [JsonConverter(typeof(NullablePostgresTimestampWithoutTimeZoneJsonConverter))]
     public DateTime? SichtbarAb { get; set; }
 
     [Column("sichtbar_bis")]
+    [JsonConverter(typeof(NullablePostgresTimestampWithoutTimeZoneJsonConverter))]
     public DateTime? SichtbarBis { get; set; }
 
     [Column("anmeldung_bis")]
+    [JsonConverter(typeof(NullablePostgresTimestampWithoutTimeZoneJsonConverter))]
     public DateTime? AnmeldungBis { get; set; }
 
     [Column("aktiv")]
