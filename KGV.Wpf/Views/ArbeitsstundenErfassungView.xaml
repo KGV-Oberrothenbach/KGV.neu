@@ -37,11 +37,12 @@
             <StackPanel>
                 <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="Bold" />
                 <TextBlock Text="{Binding Description}" Margin="0,10,0,0" TextWrapping="Wrap" />
-                <TextBlock Margin="0,12,0,0">
-                    <Run Text="Mitglied: " />
-                    <Run Text="{Binding CurrentMemberText}" FontWeight="SemiBold" />
-                </TextBlock>
-
+                <StackPanel Margin="0,12,0,0"
+                            Orientation="Horizontal">
+                    <TextBlock Text="Mitglied: " />
+                    <TextBlock Text="{Binding CurrentMemberText, Mode=OneWay}"
+                               FontWeight="SemiBold" />
+                </StackPanel>
                 <TextBlock Text="{Binding ValidationMessage}"
                            Margin="0,14,0,0"
                            Foreground="IndianRed"
