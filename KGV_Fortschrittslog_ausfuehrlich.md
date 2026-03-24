@@ -2,6 +2,61 @@
 
 ---
 
+## 2026-03-24 – Prompt 2/2: MAUI-Parität Block 1 für Mitgliedskontext, Admin-Menü und Dokumente sauber nachgezogen
+
+- Den echten aktuellen Stand zuerst wieder direkt im lokalen Repository/Arbeitsbaum geprüft.
+- Realer Ausgangszustand vor dem Block:
+  - `MemberSearchPage` endete mobil weiterhin nur mit einem `DisplayAlert`
+  - `MeineDatenPage` war noch ein Platzhalter und kein echter Mitgliedspfad
+  - `DokumentePage` war weiterhin nur ein Platzhalter
+  - `Benutzerverwaltung` hing in MAUI noch lose global im Shell-Menü und nicht am ausgewählten Mitgliedskontext
+  - WPF hatte für denselben Bereich bereits den fachlich sauberen Referenzpfad `Mitgliedersuche -> MemberDetailViewModel`, kontextgebundene `Benutzerverwaltung` und einen echten Dokumente-Pfad
+- Den WPF-/MAUI-Abgleich für diesen Block gezielt auf die drei Kernlücken fokussiert:
+  - echter Mitgliedskontext statt Alert
+  - `Admin-Menü` im ausgewählten Mitgliedskontext
+  - echter Mitgliedsdokumente-Pfad statt Platzhalter
+- Für den mobilen Mitgliedskontext einen kleinen gemeinsamen Zustandsanker ergänzt:
+  - neuer `MemberContextState` hält das aktuell ausgewählte Mitglied für die mobilen Kontextseiten
+  - bewusst klein gehalten, keine neue Navigationsarchitektur
+- Mitgliedersuche mobil produktiv nachgezogen:
+  - `MemberSearchViewModel` löst die Auswahl jetzt bis zu einem echten `MemberDTO` auf
+  - `MemberSearchPage` setzt danach den Mitgliedskontext und navigiert in die vorhandene `MeineDatenPage`
+  - der alte reine `DisplayAlert`-Abbruch entfällt damit aus dem aktiven Flow
+- Die vorhandene `MeineDatenPage` minimal-invasiv in einen echten Mitgliedskontext umgebaut statt eine neue große Parallelseite zu eröffnen:
+  - Grunddaten des ausgewählten Mitglieds
+  - Kontakt/Adresse
+  - aktuelle/historische Garten-/Parzellenzuordnungen
+  - Dokumente-Einstieg
+  - eigenes `Admin-Menü`
+- `Admin-Menü` fachlich an WPF ausgerichtet:
+  - sichtbar für Admin/Vorstand im Mitgliedskontext
+  - Rollenanzeige/-wechsel läuft über denselben Lock-/`UpdateMitgliedAsync(...)`-Pfad wie auf dem Desktop
+  - `Benutzerverwaltung` bleibt Admin-only und wird nicht für Vorstand geöffnet
+  - die bisher lose globale Shell-Variante `Benutzerverwaltung` wurde aus der `AdminShell` entfernt
+- Dokumente-Pfad auf den nutzbaren Kern gezogen:
+  - `DokumentePage` ist nicht mehr Platzhalter, sondern lädt reale Mitgliedsdokumente über `GetMitgliedDokumenteAsync(...)`
+  - Öffnen läuft über `CreateDokumentSignedUrlAsync(...)` und mobilen Launcher
+  - Garten-Dokumente wurden für diesen Block bewusst noch nicht mitgezogen; zuerst steht der belastbare Mitgliedsdokumente-Kern
+- `Benutzerverwaltung` mobil an den Mitgliedskontext gebunden:
+  - `UserManagementViewModel` / `UserManagementPage` filtern auf das ausgewählte Mitglied
+  - bei noch fehlender Appuser-Zuordnung wird wie in WPF ein Platzhalterkontext für Einladung/Erstlogin aufgebaut
+  - mobil nutzbar sind jetzt im Kontextpfad:
+    - Einladung / Erstlogin
+    - Passwort-Reset
+    - Appuser entfernen
+    - Rollenpflege
+- Bewusst nicht gemacht:
+  - kein Endausbau der Garten-Unterpfade innerhalb des Mitgliedskontexts
+  - keine neue Shell-/Detailgesamtarchitektur
+  - keine Änderung an Login-/Shell-Härtung außer den für diesen Block nötigen Routen-/Menüanpassungen
+- Fachliche Kurzvalidierung nach dem Umbau:
+  - Admin kann Mitglied auswählen
+  - landet im Mitgliedskontext
+  - sieht dort das `Admin-Menü`
+  - Mitgliedsdokumente sind erreichbar
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-24 – Prompt 1/2: MAUI-Branding korrigiert und ehrlichen WPF-/MAUI-Abgleich vorbereitet
 
 - Den echten Stand zuerst direkt im lokalen Repository/Arbeitsbaum geprüft statt von einer bereits angeglichenen Mobilbasis auszugehen.

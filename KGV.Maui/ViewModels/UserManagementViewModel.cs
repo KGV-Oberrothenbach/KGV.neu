@@ -1,6 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
+using KGV.Maui.State;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -13,15 +14,17 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 {
     private readonly IAuthService _authService;
     private readonly ISupabaseService _supabaseService;
+    private readonly MemberContextState _memberContextState;
     private AppUserDTO? _selectedUser;
     private string _selectedRole = UserRoles.User;
     private string _statusMessage = string.Empty;
     private bool _isBusy;
 
-    public UserManagementViewModel(IAuthService authService, ISupabaseService supabaseService)
+    public UserManagementViewModel(IAuthService authService, ISupabaseService supabaseService, MemberContextState memberContextState)
     {
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
+        _memberContextState = memberContextState ?? throw new ArgumentNullException(nameof(memberContextState));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -29,15 +32,34 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
     public ObservableCollection<AppUserDTO> Users { get; } = new();
     public ObservableCollection<string> Roles { get; } = new(UserRoles.AssignableRoles);
 
+    private MemberDTO? BoundMember => _memberContextState.SelectedMember;
+    private AppUserDTO? TargetUser => IsBoundToMember ? (Users.Count > 0 ? Users[0] : null) : SelectedUser;
+
+    public bool IsBoundToMember => BoundMember?.Id > 0;
+    public string BoundMemberDisplayName => BoundMember == null
+        ? string.Empty
+        : string.IsNullOrWhiteSpace(BoundMember.DisplayName)
+            ? $"Mitglied #{BoundMember.Id}"
+            : BoundMember.DisplayName;
+    public string BoundMemberInfo => BoundMember == null
+        ? "Es wurde kein Mitglied ausgewählt."
+        : $"Ausgewähltes Mitglied: {BoundMemberDisplayName} (ID: {BoundMember.Id})";
+
     public string Title => "Benutzerverwaltung";
-    public string Description => "Lädt App-User-/Mitgliedszuordnungen und bietet die produktiven Auth-Admin-Aktionen für Einladung, Erstlogin und Passwort-Reset auch mobil an.";
-    public string AdminHint => "Einladungen und Passwort-Reset laufen über denselben OTP-/Recovery-Hauptweg wie in WPF. Die E-Mail-Änderung bleibt weiterhin nur für das aktuell angemeldete Konto belastbar und wird mobil deshalb nur in diesem Fall angeboten.";
+    public string Description => IsBoundToMember
+        ? "Verwaltet den Appuser des aktuell ausgewählten Mitglieds. Nutzer hinzufügen, Nutzer entfernen und Rollenbearbeitung bleiben damit im mobilen Mitgliedskontext gebunden."
+        : "Lädt App-User-/Mitgliedszuordnungen und bietet die produktiven Auth-Admin-Aktionen für Einladung, Erstlogin und Passwort-Reset auch mobil an.";
+    public string AdminHint => IsBoundToMember
+        ? "Einladungen und Passwort-Reset laufen auf dem ausgewählten Mitgliedskontext. Die E-Mail-Änderung bleibt auch mobil nur für das aktuell angemeldete Konto belastbar."
+        : "Einladungen und Passwort-Reset laufen über denselben OTP-/Recovery-Hauptweg wie in WPF. Die E-Mail-Änderung bleibt weiterhin nur für das aktuell angemeldete Konto belastbar und wird mobil deshalb nur in diesem Fall angeboten.";
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
-    public bool CanInvite => !IsBusy && SelectedUser != null && !string.IsNullOrWhiteSpace(SelectedUser.Email);
-    public bool CanResetPassword => !IsBusy && SelectedUser != null && !string.IsNullOrWhiteSpace(SelectedUser.Email);
-    public bool CanChangeSelectedEmail => !IsBusy && SelectedUser?.AuthUserId?.ToString().Equals(_authService.CurrentUserId, StringComparison.OrdinalIgnoreCase) == true;
-    public bool IsRoleEditable => SelectedUser?.MitgliedId is > 0 and not 7;
-    public bool CanSaveRole => !IsBusy && _authService.IsAdmin && IsRoleEditable && SelectedUser != null && !string.Equals(SelectedRole, NormalizeRole(SelectedUser.Role), StringComparison.OrdinalIgnoreCase);
+    public bool HasSelectedUser => TargetUser != null;
+    public bool CanInvite => !IsBusy && TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email) && (!IsBoundToMember || BoundMember != null);
+    public bool CanResetPassword => !IsBusy && TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email);
+    public bool CanChangeSelectedEmail => !IsBusy && TargetUser?.AuthUserId?.ToString().Equals(_authService.CurrentUserId, StringComparison.OrdinalIgnoreCase) == true;
+    public bool CanRemoveUser => !IsBusy && IsBoundToMember && TargetUser?.AuthUserId != null;
+    public bool IsRoleEditable => TargetUser?.MitgliedId is > 0 and not 7;
+    public bool CanSaveRole => !IsBusy && _authService.IsAdmin && IsRoleEditable && TargetUser != null && !string.Equals(SelectedRole, NormalizeRole(TargetUser.Role), StringComparison.OrdinalIgnoreCase);
 
     public string SelectedRole
     {
@@ -69,11 +91,10 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(CanChangeSelectedEmail));
             OnPropertyChanged(nameof(HasSelectedUser));
             OnPropertyChanged(nameof(IsRoleEditable));
+            OnPropertyChanged(nameof(CanRemoveUser));
             _ = LoadSelectedRoleAsync(value);
         }
     }
-
-    public bool HasSelectedUser => SelectedUser != null;
 
     public string StatusMessage
     {
@@ -91,7 +112,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 
     public async Task<bool> SaveRoleAsync()
     {
-        if (!CanSaveRole || SelectedUser?.MitgliedId is not > 0)
+        if (!CanSaveRole || TargetUser?.MitgliedId is not > 0)
             return false;
 
         var userId = _authService.CurrentUserId;
@@ -107,7 +128,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 
         try
         {
-            var memberId = SelectedUser.MitgliedId.Value;
+            var memberId = TargetUser.MitgliedId.Value;
             lockAcquired = await _supabaseService.TryLockMitgliedAsync(memberId, userId);
             if (!lockAcquired)
             {
@@ -122,24 +143,8 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
                 return false;
             }
 
-            var dto = new MemberDTO
-            {
-                Id = rec.Id,
-                Vorname = rec.Vorname ?? string.Empty,
-                Nachname = rec.Name ?? string.Empty,
-                Email = rec.Email ?? string.Empty,
-                Role = SelectedRole,
-                Geburtsdatum = rec.Geburtsdatum,
-                Strasse = rec.Adresse ?? string.Empty,
-                PLZ = rec.Plz ?? string.Empty,
-                Ort = rec.Ort ?? string.Empty,
-                Telefon = rec.Telefon ?? string.Empty,
-                Mobilnummer = rec.Handy ?? string.Empty,
-                Bemerkungen = rec.Bemerkung ?? string.Empty,
-                WhatsappEinwilligung = rec.WhatsappEinwilligung,
-                MitgliedSeit = rec.MitgliedSeit,
-                MitgliedEnde = rec.MitgliedEnde
-            };
+            var dto = MapMember(rec);
+            dto.Role = SelectedRole;
 
             var ok = await _supabaseService.UpdateMitgliedAsync(dto, userId);
             if (!ok)
@@ -148,8 +153,9 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
                 return false;
             }
 
+            _memberContextState.SetSelectedMember(dto);
             StatusMessage = "Rolle gespeichert.";
-            await LoadAsync(reselectSelected: SelectedUser);
+            await LoadAsync(reselectSelected: TargetUser);
             return true;
         }
         catch (Exception ex)
@@ -160,7 +166,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
         finally
         {
             if (lockAcquired)
-                await _supabaseService.ReleaseLockMitgliedAsync(SelectedUser!.MitgliedId!.Value, userId!, force: false);
+                await _supabaseService.ReleaseLockMitgliedAsync(TargetUser!.MitgliedId!.Value, userId!, force: false);
 
             IsBusy = false;
         }
@@ -179,25 +185,25 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(CanInvite));
             OnPropertyChanged(nameof(CanResetPassword));
             OnPropertyChanged(nameof(CanChangeSelectedEmail));
+            OnPropertyChanged(nameof(CanRemoveUser));
+            OnPropertyChanged(nameof(CanSaveRole));
         }
     }
 
     public async Task InitializeAsync()
     {
-        if (Users.Count > 0)
-            return;
-
-        await LoadAsync();
+        await LoadAsync(reselectSelected: TargetUser);
     }
 
     public async Task RefreshAsync()
     {
-        await LoadAsync();
+        await LoadAsync(reselectSelected: TargetUser);
     }
 
     public async Task<bool> InviteAsync()
     {
-        if (SelectedUser == null)
+        var targetUser = TargetUser;
+        if (targetUser == null)
             return false;
 
         IsBusy = true;
@@ -205,9 +211,9 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 
         try
         {
-            var result = await _authService.InviteUserAsync(SelectedUser);
+            var result = await _authService.InviteUserAsync(targetUser);
             StatusMessage = result.Message ?? (result.Success ? "Einladung angestoßen." : "Einladung fehlgeschlagen.");
-            await LoadAsync(reselectSelected: SelectedUser);
+            await LoadAsync(reselectSelected: targetUser);
             return result.Success;
         }
         catch (Exception ex)
@@ -221,9 +227,42 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
         }
     }
 
+    public async Task<bool> RemoveUserAsync()
+    {
+        var targetUser = TargetUser;
+        if (targetUser?.AuthUserId == null)
+        {
+            StatusMessage = "Für das ausgewählte Mitglied ist aktuell kein Appuser verknüpft.";
+            return false;
+        }
+
+        IsBusy = true;
+        StatusMessage = string.Empty;
+
+        try
+        {
+            var removed = await _authService.RemoveUserAsync(targetUser);
+            StatusMessage = removed
+                ? "Der Appuser des ausgewählten Mitglieds wurde entfernt."
+                : "Der Appuser konnte aktuell nicht entfernt werden.";
+            await LoadAsync();
+            return removed;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Nutzer entfernen fehlgeschlagen: {ex.Message}";
+            return false;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     public async Task<bool> SendPasswordResetAsync()
     {
-        if (SelectedUser == null || string.IsNullOrWhiteSpace(SelectedUser.Email))
+        var targetUser = TargetUser;
+        if (targetUser == null || string.IsNullOrWhiteSpace(targetUser.Email))
             return false;
 
         IsBusy = true;
@@ -231,7 +270,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 
         try
         {
-            var success = await _authService.SendPasswordResetEmailAsync(SelectedUser.Email.Trim());
+            var success = await _authService.SendPasswordResetEmailAsync(targetUser.Email.Trim());
             StatusMessage = success
                 ? "OTP-Code für Passwort-vergessen wurde versendet. Die Codeeingabe erfolgt weiterhin im Login."
                 : "Passwort-Reset konnte nicht angestoßen werden.";
@@ -306,7 +345,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
                 : "OTP-Code konnte nicht bestätigt werden.";
 
             if (success)
-                await LoadAsync(reselectSelected: SelectedUser);
+                await LoadAsync(reselectSelected: TargetUser);
 
             return success;
         }
@@ -329,20 +368,32 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
         try
         {
             var users = await _authService.GetAppUsersAsync();
+            var filteredUsers = users;
+            if (IsBoundToMember)
+                filteredUsers = users.FindAll(x => x.MitgliedId == BoundMember!.Id);
+
+            if (IsBoundToMember && filteredUsers.Count == 0)
+                filteredUsers.Add(CreatePlaceholderUser());
+
             Users.Clear();
-            foreach (var user in users)
+            foreach (var user in filteredUsers)
                 Users.Add(user);
 
-            SelectedUser = reselectSelected == null
-                ? null
-                : FindMatchingUser(reselectSelected.AuthUserId, reselectSelected.MitgliedId, reselectSelected.Email);
+            if (IsBoundToMember)
+            {
+                SelectedUser = Users.Count > 0 ? Users[0] : null;
+            }
+            else
+            {
+                SelectedUser = reselectSelected == null
+                    ? null
+                    : FindMatchingUser(reselectSelected.AuthUserId, reselectSelected.MitgliedId, reselectSelected.Email);
+            }
 
-            if (SelectedUser == null)
+            if (TargetUser == null)
                 SelectedRole = UserRoles.User;
 
-            StatusMessage = Users.Count == 0
-                ? "Keine belastbar ableitbaren Benutzer-/Mitgliedszuordnungen gefunden."
-                : $"{Users.Count} Benutzer-/Mitgliedseinträge geladen.";
+            StatusMessage = BuildStatusMessage();
         }
         catch (Exception ex)
         {
@@ -371,9 +422,22 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
         return null;
     }
 
+    private AppUserDTO CreatePlaceholderUser()
+    {
+        return new AppUserDTO
+        {
+            MitgliedId = BoundMember?.Id,
+            DisplayName = BoundMemberDisplayName,
+            Email = BoundMember?.Email ?? string.Empty,
+            Role = BoundMember?.Role ?? string.Empty,
+            Aktiv = true
+        };
+    }
+
     private async Task LoadSelectedRoleAsync(AppUserDTO? user)
     {
-        if (user?.MitgliedId is not > 0)
+        var target = IsBoundToMember ? TargetUser : user;
+        if (target?.MitgliedId is not > 0)
         {
             SelectedRole = UserRoles.User;
             return;
@@ -381,17 +445,53 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 
         try
         {
-            var member = await _supabaseService.GetMitgliedByIdAsync(user.MitgliedId.Value);
-            if (SelectedUser?.MitgliedId != user.MitgliedId)
+            var member = await _supabaseService.GetMitgliedByIdAsync(target.MitgliedId.Value);
+            if (TargetUser?.MitgliedId != target.MitgliedId)
                 return;
 
-            SelectedRole = NormalizeRole(member?.Role ?? user.Role);
+            SelectedRole = NormalizeRole(member?.Role ?? target.Role);
         }
         catch
         {
-            if (SelectedUser?.MitgliedId == user.MitgliedId)
-                SelectedRole = NormalizeRole(user.Role);
+            if (TargetUser?.MitgliedId == target.MitgliedId)
+                SelectedRole = NormalizeRole(target.Role);
         }
+    }
+
+    private string BuildStatusMessage()
+    {
+        if (!IsBoundToMember)
+            return Users.Count == 0
+                ? "Keine belastbar ableitbaren Benutzer-/Mitgliedszuordnungen gefunden."
+                : $"{Users.Count} Benutzer-/Mitgliedseinträge geladen.";
+
+        var targetUser = TargetUser;
+        if (targetUser == null)
+            return "Für das ausgewählte Mitglied konnte kein Benutzerkontext geladen werden.";
+
+        return targetUser.AuthUserId.HasValue
+            ? "Appuser-Zuordnung für das ausgewählte Mitglied geladen."
+            : "Für das ausgewählte Mitglied besteht aktuell noch kein Appuser. Über 'Einladung / Erstlogin-Code senden' kann der produktive Einladungs-/Erstlogin-Pfad gestartet werden.";
+    }
+
+    private static MemberDTO MapMember(MitgliedRecord rec)
+    {
+        return new MemberDTO
+        {
+            Id = rec.Id,
+            Vorname = rec.Vorname ?? string.Empty,
+            Nachname = rec.Name ?? string.Empty,
+            Email = rec.Email ?? string.Empty,
+            Telefon = rec.Telefon ?? string.Empty,
+            Mobilnummer = rec.Handy ?? string.Empty,
+            Strasse = rec.Adresse ?? string.Empty,
+            PLZ = rec.Plz ?? string.Empty,
+            Ort = rec.Ort ?? string.Empty,
+            Geburtsdatum = rec.Geburtsdatum,
+            MitgliedSeit = rec.MitgliedSeit,
+            MitgliedEnde = rec.MitgliedEnde,
+            Role = rec.Role ?? string.Empty
+        };
     }
 
     private static string NormalizeRole(string? role)

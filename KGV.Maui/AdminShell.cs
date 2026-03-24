@@ -28,6 +28,9 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (_readingRoutesRegistered)
             return;
 
+        Routing.RegisterRoute(nameof(MeineDatenPage), typeof(MeineDatenPage));
+        Routing.RegisterRoute(nameof(DokumentePage), typeof(DokumentePage));
+        Routing.RegisterRoute(nameof(UserManagementPage), typeof(UserManagementPage));
         Routing.RegisterRoute(nameof(AblesungErfassenPage), typeof(AblesungErfassenPage));
         Routing.RegisterRoute(nameof(ZaehlerwechselPage), typeof(ZaehlerwechselPage));
         Routing.RegisterRoute(nameof(RfidEinrichtenPage), typeof(RfidEinrichtenPage));
@@ -68,23 +71,6 @@ public sealed class AdminShell : Shell, IAppShellInitializer
                 }
             }
         });
-
-        if (_userContextState.CurrentUserContext?.Role == UserRole.Admin)
-        {
-            Items.Add(new FlyoutItem
-            {
-                Title = "Benutzerverwaltung",
-                Items =
-                {
-                    new ShellContent
-                    {
-                        Title = "Benutzerverwaltung",
-                        Route = "usermanagement",
-                        ContentTemplate = new DataTemplate(() => _services.GetRequiredService<UserManagementPage>())
-                    }
-                }
-            });
-        }
 
         Items.Add(new FlyoutItem
         {

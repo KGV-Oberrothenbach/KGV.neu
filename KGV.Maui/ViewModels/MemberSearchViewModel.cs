@@ -143,15 +143,15 @@ public class MemberSearchViewModel : INotifyPropertyChanged
         }
     }
 
-    public Task<MemberSearchResultItem?> SelectResultAsync(MemberSearchResultItem? result)
+    public async Task<MemberDTO?> SelectResultAsync(MemberSearchResultItem? result)
     {
         if (result == null)
-            return Task.FromResult<MemberSearchResultItem?>(null);
+            return null;
 
         if (result.MemberId.HasValue)
-            return Task.FromResult<MemberSearchResultItem?>(result);
+            return await ResolveMemberAsync(result.MemberId.Value);
 
-        return SelectMemberForParzelleAsync(result);
+        return await SelectMemberForParzelleAsync(result);
     }
 
     private void ApplyFilter()
@@ -188,7 +188,7 @@ public class MemberSearchViewModel : INotifyPropertyChanged
             StatusMessage = string.Empty;
     }
 
-    private async Task<MemberSearchResultItem?> SelectMemberForParzelleAsync(MemberSearchResultItem parzelleResult)
+    private async Task<MemberDTO?> SelectMemberForParzelleAsync(MemberSearchResultItem parzelleResult)
     {
         if (!parzelleResult.ParzelleId.HasValue)
             return null;
@@ -198,14 +198,27 @@ public class MemberSearchViewModel : INotifyPropertyChanged
             return null;
 
         if (_membersById.TryGetValue(belegung.MitgliedId, out var existingMember))
-            return MapToMemberResultWithDetails(existingMember);
+            return MapToMemberDto(existingMember);
 
         var member = await _supabaseService.GetMitgliedByIdAsync(belegung.MitgliedId);
         if (member == null)
             return null;
 
         _membersById[member.Id] = member;
-        return MapToMemberResultWithDetails(member);
+        return MapToMemberDto(member);
+    }
+
+    private async Task<MemberDTO?> ResolveMemberAsync(int memberId)
+    {
+        if (_membersById.TryGetValue(memberId, out var existingMember))
+            return MapToMemberDto(existingMember);
+
+        var member = await _supabaseService.GetMitgliedByIdAsync(memberId);
+        if (member == null)
+            return null;
+
+        _membersById[member.Id] = member;
+        return MapToMemberDto(member);
     }
 
     private static MemberSearchResultItem MapToMemberResult(MitgliedRecord member)
@@ -237,6 +250,30 @@ public class MemberSearchViewModel : INotifyPropertyChanged
             : string.Empty;
 
         return baseResult with { GartenNummernText = gartenNummernText, HasGartenNummern = !string.IsNullOrWhiteSpace(gartenNummernText) };
+    }
+
+    private MemberDTO MapToMemberDto(MitgliedRecord member)
+    {
+        return new MemberDTO
+        {
+            Id = member.Id,
+            Vorname = member.Vorname ?? string.Empty,
+            Nachname = member.Name ?? string.Empty,
+            Email = member.Email ?? string.Empty,
+            Telefon = member.Telefon ?? string.Empty,
+            Mobilnummer = member.Handy ?? string.Empty,
+            Strasse = member.Adresse ?? string.Empty,
+            PLZ = member.Plz ?? string.Empty,
+            Ort = member.Ort ?? string.Empty,
+            Geburtsdatum = member.Geburtsdatum,
+            MitgliedSeit = member.MitgliedSeit,
+            MitgliedEnde = member.MitgliedEnde,
+            Role = member.Role ?? string.Empty,
+            IstHauptmitglied = !member.HauptmitgliedId.HasValue || member.HauptmitgliedId.Value <= 0,
+            Gärten = _gartenLookup.TryGetValue(member.Id, out var gaerten)
+                ? new List<GartenDTO>(gaerten)
+                : new List<GartenDTO>()
+        };
     }
 
     private static MemberSearchResultItem MapToParzelleResult(ParzelleRecord parzelle)

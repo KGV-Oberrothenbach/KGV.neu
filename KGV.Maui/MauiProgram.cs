@@ -31,6 +31,7 @@ public static class MauiProgram
 
         builder.Services.AddSingleton<UserContextState>();
         builder.Services.AddSingleton<IUserContextAccessor>(sp => sp.GetRequiredService<UserContextState>());
+        builder.Services.AddSingleton<MemberContextState>();
 
         builder.Services.AddKgvServices(builder.Configuration);
 
@@ -39,6 +40,8 @@ public static class MauiProgram
         builder.Services.AddTransient<HomePage>();
         builder.Services.AddTransient<MemberSearchViewModel>();
         builder.Services.AddTransient<MemberSearchPage>();
+        builder.Services.AddTransient<MeineDatenPage>();
+        builder.Services.AddTransient<DokumentePage>();
         builder.Services.AddTransient<UserManagementViewModel>();
         builder.Services.AddTransient<UserManagementPage>();
         builder.Services.AddTransient<ParzellenViewModel>();

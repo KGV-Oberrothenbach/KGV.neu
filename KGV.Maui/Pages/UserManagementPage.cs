@@ -6,7 +6,6 @@ namespace KGV.Maui.Pages;
 public sealed class UserManagementPage : ContentPage
 {
     private readonly UserManagementViewModel _viewModel;
-    private bool _initialized;
 
     public UserManagementPage(UserManagementViewModel viewModel)
     {
@@ -20,6 +19,10 @@ public sealed class UserManagementPage : ContentPage
         var descriptionLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
         descriptionLabel.SetBinding(Label.TextProperty, nameof(UserManagementViewModel.Description));
 
+        var boundMemberInfoLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+        boundMemberInfoLabel.SetBinding(Label.TextProperty, nameof(UserManagementViewModel.BoundMemberInfo));
+        boundMemberInfoLabel.SetBinding(IsVisibleProperty, nameof(UserManagementViewModel.IsBoundToMember));
+
         var hintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         hintLabel.SetBinding(Label.TextProperty, nameof(UserManagementViewModel.AdminHint));
 
@@ -29,7 +32,7 @@ public sealed class UserManagementPage : ContentPage
         var usersView = new CollectionView
         {
             SelectionMode = SelectionMode.Single,
-            HeightRequest = 320,
+            HeightRequest = 220,
             ItemTemplate = new DataTemplate(() =>
             {
                 var name = new Label { FontAttributes = FontAttributes.Bold };
@@ -71,7 +74,7 @@ public sealed class UserManagementPage : ContentPage
 
         var roleHintLabel = new Label
         {
-            Text = "Rollenbearbeitung für dieses Mitglied ist gesperrt.",
+            Text = "Rollenbearbeitung für dieses Mitglied ist gesperrt oder nur für Admin freigegeben.",
             TextColor = Colors.DarkRed,
             LineBreakMode = LineBreakMode.WordWrap
         };
@@ -88,7 +91,7 @@ public sealed class UserManagementPage : ContentPage
 
         var roleSection = new VerticalStackLayout { Spacing = 8 };
         roleSection.SetBinding(IsVisibleProperty, nameof(UserManagementViewModel.HasSelectedUser));
-        roleSection.Children.Add(new Label { Text = "Rolle", FontAttributes = FontAttributes.Bold });
+        roleSection.Children.Add(new Label { Text = "Admin-Menü", FontAttributes = FontAttributes.Bold });
         roleSection.Children.Add(rolePicker);
         roleSection.Children.Add(roleHintLabel);
         roleSection.Children.Add(saveRoleButton);
@@ -109,6 +112,20 @@ public sealed class UserManagementPage : ContentPage
             var ok = await _viewModel.SendPasswordResetAsync();
             if (ok)
                 await DisplayAlert("OK", "Passwort-Reset wurde angestoßen.", "OK");
+        };
+
+        var removeButton = new Button { Text = "Nutzer entfernen" };
+        removeButton.SetBinding(IsEnabledProperty, nameof(UserManagementViewModel.CanRemoveUser));
+        removeButton.SetBinding(IsVisibleProperty, nameof(UserManagementViewModel.IsBoundToMember));
+        removeButton.Clicked += async (_, _) =>
+        {
+            var confirmed = await DisplayAlert("Nutzer entfernen", "Soll der Appuser des ausgewählten Mitglieds entfernt werden?", "Ja", "Nein");
+            if (!confirmed)
+                return;
+
+            var ok = await _viewModel.RemoveUserAsync();
+            if (ok)
+                await DisplayAlert("OK", "Appuser wurde entfernt.", "OK");
         };
 
         var changeEmailButton = new Button { Text = "Eigene E-Mail ändern" };
@@ -155,6 +172,7 @@ public sealed class UserManagementPage : ContentPage
                 {
                     titleLabel,
                     descriptionLabel,
+                    boundMemberInfoLabel,
                     hintLabel,
                     refreshButton,
                     usersView,
@@ -163,6 +181,7 @@ public sealed class UserManagementPage : ContentPage
                     emailHintLabel,
                     inviteButton,
                     resetButton,
+                    removeButton,
                     changeEmailButton,
                     statusLabel
                 }
@@ -173,12 +192,7 @@ public sealed class UserManagementPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-
-        if (_initialized)
-            return;
-
         await _viewModel.InitializeAsync();
-        _initialized = true;
     }
 
     private static View CreateValueLabel(string title, string path)

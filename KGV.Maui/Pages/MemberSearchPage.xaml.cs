@@ -1,4 +1,5 @@
 using KGV.Maui.ViewModels;
+using KGV.Maui.State;
 using System.Linq;
 
 namespace KGV.Maui.Pages;
@@ -6,12 +7,14 @@ namespace KGV.Maui.Pages;
 public partial class MemberSearchPage : ContentPage
 {
     private readonly MemberSearchViewModel _vm;
+    private readonly MemberContextState _memberContextState;
 
-    public MemberSearchPage(MemberSearchViewModel vm)
+    public MemberSearchPage(MemberSearchViewModel vm, MemberContextState memberContextState)
     {
         InitializeComponent();
 
         _vm = vm;
+        _memberContextState = memberContextState;
         BindingContext = _vm;
 
         Appearing += MemberSearchPage_Appearing;
@@ -34,6 +37,7 @@ public partial class MemberSearchPage : ContentPage
         if (member == null)
             return;
 
-        await DisplayAlert("Mitglied gewählt", $"{member.DisplayName} (Id: {member.MemberId})", "OK");
+        _memberContextState.SetSelectedMember(member);
+        await Shell.Current.GoToAsync(nameof(MeineDatenPage));
     }
 }
