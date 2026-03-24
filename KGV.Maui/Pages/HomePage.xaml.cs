@@ -9,7 +9,7 @@ public class HomePage : ContentPage
 {
     private readonly HomeViewModel _viewModel;
     private readonly HomeContextState _homeContextState;
-    private bool _initialized;
+    private bool _isLoading;
 
     public HomePage(HomeViewModel viewModel, HomeContextState homeContextState)
     {
@@ -238,11 +238,18 @@ public class HomePage : ContentPage
     {
         base.OnAppearing();
 
-        if (_initialized)
+        if (_isLoading)
             return;
 
-        await _viewModel.InitializeAsync();
-        _initialized = true;
+        _isLoading = true;
+        try
+        {
+            await _viewModel.InitializeAsync();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private static CollectionView CreateHomeListView<T>(Func<T, Task> openAsync, Func<T, View> templateFactory) where T : class

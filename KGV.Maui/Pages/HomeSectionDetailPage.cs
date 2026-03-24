@@ -22,6 +22,7 @@ public sealed class HomeSectionDetailPage : ContentPage
     private readonly Label _statusLabel;
     private readonly Button _registerButton;
     private readonly Button _manageButton;
+    private readonly Button _backButton;
     private readonly CollectionView _participantsView;
     private readonly Label _participantsEmptyLabel;
     private readonly VerticalStackLayout _participantsSection;
@@ -47,6 +48,9 @@ public sealed class HomeSectionDetailPage : ContentPage
 
         _registerButton = new Button { Text = "Anmelden", IsVisible = false };
         _registerButton.Clicked += async (_, _) => await RegisterAsync();
+
+        _backButton = new Button { Text = "Zur Startseite" };
+        _backButton.Clicked += async (_, _) => await Shell.Current.GoToAsync("//home");
 
         _manageButton = new Button { Text = "Bearbeiten", IsVisible = false };
         _manageButton.Clicked += async (_, _) =>
@@ -111,6 +115,11 @@ public sealed class HomeSectionDetailPage : ContentPage
                 Spacing = 12,
                 Children =
                 {
+                    new HorizontalStackLayout
+                    {
+                        HorizontalOptions = LayoutOptions.Start,
+                        Children = { _backButton }
+                    },
                     _sectionLabel,
                     _titleLabel,
                     _subtitleLabel,

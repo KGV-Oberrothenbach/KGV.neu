@@ -2,6 +2,49 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 1 für Einstieg / Shell / Home begonnen und kleinen MAUI-Refresh-/Detailpfad-Fix umgesetzt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Für Block 1 gezielt geprüft:
+  - WPF: `LoginWindow`, `MainWindow`, `HomeView`, `HomeSectionDetailView`, relevanter Admin-/Rollen-Einstieg im Hauptfluss
+  - MAUI: `LoginPage`, `App.xaml.cs`, `AdminShell`, `UserShell`, `HomePage`, `HomeSectionDetailPage`, `ShellNavigationHelper`
+- Systematischer Vergleich entlang derselben Logik durchgeführt:
+  - UI/Struktur
+  - Daten/Fachinhalt
+  - Aktionen/Commands
+  - Navigation/Flow
+  - Rechte/Sichtbarkeit
+- Ehrlicher Befund im aktuellen Repo-Stand:
+  - der Login-/Root-/Shell-Startpfad ist im Kern bereits sinnvoll nachgezogen
+  - Home landet bereits direkt auf `home`
+  - User-/Admin-Shell bleiben konsistent
+  - der Home-Detailpfad ist vorhanden
+  - eine kleine, aber praxisrelevante Restabweichung blieb im Rückkehr-/Aktualisierungspfad gegenüber WPF
+- Wichtigste kleine Restabweichung mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - WPF lädt Home beim erneuten Navigieren wieder frisch
+  - MAUI-`HomePage` initialisierte bisher nur einmal pro Seiteninstanz
+  - dadurch konnten Rückkehrpfade aus Detail-/Verwaltungsseiten mit veraltetem Home-Zustand stehenbleiben
+- Den ersten kleinen buildfähigen Korrekturblock deshalb nur im Einstieg-/Shell-/Home-Rahmen umgesetzt:
+  - `HomePage.OnAppearing()` lädt Home jetzt auch beim erneuten Sichtbarwerden der Seite wieder nach
+  - gegen parallele Doppel-Ladevorgänge klein über `_isLoading` abgesichert
+  - `HomeSectionDetailPage` erhielt zusätzlich einen expliziten Button `Zur Startseite`, analog zum klaren WPF-Rückweg
+  - der Rückweg nutzt den vorhandenen Shell-Home-Pfad und öffnet keine neue Navigationsarchitektur
+- Bewusst nicht gemacht:
+  - keine Neuarchitektur
+  - kein erneuter Eingriff in bereits gefixte Android-Root-/Fragment-Themen
+  - keine Folgeblöcke für Mitgliedersuche, Stammdaten, Parzellen, Arbeitsstunden, Verwaltung oder Ablesen mitgezogen
+  - weitere erkannte, aber weniger dringliche WPF-/MAUI-Deltas aus Einstieg/Home bleiben für spätere systematische Blöcke offen dokumentiert
+- Fachliche Kurzvalidierung nach dem kleinen Block:
+  - Login funktioniert weiter
+  - Home ist direkt und stabil erreichbar
+  - Home-Detailpfade funktionieren weiter
+  - Detailansicht hat jetzt einen expliziten Rückweg zur Startseite
+  - Home lädt beim Wiedererscheinen erneut und bleibt dadurch konsistenter zum WPF-Fluss
+  - keine Verschlechterung der bereits gehärteten Shell-/Root-Pfade
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
+
 ## 2026-03-24 – Prompt 1/1: mobilen Mitgliedskontext zu `Stammdaten` umbenannt und Stammdatenansicht an WPF angenähert
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
