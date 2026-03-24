@@ -72,7 +72,7 @@ public partial class App : Application
         if (shell is IAppShellInitializer initializer)
             initializer.BuildMenu();
 
-        ShellNavigationHelper.EnsureActiveShellItem(shell);
+        ShellNavigationHelper.EnsureActiveShellItem(shell, "home");
         return shell;
     }
 }

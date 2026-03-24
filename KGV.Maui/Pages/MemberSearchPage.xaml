@@ -31,19 +31,25 @@
                         SelectionChanged="ResultsCollectionView_SelectionChanged">
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="viewmodels:MemberSearchResultItem">
-                    <Grid Padding="12" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="2">
-                        <Label Text="{Binding Title}" FontAttributes="Bold" />
-                        <Label Grid.Row="1" Text="{Binding Subtitle}" FontSize="12" Opacity="0.8" />
-                        <Label Grid.Row="2"
-                               Text="{Binding GartenNummernText, StringFormat='Gärten: {0}'}"
-                               FontSize="12"
-                               Opacity="0.8"
-                               IsVisible="{Binding HasGartenNummern}" />
-                        <HorizontalStackLayout Grid.Row="3" Spacing="8" IsVisible="{Binding IsMemberResult}">
-                            <CheckBox IsChecked="{Binding IstHauptmitglied}" IsEnabled="False" />
-                            <Label Text="Hauptmitglied" VerticalTextAlignment="Center" FontSize="12" />
-                        </HorizontalStackLayout>
-                    </Grid>
+                    <Border Stroke="#E3E7EB" StrokeThickness="1" BackgroundColor="White" Padding="14" Margin="0,0,0,10">
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6">
+                            <VerticalStackLayout Spacing="3">
+                                <Label Text="{Binding Title}" FontAttributes="Bold" LineBreakMode="TailTruncation" />
+                                <Label Text="{Binding Subtitle}" FontSize="12" Opacity="0.78" IsVisible="{Binding HasSubtitle}" />
+                            </VerticalStackLayout>
+
+                            <VerticalStackLayout Grid.Column="1" Spacing="6" HorizontalOptions="End">
+                                <Border StrokeThickness="0" BackgroundColor="#F1F6FA" Padding="10,4" IsVisible="{Binding HasGartenNummern}">
+                                    <Label Text="{Binding GartenNummernText, StringFormat='Garten {0}'}" FontSize="12" TextColor="#446B8A" HorizontalTextAlignment="Center" />
+                                </Border>
+                                <Border StrokeThickness="0" BackgroundColor="#F5F1F7" Padding="10,4" HorizontalOptions="End" IsVisible="{Binding IstHauptmitglied}">
+                                    <Label Text="Hauptmitglied" FontSize="11" TextColor="#6E4D77" HorizontalTextAlignment="Center" />
+                                </Border>
+                            </VerticalStackLayout>
+
+                            <BoxView Grid.Row="1" Grid.ColumnSpan="2" HeightRequest="1" Color="#EEF1F4" IsVisible="{Binding HasGartenNummern}" />
+                        </Grid>
+                    </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>

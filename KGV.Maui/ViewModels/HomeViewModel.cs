@@ -4,6 +4,7 @@ using KGV.Core.Security;
 using KGV.Maui.State;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
@@ -33,6 +34,13 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     public string Title => "Startseite";
     public string Description => _overview.Description;
     public string UserContextText => $"Kontext: {UserRoles.ToStorageValue(_userContextState.CurrentUserContext?.Role ?? UserRole.User)}";
+    public string WorkHoursHeader => $"Arbeitsstunden {(_overview.WorkHoursSummary?.Year ?? DateTime.Today.Year)}";
+    public string RequiredHoursValue => FormatHours(_overview.WorkHoursSummary?.RequiredHours);
+    public string WorkedHoursValue => FormatHours(_overview.WorkHoursSummary?.WorkedHours);
+    public string OpenHoursValue => FormatHours(_overview.WorkHoursSummary?.OpenHours);
+    public string WorkHoursInfoText => _overview.WorkHoursSummary == null
+        ? "Für diesen Home-Kontext ist aktuell keine belastbare Pflichtstunden-Übersicht verfügbar."
+        : BuildWorkHoursInfoText(_overview.WorkHoursSummary);
     public string QuickLinksTitle => _overview.QuickLinksTitle;
     public string QuickLinksEmptyText => _overview.QuickLinksEmptyText;
     public string OperationalTitle => "Arbeitsstunden";
@@ -47,6 +55,9 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     public string ManagementHintText => "Admin/Vorstand erreichen hier mobil die produktiven Verwaltungsoberflächen für Arbeitseinsätze, Termine und Bekanntmachungen auf den bestehenden Shared-Servicepfaden.";
     public bool HasQuickLinks => QuickLinks.Count > 0;
     public bool HasOperationalItems => OperationalItems.Count > 0;
+    public bool HasWorkHoursSummary => _overview.WorkHoursSummary != null;
+    public bool ShowOperationalFallbackList => HasOperationalItems && !HasWorkHoursSummary;
+    public bool ShowOperationalEmptyState => !HasWorkHoursSummary && !HasOperationalItems;
     public bool HasAnnouncements => Announcements.Count > 0;
     public bool HasWorkAssignments => WorkAssignments.Count > 0;
     public bool HasAppointments => Appointments.Count > 0;
@@ -89,6 +100,11 @@ public sealed class HomeViewModel : INotifyPropertyChanged
 
         OnPropertyChanged(nameof(Description));
         OnPropertyChanged(nameof(UserContextText));
+        OnPropertyChanged(nameof(WorkHoursHeader));
+        OnPropertyChanged(nameof(RequiredHoursValue));
+        OnPropertyChanged(nameof(WorkedHoursValue));
+        OnPropertyChanged(nameof(OpenHoursValue));
+        OnPropertyChanged(nameof(WorkHoursInfoText));
         OnPropertyChanged(nameof(QuickLinksTitle));
         OnPropertyChanged(nameof(QuickLinksEmptyText));
         OnPropertyChanged(nameof(OperationalTitle));
@@ -103,6 +119,9 @@ public sealed class HomeViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(ShowAnnouncementDetail));
         OnPropertyChanged(nameof(HasQuickLinks));
         OnPropertyChanged(nameof(HasOperationalItems));
+        OnPropertyChanged(nameof(HasWorkHoursSummary));
+        OnPropertyChanged(nameof(ShowOperationalFallbackList));
+        OnPropertyChanged(nameof(ShowOperationalEmptyState));
         OnPropertyChanged(nameof(HasWorkAssignments));
         OnPropertyChanged(nameof(HasAppointments));
         OnPropertyChanged(nameof(ShowAnnouncementHint));
@@ -125,6 +144,29 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     private static int? ToInt32(long? value)
     {
         return value is > 0 and <= int.MaxValue ? (int)value.Value : null;
+    }
+
+    private static string BuildWorkHoursInfoText(HomeWorkHoursSummary summary)
+    {
+        var parts = new List<string>();
+
+        if (summary.IsExempt)
+            parts.Add("Der aktuelle Mitgliedskontext ist laut Pflichtstunden-Übersicht befreit.");
+        if (summary.HasMaintenanceContract)
+            parts.Add("Ein Wartungsvertrag ist in der zentralen Regelbewertung berücksichtigt.");
+        if (!string.IsNullOrWhiteSpace(summary.RuleReason))
+            parts.Add(summary.RuleReason);
+
+        return parts.Count == 0
+            ? "Die Werte stammen direkt aus der zentralen Pflichtstunden-Übersicht für Startseite/Home."
+            : string.Join(" ", parts);
+    }
+
+    private static string FormatHours(decimal? value)
+    {
+        return value.HasValue
+            ? $"{value.Value.ToString("0.##", CultureInfo.CurrentCulture)} h"
+            : "–";
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

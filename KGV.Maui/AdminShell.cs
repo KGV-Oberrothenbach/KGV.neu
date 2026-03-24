@@ -17,7 +17,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         _services = services;
         _userContextState = userContextState;
         FlyoutBehavior = FlyoutBehavior.Flyout;
-        Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this);
+        Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this, "home");
     }
 
     public void BuildMenu()
@@ -130,7 +130,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             }
         });
 
-        ShellNavigationHelper.EnsureActiveShellItem(this);
+        ShellNavigationHelper.EnsureActiveShellItem(this, "home");
 
         _ = RefreshWorkhoursReviewMenuAsync();
     }

@@ -2,6 +2,48 @@
 
 ---
 
+## 2026-03-24 – MAUI-UI-/Flow-Feinschliff: Home nach Login direkt sichtbar, Arbeitsstunden-Kacheln klarer, Home-Export entfernt, Mitgliedersuche beruhigt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.
+- Relevante MAUI-Dateien gezielt geprüft:
+  - `App.xaml.cs`
+  - `LoginPage.xaml.cs`
+  - `AdminShell.cs`
+  - `UserShell.cs`
+  - `ShellNavigationHelper.cs`
+  - `HomePage.xaml.cs`
+  - `HomeViewModel.cs`
+  - `MemberSearchPage.xaml`
+  - `MemberSearchPage.xaml.cs`
+  - `MemberSearchViewModel.cs`
+- Relevanter Befund zum Login-Handover:
+  - die Shell wurde nach Login bereits korrekt aufgebaut
+  - der aktive Shell-Einstieg wurde aber nur generisch auf einen gültigen Eintrag gezogen, nicht gezielt auf `home`
+  - dadurch blieb ein plausibler Pfad, dass die richtige Shell steht, Home aber nicht sofort als sichtbare Zielseite landet
+- Den Home-Start deshalb minimal-invasiv gehärtet:
+  - `ShellNavigationHelper` kann jetzt gezielt eine bevorzugte Content-Route aktivieren
+  - `App`, `AdminShell`, `UserShell` und der Login-Fallback bevorzugen jetzt explizit die Route `home`
+  - damit landet der frische Shell-Aufbau nach Login direkt sichtbar auf `Startseite`, ohne die bestehende Root-/Fragment-Härtung wieder aufzureißen
+- Home-Seite punktuell weiter verbessert:
+  - `Arbeitsstunden` zeigt `Soll`, `Geleistet` und `Offen` jetzt als drei ruhige Kennzahl-Karten statt nur als verdichtete Zeile
+  - die bisherige Fallback-Liste bleibt nur noch sichtbar, wenn keine echte Pflichtstunden-Zusammenfassung geladen wurde
+  - der Home-Shortcut `Mitglieder exportieren` wurde aus dem Verwaltungsbereich entfernt; der separate Export-Navigationspunkt bleibt unverändert erhalten
+- Mitgliedersuche optisch beruhigt:
+  - die große Checkbox für `Hauptmitglied` wurde aus der Listenansicht entfernt
+  - statt dessen klare Kartenstruktur mit:
+    - Name links
+    - Zusatzzeile darunter
+    - Gartennummer(n) rechts als ruhiges Badge
+    - kleines textliches `Hauptmitglied`-Badge statt sperriger Checkbox
+  - Auswahl-/Navigationsfunktion bleibt unverändert erhalten
+- Bewusst nicht gemacht:
+  - keine neue Architektur
+  - keine Änderung an WPF-Dateien
+  - kein Eingriff in Export-Logik oder Mitgliedskontextpfade außerhalb des kleinen UI-/Flow-Feinschliffs
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte Warnungen bleiben in `HomeManagementPage.cs`
+
 ## 2026-03-24 – MAUI-Home-Feinschliff: Schnellzugriff entfernt und Startseitenbereiche ruhiger gegliedert
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft; blockfremde offene WPF-/Supabase-Dateien blieben unangetastet.

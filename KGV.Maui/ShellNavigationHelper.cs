@@ -4,13 +4,16 @@ namespace KGV.Maui;
 
 internal static class ShellNavigationHelper
 {
-    public static void EnsureActiveShellItem(Shell shell)
+    public static void EnsureActiveShellItem(Shell shell, string? preferredContentRoute = null)
     {
         ArgumentNullException.ThrowIfNull(shell);
 
-        var activeItem = IsValid(shell.CurrentItem)
-            ? shell.CurrentItem
-            : shell.Items.FirstOrDefault(IsValid);
+        var preferredTarget = FindPreferredTarget(shell, preferredContentRoute);
+
+        var activeItem = preferredTarget.Item
+            ?? (IsValid(shell.CurrentItem)
+                ? shell.CurrentItem
+                : shell.Items.FirstOrDefault(IsValid));
 
         if (activeItem == null)
             return;
@@ -18,9 +21,11 @@ internal static class ShellNavigationHelper
         if (!ReferenceEquals(shell.CurrentItem, activeItem))
             shell.CurrentItem = activeItem;
 
-        var activeSection = IsValid(activeItem.CurrentItem)
-            ? activeItem.CurrentItem
-            : activeItem.Items.FirstOrDefault(IsValid);
+        var activeSection = preferredTarget.Section != null && ReferenceEquals(preferredTarget.Item, activeItem)
+            ? preferredTarget.Section
+            : (IsValid(activeItem.CurrentItem)
+                ? activeItem.CurrentItem
+                : activeItem.Items.FirstOrDefault(IsValid));
 
         if (activeSection == null)
             return;
@@ -28,9 +33,11 @@ internal static class ShellNavigationHelper
         if (!ReferenceEquals(activeItem.CurrentItem, activeSection))
             activeItem.CurrentItem = activeSection;
 
-        var activeContent = IsValid(activeSection.CurrentItem)
-            ? activeSection.CurrentItem
-            : activeSection.Items.FirstOrDefault(IsValid);
+        var activeContent = preferredTarget.Content != null && ReferenceEquals(preferredTarget.Section, activeSection)
+            ? preferredTarget.Content
+            : (IsValid(activeSection.CurrentItem)
+                ? activeSection.CurrentItem
+                : activeSection.Items.FirstOrDefault(IsValid));
 
         if (activeContent == null)
             return;
@@ -47,4 +54,28 @@ internal static class ShellNavigationHelper
 
     private static bool IsValid(ShellContent? content)
         => content?.IsVisible == true;
+
+    private static (ShellItem? Item, ShellSection? Section, ShellContent? Content) FindPreferredTarget(Shell shell, string? preferredContentRoute)
+    {
+        if (string.IsNullOrWhiteSpace(preferredContentRoute))
+            return default;
+
+        foreach (var item in shell.Items)
+        {
+            if (!IsValid(item))
+                continue;
+
+            foreach (var section in item.Items)
+            {
+                if (!IsValid(section))
+                    continue;
+
+                var content = section.Items.FirstOrDefault(x => IsValid(x) && string.Equals(x.Route, preferredContentRoute, StringComparison.OrdinalIgnoreCase));
+                if (content != null)
+                    return (item, section, content);
+            }
+        }
+
+        return default;
+    }
 }

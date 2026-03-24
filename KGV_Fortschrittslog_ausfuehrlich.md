@@ -2,6 +2,62 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: MAUI-Home nach Login direkt sichtbar gemacht, Arbeitsstunden-Kacheln geschärft, Home-Export entfernt und Mitgliedersuche beruhigt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Relevante MAUI-Dateien gezielt geprüft:
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/ViewModels/MemberSearchViewModel.cs`
+- Ausgangszustand vor diesem Block:
+  - Login funktionierte grundsätzlich bereits
+  - nach dem Login war Home aber nicht immer sofort sichtbar; es blieb ein zusätzlicher Tap auf `Startseite` plausibel nötig
+  - die Home-Seite war optisch bereits gegliedert, brauchte aber noch klarere Arbeitsstunden-Kennzahlen
+  - im Verwaltungsbereich lag weiterhin der Home-Shortcut `Mitglieder exportieren`
+  - in der Mitgliedersuche wirkte die große Checkbox `Hauptmitglied` optisch zu sperrig
+- Ursache des Home-Startproblems im aktiven Pfad klein und ehrlich eingegrenzt:
+  - die Shell wurde korrekt erstellt
+  - der aktive Shell-Einstieg wurde aber nur generisch auf einen gültigen Eintrag gezogen, nicht gezielt auf die Content-Route `home`
+  - dadurch konnte die richtige Shell bereits aktiv sein, ohne dass Home sofort sichtbar als Startziel landet
+- Den Flow deshalb minimal-invasiv gehärtet:
+  - `ShellNavigationHelper` kann jetzt eine bevorzugte Content-Route gezielt aktivieren
+  - `App`, `AdminShell`, `UserShell` und der Login-Fallback bevorzugen jetzt explizit `home`
+  - damit landet der frische Shell-Aufbau nach Login direkt sichtbar auf der Home-/Startseite
+  - die bereits gezogene Android-Root-/Fragment-Härtung blieb dabei unverändert erhalten
+- Home-Feinschliff im selben kleinen Block:
+  - `Arbeitsstunden` zeigt `Soll`, `Geleistet` und `Offen` jetzt als drei klar erkennbare Kennzahl-Karten statt nur als verdichtete Textzeile
+  - die bisherige Fallback-Liste bleibt nur noch für Fälle ohne echte Pflichtstunden-Zusammenfassung sichtbar
+  - `Mitglieder exportieren` wurde aus dem Home-Verwaltungsbereich entfernt
+  - der separate Export-Menüpunkt bleibt unverändert erhalten
+- Mitgliedersuche optisch vereinfacht:
+  - die große Listen-Checkbox für `Hauptmitglied` wurde entfernt
+  - stattdessen ruhigere Kartenstruktur mit:
+    - Name links
+    - Zusatzzeile darunter
+    - Gartennummer(n) klar als Badge rechts
+    - kleines textliches `Hauptmitglied`-Badge statt Checkbox
+  - bestehende Auswahl-/Navigationsfunktion der Mitgliedersuche bleibt erhalten
+- Bewusst nicht gemacht:
+  - keine Neuarchitektur
+  - keine WPF-Änderung
+  - keine Änderung an Export-Logik oder bestehenden Detailpfaden außerhalb dieses kleinen Feinschliffs
+- Fachliche Kurzvalidierung nach dem Umbau:
+  - Login soll jetzt direkt sichtbar auf Home landen
+  - Home bleibt vollständig nutzbar
+  - `Soll`, `Geleistet`, `Offen` sind als drei klare Felder sichtbar
+  - `Mitglieder exportieren` ist auf Home entfernt; Export bleibt als eigener Navigationspunkt erhalten
+  - die Mitgliedersuche wirkt ruhiger; Namen und Gartennummern sind klarer erkennbar
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte Warnungen bleiben in `HomeManagementPage.cs`
+
 ## 2026-03-24 – Prompt 1/1: MAUI-Home visuell gegliedert und `Schnellzugriff` entfernt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.

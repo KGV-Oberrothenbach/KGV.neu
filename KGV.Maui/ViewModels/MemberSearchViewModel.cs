@@ -330,4 +330,7 @@ public class MemberSearchViewModel : INotifyPropertyChanged
     }
 }
 
-public sealed record MemberSearchResultItem(int? MemberId, int? ParzelleId, string DisplayName, string Email, string Title, string Subtitle, string GartenNummernText, bool IstHauptmitglied, bool IsMemberResult, bool HasGartenNummern);
+public sealed record MemberSearchResultItem(int? MemberId, int? ParzelleId, string DisplayName, string Email, string Title, string Subtitle, string GartenNummernText, bool IstHauptmitglied, bool IsMemberResult, bool HasGartenNummern)
+{
+    public bool HasSubtitle => !string.IsNullOrWhiteSpace(Subtitle);
+};

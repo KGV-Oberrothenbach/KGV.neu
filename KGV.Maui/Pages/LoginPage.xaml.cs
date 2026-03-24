@@ -339,7 +339,7 @@ public class LoginPage : ContentPage
         if (shell is IAppShellInitializer init)
             init.BuildMenu();
 
-        ShellNavigationHelper.EnsureActiveShellItem(shell);
+        ShellNavigationHelper.EnsureActiveShellItem(shell, "home");
         window.Page = shell;
     }
 }

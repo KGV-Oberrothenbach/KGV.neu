@@ -15,7 +15,7 @@ public sealed class UserShell : Shell, IAppShellInitializer
         _state = state;
 
         FlyoutBehavior = FlyoutBehavior.Flyout;
-        Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this);
+        Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this, "home");
     }
 
     public void BuildMenu()
@@ -95,6 +95,6 @@ public sealed class UserShell : Shell, IAppShellInitializer
             }
         });
 
-        ShellNavigationHelper.EnsureActiveShellItem(this);
+        ShellNavigationHelper.EnsureActiveShellItem(this, "home");
     }
 }

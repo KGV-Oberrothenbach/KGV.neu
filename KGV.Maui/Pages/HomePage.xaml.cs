@@ -73,17 +73,19 @@ public class HomePage : ContentPage
             })
         };
         operationalView.SetBinding(ItemsView.ItemsSourceProperty, nameof(HomeViewModel.OperationalItems));
-        operationalView.SetBinding(IsVisibleProperty, nameof(HomeViewModel.HasOperationalItems));
+        operationalView.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowOperationalFallbackList));
 
         var operationalEmptyLabel = new Label { TextColor = Color.FromArgb("#6E737A"), LineBreakMode = LineBreakMode.WordWrap };
         operationalEmptyLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.OperationalEmptyText));
-        operationalEmptyLabel.SetBinding(IsVisibleProperty, nameof(HomeViewModel.HasOperationalItems), converter: new InverseBooleanConverter());
+        operationalEmptyLabel.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowOperationalEmptyState));
 
         var operationalSection = CreateSectionCard(
             nameof(HomeViewModel.OperationalTitle),
             "Persönlicher Überblick zu offenen und bereits erfassten Arbeitsstunden.",
             operationalAccent,
             operationalBackground,
+            CreateWorkHoursSummaryGrid(operationalAccent, operationalBackground),
+            CreateWorkHoursInfoLabel(),
             operationalView,
             operationalEmptyLabel);
 
@@ -202,10 +204,6 @@ public class HomePage : ContentPage
         announcementsManagementButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
         announcementsManagementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync($"{nameof(HomeManagementPage)}?section=announcements");
 
-        var exportButton = new Button { Text = "Mitglieder exportieren" };
-        exportButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
-        exportButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(ExportPage));
-
         var managementSection = CreateSectionCard(
             nameof(HomeViewModel.ManagementTitle),
             "Zusätzliche mobile Verwaltungszugänge für Admin und Vorstand.",
@@ -214,8 +212,7 @@ public class HomePage : ContentPage
             managementHintLabel,
             workAssignmentsManagementButton,
             appointmentsManagementButton,
-            announcementsManagementButton,
-            exportButton);
+            announcementsManagementButton);
         managementSection.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
 
         Content = new ScrollView
@@ -388,12 +385,82 @@ public class HomePage : ContentPage
         };
     }
 
-    private sealed class InverseBooleanConverter : IValueConverter
+    private static Grid CreateWorkHoursSummaryGrid(Color accentColor, Color backgroundColor)
     {
-        public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-            => value is bool b ? !b : true;
+        var grid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitionCollection
+            {
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Star }
+            },
+            ColumnSpacing = 10,
+            Margin = new Thickness(0, 2, 0, 0)
+        };
 
-        public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-            => throw new NotSupportedException();
+        var requiredCard = CreateWorkHoursMetricCard("Soll", nameof(HomeViewModel.RequiredHoursValue), accentColor);
+        var workedCard = CreateWorkHoursMetricCard("Geleistet", nameof(HomeViewModel.WorkedHoursValue), accentColor);
+        var openCard = CreateWorkHoursMetricCard("Offen", nameof(HomeViewModel.OpenHoursValue), accentColor);
+
+        Grid.SetColumn(workedCard, 1);
+        Grid.SetColumn(openCard, 2);
+
+        grid.Children.Add(requiredCard);
+        grid.Children.Add(workedCard);
+        grid.Children.Add(openCard);
+        grid.SetBinding(IsVisibleProperty, nameof(HomeViewModel.HasWorkHoursSummary));
+
+        return grid;
     }
+
+    private static Border CreateWorkHoursMetricCard(string labelText, string valueBindingPath, Color accentColor)
+    {
+        var titleLabel = new Label
+        {
+            Text = labelText,
+            FontSize = 12,
+            TextColor = accentColor,
+            HorizontalTextAlignment = TextAlignment.Center
+        };
+
+        var valueLabel = new Label
+        {
+            FontSize = 20,
+            FontAttributes = FontAttributes.Bold,
+            HorizontalTextAlignment = TextAlignment.Center
+        };
+        valueLabel.SetBinding(Label.TextProperty, valueBindingPath);
+
+        return new Border
+        {
+            BackgroundColor = Colors.White,
+            Stroke = accentColor.WithAlpha(0.22f),
+            StrokeThickness = 1,
+            Padding = new Thickness(10, 12),
+            Content = new VerticalStackLayout
+            {
+                Spacing = 4,
+                Children =
+                {
+                    titleLabel,
+                    valueLabel
+                }
+            }
+        };
+    }
+
+    private static Label CreateWorkHoursInfoLabel()
+    {
+        var label = new Label
+        {
+            FontSize = 12,
+            TextColor = Color.FromArgb("#5F6368"),
+            LineBreakMode = LineBreakMode.WordWrap
+        };
+        label.SetBinding(Label.TextProperty, nameof(HomeViewModel.WorkHoursInfoText));
+        label.SetBinding(IsVisibleProperty, nameof(HomeViewModel.HasWorkHoursSummary));
+        return label;
+    }
+
 }
