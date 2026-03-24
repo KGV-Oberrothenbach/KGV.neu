@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-03-24 – MAUI-Branding auf echtes Vereinslogo gezogen und Startpfad ehrlich gegen WPF abgeglichen
+
+- Vor dem Block den echten Arbeitsbaum erneut geprüft; der Stand ist weiterhin nicht synchron: viele blockfremde lokale Änderungen liegen offen, MAUI ist fachlich und UI-seitig noch nicht auf WPF-Niveau.
+- Branding-Istzustand belastbar geprüft:
+  - aktives MAUI-App-Icon kam bereits aus `KGV.Maui/Resources/AppIcon/appicon.svg`
+  - aktiver Splash kam dagegen noch aus `KGV.Maui/Resources/Splash/splash.svg` und zeigte nur eine generische KGV-Platzhaltergrafik
+  - `LoginPage` zeigte bislang gar kein Vereinslogo
+  - zusätzlich liegen lokale/unversionierte Dubletten wie `KGV.Maui/Resources/AppIcon/appicon.png` und `Logo.png` im Arbeitsbaum; sie wurden für diesen Block nur als Befund geprüft, nicht zur neuen Grundlage gemacht
+- Den Block klein und buildfähig direkt am aktiven MAUI-Pfad korrigiert:
+  - `KGV.Maui.csproj` nutzt für den Splash jetzt dasselbe echte Vereinslogo wie für das App-Icon (`Resources/AppIcon/appicon.svg`)
+  - dasselbe Logo wird zusätzlich als MAUI-Bildressource eingebunden, damit es auf der Loginseite sauber wiederverwendbar ist
+  - `LoginPage` zeigt oben jetzt das Vereinslogo sichtbar an
+  - der Start-/Login-Button `Anmelden` trägt das Logo ebenfalls links im Button und bleibt optisch kompakt statt überladen
+- Bewusst nicht gemacht:
+  - keine Neuarchitektur des Loginflows
+  - keine Änderung an WPF
+  - keine Übernahme unversionierter Dubletten in diesen Block
+  - keine pauschale Behauptung, MAUI sei jetzt gleichauf mit WPF
+- Ehrlicher Zwischenstand nach dem Vergleich:
+  - WPF bleibt klar funktionaler und tiefer ausgebaut
+  - MAUI hat belastbare Kernpfade für Login, Shell, Home-Basis, Parzellen-Kern, Arbeitsstunden, Ablesen und Benutzerverwaltung
+  - MAUI fehlt aber weiterhin u. a. bei Export, memberbezogener Detailnavigation, Garten-Unterbereichen, Dokumentenpfaden, Home-Detail-/Verwaltungsansichten und mehreren Admin-/Kontextpfaden aus WPF
+- Technisch verifiziert:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-24 – MAUI-Shell gegen leeren aktiven Einstieg gehärtet, Shell-Wechsel nach Login belastbar gemacht
 
 - Den realen Repo-/Arbeitsbaumstand vor dem Block geprüft; blockfremde offene WPF-/Supabase-Dateien bewusst unangetastet gelassen.

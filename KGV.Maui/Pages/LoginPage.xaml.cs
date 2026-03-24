@@ -12,6 +12,8 @@ namespace KGV.Maui.Pages;
 
 public class LoginPage : ContentPage
 {
+    private const string LogoImageSource = "kgv_logo.svg";
+
     private readonly IAuthService _authService;
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _userContextState;
@@ -40,12 +42,26 @@ public class LoginPage : ContentPage
         _emailEntry = new Entry { Placeholder = "E-Mail", Keyboard = Keyboard.Email, Text = AppSettings.LastEmail ?? string.Empty };
         _passwordEntry = new Entry { Placeholder = "Passwort", IsPassword = true };
         _statusLabel = new Label { TextColor = Colors.Red };
+        var logoImage = new Image
+        {
+            Source = LogoImageSource,
+            HeightRequest = 120,
+            Aspect = Aspect.AspectFit,
+            HorizontalOptions = LayoutOptions.Center,
+            Margin = new Thickness(0, 0, 0, 8)
+        };
         var otpEntry = new Entry { Placeholder = "OTP-Code", IsVisible = false };
         var newPasswordEntry = new Entry { Placeholder = "Neues Passwort", IsPassword = true, IsVisible = false };
         var confirmPasswordEntry = new Entry { Placeholder = "Passwort wiederholen", IsPassword = true, IsVisible = false };
         var passwordHintLabel = new Label { Text = "Passwortbedingungen: mindestens 8 Zeichen und identische Wiederholung.", TextColor = Colors.Gray, IsVisible = false };
         var togglePasswordButton = new Button { Text = "Passwort anzeigen" };
-        var loginButton = new Button { Text = "Anmelden" };
+        var loginButton = new Button
+        {
+            Text = "Anmelden",
+            ImageSource = LogoImageSource,
+            ContentLayout = new Button.ButtonContentLayout(Button.ButtonContentLayout.ImagePosition.Left, 12),
+            Padding = new Thickness(16, 12)
+        };
         var setPasswordButton = new Button { Text = "Neues Passwort setzen", IsVisible = false };
         var verifyOtpButton = new Button { Text = "Code prüfen", IsVisible = false };
         var requestOtpButton = new Button { Text = "Einladung / Erstlogin-Code anfordern" };
@@ -201,6 +217,7 @@ public class LoginPage : ContentPage
             Spacing = 12,
             Children =
             {
+                logoImage,
                 new Label { Text = "Login", FontSize = 24, FontAttributes = FontAttributes.Bold },
                 _emailEntry,
                 _passwordEntry,

@@ -68,10 +68,11 @@
 	<ItemGroup>
 		<!-- AppIcon: Vereinslogo (Dateiname muss lowercase sein, damit Android/Resizetizer akzeptiert) -->
 		<MauiIcon Include="Resources\AppIcon\appicon.svg" />
-		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#2E7D32" BaseSize="128,128" />
+       <MauiSplashScreen Include="Resources\AppIcon\appicon.svg" Color="#2E7D32" BaseSize="192,192" />
 	</ItemGroup>
 
 	<ItemGroup>
+     <MauiImage Include="Resources\AppIcon\appicon.svg" Link="Resources\Images\kgv_logo.svg" />
 		<MauiImage Include="Resources\Images\*.svg" />
 	</ItemGroup>
 

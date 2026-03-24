@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/2: MAUI-Branding korrigiert und ehrlichen WPF-/MAUI-Abgleich vorbereitet
+
+- Den echten Stand zuerst direkt im lokalen Repository/Arbeitsbaum geprüft statt von einer bereits angeglichenen Mobilbasis auszugehen.
+- Realer Befund vor dem Block:
+  - WPF und MAUI sind aktuell nicht gleichauf.
+  - Im Arbeitsbaum liegen weiterhin viele blockfremde lokale Änderungen offen.
+  - MAUI enthält zwar mehrere nachgezogene Kernfunktionen, bleibt aber gegenüber WPF in mehreren Bereichen sichtbar zurück.
+- Branding-Istzustand in MAUI belastbar geprüft:
+  - aktives App-Icon: `KGV.Maui/Resources/AppIcon/appicon.svg`
+  - aktiver Splash: `KGV.Maui/Resources/Splash/splash.svg`
+  - `splash.svg` war nur eine generische KGV-Platzhaltergrafik und gerade nicht dasselbe Vereinslogo wie das aktive App-Icon
+  - `LoginPage` zeigte bisher kein Logo auf der Start-/Loginseite
+  - zusätzlich existieren lokale/unversionierte Logo-Dubletten im Arbeitsbaum (`KGV.Maui/Resources/AppIcon/appicon.png`, Root-`Logo.png`, Root-`appicon.svg`); diese wurden nur geprüft und nicht als neue Hauptquelle in den Block gezogen
+- Den Branding-Block bewusst klein und direkt am aktiven Pfad umgesetzt:
+  - `KGV.Maui.csproj` verwendet für den Splash jetzt ebenfalls `Resources/AppIcon/appicon.svg`
+  - dasselbe SVG wird zusätzlich als normale MAUI-Bildressource eingebunden, damit es im UI wiederverwendet werden kann
+  - `LoginPage` zeigt oben jetzt das Vereinslogo sichtbar an
+  - der Start-/Login-Button `Anmelden` enthält das Logo ebenfalls links im Button und bleibt kompakt
+- Keine unnötige Nebenbaustelle geöffnet:
+  - keine WPF-Änderung
+  - keine neue Branding-Architektur
+  - keine Übernahme unversionierter Dateien in diesen Block
+  - die alte generische `Resources/Splash/splash.svg` bleibt nur noch als nicht mehr aktiver Rest im Repo bestehen
+- Ehrlicher WPF-/MAUI-Abgleich aus diesem Prüfstand:
+  - WPF ist weiterhin breiter und tiefer ausgebaut als MAUI
+  - MAUI ist nicht fachlich parity-fertig
+  - mehrere WPF-Pfade existieren mobil gar nicht oder nur verkürzt
+- Technische Verifikation für diesen Block:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-24 – Prompt 2/2: offenen MAUI-Shell-Block sauber abgeschlossen und gegen `Active Shell Item not set` gehärtet
 
 - Den echten Arbeitsstand vor dem Block erneut direkt im lokalen Repository geprüft statt auf den vorigen Agent-Lauf zu vertrauen.
