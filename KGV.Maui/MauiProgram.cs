@@ -32,6 +32,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<UserContextState>();
         builder.Services.AddSingleton<IUserContextAccessor>(sp => sp.GetRequiredService<UserContextState>());
         builder.Services.AddSingleton<MemberContextState>();
+        builder.Services.AddSingleton<ParzellenContextState>();
 
         builder.Services.AddKgvServices(builder.Configuration);
 

@@ -2,6 +2,53 @@
 
 ---
 
+## 2026-03-24 – Prompt 3/2: MAUI-Parität Block 2 für Garten-/Parzellen-Unterbereiche im Mitgliedskontext nachgezogen
+
+- Vor dem Block den realen Repo-/Arbeitsbaumstand sowie den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` erneut geprüft und gegeneinander abgeglichen.
+- Realer Ausgangszustand vor diesem Block:
+  - der Mitgliedskontext in MAUI war bereits vorhanden
+  - `Admin-Menü` im Mitgliedskontext war bereits vorhanden
+  - Mitgliedsdokumente waren bereits als echter Pfad nachgezogen
+  - die tieferen Garten-/Parzellen-Unterbereiche fehlten aber im mobilen Mitgliedspfad weiterhin: `Strom`, `Wasser`, Garten-Dokumente
+- WPF-/MAUI-Abgleich für diesen Block gezielt fokussiert:
+  - WPF hat im Mitgliedskontext den Gartenbezug mit separaten Unterpunkten `Strom`, `Wasser`, `Dokumente`
+  - MAUI hatte fachlich bereits einen belastbaren Parzellenkern in `ParzellenPage` / `ParzellenViewModel`, nutzte ihn aber noch nicht aus dem Mitgliedskontext heraus
+- Den mobilen Gartenkontext deshalb minimal-invasiv auf dem vorhandenen MAUI-Parzellenkern aufgebaut statt neue Seitenarchitektur zu eröffnen:
+  - neuer `ParzellenContextState` hält den aus dem Mitgliedskontext angeforderten Garten-/Parzellenkontext
+  - `MeineDatenPage` zeigt Garten-/Parzellenzuordnungen jetzt nicht nur informativ, sondern öffnet beim Antippen den echten Gartenkontext
+  - Navigation läuft auf die bestehende `ParzellenPage`
+- Bestehenden Parzellenkern für den Kontextpfad nachgezogen:
+  - `ParzellenViewModel` übernimmt den angeforderten Kontext
+  - selektiert die Zielparzelle automatisch
+  - schaltet Titel/Beschreibung/Hinweis auf den Mitgliedskontext um
+  - behält zugleich den bestehenden globalen Parzellenverwaltungsweg bei
+  - zusätzlicher Rückweg `Zur Parzellenübersicht`, damit der Kontextmodus die globale Verwaltung nicht dauerhaft blockiert
+- Fachliche Unterbereiche im Gartenkontext damit mobil wirklich erreichbar:
+  - `Strom`
+    - aktiver Zähler-/Statusbezug
+    - vorhandene Ablesungen
+    - Speichern/Bearbeiten von Ablesungen
+    - Zählerwechsel auf dem bestehenden Pfad
+  - `Wasser`
+    - aktiver Zähler-/Statusbezug
+    - vorhandene Ablesungen
+    - Speichern/Bearbeiten von Ablesungen
+    - Einbau/Ausbau auf dem bestehenden Pfad
+  - Garten-Dokumente
+    - Nutzung des vorhandenen Parzellen-Dokumentepfads
+    - Öffnen weiterhin über Signed URL
+- Bewusst nicht gemacht:
+  - keine neue Schattenseite nur für Garten-Unterbereiche
+  - kein Endausbau zusätzlicher Garten-Spezialfälle außerhalb des vorhandenen Parzellenkerns
+  - keine unnötigen Änderungen an Login-/Shell-/Mitgliedskontextblöcken
+- Fachliche Kurzvalidierung nach dem Umbau:
+  - Mitglied auswählen
+  - in Mitgliedskontext wechseln
+  - zugeordnete Parzelle/Garten öffnen
+  - `Strom`, `Wasser` und Garten-Dokumente im Gartenkontext erreichbar
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-24 – Prompt 2/2: MAUI-Parität Block 1 für Mitgliedskontext, Admin-Menü und Dokumente sauber nachgezogen
 
 - Den echten aktuellen Stand zuerst wieder direkt im lokalen Repository/Arbeitsbaum geprüft.

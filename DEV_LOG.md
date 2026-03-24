@@ -2,6 +2,37 @@
 
 ---
 
+## 2026-03-24 – MAUI-Garten-/Parzellenkontext im Mitgliedspfad auf bestehenden Detailkern gezogen
+
+- Vor dem Block wieder den echten Repo-/Arbeitsbaumstand und den aktuellen Fortschrittslog geprüft; blockfremde offene WPF-/Supabase-Dateien blieben erneut unangetastet.
+- Ausgangszustand vor dem Umbau:
+  - der mobile Mitgliedskontext zeigte Gärten/Parzellen bisher nur als Information
+  - `Strom`, `Wasser` und Garten-Dokumente waren aus dem Mitgliedspfad noch nicht als echter Gartenkontext erreichbar
+  - gleichzeitig existierte in MAUI bereits ein belastbarer Parzellen-Detailpfad (`ParzellenPage` + `ParzellenViewModel`) mit genau diesen Fachbereichen
+- WPF-Referenzpfad geprüft:
+  - im Desktop-Mitgliedskontext führen Garten-Unterpunkte auf `Strom`, `Wasser` und `Dokumente`
+  - der mobile Block sollte deshalb keinen neuen Schattenpfad eröffnen, sondern den vorhandenen belastbaren MAUI-Parzellenkern kontextgebunden nutzbar machen
+- Den Block bewusst klein und wiederverwendend umgesetzt:
+  - neuer kleiner `ParzellenContextState` hält den aus dem Mitgliedskontext angeforderten Garten/Parzelle-Kontext
+  - `MeineDatenPage` öffnet beim Tippen auf eine vorhandene Zuordnung jetzt den echten Gartenkontext statt nur Text anzuzeigen
+  - der Wechsel läuft auf die bestehende `ParzellenPage`
+  - `ParzellenViewModel` übernimmt den angeforderten Kontext, selektiert die gewünschte Parzelle automatisch und schaltet Titel/Beschreibung/Hinweis auf den Mitgliedskontext um
+  - `ParzellenPage` zeigt im Kontextmodus direkt den bereits vorhandenen Fachkern mit:
+    - `Strom`
+    - `Wasser`
+    - Garten-Dokumenten
+  - zusätzlich kleiner Rückweg `Zur Parzellenübersicht`, damit die globale Parzellenverwaltung weiter nutzbar bleibt
+- Wichtiger fachlicher Punkt:
+  - Es wurde keine neue Platzhalterseite für Garten-Unterbereiche gebaut.
+  - Der mobile Mitgliedspfad verwendet jetzt direkt die vorhandenen belastbaren Daten-/Servicepfade aus der Parzellenverwaltung für Zählerstatus, Ablesungen und Garten-Dokumente.
+- Fachliche Kurzvalidierung für diesen Block:
+  - Mitglied auswählen
+  - in Mitgliedskontext wechseln
+  - Garten/Parzelle antippen
+  - `Strom`, `Wasser` und Garten-Dokumente im echten Gartenkontext erreichbar
+- Technisch verifiziert:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-24 – MAUI-Mitgliedskontext, Admin-Menü und Mitgliedsdokumente auf belastbaren Kernpfad gezogen
 
 - Den echten Stand vor dem Block wieder direkt im Repo/Arbeitsbaum geprüft: MAUI hatte nach der Branding-Korrektur weiter keinen echten mitgliedsbezogenen Detailpfad, `MemberSearchPage` endete nur mit `DisplayAlert`, `MeineDatenPage` und `DokumentePage` waren noch Platzhalter, und die mobile `Benutzerverwaltung` hing weiterhin lose global statt am Mitgliedskontext.

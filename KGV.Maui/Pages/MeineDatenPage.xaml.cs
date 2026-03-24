@@ -13,6 +13,7 @@ public class MeineDatenPage : ContentPage
     private readonly IAuthService _authService;
     private readonly UserContextState _userContextState;
     private readonly MemberContextState _memberContextState;
+    private readonly ParzellenContextState _parzellenContextState;
 
     private readonly Label _headlineLabel;
     private readonly Label _memberInfoLabel;
@@ -35,12 +36,14 @@ public class MeineDatenPage : ContentPage
         ISupabaseService supabaseService,
         IAuthService authService,
         UserContextState userContextState,
-        MemberContextState memberContextState)
+        MemberContextState memberContextState,
+        ParzellenContextState parzellenContextState)
     {
         _supabaseService = supabaseService;
         _authService = authService;
         _userContextState = userContextState;
         _memberContextState = memberContextState;
+        _parzellenContextState = parzellenContextState;
 
         Title = "Mitgliedskontext";
 
@@ -71,7 +74,7 @@ public class MeineDatenPage : ContentPage
 
         var gardensView = new CollectionView
         {
-            SelectionMode = SelectionMode.None,
+            SelectionMode = SelectionMode.Single,
             HeightRequest = 220,
             ItemsSource = _gardenAssignments,
             ItemTemplate = new DataTemplate(() =>
@@ -94,6 +97,24 @@ public class MeineDatenPage : ContentPage
                     }
                 };
             })
+        };
+
+        gardensView.SelectionChanged += async (_, e) =>
+        {
+            var selected = e.CurrentSelection?.FirstOrDefault() as GartenAssignmentItem;
+            gardensView.SelectedItem = null;
+            if (selected == null)
+                return;
+
+            _parzellenContextState.SetMemberContext(selected.ParzelleId, selected.Title);
+            await Shell.Current.GoToAsync("//parzellen");
+        };
+
+        var gardenHintLabel = new Label
+        {
+            Text = "Tippen öffnet den Gartenkontext mit Strom, Wasser und Garten-Dokumenten.",
+            TextColor = Colors.Gray,
+            LineBreakMode = LineBreakMode.WordWrap
         };
 
         var adminMenuSection = new VerticalStackLayout
@@ -120,7 +141,7 @@ public class MeineDatenPage : ContentPage
                     _headlineLabel,
                     _statusLabel,
                     CreateSection("Mitglied", _memberInfoLabel, _contactLabel, _addressLabel, _memberSinceLabel),
-                    CreateSection("Gärten / Parzellen", _documentsButton, gardensView, _gardensEmptyLabel),
+                    CreateSection("Gärten / Parzellen", _documentsButton, gardenHintLabel, gardensView, _gardensEmptyLabel),
                     adminMenuSection,
                     refreshButton
                 }
@@ -202,6 +223,7 @@ public class MeineDatenPage : ContentPage
             var bisText = belegung.BisDatum.HasValue ? belegung.BisDatum.Value.ToString("dd.MM.yyyy") : "aktiv";
 
             _gardenAssignments.Add(new GartenAssignmentItem(
+                belegung.ParzelleId,
                 $"Garten {gartenNr} ({anlage})",
                 $"Von {FormatDate(belegung.VonDatum)} bis {bisText}"));
         }
@@ -368,5 +390,5 @@ public class MeineDatenPage : ContentPage
         };
     }
 
-    private sealed record GartenAssignmentItem(string Title, string Subtitle);
+    private sealed record GartenAssignmentItem(int ParzelleId, string Title, string Subtitle);
 }

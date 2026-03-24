@@ -51,9 +51,22 @@ public sealed class ParzellenPage : ContentPage
         };
         parzellenView.SetBinding(ItemsView.ItemsSourceProperty, nameof(ParzellenViewModel.Items));
         parzellenView.SetBinding(SelectableItemsView.SelectedItemProperty, nameof(ParzellenViewModel.SelectedItem), BindingMode.TwoWay);
+        parzellenView.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsContextBound), converter: new InverseBooleanConverter());
 
         var selectionHint = new Label { Text = "Bitte Parzelle auswählen.", TextColor = Colors.Gray };
         selectionHint.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowSelectionHint));
+
+        var contextInfoLabel = new Label
+        {
+            Text = "Gartenkontext aus dem ausgewählten Mitglied. Strom, Wasser und Garten-Dokumente werden darunter direkt geladen.",
+            TextColor = Colors.Gray,
+            LineBreakMode = LineBreakMode.WordWrap
+        };
+        contextInfoLabel.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsContextBound));
+
+        var clearContextButton = new Button { Text = "Zur Parzellenübersicht" };
+        clearContextButton.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsContextBound));
+        clearContextButton.Clicked += async (_, _) => await _viewModel.ClearRequestedContextAsync();
 
         var detailContainer = new VerticalStackLayout { Spacing = 10 };
         detailContainer.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.HasSelectedDetail));
@@ -381,6 +394,8 @@ public sealed class ParzellenPage : ContentPage
                     titleLabel,
                     descriptionLabel,
                     hintLabel,
+                    contextInfoLabel,
+                    clearContextButton,
                     refreshButton,
                     parzellenView,
                     selectionHint,
@@ -395,11 +410,14 @@ public sealed class ParzellenPage : ContentPage
     {
         base.OnAppearing();
 
-        if (_initialized)
+        if (!_initialized)
+        {
+            await _viewModel.InitializeAsync();
+            _initialized = true;
             return;
+        }
 
-        await _viewModel.InitializeAsync();
-        _initialized = true;
+        await _viewModel.ApplyRequestedContextAsync();
     }
 
     private static View CreateSection(string title, params View[] children)
@@ -441,5 +459,14 @@ public sealed class ParzellenPage : ContentPage
     {
         return decimal.TryParse(value, out result)
                || decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out result);
+    }
+
+    private sealed class InverseBooleanConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+            => value is bool b ? !b : true;
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+            => throw new NotSupportedException();
     }
  }

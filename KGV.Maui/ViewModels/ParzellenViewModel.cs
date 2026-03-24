@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Maui.State;
 using Microsoft.Maui.ApplicationModel;
 using System;
 using System.Collections.Generic;
@@ -14,6 +15,7 @@ namespace KGV.Maui.ViewModels;
 public sealed class ParzellenViewModel : INotifyPropertyChanged
 {
     private readonly ISupabaseService _supabaseService;
+    private readonly ParzellenContextState _parzellenContextState;
     private ParzelleVerwaltungItem? _selectedItem;
     private ParzelleDetailDTO? _selectedDetail;
     private MemberDTO? _selectedAssignMember;
@@ -21,9 +23,10 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     private string _statusMessage = string.Empty;
     private bool _isBusy;
 
-    public ParzellenViewModel(ISupabaseService supabaseService)
+    public ParzellenViewModel(ISupabaseService supabaseService, ParzellenContextState parzellenContextState)
     {
         _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
+        _parzellenContextState = parzellenContextState ?? throw new ArgumentNullException(nameof(parzellenContextState));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -34,9 +37,16 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     public ObservableCollection<ZaehlerAblesungDTO> WasserAblesungen { get; } = new();
     public ObservableCollection<DocumentInfo> Dokumente { get; } = new();
 
-    public string Title => "Parzellen";
-    public string Description => "Zentrale Parzellenübersicht mit Stammdaten, Belegung, Wasser/Strom und Dokumentbezug.";
-    public string DetailHint => "Separate Anschlussflags liegen aktuell nicht als eigenes Feld vor. Sichtbar ist deshalb der belastbare Status aus vorhandenen Zählern, Ablesungen und Dokumentpfaden.";
+    public string Title => _parzellenContextState.IsFromMemberContext
+        ? (_parzellenContextState.ContextTitle ?? "Gartenkontext")
+        : "Parzellen";
+    public string Description => _parzellenContextState.IsFromMemberContext
+        ? "Mitgliedsbezogener Garten-/Parzellenkontext mit Strom, Wasser und Garten-Dokumenten auf dem bestehenden Parzellen-Fachpfad."
+        : "Zentrale Parzellenübersicht mit Stammdaten, Belegung, Wasser/Strom und Dokumentbezug.";
+    public string DetailHint => _parzellenContextState.IsFromMemberContext
+        ? "Die Unterbereiche Strom, Wasser und Garten-Dokumente laufen hier auf demselben belastbaren Detailpfad wie in der zentralen Parzellenverwaltung."
+        : "Separate Anschlussflags liegen aktuell nicht als eigenes Feld vor. Sichtbar ist deshalb der belastbare Status aus vorhandenen Zählern, Ablesungen und Dokumentpfaden.";
+    public bool IsContextBound => _parzellenContextState.IsFromMemberContext;
 
     public ParzelleVerwaltungItem? SelectedItem
     {
@@ -141,9 +151,13 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     public async Task InitializeAsync()
     {
         if (Items.Count > 0)
+        {
+            await ApplyRequestedContextAsync();
             return;
+        }
 
         await LoadAsync(resetItems: true);
+        await ApplyRequestedContextAsync();
     }
 
     public async Task RefreshAsync()
@@ -152,6 +166,36 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         SelectedItem = null;
         SelectedDetail = null;
         await LoadAsync(resetItems: true);
+        await ApplyRequestedContextAsync();
+    }
+
+    public async Task ApplyRequestedContextAsync()
+    {
+        if (_parzellenContextState.SelectedParzelleId is not > 0)
+            return;
+
+        if (Items.Count == 0)
+            await LoadAsync(resetItems: true);
+
+        var requestedId = _parzellenContextState.SelectedParzelleId.Value;
+        var target = Items.FirstOrDefault(x => x.ParzelleId == requestedId);
+        if (target != null)
+            SelectedItem = target;
+
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(DetailHint));
+        OnPropertyChanged(nameof(IsContextBound));
+    }
+
+    public async Task ClearRequestedContextAsync()
+    {
+        _parzellenContextState.Clear();
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(DetailHint));
+        OnPropertyChanged(nameof(IsContextBound));
+        await RefreshAsync();
     }
 
     public async Task OpenDocumentAsync(DocumentInfo? document)
