@@ -9,17 +9,24 @@ public sealed class MyArbeitsstundenPage : ContentPage
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _state;
 
-    private bool _loaded;
+    private bool _isLoading;
     private int? _currentSaisonId;
+    private ArbeitsstundeDTO? _selectedArbeitsstunde;
 
     private readonly Picker _forWhomPicker;
     private readonly DatePicker _datePicker;
     private readonly Entry _hoursEntry;
-    private readonly Entry _descEntry;
+    private readonly Editor _descEditor;
     private readonly Button _addButton;
+    private readonly Button _cancelEditButton;
 
     private readonly CollectionView _list;
     private readonly Label _status;
+    private readonly Label _editorHint;
+    private readonly Label _summarySaisonLabel;
+    private readonly Label _summarySollLabel;
+    private readonly Label _summaryGeleistetLabel;
+    private readonly Label _summaryOffenLabel;
 
     private readonly List<MemberOption> _options = new();
     private readonly List<ArbeitsstundeDTO> _items = new();
@@ -37,15 +44,25 @@ public sealed class MyArbeitsstundenPage : ContentPage
         _datePicker = new DatePicker { Date = DateTime.Today };
 
         _hoursEntry = new Entry { Placeholder = "Stunden (z.B. 2,5)", Keyboard = Keyboard.Numeric };
-        _descEntry = new Entry { Placeholder = "Art der Arbeit" };
+        _descEditor = new Editor { Placeholder = "Art der Arbeit", AutoSize = EditorAutoSizeOption.TextChanges, HeightRequest = 110 };
 
         _addButton = new Button { Text = "Arbeitsstunde erfassen" };
         _addButton.Clicked += OnAddClicked;
 
-        _status = new Label { TextColor = Colors.Red };
+        _cancelEditButton = new Button { Text = "Bearbeiten abbrechen", IsVisible = false };
+        _cancelEditButton.Clicked += (_, _) => ResetEditor();
+
+        _status = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
+        _editorHint = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+
+        _summarySaisonLabel = new Label { FontSize = 12, TextColor = Colors.Gray };
+        _summarySollLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
+        _summaryGeleistetLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
+        _summaryOffenLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
 
         _list = new CollectionView
         {
+            SelectionMode = SelectionMode.Single,
             ItemsSource = _items,
             ItemTemplate = new DataTemplate(() =>
             {
@@ -62,6 +79,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
                 };
             })
         };
+        _list.SelectionChanged += OnSelectionChanged;
 
         Content = new ScrollView
         {
@@ -71,11 +89,34 @@ public sealed class MyArbeitsstundenPage : ContentPage
                 Spacing = 12,
                 Children =
                 {
+                    new Label { Text = "Pflichtstunden-Überblick", FontAttributes = FontAttributes.Bold },
+                    _summarySaisonLabel,
+                    new Grid
+                    {
+                        ColumnDefinitions = new ColumnDefinitionCollection
+                        {
+                            new ColumnDefinition(GridLength.Star),
+                            new ColumnDefinition(GridLength.Star),
+                            new ColumnDefinition(GridLength.Star)
+                        },
+                        ColumnSpacing = 12,
+                        Children =
+                        {
+                            CreateSummaryCard("Soll", _summarySollLabel, 0),
+                            CreateSummaryCard("Geleistet", _summaryGeleistetLabel, 1),
+                            CreateSummaryCard("Offen", _summaryOffenLabel, 2)
+                        }
+                    },
                     _forWhomPicker,
                     _datePicker,
                     _hoursEntry,
-                    _descEntry,
-                    _addButton,
+                    _descEditor,
+                    _editorHint,
+                    new HorizontalStackLayout
+                    {
+                        Spacing = 8,
+                        Children = { _cancelEditButton, _addButton }
+                    },
                     _status,
                     new Label { Text = "Bisher erfasst", FontAttributes = FontAttributes.Bold },
                     _list
@@ -88,24 +129,34 @@ public sealed class MyArbeitsstundenPage : ContentPage
 
     private async void OnAppearing(object? sender, EventArgs e)
     {
-        if (_loaded) return;
-        _loaded = true;
-        await InitializeAsync();
+        await RefreshAsync();
     }
 
-    private async Task InitializeAsync()
+    private async Task RefreshAsync()
     {
-        _status.Text = string.Empty;
-
-        if (_state.CurrentMitgliedId == null || _state.CurrentMitgliedId.Value > int.MaxValue)
-        {
-            _status.Text = "MitgliedId fehlt.";
+        if (_isLoading)
             return;
-        }
 
-        await EnsureSeasonAsync();
-        await EnsureOptionsAsync();
-        await LoadListAsync();
+        _isLoading = true;
+        _status.Text = string.Empty;
+        try
+        {
+            if (_state.CurrentMitgliedId == null || _state.CurrentMitgliedId.Value > int.MaxValue)
+            {
+                _status.Text = "MitgliedId fehlt.";
+                return;
+            }
+
+            await EnsureSeasonAsync();
+            await EnsureOptionsAsync();
+            await LoadSummaryAsync();
+            await LoadListAsync();
+            ResetEditor();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private async Task EnsureSeasonAsync()
@@ -143,6 +194,18 @@ public sealed class MyArbeitsstundenPage : ContentPage
         _forWhomPicker.SelectedItem = _options[0];
     }
 
+    private async Task LoadSummaryAsync()
+    {
+        if (_state.CurrentMitgliedId == null || _state.CurrentMitgliedId.Value > int.MaxValue)
+        {
+            SetSummary(null);
+            return;
+        }
+
+        var summary = await _supabaseService.GetPflichtstundenUebersichtForMitgliedAsync((int)_state.CurrentMitgliedId.Value);
+        SetSummary(summary);
+    }
+
     private async Task LoadListAsync()
     {
         _items.Clear();
@@ -155,6 +218,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
 
         _list.ItemsSource = null;
         _list.ItemsSource = _items;
+        _list.SelectedItem = null;
     }
 
     private async void OnAddClicked(object? sender, EventArgs e)
@@ -174,22 +238,22 @@ public sealed class MyArbeitsstundenPage : ContentPage
             return;
         }
 
-        var desc = (_descEntry.Text ?? string.Empty).Trim();
+        var desc = (_descEditor.Text ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(desc))
         {
             await DisplayAlert("Fehler", "Bitte Art der Arbeit angeben.", "OK");
             return;
         }
 
-        if (!decimal.TryParse((_hoursEntry.Text ?? string.Empty).Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var hours))
+        if (!TryParseHours(_hoursEntry.Text, out var hours))
         {
             await DisplayAlert("Fehler", "Stunden sind ungültig.", "OK");
             return;
         }
 
-        if (hours <= 0 || hours > 24)
+        if (hours <= 0)
         {
-            await DisplayAlert("Fehler", "Stunden müssen zwischen 0 und 24 liegen.", "OK");
+            await DisplayAlert("Fehler", "Stunden müssen größer als 0 sein.", "OK");
             return;
         }
 
@@ -198,16 +262,21 @@ public sealed class MyArbeitsstundenPage : ContentPage
         {
             var rec = new ArbeitsstundeRecord
             {
+                Id = _selectedArbeitsstunde?.Id ?? 0,
                 MitgliedId = opt.MitgliedId,
                 SaisonId = _currentSaisonId.Value,
                 Datum = _datePicker.Date.Date,
                 Stunden = hours,
                 ArtDerArbeit = desc,
-                Status = null,
-                Freigegeben = false
+                Status = _selectedArbeitsstunde?.Status,
+                Freigegeben = _selectedArbeitsstunde?.Freigegeben ?? false,
+                GenehmigtAm = _selectedArbeitsstunde?.FreigegebenAm,
+                GenehmigtVon = _selectedArbeitsstunde?.FreigegebenVonId
             };
 
-            var ok = await _supabaseService.AddArbeitsstundeAsync(rec);
+            var ok = _selectedArbeitsstunde == null
+                ? await _supabaseService.AddArbeitsstundeAsync(rec)
+                : await _supabaseService.UpdateArbeitsstundeAsync(rec);
             if (!ok)
             {
                 await DisplayAlert("Fehler", "Speichern fehlgeschlagen.", "OK");
@@ -215,9 +284,11 @@ public sealed class MyArbeitsstundenPage : ContentPage
             }
 
             _hoursEntry.Text = string.Empty;
-            _descEntry.Text = string.Empty;
+            _descEditor.Text = string.Empty;
 
+            await LoadSummaryAsync();
             await LoadListAsync();
+            ResetEditor();
         }
         catch (Exception ex)
         {
@@ -227,6 +298,101 @@ public sealed class MyArbeitsstundenPage : ContentPage
         {
             _addButton.IsEnabled = true;
         }
+    }
+
+    private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        var selected = e.CurrentSelection?.FirstOrDefault() as ArbeitsstundeDTO;
+        if (selected == null)
+        {
+            ResetEditor();
+            return;
+        }
+
+        _selectedArbeitsstunde = selected;
+        _datePicker.Date = selected.Datum.Date;
+        _hoursEntry.Text = selected.Stunden.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture);
+        _descEditor.Text = selected.Beschreibung ?? string.Empty;
+        _forWhomPicker.SelectedItem = _options.FirstOrDefault(x => x.MitgliedId == selected.MitgliedId) ?? _options.FirstOrDefault();
+        _addButton.Text = "Arbeitsstunde speichern";
+        _cancelEditButton.IsVisible = true;
+        _editorHint.Text = $"Bearbeite Arbeitsstunde vom {selected.Datum:dd.MM.yyyy}. Der bestehende Freigabestatus bleibt erhalten.";
+    }
+
+    private void ResetEditor()
+    {
+        _selectedArbeitsstunde = null;
+        _datePicker.Date = DateTime.Today;
+        _hoursEntry.Text = string.Empty;
+        _descEditor.Text = string.Empty;
+        _addButton.Text = "Arbeitsstunde erfassen";
+        _cancelEditButton.IsVisible = false;
+        _editorHint.Text = "Tippe einen bestehenden Eintrag an, um ihn im selben Formular zu bearbeiten.";
+        _list.SelectedItem = null;
+
+        if (_options.Count > 0)
+            _forWhomPicker.SelectedItem = _options[0];
+    }
+
+    private void SetSummary(PflichtstundenUebersichtRecord? summary)
+    {
+        _summarySaisonLabel.Text = summary?.SaisonJahr is > 0
+            ? $"Saison {summary.SaisonJahr}"
+            : "Aktuell keine Pflichtstundenübersicht verfügbar";
+
+        _summarySollLabel.Text = FormatHours(summary?.PflichtstundenSoll);
+        _summaryGeleistetLabel.Text = FormatHours(summary?.GeleisteteStunden);
+        _summaryOffenLabel.Text = FormatHours(summary?.OffeneStunden);
+    }
+
+    private static Border CreateSummaryCard(string title, Label valueLabel, int column)
+    {
+        var titleLabel = new Label
+        {
+            Text = title,
+            FontSize = 12,
+            TextColor = Colors.Gray,
+            HorizontalTextAlignment = TextAlignment.Center
+        };
+
+        var stack = new VerticalStackLayout
+        {
+            Spacing = 4,
+            Children = { titleLabel, valueLabel }
+        };
+
+        var border = new Border
+        {
+            Stroke = Colors.LightGray,
+            Padding = 12,
+            Content = stack
+        };
+
+        Grid.SetColumn(border, column);
+        return border;
+    }
+
+    private static string FormatHours(decimal? value)
+    {
+        return value.HasValue
+            ? value.Value.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture)
+            : "–";
+    }
+
+    private static bool TryParseHours(string? input, out decimal value)
+    {
+        value = 0;
+        if (string.IsNullOrWhiteSpace(input))
+            return false;
+
+        if (decimal.TryParse(input, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.CurrentCulture, out value))
+            return true;
+
+        if (decimal.TryParse(input, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out value))
+            return true;
+
+        var normalized = input.Replace(',', '.');
+        return decimal.TryParse(normalized, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out value);
     }
 
     private sealed record MemberOption(int MitgliedId, string Display);

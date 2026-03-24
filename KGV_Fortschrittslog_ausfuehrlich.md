@@ -2,6 +2,55 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 5 für Arbeitsstunden komplett begonnen und kleinen mobilen Überblick-/Erfassungs-/Bearbeitungs-Fix umgesetzt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Für Block 5 gezielt geprüft:
+  - WPF: `ArbeitsstundenView`, `ArbeitsstundenPruefungView`, `ArbeitsstundenErfassungView`, `ArbeitsstundenErfassungWindow`, `ArbeitsstundeDialog`
+  - MAUI: `MyArbeitsstundenPage`, `ArbeitsstundenReviewPage` sowie die relevanten Shared-Servicepfade rund um Arbeitsstunden
+- Systematischer Vergleich entlang derselben Logik durchgeführt:
+  - UI/Struktur
+  - Daten/Fachinhalt
+  - Aktionen/Commands
+  - Navigation/Flow
+  - Rechte/Sichtbarkeit
+- Ehrlicher Befund im aktuellen Repo-Stand:
+  - der mobile Arbeitsstunden-Unterbau ist bereits belastbar vorhanden
+  - Erfassung und Review laufen in MAUI bereits auf denselben Shared-Servicepfaden wie in WPF
+  - der größte kleine Restabstand lag aktuell im normalen mobilen Nutzerpfad, nicht in fehlender Basisspeicherung
+  - `MyArbeitsstundenPage` blieb im aktuellen Stand gegenüber WPF schwächer bei Übersicht, Rückkehrstabilität und Bearbeitung bereits erfasster Einträge
+  - der mobile Freigabepfad bleibt funktional vorhanden, ist gegenüber WPF aber weiterhin deutlich einfacher
+- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - `MyArbeitsstundenPage` initialisierte bisher nur einmal pro Seiteninstanz und konnte beim Rückweg veraltete Daten zeigen
+  - mobil fehlte auf der eigenen Arbeitsstunden-Seite ein klarer `Soll / Geleistet / Offen`-Überblick
+  - bestehende Arbeitsstunden konnten mobil im normalen Erfassungspfad noch nicht im selben Formular wieder bearbeitet werden
+  - die mobile Stundenvalidierung wich mit einer zusätzlichen `<= 24`-Sonderregel unnötig vom WPF-/Shared-Pfad ab
+- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur innerhalb des Arbeitsstunden-Bereichs umgesetzt:
+  - `MyArbeitsstundenPage` lädt beim Wiedererscheinen jetzt erneut und bleibt dadurch kontextstabiler
+  - die Seite zeigt jetzt oben einen kleinen Pflichtstunden-Überblick mit `Soll`, `Geleistet` und `Offen`
+  - der Überblick nutzt den vorhandenen Shared-Servicepfad `GetPflichtstundenUebersichtForMitgliedAsync(...)`
+  - das bestehende mobile Erfassungsformular kann jetzt auch zum Bearbeiten bereits erfasster Arbeitsstunden wiederverwendet werden
+  - Antippen eines bestehenden Eintrags füllt das Formular; derselbe Speichern-Pfad schreibt dann per `UpdateArbeitsstundeAsync(...)`
+  - zusätzlicher Button `Bearbeiten abbrechen` setzt den Editorzustand sauber zurück
+  - die Stundenvalidierung wurde auf den belastbaren WPF-/Shared-Ansatz zurückgezogen: gültige Zahl größer als `0`, keine zusätzliche Schattenregel `<= 24`
+  - die Eingabe `Art der Arbeit` wurde mobil von einem einfachen Einzeilenfeld auf einen besser lesbaren Editor angehoben
+- Warum dieser kleine Block fachlich sinnvoll ist:
+  - der größte echte Praxisabstand lag im normalen mobilen Nutzerpfad
+  - Übersicht, Rückkehrstabilität und Bearbeitung liefern direkt Nutzwert ohne neue Architektur
+  - der Block bleibt vollständig auf bestehenden Shared-Servicepfaden und baut keine Schattenlogik
+- Bewusst nicht gemacht:
+  - kein neuer mobiler Review-/Freigabeeditor analog zur WPF-Prüftabelle
+  - kein Umbau der bestehenden WPF-Dialogarchitektur
+  - keine Änderung an Home, Mitglieds-, Garten-, Verwaltungs-, Export- oder Ablesen-Pfaden
+- Fachliche Kurzvalidierung nach dem kleinen Block:
+  - Arbeitsstundenbereich bleibt erreichbar
+  - Nutzerpfad bleibt intakt und ist jetzt auf Mobil übersichtlicher und bearbeitbarer
+  - Review-/Freigabepfad bleibt unverändert nutzbar
+  - keine Verschlechterung bereits geprüfter Home-, Mitglieds- oder Gartenpfade
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
+
 ## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 4 für Parzellen / Garten / Dokumente / Strom / Wasser begonnen und kleinen Rückwege-/Kontext-Fix umgesetzt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
