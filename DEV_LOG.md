@@ -2,6 +2,49 @@
 
 ---
 
+## 2026-03-24 – Systematische View-Prüfung Block 3: Mitglied neu / Wartungsverträge / erweiterte Mitgliedsverwaltung mit kleinem Wartungsvertrags-Einstieg fortgeführt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.
+- Für Block 3 gezielt geprüft:
+  - WPF: `MitgliedNeuView`, `NewMemberView`, `MemberWartungsvertraegeView`, `WartungsvertraegeVerwaltungView`
+  - MAUI: vorhandene Pendants bzw. fehlende Pfade rund um Mitgliedsanlage, Wartungsverträge und erweiterte Mitgliedsverwaltung
+  - ergänzend die Shared-Service-/Schema-Pfade für Wartungsverträge und Pflichtstundenbezug
+- Ehrlicher Befund im aktuellen Repo-Stand:
+  - `Mitglied neu` ist in WPF derzeit selbst nur als Placeholder vorhanden; in MAUI existiert dafür aktuell kein belastbarer produktiver Pfad
+  - `MemberWartungsvertraegeView` und `WartungsvertraegeVerwaltungView` sind in WPF derzeit ebenfalls nur vorbereitete Placeholder
+  - in MAUI existiert ebenfalls noch kein echter eigener Verwaltungseditor für Wartungsverträge
+  - belastbar vorhanden ist aber bereits der gemeinsame Datenpfad über `v_pflichtstunden_uebersicht`, inklusive `hat_wartungsvertrag`, `ist_befreit` und `regelgrund`
+- Deshalb bewusst den kleineren und fachlich klareren Einstieg gewählt statt `Mitglied neu` oder Wartungsvertragsverwaltung halb zu eröffnen:
+  - keinen Fake-CRUD für `Mitglied neu`
+  - keinen halben Wartungsvertragseditor ohne belastbaren Referenzpfad
+  - stattdessen einen echten kleinen ReadOnly-Einstieg im mobilen Mitgliedskontext
+- Umgesetzt:
+  - neuer Shared-Service-Lesepfad `GetPflichtstundenUebersichtForMitgliedAsync(int mitgliedId)` in `ISupabaseService` / `SupabaseService`
+  - der Pfad nutzt den bestehenden Pflichtstunden-/Wartungsvertragsstatus statt Schattenlogik
+  - `MeineDatenPage` zeigt jetzt zusätzlich einen Abschnitt `Wartungsverträge / Pflichtstunden`
+  - sichtbar werden dort für das ausgewählte Mitglied:
+    - Bewertungsjahr
+    - Wartungsvertrag ja/nein
+    - von Pflichtstunden befreit ja/nein
+    - Regelgrund
+  - für Admin/Vorstand wird zusätzlich ehrlich eingeblendet, dass ein eigener mobiler Wartungsvertrags-Verwaltungseditor im aktuellen Stand noch nicht vorhanden ist
+  - für normale Nutzer wird derselbe Status als ReadOnly-Kontextinformation aus der zentralen Pflichtstunden-Übersicht angezeigt
+- Warum dieser kleine Block fachlich sinnvoll ist:
+  - Wartungsverträge hängen direkt mit Pflichtstundenbefreiung und Mitgliedskontext zusammen
+  - die zugrunde liegenden Informationen sind bereits belastbar vorhanden
+  - der Block liefert deshalb echten Nutzwert, ohne neue Pflege-/Schreibarchitektur zu erfinden
+- Bewusst nicht gemacht:
+  - kein neuer Pfad `Mitglied neu`
+  - kein mobiler CRUD-Editor für `wartungsvertraege` oder `wartungsvertrag_zuordnungen`
+  - keine Änderung an Home, Shell, Parzellen, Export, Verwaltung oder Ablesen
+- Fachliche Kurzvalidierung nach dem kleinen Block:
+  - Stammdaten-/Mitgliedskontext bleibt intakt
+  - der neue ReadOnly-Pfad für Wartungsvertrags-/Befreiungsstatus ist im Mitgliedskontext erreichbar
+  - Rechtepfade bleiben unverändert korrekt
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
+
 ## 2026-03-24 – Systematische View-Prüfung Block 2: Mitgliedersuche / Stammdaten / Mitgliedskontext mit kleinem Kontext-/Nebenmitglied-Fix fortgeführt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.

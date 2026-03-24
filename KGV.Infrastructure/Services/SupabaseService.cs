@@ -1078,6 +1078,25 @@ namespace KGV.Infrastructure.Services
             },
             new List<DocumentInfo>());
 
+        public Task<PflichtstundenUebersichtRecord?> GetPflichtstundenUebersichtForMitgliedAsync(int mitgliedId) => ExecuteAsync<PflichtstundenUebersichtRecord?>(
+            "GetPflichtstundenUebersichtForMitgliedAsync",
+            async () =>
+            {
+                if (mitgliedId <= 0)
+                    return null;
+
+                var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
+                var client = await EnsureClientAsync();
+                var response = await client.From<PflichtstundenUebersichtRecord>().Get();
+
+                return response?.Models?
+                    .Where(x => MatchesHomeMitglied(x, homeMitgliedId))
+                    .OrderByDescending(GetPflichtstundenYear)
+                    .ThenByDescending(x => x.SaisonId ?? 0)
+                    .FirstOrDefault();
+            },
+            null);
+
         public Task<HomeOverviewDTO> GetHomeOverviewAsync(UserRole role, int? mitgliedId) => ExecuteAsync(
             "GetHomeOverviewAsync",
             async () =>

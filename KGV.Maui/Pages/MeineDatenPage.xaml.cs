@@ -34,9 +34,15 @@ public class MeineDatenPage : ContentPage
     private readonly Label _mitgliedEndeLabel;
     private readonly Label _aktivLabel;
     private readonly Label _bemerkungenLabel;
+    private readonly Label _wartungsvertragLabel;
+    private readonly Label _befreiungLabel;
+    private readonly Label _pflichtstundenJahrLabel;
+    private readonly Label _regelgrundLabel;
+    private readonly Label _wartungsvertragHintLabel;
     private readonly Label _nebenmitgliedHintLabel;
     private readonly Border _adminSectionCard;
     private readonly Border _nebenmitgliedSectionCard;
+    private readonly Border _wartungsvertragSectionCard;
     private readonly VerticalStackLayout _adminMenuSection;
     private readonly Picker _rolePicker;
     private readonly Button _saveRoleButton;
@@ -82,6 +88,11 @@ public class MeineDatenPage : ContentPage
         _mitgliedEndeLabel = CreateValueLabel();
         _aktivLabel = CreateValueLabel();
         _bemerkungenLabel = CreateValueLabel();
+        _wartungsvertragLabel = CreateValueLabel();
+        _befreiungLabel = CreateValueLabel();
+        _pflichtstundenJahrLabel = CreateValueLabel();
+        _regelgrundLabel = CreateValueLabel();
+        _wartungsvertragHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _nebenmitgliedHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap, IsVisible = false };
 
         _rolePicker = new Picker { Title = "Rolle" };
@@ -161,6 +172,12 @@ public class MeineDatenPage : ContentPage
             }
         };
 
+        _wartungsvertragSectionCard = CreateSection("Wartungsverträge / Pflichtstunden",
+            CreateValueField("Bewertungsjahr", _pflichtstundenJahrLabel),
+            CreateValueField("Wartungsvertrag", _wartungsvertragLabel),
+            CreateValueField("Von Pflichtstunden befreit", _befreiungLabel),
+            CreateValueField("Regelgrund", _regelgrundLabel),
+            _wartungsvertragHintLabel);
         _nebenmitgliedSectionCard = CreateSection("Mitgliedskontext", _nebenmitgliedButton, _nebenmitgliedHintLabel);
         _adminSectionCard = CreateSection("Verwaltung", _adminMenuSection);
 
@@ -193,6 +210,7 @@ public class MeineDatenPage : ContentPage
                         CreateValueField("Mitglied Ende", _mitgliedEndeLabel),
                         CreateValueField("Aktiv", _aktivLabel),
                         CreateValueField("Bemerkungen", _bemerkungenLabel)),
+                    _wartungsvertragSectionCard,
                     _nebenmitgliedSectionCard,
                     CreateSection("Gärten / Parzellen", _documentsButton, gardenHintLabel, gardensView, _gardensEmptyLabel),
                     _adminSectionCard,
@@ -219,6 +237,7 @@ public class MeineDatenPage : ContentPage
             {
                 _headlineLabel.Text = "Kein Mitglied ausgewählt";
                 SetMemberFieldsEmpty();
+                SetWartungsvertragFieldsEmpty();
                 UpdateNebenmitgliedSection(null, false);
                 _nachnameLabel.Text = "Bitte zuerst in der Mitgliedersuche ein Mitglied auswählen.";
                 _gardenAssignments.Clear();
@@ -256,6 +275,7 @@ public class MeineDatenPage : ContentPage
             _aktivLabel.Text = contextMember.Aktiv ? "Ja" : "Nein";
             _bemerkungenLabel.Text = FormatValue(contextMember.Bemerkungen);
 
+            await LoadWartungsvertragSummaryAsync(contextMember.Id);
             await UpdateNebenmitgliedSectionAsync(contextMember);
             await LoadGartenAssignmentsAsync(contextMember.Id);
             UpdateAdminMenu(contextMember);
@@ -317,6 +337,26 @@ public class MeineDatenPage : ContentPage
         }
 
         UpdateNebenmitgliedSection($"Vorhandenes Nebenmitglied: {BuildDisplayName(nebenmitglied.Vorname, nebenmitglied.Name)}", true);
+    }
+
+    private async Task LoadWartungsvertragSummaryAsync(int mitgliedId)
+    {
+        SetWartungsvertragFieldsEmpty();
+
+        var summary = await _supabaseService.GetPflichtstundenUebersichtForMitgliedAsync(mitgliedId);
+        if (summary == null)
+        {
+            _wartungsvertragHintLabel.Text = "Aktuell liegt für dieses Mitglied keine belastbare Wartungsvertrags-/Pflichtstundenübersicht vor.";
+            return;
+        }
+
+        _pflichtstundenJahrLabel.Text = summary.Jahr?.ToString() ?? summary.SaisonJahr?.ToString() ?? "-";
+        _wartungsvertragLabel.Text = summary.HatWartungsvertrag ? "Ja" : "Nein";
+        _befreiungLabel.Text = summary.IstBefreit ? "Ja" : "Nein";
+        _regelgrundLabel.Text = FormatValue(summary.Regelgrund);
+        _wartungsvertragHintLabel.Text = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand
+            ? "Ein eigener mobiler Verwaltungseditor für Wartungsverträge ist im aktuellen Stand noch nicht vorhanden; der Mitgliedskontext zeigt hier zunächst den belastbaren Status aus der Pflichtstunden-Übersicht."
+            : "Die Angaben stammen aus der zentralen Pflichtstunden-Übersicht des ausgewählten Mitglieds.";
     }
 
     private void UpdateNebenmitgliedSection(string? hint, bool canOpen)
@@ -486,6 +526,15 @@ public class MeineDatenPage : ContentPage
         _mitgliedEndeLabel.Text = string.Empty;
         _aktivLabel.Text = string.Empty;
         _bemerkungenLabel.Text = string.Empty;
+    }
+
+    private void SetWartungsvertragFieldsEmpty()
+    {
+        _pflichtstundenJahrLabel.Text = "-";
+        _wartungsvertragLabel.Text = "-";
+        _befreiungLabel.Text = "-";
+        _regelgrundLabel.Text = "-";
+        _wartungsvertragHintLabel.Text = string.Empty;
     }
 
     private static string BuildAddressText(MemberDTO member)
