@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-03-24 – Repo-Wahrheit zum MAUI-Root-Handover verifiziert und Android-Fragment-Restore gegen NavigationRootManager-Crash abgesichert
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog, den echten Git-Arbeitsbaum und zusätzlich die pausierte Android-Debugsitzung geprüft.
+- Repo-Wahrheit zuerst ausdrücklich verifiziert:
+  - der zuletzt dokumentierte Root-Handover-Fix ist im aktiven Repo tatsächlich vorhanden
+  - `App.xaml.cs` enthält bereits die zentrale Root-Erzeugung und `SwitchToCurrentRootAsync()`
+  - `LoginPage.xaml.cs` delegiert den Handover bereits an `App`
+  - damit war die Ausgangslage nicht „Fix fehlt im Repo“, sondern „Fix vorhanden, Crashpfad bleibt trotzdem aktiv“
+- Den verbleibenden Crash deshalb nicht erneut geraten, sondern über die Android-Debuglogs eingegrenzt:
+  - Crash weiterhin beim Activity-Start, noch vor nutzbarer Login-Interaktion
+  - Stacktrace: `NavigationRootManager_ElementBasedFragment` / `No view found for id ...`
+  - damit lag der Restfehler nun plausibler im Android-Fragment-Restore eines alten/stalen MAUI-Navigationszustands als im bereits eingebauten Root-Handover-Code selbst
+- Kleinen Android-Fix direkt am wahrscheinlichsten Restpfad umgesetzt:
+  - `MainActivity.OnCreate(Bundle? savedInstanceState)` ergänzt
+  - `base.OnCreate(null)` statt Restore des vorhandenen `savedInstanceState`
+  - dadurch versucht Android beim Start nicht mehr, alte MAUI-/Fragment-Navigationscontainer wieder an eine inzwischen nicht mehr passende Rootstruktur zu hängen
+- Dieser Fix bleibt minimal-invasiv:
+  - keine neue Navigationsarchitektur
+  - kein Rückbau des echten Root-Handover-Stands
+  - keine unnötigen WPF-Änderungen
+- Loginbutton-/Altlogik nochmals gegengeprüft:
+  - `Anmelden` bleibt im aktiven Repo klarer Textbutton
+  - keine alte Icon-Button-Logik mehr aktiv gefunden
+- Build-/Deployrest kurz mitgedacht:
+  - Debuglogs zeigen weiter FastDev-/Override-Pfade auf dem Gerät
+  - das kann ältere Gerätezustände begünstigen, war aber hier nicht die eigentliche Codeursache des beobachteten Fragment-Restore-Crashs
+- Technisch verifiziert:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte Warnungen bleiben in `HomeManagementPage.cs`
+
 ## 2026-03-24 – MAUI-Login-Rootwechsel für Android gegen `NavigationRootManager_ElementBasedFragment` abgesichert
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft; blockfremde offene WPF-/Supabase-Dateien blieben unangetastet.

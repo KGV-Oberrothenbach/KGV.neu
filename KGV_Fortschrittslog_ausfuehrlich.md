@@ -2,6 +2,46 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: echten Root-Handover-Stand verifiziert und verbleibenden NavigationRootManager-Crash auf Android geschlossen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum und zusätzlich die pausierte Android-Debugsitzung geprüft.
+- Zuerst ausdrücklich die Repo-Wahrheit verifiziert statt von der letzten Zusammenfassung auszugehen:
+  - der dokumentierte Root-Handover-Fix ist im aktiven Repo/Branch tatsächlich vorhanden
+  - `App.xaml.cs` enthält bereits den zentralen Root-Erzeugungspfad und `SwitchToCurrentRootAsync()`
+  - `LoginPage.xaml.cs` delegiert den Wechsel bereits an `App`
+  - damit war der ehrliche Befund: der behauptete Fix fehlt nicht, aber der Android-Crash bleibt trotz dieses Stands bestehen
+- Den verbleibenden Crashpfad anschließend über die echten Android-Debuglogs eingegrenzt:
+  - Crash weiterhin `No view found for id ... for fragment NavigationRootManager_ElementBasedFragment ...`
+  - der Stack lief in den Android-Activity-/Fragment-Restorepfad hinein
+  - das passte nun genauer zu einem Restore/Recreate-Problem mit alten/stalen MAUI-Fragmentzuständen als zu einem komplett fehlenden Root-Handover-Fix
+- Den verbleibenden Android-Fix deshalb klein und direkt am plausibelsten Restpfad umgesetzt:
+  - `MainActivity.OnCreate(Bundle? savedInstanceState)` ergänzt
+  - `base.OnCreate(null)` statt Restore des übergebenen Android-Zustands
+  - dadurch versucht Android beim Start nicht mehr, alte `NavigationRootManager`-/Fragmentzustände gegen eine inzwischen geänderte MAUI-Rootstruktur wieder anzuhängen
+- Warum dieser kleine Zusatz hier fachlich plausibel ist:
+  - der vorhandene Root-Handover kann die aktuelle Root jetzt bereits sauber erzeugen
+  - der beobachtete Restfehler lag aber weiterhin im Android-Restore alter Fragmentzustände
+  - genau diesen Restorepfad schneidet `base.OnCreate(null)` minimal-invasiv ab, ohne die neue Root-Logik wieder zurückzubauen
+- Loginbutton-/Altlogik nochmals geprüft:
+  - `Anmelden` bleibt klarer Textbutton
+  - keine alte Login-Button-Iconlogik mehr im aktiven Pfad gefunden
+- Build-/Packagereste ehrlich mitgedacht:
+  - die Debuglogs zeigen weiterhin FastDev-/Override-Pfade auf dem Gerät
+  - das kann alte Gerätezustände begünstigen, war hier aber nicht mehr der eigentliche aktive Codefehler im Repo
+- Bewusst nicht gemacht:
+  - keine Neuarchitektur
+  - kein neuer Fachblock
+  - kein Rückbau des vorhandenen App-gesteuerten Root-Handover-Stands
+  - keine unnötigen WPF-Änderungen
+- Fachliche Kurzvalidierung nach dem Umbau:
+  - aktiver Repo-Stand wurde ehrlich gegen die letzte Behauptung verifiziert
+  - Loginseite bleibt stabil mit Textbutton `Anmelden`
+  - der verbleibende Android-Crashpfad ist jetzt zusätzlich am Activity-/Fragment-Restore abgesichert
+  - User- und Admin-/Vorstand-Pfad bleiben auf demselben Root-Handover-Stand
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte Warnungen bleiben in `HomeManagementPage.cs`
+
 ## 2026-03-24 – Prompt 1/1: NavigationRootManager-Fragment-Crash nach Login in MAUI behoben
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.

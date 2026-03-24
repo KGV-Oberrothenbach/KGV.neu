@@ -1,4 +1,5 @@
 using Android.App;
+using Android.OS;
 using Android.Content.PM;
 using Microsoft.Maui;
 
@@ -16,4 +17,8 @@ namespace KGV.Maui;
         | ConfigChanges.Density)]
 public class MainActivity : MauiAppCompatActivity
 {
+    protected override void OnCreate(Bundle? savedInstanceState)
+    {
+        base.OnCreate(null);
+    }
 }
