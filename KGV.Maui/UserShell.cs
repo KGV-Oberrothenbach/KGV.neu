@@ -15,6 +15,7 @@ public sealed class UserShell : Shell, IAppShellInitializer
         _state = state;
 
         FlyoutBehavior = FlyoutBehavior.Flyout;
+        ShellRouteRegistrar.RegisterCommonRoutes();
         Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this);
     }
 

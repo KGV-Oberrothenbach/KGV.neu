@@ -12,32 +12,14 @@ public sealed class AdminShell : Shell, IAppShellInitializer
     private readonly IServiceProvider _services;
     private readonly UserContextState _userContextState;
     private FlyoutItem? _workhoursReviewItem;
-    private static bool _readingRoutesRegistered;
 
     public AdminShell(IServiceProvider services, UserContextState userContextState)
     {
         _services = services;
         _userContextState = userContextState;
         FlyoutBehavior = FlyoutBehavior.Flyout;
-        RegisterReadingRoutes();
+        ShellRouteRegistrar.RegisterCommonRoutes();
         Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this);
-    }
-
-    private static void RegisterReadingRoutes()
-    {
-        if (_readingRoutesRegistered)
-            return;
-
-        Routing.RegisterRoute(nameof(MeineDatenPage), typeof(MeineDatenPage));
-        Routing.RegisterRoute(nameof(DokumentePage), typeof(DokumentePage));
-        Routing.RegisterRoute(nameof(UserManagementPage), typeof(UserManagementPage));
-        Routing.RegisterRoute(nameof(AblesungErfassenPage), typeof(AblesungErfassenPage));
-        Routing.RegisterRoute(nameof(ZaehlerwechselPage), typeof(ZaehlerwechselPage));
-        Routing.RegisterRoute(nameof(RfidEinrichtenPage), typeof(RfidEinrichtenPage));
-        Routing.RegisterRoute(nameof(FaelligeZaehlerPage), typeof(FaelligeZaehlerPage));
-        Routing.RegisterRoute(nameof(FotoUploadTestPage), typeof(FotoUploadTestPage));
-
-        _readingRoutesRegistered = true;
     }
 
     public void BuildMenu()

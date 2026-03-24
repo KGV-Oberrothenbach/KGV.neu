@@ -2,6 +2,52 @@
 
 ---
 
+## 2026-03-24 – MAUI-Home und mobile Verwaltungszugänge für Bekanntmachungen, Termine und Arbeitseinsätze auf echten Shared-Pfad gezogen
+
+- Vor dem Block wieder den realen Repo-/Arbeitsbaumstand sowie den aktuellen ausführlichen Fortschrittslog geprüft; blockfremde offene WPF-/Supabase-Dateien blieben bewusst unangetastet.
+- Ausgangszustand vor diesem Block:
+  - MAUI-`HomePage` zeigte bisher nur Schnellzugriffe, operative Hinweise und eine reduzierte Bekanntmachungsdetailanzeige direkt auf der Startseite
+  - `Arbeitseinsätze` und `Termine` aus `HomeOverviewDTO` wurden mobil noch gar nicht als eigener Home-Pfad genutzt
+  - für `Bekanntmachungen`, `Termine` und `Arbeitseinsätze` fehlten mobil weiterhin echte Verwaltungsoberflächen trotz vorhandener Shared-Service-CRUD-Pfade
+- Den WPF-/MAUI-Abgleich für diesen Block auf größten Nutzen mit kleinem Risiko fokussiert:
+  - Home-Details nicht mehr inline, sondern in eigener Seite
+  - echte mobile Verwaltungszugänge für die drei Bereiche
+  - Wiederverwendung der bestehenden Shared-Servicepfade statt neuer Schattenlogik
+- Dazu den MAUI-Home-Pfad gezielt nachgezogen:
+  - `HomeViewModel` nutzt jetzt neben Schnellzugriffen/Hint-Blöcken auch die vorhandenen Home-Daten für `Arbeitseinsätze`, `Termine` und `Bekanntmachungen`
+  - `HomePage` zeigt diese drei Listen jetzt mobil sichtbar an
+  - Auswahl läuft nicht mehr in eine Inline-Detailspalte, sondern über neuen echten Detailpfad `HomeSectionDetailPage`
+- Neuer mobiler Home-Detailpfad ergänzt:
+  - kleiner `HomeContextState` hält den aktuell ausgewählten Home-Eintrag
+  - `HomeSectionDetailPage` zeigt Details für `Arbeitseinsatz`, `Termin` und `Bekanntmachung`
+  - bei `Arbeitseinsatz` bleibt der produktive Anmeldepfad mobil nutzbar
+  - für Admin/Vorstand werden beim Arbeitseinsatz zusätzlich Teilnehmer über den bestehenden Shared-Servicepfad geladen
+- Mobile Verwaltungsoberfläche für die drei Bereiche als ein kompakter gemeinsamer Block ergänzt:
+  - neue `HomeManagementPage`
+  - Auswahl der Module `Arbeitseinsätze`, `Termine`, `Bekanntmachungen`
+  - Listen laden jeweils direkt aus den vorhandenen Shared-Servicepfaden
+  - Speichern läuft direkt über:
+    - `CreateArbeitseinsatzAsync(...)` / `UpdateArbeitseinsatzAsync(...)`
+    - `CreateTerminAsync(...)` / `UpdateTerminAsync(...)`
+    - `CreateBekanntmachungAsync(...)` / `UpdateBekanntmachungAsync(...)`
+  - `HTML-Inhalt` für Bekanntmachungen ist mobil damit auf einem echten Bearbeitungspfad nutzbar
+  - `Speichern` bleibt jeweils am Ende des Formularpfads
+- Home stellt diese Verwaltungswege für Admin/Vorstand jetzt direkt erreichbar bereit:
+  - `Arbeitseinsätze bearbeiten`
+  - `Termine bearbeiten`
+  - `Bekanntmachungen bearbeiten`
+- Die Shell-Routen dafür wurden zentralisiert registriert, damit Admin- und User-Shell keine doppelten MAUI-Routen gegeneinander registrieren.
+- Bewusst nicht gemacht:
+  - keine neue Gesamtarchitektur für Home oder Verwaltung
+  - kein vollständiger Nachbau aller WPF-Editorvalidierungen/Fokussteuerungen in diesem einen Block
+  - keine Änderung an bereits stabilisierten Login-/Mitglieds-/Gartenkontextblöcken außerhalb der benötigten Home-Routen
+- Fachliche Kurzvalidierung für diesen Block:
+  - Home zeigt die neuen Listen-/Detaileinstiege
+  - Admin/Vorstand erreicht mobil die Verwaltungsfunktionen für `Bekanntmachungen`, `Termine` und `Arbeitseinsätze`
+  - bestehende Nutzerpfade wie Schnellzugriffe und Arbeitseinsatz-Anmeldung bleiben intakt
+- Technisch verifiziert:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-24 – MAUI-Garten-/Parzellenkontext im Mitgliedspfad auf bestehenden Detailkern gezogen
 
 - Vor dem Block wieder den echten Repo-/Arbeitsbaumstand und den aktuellen Fortschrittslog geprüft; blockfremde offene WPF-/Supabase-Dateien blieben erneut unangetastet.

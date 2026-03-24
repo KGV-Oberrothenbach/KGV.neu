@@ -2,6 +2,55 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: MAUI-Parität Block 3 für Home, Bekanntmachungen, Termine und Arbeitseinsätze auf belastbaren Kernpfad gezogen
+
+- Vor dem Block wieder den realen Repo-/Arbeitsbaumstand und zusätzlich den aktuellen Stand im `KGV_Fortschrittslog_ausfuehrlich.md` geprüft und abgeglichen.
+- Ausgangszustand vor diesem Block:
+  - Mitglieds-, Dokumenten- und Gartenkontext in MAUI waren bereits nachgezogen
+  - die nächste sichtbare Paritätslücke lag nun in der mobilen Startseite/Home und in den Verwaltungszugängen für `Bekanntmachungen`, `Termine` und `Arbeitseinsätze`
+  - `HomeOverviewDTO` brachte die Datenpfade für `Arbeitseinsätze`, `Termine` und `Bekanntmachungen` bereits mit, MAUI nutzte davon aber nur einen Teil
+  - MAUI hatte für die drei Verwaltungsbereiche noch keine echte mobile Bearbeitungsoberfläche, obwohl die Shared-Servicepfade bereits vorhanden waren
+- WPF-Referenzpfad für diesen Block geprüft:
+  - Home-Details laufen dort in einer eigenen View statt inline
+  - Verwaltungszugänge für die drei Bereiche hängen fachlich an den Shared-Service-CRUD-Pfaden, nicht an Home-Platzhaltern
+- Den mobilen Block deshalb klein, aber produktiv am vorhandenen Kern umgesetzt:
+  - `HomeViewModel` nutzt jetzt auch `WorkAssignments` und `Appointments` aus dem bestehenden `HomeOverviewDTO`
+  - `HomePage` zeigt mobil jetzt drei echte Listenblöcke:
+    - `Arbeitseinsätze`
+    - `Termine`
+    - `Bekanntmachungen`
+  - Auswahl eines Home-Eintrags öffnet keinen Inline-Teilbereich mehr, sondern einen eigenen mobilen Detailpfad
+- Neuer mobiler Detailpfad ergänzt:
+  - `HomeContextState` hält den ausgewählten Home-Eintrag
+  - `HomeSectionDetailPage` zeigt Details für `Arbeitseinsatz`, `Termin` und `Bekanntmachung`
+  - beim `Arbeitseinsatz` bleibt der echte Anmeldepfad mobil nutzbar
+  - Admin/Vorstand sieht dort zusätzlich die Teilnehmerliste über `GetArbeitseinsatzParticipantsAsync(...)`
+- Den größten Verwaltungsnutzen in einem kleinen Block über eine gemeinsame mobile Verwaltungsseite hergestellt statt drei neue Parallelarchitekturen zu öffnen:
+  - neue `HomeManagementPage`
+  - Modulumschaltung für:
+    - `Arbeitseinsätze`
+    - `Termine`
+    - `Bekanntmachungen`
+  - jeweilige Liste wird direkt aus den vorhandenen Shared-Servicepfaden geladen
+  - Speichern läuft produktiv direkt über die bestehenden Create-/Update-Methoden der Shared-Service-Schicht
+  - `HTML-Inhalt` der Bekanntmachungen ist damit mobil nicht nur sichtbar, sondern auch bearbeitbar
+  - `Speichern` bleibt am Ende des Formularpfads
+- Home-/Verwaltungszugänge für Admin/Vorstand direkt hergestellt:
+  - `Arbeitseinsätze bearbeiten`
+  - `Termine bearbeiten`
+  - `Bekanntmachungen bearbeiten`
+- Zusätzlich die MAUI-Routen für diese neuen Seiten zentralisiert registriert, damit User-/Admin-Shell keine doppelten Routen unabhängig voneinander anmelden.
+- Bewusst nicht gemacht:
+  - kein Vollnachbau aller WPF-Editorvalidierungen/Focus-Triggers in diesem Block
+  - keine Neuarchitektur von Home oder Shell
+  - keine unnötigen Änderungen an den bereits stabilisierten Blöcken für Login, Mitgliedskontext und Gartenkontext
+- Fachliche Kurzvalidierung nach dem Umbau:
+  - Home zeigt neue/verbesserte Einstiege und Listen
+  - Admin/Vorstand erreicht mobil die Verwaltungsfunktionen für `Bekanntmachungen`, `Termine` und `Arbeitseinsätze`
+  - die bekannten Nutzerpfade bleiben nutzbar
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-24 – Prompt 3/2: MAUI-Parität Block 2 für Garten-/Parzellen-Unterbereiche im Mitgliedskontext nachgezogen
 
 - Vor dem Block den realen Repo-/Arbeitsbaumstand sowie den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` erneut geprüft und gegeneinander abgeglichen.

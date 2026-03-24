@@ -27,6 +27,8 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     public ObservableCollection<HomeAnnouncementItem> Announcements { get; } = new();
     public ObservableCollection<HomeQuickLinkItem> QuickLinks { get; } = new();
     public ObservableCollection<HomeOperationalItem> OperationalItems { get; } = new();
+    public ObservableCollection<HomeWorkAssignmentItem> WorkAssignments { get; } = new();
+    public ObservableCollection<HomeAppointmentItem> Appointments { get; } = new();
 
     public string Title => "Startseite";
     public string Description => _overview.Description;
@@ -36,15 +38,26 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     public string OperationalTitle => _overview.OperationalTitle;
     public string OperationalEmptyText => _overview.OperationalEmptyText;
     public string AnnouncementTitle => _overview.AnnouncementTitle;
-    public string AnnouncementHintText => _overview.AnnouncementHintText;
     public string AnnouncementEmptyText => _overview.AnnouncementEmptyText;
+    public string WorkAssignmentsTitle => "Arbeitseinsätze";
+    public string WorkAssignmentsEmptyText => _overview.WorkAssignmentsEmptyText;
+    public string AppointmentsTitle => "Termine";
+    public string AppointmentsEmptyText => _overview.AppointmentsEmptyText;
+    public string ManagementTitle => "Verwaltung";
+    public string ManagementHintText => "Admin/Vorstand erreichen hier mobil die produktiven Verwaltungsoberflächen für Arbeitseinsätze, Termine und Bekanntmachungen auf den bestehenden Shared-Servicepfaden.";
     public bool HasQuickLinks => QuickLinks.Count > 0;
     public bool HasOperationalItems => OperationalItems.Count > 0;
     public bool HasAnnouncements => Announcements.Count > 0;
+    public bool HasWorkAssignments => WorkAssignments.Count > 0;
+    public bool HasAppointments => Appointments.Count > 0;
     public bool ShowAnnouncementDetail => HasAnnouncements;
     public bool HasSelectedAnnouncement => SelectedAnnouncement != null;
     public bool ShowAnnouncementHint => HasAnnouncements && !HasSelectedAnnouncement;
     public bool ShowAnnouncementEmptyState => !HasAnnouncements;
+    public bool ShowWorkAssignmentsEmptyState => !HasWorkAssignments;
+    public bool ShowAppointmentsEmptyState => !HasAppointments;
+    public bool IsAdminContext => _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+    public bool ShowManagementSection => IsAdminContext;
 
     public HomeAnnouncementItem? SelectedAnnouncement
     {
@@ -70,6 +83,8 @@ public sealed class HomeViewModel : INotifyPropertyChanged
         FillCollection(QuickLinks, _overview.QuickLinks);
         FillCollection(OperationalItems, _overview.OperationalItems);
         FillCollection(Announcements, _overview.Announcements);
+        FillCollection(WorkAssignments, _overview.WorkAssignments);
+        FillCollection(Appointments, _overview.Appointments);
         SelectedAnnouncement = null;
 
         OnPropertyChanged(nameof(Description));
@@ -79,14 +94,25 @@ public sealed class HomeViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(OperationalTitle));
         OnPropertyChanged(nameof(OperationalEmptyText));
         OnPropertyChanged(nameof(AnnouncementTitle));
+        OnPropertyChanged(nameof(AnnouncementEmptyText));
+        OnPropertyChanged(nameof(WorkAssignmentsTitle));
+        OnPropertyChanged(nameof(WorkAssignmentsEmptyText));
+        OnPropertyChanged(nameof(AppointmentsTitle));
+        OnPropertyChanged(nameof(AppointmentsEmptyText));
         OnPropertyChanged(nameof(HasAnnouncements));
         OnPropertyChanged(nameof(ShowAnnouncementDetail));
         OnPropertyChanged(nameof(HasQuickLinks));
         OnPropertyChanged(nameof(HasOperationalItems));
+        OnPropertyChanged(nameof(HasWorkAssignments));
+        OnPropertyChanged(nameof(HasAppointments));
         OnPropertyChanged(nameof(ShowAnnouncementHint));
         OnPropertyChanged(nameof(ShowAnnouncementEmptyState));
-        OnPropertyChanged(nameof(AnnouncementHintText));
-        OnPropertyChanged(nameof(AnnouncementEmptyText));
+        OnPropertyChanged(nameof(ShowWorkAssignmentsEmptyState));
+        OnPropertyChanged(nameof(ShowAppointmentsEmptyState));
+        OnPropertyChanged(nameof(IsAdminContext));
+        OnPropertyChanged(nameof(ShowManagementSection));
+        OnPropertyChanged(nameof(ManagementTitle));
+        OnPropertyChanged(nameof(ManagementHintText));
     }
 
     private static void FillCollection<T>(ObservableCollection<T> target, System.Collections.Generic.IEnumerable<T> source)
