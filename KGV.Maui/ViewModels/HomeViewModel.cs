@@ -35,8 +35,8 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     public string UserContextText => $"Kontext: {UserRoles.ToStorageValue(_userContextState.CurrentUserContext?.Role ?? UserRole.User)}";
     public string QuickLinksTitle => _overview.QuickLinksTitle;
     public string QuickLinksEmptyText => _overview.QuickLinksEmptyText;
-    public string OperationalTitle => _overview.OperationalTitle;
-    public string OperationalEmptyText => _overview.OperationalEmptyText;
+    public string OperationalTitle => "Arbeitsstunden";
+    public string OperationalEmptyText => "Aktuell liegen keine zusätzlichen Hinweise zu Arbeitsstunden vor.";
     public string AnnouncementTitle => _overview.AnnouncementTitle;
     public string AnnouncementEmptyText => _overview.AnnouncementEmptyText;
     public string WorkAssignmentsTitle => "Arbeitseinsätze";

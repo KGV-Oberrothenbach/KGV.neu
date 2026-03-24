@@ -2,6 +2,49 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: MAUI-Home visuell gegliedert und `Schnellzugriff` entfernt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Den relevanten MAUI-Home-Pfad gezielt geprüft:
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+  - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
+  - vorhandene MAUI-Stilressourcen
+- Ausgangszustand vor diesem Block:
+  - die mobile Home-Seite war funktional bereits vorhanden
+  - der Bereich `Schnellzugriff` war aber weiterhin sichtbar, obwohl er im gewünschten Produktbild wegfallen soll
+  - die übrigen Bereiche wirkten optisch noch zu ähnlich und dadurch auf Handy/Tablet zu wenig klar getrennt
+- Den Block bewusst klein und rein auf UI/UX gehalten:
+  - keine neue Fachlogik
+  - keine neue Navigation
+  - keine Änderung an den bestehenden Detail- und Verwaltungsrouten
+- Auf der Home-Seite umgesetzt:
+  - `Schnellzugriff` vollständig entfernt
+  - die Seite beginnt jetzt mit einer ruhigeren Einleitungskarte statt vieler einzelner lose stehender Elemente
+  - die vier fachlichen Bereiche wurden visuell sauber getrennt:
+    - `Arbeitsstunden`
+    - `Arbeitseinsätze`
+    - `Termine`
+    - `Bekanntmachungen`
+  - jede Sektion bekam eine eigene zurückhaltende Akzentfarbe, Headerstruktur, Untertitel und konsistentere Innenabstände
+  - die Einträge innerhalb der Bereiche werden jetzt ebenfalls als dezent akzentuierte Karten dargestellt statt nur als kaum getrennte Textzeilen
+  - der vorhandene Verwaltungsbereich für Admin/Vorstand wurde optisch an dieselbe Struktur angepasst
+- Kleine Begradigung im ViewModel:
+  - der frühere operative Bereich wird auf Home jetzt klar als `Arbeitsstunden` bezeichnet
+  - damit ist die gewünschte Fachstruktur auf der Startseite direkt lesbar
+- Bewusst nicht gemacht:
+  - keine WPF-Änderung, weil der Auftrag ausdrücklich nur MAUI-Home-Feinschliff war
+  - keine neue Detail-/Inline-Architektur
+  - keine Änderung der bestehenden Klickpfade
+- Fachliche Kurzvalidierung nach dem Umbau:
+  - `Schnellzugriff` ist entfernt
+  - Home bleibt vollständig nutzbar
+  - die vier Bereiche sind deutlich besser unterscheidbar
+  - bestehende Klickpfade in Detail- und Verwaltungsseiten bleiben erhalten
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte Warnungen bleiben in `HomeManagementPage.cs`
+
 ## 2026-03-24 – Prompt 1/1: echten Root-Handover-Stand verifiziert und verbleibenden NavigationRootManager-Crash auf Android geschlossen
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum und zusätzlich die pausierte Android-Debugsitzung geprüft.
