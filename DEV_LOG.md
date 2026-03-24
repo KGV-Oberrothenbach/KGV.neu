@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-03-24 – Diagnoseblock für `kgv-upload-photo` ergänzt: Hänger lokalisierbar, Google-Aufrufe mit Timeouts abgesichert
+
+- Den realen Repo-/Arbeitsbaumstand vor dem Diagnoseblock geprüft; blockfremde offene Dateien bewusst unangetastet gelassen.
+- Istzustand geprüft:
+  - `supabase/functions/kgv-upload-photo/index.ts` enthielt bereits die produktive Self-Auth und den Google-Drive-Uploadpfad
+  - `supabase/config.toml` blieb korrekt bei `verify_jwt = false` für `kgv-upload-photo`
+- Nur den Supabase-Diagnosepfad ergänzt, ohne WPF-/MAUI-Dateien oder Secrets anzufassen.
+- In `kgv-upload-photo` gezielte Log-Marker ergänzt für:
+  - Function-Start
+  - Auth-Header erkannt / Auth-Start / Auth erfolgreich
+  - Content-Type validiert
+  - `formData()` Start / geparsed
+  - Input normalisiert / validiert
+  - Google-Token-Refresh Start / Erfolg
+  - Ordneranlage je Segment Start / Erfolg
+  - Drive-Upload Start / Erfolg
+  - Success-/Error-Return
+- Externe Google-Aufrufe jetzt fail-fast mit `AbortSignal.timeout(...)` abgesichert:
+  - OAuth-Token-Refresh
+  - Drive `files.list`
+  - Drive-Ordner anlegen
+  - Drive-Datei-Upload
+- Timeout-/Fetch-Fehler liefern jetzt schrittbezogene Fehlermeldungen statt stillen Hängern, z. B. `Google token refresh timeout`, `Drive files.list timeout`, `Drive upload timeout`.
+- Datumsinput klein robuster gemacht:
+  - bisher nur `YYYY-MM-DD`
+  - jetzt zusätzlich `dd.MM.yyyy`
+  - ungültige Werte liefern eine klare Validierungsfehlermeldung
+- Technisch verifiziert:
+  - `supabase functions deploy kgv-upload-photo --project-ref itjcabiibuodkxayhvjq` erfolgreich
+
 ## 2026-03-24 â€“ doppelte JWT-PrÃ¼fung fÃ¼r `kgv-upload-photo` abgeschaltet
 
 - Den realen Repo-/Arbeitsbaumstand vor dem Fix geprÃ¼ft; blockfremde offene Dateien bewusst unangetastet gelassen.

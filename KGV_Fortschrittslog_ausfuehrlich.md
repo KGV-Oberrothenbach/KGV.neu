@@ -2,6 +2,65 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Supabase-Diagnoseblock für `kgv-upload-photo` ergänzt, Hänger lokalisiert und Google-Aufrufe fail-fast gemacht
+
+- Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprüft.
+- Einordnung vor dem Diagnoseblock:
+  - Dateien dieses Blocks: `supabase/functions/kgv-upload-photo/index.ts` plus die beiden Logdateien
+  - `supabase/config.toml` wurde als Istzustand mitgeprüft, blieb aber fachlich unverändert bei `verify_jwt = false`
+  - blockfremde offene WPF-/MAUI-/Supabase-Dateien blieben bewusst unangetastet
+  - `_AI_DB_EXPORT/*`, `_secrets/*`, `.github/copilot-instructions.md` und sonstige lokale Artefakte wurden nicht als Grundlage verwendet
+- Den realen Function-Istzustand gezielt geprüft:
+  - `kgv-upload-photo` hatte bereits die eigene Auth-Prüfung mit Bearer-Token, `auth.getUser(jwt)` und Rollenprüfung auf `admin` / `vorstand`
+  - der frühere Plattformfehler `Invalid JWT` war damit nicht mehr der aktuelle Hänger
+  - das neue Fehlerbild passte zu einem stillen Hänger in einem der externen Google-/Netzwerkaufrufe innerhalb der Function
+- Den Block deshalb bewusst klein als Diagnose- und Fail-Fast-Schritt umgesetzt statt die Upload-Architektur umzubauen.
+- In `supabase/functions/kgv-upload-photo/index.ts` gezielte Diagnose-Logs ergänzt, mindestens für:
+  - Function-Start
+  - Auth-Header erkannt / Auth-Start / Auth erfolgreich
+  - Content-Type validiert
+  - `formData()` Start / geparsed
+  - Input normalisiert / validiert
+  - Google-Token-Refresh Start / Erfolg
+  - `ensure folder` Start / Erfolg je Ordnersegment
+  - Drive-Upload Start / Erfolg
+  - `return success`
+  - `return error`
+- Dabei bewusst keine Secrets oder Tokens geloggt:
+  - kein Bearer-Token im Log
+  - kein Client Secret
+  - kein Refresh Token
+  - nur Schrittmarker und fachliche Statusinfos
+- Alle externen Google-Aufrufe jetzt explizit mit `AbortSignal.timeout(...)` abgesichert:
+  - Token-Refresh
+  - Drive `files.list`
+  - Drive-Ordner anlegen
+  - Drive-Datei-Upload
+- Fehlerverhalten jetzt schrittbezogen und nicht mehr weichgespült:
+  - `Google token refresh timeout`
+  - `Drive files.list timeout`
+  - `Drive create folder timeout`
+  - `Drive upload timeout`
+  - bei Nicht-Timeouts entsprechend schrittbezogene `... failed: ...`-Meldungen
+- Den Datums-Inputpfad klein und zielgerichtet stabilisiert:
+  - bisher wurde nur `YYYY-MM-DD` akzeptiert
+  - für den Testpfad akzeptiert die Function jetzt zusätzlich `dd.MM.yyyy`
+  - ungültige Werte liefern weiterhin eine klare Validierungsfehlermeldung mit erwarteten Formaten
+  - keine neue Datumsarchitektur gebaut
+- Bewusst nicht geändert:
+  - keine Änderung an der grundsätzlichen Function-Auth
+  - `verify_jwt = false` bleibt wie bisher für diese Function bestehen
+  - keine Secrets
+  - keine WPF-/MAUI-Datei
+  - keine andere Function
+- Ergebnis:
+  - beim nächsten App-Test soll die Function nicht mehr still bis zum `HttpClient.Timeout` hängen
+  - stattdessen soll entweder Erfolg oder ein klarer Fehler mit Schrittbezug zurückkommen
+  - zusätzlich sind die relevanten Schritte jetzt in den Supabase-Function-Logs sichtbar
+- Verifikation:
+  - `supabase functions deploy kgv-upload-photo --project-ref itjcabiibuodkxayhvjq` erfolgreich
+  - der Diagnoseblock ist damit klein, zielgerichtet und deployt abgeschlossen
+
 ## 2026-03-24 â€“ Prompt 1/1: Supabase-Bugfix: doppelte JWT-PrÃ¼fung fÃ¼r `kgv-upload-photo` abgeschaltet
 
 - Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprÃ¼ft.

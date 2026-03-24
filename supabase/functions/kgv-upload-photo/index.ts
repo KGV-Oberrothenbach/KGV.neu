@@ -15,6 +15,50 @@ type DriveUploadResult = {
   webViewLink?: string | null;
 };
 
+const GOOGLE_TOKEN_REFRESH_TIMEOUT_MS = 15_000;
+const DRIVE_FILES_LIST_TIMEOUT_MS = 15_000;
+const DRIVE_CREATE_FOLDER_TIMEOUT_MS = 15_000;
+const DRIVE_UPLOAD_TIMEOUT_MS = 30_000;
+
+function logStep(step: string, details?: Record<string, unknown>) {
+  if (details) {
+    console.log(`[kgv-upload-photo] ${step}`, details);
+    return;
+  }
+
+  console.log(`[kgv-upload-photo] ${step}`);
+}
+
+function logError(step: string, error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`[kgv-upload-photo] ${step}`, { message });
+}
+
+function isTimeoutError(error: unknown): boolean {
+  if (error instanceof DOMException) {
+    return error.name === "AbortError" || error.name === "TimeoutError";
+  }
+
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    return message.includes("timeout") || message.includes("timed out") || message.includes("aborted");
+  }
+
+  return false;
+}
+
+function buildStepError(step: string, error: unknown): Error {
+  if (isTimeoutError(error)) {
+    return new Error(`${step} timeout`);
+  }
+
+  if (error instanceof Error) {
+    return new Error(`${step} failed: ${error.message}`);
+  }
+
+  return new Error(`${step} failed`);
+}
+
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body, null, 2), {
     status,
@@ -47,8 +91,37 @@ function normalizeKind(value: string | null): UploadKind | null {
 
 function normalizeDateOnly(value: string | null): string | null {
   const v = (value ?? "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
-  return v;
+
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return normalizeDateParts(Number(year), Number(month), Number(day));
+  }
+
+  const germanMatch = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(v);
+  if (germanMatch) {
+    const [, day, month, year] = germanMatch;
+    return normalizeDateParts(Number(year), Number(month), Number(day));
+  }
+
+  return null;
+}
+
+function normalizeDateParts(year: number, month: number, day: number): string | null {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return null;
+  }
+
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    candidate.getUTCFullYear() !== year ||
+    candidate.getUTCMonth() !== month - 1 ||
+    candidate.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return `${year.toString().padStart(4, "0")}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
 }
 
 function guessExtension(file: File): string {
@@ -96,18 +169,26 @@ async function getGoogleAccessToken(): Promise<string> {
     grant_type: "refresh_token",
   });
 
-  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body,
-  });
+  logStep("google token refresh start");
 
-  const tokenJson = await tokenRes.json();
-  if (!tokenRes.ok || !tokenJson.access_token) {
-    throw new Error(`Google-Token konnte nicht erneuert werden: ${JSON.stringify(tokenJson)}`);
+  try {
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+      signal: AbortSignal.timeout(GOOGLE_TOKEN_REFRESH_TIMEOUT_MS),
+    });
+
+    const tokenJson = await tokenRes.json();
+    if (!tokenRes.ok || !tokenJson.access_token) {
+      throw new Error(`Google token refresh failed: ${JSON.stringify(tokenJson)}`);
+    }
+
+    logStep("google token refresh success");
+    return tokenJson.access_token as string;
+  } catch (error) {
+    throw buildStepError("Google token refresh", error);
   }
-
-  return tokenJson.access_token as string;
 }
 
 async function driveList(
@@ -120,18 +201,23 @@ async function driveList(
   url.searchParams.set("pageSize", "10");
   url.searchParams.set("spaces", "drive");
 
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      signal: AbortSignal.timeout(DRIVE_FILES_LIST_TIMEOUT_MS),
+    });
 
-  const jsonBody = await res.json();
-  if (!res.ok) {
-    throw new Error(`Drive files.list fehlgeschlagen: ${JSON.stringify(jsonBody)}`);
+    const jsonBody = await res.json();
+    if (!res.ok) {
+      throw new Error(`Drive files.list failed: ${JSON.stringify(jsonBody)}`);
+    }
+
+    return (jsonBody.files ?? []) as Array<{ id: string; name: string }>;
+  } catch (error) {
+    throw buildStepError("Drive files.list", error);
   }
-
-  return (jsonBody.files ?? []) as Array<{ id: string; name: string }>;
 }
 
 async function createDriveFolder(
@@ -139,25 +225,30 @@ async function createDriveFolder(
   parentId: string,
   folderName: string,
 ): Promise<string> {
-  const res = await fetch("https://www.googleapis.com/drive/v3/files?fields=id,name", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    body: JSON.stringify({
-      name: folderName,
-      mimeType: "application/vnd.google-apps.folder",
-      parents: [parentId],
-    }),
-  });
+  try {
+    const res = await fetch("https://www.googleapis.com/drive/v3/files?fields=id,name", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify({
+        name: folderName,
+        mimeType: "application/vnd.google-apps.folder",
+        parents: [parentId],
+      }),
+      signal: AbortSignal.timeout(DRIVE_CREATE_FOLDER_TIMEOUT_MS),
+    });
 
-  const jsonBody = await res.json();
-  if (!res.ok || !jsonBody.id) {
-    throw new Error(`Drive-Ordner konnte nicht angelegt werden: ${JSON.stringify(jsonBody)}`);
+    const jsonBody = await res.json();
+    if (!res.ok || !jsonBody.id) {
+      throw new Error(`Drive create folder failed: ${JSON.stringify(jsonBody)}`);
+    }
+
+    return jsonBody.id as string;
+  } catch (error) {
+    throw buildStepError("Drive create folder", error);
   }
-
-  return jsonBody.id as string;
 }
 
 async function ensureFolder(
@@ -165,16 +256,20 @@ async function ensureFolder(
   parentId: string,
   folderName: string,
 ): Promise<string> {
+  logStep("ensure folder start", { folderName });
   const safeName = folderName.replace(/'/g, "\\'");
   const q =
     `mimeType = 'application/vnd.google-apps.folder' and trashed = false and name = '${safeName}' and '${parentId}' in parents`;
 
   const existing = await driveList(accessToken, q);
   if (existing.length > 0) {
+    logStep("ensure folder success", { folderName, source: "existing" });
     return existing[0].id;
   }
 
-  return await createDriveFolder(accessToken, parentId, folderName);
+  const folderId = await createDriveFolder(accessToken, parentId, folderName);
+  logStep("ensure folder success", { folderName, source: "created" });
+  return folderId;
 }
 
 function concatUint8Arrays(parts: Uint8Array[]): Uint8Array {
@@ -216,31 +311,37 @@ async function uploadFileToDrive(params: {
     encoder.encode(footer),
   ]);
 
-  const res = await fetch(
-    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${params.accessToken}`,
-        "Content-Type": `multipart/related; boundary=${boundary}`,
+  try {
+    const res = await fetch(
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${params.accessToken}`,
+          "Content-Type": `multipart/related; boundary=${boundary}`,
+        },
+        body,
+        signal: AbortSignal.timeout(DRIVE_UPLOAD_TIMEOUT_MS),
       },
-      body,
-    },
-  );
+    );
 
-  const jsonBody = await res.json();
-  if (!res.ok || !jsonBody.id) {
-    throw new Error(`Drive-Upload fehlgeschlagen: ${JSON.stringify(jsonBody)}`);
+    const jsonBody = await res.json();
+    if (!res.ok || !jsonBody.id) {
+      throw new Error(`Drive upload failed: ${JSON.stringify(jsonBody)}`);
+    }
+
+    return {
+      id: jsonBody.id as string,
+      name: (jsonBody.name as string) ?? params.fileName,
+      webViewLink: (jsonBody.webViewLink as string | null) ?? null,
+    };
+  } catch (error) {
+    throw buildStepError("Drive upload", error);
   }
-
-  return {
-    id: jsonBody.id as string,
-    name: (jsonBody.name as string) ?? params.fileName,
-    webViewLink: (jsonBody.webViewLink as string | null) ?? null,
-  };
 }
 
 async function requireAdminOrVorstand(authHeader: string) {
+  logStep("auth start");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -275,54 +376,104 @@ async function requireAdminOrVorstand(authHeader: string) {
     return { ok: false as const, status: 403, message: "Nur Admin oder Vorstand dürfen Fotos hochladen." };
   }
 
+  logStep("auth passed", { role });
   return { ok: true as const, userId: userData.user.id, role };
 }
 
 Deno.serve(async (req) => {
+  logStep("function start", { method: req.method });
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   if (req.method !== "POST") {
+    logStep("return error", { step: "method validate", status: 405 });
     return json(405, { error: "Method not allowed" });
   }
 
   try {
     const authHeader = req.headers.get("Authorization") ?? "";
+    logStep("auth header received", { hasAuthorizationHeader: !authHeader ? false : true });
     const auth = await requireAdminOrVorstand(authHeader);
     if (!auth.ok) {
+      logStep("return error", { step: "auth failed", status: auth.status });
       return json(auth.status, { error: auth.message });
     }
 
     const rootFolderId = Deno.env.get("GOOGLE_DRIVE_ROOT_FOLDER_ID");
     if (!rootFolderId) {
+      logStep("return error", { step: "root folder validate", status: 500 });
       return json(500, { error: "GOOGLE_DRIVE_ROOT_FOLDER_ID fehlt." });
     }
 
     const contentType = req.headers.get("content-type") ?? "";
     if (!contentType.toLowerCase().includes("multipart/form-data")) {
+      logStep("return error", { step: "content-type validate", status: 400, contentType });
       return json(400, { error: "Erwartet multipart/form-data mit Datei und Metadaten." });
     }
 
+    logStep("content-type validated", { contentType });
+
+    logStep("formData start");
+
     const form = await req.formData();
+
+    logStep("formData parsed", {
+      hasFile: form.get("file") instanceof File,
+      hasKind: form.has("kind"),
+      hasMedium: form.has("medium"),
+      hasDatum: form.has("datum"),
+      hasAnlage: form.has("anlage"),
+      hasGarten: form.has("garten"),
+    });
 
     const file = form.get("file");
     if (!(file instanceof File)) {
+      logStep("return error", { step: "file validate", status: 400 });
       return json(400, { error: "Datei-Feld 'file' fehlt." });
     }
 
+    const rawDate = String(form.get("datum") ?? "").trim();
     const kind = normalizeKind(String(form.get("kind") ?? ""));
     const medium = normalizeMedium(String(form.get("medium") ?? ""));
-    const date = normalizeDateOnly(String(form.get("datum") ?? ""));
+    const date = normalizeDateOnly(rawDate);
     const anlageRaw = String(form.get("anlage") ?? "").trim();
     const gardenRaw = String(form.get("garten") ?? "").trim();
     const meterNumberRaw = String(form.get("zaehlernummer") ?? "").trim();
 
-    if (!kind) return json(400, { error: "Ungültiges Feld 'kind'. Erlaubt: ablesung, ausbau, einbau." });
-    if (!medium) return json(400, { error: "Ungültiges Feld 'medium'. Erlaubt: strom, wasser." });
-    if (!date) return json(400, { error: "Ungültiges Feld 'datum'. Erwartet YYYY-MM-DD." });
-    if (!anlageRaw) return json(400, { error: "Feld 'anlage' fehlt." });
-    if (!gardenRaw) return json(400, { error: "Feld 'garten' fehlt." });
+    if (!kind) {
+      logStep("return error", { step: "kind validate", status: 400 });
+      return json(400, { error: "Ungültiges Feld 'kind'. Erlaubt: ablesung, ausbau, einbau." });
+    }
+
+    if (!medium) {
+      logStep("return error", { step: "medium validate", status: 400 });
+      return json(400, { error: "Ungültiges Feld 'medium'. Erlaubt: strom, wasser." });
+    }
+
+    if (!date) {
+      logStep("return error", { step: "datum validate", status: 400, rawDate });
+      return json(400, { error: "Ungültiges Feld 'datum'. Erwartet YYYY-MM-DD oder dd.MM.yyyy." });
+    }
+
+    if (!anlageRaw) {
+      logStep("return error", { step: "anlage validate", status: 400 });
+      return json(400, { error: "Feld 'anlage' fehlt." });
+    }
+
+    if (!gardenRaw) {
+      logStep("return error", { step: "garten validate", status: 400 });
+      return json(400, { error: "Feld 'garten' fehlt." });
+    }
+
+    logStep("input normalized / validated", {
+      kind,
+      medium,
+      rawDate,
+      normalizedDate: date,
+      hasMeterNumber: !meterNumberRaw ? false : true,
+    });
 
     const anlage = sanitizeSegment(anlageRaw);
     const garden = sanitizeSegment(gardenRaw);
@@ -342,9 +493,11 @@ Deno.serve(async (req) => {
     let parentId = rootFolderId;
     const folderSegments = ["Ablesungen", year, anlage, garden, medium];
     for (const segment of folderSegments) {
+      logStep("ensure folder segment", { segment });
       parentId = await ensureFolder(accessToken, parentId, segment);
     }
 
+    logStep("drive upload start", { fileName, folderDepth: folderSegments.length });
     const upload = await uploadFileToDrive({
       accessToken,
       parentId,
@@ -352,8 +505,11 @@ Deno.serve(async (req) => {
       file,
     });
 
+    logStep("drive upload success", { fileId: upload.id, fileName: upload.name });
+
     const relativePath = `${folderSegments.join("/")}/${upload.name}`;
 
+    logStep("return success", { relativePath });
     return json(200, {
       success: true,
       file_id: upload.id,
@@ -365,6 +521,7 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    logError("return error", error);
     return json(500, {
       success: false,
       error: message,
