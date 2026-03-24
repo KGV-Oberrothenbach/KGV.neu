@@ -64,10 +64,11 @@ public sealed class ExportPage : ContentPage
         if (_userContextState.CurrentUserContext?.Role is not (UserRole.Admin or UserRole.Vorstand))
         {
             _statusLabel.Text = "Export ist mobil nur für Admin/Vorstand verfügbar.";
-            _exportButton.IsEnabled = false;
+            _exportButton.IsVisible = false;
             return;
         }
 
+        _exportButton.IsVisible = true;
         _exportButton.IsEnabled = !_isBusy;
     }
 
@@ -118,7 +119,7 @@ public sealed class ExportPage : ContentPage
         finally
         {
             _isBusy = false;
-            _exportButton.IsEnabled = true;
+            _exportButton.IsEnabled = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
         }
     }
 }

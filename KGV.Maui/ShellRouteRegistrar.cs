@@ -21,7 +21,6 @@ internal static class ShellRouteRegistrar
         Routing.RegisterRoute(nameof(ZaehlerwechselPage), typeof(ZaehlerwechselPage));
         Routing.RegisterRoute(nameof(RfidEinrichtenPage), typeof(RfidEinrichtenPage));
         Routing.RegisterRoute(nameof(FaelligeZaehlerPage), typeof(FaelligeZaehlerPage));
-        Routing.RegisterRoute(nameof(FotoUploadTestPage), typeof(FotoUploadTestPage));
 
         _routesRegistered = true;
     }

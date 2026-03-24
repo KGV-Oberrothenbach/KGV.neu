@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-03-24 – MAUI-Restabgleich mit Altpfad-Bereinigung und Editor-/Rechte-Feinschliff abgeschlossen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft; blockfremde offene WPF-/Supabase-Dateien blieben unangetastet.
+- Den Restabgleich gezielt auf kleine, klare Praxisprobleme fokussiert statt einen neuen Großblock zu öffnen.
+- Bereinigte Alt-/Testpfade:
+  - alte `RoleChoicePage` aus MAUI entfernt; der Pfad ist seit der Umstellung auf echten `UserContext` fachlich überholt
+  - der Testpfad `Foto-Upload testen` wurde aus dem aktiven `Ablesen`-Einstieg und aus den zentral registrierten Shell-Routen entfernt, damit im produktiven MAUI-Menü kein veralteter Testpfad mehr auftaucht
+- Editor-/Verwaltungsfeinschliff auf den mobilen Verwaltungsseiten umgesetzt:
+  - `HomeManagementPage` schaltet Eingabefelder für Zeit-/Teilnehmeroptionen jetzt passend aktiv/inaktiv statt alles immer offen zu lassen
+  - neuer Datensatz setzt die alte Auswahl im Listenbereich sauber zurück
+  - Busy-Zustände sperren Bereichsauswahl, Listen und Speichern belastbar während Ladevorgängen/Speichern
+  - Basiskontrollen an WPF angeglichen:
+    - Endzeit darf nicht vor Startzeit liegen
+    - Stundenwert bei Arbeitseinsätzen darf nicht negativ sein
+    - HTML-Inhalt von Bekanntmachungen wird getrimmt gespeichert
+  - `Speichern` bleibt am Formularende
+- Rechte-/Sichtbarkeitsfeinschliff umgesetzt:
+  - `HomeManagementPage` blendet den Editorbereich für nicht berechtigte Rollen komplett aus und lässt nicht nur eine Statusmeldung stehen
+  - `ExportPage` blendet die Exportaktion für nicht berechtigte Rollen aus statt nur deaktiviert stehen zu lassen
+  - bestehende Regeln bleiben erhalten:
+    - `Benutzerverwaltung` nur für Admin
+    - `Export` nur für Admin/Vorstand
+    - Home-Verwaltung nur für Admin/Vorstand
+- Ehrlicher Stand nach diesem Feinschliff:
+  - kein neuer fachlicher Blocker im MAUI-Kernpfad sichtbar
+  - offen bleiben vor allem Komfort-/Feintuning-Themen und einzelne tiefere Desktop-Editorparitäten
+- Technisch verifiziert:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-24 – MAUI-Export produktiv nachgezogen und Restlücken ehrlich eingeordnet
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und zusätzlich den echten Git-Arbeitsbaum geprüft; blockfremde offene WPF-/Supabase-Dateien blieben wieder unangetastet.

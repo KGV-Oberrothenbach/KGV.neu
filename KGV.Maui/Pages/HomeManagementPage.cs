@@ -42,6 +42,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
     private readonly VerticalStackLayout _workAssignmentSection;
     private readonly VerticalStackLayout _appointmentSection;
     private readonly VerticalStackLayout _announcementSection;
+    private readonly VerticalStackLayout _editorContainer;
     private readonly Button _saveButton;
     private readonly Button _newButton;
     private readonly Button _refreshButton;
@@ -79,7 +80,11 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         _refreshButton.Clicked += async (_, _) => await LoadCurrentSectionAsync(resetSelection: false);
 
         _newButton = new Button { Text = "Neu" };
-        _newButton.Clicked += (_, _) => ResetEditorForNew();
+        _newButton.Clicked += (_, _) =>
+        {
+            _entriesView.SelectedItem = null;
+            ResetEditorForNew();
+        };
 
         _entriesView = new CollectionView
         {
@@ -112,12 +117,18 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         _descriptionEditor = new Editor { AutoSize = EditorAutoSizeOption.TextChanges, Placeholder = "Beschreibung" };
         _datePicker = new DatePicker { Date = DateTime.Today };
         _hasStartTimeCheckBox = new CheckBox();
+        _hasStartTimeCheckBox.CheckedChanged += (_, e) => _startTimePicker.IsEnabled = e.Value;
         _startTimePicker = new TimePicker { Time = new TimeSpan(8, 0, 0) };
+        _startTimePicker.IsEnabled = false;
         _hasEndTimeCheckBox = new CheckBox();
+        _hasEndTimeCheckBox.CheckedChanged += (_, e) => _endTimePicker.IsEnabled = e.Value;
         _endTimePicker = new TimePicker { Time = new TimeSpan(12, 0, 0) };
+        _endTimePicker.IsEnabled = false;
         _treffpunktEntry = new Entry { Placeholder = "Treffpunkt" };
         _hasMaxParticipantsCheckBox = new CheckBox();
+        _hasMaxParticipantsCheckBox.CheckedChanged += (_, e) => _maxParticipantsEntry.IsEnabled = e.Value;
         _maxParticipantsEntry = new Entry { Placeholder = "Max. Teilnehmer", Keyboard = Keyboard.Numeric };
+        _maxParticipantsEntry.IsEnabled = false;
         _hoursEntry = new Entry { Placeholder = "Stundenwert", Keyboard = Keyboard.Numeric };
         _htmlEditor = new Editor { AutoSize = EditorAutoSizeOption.TextChanges, Placeholder = "HTML-Inhalt" };
         _sortOrderEntry = new Entry { Placeholder = "Sortierreihenfolge", Keyboard = Keyboard.Numeric };
@@ -174,6 +185,19 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         _saveButton = new Button { Text = "Speichern" };
         _saveButton.Clicked += async (_, _) => await SaveAsync();
 
+        _editorContainer = new VerticalStackLayout
+        {
+            Spacing = 12,
+            Children =
+            {
+                _editorCaptionLabel,
+                _workAssignmentSection,
+                _appointmentSection,
+                _announcementSection,
+                _saveButton
+            }
+        };
+
         Content = new ScrollView
         {
             Content = new VerticalStackLayout
@@ -191,11 +215,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
                         Children = { _refreshButton, _newButton }
                     },
                     _entriesView,
-                    _editorCaptionLabel,
-                    _workAssignmentSection,
-                    _appointmentSection,
-                    _announcementSection,
-                    _saveButton,
+                    _editorContainer,
                     _statusLabel
                 }
             }
@@ -223,8 +243,11 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         if (_userContextState.CurrentUserContext?.Role is not (UserRole.Admin or UserRole.Vorstand))
         {
             _statusLabel.Text = "Diese Verwaltung ist nur für Admin/Vorstand verfügbar.";
+            SetAuthorizedState(false);
             return;
         }
+
+        SetAuthorizedState(true);
 
         _sectionPicker.SelectedIndex = (int)_currentSection;
         if (!_initialized)
@@ -242,7 +265,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         if (_isBusy)
             return;
 
-        _isBusy = true;
+        SetBusy(true);
         try
         {
             _statusLabel.Text = string.Empty;
@@ -284,7 +307,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         }
         finally
         {
-            _isBusy = false;
+            SetBusy(false);
         }
     }
 
@@ -327,11 +350,14 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         _datePicker.Date = DateTime.Today;
         _hasStartTimeCheckBox.IsChecked = false;
         _startTimePicker.Time = new TimeSpan(8, 0, 0);
+        _startTimePicker.IsEnabled = false;
         _hasEndTimeCheckBox.IsChecked = false;
         _endTimePicker.Time = new TimeSpan(12, 0, 0);
+        _endTimePicker.IsEnabled = false;
         _treffpunktEntry.Text = string.Empty;
         _hasMaxParticipantsCheckBox.IsChecked = false;
         _maxParticipantsEntry.Text = string.Empty;
+        _maxParticipantsEntry.IsEnabled = false;
         _hoursEntry.Text = string.Empty;
         _htmlEditor.Text = string.Empty;
         _sortOrderEntry.Text = string.Empty;
@@ -362,11 +388,14 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
                 _datePicker.Date = workAssignment.Datum == default ? DateTime.Today : workAssignment.Datum.Date;
                 _hasStartTimeCheckBox.IsChecked = workAssignment.StartUhrzeit.HasValue;
                 _startTimePicker.Time = workAssignment.StartUhrzeit ?? new TimeSpan(8, 0, 0);
+                _startTimePicker.IsEnabled = workAssignment.StartUhrzeit.HasValue;
                 _hasEndTimeCheckBox.IsChecked = workAssignment.EndUhrzeit.HasValue;
                 _endTimePicker.Time = workAssignment.EndUhrzeit ?? new TimeSpan(12, 0, 0);
+                _endTimePicker.IsEnabled = workAssignment.EndUhrzeit.HasValue;
                 _treffpunktEntry.Text = workAssignment.Treffpunkt ?? string.Empty;
                 _hasMaxParticipantsCheckBox.IsChecked = workAssignment.MaxTeilnehmer.HasValue;
                 _maxParticipantsEntry.Text = workAssignment.MaxTeilnehmer?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+                _maxParticipantsEntry.IsEnabled = workAssignment.MaxTeilnehmer.HasValue;
                 _hoursEntry.Text = workAssignment.StundenWert.ToString(CultureInfo.InvariantCulture);
                 _activeSwitch.IsToggled = workAssignment.Aktiv;
                 break;
@@ -384,8 +413,10 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
                 _datePicker.Date = appointment.Datum == default ? DateTime.Today : appointment.Datum.Date;
                 _hasStartTimeCheckBox.IsChecked = appointment.StartUhrzeit.HasValue;
                 _startTimePicker.Time = appointment.StartUhrzeit ?? new TimeSpan(8, 0, 0);
+                _startTimePicker.IsEnabled = appointment.StartUhrzeit.HasValue;
                 _hasEndTimeCheckBox.IsChecked = appointment.EndUhrzeit.HasValue;
                 _endTimePicker.Time = appointment.EndUhrzeit ?? new TimeSpan(12, 0, 0);
+                _endTimePicker.IsEnabled = appointment.EndUhrzeit.HasValue;
                 _activeSwitch.IsToggled = appointment.Aktiv;
                 break;
             case ManagementSection.Announcements:
@@ -410,7 +441,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         if (_isBusy)
             return;
 
-        _isBusy = true;
+        SetBusy(true);
         try
         {
             _statusLabel.Text = string.Empty;
@@ -429,7 +460,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         }
         finally
         {
-            _isBusy = false;
+            SetBusy(false);
         }
     }
 
@@ -448,6 +479,12 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
             return;
         }
 
+        if (hoursValue < 0)
+        {
+            _statusLabel.Text = "Der Stundenwert darf nicht negativ sein.";
+            return;
+        }
+
         if (_hasMaxParticipantsCheckBox.IsChecked)
         {
             if (!TryParsePositiveInt(_maxParticipantsEntry.Text, out var parsedMaxParticipants))
@@ -458,6 +495,9 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
 
             maxParticipants = parsedMaxParticipants;
         }
+
+        if (!ValidateTimeRange())
+            return;
 
         var record = _selectedEntryId.HasValue
             ? Clone(_workAssignments.FirstOrDefault(x => x.Id == _selectedEntryId.Value) ?? new ArbeitseinsatzRecord())
@@ -500,6 +540,9 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
             return;
         }
 
+        if (!ValidateTimeRange())
+            return;
+
         var record = _selectedEntryId.HasValue
             ? Clone(_appointments.FirstOrDefault(x => x.Id == _selectedEntryId.Value) ?? new TerminRecord())
             : new TerminRecord();
@@ -530,6 +573,38 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         await LoadCurrentSectionAsync(resetSelection: false);
     }
 
+    private bool ValidateTimeRange()
+    {
+        if (_hasStartTimeCheckBox.IsChecked && _hasEndTimeCheckBox.IsChecked && _endTimePicker.Time < _startTimePicker.Time)
+        {
+            _statusLabel.Text = "Die Endzeit darf nicht vor der Startzeit liegen.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private void SetAuthorizedState(bool isAuthorized)
+    {
+        _sectionPicker.IsEnabled = isAuthorized && !_isBusy;
+        _refreshButton.IsEnabled = isAuthorized && !_isBusy;
+        _newButton.IsEnabled = isAuthorized && !_isBusy;
+        _entriesView.IsEnabled = isAuthorized && !_isBusy;
+        _editorContainer.IsVisible = isAuthorized;
+        _saveButton.IsEnabled = isAuthorized && !_isBusy;
+    }
+
+    private void SetBusy(bool busy)
+    {
+        _isBusy = busy;
+        var isAuthorized = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+        _sectionPicker.IsEnabled = isAuthorized && !busy;
+        _refreshButton.IsEnabled = isAuthorized && !busy;
+        _newButton.IsEnabled = isAuthorized && !busy;
+        _entriesView.IsEnabled = isAuthorized && !busy;
+        _saveButton.IsEnabled = isAuthorized && !busy;
+    }
+
     private async Task SaveAnnouncementAsync()
     {
         if (string.IsNullOrWhiteSpace(_titleEntry.Text) || string.IsNullOrWhiteSpace(_htmlEditor.Text))
@@ -549,7 +624,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
             : new BekanntmachungRecord();
 
         record.Titel = _titleEntry.Text.Trim();
-        record.InhaltHtml = _htmlEditor.Text;
+        record.InhaltHtml = _htmlEditor.Text.Trim();
         record.SortOrder = sortOrder;
         record.Aktiv = _activeSwitch.IsToggled;
 

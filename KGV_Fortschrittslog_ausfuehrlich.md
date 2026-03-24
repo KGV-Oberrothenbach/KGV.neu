@@ -2,6 +2,46 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: MAUI-Parität Block 5 mit Restabgleich, Platzhalter-Bereinigung und Editor-Feinschliff abgeschlossen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Ausgangszustand vor diesem Block:
+  - die großen MAUI-Paritätsblöcke waren bereits gezogen
+  - offen blieben vor allem kleinere Altpfade, Platzhalterreste, Editor-/Validierungsdetails und Rechte-/Sichtbarkeitsfeinschliff
+- Den Block bewusst klein und risikoarm gehalten:
+  - keine neue Architektur
+  - keine neue Fachbaustelle
+  - nur erkennbare Restprobleme mit hohem Praxisnutzen bearbeitet
+- Bereinigte Altpfade/Platzhalterreste:
+  - die fachlich veraltete `RoleChoicePage` wurde aus MAUI entfernt
+  - der aktive Test-/Altpfad `Foto-Upload testen` wurde aus der produktiven `Ablesen`-Übersicht und aus den Shell-Routen entfernt
+  - damit taucht im aktiven mobilen Produktpfad kein offensichtlicher Testeintrag mehr auf
+- Editor-/Verwaltungsfeinschliff für die mobilen Verwaltungsseiten umgesetzt:
+  - `HomeManagementPage` sperrt Eingaben, Listen und Bereichswechsel jetzt sauber im Busy-Zustand
+  - Start-/Endzeit sowie Teilnehmerbegrenzung werden mobil nur dann aktiv bedienbar, wenn sie im Formular wirklich genutzt werden
+  - bei `Neu` wird die bisherige Listenauswahl sauber zurückgesetzt
+  - Validierung mit größtem Praxisnutzen nachgeschärft:
+    - Endzeit darf nicht vor Startzeit liegen
+    - Stundenwert bei Arbeitseinsätzen darf nicht negativ sein
+    - Bekanntmachungs-HTML wird getrimmt gespeichert
+  - `Speichern` bleibt am Ende des Formularbereichs
+- Rechte-/Sichtbarkeitsfeinschliff umgesetzt:
+  - `HomeManagementPage` blendet den Editorbereich für nicht berechtigte Benutzer aus statt nur eine Meldung zu zeigen
+  - `ExportPage` blendet die Exportaktion für nicht berechtigte Rollen aus
+  - die bereits gezogenen Rechtepfade bleiben erhalten:
+    - `Benutzerverwaltung` nur Admin
+    - `Export` nur Admin/Vorstand
+    - Verwaltungseditoren nur aus Home und nur für berechtigte Rollen sichtbar
+- Ehrlicher Restabgleich nach diesem Block:
+  - kein offensichtlicher neuer Blocker mehr im bereits nachgezogenen MAUI-Kernpfad
+  - offen sind vor allem Komfort-/Feintuningthemen gegenüber WPF:
+    - tiefere Feld-/Fokus-/Validierungsparität einzelner Editorseiten
+    - weitere optionale Exportvarianten
+    - einzelne Desktop-Komfortpfade ohne hohe fachliche Kritikalität
+  - das sind aktuell eher Ausbau- als Blockerthemen
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-24 – Prompt 1/1: MAUI-Parität Block 4 Export nachgezogen und Restlücken sauber eingeordnet
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und zusätzlich den echten Git-Arbeitsbaum geprüft, weil der vorangegangene Terminalauszug nicht belastbar genug war.
