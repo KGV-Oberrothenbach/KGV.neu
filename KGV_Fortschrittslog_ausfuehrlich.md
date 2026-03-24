@@ -2,6 +2,51 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: MAUI-Parität Block 4 Export nachgezogen und Restlücken sauber eingeordnet
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und zusätzlich den echten Git-Arbeitsbaum geprüft, weil der vorangegangene Terminalauszug nicht belastbar genug war.
+- Ausgangszustand vor diesem Block:
+  - Mitgliedskontext, Gartenkontext und Home-/Verwaltungsbasis in MAUI waren bereits nachgezogen
+  - als nächste größere sichtbare WPF-/MAUI-Paritätslücke blieb nun vor allem der Bereich `Export`
+- WPF-Referenzpfad geprüft:
+  - produktiv vorhanden ist dort ein echter Mitglieder-CSV-Export über `ExportViewModel`
+  - damit war der fachlich sinnvollste kleine Block klar: zuerst denselben belastbaren Kernexport mobil nutzbar machen statt mehrere neue Exportarten halb zu öffnen
+- Shared-/Infrastructure-Pfade geprüft:
+  - Datenbasis ist der bestehende Servicepfad `GetMitgliederAsync()`
+  - die CSV-Erzeugung lag bisher nur lokal in WPF
+  - MAUI bringt für Android bereits die nötigen Plattformpfade für Dateiablage und Teilen mit (`FileSystem`, `Share`)
+- Den Exportblock deshalb klein, aber produktiv am bestehenden Kern umgesetzt:
+  - neue gemeinsame CSV-Hilfe `MitgliederCsvExportBuilder` in `KGV.Core`
+  - WPF-`ExportViewModel` verwendet jetzt denselben gemeinsamen Exportkern
+  - damit gibt es keine getrennte Schattenlogik WPF vs. MAUI mehr
+  - neue mobile `ExportPage` ergänzt
+  - Export erzeugt lokal eine echte CSV-Datei und übergibt sie anschließend an den nativen Android-Teilen-Pfad
+- Fachliche Regel für operative Daten im Export direkt berücksichtigt:
+  - Demo-/Test-/Play-Store-Mitglieder werden im mobilen operativen Export nicht mit ausgegeben
+  - derselbe operative Filter steckt jetzt im gemeinsamen CSV-Builder
+- Mobil erreichbar gemacht für Admin/Vorstand:
+  - eigener Shell-Menüpunkt `Export`
+  - zusätzlicher Einstieg aus dem Home-Verwaltungsbereich
+- Bewusst nicht gemacht:
+  - keine neue Export-Gesamtarchitektur
+  - keine Portierung mehrerer weiterer Exportarten in denselben kleinen Block
+  - keine unnötigen Änderungen an Shell/Login/Home außerhalb der Einbindung des neuen Exportpfads
+- Restlücken nach dem Exportblock bewusst kurz und ehrlich eingeordnet:
+  - kritisch:
+    - aktuell keine neue kritische MAUI-Lücke mit vergleichbarem Gewicht zum zuvor geschlossenen Mitglieds-/Garten-/Home-Kern identifiziert
+  - wichtig:
+    - feinere Parität der mobilen Verwaltungseditoren gegenüber WPF
+    - weitere Exportarten, sofern sie im produktiven WPF-Alltag tatsächlich relevant sind
+    - verbleibende einzelne Admin-/Kontextpfade außerhalb des bereits nachgezogenen MAUI-Kerns
+  - später:
+    - Komfort-/UI-Ausbau des Exportpfads und optionale Exportvarianten
+- Fachliche Kurzvalidierung:
+  - Admin/Vorstand erreicht Export mobil
+  - Export erzeugt ein nutzbares CSV-Ergebnis
+  - Ergebnis kann auf Android über den nativen Teilen-Pfad sinnvoll weiterverwendet werden
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-24 – Prompt 1/1: MAUI-Parität Block 3 für Home, Bekanntmachungen, Termine und Arbeitseinsätze auf belastbaren Kernpfad gezogen
 
 - Vor dem Block wieder den realen Repo-/Arbeitsbaumstand und zusätzlich den aktuellen Stand im `KGV_Fortschrittslog_ausfuehrlich.md` geprüft und abgeglichen.

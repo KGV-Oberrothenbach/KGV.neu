@@ -2,6 +2,41 @@
 
 ---
 
+## 2026-03-24 – MAUI-Export produktiv nachgezogen und Restlücken ehrlich eingeordnet
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und zusätzlich den echten Git-Arbeitsbaum geprüft; blockfremde offene WPF-/Supabase-Dateien blieben wieder unangetastet.
+- WPF-Exportpfad als Referenz geprüft:
+  - produktiv vorhanden war dort ein einfacher, aber echter CSV-Export für Mitglieder über `ExportViewModel`
+  - der fachlich größte Nutzen mit kleinem Risiko liegt damit klar beim Mitglieder-CSV statt bei einer größeren Exportplattform
+- Bestehenden Fach-/Shared-Unterbau geprüft:
+  - Exportbasis ist `GetMitgliederAsync()`
+  - WPF hatte bisher seine CSV-Erzeugung lokal im ViewModel
+  - für MAUI gibt es belastbare Android-Wege für Dateiablage/Teilen über `FileSystem` + `Share`
+- Den Block deshalb klein und produktiv umgesetzt:
+  - gemeinsame CSV-Erzeugung nach `KGV.Core` in `MitgliederCsvExportBuilder` gezogen, damit WPF und MAUI denselben Exportkern verwenden
+  - Demo-/Test-/Play-Store-Mitglieder werden im operativen Export explizit ausgeschlossen
+  - WPF-`ExportViewModel` nutzt jetzt denselben Shared-Builder statt eigene CSV-Logik daneben zu halten
+  - neue mobile `ExportPage` ergänzt
+  - Export erzeugt lokal eine echte CSV-Datei und gibt sie anschließend über den Android-Teilen-/Share-Pfad weiter
+  - Admin/Vorstand erreichen den Export jetzt mobil:
+    - über eigenen Shell-Menüpunkt `Export`
+    - zusätzlich über den Home-Verwaltungsbereich
+- Bewusst nicht gemacht:
+  - keine neue mehrstufige Exportplattform
+  - keine breite Portierung aller denkbaren WPF-Exportarten in diesen Block
+  - keine Änderung an bereits stabilisierten Login-/Mitglieds-/Garten-/Home-Pfaden außerhalb der nötigen Einbindung
+- Ehrliche Restlückeneinordnung nach diesem Block:
+  - kritisch:
+    - aktuell keine neue kritische MAUI-Sackgasse mit demselben Gewicht wie zuvor bei Mitglieds-/Garten-/Home-Kontext identifiziert
+  - wichtig:
+    - tiefere WPF-Editorparität in mobilen Verwaltungsseiten (Validierung, Fokusführung, mehr Feldtiefe)
+    - weitere Exportarten, falls im WPF-Alltag mehr als Mitglieder-CSV fachlich relevant genutzt werden
+    - Restparität einzelner Admin-/Kontextpfade außerhalb des jetzt geschlossenen Kerns
+  - später:
+    - UI-/Komfortausbau des mobilen Exportpfads (z. B. zusätzliche Formate oder differenziertere Auswahl)
+- Technisch verifiziert:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-24 – MAUI-Home und mobile Verwaltungszugänge für Bekanntmachungen, Termine und Arbeitseinsätze auf echten Shared-Pfad gezogen
 
 - Vor dem Block wieder den realen Repo-/Arbeitsbaumstand sowie den aktuellen ausführlichen Fortschrittslog geprüft; blockfremde offene WPF-/Supabase-Dateien blieben bewusst unangetastet.

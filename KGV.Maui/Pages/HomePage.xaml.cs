@@ -217,6 +217,10 @@ public class HomePage : ContentPage
         announcementsManagementButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
         announcementsManagementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync($"{nameof(HomeManagementPage)}?section=announcements");
 
+        var exportButton = new Button { Text = "Mitglieder exportieren" };
+        exportButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
+        exportButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(ExportPage));
+
         Content = new ScrollView
         {
             Content = new VerticalStackLayout

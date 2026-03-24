@@ -40,6 +40,23 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             }
         });
 
+        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+        {
+            Items.Add(new FlyoutItem
+            {
+                Title = "Export",
+                Items =
+                {
+                    new ShellContent
+                    {
+                        Title = "Export",
+                        Route = "export",
+                        ContentTemplate = new DataTemplate(() => _services.GetRequiredService<ExportPage>())
+                    }
+                }
+            });
+        }
+
         Items.Add(new FlyoutItem
         {
             Title = "Mitgliedersuche",
