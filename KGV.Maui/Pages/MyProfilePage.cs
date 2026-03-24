@@ -19,6 +19,8 @@ public sealed class MyProfilePage : ContentPage
 
     private readonly Label _nameLabel;
     private readonly Label _emailLabel;
+    private readonly Entry _newEmailEntry;
+    private readonly Entry _emailOtpEntry;
 
     private readonly Entry _telefonEntry;
     private readonly Entry _handyEntry;
@@ -27,9 +29,16 @@ public sealed class MyProfilePage : ContentPage
     private readonly Entry _ortEntry;
 
     private readonly Label _statusLabel;
-    private readonly Button _changeEmailButton;
+    private readonly Label _authStatusLabel;
+    private readonly VerticalStackLayout _emailOtpSection;
+    private readonly Button _requestEmailCodeButton;
+    private readonly Button _verifyEmailCodeButton;
+    private readonly Button _resetPasswordButton;
     private readonly Button _saveButton;
     private readonly Button _checkAddressButton;
+
+    private bool _isAuthBusy;
+    private bool _isEmailOtpRequested;
 
     public MyProfilePage(ISupabaseService supabaseService, IAuthService authService, UserContextState state)
     {
@@ -41,6 +50,8 @@ public sealed class MyProfilePage : ContentPage
 
         _nameLabel = new Label { FontSize = 22, FontAttributes = FontAttributes.Bold };
         _emailLabel = new Label();
+        _newEmailEntry = new Entry { Placeholder = "Neue E-Mail" };
+        _emailOtpEntry = new Entry { Placeholder = "OTP-Code", Keyboard = Keyboard.Numeric };
 
         _telefonEntry = new Entry { Placeholder = "Telefon" };
         _handyEntry = new Entry { Placeholder = "Handy" };
@@ -50,9 +61,16 @@ public sealed class MyProfilePage : ContentPage
         _ortEntry = new Entry { Placeholder = "Ort (Pflicht)" };
 
         _statusLabel = new Label { TextColor = Colors.Red };
+        _authStatusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
 
-        _changeEmailButton = new Button { Text = "Mailadresse ändern" };
-        _changeEmailButton.Clicked += OnChangeEmailClicked;
+        _requestEmailCodeButton = new Button { Text = "Code anfordern" };
+        _requestEmailCodeButton.Clicked += OnRequestEmailCodeClicked;
+
+        _verifyEmailCodeButton = new Button { Text = "Code bestätigen" };
+        _verifyEmailCodeButton.Clicked += OnVerifyEmailCodeClicked;
+
+        _resetPasswordButton = new Button { Text = "Passwort-Reset senden" };
+        _resetPasswordButton.Clicked += OnResetPasswordClicked;
 
         _checkAddressButton = new Button { Text = "Adresse prüfen" };
         _checkAddressButton.Clicked += OnCheckAddressClicked;
@@ -82,6 +100,24 @@ public sealed class MyProfilePage : ContentPage
             => entryBorderStyle != null
                 ? new Border { Style = entryBorderStyle, Content = entry }
                 : new Border { Content = entry };
+
+        _emailOtpSection = new VerticalStackLayout
+        {
+            Spacing = 10,
+            IsVisible = false,
+            Children =
+            {
+                new Label { Text = "OTP-Code", FontAttributes = FontAttributes.Bold },
+                WrapEntry(_emailOtpEntry),
+                new Label
+                {
+                    Text = "Der OTP-Code wird an die neue Mailadresse gesendet und hier direkt bestätigt.",
+                    TextColor = Colors.Gray,
+                    LineBreakMode = LineBreakMode.WordWrap
+                },
+                _verifyEmailCodeButton
+            }
+        };
 
         Border WrapCard(View content)
             => cardStyle != null
@@ -122,10 +158,39 @@ public sealed class MyProfilePage : ContentPage
             }
         };
 
+        var auth = new VerticalStackLayout
+        {
+            Spacing = 10,
+            Children =
+            {
+                new Label { Text = "Authentifizierung", FontAttributes = FontAttributes.Bold },
+                new Label { Text = "Aktuelle E-Mail", FontAttributes = FontAttributes.Bold },
+                readOnlyStyle != null ? new Border { Style = readOnlyStyle, Content = _emailLabel } : _emailLabel,
+                new Label { Text = "Neue E-Mail", FontAttributes = FontAttributes.Bold },
+                WrapEntry(_newEmailEntry),
+                new Label
+                {
+                    Text = "Die Mailänderung folgt mobil demselben OTP-Kontext wie im Desktop-Dialog, aber als inline Dialogersatz auf der Profilseite.",
+                    TextColor = Colors.Gray,
+                    LineBreakMode = LineBreakMode.WordWrap
+                },
+                _requestEmailCodeButton,
+                _emailOtpSection,
+                new Label
+                {
+                    Text = "Passwort vergessen nutzt denselben OTP-/Recovery-Pfad wie Erstlogin. Die Codeeingabe und das neue Passwort bleiben im Login.",
+                    TextColor = Colors.Gray,
+                    LineBreakMode = LineBreakMode.WordWrap
+                },
+                _resetPasswordButton,
+                _authStatusLabel
+            }
+        };
+
         var actions = new HorizontalStackLayout
         {
             Spacing = 12,
-            Children = { _checkAddressButton, _changeEmailButton, _saveButton }
+            Children = { _checkAddressButton, _saveButton }
         };
 
         Content = new ScrollView
@@ -139,63 +204,120 @@ public sealed class MyProfilePage : ContentPage
                     WrapCard(header),
                     WrapCard(kontakt),
                     WrapCard(adresse),
+                    WrapCard(auth),
                     actions
                 }
             }
         };
 
         Appearing += OnAppearing;
+        UpdateAuthUiState();
     }
 
-    private async void OnChangeEmailClicked(object? sender, EventArgs e)
+    private async void OnRequestEmailCodeClicked(object? sender, EventArgs e)
     {
         var currentEmail = _emailLabel.Text?.Trim() ?? string.Empty;
-        var newEmail = await DisplayPromptAsync("Mailadresse ändern", "Neue Mailadresse eingeben", initialValue: currentEmail, keyboard: Keyboard.Email);
+        var newEmail = (_newEmailEntry.Text ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(newEmail))
-            return;
-
-        newEmail = newEmail.Trim();
-        if (string.Equals(newEmail, currentEmail, StringComparison.OrdinalIgnoreCase))
         {
-            await DisplayAlert("Hinweis", "Bitte eine andere Mailadresse eingeben.", "OK");
+            _authStatusLabel.Text = "Bitte eine neue Mailadresse eingeben.";
             return;
         }
 
-        SetBusy(true);
+        if (string.Equals(newEmail, currentEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            _authStatusLabel.Text = "Bitte eine andere Mailadresse eingeben.";
+            return;
+        }
+
+        SetAuthBusy(true);
         try
         {
             var requested = await _authService.RequestEmailChangeAsync(newEmail);
             if (!requested)
             {
-                await DisplayAlert("Fehler", "OTP-Code für die Mailadressänderung konnte nicht angefordert werden.", "OK");
+                _authStatusLabel.Text = "OTP-Code für die Mailadressänderung konnte nicht angefordert werden.";
                 return;
             }
 
-            var code = await DisplayPromptAsync("OTP-Code", "Code aus der neuen Mailadresse eingeben", keyboard: Keyboard.Numeric);
-            if (string.IsNullOrWhiteSpace(code))
-            {
-                await DisplayAlert("Hinweis", "Die Mailadressänderung bleibt unbestätigt, bis der OTP-Code eingegeben wurde.", "OK");
-                return;
-            }
-
-            var verified = await _authService.VerifyEmailChangeOtpAsync(newEmail, code.Trim());
-            if (!verified)
-            {
-                await DisplayAlert("Fehler", "OTP-Code konnte nicht bestätigt werden.", "OK");
-                return;
-            }
-
-            await DisplayAlert("OK", "Mailadresse erfolgreich geändert.", "OK");
-            _loaded = false;
-            await LoadAsync();
+            _isEmailOtpRequested = true;
+            _emailOtpEntry.Text = string.Empty;
+            _authStatusLabel.Text = "OTP-Code wurde an die neue Mailadresse gesendet. Bitte hier eingeben und bestätigen.";
+            UpdateAuthUiState();
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Fehler", ex.Message, "OK");
+            _authStatusLabel.Text = ex.Message;
         }
         finally
         {
-            SetBusy(false);
+            SetAuthBusy(false);
+        }
+    }
+
+    private async void OnVerifyEmailCodeClicked(object? sender, EventArgs e)
+    {
+        var newEmail = (_newEmailEntry.Text ?? string.Empty).Trim();
+        var otpCode = (_emailOtpEntry.Text ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(newEmail) || string.IsNullOrWhiteSpace(otpCode))
+        {
+            _authStatusLabel.Text = "Neue Mailadresse und OTP-Code sind erforderlich.";
+            return;
+        }
+
+        SetAuthBusy(true);
+        try
+        {
+            var verified = await _authService.VerifyEmailChangeOtpAsync(newEmail, otpCode);
+            if (!verified)
+            {
+                _authStatusLabel.Text = "OTP-Code konnte nicht bestätigt werden.";
+                return;
+            }
+
+            _authStatusLabel.Text = "Mailadresse erfolgreich geändert.";
+            _isEmailOtpRequested = false;
+            _newEmailEntry.Text = string.Empty;
+            _emailOtpEntry.Text = string.Empty;
+            _loaded = false;
+            await LoadAsync();
+            UpdateAuthUiState();
+        }
+        catch (Exception ex)
+        {
+            _authStatusLabel.Text = ex.Message;
+        }
+        finally
+        {
+            SetAuthBusy(false);
+        }
+    }
+
+    private async void OnResetPasswordClicked(object? sender, EventArgs e)
+    {
+        var email = (_emailLabel.Text ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            _authStatusLabel.Text = "Aktuelle Mailadresse fehlt.";
+            return;
+        }
+
+        SetAuthBusy(true);
+        try
+        {
+            var ok = await _authService.SendPasswordResetEmailAsync(email);
+            _authStatusLabel.Text = ok
+                ? "OTP-Code für Passwort-vergessen wurde versendet. Bitte danach im Login den Code prüfen und ein neues Passwort setzen."
+                : "Passwort-Reset konnte nicht versendet werden.";
+        }
+        catch (Exception ex)
+        {
+            _authStatusLabel.Text = ex.Message;
+        }
+        finally
+        {
+            SetAuthBusy(false);
         }
     }
 
@@ -334,6 +456,30 @@ public sealed class MyProfilePage : ContentPage
     {
         _saveButton.IsEnabled = !busy;
         _checkAddressButton.IsEnabled = !busy;
-        _changeEmailButton.IsEnabled = !busy;
+        if (!busy)
+            UpdateAuthUiState();
+        else
+            SetAuthControlsEnabled(false);
+    }
+
+    private void SetAuthBusy(bool busy)
+    {
+        _isAuthBusy = busy;
+        UpdateAuthUiState();
+    }
+
+    private void UpdateAuthUiState()
+    {
+        _emailOtpSection.IsVisible = _isEmailOtpRequested;
+        SetAuthControlsEnabled(!_isAuthBusy);
+    }
+
+    private void SetAuthControlsEnabled(bool enabled)
+    {
+        _newEmailEntry.IsEnabled = enabled;
+        _emailOtpEntry.IsEnabled = enabled && _isEmailOtpRequested;
+        _requestEmailCodeButton.IsEnabled = enabled;
+        _verifyEmailCodeButton.IsEnabled = enabled && _isEmailOtpRequested;
+        _resetPasswordButton.IsEnabled = enabled;
     }
 }

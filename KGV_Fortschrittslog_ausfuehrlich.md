@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 8 für Auth-Sonderwege / Dialogersatz begonnen und kleinen MAUI-Auth-Dialogersatz-Fix umgesetzt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Für Block 8 gezielt geprüft:
+  - WPF: `ChangeEmailWindow`, `ResetPasswordWindow`, `DatumDialog`
+  - MAUI: `LoginPage`, `MyProfilePage`, aktive Auth-/OTP-/Passwort-/Mailänderungs-Pfade sowie die relevanten Auth-Servicepfade
+- Systematischer Vergleich entlang derselben Logik durchgeführt:
+  - UI/Struktur
+  - Daten/Fachinhalt
+  - Aktionen/Commands
+  - Navigation/Flow
+  - Rechte/Sichtbarkeit
+- Ehrlicher Befund im aktuellen Repo-Stand:
+  - der OTP-/Recovery-Unterbau ist in MAUI bereits vorhanden und läuft produktiv über `IAuthService`
+  - der Passwort-Reset ist mobil bereits fachlich tragfähig im Login integriert
+  - `DatumDialog` ist mobil durch vorhandene `DatePicker`-/Inline-Eingaben ausreichend implizit gelöst; dafür war kein eigener neuer Dialogpfad nötig
+  - die größte kleine Restlücke lag aktuell bei der Mailänderung auf `MyProfilePage`
+  - dort war der mobile Pfad bisher nur als Folge von `DisplayPromptAsync(...)` gelöst und damit schwächer als der vorhandene WPF-Dialogfluss
+- Wichtigste kleine Restabweichung mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - die MAUI-Mailänderung bot noch keinen stabilen sichtbaren Dialogersatz mit klarer OTP-Stufe, Statusanzeige und Wiederholbarkeit
+  - zusätzlich fehlte auf der Profilseite ein kleiner direkter Passwort-Reset-Sonderweg analog zum WPF-/Login-Kontext
+- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur innerhalb von Auth-Sonderwegen / Dialogersatz umgesetzt:
+  - `MyProfilePage` erhielt einen echten inline Dialogersatz für die Mailänderung statt der bisherigen Prompt-Kette
+  - sichtbar sind jetzt:
+    - aktuelle E-Mail
+    - neue E-Mail
+    - OTP-Stufe nach Codeanforderung
+    - laufende Statusrückmeldung direkt auf der Seite
+  - der mobile Flow nutzt weiterhin dieselben bestehenden Auth-Servicepfade:
+    - `RequestEmailChangeAsync(...)`
+    - `VerifyEmailChangeOtpAsync(...)`
+  - zusätzlich wurde auf derselben Profilseite ein kleiner stabiler Button `Passwort-Reset senden` ergänzt
+  - dieser nutzt weiter den bestehenden produktiven Recovery-Pfad `SendPasswordResetEmailAsync(...)`
+  - die eigentliche Codeeingabe und Passwort-Neusetzung bleiben bewusst im vorhandenen Login-Flow
+- Warum dieser kleine Block fachlich sinnvoll ist:
+  - Mailänderung war der sichtbar schwächste mobile Sonderpfad gegenüber WPF
+  - ein inline Dialogersatz ist mobil fachlich gleichwertiger als verschachtelte Prompts, ohne ein WPF-Fenster 1:1 nachzubauen
+  - der Block bleibt vollständig auf bestehenden Auth-/OTP-Pfaden und baut keine Schattenlogik
+- Bewusst nicht gemacht:
+  - keine neue Auth-Architektur
+  - kein separater neuer MAUI-Sonderseitenbaum nur für Mailänderung oder Reset
+  - kein künstlicher Nachbau von `DatumDialog`, weil `DatePicker`-Inlinepfade mobil bereits ausreichend sind
+  - keine Änderung an Home-, Mitglieds-, Garten-, Arbeitsstunden-, Verwaltungs-, Export- oder Ablesenpfaden
+- Fachliche Kurzvalidierung nach dem kleinen Block:
+  - Login bleibt stabil
+  - bestehende OTP-/Auth-Pfade bleiben intakt
+  - Mailänderung ist mobil jetzt sichtbarer und stabiler erreichbar
+  - Passwort-Reset ist aus dem Login weiterhin nutzbar und zusätzlich im Profilkontext direkt anstoßbar
+  - keine Verschlechterung bereits geprüfter Home-, Mitglieds-, Garten-, Arbeitsstunden-, Verwaltungs-, Export- oder Ablesenpfade
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte bestehende Warnungen bleiben außerhalb dieses kleinen Blocks bestehen
+
 ## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 7 für Ablesen / RFID / Zählerwechsel begonnen und kleinen MAUI-Rückwege-/Refresh-/Reset-Fix umgesetzt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
