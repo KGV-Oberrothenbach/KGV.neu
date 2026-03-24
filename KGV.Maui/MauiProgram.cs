@@ -60,7 +60,6 @@ public static class MauiProgram
         builder.Services.AddTransient<NebenmitgliedPage>();
         builder.Services.AddTransient<MyArbeitsstundenPage>();
         builder.Services.AddTransient<ArbeitsstundenReviewPage>();
-        builder.Services.AddTransient<ExitPage>();
 
         builder.Services.AddTransient<AdminShell>();
         builder.Services.AddTransient<UserShell>();

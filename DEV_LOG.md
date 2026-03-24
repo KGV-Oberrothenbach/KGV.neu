@@ -2,6 +2,52 @@
 
 ---
 
+## 2026-03-24 – Systematische View-Prüfung Block 9: Altlasten / MAUI-only-Seiten / Testpfade mit kleinem MAUI-Altpfad-Aufräumblock fortgeführt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.
+- Für Block 9 gezielt geprüft:
+  - WPF: `FotoUploadTestView` sowie die derzeit sichtbaren Test-/Hilfspfade im Arbeitsbaum
+  - MAUI: `RoleChoicePage`, `ExitPage`, `MyProfilePage`, `AblesenFeaturePage`, Shell-Routen, produktive Menüsichtbarkeit und erkennbare Hilfs-/Altseiten
+- Systematischer Vergleich entlang derselben Logik durchgeführt:
+  - fachlich nötig oder nicht
+  - produktiv erreichbar oder nicht
+  - Altlast oder legitimer MAUI-only-Pfad
+  - Risiko beim Entfernen
+  - Auswirkungen auf Navigation, Build und Rechte
+- Ehrlicher Befund im aktuellen Repo-Stand:
+  - `RoleChoicePage` ist im aktiven Repo-Pfad bereits nicht mehr vorhanden und damit keine verbleibende produktive Altlast mehr
+  - `MyProfilePage` ist ein legitimer produktiver MAUI-only-Pfad und bleibt sinnvoll im User-Shell-Menü verankert
+  - `AblesenFeaturePage` war im aktiven MAUI-Pfad nur noch eine ungenutzte Hilfsseite ohne produktive Route oder Menüeinbindung
+  - `ExitPage` war zwar noch produktiv im User-/Admin-Shell-Menü eingehängt, ist mobil aber fachlich kein sinnvoller Produktpfad
+  - zusätzliche Foto-/Upload-Testpfade sind im aktuellen Arbeitsbaum sichtbar, aber teilweise lokal/unversioniert; diese wurden für diesen kleinen Block bewusst nicht aggressiv mitbereinigt
+- Wichtigste kleine Restabweichungen mit hohem Praxisnutzen und geringem Risiko identifiziert:
+  - produktiver Flyout-Eintrag `Beenden` in MAUI war als Altpfad überflüssig
+  - `ExitPage` selbst war nach Entfernen dieses Menüs ein toter MAUI-only-Pfad
+  - `AblesenFeaturePage` war eine ungenutzte Hilfsseite ohne produktive Einbindung
+- Kleinen Korrekturblock deshalb nur im MAUI-Altlasten-/Routing-Rahmen umgesetzt:
+  - `Beenden` aus `AdminShell` entfernt
+  - `Beenden` aus `UserShell` entfernt
+  - `ExitPage` aus dem DI-Container entfernt
+  - ungenutzte Datei `ExitPage.cs` gelöscht
+  - ungenutzte Datei `AblesenFeaturePage.cs` gelöscht
+- Warum dieser kleine Block fachlich sinnvoll ist:
+  - der Block entfernt klare tote bzw. produktiv fragwürdige Altpfade mit sehr geringem Risiko
+  - produktive Kernpfade wie `MyProfilePage`, Login, Home, Stammdaten, Export, Ablesen und Arbeitsstunden bleiben unberührt
+  - statt einer riskanten Großreinigung wurden nur eindeutig entkoppelte Altseiten bereinigt
+- Bewusst nicht gemacht:
+  - keine aggressive Bereinigung lokaler/unversionierter Testartefakte
+  - keine Änderung an `MyProfilePage`, weil die Seite produktiv sinnvoll bleibt
+  - keine WPF-Löschung von `FotoUploadTestView`, weil dessen aktiver Produkt-/Teststatus im aktuellen Arbeitsbaum nicht belastbar genug für eine sichere Kleinbereinigung war
+  - keine neue Navigationsarchitektur
+- Fachliche Kurzvalidierung nach dem kleinen Block:
+  - produktive Navigation bleibt intakt
+  - `MyProfilePage` bleibt erreichbar
+  - kein produktiver MAUI-`Beenden`-Altpfad mehr im Flyout
+  - keine Verschlechterung der bisher geprüften Hauptpfade
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - der kleine Aufräumblock bleibt buildfähig
+
 ## 2026-03-24 – Systematische View-Prüfung Block 8: Auth-Sonderwege / Dialogersatz mit kleinem MAUI-Auth-Dialogersatz-Fix fortgeführt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.

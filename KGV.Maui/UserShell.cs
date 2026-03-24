@@ -81,20 +81,6 @@ public sealed class UserShell : Shell, IAppShellInitializer
             }
         });
 
-        Items.Add(new FlyoutItem
-        {
-            Title = "Beenden",
-            Items =
-            {
-                new ShellContent
-                {
-                    Title = "Beenden",
-                    Route = "exit",
-                    ContentTemplate = new DataTemplate(() => _services.GetRequiredService<ExitPage>())
-                }
-            }
-        });
-
         ShellNavigationHelper.EnsureActiveShellItem(this, "home");
     }
 }

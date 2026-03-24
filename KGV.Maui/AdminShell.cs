@@ -116,20 +116,6 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
         Items.Add(_workhoursReviewItem);
 
-        Items.Add(new FlyoutItem
-        {
-            Title = "Beenden",
-            Items =
-            {
-                new ShellContent
-                {
-                    Title = "Beenden",
-                    Route = "exit",
-                    ContentTemplate = new DataTemplate(() => _services.GetRequiredService<ExitPage>())
-                }
-            }
-        });
-
         ShellNavigationHelper.EnsureActiveShellItem(this, "home");
 
         _ = RefreshWorkhoursReviewMenuAsync();
