@@ -198,6 +198,14 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         await RefreshAsync();
     }
 
+    public async Task RefreshSelectedDetailAsync()
+    {
+        if (SelectedItem == null)
+            return;
+
+        await LoadSelectedDetailAsync();
+    }
+
     public async Task OpenDocumentAsync(DocumentInfo? document)
     {
         if (document == null)

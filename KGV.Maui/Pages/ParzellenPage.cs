@@ -64,7 +64,11 @@ public sealed class ParzellenPage : ContentPage
         };
         contextInfoLabel.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsContextBound));
 
-        var clearContextButton = new Button { Text = "Zur Parzellenübersicht" };
+        var backToMemberButton = new Button { Text = "Zur Stammdatenansicht" };
+        backToMemberButton.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsContextBound));
+        backToMemberButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(MeineDatenPage));
+
+        var clearContextButton = new Button { Text = "Zur globalen Parzellenübersicht" };
         clearContextButton.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsContextBound));
         clearContextButton.Clicked += async (_, _) => await _viewModel.ClearRequestedContextAsync();
 
@@ -332,7 +336,15 @@ public sealed class ParzellenPage : ContentPage
             removeWasserMeterButton));
 
         documentsView.SetBinding(ItemsView.ItemsSourceProperty, nameof(ParzellenViewModel.Dokumente));
-        detailContainer.Children.Add(CreateSection("Dokumente", documentsLabel, documentsView));
+        detailContainer.Children.Add(CreateSection("Garten-Dokumente",
+            documentsLabel,
+            new Label
+            {
+                Text = "Mitgliedsdokumente bleiben in den Stammdaten; hier werden die Dokumente der ausgewählten Parzelle angezeigt.",
+                TextColor = Colors.Gray,
+                LineBreakMode = LineBreakMode.WordWrap
+            },
+            documentsView));
 
         var assignPicker = new Picker { Title = "Mitglied auswählen" };
         assignPicker.SetBinding(Picker.ItemsSourceProperty, nameof(ParzellenViewModel.AssignableMembers));
@@ -395,6 +407,7 @@ public sealed class ParzellenPage : ContentPage
                     descriptionLabel,
                     hintLabel,
                     contextInfoLabel,
+                    backToMemberButton,
                     clearContextButton,
                     refreshButton,
                     parzellenView,
@@ -418,6 +431,7 @@ public sealed class ParzellenPage : ContentPage
         }
 
         await _viewModel.ApplyRequestedContextAsync();
+        await _viewModel.RefreshSelectedDetailAsync();
     }
 
     private static View CreateSection(string title, params View[] children)

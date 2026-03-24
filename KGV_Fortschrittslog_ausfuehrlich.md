@@ -2,6 +2,53 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 4 für Parzellen / Garten / Dokumente / Strom / Wasser begonnen und kleinen Rückwege-/Kontext-Fix umgesetzt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Für Block 4 gezielt geprüft:
+  - WPF: `ParzellenVerwaltungView`, `DokumenteView`, `DokumenteParzellenView`, `GartenDokumenteView`, `GartenDokumenteListeView`, `GartenStromView`, `GartenWasserView`, `StromView`, `WasserView`
+  - MAUI: `ParzellenPage`, `DokumentePage`, relevante Bereiche in `MeineDatenPage`, `ParzellenContextState`, `ParzellenViewModel`
+- Systematischer Vergleich entlang derselben Logik durchgeführt:
+  - UI/Struktur
+  - Daten/Fachinhalt
+  - Aktionen/Commands
+  - Navigation/Flow
+  - Rechte/Sichtbarkeit
+- Ehrlicher Befund im aktuellen Repo-Stand:
+  - der fachliche MAUI-Parzellenkern ist bereits belastbar vorhanden
+  - Gartenkontext aus dem Mitgliedskontext funktioniert bereits
+  - Strom, Wasser und Parzellen-Dokumente sind auf demselben mobilen Fachpfad bereits nutzbar
+  - der größte kleine Restabstand lag aktuell weniger in fehlender Fachlogik als in Rückwegen und Kontextklarheit
+- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - aus dem mobilen Gartenkontext gab es noch keinen expliziten Rückweg direkt zurück in die Stammdatenansicht
+  - der Rückweg zur globalen Parzellenübersicht war sprachlich noch zu nah am Kontextpfad formuliert
+  - die Trennung zwischen Mitgliedsdokumenten und Garten-/Parzellen-Dokumenten war mobil funktional vorhanden, aber im UI noch nicht klar genug benannt
+  - beim Wiedererscheinen der `ParzellenPage` wurde der gewählte Detailkontext nicht ausdrücklich erneut nachgeladen
+- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur innerhalb von Parzellen / Garten / Dokumente / Strom / Wasser umgesetzt:
+  - `ParzellenPage` erhielt im mitgliedsgebundenen Gartenkontext jetzt einen expliziten Button `Zur Stammdatenansicht`
+  - der bisherige Kontext-Reset wurde sprachlich auf `Zur globalen Parzellenübersicht` geschärft
+  - der Dokumentebereich im Parzellen-/Gartenkontext wird jetzt explizit als `Garten-Dokumente` bezeichnet
+  - zusätzlicher Hinweis macht klar, dass Mitgliedsdokumente weiterhin in den Stammdaten bleiben, während hier die Dokumente der ausgewählten Parzelle erscheinen
+  - `ParzellenViewModel` kann den aktuell gewählten Detailkontext jetzt gezielt erneut laden; `ParzellenPage` nutzt das beim Wiedererscheinen der Seite
+- Warum dieser kleine Block fachlich sinnvoll ist:
+  - die bestehende MAUI-Parzellenlogik war bereits funktional belastbar
+  - der größte Unterschied lag damit im Flow, in der Trennung der Kontexte und in der Rücknavigation
+  - genau dort wurde jetzt nachgezogen, ohne neue Unterseiten oder Schattenlogik zu bauen
+- Bewusst nicht gemacht:
+  - keine neue Parzellen-/Garten-Seitenarchitektur
+  - kein neuer Dokumente-Unterbau
+  - kein Umbau der bestehenden Strom-/Wasser-Speicherpfade
+  - keine Änderung an Arbeitsstunden, Verwaltung, Export oder Ablesen
+- Fachliche Kurzvalidierung nach dem kleinen Block:
+  - Parzellenpfad bleibt erreichbar
+  - Gartenkontext aus Stammdaten funktioniert weiter
+  - Rückwege zwischen Gartenkontext, globaler Parzellenübersicht und Stammdaten sind klarer
+  - Dokumente / Strom / Wasser bleiben nutzbar
+  - keine Verschlechterung bereits geprüfter Mitglieds- und Home-Pfade
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
+
 ## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 3 für Mitglied neu / Wartungsverträge / erweiterte Mitgliedsverwaltung begonnen und kleinen Wartungsvertrags-Einstieg umgesetzt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
