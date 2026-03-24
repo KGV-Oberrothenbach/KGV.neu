@@ -3,7 +3,6 @@ using KGV.Core.Security;
 using KGV.Maui.Pages;
 using KGV.Maui.State;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Maui.Dispatching;
 
 namespace KGV.Maui;
 
@@ -18,7 +17,6 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         _services = services;
         _userContextState = userContextState;
         FlyoutBehavior = FlyoutBehavior.Flyout;
-        ShellRouteRegistrar.RegisterCommonRoutes();
         Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this);
     }
 
@@ -105,7 +103,6 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         _workhoursReviewItem = new FlyoutItem
         {
             Title = "Arbeitsstunden freigeben",
-            IsVisible = false,
             Items =
             {
                 new ShellContent
@@ -152,26 +149,10 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             _workhoursReviewItem.Title = count > 0
                 ? $"Arbeitsstunden freigeben ({count})"
                 : "Arbeitsstunden freigeben";
-            _workhoursReviewItem.IsVisible = count > 0;
-
-            DispatchEnsureActiveShellItem();
         }
         catch
         {
             _workhoursReviewItem.Title = "Arbeitsstunden freigeben";
-            _workhoursReviewItem.IsVisible = false;
-            DispatchEnsureActiveShellItem();
         }
-    }
-
-    private void DispatchEnsureActiveShellItem()
-    {
-        if (Dispatcher.IsDispatchRequired)
-        {
-            Dispatcher.Dispatch(() => ShellNavigationHelper.EnsureActiveShellItem(this));
-            return;
-        }
-
-        ShellNavigationHelper.EnsureActiveShellItem(this);
     }
 }

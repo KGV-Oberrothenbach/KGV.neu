@@ -17,6 +17,8 @@ public static class MauiProgram
         builder
             .UseMauiApp<App>();
 
+        ShellRouteRegistrar.RegisterCommonRoutes();
+
 #if DEBUG
         builder.Logging.AddDebug();
 #endif

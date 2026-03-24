@@ -14,6 +14,6 @@ public partial class App : Application
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        return new Window(new NavigationPage(_loginPage));
+        return new Window(_loginPage);
     }
 }

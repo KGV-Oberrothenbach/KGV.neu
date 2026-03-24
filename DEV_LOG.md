@@ -2,6 +2,39 @@
 
 ---
 
+## 2026-03-24 – Android-Shell-Fragment-Crash in MAUI entschärft und Login-Branding klargezogen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft; blockfremde offene WPF-/Supabase-Dateien blieben wieder unangetastet.
+- Gezielt den aktuellen MAUI-Start-/Shell-Pfad geprüft:
+  - `App.xaml.cs`
+  - `MauiProgram.cs`
+  - `AdminShell.cs`
+  - `UserShell.cs`
+  - `ShellNavigationHelper.cs`
+  - `ShellRouteRegistrar.cs`
+  - `LoginPage.xaml.cs`
+- Plausibelster Crash-Pfad für Android identifiziert:
+  - Shell-Routen wurden erst beim Shell-Bau registriert statt einmal zentral beim Start
+  - nach dem Login lief zusätzlich noch eine nachgelagerte Shell-Aktivierung über Dispatcher gegen die frisch gesetzte Shell
+  - in `AdminShell` wurde der Flyout-Eintrag `Arbeitsstunden freigeben` nach Renderbeginn asynchron über `IsVisible` ein-/ausgeblendet
+  - diese Kombination ist ein realistischer Auslöser für verwaiste Android-`ShellItemRenderer`-/Fragmentzustände
+- Den Fix klein und minimal-invasiv umgesetzt:
+  - gemeinsame Shell-Routen werden jetzt einmal zentral in `MauiProgram` registriert
+  - die Shell-Konstruktoren registrieren keine Routen mehr selbst
+  - `LoginPage.SwitchToUserContext(...)` setzt nach `BuildMenu()` direkt die Ziel-Shell, ohne zusätzliche nachgelagerte Dispatcher-Navigation gegen dieselbe Shell-Instanz
+  - `App.xaml.cs` startet direkt mit `LoginPage` statt mit einer zusätzlichen `NavigationPage`-Hülle, damit beim Wechsel zur Shell kein unnötiger Container im Android-Pfad mitläuft
+  - `AdminShell.RefreshWorkhoursReviewMenuAsync()` ändert nur noch den Titel/Badge-Text, blendet den Shell-Eintrag aber nicht mehr nachträglich sichtbar/unsichtbar
+  - damit werden nach Renderbeginn keine Shell-Items mehr dynamisch aus dem Android-Container entfernt
+- Branding/Login zusätzlich klargezogen:
+  - geprüft: aktiver Launcher-Pfad bleibt `Resources/AppIcon/appicon.svg`
+  - der Launcher-Icon-Pfad wurde im Projektfile zusätzlich explizit mit `BaseSize` abgesichert
+  - der Splash bleibt weiterhin auf demselben KGV-Logo
+  - auf der Loginseite bleibt das Logo oben sichtbar
+  - der `Anmelden`-Button wurde bewusst wieder als klarer Textbutton ohne Logo im Button selbst ausgeführt
+- Technisch verifiziert:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - verbleibende Warnungen stammen unverändert aus `HomeManagementPage.cs` und nicht aus diesem Block
+
 ## 2026-03-24 – MAUI-Restabgleich mit Altpfad-Bereinigung und Editor-/Rechte-Feinschliff abgeschlossen
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft; blockfremde offene WPF-/Supabase-Dateien blieben unangetastet.

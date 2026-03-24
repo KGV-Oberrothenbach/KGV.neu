@@ -2,6 +2,52 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Android-Shell-Fragment-Crash in MAUI behoben und Login-Branding korrigiert
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Ausgangszustand vor diesem Block:
+  - der MAUI-Hauptpfad war in den letzten Blöcken deutlich nachgezogen worden
+  - danach trat auf Android der Fehler `Java.Lang.IllegalArgumentException: No view found for id 0x2 ... ShellItemRenderer` auf
+  - zusätzlich war das Login-Branding missverständlich, weil der Button durch das Logo im Button zu stark wie ein reines Logoelement wirkte
+- Den aktuellen MAUI-Start-/Shell-Pfad gezielt geprüft:
+  - `App.xaml.cs`
+  - `MauiProgram.cs`
+  - `AdminShell.cs`
+  - `UserShell.cs`
+  - `ShellNavigationHelper.cs`
+  - `ShellRouteRegistrar.cs`
+  - `LoginPage.xaml.cs`
+- Plausibelste Ursache des Android-Shell-Crashs im Istzustand:
+  - Shell-Routen wurden erst in den Shell-Konstruktoren registriert
+  - nach dem Login wurde die neue Shell zusätzlich noch über nachgelagerte Aktivierungslogik/Dispatcher angefasst
+  - `AdminShell` blendete den Menüpunkt `Arbeitsstunden freigeben` asynchron nach Renderbeginn über `IsVisible` ein bzw. aus
+  - dadurch bestand ein realistischer Risikopfad, dass Android noch mit einem alten Shell-/Fragmentcontainer arbeitet, während Items bereits neu aufgebaut oder entfernt werden
+- Den Fix deshalb klein und direkt am plausibelsten Risikopfad umgesetzt:
+  - Shell-Routen werden jetzt einmal zentral in `MauiProgram` registriert
+  - die Shell-Konstruktoren registrieren keine Routen mehr selbst
+  - `App.xaml.cs` startet direkt mit `LoginPage` statt mit zusätzlicher `NavigationPage`-Hülle
+  - `LoginPage.SwitchToUserContext(...)` setzt nach dem Shell-Bau direkt die Ziel-Shell, ohne zusätzliche nachgelagerte Dispatcher-Navigation gegen dieselbe Shell-Instanz
+  - `AdminShell.RefreshWorkhoursReviewMenuAsync()` aktualisiert nur noch den Titel/Badge-Text, blendet den Flyout-Eintrag aber nicht mehr nachträglich sichtbar/unsichtbar
+  - damit werden nach Renderbeginn keine Shell-Items mehr aus dem Android-Container entfernt
+- Branding/Login im selben kleinen Block korrigiert:
+  - geprüft: aktiver Launcher-Icon-Pfad ist weiterhin `Resources/AppIcon/appicon.svg`
+  - der Launcher-Icon-Pfad wurde im Projektfile explizit abgesichert
+  - der Splash bleibt beim KGV-Logo
+  - das Logo bleibt oben auf der Loginseite sichtbar
+  - der `Anmelden`-Button wurde wieder auf einen klaren, gut erkennbaren Textbutton zurückgezogen statt wie ein Logobutton zu wirken
+- Bewusst nicht gemacht:
+  - keine neue Navigationsarchitektur
+  - kein unnötiger Umbau bereits geschlossener Fachblöcke
+  - keine Änderung an WPF-Dateien, weil der Fehler klar im Android-/MAUI-Shellpfad lag
+- Fachliche Kurzvalidierung nach dem Umbau:
+  - Loginseite bleibt eindeutig bedienbar
+  - aktives App-Icon bleibt das KGV-Logo
+  - Shell-Wechsel läuft jetzt ohne nachträgliches dynamisches Entfernen von Flyout-Items im laufenden Android-Shell-Container
+  - bereits nachgezogene MAUI-Hauptpfade bleiben unverändert nutzbar
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - verbleibende Warnungen liegen weiterhin in `HomeManagementPage.cs` und stammen nicht aus diesem Block
+
 ## 2026-03-24 – Prompt 1/1: MAUI-Parität Block 5 mit Restabgleich, Platzhalter-Bereinigung und Editor-Feinschliff abgeschlossen
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.

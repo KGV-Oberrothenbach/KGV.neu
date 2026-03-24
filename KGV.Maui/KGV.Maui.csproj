@@ -67,7 +67,7 @@
 
 	<ItemGroup>
 		<!-- AppIcon: Vereinslogo (Dateiname muss lowercase sein, damit Android/Resizetizer akzeptiert) -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" />
+        <MauiIcon Include="Resources\AppIcon\appicon.svg" BaseSize="2048,2048" />
        <MauiSplashScreen Include="Resources\AppIcon\appicon.svg" Color="#2E7D32" BaseSize="192,192" />
 	</ItemGroup>
 

@@ -58,9 +58,8 @@ public class LoginPage : ContentPage
         var loginButton = new Button
         {
             Text = "Anmelden",
-            ImageSource = LogoImageSource,
-            ContentLayout = new Button.ButtonContentLayout(Button.ButtonContentLayout.ImagePosition.Left, 12),
-            Padding = new Thickness(16, 12)
+            Padding = new Thickness(16, 12),
+            FontAttributes = FontAttributes.Bold
         };
         var setPasswordButton = new Button { Text = "Neues Passwort setzen", IsVisible = false };
         var verifyOtpButton = new Button { Text = "Code prüfen", IsVisible = false };
@@ -333,16 +332,6 @@ public class LoginPage : ContentPage
 
         BuildAndGetShell(shell);
         window.Page = shell;
-        ShellNavigationHelper.EnsureActiveShellItem(shell);
-
-        if (window.Dispatcher.IsDispatchRequired)
-        {
-            window.Dispatcher.Dispatch(() => ShellNavigationHelper.EnsureActiveShellItem(shell));
-        }
-        else
-        {
-            ShellNavigationHelper.EnsureActiveShellItem(shell);
-        }
     }
 
     private static void BuildAndGetShell(Shell shell)
