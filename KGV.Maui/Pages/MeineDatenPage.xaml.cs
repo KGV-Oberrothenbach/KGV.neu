@@ -45,6 +45,8 @@ public class MeineDatenPage : ContentPage
     private readonly Border _wartungsvertragSectionCard;
     private readonly VerticalStackLayout _adminMenuSection;
     private readonly Picker _rolePicker;
+    private readonly Button _editButton;
+    private readonly Button _assignGardenButton;
     private readonly Button _saveRoleButton;
     private readonly Button _documentsButton;
     private readonly Button _userManagementButton;
@@ -99,10 +101,16 @@ public class MeineDatenPage : ContentPage
         foreach (var role in UserRoles.AssignableRoles)
             _rolePicker.Items.Add(role);
 
+        _editButton = new Button { Text = "Bearbeiten" };
+        _editButton.Clicked += OnEditClicked;
+
+        _assignGardenButton = new Button { Text = "Parzelle zuordnen" };
+        _assignGardenButton.Clicked += OnAssignGardenClicked;
+
         _saveRoleButton = new Button { Text = "Rolle speichern" };
         _saveRoleButton.Clicked += OnSaveRoleClicked;
 
-        _documentsButton = new Button { Text = "Mitgliedsdokumente öffnen" };
+        _documentsButton = new Button { Text = "Mitgliedsdokumente" };
         _documentsButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(DokumentePage));
 
         _nebenmitgliedButton = new Button { Text = "Nebenmitglied öffnen", IsVisible = false };
@@ -110,9 +118,6 @@ public class MeineDatenPage : ContentPage
 
         _userManagementButton = new Button { Text = "Benutzerverwaltung" };
         _userManagementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(UserManagementPage));
-
-        var refreshButton = new Button { Text = "Stammdaten aktualisieren" };
-        refreshButton.Clicked += async (_, _) => await LoadAsync();
 
         var gardensView = new CollectionView
         {
@@ -154,9 +159,22 @@ public class MeineDatenPage : ContentPage
 
         var gardenHintLabel = new Label
         {
-            Text = "Tippen öffnet den Gartenkontext mit Strom, Wasser und Garten-Dokumenten.",
+            Text = "Tippen öffnet den Gartenkontext. Operatives Ablesen und Zählerwechsel bleiben im eigenen Ablesen-Bereich.",
             TextColor = Colors.Gray,
             LineBreakMode = LineBreakMode.WordWrap
+        };
+
+        var editHintLabel = new Label
+        {
+            Text = "Bearbeiten öffnet für eigene Stammdaten den vorhandenen mobilen Profilpfad. Für fremde Mitglieder bleibt der Kontext aktuell bewusst read-only, solange kein belastbarer mobiler Volleditor vorliegt.",
+            TextColor = Colors.Gray,
+            LineBreakMode = LineBreakMode.WordWrap
+        };
+
+        var topActionSection = new HorizontalStackLayout
+        {
+            Spacing = 8,
+            Children = { _editButton }
         };
 
         _adminMenuSection = new VerticalStackLayout
@@ -191,6 +209,8 @@ public class MeineDatenPage : ContentPage
                 {
                     _headlineLabel,
                     _statusLabel,
+                    topActionSection,
+                    editHintLabel,
                     CreateSection("Grunddaten",
                         CreateValueField("Nachname", _nachnameLabel),
                         CreateValueField("Vorname", _vornameLabel),
@@ -212,9 +232,9 @@ public class MeineDatenPage : ContentPage
                         CreateValueField("Bemerkungen", _bemerkungenLabel)),
                     _wartungsvertragSectionCard,
                     _nebenmitgliedSectionCard,
-                    CreateSection("Gärten / Parzellen", _documentsButton, gardenHintLabel, gardensView, _gardensEmptyLabel),
+                    CreateSection("Gärten", _assignGardenButton, gardenHintLabel, gardensView, _gardensEmptyLabel),
                     _adminSectionCard,
-                    refreshButton
+                    _documentsButton
                 }
             }
         };
@@ -288,6 +308,40 @@ public class MeineDatenPage : ContentPage
         {
             _isBusy = false;
         }
+    }
+
+    private async void OnEditClicked(object? sender, EventArgs e)
+    {
+        var selectedMember = _memberContextState.SelectedMember;
+        if (selectedMember?.Id is not > 0)
+        {
+            await DisplayAlert("Hinweis", "Bitte zuerst ein Mitglied auswählen.", "OK");
+            return;
+        }
+
+        if (_userContextState.CurrentMitgliedId == selectedMember.Id)
+        {
+            await Shell.Current.GoToAsync(nameof(MyProfilePage));
+            return;
+        }
+
+        await DisplayAlert(
+            "Bearbeiten",
+            "Ein eigener mobiler Volleditor für fremde Stammdaten ist im aktuellen Stand noch nicht vorhanden. Für eigene Stammdaten steht bereits der vorhandene Profilpfad zur Verfügung.",
+            "OK");
+    }
+
+    private async void OnAssignGardenClicked(object? sender, EventArgs e)
+    {
+        var selectedMember = _memberContextState.SelectedMember;
+        if (selectedMember?.Id is not > 0)
+        {
+            await DisplayAlert("Hinweis", "Bitte zuerst ein Mitglied auswählen.", "OK");
+            return;
+        }
+
+        _parzellenContextState.Clear();
+        await Shell.Current.GoToAsync("//parzellen");
     }
 
     private async Task LoadGartenAssignmentsAsync(int mitgliedId)

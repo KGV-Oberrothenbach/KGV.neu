@@ -16,8 +16,8 @@ public sealed class AblesenOverviewPage : ContentPage
                 {
                     new Label { Text = "Ablesen", FontSize = 24, FontAttributes = FontAttributes.Bold },
                     new Label { Text = "Bitte wähle eine Funktion.", LineBreakMode = LineBreakMode.WordWrap },
-                    CreateTile("Ablesung erfassen", "RFID scannen und Ablesung aufnehmen", () => Shell.Current.GoToAsync(nameof(AblesungErfassenPage))),
-                    CreateTile("Zählerwechsel", "Tag scannen und je nach Zustand Ausbau oder Einbau starten", () => Shell.Current.GoToAsync(nameof(ZaehlerwechselPage))),
+                    CreateTile("Ablesung erfassen", "NFC/RFID-Scan ist im aktuellen MAUI-Stand noch nicht direkt aktiv; UID-Prüfung läuft derzeit manuell als Fallback.", () => Shell.Current.GoToAsync(nameof(AblesungErfassenPage))),
+                    CreateTile("Zählerwechsel", "NFC/RFID-Scan ist im aktuellen MAUI-Stand noch nicht direkt aktiv; UID-Prüfung läuft derzeit manuell als Fallback.", () => Shell.Current.GoToAsync(nameof(ZaehlerwechselPage))),
                     CreateTile("RFID einrichten", "Parzelle wählen, Medium wählen und Tag zuordnen", () => Shell.Current.GoToAsync(nameof(RfidEinrichtenPage))),
                     CreateTile("Fällige Zähler", "Zähler mit naher Eichfälligkeit anzeigen", () => Shell.Current.GoToAsync(nameof(FaelligeZaehlerPage)))
                 }

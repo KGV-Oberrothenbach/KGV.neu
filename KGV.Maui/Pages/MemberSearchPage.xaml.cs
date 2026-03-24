@@ -37,6 +37,6 @@ public partial class MemberSearchPage : ContentPage
             return;
 
         _memberContextState.SetSelectedMember(member);
-        await Shell.Current.GoToAsync(nameof(MeineDatenPage));
+        await Shell.Current.GoToAsync("//memberdetails");
     }
 }

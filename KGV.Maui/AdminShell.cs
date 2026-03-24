@@ -71,6 +71,20 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
         Items.Add(new FlyoutItem
         {
+            Title = "Stammdaten",
+            Items =
+            {
+                new ShellContent
+                {
+                    Title = "Stammdaten",
+                    Route = "memberdetails",
+                    ContentTemplate = new DataTemplate(() => _services.GetRequiredService<MeineDatenPage>())
+                }
+            }
+        });
+
+        Items.Add(new FlyoutItem
+        {
             Title = "Parzellen",
             Items =
             {

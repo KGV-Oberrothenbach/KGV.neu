@@ -2,6 +2,57 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/2: MAUI Feinschliff für Stammdaten / Gärten / Parzelle / Ablesen begonnen und kleinen UI-/Flow-Block umgesetzt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die Repo-Wahrheit und den echten Git-Arbeitsbaum geprüft.
+- Für diesen Feinschliff gezielt geprüft:
+  - MAUI: `MeineDatenPage`, `MemberSearchPage`, `AdminShell`, `ParzellenPage`, `RfidScanWorkflowPage`, `AblesenOverviewPage`, `ShellRouteRegistrar`
+  - WPF-Referenz: `MemberDetailView`, `MemberParzellenSection`, `GartenStromView`, `GartenWasserView`
+- Ehrlicher Befund im aktuellen Stand:
+  - auf `MeineDatenPage` hing `Mitgliedsdokumente` noch fachlich unruhig im Bereich `Gärten / Parzellen`
+  - `Stammdaten aktualisieren` brachte gegenüber dem ohnehin vorhandenen Reload beim Wiedererscheinen nur geringen Mehrwert
+  - der fehlende Hamburger auf der mobilen Stammdatenseite lag nicht an einer kaputten Shell, sondern daran, dass der Admin-Mitgliedskontext bislang als gepushte Detailroute aus der Suche geöffnet wurde
+  - im Parzellen-Detailbereich waren die mobilen Strom-/Wasser-/Zählerwechsel-Bedienblöcke zu operativ und zogen fachlich wieder in eine Seite hinein, die ruhiger read-only bleiben sollte
+  - für NFC/RFID existiert im aktiven MAUI-Stand weiterhin keine direkte Geräteanbindung; die UI wirkte aber noch zu sehr so, als sei manuelle UID-Eingabe der Hauptweg
+- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - `Mitgliedsdokumente` sollten aus dem Gartenbereich heraus und als eigener Abschlussbutton sichtbar werden
+  - `Bearbeiten` fehlte als sichtbarer Stammdaten-Einstieg
+  - die Admin-Stammdatenseite brauchte einen echten Shell-Rootpfad statt eines reinen Such-Detailpushs
+  - der Parzellen-Detailbereich sollte von operativen Ablese-/Zählerwechsel-Steuerelementen auf ReadOnly-Kernkontext zurückgezogen werden
+  - der RFID-/Ablesen-Flow sollte ehrlicher kommunizieren, dass manuelle UID-Eingabe aktuell nur der Fallback ist
+- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur in diesen vier Themen umgesetzt:
+  - `MeineDatenPage` erhielt einen kleinen `Bearbeiten`-Einstieg
+  - für eigene Stammdaten führt er in den vorhandenen mobilen Profilpfad; für fremde Mitglieder wird ehrlich erklärt, dass ein mobiler Volleditor aktuell noch fehlt
+  - `Mitgliedsdokumente` wurden aus dem Gartenbereich herausgezogen und als eigener Button an das Seitenende gesetzt
+  - `Stammdaten aktualisieren` wurde entfernt
+  - der Bereich heißt jetzt nur noch `Gärten`
+  - zusätzlicher Button `Parzelle zuordnen` öffnet als ehrlichen bestehenden Einstieg die vorhandene Parzellenverwaltung statt einen Fake-Flow zu bauen
+  - `AdminShell` erhielt einen echten Shell-Einstieg `Stammdaten`; `MemberSearchPage` navigiert dorthin jetzt über den Shell-Rootpfad
+  - dadurch erscheint im Admin-Stammdatenpfad wieder das Flyout-/Hamburger-Menü statt eines reinen Zurück-Pfeils
+  - `ParzellenPage` zeigt im Detailbereich jetzt nur noch einen ruhigen ReadOnly-Block `Aktuelle Ablesedaten`
+  - sichtbar bleiben dort Medium, letzter Stand, Datum, Zählernummer und ein Fotobutton, wenn ein Fotopfad vorhanden ist
+  - der operative Ablesen-/Zählerwechselpfad wurde bewusst aus dem Detailbereich herausgezogen und über einen klaren Übergang `Zum Ablesen-Bereich` getrennt
+  - `AblesenOverviewPage` und `RfidScanWorkflowPage` kommunizieren jetzt ehrlich, dass direkter NFC-/RFID-Gerätescan im aktuellen MAUI-Stand noch nicht aktiv angebunden ist
+  - manuelle UID-Eingabe wird sichtbar als `Fallback` gekennzeichnet und nicht mehr wie der primäre Produktpfad dargestellt
+- Warum dieser kleine Block fachlich sinnvoll ist:
+  - er beruhigt genau die von außen sichtbaren UI-/Flow-Schwächen, ohne neue Architektur zu eröffnen
+  - bestehende belastbare Shared-Servicepfade für Parzellen, Dokumente und RFID-Kontext bleiben unverändert die fachliche Grundlage
+  - an fehlenden mobilen Volleditoren oder fehlender NFC-Geräteintegration wird nichts beschönigt; stattdessen wird die UI ehrlicher und klarer
+- Bewusst nicht gemacht:
+  - kein neuer mobiler Volleditor für fremde Stammdaten
+  - kein neuer Parzellen-Zuordnungs-Spezialdialog nur für den Mitgliedskontext
+  - keine neue NFC-Architektur oder Geräteintegration
+  - keine Änderung an WPF-Dateien, Export, Arbeitsstunden, Home-Verwaltung oder Auth-Grundpfaden
+- Fachliche Kurzvalidierung nach dem kleinen Block:
+  - Stammdatenseite wirkt ruhiger
+  - Mitgliedsdokumente sind separat unten erreichbar
+  - Gärten sind sprachlich klarer getrennt
+  - Parzellen-Detail zeigt nur noch ReadOnly-Kernkontext für Ablesungen
+  - Ablesen-/RFID-Pfad kommuniziert jetzt ehrlich den manuellen Fallback
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte bestehende Warnungen außerhalb dieses Blocks bleiben bestehen
+
 ## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 9 für Altlasten / MAUI-only-Seiten / Testpfade begonnen und kleinen MAUI-Altpfad-Aufräumblock umgesetzt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.

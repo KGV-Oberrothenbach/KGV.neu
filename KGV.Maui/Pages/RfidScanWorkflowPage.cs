@@ -79,11 +79,31 @@ public abstract class RfidScanWorkflowPage : ContentPage
                 {
                     new Label { Text = title, FontSize = 24, FontAttributes = FontAttributes.Bold },
                     new Label { Text = description, LineBreakMode = LineBreakMode.WordWrap },
-                    new Label { Text = "RFID-UID", FontAttributes = FontAttributes.Bold },
+                    new Border
+                    {
+                        Stroke = Colors.LightGray,
+                        Padding = 14,
+                        StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(14) },
+                        Content = new VerticalStackLayout
+                        {
+                            Spacing = 6,
+                            Children =
+                            {
+                                new Label { Text = "NFC-Status", FontAttributes = FontAttributes.Bold },
+                                new Label
+                                {
+                                    Text = "Direktes NFC-/RFID-Lesen ist im aktuellen MAUI-Stand noch nicht aktiv am Gerät angebunden. Die manuelle UID-Eingabe bleibt daher vorläufig der Fallback und wird hier ausdrücklich so gekennzeichnet.",
+                                    LineBreakMode = LineBreakMode.WordWrap,
+                                    TextColor = Colors.Gray
+                                }
+                            }
+                        }
+                    },
+                    new Label { Text = "RFID-UID manuell eingeben (Fallback)", FontAttributes = FontAttributes.Bold },
                     CreateUidEntry(),
                     new Label
                     {
-                        Text = "Manuelle Eingabe ist nutzbar; die UID wird zentral normalisiert und produktiv über v_rfid_scan_context aufgelöst.",
+                        Text = "Wenn kein direkter NFC-Scan verfügbar ist, kann die UID hier manuell geprüft werden. Die Auflösung läuft weiterhin zentral und produktiv über v_rfid_scan_context.",
                         TextColor = Colors.Gray,
                         LineBreakMode = LineBreakMode.WordWrap
                     },
@@ -145,7 +165,7 @@ public abstract class RfidScanWorkflowPage : ContentPage
 
     private View CreateResolveButton()
     {
-        var button = new Button { Text = "RFID-Kontext prüfen" };
+        var button = new Button { Text = "Manuelle UID prüfen" };
         button.SetBinding(IsEnabledProperty, nameof(RfidScanContextViewModel.CanResolve));
         button.Clicked += async (_, _) => await _scanContext.ResolveAsync();
         return button;

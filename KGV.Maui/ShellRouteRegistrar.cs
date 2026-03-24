@@ -12,6 +12,7 @@ internal static class ShellRouteRegistrar
             return;
 
         Routing.RegisterRoute(nameof(MeineDatenPage), typeof(MeineDatenPage));
+        Routing.RegisterRoute(nameof(MyProfilePage), typeof(MyProfilePage));
         Routing.RegisterRoute(nameof(DokumentePage), typeof(DokumentePage));
         Routing.RegisterRoute(nameof(UserManagementPage), typeof(UserManagementPage));
         Routing.RegisterRoute(nameof(HomeSectionDetailPage), typeof(HomeSectionDetailPage));
