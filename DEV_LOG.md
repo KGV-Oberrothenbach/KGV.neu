@@ -2,6 +2,54 @@
 
 ---
 
+## 2026-03-24 – Systematische View-Prüfung Block 6: Verwaltungseditoren / Export mit kleinem MAUI-Validierungs-/Sichtbarkeits-Fix fortgeführt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.
+- Für Block 6 gezielt geprüft:
+  - WPF: `ArbeitseinsaetzeVerwaltungEditorView`, `TermineVerwaltungEditorView`, `BekanntmachungenVerwaltungEditorView`, `ExportView`
+  - MAUI: `HomeManagementPage`, `ExportPage` sowie die relevanten Shared-Servicepfade für Verwaltung und Export
+- Systematischer Vergleich entlang derselben Logik durchgeführt:
+  - UI/Struktur
+  - Daten/Fachinhalt
+  - Aktionen/Commands
+  - Navigation/Flow
+  - Rechte/Sichtbarkeit
+- Ehrlicher Befund im aktuellen Repo-Stand:
+  - `ExportPage` ist mobil bereits auf dem echten gemeinsamen CSV-Kernpfad angebunden und fachlich für den aktuellen Block belastbar
+  - der größere kleine Restabstand lag aktuell nicht im Export, sondern in den mobilen Verwaltungseditoren
+  - `HomeManagementPage` konnte Arbeitseinsätze, Termine und Bekanntmachungen bereits laden und speichern, nutzte aber mehrere bereits vorhandene Fachfelder aus WPF noch nicht sichtbar im mobilen Editor
+- Wichtigste kleine Restabweichungen mit hohem Praxisnutzen und geringem Risiko identifiziert:
+  - die optionalen Sichtbarkeits-Timestamps `sichtbar_ab` / `sichtbar_bis` fehlten mobil in allen drei Verwaltungsbereichen
+  - bei Arbeitseinsätzen fehlte mobil zusätzlich `anmeldung_bis`
+  - die vorhandenen Shared-Records und Shared-Servicepfade trugen diese Felder bereits, wurden in `HomeManagementPage` aber noch nicht bedient
+- Kleinen Korrekturblock deshalb nur in `HomeManagementPage` umgesetzt:
+  - optionale mobile Eingabefelder für `Sichtbar ab` und `Sichtbar bis` für Arbeitseinsätze, Termine und Bekanntmachungen ergänzt
+  - zusätzlich optionales Feld `Anmeldung bis` für Arbeitseinsätze ergänzt
+  - bestehende Datensätze laden diese Werte jetzt auch wieder korrekt in den mobilen Editor zurück
+  - Speichern schreibt dieselben Werte jetzt über die vorhandenen Create-/Update-Servicepfade mit
+  - kleine Validierung ergänzt: `Sichtbar bis` darf nicht vor `Sichtbar ab` liegen
+  - für Arbeitseinsätze zusätzlich: `Anmeldung bis` darf nicht vor `Sichtbar ab` liegen
+  - die Umsetzung blieb auf dem vorhandenen Shared-Modell-/Servicepfad und baut keine neue Schattenlogik
+- Kleine technische Nachkorrektur im selben Block:
+  - Initialisierungsreihenfolge in `HomeManagementPage` bereinigt, damit die neu ergänzten optionalen Datums-/Zeitfelder ohne neue Buildwarnungen kompilieren
+- Warum dieser kleine Block fachlich sinnvoll ist:
+  - die zugrunde liegende Fachlogik war bereits vorhanden
+  - der größte praktische Restabstand lag deshalb in der mobilen Editoroberfläche und im fehlenden Zugriff auf bestehende Fachfelder
+  - genau dieser Abstand wurde jetzt geschlossen, ohne Export oder Verwaltungsarchitektur neu zu erfinden
+- Bewusst nicht gemacht:
+  - kein Umbau von `ExportPage`, weil der aktuelle mobile CSV-/Share-Pfad bereits belastbar ist
+  - kein WPF-Umbau
+  - kein Vollnachbau aller WPF-Fokus-/Fehlermarkierungsdetails im mobilen Editor
+  - keine Änderung an Home-, Mitglieds-, Garten-, Arbeitsstunden- oder Ablesen-Pfaden
+- Fachliche Kurzvalidierung nach dem kleinen Block:
+  - Verwaltungseditoren bleiben erreichbar
+  - Speichern bleibt funktionsfähig
+  - Export bleibt erreichbar und nutzbar
+  - keine Verschlechterung bereits geprüfter Home-, Mitglieds-, Garten- oder Arbeitsstundenpfade
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - nach kleiner Nachkorrektur keine neuen eigenen Buildwarnungen im geänderten MAUI-Verwaltungspfad
+
 ## 2026-03-24 – Systematische View-Prüfung Block 5: Arbeitsstunden komplett mit kleinem mobilen Überblick-/Erfassungs-/Bearbeitungs-Fix fortgeführt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.
