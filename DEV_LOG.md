@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-03-24 – Root-Folder-Pfad in `kgv-upload-photo` gezielt abgesichert und diagnostisch geschärft
+
+- Den realen Repo-/Arbeitsbaumstand vor dem Fix geprüft; blockfremde offene Dateien bewusst unangetastet gelassen.
+- Istzustand geprüft:
+  - `supabase/functions/kgv-upload-photo/index.ts` brach nach erfolgreicher eigener Auth aktuell im Schritt `root folder validate` ab
+  - `supabase/config.toml` blieb unverändert bei `verify_jwt = false` für `kgv-upload-photo`
+- Den Root-Folder-Pfad bewusst klein, aber belastbar geschärft:
+  - `GOOGLE_DRIVE_ROOT_FOLDER_ID` wird jetzt sauber gelesen und getrimmt
+  - harmlose Formatdiagnose loggt nur `hasValue`, Roh-/Trim-Länge und `trimmedEmpty`
+  - der echte Secretwert selbst wird nicht geloggt
+- Fehlverhalten jetzt klarer:
+  - fehlend/leer => `Google Drive root folder id missing or empty`
+  - nicht erreichbar/nicht nutzbar in Drive => schrittbezogene Root-Folder-Lookup-Fehler
+- Zusätzliche Root-Folder-Logmarker ergänzt:
+  - `root folder validate start`
+  - `root folder validate result`
+  - `root folder validate failed`
+  - `drive root folder lookup start`
+  - `drive root folder lookup success`
+- Die Root-Folder-ID wird jetzt nicht nur lokal validiert, sondern vor dem Unterordnerbau einmal klein gegen Drive geprüft.
+- Keine Änderung an Auth, Secrets, WPF, MAUI oder anderen Functions.
+- Technisch verifiziert:
+  - `supabase functions deploy kgv-upload-photo --project-ref itjcabiibuodkxayhvjq` erfolgreich
+
 ## 2026-03-24 – Diagnoseblock für `kgv-upload-photo` ergänzt: Hänger lokalisierbar, Google-Aufrufe mit Timeouts abgesichert
 
 - Den realen Repo-/Arbeitsbaumstand vor dem Diagnoseblock geprüft; blockfremde offene Dateien bewusst unangetastet gelassen.

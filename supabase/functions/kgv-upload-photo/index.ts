@@ -18,6 +18,7 @@ type DriveUploadResult = {
 const GOOGLE_TOKEN_REFRESH_TIMEOUT_MS = 15_000;
 const DRIVE_FILES_LIST_TIMEOUT_MS = 15_000;
 const DRIVE_CREATE_FOLDER_TIMEOUT_MS = 15_000;
+const DRIVE_ROOT_FOLDER_LOOKUP_TIMEOUT_MS = 15_000;
 const DRIVE_UPLOAD_TIMEOUT_MS = 30_000;
 
 function logStep(step: string, details?: Record<string, unknown>) {
@@ -57,6 +58,27 @@ function buildStepError(step: string, error: unknown): Error {
   }
 
   return new Error(`${step} failed`);
+}
+
+function readGoogleDriveRootFolderId(): string {
+  logStep("root folder validate start");
+
+  const rawValue = Deno.env.get("GOOGLE_DRIVE_ROOT_FOLDER_ID");
+  const trimmedValue = rawValue?.trim() ?? "";
+  const details = {
+    hasValue: rawValue != null,
+    rawLength: rawValue?.length ?? 0,
+    trimmedLength: trimmedValue.length,
+    trimmedEmpty: trimmedValue.length === 0,
+  };
+
+  if (!trimmedValue) {
+    logStep("root folder validate failed", details);
+    throw new Error("Google Drive root folder id missing or empty");
+  }
+
+  logStep("root folder validate result", details);
+  return trimmedValue;
 }
 
 function json(status: number, body: unknown) {
@@ -188,6 +210,47 @@ async function getGoogleAccessToken(): Promise<string> {
     return tokenJson.access_token as string;
   } catch (error) {
     throw buildStepError("Google token refresh", error);
+  }
+}
+
+async function verifyDriveRootFolder(accessToken: string, rootFolderId: string): Promise<void> {
+  logStep("drive root folder lookup start", { rootFolderIdLength: rootFolderId.length });
+
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(rootFolderId)}?fields=id,name,mimeType,trashed&supportsAllDrives=true`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        signal: AbortSignal.timeout(DRIVE_ROOT_FOLDER_LOOKUP_TIMEOUT_MS),
+      },
+    );
+
+    const jsonBody = await res.json();
+    if (res.status === 403 || res.status === 404) {
+      throw new Error("Drive root folder not accessible");
+    }
+
+    if (!res.ok || !jsonBody.id) {
+      throw new Error(`Drive root folder lookup failed: ${JSON.stringify(jsonBody)}`);
+    }
+
+    if (jsonBody.trashed === true) {
+      throw new Error("Drive root folder not accessible");
+    }
+
+    if (jsonBody.mimeType !== "application/vnd.google-apps.folder") {
+      throw new Error("Drive root folder lookup failed: target is not a folder");
+    }
+
+    logStep("drive root folder lookup success", {
+      rootFolderIdLength: rootFolderId.length,
+      isFolder: true,
+      trashed: false,
+    });
+  } catch (error) {
+    throw buildStepError("Drive root folder lookup", error);
   }
 }
 
@@ -401,11 +464,7 @@ Deno.serve(async (req) => {
       return json(auth.status, { error: auth.message });
     }
 
-    const rootFolderId = Deno.env.get("GOOGLE_DRIVE_ROOT_FOLDER_ID");
-    if (!rootFolderId) {
-      logStep("return error", { step: "root folder validate", status: 500 });
-      return json(500, { error: "GOOGLE_DRIVE_ROOT_FOLDER_ID fehlt." });
-    }
+    const rootFolderId = readGoogleDriveRootFolderId();
 
     const contentType = req.headers.get("content-type") ?? "";
     if (!contentType.toLowerCase().includes("multipart/form-data")) {
@@ -489,6 +548,7 @@ Deno.serve(async (req) => {
     });
 
     const accessToken = await getGoogleAccessToken();
+    await verifyDriveRootFolder(accessToken, rootFolderId);
 
     let parentId = rootFolderId;
     const folderSegments = ["Ablesungen", year, anlage, garden, medium];

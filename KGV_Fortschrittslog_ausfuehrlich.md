@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Root-Folder-Validierung in `kgv-upload-photo` gezielt abgesichert und diagnostisch geschärft
+
+- Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprüft.
+- Einordnung vor dem Fix:
+  - Dateien dieses Blocks: `supabase/functions/kgv-upload-photo/index.ts` plus die beiden Logdateien
+  - `supabase/config.toml` wurde als Istzustand mitgeprüft und blieb unverändert bei `verify_jwt = false`
+  - blockfremde offene WPF-/MAUI-/Supabase-Dateien blieben bewusst unangetastet
+  - `_AI_DB_EXPORT/*`, `_secrets/*`, `.github/copilot-instructions.md` und sonstige lokale Artefakte wurden nicht als Grundlage verwendet
+- Den aktuellen Root-Folder-Codepfad gezielt geprüft:
+  - `GOOGLE_DRIVE_ROOT_FOLDER_ID` wurde bislang direkt über `Deno.env.get(...)` gelesen
+  - die bisherige Validierung prüfte nur auf `null`/leer vor dem weiteren Ablauf
+  - dadurch endete der Pfad zwar sichtbar in `root folder validate`, aber noch ohne ausreichend scharfe Diagnose zu `leer`, `nur Leerzeichen` oder `in Drive nicht erreichbar`
+- Den Root-Folder-Pfad deshalb klein, aber robust umgesetzt:
+  - `GOOGLE_DRIVE_ROOT_FOLDER_ID` wird jetzt sauber gelesen
+  - anschließend getrimmt
+  - auf `null`/fehlend sowie auf nach `Trim()` leer geprüft
+  - geloggt werden nur harmlose Diagnoseinfos:
+    - ob ein Wert vorhanden ist
+    - Roh-Länge
+    - Trim-Länge
+    - ob nach Trim leer
+  - der echte Secret-/Ordnerwert selbst wird nicht geloggt
+- Fehlerbild jetzt klarer und mit Schrittbezug:
+  - fehlend oder leer => `Google Drive root folder id missing or empty`
+  - keine generische anonyme 500-Meldung mehr ohne Kontext im Fehlertext
+- Zusätzliche Root-Folder-Logmarker ergänzt:
+  - `root folder validate start`
+  - `root folder validate result`
+  - `root folder validate failed`
+  - `drive root folder lookup start`
+  - `drive root folder lookup success`
+- Die Root-Folder-ID wird jetzt nicht nur lokal validiert, sondern einmal klein gegen Drive geprüft, bevor Unterordner angelegt werden:
+  - Lookup auf die angegebene Drive-Datei/den Ordner per ID
+  - bei 403/404 => `Drive root folder not accessible`
+  - bei sonstigen API-Problemen => `Drive root folder lookup failed: ...`
+  - wenn das Ziel kein Ordner ist => klarer Lookup-Fehler statt stiller Weiterlauf
+- Die bestehende Function-Auth blieb vollständig unverändert aktiv:
+  - Bearer-Token
+  - `auth.getUser(jwt)`
+  - Rollenprüfung `admin` / `vorstand`
+- Bewusst nicht geändert:
+  - keine Secrets
+  - keine WPF-/MAUI-Datei
+  - keine andere Function
+  - kein Umbau des Uploadpfads außerhalb des Root-Folder-Problems
+- Ergebnis:
+  - beim nächsten Test ist klar erkennbar, ob das Env fehlt/leer ist
+  - oder ob die Root-Folder-ID zwar vorhanden, aber in Drive nicht erreichbar bzw. kein Ordner ist
+  - oder ob der Ablauf über `root folder validate` hinaus weiterläuft
+- Verifikation:
+  - `supabase functions deploy kgv-upload-photo --project-ref itjcabiibuodkxayhvjq` erfolgreich
+  - der Root-Folder-Fix ist damit klein, zielgerichtet und deployt abgeschlossen
+
 ## 2026-03-24 – Prompt 1/1: Supabase-Diagnoseblock für `kgv-upload-photo` ergänzt, Hänger lokalisiert und Google-Aufrufe fail-fast gemacht
 
 - Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprüft.
