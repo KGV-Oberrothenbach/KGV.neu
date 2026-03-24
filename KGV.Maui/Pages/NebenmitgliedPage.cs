@@ -12,9 +12,10 @@ public sealed class NebenmitgliedPage : ContentPage
 
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _state;
+    private readonly MemberContextState _memberContextState;
 
     private MitgliedRecord? _neben;
-    private bool _loaded;
+    private bool _isLoading;
 
     private readonly Label _nameLabel;
     private readonly Entry _telefonEntry;
@@ -24,10 +25,11 @@ public sealed class NebenmitgliedPage : ContentPage
     private readonly Entry _ortEntry;
     private readonly Button _saveButton;
 
-    public NebenmitgliedPage(ISupabaseService supabaseService, UserContextState state)
+    public NebenmitgliedPage(ISupabaseService supabaseService, UserContextState state, MemberContextState memberContextState)
     {
         _supabaseService = supabaseService;
         _state = state;
+        _memberContextState = memberContextState;
 
         Title = "Nebenmitglied";
 
@@ -67,38 +69,68 @@ public sealed class NebenmitgliedPage : ContentPage
 
     private async void OnAppearing(object? sender, EventArgs e)
     {
-        if (_loaded) return;
-        _loaded = true;
+        if (_isLoading) return;
         await LoadAsync();
     }
 
     private async Task LoadAsync()
     {
-        if (_state.CurrentMitgliedId == null || _state.CurrentMitgliedId.Value > int.MaxValue)
-        {
-            await DisplayAlert("Fehler", "Hauptmitglied nicht gesetzt.", "OK");
+        if (_isLoading)
             return;
-        }
 
-        var mainId = (int)_state.CurrentMitgliedId.Value;
-        var rec = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(mainId);
-        if (rec == null)
+        _isLoading = true;
+        try
         {
-            await DisplayAlert("Hinweis", "Kein Nebenmitglied vorhanden.", "OK");
-            _state.CurrentNebenMitgliedId = null;
-            return;
+            var selectedMember = _memberContextState.SelectedMember;
+            if (selectedMember != null && !selectedMember.IstHauptmitglied)
+            {
+                await DisplayAlert("Hinweis", "Das ausgewählte Mitglied ist einem Hauptmitglied zugeordnet. Ein eigener Nebenmitgliedspfad ist hier nicht verfügbar.", "OK");
+                _state.CurrentNebenMitgliedId = null;
+                return;
+            }
+
+            int? mainId = null;
+            if (selectedMember?.Id is > 0)
+                mainId = selectedMember.Id;
+            else if (_state.CurrentMitgliedId is > 0 and <= int.MaxValue)
+                mainId = (int)_state.CurrentMitgliedId.Value;
+
+            if (!mainId.HasValue)
+            {
+                await DisplayAlert("Fehler", "Hauptmitglied nicht gesetzt.", "OK");
+                return;
+            }
+
+            var rec = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(mainId.Value);
+            if (rec == null)
+            {
+                await DisplayAlert("Hinweis", "Kein Nebenmitglied vorhanden.", "OK");
+                _state.CurrentNebenMitgliedId = null;
+                _neben = null;
+                _nameLabel.Text = "Kein Nebenmitglied vorhanden";
+                _telefonEntry.Text = string.Empty;
+                _handyEntry.Text = string.Empty;
+                _adresseEntry.Text = string.Empty;
+                _plzEntry.Text = string.Empty;
+                _ortEntry.Text = string.Empty;
+                return;
+            }
+
+            _neben = rec;
+            _state.CurrentNebenMitgliedId = rec.Id;
+
+            _nameLabel.Text = $"{rec.Vorname} {rec.Name}".Trim();
+
+            _telefonEntry.Text = rec.Telefon ?? string.Empty;
+            _handyEntry.Text = rec.Handy ?? string.Empty;
+            _adresseEntry.Text = rec.Adresse ?? string.Empty;
+            _plzEntry.Text = rec.Plz ?? string.Empty;
+            _ortEntry.Text = rec.Ort ?? string.Empty;
         }
-
-        _neben = rec;
-        _state.CurrentNebenMitgliedId = rec.Id;
-
-        _nameLabel.Text = $"{rec.Vorname} {rec.Name}".Trim();
-
-        _telefonEntry.Text = rec.Telefon ?? string.Empty;
-        _handyEntry.Text = rec.Handy ?? string.Empty;
-        _adresseEntry.Text = rec.Adresse ?? string.Empty;
-        _plzEntry.Text = rec.Plz ?? string.Empty;
-        _ortEntry.Text = rec.Ort ?? string.Empty;
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private async void OnSaveClicked(object? sender, EventArgs e)

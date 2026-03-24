@@ -22,7 +22,6 @@ public partial class MemberSearchPage : ContentPage
 
     private async void MemberSearchPage_Appearing(object? sender, EventArgs e)
     {
-        Appearing -= MemberSearchPage_Appearing;
         await _vm.InitializeAsync();
     }
 

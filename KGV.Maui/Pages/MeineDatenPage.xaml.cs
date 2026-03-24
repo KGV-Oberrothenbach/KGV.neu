@@ -34,12 +34,15 @@ public class MeineDatenPage : ContentPage
     private readonly Label _mitgliedEndeLabel;
     private readonly Label _aktivLabel;
     private readonly Label _bemerkungenLabel;
+    private readonly Label _nebenmitgliedHintLabel;
     private readonly Border _adminSectionCard;
+    private readonly Border _nebenmitgliedSectionCard;
     private readonly VerticalStackLayout _adminMenuSection;
     private readonly Picker _rolePicker;
     private readonly Button _saveRoleButton;
     private readonly Button _documentsButton;
     private readonly Button _userManagementButton;
+    private readonly Button _nebenmitgliedButton;
 
     private readonly ObservableCollection<GartenAssignmentItem> _gardenAssignments = new();
 
@@ -79,6 +82,7 @@ public class MeineDatenPage : ContentPage
         _mitgliedEndeLabel = CreateValueLabel();
         _aktivLabel = CreateValueLabel();
         _bemerkungenLabel = CreateValueLabel();
+        _nebenmitgliedHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap, IsVisible = false };
 
         _rolePicker = new Picker { Title = "Rolle" };
         foreach (var role in UserRoles.AssignableRoles)
@@ -89,6 +93,9 @@ public class MeineDatenPage : ContentPage
 
         _documentsButton = new Button { Text = "Mitgliedsdokumente öffnen" };
         _documentsButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(DokumentePage));
+
+        _nebenmitgliedButton = new Button { Text = "Nebenmitglied öffnen", IsVisible = false };
+        _nebenmitgliedButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(NebenmitgliedPage));
 
         _userManagementButton = new Button { Text = "Benutzerverwaltung" };
         _userManagementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(UserManagementPage));
@@ -154,6 +161,7 @@ public class MeineDatenPage : ContentPage
             }
         };
 
+        _nebenmitgliedSectionCard = CreateSection("Mitgliedskontext", _nebenmitgliedButton, _nebenmitgliedHintLabel);
         _adminSectionCard = CreateSection("Verwaltung", _adminMenuSection);
 
         Content = new ScrollView
@@ -185,6 +193,7 @@ public class MeineDatenPage : ContentPage
                         CreateValueField("Mitglied Ende", _mitgliedEndeLabel),
                         CreateValueField("Aktiv", _aktivLabel),
                         CreateValueField("Bemerkungen", _bemerkungenLabel)),
+                    _nebenmitgliedSectionCard,
                     CreateSection("Gärten / Parzellen", _documentsButton, gardenHintLabel, gardensView, _gardensEmptyLabel),
                     _adminSectionCard,
                     refreshButton
@@ -210,6 +219,7 @@ public class MeineDatenPage : ContentPage
             {
                 _headlineLabel.Text = "Kein Mitglied ausgewählt";
                 SetMemberFieldsEmpty();
+                UpdateNebenmitgliedSection(null, false);
                 _nachnameLabel.Text = "Bitte zuerst in der Mitgliedersuche ein Mitglied auswählen.";
                 _gardenAssignments.Clear();
                 UpdateAdminMenu(null);
@@ -246,6 +256,7 @@ public class MeineDatenPage : ContentPage
             _aktivLabel.Text = contextMember.Aktiv ? "Ja" : "Nein";
             _bemerkungenLabel.Text = FormatValue(contextMember.Bemerkungen);
 
+            await UpdateNebenmitgliedSectionAsync(contextMember);
             await LoadGartenAssignmentsAsync(contextMember.Id);
             UpdateAdminMenu(contextMember);
         }
@@ -282,6 +293,39 @@ public class MeineDatenPage : ContentPage
         }
 
         _gardensEmptyLabel.IsVisible = _gardenAssignments.Count == 0;
+    }
+
+    private async Task UpdateNebenmitgliedSectionAsync(MemberDTO member)
+    {
+        if (member.Id <= 0)
+        {
+            UpdateNebenmitgliedSection(null, false);
+            return;
+        }
+
+        if (!member.IstHauptmitglied)
+        {
+            UpdateNebenmitgliedSection("Dieses Mitglied ist einem Hauptmitglied zugeordnet; ein eigener Nebenmitgliedspfad ist hier nicht relevant.", false);
+            return;
+        }
+
+        var nebenmitglied = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(member.Id);
+        if (nebenmitglied == null)
+        {
+            UpdateNebenmitgliedSection("Für dieses Hauptmitglied ist aktuell kein Nebenmitglied hinterlegt.", false);
+            return;
+        }
+
+        UpdateNebenmitgliedSection($"Vorhandenes Nebenmitglied: {BuildDisplayName(nebenmitglied.Vorname, nebenmitglied.Name)}", true);
+    }
+
+    private void UpdateNebenmitgliedSection(string? hint, bool canOpen)
+    {
+        var hasHint = !string.IsNullOrWhiteSpace(hint);
+        _nebenmitgliedButton.IsVisible = canOpen;
+        _nebenmitgliedHintLabel.Text = hasHint ? hint : string.Empty;
+        _nebenmitgliedHintLabel.IsVisible = hasHint;
+        _nebenmitgliedSectionCard.IsVisible = canOpen || hasHint;
     }
 
     private void UpdateAdminMenu(MemberDTO? member)
@@ -473,6 +517,12 @@ public class MeineDatenPage : ContentPage
         };
     }
 
+    private static string BuildDisplayName(string? vorname, string? nachname)
+    {
+        var displayName = $"{vorname} {nachname}".Trim();
+        return string.IsNullOrWhiteSpace(displayName) ? "Nebenmitglied" : displayName;
+    }
+
     private static MemberDTO MapMember(MitgliedRecord rec)
     {
         return new MemberDTO
@@ -491,6 +541,7 @@ public class MeineDatenPage : ContentPage
             MitgliedEnde = rec.MitgliedEnde,
             Bemerkungen = rec.Bemerkung ?? string.Empty,
             WhatsappEinwilligung = rec.WhatsappEinwilligung,
+            IstHauptmitglied = !rec.HauptmitgliedId.HasValue || rec.HauptmitgliedId.Value <= 0,
             Role = rec.Role ?? string.Empty
         };
     }

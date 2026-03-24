@@ -2,6 +2,52 @@
 
 ---
 
+## 2026-03-24 – Systematische View-Prüfung Block 2: Mitgliedersuche / Stammdaten / Mitgliedskontext mit kleinem Kontext-/Nebenmitglied-Fix fortgeführt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.
+- Für Block 2 gezielt geprüft:
+  - WPF: `MemberSearchView`, `MemberDetailView`, `StammdatenView`, `MemberParzellenSection`, `NebenmitgliedDialog`, `UserManagementView`
+  - MAUI: `MemberSearchPage`, `MeineDatenPage.xaml.cs`, `UserManagementPage`, `NebenmitgliedPage`, `MemberContextState` und zugehörige Kontextpfade
+- Systematischer Vergleich entlang derselben Logik durchgeführt:
+  - UI/Struktur
+  - Daten/Fachinhalt
+  - Aktionen/Commands
+  - Navigation/Flow
+  - Rechte/Sichtbarkeit
+- Ehrlicher Befund im aktuellen Repo-Stand:
+  - Mitgliedersuche, Stammdaten und der grundsätzliche Mitgliedskontext sind mobil bereits belastbar vorhanden
+  - Stammdaten wurden zuletzt bereits auf `Stammdaten` umbenannt und inhaltlich verbreitert
+  - `UserManagement` bleibt an den Mitgliedskontext gebunden
+  - der größte kleine Restabstand lag jetzt beim Kontextverhalten rund um Mitgliedersuche-Wiederkehr und den mobilen Nebenmitgliedspfad
+- Wichtigste kleine Restabweichungen mit hohem Praxisnutzen und geringem Risiko identifiziert:
+  - `MemberSearchPage` initialisierte bisher nur beim ersten Anzeigen und konnte beim Rückweg in dieselbe Seiteninstanz veraltet bleiben
+  - der Nebenmitgliedspfad war mobil zwar vorhanden, aber aus dem ausgewählten Mitgliedskontext heraus nicht direkt erreichbar
+  - `NebenmitgliedPage` orientierte sich bisher nur am angemeldeten Hauptmitglied statt am aktuell ausgewählten Mitgliedskontext
+- Kleinen Korrekturblock deshalb nur innerhalb von Mitgliedersuche / Stammdaten / Mitgliedskontext umgesetzt:
+  - `MemberSearchPage` initialisiert beim erneuten Anzeigen jetzt wieder und bleibt dadurch konsistenter zum WPF-Rückkehrverhalten
+  - `MeineDatenPage` zeigt jetzt einen kleinen `Mitgliedskontext`-Block für den vorhandenen Nebenmitgliedspfad
+  - dort wird sichtbar gemacht:
+    - wenn ein Nebenmitglied vorhanden ist
+    - wenn keines vorhanden ist
+    - wenn das ausgewählte Mitglied selbst kein Hauptmitglied ist
+  - `NebenmitgliedPage` nutzt den ausgewählten `MemberContextState` jetzt bevorzugt als Hauptmitgliedsbezug statt nur den global angemeldeten Benutzerkontext
+  - zusätzlich lädt die mobile Nebenmitgliedseite beim Wiedererscheinen erneut und bleibt dadurch kontextstabiler
+  - die mobile Mitgliedsabbildung übernimmt jetzt auch `IstHauptmitglied`, damit die Kontextentscheidung belastbar bleibt
+- Bewusst nicht gemacht:
+  - keine Neuarchitektur
+  - kein neuer kompletter Nebenmitglied-Anlageflow in MAUI
+  - keine tieferen Parzellen-/Gartenpfade in diesem Block mitgezogen
+  - keine Änderung an Home, Shell, Export, Verwaltung oder Ablesen
+- Fachliche Kurzvalidierung nach dem kleinen Block:
+  - Mitgliedersuche bleibt stabil nutzbar
+  - Stammdaten bleiben erreichbar
+  - Mitgliedskontext bleibt konsistent
+  - Nebenmitglied ist aus dem Mitgliedskontext jetzt direkt erreichbar, sofern fachlich vorhanden/relevant
+  - `UserManagement` bleibt unverändert an den Mitgliedskontext gebunden
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
+
 ## 2026-03-24 – Systematische View-Prüfung Block 1: Einstieg / Shell / Home mit kleinem MAUI-Refresh-/Detailpfad-Fix fortgeführt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.
