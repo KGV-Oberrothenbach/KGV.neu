@@ -2,6 +2,63 @@
 
 ---
 
+## 2026-03-24 – MAUI-Stammdaten-Block: Mitgliedskontext in `Stammdaten` umbenannt und mobile Stammdatenansicht an WPF angenähert
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.
+- Relevante Referenzpfade geprüft:
+  - `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`
+  - `KGV.Wpf/Views/MemberDetailView.xaml`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/State/MemberContextState.cs`
+  - ergänzend die mobilen Such-/Kontextpfade, damit die bestehende Navigation intakt bleibt
+- Relevanter Istzustand vor dem Block:
+  - der mobile Mitgliedskontext war bereits vorhanden
+  - die Seite lief aber sprachlich noch als `Mitgliedskontext`
+  - fachlich zeigte sie gegenüber WPF nur einen verkürzten Auszug statt klar gruppierter Stammdaten
+- Den Block bewusst klein und nur auf den mobilen Stammdatenbereich gehalten:
+  - keine Neuarchitektur
+  - kein Umbau von Home, Login oder Shell außerhalb der nötigen Benennung
+  - keine neue Schattenlogik neben den bestehenden Servicepfaden
+- Umgesetzt:
+  - Titel des mobilen Mitgliedskontexts auf `Stammdaten` gezogen
+  - bestehende `MeineDatenPage` weiterverwendet und inhaltlich deutlich ausgebaut
+  - Stammdaten jetzt mobil sauber gruppiert analog zur WPF-Referenz:
+    - `Grunddaten`
+    - `Kontakt`
+    - `Adresse`
+    - `Mitgliedschaft`
+    - `Gärten / Parzellen`
+    - `Verwaltung`
+  - zusätzliche relevante WPF-Felder jetzt auch mobil sichtbar:
+    - Nachname
+    - Vorname
+    - Geburtsdatum
+    - E-Mail
+    - Telefon
+    - Mobilnummer
+    - WhatsApp-Einwilligung
+    - Straße / Hausnummer
+    - PLZ
+    - Ort
+    - Rolle
+    - Mitglied seit
+    - Mitglied Ende
+    - Aktiv
+    - Bemerkungen
+  - die Werte werden als ruhige, saubere ReadOnly-Felder dargestellt statt als wenige Sammeltexte
+  - der Verwaltungsbereich bleibt funktional erhalten, wird aber für nicht berechtigte Rollen vollständig ausgeblendet
+  - der Aktualisieren-Button wurde sprachlich auf den Stammdatenkontext angepasst
+- Bewusst nicht gemacht:
+  - keine neue mobile Vollbearbeitungslogik für alle Stammdatenfelder in diesem kleinen Block
+  - keine WPF-Änderung
+  - keine Änderung an Dokumente-, Garten- oder Admin-Menü-Pfaden außerhalb der Seite selbst
+- Ehrliche Restlage nach dem Block:
+  - der mobile Stammdatenbereich ist jetzt fachlich deutlich näher an WPF und keine knappe Platzhalteransicht mehr
+  - einzelne WPF-Bearbeitungskomfortpfade wie vollwertiger Edit-/Lock-Flow für alle Stammdatenfelder sind mobil in diesem Block bewusst noch nicht nachgezogen
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
+
 ## 2026-03-24 – MAUI-UI-/Flow-Feinschliff: Home nach Login direkt sichtbar, Arbeitsstunden-Kacheln klarer, Home-Export entfernt, Mitgliedersuche beruhigt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.

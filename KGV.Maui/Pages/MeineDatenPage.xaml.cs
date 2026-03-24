@@ -16,13 +16,26 @@ public class MeineDatenPage : ContentPage
     private readonly ParzellenContextState _parzellenContextState;
 
     private readonly Label _headlineLabel;
-    private readonly Label _memberInfoLabel;
-    private readonly Label _contactLabel;
-    private readonly Label _addressLabel;
-    private readonly Label _memberSinceLabel;
     private readonly Label _statusLabel;
     private readonly Label _gardensEmptyLabel;
     private readonly Label _adminHintLabel;
+    private readonly Label _vornameLabel;
+    private readonly Label _nachnameLabel;
+    private readonly Label _geburtsdatumLabel;
+    private readonly Label _emailLabel;
+    private readonly Label _telefonLabel;
+    private readonly Label _mobilLabel;
+    private readonly Label _whatsappLabel;
+    private readonly Label _strasseLabel;
+    private readonly Label _plzLabel;
+    private readonly Label _ortLabel;
+    private readonly Label _rolleLabel;
+    private readonly Label _mitgliedSeitLabel;
+    private readonly Label _mitgliedEndeLabel;
+    private readonly Label _aktivLabel;
+    private readonly Label _bemerkungenLabel;
+    private readonly Border _adminSectionCard;
+    private readonly VerticalStackLayout _adminMenuSection;
     private readonly Picker _rolePicker;
     private readonly Button _saveRoleButton;
     private readonly Button _documentsButton;
@@ -45,16 +58,27 @@ public class MeineDatenPage : ContentPage
         _memberContextState = memberContextState;
         _parzellenContextState = parzellenContextState;
 
-        Title = "Mitgliedskontext";
+        Title = "Stammdaten";
 
         _headlineLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold };
-        _memberInfoLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
-        _contactLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
-        _addressLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
-        _memberSinceLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
         _statusLabel = new Label { TextColor = Colors.DarkRed, LineBreakMode = LineBreakMode.WordWrap };
         _gardensEmptyLabel = new Label { TextColor = Colors.Gray, Text = "Keine aktiven oder historischen Garten-Zuordnungen geladen." };
         _adminHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+        _vornameLabel = CreateValueLabel();
+        _nachnameLabel = CreateValueLabel();
+        _geburtsdatumLabel = CreateValueLabel();
+        _emailLabel = CreateValueLabel();
+        _telefonLabel = CreateValueLabel();
+        _mobilLabel = CreateValueLabel();
+        _whatsappLabel = CreateValueLabel();
+        _strasseLabel = CreateValueLabel();
+        _plzLabel = CreateValueLabel();
+        _ortLabel = CreateValueLabel();
+        _rolleLabel = CreateValueLabel();
+        _mitgliedSeitLabel = CreateValueLabel();
+        _mitgliedEndeLabel = CreateValueLabel();
+        _aktivLabel = CreateValueLabel();
+        _bemerkungenLabel = CreateValueLabel();
 
         _rolePicker = new Picker { Title = "Rolle" };
         foreach (var role in UserRoles.AssignableRoles)
@@ -69,7 +93,7 @@ public class MeineDatenPage : ContentPage
         _userManagementButton = new Button { Text = "Benutzerverwaltung" };
         _userManagementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(UserManagementPage));
 
-        var refreshButton = new Button { Text = "Aktualisieren" };
+        var refreshButton = new Button { Text = "Stammdaten aktualisieren" };
         refreshButton.Clicked += async (_, _) => await LoadAsync();
 
         var gardensView = new CollectionView
@@ -117,7 +141,7 @@ public class MeineDatenPage : ContentPage
             LineBreakMode = LineBreakMode.WordWrap
         };
 
-        var adminMenuSection = new VerticalStackLayout
+        _adminMenuSection = new VerticalStackLayout
         {
             Spacing = 8,
             Children =
@@ -125,10 +149,12 @@ public class MeineDatenPage : ContentPage
                 new Label { Text = "Admin-Menü", FontAttributes = FontAttributes.Bold, FontSize = 18 },
                 _adminHintLabel,
                 _rolePicker,
-                _userManagementButton,
-                _saveRoleButton
+                _saveRoleButton,
+                _userManagementButton
             }
         };
+
+        _adminSectionCard = CreateSection("Verwaltung", _adminMenuSection);
 
         Content = new ScrollView
         {
@@ -140,9 +166,27 @@ public class MeineDatenPage : ContentPage
                 {
                     _headlineLabel,
                     _statusLabel,
-                    CreateSection("Mitglied", _memberInfoLabel, _contactLabel, _addressLabel, _memberSinceLabel),
+                    CreateSection("Grunddaten",
+                        CreateValueField("Nachname", _nachnameLabel),
+                        CreateValueField("Vorname", _vornameLabel),
+                        CreateValueField("Geburtsdatum", _geburtsdatumLabel)),
+                    CreateSection("Kontakt",
+                        CreateValueField("E-Mail", _emailLabel),
+                        CreateValueField("Telefon", _telefonLabel),
+                        CreateValueField("Mobilnummer", _mobilLabel),
+                        CreateValueField("WhatsApp", _whatsappLabel)),
+                    CreateSection("Adresse",
+                        CreateValueField("Straße / Hausnummer", _strasseLabel),
+                        CreateValueField("PLZ", _plzLabel),
+                        CreateValueField("Ort", _ortLabel)),
+                    CreateSection("Mitgliedschaft",
+                        CreateValueField("Rolle", _rolleLabel),
+                        CreateValueField("Mitglied seit", _mitgliedSeitLabel),
+                        CreateValueField("Mitglied Ende", _mitgliedEndeLabel),
+                        CreateValueField("Aktiv", _aktivLabel),
+                        CreateValueField("Bemerkungen", _bemerkungenLabel)),
                     CreateSection("Gärten / Parzellen", _documentsButton, gardenHintLabel, gardensView, _gardensEmptyLabel),
-                    adminMenuSection,
+                    _adminSectionCard,
                     refreshButton
                 }
             }
@@ -165,10 +209,8 @@ public class MeineDatenPage : ContentPage
             if (selectedMember?.Id is not > 0)
             {
                 _headlineLabel.Text = "Kein Mitglied ausgewählt";
-                _memberInfoLabel.Text = "Bitte zuerst in der Mitgliedersuche ein Mitglied auswählen.";
-                _contactLabel.Text = string.Empty;
-                _addressLabel.Text = string.Empty;
-                _memberSinceLabel.Text = string.Empty;
+                SetMemberFieldsEmpty();
+                _nachnameLabel.Text = "Bitte zuerst in der Mitgliedersuche ein Mitglied auswählen.";
                 _gardenAssignments.Clear();
                 UpdateAdminMenu(null);
                 _gardensEmptyLabel.IsVisible = true;
@@ -188,10 +230,21 @@ public class MeineDatenPage : ContentPage
             _headlineLabel.Text = string.IsNullOrWhiteSpace(contextMember.DisplayName)
                 ? $"Mitglied #{contextMember.Id}"
                 : contextMember.DisplayName;
-            _memberInfoLabel.Text = $"E-Mail: {FormatValue(contextMember.Email)}\nRolle: {FormatRole(contextMember.Role)}";
-            _contactLabel.Text = $"Telefon: {FormatValue(contextMember.Telefon)}\nHandy: {FormatValue(contextMember.Mobilnummer)}";
-            _addressLabel.Text = $"Adresse: {BuildAddressText(contextMember)}";
-            _memberSinceLabel.Text = $"Mitglied seit: {FormatDate(contextMember.MitgliedSeit)}\nMitglied Ende: {FormatDate(contextMember.MitgliedEnde)}";
+            _nachnameLabel.Text = FormatValue(contextMember.Nachname);
+            _vornameLabel.Text = FormatValue(contextMember.Vorname);
+            _geburtsdatumLabel.Text = FormatDate(contextMember.Geburtsdatum);
+            _emailLabel.Text = FormatValue(contextMember.Email);
+            _telefonLabel.Text = FormatValue(contextMember.Telefon);
+            _mobilLabel.Text = FormatValue(contextMember.Mobilnummer);
+            _whatsappLabel.Text = contextMember.WhatsappEinwilligung ? "Ja" : "Nein";
+            _strasseLabel.Text = FormatValue(contextMember.Strasse);
+            _plzLabel.Text = FormatValue(contextMember.PLZ);
+            _ortLabel.Text = FormatValue(contextMember.Ort);
+            _rolleLabel.Text = FormatRole(contextMember.Role);
+            _mitgliedSeitLabel.Text = FormatDate(contextMember.MitgliedSeit);
+            _mitgliedEndeLabel.Text = FormatDate(contextMember.MitgliedEnde);
+            _aktivLabel.Text = contextMember.Aktiv ? "Ja" : "Nein";
+            _bemerkungenLabel.Text = FormatValue(contextMember.Bemerkungen);
 
             await LoadGartenAssignmentsAsync(contextMember.Id);
             UpdateAdminMenu(contextMember);
@@ -235,6 +288,8 @@ public class MeineDatenPage : ContentPage
     {
         var currentRole = _userContextState.CurrentUserContext?.Role;
         var hasAdminMenu = currentRole is UserRole.Admin or UserRole.Vorstand;
+        _adminSectionCard.IsVisible = hasAdminMenu;
+        _adminMenuSection.IsVisible = hasAdminMenu;
         _adminHintLabel.IsVisible = hasAdminMenu;
         _rolePicker.IsVisible = hasAdminMenu;
         _saveRoleButton.IsVisible = hasAdminMenu;
@@ -326,7 +381,7 @@ public class MeineDatenPage : ContentPage
         }
     }
 
-    private static View CreateSection(string title, params View[] children)
+    private static Border CreateSection(string title, params View[] children)
     {
         var content = new VerticalStackLayout { Spacing = 8 };
         content.Children.Add(new Label { Text = title, FontAttributes = FontAttributes.Bold, FontSize = 18 });
@@ -339,6 +394,54 @@ public class MeineDatenPage : ContentPage
             Stroke = Colors.LightGray,
             Content = content
         };
+    }
+
+    private static Label CreateValueLabel()
+    {
+        return new Label
+        {
+            LineBreakMode = LineBreakMode.WordWrap
+        };
+    }
+
+    private static View CreateValueField(string title, Label valueLabel)
+    {
+        object? readOnlyStyleObj = null;
+        if (Application.Current?.Resources != null)
+            Application.Current.Resources.TryGetValue("ReadOnlyField", out readOnlyStyleObj);
+
+        var valueContainer = readOnlyStyleObj is Style readOnlyStyle
+            ? new Border { Style = readOnlyStyle, Content = valueLabel }
+            : new Border { Stroke = Colors.LightGray, Padding = new Thickness(12, 10), Content = valueLabel };
+
+        return new VerticalStackLayout
+        {
+            Spacing = 4,
+            Children =
+            {
+                new Label { Text = title, FontAttributes = FontAttributes.Bold, FontSize = 13 },
+                valueContainer
+            }
+        };
+    }
+
+    private void SetMemberFieldsEmpty()
+    {
+        _vornameLabel.Text = string.Empty;
+        _nachnameLabel.Text = string.Empty;
+        _geburtsdatumLabel.Text = string.Empty;
+        _emailLabel.Text = string.Empty;
+        _telefonLabel.Text = string.Empty;
+        _mobilLabel.Text = string.Empty;
+        _whatsappLabel.Text = string.Empty;
+        _strasseLabel.Text = string.Empty;
+        _plzLabel.Text = string.Empty;
+        _ortLabel.Text = string.Empty;
+        _rolleLabel.Text = string.Empty;
+        _mitgliedSeitLabel.Text = string.Empty;
+        _mitgliedEndeLabel.Text = string.Empty;
+        _aktivLabel.Text = string.Empty;
+        _bemerkungenLabel.Text = string.Empty;
     }
 
     private static string BuildAddressText(MemberDTO member)
@@ -386,6 +489,8 @@ public class MeineDatenPage : ContentPage
             Geburtsdatum = rec.Geburtsdatum,
             MitgliedSeit = rec.MitgliedSeit,
             MitgliedEnde = rec.MitgliedEnde,
+            Bemerkungen = rec.Bemerkung ?? string.Empty,
+            WhatsappEinwilligung = rec.WhatsappEinwilligung,
             Role = rec.Role ?? string.Empty
         };
     }
