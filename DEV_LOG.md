@@ -2,12 +2,12 @@
 
 ---
 
-## 2026-03-24 – Systematische View-Prüfung Block 6: Verwaltungseditoren / Export mit kleinem MAUI-Validierungs-/Sichtbarkeits-Fix fortgeführt
+## 2026-03-24 – Systematische View-Prüfung Block 7: Ablesen / RFID / Zählerwechsel mit kleinem MAUI-Rückwege-/Refresh-/Reset-Fix fortgeführt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.
-- Für Block 6 gezielt geprüft:
-  - WPF: `ArbeitseinsaetzeVerwaltungEditorView`, `TermineVerwaltungEditorView`, `BekanntmachungenVerwaltungEditorView`, `ExportView`
-  - MAUI: `HomeManagementPage`, `ExportPage` sowie die relevanten Shared-Servicepfade für Verwaltung und Export
+- Für Block 7 gezielt geprüft:
+  - WPF: `AblesenOverviewView`, `AblesungErfassenView`, `AblesungDialog`, `RfidEinrichtenView`, `RfidScanContextView`, `FaelligeZaehlerView`, `ZaehlerwechselScanView`, `ZaehlerwechselAusbauView`, `ZaehlerwechselEinbauView`, `ZaehlerTauschDialog`
+  - MAUI: `AblesenOverviewPage`, `AblesungErfassenPage`, `AblesenFeaturePage`, `RfidEinrichtenPage`, `RfidScanWorkflowPage`, `FaelligeZaehlerPage`, `ZaehlerwechselPage` sowie die zugehörigen RFID-/Scan-ViewModels
 - Systematischer Vergleich entlang derselben Logik durchgeführt:
   - UI/Struktur
   - Daten/Fachinhalt
@@ -15,40 +15,40 @@
   - Navigation/Flow
   - Rechte/Sichtbarkeit
 - Ehrlicher Befund im aktuellen Repo-Stand:
-  - `ExportPage` ist mobil bereits auf dem echten gemeinsamen CSV-Kernpfad angebunden und fachlich für den aktuellen Block belastbar
-  - der größere kleine Restabstand lag aktuell nicht im Export, sondern in den mobilen Verwaltungseditoren
-  - `HomeManagementPage` konnte Arbeitseinsätze, Termine und Bekanntmachungen bereits laden und speichern, nutzte aber mehrere bereits vorhandene Fachfelder aus WPF noch nicht sichtbar im mobilen Editor
+  - der MAUI-Ablesen-Bereich ist bereits erreichbar und nutzt die vorhandenen echten Shared-Servicepfade für RFID-Kontext, RFID-Zuordnung und fällige Zähler
+  - `RfidEinrichtenPage` und `FaelligeZaehlerPage` sind fachlich bereits produktiv nutzbar
+  - `AblesungErfassenPage` und `ZaehlerwechselPage` sind mobil derzeit – analog zum aktuell sichtbaren WPF-Hauptpfad – vor allem Kontext-/Einordnungsseiten und noch kein voller mobiler Endausbau von Ablesungsdialog bzw. Ausbau-/Einbau-Workflow
+  - der größte kleine Restabstand lag damit aktuell vor allem in Flow, Rückwegen und Wiederverwendbarkeit im mobilen Scanpfad
 - Wichtigste kleine Restabweichungen mit hohem Praxisnutzen und geringem Risiko identifiziert:
-  - die optionalen Sichtbarkeits-Timestamps `sichtbar_ab` / `sichtbar_bis` fehlten mobil in allen drei Verwaltungsbereichen
-  - bei Arbeitseinsätzen fehlte mobil zusätzlich `anmeldung_bis`
-  - die vorhandenen Shared-Records und Shared-Servicepfade trugen diese Felder bereits, wurden in `HomeManagementPage` aber noch nicht bedient
-- Kleinen Korrekturblock deshalb nur in `HomeManagementPage` umgesetzt:
-  - optionale mobile Eingabefelder für `Sichtbar ab` und `Sichtbar bis` für Arbeitseinsätze, Termine und Bekanntmachungen ergänzt
-  - zusätzlich optionales Feld `Anmeldung bis` für Arbeitseinsätze ergänzt
-  - bestehende Datensätze laden diese Werte jetzt auch wieder korrekt in den mobilen Editor zurück
-  - Speichern schreibt dieselben Werte jetzt über die vorhandenen Create-/Update-Servicepfade mit
-  - kleine Validierung ergänzt: `Sichtbar bis` darf nicht vor `Sichtbar ab` liegen
-  - für Arbeitseinsätze zusätzlich: `Anmeldung bis` darf nicht vor `Sichtbar ab` liegen
-  - die Umsetzung blieb auf dem vorhandenen Shared-Modell-/Servicepfad und baut keine neue Schattenlogik
-- Kleine technische Nachkorrektur im selben Block:
-  - Initialisierungsreihenfolge in `HomeManagementPage` bereinigt, damit die neu ergänzten optionalen Datums-/Zeitfelder ohne neue Buildwarnungen kompilieren
+  - in den mobilen Unterseiten fehlte ein expliziter Rückweg zurück zur `Ablesen`-Übersicht
+  - wiederholte RFID-Prüfungen auf derselben Seite hatten noch keinen klaren Reset-/Neustartpfad
+  - `FaelligeZaehlerPage` lud bisher nur beim ersten Anzeigen und konnte beim Rückweg veraltet bleiben
+  - `RfidEinrichtenPage` initialisierte bisher ebenfalls nur einmal pro Seiteninstanz
+- Kleinen Korrekturblock deshalb nur im MAUI-Ablesen-/RFID-/Zählerwechsel-Rahmen umgesetzt:
+  - `RfidScanContextViewModel` erhielt einen kleinen `Reset()`-Pfad für neuen Scanbeginn ohne neue Schattenlogik
+  - `RfidScanWorkflowPage` bietet jetzt zusätzlich `Neuen Scan beginnen`
+  - dieselbe Workflowbasis bietet jetzt einen expliziten Button `Zur Ablesen-Übersicht`
+  - `RfidEinrichtenPage` erhielt ebenfalls einen expliziten Rückweg zur `Ablesen`-Übersicht
+  - `RfidEinrichtenPage` initialisiert beim Wiedererscheinen erneut und bleibt damit kontextstabiler
+  - `FaelligeZaehlerPage` lädt beim Wiedererscheinen jetzt erneut und bleibt dadurch aktueller
 - Warum dieser kleine Block fachlich sinnvoll ist:
-  - die zugrunde liegende Fachlogik war bereits vorhanden
-  - der größte praktische Restabstand lag deshalb in der mobilen Editoroberfläche und im fehlenden Zugriff auf bestehende Fachfelder
-  - genau dieser Abstand wurde jetzt geschlossen, ohne Export oder Verwaltungsarchitektur neu zu erfinden
+  - die zugrunde liegenden Fachpfade waren bereits vorhanden
+  - der größte direkte Nutzwert lag deshalb in saubereren Rückwegen und in einem wiederholbaren Scanfluss statt in vorschneller neuer Unterseitenarchitektur
+  - der Block bleibt vollständig auf bestehenden Shared-Services und bestehenden MAUI-Seiten
 - Bewusst nicht gemacht:
-  - kein Umbau von `ExportPage`, weil der aktuelle mobile CSV-/Share-Pfad bereits belastbar ist
-  - kein WPF-Umbau
-  - kein Vollnachbau aller WPF-Fokus-/Fehlermarkierungsdetails im mobilen Editor
-  - keine Änderung an Home-, Mitglieds-, Garten-, Arbeitsstunden- oder Ablesen-Pfaden
+  - kein neuer mobiler Vollworkflow für `AblesungDialog`
+  - kein neuer Ausbau-/Einbau-Unterseitenbau für Zählerwechsel
+  - kein Umbau von Foto-/Upload-/Cloudpfaden
+  - keine Änderung an Home-, Mitglieds-, Garten-, Arbeitsstunden-, Verwaltungs- oder Exportpfaden
 - Fachliche Kurzvalidierung nach dem kleinen Block:
-  - Verwaltungseditoren bleiben erreichbar
-  - Speichern bleibt funktionsfähig
-  - Export bleibt erreichbar und nutzbar
-  - keine Verschlechterung bereits geprüfter Home-, Mitglieds-, Garten- oder Arbeitsstundenpfade
+  - Ablesen-Bereich bleibt erreichbar
+  - RFID-/Scanpfade bleiben erreichbar
+  - Zählerwechsel bleibt erreichbar
+  - Rückwege und Wiederholungsfluss im mobilen Scanpfad sind klarer
+  - keine Verschlechterung bereits geprüfter Home-, Mitglieds-, Garten-, Arbeitsstunden- oder Verwaltungs-/Exportpfade
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - nach kleiner Nachkorrektur keine neuen eigenen Buildwarnungen im geänderten MAUI-Verwaltungspfad
+  - der geänderte MAUI-Pfad baut ohne neue eigene Warnungen
 
 ## 2026-03-24 – Systematische View-Prüfung Block 5: Arbeitsstunden komplett mit kleinem mobilen Überblick-/Erfassungs-/Bearbeitungs-Fix fortgeführt
 

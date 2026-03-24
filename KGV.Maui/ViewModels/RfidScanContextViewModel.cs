@@ -136,6 +136,30 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
         }
     }
 
+    public void Reset()
+    {
+        _uidInput = string.Empty;
+        _resolution = null;
+        _statusMessage = string.Empty;
+
+        OnPropertyChanged(nameof(UidInput));
+        OnPropertyChanged(nameof(CanResolve));
+        OnPropertyChanged(nameof(Resolution));
+        OnPropertyChanged(nameof(HasResolution));
+        OnPropertyChanged(nameof(StateDisplay));
+        OnPropertyChanged(nameof(NormalizedUid));
+        OnPropertyChanged(nameof(ParzelleDisplayName));
+        OnPropertyChanged(nameof(MediumDisplay));
+        OnPropertyChanged(nameof(RfidDisplay));
+        OnPropertyChanged(nameof(ActiveMeterDisplay));
+        OnPropertyChanged(nameof(ZaehlernummerDisplay));
+        OnPropertyChanged(nameof(StatusDisplay));
+        OnPropertyChanged(nameof(EichdatumDisplay));
+        OnPropertyChanged(nameof(EichfaelligDisplay));
+        OnPropertyChanged(nameof(StatusMessage));
+        OnPropertyChanged(nameof(HasStatusMessage));
+    }
+
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

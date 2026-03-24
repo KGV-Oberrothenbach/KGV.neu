@@ -56,6 +56,9 @@ public sealed class RfidEinrichtenPage : ContentPage
         saveButton.SetBinding(IsEnabledProperty, nameof(RfidEinrichtenViewModel.CanSave));
         saveButton.Clicked += async (_, _) => await SaveAsync();
 
+        var backToOverviewButton = new Button { Text = "Zur Ablesen-Übersicht" };
+        backToOverviewButton.Clicked += async (_, _) => await Shell.Current.GoToAsync("//ablesen");
+
         var statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
         statusLabel.SetBinding(Label.TextProperty, nameof(RfidEinrichtenViewModel.StatusMessage));
         statusLabel.SetBinding(IsVisibleProperty, nameof(RfidEinrichtenViewModel.HasStatusMessage));
@@ -81,7 +84,8 @@ public sealed class RfidEinrichtenPage : ContentPage
                     uidHintLabel,
                     checkButton,
                     statusLabel,
-                    saveButton
+                    saveButton,
+                    backToOverviewButton
                 }
             }
         };
@@ -90,10 +94,6 @@ public sealed class RfidEinrichtenPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-
-        if (_initialized)
-            return;
-
         await _viewModel.InitializeAsync();
         _initialized = true;
     }

@@ -29,6 +29,16 @@ public abstract class RfidScanWorkflowPage : ContentPage
         statusLabel.SetBinding(Label.TextProperty, nameof(RfidScanContextViewModel.StatusMessage));
         statusLabel.SetBinding(IsVisibleProperty, nameof(RfidScanContextViewModel.HasStatusMessage));
 
+        var resetButton = new Button { Text = "Neuen Scan beginnen" };
+        resetButton.Clicked += (_, _) =>
+        {
+            _scanContext.Reset();
+            _decisionLabel.Text = _decisionFactory(_scanContext.Resolution);
+        };
+
+        var backToOverviewButton = new Button { Text = "Zur Ablesen-Übersicht" };
+        backToOverviewButton.Clicked += async (_, _) => await Shell.Current.GoToAsync("//ablesen");
+
         var contextBorder = new Border
         {
             Stroke = Colors.LightGray,
@@ -77,7 +87,11 @@ public abstract class RfidScanWorkflowPage : ContentPage
                         TextColor = Colors.Gray,
                         LineBreakMode = LineBreakMode.WordWrap
                     },
-                    CreateResolveButton(),
+                    new HorizontalStackLayout
+                    {
+                        Spacing = 8,
+                        Children = { CreateResolveButton(), resetButton }
+                    },
                     statusLabel,
                     contextBorder,
                     new Border
@@ -94,7 +108,8 @@ public abstract class RfidScanWorkflowPage : ContentPage
                                 _decisionLabel
                             }
                         }
-                    }
+                    },
+                    backToOverviewButton
                 }
             }
         };
@@ -105,7 +120,10 @@ public abstract class RfidScanWorkflowPage : ContentPage
         base.OnAppearing();
 
         if (_initialized)
+        {
+            _decisionLabel.Text = _decisionFactory(_scanContext.Resolution);
             return;
+        }
 
         await _scanContext.InitializeAsync();
         _decisionLabel.Text = _decisionFactory(_scanContext.Resolution);

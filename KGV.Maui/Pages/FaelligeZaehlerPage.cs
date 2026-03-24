@@ -75,11 +75,14 @@ public sealed class FaelligeZaehlerPage : ContentPage
     {
         base.OnAppearing();
 
-        if (_initialized)
+        if (!_initialized)
+        {
+            await _viewModel.InitializeAsync();
+            _initialized = true;
             return;
+        }
 
-        await _viewModel.InitializeAsync();
-        _initialized = true;
+        await _viewModel.RefreshAsync();
     }
 
     private static View CreateItemTemplate()
