@@ -2,6 +2,50 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: NavigationRootManager-Fragment-Crash nach Login in MAUI behoben
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Ausgangszustand vor diesem Block:
+  - auf Android trat jetzt der Fehler `No view found for id ... for fragment NavigationRootManager_ElementBasedFragment ...` auf
+  - der aktuelle Repo-Stand startete das Window mit `LoginPage`
+  - nach Login wurde anschließend per `window.Page = shell` auf eine Shell-Root umgeschaltet
+- Den relevanten MAUI-Pfad erneut gezielt geprüft:
+  - `App.xaml.cs`
+  - `LoginPage.xaml.cs`
+  - `AdminShell.cs`
+  - `UserShell.cs`
+  - `ShellNavigationHelper.cs`
+  - `MauiProgram.cs`
+- Zusätzlich die Android-Debuglogs geprüft, weil die Debugsitzung pausiert vorlag.
+- Relevanter Logbefund:
+  - Crash im Android-Activity-/Fragment-Lifecycle mit `NavigationRootManager_ElementBasedFragment`
+  - das passte präzise zu einem Rootcontainer-Mismatch zwischen restaurierter Navigation/Shell und aktuell erzeugter Window-Root-Seite
+- Plausibelste eigentliche Ursache im Istzustand:
+  - `App.CreateWindow(...)` erzeugte immer wieder `LoginPage` als Window-Root
+  - der Loginpfad tauschte die Root später manuell auf Shell um
+  - bei Android-Restart/Recreate/Fragment-Restore konnte dadurch ein Fragmentzustand gegen einen Container laufen, der zur ursprünglichen Shell-Hierarchie nicht mehr passt
+- Den Fix deshalb klein und direkt am Root-Handover umgesetzt:
+  - `App` erstellt den aktuellen Root jetzt zentral selbst anhand des vorhandenen Benutzerkontexts
+  - `CreateWindow(...)` liefert damit nicht mehr blind `LoginPage`, sondern je nach Session `LoginPage` oder die passende neu aufgebaute Shell
+  - `LoginPage` delegiert den Wechsel jetzt an `App.SwitchToCurrentRootAsync()` statt selbst nur `window.Page = shell` zu setzen
+  - auf Android wird beim Handover ein neues Window mit korrekter Ziel-Root geöffnet und das alte Login-Window erst danach geschlossen
+  - damit wird der komplette Login-Rootwechsel sauber neu organisiert statt Fragmente auf einer gerade ersetzten Rootstruktur nachzuhärten
+- Loginbutton-/Altlogik zusätzlich geprüft:
+  - `Anmelden` ist im aktiven Repo-Stand weiterhin klarer Textbutton
+  - keine veraltete Login-Button-Iconlogik mehr im aktiven Pfad gefunden
+  - die Debuglogs zeigen weiter FastDev-/Override-Deploypfade; das ist ein möglicher Hinweis auf Gerätecaches/ältere Deployreste, aber kein aktiver alter UI-Code im Repo
+- Bewusst nicht gemacht:
+  - keine neue Navigationsarchitektur
+  - kein neuer MAUI-Paritätsblock
+  - keine unnötigen Änderungen an WPF-Dateien, weil der Fehler klar im Android-/MAUI-Rootwechsel lag
+- Fachliche Kurzvalidierung nach dem Umbau:
+  - Loginseite zeigt weiterhin klar den Textbutton `Anmelden`
+  - User- und Admin-/Vorstand-Pfad verwenden jetzt denselben zentralen Root-Handover
+  - auch bei späterer Android-Window-/Activity-Neuerzeugung wird jetzt wieder die zur Session passende Root-Hierarchie aufgebaut
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte Warnungen bleiben in `HomeManagementPage.cs`
+
 ## 2026-03-24 – Prompt 1/1: Android-Shell-Fragment-Crash in MAUI behoben und Login-Branding korrigiert
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.

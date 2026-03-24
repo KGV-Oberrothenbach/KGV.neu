@@ -296,7 +296,7 @@ public class LoginPage : ContentPage
             AppSettings.AppMode = null;
             AppSettings.Save();
 
-            SwitchToUserContext(userContext);
+            await SwitchToUserContextAsync(userContext);
         }
         catch (Exception ex)
         {
@@ -304,7 +304,7 @@ public class LoginPage : ContentPage
         }
     }
 
-    private void SwitchToUserContext(UserContext userContext)
+    private async Task SwitchToUserContextAsync(UserContext userContext)
     {
         if (_userContextState.CurrentUserId == null)
             return;
@@ -322,6 +322,12 @@ public class LoginPage : ContentPage
         _userContextState.CurrentAppMode = mode;
         _userContextState.CurrentUserContext = userContext;
 
+        if (Application.Current is App app)
+        {
+            await app.SwitchToCurrentRootAsync();
+            return;
+        }
+
         var window = Application.Current?.Windows?.FirstOrDefault();
         if (window == null)
             return;
@@ -330,15 +336,10 @@ public class LoginPage : ContentPage
             ? (Shell)_services.GetRequiredService<AdminShell>()
             : _services.GetRequiredService<UserShell>();
 
-        BuildAndGetShell(shell);
-        window.Page = shell;
-    }
-
-    private static void BuildAndGetShell(Shell shell)
-    {
         if (shell is IAppShellInitializer init)
             init.BuildMenu();
 
         ShellNavigationHelper.EnsureActiveShellItem(shell);
+        window.Page = shell;
     }
 }
