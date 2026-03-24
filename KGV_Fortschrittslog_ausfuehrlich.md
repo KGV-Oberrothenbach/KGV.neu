@@ -2,6 +2,88 @@
 
 ---
 
+## 2026-03-24 – Prompt 2/2: offenen MAUI-Shell-Block sauber abgeschlossen und gegen `Active Shell Item not set` gehärtet
+
+- Den echten Arbeitsstand vor dem Block erneut direkt im lokalen Repository geprüft statt auf den vorigen Agent-Lauf zu vertrauen.
+- Reale Ausgangslage im Arbeitsbaum:
+  - Block 1 war im Kern bereits vorhanden: `LoginPage` lädt nach Login den echten `UserContext`, die aktive Rollenwahl wird nicht mehr benutzt, `AdminShell` richtet Menüs bereits am echten Benutzerkontext aus.
+  - Gleichzeitig waren aber noch viele blockfremde lokale Änderungen im Repo offen; diese wurden bewusst nicht mit in diesen Block gezogen.
+  - Der offene Fehler betraf damit nicht mehr die Rollenwahl selbst, sondern den Shell-Start-/Wechselpfad in MAUI.
+- Den MAUI-Shell-Istzustand gezielt geprüft:
+  - `App.xaml.cs` startet weiterhin sauber über `LoginPage`; dort war für diesen Block kein Umbau nötig.
+  - `LoginPage.SwitchToUserContext(...)` wechselte zwar nach dem Kontextladen in `AdminShell` bzw. `UserShell`, härtete den Shell-Zustand aber nicht explizit nach dem Aufbau.
+  - `AdminShell` und `UserShell` setzen beim Menüaufbau bisher nur implizit auf `CurrentItem = Items[0]`.
+  - `AdminShell.RefreshWorkhoursReviewMenuAsync()` blendet Menüeinträge dynamisch ein/aus; genau solche Sichtbarkeitswechsel sind ein realistischer Kandidat dafür, dass ein bereits aktiver Shell-Einstieg ungültig wird.
+  - Zusätzlich liefen `AdminShell` und `UserShell` bisher als Singletons, sodass alter Shell-Zustand zwischen Wechseln wiederverwendet werden konnte.
+- Den offenen Shell-Block deshalb klein und direkt an der Ursache gehärtet:
+  - neue gemeinsame MAUI-Hilfe `ShellNavigationHelper` ergänzt, die einen gültigen aktiven Einstieg belastbar nachzieht:
+    - gültiges `ShellItem`
+    - gültige `ShellSection`
+    - gültiges `ShellContent`
+  - die Hilfe berücksichtigt sichtbare/gültige Einträge zuerst und fällt nur kontrolliert auf den ersten belastbaren Menüpfad zurück.
+- `AdminShell` gezielt stabilisiert:
+  - nach `BuildMenu()` wird der aktive Shell-Einstieg jetzt nicht nur indirekt, sondern explizit über die neue Helferlogik gesetzt
+  - beim `Loaded`-Zeitpunkt wird der Shell-Zustand erneut abgesichert
+  - nach `RefreshWorkhoursReviewMenuAsync()` wird der aktive Einstieg ebenfalls erneut validiert, damit das Ein-/Ausblenden des Menüpunktes `Arbeitsstunden freigeben` keinen leeren Shell-Zustand hinterlässt
+- `UserShell` parallel gleichartig gehärtet:
+  - Menüaufbau mit expliziter Aktivierung eines gültigen Einstiegs
+  - zusätzliche Nachhärtung beim Laden der Shell
+- `LoginPage` für den Shell-Wechsel klein, aber belastbar nachgezogen:
+  - Ziel-Shell wird jetzt zuerst aufgebaut
+  - aktiver Einstieg wird vor dem Window-Wechsel validiert
+  - erst danach erfolgt `window.Page = shell`
+  - direkt nach dem Wechsel wird die Shell auf dem UI-Dispatcher nochmals nachgehärtet, damit Timing-/Handler-Rennen nicht zu einem leeren aktiven Item führen
+- Die Shell-Lebensdauer zusätzlich stabilisiert, ohne die Architektur umzubauen:
+  - `AdminShell` und `UserShell` sind in `MauiProgram` jetzt `Transient` statt `Singleton`
+  - dadurch erhält jeder Login-/Start-/Wiederaufbau eine frische Shell-Instanz mit sauberem Menü- und Aktivzustand
+  - alte Shell-Zustände oder ungültige aktive Einträge werden nicht mehr zwischen Wechseln mitgeschleppt
+- Bewusst nicht geändert:
+  - keine Rückkehr zur `RoleChoicePage`
+  - keine Änderung am WPF-Startpfad
+  - kein Umbau von `App.xaml.cs` zu einer neuen App-Architektur
+  - keine neue Navigationsabstraktion
+- Technische Verifikation für diesen Block:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - der offene Shell-Block ist damit buildfähig und fachlich auf den beobachteten Fehler fokussiert abgeschlossen
+
+## 2026-03-24 – Prompt 1/1: MAUI-Loginflow auf echten Benutzerkontext umgestellt und alte Rollenwahl aus aktivem Flow entfernt
+
+- Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprüft.
+- Einordnung vor Block 1:
+  - Dateien dieses Blocks: `KGV.Maui/Pages/LoginPage.xaml.cs`, `KGV.Maui/AdminShell.cs`, `KGV.Maui/MauiProgram.cs` plus die beiden Logdateien
+  - blockfremde offene WPF-/MAUI-/Supabase-Dateien blieben bewusst unangetastet
+  - `_AI_DB_EXPORT/*`, `_secrets/*`, `.github/copilot-instructions.md` und sonstige lokale Artefakte wurden nicht als Grundlage verwendet
+- WPF-/MAUI-Vergleich für den Login-/Rechtepfad gezielt geprüft:
+  - WPF lädt nach erfolgreichem Login direkt den echten `UserContext` und startet ohne manuelle Rollenwahl in den passenden Rechtepfad
+  - MAUI leitete nach Login dagegen noch entweder in eine manuelle Rollenwahl `RoleChoicePage` um oder hing an einem gespeicherten `AppMode`
+  - damit war der mobile Startpfad fachlich nicht mehr sauber am authentifizierten Benutzerkontext ausgerichtet
+- Den ersten MAUI-Block deshalb klein und direkt an der Ursache umgesetzt:
+  - `LoginPage` lädt nach erfolgreichem Login jetzt den echten Benutzerkontext über `IUserContextService.GetUserContextAsync(...)`
+  - `UserContextState` übernimmt danach `CurrentUserId`, `CurrentMitgliedId`, `CurrentNebenMitgliedId`, `CurrentAppMode` und vor allem `CurrentUserContext` direkt aus dem geladenen Rechtepfad
+  - die bisherige Rollenwahlseite wird nicht mehr aufgerufen
+  - ein alter gespeicherter `AppMode` wird für diesen Flow geleert, damit keine frühere manuelle Auswahl mehr in den aktiven Startpfad hineinwirkt
+- Die Shell-Auswahl läuft jetzt fachlich sauber automatisch:
+  - `admin` / `vorstand` => `AdminShell`
+  - normaler Benutzer => `UserShell`
+  - maßgeblich ist dabei der geladene authentifizierte Benutzerkontext und nicht mehr eine Auswahlseite
+- `AdminShell` zusätzlich an den echten Benutzerkontext angeglichen:
+  - Admin-only-Menüs richten sich jetzt an `UserContextState.CurrentUserContext.Role`
+  - damit folgt die mobile Menüfreigabe dem real geladenen Rechtekontext statt nur den alten `IAuthService`-Flags
+- Die alte Rollenwahl wurde außerdem aus dem aktiven DI-/Navigationspfad entfernt:
+  - `RoleChoicePage` wird nicht mehr im MAUI-Servicecontainer für den aktiven Loginflow registriert
+- Bewusst nicht geändert:
+  - keine WPF-Datei
+  - keine Supabase-Datei
+  - keine neue Rollenarchitektur
+  - kein unnötiger Umbau außerhalb des Login-/Shell-Startpfads
+- Ergebnis von Block 1:
+  - nach Login ist keine manuelle Auswahl `user` / `Vorstand/admin` mehr nötig
+  - der mobile Shell-/Startpfad wird jetzt direkt aus dem echten Benutzerkontext gesetzt
+  - damit ist der erste bekannte Android-Fehler fachlich sauber aus dem aktiven Flow entfernt
+- Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - Block 1 ist damit klein, buildfähig und commit-/push-fähig abgeschlossen
+
 ## 2026-03-24 – Prompt 1/1: Root-Folder-Validierung in `kgv-upload-photo` gezielt abgesichert und diagnostisch geschärft
 
 - Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprüft.

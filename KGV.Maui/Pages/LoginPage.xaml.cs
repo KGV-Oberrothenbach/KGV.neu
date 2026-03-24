@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Security;
+using KGV.Infrastructure.Services;
 using KGV.Maui;
 using KGV.Maui.State;
 using KGV.Maui.Settings;
@@ -14,7 +15,7 @@ public class LoginPage : ContentPage
     private readonly IAuthService _authService;
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _userContextState;
-    private readonly IPermissionService _permissionService;
+    private readonly IUserContextService _userContextService;
     private readonly IServiceProvider _services;
 
     private readonly Entry _emailEntry;
@@ -25,13 +26,13 @@ public class LoginPage : ContentPage
         IAuthService authService,
         ISupabaseService supabaseService,
         UserContextState userContextState,
-        IPermissionService permissionService,
+        IUserContextService userContextService,
         IServiceProvider services)
     {
         _authService = authService;
         _supabaseService = supabaseService;
         _userContextState = userContextState;
-        _permissionService = permissionService;
+        _userContextService = userContextService;
         _services = services;
 
         Title = "Login";
@@ -253,12 +254,22 @@ public class LoginPage : ContentPage
 
             _userContextState.CurrentUserId = userId;
 
-            var mitglied = await _supabaseService.GetMitgliedByAuthUserIdAsync(userId);
-            _userContextState.CurrentMitgliedId = mitglied?.Id;
+            var userContext = await _userContextService.GetUserContextAsync(userId);
+            _userContextState.CurrentUserContext = userContext;
+            _userContextState.CurrentMitgliedId = userContext.MitgliedId;
+            _userContextState.CurrentAppMode = userContext.Role is UserRole.Admin or UserRole.Vorstand
+                ? AppMode.Admin
+                : AppMode.User;
 
-            if (mitglied != null)
+            if (userContext.Role == UserRole.User && userContext.MitgliedId == null)
             {
-                var neben = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(mitglied.Id);
+                _statusLabel.Text = "Account ist keinem Mitglied zugeordnet.";
+                return;
+            }
+
+            if (userContext.MitgliedId is > 0 and <= int.MaxValue)
+            {
+                var neben = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync((int)userContext.MitgliedId.Value);
                 _userContextState.CurrentNebenMitgliedId = neben?.Id;
             }
             else
@@ -266,15 +277,10 @@ public class LoginPage : ContentPage
                 _userContextState.CurrentNebenMitgliedId = null;
             }
 
-            var parsedMode = AppModes.Parse(AppSettings.AppMode);
-            if (parsedMode != null)
-            {
-                SwitchToMode(parsedMode.Value);
-                return;
-            }
+            AppSettings.AppMode = null;
+            AppSettings.Save();
 
-            var roleChoice = _services.GetRequiredService<RoleChoicePage>();
-            await Navigation.PushAsync(roleChoice);
+            SwitchToUserContext(userContext);
         }
         catch (Exception ex)
         {
@@ -282,10 +288,14 @@ public class LoginPage : ContentPage
         }
     }
 
-    private void SwitchToMode(AppMode mode)
+    private void SwitchToUserContext(UserContext userContext)
     {
         if (_userContextState.CurrentUserId == null)
             return;
+
+        var mode = userContext.Role is UserRole.Admin or UserRole.Vorstand
+            ? AppMode.Admin
+            : AppMode.User;
 
         if (mode == AppMode.User && _userContextState.CurrentMitgliedId == null)
         {
@@ -294,27 +304,35 @@ public class LoginPage : ContentPage
         }
 
         _userContextState.CurrentAppMode = mode;
-
-        var role = mode == AppMode.Admin ? UserRoles.Vorstand : UserRoles.User;
-        _userContextState.CurrentUserContext = _permissionService.CreateContext(
-            _userContextState.CurrentUserId.Value,
-            role,
-            _userContextState.CurrentMitgliedId);
+        _userContextState.CurrentUserContext = userContext;
 
         var window = Application.Current?.Windows?.FirstOrDefault();
         if (window == null)
             return;
 
-        window.Page = mode == AppMode.Admin
-            ? BuildAndGetShell(_services.GetRequiredService<AdminShell>())
-            : BuildAndGetShell(_services.GetRequiredService<UserShell>());
+        var shell = mode == AppMode.Admin
+            ? (Shell)_services.GetRequiredService<AdminShell>()
+            : _services.GetRequiredService<UserShell>();
+
+        BuildAndGetShell(shell);
+        window.Page = shell;
+        ShellNavigationHelper.EnsureActiveShellItem(shell);
+
+        if (window.Dispatcher.IsDispatchRequired)
+        {
+            window.Dispatcher.Dispatch(() => ShellNavigationHelper.EnsureActiveShellItem(shell));
+        }
+        else
+        {
+            ShellNavigationHelper.EnsureActiveShellItem(shell);
+        }
     }
 
-    private static Shell BuildAndGetShell(Shell shell)
+    private static void BuildAndGetShell(Shell shell)
     {
         if (shell is IAppShellInitializer init)
             init.BuildMenu();
 
-        return shell;
+        ShellNavigationHelper.EnsureActiveShellItem(shell);
     }
 }

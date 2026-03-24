@@ -2,6 +2,50 @@
 
 ---
 
+## 2026-03-24 – MAUI-Shell gegen leeren aktiven Einstieg gehärtet, Shell-Wechsel nach Login belastbar gemacht
+
+- Den realen Repo-/Arbeitsbaumstand vor dem Block geprüft; blockfremde offene WPF-/Supabase-Dateien bewusst unangetastet gelassen.
+- Den bereits begonnenen Block 1 im echten Stand validiert:
+  - `LoginPage` lädt nach Login bereits den echten `UserContext`
+  - die alte aktive Rollenwahl ist aus dem Loginflow entfernt
+  - `AdminShell` richtet Rechte bereits am geladenen `UserContext` aus
+- Der offene Restfehler lag damit im Shell-Startpfad von MAUI und nicht mehr in der Rollenwahl:
+  - `AdminShell` / `UserShell` bauten Menüs zwar auf, härteten den aktiven `ShellItem`/`ShellSection`/`ShellContent` aber nicht belastbar nach
+  - beim Wechsel auf wiederverwendete Shell-Instanzen bzw. bei späteren Sichtbarkeitsänderungen konnte der aktive Shell-Einstieg ungültig werden
+  - genau dieser Zustand passt zum beobachteten Fehler `Active Shell Item not set`
+- Den Shell-Block minimal-invasiv gehärtet:
+  - gemeinsame Shell-Hilfe ergänzt, die immer einen gültigen sichtbaren Einstieg über `ShellItem` → `ShellSection` → `ShellContent` sicherstellt
+  - `AdminShell` und `UserShell` rufen diese Absicherung jetzt nach dem Menüaufbau und zusätzlich beim Laden der Shell auf
+  - `AdminShell.RefreshWorkhoursReviewMenuAsync()` stabilisiert nach Sichtbarkeitswechseln den aktiven Einstieg erneut, statt nur implizit auf den alten Zustand zu vertrauen
+  - `LoginPage` baut die Ziel-Shell jetzt vollständig auf, sichert den aktiven Einstieg ab und wechselt erst dann die Window-Page; direkt nach dem Wechsel wird die Shell nochmals auf dem UI-Dispatcher nachgehärtet
+  - `AdminShell` und `UserShell` werden in MAUI nicht mehr als Singleton wiederverwendet, sondern pro Wechsel frisch erzeugt, damit kein alter Shell-Zustand in einen neuen Login-/Restore-Pfad hineinragt
+- Keine Neuarchitektur eingeführt:
+  - keine neue Navigationsstruktur
+  - kein neuer Rechtepfad
+  - keine Änderung an WPF
+  - keine Rückkehr zur alten `RoleChoicePage`
+- Technisch verifiziert:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
+## 2026-03-24 – MAUI-Loginflow auf echten Benutzerkontext umgestellt, alte Rollenwahl aus aktivem Flow entfernt
+
+- Den realen Repo-/Arbeitsbaumstand vor Block 1 geprüft; blockfremde offene Dateien bewusst unangetastet gelassen.
+- WPF als Referenz geprüft: dort gibt es nach Login keine manuelle Rollenwahl, sondern direkt den echten `UserContext` mit anschließendem Rechtepfad.
+- MAUI-Istzustand geprüft:
+  - `LoginPage` leitete nach erfolgreichem Login noch in `RoleChoicePage` um oder nutzte einen gespeicherten `AppMode`
+  - der Shell-/Startpfad hing damit nicht belastbar am echten Benutzerkontext
+  - `AdminShell` stützte Teilrechte noch auf `IAuthService.IsAdmin` / `IsVorstand` statt auf den geladenen `UserContext`
+- Block 1 gezielt umgesetzt:
+  - alte Rollenwahl aus dem aktiven Loginflow entfernt
+  - Shell-Auswahl nach Login jetzt direkt aus `IUserContextService.GetUserContextAsync(...)`
+  - `UserContextState` wird nach Login mit echtem Rechtekontext befüllt
+  - alter gespeicherter `AppMode` wird für diesen Flow geleert, damit keine frühere Rollenwahl mehr nachwirkt
+  - `AdminShell` richtet Admin-/Vorstand-Menüs jetzt am geladenen `UserContext` aus
+  - `RoleChoicePage` wurde zusätzlich aus dem aktiven DI-/Navigationspfad entfernt
+- Keine WPF-Datei geändert; MAUI wurde minimal-invasiv an die WPF-Fachlogik angeglichen.
+- Technisch verifiziert:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-24 – Root-Folder-Pfad in `kgv-upload-photo` gezielt abgesichert und diagnostisch geschärft
 
 - Den realen Repo-/Arbeitsbaumstand vor dem Fix geprüft; blockfremde offene Dateien bewusst unangetastet gelassen.

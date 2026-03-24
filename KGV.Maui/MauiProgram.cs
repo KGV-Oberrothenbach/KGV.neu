@@ -35,7 +35,6 @@ public static class MauiProgram
         builder.Services.AddKgvServices(builder.Configuration);
 
         builder.Services.AddTransient<LoginPage>();
-        builder.Services.AddTransient<RoleChoicePage>();
         builder.Services.AddTransient<HomeViewModel>();
         builder.Services.AddTransient<HomePage>();
         builder.Services.AddTransient<MemberSearchViewModel>();
@@ -46,14 +45,15 @@ public static class MauiProgram
         builder.Services.AddTransient<ParzellenPage>();
         builder.Services.AddTransient<RfidEinrichtenViewModel>();
         builder.Services.AddTransient<FaelligeZaehlerViewModel>();
+        builder.Services.AddTransient<FotoUploadTestViewModel>();
         builder.Services.AddTransient<MyProfilePage>();
         builder.Services.AddTransient<NebenmitgliedPage>();
         builder.Services.AddTransient<MyArbeitsstundenPage>();
         builder.Services.AddTransient<ArbeitsstundenReviewPage>();
         builder.Services.AddTransient<ExitPage>();
 
-        builder.Services.AddSingleton<AdminShell>();
-        builder.Services.AddSingleton<UserShell>();
+        builder.Services.AddTransient<AdminShell>();
+        builder.Services.AddTransient<UserShell>();
 
         return builder.Build();
     }

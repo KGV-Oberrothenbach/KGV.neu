@@ -15,6 +15,7 @@ public sealed class UserShell : Shell, IAppShellInitializer
         _state = state;
 
         FlyoutBehavior = FlyoutBehavior.Flyout;
+        Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this);
     }
 
     public void BuildMenu()
@@ -94,7 +95,6 @@ public sealed class UserShell : Shell, IAppShellInitializer
             }
         });
 
-        if (Items.Count > 0)
-            CurrentItem = Items[0];
+        ShellNavigationHelper.EnsureActiveShellItem(this);
     }
 }

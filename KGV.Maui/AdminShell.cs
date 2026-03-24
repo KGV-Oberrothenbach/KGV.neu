@@ -1,22 +1,26 @@
 using KGV.Core.Interfaces;
+using KGV.Core.Security;
 using KGV.Maui.Pages;
+using KGV.Maui.State;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Maui.Dispatching;
 
 namespace KGV.Maui;
 
 public sealed class AdminShell : Shell, IAppShellInitializer
 {
     private readonly IServiceProvider _services;
-    private readonly IAuthService _authService;
+    private readonly UserContextState _userContextState;
     private FlyoutItem? _workhoursReviewItem;
     private static bool _readingRoutesRegistered;
 
-    public AdminShell(IServiceProvider services, IAuthService authService)
+    public AdminShell(IServiceProvider services, UserContextState userContextState)
     {
         _services = services;
-        _authService = authService;
+        _userContextState = userContextState;
         FlyoutBehavior = FlyoutBehavior.Flyout;
         RegisterReadingRoutes();
+        Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this);
     }
 
     private static void RegisterReadingRoutes()
@@ -28,6 +32,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         Routing.RegisterRoute(nameof(ZaehlerwechselPage), typeof(ZaehlerwechselPage));
         Routing.RegisterRoute(nameof(RfidEinrichtenPage), typeof(RfidEinrichtenPage));
         Routing.RegisterRoute(nameof(FaelligeZaehlerPage), typeof(FaelligeZaehlerPage));
+        Routing.RegisterRoute(nameof(FotoUploadTestPage), typeof(FotoUploadTestPage));
 
         _readingRoutesRegistered = true;
     }
@@ -64,7 +69,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             }
         });
 
-        if (_authService.IsAdmin)
+        if (_userContextState.CurrentUserContext?.Role == UserRole.Admin)
         {
             Items.Add(new FlyoutItem
             {
@@ -95,7 +100,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             }
         });
 
-        if (_authService.IsAdmin || _authService.IsVorstand)
+        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
         {
             Items.Add(new FlyoutItem
             {
@@ -143,8 +148,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             }
         });
 
-        if (Items.Count > 0)
-            CurrentItem = Items[0];
+        ShellNavigationHelper.EnsureActiveShellItem(this);
 
         _ = RefreshWorkhoursReviewMenuAsync();
     }
@@ -165,13 +169,24 @@ public sealed class AdminShell : Shell, IAppShellInitializer
                 : "Arbeitsstunden freigeben";
             _workhoursReviewItem.IsVisible = count > 0;
 
-            if (!_workhoursReviewItem.IsVisible && CurrentItem == _workhoursReviewItem && Items.Count > 0)
-                CurrentItem = Items[0];
+            DispatchEnsureActiveShellItem();
         }
         catch
         {
             _workhoursReviewItem.Title = "Arbeitsstunden freigeben";
             _workhoursReviewItem.IsVisible = false;
+            DispatchEnsureActiveShellItem();
         }
+    }
+
+    private void DispatchEnsureActiveShellItem()
+    {
+        if (Dispatcher.IsDispatchRequired)
+        {
+            Dispatcher.Dispatch(() => ShellNavigationHelper.EnsureActiveShellItem(this));
+            return;
+        }
+
+        ShellNavigationHelper.EnsureActiveShellItem(this);
     }
 }
