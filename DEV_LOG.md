@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-03-25 – Block 4B1: Termine-Nutzerpfad in MAUI auf datensatzweisen Zustand vorbereitet
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.
+- Für Block `4B1` gezielt geprüft:
+  - `HomePage`
+  - `HomeSectionDetailPage`
+  - `HomeContextState`
+  - `HomeViewModel`
+  - `SupabaseService`
+- Ehrlicher Befund im aktuellen MAUI-Stand:
+  - Termine liefen bereits korrekt über `HomePage` in `HomeSectionDetailPage`
+  - der Klickpfad übergab aber noch nur den Einzeltermin statt einer datensatzweisen Terminbasis
+  - ein eigener kleiner Termine-Nutzerzustand fehlte noch
+- Den Korrekturblock deshalb bewusst klein und nur als Grundlage umgesetzt:
+  - neuer `TermineUserState` für Terminliste plus aktuelle Position
+  - `HomePage` seedet beim Termin-Klick jetzt die gesamte chronologische Terminliste plus aktuelle Auswahl
+  - `HomeSectionDetailPage` nutzt für Termine jetzt bevorzugt den aktuellen Eintrag aus diesem Zustand
+  - Shared-Sortierung für Home-Termine auf `Datum`, `Startzeit`, `Endzeit`, `Titel`, `Id` abgesichert
+  - keine sichtbare Pfeilnavigation in diesem Block vorgezogen
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - `4B1` bereitet nur den datensatzweisen Mobilfluss vor; die sichtbare UI-Schärfung bleibt bewusst `4B2`
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-25 – Block 4A-small: Admin-Menü und Mein Profil in MAUI-Shell ruhiger geordnet
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.

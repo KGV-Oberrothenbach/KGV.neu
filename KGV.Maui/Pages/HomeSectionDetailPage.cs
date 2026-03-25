@@ -10,6 +10,7 @@ public sealed class HomeSectionDetailPage : ContentPage
 {
     private readonly HomeContextState _homeContextState;
     private readonly ArbeitseinsaetzeUserState _arbeitseinsaetzeUserState;
+    private readonly TermineUserState _termineUserState;
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _userContextState;
 
@@ -34,10 +35,11 @@ public sealed class HomeSectionDetailPage : ContentPage
     private readonly ObservableCollection<WorkAssignmentParticipantItem> _participants = new();
     private bool _isBusy;
 
-    public HomeSectionDetailPage(HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, ISupabaseService supabaseService, UserContextState userContextState)
+    public HomeSectionDetailPage(HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, TermineUserState termineUserState, ISupabaseService supabaseService, UserContextState userContextState)
     {
         _homeContextState = homeContextState;
         _arbeitseinsaetzeUserState = arbeitseinsaetzeUserState;
+        _termineUserState = termineUserState;
         _supabaseService = supabaseService;
         _userContextState = userContextState;
 
@@ -205,7 +207,8 @@ public sealed class HomeSectionDetailPage : ContentPage
                 await LoadParticipantsAsync(workAssignment.Id);
                 break;
             case HomeDetailKind.Appointment when _homeContextState.Appointment != null:
-                var appointment = _homeContextState.Appointment;
+                var appointment = _termineUserState.CurrentEntry ?? _homeContextState.Appointment;
+                _homeContextState.SetAppointment(appointment);
                 _sectionLabel.Text = "Termin";
                 _titleLabel.Text = appointment.Title;
                 _subtitleLabel.Text = appointment.Subtitle;

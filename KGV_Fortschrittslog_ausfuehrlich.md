@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-03-25 – Prompt 1/1: Block 4B1 für Termine-Nutzerpfad in MAUI auf datensatzweisen Zustand vorbereitet
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Für Block `4B1` gezielt geprüft:
+  - MAUI: `HomePage`, `HomeSectionDetailPage`, `HomeContextState`, `HomeViewModel`
+  - Shared/Modelle: `StartseiteTerminRecord`, `HomeAppointmentItem`, `SupabaseService`
+- Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
+  - der bestehende Nutzerpfad für Termine lief bereits korrekt über `HomePage` → `HomeSectionDetailPage`
+  - beim Termin-Klick wurde aber nur der Einzeltermin in `HomeContextState` gesetzt
+  - ein eigener datensatzweiser Termine-Nutzerzustand war noch nicht vorhanden
+  - die Home-Terminreihenfolge war im Shared-Pfad noch nicht vollständig auf `Datum`, `Startzeit`, `Endzeit`, `Titel` abgesichert
+- Den Korrekturblock deshalb bewusst klein und nur als Grundlage für den Nutzerpfad umgesetzt:
+  - bestehenden Produktivpfad `HomePage` → `HomeSectionDetailPage` beibehalten; keine neue Nutzerseite gebaut
+  - `HomeAppointmentItem` um `Id` ergänzt, damit der aktuelle Termin im datensatzweisen Zustand stabil referenziert werden kann
+  - neuer kleiner Zustand `TermineUserState` ergänzt, der nur Terminliste und aktuellen Index für den Nutzerpfad hält
+  - `HomePage` seedet beim Termin-Klick jetzt die gesamte chronologische Terminliste plus aktuelle Position in `TermineUserState`
+  - `HomeSectionDetailPage` nutzt für Termine jetzt bevorzugt den aktuellen Datensatz aus `TermineUserState`, bleibt in der sichtbaren UI aber bewusst noch ruhig unverändert
+  - die chronologische Reihenfolge für Home-/Nutzertermine im Shared-Pfad auf `Datum`, `Startzeit`, `Endzeit`, `Titel`, dann `Id` abgesichert
+  - `MauiProgram` minimal um den neuen Termine-Nutzerzustand ergänzt
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - die sichtbare Pfeilnavigation wird bewusst noch nicht in `4B1` vorgezogen; dieser Block bereitet nur den datensatzweisen Mobilzustand für `4B2` vor
+- Bewusst nicht gemacht:
+  - keine Änderungen an `TermineManagementPage`
+  - keine Änderungen an `TermineEditorPage`
+  - keine neue Termine-Nutzerseite
+  - keine sichtbare UI-Navigation mit Pfeilen in diesem Block
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - blockbezogen keine neuen Buildfehler erzeugt
+
 ## 2026-03-25 – Prompt 1/1: Block 4A-small für Shell-/Menüordnung in MAUI bei `Admin-Menü` und `Mein Profil` nachgezogen
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.

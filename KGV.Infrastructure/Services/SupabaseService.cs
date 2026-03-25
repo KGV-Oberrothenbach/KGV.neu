@@ -1990,7 +1990,10 @@ namespace KGV.Infrastructure.Services
 
             return records
                 .OrderBy(x => x.Datum ?? DateTime.MaxValue)
+                .ThenBy(x => NormalizeTimeValue(x.Beginn) ?? "99:99", StringComparer.Ordinal)
+                .ThenBy(x => NormalizeTimeValue(x.Ende) ?? "99:99", StringComparer.Ordinal)
                 .ThenBy(x => FirstNonEmpty(x.Titel, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(x => x.Id)
                 .Select(MapHomeAppointment)
                 .ToList()
                 ?? new List<HomeAppointmentItem>();

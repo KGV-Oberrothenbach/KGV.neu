@@ -41,6 +41,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<ArbeitsstundenReviewState>();
         builder.Services.AddSingleton<ArbeitseinsaetzeManagementState>();
         builder.Services.AddSingleton<ArbeitseinsaetzeUserState>();
+        builder.Services.AddSingleton<TermineUserState>();
         builder.Services.AddSingleton<INfcScanService, AndroidNfcScanService>();
 
         builder.Services.AddKgvServices(builder.Configuration);

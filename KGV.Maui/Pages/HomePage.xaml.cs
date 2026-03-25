@@ -10,13 +10,15 @@ public class HomePage : ContentPage
     private readonly HomeViewModel _viewModel;
     private readonly HomeContextState _homeContextState;
     private readonly ArbeitseinsaetzeUserState _arbeitseinsaetzeUserState;
+    private readonly TermineUserState _termineUserState;
     private bool _isLoading;
 
-    public HomePage(HomeViewModel viewModel, HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState)
+    public HomePage(HomeViewModel viewModel, HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, TermineUserState termineUserState)
     {
         _viewModel = viewModel;
         _homeContextState = homeContextState;
         _arbeitseinsaetzeUserState = arbeitseinsaetzeUserState;
+        _termineUserState = termineUserState;
         BindingContext = _viewModel;
         Title = "Startseite";
 
@@ -131,6 +133,7 @@ public class HomePage : ContentPage
 
         var appointmentsView = CreateHomeListView<HomeAppointmentItem>(item =>
         {
+            _termineUserState.SetEntries(_viewModel.Appointments.ToList(), item.Id);
             _homeContextState.SetAppointment(item);
             return Shell.Current.GoToAsync(nameof(HomeSectionDetailPage));
         }, item =>
