@@ -10,7 +10,7 @@ public sealed class AblesungErfassenPage : RfidScanWorkflowPage
     public AblesungErfassenPage()
         : base(
             "Ablesung erfassen",
-            "RFID-UID eingeben oder scannen, produktiv über v_rfid_scan_context auflösen und den Ablese-Kontext prüfen.",
+            "RFID-Tag an das Gerät halten, produktiv über den bestehenden Kontextpfad auflösen und den Ablese-Kontext prüfen.",
             "Einordnung für Ablesung",
             CreateViewModel(),
             GetDecisionText)
@@ -24,7 +24,8 @@ public sealed class AblesungErfassenPage : RfidScanWorkflowPage
 
         return new RfidScanContextViewModel(
             services.GetRequiredService<ISupabaseService>(),
-            services.GetRequiredService<IAuthService>());
+            services.GetRequiredService<IAuthService>(),
+            services.GetRequiredService<KGV.Maui.Services.INfcScanService>());
     }
 
     private static string GetDecisionText(RfidScanContextResult? resolution)

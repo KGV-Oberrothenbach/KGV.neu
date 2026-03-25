@@ -1,6 +1,8 @@
 using KGV.Core.Security;
 using KGV.Infrastructure.DependencyInjection;
 using KGV.Maui.Pages;
+using KGV.Maui.Platforms.Android.Services;
+using KGV.Maui.Services;
 using KGV.Maui.Settings;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
@@ -36,6 +38,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<MemberContextState>();
         builder.Services.AddSingleton<ParzellenContextState>();
         builder.Services.AddSingleton<HomeContextState>();
+        builder.Services.AddSingleton<INfcScanService, AndroidNfcScanService>();
 
         builder.Services.AddKgvServices(builder.Configuration);
 

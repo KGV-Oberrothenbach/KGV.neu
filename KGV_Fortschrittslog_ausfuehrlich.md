@@ -2,6 +2,44 @@
 
 ---
 
+## 2026-03-25 – Prompt 1/1: Block 1B2 für echten NFC-Hauptweg in MAUI technisch abgeschlossen, validiert und finalisiert
+
+- Vor dem Abschlussblock erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Für Block `1B2` gezielt den bereits begonnenen NFC-/Workflow-Stand geprüft:
+  - `AblesenOverviewPage`
+  - `RfidScanWorkflowPage`
+  - `AblesungErfassenPage`
+  - `ZaehlerwechselPage`
+  - `RfidEinrichtenPage`
+  - `RfidScanContextViewModel`
+  - Android-NFC-Pfad in `Platforms/Android`
+- Ehrlicher Befund im begonnenen Stand:
+  - der fachliche NFC-Block war bereits angebaut
+  - der technische Abschluss fehlte aber noch
+  - insbesondere waren Build, Logpflege, Commit und Push noch offen
+- Den Abschluss deshalb strikt auf den bestehenden `1B2`-Block begrenzt:
+  - MAUI-Build für `KGV.Maui/KGV.Maui.csproj` ausgeführt
+  - nur blockbezogene Buildfehler im neuen NFC-/Workflow-Pfad korrigiert
+  - Android-Namespace-/Context-/Settings-Konflikte im NFC-Service bereinigt
+  - nicht verfügbare `Expander`-Verwendung in den MAUI-Seiten durch einfache ruhige Sektionen ersetzt
+  - neue blockeigene Nullability-Warnung im RFID-Workflow entfernt
+  - `DEV_LOG.md` und `KGV_Fortschrittslog_ausfuehrlich.md` final für diesen Block nachgezogen
+- Fachlicher Endstand von `1B2` nach dem Abschluss:
+  - NFC ist im mobilen operativen RFID-/Ablesen-Bereich jetzt der Hauptweg
+  - gelesene UID wird weiter in die bestehenden echten Produktivpfade eingespeist
+  - `Parzelle + Medium` steht als fachlicher Ersatzweg bereit, wenn NFC nicht verfügbar oder deaktiviert ist
+  - manuelle UID-Eingabe bleibt nur noch als technischer Notfallweg sichtbar
+- Erlaubte mobile Abweichung ausdrücklich festgehalten:
+  - Geräte ohne NFC bzw. mit deaktiviertem NFC erhalten mobil den fachlichen Ersatzweg über `Parzelle + Medium`
+  - bei `RFID einrichten` bleibt UID-Tippen nur als technischer Notfallweg bestehen, weil ohne bekannte Tag-UID keine echte RFID-Zuordnung gespeichert werden kann
+- Bewusst nicht gemacht:
+  - kein neuer Featureblock
+  - keine weiteren UI-Umbauten außerhalb der bereits begonnenen `1B2`-Dateien
+  - keine Änderung an Stammdaten, Gärten des Mitglieds, Arbeitsstunden, Verwaltung, Export oder Auth
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` und stammen nicht aus diesem Block
+
 ## 2026-03-25 – Prompt 1/1: Block 1B1 für ruhige Parzellen-Details begonnen und kleinen ReadOnly-Trennungsblock umgesetzt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.

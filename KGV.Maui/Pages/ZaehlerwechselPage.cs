@@ -10,7 +10,7 @@ public sealed class ZaehlerwechselPage : RfidScanWorkflowPage
     public ZaehlerwechselPage()
         : base(
             "Zählerwechsel",
-            "RFID-UID eingeben oder scannen, produktiv auflösen und daraus den Ausbau- oder Einbaupfad fachlich ableiten.",
+            "RFID-Tag an das Gerät halten, produktiv auflösen und daraus den Ausbau- oder Einbaupfad fachlich ableiten.",
             "Einordnung für Zählerwechsel",
             CreateViewModel(),
             GetDecisionText)
@@ -24,7 +24,8 @@ public sealed class ZaehlerwechselPage : RfidScanWorkflowPage
 
         return new RfidScanContextViewModel(
             services.GetRequiredService<ISupabaseService>(),
-            services.GetRequiredService<IAuthService>());
+            services.GetRequiredService<IAuthService>(),
+            services.GetRequiredService<KGV.Maui.Services.INfcScanService>());
     }
 
     private static string GetDecisionText(RfidScanContextResult? resolution)

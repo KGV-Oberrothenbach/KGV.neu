@@ -8,7 +8,7 @@ public abstract class RfidScanWorkflowPage : ContentPage
 {
     private readonly RfidScanContextViewModel _scanContext;
     private readonly Func<RfidScanContextResult?, string> _decisionFactory;
-    private readonly Label _decisionLabel;
+    private readonly Label _decisionLabel = new() { LineBreakMode = LineBreakMode.WordWrap };
     private bool _initialized;
 
     protected RfidScanWorkflowPage(
@@ -29,12 +29,21 @@ public abstract class RfidScanWorkflowPage : ContentPage
         statusLabel.SetBinding(Label.TextProperty, nameof(RfidScanContextViewModel.StatusMessage));
         statusLabel.SetBinding(IsVisibleProperty, nameof(RfidScanContextViewModel.HasStatusMessage));
 
-        var resetButton = new Button { Text = "Neuen Scan beginnen" };
-        resetButton.Clicked += (_, _) =>
+        var resetButton = new Button { Text = "Anderen Tag scannen" };
+        resetButton.Clicked += async (_, _) =>
         {
             _scanContext.Reset();
             _decisionLabel.Text = _decisionFactory(_scanContext.Resolution);
+            await _scanContext.StartNfcSessionAsync();
         };
+
+        var startScanButton = new Button { Text = "Scan aktivieren" };
+        startScanButton.SetBinding(IsEnabledProperty, nameof(RfidScanContextViewModel.CanStartNfcScan));
+        startScanButton.Clicked += async (_, _) => await _scanContext.StartNfcSessionAsync();
+
+        var openNfcSettingsButton = new Button { Text = "NFC-Einstellungen öffnen" };
+        openNfcSettingsButton.SetBinding(IsVisibleProperty, nameof(RfidScanContextViewModel.CanOpenNfcSettings));
+        openNfcSettingsButton.Clicked += async (_, _) => await _scanContext.OpenNfcSettingsAsync();
 
         var backToOverviewButton = new Button { Text = "Zur Ablesen-Übersicht" };
         backToOverviewButton.Clicked += async (_, _) => await Shell.Current.GoToAsync("//ablesen");
@@ -63,11 +72,7 @@ public abstract class RfidScanWorkflowPage : ContentPage
         };
         contextBorder.SetBinding(IsVisibleProperty, nameof(RfidScanContextViewModel.HasResolution));
 
-        _decisionLabel = new Label
-        {
-            Text = _decisionFactory(_scanContext.Resolution),
-            LineBreakMode = LineBreakMode.WordWrap
-        };
+        _decisionLabel.Text = _decisionFactory(_scanContext.Resolution);
 
         Content = new ScrollView
         {
@@ -89,28 +94,15 @@ public abstract class RfidScanWorkflowPage : ContentPage
                             Spacing = 6,
                             Children =
                             {
-                                new Label { Text = "NFC-Status", FontAttributes = FontAttributes.Bold },
-                                new Label
+                                CreateBoundValueLabel(nameof(RfidScanContextViewModel.NfcStatusTitle), true),
+                                CreateBoundValueLabel(nameof(RfidScanContextViewModel.NfcStatusMessage)),
+                                new HorizontalStackLayout
                                 {
-                                    Text = "Direktes NFC-/RFID-Lesen ist im aktuellen MAUI-Stand noch nicht aktiv am Gerät angebunden. Die manuelle UID-Eingabe bleibt daher vorläufig der Fallback und wird hier ausdrücklich so gekennzeichnet.",
-                                    LineBreakMode = LineBreakMode.WordWrap,
-                                    TextColor = Colors.Gray
+                                    Spacing = 8,
+                                    Children = { startScanButton, openNfcSettingsButton, resetButton }
                                 }
                             }
                         }
-                    },
-                    new Label { Text = "RFID-UID manuell eingeben (Fallback)", FontAttributes = FontAttributes.Bold },
-                    CreateUidEntry(),
-                    new Label
-                    {
-                        Text = "Wenn kein direkter NFC-Scan verfügbar ist, kann die UID hier manuell geprüft werden. Die Auflösung läuft weiterhin zentral und produktiv über v_rfid_scan_context.",
-                        TextColor = Colors.Gray,
-                        LineBreakMode = LineBreakMode.WordWrap
-                    },
-                    new HorizontalStackLayout
-                    {
-                        Spacing = 8,
-                        Children = { CreateResolveButton(), resetButton }
                     },
                     statusLabel,
                     contextBorder,
@@ -129,6 +121,8 @@ public abstract class RfidScanWorkflowPage : ContentPage
                             }
                         }
                     },
+                    CreateFallbackSection(),
+                    CreateManualEmergencySection(),
                     backToOverviewButton
                 }
             }
@@ -141,13 +135,22 @@ public abstract class RfidScanWorkflowPage : ContentPage
 
         if (_initialized)
         {
+            await _scanContext.RefreshNfcAvailabilityAsync();
+            await _scanContext.StartNfcSessionAsync();
             _decisionLabel.Text = _decisionFactory(_scanContext.Resolution);
             return;
         }
 
         await _scanContext.InitializeAsync();
+        await _scanContext.StartNfcSessionAsync();
         _decisionLabel.Text = _decisionFactory(_scanContext.Resolution);
         _initialized = true;
+    }
+
+    protected override async void OnDisappearing()
+    {
+        await _scanContext.StopNfcSessionAsync();
+        base.OnDisappearing();
     }
 
     private void OnScanContextPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -165,10 +168,77 @@ public abstract class RfidScanWorkflowPage : ContentPage
 
     private View CreateResolveButton()
     {
-        var button = new Button { Text = "Manuelle UID prüfen" };
+        var button = new Button { Text = "UID als Notfallweg prüfen" };
         button.SetBinding(IsEnabledProperty, nameof(RfidScanContextViewModel.CanResolve));
         button.Clicked += async (_, _) => await _scanContext.ResolveAsync();
         return button;
+    }
+
+    private View CreateFallbackSection()
+    {
+        var parzellePicker = new Picker { Title = "Parzelle wählen" };
+        parzellePicker.ItemDisplayBinding = new Binding(nameof(ParzelleRecord.DisplayName));
+        parzellePicker.SetBinding(Picker.ItemsSourceProperty, nameof(RfidScanContextViewModel.FallbackParzellen));
+        parzellePicker.SetBinding(Picker.SelectedItemProperty, nameof(RfidScanContextViewModel.SelectedFallbackParzelle), BindingMode.TwoWay);
+
+        var mediumPicker = new Picker { Title = "Medium wählen" };
+        mediumPicker.ItemDisplayBinding = new Binding(nameof(RfidMediumOption.DisplayName));
+        mediumPicker.SetBinding(Picker.ItemsSourceProperty, nameof(RfidScanContextViewModel.FallbackMediumOptions));
+        mediumPicker.SetBinding(Picker.SelectedItemProperty, nameof(RfidScanContextViewModel.SelectedFallbackMedium), BindingMode.TwoWay);
+
+        var fallbackButton = new Button { Text = "Kontext ohne NFC laden" };
+        fallbackButton.SetBinding(IsEnabledProperty, nameof(RfidScanContextViewModel.CanApplyFallbackContext));
+        fallbackButton.Clicked += async (_, _) => await _scanContext.ApplyFallbackContextAsync();
+
+        return new Border
+        {
+            Stroke = Colors.LightGray,
+            Padding = 14,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(14) },
+            Content = new VerticalStackLayout
+            {
+                Spacing = 8,
+                Children =
+                {
+                    new Label { Text = "Fallback ohne NFC", FontAttributes = FontAttributes.Bold },
+                    new Label
+                    {
+                        Text = "Wenn NFC nicht verfügbar oder deaktiviert ist, kann der fachliche Kontext über Parzelle und Medium geladen werden, ohne UID-Tippen als Normalweg zu verwenden.",
+                        LineBreakMode = LineBreakMode.WordWrap,
+                        TextColor = Colors.Gray
+                    },
+                    parzellePicker,
+                    mediumPicker,
+                    fallbackButton
+                }
+            }
+        };
+    }
+
+    private View CreateManualEmergencySection()
+    {
+        return new Border
+        {
+            Stroke = Colors.LightGray,
+            Padding = 14,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(14) },
+            Content = new VerticalStackLayout
+            {
+                Spacing = 8,
+                Children =
+                {
+                    new Label { Text = "Technischer Notfallweg: UID manuell eingeben", FontAttributes = FontAttributes.Bold },
+                    new Label
+                    {
+                        Text = "Nur verwenden, wenn weder NFC noch der fachliche Ersatzweg ausreichen. Die Auflösung läuft weiterhin unverändert über den bestehenden Produktivpfad `v_rfid_scan_context`.",
+                        TextColor = Colors.Gray,
+                        LineBreakMode = LineBreakMode.WordWrap
+                    },
+                    CreateUidEntry(),
+                    CreateResolveButton()
+                }
+            }
+        };
     }
 
     private static View CreateBoundValueLabel(string path, bool bold = false)
