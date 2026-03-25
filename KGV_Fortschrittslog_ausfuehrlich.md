@@ -2,6 +2,44 @@
 
 ---
 
+## 2026-03-25 – Prompt 1/1: Block 1B1 für ruhige Parzellen-Details begonnen und kleinen ReadOnly-Trennungsblock umgesetzt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Für Block 1B1 gezielt geprüft:
+  - MAUI: `ParzellenPage`, `ParzellenViewModel`
+  - WPF-Referenz: `GartenStromView`, `GartenWasserView`, fachlich ergänzend `AblesenOverviewView`
+- Ehrlicher Befund im aktuellen Stand:
+  - `ParzellenPage` enthielt zwar bereits einen ruhigeren Bereich `Aktuelle Ablesedaten`, stellte diesen aber noch kartenartig dar
+  - zusätzlich lag dort mit `Zum Ablesen-Bereich` noch eine direkte operative Aktion mitten im Detailblock
+  - im mitgliedsgebundenen Detailkontext wirkte die Seite damit noch zu sehr wie eine Sammelarbeitsseite statt wie eine ruhige Leseseite
+- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - aktuelle Ablesedaten sollten tabellenähnlich und nüchterner sichtbar werden
+  - die direkte operative Aktion `Zum Ablesen-Bereich` musste aus dem Detailblock verschwinden
+  - der Detailkontext sollte sichtbarer nach `lesen / einordnen` statt `operativ arbeiten` wirken
+- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur im Detailpfad umgesetzt:
+  - `Aktuelle Ablesedaten` sichtbar von kartenartiger Darstellung auf eine nüchterne tabellenähnliche Zeilenstruktur umgebaut
+  - Kopfzeile für `Medium`, `Letzter Stand`, `Datum`, `Foto`
+  - Zeilen zeigen jetzt nur die ruhigen Kerndaten statt einer dekorativen Kartenoptik
+  - der direkte Button `Zum Ablesen-Bereich` aus dem Detailblock entfernt
+  - der Hinweis auf den operativen Bereich `Ablesen` bleibt nur noch als ruhiger Einordnungstext bestehen
+  - der Verwaltungs-/Zuordnungsblock wird im mitgliedsgebundenen Detailkontext nicht mehr als operative Arbeitsfläche gezeigt; der globale Verwaltungsweg bleibt unverändert erhalten
+- Warum dieser kleine Block fachlich sinnvoll ist:
+  - er trennt das Lesen/Einordnen im Parzellen-Detail klarer vom operativen Arbeiten im Bereich `Ablesen`
+  - die Detailseite wirkt im Mitglieds-/Gartenkontext sichtbar ruhiger
+  - bestehende operative Fachpfade wurden nicht neu gebaut oder verlagert, sondern nur sauber aus dem Detailblock herausgezogen
+- Bewusst nicht gemacht:
+  - kein Umbau von `AblesenOverviewPage`
+  - keine Änderung an `RfidEinrichtenPage`, `RfidScanWorkflowPage` oder `ZaehlerwechselPage`
+  - keine neue Parzellen-/Garten-Architektur
+  - keine Änderung an Stammdaten, Gärten des Mitglieds, Arbeitsstunden, Verwaltung, Export oder Auth
+- Fachliche Kurzvalidierung nach dem kleinen Block:
+  - Parzellen-Details wirken ruhiger
+  - aktuelle Ablesedaten sind tabellenähnlich sichtbar
+  - direkte operative Ablesen-Aktion ist aus dem Detailblock entfernt
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte bestehende Warnungen außerhalb dieses Blocks bleiben bestehen
+
 ## 2026-03-25 – Prompt 1/1: Block 1A für Stammdaten und Gärten des Mitglieds WPF-nah begonnen und kleinen Trennungsblock umgesetzt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.

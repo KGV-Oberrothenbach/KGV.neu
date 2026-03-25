@@ -132,60 +132,90 @@ public sealed class ParzellenPage : ContentPage
             LineBreakMode = LineBreakMode.WordWrap
         };
 
+        var currentReadingsHeader = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = new GridLength(1.15, GridUnitType.Star) },
+                new ColumnDefinition { Width = new GridLength(1.2, GridUnitType.Star) },
+                new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) },
+                new ColumnDefinition { Width = new GridLength(0.8, GridUnitType.Star) }
+            },
+            ColumnSpacing = 12,
+            Padding = new Thickness(0, 0, 0, 6)
+        };
+        currentReadingsHeader.Children.Add(CreateTableHeaderLabel("Medium", 0));
+        currentReadingsHeader.Children.Add(CreateTableHeaderLabel("Letzter Stand", 1));
+        currentReadingsHeader.Children.Add(CreateTableHeaderLabel("Datum", 2));
+        currentReadingsHeader.Children.Add(CreateTableHeaderLabel("Foto", 3));
+
         var currentReadingsView = new CollectionView
         {
             SelectionMode = SelectionMode.None,
-            HeightRequest = 220,
             ItemsSource = currentReadings,
             ItemTemplate = new DataTemplate(() =>
             {
-                var mediumLabel = new Label { FontAttributes = FontAttributes.Bold };
+                var rowGrid = new Grid
+                {
+                    ColumnDefinitions =
+                    {
+                        new ColumnDefinition { Width = new GridLength(1.15, GridUnitType.Star) },
+                        new ColumnDefinition { Width = new GridLength(1.2, GridUnitType.Star) },
+                        new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) },
+                        new ColumnDefinition { Width = new GridLength(0.8, GridUnitType.Star) }
+                    },
+                    ColumnSpacing = 12,
+                    Padding = new Thickness(0, 8)
+                };
+
+                var mediumLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
                 mediumLabel.SetBinding(Label.TextProperty, nameof(CurrentReadingItem.Medium));
+                Grid.SetColumn(mediumLabel, 0);
 
-                var standLabel = new Label();
-                standLabel.SetBinding(Label.TextProperty, nameof(CurrentReadingItem.StandDisplay));
+                var standLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
+                standLabel.SetBinding(Label.TextProperty, nameof(CurrentReadingItem.StandValue));
+                Grid.SetColumn(standLabel, 1);
 
-                var dateLabel = new Label { TextColor = Colors.Gray };
-                dateLabel.SetBinding(Label.TextProperty, nameof(CurrentReadingItem.DateDisplay));
+                var dateLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
+                dateLabel.SetBinding(Label.TextProperty, nameof(CurrentReadingItem.DateValue));
+                Grid.SetColumn(dateLabel, 2);
 
-                var meterLabel = new Label { TextColor = Colors.Gray };
-                meterLabel.SetBinding(Label.TextProperty, nameof(CurrentReadingItem.MeterDisplay));
-
-                var photoButton = new Button { Text = "Foto öffnen" };
+                var photoButton = new Button { Text = "Öffnen", Padding = new Thickness(10, 4) };
                 photoButton.SetBinding(IsVisibleProperty, nameof(CurrentReadingItem.HasPhoto));
                 photoButton.Clicked += async (sender, _) =>
                 {
                     if (sender is Button button && button.BindingContext is CurrentReadingItem item)
                         await OpenPhotoAsync(item);
                 };
+                Grid.SetColumn(photoButton, 3);
 
-                return new Border
+                rowGrid.Children.Add(mediumLabel);
+                rowGrid.Children.Add(standLabel);
+                rowGrid.Children.Add(dateLabel);
+                rowGrid.Children.Add(photoButton);
+
+                return new VerticalStackLayout
                 {
-                    Padding = 12,
-                    Margin = new Thickness(0, 0, 0, 8),
-                    Stroke = Colors.LightGray,
-                    Content = new VerticalStackLayout
+                    Spacing = 0,
+                    Children =
                     {
-                        Spacing = 4,
-                        Children = { mediumLabel, standLabel, dateLabel, meterLabel, photoButton }
+                        rowGrid,
+                        new BoxView { HeightRequest = 1, Color = Colors.LightGray }
                     }
                 };
             })
         };
 
-        var openReadingsWorkflowButton = new Button { Text = "Zum Ablesen-Bereich" };
-        openReadingsWorkflowButton.Clicked += async (_, _) => await Shell.Current.GoToAsync("//ablesen");
-
         detailContainer.Children.Add(CreateSection("Aktuelle Ablesedaten",
             new Label
             {
-                Text = "Im Parzellen-Detail bleibt nur der aktuelle ReadOnly-Kontext sichtbar. Operative Ablesungen und Zählerwechsel laufen weiter im eigenen Ablesen-Bereich.",
+                Text = "Im Parzellen-Detail bleibt nur der aktuelle ReadOnly-Kontext sichtbar. Operative Ablesungen und Zählerwechsel laufen fachlich weiterhin im eigenen Bereich `Ablesen`.",
                 TextColor = Colors.Gray,
                 LineBreakMode = LineBreakMode.WordWrap
             },
+            currentReadingsHeader,
             currentReadingsView,
-            currentReadingsEmptyLabel,
-            openReadingsWorkflowButton));
+            currentReadingsEmptyLabel));
 
         documentsView.SetBinding(ItemsView.ItemsSourceProperty, nameof(ParzellenViewModel.Dokumente));
         detailContainer.Children.Add(CreateSection("Garten-Dokumente",
@@ -226,7 +256,7 @@ public sealed class ParzellenPage : ContentPage
                 await DisplayAlert("OK", "Aktive Belegung beendet.", "OK");
         };
 
-        detailContainer.Children.Add(CreateSection("Verwaltung",
+        var managementSection = CreateSection("Verwaltung",
             CreateValueLabel("Mitglied zuordnen", null),
             assignPicker,
             CreateValueLabel("Start", null),
@@ -241,7 +271,9 @@ public sealed class ParzellenPage : ContentPage
                 Text = "Zuordnung und Beendigung laufen mobil über denselben Parzellen-Belegungspfad wie in WPF.",
                 TextColor = Colors.Gray,
                 LineBreakMode = LineBreakMode.WordWrap
-            }));
+            });
+        managementSection.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsContextBound), converter: new InverseBooleanConverter());
+        detailContainer.Children.Add(managementSection);
 
         void RebuildCurrentReadings()
         {
@@ -261,9 +293,8 @@ public sealed class ParzellenPage : ContentPage
 
             currentReadings.Add(new CurrentReadingItem(
                 medium,
-                $"Letzter Stand: {reading.Stand}",
-                $"Datum: {reading.Ablesedatum:dd.MM.yyyy}",
-                string.IsNullOrWhiteSpace(reading.Zaehlernummer) ? "Zähler: —" : $"Zähler: {reading.Zaehlernummer}",
+                reading.Stand.ToString(),
+                reading.Ablesedatum.ToString("dd.MM.yyyy"),
                 reading.FotoPfad));
         }
 
@@ -341,6 +372,21 @@ public sealed class ParzellenPage : ContentPage
         return label;
     }
 
+    private static Label CreateTableHeaderLabel(string text, int column)
+    {
+        var label = new Label
+        {
+            Text = text,
+            FontAttributes = FontAttributes.Bold,
+            FontSize = 12,
+            TextColor = Colors.Gray,
+            LineBreakMode = LineBreakMode.WordWrap
+        };
+
+        Grid.SetColumn(label, column);
+        return label;
+    }
+
     private View CreateValueLabel(string title, string? path)
     {
         return new VerticalStackLayout
@@ -375,7 +421,7 @@ public sealed class ParzellenPage : ContentPage
                || decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out result);
     }
 
-    private sealed record CurrentReadingItem(string Medium, string StandDisplay, string DateDisplay, string MeterDisplay, string? PhotoPath)
+    private sealed record CurrentReadingItem(string Medium, string StandValue, string DateValue, string? PhotoPath)
     {
         public bool HasPhoto => !string.IsNullOrWhiteSpace(PhotoPath);
     }
