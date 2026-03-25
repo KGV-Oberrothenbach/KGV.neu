@@ -272,6 +272,12 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
 
         SetAuthorizedState(true);
 
+        if (_currentSection == ManagementSection.Announcements)
+        {
+            await RedirectAnnouncementsAsync();
+            return;
+        }
+
         _sectionPicker.IsVisible = !_lockSectionSelection;
         _sectionPicker.IsEnabled = !_lockSectionSelection;
 
@@ -284,6 +290,17 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         }
 
         await LoadCurrentSectionAsync(resetSelection: false);
+    }
+
+    private Task RedirectAnnouncementsAsync()
+    {
+        if (_requestedNewMode)
+            return Shell.Current.GoToAsync(nameof(BekanntmachungEditorPage));
+
+        if (_requestedEntryId.HasValue)
+            return Shell.Current.GoToAsync($"{nameof(BekanntmachungEditorPage)}?entryId={_requestedEntryId.Value}");
+
+        return Shell.Current.GoToAsync("//management_announcements");
     }
 
     private async Task LoadCurrentSectionAsync(bool resetSelection)

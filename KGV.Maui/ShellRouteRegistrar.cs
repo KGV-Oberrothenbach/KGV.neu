@@ -20,6 +20,7 @@ internal static class ShellRouteRegistrar
         Routing.RegisterRoute(nameof(HomeSectionDetailPage), typeof(HomeSectionDetailPage));
         Routing.RegisterRoute(nameof(HomeManagementPage), typeof(HomeManagementPage));
         Routing.RegisterRoute(nameof(BekanntmachungenManagementPage), typeof(BekanntmachungenManagementPage));
+        Routing.RegisterRoute(nameof(BekanntmachungEditorPage), typeof(BekanntmachungEditorPage));
         Routing.RegisterRoute(nameof(TermineManagementPage), typeof(TermineManagementPage));
         Routing.RegisterRoute(nameof(ArbeitseinsaetzeManagementPage), typeof(ArbeitseinsaetzeManagementPage));
         Routing.RegisterRoute(nameof(ExportPage), typeof(ExportPage));

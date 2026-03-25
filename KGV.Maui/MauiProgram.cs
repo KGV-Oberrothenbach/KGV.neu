@@ -49,6 +49,7 @@ public static class MauiProgram
         builder.Services.AddTransient<HomeSectionDetailPage>();
         builder.Services.AddTransient<HomeManagementPage>();
         builder.Services.AddTransient<BekanntmachungenManagementPage>();
+        builder.Services.AddTransient<BekanntmachungEditorPage>();
         builder.Services.AddTransient<TermineManagementPage>();
         builder.Services.AddTransient<ArbeitseinsaetzeManagementPage>();
         builder.Services.AddTransient<ExportPage>();

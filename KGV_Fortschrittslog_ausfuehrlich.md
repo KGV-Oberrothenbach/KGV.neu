@@ -2,6 +2,55 @@
 
 ---
 
+## 2026-03-25 – Prompt 1/1: Block 3B1 für `Bekanntmachungen` in MAUI auf eigenen Übersicht-/Editorpfad nachgezogen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
+- Für Block `3B1` gezielt geprüft:
+  - WPF: `BekanntmachungenVerwaltungEditorView`
+  - MAUI: `BekanntmachungenManagementPage`, `ManagementOverviewPageBase`, `HomeManagementPage`, Routing/DI in `ShellRouteRegistrar` und `MauiProgram`
+- Ehrlicher Befund im aktuellen MAUI-Stand:
+  - `BekanntmachungenManagementPage` war zwar bereits ruhige Übersicht, öffnete `Neu`/`Bearbeiten` aber noch in den technischen Restpfad `HomeManagementPage`
+  - damit blieb für Bekanntmachungen der eigentliche mobile Produktiv-Editor weiter an einer Mischseite hängen
+  - die bestehende HTML-Bearbeitung war mobil noch nicht in einen eigenen getrennten Editorpfad gezogen
+- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - `Bekanntmachungen` brauchte neben der Übersicht einen klar getrennten Editorpfad
+  - `Neu` und `Bearbeiten` sollten denselben eigenen Editorpfad nutzen
+  - HTML-Inhalt durfte mobil nicht zu einem Fake-Plaintext-Pfad vereinfacht werden
+  - `HomeManagementPage` durfte für Bekanntmachungen nicht weiter der eigentliche Haupteditor bleiben
+- Den Korrekturblock deshalb nur im Bereich `Bekanntmachungen` umgesetzt:
+  - neuer eigener Editorpfad `BekanntmachungEditorPage` ergänzt
+  - `BekanntmachungenManagementPage` öffnet `Neu` und `Bearbeiten` jetzt direkt in diesen neuen Editorpfad
+  - `ManagementOverviewPageBase` dafür minimal von technischem Fortsetzungspfad auf überschreibbare Öffnen-/Neu-Aktionen erweitert
+  - der neue Editor trennt Übersicht und Bearbeitung sichtbar auf zwei Seiten
+  - HTML-Bearbeitung bleibt fachlich erhalten über echten HTML-Quelltexteditor, Snippet-Buttons und mobile Vorschau per `WebView`
+  - fachlich relevante Felder aus dem bestehenden Shared-/WPF-Pfad bleiben im Editor erhalten:
+    - `Titel`
+    - `InhaltHtml`
+    - `Sichtbar ab`
+    - `Sichtbar bis`
+    - `SortOrder`
+    - `Aktiv`
+  - `ShellRouteRegistrar` und `MauiProgram` minimal für den neuen Bekanntmachungen-Editor ergänzt
+  - `HomeManagementPage` wurde für den Bereich `Bekanntmachungen` als Haupteditor entkoppelt und leitet jetzt bei diesem Bereich auf Übersicht bzw. neuen Editorpfad weiter
+  - `Speichern` und `Abbrechen` bleiben am Ende des Formularpfads
+  - nach `Speichern` oder `Abbrechen` geht der Nutzer sauber zurück zur Übersicht `Bekanntmachungen`
+- Warum dieser kleine Block fachlich sinnvoll ist:
+  - er zieht die mobile Trennung `Übersicht` vs. `Editor` sichtbar näher an die WPF-Rolle des Bekanntmachungseditors
+  - die Übersicht bleibt ruhig und lesbar
+  - HTML-Inhalt bleibt fachlich als HTML bearbeitbar statt auf einen vereinfachten Textpfad zurückzufallen
+  - bestehende Shared-Servicepfade für Laden/Erstellen/Speichern bleiben unverändert die fachliche Grundlage
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt WPF-Liste plus Editor in derselben Breite nutzt MAUI mobil bewusst getrennte Seiten `Übersicht` und `Editor`
+  - die HTML-Bearbeitung bleibt dabei als Quelltext + Snippets + Vorschau erhalten, weil dies mobil belastbarer und risikoärmer ist als ein neuer Richtext-Sonderbau
+- Bewusst nicht gemacht:
+  - keine Änderungen an `Termine`
+  - keine Änderungen an `Arbeitseinsätze`
+  - keine Änderungen an Home, Stammdaten, Gärten, Parzellen, Ablesen, Arbeitsstunden, Export oder Auth
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - `get_tests` für `KGV.Tests` ergab keine passenden Testfälle für diesen Block
+  - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` sowie bestehenden blockfremden Pfaden und stammen nicht aus dem neuen Bekanntmachungen-Editorpfad
+
 ## 2026-03-25 – Prompt 1/1: Block 3A für Verwaltungsbereiche in MAUI fachlich in `Bekanntmachungen` / `Termine` / `Arbeitseinsätze` entflochten
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.

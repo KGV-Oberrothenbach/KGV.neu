@@ -22,7 +22,7 @@ public abstract class ManagementOverviewPageBase : ContentPage
         refreshButton.Clicked += async (_, _) => await LoadAsync();
 
         var newButton = new Button { Text = "Neu" };
-        newButton.Clicked += async (_, _) => await OpenTechnicalContinuationAsync(entryId: null, isNew: true);
+        newButton.Clicked += async (_, _) => await OpenNewAsync();
 
         _entriesView = new CollectionView
         {
@@ -63,7 +63,7 @@ public abstract class ManagementOverviewPageBase : ContentPage
                 return;
 
             _entriesView.SelectedItem = null;
-            await OpenTechnicalContinuationAsync(selected.Id, isNew: false);
+            await OpenExistingAsync(selected.Id);
         };
 
         Content = new ScrollView
@@ -136,13 +136,17 @@ public abstract class ManagementOverviewPageBase : ContentPage
         }
     }
 
-    private Task OpenTechnicalContinuationAsync(long? entryId, bool isNew)
+    protected virtual Task OpenNewAsync()
     {
         var route = $"{nameof(HomeManagementPage)}?section={SectionQueryValue}&lockSection=true";
-        if (isNew)
-            route += "&mode=new";
-        else if (entryId.HasValue)
-            route += $"&entryId={entryId.Value}";
+        route += "&mode=new";
+
+        return Shell.Current.GoToAsync(route);
+    }
+
+    protected virtual Task OpenExistingAsync(long entryId)
+    {
+        var route = $"{nameof(HomeManagementPage)}?section={SectionQueryValue}&lockSection=true&entryId={entryId}";
 
         return Shell.Current.GoToAsync(route);
     }

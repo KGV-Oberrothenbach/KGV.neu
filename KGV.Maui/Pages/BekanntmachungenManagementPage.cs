@@ -11,7 +11,7 @@ public sealed class BekanntmachungenManagementPage : ManagementOverviewPageBase
     }
 
     protected override string PageTitle => "Bekanntmachungen";
-    protected override string PageDescription => "Ruhige mobile Übersicht des Verwaltungsbereichs `Bekanntmachungen`. Der eigentliche Editor bleibt in diesem Block noch bewusst im technischen Fortsetzungspfad.";
+    protected override string PageDescription => "Ruhige mobile Übersicht des Verwaltungsbereichs `Bekanntmachungen`. Neu und Bearbeiten öffnen jetzt einen eigenen mobilen Bekanntmachungen-Editor statt einer Mischseite.";
     protected override string SectionQueryValue => "announcements";
     protected override string EmptyText => "Aktuell liegen keine Bekanntmachungen vor.";
 
@@ -25,6 +25,18 @@ public sealed class BekanntmachungenManagementPage : ManagementOverviewPageBase
                 x.Titel ?? "(ohne Titel)",
                 BuildSubtitle(x)))
             .ToList();
+    }
+
+    protected override string HintText => "Antippen öffnet den eigenen Bekanntmachungen-Editor.";
+
+    protected override Task OpenNewAsync()
+    {
+        return Shell.Current.GoToAsync(nameof(BekanntmachungEditorPage));
+    }
+
+    protected override Task OpenExistingAsync(long entryId)
+    {
+        return Shell.Current.GoToAsync($"{nameof(BekanntmachungEditorPage)}?entryId={entryId}");
     }
 
     private static string BuildSubtitle(KGV.Core.Models.BekanntmachungRecord record)

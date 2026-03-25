@@ -2,6 +2,43 @@
 
 ---
 
+## 2026-03-25 – Block 3B1: Bekanntmachungen in MAUI auf Überblick plus eigenen Editorpfad getrennt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
+- Für Block `3B1` gezielt geprüft:
+  - WPF: `BekanntmachungenVerwaltungEditorView`
+  - MAUI: `BekanntmachungenManagementPage`, `ManagementOverviewPageBase`, `HomeManagementPage`, Routing/DI in `ShellRouteRegistrar` und `MauiProgram`
+- Ehrlicher Befund im aktuellen MAUI-Stand:
+  - `BekanntmachungenManagementPage` war zwar bereits ruhige Übersicht, öffnete `Neu`/`Bearbeiten` aber noch in den technischen Restpfad `HomeManagementPage`
+  - damit blieb für Bekanntmachungen der eigentliche mobile Produktiv-Editor weiter an einer Mischseite hängen
+  - die bestehende HTML-Bearbeitung war mobil noch nicht in einen eigenen getrennten Editorpfad gezogen
+- Den Korrekturblock deshalb bewusst klein und nur auf `Bekanntmachungen` umgesetzt:
+  - neuer eigener Editorpfad `BekanntmachungEditorPage` ergänzt
+  - `BekanntmachungenManagementPage` öffnet `Neu` und `Bearbeiten` jetzt direkt in diesen neuen Editorpfad
+  - `ManagementOverviewPageBase` dafür minimal von technischem Fortsetzungspfad auf überschreibbare Öffnen-/Neu-Aktionen erweitert
+  - der neue Editor trennt Übersicht und Bearbeitung sichtbar auf zwei Seiten
+  - HTML-Bearbeitung bleibt fachlich erhalten über echten HTML-Quelltexteditor, Snippet-Buttons und mobile Vorschau per `WebView`
+  - fachlich relevante Felder aus dem bestehenden Shared-/WPF-Pfad bleiben im Editor erhalten:
+    - `Titel`
+    - `InhaltHtml`
+    - `Sichtbar ab`
+    - `Sichtbar bis`
+    - `SortOrder`
+    - `Aktiv`
+  - Speichern bleibt am Ende des Formulars
+  - `HomeManagementPage` wurde für den Bereich `Bekanntmachungen` als Haupteditor entkoppelt und leitet jetzt bei diesem Bereich auf Übersicht bzw. neuen Editorpfad weiter
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt WPF-Liste plus Editor in derselben Breite nutzt MAUI mobil bewusst getrennte Seiten `Übersicht` und `Editor`
+  - die HTML-Bearbeitung bleibt dabei als Quelltext + Snippets + Vorschau erhalten, weil dies mobil belastbarer und risikoärmer ist als ein neuer Richtext-Sonderbau
+- Bewusst nicht gemacht:
+  - keine Änderungen an `Termine`
+  - keine Änderungen an `Arbeitseinsätze`
+  - keine Änderungen an Home, Stammdaten, Gärten, Parzellen, Ablesen, Arbeitsstunden, Export oder Auth
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - `get_tests` für `KGV.Tests` ergab keine passenden Testfälle für diesen Block
+  - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` sowie bestehenden blockfremden Pfaden und stammen nicht aus dem neuen Bekanntmachungen-Editorpfad
+
 ## 2026-03-25 – Block 3A: Verwaltungsbereiche in MAUI fachlich auf drei eigene Übersichtsseiten entflochten
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
