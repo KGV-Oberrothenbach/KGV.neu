@@ -34,6 +34,7 @@ public sealed class HomeSectionDetailPage : ContentPage
     private readonly VerticalStackLayout _participantsSection;
     private readonly ObservableCollection<WorkAssignmentParticipantItem> _participants = new();
     private bool _isBusy;
+    private bool _allowManageAction;
 
     public HomeSectionDetailPage(HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, TermineUserState termineUserState, ISupabaseService supabaseService, UserContextState userContextState)
     {
@@ -188,6 +189,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         _previousButton.IsVisible = false;
         _nextButton.IsVisible = false;
         _positionLabel.IsVisible = false;
+        _allowManageAction = false;
 
         switch (_homeContextState.DetailKind)
         {
@@ -204,6 +206,7 @@ public sealed class HomeSectionDetailPage : ContentPage
                 _registerButton.IsVisible = workAssignment.CanRegister;
                 _signOffButton.IsVisible = workAssignment.CanSignOff;
                 UpdateWorkAssignmentNavigation();
+                _allowManageAction = true;
                 await LoadParticipantsAsync(workAssignment.Id);
                 break;
             case HomeDetailKind.Appointment when _homeContextState.Appointment != null:
@@ -216,6 +219,7 @@ public sealed class HomeSectionDetailPage : ContentPage
                 _contentLabel.Text = appointment.Details;
                 _additionalInfoLabel.Text = appointment.DetailInfo;
                 _registrationInfoLabel.Text = string.Empty;
+                UpdateAppointmentNavigation();
                 break;
             case HomeDetailKind.Announcement when _homeContextState.Announcement != null:
                 var announcement = _homeContextState.Announcement;
@@ -226,6 +230,7 @@ public sealed class HomeSectionDetailPage : ContentPage
                 _contentLabel.Text = announcement.Content;
                 _additionalInfoLabel.Text = announcement.DetailInfo;
                 _registrationInfoLabel.Text = string.Empty;
+                _allowManageAction = true;
                 break;
             default:
                 _sectionLabel.Text = string.Empty;
@@ -238,7 +243,7 @@ public sealed class HomeSectionDetailPage : ContentPage
                 return;
         }
 
-        _manageButton.IsVisible = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+        _manageButton.IsVisible = _allowManageAction && _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
     }
 
     private async Task LoadParticipantsAsync(int arbeitseinsatzId)
@@ -329,22 +334,59 @@ public sealed class HomeSectionDetailPage : ContentPage
             : string.Empty;
     }
 
+    private void UpdateAppointmentNavigation()
+    {
+        var hasNavigation = _termineUserState.TotalCount > 0;
+        _previousButton.IsVisible = hasNavigation;
+        _nextButton.IsVisible = hasNavigation;
+        _positionLabel.IsVisible = hasNavigation;
+        _previousButton.IsEnabled = _termineUserState.CanMovePrevious;
+        _nextButton.IsEnabled = _termineUserState.CanMoveNext;
+        _positionLabel.Text = hasNavigation
+            ? $"{_termineUserState.CurrentIndex + 1}/{_termineUserState.TotalCount}"
+            : string.Empty;
+    }
+
     private Task MovePreviousAsync()
     {
-        if (!_arbeitseinsaetzeUserState.MovePrevious() || _arbeitseinsaetzeUserState.CurrentEntry == null)
-            return Task.CompletedTask;
+        switch (_homeContextState.DetailKind)
+        {
+            case HomeDetailKind.WorkAssignment:
+                if (!_arbeitseinsaetzeUserState.MovePrevious() || _arbeitseinsaetzeUserState.CurrentEntry == null)
+                    return Task.CompletedTask;
 
-        _homeContextState.SetWorkAssignment(_arbeitseinsaetzeUserState.CurrentEntry);
-        return LoadAsync();
+                _homeContextState.SetWorkAssignment(_arbeitseinsaetzeUserState.CurrentEntry);
+                return LoadAsync();
+            case HomeDetailKind.Appointment:
+                if (!_termineUserState.MovePrevious() || _termineUserState.CurrentEntry == null)
+                    return Task.CompletedTask;
+
+                _homeContextState.SetAppointment(_termineUserState.CurrentEntry);
+                return LoadAsync();
+            default:
+                return Task.CompletedTask;
+        }
     }
 
     private Task MoveNextAsync()
     {
-        if (!_arbeitseinsaetzeUserState.MoveNext() || _arbeitseinsaetzeUserState.CurrentEntry == null)
-            return Task.CompletedTask;
+        switch (_homeContextState.DetailKind)
+        {
+            case HomeDetailKind.WorkAssignment:
+                if (!_arbeitseinsaetzeUserState.MoveNext() || _arbeitseinsaetzeUserState.CurrentEntry == null)
+                    return Task.CompletedTask;
 
-        _homeContextState.SetWorkAssignment(_arbeitseinsaetzeUserState.CurrentEntry);
-        return LoadAsync();
+                _homeContextState.SetWorkAssignment(_arbeitseinsaetzeUserState.CurrentEntry);
+                return LoadAsync();
+            case HomeDetailKind.Appointment:
+                if (!_termineUserState.MoveNext() || _termineUserState.CurrentEntry == null)
+                    return Task.CompletedTask;
+
+                _homeContextState.SetAppointment(_termineUserState.CurrentEntry);
+                return LoadAsync();
+            default:
+                return Task.CompletedTask;
+        }
     }
 
     private Grid CreateWorkAssignmentNavigationFooter()

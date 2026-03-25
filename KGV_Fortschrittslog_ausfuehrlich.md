@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-03-25 – Prompt 1/1: Block 4B2-finish für Termine-Nutzerpfad in MAUI sichtbar mobil abgeschlossen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Für Block `4B2-finish` gezielt geprüft:
+  - MAUI: `HomeSectionDetailPage`, `HomePage`, `TermineUserState`, `HomeContextState`
+- Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
+  - `4B1` hatte den datensatzweisen Termine-Zustand bereits sauber vorbereitet
+  - sichtbar wurde die Footer-Navigation `← x/y →` in `HomeSectionDetailPage` aber noch nur für Arbeitseinsätze genutzt
+  - im Termin-Detail hätte dadurch noch keine mobile Datensatznavigation stattgefunden
+  - zusätzlich wäre der globale `Bearbeiten`-Button im Termin-Detail sonst ebenfalls sichtbar geblieben, obwohl der Nutzerpfad rein lesend bleiben soll
+- Den Korrekturblock deshalb bewusst klein und nur im sichtbaren Termine-Nutzerpfad umgesetzt:
+  - `TermineUserState` um reine Navigationshilfe `CanMovePrevious`, `CanMoveNext`, `MovePrevious()` und `MoveNext()` ergänzt
+  - `HomeSectionDetailPage` zeigt die bestehende Footer-Navigation jetzt auch für Termine sichtbar an
+  - Anzeige bleibt mobil kompakt mit Pfeil links, `x/y` mittig und Pfeil rechts
+  - Blättern hängt direkt an `TermineUserState`; keine zweite Listenlogik in der UI gebaut
+  - der Detailinhalt wird beim Wechsel sofort aus dem aktuell aktiven Termin neu geladen
+  - Grenzen bleiben sauber: erster Datensatz links deaktiviert, letzter Datensatz rechts deaktiviert
+  - Fallback bleibt robust: wenn nur ein Einzeltermin aus `HomeContextState` vorhanden ist und kein valider datensatzweiser Zustand, bleibt der Termin sichtbar, aber der Navigationsbereich wird ausgeblendet
+  - der Termin-Nutzerpfad bleibt rein lesend; `Bearbeiten` wird für Termine in `HomeSectionDetailPage` nicht mehr sichtbar
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt Desktop-Liste plus separatem Klickkontext nutzt MAUI mobil bewusst den sichtbaren datensatzweisen Footer `← x/y →`
+- Bewusst nicht gemacht:
+  - keine Änderungen an `TermineManagementPage`
+  - keine Änderungen an `TermineEditorPage`
+  - keine neue Detailseite oder neue Shell-Route für Termine
+  - keine Änderungen an Arbeitseinsätzen oder Bekanntmachungen außerhalb der nötigen gemeinsamen Footerlogik
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - blockbezogen keine neuen Buildfehler erzeugt
+
 ## 2026-03-25 – Prompt 1/1: Block 4B1 für Termine-Nutzerpfad in MAUI auf datensatzweisen Zustand vorbereitet
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.

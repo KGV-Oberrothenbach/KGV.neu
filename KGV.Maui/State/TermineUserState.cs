@@ -10,6 +10,8 @@ public sealed class TermineUserState
     public int CurrentIndex { get; private set; } = -1;
     public int TotalCount => _entries.Count;
     public HomeAppointmentItem? CurrentEntry => CurrentIndex >= 0 && CurrentIndex < _entries.Count ? _entries[CurrentIndex] : null;
+    public bool CanMovePrevious => CurrentIndex > 0;
+    public bool CanMoveNext => CurrentIndex >= 0 && CurrentIndex < _entries.Count - 1;
 
     public void SetEntries(IEnumerable<HomeAppointmentItem> entries, int? selectedEntryId = null)
     {
@@ -47,6 +49,24 @@ public sealed class TermineUserState
             return false;
 
         CurrentIndex = index;
+        return true;
+    }
+
+    public bool MovePrevious()
+    {
+        if (!CanMovePrevious)
+            return false;
+
+        CurrentIndex--;
+        return true;
+    }
+
+    public bool MoveNext()
+    {
+        if (!CanMoveNext)
+            return false;
+
+        CurrentIndex++;
         return true;
     }
 

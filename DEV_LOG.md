@@ -2,6 +2,29 @@
 
 ---
 
+## 2026-03-25 – Block 4B2-finish: Termine-Nutzerpfad in MAUI sichtbar mobil abgeschlossen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.
+- Für Block `4B2-finish` gezielt geprüft:
+  - `HomeSectionDetailPage`
+  - `HomePage`
+  - `TermineUserState`
+  - `HomeContextState`
+- Ehrlicher Befund im aktuellen MAUI-Stand:
+  - `4B1` hatte den datensatzweisen Termine-Zustand schon vorbereitet
+  - sichtbar war die Footer-Navigation bislang aber noch nur für Arbeitseinsätze aktiv
+  - der Terminpfad brauchte noch den sichtbaren mobilen Abschluss `← x/y →`
+- Den Korrekturblock deshalb bewusst klein nur im sichtbaren Termine-Detailpfad umgesetzt:
+  - `TermineUserState` um reine Navigationshilfen ergänzt
+  - `HomeSectionDetailPage` zeigt jetzt für Termine unten `← x/y →`
+  - Blättern läuft direkt über `TermineUserState`
+  - Termin-Detail bleibt rein lesend; kein `Bearbeiten` im Nutzerpfad
+  - Fallback auf Einzeltermin aus `HomeContextState` bleibt robust erhalten
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt Desktop-Klickpfad mit Listenfokus nutzt MAUI mobil bewusst einen datensatzweisen Footer
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-25 – Block 4B1: Termine-Nutzerpfad in MAUI auf datensatzweisen Zustand vorbereitet
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.
