@@ -7,64 +7,77 @@ namespace KGV.Maui.Pages;
 public sealed class ArbeitsstundenReviewPage : ContentPage
 {
     private readonly ISupabaseService _supabaseService;
-    private readonly UserContextState _state;
+    private readonly ArbeitsstundenReviewState _reviewState;
 
     private readonly List<ArbeitsstundeDTO> _items = new();
     private readonly CollectionView _list;
     private readonly Label _status;
+    private readonly Label _countLabel;
 
-    public ArbeitsstundenReviewPage(ISupabaseService supabaseService, UserContextState state)
+    public ArbeitsstundenReviewPage(ISupabaseService supabaseService, ArbeitsstundenReviewState reviewState)
     {
         _supabaseService = supabaseService;
-        _state = state;
+        _reviewState = reviewState;
 
         Title = "Arbeitsstunden freigeben";
 
-        _status = new Label { TextColor = Colors.Red };
+        _status = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
+        _countLabel = new Label { TextColor = Colors.Gray, FontSize = 12 };
 
         _list = new CollectionView
         {
+            SelectionMode = SelectionMode.Single,
             ItemsSource = _items,
+            EmptyView = new Label
+            {
+                Text = "Aktuell liegen keine offenen Prüffälle vor.",
+                TextColor = Colors.Gray
+            },
             ItemTemplate = new DataTemplate(() =>
             {
-                var header = new Label { FontAttributes = FontAttributes.Bold };
-                header.SetBinding(Label.TextProperty, new Binding(path: ".", converter: new HeaderConverter()));
+                var title = new Label { FontAttributes = FontAttributes.Bold };
+                title.SetBinding(Label.TextProperty, new Binding(path: ".", converter: new HeaderConverter()));
 
-                var desc = new Label { FontSize = 12, TextColor = Colors.Gray };
+                var desc = new Label { FontSize = 12, TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
                 desc.SetBinding(Label.TextProperty, nameof(ArbeitsstundeDTO.Beschreibung));
 
-                var approve = new Button { Text = "Genehmigen", BackgroundColor = Colors.LightGreen };
-                approve.Clicked += OnApproveClicked;
-                approve.SetBinding(Button.CommandParameterProperty, new Binding(path: "."));
+                var reviewHint = new Label { FontSize = 12, TextColor = Colors.DarkSlateBlue };
+                reviewHint.Text = "Antippen öffnet die Einzeldatensatz-Prüfung.";
 
-                var reject = new Button { Text = "Ablehnen", BackgroundColor = Colors.LightPink };
-                reject.Clicked += OnRejectClicked;
-                reject.SetBinding(Button.CommandParameterProperty, new Binding(path: "."));
-
-                return new VerticalStackLayout
+                return new Border
                 {
-                    Padding = new Thickness(0, 8),
-                    Spacing = 6,
-                    Children =
+                    Stroke = Colors.LightGray,
+                    Padding = 12,
+                    Margin = new Thickness(0, 0, 0, 8),
+                    Content = new VerticalStackLayout
                     {
-                        header,
-                        desc,
-                        new HorizontalStackLayout { Spacing = 12, Children = { approve, reject } },
-                        new BoxView { HeightRequest = 1, Color = Colors.LightGray }
+                        Spacing = 4,
+                        Children = { title, desc, reviewHint }
                     }
                 };
             })
         };
+        _list.SelectionChanged += OnSelectionChanged;
 
-        Content = new VerticalStackLayout
+        Content = new ScrollView
         {
-            Padding = 24,
-            Spacing = 12,
-            Children =
+            Content = new VerticalStackLayout
             {
-                new Button { Text = "Neu laden", Command = new Command(async () => await LoadAsync()) },
-                _status,
-                _list
+                Padding = 24,
+                Spacing = 12,
+                Children =
+                {
+                    new Label
+                    {
+                        Text = "Offene Prüffälle bleiben in der Übersicht ruhig als Liste. Die eigentliche Entscheidung erfolgt anschließend pro Datensatz auf einer eigenen mobilen Prüfseite.",
+                        TextColor = Colors.Gray,
+                        LineBreakMode = LineBreakMode.WordWrap
+                    },
+                    new Button { Text = "Neu laden", Command = new Command(async () => await LoadAsync()) },
+                    _countLabel,
+                    _status,
+                    _list
+                }
             }
         };
 
@@ -83,23 +96,20 @@ public sealed class ArbeitsstundenReviewPage : ContentPage
 
         try
         {
-            var groups = await _supabaseService.GetUnapprovedArbeitsstundenByMitgliedAsync();
-            foreach (var g in groups)
-            {
-                var list = await _supabaseService.GetArbeitsstundenAsync(g.MitgliedId);
-                foreach (var a in list)
-                {
-                    if (a.Freigegeben) continue;
+            var entries = await _supabaseService.GetOffeneArbeitsstundenZurFreigabeAsync();
+            _reviewState.SetEntries(entries);
 
-                    _items.Add(a);
-                }
-            }
+            foreach (var entry in _reviewState.Entries)
+                _items.Add(entry);
 
             _list.ItemsSource = null;
             _list.ItemsSource = _items;
+            _countLabel.Text = _items.Count > 0
+                ? $"{_items.Count} offener Prüffall/Fälle"
+                : "Keine offenen Prüffälle";
 
             if (_items.Count == 0)
-                _status.Text = "Keine offenen Arbeitsstunden.";
+                _status.Text = "Aktuell liegen keine offenen Arbeitsstunden vor.";
 
             if (Shell.Current is AdminShell shell)
                 await shell.RefreshWorkhoursReviewMenuAsync();
@@ -107,76 +117,22 @@ public sealed class ArbeitsstundenReviewPage : ContentPage
         catch (Exception ex)
         {
             _status.Text = ex.Message;
+            _countLabel.Text = string.Empty;
         }
     }
 
-    private async void OnApproveClicked(object? sender, EventArgs e)
+    private async void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if ((sender as Button)?.CommandParameter is not ArbeitsstundeDTO dto)
+        var selected = e.CurrentSelection?.FirstOrDefault() as ArbeitsstundeDTO;
+        if (selected == null)
             return;
 
-        if (!TryGetApproverId(out var approverId))
+        _list.SelectedItem = null;
+
+        if (!_reviewState.SetCurrentById(selected.Id))
             return;
 
-        await UpdateStatusAsync(dto, approverId, approved: true);
-    }
-
-    private async void OnRejectClicked(object? sender, EventArgs e)
-    {
-        if ((sender as Button)?.CommandParameter is not ArbeitsstundeDTO dto)
-            return;
-
-        if (!TryGetApproverId(out var approverId))
-            return;
-
-        await UpdateStatusAsync(dto, approverId, approved: false);
-    }
-
-    private bool TryGetApproverId(out int approverId)
-    {
-        approverId = 0;
-        if (_state.CurrentMitgliedId == null || _state.CurrentMitgliedId.Value > int.MaxValue)
-        {
-            _ = DisplayAlert("Fehler", "Genehmiger-MitgliedId fehlt.", "OK");
-            return false;
-        }
-
-        approverId = (int)_state.CurrentMitgliedId.Value;
-        return true;
-    }
-
-    private async Task UpdateStatusAsync(ArbeitsstundeDTO dto, int approverId, bool approved)
-    {
-        try
-        {
-            var now = DateTime.UtcNow;
-            var record = new ArbeitsstundeRecord
-            {
-                Id = dto.Id,
-                MitgliedId = dto.MitgliedId,
-                SaisonId = dto.SaisonId,
-                Datum = dto.Datum.Date,
-                Stunden = dto.Stunden,
-                ArtDerArbeit = dto.Beschreibung,
-                Status = approved ? "genehmigt" : "abgelehnt",
-                Freigegeben = approved,
-                GenehmigtAm = now,
-                GenehmigtVon = approverId
-            };
-
-            var ok = await _supabaseService.UpdateArbeitsstundeAsync(record);
-            if (!ok)
-            {
-                await DisplayAlert("Fehler", "Update fehlgeschlagen.", "OK");
-                return;
-            }
-
-            await LoadAsync();
-        }
-        catch (Exception ex)
-        {
-            await DisplayAlert("Fehler", ex.Message, "OK");
-        }
+        await Shell.Current.GoToAsync(nameof(ArbeitsstundenReviewDetailPage));
     }
 
     private sealed class HeaderConverter : IValueConverter

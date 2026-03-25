@@ -2,6 +2,49 @@
 
 ---
 
+## 2026-03-25 – Prompt 1/1: Block 2B für Arbeitsstunden-Freigabe/Adminpfad in MAUI WPF-nah als Einzeldatensatz-Prüfung umgesetzt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
+- Für Block `2B` gezielt geprüft:
+  - WPF: `ArbeitsstundenPruefungView`, ergänzend `ArbeitsstundenView`, `ArbeitsstundenErfassungView`, `ArbeitsstundenErfassungWindow`, `ArbeitsstundeDialog`
+  - MAUI: `ArbeitsstundenReviewPage`, Routing/DI in `ShellRouteRegistrar` und `MauiProgram`
+- Ehrlicher Befund im aktuellen MAUI-Stand:
+  - `ArbeitsstundenReviewPage` zeigte offene Prüffälle noch mit direkter `Genehmigen`-/`Ablehnen`-Aktion direkt in der Listenansicht
+  - damit blieb mobil weiter eine Mischseite aus Übersicht und Entscheidung statt eines klaren Prüfpfads pro Datensatz
+  - eine WPF-nähere mobile Datensatznavigation für den Prüfkontext fehlte noch vollständig
+- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - `Arbeitsstunden freigeben` sollte mobil wieder eine ruhige Übersicht offener Prüffälle sein
+  - die eigentliche Prüfung sollte auf einer eigenen mobilen Datensatzseite laufen
+  - mobile Navigation zwischen Prüffällen sollte klar und kompakt mit Pfeilen funktionieren
+  - offene Änderungen durften beim Blättern nicht still verloren gehen
+- Den Korrekturblock deshalb nur im Review-/Adminpfad umgesetzt:
+  - `ArbeitsstundenReviewPage` auf ruhige Übersicht offener Prüffälle zurückgezogen
+  - Antippen eines offenen Falls öffnet jetzt eine eigene mobile Prüfdetailseite
+  - neue Seite `ArbeitsstundenReviewDetailPage` ergänzt
+  - neuer Zustand `ArbeitsstundenReviewState` hält die aktuelle offene Prüffallliste und die mobile Datensatzposition
+  - Prüfdetail zeigt genau einen Datensatz mit Mitglied, Datum, Stunden, Art der Arbeit und Status-/Anmerkungsfeld
+  - unten mobile Datensatznavigation nur mit Pfeil links, Positionsanzeige `x/y` mittig und Pfeil rechts
+  - bei offenen Änderungen wird vor dem Blättern zuerst gespeichert; bei Fehler bleibt die Seite stehen
+  - `Freigeben`, `Ablehnen` und `Speichern` laufen weiter über dieselben bestehenden Shared-Servicepfade
+  - entschiedene/freigegebene bzw. abgelehnte Fälle werden nicht mehr als normaler offener Prüffall behandelt
+  - `ShellRouteRegistrar` und `MauiProgram` minimal für neuen Prüfdetailpfad und Zustandsdienst ergänzt
+- Warum dieser kleine Block fachlich sinnvoll ist:
+  - er zieht den mobilen Prüfpfad sichtbarer an den WPF-Fluss `Übersicht` vs. `Prüfen/Bearbeiten` heran
+  - die Übersicht bleibt ruhig und touch-tauglich lesbar
+  - der eigentliche Prüfcharakter sitzt jetzt auf einer eigenen Seite mit genau einem Datensatz
+  - bestehende Shared-Servicepfade für Laden/Speichern/Freigeben bleiben unverändert die fachliche Grundlage
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt einer WPF-Prüftabelle nutzt MAUI mobil bewusst Übersicht plus Einzeldatensatz-Prüfung auf eigener Seite
+  - diese Abweichung ist fachlich gewollt, weil sie auf kleineren Bildschirmen den Prüfkontext klarer und touch-tauglicher hält
+- Bewusst nicht gemacht:
+  - keine Änderung an `MyArbeitsstundenPage`
+  - keine Änderung am normalen Nutzer-Erfassungs-/Bearbeitungspfad
+  - keine Änderung an Home, Stammdaten, Gärten, Parzellen, Ablesen, Verwaltung, Export oder Auth
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - `get_tests` für `KGV.Tests` ergab keine passenden Testfälle für diesen Block
+  - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` und stammen nicht aus diesem Block
+
 ## 2026-03-25 – Prompt 1/1: Block 2A für Arbeitsstunden-Nutzerpfad in MAUI WPF-nah auf Übersicht / Erfassen / Bearbeiten getrennt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.

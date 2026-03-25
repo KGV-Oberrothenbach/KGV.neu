@@ -21,6 +21,7 @@ internal static class ShellRouteRegistrar
         Routing.RegisterRoute(nameof(HomeManagementPage), typeof(HomeManagementPage));
         Routing.RegisterRoute(nameof(ExportPage), typeof(ExportPage));
         Routing.RegisterRoute(nameof(ArbeitsstundenEditorPage), typeof(ArbeitsstundenEditorPage));
+        Routing.RegisterRoute(nameof(ArbeitsstundenReviewDetailPage), typeof(ArbeitsstundenReviewDetailPage));
         Routing.RegisterRoute(nameof(AblesungErfassenPage), typeof(AblesungErfassenPage));
         Routing.RegisterRoute(nameof(ZaehlerwechselPage), typeof(ZaehlerwechselPage));
         Routing.RegisterRoute(nameof(RfidEinrichtenPage), typeof(RfidEinrichtenPage));

@@ -38,6 +38,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<MemberContextState>();
         builder.Services.AddSingleton<ParzellenContextState>();
         builder.Services.AddSingleton<HomeContextState>();
+        builder.Services.AddSingleton<ArbeitsstundenReviewState>();
         builder.Services.AddSingleton<INfcScanService, AndroidNfcScanService>();
 
         builder.Services.AddKgvServices(builder.Configuration);
@@ -65,6 +66,7 @@ public static class MauiProgram
         builder.Services.AddTransient<MyArbeitsstundenPage>();
         builder.Services.AddTransient<ArbeitsstundenEditorPage>();
         builder.Services.AddTransient<ArbeitsstundenReviewPage>();
+        builder.Services.AddTransient<ArbeitsstundenReviewDetailPage>();
 
         builder.Services.AddTransient<AdminShell>();
         builder.Services.AddTransient<UserShell>();
