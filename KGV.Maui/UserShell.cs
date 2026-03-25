@@ -25,6 +25,7 @@ public sealed class UserShell : Shell, IAppShellInitializer
 
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
         Items.Add(CreateItem("Mein Bereich · Meine Stammdaten", "mydetails", CreateOwnMemberDetailsPage));
+        Items.Add(CreateItem("Mein Bereich · Gärten", "mygardens", CreateOwnMemberGardensPage));
         Items.Add(CreateItem("Mein Bereich · Nebenmitglied", "nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
         Items.Add(CreateItem("Mein Bereich · Meine Arbeitsstunden", "workhours", () => _services.GetRequiredService<MyArbeitsstundenPage>()));
         Items.Add(CreateItem("Mein Bereich · Mein Profil", "myprofile", () => _services.GetRequiredService<MyProfilePage>()));
@@ -34,13 +35,23 @@ public sealed class UserShell : Shell, IAppShellInitializer
 
     private Page CreateOwnMemberDetailsPage()
     {
+        SetOwnMemberContext();
+        return _services.GetRequiredService<MeineDatenPage>();
+    }
+
+    private Page CreateOwnMemberGardensPage()
+    {
+        SetOwnMemberContext();
+        return _services.GetRequiredService<MemberGardensPage>();
+    }
+
+    private void SetOwnMemberContext()
+    {
         if (_state.CurrentMitgliedId is > 0 and <= int.MaxValue)
         {
             var memberContextState = _services.GetRequiredService<MemberContextState>();
             memberContextState.SetSelectedMember(new MemberDTO { Id = (int)_state.CurrentMitgliedId.Value });
         }
-
-        return _services.GetRequiredService<MeineDatenPage>();
     }
 
     private static FlyoutItem CreateItem(string title, string route, Func<Page> pageFactory)

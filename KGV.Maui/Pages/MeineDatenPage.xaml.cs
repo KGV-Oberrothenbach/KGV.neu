@@ -13,11 +13,9 @@ public class MeineDatenPage : ContentPage
     private readonly IAuthService _authService;
     private readonly UserContextState _userContextState;
     private readonly MemberContextState _memberContextState;
-    private readonly ParzellenContextState _parzellenContextState;
 
     private readonly Label _headlineLabel;
     private readonly Label _statusLabel;
-    private readonly Label _gardensEmptyLabel;
     private readonly Label _adminHintLabel;
     private readonly Label _vornameLabel;
     private readonly Label _nachnameLabel;
@@ -46,13 +44,10 @@ public class MeineDatenPage : ContentPage
     private readonly VerticalStackLayout _adminMenuSection;
     private readonly Picker _rolePicker;
     private readonly Button _editButton;
-    private readonly Button _assignGardenButton;
     private readonly Button _saveRoleButton;
     private readonly Button _documentsButton;
     private readonly Button _userManagementButton;
     private readonly Button _nebenmitgliedButton;
-
-    private readonly ObservableCollection<GartenAssignmentItem> _gardenAssignments = new();
 
     private bool _isBusy;
 
@@ -60,20 +55,17 @@ public class MeineDatenPage : ContentPage
         ISupabaseService supabaseService,
         IAuthService authService,
         UserContextState userContextState,
-        MemberContextState memberContextState,
-        ParzellenContextState parzellenContextState)
+        MemberContextState memberContextState)
     {
         _supabaseService = supabaseService;
         _authService = authService;
         _userContextState = userContextState;
         _memberContextState = memberContextState;
-        _parzellenContextState = parzellenContextState;
 
         Title = "Stammdaten";
 
         _headlineLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold };
         _statusLabel = new Label { TextColor = Colors.DarkRed, LineBreakMode = LineBreakMode.WordWrap };
-        _gardensEmptyLabel = new Label { TextColor = Colors.Gray, Text = "Keine aktiven oder historischen Garten-Zuordnungen geladen." };
         _adminHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _vornameLabel = CreateValueLabel();
         _nachnameLabel = CreateValueLabel();
@@ -104,9 +96,6 @@ public class MeineDatenPage : ContentPage
         _editButton = new Button { Text = "Bearbeiten" };
         _editButton.Clicked += OnEditClicked;
 
-        _assignGardenButton = new Button { Text = "Parzelle zuordnen" };
-        _assignGardenButton.Clicked += OnAssignGardenClicked;
-
         _saveRoleButton = new Button { Text = "Rolle speichern" };
         _saveRoleButton.Clicked += OnSaveRoleClicked;
 
@@ -118,51 +107,6 @@ public class MeineDatenPage : ContentPage
 
         _userManagementButton = new Button { Text = "Benutzerverwaltung" };
         _userManagementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(UserManagementPage));
-
-        var gardensView = new CollectionView
-        {
-            SelectionMode = SelectionMode.Single,
-            HeightRequest = 220,
-            ItemsSource = _gardenAssignments,
-            ItemTemplate = new DataTemplate(() =>
-            {
-                var title = new Label { FontAttributes = FontAttributes.Bold };
-                title.SetBinding(Label.TextProperty, nameof(GartenAssignmentItem.Title));
-
-                var subtitle = new Label { FontSize = 12, TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
-                subtitle.SetBinding(Label.TextProperty, nameof(GartenAssignmentItem.Subtitle));
-
-                return new Border
-                {
-                    Padding = 12,
-                    Margin = new Thickness(0, 0, 0, 8),
-                    Stroke = Colors.LightGray,
-                    Content = new VerticalStackLayout
-                    {
-                        Spacing = 4,
-                        Children = { title, subtitle }
-                    }
-                };
-            })
-        };
-
-        gardensView.SelectionChanged += async (_, e) =>
-        {
-            var selected = e.CurrentSelection?.FirstOrDefault() as GartenAssignmentItem;
-            gardensView.SelectedItem = null;
-            if (selected == null)
-                return;
-
-            _parzellenContextState.SetMemberContext(selected.ParzelleId, selected.Title);
-            await Shell.Current.GoToAsync("//parzellen");
-        };
-
-        var gardenHintLabel = new Label
-        {
-            Text = "Tippen öffnet den Gartenkontext. Operatives Ablesen und Zählerwechsel bleiben im eigenen Ablesen-Bereich.",
-            TextColor = Colors.Gray,
-            LineBreakMode = LineBreakMode.WordWrap
-        };
 
         var editHintLabel = new Label
         {
@@ -232,7 +176,6 @@ public class MeineDatenPage : ContentPage
                         CreateValueField("Bemerkungen", _bemerkungenLabel)),
                     _wartungsvertragSectionCard,
                     _nebenmitgliedSectionCard,
-                    CreateSection("Gärten", _assignGardenButton, gardenHintLabel, gardensView, _gardensEmptyLabel),
                     _adminSectionCard,
                     _documentsButton
                 }
@@ -260,9 +203,7 @@ public class MeineDatenPage : ContentPage
                 SetWartungsvertragFieldsEmpty();
                 UpdateNebenmitgliedSection(null, false);
                 _nachnameLabel.Text = "Bitte zuerst in der Mitgliedersuche ein Mitglied auswählen.";
-                _gardenAssignments.Clear();
                 UpdateAdminMenu(null);
-                _gardensEmptyLabel.IsVisible = true;
                 return;
             }
 
@@ -297,7 +238,6 @@ public class MeineDatenPage : ContentPage
 
             await LoadWartungsvertragSummaryAsync(contextMember.Id);
             await UpdateNebenmitgliedSectionAsync(contextMember);
-            await LoadGartenAssignmentsAsync(contextMember.Id);
             UpdateAdminMenu(contextMember);
         }
         catch (Exception ex)
@@ -329,44 +269,6 @@ public class MeineDatenPage : ContentPage
             "Bearbeiten",
             "Ein eigener mobiler Volleditor für fremde Stammdaten ist im aktuellen Stand noch nicht vorhanden. Für eigene Stammdaten steht bereits der vorhandene Profilpfad zur Verfügung.",
             "OK");
-    }
-
-    private async void OnAssignGardenClicked(object? sender, EventArgs e)
-    {
-        var selectedMember = _memberContextState.SelectedMember;
-        if (selectedMember?.Id is not > 0)
-        {
-            await DisplayAlert("Hinweis", "Bitte zuerst ein Mitglied auswählen.", "OK");
-            return;
-        }
-
-        _parzellenContextState.Clear();
-        await Shell.Current.GoToAsync("//parzellen");
-    }
-
-    private async Task LoadGartenAssignmentsAsync(int mitgliedId)
-    {
-        var parzellen = await _supabaseService.GetAllParzellenAsync();
-        var belegungen = await _supabaseService.GetBelegungenForMitgliedAsync(mitgliedId);
-        var parzellenById = (parzellen ?? new List<ParzelleRecord>())
-            .Where(x => x.Id > 0)
-            .ToDictionary(x => x.Id);
-
-        _gardenAssignments.Clear();
-        foreach (var belegung in (belegungen ?? new List<ParzellenBelegungRecord>()).OrderByDescending(x => x.VonDatum ?? DateTime.MinValue))
-        {
-            parzellenById.TryGetValue(belegung.ParzelleId, out var parzelle);
-            var gartenNr = string.IsNullOrWhiteSpace(parzelle?.GartenNr) ? belegung.ParzelleId.ToString() : parzelle!.GartenNr!;
-            var anlage = string.IsNullOrWhiteSpace(parzelle?.Anlage) ? "-" : parzelle.Anlage;
-            var bisText = belegung.BisDatum.HasValue ? belegung.BisDatum.Value.ToString("dd.MM.yyyy") : "aktiv";
-
-            _gardenAssignments.Add(new GartenAssignmentItem(
-                belegung.ParzelleId,
-                $"Garten {gartenNr} ({anlage})",
-                $"Von {FormatDate(belegung.VonDatum)} bis {bisText}"));
-        }
-
-        _gardensEmptyLabel.IsVisible = _gardenAssignments.Count == 0;
     }
 
     private async Task UpdateNebenmitgliedSectionAsync(MemberDTO member)
@@ -649,5 +551,4 @@ public class MeineDatenPage : ContentPage
         };
     }
 
-    private sealed record GartenAssignmentItem(int ParzelleId, string Title, string Subtitle);
 }

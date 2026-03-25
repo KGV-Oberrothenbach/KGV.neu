@@ -2,6 +2,54 @@
 
 ---
 
+## 2026-03-25 – Prompt 1/1: Block 1A für Stammdaten und Gärten des Mitglieds WPF-nah begonnen und kleinen Trennungsblock umgesetzt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Für Block 1A gezielt geprüft:
+  - WPF-Referenz: `MemberDetailView`, `StammdatenView`, `MemberParzellenSection`
+  - MAUI: `MeineDatenPage`, `AdminShell`, `UserShell`, `MauiProgram`, `ShellRouteRegistrar`, `MemberContextState`, `ParzellenContextState`
+- Ehrlicher Befund im aktuellen Stand:
+  - `MeineDatenPage` blieb trotz vorheriger Feinschliffe fachlich noch überladen, weil der Garten-/Parzellenbereich weiterhin direkt auf der Stammdatenseite eingebettet war
+  - `Mitgliedsdokumente` waren bereits unten separat platziert, die Seite wirkte durch den eingebetteten Gartenblock aber weiter zu gemischt
+  - `Bearbeiten` war vorhanden, die fachliche Trennung `Stammdaten` vs. `Gärten des Mitglieds` blieb mobil aber noch schwächer als in WPF
+- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - Stammdaten sollten als ruhige eigene Seite ohne eingebetteten Gartenblock stehen
+  - Gärten des Mitglieds sollten einen eigenen klaren Bereich erhalten
+  - der bisherige eigene Gartenzugang durfte dabei nicht still verloren gehen
+  - `Parzelle zuordnen` durfte keinen Fake-Flow bekommen, sondern nur einen ehrlichen bestehenden Einstieg behalten
+- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur im Mitgliedskontext umgesetzt:
+  - den eingebetteten Bereich `Gärten` aus `MeineDatenPage` entfernt
+  - `MeineDatenPage` bleibt damit fachlich ruhiger auf Stammdaten-/Mitgliedskontext- und Verwaltungsinformationen fokussiert
+  - `Bearbeiten` bleibt als sichtbarer Einstieg erhalten
+  - `Mitgliedsdokumente` bleiben als eigener Button ganz unten auf der Seite
+  - neue Seite `MemberGardensPage` ergänzt
+  - diese zeigt die Garten-/Parzellenzuordnungen des ausgewählten Mitglieds jetzt in einer eigenen Seite
+  - vorhandener ehrlicher Einstieg `Parzelle zuordnen` bleibt dort erhalten
+  - Antippen einer Zuordnung nutzt weiter den bestehenden Mitgliedskontext-/Parzellenpfad statt einer neuen Schattenarchitektur
+  - `AdminShell`: `Mitglieder · Gärten des Mitglieds` zeigt jetzt die neue `MemberGardensPage`
+  - `UserShell` erhielt zusätzlich `Mein Bereich · Gärten`, damit der bisherige eigene Gartenzugang nicht still entfällt
+  - `MauiProgram` und `ShellRouteRegistrar` wurden minimal für die neue Seite bzw. den bestehenden Parzellenpfad ergänzt
+- Warum dieser kleine Block fachlich sinnvoll ist:
+  - er trennt Stammdaten und Gärten im Mitgliedskontext klarer und WPF-näher
+  - die Stammdatenseite wirkt ruhiger und fachlich sauberer
+  - statt den Gartenbereich weiter in eine Sammelseite zu mischen, wird mobil bewusst eine eigene Seite verwendet
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt eines innerhalb derselben Fläche dauerhaft eingebetteten Desktop-Unterbereichs wurde mobil bewusst eine eigene Seite `Gärten` ergänzt
+  - diese Abweichung ist fachlich gewollt und sinnvoll, weil sie Stammdaten ruhiger hält und den Mitgliedsgartenbereich klarer trennt
+- Bewusst nicht gemacht:
+  - kein Umbau von `ParzellenPage`
+  - keine Änderung an Ablesen, NFC, Strom/Wasser oder Zählerwechsel
+  - kein neuer mobiler Parzellen-Zuordnungseditor
+  - keine Änderung an Export, Profil, Auth oder Arbeitsstunden
+- Fachliche Kurzvalidierung nach dem kleinen Block:
+  - `Stammdaten` ist ruhiger
+  - `Gärten des Mitglieds` sind als eigener Bereich getrennt
+  - `Mitgliedsdokumente` bleiben korrekt unten als eigener Button
+  - `Bearbeiten` bleibt sichtbar
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte bestehende Warnungen außerhalb dieses Blocks bleiben bestehen
+
 ## 2026-03-24 – Prompt 1/1: Block 0A für Shell-/Menüstruktur in MAUI WPF-nah begonnen und kleinen Shell-Strukturblock umgesetzt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.

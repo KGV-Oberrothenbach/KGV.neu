@@ -33,7 +33,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (_userContextState.CurrentUserContext?.Role == UserRole.Admin)
             Items.Add(CreateItem("Mitglieder · Benutzerverwaltung", "member_usermanagement", () => _services.GetRequiredService<UserManagementPage>()));
 
-        Items.Add(CreateItem("Mitglieder · Gärten des Mitglieds", "member_gardens", () => _services.GetRequiredService<MeineDatenPage>()));
+        Items.Add(CreateItem("Mitglieder · Gärten des Mitglieds", "member_gardens", () => _services.GetRequiredService<MemberGardensPage>()));
 
         Items.Add(CreateItem("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
 

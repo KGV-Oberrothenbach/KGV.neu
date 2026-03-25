@@ -2,6 +2,51 @@
 
 ---
 
+## 2026-03-25 – Block 1A: Stammdaten und Gärten des Mitglieds in MAUI WPF-nah getrennt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog, die Repo-Wahrheit und den echten Git-Arbeitsbaum geprüft.
+- Für Block 1A gezielt geprüft:
+  - MAUI: `MeineDatenPage`, `AdminShell`, `UserShell`, `MauiProgram`, `ShellRouteRegistrar`, `MemberContextState`, `ParzellenContextState`
+  - WPF-Referenz: `MemberDetailView`, `StammdatenView`, `MemberParzellenSection`
+- Ehrlicher Befund im aktuellen Stand:
+  - `MeineDatenPage` blieb trotz vorheriger Feinschliffe fachlich noch überladen, weil der Garten-/Parzellenbereich weiterhin direkt auf der Stammdatenseite eingebettet war
+  - `Mitgliedsdokumente` waren bereits unten separat platziert, die Seite wirkte durch den eingebetteten Gartenblock aber weiter zu gemischt
+  - `Bearbeiten` war vorhanden, die fachliche Trennung `Stammdaten` vs. `Gärten des Mitglieds` blieb mobil aber noch schwächer als in WPF
+- Den Korrekturblock bewusst nur auf Stammdaten vs. Gärten begrenzt:
+  - keine Parzellen-Detailanpassung
+  - keine Ablesen-/NFC-/Zählerwechsel-Änderung
+  - keine neue Fachlogik außerhalb des bereits vorhandenen Mitglieds-/Parzellenkontexts
+- Auf der Stammdatenseite umgesetzt:
+  - den eingebetteten Bereich `Gärten` aus `MeineDatenPage` entfernt
+  - `MeineDatenPage` bleibt damit fachlich ruhiger auf Stammdaten-/Mitgliedskontext- und Verwaltungsinformationen fokussiert
+  - `Bearbeiten` bleibt als sichtbarer Einstieg erhalten
+  - `Mitgliedsdokumente` bleiben als eigener Button ganz unten auf der Seite
+- Neuen klaren Mitgliedsbereich `Gärten` ergänzt:
+  - neue Seite `MemberGardensPage`
+  - zeigt die Garten-/Parzellenzuordnungen des ausgewählten Mitglieds in einer eigenen Seite
+  - vorhandener ehrlicher Einstieg `Parzelle zuordnen` bleibt dort erhalten
+  - Antippen einer Zuordnung nutzt weiter den bestehenden Mitgliedskontext-/Parzellenpfad statt einer neuen Schattenarchitektur
+- Navigation/Shell minimal mitgezogen:
+  - `AdminShell`: `Mitglieder · Gärten des Mitglieds` zeigt jetzt die neue `MemberGardensPage`
+  - `UserShell` erhielt zusätzlich `Mein Bereich · Gärten`, damit der bisherige eigene Gartenzugang nicht still entfällt
+  - `MauiProgram` und `ShellRouteRegistrar` wurden minimal für die neue Seite bzw. den bestehenden Parzellenpfad ergänzt
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt eines innerhalb derselben Fläche dauerhaft eingebetteten Desktop-Unterbereichs wurde mobil bewusst eine eigene Seite `Gärten` ergänzt
+  - diese Abweichung ist fachlich gewollt und sinnvoll, weil sie Stammdaten ruhiger hält und den Mitgliedsgartenbereich klarer trennt
+- Bewusst nicht gemacht:
+  - kein Umbau von `ParzellenPage`
+  - keine Änderung an Ablesen, NFC, Strom/Wasser oder Zählerwechsel
+  - kein neuer mobiler Parzellen-Zuordnungseditor
+  - keine Änderung an Export, Profil, Auth oder Arbeitsstunden
+- Fachliche Kurzvalidierung nach dem kleinen Block:
+  - `Stammdaten` ist ruhiger
+  - `Gärten des Mitglieds` sind als eigener Bereich getrennt
+  - `Mitgliedsdokumente` bleiben korrekt unten als eigener Button
+  - `Bearbeiten` bleibt sichtbar
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte bestehende Warnungen außerhalb dieses Blocks bleiben bestehen
+
 ## 2026-03-24 – Block 0A: MAUI-Shell-/Menüstruktur WPF-nah neu geordnet
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.
