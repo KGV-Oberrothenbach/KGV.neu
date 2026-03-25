@@ -2,6 +2,42 @@
 
 ---
 
+## 2026-03-25 – Block 2A: Arbeitsstunden-Nutzerpfad in MAUI auf Übersicht / Erfassen / Bearbeiten getrennt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
+- Für Block `2A` gezielt geprüft:
+  - WPF: `ArbeitsstundenView`, `ArbeitsstundenErfassungView`, `ArbeitsstundenErfassungWindow`, `ArbeitsstundeDialog`
+  - MAUI: `MyArbeitsstundenPage`, Routing/DI in `ShellRouteRegistrar` und `MauiProgram`
+- Ehrlicher Befund im aktuellen MAUI-Stand:
+  - `MyArbeitsstundenPage` mischte Übersicht und Editor noch auf einer Sammelseite
+  - Antippen eines Eintrags füllte dasselbe Formular unten wieder auf
+  - bestätigte/freigegebene Einträge waren im Nutzerpfad noch nicht klar genug als gesperrte Nur-Ansicht getrennt
+- Den Korrekturblock deshalb bewusst klein und nur im normalen Nutzerpfad umgesetzt:
+  - `MyArbeitsstundenPage` auf ruhige Übersicht zurückgezogen
+  - `Soll`, `Geleistet`, `Offen` bleiben oben sichtbar
+  - klarer Einstieg `Neu erfassen`
+  - vorhandene Einträge öffnen jetzt einen eigenen mobilen Arbeitsstunden-Pfad statt das Übersichtsformular wiederzuverwenden
+  - neue Seite `ArbeitsstundenEditorPage` ergänzt
+  - dieselbe Seite trägt mobil die drei fachlichen Rollen:
+    - `Arbeitsstunde erfassen`
+    - `Arbeitsstunde bearbeiten`
+    - `Arbeitsstunde ansehen`
+  - unbestätigte Einträge öffnen bearbeitbar
+  - freigegebene Einträge öffnen nur noch lesbar mit klarem Sperrhinweis
+  - `Speichern` und `Abbrechen` bleiben am Ende des Eingabeformulars
+  - nach `Speichern` oder `Abbrechen` geht der Nutzer klar zurück zur Übersicht `Meine Arbeitsstunden`
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt WPF-Dialog/Fenster verwendet MAUI eine eigene mobile Seite für Erfassen/Bearbeiten/Ansicht
+  - diese Abweichung ist fachlich gewollt, weil sie auf kleineren Bildschirmen Übersicht und Editor sauber trennt
+- Bewusst nicht gemacht:
+  - keine Änderung an `ArbeitsstundenReviewPage`
+  - keine Änderung an Freigabe-/Prüflogik für Admin/Vorstand
+  - keine Änderung an Home, Stammdaten, Gärten, Parzellen, Ablesen, Verwaltung, Export oder Auth
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - `get_tests` für `KGV.Tests` ergab keine passenden Testfälle für diesen Block
+  - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` und stammen nicht aus diesem Block
+
 ## 2026-03-25 – Block 1B2: NFC-Hauptweg in MAUI technisch abgeschlossen und validiert
 
 - Vor dem Abschlussblock erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.

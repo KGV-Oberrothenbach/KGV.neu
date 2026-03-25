@@ -2,6 +2,53 @@
 
 ---
 
+## 2026-03-25 – Prompt 1/1: Block 2A für Arbeitsstunden-Nutzerpfad in MAUI WPF-nah auf Übersicht / Erfassen / Bearbeiten getrennt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
+- Für Block `2A` gezielt geprüft:
+  - WPF: `ArbeitsstundenView`, `ArbeitsstundenErfassungView`, `ArbeitsstundenErfassungWindow`, `ArbeitsstundeDialog`
+  - MAUI: `MyArbeitsstundenPage`, Routing/DI in `ShellRouteRegistrar` und `MauiProgram`
+- Ehrlicher Befund im aktuellen MAUI-Stand:
+  - `MyArbeitsstundenPage` mischte Übersicht und Editor noch auf einer Sammelseite
+  - Antippen eines Eintrags füllte dasselbe Formular unten wieder auf
+  - bestätigte/freigegebene Einträge waren im Nutzerpfad noch nicht klar genug als gesperrte Nur-Ansicht getrennt
+- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - `Meine Arbeitsstunden` sollte wieder eine ruhige Übersichtsseite sein
+  - `Neu erfassen` brauchte einen klar getrennten mobilen Schritt
+  - bestehende Einträge sollten über einen eigenen Öffnen-/Bearbeitenpfad laufen statt im selben Sammelformular
+  - freigegebene Einträge durften im Nutzerpfad nicht mehr bearbeitbar bleiben
+- Den Korrekturblock deshalb nur im normalen Nutzerpfad umgesetzt:
+  - `MyArbeitsstundenPage` auf ruhige Übersicht zurückgezogen
+  - `Soll`, `Geleistet`, `Offen` bleiben oben sichtbar
+  - klarer Einstieg `Neu erfassen`
+  - vorhandene Einträge öffnen jetzt einen eigenen mobilen Arbeitsstunden-Pfad statt das Übersichtsformular wiederzuverwenden
+  - neue Seite `ArbeitsstundenEditorPage` ergänzt
+  - dieselbe Seite trägt mobil die drei fachlichen Rollen:
+    - `Arbeitsstunde erfassen`
+    - `Arbeitsstunde bearbeiten`
+    - `Arbeitsstunde ansehen`
+  - unbestätigte Einträge öffnen bearbeitbar
+  - freigegebene Einträge öffnen nur noch lesbar mit klarem Sperrhinweis
+  - `ShellRouteRegistrar` und `MauiProgram` minimal für den neuen Editorpfad ergänzt
+  - `Speichern` und `Abbrechen` bleiben am Ende des Eingabeformulars
+  - nach `Speichern` oder `Abbrechen` geht der Nutzer klar zurück zur Übersicht `Meine Arbeitsstunden`
+- Warum dieser kleine Block fachlich sinnvoll ist:
+  - er zieht den mobilen Nutzerpfad sichtbarer an die WPF-Rollen `Übersicht` vs. `Erfassen/Bearbeiten` heran
+  - die Übersicht bleibt ruhig und lesbar
+  - bestätigte Einträge sind jetzt im Nutzerpfad sichtbar gesperrt statt nur implizit erschwert
+  - bestehende Shared-Servicepfade für Laden/Speichern/Aktualisieren bleiben unverändert die fachliche Grundlage
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt WPF-Dialog/Fenster verwendet MAUI eine eigene mobile Seite für Erfassen/Bearbeiten/Ansicht
+  - diese Abweichung ist fachlich gewollt, weil sie auf kleineren Bildschirmen Übersicht und Editor sauber trennt
+- Bewusst nicht gemacht:
+  - keine Änderung an `ArbeitsstundenReviewPage`
+  - keine Änderung an Freigabe-/Prüflogik für Admin/Vorstand
+  - keine Änderung an Home, Stammdaten, Gärten, Parzellen, Ablesen, Verwaltung, Export oder Auth
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - `get_tests` für `KGV.Tests` ergab keine passenden Testfälle für diesen Block
+  - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` und stammen nicht aus diesem Block
+
 ## 2026-03-25 – Prompt 1/1: Block 1B2 für echten NFC-Hauptweg in MAUI technisch abgeschlossen, validiert und finalisiert
 
 - Vor dem Abschlussblock erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
