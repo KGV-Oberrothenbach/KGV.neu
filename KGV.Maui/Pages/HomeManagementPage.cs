@@ -32,15 +32,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
     private readonly TimePicker _startTimePicker;
     private readonly CheckBox _hasEndTimeCheckBox;
     private readonly TimePicker _endTimePicker;
-    private readonly CheckBox _hasVisibleFromCheckBox;
-    private readonly DatePicker _visibleFromDatePicker;
-    private readonly TimePicker _visibleFromTimePicker;
-    private readonly CheckBox _hasVisibleUntilCheckBox;
-    private readonly DatePicker _visibleUntilDatePicker;
-    private readonly TimePicker _visibleUntilTimePicker;
-    private readonly CheckBox _hasRegistrationUntilCheckBox;
-    private readonly DatePicker _registrationUntilDatePicker;
-    private readonly TimePicker _registrationUntilTimePicker;
     private readonly Entry _treffpunktEntry;
     private readonly CheckBox _hasMaxParticipantsCheckBox;
     private readonly Entry _maxParticipantsEntry;
@@ -61,6 +52,9 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
     private List<BekanntmachungRecord> _announcements = new();
     private ManagementSection _currentSection = ManagementSection.WorkAssignments;
     private long? _selectedEntryId;
+    private long? _requestedEntryId;
+    private bool _requestedNewMode;
+    private bool _lockSectionSelection;
     private bool _initialized;
     private bool _isBusy;
 
@@ -87,6 +81,13 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
 
         _refreshButton = new Button { Text = "Aktualisieren" };
         _refreshButton.Clicked += async (_, _) => await LoadCurrentSectionAsync(resetSelection: false);
+
+        _newButton = new Button { Text = "Neu" };
+        _newButton.Clicked += (_, _) =>
+        {
+            _entriesView.SelectedItem = null;
+            ResetEditorForNew();
+        };
 
         _entriesView = new CollectionView
         {
@@ -115,38 +116,22 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
             PopulateEditorFromSelection();
         };
 
-        _newButton = new Button { Text = "Neu" };
-        _newButton.Clicked += (_, _) =>
-        {
-            _entriesView.SelectedItem = null;
-            ResetEditorForNew();
-        };
-
         _titleEntry = new Entry { Placeholder = "Titel" };
         _descriptionEditor = new Editor { AutoSize = EditorAutoSizeOption.TextChanges, Placeholder = "Beschreibung" };
         _datePicker = new DatePicker { Date = DateTime.Today };
-        _startTimePicker = new TimePicker { Time = new TimeSpan(8, 0, 0), IsEnabled = false };
         _hasStartTimeCheckBox = new CheckBox();
         _hasStartTimeCheckBox.CheckedChanged += (_, e) => _startTimePicker.IsEnabled = e.Value;
-        _endTimePicker = new TimePicker { Time = new TimeSpan(12, 0, 0), IsEnabled = false };
+        _startTimePicker = new TimePicker { Time = new TimeSpan(8, 0, 0) };
+        _startTimePicker.IsEnabled = false;
         _hasEndTimeCheckBox = new CheckBox();
         _hasEndTimeCheckBox.CheckedChanged += (_, e) => _endTimePicker.IsEnabled = e.Value;
-        _visibleFromDatePicker = new DatePicker { Date = DateTime.Today, IsEnabled = false };
-        _visibleFromTimePicker = new TimePicker { Time = new TimeSpan(8, 0, 0), IsEnabled = false };
-        _hasVisibleFromCheckBox = new CheckBox();
-        _hasVisibleFromCheckBox.CheckedChanged += (_, e) => SetOptionalDateTimeEnabled(_visibleFromDatePicker, _visibleFromTimePicker, e.Value);
-        _visibleUntilDatePicker = new DatePicker { Date = DateTime.Today, IsEnabled = false };
-        _visibleUntilTimePicker = new TimePicker { Time = new TimeSpan(18, 0, 0), IsEnabled = false };
-        _hasVisibleUntilCheckBox = new CheckBox();
-        _hasVisibleUntilCheckBox.CheckedChanged += (_, e) => SetOptionalDateTimeEnabled(_visibleUntilDatePicker, _visibleUntilTimePicker, e.Value);
-        _registrationUntilDatePicker = new DatePicker { Date = DateTime.Today, IsEnabled = false };
-        _registrationUntilTimePicker = new TimePicker { Time = new TimeSpan(18, 0, 0), IsEnabled = false };
-        _hasRegistrationUntilCheckBox = new CheckBox();
-        _hasRegistrationUntilCheckBox.CheckedChanged += (_, e) => SetOptionalDateTimeEnabled(_registrationUntilDatePicker, _registrationUntilTimePicker, e.Value);
+        _endTimePicker = new TimePicker { Time = new TimeSpan(12, 0, 0) };
+        _endTimePicker.IsEnabled = false;
         _treffpunktEntry = new Entry { Placeholder = "Treffpunkt" };
-        _maxParticipantsEntry = new Entry { Placeholder = "Max. Teilnehmer", Keyboard = Keyboard.Numeric, IsEnabled = false };
         _hasMaxParticipantsCheckBox = new CheckBox();
         _hasMaxParticipantsCheckBox.CheckedChanged += (_, e) => _maxParticipantsEntry.IsEnabled = e.Value;
+        _maxParticipantsEntry = new Entry { Placeholder = "Max. Teilnehmer", Keyboard = Keyboard.Numeric };
+        _maxParticipantsEntry.IsEnabled = false;
         _hoursEntry = new Entry { Placeholder = "Stundenwert", Keyboard = Keyboard.Numeric };
         _htmlEditor = new Editor { AutoSize = EditorAutoSizeOption.TextChanges, Placeholder = "HTML-Inhalt" };
         _sortOrderEntry = new Entry { Placeholder = "Sortierreihenfolge", Keyboard = Keyboard.Numeric };
@@ -164,9 +149,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
                 CreateField("Startzeit", _startTimePicker),
                 CreateCheckField("Endzeit verwenden", _hasEndTimeCheckBox),
                 CreateField("Endzeit", _endTimePicker),
-                CreateOptionalDateTimeField("Sichtbar ab", _hasVisibleFromCheckBox, _visibleFromDatePicker, _visibleFromTimePicker),
-                CreateOptionalDateTimeField("Sichtbar bis", _hasVisibleUntilCheckBox, _visibleUntilDatePicker, _visibleUntilTimePicker),
-                CreateOptionalDateTimeField("Anmeldung bis", _hasRegistrationUntilCheckBox, _registrationUntilDatePicker, _registrationUntilTimePicker),
                 CreateField("Treffpunkt", _treffpunktEntry),
                 CreateCheckField("Teilnehmerbegrenzung", _hasMaxParticipantsCheckBox),
                 CreateField("Max. Teilnehmer", _maxParticipantsEntry),
@@ -187,8 +169,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
                 CreateField("Startzeit", _startTimePicker),
                 CreateCheckField("Endzeit verwenden", _hasEndTimeCheckBox),
                 CreateField("Endzeit", _endTimePicker),
-                CreateOptionalDateTimeField("Sichtbar ab", _hasVisibleFromCheckBox, _visibleFromDatePicker, _visibleFromTimePicker),
-                CreateOptionalDateTimeField("Sichtbar bis", _hasVisibleUntilCheckBox, _visibleUntilDatePicker, _visibleUntilTimePicker),
                 CreateSwitchField("Aktiv", _activeSwitch)
             }
         };
@@ -200,8 +180,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
             {
                 CreateField("Titel", _titleEntry),
                 CreateField("HTML-Inhalt", _htmlEditor),
-                CreateOptionalDateTimeField("Sichtbar ab", _hasVisibleFromCheckBox, _visibleFromDatePicker, _visibleFromTimePicker),
-                CreateOptionalDateTimeField("Sichtbar bis", _hasVisibleUntilCheckBox, _visibleUntilDatePicker, _visibleUntilTimePicker),
                 CreateField("Sortierreihenfolge", _sortOrderEntry),
                 CreateSwitchField("Aktiv", _activeSwitch)
             }
@@ -259,6 +237,26 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
                 _ => ManagementSection.WorkAssignments
             };
         }
+
+        if (query.TryGetValue("entryId", out var entryIdRaw)
+            && long.TryParse(entryIdRaw?.ToString(), out var entryId))
+        {
+            _requestedEntryId = entryId;
+            _requestedNewMode = false;
+        }
+
+        if (query.TryGetValue("mode", out var modeRaw)
+            && string.Equals(modeRaw?.ToString(), "new", StringComparison.OrdinalIgnoreCase))
+        {
+            _requestedNewMode = true;
+            _requestedEntryId = null;
+        }
+
+        if (query.TryGetValue("lockSection", out var lockRaw)
+            && bool.TryParse(lockRaw?.ToString(), out var lockSection))
+        {
+            _lockSectionSelection = lockSection;
+        }
     }
 
     protected override async void OnAppearing()
@@ -273,6 +271,9 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         }
 
         SetAuthorizedState(true);
+
+        _sectionPicker.IsVisible = !_lockSectionSelection;
+        _sectionPicker.IsEnabled = !_lockSectionSelection;
 
         _sectionPicker.SelectedIndex = (int)_currentSection;
         if (!_initialized)
@@ -311,6 +312,26 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
                     _announcements = await _supabaseService.GetBekanntmachungenVerwaltungAsync();
                     FillEntries(_announcements.Select(x => new ManagementEntry(x.Id, x.Titel ?? "(ohne Titel)", BuildAnnouncementSubtitle(x))));
                     break;
+            }
+
+            if (_requestedNewMode)
+            {
+                _selectedEntryId = null;
+                _entriesView.SelectedItem = null;
+                ResetEditorForNew();
+                _requestedNewMode = false;
+                _requestedEntryId = null;
+                return;
+            }
+
+            if (_requestedEntryId.HasValue)
+            {
+                _selectedEntryId = _requestedEntryId.Value;
+                var requested = _entries.FirstOrDefault(x => x.Id == _selectedEntryId);
+                _entriesView.SelectedItem = requested;
+                PopulateEditorFromSelection();
+                _requestedEntryId = null;
+                return;
             }
 
             if (resetSelection)
@@ -379,18 +400,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         _hasEndTimeCheckBox.IsChecked = false;
         _endTimePicker.Time = new TimeSpan(12, 0, 0);
         _endTimePicker.IsEnabled = false;
-        _hasVisibleFromCheckBox.IsChecked = false;
-        _visibleFromDatePicker.Date = DateTime.Today;
-        _visibleFromTimePicker.Time = new TimeSpan(8, 0, 0);
-        SetOptionalDateTimeEnabled(_visibleFromDatePicker, _visibleFromTimePicker, false);
-        _hasVisibleUntilCheckBox.IsChecked = false;
-        _visibleUntilDatePicker.Date = DateTime.Today;
-        _visibleUntilTimePicker.Time = new TimeSpan(18, 0, 0);
-        SetOptionalDateTimeEnabled(_visibleUntilDatePicker, _visibleUntilTimePicker, false);
-        _hasRegistrationUntilCheckBox.IsChecked = false;
-        _registrationUntilDatePicker.Date = DateTime.Today;
-        _registrationUntilTimePicker.Time = new TimeSpan(18, 0, 0);
-        SetOptionalDateTimeEnabled(_registrationUntilDatePicker, _registrationUntilTimePicker, false);
         _treffpunktEntry.Text = string.Empty;
         _hasMaxParticipantsCheckBox.IsChecked = false;
         _maxParticipantsEntry.Text = string.Empty;
@@ -429,9 +438,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
                 _hasEndTimeCheckBox.IsChecked = workAssignment.EndUhrzeit.HasValue;
                 _endTimePicker.Time = workAssignment.EndUhrzeit ?? new TimeSpan(12, 0, 0);
                 _endTimePicker.IsEnabled = workAssignment.EndUhrzeit.HasValue;
-                ApplyOptionalDateTime(workAssignment.SichtbarAb, _hasVisibleFromCheckBox, _visibleFromDatePicker, _visibleFromTimePicker, new TimeSpan(8, 0, 0));
-                ApplyOptionalDateTime(workAssignment.SichtbarBis, _hasVisibleUntilCheckBox, _visibleUntilDatePicker, _visibleUntilTimePicker, new TimeSpan(18, 0, 0));
-                ApplyOptionalDateTime(workAssignment.AnmeldungBis, _hasRegistrationUntilCheckBox, _registrationUntilDatePicker, _registrationUntilTimePicker, new TimeSpan(18, 0, 0));
                 _treffpunktEntry.Text = workAssignment.Treffpunkt ?? string.Empty;
                 _hasMaxParticipantsCheckBox.IsChecked = workAssignment.MaxTeilnehmer.HasValue;
                 _maxParticipantsEntry.Text = workAssignment.MaxTeilnehmer?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
@@ -457,10 +463,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
                 _hasEndTimeCheckBox.IsChecked = appointment.EndUhrzeit.HasValue;
                 _endTimePicker.Time = appointment.EndUhrzeit ?? new TimeSpan(12, 0, 0);
                 _endTimePicker.IsEnabled = appointment.EndUhrzeit.HasValue;
-                ApplyOptionalDateTime(appointment.SichtbarAb, _hasVisibleFromCheckBox, _visibleFromDatePicker, _visibleFromTimePicker, new TimeSpan(8, 0, 0));
-                ApplyOptionalDateTime(appointment.SichtbarBis, _hasVisibleUntilCheckBox, _visibleUntilDatePicker, _visibleUntilTimePicker, new TimeSpan(18, 0, 0));
-                _hasRegistrationUntilCheckBox.IsChecked = false;
-                SetOptionalDateTimeEnabled(_registrationUntilDatePicker, _registrationUntilTimePicker, false);
                 _activeSwitch.IsToggled = appointment.Aktiv;
                 break;
             case ManagementSection.Announcements:
@@ -474,10 +476,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
                 _editorCaptionLabel.Text = "Bekanntmachung bearbeiten";
                 _titleEntry.Text = announcement.Titel ?? string.Empty;
                 _htmlEditor.Text = announcement.InhaltHtml ?? string.Empty;
-                ApplyOptionalDateTime(announcement.SichtbarAb, _hasVisibleFromCheckBox, _visibleFromDatePicker, _visibleFromTimePicker, new TimeSpan(8, 0, 0));
-                ApplyOptionalDateTime(announcement.SichtbarBis, _hasVisibleUntilCheckBox, _visibleUntilDatePicker, _visibleUntilTimePicker, new TimeSpan(18, 0, 0));
-                _hasRegistrationUntilCheckBox.IsChecked = false;
-                SetOptionalDateTimeEnabled(_registrationUntilDatePicker, _registrationUntilTimePicker, false);
                 _sortOrderEntry.Text = announcement.SortOrder?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
                 _activeSwitch.IsToggled = announcement.Aktiv;
                 break;
@@ -547,9 +545,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         if (!ValidateTimeRange())
             return;
 
-        if (!TryValidateOptionalTimestamps(requireRegistrationUntil: true, out var sichtbarAb, out var sichtbarBis, out var anmeldungBis))
-            return;
-
         var record = _selectedEntryId.HasValue
             ? Clone(_workAssignments.FirstOrDefault(x => x.Id == _selectedEntryId.Value) ?? new ArbeitseinsatzRecord())
             : new ArbeitseinsatzRecord();
@@ -562,9 +557,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         record.Treffpunkt = CleanOptionalText(_treffpunktEntry.Text);
         record.MaxTeilnehmer = maxParticipants;
         record.StundenWert = hoursValue ?? 0m;
-        record.SichtbarAb = sichtbarAb;
-        record.SichtbarBis = sichtbarBis;
-        record.AnmeldungBis = anmeldungBis;
         record.Aktiv = _activeSwitch.IsToggled;
 
         if (_selectedEntryId.HasValue)
@@ -597,9 +589,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         if (!ValidateTimeRange())
             return;
 
-        if (!TryValidateOptionalTimestamps(requireRegistrationUntil: false, out var sichtbarAb, out var sichtbarBis, out _))
-            return;
-
         var record = _selectedEntryId.HasValue
             ? Clone(_appointments.FirstOrDefault(x => x.Id == _selectedEntryId.Value) ?? new TerminRecord())
             : new TerminRecord();
@@ -609,8 +598,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         record.Datum = _datePicker.Date;
         record.StartUhrzeit = _hasStartTimeCheckBox.IsChecked ? _startTimePicker.Time : null;
         record.EndUhrzeit = _hasEndTimeCheckBox.IsChecked ? _endTimePicker.Time : null;
-        record.SichtbarAb = sichtbarAb;
-        record.SichtbarBis = sichtbarBis;
         record.Aktiv = _activeSwitch.IsToggled;
 
         if (_selectedEntryId.HasValue)
@@ -678,17 +665,12 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
             return;
         }
 
-        if (!TryValidateOptionalTimestamps(requireRegistrationUntil: false, out var sichtbarAb, out var sichtbarBis, out _))
-            return;
-
         var record = _selectedEntryId.HasValue
             ? Clone(_announcements.FirstOrDefault(x => x.Id == _selectedEntryId.Value) ?? new BekanntmachungRecord())
             : new BekanntmachungRecord();
 
         record.Titel = _titleEntry.Text.Trim();
         record.InhaltHtml = _htmlEditor.Text.Trim();
-        record.SichtbarAb = sichtbarAb;
-        record.SichtbarBis = sichtbarBis;
         record.SortOrder = sortOrder;
         record.Aktiv = _activeSwitch.IsToggled;
 
@@ -720,23 +702,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
             {
                 new Label { Text = title, FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
                 view
-            }
-        };
-    }
-
-    private static View CreateOptionalDateTimeField(string title, CheckBox checkBox, DatePicker datePicker, TimePicker timePicker)
-    {
-        return new VerticalStackLayout
-        {
-            Spacing = 4,
-            Children =
-            {
-                CreateCheckField(title, checkBox),
-                new HorizontalStackLayout
-                {
-                    Spacing = 8,
-                    Children = { datePicker, timePicker }
-                }
             }
         };
     }
@@ -782,62 +747,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         }
 
         return false;
-    }
-
-    private bool TryValidateOptionalTimestamps(bool requireRegistrationUntil, out DateTime? sichtbarAb, out DateTime? sichtbarBis, out DateTime? anmeldungBis)
-    {
-        sichtbarAb = GetOptionalTimestamp(_hasVisibleFromCheckBox.IsChecked, _visibleFromDatePicker, _visibleFromTimePicker);
-        sichtbarBis = GetOptionalTimestamp(_hasVisibleUntilCheckBox.IsChecked, _visibleUntilDatePicker, _visibleUntilTimePicker);
-        anmeldungBis = requireRegistrationUntil
-            ? GetOptionalTimestamp(_hasRegistrationUntilCheckBox.IsChecked, _registrationUntilDatePicker, _registrationUntilTimePicker)
-            : null;
-
-        if (sichtbarAb.HasValue && sichtbarBis.HasValue && sichtbarBis.Value < sichtbarAb.Value)
-        {
-            _statusLabel.Text = "Sichtbar bis darf nicht vor Sichtbar ab liegen.";
-            return false;
-        }
-
-        if (requireRegistrationUntil && anmeldungBis.HasValue && sichtbarAb.HasValue && anmeldungBis.Value < sichtbarAb.Value)
-        {
-            _statusLabel.Text = "Anmeldung bis darf nicht vor Sichtbar ab liegen.";
-            return false;
-        }
-
-        return true;
-    }
-
-    private static DateTime? GetOptionalTimestamp(bool isEnabled, DatePicker datePicker, TimePicker timePicker)
-    {
-        if (!isEnabled)
-            return null;
-
-        var date = datePicker.Date.Date;
-        var timestamp = date.Add(timePicker.Time);
-        return DateTime.SpecifyKind(timestamp, DateTimeKind.Unspecified);
-    }
-
-    private static void ApplyOptionalDateTime(DateTime? value, CheckBox checkBox, DatePicker datePicker, TimePicker timePicker, TimeSpan fallbackTime)
-    {
-        if (value.HasValue)
-        {
-            checkBox.IsChecked = true;
-            datePicker.Date = value.Value.Date;
-            timePicker.Time = value.Value.TimeOfDay;
-            SetOptionalDateTimeEnabled(datePicker, timePicker, true);
-            return;
-        }
-
-        checkBox.IsChecked = false;
-        datePicker.Date = DateTime.Today;
-        timePicker.Time = fallbackTime;
-        SetOptionalDateTimeEnabled(datePicker, timePicker, false);
-    }
-
-    private static void SetOptionalDateTimeEnabled(DatePicker datePicker, TimePicker timePicker, bool isEnabled)
-    {
-        datePicker.IsEnabled = isEnabled;
-        timePicker.IsEnabled = isEnabled;
     }
 
     private static bool TryParsePositiveInt(string? value, out int result)

@@ -2,6 +2,44 @@
 
 ---
 
+## 2026-03-25 – Block 3A: Verwaltungsbereiche in MAUI fachlich auf drei eigene Übersichtsseiten entflochten
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
+- Für Block `3A` gezielt geprüft:
+  - WPF: `BekanntmachungenVerwaltungEditorView`, `TermineVerwaltungEditorView`, `ArbeitseinsaetzeVerwaltungEditorView`
+  - MAUI: `HomeManagementPage`, `AdminShell`, `ShellRouteRegistrar`, `MauiProgram`, bestehende Home-/Verwaltungszugänge
+- Ehrlicher Befund im aktuellen MAUI-Stand:
+  - die drei Bereiche `Bekanntmachungen`, `Termine` und `Arbeitseinsätze` liefen mobil weiterhin primär über die Sammelseite `HomeManagementPage`
+  - fachliche Bereichstrennung und direkte Verwaltungs-Einstiege waren gegenüber WPF damit noch zu schwach
+  - `HomeManagementPage` blieb damit faktisch noch die Produktiv-Sammelseite statt nur technischer Restpfad
+- Den Korrekturblock deshalb bewusst klein und nur auf Bereichsstruktur/Übersicht umgesetzt:
+  - neue ruhige MAUI-Übersichtsseiten ergänzt:
+    - `BekanntmachungenManagementPage`
+    - `TermineManagementPage`
+    - `ArbeitseinsaetzeManagementPage`
+  - gemeinsame kleine Basis `ManagementOverviewPageBase` ergänzt, damit alle drei Seiten nur ihren jeweils eigenen Bereich zeigen
+  - jede Seite zeigt nur:
+    - eigene Liste vorhandener Datensätze
+    - klaren Einstieg `Neu`
+    - keinen Bereichswechsel innerhalb derselben Seite
+  - `AdminShell` zeigt die drei Verwaltungsbereiche jetzt direkt auf diese drei neuen Hauptseiten statt auf die Sammelseite
+  - `ShellRouteRegistrar` und `MauiProgram` minimal für die drei neuen Seiten ergänzt
+  - `HomeManagementPage` nicht riskant gelöscht, sondern entkoppelt:
+    - neuer technischer Restpfad für Fortsetzung innerhalb genau eines Bereichs
+    - kann jetzt optional mit fixiertem Bereich, ausgewähltem Datensatz oder `Neu` geöffnet werden
+    - Bereichsauswahl wird in diesem technischen Fortsetzungspfad bei fixierter Herkunft ausgeblendet
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt WPF-Editor+Liste pro Bereich ist mobil in `3A` zunächst nur die ruhige Bereichsübersicht als eigener Hauptweg nachgezogen
+  - der technische Fortsetzungspfad über `HomeManagementPage` bleibt bis `3B` bewusst bestehen, um keinen riskanten Großumbau der Editorlogik vorzuziehen
+- Bewusst nicht gemacht:
+  - keine eigentlichen Editorseiten pro Datensatz in diesem Block
+  - keine HTML-/Zeit-/Validierungs-Feinschliffe
+  - keine Änderungen an Home, Stammdaten, Gärten, Parzellen, Ablesen, Arbeitsstunden, Export oder Auth
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - `get_tests` für `KGV.Tests` ergab keine passenden Testfälle für diesen Block
+  - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden und stammen nicht aus der neuen Bereichstrennung selbst
+
 ## 2026-03-25 – Block 2B: Arbeitsstunden-Freigabe in MAUI auf ruhige Übersicht und Einzeldatensatz-Prüfung umgestellt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.

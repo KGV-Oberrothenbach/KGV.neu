@@ -52,9 +52,9 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
         {
-            Items.Add(CreateManagementItem("Verwaltung · Bekanntmachungen", "management_announcements", "announcements"));
-            Items.Add(CreateManagementItem("Verwaltung · Termine", "management_appointments", "appointments"));
-            Items.Add(CreateManagementItem("Verwaltung · Arbeitseinsätze", "management_workassignments", "workassignments"));
+            Items.Add(CreateItem("Verwaltung · Bekanntmachungen", "management_announcements", () => _services.GetRequiredService<BekanntmachungenManagementPage>()));
+            Items.Add(CreateItem("Verwaltung · Termine", "management_appointments", () => _services.GetRequiredService<TermineManagementPage>()));
+            Items.Add(CreateItem("Verwaltung · Arbeitseinsätze", "management_workassignments", () => _services.GetRequiredService<ArbeitseinsaetzeManagementPage>()));
             Items.Add(CreateItem("Export", "export", () => _services.GetRequiredService<ExportPage>()));
         }
 
@@ -84,19 +84,6 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         {
             _workhoursReviewItem.Title = "Arbeitsstunden · Arbeitsstunden freigeben";
         }
-    }
-
-    private FlyoutItem CreateManagementItem(string title, string route, string section)
-    {
-        return CreateItem(title, route, () =>
-        {
-            var page = _services.GetRequiredService<HomeManagementPage>();
-            page.ApplyQueryAttributes(new Dictionary<string, object>
-            {
-                ["section"] = section
-            });
-            return page;
-        });
     }
 
     private static FlyoutItem CreateItem(string title, string route, Func<Page> pageFactory)

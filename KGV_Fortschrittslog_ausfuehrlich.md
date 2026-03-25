@@ -2,6 +2,55 @@
 
 ---
 
+## 2026-03-25 – Prompt 1/1: Block 3A für Verwaltungsbereiche in MAUI fachlich in `Bekanntmachungen` / `Termine` / `Arbeitseinsätze` entflochten
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
+- Für Block `3A` gezielt geprüft:
+  - WPF: `BekanntmachungenVerwaltungEditorView`, `TermineVerwaltungEditorView`, `ArbeitseinsaetzeVerwaltungEditorView`
+  - MAUI: `HomeManagementPage`, `AdminShell`, `ShellRouteRegistrar`, `MauiProgram`, bestehende Home-/Verwaltungszugänge
+- Ehrlicher Befund im aktuellen MAUI-Stand:
+  - die drei Bereiche `Bekanntmachungen`, `Termine` und `Arbeitseinsätze` liefen mobil weiterhin primär über die Sammelseite `HomeManagementPage`
+  - fachliche Bereichstrennung und direkte Verwaltungs-Einstiege waren gegenüber WPF damit noch zu schwach
+  - `HomeManagementPage` blieb damit faktisch noch die Produktiv-Sammelseite statt nur technischer Restpfad
+- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - jeder Verwaltungsbereich brauchte eine eigene ruhige Hauptseite
+  - `HomeManagementPage` durfte nicht weiter der eigentliche Hauptweg für alle drei Bereiche bleiben
+  - Shell-/Verwaltungseinstiege mussten direkt in die getrennten Bereiche zeigen
+  - Bereichsumschaltung innerhalb derselben Seite durfte nicht der Hauptweg bleiben
+- Den Korrekturblock deshalb nur auf Bereichsstruktur/Übersicht umgesetzt:
+  - neue ruhige MAUI-Übersichtsseiten ergänzt:
+    - `BekanntmachungenManagementPage`
+    - `TermineManagementPage`
+    - `ArbeitseinsaetzeManagementPage`
+  - gemeinsame kleine Basis `ManagementOverviewPageBase` ergänzt, damit alle drei Seiten nur ihren jeweils eigenen Bereich zeigen
+  - jede Seite zeigt nur:
+    - eigene Liste vorhandener Datensätze
+    - klaren Einstieg `Neu`
+    - keinen Bereichswechsel innerhalb derselben Seite
+  - `AdminShell` zeigt die drei Verwaltungsbereiche jetzt direkt auf diese drei neuen Hauptseiten statt auf die Sammelseite
+  - `ShellRouteRegistrar` und `MauiProgram` minimal für die drei neuen Seiten ergänzt
+  - `HomeManagementPage` nicht riskant gelöscht, sondern entkoppelt:
+    - neuer technischer Restpfad für Fortsetzung innerhalb genau eines Bereichs
+    - kann jetzt optional mit fixiertem Bereich, ausgewähltem Datensatz oder `Neu` geöffnet werden
+    - Bereichsauswahl wird in diesem technischen Fortsetzungspfad bei fixierter Herkunft ausgeblendet
+- Warum dieser kleine Block fachlich sinnvoll ist:
+  - er zieht die mobile Fachtrennung sichtbar näher an die drei getrennten WPF-Verwaltungsbereiche
+  - jede Seite bleibt fachlich ruhig auf genau einen Bereich fokussiert
+  - statt riskant zu löschen, wird `HomeManagementPage` sauber aus dem Hauptweg herausgelöst und nur noch als technischer Restpfad gehalten
+  - bestehende Shared-Servicepfade für Laden/Schreiben bleiben unverändert die fachliche Grundlage
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt WPF-Editor+Liste pro Bereich ist mobil in `3A` zunächst nur die ruhige Bereichsübersicht als eigener Hauptweg nachgezogen
+  - der technische Fortsetzungspfad über `HomeManagementPage` bleibt bis `3B` bewusst bestehen, um keinen riskanten Großumbau der Editorlogik vorzuziehen
+- Bewusst nicht gemacht:
+  - keine eigentlichen Editorseiten pro Datensatz in diesem Block
+  - keine HTML-/Zeit-/Validierungs-Feinschliffe
+  - keine Bearbeitungslogik für einzelne Einträge
+  - keine Änderungen an Home, Stammdaten, Gärten, Parzellen, Ablesen, Arbeitsstunden, Export oder Auth
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - `get_tests` für `KGV.Tests` ergab keine passenden Testfälle für diesen Block
+  - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden und stammen nicht aus der neuen Bereichstrennung selbst
+
 ## 2026-03-25 – Prompt 1/1: Block 2B für Arbeitsstunden-Freigabe/Adminpfad in MAUI WPF-nah als Einzeldatensatz-Prüfung umgesetzt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
