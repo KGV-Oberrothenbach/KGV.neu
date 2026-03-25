@@ -31,7 +31,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         Items.Add(CreateItem("Mitglieder · Nebenmitglied", "member_nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
 
         if (_userContextState.CurrentUserContext?.Role == UserRole.Admin)
-            Items.Add(CreateItem("Mitglieder · Benutzerverwaltung", "member_usermanagement", () => _services.GetRequiredService<UserManagementPage>()));
+            Items.Add(CreateItem("Admin-Menü · Benutzerverwaltung", "member_usermanagement", () => _services.GetRequiredService<UserManagementPage>()));
 
         Items.Add(CreateItem("Mitglieder · Gärten des Mitglieds", "member_gardens", () => _services.GetRequiredService<MemberGardensPage>()));
 
@@ -58,7 +58,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             Items.Add(CreateItem("Export", "export", () => _services.GetRequiredService<ExportPage>()));
         }
 
-        Items.Add(CreateItem("Mein Profil", "myprofile", () => _services.GetRequiredService<MyProfilePage>()));
+        Items.Add(CreateItem("Mein Bereich · Mein Profil", "myprofile", () => _services.GetRequiredService<MyProfilePage>()));
 
         ShellNavigationHelper.EnsureActiveShellItem(this, "home");
 

@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-03-25 – Prompt 1/1: Block 4A-small für Shell-/Menüordnung in MAUI bei `Admin-Menü` und `Mein Profil` nachgezogen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Für Block `4A-small` gezielt geprüft:
+  - MAUI: `AdminShell`, `UserShell`
+  - bestehende Shell-Zuordnung für `Benutzerverwaltung` und `Mein Profil`
+- Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
+  - `Benutzerverwaltung` hing in `AdminShell` fachlich noch im Bereich `Mitglieder`
+  - `Mein Profil` war zwar vorhanden, im Admin-Flyout aber noch nicht gleich ruhig als eigener persönlicher Bereich eingeordnet wie im User-Flyout
+  - `UserShell` war für `Mein Profil` bereits passend auf `Mein Bereich · Mein Profil` geordnet
+- Den Korrekturblock deshalb bewusst klein und nur in der Shell-Struktur umgesetzt:
+  - `Benutzerverwaltung` in `AdminShell` fachlich aus dem Mitgliederbereich gelöst und als `Admin-Menü · Benutzerverwaltung` einsortiert
+  - Rechte unverändert belassen: sichtbar nur für `Admin`, nicht für `Vorstand`
+  - `Mein Profil` in `AdminShell` sprachlich auf denselben persönlichen Bereich wie mobil im Userpfad gezogen: `Mein Bereich · Mein Profil`
+  - keine neuen Seiten, keine neuen Routen und keine neue Rechte-/Auth-Logik gebaut
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt eines Desktop-Untermenüs nutzt MAUI weiter eine flache Flyout-Struktur mit ruhigen fachlichen Präfixen
+- Bewusst nicht gemacht:
+  - keine Änderungen an Fachlogik anderer Module
+  - keine Änderungen an `HomeManagementPage`
+  - keine Änderungen an `Arbeitseinsätzen`, `Terminen` oder `Bekanntmachungen`
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - blockbezogen keine neuen Buildfehler erzeugt
+
 ## 2026-03-25 – Prompt 1/1: Block 3B3-finish für `Arbeitseinsätze` in MAUI fachlich auf Übersicht / Editor / Datensatzfluss abgeschlossen
 
 - Vor dem Abschlussblock erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenz `ArbeitseinsaetzeVerwaltungEditorView` und den echten Git-Arbeitsbaum geprüft.
@@ -38,6 +63,7 @@
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
   - blockeigene neue `FillAndExpand`-Warnungen beseitigt
   - verbleibende 4 Warnungen liegen weiter in `HomeManagementPage.cs` und stammen nicht aus dem Arbeitseinsatz-Block
+
 ## 2026-03-25 – Prompt 1/1: Block 3B2 für `Termine` in MAUI auf eigenen Übersicht-/Editorpfad nachgezogen
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.

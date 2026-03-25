@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-03-25 – Block 4A-small: Admin-Menü und Mein Profil in MAUI-Shell ruhiger geordnet
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.
+- Für Block `4A-small` gezielt geprüft:
+  - `AdminShell`
+  - `UserShell`
+  - aktuelle Sichtbarkeit und Einordnung von `Benutzerverwaltung` und `Mein Profil`
+- Ehrlicher Befund im aktuellen MAUI-Stand:
+  - `Benutzerverwaltung` hing im Admin-Flyout noch fachlich unter `Mitglieder`
+  - `Mein Profil` war im Admin-Flyout noch nicht so ruhig als eigener persönlicher Bereich eingeordnet wie im User-Flyout
+- Den Korrekturblock deshalb bewusst klein nur in der Shell-Struktur umgesetzt:
+  - `Benutzerverwaltung` in `AdminShell` auf `Admin-Menü · Benutzerverwaltung` gezogen
+  - Sichtbarkeit unverändert nur für `Admin`
+  - `Mein Profil` in `AdminShell` auf `Mein Bereich · Mein Profil` gezogen
+  - keine neuen Seiten, keine neuen Routen und keine neue Rollenlogik eingeführt
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt Desktop-Untermenüs bleibt MAUI bei einer flachen Flyout-Struktur mit fachlichen Präfixen
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-25 – Block 3B3-finish: Arbeitseinsätze in MAUI auf Überblick, Editor und Datensatzfluss fachlich abgeschlossen
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
@@ -27,6 +47,7 @@
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
   - blockeigene Warnungen bereinigt; verbleibend nur 4 ältere Warnungen in `HomeManagementPage.cs`
+
 ## 2026-03-25 – Block 3B2: Termine in MAUI auf Überblick plus eigenen Editorpfad getrennt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
