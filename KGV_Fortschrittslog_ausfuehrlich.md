@@ -2,6 +2,48 @@
 
 ---
 
+## 2026-03-25 – Prompt 1/1: Block 5B-final für Abschlussprüfung, Restentkopplung und Repo-Bereinigung im aktuellen MAUI/WPF-Angleichungszyklus abgeschlossen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum sowie die Root-Struktur mit `README.md`, `KGV.slnx`, `KGV.Tests` und `_Archiv/KGV.Tests` geprüft.
+- Für Block `5B-final` gezielt geprüft:
+  - WPF fachlich: `HomeView` sowie die bereits nachgezogenen getrennten Verwaltungs-/Detailrollen
+  - MAUI aktiv: `AdminShell`, `UserShell`, `HomePage`, `HomeSectionDetailPage`, `BekanntmachungenManagementPage`, `BekanntmachungEditorPage`, `TermineManagementPage`, `TermineEditorPage`, `ArbeitseinsaetzeManagementPage`, `ArbeitseinsaetzeEditorPage`, `MyArbeitsstundenPage`, `HomeManagementPage`, `ShellRouteRegistrar`, `MauiProgram`
+  - Zustände/Hilfsklassen: `HomeContextState`, `ArbeitseinsaetzeUserState`, `TermineUserState`, `ArbeitseinsaetzeManagementState`
+- Ehrlicher Befund im aktuellen Repo-Stand vor Umsetzung:
+  - die wesentlichen MAUI-Hauptpfade waren fachlich bereits getrennt und buildfähig
+  - der letzte echte aktive Restübergang über `HomeManagementPage` lag noch in `HomeSectionDetailPage` bei `Termine` und `Bekanntmachungen`
+  - `ManagementOverviewPageBase` hielt zusätzlich noch einen ungenutzten Standard-Fallback auf `HomeManagementPage`, obwohl alle aktiven Managementseiten längst eigene Produktivpfade überschreiben
+  - `HomeManagementPage` hatte nach den bisherigen Blöcken keinen belegbaren internen Hauptaufrufer mehr, bleibt aber als technischer Kompatibilitäts-/Fallbackkandidat nachvollziehbar bestehen
+  - `KGV.Tests` existiert im Root weiterhin, ist aber nicht in `KGV.slnx`; parallel liegt `_Archiv/KGV.Tests` als archivierte ältere Kopie vor – fachlich war die Einordnung damit dokumentarisch noch nicht klar genug
+- Den Abschlussblock deshalb bewusst klein und nur auf belegbare Restkorrekturen begrenzt:
+  - in `HomeSectionDetailPage` die Bearbeiten-Navigation für `Termine` direkt auf `//management_appointments` gezogen
+  - in `HomeSectionDetailPage` die Bearbeiten-Navigation für `Bekanntmachungen` direkt auf `//management_announcements` gezogen
+  - `Arbeitseinsätze` blieben auf dem bereits direkten Produktivpfad `//management_workassignments`
+  - `ManagementOverviewPageBase` vom alten Standard-Fortsetzungspfad über `HomeManagementPage` entkoppelt: `OpenNewAsync()` und `OpenExistingAsync(...)` sind jetzt abstrakt statt implizit auf den Altpfad zu zeigen
+  - der allgemeine Hinweistext der ruhigen Managementübersichten verweist jetzt auf den eigenen mobilen Produktivpfad statt auf einen technischen Fortsetzungspfad
+  - `README.md` dokumentiert jetzt klarer die Testprojekt-Einordnung:
+    - `KGV.Tests` im Root ist vorhanden, aber aktuell nicht Teil von `KGV.slnx` und nicht im aktiven Build-/CI-Pfad
+    - `_Archiv/KGV.Tests` bleibt als archivierte ältere Kopie eingeordnet
+- Bewusste Abschlussentscheidung zu `HomeManagementPage`:
+  - keine Löschung in diesem Block
+  - keine neue Fachlogik dort ergänzt
+  - Seite bleibt als technischer Rest-/Kompatibilitätspfad im Repo, weil eine vollständige Entfernung ohne breiteren Navigations-/Historienaudit nicht sicher genug gewesen wäre
+  - im aktiven MAUI-Hauptweg wird sie nach diesem Block aber nicht mehr als regulärer Produktivübergang verwendet
+- WPF ↔ MAUI Abschlussprüfung fachlich entlang der Hauptpfade durchgeführt und gegen den aktiven Stand abgeglichen:
+  - `Home` bleibt Übersicht
+  - `Verwaltung` bleibt über eigene getrennte Verwaltungsseiten erreichbar
+  - `Editor` bleibt `Editor`
+  - `Detail` bleibt `Detail`
+  - Nutzerpfade bleiben ohne Verwaltungsbearbeitung
+  - mobile Abweichungen bleiben bewusst und begründet:
+    - getrennte Mobilseiten statt Desktop-Splitview
+    - `← x/y →` in mobilen Datensatzflows
+    - flacheres Flyout statt Desktop-Menühierarchie
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - blockbezogen keine neuen Buildfehler erzeugt
+
 ## 2026-03-25 – Prompt 1/1: Block 5A-final für direkte Home-Verwaltungszugänge in MAUI abgeschlossen
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.

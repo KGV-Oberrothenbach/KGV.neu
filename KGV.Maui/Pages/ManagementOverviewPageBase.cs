@@ -94,7 +94,7 @@ public abstract class ManagementOverviewPageBase : ContentPage
     protected abstract string PageDescription { get; }
     protected abstract string SectionQueryValue { get; }
     protected virtual string EmptyText => "Aktuell liegen keine Datensätze vor.";
-    protected virtual string HintText => "Antippen öffnet den technischen Fortsetzungspfad für diesen Bereich.";
+    protected virtual string HintText => "Antippen öffnet den eigenen mobilen Produktivpfad für diesen Bereich.";
 
     protected abstract Task<IReadOnlyList<ManagementOverviewEntry>> LoadEntriesCoreAsync();
 
@@ -136,20 +136,9 @@ public abstract class ManagementOverviewPageBase : ContentPage
         }
     }
 
-    protected virtual Task OpenNewAsync()
-    {
-        var route = $"{nameof(HomeManagementPage)}?section={SectionQueryValue}&lockSection=true";
-        route += "&mode=new";
+    protected abstract Task OpenNewAsync();
 
-        return Shell.Current.GoToAsync(route);
-    }
-
-    protected virtual Task OpenExistingAsync(long entryId)
-    {
-        var route = $"{nameof(HomeManagementPage)}?section={SectionQueryValue}&lockSection=true&entryId={entryId}";
-
-        return Shell.Current.GoToAsync(route);
-    }
+    protected abstract Task OpenExistingAsync(long entryId);
 
     protected sealed record ManagementOverviewEntry(long Id, string Title, string Subtitle);
 }

@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-03-25 – Block 5B-final: Abschlussprüfung, Restentkopplung und Repo-Bereinigung für den aktuellen MAUI/WPF-Zyklus abgeschlossen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog, `README.md`, `KGV.slnx`, `KGV.Tests` und `_Archiv/KGV.Tests` geprüft.
+- Für Block `5B-final` gezielt geprüft:
+  - WPF-Hauptpfad `HomeView`
+  - aktive MAUI-Hauptpfade für Home, Detail, Verwaltung, Arbeitsstunden und Shell
+  - Restreferenzen auf `HomeManagementPage`
+  - Testprojekt-Einordnung im Root und im Archiv
+- Ehrlicher Befund im aktuellen Repo-Stand:
+  - die großen MAUI-Fachblöcke waren bereits fachlich getrennt und buildfähig abgeschlossen
+  - letzter echter aktiver Altübergang über `HomeManagementPage` lag noch in `HomeSectionDetailPage` für `Termine` und `Bekanntmachungen`
+  - `ManagementOverviewPageBase` trug zusätzlich noch einen ungenutzten Standard-Fallback auf `HomeManagementPage`
+  - `KGV.Tests` im Root und `_Archiv/KGV.Tests` waren dokumentarisch noch nicht sauber genug gegeneinander eingeordnet
+- Den Abschlussblock deshalb bewusst klein nur auf belegbare Restpunkte begrenzt:
+  - `HomeSectionDetailPage` navigiert bei `Termine` jetzt direkt auf `//management_appointments`
+  - `HomeSectionDetailPage` navigiert bei `Bekanntmachungen` jetzt direkt auf `//management_announcements`
+  - `ManagementOverviewPageBase` wurde vom alten impliziten `HomeManagementPage`-Fallback entkoppelt und verlangt jetzt explizite Produktivpfade der abgeleiteten Seiten
+  - `README.md` ordnet `KGV.Tests` im Root jetzt klar als vorhandenes, aber nicht in `KGV.slnx`/CI eingebundenes Testprojekt ein; `_Archiv/KGV.Tests` bleibt die archivierte ältere Kopie
+  - `HomeManagementPage` bleibt bewusst als technischer Kompatibilitätspfad im Repo und wird nicht auf Verdacht gelöscht
+- Abschlussbild nach dem Block:
+  - `Home` bleibt Übersicht
+  - `Verwaltung` bleibt getrennt
+  - `Editor` bleibt `Editor`
+  - `Detail` bleibt `Detail`
+  - keine unnötigen aktiven Mischpfade mehr im MAUI-Hauptweg
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+
 ## 2026-03-25 – Block 5A-final: Home-Verwaltungszugänge in MAUI direkt auf Produktivseiten gezogen
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.

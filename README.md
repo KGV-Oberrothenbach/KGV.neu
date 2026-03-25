@@ -9,12 +9,13 @@ Dieses Repository ist die aktuelle Arbeitsbasis für den Wiederaufbau und die We
 - `KGV.Infrastructure` – Supabase-, Auth- und Infrastruktur-Anbindung
 - `KGV.Wpf` – Windows-Desktop-App auf WPF
 - `KGV.Maui` – mobile App auf .NET MAUI
+- `KGV.Tests` – vorhandenes Testprojekt im Root, aktuell nicht Teil von `KGV.slnx` und nicht im aktiven Build-/CI-Pfad
 
 ### Archiv- und Referenzbereiche
 - `_Archiv` – gebündelter Archivbereich für nicht mehr aktive Root-Bereiche
   - `_Archiv/_Recovery` – rekonstruierte Referenzlisten, PDB-Spuren und Recovery-Metadaten; nicht produktiv
   - `_Archiv/_RecoveredArtifacts` – wiedergefundene Build-/App-Artefakte als Referenz; nicht produktiv
-  - `_Archiv/KGV.Tests` – ausdrücklich archiviertes Testprojekt; derzeit nicht Teil der aktiven Lösung/CI
+  - `_Archiv/KGV.Tests` – archivierte ältere Testkopie; nicht Teil der aktiven Lösung/CI
 - `README_RETTUNG.md` – Herkunft und Recovery-Kontext des Bestands; nicht der primäre Einstieg für die Entwicklung
 
 ## Empfohlener Einstieg
