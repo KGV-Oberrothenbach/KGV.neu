@@ -2,6 +2,27 @@
 
 ---
 
+## 2026-03-25 – Block 5A-final: Home-Verwaltungszugänge in MAUI direkt auf Produktivseiten gezogen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.
+- Für Block `5A-final` gezielt geprüft:
+  - `HomePage`
+  - `HomeManagementPage`
+  - vorhandene Managementseiten und Shell-Routen für `Arbeitseinsätze`, `Termine` und `Bekanntmachungen`
+- Ehrlicher Befund im aktuellen MAUI-Stand:
+  - die echten Produktivseiten waren bereits vorhanden
+  - `Arbeitseinsätze` gingen von `Home` schon direkt auf die Managementseite
+  - `Termine` und `Bekanntmachungen` liefen von `Home` aber noch unnötig über `HomeManagementPage`
+- Den Korrekturblock deshalb bewusst klein und nur in der Navigation umgesetzt:
+  - `Termine bearbeiten` auf `Home` zieht jetzt direkt auf `//management_appointments`
+  - `Bekanntmachungen bearbeiten` auf `Home` zieht jetzt direkt auf `//management_announcements`
+  - `HomeManagementPage` bleibt nur technischer Rest-/Kompatibilitätspfad und wird nicht weiter als normaler Home-Hauptweg genutzt
+  - Sichtbarkeit für Admin/Vorstand blieb unverändert
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt Desktop-Views nutzt MAUI direkte Shell-Routen auf die vorhandenen Mobilseiten bei gleicher fachlicher Trennung
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-25 – Block 4B2-finish: Termine-Nutzerpfad in MAUI sichtbar mobil abgeschlossen
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog und den echten Git-Arbeitsbaum geprüft.

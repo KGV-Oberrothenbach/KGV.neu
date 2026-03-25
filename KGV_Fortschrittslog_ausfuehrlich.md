@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-03-25 – Prompt 1/1: Block 5A-final für direkte Home-Verwaltungszugänge in MAUI abgeschlossen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Für Block `5A-final` gezielt geprüft:
+  - MAUI: `HomePage`, `HomeManagementPage`, `ShellRouteRegistrar`, `MauiProgram`
+  - vorhandene Managementseiten: `ArbeitseinsaetzeManagementPage`, `TermineManagementPage`, `BekanntmachungenManagementPage`
+- Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
+  - die echten Produktivseiten für `Arbeitseinsätze`, `Termine` und `Bekanntmachungen` waren bereits vorhanden und direkt routbar
+  - auf `Home` öffnete `Arbeitseinsätze bearbeiten` bereits direkt die echte Managementseite
+  - `Termine bearbeiten` und `Bekanntmachungen bearbeiten` liefen aber noch unnötig über `HomeManagementPage?section=...`
+  - `HomeManagementPage` hatte damit für diese beiden Home-Einstiege nur noch technischen Restcharakter als Fortsetzungs-/Kompatibilitätspfad
+- Den Korrekturblock deshalb bewusst klein und nur in der direkten Verwaltungsnavigation umgesetzt:
+  - `HomePage` öffnet `Termine bearbeiten` jetzt direkt über die bestehende Produktivroute `//management_appointments`
+  - `HomePage` öffnet `Bekanntmachungen bearbeiten` jetzt direkt über die bestehende Produktivroute `//management_announcements`
+  - `Arbeitseinsätze bearbeiten` blieb auf dem bereits direkten Produktivpfad `//management_workassignments`
+  - bestehende Sichtbarkeitslogik für Admin/Vorstand blieb unverändert
+  - `HomeManagementPage` wurde nicht weiter ausgebaut und bleibt nur noch technischer Rest-/Kompatibilitätspfad für bestehende querybasierte Übergänge
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt Desktop-Commands nutzt MAUI weiter direkte Shell-Routen auf die vorhandenen Managementseiten; die fachliche Trennung `Home` vs. `Verwaltung` bleibt identisch
+- Bewusst nicht gemacht:
+  - keine Änderungen an `AdminShell` oder `UserShell`
+  - keine Änderungen an Nutzerdetailpfaden
+  - keine Änderungen an Fachlogik von `Bekanntmachungen`, `Terminen` oder `Arbeitseinsätzen`
+  - keine große Bereinigung oder Löschung von `HomeManagementPage`
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - blockbezogen keine neuen Buildfehler erzeugt
+
 ## 2026-03-25 – Prompt 1/1: Block 4B2-finish für Termine-Nutzerpfad in MAUI sichtbar mobil abgeschlossen
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.

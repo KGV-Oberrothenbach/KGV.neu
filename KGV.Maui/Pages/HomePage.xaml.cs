@@ -204,11 +204,11 @@ public class HomePage : ContentPage
 
         var appointmentsManagementButton = new Button { Text = "Termine bearbeiten" };
         appointmentsManagementButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
-        appointmentsManagementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync($"{nameof(HomeManagementPage)}?section=appointments");
+        appointmentsManagementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync("//management_appointments");
 
         var announcementsManagementButton = new Button { Text = "Bekanntmachungen bearbeiten" };
         announcementsManagementButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
-        announcementsManagementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync($"{nameof(HomeManagementPage)}?section=announcements");
+        announcementsManagementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync("//management_announcements");
 
         var managementSection = CreateSectionCard(
             nameof(HomeViewModel.ManagementTitle),
