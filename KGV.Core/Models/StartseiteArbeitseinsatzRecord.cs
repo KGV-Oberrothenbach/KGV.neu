@@ -40,4 +40,6 @@ public sealed class StartseiteArbeitseinsatzRecord : BaseModel
 
     [Column("anmeldung_moeglich")]
     public bool? AnmeldungMoeglich { get; set; }
+
+    public bool IstAngemeldet { get; set; }
 }

@@ -1972,6 +1972,8 @@ namespace KGV.Infrastructure.Services
 
             return records
                 .OrderBy(x => x.Datum ?? DateTime.MaxValue)
+                .ThenBy(x => NormalizeTimeValue(x.Beginn) ?? "99:99")
+                .ThenBy(x => NormalizeTimeValue(x.Ende) ?? "99:99")
                 .ThenBy(x => FirstNonEmpty(x.Titel, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                 .Select(MapHomeWorkAssignment)
                 .ToList()
@@ -2052,13 +2054,27 @@ namespace KGV.Infrastructure.Services
                 EndTimeText = end ?? string.Empty,
                 Details = description,
                 DetailInfo = string.Join(Environment.NewLine, detailInfoLines),
-                RegistrationInfo = !string.IsNullOrWhiteSpace(capacityText)
-                    ? capacityText
-                    : record.AnmeldungMoeglich == true
-                        ? "Anmeldung möglich"
-                        : string.Empty,
-                CanRegister = record.AnmeldungMoeglich == true
+                RegistrationInfo = BuildWorkAssignmentRegistrationInfo(record, capacityText),
+                CanRegister = record.AnmeldungMoeglich == true,
+                CanSignOff = record.IstAngemeldet
             };
+        }
+
+        private static string BuildWorkAssignmentRegistrationInfo(StartseiteArbeitseinsatzRecord record, string capacityText)
+        {
+            if (record.IstAngemeldet)
+            {
+                return string.IsNullOrWhiteSpace(capacityText)
+                    ? "Du bist angemeldet"
+                    : $"Du bist angemeldet · {capacityText}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(capacityText))
+                return capacityText;
+
+            return record.AnmeldungMoeglich == true
+                ? "Anmeldung möglich"
+                : string.Empty;
         }
 
         private static HomeAppointmentItem MapHomeAppointment(StartseiteTerminRecord record)
@@ -2240,6 +2256,7 @@ namespace KGV.Infrastructure.Services
                 var isDeadlineOpen = !arbeitseinsatz.AnmeldungBis.HasValue || arbeitseinsatz.AnmeldungBis.Value >= now;
                 var hasCapacity = !arbeitseinsatz.MaxTeilnehmer.HasValue || anmeldungen.Count < arbeitseinsatz.MaxTeilnehmer.Value;
 
+                record.IstAngemeldet = isAlreadyRegistered;
                 record.AnmeldungMoeglich = currentMemberId.HasValue
                     && arbeitseinsatz.Aktiv
                     && !isAlreadyRegistered

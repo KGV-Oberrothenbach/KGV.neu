@@ -9,12 +9,14 @@ public class HomePage : ContentPage
 {
     private readonly HomeViewModel _viewModel;
     private readonly HomeContextState _homeContextState;
+    private readonly ArbeitseinsaetzeUserState _arbeitseinsaetzeUserState;
     private bool _isLoading;
 
-    public HomePage(HomeViewModel viewModel, HomeContextState homeContextState)
+    public HomePage(HomeViewModel viewModel, HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState)
     {
         _viewModel = viewModel;
         _homeContextState = homeContextState;
+        _arbeitseinsaetzeUserState = arbeitseinsaetzeUserState;
         BindingContext = _viewModel;
         Title = "Startseite";
 
@@ -91,6 +93,7 @@ public class HomePage : ContentPage
 
         var workAssignmentsView = CreateHomeListView<HomeWorkAssignmentItem>(item =>
         {
+            _arbeitseinsaetzeUserState.SetEntries(_viewModel.WorkAssignments.ToList(), item.Id);
             _homeContextState.SetWorkAssignment(item);
             return Shell.Current.GoToAsync(nameof(HomeSectionDetailPage));
         }, item =>
@@ -194,7 +197,7 @@ public class HomePage : ContentPage
 
         var workAssignmentsManagementButton = new Button { Text = "Arbeitseinsätze bearbeiten" };
         workAssignmentsManagementButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
-        workAssignmentsManagementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync($"{nameof(HomeManagementPage)}?section=workassignments");
+        workAssignmentsManagementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync("//management_workassignments");
 
         var appointmentsManagementButton = new Button { Text = "Termine bearbeiten" };
         appointmentsManagementButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));

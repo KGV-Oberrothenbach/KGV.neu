@@ -278,6 +278,12 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
             return;
         }
 
+        if (_currentSection == ManagementSection.WorkAssignments)
+        {
+            await RedirectWorkAssignmentsAsync();
+            return;
+        }
+
         if (_currentSection == ManagementSection.Announcements)
         {
             await RedirectAnnouncementsAsync();
@@ -318,6 +324,17 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
             return Shell.Current.GoToAsync($"{nameof(TermineEditorPage)}?entryId={_requestedEntryId.Value}");
 
         return Shell.Current.GoToAsync("//management_appointments");
+    }
+
+    private Task RedirectWorkAssignmentsAsync()
+    {
+        if (_requestedNewMode)
+            return Shell.Current.GoToAsync(nameof(ArbeitseinsaetzeEditorPage));
+
+        if (_requestedEntryId.HasValue)
+            return Shell.Current.GoToAsync($"{nameof(ArbeitseinsaetzeEditorPage)}?entryId={_requestedEntryId.Value}");
+
+        return Shell.Current.GoToAsync("//management_workassignments");
     }
 
     private async Task LoadCurrentSectionAsync(bool resetSelection)

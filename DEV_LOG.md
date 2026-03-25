@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-03-25 – Block 3B3-finish: Arbeitseinsätze in MAUI auf Überblick, Editor und Datensatzfluss fachlich abgeschlossen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
+- Für Block `3B3-finish` gezielt geprüft:
+  - MAUI: `ArbeitseinsaetzeManagementPage`, `ArbeitseinsaetzeEditorPage`, `HomeManagementPage`, `HomePage`, `HomeSectionDetailPage`, Routing/DI in `ShellRouteRegistrar` und `MauiProgram`
+  - Shared/Produktivpfade: `SupabaseService`, `HomeDashboardItems`, `StartseiteArbeitseinsatzRecord`
+- Ehrlicher Befund im aktuellen MAUI-Stand:
+  - die Übersicht war noch nicht konsequent chronologisch und ruhig genug
+  - der Arbeitseinsatz-Editorpfad war noch nicht vollständig produktiv verdrahtet
+  - Verwaltungs- und User-Datensatzfluss mit Pfeilnavigation fehlten noch
+  - `HomeManagementPage` war für Arbeitseinsätze noch Rest-Hauptpfad
+- Den Korrekturblock deshalb bewusst klein und nur auf `Arbeitseinsätze` umgesetzt:
+  - chronologische Verwaltungssortierung nach `Datum`, `Startzeit`, `Endzeit`, `Titel`
+  - eigener produktiver Editorpfad `ArbeitseinsaetzeEditorPage` für `Neu` und `Bearbeiten`
+  - mobiler Verwaltungs-Datensatzfluss im Editor mit `← x/y →` und Save-vor-Wechsel
+  - mobiler User-Datensatzfluss in `HomeSectionDetailPage` mit `← x/y →` sowie `Anmelden` / `Abmelden` je Datensatz
+  - `HomeManagementPage` für Arbeitseinsätze auf Übersicht/Editor umgeleitet
+  - vorhandene RPC-/Shared-Pfade für `Anmelden` und `Abmelden` weiterverwendet
+  - `ShellRouteRegistrar` und `MauiProgram` minimal ergänzt
+  - neue kleine Zustandsdienste für Verwaltungs- und Usernavigation ergänzt
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt Desktop-Nebeneinander von Liste und Editor nutzt MAUI mobil getrennte Seiten plus kompakte Datensatznavigation
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - blockeigene Warnungen bereinigt; verbleibend nur 4 ältere Warnungen in `HomeManagementPage.cs`
 ## 2026-03-25 – Block 3B2: Termine in MAUI auf Überblick plus eigenen Editorpfad getrennt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.

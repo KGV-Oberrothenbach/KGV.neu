@@ -26,6 +26,7 @@ public sealed class HomeWorkAssignmentItem
     public string RegistrationInfo { get; init; } = string.Empty;
     public bool HasRegistrationInfo => !string.IsNullOrWhiteSpace(RegistrationInfo);
     public bool CanRegister { get; init; }
+    public bool CanSignOff { get; init; }
 
     private static string BuildTimeText(string? start, string? end)
     {

@@ -2,6 +2,42 @@
 
 ---
 
+## 2026-03-25 – Prompt 1/1: Block 3B3-finish für `Arbeitseinsätze` in MAUI fachlich auf Übersicht / Editor / Datensatzfluss abgeschlossen
+
+- Vor dem Abschlussblock erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenz `ArbeitseinsaetzeVerwaltungEditorView` und den echten Git-Arbeitsbaum geprüft.
+- Für Block `3B3-finish` gezielt geprüft:
+  - MAUI: `ArbeitseinsaetzeManagementPage`, `ArbeitseinsaetzeEditorPage`, `HomeManagementPage`, `HomePage`, `HomeSectionDetailPage`, `ShellRouteRegistrar`, `MauiProgram`
+  - Shared/Modelle: `SupabaseService`, `HomeDashboardItems`, `StartseiteArbeitseinsatzRecord`
+- Ehrlicher Befund im aktuellen MAUI-Stand vor Abschluss:
+  - `ArbeitseinsaetzeManagementPage` war noch keine saubere chronologische Ruheübersicht
+  - der Editorpfad für `Arbeitseinsätze` war noch nicht vollständig als produktiver Weg für `Neu`/`Bearbeiten` verdrahtet
+  - mobiler Verwaltungs-Datensatzfluss und mobiler User-Datensatzfluss mit Pfeilnavigation fehlten noch
+  - `HomeManagementPage` war für `Arbeitseinsätze` noch technischer Hauptrestpfad
+- Den Korrekturblock deshalb bewusst klein und nur im Bereich `Arbeitseinsätze` umgesetzt:
+  - `ArbeitseinsaetzeManagementPage` lädt jetzt chronologisch nach `Datum`, `Startzeit`, `Endzeit`, `Titel` und bleibt eine ruhige Übersicht
+  - `ArbeitseinsaetzeEditorPage` als echter mobiler Editorpfad für `Neu` und `Bearbeiten` produktiv verdrahtet
+  - Editor bildet die fachlich relevanten Felder aus WPF/Shared-Pfad mobil ab: `Titel`, `Beschreibung`, `Datum`, Zeiten, `Treffpunkt`, `max_teilnehmer`, `stunden_wert`, `sichtbar_ab`, `sichtbar_bis`, `anmeldung_bis`, `aktiv`
+  - `max_teilnehmer` bleibt optional und wird leer als `NULL` geführt; `stunden_wert` bleibt optional
+  - `Speichern` bleibt am Ende des Formulars
+  - mobiler Verwaltungs-Datensatzfluss im Editor ergänzt: Pfeil links, Positionsanzeige `x/y`, Pfeil rechts
+  - beim Blättern werden offene Änderungen zuerst validiert und gespeichert; bei Fehler bleibt der Datensatz stehen
+  - `HomeSectionDetailPage` für den Userpfad auf datensatzweisen Arbeitseinsatz-Flow mit `← x/y →` geschärft
+  - pro Datensatz ist jetzt direkt `Anmelden` bzw. `Abmelden` sichtbar, abhängig vom echten RPC-/Produktivzustand
+  - bestehende Produktivpfade `SignUpForArbeitseinsatzAsync` und `SignOffFromArbeitseinsatzAsync` werden weiterverwendet; keine Schattenlogik
+  - `HomePage` seedet den datensatzweisen Userfluss aus der vorhandenen chronologischen Arbeitseinsatzliste
+  - `HomeManagementPage` wurde für `Arbeitseinsätze` als Hauptweg entkoppelt und leitet jetzt auf Übersicht bzw. Editor um
+  - `ShellRouteRegistrar` und `MauiProgram` minimal für Editorroute und Navigationszustände ergänzt
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt WPF-Liste plus Editor nebeneinander nutzt MAUI mobil getrennte Seiten mit kompakter Datensatznavigation
+  - diese Abweichung ist wegen kleinerem Bildschirm und Touch-Bedienung fachlich sinnvoll und näher an einem ruhigen mobilen Flow als eine Mischseite
+- Bewusst nicht gemacht:
+  - keine Änderungen an `Bekanntmachungen`
+  - keine Änderungen an `Termine`
+  - keine Änderungen an anderen Bereichen wie Home außer der zwingend nötigen Arbeitseinsatz-Navigation
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - blockeigene neue `FillAndExpand`-Warnungen beseitigt
+  - verbleibende 4 Warnungen liegen weiter in `HomeManagementPage.cs` und stammen nicht aus dem Arbeitseinsatz-Block
 ## 2026-03-25 – Prompt 1/1: Block 3B2 für `Termine` in MAUI auf eigenen Übersicht-/Editorpfad nachgezogen
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.

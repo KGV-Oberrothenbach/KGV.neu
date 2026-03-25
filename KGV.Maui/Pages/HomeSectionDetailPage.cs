@@ -9,6 +9,7 @@ namespace KGV.Maui.Pages;
 public sealed class HomeSectionDetailPage : ContentPage
 {
     private readonly HomeContextState _homeContextState;
+    private readonly ArbeitseinsaetzeUserState _arbeitseinsaetzeUserState;
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _userContextState;
 
@@ -21,17 +22,22 @@ public sealed class HomeSectionDetailPage : ContentPage
     private readonly Label _registrationInfoLabel;
     private readonly Label _statusLabel;
     private readonly Button _registerButton;
+    private readonly Button _signOffButton;
     private readonly Button _manageButton;
     private readonly Button _backButton;
+    private readonly Button _previousButton;
+    private readonly Button _nextButton;
+    private readonly Label _positionLabel;
     private readonly CollectionView _participantsView;
     private readonly Label _participantsEmptyLabel;
     private readonly VerticalStackLayout _participantsSection;
     private readonly ObservableCollection<WorkAssignmentParticipantItem> _participants = new();
     private bool _isBusy;
 
-    public HomeSectionDetailPage(HomeContextState homeContextState, ISupabaseService supabaseService, UserContextState userContextState)
+    public HomeSectionDetailPage(HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, ISupabaseService supabaseService, UserContextState userContextState)
     {
         _homeContextState = homeContextState;
+        _arbeitseinsaetzeUserState = arbeitseinsaetzeUserState;
         _supabaseService = supabaseService;
         _userContextState = userContextState;
 
@@ -49,6 +55,9 @@ public sealed class HomeSectionDetailPage : ContentPage
         _registerButton = new Button { Text = "Anmelden", IsVisible = false };
         _registerButton.Clicked += async (_, _) => await RegisterAsync();
 
+        _signOffButton = new Button { Text = "Abmelden", IsVisible = false };
+        _signOffButton.Clicked += async (_, _) => await SignOffAsync();
+
         _backButton = new Button { Text = "Zur Startseite" };
         _backButton.Clicked += async (_, _) => await Shell.Current.GoToAsync("//home");
 
@@ -64,7 +73,26 @@ public sealed class HomeSectionDetailPage : ContentPage
             };
 
             if (!string.IsNullOrWhiteSpace(section))
-                await Shell.Current.GoToAsync($"{nameof(HomeManagementPage)}?section={section}");
+            {
+                if (_homeContextState.DetailKind == HomeDetailKind.WorkAssignment)
+                    await Shell.Current.GoToAsync("//management_workassignments");
+                else
+                    await Shell.Current.GoToAsync($"{nameof(HomeManagementPage)}?section={section}");
+            }
+        };
+
+        _previousButton = new Button { Text = "←", WidthRequest = 56, IsVisible = false };
+        _previousButton.Clicked += async (_, _) => await MovePreviousAsync();
+
+        _nextButton = new Button { Text = "→", WidthRequest = 56, IsVisible = false };
+        _nextButton.Clicked += async (_, _) => await MoveNextAsync();
+
+        _positionLabel = new Label
+        {
+            HorizontalTextAlignment = TextAlignment.Center,
+            HorizontalOptions = LayoutOptions.Fill,
+            VerticalTextAlignment = TextAlignment.Center,
+            IsVisible = false
         };
 
         _participantsEmptyLabel = new Label
@@ -130,9 +158,10 @@ public sealed class HomeSectionDetailPage : ContentPage
                     new HorizontalStackLayout
                     {
                         Spacing = 8,
-                        Children = { _registerButton, _manageButton }
+                        Children = { _registerButton, _signOffButton, _manageButton }
                     },
                     _participantsSection,
+                    CreateWorkAssignmentNavigationFooter(),
                     _statusLabel
                 }
             }
@@ -152,12 +181,17 @@ public sealed class HomeSectionDetailPage : ContentPage
         _participantsSection.IsVisible = false;
         _participantsEmptyLabel.IsVisible = false;
         _registerButton.IsVisible = false;
+        _signOffButton.IsVisible = false;
         _manageButton.IsVisible = false;
+        _previousButton.IsVisible = false;
+        _nextButton.IsVisible = false;
+        _positionLabel.IsVisible = false;
 
         switch (_homeContextState.DetailKind)
         {
             case HomeDetailKind.WorkAssignment when _homeContextState.WorkAssignment != null:
-                var workAssignment = _homeContextState.WorkAssignment;
+                var workAssignment = _arbeitseinsaetzeUserState.CurrentEntry ?? _homeContextState.WorkAssignment;
+                _homeContextState.SetWorkAssignment(workAssignment);
                 _sectionLabel.Text = "Arbeitseinsatz";
                 _titleLabel.Text = workAssignment.Title;
                 _subtitleLabel.Text = workAssignment.Subtitle;
@@ -166,6 +200,8 @@ public sealed class HomeSectionDetailPage : ContentPage
                 _additionalInfoLabel.Text = workAssignment.DetailInfo;
                 _registrationInfoLabel.Text = workAssignment.RegistrationInfo;
                 _registerButton.IsVisible = workAssignment.CanRegister;
+                _signOffButton.IsVisible = workAssignment.CanSignOff;
+                UpdateWorkAssignmentNavigation();
                 await LoadParticipantsAsync(workAssignment.Id);
                 break;
             case HomeDetailKind.Appointment when _homeContextState.Appointment != null:
@@ -233,9 +269,11 @@ public sealed class HomeSectionDetailPage : ContentPage
             _statusLabel.Text = result.Message;
             if (result.UpdatedItem != null)
             {
+                _arbeitseinsaetzeUserState.ReplaceCurrent(result.UpdatedItem);
                 _homeContextState.SetWorkAssignment(result.UpdatedItem);
                 _registrationInfoLabel.Text = result.UpdatedItem.RegistrationInfo;
                 _registerButton.IsVisible = result.UpdatedItem.CanRegister;
+                _signOffButton.IsVisible = result.UpdatedItem.CanSignOff;
             }
         }
         finally
@@ -243,4 +281,91 @@ public sealed class HomeSectionDetailPage : ContentPage
             _isBusy = false;
         }
     }
+
+    private async Task SignOffAsync()
+    {
+        if (_isBusy || _homeContextState.WorkAssignment == null)
+            return;
+
+        if (_userContextState.CurrentMitgliedId is not > 0 or > int.MaxValue)
+        {
+            _statusLabel.Text = "Der aktuelle Benutzer ist keinem Mitglied zugeordnet.";
+            return;
+        }
+
+        _isBusy = true;
+        try
+        {
+            var result = await _supabaseService.SignOffFromArbeitseinsatzAsync(_homeContextState.WorkAssignment.Id, (int)_userContextState.CurrentMitgliedId.Value);
+            _statusLabel.Text = result.Message;
+            if (result.UpdatedItem != null)
+            {
+                _arbeitseinsaetzeUserState.ReplaceCurrent(result.UpdatedItem);
+                _homeContextState.SetWorkAssignment(result.UpdatedItem);
+                _registrationInfoLabel.Text = result.UpdatedItem.RegistrationInfo;
+                _registerButton.IsVisible = result.UpdatedItem.CanRegister;
+                _signOffButton.IsVisible = result.UpdatedItem.CanSignOff;
+            }
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private void UpdateWorkAssignmentNavigation()
+    {
+        var hasNavigation = _arbeitseinsaetzeUserState.TotalCount > 0;
+        _previousButton.IsVisible = hasNavigation;
+        _nextButton.IsVisible = hasNavigation;
+        _positionLabel.IsVisible = hasNavigation;
+        _previousButton.IsEnabled = _arbeitseinsaetzeUserState.CanMovePrevious;
+        _nextButton.IsEnabled = _arbeitseinsaetzeUserState.CanMoveNext;
+        _positionLabel.Text = hasNavigation
+            ? $"{_arbeitseinsaetzeUserState.CurrentIndex + 1}/{_arbeitseinsaetzeUserState.TotalCount}"
+            : string.Empty;
+    }
+
+    private Task MovePreviousAsync()
+    {
+        if (!_arbeitseinsaetzeUserState.MovePrevious() || _arbeitseinsaetzeUserState.CurrentEntry == null)
+            return Task.CompletedTask;
+
+        _homeContextState.SetWorkAssignment(_arbeitseinsaetzeUserState.CurrentEntry);
+        return LoadAsync();
+    }
+
+    private Task MoveNextAsync()
+    {
+        if (!_arbeitseinsaetzeUserState.MoveNext() || _arbeitseinsaetzeUserState.CurrentEntry == null)
+            return Task.CompletedTask;
+
+        _homeContextState.SetWorkAssignment(_arbeitseinsaetzeUserState.CurrentEntry);
+        return LoadAsync();
+    }
+
+    private Grid CreateWorkAssignmentNavigationFooter()
+    {
+        var grid = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Auto)
+            }
+        };
+
+        grid.Add(_previousButton);
+        Grid.SetColumn(_previousButton, 0);
+
+        grid.Add(_positionLabel);
+        Grid.SetColumn(_positionLabel, 1);
+
+        grid.Add(_nextButton);
+        Grid.SetColumn(_nextButton, 2);
+
+        return grid;
+    }
 }
+
