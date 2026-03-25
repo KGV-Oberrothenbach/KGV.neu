@@ -24,111 +24,41 @@ public sealed class AdminShell : Shell, IAppShellInitializer
     {
         Items.Clear();
 
-        Items.Add(new FlyoutItem
-        {
-            Title = "Startseite",
-            Items =
-            {
-                new ShellContent
-                {
-                    Title = "Startseite",
-                    Route = "home",
-                    ContentTemplate = new DataTemplate(() => _services.GetRequiredService<HomePage>())
-                }
-            }
-        });
+        Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
+
+        Items.Add(CreateItem("Mitglieder · Mitgliedersuche", "membersearch", () => _services.GetRequiredService<MemberSearchPage>()));
+        Items.Add(CreateItem("Mitglieder · Stammdaten", "memberdetails", () => _services.GetRequiredService<MeineDatenPage>()));
+        Items.Add(CreateItem("Mitglieder · Nebenmitglied", "member_nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
+
+        if (_userContextState.CurrentUserContext?.Role == UserRole.Admin)
+            Items.Add(CreateItem("Mitglieder · Benutzerverwaltung", "member_usermanagement", () => _services.GetRequiredService<UserManagementPage>()));
+
+        Items.Add(CreateItem("Mitglieder · Gärten des Mitglieds", "member_gardens", () => _services.GetRequiredService<MeineDatenPage>()));
+
+        Items.Add(CreateItem("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
 
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
         {
-            Items.Add(new FlyoutItem
-            {
-                Title = "Export",
-                Items =
-                {
-                    new ShellContent
-                    {
-                        Title = "Export",
-                        Route = "export",
-                        ContentTemplate = new DataTemplate(() => _services.GetRequiredService<ExportPage>())
-                    }
-                }
-            });
+            Items.Add(CreateItem("Ablesen · Ablesen", "ablesen", () => new AblesenOverviewPage()));
+            Items.Add(CreateItem("Ablesen · RFID einrichten", "ablesen_rfid", () => _services.GetRequiredService<RfidEinrichtenPage>()));
+            Items.Add(CreateItem("Ablesen · Fällige Zähler", "ablesen_faellig", () => _services.GetRequiredService<FaelligeZaehlerPage>()));
+            Items.Add(CreateItem("Ablesen · Zählerwechsel", "ablesen_wechsel", () => _services.GetRequiredService<ZaehlerwechselPage>()));
         }
 
-        Items.Add(new FlyoutItem
-        {
-            Title = "Mitgliedersuche",
-            Items =
-            {
-                new ShellContent
-                {
-                    Title = "Mitgliedersuche",
-                    Route = "membersearch",
-                    ContentTemplate = new DataTemplate(() => _services.GetRequiredService<MemberSearchPage>())
-                }
-            }
-        });
+        Items.Add(CreateItem("Arbeitsstunden · Meine Arbeitsstunden", "workhours", () => _services.GetRequiredService<MyArbeitsstundenPage>()));
 
-        Items.Add(new FlyoutItem
-        {
-            Title = "Stammdaten",
-            Items =
-            {
-                new ShellContent
-                {
-                    Title = "Stammdaten",
-                    Route = "memberdetails",
-                    ContentTemplate = new DataTemplate(() => _services.GetRequiredService<MeineDatenPage>())
-                }
-            }
-        });
-
-        Items.Add(new FlyoutItem
-        {
-            Title = "Parzellen",
-            Items =
-            {
-                new ShellContent
-                {
-                    Title = "Parzellen",
-                    Route = "parzellen",
-                    ContentTemplate = new DataTemplate(() => _services.GetRequiredService<ParzellenPage>())
-                }
-            }
-        });
-
-        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
-        {
-            Items.Add(new FlyoutItem
-            {
-                Title = "Ablesen",
-                Items =
-                {
-                    new ShellContent
-                    {
-                        Title = "Ablesen",
-                        Route = "ablesen",
-                        ContentTemplate = new DataTemplate(() => new AblesenOverviewPage())
-                    }
-                }
-            });
-        }
-
-        _workhoursReviewItem = new FlyoutItem
-        {
-            Title = "Arbeitsstunden freigeben",
-            Items =
-            {
-                new ShellContent
-                {
-                    Title = "Arbeitsstunden freigeben",
-                    Route = "workhours_review",
-                    ContentTemplate = new DataTemplate(() => _services.GetRequiredService<ArbeitsstundenReviewPage>())
-                }
-            }
-        };
-
+        _workhoursReviewItem = CreateItem("Arbeitsstunden · Arbeitsstunden freigeben", "workhours_review", () => _services.GetRequiredService<ArbeitsstundenReviewPage>());
         Items.Add(_workhoursReviewItem);
+
+        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+        {
+            Items.Add(CreateManagementItem("Verwaltung · Bekanntmachungen", "management_announcements", "announcements"));
+            Items.Add(CreateManagementItem("Verwaltung · Termine", "management_appointments", "appointments"));
+            Items.Add(CreateManagementItem("Verwaltung · Arbeitseinsätze", "management_workassignments", "workassignments"));
+            Items.Add(CreateItem("Export", "export", () => _services.GetRequiredService<ExportPage>()));
+        }
+
+        Items.Add(CreateItem("Mein Profil", "myprofile", () => _services.GetRequiredService<MyProfilePage>()));
 
         ShellNavigationHelper.EnsureActiveShellItem(this, "home");
 
@@ -147,12 +77,42 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             var count = offene.Sum(x => x.Count);
 
             _workhoursReviewItem.Title = count > 0
-                ? $"Arbeitsstunden freigeben ({count})"
-                : "Arbeitsstunden freigeben";
+                ? $"Arbeitsstunden · Arbeitsstunden freigeben ({count})"
+                : "Arbeitsstunden · Arbeitsstunden freigeben";
         }
         catch
         {
-            _workhoursReviewItem.Title = "Arbeitsstunden freigeben";
+            _workhoursReviewItem.Title = "Arbeitsstunden · Arbeitsstunden freigeben";
         }
+    }
+
+    private FlyoutItem CreateManagementItem(string title, string route, string section)
+    {
+        return CreateItem(title, route, () =>
+        {
+            var page = _services.GetRequiredService<HomeManagementPage>();
+            page.ApplyQueryAttributes(new Dictionary<string, object>
+            {
+                ["section"] = section
+            });
+            return page;
+        });
+    }
+
+    private static FlyoutItem CreateItem(string title, string route, Func<Page> pageFactory)
+    {
+        return new FlyoutItem
+        {
+            Title = title,
+            Items =
+            {
+                new ShellContent
+                {
+                    Title = title,
+                    Route = route,
+                    ContentTemplate = new DataTemplate(pageFactory)
+                }
+            }
+        };
     }
 }

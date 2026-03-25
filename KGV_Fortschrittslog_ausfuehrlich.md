@@ -2,6 +2,71 @@
 
 ---
 
+## 2026-03-24 – Prompt 1/1: Block 0A für Shell-/Menüstruktur in MAUI WPF-nah begonnen und kleinen Shell-Strukturblock umgesetzt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Für Block 0A gezielt geprüft:
+  - MAUI: `AdminShell`, `UserShell`, `MauiProgram`, `ShellNavigationHelper`
+  - WPF-Referenz: fachliche Haupt-/Mitgliedsnavigation in `MainWindowViewModel`
+- Ehrlicher Befund im aktuellen Stand:
+  - `AdminShell` und `UserShell` enthielten zwar bereits produktive Kernziele, die fachliche Gruppierung war gegenüber WPF aber noch zu flach und zu unscharf
+  - besonders Mitgliedskontext, Parzellenverwaltung, Ablesen, Arbeitsstunden, Verwaltung und Profil lagen mobil noch nicht klar genug in einer WPF-nahen Reihenfolge und Gruppierung
+  - `Gärten des Mitglieds` durfte dabei ausdrücklich nicht mit der globalen `Parzellenverwaltung` vermischt werden
+- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - Admin-/Vorstand-Menü sollte WPF-näher entlang klarer Fachgruppen gegliedert werden
+  - Nutzer-Menü sollte auf einen klaren Bereich `Mein Bereich` gezogen werden
+  - die drei Verwaltungsunterpunkte sollten als getrennte Fachpunkte sichtbar werden, ohne neue Verwaltungsseiten zu bauen
+  - echte verschachtelte Untermenüs sind in der Standard-MAUI-Shell nur begrenzt ohne größeren Custom-Flyout-Umbau darstellbar
+- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur in `AdminShell` und `UserShell` umgesetzt:
+  - `AdminShell` wurde WPF-nah neu geordnet in die Fachgruppen:
+    - `Startseite`
+    - `Mitglieder · Mitgliedersuche`
+    - `Mitglieder · Stammdaten`
+    - `Mitglieder · Nebenmitglied`
+    - `Mitglieder · Benutzerverwaltung` *(Admin-only)*
+    - `Mitglieder · Gärten des Mitglieds`
+    - `Parzellenverwaltung`
+    - `Ablesen · Ablesen`
+    - `Ablesen · RFID einrichten`
+    - `Ablesen · Fällige Zähler`
+    - `Ablesen · Zählerwechsel`
+    - `Arbeitsstunden · Meine Arbeitsstunden`
+    - `Arbeitsstunden · Arbeitsstunden freigeben`
+    - `Verwaltung · Bekanntmachungen`
+    - `Verwaltung · Termine`
+    - `Verwaltung · Arbeitseinsätze`
+    - `Export`
+    - `Mein Profil`
+  - `UserShell` wurde auf die Fachgruppe `Mein Bereich` geordnet:
+    - `Startseite`
+    - `Mein Bereich · Meine Stammdaten`
+    - `Mein Bereich · Nebenmitglied`
+    - `Mein Bereich · Meine Arbeitsstunden`
+    - `Mein Bereich · Mein Profil`
+  - für `Meine Stammdaten` im User-Shell wird vor dem Öffnen der vorhandene eigene Mitgliedskontext gesetzt, damit `MeineDatenPage` als eigener Stammdatenpfad nutzbar bleibt
+  - die drei Verwaltungsunterpunkte verwenden weiter die vorhandene `HomeManagementPage`, aber nur mit bestehendem Query-Parameter für Bereichsauswahl statt neuer Seitenarchitektur
+  - der Badge-/Titelpfad für `Arbeitsstunden freigeben` wurde an die neue Gruppierungsbenennung angepasst
+- Warum dieser kleine Block fachlich sinnvoll ist:
+  - er zieht die sichtbare Fachstruktur der mobilen Shell näher an WPF, ohne Seiteninhalte anzufassen
+  - Mitgliedsbezogene Gärten und globale Parzellenverwaltung bleiben ausdrücklich getrennt
+  - die Struktur wird klarer, ohne neue Fachflows zu bauen
+- Erzwungene kleine mobile Abweichung ausdrücklich benannt:
+  - echtes verschachteltes Flyout mit visuellen Unterebenen bietet die Standard-MAUI-Shell ohne größeren Custom-Flyout-Umbau nicht belastbar an
+  - deshalb wurde die WPF-nahe Unterstruktur minimal-invasiv über klare fachliche Gruppierungspräfixe `Bereich · Unterpunkt` umgesetzt
+- Bewusst nicht gemacht:
+  - kein Umbau von `LoginPage`
+  - kein Eingriff in `App.xaml.cs` oder Android-Rootpfade
+  - keine Seitenkopf-/Hamburger-/Zurück-Themen dieses Blocks vorweggenommen
+  - keine Inhaltsänderung an Home-, Stammdaten-, Parzellen-, Ablesen-, Export- oder Verwaltungsseiten
+- Fachliche Kurzvalidierung nach dem kleinen Block:
+  - Admin-/Vorstand-Menü ist fachlich deutlich WPF-näher gruppiert
+  - Nutzer-Menü ist auf `Mein Bereich` gebündelt
+  - Mitgliedsbezogene Gärten und globale Parzellenverwaltung bleiben getrennt
+  - keine produktiven Fachbereiche entfernt
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - unveränderte bestehende Warnungen außerhalb dieses Blocks bleiben bestehen
+
 ## 2026-03-24 – Prompt 1/2: MAUI Feinschliff für Stammdaten / Gärten / Parzelle / Ablesen begonnen und kleinen UI-/Flow-Block umgesetzt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die Repo-Wahrheit und den echten Git-Arbeitsbaum geprüft.
