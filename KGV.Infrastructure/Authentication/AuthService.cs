@@ -128,6 +128,28 @@ namespace KGV.Infrastructure.Authentication
             return _client;
         }
 
+        public async Task<string?> GetAccessTokenAsync()
+        {
+            var client = await GetClientAsync();
+            if (client == null)
+                return null;
+
+            var auth = client.Auth;
+            if (auth == null)
+                return null;
+
+            var authType = auth.GetType();
+            var currentSession = authType.GetProperty("CurrentSession")?.GetValue(auth);
+            if (currentSession == null)
+            {
+                var retrieveSessionMethod = authType.GetMethod("RetrieveSessionAsync");
+                if (retrieveSessionMethod != null)
+                    currentSession = await AwaitMethodResultAsync(retrieveSessionMethod.Invoke(auth, null));
+            }
+
+            return ExtractAccessToken(currentSession);
+        }
+
         public async Task<bool> LoginAsync(string email, string password)
         {
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
@@ -722,6 +744,16 @@ namespace KGV.Infrastructure.Authentication
             var sessionType = session.GetType();
             var user = sessionType.GetProperty("User")?.GetValue(session);
             return user?.GetType().GetProperty("Id")?.GetValue(user) as string;
+        }
+
+        private static string? ExtractAccessToken(object? session)
+        {
+            if (session == null)
+                return null;
+
+            var sessionType = session.GetType();
+            return sessionType.GetProperty("AccessToken")?.GetValue(session) as string
+                ?? sessionType.GetProperty("access_token")?.GetValue(session) as string;
         }
     }
 }

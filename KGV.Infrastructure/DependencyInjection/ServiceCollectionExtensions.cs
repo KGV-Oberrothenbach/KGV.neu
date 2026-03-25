@@ -38,6 +38,12 @@ namespace KGV.Infrastructure.DependencyInjection
                     sp.GetService<ILogger<SupabaseService>>(),
                     () => sp.GetService<IUserContextAccessor>()?.CurrentUserContext));
 
+            services.AddSingleton<IPhotoUploadTestService>(sp =>
+                new PhotoUploadTestService(
+                    sp.GetRequiredService<IAuthService>(),
+                    configuration,
+                    sp.GetService<ILogger<PhotoUploadTestService>>()));
+
             return services;
         }
     }

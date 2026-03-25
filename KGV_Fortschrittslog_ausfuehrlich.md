@@ -2,6 +2,67 @@
 
 ---
 
+## 2026-03-25 – Prompt 1/1: Finaler Git-Abschluss für den Artefakt-/FotoUploadTest-Block sauber eingegrenzt und nur mit Blockdateien vorbereitet
+
+- Vor dem Git-Abschluss erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum und die aktiven Referenzen des `FotoUploadTest`-Pfads geprüft.
+- Ehrlicher Befund vor dem Abschluss:
+  - der Arbeitsbaum enthielt weiterhin viele blockfremde offene WPF-/Supabase-/lokale Artefakte
+  - das WPF-`FotoUploadTest` war im aktiven Produkt-/Testpfad weiterhin nachweisbar verdrahtet über `App.xaml`, `App.xaml.cs`, `NavigationService`, `AblesenOverviewViewModel`, `MainWindowViewModel`, `AblesenOverviewView` und die neuen Core-/Infrastructure-Typen
+  - die MAUI-Variante blieb weiterhin ungenutzt; nach der Verschiebung in `_Archiv` war die kleine Restbereinigung in `MauiProgram` deshalb eine echte Blockdatei
+  - `.github/copilot-instructions.md` wurde bewusst nicht in diesen Block gezogen, weil die Datei kein belegter Bestandteil des Artefakt-/`FotoUploadTest`-Produktpfads ist
+- Den Git-Abschluss deshalb strikt nur auf den echten Block begrenzt:
+  - aktive WPF-/Core-/Infrastructure-`FotoUploadTest`-Dateien in den Commit aufgenommen
+  - notwendige kleine MAUI-Restbereinigung `MauiProgram` mit aufgenommen
+  - aktive Supabase-Begleitdateien des aktuellen Functionpfads mit aufgenommen
+  - Archivdateien des ungenutzten MAUI-/Altpfads mit aufgenommen
+  - `KGV_Fortschrittslog_ausfuehrlich.md` und `DEV_LOG.md` fortgeführt
+  - blockfremde offene WPF-XAML-Dateien, lokale Binaries, Secrets, Exporte, IDE-Artefakte und Asset-Dubletten ausdrücklich nicht in den Index übernommen
+- Build-Bezug vor dem Commit ehrlich gehalten:
+  - seit der letzten erfolgreichen Validierung wurden an den buildrelevanten Artefakt-Dateien keine neuen fachlichen Codeänderungen mehr außerhalb dieses bereits validierten Blocks vorgenommen
+  - deshalb wurde für den reinen Git-Abschluss kein neuer Build behauptet, sondern auf die bereits erfolgreichen Builds von `KGV.Wpf` und `KGV.Maui` Bezug genommen
+
+## 2026-03-25 – Prompt 1/1: Block Artefaktbereinigung für blockfremde lokale Dateien geprüft, aktive Teile sauber eingeordnet und Archivkandidaten getrennt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum und die unversionierten/blockfremden Artefakte geprüft.
+- Für den Block gezielt geprüft:
+  - unversionierte Dateien rund um `PhotoUploadTest` / `FotoUploadTest`
+  - unversionierte Supabase-Konfigurationsdateien unter `supabase/functions/kgv-upload-photo`
+  - lokale Dubletten/Artefakte wie `package.json`, `package-lock.json`, `database.types.ts`, zusätzliche Icon-Dateien, IDE-/Secret-/Export-Verzeichnisse und lokale Buildartefakte
+- Ehrlicher Befund im aktuellen Repo-Stand vor Umsetzung:
+  - das WPF-`FotoUploadTest` war bereits aktiv in App-Start, Navigation, `Ablesen`-Übersicht und View-Verdrahtung eingebunden, die dazugehörigen Core-/Infrastructure-/WPF-Dateien lagen aber noch unversioniert im Arbeitsbaum
+  - die MAUI-Variante von `FotoUploadTest` war hingegen nicht produktiv über Route/Shell/Seitenpfad eingebunden; einzig eine lose ViewModel-Registrierung in `MauiProgram` verwies noch darauf
+  - `supabase/functions/kgv-upload-photo/deno.json`, `.npmrc` und `supabase/.gitignore` waren legitime aktive Begleitdateien des aktuellen Edge-Function-Pfads, aber noch unversioniert
+  - `supabase/kgv-upload-photo/index.ts` war nur noch ein älterer Nebenpfad neben dem aktiven Deploypfad `supabase/functions/kgv-upload-photo/index.ts`
+  - zusätzliche lokale Dubletten/Binaries/Secrets/Exporte waren nicht belastbar Teil der aktiven Produktivstruktur
+- Den Korrekturblock deshalb bewusst klein und sauber getrennt umgesetzt:
+  - aktive WPF-`FotoUploadTest`-Dateien jetzt ordentlich als Repo-Bestand eingeordnet:
+    - `IPhotoUploadTestService`
+    - `PhotoUploadTestRequest`
+    - `PhotoUploadTestResult`
+    - `PhotoUploadTestService`
+    - `FotoUploadTestViewModel` (WPF)
+    - `FotoUploadTestView.xaml.cs`
+    - zugehörige vorhandene WPF-/Core-/Infrastructure-Verdrahtung mit `GetAccessTokenAsync()` und Navigation
+  - lose MAUI-Registrierung des derzeit nicht produktiv angebundenen `FotoUploadTestViewModel` aus `MauiProgram` entfernt
+  - ungenutzte MAUI-`FotoUploadTest`-Dateien in den Archivbereich verschoben:
+    - `_Archiv/KGV.Maui/Pages/FotoUploadTestPage.cs`
+    - `_Archiv/KGV.Maui/ViewModels/FotoUploadTestViewModel.cs`
+  - alten Nebenpfad `supabase/kgv-upload-photo/index.ts` in `_Archiv/supabase/kgv-upload-photo/index.ts` verschoben
+  - aktive Supabase-Begleitdateien ordentlich ins Repo übernommen:
+    - `supabase/.gitignore`
+    - `supabase/functions/kgv-upload-photo/deno.json`
+    - `supabase/functions/kgv-upload-photo/.npmrc`
+  - verbleibende lokale Artefaktkandidaten in `_Archiv/LOCAL_ARTIFACT_ARCHIVE_CANDIDATES.md` sauber dokumentiert statt auf Verdacht ins aktive Repo zu ziehen
+- Bewusst nicht gemacht:
+  - keine Secrets oder lokale Exportdaten ins aktive Repo übernommen
+  - keine lokalen Release-Binaries (`.exe`, `.apk`) ins Repo übernommen
+  - keine ungenutzte MAUI-Diagnoseseite künstlich produktiv angebunden
+  - keine aggressive Löschung weiterer lokaler Artefakte ohne sichere Einordnung
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - blockbezogen keine neuen Buildfehler erzeugt
+
 ## 2026-03-25 – Prompt 1/1: Block 5B-final für Abschlussprüfung, Restentkopplung und Repo-Bereinigung im aktuellen MAUI/WPF-Angleichungszyklus abgeschlossen
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum sowie die Root-Struktur mit `README.md`, `KGV.slnx`, `KGV.Tests` und `_Archiv/KGV.Tests` geprüft.

@@ -17,6 +17,7 @@ namespace KGV.ViewModels
         public RelayCommand<object?> OpenZaehlerwechselCommand { get; }
         public RelayCommand<object?> OpenRfidEinrichtenCommand { get; }
         public RelayCommand<object?> OpenFaelligeZaehlerCommand { get; }
+        public RelayCommand<object?> OpenFotoUploadTestCommand { get; }
 
         public AblesenOverviewViewModel(MainWindowViewModel mainVm)
         {
@@ -25,6 +26,7 @@ namespace KGV.ViewModels
             OpenZaehlerwechselCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToZaehlerwechselScanViewModel()), _ => IsAdminOrVorstand);
             OpenRfidEinrichtenCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToRfidEinrichtenViewModel()), _ => IsAdminOrVorstand);
             OpenFaelligeZaehlerCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToFaelligeZaehlerViewModel()), _ => IsAdminOrVorstand);
+            OpenFotoUploadTestCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToFotoUploadTestViewModel()), _ => IsAdminOrVorstand);
         }
 
         private async Task NavigateAsync(BaseViewModel? target)

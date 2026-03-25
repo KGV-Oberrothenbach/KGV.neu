@@ -10,11 +10,13 @@ namespace KGV.Infrastructure.Services
     {
         private readonly ISupabaseService _supabaseService;
         private readonly IAuthService _authService;
+        private readonly IPhotoUploadTestService _photoUploadTestService;
 
-        public NavigationService(ISupabaseService supabaseService, IAuthService authService)
+        public NavigationService(ISupabaseService supabaseService, IAuthService authService, IPhotoUploadTestService photoUploadTestService)
         {
             _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+            _photoUploadTestService = photoUploadTestService ?? throw new ArgumentNullException(nameof(photoUploadTestService));
         }
 
         /// <summary>
@@ -117,6 +119,11 @@ namespace KGV.Infrastructure.Services
             if (viewModelType == typeof(FaelligeZaehlerViewModel))
             {
                 return new FaelligeZaehlerViewModel(_supabaseService, mainVm);
+            }
+
+            if (viewModelType == typeof(FotoUploadTestViewModel))
+            {
+                return new FotoUploadTestViewModel(_photoUploadTestService, mainVm);
             }
 
             if (viewModelType == typeof(ParzellenVerwaltungViewModel))

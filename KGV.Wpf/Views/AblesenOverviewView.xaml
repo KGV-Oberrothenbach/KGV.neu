@@ -11,6 +11,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -71,6 +72,21 @@
                         <StackPanel>
                             <TextBlock Text="Fällige Zähler" FontSize="18" FontWeight="SemiBold" />
                             <TextBlock Text="Zähler mit naher Eichfälligkeit anzeigen"
+                                       Margin="0,10,0,0"
+                                       TextWrapping="Wrap"
+                                       Foreground="Gray" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button Grid.Row="2" Grid.ColumnSpan="2"
+                            Margin="0,12,0,0"
+                            Padding="18"
+                            MinHeight="150"
+                            HorizontalContentAlignment="Stretch"
+                            Command="{Binding OpenFotoUploadTestCommand}">
+                        <StackPanel>
+                            <TextBlock Text="Foto-Upload testen" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="Echten Upload gegen `kgv-upload-photo` aus der App testen und HTTP-/Rohfehler sichtbar machen"
                                        Margin="0,10,0,0"
                                        TextWrapping="Wrap"
                                        Foreground="Gray" />

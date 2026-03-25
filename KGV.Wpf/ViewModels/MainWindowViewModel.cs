@@ -618,6 +618,11 @@ namespace KGV.ViewModels
             return _navigationService.CreateViewModel(typeof(FaelligeZaehlerViewModel), this) as BaseViewModel;
         }
 
+        public BaseViewModel? NavigateToFotoUploadTestViewModel()
+        {
+            return _navigationService.CreateViewModel(typeof(FotoUploadTestViewModel), this) as BaseViewModel;
+        }
+
         private async Task RefreshArbeitsstundenPruefungStatusAsync()
         {
             if (!UserContext.Has(PermissionFlags.CanManageWorkHours))

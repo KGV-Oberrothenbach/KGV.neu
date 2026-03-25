@@ -43,6 +43,7 @@ namespace KGV.Core.Interfaces
         /// Supabase-Client, um weitere Abfragen zu machen
         /// </summary>
         Task<Client> GetClientAsync();
+        Task<string?> GetAccessTokenAsync();
 
         /// <summary>
         /// Rollen des eingeloggten Users
