@@ -2,6 +2,44 @@
 
 ---
 
+## 2026-03-25 – Block 3B2: Termine in MAUI auf Überblick plus eigenen Editorpfad getrennt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
+- Für Block `3B2` gezielt geprüft:
+  - WPF: `TermineVerwaltungEditorView`
+  - MAUI: `TermineManagementPage`, `HomeManagementPage`, Routing/DI in `ShellRouteRegistrar` und `MauiProgram`
+- Ehrlicher Befund im aktuellen MAUI-Stand:
+  - `TermineManagementPage` war zwar bereits ruhige Übersicht, öffnete `Neu`/`Bearbeiten` aber noch in den technischen Restpfad `HomeManagementPage`
+  - damit blieb für Termine der eigentliche mobile Produktiv-Editor weiter an einer Mischseite hängen
+  - zusätzlich lief die Übersicht noch nicht ausdrücklich auf der geforderten chronologischen Hauptsortierung nach Datum/Uhrzeit
+- Den Korrekturblock deshalb bewusst klein und nur auf `Termine` umgesetzt:
+  - neuer eigener Editorpfad `TermineEditorPage` ergänzt
+  - `TermineManagementPage` öffnet `Neu` und `Bearbeiten` jetzt direkt in diesen neuen Editorpfad
+  - die Übersicht wurde ausdrücklich auf chronologische Reihenfolge nach `Datum`, `Startzeit`, `Endzeit`, `Titel` gezogen
+  - der neue Editor trennt Übersicht und Bearbeitung sichtbar auf zwei Seiten
+  - fachlich relevante Felder aus dem bestehenden Shared-/WPF-Pfad bleiben im Editor erhalten:
+    - `Titel`
+    - `Beschreibung`
+    - `Datum`
+    - `Startzeit`
+    - `Endzeit`
+    - `Sichtbar ab`
+    - `Sichtbar bis`
+    - `Aktiv`
+  - Speichern bleibt am Ende des Formulars
+  - `HomeManagementPage` wurde für den Bereich `Termine` als Haupteditor entkoppelt und leitet jetzt bei diesem Bereich auf Übersicht bzw. neuen Editorpfad weiter
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt WPF-Liste plus Editor in derselben Breite nutzt MAUI mobil bewusst getrennte Seiten `Übersicht` und `Editor`
+  - für die touch-taugliche Zeit-/Datumsbearbeitung nutzt der mobile Editor stabile `DatePicker`-/`TimePicker`-Felder mit klaren Aktivschaltern für optionale Zeit- und Sichtbarkeitsangaben statt einer Desktop-artigen freien Zeiteingabe in derselben Formularfläche
+- Bewusst nicht gemacht:
+  - keine Änderungen an `Bekanntmachungen`
+  - keine Änderungen an `Arbeitseinsätze`
+  - keine Änderungen an Home, Stammdaten, Gärten, Parzellen, Ablesen, Arbeitsstunden, Export oder Auth
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - `get_tests` für `KGV.Tests` ergab keine passenden Testfälle für diesen Block
+  - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` und stammen nicht aus dem neuen Termine-Editorpfad
+
 ## 2026-03-25 – Block 3B1: Bekanntmachungen in MAUI auf Überblick plus eigenen Editorpfad getrennt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen ausführlichen Fortschrittslog, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.

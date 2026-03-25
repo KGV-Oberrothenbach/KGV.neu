@@ -2,6 +2,55 @@
 
 ---
 
+## 2026-03-25 – Prompt 1/1: Block 3B2 für `Termine` in MAUI auf eigenen Übersicht-/Editorpfad nachgezogen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
+- Für Block `3B2` gezielt geprüft:
+  - WPF: `TermineVerwaltungEditorView`
+  - MAUI: `TermineManagementPage`, `HomeManagementPage`, Routing/DI in `ShellRouteRegistrar` und `MauiProgram`
+- Ehrlicher Befund im aktuellen MAUI-Stand:
+  - `TermineManagementPage` war zwar bereits ruhige Übersicht, öffnete `Neu`/`Bearbeiten` aber noch in den technischen Restpfad `HomeManagementPage`
+  - damit blieb für Termine der eigentliche mobile Produktiv-Editor weiter an einer Mischseite hängen
+  - zusätzlich lief die sichtbare Übersicht noch nicht ausdrücklich auf der geforderten chronologischen Hauptsortierung nach Datum/Uhrzeit
+- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - `Termine` brauchten neben der Übersicht einen klar getrennten Editorpfad
+  - `Neu` und `Bearbeiten` sollten denselben eigenen Editorpfad nutzen
+  - die Übersicht musste Termine chronologisch nach Datum und Uhrzeit zeigen
+  - `HomeManagementPage` durfte für Termine nicht weiter der eigentliche Haupteditor bleiben
+- Den Korrekturblock deshalb nur im Bereich `Termine` umgesetzt:
+  - neuer eigener Editorpfad `TermineEditorPage` ergänzt
+  - `TermineManagementPage` öffnet `Neu` und `Bearbeiten` jetzt direkt in diesen neuen Editorpfad
+  - die Übersicht wurde ausdrücklich auf chronologische Reihenfolge nach `Datum`, `Startzeit`, `Endzeit`, `Titel` gezogen
+  - der neue Editor trennt Übersicht und Bearbeitung sichtbar auf zwei Seiten
+  - fachlich relevante Felder aus dem bestehenden Shared-/WPF-Pfad bleiben im Editor erhalten:
+    - `Titel`
+    - `Beschreibung`
+    - `Datum`
+    - `Startzeit`
+    - `Endzeit`
+    - `Sichtbar ab`
+    - `Sichtbar bis`
+    - `Aktiv`
+  - `ShellRouteRegistrar` und `MauiProgram` minimal für den neuen Termine-Editor ergänzt
+  - `HomeManagementPage` wurde für den Bereich `Termine` als Haupteditor entkoppelt und leitet jetzt bei diesem Bereich auf Übersicht bzw. neuen Editorpfad weiter
+  - `Speichern` und `Abbrechen` bleiben am Ende des Formularpfads
+  - nach `Speichern` oder `Abbrechen` geht der Nutzer sauber zurück zur Übersicht `Termine`
+- Warum dieser kleine Block fachlich sinnvoll ist:
+  - er zieht die mobile Trennung `Übersicht` vs. `Editor` sichtbar näher an die WPF-Rolle des Termineeditors
+  - die Übersicht bleibt ruhig und chronologisch lesbar
+  - bestehende Shared-Servicepfade für Laden/Erstellen/Speichern bleiben unverändert die fachliche Grundlage
+- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - statt WPF-Liste plus Editor in derselben Breite nutzt MAUI mobil bewusst getrennte Seiten `Übersicht` und `Editor`
+  - für die touch-taugliche Zeit-/Datumsbearbeitung nutzt der mobile Editor stabile `DatePicker`-/`TimePicker`-Felder mit klaren Aktivschaltern für optionale Zeit- und Sichtbarkeitsangaben statt einer Desktop-artigen freien Zeiteingabe in derselben Formularfläche
+- Bewusst nicht gemacht:
+  - keine Änderungen an `Bekanntmachungen`
+  - keine Änderungen an `Arbeitseinsätze`
+  - keine Änderungen an Home, Stammdaten, Gärten, Parzellen, Ablesen, Arbeitsstunden, Export oder Auth
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - `get_tests` für `KGV.Tests` ergab keine passenden Testfälle für diesen Block
+  - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` und stammen nicht aus dem neuen Termine-Editorpfad
+
 ## 2026-03-25 – Prompt 1/1: Block 3B1 für `Bekanntmachungen` in MAUI auf eigenen Übersicht-/Editorpfad nachgezogen
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.

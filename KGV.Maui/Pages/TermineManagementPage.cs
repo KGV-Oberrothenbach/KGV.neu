@@ -11,20 +11,34 @@ public sealed class TermineManagementPage : ManagementOverviewPageBase
     }
 
     protected override string PageTitle => "Termine";
-    protected override string PageDescription => "Ruhige mobile Übersicht des Verwaltungsbereichs `Termine`. Bereichsumschaltung innerhalb derselben Seite entfällt hier bewusst.";
+    protected override string PageDescription => "Ruhige mobile Übersicht des Verwaltungsbereichs `Termine`. Neu und Bearbeiten öffnen jetzt einen eigenen mobilen Termine-Editor statt einer Mischseite.";
     protected override string SectionQueryValue => "appointments";
     protected override string EmptyText => "Aktuell liegen keine Termine vor.";
 
     protected override async Task<IReadOnlyList<ManagementOverviewEntry>> LoadEntriesCoreAsync()
     {
         return (await SupabaseService.GetTermineVerwaltungAsync())
-            .OrderByDescending(x => x.Datum)
-            .ThenByDescending(x => x.Id)
+            .OrderBy(x => x.Datum)
+            .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
+            .ThenBy(x => x.EndUhrzeit ?? TimeSpan.MaxValue)
+            .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
             .Select(x => new ManagementOverviewEntry(
                 x.Id,
                 x.Titel ?? "(ohne Titel)",
                 BuildSubtitle(x)))
             .ToList();
+    }
+
+    protected override string HintText => "Antippen öffnet den eigenen Termine-Editor.";
+
+    protected override Task OpenNewAsync()
+    {
+        return Shell.Current.GoToAsync(nameof(TermineEditorPage));
+    }
+
+    protected override Task OpenExistingAsync(long entryId)
+    {
+        return Shell.Current.GoToAsync($"{nameof(TermineEditorPage)}?entryId={entryId}");
     }
 
     private static string BuildSubtitle(KGV.Core.Models.TerminRecord record)
