@@ -2,6 +2,48 @@
 
 ---
 
+## 2026-03-26 – MAUI-Bugfix: Android-AppIcon final auf genau einen aktiven PNG-Pfad reduziert
+
+- Vor dem kleinen Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur den MAUI-Icon-Pfad geprüft:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/Resources/AppIcon/*`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+  - `KGV.Maui/Platforms/Android/Resources/*`
+- WPF wurde in diesem Block bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
+  - es existierte weiterhin genau ein expliziter `MauiIcon`-Eintrag auf `Resources/AppIcon/appicon.png`
+  - konkurrierende `MauiIcon`-Einträge gab es also nicht direkt mehrfach
+  - im selben `AppIcon`-Ordner lag aber zusätzlich noch `appicon.svg`; die Datei war nicht als Launcher-Icon aktiv, wurde aber zusätzlich noch als normales `MauiImage` unter `Resources/Images/kgv_logo.svg` verlinkt und blieb damit eine echte Alt-/Verwechslungsquelle im Ressourcenpfad
+  - ein altes adaptives Foreground-Setup war im aktuellen Repo nicht aktiv
+  - `AndroidManifest.xml` überschreibt das Launcher-Icon nicht:
+    - kein `android:icon`
+    - kein `android:roundIcon`
+  - unter `Platforms/Android/Resources/*` existieren im aktuellen Workspace keine manuellen `mipmap`-/`drawable`-Reste, die das MAUI-AppIcon überschreiben
+- Den Bugfix deshalb bewusst klein und nur auf die aktive Launcher-Konfiguration begrenzt:
+  - in `KGV.Maui.csproj` explizit `MauiIcon Remove="Resources\AppIcon\*.svg"` ergänzt
+  - die zusätzliche `MauiImage`-Verlinkung der `AppIcon`-SVG wurde entfernt
+  - stattdessen wurde das allgemeine Bild-Asset sauber separat unter `KGV.Maui/Resources/Images/kgv_logo.svg` abgelegt
+  - danach bleibt für den Launcher-Pfad eindeutig nur noch ein aktiver `MauiIcon` bestehen:
+    - `Resources/AppIcon/appicon.png`
+  - die bestehende Splash-Konfiguration wurde bewusst nicht verändert, weil sie das Launcher-Icon nicht überschreibt und der Block nur das AppIcon-Thema abschließen soll
+  - keine Login-/Shell-/Fachlogik angefasst
+- Aktive Icon-Konfiguration nach dem Block:
+  - Launcher-Icon: ausschließlich `KGV.Maui/Resources/AppIcon/appicon.png`
+  - allgemeines Logo-Bild: `KGV.Maui/Resources/Images/kgv_logo.svg`
+  - keine Manifest-Überschreibung
+  - keine manuellen Android-Resource-Overrides im Repo
+- Android-Test-/Bereinigungshinweis festgehalten:
+  - `bin` und `obj` löschen
+  - App auf dem Gerät deinstallieren
+  - neu bauen und neu installieren, weil Android Launcher-Icons aggressiv cached
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - ein direkt benachbarter Android-AAPT-Fehler aus der doppelten `appicon.svg`-Nutzung als `MauiImage` wurde in diesem Block mit bereinigt
+  - der Lauf scheiterte danach weiterhin blockfremd an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
+    - `KGV.Maui/Pages/HomeManagementPage.cs`
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - damit ist die Launcher-Icon-Konfiguration selbst klar reduziert, der Gesamt-Workspace aber weiterhin nicht grün buildbar
+
 ## 2026-03-26 – Prompt 1/2: MAUI-Login-Root-Switch sofort sichtbar gemacht und AppIcon-Pfad sauber verdrahtet
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-Dateien geprüft:

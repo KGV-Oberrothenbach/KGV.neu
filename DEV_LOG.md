@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-03-26 – MAUI-Android-AppIcon final auf genau einen aktiven PNG-Pfad festgezogen
+
+- Vor dem kleinen Block erneut nur den MAUI-Icon-Pfad und gezielt diese Dateien geprüft:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/Resources/AppIcon/*`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+  - `KGV.Maui/Platforms/Android/Resources/*`
+- Ehrlicher Befund:
+  - im `csproj` existierte bereits genau ein expliziter `MauiIcon`-Eintrag auf `Resources/AppIcon/appicon.png`
+  - parallel lag aber weiterhin `Resources/AppIcon/appicon.svg` im selben Ordner und wurde nicht nur für Splash genutzt, sondern zusätzlich noch als normales `MauiImage` unter `Resources/Images/kgv_logo.svg` verlinkt; der Launcher-Override war damit zwar nicht direkt aktiv, der Altpfad blieb aber unnötig doppelt verdrahtet
+  - `AndroidManifest.xml` enthält weiterhin weder `android:icon` noch `android:roundIcon`
+  - unter `Platforms/Android/Resources/*` existieren im Workspace keine manuellen `mipmap`-/`drawable`-Icon-Reste, die das MAUI-AppIcon überschreiben
+- Umsetzung bewusst klein und nur fürs AppIcon:
+  - in `KGV.Maui.csproj` zusätzlich explizit `MauiIcon Remove="Resources\AppIcon\*.svg"` gesetzt
+  - die zusätzliche `MauiImage`-Verlinkung der `AppIcon`-SVG wurde entfernt
+  - stattdessen liegt das allgemeine Bild-Asset jetzt separat unter `KGV.Maui/Resources/Images/kgv_logo.svg`
+  - damit bleibt für den Launcher-Pfad genau ein aktives `MauiIcon` übrig:
+    - `Resources/AppIcon/appicon.png`
+  - Splash-/Fach-/Login-/Shell-Logik bewusst nicht verändert
+- Android-Test-/Bereinigungshinweis:
+  - `bin` und `obj` löschen
+  - App auf dem Gerät deinstallieren
+  - neu bauen und neu installieren, weil Android Launcher-Icons cached
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - ein direkt benachbarter Android-AAPT-Fehler aus der doppelten `appicon.svg`-Nutzung als `MauiImage` wurde in diesem Block mit bereinigt
+  - der Lauf scheiterte danach weiter blockfremd an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+
 ## 2026-03-26 – MAUI-Login-Root-Switch auf Android stabilisiert und AppIcon-Pfad bereinigt
 
 - Vor dem kleinen Block erneut den realen MAUI-Iststand, den Fortschrittslog und gezielt diese aktiven Dateien geprüft:
