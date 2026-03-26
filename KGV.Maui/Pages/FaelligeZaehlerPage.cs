@@ -1,5 +1,9 @@
 using KGV.Maui.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Maui;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
+using System;
 
 namespace KGV.Maui.Pages;
 

@@ -2,6 +2,32 @@
 
 ---
 
+## 2026-03-26 – Nächsten blockfremden MAUI-Compileblock für `FaelligeZaehlerPage`, `ArbeitsstundenReviewDetailPage` und `ManagementOverviewPageBase` gezielt bereinigt
+
+- Vor dem Block erneut nur den realen Repo-/Log-/Fehlerstand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `KGV.Maui/Pages/FaelligeZaehlerPage.cs`
+  - `KGV.Maui/Pages/ArbeitsstundenReviewDetailPage.cs`
+  - `KGV.Maui/Pages/ManagementOverviewPageBase.cs`
+  - gezielte Dateifehler für genau diese drei MAUI-Seiten
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+- WPF wurde bewusst nicht angefasst.
+- Ehrlicher Befund vor der Korrektur:
+  - alle drei betroffenen Dateien liegen im aktiven Stand als code-only MAUI-Seiten vor; direkte aktive `.xaml`-Gegenstücke wurden im Seitenpfad nicht gefunden
+  - die Compilefehler lagen nicht in Fachlogik, sondern erneut in fehlenden MAUI-/Graphics-/System-Namespaces
+  - betroffen waren dort u. a. Typauflösungen für `ContentPage`, `CollectionView`, `Label`, `Button`, `ScrollView`, `VerticalStackLayout`, `HorizontalStackLayout`, `Border`, `Editor`, `View`, `Colors`, `LineBreakMode`, `TextAlignment`, `GridLength`, `CornerRadius`, `Dispatcher` und `FontAttributes`
+- Umsetzung bewusst klein und nur auf die Compile-Ursachen begrenzt:
+  - in `KGV.Maui/Pages/FaelligeZaehlerPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergänzt
+  - in `KGV.Maui/Pages/ArbeitsstundenReviewDetailPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-/Tasks-Usings ergänzt
+  - in `KGV.Maui/Pages/ManagementOverviewPageBase.cs` die fehlenden aktiven MAUI-/Graphics-/Collections-/Linq-/System-/Tasks-Usings ergänzt
+  - keine Fachlogik, keine Navigation, keine Rechte- oder CRUD-/Supabase-Pfade geändert
+  - keine XAML-/Code-Behind-Umbauten gestartet, weil die drei Zielseiten im aktiven Stand code-only sind
+- Technische Verifikation:
+  - `get_errors` auf den drei Zielseiten blieb nach dem Fix unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` läuft im aktuellen Workspace wieder erfolgreich durch
+  - der gezielte MAUI-Compileblock ist damit dateibezogen und im Gesamtprojekt compile-seitig bereinigt
+
 ## 2026-03-26 – Nächsten blockfremden MAUI-Compileblock für `NebenmitgliedPage`, `UserManagementPage`, `RfidEinrichtenPage`, `MemberGardensPage` und `RfidScanWorkflowPage` gezielt bereinigt
 
 - Vor dem Block erneut nur den realen Repo-/Log-/Fehlerstand geprüft:
