@@ -2,6 +2,72 @@
 
 ---
 
+## 2026-03-26 – MAUI-Flyout auf kleine Hauptnavigation reduziert und Mitgliedskontext sauber eingehängt
+
+- Vor dem kleinen Block erneut Repo-/Arbeitsbaumstand, aktiven Fortschrittslog und die real verwendeten MAUI-Shell-/Mitgliedskontextdateien geprüft.
+- Ehrlicher Befund:
+  - `AdminShell` und `UserShell` enthielten noch deutlich mehr Flyout-Einträge als für den mobilen Hauptweg gewünscht
+  - die gewünschten Mitglieds-Unterpunkte waren im Admin-Flyout bisher immer sichtbar statt erst nach Mitgliedsauswahl
+  - `MemberSearchPage` setzte den Mitgliedskontext bereits, aktualisierte das Flyout danach aber noch nicht gezielt
+  - der vorhandene mobile Arbeitsstundenpfad war bereits vorhanden, nutzte im Adminkontext aber noch nur den globalen eigenen Mitgliedsbezug statt den ausgewählten Mitgliedskontext
+- Umsetzung bewusst klein und nur in MAUI:
+  - `AdminShell` auf die gewünschten Hauptpunkte reduziert:
+    - `Startseite`
+    - `Ablesen`
+    - `Parzellenverwaltung`
+    - `Arbeitsstunden freigeben`
+    - `Export`
+    - `Mitgliedersuche`
+  - direkte Verwaltungs-/Profil-/Mehrfach-Flyoutpunkte entfernt
+  - Mitglieds-Unterpunkte im Flyout jetzt optisch eingerückt mit `↳`
+  - Admin/Vorstand sehen diese Unterpunkte nur noch bei vorhandenem `SelectedMember`
+  - `UserShell` zeigt für den sofort aktiven Eigenkontext direkt die eingerückten Unterpunkte:
+    - `↳ Stammdaten`
+    - `↳ Nebenmitglied`
+    - `↳ Gärten des Mitglieds`
+    - `↳ Arbeitsstunden`
+  - `MemberSearchPage` baut das aktuelle Shell-Menü nach Mitgliedsauswahl sofort neu auf, bevor in `Stammdaten` navigiert wird
+  - `MyArbeitsstundenPage` und `ArbeitsstundenEditorPage` berücksichtigen im Admin-/Vorstandskontext jetzt den ausgewählten `MemberContextState`, damit der Unterpunkt `↳ Arbeitsstunden` auf dem vorhandenen mobilen Produktivpfad für das ausgewählte Mitglied arbeitet
+  - `ShellNavigationHelper` minimal um den expliziten MAUI-Shell-Namespace geschärft
+- Technische Verifikation:
+  - `get_tests` für `KGV.Tests` ergab weiterhin keine passenden aktiven Tests für diesen kleinen MAUI-Navigationsblock
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - der Lauf scheiterte blockfremd weiterhin an bereits bestehenden breiten MAUI-Control-/Namespacefehlern u. a. in `KGV.Maui/Pages/TermineEditorPage.cs`, `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+
+## 2026-03-26 – MAUI-Login-UI korrigiert und Arbeitsstunden-Schnellzugriff auf Home ergänzt
+
+- Vor dem kleinen Block erneut den realen MAUI-Iststand, den aktuellen Fortschrittslog und die aktiven MAUI-Dateien für `LoginPage`, `HomePage`, `MyArbeitsstundenPage`, `ArbeitsstundenEditorPage`, `ShellRouteRegistrar`, `AdminShell`, `UserShell` und `HomeViewModel` geprüft.
+- Ehrlicher Befund im aktuellen Repo-Stand:
+  - `KGV.Maui/Pages/LoginPage.xaml.cs` ist der aktive Loginpfad und baute die komplette UI derzeit rein in C# auf
+  - die Passwortsichtbarkeit lief dort noch über einen separaten Button `Passwort anzeigen` unterhalb des Passwortfelds
+  - der Button `Anmelden` stand im aktuellen Mobilfluss noch hinter den sekundären Aktionen statt direkt unter dem Passwortfeld
+  - der vorhandene Erfassungspfad für Arbeitsstunden war bereits belastbar vorhanden über `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs` mit Navigation `ArbeitsstundenEditorPage?entryId=0`
+  - auf `KGV.Maui/Pages/HomePage.xaml.cs` zeigte der Bereich `Arbeitsstunden` bisher nur Überblick/Hinweise, aber noch keinen direkten Erfassungsbutton
+- Den Korrekturblock deshalb bewusst klein und nur im aktiven MAUI-Pfad umgesetzt:
+  - auf `LoginPage` das Passwortfeld auf einen eingebetteten Auge-/Auge-zu-Toggle umgestellt statt eigenem Sichtbarkeitsbutton unter dem Feld
+  - `Anmelden` direkt unter das Passwortfeld gezogen
+  - die sekundären Aktionen `Einladung / Erstlogin-Code anfordern` und `Passwort vergessen` unterhalb von `Anmelden` angeordnet
+  - die bestehende Login-/OTP-/Passwort-Logik fachlich unverändert gelassen
+  - auf `HomePage` im Bereich `Arbeitsstunden` einen klaren Button `Arbeitsstunde erfassen` ergänzt
+  - der neue Home-Schnellzugriff nutzt keinen neuen Dummy-Pfad, sondern den bereits vorhandenen Editorpfad `ArbeitsstundenEditorPage?entryId=0`
+  - die Sichtbarkeit des Schnellzugriffs an den vorhandenen eigenen Mitgliedskontext gekoppelt über `HomeViewModel`, damit kein unnötiger toter Pfad für Kontexte ohne `MitgliedId` angeboten wird
+- Technische Verifikation:
+  - `get_tests` ergab im aktuellen Workspace keine passenden aktiven Tests für `KGV.Tests`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace nicht erfolgreich
+  - der Lauf scheiterte weiterhin an breit vorhandenen MAUI-Typ-/Namespacefehlern im aktuellen Stand, u. a. in `KGV.Maui/Pages/TermineEditorPage.cs`, `KGV.Maui/Pages/MeineDatenPage.xaml.cs` und im selben Lauf auch an generischen Control-Typen in `KGV.Maui/Pages/HomePage.xaml.cs`; der Block ist damit aktuell nicht sauber buildisoliert validierbar
+  - `git` war in der aktuellen Terminalumgebung nicht verfügbar (`GIT_NOT_FOUND`), deshalb konnte der geforderte Commit-/Push-Abschluss in diesem Lauf nicht technisch ausgeführt werden
+
+## 2026-03-25 – MAUI-Launcher-Icon auf vorhandenes Vereinslogo-PNG umgestellt
+
+- Vor dem kleinen Block erneut Repo-/Arbeitsbaumstand, Fortschrittslog und aktiven MAUI-AppIcon-Pfad geprüft.
+- Ehrlicher Befund:
+  - `AndroidManifest.xml` überschreibt das Launcher-Icon nicht
+  - `KGV.Maui.csproj` nutzte noch `appicon.svg` als `MauiIcon`
+  - das vorhandene `KGV.Maui/Resources/AppIcon/appicon.png` lag bereits im aktiven Repo
+- Umsetzung bewusst klein gehalten:
+  - nur den aktiven `MauiIcon`-Pfad auf `appicon.png` umgestellt
+  - Splash, Shell und übrige MAUI-Pfade unverändert gelassen
+
 ## 2026-03-25 – Finaler Git-Abschluss: Artefakt-/FotoUploadTest-Block sauber auf echte Blockdateien eingegrenzt
 
 - Vor dem Git-Abschluss erneut den realen Repo-/Arbeitsbaumstand, den Fortschrittslog und die aktiven Referenzen des WPF-`FotoUploadTest`-Pfads geprüft.

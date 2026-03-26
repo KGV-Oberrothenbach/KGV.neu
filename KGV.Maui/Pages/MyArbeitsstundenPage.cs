@@ -1,6 +1,9 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Maui.State;
+using Microsoft.Maui;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 
 namespace KGV.Maui.Pages;
 
@@ -8,6 +11,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
 {
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _state;
+    private readonly MemberContextState _memberContextState;
 
     private bool _isLoading;
 
@@ -21,10 +25,11 @@ public sealed class MyArbeitsstundenPage : ContentPage
     private readonly List<MemberOption> _options = new();
     private readonly List<ArbeitsstundeDTO> _items = new();
 
-    public MyArbeitsstundenPage(ISupabaseService supabaseService, UserContextState state)
+    public MyArbeitsstundenPage(ISupabaseService supabaseService, UserContextState state, MemberContextState memberContextState)
     {
         _supabaseService = supabaseService;
         _state = state;
+        _memberContextState = memberContextState;
 
         Title = "Meine Arbeitsstunden";
 
@@ -130,7 +135,8 @@ public sealed class MyArbeitsstundenPage : ContentPage
         _status.Text = string.Empty;
         try
         {
-            if (_state.CurrentMitgliedId == null || _state.CurrentMitgliedId.Value > int.MaxValue)
+            var contextMemberId = GetContextMemberId();
+            if (!contextMemberId.HasValue)
             {
                 _status.Text = "MitgliedId fehlt.";
                 return;
@@ -150,10 +156,23 @@ public sealed class MyArbeitsstundenPage : ContentPage
     {
         _options.Clear();
 
-        var mainId = (int)_state.CurrentMitgliedId!.Value;
-        _options.Add(new MemberOption(mainId, "Hauptmitglied"));
+        var contextMemberId = GetContextMemberId();
+        if (!contextMemberId.HasValue)
+            return;
 
-        if (_state.CurrentNebenMitgliedId != null && _state.CurrentNebenMitgliedId.Value <= int.MaxValue)
+        var mainId = contextMemberId.Value;
+        var selectedMember = _memberContextState.SelectedMember;
+        var useSelectedMemberContext = _state.CurrentUserContext?.Role is KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand
+            && selectedMember?.Id is > 0;
+
+        var mainLabel = useSelectedMemberContext && selectedMember?.IstHauptmitglied == false
+            ? "Ausgewähltes Mitglied"
+            : "Hauptmitglied";
+
+        _options.Add(new MemberOption(mainId, mainLabel));
+
+        var allowNebenmitglied = !useSelectedMemberContext || selectedMember?.IstHauptmitglied != false;
+        if (allowNebenmitglied)
         {
             var neben = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(mainId);
             if (neben != null)
@@ -163,13 +182,14 @@ public sealed class MyArbeitsstundenPage : ContentPage
 
     private async Task LoadSummaryAsync()
     {
-        if (_state.CurrentMitgliedId == null || _state.CurrentMitgliedId.Value > int.MaxValue)
+        var contextMemberId = GetContextMemberId();
+        if (!contextMemberId.HasValue)
         {
             SetSummary(null);
             return;
         }
 
-        var summary = await _supabaseService.GetPflichtstundenUebersichtForMitgliedAsync((int)_state.CurrentMitgliedId.Value);
+        var summary = await _supabaseService.GetPflichtstundenUebersichtForMitgliedAsync(contextMemberId.Value);
         SetSummary(summary);
     }
 
@@ -241,6 +261,20 @@ public sealed class MyArbeitsstundenPage : ContentPage
         return value.HasValue
             ? value.Value.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture)
             : "–";
+    }
+
+    private int? GetContextMemberId()
+    {
+        if (_state.CurrentUserContext?.Role is KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand)
+        {
+            var selectedId = _memberContextState.SelectedMember?.Id;
+            if (selectedId is > 0)
+                return selectedId.Value;
+        }
+
+        return _state.CurrentMitgliedId is > 0 and <= int.MaxValue
+            ? (int)_state.CurrentMitgliedId.Value
+            : null;
     }
 
     private sealed record MemberOption(int MitgliedId, string Display);

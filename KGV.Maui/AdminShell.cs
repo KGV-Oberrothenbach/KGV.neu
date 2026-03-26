@@ -3,6 +3,8 @@ using KGV.Core.Security;
 using KGV.Maui.Pages;
 using KGV.Maui.State;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Maui;
+using Microsoft.Maui.Controls;
 
 namespace KGV.Maui;
 
@@ -10,60 +12,57 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 {
     private readonly IServiceProvider _services;
     private readonly UserContextState _userContextState;
+    private readonly MemberContextState _memberContextState;
     private FlyoutItem? _workhoursReviewItem;
 
-    public AdminShell(IServiceProvider services, UserContextState userContextState)
+    public AdminShell(IServiceProvider services, UserContextState userContextState, MemberContextState memberContextState)
     {
         _services = services;
         _userContextState = userContextState;
+        _memberContextState = memberContextState;
         FlyoutBehavior = FlyoutBehavior.Flyout;
         Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this, "home");
     }
 
     public void BuildMenu()
     {
+        var preferredRoute = GetCurrentRoute() ?? "home";
         Items.Clear();
 
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
-
-        Items.Add(CreateItem("Mitglieder · Mitgliedersuche", "membersearch", () => _services.GetRequiredService<MemberSearchPage>()));
-        Items.Add(CreateItem("Mitglieder · Stammdaten", "memberdetails", () => _services.GetRequiredService<MeineDatenPage>()));
-        Items.Add(CreateItem("Mitglieder · Nebenmitglied", "member_nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
-
-        if (_userContextState.CurrentUserContext?.Role == UserRole.Admin)
-            Items.Add(CreateItem("Admin-Menü · Benutzerverwaltung", "member_usermanagement", () => _services.GetRequiredService<UserManagementPage>()));
-
-        Items.Add(CreateItem("Mitglieder · Gärten des Mitglieds", "member_gardens", () => _services.GetRequiredService<MemberGardensPage>()));
+        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+            Items.Add(CreateItem("Ablesen", "ablesen", () => new AblesenOverviewPage()));
 
         Items.Add(CreateItem("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
-
-        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
-        {
-            Items.Add(CreateItem("Ablesen · Ablesen", "ablesen", () => new AblesenOverviewPage()));
-            Items.Add(CreateItem("Ablesen · RFID einrichten", "ablesen_rfid", () => _services.GetRequiredService<RfidEinrichtenPage>()));
-            Items.Add(CreateItem("Ablesen · Fällige Zähler", "ablesen_faellig", () => _services.GetRequiredService<FaelligeZaehlerPage>()));
-            Items.Add(CreateItem("Ablesen · Zählerwechsel", "ablesen_wechsel", () => _services.GetRequiredService<ZaehlerwechselPage>()));
-        }
-
-        Items.Add(CreateItem("Arbeitsstunden · Meine Arbeitsstunden", "workhours", () => _services.GetRequiredService<MyArbeitsstundenPage>()));
 
         _workhoursReviewItem = CreateItem("Arbeitsstunden · Arbeitsstunden freigeben", "workhours_review", () => _services.GetRequiredService<ArbeitsstundenReviewPage>());
         Items.Add(_workhoursReviewItem);
 
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
-        {
-            Items.Add(CreateItem("Verwaltung · Bekanntmachungen", "management_announcements", () => _services.GetRequiredService<BekanntmachungenManagementPage>()));
-            Items.Add(CreateItem("Verwaltung · Termine", "management_appointments", () => _services.GetRequiredService<TermineManagementPage>()));
-            Items.Add(CreateItem("Verwaltung · Arbeitseinsätze", "management_workassignments", () => _services.GetRequiredService<ArbeitseinsaetzeManagementPage>()));
             Items.Add(CreateItem("Export", "export", () => _services.GetRequiredService<ExportPage>()));
+
+        Items.Add(CreateItem("Mitgliedersuche", "membersearch", () => _services.GetRequiredService<MemberSearchPage>()));
+
+        if (HasSelectedMember())
+        {
+            Items.Add(CreateItem("↳ Stammdaten", "memberdetails", () => _services.GetRequiredService<MeineDatenPage>()));
+            Items.Add(CreateItem("↳ Nebenmitglied", "member_nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
+            Items.Add(CreateItem("↳ Gärten des Mitglieds", "member_gardens", () => _services.GetRequiredService<MemberGardensPage>()));
+            if (_userContextState.CurrentUserContext?.Role == UserRole.Admin)
+                Items.Add(CreateItem("↳ Benutzerverwaltung", "member_usermanagement", () => _services.GetRequiredService<UserManagementPage>()));
+            Items.Add(CreateItem("↳ Arbeitsstunden", "member_workhours", () => _services.GetRequiredService<MyArbeitsstundenPage>()));
         }
 
-        Items.Add(CreateItem("Mein Bereich · Mein Profil", "myprofile", () => _services.GetRequiredService<MyProfilePage>()));
-
-        ShellNavigationHelper.EnsureActiveShellItem(this, "home");
+        ShellNavigationHelper.EnsureActiveShellItem(this, preferredRoute);
 
         _ = RefreshWorkhoursReviewMenuAsync();
     }
+
+    private bool HasSelectedMember()
+        => _memberContextState.SelectedMember?.Id is > 0;
+
+    private string? GetCurrentRoute()
+        => CurrentItem?.CurrentItem?.CurrentItem?.Route;
 
     public async Task RefreshWorkhoursReviewMenuAsync()
     {

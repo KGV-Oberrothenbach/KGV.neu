@@ -1,6 +1,9 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Maui.State;
+using Microsoft.Maui;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 
 namespace KGV.Maui.Pages;
 
@@ -8,6 +11,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
 {
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _state;
+    private readonly MemberContextState _memberContextState;
 
     private readonly Label _headlineLabel;
     private readonly Label _descriptionLabel;
@@ -37,10 +41,11 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
     private ArbeitsstundeDTO? _existingEntry;
     private bool _isReadOnly;
 
-    public ArbeitsstundenEditorPage(ISupabaseService supabaseService, UserContextState state)
+    public ArbeitsstundenEditorPage(ISupabaseService supabaseService, UserContextState state, MemberContextState memberContextState)
     {
         _supabaseService = supabaseService;
         _state = state;
+        _memberContextState = memberContextState;
 
         Title = "Arbeitsstunden";
 
@@ -192,13 +197,23 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
     {
         _memberOptions.Clear();
 
-        if (_state.CurrentMitgliedId is not > 0 or > int.MaxValue)
+        var contextMemberId = GetContextMemberId();
+        if (!contextMemberId.HasValue)
             return;
 
-        var hauptmitgliedId = (int)_state.CurrentMitgliedId.Value;
-        _memberOptions.Add(new MemberOption(hauptmitgliedId, "Hauptmitglied"));
+        var hauptmitgliedId = contextMemberId.Value;
+        var selectedMember = _memberContextState.SelectedMember;
+        var useSelectedMemberContext = _state.CurrentUserContext?.Role is KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand
+            && selectedMember?.Id is > 0;
 
-        if (_state.CurrentNebenMitgliedId is > 0 and <= int.MaxValue)
+        var mainLabel = useSelectedMemberContext && selectedMember?.IstHauptmitglied == false
+            ? "Ausgewähltes Mitglied"
+            : "Hauptmitglied";
+
+        _memberOptions.Add(new MemberOption(hauptmitgliedId, mainLabel));
+
+        var allowNebenmitglied = !useSelectedMemberContext || selectedMember?.IstHauptmitglied != false;
+        if (allowNebenmitglied)
         {
             var nebenmitglied = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(hauptmitgliedId);
             if (nebenmitglied != null)
@@ -394,6 +409,20 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
             return true;
 
         return decimal.TryParse(input.Replace(',', '.'), System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out value);
+    }
+
+    private int? GetContextMemberId()
+    {
+        if (_state.CurrentUserContext?.Role is KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand)
+        {
+            var selectedId = _memberContextState.SelectedMember?.Id;
+            if (selectedId is > 0)
+                return selectedId.Value;
+        }
+
+        return _state.CurrentMitgliedId is > 0 and <= int.MaxValue
+            ? (int)_state.CurrentMitgliedId.Value
+            : null;
     }
 
     private static string BuildMemberDisplay(ArbeitsstundeDTO entry)

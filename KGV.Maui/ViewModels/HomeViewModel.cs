@@ -61,6 +61,7 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     public bool HasAnnouncements => Announcements.Count > 0;
     public bool HasWorkAssignments => WorkAssignments.Count > 0;
     public bool HasAppointments => Appointments.Count > 0;
+    public bool CanCreateWorkHoursEntry => _userContextState.CurrentMitgliedId is > 0 and <= int.MaxValue;
     public bool ShowAnnouncementDetail => HasAnnouncements;
     public bool HasSelectedAnnouncement => SelectedAnnouncement != null;
     public bool ShowAnnouncementHint => HasAnnouncements && !HasSelectedAnnouncement;
@@ -120,6 +121,7 @@ public sealed class HomeViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(HasQuickLinks));
         OnPropertyChanged(nameof(HasOperationalItems));
         OnPropertyChanged(nameof(HasWorkHoursSummary));
+        OnPropertyChanged(nameof(CanCreateWorkHoursEntry));
         OnPropertyChanged(nameof(ShowOperationalFallbackList));
         OnPropertyChanged(nameof(ShowOperationalEmptyState));
         OnPropertyChanged(nameof(HasWorkAssignments));

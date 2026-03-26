@@ -1,5 +1,7 @@
 using KGV.Maui.ViewModels;
 using KGV.Maui.State;
+using Microsoft.Maui;
+using Microsoft.Maui.Controls;
 using System.Linq;
 
 namespace KGV.Maui.Pages;
@@ -37,6 +39,10 @@ public partial class MemberSearchPage : ContentPage
             return;
 
         _memberContextState.SetSelectedMember(member);
+
+        if (Shell.Current is IAppShellInitializer shellInitializer)
+            shellInitializer.BuildMenu();
+
         await Shell.Current.GoToAsync("//memberdetails");
     }
 }

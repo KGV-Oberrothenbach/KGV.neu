@@ -2,6 +2,127 @@
 
 ---
 
+## 2026-03-26 – Prompt 2/2: MAUI-Flyout-Navigation entschlackt und Mitgliedskontext sauber an Unterpunkte gebunden
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die aktiven MAUI-Dateien für Shell/Flyout und Mitgliedskontext geprüft:
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/State/MemberContextState.cs`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
+  - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
+  - ergänzend die tatsächlich vorhandenen Zielseiten `AblesenOverviewPage`, `ExportPage`, `UserManagementPage`, `MeineDatenPage`, `NebenmitgliedPage`, `MemberGardensPage`, `ArbeitsstundenReviewPage`
+- WPF wurde in diesem Block bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
+  - das Flyout war noch deutlich breiter als für den gewünschten Handy-Hauptweg
+  - `AdminShell` enthielt zusätzlich direkte Einträge für `RFID einrichten`, `Fällige Zähler`, `Zählerwechsel`, mehrere Verwaltungsseiten, `Meine Arbeitsstunden` und `Mein Profil`
+  - `UserShell` enthielt noch die ältere Struktur `Mein Bereich · ...` statt einer bewusst kleinen, eingerückten Mitgliedskontextdarstellung
+  - im Adminpfad waren die mitgliedsbezogenen Ziele bislang nicht an einen sichtbaren `SelectedMember` gebunden, sondern standen immer im Flyout
+  - `MemberSearchPage` setzte das ausgewählte Mitglied zwar bereits in `MemberContextState`, aktualisierte danach aber das Flyout nicht aktiv
+  - der vorhandene MAUI-Pfad `MyArbeitsstundenPage` / `ArbeitsstundenEditorPage` war real vorhanden, orientierte sich bisher im Adminkontext aber nur am eigenen `CurrentMitgliedId`-Pfad statt am ausgewählten Mitgliedskontext
+- Den Korrekturblock deshalb bewusst klein und nur auf vorhandene mobile Produktivpfade begrenzt:
+  - `AdminShell` auf die gewünschten Hauptpunkte reduziert:
+    - `Startseite`
+    - `Ablesen`
+    - `Parzellenverwaltung`
+    - `Arbeitsstunden freigeben`
+    - `Export`
+    - `Mitgliedersuche`
+  - alle übrigen direkten Flyout-Einträge aus dem mobilen Hauptweg entfernt, insbesondere:
+    - direkte Ablesen-Unterpunkte
+    - direkte Verwaltungsseiten für `Bekanntmachungen`, `Termine`, `Arbeitseinsätze`
+    - direkter Hauptpunkt `Meine Arbeitsstunden`
+    - Profilpunkt
+  - die mitgliedsbezogenen Ziele jetzt als eingerückte Unterpunkte mit `↳` abgebildet:
+    - `↳ Stammdaten`
+    - `↳ Nebenmitglied`
+    - `↳ Gärten des Mitglieds`
+    - `↳ Benutzerverwaltung` *(nur Admin, nur wenn Seite vorhanden – im aktuellen Repo vorhanden)*
+    - `↳ Arbeitsstunden`
+  - im Admin-/Vorstandspfad erscheinen diese Unterpunkte nur noch, wenn `MemberContextState.SelectedMember` gesetzt ist
+  - `UserShell` baut den eigenen Mitgliedskontext weiterhin sofort aus `CurrentMitgliedId` auf und zeigt die eingerückten Unterpunkte daher direkt ohne vorgelagerte Mitgliedersuche
+  - `MemberSearchPage` baut das aktuelle Shell-Menü nach Mitgliedsauswahl sofort neu auf; dadurch wird das Flyout ohne App-Neustart aktualisiert, bevor die Navigation nach `//memberdetails` erfolgt
+  - um den Unterpunkt `↳ Arbeitsstunden` nicht auf einen falschen Eigenkontext laufen zu lassen, nutzen `MyArbeitsstundenPage` und `ArbeitsstundenEditorPage` im Admin-/Vorstandskontext jetzt den vorhandenen `MemberContextState` statt ausschließlich den eigenen Benutzerkontext
+  - dabei wurde kein neuer Arbeitsstunden-Sonderpfad gebaut; weiterverwendet bleiben ausschließlich:
+    - `MyArbeitsstundenPage`
+    - `ArbeitsstundenEditorPage`
+    - bestehende Navigation auf `ArbeitsstundenEditorPage?entryId=0` bzw. über vorhandene Datensätze
+  - `ShellNavigationHelper` minimal auf den expliziten MAUI-Shell-Typ geschärft, damit der aktive Flyout-Pfad konsistent bleibt
+- Bewusst nicht gemacht:
+  - keine neuen Platzhalterseiten
+  - keine WPF-Menüstruktur nachgebaut
+  - keine neue Verwaltungsnavigation für `Bekanntmachungen`, `Termine` oder `Arbeitseinsätze` wieder ins Flyout gelegt
+  - keine neuen Rechte aufgeweicht
+- Technische Verifikation:
+  - `get_tests` mit Filter auf `KGV.Tests` ergab im aktuellen Workspace weiterhin keine passenden aktiven Tests für diesen Block
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - der Lauf scheiterte blockfremd weiter an bereits bestehenden breiten MAUI-Control-/Namespacefehlern, u. a. in:
+    - `KGV.Maui/Pages/TermineEditorPage.cs`
+    - `KGV.Maui/Pages/HomeManagementPage.cs`
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - damit ist dieser Block im aktuellen Workspace ehrlich nur code- und pfadseitig, nicht aber über einen sauberen grünen Gesamt-MAUI-Build validierbar
+
+## 2026-03-26 – Prompt 1/2: MAUI-Login-UI korrigiert und Arbeitsstunden-Schnellzugriff auf Home ergänzt
+
+- Vor dem kleinen Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den aktiven MAUI-Pfad und ausdrücklich nur die relevanten mobilen Dateien geprüft:
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
+  - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+- WPF wurde in diesem Block bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
+  - die aktive Loginoberfläche wird im Repo derzeit direkt in `LoginPage.xaml.cs` aufgebaut und nicht über XAML getrennt beschrieben
+  - das Passwortfeld nutzte noch einen separaten Button `Passwort anzeigen` unterhalb des Felds
+  - der Hauptbutton `Anmelden` stand mobil noch hinter den sekundären Aktionen und damit nicht direkt am primären Passwortkontext
+  - auf der Startseite war der Bereich `Arbeitsstunden` bereits als Überblick vorhanden, zeigte aber noch keinen klaren Erfassungseinstieg
+  - ein belastbarer bestehender Erfassungspfad war bereits vorhanden:
+    - Übersicht `MyArbeitsstundenPage`
+    - direkte Editorroute `ArbeitsstundenEditorPage?entryId=0`
+    - Rückweg des Editors weiterhin auf `//workhours`
+- Den Korrekturblock deshalb bewusst klein und ohne neue Architektur umgesetzt:
+  - auf `KGV.Maui/Pages/LoginPage.xaml.cs` den sichtbaren Passwort-UI-Block umgestellt auf ein eingebettetes Auge-/Auge-zu-Symbol direkt am Passwortfeld
+  - den separaten Button `Passwort anzeigen` entfernt
+  - `Anmelden` direkt unter das Passwortfeld gesetzt
+  - die beiden sekundären Aktionen bewusst darunter belassen:
+    - `Einladung / Erstlogin-Code anfordern`
+    - `Passwort vergessen`
+  - die eigentliche Login-/OTP-/Passwortsetzen-Logik nicht verändert, sondern nur die mobile UI-Anordnung
+  - auf `KGV.Maui/ViewModels/HomeViewModel.cs` eine kleine vorhandene Kontextsichtbarkeit für den Arbeitsstunden-Schnellzugriff ergänzt
+  - auf `KGV.Maui/Pages/HomePage.xaml.cs` im Bereich `Arbeitsstunden` den klar sichtbaren Button `Arbeitsstunde erfassen` ergänzt
+  - der Button verwendet keinen neuen Dummy-Weg, sondern direkt den vorhandenen Produktivpfad `ArbeitsstundenEditorPage?entryId=0`
+  - `ArbeitsstundenEditorPage` selbst blieb unverändert; der vorhandene Save-Button bleibt dort weiterhin am Ende des Formulars
+- Rechte-/Kontextverhalten bewusst klein gehalten:
+  - der neue Home-Schnellzugriff wird nur dann angeboten, wenn im vorhandenen Nutzerkontext eine eigene `MitgliedId` vorliegt
+  - damit werden keine Rechte aufgeweicht und keine toten Erfassungspfade für Kontexte ohne eigenes Mitglied erzeugt
+  - Admin/Vorstand erhalten den Schnellzugriff nur dann, wenn derselbe vorhandene Eigenkontext ebenfalls belastbar vorliegt
+- Technische Verifikation:
+  - `get_tests` mit Filter auf `KGV.Tests` ergab im aktuellen Workspace keine passenden aktiven Tests für diesen kleinen MAUI-Block
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace nicht erfolgreich
+  - der Lauf scheiterte weiterhin an bereits breit vorhandenen MAUI-Typ-/Namespacefehlern, u. a. in `KGV.Maui/Pages/TermineEditorPage.cs` und `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - im selben Fehlerbild tauchten auch generische Control-/Namespacefehler in `KGV.Maui/Pages/HomePage.xaml.cs` auf; damit ist dieser Workspace-Stand aktuell nicht sauber blockisoliert buildvalidierbar
+  - ein Git-Abschluss konnte in diesem Lauf technisch nicht ausgeführt werden, weil `git` in der aktuellen Terminalumgebung nicht verfügbar war (`GIT_NOT_FOUND`)
+
+## 2026-03-25 – Prompt 1/1: MAUI-Launcher-Icon auf echtes Vereinslogo aus aktivem PNG-Pfad gezogen
+
+- Vor dem kleinen Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum und den aktiven MAUI-AppIcon-Pfad geprüft.
+- Ehrlicher Befund im aktuellen Repo-Stand:
+  - `AndroidManifest.xml` überschreibt das Launcher-Icon nicht
+  - `KGV.Maui.csproj` nutzte für `MauiIcon` weiterhin `Resources/AppIcon/appicon.svg`
+  - im aktiven Repo lag aber zusätzlich bereits `KGV.Maui/Resources/AppIcon/appicon.png`
+  - der Fehler am Android-Startbutton lag damit plausibel am aktiven Icon-Asset-Pfad und nicht an einer separaten Manifest-Verdrahtung
+- Den Korrekturblock deshalb bewusst klein und nur am aktiven Produktpfad umgesetzt:
+  - `MauiIcon` in `KGV.Maui.csproj` von `appicon.svg` auf das vorhandene Vereinslogo `appicon.png` umgestellt
+  - `MauiSplashScreen` bewusst unverändert gelassen, weil der gemeldete Fehler den Startbutton bzw. Launcher betraf
+  - keine Änderungen an `AndroidManifest.xml`, Shell, Login oder sonstigen MAUI-Pfaden
+- Technische Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` folgt als Blockvalidierung
+
 ## 2026-03-25 – Prompt 1/1: Finaler Git-Abschluss für den Artefakt-/FotoUploadTest-Block sauber eingegrenzt und nur mit Blockdateien vorbereitet
 
 - Vor dem Git-Abschluss erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum und die aktiven Referenzen des `FotoUploadTest`-Pfads geprüft.

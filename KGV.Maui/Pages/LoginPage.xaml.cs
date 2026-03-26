@@ -4,7 +4,10 @@ using KGV.Infrastructure.Services;
 using KGV.Maui;
 using KGV.Maui.State;
 using KGV.Maui.Settings;
+using Microsoft.Maui;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using System;
 using System.Linq;
 
@@ -40,7 +43,7 @@ public class LoginPage : ContentPage
         Title = "Login";
 
         _emailEntry = new Entry { Placeholder = "E-Mail", Keyboard = Keyboard.Email, Text = AppSettings.LastEmail ?? string.Empty };
-        _passwordEntry = new Entry { Placeholder = "Passwort", IsPassword = true };
+        _passwordEntry = new Entry { Placeholder = "Passwort", IsPassword = true, BackgroundColor = Colors.Transparent };
         _statusLabel = new Label { TextColor = Colors.Red };
         var logoImage = new Image
         {
@@ -54,7 +57,38 @@ public class LoginPage : ContentPage
         var newPasswordEntry = new Entry { Placeholder = "Neues Passwort", IsPassword = true, IsVisible = false };
         var confirmPasswordEntry = new Entry { Placeholder = "Passwort wiederholen", IsPassword = true, IsVisible = false };
         var passwordHintLabel = new Label { Text = "Passwortbedingungen: mindestens 8 Zeichen und identische Wiederholung.", TextColor = Colors.Gray, IsVisible = false };
-        var togglePasswordButton = new Button { Text = "Passwort anzeigen" };
+        var togglePasswordButton = new Button
+        {
+            Text = "👁",
+            BackgroundColor = Colors.Transparent,
+            Padding = new Thickness(8, 0),
+            WidthRequest = 44,
+            HeightRequest = 44,
+            FontSize = 18
+        };
+        var passwordField = new Border
+        {
+            Stroke = Color.FromArgb("#C8CDD3"),
+            StrokeThickness = 1,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(8) },
+            Padding = new Thickness(12, 0, 8, 0),
+            Content = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitionCollection
+                {
+                    new ColumnDefinition(GridLength.Star),
+                    new ColumnDefinition(GridLength.Auto)
+                },
+                ColumnSpacing = 0,
+                Children =
+                {
+                    _passwordEntry,
+                    togglePasswordButton
+                }
+            }
+        };
+        Grid.SetColumn(_passwordEntry, 0);
+        Grid.SetColumn(togglePasswordButton, 1);
         var loginButton = new Button
         {
             Text = "Anmelden",
@@ -68,8 +102,9 @@ public class LoginPage : ContentPage
 
         void ShowNormalLogin()
         {
-            _passwordEntry.IsVisible = true;
-            togglePasswordButton.IsVisible = true;
+            _passwordEntry.IsPassword = true;
+            togglePasswordButton.Text = "👁";
+            passwordField.IsVisible = true;
             loginButton.IsVisible = true;
             requestOtpButton.IsVisible = true;
             forgotPasswordButton.IsVisible = true;
@@ -84,8 +119,7 @@ public class LoginPage : ContentPage
 
         void ShowOtpVerification()
         {
-            _passwordEntry.IsVisible = false;
-            togglePasswordButton.IsVisible = false;
+            passwordField.IsVisible = false;
             loginButton.IsVisible = false;
             requestOtpButton.IsVisible = false;
             forgotPasswordButton.IsVisible = false;
@@ -100,8 +134,7 @@ public class LoginPage : ContentPage
 
         void ShowSetPassword()
         {
-            _passwordEntry.IsVisible = false;
-            togglePasswordButton.IsVisible = false;
+            passwordField.IsVisible = false;
             loginButton.IsVisible = false;
             requestOtpButton.IsVisible = false;
             forgotPasswordButton.IsVisible = false;
@@ -117,7 +150,7 @@ public class LoginPage : ContentPage
         togglePasswordButton.Clicked += (s, e) =>
         {
             _passwordEntry.IsPassword = !_passwordEntry.IsPassword;
-            togglePasswordButton.Text = _passwordEntry.IsPassword ? "Passwort anzeigen" : "Passwort ausblenden";
+            togglePasswordButton.Text = _passwordEntry.IsPassword ? "👁" : "🙈";
         };
         loginButton.Clicked += OnLoginClicked;
         verifyOtpButton.Clicked += async (s, e) =>
@@ -219,17 +252,16 @@ public class LoginPage : ContentPage
                 logoImage,
                 new Label { Text = "Login", FontSize = 24, FontAttributes = FontAttributes.Bold },
                 _emailEntry,
-                _passwordEntry,
-                togglePasswordButton,
+                passwordField,
+                loginButton,
                 requestOtpButton,
+                forgotPasswordButton,
                 otpEntry,
                 verifyOtpButton,
                 newPasswordEntry,
                 confirmPasswordEntry,
                 passwordHintLabel,
                 setPasswordButton,
-                forgotPasswordButton,
-                loginButton,
                 _statusLabel
             }
         };
@@ -332,14 +364,18 @@ public class LoginPage : ContentPage
         if (window == null)
             return;
 
-        var shell = mode == AppMode.Admin
-            ? (Shell)_services.GetRequiredService<AdminShell>()
-            : _services.GetRequiredService<UserShell>();
+        if (mode == AppMode.Admin)
+        {
+            var adminShell = _services.GetRequiredService<AdminShell>();
+            adminShell.BuildMenu();
+            ShellNavigationHelper.EnsureActiveShellItem(adminShell, "home");
+            window.Page = adminShell;
+            return;
+        }
 
-        if (shell is IAppShellInitializer init)
-            init.BuildMenu();
-
-        ShellNavigationHelper.EnsureActiveShellItem(shell, "home");
-        window.Page = shell;
+        var userShell = _services.GetRequiredService<UserShell>();
+        userShell.BuildMenu();
+        ShellNavigationHelper.EnsureActiveShellItem(userShell, "home");
+        window.Page = userShell;
     }
 }

@@ -1,6 +1,9 @@
 using KGV.Core.Models;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
+using Microsoft.Maui;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using System.Linq;
 
 namespace KGV.Maui.Pages;
@@ -83,6 +86,10 @@ public class HomePage : ContentPage
         operationalEmptyLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.OperationalEmptyText));
         operationalEmptyLabel.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowOperationalEmptyState));
 
+        var createWorkHoursEntryButton = new Button { Text = "Arbeitsstunde erfassen" };
+        createWorkHoursEntryButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.CanCreateWorkHoursEntry));
+        createWorkHoursEntryButton.Clicked += async (_, _) => await Shell.Current.GoToAsync($"{nameof(ArbeitsstundenEditorPage)}?entryId=0");
+
         var operationalSection = CreateSectionCard(
             nameof(HomeViewModel.OperationalTitle),
             "Persönlicher Überblick zu offenen und bereits erfassten Arbeitsstunden.",
@@ -90,6 +97,7 @@ public class HomePage : ContentPage
             operationalBackground,
             CreateWorkHoursSummaryGrid(operationalAccent, operationalBackground),
             CreateWorkHoursInfoLabel(),
+            createWorkHoursEntryButton,
             operationalView,
             operationalEmptyLabel);
 
