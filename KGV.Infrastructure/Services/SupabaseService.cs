@@ -1369,6 +1369,7 @@ namespace KGV.Infrastructure.Services
                     return null;
 
                 var client = await EnsureClientAsync();
+                var now = DateTime.UtcNow;
                 var insertRecord = new ArbeitseinsatzRecord
                 {
                     Titel = CleanRequiredText(record.Titel),
@@ -1383,11 +1384,17 @@ namespace KGV.Infrastructure.Services
                     SichtbarBis = NormalizeTimestampWithoutTimeZone(record.SichtbarBis),
                     AnmeldungBis = NormalizeTimestampWithoutTimeZone(record.AnmeldungBis),
                     Aktiv = record.Aktiv,
+                    CreatedAt = now,
+                    UpdatedAt = now,
                     IsDemo = record.IsDemo
                 };
 
                 await client.From<ArbeitseinsatzRecord>().Insert(insertRecord);
-                var reloadResponse = await client.From<ArbeitseinsatzRecord>().Get();
+                var reloadResponse = await client
+                    .From<ArbeitseinsatzRecord>()
+                    .Where(x => x.Titel == insertRecord.Titel)
+                    .Where(x => x.Datum == insertRecord.Datum)
+                    .Get();
                 var created = reloadResponse?.Models?
                     .Select(NormalizeArbeitseinsatzRecord)
                     .Where(x => IsSameArbeitseinsatzForReload(x, insertRecord))
@@ -1422,6 +1429,7 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.SichtbarBis, NormalizeTimestampWithoutTimeZone(record.SichtbarBis))
                     .Set(x => x.AnmeldungBis, NormalizeTimestampWithoutTimeZone(record.AnmeldungBis))
                     .Set(x => x.Aktiv, record.Aktiv)
+                    .Set(x => x.UpdatedAt, DateTime.UtcNow)
                     .Set(x => x.IsDemo, record.IsDemo)
                     .Update();
 

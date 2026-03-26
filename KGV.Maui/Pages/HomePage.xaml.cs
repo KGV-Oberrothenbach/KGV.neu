@@ -15,6 +15,10 @@ public class HomePage : ContentPage
     private readonly ArbeitseinsaetzeUserState _arbeitseinsaetzeUserState;
     private readonly TermineUserState _termineUserState;
     private readonly Label _statusLabel;
+    private readonly Button _createWorkHoursEntryButton;
+    private readonly Button _newWorkAssignmentButton;
+    private readonly Button _newAppointmentButton;
+    private readonly Button _newAnnouncementButton;
     private bool _isLoading;
     private bool _loadScheduled;
 
@@ -90,9 +94,9 @@ public class HomePage : ContentPage
         operationalEmptyLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.OperationalEmptyText));
         operationalEmptyLabel.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowOperationalEmptyState));
 
-        var createWorkHoursEntryButton = new Button { Text = "Arbeitsstunde erfassen" };
-        createWorkHoursEntryButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.CanCreateWorkHoursEntry));
-        createWorkHoursEntryButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(ArbeitsstundenEditorPage));
+        _createWorkHoursEntryButton = new Button { Text = "Arbeitsstunde erfassen" };
+        _createWorkHoursEntryButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.CanCreateWorkHoursEntry));
+        _createWorkHoursEntryButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(ArbeitsstundenEditorPage));
 
         var operationalSection = CreateSectionCard(
             nameof(HomeViewModel.OperationalTitle),
@@ -101,7 +105,7 @@ public class HomePage : ContentPage
             operationalBackground,
             CreateWorkHoursSummaryGrid(operationalAccent, operationalBackground),
             CreateWorkHoursInfoLabel(),
-            createWorkHoursEntryButton,
+            _createWorkHoursEntryButton,
             operationalView,
             operationalEmptyLabel);
 
@@ -135,16 +139,16 @@ public class HomePage : ContentPage
         workAssignmentsEmptyLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.WorkAssignmentsEmptyText));
         workAssignmentsEmptyLabel.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowWorkAssignmentsEmptyState));
 
-        var newWorkAssignmentButton = new Button { Text = "Neu", HorizontalOptions = LayoutOptions.End, IsVisible = false };
-        newWorkAssignmentButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
-        newWorkAssignmentButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(ArbeitseinsaetzeEditorPage));
+        _newWorkAssignmentButton = new Button { Text = "Neu", HorizontalOptions = LayoutOptions.End, IsVisible = false };
+        _newWorkAssignmentButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
+        _newWorkAssignmentButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(ArbeitseinsaetzeEditorPage));
 
         var workAssignmentsSection = CreateSectionCard(
             nameof(HomeViewModel.WorkAssignmentsTitle),
             "Anstehende Einsätze mit Zeit, Kurzinfo und direktem Wechsel in die Detailansicht.",
             workAssignmentsAccent,
             workAssignmentsBackground,
-            newWorkAssignmentButton,
+            _newWorkAssignmentButton,
             workAssignmentsView,
             workAssignmentsEmptyLabel);
 
@@ -174,16 +178,16 @@ public class HomePage : ContentPage
         appointmentsEmptyLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.AppointmentsEmptyText));
         appointmentsEmptyLabel.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowAppointmentsEmptyState));
 
-        var newAppointmentButton = new Button { Text = "Neu", HorizontalOptions = LayoutOptions.End, IsVisible = false };
-        newAppointmentButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
-        newAppointmentButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(TermineEditorPage));
+        _newAppointmentButton = new Button { Text = "Neu", HorizontalOptions = LayoutOptions.End, IsVisible = false };
+        _newAppointmentButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
+        _newAppointmentButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(TermineEditorPage));
 
         var appointmentsSection = CreateSectionCard(
             nameof(HomeViewModel.AppointmentsTitle),
             "Kommende Termine mit ruhiger Zeit- und Kontextdarstellung für den mobilen Überblick.",
             appointmentsAccent,
             appointmentsBackground,
-            newAppointmentButton,
+            _newAppointmentButton,
             appointmentsView,
             appointmentsEmptyLabel);
 
@@ -208,16 +212,16 @@ public class HomePage : ContentPage
         announcementEmptyLabel.SetBinding(Label.TextProperty, nameof(HomeViewModel.AnnouncementEmptyText));
         announcementEmptyLabel.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowAnnouncementEmptyState));
 
-        var newAnnouncementButton = new Button { Text = "Neu", HorizontalOptions = LayoutOptions.End, IsVisible = false };
-        newAnnouncementButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
-        newAnnouncementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(BekanntmachungEditorPage));
+        _newAnnouncementButton = new Button { Text = "Neu", HorizontalOptions = LayoutOptions.End, IsVisible = false };
+        _newAnnouncementButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
+        _newAnnouncementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(BekanntmachungEditorPage));
 
         var announcementsSection = CreateSectionCard(
             nameof(HomeViewModel.AnnouncementTitle),
             "Wichtige Vereinsinformationen kompakt getrennt von Terminen und operativen Einträgen.",
             announcementsAccent,
             announcementsBackground,
-            newAnnouncementButton,
+            _newAnnouncementButton,
             announcementsView,
             announcementEmptyLabel);
 
@@ -248,6 +252,7 @@ public class HomePage : ContentPage
             return;
 
         _loadScheduled = true;
+        SetLoadingState(true, "Daten werden geladen.");
         Dispatcher.Dispatch(async () =>
         {
             await Task.Yield();
@@ -257,17 +262,39 @@ public class HomePage : ContentPage
                 return;
 
             _isLoading = true;
+            var loadFailed = false;
             try
             {
-                _statusLabel.Text = "Daten werden geladen.";
                 await _viewModel.InitializeAsync();
-                _statusLabel.Text = string.Empty;
+            }
+            catch (Exception ex)
+            {
+                loadFailed = true;
+                SetLoadingState(false, ex.Message, isError: true);
             }
             finally
             {
+                if (!loadFailed)
+                    SetLoadingState(false);
+
                 _isLoading = false;
             }
         });
+    }
+
+    private void SetLoadingState(bool isLoading, string? statusText = null, bool isError = false)
+    {
+        _statusLabel.TextColor = isError ? Colors.IndianRed : Color.FromArgb("#446B8A");
+
+        if (!string.IsNullOrWhiteSpace(statusText))
+            _statusLabel.Text = statusText;
+        else if (!isLoading)
+            _statusLabel.Text = string.Empty;
+
+        _createWorkHoursEntryButton.IsEnabled = !isLoading;
+        _newWorkAssignmentButton.IsEnabled = !isLoading;
+        _newAppointmentButton.IsEnabled = !isLoading;
+        _newAnnouncementButton.IsEnabled = !isLoading;
     }
 
     private static CollectionView CreateHomeListView<T>(Func<T, Task> openAsync, Func<T, View> templateFactory) where T : class

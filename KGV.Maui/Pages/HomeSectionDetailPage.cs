@@ -202,6 +202,8 @@ public sealed class HomeSectionDetailPage : ContentPage
 
         try
         {
+            await Task.Yield();
+
             switch (_homeContextState.DetailKind)
             {
                 case HomeDetailKind.WorkAssignment when _homeContextState.WorkAssignment != null:
@@ -291,6 +293,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         SetBusyState(true, "Daten werden gespeichert.");
         try
         {
+            await Task.Yield();
             _statusLabel.Text = "Daten werden gespeichert.";
             var result = await _supabaseService.SignUpForArbeitseinsatzAsync(_homeContextState.WorkAssignment.Id, (int)_userContextState.CurrentMitgliedId.Value);
             _statusLabel.Text = result.Message;
@@ -323,6 +326,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         SetBusyState(true, "Daten werden gespeichert.");
         try
         {
+            await Task.Yield();
             _statusLabel.Text = "Daten werden gespeichert.";
             var result = await _supabaseService.SignOffFromArbeitseinsatzAsync(_homeContextState.WorkAssignment.Id, (int)_userContextState.CurrentMitgliedId.Value);
             _statusLabel.Text = result.Message;
@@ -494,6 +498,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         SetBusyState(true, "Datensatz wird gelöscht.");
         try
         {
+            await Task.Yield();
             var success = _homeContextState.DetailKind switch
             {
                 HomeDetailKind.WorkAssignment => await _supabaseService.DeleteArbeitseinsatzAsync(entryId),

@@ -42,6 +42,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
     private readonly Label _statusLabel;
     private readonly Label _positionLabel;
     private readonly Button _saveButton;
+    private readonly Button _cancelButton;
     private readonly Button _previousButton;
     private readonly Button _nextButton;
 
@@ -122,10 +123,10 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         };
 
         _saveButton = new Button { Text = "Speichern", WidthRequest = 120 };
-        _saveButton.Clicked += async (_, _) => await SaveAsync(navigateToOverviewAfterSave: false);
+        _saveButton.Clicked += async (_, _) => await SaveAsync(navigateToOverviewAfterSave: true);
 
-        var cancelButton = new Button { Text = "Zur Übersicht", WidthRequest = 120 };
-        cancelButton.Clicked += async (_, _) => await NavigateToOverviewAsync();
+        _cancelButton = new Button { Text = "Zur Übersicht", WidthRequest = 120 };
+        _cancelButton.Clicked += async (_, _) => await NavigateToOverviewAsync();
 
         _previousButton = new Button { Text = "←", WidthRequest = 56, IsVisible = false };
         _previousButton.Clicked += async (_, _) => await MovePreviousAsync();
@@ -174,7 +175,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
                     {
                         Spacing = 12,
                         Margin = new Thickness(0, 12, 0, 0),
-                        Children = { cancelButton, _saveButton }
+                        Children = { _cancelButton, _saveButton }
                     },
                     CreateNavigationFooter()
                 }
@@ -213,42 +214,62 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         if (_isBusy)
             return;
 
+        _isBusy = true;
+        SetEnabledState(false);
         _statusLabel.Text = "Daten werden geladen.";
         _statusLabel.TextColor = Colors.DarkSlateBlue;
         _statusLabel.IsVisible = true;
 
-        if (_userContextState.CurrentUserContext?.Role is not (KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand))
+        try
         {
-            _statusLabel.Text = "Keine Berechtigung.";
-            _statusLabel.TextColor = Colors.IndianRed;
-            _statusLabel.IsVisible = true;
-            _saveButton.IsEnabled = false;
-            return;
-        }
+            await Task.Yield();
 
-        await EnsureNavigationStateAsync(_editingEntryId);
-
-        if (_editingEntryId.HasValue)
-        {
-            if (!_managementState.SetCurrentById(_editingEntryId.Value) || _managementState.CurrentEntry == null)
+            if (_userContextState.CurrentUserContext?.Role is not (KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand))
             {
-                _statusLabel.Text = "Arbeitseinsatz nicht gefunden.";
+                _statusLabel.Text = "Keine Berechtigung.";
                 _statusLabel.TextColor = Colors.IndianRed;
                 _statusLabel.IsVisible = true;
-                _saveButton.IsEnabled = false;
+                _cancelButton.IsEnabled = true;
                 return;
             }
 
-            ApplyRecordToForm(_managementState.CurrentEntry);
-            Title = "Arbeitseinsatz bearbeiten";
-        }
-        else
-        {
-            ResetEditorForNew();
-            Title = "Neuer Arbeitseinsatz";
-        }
+            await EnsureNavigationStateAsync(_editingEntryId);
 
-        UpdateNavigationFooter();
+            if (_editingEntryId.HasValue)
+            {
+                if (!_managementState.SetCurrentById(_editingEntryId.Value) || _managementState.CurrentEntry == null)
+                {
+                    _statusLabel.Text = "Arbeitseinsatz nicht gefunden.";
+                    _statusLabel.TextColor = Colors.IndianRed;
+                    _statusLabel.IsVisible = true;
+                    _cancelButton.IsEnabled = true;
+                    return;
+                }
+
+                ApplyRecordToForm(_managementState.CurrentEntry);
+                Title = "Arbeitseinsatz bearbeiten";
+            }
+            else
+            {
+                ResetEditorForNew();
+                Title = "Neuer Arbeitseinsatz";
+            }
+
+            _statusLabel.IsVisible = false;
+            UpdateNavigationFooter();
+            SetEnabledState(true);
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = ex.Message;
+            _statusLabel.TextColor = Colors.IndianRed;
+            _statusLabel.IsVisible = true;
+            _cancelButton.IsEnabled = true;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
     }
 
     private async Task EnsureNavigationStateAsync(long? selectedEntryId = null)
@@ -340,8 +361,14 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
             return false;
 
         _isBusy = true;
+        SetEnabledState(false);
         try
         {
+            _statusLabel.Text = "Daten werden gespeichert.";
+            _statusLabel.TextColor = Colors.DarkSlateBlue;
+            _statusLabel.IsVisible = true;
+            await Task.Yield();
+
             ArbeitseinsatzRecord? persistedRecord;
             if (_editingEntryId.HasValue)
             {
@@ -399,6 +426,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         finally
         {
             _isBusy = false;
+            SetEnabledState(true);
         }
     }
 
@@ -563,9 +591,38 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
             : string.Empty;
     }
 
+    private void SetEnabledState(bool enabled)
+    {
+        _titleEntry.IsEnabled = enabled;
+        _descriptionEditor.IsEnabled = enabled;
+        _datePicker.IsEnabled = enabled;
+        _hasStartTimeCheckBox.IsEnabled = enabled;
+        _startTimePicker.IsEnabled = enabled && _hasStartTimeCheckBox.IsChecked;
+        _hasEndTimeCheckBox.IsEnabled = enabled;
+        _endTimePicker.IsEnabled = enabled && _hasEndTimeCheckBox.IsChecked;
+        _treffpunktEntry.IsEnabled = enabled;
+        _hasTeilnehmerbegrenzungCheckBox.IsEnabled = enabled;
+        _maxTeilnehmerEntry.IsEnabled = enabled && _hasTeilnehmerbegrenzungCheckBox.IsChecked;
+        _stundenWertEntry.IsEnabled = enabled;
+        _hasSichtbarAbCheckBox.IsEnabled = enabled;
+        _sichtbarAbDatePicker.IsEnabled = enabled && _hasSichtbarAbCheckBox.IsChecked;
+        _sichtbarAbTimePicker.IsEnabled = enabled && _hasSichtbarAbCheckBox.IsChecked;
+        _hasSichtbarBisCheckBox.IsEnabled = enabled;
+        _sichtbarBisDatePicker.IsEnabled = enabled && _hasSichtbarBisCheckBox.IsChecked;
+        _sichtbarBisTimePicker.IsEnabled = enabled && _hasSichtbarBisCheckBox.IsChecked;
+        _hasAnmeldungBisCheckBox.IsEnabled = enabled;
+        _anmeldungBisDatePicker.IsEnabled = enabled && _hasAnmeldungBisCheckBox.IsChecked;
+        _anmeldungBisTimePicker.IsEnabled = enabled && _hasAnmeldungBisCheckBox.IsChecked;
+        _aktivSwitch.IsEnabled = enabled;
+        _saveButton.IsEnabled = enabled;
+        _cancelButton.IsEnabled = enabled;
+        _previousButton.IsEnabled = enabled && _previousButton.IsVisible && _managementState.CanMovePrevious;
+        _nextButton.IsEnabled = enabled && _nextButton.IsVisible && _managementState.CanMoveNext;
+    }
+
     private Task NavigateToOverviewAsync()
     {
-        return Shell.Current.GoToAsync("//home");
+        return Shell.Current.GoToAsync("management_workassignments");
     }
 
     private static View CreateField(string labelText, View input)

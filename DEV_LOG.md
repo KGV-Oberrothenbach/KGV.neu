@@ -2,6 +2,74 @@
 
 ---
 
+## 2026-03-26 – MAUI-Arbeitseinsatz-/Busy-Block dokumentarisch sauber abgeschlossen, nur Blockdateien für Commit eingegrenzt
+
+- Vor dem Abschlusslauf erneut nur den realen Git-/Log-/Blockstand geprüft:
+  - Git-Status über den im aktuellen Visual-Studio-Setup vorhandenen Git-Pfad `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- WPF wurde bewusst nicht angefasst.
+- Ehrlicher Befund im Abschlusslauf:
+  - im aktuellen Arbeitsbaum liegen zusätzlich viele blockfremde offene Dateien, u. a. WPF-, Supabase- und Artefaktpfade
+  - im direkt betroffenen Blockpfad selbst war kein neuer Fachumbau mehr nötig; der bereits umgesetzte Fixstand ist konsistent
+  - `CreateArbeitseinsatzAsync(...)` setzt für neue Arbeitseinsätze `CreatedAt` und `UpdatedAt` explizit, `UpdateArbeitseinsatzAsync(...)` zieht `UpdatedAt` beim Speichern nach
+  - die Busy-/Ladehinweise im direkt betroffenen MAUI-Pfad werden früh sichtbar gesetzt und die direkt betroffenen Buttons/Eingaben während Laden/Speichern deaktiviert
+  - der Home-Schnellzugriff `Arbeitsstunde erfassen` ist im aktuellen aktiven `HomePage`-Pfad weiterhin vorhanden; dafür war kein weiterer Umbau nötig
+- In diesem Abschlusslauf bewusst nur dokumentiert und nicht neu umgebaut:
+  - keine neue Architektur
+  - keine weitere UI-/Fachlogik außerhalb der bereits angepassten Blockdateien
+  - insbesondere `KGV.Maui/Pages/MeineDatenPage.xaml.cs` und `KGV.Maui/Pages/HomeManagementPage.cs` nur als blockfremde Buildursachen benannt
+- Technische Verifikation:
+  - `get_errors` auf den direkt betroffenen Blockdateien blieb unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - der aktuelle Lauf scheitert weiterhin blockfremd breit, u. a. in:
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - `KGV.Maui/Pages/HomeManagementPage.cs`
+  - diese Fehler wurden im Abschlusslauf ausdrücklich nur dokumentiert und nicht repariert
+- Git-/Commit-Einordnung dieses Abschlusslaufs:
+  - gestaged werden bewusst nur die echten Blockdateien dieses Arbeitseinsatz-/Busy-Abschlusses
+  - blockfremde offene WPF-/Supabase-/Artefaktdateien bleiben ausdrücklich außerhalb des Commits
+
+## 2026-03-26 – MAUI-Arbeitseinsatz-Create repariert, Busy-State im direkten Produktivpfad geschärft und Home-Schnellzugriff geprüft
+
+- Vor dem kleinen Bugfix-Block erneut nur den realen MAUI-/Core-/Infrastructure-Stand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Core/Models/ArbeitseinsatzRecord.cs`
+  - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
+  - ergänzend den genauen Suchlauf auf `.Result` und `.Wait(` in den direkt betroffenen MAUI-Dateien
+- WPF wurde bewusst nicht angefasst.
+- Ehrlicher Befund vor Umsetzung:
+  - der Fehler beim Neuanlegen eines Arbeitseinsatzes war im Produktivpfad klar im Service lokalisierbar
+  - `CreateArbeitseinsatzAsync(...)` baute beim Insert zwar einen neuen `ArbeitseinsatzRecord`, setzte aber `created_at` und `updated_at` nicht
+  - dadurch lief der Insert weiter in den DB-Constraint `23502` auf `arbeitseinsatz.created_at`
+  - im MAUI-Pfad lagen keine direkten `.Result`-/`.Wait()`-Blockierer in den betroffenen Dateien vor, aber Busy-Texte konnten im direkten Home-/Detail-/Editorpfad zu spät sichtbar werden
+  - der Home-Schnellzugriff `Arbeitsstunde erfassen` ist im aktuellen aktiven `HomePage`-Pfad vorhanden; ein fachlicher Wiederherstellungsumbau war dafür nicht nötig
+- Umsetzung bewusst klein und nur in den direkt betroffenen Pfaden:
+  - `CreateArbeitseinsatzAsync(...)` setzt beim Insert jetzt `CreatedAt` und `UpdatedAt` explizit auf `DateTime.UtcNow`
+  - `UpdateArbeitseinsatzAsync(...)` setzt beim Speichern zusätzlich `UpdatedAt` auf `DateTime.UtcNow`
+  - der Rückladepfad nach dem Insert wurde analog zum vorherigen Termin-Fix auf `Titel` + `Datum` eingegrenzt statt die komplette Tabelle unfiltriert neu zu laden
+  - `ArbeitseinsaetzeEditorPage` zeigt Busy-Texte für Laden/Speichern jetzt zuverlässig im selben Produktivpfad an, deaktiviert die Eingaben währenddessen und gibt nach `Speichern` sauber zurück in die bestehende Arbeitseinsatz-Übersicht `management_workassignments`
+  - `HomePage` setzt den Ladehinweis vor dem Reload sichtbar, deaktiviert die direkt betroffenen Aktionsbuttons währenddessen und fängt Fehler im Home-Reloadpfad sauber sichtbar ab
+  - `HomeSectionDetailPage` gibt dem Renderzyklus bei Laden/Speichern/Löschen im direkt betroffenen Detailpfad kurz Raum, damit Busy-/Ladetexte vor den Serviceaufrufen sichtbar werden
+  - der Home-Schnellzugriff `Arbeitsstunde erfassen` wurde geprüft und ist im aktuellen aktiven Home-Pfad weiterhin vorhanden
+- Technische Verifikation:
+  - der exakte Suchlauf auf `.Result|.Wait(` in den direkt betroffenen MAUI-Dateien blieb leer
+  - `get_errors` auf den direkt betroffenen Dateien blieb vor dem Abschlusslauf unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - der Lauf scheitert weiter blockfremd breit an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - `KGV.Maui/Pages/HomeManagementPage.cs`
+  - diese bestehenden Buildfehler wurden in diesem kleinen Arbeitseinsatz-/Busy-Block bewusst nicht repariert
+
 ## 2026-03-26 – MAUI-Home-/Detail-/Editor-Block sauber abgeschlossen, Logs nachgezogen und Buildstand ehrlich dokumentiert
 
 - Vor dem Abschlusslauf erneut nur den realen MAUI-/Log-/Git-Stand geprüft:
