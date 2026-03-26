@@ -2,6 +2,41 @@
 
 ---
 
+## 2026-03-26 – MAUI-Arbeitsstundenpfad nach Flyout-Umbau stabilisiert
+
+- Vor dem kleinen Block erneut den realen MAUI-Iststand, den Fortschrittslog und gezielt diese aktiven Dateien geprüft:
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
+  - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+- Ehrlicher Befund:
+  - `workhours` war nach dem Flyout-Umbau nur noch im `UserShell` ein echter sichtbarer Shell-Root
+  - im `AdminShell` lag der Arbeitsstunden-Unterpunkt dagegen auf `member_workhours`
+  - genau deshalb war `//workhours` auf der Editorseite nach `Abbrechen` bzw. `Speichern` für Admin/Vorstand kein gültiger universeller Rückpfad mehr
+  - zusätzlich war `MyArbeitsstundenPage` selbst noch nicht als Detailroute registriert, also gab es keinen sauberen Fallback außerhalb sichtbarer Shell-Roots
+  - der Home-Schnellzugriff für `Arbeitsstunde erfassen` war für Admin/Vorstand noch an den eigenen Nutzerkontext statt an den ausgewählten Mitgliedskontext gebunden
+- Umsetzung bewusst klein und nur in MAUI:
+  - `MyArbeitsstundenPage` als vorhandene Detailroute registriert
+  - `ShellNavigationHelper` um eine kleine Prüfung erweitert, ob eine sichtbare Shell-Content-Route aktuell vorhanden ist
+  - `ArbeitsstundenEditorPage` verwendet für `Abbrechen` und Save-Erfolg jetzt einen kontextabhängigen gültigen Rückpfad:
+    - `//member_workhours`, wenn der Admin-/Mitgliedskontextpfad sichtbar ist
+    - `//workhours`, wenn der User-Root sichtbar ist
+    - sonst Fallback auf die registrierte Detailroute `MyArbeitsstundenPage`
+  - `HomeViewModel.CanCreateWorkHoursEntry` für Admin/Vorstand an den vorhandenen ausgewählten `MemberContextState` gekoppelt; User bleiben auf dem eigenen Mitgliedskontext
+- Ergebnis für den Pfad:
+  - kein universeller ungültiger `//workhours`-Rücksprung mehr
+  - Liste und Editor bleiben auf vorhandenen Produktivseiten
+  - `Abbrechen` und Save-Erfolg führen auf einen gültigen mobilen Arbeitsstundenpfad zurück
+  - Admin/Vorstand laufen über den ausgewählten Mitgliedskontext, User über den eigenen
+- Technische Verifikation:
+  - `get_errors` auf den geänderten Arbeitsstunden-Dateien blieb unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - der Lauf scheiterte weiter blockfremd an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+
 ## 2026-03-26 – MAUI-Android-AppIcon final auf genau einen aktiven PNG-Pfad festgezogen
 
 - Vor dem kleinen Block erneut nur den MAUI-Icon-Pfad und gezielt diese Dateien geprüft:

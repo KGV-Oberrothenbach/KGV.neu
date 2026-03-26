@@ -379,7 +379,22 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
 
     private Task NavigateToOverviewAsync()
     {
-        return Shell.Current.GoToAsync("//workhours");
+        var targetRoute = ResolveOverviewRoute();
+        return Shell.Current.GoToAsync(targetRoute);
+    }
+
+    private string ResolveOverviewRoute()
+    {
+        if (Shell.Current is Shell shell)
+        {
+            if (ShellNavigationHelper.HasVisibleShellContentRoute(shell, "member_workhours"))
+                return "//member_workhours";
+
+            if (ShellNavigationHelper.HasVisibleShellContentRoute(shell, "workhours"))
+                return "//workhours";
+        }
+
+        return nameof(MyArbeitsstundenPage);
     }
 
     private static int? TryReadInt(IDictionary<string, object> query, string key)

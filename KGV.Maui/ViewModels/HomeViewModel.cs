@@ -14,13 +14,15 @@ public sealed class HomeViewModel : INotifyPropertyChanged
 {
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _userContextState;
+    private readonly MemberContextState _memberContextState;
     private HomeAnnouncementItem? _selectedAnnouncement;
     private HomeOverviewDTO _overview = HomeOverviewFactory.Build(UserRole.User);
 
-    public HomeViewModel(ISupabaseService supabaseService, UserContextState userContextState)
+    public HomeViewModel(ISupabaseService supabaseService, UserContextState userContextState, MemberContextState memberContextState)
     {
         _supabaseService = supabaseService;
         _userContextState = userContextState;
+        _memberContextState = memberContextState;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -61,7 +63,11 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     public bool HasAnnouncements => Announcements.Count > 0;
     public bool HasWorkAssignments => WorkAssignments.Count > 0;
     public bool HasAppointments => Appointments.Count > 0;
-    public bool CanCreateWorkHoursEntry => _userContextState.CurrentMitgliedId is > 0 and <= int.MaxValue;
+    public bool CanCreateWorkHoursEntry => _userContextState.CurrentUserContext?.Role switch
+    {
+        UserRole.Admin or UserRole.Vorstand => _memberContextState.SelectedMember?.Id is > 0,
+        _ => _userContextState.CurrentMitgliedId is > 0 and <= int.MaxValue
+    };
     public bool ShowAnnouncementDetail => HasAnnouncements;
     public bool HasSelectedAnnouncement => SelectedAnnouncement != null;
     public bool ShowAnnouncementHint => HasAnnouncements && !HasSelectedAnnouncement;

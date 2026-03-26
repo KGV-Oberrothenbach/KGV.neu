@@ -47,6 +47,16 @@ internal static class ShellNavigationHelper
             activeSection.CurrentItem = activeContent;
     }
 
+    public static bool HasVisibleShellContentRoute(Shell shell, string route)
+    {
+        ArgumentNullException.ThrowIfNull(shell);
+
+        if (string.IsNullOrWhiteSpace(route))
+            return false;
+
+        return FindPreferredTarget(shell, route).Content != null;
+    }
+
     private static bool IsValid(ShellItem? item)
         => item?.IsVisible == true && item.Items.Any(IsValid);
 

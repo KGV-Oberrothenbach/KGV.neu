@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-03-26 – Prompt 1/3: MAUI-Arbeitsstundenpfad nach Flyout-Umbau stabilisiert
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-Dateien geprüft:
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
+  - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+  - direkte Aufrufer und `GoToAsync(...)`-Stellen im Arbeitsstundenpfad
+- WPF wurde in diesem Block bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
+  - `workhours` war im aktuellen Stand kein allgemeiner universeller Shell-Root mehr
+  - im `UserShell` existiert `workhours` weiterhin als sichtbarer Root-Unterpunkt
+  - im `AdminShell` existiert der Arbeitsstunden-Unterpunkt dagegen unter der Route `member_workhours`
+  - `ArbeitsstundenEditorPage` verwendete für `Abbrechen` und Save-Erfolg aber noch starr `//workhours`
+  - genau deshalb entstand der Fehler `unable to figure out route for: //workhours`, sobald der Pfad aus dem Admin-/Mitgliedskontext genutzt wurde
+  - `MyArbeitsstundenPage` selbst war noch nicht als Detailroute registriert; ein sauberer Fallback außerhalb sichtbarer Shell-Roots fehlte also
+  - der Home-Schnellzugriff `Arbeitsstunde erfassen` war für Admin/Vorstand noch an den eigenen Nutzerkontext gekoppelt statt an den ausgewählten Mitgliedskontext
+- Den Korrekturblock deshalb bewusst klein und nur im vorhandenen mobilen Produktivpfad umgesetzt:
+  - `ShellRouteRegistrar` ergänzt um die Detailroute `nameof(MyArbeitsstundenPage)`
+  - `ShellNavigationHelper` erweitert um eine kleine Hilfsfunktion, die prüft, ob eine sichtbare Shell-Content-Route aktuell wirklich vorhanden ist
+  - `ArbeitsstundenEditorPage` leitet `Abbrechen` und Save-Erfolg jetzt fachlich passend zurück:
+    - `//member_workhours`, wenn der Admin-/Mitgliedskontextpfad sichtbar ist
+    - `//workhours`, wenn der User-Root sichtbar ist
+    - `nameof(MyArbeitsstundenPage)` als vorhandener Detail-Fallback, falls aktuell kein sichtbarer Shell-Root greift
+  - damit wurde kein neuer Dummy-Pfad gebaut, sondern nur der vorhandene Listen-/Editorpfad stabil verdrahtet
+  - `HomeViewModel.CanCreateWorkHoursEntry` für Admin/Vorstand an den vorhandenen ausgewählten `MemberContextState` gekoppelt
+  - User behalten unverändert den eigenen Mitgliedskontext über `CurrentMitgliedId`
+- Fachliches Ergebnis nach dem Block:
+  - kein ungültiger universeller `//workhours`-Rücksprung mehr
+  - Arbeitsstunden-Liste und Editor bleiben erreichbar über die vorhandenen mobilen Produktivseiten
+  - `Abbrechen` und Save-Erfolg führen auf einen gültigen mobilen Arbeitsstundenpfad zurück
+  - Admin/Vorstand arbeiten im Arbeitsstundenpfad jetzt konsistent mit ausgewähltem Mitgliedskontext
+  - User arbeiten weiter mit dem eigenen Mitgliedskontext
+- Direkt bereinigte Aufrufer/Muster im selben Pfad:
+  - starre Rücknavigation aus `ArbeitsstundenEditorPage`
+  - Sichtbarkeit des Home-Schnellzugriffs für Admin/Vorstand
+- Bewusst nicht gemacht:
+  - keine neue Seite gebaut
+  - keine WPF-Struktur nachgebildet
+  - keine zusätzliche Fachlogik außerhalb des vorhandenen Listen-/Editorpfads erfunden
+  - Save-Buttons am Ende des Formulars unverändert belassen
+- Technische Verifikation:
+  - `get_errors` auf den geänderten Arbeitsstunden-Dateien blieb unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - der Lauf scheiterte weiterhin blockfremd an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
+    - `KGV.Maui/Pages/HomeManagementPage.cs`
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - damit ist der Arbeitsstunden-Navigationspfad selbst bereinigt, der Gesamt-Workspace aber weiterhin nicht grün buildbar
+
 ## 2026-03-26 – MAUI-Bugfix: Android-AppIcon final auf genau einen aktiven PNG-Pfad reduziert
 
 - Vor dem kleinen Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur den MAUI-Icon-Pfad geprüft:
