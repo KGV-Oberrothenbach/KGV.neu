@@ -2,6 +2,41 @@
 
 ---
 
+## 2026-03-26 – Nächsten blockfremden MAUI-Compileblock für `NebenmitgliedPage`, `UserManagementPage`, `RfidEinrichtenPage`, `MemberGardensPage` und `RfidScanWorkflowPage` gezielt bereinigt
+
+- Vor dem Block erneut nur den realen Repo-/Log-/Fehlerstand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `KGV.Maui/Pages/NebenmitgliedPage.cs`
+  - `KGV.Maui/Pages/UserManagementPage.cs`
+  - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+  - `KGV.Maui/Pages/RfidScanWorkflowPage.cs`
+  - gezielte Dateifehler für genau diese fünf MAUI-Seiten
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+- WPF wurde bewusst nicht angefasst.
+- Ehrlicher Befund vor der Korrektur:
+  - alle fünf betroffenen Dateien liegen im aktiven Stand als code-only MAUI-Seiten vor; direkte aktive `.xaml`-Gegenstücke wurden im Seitenpfad nicht gefunden
+  - die Compilefehler lagen erneut nicht in Fachlogik, sondern in fehlenden MAUI-/Graphics-/System-Namespaces
+  - betroffen waren dort u. a. Typauflösungen für `ContentPage`, `View`, `Label`, `Button`, `Entry`, `Border`, `CollectionView`, `Picker`, `Grid`, `IValueConverter`, `Keyboard`, `Thickness`, `CornerRadius`, `LineBreakMode`, `TextAlignment`, `GridLength` und `Shell`
+- Umsetzung bewusst klein und nur auf die Compile-Ursachen begrenzt:
+  - in `KGV.Maui/Pages/NebenmitgliedPage.cs` die fehlenden aktiven MAUI-/System-Usings ergänzt
+  - in `KGV.Maui/Pages/UserManagementPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergänzt
+  - in `KGV.Maui/Pages/RfidEinrichtenPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergänzt
+  - in `KGV.Maui/Pages/MemberGardensPage.cs` die fehlenden aktiven MAUI-/Graphics-/Collections-/System-Usings ergänzt
+  - in `KGV.Maui/Pages/RfidScanWorkflowPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergänzt
+  - keine Fachlogik, keine Navigation, keine Rechte- oder CRUD-/Supabase-Pfade geändert
+  - keine XAML-/Code-Behind-Umbauten gestartet, weil die fünf Zielseiten im aktiven Stand code-only sind
+- Technische Verifikation:
+  - `get_errors` auf den fünf Zielseiten blieb nach dem Fix unauffällig
+  - der gezielte Seitenblock ist damit dateibezogen compile-seitig bereinigt
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` bleibt im Workspace weiterhin nicht grün
+  - der Gesamtbuild scheitert weiter blockfremd an gleichartigen bereits vorhandenen MAUI-Namespace-/Controlfehlern, u. a. in:
+    - `KGV.Maui/Pages/FaelligeZaehlerPage.cs`
+    - `KGV.Maui/Pages/ArbeitsstundenReviewDetailPage.cs`
+    - `KGV.Maui/Pages/ManagementOverviewPageBase.cs`
+  - diese Fehler wurden in diesem kleinen Compileblock bewusst nur dokumentiert und nicht mit umgebaut
+
 ## 2026-03-26 – Nächsten blockfremden MAUI-Compileblock für `MyProfilePage`, `HomeSectionDetailPage` und `ParzellenPage` gezielt bereinigt
 
 - Vor dem Block erneut nur den realen Repo-/Log-/Fehlerstand geprüft:

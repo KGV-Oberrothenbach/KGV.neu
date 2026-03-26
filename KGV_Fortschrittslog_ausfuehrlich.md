@@ -2,6 +2,54 @@
 
 ---
 
+## 2026-03-26 – Prompt 1/1: Nächsten blockfremden MAUI-Compilefehlerstand in `NebenmitgliedPage`, `UserManagementPage`, `RfidEinrichtenPage`, `MemberGardensPage` und `RfidScanWorkflowPage` gezielt bereinigt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrücklich nur den direkt betroffenen MAUI-Pfad geprüft:
+  - `KGV.Maui/Pages/NebenmitgliedPage.cs`
+  - `KGV.Maui/Pages/UserManagementPage.cs`
+  - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+  - `KGV.Maui/Pages/RfidScanWorkflowPage.cs`
+  - gezielte Dateifehler für genau diese fünf Seiten
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+  - Git-Status nur zur Blockeingrenzung, ohne blockfremde Dateien anzufassen
+- WPF wurde in diesem Block bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen Stand vor Umsetzung:
+  - alle fünf betroffenen Dateien liegen im aktiven Repo-Stand als code-only MAUI-Seiten vor; direkte aktive `.xaml`-Gegenstücke wurden im Seitenpfad nicht gefunden
+  - die gemeldeten Compilefehler lagen erneut nicht in Fachlogik, sondern in fehlenden bzw. falschen aktiven MAUI-Namespacebezügen im code-only-Seitenmodell
+  - betroffen waren dort u. a. Typauflösungen für:
+    - `ContentPage`
+    - `View`
+    - `Label`
+    - `Button`
+    - `Entry`
+    - `Border`
+    - `CollectionView`
+    - `Picker`
+    - `Grid`
+    - `IValueConverter`
+    - `Keyboard`
+    - `Thickness`
+    - `CornerRadius`
+    - zusätzlich Hilfstypen wie `LineBreakMode`, `TextAlignment`, `GridLength` und `Shell`
+- Den Korrekturblock deshalb bewusst klein und nur auf die Compile-Ursachen begrenzt umgesetzt:
+  - in `KGV.Maui/Pages/NebenmitgliedPage.cs` die fehlenden aktiven MAUI-/System-Usings ergänzt
+  - in `KGV.Maui/Pages/UserManagementPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergänzt
+  - in `KGV.Maui/Pages/RfidEinrichtenPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergänzt
+  - in `KGV.Maui/Pages/MemberGardensPage.cs` die fehlenden aktiven MAUI-/Graphics-/Collections-/System-Usings ergänzt
+  - in `KGV.Maui/Pages/RfidScanWorkflowPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergänzt
+  - keine Fachlogik, keine Rechte-Logik, keine Navigation und keine CRUD-/Supabase-Pfade verändert
+  - keine neue XAML-/Code-Behind-Struktur erfunden, weil die fünf Zielseiten im aktiven Stand keine belastbar aktive XAML-Gegenseite besitzen
+- Technische Verifikation nach dem Fix:
+  - `get_errors` auf den direkt betroffenen Dateien blieb nach der Korrektur unauffällig
+  - die fünf Zielseiten sind damit dateibezogen compile-seitig bereinigt
+  - anschließender `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - der Gesamtbuild scheitert nach diesem Block weiter blockfremd an gleichartigen bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
+    - `KGV.Maui/Pages/FaelligeZaehlerPage.cs`
+    - `KGV.Maui/Pages/ArbeitsstundenReviewDetailPage.cs`
+    - `KGV.Maui/Pages/ManagementOverviewPageBase.cs`
+  - diese benachbarten Fehler wurden in diesem kleinen Compileblock ausdrücklich nur dokumentiert und nicht mit umgebaut, weil der Auftrag auf genau `NebenmitgliedPage`, `UserManagementPage`, `RfidEinrichtenPage`, `MemberGardensPage` und `RfidScanWorkflowPage` begrenzt war
+
 ## 2026-03-26 – Prompt 1/1: Nächsten blockfremden MAUI-Compilefehlerstand in `MyProfilePage`, `HomeSectionDetailPage` und `ParzellenPage` gezielt bereinigt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrücklich nur den direkt betroffenen MAUI-Pfad geprüft:
