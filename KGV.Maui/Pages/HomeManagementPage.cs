@@ -312,7 +312,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         if (_requestedEntryId.HasValue)
             return Shell.Current.GoToAsync($"{nameof(BekanntmachungEditorPage)}?entryId={_requestedEntryId.Value}");
 
-        return Shell.Current.GoToAsync("//management_announcements");
+        return Shell.Current.GoToAsync("management_announcements");
     }
 
     private Task RedirectAppointmentsAsync()
@@ -323,7 +323,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         if (_requestedEntryId.HasValue)
             return Shell.Current.GoToAsync($"{nameof(TermineEditorPage)}?entryId={_requestedEntryId.Value}");
 
-        return Shell.Current.GoToAsync("//management_appointments");
+        return Shell.Current.GoToAsync("management_appointments");
     }
 
     private Task RedirectWorkAssignmentsAsync()
@@ -334,7 +334,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         if (_requestedEntryId.HasValue)
             return Shell.Current.GoToAsync($"{nameof(ArbeitseinsaetzeEditorPage)}?entryId={_requestedEntryId.Value}");
 
-        return Shell.Current.GoToAsync("//management_workassignments");
+        return Shell.Current.GoToAsync("management_workassignments");
     }
 
     private async Task LoadCurrentSectionAsync(bool resetSelection)

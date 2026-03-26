@@ -2,6 +2,42 @@
 
 ---
 
+## 2026-03-26 – MAUI-Bugfix: Shell-Route `management_workassignments` nach Flyout-Umbau sauber repariert
+
+- Vor dem kleinen Bugfix-Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-Dateien geprüft:
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - alle betroffenen `GoToAsync(...)`-Aufrufer im direkten Managementpfad
+- WPF wurde in diesem Block bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
+  - `management_workassignments` existierte nach dem Flyout-Umbau nicht mehr als Root-Shell-Ziel im Flyout
+  - in `AdminShell` war `management_workassignments` damit kein `ShellContent.Route`-Root mehr
+  - `ShellRouteRegistrar` registrierte zwar `nameof(ArbeitseinsaetzeManagementPage)`, aber keinen expliziten Alias `management_workassignments`
+  - gleichzeitig wurde das Ziel weiterhin noch absolut per `//management_workassignments` angesprungen
+  - genau dieses Muster lag direkt benachbart im selben Pfad auch für `management_announcements` und `management_appointments` vor
+- Den Bugfix deshalb bewusst klein und im selben Muster zusammenhängend umgesetzt:
+  - `ShellRouteRegistrar` ergänzt um explizite Alias-Registrierungen:
+    - `management_announcements` → `BekanntmachungenManagementPage`
+    - `management_appointments` → `TermineManagementPage`
+    - `management_workassignments` → `ArbeitseinsaetzeManagementPage`
+  - fehlerhafte absolute Aufrufe auf nicht mehr rootfähige Managementziele auf relative Navigation umgestellt:
+    - `KGV.Maui/Pages/HomePage.xaml.cs`
+    - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
+    - `KGV.Maui/Pages/HomeManagementPage.cs`
+    - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
+  - dabei bewusst nur die direkt benachbarten gleichartigen `management_*`-Fehler mitgenommen, keinen größeren Navigationsumbau gestartet
+  - echte Root-Ziele mit `//` wurden in diesem Block bewusst nicht verändert
+- Technische Verifikation:
+  - `get_errors` auf den geänderten Bugfix-Dateien blieb unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - der Lauf scheiterte weiterhin blockfremd an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
+    - `KGV.Maui/Pages/TermineEditorPage.cs`
+    - `KGV.Maui/Pages/HomeManagementPage.cs`
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - damit ist der Bugfix-Codepfad selbst bereinigt, der Gesamt-Workspace aber weiterhin nicht grün buildbar
+
 ## 2026-03-26 – Prompt 2/2: MAUI-Flyout-Navigation entschlackt und Mitgliedskontext sauber an Unterpunkte gebunden
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die aktiven MAUI-Dateien für Shell/Flyout und Mitgliedskontext geprüft:

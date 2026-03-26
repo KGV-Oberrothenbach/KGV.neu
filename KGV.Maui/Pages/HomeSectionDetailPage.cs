@@ -78,11 +78,11 @@ public sealed class HomeSectionDetailPage : ContentPage
             if (!string.IsNullOrWhiteSpace(section))
             {
                 if (_homeContextState.DetailKind == HomeDetailKind.WorkAssignment)
-                    await Shell.Current.GoToAsync("//management_workassignments");
+                    await Shell.Current.GoToAsync("management_workassignments");
                 else if (_homeContextState.DetailKind == HomeDetailKind.Appointment)
-                    await Shell.Current.GoToAsync("//management_appointments");
+                    await Shell.Current.GoToAsync("management_appointments");
                 else if (_homeContextState.DetailKind == HomeDetailKind.Announcement)
-                    await Shell.Current.GoToAsync("//management_announcements");
+                    await Shell.Current.GoToAsync("management_announcements");
                 else
                     await Shell.Current.GoToAsync("//home");
             }

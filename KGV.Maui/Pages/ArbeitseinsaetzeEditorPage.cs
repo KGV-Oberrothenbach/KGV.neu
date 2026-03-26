@@ -545,7 +545,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
 
     private Task NavigateToOverviewAsync()
     {
-        return Shell.Current.GoToAsync("//management_workassignments");
+        return Shell.Current.GoToAsync("management_workassignments");
     }
 
     private static View CreateField(string labelText, View input)

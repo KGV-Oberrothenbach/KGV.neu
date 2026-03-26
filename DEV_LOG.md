@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-03-26 – MAUI-Shell-Route `management_workassignments` nach Flyout-Umbau repariert
+
+- Vor dem kleinen Bugfix-Block erneut den realen MAUI-Iststand, die Shell-/Route-Dateien und die betroffenen `GoToAsync(...)`-Aufrufer geprüft.
+- Ehrlicher Befund:
+  - `management_workassignments` war nach dem Flyout-Umbau kein Shell-Root-Ziel mehr, wurde aber weiter als absolutes `//management_workassignments` angesprungen
+  - in `ShellRouteRegistrar` war kein expliziter Alias `management_workassignments` registriert; vorhanden war nur `nameof(ArbeitseinsaetzeManagementPage)`
+  - direkt benachbart lag dasselbe Muster auch bei `management_announcements` und `management_appointments` vor
+- Umsetzung bewusst klein und nur in MAUI:
+  - in `ShellRouteRegistrar` Alias-Routen für `management_announcements`, `management_appointments` und `management_workassignments` registriert
+  - absolute Aufrufe auf nicht mehr rootfähige Ziele auf relative Navigation umgestellt:
+    - `HomePage`
+    - `HomeSectionDetailPage`
+    - `HomeManagementPage`
+    - `ArbeitseinsaetzeEditorPage`
+  - echte Root-Ziele mit `//` bewusst nicht verändert
+- Technische Verifikation:
+  - `get_errors` auf den geänderten Dateien blieb für diesen Block unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - der Lauf scheiterte weiterhin blockfremd an bereits vorhandenen MAUI-Control-/Namespacefehlern u. a. in `KGV.Maui/Pages/TermineEditorPage.cs`, `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+
 ## 2026-03-26 – MAUI-Flyout auf kleine Hauptnavigation reduziert und Mitgliedskontext sauber eingehängt
 
 - Vor dem kleinen Block erneut Repo-/Arbeitsbaumstand, aktiven Fortschrittslog und die real verwendeten MAUI-Shell-/Mitgliedskontextdateien geprüft.
