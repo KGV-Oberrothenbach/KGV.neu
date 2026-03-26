@@ -2,6 +2,40 @@
 
 ---
 
+## 2026-03-26 – MAUI-Login-Root-Switch auf Android stabilisiert und AppIcon-Pfad bereinigt
+
+- Vor dem kleinen Block erneut den realen MAUI-Iststand, den Fortschrittslog und gezielt diese aktiven Dateien geprüft:
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+  - `KGV.Maui/Resources/AppIcon/*`
+- Ehrlicher Befund:
+  - `LoginPage`, `AdminShell` und `UserShell` waren in `MauiProgram` weiterhin bereits sinnvoll `transient` registriert; ein Lifetime-Problem war dort nicht die Ursache
+  - der verzögerte Android-Seitenwechsel entstand im vorhandenen Root-Switch-Pfad dadurch, dass `App.SwitchToCurrentRootAsync()` auf Android ein neues `Window` öffnete und das alte danach schloss
+  - dadurch blieb der sichtbare Wechsel instabil, obwohl Login und Shell-Aufbau bereits erfolgreich waren
+  - zusätzlich existierte in `LoginPage` noch ein zweiter Fallback-Pfad, der bei Bedarf selbst `AdminShell`/`UserShell` erzeugte und direkt auf `window.Page` setzte
+  - beim AppIcon war der aktive `MauiIcon`-Pfad bereits auf `Resources/AppIcon/appicon.png` gesetzt, aber lokal lag die tatsächliche PNG-Datei noch nur im Arbeitsbaum; außerdem nutzte der Splash zusätzlich dieselbe `AppIcon`-SVG, was den aktiven Pfad unnötig unklar machte
+  - `AndroidManifest.xml` überschreibt das App-Symbol nicht
+- Umsetzung bewusst klein und nur in MAUI:
+  - `App.SwitchToCurrentRootAsync()` baut den Ziel-Root jetzt auf dem `MainThread` und setzt ihn direkt auf das aktive vorhandene Fenster
+  - der Android-spezifische Ersatzfenster-/`OpenWindow`-/`CloseWindow`-Pfad wurde entfernt
+  - `LoginPage` verwendet für den erfolgreichen Loginabschluss jetzt nur noch den einen zentralen App-Root-Wechselpfad statt zusätzlich Shells lokal als Fallback zu setzen
+  - `KGV.Maui.csproj` bleibt beim aktiven AppIcon-Pfad `Resources/AppIcon/appicon.png`
+  - der Splash bleibt bewusst auf dem vorhandenen buildbaren `Resources/AppIcon/appicon.svg`, weil die vorhandene `Resources/Splash/splash.svg` in diesem Workspace aktuell keinen gültigen Android-`drawable/splash` erzeugte
+  - das tatsächlich referenzierte Logo-Asset `KGV.Maui/Resources/AppIcon/appicon.png` wird mit in den Commit genommen
+- Android-Test-/Bereinigungshinweis:
+  - für einen sauberen Icon-Test `bin`/`obj` neu erzeugen
+  - App auf dem Gerät deinstallieren
+  - APK/App neu installieren, weil Android Launcher-Icons aggressiv cached
+- Technische Verifikation:
+  - `get_errors` auf den geänderten Root-Switch-Dateien blieb unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - der Lauf scheiterte weiter blockfremd an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in `KGV.Maui/Pages/TermineEditorPage.cs`, `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+
 ## 2026-03-26 – MAUI-Shell-Route `management_workassignments` nach Flyout-Umbau repariert
 
 - Vor dem kleinen Bugfix-Block erneut den realen MAUI-Iststand, die Shell-/Route-Dateien und die betroffenen `GoToAsync(...)`-Aufrufer geprüft.

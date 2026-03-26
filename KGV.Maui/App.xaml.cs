@@ -1,6 +1,8 @@
 using KGV.Maui.Pages;
 using KGV.Maui.State;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Controls;
 using System.Linq;
 
 namespace KGV.Maui;
@@ -26,38 +28,21 @@ public partial class App : Application
 
     public async Task SwitchToCurrentRootAsync()
     {
-        var nextRootPage = CreateRootPage();
-        var currentWindow = _mainWindow ?? Windows.FirstOrDefault();
-
-        if (currentWindow == null)
+        await MainThread.InvokeOnMainThreadAsync(() =>
         {
-            _mainWindow = new Window(nextRootPage);
-            OpenWindow(_mainWindow);
-            return;
-        }
+            var nextRootPage = CreateRootPage();
+            var currentWindow = _mainWindow ?? Windows.FirstOrDefault();
 
-#if ANDROID
-        var nextWindow = new Window(nextRootPage);
-        var loadedSource = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (currentWindow == null)
+            {
+                _mainWindow = new Window(nextRootPage);
+                OpenWindow(_mainWindow);
+                return;
+            }
 
-        void OnLoaded(object? sender, EventArgs e)
-        {
-            nextRootPage.Loaded -= OnLoaded;
-            loadedSource.TrySetResult();
-        }
-
-        nextRootPage.Loaded += OnLoaded;
-        OpenWindow(nextWindow);
-        await Task.WhenAny(loadedSource.Task, Task.Delay(1500));
-        nextRootPage.Loaded -= OnLoaded;
-
-        _mainWindow = nextWindow;
-        if (Windows.Contains(currentWindow))
-            CloseWindow(currentWindow);
-#else
-        currentWindow.Page = nextRootPage;
-        _mainWindow = currentWindow;
-#endif
+            currentWindow.Page = nextRootPage;
+            _mainWindow = currentWindow;
+        });
     }
 
     private Page CreateRootPage()

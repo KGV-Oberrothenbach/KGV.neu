@@ -2,6 +2,57 @@
 
 ---
 
+## 2026-03-26 – Prompt 1/2: MAUI-Login-Root-Switch sofort sichtbar gemacht und AppIcon-Pfad sauber verdrahtet
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-Dateien geprüft:
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - aktive Root-/Navigation-Helfer im App-Pfad
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/Resources/AppIcon/*`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+- WPF wurde in diesem Block bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
+  - `LoginPage`, `AdminShell` und `UserShell` waren in `MauiProgram` bereits `transient` registriert; die DI-Lifetimes selbst waren also nicht der Auslöser für den verzögerten Wechsel
+  - der sichtbare Android-Fehler lag im vorhandenen `App.SwitchToCurrentRootAsync()`-Pfad:
+    - auf Android wurde nach erfolgreichem Login ein neues `Window` geöffnet
+    - danach wurde das alte Fenster geschlossen
+    - genau dieser Ersatzfensterpfad erklärte plausibel, warum der Shell-Wechsel erst sichtbar wurde, wenn Android die App erneut in den Vordergrund holte
+  - zusätzlich hielt `LoginPage` noch einen zweiten Fallback-Codepfad vor, der selbst `AdminShell`/`UserShell` baute und direkt `window.Page` setzte
+  - damit existierten zwei konkurrierende Login-Abschlusswege statt eines klaren zentralen Root-Wechsels
+  - beim App-Symbol zeigte `KGV.Maui.csproj` zwar bereits auf `Resources/AppIcon/appicon.png`, aber lokal lag die PNG-Datei noch nicht sauber im versionierten Pfad; parallel nutzte der Splash zusätzlich dieselbe `AppIcon`-SVG statt die vorhandene eigene `Splash`-SVG
+  - `AndroidManifest.xml` überschreibt das Icon nicht; der aktive Pfad liegt also tatsächlich im MAUI-Resizetizer/`csproj`
+- Den Korrekturblock deshalb bewusst klein und nur im MAUI-Root-/Icon-Pfad umgesetzt:
+  - `App.SwitchToCurrentRootAsync()` wechselt jetzt auf dem `MainThread` direkt das `Page`-Root des aktiven vorhandenen Fensters
+  - der Android-spezifische `OpenWindow(nextWindow)`-/`CloseWindow(currentWindow)`-Pfad wurde entfernt
+  - dadurch bleibt nach erfolgreichem Login genau ein sichtbarer stabiler Root-Wechsel auf die frisch aufgebaute `AdminShell` bzw. `UserShell`
+  - `CreateRootPage()` blieb der zentrale Ort für Shell-Erzeugung und `BuildMenu()`-Aufruf
+  - `LoginPage` nutzt für den erfolgreichen Loginabschluss jetzt nur noch diesen einen zentralen App-Root-Pfad; der lokale Shell-Fallback mit eigener `window.Page`-Zuweisung wurde entfernt
+  - überflüssige Fallback-Abhängigkeiten in `LoginPage` wurden direkt mit bereinigt
+  - aktiver AppIcon-Pfad in `KGV.Maui.csproj` verifiziert und beibehalten:
+    - aktives AppIcon: `Resources/AppIcon/appicon.png`
+  - der Splash bleibt bewusst auf dem vorhandenen buildbaren `Resources/AppIcon/appicon.svg`, weil die vorhandene `Resources/Splash/splash.svg` in diesem Workspace aktuell keinen gültigen Android-`drawable/splash` erzeugte
+  - die tatsächlich referenzierte Datei `KGV.Maui/Resources/AppIcon/appicon.png` wird mit in den Commit genommen
+- Entscheidung zum Icon-Pfad:
+  - kein konkurrierender zweiter `MauiIcon`-Eintrag wurde gebaut
+  - `PNG` bleibt das aktive Android-AppIcon
+  - die `SVG` bleibt im aktuellen Workspace nur für Splash-/Bildpfad aktiv; ein Umhängen auf die separate `Splash`-SVG wurde kurz geprüft, aber wegen Android-`drawable/splash`-Buildfehler nicht beibehalten
+- Android-Test-/Bereinigungshinweis festgehalten:
+  - `bin`/`obj` neu erzeugen
+  - App auf dem Gerät deinstallieren
+  - neu installieren, weil Android Launcher-Icons und App-Metadaten oft cached
+- Technische Verifikation:
+  - `get_errors` auf den geänderten Root-Switch-Dateien blieb unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - der Lauf scheiterte weiterhin blockfremd an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
+    - `KGV.Maui/Pages/TermineEditorPage.cs`
+    - `KGV.Maui/Pages/HomeManagementPage.cs`
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - damit ist der Login-/Icon-Block selbst codepfadseitig bereinigt, der Gesamt-Workspace aber weiterhin nicht grün buildbar
+
 ## 2026-03-26 – MAUI-Bugfix: Shell-Route `management_workassignments` nach Flyout-Umbau sauber repariert
 
 - Vor dem kleinen Bugfix-Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-Dateien geprüft:

@@ -23,6 +23,7 @@
 
 		<ApplicationDisplayVersion>0.2.6</ApplicationDisplayVersion>
 		<ApplicationVersion>14</ApplicationVersion>
+		<TargetFrameworks>net9.0-android</TargetFrameworks>
 	</PropertyGroup>
 
 	<!-- Debug stability settings -->
@@ -51,6 +52,26 @@
 		<AdbToolExe Condition="'$(AdbToolExe)'==''">adb.exe</AdbToolExe>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+	  <AndroidKeyStore>True</AndroidKeyStore>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+	  <AndroidUseAapt2>True</AndroidUseAapt2>
+	  <AndroidCreatePackagePerAbi>False</AndroidCreatePackagePerAbi>
+	  <AndroidPackageFormat>apk</AndroidPackageFormat>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-android|AnyCPU'">
+	  <AndroidKeyStore>False</AndroidKeyStore>
+	  <AndroidPackageFormat>apk</AndroidPackageFormat>
+	  <AndroidCreatePackagePerAbi>True</AndroidCreatePackagePerAbi>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-android|AnyCPU'">
+	  <AndroidCreatePackagePerAbi>True</AndroidCreatePackagePerAbi>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<ProjectReference Include="..\KGV.Core\KGV.Core.csproj" />
 		<ProjectReference Include="..\KGV.Infrastructure\KGV.Infrastructure.csproj" />
@@ -66,9 +87,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- AppIcon: Vereinslogo (Dateiname muss lowercase sein, damit Android/Resizetizer akzeptiert) -->
-        <MauiIcon Include="Resources\AppIcon\appicon.svg" BaseSize="2048,2048" />
-       <MauiSplashScreen Include="Resources\AppIcon\appicon.svg" Color="#2E7D32" BaseSize="192,192" />
+     <!-- AppIcon: Vereinslogo (Dateiname muss lowercase sein, damit Android/Resizetizer akzeptiert) -->
+			<MauiIcon Include="Resources\AppIcon\appicon.png" BaseSize="2048,2048" />
+         <MauiSplashScreen Include="Resources\AppIcon\appicon.svg" Color="#2E7D32" BaseSize="192,192" />
 	</ItemGroup>
 
 	<ItemGroup>

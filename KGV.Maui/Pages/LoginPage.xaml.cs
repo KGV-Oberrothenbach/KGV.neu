@@ -5,11 +5,9 @@ using KGV.Maui;
 using KGV.Maui.State;
 using KGV.Maui.Settings;
 using Microsoft.Maui;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
-using System.Linq;
 
 namespace KGV.Maui.Pages;
 
@@ -21,7 +19,6 @@ public class LoginPage : ContentPage
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _userContextState;
     private readonly IUserContextService _userContextService;
-    private readonly IServiceProvider _services;
 
     private readonly Entry _emailEntry;
     private readonly Entry _passwordEntry;
@@ -31,14 +28,12 @@ public class LoginPage : ContentPage
         IAuthService authService,
         ISupabaseService supabaseService,
         UserContextState userContextState,
-        IUserContextService userContextService,
-        IServiceProvider services)
+        IUserContextService userContextService)
     {
         _authService = authService;
         _supabaseService = supabaseService;
         _userContextState = userContextState;
         _userContextService = userContextService;
-        _services = services;
 
         Title = "Login";
 
@@ -354,28 +349,12 @@ public class LoginPage : ContentPage
         _userContextState.CurrentAppMode = mode;
         _userContextState.CurrentUserContext = userContext;
 
-        if (Application.Current is App app)
+        if (Application.Current is not App app)
         {
-            await app.SwitchToCurrentRootAsync();
+            _statusLabel.Text = "App-Root konnte nicht gewechselt werden.";
             return;
         }
 
-        var window = Application.Current?.Windows?.FirstOrDefault();
-        if (window == null)
-            return;
-
-        if (mode == AppMode.Admin)
-        {
-            var adminShell = _services.GetRequiredService<AdminShell>();
-            adminShell.BuildMenu();
-            ShellNavigationHelper.EnsureActiveShellItem(adminShell, "home");
-            window.Page = adminShell;
-            return;
-        }
-
-        var userShell = _services.GetRequiredService<UserShell>();
-        userShell.BuildMenu();
-        ShellNavigationHelper.EnsureActiveShellItem(userShell, "home");
-        window.Page = userShell;
+        await app.SwitchToCurrentRootAsync();
     }
 }
