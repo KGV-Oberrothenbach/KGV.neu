@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-03-26 – MAUI-Compileblock für `HomeManagementPage` und `MeineDatenPage` gezielt bereinigt
+
+- Vor dem Block erneut nur den realen Repo-/Log-/Fehlerstand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `KGV.Maui/Pages/HomeManagementPage.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - gezielte Dateifehler für beide MAUI-Seiten
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+- WPF wurde bewusst nicht angefasst.
+- Ehrlicher Befund vor der Korrektur:
+  - beide betroffenen Dateien liegen im aktuellen Stand als code-only MAUI-Seiten vor; aktive `.xaml`-Gegenstücke zu `HomeManagementPage` bzw. `MeineDatenPage` wurden im direkten Pfad nicht gefunden
+  - die Compilefehler in beiden Dateien entstanden nicht aus Fachlogik, sondern aus fehlenden/falschen MAUI-Namespacebezügen
+  - konkret fehlten die aktiven Typauflösungen u. a. für `ContentPage`, `IQueryAttributable`, `View`, `Border`, `VerticalStackLayout`, `Picker`, `Button`, `Label`, `CheckBox`, `Switch`, `Thickness`, `Keyboard`, `LineBreakMode` und `TextAlignment`
+- Umsetzung bewusst klein und nur auf die Compile-Ursachen begrenzt:
+  - in `KGV.Maui/Pages/HomeManagementPage.cs` die fehlenden MAUI-/System-Usings ergänzt
+  - in `KGV.Maui/Pages/MeineDatenPage.xaml.cs` die fehlenden MAUI-/System-Usings ergänzt
+  - keine Fachlogik, keine Navigation, keine Rechte- oder CRUD-Pfade verändert
+  - keine XAML-/Code-Behind-Umbauten gestartet, weil beide betroffenen Seiten im aktiven Stand code-only sind
+- Technische Verifikation:
+  - `get_errors` auf `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/MeineDatenPage.xaml.cs` blieb nach dem Fix unauffällig
+  - der gezielte Seitenblock ist damit dateibezogen compile-seitig bereinigt
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` bleibt im Workspace weiterhin nicht grün
+  - der Gesamtbuild scheitert weiter blockfremd an gleichartigen bereits vorhandenen MAUI-Namespace-/Controlfehlern, u. a. in:
+    - `KGV.Maui/Pages/MyProfilePage.cs`
+    - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
+    - `KGV.Maui/Pages/ParzellenPage.cs`
+  - diese Fehler wurden in diesem kleinen Compileblock bewusst nur dokumentiert und nicht mit umgebaut
+
 ## 2026-03-26 – MAUI-Arbeitseinsatz-/Busy-Block dokumentarisch sauber abgeschlossen, nur Blockdateien für Commit eingegrenzt
 
 - Vor dem Abschlusslauf erneut nur den realen Git-/Log-/Blockstand geprüft:
