@@ -2,6 +2,55 @@
 
 ---
 
+## 2026-03-26 – MAUI-Home-/Detail-/Editor-Block sauber abgeschlossen, Logs nachgezogen und Buildstand ehrlich dokumentiert
+
+- Vor dem Abschlusslauf erneut nur den realen MAUI-/Log-/Git-Stand geprüft:
+  - Git-Status über den installierten Git-Pfad `C:\Program Files\Git\cmd\git.exe`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - die bereits in diesem Block angefassten MAUI-Dateien
+- WPF wurde in diesem Abschlusslauf bewusst nicht angefasst.
+- Ehrlicher Befund vor dem Logabschluss:
+  - der Arbeitsbaum war vor der Logpflege git-seitig sauber; offen war in diesem Lauf vor allem der dokumentarische Abschluss des bereits umgesetzten MAUI-Blocks
+  - es wurde kein neuer Fachumbau mehr gestartet
+  - der Block selbst betrifft die bereits angepassten MAUI-/Shared-Dateien:
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Core/Models/HomeAnnouncementItem.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Maui/ViewModels/HomeViewModel.cs`
+    - `KGV.Maui/Pages/HomePage.xaml.cs`
+    - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
+    - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
+    - `KGV.Maui/Pages/TermineEditorPage.cs`
+    - `KGV.Maui/Pages/BekanntmachungEditorPage.cs`
+    - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
+    - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
+    - `KGV.Maui/Pages/ManagementOverviewPageBase.cs`
+- Inhalt des bereits umgesetzten Blocks, jetzt nur noch sauber festgehalten:
+  - der frühere Neu-Sentinel `entryId=0` wurde in den betroffenen Editorpfaden bereinigt; neue Datensätze laufen jetzt über `null`/kein `entryId` statt über eine künstliche `0`
+  - Admin/Vorstand erhalten auf denselben mobilen Produktivseiten zusätzliche Aktionen `Neu`, `Bearbeiten`, `Löschen` statt eines neuen Sonderpfads
+  - Delete-Pfade für `Termine`, `Arbeitseinsätze` und `Bekanntmachungen` wurden produktiv an `ISupabaseService` / `SupabaseService` angebunden
+  - Busy-/Lade-/Speichertexte wurden im direkt betroffenen Pfad ergänzt, insbesondere auf:
+    - `HomePage`
+    - `MyArbeitsstundenPage`
+    - `ArbeitsstundenEditorPage`
+    - `TermineEditorPage`
+    - `BekanntmachungEditorPage`
+    - `ArbeitseinsaetzeEditorPage`
+    - `HomeSectionDetailPage`
+    - `ManagementOverviewPageBase`
+  - betroffene Seiten planen Ladevorgänge jetzt nicht mehr sofort blockierend im `OnAppearing`, sondern mit kleinen `_loadScheduled`-/Busy-Guards nach dem ersten Renderzyklus
+  - im direkt betroffenen Pfad wurden keine `.Result`-/`.Wait()`-Nutzungen mehr gefunden
+- Technische Verifikation im Abschlusslauf:
+  - erneuter `git status --short` über den echten Git-Pfad war vor der Logpflege sauber
+  - erneuter Suchlauf auf `entryId=0|.Result|.Wait(` in den betroffenen MAUI-Pfaden blieb leer
+  - `get_errors` auf den direkt geänderten Blockdateien blieb unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` bleibt im Workspace weiterhin nicht grün
+  - der aktuelle Build scheitert weiterhin blockfremd breit an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - `KGV.Maui/Pages/HomeManagementPage.cs`
+  - diese blockfremden Fehler wurden im Abschlusslauf bewusst nur dokumentiert und nicht mehr umgebaut
+
 ## 2026-03-26 – MAUI-Terminanlage-Rückladepfad nach Insert stabilisiert
 
 - Vor dem kleinen Block erneut nur den realen MAUI-/Service-Iststand für den gemeldeten Terminfehler geprüft:

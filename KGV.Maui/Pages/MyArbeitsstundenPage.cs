@@ -23,6 +23,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
     private readonly Label _summarySollLabel;
     private readonly Label _summaryGeleistetLabel;
     private readonly Label _summaryOffenLabel;
+    private readonly Button _newButton;
 
     private readonly List<MemberOption> _options = new();
     private readonly List<ArbeitsstundeDTO> _items = new();
@@ -42,8 +43,8 @@ public sealed class MyArbeitsstundenPage : ContentPage
         _summaryGeleistetLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
         _summaryOffenLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
 
-        var newButton = new Button { Text = "Neu erfassen" };
-        newButton.Clicked += async (_, _) => await Shell.Current.GoToAsync($"{nameof(ArbeitsstundenEditorPage)}?entryId=0");
+        _newButton = new Button { Text = "Neu erfassen" };
+        _newButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(ArbeitsstundenEditorPage));
 
         _list = new CollectionView
         {
@@ -112,7 +113,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
                         TextColor = Colors.Gray,
                         LineBreakMode = LineBreakMode.WordWrap
                     },
-                    newButton,
+                    _newButton,
                     _status,
                     new Label { Text = "Vorhandene Arbeitsstunden", FontAttributes = FontAttributes.Bold },
                     _list
@@ -143,7 +144,8 @@ public sealed class MyArbeitsstundenPage : ContentPage
             return;
 
         _isLoading = true;
-        _status.Text = string.Empty;
+        _status.Text = "Daten werden geladen.";
+        _newButton.IsEnabled = false;
         try
         {
             var contextMemberId = GetContextMemberId();
@@ -156,9 +158,12 @@ public sealed class MyArbeitsstundenPage : ContentPage
             await EnsureOptionsAsync();
             await LoadSummaryAsync();
             await LoadListAsync();
+            if (_status.Text == "Daten werden geladen.")
+                _status.Text = string.Empty;
         }
         finally
         {
+            _newButton.IsEnabled = true;
             _isLoading = false;
         }
     }

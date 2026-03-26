@@ -8,7 +8,10 @@ public abstract class ManagementOverviewPageBase : ContentPage
     private readonly CollectionView _entriesView;
     private readonly Label _countLabel;
     private readonly Label _statusLabel;
+    private readonly Button _refreshButton;
+    private readonly Button _newButton;
     private bool _isLoading;
+    private bool _loadScheduled;
 
     protected ManagementOverviewPageBase(ISupabaseService supabaseService)
     {
@@ -18,11 +21,11 @@ public abstract class ManagementOverviewPageBase : ContentPage
         _countLabel = new Label { FontSize = 12, TextColor = Colors.Gray };
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
 
-        var refreshButton = new Button { Text = "Aktualisieren" };
-        refreshButton.Clicked += async (_, _) => await LoadAsync();
+        _refreshButton = new Button { Text = "Aktualisieren" };
+        _refreshButton.Clicked += async (_, _) => await LoadAsync();
 
-        var newButton = new Button { Text = "Neu" };
-        newButton.Clicked += async (_, _) => await OpenNewAsync();
+        _newButton = new Button { Text = "Neu" };
+        _newButton.Clicked += async (_, _) => await OpenNewAsync();
 
         _entriesView = new CollectionView
         {
@@ -79,7 +82,7 @@ public abstract class ManagementOverviewPageBase : ContentPage
                     new HorizontalStackLayout
                     {
                         Spacing = 8,
-                        Children = { refreshButton, newButton }
+                        Children = { _refreshButton, _newButton }
                     },
                     _countLabel,
                     _statusLabel,
@@ -98,10 +101,20 @@ public abstract class ManagementOverviewPageBase : ContentPage
 
     protected abstract Task<IReadOnlyList<ManagementOverviewEntry>> LoadEntriesCoreAsync();
 
-    protected override async void OnAppearing()
+    protected override void OnAppearing()
     {
         base.OnAppearing();
-        await LoadAsync();
+
+        if (_isLoading || _loadScheduled)
+            return;
+
+        _loadScheduled = true;
+        Dispatcher.Dispatch(async () =>
+        {
+            await Task.Yield();
+            _loadScheduled = false;
+            await LoadAsync();
+        });
     }
 
     private async Task LoadAsync()
@@ -110,7 +123,7 @@ public abstract class ManagementOverviewPageBase : ContentPage
             return;
 
         _isLoading = true;
-        _statusLabel.Text = string.Empty;
+        SetBusyState(true, "Daten werden geladen.");
 
         try
         {
@@ -124,6 +137,7 @@ public abstract class ManagementOverviewPageBase : ContentPage
             _countLabel.Text = _entries.Count > 0
                 ? $"{_entries.Count} Datensatz/Datensätze"
                 : EmptyText;
+            _statusLabel.Text = string.Empty;
         }
         catch (Exception ex)
         {
@@ -132,8 +146,18 @@ public abstract class ManagementOverviewPageBase : ContentPage
         }
         finally
         {
+            SetBusyState(false);
             _isLoading = false;
         }
+    }
+
+    private void SetBusyState(bool isBusy, string? statusText = null)
+    {
+        _refreshButton.IsEnabled = !isBusy;
+        _newButton.IsEnabled = !isBusy;
+        _entriesView.IsEnabled = !isBusy;
+        if (!string.IsNullOrWhiteSpace(statusText))
+            _statusLabel.Text = statusText;
     }
 
     protected abstract Task OpenNewAsync();

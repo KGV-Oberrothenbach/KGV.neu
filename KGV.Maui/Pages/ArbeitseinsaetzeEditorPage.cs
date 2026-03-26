@@ -1,6 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Maui.State;
+using KGV.Maui.ViewModels;
 using Microsoft.Maui.Controls;
 using System;
 using System.Collections.Generic;
@@ -15,6 +16,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _userContextState;
     private readonly ArbeitseinsaetzeManagementState _managementState;
+    private readonly KGV.Maui.ViewModels.HomeViewModel _homeViewModel;
 
     private readonly Entry _titleEntry;
     private readonly Editor _descriptionEditor;
@@ -46,15 +48,18 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
     private long? _editingEntryId;
     private EditorSnapshot? _initialSnapshot;
     private bool _isBusy;
+    private bool _loadScheduled;
 
     public ArbeitseinsaetzeEditorPage(
         ISupabaseService supabaseService,
         UserContextState userContextState,
-        ArbeitseinsaetzeManagementState managementState)
+        ArbeitseinsaetzeManagementState managementState,
+        KGV.Maui.ViewModels.HomeViewModel homeViewModel)
     {
         _supabaseService = supabaseService;
         _userContextState = userContextState;
         _managementState = managementState;
+        _homeViewModel = homeViewModel;
 
         Title = "Arbeitseinsatz";
         BackgroundColor = Color.FromArgb("#F5F5F5");
@@ -183,20 +188,34 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         {
             var entryIdText = entryIdObj?.ToString();
             if (long.TryParse(entryIdText, out var entryId))
-                _editingEntryId = entryId;
+                _editingEntryId = entryId > 0 ? entryId : null;
         }
     }
 
-    protected override async void OnAppearing()
+    protected override void OnAppearing()
     {
         base.OnAppearing();
-        await LoadAsync();
+
+        if (_isBusy || _loadScheduled)
+            return;
+
+        _loadScheduled = true;
+        Dispatcher.Dispatch(async () =>
+        {
+            await Task.Yield();
+            _loadScheduled = false;
+            await LoadAsync();
+        });
     }
 
     private async Task LoadAsync()
     {
         if (_isBusy)
             return;
+
+        _statusLabel.Text = "Daten werden geladen.";
+        _statusLabel.TextColor = Colors.DarkSlateBlue;
+        _statusLabel.IsVisible = true;
 
         if (_userContextState.CurrentUserContext?.Role is not (KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand))
         {
@@ -355,6 +374,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
 
             _statusLabel.TextColor = Colors.Green;
             _statusLabel.IsVisible = true;
+            _homeViewModel.Invalidate();
 
             await ReloadNavigationStateAsync(_editingEntryId);
             if (_editingEntryId.HasValue && _managementState.CurrentEntry != null)
@@ -545,7 +565,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
 
     private Task NavigateToOverviewAsync()
     {
-        return Shell.Current.GoToAsync("management_workassignments");
+        return Shell.Current.GoToAsync("//home");
     }
 
     private static View CreateField(string labelText, View input)

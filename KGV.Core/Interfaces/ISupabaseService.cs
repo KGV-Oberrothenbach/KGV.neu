@@ -99,11 +99,14 @@ namespace KGV.Core.Interfaces
         Task<List<ArbeitseinsatzRecord>> GetArbeitseinsaetzeVerwaltungAsync();
         Task<ArbeitseinsatzRecord?> CreateArbeitseinsatzAsync(ArbeitseinsatzRecord record);
         Task<bool> UpdateArbeitseinsatzAsync(ArbeitseinsatzRecord record);
+        Task<bool> DeleteArbeitseinsatzAsync(long id);
         Task<List<TerminRecord>> GetTermineVerwaltungAsync();
         Task<TerminRecord?> CreateTerminAsync(TerminRecord record);
         Task<bool> UpdateTerminAsync(TerminRecord record);
+        Task<bool> DeleteTerminAsync(long id);
         Task<List<BekanntmachungRecord>> GetBekanntmachungenVerwaltungAsync();
         Task<BekanntmachungRecord?> CreateBekanntmachungAsync(BekanntmachungRecord record);
         Task<bool> UpdateBekanntmachungAsync(BekanntmachungRecord record);
+        Task<bool> DeleteBekanntmachungAsync(long id);
     }
 }

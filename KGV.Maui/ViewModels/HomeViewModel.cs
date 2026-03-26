@@ -18,7 +18,7 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     private HomeAnnouncementItem? _selectedAnnouncement;
     private HomeOverviewDTO _overview = HomeOverviewFactory.Build(UserRole.User);
     private UserRole? _loadedRole;
-    private int? _loadedMitgliedId;
+    private int? _loadedContextMitgliedId;
     private bool _isInitialized;
 
     public HomeViewModel(ISupabaseService supabaseService, UserContextState userContextState, MemberContextState memberContextState)
@@ -98,14 +98,14 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     public async Task InitializeAsync()
     {
         var role = _userContextState.CurrentUserContext?.Role ?? UserRole.User;
-        var mitgliedId = ToInt32(_userContextState.CurrentMitgliedId);
+        var contextMitgliedId = ResolveHomeContextMitgliedId(role);
 
-        if (_isInitialized && _loadedRole == role && _loadedMitgliedId == mitgliedId)
+        if (_isInitialized && _loadedRole == role && _loadedContextMitgliedId == contextMitgliedId)
             return;
 
-        _overview = await _supabaseService.GetHomeOverviewAsync(role, mitgliedId);
+        _overview = await _supabaseService.GetHomeOverviewAsync(role, contextMitgliedId);
         _loadedRole = role;
-        _loadedMitgliedId = mitgliedId;
+        _loadedContextMitgliedId = contextMitgliedId;
         _isInitialized = true;
 
         FillCollection(QuickLinks, _overview.QuickLinks);
@@ -152,6 +152,19 @@ public sealed class HomeViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(ManagementHintText));
     }
 
+    public void Invalidate()
+    {
+        _isInitialized = false;
+        _loadedRole = null;
+        _loadedContextMitgliedId = null;
+    }
+
+    public async Task ReloadAsync()
+    {
+        Invalidate();
+        await InitializeAsync();
+    }
+
     private static void FillCollection<T>(ObservableCollection<T> target, System.Collections.Generic.IEnumerable<T> source)
     {
         target.Clear();
@@ -162,6 +175,18 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     private static int? ToInt32(long? value)
     {
         return value is > 0 and <= int.MaxValue ? (int)value.Value : null;
+    }
+
+    private int? ResolveHomeContextMitgliedId(UserRole role)
+    {
+        if (role is UserRole.Admin or UserRole.Vorstand)
+        {
+            var selectedMemberId = _memberContextState.SelectedMember?.Id;
+            if (selectedMemberId is > 0)
+                return selectedMemberId.Value;
+        }
+
+        return ToInt32(_userContextState.CurrentMitgliedId);
     }
 
     private static string BuildWorkHoursInfoText(HomeWorkHoursSummary summary)

@@ -2,6 +2,7 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Maui.State;
+using KGV.Maui.ViewModels;
 using System.Collections.ObjectModel;
 
 namespace KGV.Maui.Pages;
@@ -13,6 +14,7 @@ public sealed class HomeSectionDetailPage : ContentPage
     private readonly TermineUserState _termineUserState;
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _userContextState;
+    private readonly KGV.Maui.ViewModels.HomeViewModel _homeViewModel;
 
     private readonly Label _sectionLabel;
     private readonly Label _titleLabel;
@@ -24,7 +26,9 @@ public sealed class HomeSectionDetailPage : ContentPage
     private readonly Label _statusLabel;
     private readonly Button _registerButton;
     private readonly Button _signOffButton;
-    private readonly Button _manageButton;
+    private readonly Button _newButton;
+    private readonly Button _editButton;
+    private readonly Button _deleteButton;
     private readonly Button _backButton;
     private readonly Button _previousButton;
     private readonly Button _nextButton;
@@ -34,15 +38,16 @@ public sealed class HomeSectionDetailPage : ContentPage
     private readonly VerticalStackLayout _participantsSection;
     private readonly ObservableCollection<WorkAssignmentParticipantItem> _participants = new();
     private bool _isBusy;
-    private bool _allowManageAction;
+    private bool _loadScheduled;
 
-    public HomeSectionDetailPage(HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, TermineUserState termineUserState, ISupabaseService supabaseService, UserContextState userContextState)
+    public HomeSectionDetailPage(HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, TermineUserState termineUserState, ISupabaseService supabaseService, UserContextState userContextState, KGV.Maui.ViewModels.HomeViewModel homeViewModel)
     {
         _homeContextState = homeContextState;
         _arbeitseinsaetzeUserState = arbeitseinsaetzeUserState;
         _termineUserState = termineUserState;
         _supabaseService = supabaseService;
         _userContextState = userContextState;
+        _homeViewModel = homeViewModel;
 
         Title = "Detail";
 
@@ -64,29 +69,14 @@ public sealed class HomeSectionDetailPage : ContentPage
         _backButton = new Button { Text = "Zur Startseite" };
         _backButton.Clicked += async (_, _) => await Shell.Current.GoToAsync("//home");
 
-        _manageButton = new Button { Text = "Bearbeiten", IsVisible = false };
-        _manageButton.Clicked += async (_, _) =>
-        {
-            var section = _homeContextState.DetailKind switch
-            {
-                HomeDetailKind.WorkAssignment => "workassignments",
-                HomeDetailKind.Appointment => "appointments",
-                HomeDetailKind.Announcement => "announcements",
-                _ => string.Empty
-            };
+        _newButton = new Button { Text = "Neu", IsVisible = false };
+        _newButton.Clicked += async (_, _) => await OpenEditorAsync(isNew: true);
 
-            if (!string.IsNullOrWhiteSpace(section))
-            {
-                if (_homeContextState.DetailKind == HomeDetailKind.WorkAssignment)
-                    await Shell.Current.GoToAsync("management_workassignments");
-                else if (_homeContextState.DetailKind == HomeDetailKind.Appointment)
-                    await Shell.Current.GoToAsync("management_appointments");
-                else if (_homeContextState.DetailKind == HomeDetailKind.Announcement)
-                    await Shell.Current.GoToAsync("management_announcements");
-                else
-                    await Shell.Current.GoToAsync("//home");
-            }
-        };
+        _editButton = new Button { Text = "Bearbeiten", IsVisible = false };
+        _editButton.Clicked += async (_, _) => await OpenEditorAsync(isNew: false);
+
+        _deleteButton = new Button { Text = "Löschen", IsVisible = false };
+        _deleteButton.Clicked += async (_, _) => await DeleteAsync();
 
         _previousButton = new Button { Text = "←", WidthRequest = 56, IsVisible = false };
         _previousButton.Clicked += async (_, _) => await MovePreviousAsync();
@@ -165,7 +155,7 @@ public sealed class HomeSectionDetailPage : ContentPage
                     new HorizontalStackLayout
                     {
                         Spacing = 8,
-                        Children = { _registerButton, _signOffButton, _manageButton }
+                        Children = { _registerButton, _signOffButton, _newButton, _editButton, _deleteButton }
                     },
                     _participantsSection,
                     CreateWorkAssignmentNavigationFooter(),
@@ -175,79 +165,103 @@ public sealed class HomeSectionDetailPage : ContentPage
         };
     }
 
-    protected override async void OnAppearing()
+    protected override void OnAppearing()
     {
         base.OnAppearing();
-        await LoadAsync();
+
+        if (_isBusy || _loadScheduled)
+            return;
+
+        _loadScheduled = true;
+        Dispatcher.Dispatch(async () =>
+        {
+            await Task.Yield();
+            _loadScheduled = false;
+            await LoadAsync();
+        });
     }
 
     private async Task LoadAsync()
     {
+        if (_isBusy)
+            return;
+
         _statusLabel.Text = string.Empty;
         _participants.Clear();
         _participantsSection.IsVisible = false;
         _participantsEmptyLabel.IsVisible = false;
         _registerButton.IsVisible = false;
         _signOffButton.IsVisible = false;
-        _manageButton.IsVisible = false;
+        _newButton.IsVisible = false;
+        _editButton.IsVisible = false;
+        _deleteButton.IsVisible = false;
         _previousButton.IsVisible = false;
         _nextButton.IsVisible = false;
         _positionLabel.IsVisible = false;
-        _allowManageAction = false;
+        SetBusyState(true, "Daten werden geladen.");
 
-        switch (_homeContextState.DetailKind)
+        try
         {
-            case HomeDetailKind.WorkAssignment when _homeContextState.WorkAssignment != null:
-                var workAssignment = _arbeitseinsaetzeUserState.CurrentEntry ?? _homeContextState.WorkAssignment;
-                _homeContextState.SetWorkAssignment(workAssignment);
-                _sectionLabel.Text = "Arbeitseinsatz";
-                _titleLabel.Text = workAssignment.Title;
-                _subtitleLabel.Text = workAssignment.Subtitle;
-                _timeLabel.Text = workAssignment.TimeText;
-                _contentLabel.Text = workAssignment.Details;
-                _additionalInfoLabel.Text = workAssignment.DetailInfo;
-                _registrationInfoLabel.Text = workAssignment.RegistrationInfo;
-                _registerButton.IsVisible = workAssignment.CanRegister;
-                _signOffButton.IsVisible = workAssignment.CanSignOff;
-                UpdateWorkAssignmentNavigation();
-                _allowManageAction = true;
-                await LoadParticipantsAsync(workAssignment.Id);
-                break;
-            case HomeDetailKind.Appointment when _homeContextState.Appointment != null:
-                var appointment = _termineUserState.CurrentEntry ?? _homeContextState.Appointment;
-                _homeContextState.SetAppointment(appointment);
-                _sectionLabel.Text = "Termin";
-                _titleLabel.Text = appointment.Title;
-                _subtitleLabel.Text = appointment.Subtitle;
-                _timeLabel.Text = appointment.TimeText;
-                _contentLabel.Text = appointment.Details;
-                _additionalInfoLabel.Text = appointment.DetailInfo;
-                _registrationInfoLabel.Text = string.Empty;
-                UpdateAppointmentNavigation();
-                break;
-            case HomeDetailKind.Announcement when _homeContextState.Announcement != null:
-                var announcement = _homeContextState.Announcement;
-                _sectionLabel.Text = "Bekanntmachung";
-                _titleLabel.Text = announcement.Title;
-                _subtitleLabel.Text = announcement.Subtitle;
-                _timeLabel.Text = string.Empty;
-                _contentLabel.Text = announcement.Content;
-                _additionalInfoLabel.Text = announcement.DetailInfo;
-                _registrationInfoLabel.Text = string.Empty;
-                _allowManageAction = true;
-                break;
-            default:
-                _sectionLabel.Text = string.Empty;
-                _titleLabel.Text = "Kein Detail ausgewählt";
-                _subtitleLabel.Text = string.Empty;
-                _timeLabel.Text = string.Empty;
-                _contentLabel.Text = "Bitte zuerst auf der Startseite einen Eintrag auswählen.";
-                _additionalInfoLabel.Text = string.Empty;
-                _registrationInfoLabel.Text = string.Empty;
-                return;
-        }
+            switch (_homeContextState.DetailKind)
+            {
+                case HomeDetailKind.WorkAssignment when _homeContextState.WorkAssignment != null:
+                    var workAssignment = _arbeitseinsaetzeUserState.CurrentEntry ?? _homeContextState.WorkAssignment;
+                    _homeContextState.SetWorkAssignment(workAssignment);
+                    _sectionLabel.Text = "Arbeitseinsatz";
+                    _titleLabel.Text = workAssignment.Title;
+                    _subtitleLabel.Text = workAssignment.Subtitle;
+                    _timeLabel.Text = workAssignment.TimeText;
+                    _contentLabel.Text = workAssignment.Details;
+                    _additionalInfoLabel.Text = workAssignment.DetailInfo;
+                    _registrationInfoLabel.Text = workAssignment.RegistrationInfo;
+                    _registerButton.IsVisible = workAssignment.CanRegister;
+                    _signOffButton.IsVisible = workAssignment.CanSignOff;
+                    UpdateWorkAssignmentNavigation();
+                    await LoadParticipantsAsync(workAssignment.Id);
+                    break;
+                case HomeDetailKind.Appointment when _homeContextState.Appointment != null:
+                    var appointment = _termineUserState.CurrentEntry ?? _homeContextState.Appointment;
+                    _homeContextState.SetAppointment(appointment);
+                    _sectionLabel.Text = "Termin";
+                    _titleLabel.Text = appointment.Title;
+                    _subtitleLabel.Text = appointment.Subtitle;
+                    _timeLabel.Text = appointment.TimeText;
+                    _contentLabel.Text = appointment.Details;
+                    _additionalInfoLabel.Text = appointment.DetailInfo;
+                    _registrationInfoLabel.Text = string.Empty;
+                    UpdateAppointmentNavigation();
+                    break;
+                case HomeDetailKind.Announcement when _homeContextState.Announcement != null:
+                    var announcement = _homeContextState.Announcement;
+                    _sectionLabel.Text = "Bekanntmachung";
+                    _titleLabel.Text = announcement.Title;
+                    _subtitleLabel.Text = announcement.Subtitle;
+                    _timeLabel.Text = string.Empty;
+                    _contentLabel.Text = announcement.Content;
+                    _additionalInfoLabel.Text = announcement.DetailInfo;
+                    _registrationInfoLabel.Text = string.Empty;
+                    break;
+                default:
+                    _sectionLabel.Text = string.Empty;
+                    _titleLabel.Text = "Kein Detail ausgewählt";
+                    _subtitleLabel.Text = string.Empty;
+                    _timeLabel.Text = string.Empty;
+                    _contentLabel.Text = "Bitte zuerst auf der Startseite einen Eintrag auswählen.";
+                    _additionalInfoLabel.Text = string.Empty;
+                    _registrationInfoLabel.Text = string.Empty;
+                    return;
+            }
 
-        _manageButton.IsVisible = _allowManageAction && _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            var canManage = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            _newButton.IsVisible = canManage;
+            _editButton.IsVisible = canManage && TryGetCurrentEntryId() > 0;
+            _deleteButton.IsVisible = _editButton.IsVisible;
+            _statusLabel.Text = string.Empty;
+        }
+        finally
+        {
+            SetBusyState(false);
+        }
     }
 
     private async Task LoadParticipantsAsync(int arbeitseinsatzId)
@@ -274,9 +288,10 @@ public sealed class HomeSectionDetailPage : ContentPage
             return;
         }
 
-        _isBusy = true;
+        SetBusyState(true, "Daten werden gespeichert.");
         try
         {
+            _statusLabel.Text = "Daten werden gespeichert.";
             var result = await _supabaseService.SignUpForArbeitseinsatzAsync(_homeContextState.WorkAssignment.Id, (int)_userContextState.CurrentMitgliedId.Value);
             _statusLabel.Text = result.Message;
             if (result.UpdatedItem != null)
@@ -290,7 +305,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         }
         finally
         {
-            _isBusy = false;
+            SetBusyState(false);
         }
     }
 
@@ -305,9 +320,10 @@ public sealed class HomeSectionDetailPage : ContentPage
             return;
         }
 
-        _isBusy = true;
+        SetBusyState(true, "Daten werden gespeichert.");
         try
         {
+            _statusLabel.Text = "Daten werden gespeichert.";
             var result = await _supabaseService.SignOffFromArbeitseinsatzAsync(_homeContextState.WorkAssignment.Id, (int)_userContextState.CurrentMitgliedId.Value);
             _statusLabel.Text = result.Message;
             if (result.UpdatedItem != null)
@@ -321,7 +337,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         }
         finally
         {
-            _isBusy = false;
+            SetBusyState(false);
         }
     }
 
@@ -415,6 +431,93 @@ public sealed class HomeSectionDetailPage : ContentPage
         Grid.SetColumn(_nextButton, 2);
 
         return grid;
+    }
+
+    private void SetBusyState(bool isBusy, string? message = null)
+    {
+        _isBusy = isBusy;
+        _registerButton.IsEnabled = !isBusy;
+        _signOffButton.IsEnabled = !isBusy;
+        _newButton.IsEnabled = !isBusy;
+        _editButton.IsEnabled = !isBusy;
+        _deleteButton.IsEnabled = !isBusy;
+        _backButton.IsEnabled = !isBusy;
+        _previousButton.IsEnabled = !isBusy && _previousButton.IsVisible && _arbeitseinsaetzeUserState.CanMovePrevious;
+        _nextButton.IsEnabled = !isBusy && _nextButton.IsVisible && (_homeContextState.DetailKind == HomeDetailKind.WorkAssignment ? _arbeitseinsaetzeUserState.CanMoveNext : _termineUserState.CanMoveNext);
+        if (!string.IsNullOrWhiteSpace(message))
+            _statusLabel.Text = message;
+    }
+
+    private int TryGetCurrentEntryId()
+    {
+        return _homeContextState.DetailKind switch
+        {
+            HomeDetailKind.WorkAssignment => _homeContextState.WorkAssignment?.Id ?? 0,
+            HomeDetailKind.Appointment => _homeContextState.Appointment?.Id ?? 0,
+            HomeDetailKind.Announcement => _homeContextState.Announcement?.Id ?? 0,
+            _ => 0
+        };
+    }
+
+    private Task OpenEditorAsync(bool isNew)
+    {
+        return _homeContextState.DetailKind switch
+        {
+            HomeDetailKind.WorkAssignment when isNew => Shell.Current.GoToAsync(nameof(ArbeitseinsaetzeEditorPage)),
+            HomeDetailKind.WorkAssignment => Shell.Current.GoToAsync($"{nameof(ArbeitseinsaetzeEditorPage)}?entryId={TryGetCurrentEntryId()}"),
+            HomeDetailKind.Appointment when isNew => Shell.Current.GoToAsync(nameof(TermineEditorPage)),
+            HomeDetailKind.Appointment => Shell.Current.GoToAsync($"{nameof(TermineEditorPage)}?entryId={TryGetCurrentEntryId()}"),
+            HomeDetailKind.Announcement when isNew => Shell.Current.GoToAsync(nameof(BekanntmachungEditorPage)),
+            HomeDetailKind.Announcement => Shell.Current.GoToAsync($"{nameof(BekanntmachungEditorPage)}?entryId={TryGetCurrentEntryId()}"),
+            _ => Shell.Current.GoToAsync("//home")
+        };
+    }
+
+    private async Task DeleteAsync()
+    {
+        var entryId = TryGetCurrentEntryId();
+        if (entryId <= 0 || _isBusy)
+            return;
+
+        var entityName = _homeContextState.DetailKind switch
+        {
+            HomeDetailKind.WorkAssignment => "Arbeitseinsatz",
+            HomeDetailKind.Appointment => "Termin",
+            HomeDetailKind.Announcement => "Bekanntmachung",
+            _ => "Datensatz"
+        };
+
+        var confirmed = await DisplayAlert("Löschen bestätigen", $"{entityName} wirklich löschen?", "Löschen", "Abbrechen");
+        if (!confirmed)
+            return;
+
+        SetBusyState(true, "Datensatz wird gelöscht.");
+        try
+        {
+            var success = _homeContextState.DetailKind switch
+            {
+                HomeDetailKind.WorkAssignment => await _supabaseService.DeleteArbeitseinsatzAsync(entryId),
+                HomeDetailKind.Appointment => await _supabaseService.DeleteTerminAsync(entryId),
+                HomeDetailKind.Announcement => await _supabaseService.DeleteBekanntmachungAsync(entryId),
+                _ => false
+            };
+
+            if (!success)
+            {
+                _statusLabel.Text = $"{entityName} konnte nicht gelöscht werden.";
+                return;
+            }
+
+            _arbeitseinsaetzeUserState.Clear();
+            _termineUserState.Clear();
+            _homeContextState.Clear();
+            await _homeViewModel.ReloadAsync();
+            await Shell.Current.GoToAsync("//home");
+        }
+        finally
+        {
+            SetBusyState(false);
+        }
     }
 }
 

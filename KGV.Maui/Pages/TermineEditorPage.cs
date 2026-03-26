@@ -2,6 +2,9 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Maui.State;
+using KGV.Maui.ViewModels;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 
 namespace KGV.Maui.Pages;
 
@@ -33,12 +36,15 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
     private long? _entryId;
     private TerminRecord? _existingRecord;
     private bool _isLoading;
+    private bool _loadScheduled;
     private bool _isAuthorized;
+    private readonly KGV.Maui.ViewModels.HomeViewModel _homeViewModel;
 
-    public TermineEditorPage(ISupabaseService supabaseService, UserContextState userContextState)
+    public TermineEditorPage(ISupabaseService supabaseService, UserContextState userContextState, KGV.Maui.ViewModels.HomeViewModel homeViewModel)
     {
         _supabaseService = supabaseService;
         _userContextState = userContextState;
+        _homeViewModel = homeViewModel;
 
         Title = "Termin";
 
@@ -111,13 +117,24 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
 
     public void ApplyQueryAttributes(IDictionary<string, object> query)
     {
-        _entryId = TryReadLong(query, "entryId");
+        var entryId = TryReadLong(query, "entryId");
+        _entryId = entryId is > 0 ? entryId : null;
     }
 
-    protected override async void OnAppearing()
+    protected override void OnAppearing()
     {
         base.OnAppearing();
-        await LoadAsync();
+
+        if (_isLoading || _loadScheduled)
+            return;
+
+        _loadScheduled = true;
+        Dispatcher.Dispatch(async () =>
+        {
+            await Task.Yield();
+            _loadScheduled = false;
+            await LoadAsync();
+        });
     }
 
     private async Task LoadAsync()
@@ -126,7 +143,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
             return;
 
         _isLoading = true;
-        _statusLabel.Text = string.Empty;
+        _statusLabel.Text = "Daten werden geladen.";
 
         try
         {
@@ -242,6 +259,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
                 }
             }
 
+            _homeViewModel.Invalidate();
             await NavigateToOverviewAsync();
         }
         catch (Exception ex)
@@ -330,7 +348,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
 
     private Task NavigateToOverviewAsync()
     {
-        return Shell.Current.GoToAsync("//management_appointments");
+        return Shell.Current.GoToAsync("//home");
     }
 
     private static View CreateField(string title, View field)

@@ -1429,6 +1429,25 @@ namespace KGV.Infrastructure.Services
                 return true;
             },
             false);
+
+        public Task<bool> DeleteArbeitseinsatzAsync(long id) => ExecuteAsync(
+            "DeleteArbeitseinsatzAsync",
+            async () =>
+            {
+                if (id <= 0)
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client
+                    .From<ArbeitseinsatzRecord>()
+                    .Where(x => x.Id == id)
+                    .Delete();
+
+                _logger?.LogInformation("DeleteArbeitseinsatzAsync deleted arbeitseinsatz {ArbeitseinsatzId}", id);
+                return true;
+            },
+            false);
+
         public Task<List<TerminRecord>> GetTermineVerwaltungAsync() => ExecuteAsync(
             "GetTermineVerwaltungAsync",
             async () =>
@@ -1513,6 +1532,24 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
+        public Task<bool> DeleteTerminAsync(long id) => ExecuteAsync(
+            "DeleteTerminAsync",
+            async () =>
+            {
+                if (id <= 0)
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client
+                    .From<TerminRecord>()
+                    .Where(x => x.Id == id)
+                    .Delete();
+
+                _logger?.LogInformation("DeleteTerminAsync deleted termin {TerminId}", id);
+                return true;
+            },
+            false);
+
         public Task<List<BekanntmachungRecord>> GetBekanntmachungenVerwaltungAsync() => ExecuteAsync(
             "GetBekanntmachungenVerwaltungAsync",
             async () =>
@@ -1581,6 +1618,24 @@ namespace KGV.Infrastructure.Services
                     .Update();
 
                 _logger?.LogInformation("UpdateBekanntmachungAsync updated bekanntmachung {BekanntmachungId}", record.Id);
+                return true;
+            },
+            false);
+
+        public Task<bool> DeleteBekanntmachungAsync(long id) => ExecuteAsync(
+            "DeleteBekanntmachungAsync",
+            async () =>
+            {
+                if (id <= 0)
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client
+                    .From<BekanntmachungRecord>()
+                    .Where(x => x.Id == id)
+                    .Delete();
+
+                _logger?.LogInformation("DeleteBekanntmachungAsync deleted bekanntmachung {BekanntmachungId}", id);
                 return true;
             },
             false);
@@ -2133,6 +2188,7 @@ namespace KGV.Infrastructure.Services
 
             return new HomeAnnouncementItem
             {
+                Id = record.Id,
                 Title = title,
                 Subtitle = published.HasValue ? published.Value.ToString("dd.MM.yyyy") : string.Empty,
                 Content = NormalizeHomeText(FirstNonEmpty(record.Inhalt, record.Text, record.InhaltHtml, record.Beschreibung, record.Kurztext)),

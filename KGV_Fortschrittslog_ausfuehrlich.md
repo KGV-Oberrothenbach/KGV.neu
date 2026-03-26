@@ -2,6 +2,67 @@
 
 ---
 
+## 2026-03-26 – Prompt 1/1: MAUI-Home-/Detail-/Editor-Korrekturblock sauber abgeschlossen, Logs nachgezogen und nur Blockdateien für Commit vorbereitet
+
+- Vor dem Abschlusslauf erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und den Git-Status über den echten installierten Git-Pfad geprüft:
+  - `C:\Program Files\Git\cmd\git.exe`
+- WPF wurde in diesem Abschlusslauf bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen Stand vor dem Logabschluss:
+  - der bereits umgesetzte MAUI-Korrekturblock war code-seitig in diesem Lauf schon vorhanden; neu offen war vor allem noch der saubere dokumentarische Abschluss mit ehrlicher Build-/Git-Einordnung
+  - vor der Logpflege war der Git-Arbeitsbaum im aktuellen Lauf sauber; es lag also kein neuer ungeprüfter Fachumbau mehr offen
+  - der Block selbst betrifft die bereits angepassten MAUI-/Shared-Dateien:
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Core/Models/HomeAnnouncementItem.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Maui/ViewModels/HomeViewModel.cs`
+    - `KGV.Maui/Pages/HomePage.xaml.cs`
+    - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
+    - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
+    - `KGV.Maui/Pages/TermineEditorPage.cs`
+    - `KGV.Maui/Pages/BekanntmachungEditorPage.cs`
+    - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
+    - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
+    - `KGV.Maui/Pages/ManagementOverviewPageBase.cs`
+- Inhalt des bereits umgesetzten Korrekturblocks jetzt sauber und vollständig festgehalten:
+  - der frühere Neu-Sentinel `entryId=0` wurde in den betroffenen Editorpfaden bereinigt; neue Datensätze laufen dort jetzt nicht mehr über eine künstliche `0`, sondern über den echten Neu-Zustand ohne gültige `entryId`
+  - Admin/Vorstand erhalten auf denselben mobilen Produktivseiten zusätzliche Aktionen `Neu`, `Bearbeiten`, `Löschen`, statt dass dafür ein neuer Fachsonderpfad aufgebaut wurde
+  - produktive Delete-Pfade wurden für die drei betroffenen Bereiche direkt an `ISupabaseService` / `SupabaseService` angebunden:
+    - `DeleteTerminAsync(long id)`
+    - `DeleteArbeitseinsatzAsync(long id)`
+    - `DeleteBekanntmachungAsync(long id)`
+  - `HomeAnnouncementItem` trägt für diesen gemeinsamen Detail-/Delete-Pfad jetzt ebenfalls eine `Id`
+  - `HomeViewModel` kann für den Blockkontext jetzt explizit invalidiert bzw. neu geladen werden, damit Home nach Save/Delete auf demselben Produktivpfad konsistent bleibt
+  - Busy-/Lade-/Speichertexte wurden in den direkt betroffenen Seiten ergänzt bzw. vereinheitlicht, insbesondere in:
+    - `HomePage`
+    - `MyArbeitsstundenPage`
+    - `ArbeitsstundenEditorPage`
+    - `TermineEditorPage`
+    - `BekanntmachungEditorPage`
+    - `ArbeitseinsaetzeEditorPage`
+    - `HomeSectionDetailPage`
+    - `ManagementOverviewPageBase`
+  - mehrere direkt betroffene Seiten planen ihre Ladevorgänge jetzt nicht mehr sofort blockierend im `OnAppearing`, sondern per `Dispatcher` nach dem ersten Renderzyklus mit kleinen `_loadScheduled`-/Busy-Guards
+  - im betroffenen Pfad wurde zusätzlich der bisherige Home-Arbeitsstunden-Neustart über `entryId=0` auf den sauberen vorhandenen Neu-Pfad ohne künstliche `entryId` zurückgezogen
+  - ein Suchlauf auf `entryId=0`, `.Result` und `.Wait(` über die betroffenen MAUI-Dateien blieb im aktuellen Abschlusslauf leer; in diesem Block wurden also keine direkten synchron blockierenden Restnutzungen mehr im angefassten Pfad gefunden
+- Bewusst nicht gemacht:
+  - keine neuen Features mehr in diesem Abschlusslauf
+  - keine weitere Namespace-/Control-/XAML-Reparatur außerhalb des bereits umgesetzten Blocks
+  - insbesondere `KGV.Maui/Pages/MeineDatenPage.xaml.cs`, `KGV.Maui/Pages/HomeManagementPage.cs` und weitere blockfremde Fehlerpfade bewusst nicht mehr angefasst
+  - keine WPF-Datei geändert
+- Technische Verifikation im Abschlusslauf:
+  - `get_errors` auf den direkt betroffenen Blockdateien blieb unauffällig
+  - erneuter `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - der Gesamtbuild ist weiterhin nicht grün, aber nach heutigem Stand aus blockfremden Gründen
+  - im aktuellen Buildauszug scheitert der Lauf weiter breit an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - `KGV.Maui/Pages/HomeManagementPage.cs`
+  - im Fehlerbild tauchten dort weiterhin viele fehlende MAUI-Control-/Typauflösungen wie `View`, `Border`, `VerticalStackLayout`, `Picker`, `Button`, `Label` und `Switch` auf
+  - diese Fehler wurden im Abschlusslauf ausdrücklich nur dokumentiert und nicht mehr umgebaut, weil sie nicht Teil dieses kleinen MAUI-Korrekturblocks sind
+- Git-/Commit-Einordnung dieses Abschlusslaufs:
+  - es werden bewusst nur die echten Blockdateien dieses Abschlusses gestaged
+  - blockfremde offene Dateien, WPF-Dateien und sonstige Artefakte bleiben ausdrücklich draußen
+  - der eigentliche Abschluss-Commit dieses Laufs beschränkt sich damit auf den sauberen Lognachzug des bereits umgesetzten Blocks
+
 ## 2026-03-26 – Prompt 1/1: MAUI-Terminanlage-Rückladepfad nach Insert stabilisiert
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die direkt betroffenen Dateien geprüft:

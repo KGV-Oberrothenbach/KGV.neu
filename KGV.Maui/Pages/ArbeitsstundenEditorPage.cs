@@ -136,7 +136,8 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
 
     public void ApplyQueryAttributes(IDictionary<string, object> query)
     {
-        _entryId = TryReadInt(query, "entryId");
+        var entryId = TryReadInt(query, "entryId");
+        _entryId = entryId is > 0 ? entryId : null;
     }
 
     protected override void OnAppearing()
@@ -161,7 +162,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
             return;
 
         _isLoading = true;
-        _statusLabel.Text = string.Empty;
+        _statusLabel.Text = "Daten werden geladen.";
 
         try
         {
@@ -176,6 +177,9 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
             {
                 ConfigureNewEntry();
             }
+
+            if (_statusLabel.Text == "Daten werden geladen.")
+                _statusLabel.Text = string.Empty;
         }
         catch (Exception ex)
         {
@@ -348,6 +352,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
 
         _saveButton.IsEnabled = false;
         _cancelButton.IsEnabled = false;
+        _statusLabel.Text = "Daten werden gespeichert.";
 
         try
         {
