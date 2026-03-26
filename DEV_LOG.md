@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-03-26 – MAUI-Loginlogo auf korrektes KGV-Bild umgestellt, Launcher-Icon unverändert gelassen
+
+- Vor dem kleinen Block erneut nur den MAUI-Logo-/Bildpfad und gezielt diese Dateien geprüft:
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/Resources/Images/*`
+  - `KGV.Maui/Resources/AppIcon/*`
+- Ehrlicher Befund:
+  - die Loginseite lud aktuell weiterhin `kgv_logo.svg`
+  - damit wurde in der UI das falsche grüne Personen-/Splash-Logo angezeigt statt des eigentlichen KGV-Bilds
+  - das Launcher-Icon war nicht das Problem; der aktive `MauiIcon`-Pfad blieb korrekt auf `Resources/AppIcon/appicon.png`
+  - ein normales UI-PNG unter `Resources/Images` fehlte bislang
+- Umsetzung bewusst klein und nur fürs Login-/UI-Logo:
+  - aus `Resources/AppIcon/appicon.png` ein normales UI-Bild unter `KGV.Maui/Resources/Images/kgv_logo.png` bereitgestellt
+  - `KGV.Maui.csproj` erweitert, damit `Resources/Images/*.png` als `MauiImage` eingebunden werden
+  - das alte falsche `Resources/Images/kgv_logo.svg` entfernt, damit kein doppelter Ausgabename `kgv_logo` mehr entsteht
+  - `LoginPage` vom falschen `kgv_logo.svg` auf `kgv_logo.png` umgestellt
+  - Launcher-Icon-/Manifest-/Android-Iconlogik bewusst nicht verändert
+- Technische Verifikation:
+  - `get_errors` auf den geänderten Dateien blieb unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - ein direkt benachbarter Resizetizer-Duplikatfehler um `kgv_logo` wurde in diesem Block noch mit bereinigt
+  - der Lauf scheiterte danach weiter blockfremd an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in `KGV.Maui/Pages/BekanntmachungEditorPage.cs`, `KGV.Maui/Pages/HomeManagementPage.cs`, `KGV.Maui/Pages/MeineDatenPage.xaml.cs` und `KGV.Maui/Pages/TermineEditorPage.cs`
+
 ## 2026-03-26 – MAUI-Arbeitsstundenpfad nach Flyout-Umbau stabilisiert
 
 - Vor dem kleinen Block erneut den realen MAUI-Iststand, den Fortschrittslog und gezielt diese aktiven Dateien geprüft:

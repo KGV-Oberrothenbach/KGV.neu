@@ -2,6 +2,47 @@
 
 ---
 
+## 2026-03-26 – Prompt 1/3: MAUI-Loginlogo auf korrektes KGV-Bild umgestellt, Launcher-Icon bewusst getrennt gelassen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-Dateien geprüft:
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/Resources/Images/*`
+  - `KGV.Maui/Resources/AppIcon/*`
+- WPF wurde in diesem Block bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
+  - die Loginseite zeigte oben weiterhin das falsche grüne Personen-/Splash-Logo
+  - Ursache war ein falscher UI-Bildpfad in `LoginPage`: geladen wurde `kgv_logo.svg`
+  - dieses SVG war nicht das fachlich gewünschte KGV-Logo, sondern der bisherige grüne Ersatz-/Splashpfad
+  - das Launcher-Icon war ausdrücklich nicht das Problem:
+    - der aktive `MauiIcon`-Pfad blieb korrekt `Resources/AppIcon/appicon.png`
+    - Manifest-/Launcher-Iconlogik mussten dafür nicht verändert werden
+  - unter `Resources/Images` fehlte bisher ein normales PNG-UI-Asset, das inhaltlich dem echten KGV-Bild aus `Resources/AppIcon/appicon.png` entspricht
+- Den Korrekturblock deshalb bewusst klein und nur im UI-Logo-Pfad umgesetzt:
+  - das fachlich richtige Bild `KGV.Maui/Resources/AppIcon/appicon.png` als normales UI-Bild unter `KGV.Maui/Resources/Images/kgv_logo.png` bereitgestellt
+  - `KGV.Maui.csproj` erweitert, damit `Resources/Images/*.png` zusätzlich als `MauiImage` eingebunden werden
+  - das alte falsche `Resources/Images/kgv_logo.svg` entfernt, damit der Ausgabename `kgv_logo` nicht doppelt vom Resizetizer erzeugt wird
+  - `LoginPage` vom falschen `kgv_logo.svg` auf `kgv_logo.png` umgestellt
+  - Launcher-Icon, Manifest und Android-Iconlogik bewusst unverändert gelassen
+- Aktive Konfiguration nach dem Block:
+  - sichtbares Login-/UI-Logo: `KGV.Maui/Resources/Images/kgv_logo.png`
+  - fachliche Bildquelle dafür: `KGV.Maui/Resources/AppIcon/appicon.png`
+  - Launcher-Icon unverändert: `KGV.Maui/Resources/AppIcon/appicon.png`
+- Bewusst nicht gemacht:
+  - kein allgemeiner Design-Umbau
+  - keine Login-/Shell-/Fachlogik geändert
+  - keine erneute Änderung an `MauiIcon`, Manifest oder Android-Launcherpfaden außerhalb der unveränderten Prüfung
+- Technische Verifikation:
+  - `get_errors` auf den geänderten Dateien blieb unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - ein direkt benachbarter Resizetizer-Duplikatfehler um `kgv_logo` wurde in diesem Block noch mit bereinigt
+  - der Lauf scheiterte weiterhin blockfremd an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
+    - `KGV.Maui/Pages/BekanntmachungEditorPage.cs`
+    - `KGV.Maui/Pages/HomeManagementPage.cs`
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - `KGV.Maui/Pages/TermineEditorPage.cs`
+  - damit ist der Loginlogo-Pfad selbst bereinigt, der Gesamt-Workspace aber weiterhin nicht grün buildbar
+
 ## 2026-03-26 – Prompt 1/3: MAUI-Arbeitsstundenpfad nach Flyout-Umbau stabilisiert
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-Dateien geprüft:

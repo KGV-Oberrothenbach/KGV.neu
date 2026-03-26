@@ -94,6 +94,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
+        <MauiImage Remove="Resources\Images\kgv_logo.svg" />
+      <MauiImage Include="Resources\Images\*.png" />
 		<MauiImage Include="Resources\Images\*.svg" />
 	</ItemGroup>
 

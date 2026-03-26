@@ -13,7 +13,7 @@ namespace KGV.Maui.Pages;
 
 public class LoginPage : ContentPage
 {
-    private const string LogoImageSource = "kgv_logo.svg";
+    private const string LogoImageSource = "kgv_logo.png";
 
     private readonly IAuthService _authService;
     private readonly ISupabaseService _supabaseService;
