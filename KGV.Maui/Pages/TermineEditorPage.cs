@@ -3,6 +3,7 @@ using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
+using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 
@@ -48,9 +49,9 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
 
         Title = "Termin";
 
-        _headlineLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, LineBreakMode = LineBreakMode.WordWrap };
-        _descriptionLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
-        _statusLabel = new Label { TextColor = Colors.DarkRed, LineBreakMode = LineBreakMode.WordWrap };
+        _headlineLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap };
+        _descriptionLabel = new Label { TextColor = Colors.Gray, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap };
+        _statusLabel = new Label { TextColor = Colors.DarkRed, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap };
 
         _titleEntry = new Entry { Placeholder = "Titel" };
         _descriptionEditor = new Editor { AutoSize = EditorAutoSizeOption.TextChanges, HeightRequest = 140, Placeholder = "Beschreibung" };
@@ -232,11 +233,14 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         if (!_isAuthorized)
             return;
 
-        _statusLabel.Text = string.Empty;
+        _statusLabel.Text = "Daten werden gespeichert.";
+        _statusLabel.TextColor = Colors.DarkSlateBlue;
         SetEnabledState(false);
 
         try
         {
+            await Task.Yield();
+
             if (!TryBuildRecord(out var record))
                 return;
 
@@ -308,7 +312,6 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
 
         record = new TerminRecord
         {
-            Id = _existingRecord?.Id ?? 0,
             Titel = _titleEntry.Text.Trim(),
             Beschreibung = string.IsNullOrWhiteSpace(_descriptionEditor.Text) ? null : _descriptionEditor.Text.Trim(),
             Datum = _datePicker.Date,
@@ -318,6 +321,9 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
             SichtbarBis = visibleTo,
             Aktiv = _activeSwitch.IsToggled
         };
+
+        if (_existingRecord != null)
+            record.Id = _existingRecord.Id;
 
         return true;
     }
@@ -372,7 +378,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
             Children =
             {
                 checkBox,
-                new Label { Text = title, VerticalTextAlignment = TextAlignment.Center }
+                new Label { Text = title, VerticalTextAlignment = Microsoft.Maui.TextAlignment.Center }
             }
         };
     }
@@ -392,8 +398,8 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
                 {
                     ColumnDefinitions = new ColumnDefinitionCollection
                     {
-                        new ColumnDefinition(GridLength.Star),
-                        new ColumnDefinition(new GridLength(140))
+                        new ColumnDefinition(Microsoft.Maui.GridLength.Star),
+                        new ColumnDefinition(new Microsoft.Maui.GridLength(140))
                     },
                     ColumnSpacing = 8,
                     Children =

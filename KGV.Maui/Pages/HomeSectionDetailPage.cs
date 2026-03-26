@@ -296,6 +296,7 @@ public sealed class HomeSectionDetailPage : ContentPage
             return;
         }
 
+        _statusLabel.TextColor = Colors.DarkSlateBlue;
         SetBusyState(true, "Daten werden gespeichert.");
         try
         {
@@ -311,6 +312,11 @@ public sealed class HomeSectionDetailPage : ContentPage
                 _registerButton.IsVisible = result.UpdatedItem.CanRegister;
                 _signOffButton.IsVisible = result.UpdatedItem.CanSignOff;
             }
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.TextColor = Colors.IndianRed;
+            _statusLabel.Text = ex.Message;
         }
         finally
         {
@@ -329,6 +335,7 @@ public sealed class HomeSectionDetailPage : ContentPage
             return;
         }
 
+        _statusLabel.TextColor = Colors.DarkSlateBlue;
         SetBusyState(true, "Daten werden gespeichert.");
         try
         {
@@ -344,6 +351,11 @@ public sealed class HomeSectionDetailPage : ContentPage
                 _registerButton.IsVisible = result.UpdatedItem.CanRegister;
                 _signOffButton.IsVisible = result.UpdatedItem.CanSignOff;
             }
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.TextColor = Colors.IndianRed;
+            _statusLabel.Text = ex.Message;
         }
         finally
         {
@@ -501,6 +513,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         if (!confirmed)
             return;
 
+        _statusLabel.TextColor = Colors.DarkSlateBlue;
         SetBusyState(true, "Datensatz wird gelöscht.");
         try
         {
@@ -515,6 +528,7 @@ public sealed class HomeSectionDetailPage : ContentPage
 
             if (!success)
             {
+                _statusLabel.TextColor = Colors.IndianRed;
                 _statusLabel.Text = $"{entityName} konnte nicht gelöscht werden.";
                 return;
             }
@@ -524,6 +538,11 @@ public sealed class HomeSectionDetailPage : ContentPage
             _homeContextState.Clear();
             await _homeViewModel.ReloadAsync();
             await Shell.Current.GoToAsync("//home");
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.TextColor = Colors.IndianRed;
+            _statusLabel.Text = ex.Message;
         }
         finally
         {

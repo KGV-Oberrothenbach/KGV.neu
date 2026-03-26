@@ -356,9 +356,10 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
 
         try
         {
+            await Task.Yield();
+
             var record = new ArbeitsstundeRecord
             {
-                Id = _existingEntry?.Id ?? 0,
                 MitgliedId = member.MitgliedId,
                 SaisonId = _currentSaisonId.Value,
                 Datum = _datePicker.Date.Date,
@@ -369,6 +370,9 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
                 GenehmigtAm = _existingEntry?.FreigegebenAm,
                 GenehmigtVon = _existingEntry?.FreigegebenVonId
             };
+
+            if (_existingEntry != null)
+                record.Id = _existingEntry.Id;
 
             var success = _existingEntry == null
                 ? await _supabaseService.AddArbeitsstundeAsync(record)

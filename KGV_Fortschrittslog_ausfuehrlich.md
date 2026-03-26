@@ -2,6 +2,54 @@
 
 ---
 
+## 2026-03-26 – Prompt 1/1: MAUI-Laufzeit-/Fachpfade nach grünem Build gezielt geprüft und im aktiven Home-/Detail-/Editorpfad minimal gehärtet
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrücklich nur die direkt betroffenen MAUI-/Core-/Infrastructure-Pfade geprüft:
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+  - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
+  - `KGV.Maui/Pages/HomeManagementPage.cs`
+  - `KGV.Maui/Pages/ManagementOverviewPageBase.cs`
+  - `KGV.Maui/Pages/BekanntmachungEditorPage.cs`
+  - `KGV.Maui/Pages/TermineEditorPage.cs`
+  - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
+  - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
+  - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - gezielte Suchläufe auf `entryId=0`, `id = 0`, Delete-Pfade, `IsBusy`, Busy-Texte, `.Result` und `.Wait(`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+  - Git-Status nur zur Blockeingrenzung, ohne blockfremde Dateien anzufassen
+- WPF wurde in diesem Block bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen Stand vor Umsetzung:
+  - die aktiven Admin-/Vorstand-Aktionen `Neu`, `Bearbeiten` und `Löschen` sind im aktuellen mobilen Produktivpfad bereits auf derselben Detailseite `HomeSectionDetailPage` vorhanden; es war dafür kein neuer Admin-Sonderpfad nötig
+  - der Startseiten-Schnellzugriff `Arbeitsstunde erfassen` ist im aktiven `HomePage`-/`HomeViewModel`-Pfad bereits sichtbar und auf den vorhandenen `ArbeitsstundenEditorPage`-Pfad verdrahtet
+  - die mobilen Editorpfade für `Bekanntmachungen`, `Termine`, `Arbeitseinsätze` und auch `Arbeitsstunden` bauten ihre Persistenzobjekte lokal weiterhin mit expliziten `Id = 0`-Zuweisungen auf, obwohl im Produktivpfad Neu-Anlage nur ohne DB-ID in den Insert laufen soll
+  - produktive Delete-Pfade für `Bekanntmachung`, `Termin` und `Arbeitseinsatz` sind im Shared-Service bereits vorhanden; im aktiven Detailpfad fehlte dort aber noch robuste Fehlerbehandlung bei Laufzeitfehlern
+  - sichtbare Busy-Texte waren im betroffenen MAUI-Pfad bereits teilweise vorhanden, aber nicht durchgehend an allen Save-/Delete-Aktionen der aktiven Editor- und Detailseiten sauber angeschlossen
+  - der direkte Suchlauf auf `.Result` und `.Wait(` über die direkt betroffenen MAUI-Dateien blieb leer
+  - ein CPU-Profiler-Lauf für das angefragte Trägheits-/ANR-Thema ließ sich im aktuellen Visual-Studio-Setup trotz zweitem Versuch nicht starten, weil die referenzierte `.diagsession` nicht gefunden wurde; der Performance-Teil war damit messtechnisch blockiert
+- Den Korrekturblock deshalb bewusst klein und nur auf die direkt betroffenen Laufzeit-/Fachursachen begrenzt umgesetzt:
+  - in `KGV.Maui/Pages/BekanntmachungEditorPage.cs` den Save-Pfad sichtbar auf `Daten werden gespeichert.` gezogen, per `Task.Yield()` kurz an den Renderzyklus zurückgegeben und die explizite `Id = 0`-Initialisierung entfernt; eine `Id` wird jetzt nur noch im echten Bearbeiten-Modus gesetzt
+  - in `KGV.Maui/Pages/TermineEditorPage.cs` dieselbe Korrektur für Busy-Text, kurzes Render-Yield und saubere Unterscheidung `Neu` vs. `Bearbeiten` ohne blinde `Id = 0`-Zuweisung umgesetzt
+  - in `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs` die Record-Erzeugung ebenfalls von der expliziten `Id = 0`-Initialisierung gelöst; eine `Id` wird nur noch gesetzt, wenn tatsächlich ein bestehender Datensatz bearbeitet wird
+  - in `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs` denselben Save-Pfad klein nachgezogen: kurzes `Task.Yield()` vor dem produktiven Save und keine explizite `Id = 0`-Zuweisung mehr bei Neuanlage
+  - in `KGV.Maui/Pages/HomeSectionDetailPage.cs` die produktiven Aktionen `Anmelden`, `Abmelden` und `Löschen` robuster gemacht:
+    - Busy-Farbe für `Daten werden gespeichert.` / `Datensatz wird gelöscht.` sichtbar auf den aktiven Ladezustand gezogen
+    - zusätzliche Fehlerbehandlung ergänzt, damit Laufzeitfehler im Detailpfad nicht still oder unkontrolliert durchlaufen
+    - Delete bleibt auf demselben bestehenden Produktivpfad mit Bestätigungsdialog und anschließendem Home-Reload über `ReloadAsync()`
+  - keine neue Seite, keine neue CRUD-Architektur, keine Shell-/Routing-Rückkehr zu alten Rootpfaden und keine Änderung an WPF-Dateien
+- Technische Verifikation nach dem Fix:
+  - `get_errors` auf den direkt geänderten MAUI-Dateien blieb nach der Korrektur unauffällig
+  - der direkte Suchlauf auf `.Result|.Wait(` blieb im direkt betroffenen MAUI-Pfad weiter leer
+  - der Startseiten-Button `Arbeitsstunde erfassen` ist im aktiven Pfad weiter vorhanden; ein Wiederherstellungsumbau war in diesem Block nicht nötig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` ist im aktuellen Workspace nach diesem Lauf nicht grün geblieben
+  - der Gesamtbuild scheitert aktuell blockfremd an bereits vorhandenen bzw. neu außerhalb dieses Blocks offenen MAUI-Control-/Namespacefehlern, u. a. in:
+    - `KGV.Maui/Pages/ArbeitsstundenReviewPage.cs`
+    - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+    - `KGV.Maui/Pages/ExportPage.cs`
+  - diese Fehler wurden in diesem kleinen Laufzeit-/Fachblock ausdrücklich nur dokumentiert und nicht mit umgebaut, weil der Auftrag auf die direkt betroffenen Home-/Detail-/Editorpfade begrenzt war
+
 ## 2026-03-26 – Prompt 1/1: Nächsten blockfremden MAUI-Compilefehlerstand in `FaelligeZaehlerPage`, `ArbeitsstundenReviewDetailPage` und `ManagementOverviewPageBase` gezielt bereinigt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrücklich nur den direkt betroffenen MAUI-Pfad geprüft:

@@ -4,6 +4,7 @@ using KGV.Core.Security;
 using KGV.Core.Utilities;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
+using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System.Globalization;
@@ -252,11 +253,14 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         if (!_isAuthorized)
             return;
 
-        _statusLabel.Text = string.Empty;
+        _statusLabel.Text = "Daten werden gespeichert.";
+        _statusLabel.TextColor = Colors.DarkSlateBlue;
         SetEnabledState(false);
 
         try
         {
+            await Task.Yield();
+
             if (!TryBuildRecord(out var record))
                 return;
 
@@ -353,7 +357,6 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
 
         record = new BekanntmachungRecord
         {
-            Id = _existingRecord?.Id ?? 0,
             Titel = _titleEntry.Text.Trim(),
             InhaltHtml = _htmlEditor.Text.Trim(),
             SichtbarAb = visibleFrom,
@@ -361,6 +364,9 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
             SortOrder = sortOrder,
             Aktiv = _activeSwitch.IsToggled
         };
+
+        if (_existingRecord != null)
+            record.Id = _existingRecord.Id;
 
         return true;
     }

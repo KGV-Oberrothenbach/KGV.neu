@@ -2,7 +2,9 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
+using Microsoft.Maui;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -490,7 +492,6 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
 
         record = new ArbeitseinsatzRecord
         {
-            Id = _editingEntryId.GetValueOrDefault(),
             Titel = _titleEntry.Text?.Trim(),
             Beschreibung = string.IsNullOrWhiteSpace(_descriptionEditor.Text) ? null : _descriptionEditor.Text.Trim(),
             Datum = _datePicker.Date.Date,
@@ -504,6 +505,9 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
             AnmeldungBis = anmeldungBis,
             Aktiv = _aktivSwitch.IsToggled
         };
+
+        if (_editingEntryId.HasValue)
+            record.Id = _editingEntryId.Value;
 
         return true;
     }
