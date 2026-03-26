@@ -1108,35 +1108,44 @@ namespace KGV.Infrastructure.Services
                 var appointmentsEmptyText = "Für Home sind aktuell keine Termine in der Startseiten-View vorhanden.";
                 var announcementEmptyText = "Für Home sind aktuell keine Bekanntmachungen in der Startseiten-View vorhanden.";
 
+                Task<(HomeWorkHoursSummary? Result, bool Success)> summaryTask = Task.FromResult(((HomeWorkHoursSummary?)null, true));
+
                 if (mitgliedId is > 0)
                 {
                     var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId.Value);
-                    var (loadedSummary, summaryLoaded) = await TryLoadHomeSectionAsync(
+                    summaryTask = TryLoadHomeSectionAsync(
                         "LoadPflichtstundenSummaryAsync",
                         () => LoadPflichtstundenSummaryAsync(homeMitgliedId, DateTime.Today.Year),
                         (HomeWorkHoursSummary?)null);
-
-                    workHoursSummary = loadedSummary;
-                    if (workHoursSummary != null)
-                        operationalItems.Add(BuildWorkHoursItem(workHoursSummary));
-                    else if (!summaryLoaded)
-                        workHoursSummary = new HomeWorkHoursSummary { Year = DateTime.Today.Year, RuleReason = "Pflichtstunden konnten aktuell nicht geladen werden. Details stehen im Debug-/Anwendungslog." };
                 }
 
-                var (workAssignments, workAssignmentsLoaded) = await TryLoadHomeSectionAsync(
+                var workAssignmentsTask = TryLoadHomeSectionAsync(
                     "LoadStartseiteArbeitseinsaetzeAsync",
                     LoadStartseiteArbeitseinsaetzeAsync,
                     new List<HomeWorkAssignmentItem>());
 
-                var (appointments, appointmentsLoaded) = await TryLoadHomeSectionAsync(
+                var appointmentsTask = TryLoadHomeSectionAsync(
                     "LoadStartseiteTermineAsync",
                     LoadStartseiteTermineAsync,
                     new List<HomeAppointmentItem>());
 
-                var (announcements, announcementsLoaded) = await TryLoadHomeSectionAsync(
+                var announcementsTask = TryLoadHomeSectionAsync(
                     "LoadStartseiteBekanntmachungenAsync",
                     LoadStartseiteBekanntmachungenAsync,
                     new List<HomeAnnouncementItem>());
+
+                await Task.WhenAll(summaryTask, workAssignmentsTask, appointmentsTask, announcementsTask);
+
+                var (loadedSummary, summaryLoaded) = await summaryTask;
+                workHoursSummary = loadedSummary;
+                if (workHoursSummary != null)
+                    operationalItems.Add(BuildWorkHoursItem(workHoursSummary));
+                else if (mitgliedId is > 0 && !summaryLoaded)
+                    workHoursSummary = new HomeWorkHoursSummary { Year = DateTime.Today.Year, RuleReason = "Pflichtstunden konnten aktuell nicht geladen werden. Details stehen im Debug-/Anwendungslog." };
+
+                var (workAssignments, workAssignmentsLoaded) = await workAssignmentsTask;
+                var (appointments, appointmentsLoaded) = await appointmentsTask;
+                var (announcements, announcementsLoaded) = await announcementsTask;
 
                 if (!workAssignmentsLoaded)
                     workAssignmentsEmptyText = "Arbeitseinsätze konnten aktuell nicht geladen werden. Details stehen im Debug-/Anwendungslog.";
@@ -1445,6 +1454,7 @@ namespace KGV.Infrastructure.Services
                     return null;
 
                 var client = await EnsureClientAsync();
+                var now = DateTime.UtcNow;
                 var insertRecord = new TerminRecord
                 {
                     Titel = CleanRequiredText(record.Titel),
@@ -1454,11 +1464,17 @@ namespace KGV.Infrastructure.Services
                     EndUhrzeit = NormalizeTerminTime(record.EndUhrzeit),
                     SichtbarAb = NormalizeTimestampWithoutTimeZone(record.SichtbarAb),
                     SichtbarBis = NormalizeTimestampWithoutTimeZone(record.SichtbarBis),
-                    Aktiv = record.Aktiv
+                    Aktiv = record.Aktiv,
+                    CreatedAt = now,
+                    UpdatedAt = now
                 };
 
                 await client.From<TerminRecord>().Insert(insertRecord);
-                var reloadResponse = await client.From<TerminRecord>().Get();
+                var reloadResponse = await client
+                    .From<TerminRecord>()
+                    .Where(x => x.Titel == insertRecord.Titel)
+                    .Where(x => x.Datum == insertRecord.Datum)
+                    .Get();
                 var created = reloadResponse?.Models?
                     .Select(NormalizeTerminRecord)
                     .Where(x => IsSameTerminForReload(x, insertRecord))
@@ -1489,6 +1505,7 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.SichtbarAb, NormalizeTimestampWithoutTimeZone(record.SichtbarAb))
                     .Set(x => x.SichtbarBis, NormalizeTimestampWithoutTimeZone(record.SichtbarBis))
                     .Set(x => x.Aktiv, record.Aktiv)
+                    .Set(x => x.UpdatedAt, DateTime.UtcNow)
                     .Update();
 
                 _logger?.LogInformation("UpdateTerminAsync updated termin {TerminId}", record.Id);

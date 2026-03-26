@@ -17,6 +17,9 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     private readonly MemberContextState _memberContextState;
     private HomeAnnouncementItem? _selectedAnnouncement;
     private HomeOverviewDTO _overview = HomeOverviewFactory.Build(UserRole.User);
+    private UserRole? _loadedRole;
+    private int? _loadedMitgliedId;
+    private bool _isInitialized;
 
     public HomeViewModel(ISupabaseService supabaseService, UserContextState userContextState, MemberContextState memberContextState)
     {
@@ -94,9 +97,16 @@ public sealed class HomeViewModel : INotifyPropertyChanged
 
     public async Task InitializeAsync()
     {
-        _overview = await _supabaseService.GetHomeOverviewAsync(
-            _userContextState.CurrentUserContext?.Role ?? UserRole.User,
-            ToInt32(_userContextState.CurrentMitgliedId));
+        var role = _userContextState.CurrentUserContext?.Role ?? UserRole.User;
+        var mitgliedId = ToInt32(_userContextState.CurrentMitgliedId);
+
+        if (_isInitialized && _loadedRole == role && _loadedMitgliedId == mitgliedId)
+            return;
+
+        _overview = await _supabaseService.GetHomeOverviewAsync(role, mitgliedId);
+        _loadedRole = role;
+        _loadedMitgliedId = mitgliedId;
+        _isInitialized = true;
 
         FillCollection(QuickLinks, _overview.QuickLinks);
         FillCollection(OperationalItems, _overview.OperationalItems);

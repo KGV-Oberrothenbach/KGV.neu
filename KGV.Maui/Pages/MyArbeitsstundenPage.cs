@@ -14,6 +14,8 @@ public sealed class MyArbeitsstundenPage : ContentPage
     private readonly MemberContextState _memberContextState;
 
     private bool _isLoading;
+    private bool _loadScheduled;
+    private bool _isNavigating;
 
     private readonly CollectionView _list;
     private readonly Label _status;
@@ -121,9 +123,18 @@ public sealed class MyArbeitsstundenPage : ContentPage
         Appearing += OnAppearing;
     }
 
-    private async void OnAppearing(object? sender, EventArgs e)
+    private void OnAppearing(object? sender, EventArgs e)
     {
-        await RefreshAsync();
+        if (_isLoading || _loadScheduled)
+            return;
+
+        _loadScheduled = true;
+        Dispatcher.Dispatch(async () =>
+        {
+            await Task.Yield();
+            _loadScheduled = false;
+            await RefreshAsync();
+        });
     }
 
     private async Task RefreshAsync()
@@ -214,8 +225,22 @@ public sealed class MyArbeitsstundenPage : ContentPage
         if (selected == null)
             return;
 
+        if (_isNavigating)
+        {
+            _list.SelectedItem = null;
+            return;
+        }
+
+        _isNavigating = true;
         _list.SelectedItem = null;
-        await Shell.Current.GoToAsync($"{nameof(ArbeitsstundenEditorPage)}?entryId={selected.Id}");
+        try
+        {
+            await Shell.Current.GoToAsync($"{nameof(ArbeitsstundenEditorPage)}?entryId={selected.Id}");
+        }
+        finally
+        {
+            _isNavigating = false;
+        }
     }
 
     private void SetSummary(PflichtstundenUebersichtRecord? summary)

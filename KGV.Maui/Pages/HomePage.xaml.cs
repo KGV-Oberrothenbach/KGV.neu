@@ -15,6 +15,7 @@ public class HomePage : ContentPage
     private readonly ArbeitseinsaetzeUserState _arbeitseinsaetzeUserState;
     private readonly TermineUserState _termineUserState;
     private bool _isLoading;
+    private bool _loadScheduled;
 
     public HomePage(HomeViewModel viewModel, HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, TermineUserState termineUserState)
     {
@@ -248,26 +249,37 @@ public class HomePage : ContentPage
         };
     }
 
-    protected override async void OnAppearing()
+    protected override void OnAppearing()
     {
         base.OnAppearing();
 
-        if (_isLoading)
+        if (_isLoading || _loadScheduled)
             return;
 
-        _isLoading = true;
-        try
+        _loadScheduled = true;
+        Dispatcher.Dispatch(async () =>
         {
-            await _viewModel.InitializeAsync();
-        }
-        finally
-        {
-            _isLoading = false;
-        }
+            await Task.Yield();
+
+            _loadScheduled = false;
+            if (_isLoading)
+                return;
+
+            _isLoading = true;
+            try
+            {
+                await _viewModel.InitializeAsync();
+            }
+            finally
+            {
+                _isLoading = false;
+            }
+        });
     }
 
     private static CollectionView CreateHomeListView<T>(Func<T, Task> openAsync, Func<T, View> templateFactory) where T : class
     {
+        var isNavigating = false;
         var listView = new CollectionView
         {
             SelectionMode = SelectionMode.Single,
@@ -291,8 +303,22 @@ public class HomePage : ContentPage
             if (selected == null)
                 return;
 
-            await openAsync(selected);
-            listView.SelectedItem = null;
+            if (isNavigating)
+            {
+                listView.SelectedItem = null;
+                return;
+            }
+
+            isNavigating = true;
+            try
+            {
+                await openAsync(selected);
+            }
+            finally
+            {
+                listView.SelectedItem = null;
+                isNavigating = false;
+            }
         };
 
         return listView;

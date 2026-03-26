@@ -2,6 +2,128 @@
 
 ---
 
+## 2026-03-26 – Prompt 1/1: MAUI-Terminanlage-Rückladepfad nach Insert stabilisiert
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die direkt betroffenen Dateien geprüft:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Maui/Pages/TermineEditorPage.cs`
+  - aktuelles Debug-Output
+- WPF wurde in diesem Block bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen Stand vor Umsetzung:
+  - der gemeldete Fehler lag nach dem letzten Fix nicht mehr im eigentlichen DB-Insert
+  - im Debug-Log stand stattdessen weiter eindeutig:
+    - `CreateTerminAsync created termin (null)`
+  - damit lief der Insert durch, aber der Rückgabepfad für den neu angelegten Datensatz schlug fehl
+  - `CreateTerminAsync` lud nach `Insert(...)` die komplette Terminliste neu und suchte den frisch angelegten Termin anschließend per In-Memory-Match wieder heraus
+  - dieser unfiltrierte Reload war unnötig fragil
+- Den Korrekturblock deshalb bewusst klein und nur im betroffenen Produktivpfad umgesetzt:
+  - den Reload nach `Insert(...)` auf `Titel` und `Datum` eingegrenzt
+  - den bestehenden Match danach beibehalten und bei Mehrdeutigkeit weiter die höchste `Id` gewählt
+  - keine UI- oder Fachlogik außerhalb dieses Rückladepfads verändert
+- Technische Verifikation:
+  - `get_errors` auf `KGV.Infrastructure/Services/SupabaseService.cs` blieb unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` lief im aktuellen Block ohne neue dateibezogene Fehler an
+  - abschließender Gesamtbuild wird nach dem Block weiter geprüft
+
+## 2026-03-26 – Prompt 1/1: MAUI-Terminanlage repariert und Launcher-Icon wieder auf das vorhandene PNG zurückgestellt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-/Service-Dateien geprüft:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Core/Models/TerminRecord.cs`
+  - `KGV.Maui/Pages/TermineEditorPage.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+- WPF wurde in diesem Block bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen Stand vor Umsetzung:
+  - der Fehler beim Anlegen eines neuen Termins war im vorhandenen Laufzeitlog bereits eindeutig:
+    - `CreateTerminAsync failed`
+    - `null value in column "created_at" of relation "termin" violates not-null constraint`
+  - die Datenbankmigration für `termin` definiert `created_at` und `updated_at` als `NOT NULL` mit `DEFAULT now()`
+  - im Produktivpfad `CreateTerminAsync` wurde beim Insert aber ein `TerminRecord` gebaut, der `CreatedAt` und `UpdatedAt` nicht setzte
+  - dadurch wurde faktisch `null` an die DB übergeben statt den Default sauber zu nutzen
+  - beim Starticon zeigte der aktive `MauiIcon`-Pfad im aktuellen `KGV.Maui.csproj` wieder auf `Resources/AppIcon/appicon.svg`
+  - das passte direkt zur Rückmeldung, dass das Icon trotz Löschen von `bin`/`obj` und Deinstallation weiter nicht korrekt ist
+- Den Korrekturblock deshalb bewusst klein und nur auf diese beiden Produktivpfade begrenzt umgesetzt:
+  - `CreateTerminAsync` setzt beim Insert jetzt `CreatedAt` und `UpdatedAt` explizit auf `DateTime.UtcNow`
+  - `UpdateTerminAsync` setzt `UpdatedAt` beim Speichern ebenfalls auf `DateTime.UtcNow`
+  - `KGV.Maui/KGV.Maui.csproj` verwendet für das aktive Launcher-Icon wieder das vorhandene PNG:
+    - `Resources/AppIcon/appicon.png`
+  - zusätzlich `MauiIcon Remove="Resources\AppIcon\*.svg"`, damit die SVG nicht erneut versehentlich als Launcher-Icon aktiv wird
+  - die Splash-Konfiguration auf `appicon.svg` wurde bewusst unverändert gelassen
+- Erwartetes Ergebnis nach dem Block:
+  - neue Termine laufen nicht mehr in den `created_at`-Constraintfehler
+  - das Launcher-Icon folgt wieder dem explizit gewünschten PNG-Pfad statt der SVG
+- Bewusst nicht gemacht:
+  - keine breite Überarbeitung der Terminseite
+  - keine Änderung an WPF
+  - keine Änderung an der Splash-Logik
+  - keine blockfremden MAUI-Namespace-/Control-Fehler außerhalb dieses Bugfix-Blocks mit angefasst
+- Technische Verifikation:
+  - `get_errors` auf den geänderten Dateien blieb unauffällig
+  - `get_tests` für `Project=KGV.Maui` lieferte keine passenden Tests
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - der Lauf scheiterte weiterhin blockfremd an bereits vorhandenen MAUI-Typ-/Namespacefehlern, u. a. in:
+    - `KGV.Maui/Pages/TermineEditorPage.cs`
+    - `KGV.Maui/Pages/HomeManagementPage.cs`
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - damit ist der Termin-/Icon-Block selbst isoliert korrigiert, der Gesamt-Workspace aber weiterhin nicht grün buildbar
+
+## 2026-03-26 – Prompt 1/1: MAUI-Navigations-ANR beim Seitenwechsel entschärft und Android-Launcher-Icon auf zentrale SVG-Quelle gezogen
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-/Android-Dateien geprüft:
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
+  - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+- WPF wurde in diesem Block bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
+  - per Codeinspektion allein war nicht sicher trennbar, ob der ANR aus UI-Thread-Blockierung, Reentrancy oder einem konkreten RPC-/DB-Pfad stammt
+  - ein direkter CPU-Profiler-Lauf ließ sich im aktuellen Setup nicht erfolgreich starten
+  - die verfügbaren Debug-/Laufzeitlogs zeigten die Hänger aber trotzdem sehr klar:
+    - viele `Skipped frames`
+    - `Davey! duration=22560ms`
+    - Home-Ladevorgänge mitten in Navigations-/UI-Phasen
+    - zusätzlicher Netzwerk-/DNS-Fehler im Home-Pfad (`Unable to resolve host ...supabase.co`)
+  - `HomePage`, `MyArbeitsstundenPage` und `ArbeitsstundenEditorPage` starteten ihr Laden weiterhin direkt in `OnAppearing` bzw. im unmittelbaren Navigationsfenster
+  - `HomeViewModel.InitializeAsync()` lud bei gleichem Kontext erneut komplett nach
+  - `GetHomeOverviewAsync(...)` in `SupabaseService` lud die Home-Bereiche seriell; bei Störungen verlängerte das die Gesamtdauer unnötig
+  - Android meldete zusätzlich wiederholt `OnBackInvokedCallback is not enabled`
+  - beim Launcher-Icon blieb der Pfad zuletzt gemischt: PNG für `MauiIcon`, SVG für Splash
+- Den Korrekturblock deshalb bewusst klein und direkt auf die gemessenen Verdachtsstellen begrenzt umgesetzt:
+  - `HomePage`, `MyArbeitsstundenPage` und `ArbeitsstundenEditorPage` warten das Laden nicht mehr direkt in `OnAppearing` ab, sondern planen es per `Dispatcher` nach dem ersten Render-Zyklus ein
+  - zusätzliche `_loadScheduled`-/`_isLoading`-Guards verhindern doppelte Ladeplanung während schneller Navigation
+  - Auswahl-/Listennavigation in `HomePage` und `MyArbeitsstundenPage` gegen Reentrancy/Doppeltaps abgesichert
+  - `HomeViewModel.InitializeAsync()` cached Rolle und `MitgliedId` des zuletzt geladenen Kontexts; bei unverändertem Kontext erfolgt kein erneuter Home-Reload
+  - `KGV.Infrastructure/Services/SupabaseService.cs` lädt Pflichtstundenübersicht, Arbeitseinsätze, Termine und Bekanntmachungen für Home jetzt parallel statt seriell
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml` um `android:enableOnBackInvokedCallback="true"` ergänzt
+  - `KGV.Maui/KGV.Maui.csproj` auf eine einheitliche zentrale SVG-Quelle für `MauiIcon` und `MauiSplashScreen` umgestellt (`Resources/AppIcon/appicon.svg`)
+- Fachlich/technisch erwartetes Ergebnis nach dem Block:
+  - weniger UI-Druck genau im Navigationsfenster
+  - weniger unnötige Wiederholungs-Loads auf der Home-Seite
+  - kürzere Home-Gesamtwartezeit durch paralleles Laden der Teilbereiche
+  - weniger Risiko für doppelte Navigationsauslösung durch schnelle Mehrfachtaps
+  - konsistentere Android-Back-Integration und eindeutigerer Launcher-Icon-Pfad
+- Bewusst nicht gemacht:
+  - keine neue Schattenlogik neben vorhandenen DB-/RPC-Pfaden gebaut
+  - keine WPF-Datei geändert
+  - keine fachlichen Produktivpfade von Home/Detail/Verwaltung umgebaut
+  - keine breiten Altfehler außerhalb dieses ANR-/Icon-Blocks mit angefasst
+- Technische Verifikation:
+  - `get_errors` auf den geänderten Dateien blieb unauffällig
+  - `get_tests` für `Project=KGV.Maui` lieferte keine passenden Tests
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - erster Lauf scheiterte blockfremd u. a. an vorhandenen `InitializeComponent`-Fehlern in:
+    - `KGV.Maui/App.xaml.cs`
+    - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - zweiter Lauf scheiterte weiterhin blockfremd breit an bereits vorhandenen MAUI-Typ-/Namespacefehlern, u. a. in:
+    - `KGV.Maui/Pages/BekanntmachungEditorPage.cs`
+    - `KGV.Maui/Pages/HomeManagementPage.cs`
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - damit ist der ANR-/Home-/Icon-Block selbst isoliert angepasst, der Gesamt-Workspace aber weiterhin nicht grün buildbar
+
 ## 2026-03-26 – Prompt 1/3: MAUI-Loginlogo auf korrektes KGV-Bild umgestellt, Launcher-Icon bewusst getrennt gelassen
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-Dateien geprüft:

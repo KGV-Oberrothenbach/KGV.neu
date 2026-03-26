@@ -36,6 +36,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
     private readonly List<MemberOption> _memberOptions = new();
 
     private bool _isLoading;
+    private bool _loadScheduled;
     private int? _entryId;
     private int? _currentSaisonId;
     private ArbeitsstundeDTO? _existingEntry;
@@ -138,10 +139,20 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
         _entryId = TryReadInt(query, "entryId");
     }
 
-    protected override async void OnAppearing()
+    protected override void OnAppearing()
     {
         base.OnAppearing();
-        await LoadAsync();
+
+        if (_isLoading || _loadScheduled)
+            return;
+
+        _loadScheduled = true;
+        Dispatcher.Dispatch(async () =>
+        {
+            await Task.Yield();
+            _loadScheduled = false;
+            await LoadAsync();
+        });
     }
 
     private async Task LoadAsync()
