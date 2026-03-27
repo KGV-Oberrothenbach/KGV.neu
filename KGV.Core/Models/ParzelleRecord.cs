@@ -18,6 +18,9 @@ namespace KGV.Core.Models
         [Column("Anlage")]
         public string Anlage { get; set; } = string.Empty;
 
+        [Column("flaeche_qm")]
+        public decimal? FlaecheQm { get; set; }
+
         [Column("hat_strom")]
         public bool HatStrom { get; set; }
 

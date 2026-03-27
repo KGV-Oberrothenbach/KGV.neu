@@ -2,6 +2,48 @@
 
 ---
 
+## 2026-03-27 – Prompt 3/3 Abschluss: MAUI-Parzellenverwaltung und RFID-Einrichten gegen den realen Blockstand validiert, Restfehler bereinigt und Abschluss vorbereitet
+
+- Zuerst den echten Istzustand des begonnenen Parzellen-/RFID-Blocks geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - die real geänderten Blockdateien im Arbeitsbaum:
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Core/Models/ParzelleDetailDTO.cs`
+    - `KGV.Core/Models/ParzelleRecord.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Maui/Pages/ParzellenPage.cs`
+    - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+    - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
+- Real bestätigt auf dem aktuellen Zwischenstand:
+  - die MAUI-Parzellenseite ist fachlich auf reduzierte Stammdaten + Belegung gezogen
+  - sichtbar bleiben in `Stammdaten` genau `ID`, `Garten Nr`, `Fläche`, `hat Wasser`, `hat Strom`, `rfid Wasser`, `rfid Strom`, `Anlage`
+  - `Belegung` zeigt bei freier Parzelle den Button `Zuweisen`
+  - bei belegter Parzelle wird `Name, Vorname` als Button/Link zur Mitgliedsstammdatenansicht verwendet
+  - die Flächen-Schutzabfrage ist real in `ParzellenPage.SaveStammdatenAsync()` vorhanden und fragt Änderungen an `Fläche` vor dem Speichern ausdrücklich ab
+- Reale Ursache der leeren Medium-Liste in `RFID einrichten`:
+  - die Medium-Auswahl wurde im begonnenen Block im MAUI-ViewModel zuvor nur UI-seitig aus `HatStrom` / `HatWasser` aufgebaut
+  - zusätzlich fehlte im Shared-Service die dazu passende zentrale fachliche Auswahlprüfung
+  - Parzellen mit inkonsistentem oder nicht belastbarem Ausstattungszustand konnten dadurch in der Mediumsauswahl leer laufen
+- Minimal bereinigt, ohne neuen Fachumfang:
+  - `ISupabaseService` um den gemeinsamen Abfragepfad für verfügbare RFID-Medien ergänzt
+  - `SupabaseService` liefert die RFID-Medien jetzt zentral aus derselben fachlichen Wahrheit:
+    - vorhandene Ausstattung (`hat_strom` / `hat_wasser`)
+    - bereits hinterlegte RFID am Medium
+    - aktiver Zähler am Medium
+    - Fallback auf beide Medien, wenn der Ausstattungszustand nicht belastbar ist
+  - dieselbe gemeinsame Service-Logik wird in `CheckParzelleRfidAssignmentAsync(...)` verwendet; die Prüfung verlässt sich damit nicht mehr nur auf UI-Filterung
+  - `RfidEinrichtenViewModel` lädt die Medium-Auswahl asynchron aus dem gemeinsamen Service statt lokaler `Hat...`-Sonderlogik
+  - `ParzellenPage` compile-bedingt auf den real reduzierten MAUI-C#-Pfad bereinigt, damit die Abschlussseite sauber baut
+- Validierung:
+  - dateibezogene Fehler auf den direkt betroffenen Blockdateien nach den Korrekturen unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - im grünen MAUI-Build bleiben nur bekannte Warnungen, insbesondere `XA1037` und vorhandene Nullability-Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` war für diesen MAUI-Abschlussblock nicht zwingend und wurde nicht zusätzlich gestartet
+- Blockstatus:
+  - der begonnene MAUI-Parzellen-/RFID-Block ist fachlich und technisch abgeschlossen; offen blieb vor dem Git-Abschluss nur noch die organisatorische Commit-/Push-Abwicklung
+
 ## 2026-03-27 – Prompt 2/3 Abschluss: Wartungsverträge-Nebenmitglieder-Block final validiert, Migration abgeglichen und sauber abgeschlossen
 
 - Echten Abschluss-Istzustand des begonnenen Blocks erneut geprüft:

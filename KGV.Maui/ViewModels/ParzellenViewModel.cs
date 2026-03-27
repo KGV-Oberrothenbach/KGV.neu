@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -22,6 +23,15 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     private DateTime _assignVonDatum = DateTime.Today;
     private string _statusMessage = string.Empty;
     private bool _isBusy;
+    private bool _isAssignMode;
+    private bool _isEditMode;
+    private string _editGartenNr = string.Empty;
+    private string _editAnlage = string.Empty;
+    private string _editFlaeche = string.Empty;
+    private string _editRfidStrom = string.Empty;
+    private string _editRfidWasser = string.Empty;
+    private bool _editHatStrom;
+    private bool _editHatWasser;
 
     public ParzellenViewModel(ISupabaseService supabaseService, ParzellenContextState parzellenContextState)
     {
@@ -41,11 +51,11 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         ? (_parzellenContextState.ContextTitle ?? "Gartenkontext")
         : "Parzellen";
     public string Description => _parzellenContextState.IsFromMemberContext
-        ? "Mitgliedsbezogener Garten-/Parzellenkontext mit Strom, Wasser und Garten-Dokumenten auf dem bestehenden Parzellen-Fachpfad."
-        : "Zentrale Parzellenübersicht mit Stammdaten, Belegung, Wasser/Strom und Dokumentbezug.";
+        ? "Mitgliedsbezogener Garten-/Parzellenkontext mit reduzierten Parzellenstammdaten und aktueller Belegung."
+        : "Zentrale Parzellenübersicht mit reduzierten Parzellenstammdaten und aktueller Belegung.";
     public string DetailHint => _parzellenContextState.IsFromMemberContext
-        ? "Die Unterbereiche Strom, Wasser und Garten-Dokumente laufen hier auf demselben belastbaren Detailpfad wie in der zentralen Parzellenverwaltung."
-        : "Separate Anschlussflags liegen aktuell nicht als eigenes Feld vor. Sichtbar ist deshalb der belastbare Status aus vorhandenen Zählern, Ablesungen und Dokumentpfaden.";
+        ? "Parzellenstammdaten bleiben hier fachlich getrennt von Ablesen, Wartungsverträgen und sonstigen Verwaltungsblöcken."
+        : "Stammdaten, Belegung und Bearbeitung bleiben hier fachlich getrennt von Ablesen und anderen Verwaltungsblöcken.";
     public bool IsContextBound => _parzellenContextState.IsFromMemberContext;
 
     public ParzelleVerwaltungItem? SelectedItem
@@ -58,6 +68,10 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
 
             _selectedItem = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(CanSelectPrevious));
+            OnPropertyChanged(nameof(CanSelectNext));
+            OnPropertyChanged(nameof(NavigationText));
+            OnPropertyChanged(nameof(SelectedParzelleDisplayName));
             _ = LoadSelectedDetailAsync();
         }
     }
@@ -76,15 +90,61 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(ShowSelectionHint));
             OnPropertyChanged(nameof(CanManageAssignment));
             OnPropertyChanged(nameof(CanAssign));
+            OnPropertyChanged(nameof(CanStartAssign));
             OnPropertyChanged(nameof(CanEndAssignment));
+            OnPropertyChanged(nameof(HasAssignedMember));
+            OnPropertyChanged(nameof(CanOpenAssignedMember));
+            OnPropertyChanged(nameof(SelectedParzelleDisplayName));
+
+            if (!IsEditMode)
+                SyncEditFieldsFromDetail(value);
         }
     }
 
     public bool HasSelectedDetail => SelectedDetail != null;
     public bool ShowSelectionHint => !HasSelectedDetail;
     public bool CanManageAssignment => HasSelectedDetail && !IsBusy;
-    public bool CanAssign => CanManageAssignment && SelectedAssignMember != null;
+    public bool CanAssign => CanManageAssignment && IsAssignMode && SelectedAssignMember != null;
+    public bool CanStartAssign => CanManageAssignment && SelectedDetail?.IstVergeben == false && !IsAssignMode;
     public bool CanEndAssignment => CanManageAssignment && SelectedDetail?.BelegungId is > 0 && SelectedDetail.BisDatum == null;
+    public bool HasAssignedMember => SelectedDetail?.MitgliedId is > 0 && SelectedDetail.IstVergeben;
+    public bool CanOpenAssignedMember => HasAssignedMember && !IsBusy;
+    public bool IsAssignMode
+    {
+        get => _isAssignMode;
+        private set
+        {
+            if (_isAssignMode == value)
+                return;
+
+            _isAssignMode = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanAssign));
+            OnPropertyChanged(nameof(CanStartAssign));
+        }
+    }
+
+    public bool IsEditMode
+    {
+        get => _isEditMode;
+        private set
+        {
+            if (_isEditMode == value)
+                return;
+
+            _isEditMode = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanSaveStammdaten));
+        }
+    }
+
+    public bool CanSaveStammdaten => HasSelectedDetail && IsEditMode && !IsBusy;
+    public bool CanSelectPrevious => SelectedItem != null && Items.IndexOf(SelectedItem) > 0;
+    public bool CanSelectNext => SelectedItem != null && Items.IndexOf(SelectedItem) >= 0 && Items.IndexOf(SelectedItem) < Items.Count - 1;
+    public string NavigationText => SelectedItem == null || Items.Count == 0
+        ? "Keine Parzelle ausgewählt"
+        : $"{Items.IndexOf(SelectedItem) + 1} / {Items.Count}";
+    public string SelectedParzelleDisplayName => SelectedDetail?.DisplayName ?? SelectedItem?.DisplayText ?? "Parzelle";
     public bool HasStromAblesungen => StromAblesungen.Count > 0;
     public bool HasWasserAblesungen => WasserAblesungen.Count > 0;
     public bool HasDokumente => Dokumente.Count > 0;
@@ -112,6 +172,97 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
                 return;
 
             _assignVonDatum = value.Date;
+            OnPropertyChanged();
+        }
+    }
+
+    public string EditGartenNr
+    {
+        get => _editGartenNr;
+        set
+        {
+            if (_editGartenNr == value)
+                return;
+
+            _editGartenNr = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string EditAnlage
+    {
+        get => _editAnlage;
+        set
+        {
+            if (_editAnlage == value)
+                return;
+
+            _editAnlage = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string EditFlaeche
+    {
+        get => _editFlaeche;
+        set
+        {
+            if (_editFlaeche == value)
+                return;
+
+            _editFlaeche = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string EditRfidStrom
+    {
+        get => _editRfidStrom;
+        set
+        {
+            if (_editRfidStrom == value)
+                return;
+
+            _editRfidStrom = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string EditRfidWasser
+    {
+        get => _editRfidWasser;
+        set
+        {
+            if (_editRfidWasser == value)
+                return;
+
+            _editRfidWasser = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool EditHatStrom
+    {
+        get => _editHatStrom;
+        set
+        {
+            if (_editHatStrom == value)
+                return;
+
+            _editHatStrom = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool EditHatWasser
+    {
+        get => _editHatWasser;
+        set
+        {
+            if (_editHatWasser == value)
+                return;
+
+            _editHatWasser = value;
             OnPropertyChanged();
         }
     }
@@ -144,7 +295,10 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanManageAssignment));
             OnPropertyChanged(nameof(CanAssign));
+            OnPropertyChanged(nameof(CanStartAssign));
             OnPropertyChanged(nameof(CanEndAssignment));
+            OnPropertyChanged(nameof(CanOpenAssignedMember));
+            OnPropertyChanged(nameof(CanSaveStammdaten));
         }
     }
 
@@ -382,9 +536,118 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         if (!ok)
             return false;
 
+        IsAssignMode = false;
         await LoadAsync(resetItems: true);
         SelectedItem = Items.FirstOrDefault(x => x.ParzelleId == parzelleId);
         return true;
+    }
+
+    public void BeginAssignMode()
+    {
+        if (!CanStartAssign)
+            return;
+
+        IsEditMode = false;
+        SelectedAssignMember = null;
+        AssignVonDatum = DateTime.Today;
+        IsAssignMode = true;
+    }
+
+    public void CancelAssignMode()
+    {
+        SelectedAssignMember = null;
+        AssignVonDatum = DateTime.Today;
+        IsAssignMode = false;
+    }
+
+    public void BeginEditMode()
+    {
+        if (SelectedDetail == null)
+            return;
+
+        IsAssignMode = false;
+        SyncEditFieldsFromDetail(SelectedDetail);
+        IsEditMode = true;
+    }
+
+    public void CancelEditMode()
+    {
+        SyncEditFieldsFromDetail(SelectedDetail);
+        IsEditMode = false;
+    }
+
+    public bool HasFlaecheChanged()
+    {
+        return NormalizeFlaecheValue(SelectedDetail?.FlaecheQm) != NormalizeFlaecheValue(ParseEditableFlaeche());
+    }
+
+    public async Task<bool> SaveStammdatenAsync()
+    {
+        if (SelectedDetail == null || SelectedItem == null)
+            return false;
+
+        var parzelleId = SelectedDetail.ParzelleId;
+        var flaeche = ParseEditableFlaeche();
+        if (!string.IsNullOrWhiteSpace(EditFlaeche) && !flaeche.HasValue)
+        {
+            StatusMessage = "Die Fläche konnte nicht gelesen werden.";
+            return false;
+        }
+
+        var record = new ParzelleRecord
+        {
+            Id = parzelleId,
+            GartenNr = EditGartenNr?.Trim() ?? string.Empty,
+            Anlage = EditAnlage?.Trim() ?? string.Empty,
+            FlaecheQm = flaeche,
+            HatStrom = EditHatStrom,
+            HatWasser = EditHatWasser,
+            RfidStrom = NormalizeOptionalText(EditRfidStrom),
+            RfidWasser = NormalizeOptionalText(EditRfidWasser)
+        };
+
+        if (string.IsNullOrWhiteSpace(record.GartenNr))
+        {
+            StatusMessage = "Bitte eine Gartennummer angeben.";
+            return false;
+        }
+
+        var ok = await _supabaseService.UpdateParzelleStammdatenAsync(record);
+        StatusMessage = ok ? "Parzellen-Stammdaten gespeichert." : "Parzellen-Stammdaten konnten nicht gespeichert werden.";
+        if (!ok)
+            return false;
+
+        IsEditMode = false;
+        await LoadAsync(resetItems: true);
+        SelectedItem = Items.FirstOrDefault(x => x.ParzelleId == parzelleId);
+        return true;
+    }
+
+    public async Task SelectPreviousAsync()
+    {
+        if (!CanSelectPrevious || SelectedItem == null)
+            return;
+
+        SelectedItem = Items[Items.IndexOf(SelectedItem) - 1];
+        await Task.CompletedTask;
+    }
+
+    public async Task SelectNextAsync()
+    {
+        if (!CanSelectNext || SelectedItem == null)
+            return;
+
+        SelectedItem = Items[Items.IndexOf(SelectedItem) + 1];
+        await Task.CompletedTask;
+    }
+
+    public async Task<MemberDTO?> LoadAssignedMemberAsync()
+    {
+        if (SelectedDetail?.MitgliedId is not > 0)
+            return null;
+
+        var member = await _supabaseService.GetMitgliedByIdAsync(SelectedDetail.MitgliedId.Value);
+        return member == null ? null : ToMemberDto(member);
     }
 
     public async Task<bool> EndAssignmentAsync()
@@ -399,6 +662,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         if (!ok)
             return false;
 
+        IsAssignMode = false;
         await LoadAsync(resetItems: true);
         SelectedItem = Items.FirstOrDefault(x => x.ParzelleId == parzelleId);
         return true;
@@ -417,6 +681,8 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
                 AssignableMembers.Clear();
                 SelectedAssignMember = null;
                 ClearDetailCollections();
+                IsAssignMode = false;
+                IsEditMode = false;
             }
 
             var parzellen = await _supabaseService.GetAllParzellenAsync();
@@ -456,6 +722,9 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
                     StatusText = belegung != null ? "vergeben" : "frei"
                 });
             }
+
+            if (SelectedItem == null && Items.Count > 0)
+                SelectedItem = Items[0];
 
             StatusMessage = Items.Count == 0 ? "Keine Parzellen geladen." : string.Empty;
         }
@@ -567,6 +836,36 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
             Role = record.Role ?? string.Empty,
             MitgliedEnde = record.MitgliedEnde
         };
+    }
+
+    private void SyncEditFieldsFromDetail(ParzelleDetailDTO? detail)
+    {
+        EditGartenNr = detail?.GartenNr ?? string.Empty;
+        EditAnlage = detail?.Anlage ?? string.Empty;
+        EditFlaeche = detail?.FlaecheQm?.ToString("0.##", CultureInfo.CurrentCulture) ?? string.Empty;
+        EditHatStrom = detail?.HatStrom == true;
+        EditHatWasser = detail?.HatWasser == true;
+        EditRfidStrom = detail?.RfidStrom ?? string.Empty;
+        EditRfidWasser = detail?.RfidWasser ?? string.Empty;
+    }
+
+    private decimal? ParseEditableFlaeche()
+    {
+        if (string.IsNullOrWhiteSpace(EditFlaeche))
+            return null;
+
+        if (decimal.TryParse(EditFlaeche, NumberStyles.Number, CultureInfo.CurrentCulture, out var currentCultureValue))
+            return currentCultureValue;
+
+        if (decimal.TryParse(EditFlaeche, NumberStyles.Number, CultureInfo.InvariantCulture, out var invariantValue))
+            return invariantValue;
+
+        return null;
+    }
+
+    private static decimal? NormalizeFlaecheValue(decimal? value)
+    {
+        return value.HasValue ? decimal.Round(value.Value, 2) : null;
     }
 
     private static string? NormalizeOptionalText(string? value)

@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-03-27 – Prompt 3/3 Abschluss: begonnenen MAUI-Parzellen-/RFID-Block real validiert, direkte Restfehler korrigiert und für Commit/Push abgeschlossen
+
+- Vor dem Abschlusslauf erneut den echten Istzustand des begonnenen Blocks geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - alle real geänderten Dateien des Parzellen-/RFID-Blocks
+- Reale Bestätigung im Arbeitsbaum:
+  - geändert vorgefunden wurden genau
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Core/Models/ParzelleDetailDTO.cs`
+    - `KGV.Core/Models/ParzelleRecord.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Maui/Pages/ParzellenPage.cs`
+    - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+    - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
+  - WPF war in diesem Block real unverändert und wurde nicht erweitert
+  - `ParzellenPage` zeigt auf dem aktuellen Pfad nur noch reduzierte Stammdaten und die Belegung; frühere Zusatzblöcke für Zähler, Ablesungen und Dokumente sind aus der sichtbaren Verwaltung herausgenommen
+  - `ParzellenViewModel` liefert die reduzierte Detaildarstellung weiter über den bestehenden Produktivpfad `GetParzelleDetailAsync(...)` und hält die Bearbeitung/Stammdaten auf demselben Shared-Servicepfad
+- Fachabgleich des begonnenen Blocks:
+  - sichtbare Stammdaten der Parzellenverwaltung entsprechen exakt:
+    - `ID`
+    - `Garten Nr`
+    - `Fläche`
+    - `hat Wasser`
+    - `hat Strom`
+    - `rfid Wasser`
+    - `rfid Strom`
+    - `Anlage`
+  - `Belegung` arbeitet fachlich korrekt:
+    - frei -> `Zuweisen`
+    - belegt -> `Name, Vorname` als direkter Link/Button zur Mitgliedsstammdatenansicht
+  - die Schutzabfrage für `Fläche` ist real im Speichern-Pfad vorhanden und blockt die Änderung bis zur ausdrücklichen Bestätigung des Users
+- Reale Ursache des RFID-Problems:
+  - die Medium-Liste in `RfidEinrichtenViewModel` wurde auf dem begonnenen Zwischenstand nur aus `HatStrom` / `HatWasser` aufgebaut
+  - dadurch lief die Auswahl bei Parzellen mit inkonsistentem Datenstand leer, obwohl fachlich über vorhandene RFID oder aktive Zähler weiterhin ein belastbarer Medium-Kontext existieren konnte
+  - zusätzlich fehlte bisher die dazu passende zentrale Service-Wahrheit für denselben Auswahlentscheid
+- Minimal korrigiert, ohne neuen Fachumfang:
+  - `ISupabaseService` um `GetAvailableRfidMediumOptionsForParzelleAsync(...)` ergänzt
+  - `SupabaseService` bildet die Mediumsauswahl nun zentral aus vorhandener Ausstattung, hinterlegter RFID und aktivem Zähler; wenn kein belastbarer Ausstattungszustand ermittelbar ist, werden beide Medien angeboten statt leer zu bleiben
+  - dieselbe gemeinsame Logik wird in der RFID-Prüfung wiederverwendet; es wurde keine UI-Schattenlogik neben dem echten Servicepfad eingeführt
+  - `RfidEinrichtenViewModel` nutzt diese gemeinsame Service-Wahrheit asynchron für die Mediumsauswahl
+  - `ParzellenPage` compile-bedingt auf den real reduzierten C#-MAUI-Pfad bereinigt; keine neue Seite, keine neue Navigation, keine neue Architektur
+- Abschließende Validierung:
+  - dateibezogene Prüfung der direkt betroffenen Blockdateien blieb nach den Korrekturen unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
+  - im MAUI-Build blieben nur die bereits bekannten Warnungen (`XA1037`, Nullability in `HomeManagementPage.cs`)
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` war in diesem MAUI-Abschlusslauf nicht zwingend und wurde daher nicht zusätzlich ausgeführt
+- Abschlussstand:
+  - die Parzellenverwaltung ist fachlich reduziert und konsistent
+  - `RFID einrichten` läuft bei Parzellen ohne belastbaren Ausstattungszustand nicht mehr leer
+  - der begonnene Parzellen-/RFID-Block ist damit inhaltlich abgeschlossen; danach folgt nur noch der verpflichtende Git-Abschluss mit Commit/Push aller aktuellen Änderungen
+
 ## 2026-03-27 – Prompt 2/3 Abschluss: begonnenen Wartungsverträge-Nebenmitglieder-Block final abgeglichen und abgeschlossen
 
 - Vor dem Abschlusslauf erneut den echten Istzustand des begonnenen Blocks geprüft:

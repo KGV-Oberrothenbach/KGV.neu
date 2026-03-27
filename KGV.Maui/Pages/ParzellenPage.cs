@@ -1,12 +1,11 @@
 using KGV.Core.Models;
+using KGV.Maui;
+using KGV.Maui.State;
 using KGV.Maui.ViewModels;
-using Microsoft.Maui;
-using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
-using System.Collections.ObjectModel;
-using System.Linq;
+using System.Globalization;
 using System.Threading.Tasks;
 
 namespace KGV.Maui.Pages;
@@ -14,61 +13,27 @@ namespace KGV.Maui.Pages;
 public sealed class ParzellenPage : ContentPage
 {
     private readonly ParzellenViewModel _viewModel;
+    private readonly MemberContextState _memberContextState;
     private bool _initialized;
 
-    public ParzellenPage(ParzellenViewModel viewModel)
+    public ParzellenPage(ParzellenViewModel viewModel, MemberContextState memberContextState)
     {
         _viewModel = viewModel;
+        _memberContextState = memberContextState;
         BindingContext = _viewModel;
         Title = "Parzellen";
-
-        var currentReadings = new ObservableCollection<CurrentReadingItem>();
 
         var titleLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold };
         titleLabel.SetBinding(Label.TextProperty, nameof(ParzellenViewModel.Title));
 
-        var descriptionLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
+        var descriptionLabel = new Label { LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap };
         descriptionLabel.SetBinding(Label.TextProperty, nameof(ParzellenViewModel.Description));
 
-        var hintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+        var hintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap };
         hintLabel.SetBinding(Label.TextProperty, nameof(ParzellenViewModel.DetailHint));
 
         var refreshButton = new Button { Text = "Aktualisieren" };
         refreshButton.Clicked += async (_, _) => await _viewModel.RefreshAsync();
-
-        var parzellenView = new CollectionView
-        {
-            SelectionMode = SelectionMode.Single,
-            HeightRequest = 240,
-            ItemTemplate = new DataTemplate(() =>
-            {
-                var title = new Label { FontAttributes = FontAttributes.Bold };
-                title.SetBinding(Label.TextProperty, nameof(ParzelleVerwaltungItem.DisplayText));
-
-                var subtitle = new Label { FontSize = 12, TextColor = Colors.Gray };
-                subtitle.SetBinding(Label.TextProperty, nameof(ParzelleVerwaltungItem.MitgliedName));
-
-                return new VerticalStackLayout
-                {
-                    Padding = new Thickness(0, 8),
-                    Children = { title, subtitle }
-                };
-            })
-        };
-        parzellenView.SetBinding(ItemsView.ItemsSourceProperty, nameof(ParzellenViewModel.Items));
-        parzellenView.SetBinding(SelectableItemsView.SelectedItemProperty, nameof(ParzellenViewModel.SelectedItem), BindingMode.TwoWay);
-        parzellenView.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsContextBound), converter: new InverseBooleanConverter());
-
-        var selectionHint = new Label { Text = "Bitte Parzelle auswählen.", TextColor = Colors.Gray };
-        selectionHint.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowSelectionHint));
-
-        var contextInfoLabel = new Label
-        {
-            Text = "Gartenkontext aus dem ausgewählten Mitglied. Strom, Wasser und Garten-Dokumente werden darunter direkt geladen.",
-            TextColor = Colors.Gray,
-            LineBreakMode = LineBreakMode.WordWrap
-        };
-        contextInfoLabel.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsContextBound));
 
         var backToMemberButton = new Button { Text = "Zur Stammdatenansicht" };
         backToMemberButton.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsContextBound));
@@ -78,161 +43,114 @@ public sealed class ParzellenPage : ContentPage
         clearContextButton.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsContextBound));
         clearContextButton.Clicked += async (_, _) => await _viewModel.ClearRequestedContextAsync();
 
-        var detailContainer = new VerticalStackLayout { Spacing = 10 };
+        var selectionHint = new Label { Text = "Keine Parzelle ausgewählt.", TextColor = Colors.Gray };
+        selectionHint.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowSelectionHint));
+
+        var detailContainer = new VerticalStackLayout { Spacing = 12 };
         detailContainer.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.HasSelectedDetail));
-
-        detailContainer.Children.Add(CreateSection("Stammdaten",
-            CreateValueLabel("Parzellen-ID", "SelectedDetail.ParzelleId"),
-            CreateValueLabel("Garten", "SelectedDetail.GartenNr"),
-            CreateValueLabel("Anlage", "SelectedDetail.Anlage")));
-
-        detailContainer.Children.Add(CreateSection("Belegung / Zuordnung",
-            CreateValueLabel("Status", "SelectedDetail.StatusText"),
-            CreateValueLabel("Mitglied", "SelectedDetail.MitgliedDisplayText"),
-            CreateValueLabel("Kontakt", "SelectedDetail.MitgliedKontaktText"),
-            CreateValueLabel("Zeitraum", "SelectedDetail.BelegungText")));
-
-        detailContainer.Children.Add(CreateSection("Anschlüsse / Zähler",
-            CreateValueLabel("Aktiver Stromzähler", "SelectedDetail.AktiverStromzaehler.Zaehlernummer"),
-            CreateValueLabel("Strom eingebaut seit", "SelectedDetail.AktiverStromzaehler.EingebautAm"),
-            CreateValueLabel("Aktiver Wasserzähler", "SelectedDetail.AktiverWasserzaehler.Zaehlernummer"),
-            CreateValueLabel("Wasser eingebaut seit", "SelectedDetail.AktiverWasserzaehler.EingebautAm"),
-            CreateBoundLabel("SelectedDetail.StromStatusText"),
-            CreateBoundLabel("SelectedDetail.WasserStatusText")));
-
-        var documentsLabel = CreateBoundLabel("SelectedDetail.DokumenteText");
-        var documentsView = new CollectionView
+        detailContainer.GestureRecognizers.Add(new SwipeGestureRecognizer
         {
-            SelectionMode = SelectionMode.Single,
-            HeightRequest = 180,
-            ItemTemplate = new DataTemplate(() =>
+            Direction = Microsoft.Maui.SwipeDirection.Left,
+            Command = new Command(async () => await _viewModel.SelectNextAsync())
+        });
+        detailContainer.GestureRecognizers.Add(new SwipeGestureRecognizer
+        {
+            Direction = Microsoft.Maui.SwipeDirection.Right,
+            Command = new Command(async () => await _viewModel.SelectPreviousAsync())
+        });
+
+        var currentParzelleLabel = new Label { FontSize = 20, FontAttributes = FontAttributes.Bold };
+        currentParzelleLabel.SetBinding(Label.TextProperty, nameof(ParzellenViewModel.SelectedParzelleDisplayName));
+
+        var editButton = new Button { Text = "Stammdaten bearbeiten" };
+        editButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanManageAssignment));
+        editButton.Clicked += (_, _) => _viewModel.BeginEditMode();
+
+        detailContainer.Children.Add(new Border
+        {
+            Stroke = Colors.LightGray,
+            Padding = 12,
+            Content = new VerticalStackLayout
             {
-                var name = new Label { FontAttributes = FontAttributes.Bold };
-                name.SetBinding(Label.TextProperty, nameof(DocumentInfo.Name));
-
-                var updatedAt = new Label { FontSize = 12, TextColor = Colors.Gray };
-                updatedAt.SetBinding(Label.TextProperty, new Binding(nameof(DocumentInfo.UpdatedAt), stringFormat: "{0:dd.MM.yyyy HH:mm}"));
-
-                return new VerticalStackLayout
+                Spacing = 10,
+                Children =
                 {
-                    Padding = new Thickness(0, 6),
-                    Children = { name, updatedAt }
-                };
-            })
-        };
-        documentsView.SetBinding(ItemsView.ItemsSourceProperty, "SelectedDetail.DokumenteVorschau");
-        documentsView.SetBinding(IsVisibleProperty, "SelectedDetail.HasDokumente");
-        documentsView.SelectionChanged += async (_, e) =>
+                    currentParzelleLabel,
+                    CreateSection("Stammdaten",
+                        CreateValueLabel("ID", "SelectedDetail.ParzelleId"),
+                        CreateValueLabel("Garten Nr", "SelectedDetail.GartenNr"),
+                        CreateValueLabel("Fläche", "SelectedDetail.FlaecheText"),
+                        CreateValueLabel("hat Wasser", "SelectedDetail.HatWasserText"),
+                        CreateValueLabel("hat Strom", "SelectedDetail.HatStromText"),
+                        CreateValueLabel("rfid Wasser", "SelectedDetail.RfidWasserText"),
+                        CreateValueLabel("rfid Strom", "SelectedDetail.RfidStromText"),
+                        CreateValueLabel("Anlage", "SelectedDetail.Anlage"),
+                        editButton)
+                }
+            }
+        });
+
+        var editSection = CreateSection("Stammdaten bearbeiten",
+            CreateEditorEntry("Garten Nr", nameof(ParzellenViewModel.EditGartenNr)),
+            CreateEditorEntry("Fläche", nameof(ParzellenViewModel.EditFlaeche)),
+            CreateEditorSwitch("hat Wasser", nameof(ParzellenViewModel.EditHatWasser)),
+            CreateEditorSwitch("hat Strom", nameof(ParzellenViewModel.EditHatStrom)),
+            CreateEditorEntry("rfid Wasser", nameof(ParzellenViewModel.EditRfidWasser)),
+            CreateEditorEntry("rfid Strom", nameof(ParzellenViewModel.EditRfidStrom)),
+            CreateEditorEntry("Anlage", nameof(ParzellenViewModel.EditAnlage)));
+        editSection.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsEditMode));
+
+        var saveStammdatenButton = new Button { Text = "Stammdaten speichern" };
+        saveStammdatenButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanSaveStammdaten));
+        saveStammdatenButton.Clicked += async (_, _) => await SaveStammdatenAsync();
+
+        var cancelEditButton = new Button { Text = "Bearbeiten abbrechen" };
+        cancelEditButton.Clicked += (_, _) => _viewModel.CancelEditMode();
+
+        if (editSection.Content is VerticalStackLayout editSectionLayout)
         {
-            var document = e.CurrentSelection?.FirstOrDefault() as DocumentInfo;
-            if (document != null)
-                await _viewModel.OpenDocumentAsync(document);
+            editSectionLayout.Children.Add(new HorizontalStackLayout
+            {
+                Spacing = 8,
+                Children = { cancelEditButton, saveStammdatenButton }
+            });
+        }
+        detailContainer.Children.Add(editSection);
 
-            documentsView.SelectedItem = null;
-        };
-
-        var currentReadingsEmptyLabel = new Label
+        var assignedMemberButton = new Button
         {
-            Text = "Aktuell liegen keine belastbaren Ablesedaten vor.",
-            TextColor = Colors.Gray,
-            LineBreakMode = LineBreakMode.WordWrap
+            BackgroundColor = Colors.Transparent,
+            TextColor = Colors.DarkBlue,
+            HorizontalOptions = LayoutOptions.Start,
+            Padding = new Microsoft.Maui.Thickness(0)
         };
+        assignedMemberButton.SetBinding(Button.TextProperty, "SelectedDetail.MitgliedDisplayText");
+        assignedMemberButton.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.HasAssignedMember));
+        assignedMemberButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanOpenAssignedMember));
+        assignedMemberButton.Clicked += async (_, _) => await OpenAssignedMemberAsync();
 
-        var currentReadingsHeader = new Grid
+        var unassignedLayout = new VerticalStackLayout { Spacing = 8 };
+        unassignedLayout.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.HasAssignedMember), converter: new InverseBooleanConverter());
+        var startAssignButton = new Button { Text = "Zuweisen" };
+        startAssignButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanStartAssign));
+        startAssignButton.Clicked += (_, _) => _viewModel.BeginAssignMode();
+        unassignedLayout.Children.Add(new Label { Text = "Aktuell keiner Person zugeordnet.", LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap });
+        unassignedLayout.Children.Add(startAssignButton);
+
+        var assignedLayout = new VerticalStackLayout { Spacing = 8 };
+        assignedLayout.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.HasAssignedMember));
+        assignedLayout.Children.Add(assignedMemberButton);
+        assignedLayout.Children.Add(CreateBoundLabel("SelectedDetail.BelegungText"));
+
+        var endAssignmentButton = new Button { Text = "Belegung beenden" };
+        endAssignmentButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanEndAssignment));
+        endAssignmentButton.Clicked += async (_, _) =>
         {
-            ColumnDefinitions =
-            {
-                new ColumnDefinition { Width = new GridLength(1.15, GridUnitType.Star) },
-                new ColumnDefinition { Width = new GridLength(1.2, GridUnitType.Star) },
-                new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) },
-                new ColumnDefinition { Width = new GridLength(0.8, GridUnitType.Star) }
-            },
-            ColumnSpacing = 12,
-            Padding = new Thickness(0, 0, 0, 6)
+            var ok = await _viewModel.EndAssignmentAsync();
+            if (ok)
+                await DisplayAlert("OK", "Aktive Belegung beendet.", "OK");
         };
-        currentReadingsHeader.Children.Add(CreateTableHeaderLabel("Medium", 0));
-        currentReadingsHeader.Children.Add(CreateTableHeaderLabel("Letzter Stand", 1));
-        currentReadingsHeader.Children.Add(CreateTableHeaderLabel("Datum", 2));
-        currentReadingsHeader.Children.Add(CreateTableHeaderLabel("Foto", 3));
-
-        var currentReadingsView = new CollectionView
-        {
-            SelectionMode = SelectionMode.None,
-            ItemsSource = currentReadings,
-            ItemTemplate = new DataTemplate(() =>
-            {
-                var rowGrid = new Grid
-                {
-                    ColumnDefinitions =
-                    {
-                        new ColumnDefinition { Width = new GridLength(1.15, GridUnitType.Star) },
-                        new ColumnDefinition { Width = new GridLength(1.2, GridUnitType.Star) },
-                        new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) },
-                        new ColumnDefinition { Width = new GridLength(0.8, GridUnitType.Star) }
-                    },
-                    ColumnSpacing = 12,
-                    Padding = new Thickness(0, 8)
-                };
-
-                var mediumLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
-                mediumLabel.SetBinding(Label.TextProperty, nameof(CurrentReadingItem.Medium));
-                Grid.SetColumn(mediumLabel, 0);
-
-                var standLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
-                standLabel.SetBinding(Label.TextProperty, nameof(CurrentReadingItem.StandValue));
-                Grid.SetColumn(standLabel, 1);
-
-                var dateLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
-                dateLabel.SetBinding(Label.TextProperty, nameof(CurrentReadingItem.DateValue));
-                Grid.SetColumn(dateLabel, 2);
-
-                var photoButton = new Button { Text = "Öffnen", Padding = new Thickness(10, 4) };
-                photoButton.SetBinding(IsVisibleProperty, nameof(CurrentReadingItem.HasPhoto));
-                photoButton.Clicked += async (sender, _) =>
-                {
-                    if (sender is Button button && button.BindingContext is CurrentReadingItem item)
-                        await OpenPhotoAsync(item);
-                };
-                Grid.SetColumn(photoButton, 3);
-
-                rowGrid.Children.Add(mediumLabel);
-                rowGrid.Children.Add(standLabel);
-                rowGrid.Children.Add(dateLabel);
-                rowGrid.Children.Add(photoButton);
-
-                return new VerticalStackLayout
-                {
-                    Spacing = 0,
-                    Children =
-                    {
-                        rowGrid,
-                        new BoxView { HeightRequest = 1, Color = Colors.LightGray }
-                    }
-                };
-            })
-        };
-
-        detailContainer.Children.Add(CreateSection("Aktuelle Ablesedaten",
-            new Label
-            {
-                Text = "Im Parzellen-Detail bleibt nur der aktuelle ReadOnly-Kontext sichtbar. Operative Ablesungen und Zählerwechsel laufen fachlich weiterhin im eigenen Bereich `Ablesen`.",
-                TextColor = Colors.Gray,
-                LineBreakMode = LineBreakMode.WordWrap
-            },
-            currentReadingsHeader,
-            currentReadingsView,
-            currentReadingsEmptyLabel));
-
-        documentsView.SetBinding(ItemsView.ItemsSourceProperty, nameof(ParzellenViewModel.Dokumente));
-        detailContainer.Children.Add(CreateSection("Garten-Dokumente",
-            documentsLabel,
-            new Label
-            {
-                Text = "Mitgliedsdokumente bleiben in den Stammdaten; hier werden die Dokumente der ausgewählten Parzelle angezeigt.",
-                TextColor = Colors.Gray,
-                LineBreakMode = LineBreakMode.WordWrap
-            },
-            documentsView));
+        assignedLayout.Children.Add(endAssignmentButton);
 
         var assignPicker = new Picker { Title = "Mitglied auswählen" };
         assignPicker.SetBinding(Picker.ItemsSourceProperty, nameof(ParzellenViewModel.AssignableMembers));
@@ -244,76 +162,74 @@ public sealed class ParzellenPage : ContentPage
         assignDatePicker.SetBinding(DatePicker.DateProperty, nameof(ParzellenViewModel.AssignVonDatum), BindingMode.TwoWay);
         assignDatePicker.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanManageAssignment));
 
-        var assignButton = new Button { Text = "Zuordnen" };
-        assignButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanAssign));
-        assignButton.Clicked += async (_, _) =>
+        var saveAssignButton = new Button { Text = "Zuweisung speichern" };
+        saveAssignButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanAssign));
+        saveAssignButton.Clicked += async (_, _) =>
         {
             var ok = await _viewModel.AssignAsync();
             if (ok)
                 await DisplayAlert("OK", "Parzelle erfolgreich zugeordnet.", "OK");
         };
 
-        var endButton = new Button { Text = "Aktive Belegung beenden" };
-        endButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanEndAssignment));
-        endButton.Clicked += async (_, _) =>
-        {
-            var ok = await _viewModel.EndAssignmentAsync();
-            if (ok)
-                await DisplayAlert("OK", "Aktive Belegung beendet.", "OK");
-        };
+        var cancelAssignButton = new Button { Text = "Zuweisen abbrechen" };
+        cancelAssignButton.Clicked += (_, _) => _viewModel.CancelAssignMode();
 
-        var managementSection = CreateSection("Verwaltung",
-            CreateValueLabel("Mitglied zuordnen", null),
-            assignPicker,
-            CreateValueLabel("Start", null),
-            assignDatePicker,
-            new HorizontalStackLayout
+        var assignSection = CreateSection("Belegung zuweisen",
+            CreateEditorField("Mitglied", assignPicker),
+            CreateEditorField("Start", assignDatePicker),
+            cancelAssignButton,
+            saveAssignButton);
+        assignSection.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsAssignMode));
+
+        detailContainer.Children.Add(CreateSection("Belegung",
+            CreateValueLabel("Status", "SelectedDetail.StatusText"),
+            assignedLayout,
+            unassignedLayout,
+            assignSection));
+
+        var previousButton = new Button { Text = "Vorherige" };
+        previousButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanSelectPrevious));
+        previousButton.Clicked += async (_, _) => await _viewModel.SelectPreviousAsync();
+
+        var navigationLabel = new Label
+        {
+            HorizontalOptions = LayoutOptions.Center,
+            VerticalTextAlignment = Microsoft.Maui.TextAlignment.Center,
+            HorizontalTextAlignment = Microsoft.Maui.TextAlignment.Center
+        };
+        navigationLabel.SetBinding(Label.TextProperty, nameof(ParzellenViewModel.NavigationText));
+
+        var nextButton = new Button { Text = "Nächste" };
+        nextButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanSelectNext));
+        nextButton.Clicked += async (_, _) => await _viewModel.SelectNextAsync();
+
+        var navigationGrid = new Grid
+        {
+            ColumnDefinitions =
             {
-                Spacing = 8,
-                Children = { assignButton, endButton }
+                new ColumnDefinition { Width = Microsoft.Maui.GridLength.Star },
+                new ColumnDefinition { Width = Microsoft.Maui.GridLength.Auto },
+                new ColumnDefinition { Width = Microsoft.Maui.GridLength.Star }
             },
+            ColumnSpacing = 8
+        };
+        navigationGrid.Children.Add(previousButton);
+        Grid.SetColumn(previousButton, 0);
+        navigationGrid.Children.Add(navigationLabel);
+        Grid.SetColumn(navigationLabel, 1);
+        navigationGrid.Children.Add(nextButton);
+        Grid.SetColumn(nextButton, 2);
+
+        detailContainer.Children.Add(CreateSection("Navigation",
             new Label
             {
-                Text = "Zuordnung und Beendigung laufen mobil über denselben Parzellen-Belegungspfad wie in WPF.",
+                Text = "Per Buttons oder Wischgeste zwischen den Parzellen wechseln.",
                 TextColor = Colors.Gray,
-                LineBreakMode = LineBreakMode.WordWrap
-            });
-        managementSection.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsContextBound), converter: new InverseBooleanConverter());
-        detailContainer.Children.Add(managementSection);
+                LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap
+            },
+            navigationGrid));
 
-        void RebuildCurrentReadings()
-        {
-            currentReadings.Clear();
-
-            AddReading("Strom", _viewModel.StromAblesungen.FirstOrDefault());
-            AddReading("Wasser", _viewModel.WasserAblesungen.FirstOrDefault());
-
-            currentReadingsEmptyLabel.IsVisible = currentReadings.Count == 0;
-            currentReadingsView.IsVisible = currentReadings.Count > 0;
-        }
-
-        void AddReading(string medium, ZaehlerAblesungDTO? reading)
-        {
-            if (reading == null)
-                return;
-
-            currentReadings.Add(new CurrentReadingItem(
-                medium,
-                reading.Stand.ToString(),
-                reading.Ablesedatum.ToString("dd.MM.yyyy"),
-                reading.FotoPfad));
-        }
-
-        _viewModel.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(ParzellenViewModel.SelectedDetail))
-                RebuildCurrentReadings();
-        };
-        _viewModel.StromAblesungen.CollectionChanged += (_, _) => RebuildCurrentReadings();
-        _viewModel.WasserAblesungen.CollectionChanged += (_, _) => RebuildCurrentReadings();
-        RebuildCurrentReadings();
-
-        var statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
+        var statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap };
         statusLabel.SetBinding(Label.TextProperty, nameof(ParzellenViewModel.StatusMessage));
         statusLabel.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.HasStatusMessage));
 
@@ -328,11 +244,9 @@ public sealed class ParzellenPage : ContentPage
                     titleLabel,
                     descriptionLabel,
                     hintLabel,
-                    contextInfoLabel,
                     backToMemberButton,
                     clearContextButton,
                     refreshButton,
-                    parzellenView,
                     selectionHint,
                     detailContainer,
                     statusLabel
@@ -356,7 +270,42 @@ public sealed class ParzellenPage : ContentPage
         await _viewModel.RefreshSelectedDetailAsync();
     }
 
-    private static View CreateSection(string title, params View[] children)
+    private async Task SaveStammdatenAsync()
+    {
+        if (_viewModel.HasFlaecheChanged())
+        {
+            var confirm = await DisplayAlert(
+                "Fläche wirklich ändern?",
+                "Die Fläche wirkt fachlich in weitere Auswertungen hinein. Soll die neue Fläche wirklich gespeichert werden?",
+                "Ja, speichern",
+                "Abbrechen");
+
+            if (!confirm)
+                return;
+        }
+
+        var ok = await _viewModel.SaveStammdatenAsync();
+        if (ok)
+            await DisplayAlert("OK", "Parzellen-Stammdaten gespeichert.", "OK");
+    }
+
+    private async Task OpenAssignedMemberAsync()
+    {
+        var member = await _viewModel.LoadAssignedMemberAsync();
+        if (member == null)
+        {
+            await DisplayAlert("Stammdaten", "Das zugeordnete Mitglied konnte nicht geladen werden.", "OK");
+            return;
+        }
+
+        _memberContextState.SetSelectedMember(member);
+        if (Shell.Current is IAppShellInitializer shellInitializer)
+            shellInitializer.BuildMenu();
+
+        await Shell.Current.GoToAsync("//memberdetails");
+    }
+
+    private static Border CreateSection(string title, params View[] children)
     {
         var stack = new VerticalStackLayout { Spacing = 8 };
         stack.Children.Add(new Label { Text = title, FontAttributes = FontAttributes.Bold });
@@ -371,29 +320,7 @@ public sealed class ParzellenPage : ContentPage
         };
     }
 
-    private Label CreateBoundLabel(string path)
-    {
-        var label = new Label { LineBreakMode = LineBreakMode.WordWrap };
-        label.SetBinding(Label.TextProperty, path);
-        return label;
-    }
-
-    private static Label CreateTableHeaderLabel(string text, int column)
-    {
-        var label = new Label
-        {
-            Text = text,
-            FontAttributes = FontAttributes.Bold,
-            FontSize = 12,
-            TextColor = Colors.Gray,
-            LineBreakMode = LineBreakMode.WordWrap
-        };
-
-        Grid.SetColumn(label, column);
-        return label;
-    }
-
-    private View CreateValueLabel(string title, string? path)
+    private static View CreateValueLabel(string title, string path)
     {
         return new VerticalStackLayout
         {
@@ -401,43 +328,52 @@ public sealed class ParzellenPage : ContentPage
             Children =
             {
                 new Label { Text = title, FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
-                string.IsNullOrWhiteSpace(path) ? new Label() : CreateBoundLabel(path)
+                CreateBoundLabel(path)
             }
         };
-     }
-
-    private async Task OpenPhotoAsync(CurrentReadingItem item)
-    {
-        if (!item.HasPhoto || string.IsNullOrWhiteSpace(item.PhotoPath))
-            return;
-
-        try
-        {
-            await Launcher.Default.OpenAsync(item.PhotoPath);
-        }
-        catch (Exception)
-        {
-            await DisplayAlert("Foto", "Der Fotopfad konnte auf diesem Gerät nicht direkt geöffnet werden.", "OK");
-        }
     }
 
-    private static bool TryParseDecimal(string? value, out decimal result)
+    private static View CreateEditorEntry(string title, string path)
     {
-        return decimal.TryParse(value, out result)
-               || decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out result);
+        var entry = new Entry();
+        entry.SetBinding(InputView.TextProperty, path, BindingMode.TwoWay);
+
+        return CreateEditorField(title, entry);
     }
 
-    private sealed record CurrentReadingItem(string Medium, string StandValue, string DateValue, string? PhotoPath)
+    private static View CreateEditorSwitch(string title, string path)
     {
-        public bool HasPhoto => !string.IsNullOrWhiteSpace(PhotoPath);
+        var control = new Switch();
+        control.SetBinding(Switch.IsToggledProperty, path, BindingMode.TwoWay);
+        return CreateEditorField(title, control);
+    }
+
+    private static View CreateEditorField(string title, View control)
+    {
+        return new VerticalStackLayout
+        {
+            Spacing = 4,
+            Children =
+            {
+                new Label { Text = title, FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+                control
+            }
+        };
+    }
+
+    private static Label CreateBoundLabel(string path)
+    {
+        var label = new Label { LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap };
+        label.SetBinding(Label.TextProperty, path);
+        return label;
     }
 
     private sealed class InverseBooleanConverter : IValueConverter
     {
-        public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-            => value is bool b ? !b : true;
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+            => value is bool flag ? !flag : true;
 
-        public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotSupportedException();
     }
- }
+}

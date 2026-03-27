@@ -176,6 +176,11 @@ namespace KGV.Infrastructure.Services
                     BelegungId = belegung?.Id,
                     GartenNr = parzelle.GartenNr,
                     Anlage = parzelle.Anlage,
+                    FlaecheQm = parzelle.FlaecheQm,
+                    HatStrom = parzelle.HatStrom,
+                    HatWasser = parzelle.HatWasser,
+                    RfidStrom = parzelle.RfidStrom,
+                    RfidWasser = parzelle.RfidWasser,
                     IstVergeben = belegung != null,
                     MitgliedId = belegung?.MitgliedId,
                     MitgliedName = FormatMemberName(mitglied),
@@ -190,6 +195,46 @@ namespace KGV.Infrastructure.Services
                 };
             },
             null);
+
+        public Task<bool> UpdateParzelleStammdatenAsync(ParzelleRecord record) => ExecuteAsync(
+            "UpdateParzelleStammdatenAsync",
+            async () =>
+            {
+                if (record == null || record.Id <= 0 || string.IsNullOrWhiteSpace(record.GartenNr))
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client
+                    .From<ParzelleRecord>()
+                    .Where(x => x.Id == record.Id)
+                    .Set(x => x.GartenNr, record.GartenNr.Trim())
+                    .Set(x => x.Anlage, record.Anlage?.Trim() ?? string.Empty)
+                    .Set(x => x.FlaecheQm, record.FlaecheQm)
+                    .Set(x => x.HatStrom, record.HatStrom)
+                    .Set(x => x.HatWasser, record.HatWasser)
+                    .Set(x => x.RfidStrom, NormalizeRfidTagUid(record.RfidStrom))
+                    .Set(x => x.RfidWasser, NormalizeRfidTagUid(record.RfidWasser))
+                    .Update();
+
+                return true;
+            },
+            false);
+
+        public Task<List<RfidMediumOption>> GetAvailableRfidMediumOptionsForParzelleAsync(int parzelleId) => ExecuteAsync(
+            "GetAvailableRfidMediumOptionsForParzelleAsync",
+            async () =>
+            {
+                if (parzelleId <= 0)
+                    return new List<RfidMediumOption>();
+
+                var client = await EnsureClientAsync();
+                var parzelle = await GetParzelleByIdInternalAsync(client, parzelleId);
+                if (parzelle == null)
+                    return new List<RfidMediumOption>();
+
+                return await GetAvailableRfidMediumOptionsInternalAsync(parzelle);
+            },
+            new List<RfidMediumOption>());
 
         public Task<RfidAssignmentCheckResult> CheckParzelleRfidAssignmentAsync(int parzelleId, string medium, string uid) => ExecuteAsync(
             "CheckParzelleRfidAssignmentAsync",
@@ -3449,22 +3494,13 @@ namespace KGV.Infrastructure.Services
                 };
             }
 
-            if (normalizedMedium == "strom" && !parzelle.HatStrom)
+            var availableMediums = await GetAvailableRfidMediumOptionsInternalAsync(parzelle);
+            if (availableMediums.All(x => !string.Equals(x.Key, normalizedMedium, StringComparison.OrdinalIgnoreCase)))
             {
                 return new RfidAssignmentCheckResult
                 {
                     IsValid = false,
-                    Message = "Für diese Parzelle ist kein Stromanschluss hinterlegt.",
-                    NormalizedUid = normalizedUid
-                };
-            }
-
-            if (normalizedMedium == "wasser" && !parzelle.HatWasser)
-            {
-                return new RfidAssignmentCheckResult
-                {
-                    IsValid = false,
-                    Message = "Für diese Parzelle ist kein Wasseranschluss hinterlegt.",
+                    Message = "Das gewählte Medium ist für diese Parzelle aktuell nicht auswählbar.",
                     NormalizedUid = normalizedUid
                 };
             }
@@ -3525,6 +3561,36 @@ namespace KGV.Infrastructure.Services
                 NormalizedUid = normalizedUid,
                 CurrentTargetRfid = string.Empty
             };
+        }
+
+        private async Task<List<RfidMediumOption>> GetAvailableRfidMediumOptionsInternalAsync(ParzelleRecord parzelle)
+        {
+            var options = new List<RfidMediumOption>();
+            if (parzelle == null || parzelle.Id <= 0)
+                return options;
+
+            var today = DateTime.Today;
+            var hasStromContext = parzelle.HatStrom
+                || !string.IsNullOrWhiteSpace(NormalizeRfidTagUid(parzelle.RfidStrom))
+                || await GetActiveStromzaehlerAsync(parzelle.Id, today) != null;
+
+            var hasWasserContext = parzelle.HatWasser
+                || !string.IsNullOrWhiteSpace(NormalizeRfidTagUid(parzelle.RfidWasser))
+                || await GetActiveWasserzaehlerAsync(parzelle.Id, today) != null;
+
+            if (hasStromContext)
+                options.Add(new RfidMediumOption("strom", "Strom"));
+
+            if (hasWasserContext)
+                options.Add(new RfidMediumOption("wasser", "Wasser"));
+
+            if (options.Count == 0)
+            {
+                options.Add(new RfidMediumOption("strom", "Strom"));
+                options.Add(new RfidMediumOption("wasser", "Wasser"));
+            }
+
+            return options;
         }
 
         private static string? NormalizeRfidTagUid(string? uid)

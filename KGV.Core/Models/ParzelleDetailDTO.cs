@@ -10,6 +10,11 @@ namespace KGV.Core.Models
         public int? BelegungId { get; set; }
         public string GartenNr { get; set; } = string.Empty;
         public string Anlage { get; set; } = string.Empty;
+        public decimal? FlaecheQm { get; set; }
+        public bool HatStrom { get; set; }
+        public bool HatWasser { get; set; }
+        public string? RfidStrom { get; set; }
+        public string? RfidWasser { get; set; }
         public bool IstVergeben { get; set; }
         public int? MitgliedId { get; set; }
         public string MitgliedName { get; set; } = string.Empty;
@@ -23,6 +28,11 @@ namespace KGV.Core.Models
         public List<DocumentInfo> Dokumente { get; set; } = new();
 
         public string DisplayName => string.IsNullOrWhiteSpace(Anlage) ? GartenNr : $"{GartenNr} - {Anlage}";
+        public string FlaecheText => FlaecheQm.HasValue ? $"{FlaecheQm.Value:0.##} m²" : "Nicht hinterlegt";
+        public string HatStromText => HatStrom ? "Ja" : "Nein";
+        public string HatWasserText => HatWasser ? "Ja" : "Nein";
+        public string RfidStromText => string.IsNullOrWhiteSpace(RfidStrom) ? "Nicht hinterlegt" : RfidStrom.Trim();
+        public string RfidWasserText => string.IsNullOrWhiteSpace(RfidWasser) ? "Nicht hinterlegt" : RfidWasser.Trim();
         public string StatusText => IstVergeben ? "vergeben" : "frei";
         public string MitgliedDisplayText => string.IsNullOrWhiteSpace(MitgliedName) ? "Kein Mitglied zugeordnet." : MitgliedName;
         public string MitgliedKontaktText => string.IsNullOrWhiteSpace(MitgliedEmail) ? "Keine E-Mail hinterlegt." : MitgliedEmail;

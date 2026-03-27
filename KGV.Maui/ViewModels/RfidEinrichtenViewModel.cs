@@ -80,7 +80,7 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(HasSelectedParzelle));
             OnPropertyChanged(nameof(CurrentStromRfid));
             OnPropertyChanged(nameof(CurrentWasserRfid));
-            RefreshMediumOptions();
+            _ = RefreshMediumOptionsAsync();
             ResetCheckState();
         }
     }
@@ -307,18 +307,30 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
         }
     }
 
-    private void RefreshMediumOptions()
+    private async Task RefreshMediumOptionsAsync()
     {
         MediumOptions.Clear();
 
-        if (SelectedParzelle?.HatStrom == true)
-            MediumOptions.Add(new RfidMediumOption("strom", "Strom"));
-
-        if (SelectedParzelle?.HatWasser == true)
-            MediumOptions.Add(new RfidMediumOption("wasser", "Wasser"));
-
-        if (SelectedMedium != null && MediumOptions.All(x => x.Key != SelectedMedium.Key))
+        var selectedParzelle = SelectedParzelle;
+        if (selectedParzelle == null)
+        {
             SelectedMedium = null;
+            OnPropertyChanged(nameof(CanCheck));
+            OnPropertyChanged(nameof(CanSave));
+            return;
+        }
+
+        var previousMediumKey = SelectedMedium?.Key;
+        var options = await _supabaseService.GetAvailableRfidMediumOptionsForParzelleAsync(selectedParzelle.Id);
+        if (SelectedParzelle?.Id != selectedParzelle.Id)
+            return;
+
+        foreach (var option in options)
+            MediumOptions.Add(option);
+
+        SelectedMedium = previousMediumKey == null
+            ? MediumOptions.Count == 1 ? MediumOptions[0] : null
+            : MediumOptions.FirstOrDefault(x => x.Key == previousMediumKey);
 
         OnPropertyChanged(nameof(CanCheck));
         OnPropertyChanged(nameof(CanSave));
