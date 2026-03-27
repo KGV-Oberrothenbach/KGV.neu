@@ -77,6 +77,23 @@ public abstract class RfidScanWorkflowPage : ContentPage
         };
         contextBorder.SetBinding(IsVisibleProperty, nameof(RfidScanContextViewModel.HasResolution));
 
+        var decisionBorder = new Border
+        {
+            Stroke = Colors.LightGray,
+            Padding = 14,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(14) },
+            Content = new VerticalStackLayout
+            {
+                Spacing = 6,
+                Children =
+                {
+                    new Label { Text = workflowSectionTitle, FontAttributes = FontAttributes.Bold },
+                    _decisionLabel
+                }
+            }
+        };
+        decisionBorder.SetBinding(IsVisibleProperty, nameof(RfidScanContextViewModel.HasResolution));
+
         _decisionLabel.Text = _decisionFactory(_scanContext.Resolution);
 
         Content = new ScrollView
@@ -111,23 +128,7 @@ public abstract class RfidScanWorkflowPage : ContentPage
                     },
                     statusLabel,
                     contextBorder,
-                    new Border
-                    {
-                        Stroke = Colors.LightGray,
-                        Padding = 14,
-                        StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(14) },
-                        Content = new VerticalStackLayout
-                        {
-                            Spacing = 6,
-                            Children =
-                            {
-                                new Label { Text = workflowSectionTitle, FontAttributes = FontAttributes.Bold },
-                                _decisionLabel
-                            }
-                        }
-                    },
-                    CreateFallbackSection(),
-                    CreateManualEmergencySection(),
+                    decisionBorder,
                     backToOverviewButton
                 }
             }

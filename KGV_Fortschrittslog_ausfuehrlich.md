@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-03-27 – Prompt 1/1: MAUI-RFID-Flows fachlich auf `Scan-first` zurückgezogen und NFC-Einstellungsweg erhalten
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrücklich nur die fachlich relevanten WPF-Referenz- sowie direkt betroffenen MAUI-Dateien geprüft:
+  - WPF nur lesend als fachliche Referenz:
+    - `KGV.Wpf/Views/AblesenOverviewView.xaml`
+    - `KGV.Wpf/Views/ZaehlerwechselScanView.xaml`
+    - `KGV.Wpf/Views/RfidScanContextView.xaml`
+    - `KGV.Wpf/ViewModels/RfidEinrichtenViewModel.cs`
+    - `KGV.Wpf/ViewModels/ZaehlerwechselScanViewModel.cs`
+    - `KGV.Wpf/ViewModels/RfidScanContextViewModel.cs`
+  - aktive MAUI-RFID-Pfade:
+    - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
+    - `KGV.Maui/Pages/RfidScanWorkflowPage.cs`
+    - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+    - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+    - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+    - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
+    - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+    - `KGV.Maui/Services/INfcScanService.cs`
+  - gezielte Dateivalidierung der direkt betroffenen RFID-Dateien
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+  - Git-Status nur zur Blockeingrenzung, ohne blockfremde Dateien anzufassen
+- WPF wurde in diesem Block bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen Stand vor Umsetzung:
+  - der aktive MAUI-Einstieg `RfidEinrichtenPage` war fachlich nicht mehr scan-first, weil bereits auf dem ersten Screen `Parzelle`, `Medium`, Prüfen und Speichern sichtbar waren
+  - der gemeinsame MAUI-Scanpfad `RfidScanWorkflowPage` zeigte für `Ablesen` und `Zählerwechsel` schon am Einstieg zusätzliche Kontext-/Fallback-Bereiche statt zuerst nur den Scan
+  - der bestehende NFC-aus-Hinweis mit der direkten Öffnung der NFC-Systemeinstellungen war im aktuellen MAUI-Pfad gut vorhanden und durfte nicht verloren gehen
+  - WPF diente in diesem Block nur als fachliche Referenz für den gewünschten Start über den Scan; es wurde kein WPF-Code geändert
+  - direkt benachbart lag in `AblesenOverviewPage.cs` zusätzlich ein gleichartiger MAUI-Compilefehler durch fehlende Usings vor; da die Seite direkt zum betroffenen RFID-Einstieg gehört, wurde dieser kleine Compilepunkt mitgenommen
+- Den Korrekturblock deshalb bewusst klein und nur auf die direkt betroffenen RFID-Flows begrenzt umgesetzt:
+  - `RfidEinrichtenViewModel` um einen vorgeschalteten Scan-/Existenzprüfungsschritt ergänzt:
+    - gescannte UID wird jetzt zuerst über den vorhandenen Produktivpfad `ResolveRfidScanContextAsync(...)` global geprüft
+    - ist der Tag bereits bekannt, erscheint eine klare Meldung und der normale Speichern-Flow bleibt gesperrt
+    - ist der Tag unbekannt, wird erst dann der zweite Schritt mit `Parzelle`, `Medium`, Prüfen und Speichern eingeblendet
+    - sichtbare Busy-/Statusmeldungen für `RFID wird geprüft.` und `RFID wird gespeichert.` ergänzt
+  - `RfidEinrichtenPage` fachlich auf scan-first zurückgezogen:
+    - erster Screen zeigt jetzt nur noch den Scanbereich
+    - der Zuordnungsbereich erscheint erst nach erfolgreicher Existenzprüfung für einen unbekannten Tag
+    - der vorhandene NFC-Hinweis und der Button `NFC-Einstellungen öffnen` blieben erhalten
+  - `RfidScanWorkflowPage` für `Ablesen` und `Zählerwechsel` so geschärft, dass am Einstieg nur noch der Scanbereich sichtbar ist; Kontext-/Entscheidungsbereich erscheint erst nach aufgelöstem Scan
+  - in `AblesenOverviewPage.cs` nur die fehlenden aktiven MAUI-/Graphics-/System-Usings ergänzt, weil die Seite unmittelbar zum betroffenen RFID-Einstieg gehört
+  - keine neue RFID-Architektur, keine neuen Seiten, keine Shell-/Routing-/Supabase-Umbauten und keine WPF-Änderung gestartet
+- Technische Verifikation nach dem Fix:
+  - `get_errors` auf den direkt betroffenen RFID-Dateien blieb nach der Korrektur unauffällig
+  - die direkt betroffenen RFID-Dateien sind damit dateibezogen fehlerfrei
+  - anschließender `dotnet build KGV.Maui/KGV.Maui.csproj` ist im aktuellen Workspace nicht grün geblieben
+  - der Gesamtbuild scheitert aktuell blockfremd an bereits offenen bzw. neu außerhalb dieses RFID-Blocks sichtbaren MAUI-Compilefehlern in:
+    - `KGV.Maui/MauiProgram.cs`
+    - `KGV.Maui/App.xaml.cs`
+    - `KGV.Maui/MainApplication.cs`
+  - im aktuellen Buildauszug fehlen dort u. a. Typauflösungen für `MauiApp` bzw. `IActivationState`
+  - diese blockfremden Fehler wurden in diesem kleinen RFID-Block ausdrücklich nur dokumentiert und nicht mit umgebaut
+
 ## 2026-03-27 – Prompt 1/1: Neuen blockfremden MAUI-Compile-Rest in `ArbeitsstundenReviewPage`, `DokumentePage` und `ExportPage` gezielt bereinigt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrücklich nur den direkt betroffenen MAUI-Pfad geprüft:

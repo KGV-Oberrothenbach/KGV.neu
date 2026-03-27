@@ -31,7 +31,7 @@ public sealed class RfidEinrichtenPage : ContentPage
         var titleLabel = new Label { Text = "RFID einrichten", FontSize = 24, FontAttributes = FontAttributes.Bold };
         var descriptionLabel = new Label
         {
-            Text = "Parzelle wählen, Medium festlegen, RFID-Tag am Gerät lesen und anschließend produktiv speichern.",
+            Text = "Der Einstieg startet jetzt fachlich zuerst nur mit dem Scan. Erst wenn der RFID-Tag noch nicht bekannt ist, werden Parzelle, Medium und Speichern eingeblendet.",
             LineBreakMode = LineBreakMode.WordWrap
         };
 
@@ -39,7 +39,11 @@ public sealed class RfidEinrichtenPage : ContentPage
         _openNfcSettingsButton = new Button { Text = "NFC-Einstellungen öffnen", IsVisible = false };
         _openNfcSettingsButton.Clicked += async (_, _) => await _nfcScanService.OpenSettingsAsync();
         _restartScanButton = new Button { Text = "Scan aktivieren" };
-        _restartScanButton.Clicked += async (_, _) => await StartNfcAsync();
+        _restartScanButton.Clicked += async (_, _) =>
+        {
+            _viewModel.ResetForNewScan();
+            await StartNfcAsync();
+        };
 
         var parzellePicker = new Picker { Title = "Parzelle wählen" };
         parzellePicker.ItemDisplayBinding = new Binding(nameof(ParzelleRecord.DisplayName));
@@ -53,16 +57,6 @@ public sealed class RfidEinrichtenPage : ContentPage
         mediumPicker.ItemDisplayBinding = new Binding(nameof(RfidMediumOption.DisplayName));
         mediumPicker.SetBinding(Picker.ItemsSourceProperty, nameof(RfidEinrichtenViewModel.MediumOptions));
         mediumPicker.SetBinding(Picker.SelectedItemProperty, nameof(RfidEinrichtenViewModel.SelectedMedium), BindingMode.TwoWay);
-
-        var uidEntry = new Entry { Placeholder = "RFID-UID eingeben" };
-        uidEntry.SetBinding(Entry.TextProperty, nameof(RfidEinrichtenViewModel.UidInput), BindingMode.TwoWay);
-
-        var uidHintLabel = new Label
-        {
-            Text = "Nur als technischer Notfallweg verwenden. UID wird vor Prüfung und Speicherung getrimmt und in Großbuchstaben normalisiert.",
-            TextColor = Colors.Gray,
-            LineBreakMode = LineBreakMode.WordWrap
-        };
 
         var checkButton = new Button { Text = "Prüfen" };
         checkButton.SetBinding(IsEnabledProperty, nameof(RfidEinrichtenViewModel.CanCheck));
@@ -78,6 +72,49 @@ public sealed class RfidEinrichtenPage : ContentPage
         var statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
         statusLabel.SetBinding(Label.TextProperty, nameof(RfidEinrichtenViewModel.StatusMessage));
         statusLabel.SetBinding(IsVisibleProperty, nameof(RfidEinrichtenViewModel.HasStatusMessage));
+
+        var existingTagBorder = new Border
+        {
+            Stroke = Colors.LightGray,
+            Padding = 14,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(14) },
+            Content = new VerticalStackLayout
+            {
+                Spacing = 8,
+                Children =
+                {
+                    new Label { Text = "Vorhandener RFID-Tag", FontAttributes = FontAttributes.Bold },
+                    CreateValueLabel("Gelesene UID", nameof(RfidEinrichtenViewModel.ScannedUidDisplay)),
+                    CreateValueLabel("Einordnung", nameof(RfidEinrichtenViewModel.ExistingTagSummary))
+                }
+            }
+        };
+        existingTagBorder.SetBinding(IsVisibleProperty, nameof(RfidEinrichtenViewModel.ShowKnownTagResult));
+
+        var assignmentBorder = new Border
+        {
+            Stroke = Colors.LightGray,
+            Padding = 14,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(14) },
+            Content = new VerticalStackLayout
+            {
+                Spacing = 12,
+                Children =
+                {
+                    new Label { Text = "Neuen RFID-Tag zuordnen", FontAttributes = FontAttributes.Bold },
+                    CreateValueLabel("Gelesene UID", nameof(RfidEinrichtenViewModel.ScannedUidDisplay)),
+                    new Label { Text = "Parzelle", FontAttributes = FontAttributes.Bold },
+                    parzellePicker,
+                    stromValue,
+                    wasserValue,
+                    new Label { Text = "Medium", FontAttributes = FontAttributes.Bold },
+                    mediumPicker,
+                    checkButton,
+                    saveButton
+                }
+            }
+        };
+        assignmentBorder.SetBinding(IsVisibleProperty, nameof(RfidEinrichtenViewModel.ShowAssignmentStep));
 
         Content = new ScrollView
         {
@@ -109,31 +146,9 @@ public sealed class RfidEinrichtenPage : ContentPage
                             }
                         }
                     },
-                    new Label { Text = "Parzelle", FontAttributes = FontAttributes.Bold },
-                    parzellePicker,
-                    stromValue,
-                    wasserValue,
-                    new Label { Text = "Medium", FontAttributes = FontAttributes.Bold },
-                    mediumPicker,
-                    checkButton,
                     statusLabel,
-                    new Border
-                    {
-                        Stroke = Colors.LightGray,
-                        Padding = 14,
-                        StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(14) },
-                        Content = new VerticalStackLayout
-                        {
-                            Spacing = 8,
-                            Children =
-                            {
-                                new Label { Text = "Technischer Notfallweg: UID manuell eingeben", FontAttributes = FontAttributes.Bold },
-                                uidEntry,
-                                uidHintLabel
-                            }
-                        }
-                    },
-                    saveButton,
+                    existingTagBorder,
+                    assignmentBorder,
                     backToOverviewButton
                 }
             }
@@ -144,6 +159,7 @@ public sealed class RfidEinrichtenPage : ContentPage
     {
         base.OnAppearing();
         await _viewModel.InitializeAsync();
+        _viewModel.ResetForNewScan();
         _nfcScanService.TagScanned -= OnTagScanned;
         _nfcScanService.TagScanned += OnTagScanned;
         await StartNfcAsync();
@@ -194,7 +210,7 @@ public sealed class RfidEinrichtenPage : ContentPage
             return;
 
         _viewModel.UidInput = uid;
-        await _viewModel.CheckAsync();
+        await _viewModel.ResolveUidAsync();
         await _nfcScanService.StopScanningAsync();
     }
 

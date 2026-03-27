@@ -1,8 +1,11 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 namespace KGV.Maui.ViewModels;
 
@@ -16,6 +19,7 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
     private string _statusMessage = string.Empty;
     private bool _isBusy;
     private RfidAssignmentCheckResult? _lastCheck;
+    private RfidScanContextResult? _scanResolution;
 
     public RfidEinrichtenViewModel(ISupabaseService supabaseService, IAuthService authService)
     {
@@ -32,9 +36,36 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
     public bool HasSelectedParzelle => SelectedParzelle != null;
     public string CurrentStromRfid => SelectedParzelle?.StromRfidDisplay ?? "Nicht hinterlegt";
     public string CurrentWasserRfid => SelectedParzelle?.WasserRfidDisplay ?? "Nicht hinterlegt";
-    public bool CanCheck => !IsBusy && SelectedParzelle != null && SelectedMedium != null && !string.IsNullOrWhiteSpace(UidInput);
-    public bool CanSave => !IsBusy && _lastCheck?.IsValid == true;
+    public bool HasResolvedScan => ScanResolution != null;
+    public bool ShowAssignmentStep => ScanResolution?.State == RfidScanContextState.Unknown;
+    public bool ShowKnownTagResult => ScanResolution?.IsKnown == true;
+    public string ScannedUidDisplay => string.IsNullOrWhiteSpace(ScanResolution?.NormalizedUid) ? "—" : ScanResolution!.NormalizedUid;
+    public string ExistingTagSummary => ScanResolution?.Context == null
+        ? "Der RFID-Tag ist bereits im System vorhanden. Ein normaler Speichern-Flow ist hier nicht möglich."
+        : $"Der RFID-Tag ist bereits bei {ScanResolution.Context.ParzelleDisplayName} für {ScanResolution.Context.MediumDisplay} vorhanden. Ein normaler Speichern-Flow ist hier nicht möglich.";
+    public bool CanCheck => ShowAssignmentStep && !IsBusy && SelectedParzelle != null && SelectedMedium != null && !string.IsNullOrWhiteSpace(UidInput);
+    public bool CanSave => ShowAssignmentStep && !IsBusy && _lastCheck?.IsValid == true;
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
+
+    public RfidScanContextResult? ScanResolution
+    {
+        get => _scanResolution;
+        private set
+        {
+            if (_scanResolution == value)
+                return;
+
+            _scanResolution = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasResolvedScan));
+            OnPropertyChanged(nameof(ShowAssignmentStep));
+            OnPropertyChanged(nameof(ShowKnownTagResult));
+            OnPropertyChanged(nameof(ScannedUidDisplay));
+            OnPropertyChanged(nameof(ExistingTagSummary));
+            OnPropertyChanged(nameof(CanCheck));
+            OnPropertyChanged(nameof(CanSave));
+        }
+    }
 
     public ParzelleRecord? SelectedParzelle
     {
@@ -78,6 +109,7 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
 
             _uidInput = value;
             OnPropertyChanged();
+            ScanResolution = null;
             ResetCheckState();
         }
     }
@@ -124,12 +156,16 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
 
     public async Task<RfidAssignmentCheckResult> CheckAsync()
     {
+        if (!ShowAssignmentStep)
+            return CreateClientError("Bitte zuerst einen neuen RFID-Tag scannen.");
+
         if (SelectedParzelle == null || SelectedMedium == null)
             return CreateClientError("Bitte zuerst Parzelle und Medium wählen.");
 
         IsBusy = true;
         try
         {
+            StatusMessage = "RFID wird geprüft.";
             var result = await _supabaseService.CheckParzelleRfidAssignmentAsync(SelectedParzelle.Id, SelectedMedium.Key, UidInput);
             _lastCheck = result.IsValid ? result : null;
             StatusMessage = result.Message;
@@ -144,12 +180,25 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
 
     public async Task<RfidAssignmentResult> SaveAsync(bool overwriteExisting)
     {
+        if (!ShowAssignmentStep)
+            return CreateClientErrorResult("Bitte zuerst einen neuen RFID-Tag scannen.");
+
         if (SelectedParzelle == null || SelectedMedium == null)
             return CreateClientErrorResult("Bitte zuerst Parzelle und Medium wählen.");
 
         IsBusy = true;
         try
         {
+            var latestCheck = await _supabaseService.CheckParzelleRfidAssignmentAsync(SelectedParzelle.Id, SelectedMedium.Key, UidInput);
+            if (!latestCheck.IsValid)
+            {
+                _lastCheck = null;
+                StatusMessage = latestCheck.Message;
+                OnPropertyChanged(nameof(CanSave));
+                return new RfidAssignmentResult { Success = false, Message = latestCheck.Message, NormalizedUid = latestCheck.NormalizedUid };
+            }
+
+            StatusMessage = "RFID wird gespeichert.";
             var result = await _supabaseService.AssignParzelleRfidAsync(SelectedParzelle.Id, SelectedMedium.Key, UidInput, overwriteExisting);
             StatusMessage = result.Message;
 
@@ -162,7 +211,7 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
 
             var currentParzelleId = SelectedParzelle.Id;
             await LoadParzellenAsync(currentParzelleId);
-            UidInput = string.Empty;
+            ResetForNewScan(clearStatus: false);
             ResetCheckState(clearStatus: false);
             StatusMessage = result.Message;
             return result;
@@ -171,6 +220,58 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
         {
             IsBusy = false;
         }
+    }
+
+    public async Task<RfidScanContextResult> ResolveUidAsync()
+    {
+        if (string.IsNullOrWhiteSpace(UidInput))
+            return CreateClientScanError("Bitte zuerst einen RFID-Tag scannen.");
+
+        IsBusy = true;
+        try
+        {
+            StatusMessage = "RFID wird geprüft.";
+            var result = await _supabaseService.ResolveRfidScanContextAsync(UidInput);
+            ScanResolution = result;
+            _lastCheck = null;
+            OnPropertyChanged(nameof(CanSave));
+
+            StatusMessage = result.IsKnown
+                ? ExistingTagSummary
+                : "RFID ist noch nicht zugeordnet. Bitte jetzt Parzelle und Medium wählen.";
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            ScanResolution = null;
+            _lastCheck = null;
+            var message = $"RFID konnte nicht geprüft werden: {ex.Message}";
+            StatusMessage = message;
+            return new RfidScanContextResult
+            {
+                NormalizedUid = (UidInput ?? string.Empty).Trim().ToUpperInvariant(),
+                State = RfidScanContextState.Unknown,
+                Message = message
+            };
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public void ResetForNewScan(bool clearStatus = true)
+    {
+        _uidInput = string.Empty;
+        _lastCheck = null;
+        ScanResolution = null;
+        OnPropertyChanged(nameof(UidInput));
+        OnPropertyChanged(nameof(CanCheck));
+        OnPropertyChanged(nameof(CanSave));
+
+        if (clearStatus)
+            StatusMessage = string.Empty;
     }
 
     private async Task LoadParzellenAsync(int? preferredParzelleId = null)
@@ -236,6 +337,13 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
     {
         StatusMessage = message;
         return new RfidAssignmentCheckResult { IsValid = false, Message = message };
+    }
+
+    private RfidScanContextResult CreateClientScanError(string message)
+    {
+        StatusMessage = message;
+        ScanResolution = null;
+        return new RfidScanContextResult { State = RfidScanContextState.Unknown, Message = message };
     }
 
     private RfidAssignmentResult CreateClientErrorResult(string message)

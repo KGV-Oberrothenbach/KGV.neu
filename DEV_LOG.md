@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-03-27 – MAUI-RFID-Flows auf `Scan-first` zurückgezogen, NFC-Einstellungsweg erhalten und blockfremden Buildrest ehrlich dokumentiert
+
+- Vor dem Block erneut nur den realen Repo-/Log-/Pfadstand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `.github/copilot-instructions.md`
+  - WPF-Referenz nur lesend für den Soll-Flow:
+    - `KGV.Wpf/Views/AblesenOverviewView.xaml`
+    - `KGV.Wpf/Views/ZaehlerwechselScanView.xaml`
+    - `KGV.Wpf/Views/RfidScanContextView.xaml`
+    - `KGV.Wpf/ViewModels/RfidEinrichtenViewModel.cs`
+    - `KGV.Wpf/ViewModels/ZaehlerwechselScanViewModel.cs`
+    - `KGV.Wpf/ViewModels/RfidScanContextViewModel.cs`
+  - aktive MAUI-RFID-Pfade:
+    - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
+    - `KGV.Maui/Pages/RfidScanWorkflowPage.cs`
+    - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+    - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+    - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+    - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
+    - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+    - `KGV.Maui/Services/INfcScanService.cs`
+  - gezielte Dateivalidierung der direkt betroffenen RFID-Dateien
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+- WPF wurde bewusst nicht angefasst.
+- Ehrlicher Befund vor der Korrektur:
+  - der aktive MAUI-Einstieg `RfidEinrichtenPage` zeigte fachlich zu früh bereits `Parzelle`, `Medium`, Prüfen und Speichern; der Einstieg war damit nicht mehr scan-first
+  - der gemeinsame MAUI-Scanpfad `RfidScanWorkflowPage` zeigte für `Ablesen` und `Zählerwechsel` ebenfalls schon auf dem ersten Screen zusätzliche Folge-/Fallback-Bereiche statt zuerst nur den Scan
+  - der gute NFC-aus-Hinweis mit Button in die Systemeinstellungen war im aktuellen MAUI-Pfad bereits vorhanden und durfte nicht verloren gehen
+  - direkt benachbart lag in `AblesenOverviewPage.cs` zusätzlich ein gleichartiger MAUI-Compilefehler durch fehlende Usings vor; dieser wurde wegen unmittelbarer Beteiligung am RFID-Einstieg mitgenommen
+- Umsetzung bewusst klein und nur im RFID-Pfad:
+  - `RfidEinrichtenViewModel` um einen kleinen vorgeschalteten Scan-/Existenzprüfschritt ergänzt:
+    - gescannte UID wird jetzt zuerst global über den vorhandenen Produktivpfad `ResolveRfidScanContextAsync(...)` geprüft
+    - bekannter Tag => klare Meldung, kein normaler Speichern-Flow
+    - unbekannter Tag => erst dann zweiter Schritt mit `Parzelle`, `Medium`, Prüfen und Speichern
+    - sichtbare Busy-Texte für `RFID wird geprüft.` und `RFID wird gespeichert.` ergänzt
+  - `RfidEinrichtenPage` auf scan-first zurückgezogen:
+    - erster Screen zeigt jetzt nur noch den Scanbereich
+    - Folgeansicht für Zuordnung wird nur für unbekannte Tags sichtbar
+    - vorhandener NFC-Hinweis und der Button `NFC-Einstellungen öffnen` bleiben erhalten
+  - `RfidScanWorkflowPage` für `Ablesen` und `Zählerwechsel` so geschärft, dass zunächst nur der Scanbereich sichtbar ist; Kontext-/Entscheidungsbereich erscheint erst nach aufgelöstem Scan
+  - in `AblesenOverviewPage.cs` nur die fehlenden aktiven MAUI-/Graphics-/System-Usings ergänzt, weil die Seite direkt zum betroffenen RFID-Einstieg gehört
+  - keine neue RFID-Architektur, keine neue Shell-/Routing-/Supabase-Struktur und keine WPF-Änderung
+- Technische Verifikation:
+  - `get_errors` auf den direkt betroffenen RFID-Dateien blieb nach der Korrektur unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` ist im aktuellen Workspace nach diesem Block nicht grün geblieben
+  - der Build scheitert aktuell blockfremd an bereits offenen bzw. neu außerhalb dieses RFID-Blocks sichtbaren MAUI-Compilefehlern in:
+    - `KGV.Maui/MauiProgram.cs`
+    - `KGV.Maui/App.xaml.cs`
+    - `KGV.Maui/MainApplication.cs`
+  - dort fehlen im aktuellen Auszug u. a. aktive Typauflösungen für `MauiApp` bzw. `IActivationState`
+  - diese blockfremden Fehler wurden in diesem RFID-Block bewusst nur dokumentiert und nicht mit umgebaut
+
 ## 2026-03-27 – Nächsten blockfremden MAUI-Compileblock für `ArbeitsstundenReviewPage`, `DokumentePage` und `ExportPage` gezielt bereinigt
 
 - Vor dem Block erneut nur den realen Repo-/Log-/Fehlerstand geprüft:
