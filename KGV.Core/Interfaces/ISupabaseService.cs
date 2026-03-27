@@ -41,20 +41,20 @@ namespace KGV.Core.Interfaces
         Task<StromzaehlerRecord?> GetActiveStromzaehlerAsync(int parzelleId, DateTime onDate);
         Task<WasserzaehlerRecord?> GetActiveWasserzaehlerAsync(int parzelleId, DateTime onDate);
 
-        Task<bool> AddStromzaehlerAsync(int parzelleId, string zaehlernummer, DateTime eichdatum, DateTime eingebautAm);
-        Task<bool> AddWasserzaehlerAsync(int parzelleId, string zaehlernummer, DateTime eichdatum, DateTime eingebautAm);
+        Task<bool> AddStromzaehlerAsync(StromzaehlerInsertRecord request);
+        Task<bool> AddWasserzaehlerAsync(WasserzaehlerInsertRecord request);
 
         Task<bool> SetStromzaehlerAusgebautAmAsync(long stromzaehlerId, DateTime ausgebautAm);
         Task<bool> SetWasserzaehlerAusgebautAmAsync(long wasserzaehlerId, DateTime ausgebautAm);
 
-        Task<bool> AddAblesungAsync(short zaehlerTyp, long zaehlerId, DateTime ablesedatum, decimal stand, string? fotoPfad);
+        Task<bool> AddAblesungAsync(AblesungInsertRecord request);
         Task<bool> UpdateAblesungAsync(long ablesungId, DateTime ablesedatum, decimal stand, string? fotoPfad);
 
         // =========================
         // Nebenmitglied
         // =========================
         Task<MitgliedRecord?> GetNebenmitgliedByHauptmitgliedIdAsync(int hauptmitgliedId);
-        Task<MitgliedRecord?> CreateNebenmitgliedAsync(int hauptmitgliedId, string vorname, string nachname, bool adresseUebernehmen);
+        Task<MitgliedRecord?> CreateNebenmitgliedAsync(NebenmitgliedCreateDTO request);
 
         // =========================
         // Arbeitsstunden
@@ -66,7 +66,7 @@ namespace KGV.Core.Interfaces
         Task<bool> UpdateOwnContactAsync(int mitgliedId, string? telefon, string? handy, string? adresse, string? plz, string? ort);
         Task<List<ArbeitsstundeDTO>> GetArbeitsstundenAsync(params int[] mitgliedIds);
         Task<List<ArbeitsstundeDTO>> GetOffeneArbeitsstundenZurFreigabeAsync();
-        Task<bool> AddArbeitsstundeAsync(ArbeitsstundeRecord record);
+        Task<bool> AddArbeitsstundeAsync(ArbeitsstundeInsertRecord request);
         Task<bool> UpdateArbeitsstundeAsync(ArbeitsstundeRecord record);
         Task<bool> DeleteArbeitsstundeAsync(int arbeitsstundeId);
         Task<List<(int MitgliedId, string Vorname, string Nachname, int Count)>> GetUnapprovedArbeitsstundenByMitgliedAsync();
@@ -92,7 +92,7 @@ namespace KGV.Core.Interfaces
         Task<WartungsvertragDetailItem?> GetWartungsvertragDetailAsync(long wartungsvertragId);
         Task<List<MemberWartungsvertragItem>> GetWartungsvertraegeForMitgliedAsync(int mitgliedId);
         Task<List<WartungsvertragOverviewItem>> GetAssignableWartungsvertraegeForMitgliedAsync(int mitgliedId);
-        Task<WartungsvertragRecord?> CreateWartungsvertragAsync(WartungsvertragRecord record);
+        Task<WartungsvertragRecord?> CreateWartungsvertragAsync(WartungsvertragInsertRecord request);
         Task<bool> UpdateWartungsvertragAsync(WartungsvertragRecord record);
         Task<WartungsvertragAssignmentSaveResult> AssignMitgliederToWartungsvertragAsync(long wartungsvertragId, DateTime gueltigAb, IReadOnlyCollection<int> mitgliedIds);
         Task<WartungsvertragAssignmentSaveResult> AssignWartungsvertraegeToMitgliedAsync(int mitgliedId, DateTime gueltigAb, IReadOnlyCollection<long> wartungsvertragIds);
@@ -107,15 +107,15 @@ namespace KGV.Core.Interfaces
         Task<List<HomeAppointmentItem>> GetStartseiteTermineAsync();
         Task<List<HomeAnnouncementItem>> GetStartseiteBekanntmachungenAsync();
         Task<List<ArbeitseinsatzRecord>> GetArbeitseinsaetzeVerwaltungAsync();
-        Task<ArbeitseinsatzRecord?> CreateArbeitseinsatzAsync(ArbeitseinsatzRecord record);
+        Task<ArbeitseinsatzRecord?> CreateArbeitseinsatzAsync(ArbeitseinsatzInsertRecord request);
         Task<bool> UpdateArbeitseinsatzAsync(ArbeitseinsatzRecord record);
         Task<bool> DeleteArbeitseinsatzAsync(long id);
         Task<List<TerminRecord>> GetTermineVerwaltungAsync();
-        Task<TerminRecord?> CreateTerminAsync(TerminRecord record);
+        Task<TerminRecord?> CreateTerminAsync(TerminInsertRecord request);
         Task<bool> UpdateTerminAsync(TerminRecord record);
         Task<bool> DeleteTerminAsync(long id);
         Task<List<BekanntmachungRecord>> GetBekanntmachungenVerwaltungAsync();
-        Task<BekanntmachungRecord?> CreateBekanntmachungAsync(BekanntmachungRecord record);
+        Task<BekanntmachungRecord?> CreateBekanntmachungAsync(BekanntmachungInsertRecord request);
         Task<bool> UpdateBekanntmachungAsync(BekanntmachungRecord record);
         Task<bool> DeleteBekanntmachungAsync(long id);
     }

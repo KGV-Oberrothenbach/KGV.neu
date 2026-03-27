@@ -516,40 +516,40 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
-        public Task<bool> AddStromzaehlerAsync(int parzelleId, string zaehlernummer, DateTime eichdatum, DateTime eingebautAm) => ExecuteAsync(
+        public Task<bool> AddStromzaehlerAsync(StromzaehlerInsertRecord request) => ExecuteAsync(
             "AddStromzaehlerAsync",
             async () =>
             {
-                if (string.IsNullOrWhiteSpace(zaehlernummer))
+                if (request == null || request.ParzelleId <= 0 || string.IsNullOrWhiteSpace(request.Zaehlernummer))
                     return false;
 
                 var client = await EnsureClientAsync();
-                await client.From<StromzaehlerRecord>().Insert(new StromzaehlerRecord
+                await client.From<StromzaehlerInsertRecord>().Insert(new StromzaehlerInsertRecord
                 {
-                    ParzelleId = parzelleId,
-                    Zaehlernummer = zaehlernummer.Trim(),
-                    Eichdatum = NormalizeDateTime(eichdatum),
-                    EingebautAm = NormalizeDateTime(eingebautAm.Date)
+                    ParzelleId = request.ParzelleId,
+                    Zaehlernummer = request.Zaehlernummer.Trim(),
+                    Eichdatum = NormalizeDateTime(request.Eichdatum),
+                    EingebautAm = NormalizeDateTime(request.EingebautAm.Date)
                 });
 
                 return true;
             },
             false);
 
-        public Task<bool> AddWasserzaehlerAsync(int parzelleId, string zaehlernummer, DateTime eichdatum, DateTime eingebautAm) => ExecuteAsync(
+        public Task<bool> AddWasserzaehlerAsync(WasserzaehlerInsertRecord request) => ExecuteAsync(
             "AddWasserzaehlerAsync",
             async () =>
             {
-                if (string.IsNullOrWhiteSpace(zaehlernummer))
+                if (request == null || request.ParzelleId <= 0 || string.IsNullOrWhiteSpace(request.Zaehlernummer))
                     return false;
 
                 var client = await EnsureClientAsync();
-                await client.From<WasserzaehlerRecord>().Insert(new WasserzaehlerRecord
+                await client.From<WasserzaehlerInsertRecord>().Insert(new WasserzaehlerInsertRecord
                 {
-                    ParzelleId = parzelleId,
-                    Zaehlernummer = zaehlernummer.Trim(),
-                    Eichdatum = NormalizeDateTime(eichdatum),
-                    EingebautAm = NormalizeDateTime(eingebautAm.Date)
+                    ParzelleId = request.ParzelleId,
+                    Zaehlernummer = request.Zaehlernummer.Trim(),
+                    Eichdatum = NormalizeDateTime(request.Eichdatum),
+                    EingebautAm = NormalizeDateTime(request.EingebautAm.Date)
                 });
 
                 return true;
@@ -586,19 +586,22 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
-        public Task<bool> AddAblesungAsync(short zaehlerTyp, long zaehlerId, DateTime ablesedatum, decimal stand, string? fotoPfad) => ExecuteAsync(
+        public Task<bool> AddAblesungAsync(AblesungInsertRecord request) => ExecuteAsync(
             "AddAblesungAsync",
             async () =>
             {
+                if (request == null || request.ZaehlerId <= 0)
+                    return false;
+
                 var client = await EnsureClientAsync();
-                await client.From<AblesungRecord>().Insert(new AblesungRecord
+                await client.From<AblesungInsertRecord>().Insert(new AblesungInsertRecord
                 {
-                    ZaehlerTyp = zaehlerTyp,
-                    ZaehlerId = zaehlerId,
-                    Ablesedatum = NormalizeDateTime(ablesedatum),
-                    Stand = stand,
+                    ZaehlerTyp = request.ZaehlerTyp,
+                    ZaehlerId = request.ZaehlerId,
+                    Ablesedatum = NormalizeDateTime(request.Ablesedatum),
+                    Stand = request.Stand,
                     Freigegeben = true,
-                    FotoPfad = CleanOptionalText(fotoPfad)
+                    FotoPfad = CleanOptionalText(request.FotoPfad)
                 });
 
                 return true;
@@ -637,7 +640,7 @@ namespace KGV.Infrastructure.Services
                     .FirstOrDefault();
             },
             null);
-        public Task<MitgliedRecord?> CreateNebenmitgliedAsync(int hauptmitgliedId, string vorname, string nachname, bool adresseUebernehmen) => Unavailable<MitgliedRecord?>();
+        public Task<MitgliedRecord?> CreateNebenmitgliedAsync(NebenmitgliedCreateDTO request) => Unavailable<MitgliedRecord?>();
         public Task<List<SaisonRecord>> GetSaisonRecordsAsync() => ExecuteAsync(
             "GetSaisonRecordsAsync",
             async () =>
@@ -783,34 +786,33 @@ namespace KGV.Infrastructure.Services
                 }).ToList();
             },
             new List<ArbeitsstundeDTO>());
-        public Task<bool> AddArbeitsstundeAsync(ArbeitsstundeRecord record) => ExecuteAsync(
+        public Task<bool> AddArbeitsstundeAsync(ArbeitsstundeInsertRecord request) => ExecuteAsync(
             "AddArbeitsstundeAsync",
             async () =>
             {
-                if (record == null || record.MitgliedId <= 0 || record.SaisonId <= 0 || record.Stunden <= 0 || string.IsNullOrWhiteSpace(record.ArtDerArbeit))
+                if (request == null || request.MitgliedId <= 0 || request.SaisonId <= 0 || request.Stunden <= 0 || string.IsNullOrWhiteSpace(request.ArtDerArbeit))
                     return false;
 
                 var client = await EnsureClientAsync();
-                var payload = CreateArbeitsstundeInsertPayload(record);
-                await client.From<ArbeitsstundeInsertRecord>().Insert(payload);
+                await client.From<ArbeitsstundeInsertRecord>().Insert(CreateArbeitsstundeInsertPayload(request));
 
                 return true;
             },
             false);
 
-        private ArbeitsstundeInsertRecord CreateArbeitsstundeInsertPayload(ArbeitsstundeRecord record)
+        private ArbeitsstundeInsertRecord CreateArbeitsstundeInsertPayload(ArbeitsstundeInsertRecord request)
         {
             return new ArbeitsstundeInsertRecord
             {
-                MitgliedId = record.MitgliedId,
-                SaisonId = record.SaisonId,
-                Datum = NormalizeDateOnly(record.Datum),
-                Stunden = record.Stunden,
-                ArtDerArbeit = record.ArtDerArbeit.Trim(),
-                Status = CleanOptionalText(record.Status),
-                Freigegeben = record.Freigegeben,
-                GenehmigtAm = record.GenehmigtAm,
-                GenehmigtVon = record.GenehmigtVon,
+                MitgliedId = request.MitgliedId,
+                SaisonId = request.SaisonId,
+                Datum = NormalizeDateOnly(request.Datum),
+                Stunden = request.Stunden,
+                ArtDerArbeit = request.ArtDerArbeit.Trim(),
+                Status = CleanOptionalText(request.Status),
+                Freigegeben = request.Freigegeben,
+                GenehmigtAm = request.GenehmigtAm,
+                GenehmigtVon = request.GenehmigtVon,
                 LockedByUserId = null,
                 LockedAt = null
             };
@@ -1233,34 +1235,47 @@ namespace KGV.Infrastructure.Services
             },
             new List<WartungsvertragOverviewItem>());
 
-        public async Task<WartungsvertragRecord?> CreateWartungsvertragAsync(WartungsvertragRecord record)
+        public async Task<WartungsvertragRecord?> CreateWartungsvertragAsync(WartungsvertragInsertRecord request)
         {
             try
             {
-                if (record == null || string.IsNullOrWhiteSpace(record.Titel))
+                if (request == null || string.IsNullOrWhiteSpace(request.Titel))
                     return null;
 
                 var client = await EnsureClientAsync();
                 var now = DateTime.UtcNow;
-                var insertRecord = new WartungsvertragRecord
+                var insertRecord = new WartungsvertragInsertRecord
                 {
-                    Titel = CleanRequiredText(record.Titel),
-                    Beschreibung = CleanOptionalText(record.Beschreibung),
-                    Bereich = CleanOptionalText(record.Bereich),
-                    MaxAktiveZuordnungen = NormalizeWartungsvertragKontingent(record.MaxAktiveZuordnungen),
-                    BefreitVonPflichtstunden = record.BefreitVonPflichtstunden,
-                    Aktiv = record.Aktiv,
-                    Bemerkung = CleanOptionalText(record.Bemerkung),
+                    Titel = CleanRequiredText(request.Titel),
+                    Beschreibung = CleanOptionalText(request.Beschreibung),
+                    Bereich = CleanOptionalText(request.Bereich),
+                    MaxAktiveZuordnungen = NormalizeWartungsvertragKontingent(request.MaxAktiveZuordnungen),
+                    BefreitVonPflichtstunden = request.BefreitVonPflichtstunden,
+                    Aktiv = request.Aktiv,
+                    Bemerkung = CleanOptionalText(request.Bemerkung),
                     CreatedAt = now,
                     UpdatedAt = now,
                     IsDemo = false
                 };
 
-                await client.From<WartungsvertragRecord>().Insert(insertRecord);
+                await client.From<WartungsvertragInsertRecord>().Insert(insertRecord);
+                var reloadCandidate = new WartungsvertragRecord
+                {
+                    Titel = insertRecord.Titel,
+                    Beschreibung = insertRecord.Beschreibung,
+                    Bereich = insertRecord.Bereich,
+                    MaxAktiveZuordnungen = insertRecord.MaxAktiveZuordnungen,
+                    BefreitVonPflichtstunden = insertRecord.BefreitVonPflichtstunden,
+                    Aktiv = insertRecord.Aktiv,
+                    Bemerkung = insertRecord.Bemerkung,
+                    CreatedAt = insertRecord.CreatedAt,
+                    UpdatedAt = insertRecord.UpdatedAt,
+                    IsDemo = insertRecord.IsDemo
+                };
                 var response = await client.From<WartungsvertragRecord>().Get();
                 return response?.Models?
                     .Where(x => !x.IsDemo)
-                    .Where(x => IsSameWartungsvertragForReload(x, insertRecord))
+                    .Where(x => IsSameWartungsvertragForReload(x, reloadCandidate))
                     .OrderByDescending(x => x.Id)
                     .FirstOrDefault();
             }
@@ -1372,7 +1387,7 @@ namespace KGV.Infrastructure.Services
                 var normalizedStartDate = gueltigAb.Date;
                 var now = DateTime.UtcNow;
                 var insertRecords = newMemberIds
-                    .Select(x => new WartungsvertragZuordnungRecord
+                    .Select(x => new WartungsvertragZuordnungInsertRecord
                     {
                         WartungsvertragId = wartungsvertragId,
                         HauptmitgliedId = x,
@@ -1382,7 +1397,7 @@ namespace KGV.Infrastructure.Services
                     })
                     .ToList();
 
-                await client.From<WartungsvertragZuordnungRecord>().Insert(insertRecords);
+                await client.From<WartungsvertragZuordnungInsertRecord>().Insert(insertRecords);
 
                 var remainingFreeSlots = Math.Max(0, freiePlaetze - newMemberIds.Count);
                 return CreateWartungsvertragAssignmentSaveResult(
@@ -1440,7 +1455,7 @@ namespace KGV.Infrastructure.Services
                     .ToHashSet();
                 var normalizedStartDate = gueltigAb.Date;
                 var now = DateTime.UtcNow;
-                var insertRecords = new List<WartungsvertragZuordnungRecord>();
+                var insertRecords = new List<WartungsvertragZuordnungInsertRecord>();
 
                 foreach (var contractId in requestedContractIds)
                 {
@@ -1456,7 +1471,7 @@ namespace KGV.Infrastructure.Services
                     if (freiePlaetze <= 0)
                         continue;
 
-                    insertRecords.Add(new WartungsvertragZuordnungRecord
+                    insertRecords.Add(new WartungsvertragZuordnungInsertRecord
                     {
                         WartungsvertragId = contractId,
                         HauptmitgliedId = homeMitgliedId,
@@ -1479,7 +1494,7 @@ namespace KGV.Infrastructure.Services
                 }
 
                 var client = await EnsureClientAsync();
-                await client.From<WartungsvertragZuordnungRecord>().Insert(insertRecords);
+                await client.From<WartungsvertragZuordnungInsertRecord>().Insert(insertRecords);
 
                 var skippedCount = requestedContractIds.Count - insertRecords.Count;
                 var message = skippedCount <= 0
@@ -1808,35 +1823,53 @@ namespace KGV.Infrastructure.Services
             },
             new List<ArbeitseinsatzRecord>());
 
-        public Task<ArbeitseinsatzRecord?> CreateArbeitseinsatzAsync(ArbeitseinsatzRecord record) => ExecuteAsync<ArbeitseinsatzRecord?>(
+        public Task<ArbeitseinsatzRecord?> CreateArbeitseinsatzAsync(ArbeitseinsatzInsertRecord request) => ExecuteAsync<ArbeitseinsatzRecord?>(
             "CreateArbeitseinsatzAsync",
             async () =>
             {
-                if (record == null || string.IsNullOrWhiteSpace(record.Titel))
+                if (request == null || string.IsNullOrWhiteSpace(request.Titel))
                     return null;
 
                 var client = await EnsureClientAsync();
                 var now = DateTime.UtcNow;
-                var insertRecord = new ArbeitseinsatzRecord
+                var insertRecord = new ArbeitseinsatzInsertRecord
                 {
-                    Titel = CleanRequiredText(record.Titel),
-                    Beschreibung = CleanOptionalText(record.Beschreibung),
-                    Datum = NormalizeDateOnly(record.Datum),
-                    StartUhrzeit = NormalizeTerminTime(record.StartUhrzeit),
-                    EndUhrzeit = NormalizeTerminTime(record.EndUhrzeit),
-                    Treffpunkt = CleanOptionalText(record.Treffpunkt),
-                    MaxTeilnehmer = record.MaxTeilnehmer,
-                    StundenWert = record.StundenWert < 0 ? 0 : record.StundenWert,
-                    SichtbarAb = NormalizeTimestampWithoutTimeZone(record.SichtbarAb),
-                    SichtbarBis = NormalizeTimestampWithoutTimeZone(record.SichtbarBis),
-                    AnmeldungBis = NormalizeTimestampWithoutTimeZone(record.AnmeldungBis),
-                    Aktiv = record.Aktiv,
+                    Titel = CleanRequiredText(request.Titel),
+                    Beschreibung = CleanOptionalText(request.Beschreibung),
+                    Datum = NormalizeDateOnly(request.Datum),
+                    StartUhrzeit = NormalizeTerminTime(request.StartUhrzeit),
+                    EndUhrzeit = NormalizeTerminTime(request.EndUhrzeit),
+                    Treffpunkt = CleanOptionalText(request.Treffpunkt),
+                    MaxTeilnehmer = request.MaxTeilnehmer,
+                    StundenWert = request.StundenWert < 0 ? 0 : request.StundenWert,
+                    SichtbarAb = NormalizeTimestampWithoutTimeZone(request.SichtbarAb),
+                    SichtbarBis = NormalizeTimestampWithoutTimeZone(request.SichtbarBis),
+                    AnmeldungBis = NormalizeTimestampWithoutTimeZone(request.AnmeldungBis),
+                    Aktiv = request.Aktiv,
                     CreatedAt = now,
                     UpdatedAt = now,
-                    IsDemo = record.IsDemo
+                    IsDemo = request.IsDemo
                 };
 
-                await client.From<ArbeitseinsatzRecord>().Insert(insertRecord);
+                await client.From<ArbeitseinsatzInsertRecord>().Insert(insertRecord);
+                var reloadCandidate = new ArbeitseinsatzRecord
+                {
+                    Titel = insertRecord.Titel,
+                    Beschreibung = insertRecord.Beschreibung,
+                    Datum = insertRecord.Datum,
+                    StartUhrzeit = insertRecord.StartUhrzeit,
+                    EndUhrzeit = insertRecord.EndUhrzeit,
+                    Treffpunkt = insertRecord.Treffpunkt,
+                    MaxTeilnehmer = insertRecord.MaxTeilnehmer,
+                    StundenWert = insertRecord.StundenWert,
+                    SichtbarAb = insertRecord.SichtbarAb,
+                    SichtbarBis = insertRecord.SichtbarBis,
+                    AnmeldungBis = insertRecord.AnmeldungBis,
+                    Aktiv = insertRecord.Aktiv,
+                    CreatedAt = insertRecord.CreatedAt,
+                    UpdatedAt = insertRecord.UpdatedAt,
+                    IsDemo = insertRecord.IsDemo
+                };
                 var reloadResponse = await client
                     .From<ArbeitseinsatzRecord>()
                     .Where(x => x.Titel == insertRecord.Titel)
@@ -1844,7 +1877,7 @@ namespace KGV.Infrastructure.Services
                     .Get();
                 var created = reloadResponse?.Models?
                     .Select(NormalizeArbeitseinsatzRecord)
-                    .Where(x => IsSameArbeitseinsatzForReload(x, insertRecord))
+                    .Where(x => IsSameArbeitseinsatzForReload(x, reloadCandidate))
                     .OrderByDescending(x => x.Id)
                     .FirstOrDefault();
 
@@ -1920,30 +1953,43 @@ namespace KGV.Infrastructure.Services
             },
             new List<TerminRecord>());
 
-        public Task<TerminRecord?> CreateTerminAsync(TerminRecord record) => ExecuteAsync<TerminRecord?>(
+        public Task<TerminRecord?> CreateTerminAsync(TerminInsertRecord request) => ExecuteAsync<TerminRecord?>(
             "CreateTerminAsync",
             async () =>
             {
-                if (record == null || string.IsNullOrWhiteSpace(record.Titel))
+                if (request == null || string.IsNullOrWhiteSpace(request.Titel))
                     return null;
 
                 var client = await EnsureClientAsync();
                 var now = DateTime.UtcNow;
-                var insertRecord = new TerminRecord
+                var insertRecord = new TerminInsertRecord
                 {
-                    Titel = CleanRequiredText(record.Titel),
-                    Beschreibung = CleanOptionalText(record.Beschreibung),
-                    Datum = NormalizeDateOnly(record.Datum),
-                    StartUhrzeit = NormalizeTerminTime(record.StartUhrzeit),
-                    EndUhrzeit = NormalizeTerminTime(record.EndUhrzeit),
-                    SichtbarAb = NormalizeTimestampWithoutTimeZone(record.SichtbarAb),
-                    SichtbarBis = NormalizeTimestampWithoutTimeZone(record.SichtbarBis),
-                    Aktiv = record.Aktiv,
+                    Titel = CleanRequiredText(request.Titel),
+                    Beschreibung = CleanOptionalText(request.Beschreibung),
+                    Datum = NormalizeDateOnly(request.Datum),
+                    StartUhrzeit = NormalizeTerminTime(request.StartUhrzeit),
+                    EndUhrzeit = NormalizeTerminTime(request.EndUhrzeit),
+                    SichtbarAb = NormalizeTimestampWithoutTimeZone(request.SichtbarAb),
+                    SichtbarBis = NormalizeTimestampWithoutTimeZone(request.SichtbarBis),
+                    Aktiv = request.Aktiv,
                     CreatedAt = now,
                     UpdatedAt = now
                 };
 
-                await client.From<TerminRecord>().Insert(insertRecord);
+                await client.From<TerminInsertRecord>().Insert(insertRecord);
+                var reloadCandidate = new TerminRecord
+                {
+                    Titel = insertRecord.Titel,
+                    Beschreibung = insertRecord.Beschreibung,
+                    Datum = insertRecord.Datum,
+                    StartUhrzeit = insertRecord.StartUhrzeit,
+                    EndUhrzeit = insertRecord.EndUhrzeit,
+                    SichtbarAb = insertRecord.SichtbarAb,
+                    SichtbarBis = insertRecord.SichtbarBis,
+                    Aktiv = insertRecord.Aktiv,
+                    CreatedAt = insertRecord.CreatedAt,
+                    UpdatedAt = insertRecord.UpdatedAt
+                };
                 var reloadResponse = await client
                     .From<TerminRecord>()
                     .Where(x => x.Titel == insertRecord.Titel)
@@ -1951,7 +1997,7 @@ namespace KGV.Infrastructure.Services
                     .Get();
                 var created = reloadResponse?.Models?
                     .Select(NormalizeTerminRecord)
-                    .Where(x => IsSameTerminForReload(x, insertRecord))
+                    .Where(x => IsSameTerminForReload(x, reloadCandidate))
                     .OrderByDescending(x => x.Id)
                     .FirstOrDefault();
 
@@ -2022,29 +2068,43 @@ namespace KGV.Infrastructure.Services
             },
             new List<BekanntmachungRecord>());
 
-        public Task<BekanntmachungRecord?> CreateBekanntmachungAsync(BekanntmachungRecord record) => ExecuteAsync<BekanntmachungRecord?>(
+        public Task<BekanntmachungRecord?> CreateBekanntmachungAsync(BekanntmachungInsertRecord request) => ExecuteAsync<BekanntmachungRecord?>(
             "CreateBekanntmachungAsync",
             async () =>
             {
-                if (record == null || string.IsNullOrWhiteSpace(record.Titel) || string.IsNullOrWhiteSpace(record.InhaltHtml))
+                if (request == null || string.IsNullOrWhiteSpace(request.Titel) || string.IsNullOrWhiteSpace(request.InhaltHtml))
                     return null;
 
                 var client = await EnsureClientAsync();
-                var insertRecord = new BekanntmachungRecord
+                var now = DateTime.UtcNow;
+                var insertRecord = new BekanntmachungInsertRecord
                 {
-                    Titel = CleanRequiredText(record.Titel),
-                    InhaltHtml = CleanRequiredText(record.InhaltHtml),
-                    SichtbarAb = NormalizeTimestampWithoutTimeZone(record.SichtbarAb),
-                    SichtbarBis = NormalizeTimestampWithoutTimeZone(record.SichtbarBis),
-                    SortOrder = record.SortOrder,
-                    Aktiv = record.Aktiv
+                    Titel = CleanRequiredText(request.Titel),
+                    InhaltHtml = CleanRequiredText(request.InhaltHtml),
+                    SichtbarAb = NormalizeTimestampWithoutTimeZone(request.SichtbarAb),
+                    SichtbarBis = NormalizeTimestampWithoutTimeZone(request.SichtbarBis),
+                    SortOrder = request.SortOrder,
+                    Aktiv = request.Aktiv,
+                    CreatedAt = now,
+                    UpdatedAt = now
                 };
 
-                await client.From<BekanntmachungRecord>().Insert(insertRecord);
+                await client.From<BekanntmachungInsertRecord>().Insert(insertRecord);
+                var reloadCandidate = new BekanntmachungRecord
+                {
+                    Titel = insertRecord.Titel,
+                    InhaltHtml = insertRecord.InhaltHtml,
+                    SichtbarAb = insertRecord.SichtbarAb,
+                    SichtbarBis = insertRecord.SichtbarBis,
+                    SortOrder = insertRecord.SortOrder,
+                    Aktiv = insertRecord.Aktiv,
+                    CreatedAt = insertRecord.CreatedAt,
+                    UpdatedAt = insertRecord.UpdatedAt
+                };
                 var reloadResponse = await client.From<BekanntmachungRecord>().Get();
                 var created = reloadResponse?.Models?
                     .Select(NormalizeBekanntmachungRecord)
-                    .Where(x => IsSameBekanntmachungForReload(x, insertRecord))
+                    .Where(x => IsSameBekanntmachungForReload(x, reloadCandidate))
                     .OrderByDescending(x => x.Id)
                     .FirstOrDefault();
 

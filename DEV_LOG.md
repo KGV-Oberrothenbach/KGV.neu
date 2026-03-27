@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-03-27 – Prompt 1/4: Insert-Modelle ohne `Id` im gemeinsamen Core-/Infrastructure-Unterbau eingeführt und Servicevertrag auf Create-vs-Update getrennt
+
+- Zuerst den echten Repo-/Log-/Vertragsstand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - die betroffenen Create-Blöcke in `KGV.Infrastructure/Services/SupabaseService.cs`
+  - die vorhandenen Record-/DTO-Dateien in `KGV.Core/Models`
+- Ehrlicher Befund vor der Umstellung:
+  - bereits sauber im Insert-Sinne waren nur die vorhandenen Pfade für `ParzellenBelegung` und die bestehende Infrastructure-Abbildung für `Arbeitsstunde`
+  - noch unsauber bzw. nicht produktiv im gemeinsamen Vertrag waren die Create-Pfade für:
+    - `Nebenmitglied`
+    - `Stromzaehler`
+    - `Wasserzaehler`
+    - `Ablesung`
+    - `Wartungsvertrag`
+    - `WartungsvertragZuordnung`
+    - `Arbeitseinsatz`
+    - `Termin`
+    - `Bekanntmachung`
+  - diese Pfade basierten im aktuellen Stand noch auf DB-Records mit `Id` oder waren wie `CreateNebenmitgliedAsync` noch auf `Unavailable(...)`
+- In diesem Block bewusst nur Core/Infrastructure umgesetzt:
+  - neue Insert-Modelle ohne Primärschlüssel `Id` angelegt:
+    - `KGV.Core/Models/MitgliedInsertRecord.cs`
+    - `KGV.Core/Models/StromzaehlerInsertRecord.cs`
+    - `KGV.Core/Models/WasserzaehlerInsertRecord.cs`
+    - `KGV.Core/Models/AblesungInsertRecord.cs`
+    - `KGV.Core/Models/ArbeitseinsatzInsertRecord.cs`
+    - `KGV.Core/Models/TerminInsertRecord.cs`
+    - `KGV.Core/Models/BekanntmachungInsertRecord.cs`
+    - `KGV.Core/Models/WartungsvertragInsertRecord.cs`
+    - `KGV.Core/Models/WartungsvertragZuordnungInsertRecord.cs`
+  - `ISupabaseService` für betroffene Create-Pfade sauber auf Insert-Modelle ohne `Id` getrennt:
+    - `CreateNebenmitgliedAsync(NebenmitgliedCreateDTO request)`
+    - `AddStromzaehlerAsync(StromzaehlerInsertRecord request)`
+    - `AddWasserzaehlerAsync(WasserzaehlerInsertRecord request)`
+    - `AddAblesungAsync(AblesungInsertRecord request)`
+    - `AddArbeitsstundeAsync(ArbeitsstundeInsertRecord request)`
+    - `CreateWartungsvertragAsync(WartungsvertragInsertRecord request)`
+    - `CreateArbeitseinsatzAsync(ArbeitseinsatzInsertRecord request)`
+    - `CreateTerminAsync(TerminInsertRecord request)`
+    - `CreateBekanntmachungAsync(BekanntmachungInsertRecord request)`
+  - `SupabaseService` auf dieselben Signaturen nachgezogen und die betroffenen Create-Insert-Pfade auf die neuen Insert-Modelle umgestellt
+  - die beiden bestehenden Wartungsvertrag-Zuordnungspfade verwenden intern jetzt ebenfalls `WartungsvertragZuordnungInsertRecord`
+- Bewusst noch nicht in diesem Block umgesetzt:
+  - keine breite WPF-/MAUI-Aufruferumstellung
+  - `CreateNebenmitgliedAsync` ist im Vertrag jetzt sauber für den späteren Produktivpfad vorbereitet, in der Implementierung aber in diesem Block noch nicht reaktiviert
+- Technische Verifikation:
+  - gezielte Dateifehler auf Interface, Service und neue Insert-Modelle blieben unauffällig
+  - `dotnet build KGV.Core/KGV.Core.csproj` lief erfolgreich durch
+  - `dotnet build KGV.Infrastructure/KGV.Infrastructure.csproj` lief erfolgreich durch
+  - im Infrastructure-Build blieben nur bereits vorhandene Nullability-Warnungen in `KGV.Infrastructure/Services/SupabaseService.cs`, aber kein blockierender Fehler dieses Strukturblocks
+
 ## 2026-03-27 – Prompt 1/1: Mitglieds-Unterpunkte optisch wie `↳ Wartungsverträge` vereinheitlicht, ohne Rechte-/Routingänderung
 
 - Zuerst den echten Repo-/Navigationsstand geprüft:

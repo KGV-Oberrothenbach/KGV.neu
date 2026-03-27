@@ -2,6 +2,52 @@
 
 ---
 
+## 2026-03-27 – Prompt 1/4: gemeinsamen Core-/Infrastructure-Unterbau für Insert-Modelle ohne `Id` aufgebaut
+
+- Vor dem Block erneut nur den echten Repo-/Log-/Vertragsstand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - die betroffenen Create-Blöcke in `KGV.Infrastructure/Services/SupabaseService.cs`
+  - bestehende Modell-/DTO-Dateien in `KGV.Core/Models`
+- Ehrlicher Befund im aktuellen Stand vor Umsetzung:
+  - bereits sauber waren nur die vorhandenen Insert-Pfade für `ParzellenBelegung` sowie der bestehende Infrastructure-Pfad mit `ArbeitsstundeInsertRecord`
+  - nicht sauber getrennt waren die Create-Pfade für:
+    - `Nebenmitglied`
+    - `Stromzaehler`
+    - `Wasserzaehler`
+    - `Ablesung`
+    - `Wartungsvertrag`
+    - `WartungsvertragZuordnung`
+    - `Arbeitseinsatz`
+    - `Termin`
+    - `Bekanntmachung`
+  - diese Pfade verwendeten im aktuellen Stand noch DB-Records mit `Id` im Insert-Pfad oder waren wie `CreateNebenmitgliedAsync` noch gar nicht produktiv implementiert
+- Umsetzung dieses Prompt-1/4-Blocks bewusst klein und nur im gemeinsamen Unterbau:
+  - neue Insert-Modelle ohne Primärschlüssel `Id` angelegt:
+    - `MitgliedInsertRecord`
+    - `StromzaehlerInsertRecord`
+    - `WasserzaehlerInsertRecord`
+    - `AblesungInsertRecord`
+    - `ArbeitseinsatzInsertRecord`
+    - `TerminInsertRecord`
+    - `BekanntmachungInsertRecord`
+    - `WartungsvertragInsertRecord`
+    - `WartungsvertragZuordnungInsertRecord`
+  - `ISupabaseService` für die betroffenen Create-Pfade auf Insert-Modelle ohne `Id` umgestellt und damit Create-vs-Update im Vertrag klarer getrennt
+  - `SupabaseService` auf dieselben Signaturen nachgezogen; die tatsächlichen Create-Insert-Aufrufe für Strom-/Wasserzähler, Ablesung, Arbeitsstunde, Wartungsvertrag, Arbeitseinsatz, Termin und Bekanntmachung laufen jetzt über Insert-Modelle ohne `Id`
+  - beide Wartungsvertrag-Zuordnungspfade verwenden intern nun `WartungsvertragZuordnungInsertRecord`
+  - WPF-/MAUI-Aufrufer wurden in diesem Block bewusst noch nicht umgebaut
+  - `CreateNebenmitgliedAsync` ist im gemeinsamen Vertrag nun sauber vorbereitet, bleibt in der Implementierung aber für einen späteren Block noch offen
+- Technische Kurzvalidierung dieses Blocks:
+  - gezielte Dateifehler auf Interface, Service und neue Insert-Modelle blieben unauffällig
+  - `dotnet build KGV.Core/KGV.Core.csproj` lief erfolgreich durch
+  - `dotnet build KGV.Infrastructure/KGV.Infrastructure.csproj` lief erfolgreich durch
+  - der Infrastructure-Build zeigte dabei nur bereits vorhandene Nullability-Warnungen in `KGV.Infrastructure/Services/SupabaseService.cs`, aber keinen blockierenden Fehler dieses Core-/Infrastructure-Blocks
+- Offener Rest für spätere Blöcke:
+  - direkte WPF-/MAUI-Aufrufer müssen erst im Anschluss auf die neuen gemeinsamen Create-Verträge umgestellt werden
+  - die produktive Reaktivierung von `CreateNebenmitgliedAsync` folgt in einem späteren Block
+
 ## 2026-03-27 – Prompt 1/1: Mitglieds-Unterpunkte optisch wie `↳ Wartungsverträge` vereinheitlicht, ohne neuen Fachumfang
 
 - Vor dem Block erneut nur den echten Repo-/Log-/Navigationsstand geprüft, ohne neuen Fachumfang zu eröffnen:
