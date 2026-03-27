@@ -1135,13 +1135,14 @@ namespace KGV.Infrastructure.Services
                 if (mitgliedId <= 0)
                     return null;
 
-                var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
                 var client = await EnsureClientAsync();
                 var response = await client.From<PflichtstundenUebersichtRecord>().Get();
+                var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
 
                 return response?.Models?
-                    .Where(x => MatchesHomeMitglied(x, homeMitgliedId))
-                    .OrderByDescending(GetPflichtstundenYear)
+                    .Where(x => MatchesPflichtstundenMitglied(x, mitgliedId, homeMitgliedId))
+                    .OrderByDescending(x => x.MitgliedId == mitgliedId)
+                    .ThenByDescending(GetPflichtstundenYear)
                     .ThenByDescending(x => x.SaisonId ?? 0)
                     .FirstOrDefault();
             },
@@ -1230,7 +1231,6 @@ namespace KGV.Infrastructure.Services
                 if (mitgliedId <= 0)
                     return new List<MemberWartungsvertragItem>();
 
-                var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
                 var bundle = await LoadWartungsvertragBundleAsync();
                 var countsByContractId = bundle.ActiveAssignments
                     .GroupBy(x => x.WartungsvertragId)
@@ -1238,7 +1238,7 @@ namespace KGV.Infrastructure.Services
                 var contractsById = bundle.Contracts.ToDictionary(x => x.Id);
 
                 return bundle.ActiveAssignments
-                    .Where(x => x.HauptmitgliedId == homeMitgliedId)
+                    .Where(x => x.HauptmitgliedId == mitgliedId)
                     .OrderBy(x => contractsById.TryGetValue(x.WartungsvertragId, out var contract)
                         ? contract.Titel ?? string.Empty
                         : string.Empty,
@@ -1258,16 +1258,12 @@ namespace KGV.Infrastructure.Services
                 if (mitgliedId <= 0)
                     return new List<WartungsvertragOverviewItem>();
 
-                var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
-                if (homeMitgliedId <= 0)
-                    return new List<WartungsvertragOverviewItem>();
-
                 var bundle = await LoadWartungsvertragBundleAsync();
                 var countsByContractId = bundle.ActiveAssignments
                     .GroupBy(x => x.WartungsvertragId)
                     .ToDictionary(x => x.Key, x => x.Count());
                 var assignedContractIds = bundle.ActiveAssignments
-                    .Where(x => x.HauptmitgliedId == homeMitgliedId)
+                    .Where(x => x.HauptmitgliedId == mitgliedId)
                     .Select(x => x.WartungsvertragId)
                     .ToHashSet();
 
@@ -1400,12 +1396,10 @@ namespace KGV.Infrastructure.Services
                 var normalizedMemberIds = new List<long>();
                 foreach (var requestedId in requestedIds)
                 {
-                    var homeMitgliedId = await ResolveHomeMitgliedIdAsync(requestedId);
-                    if (homeMitgliedId > 0
-                        && bundle.MembersById.ContainsKey(homeMitgliedId)
-                        && !normalizedMemberIds.Contains(homeMitgliedId))
+                    if (bundle.MembersById.ContainsKey(requestedId)
+                        && !normalizedMemberIds.Contains(requestedId))
                     {
-                        normalizedMemberIds.Add(homeMitgliedId);
+                        normalizedMemberIds.Add(requestedId);
                     }
                 }
 
@@ -1487,16 +1481,15 @@ namespace KGV.Infrastructure.Services
                 if (requestedContractIds.Count == 0)
                     return CreateWartungsvertragAssignmentSaveResult(false, "Bitte mindestens einen Wartungsvertrag auswählen.", 0, 0, 0);
 
-                var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
                 var bundle = await LoadWartungsvertragBundleAsync();
-                if (homeMitgliedId <= 0 || !bundle.MembersById.ContainsKey(homeMitgliedId))
+                if (!bundle.MembersById.ContainsKey(mitgliedId))
                     return CreateWartungsvertragAssignmentSaveResult(false, "Das ausgewählte Mitglied konnte nicht belastbar aufgelöst werden.", requestedContractIds.Count, 0, 0);
 
                 var countsByContractId = bundle.ActiveAssignments
                     .GroupBy(x => x.WartungsvertragId)
                     .ToDictionary(x => x.Key, x => x.Count());
                 var activeContractIds = bundle.ActiveAssignments
-                    .Where(x => x.HauptmitgliedId == homeMitgliedId)
+                    .Where(x => x.HauptmitgliedId == mitgliedId)
                     .Select(x => x.WartungsvertragId)
                     .ToHashSet();
                 var normalizedStartDate = gueltigAb.Date;
@@ -1520,7 +1513,7 @@ namespace KGV.Infrastructure.Services
                     insertRecords.Add(new WartungsvertragZuordnungInsertRecord
                     {
                         WartungsvertragId = contractId,
-                        HauptmitgliedId = homeMitgliedId,
+                        HauptmitgliedId = mitgliedId,
                         GueltigAb = normalizedStartDate,
                         CreatedAt = now,
                         UpdatedAt = now
@@ -2654,7 +2647,7 @@ namespace KGV.Infrastructure.Services
             LogHomeLoadInfo("LoadPflichtstundenSummaryAsync", $"Pflichtstunden-View lieferte {allRecords.Count} Datensätze vor dem Home-Filter.");
 
             var matchingRecords = allRecords
-                .Where(x => MatchesHomeMitglied(x, mitgliedId))
+                .Where(x => MatchesPflichtstundenMitglied(x, mitgliedId, mitgliedId))
                 .ToList();
 
             LogHomeLoadInfo("LoadPflichtstundenSummaryAsync", $"Pflichtstunden-View lieferte {matchingRecords.Count} Datensätze für Mitglied/Hauptmitglied {mitgliedId}.");
@@ -2849,13 +2842,21 @@ namespace KGV.Infrastructure.Services
             return new WartungsvertragAssignedMemberItem
             {
                 MitgliedId = zuordnung.HauptmitgliedId is > 0 and <= int.MaxValue ? (int)zuordnung.HauptmitgliedId : 0,
-                DisplayName = FormatMemberName(member) ?? $"Mitglied #{zuordnung.HauptmitgliedId}",
+                DisplayName = BuildWartungsvertragMemberDisplayName(member, zuordnung.HauptmitgliedId),
                 GartenNummern = bundle.GardenNumbersByMemberId.TryGetValue(zuordnung.HauptmitgliedId, out var gardens)
                     ? gardens
                     : string.Empty,
+                MitgliedskontextText = member?.HauptmitgliedId is > 0
+                    ? "Nebenmitglied"
+                    : "Hauptmitglied",
                 GueltigAb = zuordnung.GueltigAb,
                 GueltigBis = zuordnung.GueltigBis
             };
+        }
+
+        private static string BuildWartungsvertragMemberDisplayName(MitgliedRecord? member, long fallbackMemberId)
+        {
+            return FormatMemberName(member) ?? $"Mitglied #{fallbackMemberId}";
         }
 
         private static string BuildWartungsvertragKurzbeschreibung(WartungsvertragRecord contract)
@@ -3089,10 +3090,11 @@ namespace KGV.Infrastructure.Services
             return mitgliedId;
         }
 
-        private static bool MatchesHomeMitglied(PflichtstundenUebersichtRecord record, int mitgliedId)
+        private static bool MatchesPflichtstundenMitglied(PflichtstundenUebersichtRecord record, int mitgliedId, int homeMitgliedId)
         {
-            return record.HauptmitgliedId == mitgliedId
-                || record.MitgliedId == mitgliedId;
+            return record.MitgliedId == mitgliedId
+                || record.HauptmitgliedId == mitgliedId
+                || record.HauptmitgliedId == homeMitgliedId;
         }
 
         private static int GetPflichtstundenYear(PflichtstundenUebersichtRecord record)

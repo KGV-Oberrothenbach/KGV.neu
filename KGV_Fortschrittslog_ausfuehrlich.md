@@ -2,6 +2,87 @@
 
 ---
 
+## 2026-03-27 – Prompt 2/3 Abschluss: begonnenen Wartungsverträge-Nebenmitglieder-Block final abgeglichen und abgeschlossen
+
+- Vor dem Abschlusslauf erneut den echten Istzustand des begonnenen Blocks geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - alle real geänderten Wartungsvertragsdateien im Arbeitsbaum
+  - neue Migration `supabase/migrations/20260327160000_wartungsvertraege_nebenmitglieder.sql`
+- Reale Bestätigung im Arbeitsbaum:
+  - Shared-/Infrastructure-Logik liegt in `KGV.Infrastructure/Services/SupabaseService.cs`
+  - gemeinsames Detailmodell liegt in `KGV.Core/Models/WartungsvertragDetailItem.cs`
+  - WPF-Zuweisungspfad liegt in `KGV.Wpf/ViewModels/WartungsvertragMitgliederZuordnungViewModel.cs`
+  - MAUI-Zuweisungspfad liegt in `KGV.Maui/Pages/WartungsvertragAssignMembersPage.cs`
+  - die neue fachlich zugehörige Migration liegt uncommitted als `supabase/migrations/20260327160000_wartungsvertraege_nebenmitglieder.sql` vor
+  - zusätzlich waren die beiden Logdateien geändert
+- Fachabgleich des begonnenen Blocks:
+  - WPF und MAUI laufen fachlich weiter über denselben `ISupabaseService`-Pfad; es wurde keine UI-Sonderlogik mit eigener Wahrheit eingeführt
+  - Wartungsvertragslisten und Zuweisungen arbeiten mit direkter Mitgliedszuordnung; Nebenmitglieder bleiben eigenständige Vertragsträger
+  - Detailanzeige verwendet denselben Mitgliedskontext (`Hauptmitglied` / `Nebenmitglied`) in gemeinsamem Modell für beide Clients
+  - die Migration passt dazu, weil sie
+    - den Trigger für Wartungsvertragszuordnungen auf reale Mitglieder statt nur Hauptmitglieder öffnet
+    - die Pflichtstundenfunktion auf mitgliedsbezogenen Wartungsvertragsbezug bringt
+    - die Pflichtstunden-View mit `mitglied_id` und `hauptmitglied_id` passend zum App-Code liefert
+- Einziger direkter Restfehler im begonnenen Block:
+  - die WPF-Detailansicht enthielt im realen Arbeitsbaum noch nicht die bereits dokumentierte Kontextspalte
+  - minimal korrigiert in `KGV.Wpf/Views/WartungsvertragDetailView.xaml`
+- Abschließende Validierung:
+  - dateibezogene Prüfung der Blockdateien blieb unauffällig
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
+  - kein neuer Fachumfang eröffnet, keine neue Navigation, keine neue Seite, keine Zusatzarchitektur
+- Abschlussstand:
+  - der Prompt-2/3-Block zu Wartungsverträgen für Nebenmitglieder ist damit fachlich konsistent, mit Migration abgesichert und bereit für Commit/Push
+
+## 2026-03-27 – Prompt 2/3: Wartungsverträge fachlich für Haupt- und Nebenmitglieder in Shared, WPF und MAUI korrigiert
+
+- Vor dem Block den echten Repo-Stand nach `4857f64` geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - betroffene Wartungsvertrags-Dateien in `KGV.Core`, `KGV.Infrastructure`, WPF und MAUI
+- Exakter Istbefund im aktuellen Stand:
+  - die mitgliedsbezogenen Shared-Servicepfade für Wartungsverträge bogen Nebenmitglieder intern weiterhin auf `ResolveHomeMitgliedIdAsync(...)` bzw. `HauptmitgliedId` um
+  - dadurch wurden Anzeige und Zuweisung für Nebenmitglieder faktisch dem Hauptmitglied zugeschlagen
+  - zusätzlich filterten die WPF- und MAUI-Zuweisungslisten Nebenmitglieder noch direkt aus den auswählbaren Mitgliedern heraus
+  - die vorhandene Supabase-Migration enthielt sogar noch eine harte Trigger-Regel, nach der Wartungsverträge nur Hauptmitgliedern zugeordnet werden durften
+  - auch der Pflichtstunden-/Wartungsvertragsbezug lief im Schema und Service noch zu eng auf Hauptmitgliedzeilen
+- Minimal korrigiert, ohne neuen Fachumfang:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `GetWartungsvertraegeForMitgliedAsync(...)` auf direkte mitgliedsbezogene Wartungsvertragszuordnungen gezogen
+    - `GetAssignableWartungsvertraegeForMitgliedAsync(...)` ebenso auf direkte Mitgliedszuordnung umgestellt
+    - `AssignMitgliederToWartungsvertragAsync(...)` und `AssignWartungsvertraegeToMitgliedAsync(...)` speichern Nebenmitglieder nicht mehr als Hauptmitglied umgebogen ab
+    - Detailanzeige liefert jetzt zusätzlich einen sichtbaren Mitgliedskontext `Hauptmitglied` / `Nebenmitglied`
+    - Pflichtstundenbezug auf exakte Mitgliedszeilen priorisiert, mit Fallback auf Hauptmitgliedbezug nur dort, wo nötig
+  - `KGV.Wpf/ViewModels/WartungsvertragMitgliederZuordnungViewModel.cs`
+    - Auswahlfilter so erweitert, dass aktive Nebenmitglieder nicht mehr ausgeschlossen werden
+  - `KGV.Maui/Pages/WartungsvertragAssignMembersPage.cs`
+    - denselben Ausschluss für Nebenmitglieder entfernt
+  - `KGV.Wpf/Views/WartungsvertragDetailView.xaml`
+    - Detailgrid um sichtbare Kontextspalte erweitert
+  - `KGV.Core/Models/WartungsvertragDetailItem.cs`
+    - gemeinsames Kontextfeld für WPF und MAUI ergänzt
+  - neue Migration `supabase/migrations/20260327160000_wartungsvertraege_nebenmitglieder.sql`
+    - Trigger `validate_wartungsvertrag_zuordnung()` erlaubt Zuordnungen jetzt auch für Nebenmitglieder
+    - `fn_berechne_pflichtstunden_status(...)` prüft Wartungsverträge mitgliedsbezogen statt still nur über das Hauptmitglied
+    - `v_pflichtstunden_uebersicht` liefert wieder mitgliedsbezogene Datensätze für Haupt- und Nebenmitglieder
+- Betroffene Anzeige-/Zuweisungspfade dieses Blocks:
+  - WPF globale Mitgliederzuweisung zum Wartungsvertrag
+  - WPF Wartungsvertragsdetail mit Liste aktiver Mitgliedszuordnungen
+  - MAUI globale Mitgliederzuweisung zum Wartungsvertrag
+  - MAUI mitgliedsbezogene Wartungsvertragsansicht über den gemeinsamen Shared-Servicepfad
+- Technische Validierung:
+  - gezielte Dateiprüfung auf den geänderten C#-/XAML-Dateien blieb unauffällig
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
+  - im MAUI-Build blieben nur die bereits bekannten Warnungen (`XA1037`, Nullability in `HomeManagementPage.cs`)
+- Abschlussstand dieses Blocks:
+  - Wartungsverträge funktionieren fachlich nicht mehr still nur über Hauptmitglieder
+  - Haupt- und Nebenmitglieder verwenden in WPF und MAUI jetzt dieselbe gemeinsame fachliche Wahrheit für Anzeige, Zuweisung und relevante Bezugspfade
+  - kein neuer Fachumfang, keine neue Seite, keine Schattenarchitektur eröffnet
+
 ## 2026-03-27 – Prompt 1/3: MAUI-Startseite, Stammdaten und Flyout-Text auf dem aktiven Produktivpfad bereinigt
 
 - Vor dem Block den echten Istzustand gegen den aktuellen Repo-Stand geprüft:

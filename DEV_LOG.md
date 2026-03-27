@@ -2,6 +2,64 @@
 
 ---
 
+## 2026-03-27 – Prompt 2/3 Abschluss: Wartungsverträge-Nebenmitglieder-Block final validiert, Migration abgeglichen und sauber abgeschlossen
+
+- Echten Abschluss-Istzustand des begonnenen Blocks erneut geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - reale geänderte Wartungsvertragsdateien im Arbeitsbaum
+  - neue Migration `supabase/migrations/20260327160000_wartungsvertraege_nebenmitglieder.sql`
+  - realen Git-Status über den vorgegebenen Visual-Studio-Git-Pfad
+- Im Arbeitsbaum real vorhanden und abschließend bestätigt:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Core/Models/WartungsvertragDetailItem.cs`
+  - `KGV.Wpf/ViewModels/WartungsvertragMitgliederZuordnungViewModel.cs`
+  - `KGV.Wpf/Views/WartungsvertragDetailView.xaml`
+  - `KGV.Maui/Pages/WartungsvertragAssignMembersPage.cs`
+  - `supabase/migrations/20260327160000_wartungsvertraege_nebenmitglieder.sql`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Fachkonsistenz des Blocks bestätigt:
+  - WPF und MAUI nutzen weiterhin denselben Shared-/Infrastructure-Pfad über `ISupabaseService`
+  - Nebenmitglieder bleiben in Anzeige, Detail und Zuweisung erhalten und werden nicht mehr still auf das Hauptmitglied umgebogen
+  - Pflichtstunden-/Wartungsvertragsbezug ist mitgliedsbezogen angezogen; die Migration bildet dieselbe fachliche Wahrheit wie der App-Code ab
+- Direkter Restfehler dieses Blocks minimal bereinigt:
+  - `KGV.Wpf/Views/WartungsvertragDetailView.xaml` zeigt den Mitgliedskontext jetzt auch real im Grid an; damit entspricht die WPF-Detailansicht dem begonnenen Blockstand und der MAUI-Detaildarstellung
+- Abschlussvalidierung:
+  - dateibezogene Prüfung auf den Blockdateien unauffällig
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - bekannte Warnungen bleiben unverändert bestehen, u. a. `XA1037` und Nullability-Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+- Blockstatus:
+  - der Wartungsverträge-Nebenmitglieder-Block ist damit technisch und organisatorisch abgeschlossen
+
+## 2026-03-27 – Prompt 2/3: Wartungsverträge für Haupt- und Nebenmitglieder in WPF und MAUI fachlich geradegezogen
+
+- Zuerst den echten Istzustand auf Basis des gepushten Stands `4857f64` geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - realen Git-Status über den vorgegebenen Visual-Studio-Git-Pfad
+  - betroffene Wartungsvertrags-Pfade in `KGV.Core`, `KGV.Infrastructure`, WPF und MAUI
+- Zu eng auf Hauptmitglieder laufende Fachlogik gefunden in:
+  - `SupabaseService`: `GetWartungsvertraegeForMitgliedAsync`, `GetAssignableWartungsvertraegeForMitgliedAsync`, `AssignMitgliederToWartungsvertragAsync` und `AssignWartungsvertraegeToMitgliedAsync` normalisierten Nebenmitglieder auf `HauptmitgliedId`
+  - WPF- und MAUI-Zuweisungslisten filterten Nebenmitglieder zusätzlich komplett aus den auswählbaren Mitgliedern heraus
+  - die Datenbankmigration enthielt in `validate_wartungsvertrag_zuordnung()` noch die harte Regel "nur Hauptmitglieder zulassen"
+  - der Pflichtstunden-/Wartungsvertragsbezug lief in der Migration und im Shared-Service weiter zu stark über Hauptmitglied-Pfade
+- Bereinigung dieses Blocks:
+  - Shared-/Infrastructure-Pfade auf direkte Mitgliedszuordnung für Wartungsverträge umgestellt; Nebenmitglieder werden nicht mehr auf Hauptmitglieder umgebogen
+  - WPF- und MAUI-Zuweisungslisten schließen aktive Nebenmitglieder nicht mehr künstlich aus
+  - WPF-Detailansicht zeigt den Mitgliedskontext jetzt zusätzlich explizit an; MAUI-Detail nutzt denselben gemeinsamen Kontexttext im Untertitel
+  - neue Migration `supabase/migrations/20260327160000_wartungsvertraege_nebenmitglieder.sql` ergänzt:
+    - Validierung erlaubt Wartungsvertragszuordnungen auch für Nebenmitglieder
+    - Pflichtstunden-/Wartungsvertragsbezug liefert wieder mitgliedsbezogene Zeilen statt still nur Hauptmitgliedern
+- Ergebnis:
+  - Anzeige, Detail und Zuweisung verwenden jetzt dieselbe fachliche Wahrheit für Haupt- und Nebenmitglieder
+  - bestehende WPF-/MAUI-Pfade wurden weiterverwendet; keine neue Schattenlogik, keine neue Seite
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - offen bleiben nur die bekannten Warnungen, u. a. `XA1037` sowie Nullability-Warnungen in `HomeManagementPage.cs`
+
 ## 2026-03-27 – Prompt 1/3: MAUI-Startseite, Stammdaten und Navigationstext minimal bereinigt
 
 - Zuerst den echten Istzustand geprüft:

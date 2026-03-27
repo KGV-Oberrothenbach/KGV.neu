@@ -138,7 +138,7 @@ namespace KGV.ViewModels
                 foreach (var member in members
                     .Where(OperationalDataFilter.IsOperationalMember)
                     .Where(x => x.Aktiv)
-                    .Where(x => !x.HauptmitgliedId.HasValue || x.HauptmitgliedId.Value <= 0))
+                    )
                 {
                     var item = new AssignableWartungsvertragMemberItem(
                         member.Id,
@@ -282,7 +282,10 @@ namespace KGV.ViewModels
         private static string BuildDisplayName(MitgliedRecord member)
         {
             var displayName = $"{member.Vorname} {member.Name}".Trim();
-            return string.IsNullOrWhiteSpace(displayName) ? member.Email ?? $"Mitglied #{member.Id}" : displayName;
+            displayName = string.IsNullOrWhiteSpace(displayName) ? member.Email ?? $"Mitglied #{member.Id}" : displayName;
+            return member.HauptmitgliedId is > 0
+                ? $"{displayName} (Nebenmitglied)"
+                : $"{displayName} (Hauptmitglied)";
         }
 
         private static int GetGartenNrSortKey(string? gartenNummern)

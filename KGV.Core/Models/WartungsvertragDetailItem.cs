@@ -15,6 +15,7 @@ public sealed class WartungsvertragAssignedMemberItem
 {
     public int MitgliedId { get; init; }
     public string DisplayName { get; init; } = string.Empty;
+    public string MitgliedskontextText { get; init; } = string.Empty;
     public string GartenNummern { get; init; } = string.Empty;
     public DateTime GueltigAb { get; init; }
     public DateTime? GueltigBis { get; init; }
@@ -27,5 +28,7 @@ public sealed class WartungsvertragAssignedMemberItem
         ? $"Gültig {GueltigAb:dd.MM.yyyy} bis {GueltigBis.Value:dd.MM.yyyy}"
         : $"Gültig seit {GueltigAb:dd.MM.yyyy}";
 
-    public string Subtitle => $"{GartenText} · {GueltigkeitText}";
+    public string Subtitle => string.IsNullOrWhiteSpace(MitgliedskontextText)
+        ? $"{GartenText} · {GueltigkeitText}"
+        : $"{MitgliedskontextText} · {GartenText} · {GueltigkeitText}";
 }

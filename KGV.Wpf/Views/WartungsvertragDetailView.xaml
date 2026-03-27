@@ -86,6 +86,7 @@
                                       Visibility="{Binding HasAssignedMembers, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Mitglied" Binding="{Binding DisplayName}" Width="2*" />
+                                    <DataGridTextColumn Header="Kontext" Binding="{Binding MitgliedskontextText}" Width="Auto" />
                                     <DataGridTextColumn Header="Gartennummern" Binding="{Binding GartenNummern}" Width="*" />
                                     <DataGridTextColumn Header="Gültig ab" Binding="{Binding GueltigAb, StringFormat=dd.MM.yyyy}" Width="Auto" />
                                     <DataGridTextColumn Header="Gültig bis" Binding="{Binding GueltigBis, StringFormat=dd.MM.yyyy}" Width="Auto" />
