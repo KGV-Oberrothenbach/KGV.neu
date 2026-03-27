@@ -18,7 +18,6 @@ public partial class App : Application
 
     public App(IServiceProvider services, UserContextState userContextState)
     {
-        InitializeComponent();
         _services = services;
         _userContextState = userContextState;
     }

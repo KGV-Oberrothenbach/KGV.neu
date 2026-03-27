@@ -2,6 +2,7 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Maui.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Maui.Controls;
 
 namespace KGV.Maui.Pages;
 
@@ -19,7 +20,7 @@ public sealed class ZaehlerwechselPage : RfidScanWorkflowPage
 
     private static RfidScanContextViewModel CreateViewModel()
     {
-        var services = IPlatformApplication.Current?.Services
+        var services = Application.Current?.Handler?.MauiContext?.Services
             ?? throw new InvalidOperationException("MAUI-Services sind aktuell nicht verfügbar.");
 
         return new RfidScanContextViewModel(

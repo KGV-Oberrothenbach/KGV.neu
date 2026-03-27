@@ -2,6 +2,29 @@
 
 ---
 
+## 2026-03-27 – Prompt 1/1: bekannte MAUI-Altfehler gezielt bereinigt und Gesamtbuild wieder grün gezogen
+
+- Zuerst den echten Istzustand auf Basis des gepushten Stands `85a7859` geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - realen Git-Status über den vorgegebenen Visual-Studio-Git-Pfad
+  - echten Build `dotnet build KGV.Maui/KGV.Maui.csproj`
+- Reales Fehlerbild laut aktuellem MAUI-Build:
+  - `KGV.Maui/App.xaml.cs`: `InitializeComponent` nicht vorhanden
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`: `IPlatformApplication` nicht vorhanden
+  - `KGV.Maui/Pages/ZaehlerwechselPage.cs`: `IPlatformApplication` nicht vorhanden
+  - `KGV.Maui/Settings/AppSettings.cs`: `FileSystem` nicht vorhanden
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`: `InitializeComponent` nicht vorhanden
+- Minimal bereinigt, ohne neuen Fachumfang:
+  - `App.xaml.cs`: leeren XAML-Initialisierungspfad entfernt; die App erzeugt ihr Root-Window weiter rein über den bestehenden C#-Pfad
+  - `AblesungErfassenPage.cs` und `ZaehlerwechselPage.cs`: Servicezugriff von nicht vorhandenem `IPlatformApplication` auf den vorhandenen MAUI-Kontext `Application.Current?.Handler?.MauiContext?.Services` umgestellt
+  - `AppSettings.cs`: fehlenden MAUI-Storage-Namensraum für `FileSystem.AppDataDirectory` ergänzt
+  - `MemberSearchPage.xaml.cs`: fehlende XAML-Initialisierung durch denselben Seitenaufbau in C# ersetzt, damit der produktive Page-Pfad wieder sauber kompiliert
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` läuft jetzt erfolgreich durch
+  - offen bleiben nur Warnungen, u.a. die bekannte Android-Warnung zu `AndroidCreatePackagePerAbi` und vorhandene Nullability-Warnungen in `HomeManagementPage.cs`
+  - zusätzlicher Sicherheitslauf `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief ebenfalls erfolgreich durch
+
 ## 2026-03-27 – Prompt 4/4: projektweite Abschlussprüfung der Create-/Insert-Architektur durchgeführt und letzte Reststelle bereinigt
 
 - Zuerst den echten Istzustand gegen den gepushten Stand `f3b37dc` geprüft:

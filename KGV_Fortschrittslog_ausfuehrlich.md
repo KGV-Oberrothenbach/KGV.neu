@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-03-27 – Prompt 1/1: blockfremde MAUI-Altfehler gezielt repariert und MAUI-Gesamtbuild wieder grün gemacht
+
+- Vor dem Block den echten Istzustand auf Basis des gepushten Stands `85a7859` geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - echten Buildlauf `dotnet build KGV.Maui/KGV.Maui.csproj`
+- Der reale MAUI-Build bestätigte exakt nur die bekannten Altfehler in:
+  - `KGV.Maui/App.xaml.cs` wegen fehlendem `InitializeComponent`
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs` wegen fehlendem `IPlatformApplication`
+  - `KGV.Maui/Pages/ZaehlerwechselPage.cs` wegen fehlendem `IPlatformApplication`
+  - `KGV.Maui/Settings/AppSettings.cs` wegen fehlendem `FileSystem`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs` wegen fehlendem `InitializeComponent`
+- Umsetzung bewusst klein und nur compile-orientiert:
+  - in `KGV.Maui/App.xaml.cs` den leeren XAML-Initialisierungspfad entfernt; fachliche App-Logik blieb unverändert auf dem bestehenden RootPage-/Window-Pfad
+  - in `KGV.Maui/Pages/AblesungErfassenPage.cs` und `KGV.Maui/Pages/ZaehlerwechselPage.cs` den Servicezugriff auf `Application.Current?.Handler?.MauiContext?.Services` umgestellt
+  - in `KGV.Maui/Settings/AppSettings.cs` den fehlenden MAUI-Storage-Namensraum ergänzt
+  - in `KGV.Maui/Pages/MemberSearchPage.xaml.cs` den bisherigen Seitenaufbau direkt in C# nachgezogen, damit die Seite ohne fehlende XAML-Generierung wieder sauber kompiliert
+  - keine Shell-, Routing-, Insert-/Create- oder WPF-Fachlogik geändert
+- Technische Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` lief danach erfolgreich durch
+  - im grünen MAUI-Build blieben nur Warnungen:
+    - Android-Warnung `XA1037` zu `AndroidCreatePackagePerAbi`
+    - bestehende Nullability-Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+  - zusätzlicher Sicherheitslauf `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief ebenfalls erfolgreich; es wurde keine WPF-Regressionswirkung sichtbar
+- Abschlussstand:
+  - die zuvor dokumentierten MAUI-Altfehler sind bereinigt
+  - der MAUI-Gesamtbuild ist wieder grün, ohne neuen Fachumfang zu eröffnen
+
 ## 2026-03-27 – Prompt 4/4: projektweite Gesamtprüfung der produktiven Create-Pfade gegen das ID-freie Insert-Schema abgeschlossen
 
 - Vor dem Block den echten Repo- und Logstand gegen den gepushten Stand `f3b37dc` geprüft:
