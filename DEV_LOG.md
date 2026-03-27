@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-03-27 – Prompt 1/1: Mitglieds-Unterpunkte optisch wie `↳ Wartungsverträge` vereinheitlicht, ohne Rechte-/Routingänderung
+
+- Zuerst den echten Repo-/Navigationsstand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+- Ehrlicher Befund vor der Korrektur:
+  - im aktuellen MAUI-Shell-Stand waren die relevanten Mitglieds-Unterpunkte bereits mit `↳` konsistent aufgebaut
+  - die optische Uneinheitlichkeit saß im WPF-Mitgliedsbereich in `MainWindowViewModel`
+  - betroffen waren dort genau die Labels/Einrückungen von:
+    - `Stammdaten`
+    - `Arbeitsstunden`
+    - `Dokumente`
+    - `Admin-Menü`
+    - `Benutzerverwaltung`
+- Umsetzung bewusst klein und nur im Darstellungsblock:
+  - in `KGV.Wpf/ViewModels/MainWindowViewModel.cs` alle fünf genannten Mitglieds-Unterpunkte auf dasselbe sichtbare Präfix `↳` wie bei `Wartungsverträge` gezogen
+  - dieselben fünf Unterpunkte zusätzlich auf dieselbe Einrückung/Margin wie `↳ Wartungsverträge` vereinheitlicht
+  - Reihenfolge, Zielseiten, Rechte und Sichtbarkeitslogik blieben unverändert
+  - MAUI wurde nach Prüfung bewusst nicht geändert, weil der Shell-Stand dort bereits konsistent war
+- Technische Verifikation:
+  - `get_errors` auf `KGV.Wpf/ViewModels/MainWindowViewModel.cs` blieb unauffällig
+  - passender WPF-Build `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
+  - der WPF-Build zeigte dabei nur bereits vorhandene Nullability-Warnungen in `KGV.Infrastructure/Services/SupabaseService.cs`, aber keinen blockierenden Fehler für diesen kleinen UI-Darstellungsblock
+- Ergebnis:
+  - die genannten Mitglieds-Unterpunkte wirken jetzt optisch einheitlich zum bestehenden Stil von `↳ Wartungsverträge`
+  - es wurde keine neue Fachlogik und keine Routing-/Rechteänderung eröffnet
+
 ## 2026-03-27 – Prompt 1/1 Abschlusslauf: begonnenen WPF-Wartungsverträge-Bugfixblock geprüft, Logs nachgezogen und für sauberen Git-Abschluss eingegrenzt
 
 - Vor dem Abschlusslauf erneut nur den echten Repo-/Log-/Blockstand geprüft:

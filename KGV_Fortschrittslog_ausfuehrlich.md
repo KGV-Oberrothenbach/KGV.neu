@@ -2,6 +2,37 @@
 
 ---
 
+## 2026-03-27 – Prompt 1/1: Mitglieds-Unterpunkte optisch wie `↳ Wartungsverträge` vereinheitlicht, ohne neuen Fachumfang
+
+- Vor dem Block erneut nur den echten Repo-/Log-/Navigationsstand geprüft, ohne neuen Fachumfang zu eröffnen:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+- Ehrlicher Befund im aktuellen Stand vor Umsetzung:
+  - die relevanten Mitglieds-Unterpunkte waren im MAUI-Shell-/Flyout-Stand bereits mit `↳` konsistent dargestellt
+  - die optische Uneinheitlichkeit saß im WPF-Mitgliedsbereich in `MainWindowViewModel`
+  - dort liefen `Stammdaten`, `Arbeitsstunden`, `Dokumente` und `Admin-Menü` noch ohne denselben sichtbaren Stil wie `↳ Wartungsverträge`; `Benutzerverwaltung` war zwar bereits eingerückt, aber noch nicht mit demselben Präfix versehen
+- Den Korrekturblock deshalb bewusst klein und nur auf Optik/Labeling begrenzt umgesetzt:
+  - in `KGV.Wpf/ViewModels/MainWindowViewModel.cs` die Mitglieds-Unterpunkte
+    - `Stammdaten`
+    - `Arbeitsstunden`
+    - `Dokumente`
+    - `Admin-Menü`
+    - `Benutzerverwaltung`
+    jetzt mit demselben Symbol `↳` wie `Wartungsverträge` versehen
+  - dieselben fünf Unterpunkte zusätzlich auf dieselbe Einrückung/Margin wie `↳ Wartungsverträge` vereinheitlicht
+  - keine Änderung an Zielseiten, Routing, Rechtepfaden oder bestehender Sichtbarkeitslogik
+  - MAUI wurde nach echter Prüfung bewusst nicht geändert, weil der Shell-Stand dort für diese Unterpunkte bereits konsistent war
+- Technische Kurzvalidierung dieses Abschlusslaufs:
+  - `get_errors` auf `KGV.Wpf/ViewModels/MainWindowViewModel.cs` blieb unauffällig
+  - passender WPF-Build `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
+  - der WPF-Build zeigte dabei nur bereits vorhandene Nullability-Warnungen in `KGV.Infrastructure/Services/SupabaseService.cs`, aber keinen blockierenden Fehler für diesen kleinen UI-Darstellungsblock
+- Fachlicher Abschlussstand von Prompt `1/1`:
+  - die genannten Mitglieds-Unterpunkte sind jetzt optisch einheitlich zum bestehenden Stil von `↳ Wartungsverträge`
+  - der Block bleibt ein reiner UI-/Darstellungsfix ohne neuen Fachumfang
+
 ## 2026-03-27 – Prompt 1/1 Abschlusslauf: begonnenen WPF-Wartungsverträge-Bugfixblock geprüft, ehrlich fortgeschrieben und für sauberen Git-Abschluss eingegrenzt
 
 - Vor dem Abschlusslauf erneut nur den echten Repo-/Log-/Blockstand geprüft, ohne neuen Fachumfang zu eröffnen:

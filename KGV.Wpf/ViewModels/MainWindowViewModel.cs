@@ -310,9 +310,10 @@ namespace KGV.ViewModels
             // Stammdaten bearbeiten (Detail)
             MemberNavigationItems.Add(new NavigationItem
             {
-                Title = "Stammdaten",
+                Title = "↳ Stammdaten",
                 ViewModelType = typeof(MemberDetailViewModel),
-                IsVisible = SelectedMember != null
+                IsVisible = SelectedMember != null,
+                ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
             });
 
             MemberNavigationItems.Add(new NavigationItem
@@ -325,32 +326,33 @@ namespace KGV.ViewModels
 
             MemberNavigationItems.Add(new NavigationItem
             {
-                Title = "Arbeitsstunden",
+                Title = "↳ Arbeitsstunden",
                 ViewModelType = typeof(ArbeitsstundenViewModel),
                 IsVisible = SelectedMember != null && (UserContext.Has(PermissionFlags.CanManageWorkHours) || UserContext.Has(PermissionFlags.CanSeeOwnDataOnly)),
-                ButtonMargin = new System.Windows.Thickness(5)
+                ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
             });
 
             MemberNavigationItems.Add(new NavigationItem
             {
-                Title = "Dokumente",
+                Title = "↳ Dokumente",
                 ViewModelType = typeof(DokumenteViewModel),
                 IsVisible = SelectedMember != null && UserContext.Has(PermissionFlags.CanManageDocuments),
-                ButtonMargin = new System.Windows.Thickness(5)
+                ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
             });
 
             // Admin-Menü nur im Mitglied-Kontext
             MemberNavigationItems.Add(new NavigationItem
             {
-                Title = "Admin-Menü",
+                Title = "↳ Admin-Menü",
                 ViewModelType = typeof(AdminRoleViewModel),
                 IsAdminOnly = true,
-                IsVisible = SelectedMember != null
+                IsVisible = SelectedMember != null,
+                ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
             });
 
             MemberNavigationItems.Add(new NavigationItem
             {
-                Title = "Benutzerverwaltung",
+                Title = "↳ Benutzerverwaltung",
                 ViewModelType = typeof(UserManagementViewModel),
                 IsAdminOnly = true,
                 IsVisible = SelectedMember != null,
