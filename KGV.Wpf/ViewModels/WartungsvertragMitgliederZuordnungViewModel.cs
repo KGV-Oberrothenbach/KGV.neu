@@ -143,6 +143,8 @@ namespace KGV.ViewModels
                     var item = new AssignableWartungsvertragMemberItem(
                         member.Id,
                         BuildDisplayName(member),
+                        member.Name,
+                        member.Vorname,
                         gardenLookup.TryGetValue(member.Id, out var gardens) ? gardens : string.Empty,
                         assignedIds.Contains(member.Id),
                         UpdateSelectionState);
@@ -169,9 +171,13 @@ namespace KGV.ViewModels
                 ? _allItems
                     .OrderBy(x => GetGartenNrSortKey(x.GartenNummern))
                     .ThenBy(x => x.GartenNummern, StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(x => x.SortNachname, StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(x => x.SortVorname, StringComparer.CurrentCultureIgnoreCase)
                     .ThenBy(x => x.DisplayName, StringComparer.CurrentCultureIgnoreCase)
                 : _allItems
-                    .OrderBy(x => x.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                    .OrderBy(x => x.SortNachname, StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(x => x.SortVorname, StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(x => x.DisplayName, StringComparer.CurrentCultureIgnoreCase)
                     .ThenBy(x => x.GartenNummern, StringComparer.CurrentCultureIgnoreCase);
 
             Items.Clear();
@@ -302,10 +308,12 @@ namespace KGV.ViewModels
         private bool _isSelected;
         private bool _canSelect;
 
-        public AssignableWartungsvertragMemberItem(int mitgliedId, string displayName, string gartenNummern, bool isAlreadyAssigned, Action selectionChanged)
+        public AssignableWartungsvertragMemberItem(int mitgliedId, string displayName, string? nachname, string? vorname, string gartenNummern, bool isAlreadyAssigned, Action selectionChanged)
         {
             MitgliedId = mitgliedId;
             DisplayName = displayName;
+            SortNachname = string.IsNullOrWhiteSpace(nachname) ? displayName : nachname.Trim();
+            SortVorname = string.IsNullOrWhiteSpace(vorname) ? string.Empty : vorname.Trim();
             GartenNummern = gartenNummern;
             IsAlreadyAssigned = isAlreadyAssigned;
             _selectionChanged = selectionChanged;
@@ -314,6 +322,8 @@ namespace KGV.ViewModels
 
         public int MitgliedId { get; }
         public string DisplayName { get; }
+        public string SortNachname { get; }
+        public string SortVorname { get; }
         public string GartenNummern { get; }
         public bool IsAlreadyAssigned { get; }
         public string StatusText => IsAlreadyAssigned ? "Bereits aktiv zugeordnet" : string.IsNullOrWhiteSpace(GartenNummern) ? "Kein aktiver Garten" : $"Gärten: {GartenNummern}";

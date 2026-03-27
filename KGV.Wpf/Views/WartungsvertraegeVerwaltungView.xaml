@@ -48,6 +48,7 @@
                                   CanUserDeleteRows="False"
                                   IsReadOnly="True"
                                   HeadersVisibility="Column"
+                                  MouseDoubleClick="DataGrid_MouseDoubleClick"
                                   Visibility="{Binding HasItems, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Titel" Binding="{Binding Titel}" Width="2*" />

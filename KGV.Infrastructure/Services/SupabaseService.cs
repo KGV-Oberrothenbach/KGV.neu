@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using KGV.Core.Interfaces;
@@ -11,6 +12,7 @@ using KGV.Core.Security;
 using KGV.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using Supabase;
+using Supabase.Postgrest.Exceptions;
 
 namespace KGV.Infrastructure.Services
 {
@@ -1146,7 +1148,11 @@ namespace KGV.Infrastructure.Services
                 var assignedMembers = bundle.ActiveAssignments
                     .Where(x => x.WartungsvertragId == wartungsvertragId)
                     .OrderBy(x => bundle.MembersById.TryGetValue(x.HauptmitgliedId, out var member)
-                        ? FormatMemberName(member) ?? string.Empty
+                        ? GetMemberLastNameSortKey(member)
+                        : string.Empty,
+                        StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(x => bundle.MembersById.TryGetValue(x.HauptmitgliedId, out var member)
+                        ? GetMemberFirstNameSortKey(member)
                         : string.Empty,
                         StringComparer.CurrentCultureIgnoreCase)
                     .ThenBy(x => x.HauptmitgliedId)
@@ -1227,9 +1233,9 @@ namespace KGV.Infrastructure.Services
             },
             new List<WartungsvertragOverviewItem>());
 
-        public Task<WartungsvertragRecord?> CreateWartungsvertragAsync(WartungsvertragRecord record) => ExecuteAsync<WartungsvertragRecord?>(
-            "CreateWartungsvertragAsync",
-            async () =>
+        public async Task<WartungsvertragRecord?> CreateWartungsvertragAsync(WartungsvertragRecord record)
+        {
+            try
             {
                 if (record == null || string.IsNullOrWhiteSpace(record.Titel))
                     return null;
@@ -1257,12 +1263,22 @@ namespace KGV.Infrastructure.Services
                     .Where(x => IsSameWartungsvertragForReload(x, insertRecord))
                     .OrderByDescending(x => x.Id)
                     .FirstOrDefault();
-            },
-            null);
+            }
+            catch (PostgrestException ex)
+            {
+                LogPostgrestFailure("CreateWartungsvertragAsync", ex);
+                throw CreatePostgrestSaveException("Der Wartungsvertrag konnte nicht gespeichert werden.", ex);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "CreateWartungsvertragAsync failed.");
+                throw;
+            }
+        }
 
-        public Task<bool> UpdateWartungsvertragAsync(WartungsvertragRecord record) => ExecuteAsync(
-            "UpdateWartungsvertragAsync",
-            async () =>
+        public async Task<bool> UpdateWartungsvertragAsync(WartungsvertragRecord record)
+        {
+            try
             {
                 if (record == null || record.Id <= 0 || string.IsNullOrWhiteSpace(record.Titel))
                     return false;
@@ -1279,20 +1295,31 @@ namespace KGV.Infrastructure.Services
                     .Update();
 
                 return true;
-            },
-            false);
+            }
+            catch (PostgrestException ex)
+            {
+                LogPostgrestFailure("UpdateWartungsvertragAsync", ex);
+                throw CreatePostgrestSaveException("Der Wartungsvertrag konnte nicht gespeichert werden.", ex);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "UpdateWartungsvertragAsync failed.");
+                throw;
+            }
+        }
 
-        public Task<WartungsvertragAssignmentSaveResult> AssignMitgliederToWartungsvertragAsync(long wartungsvertragId, DateTime gueltigAb, IReadOnlyCollection<int> mitgliedIds) => ExecuteAsync(
-            "AssignMitgliederToWartungsvertragAsync",
-            async () =>
+        public async Task<WartungsvertragAssignmentSaveResult> AssignMitgliederToWartungsvertragAsync(long wartungsvertragId, DateTime gueltigAb, IReadOnlyCollection<int> mitgliedIds)
+        {
+            var requestedIds = (mitgliedIds ?? Array.Empty<int>())
+                .Where(x => x > 0)
+                .Distinct()
+                .ToList();
+
+            try
             {
                 if (wartungsvertragId <= 0)
                     return CreateWartungsvertragAssignmentSaveResult(false, "Der Wartungsvertrag fehlt.", 0, 0, 0);
 
-                var requestedIds = (mitgliedIds ?? Array.Empty<int>())
-                    .Where(x => x > 0)
-                    .Distinct()
-                    .ToList();
                 if (requestedIds.Count == 0)
                     return CreateWartungsvertragAssignmentSaveResult(false, "Bitte mindestens ein Mitglied auswählen.", 0, 0, 0);
 
@@ -1343,12 +1370,15 @@ namespace KGV.Infrastructure.Services
                 }
 
                 var normalizedStartDate = gueltigAb.Date;
+                var now = DateTime.UtcNow;
                 var insertRecords = newMemberIds
                     .Select(x => new WartungsvertragZuordnungRecord
                     {
                         WartungsvertragId = wartungsvertragId,
                         HauptmitgliedId = x,
-                        GueltigAb = normalizedStartDate
+                        GueltigAb = normalizedStartDate,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     })
                     .ToList();
 
@@ -1363,20 +1393,36 @@ namespace KGV.Infrastructure.Services
                     requestedIds.Count,
                     newMemberIds.Count,
                     remainingFreeSlots);
-            },
-            CreateWartungsvertragAssignmentSaveResult(false, "Die Zuordnungen konnten aktuell nicht gespeichert werden.", 0, 0, 0));
+            }
+            catch (PostgrestException ex)
+            {
+                LogPostgrestFailure("AssignMitgliederToWartungsvertragAsync", ex);
+                return CreateWartungsvertragAssignmentSaveResult(
+                    false,
+                    BuildPostgrestUserMessage("Die Zuordnungen konnten nicht gespeichert werden.", ex),
+                    requestedIds.Count,
+                    0,
+                    0);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "AssignMitgliederToWartungsvertragAsync failed.");
+                return CreateWartungsvertragAssignmentSaveResult(false, "Die Zuordnungen konnten aktuell nicht gespeichert werden.", requestedIds.Count, 0, 0);
+            }
+        }
 
-        public Task<WartungsvertragAssignmentSaveResult> AssignWartungsvertraegeToMitgliedAsync(int mitgliedId, DateTime gueltigAb, IReadOnlyCollection<long> wartungsvertragIds) => ExecuteAsync(
-            "AssignWartungsvertraegeToMitgliedAsync",
-            async () =>
+        public async Task<WartungsvertragAssignmentSaveResult> AssignWartungsvertraegeToMitgliedAsync(int mitgliedId, DateTime gueltigAb, IReadOnlyCollection<long> wartungsvertragIds)
+        {
+            var requestedContractIds = (wartungsvertragIds ?? Array.Empty<long>())
+                .Where(x => x > 0)
+                .Distinct()
+                .ToList();
+
+            try
             {
                 if (mitgliedId <= 0)
                     return CreateWartungsvertragAssignmentSaveResult(false, "Das ausgewählte Mitglied fehlt.", 0, 0, 0);
 
-                var requestedContractIds = (wartungsvertragIds ?? Array.Empty<long>())
-                    .Where(x => x > 0)
-                    .Distinct()
-                    .ToList();
                 if (requestedContractIds.Count == 0)
                     return CreateWartungsvertragAssignmentSaveResult(false, "Bitte mindestens einen Wartungsvertrag auswählen.", 0, 0, 0);
 
@@ -1393,6 +1439,7 @@ namespace KGV.Infrastructure.Services
                     .Select(x => x.WartungsvertragId)
                     .ToHashSet();
                 var normalizedStartDate = gueltigAb.Date;
+                var now = DateTime.UtcNow;
                 var insertRecords = new List<WartungsvertragZuordnungRecord>();
 
                 foreach (var contractId in requestedContractIds)
@@ -1413,7 +1460,9 @@ namespace KGV.Infrastructure.Services
                     {
                         WartungsvertragId = contractId,
                         HauptmitgliedId = homeMitgliedId,
-                        GueltigAb = normalizedStartDate
+                        GueltigAb = normalizedStartDate,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     });
 
                     countsByContractId[contractId] = activeCount + 1;
@@ -1445,8 +1494,23 @@ namespace KGV.Infrastructure.Services
                     requestedContractIds.Count,
                     insertRecords.Count,
                     0);
-            },
-            CreateWartungsvertragAssignmentSaveResult(false, "Die Zuordnungen konnten aktuell nicht gespeichert werden.", 0, 0, 0));
+            }
+            catch (PostgrestException ex)
+            {
+                LogPostgrestFailure("AssignWartungsvertraegeToMitgliedAsync", ex);
+                return CreateWartungsvertragAssignmentSaveResult(
+                    false,
+                    BuildPostgrestUserMessage("Die Zuordnungen konnten nicht gespeichert werden.", ex),
+                    requestedContractIds.Count,
+                    0,
+                    0);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "AssignWartungsvertraegeToMitgliedAsync failed.");
+                return CreateWartungsvertragAssignmentSaveResult(false, "Die Zuordnungen konnten aktuell nicht gespeichert werden.", requestedContractIds.Count, 0, 0);
+            }
+        }
 
         public Task<bool> EndWartungsvertragZuordnungAsync(long wartungsvertragZuordnungId, DateTime gueltigBis) => ExecuteAsync(
             "EndWartungsvertragZuordnungAsync",
@@ -2359,6 +2423,101 @@ namespace KGV.Infrastructure.Services
 
             var fullName = $"{member.Vorname} {member.Name}".Trim();
             return string.IsNullOrWhiteSpace(fullName) ? member.Email : fullName;
+        }
+
+        private static string GetMemberLastNameSortKey(MitgliedRecord? member)
+        {
+            if (!string.IsNullOrWhiteSpace(member?.Name))
+                return member.Name.Trim();
+
+            return FormatMemberName(member) ?? string.Empty;
+        }
+
+        private static string GetMemberFirstNameSortKey(MitgliedRecord? member)
+        {
+            if (!string.IsNullOrWhiteSpace(member?.Vorname))
+                return member.Vorname.Trim();
+
+            return string.Empty;
+        }
+
+        private void LogPostgrestFailure(string operation, PostgrestException ex)
+        {
+            var detail = BuildPostgrestDiagnosticDetail(ex);
+            _logger?.LogError(ex, "{Operation} failed. {Detail}", operation, detail);
+            Debug.WriteLine($"[{operation}] {detail}");
+        }
+
+        private static InvalidOperationException CreatePostgrestSaveException(string fallbackMessage, PostgrestException ex)
+            => new(BuildPostgrestUserMessage(fallbackMessage, ex), ex);
+
+        private static string BuildPostgrestUserMessage(string fallbackMessage, PostgrestException ex)
+        {
+            var detail = ExtractPostgrestRelevantMessage(ex);
+            return string.IsNullOrWhiteSpace(detail)
+                ? fallbackMessage
+                : $"{fallbackMessage} {detail}";
+        }
+
+        private static string BuildPostgrestDiagnosticDetail(PostgrestException ex)
+        {
+            var parts = new List<string>();
+            if ((int)ex.StatusCode > 0)
+                parts.Add($"HTTP {(int)ex.StatusCode}");
+
+            if (!string.IsNullOrWhiteSpace(ex.Reason.ToString()))
+                parts.Add($"Reason={ex.Reason}");
+
+            var relevantMessage = ExtractPostgrestRelevantMessage(ex);
+            if (!string.IsNullOrWhiteSpace(relevantMessage))
+                parts.Add(relevantMessage);
+
+            return string.Join(" | ", parts.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.CurrentCulture));
+        }
+
+        private static string ExtractPostgrestRelevantMessage(PostgrestException ex)
+        {
+            var contentMessage = ExtractPostgrestContentMessage(ex.Content);
+            if (!string.IsNullOrWhiteSpace(contentMessage))
+                return contentMessage;
+
+            return string.IsNullOrWhiteSpace(ex.Message)
+                ? string.Empty
+                : Regex.Replace(ex.Message.Trim(), "\\s+", " ");
+        }
+
+        private static string ExtractPostgrestContentMessage(string? content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return string.Empty;
+
+            try
+            {
+                using var document = JsonDocument.Parse(content);
+                var values = new[]
+                {
+                    TryGetJsonString(document.RootElement, "message"),
+                    TryGetJsonString(document.RootElement, "details"),
+                    TryGetJsonString(document.RootElement, "hint"),
+                    TryGetJsonString(document.RootElement, "code")
+                };
+
+                return string.Join(" | ", values.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim()));
+            }
+            catch
+            {
+                return Regex.Replace(content.Trim(), "\\s+", " ");
+            }
+        }
+
+        private static string? TryGetJsonString(JsonElement element, string propertyName)
+        {
+            if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind == JsonValueKind.Null)
+                return null;
+
+            return property.ValueKind == JsonValueKind.String
+                ? property.GetString()
+                : property.ToString();
         }
 
         private void LogHomeLoadFailure(string sectionName, Exception ex)

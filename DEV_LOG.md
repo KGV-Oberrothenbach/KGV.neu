@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-03-27 – Prompt 1/1 Abschlusslauf: begonnenen WPF-Wartungsverträge-Bugfixblock geprüft, Logs nachgezogen und für sauberen Git-Abschluss eingegrenzt
+
+- Vor dem Abschlusslauf erneut nur den echten Repo-/Log-/Blockstand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - genau die ausdrücklich genannten Blockdateien:
+    - `KGV.Wpf/Views/WartungsvertraegeVerwaltungView.xaml`
+    - `KGV.Wpf/Views/WartungsvertraegeVerwaltungView.xaml.cs`
+    - `KGV.Wpf/ViewModels/WartungsvertragMitgliederZuordnungViewModel.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - gezielte Dateifehler auf genau diesen vier WPF-/Service-Dateien
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+- Ehrlicher Befund im aktuellen Stand:
+  - der begonnene kleine WPF-Wartungsverträge-Bugfix war in den genannten Blockdateien bereits produktiv vorhanden
+  - Doppelklick in der globalen Wartungsverträge-Liste öffnet jetzt denselben Detailpfad wie der vorhandene `Öffnen`-Button
+  - die Mitgliedersortierung im Zuordnungsdialog läuft jetzt belastbar über Nachname/Vorname statt nur über den zusammengesetzten Anzeigenamen
+  - die echte Save-Ursache lag im Insertpfad `wartungsvertrag_zuordnungen`; dort werden `created_at` und `updated_at` jetzt gesetzt
+  - Postgrest-/DB-Details werden im direkt betroffenen Save-Fehlerpfad jetzt sauberer in Logger und Debug-Ausgabe sichtbar
+  - in diesen vier Blockdateien zeigte sich im aktuellen Abschlusslauf kein weiterer direkter Korrekturbedarf; zusätzlicher Produktivcode wurde deshalb nicht mehr geändert
+- Technische Verifikation dieses Abschlusslaufs:
+  - `get_errors` auf den vier Blockdateien blieb unauffällig
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
+  - der WPF-Build blieb dabei nur mit bereits vorhandenen Nullability-Warnungen in `KGV.Infrastructure/Services/SupabaseService.cs`, aber ohne blockierenden Fehler für diesen kleinen Wartungsverträge-Abschlussblock
+- Ergebnis dieses kleinen WPF-Bugfixblocks:
+  - der WPF-Wartungsverträge-Bugfixblock ist fachlich abgeschlossen
+  - für den Git-Abschluss werden nur die vier echten Blockdateien plus die beiden Logdateien aufgenommen; blockfremde offene Dateien bleiben ausdrücklich draußen
+
 ## 2026-03-27 – Prompt 3/3 Abschlusslauf: mitgliedsbezogenen Wartungsverträge-Block ehrlich fortgeschrieben und für sauberen Git-Abschluss eingegrenzt
 
 - Zuerst erneut nur den echten Repo-/Log-/Blockstand geprüft:
