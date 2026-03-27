@@ -8,11 +8,11 @@
             <DockPanel LastChildFill="False">
                 <TextBlock Text="Strom" FontSize="24" FontWeight="Bold" DockPanel.Dock="Left" />
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <Button Content="Neue Ablesung" Width="120" Height="30" Margin="0,0,10,0"
+                    <Button Content="Neue Ablesung" Width="120" Height="35" Margin="0,0,10,0"
                             Command="{Binding NeueAblesungCommand}" />
-                    <Button Content="Bearbeiten" Width="110" Height="30" Margin="0,0,10,0"
+                    <Button Content="Bearbeiten" Width="110" Height="35" Margin="0,0,10,0"
                             Command="{Binding AblesungBearbeitenCommand}" />
-                    <Button Content="Zähler tauschen" Width="140" Height="30"
+                    <Button Content="Zähler tauschen" Width="140" Height="35"
                             Command="{Binding ZaehlerTauschCommand}" />
                 </StackPanel>
             </DockPanel>

@@ -8,5 +8,10 @@ namespace KGV.Views
         {
             InitializeComponent();
         }
+
+        private void MemberParzellenSection_Loaded(object sender, System.Windows.RoutedEventArgs e)
+        {
+
+        }
     }
 }

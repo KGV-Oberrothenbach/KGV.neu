@@ -261,7 +261,7 @@
                 </GroupBox>
 
                 <!-- ✅ Parzellen-Section -->
-                <views:MemberParzellenSection Visibility="{Binding ShowParzellenSection, Converter={StaticResource BoolToVisibility}}"/>
+                <views:MemberParzellenSection Visibility="{Binding ShowParzellenSection, Converter={StaticResource BoolToVisibility}}" Loaded="MemberParzellenSection_Loaded" Height="369"/>
 
                 <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
                     <Button Content="Mitgliedschaft beenden" Width="220" Height="35" Command="{Binding CancelMembershipCommand}"/>

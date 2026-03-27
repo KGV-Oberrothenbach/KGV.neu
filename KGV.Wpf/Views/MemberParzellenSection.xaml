@@ -24,7 +24,7 @@
                 </DataGrid.Columns>
             </DataGrid>
 
-            <StackPanel Orientation="Horizontal" Margin="0,12,0,0" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,0" VerticalAlignment="Center" MinHeight="36">
                 <TextBlock Text="Freie Parzelle:" VerticalAlignment="Center" Margin="0,0,10,0"/>
 
                 <!-- ✅ bewusst NICHT an IsEditMode gebunden -->
@@ -43,13 +43,13 @@
 
                 <Button Content="Garten zuordnen"
                         Width="150"
-                        Height="30"
+                        Height="35"
                         Margin="15,0,0,0"
                         Command="{Binding AssignParzelleCommand}"/>
 
                 <Button Content="Belegung beenden"
                         Width="160"
-                        Height="30"
+                        Height="35"
                         Margin="10,0,0,0"
                         Command="{Binding EndBelegungCommand}"/>
             </StackPanel>
