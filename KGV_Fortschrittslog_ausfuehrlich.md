@@ -2,6 +2,44 @@
 
 ---
 
+## 2026-03-27 – Prompt 2/3: MAUI-Menüpunkt `Wartungsverträge` wieder in die Navigation aufgenommen, fachlich über vorhandenen Mitgliedskontext
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrücklich nur die fachlich nötigen WPF-Referenz- sowie direkt betroffenen MAUI-Dateien geprüft:
+  - WPF nur lesend als fachliche Referenz:
+    - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+    - `KGV.Wpf/ViewModels/MemberWartungsvertraegeViewModel.cs`
+    - `KGV.Wpf/ViewModels/WartungsvertraegeVerwaltungViewModel.cs`
+    - `KGV.Wpf/Views/MemberWartungsvertraegeView.xaml`
+    - `KGV.Wpf/Views/WartungsvertraegeVerwaltungView.xaml`
+  - aktive MAUI-Navigationspfade:
+    - `KGV.Maui/AdminShell.cs`
+    - `KGV.Maui/UserShell.cs`
+    - `KGV.Maui/ShellRouteRegistrar.cs`
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - gezielte Dateifehler der direkt betroffenen MAUI-Dateien
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+  - Git-Status nur zur Blockeingrenzung, ohne blockfremde Dateien anzufassen
+- WPF wurde in diesem Block bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen Stand vor Umsetzung:
+  - in WPF existieren für `Wartungsverträge` im aktuellen Stand zwar weiterhin die Placeholder `MemberWartungsvertraegeViewModel` und `WartungsvertraegeVerwaltungViewModel`, aber kein eigener produktiv verdrahteter Hauptnavigationspunkt
+  - fachlich ist `Wartungsverträge` in WPF damit näher am Mitgliedskontext als an einem freien globalen Root-Menü verortet
+  - in MAUI existierte aktuell ebenfalls keine eigene `Wartungsverträge`-Seite und keine separate Route dafür
+  - der belastbare bestehende mobile Produktivpfad war aber bereits vorhanden: `MeineDatenPage` zeigt die Sektion `Wartungsverträge / Pflichtstunden` auf Basis des vorhandenen Shared-Servicepfads
+  - der fehlende Teil war damit nicht Fachlogik oder eine neue Zielseite, sondern nur der saubere Navigationseintrag zurück in den vorhandenen Kontextpfad
+- Den Korrekturblock deshalb bewusst klein und nur im MAUI-Navigationspfad umgesetzt:
+  - in `KGV.Maui/AdminShell.cs` unter dem ausgewählten Mitgliedskontext den Menüpunkt `↳ Wartungsverträge` ergänzt
+  - in `KGV.Maui/UserShell.cs` im eigenen Mitgliedskontext den Menüpunkt `↳ Wartungsverträge` ergänzt
+  - beide Menüeinträge verwenden bewusst die bereits vorhandene Zielseite `MeineDatenPage`
+  - keine neue Dummy-Seite, keine neue Shell-Route und keinen größeren Flyout-Umbau gestartet
+  - Rollen-/Kontextsichtbarkeit bewusst am vorhandenen Produktivpfad gehalten:
+    - Admin/Vorstand sehen den Punkt im ausgewählten Mitgliedskontext
+    - User sehen den Punkt im eigenen Mitgliedskontext
+  - keine Rechte aufgeweicht und keine Rückkehr zu alten unpassenden Rootpfaden erzeugt
+- Technische Verifikation nach dem Fix:
+  - `get_errors` auf den direkt betroffenen Navigationsdateien blieb nach der Korrektur unauffällig
+  - anschließender `dotnet build KGV.Maui/KGV.Maui.csproj` lief im aktuellen Workspace erfolgreich durch
+  - der MAUI-Gesamtbuild blieb mit diesem kleinen Navigationsblock grün
+
 ## 2026-03-27 – Prompt 1/3: Neuen blockfremden MAUI-Compile-Rest in `ShellRouteRegistrar`, `MemberSearchViewModel`, `AblesenOverviewPage`, `ArbeitseinsaetzeManagementPage`, `BekanntmachungenManagementPage`, `MemberSearchPage.xaml.cs` und `TermineManagementPage` gezielt bereinigt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrücklich nur den direkt betroffenen MAUI-Pfad geprüft:

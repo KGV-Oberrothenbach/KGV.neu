@@ -46,6 +46,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (HasSelectedMember())
         {
             Items.Add(CreateItem("↳ Stammdaten", "memberdetails", () => _services.GetRequiredService<MeineDatenPage>()));
+            Items.Add(CreateItem("↳ Wartungsverträge", "member_wartungsvertraege", () => _services.GetRequiredService<MeineDatenPage>()));
             Items.Add(CreateItem("↳ Nebenmitglied", "member_nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
             Items.Add(CreateItem("↳ Gärten des Mitglieds", "member_gardens", () => _services.GetRequiredService<MemberGardensPage>()));
             if (_userContextState.CurrentUserContext?.Role == UserRole.Admin)

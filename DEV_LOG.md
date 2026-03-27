@@ -2,6 +2,43 @@
 
 ---
 
+## 2026-03-27 – MAUI-Menüpunkt `Wartungsverträge` wieder in die Navigation aufgenommen, über vorhandenen Mitgliedskontext statt neuer Seite
+
+- Vor dem Block erneut nur den realen Repo-/Log-/Pfadstand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `.github/copilot-instructions.md`
+  - WPF nur lesend als fachliche Referenz:
+    - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+    - `KGV.Wpf/ViewModels/MemberWartungsvertraegeViewModel.cs`
+    - `KGV.Wpf/ViewModels/WartungsvertraegeVerwaltungViewModel.cs`
+    - `KGV.Wpf/Views/MemberWartungsvertraegeView.xaml`
+    - `KGV.Wpf/Views/WartungsvertraegeVerwaltungView.xaml`
+  - aktive MAUI-Navigationspfade:
+    - `KGV.Maui/AdminShell.cs`
+    - `KGV.Maui/UserShell.cs`
+    - `KGV.Maui/ShellRouteRegistrar.cs`
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+- WPF wurde bewusst nicht angefasst.
+- Ehrlicher Befund vor der Korrektur:
+  - in WPF existieren aktuell für `Wartungsverträge` nur vorbereitete Placeholder (`MemberWartungsvertraegeViewModel` / `WartungsvertraegeVerwaltungViewModel`); ein eigener produktiv verdrahteter Hauptnavigationspunkt war im aktuellen Stand nicht mehr aktiv
+  - fachlich liegt das Thema in WPF damit näher am Mitgliedskontext als an einem losen allgemeinen Root-Menü
+  - in MAUI existierte ebenfalls noch keine eigene Seite oder Route für `Wartungsverträge`
+  - der belastbare bestehende mobile Produktivpfad war bereits vorhanden: `MeineDatenPage` enthält die produktive Sektion `Wartungsverträge / Pflichtstunden`
+- Umsetzung bewusst klein und nur im MAUI-Navigationspfad:
+  - in `KGV.Maui/AdminShell.cs` unter dem ausgewählten Mitgliedskontext den Menüpunkt `↳ Wartungsverträge` ergänzt
+  - in `KGV.Maui/UserShell.cs` im eigenen Mitgliedskontext den Menüpunkt `↳ Wartungsverträge` ergänzt
+  - beide Menüeinträge verwenden bewusst den vorhandenen Zielpfad `MeineDatenPage`
+  - keine neue Seite, keine neue Dummy-Route und kein größerer Flyout-Umbau
+  - `Wartungsverträge` ist damit in MAUI kontextgebunden sichtbar:
+    - Admin/Vorstand im ausgewählten Mitgliedskontext
+    - User im eigenen Mitgliedskontext
+- Technische Verifikation:
+  - `get_errors` auf den direkt betroffenen Navigationsdateien blieb unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` lief im aktuellen Workspace erfolgreich durch
+  - der MAUI-Gesamtbuild blieb nach diesem kleinen Navigationsblock grün
+
 ## 2026-03-27 – Neuen blockfremden MAUI-Compile-Rest in `ShellRouteRegistrar`, `MemberSearchViewModel`, `AblesenOverviewPage`, `ArbeitseinsaetzeManagementPage`, `BekanntmachungenManagementPage`, `MemberSearchPage.xaml.cs` und `TermineManagementPage` gezielt bereinigt
 
 - Vor dem Block erneut nur den realen Repo-/Log-/Fehlerstand geprüft:
