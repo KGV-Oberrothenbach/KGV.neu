@@ -1097,6 +1097,93 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
+        public Task<List<WartungsvertragOverviewItem>> GetWartungsvertraegeOverviewAsync() => ExecuteAsync(
+            "GetWartungsvertraegeOverviewAsync",
+            async () =>
+            {
+                var bundle = await LoadWartungsvertragBundleAsync();
+                var countsByContractId = bundle.ActiveAssignments
+                    .GroupBy(x => x.WartungsvertragId)
+                    .ToDictionary(x => x.Key, x => x.Count());
+
+                return bundle.Contracts
+                    .OrderByDescending(x => x.Aktiv)
+                    .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                    .Select(contract => CreateWartungsvertragOverviewItem(contract, countsByContractId))
+                    .ToList();
+            },
+            new List<WartungsvertragOverviewItem>());
+
+        public Task<WartungsvertragDetailItem?> GetWartungsvertragDetailAsync(long wartungsvertragId) => ExecuteAsync<WartungsvertragDetailItem?>(
+            "GetWartungsvertragDetailAsync",
+            async () =>
+            {
+                if (wartungsvertragId <= 0)
+                    return null;
+
+                var bundle = await LoadWartungsvertragBundleAsync();
+                var contract = bundle.Contracts.FirstOrDefault(x => x.Id == wartungsvertragId);
+                if (contract == null)
+                    return null;
+
+                var countsByContractId = bundle.ActiveAssignments
+                    .GroupBy(x => x.WartungsvertragId)
+                    .ToDictionary(x => x.Key, x => x.Count());
+
+                var assignedMembers = bundle.ActiveAssignments
+                    .Where(x => x.WartungsvertragId == wartungsvertragId)
+                    .OrderBy(x => bundle.MembersById.TryGetValue(x.HauptmitgliedId, out var member)
+                        ? FormatMemberName(member) ?? string.Empty
+                        : string.Empty,
+                        StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(x => x.HauptmitgliedId)
+                    .Select(x => CreateWartungsvertragAssignedMemberItem(x, bundle))
+                    .ToList();
+
+                var overview = CreateWartungsvertragOverviewItem(contract, countsByContractId);
+                return new WartungsvertragDetailItem
+                {
+                    Id = overview.Id,
+                    Titel = overview.Titel,
+                    Kurzbeschreibung = overview.Kurzbeschreibung,
+                    MaxKontingent = overview.MaxKontingent,
+                    Belegt = overview.Belegt,
+                    Frei = overview.Frei,
+                    Aktiv = overview.Aktiv,
+                    Beschreibung = CleanWartungsvertragText(FirstNonEmpty(contract.Beschreibung, contract.Bereich, contract.Bemerkung)),
+                    ZugeordneteMitglieder = assignedMembers
+                };
+            },
+            null);
+
+        public Task<List<MemberWartungsvertragItem>> GetWartungsvertraegeForMitgliedAsync(int mitgliedId) => ExecuteAsync(
+            "GetWartungsvertraegeForMitgliedAsync",
+            async () =>
+            {
+                if (mitgliedId <= 0)
+                    return new List<MemberWartungsvertragItem>();
+
+                var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
+                var bundle = await LoadWartungsvertragBundleAsync();
+                var countsByContractId = bundle.ActiveAssignments
+                    .GroupBy(x => x.WartungsvertragId)
+                    .ToDictionary(x => x.Key, x => x.Count());
+                var contractsById = bundle.Contracts.ToDictionary(x => x.Id);
+
+                return bundle.ActiveAssignments
+                    .Where(x => x.HauptmitgliedId == homeMitgliedId)
+                    .OrderBy(x => contractsById.TryGetValue(x.WartungsvertragId, out var contract)
+                        ? contract.Titel ?? string.Empty
+                        : string.Empty,
+                        StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(x => x.GueltigAb)
+                    .Select(x => CreateMemberWartungsvertragItem(x, contractsById, countsByContractId))
+                    .Where(x => x != null)
+                    .Cast<MemberWartungsvertragItem>()
+                    .ToList();
+            },
+            new List<MemberWartungsvertragItem>());
+
         public Task<HomeOverviewDTO> GetHomeOverviewAsync(UserRole role, int? mitgliedId) => ExecuteAsync(
             "GetHomeOverviewAsync",
             async () =>
@@ -2040,6 +2127,185 @@ namespace KGV.Infrastructure.Services
                 RuleReason = record.Regelgrund?.Trim() ?? string.Empty
             };
         }
+
+        private async Task<WartungsvertragBundle> LoadWartungsvertragBundleAsync()
+        {
+            var client = await EnsureClientAsync();
+            var wartungsvertraegeResponse = await client.From<WartungsvertragRecord>().Get();
+            var wartungsvertraege = wartungsvertraegeResponse?.Models?
+                .Where(x => !x.IsDemo)
+                .ToList()
+                ?? new List<WartungsvertragRecord>();
+
+            if (wartungsvertraege.Count == 0)
+                return new WartungsvertragBundle(new List<WartungsvertragRecord>(), new List<WartungsvertragZuordnungRecord>(), new Dictionary<long, MitgliedRecord>(), new Dictionary<long, string>());
+
+            var contractIds = wartungsvertraege.Select(x => x.Id).ToHashSet();
+            var zuordnungenResponse = await client.From<WartungsvertragZuordnungRecord>().Get();
+            var members = await GetMitgliederAsync();
+            var operationalMembers = members
+                .Where(OperationalDataFilter.IsOperationalMember)
+                .Where(x => x.Id > 0)
+                .ToDictionary(x => (long)x.Id, x => x);
+
+            var activeDate = DateTime.Today;
+            var activeAssignments = zuordnungenResponse?.Models?
+                .Where(x => x.WartungsvertragId > 0)
+                .Where(x => x.HauptmitgliedId > 0)
+                .Where(x => contractIds.Contains(x.WartungsvertragId))
+                .Where(x => operationalMembers.ContainsKey(x.HauptmitgliedId))
+                .Where(x => IsWartungsvertragZuordnungAktivOn(x, activeDate))
+                .OrderBy(x => x.WartungsvertragId)
+                .ThenBy(x => x.GueltigAb)
+                .ThenBy(x => x.Id)
+                .ToList()
+                ?? new List<WartungsvertragZuordnungRecord>();
+
+            var parzellen = await GetAllParzellenAsync();
+            var belegungen = await GetAllParzellenBelegungenAsync();
+            var gardenLookup = BuildWartungsvertragGardenLookup(parzellen, belegungen, operationalMembers.Keys, activeDate);
+
+            return new WartungsvertragBundle(wartungsvertraege, activeAssignments, operationalMembers, gardenLookup);
+        }
+
+        private static bool IsWartungsvertragZuordnungAktivOn(WartungsvertragZuordnungRecord zuordnung, DateTime date)
+        {
+            var target = date.Date;
+            var start = zuordnung.GueltigAb.Date;
+            var end = zuordnung.GueltigBis?.Date;
+
+            return start <= target && (!end.HasValue || end.Value >= target);
+        }
+
+        private static Dictionary<long, string> BuildWartungsvertragGardenLookup(
+            IReadOnlyCollection<ParzelleRecord> parzellen,
+            IReadOnlyCollection<ParzellenBelegungRecord> belegungen,
+            IEnumerable<long> operationalMemberIds,
+            DateTime activeDate)
+        {
+            var memberIds = operationalMemberIds.ToHashSet();
+            var parzellenById = parzellen
+                .Where(x => x.Id > 0 && !x.IsDemo)
+                .ToDictionary(x => x.Id);
+
+            return belegungen
+                .Where(x => x.MitgliedId > 0 && memberIds.Contains(x.MitgliedId))
+                .Where(x => x.ParzelleId > 0 && parzellenById.ContainsKey(x.ParzelleId))
+                .Where(x => IsWartungsvertragBelegungAktivOn(x, activeDate))
+                .GroupBy(x => (long)x.MitgliedId)
+                .ToDictionary(
+                    x => x.Key,
+                    x => string.Join(", ", x
+                        .Select(b => parzellenById[b.ParzelleId].GartenNr)
+                        .Where(g => !string.IsNullOrWhiteSpace(g))
+                        .Select(g => g.Trim())
+                        .Distinct(StringComparer.CurrentCultureIgnoreCase)
+                        .OrderBy(GetWartungsvertragGartenNrSortKey)
+                        .ThenBy(g => g, StringComparer.CurrentCultureIgnoreCase)));
+        }
+
+        private static bool IsWartungsvertragBelegungAktivOn(ParzellenBelegungRecord belegung, DateTime date)
+        {
+            var target = date.Date;
+            var start = belegung.VonDatum?.Date;
+            var end = belegung.BisDatum?.Date;
+
+            return (!start.HasValue || start.Value <= target)
+                && (!end.HasValue || end.Value >= target);
+        }
+
+        private static WartungsvertragOverviewItem CreateWartungsvertragOverviewItem(
+            WartungsvertragRecord contract,
+            IReadOnlyDictionary<long, int> countsByContractId)
+        {
+            var belegt = countsByContractId.TryGetValue(contract.Id, out var count) ? count : 0;
+            var maxKontingent = Math.Max(1, contract.MaxAktiveZuordnungen);
+
+            return new WartungsvertragOverviewItem
+            {
+                Id = contract.Id,
+                Titel = CleanWartungsvertragText(contract.Titel, "Wartungsvertrag"),
+                Kurzbeschreibung = BuildWartungsvertragKurzbeschreibung(contract),
+                MaxKontingent = maxKontingent,
+                Belegt = belegt,
+                Frei = Math.Max(0, maxKontingent - belegt),
+                Aktiv = contract.Aktiv
+            };
+        }
+
+        private static MemberWartungsvertragItem? CreateMemberWartungsvertragItem(
+            WartungsvertragZuordnungRecord zuordnung,
+            IReadOnlyDictionary<long, WartungsvertragRecord> contractsById,
+            IReadOnlyDictionary<long, int> countsByContractId)
+        {
+            if (!contractsById.TryGetValue(zuordnung.WartungsvertragId, out var contract))
+                return null;
+
+            var overview = CreateWartungsvertragOverviewItem(contract, countsByContractId);
+            return new MemberWartungsvertragItem
+            {
+                Id = overview.Id,
+                Titel = overview.Titel,
+                Kurzbeschreibung = overview.Kurzbeschreibung,
+                MaxKontingent = overview.MaxKontingent,
+                Belegt = overview.Belegt,
+                Frei = overview.Frei,
+                Aktiv = overview.Aktiv,
+                GueltigAb = zuordnung.GueltigAb,
+                GueltigBis = zuordnung.GueltigBis
+            };
+        }
+
+        private static WartungsvertragAssignedMemberItem CreateWartungsvertragAssignedMemberItem(
+            WartungsvertragZuordnungRecord zuordnung,
+            WartungsvertragBundle bundle)
+        {
+            bundle.MembersById.TryGetValue(zuordnung.HauptmitgliedId, out var member);
+
+            return new WartungsvertragAssignedMemberItem
+            {
+                MitgliedId = zuordnung.HauptmitgliedId is > 0 and <= int.MaxValue ? (int)zuordnung.HauptmitgliedId : 0,
+                DisplayName = FormatMemberName(member) ?? $"Mitglied #{zuordnung.HauptmitgliedId}",
+                GartenNummern = bundle.GardenNumbersByMemberId.TryGetValue(zuordnung.HauptmitgliedId, out var gardens)
+                    ? gardens
+                    : string.Empty,
+                GueltigAb = zuordnung.GueltigAb,
+                GueltigBis = zuordnung.GueltigBis
+            };
+        }
+
+        private static string BuildWartungsvertragKurzbeschreibung(WartungsvertragRecord contract)
+        {
+            var text = CleanWartungsvertragText(FirstNonEmpty(contract.Beschreibung, contract.Bereich, contract.Bemerkung));
+            if (text.Length <= 140)
+                return text;
+
+            return text[..137].TrimEnd() + "...";
+        }
+
+        private static string CleanWartungsvertragText(string? text, string fallback = "-")
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return fallback;
+
+            var cleaned = Regex.Replace(text.Trim(), "\\s+", " ");
+            return string.IsNullOrWhiteSpace(cleaned) ? fallback : cleaned;
+        }
+
+        private static int GetWartungsvertragGartenNrSortKey(string? gartenNr)
+        {
+            if (string.IsNullOrWhiteSpace(gartenNr))
+                return int.MaxValue;
+
+            var digits = new string(gartenNr.TakeWhile(char.IsDigit).ToArray());
+            return int.TryParse(digits, out var number) ? number : int.MaxValue;
+        }
+
+        private sealed record WartungsvertragBundle(
+            List<WartungsvertragRecord> Contracts,
+            List<WartungsvertragZuordnungRecord> ActiveAssignments,
+            Dictionary<long, MitgliedRecord> MembersById,
+            Dictionary<long, string> GardenNumbersByMemberId);
 
         private async Task<List<HomeWorkAssignmentItem>> LoadStartseiteArbeitseinsaetzeAsync()
         {

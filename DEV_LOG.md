@@ -2,6 +2,58 @@
 
 ---
 
+## 2026-03-27 – Prompt 1/3 Abschlusslauf: Wartungsverträge-Basisblock in WPF und MAUI technisch sauber final validiert
+
+- Vor dem Abschlusslauf erneut nur den realen Repo-/Log-/Blockstand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `.github/copilot-instructions.md`
+  - ausschließlich die bereits zum Wartungsverträge-Basisblock gehörenden Shared-/WPF-/MAUI-Dateien
+  - gezielte Dateifehler auf genau diesen Blockdateien
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+- Ehrlicher Befund im aktuellen Abschlussstand:
+  - die bereits angelegten Wartungsverträge-Dateien in `KGV.Core`, `KGV.Infrastructure`, `KGV.Wpf` und `KGV.Maui` waren dateibezogen im aktuellen Stand konsistent
+  - in diesem Abschlusslauf mussten an den Blockdateien keine zusätzlichen Fach- oder Compilekorrekturen mehr vorgenommen werden
+  - `get_tests` mit Bezug auf `Wartungsvertrag` lieferte aktuell keinen passenden Testfall; ein zusätzlicher Testlauf war daher für diesen Block nicht möglich
+  - blockfremde bereits vorhandene Änderungen im Arbeitsbaum wurden bewusst nicht angefasst und nicht in den Abschluss dieses Blocks gezogen
+- Technische Verifikation:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
+  - der MAUI-Build zeigt im aktuellen Workspace weiterhin nur bereits vorhandene Nullable-Warnungen, aber keinen blockierenden Fehler für diesen Block
+- Finaler Blockumfang in diesem Abschlusslauf:
+  - Shared/Core/Infrastructure:
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Core/Models/WartungsvertragRecord.cs`
+    - `KGV.Core/Models/WartungsvertragZuordnungRecord.cs`
+    - `KGV.Core/Models/WartungsvertragOverviewItem.cs`
+    - `KGV.Core/Models/WartungsvertragDetailItem.cs`
+    - `KGV.Core/Models/MemberWartungsvertragItem.cs`
+  - WPF:
+    - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+    - `KGV.Wpf/Infrastructure/Services/NavigationService.cs`
+    - `KGV.Wpf/App.xaml`
+    - `KGV.Wpf/ViewModels/WartungsvertraegeVerwaltungViewModel.cs`
+    - `KGV.Wpf/ViewModels/MemberWartungsvertraegeViewModel.cs`
+    - `KGV.Wpf/ViewModels/WartungsvertragDetailViewModel.cs`
+    - `KGV.Wpf/Views/WartungsvertraegeVerwaltungView.xaml`
+    - `KGV.Wpf/Views/MemberWartungsvertraegeView.xaml`
+    - `KGV.Wpf/Views/WartungsvertragDetailView.xaml`
+    - `KGV.Wpf/Views/WartungsvertragDetailView.xaml.cs`
+  - MAUI:
+    - `KGV.Maui/AdminShell.cs`
+    - `KGV.Maui/UserShell.cs`
+    - `KGV.Maui/ShellRouteRegistrar.cs`
+    - `KGV.Maui/MauiProgram.cs`
+    - `KGV.Maui/Pages/WartungsvertraegePage.cs`
+    - `KGV.Maui/Pages/MemberWartungsvertraegePage.cs`
+    - `KGV.Maui/Pages/WartungsvertragDetailPage.cs`
+- Abgrenzung:
+  - Prompt `2/3` und Prompt `3/3` wurden in diesem Abschlusslauf bewusst nicht fachlich vorgezogen
+  - offen bleiben damit weiterhin ausdrücklich weitergehende Funktionen wie Neu/Bearbeiten, Zuweisen per Checkbox, Historienbearbeitung und Kontingent-Auswahllogik
+
 ## 2026-03-27 – MAUI-Menüpunkt `Wartungsverträge` wieder in die Navigation aufgenommen, über vorhandenen Mitgliedskontext statt neuer Seite
 
 - Vor dem Block erneut nur den realen Repo-/Log-/Pfadstand geprüft:

@@ -35,6 +35,9 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
         Items.Add(CreateItem("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
 
+        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+            Items.Add(CreateItem("Wartungsverträge", "wartungsvertraege", () => _services.GetRequiredService<WartungsvertraegePage>()));
+
         _workhoursReviewItem = CreateItem("Arbeitsstunden · Arbeitsstunden freigeben", "workhours_review", () => _services.GetRequiredService<ArbeitsstundenReviewPage>());
         Items.Add(_workhoursReviewItem);
 
@@ -46,7 +49,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (HasSelectedMember())
         {
             Items.Add(CreateItem("↳ Stammdaten", "memberdetails", () => _services.GetRequiredService<MeineDatenPage>()));
-            Items.Add(CreateItem("↳ Wartungsverträge", "member_wartungsvertraege", () => _services.GetRequiredService<MeineDatenPage>()));
+            Items.Add(CreateItem("↳ Wartungsverträge", "member_wartungsvertraege", () => _services.GetRequiredService<MemberWartungsvertraegePage>()));
             Items.Add(CreateItem("↳ Nebenmitglied", "member_nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
             Items.Add(CreateItem("↳ Gärten des Mitglieds", "member_gardens", () => _services.GetRequiredService<MemberGardensPage>()));
             if (_userContextState.CurrentUserContext?.Role == UserRole.Admin)

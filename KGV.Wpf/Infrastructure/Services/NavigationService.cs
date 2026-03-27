@@ -111,6 +111,11 @@ namespace KGV.Infrastructure.Services
                 return new BekanntmachungenVerwaltungViewModel(_supabaseService, mainVm);
             }
 
+            if (viewModelType == typeof(WartungsvertraegeVerwaltungViewModel))
+            {
+                return new WartungsvertraegeVerwaltungViewModel(_supabaseService, mainVm);
+            }
+
             if (viewModelType == typeof(RfidEinrichtenViewModel))
             {
                 return new RfidEinrichtenViewModel(_supabaseService, mainVm);
@@ -207,6 +212,14 @@ namespace KGV.Infrastructure.Services
                     return null;
 
                 return new DokumenteViewModel(_supabaseService, ctx);
+            }
+
+            if (viewModelType == typeof(MemberWartungsvertraegeViewModel))
+            {
+                if (parameter is not MemberDTO member)
+                    return null;
+
+                return new MemberWartungsvertraegeViewModel(_supabaseService, mainVm, member);
             }
 
             if (viewModelType == typeof(ExportViewModel))

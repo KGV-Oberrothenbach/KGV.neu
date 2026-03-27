@@ -123,6 +123,10 @@
                 <views:WartungsvertraegeVerwaltungView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type vm:WartungsvertragDetailViewModel}">
+                <views:WartungsvertragDetailView />
+            </DataTemplate>
+
             <DataTemplate DataType="{x:Type vm:ZaehlerwechselAusbauViewModel}">
                 <views:ZaehlerwechselAusbauView />
             </DataTemplate>

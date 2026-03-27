@@ -230,17 +230,6 @@ namespace KGV.ViewModels
                 IsVisible = true
             });
 
-            if (UserContext.Has(PermissionFlags.CanSearchMembers))
-            {
-                // Mitgliedersuche
-                NavigationItems.Add(new NavigationItem
-                {
-                    Title = "Mitgliedersuche",
-                    ViewModelType = typeof(MemberSearchViewModel),
-                    IsVisible = true
-                });
-            }
-
             if (UserContext.Has(PermissionFlags.CanSeeOwnDataOnly))
             {
                 NavigationItems.Add(new NavigationItem
@@ -257,6 +246,14 @@ namespace KGV.ViewModels
                 {
                     Title = "Parzellenverwaltung",
                     ViewModelType = typeof(ParzellenVerwaltungViewModel),
+                    IsVisible = true,
+                    IsAdminOnly = true
+                });
+
+                NavigationItems.Add(new NavigationItem
+                {
+                    Title = "Wartungsverträge",
+                    ViewModelType = typeof(WartungsvertraegeVerwaltungViewModel),
                     IsVisible = true,
                     IsAdminOnly = true
                 });
@@ -294,6 +291,16 @@ namespace KGV.ViewModels
                 ViewModelType = typeof(ExportViewModel),
                 IsVisible = true
             });
+
+            if (UserContext.Has(PermissionFlags.CanSearchMembers))
+            {
+                NavigationItems.Add(new NavigationItem
+                {
+                    Title = "Mitglieder suchen",
+                    ViewModelType = typeof(MemberSearchViewModel),
+                    IsVisible = true
+                });
+            }
         }
 
         private void BuildMemberNavigation()
@@ -306,6 +313,14 @@ namespace KGV.ViewModels
                 Title = "Stammdaten",
                 ViewModelType = typeof(MemberDetailViewModel),
                 IsVisible = SelectedMember != null
+            });
+
+            MemberNavigationItems.Add(new NavigationItem
+            {
+                Title = "↳ Wartungsverträge",
+                ViewModelType = typeof(MemberWartungsvertraegeViewModel),
+                IsVisible = SelectedMember != null,
+                ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
             });
 
             MemberNavigationItems.Add(new NavigationItem
@@ -478,6 +493,12 @@ namespace KGV.ViewModels
             }
 
             if (item.ViewModelType == typeof(ArbeitsstundenViewModel))
+            {
+                if (SelectedMember == null) return;
+                parameter = SelectedMember;
+            }
+
+            if (item.ViewModelType == typeof(MemberWartungsvertraegeViewModel))
             {
                 if (SelectedMember == null) return;
                 parameter = SelectedMember;

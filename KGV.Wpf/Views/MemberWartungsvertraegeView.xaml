@@ -1,13 +1,58 @@
 <UserControl x:Class="KGV.Views.MemberWartungsvertraegeView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid Margin="24">
-        <StackPanel MaxWidth="760">
-            <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,12" />
-            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,12" />
-            <Border Padding="12" Background="{StaticResource KgvSurfaceBrush}">
-                <TextBlock Text="{Binding RecoveryHint}" TextWrapping="Wrap" />
-            </Border>
-        </StackPanel>
-    </Grid>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="24">
+            <StackPanel>
+                <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,18" />
+
+                <Border Padding="16"
+                        Background="{StaticResource KgvSurfaceBrush}"
+                        BorderBrush="{StaticResource KgvBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="16">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <Button Width="130"
+                                    Margin="0,0,12,0"
+                                    Content="Aktualisieren"
+                                    Command="{Binding RefreshCommand}" />
+                            <Button Width="120"
+                                    Content="Öffnen"
+                                    Command="{Binding OpenCommand}" />
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding StatusMessage}"
+                                   Margin="0,0,0,12"
+                                   TextWrapping="Wrap"
+                                   Foreground="DarkSlateBlue" />
+
+                        <TextBlock Text="{Binding EmptyStateMessage}"
+                                   Margin="0,0,0,8"
+                                   Foreground="Gray"
+                                   Visibility="{Binding HasEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                        <DataGrid ItemsSource="{Binding Items}"
+                                  SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  CanUserDeleteRows="False"
+                                  IsReadOnly="True"
+                                  HeadersVisibility="Column"
+                                  Visibility="{Binding HasItems, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Titel" Binding="{Binding Titel}" Width="2*" />
+                                <DataGridTextColumn Header="Kurzbeschreibung" Binding="{Binding Kurzbeschreibung}" Width="2*" />
+                                <DataGridTextColumn Header="Gültigkeit" Binding="{Binding GueltigkeitText}" Width="2*" />
+                                <DataGridTextColumn Header="Kontingent" Binding="{Binding MaxKontingent}" Width="Auto" />
+                                <DataGridTextColumn Header="Belegt" Binding="{Binding Belegt}" Width="Auto" />
+                                <DataGridTextColumn Header="Frei" Binding="{Binding Frei}" Width="Auto" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
 </UserControl>
