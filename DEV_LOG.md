@@ -2,6 +2,32 @@
 
 ---
 
+## 2026-03-27 – Prompt 1/3: MAUI-Startseite, Stammdaten und Navigationstext minimal bereinigt
+
+- Zuerst den echten Istzustand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - realen Git-Status über den vorgegebenen Visual-Studio-Git-Pfad
+  - die aktiven MAUI-Pfade `HomePage`, `HomeViewModel`, `MemberContextState`, `MeineDatenPage`, `AdminShell`, `UserShell`, `MemberSearchPage`
+- Home/Startseite korrigiert:
+  - `MemberContextState` um eine Änderungsbenachrichtigung ergänzt
+  - `HomePage` reagiert jetzt auf Kontextwechsel, invalidiert den ViewModel-Zustand und lädt beim Anzeigen sofort neu
+  - dadurch wird Home beim ersten Öffnen bzw. nach Mitgliedswechsel mit dem aktuellen Kontext geladen statt mit veraltetem Cache
+  - der Button `Arbeitsstunde erfassen` hängt weiter am bestehenden Produktivpfad, wird aber jetzt mit dem aktiven Kontext sauber neu bewertet
+  - `HomeViewModel.UserContextText` zeigt den echten Home-Kontext jetzt explizit an: ausgewähltes Mitglied für Admin/Vorstand, sonst eigenes Mitglied
+- Stammdaten entschlackt:
+  - auf `MeineDatenPage` die Bereiche `Mitgliedschaft`, `Wartungsverträge / Pflichtstunden` und `Verwaltung` aus der sichtbaren Seite entfernt
+  - `Mitgliedskontext` wird nur noch angezeigt, wenn wirklich eine Beziehung existiert
+  - sichtbar ist dort jetzt fachlich klar `Hauptmitglied` mit verknüpftem Nebenmitglied oder `Nebenmitglied` mit zugeordnetem Hauptmitglied
+  - ohne echte Verknüpfung bleibt der Bereich vollständig ausgeblendet
+- Navigationstext korrigiert:
+  - im Admin-Flyout `Arbeitsstunden · Arbeitsstunden freigeben` auf `Arbeitsstunden freigeben` reduziert
+  - dieselbe Kürzung gilt auch für den Zählertext mit offenen Freigaben
+- Validierung:
+  - dateibezogene Fehler auf den geänderten MAUI-Dateien blieben unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
+  - offen bleiben nur bekannte Warnungen, unter anderem `XA1037` und Nullability-Warnungen in `HomeManagementPage.cs`
+
 ## 2026-03-27 – Prompt 1/1: bekannte MAUI-Altfehler gezielt bereinigt und Gesamtbuild wieder grün gezogen
 
 - Zuerst den echten Istzustand auf Basis des gepushten Stands `85a7859` geprüft:

@@ -38,7 +38,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
             Items.Add(CreateItem("Wartungsverträge", "wartungsvertraege", () => _services.GetRequiredService<WartungsvertraegePage>()));
 
-        _workhoursReviewItem = CreateItem("Arbeitsstunden · Arbeitsstunden freigeben", "workhours_review", () => _services.GetRequiredService<ArbeitsstundenReviewPage>());
+        _workhoursReviewItem = CreateItem("Arbeitsstunden freigeben", "workhours_review", () => _services.GetRequiredService<ArbeitsstundenReviewPage>());
         Items.Add(_workhoursReviewItem);
 
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
@@ -80,12 +80,12 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             var count = offene.Sum(x => x.Count);
 
             _workhoursReviewItem.Title = count > 0
-                ? $"Arbeitsstunden · Arbeitsstunden freigeben ({count})"
-                : "Arbeitsstunden · Arbeitsstunden freigeben";
+                ? $"Arbeitsstunden freigeben ({count})"
+                : "Arbeitsstunden freigeben";
         }
         catch
         {
-            _workhoursReviewItem.Title = "Arbeitsstunden · Arbeitsstunden freigeben";
+            _workhoursReviewItem.Title = "Arbeitsstunden freigeben";
         }
     }
 

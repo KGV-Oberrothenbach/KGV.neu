@@ -2,6 +2,56 @@
 
 ---
 
+## 2026-03-27 – Prompt 1/3: MAUI-Startseite, Stammdaten und Flyout-Text auf dem aktiven Produktivpfad bereinigt
+
+- Vor dem Block den echten Istzustand gegen den aktuellen Repo-Stand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - aktive MAUI-Dateien für `Home`, `Mitgliedskontext/Stammdaten` und Flyout-Navigation
+- Home/Startseite vollständig entlang des aktiven Produktivpfads geprüft:
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+  - `KGV.Maui/State/MemberContextState.cs`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+- Reale Ursache des Home-Problems im aktuellen Stand:
+  - der Home-Pfad reagierte nicht aktiv auf Änderungen des ausgewählten Mitgliedskontexts
+  - dadurch konnte Home mit altem Zustand weiterlaufen, bis die Seite später erneut erschien oder neu aufgebaut wurde
+  - der Button `Arbeitsstunde erfassen` hing fachlich bereits am richtigen Produktivpfad, wurde aber durch den verzögerten Kontext-Reload nicht immer schon beim ersten relevanten Öffnen korrekt neu bewertet
+- Minimal bereinigt, ohne neuen Fachumfang:
+  - `MemberContextState` um ein `Changed`-Signal ergänzt
+  - `HomePage` subscribt beim Anzeigen auf Kontextwechsel, invalidiert den Home-ViewModel-Zustand und lädt dann sofort erneut
+  - `HomeViewModel` verwendet weiter den bestehenden Shared-Servicepfad, zeigt den tatsächlich verwendeten Mitgliedskontext jetzt aber im UI explizit an
+  - für Admin/Vorstand gilt damit auf Home der aktive ausgewählte Mitgliedskontext; normale User bleiben beim eigenen Kontext
+- Stammdaten-Seite fachlich entschlackt:
+  - auf `MeineDatenPage` die sichtbaren Bereiche
+    - `Mitgliedschaft`
+    - `Wartungsverträge / Pflichtstunden`
+    - `Verwaltung`
+    entfernt
+  - übrig bleiben echte Stammdatenblöcke plus ggf. echter `Mitgliedskontext`
+  - `Mitgliedskontext` wird nur noch gezeigt, wenn wirklich eine Haupt-/Nebenmitglied-Verknüpfung vorhanden ist
+  - angezeigt wird jetzt fachlich klar entweder
+    - `Hauptmitglied · Verknüpftes Nebenmitglied: ...`
+    - oder `Nebenmitglied · Zugeordnet zu Hauptmitglied: ...`
+  - ohne Verknüpfung bleibt der Bereich komplett verborgen
+- Navigation/Flyout nur textlich korrigiert:
+  - in `KGV.Maui/AdminShell.cs` den doppelten Text `Arbeitsstunden · Arbeitsstunden freigeben` auf `Arbeitsstunden freigeben` reduziert
+  - keine Rechte-, Routing- oder Reihenfolgeänderung vorgenommen
+- Technische Validierung:
+  - gezielte Dateiprüfung auf den geänderten MAUI-Dateien blieb unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
+  - der Build blieb nur mit bereits bekannten Warnungen grün, insbesondere:
+    - Android-Warnung `XA1037`
+    - vorhandene Nullability-Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+- Abschlussstand dieses Blocks:
+  - Home lädt auf dem vorhandenen Produktivpfad jetzt kontextsauber und ohne neuen Schattenpfad
+  - Stammdaten ist fachlich entschlackt
+  - der doppelte Flyout-Text ist bereinigt
+  - WPF wurde in diesem Block bewusst nicht geändert
+
 ## 2026-03-27 – Prompt 1/1: blockfremde MAUI-Altfehler gezielt repariert und MAUI-Gesamtbuild wieder grün gemacht
 
 - Vor dem Block den echten Istzustand auf Basis des gepushten Stands `85a7859` geprüft:

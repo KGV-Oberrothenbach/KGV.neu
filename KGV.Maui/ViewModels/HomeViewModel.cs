@@ -38,7 +38,7 @@ public sealed class HomeViewModel : INotifyPropertyChanged
 
     public string Title => "Startseite";
     public string Description => _overview.Description;
-    public string UserContextText => $"Kontext: {UserRoles.ToStorageValue(_userContextState.CurrentUserContext?.Role ?? UserRole.User)}";
+    public string UserContextText => BuildUserContextText();
     public string WorkHoursHeader => $"Arbeitsstunden {(_overview.WorkHoursSummary?.Year ?? DateTime.Today.Year)}";
     public string RequiredHoursValue => FormatHours(_overview.WorkHoursSummary?.RequiredHours);
     public string WorkedHoursValue => FormatHours(_overview.WorkHoursSummary?.WorkedHours);
@@ -187,6 +187,22 @@ public sealed class HomeViewModel : INotifyPropertyChanged
         }
 
         return ToInt32(_userContextState.CurrentMitgliedId);
+    }
+
+    private string BuildUserContextText()
+    {
+        var roleText = UserRoles.ToStorageValue(_userContextState.CurrentUserContext?.Role ?? UserRole.User);
+
+        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+        {
+            var selectedMember = _memberContextState.SelectedMember;
+            if (selectedMember?.Id is > 0)
+                return $"Kontext: {roleText} · Mitglied: {selectedMember.DisplayName}";
+
+            return $"Kontext: {roleText} · kein Mitglied ausgewählt";
+        }
+
+        return $"Kontext: {roleText} · eigenes Mitglied";
     }
 
     private static string BuildWorkHoursInfoText(HomeWorkHoursSummary summary)

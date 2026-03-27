@@ -173,15 +173,7 @@ public class MeineDatenPage : ContentPage
                         CreateValueField("Straße / Hausnummer", _strasseLabel),
                         CreateValueField("PLZ", _plzLabel),
                         CreateValueField("Ort", _ortLabel)),
-                    CreateSection("Mitgliedschaft",
-                        CreateValueField("Rolle", _rolleLabel),
-                        CreateValueField("Mitglied seit", _mitgliedSeitLabel),
-                        CreateValueField("Mitglied Ende", _mitgliedEndeLabel),
-                        CreateValueField("Aktiv", _aktivLabel),
-                        CreateValueField("Bemerkungen", _bemerkungenLabel)),
-                    _wartungsvertragSectionCard,
                     _nebenmitgliedSectionCard,
-                    _adminSectionCard,
                     _documentsButton
                 }
             }
@@ -205,10 +197,8 @@ public class MeineDatenPage : ContentPage
             {
                 _headlineLabel.Text = "Kein Mitglied ausgewählt";
                 SetMemberFieldsEmpty();
-                SetWartungsvertragFieldsEmpty();
                 UpdateNebenmitgliedSection(null, false);
                 _nachnameLabel.Text = "Bitte zuerst in der Mitgliedersuche ein Mitglied auswählen.";
-                UpdateAdminMenu(null);
                 return;
             }
 
@@ -235,15 +225,8 @@ public class MeineDatenPage : ContentPage
             _strasseLabel.Text = FormatValue(contextMember.Strasse);
             _plzLabel.Text = FormatValue(contextMember.PLZ);
             _ortLabel.Text = FormatValue(contextMember.Ort);
-            _rolleLabel.Text = FormatRole(contextMember.Role);
-            _mitgliedSeitLabel.Text = FormatDate(contextMember.MitgliedSeit);
-            _mitgliedEndeLabel.Text = FormatDate(contextMember.MitgliedEnde);
-            _aktivLabel.Text = contextMember.Aktiv ? "Ja" : "Nein";
-            _bemerkungenLabel.Text = FormatValue(contextMember.Bemerkungen);
 
-            await LoadWartungsvertragSummaryAsync(contextMember.Id);
-            await UpdateNebenmitgliedSectionAsync(contextMember);
-            UpdateAdminMenu(contextMember);
+            await UpdateNebenmitgliedSectionAsync(member);
         }
         catch (Exception ex)
         {
@@ -276,7 +259,7 @@ public class MeineDatenPage : ContentPage
             "OK");
     }
 
-    private async Task UpdateNebenmitgliedSectionAsync(MemberDTO member)
+    private async Task UpdateNebenmitgliedSectionAsync(MitgliedRecord member)
     {
         if (member.Id <= 0)
         {
@@ -284,20 +267,25 @@ public class MeineDatenPage : ContentPage
             return;
         }
 
-        if (!member.IstHauptmitglied)
+        if (member.HauptmitgliedId is > 0)
         {
-            UpdateNebenmitgliedSection("Dieses Mitglied ist einem Hauptmitglied zugeordnet; ein eigener Nebenmitgliedspfad ist hier nicht relevant.", false);
+            var hauptmitglied = await _supabaseService.GetMitgliedByIdAsync(member.HauptmitgliedId.Value);
+            var hauptmitgliedName = hauptmitglied == null
+                ? "Hauptmitglied"
+                : BuildDisplayName(hauptmitglied.Vorname, hauptmitglied.Name);
+
+            UpdateNebenmitgliedSection($"Nebenmitglied · Zugeordnet zu Hauptmitglied: {hauptmitgliedName}", false);
             return;
         }
 
         var nebenmitglied = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(member.Id);
         if (nebenmitglied == null)
         {
-            UpdateNebenmitgliedSection("Für dieses Hauptmitglied ist aktuell kein Nebenmitglied hinterlegt.", false);
+            UpdateNebenmitgliedSection(null, false);
             return;
         }
 
-        UpdateNebenmitgliedSection($"Vorhandenes Nebenmitglied: {BuildDisplayName(nebenmitglied.Vorname, nebenmitglied.Name)}", true);
+        UpdateNebenmitgliedSection($"Hauptmitglied · Verknüpftes Nebenmitglied: {BuildDisplayName(nebenmitglied.Vorname, nebenmitglied.Name)}", true);
     }
 
     private async Task LoadWartungsvertragSummaryAsync(int mitgliedId)

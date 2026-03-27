@@ -14,6 +14,7 @@ public class HomePage : ContentPage
     private readonly HomeContextState _homeContextState;
     private readonly ArbeitseinsaetzeUserState _arbeitseinsaetzeUserState;
     private readonly TermineUserState _termineUserState;
+    private readonly MemberContextState _memberContextState;
     private readonly Label _statusLabel;
     private readonly Button _createWorkHoursEntryButton;
     private readonly Button _newWorkAssignmentButton;
@@ -21,13 +22,15 @@ public class HomePage : ContentPage
     private readonly Button _newAnnouncementButton;
     private bool _isLoading;
     private bool _loadScheduled;
+    private bool _isSubscribed;
 
-    public HomePage(HomeViewModel viewModel, HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, TermineUserState termineUserState)
+    public HomePage(HomeViewModel viewModel, HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, TermineUserState termineUserState, MemberContextState memberContextState)
     {
         _viewModel = viewModel;
         _homeContextState = homeContextState;
         _arbeitseinsaetzeUserState = arbeitseinsaetzeUserState;
         _termineUserState = termineUserState;
+        _memberContextState = memberContextState;
         BindingContext = _viewModel;
         Title = "Startseite";
 
@@ -248,6 +251,35 @@ public class HomePage : ContentPage
     {
         base.OnAppearing();
 
+        if (!_isSubscribed)
+        {
+            _memberContextState.Changed += OnMemberContextChanged;
+            _isSubscribed = true;
+        }
+
+        ScheduleLoad();
+    }
+
+    protected override void OnDisappearing()
+    {
+        if (_isSubscribed)
+        {
+            _memberContextState.Changed -= OnMemberContextChanged;
+            _isSubscribed = false;
+        }
+
+        base.OnDisappearing();
+    }
+
+    private void OnMemberContextChanged(object? sender, EventArgs e)
+    {
+        _viewModel.Invalidate();
+        if (IsVisible)
+            ScheduleLoad();
+    }
+
+    private void ScheduleLoad()
+    {
         if (_isLoading || _loadScheduled)
             return;
 
