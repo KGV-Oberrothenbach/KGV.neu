@@ -2,6 +2,45 @@
 
 ---
 
+## 2026-03-27 – Neuen blockfremden MAUI-Compile-Rest in `ShellRouteRegistrar`, `MemberSearchViewModel`, `AblesenOverviewPage`, `ArbeitseinsaetzeManagementPage`, `BekanntmachungenManagementPage`, `MemberSearchPage.xaml.cs` und `TermineManagementPage` gezielt bereinigt
+
+- Vor dem Block erneut nur den realen Repo-/Log-/Fehlerstand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `.github/copilot-instructions.md`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/ViewModels/MemberSearchViewModel.cs`
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+  - `KGV.Maui/Pages/ArbeitseinsaetzeManagementPage.cs`
+  - `KGV.Maui/Pages/BekanntmachungenManagementPage.cs`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml`
+  - `KGV.Maui/Pages/TermineManagementPage.cs`
+  - gezielte Dateifehler für genau diese MAUI-Dateien
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+- WPF wurde bewusst nicht angefasst.
+- Ehrlicher Befund vor der Korrektur:
+  - die sichtbaren Fehler lagen erneut nicht in Fachlogik, sondern in fehlenden aktiven MAUI-Usings bzw. Typauflösungen
+  - betroffen waren vor allem:
+    - `Routing` in `ShellRouteRegistrar.cs`
+    - `Command` in `MemberSearchViewModel.cs`
+    - `LineBreakMode` und `CornerRadius` in `AblesenOverviewPage.cs`
+    - `Shell` in `ArbeitseinsaetzeManagementPage.cs`, `BekanntmachungenManagementPage.cs` und `TermineManagementPage.cs`
+  - `MemberSearchPage.xaml.cs` wurde zusammen mit `MemberSearchPage.xaml` geprüft; `x:Class`, Namespace, Basistyp und Code-Behind passen im aktuellen Stand zusammen und waren nicht der Fehlerursprung
+- Umsetzung bewusst klein und nur auf die Compile-Ursachen begrenzt:
+  - in `KGV.Maui/ShellRouteRegistrar.cs` `using Microsoft.Maui.Controls` ergänzt
+  - in `KGV.Maui/ViewModels/MemberSearchViewModel.cs` `using Microsoft.Maui.Controls` ergänzt
+  - in `KGV.Maui/Pages/AblesenOverviewPage.cs` `using Microsoft.Maui` ergänzt
+  - in `KGV.Maui/Pages/ArbeitseinsaetzeManagementPage.cs` `using Microsoft.Maui.Controls` ergänzt
+  - in `KGV.Maui/Pages/BekanntmachungenManagementPage.cs` `using Microsoft.Maui.Controls` ergänzt
+  - in `KGV.Maui/Pages/TermineManagementPage.cs` `using Microsoft.Maui.Controls` ergänzt
+  - an `MemberSearchPage.xaml.cs` und `MemberSearchPage.xaml` keine Codeänderung, weil der XAML-/Code-Behind-Vertrag im aktuellen Stand bereits konsistent ist
+  - keine Fachlogik, keine Navigation, keine Shell-/Routing-/CRUD-/Supabase-Pfade umgebaut
+- Technische Verifikation:
+  - `get_errors` auf den sieben Zielpfaden blieb nach der Korrektur unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` lief im aktuellen Workspace wieder erfolgreich durch
+  - der MAUI-Gesamtbuild ist mit diesem kleinen Compileblock wieder grün
+
 ## 2026-03-27 – Blockfremden MAUI-Startup-Compilefehlerstand in `MauiProgram`, `App.xaml.cs` und `MainApplication` gezielt bereinigt
 
 - Vor dem Block erneut nur den realen Repo-/Log-/Fehlerstand geprüft:
