@@ -87,9 +87,13 @@ namespace KGV.Core.Interfaces
         Task<List<DocumentInfo>> GetParzelleDokumenteAsync(int parzelleId);
         Task<string?> CreateDokumentSignedUrlAsync(string storagePath, int expiresInSeconds = 3600);
         Task<PflichtstundenUebersichtRecord?> GetPflichtstundenUebersichtForMitgliedAsync(int mitgliedId);
+        Task<WartungsvertragRecord?> GetWartungsvertragByIdAsync(long wartungsvertragId);
         Task<List<WartungsvertragOverviewItem>> GetWartungsvertraegeOverviewAsync();
         Task<WartungsvertragDetailItem?> GetWartungsvertragDetailAsync(long wartungsvertragId);
         Task<List<MemberWartungsvertragItem>> GetWartungsvertraegeForMitgliedAsync(int mitgliedId);
+        Task<WartungsvertragRecord?> CreateWartungsvertragAsync(WartungsvertragRecord record);
+        Task<bool> UpdateWartungsvertragAsync(WartungsvertragRecord record);
+        Task<WartungsvertragAssignmentSaveResult> AssignMitgliederToWartungsvertragAsync(long wartungsvertragId, DateTime gueltigAb, IReadOnlyCollection<int> mitgliedIds);
 
         Task<HomeOverviewDTO> GetHomeOverviewAsync(KGV.Core.Security.UserRole role, int? mitgliedId);
         Task<List<HomeWorkAssignmentItem>> GetStartseiteArbeitseinsaetzeAsync();

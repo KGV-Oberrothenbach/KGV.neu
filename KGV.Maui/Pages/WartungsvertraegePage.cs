@@ -1,5 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
+using KGV.Maui.State;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
@@ -12,22 +14,29 @@ namespace KGV.Maui.Pages;
 public sealed class WartungsvertraegePage : ContentPage
 {
     private readonly ISupabaseService _supabaseService;
+    private readonly UserContextState _userContextState;
     private readonly ObservableCollection<WartungsvertragOverviewItem> _items = new();
     private readonly Label _countLabel;
     private readonly Label _statusLabel;
     private readonly CollectionView _itemsView;
+    private readonly Button _refreshButton;
+    private readonly Button _newButton;
     private bool _isBusy;
+    private bool _canManage;
 
-    public WartungsvertraegePage(ISupabaseService supabaseService)
+    public WartungsvertraegePage(ISupabaseService supabaseService, UserContextState userContextState)
     {
         _supabaseService = supabaseService;
+        _userContextState = userContextState;
         Title = "Wartungsverträge";
 
         _countLabel = new Label { FontSize = 12, TextColor = Colors.Gray };
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
 
-        var refreshButton = new Button { Text = "Aktualisieren" };
-        refreshButton.Clicked += async (_, _) => await LoadAsync();
+        _refreshButton = new Button { Text = "Aktualisieren" };
+        _refreshButton.Clicked += async (_, _) => await LoadAsync();
+        _newButton = new Button { Text = "Neu", IsVisible = false };
+        _newButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(WartungsvertragEditorPage));
 
         _itemsView = new CollectionView
         {
@@ -70,7 +79,8 @@ public sealed class WartungsvertraegePage : ContentPage
             if (selected == null)
                 return;
 
-            await Shell.Current.GoToAsync($"{nameof(WartungsvertragDetailPage)}?wartungsvertragId={selected.Id}");
+            var adminMode = _canManage ? "&adminMode=1" : string.Empty;
+            await Shell.Current.GoToAsync($"{nameof(WartungsvertragDetailPage)}?wartungsvertragId={selected.Id}{adminMode}");
         };
 
         Content = new ScrollView
@@ -88,7 +98,11 @@ public sealed class WartungsvertraegePage : ContentPage
                         TextColor = Colors.Gray,
                         LineBreakMode = LineBreakMode.WordWrap
                     },
-                    refreshButton,
+                    new HorizontalStackLayout
+                    {
+                        Spacing = 8,
+                        Children = { _refreshButton, _newButton }
+                    },
                     _countLabel,
                     _statusLabel,
                     _itemsView
@@ -107,6 +121,9 @@ public sealed class WartungsvertraegePage : ContentPage
         _isBusy = true;
         try
         {
+            _canManage = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            _newButton.IsVisible = _canManage;
+            SetBusyState(true);
             _statusLabel.Text = "Daten werden geladen.";
             _items.Clear();
 
@@ -127,6 +144,14 @@ public sealed class WartungsvertraegePage : ContentPage
         finally
         {
             _isBusy = false;
+            SetBusyState(false);
         }
+    }
+
+    private void SetBusyState(bool isBusy)
+    {
+        _refreshButton.IsEnabled = !isBusy;
+        _newButton.IsEnabled = !isBusy;
+        _itemsView.IsEnabled = !isBusy;
     }
 }

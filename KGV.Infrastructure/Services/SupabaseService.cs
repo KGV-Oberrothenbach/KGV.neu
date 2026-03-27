@@ -1097,6 +1097,19 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
+        public Task<WartungsvertragRecord?> GetWartungsvertragByIdAsync(long wartungsvertragId) => ExecuteAsync<WartungsvertragRecord?>(
+            "GetWartungsvertragByIdAsync",
+            async () =>
+            {
+                if (wartungsvertragId <= 0)
+                    return null;
+
+                var client = await EnsureClientAsync();
+                var contract = await GetWartungsvertragByIdInternalAsync(client, wartungsvertragId);
+                return contract != null && !contract.IsDemo ? contract : null;
+            },
+            null);
+
         public Task<List<WartungsvertragOverviewItem>> GetWartungsvertraegeOverviewAsync() => ExecuteAsync(
             "GetWartungsvertraegeOverviewAsync",
             async () =>
@@ -1183,6 +1196,145 @@ namespace KGV.Infrastructure.Services
                     .ToList();
             },
             new List<MemberWartungsvertragItem>());
+
+        public Task<WartungsvertragRecord?> CreateWartungsvertragAsync(WartungsvertragRecord record) => ExecuteAsync<WartungsvertragRecord?>(
+            "CreateWartungsvertragAsync",
+            async () =>
+            {
+                if (record == null || string.IsNullOrWhiteSpace(record.Titel))
+                    return null;
+
+                var client = await EnsureClientAsync();
+                var now = DateTime.UtcNow;
+                var insertRecord = new WartungsvertragRecord
+                {
+                    Titel = CleanRequiredText(record.Titel),
+                    Beschreibung = CleanOptionalText(record.Beschreibung),
+                    Bereich = CleanOptionalText(record.Bereich),
+                    MaxAktiveZuordnungen = NormalizeWartungsvertragKontingent(record.MaxAktiveZuordnungen),
+                    BefreitVonPflichtstunden = record.BefreitVonPflichtstunden,
+                    Aktiv = record.Aktiv,
+                    Bemerkung = CleanOptionalText(record.Bemerkung),
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    IsDemo = false
+                };
+
+                await client.From<WartungsvertragRecord>().Insert(insertRecord);
+                var response = await client.From<WartungsvertragRecord>().Get();
+                return response?.Models?
+                    .Where(x => !x.IsDemo)
+                    .Where(x => IsSameWartungsvertragForReload(x, insertRecord))
+                    .OrderByDescending(x => x.Id)
+                    .FirstOrDefault();
+            },
+            null);
+
+        public Task<bool> UpdateWartungsvertragAsync(WartungsvertragRecord record) => ExecuteAsync(
+            "UpdateWartungsvertragAsync",
+            async () =>
+            {
+                if (record == null || record.Id <= 0 || string.IsNullOrWhiteSpace(record.Titel))
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client
+                    .From<WartungsvertragRecord>()
+                    .Where(x => x.Id == record.Id)
+                    .Set(x => x.Titel, CleanRequiredText(record.Titel))
+                    .Set(x => x.Beschreibung, CleanOptionalText(record.Beschreibung))
+                    .Set(x => x.MaxAktiveZuordnungen, NormalizeWartungsvertragKontingent(record.MaxAktiveZuordnungen))
+                    .Set(x => x.Aktiv, record.Aktiv)
+                    .Set(x => x.UpdatedAt, DateTime.UtcNow)
+                    .Update();
+
+                return true;
+            },
+            false);
+
+        public Task<WartungsvertragAssignmentSaveResult> AssignMitgliederToWartungsvertragAsync(long wartungsvertragId, DateTime gueltigAb, IReadOnlyCollection<int> mitgliedIds) => ExecuteAsync(
+            "AssignMitgliederToWartungsvertragAsync",
+            async () =>
+            {
+                if (wartungsvertragId <= 0)
+                    return CreateWartungsvertragAssignmentSaveResult(false, "Der Wartungsvertrag fehlt.", 0, 0, 0);
+
+                var requestedIds = (mitgliedIds ?? Array.Empty<int>())
+                    .Where(x => x > 0)
+                    .Distinct()
+                    .ToList();
+                if (requestedIds.Count == 0)
+                    return CreateWartungsvertragAssignmentSaveResult(false, "Bitte mindestens ein Mitglied auswählen.", 0, 0, 0);
+
+                var client = await EnsureClientAsync();
+                var contract = await GetWartungsvertragByIdInternalAsync(client, wartungsvertragId);
+                if (contract == null || contract.IsDemo)
+                    return CreateWartungsvertragAssignmentSaveResult(false, "Der ausgewählte Wartungsvertrag konnte nicht geladen werden.", requestedIds.Count, 0, 0);
+
+                var bundle = await LoadWartungsvertragBundleAsync();
+                var activeAssignments = bundle.ActiveAssignments
+                    .Where(x => x.WartungsvertragId == wartungsvertragId)
+                    .ToList();
+                var activeMemberIds = activeAssignments
+                    .Select(x => x.HauptmitgliedId)
+                    .ToHashSet();
+
+                var normalizedMemberIds = new List<long>();
+                foreach (var requestedId in requestedIds)
+                {
+                    var homeMitgliedId = await ResolveHomeMitgliedIdAsync(requestedId);
+                    if (homeMitgliedId > 0
+                        && bundle.MembersById.ContainsKey(homeMitgliedId)
+                        && !normalizedMemberIds.Contains(homeMitgliedId))
+                    {
+                        normalizedMemberIds.Add(homeMitgliedId);
+                    }
+                }
+
+                var newMemberIds = normalizedMemberIds
+                    .Where(x => !activeMemberIds.Contains(x))
+                    .ToList();
+                var maxKontingent = NormalizeWartungsvertragKontingent(contract.MaxAktiveZuordnungen);
+                var freiePlaetze = Math.Max(0, maxKontingent - activeAssignments.Count);
+
+                if (newMemberIds.Count == 0)
+                    return CreateWartungsvertragAssignmentSaveResult(false, "Die ausgewählten Mitglieder sind bereits aktiv zugeordnet oder derzeit nicht zuweisbar.", requestedIds.Count, 0, freiePlaetze);
+
+                if (newMemberIds.Count > freiePlaetze)
+                {
+                    return CreateWartungsvertragAssignmentSaveResult(
+                        false,
+                        freiePlaetze <= 0
+                            ? "Für diesen Wartungsvertrag sind aktuell keine freien Plätze mehr verfügbar."
+                            : $"Es sind nur noch {freiePlaetze} freie Plätze verfügbar.",
+                        requestedIds.Count,
+                        0,
+                        freiePlaetze);
+                }
+
+                var normalizedStartDate = gueltigAb.Date;
+                var insertRecords = newMemberIds
+                    .Select(x => new WartungsvertragZuordnungRecord
+                    {
+                        WartungsvertragId = wartungsvertragId,
+                        HauptmitgliedId = x,
+                        GueltigAb = normalizedStartDate
+                    })
+                    .ToList();
+
+                await client.From<WartungsvertragZuordnungRecord>().Insert(insertRecords);
+
+                var remainingFreeSlots = Math.Max(0, freiePlaetze - newMemberIds.Count);
+                return CreateWartungsvertragAssignmentSaveResult(
+                    true,
+                    newMemberIds.Count == 1
+                        ? "1 Zuordnung wurde gespeichert."
+                        : $"{newMemberIds.Count} Zuordnungen wurden gespeichert.",
+                    requestedIds.Count,
+                    newMemberIds.Count,
+                    remainingFreeSlots);
+            },
+            CreateWartungsvertragAssignmentSaveResult(false, "Die Zuordnungen konnten aktuell nicht gespeichert werden.", 0, 0, 0));
 
         public Task<HomeOverviewDTO> GetHomeOverviewAsync(UserRole role, int? mitgliedId) => ExecuteAsync(
             "GetHomeOverviewAsync",
@@ -2168,6 +2320,28 @@ namespace KGV.Infrastructure.Services
             return new WartungsvertragBundle(wartungsvertraege, activeAssignments, operationalMembers, gardenLookup);
         }
 
+        private static WartungsvertragAssignmentSaveResult CreateWartungsvertragAssignmentSaveResult(bool success, string message, int requestedCount, int addedCount, int remainingFreeSlots)
+        {
+            return new WartungsvertragAssignmentSaveResult
+            {
+                Success = success,
+                Message = message,
+                RequestedCount = requestedCount,
+                AddedCount = addedCount,
+                RemainingFreeSlots = remainingFreeSlots
+            };
+        }
+
+        private async Task<WartungsvertragRecord?> GetWartungsvertragByIdInternalAsync(Client client, long wartungsvertragId)
+        {
+            var response = await client
+                .From<WartungsvertragRecord>()
+                .Where(x => x.Id == wartungsvertragId)
+                .Get();
+
+            return response?.Models?.FirstOrDefault();
+        }
+
         private static bool IsWartungsvertragZuordnungAktivOn(WartungsvertragZuordnungRecord zuordnung, DateTime date)
         {
             var target = date.Date;
@@ -2300,6 +2474,20 @@ namespace KGV.Infrastructure.Services
             var digits = new string(gartenNr.TakeWhile(char.IsDigit).ToArray());
             return int.TryParse(digits, out var number) ? number : int.MaxValue;
         }
+
+        private static int NormalizeWartungsvertragKontingent(int maxAktiveZuordnungen)
+            => Math.Max(1, maxAktiveZuordnungen);
+
+        private static bool IsSameWartungsvertragForReload(WartungsvertragRecord existing, WartungsvertragRecord candidate)
+        {
+            return string.Equals(NormalizeComparableWartungsvertragText(existing.Titel), NormalizeComparableWartungsvertragText(candidate.Titel), StringComparison.CurrentCulture)
+                && string.Equals(NormalizeComparableWartungsvertragText(existing.Beschreibung), NormalizeComparableWartungsvertragText(candidate.Beschreibung), StringComparison.CurrentCulture)
+                && existing.MaxAktiveZuordnungen == candidate.MaxAktiveZuordnungen
+                && existing.Aktiv == candidate.Aktiv;
+        }
+
+        private static string NormalizeComparableWartungsvertragText(string? value)
+            => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
 
         private sealed record WartungsvertragBundle(
             List<WartungsvertragRecord> Contracts,

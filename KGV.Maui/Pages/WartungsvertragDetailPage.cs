@@ -1,5 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
+using KGV.Maui.State;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
@@ -13,6 +15,7 @@ namespace KGV.Maui.Pages;
 public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
 {
     private readonly ISupabaseService _supabaseService;
+    private readonly UserContextState _userContextState;
     private readonly ObservableCollection<WartungsvertragAssignedMemberItem> _members = new();
     private readonly Label _titleLabel;
     private readonly Label _descriptionLabel;
@@ -22,13 +25,18 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
     private readonly Label _statusLabel;
     private readonly Label _membersEmptyLabel;
     private readonly CollectionView _membersView;
+    private readonly Button _refreshButton;
+    private readonly Button _editButton;
+    private readonly Button _assignButton;
     private long _wartungsvertragId;
     private bool _isBusy;
-    private long _lastLoadedId;
+    private bool _adminModeRequested;
+    private bool _canManage;
 
-    public WartungsvertragDetailPage(ISupabaseService supabaseService)
+    public WartungsvertragDetailPage(ISupabaseService supabaseService, UserContextState userContextState)
     {
         _supabaseService = supabaseService;
+        _userContextState = userContextState;
         Title = "Wartungsvertrag";
 
         _titleLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, LineBreakMode = LineBreakMode.WordWrap };
@@ -39,8 +47,12 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
         _membersEmptyLabel = new Label { Text = "Aktuell keine aktiven Mitgliedszuordnungen.", TextColor = Colors.Gray, IsVisible = false };
 
-        var refreshButton = new Button { Text = "Aktualisieren" };
-        refreshButton.Clicked += async (_, _) => await LoadAsync(forceReload: true);
+        _refreshButton = new Button { Text = "Aktualisieren" };
+        _refreshButton.Clicked += async (_, _) => await LoadAsync();
+        _editButton = new Button { Text = "Bearbeiten", IsVisible = false };
+        _editButton.Clicked += async (_, _) => await OpenEditorAsync();
+        _assignButton = new Button { Text = "Mitglieder zuweisen", IsVisible = false };
+        _assignButton.Clicked += async (_, _) => await OpenAssignMembersAsync();
 
         _membersView = new CollectionView
         {
@@ -78,7 +90,11 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
                 {
                     _titleLabel,
                     _descriptionLabel,
-                    refreshButton,
+                    new HorizontalStackLayout
+                    {
+                        Spacing = 8,
+                        Children = { _refreshButton, _editButton, _assignButton }
+                    },
                     CreateInfoSection("Max. Kontingent", _maxKontingentLabel),
                     CreateInfoSection("Belegt", _belegtLabel),
                     CreateInfoSection("Frei", _freiLabel),
@@ -97,26 +113,27 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
             return;
 
         _wartungsvertragId = wartungsvertragId;
-        _ = LoadAsync(forceReload: true);
+        _adminModeRequested = TryGetBoolValue(query, "adminMode");
+        _ = LoadAsync();
     }
 
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        await LoadAsync(forceReload: false);
+        await LoadAsync();
     }
 
-    private async Task LoadAsync(bool forceReload)
+    private async Task LoadAsync()
     {
         if (_isBusy || _wartungsvertragId <= 0)
-            return;
-
-        if (!forceReload && _lastLoadedId == _wartungsvertragId)
             return;
 
         _isBusy = true;
         try
         {
+            _canManage = _adminModeRequested && (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand);
+            UpdateActionVisibility();
+            SetBusyState(true);
             _statusLabel.Text = "Daten werden geladen.";
             _members.Clear();
             _membersEmptyLabel.IsVisible = false;
@@ -130,7 +147,6 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
                 _belegtLabel.Text = "-";
                 _freiLabel.Text = "-";
                 _statusLabel.Text = string.Empty;
-                _lastLoadedId = 0;
                 return;
             }
 
@@ -147,17 +163,62 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
             _statusLabel.Text = _members.Count > 0
                 ? $"{_members.Count} aktive Zuordnung(en) geladen."
                 : string.Empty;
-            _lastLoadedId = _wartungsvertragId;
         }
         catch (Exception ex)
         {
             _statusLabel.Text = ex.Message;
-            _lastLoadedId = 0;
         }
         finally
         {
             _isBusy = false;
+            SetBusyState(false);
         }
+    }
+
+    private async Task OpenEditorAsync()
+    {
+        if (!_canManage || _wartungsvertragId <= 0 || _isBusy)
+            return;
+
+        await Shell.Current.GoToAsync($"{nameof(WartungsvertragEditorPage)}?wartungsvertragId={_wartungsvertragId}&origin=detail");
+    }
+
+    private async Task OpenAssignMembersAsync()
+    {
+        if (!_canManage || _wartungsvertragId <= 0 || _isBusy)
+            return;
+
+        await Shell.Current.GoToAsync($"{nameof(WartungsvertragAssignMembersPage)}?wartungsvertragId={_wartungsvertragId}");
+    }
+
+    private void UpdateActionVisibility()
+    {
+        _editButton.IsVisible = _canManage;
+        _assignButton.IsVisible = _canManage;
+    }
+
+    private void SetBusyState(bool isBusy)
+    {
+        _refreshButton.IsEnabled = !isBusy;
+        _editButton.IsEnabled = _canManage && !isBusy;
+        _assignButton.IsEnabled = _canManage && !isBusy;
+        _membersView.IsEnabled = !isBusy;
+    }
+
+    private static bool TryGetBoolValue(IDictionary<string, object> query, string key)
+    {
+        if (!query.TryGetValue(key, out var raw) || raw == null)
+            return false;
+
+        return raw switch
+        {
+            bool boolValue => boolValue,
+            string text when bool.TryParse(Uri.UnescapeDataString(text), out var parsedBool) => parsedBool,
+            string text when int.TryParse(Uri.UnescapeDataString(text), out var parsedInt) => parsedInt != 0,
+            int intValue => intValue != 0,
+            long longValue => longValue != 0,
+            _ => false
+        };
     }
 
     private static bool TryGetLongValue(IDictionary<string, object> query, string key, out long value)

@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-03-27 – Prompt 2/3: begonnenen Wartungsverträge-Verwaltungsblock auf realem Zwischenstand fertiggestellt, MAUI-Anschlüsse geschlossen und Rückkehrpfade saubergezogen
+
+- Zuerst den echten aktuellen Repo-/Log-/Dateistand geprüft statt neu anzusetzen:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `.github/copilot-instructions.md`
+  - die ausdrücklich genannten Shared-/WPF-/MAUI-Wartungsverträge-Dateien des begonnenen Prompt-2/3-Blocks
+  - gezielte Dateifehler auf genau diesen Blockdateien
+- Ehrlicher Befund im vorhandenen Zwischenstand:
+  - der Shared-Servicepfad für `CreateWartungsvertragAsync(...)`, `UpdateWartungsvertragAsync(...)` und `AssignMitgliederToWartungsvertragAsync(...)` war bereits real vorhanden
+  - die WPF-Verwaltungsseiten `WartungsvertragEditor` und `WartungsvertragMitgliederZuordnung` waren im aktuellen Stand fachlich weitgehend fertig angelegt
+  - unvollständig war vor allem der MAUI-Verwaltungsanschluss:
+    - `WartungsvertragEditorPage` und `WartungsvertragAssignMembersPage` existierten bereits, waren aber noch nicht vollständig an DI-/Routing-/Detailpfade angeschlossen
+    - `WartungsvertraegePage` bot noch keinen produktiven Einstieg `Neu`
+    - `WartungsvertragDetailPage` hatte den begonnenen Verwaltungsblock noch nicht mit `Bearbeiten` / `Mitglieder zuweisen` und sauberem Reload nach Rückkehr abgeschlossen
+- Umsetzung deshalb bewusst klein und nur auf den begonnenen Wartungsverträge-Block begrenzt:
+  - WPF:
+    - `WartungsvertraegeVerwaltungViewModel` für den fertigen Verwaltungsstand sprachlich geschärft
+    - `EditCommand`/`NewCommand`-Requery bei Auswahl-/Busy-Wechsel sauber nachgezogen
+    - `WartungsvertragDetailViewModel`-Beschreibung auf den nun produktiven Verwaltungsstand angepasst
+  - MAUI:
+    - `WartungsvertragEditorPage` und `WartungsvertragAssignMembersPage` über `MauiProgram` und `ShellRouteRegistrar` produktiv angeschlossen
+    - `WartungsvertraegePage` um den produktiven Admin-/Vorstand-Einstieg `Neu` ergänzt
+    - globale Detailnavigation aus der Übersichtsseite jetzt mit explizitem `adminMode=1`, damit Verwaltungsaktionen nur im globalen Verwaltungsweg sichtbar werden und nicht unbeabsichtigt im mitgliedsbezogenen Detailpfad von Prompt `3/3`
+    - `WartungsvertragDetailPage` um `Bearbeiten` und `Mitglieder zuweisen` ergänzt
+    - `WartungsvertragDetailPage` lädt beim Wiedererscheinen jetzt bewusst erneut, damit `Belegt` / `Frei` / Mitgliederliste nach Speichern oder Zuweisung nicht in einem Altzustand hängen bleiben
+    - Busy-/Aktionszustände für Übersicht, Detail und Zuweisungsseite sichtbar deaktiviert bzw. konsistent gehalten
+- Fachlich bestätigter Stand des fertiggestellten Prompt-2/3-Blocks:
+  - Wartungsvertrag `Neu` produktiv vorhanden
+  - Wartungsvertrag `Bearbeiten` produktiv vorhanden
+  - globale Mitgliederzuweisung produktiv vorhanden
+  - Kontingent wird weiterhin fachlich im Shared-Service abgesichert; freie Plätze bleiben in WPF und MAUI sichtbar, zusätzliche Auswahl wird bei Erreichen des Kontingents deaktiviert bzw. serverseitig sauber blockiert
+  - Create bleibt ohne fehlerhafte DB-ID; Update bleibt an echte bestehende ID gebunden
+  - Rückkehr nach Speichern führt wieder in die passende View:
+    - WPF zurück in die gemeinsame Detailansicht
+    - MAUI zurück in die passende Detailansicht bzw. bei `Neu` in die neu angelegte Detailansicht
+- Bewusst nicht vorgezogen:
+  - kein mitgliedsbezogener Zuweisungsflow aus der Mitgliedsansicht
+  - keine Historienverwaltung / kein Beenden bestehender Zuordnungen als eigener Fachblock
+  - keine Massenoperationen
+  - Prompt `3/3` bleibt damit ausdrücklich offen
+- Technische Verifikation:
+  - `get_errors` auf den direkt geänderten Blockdateien blieb unauffällig
+  - `get_tests` mit Bezug auf `Wartungsvertrag` lieferte weiterhin keinen passenden Testfall
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` blieb im aktuellen Workspace nicht grün, aber blockfremd an bereits offenen Fehlern in:
+    - `KGV.Maui/App.xaml.cs` (`InitializeComponent`)
+    - `KGV.Maui/Settings/AppSettings.cs` (`FileSystem`)
+    - `KGV.Maui/Pages/AblesungErfassenPage.cs` (`IPlatformApplication`)
+    - `KGV.Maui/Pages/ZaehlerwechselPage.cs` (`IPlatformApplication`)
+    - `KGV.Maui/Pages/MemberSearchPage.xaml.cs` (`InitializeComponent`)
+  - die direkt geänderten Wartungsverträge-Dateien selbst blieben dateibezogen fehlerfrei
+
 ## 2026-03-27 – Prompt 1/3 Abschlusslauf: Wartungsverträge-Basisblock in WPF und MAUI technisch sauber final validiert
 
 - Vor dem Abschlusslauf erneut nur den realen Repo-/Log-/Blockstand geprüft:

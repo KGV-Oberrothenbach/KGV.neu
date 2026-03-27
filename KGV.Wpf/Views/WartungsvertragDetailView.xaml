@@ -20,8 +20,18 @@
                                     Command="{Binding BackCommand}"
                                     Visibility="{Binding HasBackTarget, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <Button Width="130"
+                                    Margin="0,0,12,0"
                                     Content="Aktualisieren"
                                     Command="{Binding RefreshCommand}" />
+                            <Button Width="120"
+                                    Margin="0,0,12,0"
+                                    Content="Bearbeiten"
+                                    Command="{Binding EditCommand}"
+                                    Visibility="{Binding CanManageGlobally, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <Button Width="160"
+                                    Content="Mitglieder zuweisen"
+                                    Command="{Binding AssignMembersCommand}"
+                                    Visibility="{Binding CanManageGlobally, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         </StackPanel>
 
                         <TextBlock Text="{Binding StatusMessage}"

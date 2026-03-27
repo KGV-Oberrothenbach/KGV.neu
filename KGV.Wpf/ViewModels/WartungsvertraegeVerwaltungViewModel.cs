@@ -23,11 +23,13 @@ namespace KGV.ViewModels
 
             RefreshCommand = new RelayCommand<object?>(_ => _ = LoadAsync(), _ => !IsBusy);
             OpenCommand = new RelayCommand<object?>(_ => _ = OpenSelectedAsync(), _ => SelectedItem != null && !IsBusy);
+            NewCommand = new RelayCommand<object?>(_ => _ = OpenNewAsync(), _ => !IsBusy);
+            EditCommand = new RelayCommand<object?>(_ => _ = EditSelectedAsync(), _ => SelectedItem != null && !IsBusy);
         }
 
         public ObservableCollection<WartungsvertragOverviewItem> Items { get; } = new();
         public string Title => "Wartungsverträge";
-        public string Description => "Globale ReadOnly-Übersicht der Wartungsverträge mit Kontingent, Belegung und produktivem Wechsel in eine eigene Detailansicht.";
+        public string Description => "Globale Verwaltungsübersicht der Wartungsverträge mit Kontingent, Belegung sowie den produktiven Wegen für Neu, Bearbeiten und Detailansicht.";
         public bool IsAuthorized => _mainVm.UserContext.Role is UserRole.Admin or UserRole.Vorstand;
         public bool HasItems => Items.Count > 0;
         public bool HasEmptyState => !IsBusy && Items.Count == 0;
@@ -39,7 +41,10 @@ namespace KGV.ViewModels
             set
             {
                 if (SetProperty(ref _selectedItem, value))
+                {
                     OpenCommand.RaiseCanExecuteChanged();
+                    EditCommand.RaiseCanExecuteChanged();
+                }
             }
         }
 
@@ -59,12 +64,16 @@ namespace KGV.ViewModels
                     OnPropertyChanged(nameof(HasEmptyState));
                     RefreshCommand.RaiseCanExecuteChanged();
                     OpenCommand.RaiseCanExecuteChanged();
+                    NewCommand.RaiseCanExecuteChanged();
+                    EditCommand.RaiseCanExecuteChanged();
                 }
             }
         }
 
         public RelayCommand<object?> RefreshCommand { get; }
         public RelayCommand<object?> OpenCommand { get; }
+        public RelayCommand<object?> NewCommand { get; }
+        public RelayCommand<object?> EditCommand { get; }
 
         public async Task OnNavigatedToAsync()
         {
@@ -120,7 +129,20 @@ namespace KGV.ViewModels
             if (SelectedItem == null)
                 return;
 
-            await _mainVm.NavigateToAsync(new WartungsvertragDetailViewModel(_supabaseService, _mainVm, SelectedItem.Id, this));
+            await _mainVm.NavigateToAsync(new WartungsvertragDetailViewModel(_supabaseService, _mainVm, SelectedItem.Id, this, true));
+        }
+
+        private async Task OpenNewAsync()
+        {
+            await _mainVm.NavigateToAsync(new WartungsvertragEditorViewModel(_supabaseService, _mainVm, null, this));
+        }
+
+        private async Task EditSelectedAsync()
+        {
+            if (SelectedItem == null)
+                return;
+
+            await _mainVm.NavigateToAsync(new WartungsvertragEditorViewModel(_supabaseService, _mainVm, SelectedItem.Id, this));
         }
     }
 }

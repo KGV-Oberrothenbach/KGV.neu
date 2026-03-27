@@ -18,9 +18,17 @@
                                     Margin="0,0,12,0"
                                     Content="Aktualisieren"
                                     Command="{Binding RefreshCommand}" />
+                            <Button Width="100"
+                                    Margin="0,0,12,0"
+                                    Content="Neu"
+                                    Command="{Binding NewCommand}" />
                             <Button Width="120"
+                                    Margin="0,0,12,0"
                                     Content="Öffnen"
                                     Command="{Binding OpenCommand}" />
+                            <Button Width="120"
+                                    Content="Bearbeiten"
+                                    Command="{Binding EditCommand}" />
                         </StackPanel>
 
                         <TextBlock Text="{Binding StatusMessage}"
