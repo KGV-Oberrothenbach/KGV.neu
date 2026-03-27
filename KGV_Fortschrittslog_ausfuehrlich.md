@@ -2,6 +2,53 @@
 
 ---
 
+## 2026-03-27 – Prompt 1/3: Blockfremden MAUI-Startup-Compilefehlerstand in `MauiProgram`, `App.xaml.cs` und `MainApplication` gezielt bereinigt
+
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrücklich nur den direkt betroffenen MAUI-Startup-Pfad geprüft:
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - gezielte Dateifehler für genau diese drei Startup-Dateien
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+  - Git-Status nur zur Blockeingrenzung, ohne blockfremde Dateien anzufassen
+- WPF wurde in diesem Block bewusst nicht angefasst.
+- Ehrlicher Befund im aktuellen Stand vor Umsetzung:
+  - die sichtbaren Fehler in genau diesen drei Dateien lagen nicht in Fachlogik, sondern in fehlenden aktiven MAUI-Startup-/Hosting-/Storage-/DI-Namespaces
+  - betroffen waren vor allem Typauflösungen für:
+    - `MauiApp`
+    - `IActivationState`
+    - dazu direkt benachbarte Startup-Bezüge wie `UseMauiApp(...)`, `FileSystem` und DI-Erweiterungen `AddSingleton(...)` / `AddTransient(...)`
+  - `MauiProgram.cs` fehlten im aktuellen Stand aktive Referenzen für Hosting, Storage und Dependency-Injection-Erweiterungen
+  - `App.xaml.cs` fehlte der aktive MAUI-Typbezug für `IActivationState`
+  - `MainApplication.cs` fehlte der aktive Hosting-Typbezug für `MauiApp`
+- Den Korrekturblock deshalb bewusst klein und nur auf die Compile-Ursachen begrenzt umgesetzt:
+  - in `KGV.Maui/MauiProgram.cs` die fehlenden aktiven `using`-Direktiven für:
+    - `Microsoft.Extensions.DependencyInjection`
+    - `Microsoft.Maui.Controls.Hosting`
+    - `Microsoft.Maui.Hosting`
+    - `Microsoft.Maui.Storage`
+    ergänzt
+  - in `KGV.Maui/App.xaml.cs` die fehlenden aktiven `using`-Direktiven für:
+    - `Microsoft.Maui`
+    - `System`
+    - `System.Threading.Tasks`
+    ergänzt
+  - in `KGV.Maui/MainApplication.cs` die fehlende aktive `using`-Direktive `Microsoft.Maui.Hosting` ergänzt
+  - keine Fachlogik, keine Navigation, keine Shell-/Routing-/CRUD-/Supabase-Pfade verändert
+- Technische Verifikation nach dem Fix:
+  - `get_errors` auf den drei direkt betroffenen Startup-Dateien blieb nach der Korrektur unauffällig
+  - die drei Zielpfade sind damit dateibezogen compile-seitig bereinigt
+  - anschließender `dotnet build KGV.Maui/KGV.Maui.csproj` ist im aktuellen Workspace nicht grün geblieben
+  - der Gesamtbuild scheitert aktuell jetzt blockfremd an weiteren bereits offenen MAUI-Compilefehlern, u. a. in:
+    - `KGV.Maui/ShellRouteRegistrar.cs`
+    - `KGV.Maui/ViewModels/MemberSearchViewModel.cs`
+    - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+    - `KGV.Maui/Pages/ArbeitseinsaetzeManagementPage.cs`
+    - `KGV.Maui/Pages/BekanntmachungenManagementPage.cs`
+    - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+    - `KGV.Maui/Pages/TermineManagementPage.cs`
+  - diese blockfremden Fehler wurden in diesem kleinen Startup-Block ausdrücklich nur dokumentiert und nicht mit umgebaut
+
 ## 2026-03-27 – Prompt 1/1: MAUI-RFID-Flows fachlich auf `Scan-first` zurückgezogen und NFC-Einstellungsweg erhalten
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrücklich nur die fachlich relevanten WPF-Referenz- sowie direkt betroffenen MAUI-Dateien geprüft:
