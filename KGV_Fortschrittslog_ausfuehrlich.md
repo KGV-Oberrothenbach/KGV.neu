@@ -2,6 +2,53 @@
 
 ---
 
+## 2026-03-27 – Prompt 3/3 Abschlusslauf: begonnenen mitgliedsbezogenen Wartungsverträge-Block geprüft, ehrlich fortgeschrieben und für sauberen Git-Abschluss eingegrenzt
+
+- Vor dem Abschlusslauf erneut nur den echten Repo-/Log-/Blockstand geprüft, ohne neuen Fachumfang zu eröffnen:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - genau die ausdrücklich genannten Blockdateien:
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Core/Models/MemberWartungsvertragItem.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Wpf/ViewModels/MemberWartungsvertraegeViewModel.cs`
+    - `KGV.Wpf/Views/MemberWartungsvertraegeView.xaml`
+    - `KGV.Maui/Pages/MemberWartungsvertraegePage.cs`
+  - gezielte Dateifehler auf genau diesen sechs Blockdateien
+  - `get_tests` mit Bezug auf `Wartungsvertrag`
+  - echter Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+- Ehrlicher Befund im Abschlusslauf:
+  - der mitgliedsbezogene Wartungsverträge-Flow war in genau diesen Blockdateien bereits produktiv vorhanden
+  - ergänzt sind im Shared-Service bereits die echten Pfade für:
+    - freie Wartungsverträge je Mitglied
+    - Zuweisen an genau ein Mitglied
+    - Beenden bestehender Zuordnungen über `gueltig_bis`
+  - `MemberWartungsvertraegeViewModel` / `MemberWartungsvertraegeView` bilden den produktiven WPF-Mitgliedspfad bereits ab
+  - `MemberWartungsvertraegePage` bildet denselben mitgliedsbezogenen Flow in MAUI bereits produktiv ab
+  - in genau diesen Blockdateien zeigte sich im aktuellen Stand kein zusätzlicher direkter Abschlussfehler mehr
+  - deshalb wurde am Produktivcode dieses Prompt-3/3-Blocks nichts weiter geändert; nachgezogen wurden nur die Abschlusslogs
+- Technische Kurzvalidierung dieses Abschlusslaufs:
+  - `get_errors` auf den sechs Blockdateien blieb unauffällig
+  - `get_tests` mit Bezug auf `Wartungsvertrag` lieferte weiterhin keinen passenden Testfall
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erneut erfolgreich durch
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` blieb im aktuellen Workspace nur blockfremd rot in:
+    - `KGV.Maui/App.xaml.cs`
+    - `KGV.Maui/Settings/AppSettings.cs`
+    - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+    - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+    - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - diese MAUI-Fehler wurden in diesem Abschlusslauf ausdrücklich nur dokumentiert und nicht in den Wartungsverträge-Block hineingezogen
+- Fachlicher Abschlussstand von Prompt `3/3`:
+  - mitgliedsbezogene WPF-Verwaltung bietet im bestehenden Mitgliedspfad produktiv:
+    - aktive Wartungsverträge laden
+    - freie Wartungsverträge dem Mitglied zuweisen
+    - bestehende Zuordnungen beenden
+  - mitgliedsbezogene MAUI-Verwaltung bietet im bestehenden Mitgliedspfad produktiv denselben Funktionsumfang
+  - der mitgliedsbezogene Wartungsverträge-Flow ist damit fachlich abgeschlossen; es wurde kein neuer Umfang außerhalb des begonnenen Prompt-3/3-Blocks eröffnet
+- Git-Abschluss dieses Laufs wird bewusst strikt eingegrenzt:
+  - nur die echten Prompt-3/3-Blockdateien plus die beiden Logdateien werden in den Abschluss aufgenommen
+  - blockfremde offene WPF-/MAUI-/Supabase-/Artefaktdateien bleiben ausdrücklich außerhalb dieses Commitabschlusses
+
 ## 2026-03-27 – Prompt 2/3 Abschlusslauf: vorhandenen Wartungsverträge-Blockcommit geprüft und sauber nach `origin/main` gebracht
 
 - Vor dem Abschluss erneut nur den echten Git-/Blockstand geprüft, ohne neue Facharbeit zu eröffnen:

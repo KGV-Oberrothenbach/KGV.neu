@@ -1197,6 +1197,36 @@ namespace KGV.Infrastructure.Services
             },
             new List<MemberWartungsvertragItem>());
 
+        public Task<List<WartungsvertragOverviewItem>> GetAssignableWartungsvertraegeForMitgliedAsync(int mitgliedId) => ExecuteAsync(
+            "GetAssignableWartungsvertraegeForMitgliedAsync",
+            async () =>
+            {
+                if (mitgliedId <= 0)
+                    return new List<WartungsvertragOverviewItem>();
+
+                var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
+                if (homeMitgliedId <= 0)
+                    return new List<WartungsvertragOverviewItem>();
+
+                var bundle = await LoadWartungsvertragBundleAsync();
+                var countsByContractId = bundle.ActiveAssignments
+                    .GroupBy(x => x.WartungsvertragId)
+                    .ToDictionary(x => x.Key, x => x.Count());
+                var assignedContractIds = bundle.ActiveAssignments
+                    .Where(x => x.HauptmitgliedId == homeMitgliedId)
+                    .Select(x => x.WartungsvertragId)
+                    .ToHashSet();
+
+                return bundle.Contracts
+                    .Where(x => x.Aktiv)
+                    .Select(contract => CreateWartungsvertragOverviewItem(contract, countsByContractId))
+                    .Where(item => item.Frei > 0)
+                    .Where(item => !assignedContractIds.Contains(item.Id))
+                    .OrderBy(x => x.Titel, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList();
+            },
+            new List<WartungsvertragOverviewItem>());
+
         public Task<WartungsvertragRecord?> CreateWartungsvertragAsync(WartungsvertragRecord record) => ExecuteAsync<WartungsvertragRecord?>(
             "CreateWartungsvertragAsync",
             async () =>
@@ -1335,6 +1365,120 @@ namespace KGV.Infrastructure.Services
                     remainingFreeSlots);
             },
             CreateWartungsvertragAssignmentSaveResult(false, "Die Zuordnungen konnten aktuell nicht gespeichert werden.", 0, 0, 0));
+
+        public Task<WartungsvertragAssignmentSaveResult> AssignWartungsvertraegeToMitgliedAsync(int mitgliedId, DateTime gueltigAb, IReadOnlyCollection<long> wartungsvertragIds) => ExecuteAsync(
+            "AssignWartungsvertraegeToMitgliedAsync",
+            async () =>
+            {
+                if (mitgliedId <= 0)
+                    return CreateWartungsvertragAssignmentSaveResult(false, "Das ausgewählte Mitglied fehlt.", 0, 0, 0);
+
+                var requestedContractIds = (wartungsvertragIds ?? Array.Empty<long>())
+                    .Where(x => x > 0)
+                    .Distinct()
+                    .ToList();
+                if (requestedContractIds.Count == 0)
+                    return CreateWartungsvertragAssignmentSaveResult(false, "Bitte mindestens einen Wartungsvertrag auswählen.", 0, 0, 0);
+
+                var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
+                var bundle = await LoadWartungsvertragBundleAsync();
+                if (homeMitgliedId <= 0 || !bundle.MembersById.ContainsKey(homeMitgliedId))
+                    return CreateWartungsvertragAssignmentSaveResult(false, "Das ausgewählte Mitglied konnte nicht belastbar aufgelöst werden.", requestedContractIds.Count, 0, 0);
+
+                var countsByContractId = bundle.ActiveAssignments
+                    .GroupBy(x => x.WartungsvertragId)
+                    .ToDictionary(x => x.Key, x => x.Count());
+                var activeContractIds = bundle.ActiveAssignments
+                    .Where(x => x.HauptmitgliedId == homeMitgliedId)
+                    .Select(x => x.WartungsvertragId)
+                    .ToHashSet();
+                var normalizedStartDate = gueltigAb.Date;
+                var insertRecords = new List<WartungsvertragZuordnungRecord>();
+
+                foreach (var contractId in requestedContractIds)
+                {
+                    var contract = bundle.Contracts.FirstOrDefault(x => x.Id == contractId);
+                    if (contract == null || contract.IsDemo || !contract.Aktiv)
+                        continue;
+
+                    if (activeContractIds.Contains(contractId))
+                        continue;
+
+                    var activeCount = countsByContractId.TryGetValue(contractId, out var count) ? count : 0;
+                    var freiePlaetze = Math.Max(0, NormalizeWartungsvertragKontingent(contract.MaxAktiveZuordnungen) - activeCount);
+                    if (freiePlaetze <= 0)
+                        continue;
+
+                    insertRecords.Add(new WartungsvertragZuordnungRecord
+                    {
+                        WartungsvertragId = contractId,
+                        HauptmitgliedId = homeMitgliedId,
+                        GueltigAb = normalizedStartDate
+                    });
+
+                    countsByContractId[contractId] = activeCount + 1;
+                }
+
+                if (insertRecords.Count == 0)
+                {
+                    return CreateWartungsvertragAssignmentSaveResult(
+                        false,
+                        "Die ausgewählten Wartungsverträge sind bereits aktiv zugeordnet oder aktuell nicht mehr frei.",
+                        requestedContractIds.Count,
+                        0,
+                        0);
+                }
+
+                var client = await EnsureClientAsync();
+                await client.From<WartungsvertragZuordnungRecord>().Insert(insertRecords);
+
+                var skippedCount = requestedContractIds.Count - insertRecords.Count;
+                var message = skippedCount <= 0
+                    ? insertRecords.Count == 1
+                        ? "1 Zuordnung wurde gespeichert."
+                        : $"{insertRecords.Count} Zuordnungen wurden gespeichert."
+                    : $"{insertRecords.Count} Zuordnung(en) wurden gespeichert, {skippedCount} konnten nicht übernommen werden.";
+
+                return CreateWartungsvertragAssignmentSaveResult(
+                    true,
+                    message,
+                    requestedContractIds.Count,
+                    insertRecords.Count,
+                    0);
+            },
+            CreateWartungsvertragAssignmentSaveResult(false, "Die Zuordnungen konnten aktuell nicht gespeichert werden.", 0, 0, 0));
+
+        public Task<bool> EndWartungsvertragZuordnungAsync(long wartungsvertragZuordnungId, DateTime gueltigBis) => ExecuteAsync(
+            "EndWartungsvertragZuordnungAsync",
+            async () =>
+            {
+                if (wartungsvertragZuordnungId <= 0)
+                    return false;
+
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<WartungsvertragZuordnungRecord>()
+                    .Where(x => x.Id == wartungsvertragZuordnungId)
+                    .Get();
+
+                var assignment = response?.Models?.FirstOrDefault();
+                if (assignment == null)
+                    return false;
+
+                var effectiveEndDate = gueltigBis.Date.AddDays(-1);
+                if (effectiveEndDate < assignment.GueltigAb.Date)
+                    effectiveEndDate = assignment.GueltigAb.Date;
+
+                await client
+                    .From<WartungsvertragZuordnungRecord>()
+                    .Where(x => x.Id == wartungsvertragZuordnungId)
+                    .Set(x => x.GueltigBis, effectiveEndDate)
+                    .Set(x => x.UpdatedAt, DateTime.UtcNow)
+                    .Update();
+
+                return true;
+            },
+            false);
 
         public Task<HomeOverviewDTO> GetHomeOverviewAsync(UserRole role, int? mitgliedId) => ExecuteAsync(
             "GetHomeOverviewAsync",
@@ -2418,6 +2562,7 @@ namespace KGV.Infrastructure.Services
             var overview = CreateWartungsvertragOverviewItem(contract, countsByContractId);
             return new MemberWartungsvertragItem
             {
+                ZuordnungId = zuordnung.Id,
                 Id = overview.Id,
                 Titel = overview.Titel,
                 Kurzbeschreibung = overview.Kurzbeschreibung,

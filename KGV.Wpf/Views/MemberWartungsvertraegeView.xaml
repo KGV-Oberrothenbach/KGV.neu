@@ -19,8 +19,13 @@
                                     Content="Aktualisieren"
                                     Command="{Binding RefreshCommand}" />
                             <Button Width="120"
+                                    Margin="0,0,12,0"
                                     Content="Öffnen"
                                     Command="{Binding OpenCommand}" />
+                            <Button Width="190"
+                                    Content="Wartungsvertrag zuweisen"
+                                    Command="{Binding StartAssignCommand}"
+                                    Visibility="{Binding CanManageMemberAssignments, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         </StackPanel>
 
                         <TextBlock Text="{Binding StatusMessage}"
@@ -45,11 +50,81 @@
                                 <DataGridTextColumn Header="Titel" Binding="{Binding Titel}" Width="2*" />
                                 <DataGridTextColumn Header="Kurzbeschreibung" Binding="{Binding Kurzbeschreibung}" Width="2*" />
                                 <DataGridTextColumn Header="Gültigkeit" Binding="{Binding GueltigkeitText}" Width="2*" />
+                                <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="Auto" />
                                 <DataGridTextColumn Header="Kontingent" Binding="{Binding MaxKontingent}" Width="Auto" />
                                 <DataGridTextColumn Header="Belegt" Binding="{Binding Belegt}" Width="Auto" />
                                 <DataGridTextColumn Header="Frei" Binding="{Binding Frei}" Width="Auto" />
+                                <DataGridTemplateColumn Header="Aktion" Width="Auto">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="Beenden"
+                                                    Padding="10,4"
+                                                    Command="{Binding DataContext.EndAssignmentCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}"
+                                                    Visibility="{Binding DataContext.CanManageMemberAssignments, RelativeSource={RelativeSource AncestorType=DataGrid}, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
+
+                        <Border Margin="0,16,0,0"
+                                Padding="16"
+                                BorderBrush="{StaticResource KgvBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="12"
+                                Visibility="{Binding IsAssignMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <StackPanel>
+                                <TextBlock Text="Wartungsvertrag zuweisen" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                <TextBlock Text="Es werden nur freie Wartungsverträge angezeigt, die diesem Mitglied aktuell nicht aktiv zugeordnet sind."
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,12" />
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                    <TextBlock Text="Gültig ab" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                    <DatePicker SelectedDate="{Binding GueltigAb}" Width="160" />
+                                </StackPanel>
+
+                                <TextBlock Text="Aktuell keine zusätzlichen freien Wartungsverträge verfügbar."
+                                           Margin="0,0,0,8"
+                                           Foreground="Gray">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasAssignableItems}" Value="False">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <DataGrid ItemsSource="{Binding AssignableItems}"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="False"
+                                          CanUserDeleteRows="False"
+                                          HeadersVisibility="Column"
+                                          Visibility="{Binding HasAssignableItems, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <DataGrid.Columns>
+                                        <DataGridCheckBoxColumn Header="Auswahl" Binding="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="Auto" />
+                                        <DataGridTextColumn Header="Titel" Binding="{Binding Titel}" Width="2*" />
+                                        <DataGridTextColumn Header="Kurzbeschreibung" Binding="{Binding Kurzbeschreibung}" Width="2*" />
+                                        <DataGridTextColumn Header="Belegung" Binding="{Binding BelegungText}" Width="2*" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                                    <Button Width="110"
+                                            Margin="0,0,12,0"
+                                            Content="Abbrechen"
+                                            Command="{Binding CancelAssignCommand}" />
+                                    <Button Width="160"
+                                            Content="Zuordnung speichern"
+                                            Command="{Binding SaveAssignCommand}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </Border>
             </StackPanel>

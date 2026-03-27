@@ -2,6 +2,41 @@
 
 ---
 
+## 2026-03-27 – Prompt 3/3 Abschlusslauf: mitgliedsbezogenen Wartungsverträge-Block ehrlich fortgeschrieben und für sauberen Git-Abschluss eingegrenzt
+
+- Zuerst erneut nur den echten Repo-/Log-/Blockstand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - genau die ausdrücklich genannten Prompt-3/3-Blockdateien:
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Core/Models/MemberWartungsvertragItem.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Wpf/ViewModels/MemberWartungsvertraegeViewModel.cs`
+    - `KGV.Wpf/Views/MemberWartungsvertraegeView.xaml`
+    - `KGV.Maui/Pages/MemberWartungsvertraegePage.cs`
+  - gezielte Dateifehler auf genau diesen Dateien
+  - `get_tests` mit Bezug auf `Wartungsvertrag`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+- Ehrlicher Befund im aktuellen Abschlussstand:
+  - der mitgliedsbezogene Wartungsverträge-Flow war in den genannten Blockdateien bereits produktiv ergänzt
+  - die Shared-Servicepfade für freie Wartungsverträge je Mitglied, Zuweisen an genau ein Mitglied und Beenden über `gueltig_bis` waren im aktuellen Stand vorhanden
+  - WPF-Mitgliedsansicht und `KGV.Maui/Pages/MemberWartungsvertraegePage.cs` waren dateibezogen ohne zusätzlichen Abschlussfehler
+  - deshalb wurden keine weiteren Fachänderungen am Produktivcode dieses Prompt-3/3-Blocks vorgenommen; nachgezogen wurden nur die Abschlusslogs
+- Technische Verifikation:
+  - `get_errors` auf den sechs Blockdateien blieb unauffällig
+  - `get_tests` mit Bezug auf `Wartungsvertrag` lieferte weiterhin keinen passenden Testfall
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` blieb im aktuellen Workspace nur blockfremd rot in:
+    - `KGV.Maui/App.xaml.cs`
+    - `KGV.Maui/Settings/AppSettings.cs`
+    - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+    - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+    - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - diese MAUI-Fehler wurden bewusst nicht repariert, weil sie nicht zu diesem Wartungsverträge-Abschlussblock gehören
+- Ergebnis:
+  - Prompt `3/3` ist fachlich abgeschlossen
+  - der Git-Abschluss wird auf die echten Blockdateien plus Logdateien begrenzt; blockfremde offene Änderungen bleiben draußen
+
 ## 2026-03-27 – Prompt 2/3 Abschlusslauf: vorhandenen Wartungsverträge-Blockcommit geprüft und sauber nach `origin/main` gepusht
 
 - Den echten Git-Istzustand über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad geprüft:
