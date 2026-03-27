@@ -103,7 +103,14 @@ namespace KGV.ViewModels
                 return;
             }
 
-            var ok = await _supabaseService.AddAblesungAsync(ZaehlerTypStrom, meter.Id, dlg.Ablesedatum.Value, dlg.Stand.Value, string.IsNullOrWhiteSpace(dlg.FotoPfad) ? null : dlg.FotoPfad.Trim());
+            var ok = await _supabaseService.AddAblesungAsync(new AblesungInsertRecord
+            {
+                ZaehlerTyp = ZaehlerTypStrom,
+                ZaehlerId = meter.Id,
+                Ablesedatum = dlg.Ablesedatum.Value,
+                Stand = dlg.Stand.Value,
+                FotoPfad = string.IsNullOrWhiteSpace(dlg.FotoPfad) ? null : dlg.FotoPfad.Trim()
+            });
             if (!ok)
             {
                 MessageBox.Show("Ablesung konnte nicht gespeichert werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -176,7 +183,13 @@ namespace KGV.ViewModels
                     }
                 }
 
-                var ok = await _supabaseService.AddStromzaehlerAsync(Belegung.ParzelleId, dlg.Zaehlernummer.Trim(), dlg.Eichdatum.Value, changeDate);
+                var ok = await _supabaseService.AddStromzaehlerAsync(new StromzaehlerInsertRecord
+                {
+                    ParzelleId = Belegung.ParzelleId,
+                    Zaehlernummer = dlg.Zaehlernummer.Trim(),
+                    Eichdatum = dlg.Eichdatum.Value,
+                    EingebautAm = changeDate
+                });
                 if (!ok)
                 {
                     MessageBox.Show("Zählertausch konnte nicht gespeichert werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);

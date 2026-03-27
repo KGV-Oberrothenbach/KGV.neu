@@ -266,7 +266,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
 
             if (_existingRecord == null)
             {
-                var created = await _supabaseService.CreateBekanntmachungAsync(record);
+                var created = await _supabaseService.CreateBekanntmachungAsync(record.ToInsertRecord());
                 if (created == null)
                 {
                     _statusLabel.Text = "Bekanntmachung konnte nicht erstellt werden.";

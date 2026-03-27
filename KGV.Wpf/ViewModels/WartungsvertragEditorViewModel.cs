@@ -153,7 +153,7 @@ namespace KGV.ViewModels
                     return;
                 }
 
-                var created = await _supabaseService.CreateWartungsvertragAsync(record);
+                var created = await _supabaseService.CreateWartungsvertragAsync(record.ToInsertRecord());
                 if (created == null)
                 {
                     StatusMessage = "Der Wartungsvertrag konnte nicht erstellt werden.";

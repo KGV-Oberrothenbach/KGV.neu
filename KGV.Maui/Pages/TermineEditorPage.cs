@@ -246,7 +246,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
 
             if (_existingRecord == null)
             {
-                var created = await _supabaseService.CreateTerminAsync(record);
+                var created = await _supabaseService.CreateTerminAsync(record.ToInsertRecord());
                 if (created == null)
                 {
                     _statusLabel.Text = "Termin konnte nicht erstellt werden.";

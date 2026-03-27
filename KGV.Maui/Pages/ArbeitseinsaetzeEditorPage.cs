@@ -388,7 +388,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
             }
             else
             {
-                persistedRecord = await _supabaseService.CreateArbeitseinsatzAsync(record!);
+                persistedRecord = await _supabaseService.CreateArbeitseinsatzAsync(record!.ToInsertRecord());
                 if (persistedRecord == null)
                 {
                     _statusLabel.Text = "Der Arbeitseinsatz konnte nicht erstellt werden.";

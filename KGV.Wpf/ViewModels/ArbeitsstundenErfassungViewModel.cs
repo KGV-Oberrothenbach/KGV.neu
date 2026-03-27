@@ -245,7 +245,7 @@ namespace KGV.ViewModels
 
             var ok = IsEditMode
                 ? await _supabaseService.UpdateArbeitsstundeAsync(record)
-                : await _supabaseService.AddArbeitsstundeAsync(record);
+                : await _supabaseService.AddArbeitsstundeAsync(record.ToInsertRecord());
 
             if (!ok)
             {

@@ -640,7 +640,37 @@ namespace KGV.Infrastructure.Services
                     .FirstOrDefault();
             },
             null);
-        public Task<MitgliedRecord?> CreateNebenmitgliedAsync(NebenmitgliedCreateDTO request) => Unavailable<MitgliedRecord?>();
+        public Task<MitgliedRecord?> CreateNebenmitgliedAsync(NebenmitgliedCreateDTO request) => ExecuteAsync<MitgliedRecord?>(
+            "CreateNebenmitgliedAsync",
+            async () =>
+            {
+                if (request == null || request.HauptmitgliedId <= 0 || string.IsNullOrWhiteSpace(request.Vorname) || string.IsNullOrWhiteSpace(request.Nachname))
+                    return null;
+
+                var client = await EnsureClientAsync();
+                var hauptmitglied = await GetMitgliedByIdAsync(request.HauptmitgliedId);
+                if (hauptmitglied == null)
+                    return null;
+
+                var insertRecord = CreateNebenmitgliedInsertPayload(request, hauptmitglied);
+                await client.From<MitgliedInsertRecord>().Insert(insertRecord);
+
+                var response = await client
+                    .From<MitgliedRecord>()
+                    .Where(x => x.HauptmitgliedId == request.HauptmitgliedId)
+                    .Get();
+
+                var created = response?.Models?
+                    .Where(x => x.HauptmitgliedId == request.HauptmitgliedId)
+                    .Where(x => string.Equals(CleanRequiredText(x.Vorname), insertRecord.Vorname, StringComparison.CurrentCulture))
+                    .Where(x => string.Equals(CleanRequiredText(x.Name), insertRecord.Name, StringComparison.CurrentCulture))
+                    .OrderByDescending(x => x.Id)
+                    .FirstOrDefault();
+
+                _logger?.LogInformation("CreateNebenmitgliedAsync created nebenmitglied {MitgliedId} for hauptmitglied {HauptmitgliedId}", created?.Id, request.HauptmitgliedId);
+                return created;
+            },
+            null);
         public Task<List<SaisonRecord>> GetSaisonRecordsAsync() => ExecuteAsync(
             "GetSaisonRecordsAsync",
             async () =>
@@ -815,6 +845,22 @@ namespace KGV.Infrastructure.Services
                 GenehmigtVon = request.GenehmigtVon,
                 LockedByUserId = null,
                 LockedAt = null
+            };
+        }
+
+        private MitgliedInsertRecord CreateNebenmitgliedInsertPayload(NebenmitgliedCreateDTO request, MitgliedRecord hauptmitglied)
+        {
+            return new MitgliedInsertRecord
+            {
+                HauptmitgliedId = request.HauptmitgliedId,
+                Name = CleanRequiredText(request.Nachname),
+                Vorname = CleanRequiredText(request.Vorname),
+                Adresse = request.AdresseUebernehmen ? CleanOptionalText(hauptmitglied.Adresse) : null,
+                Plz = request.AdresseUebernehmen ? CleanOptionalText(hauptmitglied.Plz) : null,
+                Ort = request.AdresseUebernehmen ? CleanOptionalText(hauptmitglied.Ort) : null,
+                Telefon = null,
+                Handy = null,
+                Email = null
             };
         }
 

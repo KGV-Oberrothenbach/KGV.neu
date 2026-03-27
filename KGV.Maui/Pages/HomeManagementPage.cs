@@ -625,7 +625,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         }
         else
         {
-            var created = await _supabaseService.CreateArbeitseinsatzAsync(record);
+            var created = await _supabaseService.CreateArbeitseinsatzAsync(record.ToInsertRecord());
             _statusLabel.Text = created != null ? "Arbeitseinsatz erstellt." : "Arbeitseinsatz konnte nicht erstellt werden.";
             if (created == null)
                 return;
@@ -666,7 +666,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         }
         else
         {
-            var created = await _supabaseService.CreateTerminAsync(record);
+            var created = await _supabaseService.CreateTerminAsync(record.ToInsertRecord());
             _statusLabel.Text = created != null ? "Termin erstellt." : "Termin konnte nicht erstellt werden.";
             if (created == null)
                 return;
@@ -740,7 +740,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         }
         else
         {
-            var created = await _supabaseService.CreateBekanntmachungAsync(record);
+            var created = await _supabaseService.CreateBekanntmachungAsync(record.ToInsertRecord());
             _statusLabel.Text = created != null ? "Bekanntmachung erstellt." : "Bekanntmachung konnte nicht erstellt werden.";
             if (created == null)
                 return;

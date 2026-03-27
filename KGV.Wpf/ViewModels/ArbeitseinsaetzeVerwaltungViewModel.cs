@@ -467,7 +467,7 @@ namespace KGV.ViewModels
 
             if (IsNewMode)
             {
-                var created = await _supabaseService.CreateArbeitseinsatzAsync(record);
+                var created = await _supabaseService.CreateArbeitseinsatzAsync(record.ToInsertRecord());
                 if (created == null)
                 {
                     ValidationMessage = "Der Arbeitseinsatz konnte nicht gespeichert werden. Details stehen im Debug-/Anwendungslog.";

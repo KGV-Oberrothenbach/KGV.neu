@@ -364,7 +364,7 @@ namespace KGV.ViewModels
 
             if (IsNewMode)
             {
-                var created = await _supabaseService.CreateTerminAsync(record);
+                var created = await _supabaseService.CreateTerminAsync(InsertRecordMappingExtensions.ToInsertRecord(record));
                 if (created == null)
                 {
                     ValidationMessage = "Der Termin konnte nicht gespeichert werden. Details stehen im Debug-/Anwendungslog.";

@@ -104,7 +104,14 @@ namespace KGV.ViewModels
                 return;
             }
 
-            var ok = await _supabaseService.AddAblesungAsync(ZaehlerTypWasser, meter.Id, dlg.Ablesedatum.Value, dlg.Stand.Value, string.IsNullOrWhiteSpace(dlg.FotoPfad) ? null : dlg.FotoPfad.Trim());
+            var ok = await _supabaseService.AddAblesungAsync(new AblesungInsertRecord
+            {
+                ZaehlerTyp = ZaehlerTypWasser,
+                ZaehlerId = meter.Id,
+                Ablesedatum = dlg.Ablesedatum.Value,
+                Stand = dlg.Stand.Value,
+                FotoPfad = string.IsNullOrWhiteSpace(dlg.FotoPfad) ? null : dlg.FotoPfad.Trim()
+            });
             if (!ok)
             {
                 MessageBox.Show("Ablesung konnte nicht gespeichert werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -206,7 +213,13 @@ namespace KGV.ViewModels
                     return;
                 }
 
-                var ok = await _supabaseService.AddWasserzaehlerAsync(Belegung.ParzelleId, dlg.Zaehlernummer.Trim(), dlg.Eichdatum.Value, dlg.EingebautAm.Value.Date);
+                var ok = await _supabaseService.AddWasserzaehlerAsync(new WasserzaehlerInsertRecord
+                {
+                    ParzelleId = Belegung.ParzelleId,
+                    Zaehlernummer = dlg.Zaehlernummer.Trim(),
+                    Eichdatum = dlg.Eichdatum.Value,
+                    EingebautAm = dlg.EingebautAm.Value.Date
+                });
                 if (!ok)
                 {
                     MessageBox.Show("Einbau konnte nicht gespeichert werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);

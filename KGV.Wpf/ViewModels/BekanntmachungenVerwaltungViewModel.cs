@@ -328,7 +328,7 @@ namespace KGV.ViewModels
 
             if (IsNewMode)
             {
-                var created = await _supabaseService.CreateBekanntmachungAsync(record);
+                var created = await _supabaseService.CreateBekanntmachungAsync(record.ToInsertRecord());
                 if (created == null)
                 {
                     ValidationMessage = "Die Bekanntmachung konnte nicht gespeichert werden. Details stehen im Debug-/Anwendungslog.";

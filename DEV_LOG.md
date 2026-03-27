@@ -2,6 +2,79 @@
 
 ---
 
+## 2026-03-27 – Prompt 2/4 Abschlusslauf: begonnenen Create-Aufrufer-Block gegen den echten Repo-Stand final geprüft
+
+- Erneut den realen Istzustand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Core/Models/InsertRecordMappingExtensions.cs`
+  - die bereits betroffenen WPF-/MAUI-Aufrufer
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+- Im aktuellen Stand bestätigt:
+  - WPF- und MAUI-Create-Aufrufer für `Arbeitsstunden`, `Arbeitseinsätze`, `Termine`, `Bekanntmachungen`, `Wartungsverträge`, `Stromzähler`, `Wasserzähler` und `Ablesung` zeigen auf Insert-Modelle ohne `Id`
+  - der WPF-Aufrufer für `CreateNebenmitgliedAsync(...)` verwendet produktiv `NebenmitgliedCreateDTO`
+  - `entryId = 0` bzw. `Id = 0` bleibt nur UI-intern; die echten Create-Pfade senden keine `Id` mehr an Supabase
+  - Update-Pfade bleiben weiter an echte bestehende IDs gebunden
+- Validierung im Abschlusslauf:
+  - gezielte Dateifehler auf allen bereits geänderten Blockdateien blieben unauffällig
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erneut erfolgreich durch
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` blieb ausschließlich an bereits vorhandenen blockfremden Altfehlern in `App.xaml.cs`, `AblesungErfassenPage.cs`, `ZaehlerwechselPage.cs`, `AppSettings.cs` und `MemberSearchPage.xaml.cs` rot
+- Ergebnis:
+  - keine direkten Restfehler dieses Prompt-2/4-Blocks mehr offen
+  - der gemeinsame Create-Aufrufer-Block ist fachlich abgeschlossen und wird jetzt organisatorisch per Commit/Push abgeschlossen
+
+## 2026-03-27 – Prompt 2/4 Abschluss: compile-bedingte WPF-/MAUI-Aufrufer auf neue Insert-Signaturen gezogen und Block sauber abgeschlossen
+
+- Zuerst den echten Istzustand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - die neuen Insert-Modelle in `KGV.Core/Models`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+- Ehrlicher Befund vor der Anpassung:
+  - die gemeinsamen Verträge und Insert-Modelle ohne `Id` waren bereits vorhanden
+  - compile-bedingt offen waren nur direkte WPF-/MAUI-Aufrufer, die noch alte Create-Signaturen verwendeten
+  - betroffen laut echtem Buildfehlerbild waren Create-Aufrufer für:
+    - `Ablesung`
+    - `Stromzaehler`
+    - `Wasserzaehler`
+    - `Arbeitsstunde`
+    - `Arbeitseinsatz`
+    - `Termin`
+    - `Bekanntmachung`
+    - `Wartungsvertrag`
+    - `Nebenmitglied`
+- Umsetzung bewusst minimal und nur compile-bedingt:
+  - WPF-Aufrufer in den betroffenen ViewModels auf die neuen gemeinsamen Create-Signaturen gezogen
+  - MAUI-Aufrufer in den betroffenen Pages/ViewModels auf dieselben Insert-Signaturen gezogen
+  - kleiner gemeinsamer Helper `KGV.Core/Models/InsertRecordMappingExtensions.cs` ergänzt, aber nur für die wirklich mehrfach betroffenen Record-zu-Insert-Abbildungen:
+    - `ArbeitsstundeRecord`
+    - `ArbeitseinsatzRecord`
+    - `TerminRecord`
+    - `BekanntmachungRecord`
+    - `WartungsvertragRecord`
+  - Zähler-/Ablesungs-Aufrufer bewusst ohne Schattenlogik direkt auf `...InsertRecord` umgestellt
+  - WPF-Nebenmitglied-Aufrufer auf `CreateNebenmitgliedAsync(NebenmitgliedCreateDTO request)` gezogen; der gemeinsame Servicevertrag bleibt damit die einzige Wahrheit und der produktive Pfad ist wieder nutzbar
+  - beim echten Create läuft jetzt kein DB-Record mit `Id` und kein `id = 0` mehr in die umgestellten Insert-Pfade
+- Technische Verifikation:
+  - gezielte Dateifehler auf allen direkt geänderten Blockdateien blieben nach der Umstellung unauffällig
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` läuft jetzt wieder erfolgreich durch
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` ist hinsichtlich der betroffenen Insert-Aufrufer bereinigt; offen bleiben im aktuellen Workspace nur bereits vorhandene blockfremde MAUI-Fehler in:
+    - `KGV.Maui/App.xaml.cs`
+    - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+    - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+    - `KGV.Maui/Settings/AppSettings.cs`
+    - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+- Ergebnis:
+  - die direkten WPF-/MAUI-UI-Aufrufer zeigen jetzt auf die Insert-Modelle ohne `Id`
+  - `CreateNebenmitgliedAsync(...)` ist im produktiven gemeinsamen Vertrag wieder nutzbar
+  - der Prompt-2/4-Block ist fachlich für das Signatur-Nachziehen abgeschlossen; dokumentierte blockfremde MAUI-Altfehler wurden bewusst nicht in diesen Block hineingezogen
+
 ## 2026-03-27 – Prompt 1/4: Insert-Modelle ohne `Id` im gemeinsamen Core-/Infrastructure-Unterbau eingeführt und Servicevertrag auf Create-vs-Update getrennt
 
 - Zuerst den echten Repo-/Log-/Vertragsstand geprüft:

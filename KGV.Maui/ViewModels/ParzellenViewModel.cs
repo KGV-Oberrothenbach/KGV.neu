@@ -240,7 +240,14 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         }
 
         var ok = existing == null
-            ? await _supabaseService.AddAblesungAsync(1, meterId.Value, ablesedatum, stand, NormalizeOptionalText(fotoPfad))
+            ? await _supabaseService.AddAblesungAsync(new AblesungInsertRecord
+            {
+                ZaehlerTyp = 1,
+                ZaehlerId = meterId.Value,
+                Ablesedatum = ablesedatum,
+                Stand = stand,
+                FotoPfad = NormalizeOptionalText(fotoPfad)
+            })
             : await _supabaseService.UpdateAblesungAsync(existing.AblesungId, ablesedatum, stand, NormalizeOptionalText(fotoPfad));
 
         StatusMessage = ok ? "Strom-Ablesung gespeichert." : "Strom-Ablesung konnte nicht gespeichert werden.";
@@ -270,7 +277,14 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         }
 
         var ok = existing == null
-            ? await _supabaseService.AddAblesungAsync(2, meterId.Value, ablesedatum, stand, NormalizeOptionalText(fotoPfad))
+            ? await _supabaseService.AddAblesungAsync(new AblesungInsertRecord
+            {
+                ZaehlerTyp = 2,
+                ZaehlerId = meterId.Value,
+                Ablesedatum = ablesedatum,
+                Stand = stand,
+                FotoPfad = NormalizeOptionalText(fotoPfad)
+            })
             : await _supabaseService.UpdateAblesungAsync(existing.AblesungId, ablesedatum, stand, NormalizeOptionalText(fotoPfad));
 
         StatusMessage = ok ? "Wasser-Ablesung gespeichert." : "Wasser-Ablesung konnte nicht gespeichert werden.";
@@ -298,7 +312,13 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
             }
         }
 
-        var ok = await _supabaseService.AddStromzaehlerAsync(parzelleId, zaehlernummer.Trim(), eichdatum, eingebautAm.Date);
+        var ok = await _supabaseService.AddStromzaehlerAsync(new StromzaehlerInsertRecord
+        {
+            ParzelleId = parzelleId,
+            Zaehlernummer = zaehlernummer.Trim(),
+            Eichdatum = eichdatum,
+            EingebautAm = eingebautAm.Date
+        });
         StatusMessage = ok ? "Stromzähler gespeichert." : "Stromzähler konnte nicht gespeichert werden.";
         if (!ok)
             return false;
@@ -312,7 +332,13 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         if (SelectedItem == null)
             return false;
 
-        var ok = await _supabaseService.AddWasserzaehlerAsync(SelectedItem.ParzelleId, zaehlernummer.Trim(), eichdatum, eingebautAm.Date);
+        var ok = await _supabaseService.AddWasserzaehlerAsync(new WasserzaehlerInsertRecord
+        {
+            ParzelleId = SelectedItem.ParzelleId,
+            Zaehlernummer = zaehlernummer.Trim(),
+            Eichdatum = eichdatum,
+            EingebautAm = eingebautAm.Date
+        });
         StatusMessage = ok ? "Wasserzähler gespeichert." : "Wasserzähler konnte nicht gespeichert werden.";
         if (!ok)
             return false;

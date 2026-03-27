@@ -375,7 +375,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
                 record.Id = _existingEntry.Id;
 
             var success = _existingEntry == null
-                ? await _supabaseService.AddArbeitsstundeAsync(record)
+                ? await _supabaseService.AddArbeitsstundeAsync(record.ToInsertRecord())
                 : await _supabaseService.UpdateArbeitsstundeAsync(record);
 
             if (!success)

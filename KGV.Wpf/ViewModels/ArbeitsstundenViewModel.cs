@@ -220,7 +220,7 @@ namespace KGV.ViewModels
                 Status = null
             };
 
-            var ok = await _supabaseService.AddArbeitsstundeAsync(rec);
+            var ok = await _supabaseService.AddArbeitsstundeAsync(rec.ToInsertRecord());
             if (!ok)
             {
                 MessageBox.Show("Arbeitsstunde konnte nicht gespeichert werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);

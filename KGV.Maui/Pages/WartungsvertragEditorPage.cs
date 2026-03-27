@@ -196,7 +196,7 @@ public sealed class WartungsvertragEditorPage : ContentPage, IQueryAttributable
             }
             else
             {
-                var created = await _supabaseService.CreateWartungsvertragAsync(record);
+                var created = await _supabaseService.CreateWartungsvertragAsync(InsertRecordMappingExtensions.ToInsertRecord(record));
                 if (created == null)
                 {
                     _statusLabel.Text = "Wartungsvertrag konnte nicht erstellt werden.";

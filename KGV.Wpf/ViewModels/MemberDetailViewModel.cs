@@ -261,7 +261,13 @@ namespace KGV.ViewModels
                 return;
             }
 
-            var created = await _supabaseService.CreateNebenmitgliedAsync(SelectedMember.Id, dlg.Vorname.Trim(), dlg.Nachname.Trim(), dlg.AdresseUebernehmen);
+            var created = await _supabaseService.CreateNebenmitgliedAsync(new NebenmitgliedCreateDTO
+            {
+                HauptmitgliedId = SelectedMember.Id,
+                Vorname = dlg.Vorname.Trim(),
+                Nachname = dlg.Nachname.Trim(),
+                AdresseUebernehmen = dlg.AdresseUebernehmen
+            });
             if (created == null)
             {
                 MessageBox.Show("Nebenmitglied konnte nicht angelegt werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
