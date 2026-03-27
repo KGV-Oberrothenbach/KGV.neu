@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-03-27 – Prompt 4/4: projektweite Gesamtprüfung der produktiven Create-Pfade gegen das ID-freie Insert-Schema abgeschlossen
+
+- Vor dem Block den echten Repo- und Logstand gegen den gepushten Stand `f3b37dc` geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Core/Models/InsertRecordMappingExtensions.cs`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+- Danach projektweite Suchläufe auf dem aktuellen Stand durchgeführt:
+  - `.Insert(` über alle C#-Dateien, um reale Insert-Pfade vollständig zu sehen
+  - `From<...Record>().Insert(...)` sowie `Insert(new ...Record` über alle C#-Dateien, um verbleibende Inserts auf Basis echter Record-Typen zu finden
+  - `Id = 0`, `id = 0`, `entryId=0`, `entryId = 0` über C#-/XAML-Dateien zur Restprüfung auf künstliche Neu-IDs
+  - gezielte Aufrufsuche auf die produktiven Create-Pfade für `Nebenmitglied`, `Stromzähler`, `Wasserzähler`, `Ablesung`, `Arbeitsstunde`, `Wartungsvertrag`, `Arbeitseinsatz`, `Termin` und `Bekanntmachung`
+- Ehrlicher Befund der Gesamtsuche:
+  - die bekannten produktiven Create-Pfade im `SupabaseService` laufen bereits über `...InsertRecord` bzw. `NebenmitgliedCreateDTO`
+  - die betroffenen WPF-/MAUI-Aufrufer zeigen weiterhin sauber auf diese ID-freien Create-Verträge
+  - die Suche nach `Id = 0` / `entryId=0` blieb in C#-/XAML-Produktivdateien leer; Treffer gab es nur in historischen Logeinträgen, nicht in aktuellen Laufzeitpfaden
+  - als letzte produktive Reststelle blieb ein Insert im Auth-Bereich: `AuthService` erzeugte `app_user` noch über `AppUserRecord`
+- Minimal bereinigt, ohne neuen Fachumfang:
+  - neues Insert-Modell `KGV.Infrastructure/Models/AppUserInsertRecord.cs` angelegt
+  - produktiven Insert in `KGV.Infrastructure/Authentication/AuthService.cs` von `AppUserRecord` auf `AppUserInsertRecord` umgestellt
+  - keine neue Auth-Logik, keine neue UI, keine Schattenarchitektur ergänzt
+- Abschließende Architekturprüfung:
+  - Create-Pfade senden im aktuellen produktiven Suchraum keine DB-Records mit `Id` und kein `id = 0` mehr an Supabase/PostgREST
+  - Update-Pfade bleiben getrennt und arbeiten weiter mit echten vorhandenen IDs
+  - `CreateNebenmitgliedAsync(...)` bleibt produktiv aktiv und verwendet weiter `NebenmitgliedCreateDTO`; ein alter Altvertrag oder Altaufrufer war im aktuellen Repo-Stand nicht mehr vorhanden
+  - die projektweite produktive Create-Architektur ist damit auf Insert-Modelle bzw. Create-Requests ohne `Id` vereinheitlicht
+
 ## 2026-03-27 – Prompt 2/4 Abschlusslauf: realen Endstand der gemeinsamen Create-Aufrufer geprüft und final validiert
 
 - Vor dem organisatorischen Abschluss erneut den echten Endstand geprüft:

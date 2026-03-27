@@ -679,7 +679,7 @@ namespace KGV.Infrastructure.Authentication
                 return;
             }
 
-            await client.From<AppUserRecord>().Insert(new AppUserRecord
+            await client.From<AppUserInsertRecord>().Insert(new AppUserInsertRecord
             {
                 UserId = authUserId,
                 MitgliedId = mitgliedId,

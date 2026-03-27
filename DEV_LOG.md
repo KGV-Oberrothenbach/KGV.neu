@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-03-27 – Prompt 4/4: projektweite Abschlussprüfung der Create-/Insert-Architektur durchgeführt und letzte Reststelle bereinigt
+
+- Zuerst den echten Istzustand gegen den gepushten Stand `f3b37dc` geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Core/Models/InsertRecordMappingExtensions.cs`
+  - realen Git-Status über den vorgegebenen Visual-Studio-Git-Pfad
+- Projektweite Suchläufe auf dem aktuellen Repo-Stand durchgeführt:
+  - `.Insert(` über alle C#-Dateien
+  - `From<...Record>().Insert(...)` bzw. `Insert(new ...Record` über alle C#-Dateien
+  - `Id = 0`, `id = 0`, `entryId=0`, `entryId = 0` über C#-/XAML-Dateien
+  - Aufrufsuche für die produktiven Create-Pfade `Nebenmitglied`, `Stromzähler`, `Wasserzähler`, `Ablesung`, `Arbeitsstunde`, `Wartungsvertrag`, `Arbeitseinsatz`, `Termin`, `Bekanntmachung`
+- Ergebnis der Gesamtsuche:
+  - die bereits bekannten produktiven Create-Pfade in `SupabaseService` und ihren WPF-/MAUI-Aufrufern laufen auf Insert-Modelle bzw. Create-Requests ohne `Id`
+  - für die betroffenen produktiven UI-Pfade blieb die Suche nach `Id = 0` und `entryId=0` leer
+  - letzte verbleibende produktive Reststelle war ein Insert im Auth-Bereich: `AuthService` legte `app_user` noch über `AppUserRecord` statt über ein separates Insert-Modell an
+- Bereinigung dieses Abschlussblocks:
+  - neues Insert-Modell `KGV.Infrastructure/Models/AppUserInsertRecord.cs` ergänzt
+  - `KGV.Infrastructure/Authentication/AuthService.cs` auf `client.From<AppUserInsertRecord>().Insert(...)` umgestellt
+  - damit laufen nun auch die produktiven `app_user`-Neuanlagen nicht mehr über einen DB-Record-Typ
+- Abschlussbewertung:
+  - Create bleibt ohne `Id`
+  - Update bleibt getrennt über bestehende Record-/ID-Pfade
+  - `CreateNebenmitgliedAsync(...)` ist weiterhin produktiv über `NebenmitgliedCreateDTO` aktiv; ein alter Nebenmitglied-Altvertrag oder Altaufrufer wurde im aktuellen Repo-Stand nicht mehr gefunden
+  - im aktuellen produktiven Suchraum ist die Create-Architektur jetzt auf Insert-Modelle bzw. Create-Requests ohne `Id` vereinheitlicht
+
 ## 2026-03-27 – Prompt 2/4 Abschlusslauf: begonnenen Create-Aufrufer-Block gegen den echten Repo-Stand final geprüft
 
 - Erneut den realen Istzustand geprüft:
