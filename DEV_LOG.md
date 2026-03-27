@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-03-27 – Nächsten blockfremden MAUI-Compileblock für `ArbeitsstundenReviewPage`, `DokumentePage` und `ExportPage` gezielt bereinigt
+
+- Vor dem Block erneut nur den realen Repo-/Log-/Fehlerstand geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `.github/copilot-instructions.md`
+  - `KGV.Maui/Pages/ArbeitsstundenReviewPage.cs`
+  - `KGV.Maui/Pages/DokumentePage.xaml`
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Maui/Pages/ExportPage.cs`
+  - gezielte Dateifehler für genau diese drei MAUI-Pfade
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+- WPF wurde bewusst nicht angefasst.
+- Ehrlicher Befund vor der Korrektur:
+  - `ArbeitsstundenReviewPage.cs` und `ExportPage.cs` liegen im aktiven Stand als code-only MAUI-Seiten vor
+  - `DokumentePage.xaml.cs` liegt zwar als `.xaml.cs` vor, die direkt zugehörige `DokumentePage.xaml` ist im aktuellen Stand leer; ein aktiver `x:Class`-/Partial-/Code-Behind-Vertrag war dort somit nicht der Fehlerursprung
+  - die Compilefehler lagen erneut nicht in Fachlogik, sondern in fehlenden MAUI-/Graphics-/ApplicationModel-/System-Namespaces
+  - betroffen waren u. a. Typauflösungen für `ContentPage`, `CollectionView`, `Label`, `Button`, `Border`, `ScrollView`, `VerticalStackLayout`, `SelectionChangedEventArgs`, `IValueConverter`, `LineBreakMode`, `Colors`, `Thickness`, `FileSystem`, `ShareFileRequest` und `ShareFile`
+- Umsetzung bewusst klein und nur auf die Compile-Ursachen begrenzt:
+  - in `KGV.Maui/Pages/ArbeitsstundenReviewPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-/Collections-/Linq-/Tasks-Usings ergänzt
+  - in `KGV.Maui/Pages/DokumentePage.xaml.cs` die fehlenden aktiven MAUI-/ApplicationModel-/Graphics-/System-/Linq-/Tasks-Usings ergänzt
+  - in `KGV.Maui/Pages/ExportPage.cs` die fehlenden aktiven MAUI-/ApplicationModel-/DataTransfer-/Storage-/Graphics-/System-Usings ergänzt
+  - keine Fachlogik, keine Navigation, keine Rechte- oder CRUD-/Supabase-Pfade geändert
+  - keine XAML-Struktur erfunden oder umgebaut, weil `DokumentePage.xaml` im aktuellen Stand keinen aktiven XAML-Klassenvertrag trägt
+- Technische Verifikation:
+  - `get_errors` auf den drei Zielpfaden blieb nach dem Fix unauffällig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` läuft im aktuellen Workspace wieder erfolgreich durch
+  - der gezielte MAUI-Compileblock ist damit dateibezogen und im Gesamtprojekt compile-seitig bereinigt
+
 ## 2026-03-26 – MAUI-Laufzeit-/Fachblock für Home-/Detail-/Editorpfade gezielt nach grünem Build geprüft und minimal gehärtet
 
 - Vor dem Block erneut nur den realen Repo-/Log-/Pfadstand geprüft:
