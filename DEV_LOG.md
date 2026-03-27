@@ -2,6 +2,27 @@
 
 ---
 
+## 2026-03-27 – Prompt 2/3 Abschlusslauf: vorhandenen Wartungsverträge-Blockcommit geprüft und sauber nach `origin/main` gepusht
+
+- Den echten Git-Istzustand über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad geprüft:
+  - Branch `main`
+  - `HEAD` auf `74d0f72`
+  - `74d0f72` lokal vorhanden
+  - `origin/main` vor dem Lauf genau einen Commit hinter dem lokalen Stand
+- Den vorhandenen Commit `74d0f72` gegen die ausdrücklich genannten Wartungsverträge-Blockdateien geprüft:
+  - kein neuer Fach- oder Abschlussfehler in den Blockdateien
+  - deshalb keine neuen Codeänderungen am Wartungsverträge-Block vorgenommen
+- Buildstatus bewusst nicht neu zu einem Reparaturblock ausgerollt:
+  - WPF bleibt im zuletzt verifizierten Stand grün
+  - MAUI bleibt für diesen Abschlusslauf nur blockfremd dokumentiert rot in:
+    - `KGV.Maui/App.xaml.cs`
+    - `KGV.Maui/Settings/AppSettings.cs`
+    - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+    - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+    - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+- Den vorhandenen Block-Commit anschließend ohne weitere Fachänderung erfolgreich nach `origin/main` gepusht.
+- Blockfremde offene lokale Änderungen im Arbeitsbaum blieben bewusst ungestagt und außerhalb dieses Wartungsverträge-Abschlusses.
+
 ## 2026-03-27 – Prompt 2/3: begonnenen Wartungsverträge-Verwaltungsblock auf realem Zwischenstand fertiggestellt, MAUI-Anschlüsse geschlossen und Rückkehrpfade saubergezogen
 
 - Zuerst den echten aktuellen Repo-/Log-/Dateistand geprüft statt neu anzusetzen:

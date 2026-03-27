@@ -2,6 +2,42 @@
 
 ---
 
+## 2026-03-27 – Prompt 2/3 Abschlusslauf: vorhandenen Wartungsverträge-Blockcommit geprüft und sauber nach `origin/main` gebracht
+
+- Vor dem Abschluss erneut nur den echten Git-/Blockstand geprüft, ohne neue Facharbeit zu eröffnen:
+  - Git ausdrücklich über `C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe`
+  - aktueller Branch `main`
+  - `git status --short --branch`
+  - Verifikation, dass `74d0f72` lokal existiert und `HEAD` auf diesem Commit liegt
+  - Vergleich `origin/main...HEAD`
+- Ehrlicher Befund im Abschlusslauf:
+  - `74d0f72` enthielt den begonnenen Wartungsverträge-Prompt-2/3-Block bereits belastbar
+  - die ausdrücklich genannten Blockdateien lieferten im aktuellen Stand keinen zusätzlichen Abschlussfehler
+  - deshalb wurden keine weiteren Codeänderungen am Wartungsverträge-Block vorgenommen
+  - im Arbeitsbaum lagen weiterhin blockfremde offene Änderungen, die bewusst nicht in diesen Abschluss gezogen wurden
+- Dateibezogene Kurzvalidierung im Abschlusslauf:
+  - gezielte Dateifehler auf
+    - `KGV.Wpf/ViewModels/WartungsvertraegeVerwaltungViewModel.cs`
+    - `KGV.Wpf/ViewModels/WartungsvertragDetailViewModel.cs`
+    - `KGV.Maui/MauiProgram.cs`
+    - `KGV.Maui/ShellRouteRegistrar.cs`
+    - `KGV.Maui/Pages/WartungsvertraegePage.cs`
+    - `KGV.Maui/Pages/WartungsvertragDetailPage.cs`
+    - `KGV.Maui/Pages/WartungsvertragAssignMembersPage.cs`
+    blieben unauffällig
+- Buildstatus im Abschlusslauf bewusst nur ehrlich fortgeschrieben, nicht neu zum Reparaturblock geöffnet:
+  - WPF bleibt im zuletzt verifizierten Stand grün
+  - MAUI bleibt für diesen Abschlusslauf blockfremd außerhalb des Wartungsverträge-Blocks rot in:
+    - `KGV.Maui/App.xaml.cs`
+    - `KGV.Maui/Settings/AppSettings.cs`
+    - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+    - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+    - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+- Git-Abschluss dieses Laufs:
+  - vorhandenen Commit `74d0f72` unverändert verwendet
+  - erfolgreicher Push nach `origin/main`
+  - Prompt `2/3` ist damit technisch und organisatorisch sauber abgeschlossen; Prompt `3/3` wurde nicht vorgezogen
+
 ## 2026-03-27 – Prompt 2/3: begonnenen Block `globale Wartungsverträge-Verwaltung in WPF und MAUI` auf realem Zwischenstand sauber fertiggestellt
 
 - Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und genau die ausdrücklich genannten begonnenen Prompt-2/3-Dateien geprüft:
