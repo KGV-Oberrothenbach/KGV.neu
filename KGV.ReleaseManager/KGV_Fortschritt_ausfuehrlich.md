@@ -1,5 +1,38 @@
 # KGV Fortschritt ausführlich
 
+## Stand 2026-03-28 – Interner Korrekturblock: Android-Versionserkennung in `VersionService` für SDK-Style-`csproj` gehärtet
+
+### Ziel dieses Schritts
+Die direkte Android-Versionslesung aus `KGV.Maui/KGV.Maui.csproj` minimal korrigieren, damit `ApplicationDisplayVersion` und `ApplicationVersion` im Release Manager wieder zuverlässig erscheinen, ohne die Rückkehr zu Nebenpfaden.
+
+### Geprüft
+- reale Projektdateien:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Wpf/KGV.Wpf.csproj`
+- reale Leselogik:
+  - `KGV.ReleaseManager/Services/VersionService.cs`
+
+### Ehrlicher Istzustand vor Umsetzung
+- `ApplicationDisplayVersion` war im MAUI-`csproj` korrekt gesetzt
+- die Android-Version erschien im Release Manager trotzdem als nicht gefunden
+- Ursache war real nicht das Fehlen der Version, sondern die Dictionary-basierte XML-Auslesung über alle Properties: im MAUI-`csproj` kommen mehrere Property-Namen in verschiedenen konditionalen `PropertyGroup`-Blöcken mehrfach vor, wodurch die Dictionary-Erzeugung abbricht und die Lesung leer zurückfällt
+
+### Umgesetzt
+- `GetPropertyValue(...)` in `VersionService` auf LocalName-basierte Iteration statt `ToDictionary(...)` umgestellt
+- die Suche läuft weiter direkt auf der geladenen `csproj`-XML und bleibt robust gegen SDK-Style-/Namespace-Strukturen
+- keine Fallbacks auf `AssemblyInfo`, Manifest oder sonstige Nebenpfade eingeführt
+
+### Ergebnis
+- `ApplicationDisplayVersion` kann wieder direkt aus `KGV.Maui.csproj` gelesen werden
+- `ApplicationVersion` bleibt als Android-VersionCode weiter nutzbar
+- die WPF-Versionslesung aus `KGV.Wpf.csproj` bleibt unverändert intakt
+
+### Validierung
+- `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
+- `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+- `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich, nur bereits bekannte Warnungen
+- `dotnet build KGV.slnx -c Debug` erfolgreich
+
 ## Stand 2026-03-28 – Interner Inbetriebnahmeblock: csproj-basierte Produktversionen und getrennte WPF-/Android-Historien eingeführt
 
 ### Ziel dieses Schritts

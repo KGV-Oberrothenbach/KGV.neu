@@ -2,6 +2,27 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: Android-Version im ReleaseManager namespace- und SDK-style-robust aus `KGV.Maui.csproj` gelesen
+
+- Vor Beginn den realen Istzustand geprüft:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Wpf/KGV.Wpf.csproj`
+  - `KGV.ReleaseManager/Services/VersionService.cs`
+  - Git-Status des aktuellen Repos
+- Ehrlicher Befund:
+  - `ApplicationDisplayVersion` war in `KGV.Maui.csproj` korrekt gesetzt
+  - `VersionService` las Properties über `Elements("PropertyGroup")` + `ToDictionary(...)`
+  - die eigentliche Fehlerursache lag nicht an fehlender Android-Version, sondern an mehrfach vorhandenen Property-Namen in den konditionalen SDK-Style-PropertyGroups (`AndroidPackageFormat`, `AndroidKeyStore`, `AndroidCreatePackagePerAbi`), wodurch die Dictionary-Erzeugung fehlschlug und die Versionslesung leer zurückfiel
+- Minimal umgesetzt:
+  - `GetPropertyValue(...)` in `KGV.ReleaseManager/Services/VersionService.cs` auf eine robuste LocalName-basierte Iteration über `PropertyGroup`-Kinder umgestellt
+  - keine Rückkehr zu `AssemblyInfo`, Manifest oder anderen Nebenpfaden
+  - WPF- und Android-Version bleiben weiterhin ausschließlich csproj-basiert
+- Validierung:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich, nur bereits vorhandene Warnungen
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich, nur bereits bekannte Warnungen
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+
 ## 2026-03-28 – Prompt 1/1: ReleaseManager auf csproj-Versionen und getrennte WPF-/Android-Verläufe umgestellt
 
 - Vor Beginn den realen Istzustand geprüft:

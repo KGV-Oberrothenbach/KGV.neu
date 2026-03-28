@@ -2,6 +2,27 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: Android-Versionserkennung im ReleaseManager für SDK-Style-`csproj` robust gemacht
+
+- Vor Beginn den realen Istzustand im Repo geprüft:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Wpf/KGV.Wpf.csproj`
+  - `KGV.ReleaseManager/Services/VersionService.cs`
+  - realen Git-Status über den vorhandenen Visual-Studio-Git-Pfad
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - `ApplicationDisplayVersion` und `ApplicationVersion` waren im MAUI-Projekt korrekt vorhanden
+  - die Android-Version wurde trotzdem nicht erkannt, weil die bisherige Dictionary-basierte XML-Auslesung an mehrfach vorhandenen Property-Namen aus mehreren konditionalen `PropertyGroup`-Blöcken scheiterte
+  - gleichzeitig war die alte Suche mit festem `Elements("PropertyGroup")` für SDK-Style-/Namespace-Sonderfälle unnötig fragil
+- Minimal umgesetzt:
+  - `GetPropertyValue(...)` in `VersionService` auf eine robuste LocalName-basierte Iteration über alle direkten `PropertyGroup`-Elemente umgestellt
+  - keine fachliche Nebenlogik ergänzt und keine alten Fallbackpfade reaktiviert
+  - WPF- und Android-Versionslesung bleiben weiterhin ausschließlich auf `KGV.Wpf.csproj` und `KGV.Maui.csproj`
+- Validierung:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+
 ## 2026-03-28 – Prompt 1/1: ReleaseManager liest Produktversionen jetzt nur noch aus `KGV.Wpf.csproj` und `KGV.Maui.csproj`
 
 - Vor Beginn den realen Istzustand im Repo geprüft:

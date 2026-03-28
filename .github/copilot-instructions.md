@@ -3,6 +3,7 @@
 ## Project Guidelines
 - Vor Änderungen den Istzustand im Repo prüfen; Änderungen blockweise minimal-invasiv umsetzen, kompakt zusammenfassen, committen und pushen. 
 - Im KGV-Projekt immer den realen Repo-/Git-/Fortschrittslog-Stand prüfen; Änderungen als kleinsten buildfähigen Block umsetzen; danach `KGV_Fortschrittslog_ausfuehrlich.md` und `DEV_LOG.md` pflegen, `dotnet build KGV.Maui/KGV.Maui.csproj` ausführen, nur Blockdateien stagen sowie am Ende committen und pushen.
+- Im KGV-Projekt vor Änderungen den realen Repo-Stand prüfen, relevante Logs (`DEV_LOG.md`, `KGV_Fortschrittslog_ausfuehrlich.md`, `KGV.ReleaseManager/KGV_Fortschritt_ausfuehrlich.md`) fortschreiben, ReleaseManager/WPF/MAUI sowie die Gesamtsolution builden und am Ende committen und nach `origin/main` pushen.
 - Im KGV-Projekt vor Änderungen den realen Repo-Stand prüfen, DEV_LOG.md und KGV_Fortschrittslog_ausfuehrlich.md pflegen, MAUI und WPF builden und am Ende committen/pushen.
 - Für Strukturblöcke im KGV-Projekt immer zuerst den realen Istzustand prüfen; WPF und MAUI parallel mitdenken; DEV_LOG.md und KGV_Fortschrittslog_ausfuehrlich.md fortführen; nur Blockdateien stagen; am Ende builden, committen und pushen.
 - Änderungen sollen immer für WPF und MAUI mitgedacht werden. Wenn im KGV-Projekt ausdrücklich 'nur MAUI' gefordert ist, sollen nur MAUI-Dateien geändert und WPF-Dateien nicht angerührt werden. Bei ausdrücklich genanntem MAUI-Bugfix nur MAUI-Dateien ändern, WPF nicht anfassen, minimal-invasiv vorgehen, Logs pflegen, MAUI builden und am Ende committen/pushen.

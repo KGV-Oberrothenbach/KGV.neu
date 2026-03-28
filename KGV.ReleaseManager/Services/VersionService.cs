@@ -142,19 +142,25 @@ public sealed class VersionService
 
     private static string GetPropertyValue(XDocument document, params string[] propertyNames)
     {
-        var properties = document.Root?
-            .Elements("PropertyGroup")
+        var propertyElements = document.Root?
             .Elements()
-            .ToDictionary(element => element.Name.LocalName, element => element.Value, StringComparer.OrdinalIgnoreCase);
+            .Where(element => string.Equals(element.Name.LocalName, "PropertyGroup", StringComparison.OrdinalIgnoreCase))
+            .Elements()
+            .Where(element => element is not null)
+            .ToList();
 
-        if (properties is null)
+        if (propertyElements is null || propertyElements.Count == 0)
         {
             return string.Empty;
         }
 
         foreach (var propertyName in propertyNames)
         {
-            if (properties.TryGetValue(propertyName, out var value) && !string.IsNullOrWhiteSpace(value))
+            var value = propertyElements
+                .FirstOrDefault(element => string.Equals(element.Name.LocalName, propertyName, StringComparison.OrdinalIgnoreCase))
+                ?.Value;
+
+            if (!string.IsNullOrWhiteSpace(value))
             {
                 return value;
             }
