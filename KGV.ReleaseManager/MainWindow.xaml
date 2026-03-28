@@ -1,0 +1,161 @@
+<Window x:Class="KGV.ReleaseManager.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="KGV Release Manager"
+        Height="760"
+        Width="1180"
+        MinWidth="980"
+        MinHeight="720">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="KGV Release Manager" FontSize="24" FontWeight="SemiBold"/>
+            <TextBlock Text="Scaffold für Versionierung, Build, Export und Release-Abläufe" Opacity="0.8"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="1.4*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <GroupBox Header="Pfade und Einstellungen" Margin="0,0,0,12">
+                        <Grid Margin="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="KGV.neu Repo"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.SourceRepoPath, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="KGV-WPF Zielrepo"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.WpfTargetRepoPath, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="ReleaseOutput"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.ReleaseOutputRootPath, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="APK-Ausgabe"/>
+                            <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.ApkOutputPath, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="AAB-Ausgabe"/>
+                            <TextBox Grid.Row="4" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.AabOutputPath, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Keystore-Pfad"/>
+                            <TextBox Grid.Row="5" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.AndroidKeystorePath, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <StackPanel Grid.Row="6" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Width="140" Margin="0,0,8,0" Click="LoadSettings_Click">Einstellungen laden</Button>
+                                <Button Width="140" Click="SaveSettings_Click">Einstellungen speichern</Button>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Release-Konfiguration" Margin="0,0,0,12">
+                        <Grid Margin="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Aktuelle Version"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,8" Text="{Binding CurrentVersion, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Nächste Version"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,8" Text="{Binding NextVersion, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Top" Text="Ziele"/>
+                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,8">
+                                <CheckBox Content="WPF" Margin="0,0,16,0" IsChecked="{Binding BuildWpf}"/>
+                                <CheckBox Content="APK" Margin="0,0,16,0" IsChecked="{Binding BuildApk}"/>
+                                <CheckBox Content="AAB" IsChecked="{Binding BuildAab}"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Width="180" Margin="0,0,8,0" Click="AutoIncrementVersion_Click">Version automatisch erhöhen</Button>
+                                <Button Width="180" Click="CreateReleaseFolder_Click">Releaseordner anlegen</Button>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Release-Notizen / Export" Margin="0,0,0,12">
+                        <Grid Margin="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="120"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="160"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Margin="0,0,0,8" Text="Änderungen seit dem letzten Release / ChatGPT-Importtext"/>
+                            <TextBox Grid.Row="1" Text="{Binding ExportText}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,8">
+                                <Button Width="180" Margin="0,0,8,0" Click="CreateExportPrompt_Click">Export-Prompt erzeugen</Button>
+                                <Button Width="180" Click="ImportSummary_Click">Zusammenfassung übernehmen</Button>
+                            </StackPanel>
+                            <TextBox Grid.Row="3" Text="{Binding ImportedSummary}" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                        </Grid>
+                    </GroupBox>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <GroupBox Header="Status" Margin="0,0,0,12">
+                        <Grid Margin="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="220"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Margin="0,0,0,8" Text="Ausgabe"/>
+                            <TextBox Grid.Row="1" Text="{Binding StatusText}" AcceptsReturn="True" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                                <Button Width="140" Margin="0,0,8,0" Click="RunDryRelease_Click">Dry Run</Button>
+                                <Button Width="140" Click="RunRelease_Click">Release starten</Button>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="To-do / technische Notizen">
+                        <TextBox Margin="12"
+                                 Text="TODO: Externe Tools verdrahten, Versionsquellen aus KGV.neu lesen, Android-Signing sicher handhaben, Git- und Release-Veröffentlichung ergänzen."
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 IsReadOnly="True"
+                                 VerticalScrollBarVisibility="Auto"
+                                 Height="220"/>
+                    </GroupBox>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+
+        <DockPanel Grid.Row="2" Margin="0,12,0,0">
+            <TextBlock Text="{Binding FooterText}" VerticalAlignment="Center"/>
+        </DockPanel>
+    </Grid>
+</Window>

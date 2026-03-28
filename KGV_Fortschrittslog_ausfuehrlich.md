@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: Release Manager Buildfähigkeit geprüft und als buildfähig bestätigt
+
+- Vor Beginn den realen Istzustand im Repo geprüft:
+  - eingebundene Projekte der aktuellen Solution geprüft
+  - `KGV.ReleaseManager/KGV.ReleaseManager.csproj`
+  - `KGV.ReleaseManager/App.xaml`
+  - `KGV.ReleaseManager/App.xaml.cs`
+  - `KGV.ReleaseManager/MainWindow.xaml`
+  - `KGV.ReleaseManager/MainWindow.xaml.cs`
+  - `KGV.ReleaseManager/KGV_Fortschritt_ausfuehrlich.md`
+  - `KGV.ReleaseManager/CHANGELOG.md`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - `KGV.ReleaseManager` ist im aktuellen Solution-Kontext vorhanden und eingebunden
+  - das Projekt ist als WPF-Projekt mit `TargetFramework net8.0-windows` und `UseWPF=true` formal konsistent
+  - `App.xaml` / `App.xaml.cs` / `MainWindow.xaml` / `MainWindow.xaml.cs` sind buildseitig sauber verdrahtet
+  - beim Prüflauf zeigten sich keine fehlenden NuGet-Pakete, keine fehlerhaften Projektverweise, keine XAML-Buildfehler und keine Namespace-/Klassenkonflikte
+  - damit war kein Buildfix am Release Manager notwendig
+- Validierung:
+  - `dotnet restore KGV.ReleaseManager/KGV.ReleaseManager.csproj` erfolgreich
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj` erfolgreich
+  - `dotnet build KGV.slnx` erfolgreich
+- Abgrenzung:
+  - keine fachlichen Erweiterungen
+  - keine UI-Erweiterungen
+  - keine ReleaseManager-spezifischen Einträge in Endnutzer-Release-Notes des KGV-Produkts aufgenommen
+
 ## 2026-03-28 – Prompt 1/1: MAUI-Home-Arbeitsstunden sauber vom ausgewählten Mitglied entkoppelt
 
 - Vor Beginn den realen Istzustand im Repo geprüft:
