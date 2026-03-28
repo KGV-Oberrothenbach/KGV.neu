@@ -21,8 +21,8 @@
 		<AndroidTargetSdkVersion>35</AndroidTargetSdkVersion>
 		<SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
 
-		<ApplicationDisplayVersion>0.2.6</ApplicationDisplayVersion>
-		<ApplicationVersion>14</ApplicationVersion>
+		<ApplicationDisplayVersion>0.2.7</ApplicationDisplayVersion>
+		<ApplicationVersion>15</ApplicationVersion>
 		<TargetFrameworks>net9.0-android</TargetFrameworks>
 	</PropertyGroup>
 
@@ -35,6 +35,7 @@
 	<PropertyGroup Condition="'$(Configuration)'=='Release'">
 		<!-- Play Store Distribution: AAB als Release-Artefakt -->
 		<AndroidPackageFormat>aab</AndroidPackageFormat>
+     <AndroidLinkMode>None</AndroidLinkMode>
 		<!-- Play-Store-Builds verwenden keinen eigenen Update-Download-/Installationspfad. -->
 		<DefineConstants>$(DefineConstants);KGV_PLAYSTORE</DefineConstants>
 		<!-- Default: kein eigener Keystore. Release wird dann mit Debug-Key signiert (installierbar).

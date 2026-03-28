@@ -5,7 +5,10 @@ using Microsoft.Maui.Hosting;
 
 namespace KGV.Maui;
 
-[Application]
+[Application(
+    Icon = "@mipmap/appicon",
+    RoundIcon = "@mipmap/appicon_round",
+    Label = "KGV")]
 public class MainApplication : MauiApplication
 {
     public MainApplication(nint handle, JniHandleOwnership ownership)

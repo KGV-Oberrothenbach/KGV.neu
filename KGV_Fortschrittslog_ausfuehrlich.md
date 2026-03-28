@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: MAUI-Release-Bug für Login und Launcher-Icon minimal behoben
+
+- Vor Beginn den realen Istzustand im Repo geprüft:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+  - `KGV.Maui/MainActivity.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - reale Release-APK/AAB-Inhalte und Badging-Ausgabe
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - `appsettings.json` war korrekt im Paket enthalten, wurde bei Fehlern im Startup aber noch still geschluckt
+  - der Login-Pfad in `AuthService` loggte bereits ohne sensible Daten; das Hauptproblem im Release war fehlende Diagnose plus anderes Linker-Verhalten als im Debug-Build
+  - Release erzeugte AppIcon-Ressourcen, referenzierte im finalen APK aber trotzdem kein Application-Icon im Manifest
+- Minimal umgesetzt:
+  - Release-Linker auf `AndroidLinkMode=None` gezogen, damit der funktionierende Debug-Pfad für Login/Supabase im Release fachlich gleich bleibt
+  - `MauiProgram` lädt und validiert `appsettings.json`/Supabase-Konfiguration jetzt fail-fast mit Logcat-/Debug-Diagnose statt stillem Catch
+  - unhandled/unobserved Release-Fehler werden zusätzlich nach Logcat gespiegelt
+  - `MainApplication` referenziert `@mipmap/appicon` und `@mipmap/appicon_round` jetzt explizit als Launcher-Icon
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android` erfolgreich
+  - `aapt dump badging` bestätigt jetzt ein gesetztes `application icon='res/mipmap-anydpi-v26/appicon.xml'`
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+  - reale Installation auf angeschlossenes Gerät scheiterte lokal an bereits installierter anders signierter Paketvariante; daher kein zerstörungsfreier End-to-End-Login-Test automatisiert
+
 ## 2026-03-28 – Prompt 1/1: Android-Versionserkennung im ReleaseManager für SDK-Style-`csproj` robust gemacht
 
 - Vor Beginn den realen Istzustand im Repo geprüft:

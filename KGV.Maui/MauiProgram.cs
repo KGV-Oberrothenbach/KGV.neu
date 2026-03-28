@@ -1,3 +1,4 @@
+using Android.Util;
 using KGV.Core.Security;
 using KGV.Infrastructure.DependencyInjection;
 using KGV.Maui.Pages;
@@ -12,11 +13,14 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Controls.Hosting;
 using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Storage;
+using System.Diagnostics;
 
 namespace KGV.Maui;
 
 public static class MauiProgram
 {
+    private const string StartupLogTag = "KGV.Maui";
+
     public static MauiApp CreateMauiApp()
     {
         var builder = MauiApp.CreateBuilder();
@@ -25,13 +29,15 @@ public static class MauiProgram
 
         ShellRouteRegistrar.RegisterCommonRoutes();
 
-#if DEBUG
         builder.Logging.AddDebug();
-#endif
+        builder.Logging.SetMinimumLevel(LogLevel.Information);
+
+        RegisterUnhandledExceptionLogging();
 
         // Use the same appsettings.json as the WPF app.
         // For Android this must be packaged as an app asset (see `KGV.Maui.csproj`).
-        TryAddAppSettings(builder.Configuration);
+        AddAppSettings(builder.Configuration);
+        ValidateSupabaseConfiguration(builder.Configuration);
 
         AppSettings.Load();
 
@@ -91,15 +97,82 @@ public static class MauiProgram
         return builder.Build();
     }
 
-    private static void TryAddAppSettings(IConfigurationBuilder configuration)
+    private static void AddAppSettings(IConfigurationBuilder configuration)
     {
         try
         {
             using var stream = FileSystem.OpenAppPackageFileAsync("appsettings.json").GetAwaiter().GetResult();
             configuration.AddJsonStream(stream);
         }
-        catch
+        catch (Exception ex)
         {
+            LogStartupError("`appsettings.json` konnte nicht aus dem App-Paket geladen werden.", ex);
+            throw new InvalidOperationException("`appsettings.json` konnte nicht aus dem App-Paket geladen werden.", ex);
         }
+    }
+
+    private static void ValidateSupabaseConfiguration(IConfiguration configuration)
+    {
+        var supabaseUrl = configuration["Supabase:Url"];
+        var supabaseKey = configuration["Supabase:PublishableKey"] ?? configuration["Supabase:Key"];
+
+        if (!string.IsNullOrWhiteSpace(supabaseUrl) && !string.IsNullOrWhiteSpace(supabaseKey))
+        {
+            return;
+        }
+
+        var missingParts = new List<string>();
+        if (string.IsNullOrWhiteSpace(supabaseUrl))
+        {
+            missingParts.Add("Supabase:Url");
+        }
+
+        if (string.IsNullOrWhiteSpace(supabaseKey))
+        {
+            missingParts.Add("Supabase:PublishableKey");
+        }
+
+        var message = $"Supabase-Konfiguration fehlt in `appsettings.json`: {string.Join(", ", missingParts)}";
+        LogStartupError(message);
+        throw new InvalidOperationException(message);
+    }
+
+    private static void RegisterUnhandledExceptionLogging()
+    {
+        AppDomain.CurrentDomain.UnhandledException -= CurrentDomain_UnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+
+        TaskScheduler.UnobservedTaskException -= TaskScheduler_UnobservedTaskException;
+        TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
+    }
+
+    private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+    {
+        if (e.ExceptionObject is Exception exception)
+        {
+            LogStartupError("Unbehandelte Ausnahme in der MAUI-App.", exception);
+            return;
+        }
+
+        LogStartupError("Unbehandelte Ausnahme in der MAUI-App ohne Exception-Objekt.");
+    }
+
+    private static void TaskScheduler_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    {
+        LogStartupError("Nicht beobachtete Task-Ausnahme in der MAUI-App.", e.Exception);
+    }
+
+    private static void LogStartupError(string message, Exception? ex = null)
+    {
+        Debug.WriteLine($"[{StartupLogTag}] {message}");
+
+        if (ex is null)
+        {
+            Log.Error(StartupLogTag, message);
+            return;
+        }
+
+        Debug.WriteLine(ex);
+        Log.Error(StartupLogTag, $"{message} {ex.GetType().Name}: {ex.Message}");
     }
 }

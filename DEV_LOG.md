@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: MAUI-Release-Bug für Login/Launcher-Icon minimal gehärtet
+
+- Vor Beginn den realen Istzustand geprüft:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+  - `KGV.Maui/MainActivity.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - reale Release-Artefakte und APK-Inhalt per `aapt`/ZIP-Prüfung
+- Ehrlicher Befund:
+  - `appsettings.json` war im APK/AAB tatsächlich vorhanden, Fehler beim Laden wurden in `MauiProgram` aber komplett still geschluckt
+  - `AuthService.LoginAsync(...)` loggt bereits maskiert und ohne Passwort-/Token-Leak; im Release fehlte aber eine belastbare Start-/Fehlerdiagnose
+  - der zentrale Unterschied zwischen Debug und Release war weiterhin der Linker: Debug lief mit `AndroidLinkMode=None`, Release nicht
+  - AppIcon-Ressourcen wurden in Release zwar erzeugt und ins APK gepackt, das fertige APK referenzierte im Manifest aber kein Application-Icon (`aapt dump badging`: `application icon=''`)
+- Minimal umgesetzt:
+  - Release in `KGV.Maui.csproj` auf `AndroidLinkMode=None` gezogen, damit der funktionierende Debug-Pfad nicht im Release durch Linking/Trimming auseinanderläuft
+  - `MauiProgram` lädt `appsettings.json` jetzt nicht mehr stillschweigend; Fehler werden in Logcat/Debug ausgegeben und führen zu einer klaren Startup-Exception
+  - Supabase-Konfiguration wird direkt nach dem Laden validiert; fehlende `Url`/`PublishableKey` verschwinden nicht mehr erst als diffuser Login-Fehler
+  - Debug-Logging für MAUI jetzt auch außerhalb von `#if DEBUG` aktiviert; zusätzlich unhandled/unobserved Exceptions in Startup/Tasks nach Logcat gespiegelt
+  - `MainApplication` setzt das Launcher-Icon explizit auf `@mipmap/appicon` und `@mipmap/appicon_round`
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android` erfolgreich; signierte Release-APK erzeugt
+  - `aapt dump badging` auf der signierten Release-APK zeigt jetzt `application icon='res/mipmap-anydpi-v26/appicon.xml'`
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+  - Geräteinstallation der neuen Release-APK war lokal nicht zerstörungsfrei möglich, weil auf dem angeschlossenen Gerät bereits eine inkompatibel signierte Variante installiert ist (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`)
+
 ## 2026-03-28 – Prompt 1/1: Android-Version im ReleaseManager namespace- und SDK-style-robust aus `KGV.Maui.csproj` gelesen
 
 - Vor Beginn den realen Istzustand geprüft:
