@@ -22,6 +22,7 @@
 - Für den KGV-Wartungsverträge-Prompt 2/3 soll auf dem real begonnenen Zwischenstand aufgebaut werden: nur direkt blockbezogene Wartungsverträge-Dateien anfassen, WPF und MAUI parallel fertigstellen, Logs pflegen, WPF- und MAUI-Build validieren und am Ende nur Blockdateien über den vorgegebenen Visual-Studio-Git-Pfad committen und nach origin/main pushen.
 - Für den KGV-Wartungsverträge-Prompt 3/3 soll minimal-invasiv auf den bestehenden Prompt-1/3- und 2/3-Pfaden aufgebaut werden, WPF und MAUI parallel fertiggestellt werden, Logs gepflegt werden und Git-Operationen über den vorgegebenen Visual-Studio-Git-Pfad mit verpflichtendem Commit und Push erfolgen.
 - Im KGV.ReleaseManager für diese Blöcke zuerst den realen Repo-Stand prüfen, interne Logs und ReleaseManager-Logs pflegen, ReleaseManager und gesamte Solution builden und am Ende committen/pushen.
+- Für diesen KGV-Block vor Änderungen den realen Repo-Stand prüfen, WPF und MAUI parallel mitdenken, Home-Sichtbarkeit für aktive Datensätze über konsistente sichtbar_von/sichtbar_bis-Regeln herstellen, Editor-Defaults ohne Sichtbarkeits-/Zeit-Checkboxen umsetzen, Logs pflegen und am Ende committen/pushen.
 
 ## MAUI-Spezifische Hinweise
 - Das MAUI-Launcher-Icon ist trotz vorherigem Fix noch nicht korrekt; bitte sicherstellen, dass dies in zukünftigen Änderungen berücksichtigt wird.
