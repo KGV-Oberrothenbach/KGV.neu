@@ -1,6 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
+using KGV.Core.Utilities;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
 using Microsoft.Maui;
@@ -27,6 +28,7 @@ public sealed class HomeSectionDetailPage : ContentPage
     private readonly Label _subtitleLabel;
     private readonly Label _timeLabel;
     private readonly Label _contentLabel;
+    private readonly WebView _htmlContentView;
     private readonly Label _additionalInfoLabel;
     private readonly Label _registrationInfoLabel;
     private readonly Label _statusLabel;
@@ -62,6 +64,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         _subtitleLabel = new Label { FontSize = 14, TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _timeLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _contentLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
+        _htmlContentView = new WebView { HeightRequest = 420, IsVisible = false };
         _additionalInfoLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
         _registrationInfoLabel = new Label { LineBreakMode = LineBreakMode.WordWrap, TextColor = Colors.DarkSlateBlue };
         _statusLabel = new Label { LineBreakMode = LineBreakMode.WordWrap, TextColor = Colors.DarkRed };
@@ -156,6 +159,7 @@ public sealed class HomeSectionDetailPage : ContentPage
                     _subtitleLabel,
                     _timeLabel,
                     _contentLabel,
+                    _htmlContentView,
                     _additionalInfoLabel,
                     _registrationInfoLabel,
                     new HorizontalStackLayout
@@ -196,6 +200,9 @@ public sealed class HomeSectionDetailPage : ContentPage
         _participants.Clear();
         _participantsSection.IsVisible = false;
         _participantsEmptyLabel.IsVisible = false;
+        _htmlContentView.IsVisible = false;
+        _htmlContentView.Source = new HtmlWebViewSource { Html = "<html><body></body></html>" };
+        _contentLabel.IsVisible = true;
         _registerButton.IsVisible = false;
         _signOffButton.IsVisible = false;
         _newButton.IsVisible = false;
@@ -246,6 +253,12 @@ public sealed class HomeSectionDetailPage : ContentPage
                     _subtitleLabel.Text = announcement.Subtitle;
                     _timeLabel.Text = string.Empty;
                     _contentLabel.Text = announcement.Content;
+                    _contentLabel.IsVisible = false;
+                    _htmlContentView.IsVisible = true;
+                    _htmlContentView.Source = new HtmlWebViewSource
+                    {
+                        Html = HtmlContentHelper.BuildHtmlDocument(announcement.HtmlContent)
+                    };
                     _additionalInfoLabel.Text = announcement.DetailInfo;
                     _registrationInfoLabel.Text = string.Empty;
                     break;
@@ -255,10 +268,14 @@ public sealed class HomeSectionDetailPage : ContentPage
                     _subtitleLabel.Text = string.Empty;
                     _timeLabel.Text = string.Empty;
                     _contentLabel.Text = "Bitte zuerst auf der Startseite einen Eintrag auswählen.";
+                    _contentLabel.IsVisible = true;
                     _additionalInfoLabel.Text = string.Empty;
                     _registrationInfoLabel.Text = string.Empty;
                     return;
             }
+
+            if (_homeContextState.DetailKind is not HomeDetailKind.Announcement)
+                _contentLabel.IsVisible = !string.IsNullOrWhiteSpace(_contentLabel.Text);
 
             var canManage = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
             _newButton.IsVisible = canManage;

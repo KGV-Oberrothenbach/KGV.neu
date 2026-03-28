@@ -3196,6 +3196,7 @@ namespace KGV.Infrastructure.Services
                 Title = title,
                 Subtitle = published.HasValue ? published.Value.ToString("dd.MM.yyyy") : string.Empty,
                 Content = NormalizeHomeText(FirstNonEmpty(record.Inhalt, record.Text, record.InhaltHtml, record.Beschreibung, record.Kurztext)),
+                HtmlContent = FirstNonEmpty(record.InhaltHtml, record.Inhalt, record.Text, record.Beschreibung, record.Kurztext) ?? string.Empty,
                 DetailInfo = string.Join(Environment.NewLine, detailInfoLines)
             };
         }

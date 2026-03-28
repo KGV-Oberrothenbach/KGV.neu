@@ -81,7 +81,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         _previewWebView = new WebView
         {
             HeightRequest = 260,
-            Source = new HtmlWebViewSource { Html = BuildPreviewDocument(null) }
+            Source = new HtmlWebViewSource { Html = HtmlContentHelper.BuildHtmlDocument(null) }
         };
 
         _htmlEditorSection = new VerticalStackLayout
@@ -430,7 +430,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
     {
         _previewWebView.Source = new HtmlWebViewSource
         {
-            Html = BuildPreviewDocument(_htmlEditor.Text)
+            Html = HtmlContentHelper.BuildHtmlDocument(_htmlEditor.Text)
         };
     }
 
@@ -535,12 +535,4 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         };
     }
 
-    private static string BuildPreviewDocument(string? html)
-    {
-        var body = string.IsNullOrWhiteSpace(html)
-            ? "<p style='color:#666;'>Noch kein HTML-Inhalt vorhanden.</p>"
-            : html;
-
-        return $"<html><head><meta charset='utf-8'><style>body{{font-family:'Segoe UI';padding:16px;}} table{{border-collapse:collapse;}} td,th{{border:1px solid #ccc;padding:4px;}}</style></head><body>{body}</body></html>";
-    }
 }

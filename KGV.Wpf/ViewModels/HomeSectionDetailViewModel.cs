@@ -1,6 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
+using KGV.Core.Utilities;
 using KGV.Helpers;
 using System;
 using System.Collections.ObjectModel;
@@ -25,6 +26,7 @@ namespace KGV.ViewModels
         public string StartTimeText => _context.StartTimeText;
         public string EndTimeText => _context.EndTimeText;
         public string Content => _context.Content;
+        public string HtmlDocument => HtmlContentHelper.BuildHtmlDocument(_context.HtmlContent);
         public string AdditionalInfo => _context.AdditionalInfo;
         public string RegistrationInfo
         {
@@ -35,6 +37,8 @@ namespace KGV.ViewModels
         public bool HasStartTimeText => !string.IsNullOrWhiteSpace(StartTimeText);
         public bool HasEndTimeText => !string.IsNullOrWhiteSpace(EndTimeText);
         public bool HasContent => !string.IsNullOrWhiteSpace(Content);
+        public bool ShowHtmlContent => !string.IsNullOrWhiteSpace(_context.HtmlContent);
+        public bool ShowPlainTextContent => HasContent && !ShowHtmlContent;
         public bool HasAdditionalInfo => !string.IsNullOrWhiteSpace(AdditionalInfo);
         public bool HasRegistrationInfo => !string.IsNullOrWhiteSpace(RegistrationInfo);
         public bool IsAdminContext => _mainVm.UserContext.Role is UserRole.Admin or UserRole.Vorstand;

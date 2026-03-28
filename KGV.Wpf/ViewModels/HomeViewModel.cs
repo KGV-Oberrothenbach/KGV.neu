@@ -218,6 +218,7 @@ namespace KGV.ViewModels
                 StartTimeText = string.Empty,
                 EndTimeText = string.Empty,
                 Content = item.Content,
+                HtmlContent = item.HtmlContent,
                 AdditionalInfo = item.DetailInfo,
                 RegistrationInfo = string.Empty,
                 ShowRegisterButton = false

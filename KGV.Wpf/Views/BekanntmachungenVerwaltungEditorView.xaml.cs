@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using KGV.Core.Utilities;
 using KGV.ViewModels;
 
 namespace KGV.Views
@@ -126,12 +127,7 @@ namespace KGV.Views
                 return;
             }
 
-            var html = string.IsNullOrWhiteSpace(vm.InhaltHtml)
-                ? "<p style='color:#666;'>Noch kein HTML-Inhalt vorhanden.</p>"
-                : vm.InhaltHtml;
-
-            var document = $"<html><head><meta charset='utf-8'><style>body{{font-family:'Segoe UI';padding:16px;}} table{{border-collapse:collapse;}} td,th{{border:1px solid #ccc;padding:4px;}}</style></head><body>{html}</body></html>";
-            HtmlPreviewBrowser.NavigateToString(document);
+            HtmlPreviewBrowser.NavigateToString(HtmlContentHelper.BuildHtmlDocument(vm.InhaltHtml));
         }
     }
 }

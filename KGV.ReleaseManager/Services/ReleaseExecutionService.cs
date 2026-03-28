@@ -71,8 +71,12 @@ public sealed class ReleaseExecutionService
 
         var backups = new List<VersionFileBackup>();
         var releaseFolderPath = folderResult.VersionFolderPath;
+        var releaseFolderExistedBefore = folderResult.ExistedBefore;
         var stagingRoot = Path.Combine(Path.GetTempPath(), "KGV.ReleaseManager", request.TargetVersion, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(stagingRoot);
+        string? stagedWpfSetupArtifact = null;
+        string? stagedApkArtifact = null;
+        string? stagedAabArtifact = null;
 
         try
         {
@@ -101,7 +105,7 @@ public sealed class ReleaseExecutionService
                 messages.Add(wpfBuild.GetUserFacingMessage());
                 if (!wpfBuild.Success)
                 {
-                    return RollbackFailure("WPF Build fehlgeschlagen.", backups, messages, releaseFolderPath);
+                    return RollbackFailure("WPF Build fehlgeschlagen.", backups, messages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
                 }
 
                 var innoScript = _releaseArtifactService.FindInnoSetupScript(request.SourceRepoPath);
@@ -120,30 +124,17 @@ public sealed class ReleaseExecutionService
                 messages.Add(innoRun.GetUserFacingMessage());
                 if (!innoRun.Success)
                 {
-                    return RollbackFailure("WPF-Setup-Erzeugung fehlgeschlagen.", backups, messages, releaseFolderPath);
+                    return RollbackFailure("WPF-Setup-Erzeugung fehlgeschlagen.", backups, messages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
                 }
 
                 var setupArtifact = _releaseArtifactService.FindNewestArtifact(wpfStaging, "*.exe", DateTime.UtcNow.AddMinutes(-10));
                 if (string.IsNullOrWhiteSpace(setupArtifact))
                 {
-                    return RollbackFailure("Die erzeugte WPF-Setup-Datei wurde nicht gefunden.", backups, messages, releaseFolderPath);
+                    return RollbackFailure("Die erzeugte WPF-Setup-Datei wurde nicht gefunden.", backups, messages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
                 }
 
-                var releaseSetupPath = _releaseArtifactService.CopyArtifact(setupArtifact, Path.Combine(releaseFolderPath, "WPF"));
-                artifacts.Add(releaseSetupPath);
-                messages.Add($"WPF-Setup in den Versionsordner kopiert: {releaseSetupPath}");
-
-                var wpfRepoSetupPath = _releaseArtifactService.CopyArtifact(setupArtifact, wpfTargetDirectory.TargetDirectory);
-                artifacts.Add(wpfRepoSetupPath);
-                messages.Add($"WPF-Setup in das lokale Zielrepo kopiert: {wpfRepoSetupPath}");
-
-                var stableSetupPath = Path.Combine(wpfTargetDirectory.TargetDirectory, "KGV-Setup.exe");
-                if (File.Exists(stableSetupPath))
-                {
-                    var latestSetupPath = _releaseArtifactService.CopyArtifact(setupArtifact, wpfTargetDirectory.TargetDirectory, "KGV-Setup.exe");
-                    artifacts.Add(latestSetupPath);
-                    messages.Add($"WPF-Setup als aktuelle Setup-Datei aktualisiert: {latestSetupPath}");
-                }
+                stagedWpfSetupArtifact = setupArtifact;
+                messages.Add($"WPF-Setup für die spätere Veröffentlichung vorbereitet: {stagedWpfSetupArtifact}");
             }
 
             if (request.BuildApk)
@@ -151,16 +142,11 @@ public sealed class ReleaseExecutionService
                 var apkArtifact = await BuildAndroidArtifactAsync(request, "apk", cancellationToken, messages);
                 if (string.IsNullOrWhiteSpace(apkArtifact))
                 {
-                    return RollbackFailure("APK-Erzeugung fehlgeschlagen.", backups, messages, releaseFolderPath);
+                    return RollbackFailure("APK-Erzeugung fehlgeschlagen.", backups, messages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
                 }
 
-                var releaseApkPath = _releaseArtifactService.CopyArtifact(apkArtifact, Path.Combine(releaseFolderPath, "Android", "APK"));
-                artifacts.Add(releaseApkPath);
-                messages.Add($"APK in den Versionsordner kopiert: {releaseApkPath}");
-
-                var apkOutputPath = _releaseArtifactService.CopyArtifact(apkArtifact, request.ApkOutputPath);
-                artifacts.Add(apkOutputPath);
-                messages.Add($"APK in den konfigurierten Ausgabeordner kopiert: {apkOutputPath}");
+                stagedApkArtifact = apkArtifact;
+                messages.Add($"APK für die spätere Veröffentlichung vorbereitet: {stagedApkArtifact}");
             }
 
             if (request.BuildAab)
@@ -168,16 +154,28 @@ public sealed class ReleaseExecutionService
                 var aabArtifact = await BuildAndroidArtifactAsync(request, "aab", cancellationToken, messages);
                 if (string.IsNullOrWhiteSpace(aabArtifact))
                 {
-                    return RollbackFailure("AAB-Erzeugung fehlgeschlagen.", backups, messages, releaseFolderPath);
+                    return RollbackFailure("AAB-Erzeugung fehlgeschlagen.", backups, messages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
                 }
 
-                var releaseAabPath = _releaseArtifactService.CopyArtifact(aabArtifact, Path.Combine(releaseFolderPath, "Android", "AAB"));
-                artifacts.Add(releaseAabPath);
-                messages.Add($"AAB in den Versionsordner kopiert: {releaseAabPath}");
+                stagedAabArtifact = aabArtifact;
+                messages.Add($"AAB für die spätere Veröffentlichung vorbereitet: {stagedAabArtifact}");
+            }
 
-                var aabOutputPath = _releaseArtifactService.CopyArtifact(aabArtifact, request.AabOutputPath);
-                artifacts.Add(aabOutputPath);
-                messages.Add($"AAB in den konfigurierten Ausgabeordner kopiert: {aabOutputPath}");
+            try
+            {
+                PublishArtifacts(
+                    request,
+                    releaseFolderPath,
+                    stagedWpfSetupArtifact,
+                    stagedApkArtifact,
+                    stagedAabArtifact,
+                    artifacts,
+                    messages);
+            }
+            catch (Exception ex)
+            {
+                messages.Add($"Veröffentlichung der Artefakte fehlgeschlagen: {ex.Message}");
+                return RollbackFailure("Veröffentlichung der Artefakte fehlgeschlagen.", backups, messages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
             }
 
             messages.Add("Release erfolgreich abgeschlossen.");
@@ -193,7 +191,7 @@ public sealed class ReleaseExecutionService
         catch (Exception ex)
         {
             var failureMessages = messages.Append($"Release mit Ausnahme fehlgeschlagen: {ex.Message}").ToList();
-            return RollbackFailure("Release fehlgeschlagen.", backups, failureMessages, releaseFolderPath);
+            return RollbackFailure("Release fehlgeschlagen.", backups, failureMessages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
         }
         finally
         {
@@ -348,7 +346,66 @@ public sealed class ReleaseExecutionService
             : Path.Combine(request.ReleaseOutputRootPath, request.TargetVersion);
     }
 
-    private ReleaseExecutionResult RollbackFailure(string message, List<VersionFileBackup> backups, List<string> messages, string releaseFolderPath)
+    private void PublishArtifacts(
+        ReleaseExecutionRequest request,
+        string releaseFolderPath,
+        string? stagedWpfSetupArtifact,
+        string? stagedApkArtifact,
+        string? stagedAabArtifact,
+        List<string> artifacts,
+        List<string> messages)
+    {
+        if (!string.IsNullOrWhiteSpace(stagedWpfSetupArtifact))
+        {
+            var wpfTargetDirectory = _releaseArtifactService.ResolveWpfTargetDirectory(request.WpfTargetRepoPath);
+            if (string.IsNullOrWhiteSpace(wpfTargetDirectory.TargetDirectory))
+            {
+                throw new InvalidOperationException(wpfTargetDirectory.Message);
+            }
+
+            var releaseSetupPath = _releaseArtifactService.CopyArtifact(stagedWpfSetupArtifact, Path.Combine(releaseFolderPath, "WPF"));
+            artifacts.Add(releaseSetupPath);
+            messages.Add($"WPF-Setup in den Versionsordner kopiert: {releaseSetupPath}");
+
+            var wpfRepoSetupPath = _releaseArtifactService.CopyArtifact(stagedWpfSetupArtifact, wpfTargetDirectory.TargetDirectory);
+            artifacts.Add(wpfRepoSetupPath);
+            messages.Add($"WPF-Setup in das lokale Zielrepo kopiert: {wpfRepoSetupPath}");
+
+            var stableSetupPath = _releaseArtifactService.CopyArtifact(stagedWpfSetupArtifact, wpfTargetDirectory.TargetDirectory, "KGV-Setup.exe");
+            artifacts.Add(stableSetupPath);
+            messages.Add($"WPF-Setup als aktuelle Setup-Datei aktualisiert: {stableSetupPath}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(stagedApkArtifact))
+        {
+            var releaseApkPath = _releaseArtifactService.CopyArtifact(stagedApkArtifact, Path.Combine(releaseFolderPath, "Android", "APK"));
+            artifacts.Add(releaseApkPath);
+            messages.Add($"APK in den Versionsordner kopiert: {releaseApkPath}");
+
+            var apkOutputPath = _releaseArtifactService.CopyArtifact(stagedApkArtifact, request.ApkOutputPath);
+            artifacts.Add(apkOutputPath);
+            messages.Add($"APK in den konfigurierten Ausgabeordner kopiert: {apkOutputPath}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(stagedAabArtifact))
+        {
+            var releaseAabPath = _releaseArtifactService.CopyArtifact(stagedAabArtifact, Path.Combine(releaseFolderPath, "Android", "AAB"));
+            artifacts.Add(releaseAabPath);
+            messages.Add($"AAB in den Versionsordner kopiert: {releaseAabPath}");
+
+            var aabOutputPath = _releaseArtifactService.CopyArtifact(stagedAabArtifact, request.AabOutputPath);
+            artifacts.Add(aabOutputPath);
+            messages.Add($"AAB in den konfigurierten Ausgabeordner kopiert: {aabOutputPath}");
+        }
+    }
+
+    private ReleaseExecutionResult RollbackFailure(
+        string message,
+        List<VersionFileBackup> backups,
+        List<string> messages,
+        string releaseFolderPath,
+        List<string>? copiedArtifacts = null,
+        bool releaseFolderExistedBefore = true)
     {
         var rolledBack = false;
 
@@ -357,6 +414,14 @@ public sealed class ReleaseExecutionService
             _releaseVersionFileService.RestoreBackups(backups);
             messages.Add("Versionsänderungen wurden nach dem Fehler zurückgesetzt.");
             rolledBack = true;
+        }
+
+        CleanupArtifacts(copiedArtifacts, messages);
+
+        if (!releaseFolderExistedBefore)
+        {
+            TryDeleteDirectory(releaseFolderPath);
+            messages.Add($"Unvollständiger Veröffentlichungsordner wurde entfernt: {releaseFolderPath}");
         }
 
         return new ReleaseExecutionResult
@@ -380,6 +445,30 @@ public sealed class ReleaseExecutionService
         }
         catch
         {
+        }
+    }
+
+    private static void CleanupArtifacts(List<string>? copiedArtifacts, List<string> messages)
+    {
+        if (copiedArtifacts is null || copiedArtifacts.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var artifactPath in copiedArtifacts.Where(path => !string.IsNullOrWhiteSpace(path)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                if (File.Exists(artifactPath))
+                {
+                    File.Delete(artifactPath);
+                    messages.Add($"Unvollständiges Artefakt wurde entfernt: {artifactPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                messages.Add($"Unvollständiges Artefakt konnte nicht entfernt werden: {artifactPath} ({ex.Message})");
+            }
         }
     }
 }

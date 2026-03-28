@@ -11,6 +11,8 @@ public sealed class SettingsService
     private const string DefaultReleaseOutputRootPath = @"C:\Programmieren\Restore KGV\Releases\KGV";
     private const string DefaultApkOutputPath = @"C:\Programmieren\Restore KGV\Releases\KGV\Android\APK";
     private const string DefaultAabOutputPath = @"C:\Programmieren\Restore KGV\Releases\KGV\Android\AAB";
+    private const string DefaultAndroidKeystorePath = @"C:\Programmieren\Restore KGV\KGV.neu\03_Arbeitsstand\_secrets\Android\kgv-upload.keystore";
+    private const string DefaultAndroidKeystoreAlias = "kgvupload";
     private const string DefaultInnoSetupCompilerPath = @"C:\Users\Braen\AppData\Local\Programs\Inno Setup 6\ISCC.exe";
 
     private readonly string _settingsFilePath;
@@ -24,7 +26,14 @@ public sealed class SettingsService
     public (ReleaseManagerSettings Settings, string Message, bool LoadedFromDisk) Load()
     {
         if (!File.Exists(_settingsFilePath))
-            return (CreateDefaultSettings(), "Keine gespeicherten Einstellungen gefunden. Es wird mit den bestätigten Standardpfaden gestartet.", false);
+        {
+            var defaultSettings = CreateDefaultSettings();
+            var saveResult = Save(defaultSettings);
+            var message = saveResult.Success
+                ? $"Keine gespeicherten Einstellungen gefunden. Lokale Settings-Datei wurde mit bestätigten Standardpfaden angelegt: {_settingsFilePath}"
+                : $"Keine gespeicherten Einstellungen gefunden. Es wird mit bestätigten Standardpfaden gestartet. Die lokale Settings-Datei konnte noch nicht angelegt werden: {saveResult.Message}";
+            return (defaultSettings, message, false);
+        }
 
         try
         {
@@ -36,7 +45,12 @@ public sealed class SettingsService
         }
         catch (Exception ex)
         {
-            return (CreateDefaultSettings(), $"Gespeicherte Einstellungen konnten nicht geladen werden. Es wird mit den bestätigten Standardpfaden gestartet. Grund: {ex.Message}", false);
+            var defaultSettings = CreateDefaultSettings();
+            var saveResult = Save(defaultSettings);
+            var message = saveResult.Success
+                ? $"Gespeicherte Einstellungen konnten nicht geladen werden. Die lokale Settings-Datei wurde mit bestätigten Standardpfaden neu angelegt. Grund: {ex.Message}"
+                : $"Gespeicherte Einstellungen konnten nicht geladen werden. Es wird mit den bestätigten Standardpfaden gestartet. Grund: {ex.Message}";
+            return (defaultSettings, message, false);
         }
     }
 
@@ -93,6 +107,16 @@ public sealed class SettingsService
         if (string.IsNullOrWhiteSpace(settings.AabOutputPath))
         {
             settings.AabOutputPath = DefaultAabOutputPath;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.AndroidKeystorePath) && File.Exists(DefaultAndroidKeystorePath))
+        {
+            settings.AndroidKeystorePath = DefaultAndroidKeystorePath;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.AndroidKeystoreAlias))
+        {
+            settings.AndroidKeystoreAlias = DefaultAndroidKeystoreAlias;
         }
 
         if (string.IsNullOrWhiteSpace(settings.InnoSetupCompilerPath) && File.Exists(DefaultInnoSetupCompilerPath))

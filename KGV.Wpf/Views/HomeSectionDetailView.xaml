@@ -91,9 +91,17 @@
                         Visibility="{Binding HasAdditionalInfo, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TextBlock Text="{Binding AdditionalInfo}" TextWrapping="Wrap" Foreground="DarkSlateBlue" />
                 </Border>
+                <Border Margin="0,16,0,0"
+                        Background="{StaticResource KgvBackgroundBrush}"
+                        CornerRadius="12"
+                        Visibility="{Binding ShowHtmlContent, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Grid Height="420">
+                        <WebBrowser x:Name="HtmlContentBrowser" />
+                    </Grid>
+                </Border>
                 <ScrollViewer Margin="0,16,0,0"
                               VerticalScrollBarVisibility="Auto"
-                              Visibility="{Binding HasContent, Converter={StaticResource BooleanToVisibilityConverter}}">
+                              Visibility="{Binding ShowPlainTextContent, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TextBlock Text="{Binding Content}" TextWrapping="Wrap" />
                 </ScrollViewer>
             </StackPanel>
