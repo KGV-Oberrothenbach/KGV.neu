@@ -11,6 +11,7 @@ public sealed class SettingsService
     private const string DefaultReleaseOutputRootPath = @"C:\Programmieren\Restore KGV\Releases\KGV";
     private const string DefaultApkOutputPath = @"C:\Programmieren\Restore KGV\Releases\KGV\Android\APK";
     private const string DefaultAabOutputPath = @"C:\Programmieren\Restore KGV\Releases\KGV\Android\AAB";
+    private const string DefaultInnoSetupCompilerPath = @"C:\Users\Braen\AppData\Local\Programs\Inno Setup 6\ISCC.exe";
 
     private readonly string _settingsFilePath;
     private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
@@ -92,6 +93,11 @@ public sealed class SettingsService
         if (string.IsNullOrWhiteSpace(settings.AabOutputPath))
         {
             settings.AabOutputPath = DefaultAabOutputPath;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.InnoSetupCompilerPath) && File.Exists(DefaultInnoSetupCompilerPath))
+        {
+            settings.InnoSetupCompilerPath = DefaultInnoSetupCompilerPath;
         }
     }
 }

@@ -21,6 +21,7 @@
   - das lokale `KGV-WPF`-Repo hat eine klar erkennbare Root-Struktur für Setup-Dateien
 - Minimal umgesetzt:
   - bestätigte Standardpfade werden jetzt automatisch in die Settings übernommen, wenn noch keine gespeicherten Werte vorhanden sind
+  - nach Bestätigung des real vorhandenen Inno-Setup-Compilers wird auch der Pfad `C:\Users\Braen\AppData\Local\Programs\Inno Setup 6\ISCC.exe` automatisch als Default übernommen, wenn das Setting leer ist
   - Release-Validierung erlaubt jetzt fehlende, aber absolut angegebene Zielordner für Release-Root, APK und AAB
   - WPF-Setups werden zusätzlich in das lokale `KGV-WPF`-Repo kopiert, wenn die Zielstruktur eindeutig ist
   - APK und AAB werden zusätzlich in die konfigurierten Ausgabeordner kopiert

@@ -28,7 +28,7 @@ Nur innerhalb von `KGV.ReleaseManager/` den ersten echten Release-Ablauf so erg�
 
 ### Umgesetzt
 - `ReleaseManagerSettings` um `AndroidKeystoreAlias` ergänzt; Android-Passwörter bleiben weiterhin ungespeichert und werden zur Laufzeit abgefragt
-- bestätigte lokale Standardpfade für `KGV.neu`, `KGV-WPF`, den Release-Root sowie die APK-/AAB-Zielordner werden jetzt automatisch als Startwerte vorbelegt, ohne einen Fake-Pfad für `ISCC.exe` zu setzen
+- bestätigte lokale Standardpfade für `KGV.neu`, `KGV-WPF`, den Release-Root sowie die APK-/AAB-Zielordner werden jetzt automatisch als Startwerte vorbelegt; der bestätigte lokale Pfad zu `ISCC.exe` wird zusätzlich nur dann vorbelegt, wenn die Datei real vorhanden ist
 - neue Modelle für Prozessausführung, Versionsbackup, Versionsschreibergebnis und Release-Ergebnis ergänzt
 - `BuildCommandService` erzeugt jetzt reale Befehle für:
   - `dotnet build` für WPF
@@ -73,6 +73,7 @@ Nur innerhalb von `KGV.ReleaseManager/` den ersten echten Release-Ablauf so erg�
 - Workspace-Build erfolgreich
 - Starttest des WPF-Tools über `KGV.ReleaseManager.exe` erfolgreich (`APP_STARTED=True`)
 - temporärer Settings-Service-Test bestätigt die vorbelegten Pfade für Quellrepo, WPF-Zielrepo und Release-Root (`DEFAULT_SOURCE=...03_Arbeitsstand`, `DEFAULT_WPF_TARGET=...KGV-WPF`, `DEFAULT_RELEASE_ROOT=...Releases\KGV`)
+- lokaler Inno-Setup-Pfad wurde vom Benutzer bestätigt: `C:\Users\Braen\AppData\Local\Programs\Inno Setup 6\ISCC.exe`
 - servicebasierter Dry Run mit realem Repo-Pfad liefert verständlichen Fehler bei fehlendem WPF-Setup-Tool (`DRYRUN_SUCCESS=False`, Meldung zu fehlendem `ISCC.exe`)
 - servicebasierter echter Android-Release-Test mit absichtlich ungültigem Signaturartefakt schlägt wie erwartet fehl und setzt die vorher geschriebene MAUI-Version wieder zurück (`EXECUTE_SUCCESS=False`, `EXECUTE_ROLLEDBACK=True`, `MauiRestored=True`)
 - lokal weiterhin nicht bis zur erfolgreichen WPF-Setup-Erzeugung testbar, weil im aktuellen Produktstand kein reales `.iss`-Skript gefunden wurde

@@ -14,6 +14,7 @@ Alle nennenswerten Änderungen am KGV Release Manager werden hier dokumentiert.
 - Versionsschreibung nutzt jetzt reale Produktdateien im konfigurierten `KGV.neu`-Pfad und sichert den Originalzustand für Rollback
 - Android-Builds verwenden jetzt signierte Release-Befehle mit Laufzeitpasswörtern statt Platzhalterlogik
 - bestätigte lokale Standardpfade für `KGV.neu`, `KGV-WPF`, Release-Root, APK und AAB werden jetzt beim ersten Start bzw. bei leeren Settings automatisch vorbelegt
+- der bestätigte lokale Pfad zu `ISCC.exe` wird jetzt ebenfalls automatisch vorbelegt, wenn die Datei real vorhanden ist
 - erzeugte Artefakte werden jetzt zusätzlich in das lokale `KGV-WPF`-Repo bzw. in die konfigurierten APK-/AAB-Ausgabeordner kopiert
 
 ### Behoben

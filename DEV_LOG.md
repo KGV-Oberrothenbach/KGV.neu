@@ -20,6 +20,7 @@
   - das lokale Repo `KGV-WPF` enthält die Release-Dateien klar im Repo-Root (`KGV-Setup.exe`, `KGV-Setup-0.2.x.exe`, `releases.json`)
 - Minimal ergänzt:
   - bestätigte Pfade werden jetzt als Default-Settings vorbelegt, ohne einen Fake-Pfad für `ISCC.exe` zu setzen
+  - nach Benutzerbestätigung des real vorhandenen Inno-Setup-Compilers wird jetzt auch `C:\Users\Braen\AppData\Local\Programs\Inno Setup 6\ISCC.exe` automatisch als Default gesetzt, solange das Setting leer ist
   - Release-Validierung erlaubt das spätere Anlegen des Release-Roots statt ihn schon beim Speichern zu verlangen
   - WPF-Setups werden bei Erfolg zusätzlich in das lokale `KGV-WPF`-Repo kopiert; vorhandenes `KGV-Setup.exe` kann dabei als aktuelle Setup-Datei aktualisiert werden
   - APK und AAB werden bei Erfolg zusätzlich in die konfigurierten Ausgabeordner kopiert
