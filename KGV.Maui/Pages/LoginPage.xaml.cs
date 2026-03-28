@@ -8,6 +8,7 @@ using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
+using System.Linq;
 
 namespace KGV.Maui.Pages;
 
@@ -39,7 +40,7 @@ public class LoginPage : ContentPage
 
         _emailEntry = new Entry { Placeholder = "E-Mail", Keyboard = Keyboard.Email, Text = AppSettings.LastEmail ?? string.Empty };
         _passwordEntry = new Entry { Placeholder = "Passwort", IsPassword = true, BackgroundColor = Colors.Transparent };
-        _statusLabel = new Label { TextColor = Colors.Red };
+        _statusLabel = new Label { TextColor = Colors.Red, LineBreakMode = LineBreakMode.WordWrap };
         var logoImage = new Image
         {
             Source = LogoImageSource,
@@ -49,41 +50,37 @@ public class LoginPage : ContentPage
             Margin = new Thickness(0, 0, 0, 8)
         };
         var otpEntry = new Entry { Placeholder = "OTP-Code", IsVisible = false };
-        var newPasswordEntry = new Entry { Placeholder = "Neues Passwort", IsPassword = true, IsVisible = false };
-        var confirmPasswordEntry = new Entry { Placeholder = "Passwort wiederholen", IsPassword = true, IsVisible = false };
-        var passwordHintLabel = new Label { Text = "Passwortbedingungen: mindestens 8 Zeichen und identische Wiederholung.", TextColor = Colors.Gray, IsVisible = false };
-        var togglePasswordButton = new Button
+        var newPasswordEntry = new Entry { Placeholder = "Neues Passwort", IsPassword = true, BackgroundColor = Colors.Transparent, IsVisible = false };
+        var confirmPasswordEntry = new Entry { Placeholder = "Passwort wiederholen", IsPassword = true, BackgroundColor = Colors.Transparent, IsVisible = false };
+        var passwordRulesTitle = new Label { Text = "Passwortbedingungen", FontAttributes = FontAttributes.Bold, IsVisible = false };
+        var minLengthRuleLabel = new Label { TextColor = Colors.Gray, IsVisible = false };
+        var upperLowerRuleLabel = new Label { TextColor = Colors.Gray, IsVisible = false };
+        var digitRuleLabel = new Label { TextColor = Colors.Gray, IsVisible = false };
+        var specialRuleLabel = new Label { TextColor = Colors.Gray, IsVisible = false };
+        var confirmationRuleLabel = new Label { TextColor = Colors.Gray, IsVisible = false };
+        var passwordHintLayout = new VerticalStackLayout
         {
-            Text = "👁",
-            BackgroundColor = Colors.Transparent,
-            Padding = new Thickness(8, 0),
-            WidthRequest = 44,
-            HeightRequest = 44,
-            FontSize = 18
-        };
-        var passwordField = new Border
-        {
-            Stroke = Color.FromArgb("#C8CDD3"),
-            StrokeThickness = 1,
-            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(8) },
-            Padding = new Thickness(12, 0, 8, 0),
-            Content = new Grid
+            Spacing = 4,
+            IsVisible = false,
+            Children =
             {
-                ColumnDefinitions = new ColumnDefinitionCollection
-                {
-                    new ColumnDefinition(GridLength.Star),
-                    new ColumnDefinition(GridLength.Auto)
-                },
-                ColumnSpacing = 0,
-                Children =
-                {
-                    _passwordEntry,
-                    togglePasswordButton
-                }
+                passwordRulesTitle,
+                minLengthRuleLabel,
+                upperLowerRuleLabel,
+                digitRuleLabel,
+                specialRuleLabel,
+                confirmationRuleLabel
             }
         };
-        Grid.SetColumn(_passwordEntry, 0);
-        Grid.SetColumn(togglePasswordButton, 1);
+
+        var togglePasswordButton = CreateVisibilityButton(_passwordEntry);
+        var toggleNewPasswordButton = CreateVisibilityButton(newPasswordEntry);
+        var toggleConfirmPasswordButton = CreateVisibilityButton(confirmPasswordEntry);
+        var passwordField = CreatePasswordField(_passwordEntry, togglePasswordButton);
+        var newPasswordField = CreatePasswordField(newPasswordEntry, toggleNewPasswordButton);
+        newPasswordField.IsVisible = false;
+        var confirmPasswordField = CreatePasswordField(confirmPasswordEntry, toggleConfirmPasswordButton);
+        confirmPasswordField.IsVisible = false;
         var loginButton = new Button
         {
             Text = "Anmelden",
@@ -92,23 +89,80 @@ public class LoginPage : ContentPage
         };
         var setPasswordButton = new Button { Text = "Neues Passwort setzen", IsVisible = false };
         var verifyOtpButton = new Button { Text = "Code prüfen", IsVisible = false };
+        var backToLoginButton = new Button { Text = "Zurück zum Login", IsVisible = false };
         var requestOtpButton = new Button { Text = "Einladung / Erstlogin-Code anfordern" };
         var forgotPasswordButton = new Button { Text = "Passwort vergessen" };
+
+        void UpdatePasswordHintState()
+        {
+            var password = newPasswordEntry.Text ?? string.Empty;
+            var confirmPassword = confirmPasswordEntry.Text ?? string.Empty;
+
+            SetRequirementLabel(minLengthRuleLabel, HasMinimumPasswordLength(password), "Mindestens 8 Zeichen");
+            SetRequirementLabel(upperLowerRuleLabel, HasUpperAndLowercase(password), "Groß- und Kleinbuchstaben");
+            SetRequirementLabel(digitRuleLabel, HasDigit(password), "Mindestens eine Zahl");
+            SetRequirementLabel(specialRuleLabel, HasSpecialCharacter(password), "Mindestens ein Sonderzeichen");
+            SetRequirementLabel(confirmationRuleLabel, !string.IsNullOrWhiteSpace(password) && string.Equals(password, confirmPassword, StringComparison.Ordinal), "Passwort und Wiederholung stimmen überein");
+        }
+
+        bool TryValidateNewPassword(out string message)
+        {
+            var password = newPasswordEntry.Text ?? string.Empty;
+            var confirmPassword = confirmPasswordEntry.Text ?? string.Empty;
+
+            if (!HasMinimumPasswordLength(password))
+            {
+                message = "Passwort muss mindestens 8 Zeichen haben.";
+                return false;
+            }
+
+            if (!HasUpperAndLowercase(password))
+            {
+                message = "Passwort braucht Groß- und Kleinbuchstaben.";
+                return false;
+            }
+
+            if (!HasDigit(password))
+            {
+                message = "Passwort braucht mindestens eine Zahl.";
+                return false;
+            }
+
+            if (!HasSpecialCharacter(password))
+            {
+                message = "Passwort braucht mindestens ein Sonderzeichen.";
+                return false;
+            }
+
+            if (!string.Equals(password, confirmPassword, StringComparison.Ordinal))
+            {
+                message = "Passwort und Wiederholung stimmen nicht überein.";
+                return false;
+            }
+
+            message = string.Empty;
+            return true;
+        }
 
         void ShowNormalLogin()
         {
             _passwordEntry.IsPassword = true;
             togglePasswordButton.Text = "👁";
+            newPasswordEntry.IsPassword = true;
+            confirmPasswordEntry.IsPassword = true;
+            toggleNewPasswordButton.Text = "👁";
+            toggleConfirmPasswordButton.Text = "👁";
             passwordField.IsVisible = true;
             loginButton.IsVisible = true;
             requestOtpButton.IsVisible = true;
             forgotPasswordButton.IsVisible = true;
+            backToLoginButton.IsVisible = false;
 
             otpEntry.IsVisible = false;
             verifyOtpButton.IsVisible = false;
-            newPasswordEntry.IsVisible = false;
-            confirmPasswordEntry.IsVisible = false;
-            passwordHintLabel.IsVisible = false;
+            newPasswordField.IsVisible = false;
+            confirmPasswordField.IsVisible = false;
+            passwordHintLayout.IsVisible = false;
             setPasswordButton.IsVisible = false;
         }
 
@@ -118,12 +172,13 @@ public class LoginPage : ContentPage
             loginButton.IsVisible = false;
             requestOtpButton.IsVisible = false;
             forgotPasswordButton.IsVisible = false;
+            backToLoginButton.IsVisible = true;
 
             otpEntry.IsVisible = true;
             verifyOtpButton.IsVisible = true;
-            newPasswordEntry.IsVisible = false;
-            confirmPasswordEntry.IsVisible = false;
-            passwordHintLabel.IsVisible = false;
+            newPasswordField.IsVisible = false;
+            confirmPasswordField.IsVisible = false;
+            passwordHintLayout.IsVisible = false;
             setPasswordButton.IsVisible = false;
         }
 
@@ -133,21 +188,28 @@ public class LoginPage : ContentPage
             loginButton.IsVisible = false;
             requestOtpButton.IsVisible = false;
             forgotPasswordButton.IsVisible = false;
+            backToLoginButton.IsVisible = true;
 
             otpEntry.IsVisible = false;
             verifyOtpButton.IsVisible = false;
-            newPasswordEntry.IsVisible = true;
-            confirmPasswordEntry.IsVisible = true;
-            passwordHintLabel.IsVisible = true;
+            newPasswordField.IsVisible = true;
+            confirmPasswordField.IsVisible = true;
+            passwordHintLayout.IsVisible = true;
             setPasswordButton.IsVisible = true;
+            UpdatePasswordHintState();
         }
 
-        togglePasswordButton.Clicked += (s, e) =>
-        {
-            _passwordEntry.IsPassword = !_passwordEntry.IsPassword;
-            togglePasswordButton.Text = _passwordEntry.IsPassword ? "👁" : "🙈";
-        };
+        newPasswordEntry.TextChanged += (_, _) => UpdatePasswordHintState();
+        confirmPasswordEntry.TextChanged += (_, _) => UpdatePasswordHintState();
         loginButton.Clicked += OnLoginClicked;
+        backToLoginButton.Clicked += (_, _) =>
+        {
+            otpEntry.Text = string.Empty;
+            newPasswordEntry.Text = string.Empty;
+            confirmPasswordEntry.Text = string.Empty;
+            ShowNormalLogin();
+            _statusLabel.Text = string.Empty;
+        };
         verifyOtpButton.Clicked += async (s, e) =>
         {
             _statusLabel.Text = string.Empty;
@@ -193,16 +255,9 @@ public class LoginPage : ContentPage
             var email = (_emailEntry.Text ?? string.Empty).Trim();
             var code = otpEntry.Text ?? string.Empty;
             var newPwd = newPasswordEntry.Text ?? string.Empty;
-            var confirmPwd = confirmPasswordEntry.Text ?? string.Empty;
-            if (newPwd.Length < 8)
+            if (!TryValidateNewPassword(out var validationMessage))
             {
-                _statusLabel.Text = "Passwort muss mindestens 8 Zeichen haben.";
-                return;
-            }
-
-            if (!string.Equals(newPwd, confirmPwd, StringComparison.Ordinal))
-            {
-                _statusLabel.Text = "Passwort und Wiederholung stimmen nicht überein.";
+                _statusLabel.Text = validationMessage;
                 return;
             }
 
@@ -233,9 +288,16 @@ public class LoginPage : ContentPage
             }
 
             var ok = await _authService.SendPasswordResetEmailAsync(email);
-            _statusLabel.Text = ok
-                ? "OTP-Code für Passwort-vergessen wurde versendet. Bitte danach im Login den Code prüfen und ein neues Passwort setzen."
-                : "Passwort-Reset konnte nicht versendet werden.";
+            if (ok)
+            {
+                otpEntry.Text = string.Empty;
+                ShowOtpVerification();
+                _statusLabel.Text = "OTP-Code für Passwort-vergessen wurde versendet. Bitte Code prüfen und direkt ein neues Passwort setzen.";
+            }
+            else
+            {
+                _statusLabel.Text = "Passwort-Reset konnte nicht versendet werden.";
+            }
         };
 
         Content = new VerticalStackLayout
@@ -253,10 +315,11 @@ public class LoginPage : ContentPage
                 forgotPasswordButton,
                 otpEntry,
                 verifyOtpButton,
-                newPasswordEntry,
-                confirmPasswordEntry,
-                passwordHintLabel,
+                newPasswordField,
+                confirmPasswordField,
+                passwordHintLayout,
                 setPasswordButton,
+                backToLoginButton,
                 _statusLabel
             }
         };
@@ -356,5 +419,69 @@ public class LoginPage : ContentPage
         }
 
         await app.SwitchToCurrentRootAsync();
+    }
+
+    private static Button CreateVisibilityButton(Entry entry)
+    {
+        var button = new Button
+        {
+            Text = "👁",
+            BackgroundColor = Colors.Transparent,
+            Padding = new Thickness(8, 0),
+            WidthRequest = 44,
+            HeightRequest = 44,
+            FontSize = 18
+        };
+
+        button.Clicked += (_, _) =>
+        {
+            entry.IsPassword = !entry.IsPassword;
+            button.Text = entry.IsPassword ? "👁" : "🙈";
+        };
+
+        return button;
+    }
+
+    private static Border CreatePasswordField(Entry entry, Button toggleButton)
+    {
+        var content = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitionCollection
+            {
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Auto)
+            },
+            ColumnSpacing = 0,
+            Children =
+            {
+                entry,
+                toggleButton
+            }
+        };
+        Grid.SetColumn(entry, 0);
+        Grid.SetColumn(toggleButton, 1);
+
+        return new Border
+        {
+            Stroke = Color.FromArgb("#C8CDD3"),
+            StrokeThickness = 1,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(8) },
+            Padding = new Thickness(12, 0, 8, 0),
+            Content = content
+        };
+    }
+
+    private static bool HasMinimumPasswordLength(string password) => !string.IsNullOrWhiteSpace(password) && password.Length >= 8;
+
+    private static bool HasUpperAndLowercase(string password) => !string.IsNullOrWhiteSpace(password) && password.Any(char.IsUpper) && password.Any(char.IsLower);
+
+    private static bool HasDigit(string password) => !string.IsNullOrWhiteSpace(password) && password.Any(char.IsDigit);
+
+    private static bool HasSpecialCharacter(string password) => !string.IsNullOrWhiteSpace(password) && password.Any(ch => !char.IsLetterOrDigit(ch));
+
+    private static void SetRequirementLabel(Label label, bool met, string text)
+    {
+        label.Text = $"{(met ? "✓" : "•")} {text}";
+        label.TextColor = met ? Colors.ForestGreen : Colors.Gray;
     }
 }

@@ -2,8 +2,9 @@
 using CommunityToolkit.Mvvm.Input;
 using KGV;
 using KGV.Core.Interfaces;
-using System.Threading.Tasks;
 using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace KGV.ViewModels
 {
@@ -21,6 +22,7 @@ namespace KGV.ViewModels
             RequestOtpCommand = new AsyncRelayCommand(RequestOtpAsync, CanRequestOtp);
             VerifyOtpCommand = new AsyncRelayCommand(VerifyOtpAsync, CanVerifyOtp);
             SetPasswordCommand = new AsyncRelayCommand(SetPasswordAsync, CanSetPassword);
+            CancelOtpFlowCommand = new RelayCommand(CancelOtpFlow, CanCancelOtpFlow);
         }
 
         [ObservableProperty]
@@ -50,13 +52,23 @@ namespace KGV.ViewModels
         public bool IsNormalLoginVisible => !IsOtpRequested && !IsSetPasswordVisible;
         public bool IsOtpEntryVisible => IsOtpRequested && !IsSetPasswordVisible;
         public bool IsStatusVisible => !string.IsNullOrWhiteSpace(StatusMessage);
-        public bool IsPasswordRequirementMet => !string.IsNullOrWhiteSpace(NewPassword) && NewPassword.Length >= 8;
+        public bool HasMinimumPasswordLength => !string.IsNullOrWhiteSpace(NewPassword) && NewPassword.Length >= 8;
+        public bool HasUpperAndLowercase => !string.IsNullOrWhiteSpace(NewPassword) && NewPassword.Any(char.IsUpper) && NewPassword.Any(char.IsLower);
+        public bool HasDigit => !string.IsNullOrWhiteSpace(NewPassword) && NewPassword.Any(char.IsDigit);
+        public bool HasSpecialCharacter => !string.IsNullOrWhiteSpace(NewPassword) && NewPassword.Any(ch => !char.IsLetterOrDigit(ch));
         public bool IsPasswordConfirmationMet => !string.IsNullOrWhiteSpace(NewPassword) && NewPassword == NewPasswordConfirm;
+        public bool IsPasswordValid => HasMinimumPasswordLength && HasUpperAndLowercase && HasDigit && HasSpecialCharacter;
+        public string MinimumPasswordRequirementText => BuildRequirementText(HasMinimumPasswordLength, "Mindestens 8 Zeichen");
+        public string UpperLowerPasswordRequirementText => BuildRequirementText(HasUpperAndLowercase, "Groß- und Kleinbuchstaben");
+        public string DigitPasswordRequirementText => BuildRequirementText(HasDigit, "Mindestens eine Zahl");
+        public string SpecialPasswordRequirementText => BuildRequirementText(HasSpecialCharacter, "Mindestens ein Sonderzeichen");
+        public string ConfirmationRequirementText => BuildRequirementText(IsPasswordConfirmationMet, "Passwort und Wiederholung stimmen überein");
 
         public IAsyncRelayCommand LoginCommand { get; }
         public IAsyncRelayCommand RequestOtpCommand { get; }
         public IAsyncRelayCommand VerifyOtpCommand { get; }
         public IAsyncRelayCommand SetPasswordCommand { get; }
+        public IRelayCommand CancelOtpFlowCommand { get; }
 
         private bool CanLogin()
         {
@@ -126,7 +138,7 @@ namespace KGV.ViewModels
 
         private bool CanSetPassword()
         {
-            return !string.IsNullOrWhiteSpace(NewPassword) && NewPassword.Length >= 8 && NewPassword == NewPasswordConfirm;
+            return IsPasswordValid && IsPasswordConfirmationMet;
         }
 
         private async Task SetPasswordAsync()
@@ -212,26 +224,38 @@ namespace KGV.ViewModels
         partial void OnNewPasswordChanged(string value)
         {
             RaiseCommandStates();
-            OnPropertyChanged(nameof(IsPasswordRequirementMet));
+            OnPropertyChanged(nameof(HasMinimumPasswordLength));
+            OnPropertyChanged(nameof(HasUpperAndLowercase));
+            OnPropertyChanged(nameof(HasDigit));
+            OnPropertyChanged(nameof(HasSpecialCharacter));
+            OnPropertyChanged(nameof(IsPasswordValid));
             OnPropertyChanged(nameof(IsPasswordConfirmationMet));
+            OnPropertyChanged(nameof(MinimumPasswordRequirementText));
+            OnPropertyChanged(nameof(UpperLowerPasswordRequirementText));
+            OnPropertyChanged(nameof(DigitPasswordRequirementText));
+            OnPropertyChanged(nameof(SpecialPasswordRequirementText));
+            OnPropertyChanged(nameof(ConfirmationRequirementText));
         }
 
         partial void OnNewPasswordConfirmChanged(string value)
         {
             RaiseCommandStates();
             OnPropertyChanged(nameof(IsPasswordConfirmationMet));
+            OnPropertyChanged(nameof(ConfirmationRequirementText));
         }
 
         partial void OnIsOtpRequestedChanged(bool value)
         {
             OnPropertyChanged(nameof(IsNormalLoginVisible));
             OnPropertyChanged(nameof(IsOtpEntryVisible));
+            RaiseCommandStates();
         }
 
         partial void OnIsSetPasswordVisibleChanged(bool value)
         {
             OnPropertyChanged(nameof(IsNormalLoginVisible));
             OnPropertyChanged(nameof(IsOtpEntryVisible));
+            RaiseCommandStates();
         }
 
         partial void OnStatusMessageChanged(string value)
@@ -242,6 +266,17 @@ namespace KGV.ViewModels
         public ResetPasswordViewModel CreateResetPasswordViewModel()
         {
             return new ResetPasswordViewModel(_authService, Email?.Trim());
+        }
+
+        private bool CanCancelOtpFlow()
+        {
+            return IsOtpRequested || IsSetPasswordVisible;
+        }
+
+        private void CancelOtpFlow()
+        {
+            ResetOtpFlow(clearLoginPassword: false);
+            StatusMessage = string.Empty;
         }
 
         private void ResetOtpFlow(bool clearLoginPassword)
@@ -262,6 +297,12 @@ namespace KGV.ViewModels
             RequestOtpCommand.NotifyCanExecuteChanged();
             VerifyOtpCommand.NotifyCanExecuteChanged();
             SetPasswordCommand.NotifyCanExecuteChanged();
+            CancelOtpFlowCommand.NotifyCanExecuteChanged();
+        }
+
+        private static string BuildRequirementText(bool met, string text)
+        {
+            return $"{(met ? "✓" : "•")} {text}";
         }
     }
 }

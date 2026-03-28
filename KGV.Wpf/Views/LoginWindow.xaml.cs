@@ -1,16 +1,19 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.ComponentModel;
 
 namespace KGV.Views
 {
     public partial class LoginWindow : Window
     {
         private bool _passwordVisible = false;
+        private bool _isSyncingInputs;
 
         public LoginWindow()
         {
             InitializeComponent();
+            DataContextChanged += LoginWindow_DataContextChanged;
         }
 
         private void Window_KeyDown(object sender, KeyEventArgs e)
@@ -40,12 +43,18 @@ namespace KGV.Views
 
         private void PasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
         {
+            if (_isSyncingInputs)
+                return;
+
             if (DataContext is ViewModels.LoginViewModel vm)
                 vm.Password = PasswordBox.Password;
         }
 
         private void PasswordTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
+            if (_isSyncingInputs)
+                return;
+
             if (DataContext is ViewModels.LoginViewModel vm)
                 vm.Password = PasswordTextBox.Text;
         }
@@ -83,14 +92,79 @@ namespace KGV.Views
 
         private void NewPasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
         {
+            if (_isSyncingInputs)
+                return;
+
             if (DataContext is ViewModels.LoginViewModel vm && sender is PasswordBox pb)
                 vm.NewPassword = pb.Password;
         }
 
         private void NewPasswordConfirmBox_PasswordChanged(object sender, RoutedEventArgs e)
         {
+            if (_isSyncingInputs)
+                return;
+
             if (DataContext is ViewModels.LoginViewModel vm && sender is PasswordBox pb)
                 vm.NewPasswordConfirm = pb.Password;
+        }
+
+        private void LoginWindow_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (e.OldValue is INotifyPropertyChanged oldVm)
+                oldVm.PropertyChanged -= LoginViewModel_PropertyChanged;
+
+            if (e.NewValue is INotifyPropertyChanged newVm)
+                newVm.PropertyChanged += LoginViewModel_PropertyChanged;
+
+            SyncPasswordInputs();
+        }
+
+        private void LoginViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName is nameof(ViewModels.LoginViewModel.Password)
+                or nameof(ViewModels.LoginViewModel.NewPassword)
+                or nameof(ViewModels.LoginViewModel.NewPasswordConfirm)
+                or nameof(ViewModels.LoginViewModel.IsSetPasswordVisible)
+                or nameof(ViewModels.LoginViewModel.IsOtpRequested))
+            {
+                SyncPasswordInputs();
+            }
+        }
+
+        private void SyncPasswordInputs()
+        {
+            if (DataContext is not ViewModels.LoginViewModel vm)
+                return;
+
+            _isSyncingInputs = true;
+            try
+            {
+                var password = vm.Password ?? string.Empty;
+                if (PasswordBox.Password != password)
+                    PasswordBox.Password = password;
+                if (PasswordTextBox.Text != password)
+                    PasswordTextBox.Text = password;
+
+                var newPassword = vm.NewPassword ?? string.Empty;
+                if (NewPasswordBox.Password != newPassword)
+                    NewPasswordBox.Password = newPassword;
+
+                var confirmPassword = vm.NewPasswordConfirm ?? string.Empty;
+                if (NewPasswordConfirmBox.Password != confirmPassword)
+                    NewPasswordConfirmBox.Password = confirmPassword;
+            }
+            finally
+            {
+                _isSyncingInputs = false;
+            }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            if (DataContext is INotifyPropertyChanged vm)
+                vm.PropertyChanged -= LoginViewModel_PropertyChanged;
+
+            base.OnClosed(e);
         }
     }
 }

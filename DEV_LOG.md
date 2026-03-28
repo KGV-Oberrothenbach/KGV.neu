@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-03-28 – Block 1: Loginfenster/OTP-Flow in WPF und MAUI auf den sichtbaren Stand zurückgezogen
+
+- Zuerst den realen Istzustand im aktuellen Repo geprüft:
+  - `KGV.Wpf/Views/LoginWindow.xaml`
+  - `KGV.Wpf/Views/LoginWindow.xaml.cs`
+  - `KGV.Wpf/ViewModels/LoginViewModel.cs`
+  - `KGV.Wpf/Views/ResetPasswordWindow.xaml`
+  - `KGV.Wpf/ViewModels/ResetPasswordViewModel.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - Git-Status über den vorgegebenen Visual-Studio-Git-Pfad geprüft
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - der OTP-/Erstlogin-Unterbau über `IAuthService` und `AuthService` war bereits vorhanden und musste nicht neu erfunden werden
+  - WPF zeigte den sichtbaren Login-Stand aber nicht mehr sauber: `Anmelden` stand unter den Sekundäraktionen, die Passwortregeln waren nur statisch und der Rückweg aus dem OTP-Flow fehlte sichtbar
+  - MAUI nutzte denselben Flow bereits direkt auf der Login-Seite, zeigte die Passwortprüfung aber noch zu grob und führte `Passwort vergessen` nicht direkt in denselben sichtbaren Code-/Neupasswortpfad zurück
+- Minimal umgesetzt:
+  - `LoginViewModel` um sichtbare Passwortregeln, vollständige Passwortprüfung und einen kleinen `Zurück zum Login`-Pfad ergänzt
+  - `LoginWindow` auf den sichtbaren Zielstand gezogen: `E-Mail + Passwort`, Passwort-Sichtbarkeit, `Anmelden`, OTP-Code anfordern, Code prüfen, direktes neues Passwort setzen, Passwortbedingungen sichtbar, Passwort-vergessen weiter vorhanden
+  - `LoginWindow.xaml.cs` synchronisiert jetzt die Passwortfelder sauber mit dem ViewModel, damit der OTP-/Neupasswort-Flow sichtbar zurückgesetzt wird
+  - `LoginPage` in MAUI auf denselben sichtbaren Flow gezogen; `Passwort vergessen` führt dort jetzt direkt in denselben OTP-/Neupasswort-Bereich zurück
+- Validierung:
+  - `dotnet build KGV.Core/KGV.Core.csproj` erfolgreich
+  - `dotnet build KGV.Infrastructure/KGV.Infrastructure.csproj` erfolgreich, nur bereits bekannte Nullability-Warnungen in `SupabaseService.cs`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich, nur bereits bekannte Warnungen (`XA1037`, Nullability in `HomeManagementPage.cs`)
+
 ## 2026-03-28 – Prompt 1/1: Startseiten-Sichtbarkeit und Editor-Defaults für Arbeitseinsätze, Termine und Bekanntmachungen vereinheitlicht
 
 - Zuerst den realen Istzustand im aktuellen Repo geprüft:

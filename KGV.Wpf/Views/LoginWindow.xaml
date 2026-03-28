@@ -54,6 +54,12 @@
                             Click="TogglePasswordVisibility_Click"/>
                 </Grid>
 
+                <Button Content="Anmelden"
+                        Height="38"
+                        Margin="0,0,0,8"
+                        Style="{StaticResource PrimaryButton}"
+                        Command="{Binding LoginCommand}" />
+
                 <Button Content="Einladung / Erstlogin-Code anfordern"
                         Height="39"
                         Margin="0,0,0,8"
@@ -63,23 +69,26 @@
                         Height="39"
                         Margin="0,0,0,8"
                         Click="OpenResetPassword_Click" />
-
-                <Button Content="Login"
-                        Height="38"
-                        Style="{StaticResource PrimaryButton}"
-                        Command="{Binding LoginCommand}" />
             </StackPanel>
 
             <StackPanel Visibility="{Binding IsOtpEntryVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="Erstlogin / OTP-Code bestätigen" FontWeight="SemiBold" Margin="0,0,0,6"/>
                 <TextBlock Text="OTP-Code" Margin="0,0,0,6"/>
                 <TextBox Text="{Binding OtpCode, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" />
-                <Button Content="Code prüfen"
-                        Width="140"
-                        Height="37"
-                        Command="{Binding VerifyOtpCommand}" />
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Code prüfen"
+                            Width="140"
+                            Height="37"
+                            Margin="0,0,8,0"
+                            Command="{Binding VerifyOtpCommand}" />
+                    <Button Content="Zurück zum Login"
+                            Height="37"
+                            Command="{Binding CancelOtpFlowCommand}" />
+                </StackPanel>
             </StackPanel>
 
             <StackPanel Visibility="{Binding IsSetPasswordVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="Neues Passwort direkt setzen" FontWeight="SemiBold" Margin="0,0,0,6"/>
                 <TextBlock Text="Neues Passwort" Margin="0,0,0,6"/>
                 <PasswordBox x:Name="NewPasswordBox" PasswordChanged="NewPasswordBox_PasswordChanged" Margin="0,0,0,8" />
                 <TextBlock Text="Passwort wiederholen" Margin="0,0,0,6"/>
@@ -88,14 +97,23 @@
                 <Border Background="{StaticResource KgvSurfaceBrush}" BorderBrush="{StaticResource KgvBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,0,10">
                     <StackPanel>
                         <TextBlock Text="Passwortbedingungen" FontWeight="SemiBold" Margin="0,0,0,6" />
-                        <TextBlock Foreground="Gray" ><Run Text="• mindestens 8 Zeichen"/><LineBreak/><Run Text="•"/><Run Language="de-de" Text=" Groß- und Kleinbuchstaben"/><LineBreak/><Run Language="de-de" Text="• Zahlen"/><LineBreak/><Run Language="de-de" Text="• Sonderzeichen "/></TextBlock>
-                        <TextBlock Text="• Passwort und Wiederholung müssen übereinstimmen" />
+                        <TextBlock Text="{Binding MinimumPasswordRequirementText}" Margin="0,0,0,2" />
+                        <TextBlock Text="{Binding UpperLowerPasswordRequirementText}" Margin="0,0,0,2" />
+                        <TextBlock Text="{Binding DigitPasswordRequirementText}" Margin="0,0,0,2" />
+                        <TextBlock Text="{Binding SpecialPasswordRequirementText}" Margin="0,0,0,2" />
+                        <TextBlock Text="{Binding ConfirmationRequirementText}" />
                     </StackPanel>
                 </Border>
 
-                <Button Content="Neues Passwort setzen"
-                        Style="{StaticResource LoginPrimaryButton}"
-                        Command="{Binding SetPasswordCommand}" />
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Neues Passwort setzen"
+                            Style="{StaticResource LoginPrimaryButton}"
+                            Margin="0,0,8,0"
+                            Command="{Binding SetPasswordCommand}" />
+                    <Button Content="Zurück zum Login"
+                            Height="42"
+                            Command="{Binding CancelOtpFlowCommand}" />
+                </StackPanel>
             </StackPanel>
 
             <TextBlock Text="{Binding StatusMessage}"

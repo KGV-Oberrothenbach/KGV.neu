@@ -2,6 +2,51 @@
 
 ---
 
+## 2026-03-28 – Block 1: Loginfenster auf den sichtbaren Stand zurückgebracht
+
+- Vor Beginn den realen Istzustand im Repo geprüft:
+  - `KGV.Wpf/Views/LoginWindow.xaml`
+  - `KGV.Wpf/Views/LoginWindow.xaml.cs`
+  - `KGV.Wpf/ViewModels/LoginViewModel.cs`
+  - `KGV.Wpf/Views/ResetPasswordWindow.xaml`
+  - `KGV.Wpf/ViewModels/ResetPasswordViewModel.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - der bestehende OTP-/Erstlogin-Unterbau war im Auth-Service bereits vorhanden; ein neuer Backendpfad war für diesen Block nicht nötig
+  - im WPF-Login war der sichtbare Flow aber nicht mehr sauber: `Anmelden` saß unter den Sekundäraktionen, die Passwortbedingungen waren nur statisch und es gab keinen klaren Rückweg aus OTP-/Neupasswort zurück zum normalen Login
+  - MAUI hatte denselben Grundflow bereits direkt auf der Login-Seite, führte `Passwort vergessen` aber noch nicht direkt in denselben sichtbaren Code-/Neupasswortzustand und zeigte die Passwortprüfung noch zu grob
+- Minimal umgesetzt:
+  - `KGV.Wpf/ViewModels/LoginViewModel.cs`
+    - Passwortregeln für Länge, Groß-/Kleinbuchstaben, Zahl, Sonderzeichen und Wiederholung ergänzt
+    - `SetPasswordCommand` an dieselbe vollständige Prüfung gehängt
+    - kleinen `CancelOtpFlowCommand` für den sichtbaren Rückweg zum normalen Login ergänzt
+  - `KGV.Wpf/Views/LoginWindow.xaml`
+    - sichtbaren Loginzustand auf `E-Mail + Passwort`, `Anmelden`, OTP anfordern, Passwort vergessen zurückgezogen
+    - OTP-Code-Schritt und direktes neues Passwort mit sichtbaren Bedingungen ergänzt
+    - `Zurück zum Login` in OTP- und Neupasswort-Zustand ergänzt
+  - `KGV.Wpf/Views/LoginWindow.xaml.cs`
+    - Passwortfelder mit dem ViewModel synchronisiert, damit Reset-/Rückkehrzustände sichtbar sauber geleert werden
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+    - denselben sichtbaren Flow für OTP und neues Passwort nachgezogen
+    - Passwortregeln sichtbar gemacht
+    - `Passwort vergessen` führt jetzt direkt in denselben OTP-/Neupasswortpfad statt nur eine Statusmeldung stehen zu lassen
+- Fachliches Ergebnis:
+  - normales Login mit `E-Mail + Passwort` ist wieder der sichtbare Hauptzustand
+  - Passwort-Sichtbarkeit bleibt vorhanden
+  - OTP-Code kann weiter angefordert und geprüft werden
+  - nach erfolgreichem OTP erscheint direkt der Bereich zum neuen Passwort setzen
+  - Passwortbedingungen und Prüfung sind sichtbar
+  - nach erfolgreichem Passwortsetzen kehrt der Flow wieder zum normalen Login zurück
+  - ein Einstellungszugang wurde in diesem Block nicht auf die Login-Seite gelegt
+- Validierung:
+  - `dotnet build KGV.Core/KGV.Core.csproj` erfolgreich
+  - `dotnet build KGV.Infrastructure/KGV.Infrastructure.csproj` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-03-28 – Prompt 1/1: Startseiten-Sichtbarkeit und Editor-Defaults für Arbeitseinsätze, Termine und Bekanntmachungen vereinheitlicht
 
 - Vor Beginn den realen Istzustand im Repo geprüft:
