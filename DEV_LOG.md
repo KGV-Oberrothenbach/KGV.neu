@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: Startseiten-Sichtbarkeit und Editor-Defaults für Arbeitseinsätze, Termine und Bekanntmachungen vereinheitlicht
+
+- Zuerst den realen Istzustand im aktuellen Repo geprüft:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
+  - `KGV.Maui/Pages/TermineEditorPage.cs`
+  - `KGV.Maui/Pages/BekanntmachungEditorPage.cs`
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Wpf/ViewModels/ArbeitseinsaetzeVerwaltungViewModel.cs`
+  - `KGV.Wpf/ViewModels/TermineVerwaltungViewModel.cs`
+  - `KGV.Wpf/ViewModels/BekanntmachungenVerwaltungViewModel.cs`
+  - realen Git-Status über den vorgegebenen Visual-Studio-Git-Pfad geprüft
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - die Startseite lud die drei Bereiche bereits über gemeinsame Home-Pfade, filterte die Sichtbarkeit aber nicht explizit auf eine gemeinsame `aktiv`-/`sichtbar_von`-/`sichtbar_bis`-Regel gegen die Basistabellen
+  - in MAUI enthielten Arbeitseinsatz- und Termin-Editor noch Checkboxen für Zeit-/Sichtbarkeitsfelder
+  - WPF hatte keine solchen Checkboxen mehr, startete neue Datensätze aber noch teils mit leeren Zeit-/Sichtbarkeitsfeldern
+- Minimal umgesetzt:
+  - Startseiten-Sichtbarkeit für Arbeitseinsätze, Termine und Bekanntmachungen zentral auf dieselbe Regel gezogen: `aktiv = true`, `sichtbar_ab` leer oder <= jetzt, `sichtbar_bis` leer oder >= jetzt
+  - dabei werden die Home-View-Daten mit den Basistabellen abgeglichen, statt neue Schattenlogik zu eröffnen
+  - MAUI-Editoren für Arbeitseinsätze und Termine von den Checkboxen `Startzeit verwenden`, `Endzeit verwenden`, `Sichtbar ab verwenden`, `Sichtbar bis verwenden` bereinigt
+  - neue Datensätze erhalten jetzt in WPF und MAUI sinnvolle Standardwerte für Datum/Zeit/Sichtbarkeit
+  - Create-Pfade im gemeinsamen `SupabaseService` sichern zusätzlich ab, dass bei Neuanlage keine fachlich leeren Zeit-/Sichtbarkeitswerte entstehen
+  - der MAUI-Arbeitseinsatz-Editor kehrt nach Speichern jetzt wie WPF wieder auf die Startseite zurück
+
 ## 2026-03-28 – Prompt 2/5: Release Manager Settings-Grundgerüst verdrahtet
 
 - Zuerst den realen Istzustand im aktuellen Repo geprüft:

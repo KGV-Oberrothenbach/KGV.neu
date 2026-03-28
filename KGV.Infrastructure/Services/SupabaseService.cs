@@ -2359,6 +2359,37 @@ namespace KGV.Infrastructure.Services
             return new DateTime(timestamp.Year, timestamp.Month, timestamp.Day, timestamp.Hour, timestamp.Minute, timestamp.Second, timestamp.Millisecond, DateTimeKind.Unspecified);
         }
 
+        private static DateTime CreateEditorNowDefault()
+        {
+            var now = DateTime.Now;
+            return new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0, DateTimeKind.Unspecified);
+        }
+
+        private static DateTime CreateEndOfDayTimestamp(DateTime date)
+        {
+            var normalized = NormalizeDateOnly(date);
+            return new DateTime(normalized.Year, normalized.Month, normalized.Day, 23, 59, 0, DateTimeKind.Unspecified);
+        }
+
+        private static TimeSpan CreateDefaultTerminStartTime()
+        {
+            var now = DateTime.Now;
+            return new TimeSpan(now.Hour, now.Minute, 0);
+        }
+
+        private static TimeSpan CreateDefaultTerminEndTime(TimeSpan startTime)
+        {
+            var candidate = startTime.Add(TimeSpan.FromHours(1));
+            return candidate > new TimeSpan(23, 59, 0) ? new TimeSpan(23, 59, 0) : candidate;
+        }
+
+        private static bool IsCurrentlyVisible(bool aktiv, DateTime? sichtbarAb, DateTime? sichtbarBis, DateTime referenceTime)
+        {
+            return aktiv
+                && (!sichtbarAb.HasValue || sichtbarAb.Value <= referenceTime)
+                && (!sichtbarBis.HasValue || sichtbarBis.Value >= referenceTime);
+        }
+
         private static ArbeitseinsatzRecord NormalizeArbeitseinsatzRecord(ArbeitseinsatzRecord record)
         {
             return new ArbeitseinsatzRecord
@@ -2959,6 +2990,7 @@ namespace KGV.Infrastructure.Services
 
             await EnrichStartseiteArbeitseinsatzTimesAsync(client, records);
             await EnrichStartseiteArbeitseinsatzRegistrationStateAsync(client, records);
+            records = await FilterVisibleStartseiteArbeitseinsaetzeAsync(client, records);
 
             return records
                 .OrderBy(x => x.Datum ?? DateTime.MaxValue)
@@ -2977,6 +3009,7 @@ namespace KGV.Infrastructure.Services
             var records = response?.Models?.ToList() ?? new List<StartseiteTerminRecord>();
 
             await EnrichStartseiteTerminTimesAsync(client, records);
+            records = await FilterVisibleStartseiteTermineAsync(client, records);
 
             return records
                 .OrderBy(x => x.Datum ?? DateTime.MaxValue)
@@ -2993,13 +3026,66 @@ namespace KGV.Infrastructure.Services
         {
             var client = await EnsureClientAsync();
             var response = await client.From<StartseiteBekanntmachungRecord>().Get();
+            var records = response?.Models?.ToList() ?? new List<StartseiteBekanntmachungRecord>();
+            records = await FilterVisibleStartseiteBekanntmachungenAsync(client, records);
 
-            return response?.Models?
+            return records
                 .OrderByDescending(x => x.VeroeffentlichtAm ?? x.UpdatedAt ?? DateTime.MinValue)
                 .ThenBy(x => FirstNonEmpty(x.Titel, x.Betreff, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                 .Select(MapHomeAnnouncement)
                 .ToList()
                 ?? new List<HomeAnnouncementItem>();
+        }
+
+        private async Task<List<StartseiteArbeitseinsatzRecord>> FilterVisibleStartseiteArbeitseinsaetzeAsync(global::Supabase.Client client, List<StartseiteArbeitseinsatzRecord> records)
+        {
+            if (records.Count == 0)
+                return records;
+
+            var response = await client.From<ArbeitseinsatzRecord>().Get();
+            var byId = response?.Models?
+                .Select(NormalizeArbeitseinsatzRecord)
+                .ToDictionary(x => x.Id) ?? new Dictionary<long, ArbeitseinsatzRecord>();
+            var now = CreateEditorNowDefault();
+
+            return records
+                .Where(x => byId.TryGetValue(x.Id, out var record)
+                            && IsCurrentlyVisible(record.Aktiv, record.SichtbarAb, record.SichtbarBis, now))
+                .ToList();
+        }
+
+        private async Task<List<StartseiteTerminRecord>> FilterVisibleStartseiteTermineAsync(global::Supabase.Client client, List<StartseiteTerminRecord> records)
+        {
+            if (records.Count == 0)
+                return records;
+
+            var response = await client.From<TerminRecord>().Get();
+            var byId = response?.Models?
+                .Select(NormalizeTerminRecord)
+                .ToDictionary(x => x.Id) ?? new Dictionary<long, TerminRecord>();
+            var now = CreateEditorNowDefault();
+
+            return records
+                .Where(x => byId.TryGetValue(x.Id, out var record)
+                            && IsCurrentlyVisible(record.Aktiv, record.SichtbarAb, record.SichtbarBis, now))
+                .ToList();
+        }
+
+        private async Task<List<StartseiteBekanntmachungRecord>> FilterVisibleStartseiteBekanntmachungenAsync(global::Supabase.Client client, List<StartseiteBekanntmachungRecord> records)
+        {
+            if (records.Count == 0)
+                return records;
+
+            var response = await client.From<BekanntmachungRecord>().Get();
+            var byId = response?.Models?
+                .Select(NormalizeBekanntmachungRecord)
+                .ToDictionary(x => x.Id) ?? new Dictionary<long, BekanntmachungRecord>();
+            var now = CreateEditorNowDefault();
+
+            return records
+                .Where(x => byId.TryGetValue(x.BekanntmachungId ?? x.Id, out var record)
+                            && IsCurrentlyVisible(record.Aktiv, record.SichtbarAb, record.SichtbarBis, now))
+                .ToList();
         }
 
         private static HomeOperationalItem BuildWorkHoursItem(HomeWorkHoursSummary summary)

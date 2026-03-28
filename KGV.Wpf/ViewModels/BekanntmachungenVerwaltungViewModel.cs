@@ -285,10 +285,12 @@ namespace KGV.ViewModels
             EditorCaption = "Neue Bekanntmachung";
             Titel = string.Empty;
             InhaltHtml = "<p></p>";
-            SichtbarAbDatum = null;
-            SichtbarAbZeitText = string.Empty;
-            SichtbarBisDatum = null;
-            SichtbarBisZeitText = string.Empty;
+            var sichtbarAb = CreateCurrentTimestampDefault();
+            SichtbarAbDatum = sichtbarAb.Date;
+            SichtbarAbZeitText = sichtbarAb.ToString("HH:mm");
+            var sichtbarBis = sichtbarAb.AddMonths(1);
+            SichtbarBisDatum = sichtbarBis.Date;
+            SichtbarBisZeitText = sichtbarBis.ToString("HH:mm");
             SortOrderText = string.Empty;
             Aktiv = true;
             ClearValidation();
@@ -303,10 +305,12 @@ namespace KGV.ViewModels
             EditorCaption = isNew ? "Neue Bekanntmachung" : "Bekanntmachung bearbeiten";
             Titel = record.Titel ?? string.Empty;
             InhaltHtml = record.InhaltHtml ?? string.Empty;
-            SichtbarAbDatum = record.SichtbarAb?.Date;
-            SichtbarAbZeitText = record.SichtbarAb.HasValue ? record.SichtbarAb.Value.ToString("HH:mm") : string.Empty;
-            SichtbarBisDatum = record.SichtbarBis?.Date;
-            SichtbarBisZeitText = record.SichtbarBis.HasValue ? record.SichtbarBis.Value.ToString("HH:mm") : string.Empty;
+            var sichtbarAb = record.SichtbarAb ?? CreateCurrentTimestampDefault();
+            SichtbarAbDatum = sichtbarAb.Date;
+            SichtbarAbZeitText = sichtbarAb.ToString("HH:mm");
+            var sichtbarBis = record.SichtbarBis ?? sichtbarAb.AddMonths(1);
+            SichtbarBisDatum = sichtbarBis.Date;
+            SichtbarBisZeitText = sichtbarBis.ToString("HH:mm");
             SortOrderText = record.SortOrder?.ToString() ?? string.Empty;
             Aktiv = record.Aktiv;
             ClearValidation();
@@ -468,6 +472,12 @@ namespace KGV.ViewModels
         {
             FocusTarget = target;
             FocusRequestToken++;
+        }
+
+        private static DateTime CreateCurrentTimestampDefault()
+        {
+            var now = DateTime.Now;
+            return new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0);
         }
 
         private bool CanCloseEditor()

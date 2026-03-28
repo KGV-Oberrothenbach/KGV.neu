@@ -63,10 +63,12 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         };
         _htmlEditor.TextChanged += (_, _) => RefreshPreview();
 
-        _visibleFromDatePicker = new DatePicker { Date = DateTime.Today };
-        _visibleFromTimeEntry = new Entry { Placeholder = "HH:mm", Keyboard = Keyboard.Text };
-        _visibleToDatePicker = new DatePicker { Date = DateTime.Today };
-        _visibleToTimeEntry = new Entry { Placeholder = "HH:mm", Keyboard = Keyboard.Text };
+        var defaultVisibleFrom = CreateCurrentTimestampDefault();
+        var defaultVisibleTo = defaultVisibleFrom.AddMonths(1);
+        _visibleFromDatePicker = new DatePicker { Date = defaultVisibleFrom.Date };
+        _visibleFromTimeEntry = new Entry { Placeholder = "HH:mm", Keyboard = Keyboard.Text, Text = defaultVisibleFrom.ToString("HH:mm", CultureInfo.CurrentCulture) };
+        _visibleToDatePicker = new DatePicker { Date = defaultVisibleTo.Date };
+        _visibleToTimeEntry = new Entry { Placeholder = "HH:mm", Keyboard = Keyboard.Text, Text = defaultVisibleTo.ToString("HH:mm", CultureInfo.CurrentCulture) };
         _sortOrderEntry = new Entry { Placeholder = "Sortierreihenfolge", Keyboard = Keyboard.Numeric };
         _activeSwitch = new Switch { IsToggled = true };
 
@@ -220,10 +222,12 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         _descriptionLabel.Text = "Eigener mobiler Editorpfad für bestehende Bekanntmachungen. Die Übersicht bleibt dadurch eine ruhige reine Listenansicht.";
         _titleEntry.Text = _existingRecord.Titel ?? string.Empty;
         _htmlEditor.Text = _existingRecord.InhaltHtml ?? string.Empty;
-        _visibleFromDatePicker.Date = _existingRecord.SichtbarAb?.Date ?? DateTime.Today;
-        _visibleFromTimeEntry.Text = _existingRecord.SichtbarAb?.ToString("HH:mm", CultureInfo.CurrentCulture) ?? string.Empty;
-        _visibleToDatePicker.Date = _existingRecord.SichtbarBis?.Date ?? DateTime.Today;
-        _visibleToTimeEntry.Text = _existingRecord.SichtbarBis?.ToString("HH:mm", CultureInfo.CurrentCulture) ?? string.Empty;
+        var visibleFrom = _existingRecord.SichtbarAb ?? CreateCurrentTimestampDefault();
+        var visibleTo = _existingRecord.SichtbarBis ?? visibleFrom.AddMonths(1);
+        _visibleFromDatePicker.Date = visibleFrom.Date;
+        _visibleFromTimeEntry.Text = visibleFrom.ToString("HH:mm", CultureInfo.CurrentCulture);
+        _visibleToDatePicker.Date = visibleTo.Date;
+        _visibleToTimeEntry.Text = visibleTo.ToString("HH:mm", CultureInfo.CurrentCulture);
         _sortOrderEntry.Text = _existingRecord.SortOrder?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         _activeSwitch.IsToggled = _existingRecord.Aktiv;
         SetEnabledState(true);
@@ -238,10 +242,12 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         _descriptionLabel.Text = "Eigener mobiler Editorpfad für neue Bekanntmachungen. HTML-Bearbeitung bleibt erhalten, ohne die Übersicht wieder zur Mischseite zu machen.";
         _titleEntry.Text = string.Empty;
         _htmlEditor.Text = "<p></p>";
-        _visibleFromDatePicker.Date = DateTime.Today;
-        _visibleFromTimeEntry.Text = string.Empty;
-        _visibleToDatePicker.Date = DateTime.Today;
-        _visibleToTimeEntry.Text = string.Empty;
+        var visibleFrom = CreateCurrentTimestampDefault();
+        var visibleTo = visibleFrom.AddMonths(1);
+        _visibleFromDatePicker.Date = visibleFrom.Date;
+        _visibleFromTimeEntry.Text = visibleFrom.ToString("HH:mm", CultureInfo.CurrentCulture);
+        _visibleToDatePicker.Date = visibleTo.Date;
+        _visibleToTimeEntry.Text = visibleTo.ToString("HH:mm", CultureInfo.CurrentCulture);
         _sortOrderEntry.Text = string.Empty;
         _activeSwitch.IsToggled = true;
         SetEnabledState(true);
@@ -388,6 +394,12 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
 
         value = selectedDate.Date.Add(time ?? TimeSpan.Zero);
         return true;
+    }
+
+    private static DateTime CreateCurrentTimestampDefault()
+    {
+        var now = DateTime.Now;
+        return new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0);
     }
 
     private void SetEnabledState(bool enabled)

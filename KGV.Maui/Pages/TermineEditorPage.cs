@@ -20,14 +20,10 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
     private readonly Entry _titleEntry;
     private readonly Editor _descriptionEditor;
     private readonly DatePicker _datePicker;
-    private readonly CheckBox _hasStartTimeCheckBox;
     private readonly TimePicker _startTimePicker;
-    private readonly CheckBox _hasEndTimeCheckBox;
     private readonly TimePicker _endTimePicker;
-    private readonly CheckBox _hasVisibleFromCheckBox;
     private readonly DatePicker _visibleFromDatePicker;
     private readonly TimePicker _visibleFromTimePicker;
-    private readonly CheckBox _hasVisibleToCheckBox;
     private readonly DatePicker _visibleToDatePicker;
     private readonly TimePicker _visibleToTimePicker;
     private readonly Switch _activeSwitch;
@@ -56,24 +52,19 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         _titleEntry = new Entry { Placeholder = "Titel" };
         _descriptionEditor = new Editor { AutoSize = EditorAutoSizeOption.TextChanges, HeightRequest = 140, Placeholder = "Beschreibung" };
         _datePicker = new DatePicker { Date = DateTime.Today };
+        var defaultStartTime = CreateTerminStartDefault();
+        var defaultVisibleFrom = CreateCurrentTimestampDefault();
+        var defaultVisibleTo = CreateVisibleUntilEndOfDay(_datePicker.Date);
 
-        _startTimePicker = new TimePicker { Time = new TimeSpan(8, 0, 0), IsEnabled = false };
-        _hasStartTimeCheckBox = new CheckBox();
-        _hasStartTimeCheckBox.CheckedChanged += (_, e) => _startTimePicker.IsEnabled = e.Value;
+        _startTimePicker = new TimePicker { Time = defaultStartTime };
 
-        _endTimePicker = new TimePicker { Time = new TimeSpan(12, 0, 0), IsEnabled = false };
-        _hasEndTimeCheckBox = new CheckBox();
-        _hasEndTimeCheckBox.CheckedChanged += (_, e) => _endTimePicker.IsEnabled = e.Value;
+        _endTimePicker = new TimePicker { Time = CreateTerminEndDefault(defaultStartTime) };
 
-        _visibleFromDatePicker = new DatePicker { Date = DateTime.Today, IsEnabled = false };
-        _visibleFromTimePicker = new TimePicker { Time = new TimeSpan(8, 0, 0), IsEnabled = false };
-        _hasVisibleFromCheckBox = new CheckBox();
-        _hasVisibleFromCheckBox.CheckedChanged += (_, e) => SetTimestampEnabled(_visibleFromDatePicker, _visibleFromTimePicker, e.Value);
+        _visibleFromDatePicker = new DatePicker { Date = defaultVisibleFrom.Date };
+        _visibleFromTimePicker = new TimePicker { Time = defaultVisibleFrom.TimeOfDay };
 
-        _visibleToDatePicker = new DatePicker { Date = DateTime.Today, IsEnabled = false };
-        _visibleToTimePicker = new TimePicker { Time = new TimeSpan(18, 0, 0), IsEnabled = false };
-        _hasVisibleToCheckBox = new CheckBox();
-        _hasVisibleToCheckBox.CheckedChanged += (_, e) => SetTimestampEnabled(_visibleToDatePicker, _visibleToTimePicker, e.Value);
+        _visibleToDatePicker = new DatePicker { Date = defaultVisibleTo.Date };
+        _visibleToTimePicker = new TimePicker { Time = defaultVisibleTo.TimeOfDay };
 
         _activeSwitch = new Switch { IsToggled = true };
 
@@ -97,13 +88,9 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
                     CreateField("Titel *", _titleEntry),
                     CreateField("Beschreibung", _descriptionEditor),
                     CreateField("Datum *", _datePicker),
-                    CreateCheckField("Startzeit verwenden", _hasStartTimeCheckBox),
                     CreateField("Startzeit", _startTimePicker),
-                    CreateCheckField("Endzeit verwenden", _hasEndTimeCheckBox),
                     CreateField("Endzeit", _endTimePicker),
-                    CreateCheckField("Sichtbar ab verwenden", _hasVisibleFromCheckBox),
                     CreateTimestampField("Sichtbar ab", _visibleFromDatePicker, _visibleFromTimePicker),
-                    CreateCheckField("Sichtbar bis verwenden", _hasVisibleToCheckBox),
                     CreateTimestampField("Sichtbar bis", _visibleToDatePicker, _visibleToTimePicker),
                     CreateField("Aktiv", _activeSwitch),
                     new HorizontalStackLayout
@@ -191,16 +178,14 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         _titleEntry.Text = _existingRecord.Titel ?? string.Empty;
         _descriptionEditor.Text = _existingRecord.Beschreibung ?? string.Empty;
         _datePicker.Date = _existingRecord.Datum == default ? DateTime.Today : _existingRecord.Datum.Date;
-        _hasStartTimeCheckBox.IsChecked = _existingRecord.StartUhrzeit.HasValue;
-        _startTimePicker.Time = _existingRecord.StartUhrzeit ?? new TimeSpan(8, 0, 0);
-        _hasEndTimeCheckBox.IsChecked = _existingRecord.EndUhrzeit.HasValue;
-        _endTimePicker.Time = _existingRecord.EndUhrzeit ?? new TimeSpan(12, 0, 0);
-        _hasVisibleFromCheckBox.IsChecked = _existingRecord.SichtbarAb.HasValue;
-        _visibleFromDatePicker.Date = _existingRecord.SichtbarAb?.Date ?? _datePicker.Date;
-        _visibleFromTimePicker.Time = _existingRecord.SichtbarAb?.TimeOfDay ?? new TimeSpan(8, 0, 0);
-        _hasVisibleToCheckBox.IsChecked = _existingRecord.SichtbarBis.HasValue;
-        _visibleToDatePicker.Date = _existingRecord.SichtbarBis?.Date ?? _datePicker.Date;
-        _visibleToTimePicker.Time = _existingRecord.SichtbarBis?.TimeOfDay ?? new TimeSpan(18, 0, 0);
+        _startTimePicker.Time = _existingRecord.StartUhrzeit ?? CreateTerminStartDefault();
+        _endTimePicker.Time = _existingRecord.EndUhrzeit ?? CreateTerminEndDefault(_startTimePicker.Time);
+        var visibleFrom = _existingRecord.SichtbarAb ?? CreateCurrentTimestampDefault();
+        _visibleFromDatePicker.Date = visibleFrom.Date;
+        _visibleFromTimePicker.Time = visibleFrom.TimeOfDay;
+        var visibleTo = _existingRecord.SichtbarBis ?? CreateVisibleUntilEndOfDay(_datePicker.Date);
+        _visibleToDatePicker.Date = visibleTo.Date;
+        _visibleToTimePicker.Time = visibleTo.TimeOfDay;
         _activeSwitch.IsToggled = _existingRecord.Aktiv;
         SetEnabledState(true);
     }
@@ -214,16 +199,15 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         _titleEntry.Text = string.Empty;
         _descriptionEditor.Text = string.Empty;
         _datePicker.Date = DateTime.Today;
-        _hasStartTimeCheckBox.IsChecked = false;
-        _startTimePicker.Time = new TimeSpan(8, 0, 0);
-        _hasEndTimeCheckBox.IsChecked = false;
-        _endTimePicker.Time = new TimeSpan(12, 0, 0);
-        _hasVisibleFromCheckBox.IsChecked = false;
-        _visibleFromDatePicker.Date = DateTime.Today;
-        _visibleFromTimePicker.Time = new TimeSpan(8, 0, 0);
-        _hasVisibleToCheckBox.IsChecked = false;
-        _visibleToDatePicker.Date = DateTime.Today;
-        _visibleToTimePicker.Time = new TimeSpan(18, 0, 0);
+        var startTime = CreateTerminStartDefault();
+        _startTimePicker.Time = startTime;
+        _endTimePicker.Time = CreateTerminEndDefault(startTime);
+        var visibleFrom = CreateCurrentTimestampDefault();
+        _visibleFromDatePicker.Date = visibleFrom.Date;
+        _visibleFromTimePicker.Time = visibleFrom.TimeOfDay;
+        var visibleTo = CreateVisibleUntilEndOfDay(_datePicker.Date);
+        _visibleToDatePicker.Date = visibleTo.Date;
+        _visibleToTimePicker.Time = visibleTo.TimeOfDay;
         _activeSwitch.IsToggled = true;
         SetEnabledState(true);
     }
@@ -287,23 +271,19 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
             return false;
         }
 
-        TimeSpan? startTime = _hasStartTimeCheckBox.IsChecked ? _startTimePicker.Time : null;
-        TimeSpan? endTime = _hasEndTimeCheckBox.IsChecked ? _endTimePicker.Time : null;
-        if (startTime.HasValue && endTime.HasValue && endTime.Value < startTime.Value)
+        var startTime = _startTimePicker.Time;
+        var endTime = _endTimePicker.Time;
+        if (endTime < startTime)
         {
             _statusLabel.Text = "Die Endzeit darf nicht vor der Startzeit liegen.";
             _endTimePicker.Focus();
             return false;
         }
 
-        var visibleFrom = _hasVisibleFromCheckBox.IsChecked
-            ? _visibleFromDatePicker.Date.Date.Add(_visibleFromTimePicker.Time)
-            : (DateTime?)null;
-        var visibleTo = _hasVisibleToCheckBox.IsChecked
-            ? _visibleToDatePicker.Date.Date.Add(_visibleToTimePicker.Time)
-            : (DateTime?)null;
+        var visibleFrom = _visibleFromDatePicker.Date.Date.Add(_visibleFromTimePicker.Time);
+        var visibleTo = _visibleToDatePicker.Date.Date.Add(_visibleToTimePicker.Time);
 
-        if (visibleFrom.HasValue && visibleTo.HasValue && visibleTo.Value < visibleFrom.Value)
+        if (visibleTo < visibleFrom)
         {
             _statusLabel.Text = "Sichtbar bis darf nicht vor Sichtbar ab liegen.";
             _visibleToTimePicker.Focus();
@@ -333,23 +313,15 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         _titleEntry.IsEnabled = enabled;
         _descriptionEditor.IsEnabled = enabled;
         _datePicker.IsEnabled = enabled;
-        _hasStartTimeCheckBox.IsEnabled = enabled;
-        _startTimePicker.IsEnabled = enabled && _hasStartTimeCheckBox.IsChecked;
-        _hasEndTimeCheckBox.IsEnabled = enabled;
-        _endTimePicker.IsEnabled = enabled && _hasEndTimeCheckBox.IsChecked;
-        _hasVisibleFromCheckBox.IsEnabled = enabled;
-        SetTimestampEnabled(_visibleFromDatePicker, _visibleFromTimePicker, enabled && _hasVisibleFromCheckBox.IsChecked);
-        _hasVisibleToCheckBox.IsEnabled = enabled;
-        SetTimestampEnabled(_visibleToDatePicker, _visibleToTimePicker, enabled && _hasVisibleToCheckBox.IsChecked);
+        _startTimePicker.IsEnabled = enabled;
+        _endTimePicker.IsEnabled = enabled;
+        _visibleFromDatePicker.IsEnabled = enabled;
+        _visibleFromTimePicker.IsEnabled = enabled;
+        _visibleToDatePicker.IsEnabled = enabled;
+        _visibleToTimePicker.IsEnabled = enabled;
         _activeSwitch.IsEnabled = enabled;
         _saveButton.IsEnabled = enabled;
         _cancelButton.IsEnabled = enabled;
-    }
-
-    private static void SetTimestampEnabled(DatePicker datePicker, TimePicker timePicker, bool enabled)
-    {
-        datePicker.IsEnabled = enabled;
-        timePicker.IsEnabled = enabled;
     }
 
     private Task NavigateToOverviewAsync()
@@ -366,19 +338,6 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
             {
                 new Label { Text = title, FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
                 field
-            }
-        };
-    }
-
-    private static View CreateCheckField(string title, CheckBox checkBox)
-    {
-        return new HorizontalStackLayout
-        {
-            Spacing = 8,
-            Children =
-            {
-                checkBox,
-                new Label { Text = title, VerticalTextAlignment = Microsoft.Maui.TextAlignment.Center }
             }
         };
     }
@@ -425,4 +384,25 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
             _ => null
         };
     }
+
+    private static DateTime CreateCurrentTimestampDefault()
+    {
+        var now = DateTime.Now;
+        return new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0);
+    }
+
+    private static TimeSpan CreateTerminStartDefault()
+    {
+        var now = CreateCurrentTimestampDefault();
+        return now.TimeOfDay;
+    }
+
+    private static TimeSpan CreateTerminEndDefault(TimeSpan start)
+    {
+        var candidate = start.Add(TimeSpan.FromHours(1));
+        return candidate > new TimeSpan(23, 59, 0) ? new TimeSpan(23, 59, 0) : candidate;
+    }
+
+    private static DateTime CreateVisibleUntilEndOfDay(DateTime date)
+        => new(date.Year, date.Month, date.Day, 23, 59, 0);
 }

@@ -318,12 +318,15 @@ namespace KGV.ViewModels
             Titel = string.Empty;
             Beschreibung = string.Empty;
             Datum = DateTime.Today;
-            StartUhrzeitText = string.Empty;
-            EndUhrzeitText = string.Empty;
-            SichtbarAbDatum = null;
-            SichtbarAbZeitText = string.Empty;
-            SichtbarBisDatum = null;
-            SichtbarBisZeitText = string.Empty;
+            var startTime = CreateTerminStartDefault();
+            StartUhrzeitText = startTime.ToString(@"hh\:mm");
+            EndUhrzeitText = CreateTerminEndDefault(startTime).ToString(@"hh\:mm");
+            var sichtbarAb = CreateCurrentTimestampDefault();
+            SichtbarAbDatum = sichtbarAb.Date;
+            SichtbarAbZeitText = sichtbarAb.ToString("HH:mm");
+            var sichtbarBis = CreateVisibleUntilEndOfDay(DateTime.Today);
+            SichtbarBisDatum = sichtbarBis.Date;
+            SichtbarBisZeitText = sichtbarBis.ToString("HH:mm");
             Aktiv = true;
             ClearValidation();
             _initialEditorState = CaptureEditorState();
@@ -338,12 +341,15 @@ namespace KGV.ViewModels
             Titel = record.Titel ?? string.Empty;
             Beschreibung = record.Beschreibung ?? string.Empty;
             Datum = record.Datum.Date;
-            StartUhrzeitText = record.StartUhrzeit.HasValue ? record.StartUhrzeit.Value.ToString(@"hh\:mm") : string.Empty;
-            EndUhrzeitText = record.EndUhrzeit.HasValue ? record.EndUhrzeit.Value.ToString(@"hh\:mm") : string.Empty;
-            SichtbarAbDatum = record.SichtbarAb?.Date;
-            SichtbarAbZeitText = record.SichtbarAb.HasValue ? record.SichtbarAb.Value.ToString("HH:mm") : string.Empty;
-            SichtbarBisDatum = record.SichtbarBis?.Date;
-            SichtbarBisZeitText = record.SichtbarBis.HasValue ? record.SichtbarBis.Value.ToString("HH:mm") : string.Empty;
+            var startTime = record.StartUhrzeit ?? CreateTerminStartDefault();
+            StartUhrzeitText = startTime.ToString(@"hh\:mm");
+            EndUhrzeitText = (record.EndUhrzeit ?? CreateTerminEndDefault(startTime)).ToString(@"hh\:mm");
+            var sichtbarAb = record.SichtbarAb ?? CreateCurrentTimestampDefault();
+            SichtbarAbDatum = sichtbarAb.Date;
+            SichtbarAbZeitText = sichtbarAb.ToString("HH:mm");
+            var sichtbarBis = record.SichtbarBis ?? CreateVisibleUntilEndOfDay(record.Datum.Date);
+            SichtbarBisDatum = sichtbarBis.Date;
+            SichtbarBisZeitText = sichtbarBis.ToString("HH:mm");
             Aktiv = record.Aktiv;
             ClearValidation();
             _initialEditorState = CaptureEditorState();
@@ -518,6 +524,24 @@ namespace KGV.ViewModels
             FocusTarget = target;
             FocusRequestToken++;
         }
+
+        private static DateTime CreateCurrentTimestampDefault()
+        {
+            var now = DateTime.Now;
+            return new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0);
+        }
+
+        private static TimeSpan CreateTerminStartDefault()
+            => CreateCurrentTimestampDefault().TimeOfDay;
+
+        private static TimeSpan CreateTerminEndDefault(TimeSpan start)
+        {
+            var candidate = start.Add(TimeSpan.FromHours(1));
+            return candidate > new TimeSpan(23, 59, 0) ? new TimeSpan(23, 59, 0) : candidate;
+        }
+
+        private static DateTime CreateVisibleUntilEndOfDay(DateTime date)
+            => new(date.Year, date.Month, date.Day, 23, 59, 0);
 
         private bool CanCloseEditor()
         {

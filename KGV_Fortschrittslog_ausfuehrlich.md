@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: Startseiten-Sichtbarkeit und Editor-Defaults für Arbeitseinsätze, Termine und Bekanntmachungen vereinheitlicht
+
+- Vor Beginn den realen Istzustand im Repo geprüft:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
+  - `KGV.Maui/Pages/TermineEditorPage.cs`
+  - `KGV.Maui/Pages/BekanntmachungEditorPage.cs`
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Wpf/ViewModels/ArbeitseinsaetzeVerwaltungViewModel.cs`
+  - `KGV.Wpf/ViewModels/TermineVerwaltungViewModel.cs`
+  - `KGV.Wpf/ViewModels/BekanntmachungenVerwaltungViewModel.cs`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - Home nutzte bereits gemeinsame Startseitenpfade, die Sichtbarkeitsregeln waren aber nicht explizit einheitlich auf die Basistabellen abgesichert
+  - MAUI-Editoren für Arbeitseinsatz und Termin arbeiteten noch mit Checkboxen für Zeit-/Sichtbarkeitsfelder
+  - WPF war beim Flow schon näher am Ziel, setzte neue Datensätze aber noch mit zu vielen leeren Feldern auf
+- Minimal umgesetzt:
+  - Startseitenfilter für Arbeitseinsätze, Termine und Bekanntmachungen auf dieselbe Fachregel gezogen: `aktiv = true`, `sichtbar_ab` leer oder <= jetzt, `sichtbar_bis` leer oder >= jetzt
+  - Arbeitseinsatz-, Termin- und Bekanntmachungs-Defaults in WPF und MAUI vereinheitlicht
+  - MAUI-Checkboxen für Start-/Endzeit sowie Sichtbar-ab/-bis in den betroffenen Editorpfaden entfernt
+  - gemeinsame Create-Pfade härten Neuanlagen zusätzlich gegen fachlich leere Zeit-/Sichtbarkeitswerte ab
+  - der MAUI-Arbeitseinsatz-Editor kehrt nach Speichern jetzt zur Startseite zurück, sodass der Home-Reloadpfad direkt greift
+
 ## 2026-03-28 – Prompt 2/5: Release Manager Settings-Grundgerüst für Laden/Speichern und UI sauber verdrahtet
 
 - Vor Beginn den realen Istzustand im Repo geprüft:

@@ -408,16 +408,18 @@ namespace KGV.ViewModels
             Titel = string.Empty;
             Beschreibung = string.Empty;
             Datum = DateTime.Today;
-            StartUhrzeitText = string.Empty;
-            EndUhrzeitText = string.Empty;
+            StartUhrzeitText = "10:00";
+            EndUhrzeitText = "13:00";
             Treffpunkt = string.Empty;
             HasTeilnehmerbegrenzung = false;
             MaxTeilnehmerText = string.Empty;
             StundenWertText = string.Empty;
-            SichtbarAbDatum = null;
-            SichtbarAbZeitText = string.Empty;
-            SichtbarBisDatum = null;
-            SichtbarBisZeitText = string.Empty;
+            var sichtbarAb = CreateCurrentTimestampDefault();
+            SichtbarAbDatum = sichtbarAb.Date;
+            SichtbarAbZeitText = sichtbarAb.ToString("HH:mm");
+            var sichtbarBis = CreateWorkAssignmentVisibleToDefault(DateTime.Today);
+            SichtbarBisDatum = sichtbarBis.Date;
+            SichtbarBisZeitText = sichtbarBis.ToString("HH:mm");
             AnmeldungBisDatum = null;
             AnmeldungBisZeitText = string.Empty;
             Aktiv = true;
@@ -435,16 +437,18 @@ namespace KGV.ViewModels
             Titel = record.Titel ?? string.Empty;
             Beschreibung = record.Beschreibung ?? string.Empty;
             Datum = record.Datum.Date;
-            StartUhrzeitText = record.StartUhrzeit.HasValue ? record.StartUhrzeit.Value.ToString(@"hh\:mm") : string.Empty;
-            EndUhrzeitText = record.EndUhrzeit.HasValue ? record.EndUhrzeit.Value.ToString(@"hh\:mm") : string.Empty;
+            StartUhrzeitText = record.StartUhrzeit.HasValue ? record.StartUhrzeit.Value.ToString(@"hh\:mm") : "10:00";
+            EndUhrzeitText = record.EndUhrzeit.HasValue ? record.EndUhrzeit.Value.ToString(@"hh\:mm") : "13:00";
             Treffpunkt = record.Treffpunkt ?? string.Empty;
             HasTeilnehmerbegrenzung = record.MaxTeilnehmer.HasValue;
             MaxTeilnehmerText = record.MaxTeilnehmer?.ToString() ?? string.Empty;
             StundenWertText = record.StundenWert == 0 ? string.Empty : record.StundenWert.ToString("0.##", CultureInfo.CurrentCulture);
-            SichtbarAbDatum = record.SichtbarAb?.Date;
-            SichtbarAbZeitText = record.SichtbarAb.HasValue ? record.SichtbarAb.Value.ToString("HH:mm") : string.Empty;
-            SichtbarBisDatum = record.SichtbarBis?.Date;
-            SichtbarBisZeitText = record.SichtbarBis.HasValue ? record.SichtbarBis.Value.ToString("HH:mm") : string.Empty;
+            var sichtbarAb = record.SichtbarAb ?? CreateCurrentTimestampDefault();
+            SichtbarAbDatum = sichtbarAb.Date;
+            SichtbarAbZeitText = sichtbarAb.ToString("HH:mm");
+            var sichtbarBis = record.SichtbarBis ?? CreateWorkAssignmentVisibleToDefault(record.Datum.Date);
+            SichtbarBisDatum = sichtbarBis.Date;
+            SichtbarBisZeitText = sichtbarBis.ToString("HH:mm");
             AnmeldungBisDatum = record.AnmeldungBis?.Date;
             AnmeldungBisZeitText = record.AnmeldungBis.HasValue ? record.AnmeldungBis.Value.ToString("HH:mm") : string.Empty;
             Aktiv = record.Aktiv;
@@ -670,6 +674,15 @@ namespace KGV.ViewModels
             var normalized = input.Replace(',', '.');
             return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
         }
+
+        private static DateTime CreateCurrentTimestampDefault()
+        {
+            var now = DateTime.Now;
+            return new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0);
+        }
+
+        private static DateTime CreateWorkAssignmentVisibleToDefault(DateTime date)
+            => new(date.Year, date.Month, date.Day, 23, 59, 0);
 
         private void RequestFocus(string target)
         {

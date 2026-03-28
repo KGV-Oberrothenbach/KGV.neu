@@ -23,18 +23,14 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
     private readonly Entry _titleEntry;
     private readonly Editor _descriptionEditor;
     private readonly DatePicker _datePicker;
-    private readonly CheckBox _hasStartTimeCheckBox;
     private readonly TimePicker _startTimePicker;
-    private readonly CheckBox _hasEndTimeCheckBox;
     private readonly TimePicker _endTimePicker;
     private readonly Entry _treffpunktEntry;
     private readonly CheckBox _hasTeilnehmerbegrenzungCheckBox;
     private readonly Entry _maxTeilnehmerEntry;
     private readonly Entry _stundenWertEntry;
-    private readonly CheckBox _hasSichtbarAbCheckBox;
     private readonly DatePicker _sichtbarAbDatePicker;
     private readonly TimePicker _sichtbarAbTimePicker;
-    private readonly CheckBox _hasSichtbarBisCheckBox;
     private readonly DatePicker _sichtbarBisDatePicker;
     private readonly TimePicker _sichtbarBisTimePicker;
     private readonly CheckBox _hasAnmeldungBisCheckBox;
@@ -71,13 +67,9 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _descriptionEditor = new Editor { Placeholder = "Beschreibung (optional)", HeightRequest = 110, AutoSize = EditorAutoSizeOption.TextChanges };
         _datePicker = new DatePicker { Date = DateTime.Today };
 
-        _hasStartTimeCheckBox = new CheckBox();
-        _startTimePicker = new TimePicker { IsEnabled = false };
-        _hasStartTimeCheckBox.CheckedChanged += (_, e) => _startTimePicker.IsEnabled = e.Value;
+        _startTimePicker = new TimePicker { Time = new TimeSpan(10, 0, 0) };
 
-        _hasEndTimeCheckBox = new CheckBox();
-        _endTimePicker = new TimePicker { IsEnabled = false };
-        _hasEndTimeCheckBox.CheckedChanged += (_, e) => _endTimePicker.IsEnabled = e.Value;
+        _endTimePicker = new TimePicker { Time = new TimeSpan(13, 0, 0) };
 
         _treffpunktEntry = new Entry { Placeholder = "Treffpunkt (optional)" };
 
@@ -87,23 +79,13 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
 
         _stundenWertEntry = new Entry { Placeholder = "Stundenwert (optional)", Keyboard = Keyboard.Numeric };
 
-        _hasSichtbarAbCheckBox = new CheckBox();
-        _sichtbarAbDatePicker = new DatePicker { Date = DateTime.Today, IsEnabled = false };
-        _sichtbarAbTimePicker = new TimePicker { IsEnabled = false };
-        _hasSichtbarAbCheckBox.CheckedChanged += (_, e) =>
-        {
-            _sichtbarAbDatePicker.IsEnabled = e.Value;
-            _sichtbarAbTimePicker.IsEnabled = e.Value;
-        };
+        var defaultVisibleFrom = CreateCurrentTimestampDefault();
+        _sichtbarAbDatePicker = new DatePicker { Date = defaultVisibleFrom.Date };
+        _sichtbarAbTimePicker = new TimePicker { Time = defaultVisibleFrom.TimeOfDay };
 
-        _hasSichtbarBisCheckBox = new CheckBox();
-        _sichtbarBisDatePicker = new DatePicker { Date = DateTime.Today, IsEnabled = false };
-        _sichtbarBisTimePicker = new TimePicker { IsEnabled = false };
-        _hasSichtbarBisCheckBox.CheckedChanged += (_, e) =>
-        {
-            _sichtbarBisDatePicker.IsEnabled = e.Value;
-            _sichtbarBisTimePicker.IsEnabled = e.Value;
-        };
+        var defaultVisibleTo = CreateWorkAssignmentVisibleToDefault(_datePicker.Date);
+        _sichtbarBisDatePicker = new DatePicker { Date = defaultVisibleTo.Date };
+        _sichtbarBisTimePicker = new TimePicker { Time = defaultVisibleTo.TimeOfDay };
 
         _hasAnmeldungBisCheckBox = new CheckBox();
         _anmeldungBisDatePicker = new DatePicker { Date = DateTime.Today, IsEnabled = false };
@@ -154,18 +136,14 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
                     CreateField("Titel *", _titleEntry),
                     CreateField("Beschreibung", _descriptionEditor),
                     CreateField("Datum *", _datePicker),
-                    CreateCheckField("Startzeit verwenden", _hasStartTimeCheckBox),
                     CreateField("Startzeit", _startTimePicker),
-                    CreateCheckField("Endzeit verwenden", _hasEndTimeCheckBox),
                     CreateField("Endzeit", _endTimePicker),
                     CreateField("Treffpunkt", _treffpunktEntry),
                     CreateCheckField("Teilnehmerbegrenzung", _hasTeilnehmerbegrenzungCheckBox),
                     CreateField("Max. Teilnehmer", _maxTeilnehmerEntry),
                     CreateField("Stundenwert", _stundenWertEntry),
-                    CreateCheckField("Sichtbar ab verwenden", _hasSichtbarAbCheckBox),
                     CreateField("Sichtbar ab Datum", _sichtbarAbDatePicker),
                     CreateField("Sichtbar ab Zeit", _sichtbarAbTimePicker),
-                    CreateCheckField("Sichtbar bis verwenden", _hasSichtbarBisCheckBox),
                     CreateField("Sichtbar bis Datum", _sichtbarBisDatePicker),
                     CreateField("Sichtbar bis Zeit", _sichtbarBisTimePicker),
                     CreateCheckField("Anmeldung bis verwenden", _hasAnmeldungBisCheckBox),
@@ -293,11 +271,9 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _descriptionEditor.Text = record.Beschreibung ?? string.Empty;
         _datePicker.Date = record.Datum == default ? DateTime.Today : record.Datum.Date;
 
-        _hasStartTimeCheckBox.IsChecked = record.StartUhrzeit.HasValue;
-        _startTimePicker.Time = record.StartUhrzeit ?? new TimeSpan(8, 0, 0);
+        _startTimePicker.Time = record.StartUhrzeit ?? new TimeSpan(10, 0, 0);
 
-        _hasEndTimeCheckBox.IsChecked = record.EndUhrzeit.HasValue;
-        _endTimePicker.Time = record.EndUhrzeit ?? new TimeSpan(12, 0, 0);
+        _endTimePicker.Time = record.EndUhrzeit ?? new TimeSpan(13, 0, 0);
 
         _treffpunktEntry.Text = record.Treffpunkt ?? string.Empty;
         _hasTeilnehmerbegrenzungCheckBox.IsChecked = record.MaxTeilnehmer.HasValue;
@@ -306,13 +282,13 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
             ? record.StundenWert.ToString("0.##", CultureInfo.CurrentCulture)
             : string.Empty;
 
-        _hasSichtbarAbCheckBox.IsChecked = record.SichtbarAb.HasValue;
-        _sichtbarAbDatePicker.Date = record.SichtbarAb?.Date ?? DateTime.Today;
-        _sichtbarAbTimePicker.Time = record.SichtbarAb?.TimeOfDay ?? TimeSpan.Zero;
+        var sichtbarAb = record.SichtbarAb ?? CreateCurrentTimestampDefault();
+        _sichtbarAbDatePicker.Date = sichtbarAb.Date;
+        _sichtbarAbTimePicker.Time = sichtbarAb.TimeOfDay;
 
-        _hasSichtbarBisCheckBox.IsChecked = record.SichtbarBis.HasValue;
-        _sichtbarBisDatePicker.Date = record.SichtbarBis?.Date ?? DateTime.Today;
-        _sichtbarBisTimePicker.Time = record.SichtbarBis?.TimeOfDay ?? TimeSpan.Zero;
+        var sichtbarBis = record.SichtbarBis ?? CreateWorkAssignmentVisibleToDefault(_datePicker.Date);
+        _sichtbarBisDatePicker.Date = sichtbarBis.Date;
+        _sichtbarBisTimePicker.Time = sichtbarBis.TimeOfDay;
 
         _hasAnmeldungBisCheckBox.IsChecked = record.AnmeldungBis.HasValue;
         _anmeldungBisDatePicker.Date = record.AnmeldungBis?.Date ?? DateTime.Today;
@@ -330,20 +306,18 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _titleEntry.Text = string.Empty;
         _descriptionEditor.Text = string.Empty;
         _datePicker.Date = DateTime.Today;
-        _hasStartTimeCheckBox.IsChecked = false;
-        _startTimePicker.Time = new TimeSpan(8, 0, 0);
-        _hasEndTimeCheckBox.IsChecked = false;
-        _endTimePicker.Time = new TimeSpan(12, 0, 0);
+        _startTimePicker.Time = new TimeSpan(10, 0, 0);
+        _endTimePicker.Time = new TimeSpan(13, 0, 0);
         _treffpunktEntry.Text = string.Empty;
         _hasTeilnehmerbegrenzungCheckBox.IsChecked = false;
         _maxTeilnehmerEntry.Text = string.Empty;
         _stundenWertEntry.Text = string.Empty;
-        _hasSichtbarAbCheckBox.IsChecked = false;
-        _sichtbarAbDatePicker.Date = DateTime.Today;
-        _sichtbarAbTimePicker.Time = TimeSpan.Zero;
-        _hasSichtbarBisCheckBox.IsChecked = false;
-        _sichtbarBisDatePicker.Date = DateTime.Today;
-        _sichtbarBisTimePicker.Time = TimeSpan.Zero;
+        var sichtbarAb = CreateCurrentTimestampDefault();
+        _sichtbarAbDatePicker.Date = sichtbarAb.Date;
+        _sichtbarAbTimePicker.Time = sichtbarAb.TimeOfDay;
+        var sichtbarBis = CreateWorkAssignmentVisibleToDefault(_datePicker.Date);
+        _sichtbarBisDatePicker.Date = sichtbarBis.Date;
+        _sichtbarBisTimePicker.Time = sichtbarBis.TimeOfDay;
         _hasAnmeldungBisCheckBox.IsChecked = false;
         _anmeldungBisDatePicker.Date = DateTime.Today;
         _anmeldungBisTimePicker.Time = TimeSpan.Zero;
@@ -442,9 +416,9 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
             return false;
         }
 
-        TimeSpan? startTime = _hasStartTimeCheckBox.IsChecked ? _startTimePicker.Time : null;
-        TimeSpan? endTime = _hasEndTimeCheckBox.IsChecked ? _endTimePicker.Time : null;
-        if (startTime.HasValue && endTime.HasValue && endTime.Value < startTime.Value)
+        var startTime = _startTimePicker.Time;
+        var endTime = _endTimePicker.Time;
+        if (endTime < startTime)
         {
             ShowValidationError("Die Endzeit darf nicht vor der Startzeit liegen.", _endTimePicker);
             return false;
@@ -474,17 +448,13 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
             stundenWert = parsedStundenWert;
         }
 
-        DateTime? sichtbarAb = _hasSichtbarAbCheckBox.IsChecked
-            ? _sichtbarAbDatePicker.Date.Date.Add(_sichtbarAbTimePicker.Time)
-            : null;
-        DateTime? sichtbarBis = _hasSichtbarBisCheckBox.IsChecked
-            ? _sichtbarBisDatePicker.Date.Date.Add(_sichtbarBisTimePicker.Time)
-            : null;
+        var sichtbarAb = _sichtbarAbDatePicker.Date.Date.Add(_sichtbarAbTimePicker.Time);
+        var sichtbarBis = _sichtbarBisDatePicker.Date.Date.Add(_sichtbarBisTimePicker.Time);
         DateTime? anmeldungBis = _hasAnmeldungBisCheckBox.IsChecked
             ? _anmeldungBisDatePicker.Date.Date.Add(_anmeldungBisTimePicker.Time)
             : null;
 
-        if (sichtbarAb.HasValue && sichtbarBis.HasValue && sichtbarBis.Value < sichtbarAb.Value)
+        if (sichtbarBis < sichtbarAb)
         {
             ShowValidationError("Sichtbar bis darf nicht vor Sichtbar ab liegen.", _sichtbarBisDatePicker);
             return false;
@@ -565,18 +535,14 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
             _titleEntry.Text ?? string.Empty,
             _descriptionEditor.Text ?? string.Empty,
             DateOnly.FromDateTime(_datePicker.Date),
-            _hasStartTimeCheckBox.IsChecked,
-            _hasStartTimeCheckBox.IsChecked ? _startTimePicker.Time : null,
-            _hasEndTimeCheckBox.IsChecked,
-            _hasEndTimeCheckBox.IsChecked ? _endTimePicker.Time : null,
+            _startTimePicker.Time,
+            _endTimePicker.Time,
             _treffpunktEntry.Text ?? string.Empty,
             _hasTeilnehmerbegrenzungCheckBox.IsChecked,
             _maxTeilnehmerEntry.Text ?? string.Empty,
             _stundenWertEntry.Text ?? string.Empty,
-            _hasSichtbarAbCheckBox.IsChecked,
-            _hasSichtbarAbCheckBox.IsChecked ? _sichtbarAbDatePicker.Date.Date.Add(_sichtbarAbTimePicker.Time) : null,
-            _hasSichtbarBisCheckBox.IsChecked,
-            _hasSichtbarBisCheckBox.IsChecked ? _sichtbarBisDatePicker.Date.Date.Add(_sichtbarBisTimePicker.Time) : null,
+            _sichtbarAbDatePicker.Date.Date.Add(_sichtbarAbTimePicker.Time),
+            _sichtbarBisDatePicker.Date.Date.Add(_sichtbarBisTimePicker.Time),
             _hasAnmeldungBisCheckBox.IsChecked,
             _hasAnmeldungBisCheckBox.IsChecked ? _anmeldungBisDatePicker.Date.Date.Add(_anmeldungBisTimePicker.Time) : null,
             _aktivSwitch.IsToggled);
@@ -600,20 +566,16 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _titleEntry.IsEnabled = enabled;
         _descriptionEditor.IsEnabled = enabled;
         _datePicker.IsEnabled = enabled;
-        _hasStartTimeCheckBox.IsEnabled = enabled;
-        _startTimePicker.IsEnabled = enabled && _hasStartTimeCheckBox.IsChecked;
-        _hasEndTimeCheckBox.IsEnabled = enabled;
-        _endTimePicker.IsEnabled = enabled && _hasEndTimeCheckBox.IsChecked;
+        _startTimePicker.IsEnabled = enabled;
+        _endTimePicker.IsEnabled = enabled;
         _treffpunktEntry.IsEnabled = enabled;
         _hasTeilnehmerbegrenzungCheckBox.IsEnabled = enabled;
         _maxTeilnehmerEntry.IsEnabled = enabled && _hasTeilnehmerbegrenzungCheckBox.IsChecked;
         _stundenWertEntry.IsEnabled = enabled;
-        _hasSichtbarAbCheckBox.IsEnabled = enabled;
-        _sichtbarAbDatePicker.IsEnabled = enabled && _hasSichtbarAbCheckBox.IsChecked;
-        _sichtbarAbTimePicker.IsEnabled = enabled && _hasSichtbarAbCheckBox.IsChecked;
-        _hasSichtbarBisCheckBox.IsEnabled = enabled;
-        _sichtbarBisDatePicker.IsEnabled = enabled && _hasSichtbarBisCheckBox.IsChecked;
-        _sichtbarBisTimePicker.IsEnabled = enabled && _hasSichtbarBisCheckBox.IsChecked;
+        _sichtbarAbDatePicker.IsEnabled = enabled;
+        _sichtbarAbTimePicker.IsEnabled = enabled;
+        _sichtbarBisDatePicker.IsEnabled = enabled;
+        _sichtbarBisTimePicker.IsEnabled = enabled;
         _hasAnmeldungBisCheckBox.IsEnabled = enabled;
         _anmeldungBisDatePicker.IsEnabled = enabled && _hasAnmeldungBisCheckBox.IsChecked;
         _anmeldungBisTimePicker.IsEnabled = enabled && _hasAnmeldungBisCheckBox.IsChecked;
@@ -626,8 +588,17 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
 
     private Task NavigateToOverviewAsync()
     {
-        return Shell.Current.GoToAsync("management_workassignments");
+        return Shell.Current.GoToAsync("//home");
     }
+
+    private static DateTime CreateCurrentTimestampDefault()
+    {
+        var now = DateTime.Now;
+        return new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0);
+    }
+
+    private static DateTime CreateWorkAssignmentVisibleToDefault(DateTime date)
+        => new(date.Year, date.Month, date.Day, 23, 59, 0);
 
     private static View CreateField(string labelText, View input)
     {
@@ -705,18 +676,14 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         string Title,
         string Description,
         DateOnly Date,
-        bool HasStartTime,
-        TimeSpan? StartTime,
-        bool HasEndTime,
-        TimeSpan? EndTime,
+        TimeSpan StartTime,
+        TimeSpan EndTime,
         string Treffpunkt,
         bool HasParticipantLimit,
         string MaxParticipants,
         string HoursValue,
-        bool HasVisibleFrom,
-        DateTime? VisibleFrom,
-        bool HasVisibleTo,
-        DateTime? VisibleTo,
+        DateTime VisibleFrom,
+        DateTime VisibleTo,
         bool HasRegistrationUntil,
         DateTime? RegistrationUntil,
         bool IsActive);
