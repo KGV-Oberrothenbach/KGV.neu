@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using KGV.ReleaseManager.Models;
 
 namespace KGV.ReleaseManager.ViewModels;
@@ -11,8 +12,17 @@ namespace KGV.ReleaseManager.ViewModels;
 public sealed class MainViewModel : INotifyPropertyChanged
 {
     private ReleaseManagerSettings _settings = new();
-    private string _currentVersion = "0.1.0";
-    private string _nextVersion = "0.1.1";
+    private string _currentVersion = string.Empty;
+    private string _targetVersion = string.Empty;
+    private string _detectedWpfVersion = "Nicht gefunden";
+    private string _detectedAndroidVersion = "Nicht gefunden";
+    private string _versionStatusText = "Noch nicht geprüft.";
+    private string _versionWarningText = string.Empty;
+    private VersionBumpType _selectedVersionBump = VersionBumpType.Patch;
+    private string _logSourcePath = "-";
+    private string _logSourceStatusText = "Noch nicht geprüft.";
+    private string _releaseFolderStatusText = "Noch kein Veröffentlichungsordner vorbereitet.";
+    private string _releaseStateText = "Noch kein Release ausgeführt.";
     private bool _buildWpf = true;
     private bool _buildApk = true;
     private bool _buildAab = true;
@@ -33,13 +43,86 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public string CurrentVersion
     {
         get => _currentVersion;
-        set { _currentVersion = value; OnPropertyChanged(); }
+        set
+        {
+            _currentVersion = value;
+            OnPropertyChanged();
+            UpdateTargetVersion();
+        }
     }
 
-    public string NextVersion
+    public string TargetVersion
     {
-        get => _nextVersion;
-        set { _nextVersion = value; OnPropertyChanged(); }
+        get => _targetVersion;
+        set { _targetVersion = value; OnPropertyChanged(); }
+    }
+
+    public string DetectedWpfVersion
+    {
+        get => _detectedWpfVersion;
+        set { _detectedWpfVersion = value; OnPropertyChanged(); }
+    }
+
+    public string DetectedAndroidVersion
+    {
+        get => _detectedAndroidVersion;
+        set { _detectedAndroidVersion = value; OnPropertyChanged(); }
+    }
+
+    public string VersionStatusText
+    {
+        get => _versionStatusText;
+        set { _versionStatusText = value; OnPropertyChanged(); }
+    }
+
+    public string VersionWarningText
+    {
+        get => _versionWarningText;
+        set
+        {
+            _versionWarningText = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasVersionWarning));
+        }
+    }
+
+    public bool HasVersionWarning => !string.IsNullOrWhiteSpace(VersionWarningText);
+
+    public VersionBumpType SelectedVersionBump
+    {
+        get => _selectedVersionBump;
+        set
+        {
+            _selectedVersionBump = value;
+            OnPropertyChanged();
+            UpdateTargetVersion();
+        }
+    }
+
+    public IReadOnlyList<VersionBumpType> VersionBumpOptions { get; } = Enum.GetValues<VersionBumpType>();
+
+    public string LogSourcePath
+    {
+        get => _logSourcePath;
+        set { _logSourcePath = value; OnPropertyChanged(); }
+    }
+
+    public string LogSourceStatusText
+    {
+        get => _logSourceStatusText;
+        set { _logSourceStatusText = value; OnPropertyChanged(); }
+    }
+
+    public string ReleaseFolderStatusText
+    {
+        get => _releaseFolderStatusText;
+        set { _releaseFolderStatusText = value; OnPropertyChanged(); }
+    }
+
+    public string ReleaseStateText
+    {
+        get => _releaseStateText;
+        set { _releaseStateText = value; OnPropertyChanged(); }
     }
 
     public bool BuildWpf
@@ -96,15 +179,27 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         var errors = new List<string>();
         ValidateRequiredDirectory(Settings.SourceRepoPath, "Lokaler Pfad zum Quellprojekt KGV.neu", errors);
-        ValidateRequiredDirectory(Settings.WpfTargetRepoPath, "Lokaler Pfad zum Zielrepo für WPF-Release", errors);
-        ValidateRequiredDirectory(Settings.ApkOutputPath, "Lokaler Ausgabeordner für APK", errors);
-        ValidateRequiredDirectory(Settings.AabOutputPath, "Lokaler Ausgabeordner für AAB", errors);
-        ValidateRequiredDirectory(Settings.ReleaseOutputRootPath, "Lokaler Basisordner für Veröffentlichungen", errors);
+        ValidateRequiredPath(Settings.ReleaseOutputRootPath, "Lokaler Basisordner für Veröffentlichungen", errors);
+        ValidateOptionalDirectory(Settings.WpfTargetRepoPath, "Lokaler Pfad zum Zielrepo für WPF-Release", errors);
+        ValidateOptionalPath(Settings.ApkOutputPath, "Lokaler Ausgabeordner für APK", errors);
+        ValidateOptionalPath(Settings.AabOutputPath, "Lokaler Ausgabeordner für AAB", errors);
 
         if (!string.IsNullOrWhiteSpace(Settings.SourceRepoPath)
             && !File.Exists(Path.Combine(Settings.SourceRepoPath, "KGV.slnx")))
         {
             errors.Add("Der Pfad zum Quellprojekt KGV.neu enthält keine `KGV.slnx`.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(Settings.AndroidKeystorePath)
+            && !File.Exists(Settings.AndroidKeystorePath))
+        {
+            errors.Add($"Der konfigurierte Keystore-Pfad wurde nicht gefunden: {Settings.AndroidKeystorePath}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(Settings.InnoSetupCompilerPath)
+            && !File.Exists(Settings.InnoSetupCompilerPath))
+        {
+            errors.Add($"Der konfigurierte Pfad zu `ISCC.exe` wurde nicht gefunden: {Settings.InnoSetupCompilerPath}");
         }
 
         if (!string.IsNullOrWhiteSpace(Settings.AndroidPackageName)
@@ -128,15 +223,81 @@ public sealed class MainViewModel : INotifyPropertyChanged
         return errors;
     }
 
-    public void AppendStatus(string message)
+    public void AppendStatus(string message
+    )
     {
         var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
         StatusText = string.IsNullOrWhiteSpace(StatusText) ? line : $"{StatusText}{Environment.NewLine}{line}";
         FooterText = message;
     }
 
+    public void ApplyVersionDetection(VersionDetectionResult result)
+    {
+        CurrentVersion = string.IsNullOrWhiteSpace(result.CurrentVersion) ? "Nicht erkannt" : result.CurrentVersion;
+        DetectedWpfVersion = string.IsNullOrWhiteSpace(result.WpfVersion) ? "Nicht gefunden" : result.WpfVersion;
+        DetectedAndroidVersion = string.IsNullOrWhiteSpace(result.AndroidVersion)
+            ? "Nicht gefunden"
+            : string.IsNullOrWhiteSpace(result.AndroidVersionCode)
+                ? result.AndroidVersion
+                : $"{result.AndroidVersion} (Code {result.AndroidVersionCode})";
+
+        VersionStatusText = result.HasError
+            ? result.ErrorMessage
+            : string.IsNullOrWhiteSpace(result.StatusMessage)
+                ? "Versionsermittlung abgeschlossen."
+                : result.StatusMessage;
+
+        VersionWarningText = result.WarningMessage;
+    }
+
+    public void ApplyLogSourceStatus(LogSourceStatus status)
+    {
+        LogSourcePath = string.IsNullOrWhiteSpace(status.Path) ? "-" : status.Path;
+        LogSourceStatusText = string.IsNullOrWhiteSpace(status.Message)
+            ? "Logquelle nicht geprüft."
+            : status.Message;
+    }
+
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+    private void UpdateTargetVersion()
+    {
+        if (!TryParseVersionParts(CurrentVersion, out var major, out var minor, out var patch))
+        {
+            TargetVersion = string.Empty;
+            return;
+        }
+
+        TargetVersion = SelectedVersionBump switch
+        {
+            VersionBumpType.Major => $"{major + 1}.0.0",
+            VersionBumpType.Minor => $"{major}.{minor + 1}.0",
+            _ => $"{major}.{minor}.{patch + 1}"
+        };
+    }
+
+    private static bool TryParseVersionParts(string version, out int major, out int minor, out int patch)
+    {
+        major = 0;
+        minor = 0;
+        patch = 0;
+
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            return false;
+        }
+
+        var match = Regex.Match(version.Trim(), "^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)(?:[.-].*)?$");
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        return int.TryParse(match.Groups["major"].Value, out major)
+               && int.TryParse(match.Groups["minor"].Value, out minor)
+               && int.TryParse(match.Groups["patch"].Value, out patch);
+    }
 
     private static void ValidateRequiredDirectory(string path, string label, List<string> errors)
     {
@@ -147,6 +308,38 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
 
         if (!Directory.Exists(path))
+        {
             errors.Add($"{label} wurde lokal nicht gefunden: {path}");
+        }
+    }
+
+    private static void ValidateRequiredPath(string path, string label, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            errors.Add($"{label} ist ein Pflichtfeld.");
+            return;
+        }
+
+        if (!Path.IsPathRooted(path))
+        {
+            errors.Add($"{label} muss ein absoluter lokaler Pfad sein: {path}");
+        }
+    }
+
+    private static void ValidateOptionalDirectory(string path, string label, List<string> errors)
+    {
+        if (!string.IsNullOrWhiteSpace(path) && !Directory.Exists(path))
+        {
+            errors.Add($"{label} wurde lokal nicht gefunden: {path}");
+        }
+    }
+
+    private static void ValidateOptionalPath(string path, string label, List<string> errors)
+    {
+        if (!string.IsNullOrWhiteSpace(path) && !Path.IsPathRooted(path))
+        {
+            errors.Add($"{label} muss ein absoluter lokaler Pfad sein: {path}");
+        }
     }
 }

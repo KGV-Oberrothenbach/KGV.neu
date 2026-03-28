@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="KGV Release Manager"
-        Height="760"
+        Height="860"
         Width="1180"
         MinWidth="980"
         MinHeight="720">
@@ -37,6 +37,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="200"/>
@@ -56,13 +57,14 @@
                             <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.AabOutputPath, UpdateSourceTrigger=PropertyChanged}"/>
 
                             <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Basisordner für Veröffentlichungen"/>
-                            <TextBox Grid.Row="4" Grid.Column="1" Margin="0,0,0,0" Text="{Binding Settings.ReleaseOutputRootPath, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Settings.ReleaseOutputRootPath, UpdateSourceTrigger=PropertyChanged}"/>
                         </Grid>
                     </GroupBox>
 
                     <GroupBox Header="Android / Play Store" Margin="0,0,0,12">
                         <Grid Margin="12">
                             <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -82,28 +84,15 @@
                             <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Store-URL / Store-Link"/>
                             <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.StoreUrl, UpdateSourceTrigger=PropertyChanged}"/>
 
-                            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Keystore-Pfad (optional)"/>
-                            <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,0" Text="{Binding Settings.AndroidKeystorePath, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Keystore-Pfad"/>
+                            <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.AndroidKeystorePath, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Keystore-Alias"/>
+                            <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Settings.AndroidKeystoreAlias, UpdateSourceTrigger=PropertyChanged}"/>
                         </Grid>
                     </GroupBox>
 
                     <GroupBox Header="Veröffentlichung" Margin="0,0,0,12">
-                        <StackPanel Margin="12" Orientation="Vertical">
-                            <TextBlock Text="Die Konfiguration wird lokal als JSON gespeichert. In diesem Block werden Pfade und optionale Store-Felder nur geladen, validiert und gespeichert; es wird noch keine Release-Automation ausgeführt."
-                                       TextWrapping="Wrap"
-                                       Margin="0,0,0,8"/>
-                            <TextBlock Text="{Binding SettingsStoragePath, StringFormat=Speicherort: {0}}"
-                                       Opacity="0.75"
-                                       TextWrapping="Wrap"
-                                       Margin="0,0,0,12"/>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button Width="170" Margin="0,0,8,0" Click="LoadSettings_Click">Einstellungen neu laden</Button>
-                                <Button Width="170" Click="SaveSettings_Click">Einstellungen speichern</Button>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
-
-                    <GroupBox Header="Release-Konfiguration" Margin="0,0,0,12">
                         <Grid Margin="12">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -116,22 +105,94 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Aktuelle Version"/>
-                            <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,8" Text="{Binding CurrentVersion, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Die Konfiguration wird lokal als JSON gespeichert. In diesem Block werden Pfade und optionale Store-Felder geladen, validiert und gespeichert; sensible Android-Passwörter werden nur zur Laufzeit abgefragt."
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,8"/>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Nächste Version"/>
-                            <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,8" Text="{Binding NextVersion, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="ISCC.exe für WPF-Setup"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.InnoSetupCompilerPath, UpdateSourceTrigger=PropertyChanged}"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Top" Text="Ziele"/>
-                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,8">
-                                <CheckBox Content="WPF" Margin="0,0,16,0" IsChecked="{Binding BuildWpf}"/>
-                                <CheckBox Content="APK" Margin="0,0,16,0" IsChecked="{Binding BuildApk}"/>
-                                <CheckBox Content="AAB" IsChecked="{Binding BuildAab}"/>
-                            </StackPanel>
+                            <TextBlock Grid.Row="2" Grid.ColumnSpan="2"
+                                       Text="{Binding SettingsStoragePath, StringFormat=Speicherort: {0}}"
+                                       Opacity="0.75"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,12"/>
 
                             <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button Width="180" Margin="0,0,8,0" Click="AutoIncrementVersion_Click">Version automatisch erhöhen</Button>
-                                <Button Width="180" Click="CreateReleaseFolder_Click">Releaseordner anlegen</Button>
+                                <Button Width="170" Margin="0,0,8,0" Click="LoadSettings_Click">Einstellungen neu laden</Button>
+                                <Button Width="170" Click="SaveSettings_Click">Einstellungen speichern</Button>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Version" Margin="0,0,0,12">
+                        <Grid Margin="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Aktuelle Version"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Margin="0,0,0,8" VerticalAlignment="Center" Text="{Binding CurrentVersion, TargetNullValue=Nicht erkannt}"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="WPF erkannt"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,0,0,8" VerticalAlignment="Center" Text="{Binding DetectedWpfVersion}"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Android erkannt"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,0,0,8" VerticalAlignment="Center" Text="{Binding DetectedAndroidVersion}"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Versionssprung"/>
+                            <ComboBox Grid.Row="3"
+                                      Grid.Column="1"
+                                      Margin="0,0,0,8"
+                                      ItemsSource="{Binding VersionBumpOptions}"
+                                      SelectedItem="{Binding SelectedVersionBump}"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Vorgeschlagene Zielversion"/>
+                            <TextBlock Grid.Row="4" Grid.Column="1" Margin="0,0,0,8" VerticalAlignment="Center" Text="{Binding TargetVersion, TargetNullValue=-}"/>
+
+                            <TextBlock Grid.Row="5" Grid.ColumnSpan="2" Margin="0,0,0,8" Text="{Binding VersionStatusText}" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Row="6" Grid.ColumnSpan="2" Foreground="DarkGoldenrod" FontWeight="SemiBold" Text="{Binding VersionWarningText}" TextWrapping="Wrap"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Logquelle" Margin="0,0,0,12">
+                        <Grid Margin="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Erkannter Pfad"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Margin="0,0,0,8" Text="{Binding LogSourcePath}" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding LogSourceStatusText}" TextWrapping="Wrap"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Veröffentlichungsordner" Margin="0,0,0,12">
+                        <Grid Margin="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Margin="0,0,0,12" Text="{Binding ReleaseFolderStatusText}" TextWrapping="Wrap"/>
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Width="180" Margin="0,0,8,0" Click="RefreshProjectState_Click">Status neu prüfen</Button>
+                                <Button Width="220" Click="CreateReleaseFolder_Click">Veröffentlichungsordner vorbereiten</Button>
                             </StackPanel>
                         </Grid>
                     </GroupBox>
@@ -157,19 +218,42 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2">
+                    <GroupBox Header="Release" Margin="0,0,0,12">
+                        <Grid Margin="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="{Binding CurrentVersion, StringFormat=Aktuell: {0}}" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="1" Text="{Binding TargetVersion, StringFormat=Ziel: {0}}" Margin="0,0,0,8"/>
+
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+                                <CheckBox Content="WPF Setup" Margin="0,0,12,0" IsChecked="{Binding BuildWpf}"/>
+                                <CheckBox Content="APK" Margin="0,0,12,0" IsChecked="{Binding BuildApk}"/>
+                                <CheckBox Content="AAB" IsChecked="{Binding BuildAab}"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Row="3" Text="{Binding ReleaseStateText}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Width="140" Margin="0,0,8,0" Click="RunDryRelease_Click">Dry Run</Button>
+                                <Button Width="140" Click="RunRelease_Click">Release starten</Button>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+
                     <GroupBox Header="Status" Margin="0,0,0,12">
                         <Grid Margin="12">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="220"/>
-                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="300"/>
                             </Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Margin="0,0,0,8" Text="Ausgabe"/>
                             <TextBox Grid.Row="1" Text="{Binding StatusText}" AcceptsReturn="True" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
-                            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-                                <Button Width="140" Margin="0,0,8,0" Click="RunDryRelease_Click">Dry Run</Button>
-                                <Button Width="140" Click="RunRelease_Click">Release starten</Button>
-                            </StackPanel>
                         </Grid>
                     </GroupBox>
 

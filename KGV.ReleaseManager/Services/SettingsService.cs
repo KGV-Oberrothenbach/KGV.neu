@@ -6,6 +6,12 @@ namespace KGV.ReleaseManager.Services;
 
 public sealed class SettingsService
 {
+    private const string DefaultSourceRepoPath = @"C:\Programmieren\Restore KGV\KGV.neu\03_Arbeitsstand";
+    private const string DefaultWpfTargetRepoPath = @"C:\Programmieren\Restore KGV\KGV-WPF";
+    private const string DefaultReleaseOutputRootPath = @"C:\Programmieren\Restore KGV\Releases\KGV";
+    private const string DefaultApkOutputPath = @"C:\Programmieren\Restore KGV\Releases\KGV\Android\APK";
+    private const string DefaultAabOutputPath = @"C:\Programmieren\Restore KGV\Releases\KGV\Android\AAB";
+
     private readonly string _settingsFilePath;
     private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
 
@@ -17,18 +23,19 @@ public sealed class SettingsService
     public (ReleaseManagerSettings Settings, string Message, bool LoadedFromDisk) Load()
     {
         if (!File.Exists(_settingsFilePath))
-            return (new ReleaseManagerSettings(), "Keine gespeicherten Einstellungen gefunden. Es wird mit leeren Standardwerten gestartet.", false);
+            return (CreateDefaultSettings(), "Keine gespeicherten Einstellungen gefunden. Es wird mit den bestätigten Standardpfaden gestartet.", false);
 
         try
         {
             var json = File.ReadAllText(_settingsFilePath);
-            var settings = JsonSerializer.Deserialize<ReleaseManagerSettings>(json) ?? new ReleaseManagerSettings();
+            var settings = JsonSerializer.Deserialize<ReleaseManagerSettings>(json) ?? CreateDefaultSettings();
+            ApplyFallbackDefaults(settings);
             settings.Normalize();
             return (settings, $"Einstellungen aus `{_settingsFilePath}` geladen.", true);
         }
         catch (Exception ex)
         {
-            return (new ReleaseManagerSettings(), $"Gespeicherte Einstellungen konnten nicht geladen werden. Es wird mit Standardwerten gestartet. Grund: {ex.Message}", false);
+            return (CreateDefaultSettings(), $"Gespeicherte Einstellungen konnten nicht geladen werden. Es wird mit den bestätigten Standardpfaden gestartet. Grund: {ex.Message}", false);
         }
     }
 
@@ -36,6 +43,7 @@ public sealed class SettingsService
     {
         try
         {
+            ApplyFallbackDefaults(settings);
             settings.Normalize();
             var directory = Path.GetDirectoryName(_settingsFilePath);
             if (!string.IsNullOrWhiteSpace(directory))
@@ -48,6 +56,42 @@ public sealed class SettingsService
         catch (Exception ex)
         {
             return (false, $"Einstellungen konnten nicht gespeichert werden: {ex.Message}");
+        }
+    }
+
+    private static ReleaseManagerSettings CreateDefaultSettings()
+    {
+        var settings = new ReleaseManagerSettings();
+        ApplyFallbackDefaults(settings);
+        settings.Normalize();
+        return settings;
+    }
+
+    private static void ApplyFallbackDefaults(ReleaseManagerSettings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.SourceRepoPath))
+        {
+            settings.SourceRepoPath = DefaultSourceRepoPath;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.WpfTargetRepoPath))
+        {
+            settings.WpfTargetRepoPath = DefaultWpfTargetRepoPath;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.ReleaseOutputRootPath))
+        {
+            settings.ReleaseOutputRootPath = DefaultReleaseOutputRootPath;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.ApkOutputPath))
+        {
+            settings.ApkOutputPath = DefaultApkOutputPath;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.AabOutputPath))
+        {
+            settings.AabOutputPath = DefaultAabOutputPath;
         }
     }
 }

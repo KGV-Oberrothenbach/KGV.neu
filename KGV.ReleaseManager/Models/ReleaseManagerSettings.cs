@@ -8,6 +8,7 @@ public sealed class ReleaseManagerSettings
     public string ApkOutputPath { get; set; } = string.Empty;
     public string AabOutputPath { get; set; } = string.Empty;
     public string AndroidKeystorePath { get; set; } = string.Empty;
+    public string AndroidKeystoreAlias { get; set; } = string.Empty;
     public string AndroidPackageName { get; set; } = "de.kgv.oberrothenbach";
     public string PlayTrackName { get; set; } = "internal";
     public string StoreUrl { get; set; } = string.Empty;
@@ -21,6 +22,7 @@ public sealed class ReleaseManagerSettings
         ApkOutputPath = ApkOutputPath?.Trim() ?? string.Empty;
         AabOutputPath = AabOutputPath?.Trim() ?? string.Empty;
         AndroidKeystorePath = AndroidKeystorePath?.Trim() ?? string.Empty;
+        AndroidKeystoreAlias = AndroidKeystoreAlias?.Trim() ?? string.Empty;
         AndroidPackageName = AndroidPackageName?.Trim() ?? string.Empty;
         PlayTrackName = PlayTrackName?.Trim() ?? string.Empty;
         StoreUrl = StoreUrl?.Trim() ?? string.Empty;

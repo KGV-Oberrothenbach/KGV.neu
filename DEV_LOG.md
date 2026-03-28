@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-03-28 – Prompt 4/5: Release Manager echte Release-Ausführung weiter auf reale Pfade und Zielablagen gezogen
+
+- Vor Beginn den realen Istzustand geprüft:
+  - `KGV.ReleaseManager/MainWindow.xaml`
+  - `KGV.ReleaseManager/MainWindow.xaml.cs`
+  - `KGV.ReleaseManager/ViewModels/MainViewModel.cs`
+  - `KGV.ReleaseManager/Services/SettingsService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseArtifactService.cs`
+  - reale Pfade `C:\Programmieren\Restore KGV\KGV.neu\03_Arbeitsstand`, `C:\Programmieren\Restore KGV\KGV-WPF`, `C:\Programmieren\Restore KGV\Releases\KGV`, `...\Android\APK`, `...\Android\AAB`
+  - reale Build-/Versionsstellen in `KGV.Wpf` und `KGV.Maui` nur lesend
+- Ehrlicher Befund:
+  - die Release-Ausführung war im `KGV.ReleaseManager` bereits verdrahtet, vorbelegte bestätigte Pfade fehlten aber noch
+  - `ISCC.exe` ist lokal weiterhin nicht gefunden
+  - im Quellrepo ist weiterhin kein `.iss`-Skript vorhanden
+  - das lokale Repo `KGV-WPF` enthält die Release-Dateien klar im Repo-Root (`KGV-Setup.exe`, `KGV-Setup-0.2.x.exe`, `releases.json`)
+- Minimal ergänzt:
+  - bestätigte Pfade werden jetzt als Default-Settings vorbelegt, ohne einen Fake-Pfad für `ISCC.exe` zu setzen
+  - Release-Validierung erlaubt das spätere Anlegen des Release-Roots statt ihn schon beim Speichern zu verlangen
+  - WPF-Setups werden bei Erfolg zusätzlich in das lokale `KGV-WPF`-Repo kopiert; vorhandenes `KGV-Setup.exe` kann dabei als aktuelle Setup-Datei aktualisiert werden
+  - APK und AAB werden bei Erfolg zusätzlich in die konfigurierten Ausgabeordner kopiert
+- Validierung:
+  - `dotnet restore KGV.ReleaseManager/KGV.ReleaseManager.csproj` erfolgreich
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+
 ## 2026-03-28 – Block 1: Loginfenster/OTP-Flow in WPF und MAUI auf den sichtbaren Stand zurückgezogen
 
 - Zuerst den realen Istzustand im aktuellen Repo geprüft:

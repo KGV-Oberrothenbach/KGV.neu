@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-03-28 – Prompt 4/5: Release Manager auf bestätigte Pfade und reale Zielablagen abgeschlossen
+
+- Vor Beginn den realen Istzustand geprüft:
+  - `KGV.ReleaseManager/MainWindow.xaml`
+  - `KGV.ReleaseManager/MainWindow.xaml.cs`
+  - `KGV.ReleaseManager/ViewModels/MainViewModel.cs`
+  - `KGV.ReleaseManager/Services/SettingsService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseArtifactService.cs`
+  - reale Pfade für Quellrepo, WPF-Zielrepo und Release-Ausgabeordner
+  - reale Versionsfelder in `KGV.Maui/KGV.Maui.csproj` sowie das Fehlen expliziter WPF-Produktversionen
+- Ehrlicher Befund:
+  - die vorherige ReleaseManager-Umsetzung deckte bereits Versionsschreibung, Build-Aufrufe und Rollback ab
+  - die bestätigten lokalen Pfade waren aber noch nicht als Startwerte vorbelegt
+  - der Release-Root durfte laut Fachvorgabe erzeugt werden, wurde in der Settings-Validierung aber noch zu früh als bestehendes Verzeichnis verlangt
+  - `ISCC.exe` und ein `.iss`-Skript sind lokal weiterhin nicht vorhanden
+  - das lokale `KGV-WPF`-Repo hat eine klar erkennbare Root-Struktur für Setup-Dateien
+- Minimal umgesetzt:
+  - bestätigte Standardpfade werden jetzt automatisch in die Settings übernommen, wenn noch keine gespeicherten Werte vorhanden sind
+  - Release-Validierung erlaubt jetzt fehlende, aber absolut angegebene Zielordner für Release-Root, APK und AAB
+  - WPF-Setups werden zusätzlich in das lokale `KGV-WPF`-Repo kopiert, wenn die Zielstruktur eindeutig ist
+  - APK und AAB werden zusätzlich in die konfigurierten Ausgabeordner kopiert
+- Validierung:
+  - `dotnet restore KGV.ReleaseManager/KGV.ReleaseManager.csproj` erfolgreich
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+
 ## 2026-03-28 – Block 1: Loginfenster auf den sichtbaren Stand zurückgebracht
 
 - Vor Beginn den realen Istzustand im Repo geprüft:
