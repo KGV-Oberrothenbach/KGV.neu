@@ -10,6 +10,28 @@ public sealed class RuntimeSecretPromptService
     {
         var storePasswordBox = new PasswordBox { Margin = new Thickness(0, 4, 0, 12), MinWidth = 260 };
         var keyPasswordBox = new PasswordBox { Margin = new Thickness(0, 4, 0, 12), MinWidth = 260 };
+        var samePasswordCheckBox = new CheckBox
+        {
+            Content = "Key-Passwort = Keystore-Passwort",
+            Margin = new Thickness(0, 0, 0, 8),
+            IsChecked = true
+        };
+
+        void ApplyPasswordMode()
+        {
+            var useSamePassword = samePasswordCheckBox.IsChecked == true;
+            keyPasswordBox.IsEnabled = !useSamePassword;
+            keyPasswordBox.Opacity = useSamePassword ? 0.65 : 1.0;
+
+            if (useSamePassword)
+            {
+                keyPasswordBox.Password = string.Empty;
+            }
+        }
+
+        samePasswordCheckBox.Checked += (_, _) => ApplyPasswordMode();
+        samePasswordCheckBox.Unchecked += (_, _) => ApplyPasswordMode();
+        ApplyPasswordMode();
 
         var okButton = new Button { Content = "OK", Width = 90, IsDefault = true, Margin = new Thickness(0, 0, 8, 0) };
         var cancelButton = new Button { Content = "Abbrechen", Width = 90, IsCancel = true };
@@ -34,7 +56,8 @@ public sealed class RuntimeSecretPromptService
                 },
                 new TextBlock { Text = "Keystore-Passwort" },
                 storePasswordBox,
-                new TextBlock { Text = "Key-Passwort (leer = Keystore-Passwort verwenden)" },
+                samePasswordCheckBox,
+                new TextBlock { Text = "Key-Passwort" },
                 keyPasswordBox,
                 buttonPanel
             }
@@ -56,16 +79,24 @@ public sealed class RuntimeSecretPromptService
 
         okButton.Click += (_, _) =>
         {
+            var useSamePassword = samePasswordCheckBox.IsChecked == true;
             if (string.IsNullOrWhiteSpace(storePasswordBox.Password))
             {
                 MessageBox.Show(window, "Das Keystore-Passwort ist erforderlich.", "Android-Signierung", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
+            if (!useSamePassword && string.IsNullOrWhiteSpace(keyPasswordBox.Password))
+            {
+                MessageBox.Show(window, "Das Key-Passwort ist erforderlich, wenn kein gemeinsames Passwort verwendet wird.", "Android-Signierung", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             result = new AndroidSigningSecrets
             {
                 StorePassword = storePasswordBox.Password,
-                KeyPassword = string.IsNullOrWhiteSpace(keyPasswordBox.Password) ? storePasswordBox.Password : keyPasswordBox.Password
+                KeyPassword = useSamePassword ? storePasswordBox.Password : keyPasswordBox.Password,
+                UseSamePasswordForKey = useSamePassword
             };
 
             window.DialogResult = true;

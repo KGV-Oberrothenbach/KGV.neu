@@ -11,6 +11,7 @@ public sealed class ReleaseExecutionRequest
     public string InnoSetupCompilerPath { get; set; } = string.Empty;
     public string AndroidKeystorePath { get; set; } = string.Empty;
     public string AndroidKeystoreAlias { get; set; } = string.Empty;
+    public string AndroidPackageName { get; set; } = string.Empty;
     public string AndroidStorePassword { get; set; } = string.Empty;
     public string AndroidKeyPassword { get; set; } = string.Empty;
     public bool BuildWpf { get; set; }

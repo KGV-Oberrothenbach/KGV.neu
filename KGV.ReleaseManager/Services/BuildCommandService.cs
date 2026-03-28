@@ -6,6 +6,9 @@ namespace KGV.ReleaseManager.Services;
 
 public sealed class BuildCommandService
 {
+    private const string AndroidSigningStorePasswordProperty = "KGV_ANDROID_SIGNING_STORE_PASS";
+    private const string AndroidSigningKeyPasswordProperty = "KGV_ANDROID_SIGNING_KEY_PASS";
+
     public ProcessStartInfo CreateDotnetBuildCommand(string projectPath, string configuration)
     {
         return CreateDotnetCommand(projectPath, $"build \"{projectPath}\" -c {configuration}");
@@ -19,6 +22,7 @@ public sealed class BuildCommandService
     public ProcessStartInfo CreateAndroidPublishCommand(
         string projectPath,
         string packageFormat,
+        string packageName,
         string keystorePath,
         string keyAlias,
         string storePassword,
@@ -27,13 +31,22 @@ public sealed class BuildCommandService
         var arguments = new StringBuilder();
         arguments.Append($"publish \"{projectPath}\" -c Release -f net9.0-android");
         arguments.Append($" /p:AndroidPackageFormat={packageFormat}");
+        arguments.Append(" /p:AndroidCreatePackagePerAbi=false");
         arguments.Append(" /p:AndroidKeyStore=true");
-        arguments.Append($" /p:AndroidSigningKeyStore=\"{keystorePath}\"");
-        arguments.Append($" /p:AndroidSigningStorePass=\"{storePassword}\"");
-        arguments.Append($" /p:AndroidSigningKeyAlias=\"{keyAlias}\"");
-        arguments.Append($" /p:AndroidSigningKeyPass=\"{keyPassword}\"");
+        if (!string.IsNullOrWhiteSpace(packageName))
+        {
+            arguments.Append($" /p:ApplicationId=\"{packageName}\"");
+        }
 
-        return CreateDotnetCommand(projectPath, arguments.ToString());
+        arguments.Append($" /p:AndroidSigningKeyStore=\"{keystorePath}\"");
+        arguments.Append($" /p:AndroidSigningStorePass=$({AndroidSigningStorePasswordProperty})");
+        arguments.Append($" /p:AndroidSigningKeyAlias=\"{keyAlias}\"");
+        arguments.Append($" /p:AndroidSigningKeyPass=$({AndroidSigningKeyPasswordProperty})");
+
+        var startInfo = CreateDotnetCommand(projectPath, arguments.ToString());
+        startInfo.Environment[AndroidSigningStorePasswordProperty] = storePassword;
+        startInfo.Environment[AndroidSigningKeyPasswordProperty] = keyPassword;
+        return startInfo;
     }
 
     public ProcessStartInfo CreateInnoCompileCommand(

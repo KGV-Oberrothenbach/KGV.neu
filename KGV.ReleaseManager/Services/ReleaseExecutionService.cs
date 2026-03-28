@@ -209,18 +209,25 @@ public sealed class ReleaseExecutionService
     {
         var mauiProjectPath = Path.Combine(request.SourceRepoPath, "KGV.Maui", "KGV.Maui.csproj");
         var buildStartedUtc = DateTime.UtcNow;
+        var effectiveKeyPassword = string.IsNullOrWhiteSpace(request.AndroidKeyPassword)
+            ? request.AndroidStorePassword
+            : request.AndroidKeyPassword;
         var androidBuild = await _processExecutionService.RunAsync(
             _buildCommandService.CreateAndroidPublishCommand(
                 mauiProjectPath,
                 packageFormat,
+                request.AndroidPackageName,
                 request.AndroidKeystorePath,
                 request.AndroidKeystoreAlias,
                 request.AndroidStorePassword,
-                request.AndroidKeyPassword),
+                effectiveKeyPassword),
             $"Android {packageFormat.ToUpperInvariant()} Build",
             cancellationToken);
 
-        messages.Add(androidBuild.GetUserFacingMessage());
+        messages.Add(androidBuild.GetUserFacingMessage(
+            request.AndroidStorePassword,
+            effectiveKeyPassword,
+            request.AndroidKeystorePath));
         if (!androidBuild.Success)
         {
             return string.Empty;

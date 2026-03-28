@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 namespace KGV.ReleaseManager.Models;
 
 public sealed class ProcessExecutionResult
@@ -11,10 +15,13 @@ public sealed class ProcessExecutionResult
     public bool Success => ExitCode == 0 && string.IsNullOrWhiteSpace(ExceptionMessage);
 
     public string GetUserFacingMessage()
+        => GetUserFacingMessage(Array.Empty<string>());
+
+    public string GetUserFacingMessage(params string[] sensitiveValues)
     {
         if (!string.IsNullOrWhiteSpace(ExceptionMessage))
         {
-            return $"{StepName} konnte nicht gestartet werden: {ExceptionMessage}";
+            return $"{StepName} konnte nicht gestartet werden: {Redact(ExceptionMessage, sensitiveValues)}";
         }
 
         if (Success)
@@ -27,6 +34,17 @@ public sealed class ProcessExecutionResult
             : StandardError;
 
         detail = string.IsNullOrWhiteSpace(detail) ? "Keine weitere Prozessausgabe verfügbar." : detail.Trim();
-        return $"{StepName} fehlgeschlagen (ExitCode {ExitCode}). {detail}";
+        return $"{StepName} fehlgeschlagen (ExitCode {ExitCode}). {Redact(detail, sensitiveValues)}";
+    }
+
+    private static string Redact(string text, IReadOnlyList<string> sensitiveValues)
+    {
+        var sanitized = text;
+        foreach (var sensitiveValue in sensitiveValues.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.Ordinal))
+        {
+            sanitized = sanitized.Replace(sensitiveValue, "***", StringComparison.Ordinal);
+        }
+
+        return sanitized;
     }
 }

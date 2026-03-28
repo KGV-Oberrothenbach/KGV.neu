@@ -2,6 +2,18 @@
 
 Alle nennenswerten Änderungen am KGV Release Manager werden hier dokumentiert.
 
+## [0.1.6-internal] - 2026-03-28
+### Hinzugefügt
+- Laufzeitoption für Android-Signing mit `Key-Passwort = Keystore-Passwort` direkt im Signierungsdialog
+
+### Geändert
+- Android-Signing-Passwörter laufen jetzt nur noch über temporäre Prozess-Umgebungsvariablen statt als Klartext in der `dotnet publish`-Commandline
+- Android-Buildbefehle erzwingen jetzt eine einzelne Artefaktausgabe und können den konfigurierten `ApplicationId`-/Package-Name sauber in den Build übernehmen
+- fehlgeschlagene Android-Buildmeldungen schwärzen Laufzeitpasswörter aus UI- und Statusausgaben
+
+### Behoben
+- bisher hätten Android-Signing-Passwörter im Fehlerfall über Prozessausgaben oder über die Build-Commandline sichtbar werden können
+
 ## [0.1.5-internal] - 2026-03-28
 ### Hinzugefügt
 - reales Inno-Setup-Skript unter `KGV.Wpf/Installer/KGV.Wpf.iss` als stabile Grundlage für den WPF-Installerpfad

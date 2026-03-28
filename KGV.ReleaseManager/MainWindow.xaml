@@ -38,6 +38,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="200"/>
@@ -69,6 +70,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="200"/>
@@ -89,6 +91,12 @@
 
                             <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Keystore-Alias"/>
                             <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Settings.AndroidKeystoreAlias, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Grid.Row="5" Grid.ColumnSpan="2"
+                                       Margin="0,8,0,0"
+                                       Opacity="0.75"
+                                       Text="Keystore- und Key-Passwort werden nur zur Laufzeit im Release-Dialog abgefragt und nicht in den Settings gespeichert."
+                                       TextWrapping="Wrap"/>
                         </Grid>
                     </GroupBox>
 

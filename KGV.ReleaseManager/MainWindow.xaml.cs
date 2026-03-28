@@ -276,6 +276,9 @@ public partial class MainWindow : Window
 
             request.AndroidStorePassword = secrets.StorePassword;
             request.AndroidKeyPassword = secrets.KeyPassword;
+            _viewModel.AppendStatus(secrets.UseSamePasswordForKey
+                ? "Android-Signierung nutzt für diesen Lauf ein gemeinsames Keystore-/Key-Passwort."
+                : "Android-Signierung nutzt für diesen Lauf getrennte Laufzeitpasswörter.");
         }
         else if (request.BuildApk || request.BuildAab)
         {
@@ -286,9 +289,18 @@ public partial class MainWindow : Window
         _viewModel.ReleaseStateText = isDryRun ? "Dry Run läuft..." : "Release läuft...";
         _viewModel.AppendStatus(_viewModel.ReleaseStateText);
 
-        var result = isDryRun
-            ? await _releaseExecutionService.ValidateAsync(request)
-            : await _releaseExecutionService.ExecuteAsync(request);
+        ReleaseExecutionResult result;
+        try
+        {
+            result = isDryRun
+                ? await _releaseExecutionService.ValidateAsync(request)
+                : await _releaseExecutionService.ExecuteAsync(request);
+        }
+        finally
+        {
+            request.AndroidStorePassword = string.Empty;
+            request.AndroidKeyPassword = string.Empty;
+        }
 
         foreach (var line in result.Messages.Where(line => !string.IsNullOrWhiteSpace(line)))
         {
@@ -325,6 +337,7 @@ public partial class MainWindow : Window
             InnoSetupCompilerPath = _viewModel.Settings.InnoSetupCompilerPath,
             AndroidKeystorePath = _viewModel.Settings.AndroidKeystorePath,
             AndroidKeystoreAlias = _viewModel.Settings.AndroidKeystoreAlias,
+            AndroidPackageName = _viewModel.Settings.AndroidPackageName,
             BuildWpf = _viewModel.BuildWpf,
             BuildApk = _viewModel.BuildApk,
             BuildAab = _viewModel.BuildAab

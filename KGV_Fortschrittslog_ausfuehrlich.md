@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-03-28 – Inbetriebnahme Block 2/3: Android-Signing-Pfad im Release Manager mit Laufzeitpasswörtern gehärtet
+
+- Vor Beginn den realen Istzustand geprüft:
+  - `KGV.ReleaseManager/Services/BuildCommandService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
+  - `KGV.ReleaseManager/Services/RuntimeSecretPromptService.cs`
+  - `KGV.ReleaseManager/Models/ReleaseManagerSettings.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+- Ehrlicher Befund:
+  - Keystore-Pfad, Alias und Package Name waren bereits vorhanden
+  - Laufzeitpasswörter wurden nicht gespeichert, liefen aber noch als Klartext in der Android-Build-Commandline
+  - der Komfortfall `Key-Passwort = Keystore-Passwort` war noch nicht explizit im Dialog sichtbar
+- Minimal umgesetzt:
+  - Signierungsdialog mit expliziter Option `Key-Passwort = Keystore-Passwort`
+  - Android-Passwörter laufen jetzt über temporäre Prozess-Umgebungsvariablen statt Klartext-Commandline
+  - Android-Buildpfad übernimmt jetzt den konfigurierten Package Name als `ApplicationId`
+  - Android-Fehlertexte schwärzen Laufzeitpasswörter
+  - Laufzeitpasswörter werden nach dem Lauf aus dem Requestobjekt geleert
+- Validierung:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+  - servicebasierter Test bestätigt: keine Klartextpasswörter in der Commandline, keine Passwortspeicherung in Settings, verständliche Meldungen für fehlenden Keystore/Alias
+
 ## 2026-03-28 – Inbetriebnahme Block 1/3: reales Inno-Setup-Skript für den WPF-Releasepfad ergänzt
 
 - Vor Beginn den realen Istzustand geprüft:

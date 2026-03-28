@@ -1,5 +1,61 @@
 # KGV Fortschritt ausführlich
 
+## Stand 2026-03-28 – Interner Inbetriebnahmeblock: Android-Signing-Pfad mit Laufzeitpasswörtern produktionsreif gehärtet
+
+### Ziel dieses Schritts
+Nur innerhalb von `KGV.ReleaseManager/` den Android-Signing-Pfad so absichern, dass signierte APK- und AAB-Builds mit Laufzeitpasswörtern sauber vorbereitet, ohne Klartextspeicherung verwendet und mit verständlichen Fehlern validiert werden können.
+
+### Geprüft
+- vorhandene Android-Settings im Release Manager:
+  - `AndroidKeystorePath`
+  - `AndroidKeystoreAlias`
+  - `AndroidPackageName`
+  - `PlayTrackName`
+- reale Android-Buildparameter im Quellrepo:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - reale Release-/Debug-Property-Groups für `AndroidPackageFormat`, `AndroidKeyStore` und `AndroidCreatePackagePerAbi`
+- vorhandener Laufzeitdialog `RuntimeSecretPromptService`
+- bestehende Android-Buildverkabelung in `BuildCommandService` und `ReleaseExecutionService`
+
+### Ehrlicher Istzustand vor Umsetzung
+- Keystore-Pfad, Alias und Package Name waren bereits als Settings vorhanden
+- Store- und Key-Passwort wurden bereits nur zur Laufzeit abgefragt und nicht persistiert
+- die `dotnet publish`-Commandline trug die Signing-Passwörter aber noch direkt als MSBuild-Parameter
+- Android-Fehlertexte hätten Laufzeitpasswörter im Fehlerfall potenziell in Statusausgaben sichtbar machen können
+- der Komfortfall `Key-Passwort = Keystore-Passwort` war nur implizit über ein leeres Feld gelöst, noch nicht als klare Option
+
+### Umgesetzt
+- Android-Signierungsdialog ergänzt um die explizite Laufzeitoption `Key-Passwort = Keystore-Passwort`
+- `AndroidSigningSecrets` erweitert, damit der aktuelle Laufmodus ohne Passwortinhalte nachvollziehbar bleibt
+- Android-Buildkommandos verwenden jetzt echte temporäre Prozess-Umgebungsvariablen für Store-/Key-Passwort statt Klartext in der Commandline
+- Android-Buildkommandos erzwingen jetzt `AndroidCreatePackagePerAbi=false`, damit für Release Manager-Läufe eine einzelne signierte APK bzw. AAB sauber gefunden werden kann
+- konfigurierter `AndroidPackageName` wird jetzt produktiv als `ApplicationId`-Override in den Android-Buildpfad übernommen
+- Android-Prozessmeldungen schwärzen Laufzeitpasswörter aus Status- und Fehlertexten
+- Laufzeitpasswörter werden nach der Release-Ausführung im Requestobjekt direkt wieder geleert
+- UI-Hinweis ergänzt, dass Keystore- und Key-Passwort nicht in den Settings gespeichert werden
+
+### Ergebnis
+- Android-Signing ist im Release Manager jetzt fachlich sauberer für signierte APK- und AAB-Läufe vorbereitet
+- Laufzeitpasswörter werden weiterhin nicht gespeichert und zusätzlich nicht mehr über die Build-Commandline transportiert
+- Fehler bei fehlendem Keystore oder fehlendem Alias bleiben verständlich, ohne Passwörter in Statusmeldungen zu leaken
+
+### Validierung
+- `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
+- `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich, nur bereits bekannte Warnungen
+- `dotnet build KGV.slnx -c Debug` erfolgreich
+- servicebasierte Validierung bestätigt:
+  - Android-Buildcommand enthält keine Klartextpasswörter mehr
+  - Laufzeitpasswörter liegen nur in temporären Prozess-Umgebungsvariablen
+  - Settings-Datei speichert keine Passwortfelder
+  - fehlender Keystore liefert verständliche Meldung
+  - fehlender Alias liefert verständliche Meldung
+  - redigierte Fehlertexte enthalten keine Laufzeitpasswörter
+
+### Abgrenzung
+- keine Änderungen an MAUI-Produktcode oder Android-App-Logik außerhalb des Release Managers
+- keine Änderungen am WPF-Installerpfad außer unverändertem Parallelbetrieb
+- kein echter End-to-End-Signbuild mit produktivem Keystore durchgeführt, weil sensible reale Daten in diesem Block nicht verwendet wurden
+
 ## Stand 2026-03-28 – Interner Inbetriebnahmeblock: reales Inno-Setup-Skript für den WPF-Installerpfad ergänzt
 
 ### Ziel dieses Schritts
