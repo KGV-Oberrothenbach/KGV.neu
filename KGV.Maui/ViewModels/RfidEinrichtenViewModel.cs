@@ -15,6 +15,8 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
     private readonly IAuthService _authService;
     private ParzelleRecord? _selectedParzelle;
     private RfidMediumOption? _selectedMedium;
+    private bool _editHatStrom;
+    private bool _editHatWasser;
     private string _uidInput = string.Empty;
     private string _statusMessage = string.Empty;
     private bool _isBusy;
@@ -36,6 +38,10 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
     public bool HasSelectedParzelle => SelectedParzelle != null;
     public bool SelectedParzelleHatStrom => SelectedParzelle?.HatStrom == true;
     public bool SelectedParzelleHatWasser => SelectedParzelle?.HatWasser == true;
+    public bool CanEditAusstattung => ShowAssignmentStep && HasSelectedParzelle && !IsBusy && IsAuthorized;
+    public bool HasAusstattungChanges => SelectedParzelle != null
+        && (EditHatStrom != SelectedParzelle.HatStrom || EditHatWasser != SelectedParzelle.HatWasser);
+    public bool CanSaveAusstattung => CanEditAusstattung && HasAusstattungChanges;
     public string CurrentStromRfid => SelectedParzelle?.StromRfidDisplay ?? "Nicht hinterlegt";
     public string CurrentWasserRfid => SelectedParzelle?.WasserRfidDisplay ?? "Nicht hinterlegt";
     public bool HasResolvedScan => ScanResolution != null;
@@ -64,6 +70,8 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(ShowKnownTagResult));
             OnPropertyChanged(nameof(ScannedUidDisplay));
             OnPropertyChanged(nameof(ExistingTagSummary));
+            OnPropertyChanged(nameof(CanEditAusstattung));
+            OnPropertyChanged(nameof(CanSaveAusstattung));
             OnPropertyChanged(nameof(CanCheck));
             OnPropertyChanged(nameof(CanSave));
         }
@@ -78,10 +86,14 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
                 return;
 
             _selectedParzelle = value;
+            SyncEditAusstattungFromSelectedParzelle();
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasSelectedParzelle));
             OnPropertyChanged(nameof(SelectedParzelleHatStrom));
             OnPropertyChanged(nameof(SelectedParzelleHatWasser));
+            OnPropertyChanged(nameof(CanEditAusstattung));
+            OnPropertyChanged(nameof(HasAusstattungChanges));
+            OnPropertyChanged(nameof(CanSaveAusstattung));
             OnPropertyChanged(nameof(CurrentStromRfid));
             OnPropertyChanged(nameof(CurrentWasserRfid));
             _ = RefreshMediumOptionsAsync();
@@ -100,6 +112,36 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
             _selectedMedium = value;
             OnPropertyChanged();
             ResetCheckState();
+        }
+    }
+
+    public bool EditHatStrom
+    {
+        get => _editHatStrom;
+        set
+        {
+            if (_editHatStrom == value)
+                return;
+
+            _editHatStrom = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasAusstattungChanges));
+            OnPropertyChanged(nameof(CanSaveAusstattung));
+        }
+    }
+
+    public bool EditHatWasser
+    {
+        get => _editHatWasser;
+        set
+        {
+            if (_editHatWasser == value)
+                return;
+
+            _editHatWasser = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasAusstattungChanges));
+            OnPropertyChanged(nameof(CanSaveAusstattung));
         }
     }
 
@@ -142,6 +184,8 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
 
             _isBusy = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(CanEditAusstattung));
+            OnPropertyChanged(nameof(CanSaveAusstattung));
             OnPropertyChanged(nameof(CanCheck));
             OnPropertyChanged(nameof(CanSave));
         }
@@ -156,6 +200,59 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
         }
 
         await LoadParzellenAsync();
+    }
+
+    public async Task<bool> SaveAusstattungAsync()
+    {
+        if (!CanEditAusstattung || SelectedParzelle == null)
+            return false;
+
+        IsBusy = true;
+        try
+        {
+            var record = new ParzelleRecord
+            {
+                Id = SelectedParzelle.Id,
+                GartenNr = SelectedParzelle.GartenNr,
+                Anlage = SelectedParzelle.Anlage,
+                FlaecheQm = SelectedParzelle.FlaecheQm,
+                HatStrom = EditHatStrom,
+                HatWasser = EditHatWasser,
+                RfidStrom = SelectedParzelle.RfidStrom,
+                RfidWasser = SelectedParzelle.RfidWasser,
+                Aktiv = SelectedParzelle.Aktiv,
+                IsDemo = SelectedParzelle.IsDemo
+            };
+
+            var saved = await _supabaseService.UpdateParzelleStammdatenAsync(record);
+            if (!saved)
+            {
+                StatusMessage = "Ausstattung konnte nicht gespeichert werden.";
+                return false;
+            }
+
+            SelectedParzelle.HatStrom = EditHatStrom;
+            SelectedParzelle.HatWasser = EditHatWasser;
+            ResetCheckState(clearStatus: false);
+            OnPropertyChanged(nameof(SelectedParzelleHatStrom));
+            OnPropertyChanged(nameof(SelectedParzelleHatWasser));
+            OnPropertyChanged(nameof(HasAusstattungChanges));
+            OnPropertyChanged(nameof(CanSaveAusstattung));
+
+            await RefreshMediumOptionsAsync();
+
+            StatusMessage = "Ausstattung gespeichert. Die Medium-Auswahl wurde aktualisiert.";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ausstattung konnte nicht gespeichert werden: {ex.Message}";
+            return false;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     public async Task<RfidAssignmentCheckResult> CheckAsync()
@@ -338,6 +435,23 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
 
         OnPropertyChanged(nameof(CanCheck));
         OnPropertyChanged(nameof(CanSave));
+    }
+
+    private void SyncEditAusstattungFromSelectedParzelle()
+    {
+        var hatStrom = _selectedParzelle?.HatStrom == true;
+        var hatWasser = _selectedParzelle?.HatWasser == true;
+        var stromChanged = _editHatStrom != hatStrom;
+        var wasserChanged = _editHatWasser != hatWasser;
+
+        _editHatStrom = hatStrom;
+        _editHatWasser = hatWasser;
+
+        if (stromChanged)
+            OnPropertyChanged(nameof(EditHatStrom));
+
+        if (wasserChanged)
+            OnPropertyChanged(nameof(EditHatWasser));
     }
 
     private void ResetCheckState(bool clearStatus = true)

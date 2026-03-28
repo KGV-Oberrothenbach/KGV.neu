@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: MAUI-RFID-Ausstattung im bestehenden RFID-Pfad bearbeitbar gemacht
+
+- Vor Beginn den realen Istzustand im Repo geprüft:
+  - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
+  - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
+  - `KGV.Core/Models/ParzelleRecord.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - `hat Strom` und `hat Wasser` waren im RFID-Pfad bereits sichtbar, aber nur read-only
+  - Änderungen an der Ausstattung erforderten dadurch unnötig einen Wechsel in einen anderen Stammdatenbereich
+  - der bestehende Shared-Persistenzpfad `UpdateParzelleStammdatenAsync(ParzelleRecord)` war bereits vorhanden und für diese kleine Ergänzung ausreichend
+- Minimal umgesetzt, ohne neuen Fachumfang:
+  - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
+    - editierbare Properties `EditHatStrom` und `EditHatWasser` ergänzt
+    - `HasAusstattungChanges`, `CanEditAusstattung` und `CanSaveAusstattung` ergänzt
+    - beim Wechsel der gewählten Parzelle werden die Edit-Werte jetzt aus `SelectedParzelle` initialisiert
+    - `SaveAusstattungAsync()` speichert die Änderungen über `UpdateParzelleStammdatenAsync(...)`
+    - nach erfolgreichem Speichern werden `SelectedParzelle`, relevante PropertyChanged-Ziele und `MediumOptions` direkt synchronisiert
+  - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
+    - die beiden Ausstattungsswitches auf editierbares TwoWay-Binding umgestellt
+    - Button `Ausstattung speichern` ergänzt
+    - bestehende RFID-Anzeigen und der vorhandene Prüf-/Speicherpfad bleiben unverändert erhalten
+- Fachliches Ergebnis:
+  - Admin/Vorstand können die Ausstattung `hat Strom` / `hat Wasser` jetzt direkt im RFID-Pfad anpassen und speichern
+  - vorhandene Parzellen-Stammdaten werden wiederverwendet; es wurde kein neuer Spezial-Service eröffnet
+  - der Medium-Picker wird nach dem Speichern sofort neu geladen und bereinigt dadurch ungültige Auswahlen sauber
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
+
 ## 2026-03-28 – Prompt 1/1: MAUI-Parzellen-Bearbeiten von Stammdatenanzeige getrennt und RFID-Ausstattung sichtbar gemacht
 
 - Vor Beginn den realen Istzustand im Repo geprüft:

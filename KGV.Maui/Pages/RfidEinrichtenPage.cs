@@ -50,11 +50,17 @@ public sealed class RfidEinrichtenPage : ContentPage
         parzellePicker.SetBinding(Picker.ItemsSourceProperty, nameof(RfidEinrichtenViewModel.Parzellen));
         parzellePicker.SetBinding(Picker.SelectedItemProperty, nameof(RfidEinrichtenViewModel.SelectedParzelle), BindingMode.TwoWay);
 
-        var hatStromSwitch = new Switch { IsEnabled = false };
-        hatStromSwitch.SetBinding(Switch.IsToggledProperty, nameof(RfidEinrichtenViewModel.SelectedParzelleHatStrom));
+        var hatStromSwitch = new Switch();
+        hatStromSwitch.SetBinding(Switch.IsToggledProperty, nameof(RfidEinrichtenViewModel.EditHatStrom), BindingMode.TwoWay);
+        hatStromSwitch.SetBinding(IsEnabledProperty, nameof(RfidEinrichtenViewModel.CanEditAusstattung));
 
-        var hatWasserSwitch = new Switch { IsEnabled = false };
-        hatWasserSwitch.SetBinding(Switch.IsToggledProperty, nameof(RfidEinrichtenViewModel.SelectedParzelleHatWasser));
+        var hatWasserSwitch = new Switch();
+        hatWasserSwitch.SetBinding(Switch.IsToggledProperty, nameof(RfidEinrichtenViewModel.EditHatWasser), BindingMode.TwoWay);
+        hatWasserSwitch.SetBinding(IsEnabledProperty, nameof(RfidEinrichtenViewModel.CanEditAusstattung));
+
+        var saveAusstattungButton = new Button { Text = "Ausstattung speichern" };
+        saveAusstattungButton.SetBinding(IsEnabledProperty, nameof(RfidEinrichtenViewModel.CanSaveAusstattung));
+        saveAusstattungButton.Clicked += async (_, _) => await _viewModel.SaveAusstattungAsync();
 
         var ausstattungSection = new VerticalStackLayout
         {
@@ -63,7 +69,8 @@ public sealed class RfidEinrichtenPage : ContentPage
             {
                 new Label { Text = "Ausstattung", FontAttributes = FontAttributes.Bold },
                 CreateDisplaySwitchField("hat Strom", hatStromSwitch),
-                CreateDisplaySwitchField("hat Wasser", hatWasserSwitch)
+                CreateDisplaySwitchField("hat Wasser", hatWasserSwitch),
+                saveAusstattungButton
             }
         };
         ausstattungSection.SetBinding(IsVisibleProperty, nameof(RfidEinrichtenViewModel.HasSelectedParzelle));
