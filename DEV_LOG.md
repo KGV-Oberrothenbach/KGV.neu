@@ -2,6 +2,43 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: MAUI-Parzellenverwaltung um Listenansicht und Suche ergänzt
+
+- Zuerst den echten Istzustand im aktuellen Repo geprüft:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Core/Models/ParzelleVerwaltungItem.cs`
+  - realen Git-Status über den vorgegebenen Visual-Studio-Git-Pfad
+- Reale Ursache, warum die Liste bisher fehlte:
+  - `ParzellenPage` sprang direkt in den bestehenden Detailpfad
+  - im `ParzellenViewModel` gab es nur die interne Sammlung `Items`, aber keine such-/listenfähige, an die UI gebundene Übersicht
+  - dadurch existierte keine echte auswählbare Parzellenliste und keine Suche oberhalb der Detailansicht
+- Minimal ergänzt, ohne neuen Fachumfang:
+  - `KGV.Core/Models/ParzelleVerwaltungItem.cs`
+    - listenbezogene Anzeige für Pächter als `Name, Vorname`
+    - SortKey- und Search-Text für stabile Sortierung und Filterung ergänzt
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+    - `FilteredItems` und `SearchText` ergänzt
+    - Filterung nach `Garten Nr` und Pächtername ergänzt
+    - stabile Sortierung nach vorhandenem `GartenNrSortKey` gezogen
+    - bestehende Detailladung bleibt weiter an `SelectedItem` und `GetParzelleDetailAsync(...)` gebunden
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+    - oberhalb der bestehenden Detailsektionen eine suchbare `CollectionView` ergänzt
+    - Liste zeigt je Eintrag nur `Garten Nr` und den aktuellen Pächter
+    - freie Parzellen werden neutral als `Nicht verpachtet` angezeigt
+    - Detailsektionen darunter bleiben auf dem bestehenden Pfad erhalten
+- Ergebnis:
+  - Suche filtert nach `Garten Nr` und Pächtername
+  - Antippen eines Listeneintrags setzt `SelectedItem`
+  - die vorhandenen Stammdaten-/Belegungsdetails werden darunter weiter über den bestehenden Pfad geladen
+  - der Mitglieds-/Kontextpfad bleibt erhalten, weil weiterhin dieselbe `SelectedItem`- und Context-Logik verwendet wird
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - im MAUI-Build bleiben nur die bereits bekannten Warnungen (`XA1037`, Nullability in `KGV.Maui/Pages/HomeManagementPage.cs`)
+
 ## 2026-03-27 – Prompt 3/3 Abschluss: MAUI-Parzellenverwaltung und RFID-Einrichten gegen den realen Blockstand validiert, Restfehler bereinigt und Abschluss vorbereitet
 
 - Zuerst den echten Istzustand des begonnenen Parzellen-/RFID-Blocks geprüft:

@@ -4,11 +4,15 @@ namespace KGV.Core.Models
     {
         public int ParzelleId { get; set; }
         public string GartenNr { get; set; } = string.Empty;
+        public string GartenNrSortKey { get; set; } = string.Empty;
         public string Anlage { get; set; } = string.Empty;
         public int? MitgliedId { get; set; }
         public string MitgliedName { get; set; } = string.Empty;
+        public string PaechterDisplayText { get; set; } = "Nicht verpachtet";
         public bool IstVergeben { get; set; }
         public string StatusText { get; set; } = string.Empty;
+
+        public string SearchText => $"{GartenNr} {MitgliedName} {PaechterDisplayText}".Trim();
 
         public string DisplayText
         {

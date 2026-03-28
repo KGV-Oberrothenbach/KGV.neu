@@ -35,6 +35,52 @@ public sealed class ParzellenPage : ContentPage
         var refreshButton = new Button { Text = "Aktualisieren" };
         refreshButton.Clicked += async (_, _) => await _viewModel.RefreshAsync();
 
+        var searchBar = new SearchBar { Placeholder = "Nach Garten Nr oder Pächter suchen" };
+        searchBar.SetBinding(SearchBar.TextProperty, nameof(ParzellenViewModel.SearchText), BindingMode.TwoWay);
+
+        var listEmptyLabel = new Label
+        {
+            Text = "Keine Parzellen für die aktuelle Suche gefunden.",
+            TextColor = Colors.Gray,
+            HorizontalTextAlignment = Microsoft.Maui.TextAlignment.Center,
+            VerticalTextAlignment = Microsoft.Maui.TextAlignment.Center
+        };
+
+        var parzellenList = new CollectionView
+        {
+            SelectionMode = SelectionMode.Single,
+            HeightRequest = 260,
+            EmptyView = listEmptyLabel,
+            ItemTemplate = new DataTemplate(() =>
+            {
+                var gartenNrLabel = new Label { FontAttributes = FontAttributes.Bold, FontSize = 16 };
+                gartenNrLabel.SetBinding(Label.TextProperty, nameof(ParzelleVerwaltungItem.GartenNr));
+
+                var paechterLabel = new Label { TextColor = Colors.Gray, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap };
+                paechterLabel.SetBinding(Label.TextProperty, nameof(ParzelleVerwaltungItem.PaechterDisplayText));
+
+                return new Border
+                {
+                    Stroke = Colors.LightGray,
+                    Padding = 12,
+                    Margin = new Microsoft.Maui.Thickness(0, 0, 0, 8),
+                    Content = new VerticalStackLayout
+                    {
+                        Spacing = 4,
+                        Children =
+                        {
+                            gartenNrLabel,
+                            paechterLabel
+                        }
+                    }
+                };
+            })
+        };
+        parzellenList.SetBinding(ItemsView.ItemsSourceProperty, nameof(ParzellenViewModel.FilteredItems));
+        parzellenList.SetBinding(SelectableItemsView.SelectedItemProperty, nameof(ParzellenViewModel.SelectedItem), BindingMode.TwoWay);
+
+        var listSection = CreateSection("Parzellenübersicht", searchBar, parzellenList);
+
         var backToMemberButton = new Button { Text = "Zur Stammdatenansicht" };
         backToMemberButton.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsContextBound));
         backToMemberButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(MeineDatenPage));
@@ -247,6 +293,7 @@ public sealed class ParzellenPage : ContentPage
                     backToMemberButton,
                     clearContextButton,
                     refreshButton,
+                    listSection,
                     selectionHint,
                     detailContainer,
                     statusLabel

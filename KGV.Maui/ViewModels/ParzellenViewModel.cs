@@ -17,10 +17,12 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
 {
     private readonly ISupabaseService _supabaseService;
     private readonly ParzellenContextState _parzellenContextState;
+    private readonly List<ParzelleVerwaltungItem> _allItems = new();
     private ParzelleVerwaltungItem? _selectedItem;
     private ParzelleDetailDTO? _selectedDetail;
     private MemberDTO? _selectedAssignMember;
     private DateTime _assignVonDatum = DateTime.Today;
+    private string _searchText = string.Empty;
     private string _statusMessage = string.Empty;
     private bool _isBusy;
     private bool _isAssignMode;
@@ -42,6 +44,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ObservableCollection<ParzelleVerwaltungItem> Items { get; } = new();
+    public ObservableCollection<ParzelleVerwaltungItem> FilteredItems { get; } = new();
     public ObservableCollection<MemberDTO> AssignableMembers { get; } = new();
     public ObservableCollection<ZaehlerAblesungDTO> StromAblesungen { get; } = new();
     public ObservableCollection<ZaehlerAblesungDTO> WasserAblesungen { get; } = new();
@@ -57,6 +60,21 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         ? "Parzellenstammdaten bleiben hier fachlich getrennt von Ablesen, Wartungsverträgen und sonstigen Verwaltungsblöcken."
         : "Stammdaten, Belegung und Bearbeitung bleiben hier fachlich getrennt von Ablesen und anderen Verwaltungsblöcken.";
     public bool IsContextBound => _parzellenContextState.IsFromMemberContext;
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (string.Equals(_searchText, value, StringComparison.Ordinal))
+                return;
+
+            _searchText = value ?? string.Empty;
+            OnPropertyChanged();
+            ApplyFilter();
+        }
+    }
+    public bool HasFilteredItems => FilteredItems.Count > 0;
+    public bool ShowFilteredEmptyState => !IsBusy && Items.Count > 0 && FilteredItems.Count == 0;
 
     public ParzelleVerwaltungItem? SelectedItem
     {
@@ -72,6 +90,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(CanSelectNext));
             OnPropertyChanged(nameof(NavigationText));
             OnPropertyChanged(nameof(SelectedParzelleDisplayName));
+            OnPropertyChanged(nameof(ShowSelectionHint));
             _ = LoadSelectedDetailAsync();
         }
     }
@@ -102,7 +121,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     }
 
     public bool HasSelectedDetail => SelectedDetail != null;
-    public bool ShowSelectionHint => !HasSelectedDetail;
+    public bool ShowSelectionHint => !HasSelectedDetail && HasFilteredItems;
     public bool CanManageAssignment => HasSelectedDetail && !IsBusy;
     public bool CanAssign => CanManageAssignment && IsAssignMode && SelectedAssignMember != null;
     public bool CanStartAssign => CanManageAssignment && SelectedDetail?.IstVergeben == false && !IsAssignMode;
@@ -317,6 +336,8 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     public async Task RefreshAsync()
     {
         Items.Clear();
+        FilteredItems.Clear();
+        _allItems.Clear();
         SelectedItem = null;
         SelectedDetail = null;
         await LoadAsync(resetItems: true);
@@ -678,6 +699,8 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
             if (resetItems)
             {
                 Items.Clear();
+                FilteredItems.Clear();
+                _allItems.Clear();
                 AssignableMembers.Clear();
                 SelectedAssignMember = null;
                 ClearDetailCollections();
@@ -706,25 +729,29 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
                 .Where(x => x != null)
                 .ToDictionary(x => x!.ParzelleId, x => x!);
 
-            foreach (var parzelle in parzellen)
+            foreach (var parzelle in parzellen.OrderBy(x => x.GartenNrSortKey, StringComparer.CurrentCultureIgnoreCase))
             {
                 currentByParzelle.TryGetValue(parzelle.Id, out var belegung);
                 mitgliederById.TryGetValue(belegung?.MitgliedId ?? 0, out var mitglied);
 
-                Items.Add(new ParzelleVerwaltungItem
+                var item = new ParzelleVerwaltungItem
                 {
                     ParzelleId = parzelle.Id,
                     GartenNr = parzelle.GartenNr,
+                    GartenNrSortKey = parzelle.GartenNrSortKey,
                     Anlage = parzelle.Anlage,
                     MitgliedId = belegung?.MitgliedId,
                     MitgliedName = FormatMemberName(mitglied),
+                    PaechterDisplayText = FormatPaechterListName(mitglied),
                     IstVergeben = belegung != null,
                     StatusText = belegung != null ? "vergeben" : "frei"
-                });
+                };
+
+                _allItems.Add(item);
+                Items.Add(item);
             }
 
-            if (SelectedItem == null && Items.Count > 0)
-                SelectedItem = Items[0];
+            ApplyFilter();
 
             StatusMessage = Items.Count == 0 ? "Keine Parzellen geladen." : string.Empty;
         }
@@ -823,6 +850,41 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
 
         var name = $"{member.Vorname} {member.Name}".Trim();
         return string.IsNullOrWhiteSpace(name) ? (member.Email ?? string.Empty) : name;
+    }
+
+    private static string FormatPaechterListName(MitgliedRecord? member)
+    {
+        if (member == null)
+            return "Nicht verpachtet";
+
+        var nachname = member.Name?.Trim() ?? string.Empty;
+        var vorname = member.Vorname?.Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(nachname) && !string.IsNullOrWhiteSpace(vorname))
+            return $"{nachname}, {vorname}";
+
+        var combined = string.Join(", ", new[] { nachname, vorname }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        return string.IsNullOrWhiteSpace(combined) ? (member.Email ?? "Nicht verpachtet") : combined;
+    }
+
+    private void ApplyFilter()
+    {
+        var search = SearchText.Trim();
+        var filtered = string.IsNullOrWhiteSpace(search)
+            ? _allItems
+            : _allItems
+                .Where(x => x.SearchText.Contains(search, StringComparison.CurrentCultureIgnoreCase))
+                .ToList();
+
+        FillCollection(FilteredItems, filtered);
+
+        if (SelectedItem != null && !FilteredItems.Contains(SelectedItem))
+        {
+            SelectedItem = null;
+        }
+
+        OnPropertyChanged(nameof(HasFilteredItems));
+        OnPropertyChanged(nameof(ShowFilteredEmptyState));
+        OnPropertyChanged(nameof(ShowSelectionHint));
     }
 
     private static MemberDTO ToMemberDto(MitgliedRecord record)
