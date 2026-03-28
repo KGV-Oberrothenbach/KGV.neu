@@ -40,6 +40,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
     private int? _entryId;
     private int? _currentSaisonId;
     private ArbeitsstundeDTO? _existingEntry;
+    private bool _forceOwnContext;
     private bool _isReadOnly;
 
     public ArbeitsstundenEditorPage(ISupabaseService supabaseService, UserContextState state, MemberContextState memberContextState)
@@ -138,6 +139,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
     {
         var entryId = TryReadInt(query, "entryId");
         _entryId = entryId is > 0 ? entryId : null;
+        _forceOwnContext = string.Equals(TryReadString(query, "context"), "self", StringComparison.OrdinalIgnoreCase);
     }
 
     protected override void OnAppearing()
@@ -218,8 +220,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
 
         var hauptmitgliedId = contextMemberId.Value;
         var selectedMember = _memberContextState.SelectedMember;
-        var useSelectedMemberContext = _state.CurrentUserContext?.Role is KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand
-            && selectedMember?.Id is > 0;
+        var useSelectedMemberContext = UsesSelectedMemberContext(selectedMember);
 
         var mainLabel = useSelectedMemberContext && selectedMember?.IstHauptmitglied == false
             ? "Ausgewähltes Mitglied"
@@ -431,6 +432,18 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
         };
     }
 
+    private static string? TryReadString(IDictionary<string, object> query, string key)
+    {
+        if (!query.TryGetValue(key, out var raw) || raw == null)
+            return null;
+
+        return raw switch
+        {
+            string text => Uri.UnescapeDataString(text),
+            _ => raw.ToString()
+        };
+    }
+
     private static bool TryParseHours(string? input, out decimal value)
     {
         value = 0;
@@ -448,7 +461,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
 
     private int? GetContextMemberId()
     {
-        if (_state.CurrentUserContext?.Role is KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand)
+        if (!_forceOwnContext && _state.CurrentUserContext?.Role is KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand)
         {
             var selectedId = _memberContextState.SelectedMember?.Id;
             if (selectedId is > 0)
@@ -458,6 +471,13 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
         return _state.CurrentMitgliedId is > 0 and <= int.MaxValue
             ? (int)_state.CurrentMitgliedId.Value
             : null;
+    }
+
+    private bool UsesSelectedMemberContext(MemberDTO? selectedMember)
+    {
+        return !_forceOwnContext
+            && _state.CurrentUserContext?.Role is KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand
+            && selectedMember?.Id is > 0;
     }
 
     private static string BuildMemberDisplay(ArbeitsstundeDTO entry)

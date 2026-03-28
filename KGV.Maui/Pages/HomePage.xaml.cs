@@ -98,8 +98,8 @@ public class HomePage : ContentPage
         operationalEmptyLabel.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowOperationalEmptyState));
 
         _createWorkHoursEntryButton = new Button { Text = "Arbeitsstunde erfassen" };
-        _createWorkHoursEntryButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.CanCreateWorkHoursEntry));
-        _createWorkHoursEntryButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(ArbeitsstundenEditorPage));
+        _createWorkHoursEntryButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.CanCreateOwnWorkHoursEntry));
+        _createWorkHoursEntryButton.Clicked += async (_, _) => await Shell.Current.GoToAsync($"{nameof(ArbeitsstundenEditorPage)}?context=self");
 
         var operationalSection = CreateSectionCard(
             nameof(HomeViewModel.OperationalTitle),

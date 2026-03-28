@@ -66,11 +66,7 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     public bool HasAnnouncements => Announcements.Count > 0;
     public bool HasWorkAssignments => WorkAssignments.Count > 0;
     public bool HasAppointments => Appointments.Count > 0;
-    public bool CanCreateWorkHoursEntry => _userContextState.CurrentUserContext?.Role switch
-    {
-        UserRole.Admin or UserRole.Vorstand => _memberContextState.SelectedMember?.Id is > 0,
-        _ => _userContextState.CurrentMitgliedId is > 0 and <= int.MaxValue
-    };
+    public bool CanCreateOwnWorkHoursEntry => GetOwnHomeWorkHoursContextMemberId() is > 0;
     public bool ShowAnnouncementDetail => HasAnnouncements;
     public bool HasSelectedAnnouncement => SelectedAnnouncement != null;
     public bool ShowAnnouncementHint => HasAnnouncements && !HasSelectedAnnouncement;
@@ -98,7 +94,7 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     public async Task InitializeAsync()
     {
         var role = _userContextState.CurrentUserContext?.Role ?? UserRole.User;
-        var contextMitgliedId = ResolveHomeContextMitgliedId(role);
+        var contextMitgliedId = GetOwnHomeWorkHoursContextMemberId();
 
         if (_isInitialized && _loadedRole == role && _loadedContextMitgliedId == contextMitgliedId)
             return;
@@ -137,7 +133,7 @@ public sealed class HomeViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(HasQuickLinks));
         OnPropertyChanged(nameof(HasOperationalItems));
         OnPropertyChanged(nameof(HasWorkHoursSummary));
-        OnPropertyChanged(nameof(CanCreateWorkHoursEntry));
+        OnPropertyChanged(nameof(CanCreateOwnWorkHoursEntry));
         OnPropertyChanged(nameof(ShowOperationalFallbackList));
         OnPropertyChanged(nameof(ShowOperationalEmptyState));
         OnPropertyChanged(nameof(HasWorkAssignments));
@@ -177,17 +173,8 @@ public sealed class HomeViewModel : INotifyPropertyChanged
         return value is > 0 and <= int.MaxValue ? (int)value.Value : null;
     }
 
-    private int? ResolveHomeContextMitgliedId(UserRole role)
-    {
-        if (role is UserRole.Admin or UserRole.Vorstand)
-        {
-            var selectedMemberId = _memberContextState.SelectedMember?.Id;
-            if (selectedMemberId is > 0)
-                return selectedMemberId.Value;
-        }
-
-        return ToInt32(_userContextState.CurrentMitgliedId);
-    }
+    private int? GetOwnHomeWorkHoursContextMemberId()
+        => ToInt32(_userContextState.CurrentMitgliedId);
 
     private string BuildUserContextText()
     {

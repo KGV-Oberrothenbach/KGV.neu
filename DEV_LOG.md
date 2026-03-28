@@ -2,6 +2,40 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: MAUI-Home-Arbeitsstunden vom ausgewählten Mitglied entkoppelt
+
+- Zuerst den realen Istzustand im aktuellen Repo geprüft:
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
+  - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
+  - `KGV.Maui/State/MemberContextState.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - realen Git-Status über den vorgegebenen Visual-Studio-Git-Pfad
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - der Home-Arbeitsstundenbereich hing fälschlich am `SelectedMember`
+  - dadurch konnten Button-Sichtbarkeit und Pflichtstunden-Zusammenfassung auf Home auf ein fremdes Mitglied umbiegen
+  - auch der Home-Button `Arbeitsstunde erfassen` öffnete für Admin/Vorstand implizit wieder den ausgewählten Mitgliedskontext
+- Minimal umgesetzt, ohne die übrigen Mitgliedskontextpfade zu zerstören:
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+    - Home-Arbeitsstunden lösen den Mitgliedskontext jetzt immer aus `CurrentMitgliedId` des eingeloggten Nutzers
+    - `CanCreateOwnWorkHoursEntry` ergänzt und vom `SelectedMember` entkoppelt
+    - die Arbeitsstunden-Zusammenfassung auf Home nutzt damit nicht mehr den ausgewählten Mitgliedskontext
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+    - der Home-Button `Arbeitsstunde erfassen` bindet jetzt an den eigenen Nutzerkontext
+    - Öffnen des Editors erfolgt explizit mit `context=self`
+  - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
+    - neuer expliziter Eigenkontext für den Home-Einstieg ergänzt
+    - der Editor respektiert `context=self` und übernimmt dann nicht mehr still den aktuellen `SelectedMember`
+- Fachliches Ergebnis:
+  - Home-Arbeitsstunden bleiben jetzt immer im Kontext des eingeloggten Nutzers
+  - der Button `Arbeitsstunde erfassen` ist nicht mehr davon abhängig, ob vorher ein anderes Mitglied ausgewählt wurde
+  - die mitgliedsbezogenen Arbeitsstundenpfade für andere Mitglieder bleiben separat erhalten
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+
 ## 2026-03-28 – Prompt 1/1: MAUI-RFID-Ausstattung jetzt direkt bearbeitbar und Medium-Picker wird nach Save synchronisiert
 
 - Zuerst den realen Istzustand im aktuellen Repo geprüft:

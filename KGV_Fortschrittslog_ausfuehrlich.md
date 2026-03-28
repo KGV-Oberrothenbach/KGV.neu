@@ -2,6 +2,41 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: MAUI-Home-Arbeitsstunden sauber vom ausgewählten Mitglied entkoppelt
+
+- Vor Beginn den realen Istzustand im Repo geprüft:
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
+  - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
+  - `KGV.Maui/State/MemberContextState.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - `CanCreateWorkHoursEntry` hing für `Admin/Vorstand` am `SelectedMember`
+  - derselbe gewählte Mitgliedskontext wurde auf Home auch für die Arbeitsstunden-Zusammenfassung verwendet
+  - dadurch konnten Home-Arbeitsstunden fachlich auf ein fremdes Mitglied umbiegen, obwohl Home in diesem Bereich immer der Eigenkontext sein soll
+  - zusätzlich öffnete der Home-Button den Arbeitsstunden-Editor ohne explizite Abgrenzung vom aktuellen Mitgliedskontext
+- Minimal umgesetzt, ohne neuen Fachumfang:
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+    - den Home-Arbeitsstundenkontext auf `CurrentMitgliedId` des eingeloggten Nutzers gezogen
+    - neue Property `CanCreateOwnWorkHoursEntry` ergänzt
+    - die Home-Pflichtstunden-Zusammenfassung hängt damit nicht mehr am `SelectedMember`
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+    - den Home-Button `Arbeitsstunde erfassen` auf den Eigenkontext umgestellt
+    - Öffnung des Editors jetzt explizit mit `context=self`
+  - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
+    - expliziten Eigenkontext für den Home-Einstieg ergänzt
+    - der Editor respektiert `context=self` und greift dann nicht mehr still zuerst auf `SelectedMember` zu
+- Fachliches Ergebnis:
+  - der Bereich `Arbeitsstunden` auf Home verwendet jetzt immer den eingeloggten Nutzer bzw. dessen eigenes Mitglied
+  - ein zuvor ausgewähltes anderes Mitglied biegt die Home-Arbeitsstunden nicht mehr um
+  - die mitgliedsbezogenen Arbeitsstundenpfade für andere Mitglieder bleiben separat und unverändert nutzbar
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
+
 ## 2026-03-28 – Prompt 1/1: MAUI-RFID-Ausstattung im bestehenden RFID-Pfad bearbeitbar gemacht
 
 - Vor Beginn den realen Istzustand im Repo geprüft:
