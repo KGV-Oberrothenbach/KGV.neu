@@ -50,6 +50,24 @@ public sealed class RfidEinrichtenPage : ContentPage
         parzellePicker.SetBinding(Picker.ItemsSourceProperty, nameof(RfidEinrichtenViewModel.Parzellen));
         parzellePicker.SetBinding(Picker.SelectedItemProperty, nameof(RfidEinrichtenViewModel.SelectedParzelle), BindingMode.TwoWay);
 
+        var hatStromSwitch = new Switch { IsEnabled = false };
+        hatStromSwitch.SetBinding(Switch.IsToggledProperty, nameof(RfidEinrichtenViewModel.SelectedParzelleHatStrom));
+
+        var hatWasserSwitch = new Switch { IsEnabled = false };
+        hatWasserSwitch.SetBinding(Switch.IsToggledProperty, nameof(RfidEinrichtenViewModel.SelectedParzelleHatWasser));
+
+        var ausstattungSection = new VerticalStackLayout
+        {
+            Spacing = 8,
+            Children =
+            {
+                new Label { Text = "Ausstattung", FontAttributes = FontAttributes.Bold },
+                CreateDisplaySwitchField("hat Strom", hatStromSwitch),
+                CreateDisplaySwitchField("hat Wasser", hatWasserSwitch)
+            }
+        };
+        ausstattungSection.SetBinding(IsVisibleProperty, nameof(RfidEinrichtenViewModel.HasSelectedParzelle));
+
         var stromValue = CreateValueLabel("Aktuelle Strom-RFID", nameof(RfidEinrichtenViewModel.CurrentStromRfid));
         var wasserValue = CreateValueLabel("Aktuelle Wasser-RFID", nameof(RfidEinrichtenViewModel.CurrentWasserRfid));
 
@@ -105,6 +123,7 @@ public sealed class RfidEinrichtenPage : ContentPage
                     CreateValueLabel("Gelesene UID", nameof(RfidEinrichtenViewModel.ScannedUidDisplay)),
                     new Label { Text = "Parzelle", FontAttributes = FontAttributes.Bold },
                     parzellePicker,
+                    ausstattungSection,
                     stromValue,
                     wasserValue,
                     new Label { Text = "Medium", FontAttributes = FontAttributes.Bold },
@@ -226,6 +245,19 @@ public sealed class RfidEinrichtenPage : ContentPage
             {
                 new Label { Text = title, FontSize = 12, FontAttributes = FontAttributes.Bold, TextColor = Colors.Gray },
                 valueLabel
+            }
+        };
+    }
+
+    private static View CreateDisplaySwitchField(string title, Switch control)
+    {
+        return new VerticalStackLayout
+        {
+            Spacing = 4,
+            Children =
+            {
+                new Label { Text = title, FontSize = 12, FontAttributes = FontAttributes.Bold, TextColor = Colors.Gray },
+                control
             }
         };
     }

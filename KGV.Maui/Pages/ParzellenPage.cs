@@ -112,7 +112,7 @@ public sealed class ParzellenPage : ContentPage
         editButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanManageAssignment));
         editButton.Clicked += (_, _) => _viewModel.BeginEditMode();
 
-        detailContainer.Children.Add(new Border
+        var readOnlyStammdatenSection = new Border
         {
             Stroke = Colors.LightGray,
             Padding = 12,
@@ -134,7 +134,9 @@ public sealed class ParzellenPage : ContentPage
                         editButton)
                 }
             }
-        });
+        };
+        readOnlyStammdatenSection.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowReadOnlyStammdaten));
+        detailContainer.Children.Add(readOnlyStammdatenSection);
 
         var editSection = CreateSection("Stammdaten bearbeiten",
             CreateEditorEntry("Garten Nr", nameof(ParzellenViewModel.EditGartenNr)),

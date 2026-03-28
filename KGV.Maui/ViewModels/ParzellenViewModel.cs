@@ -121,6 +121,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     }
 
     public bool HasSelectedDetail => SelectedDetail != null;
+    public bool ShowReadOnlyStammdaten => HasSelectedDetail && !IsEditMode;
     public bool ShowSelectionHint => !HasSelectedDetail && HasFilteredItems;
     public bool CanManageAssignment => HasSelectedDetail && !IsBusy;
     public bool CanAssign => CanManageAssignment && IsAssignMode && SelectedAssignMember != null;
@@ -153,6 +154,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
 
             _isEditMode = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(ShowReadOnlyStammdaten));
             OnPropertyChanged(nameof(CanSaveStammdaten));
         }
     }

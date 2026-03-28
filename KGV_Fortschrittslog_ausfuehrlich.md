@@ -2,6 +2,40 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: MAUI-Parzellen-Bearbeiten von Stammdatenanzeige getrennt und RFID-Ausstattung sichtbar gemacht
+
+- Vor Beginn den realen Istzustand im Repo geprüft:
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
+  - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
+  - `KGV.Core/Models/ParzelleRecord.cs`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - in der Parzellenverwaltung blieb die normale Stammdatenanzeige auch im Bearbeiten-Modus sichtbar
+  - dadurch wurden ReadOnly-Stammdaten und Bearbeiten-Sektion parallel angezeigt
+  - in `RFID einrichten` fehlte nach Parzellenauswahl weiterhin die sichtbare Anzeige von `hat Strom` und `hat Wasser`, obwohl die Werte im bestehenden Parzellenpfad bereits vorhanden sind
+- Minimal umgesetzt, ohne neuen Fachumfang:
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+    - neue Property `ShowReadOnlyStammdaten` ergänzt
+    - Sichtbarkeit der normalen Stammdatenanzeige sauber an `!IsEditMode` gebunden
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+    - normale Stammdatensektion auf `ShowReadOnlyStammdaten` gebunden
+    - Bearbeiten-Sektion bleibt wie bisher an `IsEditMode` gebunden
+    - andere Detailsektionen bleiben unverändert sichtbar
+  - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
+    - kleine ReadOnly-Properties für `hat Strom` und `hat Wasser` aus `SelectedParzelle` ergänzt
+  - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
+    - nach Parzellenauswahl read-only Anzeige für `hat Strom` und `hat Wasser` über deaktivierte Switches ergänzt
+    - bestehende RFID-Anzeigen und der Medium-Flow bleiben unverändert erhalten
+- Fachliches Ergebnis:
+  - im Bearbeiten-Modus zeigt die MAUI-Parzellenverwaltung nicht mehr gleichzeitig Stammdatenanzeige und Editor
+  - `RFID einrichten` zeigt nach Parzellenauswahl jetzt sichtbar die Ausstattung `hat Strom` / `hat Wasser`
+  - keine neue Backendlogik und keine Schattenpfade eingeführt
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
+
 ## 2026-03-28 – Prompt 1/1: MAUI-Parzellenverwaltung um echte Übersichtsliste mit Suche ergänzt
 
 - Vor Beginn den realen Istzustand im Repo geprüft:

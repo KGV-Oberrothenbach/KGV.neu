@@ -2,6 +2,29 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: MAUI-Parzellen-Bearbeiten sichtbar getrennt und RFID-Ausstattung ergänzt
+
+- Zuerst den realen Istzustand im aktuellen Repo geprüft:
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
+  - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
+  - `KGV.Core/Models/ParzelleRecord.cs`
+  - realen Git-Status über den vorgegebenen Visual-Studio-Git-Pfad
+- Parzellenverwaltung minimal und sauber korrigiert:
+  - normale Stammdatenanzeige wird im Bearbeiten-Modus jetzt ausgeblendet
+  - neue ViewModel-Property `ShowReadOnlyStammdaten` steuert die Sichtbarkeit robust statt UI-Hack
+  - Bearbeiten-/Save-/Abbrechen-/Detail-Ladelogik bleibt unverändert
+  - andere Sektionen wie Belegung und Navigation wurden bewusst nicht mit ausgeblendet
+- `RFID einrichten` ergänzt:
+  - nach Parzellenauswahl werden jetzt zusätzlich `hat Strom` und `hat Wasser` angezeigt
+  - Darstellung ist read-only über deaktivierte Switches
+  - Werte kommen direkt aus dem bestehenden `SelectedParzelle`-/`ParzelleRecord`-Pfad
+  - bestehende Anzeigen für aktuelle Strom-/Wasser-RFID und der Medium-Flow bleiben erhalten
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+
 ## 2026-03-28 – Prompt 1/1: MAUI-Parzellenverwaltung um Listenansicht und Suche ergänzt
 
 - Zuerst den echten Istzustand im aktuellen Repo geprüft:

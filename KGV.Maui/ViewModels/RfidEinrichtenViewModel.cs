@@ -34,6 +34,8 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
 
     public bool IsAuthorized => _authService.IsAdmin || _authService.IsVorstand;
     public bool HasSelectedParzelle => SelectedParzelle != null;
+    public bool SelectedParzelleHatStrom => SelectedParzelle?.HatStrom == true;
+    public bool SelectedParzelleHatWasser => SelectedParzelle?.HatWasser == true;
     public string CurrentStromRfid => SelectedParzelle?.StromRfidDisplay ?? "Nicht hinterlegt";
     public string CurrentWasserRfid => SelectedParzelle?.WasserRfidDisplay ?? "Nicht hinterlegt";
     public bool HasResolvedScan => ScanResolution != null;
@@ -78,6 +80,8 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
             _selectedParzelle = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasSelectedParzelle));
+            OnPropertyChanged(nameof(SelectedParzelleHatStrom));
+            OnPropertyChanged(nameof(SelectedParzelleHatWasser));
             OnPropertyChanged(nameof(CurrentStromRfid));
             OnPropertyChanged(nameof(CurrentWasserRfid));
             _ = RefreshMediumOptionsAsync();
