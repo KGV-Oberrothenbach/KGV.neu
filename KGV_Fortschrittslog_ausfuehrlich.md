@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: ReleaseManager liest Produktversionen jetzt nur noch aus `KGV.Wpf.csproj` und `KGV.Maui.csproj`
+
+- Vor Beginn den realen Istzustand im Repo geprüft:
+  - `KGV.Wpf/KGV.Wpf.csproj`
+  - `KGV.Wpf/AssemblyInfo.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.ReleaseManager/Services/VersionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseVersionFileService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
+  - `KGV.ReleaseManager/ViewModels/MainViewModel.cs`
+  - `KGV.ReleaseManager/MainWindow.xaml`
+  - `KGV.ReleaseManager/MainWindow.xaml.cs`
+  - realen Git-Status über den vorhandenen Visual-Studio-Git-Pfad
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - Android war bereits direkt über `ApplicationDisplayVersion` und `ApplicationVersion` in `KGV.Maui.csproj` versioniert
+  - WPF hatte in `KGV.Wpf.csproj` noch keine explizite Produktversion
+  - der ReleaseManager nutzte noch Nebenpfade wie `AssemblyInfo.cs` bzw. Android-Manifest-Fallbacks und leitete bei Drift die gemeinsame Zielversion faktisch aus WPF ab
+  - die lokale Historie für Release-Zusammenfassungen war bisher nicht zwischen WPF und Android getrennt
+- Minimal umgesetzt:
+  - explizite WPF-Version direkt in `KGV.Wpf.csproj` ergänzt
+  - Versionserkennung im ReleaseManager vollständig auf die beiden `csproj`-Dateien umgestellt
+  - veraltete Fallbacks auf `AssemblyInfo.cs`, Manifest oder sonstige Nebenpfade entfernt
+  - Zielversion wird jetzt aus der tatsächlichen Release-Auswahl abgeleitet: WPF-only, Android-only oder gemeinsam
+  - Versionsschreibung aktualisiert nur noch die wirklich ausgewählten Produkte
+  - lokale Verlaufsdateien für WPF und Android getrennt eingeführt und im UI separat sichtbar gemacht
+  - Import-/Historienlogik für produktgetrennte oder gemeinsame Releases angepasst
+- Validierung:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+
 ## 2026-03-28 – Inbetriebnahme Block 2/3: Android-Signing-Pfad im Release Manager mit Laufzeitpasswörtern gehärtet
 
 - Vor Beginn den realen Istzustand geprüft:

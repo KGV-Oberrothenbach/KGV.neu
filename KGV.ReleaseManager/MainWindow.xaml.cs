@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -17,7 +18,8 @@ public partial class MainWindow : Window
     private readonly ReleaseFolderService _releaseFolderService;
     private readonly LogExtractionService _logExtractionService;
     private readonly ReleaseNotesImportExportService _releaseNotesService;
-    private readonly ReleaseNotesHistoryService _releaseNotesHistoryService;
+    private readonly ReleaseNotesHistoryService _wpfReleaseNotesHistoryService;
+    private readonly ReleaseNotesHistoryService _androidReleaseNotesHistoryService;
     private readonly ReleaseNotesAnalysisService _releaseNotesAnalysisService;
     private readonly ReleaseExecutionService _releaseExecutionService;
     private readonly RuntimeSecretPromptService _runtimeSecretPromptService;
@@ -34,18 +36,22 @@ public partial class MainWindow : Window
         var releaseNotesHistoryFile = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "KGV.ReleaseManager",
-            "release-notes-history.json");
+            "release-notes-history-wpf.json");
+        var androidReleaseNotesHistoryFile = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "KGV.ReleaseManager",
+            "release-notes-history-android.json");
 
         _settingsService = new SettingsService(settingsFile);
         _versionService = new VersionService();
         _releaseFolderService = new ReleaseFolderService();
         _logExtractionService = new LogExtractionService();
         _releaseNotesService = new ReleaseNotesImportExportService();
-        _releaseNotesHistoryService = new ReleaseNotesHistoryService(releaseNotesHistoryFile);
+        _wpfReleaseNotesHistoryService = new ReleaseNotesHistoryService(releaseNotesHistoryFile);
+        _androidReleaseNotesHistoryService = new ReleaseNotesHistoryService(androidReleaseNotesHistoryFile);
         _releaseNotesAnalysisService = new ReleaseNotesAnalysisService(
             _logExtractionService,
-            _releaseNotesService,
-            _releaseNotesHistoryService);
+            _releaseNotesService);
         _releaseExecutionService = new ReleaseExecutionService(
             _releaseFolderService,
             new BuildCommandService(),
@@ -55,8 +61,10 @@ public partial class MainWindow : Window
         _runtimeSecretPromptService = new RuntimeSecretPromptService();
 
         _viewModel = new MainViewModel();
+        _viewModel.PropertyChanged += ViewModel_PropertyChanged;
         _viewModel.SettingsStoragePath = settingsFile;
-        _viewModel.ReleaseNotesStoragePath = releaseNotesHistoryFile;
+        _viewModel.WpfReleaseNotesStoragePath = releaseNotesHistoryFile;
+        _viewModel.AndroidReleaseNotesStoragePath = androidReleaseNotesHistoryFile;
         DataContext = _viewModel;
         _viewModel.AppendStatus("Projektgerüst geladen.");
         LoadSettings(showMessageBoxOnFailure: false);
@@ -160,6 +168,13 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!TryValidateImportTargets(importResult, out var targetValidationMessage))
+        {
+            _viewModel.AppendStatus(targetValidationMessage);
+            MessageBox.Show(targetValidationMessage, "Zusammenfassung importieren", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         var historyEntry = new ReleaseNotesHistoryEntry
         {
             Version = _viewModel.TargetVersion,
@@ -176,17 +191,37 @@ public partial class MainWindow : Window
             ImportedRawText = importResult.NormalizedText
         };
 
-        var saveResult = _releaseNotesHistoryService.SaveEntry(historyEntry);
-        _viewModel.AppendStatus(saveResult.Message);
-        if (!saveResult.Success)
+        var saveResults = new[]
         {
-            MessageBox.Show(saveResult.Message, "Zusammenfassung importieren", MessageBoxButton.OK, MessageBoxImage.Error);
+            SaveHistoryEntry(_viewModel.BuildWpf, _wpfReleaseNotesHistoryService, historyEntry),
+            SaveHistoryEntry(_viewModel.HasAndroidReleaseSelection, _androidReleaseNotesHistoryService, historyEntry)
+        }
+            .Where(result => !string.IsNullOrWhiteSpace(result.Message))
+            .ToList();
+
+        foreach (var saveResult in saveResults)
+        {
+            _viewModel.AppendStatus(saveResult.Message);
+        }
+
+        if (saveResults.Any(result => !result.Success))
+        {
+            var errorMessage = saveResults.First(result => !result.Success).Message;
+            MessageBox.Show(errorMessage, "Zusammenfassung importieren", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        if (saveResults.Count == 0)
+        {
+            const string message = "Für den Import ist kein Releaseziel ausgewählt.";
+            _viewModel.AppendStatus(message);
+            MessageBox.Show(message, "Zusammenfassung importieren", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         _viewModel.ImportedSummary = importResult.NormalizedText;
         RefreshReleaseNotesState(preserveImportedSummary: false);
-        MessageBox.Show(saveResult.Message, "Zusammenfassung importieren", MessageBoxButton.OK, MessageBoxImage.Information);
+        MessageBox.Show(string.Join(Environment.NewLine, saveResults.Select(result => result.Message)), "Zusammenfassung importieren", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private async void RunDryRelease_Click(object sender, RoutedEventArgs e)
@@ -232,14 +267,24 @@ public partial class MainWindow : Window
 
     private void RefreshReleaseNotesState(bool preserveImportedSummary)
     {
+        var wpfLatestEntry = _wpfReleaseNotesHistoryService.GetLatestEntry();
+        var androidLatestEntry = _androidReleaseNotesHistoryService.GetLatestEntry();
+        _viewModel.LastKnownWpfReleaseText = _wpfReleaseNotesHistoryService.BuildLatestReleaseStatusText();
+        _viewModel.LastKnownAndroidReleaseText = _androidReleaseNotesHistoryService.BuildLatestReleaseStatusText();
+
+        var selectedAnchor = ResolveReleaseNotesAnchor(wpfLatestEntry, androidLatestEntry);
+        _viewModel.LastKnownReleaseText = BuildSelectedReleaseStatusText(selectedAnchor);
+
         _lastReleaseNotesAnalysisResult = _releaseNotesAnalysisService.Analyze(
             _viewModel.Settings.SourceRepoPath,
             _viewModel.CurrentVersion,
-            _viewModel.TargetVersion);
+            _viewModel.TargetVersion,
+            selectedAnchor,
+            _viewModel.LastKnownReleaseText);
 
         _viewModel.ApplyReleaseNotesAnalysis(_lastReleaseNotesAnalysisResult);
 
-        var latestEntry = _releaseNotesHistoryService.GetLatestEntry();
+        var latestEntry = selectedAnchor ?? wpfLatestEntry ?? androidLatestEntry;
         if (latestEntry is not null && (!preserveImportedSummary || string.IsNullOrWhiteSpace(_viewModel.ImportedSummary)))
         {
             _viewModel.ImportedSummary = latestEntry.ImportedRawText;
@@ -342,5 +387,120 @@ public partial class MainWindow : Window
             BuildApk = _viewModel.BuildApk,
             BuildAab = _viewModel.BuildAab
         };
+    }
+
+    private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(MainViewModel.BuildWpf)
+            or nameof(MainViewModel.BuildApk)
+            or nameof(MainViewModel.BuildAab)
+            or nameof(MainViewModel.SelectedVersionBump))
+        {
+            RefreshReleaseNotesState(preserveImportedSummary: true);
+        }
+    }
+
+    private bool TryValidateImportTargets(ReleaseNotesImportResult importResult, out string message)
+    {
+        message = string.Empty;
+        if (!_viewModel.BuildWpf && !_viewModel.HasAndroidReleaseSelection)
+        {
+            message = "Für den Import muss mindestens ein Releaseziel ausgewählt sein.";
+            return false;
+        }
+
+        if (_viewModel.BuildWpf && string.IsNullOrWhiteSpace(importResult.WpfReleaseText))
+        {
+            message = "Für den ausgewählten WPF-Release fehlt im Import der Abschnitt `## WPF / Download`.";
+            return false;
+        }
+
+        if (_viewModel.HasAndroidReleaseSelection && string.IsNullOrWhiteSpace(importResult.AndroidReleaseText))
+        {
+            message = "Für den ausgewählten Android-Release fehlt im Import der Abschnitt `## Android / Play Store`.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static (bool Success, string Message) SaveHistoryEntry(bool shouldSave, ReleaseNotesHistoryService service, ReleaseNotesHistoryEntry entry)
+    {
+        return shouldSave
+            ? service.SaveEntry(entry)
+            : (true, string.Empty);
+    }
+
+    private ReleaseNotesHistoryEntry? ResolveReleaseNotesAnchor(ReleaseNotesHistoryEntry? wpfLatestEntry, ReleaseNotesHistoryEntry? androidLatestEntry)
+    {
+        if (_viewModel.BuildWpf && _viewModel.HasAndroidReleaseSelection)
+        {
+            return SelectOlderEntry(wpfLatestEntry, androidLatestEntry);
+        }
+
+        if (_viewModel.BuildWpf)
+        {
+            return wpfLatestEntry;
+        }
+
+        if (_viewModel.HasAndroidReleaseSelection)
+        {
+            return androidLatestEntry;
+        }
+
+        return SelectNewerEntry(wpfLatestEntry, androidLatestEntry);
+    }
+
+    private string BuildSelectedReleaseStatusText(ReleaseNotesHistoryEntry? selectedAnchor)
+    {
+        if (selectedAnchor is null)
+        {
+            return "Kein letzter gespeicherter Release-Anker vorhanden. Als Startzustand kann der neueste relevante Logabschnitt vorgeschlagen werden.";
+        }
+
+        var targetLabel = _viewModel.BuildWpf && _viewModel.HasAndroidReleaseSelection
+            ? "WPF/Android"
+            : _viewModel.BuildWpf
+                ? "WPF"
+                : _viewModel.HasAndroidReleaseSelection
+                    ? "Android"
+                    : "WPF/Android";
+        var localTime = selectedAnchor.SavedAtUtc == default
+            ? string.Empty
+            : selectedAnchor.SavedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+
+        return string.IsNullOrWhiteSpace(localTime)
+            ? $"Letztes gespeichertes {targetLabel}-Release: {selectedAnchor.Version}"
+            : $"Letztes gespeichertes {targetLabel}-Release: {selectedAnchor.Version} vom {localTime}";
+    }
+
+    private static ReleaseNotesHistoryEntry? SelectOlderEntry(ReleaseNotesHistoryEntry? left, ReleaseNotesHistoryEntry? right)
+    {
+        if (left is null)
+        {
+            return right;
+        }
+
+        if (right is null)
+        {
+            return left;
+        }
+
+        return left.SavedAtUtc <= right.SavedAtUtc ? left : right;
+    }
+
+    private static ReleaseNotesHistoryEntry? SelectNewerEntry(ReleaseNotesHistoryEntry? left, ReleaseNotesHistoryEntry? right)
+    {
+        if (left is null)
+        {
+            return right;
+        }
+
+        if (right is null)
+        {
+            return left;
+        }
+
+        return left.SavedAtUtc >= right.SavedAtUtc ? left : right;
     }
 }

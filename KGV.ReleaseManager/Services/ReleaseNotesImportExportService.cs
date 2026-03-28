@@ -93,11 +93,11 @@ public sealed class ReleaseNotesImportExportService
         var wpfSection = ExtractSection(normalizedText, "WPF / Download", "WPF");
         var androidSection = ExtractSection(normalizedText, "Android / Play Store", "Android", "Play Store");
 
-        if (string.IsNullOrWhiteSpace(wpfSection) || string.IsNullOrWhiteSpace(androidSection))
+        if (string.IsNullOrWhiteSpace(wpfSection) && string.IsNullOrWhiteSpace(androidSection))
         {
             return new ReleaseNotesImportResult
             {
-                Message = "Die importierte Zusammenfassung muss mindestens die Abschnitte `## WPF / Download` und `## Android / Play Store` enthalten.",
+                Message = "Die importierte Zusammenfassung muss mindestens einen der Abschnitte `## WPF / Download` oder `## Android / Play Store` enthalten.",
                 NormalizedText = normalizedText
             };
         }

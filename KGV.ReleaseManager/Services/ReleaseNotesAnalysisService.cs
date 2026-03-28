@@ -16,23 +16,23 @@ public sealed class ReleaseNotesAnalysisService
 
     private readonly LogExtractionService _logExtractionService;
     private readonly ReleaseNotesImportExportService _releaseNotesImportExportService;
-    private readonly ReleaseNotesHistoryService _releaseNotesHistoryService;
 
     public ReleaseNotesAnalysisService(
         LogExtractionService logExtractionService,
-        ReleaseNotesImportExportService releaseNotesImportExportService,
-        ReleaseNotesHistoryService releaseNotesHistoryService)
+        ReleaseNotesImportExportService releaseNotesImportExportService)
     {
         _logExtractionService = logExtractionService;
         _releaseNotesImportExportService = releaseNotesImportExportService;
-        _releaseNotesHistoryService = releaseNotesHistoryService;
     }
 
-    public ReleaseNotesAnalysisResult Analyze(string sourceRepoPath, string currentVersion, string targetVersion)
+    public ReleaseNotesAnalysisResult Analyze(
+        string sourceRepoPath,
+        string currentVersion,
+        string targetVersion,
+        ReleaseNotesHistoryEntry? latestEntry,
+        string lastReleaseText)
     {
         var logSource = _logExtractionService.DetectPrimaryLogSource(sourceRepoPath);
-        var latestEntry = _releaseNotesHistoryService.GetLatestEntry();
-        var lastReleaseText = _releaseNotesHistoryService.BuildLatestReleaseStatusText();
 
         if (!logSource.IsAvailable)
         {

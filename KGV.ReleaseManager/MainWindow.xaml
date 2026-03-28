@@ -149,14 +149,14 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Aktuelle Version"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Margin="0,0,0,8" VerticalAlignment="Center" Text="{Binding CurrentVersion, TargetNullValue=Nicht erkannt}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Aktuelle WPF-Version"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Margin="0,0,0,8" VerticalAlignment="Center" Text="{Binding DetectedWpfVersion}"/>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="WPF erkannt"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,0,0,8" VerticalAlignment="Center" Text="{Binding DetectedWpfVersion}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Aktuelle Android-Version"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,0,0,8" VerticalAlignment="Center" Text="{Binding DetectedAndroidVersion}"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Android erkannt"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,0,0,8" VerticalAlignment="Center" Text="{Binding DetectedAndroidVersion}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Ausgewählter Versionsstand"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,0,0,8" VerticalAlignment="Center" Text="{Binding CurrentVersion, TargetNullValue=Nicht erkannt}" TextWrapping="Wrap"/>
 
                             <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Versionssprung"/>
                             <ComboBox Grid.Row="3"
@@ -165,7 +165,7 @@
                                       ItemsSource="{Binding VersionBumpOptions}"
                                       SelectedItem="{Binding SelectedVersionBump}"/>
 
-                            <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Vorgeschlagene Zielversion"/>
+                            <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Abgeleitete Zielversion"/>
                             <TextBlock Grid.Row="4" Grid.Column="1" Margin="0,0,0,8" VerticalAlignment="Center" Text="{Binding TargetVersion, TargetNullValue=-}"/>
 
                             <TextBlock Grid.Row="5" Grid.ColumnSpan="2" Margin="0,0,0,8" Text="{Binding VersionStatusText}" TextWrapping="Wrap"/>
@@ -222,7 +222,10 @@
                             <TextBlock Grid.Row="0" Margin="0,0,0,4" Text="Status des letzten bekannten Releases" FontWeight="SemiBold"/>
                             <StackPanel Grid.Row="1" Margin="0,0,0,8">
                                 <TextBlock Text="{Binding LastKnownReleaseText}" TextWrapping="Wrap"/>
-                                <TextBlock Margin="0,4,0,0" Text="{Binding ReleaseNotesStoragePath, StringFormat=Lokale Historie: {0}}" TextWrapping="Wrap" Opacity="0.75"/>
+                                <TextBlock Margin="0,6,0,0" Text="{Binding LastKnownWpfReleaseText}" TextWrapping="Wrap" Opacity="0.85"/>
+                                <TextBlock Margin="0,2,0,0" Text="{Binding WpfReleaseNotesStoragePath, StringFormat=WPF-Historie: {0}}" TextWrapping="Wrap" Opacity="0.75"/>
+                                <TextBlock Margin="0,6,0,0" Text="{Binding LastKnownAndroidReleaseText}" TextWrapping="Wrap" Opacity="0.85"/>
+                                <TextBlock Margin="0,2,0,0" Text="{Binding AndroidReleaseNotesStoragePath, StringFormat=Android-Historie: {0}}" TextWrapping="Wrap" Opacity="0.75"/>
                             </StackPanel>
 
                             <StackPanel Grid.Row="2" Margin="0,0,0,4">
@@ -258,20 +261,22 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="{Binding CurrentVersion, StringFormat=Aktuell: {0}}" Margin="0,0,0,8"/>
-                            <TextBlock Grid.Row="1" Text="{Binding TargetVersion, StringFormat=Ziel: {0}}" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="0" Text="{Binding DetectedWpfVersion, StringFormat=WPF aktuell: {0}}" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="1" Text="{Binding DetectedAndroidVersion, StringFormat=Android aktuell: {0}}" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="2" Text="{Binding TargetVersion, StringFormat=Ziel: {0}}" Margin="0,0,0,8"/>
 
-                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,8">
                                 <CheckBox Content="WPF Setup" Margin="0,0,12,0" IsChecked="{Binding BuildWpf}"/>
                                 <CheckBox Content="APK" Margin="0,0,12,0" IsChecked="{Binding BuildApk}"/>
                                 <CheckBox Content="AAB" IsChecked="{Binding BuildAab}"/>
                             </StackPanel>
 
-                            <TextBlock Grid.Row="3" Text="{Binding ReleaseStateText}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                            <TextBlock Grid.Row="4" Text="{Binding ReleaseStateText}" TextWrapping="Wrap" Margin="0,0,0,12"/>
 
-                            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
                                 <Button Width="140" Margin="0,0,8,0" Click="RunDryRelease_Click">Dry Run</Button>
                                 <Button Width="140" Click="RunRelease_Click">Release starten</Button>
                             </StackPanel>

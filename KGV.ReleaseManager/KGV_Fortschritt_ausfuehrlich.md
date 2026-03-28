@@ -1,5 +1,61 @@
 # KGV Fortschritt ausführlich
 
+## Stand 2026-03-28 – Interner Inbetriebnahmeblock: csproj-basierte Produktversionen und getrennte WPF-/Android-Historien eingeführt
+
+### Ziel dieses Schritts
+Den Release Manager so umstellen, dass Produktversionen ausschließlich direkt aus `KGV.Wpf/KGV.Wpf.csproj` und `KGV.Maui/KGV.Maui.csproj` gelesen/geschrieben werden und WPF/Android getrennte Verlaufsstände für spätere Einzel- oder Sammelreleases behalten.
+
+### Geprüft
+- reale Versionsquellen im Quellrepo:
+  - `KGV.Wpf/KGV.Wpf.csproj`
+  - `KGV.Wpf/AssemblyInfo.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+- bestehende ReleaseManager-Pfade:
+  - `KGV.ReleaseManager/Services/VersionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseVersionFileService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseNotesAnalysisService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseNotesImportExportService.cs`
+  - `KGV.ReleaseManager/ViewModels/MainViewModel.cs`
+  - `KGV.ReleaseManager/MainWindow.xaml`
+  - `KGV.ReleaseManager/MainWindow.xaml.cs`
+
+### Ehrlicher Istzustand vor Umsetzung
+- Android war bereits sauber direkt im MAUI-`csproj` versioniert
+- WPF hatte noch keine eigene Produktversion direkt in der Projektdatei
+- die Versionslogik nutzte noch Fallbacks auf `AssemblyInfo.cs` bzw. Android-Manifest und behandelte WPF bei Drift implizit als führend
+- die lokale Release-Historie war bislang nur als gemeinsame Datei ausgeprägt und damit nicht sauber produktgetrennt nutzbar
+
+### Umgesetzt
+- `KGV.Wpf/KGV.Wpf.csproj` um `<Version>0.2.6</Version>` ergänzt
+- `VersionService` liest WPF jetzt nur noch aus `Version`/projektbezogenen Versionseigenschaften in `KGV.Wpf.csproj`
+- Android wird nur noch aus `ApplicationDisplayVersion` und `ApplicationVersion` in `KGV.Maui.csproj` gelesen
+- alle Fallbacks auf `AssemblyInfo.cs`, Android-Manifest und sonstige Nebenpfade entfernt
+- gemeinsame Zielversion wird erst aus der aktuell gewählten Release-Kombination abgeleitet; bei gemeinsamem Release mit unterschiedlichem Stand aus dem höheren Versionsstand statt aus WPF allein
+- `ReleaseVersionFileService` schreibt nur noch in die ausgewählten `csproj`-Dateien und aktualisiert bei Einzelrelease nicht mehr automatisch das jeweils andere Produkt
+- lokale Historienpfade getrennt aufgeteilt in:
+  - `%LocalAppData%\KGV.ReleaseManager\release-notes-history-wpf.json`
+  - `%LocalAppData%\KGV.ReleaseManager\release-notes-history-android.json`
+- Oberfläche zeigt jetzt getrennte aktuelle Produktversionen und getrennte Historienstände/Pfade an
+- Import von Release-Zusammenfassungen akzeptiert jetzt produktbezogen WPF-only, Android-only oder beide zusammen passend zur Auswahl
+
+### Ergebnis
+- der Release Manager hängt für Produktversionen nicht mehr an AssemblyInfo- oder Manifest-Nebenpfaden
+- WPF besitzt jetzt eine eigene direkte Versionsquelle in der Projektdatei
+- WPF- und Android-Verläufe können getrennt gespeichert und separat angezeigt werden
+- Einzelreleases für nur WPF oder nur Android schreiben nur noch die jeweils nötigen Versionsdateien fort
+
+### Validierung
+- `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
+- `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+- `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich, nur bereits bekannte Warnungen
+- `dotnet build KGV.slnx -c Debug` erfolgreich
+
+### Abgrenzung
+- kein automatischer GitHub-/Store-Release ergänzt
+- kein neuer Fachumfang außerhalb des Release Managers gestartet
+- Release-/Rollback-Pfad strukturell beibehalten; End-to-End-Veröffentlichung wurde in diesem Block nicht mit produktiven Signatur-/Setup-Werkzeugen durchlaufen
+
 ## Stand 2026-03-28 – Interner Inbetriebnahmeblock: Android-Signing-Pfad mit Laufzeitpasswörtern produktionsreif gehärtet
 
 ### Ziel dieses Schritts

@@ -80,7 +80,11 @@ public sealed class ReleaseExecutionService
 
         try
         {
-            var versionWriteResult = _releaseVersionFileService.WriteTargetVersion(request.SourceRepoPath, request.TargetVersion);
+            var versionWriteResult = _releaseVersionFileService.WriteTargetVersion(
+                request.SourceRepoPath,
+                request.TargetVersion,
+                request.BuildWpf,
+                request.BuildApk || request.BuildAab);
             messages.Add(versionWriteResult.Message);
             if (!versionWriteResult.Success)
             {

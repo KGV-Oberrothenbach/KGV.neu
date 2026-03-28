@@ -12,10 +12,12 @@ namespace KGV.ReleaseManager.ViewModels;
 public sealed class MainViewModel : INotifyPropertyChanged
 {
     private ReleaseManagerSettings _settings = new();
-    private string _currentVersion = string.Empty;
+    private string _currentVersion = "Nicht erkannt";
     private string _targetVersion = string.Empty;
     private string _detectedWpfVersion = "Nicht gefunden";
     private string _detectedAndroidVersion = "Nicht gefunden";
+    private string _detectedWpfVersionValue = string.Empty;
+    private string _detectedAndroidVersionValue = string.Empty;
     private string _versionStatusText = "Noch nicht geprüft.";
     private string _versionWarningText = string.Empty;
     private VersionBumpType _selectedVersionBump = VersionBumpType.Patch;
@@ -32,6 +34,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private string _releaseChangesStatusText = "Release-Änderungen noch nicht ausgewertet.";
     private string _releaseChangesPreview = string.Empty;
     private string _releaseNotesStoragePath = string.Empty;
+    private string _wpfReleaseNotesStoragePath = string.Empty;
+    private string _androidReleaseNotesStoragePath = string.Empty;
+    private string _lastKnownWpfReleaseText = "Noch kein gespeicherter WPF-Release-Anker.";
+    private string _lastKnownAndroidReleaseText = "Noch kein gespeicherter Android-Release-Anker.";
     private string _statusText = "Bereit.";
     private string _footerText = "Noch kein Release ausgeführt.";
     private string _settingsStoragePath = string.Empty;
@@ -132,20 +138,39 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool BuildWpf
     {
         get => _buildWpf;
-        set { _buildWpf = value; OnPropertyChanged(); }
+        set
+        {
+            _buildWpf = value;
+            OnPropertyChanged();
+            UpdateTargetVersion();
+        }
     }
 
     public bool BuildApk
     {
         get => _buildApk;
-        set { _buildApk = value; OnPropertyChanged(); }
+        set
+        {
+            _buildApk = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasAndroidReleaseSelection));
+            UpdateTargetVersion();
+        }
     }
 
     public bool BuildAab
     {
         get => _buildAab;
-        set { _buildAab = value; OnPropertyChanged(); }
+        set
+        {
+            _buildAab = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasAndroidReleaseSelection));
+            UpdateTargetVersion();
+        }
     }
+
+    public bool HasAndroidReleaseSelection => BuildApk || BuildAab;
 
     public string ExportText
     {
@@ -187,6 +212,30 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         get => _statusText;
         set { _statusText = value; OnPropertyChanged(); }
+    }
+
+    public string WpfReleaseNotesStoragePath
+    {
+        get => _wpfReleaseNotesStoragePath;
+        set { _wpfReleaseNotesStoragePath = value; OnPropertyChanged(); }
+    }
+
+    public string AndroidReleaseNotesStoragePath
+    {
+        get => _androidReleaseNotesStoragePath;
+        set { _androidReleaseNotesStoragePath = value; OnPropertyChanged(); }
+    }
+
+    public string LastKnownWpfReleaseText
+    {
+        get => _lastKnownWpfReleaseText;
+        set { _lastKnownWpfReleaseText = value; OnPropertyChanged(); }
+    }
+
+    public string LastKnownAndroidReleaseText
+    {
+        get => _lastKnownAndroidReleaseText;
+        set { _lastKnownAndroidReleaseText = value; OnPropertyChanged(); }
     }
 
     public string FooterText
@@ -261,13 +310,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public void ApplyVersionDetection(VersionDetectionResult result)
     {
-        CurrentVersion = string.IsNullOrWhiteSpace(result.CurrentVersion) ? "Nicht erkannt" : result.CurrentVersion;
+        _detectedWpfVersionValue = result.WpfVersion;
+        _detectedAndroidVersionValue = result.AndroidVersion;
+
         DetectedWpfVersion = string.IsNullOrWhiteSpace(result.WpfVersion) ? "Nicht gefunden" : result.WpfVersion;
         DetectedAndroidVersion = string.IsNullOrWhiteSpace(result.AndroidVersion)
             ? "Nicht gefunden"
             : string.IsNullOrWhiteSpace(result.AndroidVersionCode)
                 ? result.AndroidVersion
                 : $"{result.AndroidVersion} (Code {result.AndroidVersionCode})";
+        CurrentVersion = BuildCurrentVersionSummary(result);
 
         VersionStatusText = result.HasError
             ? result.ErrorMessage
@@ -308,7 +360,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void UpdateTargetVersion()
     {
-        if (!TryParseVersionParts(CurrentVersion, out var major, out var minor, out var patch))
+        var baseVersion = ResolveSelectedBaseVersion();
+        if (!TryParseVersionParts(baseVersion, out var major, out var minor, out var patch))
         {
             TargetVersion = string.Empty;
             return;
@@ -320,6 +373,87 @@ public sealed class MainViewModel : INotifyPropertyChanged
             VersionBumpType.Minor => $"{major}.{minor + 1}.0",
             _ => $"{major}.{minor}.{patch + 1}"
         };
+    }
+
+    private string ResolveSelectedBaseVersion()
+    {
+        var candidates = new List<string>();
+
+        if (BuildWpf && TryParseVersionParts(_detectedWpfVersionValue, out _, out _, out _))
+        {
+            candidates.Add(_detectedWpfVersionValue);
+        }
+
+        if (HasAndroidReleaseSelection && TryParseVersionParts(_detectedAndroidVersionValue, out _, out _, out _))
+        {
+            candidates.Add(_detectedAndroidVersionValue);
+        }
+
+        if (candidates.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return candidates.Aggregate(SelectHigherVersion);
+    }
+
+    private static string BuildCurrentVersionSummary(VersionDetectionResult result)
+    {
+        if (!string.IsNullOrWhiteSpace(result.CurrentVersion))
+        {
+            return result.IsCurrentVersionShared
+                ? result.CurrentVersion
+                : result.CurrentVersion;
+        }
+
+        if (result.IsWpfVersionDetected && result.IsAndroidVersionDetected)
+        {
+            return $"WPF {result.WpfVersion} / Android {result.AndroidVersion}";
+        }
+
+        if (result.IsWpfVersionDetected)
+        {
+            return $"WPF {result.WpfVersion}";
+        }
+
+        if (result.IsAndroidVersionDetected)
+        {
+            return $"Android {result.AndroidVersion}";
+        }
+
+        return "Nicht erkannt";
+    }
+
+    private static string SelectHigherVersion(string left, string right)
+    {
+        return CompareVersion(left, right) >= 0 ? left : right;
+    }
+
+    private static int CompareVersion(string left, string right)
+    {
+        if (!TryParseVersionParts(left, out var leftMajor, out var leftMinor, out var leftPatch))
+        {
+            return -1;
+        }
+
+        if (!TryParseVersionParts(right, out var rightMajor, out var rightMinor, out var rightPatch))
+        {
+            return 1;
+        }
+
+        var majorComparison = leftMajor.CompareTo(rightMajor);
+        if (majorComparison != 0)
+        {
+            return majorComparison;
+        }
+
+        var minorComparison = leftMinor.CompareTo(rightMinor);
+        if (minorComparison != 0)
+        {
+            return minorComparison;
+        }
+
+        return leftPatch.CompareTo(rightPatch);
     }
 
     private static bool TryParseVersionParts(string version, out int major, out int minor, out int patch)

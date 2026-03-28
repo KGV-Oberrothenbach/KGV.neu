@@ -9,10 +9,6 @@ namespace KGV.ReleaseManager.Services;
 
 public sealed class VersionService
 {
-    private static readonly Regex VersionAttributeRegex = new(
-        "(AssemblyVersion|AssemblyFileVersion|AssemblyInformationalVersion)\\(\\\"(?<version>[^\\\"]+)\\\"\\)",
-        RegexOptions.Compiled);
-
     public VersionDetectionResult DetectVersions(string sourceRepoPath)
     {
         var result = new VersionDetectionResult();
@@ -32,48 +28,48 @@ public sealed class VersionService
         }
 
         var wpfProjectPath = Path.Combine(sourceRepoPath, "KGV.Wpf", "KGV.Wpf.csproj");
-        var wpfAssemblyInfoPath = Path.Combine(sourceRepoPath, "KGV.Wpf", "AssemblyInfo.cs");
         var mauiProjectPath = Path.Combine(sourceRepoPath, "KGV.Maui", "KGV.Maui.csproj");
-        var androidManifestPath = Path.Combine(sourceRepoPath, "KGV.Maui", "Platforms", "Android", "AndroidManifest.xml");
 
         result.WpfSourcePath = wpfProjectPath;
         result.AndroidSourcePath = mauiProjectPath;
-        result.WpfVersion = DetectWpfVersion(wpfProjectPath, wpfAssemblyInfoPath);
-        result.AndroidVersion = DetectAndroidDisplayVersion(mauiProjectPath, androidManifestPath, out var androidVersionCode);
+        result.WpfVersion = DetectWpfVersion(wpfProjectPath);
+        result.AndroidVersion = DetectAndroidDisplayVersion(mauiProjectPath, out var androidVersionCode);
         result.AndroidVersionCode = androidVersionCode;
+        result.IsWpfVersionDetected = !string.IsNullOrWhiteSpace(result.WpfVersion);
+        result.IsAndroidVersionDetected = !string.IsNullOrWhiteSpace(result.AndroidVersion);
 
-        if (!string.IsNullOrWhiteSpace(result.WpfVersion) && !string.IsNullOrWhiteSpace(result.AndroidVersion))
+        if (result.IsWpfVersionDetected && result.IsAndroidVersionDetected)
         {
             if (string.Equals(result.WpfVersion, result.AndroidVersion, StringComparison.OrdinalIgnoreCase))
             {
                 result.CurrentVersion = result.WpfVersion;
+                result.IsCurrentVersionShared = true;
                 result.StatusMessage = $"WPF- und Android-Version stimmen überein: {result.CurrentVersion}";
                 return result;
             }
 
-            result.CurrentVersion = result.WpfVersion;
             result.StatusMessage = $"WPF-Version erkannt: {result.WpfVersion}. Android-Version erkannt: {result.AndroidVersion}.";
-            result.WarningMessage = $"Versionsdrift erkannt: WPF = {result.WpfVersion}, Android = {result.AndroidVersion}. Die Zielversion wird vorerst aus der WPF-Version abgeleitet.";
+            result.WarningMessage = $"Versionsdrift erkannt: WPF = {result.WpfVersion}, Android = {result.AndroidVersion}. Eine gemeinsame Zielversion wird erst aus der konkreten Release-Auswahl abgeleitet.";
             return result;
         }
 
-        if (!string.IsNullOrWhiteSpace(result.WpfVersion))
+        if (result.IsWpfVersionDetected)
         {
             result.CurrentVersion = result.WpfVersion;
-            result.StatusMessage = $"WPF-Version erkannt: {result.WpfVersion}. Für Android wurde keine lesbare Display-Version gefunden.";
-            result.WarningMessage = "Android-Version konnte nicht sauber erkannt werden.";
+            result.StatusMessage = $"WPF-Version erkannt: {result.WpfVersion}. Für Android wurde keine lesbare Version in `KGV.Maui.csproj` gefunden.";
+            result.WarningMessage = "Android-Version konnte nicht aus `ApplicationDisplayVersion` gelesen werden.";
             return result;
         }
 
-        if (!string.IsNullOrWhiteSpace(result.AndroidVersion))
+        if (result.IsAndroidVersionDetected)
         {
             result.CurrentVersion = result.AndroidVersion;
-            result.StatusMessage = $"Android-Version erkannt: {result.AndroidVersion}. Für WPF wurde keine lesbare Version gefunden.";
-            result.WarningMessage = "WPF-Version konnte nicht sauber erkannt werden.";
+            result.StatusMessage = $"Android-Version erkannt: {result.AndroidVersion}. Für WPF wurde keine lesbare Version in `KGV.Wpf.csproj` gefunden.";
+            result.WarningMessage = "WPF-Version konnte nicht aus der Projektdatei gelesen werden.";
             return result;
         }
 
-        result.ErrorMessage = "Es konnte weder für WPF noch für Android eine Version sauber erkannt werden.";
+        result.ErrorMessage = "Es konnte weder für WPF noch für Android eine Version aus den Projektdateien gelesen werden.";
         result.StatusMessage = "Versionsermittlung fehlgeschlagen.";
         return result;
     }
@@ -93,18 +89,12 @@ public sealed class VersionService
         };
     }
 
-    private static string DetectWpfVersion(string projectPath, string assemblyInfoPath)
+    private static string DetectWpfVersion(string projectPath)
     {
-        var version = DetectVersionFromProjectFile(projectPath, "Version", "AssemblyVersion", "FileVersion", "InformationalVersion");
-        if (!string.IsNullOrWhiteSpace(version))
-        {
-            return version;
-        }
-
-        return DetectVersionFromAssemblyInfo(assemblyInfoPath);
+        return DetectVersionFromProjectFile(projectPath, "Version", "AssemblyVersion", "FileVersion", "InformationalVersion");
     }
 
-    private static string DetectAndroidDisplayVersion(string projectPath, string manifestPath, out string versionCode)
+    private static string DetectAndroidDisplayVersion(string projectPath, out string versionCode)
     {
         versionCode = string.Empty;
 
@@ -124,26 +114,7 @@ public sealed class VersionService
                 return displayVersion.Trim();
             }
 
-            var fallbackVersion = GetPropertyValue(document, "Version", "AssemblyVersion", "FileVersion", "InformationalVersion");
-            if (!string.IsNullOrWhiteSpace(fallbackVersion))
-            {
-                return fallbackVersion.Trim();
-            }
-
-            if (!File.Exists(manifestPath))
-            {
-                return string.Empty;
-            }
-
-            var manifest = XDocument.Load(manifestPath);
-            var androidNs = manifest.Root?.GetNamespaceOfPrefix("android") ?? XNamespace.None;
-            var manifestVersionName = manifest.Root?.Attribute(androidNs + "versionName")?.Value;
-            if (string.IsNullOrWhiteSpace(versionCode))
-            {
-                versionCode = manifest.Root?.Attribute(androidNs + "versionCode")?.Value ?? string.Empty;
-            }
-
-            return manifestVersionName?.Trim() ?? string.Empty;
+            return string.Empty;
         }
         catch
         {
@@ -162,28 +133,6 @@ public sealed class VersionService
         {
             var document = XDocument.Load(projectPath);
             return GetPropertyValue(document, propertyNames).Trim();
-        }
-        catch
-        {
-            return string.Empty;
-        }
-    }
-
-    private static string DetectVersionFromAssemblyInfo(string assemblyInfoPath)
-    {
-        if (!File.Exists(assemblyInfoPath))
-        {
-            return string.Empty;
-        }
-
-        try
-        {
-            var content = File.ReadAllText(assemblyInfoPath);
-            var match = VersionAttributeRegex.Matches(content)
-                .Select(m => m.Groups["version"].Value)
-                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
-
-            return match?.Trim() ?? string.Empty;
         }
         catch
         {

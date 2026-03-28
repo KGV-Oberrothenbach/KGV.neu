@@ -2,6 +2,21 @@
 
 Alle nennenswerten Änderungen am KGV Release Manager werden hier dokumentiert.
 
+## [0.1.7-internal] - 2026-03-28
+### Hinzugefügt
+- direkte WPF-Produktversion in `KGV.Wpf/KGV.Wpf.csproj`
+- getrennte lokale WPF-/Android-Historien für Release-Zusammenfassungen und Versionsanker
+
+### Geändert
+- Produktversionen werden jetzt ausschließlich direkt aus `KGV.Wpf/KGV.Wpf.csproj` und `KGV.Maui/KGV.Maui.csproj` gelesen
+- Zielversion wird jetzt erst aus der tatsächlichen Release-Auswahl für WPF und/oder Android abgeleitet
+- Versionsschreibung aktualisiert nur noch die ausgewählten Produkte statt immer beide Pfade mitzuschreiben
+- ReleaseManager-Oberfläche zeigt aktuelle WPF- und Android-Versionen sowie getrennte Historienpfade separat an
+
+### Behoben
+- Abhängigkeit der Versionslogik von `AssemblyInfo.cs`, Android-Manifest und sonstigen Nebenpfaden entfernt
+- Versionsdrift zwischen WPF und Android erzwingt keinen falschen gemeinsamen Wert mehr beim Laden
+
 ## [0.1.6-internal] - 2026-03-28
 ### Hinzugefügt
 - Laufzeitoption für Android-Signing mit `Key-Passwort = Keystore-Passwort` direkt im Signierungsdialog

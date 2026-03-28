@@ -1,5 +1,4 @@
 using System.IO;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using KGV.ReleaseManager.Models;
 
@@ -7,9 +6,7 @@ namespace KGV.ReleaseManager.Services;
 
 public sealed class ReleaseVersionFileService
 {
-    private static readonly Regex AssemblyVersionRegex = new("(AssemblyVersion|AssemblyFileVersion|AssemblyInformationalVersion)\\(\\\"(?<version>[^\\\"]+)\\\"\\)", RegexOptions.Compiled);
-
-    public VersionWriteResult WriteTargetVersion(string sourceRepoPath, string targetVersion)
+    public VersionWriteResult WriteTargetVersion(string sourceRepoPath, string targetVersion, bool updateWpf, bool updateAndroid)
     {
         if (string.IsNullOrWhiteSpace(sourceRepoPath) || !Directory.Exists(sourceRepoPath))
         {
@@ -26,7 +23,7 @@ public sealed class ReleaseVersionFileService
         var androidVersionCode = string.Empty;
 
         var mauiProjectPath = Path.Combine(sourceRepoPath, "KGV.Maui", "KGV.Maui.csproj");
-        if (File.Exists(mauiProjectPath))
+        if (updateAndroid && File.Exists(mauiProjectPath))
         {
             var mauiDocument = XDocument.Load(mauiProjectPath, LoadOptions.PreserveWhitespace);
             var mauiUpdated = false;
@@ -61,51 +58,22 @@ public sealed class ReleaseVersionFileService
         }
 
         var wpfProjectPath = Path.Combine(sourceRepoPath, "KGV.Wpf", "KGV.Wpf.csproj");
-        if (File.Exists(wpfProjectPath))
+        if (updateWpf && File.Exists(wpfProjectPath))
         {
             var wpfDocument = XDocument.Load(wpfProjectPath, LoadOptions.PreserveWhitespace);
-            var wpfUpdated = false;
-            foreach (var propertyName in new[] { "Version", "AssemblyVersion", "FileVersion", "InformationalVersion" })
-            {
-                var element = FindFirstPropertyElement(wpfDocument, propertyName);
-                if (element is null)
-                {
-                    continue;
-                }
+            var versionElement = FindOrCreateProjectPropertyElement(wpfDocument, "Version");
+            BackupFile(backups, wpfProjectPath);
+            versionElement.Value = targetVersion;
 
-                BackupFile(backups, wpfProjectPath);
-                element.Value = targetVersion;
-                wpfUpdated = true;
-            }
-
-            if (wpfUpdated)
-            {
-                wpfDocument.Save(wpfProjectPath, SaveOptions.DisableFormatting);
-                updatedFiles.Add(wpfProjectPath);
-            }
-        }
-
-        var wpfAssemblyInfoPath = Path.Combine(sourceRepoPath, "KGV.Wpf", "AssemblyInfo.cs");
-        if (File.Exists(wpfAssemblyInfoPath))
-        {
-            var originalContent = File.ReadAllText(wpfAssemblyInfoPath);
-            var updatedContent = AssemblyVersionRegex.Replace(
-                originalContent,
-                match => match.Value.Replace(match.Groups["version"].Value, targetVersion));
-
-            if (!string.Equals(originalContent, updatedContent, StringComparison.Ordinal))
-            {
-                BackupFile(backups, wpfAssemblyInfoPath);
-                File.WriteAllText(wpfAssemblyInfoPath, updatedContent);
-                updatedFiles.Add(wpfAssemblyInfoPath);
-            }
+            wpfDocument.Save(wpfProjectPath, SaveOptions.DisableFormatting);
+            updatedFiles.Add(wpfProjectPath);
         }
 
         if (updatedFiles.Count == 0)
         {
             return new VersionWriteResult
             {
-                Message = "Es wurden keine real vorhandenen Versionsfelder zum Schreiben gefunden.",
+                Message = "Es wurden keine passenden Versionsfelder in den ausgewählten Projektdateien zum Schreiben gefunden.",
                 Backups = backups.Values.ToList(),
                 UpdatedFiles = updatedFiles
             };
@@ -114,7 +82,7 @@ public sealed class ReleaseVersionFileService
         return new VersionWriteResult
         {
             Success = true,
-            Message = $"Zielversion {targetVersion} in {updatedFiles.Count} Datei(en) geschrieben.",
+            Message = $"Zielversion {targetVersion} in {updatedFiles.Count} ausgewählte Projektdatei(en) geschrieben.",
             AndroidVersionCode = androidVersionCode,
             Backups = backups.Values.ToList(),
             UpdatedFiles = updatedFiles
@@ -135,6 +103,29 @@ public sealed class ReleaseVersionFileService
             .Elements("PropertyGroup")
             .Elements()
             .FirstOrDefault(element => string.Equals(element.Name.LocalName, propertyName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static XElement FindOrCreateProjectPropertyElement(XDocument document, string propertyName)
+    {
+        var existingElement = FindFirstPropertyElement(document, propertyName);
+        if (existingElement is not null)
+        {
+            return existingElement;
+        }
+
+        var propertyGroup = document.Root?
+            .Elements("PropertyGroup")
+            .FirstOrDefault();
+
+        if (propertyGroup is null)
+        {
+            propertyGroup = new XElement("PropertyGroup");
+            document.Root?.AddFirst(propertyGroup);
+        }
+
+        var newElement = new XElement(propertyName);
+        propertyGroup.Add(newElement);
+        return newElement;
     }
 
     private static void BackupFile(IDictionary<string, VersionFileBackup> backups, string path)
