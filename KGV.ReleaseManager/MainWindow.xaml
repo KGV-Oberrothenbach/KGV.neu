@@ -30,12 +30,9 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0">
-                    <GroupBox Header="Pfade und Einstellungen" Margin="0,0,0,12">
+                    <GroupBox Header="Projektpfade" Margin="0,0,0,12">
                         <Grid Margin="12">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -52,23 +49,58 @@
                             <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="KGV-WPF Zielrepo"/>
                             <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.WpfTargetRepoPath, UpdateSourceTrigger=PropertyChanged}"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="ReleaseOutput"/>
-                            <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.ReleaseOutputRootPath, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Lokaler Ausgabeordner für APK"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.ApkOutputPath, UpdateSourceTrigger=PropertyChanged}"/>
 
-                            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="APK-Ausgabe"/>
-                            <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.ApkOutputPath, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Lokaler Ausgabeordner für AAB"/>
+                            <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.AabOutputPath, UpdateSourceTrigger=PropertyChanged}"/>
 
-                            <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="AAB-Ausgabe"/>
-                            <TextBox Grid.Row="4" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.AabOutputPath, UpdateSourceTrigger=PropertyChanged}"/>
-
-                            <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Keystore-Pfad"/>
-                            <TextBox Grid.Row="5" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.AndroidKeystorePath, UpdateSourceTrigger=PropertyChanged}"/>
-
-                            <StackPanel Grid.Row="6" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button Width="140" Margin="0,0,8,0" Click="LoadSettings_Click">Einstellungen laden</Button>
-                                <Button Width="140" Click="SaveSettings_Click">Einstellungen speichern</Button>
-                            </StackPanel>
+                            <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Basisordner für Veröffentlichungen"/>
+                            <TextBox Grid.Row="4" Grid.Column="1" Margin="0,0,0,0" Text="{Binding Settings.ReleaseOutputRootPath, UpdateSourceTrigger=PropertyChanged}"/>
                         </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Android / Play Store" Margin="0,0,0,12">
+                        <Grid Margin="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Package Name"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.AndroidPackageName, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Play-Track"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.PlayTrackName, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Center" Text="Store-URL / Store-Link"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,8" Text="{Binding Settings.StoreUrl, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Keystore-Pfad (optional)"/>
+                            <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,0" Text="{Binding Settings.AndroidKeystorePath, UpdateSourceTrigger=PropertyChanged}"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="Veröffentlichung" Margin="0,0,0,12">
+                        <StackPanel Margin="12" Orientation="Vertical">
+                            <TextBlock Text="Die Konfiguration wird lokal als JSON gespeichert. In diesem Block werden Pfade und optionale Store-Felder nur geladen, validiert und gespeichert; es wird noch keine Release-Automation ausgeführt."
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,8"/>
+                            <TextBlock Text="{Binding SettingsStoragePath, StringFormat=Speicherort: {0}}"
+                                       Opacity="0.75"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,12"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Width="170" Margin="0,0,8,0" Click="LoadSettings_Click">Einstellungen neu laden</Button>
+                                <Button Width="170" Click="SaveSettings_Click">Einstellungen speichern</Button>
+                            </StackPanel>
+                        </StackPanel>
                     </GroupBox>
 
                     <GroupBox Header="Release-Konfiguration" Margin="0,0,0,12">

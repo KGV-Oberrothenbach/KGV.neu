@@ -14,26 +14,40 @@ public sealed class SettingsService
         _settingsFilePath = settingsFilePath;
     }
 
-    public ReleaseManagerSettings Load()
+    public (ReleaseManagerSettings Settings, string Message, bool LoadedFromDisk) Load()
     {
         if (!File.Exists(_settingsFilePath))
-        {
-            return new ReleaseManagerSettings();
-        }
+            return (new ReleaseManagerSettings(), "Keine gespeicherten Einstellungen gefunden. Es wird mit leeren Standardwerten gestartet.", false);
 
-        var json = File.ReadAllText(_settingsFilePath);
-        return JsonSerializer.Deserialize<ReleaseManagerSettings>(json) ?? new ReleaseManagerSettings();
+        try
+        {
+            var json = File.ReadAllText(_settingsFilePath);
+            var settings = JsonSerializer.Deserialize<ReleaseManagerSettings>(json) ?? new ReleaseManagerSettings();
+            settings.Normalize();
+            return (settings, $"Einstellungen aus `{_settingsFilePath}` geladen.", true);
+        }
+        catch (Exception ex)
+        {
+            return (new ReleaseManagerSettings(), $"Gespeicherte Einstellungen konnten nicht geladen werden. Es wird mit Standardwerten gestartet. Grund: {ex.Message}", false);
+        }
     }
 
-    public void Save(ReleaseManagerSettings settings)
+    public (bool Success, string Message) Save(ReleaseManagerSettings settings)
     {
-        var directory = Path.GetDirectoryName(_settingsFilePath);
-        if (!string.IsNullOrWhiteSpace(directory))
+        try
         {
-            Directory.CreateDirectory(directory);
-        }
+            settings.Normalize();
+            var directory = Path.GetDirectoryName(_settingsFilePath);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
 
-        var json = JsonSerializer.Serialize(settings, _jsonOptions);
-        File.WriteAllText(_settingsFilePath, json);
+            var json = JsonSerializer.Serialize(settings, _jsonOptions);
+            File.WriteAllText(_settingsFilePath, json);
+            return (true, $"Einstellungen in `{_settingsFilePath}` gespeichert.");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Einstellungen konnten nicht gespeichert werden: {ex.Message}");
+        }
     }
 }

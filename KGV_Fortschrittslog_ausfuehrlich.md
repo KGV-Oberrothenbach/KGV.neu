@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-03-28 – Prompt 2/5: Release Manager Settings-Grundgerüst für Laden/Speichern und UI sauber verdrahtet
+
+- Vor Beginn den realen Istzustand im Repo geprüft:
+  - `KGV.ReleaseManager/Models/ReleaseManagerSettings.cs`
+  - `KGV.ReleaseManager/ViewModels/MainViewModel.cs`
+  - `KGV.ReleaseManager/Services/SettingsService.cs`
+  - `KGV.ReleaseManager/MainWindow.xaml`
+  - `KGV.ReleaseManager/MainWindow.xaml.cs`
+  - `KGV.ReleaseManager/CHANGELOG.md`
+  - `KGV.ReleaseManager/KGV_Fortschritt_ausfuehrlich.md`
+  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - der Release Manager war bereits buildfähig und besaß schon ein kleines Settings-Scaffold
+  - automatische Ladung beim Start, robuste Persistenz, Pflichtfeldvalidierung und vorbereitete Store-Felder waren aber noch nicht sauber fertig verdrahtet
+- Minimal umgesetzt, ohne neue Release-Automation:
+  - `ReleaseManagerSettings` um `StoreUrl` ergänzt und zentrale Normalisierung eingebaut
+  - `SettingsService` für robuste JSON-basierte lokale Persistenz mit Rückmeldungen bei fehlender oder beschädigter Datei erweitert
+  - `MainViewModel` validiert jetzt Hauptpfade und optionale Store-Felder grundlegend
+  - `MainWindow` in die Bereiche `Projektpfade`, `Android / Play Store` und `Veröffentlichung` gegliedert
+  - Einstellungen werden beim Start automatisch geladen und können sichtbar erneut gespeichert werden
+  - Speichern-Button steht jetzt klar am Ende des Settings-Formulars
+- Abgrenzung:
+  - noch keine Git-, Build-, Inno- oder Android-Signing-Automation umgesetzt
+  - keine KGV-Endnutzer-Release-Notes verändert
+
 ## 2026-03-28 – Prompt 1/1: Release Manager Buildfähigkeit geprüft und als buildfähig bestätigt
 
 - Vor Beginn den realen Istzustand im Repo geprüft:

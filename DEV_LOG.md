@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-03-28 – Prompt 2/5: Release Manager Settings-Grundgerüst verdrahtet
+
+- Zuerst den realen Istzustand im aktuellen Repo geprüft:
+  - `KGV.ReleaseManager/Models/ReleaseManagerSettings.cs`
+  - `KGV.ReleaseManager/ViewModels/MainViewModel.cs`
+  - `KGV.ReleaseManager/Services/SettingsService.cs`
+  - `KGV.ReleaseManager/MainWindow.xaml`
+  - `KGV.ReleaseManager/MainWindow.xaml.cs`
+  - `KGV.ReleaseManager/CHANGELOG.md`
+  - `KGV.ReleaseManager/KGV_Fortschritt_ausfuehrlich.md`
+  - realen Git-Status über den vorgegebenen Visual-Studio-Git-Pfad geprüft
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - ein Settings-Modell, ein `SettingsService` und die Grund-UI im `MainWindow` waren bereits als Scaffold vorhanden
+  - Laden/Speichern war aber noch nicht robust verdrahtet
+  - die Einstellungen wurden beim Start noch nicht automatisch geladen
+  - Pflichtfeld-/Pfadvalidierung und vorbereitete Store-Felder fehlten noch
+- Minimal umgesetzt:
+  - `ReleaseManagerSettings` um `StoreUrl` ergänzt und mit zentraler Normalisierung versehen
+  - `SettingsService` auf robuste JSON-Persistenz mit verständlichen Rückmeldungen bei fehlender oder beschädigter Datei umgestellt
+  - `MainViewModel` validiert jetzt Pflichtfelder, lokale Hauptpfade sowie optionale Package-/Track-/URL-Felder grundlegend
+  - `MainWindow` in die Bereiche `Projektpfade`, `Android / Play Store` und `Veröffentlichung` gegliedert
+  - gespeicherte Einstellungen werden jetzt beim Start automatisch geladen
+  - klarer Speichern-Button am Ende des Settings-Formulars platziert
+- Abgrenzung:
+  - keine echte Release-Automation verdrahtet
+  - keine Git-, Build-, Inno- oder Android-Signing-Logik fachlich umgesetzt
+  - ReleaseManager-Änderungen nicht in Endnutzer-Release-Notes des KGV-Produkts übernommen
+
 ## 2026-03-28 – Prompt 1/1: Release Manager Buildfähigkeit geprüft, keine Buildfixes nötig
 
 - Zuerst den realen Istzustand im aktuellen Repo geprüft:

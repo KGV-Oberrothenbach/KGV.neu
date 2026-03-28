@@ -1,5 +1,36 @@
 # KGV Fortschritt ausführlich
 
+## Stand 2026-03-28 – Interner Entwicklungsblock: Settings-Modell, Laden/Speichern und Grund-UI verdrahtet
+
+### Ziel dieses Schritts
+Ein kleines, belastbares Fundament für die Konfiguration des `KGV.ReleaseManager` schaffen, ohne bereits Build-, Git-, Inno- oder Android-Signing-Automation fachlich zu verdrahten.
+
+### Geprüft
+- vorhandenes Settings-Modell
+- vorhandenes MainViewModel
+- vorhandener `SettingsService`
+- aktuelle `MainWindow`-Struktur
+- vorhandene Logdateien `CHANGELOG.md` und `KGV_Fortschritt_ausfuehrlich.md`
+
+### Umgesetzt
+- `ReleaseManagerSettings` um `StoreUrl` ergänzt und Normalisierung der Settings-Werte zentralisiert
+- `SettingsService` auf robuste JSON-Persistenz mit verständlichen Rückmeldungen umgestellt
+- beim Start werden gespeicherte Einstellungen automatisch geladen
+- beschädigte oder fehlende Settings-Dateien führen nicht zum Absturz, sondern zu Defaultwerten mit sauberer Statusmeldung
+- `MainViewModel` validiert jetzt Pflichtfelder und grundlegende Pfadangaben
+- `MainWindow` fachlich in die Bereiche `Projektpfade`, `Android / Play Store` und `Veröffentlichung` gegliedert
+- klarer Speichern-Button am Ende des Settings-Formulars
+
+### Ergebnis
+- Einstellungen können lokal gespeichert und beim Start wieder geladen werden
+- Hauptpfade werden vor dem Speichern verständlich validiert
+- Store-Felder sind vorbereitet, ohne schon Release-Automation auszulösen
+
+### Abgrenzung
+- keine echte Release-Automation
+- keine Git-, Build-, Inno- oder Android-Signing-Logik verdrahtet
+- keine Endnutzer-Release-Notes des KGV-Produkts verändert
+
 ## Stand 2026-03-28 – Interner Entwicklungscheck: Buildfähigkeit bestätigt
 
 ### Ziel dieses Schritts
