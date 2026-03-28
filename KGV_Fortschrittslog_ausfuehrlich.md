@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: MAUI-Releasepfad ohne AOT und mit korrekter Icon-/Signing-Basis finalisiert
+
+- Vor Beginn den realen Istzustand im Repo geprüft:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - reale Release-Artefakte, `aapt dump badging`, APK-Inhalt und echter Keystore-Pfad im Workspace
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - Diagnose- und Manifest/Icon-Fix waren bereits vorhanden
+  - der reale Releasepfad war aber noch nicht vollständig auf "ohne AOT" fixiert
+  - die App-Icon-Erzeugung lief noch aus einer PNG-Quelle statt direkt aus der vorhandenen SVG-Datei
+  - signierte Release-Builds scheiterten im aktuellen `csproj` zunächst real an fehlendem `AndroidSigningKeyPass` sowie an einem nicht vorhandenen relativen Keystore-Pfad im Projektordner
+  - `AuthService` loggte Login-Fehler bereits ohne sensible Daten; dort war kein zusätzlicher Umbau erforderlich
+- Minimal umgesetzt:
+  - `RunAOTCompilation=false` und `AndroidEnableProfiledAot=false` explizit für Release gesetzt
+  - `MauiIcon` auf `Resources\AppIcon\appicon.svg` umgestellt
+  - `AndroidSigningKeyStore` auf den real vorhandenen Pfad `..\_secrets\Android\kgv-upload.keystore` korrigiert
+  - `AndroidSigningKeyPass` aus dem vorhandenen Store-Passwort abgeleitet, damit signierte APK-/AAB-Läufe wieder konsistent funktionieren
+- Validierung:
+  - `dotnet clean KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=apk` erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=aab` erfolgreich
+  - `aapt dump badging` bestätigt weiterhin ein gesetztes Launcher-Icon im Release-APK
+  - APK-Inhaltsprüfung zeigt keine `libaot-*`-Artefakte mehr für den freigegebenen Releasepfad
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+  - realer Gerätetest in diesem Lauf nicht möglich, da kein aktives Gerät mehr über `adb` verbunden war
+
 ## 2026-03-28 – Prompt 1/1: MAUI-Release-Bug für Login und Launcher-Icon minimal behoben
 
 - Vor Beginn den realen Istzustand im Repo geprüft:

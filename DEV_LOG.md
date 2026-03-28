@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: MAUI-Releasepfad für Login, Icon und signierte Artefakte auf den realen Stand gehärtet
+
+- Vor Beginn den realen Istzustand geprüft:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - reale APK/AAB-Ausgaben, `aapt dump badging`, APK-Inhalt sowie vorhandener Keystore-Pfad unter `..\_secrets\Android\kgv-upload.keystore`
+- Ehrlicher Befund:
+  - Diagnose- und Icon-Fixes aus dem letzten Block waren bereits vorhanden
+  - im realen `csproj` war der Releasepfad aber noch nicht vollständig auf den bestätigten Nicht-AOT-Stand festgezogen
+  - die reale `MauiIcon`-Quelle zeigte weiterhin auf `appicon.png`, obwohl `.NET MAUI` App-Icons bevorzugt sauber aus der SVG-Quelle generiert werden
+  - der aktuelle Signierpfad im `csproj` war außerdem inkonsistent: `AndroidSigningKeyStore` zeigte auf eine nicht vorhandene lokale Datei im Projektordner, und für den Signiervorgang fehlte real `AndroidSigningKeyPass`
+  - `AuthService.LoginAsync(...)` war für sichere Fehlerdiagnose bereits ausreichend maskiert; dort war kein zusätzlicher Eingriff nötig
+- Minimal umgesetzt:
+  - Release explizit auf `RunAOTCompilation=false` und `AndroidEnableProfiledAot=false` festgezogen
+  - `MauiIcon` auf die echte SVG-Quelle `Resources\AppIcon\appicon.svg` umgestellt
+  - `AndroidSigningKeyStore` auf den real vorhandenen Workspace-Pfad `..\_secrets\Android\kgv-upload.keystore` korrigiert
+  - `AndroidSigningKeyPass` aus dem bereits vorhandenen `AndroidSigningStorePass` abgeleitet, damit signierte Release-Builds wieder belastbar durchlaufen
+- Validierung:
+  - `dotnet clean KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=apk` erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=aab` erfolgreich
+  - `aapt dump badging` auf der signierten Release-APK zeigt weiterhin ein gesetztes App-Icon (`res/mipmap-anydpi-v26/appicon.xml`)
+  - APK-Inhaltsprüfung bestätigt `NO_AOT_LIBS`
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+  - realer Gerätetest war in diesem Lauf nicht möglich, weil kein aktives `adb`-Gerät verbunden war
+
 ## 2026-03-28 – Prompt 1/1: MAUI-Release-Bug für Login/Launcher-Icon minimal gehärtet
 
 - Vor Beginn den realen Istzustand geprüft:

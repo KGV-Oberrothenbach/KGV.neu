@@ -24,6 +24,7 @@
 		<ApplicationDisplayVersion>0.2.7</ApplicationDisplayVersion>
 		<ApplicationVersion>15</ApplicationVersion>
 		<TargetFrameworks>net9.0-android</TargetFrameworks>
+        <AndroidSigningKeyStore>..\_secrets\Android\kgv-upload.keystore</AndroidSigningKeyStore>
 	</PropertyGroup>
 
 	<!-- Debug stability settings -->
@@ -35,7 +36,9 @@
 	<PropertyGroup Condition="'$(Configuration)'=='Release'">
 		<!-- Play Store Distribution: AAB als Release-Artefakt -->
 		<AndroidPackageFormat>aab</AndroidPackageFormat>
-     <AndroidLinkMode>None</AndroidLinkMode>
+        <AndroidLinkMode>None</AndroidLinkMode>
+		<RunAOTCompilation>false</RunAOTCompilation>
+		<AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
 		<!-- Play-Store-Builds verwenden keinen eigenen Update-Download-/Installationspfad. -->
 		<DefineConstants>$(DefineConstants);KGV_PLAYSTORE</DefineConstants>
 		<!-- Default: kein eigener Keystore. Release wird dann mit Debug-Key signiert (installierbar).
@@ -64,13 +67,22 @@
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-android|AnyCPU'">
-	  <AndroidKeyStore>False</AndroidKeyStore>
-	  <AndroidPackageFormat>apk</AndroidPackageFormat>
-	  <AndroidCreatePackagePerAbi>True</AndroidCreatePackagePerAbi>
+	  <AndroidKeyStore>True</AndroidKeyStore>
+	  <AndroidPackageFormat>aab</AndroidPackageFormat>
+	  <AndroidCreatePackagePerAbi>False</AndroidCreatePackagePerAbi>
+	  <AndroidUseAapt2>True</AndroidUseAapt2>
+	  <AndroidSigningStorePass>KGV_1234</AndroidSigningStorePass>
+	  <AndroidSigningKeyAlias>kgvupload</AndroidSigningKeyAlias>
+      <AndroidSigningKeyPass>$(AndroidSigningStorePass)</AndroidSigningKeyPass>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-android|AnyCPU'">
-	  <AndroidCreatePackagePerAbi>True</AndroidCreatePackagePerAbi>
+	  <AndroidCreatePackagePerAbi>False</AndroidCreatePackagePerAbi>
+	  <AndroidUseAapt2>True</AndroidUseAapt2>
+	  <AndroidPackageFormat>aab</AndroidPackageFormat>
+	  <AndroidSigningStorePass>KGV_1234</AndroidSigningStorePass>
+	  <AndroidSigningKeyAlias>kgvupload</AndroidSigningKeyAlias>
+      <AndroidSigningKeyPass>$(AndroidSigningStorePass)</AndroidSigningKeyPass>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -88,9 +100,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-      <!-- AppIcon: Vereinslogo aus dem vorhandenen PNG -->
-		<MauiIcon Remove="Resources\AppIcon\*.svg" />
-		<MauiIcon Include="Resources\AppIcon\appicon.png" BaseSize="2048,2048" />
+       <!-- AppIcon: Vereinslogo direkt aus der SVG als echte MAUI-App-Icon-Quelle -->
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" />
 		<MauiSplashScreen Include="Resources\AppIcon\appicon.svg" Color="#2E7D32" BaseSize="192,192" />
 	</ItemGroup>
 
