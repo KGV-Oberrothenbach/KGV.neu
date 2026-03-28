@@ -2,6 +2,30 @@
 
 Alle nennenswerten Änderungen am KGV Release Manager werden hier dokumentiert.
 
+## [0.1.5-internal] - 2026-03-28
+### Hinzugefügt
+- reales Inno-Setup-Skript unter `KGV.Wpf/Installer/KGV.Wpf.iss` als stabile Grundlage für den WPF-Installerpfad
+
+### Geändert
+- Inno-Setup-Aufruf übergibt jetzt die Zielversion als `AppVersion`-Define an das Skript, damit Installer-Metadaten und Dateiname auf demselben Release-Stand basieren
+
+### Behoben
+- bisher fehlte im Quellrepo ein belastbares `*.iss`-Skript für den WPF-Releasepfad
+
+## [0.1.4-internal] - 2026-03-28
+### Hinzugefügt
+- lokale versionierte Release-Notiz-Historie als JSON-Speicher für Version, WPF-Text, Android-/Play-Store-Text und Rohimport
+- echte Log-Auswertung seit dem letzten gespeicherten Release-Anker mit Filter auf ReleaseManager-interne Änderungen
+
+### Geändert
+- `MainWindow` zeigt jetzt letzten gespeicherten Release-Stand, Vorschau der ermittelten Änderungen, kopierfertigen Exporttext und einen klaren Importbereich für ChatGPT-Zusammenfassungen
+- Exporttext enthält jetzt Zielversion, ausgewerteten Logbereich, Rohzusammenfassung und einen strikten ChatGPT-Prompt für `WPF / Download` sowie `Android / Play Store`
+- Import von Zusammenfassungen prüft jetzt die benötigten Abschnitte, speichert sie lokal versioniert und stellt sie für spätere Releases wieder bereit
+
+### Behoben
+- bisherige Exportfunktion nutzte nur den neuesten Logabschnitt und hatte keinen belastbaren Release-Anker
+- bisheriger Zusammenfassungsimport speicherte keine versionierte WPF-/Android-Releasebasis
+
 ## [0.1.3-internal] - 2026-03-28
 ### Hinzugefügt
 - echte Release-Ausführung im `KGV.ReleaseManager` mit Dry Run, Versionsschreibung, Prozessausführung, Artefakt-Suche und Rollback-Grundlage

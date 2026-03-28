@@ -1,5 +1,124 @@
 # KGV Fortschritt ausführlich
 
+## Stand 2026-03-28 – Interner Inbetriebnahmeblock: reales Inno-Setup-Skript für den WPF-Installerpfad ergänzt
+
+### Ziel dieses Schritts
+Nur den WPF-Installerpfad so vorbereiten, dass im aktuellen Quellrepo ein reales, belastbares Inno-Setup-Skript vorhanden ist und der Release Manager dieses Skript mit der Zielversion kompilieren kann.
+
+### Geprüft
+- reale Skriptlage im Quellrepo:
+  - keine vorhandene `*.iss`-Datei in `KGV.neu`
+  - keine belastbaren Installer-/Setup-/Packaging-Reste mit nutzbarem Inno-Skript
+- reale WPF-Ausgabe im Projekt:
+  - `KGV.Wpf\bin\Debug\net8.0-windows\KGV.Wpf.exe`
+  - Projekt `KGV.Wpf/KGV.Wpf.csproj`
+- reale Zielstruktur im lokalen Repo `C:\Programmieren\Restore KGV\KGV-WPF`:
+  - `KGV-Setup.exe`
+  - `KGV-Setup-0.2.4.exe`
+  - `KGV-Setup-0.2.5.exe`
+  - `KGV-Setup-0.2.6.exe`
+  - `releases.json`
+  - `version.json`
+
+### Ehrlicher Istzustand vor Umsetzung
+- im Quellrepo existierte noch kein reales `.iss`-Skript
+- der Release Manager konnte den Inno-Compiler bereits aufrufen, hatte aber noch keine belastbare Skriptgrundlage
+- die lokale Zielrepo-Struktur zeigte bereits die reale Namenslogik `KGV-Setup-<Version>.exe` und `KGV-Setup.exe`
+
+### Umgesetzt
+- neues reales Inno-Setup-Skript unter `KGV.Wpf/Installer/KGV.Wpf.iss` ergänzt
+- Skript basiert auf der realen WPF-Releaseausgabe `KGV.Wpf\bin\Release\net8.0-windows`
+- Hauptstartdatei ist real `KGV.Wpf.exe`
+- Installer-Metadaten und Zielstruktur sauber definiert:
+  - App-Name `KGV`
+  - Publisher `KGV Oberrothenbach`
+  - Default-Installationsordner `{autopf}\KGV`
+  - Startmenüeintrag `KGV`
+  - optionales Desktop-Icon nur als Benutzeraufgabe
+- `BuildCommandService` und `ReleaseExecutionService` minimal ergänzt, damit `ISCC.exe` die Zielversion als `AppVersion`-Define erhält
+
+### Ergebnis
+- im Quellrepo ist jetzt genau ein reales `.iss`-Skript vorhanden und durch den Release Manager eindeutig auffindbar
+- die bestehende Namenslogik `KGV-Setup-<Version>.exe` bleibt mit dem lokalen Zielrepo konsistent
+- der Release Manager braucht für diesen Block kein zusätzliches Skript-Setting, weil der Pfad durch genau ein Skript stabil erkennbar ist
+
+### Validierung
+- `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Release` erfolgreich
+- `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
+- `dotnet build KGV.slnx -c Debug` erfolgreich
+- `ISCC.exe` konnte mit dem neuen Skript grundsätzlich aufgerufen werden
+- echter Skript-Compile-Lauf mit realer WPF-Releaseausgabe erfolgreich
+
+### Abgrenzung
+- keine Änderungen an MAUI/Android
+- kein GitHub Release
+- kein automatischer Upload ins lokale WPF-Repo durch diesen Block allein
+- keine unnötigen Umbauten am Release Manager über die minimale Version-Define-Übergabe hinaus
+
+## Stand 2026-03-28 – Interner Entwicklungsblock: Log-Auswertung seit letztem Release, Exporttext und versionierter Import ergänzt
+
+### Ziel dieses Schritts
+Nur innerhalb von `KGV.ReleaseManager/` die textliche Release-Aufbereitung so ergänzen, dass reale Änderungen seit dem letzten Release aus den vorhandenen Logs ermittelt, für ChatGPT exportiert und die fertigen WPF-/Android-Texte lokal versioniert gespeichert werden können.
+
+### Geprüft
+- vorhandene Settings-Persistenz, Versionslogik, Zielversion, Veröffentlichungsordner, Logquelle und Release-Ablauf-Grundgerüst in `KGV.ReleaseManager`
+- reale Loglage im konfigurierten Quellrepo nur lesend:
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `DEV_LOG.md`
+- weitere reale Changelog-/Release-History-Dateien im Quellrepo: keine zusätzlichen produktbezogenen Release-History-Dateien gefunden
+
+### Ehrlicher Istzustand vor Umsetzung
+- `ReleaseNotesImportExportService` konnte bisher nur einen einfachen Prompt aus dem neuesten Logabschnitt erzeugen
+- ein belastbarer Release-Anker für "seit letztem Release" fehlte noch vollständig
+- importierte ChatGPT-Zusammenfassungen wurden bisher nicht versioniert für WPF und Android gespeichert
+- die bestehende Oberfläche zeigte noch keinen klaren Status des letzten gespeicherten Releases und keine Vorschau des ausgewerteten Logbereichs
+
+### Umgesetzt
+- neue lokale Release-Notiz-Historie unter `%LocalAppData%\KGV.ReleaseManager\release-notes-history.json` ergänzt
+- neue Analyse des relevanten Logabschnitts seit dem letzten gespeicherten Release-Anker ergänzt
+- primäre Logquelle bleibt `KGV_Fortschrittslog_ausfuehrlich.md`; bei Fehlen wird weiter sauber auf `DEV_LOG.md` zurückgefallen
+- ReleaseManager-interne Änderungen werden bei der Exportbasis aus Endnutzer-Release-Notizen herausgefiltert
+- wenn noch kein belastbarer letzter Release-Anker vorhanden ist, wird der neueste relevante Logabschnitt ausdrücklich als erster sinnvoller Startzustand vorgeschlagen statt stillschweigend angenommen
+- der Exporttext enthält jetzt:
+  - Zielversion
+  - ausgewerteten Logbereich
+  - Rohzusammenfassung der relevanten Änderungen
+  - klaren ChatGPT-Prompt mit Zielstruktur für `WPF / Download` und `Android / Play Store`
+- Zwischenablage-Kopie für den kopierfertigen Exporttext ergänzt
+- Import von ChatGPT-Zusammenfassungen prüft jetzt mindestens die Abschnitte `## WPF / Download` und `## Android / Play Store`
+- gespeicherte Einträge enthalten jetzt lokal versioniert:
+  - Version
+  - Datum/Zeit
+  - Logquelle
+  - Release-Anker
+  - WPF-Release-Text
+  - Android-/Play-Store-Text
+  - Rohimport
+
+### Ergebnis
+- der Release Manager kann jetzt reale Änderungen seit dem letzten gespeicherten Release ermitteln oder verständlich melden, wenn kein belastbarer Anker vorhanden ist
+- Exporttext ist kopierfertig und auf die gewünschte ChatGPT-Ausgabe zugeschnitten
+- importierte Release-Zusammenfassungen werden lokal versioniert gespeichert und beim nächsten Start wieder als letzter bekannter Release-Stand berücksichtigt
+
+### Validierung
+- `dotnet restore KGV.ReleaseManager/KGV.ReleaseManager.csproj` erfolgreich
+- `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
+- `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich, nur bereits bekannte Warnungen
+- `dotnet build KGV.slnx -c Debug` erfolgreich
+- Workspace-Build erfolgreich
+- Starttest des WPF-Tools über `KGV.ReleaseManager.exe` erfolgreich
+- servicebasierter Test bestätigt:
+  - primäre Logquelle wird erkannt
+  - ohne gespeicherten Release-Anker wird ein verständlicher Startzustand vorgeschlagen
+  - Exporttext wird erzeugt
+  - ein Testimport mit `WPF / Download` und `Android / Play Store` wird lokal gespeichert und wieder geladen
+
+### Abgrenzung
+- kein GitHub Release
+- kein automatischer Play-Store-Upload
+- keine Veröffentlichung nach außen
+- keine Implementierungsänderungen außerhalb von `KGV.ReleaseManager/`
+
 ## Stand 2026-03-28 – Interner Entwicklungsblock: echte Release-Ausführung mit Versionsschreibung, Build, Artefaktkopie und Rollback-Grundlage verdrahtet
 
 ### Ziel dieses Schritts

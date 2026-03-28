@@ -17,8 +17,11 @@ public partial class MainWindow : Window
     private readonly ReleaseFolderService _releaseFolderService;
     private readonly LogExtractionService _logExtractionService;
     private readonly ReleaseNotesImportExportService _releaseNotesService;
+    private readonly ReleaseNotesHistoryService _releaseNotesHistoryService;
+    private readonly ReleaseNotesAnalysisService _releaseNotesAnalysisService;
     private readonly ReleaseExecutionService _releaseExecutionService;
     private readonly RuntimeSecretPromptService _runtimeSecretPromptService;
+    private ReleaseNotesAnalysisResult? _lastReleaseNotesAnalysisResult;
 
     public MainWindow()
     {
@@ -28,12 +31,21 @@ public partial class MainWindow : Window
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "KGV.ReleaseManager",
             "settings.json");
+        var releaseNotesHistoryFile = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "KGV.ReleaseManager",
+            "release-notes-history.json");
 
         _settingsService = new SettingsService(settingsFile);
         _versionService = new VersionService();
         _releaseFolderService = new ReleaseFolderService();
         _logExtractionService = new LogExtractionService();
         _releaseNotesService = new ReleaseNotesImportExportService();
+        _releaseNotesHistoryService = new ReleaseNotesHistoryService(releaseNotesHistoryFile);
+        _releaseNotesAnalysisService = new ReleaseNotesAnalysisService(
+            _logExtractionService,
+            _releaseNotesService,
+            _releaseNotesHistoryService);
         _releaseExecutionService = new ReleaseExecutionService(
             _releaseFolderService,
             new BuildCommandService(),
@@ -44,6 +56,7 @@ public partial class MainWindow : Window
 
         _viewModel = new MainViewModel();
         _viewModel.SettingsStoragePath = settingsFile;
+        _viewModel.ReleaseNotesStoragePath = releaseNotesHistoryFile;
         DataContext = _viewModel;
         _viewModel.AppendStatus("Projektgerüst geladen.");
         LoadSettings(showMessageBoxOnFailure: false);
@@ -97,23 +110,83 @@ public partial class MainWindow : Window
 
     private void CreateExportPrompt_Click(object sender, RoutedEventArgs e)
     {
-        var logSource = _logExtractionService.DetectPrimaryLogSource(_viewModel.Settings.SourceRepoPath);
-        var excerpt = logSource.IsAvailable
-            ? _logExtractionService.GetLatestSection(logSource.Path)
-            : "Keine lesbare Logquelle gefunden. Release-Text muss später manuell ergänzt werden.";
-
-        _viewModel.ExportText = _releaseNotesService.CreateChatPrompt(
-            _viewModel.CurrentVersion,
-            string.IsNullOrWhiteSpace(_viewModel.TargetVersion) ? _viewModel.CurrentVersion : _viewModel.TargetVersion,
-            excerpt);
-
-        _viewModel.AppendStatus("Export-Prompt erzeugt.");
+        RefreshReleaseNotesState(preserveImportedSummary: true);
+        _viewModel.AppendStatus("Exporttext für die Release-Aufbereitung erzeugt.");
     }
 
-    private void ImportSummary_Click(object sender, RoutedEventArgs e)
+    private void CopyExportText_Click(object sender, RoutedEventArgs e)
     {
-        _viewModel.ImportedSummary = _releaseNotesService.NormalizeImportedSummary(_viewModel.ExportText);
-        _viewModel.AppendStatus("Zusammenfassung übernommen.");
+        if (string.IsNullOrWhiteSpace(_viewModel.ExportText))
+        {
+            RefreshReleaseNotesState(preserveImportedSummary: true);
+        }
+
+        if (string.IsNullOrWhiteSpace(_viewModel.ExportText))
+        {
+            MessageBox.Show("Es konnte kein Exporttext erzeugt werden.", "Änderungen kopieren", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            Clipboard.SetText(_viewModel.ExportText);
+            _viewModel.AppendStatus("Exporttext in die Zwischenablage kopiert.");
+            MessageBox.Show("Exporttext wurde in die Zwischenablage kopiert.", "Änderungen kopieren", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            _viewModel.AppendStatus($"Zwischenablage konnte nicht beschrieben werden: {ex.Message}");
+            MessageBox.Show($"Zwischenablage konnte nicht beschrieben werden: {ex.Message}", "Änderungen kopieren", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void SaveImportedSummary_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshReleaseNotesState(preserveImportedSummary: true);
+
+        var importResult = _releaseNotesService.ParseImportedSummary(_viewModel.ImportedSummary);
+        if (!importResult.Success)
+        {
+            _viewModel.AppendStatus(importResult.Message);
+            MessageBox.Show(importResult.Message, "Zusammenfassung importieren", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_viewModel.TargetVersion))
+        {
+            const string message = "Für den Import muss zuerst eine Zielversion ermittelt werden.";
+            _viewModel.AppendStatus(message);
+            MessageBox.Show(message, "Zusammenfassung importieren", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var historyEntry = new ReleaseNotesHistoryEntry
+        {
+            Version = _viewModel.TargetVersion,
+            SavedAtUtc = DateTime.UtcNow,
+            LogSourcePath = _lastReleaseNotesAnalysisResult?.LogSourcePath ?? _viewModel.LogSourcePath,
+            SourceDescription = _lastReleaseNotesAnalysisResult?.SourceDescription ?? string.Empty,
+            LogAnchorHeading = _lastReleaseNotesAnalysisResult?.AnchorHeading ?? string.Empty,
+            ExportText = _viewModel.ExportText,
+            RawLogExcerpt = _lastReleaseNotesAnalysisResult?.ChangesPreview ?? string.Empty,
+            Title = importResult.Title,
+            ShortDescription = importResult.ShortDescription,
+            WpfReleaseText = importResult.WpfReleaseText,
+            AndroidReleaseText = importResult.AndroidReleaseText,
+            ImportedRawText = importResult.NormalizedText
+        };
+
+        var saveResult = _releaseNotesHistoryService.SaveEntry(historyEntry);
+        _viewModel.AppendStatus(saveResult.Message);
+        if (!saveResult.Success)
+        {
+            MessageBox.Show(saveResult.Message, "Zusammenfassung importieren", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        _viewModel.ImportedSummary = importResult.NormalizedText;
+        RefreshReleaseNotesState(preserveImportedSummary: false);
+        MessageBox.Show(saveResult.Message, "Zusammenfassung importieren", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private async void RunDryRelease_Click(object sender, RoutedEventArgs e)
@@ -131,7 +204,7 @@ public partial class MainWindow : Window
         var loadResult = _settingsService.Load();
         _viewModel.Settings = loadResult.Settings;
         _viewModel.AppendStatus(loadResult.Message);
-        RefreshProjectState();
+        RefreshProjectState(preserveImportedSummary: false);
 
         if (showMessageBoxOnFailure && !loadResult.LoadedFromDisk)
         {
@@ -139,7 +212,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void RefreshProjectState()
+    private void RefreshProjectState(bool preserveImportedSummary = true)
     {
         var versionResult = _versionService.DetectVersions(_viewModel.Settings.SourceRepoPath);
         _viewModel.ApplyVersionDetection(versionResult);
@@ -153,6 +226,29 @@ public partial class MainWindow : Window
         var logSourceStatus = _logExtractionService.DetectPrimaryLogSource(_viewModel.Settings.SourceRepoPath);
         _viewModel.ApplyLogSourceStatus(logSourceStatus);
         _viewModel.AppendStatus(logSourceStatus.Message);
+
+        RefreshReleaseNotesState(preserveImportedSummary);
+    }
+
+    private void RefreshReleaseNotesState(bool preserveImportedSummary)
+    {
+        _lastReleaseNotesAnalysisResult = _releaseNotesAnalysisService.Analyze(
+            _viewModel.Settings.SourceRepoPath,
+            _viewModel.CurrentVersion,
+            _viewModel.TargetVersion);
+
+        _viewModel.ApplyReleaseNotesAnalysis(_lastReleaseNotesAnalysisResult);
+
+        var latestEntry = _releaseNotesHistoryService.GetLatestEntry();
+        if (latestEntry is not null && (!preserveImportedSummary || string.IsNullOrWhiteSpace(_viewModel.ImportedSummary)))
+        {
+            _viewModel.ImportedSummary = latestEntry.ImportedRawText;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_lastReleaseNotesAnalysisResult.Message))
+        {
+            _viewModel.AppendStatus(_lastReleaseNotesAnalysisResult.Message);
+        }
     }
 
     private async Task ExecuteReleaseAsync(bool isDryRun)

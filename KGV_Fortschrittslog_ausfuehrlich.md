@@ -2,6 +2,51 @@
 
 ---
 
+## 2026-03-28 – Inbetriebnahme Block 1/3: reales Inno-Setup-Skript für den WPF-Releasepfad ergänzt
+
+- Vor Beginn den realen Istzustand geprüft:
+  - keine vorhandene `*.iss`-Datei im Quellrepo `C:\Programmieren\Restore KGV\KGV.neu\03_Arbeitsstand`
+  - reale WPF-Projektdatei `KGV.Wpf/KGV.Wpf.csproj`
+  - reale Zielrepo-Struktur in `C:\Programmieren\Restore KGV\KGV-WPF` mit `KGV-Setup.exe`, `KGV-Setup-0.2.4.exe`, `KGV-Setup-0.2.5.exe`, `KGV-Setup-0.2.6.exe`, `releases.json`, `version.json`
+- Ehrlicher Befund:
+  - der Release Manager konnte `ISCC.exe` bereits aufrufen, aber im Quellrepo fehlte noch ein belastbares Inno-Setup-Skript
+  - die reale Namenslogik für WPF-Setups war im lokalen Zielrepo bereits klar erkennbar
+- Minimal umgesetzt:
+  - neues reales Skript `KGV.Wpf/Installer/KGV.Wpf.iss`
+  - basiert auf der WPF-Releaseausgabe `KGV.Wpf\bin\Release\net8.0-windows`
+  - Haupt-EXE `KGV.Wpf.exe`
+  - minimale ReleaseManager-Ergänzung: Zielversion wird beim Inno-Aufruf als `AppVersion`-Define übergeben
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Release` erfolgreich
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+  - `ISCC.exe`-Compile mit dem neuen Skript erfolgreich
+
+## 2026-03-28 – Prompt 5/5: Release Manager um Log-Auswertung seit letztem Release und versionierten Import ergänzt
+
+- Vor Beginn den realen Istzustand geprüft:
+  - `KGV.ReleaseManager/MainWindow.xaml`
+  - `KGV.ReleaseManager/MainWindow.xaml.cs`
+  - `KGV.ReleaseManager/ViewModels/MainViewModel.cs`
+  - `KGV.ReleaseManager/Services/ReleaseNotesImportExportService.cs`
+  - `KGV.ReleaseManager/Services/LogExtractionService.cs`
+  - reale Loglage im Quellrepo: `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`
+- Ehrlicher Befund:
+  - Settings, Versionslogik, Veröffentlichungsordner, Logquelle und echter Release-Ablauf waren im Release Manager bereits vorhanden
+  - es fehlten aber noch ein belastbarer letzter Release-Anker, eine Vorschau der relevanten Änderungen, ein kopierfertiger Exporttext und eine lokale Speicherung importierter WPF-/Android-Notizen
+  - zusätzliche produktbezogene Release-History-Dateien wurden im Quellrepo nicht gefunden
+- Minimal umgesetzt:
+  - neue lokale Release-Notiz-Historie unter `%LocalAppData%\KGV.ReleaseManager\release-notes-history.json`
+  - Log-Auswertung seit letztem gespeicherten Release-Anker ergänzt
+  - ReleaseManager-interne Änderungen werden für die Endnutzer-Exportbasis gefiltert
+  - klarer Exporttext mit Zielversion, Logbereich, Rohzusammenfassung und ChatGPT-Prompt ergänzt
+  - Importprüfung und lokale versionierte Speicherung für `WPF / Download` und `Android / Play Store` ergänzt
+- Validierung:
+  - `dotnet restore KGV.ReleaseManager/KGV.ReleaseManager.csproj` erfolgreich
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+
 ## 2026-03-28 – Prompt 4/5: Release Manager auf bestätigte Pfade und reale Zielablagen abgeschlossen
 
 - Vor Beginn den realen Istzustand geprüft:

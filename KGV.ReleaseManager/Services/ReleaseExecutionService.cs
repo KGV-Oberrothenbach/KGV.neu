@@ -109,7 +109,12 @@ public sealed class ReleaseExecutionService
                 Directory.CreateDirectory(wpfStaging);
                 var setupBaseName = $"KGV-Setup-{request.TargetVersion}";
                 var innoRun = await _processExecutionService.RunAsync(
-                    _buildCommandService.CreateInnoCompileCommand(request.InnoSetupCompilerPath, innoScript.ScriptPath, wpfStaging, setupBaseName),
+                    _buildCommandService.CreateInnoCompileCommand(
+                        request.InnoSetupCompilerPath,
+                        innoScript.ScriptPath,
+                        wpfStaging,
+                        setupBaseName,
+                        request.TargetVersion),
                     "WPF Setup",
                     cancellationToken);
                 messages.Add(innoRun.GetUserFacingMessage());

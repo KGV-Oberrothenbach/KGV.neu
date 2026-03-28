@@ -28,6 +28,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private bool _buildAab = true;
     private string _exportText = string.Empty;
     private string _importedSummary = string.Empty;
+    private string _lastKnownReleaseText = "Noch kein gespeicherter Release-Anker.";
+    private string _releaseChangesStatusText = "Release-Änderungen noch nicht ausgewertet.";
+    private string _releaseChangesPreview = string.Empty;
+    private string _releaseNotesStoragePath = string.Empty;
     private string _statusText = "Bereit.";
     private string _footerText = "Noch kein Release ausgeführt.";
     private string _settingsStoragePath = string.Empty;
@@ -155,6 +159,30 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set { _importedSummary = value; OnPropertyChanged(); }
     }
 
+    public string LastKnownReleaseText
+    {
+        get => _lastKnownReleaseText;
+        set { _lastKnownReleaseText = value; OnPropertyChanged(); }
+    }
+
+    public string ReleaseChangesStatusText
+    {
+        get => _releaseChangesStatusText;
+        set { _releaseChangesStatusText = value; OnPropertyChanged(); }
+    }
+
+    public string ReleaseChangesPreview
+    {
+        get => _releaseChangesPreview;
+        set { _releaseChangesPreview = value; OnPropertyChanged(); }
+    }
+
+    public string ReleaseNotesStoragePath
+    {
+        get => _releaseNotesStoragePath;
+        set { _releaseNotesStoragePath = value; OnPropertyChanged(); }
+    }
+
     public string StatusText
     {
         get => _statusText;
@@ -256,6 +284,23 @@ public sealed class MainViewModel : INotifyPropertyChanged
         LogSourceStatusText = string.IsNullOrWhiteSpace(status.Message)
             ? "Logquelle nicht geprüft."
             : status.Message;
+    }
+
+    public void ApplyReleaseNotesAnalysis(ReleaseNotesAnalysisResult result)
+    {
+        LastKnownReleaseText = string.IsNullOrWhiteSpace(result.LastKnownReleaseText)
+            ? "Kein letzter gespeicherter Release-Anker vorhanden."
+            : result.LastKnownReleaseText;
+
+        ReleaseChangesStatusText = string.IsNullOrWhiteSpace(result.Message)
+            ? "Release-Änderungen wurden ausgewertet."
+            : result.Message;
+
+        ReleaseChangesPreview = string.IsNullOrWhiteSpace(result.ChangesPreview)
+            ? "Noch keine relevanten Änderungen ermittelt."
+            : result.ChangesPreview;
+
+        ExportText = string.IsNullOrWhiteSpace(result.ExportText) ? string.Empty : result.ExportText;
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

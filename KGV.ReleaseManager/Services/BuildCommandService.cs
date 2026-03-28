@@ -36,12 +36,21 @@ public sealed class BuildCommandService
         return CreateDotnetCommand(projectPath, arguments.ToString());
     }
 
-    public ProcessStartInfo CreateInnoCompileCommand(string compilerPath, string scriptPath, string outputDirectory, string outputBaseFileName)
+    public ProcessStartInfo CreateInnoCompileCommand(
+        string compilerPath,
+        string scriptPath,
+        string outputDirectory,
+        string outputBaseFileName,
+        string appVersion)
     {
+        var versionDefine = string.IsNullOrWhiteSpace(appVersion)
+            ? string.Empty
+            : $" /DAppVersion=\"{appVersion}\"";
+
         return new ProcessStartInfo
         {
             FileName = compilerPath,
-            Arguments = $"\"{scriptPath}\" /O\"{outputDirectory}\" /F\"{outputBaseFileName}\"",
+            Arguments = $"\"{scriptPath}\" /O\"{outputDirectory}\" /F\"{outputBaseFileName}\"{versionDefine}",
             WorkingDirectory = Path.GetDirectoryName(scriptPath) ?? string.Empty,
             UseShellExecute = false,
             RedirectStandardOutput = true,
