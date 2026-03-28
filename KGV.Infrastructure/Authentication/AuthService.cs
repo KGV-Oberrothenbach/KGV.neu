@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using GotrueUserAttributes = Supabase.Gotrue.UserAttributes;
 
@@ -163,25 +164,27 @@ namespace KGV.Infrastructure.Authentication
             try
             {
                 _logger?.LogInformation("SignIn attempt for {EmailMasked}", MaskEmail(email));
+                _logger?.LogInformation("LOGIN_AUTH_STAGE:GET_CLIENT for {EmailMasked}", MaskEmail(email));
 
                 var client = await GetClientAsync();
                 if (client == null)
                 {
-                    _logger?.LogError("Supabase client is null in LoginAsync.");
+                    _logger?.LogWarning("LOGIN_FAIL_REASON:SUPABASE_CLIENT_NULL for {EmailMasked}", MaskEmail(email));
                     return false;
                 }
 
+                _logger?.LogInformation("LOGIN_AUTH_STAGE:SIGN_IN for {EmailMasked}", MaskEmail(email));
                 var session = await client.Auth.SignIn(email: email, password: password);
                 if (session == null)
                 {
-                    _logger?.LogWarning("SignIn returned null session for {EmailMasked}", MaskEmail(email));
+                    _logger?.LogWarning("LOGIN_FAIL_REASON:NULL_SESSION for {EmailMasked}", MaskEmail(email));
                     return false;
                 }
 
                 var user = session.User;
                 if (user == null || string.IsNullOrEmpty(user.Id))
                 {
-                    _logger?.LogWarning("SignIn succeeded but session.User is null or has no Id for {EmailMasked}", MaskEmail(email));
+                    _logger?.LogWarning("LOGIN_FAIL_REASON:MISSING_USER_ID for {EmailMasked}", MaskEmail(email));
                     return false;
                 }
 
@@ -196,7 +199,7 @@ namespace KGV.Infrastructure.Authentication
                 // user.Id ist string -> in Guid umwandeln, weil MitgliedRecord.AuthUserId = Guid?
                 if (!Guid.TryParse(user.Id, out var userGuid))
                 {
-                    _logger?.LogWarning("User.Id is not a valid Guid: {UserId}", user.Id);
+                    _logger?.LogWarning("LOGIN_FAIL_REASON:INVALID_USER_GUID for {EmailMasked}", MaskEmail(email));
                     IsVorstand = false;
                     IsAdmin = false;
                     return true; // Login ist trotzdem ok, nur keine Rollen
@@ -212,7 +215,7 @@ namespace KGV.Infrastructure.Authentication
                 catch (Exception ex)
                 {
                     // Query kann fehlschlagen, z.B. wenn kein Datensatz existiert
-                    _logger?.LogInformation(ex, "No MitgliedRecord found or error while querying for user {UserId}", user.Id);
+                    _logger?.LogWarning(ex, "LOGIN_ROLE_LOOKUP_WARN for {EmailMasked}: {MessageMasked}", MaskEmail(email), MaskDiagnosticMessage(ex.Message));
                 }
 
                 if (userRecord != null)
@@ -234,14 +237,33 @@ namespace KGV.Infrastructure.Authentication
             }
             catch (GotrueException ex)
             {
-                _logger?.LogError(ex, "GotrueException during SignIn for {EmailMasked}: {Message}", MaskEmail(email), ex.Message);
+                _logger?.LogError(ex, "LOGIN_EXCEPTION:AUTH_SIGNIN_GOTRUE {MessageMasked} for {EmailMasked}", MaskDiagnosticMessage(ex.Message), MaskEmail(email));
                 return false;
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "Unexpected error during SignIn for {EmailMasked}", MaskEmail(email));
+                _logger?.LogError(ex, "LOGIN_EXCEPTION:AUTH_SIGNIN_UNEXPECTED {MessageMasked} for {EmailMasked}", MaskDiagnosticMessage(ex.Message), MaskEmail(email));
                 return false;
             }
+        }
+
+        private static string MaskDiagnosticMessage(string? message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return "unknown";
+            }
+
+            var sanitized = message.Replace("\r", " ").Replace("\n", " ").Trim();
+            sanitized = Regex.Replace(sanitized, @"sb_publishable_[A-Za-z0-9_\-\.]+", "sb_publishable_***", RegexOptions.IgnoreCase);
+            sanitized = Regex.Replace(sanitized, @"(access_token=)[^\s&]+", "$1***", RegexOptions.IgnoreCase);
+
+            if (sanitized.Length > 160)
+            {
+                sanitized = sanitized[..160];
+            }
+
+            return sanitized;
         }
 
         public async Task<List<AppUserDTO>> GetAppUsersAsync()

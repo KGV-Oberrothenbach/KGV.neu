@@ -3,6 +3,7 @@ using KGV.Core.Security;
 using KGV.Infrastructure.DependencyInjection;
 using KGV.Maui.Pages;
 using KGV.Maui.Platforms.Android.Services;
+using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.Services;
 using KGV.Maui.Settings;
 using KGV.Maui.State;
@@ -23,6 +24,8 @@ public static class MauiProgram
 
     public static MauiApp CreateMauiApp()
     {
+        AppFileLog.Marker("APP_START");
+        AppFileLog.Info(StartupLogTag, "Appstart initialisiert.");
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>();
@@ -30,6 +33,7 @@ public static class MauiProgram
         ShellRouteRegistrar.RegisterCommonRoutes();
 
         builder.Logging.AddDebug();
+        builder.Logging.AddProvider(new AppFileLoggerProvider());
         builder.Logging.SetMinimumLevel(LogLevel.Information);
 
         RegisterUnhandledExceptionLogging();
@@ -40,6 +44,7 @@ public static class MauiProgram
         ValidateSupabaseConfiguration(builder.Configuration);
 
         AppSettings.Load();
+        AppFileLog.Info(StartupLogTag, $"AppSettings geladen. Diagnose-Log: {AppFileLog.LogFilePath}");
 
         builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 
@@ -103,9 +108,13 @@ public static class MauiProgram
         {
             using var stream = FileSystem.OpenAppPackageFileAsync("appsettings.json").GetAwaiter().GetResult();
             configuration.AddJsonStream(stream);
+            AppFileLog.Marker("APPSETTINGS_LOAD_OK");
+            AppFileLog.Info(StartupLogTag, "`appsettings.json` erfolgreich aus dem App-Paket geladen.");
         }
         catch (Exception ex)
         {
+            AppFileLog.Marker("APPSETTINGS_LOAD_FAIL");
+            AppFileLog.Error(StartupLogTag, "`appsettings.json` konnte nicht aus dem App-Paket geladen werden.", ex);
             LogStartupError("`appsettings.json` konnte nicht aus dem App-Paket geladen werden.", ex);
             throw new InvalidOperationException("`appsettings.json` konnte nicht aus dem App-Paket geladen werden.", ex);
         }
@@ -118,6 +127,8 @@ public static class MauiProgram
 
         if (!string.IsNullOrWhiteSpace(supabaseUrl) && !string.IsNullOrWhiteSpace(supabaseKey))
         {
+            AppFileLog.Marker("SUPABASE_CONFIG_PRESENT_YES");
+            AppFileLog.Info(StartupLogTag, "Supabase-Konfiguration vorhanden.");
             return;
         }
 
@@ -133,6 +144,8 @@ public static class MauiProgram
         }
 
         var message = $"Supabase-Konfiguration fehlt in `appsettings.json`: {string.Join(", ", missingParts)}";
+        AppFileLog.Marker("SUPABASE_CONFIG_PRESENT_NO");
+        AppFileLog.Warning(StartupLogTag, message);
         LogStartupError(message);
         throw new InvalidOperationException(message);
     }
@@ -164,6 +177,7 @@ public static class MauiProgram
 
     private static void LogStartupError(string message, Exception? ex = null)
     {
+        AppFileLog.Error(StartupLogTag, message, ex);
         Debug.WriteLine($"[{StartupLogTag}] {message}");
 
         if (ex is null)

@@ -2,6 +2,78 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: MAUI-Release-Login für Android Logcat gezielt diagnostizierbar gemacht
+
+- Vor Beginn den realen Istzustand im Repo geprüft:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Maui/Services/Diagnostics/AppFileLog.cs`
+  - reale Buildlage und `adb devices`
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - das Launcher-Icon-Thema ist im aktuellen Stand nicht mehr der offene Block; der verbleibende Fehler sitzt sehr wahrscheinlich im Release-Loginpfad oder direkt danach
+  - bestehendes Dateilogging war für Release bereits vorhanden, aber für den Gerätetest fehlte weiter eine klar suchbare Android-Logcat-Diagnose mit festem Tag
+  - `AuthService` protokollierte den Loginpfad schon maskiert über `ILogger`, aber die Ursache war im Release damit noch nicht schnell genug aus `adb logcat` sichtbar
+  - der Release-Buildpfad ist für den Login im aktuellen Stand bereits debug-nah gehalten (`AndroidLinkMode=None`, `PublishTrimmed=false`, kein AOT); ein weiterer breiter Release-Umbau war deshalb nicht der richtige erste Schritt
+  - echter Geräte-/Logcat-Test war in diesem Lauf nicht möglich, weil `adb devices` kein verbundenes Gerät meldete
+- Minimal umgesetzt:
+  - das bestehende Diagnose-Logging schreibt jetzt nicht nur in `kgv-release.log`, sondern zusätzlich mit festem Android-Logcat-Tag `KGV`
+  - Startup-/Konfigurationspfad protokolliert jetzt explizit die Marker:
+    - `APP_START`
+    - `APPSETTINGS_LOAD_OK` / `APPSETTINGS_LOAD_FAIL`
+    - `SUPABASE_CONFIG_PRESENT_YES` / `SUPABASE_CONFIG_PRESENT_NO`
+  - der UI-Loginpfad in `LoginPage` protokolliert jetzt explizit:
+    - `LOGIN_STARTED`
+    - `LOGIN_RESULT_SUCCESS`
+    - `LOGIN_RESULT_FAIL`
+    - `LOGIN_EXCEPTION:...`
+  - `AuthService.LoginAsync(...)` wurde minimal-invasiv um klar suchbare, maskierte Stufen-/Fehlerdiagnose ergänzt (`GET_CLIENT`, `SIGN_IN`, Null-Session, fehlende UserId, Guid-/Role-Lookup, Gotrue-/Unexpected-Exception)
+  - erfolgreicher Login gilt jetzt erst dann als Erfolg, wenn auch der App-Root-Wechsel wirklich geklappt hat; andernfalls wird `LOGIN_EXCEPTION:APP_ROOT_SWITCH_FAILED` protokolliert und der Flow nicht still als Erfolg behandelt
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=apk` erfolgreich
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+  - `adb devices` zeigte in diesem Lauf kein verbundenes Gerät; daher kein echter `adb logcat`- oder Release-Login-Gerätetest möglich
+- Nächster reale Prüfpfad auf Gerät:
+  - Release-APK installieren
+  - `adb logcat -s KGV`
+  - Login ausführen und auf `LOGIN_EXCEPTION:...` bzw. `LOGIN_FAIL_REASON:...` prüfen
+
+## 2026-03-28 – Prompt 1/1: MAUI-Release mit echtem Dateilog und harten Android-Launcher-Ressourcen stabilisiert
+
+- Vor Beginn den realen Istzustand im Repo geprüft:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+  - `KGV.Maui/Resources/AppIcon/*`
+  - reale Release-Artefakte und APK-Inhalt unter `KGV.Maui/bin/Release/net9.0-android`
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - der frühere Startup-/Auth-Fix war noch nicht ausreichend, weil im Release weiter kein verwertbares Dateilog für Gerätediagnosen existierte
+  - `AuthService` war bereits so gebaut, dass Login-Start und Fehler maskiert über `ILogger` protokolliert werden können; es fehlte primär ein robuster MAUI-Datei-Logger im Releasepfad
+  - das Launcher-Icon war trotz vorhandener MAUI-/Manifest-Referenzen praktisch weiter abhängig von der generierten Pipeline; für Android fehlten explizite, belastbare Launcher-Ressourcen im Projekt
+  - ein echter Gerätetest des Release-Logins war in diesem Lauf nicht automatisierbar; deshalb Fokus auf reproduzierbare Release-Artefakte plus auslesbare Fehlerdiagnose
+- Minimal umgesetzt:
+  - neues Diagnose-Logging unter `KGV.Maui/Services/Diagnostics/*`; Laufzeitdatei: `kgv-release.log` im MAUI-`AppDataDirectory`
+  - `MauiProgram` protokolliert jetzt Appstart, Laden von `appsettings.json`, Vorhandensein der Supabase-Konfiguration und den Diagnose-Logpfad fail-fast in die Datei
+  - vorhandene `AuthService`-`ILogger`-Einträge landen dadurch im selben Dateilog; `LoginPage` ergänzt zusätzlich maskierte UI-seitige Start-/Fehlschlag-Einträge und verweist bei Fehlern auf das Diagnose-Log
+  - Release bleibt ohne AOT und wurde zusätzlich mit `PublishTrimmed=false` gegen stilles Release-Trimming gehärtet
+  - Android-Launcher-Icon läuft jetzt über explizite Ressourcen unter `Platforms/Android/Resources/*` plus direkte Manifest-Zuweisung für `android:icon` und `android:roundIcon`; das unsichere reine `MauiIcon`-Setup wurde entfernt
+- Validierung:
+  - `dotnet clean KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=apk` erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=aab` erfolgreich
+  - `aapt dump badging` bestätigt im signierten Release-APK weiter `application icon='res/mipmap-anydpi-v26/appicon.xml'`
+  - APK-Inhalt enthält explizite `appicon`-/`appicon_round`-Ressourcen und weiterhin keine `libaot-*`-Artefakte (`NO_AOT_LIBS`)
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+  - offener Rest nur auf echter Geräteebene: Login gegen Backend ausführen und bei weiterem Fehler `kgv-release.log` aus dem AppData-Verzeichnis auslesen
+
 ## 2026-03-28 – Prompt 1/1: MAUI-Releasepfad ohne AOT und mit korrekter Icon-/Signing-Basis finalisiert
 
 - Vor Beginn den realen Istzustand im Repo geprüft:

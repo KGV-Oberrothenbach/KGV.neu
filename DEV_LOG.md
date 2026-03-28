@@ -2,6 +2,76 @@
 
 ---
 
+## 2026-03-28 – Prompt 1/1: MAUI-Release-Loginpfad mit echtem Android-Logcat-Tag diagnostizierbar gemacht
+
+- Vor Beginn den realen Istzustand geprüft:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Maui/Services/Diagnostics/AppFileLog.cs`
+  - reale Git-/Buildlage und aktuelles `adb devices`
+- Ehrlicher Befund:
+  - das Dateilogging für Release war bereits vorhanden, aber die Diagnose landete nicht zuverlässig mit festem App-Tag in Android Logcat
+  - `AuthService` loggte den Loginpfad schon maskiert, aber ohne klar suchbare Login-Fehlermarker für Release
+  - `KGV.Maui.csproj` war für den Loginpfad bereits debug-nah genug gehärtet: kein AOT, `AndroidLinkMode=None`, `PublishTrimmed=false`
+  - ein echter Gerätetest/Logcat-Livecheck war in diesem Lauf nicht möglich, weil `adb devices` kein verbundenes Gerät zeigte
+- Minimal umgesetzt:
+  - bestehendes Diagnose-Logging auf festen Android-Logcat-Tag `KGV` erweitert; dieselben Einträge laufen weiter zusätzlich in `kgv-release.log`
+  - neue explizite Marker im Startup-/Konfigurationspfad ergänzt:
+    - `APP_START`
+    - `APPSETTINGS_LOAD_OK` / `APPSETTINGS_LOAD_FAIL`
+    - `SUPABASE_CONFIG_PRESENT_YES` / `SUPABASE_CONFIG_PRESENT_NO`
+  - Loginpfad in `LoginPage` um klare Marker ergänzt:
+    - `LOGIN_STARTED`
+    - `LOGIN_RESULT_SUCCESS`
+    - `LOGIN_RESULT_FAIL`
+    - `LOGIN_EXCEPTION:...`
+  - `AuthService.LoginAsync(...)` um konkrete, maskierte Release-Diagnose für die kritischen Stufen ergänzt (`GET_CLIENT`, `SIGN_IN`, Null-Session, fehlende UserId, Guid-/Role-Lookup, Gotrue-/Unexpected-Exception)
+  - Rootwechsel nach erfolgreichem Login jetzt als echter Erfolgspfad ausgewertet; scheitert der App-Root-Wechsel, wird dies als `LOGIN_EXCEPTION:APP_ROOT_SWITCH_FAILED` protokolliert statt still als Erfolg durchzulaufen
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=apk` erfolgreich; signierte Release-APK erzeugt
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+  - `adb devices` zeigte in diesem Lauf kein verbundenes Gerät; daher kein echter `adb logcat`-/Geräte-Login-Test möglich
+- Diagnosehinweis für den nächsten Gerätetest:
+  - `adb logcat -s KGV`
+  - alternativ ungefiltert nach `APP_START`, `LOGIN_STARTED`, `LOGIN_EXCEPTION`, `LOGIN_RESULT_FAIL` suchen
+
+## 2026-03-28 – Prompt 1/1: MAUI-Release mit Dateilogging und expliziten Android-Launcher-Ressourcen gehärtet
+
+- Vor Beginn den realen Istzustand geprüft:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+  - `KGV.Maui/Resources/AppIcon/*`
+  - realen Git-Status sowie reale Release-Artefakte unter `KGV.Maui/bin/Release/net9.0-android`
+- Ehrlicher Befund:
+  - `AuthService` loggte den Loginpfad bereits maskiert; im Release fehlte aber weiterhin ein echtes Dateilog im AppData-Verzeichnis
+  - das reine `MauiIcon`-Setup war trotz vorhandener `@mipmap/appicon`-Referenzen praktisch nicht belastbar genug; für Android fehlten robuste explizite Launcher-Ressourcen im Projektpfad
+  - `appsettings.json` und Supabase-Konfiguration wurden im Startup schon validiert, aber noch nicht zusätzlich in ein auslesbares Geräte-Dateilog geschrieben
+  - reale Gerätediagnose per `adb` war in diesem Lauf nicht möglich; deshalb Fokus auf build- und paketierbare Release-Härtung mit auslesbarer Logdatei
+- Minimal umgesetzt:
+  - kleinen Datei-Logger unter `KGV.Maui/Services/Diagnostics/*` ergänzt; Logpfad ist zur Laufzeit `%LocalApplicationData%/kgv-release.log` bzw. MAUI-`AppDataDirectory`
+  - `MauiProgram` schreibt jetzt Appstart, `appsettings.json`-Ladestatus, Supabase-Konfigurationsstatus und den Diagnose-Logpfad in die Logdatei; bestehende `ILogger`-Einträge aus `AuthService` laufen dort ebenfalls auf
+  - `LoginPage` schreibt Start/Fehlschlag maskiert mit und verweist bei Release-Fehlern auf das Diagnose-Log statt nur stumm/generisch zu scheitern
+  - Release explizit weiter ohne AOT gehalten und zusätzlich mit `PublishTrimmed=false` debug-näher fixiert
+  - Android-Launcher-Icon nicht mehr nur über `MauiIcon`, sondern über explizite Android-Ressourcen unter `Platforms/Android/Resources/*` abgesichert; Manifest setzt `android:icon` und `android:roundIcon` jetzt ebenfalls direkt
+- Validierung:
+  - `dotnet clean KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=apk` erfolgreich; signierte APK erzeugt
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=aab` erfolgreich; signierte AAB erzeugt
+  - `aapt dump badging` auf `de.kgv.oberrothenbach-Signed.apk` bestätigt `application icon='res/mipmap-anydpi-v26/appicon.xml'`
+  - APK-Inhaltsprüfung bestätigt explizite `appicon`-/`appicon_round`-Ressourcen sowie weiterhin `NO_AOT_LIBS`
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+  - echter Geräte-Login konnte in diesem Lauf nicht ausgeführt werden; dafür ist jetzt die Dateilog-Ursache auf dem Gerät auslesbar
+
 ## 2026-03-28 – Prompt 1/1: MAUI-Releasepfad für Login, Icon und signierte Artefakte auf den realen Stand gehärtet
 
 - Vor Beginn den realen Istzustand geprüft:

@@ -2,6 +2,7 @@ using KGV.Core.Interfaces;
 using KGV.Core.Security;
 using KGV.Infrastructure.Services;
 using KGV.Maui;
+using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.State;
 using KGV.Maui.Settings;
 using Microsoft.Maui;
@@ -342,10 +343,14 @@ public class LoginPage : ContentPage
 
         try
         {
+            AppFileLog.Marker("LOGIN_STARTED");
+            AppFileLog.Info(nameof(LoginPage), $"Login gestartet für {MaskEmail(email)}.");
             var ok = await _authService.LoginAsync(email, password);
             if (!ok)
             {
-                _statusLabel.Text = "Login fehlgeschlagen.";
+                AppFileLog.Warning(nameof(LoginPage), $"Login fehlgeschlagen für {MaskEmail(email)}.");
+                AppFileLog.Marker("LOGIN_RESULT_FAIL");
+                _statusLabel.Text = "Login fehlgeschlagen. Details im Diagnose-Log.";
                 return;
             }
 
@@ -354,6 +359,8 @@ public class LoginPage : ContentPage
 
             if (string.IsNullOrWhiteSpace(_authService.CurrentUserId) || !Guid.TryParse(_authService.CurrentUserId, out var userId))
             {
+                AppFileLog.Error(nameof(LoginPage), "LOGIN_EXCEPTION:INVALID_USER_ID");
+                AppFileLog.Marker("LOGIN_RESULT_FAIL");
                 _statusLabel.Text = "Login ok, aber UserId ist ungültig.";
                 return;
             }
@@ -369,6 +376,8 @@ public class LoginPage : ContentPage
 
             if (userContext.Role == UserRole.User && userContext.MitgliedId == null)
             {
+                AppFileLog.Error(nameof(LoginPage), "LOGIN_EXCEPTION:USER_WITHOUT_MITGLIED");
+                AppFileLog.Marker("LOGIN_RESULT_FAIL");
                 _statusLabel.Text = "Account ist keinem Mitglied zugeordnet.";
                 return;
             }
@@ -386,18 +395,50 @@ public class LoginPage : ContentPage
             AppSettings.AppMode = null;
             AppSettings.Save();
 
-            await SwitchToUserContextAsync(userContext);
+            var rootSwitched = await SwitchToUserContextAsync(userContext);
+            if (!rootSwitched)
+            {
+                AppFileLog.Error(nameof(LoginPage), "LOGIN_EXCEPTION:APP_ROOT_SWITCH_FAILED");
+                AppFileLog.Marker("LOGIN_RESULT_FAIL");
+                return;
+            }
+
+            AppFileLog.Marker("LOGIN_RESULT_SUCCESS");
         }
         catch (Exception ex)
         {
-            _statusLabel.Text = ex.Message;
+            AppFileLog.Error(nameof(LoginPage), $"LOGIN_EXCEPTION:{SanitizeDiagnosticMessage(ex.Message)}", ex);
+            AppFileLog.Marker("LOGIN_RESULT_FAIL");
+            _statusLabel.Text = "Login fehlgeschlagen. Details im Diagnose-Log.";
         }
     }
 
-    private async Task SwitchToUserContextAsync(UserContext userContext)
+    private static string MaskEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return "<leer>";
+        }
+
+        var parts = email.Split('@');
+        if (parts.Length != 2)
+        {
+            return "***";
+        }
+
+        var localPart = parts[0];
+        var domain = parts[1];
+        var maskedLocalPart = localPart.Length <= 2
+            ? "**"
+            : $"{localPart[0]}***{localPart[^1]}";
+
+        return $"{maskedLocalPart}@{domain}";
+    }
+
+    private async Task<bool> SwitchToUserContextAsync(UserContext userContext)
     {
         if (_userContextState.CurrentUserId == null)
-            return;
+            return false;
 
         var mode = userContext.Role is UserRole.Admin or UserRole.Vorstand
             ? AppMode.Admin
@@ -406,7 +447,7 @@ public class LoginPage : ContentPage
         if (mode == AppMode.User && _userContextState.CurrentMitgliedId == null)
         {
             _statusLabel.Text = "Account ist keinem Mitglied zugeordnet.";
-            return;
+            return false;
         }
 
         _userContextState.CurrentAppMode = mode;
@@ -415,10 +456,27 @@ public class LoginPage : ContentPage
         if (Application.Current is not App app)
         {
             _statusLabel.Text = "App-Root konnte nicht gewechselt werden.";
-            return;
+            return false;
         }
 
         await app.SwitchToCurrentRootAsync();
+        return true;
+    }
+
+    private static string SanitizeDiagnosticMessage(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return "unknown";
+        }
+
+        var sanitized = message.Replace("\r", " ").Replace("\n", " ").Trim();
+        if (sanitized.Length > 160)
+        {
+            sanitized = sanitized[..160];
+        }
+
+        return sanitized;
     }
 
     private static Button CreateVisibilityButton(Entry entry)
