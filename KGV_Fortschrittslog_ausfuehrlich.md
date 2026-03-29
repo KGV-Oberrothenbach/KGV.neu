@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: Android-Release-Buildblocker im MAUI-Android-Service minimal behoben
+
+- Vor Änderungen den echten Repo-Stand geprüft:
+  - `git status -sb` => `## main...origin/main`
+  - zusätzlich sichtbar waren nur residuale Testlauf-Artefakte aus dem fehlgeschlagenen Releaseversuch:
+    - `KGV.Maui/KGV.Maui.csproj`
+    - `KGV.Wpf/KGV.Wpf.csproj`
+    - `Zielversion 0.2.10.txt`
+- Danach nur die direkt betroffene Datei gelesen:
+  - `KGV.Maui/Platforms/Android/Services/AndroidRfidFeedbackService.cs`
+- Ehrlicher Befund:
+  - der Fehler lag nicht im Release Manager selbst
+  - der reale Android-Release-Blocker war `CS0104` in `AndroidRfidFeedbackService.cs`: `Application` war mehrdeutig zwischen `Android.App.Application` und `Microsoft.Maui.Controls.Application`
+  - die zusätzlich sichtbaren `csproj`-Änderungen waren keine gewünschte fachliche Änderung, sondern nur Rückstände des fehlgeschlagenen Release-Testlaufs; sie wurden bereinigt und nicht mitgeschleppt
+- Minimal umgesetzt:
+  - den Android-Kontextzugriff in `AndroidRfidFeedbackService.cs` per Alias auf `Android.App.Application` eindeutig gemacht
+  - dadurch bleibt das Verhalten gleich, der Android-Release-Build kompiliert aber wieder eindeutig
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -f net9.0-android -c Release -clp:ErrorsOnly -v:q` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -clp:ErrorsOnly -v:q` => erfolgreich
+- Bestehende Nullwarnungen in `HomeManagementPage.cs` blieben bewusst unverändert, weil sie in diesem Block nicht buildkritisch waren.
+
 ## 2026-03-29 – Prompt 1/1: Release-Manager-End-to-End-Fluss geprüft und Marker-Statusanzeige auf denselben Anker gezogen
 
 - Vor Beginn den echten Git-Stand gegen `origin/main` geprüft:

@@ -3,6 +3,7 @@ using Android.Media;
 using Android.Net;
 using Android.Provider;
 using KGV.Maui.Services;
+using AndroidApplication = Android.App.Application;
 
 namespace KGV.Maui.Platforms.Android.Services;
 
@@ -17,7 +18,7 @@ public sealed class AndroidRfidFeedbackService : IRfidFeedbackService
 
             if (uri != null)
             {
-                var ringtone = RingtoneManager.GetRingtone(Application.Context, uri);
+                var ringtone = RingtoneManager.GetRingtone(AndroidApplication.Context, uri);
                 ringtone?.Play();
             }
         }
