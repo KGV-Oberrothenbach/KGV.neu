@@ -118,6 +118,30 @@ public sealed class ReleaseMarkerService
         return false;
     }
 
+    public string BuildLatestReleaseStatusText(string logFilePath)
+    {
+        if (!TryGetLatestReleaseMarker(logFilePath, out var markerLine, out var markerTimestamp))
+        {
+            return string.Empty;
+        }
+
+        var match = ReleaseMarkerRegex.Match(markerLine);
+        if (!match.Success)
+        {
+            return $"Letzter Release-Marker im Fortschrittslog: {markerLine}";
+        }
+
+        var version = match.Groups["version"].Value.Trim();
+        if (markerTimestamp.HasValue)
+        {
+            return $"Letzter Release-Marker im Fortschrittslog: {version} vom {markerTimestamp.Value:yyyy-MM-dd HH:mm}";
+        }
+
+        return string.IsNullOrWhiteSpace(version)
+            ? $"Letzter Release-Marker im Fortschrittslog: {markerLine}"
+            : $"Letzter Release-Marker im Fortschrittslog: {version}";
+    }
+
     public bool IsReleaseMarkerLine(string line)
         => ReleaseMarkerRegex.IsMatch(line ?? string.Empty);
 

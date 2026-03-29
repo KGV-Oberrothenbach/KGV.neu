@@ -2,6 +2,41 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: Release-Manager-End-to-End-Fluss gegengeprüft, Marker-Statusanzeige vereinheitlicht
+
+- Zuerst den echten Git-Stand gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main` zeigt auf `origin/main`
+  - `git log origin/main..HEAD` => leer
+  - `git log HEAD..origin/main` => leer
+- Der laut Instructions vorgegebene Git-Pfad unter `C:\Program Files\Microsoft Visual Studio\2022\...\git.exe` existiert lokal weiterhin nicht; für die Git-Prüfung und den Abschluss wird deshalb erneut der vorhandene Visual-Studio-Git-Pfad unter `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe` verwendet.
+- Danach nur die direkt betroffenen Release-Manager-Dateien gelesen:
+  - `KGV.ReleaseManager/MainWindow.xaml.cs`
+  - `KGV.ReleaseManager/ViewModels/MainViewModel.cs`
+  - `KGV.ReleaseManager/Services/VersionService.cs`
+  - `KGV.ReleaseManager/Services/LogExtractionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseNotesAnalysisService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseNotesImportExportService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseNotesHistoryService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseMarkerService.cs`
+- End-to-End-Prüfung im aktuellen Produktpfad:
+  - Versions-Refresh liest weiter direkt aus `KGV.Wpf.csproj` und `KGV.Maui.csproj` und aktualisiert über `ApplyVersionDetection(...)` die UI-Felder sowie die Zielversion konsistent neu.
+  - Delta-Export verwendet weiter das Delta vor dem neuesten Marker in der newest-first-Logstruktur; ohne Marker bleibt der Initialfall auf dem gesamten relevanten Logbereich erhalten.
+  - Rückimport bleibt intakt: `ParseImportedSummary(...)` erkennt weiter `## WPF / Download` und `## Android / Play Store`; `SaveImportedSummary_Click(...)` speichert produktbezogen in die Historien.
+  - Dry Run erzeugt weiter keine Marker, Commits oder Pushes; Echt-Release schreibt Marker und führt danach Git-/Artefaktpfade aus.
+  - echte Restlücke gefunden: die zentrale Anzeige `LastKnownReleaseText` lief noch über die lokale Historienauswahl und war damit nicht zwingend derselbe Anker wie Delta-Export und Releaseabschluss.
+- Minimal korrigiert:
+  - `ReleaseMarkerService` kann jetzt direkt einen menschenlesbaren Statustext aus dem neuesten Fortschrittslog-Marker erzeugen.
+  - `MainWindow.xaml.cs` verwendet für die zentrale Release-Anzeige jetzt bevorzugt genau diesen Marker-Status; nur ohne Marker fällt die Anzeige weiter sauber auf den bisherigen Historienanker zurück.
+  - `ReleaseExecutionService.ValidateAsync(...)` meldet den Dry Run jetzt ausdrücklich als marker-/commit-/push-frei, damit die UI-Rückmeldung im End-to-End-Fluss fachlich klarer ist.
+- Belastbar validiert:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Ehrliche Abgrenzung:
+  - kein echter produktiver Release mit externen Tools/echten Signaturdaten ausgeführt
+  - End-to-End fachlich und technisch im Codepfad geprüft; reale externe Toolausführung blieb unverändert außerhalb dieses Minimalblocks
+
 ## 2026-03-29 – Prompt 1/1 Abschlusslauf: Release-Manager-Block final verifiziert, Vollbuild bestätigt, Git-Abschluss vorbereitet
 
 - Vor Änderungen den echten Git-Stand erneut geprüft:

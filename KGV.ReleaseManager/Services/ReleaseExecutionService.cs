@@ -39,7 +39,7 @@ public sealed class ReleaseExecutionService
         {
             Success = errors.Count == 0,
             Message = errors.Count == 0
-                ? "Dry Run erfolgreich. Der Release kann mit den aktuellen Einstellungen gestartet werden, sofern externe Tools verfügbar sind."
+                ? "Dry Run erfolgreich. Es wurden keine Marker, Commits oder Pushes ausgeführt. Der Release kann mit den aktuellen Einstellungen gestartet werden, sofern externe Tools verfügbar sind."
                 : errors[0],
             Messages = messages.Concat(errors).ToList(),
             ReleaseFolderPath = BuildReleaseFolderPath(request)

@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private readonly ReleaseNotesHistoryService _androidReleaseNotesHistoryService;
     private readonly ReleaseNotesAnalysisService _releaseNotesAnalysisService;
     private readonly ReleaseExecutionService _releaseExecutionService;
+    private readonly ReleaseMarkerService _releaseMarkerService;
     private readonly RuntimeSecretPromptService _runtimeSecretPromptService;
     private ReleaseNotesAnalysisResult? _lastReleaseNotesAnalysisResult;
 
@@ -53,7 +54,7 @@ public partial class MainWindow : Window
             _logExtractionService,
             _releaseNotesService);
         var gitCommandService = new GitCommandService();
-        var releaseMarkerService = new ReleaseMarkerService();
+        _releaseMarkerService = new ReleaseMarkerService();
         _releaseExecutionService = new ReleaseExecutionService(
             _releaseFolderService,
             new BuildCommandService(),
@@ -61,7 +62,7 @@ public partial class MainWindow : Window
             new ReleaseVersionFileService(),
             new ReleaseArtifactService(),
             gitCommandService,
-            releaseMarkerService);
+            _releaseMarkerService);
         _runtimeSecretPromptService = new RuntimeSecretPromptService();
 
         _viewModel = new MainViewModel();
@@ -276,8 +277,9 @@ public partial class MainWindow : Window
         _viewModel.LastKnownWpfReleaseText = _wpfReleaseNotesHistoryService.BuildLatestReleaseStatusText();
         _viewModel.LastKnownAndroidReleaseText = _androidReleaseNotesHistoryService.BuildLatestReleaseStatusText();
 
+        var logSourceStatus = _logExtractionService.DetectPrimaryLogSource(_viewModel.Settings.SourceRepoPath);
         var selectedAnchor = ResolveReleaseNotesAnchor(wpfLatestEntry, androidLatestEntry);
-        _viewModel.LastKnownReleaseText = BuildSelectedReleaseStatusText(selectedAnchor);
+        _viewModel.LastKnownReleaseText = BuildSelectedReleaseStatusText(selectedAnchor, logSourceStatus.Path);
 
         _lastReleaseNotesAnalysisResult = _releaseNotesAnalysisService.Analyze(
             _viewModel.Settings.SourceRepoPath,
@@ -468,8 +470,14 @@ public partial class MainWindow : Window
         return SelectNewerEntry(wpfLatestEntry, androidLatestEntry);
     }
 
-    private string BuildSelectedReleaseStatusText(ReleaseNotesHistoryEntry? selectedAnchor)
+    private string BuildSelectedReleaseStatusText(ReleaseNotesHistoryEntry? selectedAnchor, string logSourcePath)
     {
+        var markerStatusText = _releaseMarkerService.BuildLatestReleaseStatusText(logSourcePath);
+        if (!string.IsNullOrWhiteSpace(markerStatusText))
+        {
+            return markerStatusText;
+        }
+
         if (selectedAnchor is null)
         {
             return "Kein letzter gespeicherter Release-Anker vorhanden. Als Startzustand kann der neueste relevante Logabschnitt vorgeschlagen werden.";

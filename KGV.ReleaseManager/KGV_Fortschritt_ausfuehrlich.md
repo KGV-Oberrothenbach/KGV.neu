@@ -1,5 +1,48 @@
 # KGV Fortschritt ausführlich
 
+## Stand 2026-03-29 – Interner Prüfblock: Release-Manager-End-to-End-Fluss gegengeprüft und Markeranzeige vereinheitlicht
+
+### Ziel dieses Schritts
+Den bereits auf `main` abgeschlossenen Release-Manager-Block nicht neu umbauen, sondern den fachlichen End-to-End-Fluss im bestehenden Produktpfad gegenprüfen und nur direkte Restlücken minimal schließen.
+
+### Geprüft
+- echter Git-Stand gegen `origin/main`
+- direkt betroffene Release-Manager-Dateien:
+  - `MainWindow.xaml.cs`
+  - `ViewModels/MainViewModel.cs`
+  - `Services/VersionService.cs`
+  - `Services/LogExtractionService.cs`
+  - `Services/ReleaseNotesAnalysisService.cs`
+  - `Services/ReleaseNotesImportExportService.cs`
+  - `Services/ReleaseNotesHistoryService.cs`
+  - `Services/ReleaseExecutionService.cs`
+  - `Services/ReleaseMarkerService.cs`
+
+### End-to-End-Befund
+- Versions-Refresh bleibt korrekt auf den echten Projektdateien `KGV.Wpf.csproj` und `KGV.Maui.csproj`
+- Export bleibt markerbasiert; ohne Marker bleibt der Initialfall erhalten
+- Import bleibt für WPF-/Android-Abschnitte funktionsfähig
+- Dry Run bleibt schreibfrei; Echt-Release behält Marker-/Artefakt-/Git-Pfad
+- reale Restlücke saß noch in der zentralen Release-Anzeige: dort wurde noch nicht zwingend derselbe Marker verwendet wie im Delta-Export und beim Releaseabschluss
+
+### Umgesetzt
+- `ReleaseMarkerService` um einen menschenlesbaren Statustext für den neuesten Release-Marker ergänzt
+- `MainWindow.xaml.cs` verwendet für `LastKnownReleaseText` jetzt bevorzugt denselben Fortschrittslog-Marker wie der Delta-Export
+- nur wenn kein Marker vorhanden ist, fällt die zentrale Anzeige weiter auf den bisherigen Historienanker zurück
+- Dry-Run-Erfolgsmeldung in `ReleaseExecutionService` fachlich präzisiert: keine Marker, Commits oder Pushes
+
+### Ergebnis
+- zentrale UI-Anzeige, Delta-Export und Releaseabschluss verwenden jetzt denselben Marker-Anker
+- Dry-Run-Rückmeldung ist im End-to-End-Fluss klarer
+- kein neuer Fachumfang begonnen
+
+### Validierung
+- `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+
+### Abgrenzung
+- kein echter produktiver Release mit externen Tools/realen Zugangsdaten durchgeführt
+- geprüft und korrigiert wurde nur der direkte bestehende Codepfad des Release Managers
+
 ## Stand 2026-03-29 – Interner Abschlusslauf: Release-Manager-Block final gegengeprüft und Vollvalidierung belastbar bestätigt
 
 ### Ziel dieses Schritts
