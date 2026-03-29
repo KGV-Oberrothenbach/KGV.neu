@@ -2,6 +2,62 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel nach RFID-Scan in echte Ausbau-/Einbauformulare verzweigt
+
+- Vor Beginn den realen Repo-Stand gegen `origin/main` geprüft (`git fetch origin`, Vergleich `HEAD` gegen `origin/main`) und danach gezielt die direkt betroffenen Dateien gelesen:
+  - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+  - `KGV.Maui/Pages/RfidScanWorkflowPage.cs`
+  - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Core/Models/RfidScanContextResult.cs`
+  - `KGV.Core/Models/RfidScanContextRecord.cs`
+  - `KGV.Core/Models/StromzaehlerInsertRecord.cs`
+  - `KGV.Core/Models/WasserzaehlerInsertRecord.cs`
+  - `KGV.Core/Models/AblesungInsertRecord.cs`
+  - WPF nur grob als Referenz: `ZaehlerwechselScanViewModel`, `ZaehlerwechselEinbauViewModel`, `ZaehlerwechselAusbauViewModel`
+- Ehrlicher Befund im aktuellen Repo-Stand:
+  - der MAUI-Scan-/Kontextschritt für `Zählerwechsel` war bereits produktiv vorhanden
+  - nach erfolgreicher RFID-Auflösung blieb die Seite aber noch auf dem Entscheidungstext stehen
+  - damit war fachlich zwar schon klar unterscheidbar zwischen Ausbau und Einbau, aber es gab noch keinen mobilen Folgepfad für den produktiven Zählerwechsel
+- Minimal umgesetzt:
+  - neuer kleiner Zustand `KGV.Maui/State/ZaehlerwechselWorkflowState.cs` ergänzt, damit der aufgelöste RFID-Kontext stabil an Folgeformulare übergeben wird, ohne Query-String-Bastelei mit großen Objekten
+  - `RfidScanContextViewModel` liefert jetzt sichtbare Weiter-Zustände für Ausbau/Einbau
+  - `RfidScanWorkflowPage` wurde minimal um einen optionalen Aktionsbereich erweitert; bestehender Scanpfad bleibt ansonsten erhalten
+  - `ZaehlerwechselPage` zeigt jetzt nach erfolgreichem Scan klar sichtbare Folge-CTAs:
+    - `Weiter zum Ausbau`
+    - `Weiter zum Einbau`
+  - neue MAUI-Seite `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs` angelegt:
+    - zeigt Parzelle, Medium, aktiven Zähler und Zählernummer
+    - speichert produktiv zuerst die Schlussablesung
+    - beendet danach den aktiven Zähler über `SetStromzaehlerAusgebautAmAsync(...)` bzw. `SetWasserzaehlerAusgebautAmAsync(...)`
+  - neue MAUI-Seite `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs` angelegt:
+    - zeigt Parzelle, Medium und RFID-Kontext
+    - legt produktiv den neuen Zähler über `AddStromzaehlerAsync(...)` bzw. `AddWasserzaehlerAsync(...)` an
+    - speichert danach die Anfangsablesung über `AddAblesungAsync(...)`
+  - Foto-/Uploadpfad wurde in diesem Block bewusst nicht künstlich ergänzt, weil dafür hier kein belastbarer bestehender MAUI-Produktpfad gebraucht wurde
+- Wie der Scan-Kontext jetzt übergeben wird:
+  - `ZaehlerwechselPage` schreibt den bereits aufgelösten `RfidScanContextResult` in `ZaehlerwechselWorkflowState`
+  - die neuen Folgeformulare lesen diesen Zustand beim Anzeigen wieder aus
+  - dadurch bleiben stabil verfügbar:
+    - `ParzelleId`
+    - `Medium`
+    - aktiver Zähler vorhanden ja/nein
+    - aktiver Zähler `Id`
+    - Zählernummer / Anzeigename soweit vorhanden
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+- Logischer Prüfpfad nach dem Block:
+  - Zählerwechsel öffnen
+  - RFID scannen / UID prüfen
+  - bekannter Kontext mit aktivem Zähler => `Weiter zum Ausbau`
+  - bekannter Kontext ohne aktiven Zähler => `Weiter zum Einbau`
+  - unbekannter Tag => kein Folgeformular
+  - Ausbau speichert Schlussablesung + setzt `ausgebaut_am`
+  - Einbau legt Zähler an + speichert Anfangsablesung
+
 ## 2026-03-29 – Prompt 1/1: MAUI mitgliedsgebundene Stammdaten repariert und `Nutzer hinzufügen` im Mitgliedskontext sichtbar gemacht
 
 - Vor Beginn den realen Istzustand im Repo geprüft:

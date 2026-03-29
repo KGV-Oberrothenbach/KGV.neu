@@ -21,7 +21,8 @@ public abstract class RfidScanWorkflowPage : ContentPage
         string description,
         string workflowSectionTitle,
         RfidScanContextViewModel scanContext,
-        Func<RfidScanContextResult?, string> decisionFactory)
+        Func<RfidScanContextResult?, string> decisionFactory,
+        Func<RfidScanContextViewModel, View>? actionSectionFactory = null)
     {
         _scanContext = scanContext;
         _decisionFactory = decisionFactory;
@@ -94,6 +95,8 @@ public abstract class RfidScanWorkflowPage : ContentPage
         };
         decisionBorder.SetBinding(IsVisibleProperty, nameof(RfidScanContextViewModel.HasResolution));
 
+        var actionSection = actionSectionFactory?.Invoke(_scanContext);
+
         _decisionLabel.Text = _decisionFactory(_scanContext.Resolution);
 
         Content = new ScrollView
@@ -129,6 +132,7 @@ public abstract class RfidScanWorkflowPage : ContentPage
                     statusLabel,
                     contextBorder,
                     decisionBorder,
+                    actionSection ?? new ContentView { IsVisible = false },
                     backToOverviewButton
                 }
             }

@@ -89,6 +89,8 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
     public bool CanStartNfcScan => !IsBusy && IsAuthorized && NfcAvailability.State == NfcAvailabilityState.Available;
     public bool CanOpenNfcSettings => NfcAvailability.State == NfcAvailabilityState.Disabled;
     public bool CanApplyFallbackContext => !IsBusy && SelectedFallbackParzelle != null && SelectedFallbackMedium != null;
+    public bool CanContinueToMeterRemoval => !IsBusy && Resolution?.State == RfidScanContextState.KnownWithActiveMeter;
+    public bool CanContinueToMeterInstallation => !IsBusy && Resolution?.State == RfidScanContextState.KnownWithoutActiveMeter;
 
     public RfidScanContextResult? Resolution
     {
@@ -111,6 +113,8 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(StatusDisplay));
             OnPropertyChanged(nameof(EichdatumDisplay));
             OnPropertyChanged(nameof(EichfaelligDisplay));
+            OnPropertyChanged(nameof(CanContinueToMeterRemoval));
+            OnPropertyChanged(nameof(CanContinueToMeterInstallation));
         }
     }
 
