@@ -75,6 +75,7 @@ public static class MauiProgram
         builder.Services.AddTransient<ExportPage>();
         builder.Services.AddTransient<MemberSearchViewModel>();
         builder.Services.AddTransient<MemberSearchPage>();
+        builder.Services.AddTransient<MemberDetailPage>();
         builder.Services.AddTransient<WartungsvertraegePage>();
         builder.Services.AddTransient<MemberWartungsvertraegePage>();
         builder.Services.AddTransient<WartungsvertragDetailPage>();

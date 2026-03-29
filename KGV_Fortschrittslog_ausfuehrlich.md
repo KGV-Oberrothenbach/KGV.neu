@@ -2,6 +2,43 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: MAUI mitgliedsgebundene Stammdaten repariert und `Nutzer hinzufügen` im Mitgliedskontext sichtbar gemacht
+
+- Vor Beginn den realen Istzustand im Repo geprüft:
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/Pages/MyProfilePage.cs`
+  - `KGV.Maui/Pages/UserManagementPage.cs`
+  - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/State/MemberContextState.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - fachliche Referenz: `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`, `KGV.Wpf/ViewModels/UserManagementViewModel.cs`
+- Ehrlicher Befund auf dem aktuellen Stand:
+  - `↳ Stammdaten` zeigte im Admin-/Vorstandskontext real auf `MeineDatenPage`
+  - `MeineDatenPage.OnEditClicked()` leitete aber nur den Eigenfall nach `MyProfilePage` weiter; für fremde Mitglieder endete der Pfad in der dokumentierten "noch nicht gebaut"-Sackgasse
+  - damit existierte mobil zwar ein mitgliedsgebundener Leseweg, aber kein echter produktiver Bearbeitungspfad für das ausgewählte Mitglied
+  - der produktive Invite-/Erstlogin-Flow war mobil bereits vorhanden, wurde im gebundenen Mitgliedskontext aber noch nicht mit dem klaren WPF-Wortlaut `Nutzer hinzufügen` angeboten und blieb bei vorhandenem App-User zu wenig sauber abgegrenzt
+- Minimal umgesetzt:
+  - neue MAUI-Seite `KGV.Maui/Pages/MemberDetailPage.cs` angelegt, weil die saubere Trennung zum Eigenprofilpfad kleiner und belastbarer war als ein weiterer Umbau von `MyProfilePage`
+  - `AdminShell` öffnet bei `↳ Stammdaten` jetzt diese neue mitgliedsgebundene Detailseite statt `MeineDatenPage`
+  - die neue Seite lädt das ausgewählte Mitglied ausschließlich über `MemberContextState.SelectedMember.Id` und speichert produktiv über den vorhandenen Lock-/`UpdateMitgliedAsync(...)`-Pfad analog zur WPF-Fachlichkeit
+  - der bisherige Eigenpfad `Meine Daten` / `MyProfilePage` bleibt unverändert für den selbst eingeloggten Nutzer bestehen
+  - im mitgliedsgebundenen Admin-Pfad ist jetzt ein klar sichtbarer Button `Nutzer hinzufügen` vorhanden, wenn das ausgewählte Mitglied noch keinen App-User hat
+  - der Button verwendet denselben vorhandenen produktiven Invite-/Erstlogin-Flow; es wurde kein Dummy-Flow und keine neue Schattenlogik ergänzt
+  - `UserManagementViewModel` und `UserManagementPage` wurden im gebundenen Mitgliedskontext auf den WPF-Wortlaut `Nutzer hinzufügen` umgestellt; die Invite-Aktion wird bei bereits verknüpftem App-User dort jetzt nicht mehr fälschlich aktiv angeboten
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+- Logischer Prüfpfad nach dem Block:
+  - Mitglied in der Suche auswählen
+  - `↳ Stammdaten` öffnen
+  - ausgewähltes Mitglied wirklich bearbeiten und speichern
+  - Mitglied ohne App-User wählen
+  - `Nutzer hinzufügen` sichtbar
+  - bestehender Invite-/Erstlogin-Flow wird aufgerufen
+
 ## 2026-03-29 – Prompt 1/1: MAUI-Release-Loginpfad gegen echten Supabase-Connection-Failure im Android-Netzwerkpfad gehärtet
 
 - Vor Beginn den realen Istzustand im Repo geprüft:

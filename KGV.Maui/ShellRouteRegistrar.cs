@@ -13,6 +13,7 @@ internal static class ShellRouteRegistrar
             return;
 
         Routing.RegisterRoute(nameof(MeineDatenPage), typeof(MeineDatenPage));
+        Routing.RegisterRoute(nameof(MemberDetailPage), typeof(MemberDetailPage));
         Routing.RegisterRoute(nameof(WartungsvertraegePage), typeof(WartungsvertraegePage));
         Routing.RegisterRoute(nameof(MemberWartungsvertraegePage), typeof(MemberWartungsvertraegePage));
         Routing.RegisterRoute(nameof(WartungsvertragDetailPage), typeof(WartungsvertragDetailPage));

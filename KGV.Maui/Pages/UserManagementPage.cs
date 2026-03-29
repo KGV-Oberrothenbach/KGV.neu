@@ -100,13 +100,15 @@ public sealed class UserManagementPage : ContentPage
         roleSection.Children.Add(roleHintLabel);
         roleSection.Children.Add(saveRoleButton);
 
-        var inviteButton = new Button { Text = "Einladung / Erstlogin-Code senden" };
+        var inviteButton = new Button();
+        inviteButton.SetBinding(Button.TextProperty, nameof(UserManagementViewModel.InviteActionText));
         inviteButton.SetBinding(IsEnabledProperty, nameof(UserManagementViewModel.CanInvite));
+        inviteButton.SetBinding(IsVisibleProperty, nameof(UserManagementViewModel.ShowInviteAction));
         inviteButton.Clicked += async (_, _) =>
         {
             var ok = await _viewModel.InviteAsync();
             if (ok)
-                await DisplayAlert("OK", "Einladung bzw. Erstlogin-Code wurde angestoßen.", "OK");
+                await DisplayAlert("OK", "Der produktive Invite-/Erstlogin-Flow wurde angestoßen.", "OK");
         };
 
         var resetButton = new Button { Text = "Passwort-Reset senden" };

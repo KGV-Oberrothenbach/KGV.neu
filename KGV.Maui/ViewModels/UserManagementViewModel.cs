@@ -52,9 +52,12 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
     public string AdminHint => IsBoundToMember
         ? "Einladungen und Passwort-Reset laufen auf dem ausgewählten Mitgliedskontext. Die E-Mail-Änderung bleibt auch mobil nur für das aktuell angemeldete Konto belastbar."
         : "Einladungen und Passwort-Reset laufen über denselben OTP-/Recovery-Hauptweg wie in WPF. Die E-Mail-Änderung bleibt weiterhin nur für das aktuell angemeldete Konto belastbar und wird mobil deshalb nur in diesem Fall angeboten.";
+    public string InviteActionText => IsBoundToMember ? "Nutzer hinzufügen" : "Einladung / Erstlogin-Code senden";
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
     public bool HasSelectedUser => TargetUser != null;
-    public bool CanInvite => !IsBusy && TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email) && (!IsBoundToMember || BoundMember != null);
+    public bool HasLinkedUser => TargetUser?.AuthUserId != null;
+    public bool ShowInviteAction => TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email) && (!IsBoundToMember || !HasLinkedUser);
+    public bool CanInvite => !IsBusy && ShowInviteAction && (!IsBoundToMember || BoundMember != null);
     public bool CanResetPassword => !IsBusy && TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email);
     public bool CanChangeSelectedEmail => !IsBusy && TargetUser?.AuthUserId?.ToString().Equals(_authService.CurrentUserId, StringComparison.OrdinalIgnoreCase) == true;
     public bool CanRemoveUser => !IsBusy && IsBoundToMember && TargetUser?.AuthUserId != null;
@@ -87,6 +90,9 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
             _selectedUser = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanInvite));
+            OnPropertyChanged(nameof(ShowInviteAction));
+            OnPropertyChanged(nameof(HasLinkedUser));
+            OnPropertyChanged(nameof(InviteActionText));
             OnPropertyChanged(nameof(CanResetPassword));
             OnPropertyChanged(nameof(CanChangeSelectedEmail));
             OnPropertyChanged(nameof(HasSelectedUser));
@@ -183,6 +189,8 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
             _isBusy = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanInvite));
+            OnPropertyChanged(nameof(ShowInviteAction));
+            OnPropertyChanged(nameof(HasLinkedUser));
             OnPropertyChanged(nameof(CanResetPassword));
             OnPropertyChanged(nameof(CanChangeSelectedEmail));
             OnPropertyChanged(nameof(CanRemoveUser));
@@ -471,7 +479,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 
         return targetUser.AuthUserId.HasValue
             ? "Appuser-Zuordnung für das ausgewählte Mitglied geladen."
-            : "Für das ausgewählte Mitglied besteht aktuell noch kein Appuser. Über 'Einladung / Erstlogin-Code senden' kann der produktive Einladungs-/Erstlogin-Pfad gestartet werden.";
+                : "Für das ausgewählte Mitglied besteht aktuell noch kein Appuser. Über 'Nutzer hinzufügen' kann der produktive Einladungs-/Erstlogin-Pfad gestartet werden.";
     }
 
     private static MemberDTO MapMember(MitgliedRecord rec)
