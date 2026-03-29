@@ -159,10 +159,10 @@ public sealed class UserManagementPage : ContentPage
 
         var emailHintLabel = new Label
         {
-            Text = "Die E-Mail-Änderung bleibt mobil wie in WPF auf das aktuell angemeldete Konto begrenzt.",
             TextColor = Colors.Gray,
             LineBreakMode = LineBreakMode.WordWrap
         };
+        emailHintLabel.SetBinding(Label.TextProperty, nameof(UserManagementViewModel.EmailChangeHint));
 
         var statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
         statusLabel.SetBinding(Label.TextProperty, nameof(UserManagementViewModel.StatusMessage));

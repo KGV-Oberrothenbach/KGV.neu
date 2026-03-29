@@ -47,16 +47,21 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 
     public string Title => "Benutzerverwaltung";
     public string Description => IsBoundToMember
-        ? "Verwaltet den Appuser des aktuell ausgewählten Mitglieds. Nutzer hinzufügen, Nutzer entfernen und Rollenbearbeitung bleiben damit im mobilen Mitgliedskontext gebunden."
+        ? "Verwaltet den Appuser des aktuell ausgewählten Mitglieds. Rollenbearbeitung, Passwort-Reset und Nutzer entfernen bleiben damit im mobilen Mitgliedskontext gebunden."
         : "Lädt App-User-/Mitgliedszuordnungen und bietet die produktiven Auth-Admin-Aktionen für Einladung, Erstlogin und Passwort-Reset auch mobil an.";
     public string AdminHint => IsBoundToMember
-        ? "Einladungen und Passwort-Reset laufen auf dem ausgewählten Mitgliedskontext. Die E-Mail-Änderung bleibt auch mobil nur für das aktuell angemeldete Konto belastbar."
+        ? "Im gebundenen Mitgliedskontext bleibt 'Nutzer hinzufügen' sichtbar im Stammdatenpfad. Mailänderungen bei vorhandenem App-User/Auth-User erfolgen nur durch den Nutzer selbst über den vorgesehenen Self-Service-Mailänderungsweg."
         : "Einladungen und Passwort-Reset laufen über denselben OTP-/Recovery-Hauptweg wie in WPF. Die E-Mail-Änderung bleibt weiterhin nur für das aktuell angemeldete Konto belastbar und wird mobil deshalb nur in diesem Fall angeboten.";
-    public string InviteActionText => IsBoundToMember ? "Nutzer hinzufügen" : "Einladung / Erstlogin-Code senden";
+    public string InviteActionText => "Nutzer hinzufügen";
+    public string EmailChangeHint => CanChangeSelectedEmail
+        ? "Für das aktuell angemeldete Konto steht hier der bestehende Self-Service-Mailänderungsweg zur Verfügung."
+        : IsBoundToMember
+            ? "Bei vorhandenem App-User/Auth-User kann die Mailadresse im normalen Mitgliedskontext nicht direkt geändert werden. Der Nutzer muss dafür selbst den vorgesehenen Self-Service-Mailänderungsweg verwenden."
+            : "Mailänderungen sind nur für das aktuell angemeldete Konto verfügbar und laufen über den bestehenden Self-Service-Mailänderungsweg.";
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
     public bool HasSelectedUser => TargetUser != null;
     public bool HasLinkedUser => TargetUser?.AuthUserId != null;
-    public bool ShowInviteAction => TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email) && (!IsBoundToMember || !HasLinkedUser);
+    public bool ShowInviteAction => !IsBoundToMember && TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email) && !HasLinkedUser;
     public bool CanInvite => !IsBusy && ShowInviteAction && (!IsBoundToMember || BoundMember != null);
     public bool CanResetPassword => !IsBusy && TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email);
     public bool CanChangeSelectedEmail => !IsBusy && TargetUser?.AuthUserId?.ToString().Equals(_authService.CurrentUserId, StringComparison.OrdinalIgnoreCase) == true;
@@ -98,6 +103,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(HasSelectedUser));
             OnPropertyChanged(nameof(IsRoleEditable));
             OnPropertyChanged(nameof(CanRemoveUser));
+            OnPropertyChanged(nameof(EmailChangeHint));
             _ = LoadSelectedRoleAsync(value);
         }
     }
@@ -195,6 +201,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(CanChangeSelectedEmail));
             OnPropertyChanged(nameof(CanRemoveUser));
             OnPropertyChanged(nameof(CanSaveRole));
+            OnPropertyChanged(nameof(EmailChangeHint));
         }
     }
 
@@ -479,7 +486,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 
         return targetUser.AuthUserId.HasValue
             ? "Appuser-Zuordnung für das ausgewählte Mitglied geladen."
-                : "Für das ausgewählte Mitglied besteht aktuell noch kein Appuser. Über 'Nutzer hinzufügen' kann der produktive Einladungs-/Erstlogin-Pfad gestartet werden.";
+                : "Für das ausgewählte Mitglied besteht aktuell noch kein Appuser. Der produktive Flow 'Nutzer hinzufügen' bleibt sichtbar im Stammdatenpfad des ausgewählten Mitglieds.";
     }
 
     private static MemberDTO MapMember(MitgliedRecord rec)

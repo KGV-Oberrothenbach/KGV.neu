@@ -2,6 +2,29 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: MAUI-Stammdatenpfad, `Nutzer hinzufügen` und Mailregel im Mitgliedskontext sauber abgeschlossen
+
+- Den realen Stand zuerst erneut direkt gegen `origin/main` geprüft.
+- Ehrlicher GitHub-main-Befund in den direkt betroffenen MAUI-Dateien:
+  - `AdminShell` zeigt `↳ Stammdaten` bereits auf `MemberDetailPage`; der frühere Pfad auf `MeineDatenPage` war auf `origin/main` bereits nicht mehr der reale Stand
+  - `MemberDetailPage` enthält bereits produktives Speichern sowie den produktiven Button `Nutzer hinzufügen`
+  - `MeineDatenPage` bleibt der Eigenpfad des eingeloggten Nutzers
+  - real offen waren noch die Widersprüche im mobilen Mitgliedskontext:
+    - Mailadresse in `MemberDetailPage` blieb trotz erlaubtem Sonderfall ohne Auth-User faktisch nicht speicherbar
+    - `UserManagementPage` führte den Invite-Text bzw. den gebundenen Kontext noch nicht sauber genug ohne Doppelangebot
+- Minimal umgesetzt:
+  - `AdminShell` bewusst unverändert gelassen, weil `↳ Stammdaten` auf GitHub `main` bereits korrekt auf `MemberDetailPage` verdrahtet war
+  - `MemberDetailPage` zeigt die Mailadresse jetzt als echtes Eingabefeld, aber nur editierbar solange noch kein gebundener App-/Auth-User existiert
+  - bei vorhandenem App-/Auth-User bleibt das Mailfeld read-only und zeigt klar den Hinweis auf den Self-Service-Mailänderungsweg des Nutzers selbst
+  - der bisherige pauschale Mail-Reset beim Speichern wurde im MAUI-Pfad auf den erlaubten Sonderfall ohne Auth-User geöffnet
+  - der gemeinsame Speicherdienst `UpdateMitgliedAsync(...)` erzwingt dieselbe Fachregel zusätzlich im Shared-Pfad: Mailänderung nur ohne gebundenen Auth-User
+  - `Nutzer hinzufügen` bleibt sichtbar im `MemberDetailPage`-Mitgliedskontext und bleibt Admin-only
+  - `UserManagementPage`/`UserManagementViewModel` wurden im gebundenen Mitgliedskontext sprachlich geschärft; der Invite wird dort nicht mehr doppelt neben dem Stammdatenpfad angeboten
+  - der bestehende Self-Service-Mailänderungsweg im User-Management bleibt erhalten
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+
 ## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel-Folgepfad gegen GitHub-main erneut verifiziert, kein weiterer Produktcode mehr offen
 
 - Den realen Stand erneut direkt gegen `origin/main` geprüft.

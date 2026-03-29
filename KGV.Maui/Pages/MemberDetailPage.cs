@@ -24,11 +24,12 @@ public sealed class MemberDetailPage : ContentPage
 
     private readonly Label _headlineLabel;
     private readonly Label _statusLabel;
-    private readonly Label _emailLabel;
+    private readonly Label _emailHintLabel;
     private readonly Label _rolleLabel;
     private readonly Label _appUserHintLabel;
     private readonly Entry _vornameEntry;
     private readonly Entry _nachnameEntry;
+    private readonly Entry _emailEntry;
     private readonly Switch _geburtsdatumEnabledSwitch;
     private readonly DatePicker _geburtsdatumPicker;
     private readonly Entry _telefonEntry;
@@ -62,7 +63,8 @@ public sealed class MemberDetailPage : ContentPage
 
         _headlineLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold };
         _statusLabel = new Label { TextColor = Colors.DarkRed, LineBreakMode = LineBreakMode.WordWrap };
-        _emailLabel = CreateReadOnlyLabel();
+        _emailEntry = new Entry { Placeholder = "E-Mail", Keyboard = Keyboard.Email };
+        _emailHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _rolleLabel = CreateReadOnlyLabel();
         _appUserHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
 
@@ -116,7 +118,8 @@ public sealed class MemberDetailPage : ContentPage
                         CreateEditorField("Nachname", _nachnameEntry),
                         CreateEditorField("Vorname", _vornameEntry),
                         CreateOptionalDateField("Geburtsdatum", _geburtsdatumEnabledSwitch, _geburtsdatumPicker),
-                        CreateReadOnlyField("E-Mail", _emailLabel),
+                        CreateEditorField("E-Mail", _emailEntry),
+                        _emailHintLabel,
                         CreateReadOnlyField("Rolle", _rolleLabel)),
                     CreateSection("Kontakt",
                         CreateEditorField("Telefon", _telefonEntry),
@@ -177,7 +180,7 @@ public sealed class MemberDetailPage : ContentPage
             _memberRecord = member;
             var memberDto = MapMember(member);
             _memberContextState.SetSelectedMember(memberDto);
-            _hasLinkedAppUser = await HasLinkedAppUserAsync(member.Id);
+            _hasLinkedAppUser = member.AuthUserId.HasValue || await HasLinkedAppUserAsync(member.Id);
 
             _headlineLabel.Text = string.IsNullOrWhiteSpace(memberDto.DisplayName)
                 ? $"Mitglied #{memberDto.Id}"
@@ -185,7 +188,7 @@ public sealed class MemberDetailPage : ContentPage
 
             _nachnameEntry.Text = memberDto.Nachname;
             _vornameEntry.Text = memberDto.Vorname;
-            _emailLabel.Text = FormatValue(memberDto.Email);
+            _emailEntry.Text = memberDto.Email;
             _rolleLabel.Text = FormatValue(memberDto.Role);
             _telefonEntry.Text = memberDto.Telefon;
             _mobilEntry.Text = memberDto.Mobilnummer;
@@ -217,7 +220,9 @@ public sealed class MemberDetailPage : ContentPage
         _hasLinkedAppUser = false;
         _nachnameEntry.Text = string.Empty;
         _vornameEntry.Text = string.Empty;
-        _emailLabel.Text = "-";
+        _emailEntry.Text = string.Empty;
+        _emailEntry.IsReadOnly = true;
+        _emailHintLabel.Text = string.Empty;
         _rolleLabel.Text = "-";
         _telefonEntry.Text = string.Empty;
         _mobilEntry.Text = string.Empty;
@@ -235,6 +240,15 @@ public sealed class MemberDetailPage : ContentPage
     private void UpdateAdminActions(MemberDTO? member)
     {
         var isAdmin = _userContextState.CurrentUserContext?.Role == UserRole.Admin;
+        var canEditEmailInMemberContext = member != null && !_hasLinkedAppUser;
+
+        _emailEntry.IsReadOnly = !canEditEmailInMemberContext;
+        _emailHintLabel.Text = member == null
+            ? string.Empty
+            : _hasLinkedAppUser
+                ? "Für dieses Mitglied besteht bereits ein App-User/Auth-User. Die Mailadresse kann im normalen Stammdatenpfad nicht direkt geändert werden und muss vom Nutzer selbst über den vorgesehenen Self-Service-Mailänderungsweg geändert werden."
+                : "Für dieses Mitglied besteht noch kein App-User/Auth-User. Die Mailadresse kann hier im Stammdatenpfad gespeichert werden und wird anschließend für den produktiven Invite-/Erstlogin-Flow verwendet.";
+
         _benutzerverwaltungButton.IsVisible = isAdmin && member?.Id is > 0;
         _nutzerHinzufuegenButton.IsVisible = isAdmin && member?.Id is > 0 && !_hasLinkedAppUser;
         _nutzerHinzufuegenButton.IsEnabled = _nutzerHinzufuegenButton.IsVisible && !string.IsNullOrWhiteSpace(member?.Email);
@@ -350,7 +364,9 @@ public sealed class MemberDetailPage : ContentPage
             dto.MitgliedSeit = GetOptionalDate(_mitgliedSeitEnabledSwitch, _mitgliedSeitPicker);
             dto.MitgliedEnde = GetOptionalDate(_mitgliedEndeEnabledSwitch, _mitgliedEndePicker);
             dto.Role = current.Role ?? dto.Role;
-            dto.Email = current.Email ?? dto.Email;
+            dto.Email = _hasLinkedAppUser
+                ? current.Email ?? dto.Email
+                : (_emailEntry.Text ?? string.Empty).Trim();
 
             var ok = await _supabaseService.UpdateMitgliedAsync(dto, userId);
             if (!ok)

@@ -2,6 +2,43 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: MAUI-Stammdatenpfad, `Nutzer hinzufügen` und Mailregel im Mitgliedskontext gegen GitHub-main sauber abgeschlossen
+
+- Vor Beginn den realen Stand erneut gegen `origin/main` geprüft und danach gezielt die direkt betroffenen Dateien gelesen:
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+  - `KGV.Maui/Pages/UserManagementPage.cs`
+  - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - fachliche Referenz: `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`, `KGV.Wpf/ViewModels/UserManagementViewModel.cs`
+- Ehrlicher GitHub-main-Befund:
+  - `AdminShell` zeigt `↳ Stammdaten` auf `origin/main` bereits korrekt auf `MemberDetailPage`
+  - `MeineDatenPage` bleibt auf `origin/main` bereits der Eigenpfad des eingeloggten Nutzers
+  - `MemberDetailPage` enthält auf `origin/main` bereits produktives Speichern sowie den produktiven Flow `Nutzer hinzufügen`
+  - real offen waren damit nicht mehr Routing-/DI-Themen, sondern nur noch die fachlichen Widersprüche im mobilen Mitgliedskontext:
+    - die Mailadresse wurde in `MemberDetailPage` beim Speichern faktisch wieder auf den bestehenden Wert zurückgesetzt
+    - `UserManagementPage`/`UserManagementViewModel` trugen im gebundenen Kontext die Invite-/Mailhinweise noch nicht sauber genug ohne Doppelangebot
+- Minimal umgesetzt:
+  - `AdminShell` bewusst unverändert gelassen, weil der Stammdatenpfad auf GitHub `main` bereits korrekt war
+  - `MemberDetailPage` zeigt die Mail jetzt als echtes Eingabefeld im mobilen Mitgliedskontext
+  - die Mail ist dort nur editierbar, solange für das ausgewählte Mitglied noch kein App-/Auth-User gebunden ist
+  - sobald ein App-/Auth-User existiert, bleibt das Mailfeld read-only und zeigt klar den Hinweis, dass die Mailänderung dann nur durch den Nutzer selbst über den vorgesehenen Self-Service-Mailänderungsweg erfolgt
+  - der bisherige pauschale MAUI-Reset `dto.Email = current.Email ...` wurde auf den erlaubten Sonderfall ohne Auth-User geöffnet
+  - zusätzlich erzwingt jetzt auch der gemeinsame Shared-Speicherpfad `UpdateMitgliedAsync(...)` dieselbe Regel technisch: Mailänderung nur ohne gebundenen Auth-User
+  - `Nutzer hinzufügen` bleibt im `MemberDetailPage`-Mitgliedskontext sichtbar und nutzbar, aber nur für Admin
+  - `UserManagementPage` bleibt für Rollenpflege/Reset/Entfernen relevant, bietet den Invite im gebundenen Mitgliedskontext aber nicht mehr doppelt neben dem Stammdatenpfad an
+  - die sichtbaren Hinweise im mobilen User-Management wurden WPF-näher geschärft; der Self-Service-Mailänderungsweg des aktuell angemeldeten Nutzers bleibt intakt
+- Logische Einordnung nach dem Block:
+  - Mitgliedersuche -> Mitglied wählen -> `↳ Stammdaten` landet weiter auf dem echten mobilen Mitgliedsdetailpfad `MemberDetailPage`
+  - `MeineDatenPage` bleibt klar der Eigenpfad des eingeloggten Nutzers und wird nicht mehr mit dem ausgewählten Mitglied vermischt
+  - Mitglied ohne App-/Auth-User: Mail editierbar, `Nutzer hinzufügen` sichtbar im Stammdatenpfad
+  - Mitglied mit App-/Auth-User: Mail read-only, klarer Hinweis auf Self-Service-Mailänderung, kein falscher Neu-Invite im gebundenen User-Management
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+
 ## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel-Folgepfad gegen GitHub-main erneut verifiziert, keine weitere Code-Restlücke mehr offen
 
 - Vor Beginn den realen Stand erneut gegen `origin/main` geprüft und danach gezielt die direkt betroffenen Dateien gegengelesen:
