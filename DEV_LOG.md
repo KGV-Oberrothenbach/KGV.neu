@@ -2,6 +2,41 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1 Variante A: Git-Stand strikt geprüft, sichtbaren MAUI-Mitgliedsdetail-Abschluss erneut verifiziert, kein Produktcode offen
+
+- Zuerst den echten Git-Stand geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main` zeigt direkt auf `origin/main`
+  - `git log HEAD..origin/main` => leer
+  - `git log origin/main..HEAD` => leer
+- Ehrlicher Git-Befund zu Beginn:
+  - lokaler Branch war nicht hinter `origin/main`
+  - lokaler Branch war nicht vor `origin/main`
+  - keine ungepushten lokalen Commits
+  - keine uncommitteten lokalen Änderungen
+  - Arbeitsstand nach `fetch` war bereits exakt auf dem richtigen Stand (`HEAD == origin/main`)
+- Danach nur die direkt betroffenen Dateien geprüft:
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+  - `KGV.Maui/Pages/UserManagementPage.cs`
+  - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+- Ehrlicher Repo-Befund:
+  - `↳ Stammdaten` zeigt bereits auf `MemberDetailPage`
+  - `MeineDatenPage` bleibt der Eigenpfad des eingeloggten Nutzers
+  - `MemberDetailPage` enthält bereits `Nutzer hinzufügen`
+  - die sichtbare Mailregel ist bereits vollständig umgesetzt
+  - `UserManagementPage`/`UserManagementViewModel` verwenden bereits den sichtbaren Invite-Wortlaut `Nutzer hinzufügen`
+  - `SupabaseService.UpdateMitgliedAsync(...)` enthält bereits die Backend-Regel für Mail
+- Konsequenz:
+  - kein Produktcode geändert
+  - nur Verifikations-/Loglauf durchgeführt
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+
 ## 2026-03-29 – Prompt 1/1: sichtbaren MAUI-Mitgliedsdetail-Abschluss gegen GitHub-main erneut verifiziert, kein weiterer Produktcode offen
 
 - Den realen Stand erneut direkt gegen `origin/main` geprüft.

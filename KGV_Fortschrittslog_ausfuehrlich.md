@@ -2,6 +2,50 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1 Variante A: Git-Stand strikt geprüft, sichtbaren MAUI-Mitgliedsdetail-Abschluss erneut verifiziert, keine weitere Code-Restlücke offen
+
+- Vor Beginn den echten Git-Stand strikt gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main` zeigt direkt auf `origin/main`
+  - `git log --oneline --decorate HEAD..origin/main` => leer
+  - `git log --oneline --decorate origin/main..HEAD` => leer
+- Ehrlicher Git-Befund zu Beginn:
+  - lokaler Branch war nicht hinter `origin/main`
+  - lokaler Branch war nicht vor `origin/main`
+  - keine ungepushten lokalen Commits
+  - keine uncommitteten lokalen Änderungen
+  - der Arbeitsstand war nach dem Fetch bereits exakt korrekt (`HEAD == origin/main`)
+- Danach gezielt nur die direkt betroffenen Dateien gelesen:
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+  - `KGV.Maui/Pages/UserManagementPage.cs`
+  - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+- Ehrlicher Repo-Befund im aktuellen echten Git-Stand:
+  - `AdminShell` zeigt `↳ Stammdaten` bereits korrekt auf `MemberDetailPage`
+  - `MeineDatenPage` bleibt der Eigenpfad des eingeloggten Nutzers
+  - `MemberDetailPage` enthält bereits den produktiven Admin-Flow `Nutzer hinzufügen`
+  - die sichtbare Mailregel ist bereits vollständig geschlossen:
+    - E-Mail als echtes Eingabefeld
+    - editierbar nur ohne gebundenen App-/Auth-User
+    - read-only mit klarem Hinweis auf Self-Service-Mailänderung bei vorhandenem App-/Auth-User
+  - `UserManagementViewModel` begrenzt den Self-Service-Mailpfad bereits korrekt auf das aktuell angemeldete Konto
+  - `SupabaseService.UpdateMitgliedAsync(...)` enthält bereits die Backend-/Shared-Regel: mit `AuthUserId` bestehende Mail beibehalten, ohne `AuthUserId` DTO-Mail übernehmen
+  - `UserManagementPage`/`UserManagementViewModel` verwenden im sichtbaren Invite-Wortlaut bereits `Nutzer hinzufügen`; der frühere Text `Einladung / Erstlogin-Code senden` ist in diesem Pfad real nicht mehr offen
+- Konsequenz dieses Laufs:
+  - auf `origin/main` war für diesen Block keine echte Restlücke mehr offen
+  - deshalb wurde kein weiterer MAUI-Produktcode auf Verdacht geändert
+  - nur die Logs wurden auf den erneut verifizierten Git-/Repo-Iststand fortgeschrieben
+- Logische Einordnung:
+  - Mitgliedskontext bleibt über `MemberDetailPage`, Eigenprofil bleibt über `MeineDatenPage` getrennt
+  - die sichtbare Mailregel ist im mobilen Mitgliedskontext bereits korrekt umgesetzt
+  - die Invite-Benennung ist im mobilen Mitgliedskontext bereits auf `Nutzer hinzufügen` angeglichen
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+
 ## 2026-03-29 – Prompt 1/1: sichtbaren MAUI-Mitgliedsdetail-Abschluss gegen GitHub-main erneut verifiziert, keine weitere Code-Restlücke mehr offen
 
 - Vor Beginn den realen Stand erneut gegen `origin/main` geprüft und danach gezielt die direkt betroffenen Dateien gelesen:
