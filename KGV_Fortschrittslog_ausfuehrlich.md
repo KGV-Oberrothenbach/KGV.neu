@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: sichtbaren MAUI-Mitgliedsdetail-Abschluss gegen GitHub-main erneut verifiziert, keine weitere Code-Restlücke mehr offen
+
+- Vor Beginn den realen Stand erneut gegen `origin/main` geprüft und danach gezielt die direkt betroffenen Dateien gelesen:
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+  - `KGV.Maui/Pages/UserManagementPage.cs`
+  - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+- Ehrlicher GitHub-main-Befund:
+  - `AdminShell` zeigt `↳ Stammdaten` auf `origin/main` bereits korrekt auf `MemberDetailPage`
+  - `MeineDatenPage` bleibt auf `origin/main` bereits der Eigenpfad des eingeloggten Nutzers
+  - `MemberDetailPage` enthält auf `origin/main` bereits den produktiven Admin-Flow `Nutzer hinzufügen`
+  - die sichtbare Mailregel in `MemberDetailPage` ist auf `origin/main` bereits vollständig geschlossen:
+    - E-Mail als echtes Eingabefeld
+    - editierbar nur ohne gebundenen App-/Auth-User
+    - read-only mit klarem Hinweis auf Self-Service-Mailänderung bei vorhandenem App-/Auth-User
+  - `UserManagementViewModel` begrenzt den Self-Service-Mailpfad auf `origin/main` bereits korrekt auf das aktuell angemeldete Konto
+  - `SupabaseService.UpdateMitgliedAsync(...)` enthält die Shared-/Backend-Regel bereits korrekt und musste nicht neu erfunden werden
+  - `UserManagementPage`/`UserManagementViewModel` verwenden im sichtbaren Invite-Wortlaut auf `origin/main` bereits `Nutzer hinzufügen`; der frühere Text `Einladung / Erstlogin-Code senden` ist in diesem Pfad real nicht mehr offen
+- Konsequenz dieses Laufs:
+  - die in der Prompt-Annahme genannten GitHub-main-Widersprüche waren real nicht mehr offen
+  - deshalb wurde kein weiterer MAUI-Produktcode auf Verdacht geändert
+  - nur die Logs wurden auf den erneut verifizierten GitHub-main-Iststand fortgeschrieben
+- Logische Einordnung:
+  - Mitgliedskontext bleibt über `MemberDetailPage`, Eigenprofil bleibt über `MeineDatenPage` getrennt
+  - die sichtbare Mailregel ist im mobilen Mitgliedskontext bereits korrekt umgesetzt
+  - die Invite-Benennung ist im mobilen Mitgliedskontext bereits auf `Nutzer hinzufügen` angeglichen
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+
 ## 2026-03-29 – Prompt 1/1: MAUI-Stammdatenpfad, sichtbare Mailregel und Invite-Benennung gegen GitHub-main erneut verifiziert, keine weitere Code-Restlücke mehr offen
 
 - Vor Beginn den realen Stand erneut gegen `origin/main` geprüft und danach gezielt die direkt betroffenen Dateien gelesen:
