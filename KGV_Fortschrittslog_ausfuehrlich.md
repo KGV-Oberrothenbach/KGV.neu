@@ -2,6 +2,32 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel-Block gegen GitHub-main verifiziert, reale DI-Restlücke geschlossen und nach `origin/main` vorbereitet
+
+- Vor Beginn den realen GitHub-Stand erneut gegen `origin/main` geprüft und danach gezielt die direkt betroffenen Dateien gelesen:
+  - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+  - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+  - `KGV.Maui/State/ZaehlerwechselWorkflowState.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - Android-Servicepfade rund um NFC / RFID-Feedback
+- Ehrlicher Befund auf GitHub `main`:
+  - `ZaehlerwechselPage` mit `Weiter zum Ausbau` / `Weiter zum Einbau` war bereits vorhanden
+  - `ZaehlerwechselAusbauPage` und `ZaehlerwechselEinbauPage` existierten bereits
+  - die Shell-Route-Registrierungen für beide Folgeseiten waren auf `origin/main` bereits vorhanden
+  - real offen blieb noch die kleine DI-Restlücke in `KGV.Maui/MauiProgram.cs`: `AddTransient<ZaehlerwechselAusbauPage>()` und `AddTransient<ZaehlerwechselEinbauPage>()` fehlten dort noch wirklich
+  - der kleine Android-RFID-Feedback-Service und der frische Rückweg nach erfolgreichem Speichern lagen lokal bereits vor, waren aber noch nicht nach `origin/main` gepusht
+- Minimal umgesetzt:
+  - `MauiProgram` jetzt real um `AddTransient<ZaehlerwechselAusbauPage>()` und `AddTransient<ZaehlerwechselEinbauPage>()` ergänzt
+  - bestehende Shell-Routen und der bestehende Aufruf `Shell.Current.GoToAsync(...)` bewusst unverändert gelassen
+  - RFID-Quittungston bleibt weiter klein an `RfidScanContextViewModel.ResolveAsync()` nach erfolgreicher bekannter Kontextauflösung ausgelöst
+  - Workflow-State bleibt nach erfolgreichem Ausbau/Einbau weiter sauber über `_workflowState.Clear()` bereinigt; Rückweg bleibt auf frischem Zählerwechsel-Scanpfad
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+
 ## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel-Routing fertig angeschlossen und RFID-Quittungston ergänzt
 
 - Vor Beginn den realen Repo-Stand gegen `origin/main` geprüft (`git fetch origin`, Vergleich `HEAD` gegen `origin/main`) und danach gezielt gelesen:

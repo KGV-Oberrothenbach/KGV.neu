@@ -2,6 +2,24 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel-Block gegen GitHub-main verifiziert, DI-Restlücke real geschlossen und dann gepusht
+
+- Den realen Stand erneut gegen `origin/main` geprüft.
+- Ehrlicher Befund auf GitHub `main`:
+  - `ZaehlerwechselPage` mit `Weiter zum Ausbau` / `Weiter zum Einbau` war bereits vorhanden
+  - `ZaehlerwechselAusbauPage` und `ZaehlerwechselEinbauPage` existierten bereits
+  - die Shell-Routen für beide Folgeseiten waren auf `origin/main` bereits registriert
+  - die echte noch offene Restlücke lag in `KGV.Maui/MauiProgram.cs`: die beiden Folgeseiten waren dort lokal vor dem Abschluss noch nicht wirklich als `Transient` registriert
+  - der kleine Android-RFID-Feedback-Service und der frische Rückweg lagen lokal bereits vor, waren aber noch nicht nach `origin/main` gepusht
+- Minimal umgesetzt:
+  - `MauiProgram` jetzt real um `AddTransient<ZaehlerwechselAusbauPage>()` und `AddTransient<ZaehlerwechselEinbauPage>()` ergänzt
+  - bestehender Folgepfad über `Shell.Current.GoToAsync(...)` unverändert beibehalten
+  - bestehender RFID-Quittungston bleibt an `RfidScanContextViewModel.ResolveAsync()` bei erfolgreicher bekannter Kontextauflösung hängen
+  - Workflow-State wird nach erfolgreichem Ausbau/Einbau weiter per `_workflowState.Clear()` bereinigt und danach auf einen frischen Zählerwechsel-Scanpfad zurückgeführt
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+
 ## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel-Routing fertig angeschlossen und mobiler RFID-Quittungston ergänzt
 
 - Vor Beginn den realen Repo-Stand gegen `origin/main` geprüft (`git fetch origin`, `HEAD == origin/main`) und dann gezielt gelesen:
