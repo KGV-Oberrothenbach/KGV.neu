@@ -2,6 +2,79 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/2: Release Manager um sichtbaren Preflight-Systemcheck vor Dry Run und Echt-Release erweitert
+
+- Vor dem Block den echten Git-Stand gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main b4c33d9 [origin/main] Document invite auth user mapping race fix`
+  - `git log HEAD..origin/main` => leer
+  - `git log origin/main..HEAD` => leer
+- Git-Prüfung lief erneut über den lokal vorhandenen Visual-Studio-Git-Pfad `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe`, weil `git` im reinen PowerShell-Pfad weiter nicht direkt verfügbar war.
+- Danach nur den direkt betroffenen Release-Manager-Pfad gelesen:
+  - `KGV.ReleaseManager/MainWindow.xaml`
+  - `KGV.ReleaseManager/MainWindow.xaml.cs`
+  - `KGV.ReleaseManager/ViewModels/MainViewModel.cs`
+  - `KGV.ReleaseManager/Models/ReleaseExecutionRequest.cs`
+  - `KGV.ReleaseManager/Models/ReleaseExecutionResult.cs`
+  - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseMarkerService.cs`
+  - `KGV.ReleaseManager/Services/SettingsService.cs`
+  - `KGV.ReleaseManager/Services/GitCommandService.cs`
+  - `KGV.ReleaseManager/Services/BuildCommandService.cs`
+  - `KGV.ReleaseManager/Services/ProcessExecutionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseArtifactService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseFolderService.cs`
+  - `KGV.ReleaseManager/Services/VersionService.cs`
+- Ehrlicher Istzustand vor dem Umbau:
+  - vorhanden waren bereits Settings-Validierung (`ValidateSettings`), Release-Request-Validierung (`ValidateRequest`), Versionserkennung, Releaseordner-Vorbereitung sowie Marker-/Git-/Build-Ablauf im Erfolgsfall
+  - es fehlte aber ein sichtbarer, separater Preflight-Systemcheck vor dem echten Release
+  - externe Pflichtprüfungen wie `Git`/`ISCC` aufrufbar, Git-Repos initialisiert, Ausgabepfade beschreibbar/erstellbar und Keystore-/Projektdateien lesbar wurden vor dem Start noch nicht gesammelt als einzelne fachliche Checks ausgewertet
+  - der bestehende UI-Statusbereich rechts war der sinnvollste Ort für die Ergänzung; ein zweiter konkurrierender Statusbereich war nicht nötig
+- Minimal umgesetzt:
+  - neue Release-Manager-Modelle für einzelne Preflight-Checks und Gesamtstatus ergänzt
+  - neuer `ReleasePreflightService` sammelt jetzt lesbare Pflichtprüfungen mit Ergebnis `OK` / `Warnung` / `Fehler`
+  - geprüft werden jetzt – abhängig vom ausgewählten Releaseziel – u. a.:
+    - Quellrepo vorhanden
+    - Git-Executable vorhanden und aufrufbar
+    - Quellrepo/WPF-Zielrepo als Git-Repo initialisiert und mit `origin` lesbar
+    - Projekt-/Versionsdateien lesbar
+    - Release-Ausgabeordner beschreibbar
+    - WPF-Zielrepo vorhanden
+    - WPF-Setup-Skript lesbar
+    - Inno Setup aufrufbar
+    - Android-Projekt vorhanden
+    - APK-/AAB-Ausgabepfade vorhanden oder erstellbar
+    - Android-Keystore vorhanden
+    - Android-Keystore-Alias gesetzt
+  - `GitCommandService` löst `git.exe` jetzt zusätzlich aus bekannten lokalen Installationspfaden auf, damit Systemcheck und späterer Release nicht nur von einem zufälligen PATH-Eintrag abhängen
+  - der bestehende Statusbereich im UI wurde erweitert:
+    - Zusammenfassung `bereit` / `eingeschränkt` / `nicht startbar`
+    - Button `Systemcheck`
+    - sichtbare Ergebnisliste je Pflichtprüfung
+    - bestehendes Status-Log darunter unverändert weitergenutzt
+  - `RunDryRelease` und `RunRelease` führen jetzt zuerst automatisch den Preflight aus
+  - bei Preflight-Fehlern wird sauber abgebrochen:
+    - kein Marker
+    - kein Commit
+    - kein Push
+    - kein halb gestarteter Release-Ablauf
+  - Dry Run bleibt marker-/commit-/push-frei; die Dry-Run-Erfolgsmeldung wurde an den vorgeschalteten Systemcheck angepasst
+  - Logging im Statuspfad ergänzt:
+    - Start des Systemchecks
+    - Ergebnis je Pflichtprüfung
+    - Gesamtstatus
+    - blockierter Release bei fehlerhaftem Preflight
+    - klare Trennung zwischen Dry Run und Echt-Release
+- Belastbar validiert:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
+- Logische Prüfung des neuen Produktpfads:
+  - manueller Systemcheck nutzt denselben Service wie der automatische Preflight vor Dry Run/Echt-Release
+  - Pflichtfehler blockieren den Start vor Passwortabfrage, Marker, Commit und Push
+  - Dry Run bleibt weiterhin schreibfrei
+  - der bestehende Release-Ablauf selbst wurde ansonsten nicht unnötig umgebaut
+
 ## 2026-03-29 – Prompt 1/1: Shared Invite-/AuthService-Fix gegen FK-Race bei `Nutzer hinzufügen`
 
 - Zuerst den echten Git-Stand gegen `origin/main` geprüft:

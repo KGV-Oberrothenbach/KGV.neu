@@ -24,6 +24,7 @@ public partial class MainWindow : Window
     private readonly ReleaseExecutionService _releaseExecutionService;
     private readonly ReleaseMarkerService _releaseMarkerService;
     private readonly RuntimeSecretPromptService _runtimeSecretPromptService;
+    private readonly ReleasePreflightService _releasePreflightService;
     private ReleaseNotesAnalysisResult? _lastReleaseNotesAnalysisResult;
 
     public MainWindow()
@@ -54,13 +55,20 @@ public partial class MainWindow : Window
             _logExtractionService,
             _releaseNotesService);
         var gitCommandService = new GitCommandService();
+        var buildCommandService = new BuildCommandService();
+        var processExecutionService = new ProcessExecutionService();
+        var releaseArtifactService = new ReleaseArtifactService();
         _releaseMarkerService = new ReleaseMarkerService();
+        _releasePreflightService = new ReleasePreflightService(
+            gitCommandService,
+            processExecutionService,
+            releaseArtifactService);
         _releaseExecutionService = new ReleaseExecutionService(
             _releaseFolderService,
-            new BuildCommandService(),
-            new ProcessExecutionService(),
+            buildCommandService,
+            processExecutionService,
             new ReleaseVersionFileService(),
-            new ReleaseArtifactService(),
+            releaseArtifactService,
             gitCommandService,
             _releaseMarkerService);
         _runtimeSecretPromptService = new RuntimeSecretPromptService();
@@ -246,6 +254,12 @@ public partial class MainWindow : Window
         await ExecuteReleaseAsync(isDryRun: false);
     }
 
+    private async void RunSystemCheck_Click(object sender, RoutedEventArgs e)
+    {
+        var request = CreateReleaseExecutionRequest();
+        await RunPreflightAsync(request, "Manueller Systemcheck", updateReleaseState: true);
+    }
+
     private void LoadSettings(bool showMessageBoxOnFailure)
     {
         var loadResult = _settingsService.Load();
@@ -303,6 +317,25 @@ public partial class MainWindow : Window
 
     private async Task ExecuteReleaseAsync(bool isDryRun)
     {
+        var request = CreateReleaseExecutionRequest();
+        request.IsDryRun = isDryRun;
+
+        var preflightResult = await RunPreflightAsync(
+            request,
+            isDryRun ? "Systemcheck vor Dry Run" : "Systemcheck vor Echt-Release",
+            updateReleaseState: true);
+
+        if (preflightResult.HasErrors)
+        {
+            var preventedMessage = isDryRun
+                ? "Dry Run wegen fehlgeschlagenem Systemcheck verhindert."
+                : "Release wegen fehlgeschlagenem Systemcheck verhindert.";
+            _viewModel.ReleaseStateText = preventedMessage;
+            _viewModel.AppendStatus(preventedMessage);
+            MessageBox.Show(preflightResult.SummaryMessage, isDryRun ? "Dry Run" : "Release starten", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         var validationErrors = _viewModel.ValidateSettings();
         if (validationErrors.Count > 0)
         {
@@ -313,8 +346,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        var request = CreateReleaseExecutionRequest();
-        request.IsDryRun = isDryRun;
         if ((request.BuildApk || request.BuildAab) && !isDryRun)
         {
             var secrets = _runtimeSecretPromptService.PromptForAndroidSigningSecrets(this);
@@ -373,6 +404,29 @@ public partial class MainWindow : Window
         }
 
         RefreshProjectState();
+    }
+
+    private async Task<ReleasePreflightResult> RunPreflightAsync(ReleaseExecutionRequest request, string triggerText, bool updateReleaseState)
+    {
+        _viewModel.AppendStatus($"Systemcheck gestartet: {triggerText}.");
+
+        var result = await _releasePreflightService.RunAsync(request);
+        _viewModel.ApplyPreflightResult(result);
+
+        foreach (var check in result.Checks)
+        {
+            _viewModel.AppendStatus($"Systemcheck [{check.StateText}] {check.Name}: {check.Message}");
+        }
+
+        _viewModel.AppendStatus($"Systemcheck Gesamtstatus: {result.OverallStateText}.");
+        _viewModel.AppendStatus(result.SummaryMessage);
+
+        if (updateReleaseState)
+        {
+            _viewModel.ReleaseStateText = result.SummaryMessage;
+        }
+
+        return result;
     }
 
     private ReleaseExecutionRequest CreateReleaseExecutionRequest()

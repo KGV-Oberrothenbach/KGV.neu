@@ -6,6 +6,7 @@ public sealed class ReleaseExecutionResult
 {
     public bool Success { get; set; }
     public bool RolledBack { get; set; }
+    public bool PreventedByPreflight { get; set; }
     public string Message { get; set; } = string.Empty;
     public string ReleaseFolderPath { get; set; } = string.Empty;
     public IReadOnlyList<string> Messages { get; set; } = new List<string>();

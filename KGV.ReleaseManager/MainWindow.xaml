@@ -297,10 +297,34 @@
                         <Grid Margin="12">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="300"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="180"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="220"/>
                             </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Margin="0,0,0,8" Text="Ausgabe"/>
-                            <TextBox Grid.Row="1" Text="{Binding StatusText}" AcceptsReturn="True" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Row="0" Margin="0,0,0,4" Text="{Binding PreflightOverallStateText}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Row="1" Margin="0,0,0,8" Text="{Binding PreflightSummaryText}" TextWrapping="Wrap"/>
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
+                                <Button Width="160" Click="RunSystemCheck_Click">Systemcheck</Button>
+                            </StackPanel>
+                            <DataGrid Grid.Row="3"
+                                      ItemsSource="{Binding PreflightChecks}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      CanUserDeleteRows="False"
+                                      CanUserResizeRows="False"
+                                      HeadersVisibility="Column"
+                                      IsReadOnly="True"
+                                      Margin="0,0,0,8">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding StateText}" Width="90"/>
+                                    <DataGridTextColumn Header="Prüfung" Binding="{Binding Name}" Width="170"/>
+                                    <DataGridTextColumn Header="Meldung" Binding="{Binding Message}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <TextBlock Grid.Row="4" Margin="0,0,0,8" Text="Ausgabe"/>
+                            <TextBox Grid.Row="5" Text="{Binding StatusText}" AcceptsReturn="True" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
                         </Grid>
                     </GroupBox>
 

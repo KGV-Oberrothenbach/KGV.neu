@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -41,8 +42,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private string _statusText = "Bereit.";
     private string _footerText = "Noch kein Release ausgeführt.";
     private string _settingsStoragePath = string.Empty;
+    private string _preflightOverallStateText = "Noch nicht geprüft.";
+    private string _preflightSummaryText = "Systemcheck wurde noch nicht ausgeführt.";
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    public ObservableCollection<ReleasePreflightCheckResult> PreflightChecks { get; } = [];
 
     public ReleaseManagerSettings Settings
     {
@@ -250,6 +255,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set { _settingsStoragePath = value; OnPropertyChanged(); }
     }
 
+    public string PreflightOverallStateText
+    {
+        get => _preflightOverallStateText;
+        set { _preflightOverallStateText = value; OnPropertyChanged(); }
+    }
+
+    public string PreflightSummaryText
+    {
+        get => _preflightSummaryText;
+        set { _preflightSummaryText = value; OnPropertyChanged(); }
+    }
+
     public IReadOnlyList<string> ValidateSettings()
     {
         Settings.Normalize();
@@ -353,6 +370,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
             : result.ChangesPreview;
 
         ExportText = string.IsNullOrWhiteSpace(result.ExportText) ? string.Empty : result.ExportText;
+    }
+
+    public void ApplyPreflightResult(ReleasePreflightResult result)
+    {
+        PreflightChecks.Clear();
+        foreach (var check in result.Checks)
+        {
+            PreflightChecks.Add(check);
+        }
+
+        PreflightOverallStateText = $"Systemcheck: {result.OverallStateText}";
+        PreflightSummaryText = result.SummaryMessage;
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

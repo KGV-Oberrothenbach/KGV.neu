@@ -1,5 +1,72 @@
 # KGV Fortschritt ausführlich
 
+## Stand 2026-03-29 – Interner Betriebsblock: sichtbaren Preflight-/Systemcheck vor Dry Run und Echt-Release ergänzt
+
+### Ziel dieses Schritts
+Den bestehenden Release-Manager-Funktionsblock minimal-invasiv um einen echten Systemcheck vor dem Release-Start erweitern, damit externe Tools, Repos, Pfade und Schlüsseldateien vor Dry Run und Echt-Release nachvollziehbar geprüft werden.
+
+### Geprüft
+- echter Git-Stand gegen `origin/main`
+- direkt betroffene Release-Manager-Dateien:
+  - `MainWindow.xaml`
+  - `MainWindow.xaml.cs`
+  - `ViewModels/MainViewModel.cs`
+  - `Models/ReleaseExecutionRequest.cs`
+  - `Models/ReleaseExecutionResult.cs`
+  - `Services/ReleaseExecutionService.cs`
+  - `Services/ReleaseMarkerService.cs`
+  - `Services/SettingsService.cs`
+  - `Services/GitCommandService.cs`
+  - `Services/BuildCommandService.cs`
+  - `Services/ProcessExecutionService.cs`
+  - `Services/ReleaseArtifactService.cs`
+  - `Services/ReleaseFolderService.cs`
+  - `Services/VersionService.cs`
+
+### Ehrlicher Istzustand vor Umsetzung
+- vorhanden waren bereits Settings-Validierung, Request-Validierung, Versionslesung, Releaseordner-Vorbereitung sowie Marker-/Git-/Build-Abläufe
+- ein sichtbarer, separater Systemcheck vor Dry Run/Echt-Release fehlte jedoch noch
+- Pflichtprüfungen wie `Git`/`ISCC` aufrufbar, Repos initialisiert, Projektdateien lesbar, Ausgabepfade beschreibbar/erstellbar und Keystore vorhanden waren im UI noch nicht gesammelt sichtbar
+- der bestehende Statusbereich rechts war der sinnvollste Ort für die Ergänzung; ein zweiter konkurrierender Bereich war nicht nötig
+
+### Umgesetzt
+- neue Preflight-Modelle und `ReleasePreflightService` ergänzt
+- Pflichtprüfungen werden jetzt lesbar einzeln gesammelt und mit `OK` / `Warnung` / `Fehler` angezeigt
+- der bestehende Statusbereich zeigt jetzt zusätzlich:
+  - Gesamtaussage `bereit` / `eingeschränkt` / `nicht startbar`
+  - Button `Systemcheck`
+  - Ergebnisliste der einzelnen Pflichtchecks
+- der Preflight prüft je nach ausgewähltem Releaseziel u. a.:
+  - Quellrepo vorhanden
+  - Git-Executable vorhanden und aufrufbar
+  - Quellrepo/WPF-Zielrepo als Git-Repo initialisiert und mit `origin` lesbar
+  - Projekt-/Versionsdateien lesbar
+  - Release-Ausgabeordner beschreibbar
+  - WPF-Zielrepo vorhanden
+  - WPF-Setup-Skript lesbar
+  - Inno Setup aufrufbar
+  - Android-Projekt vorhanden
+  - APK-/AAB-Ausgabepfade vorhanden oder erstellbar
+  - Android-Keystore vorhanden
+  - Android-Keystore-Alias gesetzt
+- `GitCommandService` löst `git.exe` jetzt zusätzlich aus bekannten lokalen Installationspfaden auf, damit Systemcheck und späterer Git-Releasepfad nicht an einem fehlenden PATH-Eintrag scheitern
+- `RunDryRelease` und `RunRelease` führen jetzt automatisch zuerst denselben Preflight aus
+- bei Preflight-Fehlern wird vor dem eigentlichen Release sauber abgebrochen; Marker, Commit und Push bleiben in diesem Fall unangetastet
+
+### Ergebnis
+- der Release-Manager zeigt vor einem echten Release jetzt nachvollziehbar an, ob die Umgebung bereit ist
+- Dry Run und Echt-Release teilen denselben vorgeschalteten Systemcheck
+- ein echter Release kann nicht mehr halb anlaufen, wenn Pflichtpfade/Tools vorab bereits fehlen
+
+### Validierung
+- `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+- `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` erfolgreich
+
+### Logische Prüfung
+- bei gültiger Umgebung kann der Systemcheck auf `bereit` gehen
+- bei Pflichtfehlern blockiert der Release vor Passwortabfrage, Marker, Commit und Push
+- Dry Run bleibt markerfrei und schreibfrei
+
 ## Stand 2026-03-29 – Interner Prüfblock: Release-Manager-End-to-End-Fluss gegengeprüft und Markeranzeige vereinheitlicht
 
 ### Ziel dieses Schritts
