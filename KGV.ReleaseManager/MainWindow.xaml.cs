@@ -52,12 +52,16 @@ public partial class MainWindow : Window
         _releaseNotesAnalysisService = new ReleaseNotesAnalysisService(
             _logExtractionService,
             _releaseNotesService);
+        var gitCommandService = new GitCommandService();
+        var releaseMarkerService = new ReleaseMarkerService();
         _releaseExecutionService = new ReleaseExecutionService(
             _releaseFolderService,
             new BuildCommandService(),
             new ProcessExecutionService(),
             new ReleaseVersionFileService(),
-            new ReleaseArtifactService());
+            new ReleaseArtifactService(),
+            gitCommandService,
+            releaseMarkerService);
         _runtimeSecretPromptService = new RuntimeSecretPromptService();
 
         _viewModel = new MainViewModel();
@@ -114,6 +118,13 @@ public partial class MainWindow : Window
         {
             MessageBox.Show(result.Message, "Veröffentlichungsordner", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
+    }
+
+    private void ReloadVersions_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshVersionsState();
+        RefreshReleaseNotesState(preserveImportedSummary: true);
+        _viewModel.AppendStatus("Aktuelle Versionen direkt aus den Projektdateien neu eingelesen.");
     }
 
     private void CreateExportPrompt_Click(object sender, RoutedEventArgs e)
@@ -249,14 +260,7 @@ public partial class MainWindow : Window
 
     private void RefreshProjectState(bool preserveImportedSummary = true)
     {
-        var versionResult = _versionService.DetectVersions(_viewModel.Settings.SourceRepoPath);
-        _viewModel.ApplyVersionDetection(versionResult);
-        _viewModel.AppendStatus(versionResult.HasError ? versionResult.ErrorMessage : versionResult.StatusMessage);
-
-        if (versionResult.HasWarning)
-        {
-            _viewModel.AppendStatus(versionResult.WarningMessage);
-        }
+        RefreshVersionsState();
 
         var logSourceStatus = _logExtractionService.DetectPrimaryLogSource(_viewModel.Settings.SourceRepoPath);
         _viewModel.ApplyLogSourceStatus(logSourceStatus);
@@ -279,7 +283,6 @@ public partial class MainWindow : Window
             _viewModel.Settings.SourceRepoPath,
             _viewModel.CurrentVersion,
             _viewModel.TargetVersion,
-            selectedAnchor,
             _viewModel.LastKnownReleaseText);
 
         _viewModel.ApplyReleaseNotesAnalysis(_lastReleaseNotesAnalysisResult);
@@ -309,6 +312,7 @@ public partial class MainWindow : Window
         }
 
         var request = CreateReleaseExecutionRequest();
+        request.IsDryRun = isDryRun;
         if ((request.BuildApk || request.BuildAab) && !isDryRun)
         {
             var secrets = _runtimeSecretPromptService.PromptForAndroidSigningSecrets(this);
@@ -385,8 +389,21 @@ public partial class MainWindow : Window
             AndroidPackageName = _viewModel.Settings.AndroidPackageName,
             BuildWpf = _viewModel.BuildWpf,
             BuildApk = _viewModel.BuildApk,
-            BuildAab = _viewModel.BuildAab
+            BuildAab = _viewModel.BuildAab,
+            IsDryRun = false
         };
+    }
+
+    private void RefreshVersionsState()
+    {
+        var versionResult = _versionService.DetectVersions(_viewModel.Settings.SourceRepoPath);
+        _viewModel.ApplyVersionDetection(versionResult);
+        _viewModel.AppendStatus(versionResult.HasError ? versionResult.ErrorMessage : versionResult.StatusMessage);
+
+        if (versionResult.HasWarning)
+        {
+            _viewModel.AppendStatus(versionResult.WarningMessage);
+        }
     }
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)

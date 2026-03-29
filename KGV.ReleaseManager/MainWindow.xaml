@@ -143,6 +143,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="200"/>
@@ -170,6 +171,9 @@
 
                             <TextBlock Grid.Row="5" Grid.ColumnSpan="2" Margin="0,0,0,8" Text="{Binding VersionStatusText}" TextWrapping="Wrap"/>
                             <TextBlock Grid.Row="6" Grid.ColumnSpan="2" Foreground="DarkGoldenrod" FontWeight="SemiBold" Text="{Binding VersionWarningText}" TextWrapping="Wrap"/>
+                            <StackPanel Grid.Row="7" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                                <Button Width="220" Click="ReloadVersions_Click">Aktuelle Versionen neu einlesen</Button>
+                            </StackPanel>
                         </Grid>
                     </GroupBox>
 
@@ -262,6 +266,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Row="0" Text="{Binding DetectedWpfVersion, StringFormat=WPF aktuell: {0}}" Margin="0,0,0,8"/>
@@ -274,9 +279,14 @@
                                 <CheckBox Content="AAB" IsChecked="{Binding BuildAab}"/>
                             </StackPanel>
 
-                            <TextBlock Grid.Row="4" Text="{Binding ReleaseStateText}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                            <TextBlock Grid.Row="4" Text="{Binding ReleaseStateText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="5"
+                                       Margin="0,0,0,12"
+                                       Text="Bei erfolgreichem Echt-Release werden Quellrepo und WPF-Zielrepo automatisch commitet und gepusht; Dry Runs schreiben weder Marker noch Git-Änderungen."
+                                       TextWrapping="Wrap"
+                                       Opacity="0.8"/>
 
-                            <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
                                 <Button Width="140" Margin="0,0,8,0" Click="RunDryRelease_Click">Dry Run</Button>
                                 <Button Width="140" Click="RunRelease_Click">Release starten</Button>
                             </StackPanel>
@@ -296,7 +306,7 @@
 
                     <GroupBox Header="To-do / technische Notizen">
                         <TextBox Margin="12"
-                                 Text="TODO: Externe Tools verdrahten, Versionsquellen aus KGV.neu lesen, Android-Signing sicher handhaben, Git- und Release-Veröffentlichung ergänzen."
+                                 Text="TODO: Externe Tools weiter absichern, Zielrepo-/Store-Automation ausbauen, Git-/Marker-Flow im Praxisbetrieb verifizieren und zusätzliche Release-Veröffentlichungen ergänzen."
                                  AcceptsReturn="True"
                                  TextWrapping="Wrap"
                                  IsReadOnly="True"

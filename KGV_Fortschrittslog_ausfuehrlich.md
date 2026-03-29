@@ -2,6 +2,87 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1 Abschlusslauf: Release-Manager-Block sauber verifiziert und Vollvalidierung belastbar nachgezogen
+
+- Vor dem Abschluss den echten Git-Stand erneut gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main` zeigt auf `origin/main`
+  - `git log --oneline --decorate origin/main..HEAD` => leer
+  - `git log --oneline --decorate HEAD..origin/main` => leer
+- Der in den Instructions genannte Git-Pfad unter `...Visual Studio\2022\...\git.exe` existierte lokal nicht; die Git-Prüfung lief deshalb über den vorhandenen Visual-Studio-Git-Pfad `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe`.
+- Reale Ausgangslage im Arbeitsbaum:
+  - der begonnene Release-Manager-Block war weiterhin uncommittet vorhanden
+  - zusätzlich lag `.github/copilot-instructions.md` weiter geändert im Arbeitsbaum
+- Danach erneut nur die direkt betroffenen Release-Manager-Dateien gelesen:
+  - `KGV.ReleaseManager/MainWindow.xaml.cs`
+  - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseNotesAnalysisService.cs`
+  - `KGV.ReleaseManager/Services/LogExtractionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseMarkerService.cs`
+  - `KGV.ReleaseManager/Services/GitCommandService.cs`
+  - `KGV.ReleaseManager/Models/ReleaseExecutionRequest.cs`
+- Ehrlicher Befund im realen Istzustand:
+  - der kleine Nachschärfungs-Patch in `MainWindow.xaml.cs` für die zentrale markerbasierte Statusanzeige war vorhanden
+  - in den direkt betroffenen Dateien ergaben sich dabei keine unmittelbaren Compile-, Using- oder Namensfehler
+  - deshalb war kein weiterer Produktcode-Fix mehr nötig; nur der Abschlusslauf wurde sauber nachgezogen
+- Zusatzprüfung zur bereits geänderten `.github/copilot-instructions.md`:
+  - real nur eine zusätzliche Projektregel für Verifikations-/Abschlussblöcke ergänzt
+  - in diesem Lauf nicht inhaltlich neu umgebaut
+- Belastbar validiert:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich; vorhandene Warnungen bleiben außerhalb dieses Blocks
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich; vorhandene Warnungen in `HomeManagementPage.cs` bleiben außerhalb dieses Blocks
+  - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
+
+## 2026-03-29 – Prompt 1/1: Release Manager um Commit/Push, Release-Marker, Delta-Export und Versions-Refresh erweitert
+
+- Vor Beginn den realen Repo-Stand geprüft:
+  - `git status -sb` => `## main...origin/main`
+  - im Arbeitsbaum lag vor dem Block zusätzlich bereits eine uncommittete Änderung an `.github/copilot-instructions.md`
+- Danach gezielt nur die direkt betroffenen Release-Manager-Dateien gelesen:
+  - `KGV.ReleaseManager/Services/GitCommandService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseNotesAnalysisService.cs`
+  - `KGV.ReleaseManager/Services/LogExtractionService.cs`
+  - `KGV.ReleaseManager/Services/VersionService.cs`
+  - `KGV.ReleaseManager/MainWindow.xaml`
+  - `KGV.ReleaseManager/MainWindow.xaml.cs`
+  - ergänzend `ReleaseArtifactService`, `ReleaseVersionFileService`, `ProcessExecutionService`, `README.md`
+- Ehrlicher Istzustand vor Umsetzung:
+  - `GitCommandService` konnte real nur `git status -sb`
+  - Commit/Push waren im WPF-Release-Flow noch nicht verdrahtet
+  - die Exportanalyse arbeitete noch über den bisherigen Loganker-/Historienansatz statt über echte Release-Marker im Fortschrittslog
+  - ein expliziter UI-Button zum erneuten Einlesen der aktuellen Projektversionen fehlte
+- Minimal umgesetzt:
+  - `GitCommandService` um reale `status --porcelain`, `add -A`, `commit` und `push`-Kommandos erweitert
+  - einfache zentrale Standard-Commitnachrichten ergänzt:
+    - `Release {version}: source release state`
+    - `Release {version}: publish WPF setup artifacts`
+  - neuer `ReleaseMarkerService` ergänzt
+  - Markerformat fest verdrahtet:
+    - `- [RELEASE_MARKER] Version {version} erfolgreich erstellt am {yyyy-MM-dd HH:mm}`
+  - der Marker wird nur im erfolgreichen Echt-Release geschrieben, nie im Dry Run
+  - Marker wird nicht blind ans Dateiende gesetzt, sondern als letzter Punkt des aktuellen obersten Fortschrittsabschnitts eingefügt
+  - `ReleaseExecutionService` schreibt den Marker nach erfolgreicher Artefaktveröffentlichung und hängt danach Commit/Push für Quellrepo und WPF-Zielrepo an den Erfolgsablauf
+  - bei Fehlern vor lokalem Git-Commit läuft der bestehende Rollbackpfad weiter; Fehler nach lokalem Commit werden sichtbar gemeldet statt Dateien künstlich zurückzudrehen
+  - `LogExtractionService` liefert jetzt das Log-Delta seit dem letzten Release-Marker; wegen der im Repo real verwendeten newest-first-Logstruktur wird dafür der Bereich vor dem ersten Marker im aktuellen Log ausgewertet
+  - `ReleaseNotesAnalysisService` verwendet dieses Delta jetzt direkt; ohne Marker wird der gesamte relevante Logbereich verwendet
+  - die Import-/Speicherlogik für WPF-/Android-Zusammenfassungen bleibt erhalten
+  - `MainWindow` erhielt den Button `Aktuelle Versionen neu einlesen`; er lädt die Versionen erneut direkt aus den Projektdateien, aktualisiert die Anzeige und löst keinen Release aus
+  - die Release-Oberfläche zeigt jetzt zusätzlich sichtbar an, dass Commit/Push und Marker Teil des erfolgreichen Echt-Release-Flows sind
+  - `KGV.ReleaseManager/README.md` um Marker-, Delta-Export- und Commit/Push-Verhalten ergänzt
+- Ergebnis:
+  - Commit und Push sind jetzt real im WPF-Release-Flow verankert
+  - der nächste Export für Release-Zusammenfassungen nutzt nur noch den relevanten Logdelta-Bereich seit dem letzten Release-Marker
+  - fehlender Marker bleibt ein sauber behandelter Initialfall und bricht die Exportfunktion nicht
+  - Versionen können per UI-Button erneut direkt aus den Projektdateien geladen werden
+- Validierung:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+
 ## 2026-03-29 – Prompt 1/1 Variante A: Git-Stand strikt geprüft, sichtbaren MAUI-Mitgliedsdetail-Abschluss erneut verifiziert, keine weitere Code-Restlücke offen
 
 - Vor Beginn den echten Git-Stand strikt gegen `origin/main` geprüft:

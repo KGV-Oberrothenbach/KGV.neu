@@ -17,4 +17,5 @@ public sealed class ReleaseExecutionRequest
     public bool BuildWpf { get; set; }
     public bool BuildApk { get; set; }
     public bool BuildAab { get; set; }
+    public bool IsDryRun { get; set; }
 }

@@ -10,6 +10,8 @@ Der Release Manager steuert den Veröffentlichungsablauf für das Quellprojekt `
 - pro Version einen Veröffentlichungsordner anlegen
 - bei Fehlern Versionsanpassungen in Projektdateien zurücksetzen
 - Release-Texte aus dem Fortschrittslog ableiten, exportieren und wieder importieren
+- nach erfolgreichem Echt-Release einen Release-Marker in das Fortschrittslog schreiben
+- Änderungen im Quellrepo und im WPF-Zielrepo committen und pushen
 
 ## Enthalten
 - WPF-Projektgerüst
@@ -18,4 +20,9 @@ Der Release Manager steuert den Veröffentlichungsablauf für das Quellprojekt `
 - Dokumentation, Changelog und ausführlicher Fortschrittslog
 
 ## Hinweis
-Das ist ein sauberer Projektstart / Scaffold. Externe Tools wie `git`, `dotnet`, `msbuild`, Inno Setup oder Android-Signing sind bewusst noch nicht vollständig verdrahtet, sondern als vorbereitete Stellen mit TODO-Markierungen angelegt.
+Das Projekt bleibt bewusst schlank, aber der reale WPF-Release-Flow ist jetzt weiter verdrahtet:
+- Versionen werden direkt aus den Projektdateien neu eingelesen
+- Release-Texte nutzen den Delta-Bereich seit dem letzten `[RELEASE_MARKER]`
+- nach erfolgreichem Echt-Release werden Marker sowie Commit/Push im Quellrepo und im WPF-Zielrepo ausgeführt
+
+Externe Toolpfade wie `git`, `dotnet`, Inno Setup oder Android-Signing bleiben trotzdem weiter von der lokalen Umgebung abhängig und sollten im Praxisbetrieb gezielt validiert werden.

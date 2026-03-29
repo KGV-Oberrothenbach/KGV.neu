@@ -29,7 +29,6 @@ public sealed class ReleaseNotesAnalysisService
         string sourceRepoPath,
         string currentVersion,
         string targetVersion,
-        ReleaseNotesHistoryEntry? latestEntry,
         string lastReleaseText)
     {
         var logSource = _logExtractionService.DetectPrimaryLogSource(sourceRepoPath);
@@ -44,7 +43,8 @@ public sealed class ReleaseNotesAnalysisService
             };
         }
 
-        var sections = ReadSections(logSource.Path);
+        var deltaResult = _logExtractionService.GetContentSinceLastReleaseMarker(logSource.Path);
+        var sections = ReadSections(deltaResult.Content);
         var relevantSections = sections
             .Where(section => !IsInternalReleaseManagerSection(section))
             .ToList();
@@ -55,86 +55,49 @@ public sealed class ReleaseNotesAnalysisService
             {
                 LogSourcePath = logSource.Path,
                 LastKnownReleaseText = lastReleaseText,
-                Message = "Es wurden keine relevanten Änderungen außerhalb des ReleaseManagers gefunden.",
-                SourceDescription = "Es konnten nur ReleaseManager-interne Abschnitte erkannt werden."
+                Message = deltaResult.HasMarker
+                    ? "Seit dem letzten Release-Marker wurden keine relevanten Änderungen außerhalb des ReleaseManagers gefunden."
+                    : "Es wurden keine relevanten Änderungen außerhalb des ReleaseManagers gefunden.",
+                SourceDescription = deltaResult.SourceDescription
             };
         }
 
-        var selectedSections = new List<LogSection>();
-        var hasAnchor = false;
-        var isSuggestedStartState = false;
-        var sourceDescription = string.Empty;
-        var message = string.Empty;
-
-        if (latestEntry is not null && !string.IsNullOrWhiteSpace(latestEntry.LogAnchorHeading))
-        {
-            var anchorIndex = sections.FindIndex(section => HeadingEquals(section.Heading, latestEntry.LogAnchorHeading));
-            if (anchorIndex >= 0)
-            {
-                hasAnchor = true;
-                selectedSections = relevantSections
-                    .TakeWhile(section => !HeadingEquals(section.Heading, latestEntry.LogAnchorHeading))
-                    .ToList();
-                sourceDescription = $"Primäre Auswertung bis zum letzten gespeicherten Release-Anker: {latestEntry.LogAnchorHeading}";
-                message = selectedSections.Count == 0
-                    ? "Seit dem letzten gespeicherten Release-Anker wurden keine neuen relevanten Änderungen gefunden."
-                    : "Änderungen seit dem letzten gespeicherten Release-Anker wurden ermittelt.";
-            }
-        }
-
-        if (selectedSections.Count == 0 && latestEntry is not null && latestEntry.SavedAtUtc != default && !hasAnchor)
-        {
-            selectedSections = relevantSections
-                .Where(section => section.HeadingDate.HasValue && section.HeadingDate.Value.Date > latestEntry.SavedAtUtc.Date)
-                .ToList();
-
-            if (selectedSections.Count > 0)
-            {
-                hasAnchor = true;
-                sourceDescription = $"Fallback-Auswertung über Logdaten nach dem zuletzt gespeicherten Release vom {latestEntry.SavedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm}";
-                message = "Der gespeicherte Release-Anker wurde im Log nicht direkt gefunden; es wird der jüngere Logbereich nach Datum ausgewertet.";
-            }
-        }
-
-        if (selectedSections.Count == 0 && !hasAnchor)
-        {
-            selectedSections = relevantSections.Take(1).ToList();
-            isSuggestedStartState = true;
-            sourceDescription = string.IsNullOrWhiteSpace(lastReleaseText)
-                ? "Es wurde der neueste relevante Logabschnitt als Startzustand vorgeschlagen."
-                : $"Es wurde der neueste relevante Logabschnitt als Startzustand vorgeschlagen, weil kein belastbarer Release-Anker bestimmt werden konnte.";
-            message = "Kein belastbarer letzter Release-Anker gefunden. Der neueste relevante Logabschnitt wird als erster sinnvoller Startzustand vorgeschlagen.";
-        }
-
-        var anchorHeading = selectedSections.FirstOrDefault()?.Heading ?? string.Empty;
+        var selectedSections = relevantSections;
         var changesPreview = BuildChangesPreview(selectedSections);
         var effectiveTargetVersion = string.IsNullOrWhiteSpace(targetVersion) ? currentVersion : targetVersion;
         var exportText = _releaseNotesImportExportService.CreateExportText(
             currentVersion,
             effectiveTargetVersion,
             logSource.Path,
-            sourceDescription,
+            deltaResult.SourceDescription,
             changesPreview,
             selectedSections.Select(section => section.Heading).ToList());
 
         return new ReleaseNotesAnalysisResult
         {
             Success = selectedSections.Count > 0,
-            HasAnchor = hasAnchor,
-            IsSuggestedStartState = isSuggestedStartState,
-            Message = message,
+            HasAnchor = deltaResult.HasMarker,
+            IsSuggestedStartState = !deltaResult.HasMarker,
+            Message = deltaResult.Message,
             LogSourcePath = logSource.Path,
             LastKnownReleaseText = lastReleaseText,
-            SourceDescription = sourceDescription,
-            AnchorHeading = anchorHeading,
+            SourceDescription = deltaResult.SourceDescription,
+            AnchorHeading = deltaResult.MarkerLine,
             ChangesPreview = changesPreview,
             ExportText = exportText
         };
     }
 
-    private static List<LogSection> ReadSections(string logFilePath)
+    private static List<LogSection> ReadSections(string logContent)
     {
-        var lines = File.ReadAllLines(logFilePath);
+        if (string.IsNullOrWhiteSpace(logContent))
+        {
+            return new List<LogSection>();
+        }
+
+        var lines = logContent
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Split('\n');
         var sections = new List<LogSection>();
         var currentHeading = string.Empty;
         var currentLines = new List<string>();

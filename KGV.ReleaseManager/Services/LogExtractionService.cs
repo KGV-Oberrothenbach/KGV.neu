@@ -7,6 +7,8 @@ namespace KGV.ReleaseManager.Services;
 
 public sealed class LogExtractionService
 {
+    private const string ReleaseMarkerPrefix = "- [RELEASE_MARKER] ";
+
     public LogSourceStatus DetectPrimaryLogSource(string sourceRepoPath)
     {
         if (string.IsNullOrWhiteSpace(sourceRepoPath))
@@ -77,6 +79,42 @@ public sealed class LogExtractionService
         return string.Join(Environment.NewLine, lines.Skip(lastHeadingIndex));
     }
 
+    public (string Content, bool HasMarker, string MarkerLine, string SourceDescription, string Message) GetContentSinceLastReleaseMarker(string logFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(logFilePath) || !File.Exists(logFilePath))
+        {
+            return (string.Empty, false, string.Empty, "Keine Logdatei verfügbar.", "Die Logdatei für die Delta-Auswertung wurde nicht gefunden.");
+        }
+
+        var lines = File.ReadAllLines(logFilePath);
+        if (lines.Length == 0)
+        {
+            return (string.Empty, false, string.Empty, "Die Logdatei ist leer.", "Die Logdatei enthält keine auswertbaren Inhalte.");
+        }
+
+        var markerIndex = Array.FindIndex(lines, IsReleaseMarkerLine);
+        if (markerIndex < 0)
+        {
+            return (
+                string.Join(Environment.NewLine, lines).Trim(),
+                false,
+                string.Empty,
+                "Kein Release-Marker gefunden. Der gesamte relevante Logbereich wird verwendet.",
+                "Kein Release-Marker gefunden. Die Exportbasis nutzt den gesamten relevanten Logbereich.");
+        }
+
+        var markerLine = lines[markerIndex].Trim();
+        var deltaLines = lines.Take(markerIndex).ToArray();
+        return (
+            string.Join(Environment.NewLine, deltaLines).Trim(),
+            true,
+            markerLine,
+            $"Log-Delta seit dem letzten Release-Marker: {markerLine}",
+            string.IsNullOrWhiteSpace(string.Join(Environment.NewLine, deltaLines).Trim())
+                ? "Seit dem letzten Release-Marker wurden noch keine neuen Logeinträge gefunden."
+                : "Log-Delta seit dem letzten Release-Marker wurde ermittelt.");
+    }
+
     private static bool CanReadFile(string path)
     {
         try
@@ -89,4 +127,7 @@ public sealed class LogExtractionService
             return false;
         }
     }
+
+    private static bool IsReleaseMarkerLine(string line)
+        => (line ?? string.Empty).TrimStart().StartsWith(ReleaseMarkerPrefix, StringComparison.Ordinal);
 }

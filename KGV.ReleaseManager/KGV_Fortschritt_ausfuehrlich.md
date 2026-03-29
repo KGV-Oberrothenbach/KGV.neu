@@ -1,5 +1,123 @@
 # KGV Fortschritt ausführlich
 
+## Stand 2026-03-29 – Interner Abschlusslauf: Release-Manager-Block final gegengeprüft und Vollvalidierung belastbar bestätigt
+
+### Ziel dieses Schritts
+Den bereits begonnenen Release-Manager-Block ohne neuen Fachumfang sauber abschließen, den letzten Marker-Status-Patch gegen den realen Stand gegenlesen, alle geforderten Builds belastbar einzeln bestätigen und erst danach den Git-Abschluss freigeben.
+
+### Geprüft
+- echter Git-Stand gegen `origin/main`:
+  - `git fetch origin`
+  - `git status -sb`
+  - `git branch -vv`
+  - Divergenzprüfung via `git log origin/main..HEAD` und `git log HEAD..origin/main`
+- direkt betroffene Release-Manager-Dateien:
+  - `KGV.ReleaseManager/MainWindow.xaml.cs`
+  - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseNotesAnalysisService.cs`
+  - `KGV.ReleaseManager/Services/LogExtractionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseMarkerService.cs`
+  - `KGV.ReleaseManager/Services/GitCommandService.cs`
+  - `KGV.ReleaseManager/Models/ReleaseExecutionRequest.cs`
+- zusätzlich geprüft:
+  - bestehende Änderung in `.github/copilot-instructions.md`
+
+### Ehrlicher Istzustand vor Abschluss
+- der begonnene Release-Manager-Block lag weiterhin uncommittet vor
+- `.github/copilot-instructions.md` war zusätzlich bereits geändert
+- der kleine Nachschärfungs-Patch in `MainWindow.xaml.cs` für die zentrale markerbasierte Statusanzeige war im aktuellen Stand vorhanden
+- aus der direkten Gegenprüfung ergaben sich keine neuen Compile-, Using- oder Namensfehler in den betroffenen Release-Manager-Dateien
+- der in den Instructions genannte Git-Pfad unter `...Visual Studio\2022\...\git.exe` existierte lokal nicht; für die belastbare Git-Prüfung wurde daher der vorhandene Visual-Studio-Git-Pfad `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe` verwendet
+
+### Umgesetzt
+- kein weiterer Produktcode geändert, weil im realen Istzustand keine direkte Restlücke mehr offen war
+- nur die Abschlussdokumentation mit dem tatsächlich verifizierten Stand fortgeschrieben
+
+### Ergebnis
+- der Release-Manager-Block blieb fachlich unverändert erhalten:
+  - Git Add/Commit/Push im Release-Flow
+  - Release-Marker
+  - markerbasierter Delta-Export
+  - Versions-Refresh-Button
+  - markerbasierte Statusanzeige im WPF-UI
+- die Vollvalidierung wurde nun belastbar einzeln bestätigt
+- die zusätzliche Änderung in `.github/copilot-instructions.md` wurde nur transparent geprüft, nicht fachlich neu umgebaut
+
+### Validierung
+- `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+- `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` erfolgreich, vorhandene Warnungen bleiben außerhalb dieses Blocks
+- `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich, vorhandene Warnungen in `HomeManagementPage.cs` bleiben außerhalb dieses Blocks
+- `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` erfolgreich
+
+## Stand 2026-03-29 – Interner Funktionsblock: Commit/Push, Release-Marker, Delta-Export und Versions-Refresh im WPF-Release-Flow ergänzt
+
+### Ziel dieses Schritts
+Den vorhandenen WPF-Release-Manager minimal-invasiv so erweitern, dass der echte Erfolgsablauf Commit/Push auslösen kann, ein maschinenlesbarer Release-Marker in das Fortschrittslog geschrieben wird, Exporttexte nur noch das Delta seit dem letzten Marker verwenden und die aktuellen Projektversionen manuell neu geladen werden können.
+
+### Geprüft
+- reale Git-/Release-Ablaufspfade:
+  - `KGV.ReleaseManager/Services/GitCommandService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
+  - `KGV.ReleaseManager/Services/ProcessExecutionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseArtifactService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseVersionFileService.cs`
+- reale Analyse-/Exportpfade:
+  - `KGV.ReleaseManager/Services/LogExtractionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseNotesAnalysisService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseNotesImportExportService.cs`
+- reale UI-/Versionspfade:
+  - `KGV.ReleaseManager/MainWindow.xaml`
+  - `KGV.ReleaseManager/MainWindow.xaml.cs`
+  - `KGV.ReleaseManager/Services/VersionService.cs`
+  - `KGV.ReleaseManager/README.md`
+
+### Ehrlicher Istzustand vor Umsetzung
+- `GitCommandService` bot real nur `git status -sb`
+- Commit/Push waren im erfolgreichen WPF-Release-Ablauf noch nicht verdrahtet
+- der Exporttext nutzte noch den bisherigen Release-Historienanker statt eines echten maschinenlesbaren Release-Markers im Fortschrittslog
+- ein expliziter Button zum erneuten Einlesen der aktuellen Versionen aus den Projektdateien fehlte in der WPF-Oberfläche
+
+### Umgesetzt
+- `GitCommandService` um echte Git-Kommandos ergänzt:
+  - `status --porcelain`
+  - `add -A`
+  - `commit`
+  - `push`
+- einfache Standard-Commitnachrichten eingeführt:
+  - `Release {version}: source release state`
+  - `Release {version}: publish WPF setup artifacts`
+- neuer `ReleaseMarkerService` ergänzt
+- Markerformat fest definiert:
+  - `- [RELEASE_MARKER] Version {version} erfolgreich erstellt am {yyyy-MM-dd HH:mm}`
+- Marker-Schreiblogik:
+  - nur bei erfolgreichem Echt-Release
+  - nie bei Dry Run
+  - nie bei Fehler/Rollback
+  - Einfügen als letzter Punkt des aktuellen obersten Fortschrittsabschnitts statt blind am Dateiende
+- `ReleaseExecutionService` erweitert:
+  - schreibt Marker nach erfolgreicher Artefaktveröffentlichung
+  - stößt danach Commit/Push für Quellrepo und WPF-Zielrepo an
+  - Git-Fehler vor lokalem Commit laufen weiter in den Rollbackpfad
+  - Git-Fehler nach lokalem Commit werden sichtbar gemeldet statt den Arbeitsbaum künstlich zurückzusetzen
+- `LogExtractionService` extrahiert jetzt das Log-Delta seit dem letzten Release-Marker
+- `ReleaseNotesAnalysisService` verwendet dieses Delta direkt für `ChangesPreview` und Clipboard-Export
+- Initialfall ohne Marker bleibt sauber erhalten und verwendet den gesamten relevanten Logbereich
+- `MainWindow` um den Button `Aktuelle Versionen neu einlesen` ergänzt
+- der Button nutzt die bestehende `VersionService`-Leselogik, speichert nichts und löst keinen Release aus
+- UI-Hinweis im Release-Bereich ergänzt, dass Marker sowie Commit/Push Teil des erfolgreichen Echt-Release-Flows sind
+- `README.md` um Marker-Format, Delta-Export-Verhalten und Commit/Push-Einordnung ergänzt
+
+### Ergebnis
+- der WPF-Release-Flow kann jetzt reale Git-Schreiboperationen auslösen
+- Markerbasierte Delta-Exporte sind für die nächste Versionszusammenfassung vorbereitet
+- Versionen lassen sich manuell direkt aus den Projektdateien neu laden
+
+### Validierung
+- `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
+- `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+- `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich, nur bereits bekannte Warnungen
+- `dotnet build KGV.slnx -c Debug` erfolgreich
+
 ## Stand 2026-03-28 – Interner Korrekturblock: Android-Versionserkennung in `VersionService` für SDK-Style-`csproj` gehärtet
 
 ### Ziel dieses Schritts
