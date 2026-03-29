@@ -2,6 +2,47 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel-Routing fertig angeschlossen und mobiler RFID-Quittungston ergänzt
+
+- Vor Beginn den realen Repo-Stand gegen `origin/main` geprüft (`git fetch origin`, `HEAD == origin/main`) und dann gezielt gelesen:
+  - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+  - `KGV.Maui/Pages/RfidScanWorkflowPage.cs`
+  - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+  - `KGV.Maui/State/ZaehlerwechselWorkflowState.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/Platforms/Android/Services/AndroidNfcScanService.cs`
+- Ehrlicher Befund:
+  - die Shell-Routen für `ZaehlerwechselAusbauPage` und `ZaehlerwechselEinbauPage` waren im Registrar bereits vorhanden
+  - die kleine reale Lücke saß aber noch in `MauiProgram`: die beiden Folgeseiten waren dort noch nicht im bestehenden DI-/Routenmuster als Transients registriert
+  - dadurch war der Folgepfad nach `Shell.Current.GoToAsync(route)` noch nicht sauber vollständig an dieselbe MAUI-Routinglogik angeschlossen wie die übrigen Seiten
+- Minimal umgesetzt:
+  - `MauiProgram` um `AddTransient<ZaehlerwechselAusbauPage>()` und `AddTransient<ZaehlerwechselEinbauPage>()` ergänzt
+  - der bestehende Aufruf `Shell.Current.GoToAsync(route)` in `ZaehlerwechselPage` blieb unverändert
+  - nach erfolgreichem Ausbau/Einbau wird der Workflow-State jetzt bereinigt und bewusst auf einen frischen Zählerwechsel-Scanpfad zurückgeführt:
+    - zuerst `//ablesen`
+    - danach erneut `ZaehlerwechselPage`
+  - damit bleibt nach erfolgreichem Speichern kein alter Formular-/Workflow-Kontext hängen
+  - kleiner mobiler RFID-Quittungston ergänzt:
+    - neue Service-Schnittstelle `IRfidFeedbackService`
+    - Android-Implementierung `AndroidRfidFeedbackService`
+    - Auslösung in `RfidScanContextViewModel.ResolveAsync()` nach erfolgreicher bekannter RFID-Kontextauflösung
+  - wenn das Gerät den Ton nicht abspielen kann, läuft der Scanpfad fachlich trotzdem normal weiter
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+- Logischer Prüfpfad nach dem Block:
+  - Zählerwechsel öffnen
+  - RFID scannen
+  - `Weiter zum Ausbau` / `Weiter zum Einbau` öffnet die jeweilige Seite wirklich
+  - Speichern erfolgreich
+  - Erfolgsmeldung erscheint
+  - Rückweg landet auf einem frischen Zählerwechsel-Scanpfad
+  - alter Workflow-Kontext bleibt nicht hängen
+  - RFID-Quittungston wird bei erfolgreicher bekannter Kontextauflösung ausgelöst oder fällt lautlos aus, ohne den Flow zu blockieren
+
 ## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel nach RFID-Scan in echte Ausbau-/Einbauformulare verzweigt
 
 - Vor Beginn den realen Repo-Stand gegen `origin/main` geprüft (`git fetch origin`, Vergleich `HEAD` gegen `origin/main`) und danach gezielt gelesen:

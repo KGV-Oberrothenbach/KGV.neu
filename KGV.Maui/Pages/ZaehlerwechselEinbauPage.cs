@@ -172,7 +172,7 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
 
             _workflowState.Clear();
             await DisplayAlert("OK", "Zählereinbau erfolgreich gespeichert.", "OK");
-            await Shell.Current.GoToAsync(nameof(ZaehlerwechselPage));
+            await NavigateToFreshScanAsync();
         }
         catch (Exception ex)
         {
@@ -235,5 +235,11 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
                 input
             }
         };
+    }
+
+    private static async Task NavigateToFreshScanAsync()
+    {
+        await Shell.Current.GoToAsync("//ablesen");
+        await Shell.Current.GoToAsync(nameof(ZaehlerwechselPage));
     }
 }

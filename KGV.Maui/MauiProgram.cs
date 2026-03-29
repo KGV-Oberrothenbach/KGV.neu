@@ -59,6 +59,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<TermineUserState>();
         builder.Services.AddSingleton<ZaehlerwechselWorkflowState>();
         builder.Services.AddSingleton<INfcScanService, AndroidNfcScanService>();
+        builder.Services.AddSingleton<IRfidFeedbackService, AndroidRfidFeedbackService>();
 
         builder.Services.AddKgvServices(builder.Configuration);
 

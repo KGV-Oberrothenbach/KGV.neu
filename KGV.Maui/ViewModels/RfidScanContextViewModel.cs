@@ -12,6 +12,7 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
     private readonly ISupabaseService _supabaseService;
     private readonly IAuthService _authService;
     private readonly INfcScanService _nfcScanService;
+    private readonly IRfidFeedbackService _rfidFeedbackService;
     private string _uidInput = string.Empty;
     private string _statusMessage = string.Empty;
     private bool _isBusy;
@@ -22,11 +23,12 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
     private string _lastScannedUid = string.Empty;
     private DateTime _lastScannedAt = DateTime.MinValue;
 
-    public RfidScanContextViewModel(ISupabaseService supabaseService, IAuthService authService, INfcScanService nfcScanService)
+    public RfidScanContextViewModel(ISupabaseService supabaseService, IAuthService authService, INfcScanService nfcScanService, IRfidFeedbackService rfidFeedbackService)
     {
         _supabaseService = supabaseService;
         _authService = authService;
         _nfcScanService = nfcScanService;
+        _rfidFeedbackService = rfidFeedbackService;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -245,6 +247,9 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
             var result = await _supabaseService.ResolveRfidScanContextAsync(UidInput);
             Resolution = result;
             StatusMessage = result.Message;
+
+            if (result.IsKnown && !string.IsNullOrWhiteSpace(result.NormalizedUid))
+                await _rfidFeedbackService.PlaySuccessAsync();
         }
         finally
         {

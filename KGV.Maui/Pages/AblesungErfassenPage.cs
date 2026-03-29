@@ -26,7 +26,8 @@ public sealed class AblesungErfassenPage : RfidScanWorkflowPage
         return new RfidScanContextViewModel(
             services.GetRequiredService<ISupabaseService>(),
             services.GetRequiredService<IAuthService>(),
-            services.GetRequiredService<KGV.Maui.Services.INfcScanService>());
+            services.GetRequiredService<KGV.Maui.Services.INfcScanService>(),
+            services.GetRequiredService<KGV.Maui.Services.IRfidFeedbackService>());
     }
 
     private static string GetDecisionText(RfidScanContextResult? resolution)

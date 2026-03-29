@@ -138,7 +138,7 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
 
             _workflowState.Clear();
             await DisplayAlert("OK", "Zählerausbau erfolgreich gespeichert.", "OK");
-            await Shell.Current.GoToAsync(nameof(ZaehlerwechselPage));
+            await NavigateToFreshScanAsync();
         }
         catch (Exception ex)
         {
@@ -183,5 +183,11 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
                 input
             }
         };
+    }
+
+    private static async Task NavigateToFreshScanAsync()
+    {
+        await Shell.Current.GoToAsync("//ablesen");
+        await Shell.Current.GoToAsync(nameof(ZaehlerwechselPage));
     }
 }
