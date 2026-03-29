@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: MAUI-Stammdatenpfad, sichtbare Mailregel und Invite-Benennung gegen GitHub-main erneut verifiziert, kein weiterer Produktcode mehr offen
+
+- Den realen Stand erneut direkt gegen `origin/main` geprüft.
+- Ehrlicher GitHub-main-Befund in den direkt betroffenen Dateien:
+  - `AdminShell` zeigt `↳ Stammdaten` bereits auf `MemberDetailPage`
+  - `MeineDatenPage` bleibt der Eigenpfad des eingeloggten Nutzers
+  - `MemberDetailPage` enthält bereits den produktiven `Nutzer hinzufügen`-Flow
+  - `MemberDetailPage` zeigt die sichtbare Mailregel bereits korrekt:
+    - E-Mail als echtes Eingabefeld
+    - editierbar nur ohne gebundenen App-/Auth-User
+    - read-only mit Hinweis auf Self-Service-Mailänderung bei vorhandenem App-/Auth-User
+  - `UserManagementViewModel` begrenzt die Mailänderung bereits korrekt auf das aktuell angemeldete Konto
+  - `SupabaseService.UpdateMitgliedAsync(...)` erzwingt die Backend-Regel für Mail bereits im Shared-Pfad
+  - `UserManagementPage` / `UserManagementViewModel` verwenden im sichtbaren Invite-Wortlaut bereits `Nutzer hinzufügen`; der frühere Text `Einladung / Erstlogin-Code senden` ist auf `origin/main` in diesem Pfad nicht mehr der reale Stand
+- Konsequenz dieses Laufs:
+  - die in der Prompt-Annahme genannten GitHub-main-Restwidersprüche waren real nicht mehr offen
+  - deshalb kein weiterer MAUI-Produktcode geändert
+  - nur die Logs auf den erneut verifizierten GitHub-main-Iststand fortgeschrieben
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+
 ## 2026-03-29 – Prompt 1/1: MAUI-Stammdatenpfad, `Nutzer hinzufügen` und Mailregel im Mitgliedskontext sauber abgeschlossen
 
 - Den realen Stand zuerst erneut direkt gegen `origin/main` geprüft.
