@@ -2,6 +2,68 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: Shared Invite-/AuthService-Fix für FK-Fehler beim mobilen/WPF-Flow `Nutzer hinzufügen`
+
+- Vor Beginn den echten Git-Stand strikt gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main d4e0830 [origin/main] Fix ambiguous Android Application reference`
+  - `git log --oneline --decorate HEAD..origin/main` => leer
+  - `git log --oneline --decorate origin/main..HEAD` => leer
+- Ehrlicher Git-Befund zu Beginn:
+  - lokaler Stand und `origin/main` waren identisch
+  - keine ungepushten lokalen Commits
+  - es existierten aber uncommittete lokale Änderungen im Arbeitsbaum:
+    - `KGV.Maui/KGV.Maui.csproj`
+    - `KGV.Wpf/KGV.Wpf.csproj`
+    - `Android_Wpf_release_batch.bat`
+    - `Android_Wpf_release_batch_v2.bat`
+    - `Android_Wpf_release_batch_v3.bat`
+  - vor der Umsetzung musste nichts aktualisiert werden
+- Danach nur den direkt betroffenen Shared-/UI-Pfad gelesen:
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Wpf/ViewModels/UserManagementViewModel.cs`
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+  - `KGV.Maui/Pages/UserManagementPage.cs`
+  - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+  - ergänzend direkt betroffene Models/Verträge:
+    - `KGV.Core/Interfaces/IAuthService.cs`
+    - `KGV.Core/Models/AppUserDTO.cs`
+    - `KGV.Core/Models/InviteUserAccountResult.cs`
+    - `KGV.Core/Models/MitgliedRecord.cs`
+    - `KGV.Infrastructure/Models/AppUserRecord.cs`
+  - zusätzlich die reale FK-Referenz im vorhandenen Schema-Snapshot geprüft:
+    - `mitglied_auth_user_id_fkey` referenziert `auth.users(id)`
+- Echte Fehlerursache im gemeinsamen Produktpfad:
+  - WPF und MAUI verwenden denselben Shared-Invite-Pfad `InviteUserAsync(...)`
+  - die Auth-User-ID kommt dort aus `AppUserDTO.AuthUserId` oder aus `EnsureAuthUserForInviteAsync(...)`
+  - direkt danach setzte `EnsureMemberInviteMappingAsync(...)` sofort `mitglied.auth_user_id`
+  - genau dort saß der Race-/Timing-Fehler: der referenzierte Auth-User war nach Invite/SignUp noch nicht in jedem Fall sofort belastbar für den FK auf `auth.users` sichtbar
+  - dadurch entstand der beobachtete `PostgrestException`-Fehler `23503` auf `mitglied_auth_user_id_fkey`
+  - die Ursache lag damit nicht im MAUI-UI und nicht im WPF-UI, sondern im gemeinsamen Invite-/Auth-Pfad
+- Minimal im Shared-Pfad umgesetzt:
+  - nur `KGV.Infrastructure/Authentication/AuthService.cs` geändert
+  - `EnsureMemberInviteMappingAsync(...)` besitzt jetzt einen kleinen Retry-/Wartepfad statt eines direkten Einmal-Updates
+  - der Mapping-Schritt behandelt gezielt den FK-Fehler `23503` auf `mitglied_auth_user_id_fkey` als Sichtbarkeits-/Timing-Race und versucht das Mapping nach kurzer Wartezeit erneut
+  - es wurde keine Scheinlösung nur in MAUI oder nur in WPF gebaut
+  - `mitglied.auth_user_id` wird dadurch praktisch erst dann erfolgreich gesetzt, wenn der referenzierte Auth-User für den FK wirklich sichtbar ist
+- Logging im Invite-/Mapping-Pfad zusätzlich geschärft:
+  - `mitgliedId`
+  - maskierte E-Mail
+  - verwendete `authUserId`
+  - aktueller Invite-Schritt
+  - ob der Mapping-/Verifikationsschritt erfolgreich war
+  - wie viele Retry-Versuche benötigt wurden
+  - PostgREST-Detail bei weiterem FK-Fehler
+- Belastbar validiert:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` => erfolgreich
+- Ehrliche End-to-End-Abgrenzung:
+  - ein echter automatisierter Invite-End-to-End-Lauf gegen Backend/Auth war in diesem Block nicht möglich
+  - logisch geprüft und buildseitig validiert wurde aber genau der reale Shared-Codepfad `AuthUserId` -> Mitglied-Mapping -> App-User-Record -> OTP-Request
+  - der bisherige harte Einmal-Mappingpfad ist dort jetzt sauber durch einen kleinen robusten Shared-Retry ersetzt
+- Commit-Hash und Push-Status werden nach dem Git-Abschluss ergänzt.
+
 ## 2026-03-29 – Prompt 1/1: Android-Release-Buildblocker im MAUI-Android-Service minimal behoben
 
 - Vor Änderungen den echten Repo-Stand geprüft:

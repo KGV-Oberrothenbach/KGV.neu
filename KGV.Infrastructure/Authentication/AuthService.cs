@@ -4,11 +4,13 @@ using KGV.Infrastructure.Models;
 using KGV.Infrastructure.Supabase;
 using Supabase;
 using Supabase.Gotrue.Exceptions;
+using Supabase.Postgrest.Exceptions;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using GotrueUserAttributes = Supabase.Gotrue.UserAttributes;
@@ -356,6 +358,11 @@ namespace KGV.Infrastructure.Authentication
                 throw new ArgumentNullException(nameof(user));
 
             var email = user.Email?.Trim();
+            var mitgliedId = user.MitgliedId;
+            var authUserId = user.AuthUserId;
+            var inviteStep = "validate";
+            var authUserVerified = false;
+            var mappingAttempts = 0;
             if (string.IsNullOrWhiteSpace(email))
             {
                 return new InviteUserAccountResult
@@ -367,9 +374,22 @@ namespace KGV.Infrastructure.Authentication
 
             try
             {
-                var authUserId = user.AuthUserId ?? await EnsureAuthUserForInviteAsync(email);
+                _logger?.LogInformation(
+                    "InviteUserAsync started for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId}",
+                    mitgliedId,
+                    MaskEmail(email),
+                    authUserId);
+
+                inviteStep = "ensure-auth-user";
+                authUserId ??= await EnsureAuthUserForInviteAsync(email);
                 if (!authUserId.HasValue)
                 {
+                    _logger?.LogWarning(
+                        "InviteUserAsync aborted at step {InviteStep} for mitgliedId={MitgliedId} email={EmailMasked}: auth user id unavailable",
+                        inviteStep,
+                        mitgliedId,
+                        MaskEmail(email));
+
                     return new InviteUserAccountResult
                     {
                         Success = false,
@@ -378,10 +398,39 @@ namespace KGV.Infrastructure.Authentication
                     };
                 }
 
-                await EnsureMemberInviteMappingAsync(authUserId.Value, user.MitgliedId, email);
+                _logger?.LogInformation(
+                    "InviteUserAsync auth user resolved for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId}",
+                    mitgliedId,
+                    MaskEmail(email),
+                    authUserId.Value);
+
+                inviteStep = "ensure-member-mapping";
+                mappingAttempts = await EnsureMemberInviteMappingAsync(authUserId.Value, mitgliedId, email);
+                authUserVerified = !mitgliedId.HasValue || mappingAttempts > 0;
+
+                _logger?.LogInformation(
+                    "InviteUserAsync member mapping ensured for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId} authUserVerified={AuthUserVerified} mappingAttempts={MappingAttempts}",
+                    mitgliedId,
+                    MaskEmail(email),
+                    authUserId.Value,
+                    authUserVerified,
+                    mappingAttempts);
+
+                inviteStep = "ensure-app-user";
                 await EnsureAppUserRecordAsync(authUserId.Value, user.MitgliedId, NormalizeRole(user.Role));
 
+                inviteStep = "request-recovery-otp";
                 var requested = await RequestRecoveryOtpAsync(email, "invite");
+
+                _logger?.LogInformation(
+                    "InviteUserAsync finished for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId} authUserVerified={AuthUserVerified} mappingAttempts={MappingAttempts} otpRequested={OtpRequested}",
+                    mitgliedId,
+                    MaskEmail(email),
+                    authUserId.Value,
+                    authUserVerified,
+                    mappingAttempts,
+                    requested);
+
                 return new InviteUserAccountResult
                 {
                     Success = requested,
@@ -392,9 +441,37 @@ namespace KGV.Infrastructure.Authentication
                         : "Einladungs-/Erstlogin-Code konnte nicht versendet werden."
                 };
             }
+            catch (PostgrestException ex) when (IsMemberAuthUserForeignKeyFailure(ex))
+            {
+                _logger?.LogError(
+                    ex,
+                    "InviteUserAsync failed at step {InviteStep} for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId} authUserVerified={AuthUserVerified} mappingAttempts={MappingAttempts}. {PostgrestDetail}",
+                    inviteStep,
+                    mitgliedId,
+                    MaskEmail(email),
+                    authUserId,
+                    authUserVerified,
+                    mappingAttempts,
+                    ExtractPostgrestRelevantMessage(ex));
+
+                return new InviteUserAccountResult
+                {
+                    Success = false,
+                    Email = email,
+                    Message = "Einladung fehlgeschlagen, weil der Auth-User beim Verknüpfen noch nicht belastbar verfügbar war. Bitte erneut versuchen."
+                };
+            }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "InviteUserAsync failed for {EmailMasked}", MaskEmail(email));
+                _logger?.LogError(
+                    ex,
+                    "InviteUserAsync failed at step {InviteStep} for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId} authUserVerified={AuthUserVerified} mappingAttempts={MappingAttempts}",
+                    inviteStep,
+                    mitgliedId,
+                    MaskEmail(email),
+                    authUserId,
+                    authUserVerified,
+                    mappingAttempts);
                 return new InviteUserAccountResult
                 {
                     Success = false,
@@ -695,18 +772,66 @@ namespace KGV.Infrastructure.Authentication
             }
         }
 
-        private async Task EnsureMemberInviteMappingAsync(Guid authUserId, int? mitgliedId, string email)
+        private async Task<int> EnsureMemberInviteMappingAsync(Guid authUserId, int? mitgliedId, string email)
         {
             if (!mitgliedId.HasValue)
-                return;
+            {
+                _logger?.LogInformation(
+                    "EnsureMemberInviteMappingAsync skipped: no mitgliedId for email={EmailMasked} authUserId={AuthUserId}",
+                    MaskEmail(email),
+                    authUserId);
+                return 0;
+            }
 
             var client = await GetClientAsync();
-            await client
-                .From<MitgliedRecord>()
-                .Where(x => x.Id == mitgliedId.Value)
-                .Set(x => x.AuthUserId, authUserId)
-                .Set(x => x.Email, email)
-                .Update();
+            const int maxAttempts = 5;
+
+            for (var attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                try
+                {
+                    _logger?.LogInformation(
+                        "EnsureMemberInviteMappingAsync attempt {Attempt}/{MaxAttempts} for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId}",
+                        attempt,
+                        maxAttempts,
+                        mitgliedId.Value,
+                        MaskEmail(email),
+                        authUserId);
+
+                    await client
+                        .From<MitgliedRecord>()
+                        .Where(x => x.Id == mitgliedId.Value)
+                        .Set(x => x.AuthUserId, authUserId)
+                        .Set(x => x.Email, email)
+                        .Update();
+
+                    _logger?.LogInformation(
+                        "EnsureMemberInviteMappingAsync verified auth user mapping for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId} on attempt {Attempt}/{MaxAttempts}",
+                        mitgliedId.Value,
+                        MaskEmail(email),
+                        authUserId,
+                        attempt,
+                        maxAttempts);
+
+                    return attempt;
+                }
+                catch (PostgrestException ex) when (IsMemberAuthUserForeignKeyFailure(ex) && attempt < maxAttempts)
+                {
+                    _logger?.LogWarning(
+                        ex,
+                        "EnsureMemberInviteMappingAsync retry {Attempt}/{MaxAttempts} required for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId}. {PostgrestDetail}",
+                        attempt,
+                        maxAttempts,
+                        mitgliedId.Value,
+                        MaskEmail(email),
+                        authUserId,
+                        ExtractPostgrestRelevantMessage(ex));
+
+                    await Task.Delay(GetInviteMappingRetryDelay(attempt));
+                }
+            }
+
+            return 0;
         }
 
         private async Task EnsureAppUserRecordAsync(Guid authUserId, int? mitgliedId, string role)
@@ -744,12 +869,79 @@ namespace KGV.Infrastructure.Authentication
             return $"Tmp!{Guid.NewGuid():N}aA1";
         }
 
+        private static TimeSpan GetInviteMappingRetryDelay(int attempt)
+            => TimeSpan.FromMilliseconds(200 * attempt);
+
         private static string NormalizeRole(string? role)
         {
             if (string.IsNullOrWhiteSpace(role))
                 return "user";
 
             return role.Trim().ToLowerInvariant();
+        }
+
+        private static bool IsMemberAuthUserForeignKeyFailure(PostgrestException ex)
+        {
+            var message = ExtractPostgrestRelevantMessage(ex);
+            var code = ExtractPostgrestCode(ex);
+
+            return string.Equals(code, "23503", StringComparison.OrdinalIgnoreCase)
+                && (message.Contains("mitglied_auth_user_id_fkey", StringComparison.OrdinalIgnoreCase)
+                    || message.Contains("table \"users\"", StringComparison.OrdinalIgnoreCase)
+                    || message.Contains("auth_user_id", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static string ExtractPostgrestCode(PostgrestException ex)
+        {
+            if (string.IsNullOrWhiteSpace(ex.Content))
+                return string.Empty;
+
+            try
+            {
+                using var document = JsonDocument.Parse(ex.Content);
+                return TryGetJsonString(document.RootElement, "code") ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static string ExtractPostgrestRelevantMessage(PostgrestException ex)
+        {
+            if (string.IsNullOrWhiteSpace(ex.Content))
+                return MaskDiagnosticMessage(ex.Message);
+
+            try
+            {
+                using var document = JsonDocument.Parse(ex.Content);
+                var values = new[]
+                {
+                    TryGetJsonString(document.RootElement, "message"),
+                    TryGetJsonString(document.RootElement, "details"),
+                    TryGetJsonString(document.RootElement, "hint"),
+                    TryGetJsonString(document.RootElement, "code")
+                };
+
+                var joined = string.Join(" | ", values.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim()));
+                return string.IsNullOrWhiteSpace(joined)
+                    ? MaskDiagnosticMessage(ex.Message)
+                    : MaskDiagnosticMessage(joined);
+            }
+            catch
+            {
+                return MaskDiagnosticMessage(ex.Content);
+            }
+        }
+
+        private static string? TryGetJsonString(JsonElement element, string propertyName)
+        {
+            if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind == JsonValueKind.Null)
+                return null;
+
+            return property.ValueKind == JsonValueKind.String
+                ? property.GetString()
+                : property.ToString();
         }
 
         private void ResetAuthState()

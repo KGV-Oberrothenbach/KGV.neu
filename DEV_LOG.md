@@ -2,6 +2,65 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: Shared Invite-/AuthService-Fix gegen FK-Race bei `Nutzer hinzufügen`
+
+- Zuerst den echten Git-Stand gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main d4e0830 [origin/main] Fix ambiguous Android Application reference`
+  - `git log --oneline --decorate HEAD..origin/main` => leer
+  - `git log --oneline --decorate origin/main..HEAD` => leer
+- Ehrlicher Git-Befund vor dem Fix:
+  - lokaler Stand und `origin/main` waren identisch
+  - keine ungepushten lokalen Commits
+  - es existierten aber uncommittete lokale Änderungen im Arbeitsbaum:
+    - `KGV.Maui/KGV.Maui.csproj`
+    - `KGV.Wpf/KGV.Wpf.csproj`
+    - `Android_Wpf_release_batch.bat`
+    - `Android_Wpf_release_batch_v2.bat`
+    - `Android_Wpf_release_batch_v3.bat`
+  - ein Update vor der Umsetzung war nicht nötig
+- Danach nur den direkt betroffenen Shared-/UI-Pfad gelesen:
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Wpf/ViewModels/UserManagementViewModel.cs`
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+  - `KGV.Maui/Pages/UserManagementPage.cs`
+  - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+  - ergänzend die direkt betroffenen Models/Verträge:
+    - `KGV.Core/Interfaces/IAuthService.cs`
+    - `KGV.Core/Models/AppUserDTO.cs`
+    - `KGV.Core/Models/InviteUserAccountResult.cs`
+    - `KGV.Core/Models/MitgliedRecord.cs`
+    - `KGV.Infrastructure/Models/AppUserRecord.cs`
+- Echte Shared-Ursache:
+  - WPF und MAUI verwenden beide denselben Invite-Pfad `InviteUserAsync(...)` im gemeinsamen `AuthService`
+  - die `authUserId` kommt dort aus `AppUserDTO.AuthUserId` oder – falls noch leer – frisch aus `EnsureAuthUserForInviteAsync(...)`
+  - direkt danach setzte `EnsureMemberInviteMappingAsync(...)` sofort `mitglied.auth_user_id`
+  - genau dort saß das reale Race: der referenzierte Auth-User war nach dem Invite/SignUp noch nicht in jedem Fall sofort belastbar über den FK auf `auth.users` sichtbar
+  - dadurch entstand der beobachtete FK-Fehler `23503` auf `mitglied_auth_user_id_fkey`
+- Minimal im Shared-Pfad umgesetzt:
+  - nur `KGV.Infrastructure/Authentication/AuthService.cs` geändert
+  - `EnsureMemberInviteMappingAsync(...)` besitzt jetzt einen kleinen Retry-/Wartepfad statt eines direkten Einmal-Updates
+  - der Mapping-Schritt behandelt gezielt den FK-Fehler `23503` auf `mitglied_auth_user_id_fkey` als Sichtbarkeits-/Timing-Race und wartet kurz mit erneutem Versuch
+  - keine UI-Scheinlösung in WPF oder MAUI gebaut
+  - `mitglied.auth_user_id` wird damit praktisch erst dann erfolgreich gesetzt, wenn der referenzierte Auth-User für den FK wirklich sichtbar ist
+- Logging im Invite-Pfad geschärft:
+  - `mitgliedId`
+  - maskierte E-Mail
+  - verwendete `authUserId`
+  - Invite-Schritt (`ensure-auth-user`, `ensure-member-mapping`, `ensure-app-user`, `request-recovery-otp`)
+  - ob der Mapping-/Verifikationsschritt erfolgreich war
+  - wie viele Retry-Versuche gebraucht wurden
+  - PostgREST-Detail bei weiterem FK-Fehler
+- Belastbar validiert:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` => erfolgreich
+- Ehrliche E2E-Abgrenzung:
+  - ein echter Invite-End-to-End-Lauf gegen Backend/Auth konnte in diesem Block nicht automatisiert ausgeführt werden
+  - logisch geprüft wurde aber der echte Shared-Codepfad: Auth-User-ID-Ermittlung -> FK-gefährdetes Mitglied-Mapping -> App-User-Record -> OTP-Request
+  - der bisherige harte Einmal-Update wurde dort sauber durch den kleinen produktiven Retry-/Verifikationspfad ersetzt
+- Git-Abschluss folgt im Anschluss; Commit-Hash und Push-Status werden nach dem Commit ergänzt.
+
 ## 2026-03-29 – Prompt 1/1: Android-Release-Buildblocker durch mehrdeutigen `Application`-Verweis minimal behoben
 
 - Zuerst den echten Repo-Stand geprüft:
