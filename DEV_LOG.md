@@ -59,7 +59,12 @@
   - ein echter Invite-End-to-End-Lauf gegen Backend/Auth konnte in diesem Block nicht automatisiert ausgeführt werden
   - logisch geprüft wurde aber der echte Shared-Codepfad: Auth-User-ID-Ermittlung -> FK-gefährdetes Mitglied-Mapping -> App-User-Record -> OTP-Request
   - der bisherige harte Einmal-Update wurde dort sauber durch den kleinen produktiven Retry-/Verifikationspfad ersetzt
-- Git-Abschluss folgt im Anschluss; Commit-Hash und Push-Status werden nach dem Commit ergänzt.
+- Git-Abschluss:
+  - `git add -A`
+  - `git commit -m "Fix invite auth user mapping race"`
+  - Commit-Hash: `4ee6c03`
+  - `git push origin main` => erfolgreich
+  - final `git status -sb` => `## main...origin/main`
 
 ## 2026-03-29 – Prompt 1/1: Android-Release-Buildblocker durch mehrdeutigen `Application`-Verweis minimal behoben
 

@@ -62,7 +62,12 @@
   - ein echter automatisierter Invite-End-to-End-Lauf gegen Backend/Auth war in diesem Block nicht möglich
   - logisch geprüft und buildseitig validiert wurde aber genau der reale Shared-Codepfad `AuthUserId` -> Mitglied-Mapping -> App-User-Record -> OTP-Request
   - der bisherige harte Einmal-Mappingpfad ist dort jetzt sauber durch einen kleinen robusten Shared-Retry ersetzt
-- Commit-Hash und Push-Status werden nach dem Git-Abschluss ergänzt.
+- Git-Abschluss:
+  - `git add -A`
+  - `git commit -m "Fix invite auth user mapping race"`
+  - Commit-Hash: `4ee6c03`
+  - `git push origin main` => erfolgreich
+  - final `git status -sb` => `## main...origin/main`
 
 ## 2026-03-29 – Prompt 1/1: Android-Release-Buildblocker im MAUI-Android-Service minimal behoben
 
