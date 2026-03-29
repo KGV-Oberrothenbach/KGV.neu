@@ -2,6 +2,37 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel-Folgepfad gegen GitHub-main erneut verifiziert, keine weitere Code-Restlücke mehr offen
+
+- Vor Beginn den realen Stand erneut gegen `origin/main` geprüft und danach gezielt die direkt betroffenen Dateien gegengelesen:
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+  - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+  - `KGV.Maui/Services/IRfidFeedbackService.cs`
+  - `KGV.Maui/Platforms/Android/Services/AndroidRfidFeedbackService.cs`
+- Ehrlicher GitHub-main-Befund:
+  - `ZaehlerwechselAusbauPage` und `ZaehlerwechselEinbauPage` existieren bereits
+  - beide Shell-Routen sind auf `origin/main` bereits registriert
+  - beide DI-Registrierungen als `AddTransient<...>()` sind auf `origin/main` bereits vorhanden
+  - der mobile RFID-Feedback-Service ist auf `origin/main` bereits vorhanden und in `MauiProgram` registriert
+  - der Quittungston wird auf `origin/main` bereits in `RfidScanContextViewModel.ResolveAsync()` bei erfolgreicher bekannter RFID-Kontextauflösung ausgelöst
+  - der Rückweg nach erfolgreichem Einbau/Ausbau bereinigt den Workflow-State bereits und führt wieder auf einen frischen Zählerwechsel-Scanpfad
+- Konsequenz dieses Laufs:
+  - die in der Prompt-Annahme genannten GitHub-main-Restlücken waren real nicht mehr offen
+  - deshalb wurde kein weiterer MAUI-Produktcode auf Verdacht geändert
+  - nur die Logs wurden auf den erneut verifizierten GitHub-main-Iststand fortgeschrieben
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+- Logische Einordnung:
+  - Zählerwechsel-CTA-Pfad bleibt produktiv über `Shell.Current.GoToAsync(nameof(...))`
+  - Routing/DI sind für die beiden Folgeseiten bereits vollständig geschlossen
+  - RFID-Quittungston hängt bereits am erfolgreichen bekannten Kontextpfad
+  - Workflow-State bleibt nach erfolgreichem Abschluss nicht hängen
+
 ## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel-Block gegen GitHub-main verifiziert, reale DI-Restlücke geschlossen und nach `origin/main` vorbereitet
 
 - Vor Beginn den realen GitHub-Stand erneut gegen `origin/main` geprüft und danach gezielt die direkt betroffenen Dateien gelesen:

@@ -2,6 +2,24 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel-Folgepfad gegen GitHub-main erneut verifiziert, kein weiterer Produktcode mehr offen
+
+- Den realen Stand erneut direkt gegen `origin/main` geprüft.
+- Ehrlicher Befund auf GitHub `main` in den direkt betroffenen MAUI-Dateien:
+  - `Routing.RegisterRoute(nameof(ZaehlerwechselAusbauPage), ...)` ist bereits vorhanden
+  - `Routing.RegisterRoute(nameof(ZaehlerwechselEinbauPage), ...)` ist bereits vorhanden
+  - `AddTransient<ZaehlerwechselAusbauPage>()` ist bereits vorhanden
+  - `AddTransient<ZaehlerwechselEinbauPage>()` ist bereits vorhanden
+  - `IRfidFeedbackService` und `AndroidRfidFeedbackService` sind bereits vorhanden und in `MauiProgram` registriert
+  - der Quittungston wird bereits in `RfidScanContextViewModel.ResolveAsync()` bei erfolgreicher bekannter Kontextauflösung ausgelöst
+  - der Rückweg nach erfolgreichem Ausbau/Einbau bereinigt den Workflow-State bereits und führt wieder auf einen frischen Zählerwechsel-Scanpfad
+- Konsequenz dieses Abschlusslaufs:
+  - kein weiterer Produktcode geändert, weil die in der Prompt-Annahme genannten GitHub-main-Restlücken real bereits geschlossen waren
+  - nur die Logs auf den verifizierten GitHub-main-Iststand fortgeschrieben
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+
 ## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel-Block gegen GitHub-main verifiziert, DI-Restlücke real geschlossen und dann gepusht
 
 - Den realen Stand erneut gegen `origin/main` geprüft.
