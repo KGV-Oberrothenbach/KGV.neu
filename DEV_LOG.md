@@ -2,6 +2,45 @@
 
 ---
 
+## 2026-03-29 – Prompt 1/1: MAUI-Release-Loginpfad gegen echten Supabase-Connection-Failure im Android-Netzwerkpfad gehärtet
+
+- Vor Beginn den realen Istzustand geprüft:
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Infrastructure/Supabase/SupabaseClientFactory.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+  - `.github/copilot-instructions.md`
+  - reale Git-Lage, Release-APK und angeschlossenes Gerät per `adb devices`
+- Ehrlicher Befund:
+  - `appsettings.json`, Supabase-Konfiguration und Login-Startmarker waren im Release bereits korrekt sichtbar
+  - der eigentliche Fehler lag nicht mehr in Icon, Appsettings oder Benutzerlogik, sondern im echten Netzwerkpfad vor dem Gotrue-Login
+  - im Android-Manifest fehlte im aktuellen Stand die Berechtigung `android.permission.INTERNET`; das passt fachlich zu `GotrueException: Connection failure` im Releasepfad
+  - `AuthService` lieferte für den Geräte-Log schon grobe Fehlmarker, aber noch keinen ausreichend präzisen Netzwerk-/InnerException-Kontext
+- Minimal umgesetzt:
+  - `AndroidManifest.xml` um `android.permission.INTERNET` ergänzt, damit Release denselben HTTPS-/Supabase-Pfad wie Debug nutzen kann
+  - `AuthService.LoginAsync(...)` protokolliert jetzt zusätzlich maskiert:
+    - Zielschema
+    - Zielhost der Supabase-URL
+    - Exception-Typ
+    - InnerException-Typ
+    - maskierte InnerException-Nachricht
+  - bestehende `KGV`-Logcat-Marker bleiben unverändert erhalten; die neue Netzwerkdiagnose kommt ergänzend dazu
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=apk` erfolgreich; signierte Release-APK erzeugt
+  - `dotnet build KGV.slnx -c Debug` erfolgreich
+  - Release-APK auf echtes Gerät installiert (`adb install -r ...Signed.apk` erfolgreich)
+  - `adb logcat -s KGV` nach App-Start zeigt weiter sauber:
+    - `APP_START`
+    - `APPSETTINGS_LOAD_OK`
+    - `SUPABASE_CONFIG_PRESENT_YES`
+  - `adb shell dumpsys package de.kgv.oberrothenbach | findstr INTERNET` bestätigt die Berechtigung jetzt auf dem installierten Release-Paket
+- Offener Rest für den nächsten echten Gerätelogin:
+  - der Login selbst konnte in diesem Lauf nicht automatisiert ausgelöst werden, weil keine Zugangsdaten/keine UI-Automation im Block vorlagen
+  - falls der Fehler wider Erwarten weiter besteht, liefert `adb logcat -s KGV` jetzt den präziseren Netzwerk-/InnerException-Kontext statt nur `Connection failure`
+
 ## 2026-03-28 – Prompt 1/1: MAUI-Release-Loginpfad mit echtem Android-Logcat-Tag diagnostizierbar gemacht
 
 - Vor Beginn den realen Istzustand geprüft:

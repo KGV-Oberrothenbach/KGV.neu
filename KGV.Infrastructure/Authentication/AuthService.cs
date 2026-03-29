@@ -163,7 +163,9 @@ namespace KGV.Infrastructure.Authentication
 
             try
             {
+                var endpointContext = GetSupabaseEndpointContext();
                 _logger?.LogInformation("SignIn attempt for {EmailMasked}", MaskEmail(email));
+                _logger?.LogInformation("LOGIN_AUTH_TARGET {EndpointContext} for {EmailMasked}", endpointContext, MaskEmail(email));
                 _logger?.LogInformation("LOGIN_AUTH_STAGE:GET_CLIENT for {EmailMasked}", MaskEmail(email));
 
                 var client = await GetClientAsync();
@@ -237,14 +239,40 @@ namespace KGV.Infrastructure.Authentication
             }
             catch (GotrueException ex)
             {
-                _logger?.LogError(ex, "LOGIN_EXCEPTION:AUTH_SIGNIN_GOTRUE {MessageMasked} for {EmailMasked}", MaskDiagnosticMessage(ex.Message), MaskEmail(email));
+                _logger?.LogError(
+                    ex,
+                    "LOGIN_EXCEPTION:AUTH_SIGNIN_GOTRUE {EndpointContext} exceptionType={ExceptionType} innerType={InnerExceptionType} innerMessage={InnerMessageMasked} message={MessageMasked} for {EmailMasked}",
+                    GetSupabaseEndpointContext(),
+                    ex.GetType().FullName,
+                    ex.InnerException?.GetType().FullName ?? "none",
+                    MaskDiagnosticMessage(ex.InnerException?.Message),
+                    MaskDiagnosticMessage(ex.Message),
+                    MaskEmail(email));
                 return false;
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "LOGIN_EXCEPTION:AUTH_SIGNIN_UNEXPECTED {MessageMasked} for {EmailMasked}", MaskDiagnosticMessage(ex.Message), MaskEmail(email));
+                _logger?.LogError(
+                    ex,
+                    "LOGIN_EXCEPTION:AUTH_SIGNIN_UNEXPECTED {EndpointContext} exceptionType={ExceptionType} innerType={InnerExceptionType} innerMessage={InnerMessageMasked} message={MessageMasked} for {EmailMasked}",
+                    GetSupabaseEndpointContext(),
+                    ex.GetType().FullName,
+                    ex.InnerException?.GetType().FullName ?? "none",
+                    MaskDiagnosticMessage(ex.InnerException?.Message),
+                    MaskDiagnosticMessage(ex.Message),
+                    MaskEmail(email));
                 return false;
             }
+        }
+
+        private string GetSupabaseEndpointContext()
+        {
+            if (!Uri.TryCreate(_clientFactory.Url, UriKind.Absolute, out var uri))
+            {
+                return "scheme=invalid host=invalid";
+            }
+
+            return $"scheme={uri.Scheme} host={uri.Host}";
         }
 
         private static string MaskDiagnosticMessage(string? message)
