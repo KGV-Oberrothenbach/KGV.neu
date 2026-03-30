@@ -1,5 +1,31 @@
 # KGV Fortschritt ausführlich
 
+## Stand 2026-03-30 – Kurzkorrektur: Inno-Setup-Prüfung im Systemcheck auf reale ExitCode-Semantik gehärtet
+
+### Ziel dieses Schritts
+Die direkt gemeldete Restlücke `Systemcheck nicht startbar` minimal korrigieren, ohne den vorhandenen Preflight-Block neu umzubauen.
+
+### Geprüft
+- `Services/ReleasePreflightService.cs`
+- reale lokale Inno-Setup-Ausführung über `ISCC.exe /?`
+
+### Ehrlicher Istzustand vor Umsetzung
+- `ISCC.exe` war lokal vorhanden und aufrufbar
+- der Systemcheck behandelte den Hilferuf `ISCC.exe /?` trotzdem als Fehler, weil Inno Setup dafür lokal ExitCode `1` liefert
+- dadurch wurde die Umgebung fälschlich als nicht startbar markiert
+
+### Umgesetzt
+- `ReleasePreflightService.CheckInnoSetupAsync(...)` wertet den Hilferuf jetzt als gültigen Verfügbarkeitsnachweis, wenn der Prozess sauber startet und der typische `Inno Setup`-Hilfetext zurückkommt
+- echte Prozessstartfehler bleiben unverändert Fehler
+
+### Ergebnis
+- die Inno-Setup-Prüfung passt jetzt zur realen lokalen Tool-Semantik
+- der Systemcheck blockiert nicht mehr fälschlich nur wegen des Inno-Help-ExitCodes
+
+### Validierung
+- `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+- `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` erfolgreich
+
 ## Stand 2026-03-30 – Interner Härtungsblock: transaktionalen Echt-Release, Rollback und Abschlussstatus präzisiert
 
 ### Ziel dieses Schritts

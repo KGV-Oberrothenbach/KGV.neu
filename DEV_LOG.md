@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-03-30 – Kurzfix: Systemcheck blockierte fälschlich an `Inno Setup`
+
+- Reproduziert und geprüft, warum der neue Release-Manager-Systemcheck trotz gültiger Umgebung als nicht startbar erschien.
+- Echte Ursache:
+  - `ReleasePreflightService.CheckInnoSetupAsync(...)` prüfte `ISCC.exe` über `ISCC.exe /?`
+  - die lokale Inno-Setup-Installation ist dabei korrekt aufrufbar, liefert für den Hilfebildschirm aber ExitCode `1`
+  - der Systemcheck behandelte diesen Hilferückgabecode fälschlich als Fehler und markierte dadurch die Umgebung als nicht startbar
+- Minimal korrigiert:
+  - `ReleasePreflightService` wertet den Inno-Setup-Aufruf jetzt als erfolgreich, wenn der Prozess sauber startet und der typische `Inno Setup`-Hilfetext zurückkommt
+  - echte Startfehler bleiben weiterhin Fehler
+- Validierung:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-03-30 – Prompt 2/2: Release Manager auf transaktionalen Echt-Release mit Schrittstatus und Rollback gehärtet
 
 - Vor dem Block erneut den echten Git-Stand gegen `origin/main` geprüft:

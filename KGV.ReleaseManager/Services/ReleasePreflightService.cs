@@ -168,12 +168,19 @@ public sealed class ReleasePreflightService
             WorkingDirectory = Path.GetDirectoryName(compilerPath) ?? string.Empty
         };
 
-        return await RunProcessCheckAsync(
-            "Inno Setup",
-            startInfo,
-            _ => $"Inno Setup ist aufrufbar: {compilerPath}",
-            _ => "Inno Setup nicht gefunden oder nicht aufrufbar.",
-            cancellationToken);
+        var result = await _processExecutionService.RunAsync(startInfo, "Inno Setup", cancellationToken);
+        if (!string.IsNullOrWhiteSpace(result.ExceptionMessage))
+        {
+            return Error("Inno Setup", "Inno Setup nicht gefunden oder nicht aufrufbar.");
+        }
+
+        var processOutput = FirstNonEmpty(result.StandardOutput, result.StandardError);
+        if (result.ExitCode is 0 or 1 && processOutput.Contains("Inno Setup", StringComparison.OrdinalIgnoreCase))
+        {
+            return Ok("Inno Setup", $"Inno Setup ist aufrufbar: {compilerPath}");
+        }
+
+        return Error("Inno Setup", "Inno Setup nicht gefunden oder nicht aufrufbar.");
     }
 
     private async Task<ReleasePreflightCheckResult> RunProcessCheckAsync(
