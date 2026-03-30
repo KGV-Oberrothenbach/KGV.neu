@@ -2,6 +2,55 @@
 
 ---
 
+## 2026-03-30 – Prompt 2/2: First-Login Edge Function produktiv deployt und live verifiziert
+
+- Für diesen Block wurde der eben abgeschlossene Serverpfad bewusst **nicht** noch einmal fachlich umgebaut.
+- Stattdessen nur real geprüft, deployed und live gegen das echte Supabase-Projekt verifiziert.
+- Direkt geprüft wurden:
+  - `supabase/functions/kgv-request-first-login-otp/index.ts`
+  - `supabase/functions/kgv-request-first-login-otp/deno.json`
+  - `supabase/config.toml`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - realer Supabase-CLI-Pfad im Repo (`node_modules/supabase/bin/supabase.exe`)
+- Reale Deploy-Voraussetzungen bestätigt:
+  - die neue Function ist im Repo vollständig vorhanden
+  - sie ist in `supabase/config.toml` korrekt eingehängt
+  - `verify_jwt = false` ist für den gewünschten öffentlichen Vor-Auth-Endpunkt korrekt gesetzt
+  - die Function nutzt serverseitig `SUPABASE_URL` und `SUPABASE_SERVICE_ROLE_KEY`
+  - Remote-Secrets im Zielprojekt wurden real per `supabase secrets list --project-ref itjcabiibuodkxayhvjq` geprüft und sind vorhanden
+- Produktiver Deploy durchgeführt:
+  - `supabase functions deploy kgv-request-first-login-otp --project-ref itjcabiibuodkxayhvjq`
+  - Deploy lief erfolgreich
+  - anschließendes `supabase functions list --project-ref itjcabiibuodkxayhvjq` bestätigt die neue Function produktiv als:
+    - `ACTIVE`
+    - `VERSION 1`
+- Live-Verifikation des echten Endpunkts durchgeführt:
+  - direkter HTTP-POST auf den produktiven Function-Endpunkt
+  - mit dem im Repo hinterlegten `PublishableKey`
+  - Response:
+    - `success = false`
+    - `diagnosticCode = OTP_FIRST_LOGIN_EDGE_REJECTED`
+    - generische Nutzerantwort ohne Datenleck
+  - entscheidender Befund:
+    - **kein** früherer Client-Fehler `permission denied for table mitglied`
+    - der First-Login läuft damit technisch jetzt tatsächlich über den serverseitigen Pfad statt über einen Vor-Auth-Clientzugriff auf `mitglied`
+- Ehrliche Grenze dieses Verifikationsblocks:
+  - die historisch betroffene konkrete E-Mail lag im Repo-/Workspace-Stand nicht belastbar vor
+  - deshalb konnte in diesem Lauf kein zusätzlicher echter OTP-Sendeerfolg genau für diese Mail automatisiert bewiesen werden
+  - technisch live belegt ist aber:
+    - Function deployt
+    - Function öffentlich erreichbar
+    - serverseitiger `service_role`-Pfad aktiv
+    - kein alter `mitglied`-RLS-Fehler mehr im First-Login-Clientpfad
+- Zusätzliche Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+    - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Fachliches Ergebnis dieses Blocks:
+  - der bereits umgesetzte First-Login-Serverpfad ist jetzt produktiv veröffentlicht
+  - der frühere Fehler `permission denied for table mitglied` ist im live getesteten First-Login-Endpunkt nicht mehr sichtbar
+  - ein verbleibender nächster Realtest mit der historisch betroffenen E-Mail würde jetzt nicht mehr einen Client-RLS-Fehler prüfen, sondern nur noch einen echten Restfehler auf Function-/Auth-/Mail-Ebene
+
 ## 2026-03-30 – Prompt 1/2: OTP-Erstlogin auf serverseitige Supabase-Edge-Function umgestellt
 
 - Vor dem Block den realen Git-/Repo-/Arbeitsstand geprüft und nicht auf lokale Altannahmen gebaut.

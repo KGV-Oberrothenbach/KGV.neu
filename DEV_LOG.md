@@ -2,6 +2,40 @@
 
 ---
 
+## 2026-03-30 – First-Login Edge Function produktiv deployt und live verifiziert
+
+- Den bereits umgesetzten Serverpfad nicht erneut umgebaut, sondern nur real deployt und gegen das echte Supabase-Projekt geprüft.
+- Geprüft wurden:
+  - `supabase/functions/kgv-request-first-login-otp/index.ts`
+  - `supabase/functions/kgv-request-first-login-otp/deno.json`
+  - `supabase/config.toml`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+- Reale Deploy-Voraussetzungen bestätigt:
+  - Function-Dateien vollständig vorhanden
+  - `config.toml` hängt die Function korrekt ein
+  - `verify_jwt = false` ist für den Vor-Auth-Endpunkt korrekt gesetzt
+  - die Function nutzt serverseitig `SUPABASE_URL` und `SUPABASE_SERVICE_ROLE_KEY`
+  - Remote-Secrets im Zielprojekt vorhanden (`supabase secrets list` geprüft)
+- Produktiv deployt:
+  - `supabase functions deploy kgv-request-first-login-otp --project-ref itjcabiibuodkxayhvjq`
+  - `supabase functions list --project-ref itjcabiibuodkxayhvjq` bestätigt danach:
+    - `kgv-request-first-login-otp`
+    - `ACTIVE`
+    - `VERSION 1`
+- Live-Verifikation des veröffentlichten Endpunkts direkt per HTTP durchgeführt:
+  - POST auf `https://itjcabiibuodkxayhvjq.supabase.co/functions/v1/kgv-request-first-login-otp`
+  - mit Repo-`PublishableKey`
+  - Rückgabe war generisch und kontrolliert:
+    - `success = false`
+    - `diagnosticCode = OTP_FIRST_LOGIN_EDGE_REJECTED`
+  - wichtig: dabei trat **kein** früherer Client-Fehler `permission denied for table mitglied` mehr auf
+- Ehrliche Abgrenzung:
+  - eine echte Wiederholung mit der historisch betroffenen Mail war in diesem Block nicht automatisiert möglich, weil diese Mail im Repo-/Workspace-Stand nicht belastbar vorlag
+  - damit ist der serverseitige First-Login-Pfad produktiv deployt und technisch live verifiziert, ein echter OTP-Versandfall für genau diese Mail aber nicht zusätzlich belegt
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-03-30 – OTP Erstlogin auf serverseitige Edge Function umgestellt
 
 - Den realen Blockstand zuerst auf dem aktuellen Repo geprüft:
