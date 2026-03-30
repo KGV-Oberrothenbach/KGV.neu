@@ -924,6 +924,25 @@ public sealed class ReleaseExecutionService
 
         if (rollbackSucceeded)
         {
+            if (backups.Count > 0 && (!finalCommitExecuted || versionRestoreSucceeded))
+            {
+                stepTracker.Revert(
+                    StepWriteVersions,
+                    sourceResetPerformed
+                        ? "Versionsänderungen wurden durch Git-Rollback zurückgesetzt."
+                        : "Versionsänderungen wurden im Rollback zurückgesetzt.");
+            }
+
+            if (markerWritten && !finalMarkerWritten)
+            {
+                stepTracker.Revert(StepWriteMarker, "Release-Marker wurde im Rollback zurückgesetzt.");
+            }
+
+            if ((sourceRepositoryState.CommitCreated || targetRepositoryState?.CommitCreated == true) && !finalCommitExecuted)
+            {
+                stepTracker.Revert(StepCommit, "Lokale Commits wurden im Rollback zurückgesetzt.");
+            }
+
             stepTracker.Success(StepRollback, "Rollback erfolgreich abgeschlossen.");
             LogStepSuccess(messages, StepRollback, "Rollback erfolgreich abgeschlossen.");
         }
@@ -1347,6 +1366,11 @@ public sealed class ReleaseExecutionService
             }
 
             Update(stepName, ReleaseExecutionStepState.Skipped, message);
+        }
+
+        public void Revert(string stepName, string message)
+        {
+            Update(stepName, ReleaseExecutionStepState.Reverted, message);
         }
 
         public void MarkRemainingPendingAsSkipped(string message)

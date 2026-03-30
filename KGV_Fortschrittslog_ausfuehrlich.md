@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-03-30 – Kurzfix: Rollback-Status in der Release-Schrittliste fachlich präzisiert
+
+- Den gemeldeten Release-Auszug mit fehlgeschlagenem Push und erfolgreichem Rollback direkt gegen den aktuellen Codepfad geprüft.
+- Reale Restlücke:
+  - einzelne bereits ausgeführte, aber durch Rollback zurückgenommene Schritte blieben in der UI-Schrittliste weiter grün als `Erfolgreich`
+  - das betraf insbesondere Versionsschreiben, Marker und Commit
+- Minimal umgesetzt:
+  - neuer Schrittzustand `Zurückgesetzt`
+  - `ReleaseExecutionService` markiert nach erfolgreichem Rollback jetzt die wirklich rückgängig gemachten Schritte explizit als zurückgesetzt
+  - der Abschlussstatus bleibt unverändert ehrlich auf `fehlgeschlagen, rollback erfolgreich`
+- Validierung:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich, nur bekannte Warnungen
+  - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-03-30 – Kurzfix: Systemcheck durch Inno-Setup-Hilfecode fälschlich blockiert
 
 - Nach dem transaktionalen Release-Block den aktuellen Fehler `Systemcheck nicht startbar` direkt auf dem echten Stand geprüft.

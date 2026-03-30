@@ -9,6 +9,7 @@ public sealed class ReleaseExecutionStepResult
     public string StateText => State switch
     {
         ReleaseExecutionStepState.Successful => "Erfolgreich",
+        ReleaseExecutionStepState.Reverted => "Zurückgesetzt",
         ReleaseExecutionStepState.Skipped => "Übersprungen",
         ReleaseExecutionStepState.Failed => "Fehlgeschlagen",
         _ => "Ausstehend"

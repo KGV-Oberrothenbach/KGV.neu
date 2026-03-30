@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-03-30 – Kurzfix: Rollback zeigt zurückgesetzte Release-Schritte jetzt nicht mehr grün an
+
+- Den gemeldeten Istzustand direkt am echten Release-Manager-Pfad geprüft.
+- Echte Restlücke:
+  - nach fehlgeschlagenem Push mit erfolgreichem Rollback blieben `Versionen erhöhen/schreiben`, `Marker schreiben` und `Commit ausführen` in der Schrittliste weiter auf `Erfolgreich`
+  - fachlich war das irreführend, weil diese Schritte zwar ausgeführt, durch den Rollback aber wieder zurückgenommen wurden
+- Minimal korrigiert:
+  - neuer Schrittzustand `Zurückgesetzt`
+  - `ReleaseExecutionService` markiert nach erfolgreichem Rollback jetzt zurückgenommene Schritte explizit als `Zurückgesetzt`
+  - betroffen sind dabei gezielt die im Rollback wirklich rückgängig gemachten Schritte wie Versionsschreiben, Marker und lokale Commits
+- Validierung:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich, nur bekannte Warnungen in `HomeManagementPage.cs`
+  - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-03-30 – Kurzfix: Systemcheck blockierte fälschlich an `Inno Setup`
 
 - Reproduziert und geprüft, warum der neue Release-Manager-Systemcheck trotz gültiger Umgebung als nicht startbar erschien.

@@ -1,5 +1,34 @@
 # KGV Fortschritt ausführlich
 
+## Stand 2026-03-30 – Kurzkorrektur: zurückgesetzte Release-Schritte im UI nicht mehr als erfolgreich anzeigen
+
+### Ziel dieses Schritts
+Die direkt sichtbare Restlücke im neuen transaktionalen Release-Status minimal korrigieren: Nach erfolgreichem Rollback sollen zurückgenommene Schritte nicht weiter grün als erfolgreich erscheinen.
+
+### Geprüft
+- `Models/ReleaseExecutionStepState.cs`
+- `Models/ReleaseExecutionStepResult.cs`
+- `Services/ReleaseExecutionService.cs`
+
+### Ehrlicher Istzustand vor Umsetzung
+- bei fehlgeschlagenem Push mit erfolgreichem Rollback blieb die Schrittliste teilweise irreführend
+- insbesondere `Versionen erhöhen/schreiben`, `Marker schreiben` und `Commit ausführen` konnten weiter auf `Erfolgreich` stehen, obwohl sie bereits zurückgenommen worden waren
+
+### Umgesetzt
+- neuen Schrittzustand `Zurückgesetzt` ergänzt
+- `ReleaseExecutionService` markiert nach erfolgreichem Rollback die tatsächlich zurückgenommenen Schritte jetzt explizit als `Zurückgesetzt`
+- der Abschlussstatus selbst bleibt unverändert und ehrlich getrennt von den Einzelschritten
+
+### Ergebnis
+- die Release-Schrittliste passt jetzt fachlich besser zum tatsächlichen Endzustand nach Rollback
+- grüne Teilerfolge bleiben nicht mehr stehen, wenn sie im selben Lauf wieder zurückgenommen wurden
+
+### Validierung
+- `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+- `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+- `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich, nur bekannte Warnungen
+- `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` erfolgreich
+
 ## Stand 2026-03-30 – Kurzkorrektur: Inno-Setup-Prüfung im Systemcheck auf reale ExitCode-Semantik gehärtet
 
 ### Ziel dieses Schritts
