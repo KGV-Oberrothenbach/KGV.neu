@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-03-30 – Repo-Abgleich: Die behaupteten Invite-/Diagnose-Commits sind real auf `origin/main`
+
+- Git-Stand zuerst gegen `origin/main` geprüft.
+- Reales Ergebnis:
+  - Commit `7047fdd` ist auf `main` und auf `origin/main` enthalten
+  - Commit `0d9d025` ist auf `main` und auf `origin/main` enthalten
+  - `HEAD` und `origin/main` zeigen im Prüflauf beide auf `0d9d025...`
+- Damit war die Behauptung, die Fixes seien eventuell gar nicht auf `origin/main`, **für den aktuellen Repo-Stand nicht zutreffend**.
+- Anschließend Code gegen den Stand auf `origin/main` geprüft:
+  - `find_auth_user_id_by_email` ist real in `AuthService` referenziert
+  - Persistenz-/Diagnose-Logs sind real vorhanden
+  - Readback für `mitglied.auth_user_id` ist real vorhanden
+  - Readback für `app_user` ist real vorhanden
+  - `VerifyOtpAsync(...)` enthält real den Reparaturpfad
+- WPF/MAUI nur gegengeprüft:
+  - beide UIs rufen weiterhin denselben korrigierten Servicepfad auf
+  - kein neuer UI-Fix erforderlich
+- Harte Schlussfolgerung dieses Blocks:
+  - der echte Invite-/OTP-Fix war bereits auf `origin/main`
+  - wenn der Produktivtest weiter scheitert, dann nicht wegen fehlender Commits auf `main`, sondern wegen eines Laufzeit-/Umgebungs-/Supabase-Produktivthemas außerhalb der reinen Git-Behauptung
+- Builds:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
+- Bewusst nicht Teil dieses Blocks geblieben:
+  - lokale Änderung in `KGV.Maui/KGV.Maui.csproj`
+  - ungetrackte Batch-Dateien `Android_Wpf_release_batch_v4.bat` und `Android_Wpf_release_batch_v5.bat`
+
 ## 2026-03-30 – Diagnoseblock: Produktiver Invite-Lauf beweist den Fehlerpunkt jetzt sauber
 
 - Git-Stand vor dem Diagnoseblock erneut gegen `origin/main` geprüft:

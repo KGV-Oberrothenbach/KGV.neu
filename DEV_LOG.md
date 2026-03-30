@@ -2,6 +2,47 @@
 
 ---
 
+## 2026-03-30 – Repo-Abgleich: Invite-/OTP-Fix ist real auf `origin/main` vorhanden
+
+- Vor dem Block Git-Realität gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch --contains 7047fdd` => `main`
+  - `git branch -r --contains 7047fdd` => `origin/main`
+  - `git branch --contains 0d9d025` => `main`
+  - `git branch -r --contains 0d9d025` => `origin/main`
+  - `git rev-parse HEAD` == `git rev-parse origin/main` => beide auf `0d9d025...`
+- Ergebnis der Git-Prüfung:
+  - `7047fdd` war real auf dem aktuellen Arbeitsbranch enthalten
+  - `7047fdd` war real auf `origin/main` enthalten
+  - `0d9d025` war real auf dem aktuellen Arbeitsbranch enthalten
+  - `0d9d025` war real auf `origin/main` enthalten
+  - es lag also **kein Branch-/Push-/Cherry-Pick-Mismatch** vor
+- Repo-Code gegen Behauptung abgeglichen:
+  - `AuthService` enthält real die Referenz auf `find_auth_user_id_by_email`
+  - Diagnose-/Persistenz-Logs (`AUTH_DIAG`) sind real im Code vorhanden
+  - Readback-Verifikation für `mitglied.auth_user_id` ist real vorhanden
+  - Readback-Verifikation für `app_user` ist real vorhanden
+  - reparierender Pfad nach `VerifyOtpAsync(...)` ist real vorhanden
+- WPF/MAUI-Gegenprüfung:
+  - WPF ruft weiter `InviteUserAsync(...)` aus `KGV.Wpf/ViewModels/UserManagementViewModel.cs` auf
+  - MAUI ruft denselben Pfad aus `KGV.Maui/Pages/MemberDetailPage.cs` auf
+  - kein zusätzlicher UI-Mismatch als Ursache erkennbar
+- Config-Abgleich:
+  - WPF und MAUI lesen im Repo dieselbe Root-`appsettings.json`
+  - beide zeigen dort auf dieselbe Supabase-URL `https://itjcabiibuodkxayhvjq.supabase.co`
+- Bewertung dieses Abgleichblocks:
+  - der echte Invite-/OTP-Fix ist bereits auf `origin/main` angekommen
+  - wenn der produktive Test weiterhin scheitert, liegt die nächste reale Verdachtsrichtung **nicht** in fehlenden Git-Commits auf `main`, sondern in Runtime-/DB-/Supabase-Produktivbedingungen außerhalb des reinen Repo-Stands
+- Validierung:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
+- Bewusst nicht Teil dieses Abgleichblocks geblieben:
+  - lokale Änderung in `KGV.Maui/KGV.Maui.csproj`
+  - ungetrackte Batch-Dateien `Android_Wpf_release_batch_v4.bat` und `Android_Wpf_release_batch_v5.bat`
+
 ## 2026-03-30 – Diagnoseblock: `Nutzer hinzufügen` schreibt produktiv weiter keine `auth_user_id`
 
 - Vor dem Block den echten Git-Stand gegen `origin/main` geprüft:
