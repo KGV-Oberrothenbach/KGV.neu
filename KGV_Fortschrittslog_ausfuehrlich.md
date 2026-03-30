@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-03-30 – Abschluss-Prompt: MAUI Stammdaten Runtime-Pfad gegen Git-Stand abgeglichen und Restfehler geschlossen
+
+- Reale Ist-Analyse im aktuellen Repo durchgeführt:
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs` ist auf dem aktuellen Git-Stand bereits der neue produktive Stammdatenpfad mit:
+    - sichtbarem `Bearbeiten`-Button im erlaubten Kontext
+    - Anzeige-/Bearbeiten-Trennung
+    - Datumsbearbeitung über `DatePicker` plus `Leeren`
+    - WhatsApp als eigenem Switch nur im Bearbeiten-Modus
+  - `KGV.Maui/Pages/MyProfilePage.cs` existiert parallel als eigener Self-Service-/Profilpfad mit OTP-/Mailänderungslogik, aber nicht als produktiver Mitglieds-Menüpfad
+  - `KGV.Maui/UserShell.cs` öffnet für `↳ Stammdaten` bereits korrekt `MeineDatenPage`
+  - `KGV.Maui/AdminShell.cs` öffnete im ausgewählten Mitgliedskontext für `↳ Stammdaten` dagegen noch `MemberDetailPage`
+  - `KGV.Maui/Pages/MemberDetailPage.cs` enthält weiterhin die alte Datums-UI mit vorgeschalteten Switches vor `Geburtsdatum`, `Mitglied seit` und `Mitglied Ende` sowie keinen separaten `Bearbeiten`-Modus
+- Echte Fehlerursache sauber eingegrenzt:
+  - die laufende App zeigte nicht fälschlich `MeineDatenPage`, sondern im Admin-/Vorstands-Mitgliedskontext noch den Altpfad `MemberDetailPage`
+  - genau dieser produktive Navigationspfad erklärte die Beobachtung `kein Bearbeiten-Button` plus alte Datums-Schalter
+  - `MyProfilePage` war hierfür nicht ursächlich
+- Minimal korrigiert:
+  - `KGV.Maui/AdminShell.cs`
+    - Menüeintrag `↳ Stammdaten` im ausgewählten Mitgliedskontext von `MemberDetailPage` auf `MeineDatenPage` umgestellt
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+    - Legacy-Route `nameof(MemberDetailPage)` zusätzlich auf `MeineDatenPage` gelegt, damit auch verbliebene routebasierte Alt-Navigationen im Mitgliedskontext auf das aktuelle Stammdaten-UI laufen
+- Fachliches Zielbild nach dem Block:
+  - produktiv genutzter MAUI-Mitgliedskontext zeigt jetzt das Git-UI aus `MeineDatenPage`
+  - sichtbarer `Bearbeiten`-Button, wenn der Fachkontext Bearbeitung erlaubt
+  - keine Datums-Schieberegler/Schalter im Anzeige-Modus
+  - Datumsbearbeitung nur im Bearbeiten-Modus über saubere Datumseingabe
+  - WhatsApp bleibt nur im Bearbeiten-Modus bearbeitbar
+  - `MyProfilePage` bleibt fachlich getrennt als Self-Service-Profilpfad bestehen und wird nicht mit dem Mitgliedskontext vermischt
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - kein WPF-Umbau, kein Auth-Umbau, kein unnötiger Stammdaten-Neubau
+
 ## 2026-03-30 – Abschluss-Prompt: Impressum-Block in MAUI und WPF sauber fertiggestellt
 
 - Ausgangslage real auf dem lokalen begonnenen Stand geprüft:

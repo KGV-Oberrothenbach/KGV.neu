@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-03-30 – MAUI Stammdaten Laufzeitpfad auf Git-Stand korrigiert
+
+- Reale Ist-Analyse im aktuellen Repo durchgeführt:
+  - `UserShell` öffnet im Nutzerkontext für `↳ Stammdaten` bereits `MeineDatenPage`
+  - `MeineDatenPage` enthält im aktuellen Git-Stand den produktiven Anzeige-/Bearbeiten-Modus mit `Bearbeiten`, `Speichern`, `Abbrechen`, `DatePicker` plus `Leeren` und separatem WhatsApp-Switch
+  - `MyProfilePage` existiert weiterhin als separater Self-Service-/Profilpfad, hängt aber nicht im produktiven Mitglieds-Menüpfad
+  - im Admin-/Mitgliedskontext zeigte `AdminShell` für `↳ Stammdaten` weiterhin noch auf `MemberDetailPage`
+  - genau dort lag auch das beobachtete Alt-UI mit Datums-Schaltern vor den `DatePicker`-Feldern und ohne den neuen `Bearbeiten`-Button
+- Echte Ursache des Laufzeitfehlers:
+  - nicht `MeineDatenPage`, sondern der alte Admin-Mitgliedspfad `MemberDetailPage` wurde geöffnet
+  - dadurch war zur Laufzeit weiterhin das alte Stammdaten-UI sichtbar, obwohl `MeineDatenPage` im Repo schon auf dem neuen Stand lag
+- Minimal korrigiert:
+  - `KGV.Maui/AdminShell.cs`
+    - Menüpunkt `↳ Stammdaten` im ausgewählten Mitgliedskontext auf `MeineDatenPage` umgestellt
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+    - Legacy-Route `nameof(MemberDetailPage)` ebenfalls auf `MeineDatenPage` gelegt, damit auch verbliebene Alt-Navigationen im Mitgliedskontext auf das aktuelle Git-UI laufen
+- Fachliches Ergebnis dieses Blocks:
+  - produktiver MAUI-Mitgliedskontext nutzt jetzt konsistent `MeineDatenPage`
+  - sichtbarer `Bearbeiten`-Button erscheint dort, wenn der Fachkontext Bearbeitung erlaubt
+  - im Anzeige-Modus keine Datums-Schalter
+  - im Bearbeiten-Modus Datumsbearbeitung nur über `DatePicker` plus `Leeren`
+  - `MyProfilePage` bleibt als separater Self-Service-Pfad bestehen, mischt sich aber nicht mehr in den Mitgliedskontext
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-03-30 – Impressum in MAUI und WPF produktiv abgeschlossen
 
 - Git-Stand des begonnenen lokalen Impressum-Blocks erneut geprüft:
