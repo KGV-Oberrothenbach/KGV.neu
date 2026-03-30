@@ -51,47 +51,74 @@
                                    Visibility="{Binding ShowSelectionHint, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
                         <StackPanel Visibility="{Binding HasSelectedDetail, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <GroupBox Header="Stammdaten" Margin="0,0,0,12">
-                                <Grid Margin="10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Parzellen-ID:" FontWeight="SemiBold" Margin="0,0,12,6"/>
-                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedDetail.ParzelleId}" Margin="0,0,0,6"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Garten:" FontWeight="SemiBold" Margin="0,0,12,6"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedDetail.GartenNr}" Margin="0,0,0,6"/>
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Anlage:" FontWeight="SemiBold" Margin="0,0,12,0"/>
-                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedDetail.Anlage}"/>
-                                </Grid>
+                            <GroupBox Header="Stammdaten" Margin="0,0,0,12" Visibility="{Binding ShowReadOnlyStammdaten, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel Margin="10">
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Parzellen-ID:" FontWeight="SemiBold" Margin="0,0,12,6"/>
+                                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedDetail.ParzelleId}" Margin="0,0,0,6"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Garten:" FontWeight="SemiBold" Margin="0,0,12,6"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedDetail.GartenNr}" Margin="0,0,0,6"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Anlage:" FontWeight="SemiBold" Margin="0,0,12,6"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedDetail.Anlage}" Margin="0,0,0,6"/>
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Fläche:" FontWeight="SemiBold" Margin="0,0,12,6"/>
+                                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedDetail.FlaecheText}" Margin="0,0,0,6"/>
+                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="hat Wasser:" FontWeight="SemiBold" Margin="0,0,12,6"/>
+                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedDetail.HatWasserText}" Margin="0,0,0,6"/>
+                                        <TextBlock Grid.Row="5" Grid.Column="0" Text="hat Strom:" FontWeight="SemiBold" Margin="0,0,12,0"/>
+                                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedDetail.HatStromText}"/>
+                                    </Grid>
+                                    <Button Content="Stammdaten bearbeiten"
+                                            Width="180"
+                                            Height="32"
+                                            HorizontalAlignment="Left"
+                                            Command="{Binding EditCommand}"/>
+                                </StackPanel>
                             </GroupBox>
 
-                            <GroupBox Header="Belegung / Zuordnung" Margin="0,0,0,12">
-                                <Grid Margin="10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Status:" FontWeight="SemiBold" Margin="0,0,12,6"/>
-                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedDetail.StatusText}" Margin="0,0,0,6"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Mitglied:" FontWeight="SemiBold" Margin="0,0,12,6"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedDetail.MitgliedDisplayText}" Margin="0,0,0,6"/>
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Kontakt:" FontWeight="SemiBold" Margin="0,0,12,6"/>
-                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedDetail.MitgliedKontaktText}" Margin="0,0,0,6"/>
-                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Zeitraum:" FontWeight="SemiBold" Margin="0,0,12,0"/>
-                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedDetail.BelegungText}" TextWrapping="Wrap"/>
-                                </Grid>
+                            <GroupBox Header="Stammdaten bearbeiten" Margin="0,0,0,12" Visibility="{Binding IsEditMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel Margin="10">
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Fläche:" FontWeight="SemiBold" Margin="0,0,12,8" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding EditFlaeche, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="hat Wasser:" FontWeight="SemiBold" Margin="0,0,12,8" VerticalAlignment="Center"/>
+                                        <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding EditHatWasser}" Margin="0,0,0,8"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="hat Strom:" FontWeight="SemiBold" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                                        <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding EditHatStrom}"/>
+                                    </Grid>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                        <Button Content="Abbrechen"
+                                                Width="120"
+                                                Height="32"
+                                                Margin="0,0,8,0"
+                                                Command="{Binding CancelEditCommand}"/>
+                                        <Button Content="Speichern"
+                                                Width="120"
+                                                Height="32"
+                                                Style="{StaticResource PrimaryButton}"
+                                                Command="{Binding SaveStammdatenCommand}"/>
+                                    </StackPanel>
+                                </StackPanel>
                             </GroupBox>
 
                             <GroupBox Header="Anschlüsse / Zähler" Margin="0,0,0,12">

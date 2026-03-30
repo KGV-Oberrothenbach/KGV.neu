@@ -3,8 +3,10 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using System;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace KGV.ViewModels
 {
@@ -14,17 +16,18 @@ namespace KGV.ViewModels
         private readonly MainWindowViewModel _mainVm;
         private ParzelleVerwaltungItem? _selectedItem;
         private ParzelleDetailDTO? _selectedDetail;
-        private MemberDTO? _selectedAssignMember;
-        private DateTime? _assignVonDatum = DateTime.Today;
         private string _statusMessage = string.Empty;
         private bool _isBusy;
+        private bool _isEditMode;
+        private string _editFlaeche = string.Empty;
+        private bool _editHatWasser;
+        private bool _editHatStrom;
 
         public string Title => "Parzellenverwaltung";
-        public string Description => "Zeigt die aktuell belastbar ableitbaren Parzellen mit Mitgliedsbezug, Wasser-/Stromstatus und Dokumentbezug in einer zentralen Detailansicht.";
-        public string DetailHint => "Separate Wasser-/Strom-Anschlussflags liegen aktuell nicht als eigenes Feld vor. Sichtbar ist deshalb der belastbare Status aus vorhandenen Zählern, Ablesungen und Dokumentpfaden.";
+        public string Description => "Zeigt die belastbar ableitbaren Parzellen mit fokussierten Parzellen-Stammdaten in einer zentralen Detailansicht.";
+        public string DetailHint => "Parzellen-Stammdaten bleiben hier fachlich getrennt von Mitgliedszuordnung, Ablesen und anderen Verwaltungsblöcken.";
 
         public ObservableCollection<ParzelleVerwaltungItem> Items { get; } = new();
-        public ObservableCollection<MemberDTO> AssignableMembers { get; } = new();
 
         public ParzelleVerwaltungItem? SelectedItem
         {
@@ -34,10 +37,14 @@ namespace KGV.ViewModels
                 if (!SetProperty(ref _selectedItem, value))
                     return;
 
+                IsEditMode = false;
                 OpenMemberCommand.NotifyCanExecuteChanged();
                 OpenDokumenteCommand.NotifyCanExecuteChanged();
                 OpenStromCommand.NotifyCanExecuteChanged();
                 OpenWasserCommand.NotifyCanExecuteChanged();
+                EditCommand.NotifyCanExecuteChanged();
+                SaveStammdatenCommand.NotifyCanExecuteChanged();
+                CancelEditCommand.NotifyCanExecuteChanged();
 
                 _ = LoadSelectedDetailAsync();
             }
@@ -53,42 +60,61 @@ namespace KGV.ViewModels
 
                 OnPropertyChanged(nameof(HasSelectedDetail));
                 OnPropertyChanged(nameof(ShowSelectionHint));
-                OnPropertyChanged(nameof(CanManageAssignment));
+                OnPropertyChanged(nameof(ShowReadOnlyStammdaten));
+                OnPropertyChanged(nameof(CanEditStammdaten));
+                OnPropertyChanged(nameof(CanSaveStammdaten));
                 OpenMemberCommand.NotifyCanExecuteChanged();
                 OpenDokumenteCommand.NotifyCanExecuteChanged();
                 OpenStromCommand.NotifyCanExecuteChanged();
                 OpenWasserCommand.NotifyCanExecuteChanged();
-                AssignCommand.NotifyCanExecuteChanged();
-                EndAssignmentCommand.NotifyCanExecuteChanged();
+                EditCommand.NotifyCanExecuteChanged();
+                SaveStammdatenCommand.NotifyCanExecuteChanged();
+                CancelEditCommand.NotifyCanExecuteChanged();
+
+                if (!IsEditMode)
+                    SyncEditFieldsFromDetail(value);
             }
         }
 
         public bool HasSelectedDetail => SelectedDetail != null;
         public bool ShowSelectionHint => !HasSelectedDetail;
-        public bool CanManageAssignment => HasSelectedDetail;
+        public bool ShowReadOnlyStammdaten => HasSelectedDetail && !IsEditMode;
+        public bool CanEditStammdaten => HasSelectedDetail && !IsBusy && !IsEditMode;
+        public bool CanSaveStammdaten => HasSelectedDetail && IsEditMode && !IsBusy;
 
-        public MemberDTO? SelectedAssignMember
+        public bool IsEditMode
         {
-            get => _selectedAssignMember;
-            set
+            get => _isEditMode;
+            private set
             {
-                if (!SetProperty(ref _selectedAssignMember, value))
+                if (!SetProperty(ref _isEditMode, value))
                     return;
 
-                AssignCommand.NotifyCanExecuteChanged();
+                OnPropertyChanged(nameof(ShowReadOnlyStammdaten));
+                OnPropertyChanged(nameof(CanEditStammdaten));
+                OnPropertyChanged(nameof(CanSaveStammdaten));
+                EditCommand.NotifyCanExecuteChanged();
+                SaveStammdatenCommand.NotifyCanExecuteChanged();
+                CancelEditCommand.NotifyCanExecuteChanged();
             }
         }
 
-        public DateTime? AssignVonDatum
+        public string EditFlaeche
         {
-            get => _assignVonDatum;
-            set
-            {
-                if (!SetProperty(ref _assignVonDatum, value?.Date))
-                    return;
+            get => _editFlaeche;
+            set => SetProperty(ref _editFlaeche, value);
+        }
 
-                AssignCommand.NotifyCanExecuteChanged();
-            }
+        public bool EditHatWasser
+        {
+            get => _editHatWasser;
+            set => SetProperty(ref _editHatWasser, value);
+        }
+
+        public bool EditHatStrom
+        {
+            get => _editHatStrom;
+            set => SetProperty(ref _editHatStrom, value);
         }
 
         public string StatusMessage
@@ -105,13 +131,16 @@ namespace KGV.ViewModels
                 if (!SetProperty(ref _isBusy, value))
                     return;
 
+                OnPropertyChanged(nameof(CanEditStammdaten));
+                OnPropertyChanged(nameof(CanSaveStammdaten));
                 RefreshCommand.NotifyCanExecuteChanged();
                 OpenMemberCommand.NotifyCanExecuteChanged();
                 OpenDokumenteCommand.NotifyCanExecuteChanged();
                 OpenStromCommand.NotifyCanExecuteChanged();
                 OpenWasserCommand.NotifyCanExecuteChanged();
-                AssignCommand.NotifyCanExecuteChanged();
-                EndAssignmentCommand.NotifyCanExecuteChanged();
+                EditCommand.NotifyCanExecuteChanged();
+                SaveStammdatenCommand.NotifyCanExecuteChanged();
+                CancelEditCommand.NotifyCanExecuteChanged();
             }
         }
 
@@ -120,8 +149,9 @@ namespace KGV.ViewModels
         public IAsyncRelayCommand OpenDokumenteCommand { get; }
         public IAsyncRelayCommand OpenStromCommand { get; }
         public IAsyncRelayCommand OpenWasserCommand { get; }
-        public IAsyncRelayCommand AssignCommand { get; }
-        public IAsyncRelayCommand EndAssignmentCommand { get; }
+        public IRelayCommand EditCommand { get; }
+        public IRelayCommand CancelEditCommand { get; }
+        public IAsyncRelayCommand SaveStammdatenCommand { get; }
 
         public ParzellenVerwaltungViewModel(ISupabaseService supabaseService, MainWindowViewModel mainVm)
         {
@@ -133,8 +163,9 @@ namespace KGV.ViewModels
             OpenDokumenteCommand = new AsyncRelayCommand(OpenDokumenteAsync, () => !IsBusy && SelectedItem != null);
             OpenStromCommand = new AsyncRelayCommand(OpenStromAsync, () => !IsBusy && SelectedItem != null);
             OpenWasserCommand = new AsyncRelayCommand(OpenWasserAsync, () => !IsBusy && SelectedItem != null);
-            AssignCommand = new AsyncRelayCommand(AssignAsync, CanAssign);
-            EndAssignmentCommand = new AsyncRelayCommand(EndAssignmentAsync, CanEndAssignment);
+            EditCommand = new RelayCommand(BeginEditMode, () => CanEditStammdaten);
+            CancelEditCommand = new RelayCommand(CancelEditMode, () => IsEditMode);
+            SaveStammdatenCommand = new AsyncRelayCommand(SaveStammdatenAsync, () => CanSaveStammdaten);
         }
 
         public async Task OnNavigatedToAsync()
@@ -154,15 +185,7 @@ namespace KGV.ViewModels
                 var parzellen = await _supabaseService.GetAllParzellenAsync();
                 var belegungen = await _supabaseService.GetAllParzellenBelegungenAsync();
                 var mitglieder = await _supabaseService.GetMitgliederAsync();
-
                 var mitgliederById = mitglieder.ToDictionary(x => x.Id, x => x);
-                AssignableMembers.Clear();
-                foreach (var member in mitglieder
-                             .Where(x => x.Aktiv)
-                             .OrderBy(x => FormatMemberName(x), StringComparer.CurrentCultureIgnoreCase))
-                {
-                    AssignableMembers.Add(ToMemberDto(member));
-                }
 
                 var today = DateTime.Today;
                 var currentByParzelle = belegungen
@@ -173,10 +196,11 @@ namespace KGV.ViewModels
                     .Where(x => x != null)
                     .ToDictionary(x => x!.ParzelleId, x => x!);
 
+                var selectedParzelleId = SelectedItem?.ParzelleId;
+
                 Items.Clear();
                 SelectedDetail = null;
-                SelectedAssignMember = null;
-                AssignVonDatum = DateTime.Today;
+                IsEditMode = false;
 
                 foreach (var parzelle in parzellen
                              .OrderBy(x => GetGartenNrSortKey(x.GartenNr))
@@ -196,6 +220,9 @@ namespace KGV.ViewModels
                         StatusText = belegung != null ? "vergeben" : "frei"
                     });
                 }
+
+                if (selectedParzelleId.HasValue)
+                    SelectedItem = Items.FirstOrDefault(x => x.ParzelleId == selectedParzelleId.Value);
 
                 StatusMessage = Items.Count == 0
                     ? "Keine Parzellen geladen."
@@ -230,29 +257,29 @@ namespace KGV.ViewModels
 
         private async Task OpenDokumenteAsync()
         {
-            var belegung = CreateParzellenContext();
-            if (belegung == null)
+            var context = CreateParzellenContext();
+            if (context == null)
                 return;
 
-            await _mainVm.NavigateToAsync(new GartenDokumenteViewModel(_supabaseService, belegung));
+            await _mainVm.NavigateToAsync(new GartenDokumenteViewModel(_supabaseService, context));
         }
 
         private async Task OpenStromAsync()
         {
-            var belegung = CreateParzellenContext();
-            if (belegung == null)
+            var context = CreateParzellenContext();
+            if (context == null)
                 return;
 
-            await _mainVm.NavigateToAsync(new GartenStromViewModel(_supabaseService, belegung));
+            await _mainVm.NavigateToAsync(new GartenStromViewModel(_supabaseService, context));
         }
 
         private async Task OpenWasserAsync()
         {
-            var belegung = CreateParzellenContext();
-            if (belegung == null)
+            var context = CreateParzellenContext();
+            if (context == null)
                 return;
 
-            await _mainVm.NavigateToAsync(new GartenWasserViewModel(_supabaseService, belegung));
+            await _mainVm.NavigateToAsync(new GartenWasserViewModel(_supabaseService, context));
         }
 
         private async Task LoadSelectedDetailAsync()
@@ -269,62 +296,113 @@ namespace KGV.ViewModels
                 return;
 
             SelectedDetail = detail;
-            OnPropertyChanged(nameof(CanManageAssignment));
-            AssignCommand.NotifyCanExecuteChanged();
-            EndAssignmentCommand.NotifyCanExecuteChanged();
         }
 
-        private bool CanAssign()
+        private void BeginEditMode()
         {
-            return !IsBusy
-                && SelectedItem != null
-                && SelectedAssignMember != null
-                && AssignVonDatum.HasValue;
-        }
-
-        private async Task AssignAsync()
-        {
-            if (SelectedItem == null || SelectedAssignMember == null || !AssignVonDatum.HasValue)
+            if (!CanEditStammdaten || SelectedDetail == null)
                 return;
 
-            var parzelleId = SelectedItem.ParzelleId;
+            SyncEditFieldsFromDetail(SelectedDetail);
+            IsEditMode = true;
+        }
 
-            var ok = await _supabaseService.AssignParzelleToMitgliedAsync(SelectedAssignMember.Id, parzelleId, AssignVonDatum.Value);
-            if (!ok)
+        private void CancelEditMode()
+        {
+            SyncEditFieldsFromDetail(SelectedDetail);
+            IsEditMode = false;
+            StatusMessage = "Bearbeiten abgebrochen.";
+        }
+
+        private bool HasFlaecheChanged()
+        {
+            return NormalizeFlaecheValue(SelectedDetail?.FlaecheQm) != NormalizeFlaecheValue(ParseEditableFlaeche());
+        }
+
+        private async Task SaveStammdatenAsync()
+        {
+            if (SelectedDetail == null)
+                return;
+
+            var flaeche = ParseEditableFlaeche();
+            if (!string.IsNullOrWhiteSpace(EditFlaeche) && !flaeche.HasValue)
             {
-                StatusMessage = "Parzelle konnte nicht zugeordnet werden. Möglicherweise ist sie zum gewählten Datum bereits belegt.";
+                StatusMessage = "Die Fläche konnte nicht gelesen werden.";
                 return;
             }
 
-            StatusMessage = "Parzelle erfolgreich zugeordnet.";
-            await LoadAsync();
-            SelectedItem = Items.FirstOrDefault(x => x.ParzelleId == parzelleId);
-        }
-
-        private bool CanEndAssignment()
-        {
-            return !IsBusy
-                && SelectedDetail?.BelegungId is > 0
-                && SelectedDetail.BisDatum == null;
-        }
-
-        private async Task EndAssignmentAsync()
-        {
-            if (SelectedItem == null || SelectedDetail?.BelegungId is not > 0)
-                return;
-
-            var parzelleId = SelectedItem.ParzelleId;
-
-            var ok = await _supabaseService.EndParzellenBelegungAsync(SelectedDetail.BelegungId.Value, DateTime.Today);
-            if (!ok)
+            if (HasFlaecheChanged())
             {
-                StatusMessage = "Aktive Belegung konnte nicht beendet werden.";
+                var confirmation = MessageBox.Show(
+                    "Bist du dir sicher, dass du die Fläche der Parzelle ändern möchtest?",
+                    "Bestätigung",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (confirmation != MessageBoxResult.Yes)
+                    return;
+            }
+
+            var record = new ParzelleRecord
+            {
+                Id = SelectedDetail.ParzelleId,
+                GartenNr = SelectedDetail.GartenNr?.Trim() ?? string.Empty,
+                Anlage = SelectedDetail.Anlage?.Trim() ?? string.Empty,
+                FlaecheQm = flaeche,
+                HatWasser = EditHatWasser,
+                HatStrom = EditHatStrom,
+                RfidWasser = SelectedDetail.RfidWasser,
+                RfidStrom = SelectedDetail.RfidStrom
+            };
+
+            if (string.IsNullOrWhiteSpace(record.GartenNr))
+            {
+                StatusMessage = "Bitte eine Gartennummer angeben.";
                 return;
             }
 
-            StatusMessage = "Aktive Belegung beendet.";
-            await LoadAsync();
-            SelectedItem = Items.FirstOrDefault(x => x.ParzelleId == parzelleId);
+            IsBusy = true;
+            try
+            {
+                var ok = await _supabaseService.UpdateParzelleStammdatenAsync(record);
+                StatusMessage = ok ? "Parzellen-Stammdaten gespeichert." : "Parzellen-Stammdaten konnten nicht gespeichert werden.";
+                if (!ok)
+                    return;
+
+                IsEditMode = false;
+                await LoadAsync();
+                SelectedItem = Items.FirstOrDefault(x => x.ParzelleId == record.Id);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private void SyncEditFieldsFromDetail(ParzelleDetailDTO? detail)
+        {
+            EditFlaeche = detail?.FlaecheQm?.ToString("0.##", CultureInfo.CurrentCulture) ?? string.Empty;
+            EditHatWasser = detail?.HatWasser == true;
+            EditHatStrom = detail?.HatStrom == true;
+        }
+
+        private decimal? ParseEditableFlaeche()
+        {
+            if (string.IsNullOrWhiteSpace(EditFlaeche))
+                return null;
+
+            if (decimal.TryParse(EditFlaeche, NumberStyles.Number, CultureInfo.CurrentCulture, out var currentCultureValue))
+                return currentCultureValue;
+
+            if (decimal.TryParse(EditFlaeche, NumberStyles.Number, CultureInfo.InvariantCulture, out var invariantValue))
+                return invariantValue;
+
+            return null;
+        }
+
+        private static decimal? NormalizeFlaecheValue(decimal? value)
+        {
+            return value.HasValue ? decimal.Round(value.Value, 2) : null;
         }
 
         private ParzellenBelegungDTO? CreateParzellenContext()

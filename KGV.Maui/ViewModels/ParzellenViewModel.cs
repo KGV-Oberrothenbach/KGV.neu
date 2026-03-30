@@ -54,11 +54,11 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         ? (_parzellenContextState.ContextTitle ?? "Gartenkontext")
         : "Parzellen";
     public string Description => _parzellenContextState.IsFromMemberContext
-        ? "Mitgliedsbezogener Garten-/Parzellenkontext mit reduzierten Parzellenstammdaten und aktueller Belegung."
-        : "Zentrale Parzellenübersicht mit reduzierten Parzellenstammdaten und aktueller Belegung.";
+        ? "Mitgliedsbezogener Garten-/Parzellenkontext mit fokussierten Parzellenstammdaten."
+        : "Zentrale Parzellenübersicht mit fokussierten Parzellenstammdaten.";
     public string DetailHint => _parzellenContextState.IsFromMemberContext
         ? "Parzellenstammdaten bleiben hier fachlich getrennt von Ablesen, Wartungsverträgen und sonstigen Verwaltungsblöcken."
-        : "Stammdaten, Belegung und Bearbeitung bleiben hier fachlich getrennt von Ablesen und anderen Verwaltungsblöcken.";
+        : "Parzellenstammdaten bleiben hier fachlich getrennt von Ablesen und anderen Verwaltungsblöcken.";
     public bool IsContextBound => _parzellenContextState.IsFromMemberContext;
     public string SearchText
     {
@@ -123,6 +123,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     public bool HasSelectedDetail => SelectedDetail != null;
     public bool ShowReadOnlyStammdaten => HasSelectedDetail && !IsEditMode;
     public bool ShowSelectionHint => !HasSelectedDetail && HasFilteredItems;
+    public bool CanEditStammdaten => HasSelectedDetail && !IsBusy && !IsEditMode;
     public bool CanManageAssignment => HasSelectedDetail && !IsBusy;
     public bool CanAssign => CanManageAssignment && IsAssignMode && SelectedAssignMember != null;
     public bool CanStartAssign => CanManageAssignment && SelectedDetail?.IstVergeben == false && !IsAssignMode;
@@ -155,6 +156,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
             _isEditMode = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(ShowReadOnlyStammdaten));
+            OnPropertyChanged(nameof(CanEditStammdaten));
             OnPropertyChanged(nameof(CanSaveStammdaten));
         }
     }
@@ -314,6 +316,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
 
             _isBusy = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(CanEditStammdaten));
             OnPropertyChanged(nameof(CanManageAssignment));
             OnPropertyChanged(nameof(CanAssign));
             OnPropertyChanged(nameof(CanStartAssign));
@@ -620,13 +623,13 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         var record = new ParzelleRecord
         {
             Id = parzelleId,
-            GartenNr = EditGartenNr?.Trim() ?? string.Empty,
-            Anlage = EditAnlage?.Trim() ?? string.Empty,
+            GartenNr = SelectedDetail.GartenNr?.Trim() ?? string.Empty,
+            Anlage = SelectedDetail.Anlage?.Trim() ?? string.Empty,
             FlaecheQm = flaeche,
             HatStrom = EditHatStrom,
             HatWasser = EditHatWasser,
-            RfidStrom = NormalizeOptionalText(EditRfidStrom),
-            RfidWasser = NormalizeOptionalText(EditRfidWasser)
+            RfidStrom = NormalizeOptionalText(SelectedDetail.RfidStrom),
+            RfidWasser = NormalizeOptionalText(SelectedDetail.RfidWasser)
         };
 
         if (string.IsNullOrWhiteSpace(record.GartenNr))

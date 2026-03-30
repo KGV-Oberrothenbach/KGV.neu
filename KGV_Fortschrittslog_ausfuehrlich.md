@@ -2,6 +2,69 @@
 
 ---
 
+## 2026-03-30 – Prompt 1/2: Parzellendetails in MAUI und WPF fachlich geschlossen
+
+- Git-Stand vor dem Block erneut gegen `origin/main` geprüft:
+  - `git status -sb` => `## main...origin/main`
+  - `git log --oneline -n 1` => `ef02846 MAUI Stammdaten Mail-Regel im Editmodus`
+  - `git branch --contains ef02846` / `git branch -r --contains ef02846` => `main` und `origin/main`
+  - damit war der geforderte Ausgangsstand nach `ef02846` real vorhanden
+- Gleichzeitig real im Arbeitsbaum sichtbar, aber bewusst **nicht** Teil dieses Blocks geblieben:
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Core/Models/InviteUserAccountResult.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Wpf/KGV.Wpf.csproj`
+  - `KGV.Core/Models/MemberUserLinkStatus.cs`
+  - `KGV.Core/Models/MemberUserLinkStatusDto.cs`
+  - `AWR.bat`
+  - `Android_Wpf_release_batch_v4.bat`
+- Direkt betroffene Dateien gelesen/angepasst:
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Wpf/Views/ParzellenVerwaltungView.xaml`
+  - `KGV.Wpf/ViewModels/ParzellenVerwaltungViewModel.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor dem Block:
+  - MAUI hatte die Parzellen-Stammdatenbearbeitung für Fläche / `hat Wasser` / `hat Strom` bereits teilweise vorhanden, zeigte aber zusätzlich noch die komplette Belegungs-/Zuweisungslogik direkt auf der Parzellenseite
+  - MAUI verwendete für die Flächenänderung noch nicht den jetzt geforderten exakten Bestätigungstext
+  - WPF zeigte in der Parzellen-Detailansicht Fläche / `hat Wasser` / `hat Strom` noch nicht an
+  - WPF enthielt weiterhin die Gruppe `Belegung / Zuordnung` mit `Zuordnen` und `Aktive Belegung beenden`
+- Minimal umgesetzt:
+  - **MAUI**
+    - komplette Belegungs-/Zuweisungssektion aus `ParzellenPage` entfernt
+    - Editformular auf genau diese drei Felder zugeschnitten:
+      - `EditFlaeche`
+      - `EditHatWasser`
+      - `EditHatStrom`
+    - keine Bearbeitung anderer Parzellen-Stammdaten mehr über diesen Block offen gelassen
+    - bestehender Save-Pfad beibehalten
+    - nicht editierbare Felder beim Speichern bewusst aus `SelectedDetail` konserviert
+    - Bestätigungstext für Flächenänderungen exakt auf
+      - `Bist du dir sicher, dass du die Fläche der Parzelle ändern möchtest?`
+      umgestellt
+  - **WPF**
+    - Stammdatenanzeige um Fläche / `hat Wasser` / `hat Strom` ergänzt
+    - echten Anzeige-/Bearbeiten-Modus ergänzt
+    - im Bearbeiten-Modus nur Fläche / `hat Wasser` / `hat Strom` editierbar gemacht
+    - Speicherung über den bestehenden Pfad `UpdateParzelleStammdatenAsync(ParzelleRecord)` umgesetzt
+    - dieselbe exakte Flächen-Bestätigung vor dem Speichern ergänzt
+    - komplette Gruppe `Belegung / Zuordnung` aus der Parzellenansicht entfernt
+    - verbleibende tote WPF-Zuweisungs-/Beendigungslogik aus dem ViewModel abgebaut, ohne unnötigen Total-Refactor
+- Fachliches Ergebnis dieses Blocks:
+  - Parzellenansichten in MAUI und WPF sind jetzt auf Parzellen-Stammdaten statt Parzellen-Belegung ausgerichtet
+  - Mitglieder werden in der Parzellenansicht nicht mehr zugeordnet oder entfernt
+  - sicht- und bearbeitbare Kernfelder sind jetzt auf beiden Oberflächen fachlich gleich ausgerichtet
+  - Save-Buttons bleiben am Ende des Eingabeformulars
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - in MAUI blieben nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs` unverändert bestehen
+- Git-Abschluss dieses Blocks bewusst eng:
+  - nur die direkt betroffenen Parzellen-Dateien plus Logdateien gehören in diesen Commit
+  - blockfremde lokale Änderungen bleiben außerhalb dieses Commits
+
 ## 2026-03-30 – Prompt 2/2: MAUI-Stammdaten Mail-Regel im Editmodus fachlich geschlossen
 
 - Git-Stand vor dem Abschlussblock erneut gegen `origin/main` geprüft:

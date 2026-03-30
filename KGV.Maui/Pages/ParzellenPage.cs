@@ -1,11 +1,9 @@
 using KGV.Core.Models;
-using KGV.Maui;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
-using System.Globalization;
 using System.Threading.Tasks;
 
 namespace KGV.Maui.Pages;
@@ -13,13 +11,11 @@ namespace KGV.Maui.Pages;
 public sealed class ParzellenPage : ContentPage
 {
     private readonly ParzellenViewModel _viewModel;
-    private readonly MemberContextState _memberContextState;
     private bool _initialized;
 
     public ParzellenPage(ParzellenViewModel viewModel, MemberContextState memberContextState)
     {
         _viewModel = viewModel;
-        _memberContextState = memberContextState;
         BindingContext = _viewModel;
         Title = "Parzellen";
 
@@ -109,7 +105,7 @@ public sealed class ParzellenPage : ContentPage
         currentParzelleLabel.SetBinding(Label.TextProperty, nameof(ParzellenViewModel.SelectedParzelleDisplayName));
 
         var editButton = new Button { Text = "Stammdaten bearbeiten" };
-        editButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanManageAssignment));
+        editButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanEditStammdaten));
         editButton.Clicked += (_, _) => _viewModel.BeginEditMode();
 
         var readOnlyStammdatenSection = new Border
@@ -139,13 +135,9 @@ public sealed class ParzellenPage : ContentPage
         detailContainer.Children.Add(readOnlyStammdatenSection);
 
         var editSection = CreateSection("Stammdaten bearbeiten",
-            CreateEditorEntry("Garten Nr", nameof(ParzellenViewModel.EditGartenNr)),
             CreateEditorEntry("Fläche", nameof(ParzellenViewModel.EditFlaeche)),
             CreateEditorSwitch("hat Wasser", nameof(ParzellenViewModel.EditHatWasser)),
-            CreateEditorSwitch("hat Strom", nameof(ParzellenViewModel.EditHatStrom)),
-            CreateEditorEntry("rfid Wasser", nameof(ParzellenViewModel.EditRfidWasser)),
-            CreateEditorEntry("rfid Strom", nameof(ParzellenViewModel.EditRfidStrom)),
-            CreateEditorEntry("Anlage", nameof(ParzellenViewModel.EditAnlage)));
+            CreateEditorSwitch("hat Strom", nameof(ParzellenViewModel.EditHatStrom)));
         editSection.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsEditMode));
 
         var saveStammdatenButton = new Button { Text = "Stammdaten speichern" };
@@ -164,76 +156,6 @@ public sealed class ParzellenPage : ContentPage
             });
         }
         detailContainer.Children.Add(editSection);
-
-        var assignedMemberButton = new Button
-        {
-            BackgroundColor = Colors.Transparent,
-            TextColor = Colors.DarkBlue,
-            HorizontalOptions = LayoutOptions.Start,
-            Padding = new Microsoft.Maui.Thickness(0)
-        };
-        assignedMemberButton.SetBinding(Button.TextProperty, "SelectedDetail.MitgliedDisplayText");
-        assignedMemberButton.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.HasAssignedMember));
-        assignedMemberButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanOpenAssignedMember));
-        assignedMemberButton.Clicked += async (_, _) => await OpenAssignedMemberAsync();
-
-        var unassignedLayout = new VerticalStackLayout { Spacing = 8 };
-        unassignedLayout.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.HasAssignedMember), converter: new InverseBooleanConverter());
-        var startAssignButton = new Button { Text = "Zuweisen" };
-        startAssignButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanStartAssign));
-        startAssignButton.Clicked += (_, _) => _viewModel.BeginAssignMode();
-        unassignedLayout.Children.Add(new Label { Text = "Aktuell keiner Person zugeordnet.", LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap });
-        unassignedLayout.Children.Add(startAssignButton);
-
-        var assignedLayout = new VerticalStackLayout { Spacing = 8 };
-        assignedLayout.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.HasAssignedMember));
-        assignedLayout.Children.Add(assignedMemberButton);
-        assignedLayout.Children.Add(CreateBoundLabel("SelectedDetail.BelegungText"));
-
-        var endAssignmentButton = new Button { Text = "Belegung beenden" };
-        endAssignmentButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanEndAssignment));
-        endAssignmentButton.Clicked += async (_, _) =>
-        {
-            var ok = await _viewModel.EndAssignmentAsync();
-            if (ok)
-                await DisplayAlert("OK", "Aktive Belegung beendet.", "OK");
-        };
-        assignedLayout.Children.Add(endAssignmentButton);
-
-        var assignPicker = new Picker { Title = "Mitglied auswählen" };
-        assignPicker.SetBinding(Picker.ItemsSourceProperty, nameof(ParzellenViewModel.AssignableMembers));
-        assignPicker.SetBinding(Picker.SelectedItemProperty, nameof(ParzellenViewModel.SelectedAssignMember), BindingMode.TwoWay);
-        assignPicker.ItemDisplayBinding = new Binding(nameof(MemberDTO.DisplayName));
-        assignPicker.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanManageAssignment));
-
-        var assignDatePicker = new DatePicker();
-        assignDatePicker.SetBinding(DatePicker.DateProperty, nameof(ParzellenViewModel.AssignVonDatum), BindingMode.TwoWay);
-        assignDatePicker.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanManageAssignment));
-
-        var saveAssignButton = new Button { Text = "Zuweisung speichern" };
-        saveAssignButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanAssign));
-        saveAssignButton.Clicked += async (_, _) =>
-        {
-            var ok = await _viewModel.AssignAsync();
-            if (ok)
-                await DisplayAlert("OK", "Parzelle erfolgreich zugeordnet.", "OK");
-        };
-
-        var cancelAssignButton = new Button { Text = "Zuweisen abbrechen" };
-        cancelAssignButton.Clicked += (_, _) => _viewModel.CancelAssignMode();
-
-        var assignSection = CreateSection("Belegung zuweisen",
-            CreateEditorField("Mitglied", assignPicker),
-            CreateEditorField("Start", assignDatePicker),
-            cancelAssignButton,
-            saveAssignButton);
-        assignSection.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsAssignMode));
-
-        detailContainer.Children.Add(CreateSection("Belegung",
-            CreateValueLabel("Status", "SelectedDetail.StatusText"),
-            assignedLayout,
-            unassignedLayout,
-            assignSection));
 
         var previousButton = new Button { Text = "Vorherige" };
         previousButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanSelectPrevious));
@@ -324,9 +246,9 @@ public sealed class ParzellenPage : ContentPage
         if (_viewModel.HasFlaecheChanged())
         {
             var confirm = await DisplayAlert(
-                "Fläche wirklich ändern?",
-                "Die Fläche wirkt fachlich in weitere Auswertungen hinein. Soll die neue Fläche wirklich gespeichert werden?",
-                "Ja, speichern",
+                "Bestätigung",
+                "Bist du dir sicher, dass du die Fläche der Parzelle ändern möchtest?",
+                "Ja",
                 "Abbrechen");
 
             if (!confirm)
@@ -336,22 +258,6 @@ public sealed class ParzellenPage : ContentPage
         var ok = await _viewModel.SaveStammdatenAsync();
         if (ok)
             await DisplayAlert("OK", "Parzellen-Stammdaten gespeichert.", "OK");
-    }
-
-    private async Task OpenAssignedMemberAsync()
-    {
-        var member = await _viewModel.LoadAssignedMemberAsync();
-        if (member == null)
-        {
-            await DisplayAlert("Stammdaten", "Das zugeordnete Mitglied konnte nicht geladen werden.", "OK");
-            return;
-        }
-
-        _memberContextState.SetSelectedMember(member);
-        if (Shell.Current is IAppShellInitializer shellInitializer)
-            shellInitializer.BuildMenu();
-
-        await Shell.Current.GoToAsync("//memberdetails");
     }
 
     private static Border CreateSection(string title, params View[] children)
@@ -417,12 +323,4 @@ public sealed class ParzellenPage : ContentPage
         return label;
     }
 
-    private sealed class InverseBooleanConverter : IValueConverter
-    {
-        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-            => value is bool flag ? !flag : true;
-
-        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-            => throw new NotSupportedException();
-    }
 }
