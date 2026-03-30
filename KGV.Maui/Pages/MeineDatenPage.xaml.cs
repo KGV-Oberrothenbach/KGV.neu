@@ -8,12 +8,15 @@ using Microsoft.Maui.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace KGV.Maui.Pages;
 
 public class MeineDatenPage : ContentPage
 {
+    private static readonly Regex EmailRegex = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     private readonly ISupabaseService _supabaseService;
     private readonly IAuthService _authService;
     private readonly UserContextState _userContextState;
@@ -27,6 +30,7 @@ public class MeineDatenPage : ContentPage
     private readonly Label _nachnameLabel;
     private readonly Label _geburtsdatumLabel;
     private readonly Label _emailLabel;
+    private readonly Label _emailEditHintLabel;
     private readonly Label _telefonLabel;
     private readonly Label _mobilLabel;
     private readonly Label _whatsappLabel;
@@ -47,6 +51,7 @@ public class MeineDatenPage : ContentPage
 
     private readonly Entry _vornameEntry;
     private readonly Entry _nachnameEntry;
+    private readonly Entry _emailEntry;
     private readonly Entry _telefonEntry;
     private readonly Entry _mobilEntry;
     private readonly Entry _strasseEntry;
@@ -80,6 +85,7 @@ public class MeineDatenPage : ContentPage
     private readonly List<View> _editModeViews = new();
 
     private MemberDTO? _currentMember;
+    private bool _currentMemberHasAuthUser;
     private DateTime? _editGeburtsdatum;
     private DateTime? _editMitgliedSeit;
     private DateTime? _editMitgliedEnde;
@@ -107,6 +113,7 @@ public class MeineDatenPage : ContentPage
         _nachnameLabel = CreateValueLabel();
         _geburtsdatumLabel = CreateValueLabel();
         _emailLabel = CreateValueLabel();
+        _emailEditHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap, IsVisible = false };
         _telefonLabel = CreateValueLabel();
         _mobilLabel = CreateValueLabel();
         _whatsappLabel = CreateValueLabel();
@@ -127,6 +134,7 @@ public class MeineDatenPage : ContentPage
 
         _vornameEntry = new Entry { Placeholder = "Vorname" };
         _nachnameEntry = new Entry { Placeholder = "Nachname" };
+        _emailEntry = new Entry { Placeholder = "E-Mail", Keyboard = Keyboard.Email };
         _telefonEntry = new Entry { Placeholder = "Telefon" };
         _mobilEntry = new Entry { Placeholder = "Mobilnummer" };
         _strasseEntry = new Entry { Placeholder = "Straße / Hausnummer" };
@@ -230,7 +238,7 @@ public class MeineDatenPage : ContentPage
             CreateModeField("Geburtsdatum", _geburtsdatumLabel, CreateDateEditor(_geburtsdatumPicker, _clearGeburtsdatumButton)));
 
         var kontaktSection = CreateSection("Kontakt",
-            CreateValueField("E-Mail", _emailLabel),
+            CreateModeField("E-Mail", _emailLabel, CreateEmailEditor()),
             CreateModeField("Telefon", _telefonLabel, _telefonEntry),
             CreateModeField("Mobilnummer", _mobilLabel, _mobilEntry),
             CreateModeField("WhatsApp", _whatsappLabel, CreateSwitchEditor(_whatsappSwitch, "WhatsApp-Einwilligung")));
@@ -296,6 +304,7 @@ public class MeineDatenPage : ContentPage
             {
                 _headlineLabel.Text = "Kein Mitglied ausgewählt";
                 _currentMember = null;
+                _currentMemberHasAuthUser = false;
                 SetEditMode(false);
                 SetMemberFieldsEmpty();
                 SetWartungsvertragFieldsEmpty();
@@ -310,6 +319,7 @@ public class MeineDatenPage : ContentPage
             if (member == null)
             {
                 _currentMember = null;
+                _currentMemberHasAuthUser = false;
                 _statusLabel.Text = "Das ausgewählte Mitglied konnte nicht geladen werden.";
                 SetMemberFieldsEmpty();
                 SetWartungsvertragFieldsEmpty();
@@ -320,6 +330,7 @@ public class MeineDatenPage : ContentPage
 
             var contextMember = MapMember(member);
             _currentMember = contextMember;
+            _currentMemberHasAuthUser = member.AuthUserId.HasValue;
             _memberContextState.SetSelectedMember(contextMember);
 
             _headlineLabel.Text = string.IsNullOrWhiteSpace(contextMember.DisplayName)
@@ -368,6 +379,7 @@ public class MeineDatenPage : ContentPage
     {
         _vornameEntry.Text = member.Vorname;
         _nachnameEntry.Text = member.Nachname;
+        _emailEntry.Text = member.Email;
         _telefonEntry.Text = member.Telefon;
         _mobilEntry.Text = member.Mobilnummer;
         _strasseEntry.Text = member.Strasse;
@@ -382,6 +394,7 @@ public class MeineDatenPage : ContentPage
         ApplyNullableDate(_geburtsdatumPicker, _editGeburtsdatum);
         ApplyNullableDate(_mitgliedSeitPicker, _editMitgliedSeit);
         ApplyNullableDate(_mitgliedEndePicker, _editMitgliedEnde);
+        UpdateEmailEditState();
     }
 
     private bool CanEditCurrentMember(MemberDTO? member)
@@ -424,6 +437,7 @@ public class MeineDatenPage : ContentPage
             view.IsVisible = _isEditMode;
 
         UpdateEditHint(_currentMember);
+        UpdateEmailEditState();
         UpdateActionState();
     }
 
@@ -454,6 +468,28 @@ public class MeineDatenPage : ContentPage
         _clearGeburtsdatumButton.IsEnabled = _isEditMode && !_isBusy;
         _clearMitgliedSeitButton.IsEnabled = _isEditMode && !_isBusy;
         _clearMitgliedEndeButton.IsEnabled = _isEditMode && !_isBusy;
+        UpdateEmailEditState();
+    }
+
+    private bool CanEditEmailInCurrentContext()
+    {
+        if (!_isEditMode || _currentMember == null)
+            return false;
+
+        var currentRole = _userContextState.CurrentUserContext?.Role;
+        return currentRole is UserRole.Admin or UserRole.Vorstand
+            && !_currentMemberHasAuthUser;
+    }
+
+    private void UpdateEmailEditState()
+    {
+        var canEditEmail = CanEditEmailInCurrentContext();
+        _emailEntry.IsEnabled = _isEditMode && !_isBusy;
+        _emailEntry.IsReadOnly = !canEditEmail;
+        _emailEditHintLabel.IsVisible = _isEditMode && _currentMemberHasAuthUser;
+        _emailEditHintLabel.Text = _currentMemberHasAuthUser
+            ? "Die Mailadresse ist hier schreibgeschützt. Sie muss vom Nutzer selbst über den bestehenden Supabase-/OTP-Mailänderungsweg geändert werden."
+            : string.Empty;
     }
 
     private void OnEditClicked(object? sender, EventArgs e)
@@ -541,7 +577,39 @@ public class MeineDatenPage : ContentPage
             dto.MitgliedSeit = _editMitgliedSeit;
             dto.MitgliedEnde = _editMitgliedEnde;
             dto.WhatsappEinwilligung = _whatsappSwitch.IsToggled;
-            dto.Email = current.Email ?? dto.Email;
+
+            var currentEmail = (current.Email ?? string.Empty).Trim();
+            if (CanEditEmailInCurrentContext())
+            {
+                var editedEmail = (_emailEntry.Text ?? string.Empty).Trim();
+                if (!string.Equals(editedEmail, currentEmail, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (string.IsNullOrWhiteSpace(editedEmail))
+                    {
+                        await DisplayAlert("Validierung", "Die E-Mail-Adresse darf nicht leer sein.", "OK");
+                        _emailEntry.Focus();
+                        return;
+                    }
+
+                    if (!EmailRegex.IsMatch(editedEmail))
+                    {
+                        await DisplayAlert("Validierung", "Bitte eine gültige E-Mail-Adresse eingeben.", "OK");
+                        _emailEntry.Focus();
+                        return;
+                    }
+
+                    dto.Email = editedEmail;
+                }
+                else
+                {
+                    dto.Email = currentEmail;
+                }
+            }
+            else
+            {
+                dto.Email = current.Email ?? dto.Email;
+            }
+
             dto.Role = current.Role ?? dto.Role;
 
             var ok = await _supabaseService.UpdateMitgliedAsync(dto, userId);
@@ -855,6 +923,8 @@ public class MeineDatenPage : ContentPage
         _nachnameLabel.Text = string.Empty;
         _geburtsdatumLabel.Text = string.Empty;
         _emailLabel.Text = string.Empty;
+        _emailEditHintLabel.Text = string.Empty;
+        _emailEditHintLabel.IsVisible = false;
         _telefonLabel.Text = string.Empty;
         _mobilLabel.Text = string.Empty;
         _whatsappLabel.Text = string.Empty;
@@ -869,6 +939,7 @@ public class MeineDatenPage : ContentPage
 
         _vornameEntry.Text = string.Empty;
         _nachnameEntry.Text = string.Empty;
+        _emailEntry.Text = string.Empty;
         _telefonEntry.Text = string.Empty;
         _mobilEntry.Text = string.Empty;
         _strasseEntry.Text = string.Empty;
@@ -882,6 +953,19 @@ public class MeineDatenPage : ContentPage
         ApplyNullableDate(_geburtsdatumPicker, null);
         ApplyNullableDate(_mitgliedSeitPicker, null);
         ApplyNullableDate(_mitgliedEndePicker, null);
+    }
+
+    private View CreateEmailEditor()
+    {
+        return new VerticalStackLayout
+        {
+            Spacing = 8,
+            Children =
+            {
+                _emailEntry,
+                _emailEditHintLabel
+            }
+        };
     }
 
     private void SetWartungsvertragFieldsEmpty()

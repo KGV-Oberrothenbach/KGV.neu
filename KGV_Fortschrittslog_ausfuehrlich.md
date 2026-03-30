@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-03-30 – Prompt 2/2: MAUI-Stammdaten Mail-Regel im Editmodus fachlich geschlossen
+
+- Git-Stand vor dem Abschlussblock erneut gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main 120bd93 [origin/main] MAUI Stammdaten Editmodus im Mitgliedskontext`
+  - `git log --oneline -n 1` => `120bd93 MAUI Stammdaten Editmodus im Mitgliedskontext`
+  - damit war der geforderte Ausgangsstand nach `120bd93` real vorhanden und bereits auf `origin/main`
+- Gleichzeitig real im Arbeitsbaum sichtbar, aber bewusst **nicht** Teil dieses Blocks geblieben:
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Core/Models/InviteUserAccountResult.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Wpf/KGV.Wpf.csproj`
+  - `KGV.Core/Models/MemberUserLinkStatus.cs`
+  - `KGV.Core/Models/MemberUserLinkStatusDto.cs`
+  - `AWR.bat`
+  - `Android_Wpf_release_batch_v4.bat`
+- Nur die direkt betroffenen Dateien gelesen/angepasst:
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand nach `120bd93`:
+  - der echte mobile Editmodus in `MeineDatenPage` war bereits vorhanden
+  - die Mail-Regel war dort aber noch nicht fachlich sauber abgeschlossen
+  - die serverseitige Schutzregel bestand bereits im vorhandenen `UpdateMitgliedAsync(...)`
+  - die offene Lücke lag damit nicht im Backend, sondern in der mobilen UI-/Seitenlogik
+- Minimal umgesetzt, nur im bestehenden Seitenpfad `MeineDatenPage`:
+  - die Seite verwendet jetzt den bereits geladenen `MitgliedRecord`, um sich zu merken, ob `AuthUserId` vorhanden ist
+  - Anzeige-Modus bleibt unverändert lesbar mit normaler Mailanzeige
+  - Bearbeiten-Modus jetzt exakt nach Fachregel:
+    - Admin/Vorstand + kein `AuthUserId` => E-Mail editierbar
+    - vorhandenes `AuthUserId` => E-Mail read-only
+    - bei vorhandenem `AuthUserId` wird klarer Hinweistext gezeigt, dass die Mailadresse vom Nutzer selbst über den bestehenden Supabase-/OTP-Mailänderungsweg geändert werden muss
+    - normale Nutzer erhalten in `MeineDatenPage` keine editierbare Mailfreigabe
+  - beim Speichern wird `dto.Email` nur dann aus dem Editor übernommen, wenn die Fachregel es erlaubt
+  - andernfalls bleibt die bestehende Mail unverändert; keine Umgehung des vorhandenen Service-Schutzpfads
+  - für den erlaubten Mail-Editfall zusätzlich validiert:
+    - trimmen
+    - leere Mail blockieren
+    - einfache Plausibilitätsprüfung des Mailformats
+- Fachliches Ergebnis dieses Abschlussblocks:
+  - der MAUI-Stammdaten-Editmodus ist jetzt auch für die Mailregel fachlich sauber geschlossen
+  - Admin/Vorstand können die Mail nur noch im vorbereiteten Mitgliedsfall ohne `AuthUserId` direkt ändern
+  - bei bestehendem App-/Auth-Zugang verweist der mobile Mitgliedskontext sauber auf den Self-Service-Mailänderungsweg statt eine direkte Bearbeitung vorzutäuschen
+  - `MyProfilePage` blieb bewusst unverändert
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs` blieben unverändert bestehen
+- Git-Abschluss dieses Blocks bewusst eng:
+  - nur `KGV.Maui/Pages/MeineDatenPage.xaml.cs`, `DEV_LOG.md` und `KGV_Fortschrittslog_ausfuehrlich.md`
+  - blockfremde lokale Änderungen bleiben außerhalb dieses Commits
+
 ## 2026-03-30 – Prompt 1/2: MAUI-Stammdaten mit echtem Edit-Modus im Mitgliedskontext geschlossen
 
 - Git-Stand vor dem MAUI-Block erneut gegen `origin/main` geprüft:
