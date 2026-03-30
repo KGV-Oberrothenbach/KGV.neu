@@ -2,6 +2,73 @@
 
 ---
 
+## 2026-03-30 – WPF Zählerwechsel auf Korrekturflow über Parzelle umgestellt
+
+- Git-Stand vor dem Block gegen `origin/main` geprüft:
+  - `git status -sb` => `## main...origin/main`
+  - `git log --oneline -n 1` => `0e2908e MAUI Zählerwechsel auf 3-Fall-Flow umgestellt`
+  - `git branch --contains 0e2908e` / `git branch -r --contains 0e2908e` => `main` und `origin/main`
+  - damit lag der geforderte Ausgangsstand nach `0e2908e` real vor
+- Gleichzeitig real im Arbeitsbaum sichtbar, aber bewusst **nicht** Teil dieses WPF-Zählerwechsel-Blocks:
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Core/Models/InviteUserAccountResult.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Wpf/KGV.Wpf.csproj`
+  - `KGV.Core/Models/MemberUserLinkStatus.cs`
+  - `KGV.Core/Models/MemberUserLinkStatusDto.cs`
+  - `AWR.bat`
+  - `Android_Wpf_release_batch_v4.bat`
+- Direkt betroffene Dateien geprüft/angepasst:
+  - `KGV.Wpf/Views/AblesenOverviewView.xaml`
+  - `KGV.Wpf/ViewModels/ZaehlerwechselScanViewModel.cs`
+  - `KGV.Wpf/ViewModels/ZaehlerwechselEinbauViewModel.cs`
+  - `KGV.Wpf/ViewModels/ZaehlerwechselAusbauViewModel.cs`
+  - `KGV.Wpf/Views/ZaehlerwechselAusbauView.xaml`
+  - `KGV.Wpf/Views/ZaehlerwechselEinbauView.xaml`
+  - `KGV.Wpf/Views/ZaehlerwechselScanView.xaml`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor dem Fix:
+  - die WPF-`Ablesen`-Kachel `Zählerwechsel` sprach noch von `Tag scannen`
+  - `ZaehlerwechselScanViewModel` arbeitete noch RFID-getrieben über `RfidScanContextViewModel`
+  - `ZaehlerwechselAusbauViewModel` und `ZaehlerwechselEinbauViewModel` waren noch reine Placeholder
+  - WPF war damit für den Zählerwechsel noch zu stark als Vor-Ort-/RFID-Flow angelegt statt als Korrektur-/Verwaltungsweg über Parzelle
+- Minimal umgesetzt:
+  - `AblesenOverviewView.xaml` beschreibt `Zählerwechsel` jetzt fachlich als Korrektur-/Verwaltungsweg über Gartennummer oder Parzelle
+  - `ZaehlerwechselScanViewModel` von RFID-Einstieg auf ruhige Such-/Auswahllogik umgebaut:
+    - Suche nach Gartennummer oder Parzelle
+    - Auswahl einer Parzelle
+    - Laden des aktuellen Strom-/Wasserzustands über den bestehenden Servicepfad `GetParzelleDetailAsync(...)`
+    - pro Medium klare Ableitung:
+      - aktiver Zähler vorhanden => Ausbau-/Korrekturpfad
+      - kein aktiver Zähler => Einbaupfad
+  - `ZaehlerwechselScanView.xaml` zeigt jetzt die Suchmaske und die pro Medium geladenen Zustände statt RFID-Scan-Kontext
+  - `ZaehlerwechselAusbauViewModel` und `ZaehlerwechselAusbauView.xaml` produktiv nachgezogen:
+    - Schlussstand
+    - Ausbau-Datum
+    - Speicherung der Schlussablesung
+    - Beenden des aktiven Zählers über die bestehenden Servicepfade
+  - `ZaehlerwechselEinbauViewModel` und `ZaehlerwechselEinbauView.xaml` produktiv nachgezogen:
+    - Zählernummer
+    - Eichdatum
+    - Einbau-Datum
+    - Anfangsstand
+    - Anlage des neuen Zählers über die bestehenden Servicepfade
+    - Speicherung der Anfangsablesung
+  - kein neuer Backend-Endpunkt, kein neuer RFID-WPF-Flow, keine MAUI-Datei geändert
+- Fachliches Ergebnis dieses Blocks:
+  - WPF-Zählerwechsel startet jetzt als Korrektur-/Verwaltungsweg über Parzelle statt über RFID-Scan
+  - nach Auswahl der Parzelle werden Strom und Wasser fachlich getrennt geladen
+  - daraus öffnet WPF den passenden Einbau- oder Ausbaupfad je Medium
+  - MAUI bleibt damit der primäre Vor-Ort-/RFID-Flow, WPF der Korrekturblock
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly -v:q` => erfolgreich
+  - nur bestehende Warnungen außerhalb dieses Blocks blieben erhalten, vor allem in `KGV.Infrastructure/Services/SupabaseService.cs`
+- Git-Abschluss dieses Blocks bewusst eng:
+  - nur die direkt betroffenen WPF-Zählerwechsel-Dateien plus Logdateien gehören in diesen Commit
+  - blockfremde lokale Änderungen bleiben außerhalb dieses Commits
+
 ## 2026-03-30 – MAUI Zählerwechsel auf 3-Fall-Flow umgestellt
 
 - Vor dem Block Git-Stand gegen `origin/main` geprüft:

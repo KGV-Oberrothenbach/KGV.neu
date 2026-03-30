@@ -2,6 +2,74 @@
 
 ---
 
+## 2026-03-30 – Prompt 1/2: WPF Zählerwechsel von RFID-Scan auf Korrekturflow über Gartennummer/Parzelle umgestellt
+
+- Git-Stand vor dem Block gegen `origin/main` geprüft:
+  - `git status -sb` => `## main...origin/main`
+  - `git log --oneline -n 1` => `0e2908e MAUI Zählerwechsel auf 3-Fall-Flow umgestellt`
+  - `git branch --contains 0e2908e` / `git branch -r --contains 0e2908e` => `main` und `origin/main`
+  - damit lag der geforderte Ausgangsstand nach `0e2908e` real vor
+- Gleichzeitig real im Arbeitsbaum sichtbar, aber bewusst **nicht** Teil dieses Blocks geblieben:
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Core/Models/InviteUserAccountResult.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Wpf/KGV.Wpf.csproj`
+  - `KGV.Core/Models/MemberUserLinkStatus.cs`
+  - `KGV.Core/Models/MemberUserLinkStatusDto.cs`
+  - `AWR.bat`
+  - `Android_Wpf_release_batch_v4.bat`
+- Direkt betroffene Dateien gelesen/angepasst:
+  - `KGV.Wpf/Views/AblesenOverviewView.xaml`
+  - `KGV.Wpf/ViewModels/ZaehlerwechselScanViewModel.cs`
+  - `KGV.Wpf/ViewModels/ZaehlerwechselEinbauViewModel.cs`
+  - `KGV.Wpf/ViewModels/ZaehlerwechselAusbauViewModel.cs`
+  - `KGV.Wpf/Views/ZaehlerwechselAusbauView.xaml`
+  - `KGV.Wpf/Views/ZaehlerwechselEinbauView.xaml`
+  - `KGV.Wpf/Views/ZaehlerwechselScanView.xaml`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor dem Block:
+  - WPF zeigte im Bereich `Ablesen` für `Zählerwechsel` noch RFID-/Tag-Scan-Sprache
+  - `ZaehlerwechselScanViewModel` war noch auf `RfidScanContextViewModel` als Haupteinstieg aufgebaut
+  - `ZaehlerwechselAusbauViewModel` und `ZaehlerwechselEinbauViewModel` waren noch reine Placeholder
+  - WPF war damit für den Zählerwechsel fachlich noch zu nah am Vor-Ort-/RFID-Flow statt am gewünschten Korrektur-/Verwaltungsweg über Parzelle
+- Minimal umgesetzt:
+  - `AblesenOverviewView.xaml` beschreibt `Zählerwechsel` jetzt fachlich als Korrektur-/Verwaltungsweg über Gartennummer oder Parzelle
+  - `ZaehlerwechselScanViewModel` von RFID-Einstieg auf Such-/Auswahllogik umgebaut:
+    - Suche nach Gartennummer oder Parzelle
+    - Auswahl einer Parzelle
+    - Laden des aktuellen Strom-/Wasserzustands über den bestehenden Servicepfad `GetParzelleDetailAsync(...)`
+    - je Medium klare fachliche Ableitung:
+      - aktiver Zähler vorhanden => Ausbau-/Korrekturpfad
+      - kein aktiver Zähler => Einbaupfad
+  - `ZaehlerwechselScanView.xaml` zeigt jetzt die ruhige Suchmaske mit Parzellenliste und den geladenen Korrekturzustand statt RFID-Scan-UI
+  - `ZaehlerwechselAusbauViewModel` und `ZaehlerwechselAusbauView.xaml` produktiv nachgezogen:
+    - Schlussstand erfassen
+    - Ausbau-Datum erfassen
+    - Schlussablesung speichern
+    - aktiven Zähler über die bestehenden Servicepfade beenden
+  - `ZaehlerwechselEinbauViewModel` und `ZaehlerwechselEinbauView.xaml` produktiv nachgezogen:
+    - Zählernummer
+    - Eichdatum
+    - Einbau-Datum
+    - Anfangsstand
+    - neuen Zähler über die bestehenden Servicepfade anlegen
+    - Anfangsablesung speichern
+  - kein neuer Backend-Endpunkt, kein neuer RFID-WPF-Flow, keine MAUI-Datei geändert
+- Fachliches Ergebnis dieses Blocks:
+  - WPF-Zählerwechsel ist jetzt klar als Korrektur-/Verwaltungsweg über Parzelle erkennbar
+  - der Einstieg erfolgt über Suche und Auswahl statt über RFID
+  - nach Auswahl der Parzelle werden Strom- und Wasserzustand fachlich getrennt geladen
+  - daraus öffnet WPF pro Medium den passenden Einbau- oder Ausbaupfad
+  - MAUI bleibt damit der primäre Vor-Ort-/RFID-Flow; WPF ist der Korrekturblock
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly -v:q` => erfolgreich
+  - nur bestehende Warnungen außerhalb dieses Blocks blieben erhalten, vor allem in `KGV.Infrastructure/Services/SupabaseService.cs`
+- Git-Abschluss dieses Blocks bewusst eng:
+  - nur die direkt betroffenen WPF-Zählerwechsel-Dateien plus Logdateien gehören in diesen Commit
+  - blockfremde lokale Änderungen bleiben außerhalb dieses Commits
+
 ## 2026-03-30 – Prompt 1/2: MAUI Zählerwechsel auf echten 3-Fall-Flow umgestellt
 
 - Git-Stand vor dem Block erneut gegen `origin/main` geprüft:
