@@ -2,6 +2,57 @@
 
 ---
 
+## 2026-03-30 – Prompt 1/1: Nutzer hinzufügen in WPF und MAUI gegen fehlende Auth-Zuordnung und freien OTP-Request gehärtet
+
+- Vor dem Block den echten Git-Stand gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main 2a514c3 [origin/main] Clarify rolled back release steps`
+  - keine Divergenz zu `origin/main`
+- Zusätzlich sichtbare blockfremde Arbeitsbaum-Einträge vor Start dokumentiert:
+  - `KGV.Maui/KGV.Maui.csproj` mit lokaler `ApplicationVersion`-Erhöhung
+  - `Android_Wpf_release_batch_v4.bat`
+  - `Android_Wpf_release_batch_v5.bat`
+- Den echten Istzustand für `Nutzer hinzufügen` entlang des Produktivpfads geprüft:
+  - WPF: `KGV.Wpf/ViewModels/UserManagementViewModel.cs`
+  - MAUI: `KGV.Maui/ViewModels/UserManagementViewModel.cs`, `KGV.Maui/Pages/MemberDetailPage.cs`, `KGV.Maui/Pages/UserManagementPage.cs`, `KGV.Maui/UserShell.cs`
+  - Shared/Auth: `KGV.Core/Interfaces/IAuthService.cs`, `KGV.Infrastructure/Authentication/AuthService.cs`, `KGV.Infrastructure/Models/AppUserRecord.cs`, `KGV.Infrastructure/Models/AppUserInsertRecord.cs`, `KGV.Core/Models/MitgliedRecord.cs`, `KGV.Infrastructure/Services/SupabaseService.cs`
+  - Login-/OTP-Pfade: `KGV.Wpf/ViewModels/LoginViewModel.cs`, `KGV.Wpf/ViewModels/ResetPasswordViewModel.cs`, `KGV.Maui/Pages/LoginPage.xaml.cs`
+- Reale Befunde vor der Korrektur:
+  - WPF und MAUI waren UI-seitig bereits an `InviteUserAsync(...)` angebunden
+  - MAUI-Pfad war vorhanden und im Mitgliedsdetail für Admin sichtbar, also kein reiner Navigationsfehler
+  - der Hauptfehler lag im Shared/Auth-Pfad:
+    - `InviteUserAsync(...)` versuchte zwar Auth-User + Mitglied + `app_user` vorzubereiten
+    - bei bereits existierendem Auth-User ohne sauber gesetztes `mitglied.auth_user_id` konnte `EnsureAuthUserForInviteAsync(...)` aber keine belastbare User-ID liefern
+    - der freie `RequestOtpAsync(...)` versendete OTP bisher ohne vorherige Mitglieds-/Zuordnungsprüfung direkt über `ResetPasswordForEmail(...)`
+    - `VerifyOtpAsync(...)` reparierte die Mitglied-/`app_user`-Zuordnung bisher nicht nach erfolgreicher OTP-Bestätigung
+- Minimal-invasiv umgesetzt:
+  - `AuthService` um einen robusteren Vorbereitungs-/Reparaturpfad erweitert:
+    - gültiges Mitglied wird vor Invite/OTP jetzt belastbar per Mail bzw. Mitglied-ID aufgelöst
+    - vorhandene Zuordnung wird zuerst über `mitglied.auth_user_id` und danach über `app_user.mitglied_id` wiederverwendet
+    - nur wenn keine bestehende Zuordnung auffindbar ist, wird ein neues Auth-Konto erzeugt
+    - bei bereits vorhandenem Auth-Konto ohne direkt lesbare ID wird ein kontrollierter Deferred-Repair-Pfad verwendet, der die Zuordnung unmittelbar nach erfolgreicher OTP-Bestätigung repariert
+  - `RequestOtpAsync(...)` und `SendPasswordResetEmailAsync(...)` versenden jetzt keinen OTP mehr für Mailadressen ohne eindeutig vorbereitbares operatives Mitglied
+  - `VerifyOtpAsync(...)` repariert nach erfolgreicher OTP-Prüfung jetzt sofort `mitglied.auth_user_id` und `app_user`, bevor der Passwort-Setzen-/Login-Fortgang weitergeht
+  - `InviteUserAsync(...)` nutzt denselben idempotenten Vorbereitungsfluss wie OTP/Recovery
+  - WPF- und MAUI-Fehlermeldungen für Invite/OTP/Reset auf fachlich klare, aber nicht technisch leaky Texte geschärft
+  - vorhandene MAUI-Mitgliedsdetail-/Benutzerverwaltungs-Pfade bewusst weiterverwendet; kein unnötiger UI-Umbau
+- Zusätzliche Prüfung zum Mailtext:
+  - im Repo wurde kein eigener Mail-/Template-Pfad für Supabase-Invite-/Recovery-Mails gefunden
+  - deshalb nur der sichtbare Einladungs-/Erstlogin-Text im UI/Service minimal um App-/PC-Einstiegshinweise ergänzt
+- Validierung:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
+- Unverändert bewusst nicht Teil dieses Blocks:
+  - lokale Änderung in `KGV.Maui/KGV.Maui.csproj`
+  - ungetrackte Batch-Dateien `Android_Wpf_release_batch_v4.bat` und `Android_Wpf_release_batch_v5.bat`
+- Logische Ergebnisbewertung:
+  - WPF und MAUI verwenden weiter denselben Shared-Auth-Flow
+  - freier OTP-Request läuft nicht mehr für unbekannte/nicht vorbereitbare Mailadressen
+  - bestehende Mitglied-/AppUser-Reparatur passiert spätestens direkt nach OTP-Bestätigung und nicht erst nach Passwortvergabe oder erstem regulärem Login
+
 ## 2026-03-30 – Kurzfix: Rollback zeigt zurückgesetzte Release-Schritte jetzt nicht mehr grün an
 
 - Den gemeldeten Istzustand direkt am echten Release-Manager-Pfad geprüft.

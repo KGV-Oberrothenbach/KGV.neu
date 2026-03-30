@@ -246,7 +246,7 @@ public class LoginPage : ContentPage
             }
             else
             {
-                _statusLabel.Text = "OTP-Anforderung fehlgeschlagen.";
+                _statusLabel.Text = "OTP-Anforderung aktuell nicht möglich. Bitte prüfen lassen, ob für diese E-Mail ein vorbereiteter App-Zugang besteht.";
             }
         };
 

@@ -38,7 +38,15 @@ namespace KGV.Infrastructure.Authentication
 
             try
             {
-                return await RequestRecoveryOtpAsync(email.Trim(), "first-login");
+                var emailTrim = email.Trim();
+                var preparation = await EnsureOtpPreparationAsync(emailTrim, "first-login");
+                if (!preparation.Success)
+                {
+                    _logger?.LogWarning("RequestOtpAsync blocked for {EmailMasked}: {Reason}", MaskEmail(emailTrim), preparation.Message);
+                    return false;
+                }
+
+                return await RequestRecoveryOtpAsync(emailTrim, "first-login");
             }
             catch (Exception ex)
             {
@@ -57,11 +65,22 @@ namespace KGV.Infrastructure.Authentication
 
             try
             {
-                var ok = await VerifyOtpInternalAsync(email.Trim(), code.Trim(), "Recovery");
+                var emailTrim = email.Trim();
+                var ok = await VerifyOtpInternalAsync(emailTrim, code.Trim(), "Recovery");
                 if (!ok)
                     return false;
 
-                _verifiedOtpEmail = email.Trim();
+                var repairResult = await RepairOtpContextAfterVerificationAsync(emailTrim);
+                if (!repairResult.Success)
+                {
+                    _logger?.LogWarning("VerifyOtpAsync rejected verified OTP for {EmailMasked}: {Reason}", MaskEmail(emailTrim), repairResult.Message);
+                    var client = await GetClientAsync();
+                    await TrySignOutAsync(client);
+                    ResetAuthState();
+                    return false;
+                }
+
+                _verifiedOtpEmail = emailTrim;
                 IsVorstand = false;
                 IsAdmin = false;
                 return true;
@@ -380,44 +399,34 @@ namespace KGV.Infrastructure.Authentication
                     MaskEmail(email),
                     authUserId);
 
-                inviteStep = "ensure-auth-user";
-                authUserId ??= await EnsureAuthUserForInviteAsync(email);
-                if (!authUserId.HasValue)
+                inviteStep = "prepare-invite-context";
+                var preparation = await EnsureInvitePreparationAsync(user, email, "invite", allowDeferredOtpRepair: true);
+                if (!preparation.Success)
                 {
                     _logger?.LogWarning(
-                        "InviteUserAsync aborted at step {InviteStep} for mitgliedId={MitgliedId} email={EmailMasked}: auth user id unavailable",
+                        "InviteUserAsync aborted at step {InviteStep} for mitgliedId={MitgliedId} email={EmailMasked}: {Reason}",
                         inviteStep,
                         mitgliedId,
-                        MaskEmail(email));
+                        MaskEmail(email),
+                        preparation.Message);
 
                     return new InviteUserAccountResult
                     {
                         Success = false,
                         Email = email,
-                        Message = "Auth-Konto konnte für die Einladung nicht vorbereitet werden."
+                        Message = preparation.Message
                     };
                 }
+
+                authUserId = preparation.AuthUserId;
+                authUserVerified = !preparation.DeferredOtpRepairRequired;
+                mappingAttempts = preparation.MappingAttempts;
 
                 _logger?.LogInformation(
                     "InviteUserAsync auth user resolved for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId}",
                     mitgliedId,
                     MaskEmail(email),
-                    authUserId.Value);
-
-                inviteStep = "ensure-member-mapping";
-                mappingAttempts = await EnsureMemberInviteMappingAsync(authUserId.Value, mitgliedId, email);
-                authUserVerified = !mitgliedId.HasValue || mappingAttempts > 0;
-
-                _logger?.LogInformation(
-                    "InviteUserAsync member mapping ensured for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId} authUserVerified={AuthUserVerified} mappingAttempts={MappingAttempts}",
-                    mitgliedId,
-                    MaskEmail(email),
-                    authUserId.Value,
-                    authUserVerified,
-                    mappingAttempts);
-
-                inviteStep = "ensure-app-user";
-                await EnsureAppUserRecordAsync(authUserId.Value, user.MitgliedId, NormalizeRole(user.Role));
+                    authUserId);
 
                 inviteStep = "request-recovery-otp";
                 var requested = await RequestRecoveryOtpAsync(email, "invite");
@@ -426,7 +435,7 @@ namespace KGV.Infrastructure.Authentication
                     "InviteUserAsync finished for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId} authUserVerified={AuthUserVerified} mappingAttempts={MappingAttempts} otpRequested={OtpRequested}",
                     mitgliedId,
                     MaskEmail(email),
-                    authUserId.Value,
+                    authUserId,
                     authUserVerified,
                     mappingAttempts,
                     requested);
@@ -437,7 +446,9 @@ namespace KGV.Infrastructure.Authentication
                     AuthUserId = authUserId,
                     Email = email,
                     Message = requested
-                        ? "Einladungs-/Erstlogin-Code wurde versendet. Der Einstieg erfolgt jetzt über E-Mail + OTP + neues Passwort."
+                        ? preparation.DeferredOtpRepairRequired
+                            ? "Einladungs-/Erstlogin-Code wurde versendet. Die Zuordnung wird bei der Code-Bestätigung vervollständigt. Einstieg über KGV-App oder PC-Login mit E-Mail + OTP + neuem Passwort."
+                            : "Einladungs-/Erstlogin-Code wurde versendet. Einstieg über KGV-App oder PC-Login mit E-Mail + OTP + neuem Passwort."
                         : "Einladungs-/Erstlogin-Code konnte nicht versendet werden."
                 };
             }
@@ -591,7 +602,15 @@ namespace KGV.Infrastructure.Authentication
 
             try
             {
-                return await RequestRecoveryOtpAsync(email.Trim(), "password-reset");
+                var emailTrim = email.Trim();
+                var preparation = await EnsureOtpPreparationAsync(emailTrim, "password-reset");
+                if (!preparation.Success)
+                {
+                    _logger?.LogWarning("SendPasswordResetEmailAsync blocked for {EmailMasked}: {Reason}", MaskEmail(emailTrim), preparation.Message);
+                    return false;
+                }
+
+                return await RequestRecoveryOtpAsync(emailTrim, "password-reset");
             }
             catch (GotrueException ex)
             {
@@ -721,7 +740,7 @@ namespace KGV.Infrastructure.Authentication
             return true;
         }
 
-        private async Task<Guid?> EnsureAuthUserForInviteAsync(string email)
+        private async Task<AuthUserPreparationResult> EnsureAuthUserForInviteAsync(string email)
         {
             var isolatedClient = new global::Supabase.Client(_clientFactory.Url, _clientFactory.Key);
             await isolatedClient.InitializeAsync();
@@ -744,7 +763,7 @@ namespace KGV.Infrastructure.Authentication
                 if (signUpMethod == null)
                 {
                     _logger?.LogError("EnsureAuthUserForInviteAsync failed: SignUp(email, password, ...) not found.");
-                    return null;
+                    return AuthUserPreparationResult.Fail("Auth-Konto konnte nicht vorbereitet werden.");
                 }
 
                 var args = new object?[signUpMethod.GetParameters().Length];
@@ -757,19 +776,196 @@ namespace KGV.Infrastructure.Authentication
                 var result = await AwaitMethodResultAsync(signUpResult);
                 var userId = ExtractUserId(result) ?? isolatedClient.Auth.CurrentUser?.Id;
                 if (!Guid.TryParse(userId, out var authUserId))
-                    return null;
+                    return AuthUserPreparationResult.Fail("Auth-Konto konnte nicht vorbereitet werden.");
 
-                return authUserId;
+                return AuthUserPreparationResult.Resolved(authUserId);
             }
             catch (GotrueException ex) when (ex.Message.Contains("already", StringComparison.OrdinalIgnoreCase))
             {
                 _logger?.LogWarning(ex, "EnsureAuthUserForInviteAsync detected an existing auth user for {EmailMasked} without recoverable user id.", MaskEmail(email));
-                return null;
+                return AuthUserPreparationResult.RequiresDeferredRepair();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "EnsureAuthUserForInviteAsync failed for {EmailMasked}", MaskEmail(email));
+                return AuthUserPreparationResult.Fail("Auth-Konto konnte nicht vorbereitet werden.");
             }
             finally
             {
                 await TrySignOutAsync(isolatedClient);
             }
+        }
+
+        private async Task<OtpPreparationResult> EnsureOtpPreparationAsync(string email, string flowKind)
+        {
+            var memberResolution = await TryResolveOperationalMemberAsync(email, null);
+            if (!memberResolution.Success || memberResolution.Member == null)
+            {
+                return OtpPreparationResult.Fail(memberResolution.Message);
+            }
+
+            var preparation = await EnsureInvitePreparationAsync(
+                new AppUserDTO
+                {
+                    MitgliedId = memberResolution.Member.Id,
+                    Email = email,
+                    Role = memberResolution.Member.Role ?? string.Empty
+                },
+                email,
+                flowKind,
+                allowDeferredOtpRepair: true);
+
+            if (!preparation.Success)
+            {
+                return OtpPreparationResult.Fail(preparation.Message);
+            }
+
+            if (preparation.DeferredOtpRepairRequired)
+            {
+                _logger?.LogInformation(
+                    "EnsureOtpPreparationAsync allows deferred repair for flowKind={FlowKind} email={EmailMasked} mitgliedId={MitgliedId}",
+                    flowKind,
+                    MaskEmail(email),
+                    memberResolution.Member.Id);
+            }
+
+            return OtpPreparationResult.Ok();
+        }
+
+        private async Task<InvitePreparationResult> EnsureInvitePreparationAsync(AppUserDTO user, string email, string flowKind, bool allowDeferredOtpRepair)
+        {
+            var memberResolution = await TryResolveOperationalMemberAsync(email, user.MitgliedId);
+            if (!memberResolution.Success || memberResolution.Member == null)
+            {
+                return InvitePreparationResult.Fail(memberResolution.Message);
+            }
+
+            var member = memberResolution.Member;
+            var normalizedRole = NormalizeRole(FirstNonEmpty(user.Role, member.Role));
+            var authUserId = user.AuthUserId ?? member.AuthUserId ?? await ResolveAuthUserIdFromExistingMappingsAsync(member.Id, email);
+            var mappingAttempts = 0;
+
+            if (authUserId.HasValue)
+            {
+                mappingAttempts = await EnsureMemberInviteMappingAsync(authUserId.Value, member.Id, email);
+                await EnsureAppUserRecordAsync(authUserId.Value, member.Id, normalizedRole);
+                return InvitePreparationResult.Ok(authUserId.Value, member.Id, normalizedRole, mappingAttempts);
+            }
+
+            var authPreparation = await EnsureAuthUserForInviteAsync(email);
+            if (authPreparation.AuthUserId.HasValue)
+            {
+                authUserId = authPreparation.AuthUserId.Value;
+                mappingAttempts = await EnsureMemberInviteMappingAsync(authUserId.Value, member.Id, email);
+                await EnsureAppUserRecordAsync(authUserId.Value, member.Id, normalizedRole);
+                return InvitePreparationResult.Ok(authUserId.Value, member.Id, normalizedRole, mappingAttempts);
+            }
+
+            if (allowDeferredOtpRepair && authPreparation.DeferredOtpRepairRequired)
+            {
+                return InvitePreparationResult.OkDeferred(member.Id, normalizedRole, "Bestehendes Auth-Konto wird bei der OTP-Bestätigung vervollständigt.");
+            }
+
+            return InvitePreparationResult.Fail(authPreparation.Message);
+        }
+
+        private async Task<OtpVerificationRepairResult> RepairOtpContextAfterVerificationAsync(string email)
+        {
+            var memberResolution = await TryResolveOperationalMemberAsync(email, null);
+            if (!memberResolution.Success || memberResolution.Member == null)
+            {
+                return OtpVerificationRepairResult.Fail(memberResolution.Message);
+            }
+
+            if (!Guid.TryParse(CurrentUserId, out var authUserId))
+            {
+                return OtpVerificationRepairResult.Fail("Auth-Kontext konnte nach der OTP-Bestätigung nicht gelesen werden.");
+            }
+
+            var member = memberResolution.Member;
+            var existingMappedAuthUserId = member.AuthUserId ?? await ResolveAuthUserIdFromExistingMappingsAsync(member.Id, email);
+            if (existingMappedAuthUserId.HasValue && existingMappedAuthUserId.Value != authUserId)
+            {
+                return OtpVerificationRepairResult.Fail("Für diese E-Mail-Adresse besteht bereits eine andere Auth-Zuordnung.");
+            }
+
+            await EnsureMemberInviteMappingAsync(authUserId, member.Id, email);
+            await EnsureAppUserRecordAsync(authUserId, member.Id, NormalizeRole(member.Role));
+            return OtpVerificationRepairResult.Ok();
+        }
+
+        private async Task<(bool Success, MitgliedRecord? Member, string Message)> TryResolveOperationalMemberAsync(string email, int? mitgliedId)
+        {
+            var client = await GetClientAsync();
+
+            if (mitgliedId.HasValue)
+            {
+                var response = await client
+                    .From<MitgliedRecord>()
+                    .Where(x => x.Id == mitgliedId.Value)
+                    .Get();
+
+                var member = response?.Models?.FirstOrDefault();
+                if (!OperationalDataFilter.IsOperationalMember(member))
+                {
+                    return (false, null, "Für die angegebene E-Mail-Adresse konnte kein gültiges Mitglied vorbereitet werden.");
+                }
+
+                return (true, member, string.Empty);
+            }
+
+            var membersResponse = await client.From<MitgliedRecord>().Get();
+            var normalizedEmail = email.Trim();
+            var matches = membersResponse?.Models?
+                .Where(OperationalDataFilter.IsOperationalMember)
+                .Where(x => string.Equals((x.Email ?? string.Empty).Trim(), normalizedEmail, StringComparison.OrdinalIgnoreCase))
+                .ToList()
+                ?? new List<MitgliedRecord>();
+
+            if (matches.Count == 1)
+            {
+                return (true, matches[0], string.Empty);
+            }
+
+            return matches.Count > 1
+                ? (false, null, "Die E-Mail-Adresse ist keinem eindeutig vorbereitbaren Mitglied zugeordnet.")
+                : (false, null, "Für diese E-Mail-Adresse ist aktuell kein vorbereiteter App-Zugang vorhanden.");
+        }
+
+        private async Task<Guid?> ResolveAuthUserIdFromExistingMappingsAsync(int mitgliedId, string email)
+        {
+            var client = await GetClientAsync();
+            var appUsersResponse = await client
+                .From<AppUserRecord>()
+                .Where(x => x.MitgliedId == (long)mitgliedId)
+                .Get();
+
+            var candidates = appUsersResponse?.Models?
+                .Where(x => x.UserId != Guid.Empty)
+                .Select(x => x.UserId)
+                .Distinct()
+                .ToList()
+                ?? new List<Guid>();
+
+            if (candidates.Count == 1)
+            {
+                _logger?.LogInformation(
+                    "ResolveAuthUserIdFromExistingMappingsAsync resolved auth user via app_user for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId}",
+                    mitgliedId,
+                    MaskEmail(email),
+                    candidates[0]);
+                return candidates[0];
+            }
+
+            if (candidates.Count > 1)
+            {
+                _logger?.LogWarning(
+                    "ResolveAuthUserIdFromExistingMappingsAsync found multiple app_user candidates for mitgliedId={MitgliedId} email={EmailMasked}",
+                    mitgliedId,
+                    MaskEmail(email));
+            }
+
+            return null;
         }
 
         private async Task<int> EnsureMemberInviteMappingAsync(Guid authUserId, int? mitgliedId, string email)
@@ -942,6 +1138,80 @@ namespace KGV.Infrastructure.Authentication
             return property.ValueKind == JsonValueKind.String
                 ? property.GetString()
                 : property.ToString();
+        }
+
+        private sealed class AuthUserPreparationResult
+        {
+            public Guid? AuthUserId { get; init; }
+            public bool DeferredOtpRepairRequired { get; init; }
+            public string Message { get; init; } = "Auth-Konto konnte nicht vorbereitet werden.";
+
+            public static AuthUserPreparationResult Resolved(Guid authUserId)
+                => new() { AuthUserId = authUserId, Message = string.Empty };
+
+            public static AuthUserPreparationResult RequiresDeferredRepair()
+                => new() { DeferredOtpRepairRequired = true, Message = string.Empty };
+
+            public static AuthUserPreparationResult Fail(string message)
+                => new() { Message = message };
+        }
+
+        private sealed class InvitePreparationResult
+        {
+            public bool Success { get; init; }
+            public bool DeferredOtpRepairRequired { get; init; }
+            public Guid? AuthUserId { get; init; }
+            public int MitgliedId { get; init; }
+            public string Role { get; init; } = string.Empty;
+            public int MappingAttempts { get; init; }
+            public string Message { get; init; } = string.Empty;
+
+            public static InvitePreparationResult Ok(Guid authUserId, int mitgliedId, string role, int mappingAttempts)
+                => new()
+                {
+                    Success = true,
+                    AuthUserId = authUserId,
+                    MitgliedId = mitgliedId,
+                    Role = role,
+                    MappingAttempts = mappingAttempts
+                };
+
+            public static InvitePreparationResult OkDeferred(int mitgliedId, string role, string message)
+                => new()
+                {
+                    Success = true,
+                    DeferredOtpRepairRequired = true,
+                    MitgliedId = mitgliedId,
+                    Role = role,
+                    Message = message
+                };
+
+            public static InvitePreparationResult Fail(string message)
+                => new() { Message = message };
+        }
+
+        private sealed class OtpPreparationResult
+        {
+            public bool Success { get; init; }
+            public string Message { get; init; } = string.Empty;
+
+            public static OtpPreparationResult Ok()
+                => new() { Success = true };
+
+            public static OtpPreparationResult Fail(string message)
+                => new() { Message = message };
+        }
+
+        private sealed class OtpVerificationRepairResult
+        {
+            public bool Success { get; init; }
+            public string Message { get; init; } = string.Empty;
+
+            public static OtpVerificationRepairResult Ok()
+                => new() { Success = true };
+
+            public static OtpVerificationRepairResult Fail(string message)
+                => new() { Message = message };
         }
 
         private void ResetAuthState()

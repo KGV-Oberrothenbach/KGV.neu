@@ -231,9 +231,9 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
             await LoadAsync(reselectSelected: targetUser);
             return result.Success;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Einladung fehlgeschlagen: {ex.Message}";
+            StatusMessage = "Nutzer hinzufügen fehlgeschlagen. Bitte später erneut versuchen.";
             return false;
         }
         finally

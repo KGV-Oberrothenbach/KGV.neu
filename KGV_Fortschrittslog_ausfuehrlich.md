@@ -2,6 +2,44 @@
 
 ---
 
+## 2026-03-30 – Prompt 1/1: Nutzer hinzufügen in WPF und MAUI fachlich auf denselben belastbaren Invite-/OTP-Flow gezogen
+
+- Git-Stand vor Start gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main 2a514c3 [origin/main] Clarify rolled back release steps`
+- Vorhandene blockfremde Arbeitsbaum-Einträge bewusst separat dokumentiert:
+  - `KGV.Maui/KGV.Maui.csproj` mit lokaler `ApplicationVersion`-Änderung
+  - `Android_Wpf_release_batch_v4.bat`
+  - `Android_Wpf_release_batch_v5.bat`
+- Echten Istzustand des Produktivpfads geprüft:
+  - WPF-Benutzerverwaltung nutzt bereits `InviteUserAsync(...)`
+  - MAUI besitzt denselben Fachpfad bereits im Mitgliedsdetail und in der mobilen Benutzerverwaltung
+  - der eigentliche Fehler lag im Shared-/Infrastructure-Auth-Flow
+- Reale Restlücken vor der Korrektur:
+  - `InviteUserAsync(...)` war noch nicht robust genug, wenn ein Auth-User fachlich schon existierte, `mitglied.auth_user_id` aber noch nicht sauber gesetzt war
+  - `RequestOtpAsync(...)` versendete OTP ohne vorherige Prüfung, ob die Mailadresse überhaupt einem vorbereitbaren Mitglied zugeordnet ist
+  - `VerifyOtpAsync(...)` reparierte die Mitglied-/`app_user`-Zuordnung nicht unmittelbar nach erfolgreicher OTP-Bestätigung
+- Minimal umgesetzt:
+  - Shared-Auth-Flow über `AuthService` gehärtet
+  - Mitglied wird jetzt vor Invite/OTP eindeutig und operativ aufgelöst
+  - bestehende Zuordnungen werden zuerst aus `mitglied.auth_user_id`, dann aus `app_user.mitglied_id` wiederverwendet
+  - bei vorhandenen Auth-Konten ohne direkt lesbare ID wird ein kontrollierter Deferred-Repair-Pfad genutzt
+  - die eigentliche Zuordnungsreparatur erfolgt spätestens direkt nach erfolgreicher OTP-Bestätigung
+  - unbekannte oder nicht vorbereitbare Mailadressen erhalten keinen freien OTP mehr
+  - WPF- und MAUI-Meldungen für Invite/OTP/Reset wurden auf sichere, nicht technische Texte geschärft
+- Mail-/Template-Prüfung:
+  - im Repo wurde kein eigener Template-Pfad für die Supabase-Invite-/Recovery-Mails gefunden
+  - deshalb nur vorhandene sichtbare Texte minimal um App-/PC-Einstiegshinweise ergänzt
+- Builds:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
+- Bewusst nicht Teil dieses Fachblocks geblieben:
+  - lokale Änderung in `KGV.Maui/KGV.Maui.csproj`
+  - ungetrackte Batch-Dateien `Android_Wpf_release_batch_v4.bat` und `Android_Wpf_release_batch_v5.bat`
+
 ## 2026-03-30 – Kurzfix: Rollback-Status in der Release-Schrittliste fachlich präzisiert
 
 - Den gemeldeten Release-Auszug mit fehlgeschlagenem Push und erfolgreichem Rollback direkt gegen den aktuellen Codepfad geprüft.

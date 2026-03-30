@@ -204,9 +204,9 @@ public sealed class MemberDetailPage : ContentPage
 
             UpdateAdminActions(memberDto);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _statusLabel.Text = ex.Message;
+            _statusLabel.Text = "Nutzer hinzufügen fehlgeschlagen. Bitte später erneut versuchen.";
         }
         finally
         {
@@ -289,9 +289,9 @@ public sealed class MemberDetailPage : ContentPage
             if (result.Success)
                 await LoadAsync();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _statusLabel.Text = ex.Message;
+            _statusLabel.Text = "Nutzer hinzufügen fehlgeschlagen. Bitte später erneut versuchen.";
         }
         finally
         {

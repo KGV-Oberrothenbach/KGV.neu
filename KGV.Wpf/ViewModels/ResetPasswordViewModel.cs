@@ -81,11 +81,11 @@ namespace KGV.ViewModels
                 var success = await _authService.SendPasswordResetEmailAsync(Email.Trim());
                 StatusMessage = success
                     ? "OTP-Code für Passwort-vergessen wurde versendet. Bitte danach im Login den Code prüfen und ein neues Passwort setzen."
-                    : "Passwort-Reset-Mail konnte nicht angestoßen werden.";
+                    : "Passwort-Reset konnte aktuell nicht angestoßen werden. Bitte prüfen lassen, ob für diese E-Mail ein vorbereiteter App-Zugang besteht.";
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                StatusMessage = $"Passwort-Reset fehlgeschlagen: {ex.Message}";
+                StatusMessage = "Passwort-Reset fehlgeschlagen. Bitte später erneut versuchen.";
             }
             finally
             {

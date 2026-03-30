@@ -104,7 +104,7 @@ namespace KGV.ViewModels
             }
             else
             {
-                StatusMessage = "OTP-Anforderung fehlgeschlagen.";
+                StatusMessage = "OTP-Anforderung aktuell nicht möglich. Bitte prüfen lassen, ob für diese E-Mail ein vorbereiteter App-Zugang besteht.";
             }
         }
 
