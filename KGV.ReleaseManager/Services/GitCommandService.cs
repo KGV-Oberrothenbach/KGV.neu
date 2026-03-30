@@ -63,6 +63,16 @@ public sealed class GitCommandService
         return CreateGitCommand(repositoryPath, "remote get-url origin");
     }
 
+    public ProcessStartInfo CreateRevParseHeadCommand(string repositoryPath)
+    {
+        return CreateGitCommand(repositoryPath, "rev-parse HEAD");
+    }
+
+    public ProcessStartInfo CreateResetHardCommand(string repositoryPath, string targetRef)
+    {
+        return CreateGitCommand(repositoryPath, $"reset --hard {targetRef}");
+    }
+
     public string CreateReleaseCommitMessage(string version, string scope)
     {
         var normalizedScope = string.IsNullOrWhiteSpace(scope) ? "Release" : scope.Trim();

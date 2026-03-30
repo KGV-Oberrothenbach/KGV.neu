@@ -89,12 +89,30 @@ public sealed class ReleaseVersionFileService
         };
     }
 
-    public void RestoreBackups(IEnumerable<VersionFileBackup> backups)
+    public VersionRestoreResult RestoreBackups(IEnumerable<VersionFileBackup> backups)
     {
+        var messages = new List<string>();
+        var success = true;
+
         foreach (var backup in backups.Reverse())
         {
-            File.WriteAllText(backup.FilePath, backup.OriginalContent);
+            try
+            {
+                File.WriteAllText(backup.FilePath, backup.OriginalContent);
+                messages.Add($"Versionsdatei zurückgesetzt: {backup.FilePath}");
+            }
+            catch (Exception ex)
+            {
+                success = false;
+                messages.Add($"Versionsdatei konnte nicht zurückgesetzt werden: {backup.FilePath} ({ex.Message})");
+            }
         }
+
+        return new VersionRestoreResult
+        {
+            Success = success,
+            Messages = messages
+        };
     }
 
     private static XElement? FindFirstPropertyElement(XDocument document, string propertyName)

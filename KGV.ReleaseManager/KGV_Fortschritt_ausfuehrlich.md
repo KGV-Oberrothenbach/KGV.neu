@@ -1,5 +1,73 @@
 # KGV Fortschritt ausführlich
 
+## Stand 2026-03-30 – Interner Härtungsblock: transaktionalen Echt-Release, Rollback und Abschlussstatus präzisiert
+
+### Ziel dieses Schritts
+Den bestehenden Release-Manager nach dem Preflight-Block so härten, dass der eigentliche Echt-Release intern nachvollziehbar schrittweise läuft, bei Fehlern sauber in einen Rollbackpfad geht und im UI einen ehrlichen Abschlussstatus zeigt.
+
+### Geprüft
+- echter Git-Stand gegen `origin/main`
+- direkt betroffene Release-Manager-Dateien:
+  - `Services/ReleaseExecutionService.cs`
+  - `Services/ReleaseMarkerService.cs`
+  - `Services/VersionService.cs`
+  - `Services/ReleaseFolderService.cs`
+  - `Services/ReleaseVersionFileService.cs`
+  - `Services/GitCommandService.cs`
+  - `ViewModels/MainViewModel.cs`
+  - `MainWindow.xaml`
+  - `MainWindow.xaml.cs`
+  - `Models/ReleaseExecutionRequest.cs`
+  - `Models/ReleaseExecutionResult.cs`
+
+### Ehrlicher Istzustand vor Umsetzung
+- der Release-Ablauf war bereits funktionsfähig, aber intern noch nicht als klare transaktionale Schrittkette sichtbar modelliert
+- Versionserhöhung lief über `ReleaseVersionFileService.WriteTargetVersion(...)`
+- Rollback schrieb Backupdateien zwar zurück, lieferte aber noch keinen differenzierten Erfolgszustand
+- Marker wurde vor Git geschrieben, Commit und Push waren aber noch zusammengezogen; Teilfehler nach lokalem Commit wurden nicht mehr streng als transaktionaler Fehler ausgewertet
+- im UI fehlte ein sichtbarer Abschlussstatus mit Schrittliste
+
+### Umgesetzt
+- neue Status-/Ergebnis-Modelle für:
+  - Gesamtstatus
+  - Schrittergebnisse
+  - Restore-Ergebnis
+- `ReleaseExecutionService` intern auf fachlich getrennte Schritte gezogen:
+  - Ausgangsversionen lesen
+  - Versionen erhöhen/schreiben
+  - WPF-Artefakte bauen
+  - Android-APK bauen
+  - Android-AAB bauen
+  - Veröffentlichungsordner befüllen
+  - Marker schreiben
+  - Commit ausführen
+  - Push ausführen
+  - Rollback
+  - Abschluss
+- `VersionService` wird jetzt auch im Echt-Release verwendet, damit die Ausgangsversionen explizit gelesen und protokolliert werden
+- `ReleaseVersionFileService.RestoreBackups(...)` gibt jetzt ein Restore-Ergebnis mit Einzelmeldungen zurück
+- lokales Git-Rollback ergänzt:
+  - Ausgangs-HEADs werden vor Commit erfasst
+  - lokale Commits können bei Fehlern vor erfolgreichem Push per `reset --hard` zurückgesetzt werden
+- Push-Reihenfolge so angepasst, dass das markerführende Quellrepo zuletzt gepusht wird
+- bereits erfolgte Pushes werden bei Fehlern nicht beschönigt, sondern führen jetzt sichtbar zu `rollback unvollständig`
+- der bestehende Statusbereich zeigt jetzt zusätzlich den Release-Abschlussstatus und die Release-Schrittliste
+
+### Ergebnis
+- der Echt-Release ist jetzt intern deutlich nachvollziehbarer und fachlich sauberer bewertet
+- bei Fehlern nach Versionsschreiben wird klar zwischen erfolgreichem und unvollständigem Rollback unterschieden
+- Marker, Commit und Push zählen nur im Vollerfolg final als abgeschlossen
+
+### Validierung
+- `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+- `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` erfolgreich
+
+### Logische Prüfung
+- Dry Run bleibt marker-/commit-/push-frei
+- echte Fehler nach Versionsschreiben laufen in den Rollbackpfad
+- Marker/Commit/Push werden nur im Vollerfolg final als `ja` bewertet
+- bereits gepushte Zustände werden nicht als sauber rückgesetzt behauptet, sondern als `rollback unvollständig` ausgewiesen
+
 ## Stand 2026-03-29 – Interner Betriebsblock: sichtbaren Preflight-/Systemcheck vor Dry Run und Echt-Release ergänzt
 
 ### Ziel dieses Schritts

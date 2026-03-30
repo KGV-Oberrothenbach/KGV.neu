@@ -299,16 +299,21 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="180"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="220"/>
+                                <RowDefinition Height="140"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="140"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="180"/>
                             </Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Margin="0,0,0,4" Text="{Binding PreflightOverallStateText}" FontWeight="SemiBold"/>
                             <TextBlock Grid.Row="1" Margin="0,0,0,8" Text="{Binding PreflightSummaryText}" TextWrapping="Wrap"/>
                             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
                                 <Button Width="160" Click="RunSystemCheck_Click">Systemcheck</Button>
                             </StackPanel>
-                            <DataGrid Grid.Row="3"
+                            <TextBlock Grid.Row="3" Margin="0,0,0,6" Text="Systemcheck" FontWeight="SemiBold"/>
+                            <DataGrid Grid.Row="4"
                                       ItemsSource="{Binding PreflightChecks}"
                                       AutoGenerateColumns="False"
                                       CanUserAddRows="False"
@@ -323,8 +328,25 @@
                                     <DataGridTextColumn Header="Meldung" Binding="{Binding Message}" Width="*"/>
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <TextBlock Grid.Row="4" Margin="0,0,0,8" Text="Ausgabe"/>
-                            <TextBox Grid.Row="5" Text="{Binding StatusText}" AcceptsReturn="True" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Row="5" Margin="0,0,0,4" Text="{Binding ReleaseResultOverallStateText}" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Row="6" Margin="0,0,0,6" Text="Release-Schritte" FontWeight="SemiBold"/>
+                            <DataGrid Grid.Row="7"
+                                      ItemsSource="{Binding ReleaseSteps}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      CanUserDeleteRows="False"
+                                      CanUserResizeRows="False"
+                                      HeadersVisibility="Column"
+                                      IsReadOnly="True"
+                                      Margin="0,0,0,8">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding StateText}" Width="110"/>
+                                    <DataGridTextColumn Header="Schritt" Binding="{Binding Name}" Width="180"/>
+                                    <DataGridTextColumn Header="Meldung" Binding="{Binding Message}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <TextBlock Grid.Row="8" Margin="0,0,0,8" Text="Ausgabe"/>
+                            <TextBox Grid.Row="9" Text="{Binding StatusText}" AcceptsReturn="True" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
                         </Grid>
                     </GroupBox>
 

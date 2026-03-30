@@ -5,6 +5,18 @@ namespace KGV.ReleaseManager.Services;
 
 public sealed class ReleaseExecutionService
 {
+    private const string StepReadOriginalVersions = "Ausgangsversionen lesen";
+    private const string StepWriteVersions = "Versionen erhöhen/schreiben";
+    private const string StepBuildWpfArtifacts = "WPF-Artefakte bauen";
+    private const string StepBuildApk = "Android-APK bauen";
+    private const string StepBuildAab = "Android-AAB bauen";
+    private const string StepPublishArtifacts = "Veröffentlichungsordner befüllen";
+    private const string StepWriteMarker = "Marker schreiben";
+    private const string StepCommit = "Commit ausführen";
+    private const string StepPush = "Push ausführen";
+    private const string StepRollback = "Rollback";
+    private const string StepCompletion = "Abschluss";
+
     private readonly ReleaseFolderService _releaseFolderService;
     private readonly BuildCommandService _buildCommandService;
     private readonly ProcessExecutionService _processExecutionService;
@@ -12,6 +24,7 @@ public sealed class ReleaseExecutionService
     private readonly ReleaseArtifactService _releaseArtifactService;
     private readonly GitCommandService _gitCommandService;
     private readonly ReleaseMarkerService _releaseMarkerService;
+    private readonly VersionService _versionService;
 
     public ReleaseExecutionService(
         ReleaseFolderService releaseFolderService,
@@ -20,7 +33,8 @@ public sealed class ReleaseExecutionService
         ReleaseVersionFileService releaseVersionFileService,
         ReleaseArtifactService releaseArtifactService,
         GitCommandService gitCommandService,
-        ReleaseMarkerService releaseMarkerService)
+        ReleaseMarkerService releaseMarkerService,
+        VersionService versionService)
     {
         _releaseFolderService = releaseFolderService;
         _buildCommandService = buildCommandService;
@@ -29,85 +43,197 @@ public sealed class ReleaseExecutionService
         _releaseArtifactService = releaseArtifactService;
         _gitCommandService = gitCommandService;
         _releaseMarkerService = releaseMarkerService;
+        _versionService = versionService;
     }
 
     public Task<ReleaseExecutionResult> ValidateAsync(ReleaseExecutionRequest request)
     {
-        var messages = new List<string>();
-        var errors = ValidateRequest(request, messages);
-        var result = new ReleaseExecutionResult
+        var messages = new List<string>
         {
-            Success = errors.Count == 0,
-            Message = errors.Count == 0
-                ? "Dry Run erfolgreich. Es wurden keine Marker, Commits oder Pushes ausgeführt. Der Release kann mit den aktuellen Einstellungen gestartet werden."
-                : errors[0],
-            Messages = messages.Concat(errors).ToList(),
-            ReleaseFolderPath = BuildReleaseFolderPath(request)
+            "Dry Run gestartet."
         };
+        var stepTracker = CreateStepTracker();
+        ApplySelectionSkips(stepTracker, request);
+        var errors = ValidateRequest(request, messages);
+        if (errors.Count > 0)
+        {
+            stepTracker.Fail(StepCompletion, $"Dry Run fehlgeschlagen. Grund: {errors[0]}");
+            stepTracker.MarkRemainingPendingAsSkipped("Wegen vorherigem Fehler nicht ausgeführt.");
+            var finalMessages = messages.Concat(errors).ToList();
+            AppendFinalEvaluation(finalMessages, ReleaseExecutionOverallState.Failed, markerWritten: false, commitExecuted: false, pushExecuted: false);
+            return Task.FromResult(new ReleaseExecutionResult
+            {
+                Success = false,
+                OverallState = ReleaseExecutionOverallState.Failed,
+                Message = errors[0],
+                Messages = finalMessages,
+                ReleaseFolderPath = BuildReleaseFolderPath(request),
+                Steps = stepTracker.Build()
+            });
+        }
 
-        return Task.FromResult(result);
+        LogStepStart(messages, StepReadOriginalVersions);
+        var versionRead = TryReadOriginalVersions(request, messages);
+        if (!versionRead.Success)
+        {
+            stepTracker.Fail(StepReadOriginalVersions, versionRead.Message);
+            stepTracker.Fail(StepCompletion, $"Dry Run fehlgeschlagen. Grund: {versionRead.Message}");
+            stepTracker.MarkRemainingPendingAsSkipped("Wegen vorherigem Fehler nicht ausgeführt.");
+            AppendFinalEvaluation(messages, ReleaseExecutionOverallState.Failed, markerWritten: false, commitExecuted: false, pushExecuted: false);
+            return Task.FromResult(new ReleaseExecutionResult
+            {
+                Success = false,
+                OverallState = ReleaseExecutionOverallState.Failed,
+                Message = versionRead.Message,
+                Messages = messages,
+                ReleaseFolderPath = BuildReleaseFolderPath(request),
+                Steps = stepTracker.Build()
+            });
+        }
+
+        stepTracker.Success(StepReadOriginalVersions, versionRead.Message);
+        LogStepSuccess(messages, StepReadOriginalVersions, versionRead.Message);
+
+        stepTracker.Skip(StepWriteVersions, "Dry Run: Versionsdateien wurden nicht geändert.");
+        stepTracker.Skip(StepPublishArtifacts, "Dry Run: Veröffentlichungsordner wurde nicht befüllt.");
+        stepTracker.Skip(StepWriteMarker, "Dry Run: kein Marker geschrieben.");
+        stepTracker.Skip(StepCommit, "Dry Run: kein Commit ausgeführt.");
+        stepTracker.Skip(StepPush, "Dry Run: kein Push ausgeführt.");
+        stepTracker.Skip(StepRollback, "Dry Run: kein Rollback erforderlich.");
+        stepTracker.Success(StepCompletion, "Dry Run erfolgreich abgeschlossen.");
+
+        messages.Add("Dry Run erfolgreich. Es wurden keine Marker, Commits oder Pushes ausgeführt.");
+        AppendFinalEvaluation(messages, ReleaseExecutionOverallState.Successful, markerWritten: false, commitExecuted: false, pushExecuted: false);
+
+        return Task.FromResult(new ReleaseExecutionResult
+        {
+            Success = true,
+            OverallState = ReleaseExecutionOverallState.Successful,
+            Message = "Dry Run erfolgreich. Es wurden keine Marker, Commits oder Pushes ausgeführt.",
+            Messages = messages,
+            ReleaseFolderPath = BuildReleaseFolderPath(request),
+            Steps = stepTracker.Build()
+        });
     }
 
     public async Task<ReleaseExecutionResult> ExecuteAsync(ReleaseExecutionRequest request, CancellationToken cancellationToken = default)
     {
-        var messages = new List<string>();
+        var messages = new List<string>
+        {
+            "Echt-Release gestartet."
+        };
         var artifacts = new List<string>();
-        var errors = ValidateRequest(request, messages);
-        if (errors.Count > 0)
-        {
-            return new ReleaseExecutionResult
-            {
-                Message = errors[0],
-                Messages = messages.Concat(errors).ToList(),
-                ReleaseFolderPath = BuildReleaseFolderPath(request)
-            };
-        }
-
-        var folderResult = _releaseFolderService.PrepareVersionFolder(request.ReleaseOutputRootPath, request.TargetVersion);
-        messages.Add(folderResult.Message);
-        if (!folderResult.Success)
-        {
-            return new ReleaseExecutionResult
-            {
-                Message = folderResult.Message,
-                Messages = messages,
-                ReleaseFolderPath = folderResult.VersionFolderPath
-            };
-        }
-
+        var stepTracker = CreateStepTracker();
+        ApplySelectionSkips(stepTracker, request);
+        var sourceRepositoryState = new GitRepositoryTransactionState(request.SourceRepoPath, "Quellrepo Git");
+        var targetRepositoryState = request.BuildWpf
+            ? new GitRepositoryTransactionState(request.WpfTargetRepoPath, "WPF-Zielrepo Git")
+            : null;
         var backups = new List<VersionFileBackup>();
-        var releaseFolderPath = folderResult.VersionFolderPath;
-        var releaseFolderExistedBefore = folderResult.ExistedBefore;
+        var markerWritten = false;
+        var releaseFolderPath = BuildReleaseFolderPath(request);
+        var releaseFolderExistedBefore = true;
         var stagingRoot = Path.Combine(Path.GetTempPath(), "KGV.ReleaseManager", request.TargetVersion, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(stagingRoot);
         string? stagedWpfSetupArtifact = null;
         string? stagedApkArtifact = null;
         string? stagedAabArtifact = null;
 
+        var errors = ValidateRequest(request, messages);
+        if (errors.Count > 0)
+        {
+            stepTracker.Fail(StepCompletion, $"Release fehlgeschlagen. Grund: {errors[0]}");
+            stepTracker.MarkRemainingPendingAsSkipped("Wegen vorherigem Fehler nicht ausgeführt.");
+            var failureMessages = messages.Concat(errors).ToList();
+            AppendFinalEvaluation(failureMessages, ReleaseExecutionOverallState.Failed, markerWritten: false, commitExecuted: false, pushExecuted: false);
+            return new ReleaseExecutionResult
+            {
+                Success = false,
+                OverallState = ReleaseExecutionOverallState.Failed,
+                Message = errors[0],
+                Messages = failureMessages,
+                ReleaseFolderPath = releaseFolderPath,
+                Steps = stepTracker.Build()
+            };
+        }
+
+        var folderResult = _releaseFolderService.PrepareVersionFolder(request.ReleaseOutputRootPath, request.TargetVersion);
+        messages.Add(folderResult.Message);
+        releaseFolderPath = folderResult.VersionFolderPath;
+        releaseFolderExistedBefore = folderResult.ExistedBefore;
+        if (!folderResult.Success)
+        {
+            stepTracker.Fail(StepPublishArtifacts, folderResult.Message);
+            stepTracker.Fail(StepCompletion, $"Release fehlgeschlagen. Grund: {folderResult.Message}");
+            stepTracker.MarkRemainingPendingAsSkipped("Wegen vorherigem Fehler nicht ausgeführt.");
+            AppendFinalEvaluation(messages, ReleaseExecutionOverallState.Failed, markerWritten: false, commitExecuted: false, pushExecuted: false);
+            return new ReleaseExecutionResult
+            {
+                Success = false,
+                OverallState = ReleaseExecutionOverallState.Failed,
+                Message = folderResult.Message,
+                Messages = messages,
+                ReleaseFolderPath = releaseFolderPath,
+                Steps = stepTracker.Build()
+            };
+        }
+
         try
         {
+            LogStepStart(messages, StepReadOriginalVersions);
+            var versionRead = TryReadOriginalVersions(request, messages);
+            if (!versionRead.Success)
+            {
+                return await RollbackFailureAsync(
+                    versionRead.Message,
+                    StepReadOriginalVersions,
+                    markerWritten,
+                    stepTracker,
+                    backups,
+                    messages,
+                    releaseFolderPath,
+                    artifacts,
+                    releaseFolderExistedBefore,
+                    sourceRepositoryState,
+                    targetRepositoryState,
+                    cancellationToken);
+            }
+
+            stepTracker.Success(StepReadOriginalVersions, versionRead.Message);
+            LogStepSuccess(messages, StepReadOriginalVersions, versionRead.Message);
+
+            LogStepStart(messages, StepWriteVersions);
             var versionWriteResult = _releaseVersionFileService.WriteTargetVersion(
                 request.SourceRepoPath,
                 request.TargetVersion,
                 request.BuildWpf,
                 request.BuildApk || request.BuildAab);
             messages.Add(versionWriteResult.Message);
+            backups.AddRange(versionWriteResult.Backups);
             if (!versionWriteResult.Success)
             {
-                return new ReleaseExecutionResult
-                {
-                    Message = versionWriteResult.Message,
-                    Messages = messages,
-                    ReleaseFolderPath = releaseFolderPath
-                };
+                return await RollbackFailureAsync(
+                    versionWriteResult.Message,
+                    StepWriteVersions,
+                    markerWritten,
+                    stepTracker,
+                    backups,
+                    messages,
+                    releaseFolderPath,
+                    artifacts,
+                    releaseFolderExistedBefore,
+                    sourceRepositoryState,
+                    targetRepositoryState,
+                    cancellationToken);
             }
 
-            backups.AddRange(versionWriteResult.Backups);
+            stepTracker.Success(StepWriteVersions, versionWriteResult.Message);
+            LogStepSuccess(messages, StepWriteVersions, versionWriteResult.Message);
 
             if (request.BuildWpf)
             {
+                LogStepStart(messages, StepBuildWpfArtifacts);
                 var wpfProjectPath = Path.Combine(request.SourceRepoPath, "KGV.Wpf", "KGV.Wpf.csproj");
-                var wpfTargetDirectory = _releaseArtifactService.ResolveWpfTargetDirectory(request.WpfTargetRepoPath);
                 var wpfBuild = await _processExecutionService.RunAsync(
                     _buildCommandService.CreateDotnetBuildCommand(wpfProjectPath, "Release"),
                     "WPF Build",
@@ -115,7 +241,19 @@ public sealed class ReleaseExecutionService
                 messages.Add(wpfBuild.GetUserFacingMessage());
                 if (!wpfBuild.Success)
                 {
-                    return RollbackFailure("WPF Build fehlgeschlagen.", backups, messages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
+                    return await RollbackFailureAsync(
+                        "WPF Build fehlgeschlagen.",
+                        StepBuildWpfArtifacts,
+                        markerWritten,
+                        stepTracker,
+                        backups,
+                        messages,
+                        releaseFolderPath,
+                        artifacts,
+                        releaseFolderExistedBefore,
+                        sourceRepositoryState,
+                        targetRepositoryState,
+                        cancellationToken);
                 }
 
                 var innoScript = _releaseArtifactService.FindInnoSetupScript(request.SourceRepoPath);
@@ -134,43 +272,103 @@ public sealed class ReleaseExecutionService
                 messages.Add(innoRun.GetUserFacingMessage());
                 if (!innoRun.Success)
                 {
-                    return RollbackFailure("WPF-Setup-Erzeugung fehlgeschlagen.", backups, messages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
+                    return await RollbackFailureAsync(
+                        "WPF-Setup-Erzeugung fehlgeschlagen.",
+                        StepBuildWpfArtifacts,
+                        markerWritten,
+                        stepTracker,
+                        backups,
+                        messages,
+                        releaseFolderPath,
+                        artifacts,
+                        releaseFolderExistedBefore,
+                        sourceRepositoryState,
+                        targetRepositoryState,
+                        cancellationToken);
                 }
 
                 var setupArtifact = _releaseArtifactService.FindNewestArtifact(wpfStaging, "*.exe", DateTime.UtcNow.AddMinutes(-10));
                 if (string.IsNullOrWhiteSpace(setupArtifact))
                 {
-                    return RollbackFailure("Die erzeugte WPF-Setup-Datei wurde nicht gefunden.", backups, messages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
+                    return await RollbackFailureAsync(
+                        "Die erzeugte WPF-Setup-Datei wurde nicht gefunden.",
+                        StepBuildWpfArtifacts,
+                        markerWritten,
+                        stepTracker,
+                        backups,
+                        messages,
+                        releaseFolderPath,
+                        artifacts,
+                        releaseFolderExistedBefore,
+                        sourceRepositoryState,
+                        targetRepositoryState,
+                        cancellationToken);
                 }
 
                 stagedWpfSetupArtifact = setupArtifact;
-                messages.Add($"WPF-Setup für die spätere Veröffentlichung vorbereitet: {stagedWpfSetupArtifact}");
+                var wpfMessage = $"WPF-Artefakte vorbereitet: {stagedWpfSetupArtifact}";
+                messages.Add(wpfMessage);
+                stepTracker.Success(StepBuildWpfArtifacts, wpfMessage);
+                LogStepSuccess(messages, StepBuildWpfArtifacts, wpfMessage);
             }
 
             if (request.BuildApk)
             {
+                LogStepStart(messages, StepBuildApk);
                 var apkArtifact = await BuildAndroidArtifactAsync(request, "apk", cancellationToken, messages);
                 if (string.IsNullOrWhiteSpace(apkArtifact))
                 {
-                    return RollbackFailure("APK-Erzeugung fehlgeschlagen.", backups, messages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
+                    return await RollbackFailureAsync(
+                        "APK-Erzeugung fehlgeschlagen.",
+                        StepBuildApk,
+                        markerWritten,
+                        stepTracker,
+                        backups,
+                        messages,
+                        releaseFolderPath,
+                        artifacts,
+                        releaseFolderExistedBefore,
+                        sourceRepositoryState,
+                        targetRepositoryState,
+                        cancellationToken);
                 }
 
                 stagedApkArtifact = apkArtifact;
-                messages.Add($"APK für die spätere Veröffentlichung vorbereitet: {stagedApkArtifact}");
+                var apkMessage = $"APK vorbereitet: {stagedApkArtifact}";
+                messages.Add(apkMessage);
+                stepTracker.Success(StepBuildApk, apkMessage);
+                LogStepSuccess(messages, StepBuildApk, apkMessage);
             }
 
             if (request.BuildAab)
             {
+                LogStepStart(messages, StepBuildAab);
                 var aabArtifact = await BuildAndroidArtifactAsync(request, "aab", cancellationToken, messages);
                 if (string.IsNullOrWhiteSpace(aabArtifact))
                 {
-                    return RollbackFailure("AAB-Erzeugung fehlgeschlagen.", backups, messages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
+                    return await RollbackFailureAsync(
+                        "AAB-Erzeugung fehlgeschlagen.",
+                        StepBuildAab,
+                        markerWritten,
+                        stepTracker,
+                        backups,
+                        messages,
+                        releaseFolderPath,
+                        artifacts,
+                        releaseFolderExistedBefore,
+                        sourceRepositoryState,
+                        targetRepositoryState,
+                        cancellationToken);
                 }
 
                 stagedAabArtifact = aabArtifact;
-                messages.Add($"AAB für die spätere Veröffentlichung vorbereitet: {stagedAabArtifact}");
+                var aabMessage = $"AAB vorbereitet: {stagedAabArtifact}";
+                messages.Add(aabMessage);
+                stepTracker.Success(StepBuildAab, aabMessage);
+                LogStepSuccess(messages, StepBuildAab, aabMessage);
             }
 
+            LogStepStart(messages, StepPublishArtifacts);
             try
             {
                 PublishArtifacts(
@@ -185,69 +383,224 @@ public sealed class ReleaseExecutionService
             catch (Exception ex)
             {
                 messages.Add($"Veröffentlichung der Artefakte fehlgeschlagen: {ex.Message}");
-                return RollbackFailure("Veröffentlichung der Artefakte fehlgeschlagen.", backups, messages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
+                return await RollbackFailureAsync(
+                    "Veröffentlichung der Artefakte fehlgeschlagen.",
+                    StepPublishArtifacts,
+                    markerWritten,
+                    stepTracker,
+                    backups,
+                    messages,
+                    releaseFolderPath,
+                    artifacts,
+                    releaseFolderExistedBefore,
+                    sourceRepositoryState,
+                    targetRepositoryState,
+                    cancellationToken);
             }
 
-            if (!request.IsDryRun)
+            stepTracker.Success(StepPublishArtifacts, "Veröffentlichungsordner und Zielpfade wurden befüllt.");
+            LogStepSuccess(messages, StepPublishArtifacts, "Veröffentlichungsordner und Zielpfade wurden befüllt.");
+
+            BackupFileIfNeeded(backups, _releaseMarkerService.ResolveProgressLogPath(request.SourceRepoPath));
+            LogStepStart(messages, StepWriteMarker);
+            var markerResult = _releaseMarkerService.AppendReleaseMarker(request.SourceRepoPath, request.TargetVersion);
+            messages.Add(markerResult.Message);
+            if (!markerResult.Success)
             {
-                BackupFileIfNeeded(backups, _releaseMarkerService.ResolveProgressLogPath(request.SourceRepoPath));
-                var markerResult = _releaseMarkerService.AppendReleaseMarker(request.SourceRepoPath, request.TargetVersion);
-                messages.Add(markerResult.Message);
-                if (!markerResult.Success)
-                {
-                    return RollbackFailure("Release-Marker konnte nicht geschrieben werden.", backups, messages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
-                }
+                return await RollbackFailureAsync(
+                    "Release-Marker konnte nicht geschrieben werden.",
+                    StepWriteMarker,
+                    markerWritten,
+                    stepTracker,
+                    backups,
+                    messages,
+                    releaseFolderPath,
+                    artifacts,
+                    releaseFolderExistedBefore,
+                    sourceRepositoryState,
+                    targetRepositoryState,
+                    cancellationToken);
+            }
 
-                var sourceGitResult = await CommitAndPushIfNeededAsync(
-                        request.SourceRepoPath,
-                        _gitCommandService.CreateReleaseCommitMessage(request.TargetVersion, "source release state"),
-                        "Quellrepo Git",
-                        requireChanges: true,
+            markerWritten = true;
+            stepTracker.Success(StepWriteMarker, markerResult.Message);
+            LogStepSuccess(messages, StepWriteMarker, markerResult.Message);
+
+            LogStepStart(messages, StepCommit);
+            var sourceHeadResult = await CaptureOriginalHeadAsync(sourceRepositoryState, messages, cancellationToken);
+            if (!sourceHeadResult.Success)
+            {
+                return await RollbackFailureAsync(
+                    sourceHeadResult.Message,
+                    StepCommit,
+                    markerWritten,
+                    stepTracker,
+                    backups,
+                    messages,
+                    releaseFolderPath,
+                    artifacts,
+                    releaseFolderExistedBefore,
+                    sourceRepositoryState,
+                    targetRepositoryState,
+                    cancellationToken);
+            }
+
+            if (targetRepositoryState is not null)
+            {
+                var targetHeadResult = await CaptureOriginalHeadAsync(targetRepositoryState, messages, cancellationToken);
+                if (!targetHeadResult.Success)
+                {
+                    return await RollbackFailureAsync(
+                        targetHeadResult.Message,
+                        StepCommit,
+                        markerWritten,
+                        stepTracker,
+                        backups,
                         messages,
+                        releaseFolderPath,
+                        artifacts,
+                        releaseFolderExistedBefore,
+                        sourceRepositoryState,
+                        targetRepositoryState,
                         cancellationToken);
-                if (!sourceGitResult.Success)
-                {
-                    return sourceGitResult.CommitCreated
-                        ? CreateGitFailureResult("Commit/Push im Quellrepo fehlgeschlagen. Ein lokaler Commit wurde bereits erstellt; bitte Git-Zustand prüfen.", messages, releaseFolderPath, artifacts)
-                        : RollbackFailure("Commit/Push im Quellrepo fehlgeschlagen.", backups, messages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
-                }
-
-                if (request.BuildWpf)
-                {
-                    var targetGitResult = await CommitAndPushIfNeededAsync(
-                            request.WpfTargetRepoPath,
-                            _gitCommandService.CreateReleaseCommitMessage(request.TargetVersion, "publish WPF setup artifacts"),
-                            "WPF-Zielrepo Git",
-                            requireChanges: false,
-                            messages,
-                            cancellationToken);
-                    if (!targetGitResult.Success)
-                    {
-                        return targetGitResult.CommitCreated
-                            ? CreateGitFailureResult("Commit/Push im WPF-Zielrepo fehlgeschlagen. Ein lokaler Commit wurde bereits erstellt; bitte Git-Zustand prüfen.", messages, releaseFolderPath, artifacts)
-                            : RollbackFailure("Commit/Push im WPF-Zielrepo fehlgeschlagen.", backups, messages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
-                    }
                 }
             }
 
+            var sourceCommitResult = await CommitIfNeededAsync(
+                sourceRepositoryState,
+                _gitCommandService.CreateReleaseCommitMessage(request.TargetVersion, "source release state"),
+                requireChanges: true,
+                messages,
+                cancellationToken);
+            if (!sourceCommitResult.Success)
+            {
+                return await RollbackFailureAsync(
+                    sourceCommitResult.Message,
+                    StepCommit,
+                    markerWritten,
+                    stepTracker,
+                    backups,
+                    messages,
+                    releaseFolderPath,
+                    artifacts,
+                    releaseFolderExistedBefore,
+                    sourceRepositoryState,
+                    targetRepositoryState,
+                    cancellationToken);
+            }
+
+            if (targetRepositoryState is not null)
+            {
+                var targetCommitResult = await CommitIfNeededAsync(
+                    targetRepositoryState,
+                    _gitCommandService.CreateReleaseCommitMessage(request.TargetVersion, "publish WPF setup artifacts"),
+                    requireChanges: false,
+                    messages,
+                    cancellationToken);
+                if (!targetCommitResult.Success)
+                {
+                    return await RollbackFailureAsync(
+                        targetCommitResult.Message,
+                        StepCommit,
+                        markerWritten,
+                        stepTracker,
+                        backups,
+                        messages,
+                        releaseFolderPath,
+                        artifacts,
+                        releaseFolderExistedBefore,
+                        sourceRepositoryState,
+                        targetRepositoryState,
+                        cancellationToken);
+                }
+            }
+
+            var commitMessage = BuildCommitSummary(sourceRepositoryState, targetRepositoryState);
+            stepTracker.Success(StepCommit, commitMessage);
+            LogStepSuccess(messages, StepCommit, commitMessage);
+
+            LogStepStart(messages, StepPush);
+            if (targetRepositoryState is not null)
+            {
+                var targetPushResult = await PushIfNeededAsync(targetRepositoryState, messages, cancellationToken);
+                if (!targetPushResult.Success)
+                {
+                    return await RollbackFailureAsync(
+                        targetPushResult.Message,
+                        StepPush,
+                        markerWritten,
+                        stepTracker,
+                        backups,
+                        messages,
+                        releaseFolderPath,
+                        artifacts,
+                        releaseFolderExistedBefore,
+                        sourceRepositoryState,
+                        targetRepositoryState,
+                        cancellationToken);
+                }
+            }
+
+            var sourcePushResult = await PushIfNeededAsync(sourceRepositoryState, messages, cancellationToken);
+            if (!sourcePushResult.Success)
+            {
+                return await RollbackFailureAsync(
+                    sourcePushResult.Message,
+                    StepPush,
+                    markerWritten,
+                    stepTracker,
+                    backups,
+                    messages,
+                    releaseFolderPath,
+                    artifacts,
+                    releaseFolderExistedBefore,
+                    sourceRepositoryState,
+                    targetRepositoryState,
+                    cancellationToken);
+            }
+
+            var pushMessage = BuildPushSummary(sourceRepositoryState, targetRepositoryState);
+            stepTracker.Success(StepPush, pushMessage);
+            LogStepSuccess(messages, StepPush, pushMessage);
+            stepTracker.Skip(StepRollback, "Kein Rollback erforderlich.");
+            stepTracker.Success(StepCompletion, "Release erfolgreich abgeschlossen.");
             messages.Add("Release erfolgreich abgeschlossen.");
+            AppendFinalEvaluation(messages, ReleaseExecutionOverallState.Successful, markerWritten: true, commitExecuted: true, pushExecuted: true);
+
             return new ReleaseExecutionResult
             {
                 Success = true,
+                OverallState = ReleaseExecutionOverallState.Successful,
+                MarkerWritten = true,
+                CommitExecuted = true,
+                PushExecuted = true,
                 Message = "Release erfolgreich abgeschlossen.",
                 Messages = messages,
                 ArtifactPaths = artifacts,
-                ReleaseFolderPath = releaseFolderPath
+                ReleaseFolderPath = releaseFolderPath,
+                Steps = stepTracker.Build()
             };
         }
         catch (Exception ex)
         {
-            var failureMessages = messages.Append($"Release mit Ausnahme fehlgeschlagen: {ex.Message}").ToList();
-            return RollbackFailure("Release fehlgeschlagen.", backups, failureMessages, releaseFolderPath, artifacts, releaseFolderExistedBefore);
+            messages.Add($"Release mit Ausnahme fehlgeschlagen: {ex.Message}");
+            return await RollbackFailureAsync(
+                "Release mit Ausnahme fehlgeschlagen.",
+                StepCompletion,
+                markerWritten,
+                stepTracker,
+                backups,
+                messages,
+                releaseFolderPath,
+                artifacts,
+                releaseFolderExistedBefore,
+                sourceRepositoryState,
+                targetRepositoryState,
+                cancellationToken);
         }
         finally
         {
-            TryDeleteDirectory(stagingRoot);
+            TryDeleteDirectory(stagingRoot, messages: null);
         }
     }
 
@@ -451,42 +804,440 @@ public sealed class ReleaseExecutionService
         }
     }
 
-    private ReleaseExecutionResult RollbackFailure(
+    private async Task<ReleaseExecutionResult> RollbackFailureAsync(
         string message,
+        string failedStepName,
+        bool markerWritten,
+        ReleaseStepTracker stepTracker,
         List<VersionFileBackup> backups,
         List<string> messages,
         string releaseFolderPath,
-        List<string>? copiedArtifacts = null,
-        bool releaseFolderExistedBefore = true)
+        List<string>? copiedArtifacts,
+        bool releaseFolderExistedBefore,
+        GitRepositoryTransactionState sourceRepositoryState,
+        GitRepositoryTransactionState? targetRepositoryState,
+        CancellationToken cancellationToken)
     {
-        var rolledBack = false;
+        stepTracker.Fail(failedStepName, message);
+        LogStepFailure(messages, failedStepName, message);
+
+        var rollbackRequired = backups.Count > 0
+            || sourceRepositoryState.CommitCreated
+            || sourceRepositoryState.PushCompleted
+            || targetRepositoryState?.CommitCreated == true
+            || targetRepositoryState?.PushCompleted == true;
+
+        if (!rollbackRequired)
+        {
+            stepTracker.Skip(StepRollback, "Kein Rollback erforderlich.");
+            stepTracker.MarkRemainingPendingAsSkipped("Wegen vorherigem Fehler nicht ausgeführt.");
+            var failureSummary = $"Release fehlgeschlagen. Grund: {message}";
+            stepTracker.Fail(StepCompletion, failureSummary);
+            AppendFinalEvaluation(messages, ReleaseExecutionOverallState.Failed, markerWritten: false, commitExecuted: false, pushExecuted: false);
+            return new ReleaseExecutionResult
+            {
+                Success = false,
+                OverallState = ReleaseExecutionOverallState.Failed,
+                Message = failureSummary,
+                Messages = messages,
+                ReleaseFolderPath = releaseFolderPath,
+                ArtifactPaths = copiedArtifacts?.ToList() ?? new List<string>(),
+                Steps = stepTracker.Build()
+            };
+        }
+
+        LogStepStart(messages, StepRollback);
+        var rollbackSucceeded = true;
+        var versionRestoreSucceeded = true;
+        var sourceResetPerformed = false;
+        var targetResetPerformed = false;
+
+        if (targetRepositoryState is not null)
+        {
+            rollbackSucceeded &= await TryRollbackGitRepositoryAsync(targetRepositoryState, messages, cancellationToken);
+            targetResetPerformed = targetRepositoryState.ResetPerformed;
+        }
+
+        rollbackSucceeded &= await TryRollbackGitRepositoryAsync(sourceRepositoryState, messages, cancellationToken);
+        sourceResetPerformed = sourceRepositoryState.ResetPerformed;
 
         if (backups.Count > 0)
         {
-            _releaseVersionFileService.RestoreBackups(backups);
-            messages.Add("Versionsänderungen wurden nach dem Fehler zurückgesetzt.");
-            rolledBack = true;
+            if (sourceRepositoryState.PushCompleted)
+            {
+                rollbackSucceeded = false;
+                versionRestoreSucceeded = false;
+                messages.Add("Versionsänderungen und Marker können nicht automatisch zurückgesetzt werden, weil der Quellrepo-Commit bereits gepusht wurde.");
+            }
+            else if (!sourceResetPerformed)
+            {
+                var restoreResult = _releaseVersionFileService.RestoreBackups(backups);
+                versionRestoreSucceeded = restoreResult.Success;
+                foreach (var restoreMessage in restoreResult.Messages)
+                {
+                    messages.Add(restoreMessage);
+                }
+
+                messages.Add(restoreResult.Success
+                    ? "Versionsänderungen wurden nach dem Fehler zurückgesetzt."
+                    : "Versionsänderungen konnten nur teilweise zurückgesetzt werden.");
+                rollbackSucceeded &= restoreResult.Success;
+            }
+            else
+            {
+                messages.Add("Versionsänderungen wurden durch Git-Rollback auf den Ausgangsstand zurückgesetzt.");
+            }
         }
 
         CleanupArtifacts(copiedArtifacts, messages);
 
         if (!releaseFolderExistedBefore)
         {
-            TryDeleteDirectory(releaseFolderPath);
-            messages.Add($"Unvollständiger Veröffentlichungsordner wurde entfernt: {releaseFolderPath}");
+            if (TryDeleteDirectory(releaseFolderPath, messages))
+            {
+                messages.Add($"Unvollständiger Veröffentlichungsordner wurde entfernt: {releaseFolderPath}");
+            }
+            else
+            {
+                messages.Add($"Unvollständiger Veröffentlichungsordner konnte nicht vollständig entfernt werden: {releaseFolderPath}");
+            }
         }
+
+        stepTracker.MarkRemainingPendingAsSkipped("Wegen vorherigem Fehler nicht ausgeführt.");
+
+        var finalCommitExecuted = sourceRepositoryState.PushCompleted
+            || targetRepositoryState?.PushCompleted == true
+            || (sourceRepositoryState.CommitCreated && !sourceResetPerformed)
+            || (targetRepositoryState?.CommitCreated == true && !targetResetPerformed);
+        var finalPushExecuted = sourceRepositoryState.PushCompleted || targetRepositoryState?.PushCompleted == true;
+        var finalMarkerWritten = markerWritten
+            && (sourceRepositoryState.PushCompleted
+                || (sourceRepositoryState.CommitCreated && !sourceResetPerformed)
+                || !versionRestoreSucceeded);
+
+        var overallState = rollbackSucceeded
+            ? ReleaseExecutionOverallState.FailedRollbackSuccessful
+            : ReleaseExecutionOverallState.FailedRollbackIncomplete;
+        var finalMessage = rollbackSucceeded
+            ? $"Release fehlgeschlagen, Rollback erfolgreich. Grund: {message}"
+            : $"Release fehlgeschlagen, Rollback unvollständig. Grund: {message}";
+
+        if (rollbackSucceeded)
+        {
+            stepTracker.Success(StepRollback, "Rollback erfolgreich abgeschlossen.");
+            LogStepSuccess(messages, StepRollback, "Rollback erfolgreich abgeschlossen.");
+        }
+        else
+        {
+            stepTracker.Fail(StepRollback, "Rollback konnte nur teilweise abgeschlossen werden.");
+            LogStepFailure(messages, StepRollback, "Rollback konnte nur teilweise abgeschlossen werden.");
+        }
+
+        stepTracker.Fail(StepCompletion, finalMessage);
+        AppendFinalEvaluation(messages, overallState, finalMarkerWritten, finalCommitExecuted, finalPushExecuted);
 
         return new ReleaseExecutionResult
         {
             Success = false,
-            RolledBack = rolledBack,
-            Message = message,
+            RolledBack = rollbackSucceeded,
+            OverallState = overallState,
+            MarkerWritten = finalMarkerWritten,
+            CommitExecuted = finalCommitExecuted,
+            PushExecuted = finalPushExecuted,
+            Message = finalMessage,
             Messages = messages,
-            ReleaseFolderPath = releaseFolderPath
+            ReleaseFolderPath = releaseFolderPath,
+            ArtifactPaths = copiedArtifacts?.ToList() ?? new List<string>(),
+            Steps = stepTracker.Build()
         };
     }
 
-    private static void TryDeleteDirectory(string path)
+    private async Task<(bool Success, string Message)> CaptureOriginalHeadAsync(
+        GitRepositoryTransactionState repositoryState,
+        List<string> messages,
+        CancellationToken cancellationToken)
+    {
+        var headResult = await _processExecutionService.RunAsync(
+            _gitCommandService.CreateRevParseHeadCommand(repositoryState.RepositoryPath),
+            $"{repositoryState.DisplayName} Ausgangs-HEAD",
+            cancellationToken);
+        messages.Add(headResult.GetUserFacingMessage());
+        if (!headResult.Success || string.IsNullOrWhiteSpace(headResult.StandardOutput))
+        {
+            return (false, $"{repositoryState.DisplayName}: Ausgangs-Commit konnte nicht gelesen werden.");
+        }
+
+        repositoryState.OriginalHead = headResult.StandardOutput.Trim();
+        messages.Add($"{repositoryState.DisplayName}: Ausgangs-Commit gesichert.");
+        return (true, string.Empty);
+    }
+
+    private async Task<(bool Success, string Message)> CommitIfNeededAsync(
+        GitRepositoryTransactionState repositoryState,
+        string commitMessage,
+        bool requireChanges,
+        List<string> messages,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(repositoryState.RepositoryPath) || !Directory.Exists(repositoryState.RepositoryPath))
+        {
+            var missingMessage = $"{repositoryState.DisplayName}: Repositorypfad wurde nicht gefunden: {repositoryState.RepositoryPath}";
+            messages.Add(missingMessage);
+            return (false, missingMessage);
+        }
+
+        var statusResult = await _processExecutionService.RunAsync(
+            _gitCommandService.CreatePorcelainStatusCommand(repositoryState.RepositoryPath),
+            $"{repositoryState.DisplayName} Status",
+            cancellationToken);
+        messages.Add(statusResult.GetUserFacingMessage());
+        if (!statusResult.Success)
+        {
+            return (false, $"{repositoryState.DisplayName}: Status konnte nicht gelesen werden.");
+        }
+
+        var hasChanges = !string.IsNullOrWhiteSpace(statusResult.StandardOutput);
+        if (!hasChanges)
+        {
+            if (requireChanges)
+            {
+                var noChangesMessage = $"{repositoryState.DisplayName}: Es wurden keine commitbaren Änderungen gefunden.";
+                messages.Add(noChangesMessage);
+                return (false, noChangesMessage);
+            }
+
+            messages.Add($"{repositoryState.DisplayName}: Keine neuen Änderungen für einen Commit gefunden.");
+            return (true, string.Empty);
+        }
+
+        var addResult = await _processExecutionService.RunAsync(
+            _gitCommandService.CreateAddAllCommand(repositoryState.RepositoryPath),
+            $"{repositoryState.DisplayName} Add",
+            cancellationToken);
+        messages.Add(addResult.GetUserFacingMessage());
+        if (!addResult.Success)
+        {
+            return (false, $"{repositoryState.DisplayName}: Änderungen konnten nicht gestaged werden.");
+        }
+
+        var commitResult = await _processExecutionService.RunAsync(
+            _gitCommandService.CreateCommitCommand(repositoryState.RepositoryPath, commitMessage),
+            $"{repositoryState.DisplayName} Commit",
+            cancellationToken);
+        messages.Add(commitResult.GetUserFacingMessage());
+        if (!commitResult.Success)
+        {
+            return (false, $"{repositoryState.DisplayName}: Commit konnte nicht erstellt werden.");
+        }
+
+        repositoryState.CommitCreated = true;
+        return (true, string.Empty);
+    }
+
+    private async Task<(bool Success, string Message)> PushIfNeededAsync(
+        GitRepositoryTransactionState repositoryState,
+        List<string> messages,
+        CancellationToken cancellationToken)
+    {
+        if (!repositoryState.CommitCreated)
+        {
+            messages.Add($"{repositoryState.DisplayName}: Kein lokaler Commit zum Push vorhanden.");
+            return (true, string.Empty);
+        }
+
+        var pushResult = await _processExecutionService.RunAsync(
+            _gitCommandService.CreatePushCommand(repositoryState.RepositoryPath),
+            $"{repositoryState.DisplayName} Push",
+            cancellationToken);
+        messages.Add(pushResult.GetUserFacingMessage());
+        if (!pushResult.Success)
+        {
+            return (false, $"{repositoryState.DisplayName}: Push fehlgeschlagen.");
+        }
+
+        repositoryState.PushCompleted = true;
+        return (true, string.Empty);
+    }
+
+    private async Task<bool> TryRollbackGitRepositoryAsync(
+        GitRepositoryTransactionState repositoryState,
+        List<string> messages,
+        CancellationToken cancellationToken)
+    {
+        if (!repositoryState.CommitCreated)
+        {
+            return true;
+        }
+
+        if (repositoryState.PushCompleted)
+        {
+            messages.Add($"{repositoryState.DisplayName}: Commit wurde bereits gepusht und kann nicht automatisch zurückgesetzt werden.");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(repositoryState.OriginalHead))
+        {
+            messages.Add($"{repositoryState.DisplayName}: Ausgangs-Commit fehlt für das Git-Rollback.");
+            return false;
+        }
+
+        var resetResult = await _processExecutionService.RunAsync(
+            _gitCommandService.CreateResetHardCommand(repositoryState.RepositoryPath, repositoryState.OriginalHead),
+            $"{repositoryState.DisplayName} Rollback",
+            cancellationToken);
+        messages.Add(resetResult.GetUserFacingMessage());
+        if (!resetResult.Success)
+        {
+            return false;
+        }
+
+        repositoryState.ResetPerformed = true;
+        messages.Add($"{repositoryState.DisplayName}: Lokaler Commit wurde auf den Ausgangsstand zurückgesetzt.");
+        return true;
+    }
+
+    private (bool Success, string Message) TryReadOriginalVersions(ReleaseExecutionRequest request, List<string> messages)
+    {
+        var versionResult = _versionService.DetectVersions(request.SourceRepoPath);
+        if (!string.IsNullOrWhiteSpace(versionResult.StatusMessage))
+        {
+            messages.Add(versionResult.StatusMessage);
+        }
+
+        if (versionResult.HasWarning && !string.IsNullOrWhiteSpace(versionResult.WarningMessage))
+        {
+            messages.Add(versionResult.WarningMessage);
+        }
+
+        if (versionResult.HasError && !string.IsNullOrWhiteSpace(versionResult.ErrorMessage))
+        {
+            return (false, versionResult.ErrorMessage);
+        }
+
+        if (request.BuildWpf && !versionResult.IsWpfVersionDetected)
+        {
+            return (false, "Ausgangsversion für WPF konnte nicht gelesen werden.");
+        }
+
+        if ((request.BuildApk || request.BuildAab) && !versionResult.IsAndroidVersionDetected)
+        {
+            return (false, "Ausgangsversion für Android konnte nicht gelesen werden.");
+        }
+
+        var versionParts = new List<string>();
+        if (request.BuildWpf)
+        {
+            versionParts.Add($"WPF {versionResult.WpfVersion}");
+        }
+
+        if (request.BuildApk || request.BuildAab)
+        {
+            versionParts.Add($"Android {versionResult.AndroidVersion}");
+        }
+
+        var message = versionParts.Count == 0
+            ? "Keine Produktversionen für diesen Lauf ausgewählt."
+            : $"Ausgangsversionen gelesen: {string.Join(" / ", versionParts)}";
+        return (true, message);
+    }
+
+    private static ReleaseStepTracker CreateStepTracker()
+        => new([
+            StepReadOriginalVersions,
+            StepWriteVersions,
+            StepBuildWpfArtifacts,
+            StepBuildApk,
+            StepBuildAab,
+            StepPublishArtifacts,
+            StepWriteMarker,
+            StepCommit,
+            StepPush,
+            StepRollback,
+            StepCompletion
+        ]);
+
+    private static void ApplySelectionSkips(ReleaseStepTracker stepTracker, ReleaseExecutionRequest request)
+    {
+        if (!request.BuildWpf)
+        {
+            stepTracker.Skip(StepBuildWpfArtifacts, "Für diesen Lauf nicht ausgewählt.");
+        }
+
+        if (!request.BuildApk)
+        {
+            stepTracker.Skip(StepBuildApk, "Für diesen Lauf nicht ausgewählt.");
+        }
+
+        if (!request.BuildAab)
+        {
+            stepTracker.Skip(StepBuildAab, "Für diesen Lauf nicht ausgewählt.");
+        }
+    }
+
+    private static string BuildCommitSummary(GitRepositoryTransactionState sourceRepositoryState, GitRepositoryTransactionState? targetRepositoryState)
+    {
+        var parts = new List<string>
+        {
+            sourceRepositoryState.CommitCreated
+                ? "Quellrepo lokal commitet"
+                : "Quellrepo ohne neuen lokalen Commit"
+        };
+
+        if (targetRepositoryState is not null)
+        {
+            parts.Add(targetRepositoryState.CommitCreated
+                ? "WPF-Zielrepo lokal commitet"
+                : "WPF-Zielrepo ohne neuen lokalen Commit");
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    private static string BuildPushSummary(GitRepositoryTransactionState sourceRepositoryState, GitRepositoryTransactionState? targetRepositoryState)
+    {
+        var parts = new List<string>();
+        if (targetRepositoryState is not null)
+        {
+            parts.Add(targetRepositoryState.PushCompleted
+                ? "WPF-Zielrepo gepusht"
+                : "WPF-Zielrepo ohne Push");
+        }
+
+        parts.Add(sourceRepositoryState.PushCompleted
+            ? "Quellrepo gepusht"
+            : "Quellrepo ohne Push");
+        return string.Join(", ", parts);
+    }
+
+    private static void LogStepStart(List<string> messages, string stepName)
+        => messages.Add($"Release-Schritt gestartet: {stepName}");
+
+    private static void LogStepSuccess(List<string> messages, string stepName, string message)
+        => messages.Add($"Release-Schritt erfolgreich: {stepName}. {message}");
+
+    private static void LogStepFailure(List<string> messages, string stepName, string message)
+        => messages.Add($"Release-Schritt fehlgeschlagen: {stepName}. {message}");
+
+    private static void AppendFinalEvaluation(
+        List<string> messages,
+        ReleaseExecutionOverallState overallState,
+        bool markerWritten,
+        bool commitExecuted,
+        bool pushExecuted)
+    {
+        messages.Add($"Marker final: {(markerWritten ? "ja" : "nein")}");
+        messages.Add($"Commit final: {(commitExecuted ? "ja" : "nein")}");
+        messages.Add($"Push final: {(pushExecuted ? "ja" : "nein")}");
+        messages.Add($"Gesamtbewertung: {overallState switch
+        {
+            ReleaseExecutionOverallState.Successful => "erfolgreich",
+            ReleaseExecutionOverallState.FailedRollbackSuccessful => "fehlgeschlagen, rollback erfolgreich",
+            ReleaseExecutionOverallState.FailedRollbackIncomplete => "fehlgeschlagen, rollback unvollständig",
+            _ => "fehlgeschlagen"
+        }}");
+    }
+
+    private static bool TryDeleteDirectory(string path, List<string>? messages)
     {
         try
         {
@@ -494,9 +1245,13 @@ public sealed class ReleaseExecutionService
             {
                 Directory.Delete(path, true);
             }
+
+            return true;
         }
-        catch
+        catch (Exception ex)
         {
+            messages?.Add($"Verzeichnis konnte nicht entfernt werden: {path} ({ex.Message})");
+            return false;
         }
     }
 
@@ -524,22 +1279,6 @@ public sealed class ReleaseExecutionService
         }
     }
 
-    private static ReleaseExecutionResult CreateGitFailureResult(
-        string message,
-        List<string> messages,
-        string releaseFolderPath,
-        List<string> artifacts)
-    {
-        return new ReleaseExecutionResult
-        {
-            Success = false,
-            Message = message,
-            Messages = messages,
-            ReleaseFolderPath = releaseFolderPath,
-            ArtifactPaths = artifacts.ToList()
-        };
-    }
-
     private static void BackupFileIfNeeded(ICollection<VersionFileBackup> backups, string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath) || backups.Any(backup => string.Equals(backup.FilePath, filePath, StringComparison.OrdinalIgnoreCase)))
@@ -554,68 +1293,83 @@ public sealed class ReleaseExecutionService
         });
     }
 
-    private async Task<(bool Success, bool CommitCreated)> CommitAndPushIfNeededAsync(
-        string repositoryPath,
-        string commitMessage,
-        string stepPrefix,
-        bool requireChanges,
-        List<string> messages,
-        CancellationToken cancellationToken)
+    private sealed class GitRepositoryTransactionState
     {
-        if (string.IsNullOrWhiteSpace(repositoryPath) || !Directory.Exists(repositoryPath))
+        public GitRepositoryTransactionState(string repositoryPath, string displayName)
         {
-            messages.Add($"{stepPrefix}: Repositorypfad wurde nicht gefunden: {repositoryPath}");
-            return (false, false);
+            RepositoryPath = repositoryPath;
+            DisplayName = displayName;
         }
 
-        var statusResult = await _processExecutionService.RunAsync(
-            _gitCommandService.CreatePorcelainStatusCommand(repositoryPath),
-            $"{stepPrefix} Status",
-            cancellationToken);
-        messages.Add(statusResult.GetUserFacingMessage());
-        if (!statusResult.Success)
+        public string RepositoryPath { get; }
+        public string DisplayName { get; }
+        public string OriginalHead { get; set; } = string.Empty;
+        public bool CommitCreated { get; set; }
+        public bool PushCompleted { get; set; }
+        public bool ResetPerformed { get; set; }
+    }
+
+    private sealed class ReleaseStepTracker
+    {
+        private readonly IReadOnlyList<string> _stepOrder;
+        private readonly Dictionary<string, ReleaseExecutionStepResult> _steps;
+
+        public ReleaseStepTracker(IReadOnlyList<string> stepOrder)
         {
-            return (false, false);
+            _stepOrder = stepOrder;
+            _steps = stepOrder.ToDictionary(
+                step => step,
+                step => new ReleaseExecutionStepResult
+                {
+                    Name = step,
+                    State = ReleaseExecutionStepState.Pending,
+                    Message = "Noch nicht ausgeführt."
+                },
+                StringComparer.Ordinal);
         }
 
-        var hasChanges = !string.IsNullOrWhiteSpace(statusResult.StandardOutput);
-        if (!hasChanges)
+        public void Success(string stepName, string message)
         {
-            if (requireChanges)
+            Update(stepName, ReleaseExecutionStepState.Successful, message);
+        }
+
+        public void Fail(string stepName, string message)
+        {
+            Update(stepName, ReleaseExecutionStepState.Failed, message);
+        }
+
+        public void Skip(string stepName, string message)
+        {
+            if (_steps.TryGetValue(stepName, out var step)
+                && step.State is ReleaseExecutionStepState.Successful or ReleaseExecutionStepState.Failed)
             {
-                messages.Add($"{stepPrefix}: Es wurden keine commitbaren Änderungen gefunden.");
-                return (false, false);
+                return;
             }
 
-            messages.Add($"{stepPrefix}: Keine neuen Änderungen für Commit/Push gefunden.");
-            return (true, false);
+            Update(stepName, ReleaseExecutionStepState.Skipped, message);
         }
 
-        var addResult = await _processExecutionService.RunAsync(
-            _gitCommandService.CreateAddAllCommand(repositoryPath),
-            $"{stepPrefix} Add",
-            cancellationToken);
-        messages.Add(addResult.GetUserFacingMessage());
-        if (!addResult.Success)
+        public void MarkRemainingPendingAsSkipped(string message)
         {
-            return (false, false);
+            foreach (var step in _steps.Values.Where(step => step.State == ReleaseExecutionStepState.Pending))
+            {
+                step.State = ReleaseExecutionStepState.Skipped;
+                step.Message = message;
+            }
         }
 
-        var commitResult = await _processExecutionService.RunAsync(
-            _gitCommandService.CreateCommitCommand(repositoryPath, commitMessage),
-            $"{stepPrefix} Commit",
-            cancellationToken);
-        messages.Add(commitResult.GetUserFacingMessage());
-        if (!commitResult.Success)
+        public IReadOnlyList<ReleaseExecutionStepResult> Build()
+            => _stepOrder.Select(stepName => _steps[stepName]).ToList();
+
+        private void Update(string stepName, ReleaseExecutionStepState state, string message)
         {
-            return (false, false);
-        }
+            if (!_steps.TryGetValue(stepName, out var step))
+            {
+                return;
+            }
 
-        var pushResult = await _processExecutionService.RunAsync(
-            _gitCommandService.CreatePushCommand(repositoryPath),
-            $"{stepPrefix} Push",
-            cancellationToken);
-        messages.Add(pushResult.GetUserFacingMessage());
-        return (pushResult.Success, true);
+            step.State = state;
+            step.Message = message;
+        }
     }
 }

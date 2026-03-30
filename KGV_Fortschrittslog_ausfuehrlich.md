@@ -2,6 +2,84 @@
 
 ---
 
+## 2026-03-30 – Prompt 2/2: Release Manager transaktional gehärtet, Rollback präzisiert und Abschlussstatus sichtbar gemacht
+
+- Vor Beginn den echten Git-Stand gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main a97d047 [origin/main] Add release manager preflight system check`
+  - `git log --oneline --decorate HEAD..origin/main` => leer
+  - `git log --oneline --decorate origin/main..HEAD` => leer
+- Ehrlicher Git-Befund zu Beginn:
+  - lokaler Stand und `origin/main` waren identisch
+  - keine ungepushten lokalen Commits
+  - keine uncommitteten lokalen Änderungen
+- Danach nur den direkt betroffenen Release-Manager-Pfad gelesen:
+  - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseMarkerService.cs`
+  - `KGV.ReleaseManager/Services/VersionService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseFolderService.cs`
+  - `KGV.ReleaseManager/Services/ReleaseVersionFileService.cs`
+  - `KGV.ReleaseManager/Services/GitCommandService.cs`
+  - `KGV.ReleaseManager/ViewModels/MainViewModel.cs`
+  - `KGV.ReleaseManager/MainWindow.xaml`
+  - `KGV.ReleaseManager/MainWindow.xaml.cs`
+  - `KGV.ReleaseManager/Models/ReleaseExecutionRequest.cs`
+  - `KGV.ReleaseManager/Models/ReleaseExecutionResult.cs`
+- Ehrlicher Istzustand vor dem Umbau:
+  - der echte Release lief bereits über Versionsschreiben -> Build(s) -> Artefaktveröffentlichung -> Marker -> Git
+  - Versionen wurden über `ReleaseVersionFileService.WriteTargetVersion(...)` erhöht
+  - Rücksetzen lief bisher nur grob über Dateibackups in `RollbackFailure(...)`
+  - Marker wurde vor Commit/Push geschrieben
+  - Commit und Push liefen noch als zusammengezogener Pfad; bei Fehlern nach lokalem Commit blieb der Zustand nicht mehr streng transaktional ausgewertet
+  - im UI fehlte zusätzlich eine klare Release-Schrittliste mit Abschlussstatus `erfolgreich` / `fehlgeschlagen` / `fehlgeschlagen, rollback erfolgreich` / `fehlgeschlagen, rollback unvollständig`
+- Minimal im bestehenden Pfad umgesetzt:
+  - neue Ergebnis-/Statusmodelle für Gesamtstatus, Schrittergebnisse und Restore-Ergebnis ergänzt
+  - `ReleaseExecutionService` intern auf nachvollziehbare fachliche Schrittkette gezogen:
+    - Ausgangsversionen lesen
+    - Versionen erhöhen/schreiben
+    - WPF-Artefakte bauen
+    - Android-APK bauen
+    - Android-AAB bauen
+    - Veröffentlichungsordner befüllen
+    - Marker schreiben
+    - Commit ausführen
+    - Push ausführen
+    - Rollback
+    - Abschluss
+  - `VersionService` wird jetzt auch im echten Releasepfad verwendet, damit der Lauf die Ausgangsversionen ausdrücklich liest und protokolliert
+  - `ReleaseVersionFileService.RestoreBackups(...)` liefert jetzt ein echtes Restore-Ergebnis statt nur still Dateien zurückzuschreiben
+  - lokales Git-Rollback ergänzt:
+    - ursprüngliche HEADs werden vor Commit erfasst
+    - lokale Commits können bei Fehlern vor erfolgreichem Push per `reset --hard` zurückgesetzt werden
+  - Push-Reihenfolge so gezogen, dass das markerführende Quellrepo zuletzt gepusht wird
+  - bei bereits erfolgtem Push wird der Zustand jetzt bewusst ehrlich als `rollback unvollständig` gemeldet statt als scheinbar sauberer Vollrollback
+  - `ReleaseExecutionResult` enthält jetzt zusätzlich:
+    - Gesamtstatus
+    - Schrittliste
+    - Marker-/Commit-/Push-Endzustand
+  - der bestehende Statusbereich im UI zeigt jetzt zusätzlich:
+    - Abschlussstatus
+    - Release-Schrittliste
+    - bestehendes Ausgabelog weiterhin darunter
+  - `MainWindow.xaml.cs` übernimmt echte Release-Ergebnisse jetzt sichtbar in den ViewModel-Status; auch preflight-/settings-blockierte Läufe räumen den alten Schrittzustand sauber weg
+- Logging erweitert:
+  - Start echter Release
+  - Start/Erfolg/Fehler je Schritt
+  - Rollback gestartet / erfolgreich / unvollständig
+  - Marker final ja/nein
+  - Commit final ja/nein
+  - Push final ja/nein
+  - finale Gesamtbewertung
+- Belastbar validiert:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
+- Logische Einordnung:
+  - Dry Run bleibt markerfrei und ohne dauerhafte Änderungen
+  - Fehler nach Versionsschreiben laufen jetzt sauber in einen Rollbackpfad mit unterscheidbarer Erfolgs-/Teilfehlerbewertung
+  - Marker/Commit/Push werden nur im Vollerfolg final als `ja` bewertet
+  - ein verteilter Remote-Rollback nach bereits erfolgtem Push wird nicht vorgetäuscht; dieser Fall landet ehrlich in `rollback unvollständig`
+
 ## 2026-03-29 – Prompt 1/2: Release Manager um sichtbaren Preflight-/Systemcheck vor Dry Run und Echt-Release erweitert
 
 - Vor Beginn den echten Git-Stand gegen `origin/main` geprüft:

@@ -44,10 +44,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private string _settingsStoragePath = string.Empty;
     private string _preflightOverallStateText = "Noch nicht geprüft.";
     private string _preflightSummaryText = "Systemcheck wurde noch nicht ausgeführt.";
+    private string _releaseResultOverallStateText = "Noch kein Abschlussstatus vorhanden.";
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ObservableCollection<ReleasePreflightCheckResult> PreflightChecks { get; } = [];
+    public ObservableCollection<ReleaseExecutionStepResult> ReleaseSteps { get; } = [];
 
     public ReleaseManagerSettings Settings
     {
@@ -267,6 +269,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set { _preflightSummaryText = value; OnPropertyChanged(); }
     }
 
+    public string ReleaseResultOverallStateText
+    {
+        get => _releaseResultOverallStateText;
+        set { _releaseResultOverallStateText = value; OnPropertyChanged(); }
+    }
+
     public IReadOnlyList<string> ValidateSettings()
     {
         Settings.Normalize();
@@ -382,6 +390,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         PreflightOverallStateText = $"Systemcheck: {result.OverallStateText}";
         PreflightSummaryText = result.SummaryMessage;
+    }
+
+    public void ApplyReleaseExecutionResult(ReleaseExecutionResult result)
+    {
+        ReleaseSteps.Clear();
+        foreach (var step in result.Steps)
+        {
+            ReleaseSteps.Add(step);
+        }
+
+        ReleaseResultOverallStateText = $"Abschlussstatus: {result.OverallStateText}";
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

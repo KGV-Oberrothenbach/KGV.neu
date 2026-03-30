@@ -70,7 +70,8 @@ public partial class MainWindow : Window
             new ReleaseVersionFileService(),
             releaseArtifactService,
             gitCommandService,
-            _releaseMarkerService);
+            _releaseMarkerService,
+            _versionService);
         _runtimeSecretPromptService = new RuntimeSecretPromptService();
 
         _viewModel = new MainViewModel();
@@ -330,6 +331,13 @@ public partial class MainWindow : Window
             var preventedMessage = isDryRun
                 ? "Dry Run wegen fehlgeschlagenem Systemcheck verhindert."
                 : "Release wegen fehlgeschlagenem Systemcheck verhindert.";
+            _viewModel.ApplyReleaseExecutionResult(new ReleaseExecutionResult
+            {
+                Success = false,
+                PreventedByPreflight = true,
+                OverallState = ReleaseExecutionOverallState.Failed,
+                Message = preventedMessage
+            });
             _viewModel.ReleaseStateText = preventedMessage;
             _viewModel.AppendStatus(preventedMessage);
             MessageBox.Show(preflightResult.SummaryMessage, isDryRun ? "Dry Run" : "Release starten", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -340,6 +348,12 @@ public partial class MainWindow : Window
         if (validationErrors.Count > 0)
         {
             var message = string.Join(Environment.NewLine, validationErrors);
+            _viewModel.ApplyReleaseExecutionResult(new ReleaseExecutionResult
+            {
+                Success = false,
+                OverallState = ReleaseExecutionOverallState.Failed,
+                Message = "Settings unvollständig."
+            });
             _viewModel.ReleaseStateText = "Settings unvollständig.";
             _viewModel.AppendStatus(message);
             MessageBox.Show(message, isDryRun ? "Dry Run" : "Release starten", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -389,6 +403,7 @@ public partial class MainWindow : Window
             _viewModel.AppendStatus(line);
         }
 
+        _viewModel.ApplyReleaseExecutionResult(result);
         _viewModel.ReleaseStateText = result.Message;
         _viewModel.ReleaseFolderStatusText = string.IsNullOrWhiteSpace(result.ReleaseFolderPath)
             ? _viewModel.ReleaseFolderStatusText
