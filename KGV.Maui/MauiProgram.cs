@@ -75,6 +75,7 @@ public static class MauiProgram
         builder.Services.AddTransient<ArbeitseinsaetzeManagementPage>();
         builder.Services.AddTransient<ArbeitseinsaetzeEditorPage>();
         builder.Services.AddTransient<ExportPage>();
+        builder.Services.AddTransient<ImpressumPage>();
         builder.Services.AddTransient<MemberSearchViewModel>();
         builder.Services.AddTransient<MemberSearchPage>();
         builder.Services.AddTransient<MemberDetailPage>();

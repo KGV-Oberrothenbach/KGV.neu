@@ -230,6 +230,13 @@ namespace KGV.ViewModels
                 IsVisible = true
             });
 
+            NavigationItems.Add(new NavigationItem
+            {
+                Title = "Impressum",
+                ViewModelType = typeof(ImpressumViewModel),
+                IsVisible = true
+            });
+
             if (UserContext.Has(PermissionFlags.CanSeeOwnDataOnly))
             {
                 NavigationItems.Add(new NavigationItem

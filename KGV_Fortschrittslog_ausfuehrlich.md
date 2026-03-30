@@ -2,6 +2,66 @@
 
 ---
 
+## 2026-03-30 – Abschluss-Prompt: Impressum-Block in MAUI und WPF sauber fertiggestellt
+
+- Ausgangslage real auf dem lokalen begonnenen Stand geprüft:
+  - `git status -sb` => `## main...origin/main`
+  - `git log --oneline -n 1` => `300a835 WPF Zählerwechsel auf Korrekturflow über Parzelle umgestellt`
+  - damit wurde der laufende Impressum-Block exakt auf dem vorhandenen Arbeitsstand nach `300a835` weitergeführt und nicht neu implementiert
+- Gleichzeitig real im Arbeitsbaum sichtbar, aber bewusst **nicht** Teil dieses Abschlussblocks:
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Core/Models/InviteUserAccountResult.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Wpf/KGV.Wpf.csproj`
+  - `KGV.Core/Models/MemberUserLinkStatus.cs`
+  - `KGV.Core/Models/MemberUserLinkStatusDto.cs`
+  - `AWR.bat`
+  - `Android_Wpf_release_batch_v4.bat`
+- Direkt betroffene Dateien dieses Impressum-Blocks:
+  - Shared/Core:
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Core/Models/ImpressumFunktionSlotRecord.cs`
+    - `KGV.Core/Models/ImpressumInfo.cs`
+    - `KGV.Core/Models/ImpressumKontaktItem.cs`
+  - Infrastructure:
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - MAUI:
+    - `KGV.Maui/Pages/ImpressumPage.cs`
+    - `KGV.Maui/MauiProgram.cs`
+    - `KGV.Maui/ShellRouteRegistrar.cs`
+    - `KGV.Maui/AdminShell.cs`
+    - `KGV.Maui/UserShell.cs`
+  - WPF:
+    - `KGV.Wpf/ViewModels/ImpressumViewModel.cs`
+    - `KGV.Wpf/Views/ImpressumView.xaml`
+    - `KGV.Wpf/Views/ImpressumView.xaml.cs`
+    - `KGV.Wpf/Infrastructure/Services/NavigationService.cs`
+    - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+    - `KGV.Wpf/App.xaml`
+  - Logs:
+    - `DEV_LOG.md`
+    - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Fachlich minimal umgesetzt bzw. bestätigt:
+  - eigenes produktives Impressum in MAUI als ruhige Leseseite
+  - eigenes produktives Impressum in WPF als ruhige Leseseite
+  - statische Vereinsangaben fest eingebaut:
+    - `Kleingartenverein Oberrothenbach e.V.`
+    - `Amtsgericht Chemnitz VR 70502`
+  - dynamische Bereiche `Vorstand` und `Bauausschuss` lesen die realen Daten über den gemeinsamen Supabase-Lesepfad auf `impressum_funktion_slot`
+  - es wurden keine Fantasiefelder ergänzt; angezeigt werden nur Daten, die über `funktion`, `mitglied_id` und reale `mitglied`-Felder ableitbar sind
+  - fehlende oder unvollständige Einträge werden neutral mit sauberem Fallback angezeigt; keine Bearbeitung, keine Speichern-Buttons, keine Admin-Sonderlogik
+  - MAUI-Menüpunkt in `AdminShell` und `UserShell` bestätigt
+  - WPF-Navigationseintrag in `MainWindowViewModel` bestätigt
+- Echter technischer Rest dieses Abschluss-Prompts:
+  - `KGV.Maui/Pages/ImpressumPage.cs` baute lokal noch nicht wegen nicht aufgelöstem `RoundRectangle`
+  - minimal geschlossen durch `using Microsoft.Maui.Controls.Shapes;`
+  - keine weitere Impressum-Logik musste geändert werden
+- Validierung nach dem finalen Minimalfix:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly -v:q` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly -v:q` => erfolgreich
+  - damit ist der begonnene Impressum-Block fachlich und technisch abgeschlossen
+
 ## 2026-03-30 – Prompt 1/2: WPF Zählerwechsel von RFID-Scan auf Korrekturflow über Gartennummer/Parzelle umgestellt
 
 - Git-Stand vor dem Block gegen `origin/main` geprüft:

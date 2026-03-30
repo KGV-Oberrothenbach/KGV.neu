@@ -36,6 +36,7 @@ internal static class ShellRouteRegistrar
         Routing.RegisterRoute(nameof(ArbeitseinsaetzeManagementPage), typeof(ArbeitseinsaetzeManagementPage));
         Routing.RegisterRoute(nameof(ArbeitseinsaetzeEditorPage), typeof(ArbeitseinsaetzeEditorPage));
         Routing.RegisterRoute(nameof(ExportPage), typeof(ExportPage));
+        Routing.RegisterRoute(nameof(ImpressumPage), typeof(ImpressumPage));
         Routing.RegisterRoute(nameof(MyArbeitsstundenPage), typeof(MyArbeitsstundenPage));
         Routing.RegisterRoute(nameof(ArbeitsstundenEditorPage), typeof(ArbeitsstundenEditorPage));
         Routing.RegisterRoute(nameof(ArbeitsstundenReviewDetailPage), typeof(ArbeitsstundenReviewDetailPage));

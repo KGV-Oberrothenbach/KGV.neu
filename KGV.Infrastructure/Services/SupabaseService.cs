@@ -64,6 +64,40 @@ namespace KGV.Infrastructure.Services
             },
             new List<MitgliedRecord>());
 
+        public Task<ImpressumInfo> GetImpressumInfoAsync() => ExecuteAsync(
+            "GetImpressumInfoAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var slotsResponse = await client.From<ImpressumFunktionSlotRecord>().Get();
+                var slots = slotsResponse?.Models?
+                    .OrderBy(x => x.SortOrder)
+                    .ThenBy(x => x.SlotKey ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList()
+                    ?? new List<ImpressumFunktionSlotRecord>();
+
+                if (slots.Count == 0)
+                    return new ImpressumInfo();
+
+                var members = await GetMitgliederAsync();
+                var membersById = members
+                    .Where(x => x.Id > 0)
+                    .ToDictionary(x => (long)x.Id, x => x);
+
+                var info = new ImpressumInfo();
+                foreach (var slot in slots)
+                {
+                    var item = CreateImpressumKontaktItem(slot, membersById);
+                    if (IsBauausschussSlot(slot))
+                        info.Bauausschuss.Add(item);
+                    else
+                        info.Vorstand.Add(item);
+                }
+
+                return info;
+            },
+            new ImpressumInfo());
+
         public Task<MitgliedRecord?> GetMitgliedByIdAsync(int mitgliedId) => ExecuteAsync<MitgliedRecord?>(
             "GetMitgliedByIdAsync",
             async () =>
@@ -2864,6 +2898,60 @@ namespace KGV.Infrastructure.Services
 
             return (!start.HasValue || start.Value <= target)
                 && (!end.HasValue || end.Value >= target);
+        }
+
+        private static ImpressumKontaktItem CreateImpressumKontaktItem(ImpressumFunktionSlotRecord slot, IReadOnlyDictionary<long, MitgliedRecord> membersById)
+        {
+            MitgliedRecord? member = null;
+            if (slot.MitgliedId.HasValue && membersById.TryGetValue(slot.MitgliedId.Value, out var resolvedMember))
+                member = resolvedMember;
+
+            return new ImpressumKontaktItem
+            {
+                Funktion = string.IsNullOrWhiteSpace(slot.Funktion) ? "Funktion" : slot.Funktion.Trim(),
+                Name = BuildImpressumDisplayName(member),
+                Email = string.IsNullOrWhiteSpace(member?.Email) ? string.Empty : member!.Email!.Trim(),
+                Telefon = BuildImpressumTelefon(member)
+            };
+        }
+
+        private static bool IsBauausschussSlot(ImpressumFunktionSlotRecord slot)
+        {
+            var slotKey = (slot.SlotKey ?? string.Empty).Trim().ToLowerInvariant();
+            var funktion = (slot.Funktion ?? string.Empty).Trim().ToLowerInvariant();
+
+            return slotKey.Contains("bauausschuss", StringComparison.Ordinal)
+                || slotKey.Contains("ausschuss", StringComparison.Ordinal)
+                || slotKey.Contains("bau", StringComparison.Ordinal)
+                || funktion.Contains("bauausschuss", StringComparison.Ordinal)
+                || funktion.Contains("bau-ausschuss", StringComparison.Ordinal)
+                || funktion.Contains("bau ausschuss", StringComparison.Ordinal)
+                || (funktion.Contains("bau", StringComparison.Ordinal) && funktion.Contains("ausschuss", StringComparison.Ordinal));
+        }
+
+        private static string BuildImpressumDisplayName(MitgliedRecord? member)
+        {
+            if (member == null)
+                return "Aktuell nicht hinterlegt.";
+
+            var fullName = string.Join(" ", new[] { member.Vorname, member.Name }
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim()));
+
+            return string.IsNullOrWhiteSpace(fullName)
+                ? "Aktuell nicht hinterlegt."
+                : fullName;
+        }
+
+        private static string BuildImpressumTelefon(MitgliedRecord? member)
+        {
+            if (member == null)
+                return string.Empty;
+
+            return string.Join(" / ", new[] { member.Telefon, member.Handy }
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .Distinct(StringComparer.CurrentCultureIgnoreCase));
         }
 
         private static WartungsvertragOverviewItem CreateWartungsvertragOverviewItem(

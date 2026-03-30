@@ -31,6 +31,7 @@ public sealed class UserShell : Shell, IAppShellInitializer
         Items.Clear();
 
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
+        Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
         Items.Add(CreateItem("↳ Stammdaten", "mydetails", CreateOwnMemberDetailsPage));
         Items.Add(CreateItem("↳ Wartungsverträge", "my_wartungsvertraege", CreateOwnMemberWartungsvertraegePage));
         Items.Add(CreateItem("↳ Nebenmitglied", "nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
