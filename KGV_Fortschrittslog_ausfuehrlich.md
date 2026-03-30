@@ -2,6 +2,40 @@
 
 ---
 
+## 2026-03-30 – Prompt 1/1: OTP Passwort-Neusetzen Felder nach erfolgreichem OTP in MAUI entsperrt
+
+- Vor dem Block den realen Git-/Repo-Stand geprüft und blockfremde offene Änderungen bewusst nicht als Grundlage verwendet.
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Wpf/ViewModels/LoginViewModel.cs`
+  - `KGV.Wpf/Views/LoginWindow.xaml`
+  - `KGV.Wpf/Views/LoginWindow.xaml.cs`
+  - zur sauberen Abgrenzung zusätzlich `KGV.Wpf/Views/ResetPasswordWindow.xaml` und `KGV.Wpf/ViewModels/ResetPasswordViewModel.cs`
+- Ehrlicher Befund vor dem Fix:
+  - der serverseitige First-Login-OTP-Versand war bereits korrekt und nicht mehr Teil des Restfehlers
+  - der produktiv betroffene Restfehler saß jetzt im MAUI-Clientpfad nach erfolgreicher OTP-Prüfung
+  - `ShowSetPassword()` wechselte in den sichtbaren Passwort-Setzen-Modus
+  - die beiden eigentlichen MAUI-Eingabefelder `newPasswordEntry` und `confirmPasswordEntry` wurden aber initial mit `IsVisible = false` erzeugt
+  - später wurde nur noch der umgebende Feldcontainer sichtbar geschaltet, nicht die `Entry`-Controls selbst
+  - dadurch blieb der Passwort-Reset-Schritt fachlich hängen: sichtbarer Bereich, aber keine editierbaren Passwortfelder
+  - der WPF-Pfad zeigte denselben echten Statefehler im aktuellen Repo-Stand nicht; dort war deshalb kein produktiver Fix nötig
+- Minimal umgesetzt:
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+    - `newPasswordEntry` und `confirmPasswordEntry` nicht mehr dauerhaft unsichtbar erzeugt
+    - nach erfolgreichem OTP setzt `ShowSetPassword()` den Fokus direkt auf `newPasswordEntry`
+  - kein Auth-Service-Umbau
+  - keine Edge-Function-Änderung
+  - kein OTP-Verify-Umbau
+- Fachliches Ergebnis dieses Blocks:
+  - OTP erfolgreich eingeben
+  - Passwortfelder werden im produktiv genutzten MAUI-Pfad aktiv/editierbar
+  - `Neues Passwort setzen` bleibt am Ende des Formulars
+  - der bestehende Ablauf bleibt erhalten:
+    - OTP prüfen
+    - neues Passwort setzen
+    - zurück zum Login
+    - erneute Anmeldung mit neuem Passwort
+
 ## 2026-03-30 – Prompt 2/2: First-Login Edge Function produktiv deployt und live verifiziert
 
 - Für diesen Block wurde der eben abgeschlossene Serverpfad bewusst **nicht** noch einmal fachlich umgebaut.

@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-03-30 – OTP Passwort-Neusetzen: Passwortfelder nach OTP in MAUI entsperrt
+
+- Den realen Repo-/Git-Stand zuerst geprüft; blockfremde offene Änderungen bewusst nicht als Grundlage verwendet.
+- Den tatsächlichen OTP-/SetPassword-Clientpfad geprüft:
+  - MAUI: `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - WPF: `KGV.Wpf/ViewModels/LoginViewModel.cs`, `KGV.Wpf/Views/LoginWindow.xaml`, `KGV.Wpf/Views/LoginWindow.xaml.cs`
+  - WPF-Resetdialog `ResetPasswordWindow` nur zur sauberen Abgrenzung gegengelesen
+- Ehrlicher Befund:
+  - der produktiv betroffene Restfehler sitzt im MAUI-Loginpfad nach erfolgreicher OTP-Prüfung
+  - `ShowSetPassword()` schaltet zwar den sichtbaren Reset-Schritt ein, aber die beiden `Entry`-Controls für neues Passwort und Passwortwiederholung wurden bereits initial mit `IsVisible = false` erzeugt
+  - dadurch blieb nach erfolgreichem OTP der umgebende Feldcontainer sichtbar, die eigentlichen Eingabefelder selbst aber unsichtbar/nicht bedienbar
+  - der WPF-Pfad zeigte denselben echten Statefehler im aktuellen Repo-Stand nicht
+- Minimal korrigiert:
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+    - `newPasswordEntry` und `confirmPasswordEntry` nicht mehr dauerhaft mit `IsVisible = false` erzeugt
+    - nach `ShowSetPassword()` wird der Fokus direkt auf `newPasswordEntry` gesetzt
+- Fachliches Ergebnis:
+  - nach erfolgreicher OTP-Prüfung sind die Felder für neues Passwort und Passwortwiederholung im produktiven MAUI-Pfad wieder editierbar
+  - der bestehende Ablauf bleibt unverändert:
+    - OTP prüfen
+    - neues Passwort setzen
+    - zurück zum Login
+    - erneute Anmeldung mit neuem Passwort
+
 ## 2026-03-30 – First-Login Edge Function produktiv deployt und live verifiziert
 
 - Den bereits umgesetzten Serverpfad nicht erneut umgebaut, sondern nur real deployt und gegen das echte Supabase-Projekt geprüft.

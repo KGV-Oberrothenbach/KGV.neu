@@ -60,8 +60,8 @@ public class LoginPage : ContentPage
             Margin = new Thickness(0, 0, 0, 8)
         };
         var otpEntry = new Entry { Placeholder = "OTP-Code", IsVisible = false };
-        var newPasswordEntry = new Entry { Placeholder = "Neues Passwort", IsPassword = true, BackgroundColor = Colors.Transparent, IsVisible = false };
-        var confirmPasswordEntry = new Entry { Placeholder = "Passwort wiederholen", IsPassword = true, BackgroundColor = Colors.Transparent, IsVisible = false };
+        var newPasswordEntry = new Entry { Placeholder = "Neues Passwort", IsPassword = true, BackgroundColor = Colors.Transparent };
+        var confirmPasswordEntry = new Entry { Placeholder = "Passwort wiederholen", IsPassword = true, BackgroundColor = Colors.Transparent };
         var passwordRulesTitle = new Label { Text = "Passwortbedingungen", FontAttributes = FontAttributes.Bold, IsVisible = false };
         var minLengthRuleLabel = new Label { TextColor = Colors.Gray, IsVisible = false };
         var upperLowerRuleLabel = new Label { TextColor = Colors.Gray, IsVisible = false };
@@ -208,6 +208,7 @@ public class LoginPage : ContentPage
             passwordHintLayout.IsVisible = true;
             setPasswordButton.IsVisible = true;
             UpdatePasswordHintState();
+            Dispatcher.Dispatch(() => newPasswordEntry.Focus());
         }
 
         newPasswordEntry.TextChanged += (_, _) => UpdatePasswordHintState();
