@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-03-30 – Prompt 1/2: Mitgliedskontext in MAUI und WPF auf echtes Admin-Menü umgestellt
+
+- Den realen Git-Stand des geöffneten Repositories zuerst geprüft und nicht auf lokalen Altständen aufgebaut:
+  - `git fetch origin`
+  - `git status --short --branch` => `## main...origin/main`
+  - `git log --oneline -n 1` => `fb15e69 Impressum fachlich auf Kontaktregeln angepasst`
+- Gleichzeitig lagen im Arbeitsbaum bereits blockfremde lokale Änderungen und ungetrackte Dateien außerhalb dieses Blocks; diese wurden bewusst nicht angefasst.
+- Reale Istprüfung der betroffenen Pfade:
+  - MAUI:
+    - `KGV.Maui/AdminShell.cs`
+    - `KGV.Maui/Pages/UserManagementPage.cs`
+    - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+    - `KGV.Maui/MauiProgram.cs`
+    - `KGV.Maui/ShellRouteRegistrar.cs`
+  - WPF:
+    - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+    - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - `KGV.Wpf/ViewModels/UserManagementViewModel.cs`
+    - `KGV.Wpf/Views/AdminRoleView.xaml`
+    - `KGV.Wpf/Infrastructure/Services/NavigationService.cs`
+- Ehrlicher Befund vor der Umstellung:
+  - MAUI hatte im ausgewählten Mitgliedskontext noch den direkten Shell-Eintrag `↳ Benutzerverwaltung`
+  - ein eigener `↳ Admin-Menü`-Pfad existierte dort noch nicht
+  - WPF hatte bereits `↳ Admin-Menü`, zusätzlich aber noch separat `↳ Benutzerverwaltung` in `MemberNavigationItems`
+  - die produktive gebundene Benutzerverwaltung selbst war in beiden Clients bereits vorhanden und auf das ausgewählte Mitglied ausrichtbar
+- Minimal umgesetzt:
+  - **MAUI**
+    - in `KGV.Maui/AdminShell.cs` den direkten Eintrag `↳ Benutzerverwaltung` entfernt
+    - stattdessen `↳ Admin-Menü` im Mitgliedskontext ergänzt
+    - neue kleine `KGV.Maui/Pages/AdminMenuPage.cs` angelegt
+    - die Seite bleibt ruhig und einfach, zeigt das aktuell ausgewählte Mitglied und verlinkt nur die bereits vorhandene produktive Funktion `Benutzerverwaltung`
+    - keine neue Funktionssammlung, keine neue Auth-Schattenlogik
+    - `AdminMenuPage` nur für `Admin` sichtbar, weil sie in diesem Block ausschließlich den Einstieg zur Benutzerverwaltung trägt
+    - `KGV.Maui/MauiProgram.cs` minimal um die neue Seite ergänzt
+  - **WPF**
+    - in `KGV.Wpf/ViewModels/MainWindowViewModel.cs` den separaten direkten Eintrag `↳ Benutzerverwaltung` aus `MemberNavigationItems` entfernt
+    - `↳ Admin-Menü` bleibt der einzige Mitgliedskontext-Einstieg für appuserbezogene Aktionen
+    - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs` minimal um einen gebundenen Öffnen-Pfad zur bestehenden `UserManagementViewModel`-Navigation ergänzt
+    - `KGV.Wpf/Infrastructure/Services/NavigationService.cs` gibt dem Admin-Menü dafür den vorhandenen MainWindow-/Navigationskontext mit
+    - `KGV.Wpf/Views/AdminRoleView.xaml` zeigt `Benutzerverwaltung öffnen` nur für `Admin`
+    - `Vorstand` sieht damit innerhalb dieses Blocks keinen Benutzerverwaltungs-Einstieg mehr
+- Fachliches Ergebnis dieses Blocks:
+  - appuserbezogene Aktionen bleiben auf das aktuell ausgewählte Mitglied bezogen
+  - Benutzerverwaltung hängt im Mitgliedskontext nicht mehr direkt separat, sondern nur noch am Admin-Menü
+  - MAUI und WPF sind für diese Struktur jetzt fachlich gleich ausgerichtet
+  - keine neuen Backend-Endpunkte, kein Auth-Umbau, keine blockfremden Themen geöffnet
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Offene Restpunkte nach diesem Block:
+  - im Arbeitsbaum verbleiben weiterhin blockfremde lokale Änderungen/unge­trackte Dateien außerhalb dieses Prompts
+  - weitere Admin-Menü-Funktionen im Mitgliedskontext sind nicht Teil dieses Blocks und wurden bewusst nicht vorgezogen
+
 ## 2026-03-30 – Abschluss-Prompt: Impressum-Block mit Buildrest sauber abgeschlossen
 
 - Direkt auf dem aktuellen lokalen Arbeitsstand des begonnenen Impressum-Blocks aufgesetzt; kein Neuaufbau und keine neue Impressum-Architektur eröffnet.

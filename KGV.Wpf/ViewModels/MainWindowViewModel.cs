@@ -357,15 +357,6 @@ namespace KGV.ViewModels
                 ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
             });
 
-            MemberNavigationItems.Add(new NavigationItem
-            {
-                Title = "↳ Benutzerverwaltung",
-                ViewModelType = typeof(UserManagementViewModel),
-                IsAdminOnly = true,
-                IsVisible = SelectedMember != null,
-                ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
-            });
-
             if (SelectedMember == null || SelectedParzelle == null)
                 return;
 
@@ -520,12 +511,6 @@ namespace KGV.ViewModels
             }
 
             if (item.ViewModelType == typeof(AdminRoleViewModel))
-            {
-                if (SelectedMember == null) return;
-                parameter = SelectedMember;
-            }
-
-            if (item.ViewModelType == typeof(UserManagementViewModel))
             {
                 if (SelectedMember == null) return;
                 parameter = SelectedMember;

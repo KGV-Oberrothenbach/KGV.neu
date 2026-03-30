@@ -179,7 +179,7 @@ namespace KGV.Infrastructure.Services
                 if (parameter is not MemberDTO member)
                     return null;
 
-                return new AdminRoleViewModel(_supabaseService, _authService, member);
+                return new AdminRoleViewModel(_supabaseService, _authService, member, mainVm, this);
             }
 
             if (viewModelType == typeof(UserManagementViewModel))

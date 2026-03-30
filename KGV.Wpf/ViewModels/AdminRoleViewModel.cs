@@ -13,6 +13,8 @@ namespace KGV.ViewModels
     {
         private readonly ISupabaseService _supabaseService;
         private readonly IAuthService _authService;
+        private readonly MainWindowViewModel _mainWindowViewModel;
+        private readonly INavigationService _navigationService;
 
         private string? _lockUserId;
 
@@ -42,16 +44,21 @@ namespace KGV.ViewModels
         }
 
         public bool IsRoleEditable => SelectedMember.Id != 7;
+        public bool CanOpenUserManagement => _authService.IsAdmin && SelectedMember.Id > 0;
 
         public RelayCommand<object?> SaveCommand { get; }
+        public RelayCommand<object?> OpenUserManagementCommand { get; }
 
-        public AdminRoleViewModel(ISupabaseService supabaseService, IAuthService authService, MemberDTO member)
+        public AdminRoleViewModel(ISupabaseService supabaseService, IAuthService authService, MemberDTO member, MainWindowViewModel mainWindowViewModel, INavigationService navigationService)
         {
             _supabaseService = supabaseService;
             _authService = authService;
             SelectedMember = member;
+            _mainWindowViewModel = mainWindowViewModel;
+            _navigationService = navigationService;
 
             SaveCommand = new RelayCommand<object?>(_ => _ = SaveAsync(), _ => CanSave());
+            OpenUserManagementCommand = new RelayCommand<object?>(_ => _ = OpenUserManagementAsync(), _ => CanOpenUserManagement);
         }
 
         public async Task OnNavigatedToAsync()
@@ -176,6 +183,21 @@ namespace KGV.ViewModels
             {
                 MessageBox.Show($"Fehler beim Speichern: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private async Task OpenUserManagementAsync()
+        {
+            if (!CanOpenUserManagement)
+                return;
+
+            var created = _navigationService.CreateViewModel(typeof(UserManagementViewModel), _mainWindowViewModel, SelectedMember);
+            if (created is not BaseViewModel vm)
+            {
+                MessageBox.Show("Benutzerverwaltung konnte nicht geöffnet werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            await _mainWindowViewModel.NavigateToAsync(vm);
         }
     }
 }

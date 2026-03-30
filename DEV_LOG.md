@@ -2,6 +2,29 @@
 
 ---
 
+## 2026-03-30 – Mitgliedskontext in MAUI und WPF auf Admin-Menü umgestellt
+
+- Realen Git-Stand vor dem Block geprüft:
+  - `git fetch origin`
+  - `git status --short --branch` => `## main...origin/main`
+  - `git log --oneline -n 1` => `fb15e69 Impressum fachlich auf Kontaktregeln angepasst`
+- Gleichzeitig vorhandene blockfremde lokale Änderungen im Arbeitsbaum bewusst nicht in diesen Block gezogen.
+- MAUI fachlich umgestellt:
+  - direkter Eintrag `↳ Benutzerverwaltung` aus `KGV.Maui/AdminShell.cs` entfernt
+  - stattdessen `↳ Admin-Menü` im ausgewählten Mitgliedskontext ergänzt
+  - neue kleine `KGV.Maui/Pages/AdminMenuPage.cs` angelegt
+  - die Seite zeigt den Bezug auf das aktuell ausgewählte Mitglied und verlinkt nur die bereits vorhandene produktive Funktion `Benutzerverwaltung`
+  - der neue Pfad bleibt nur für `Admin` sichtbar
+- WPF fachlich umgestellt:
+  - direkten Eintrag `↳ Benutzerverwaltung` aus `MemberNavigationItems` in `KGV.Wpf/ViewModels/MainWindowViewModel.cs` entfernt
+  - `↳ Admin-Menü` bleibt der einzige Mitgliedskontext-Einstieg für appuserbezogene Aktionen
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs` und `KGV.Wpf/Views/AdminRoleView.xaml` minimal ergänzt, damit die bestehende gebundene Benutzerverwaltung von dort für das ausgewählte Mitglied geöffnet werden kann
+  - der Einstieg zur Benutzerverwaltung bleibt nur für `Admin` sichtbar
+- Keine neuen Backend-Endpunkte, keine neue Auth-Schattenlogik, keine blockfremden UI-Umbauten.
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-03-30 – Impressum-Kontaktregel-Block mit Buildrest sauber abgeschlossen
 
 - Nur den echten Restfehler des begonnenen Impressum-Blocks in `KGV.Infrastructure/Services/SupabaseService.cs` minimal geschlossen.

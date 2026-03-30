@@ -85,6 +85,7 @@ public static class MauiProgram
         builder.Services.AddTransient<WartungsvertragEditorPage>();
         builder.Services.AddTransient<WartungsvertragAssignMembersPage>();
         builder.Services.AddTransient<MeineDatenPage>();
+        builder.Services.AddTransient<AdminMenuPage>();
         builder.Services.AddTransient<MemberGardensPage>();
         builder.Services.AddTransient<DokumentePage>();
         builder.Services.AddTransient<UserManagementViewModel>();
