@@ -48,31 +48,22 @@ namespace KGV.Infrastructure.Authentication
             {
                 var emailTrim = email.Trim();
                 LogDiagnosticInformation($"OTP_REQUEST_START flowKind=first-login email={MaskEmail(emailTrim)} endpoint={GetSupabaseEndpointContext()}");
-                var preparation = await EnsureOtpPreparationAsync(emailTrim, "first-login");
-                if (!preparation.Success)
-                {
-                    SetOtpFailureInfo("OTP_REQUEST_BLOCK", "Für diese E-Mail ist aktuell kein vorbereiteter App-Zugang verfügbar.");
-                    _logger?.LogWarning("RequestOtpAsync blocked for {EmailMasked}: {Reason}", MaskEmail(emailTrim), preparation.Message);
-                    LogDiagnosticWarning($"OTP_REQUEST_BLOCK flowKind=first-login email={MaskEmail(emailTrim)} reason={preparation.Message}");
-                    return false;
-                }
+                var result = await InvokeFirstLoginOtpFunctionAsync(emailTrim);
+                LogDiagnosticInformation($"OTP_REQUEST_RESULT flowKind=first-login email={MaskEmail(emailTrim)} success={result.Success} diagnosticCode={result.DiagnosticCode}");
 
-                var requested = await RequestRecoveryOtpAsync(emailTrim, "first-login");
-                LogDiagnosticInformation($"OTP_REQUEST_RESULT flowKind=first-login email={MaskEmail(emailTrim)} success={requested}");
-                if (requested)
+                if (result.Success)
                 {
                     LastOtpFailureInfo = null;
-                }
-                else if (LastOtpFailureInfo == null)
-                {
-                    SetOtpFailureInfo("OTP_REQUEST_RESULT", "Der Erstlogin-Code konnte aktuell nicht angefordert werden.");
+                    return true;
                 }
 
-                return requested;
+                SetOtpFailureInfo(result.DiagnosticCode, result.Message);
+                LogDiagnosticWarning($"OTP_REQUEST_BLOCK flowKind=first-login email={MaskEmail(emailTrim)} reason={result.DiagnosticCode}");
+                return false;
             }
             catch (Exception ex)
             {
-                SetOtpFailureInfo("OTP_REQUEST_EXCEPTION", "Der Erstlogin-Code konnte aktuell nicht angefordert werden.");
+                SetOtpFailureInfo("OTP_FIRST_LOGIN_EDGE_EXCEPTION", "OTP-Anforderung fehlgeschlagen. Bitte prüfe die E-Mail-Adresse oder kontaktiere den Vorstand.");
                 LogDiagnosticError($"OTP_REQUEST_EXCEPTION flowKind=first-login email={MaskEmail(email.Trim())} endpoint={GetSupabaseEndpointContext()}", ex);
                 _logger?.LogError(ex, "RequestOtpAsync failed for {EmailMasked}", MaskEmail(email));
                 return false;
@@ -118,6 +109,86 @@ namespace KGV.Infrastructure.Authentication
             {
                 _logger?.LogError(ex, "VerifyOtpAsync failed for {EmailMasked}", MaskEmail(email));
                 return false;
+            }
+        }
+
+        private async Task<FirstLoginOtpFunctionResult> InvokeFirstLoginOtpFunctionAsync(string email)
+        {
+            try
+            {
+                using var httpClient = new HttpClient();
+                using var request = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    $"{_clientFactory.Url.TrimEnd('/')}/functions/v1/kgv-request-first-login-otp");
+
+                request.Headers.Add("apikey", _clientFactory.Key);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                request.Content = new StringContent(
+                    JsonSerializer.Serialize(new { email }),
+                    Encoding.UTF8,
+                    "application/json");
+
+                LogDiagnosticInformation($"OTP_FIRST_LOGIN_EDGE_REQUEST_START email={MaskEmail(email)} endpoint={GetSupabaseEndpointContext()}");
+                using var response = await httpClient.SendAsync(request);
+                var content = await response.Content.ReadAsStringAsync();
+                var result = ParseFirstLoginOtpFunctionResult(content, response.IsSuccessStatusCode);
+
+                if (result.Success)
+                {
+                    LogDiagnosticInformation($"OTP_FIRST_LOGIN_EDGE_REQUEST_OK email={MaskEmail(email)} status={(int)response.StatusCode} diagnosticCode={result.DiagnosticCode}");
+                }
+                else
+                {
+                    LogDiagnosticWarning($"OTP_FIRST_LOGIN_EDGE_REQUEST_FAIL email={MaskEmail(email)} status={(int)response.StatusCode} diagnosticCode={result.DiagnosticCode} content={MaskDiagnosticMessage(content)}");
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                LogDiagnosticError($"OTP_FIRST_LOGIN_EDGE_REQUEST_EXCEPTION email={MaskEmail(email)} endpoint={GetSupabaseEndpointContext()}", ex);
+                return FirstLoginOtpFunctionResult.Fail(
+                    "OTP_FIRST_LOGIN_EDGE_EXCEPTION",
+                    "OTP-Anforderung fehlgeschlagen. Bitte prüfe die E-Mail-Adresse oder kontaktiere den Vorstand.");
+            }
+        }
+
+        private static FirstLoginOtpFunctionResult ParseFirstLoginOtpFunctionResult(string content, bool httpSuccess)
+        {
+            const string genericFailureMessage = "OTP-Anforderung fehlgeschlagen. Bitte prüfe die E-Mail-Adresse oder kontaktiere den Vorstand.";
+            const string genericSuccessMessage = "Einladungs-/Erstlogin-Code wurde versendet. Bitte OTP eingeben.";
+
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return httpSuccess
+                    ? FirstLoginOtpFunctionResult.Ok("OTP_FIRST_LOGIN_EDGE_ACCEPTED", genericSuccessMessage)
+                    : FirstLoginOtpFunctionResult.Fail("OTP_FIRST_LOGIN_EDGE_FAIL", genericFailureMessage);
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(content);
+                var root = document.RootElement;
+                var success = TryGetJsonBool(root, "success") ?? httpSuccess;
+                var diagnosticCode = (TryGetJsonString(root, "diagnosticCode") ?? string.Empty).Trim();
+                var message = (TryGetJsonString(root, "message") ?? string.Empty).Trim();
+
+                if (success)
+                {
+                    return FirstLoginOtpFunctionResult.Ok(
+                        string.IsNullOrWhiteSpace(diagnosticCode) ? "OTP_FIRST_LOGIN_EDGE_ACCEPTED" : diagnosticCode,
+                        string.IsNullOrWhiteSpace(message) ? genericSuccessMessage : message);
+                }
+
+                return FirstLoginOtpFunctionResult.Fail(
+                    string.IsNullOrWhiteSpace(diagnosticCode) ? "OTP_FIRST_LOGIN_EDGE_FAIL" : diagnosticCode,
+                    string.IsNullOrWhiteSpace(message) ? genericFailureMessage : message);
+            }
+            catch
+            {
+                return httpSuccess
+                    ? FirstLoginOtpFunctionResult.Ok("OTP_FIRST_LOGIN_EDGE_ACCEPTED", genericSuccessMessage)
+                    : FirstLoginOtpFunctionResult.Fail("OTP_FIRST_LOGIN_EDGE_FAIL", genericFailureMessage);
             }
         }
 
@@ -1598,6 +1669,29 @@ namespace KGV.Infrastructure.Authentication
                     Success = false,
                     LinkPrepared = false,
                     MailSent = false,
+                    Message = message
+                };
+        }
+
+        private sealed class FirstLoginOtpFunctionResult
+        {
+            public bool Success { get; init; }
+            public string DiagnosticCode { get; init; } = string.Empty;
+            public string Message { get; init; } = string.Empty;
+
+            public static FirstLoginOtpFunctionResult Ok(string diagnosticCode, string message)
+                => new()
+                {
+                    Success = true,
+                    DiagnosticCode = diagnosticCode,
+                    Message = message
+                };
+
+            public static FirstLoginOtpFunctionResult Fail(string diagnosticCode, string message)
+                => new()
+                {
+                    Success = false,
+                    DiagnosticCode = diagnosticCode,
                     Message = message
                 };
         }

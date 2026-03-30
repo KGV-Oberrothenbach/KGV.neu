@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.Input;
 using KGV;
 using KGV.Core.Interfaces;
+using KGV.Infrastructure.Authentication;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -104,7 +105,10 @@ namespace KGV.ViewModels
             }
             else
             {
-                StatusMessage = "OTP-Anforderung aktuell nicht möglich. Bitte prüfen lassen, ob für diese E-Mail ein vorbereiteter App-Zugang besteht.";
+                var diagnosticCode = (_authService as AuthService)?.LastOtpFailureInfo?.Code;
+                StatusMessage = string.IsNullOrWhiteSpace(diagnosticCode)
+                    ? "OTP-Anforderung fehlgeschlagen. Bitte prüfe die E-Mail-Adresse oder kontaktiere den Vorstand."
+                    : $"OTP-Anforderung fehlgeschlagen. Diagnosecode: {diagnosticCode}";
             }
         }
 

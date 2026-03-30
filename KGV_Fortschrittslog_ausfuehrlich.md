@@ -2,6 +2,57 @@
 
 ---
 
+## 2026-03-30 – Prompt 1/2: OTP-Erstlogin auf serverseitige Supabase-Edge-Function umgestellt
+
+- Vor dem Block den realen Git-/Repo-/Arbeitsstand geprüft und nicht auf lokale Altannahmen gebaut.
+- Direkt geprüft wurden:
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Wpf/ViewModels/LoginViewModel.cs`
+  - `supabase/functions/kgv-upload-photo/index.ts`
+  - `supabase/config.toml`
+- Ehrlicher Befund vor dem Umbau:
+  - der Erstlogin-/OTP-Pfad lief clientseitig noch über `AuthService.RequestOtpAsync(...)`
+  - davor wurde im Client noch `EnsureOtpPreparationAsync(...)` ausgeführt
+  - genau dieser Vor-Auth-Zugriff auf `mitglied` war der reale MAUI-Fehlerpunkt (`permission denied for table mitglied`)
+  - die sicherste Lösung war deshalb nicht neue `anon`-Rechte, sondern ein serverseitiger First-Login-Function-Pfad mit `service_role`
+- Minimal umgesetzt:
+  - neue Edge Function `supabase/functions/kgv-request-first-login-otp/index.ts`
+  - neue Function-Konfiguration in `supabase/config.toml`
+  - neues `supabase/functions/kgv-request-first-login-otp/deno.json`
+  - die Function arbeitet serverseitig mit `SUPABASE_SERVICE_ROLE_KEY` und prüft:
+    - genau ein operatives Mitglied zur E-Mail
+    - genau ein vorbereiteter `app_user`
+    - Konsistenz zwischen `mitglied.auth_user_id`, `app_user.user_id` und `auth.users`
+  - danach wird serverseitig `auth.resetPasswordForEmail(...)` ausgelöst
+  - die Client-Antwort bleibt generisch; ein kompakter `diagnosticCode` wird für App-/Supportpfad mitgegeben
+- Shared-Auth minimal umgebaut:
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+    - `RequestOtpAsync(...)` ruft für `first-login` jetzt nur noch `InvokeFirstLoginOtpFunctionAsync(...)` auf
+    - kein clientseitiger `EnsureOtpPreparationAsync(...)`-Precheck mehr im First-Login-Pfad
+    - die vorhandene Diagnose-/Supportcode-Logik bleibt erhalten und zieht den Fehlercode direkt aus der Function-Antwort
+  - normaler Passwort-Reset-, OTP-Verify- und SetPassword-Pfad wurden bewusst nicht unnötig umgebaut
+- WPF/MAUI-Angleichung:
+  - MAUI nutzt über den bestehenden `AuthService` automatisch den neuen sicheren Serverpfad
+  - WPF ebenfalls über denselben `AuthService`
+  - `KGV.Wpf/ViewModels/LoginViewModel.cs` zeigt bei OTP-Fehlschlag jetzt denselben Diagnosecode aus dem Shared-Auth-Pfad an
+- Sicherheitsbewertung nach dem Block:
+  - der First-Login-Client greift nicht mehr direkt auf `mitglied` zu
+  - keine Freigabe von `mitglied` für `anon`
+  - kein `service_role` im Client
+  - keine neue Public-RLS-Lücke
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+    - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - zusätzlicher Abschlusscheck im Code bestätigt: `AuthService.RequestOtpAsync(...)` nutzt im `first-login`-Pfad jetzt ausschließlich die Edge Function und keinen direkten `mitglied`-Precheck mehr
+  - `deno check` war im aktuellen Visual-Studio-/PowerShell-Setup lokal nicht verfügbar; daher keine zusätzliche TS-Toolprüfung
+- Fachliches Ergebnis dieses Blocks:
+  - Erstlogin-OTP läuft jetzt über einen serverseitigen Function-Pfad statt über Vor-Auth-Clientzugriff auf `mitglied`
+  - MAUI und WPF verwenden dafür denselben sicheren Shared-Auth-Pfad
+  - der frühere MAUI-Fehler `permission denied for table mitglied` ist auf dem Erstlogin-Clientpfad damit fachlich ausgeräumt
+
 ## 2026-03-30 – Prompt 1/1: MAUI OTP-Fehlercode für Support direkt sichtbar gemacht
 
 - Vor dem Block den realen Git-/Workspace-Stand geprüft und nicht auf lokalen Altständen aufgebaut.

@@ -2,6 +2,39 @@
 
 ---
 
+## 2026-03-30 – OTP Erstlogin auf serverseitige Edge Function umgestellt
+
+- Den realen Blockstand zuerst auf dem aktuellen Repo geprüft:
+  - bestehender Function-Stil unter `supabase/functions/kgv-upload-photo`
+  - aktueller OTP-Erstloginpfad in `KGV.Infrastructure/Authentication/AuthService.cs`
+  - MAUI-Login in `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - WPF-Login in `KGV.Wpf/ViewModels/LoginViewModel.cs`
+- Neue Edge Function ergänzt:
+  - `supabase/functions/kgv-request-first-login-otp/index.ts`
+  - öffentlich nur als Function-Endpunkt, aber serverseitig mit `SUPABASE_SERVICE_ROLE_KEY`
+  - prüft serverseitig:
+    - genau ein operatives Mitglied zur E-Mail
+    - genau ein `app_user` zur Parzelle/Mitgliedsverknüpfung
+    - Konsistenz zwischen `mitglied.auth_user_id`, `app_user.user_id` und `auth.users`
+  - löst danach serverseitig den Recovery-/OTP-Pfad aus
+  - Antwort an den Client bleibt generisch; Diagnosecode wird separat mitgeliefert
+- `supabase/config.toml` um die neue Function ergänzt:
+  - `[functions.kgv-request-first-login-otp]`
+  - `verify_jwt = false`
+  - eigener `deno.json`-/`entrypoint`-Pfad
+- `KGV.Infrastructure/Authentication/AuthService.cs` minimal umgestellt:
+  - `RequestOtpAsync(...)` nutzt für `first-login` jetzt nicht mehr `EnsureOtpPreparationAsync(...)`
+  - der First-Login-Pfad ruft stattdessen nur noch `kgv-request-first-login-otp` auf
+  - die bestehende Diagnose-/Supportcode-Logik bleibt erhalten und wird aus der Function-Antwort gespeist
+  - der normale Password-Recovery-/Verify-/SetPassword-Pfad blieb bewusst unverändert
+- `KGV.Wpf/ViewModels/LoginViewModel.cs` zeigt bei OTP-Fehlschlag jetzt denselben Diagnosecode aus dem Shared-`AuthService`
+- Validierung des Abschlussstands:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+    - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - zusätzlicher Codecheck bestätigt: `AuthService.RequestOtpAsync(...)` nutzt im `first-login`-Pfad jetzt nur noch `InvokeFirstLoginOtpFunctionAsync(...)`
+  - lokaler `deno check` war in diesem Visual-Studio-/Terminal-Setup nicht verfügbar, daher keine Tool-basierte TS-Validierung
+
 ## 2026-03-30 – MAUI OTP Fehlercode für Support sichtbar gemacht
 
 - Den realen OTP-Iststand zuerst auf dem aktuellen `main` geprüft:
