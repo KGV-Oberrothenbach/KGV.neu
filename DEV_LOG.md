@@ -2,6 +2,56 @@
 
 ---
 
+## 2026-03-30 – MAUI-Stammdaten: echter Edit-Modus im Mitgliedskontext in `MeineDatenPage`
+
+- Vor dem Block Git-Stand gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main 055ab73 [origin/main] Fix WPF invite button visibility refresh`
+  - keine Divergenz zu `origin/main`
+- Gleichzeitig real im Arbeitsbaum sichtbar, aber bewusst **nicht** Teil dieses MAUI-Blocks:
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Core/Models/InviteUserAccountResult.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Wpf/KGV.Wpf.csproj`
+  - `KGV.Core/Models/MemberUserLinkStatus.cs`
+  - `KGV.Core/Models/MemberUserLinkStatusDto.cs`
+  - `AWR.bat`
+  - `Android_Wpf_release_batch_v4.bat`
+- Direkt betroffenen MAUI-Pfad geprüft:
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - ergänzend nur lesend als Referenz: `KGV.Maui/Pages/MyProfilePage.cs`
+- Reale Restlücke vor dem Fix:
+  - `MeineDatenPage` war für fremde Mitglieder praktisch read-only
+  - `Bearbeiten` leitete bei Eigenfall nur nach `MyProfilePage` weiter
+  - für fremde Mitglieder kam stattdessen nur der Dialog, dass ein mobiler Volleditor noch nicht vorhanden sei
+  - Datumseingaben im gewünschten mobilen Editmodus existierten dort real noch gar nicht
+- Minimal umgesetzt, primär nur in `KGV.Maui/Pages/MeineDatenPage.xaml.cs`:
+  - echter Seitenzustand `Anzeige-Modus` / `Bearbeiten-Modus` ergänzt
+  - Anzeige-Modus zeigt weiterhin reine Wertdarstellung
+  - Bearbeiten-Modus zeigt echte mobile Eingabefelder für:
+    - `Vorname`
+    - `Nachname`
+    - `Telefon`
+    - `Mobilnummer`
+    - `Straße`
+    - `PLZ`
+    - `Ort`
+    - `Bemerkung`
+  - `Geburtsdatum`, `Mitglied seit`, `Mitglied Ende` jetzt als DatePicker + `Leeren`-Button umgesetzt, ausdrücklich **ohne** Vorschalt-Schalter
+  - `WhatsApp` bleibt als Switch nur im Bearbeiten-Modus sichtbar/bearbeitbar
+  - `Speichern` und `Abbrechen` stehen jetzt am Ende des Eingabeformulars
+  - der frühere Dialog "mobiler Volleditor ... noch nicht vorhanden" entfällt
+  - Admin/Vorstand können fremde Mitglieder jetzt direkt in `MeineDatenPage` bearbeiten und über den vorhandenen Lock-/`UpdateMitgliedAsync(...)`-Pfad speichern
+  - `MyProfilePage` blieb bewusst unverändert als Self-Service-/OTP-Kontextseite
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs` verblieben
+- Git-Abschluss dieses Blocks bewusst eng:
+  - nur `KGV.Maui/Pages/MeineDatenPage.xaml.cs`, `DEV_LOG.md` und `KGV_Fortschrittslog_ausfuehrlich.md`
+  - blockfremde lokale Änderungen bleiben außerhalb dieses MAUI-Commits
+
 ## 2026-03-30 – WPF-Bugfix: `Nutzer hinzufügen` in der gebundenen Benutzerverwaltung wieder sichtbar
 
 - Vor dem Block Git-Stand gegen `origin/main` geprüft:
