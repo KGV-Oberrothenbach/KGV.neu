@@ -77,6 +77,7 @@ namespace KGV.ViewModels
 
         public bool CanChangeSelectedEmail =>
             TargetUser?.AuthUserId?.ToString().Equals(_authService.CurrentUserId, StringComparison.OrdinalIgnoreCase) == true;
+        public bool ShowInviteAction => !IsBusy && TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email) && TargetUser.AuthUserId == null && HasBoundMember;
         public bool CanRemoveUser => !IsBusy && TargetUser?.AuthUserId != null && HasBoundMember;
 
         public IAsyncRelayCommand RefreshCommand { get; }
@@ -93,7 +94,7 @@ namespace KGV.ViewModels
             _boundMember = boundMember?.Clone();
 
             RefreshCommand = new AsyncRelayCommand(LoadAsync, () => !IsBusy);
-            InviteCommand = new AsyncRelayCommand(SendInviteAsync, () => !IsBusy && TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email) && HasBoundMember);
+            InviteCommand = new AsyncRelayCommand(SendInviteAsync, () => ShowInviteAction);
             RemoveUserCommand = new AsyncRelayCommand(RemoveUserAsync, () => CanRemoveUser);
             ChangeEmailCommand = new AsyncRelayCommand(OpenChangeEmailAsync, () => !IsBusy && TargetUser != null && CanChangeSelectedEmail);
             ResetPasswordCommand = new AsyncRelayCommand(OpenResetPasswordAsync, () => !IsBusy && TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email));

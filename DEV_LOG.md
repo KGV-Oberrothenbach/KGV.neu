@@ -2,6 +2,47 @@
 
 ---
 
+## 2026-03-30 – Prompt 1/1: Harter Fix für Invite-Flow ohne geschriebenes `auth_user_id`
+
+- Vor dem Block den echten Git-Stand gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main b76f918 [origin/main] Fix invite and OTP member mapping flow`
+  - keine Divergenz zu `origin/main`
+- Aktuellen Produktivpfad bestätigt:
+  - WPF und MAUI rufen für `Nutzer hinzufügen` bereits `_authService.InviteUserAsync(...)` auf
+  - der Restfehler lag weiterhin zentral in `KGV.Infrastructure/Authentication/AuthService.cs`
+- Reale Restlücken vor Umsetzung:
+  - `InviteUserAsync(...)` erlaubte noch einen Deferred-Repair-Pfad und garantierte damit nicht in jedem Fall `mitglied.auth_user_id` und `app_user` vor dem OTP-Versand
+  - `EnsureAuthUserForInviteAsync(...)` konnte vorhandene Auth-User noch nicht belastbar über einen echten Repo-/DB-Pfad per E-Mail auflösen
+  - `RequestOtpAsync(...)` und `SendPasswordResetEmailAsync(...)` verwendeten denselben Vorbereitungsweg wie Invite und konnten dadurch fachlich zu viel automatisch vorbereiten
+  - `KGV.Maui/ViewModels/UserManagementViewModel.cs` blendete `Nutzer hinzufügen` im gebundenen Mitgliedskontext weiterhin aus
+  - `KGV.Maui/Pages/MemberDetailPage.cs` ließ den Pfad mobil weiterhin nur für Admin zu, nicht für Vorstand
+- Minimal-invasiv umgesetzt:
+  - neue echte DB-/RPC-Grundlage ergänzt: `supabase/migrations/20260330104500_find_auth_user_id_by_email.sql`
+    - Security-Definer-Funktion `public.find_auth_user_id_by_email(text)` liest für `admin`/`vorstand` bzw. `service_role` belastbar die vorhandene `auth.users.id` per E-Mail
+  - `AuthService` nutzt diese RPC-Auflösung jetzt vor bzw. nach `SignUp`, um bestehende Auth-User sauber weiterzuverarbeiten statt nur auf Deferred-Repair zu hoffen
+  - `InviteUserAsync(...)` verlangt jetzt vor OTP-Versand einen wirklich vorbereiteten Zustand:
+    - Auth-User vorhanden/aufgelöst
+    - `mitglied.auth_user_id` gesetzt
+    - `app_user` angelegt/aktualisiert
+  - `RequestOtpAsync(...)` und `SendPasswordResetEmailAsync(...)` erzeugen keine Auth-User mehr blind im freien Login-Kontext
+    - sie lassen nur noch bereits fachlich vorbereitete Fälle durch
+    - fehlende Zuordnungen werden nur aus bereits vorhandenen produktiven Mappings repariert
+  - `VerifyOtpAsync(...)` bleibt als zusätzlicher Sicherheits-/Reparaturpfad erhalten und vervollständigt nach erfolgreicher OTP-Bestätigung weiterhin `mitglied.auth_user_id` und `app_user`
+  - WPF- und MAUI-Benutzerverwaltung wurden in der Sichtbarkeit konsistent gezogen:
+    - WPF zeigt `Nutzer hinzufügen` nur noch bei ungebundenem App-User-Kontext für das gebundene Mitglied an
+    - MAUI zeigt `Nutzer hinzufügen` jetzt auch im gebundenen Mitgliedskontext an
+    - MAUI-Mitgliedsdetail erlaubt `Nutzer hinzufügen` und Benutzerverwaltung jetzt für `Admin` und `Vorstand`
+- Validierung:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
+- Bewusst nicht Teil dieses Blocks geblieben:
+  - lokale Änderung in `KGV.Maui/KGV.Maui.csproj`
+  - ungetrackte Batch-Dateien `Android_Wpf_release_batch_v4.bat` und `Android_Wpf_release_batch_v5.bat`
+
 ## 2026-03-30 – Prompt 1/1: Nutzer hinzufügen in WPF und MAUI gegen fehlende Auth-Zuordnung und freien OTP-Request gehärtet
 
 - Vor dem Block den echten Git-Stand gegen `origin/main` geprüft:

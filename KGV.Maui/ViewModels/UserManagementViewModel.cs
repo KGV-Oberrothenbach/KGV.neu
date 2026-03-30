@@ -61,7 +61,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
     public bool HasSelectedUser => TargetUser != null;
     public bool HasLinkedUser => TargetUser?.AuthUserId != null;
-    public bool ShowInviteAction => !IsBoundToMember && TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email) && !HasLinkedUser;
+    public bool ShowInviteAction => TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email) && !HasLinkedUser;
     public bool CanInvite => !IsBusy && ShowInviteAction && (!IsBoundToMember || BoundMember != null);
     public bool CanResetPassword => !IsBusy && TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email);
     public bool CanChangeSelectedEmail => !IsBusy && TargetUser?.AuthUserId?.ToString().Equals(_authService.CurrentUserId, StringComparison.OrdinalIgnoreCase) == true;

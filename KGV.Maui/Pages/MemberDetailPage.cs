@@ -239,7 +239,7 @@ public sealed class MemberDetailPage : ContentPage
 
     private void UpdateAdminActions(MemberDTO? member)
     {
-        var isAdmin = _userContextState.CurrentUserContext?.Role == UserRole.Admin;
+        var canManageUsers = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
         var canEditEmailInMemberContext = member != null && !_hasLinkedAppUser;
 
         _emailEntry.IsReadOnly = !canEditEmailInMemberContext;
@@ -249,12 +249,12 @@ public sealed class MemberDetailPage : ContentPage
                 ? "Für dieses Mitglied besteht bereits ein App-User/Auth-User. Die Mailadresse kann im normalen Stammdatenpfad nicht direkt geändert werden und muss vom Nutzer selbst über den vorgesehenen Self-Service-Mailänderungsweg geändert werden."
                 : "Für dieses Mitglied besteht noch kein App-User/Auth-User. Die Mailadresse kann hier im Stammdatenpfad gespeichert werden und wird anschließend für den produktiven Invite-/Erstlogin-Flow verwendet.";
 
-        _benutzerverwaltungButton.IsVisible = isAdmin && member?.Id is > 0;
-        _nutzerHinzufuegenButton.IsVisible = isAdmin && member?.Id is > 0 && !_hasLinkedAppUser;
+        _benutzerverwaltungButton.IsVisible = canManageUsers && member?.Id is > 0;
+        _nutzerHinzufuegenButton.IsVisible = canManageUsers && member?.Id is > 0 && !_hasLinkedAppUser;
         _nutzerHinzufuegenButton.IsEnabled = _nutzerHinzufuegenButton.IsVisible && !string.IsNullOrWhiteSpace(member?.Email);
 
-        _appUserHintLabel.Text = !isAdmin || member == null
-            ? "Benutzerverwaltung und Nutzer hinzufügen bleiben wie in WPF Admin-only und sind für Vorstand hier nicht freigeschaltet."
+        _appUserHintLabel.Text = !canManageUsers || member == null
+            ? "Benutzerverwaltung und Nutzer hinzufügen sind mobil nur für Admin oder Vorstand verfügbar."
             : _hasLinkedAppUser
                 ? "Für dieses Mitglied besteht bereits ein App-User. Weitere Auth-Aktionen laufen über die gebundene Benutzerverwaltung."
                 : string.IsNullOrWhiteSpace(member.Email)
@@ -268,9 +268,9 @@ public sealed class MemberDetailPage : ContentPage
             return;
 
         var currentRole = _userContextState.CurrentUserContext?.Role;
-        if (currentRole != UserRole.Admin)
+        if (currentRole is not UserRole.Admin and not UserRole.Vorstand)
         {
-            await DisplayAlert("Hinweis", "Nutzer hinzufügen ist mobil wie in WPF nur für Admin freigegeben.", "OK");
+            await DisplayAlert("Hinweis", "Nutzer hinzufügen ist mobil nur für Admin oder Vorstand freigegeben.", "OK");
             return;
         }
 

@@ -9,7 +9,10 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Reflection;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -400,7 +403,7 @@ namespace KGV.Infrastructure.Authentication
                     authUserId);
 
                 inviteStep = "prepare-invite-context";
-                var preparation = await EnsureInvitePreparationAsync(user, email, "invite", allowDeferredOtpRepair: true);
+                var preparation = await EnsureInvitePreparationAsync(user, email, "invite", allowDeferredOtpRepair: false);
                 if (!preparation.Success)
                 {
                     _logger?.LogWarning(
@@ -419,7 +422,7 @@ namespace KGV.Infrastructure.Authentication
                 }
 
                 authUserId = preparation.AuthUserId;
-                authUserVerified = !preparation.DeferredOtpRepairRequired;
+                authUserVerified = authUserId.HasValue;
                 mappingAttempts = preparation.MappingAttempts;
 
                 _logger?.LogInformation(
@@ -446,9 +449,7 @@ namespace KGV.Infrastructure.Authentication
                     AuthUserId = authUserId,
                     Email = email,
                     Message = requested
-                        ? preparation.DeferredOtpRepairRequired
-                            ? "Einladungs-/Erstlogin-Code wurde versendet. Die Zuordnung wird bei der Code-Bestätigung vervollständigt. Einstieg über KGV-App oder PC-Login mit E-Mail + OTP + neuem Passwort."
-                            : "Einladungs-/Erstlogin-Code wurde versendet. Einstieg über KGV-App oder PC-Login mit E-Mail + OTP + neuem Passwort."
+                        ? "Einladungs-/Erstlogin-Code wurde versendet. Einstieg über KGV-App oder PC-Login mit E-Mail + OTP + neuem Passwort."
                         : "Einladungs-/Erstlogin-Code konnte nicht versendet werden."
                 };
             }
@@ -742,6 +743,12 @@ namespace KGV.Infrastructure.Authentication
 
         private async Task<AuthUserPreparationResult> EnsureAuthUserForInviteAsync(string email)
         {
+            var resolvedExistingUserId = await ResolveExistingAuthUserIdByEmailAsync(email);
+            if (resolvedExistingUserId.HasValue)
+            {
+                return AuthUserPreparationResult.Resolved(resolvedExistingUserId.Value);
+            }
+
             var isolatedClient = new global::Supabase.Client(_clientFactory.Url, _clientFactory.Key);
             await isolatedClient.InitializeAsync();
 
@@ -776,14 +783,22 @@ namespace KGV.Infrastructure.Authentication
                 var result = await AwaitMethodResultAsync(signUpResult);
                 var userId = ExtractUserId(result) ?? isolatedClient.Auth.CurrentUser?.Id;
                 if (!Guid.TryParse(userId, out var authUserId))
-                    return AuthUserPreparationResult.Fail("Auth-Konto konnte nicht vorbereitet werden.");
+                {
+                    var fallbackAuthUserId = await ResolveExistingAuthUserIdByEmailAsync(email);
+                    return fallbackAuthUserId.HasValue
+                        ? AuthUserPreparationResult.Resolved(fallbackAuthUserId.Value)
+                        : AuthUserPreparationResult.Fail("Auth-Konto konnte nicht vorbereitet werden.");
+                }
 
                 return AuthUserPreparationResult.Resolved(authUserId);
             }
             catch (GotrueException ex) when (ex.Message.Contains("already", StringComparison.OrdinalIgnoreCase))
             {
-                _logger?.LogWarning(ex, "EnsureAuthUserForInviteAsync detected an existing auth user for {EmailMasked} without recoverable user id.", MaskEmail(email));
-                return AuthUserPreparationResult.RequiresDeferredRepair();
+                _logger?.LogWarning(ex, "EnsureAuthUserForInviteAsync detected an existing auth user for {EmailMasked}. Trying RPC lookup.", MaskEmail(email));
+                var existingAuthUserId = await ResolveExistingAuthUserIdByEmailAsync(email);
+                return existingAuthUserId.HasValue
+                    ? AuthUserPreparationResult.Resolved(existingAuthUserId.Value)
+                    : AuthUserPreparationResult.Fail("Bestehendes Auth-Konto konnte nicht belastbar aufgelöst werden.");
             }
             catch (Exception ex)
             {
@@ -804,30 +819,23 @@ namespace KGV.Infrastructure.Authentication
                 return OtpPreparationResult.Fail(memberResolution.Message);
             }
 
-            var preparation = await EnsureInvitePreparationAsync(
-                new AppUserDTO
-                {
-                    MitgliedId = memberResolution.Member.Id,
-                    Email = email,
-                    Role = memberResolution.Member.Role ?? string.Empty
-                },
-                email,
+            var member = memberResolution.Member;
+            var authUserId = member.AuthUserId ?? await ResolveAuthUserIdFromExistingMappingsAsync(member.Id, email);
+            if (!authUserId.HasValue)
+            {
+                return OtpPreparationResult.Fail("Für diese E-Mail-Adresse ist aktuell kein vorbereiteter App-Zugang vorhanden.");
+            }
+
+            var mappingAttempts = await EnsureMemberInviteMappingAsync(authUserId.Value, member.Id, email);
+            await EnsureAppUserRecordAsync(authUserId.Value, member.Id, NormalizeRole(member.Role));
+
+            _logger?.LogInformation(
+                "EnsureOtpPreparationAsync verified prepared OTP context for flowKind={FlowKind} email={EmailMasked} mitgliedId={MitgliedId} authUserId={AuthUserId} mappingAttempts={MappingAttempts}",
                 flowKind,
-                allowDeferredOtpRepair: true);
-
-            if (!preparation.Success)
-            {
-                return OtpPreparationResult.Fail(preparation.Message);
-            }
-
-            if (preparation.DeferredOtpRepairRequired)
-            {
-                _logger?.LogInformation(
-                    "EnsureOtpPreparationAsync allows deferred repair for flowKind={FlowKind} email={EmailMasked} mitgliedId={MitgliedId}",
-                    flowKind,
-                    MaskEmail(email),
-                    memberResolution.Member.Id);
-            }
+                MaskEmail(email),
+                member.Id,
+                authUserId.Value,
+                mappingAttempts);
 
             return OtpPreparationResult.Ok();
         }
@@ -966,6 +974,110 @@ namespace KGV.Infrastructure.Authentication
             }
 
             return null;
+        }
+
+        private async Task<Guid?> ResolveExistingAuthUserIdByEmailAsync(string email)
+        {
+            var accessToken = await GetAccessTokenAsync();
+            if (string.IsNullOrWhiteSpace(accessToken))
+            {
+                _logger?.LogInformation("ResolveExistingAuthUserIdByEmailAsync skipped for {EmailMasked}: no access token available.", MaskEmail(email));
+                return null;
+            }
+
+            try
+            {
+                using var httpClient = new HttpClient();
+                using var request = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    $"{_clientFactory.Url.TrimEnd('/')}/rest/v1/rpc/find_auth_user_id_by_email");
+
+                request.Headers.Add("apikey", _clientFactory.Key);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                request.Content = new StringContent(
+                    JsonSerializer.Serialize(new { p_email = email }),
+                    Encoding.UTF8,
+                    "application/json");
+
+                using var response = await httpClient.SendAsync(request);
+                var content = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger?.LogWarning(
+                        "ResolveExistingAuthUserIdByEmailAsync failed for {EmailMasked}: status={StatusCode} content={ContentMasked}",
+                        MaskEmail(email),
+                        (int)response.StatusCode,
+                        MaskDiagnosticMessage(content));
+                    return null;
+                }
+
+                var resolvedAuthUserId = TryParseAuthUserIdFromLookupResponse(content);
+                if (resolvedAuthUserId.HasValue)
+                {
+                    _logger?.LogInformation(
+                        "ResolveExistingAuthUserIdByEmailAsync resolved auth user for {EmailMasked} authUserId={AuthUserId}",
+                        MaskEmail(email),
+                        resolvedAuthUserId.Value);
+                }
+
+                return resolvedAuthUserId;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "ResolveExistingAuthUserIdByEmailAsync failed for {EmailMasked}", MaskEmail(email));
+                return null;
+            }
+        }
+
+        private static Guid? TryParseAuthUserIdFromLookupResponse(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return null;
+
+            try
+            {
+                using var document = JsonDocument.Parse(content);
+                var root = document.RootElement;
+
+                if (root.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var element in root.EnumerateArray())
+                    {
+                        if (TryReadAuthUserIdElement(element, out var authUserId))
+                            return authUserId;
+                    }
+
+                    return null;
+                }
+
+                if (TryReadAuthUserIdElement(root, out var directAuthUserId))
+                    return directAuthUserId;
+            }
+            catch
+            {
+            }
+
+            return null;
+        }
+
+        private static bool TryReadAuthUserIdElement(JsonElement element, out Guid authUserId)
+        {
+            authUserId = Guid.Empty;
+
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                if (element.TryGetProperty("auth_user_id", out var authUserIdProperty)
+                    && Guid.TryParse(authUserIdProperty.GetString(), out authUserId))
+                {
+                    return true;
+                }
+
+                return false;
+            }
+
+            return element.ValueKind == JsonValueKind.String
+                && Guid.TryParse(element.GetString(), out authUserId);
         }
 
         private async Task<int> EnsureMemberInviteMappingAsync(Guid authUserId, int? mitgliedId, string email)

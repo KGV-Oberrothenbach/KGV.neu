@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-03-30 – Prompt 1/1: Harter Zentralfix für Invite-Flow ohne geschriebenes `auth_user_id`
+
+- Git-Stand vor dem neuen Korrekturblock erneut gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main b76f918 [origin/main] Fix invite and OTP member mapping flow`
+- Den echten aktuellen Produktivpfad erneut bestätigt:
+  - WPF und MAUI rufen `InviteUserAsync(...)` bereits korrekt auf
+  - die verbleibende Restlücke saß weiter zentral in `KGV.Infrastructure/Authentication/AuthService.cs`
+- Reale Restlücken des bisherigen Stands:
+  - vorhandene Auth-User konnten noch nicht über einen echten DB-/RPC-Pfad per E-Mail belastbar aufgelöst werden
+  - Invite konnte dadurch fachlich noch auf einen Deferred-Repair ausweichen, statt `mitglied.auth_user_id` und `app_user` immer vor OTP-Versand sauber zu schreiben
+  - freier OTP-/Recovery-Request durfte noch zu viel automatisch vorbereiten
+  - MAUI blendete `Nutzer hinzufügen` im gebundenen Mitgliedskontext weiterhin aus und beschränkte den Mitgliedsdetailpfad noch auf `Admin`
+- Minimal umgesetzt:
+  - neue Supabase-Migration `supabase/migrations/20260330104500_find_auth_user_id_by_email.sql`
+  - Security-Definer-RPC `public.find_auth_user_id_by_email(text)` ergänzt, damit `admin`/`vorstand` vorhandene Auth-User per E-Mail belastbar auflösen können
+  - `AuthService` nutzt diese RPC-Auflösung jetzt vor/nach `SignUp`
+  - `InviteUserAsync(...)` versendet OTP jetzt erst nach erfolgreicher Vorbereitung von Auth-User, `mitglied.auth_user_id` und `app_user`
+  - `RequestOtpAsync(...)` / `SendPasswordResetEmailAsync(...)` blockieren unvorbereitete Fälle jetzt konsequent und erzeugen im freien Login-Pfad keine Auth-User mehr
+  - `VerifyOtpAsync(...)` bleibt zusätzlich reparierend aktiv
+  - MAUI-Sichtbarkeit/Freigabe für den gebundenen Mitgliedskontext korrigiert
+  - WPF-Invite-Sichtbarkeit auf denselben fachlichen Zustand geschärft
+- Builds:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
+- Bewusst nicht Teil dieses Blocks geblieben:
+  - lokale Änderung in `KGV.Maui/KGV.Maui.csproj`
+  - ungetrackte Batch-Dateien `Android_Wpf_release_batch_v4.bat` und `Android_Wpf_release_batch_v5.bat`
+
 ## 2026-03-30 – Prompt 1/1: Nutzer hinzufügen in WPF und MAUI fachlich auf denselben belastbaren Invite-/OTP-Flow gezogen
 
 - Git-Stand vor Start gegen `origin/main` geprüft:
