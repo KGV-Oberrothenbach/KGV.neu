@@ -1,45 +1,84 @@
-# KGV_Fortschrittslog_ausfuehrlich
+﻿# KGV_Fortschrittslog_ausfuehrlich
 
 ---
 
-## 2026-03-30 – Abschluss-Prompt: MAUI Stammdaten Runtime-Pfad gegen Git-Stand abgeglichen und Restfehler geschlossen
+## 2026-03-30 – Abschluss-Prompt: Impressum-Block mit Buildrest sauber abgeschlossen
 
-- Reale Ist-Analyse im aktuellen Repo durchgeführt:
+- Direkt auf dem aktuellen lokalen Arbeitsstand des begonnenen Impressum-Blocks aufgesetzt; kein Neuaufbau und keine neue Impressum-Architektur eröffnet.
+- Echten Abschlussrest nur am benannten Buildfehler geprüft:
+  - `KGV.Infrastructure/Services/SupabaseService.cs(610,33)`
+  - `KGV.Infrastructure/Services/SupabaseService.cs(630,33)`
+  - `NormalizeMeterEichjahr` war im aktuellen Iststand lokal nicht mehr vorhanden
+- Minimal korrigiert:
+  - kleine Hilfsmethode `NormalizeMeterEichjahr(DateTime)` in `KGV.Infrastructure/Services/SupabaseService.cs` wieder ergänzt
+  - bestehende Aufrufe in `AddStromzaehlerAsync(...)` und `AddWasserzaehlerAsync(...)` unverändert gelassen
+  - keine Refactorings, keine fachfremden Änderungen, keine neuen Features
+- Ehrliche Validierung direkt nach dem Minimalfix:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Abschlussstand dieses begonnenen Impressum-Blocks:
+  - die bereits angepassten Kontaktregeln in Shared, MAUI und WPF bleiben fachlich unverändert auf dem begonnenen Zielbild
+  - der frühere Buildrest `NormalizeMeterEichjahr` blockiert den Impressum-Abschluss nicht mehr
+  - es verbleiben nur bekannte Warnungen außerhalb dieses Abschlussblocks
+
+## 2026-03-30 – Abschluss-Prompt: Impressum-Kontaktregeln auf begonnenem WPF-Stand fertiggezogen
+
+- Direkt auf dem lokal begonnenen Impressum-Block aufgesetzt; kein Neuaufbau und keine neue Impressum-Architektur eröffnet.
+- Reale offene Restlücke dieses Abschlusslaufs: `KGV.Wpf/Views/ImpressumView.xaml` renderte die bereits angepassten Kontaktregeln noch nicht fachlich passend zum begonnenen Shared-/ViewModel-/MAUI-Stand.
+- Minimal korrigiert:
+  - statischer Vereinsblock zeigt jetzt zusätzlich ausschließlich die Vereinsmail `kgvoberrothenbach@gmx.de`
+  - Vorstandsvorsitzende wird separat/fachlich vollständig dargestellt mit Funktion, Name, vollständiger Adresse und Handynummer falls vorhanden
+  - übrige Personen in `Vorstand` und `Bauausschuss` werden reduziert dargestellt mit nur Name und Handynummer
+  - persönliche E-Mail-Adressen und sonstige persönliche Kontaktangaben werden in WPF nicht mehr ausgegeben
+  - fehlende Adresse oder fehlende Handynummer erzeugen keine leeren Blöcke
+- Kurzer Direktabgleich des begonnenen Pfads:
+  - `KGV.Wpf/ViewModels/ImpressumViewModel.cs` liefert `ClubEmail`, `Vorstand`, `Bauausschuss`, `ShowVorstandFallback`, `ShowBauausschussFallback`
+  - `KGV.Core/Models/ImpressumKontaktItem.cs` liefert die dafür benötigten Regeln `IsVorstandsvorsitzende`, `ShowAdresse`, `HasHandy`, `Handy`, `Adresse`
+  - `KGV.Wpf/Views/ImpressumView.xaml` ist darauf jetzt fachlich konsistent gezogen
+- Validierung ehrlich durchgeführt:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => fehlgeschlagen
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => fehlgeschlagen
+  - echter vorhandener Workspace-Restfehler außerhalb dieses Impressum-Kontaktregel-Blocks: `KGV.Infrastructure/Services/SupabaseService.cs` referenziert `NormalizeMeterEichjahr` an `610` und `630`; der Name ist im aktuellen Stand nicht auflösbar
+  - dieser Fehler wurde im Abschlusslauf bewusst nicht mit umgebaut, weil nur der begonnene Impressum-Korrekturblock sauber fertiggezogen werden sollte
+
+## 2026-03-30 â€“ Abschluss-Prompt: MAUI Stammdaten Runtime-Pfad gegen Git-Stand abgeglichen und Restfehler geschlossen
+
+- Reale Ist-Analyse im aktuellen Repo durchgefÃ¼hrt:
   - `KGV.Maui/Pages/MeineDatenPage.xaml.cs` ist auf dem aktuellen Git-Stand bereits der neue produktive Stammdatenpfad mit:
     - sichtbarem `Bearbeiten`-Button im erlaubten Kontext
     - Anzeige-/Bearbeiten-Trennung
-    - Datumsbearbeitung über `DatePicker` plus `Leeren`
+    - Datumsbearbeitung Ã¼ber `DatePicker` plus `Leeren`
     - WhatsApp als eigenem Switch nur im Bearbeiten-Modus
-  - `KGV.Maui/Pages/MyProfilePage.cs` existiert parallel als eigener Self-Service-/Profilpfad mit OTP-/Mailänderungslogik, aber nicht als produktiver Mitglieds-Menüpfad
-  - `KGV.Maui/UserShell.cs` öffnet für `↳ Stammdaten` bereits korrekt `MeineDatenPage`
-  - `KGV.Maui/AdminShell.cs` öffnete im ausgewählten Mitgliedskontext für `↳ Stammdaten` dagegen noch `MemberDetailPage`
-  - `KGV.Maui/Pages/MemberDetailPage.cs` enthält weiterhin die alte Datums-UI mit vorgeschalteten Switches vor `Geburtsdatum`, `Mitglied seit` und `Mitglied Ende` sowie keinen separaten `Bearbeiten`-Modus
+  - `KGV.Maui/Pages/MyProfilePage.cs` existiert parallel als eigener Self-Service-/Profilpfad mit OTP-/MailÃ¤nderungslogik, aber nicht als produktiver Mitglieds-MenÃ¼pfad
+  - `KGV.Maui/UserShell.cs` Ã¶ffnet fÃ¼r `â†³ Stammdaten` bereits korrekt `MeineDatenPage`
+  - `KGV.Maui/AdminShell.cs` Ã¶ffnete im ausgewÃ¤hlten Mitgliedskontext fÃ¼r `â†³ Stammdaten` dagegen noch `MemberDetailPage`
+  - `KGV.Maui/Pages/MemberDetailPage.cs` enthÃ¤lt weiterhin die alte Datums-UI mit vorgeschalteten Switches vor `Geburtsdatum`, `Mitglied seit` und `Mitglied Ende` sowie keinen separaten `Bearbeiten`-Modus
 - Echte Fehlerursache sauber eingegrenzt:
-  - die laufende App zeigte nicht fälschlich `MeineDatenPage`, sondern im Admin-/Vorstands-Mitgliedskontext noch den Altpfad `MemberDetailPage`
-  - genau dieser produktive Navigationspfad erklärte die Beobachtung `kein Bearbeiten-Button` plus alte Datums-Schalter
-  - `MyProfilePage` war hierfür nicht ursächlich
+  - die laufende App zeigte nicht fÃ¤lschlich `MeineDatenPage`, sondern im Admin-/Vorstands-Mitgliedskontext noch den Altpfad `MemberDetailPage`
+  - genau dieser produktive Navigationspfad erklÃ¤rte die Beobachtung `kein Bearbeiten-Button` plus alte Datums-Schalter
+  - `MyProfilePage` war hierfÃ¼r nicht ursÃ¤chlich
 - Minimal korrigiert:
   - `KGV.Maui/AdminShell.cs`
-    - Menüeintrag `↳ Stammdaten` im ausgewählten Mitgliedskontext von `MemberDetailPage` auf `MeineDatenPage` umgestellt
+    - MenÃ¼eintrag `â†³ Stammdaten` im ausgewÃ¤hlten Mitgliedskontext von `MemberDetailPage` auf `MeineDatenPage` umgestellt
   - `KGV.Maui/ShellRouteRegistrar.cs`
-    - Legacy-Route `nameof(MemberDetailPage)` zusätzlich auf `MeineDatenPage` gelegt, damit auch verbliebene routebasierte Alt-Navigationen im Mitgliedskontext auf das aktuelle Stammdaten-UI laufen
+    - Legacy-Route `nameof(MemberDetailPage)` zusÃ¤tzlich auf `MeineDatenPage` gelegt, damit auch verbliebene routebasierte Alt-Navigationen im Mitgliedskontext auf das aktuelle Stammdaten-UI laufen
 - Fachliches Zielbild nach dem Block:
   - produktiv genutzter MAUI-Mitgliedskontext zeigt jetzt das Git-UI aus `MeineDatenPage`
   - sichtbarer `Bearbeiten`-Button, wenn der Fachkontext Bearbeitung erlaubt
   - keine Datums-Schieberegler/Schalter im Anzeige-Modus
-  - Datumsbearbeitung nur im Bearbeiten-Modus über saubere Datumseingabe
+  - Datumsbearbeitung nur im Bearbeiten-Modus Ã¼ber saubere Datumseingabe
   - WhatsApp bleibt nur im Bearbeiten-Modus bearbeitbar
   - `MyProfilePage` bleibt fachlich getrennt als Self-Service-Profilpfad bestehen und wird nicht mit dem Mitgliedskontext vermischt
 - Validierung:
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
-  - kein WPF-Umbau, kein Auth-Umbau, kein unnötiger Stammdaten-Neubau
+  - kein WPF-Umbau, kein Auth-Umbau, kein unnÃ¶tiger Stammdaten-Neubau
 
-## 2026-03-30 – Abschluss-Prompt: Impressum-Block in MAUI und WPF sauber fertiggestellt
+## 2026-03-30 â€“ Abschluss-Prompt: Impressum-Block in MAUI und WPF sauber fertiggestellt
 
-- Ausgangslage real auf dem lokalen begonnenen Stand geprüft:
+- Ausgangslage real auf dem lokalen begonnenen Stand geprÃ¼ft:
   - `git status -sb` => `## main...origin/main`
-  - `git log --oneline -n 1` => `300a835 WPF Zählerwechsel auf Korrekturflow über Parzelle umgestellt`
-  - damit wurde der laufende Impressum-Block exakt auf dem vorhandenen Arbeitsstand nach `300a835` weitergeführt und nicht neu implementiert
+  - `git log --oneline -n 1` => `300a835 WPF ZÃ¤hlerwechsel auf Korrekturflow Ã¼ber Parzelle umgestellt`
+  - damit wurde der laufende Impressum-Block exakt auf dem vorhandenen Arbeitsstand nach `300a835` weitergefÃ¼hrt und nicht neu implementiert
 - Gleichzeitig real im Arbeitsbaum sichtbar, aber bewusst **nicht** Teil dieses Abschlussblocks:
   - `KGV.Core/Interfaces/IAuthService.cs`
   - `KGV.Core/Models/InviteUserAccountResult.cs`
@@ -74,31 +113,31 @@
   - Logs:
     - `DEV_LOG.md`
     - `KGV_Fortschrittslog_ausfuehrlich.md`
-- Fachlich minimal umgesetzt bzw. bestätigt:
+- Fachlich minimal umgesetzt bzw. bestÃ¤tigt:
   - eigenes produktives Impressum in MAUI als ruhige Leseseite
   - eigenes produktives Impressum in WPF als ruhige Leseseite
   - statische Vereinsangaben fest eingebaut:
     - `Kleingartenverein Oberrothenbach e.V.`
     - `Amtsgericht Chemnitz VR 70502`
-  - dynamische Bereiche `Vorstand` und `Bauausschuss` lesen die realen Daten über den gemeinsamen Supabase-Lesepfad auf `impressum_funktion_slot`
-  - es wurden keine Fantasiefelder ergänzt; angezeigt werden nur Daten, die über `funktion`, `mitglied_id` und reale `mitglied`-Felder ableitbar sind
-  - fehlende oder unvollständige Einträge werden neutral mit sauberem Fallback angezeigt; keine Bearbeitung, keine Speichern-Buttons, keine Admin-Sonderlogik
-  - MAUI-Menüpunkt in `AdminShell` und `UserShell` bestätigt
-  - WPF-Navigationseintrag in `MainWindowViewModel` bestätigt
+  - dynamische Bereiche `Vorstand` und `Bauausschuss` lesen die realen Daten Ã¼ber den gemeinsamen Supabase-Lesepfad auf `impressum_funktion_slot`
+  - es wurden keine Fantasiefelder ergÃ¤nzt; angezeigt werden nur Daten, die Ã¼ber `funktion`, `mitglied_id` und reale `mitglied`-Felder ableitbar sind
+  - fehlende oder unvollstÃ¤ndige EintrÃ¤ge werden neutral mit sauberem Fallback angezeigt; keine Bearbeitung, keine Speichern-Buttons, keine Admin-Sonderlogik
+  - MAUI-MenÃ¼punkt in `AdminShell` und `UserShell` bestÃ¤tigt
+  - WPF-Navigationseintrag in `MainWindowViewModel` bestÃ¤tigt
 - Echter technischer Rest dieses Abschluss-Prompts:
-  - `KGV.Maui/Pages/ImpressumPage.cs` baute lokal noch nicht wegen nicht aufgelöstem `RoundRectangle`
+  - `KGV.Maui/Pages/ImpressumPage.cs` baute lokal noch nicht wegen nicht aufgelÃ¶stem `RoundRectangle`
   - minimal geschlossen durch `using Microsoft.Maui.Controls.Shapes;`
-  - keine weitere Impressum-Logik musste geändert werden
+  - keine weitere Impressum-Logik musste geÃ¤ndert werden
 - Validierung nach dem finalen Minimalfix:
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly -v:q` => erfolgreich
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly -v:q` => erfolgreich
   - damit ist der begonnene Impressum-Block fachlich und technisch abgeschlossen
 
-## 2026-03-30 – Prompt 1/2: WPF Zählerwechsel von RFID-Scan auf Korrekturflow über Gartennummer/Parzelle umgestellt
+## 2026-03-30 â€“ Prompt 1/2: WPF ZÃ¤hlerwechsel von RFID-Scan auf Korrekturflow Ã¼ber Gartennummer/Parzelle umgestellt
 
-- Git-Stand vor dem Block gegen `origin/main` geprüft:
+- Git-Stand vor dem Block gegen `origin/main` geprÃ¼ft:
   - `git status -sb` => `## main...origin/main`
-  - `git log --oneline -n 1` => `0e2908e MAUI Zählerwechsel auf 3-Fall-Flow umgestellt`
+  - `git log --oneline -n 1` => `0e2908e MAUI ZÃ¤hlerwechsel auf 3-Fall-Flow umgestellt`
   - `git branch --contains 0e2908e` / `git branch -r --contains 0e2908e` => `main` und `origin/main`
   - damit lag der geforderte Ausgangsstand nach `0e2908e` real vor
 - Gleichzeitig real im Arbeitsbaum sichtbar, aber bewusst **nicht** Teil dieses Blocks geblieben:
@@ -122,49 +161,49 @@
   - `DEV_LOG.md`
   - `KGV_Fortschrittslog_ausfuehrlich.md`
 - Ehrlicher Istzustand vor dem Block:
-  - WPF zeigte im Bereich `Ablesen` für `Zählerwechsel` noch RFID-/Tag-Scan-Sprache
+  - WPF zeigte im Bereich `Ablesen` fÃ¼r `ZÃ¤hlerwechsel` noch RFID-/Tag-Scan-Sprache
   - `ZaehlerwechselScanViewModel` war noch auf `RfidScanContextViewModel` als Haupteinstieg aufgebaut
   - `ZaehlerwechselAusbauViewModel` und `ZaehlerwechselEinbauViewModel` waren noch reine Placeholder
-  - WPF war damit für den Zählerwechsel fachlich noch zu nah am Vor-Ort-/RFID-Flow statt am gewünschten Korrektur-/Verwaltungsweg über Parzelle
+  - WPF war damit fÃ¼r den ZÃ¤hlerwechsel fachlich noch zu nah am Vor-Ort-/RFID-Flow statt am gewÃ¼nschten Korrektur-/Verwaltungsweg Ã¼ber Parzelle
 - Minimal umgesetzt:
-  - `AblesenOverviewView.xaml` beschreibt `Zählerwechsel` jetzt fachlich als Korrektur-/Verwaltungsweg über Gartennummer oder Parzelle
+  - `AblesenOverviewView.xaml` beschreibt `ZÃ¤hlerwechsel` jetzt fachlich als Korrektur-/Verwaltungsweg Ã¼ber Gartennummer oder Parzelle
   - `ZaehlerwechselScanViewModel` von RFID-Einstieg auf Such-/Auswahllogik umgebaut:
     - Suche nach Gartennummer oder Parzelle
     - Auswahl einer Parzelle
-    - Laden des aktuellen Strom-/Wasserzustands über den bestehenden Servicepfad `GetParzelleDetailAsync(...)`
+    - Laden des aktuellen Strom-/Wasserzustands Ã¼ber den bestehenden Servicepfad `GetParzelleDetailAsync(...)`
     - je Medium klare fachliche Ableitung:
-      - aktiver Zähler vorhanden => Ausbau-/Korrekturpfad
-      - kein aktiver Zähler => Einbaupfad
+      - aktiver ZÃ¤hler vorhanden => Ausbau-/Korrekturpfad
+      - kein aktiver ZÃ¤hler => Einbaupfad
   - `ZaehlerwechselScanView.xaml` zeigt jetzt die ruhige Suchmaske mit Parzellenliste und den geladenen Korrekturzustand statt RFID-Scan-UI
   - `ZaehlerwechselAusbauViewModel` und `ZaehlerwechselAusbauView.xaml` produktiv nachgezogen:
     - Schlussstand erfassen
     - Ausbau-Datum erfassen
     - Schlussablesung speichern
-    - aktiven Zähler über die bestehenden Servicepfade beenden
+    - aktiven ZÃ¤hler Ã¼ber die bestehenden Servicepfade beenden
   - `ZaehlerwechselEinbauViewModel` und `ZaehlerwechselEinbauView.xaml` produktiv nachgezogen:
-    - Zählernummer
+    - ZÃ¤hlernummer
     - Eichdatum
     - Einbau-Datum
     - Anfangsstand
-    - neuen Zähler über die bestehenden Servicepfade anlegen
+    - neuen ZÃ¤hler Ã¼ber die bestehenden Servicepfade anlegen
     - Anfangsablesung speichern
-  - kein neuer Backend-Endpunkt, kein neuer RFID-WPF-Flow, keine MAUI-Datei geändert
+  - kein neuer Backend-Endpunkt, kein neuer RFID-WPF-Flow, keine MAUI-Datei geÃ¤ndert
 - Fachliches Ergebnis dieses Blocks:
-  - WPF-Zählerwechsel ist jetzt klar als Korrektur-/Verwaltungsweg über Parzelle erkennbar
-  - der Einstieg erfolgt über Suche und Auswahl statt über RFID
+  - WPF-ZÃ¤hlerwechsel ist jetzt klar als Korrektur-/Verwaltungsweg Ã¼ber Parzelle erkennbar
+  - der Einstieg erfolgt Ã¼ber Suche und Auswahl statt Ã¼ber RFID
   - nach Auswahl der Parzelle werden Strom- und Wasserzustand fachlich getrennt geladen
-  - daraus öffnet WPF pro Medium den passenden Einbau- oder Ausbaupfad
-  - MAUI bleibt damit der primäre Vor-Ort-/RFID-Flow; WPF ist der Korrekturblock
+  - daraus Ã¶ffnet WPF pro Medium den passenden Einbau- oder Ausbaupfad
+  - MAUI bleibt damit der primÃ¤re Vor-Ort-/RFID-Flow; WPF ist der Korrekturblock
 - Validierung:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly -v:q` => erfolgreich
-  - nur bestehende Warnungen außerhalb dieses Blocks blieben erhalten, vor allem in `KGV.Infrastructure/Services/SupabaseService.cs`
+  - nur bestehende Warnungen auÃŸerhalb dieses Blocks blieben erhalten, vor allem in `KGV.Infrastructure/Services/SupabaseService.cs`
 - Git-Abschluss dieses Blocks bewusst eng:
-  - nur die direkt betroffenen WPF-Zählerwechsel-Dateien plus Logdateien gehören in diesen Commit
-  - blockfremde lokale Änderungen bleiben außerhalb dieses Commits
+  - nur die direkt betroffenen WPF-ZÃ¤hlerwechsel-Dateien plus Logdateien gehÃ¶ren in diesen Commit
+  - blockfremde lokale Ã„nderungen bleiben auÃŸerhalb dieses Commits
 
-## 2026-03-30 – Prompt 1/2: MAUI Zählerwechsel auf echten 3-Fall-Flow umgestellt
+## 2026-03-30 â€“ Prompt 1/2: MAUI ZÃ¤hlerwechsel auf echten 3-Fall-Flow umgestellt
 
-- Git-Stand vor dem Block erneut gegen `origin/main` geprüft:
+- Git-Stand vor dem Block erneut gegen `origin/main` geprÃ¼ft:
   - `git status -sb` => `## main...origin/main`
   - `git log --oneline -n 1` => `892b997 Parzellendetails in MAUI und WPF fachlich geschlossen`
   - `git branch --contains 892b997` / `git branch -r --contains 892b997` => `main` und `origin/main`
@@ -188,34 +227,34 @@
   - `ZaehlerwechselPage` nutzte noch den generischen RFID-Kontext-Workflow
   - bei `KnownWithActiveMeter` wurde nur der Ausbaupfad vorbereitet
   - bei `KnownWithoutActiveMeter` wurde nur der Einbaupfad vorbereitet
-  - bei unbekanntem Tag blieb nur Hinweistext stehen, statt direkt den bestehenden RFID-Hinzufügen-Flow zu öffnen
-  - `ZaehlerwechselAusbauPage` und `ZaehlerwechselEinbauPage` waren fachlich bereits produktiv nah dran und kehrten nach erfolgreichem Speichern schon in einen frischen Scanpfad zurück
+  - bei unbekanntem Tag blieb nur Hinweistext stehen, statt direkt den bestehenden RFID-HinzufÃ¼gen-Flow zu Ã¶ffnen
+  - `ZaehlerwechselAusbauPage` und `ZaehlerwechselEinbauPage` waren fachlich bereits produktiv nah dran und kehrten nach erfolgreichem Speichern schon in einen frischen Scanpfad zurÃ¼ck
 - Minimal umgesetzt:
   - generische Entscheidungsbuttons `Weiter zum Ausbau` / `Weiter zum Einbau` als Hauptlogik aus `ZaehlerwechselPage` entfernt
-  - die Seite reagiert jetzt direkt auf den aufgelösten RFID-Kontext und stößt sofort den passenden fachlichen Weg an:
-    - RFID unbekannt => bestehender Flow `RFID hinzufügen` über `RfidEinrichtenPage`
-    - RFID bekannt, aber kein aktiver Zähler => direkter Wechsel in `ZaehlerwechselEinbauPage`
-    - RFID bekannt und aktiver Zähler vorhanden => zuerst Bestätigung `Wollen Sie den Zähler ausbauen?`, nur bei `Ja` direkter Wechsel in `ZaehlerwechselAusbauPage`
-  - bestehender Servicepfad `ResolveRfidScanContextAsync(...)` blieb unverändert die fachliche Grundlage
+  - die Seite reagiert jetzt direkt auf den aufgelÃ¶sten RFID-Kontext und stÃ¶ÃŸt sofort den passenden fachlichen Weg an:
+    - RFID unbekannt => bestehender Flow `RFID hinzufÃ¼gen` Ã¼ber `RfidEinrichtenPage`
+    - RFID bekannt, aber kein aktiver ZÃ¤hler => direkter Wechsel in `ZaehlerwechselEinbauPage`
+    - RFID bekannt und aktiver ZÃ¤hler vorhanden => zuerst BestÃ¤tigung `Wollen Sie den ZÃ¤hler ausbauen?`, nur bei `Ja` direkter Wechsel in `ZaehlerwechselAusbauPage`
+  - bestehender Servicepfad `ResolveRfidScanContextAsync(...)` blieb unverÃ¤ndert die fachliche Grundlage
   - kein neuer Backend-Endpunkt, kein neues Fachmodell, keine neue generische Entscheidungssicht gebaut
-  - `RfidEinrichtenPage` kann jetzt optional eine bereits gescannte UID per Query übernehmen und direkt in den bestehenden RFID-Hinzufügen-Flow einsteigen, statt einen erneuten Scan zu erzwingen
-  - `ZaehlerwechselAusbauPage` und `ZaehlerwechselEinbauPage` mussten nicht fachlich umgebaut werden, weil sie den erfolgreichen Rückweg in den frischen Scan-Zustand bereits korrekt abdecken
+  - `RfidEinrichtenPage` kann jetzt optional eine bereits gescannte UID per Query Ã¼bernehmen und direkt in den bestehenden RFID-HinzufÃ¼gen-Flow einsteigen, statt einen erneuten Scan zu erzwingen
+  - `ZaehlerwechselAusbauPage` und `ZaehlerwechselEinbauPage` mussten nicht fachlich umgebaut werden, weil sie den erfolgreichen RÃ¼ckweg in den frischen Scan-Zustand bereits korrekt abdecken
 - Fachliches Ergebnis dieses Blocks:
-  - der mobile Zählerwechsel läuft jetzt im gewünschten echten 3-Fall-Flow statt über eine generische manuelle Zwischenentscheidung
-  - unbekannte Tags werden direkt in den vorhandenen RFID-Hinzufügen-Flow überführt
-  - eindeutige Einbau-Fälle wechseln direkt in den Einbaupfad
-  - Ausbau-Fälle holen vor dem Öffnen des Ausbaupfads die geforderte Bestätigung ein
-  - nach erfolgreichem Ausbau/Einbau bleibt der bestehende Rückweg in einen frischen Scan-Zustand erhalten
+  - der mobile ZÃ¤hlerwechsel lÃ¤uft jetzt im gewÃ¼nschten echten 3-Fall-Flow statt Ã¼ber eine generische manuelle Zwischenentscheidung
+  - unbekannte Tags werden direkt in den vorhandenen RFID-HinzufÃ¼gen-Flow Ã¼berfÃ¼hrt
+  - eindeutige Einbau-FÃ¤lle wechseln direkt in den Einbaupfad
+  - Ausbau-FÃ¤lle holen vor dem Ã–ffnen des Ausbaupfads die geforderte BestÃ¤tigung ein
+  - nach erfolgreichem Ausbau/Einbau bleibt der bestehende RÃ¼ckweg in einen frischen Scan-Zustand erhalten
 - Validierung:
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
-  - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs` blieben unverändert bestehen
+  - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs` blieben unverÃ¤ndert bestehen
 - Git-Abschluss dieses Blocks bewusst eng:
   - nur `KGV.Maui/Pages/ZaehlerwechselPage.cs`, `KGV.Maui/Pages/RfidEinrichtenPage.cs`, `DEV_LOG.md` und `KGV_Fortschrittslog_ausfuehrlich.md`
-  - blockfremde lokale Änderungen bleiben außerhalb dieses Commits
+  - blockfremde lokale Ã„nderungen bleiben auÃŸerhalb dieses Commits
 
-## 2026-03-30 – Prompt 1/2: Parzellendetails in MAUI und WPF fachlich geschlossen
+## 2026-03-30 â€“ Prompt 1/2: Parzellendetails in MAUI und WPF fachlich geschlossen
 
-- Git-Stand vor dem Block erneut gegen `origin/main` geprüft:
+- Git-Stand vor dem Block erneut gegen `origin/main` geprÃ¼ft:
   - `git status -sb` => `## main...origin/main`
   - `git log --oneline -n 1` => `ef02846 MAUI Stammdaten Mail-Regel im Editmodus`
   - `git branch --contains ef02846` / `git branch -r --contains ef02846` => `main` und `origin/main`
@@ -238,9 +277,9 @@
   - `DEV_LOG.md`
   - `KGV_Fortschrittslog_ausfuehrlich.md`
 - Ehrlicher Istzustand vor dem Block:
-  - MAUI hatte die Parzellen-Stammdatenbearbeitung für Fläche / `hat Wasser` / `hat Strom` bereits teilweise vorhanden, zeigte aber zusätzlich noch die komplette Belegungs-/Zuweisungslogik direkt auf der Parzellenseite
-  - MAUI verwendete für die Flächenänderung noch nicht den jetzt geforderten exakten Bestätigungstext
-  - WPF zeigte in der Parzellen-Detailansicht Fläche / `hat Wasser` / `hat Strom` noch nicht an
+  - MAUI hatte die Parzellen-Stammdatenbearbeitung fÃ¼r FlÃ¤che / `hat Wasser` / `hat Strom` bereits teilweise vorhanden, zeigte aber zusÃ¤tzlich noch die komplette Belegungs-/Zuweisungslogik direkt auf der Parzellenseite
+  - MAUI verwendete fÃ¼r die FlÃ¤chenÃ¤nderung noch nicht den jetzt geforderten exakten BestÃ¤tigungstext
+  - WPF zeigte in der Parzellen-Detailansicht FlÃ¤che / `hat Wasser` / `hat Strom` noch nicht an
   - WPF enthielt weiterhin die Gruppe `Belegung / Zuordnung` mit `Zuordnen` und `Aktive Belegung beenden`
 - Minimal umgesetzt:
   - **MAUI**
@@ -249,36 +288,36 @@
       - `EditFlaeche`
       - `EditHatWasser`
       - `EditHatStrom`
-    - keine Bearbeitung anderer Parzellen-Stammdaten mehr über diesen Block offen gelassen
+    - keine Bearbeitung anderer Parzellen-Stammdaten mehr Ã¼ber diesen Block offen gelassen
     - bestehender Save-Pfad beibehalten
     - nicht editierbare Felder beim Speichern bewusst aus `SelectedDetail` konserviert
-    - Bestätigungstext für Flächenänderungen exakt auf
-      - `Bist du dir sicher, dass du die Fläche der Parzelle ändern möchtest?`
+    - BestÃ¤tigungstext fÃ¼r FlÃ¤chenÃ¤nderungen exakt auf
+      - `Bist du dir sicher, dass du die FlÃ¤che der Parzelle Ã¤ndern mÃ¶chtest?`
       umgestellt
   - **WPF**
-    - Stammdatenanzeige um Fläche / `hat Wasser` / `hat Strom` ergänzt
-    - echten Anzeige-/Bearbeiten-Modus ergänzt
-    - im Bearbeiten-Modus nur Fläche / `hat Wasser` / `hat Strom` editierbar gemacht
-    - Speicherung über den bestehenden Pfad `UpdateParzelleStammdatenAsync(ParzelleRecord)` umgesetzt
-    - dieselbe exakte Flächen-Bestätigung vor dem Speichern ergänzt
+    - Stammdatenanzeige um FlÃ¤che / `hat Wasser` / `hat Strom` ergÃ¤nzt
+    - echten Anzeige-/Bearbeiten-Modus ergÃ¤nzt
+    - im Bearbeiten-Modus nur FlÃ¤che / `hat Wasser` / `hat Strom` editierbar gemacht
+    - Speicherung Ã¼ber den bestehenden Pfad `UpdateParzelleStammdatenAsync(ParzelleRecord)` umgesetzt
+    - dieselbe exakte FlÃ¤chen-BestÃ¤tigung vor dem Speichern ergÃ¤nzt
     - komplette Gruppe `Belegung / Zuordnung` aus der Parzellenansicht entfernt
-    - verbleibende tote WPF-Zuweisungs-/Beendigungslogik aus dem ViewModel abgebaut, ohne unnötigen Total-Refactor
+    - verbleibende tote WPF-Zuweisungs-/Beendigungslogik aus dem ViewModel abgebaut, ohne unnÃ¶tigen Total-Refactor
 - Fachliches Ergebnis dieses Blocks:
   - Parzellenansichten in MAUI und WPF sind jetzt auf Parzellen-Stammdaten statt Parzellen-Belegung ausgerichtet
   - Mitglieder werden in der Parzellenansicht nicht mehr zugeordnet oder entfernt
-  - sicht- und bearbeitbare Kernfelder sind jetzt auf beiden Oberflächen fachlich gleich ausgerichtet
+  - sicht- und bearbeitbare Kernfelder sind jetzt auf beiden OberflÃ¤chen fachlich gleich ausgerichtet
   - Save-Buttons bleiben am Ende des Eingabeformulars
 - Validierung:
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
-  - in MAUI blieben nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs` unverändert bestehen
+  - in MAUI blieben nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs` unverÃ¤ndert bestehen
 - Git-Abschluss dieses Blocks bewusst eng:
-  - nur die direkt betroffenen Parzellen-Dateien plus Logdateien gehören in diesen Commit
-  - blockfremde lokale Änderungen bleiben außerhalb dieses Commits
+  - nur die direkt betroffenen Parzellen-Dateien plus Logdateien gehÃ¶ren in diesen Commit
+  - blockfremde lokale Ã„nderungen bleiben auÃŸerhalb dieses Commits
 
-## 2026-03-30 – Prompt 2/2: MAUI-Stammdaten Mail-Regel im Editmodus fachlich geschlossen
+## 2026-03-30 â€“ Prompt 2/2: MAUI-Stammdaten Mail-Regel im Editmodus fachlich geschlossen
 
-- Git-Stand vor dem Abschlussblock erneut gegen `origin/main` geprüft:
+- Git-Stand vor dem Abschlussblock erneut gegen `origin/main` geprÃ¼ft:
   - `git fetch origin`
   - `git status -sb` => `## main...origin/main`
   - `git branch -vv` => `main 120bd93 [origin/main] MAUI Stammdaten Editmodus im Mitgliedskontext`
@@ -302,36 +341,36 @@
   - der echte mobile Editmodus in `MeineDatenPage` war bereits vorhanden
   - die Mail-Regel war dort aber noch nicht fachlich sauber abgeschlossen
   - die serverseitige Schutzregel bestand bereits im vorhandenen `UpdateMitgliedAsync(...)`
-  - die offene Lücke lag damit nicht im Backend, sondern in der mobilen UI-/Seitenlogik
+  - die offene LÃ¼cke lag damit nicht im Backend, sondern in der mobilen UI-/Seitenlogik
 - Minimal umgesetzt, nur im bestehenden Seitenpfad `MeineDatenPage`:
   - die Seite verwendet jetzt den bereits geladenen `MitgliedRecord`, um sich zu merken, ob `AuthUserId` vorhanden ist
-  - Anzeige-Modus bleibt unverändert lesbar mit normaler Mailanzeige
+  - Anzeige-Modus bleibt unverÃ¤ndert lesbar mit normaler Mailanzeige
   - Bearbeiten-Modus jetzt exakt nach Fachregel:
     - Admin/Vorstand + kein `AuthUserId` => E-Mail editierbar
     - vorhandenes `AuthUserId` => E-Mail read-only
-    - bei vorhandenem `AuthUserId` wird klarer Hinweistext gezeigt, dass die Mailadresse vom Nutzer selbst über den bestehenden Supabase-/OTP-Mailänderungsweg geändert werden muss
+    - bei vorhandenem `AuthUserId` wird klarer Hinweistext gezeigt, dass die Mailadresse vom Nutzer selbst Ã¼ber den bestehenden Supabase-/OTP-MailÃ¤nderungsweg geÃ¤ndert werden muss
     - normale Nutzer erhalten in `MeineDatenPage` keine editierbare Mailfreigabe
-  - beim Speichern wird `dto.Email` nur dann aus dem Editor übernommen, wenn die Fachregel es erlaubt
-  - andernfalls bleibt die bestehende Mail unverändert; keine Umgehung des vorhandenen Service-Schutzpfads
-  - für den erlaubten Mail-Editfall zusätzlich validiert:
+  - beim Speichern wird `dto.Email` nur dann aus dem Editor Ã¼bernommen, wenn die Fachregel es erlaubt
+  - andernfalls bleibt die bestehende Mail unverÃ¤ndert; keine Umgehung des vorhandenen Service-Schutzpfads
+  - fÃ¼r den erlaubten Mail-Editfall zusÃ¤tzlich validiert:
     - trimmen
     - leere Mail blockieren
-    - einfache Plausibilitätsprüfung des Mailformats
+    - einfache PlausibilitÃ¤tsprÃ¼fung des Mailformats
 - Fachliches Ergebnis dieses Abschlussblocks:
-  - der MAUI-Stammdaten-Editmodus ist jetzt auch für die Mailregel fachlich sauber geschlossen
-  - Admin/Vorstand können die Mail nur noch im vorbereiteten Mitgliedsfall ohne `AuthUserId` direkt ändern
-  - bei bestehendem App-/Auth-Zugang verweist der mobile Mitgliedskontext sauber auf den Self-Service-Mailänderungsweg statt eine direkte Bearbeitung vorzutäuschen
-  - `MyProfilePage` blieb bewusst unverändert
+  - der MAUI-Stammdaten-Editmodus ist jetzt auch fÃ¼r die Mailregel fachlich sauber geschlossen
+  - Admin/Vorstand kÃ¶nnen die Mail nur noch im vorbereiteten Mitgliedsfall ohne `AuthUserId` direkt Ã¤ndern
+  - bei bestehendem App-/Auth-Zugang verweist der mobile Mitgliedskontext sauber auf den Self-Service-MailÃ¤nderungsweg statt eine direkte Bearbeitung vorzutÃ¤uschen
+  - `MyProfilePage` blieb bewusst unverÃ¤ndert
 - Validierung:
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
-  - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs` blieben unverändert bestehen
+  - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs` blieben unverÃ¤ndert bestehen
 - Git-Abschluss dieses Blocks bewusst eng:
   - nur `KGV.Maui/Pages/MeineDatenPage.xaml.cs`, `DEV_LOG.md` und `KGV_Fortschrittslog_ausfuehrlich.md`
-  - blockfremde lokale Änderungen bleiben außerhalb dieses Commits
+  - blockfremde lokale Ã„nderungen bleiben auÃŸerhalb dieses Commits
 
-## 2026-03-30 – Prompt 1/2: MAUI-Stammdaten mit echtem Edit-Modus im Mitgliedskontext geschlossen
+## 2026-03-30 â€“ Prompt 1/2: MAUI-Stammdaten mit echtem Edit-Modus im Mitgliedskontext geschlossen
 
-- Git-Stand vor dem MAUI-Block erneut gegen `origin/main` geprüft:
+- Git-Stand vor dem MAUI-Block erneut gegen `origin/main` geprÃ¼ft:
   - `git fetch origin`
   - `git status -sb` => `## main...origin/main`
   - `git branch -vv` => `main 055ab73 [origin/main] Fix WPF invite button visibility refresh`
@@ -348,46 +387,46 @@
   - `Android_Wpf_release_batch_v4.bat`
 - Nur den direkt betroffenen MAUI-Pfad gelesen:
   - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
-  - ergänzend nur lesend als fachliche Referenz: `KGV.Maui/Pages/MyProfilePage.cs`
+  - ergÃ¤nzend nur lesend als fachliche Referenz: `KGV.Maui/Pages/MyProfilePage.cs`
 - Ehrlicher Istzustand vor dem Umbau:
   - `MeineDatenPage` zeigte den Mitgliedskontext faktisch nur lesend an
   - `Bearbeiten` leitete im Eigenfall nach `MyProfilePage` um
   - bei fremden Mitgliedern erschien nur der Hinweis, dass ein mobiler Volleditor noch nicht vorhanden sei
   - ein echter Edit-/Anzeigemodus innerhalb von `MeineDatenPage` existierte damit noch nicht
-  - Dateingaben für `Geburtsdatum`, `Mitglied seit` und `Mitglied Ende` waren dort ebenfalls noch nicht fachlich sauber mobil abgebildet
-- Minimal umgesetzt, primär nur in `KGV.Maui/Pages/MeineDatenPage.xaml.cs`:
-  - klaren Seitenzustand `Anzeige-Modus` / `Bearbeiten-Modus` ergänzt
+  - Dateingaben fÃ¼r `Geburtsdatum`, `Mitglied seit` und `Mitglied Ende` waren dort ebenfalls noch nicht fachlich sauber mobil abgebildet
+- Minimal umgesetzt, primÃ¤r nur in `KGV.Maui/Pages/MeineDatenPage.xaml.cs`:
+  - klaren Seitenzustand `Anzeige-Modus` / `Bearbeiten-Modus` ergÃ¤nzt
   - im Anzeige-Modus bleiben die Stammdaten als reine Wertdarstellung sichtbar
-  - im Bearbeiten-Modus echte Eingabefelder ergänzt für:
+  - im Bearbeiten-Modus echte Eingabefelder ergÃ¤nzt fÃ¼r:
     - `Vorname`
     - `Nachname`
     - `Telefon`
     - `Mobilnummer`
-    - `Straße`
+    - `StraÃŸe`
     - `PLZ`
     - `Ort`
     - `Bemerkung`
-  - `Geburtsdatum`, `Mitglied seit` und `Mitglied Ende` jetzt als mobile DatePicker mit separatem `Leeren`-Button umgesetzt, ausdrücklich ohne Vorschalt-Schalter
+  - `Geburtsdatum`, `Mitglied seit` und `Mitglied Ende` jetzt als mobile DatePicker mit separatem `Leeren`-Button umgesetzt, ausdrÃ¼cklich ohne Vorschalt-Schalter
   - `WhatsApp` als Switch nur im Bearbeiten-Modus sichtbar/bearbeitbar gemacht
   - `Speichern` und `Abbrechen` an das Ende des Eingabeformulars gesetzt
   - der bisherige Dialog `mobiler Volleditor ... noch nicht vorhanden` wurde entfernt
-  - Admin/Vorstand können fremde Mitglieder jetzt direkt in `MeineDatenPage` bearbeiten und über den vorhandenen Lock-/`UpdateMitgliedAsync(...)`-Pfad speichern
-  - `MyProfilePage` blieb bewusst unangetastet und weiter für Self-Service-/OTP-Themen reserviert
+  - Admin/Vorstand kÃ¶nnen fremde Mitglieder jetzt direkt in `MeineDatenPage` bearbeiten und Ã¼ber den vorhandenen Lock-/`UpdateMitgliedAsync(...)`-Pfad speichern
+  - `MyProfilePage` blieb bewusst unangetastet und weiter fÃ¼r Self-Service-/OTP-Themen reserviert
 - Fachliches Ergebnis dieses Blocks:
-  - der ausgewählte Mitgliedskontext besitzt jetzt mobil einen echten Anzeige-/Bearbeitungsmodus
-  - fremde Mitglieder sind für Admin/Vorstand nicht mehr faktisch read-only
+  - der ausgewÃ¤hlte Mitgliedskontext besitzt jetzt mobil einen echten Anzeige-/Bearbeitungsmodus
+  - fremde Mitglieder sind fÃ¼r Admin/Vorstand nicht mehr faktisch read-only
   - nullable Datumsfelder sind mobil bedienbar, ohne unpassende Schalter vor dem Feld
   - der Speichern-/Abbrechen-Abschluss sitzt am Ende des Formulars
 - Validierung:
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
-  - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs` blieben unverändert bestehen
+  - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs` blieben unverÃ¤ndert bestehen
 - Git-Abschluss dieses Blocks bewusst eng:
   - nur `KGV.Maui/Pages/MeineDatenPage.xaml.cs`, `DEV_LOG.md` und `KGV_Fortschrittslog_ausfuehrlich.md`
-  - blockfremde lokale Änderungen bleiben außerhalb dieses Commits
+  - blockfremde lokale Ã„nderungen bleiben auÃŸerhalb dieses Commits
 
-## 2026-03-30 – Prompt 1/1: WPF-Bugfix `Nutzer hinzufügen` in der gebundenen Benutzerverwaltung wieder sichtbar gemacht
+## 2026-03-30 â€“ Prompt 1/1: WPF-Bugfix `Nutzer hinzufÃ¼gen` in der gebundenen Benutzerverwaltung wieder sichtbar gemacht
 
-- Git-Stand vor dem kleinen WPF-Bugfix erneut gegen `origin/main` geprüft:
+- Git-Stand vor dem kleinen WPF-Bugfix erneut gegen `origin/main` geprÃ¼ft:
   - `git fetch origin`
   - `git status -sb` => `## main...origin/main`
   - `git branch -vv` => `main 43f5513 [origin/main] Document invite fix repo verification`
@@ -404,79 +443,79 @@
 - Nur den direkt betroffenen WPF-Pfad gelesen:
   - `KGV.Wpf/ViewModels/UserManagementViewModel.cs`
   - `KGV.Wpf/Views/UserManagementView.xaml`
-  - ergänzend MAUI nur lesend als Gegenreferenz: `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+  - ergÃ¤nzend MAUI nur lesend als Gegenreferenz: `KGV.Maui/ViewModels/UserManagementViewModel.cs`
 - Ehrlicher Istzustand vor dem Fix:
-  - der Button `Nutzer hinzufügen` war in `KGV.Wpf/Views/UserManagementView.xaml` bereits korrekt an `ShowInviteAction` gebunden
+  - der Button `Nutzer hinzufÃ¼gen` war in `KGV.Wpf/Views/UserManagementView.xaml` bereits korrekt an `ShowInviteAction` gebunden
   - der reale Fehler lag im WPF-ViewModel:
     - `ShowInviteAction` ist eine berechnete Property
-    - im Setter von `SelectedUser` fehlte die Benachrichtigung für `ShowInviteAction`
-    - im Setter von `IsBusy` fehlte die Benachrichtigung für `ShowInviteAction`
+    - im Setter von `SelectedUser` fehlte die Benachrichtigung fÃ¼r `ShowInviteAction`
+    - im Setter von `IsBusy` fehlte die Benachrichtigung fÃ¼r `ShowInviteAction`
     - nach dem Reload in `LoadAsync()` fehlte ebenfalls eine explizite Neuauswertung
-  - dadurch blieb die WPF-Visibility im gebundenen Mitgliedskontext hängen, obwohl der fachliche Invite-Fall vorlag
+  - dadurch blieb die WPF-Visibility im gebundenen Mitgliedskontext hÃ¤ngen, obwohl der fachliche Invite-Fall vorlag
 - Minimal umgesetzt:
-  - in `KGV.Wpf/ViewModels/UserManagementViewModel.cs` `OnPropertyChanged(nameof(ShowInviteAction))` ergänzt:
+  - in `KGV.Wpf/ViewModels/UserManagementViewModel.cs` `OnPropertyChanged(nameof(ShowInviteAction))` ergÃ¤nzt:
     - im Setter von `SelectedUser`
     - im Setter von `IsBusy`
     - nach dem relevanten Statuswechsel in `LoadAsync()`
-  - Command-Requery für Invite/Remove an denselben relevanten Stellen sauber mitgezogen
-  - `KGV.Wpf/Views/UserManagementView.xaml` bewusst unverändert gelassen, weil das Binding dort bereits korrekt war
+  - Command-Requery fÃ¼r Invite/Remove an denselben relevanten Stellen sauber mitgezogen
+  - `KGV.Wpf/Views/UserManagementView.xaml` bewusst unverÃ¤ndert gelassen, weil das Binding dort bereits korrekt war
 - Fachliches Ergebnis dieses Blocks:
-  - gebundenes Mitglied mit E-Mail und ohne verknüpften App-User/Auth-User zeigt in WPF `Nutzer hinzufügen` wieder sichtbar an
-  - konsistent verknüpfte Fälle bleiben weiter ohne sichtbaren Invite-Button
+  - gebundenes Mitglied mit E-Mail und ohne verknÃ¼pften App-User/Auth-User zeigt in WPF `Nutzer hinzufÃ¼gen` wieder sichtbar an
+  - konsistent verknÃ¼pfte FÃ¤lle bleiben weiter ohne sichtbaren Invite-Button
   - `Nutzer entfernen` bleibt auf dem bestehenden WPF-Pfad fachlich korrekt gekoppelt
   - MAUI wurde in diesem Block nicht fachlich umgebaut
 - Validierung:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly -v:q` => erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich, nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
-  - dateibezogene Fehlerprüfung für `KGV.Wpf/ViewModels/UserManagementViewModel.cs` und `KGV.Wpf/Views/UserManagementView.xaml` => unauffällig
+  - dateibezogene FehlerprÃ¼fung fÃ¼r `KGV.Wpf/ViewModels/UserManagementViewModel.cs` und `KGV.Wpf/Views/UserManagementView.xaml` => unauffÃ¤llig
 - Git-Abschluss dieses Blocks bewusst eng:
   - nur `KGV.Wpf/ViewModels/UserManagementViewModel.cs`, `DEV_LOG.md` und `KGV_Fortschrittslog_ausfuehrlich.md`
-  - blockfremde lokale Änderungen bleiben außerhalb dieses Commits
+  - blockfremde lokale Ã„nderungen bleiben auÃŸerhalb dieses Commits
 
-## 2026-03-30 – Repo-Abgleich: Die behaupteten Invite-/Diagnose-Commits sind real auf `origin/main`
+## 2026-03-30 â€“ Repo-Abgleich: Die behaupteten Invite-/Diagnose-Commits sind real auf `origin/main`
 
-- Git-Stand zuerst gegen `origin/main` geprüft.
+- Git-Stand zuerst gegen `origin/main` geprÃ¼ft.
 - Reales Ergebnis:
   - Commit `7047fdd` ist auf `main` und auf `origin/main` enthalten
   - Commit `0d9d025` ist auf `main` und auf `origin/main` enthalten
-  - `HEAD` und `origin/main` zeigen im Prüflauf beide auf `0d9d025...`
-- Damit war die Behauptung, die Fixes seien eventuell gar nicht auf `origin/main`, **für den aktuellen Repo-Stand nicht zutreffend**.
-- Anschließend Code gegen den Stand auf `origin/main` geprüft:
+  - `HEAD` und `origin/main` zeigen im PrÃ¼flauf beide auf `0d9d025...`
+- Damit war die Behauptung, die Fixes seien eventuell gar nicht auf `origin/main`, **fÃ¼r den aktuellen Repo-Stand nicht zutreffend**.
+- AnschlieÃŸend Code gegen den Stand auf `origin/main` geprÃ¼ft:
   - `find_auth_user_id_by_email` ist real in `AuthService` referenziert
   - Persistenz-/Diagnose-Logs sind real vorhanden
-  - Readback für `mitglied.auth_user_id` ist real vorhanden
-  - Readback für `app_user` ist real vorhanden
-  - `VerifyOtpAsync(...)` enthält real den Reparaturpfad
-- WPF/MAUI nur gegengeprüft:
+  - Readback fÃ¼r `mitglied.auth_user_id` ist real vorhanden
+  - Readback fÃ¼r `app_user` ist real vorhanden
+  - `VerifyOtpAsync(...)` enthÃ¤lt real den Reparaturpfad
+- WPF/MAUI nur gegengeprÃ¼ft:
   - beide UIs rufen weiterhin denselben korrigierten Servicepfad auf
   - kein neuer UI-Fix erforderlich
 - Harte Schlussfolgerung dieses Blocks:
   - der echte Invite-/OTP-Fix war bereits auf `origin/main`
-  - wenn der Produktivtest weiter scheitert, dann nicht wegen fehlender Commits auf `main`, sondern wegen eines Laufzeit-/Umgebungs-/Supabase-Produktivthemas außerhalb der reinen Git-Behauptung
+  - wenn der Produktivtest weiter scheitert, dann nicht wegen fehlender Commits auf `main`, sondern wegen eines Laufzeit-/Umgebungs-/Supabase-Produktivthemas auÃŸerhalb der reinen Git-Behauptung
 - Builds:
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
 - Bewusst nicht Teil dieses Blocks geblieben:
-  - lokale Änderung in `KGV.Maui/KGV.Maui.csproj`
+  - lokale Ã„nderung in `KGV.Maui/KGV.Maui.csproj`
   - ungetrackte Batch-Dateien `Android_Wpf_release_batch_v4.bat` und `Android_Wpf_release_batch_v5.bat`
 
-## 2026-03-30 – Diagnoseblock: Produktiver Invite-Lauf beweist den Fehlerpunkt jetzt sauber
+## 2026-03-30 â€“ Diagnoseblock: Produktiver Invite-Lauf beweist den Fehlerpunkt jetzt sauber
 
-- Git-Stand vor dem Diagnoseblock erneut gegen `origin/main` geprüft:
+- Git-Stand vor dem Diagnoseblock erneut gegen `origin/main` geprÃ¼ft:
   - `git fetch origin`
   - `git status -sb` => `## main...origin/main`
   - `git branch -vv` => `main 7047fdd [origin/main] Fix auth user resolution for invites`
-- Den echten Servicepfad erneut bestätigt:
+- Den echten Servicepfad erneut bestÃ¤tigt:
   - WPF und MAUI rufen denselben `AuthService.InviteUserAsync(...)`-Pfad auf
-  - UIs sind damit für diesen Restfehler nicht der Hauptverdächtige
+  - UIs sind damit fÃ¼r diesen Restfehler nicht der HauptverdÃ¤chtige
 - Config-/Projektbefund:
   - WPF und MAUI lesen im Repo dieselbe Supabase-Konfiguration aus derselben Root-`appsettings.json`
   - beide zeigen auf `https://itjcabiibuodkxayhvjq.supabase.co`
   - im Repo kein nachweisbarer eigener `UserSecretsId`-Pfad
-- RPC-/Migration-Prüfung:
-  - SQL-Datei `20260330104500_find_auth_user_id_by_email.sql` fachlich geprüft
+- RPC-/Migration-PrÃ¼fung:
+  - SQL-Datei `20260330104500_find_auth_user_id_by_email.sql` fachlich geprÃ¼ft
   - Name und Parameter passen exakt zum C#-Aufruf
   - Berechtigungslogik in SQL vorhanden
   - offener Realpunkt bleibt: ob die Migration im produktiven Supabase-Projekt schon eingespielt wurde, ist aus dem Repo allein nicht beweisbar
@@ -484,129 +523,129 @@
   - `EnsureMemberInviteMappingAsync(...)` hat `mitglied.auth_user_id` bisher nicht per Readback verifiziert
   - `EnsureAppUserRecordAsync(...)` hat `app_user` bisher nicht per Readback verifiziert
   - dadurch konnte der Lauf fachlich weiterlaufen, obwohl die Persistenz im Produktivkontext real nicht bewiesen war
-  - genau dieser Schritt erklärt das Symptom `OTP läuft / Invite läuft`, aber `mitglied.auth_user_id` bleibt leer
-- Für den Diagnose-/Beweisblock umgesetzt:
-  - präzise `AUTH_DIAG`-Logs in `AuthService`
-  - zusätzliche `Trace`-Ausgabe, damit auch WPF ohne injizierten Logger im Debug-/Output-Pfad belastbar beobachtbar bleibt
-  - harter Persistenznachweis für `mitglied.auth_user_id`
-  - harter Persistenznachweis für `app_user`
+  - genau dieser Schritt erklÃ¤rt das Symptom `OTP lÃ¤uft / Invite lÃ¤uft`, aber `mitglied.auth_user_id` bleibt leer
+- FÃ¼r den Diagnose-/Beweisblock umgesetzt:
+  - prÃ¤zise `AUTH_DIAG`-Logs in `AuthService`
+  - zusÃ¤tzliche `Trace`-Ausgabe, damit auch WPF ohne injizierten Logger im Debug-/Output-Pfad belastbar beobachtbar bleibt
+  - harter Persistenznachweis fÃ¼r `mitglied.auth_user_id`
+  - harter Persistenznachweis fÃ¼r `app_user`
   - sauberer Abbruch statt stiller Weiterlauf, wenn Persistenz nicht wirklich stattgefunden hat
 - Exaktes Diagnoseergebnis dieses Blocks:
-  - der bislang sicher nachweisbare technische Fehlerpunkt lag am Schritt **DB-Update `mitglied.auth_user_id` / fehlende Verifikation der tatsächlichen Persistenz**
-  - der Lauf konnte vorher fälschlich erfolgreich wirken, obwohl der kritische Mitglieds-Link produktiv nicht belastbar gespeichert war
-  - nach dem Block wird der nächste reale Test exakt zeigen, ob der Produktivfehler jetzt beim RPC-Lookup, beim Mitglieds-Write, beim `app_user`-Write oder erst beim OTP-Versand hängt
+  - der bislang sicher nachweisbare technische Fehlerpunkt lag am Schritt **DB-Update `mitglied.auth_user_id` / fehlende Verifikation der tatsÃ¤chlichen Persistenz**
+  - der Lauf konnte vorher fÃ¤lschlich erfolgreich wirken, obwohl der kritische Mitglieds-Link produktiv nicht belastbar gespeichert war
+  - nach dem Block wird der nÃ¤chste reale Test exakt zeigen, ob der Produktivfehler jetzt beim RPC-Lookup, beim Mitglieds-Write, beim `app_user`-Write oder erst beim OTP-Versand hÃ¤ngt
 - Builds:
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
 - Bewusst nicht Teil dieses Diagnoseblocks geblieben:
-  - lokale Änderung in `KGV.Maui/KGV.Maui.csproj`
+  - lokale Ã„nderung in `KGV.Maui/KGV.Maui.csproj`
   - ungetrackte Batch-Dateien `Android_Wpf_release_batch_v4.bat` und `Android_Wpf_release_batch_v5.bat`
 
-## 2026-03-30 – Prompt 1/1: Harter Zentralfix für Invite-Flow ohne geschriebenes `auth_user_id`
+## 2026-03-30 â€“ Prompt 1/1: Harter Zentralfix fÃ¼r Invite-Flow ohne geschriebenes `auth_user_id`
 
-- Git-Stand vor dem neuen Korrekturblock erneut gegen `origin/main` geprüft:
+- Git-Stand vor dem neuen Korrekturblock erneut gegen `origin/main` geprÃ¼ft:
   - `git fetch origin`
   - `git status -sb` => `## main...origin/main`
   - `git branch -vv` => `main b76f918 [origin/main] Fix invite and OTP member mapping flow`
-- Den echten aktuellen Produktivpfad erneut bestätigt:
+- Den echten aktuellen Produktivpfad erneut bestÃ¤tigt:
   - WPF und MAUI rufen `InviteUserAsync(...)` bereits korrekt auf
-  - die verbleibende Restlücke saß weiter zentral in `KGV.Infrastructure/Authentication/AuthService.cs`
-- Reale Restlücken des bisherigen Stands:
-  - vorhandene Auth-User konnten noch nicht über einen echten DB-/RPC-Pfad per E-Mail belastbar aufgelöst werden
+  - die verbleibende RestlÃ¼cke saÃŸ weiter zentral in `KGV.Infrastructure/Authentication/AuthService.cs`
+- Reale RestlÃ¼cken des bisherigen Stands:
+  - vorhandene Auth-User konnten noch nicht Ã¼ber einen echten DB-/RPC-Pfad per E-Mail belastbar aufgelÃ¶st werden
   - Invite konnte dadurch fachlich noch auf einen Deferred-Repair ausweichen, statt `mitglied.auth_user_id` und `app_user` immer vor OTP-Versand sauber zu schreiben
   - freier OTP-/Recovery-Request durfte noch zu viel automatisch vorbereiten
-  - MAUI blendete `Nutzer hinzufügen` im gebundenen Mitgliedskontext weiterhin aus und beschränkte den Mitgliedsdetailpfad noch auf `Admin`
+  - MAUI blendete `Nutzer hinzufÃ¼gen` im gebundenen Mitgliedskontext weiterhin aus und beschrÃ¤nkte den Mitgliedsdetailpfad noch auf `Admin`
 - Minimal umgesetzt:
   - neue Supabase-Migration `supabase/migrations/20260330104500_find_auth_user_id_by_email.sql`
-  - Security-Definer-RPC `public.find_auth_user_id_by_email(text)` ergänzt, damit `admin`/`vorstand` vorhandene Auth-User per E-Mail belastbar auflösen können
-  - `AuthService` nutzt diese RPC-Auflösung jetzt vor/nach `SignUp`
+  - Security-Definer-RPC `public.find_auth_user_id_by_email(text)` ergÃ¤nzt, damit `admin`/`vorstand` vorhandene Auth-User per E-Mail belastbar auflÃ¶sen kÃ¶nnen
+  - `AuthService` nutzt diese RPC-AuflÃ¶sung jetzt vor/nach `SignUp`
   - `InviteUserAsync(...)` versendet OTP jetzt erst nach erfolgreicher Vorbereitung von Auth-User, `mitglied.auth_user_id` und `app_user`
-  - `RequestOtpAsync(...)` / `SendPasswordResetEmailAsync(...)` blockieren unvorbereitete Fälle jetzt konsequent und erzeugen im freien Login-Pfad keine Auth-User mehr
-  - `VerifyOtpAsync(...)` bleibt zusätzlich reparierend aktiv
-  - MAUI-Sichtbarkeit/Freigabe für den gebundenen Mitgliedskontext korrigiert
-  - WPF-Invite-Sichtbarkeit auf denselben fachlichen Zustand geschärft
+  - `RequestOtpAsync(...)` / `SendPasswordResetEmailAsync(...)` blockieren unvorbereitete FÃ¤lle jetzt konsequent und erzeugen im freien Login-Pfad keine Auth-User mehr
+  - `VerifyOtpAsync(...)` bleibt zusÃ¤tzlich reparierend aktiv
+  - MAUI-Sichtbarkeit/Freigabe fÃ¼r den gebundenen Mitgliedskontext korrigiert
+  - WPF-Invite-Sichtbarkeit auf denselben fachlichen Zustand geschÃ¤rft
 - Builds:
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
 - Bewusst nicht Teil dieses Blocks geblieben:
-  - lokale Änderung in `KGV.Maui/KGV.Maui.csproj`
+  - lokale Ã„nderung in `KGV.Maui/KGV.Maui.csproj`
   - ungetrackte Batch-Dateien `Android_Wpf_release_batch_v4.bat` und `Android_Wpf_release_batch_v5.bat`
 
-## 2026-03-30 – Prompt 1/1: Nutzer hinzufügen in WPF und MAUI fachlich auf denselben belastbaren Invite-/OTP-Flow gezogen
+## 2026-03-30 â€“ Prompt 1/1: Nutzer hinzufÃ¼gen in WPF und MAUI fachlich auf denselben belastbaren Invite-/OTP-Flow gezogen
 
-- Git-Stand vor Start gegen `origin/main` geprüft:
+- Git-Stand vor Start gegen `origin/main` geprÃ¼ft:
   - `git fetch origin`
   - `git status -sb` => `## main...origin/main`
   - `git branch -vv` => `main 2a514c3 [origin/main] Clarify rolled back release steps`
-- Vorhandene blockfremde Arbeitsbaum-Einträge bewusst separat dokumentiert:
-  - `KGV.Maui/KGV.Maui.csproj` mit lokaler `ApplicationVersion`-Änderung
+- Vorhandene blockfremde Arbeitsbaum-EintrÃ¤ge bewusst separat dokumentiert:
+  - `KGV.Maui/KGV.Maui.csproj` mit lokaler `ApplicationVersion`-Ã„nderung
   - `Android_Wpf_release_batch_v4.bat`
   - `Android_Wpf_release_batch_v5.bat`
-- Echten Istzustand des Produktivpfads geprüft:
+- Echten Istzustand des Produktivpfads geprÃ¼ft:
   - WPF-Benutzerverwaltung nutzt bereits `InviteUserAsync(...)`
   - MAUI besitzt denselben Fachpfad bereits im Mitgliedsdetail und in der mobilen Benutzerverwaltung
   - der eigentliche Fehler lag im Shared-/Infrastructure-Auth-Flow
-- Reale Restlücken vor der Korrektur:
+- Reale RestlÃ¼cken vor der Korrektur:
   - `InviteUserAsync(...)` war noch nicht robust genug, wenn ein Auth-User fachlich schon existierte, `mitglied.auth_user_id` aber noch nicht sauber gesetzt war
-  - `RequestOtpAsync(...)` versendete OTP ohne vorherige Prüfung, ob die Mailadresse überhaupt einem vorbereitbaren Mitglied zugeordnet ist
-  - `VerifyOtpAsync(...)` reparierte die Mitglied-/`app_user`-Zuordnung nicht unmittelbar nach erfolgreicher OTP-Bestätigung
+  - `RequestOtpAsync(...)` versendete OTP ohne vorherige PrÃ¼fung, ob die Mailadresse Ã¼berhaupt einem vorbereitbaren Mitglied zugeordnet ist
+  - `VerifyOtpAsync(...)` reparierte die Mitglied-/`app_user`-Zuordnung nicht unmittelbar nach erfolgreicher OTP-BestÃ¤tigung
 - Minimal umgesetzt:
-  - Shared-Auth-Flow über `AuthService` gehärtet
-  - Mitglied wird jetzt vor Invite/OTP eindeutig und operativ aufgelöst
+  - Shared-Auth-Flow Ã¼ber `AuthService` gehÃ¤rtet
+  - Mitglied wird jetzt vor Invite/OTP eindeutig und operativ aufgelÃ¶st
   - bestehende Zuordnungen werden zuerst aus `mitglied.auth_user_id`, dann aus `app_user.mitglied_id` wiederverwendet
   - bei vorhandenen Auth-Konten ohne direkt lesbare ID wird ein kontrollierter Deferred-Repair-Pfad genutzt
-  - die eigentliche Zuordnungsreparatur erfolgt spätestens direkt nach erfolgreicher OTP-Bestätigung
+  - die eigentliche Zuordnungsreparatur erfolgt spÃ¤testens direkt nach erfolgreicher OTP-BestÃ¤tigung
   - unbekannte oder nicht vorbereitbare Mailadressen erhalten keinen freien OTP mehr
-  - WPF- und MAUI-Meldungen für Invite/OTP/Reset wurden auf sichere, nicht technische Texte geschärft
-- Mail-/Template-Prüfung:
-  - im Repo wurde kein eigener Template-Pfad für die Supabase-Invite-/Recovery-Mails gefunden
-  - deshalb nur vorhandene sichtbare Texte minimal um App-/PC-Einstiegshinweise ergänzt
+  - WPF- und MAUI-Meldungen fÃ¼r Invite/OTP/Reset wurden auf sichere, nicht technische Texte geschÃ¤rft
+- Mail-/Template-PrÃ¼fung:
+  - im Repo wurde kein eigener Template-Pfad fÃ¼r die Supabase-Invite-/Recovery-Mails gefunden
+  - deshalb nur vorhandene sichtbare Texte minimal um App-/PC-Einstiegshinweise ergÃ¤nzt
 - Builds:
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
 - Bewusst nicht Teil dieses Fachblocks geblieben:
-  - lokale Änderung in `KGV.Maui/KGV.Maui.csproj`
+  - lokale Ã„nderung in `KGV.Maui/KGV.Maui.csproj`
   - ungetrackte Batch-Dateien `Android_Wpf_release_batch_v4.bat` und `Android_Wpf_release_batch_v5.bat`
 
-## 2026-03-30 – Kurzfix: Rollback-Status in der Release-Schrittliste fachlich präzisiert
+## 2026-03-30 â€“ Kurzfix: Rollback-Status in der Release-Schrittliste fachlich prÃ¤zisiert
 
-- Den gemeldeten Release-Auszug mit fehlgeschlagenem Push und erfolgreichem Rollback direkt gegen den aktuellen Codepfad geprüft.
-- Reale Restlücke:
-  - einzelne bereits ausgeführte, aber durch Rollback zurückgenommene Schritte blieben in der UI-Schrittliste weiter grün als `Erfolgreich`
+- Den gemeldeten Release-Auszug mit fehlgeschlagenem Push und erfolgreichem Rollback direkt gegen den aktuellen Codepfad geprÃ¼ft.
+- Reale RestlÃ¼cke:
+  - einzelne bereits ausgefÃ¼hrte, aber durch Rollback zurÃ¼ckgenommene Schritte blieben in der UI-Schrittliste weiter grÃ¼n als `Erfolgreich`
   - das betraf insbesondere Versionsschreiben, Marker und Commit
 - Minimal umgesetzt:
-  - neuer Schrittzustand `Zurückgesetzt`
-  - `ReleaseExecutionService` markiert nach erfolgreichem Rollback jetzt die wirklich rückgängig gemachten Schritte explizit als zurückgesetzt
-  - der Abschlussstatus bleibt unverändert ehrlich auf `fehlgeschlagen, rollback erfolgreich`
+  - neuer Schrittzustand `ZurÃ¼ckgesetzt`
+  - `ReleaseExecutionService` markiert nach erfolgreichem Rollback jetzt die wirklich rÃ¼ckgÃ¤ngig gemachten Schritte explizit als zurÃ¼ckgesetzt
+  - der Abschlussstatus bleibt unverÃ¤ndert ehrlich auf `fehlgeschlagen, rollback erfolgreich`
 - Validierung:
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich, nur bekannte Warnungen
   - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
 
-## 2026-03-30 – Kurzfix: Systemcheck durch Inno-Setup-Hilfecode fälschlich blockiert
+## 2026-03-30 â€“ Kurzfix: Systemcheck durch Inno-Setup-Hilfecode fÃ¤lschlich blockiert
 
-- Nach dem transaktionalen Release-Block den aktuellen Fehler `Systemcheck nicht startbar` direkt auf dem echten Stand geprüft.
-- Reale Ursache war kein fehlendes Tool, sondern die Prüfart:
+- Nach dem transaktionalen Release-Block den aktuellen Fehler `Systemcheck nicht startbar` direkt auf dem echten Stand geprÃ¼ft.
+- Reale Ursache war kein fehlendes Tool, sondern die PrÃ¼fart:
   - `ISCC.exe /?` startet lokal korrekt
-  - Inno Setup liefert für den Hilfebildschirm aber ExitCode `1`
-  - der Preflight wertete das bisher als Fehler und blockierte dadurch den Systemcheck trotz gültiger Installation
+  - Inno Setup liefert fÃ¼r den Hilfebildschirm aber ExitCode `1`
+  - der Preflight wertete das bisher als Fehler und blockierte dadurch den Systemcheck trotz gÃ¼ltiger Installation
 - Minimal umgesetzt:
-  - `ReleasePreflightService.CheckInnoSetupAsync(...)` akzeptiert den Hilfecall jetzt als gültigen Verfügbarkeitsnachweis, solange der Prozess sauber startet und der typische `Inno Setup`-Text zurückkommt
+  - `ReleasePreflightService.CheckInnoSetupAsync(...)` akzeptiert den Hilfecall jetzt als gÃ¼ltigen VerfÃ¼gbarkeitsnachweis, solange der Prozess sauber startet und der typische `Inno Setup`-Text zurÃ¼ckkommt
   - echte Startfehler bleiben weiterhin rote Fehler
 - Validierung:
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
 
-## 2026-03-30 – Prompt 2/2: Release Manager transaktional gehärtet, Rollback präzisiert und Abschlussstatus sichtbar gemacht
+## 2026-03-30 â€“ Prompt 2/2: Release Manager transaktional gehÃ¤rtet, Rollback prÃ¤zisiert und Abschlussstatus sichtbar gemacht
 
-- Vor Beginn den echten Git-Stand gegen `origin/main` geprüft:
+- Vor Beginn den echten Git-Stand gegen `origin/main` geprÃ¼ft:
   - `git fetch origin`
   - `git status -sb` => `## main...origin/main`
   - `git branch -vv` => `main a97d047 [origin/main] Add release manager preflight system check`
@@ -615,7 +654,7 @@
 - Ehrlicher Git-Befund zu Beginn:
   - lokaler Stand und `origin/main` waren identisch
   - keine ungepushten lokalen Commits
-  - keine uncommitteten lokalen Änderungen
+  - keine uncommitteten lokalen Ã„nderungen
 - Danach nur den direkt betroffenen Release-Manager-Pfad gelesen:
   - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
   - `KGV.ReleaseManager/Services/ReleaseMarkerService.cs`
@@ -629,46 +668,46 @@
   - `KGV.ReleaseManager/Models/ReleaseExecutionRequest.cs`
   - `KGV.ReleaseManager/Models/ReleaseExecutionResult.cs`
 - Ehrlicher Istzustand vor dem Umbau:
-  - der echte Release lief bereits über Versionsschreiben -> Build(s) -> Artefaktveröffentlichung -> Marker -> Git
-  - Versionen wurden über `ReleaseVersionFileService.WriteTargetVersion(...)` erhöht
-  - Rücksetzen lief bisher nur grob über Dateibackups in `RollbackFailure(...)`
+  - der echte Release lief bereits Ã¼ber Versionsschreiben -> Build(s) -> ArtefaktverÃ¶ffentlichung -> Marker -> Git
+  - Versionen wurden Ã¼ber `ReleaseVersionFileService.WriteTargetVersion(...)` erhÃ¶ht
+  - RÃ¼cksetzen lief bisher nur grob Ã¼ber Dateibackups in `RollbackFailure(...)`
   - Marker wurde vor Commit/Push geschrieben
   - Commit und Push liefen noch als zusammengezogener Pfad; bei Fehlern nach lokalem Commit blieb der Zustand nicht mehr streng transaktional ausgewertet
-  - im UI fehlte zusätzlich eine klare Release-Schrittliste mit Abschlussstatus `erfolgreich` / `fehlgeschlagen` / `fehlgeschlagen, rollback erfolgreich` / `fehlgeschlagen, rollback unvollständig`
+  - im UI fehlte zusÃ¤tzlich eine klare Release-Schrittliste mit Abschlussstatus `erfolgreich` / `fehlgeschlagen` / `fehlgeschlagen, rollback erfolgreich` / `fehlgeschlagen, rollback unvollstÃ¤ndig`
 - Minimal im bestehenden Pfad umgesetzt:
-  - neue Ergebnis-/Statusmodelle für Gesamtstatus, Schrittergebnisse und Restore-Ergebnis ergänzt
+  - neue Ergebnis-/Statusmodelle fÃ¼r Gesamtstatus, Schrittergebnisse und Restore-Ergebnis ergÃ¤nzt
   - `ReleaseExecutionService` intern auf nachvollziehbare fachliche Schrittkette gezogen:
     - Ausgangsversionen lesen
-    - Versionen erhöhen/schreiben
+    - Versionen erhÃ¶hen/schreiben
     - WPF-Artefakte bauen
     - Android-APK bauen
     - Android-AAB bauen
-    - Veröffentlichungsordner befüllen
+    - VerÃ¶ffentlichungsordner befÃ¼llen
     - Marker schreiben
-    - Commit ausführen
-    - Push ausführen
+    - Commit ausfÃ¼hren
+    - Push ausfÃ¼hren
     - Rollback
     - Abschluss
-  - `VersionService` wird jetzt auch im echten Releasepfad verwendet, damit der Lauf die Ausgangsversionen ausdrücklich liest und protokolliert
-  - `ReleaseVersionFileService.RestoreBackups(...)` liefert jetzt ein echtes Restore-Ergebnis statt nur still Dateien zurückzuschreiben
-  - lokales Git-Rollback ergänzt:
-    - ursprüngliche HEADs werden vor Commit erfasst
-    - lokale Commits können bei Fehlern vor erfolgreichem Push per `reset --hard` zurückgesetzt werden
-  - Push-Reihenfolge so gezogen, dass das markerführende Quellrepo zuletzt gepusht wird
-  - bei bereits erfolgtem Push wird der Zustand jetzt bewusst ehrlich als `rollback unvollständig` gemeldet statt als scheinbar sauberer Vollrollback
-  - `ReleaseExecutionResult` enthält jetzt zusätzlich:
+  - `VersionService` wird jetzt auch im echten Releasepfad verwendet, damit der Lauf die Ausgangsversionen ausdrÃ¼cklich liest und protokolliert
+  - `ReleaseVersionFileService.RestoreBackups(...)` liefert jetzt ein echtes Restore-Ergebnis statt nur still Dateien zurÃ¼ckzuschreiben
+  - lokales Git-Rollback ergÃ¤nzt:
+    - ursprÃ¼ngliche HEADs werden vor Commit erfasst
+    - lokale Commits kÃ¶nnen bei Fehlern vor erfolgreichem Push per `reset --hard` zurÃ¼ckgesetzt werden
+  - Push-Reihenfolge so gezogen, dass das markerfÃ¼hrende Quellrepo zuletzt gepusht wird
+  - bei bereits erfolgtem Push wird der Zustand jetzt bewusst ehrlich als `rollback unvollstÃ¤ndig` gemeldet statt als scheinbar sauberer Vollrollback
+  - `ReleaseExecutionResult` enthÃ¤lt jetzt zusÃ¤tzlich:
     - Gesamtstatus
     - Schrittliste
     - Marker-/Commit-/Push-Endzustand
-  - der bestehende Statusbereich im UI zeigt jetzt zusätzlich:
+  - der bestehende Statusbereich im UI zeigt jetzt zusÃ¤tzlich:
     - Abschlussstatus
     - Release-Schrittliste
     - bestehendes Ausgabelog weiterhin darunter
-  - `MainWindow.xaml.cs` übernimmt echte Release-Ergebnisse jetzt sichtbar in den ViewModel-Status; auch preflight-/settings-blockierte Läufe räumen den alten Schrittzustand sauber weg
+  - `MainWindow.xaml.cs` Ã¼bernimmt echte Release-Ergebnisse jetzt sichtbar in den ViewModel-Status; auch preflight-/settings-blockierte LÃ¤ufe rÃ¤umen den alten Schrittzustand sauber weg
 - Logging erweitert:
   - Start echter Release
   - Start/Erfolg/Fehler je Schritt
-  - Rollback gestartet / erfolgreich / unvollständig
+  - Rollback gestartet / erfolgreich / unvollstÃ¤ndig
   - Marker final ja/nein
   - Commit final ja/nein
   - Push final ja/nein
@@ -677,14 +716,14 @@
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
   - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
 - Logische Einordnung:
-  - Dry Run bleibt markerfrei und ohne dauerhafte Änderungen
+  - Dry Run bleibt markerfrei und ohne dauerhafte Ã„nderungen
   - Fehler nach Versionsschreiben laufen jetzt sauber in einen Rollbackpfad mit unterscheidbarer Erfolgs-/Teilfehlerbewertung
   - Marker/Commit/Push werden nur im Vollerfolg final als `ja` bewertet
-  - ein verteilter Remote-Rollback nach bereits erfolgtem Push wird nicht vorgetäuscht; dieser Fall landet ehrlich in `rollback unvollständig`
+  - ein verteilter Remote-Rollback nach bereits erfolgtem Push wird nicht vorgetÃ¤uscht; dieser Fall landet ehrlich in `rollback unvollstÃ¤ndig`
 
-## 2026-03-29 – Prompt 1/2: Release Manager um sichtbaren Preflight-/Systemcheck vor Dry Run und Echt-Release erweitert
+## 2026-03-29 â€“ Prompt 1/2: Release Manager um sichtbaren Preflight-/Systemcheck vor Dry Run und Echt-Release erweitert
 
-- Vor Beginn den echten Git-Stand gegen `origin/main` geprüft:
+- Vor Beginn den echten Git-Stand gegen `origin/main` geprÃ¼ft:
   - `git fetch origin`
   - `git status -sb` => `## main...origin/main`
   - `git branch -vv` => `main b4c33d9 [origin/main] Document invite auth user mapping race fix`
@@ -693,8 +732,8 @@
 - Ehrlicher Git-Befund zu Beginn:
   - lokaler Stand und `origin/main` waren identisch
   - keine ungepushten lokalen Commits
-  - keine uncommitteten lokalen Änderungen
-  - die Git-Prüfung lief erneut über den vorhandenen Visual-Studio-Git-Pfad `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe`, weil `git` im reinen PowerShell-Pfad weiter nicht direkt vorhanden war
+  - keine uncommitteten lokalen Ã„nderungen
+  - die Git-PrÃ¼fung lief erneut Ã¼ber den vorhandenen Visual-Studio-Git-Pfad `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe`, weil `git` im reinen PowerShell-Pfad weiter nicht direkt vorhanden war
 - Danach nur den direkt betroffenen Release-Manager-Pfad gelesen:
   - `KGV.ReleaseManager/MainWindow.xaml`
   - `KGV.ReleaseManager/MainWindow.xaml.cs`
@@ -712,17 +751,17 @@
   - `KGV.ReleaseManager/Services/VersionService.cs`
 - Echte Analyse des Istzustands:
   - vorhanden waren bereits Settings-Validierung, Request-Validierung, Versionslesung, Releaseordner-Vorbereitung sowie Marker-/Git-/Build-Flow im erfolgreichen Echt-Release
-  - vor einem echten Release fehlte aber noch ein sichtbarer, separat auswertbarer Preflight-Systemcheck für die reale Umgebung
+  - vor einem echten Release fehlte aber noch ein sichtbarer, separat auswertbarer Preflight-Systemcheck fÃ¼r die reale Umgebung
   - Pflichtthemen wie `Git`/`ISCC` aufrufbar, Repos initialisiert, Ausgabepfade beschreibbar/erstellbar, Keystore vorhanden und Projektdateien lesbar wurden bisher nicht als einzelne lesbare Checks gesammelt
-  - der bestehende Statusbereich rechts war der sinnvollste UI-Ort; ein zweiter konkurrierender Bereich war nicht nötig
+  - der bestehende Statusbereich rechts war der sinnvollste UI-Ort; ein zweiter konkurrierender Bereich war nicht nÃ¶tig
 - Minimal im bestehenden Pfad umgesetzt:
   - neue Preflight-Modelle und neuer `ReleasePreflightService`
-  - Pflichtprüfungen werden jetzt fachlich lesbar gesammelt und einzeln mit `OK` / `Warnung` / `Fehler` angezeigt
-  - der bestehende Statusbereich zeigt jetzt zusätzlich:
-    - Gesamtaussage `bereit` / `eingeschränkt` / `nicht startbar`
+  - PflichtprÃ¼fungen werden jetzt fachlich lesbar gesammelt und einzeln mit `OK` / `Warnung` / `Fehler` angezeigt
+  - der bestehende Statusbereich zeigt jetzt zusÃ¤tzlich:
+    - Gesamtaussage `bereit` / `eingeschrÃ¤nkt` / `nicht startbar`
     - Button `Systemcheck`
-    - Ergebnisliste je Pflichtprüfung
-  - geprüft werden jetzt je nach Releaseauswahl u. a.:
+    - Ergebnisliste je PflichtprÃ¼fung
+  - geprÃ¼ft werden jetzt je nach Releaseauswahl u. a.:
     - Quellrepo vorhanden
     - Git-Executable vorhanden und aufrufbar
     - Quellrepo/WPF-Zielrepo als Git-Repo initialisiert und mit `origin` lesbar
@@ -735,14 +774,14 @@
     - APK-/AAB-Ausgabepfade vorhanden oder erstellbar
     - Android-Keystore vorhanden
     - Android-Keystore-Alias gesetzt
-  - `GitCommandService` löst `git.exe` jetzt zusätzlich aus bekannten lokalen Installationspfaden auf, damit der reale Git-Produktpfad nicht nur an einem PATH-Eintrag hängt
-  - Dry Run und Echt-Release führen jetzt automatisch zuerst denselben Preflight aus
+  - `GitCommandService` lÃ¶st `git.exe` jetzt zusÃ¤tzlich aus bekannten lokalen Installationspfaden auf, damit der reale Git-Produktpfad nicht nur an einem PATH-Eintrag hÃ¤ngt
+  - Dry Run und Echt-Release fÃ¼hren jetzt automatisch zuerst denselben Preflight aus
   - bei Fehlern wird sauber vor dem eigentlichen Release abgebrochen:
     - kein Marker
     - kein Commit
     - kein Push
     - kein halb gestarteter Releasezustand
-  - Logging im bestehenden Statuspfad geschärft:
+  - Logging im bestehenden Statuspfad geschÃ¤rft:
     - Start Systemcheck
     - Ergebnis je Check
     - Gesamtstatus
@@ -756,9 +795,9 @@
   - Pflichtfehler blockieren jetzt den Echt-Release bereits vor Passwortabfrage, Marker, Commit und Push
   - Dry Run bleibt markerfrei und schreibfrei
 
-## 2026-03-29 – Prompt 1/1: Shared Invite-/AuthService-Fix für FK-Fehler beim mobilen/WPF-Flow `Nutzer hinzufügen`
+## 2026-03-29 â€“ Prompt 1/1: Shared Invite-/AuthService-Fix fÃ¼r FK-Fehler beim mobilen/WPF-Flow `Nutzer hinzufÃ¼gen`
 
-- Vor Beginn den echten Git-Stand strikt gegen `origin/main` geprüft:
+- Vor Beginn den echten Git-Stand strikt gegen `origin/main` geprÃ¼ft:
   - `git fetch origin`
   - `git status -sb` => `## main...origin/main`
   - `git branch -vv` => `main d4e0830 [origin/main] Fix ambiguous Android Application reference`
@@ -767,7 +806,7 @@
 - Ehrlicher Git-Befund zu Beginn:
   - lokaler Stand und `origin/main` waren identisch
   - keine ungepushten lokalen Commits
-  - es existierten aber uncommittete lokale Änderungen im Arbeitsbaum:
+  - es existierten aber uncommittete lokale Ã„nderungen im Arbeitsbaum:
     - `KGV.Maui/KGV.Maui.csproj`
     - `KGV.Wpf/KGV.Wpf.csproj`
     - `Android_Wpf_release_batch.bat`
@@ -780,41 +819,41 @@
   - `KGV.Maui/Pages/MemberDetailPage.cs`
   - `KGV.Maui/Pages/UserManagementPage.cs`
   - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
-  - ergänzend direkt betroffene Models/Verträge:
+  - ergÃ¤nzend direkt betroffene Models/VertrÃ¤ge:
     - `KGV.Core/Interfaces/IAuthService.cs`
     - `KGV.Core/Models/AppUserDTO.cs`
     - `KGV.Core/Models/InviteUserAccountResult.cs`
     - `KGV.Core/Models/MitgliedRecord.cs`
     - `KGV.Infrastructure/Models/AppUserRecord.cs`
-  - zusätzlich die reale FK-Referenz im vorhandenen Schema-Snapshot geprüft:
+  - zusÃ¤tzlich die reale FK-Referenz im vorhandenen Schema-Snapshot geprÃ¼ft:
     - `mitglied_auth_user_id_fkey` referenziert `auth.users(id)`
 - Echte Fehlerursache im gemeinsamen Produktpfad:
   - WPF und MAUI verwenden denselben Shared-Invite-Pfad `InviteUserAsync(...)`
   - die Auth-User-ID kommt dort aus `AppUserDTO.AuthUserId` oder aus `EnsureAuthUserForInviteAsync(...)`
   - direkt danach setzte `EnsureMemberInviteMappingAsync(...)` sofort `mitglied.auth_user_id`
-  - genau dort saß der Race-/Timing-Fehler: der referenzierte Auth-User war nach Invite/SignUp noch nicht in jedem Fall sofort belastbar für den FK auf `auth.users` sichtbar
+  - genau dort saÃŸ der Race-/Timing-Fehler: der referenzierte Auth-User war nach Invite/SignUp noch nicht in jedem Fall sofort belastbar fÃ¼r den FK auf `auth.users` sichtbar
   - dadurch entstand der beobachtete `PostgrestException`-Fehler `23503` auf `mitglied_auth_user_id_fkey`
   - die Ursache lag damit nicht im MAUI-UI und nicht im WPF-UI, sondern im gemeinsamen Invite-/Auth-Pfad
 - Minimal im Shared-Pfad umgesetzt:
-  - nur `KGV.Infrastructure/Authentication/AuthService.cs` geändert
+  - nur `KGV.Infrastructure/Authentication/AuthService.cs` geÃ¤ndert
   - `EnsureMemberInviteMappingAsync(...)` besitzt jetzt einen kleinen Retry-/Wartepfad statt eines direkten Einmal-Updates
   - der Mapping-Schritt behandelt gezielt den FK-Fehler `23503` auf `mitglied_auth_user_id_fkey` als Sichtbarkeits-/Timing-Race und versucht das Mapping nach kurzer Wartezeit erneut
-  - es wurde keine Scheinlösung nur in MAUI oder nur in WPF gebaut
-  - `mitglied.auth_user_id` wird dadurch praktisch erst dann erfolgreich gesetzt, wenn der referenzierte Auth-User für den FK wirklich sichtbar ist
-- Logging im Invite-/Mapping-Pfad zusätzlich geschärft:
+  - es wurde keine ScheinlÃ¶sung nur in MAUI oder nur in WPF gebaut
+  - `mitglied.auth_user_id` wird dadurch praktisch erst dann erfolgreich gesetzt, wenn der referenzierte Auth-User fÃ¼r den FK wirklich sichtbar ist
+- Logging im Invite-/Mapping-Pfad zusÃ¤tzlich geschÃ¤rft:
   - `mitgliedId`
   - maskierte E-Mail
   - verwendete `authUserId`
   - aktueller Invite-Schritt
   - ob der Mapping-/Verifikationsschritt erfolgreich war
-  - wie viele Retry-Versuche benötigt wurden
+  - wie viele Retry-Versuche benÃ¶tigt wurden
   - PostgREST-Detail bei weiterem FK-Fehler
 - Belastbar validiert:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` => erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` => erfolgreich
 - Ehrliche End-to-End-Abgrenzung:
-  - ein echter automatisierter Invite-End-to-End-Lauf gegen Backend/Auth war in diesem Block nicht möglich
-  - logisch geprüft und buildseitig validiert wurde aber genau der reale Shared-Codepfad `AuthUserId` -> Mitglied-Mapping -> App-User-Record -> OTP-Request
+  - ein echter automatisierter Invite-End-to-End-Lauf gegen Backend/Auth war in diesem Block nicht mÃ¶glich
+  - logisch geprÃ¼ft und buildseitig validiert wurde aber genau der reale Shared-Codepfad `AuthUserId` -> Mitglied-Mapping -> App-User-Record -> OTP-Request
   - der bisherige harte Einmal-Mappingpfad ist dort jetzt sauber durch einen kleinen robusten Shared-Retry ersetzt
 - Git-Abschluss:
   - `git add -A`
@@ -823,11 +862,11 @@
   - `git push origin main` => erfolgreich
   - final `git status -sb` => `## main...origin/main`
 
-## 2026-03-29 – Prompt 1/1: Android-Release-Buildblocker im MAUI-Android-Service minimal behoben
+## 2026-03-29 â€“ Prompt 1/1: Android-Release-Buildblocker im MAUI-Android-Service minimal behoben
 
-- Vor Änderungen den echten Repo-Stand geprüft:
+- Vor Ã„nderungen den echten Repo-Stand geprÃ¼ft:
   - `git status -sb` => `## main...origin/main`
-  - zusätzlich sichtbar waren nur residuale Testlauf-Artefakte aus dem fehlgeschlagenen Releaseversuch:
+  - zusÃ¤tzlich sichtbar waren nur residuale Testlauf-Artefakte aus dem fehlgeschlagenen Releaseversuch:
     - `KGV.Maui/KGV.Maui.csproj`
     - `KGV.Wpf/KGV.Wpf.csproj`
     - `Zielversion 0.2.10.txt`
@@ -836,24 +875,24 @@
 - Ehrlicher Befund:
   - der Fehler lag nicht im Release Manager selbst
   - der reale Android-Release-Blocker war `CS0104` in `AndroidRfidFeedbackService.cs`: `Application` war mehrdeutig zwischen `Android.App.Application` und `Microsoft.Maui.Controls.Application`
-  - die zusätzlich sichtbaren `csproj`-Änderungen waren keine gewünschte fachliche Änderung, sondern nur Rückstände des fehlgeschlagenen Release-Testlaufs; sie wurden bereinigt und nicht mitgeschleppt
+  - die zusÃ¤tzlich sichtbaren `csproj`-Ã„nderungen waren keine gewÃ¼nschte fachliche Ã„nderung, sondern nur RÃ¼ckstÃ¤nde des fehlgeschlagenen Release-Testlaufs; sie wurden bereinigt und nicht mitgeschleppt
 - Minimal umgesetzt:
   - den Android-Kontextzugriff in `AndroidRfidFeedbackService.cs` per Alias auf `Android.App.Application` eindeutig gemacht
   - dadurch bleibt das Verhalten gleich, der Android-Release-Build kompiliert aber wieder eindeutig
 - Validierung:
   - `dotnet build KGV.Maui/KGV.Maui.csproj -f net9.0-android -c Release -clp:ErrorsOnly -v:q` => erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -clp:ErrorsOnly -v:q` => erfolgreich
-- Bestehende Nullwarnungen in `HomeManagementPage.cs` blieben bewusst unverändert, weil sie in diesem Block nicht buildkritisch waren.
+- Bestehende Nullwarnungen in `HomeManagementPage.cs` blieben bewusst unverÃ¤ndert, weil sie in diesem Block nicht buildkritisch waren.
 
-## 2026-03-29 – Prompt 1/1: Release-Manager-End-to-End-Fluss geprüft und Marker-Statusanzeige auf denselben Anker gezogen
+## 2026-03-29 â€“ Prompt 1/1: Release-Manager-End-to-End-Fluss geprÃ¼ft und Marker-Statusanzeige auf denselben Anker gezogen
 
-- Vor Beginn den echten Git-Stand gegen `origin/main` geprüft:
+- Vor Beginn den echten Git-Stand gegen `origin/main` geprÃ¼ft:
   - `git fetch origin`
   - `git status -sb` => `## main...origin/main`
   - `git branch -vv` => `main` zeigt auf `origin/main`
   - `git log --oneline --decorate origin/main..HEAD` => leer
   - `git log --oneline --decorate HEAD..origin/main` => leer
-- Der laut Instructions genannte Git-Pfad unter `C:\Program Files\Microsoft Visual Studio\2022\...\git.exe` ist lokal weiterhin nicht vorhanden; Git-Prüfung und Abschluss laufen deshalb erneut über den vorhandenen Visual-Studio-Git-Pfad unter `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe`.
+- Der laut Instructions genannte Git-Pfad unter `C:\Program Files\Microsoft Visual Studio\2022\...\git.exe` ist lokal weiterhin nicht vorhanden; Git-PrÃ¼fung und Abschluss laufen deshalb erneut Ã¼ber den vorhandenen Visual-Studio-Git-Pfad unter `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe`.
 - Danach gezielt nur die direkt betroffenen Release-Manager-Dateien gelesen:
   - `KGV.ReleaseManager/MainWindow.xaml.cs`
   - `KGV.ReleaseManager/ViewModels/MainViewModel.cs`
@@ -864,37 +903,37 @@
   - `KGV.ReleaseManager/Services/ReleaseNotesHistoryService.cs`
   - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
   - `KGV.ReleaseManager/Services/ReleaseMarkerService.cs`
-- End-to-End-Prüfpunkte im realen Codepfad:
-  - Versions-Refresh liest weiter direkt aus den echten Projektdateien `KGV.Wpf.csproj` und `KGV.Maui.csproj` und aktualisiert über `ApplyVersionDetection(...)` die sichtbaren Versionsfelder sowie die Zielversion.
+- End-to-End-PrÃ¼fpunkte im realen Codepfad:
+  - Versions-Refresh liest weiter direkt aus den echten Projektdateien `KGV.Wpf.csproj` und `KGV.Maui.csproj` und aktualisiert Ã¼ber `ApplyVersionDetection(...)` die sichtbaren Versionsfelder sowie die Zielversion.
   - Delta-Export verwendet weiter den Bereich seit dem letzten `[RELEASE_MARKER]`; wegen newest-first-Logstruktur ist das der Bereich vor dem ersten Marker im aktuellen Fortschrittslog.
   - der Initialfall ohne Marker bleibt im `LogExtractionService` weiter sauber erhalten und verwendet den gesamten relevanten Logbereich.
-  - der Exportprompt bleibt vollständig: Zielversion, aktueller Versionsstand, Logquelle, ausgewerteter Logbereich, Überschriftenliste, Rohzusammenfassung und der formatierte ChatGPT-Prompt.
-  - der Rückimport bleibt funktionsfähig: `ParseImportedSummary(...)` erkennt weiter WPF-/Android-Abschnitte, `SaveImportedSummary_Click(...)` speichert sie produktbezogen in die lokalen Historien.
+  - der Exportprompt bleibt vollstÃ¤ndig: Zielversion, aktueller Versionsstand, Logquelle, ausgewerteter Logbereich, Ãœberschriftenliste, Rohzusammenfassung und der formatierte ChatGPT-Prompt.
+  - der RÃ¼ckimport bleibt funktionsfÃ¤hig: `ParseImportedSummary(...)` erkennt weiter WPF-/Android-Abschnitte, `SaveImportedSummary_Click(...)` speichert sie produktbezogen in die lokalen Historien.
   - Dry Run bleibt marker-, commit- und push-frei; Echt-Release verwendet weiter Marker-, Artefakt- und Git-Pfad.
-- Reale direkte Restlücke gefunden:
-  - die zentrale Anzeige `LastKnownReleaseText` lief noch über den ausgewählten Historieneintrag und war damit nicht zwingend derselbe Anker wie Delta-Export und Releaseabschluss.
+- Reale direkte RestlÃ¼cke gefunden:
+  - die zentrale Anzeige `LastKnownReleaseText` lief noch Ã¼ber den ausgewÃ¤hlten Historieneintrag und war damit nicht zwingend derselbe Anker wie Delta-Export und Releaseabschluss.
 - Minimal geschlossen:
   - `ReleaseMarkerService` liefert jetzt einen menschenlesbaren Statustext direkt aus dem neuesten Fortschrittslog-Marker.
-  - `MainWindow.xaml.cs` verwendet für die zentrale Release-Anzeige jetzt bevorzugt denselben Marker; nur ohne Marker fällt die Anzeige weiter auf den bisherigen Historienanker zurück.
-  - `ReleaseExecutionService.ValidateAsync(...)` nennt im Dry-Run-Erfolg jetzt ausdrücklich, dass keine Marker, Commits oder Pushes ausgeführt wurden.
+  - `MainWindow.xaml.cs` verwendet fÃ¼r die zentrale Release-Anzeige jetzt bevorzugt denselben Marker; nur ohne Marker fÃ¤llt die Anzeige weiter auf den bisherigen Historienanker zurÃ¼ck.
+  - `ReleaseExecutionService.ValidateAsync(...)` nennt im Dry-Run-Erfolg jetzt ausdrÃ¼cklich, dass keine Marker, Commits oder Pushes ausgefÃ¼hrt wurden.
 - Belastbar validiert:
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
 - Ehrliche Abgrenzung:
-  - kein produktiver Echt-Release mit externen Werkzeugen/realen Secrets ausgeführt
-  - geprüft wurde der fachliche End-to-End-Fluss im bestehenden Produktcode, nicht eine komplette externe Veröffentlichungsdurchführung
+  - kein produktiver Echt-Release mit externen Werkzeugen/realen Secrets ausgefÃ¼hrt
+  - geprÃ¼ft wurde der fachliche End-to-End-Fluss im bestehenden Produktcode, nicht eine komplette externe VerÃ¶ffentlichungsdurchfÃ¼hrung
 
-## 2026-03-29 – Prompt 1/1 Abschlusslauf: Release-Manager-Block sauber verifiziert und Vollvalidierung belastbar nachgezogen
+## 2026-03-29 â€“ Prompt 1/1 Abschlusslauf: Release-Manager-Block sauber verifiziert und Vollvalidierung belastbar nachgezogen
 
-- Vor dem Abschluss den echten Git-Stand erneut gegen `origin/main` geprüft:
+- Vor dem Abschluss den echten Git-Stand erneut gegen `origin/main` geprÃ¼ft:
   - `git fetch origin`
   - `git status -sb` => `## main...origin/main`
   - `git branch -vv` => `main` zeigt auf `origin/main`
   - `git log --oneline --decorate origin/main..HEAD` => leer
   - `git log --oneline --decorate HEAD..origin/main` => leer
-- Der in den Instructions genannte Git-Pfad unter `...Visual Studio\2022\...\git.exe` existierte lokal nicht; die Git-Prüfung lief deshalb über den vorhandenen Visual-Studio-Git-Pfad `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe`.
+- Der in den Instructions genannte Git-Pfad unter `...Visual Studio\2022\...\git.exe` existierte lokal nicht; die Git-PrÃ¼fung lief deshalb Ã¼ber den vorhandenen Visual-Studio-Git-Pfad `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe`.
 - Reale Ausgangslage im Arbeitsbaum:
   - der begonnene Release-Manager-Block war weiterhin uncommittet vorhanden
-  - zusätzlich lag `.github/copilot-instructions.md` weiter geändert im Arbeitsbaum
+  - zusÃ¤tzlich lag `.github/copilot-instructions.md` weiter geÃ¤ndert im Arbeitsbaum
 - Danach erneut nur die direkt betroffenen Release-Manager-Dateien gelesen:
   - `KGV.ReleaseManager/MainWindow.xaml.cs`
   - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
@@ -904,23 +943,23 @@
   - `KGV.ReleaseManager/Services/GitCommandService.cs`
   - `KGV.ReleaseManager/Models/ReleaseExecutionRequest.cs`
 - Ehrlicher Befund im realen Istzustand:
-  - der kleine Nachschärfungs-Patch in `MainWindow.xaml.cs` für die zentrale markerbasierte Statusanzeige war vorhanden
+  - der kleine NachschÃ¤rfungs-Patch in `MainWindow.xaml.cs` fÃ¼r die zentrale markerbasierte Statusanzeige war vorhanden
   - in den direkt betroffenen Dateien ergaben sich dabei keine unmittelbaren Compile-, Using- oder Namensfehler
-  - deshalb war kein weiterer Produktcode-Fix mehr nötig; nur der Abschlusslauf wurde sauber nachgezogen
-- Zusatzprüfung zur bereits geänderten `.github/copilot-instructions.md`:
-  - real nur eine zusätzliche Projektregel für Verifikations-/Abschlussblöcke ergänzt
+  - deshalb war kein weiterer Produktcode-Fix mehr nÃ¶tig; nur der Abschlusslauf wurde sauber nachgezogen
+- ZusatzprÃ¼fung zur bereits geÃ¤nderten `.github/copilot-instructions.md`:
+  - real nur eine zusÃ¤tzliche Projektregel fÃ¼r Verifikations-/AbschlussblÃ¶cke ergÃ¤nzt
   - in diesem Lauf nicht inhaltlich neu umgebaut
 - Belastbar validiert:
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
-  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich; vorhandene Warnungen bleiben außerhalb dieses Blocks
-  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich; vorhandene Warnungen in `HomeManagementPage.cs` bleiben außerhalb dieses Blocks
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich; vorhandene Warnungen bleiben auÃŸerhalb dieses Blocks
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich; vorhandene Warnungen in `HomeManagementPage.cs` bleiben auÃŸerhalb dieses Blocks
   - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
 
-## 2026-03-29 – Prompt 1/1: Release Manager um Commit/Push, Release-Marker, Delta-Export und Versions-Refresh erweitert
+## 2026-03-29 â€“ Prompt 1/1: Release Manager um Commit/Push, Release-Marker, Delta-Export und Versions-Refresh erweitert
 
-- Vor Beginn den realen Repo-Stand geprüft:
+- Vor Beginn den realen Repo-Stand geprÃ¼ft:
   - `git status -sb` => `## main...origin/main`
-  - im Arbeitsbaum lag vor dem Block zusätzlich bereits eine uncommittete Änderung an `.github/copilot-instructions.md`
+  - im Arbeitsbaum lag vor dem Block zusÃ¤tzlich bereits eine uncommittete Ã„nderung an `.github/copilot-instructions.md`
 - Danach gezielt nur die direkt betroffenen Release-Manager-Dateien gelesen:
   - `KGV.ReleaseManager/Services/GitCommandService.cs`
   - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
@@ -929,44 +968,44 @@
   - `KGV.ReleaseManager/Services/VersionService.cs`
   - `KGV.ReleaseManager/MainWindow.xaml`
   - `KGV.ReleaseManager/MainWindow.xaml.cs`
-  - ergänzend `ReleaseArtifactService`, `ReleaseVersionFileService`, `ProcessExecutionService`, `README.md`
+  - ergÃ¤nzend `ReleaseArtifactService`, `ReleaseVersionFileService`, `ProcessExecutionService`, `README.md`
 - Ehrlicher Istzustand vor Umsetzung:
   - `GitCommandService` konnte real nur `git status -sb`
   - Commit/Push waren im WPF-Release-Flow noch nicht verdrahtet
-  - die Exportanalyse arbeitete noch über den bisherigen Loganker-/Historienansatz statt über echte Release-Marker im Fortschrittslog
+  - die Exportanalyse arbeitete noch Ã¼ber den bisherigen Loganker-/Historienansatz statt Ã¼ber echte Release-Marker im Fortschrittslog
   - ein expliziter UI-Button zum erneuten Einlesen der aktuellen Projektversionen fehlte
 - Minimal umgesetzt:
   - `GitCommandService` um reale `status --porcelain`, `add -A`, `commit` und `push`-Kommandos erweitert
-  - einfache zentrale Standard-Commitnachrichten ergänzt:
+  - einfache zentrale Standard-Commitnachrichten ergÃ¤nzt:
     - `Release {version}: source release state`
     - `Release {version}: publish WPF setup artifacts`
-  - neuer `ReleaseMarkerService` ergänzt
+  - neuer `ReleaseMarkerService` ergÃ¤nzt
   - Markerformat fest verdrahtet:
     - `- [RELEASE_MARKER] Version {version} erfolgreich erstellt am {yyyy-MM-dd HH:mm}`
   - der Marker wird nur im erfolgreichen Echt-Release geschrieben, nie im Dry Run
-  - Marker wird nicht blind ans Dateiende gesetzt, sondern als letzter Punkt des aktuellen obersten Fortschrittsabschnitts eingefügt
-  - `ReleaseExecutionService` schreibt den Marker nach erfolgreicher Artefaktveröffentlichung und hängt danach Commit/Push für Quellrepo und WPF-Zielrepo an den Erfolgsablauf
-  - bei Fehlern vor lokalem Git-Commit läuft der bestehende Rollbackpfad weiter; Fehler nach lokalem Commit werden sichtbar gemeldet statt Dateien künstlich zurückzudrehen
-  - `LogExtractionService` liefert jetzt das Log-Delta seit dem letzten Release-Marker; wegen der im Repo real verwendeten newest-first-Logstruktur wird dafür der Bereich vor dem ersten Marker im aktuellen Log ausgewertet
+  - Marker wird nicht blind ans Dateiende gesetzt, sondern als letzter Punkt des aktuellen obersten Fortschrittsabschnitts eingefÃ¼gt
+  - `ReleaseExecutionService` schreibt den Marker nach erfolgreicher ArtefaktverÃ¶ffentlichung und hÃ¤ngt danach Commit/Push fÃ¼r Quellrepo und WPF-Zielrepo an den Erfolgsablauf
+  - bei Fehlern vor lokalem Git-Commit lÃ¤uft der bestehende Rollbackpfad weiter; Fehler nach lokalem Commit werden sichtbar gemeldet statt Dateien kÃ¼nstlich zurÃ¼ckzudrehen
+  - `LogExtractionService` liefert jetzt das Log-Delta seit dem letzten Release-Marker; wegen der im Repo real verwendeten newest-first-Logstruktur wird dafÃ¼r der Bereich vor dem ersten Marker im aktuellen Log ausgewertet
   - `ReleaseNotesAnalysisService` verwendet dieses Delta jetzt direkt; ohne Marker wird der gesamte relevante Logbereich verwendet
-  - die Import-/Speicherlogik für WPF-/Android-Zusammenfassungen bleibt erhalten
-  - `MainWindow` erhielt den Button `Aktuelle Versionen neu einlesen`; er lädt die Versionen erneut direkt aus den Projektdateien, aktualisiert die Anzeige und löst keinen Release aus
-  - die Release-Oberfläche zeigt jetzt zusätzlich sichtbar an, dass Commit/Push und Marker Teil des erfolgreichen Echt-Release-Flows sind
-  - `KGV.ReleaseManager/README.md` um Marker-, Delta-Export- und Commit/Push-Verhalten ergänzt
+  - die Import-/Speicherlogik fÃ¼r WPF-/Android-Zusammenfassungen bleibt erhalten
+  - `MainWindow` erhielt den Button `Aktuelle Versionen neu einlesen`; er lÃ¤dt die Versionen erneut direkt aus den Projektdateien, aktualisiert die Anzeige und lÃ¶st keinen Release aus
+  - die Release-OberflÃ¤che zeigt jetzt zusÃ¤tzlich sichtbar an, dass Commit/Push und Marker Teil des erfolgreichen Echt-Release-Flows sind
+  - `KGV.ReleaseManager/README.md` um Marker-, Delta-Export- und Commit/Push-Verhalten ergÃ¤nzt
 - Ergebnis:
   - Commit und Push sind jetzt real im WPF-Release-Flow verankert
-  - der nächste Export für Release-Zusammenfassungen nutzt nur noch den relevanten Logdelta-Bereich seit dem letzten Release-Marker
+  - der nÃ¤chste Export fÃ¼r Release-Zusammenfassungen nutzt nur noch den relevanten Logdelta-Bereich seit dem letzten Release-Marker
   - fehlender Marker bleibt ein sauber behandelter Initialfall und bricht die Exportfunktion nicht
-  - Versionen können per UI-Button erneut direkt aus den Projektdateien geladen werden
+  - Versionen kÃ¶nnen per UI-Button erneut direkt aus den Projektdateien geladen werden
 - Validierung:
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
   - `dotnet build KGV.slnx -c Debug` erfolgreich
 
-## 2026-03-29 – Prompt 1/1 Variante A: Git-Stand strikt geprüft, sichtbaren MAUI-Mitgliedsdetail-Abschluss erneut verifiziert, keine weitere Code-Restlücke offen
+## 2026-03-29 â€“ Prompt 1/1 Variante A: Git-Stand strikt geprÃ¼ft, sichtbaren MAUI-Mitgliedsdetail-Abschluss erneut verifiziert, keine weitere Code-RestlÃ¼cke offen
 
-- Vor Beginn den echten Git-Stand strikt gegen `origin/main` geprüft:
+- Vor Beginn den echten Git-Stand strikt gegen `origin/main` geprÃ¼ft:
   - `git fetch origin`
   - `git status -sb` => `## main...origin/main`
   - `git branch -vv` => `main` zeigt direkt auf `origin/main`
@@ -976,7 +1015,7 @@
   - lokaler Branch war nicht hinter `origin/main`
   - lokaler Branch war nicht vor `origin/main`
   - keine ungepushten lokalen Commits
-  - keine uncommitteten lokalen Änderungen
+  - keine uncommitteten lokalen Ã„nderungen
   - der Arbeitsstand war nach dem Fetch bereits exakt korrekt (`HEAD == origin/main`)
 - Danach gezielt nur die direkt betroffenen Dateien gelesen:
   - `KGV.Maui/AdminShell.cs`
@@ -986,31 +1025,31 @@
   - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
   - `KGV.Infrastructure/Services/SupabaseService.cs`
 - Ehrlicher Repo-Befund im aktuellen echten Git-Stand:
-  - `AdminShell` zeigt `↳ Stammdaten` bereits korrekt auf `MemberDetailPage`
+  - `AdminShell` zeigt `â†³ Stammdaten` bereits korrekt auf `MemberDetailPage`
   - `MeineDatenPage` bleibt der Eigenpfad des eingeloggten Nutzers
-  - `MemberDetailPage` enthält bereits den produktiven Admin-Flow `Nutzer hinzufügen`
-  - die sichtbare Mailregel ist bereits vollständig geschlossen:
+  - `MemberDetailPage` enthÃ¤lt bereits den produktiven Admin-Flow `Nutzer hinzufÃ¼gen`
+  - die sichtbare Mailregel ist bereits vollstÃ¤ndig geschlossen:
     - E-Mail als echtes Eingabefeld
     - editierbar nur ohne gebundenen App-/Auth-User
-    - read-only mit klarem Hinweis auf Self-Service-Mailänderung bei vorhandenem App-/Auth-User
+    - read-only mit klarem Hinweis auf Self-Service-MailÃ¤nderung bei vorhandenem App-/Auth-User
   - `UserManagementViewModel` begrenzt den Self-Service-Mailpfad bereits korrekt auf das aktuell angemeldete Konto
-  - `SupabaseService.UpdateMitgliedAsync(...)` enthält bereits die Backend-/Shared-Regel: mit `AuthUserId` bestehende Mail beibehalten, ohne `AuthUserId` DTO-Mail übernehmen
-  - `UserManagementPage`/`UserManagementViewModel` verwenden im sichtbaren Invite-Wortlaut bereits `Nutzer hinzufügen`; der frühere Text `Einladung / Erstlogin-Code senden` ist in diesem Pfad real nicht mehr offen
+  - `SupabaseService.UpdateMitgliedAsync(...)` enthÃ¤lt bereits die Backend-/Shared-Regel: mit `AuthUserId` bestehende Mail beibehalten, ohne `AuthUserId` DTO-Mail Ã¼bernehmen
+  - `UserManagementPage`/`UserManagementViewModel` verwenden im sichtbaren Invite-Wortlaut bereits `Nutzer hinzufÃ¼gen`; der frÃ¼here Text `Einladung / Erstlogin-Code senden` ist in diesem Pfad real nicht mehr offen
 - Konsequenz dieses Laufs:
-  - auf `origin/main` war für diesen Block keine echte Restlücke mehr offen
-  - deshalb wurde kein weiterer MAUI-Produktcode auf Verdacht geändert
+  - auf `origin/main` war fÃ¼r diesen Block keine echte RestlÃ¼cke mehr offen
+  - deshalb wurde kein weiterer MAUI-Produktcode auf Verdacht geÃ¤ndert
   - nur die Logs wurden auf den erneut verifizierten Git-/Repo-Iststand fortgeschrieben
 - Logische Einordnung:
-  - Mitgliedskontext bleibt über `MemberDetailPage`, Eigenprofil bleibt über `MeineDatenPage` getrennt
+  - Mitgliedskontext bleibt Ã¼ber `MemberDetailPage`, Eigenprofil bleibt Ã¼ber `MeineDatenPage` getrennt
   - die sichtbare Mailregel ist im mobilen Mitgliedskontext bereits korrekt umgesetzt
-  - die Invite-Benennung ist im mobilen Mitgliedskontext bereits auf `Nutzer hinzufügen` angeglichen
+  - die Invite-Benennung ist im mobilen Mitgliedskontext bereits auf `Nutzer hinzufÃ¼gen` angeglichen
 - Validierung:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
 
-## 2026-03-29 – Prompt 1/1: sichtbaren MAUI-Mitgliedsdetail-Abschluss gegen GitHub-main erneut verifiziert, keine weitere Code-Restlücke mehr offen
+## 2026-03-29 â€“ Prompt 1/1: sichtbaren MAUI-Mitgliedsdetail-Abschluss gegen GitHub-main erneut verifiziert, keine weitere Code-RestlÃ¼cke mehr offen
 
-- Vor Beginn den realen Stand erneut gegen `origin/main` geprüft und danach gezielt die direkt betroffenen Dateien gelesen:
+- Vor Beginn den realen Stand erneut gegen `origin/main` geprÃ¼ft und danach gezielt die direkt betroffenen Dateien gelesen:
   - `KGV.Maui/AdminShell.cs`
   - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
   - `KGV.Maui/Pages/MemberDetailPage.cs`
@@ -1018,31 +1057,31 @@
   - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
   - `KGV.Infrastructure/Services/SupabaseService.cs`
 - Ehrlicher GitHub-main-Befund:
-  - `AdminShell` zeigt `↳ Stammdaten` auf `origin/main` bereits korrekt auf `MemberDetailPage`
+  - `AdminShell` zeigt `â†³ Stammdaten` auf `origin/main` bereits korrekt auf `MemberDetailPage`
   - `MeineDatenPage` bleibt auf `origin/main` bereits der Eigenpfad des eingeloggten Nutzers
-  - `MemberDetailPage` enthält auf `origin/main` bereits den produktiven Admin-Flow `Nutzer hinzufügen`
-  - die sichtbare Mailregel in `MemberDetailPage` ist auf `origin/main` bereits vollständig geschlossen:
+  - `MemberDetailPage` enthÃ¤lt auf `origin/main` bereits den produktiven Admin-Flow `Nutzer hinzufÃ¼gen`
+  - die sichtbare Mailregel in `MemberDetailPage` ist auf `origin/main` bereits vollstÃ¤ndig geschlossen:
     - E-Mail als echtes Eingabefeld
     - editierbar nur ohne gebundenen App-/Auth-User
-    - read-only mit klarem Hinweis auf Self-Service-Mailänderung bei vorhandenem App-/Auth-User
+    - read-only mit klarem Hinweis auf Self-Service-MailÃ¤nderung bei vorhandenem App-/Auth-User
   - `UserManagementViewModel` begrenzt den Self-Service-Mailpfad auf `origin/main` bereits korrekt auf das aktuell angemeldete Konto
-  - `SupabaseService.UpdateMitgliedAsync(...)` enthält die Shared-/Backend-Regel bereits korrekt und musste nicht neu erfunden werden
-  - `UserManagementPage`/`UserManagementViewModel` verwenden im sichtbaren Invite-Wortlaut auf `origin/main` bereits `Nutzer hinzufügen`; der frühere Text `Einladung / Erstlogin-Code senden` ist in diesem Pfad real nicht mehr offen
+  - `SupabaseService.UpdateMitgliedAsync(...)` enthÃ¤lt die Shared-/Backend-Regel bereits korrekt und musste nicht neu erfunden werden
+  - `UserManagementPage`/`UserManagementViewModel` verwenden im sichtbaren Invite-Wortlaut auf `origin/main` bereits `Nutzer hinzufÃ¼gen`; der frÃ¼here Text `Einladung / Erstlogin-Code senden` ist in diesem Pfad real nicht mehr offen
 - Konsequenz dieses Laufs:
-  - die in der Prompt-Annahme genannten GitHub-main-Widersprüche waren real nicht mehr offen
-  - deshalb wurde kein weiterer MAUI-Produktcode auf Verdacht geändert
+  - die in der Prompt-Annahme genannten GitHub-main-WidersprÃ¼che waren real nicht mehr offen
+  - deshalb wurde kein weiterer MAUI-Produktcode auf Verdacht geÃ¤ndert
   - nur die Logs wurden auf den erneut verifizierten GitHub-main-Iststand fortgeschrieben
 - Logische Einordnung:
-  - Mitgliedskontext bleibt über `MemberDetailPage`, Eigenprofil bleibt über `MeineDatenPage` getrennt
+  - Mitgliedskontext bleibt Ã¼ber `MemberDetailPage`, Eigenprofil bleibt Ã¼ber `MeineDatenPage` getrennt
   - die sichtbare Mailregel ist im mobilen Mitgliedskontext bereits korrekt umgesetzt
-  - die Invite-Benennung ist im mobilen Mitgliedskontext bereits auf `Nutzer hinzufügen` angeglichen
+  - die Invite-Benennung ist im mobilen Mitgliedskontext bereits auf `Nutzer hinzufÃ¼gen` angeglichen
 - Validierung:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
 
-## 2026-03-29 – Prompt 1/1: MAUI-Stammdatenpfad, sichtbare Mailregel und Invite-Benennung gegen GitHub-main erneut verifiziert, keine weitere Code-Restlücke mehr offen
+## 2026-03-29 â€“ Prompt 1/1: MAUI-Stammdatenpfad, sichtbare Mailregel und Invite-Benennung gegen GitHub-main erneut verifiziert, keine weitere Code-RestlÃ¼cke mehr offen
 
-- Vor Beginn den realen Stand erneut gegen `origin/main` geprüft und danach gezielt die direkt betroffenen Dateien gelesen:
+- Vor Beginn den realen Stand erneut gegen `origin/main` geprÃ¼ft und danach gezielt die direkt betroffenen Dateien gelesen:
   - `KGV.Maui/AdminShell.cs`
   - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
   - `KGV.Maui/Pages/MemberDetailPage.cs`
@@ -1050,31 +1089,31 @@
   - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
   - `KGV.Infrastructure/Services/SupabaseService.cs`
 - Ehrlicher GitHub-main-Befund:
-  - `AdminShell` zeigt `↳ Stammdaten` auf `origin/main` bereits korrekt auf `MemberDetailPage`
+  - `AdminShell` zeigt `â†³ Stammdaten` auf `origin/main` bereits korrekt auf `MemberDetailPage`
   - `MeineDatenPage` bleibt auf `origin/main` bereits der Eigenpfad des eingeloggten Nutzers
-  - `MemberDetailPage` enthält auf `origin/main` bereits den produktiven Flow `Nutzer hinzufügen`
-  - die sichtbare Mailregel in `MemberDetailPage` ist auf `origin/main` bereits vollständig geschlossen:
+  - `MemberDetailPage` enthÃ¤lt auf `origin/main` bereits den produktiven Flow `Nutzer hinzufÃ¼gen`
+  - die sichtbare Mailregel in `MemberDetailPage` ist auf `origin/main` bereits vollstÃ¤ndig geschlossen:
     - E-Mail als echtes Eingabefeld
     - editierbar nur ohne gebundenen App-/Auth-User
-    - read-only mit klarem Hinweis auf Self-Service-Mailänderung bei vorhandenem App-/Auth-User
-  - `UserManagementViewModel` begrenzt die Mailänderung auf `origin/main` bereits korrekt auf das aktuell angemeldete Konto
-  - `SupabaseService.UpdateMitgliedAsync(...)` erzwingt die Backend-Regel für Mail bereits im Shared-Pfad
-  - `UserManagementPage`/`UserManagementViewModel` verwenden im sichtbaren Invite-Wortlaut auf `origin/main` bereits `Nutzer hinzufügen`; der frühere Text `Einladung / Erstlogin-Code senden` ist in diesem Pfad real nicht mehr offen
+    - read-only mit klarem Hinweis auf Self-Service-MailÃ¤nderung bei vorhandenem App-/Auth-User
+  - `UserManagementViewModel` begrenzt die MailÃ¤nderung auf `origin/main` bereits korrekt auf das aktuell angemeldete Konto
+  - `SupabaseService.UpdateMitgliedAsync(...)` erzwingt die Backend-Regel fÃ¼r Mail bereits im Shared-Pfad
+  - `UserManagementPage`/`UserManagementViewModel` verwenden im sichtbaren Invite-Wortlaut auf `origin/main` bereits `Nutzer hinzufÃ¼gen`; der frÃ¼here Text `Einladung / Erstlogin-Code senden` ist in diesem Pfad real nicht mehr offen
 - Konsequenz dieses Laufs:
-  - die in der Prompt-Annahme genannten GitHub-main-Widersprüche waren real nicht mehr offen
-  - deshalb wurde kein weiterer MAUI-Produktcode auf Verdacht geändert
+  - die in der Prompt-Annahme genannten GitHub-main-WidersprÃ¼che waren real nicht mehr offen
+  - deshalb wurde kein weiterer MAUI-Produktcode auf Verdacht geÃ¤ndert
   - nur die Logs wurden auf den erneut verifizierten GitHub-main-Iststand fortgeschrieben
 - Logische Einordnung:
-  - Mitgliedskontext bleibt über `MemberDetailPage`, Eigenprofil bleibt über `MeineDatenPage` getrennt
+  - Mitgliedskontext bleibt Ã¼ber `MemberDetailPage`, Eigenprofil bleibt Ã¼ber `MeineDatenPage` getrennt
   - die sichtbare Mailregel ist im mobilen Mitgliedskontext bereits korrekt umgesetzt
-  - die Invite-Benennung ist im mobilen Mitgliedskontext bereits WPF-näher auf `Nutzer hinzufügen` gezogen
+  - die Invite-Benennung ist im mobilen Mitgliedskontext bereits WPF-nÃ¤her auf `Nutzer hinzufÃ¼gen` gezogen
 - Validierung:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
 
-## 2026-03-29 – Prompt 1/1: MAUI-Stammdatenpfad, `Nutzer hinzufügen` und Mailregel im Mitgliedskontext gegen GitHub-main sauber abgeschlossen
+## 2026-03-29 â€“ Prompt 1/1: MAUI-Stammdatenpfad, `Nutzer hinzufÃ¼gen` und Mailregel im Mitgliedskontext gegen GitHub-main sauber abgeschlossen
 
-- Vor Beginn den realen Stand erneut gegen `origin/main` geprüft und danach gezielt die direkt betroffenen Dateien gelesen:
+- Vor Beginn den realen Stand erneut gegen `origin/main` geprÃ¼ft und danach gezielt die direkt betroffenen Dateien gelesen:
   - `KGV.Maui/AdminShell.cs`
   - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
   - `KGV.Maui/Pages/MemberDetailPage.cs`
@@ -1084,34 +1123,34 @@
   - `KGV.Maui/MauiProgram.cs`
   - fachliche Referenz: `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`, `KGV.Wpf/ViewModels/UserManagementViewModel.cs`
 - Ehrlicher GitHub-main-Befund:
-  - `AdminShell` zeigt `↳ Stammdaten` auf `origin/main` bereits korrekt auf `MemberDetailPage`
+  - `AdminShell` zeigt `â†³ Stammdaten` auf `origin/main` bereits korrekt auf `MemberDetailPage`
   - `MeineDatenPage` bleibt auf `origin/main` bereits der Eigenpfad des eingeloggten Nutzers
-  - `MemberDetailPage` enthält auf `origin/main` bereits produktives Speichern sowie den produktiven Flow `Nutzer hinzufügen`
-  - real offen waren damit nicht mehr Routing-/DI-Themen, sondern nur noch die fachlichen Widersprüche im mobilen Mitgliedskontext:
-    - die Mailadresse wurde in `MemberDetailPage` beim Speichern faktisch wieder auf den bestehenden Wert zurückgesetzt
+  - `MemberDetailPage` enthÃ¤lt auf `origin/main` bereits produktives Speichern sowie den produktiven Flow `Nutzer hinzufÃ¼gen`
+  - real offen waren damit nicht mehr Routing-/DI-Themen, sondern nur noch die fachlichen WidersprÃ¼che im mobilen Mitgliedskontext:
+    - die Mailadresse wurde in `MemberDetailPage` beim Speichern faktisch wieder auf den bestehenden Wert zurÃ¼ckgesetzt
     - `UserManagementPage`/`UserManagementViewModel` trugen im gebundenen Kontext die Invite-/Mailhinweise noch nicht sauber genug ohne Doppelangebot
 - Minimal umgesetzt:
-  - `AdminShell` bewusst unverändert gelassen, weil der Stammdatenpfad auf GitHub `main` bereits korrekt war
+  - `AdminShell` bewusst unverÃ¤ndert gelassen, weil der Stammdatenpfad auf GitHub `main` bereits korrekt war
   - `MemberDetailPage` zeigt die Mail jetzt als echtes Eingabefeld im mobilen Mitgliedskontext
-  - die Mail ist dort nur editierbar, solange für das ausgewählte Mitglied noch kein App-/Auth-User gebunden ist
-  - sobald ein App-/Auth-User existiert, bleibt das Mailfeld read-only und zeigt klar den Hinweis, dass die Mailänderung dann nur durch den Nutzer selbst über den vorgesehenen Self-Service-Mailänderungsweg erfolgt
-  - der bisherige pauschale MAUI-Reset `dto.Email = current.Email ...` wurde auf den erlaubten Sonderfall ohne Auth-User geöffnet
-  - zusätzlich erzwingt jetzt auch der gemeinsame Shared-Speicherpfad `UpdateMitgliedAsync(...)` dieselbe Regel technisch: Mailänderung nur ohne gebundenen Auth-User
-  - `Nutzer hinzufügen` bleibt im `MemberDetailPage`-Mitgliedskontext sichtbar und nutzbar, aber nur für Admin
-  - `UserManagementPage` bleibt für Rollenpflege/Reset/Entfernen relevant, bietet den Invite im gebundenen Mitgliedskontext aber nicht mehr doppelt neben dem Stammdatenpfad an
-  - die sichtbaren Hinweise im mobilen User-Management wurden WPF-näher geschärft; der Self-Service-Mailänderungsweg des aktuell angemeldeten Nutzers bleibt intakt
+  - die Mail ist dort nur editierbar, solange fÃ¼r das ausgewÃ¤hlte Mitglied noch kein App-/Auth-User gebunden ist
+  - sobald ein App-/Auth-User existiert, bleibt das Mailfeld read-only und zeigt klar den Hinweis, dass die MailÃ¤nderung dann nur durch den Nutzer selbst Ã¼ber den vorgesehenen Self-Service-MailÃ¤nderungsweg erfolgt
+  - der bisherige pauschale MAUI-Reset `dto.Email = current.Email ...` wurde auf den erlaubten Sonderfall ohne Auth-User geÃ¶ffnet
+  - zusÃ¤tzlich erzwingt jetzt auch der gemeinsame Shared-Speicherpfad `UpdateMitgliedAsync(...)` dieselbe Regel technisch: MailÃ¤nderung nur ohne gebundenen Auth-User
+  - `Nutzer hinzufÃ¼gen` bleibt im `MemberDetailPage`-Mitgliedskontext sichtbar und nutzbar, aber nur fÃ¼r Admin
+  - `UserManagementPage` bleibt fÃ¼r Rollenpflege/Reset/Entfernen relevant, bietet den Invite im gebundenen Mitgliedskontext aber nicht mehr doppelt neben dem Stammdatenpfad an
+  - die sichtbaren Hinweise im mobilen User-Management wurden WPF-nÃ¤her geschÃ¤rft; der Self-Service-MailÃ¤nderungsweg des aktuell angemeldeten Nutzers bleibt intakt
 - Logische Einordnung nach dem Block:
-  - Mitgliedersuche -> Mitglied wählen -> `↳ Stammdaten` landet weiter auf dem echten mobilen Mitgliedsdetailpfad `MemberDetailPage`
-  - `MeineDatenPage` bleibt klar der Eigenpfad des eingeloggten Nutzers und wird nicht mehr mit dem ausgewählten Mitglied vermischt
-  - Mitglied ohne App-/Auth-User: Mail editierbar, `Nutzer hinzufügen` sichtbar im Stammdatenpfad
-  - Mitglied mit App-/Auth-User: Mail read-only, klarer Hinweis auf Self-Service-Mailänderung, kein falscher Neu-Invite im gebundenen User-Management
+  - Mitgliedersuche -> Mitglied wÃ¤hlen -> `â†³ Stammdaten` landet weiter auf dem echten mobilen Mitgliedsdetailpfad `MemberDetailPage`
+  - `MeineDatenPage` bleibt klar der Eigenpfad des eingeloggten Nutzers und wird nicht mehr mit dem ausgewÃ¤hlten Mitglied vermischt
+  - Mitglied ohne App-/Auth-User: Mail editierbar, `Nutzer hinzufÃ¼gen` sichtbar im Stammdatenpfad
+  - Mitglied mit App-/Auth-User: Mail read-only, klarer Hinweis auf Self-Service-MailÃ¤nderung, kein falscher Neu-Invite im gebundenen User-Management
 - Validierung:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
 
-## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel-Folgepfad gegen GitHub-main erneut verifiziert, keine weitere Code-Restlücke mehr offen
+## 2026-03-29 â€“ Prompt 1/1: MAUI-ZÃ¤hlerwechsel-Folgepfad gegen GitHub-main erneut verifiziert, keine weitere Code-RestlÃ¼cke mehr offen
 
-- Vor Beginn den realen Stand erneut gegen `origin/main` geprüft und danach gezielt die direkt betroffenen Dateien gegengelesen:
+- Vor Beginn den realen Stand erneut gegen `origin/main` geprÃ¼ft und danach gezielt die direkt betroffenen Dateien gegengelesen:
   - `KGV.Maui/ShellRouteRegistrar.cs`
   - `KGV.Maui/MauiProgram.cs`
   - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
@@ -1125,24 +1164,24 @@
   - beide Shell-Routen sind auf `origin/main` bereits registriert
   - beide DI-Registrierungen als `AddTransient<...>()` sind auf `origin/main` bereits vorhanden
   - der mobile RFID-Feedback-Service ist auf `origin/main` bereits vorhanden und in `MauiProgram` registriert
-  - der Quittungston wird auf `origin/main` bereits in `RfidScanContextViewModel.ResolveAsync()` bei erfolgreicher bekannter RFID-Kontextauflösung ausgelöst
-  - der Rückweg nach erfolgreichem Einbau/Ausbau bereinigt den Workflow-State bereits und führt wieder auf einen frischen Zählerwechsel-Scanpfad
+  - der Quittungston wird auf `origin/main` bereits in `RfidScanContextViewModel.ResolveAsync()` bei erfolgreicher bekannter RFID-KontextauflÃ¶sung ausgelÃ¶st
+  - der RÃ¼ckweg nach erfolgreichem Einbau/Ausbau bereinigt den Workflow-State bereits und fÃ¼hrt wieder auf einen frischen ZÃ¤hlerwechsel-Scanpfad
 - Konsequenz dieses Laufs:
-  - die in der Prompt-Annahme genannten GitHub-main-Restlücken waren real nicht mehr offen
-  - deshalb wurde kein weiterer MAUI-Produktcode auf Verdacht geändert
+  - die in der Prompt-Annahme genannten GitHub-main-RestlÃ¼cken waren real nicht mehr offen
+  - deshalb wurde kein weiterer MAUI-Produktcode auf Verdacht geÃ¤ndert
   - nur die Logs wurden auf den erneut verifizierten GitHub-main-Iststand fortgeschrieben
 - Validierung:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
 - Logische Einordnung:
-  - Zählerwechsel-CTA-Pfad bleibt produktiv über `Shell.Current.GoToAsync(nameof(...))`
-  - Routing/DI sind für die beiden Folgeseiten bereits vollständig geschlossen
-  - RFID-Quittungston hängt bereits am erfolgreichen bekannten Kontextpfad
-  - Workflow-State bleibt nach erfolgreichem Abschluss nicht hängen
+  - ZÃ¤hlerwechsel-CTA-Pfad bleibt produktiv Ã¼ber `Shell.Current.GoToAsync(nameof(...))`
+  - Routing/DI sind fÃ¼r die beiden Folgeseiten bereits vollstÃ¤ndig geschlossen
+  - RFID-Quittungston hÃ¤ngt bereits am erfolgreichen bekannten Kontextpfad
+  - Workflow-State bleibt nach erfolgreichem Abschluss nicht hÃ¤ngen
 
-## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel-Block gegen GitHub-main verifiziert, reale DI-Restlücke geschlossen und nach `origin/main` vorbereitet
+## 2026-03-29 â€“ Prompt 1/1: MAUI-ZÃ¤hlerwechsel-Block gegen GitHub-main verifiziert, reale DI-RestlÃ¼cke geschlossen und nach `origin/main` vorbereitet
 
-- Vor Beginn den realen GitHub-Stand erneut gegen `origin/main` geprüft und danach gezielt die direkt betroffenen Dateien gelesen:
+- Vor Beginn den realen GitHub-Stand erneut gegen `origin/main` geprÃ¼ft und danach gezielt die direkt betroffenen Dateien gelesen:
   - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
   - `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`
   - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
@@ -1154,21 +1193,21 @@
 - Ehrlicher Befund auf GitHub `main`:
   - `ZaehlerwechselPage` mit `Weiter zum Ausbau` / `Weiter zum Einbau` war bereits vorhanden
   - `ZaehlerwechselAusbauPage` und `ZaehlerwechselEinbauPage` existierten bereits
-  - die Shell-Route-Registrierungen für beide Folgeseiten waren auf `origin/main` bereits vorhanden
-  - real offen blieb noch die kleine DI-Restlücke in `KGV.Maui/MauiProgram.cs`: `AddTransient<ZaehlerwechselAusbauPage>()` und `AddTransient<ZaehlerwechselEinbauPage>()` fehlten dort noch wirklich
-  - der kleine Android-RFID-Feedback-Service und der frische Rückweg nach erfolgreichem Speichern lagen lokal bereits vor, waren aber noch nicht nach `origin/main` gepusht
+  - die Shell-Route-Registrierungen fÃ¼r beide Folgeseiten waren auf `origin/main` bereits vorhanden
+  - real offen blieb noch die kleine DI-RestlÃ¼cke in `KGV.Maui/MauiProgram.cs`: `AddTransient<ZaehlerwechselAusbauPage>()` und `AddTransient<ZaehlerwechselEinbauPage>()` fehlten dort noch wirklich
+  - der kleine Android-RFID-Feedback-Service und der frische RÃ¼ckweg nach erfolgreichem Speichern lagen lokal bereits vor, waren aber noch nicht nach `origin/main` gepusht
 - Minimal umgesetzt:
-  - `MauiProgram` jetzt real um `AddTransient<ZaehlerwechselAusbauPage>()` und `AddTransient<ZaehlerwechselEinbauPage>()` ergänzt
-  - bestehende Shell-Routen und der bestehende Aufruf `Shell.Current.GoToAsync(...)` bewusst unverändert gelassen
-  - RFID-Quittungston bleibt weiter klein an `RfidScanContextViewModel.ResolveAsync()` nach erfolgreicher bekannter Kontextauflösung ausgelöst
-  - Workflow-State bleibt nach erfolgreichem Ausbau/Einbau weiter sauber über `_workflowState.Clear()` bereinigt; Rückweg bleibt auf frischem Zählerwechsel-Scanpfad
+  - `MauiProgram` jetzt real um `AddTransient<ZaehlerwechselAusbauPage>()` und `AddTransient<ZaehlerwechselEinbauPage>()` ergÃ¤nzt
+  - bestehende Shell-Routen und der bestehende Aufruf `Shell.Current.GoToAsync(...)` bewusst unverÃ¤ndert gelassen
+  - RFID-Quittungston bleibt weiter klein an `RfidScanContextViewModel.ResolveAsync()` nach erfolgreicher bekannter KontextauflÃ¶sung ausgelÃ¶st
+  - Workflow-State bleibt nach erfolgreichem Ausbau/Einbau weiter sauber Ã¼ber `_workflowState.Clear()` bereinigt; RÃ¼ckweg bleibt auf frischem ZÃ¤hlerwechsel-Scanpfad
 - Validierung:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
 
-## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel-Routing fertig angeschlossen und RFID-Quittungston ergänzt
+## 2026-03-29 â€“ Prompt 1/1: MAUI-ZÃ¤hlerwechsel-Routing fertig angeschlossen und RFID-Quittungston ergÃ¤nzt
 
-- Vor Beginn den realen Repo-Stand gegen `origin/main` geprüft (`git fetch origin`, Vergleich `HEAD` gegen `origin/main`) und danach gezielt gelesen:
+- Vor Beginn den realen Repo-Stand gegen `origin/main` geprÃ¼ft (`git fetch origin`, Vergleich `HEAD` gegen `origin/main`) und danach gezielt gelesen:
   - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
   - `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`
   - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
@@ -1182,40 +1221,40 @@
   - `ZaehlerwechselPage` enthielt bereits die CTAs `Weiter zum Ausbau` und `Weiter zum Einbau`
   - `ContinueAsync(...)` speicherte den Kontext bereits korrekt in `ZaehlerwechselWorkflowState` und navigierte dann per `Shell.Current.GoToAsync(route)`
   - `ZaehlerwechselAusbauPage` und `ZaehlerwechselEinbauPage` existierten ebenfalls bereits
-  - die eigentliche kleine Routing-Lücke saß real nicht mehr im `ShellRouteRegistrar`, sondern im bestehenden MAUI-DI-/Routenmuster: die beiden Folgeseiten waren in `MauiProgram` noch nicht als Transients registriert
+  - die eigentliche kleine Routing-LÃ¼cke saÃŸ real nicht mehr im `ShellRouteRegistrar`, sondern im bestehenden MAUI-DI-/Routenmuster: die beiden Folgeseiten waren in `MauiProgram` noch nicht als Transients registriert
 - Minimal umgesetzt:
-  - die vorhandenen Shell-Routen blieben unverändert bestehen
-  - `MauiProgram` um `AddTransient<ZaehlerwechselAusbauPage>()` und `AddTransient<ZaehlerwechselEinbauPage>()` ergänzt, damit die neuen Zählerwechsel-Folgeseiten sauber vollständig im bestehenden MAUI-Routing-/DI-Muster hängen
-  - den bestehenden Aufruf `Shell.Current.GoToAsync(route)` bewusst beibehalten; keine Querystring-Objektübergabe eingeführt
-  - nach erfolgreichem Ausbau oder Einbau wird der Workflow-State jetzt bereinigt und der Rückweg bewusst auf einen frischen Zählerwechsel-Scanpfad gezogen:
+  - die vorhandenen Shell-Routen blieben unverÃ¤ndert bestehen
+  - `MauiProgram` um `AddTransient<ZaehlerwechselAusbauPage>()` und `AddTransient<ZaehlerwechselEinbauPage>()` ergÃ¤nzt, damit die neuen ZÃ¤hlerwechsel-Folgeseiten sauber vollstÃ¤ndig im bestehenden MAUI-Routing-/DI-Muster hÃ¤ngen
+  - den bestehenden Aufruf `Shell.Current.GoToAsync(route)` bewusst beibehalten; keine Querystring-ObjektÃ¼bergabe eingefÃ¼hrt
+  - nach erfolgreichem Ausbau oder Einbau wird der Workflow-State jetzt bereinigt und der RÃ¼ckweg bewusst auf einen frischen ZÃ¤hlerwechsel-Scanpfad gezogen:
     - zuerst `//ablesen`
     - danach erneut `ZaehlerwechselPage`
-  - damit bleibt nach erfolgreichem Abschluss kein alter Workflow-Kontext oder altes Formular auf dem aktiven Scanpfad hängen
-  - kleiner mobiler RFID-Quittungston ergänzt:
+  - damit bleibt nach erfolgreichem Abschluss kein alter Workflow-Kontext oder altes Formular auf dem aktiven Scanpfad hÃ¤ngen
+  - kleiner mobiler RFID-Quittungston ergÃ¤nzt:
     - neue Service-Schnittstelle `KGV.Maui/Services/IRfidFeedbackService.cs`
     - Android-Implementierung `KGV.Maui/Platforms/Android/Services/AndroidRfidFeedbackService.cs`
-    - Auslösung in `RfidScanContextViewModel.ResolveAsync()` nach erfolgreicher bekannter RFID-Kontextauflösung
-  - der Ton verwendet bewusst nur einen kleinen Android-System-Notification-Sound; kein neues Audio-Framework eingeführt
-  - wenn auf einem Gerät kein Ton abgespielt werden kann, fängt der Service den Fehler lautlos ab und der fachliche Scanpfad läuft normal weiter
+    - AuslÃ¶sung in `RfidScanContextViewModel.ResolveAsync()` nach erfolgreicher bekannter RFID-KontextauflÃ¶sung
+  - der Ton verwendet bewusst nur einen kleinen Android-System-Notification-Sound; kein neues Audio-Framework eingefÃ¼hrt
+  - wenn auf einem GerÃ¤t kein Ton abgespielt werden kann, fÃ¤ngt der Service den Fehler lautlos ab und der fachliche Scanpfad lÃ¤uft normal weiter
 - Wie der Workflow-State nach Abschluss bereinigt wird:
   - `ZaehlerwechselAusbauPage` und `ZaehlerwechselEinbauPage` rufen nach erfolgreichem Speichern `_workflowState.Clear()` auf
-  - danach wird nicht nur relativ zurücknavigiert, sondern bewusst wieder ein frischer Zählerwechsel-Scanpfad geöffnet
+  - danach wird nicht nur relativ zurÃ¼cknavigiert, sondern bewusst wieder ein frischer ZÃ¤hlerwechsel-Scanpfad geÃ¶ffnet
 - Validierung:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
-- Logischer Prüfpfad nach dem Block:
-  - Zählerwechsel öffnen
+- Logischer PrÃ¼fpfad nach dem Block:
+  - ZÃ¤hlerwechsel Ã¶ffnen
   - RFID scannen
   - `Weiter zum Ausbau` / `Weiter zum Einbau` funktioniert wirklich
-  - jeweilige Seite öffnet wirklich
+  - jeweilige Seite Ã¶ffnet wirklich
   - Speichern erfolgreich
-  - Erfolgsmeldung + Rückweg funktionieren
-  - alter Workflow-Kontext bleibt nicht hängen
-  - Quittungston wird im mobilen Erfolgsfall ausgelöst oder fällt sauber aus, ohne den Flow zu blockieren
+  - Erfolgsmeldung + RÃ¼ckweg funktionieren
+  - alter Workflow-Kontext bleibt nicht hÃ¤ngen
+  - Quittungston wird im mobilen Erfolgsfall ausgelÃ¶st oder fÃ¤llt sauber aus, ohne den Flow zu blockieren
 
-## 2026-03-29 – Prompt 1/1: MAUI-Zählerwechsel nach RFID-Scan in echte Ausbau-/Einbauformulare verzweigt
+## 2026-03-29 â€“ Prompt 1/1: MAUI-ZÃ¤hlerwechsel nach RFID-Scan in echte Ausbau-/Einbauformulare verzweigt
 
-- Vor Beginn den realen Repo-Stand gegen `origin/main` geprüft (`git fetch origin`, Vergleich `HEAD` gegen `origin/main`) und danach gezielt die direkt betroffenen Dateien gelesen:
+- Vor Beginn den realen Repo-Stand gegen `origin/main` geprÃ¼ft (`git fetch origin`, Vergleich `HEAD` gegen `origin/main`) und danach gezielt die direkt betroffenen Dateien gelesen:
   - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
   - `KGV.Maui/Pages/RfidScanWorkflowPage.cs`
   - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
@@ -1229,49 +1268,49 @@
   - `KGV.Core/Models/AblesungInsertRecord.cs`
   - WPF nur grob als Referenz: `ZaehlerwechselScanViewModel`, `ZaehlerwechselEinbauViewModel`, `ZaehlerwechselAusbauViewModel`
 - Ehrlicher Befund im aktuellen Repo-Stand:
-  - der MAUI-Scan-/Kontextschritt für `Zählerwechsel` war bereits produktiv vorhanden
-  - nach erfolgreicher RFID-Auflösung blieb die Seite aber noch auf dem Entscheidungstext stehen
-  - damit war fachlich zwar schon klar unterscheidbar zwischen Ausbau und Einbau, aber es gab noch keinen mobilen Folgepfad für den produktiven Zählerwechsel
+  - der MAUI-Scan-/Kontextschritt fÃ¼r `ZÃ¤hlerwechsel` war bereits produktiv vorhanden
+  - nach erfolgreicher RFID-AuflÃ¶sung blieb die Seite aber noch auf dem Entscheidungstext stehen
+  - damit war fachlich zwar schon klar unterscheidbar zwischen Ausbau und Einbau, aber es gab noch keinen mobilen Folgepfad fÃ¼r den produktiven ZÃ¤hlerwechsel
 - Minimal umgesetzt:
-  - neuer kleiner Zustand `KGV.Maui/State/ZaehlerwechselWorkflowState.cs` ergänzt, damit der aufgelöste RFID-Kontext stabil an Folgeformulare übergeben wird, ohne Query-String-Bastelei mit großen Objekten
-  - `RfidScanContextViewModel` liefert jetzt sichtbare Weiter-Zustände für Ausbau/Einbau
+  - neuer kleiner Zustand `KGV.Maui/State/ZaehlerwechselWorkflowState.cs` ergÃ¤nzt, damit der aufgelÃ¶ste RFID-Kontext stabil an Folgeformulare Ã¼bergeben wird, ohne Query-String-Bastelei mit groÃŸen Objekten
+  - `RfidScanContextViewModel` liefert jetzt sichtbare Weiter-ZustÃ¤nde fÃ¼r Ausbau/Einbau
   - `RfidScanWorkflowPage` wurde minimal um einen optionalen Aktionsbereich erweitert; bestehender Scanpfad bleibt ansonsten erhalten
   - `ZaehlerwechselPage` zeigt jetzt nach erfolgreichem Scan klar sichtbare Folge-CTAs:
     - `Weiter zum Ausbau`
     - `Weiter zum Einbau`
   - neue MAUI-Seite `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs` angelegt:
-    - zeigt Parzelle, Medium, aktiven Zähler und Zählernummer
+    - zeigt Parzelle, Medium, aktiven ZÃ¤hler und ZÃ¤hlernummer
     - speichert produktiv zuerst die Schlussablesung
-    - beendet danach den aktiven Zähler über `SetStromzaehlerAusgebautAmAsync(...)` bzw. `SetWasserzaehlerAusgebautAmAsync(...)`
+    - beendet danach den aktiven ZÃ¤hler Ã¼ber `SetStromzaehlerAusgebautAmAsync(...)` bzw. `SetWasserzaehlerAusgebautAmAsync(...)`
   - neue MAUI-Seite `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs` angelegt:
     - zeigt Parzelle, Medium und RFID-Kontext
-    - legt produktiv den neuen Zähler über `AddStromzaehlerAsync(...)` bzw. `AddWasserzaehlerAsync(...)` an
-    - speichert danach die Anfangsablesung über `AddAblesungAsync(...)`
-  - Foto-/Uploadpfad wurde in diesem Block bewusst nicht künstlich ergänzt, weil dafür hier kein belastbarer bestehender MAUI-Produktpfad gebraucht wurde
-- Wie der Scan-Kontext jetzt übergeben wird:
-  - `ZaehlerwechselPage` schreibt den bereits aufgelösten `RfidScanContextResult` in `ZaehlerwechselWorkflowState`
+    - legt produktiv den neuen ZÃ¤hler Ã¼ber `AddStromzaehlerAsync(...)` bzw. `AddWasserzaehlerAsync(...)` an
+    - speichert danach die Anfangsablesung Ã¼ber `AddAblesungAsync(...)`
+  - Foto-/Uploadpfad wurde in diesem Block bewusst nicht kÃ¼nstlich ergÃ¤nzt, weil dafÃ¼r hier kein belastbarer bestehender MAUI-Produktpfad gebraucht wurde
+- Wie der Scan-Kontext jetzt Ã¼bergeben wird:
+  - `ZaehlerwechselPage` schreibt den bereits aufgelÃ¶sten `RfidScanContextResult` in `ZaehlerwechselWorkflowState`
   - die neuen Folgeformulare lesen diesen Zustand beim Anzeigen wieder aus
-  - dadurch bleiben stabil verfügbar:
+  - dadurch bleiben stabil verfÃ¼gbar:
     - `ParzelleId`
     - `Medium`
-    - aktiver Zähler vorhanden ja/nein
-    - aktiver Zähler `Id`
-    - Zählernummer / Anzeigename soweit vorhanden
+    - aktiver ZÃ¤hler vorhanden ja/nein
+    - aktiver ZÃ¤hler `Id`
+    - ZÃ¤hlernummer / Anzeigename soweit vorhanden
 - Validierung:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
-- Logischer Prüfpfad nach dem Block:
-  - Zählerwechsel öffnen
-  - RFID scannen / UID prüfen
-  - bekannter Kontext mit aktivem Zähler => `Weiter zum Ausbau`
-  - bekannter Kontext ohne aktiven Zähler => `Weiter zum Einbau`
+- Logischer PrÃ¼fpfad nach dem Block:
+  - ZÃ¤hlerwechsel Ã¶ffnen
+  - RFID scannen / UID prÃ¼fen
+  - bekannter Kontext mit aktivem ZÃ¤hler => `Weiter zum Ausbau`
+  - bekannter Kontext ohne aktiven ZÃ¤hler => `Weiter zum Einbau`
   - unbekannter Tag => kein Folgeformular
   - Ausbau speichert Schlussablesung + setzt `ausgebaut_am`
-  - Einbau legt Zähler an + speichert Anfangsablesung
+  - Einbau legt ZÃ¤hler an + speichert Anfangsablesung
 
-## 2026-03-29 – Prompt 1/1: MAUI mitgliedsgebundene Stammdaten repariert und `Nutzer hinzufügen` im Mitgliedskontext sichtbar gemacht
+## 2026-03-29 â€“ Prompt 1/1: MAUI mitgliedsgebundene Stammdaten repariert und `Nutzer hinzufÃ¼gen` im Mitgliedskontext sichtbar gemacht
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
   - `KGV.Maui/AdminShell.cs`
   - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
   - `KGV.Maui/Pages/MyProfilePage.cs`
@@ -1283,68 +1322,68 @@
   - `KGV.Maui/ShellRouteRegistrar.cs`
   - fachliche Referenz: `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`, `KGV.Wpf/ViewModels/UserManagementViewModel.cs`
 - Ehrlicher Befund auf dem aktuellen Stand:
-  - `↳ Stammdaten` zeigte im Admin-/Vorstandskontext real auf `MeineDatenPage`
-  - `MeineDatenPage.OnEditClicked()` leitete aber nur den Eigenfall nach `MyProfilePage` weiter; für fremde Mitglieder endete der Pfad in der dokumentierten "noch nicht gebaut"-Sackgasse
-  - damit existierte mobil zwar ein mitgliedsgebundener Leseweg, aber kein echter produktiver Bearbeitungspfad für das ausgewählte Mitglied
-  - der produktive Invite-/Erstlogin-Flow war mobil bereits vorhanden, wurde im gebundenen Mitgliedskontext aber noch nicht mit dem klaren WPF-Wortlaut `Nutzer hinzufügen` angeboten und blieb bei vorhandenem App-User zu wenig sauber abgegrenzt
+  - `â†³ Stammdaten` zeigte im Admin-/Vorstandskontext real auf `MeineDatenPage`
+  - `MeineDatenPage.OnEditClicked()` leitete aber nur den Eigenfall nach `MyProfilePage` weiter; fÃ¼r fremde Mitglieder endete der Pfad in der dokumentierten "noch nicht gebaut"-Sackgasse
+  - damit existierte mobil zwar ein mitgliedsgebundener Leseweg, aber kein echter produktiver Bearbeitungspfad fÃ¼r das ausgewÃ¤hlte Mitglied
+  - der produktive Invite-/Erstlogin-Flow war mobil bereits vorhanden, wurde im gebundenen Mitgliedskontext aber noch nicht mit dem klaren WPF-Wortlaut `Nutzer hinzufÃ¼gen` angeboten und blieb bei vorhandenem App-User zu wenig sauber abgegrenzt
 - Minimal umgesetzt:
   - neue MAUI-Seite `KGV.Maui/Pages/MemberDetailPage.cs` angelegt, weil die saubere Trennung zum Eigenprofilpfad kleiner und belastbarer war als ein weiterer Umbau von `MyProfilePage`
-  - `AdminShell` öffnet bei `↳ Stammdaten` jetzt diese neue mitgliedsgebundene Detailseite statt `MeineDatenPage`
-  - die neue Seite lädt das ausgewählte Mitglied ausschließlich über `MemberContextState.SelectedMember.Id` und speichert produktiv über den vorhandenen Lock-/`UpdateMitgliedAsync(...)`-Pfad analog zur WPF-Fachlichkeit
-  - der bisherige Eigenpfad `Meine Daten` / `MyProfilePage` bleibt unverändert für den selbst eingeloggten Nutzer bestehen
-  - im mitgliedsgebundenen Admin-Pfad ist jetzt ein klar sichtbarer Button `Nutzer hinzufügen` vorhanden, wenn das ausgewählte Mitglied noch keinen App-User hat
-  - der Button verwendet denselben vorhandenen produktiven Invite-/Erstlogin-Flow; es wurde kein Dummy-Flow und keine neue Schattenlogik ergänzt
-  - `UserManagementViewModel` und `UserManagementPage` wurden im gebundenen Mitgliedskontext auf den WPF-Wortlaut `Nutzer hinzufügen` umgestellt; die Invite-Aktion wird bei bereits verknüpftem App-User dort jetzt nicht mehr fälschlich aktiv angeboten
+  - `AdminShell` Ã¶ffnet bei `â†³ Stammdaten` jetzt diese neue mitgliedsgebundene Detailseite statt `MeineDatenPage`
+  - die neue Seite lÃ¤dt das ausgewÃ¤hlte Mitglied ausschlieÃŸlich Ã¼ber `MemberContextState.SelectedMember.Id` und speichert produktiv Ã¼ber den vorhandenen Lock-/`UpdateMitgliedAsync(...)`-Pfad analog zur WPF-Fachlichkeit
+  - der bisherige Eigenpfad `Meine Daten` / `MyProfilePage` bleibt unverÃ¤ndert fÃ¼r den selbst eingeloggten Nutzer bestehen
+  - im mitgliedsgebundenen Admin-Pfad ist jetzt ein klar sichtbarer Button `Nutzer hinzufÃ¼gen` vorhanden, wenn das ausgewÃ¤hlte Mitglied noch keinen App-User hat
+  - der Button verwendet denselben vorhandenen produktiven Invite-/Erstlogin-Flow; es wurde kein Dummy-Flow und keine neue Schattenlogik ergÃ¤nzt
+  - `UserManagementViewModel` und `UserManagementPage` wurden im gebundenen Mitgliedskontext auf den WPF-Wortlaut `Nutzer hinzufÃ¼gen` umgestellt; die Invite-Aktion wird bei bereits verknÃ¼pftem App-User dort jetzt nicht mehr fÃ¤lschlich aktiv angeboten
 - Validierung:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
-- Logischer Prüfpfad nach dem Block:
-  - Mitglied in der Suche auswählen
-  - `↳ Stammdaten` öffnen
-  - ausgewähltes Mitglied wirklich bearbeiten und speichern
-  - Mitglied ohne App-User wählen
-  - `Nutzer hinzufügen` sichtbar
+- Logischer PrÃ¼fpfad nach dem Block:
+  - Mitglied in der Suche auswÃ¤hlen
+  - `â†³ Stammdaten` Ã¶ffnen
+  - ausgewÃ¤hltes Mitglied wirklich bearbeiten und speichern
+  - Mitglied ohne App-User wÃ¤hlen
+  - `Nutzer hinzufÃ¼gen` sichtbar
   - bestehender Invite-/Erstlogin-Flow wird aufgerufen
 
-## 2026-03-29 – Prompt 1/1: MAUI-Release-Loginpfad gegen echten Supabase-Connection-Failure im Android-Netzwerkpfad gehärtet
+## 2026-03-29 â€“ Prompt 1/1: MAUI-Release-Loginpfad gegen echten Supabase-Connection-Failure im Android-Netzwerkpfad gehÃ¤rtet
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
   - `KGV.Infrastructure/Authentication/AuthService.cs`
   - `KGV.Infrastructure/Supabase/SupabaseClientFactory.cs`
   - `KGV.Maui/MauiProgram.cs`
   - `KGV.Maui/MainApplication.cs`
   - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
   - `.github/copilot-instructions.md`
-  - reale Git-Lage, Release-APK und angeschlossenes Gerät per `adb devices`
+  - reale Git-Lage, Release-APK und angeschlossenes GerÃ¤t per `adb devices`
 - Ehrlicher Befund auf dem aktuellen Stand:
-  - Startup und Konfigurationspfad waren im Release bereits echt bestätigt: `APP_START`, `APPSETTINGS_LOAD_OK`, `SUPABASE_CONFIG_PRESENT_YES`
+  - Startup und Konfigurationspfad waren im Release bereits echt bestÃ¤tigt: `APP_START`, `APPSETTINGS_LOAD_OK`, `SUPABASE_CONFIG_PRESENT_YES`
   - der verbleibende Fehler lag damit nicht mehr an Icon, Appsettings oder Login-UI, sondern im echten Netzwerkpfad vor dem Gotrue-SignIn
-  - im aktuellen Android-Manifest fehlte die Berechtigung `android.permission.INTERNET`; das ist für den beobachteten Release-Fehler `GotrueException: Connection failure` fachlich der plausibelste und belastbarste Restpunkt
-  - die vorhandene Login-Diagnose war bereits brauchbar, aber für Netzwerk-/TLS-Fehler noch nicht präzise genug bei `ExceptionType`, `InnerException` und Supabase-Zielhost
+  - im aktuellen Android-Manifest fehlte die Berechtigung `android.permission.INTERNET`; das ist fÃ¼r den beobachteten Release-Fehler `GotrueException: Connection failure` fachlich der plausibelste und belastbarste Restpunkt
+  - die vorhandene Login-Diagnose war bereits brauchbar, aber fÃ¼r Netzwerk-/TLS-Fehler noch nicht prÃ¤zise genug bei `ExceptionType`, `InnerException` und Supabase-Zielhost
 - Minimal umgesetzt:
-  - `AndroidManifest.xml` um `android.permission.INTERNET` ergänzt, damit Release denselben HTTPS-/Supabase-Netzwerkpfad wie Debug nutzen kann
-  - `AuthService.LoginAsync(...)` loggt jetzt zusätzlich maskiert:
+  - `AndroidManifest.xml` um `android.permission.INTERNET` ergÃ¤nzt, damit Release denselben HTTPS-/Supabase-Netzwerkpfad wie Debug nutzen kann
+  - `AuthService.LoginAsync(...)` loggt jetzt zusÃ¤tzlich maskiert:
     - Zielschema der Supabase-URL
     - Zielhost
     - Exception-Typ
     - InnerException-Typ
     - maskierte InnerException-Nachricht
-  - bestehende `KGV`-Marker wurden beibehalten; die präzisere Netzwerkdiagnose ergänzt den vorhandenen Release-Logcat-/Dateilogpfad nur minimal-invasiv
+  - bestehende `KGV`-Marker wurden beibehalten; die prÃ¤zisere Netzwerkdiagnose ergÃ¤nzt den vorhandenen Release-Logcat-/Dateilogpfad nur minimal-invasiv
 - Validierung:
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
   - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=apk` erfolgreich
   - `dotnet build KGV.slnx -c Debug` erfolgreich
-  - signierte Release-APK auf echtes Gerät installiert (`adb install -r ...Signed.apk` erfolgreich)
+  - signierte Release-APK auf echtes GerÃ¤t installiert (`adb install -r ...Signed.apk` erfolgreich)
   - `adb logcat -s KGV` nach dem Start zeigt im Release weiter sauber `APP_START`, `APPSETTINGS_LOAD_OK` und `SUPABASE_CONFIG_PRESENT_YES`
-  - `adb shell dumpsys package de.kgv.oberrothenbach | findstr INTERNET` bestätigt die Internet-Berechtigung auf dem installierten Paket
-- Offener Rest für den nächsten realen Gerätelogin:
-  - der eigentliche Login konnte in diesem Lauf nicht automatisiert ausgeführt werden, weil keine Zugangsdaten/keine UI-Automation im Block vorlagen
-  - falls der Fehler wider Erwarten weiter besteht, liefert `adb logcat -s KGV` jetzt eine deutlich präzisere maskierte Netzwerk-/InnerException-Ursache statt nur `Connection failure`
+  - `adb shell dumpsys package de.kgv.oberrothenbach | findstr INTERNET` bestÃ¤tigt die Internet-Berechtigung auf dem installierten Paket
+- Offener Rest fÃ¼r den nÃ¤chsten realen GerÃ¤telogin:
+  - der eigentliche Login konnte in diesem Lauf nicht automatisiert ausgefÃ¼hrt werden, weil keine Zugangsdaten/keine UI-Automation im Block vorlagen
+  - falls der Fehler wider Erwarten weiter besteht, liefert `adb logcat -s KGV` jetzt eine deutlich prÃ¤zisere maskierte Netzwerk-/InnerException-Ursache statt nur `Connection failure`
 
-## 2026-03-28 – Prompt 1/1: MAUI-Release-Login für Android Logcat gezielt diagnostizierbar gemacht
+## 2026-03-28 â€“ Prompt 1/1: MAUI-Release-Login fÃ¼r Android Logcat gezielt diagnostizierbar gemacht
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
   - `KGV.Maui/KGV.Maui.csproj`
   - `KGV.Maui/MauiProgram.cs`
   - `KGV.Infrastructure/Authentication/AuthService.cs`
@@ -1353,12 +1392,12 @@
   - reale Buildlage und `adb devices`
 - Ehrlicher Befund auf dem aktuellen Stand:
   - das Launcher-Icon-Thema ist im aktuellen Stand nicht mehr der offene Block; der verbleibende Fehler sitzt sehr wahrscheinlich im Release-Loginpfad oder direkt danach
-  - bestehendes Dateilogging war für Release bereits vorhanden, aber für den Gerätetest fehlte weiter eine klar suchbare Android-Logcat-Diagnose mit festem Tag
-  - `AuthService` protokollierte den Loginpfad schon maskiert über `ILogger`, aber die Ursache war im Release damit noch nicht schnell genug aus `adb logcat` sichtbar
-  - der Release-Buildpfad ist für den Login im aktuellen Stand bereits debug-nah gehalten (`AndroidLinkMode=None`, `PublishTrimmed=false`, kein AOT); ein weiterer breiter Release-Umbau war deshalb nicht der richtige erste Schritt
-  - echter Geräte-/Logcat-Test war in diesem Lauf nicht möglich, weil `adb devices` kein verbundenes Gerät meldete
+  - bestehendes Dateilogging war fÃ¼r Release bereits vorhanden, aber fÃ¼r den GerÃ¤tetest fehlte weiter eine klar suchbare Android-Logcat-Diagnose mit festem Tag
+  - `AuthService` protokollierte den Loginpfad schon maskiert Ã¼ber `ILogger`, aber die Ursache war im Release damit noch nicht schnell genug aus `adb logcat` sichtbar
+  - der Release-Buildpfad ist fÃ¼r den Login im aktuellen Stand bereits debug-nah gehalten (`AndroidLinkMode=None`, `PublishTrimmed=false`, kein AOT); ein weiterer breiter Release-Umbau war deshalb nicht der richtige erste Schritt
+  - echter GerÃ¤te-/Logcat-Test war in diesem Lauf nicht mÃ¶glich, weil `adb devices` kein verbundenes GerÃ¤t meldete
 - Minimal umgesetzt:
-  - das bestehende Diagnose-Logging schreibt jetzt nicht nur in `kgv-release.log`, sondern zusätzlich mit festem Android-Logcat-Tag `KGV`
+  - das bestehende Diagnose-Logging schreibt jetzt nicht nur in `kgv-release.log`, sondern zusÃ¤tzlich mit festem Android-Logcat-Tag `KGV`
   - Startup-/Konfigurationspfad protokolliert jetzt explizit die Marker:
     - `APP_START`
     - `APPSETTINGS_LOAD_OK` / `APPSETTINGS_LOAD_FAIL`
@@ -1368,22 +1407,22 @@
     - `LOGIN_RESULT_SUCCESS`
     - `LOGIN_RESULT_FAIL`
     - `LOGIN_EXCEPTION:...`
-  - `AuthService.LoginAsync(...)` wurde minimal-invasiv um klar suchbare, maskierte Stufen-/Fehlerdiagnose ergänzt (`GET_CLIENT`, `SIGN_IN`, Null-Session, fehlende UserId, Guid-/Role-Lookup, Gotrue-/Unexpected-Exception)
+  - `AuthService.LoginAsync(...)` wurde minimal-invasiv um klar suchbare, maskierte Stufen-/Fehlerdiagnose ergÃ¤nzt (`GET_CLIENT`, `SIGN_IN`, Null-Session, fehlende UserId, Guid-/Role-Lookup, Gotrue-/Unexpected-Exception)
   - erfolgreicher Login gilt jetzt erst dann als Erfolg, wenn auch der App-Root-Wechsel wirklich geklappt hat; andernfalls wird `LOGIN_EXCEPTION:APP_ROOT_SWITCH_FAILED` protokolliert und der Flow nicht still als Erfolg behandelt
 - Validierung:
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
   - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=apk` erfolgreich
   - `dotnet build KGV.slnx -c Debug` erfolgreich
-  - `adb devices` zeigte in diesem Lauf kein verbundenes Gerät; daher kein echter `adb logcat`- oder Release-Login-Gerätetest möglich
-- Nächster reale Prüfpfad auf Gerät:
+  - `adb devices` zeigte in diesem Lauf kein verbundenes GerÃ¤t; daher kein echter `adb logcat`- oder Release-Login-GerÃ¤tetest mÃ¶glich
+- NÃ¤chster reale PrÃ¼fpfad auf GerÃ¤t:
   - Release-APK installieren
   - `adb logcat -s KGV`
-  - Login ausführen und auf `LOGIN_EXCEPTION:...` bzw. `LOGIN_FAIL_REASON:...` prüfen
+  - Login ausfÃ¼hren und auf `LOGIN_EXCEPTION:...` bzw. `LOGIN_FAIL_REASON:...` prÃ¼fen
 
-## 2026-03-28 – Prompt 1/1: MAUI-Release mit echtem Dateilog und harten Android-Launcher-Ressourcen stabilisiert
+## 2026-03-28 â€“ Prompt 1/1: MAUI-Release mit echtem Dateilog und harten Android-Launcher-Ressourcen stabilisiert
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
   - `KGV.Maui/KGV.Maui.csproj`
   - `KGV.Maui/MauiProgram.cs`
   - `KGV.Maui/Pages/LoginPage.xaml.cs`
@@ -1393,30 +1432,30 @@
   - `KGV.Maui/Resources/AppIcon/*`
   - reale Release-Artefakte und APK-Inhalt unter `KGV.Maui/bin/Release/net9.0-android`
 - Ehrlicher Befund auf dem aktuellen Stand:
-  - der frühere Startup-/Auth-Fix war noch nicht ausreichend, weil im Release weiter kein verwertbares Dateilog für Gerätediagnosen existierte
-  - `AuthService` war bereits so gebaut, dass Login-Start und Fehler maskiert über `ILogger` protokolliert werden können; es fehlte primär ein robuster MAUI-Datei-Logger im Releasepfad
-  - das Launcher-Icon war trotz vorhandener MAUI-/Manifest-Referenzen praktisch weiter abhängig von der generierten Pipeline; für Android fehlten explizite, belastbare Launcher-Ressourcen im Projekt
-  - ein echter Gerätetest des Release-Logins war in diesem Lauf nicht automatisierbar; deshalb Fokus auf reproduzierbare Release-Artefakte plus auslesbare Fehlerdiagnose
+  - der frÃ¼here Startup-/Auth-Fix war noch nicht ausreichend, weil im Release weiter kein verwertbares Dateilog fÃ¼r GerÃ¤tediagnosen existierte
+  - `AuthService` war bereits so gebaut, dass Login-Start und Fehler maskiert Ã¼ber `ILogger` protokolliert werden kÃ¶nnen; es fehlte primÃ¤r ein robuster MAUI-Datei-Logger im Releasepfad
+  - das Launcher-Icon war trotz vorhandener MAUI-/Manifest-Referenzen praktisch weiter abhÃ¤ngig von der generierten Pipeline; fÃ¼r Android fehlten explizite, belastbare Launcher-Ressourcen im Projekt
+  - ein echter GerÃ¤tetest des Release-Logins war in diesem Lauf nicht automatisierbar; deshalb Fokus auf reproduzierbare Release-Artefakte plus auslesbare Fehlerdiagnose
 - Minimal umgesetzt:
   - neues Diagnose-Logging unter `KGV.Maui/Services/Diagnostics/*`; Laufzeitdatei: `kgv-release.log` im MAUI-`AppDataDirectory`
   - `MauiProgram` protokolliert jetzt Appstart, Laden von `appsettings.json`, Vorhandensein der Supabase-Konfiguration und den Diagnose-Logpfad fail-fast in die Datei
-  - vorhandene `AuthService`-`ILogger`-Einträge landen dadurch im selben Dateilog; `LoginPage` ergänzt zusätzlich maskierte UI-seitige Start-/Fehlschlag-Einträge und verweist bei Fehlern auf das Diagnose-Log
-  - Release bleibt ohne AOT und wurde zusätzlich mit `PublishTrimmed=false` gegen stilles Release-Trimming gehärtet
-  - Android-Launcher-Icon läuft jetzt über explizite Ressourcen unter `Platforms/Android/Resources/*` plus direkte Manifest-Zuweisung für `android:icon` und `android:roundIcon`; das unsichere reine `MauiIcon`-Setup wurde entfernt
+  - vorhandene `AuthService`-`ILogger`-EintrÃ¤ge landen dadurch im selben Dateilog; `LoginPage` ergÃ¤nzt zusÃ¤tzlich maskierte UI-seitige Start-/Fehlschlag-EintrÃ¤ge und verweist bei Fehlern auf das Diagnose-Log
+  - Release bleibt ohne AOT und wurde zusÃ¤tzlich mit `PublishTrimmed=false` gegen stilles Release-Trimming gehÃ¤rtet
+  - Android-Launcher-Icon lÃ¤uft jetzt Ã¼ber explizite Ressourcen unter `Platforms/Android/Resources/*` plus direkte Manifest-Zuweisung fÃ¼r `android:icon` und `android:roundIcon`; das unsichere reine `MauiIcon`-Setup wurde entfernt
 - Validierung:
   - `dotnet clean KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
   - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=apk` erfolgreich
   - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=aab` erfolgreich
-  - `aapt dump badging` bestätigt im signierten Release-APK weiter `application icon='res/mipmap-anydpi-v26/appicon.xml'`
-  - APK-Inhalt enthält explizite `appicon`-/`appicon_round`-Ressourcen und weiterhin keine `libaot-*`-Artefakte (`NO_AOT_LIBS`)
+  - `aapt dump badging` bestÃ¤tigt im signierten Release-APK weiter `application icon='res/mipmap-anydpi-v26/appicon.xml'`
+  - APK-Inhalt enthÃ¤lt explizite `appicon`-/`appicon_round`-Ressourcen und weiterhin keine `libaot-*`-Artefakte (`NO_AOT_LIBS`)
   - `dotnet build KGV.slnx -c Debug` erfolgreich
-  - offener Rest nur auf echter Geräteebene: Login gegen Backend ausführen und bei weiterem Fehler `kgv-release.log` aus dem AppData-Verzeichnis auslesen
+  - offener Rest nur auf echter GerÃ¤teebene: Login gegen Backend ausfÃ¼hren und bei weiterem Fehler `kgv-release.log` aus dem AppData-Verzeichnis auslesen
 
-## 2026-03-28 – Prompt 1/1: MAUI-Releasepfad ohne AOT und mit korrekter Icon-/Signing-Basis finalisiert
+## 2026-03-28 â€“ Prompt 1/1: MAUI-Releasepfad ohne AOT und mit korrekter Icon-/Signing-Basis finalisiert
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
   - `KGV.Maui/KGV.Maui.csproj`
   - `KGV.Maui/MauiProgram.cs`
   - `KGV.Maui/MainApplication.cs`
@@ -1424,29 +1463,29 @@
   - reale Release-Artefakte, `aapt dump badging`, APK-Inhalt und echter Keystore-Pfad im Workspace
 - Ehrlicher Befund auf dem aktuellen Stand:
   - Diagnose- und Manifest/Icon-Fix waren bereits vorhanden
-  - der reale Releasepfad war aber noch nicht vollständig auf "ohne AOT" fixiert
+  - der reale Releasepfad war aber noch nicht vollstÃ¤ndig auf "ohne AOT" fixiert
   - die App-Icon-Erzeugung lief noch aus einer PNG-Quelle statt direkt aus der vorhandenen SVG-Datei
-  - signierte Release-Builds scheiterten im aktuellen `csproj` zunächst real an fehlendem `AndroidSigningKeyPass` sowie an einem nicht vorhandenen relativen Keystore-Pfad im Projektordner
-  - `AuthService` loggte Login-Fehler bereits ohne sensible Daten; dort war kein zusätzlicher Umbau erforderlich
+  - signierte Release-Builds scheiterten im aktuellen `csproj` zunÃ¤chst real an fehlendem `AndroidSigningKeyPass` sowie an einem nicht vorhandenen relativen Keystore-Pfad im Projektordner
+  - `AuthService` loggte Login-Fehler bereits ohne sensible Daten; dort war kein zusÃ¤tzlicher Umbau erforderlich
 - Minimal umgesetzt:
-  - `RunAOTCompilation=false` und `AndroidEnableProfiledAot=false` explizit für Release gesetzt
+  - `RunAOTCompilation=false` und `AndroidEnableProfiledAot=false` explizit fÃ¼r Release gesetzt
   - `MauiIcon` auf `Resources\AppIcon\appicon.svg` umgestellt
   - `AndroidSigningKeyStore` auf den real vorhandenen Pfad `..\_secrets\Android\kgv-upload.keystore` korrigiert
-  - `AndroidSigningKeyPass` aus dem vorhandenen Store-Passwort abgeleitet, damit signierte APK-/AAB-Läufe wieder konsistent funktionieren
+  - `AndroidSigningKeyPass` aus dem vorhandenen Store-Passwort abgeleitet, damit signierte APK-/AAB-LÃ¤ufe wieder konsistent funktionieren
 - Validierung:
   - `dotnet clean KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
   - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=apk` erfolgreich
   - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=aab` erfolgreich
-  - `aapt dump badging` bestätigt weiterhin ein gesetztes Launcher-Icon im Release-APK
-  - APK-Inhaltsprüfung zeigt keine `libaot-*`-Artefakte mehr für den freigegebenen Releasepfad
+  - `aapt dump badging` bestÃ¤tigt weiterhin ein gesetztes Launcher-Icon im Release-APK
+  - APK-InhaltsprÃ¼fung zeigt keine `libaot-*`-Artefakte mehr fÃ¼r den freigegebenen Releasepfad
   - `dotnet build KGV.slnx -c Debug` erfolgreich
-  - realer Gerätetest in diesem Lauf nicht möglich, da kein aktives Gerät mehr über `adb` verbunden war
+  - realer GerÃ¤tetest in diesem Lauf nicht mÃ¶glich, da kein aktives GerÃ¤t mehr Ã¼ber `adb` verbunden war
 
-## 2026-03-28 – Prompt 1/1: MAUI-Release-Bug für Login und Launcher-Icon minimal behoben
+## 2026-03-28 â€“ Prompt 1/1: MAUI-Release-Bug fÃ¼r Login und Launcher-Icon minimal behoben
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
   - `KGV.Maui/KGV.Maui.csproj`
   - `KGV.Maui/MauiProgram.cs`
   - `KGV.Maui/MainApplication.cs`
@@ -1459,42 +1498,42 @@
   - der Login-Pfad in `AuthService` loggte bereits ohne sensible Daten; das Hauptproblem im Release war fehlende Diagnose plus anderes Linker-Verhalten als im Debug-Build
   - Release erzeugte AppIcon-Ressourcen, referenzierte im finalen APK aber trotzdem kein Application-Icon im Manifest
 - Minimal umgesetzt:
-  - Release-Linker auf `AndroidLinkMode=None` gezogen, damit der funktionierende Debug-Pfad für Login/Supabase im Release fachlich gleich bleibt
-  - `MauiProgram` lädt und validiert `appsettings.json`/Supabase-Konfiguration jetzt fail-fast mit Logcat-/Debug-Diagnose statt stillem Catch
-  - unhandled/unobserved Release-Fehler werden zusätzlich nach Logcat gespiegelt
+  - Release-Linker auf `AndroidLinkMode=None` gezogen, damit der funktionierende Debug-Pfad fÃ¼r Login/Supabase im Release fachlich gleich bleibt
+  - `MauiProgram` lÃ¤dt und validiert `appsettings.json`/Supabase-Konfiguration jetzt fail-fast mit Logcat-/Debug-Diagnose statt stillem Catch
+  - unhandled/unobserved Release-Fehler werden zusÃ¤tzlich nach Logcat gespiegelt
   - `MainApplication` referenziert `@mipmap/appicon` und `@mipmap/appicon_round` jetzt explizit als Launcher-Icon
 - Validierung:
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release` erfolgreich
   - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android` erfolgreich
-  - `aapt dump badging` bestätigt jetzt ein gesetztes `application icon='res/mipmap-anydpi-v26/appicon.xml'`
+  - `aapt dump badging` bestÃ¤tigt jetzt ein gesetztes `application icon='res/mipmap-anydpi-v26/appicon.xml'`
   - `dotnet build KGV.slnx -c Debug` erfolgreich
-  - reale Installation auf angeschlossenes Gerät scheiterte lokal an bereits installierter anders signierter Paketvariante; daher kein zerstörungsfreier End-to-End-Login-Test automatisiert
+  - reale Installation auf angeschlossenes GerÃ¤t scheiterte lokal an bereits installierter anders signierter Paketvariante; daher kein zerstÃ¶rungsfreier End-to-End-Login-Test automatisiert
 
-## 2026-03-28 – Prompt 1/1: Android-Versionserkennung im ReleaseManager für SDK-Style-`csproj` robust gemacht
+## 2026-03-28 â€“ Prompt 1/1: Android-Versionserkennung im ReleaseManager fÃ¼r SDK-Style-`csproj` robust gemacht
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
   - `KGV.Maui/KGV.Maui.csproj`
   - `KGV.Wpf/KGV.Wpf.csproj`
   - `KGV.ReleaseManager/Services/VersionService.cs`
-  - realen Git-Status über den vorhandenen Visual-Studio-Git-Pfad
+  - realen Git-Status Ã¼ber den vorhandenen Visual-Studio-Git-Pfad
 - Ehrlicher Befund auf dem aktuellen Stand:
   - `ApplicationDisplayVersion` und `ApplicationVersion` waren im MAUI-Projekt korrekt vorhanden
-  - die Android-Version wurde trotzdem nicht erkannt, weil die bisherige Dictionary-basierte XML-Auslesung an mehrfach vorhandenen Property-Namen aus mehreren konditionalen `PropertyGroup`-Blöcken scheiterte
-  - gleichzeitig war die alte Suche mit festem `Elements("PropertyGroup")` für SDK-Style-/Namespace-Sonderfälle unnötig fragil
+  - die Android-Version wurde trotzdem nicht erkannt, weil die bisherige Dictionary-basierte XML-Auslesung an mehrfach vorhandenen Property-Namen aus mehreren konditionalen `PropertyGroup`-BlÃ¶cken scheiterte
+  - gleichzeitig war die alte Suche mit festem `Elements("PropertyGroup")` fÃ¼r SDK-Style-/Namespace-SonderfÃ¤lle unnÃ¶tig fragil
 - Minimal umgesetzt:
-  - `GetPropertyValue(...)` in `VersionService` auf eine robuste LocalName-basierte Iteration über alle direkten `PropertyGroup`-Elemente umgestellt
-  - keine fachliche Nebenlogik ergänzt und keine alten Fallbackpfade reaktiviert
-  - WPF- und Android-Versionslesung bleiben weiterhin ausschließlich auf `KGV.Wpf.csproj` und `KGV.Maui.csproj`
+  - `GetPropertyValue(...)` in `VersionService` auf eine robuste LocalName-basierte Iteration Ã¼ber alle direkten `PropertyGroup`-Elemente umgestellt
+  - keine fachliche Nebenlogik ergÃ¤nzt und keine alten Fallbackpfade reaktiviert
+  - WPF- und Android-Versionslesung bleiben weiterhin ausschlieÃŸlich auf `KGV.Wpf.csproj` und `KGV.Maui.csproj`
 - Validierung:
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
   - `dotnet build KGV.slnx -c Debug` erfolgreich
 
-## 2026-03-28 – Prompt 1/1: ReleaseManager liest Produktversionen jetzt nur noch aus `KGV.Wpf.csproj` und `KGV.Maui.csproj`
+## 2026-03-28 â€“ Prompt 1/1: ReleaseManager liest Produktversionen jetzt nur noch aus `KGV.Wpf.csproj` und `KGV.Maui.csproj`
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
   - `KGV.Wpf/KGV.Wpf.csproj`
   - `KGV.Wpf/AssemblyInfo.cs`
   - `KGV.Maui/KGV.Maui.csproj`
@@ -1504,29 +1543,29 @@
   - `KGV.ReleaseManager/ViewModels/MainViewModel.cs`
   - `KGV.ReleaseManager/MainWindow.xaml`
   - `KGV.ReleaseManager/MainWindow.xaml.cs`
-  - realen Git-Status über den vorhandenen Visual-Studio-Git-Pfad
+  - realen Git-Status Ã¼ber den vorhandenen Visual-Studio-Git-Pfad
 - Ehrlicher Befund auf dem aktuellen Stand:
-  - Android war bereits direkt über `ApplicationDisplayVersion` und `ApplicationVersion` in `KGV.Maui.csproj` versioniert
+  - Android war bereits direkt Ã¼ber `ApplicationDisplayVersion` und `ApplicationVersion` in `KGV.Maui.csproj` versioniert
   - WPF hatte in `KGV.Wpf.csproj` noch keine explizite Produktversion
   - der ReleaseManager nutzte noch Nebenpfade wie `AssemblyInfo.cs` bzw. Android-Manifest-Fallbacks und leitete bei Drift die gemeinsame Zielversion faktisch aus WPF ab
-  - die lokale Historie für Release-Zusammenfassungen war bisher nicht zwischen WPF und Android getrennt
+  - die lokale Historie fÃ¼r Release-Zusammenfassungen war bisher nicht zwischen WPF und Android getrennt
 - Minimal umgesetzt:
-  - explizite WPF-Version direkt in `KGV.Wpf.csproj` ergänzt
-  - Versionserkennung im ReleaseManager vollständig auf die beiden `csproj`-Dateien umgestellt
+  - explizite WPF-Version direkt in `KGV.Wpf.csproj` ergÃ¤nzt
+  - Versionserkennung im ReleaseManager vollstÃ¤ndig auf die beiden `csproj`-Dateien umgestellt
   - veraltete Fallbacks auf `AssemblyInfo.cs`, Manifest oder sonstige Nebenpfade entfernt
-  - Zielversion wird jetzt aus der tatsächlichen Release-Auswahl abgeleitet: WPF-only, Android-only oder gemeinsam
-  - Versionsschreibung aktualisiert nur noch die wirklich ausgewählten Produkte
-  - lokale Verlaufsdateien für WPF und Android getrennt eingeführt und im UI separat sichtbar gemacht
-  - Import-/Historienlogik für produktgetrennte oder gemeinsame Releases angepasst
+  - Zielversion wird jetzt aus der tatsÃ¤chlichen Release-Auswahl abgeleitet: WPF-only, Android-only oder gemeinsam
+  - Versionsschreibung aktualisiert nur noch die wirklich ausgewÃ¤hlten Produkte
+  - lokale Verlaufsdateien fÃ¼r WPF und Android getrennt eingefÃ¼hrt und im UI separat sichtbar gemacht
+  - Import-/Historienlogik fÃ¼r produktgetrennte oder gemeinsame Releases angepasst
 - Validierung:
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
   - `dotnet build KGV.slnx -c Debug` erfolgreich
 
-## 2026-03-28 – Inbetriebnahme Block 2/3: Android-Signing-Pfad im Release Manager mit Laufzeitpasswörtern gehärtet
+## 2026-03-28 â€“ Inbetriebnahme Block 2/3: Android-Signing-Pfad im Release Manager mit LaufzeitpasswÃ¶rtern gehÃ¤rtet
 
-- Vor Beginn den realen Istzustand geprüft:
+- Vor Beginn den realen Istzustand geprÃ¼ft:
   - `KGV.ReleaseManager/Services/BuildCommandService.cs`
   - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
   - `KGV.ReleaseManager/Services/RuntimeSecretPromptService.cs`
@@ -1534,43 +1573,43 @@
   - `KGV.Maui/KGV.Maui.csproj`
 - Ehrlicher Befund:
   - Keystore-Pfad, Alias und Package Name waren bereits vorhanden
-  - Laufzeitpasswörter wurden nicht gespeichert, liefen aber noch als Klartext in der Android-Build-Commandline
+  - LaufzeitpasswÃ¶rter wurden nicht gespeichert, liefen aber noch als Klartext in der Android-Build-Commandline
   - der Komfortfall `Key-Passwort = Keystore-Passwort` war noch nicht explizit im Dialog sichtbar
 - Minimal umgesetzt:
   - Signierungsdialog mit expliziter Option `Key-Passwort = Keystore-Passwort`
-  - Android-Passwörter laufen jetzt über temporäre Prozess-Umgebungsvariablen statt Klartext-Commandline
-  - Android-Buildpfad übernimmt jetzt den konfigurierten Package Name als `ApplicationId`
-  - Android-Fehlertexte schwärzen Laufzeitpasswörter
-  - Laufzeitpasswörter werden nach dem Lauf aus dem Requestobjekt geleert
+  - Android-PasswÃ¶rter laufen jetzt Ã¼ber temporÃ¤re Prozess-Umgebungsvariablen statt Klartext-Commandline
+  - Android-Buildpfad Ã¼bernimmt jetzt den konfigurierten Package Name als `ApplicationId`
+  - Android-Fehlertexte schwÃ¤rzen LaufzeitpasswÃ¶rter
+  - LaufzeitpasswÃ¶rter werden nach dem Lauf aus dem Requestobjekt geleert
 - Validierung:
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
   - `dotnet build KGV.slnx -c Debug` erfolgreich
-  - servicebasierter Test bestätigt: keine Klartextpasswörter in der Commandline, keine Passwortspeicherung in Settings, verständliche Meldungen für fehlenden Keystore/Alias
+  - servicebasierter Test bestÃ¤tigt: keine KlartextpasswÃ¶rter in der Commandline, keine Passwortspeicherung in Settings, verstÃ¤ndliche Meldungen fÃ¼r fehlenden Keystore/Alias
 
-## 2026-03-28 – Inbetriebnahme Block 1/3: reales Inno-Setup-Skript für den WPF-Releasepfad ergänzt
+## 2026-03-28 â€“ Inbetriebnahme Block 1/3: reales Inno-Setup-Skript fÃ¼r den WPF-Releasepfad ergÃ¤nzt
 
-- Vor Beginn den realen Istzustand geprüft:
+- Vor Beginn den realen Istzustand geprÃ¼ft:
   - keine vorhandene `*.iss`-Datei im Quellrepo `C:\Programmieren\Restore KGV\KGV.neu\03_Arbeitsstand`
   - reale WPF-Projektdatei `KGV.Wpf/KGV.Wpf.csproj`
   - reale Zielrepo-Struktur in `C:\Programmieren\Restore KGV\KGV-WPF` mit `KGV-Setup.exe`, `KGV-Setup-0.2.4.exe`, `KGV-Setup-0.2.5.exe`, `KGV-Setup-0.2.6.exe`, `releases.json`, `version.json`
 - Ehrlicher Befund:
   - der Release Manager konnte `ISCC.exe` bereits aufrufen, aber im Quellrepo fehlte noch ein belastbares Inno-Setup-Skript
-  - die reale Namenslogik für WPF-Setups war im lokalen Zielrepo bereits klar erkennbar
+  - die reale Namenslogik fÃ¼r WPF-Setups war im lokalen Zielrepo bereits klar erkennbar
 - Minimal umgesetzt:
   - neues reales Skript `KGV.Wpf/Installer/KGV.Wpf.iss`
   - basiert auf der WPF-Releaseausgabe `KGV.Wpf\bin\Release\net8.0-windows`
   - Haupt-EXE `KGV.Wpf.exe`
-  - minimale ReleaseManager-Ergänzung: Zielversion wird beim Inno-Aufruf als `AppVersion`-Define übergeben
+  - minimale ReleaseManager-ErgÃ¤nzung: Zielversion wird beim Inno-Aufruf als `AppVersion`-Define Ã¼bergeben
 - Validierung:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Release` erfolgreich
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
   - `dotnet build KGV.slnx -c Debug` erfolgreich
   - `ISCC.exe`-Compile mit dem neuen Skript erfolgreich
 
-## 2026-03-28 – Prompt 5/5: Release Manager um Log-Auswertung seit letztem Release und versionierten Import ergänzt
+## 2026-03-28 â€“ Prompt 5/5: Release Manager um Log-Auswertung seit letztem Release und versionierten Import ergÃ¤nzt
 
-- Vor Beginn den realen Istzustand geprüft:
+- Vor Beginn den realen Istzustand geprÃ¼ft:
   - `KGV.ReleaseManager/MainWindow.xaml`
   - `KGV.ReleaseManager/MainWindow.xaml.cs`
   - `KGV.ReleaseManager/ViewModels/MainViewModel.cs`
@@ -1578,53 +1617,53 @@
   - `KGV.ReleaseManager/Services/LogExtractionService.cs`
   - reale Loglage im Quellrepo: `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`
 - Ehrlicher Befund:
-  - Settings, Versionslogik, Veröffentlichungsordner, Logquelle und echter Release-Ablauf waren im Release Manager bereits vorhanden
-  - es fehlten aber noch ein belastbarer letzter Release-Anker, eine Vorschau der relevanten Änderungen, ein kopierfertiger Exporttext und eine lokale Speicherung importierter WPF-/Android-Notizen
-  - zusätzliche produktbezogene Release-History-Dateien wurden im Quellrepo nicht gefunden
+  - Settings, Versionslogik, VerÃ¶ffentlichungsordner, Logquelle und echter Release-Ablauf waren im Release Manager bereits vorhanden
+  - es fehlten aber noch ein belastbarer letzter Release-Anker, eine Vorschau der relevanten Ã„nderungen, ein kopierfertiger Exporttext und eine lokale Speicherung importierter WPF-/Android-Notizen
+  - zusÃ¤tzliche produktbezogene Release-History-Dateien wurden im Quellrepo nicht gefunden
 - Minimal umgesetzt:
   - neue lokale Release-Notiz-Historie unter `%LocalAppData%\KGV.ReleaseManager\release-notes-history.json`
-  - Log-Auswertung seit letztem gespeicherten Release-Anker ergänzt
-  - ReleaseManager-interne Änderungen werden für die Endnutzer-Exportbasis gefiltert
-  - klarer Exporttext mit Zielversion, Logbereich, Rohzusammenfassung und ChatGPT-Prompt ergänzt
-  - Importprüfung und lokale versionierte Speicherung für `WPF / Download` und `Android / Play Store` ergänzt
+  - Log-Auswertung seit letztem gespeicherten Release-Anker ergÃ¤nzt
+  - ReleaseManager-interne Ã„nderungen werden fÃ¼r die Endnutzer-Exportbasis gefiltert
+  - klarer Exporttext mit Zielversion, Logbereich, Rohzusammenfassung und ChatGPT-Prompt ergÃ¤nzt
+  - ImportprÃ¼fung und lokale versionierte Speicherung fÃ¼r `WPF / Download` und `Android / Play Store` ergÃ¤nzt
 - Validierung:
   - `dotnet restore KGV.ReleaseManager/KGV.ReleaseManager.csproj` erfolgreich
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
   - `dotnet build KGV.slnx -c Debug` erfolgreich
 
-## 2026-03-28 – Prompt 4/5: Release Manager auf bestätigte Pfade und reale Zielablagen abgeschlossen
+## 2026-03-28 â€“ Prompt 4/5: Release Manager auf bestÃ¤tigte Pfade und reale Zielablagen abgeschlossen
 
-- Vor Beginn den realen Istzustand geprüft:
+- Vor Beginn den realen Istzustand geprÃ¼ft:
   - `KGV.ReleaseManager/MainWindow.xaml`
   - `KGV.ReleaseManager/MainWindow.xaml.cs`
   - `KGV.ReleaseManager/ViewModels/MainViewModel.cs`
   - `KGV.ReleaseManager/Services/SettingsService.cs`
   - `KGV.ReleaseManager/Services/ReleaseExecutionService.cs`
   - `KGV.ReleaseManager/Services/ReleaseArtifactService.cs`
-  - reale Pfade für Quellrepo, WPF-Zielrepo und Release-Ausgabeordner
+  - reale Pfade fÃ¼r Quellrepo, WPF-Zielrepo und Release-Ausgabeordner
   - reale Versionsfelder in `KGV.Maui/KGV.Maui.csproj` sowie das Fehlen expliziter WPF-Produktversionen
 - Ehrlicher Befund:
   - die vorherige ReleaseManager-Umsetzung deckte bereits Versionsschreibung, Build-Aufrufe und Rollback ab
-  - die bestätigten lokalen Pfade waren aber noch nicht als Startwerte vorbelegt
-  - der Release-Root durfte laut Fachvorgabe erzeugt werden, wurde in der Settings-Validierung aber noch zu früh als bestehendes Verzeichnis verlangt
+  - die bestÃ¤tigten lokalen Pfade waren aber noch nicht als Startwerte vorbelegt
+  - der Release-Root durfte laut Fachvorgabe erzeugt werden, wurde in der Settings-Validierung aber noch zu frÃ¼h als bestehendes Verzeichnis verlangt
   - `ISCC.exe` und ein `.iss`-Skript sind lokal weiterhin nicht vorhanden
-  - das lokale `KGV-WPF`-Repo hat eine klar erkennbare Root-Struktur für Setup-Dateien
+  - das lokale `KGV-WPF`-Repo hat eine klar erkennbare Root-Struktur fÃ¼r Setup-Dateien
 - Minimal umgesetzt:
-  - bestätigte Standardpfade werden jetzt automatisch in die Settings übernommen, wenn noch keine gespeicherten Werte vorhanden sind
-  - nach Bestätigung des real vorhandenen Inno-Setup-Compilers wird auch der Pfad `C:\Users\Braen\AppData\Local\Programs\Inno Setup 6\ISCC.exe` automatisch als Default übernommen, wenn das Setting leer ist
-  - Release-Validierung erlaubt jetzt fehlende, aber absolut angegebene Zielordner für Release-Root, APK und AAB
-  - WPF-Setups werden zusätzlich in das lokale `KGV-WPF`-Repo kopiert, wenn die Zielstruktur eindeutig ist
-  - APK und AAB werden zusätzlich in die konfigurierten Ausgabeordner kopiert
+  - bestÃ¤tigte Standardpfade werden jetzt automatisch in die Settings Ã¼bernommen, wenn noch keine gespeicherten Werte vorhanden sind
+  - nach BestÃ¤tigung des real vorhandenen Inno-Setup-Compilers wird auch der Pfad `C:\Users\Braen\AppData\Local\Programs\Inno Setup 6\ISCC.exe` automatisch als Default Ã¼bernommen, wenn das Setting leer ist
+  - Release-Validierung erlaubt jetzt fehlende, aber absolut angegebene Zielordner fÃ¼r Release-Root, APK und AAB
+  - WPF-Setups werden zusÃ¤tzlich in das lokale `KGV-WPF`-Repo kopiert, wenn die Zielstruktur eindeutig ist
+  - APK und AAB werden zusÃ¤tzlich in die konfigurierten Ausgabeordner kopiert
 - Validierung:
   - `dotnet restore KGV.ReleaseManager/KGV.ReleaseManager.csproj` erfolgreich
   - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug` erfolgreich
   - `dotnet build KGV.slnx -c Debug` erfolgreich
 
-## 2026-03-28 – Block 1: Loginfenster auf den sichtbaren Stand zurückgebracht
+## 2026-03-28 â€“ Block 1: Loginfenster auf den sichtbaren Stand zurÃ¼ckgebracht
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
   - `KGV.Wpf/Views/LoginWindow.xaml`
   - `KGV.Wpf/Views/LoginWindow.xaml.cs`
   - `KGV.Wpf/ViewModels/LoginViewModel.cs`
@@ -1633,33 +1672,33 @@
   - `KGV.Maui/Pages/LoginPage.xaml.cs`
   - `KGV.Core/Interfaces/IAuthService.cs`
   - `KGV.Infrastructure/Authentication/AuthService.cs`
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
 - Ehrlicher Befund auf dem aktuellen Stand:
-  - der bestehende OTP-/Erstlogin-Unterbau war im Auth-Service bereits vorhanden; ein neuer Backendpfad war für diesen Block nicht nötig
-  - im WPF-Login war der sichtbare Flow aber nicht mehr sauber: `Anmelden` saß unter den Sekundäraktionen, die Passwortbedingungen waren nur statisch und es gab keinen klaren Rückweg aus OTP-/Neupasswort zurück zum normalen Login
-  - MAUI hatte denselben Grundflow bereits direkt auf der Login-Seite, führte `Passwort vergessen` aber noch nicht direkt in denselben sichtbaren Code-/Neupasswortzustand und zeigte die Passwortprüfung noch zu grob
+  - der bestehende OTP-/Erstlogin-Unterbau war im Auth-Service bereits vorhanden; ein neuer Backendpfad war fÃ¼r diesen Block nicht nÃ¶tig
+  - im WPF-Login war der sichtbare Flow aber nicht mehr sauber: `Anmelden` saÃŸ unter den SekundÃ¤raktionen, die Passwortbedingungen waren nur statisch und es gab keinen klaren RÃ¼ckweg aus OTP-/Neupasswort zurÃ¼ck zum normalen Login
+  - MAUI hatte denselben Grundflow bereits direkt auf der Login-Seite, fÃ¼hrte `Passwort vergessen` aber noch nicht direkt in denselben sichtbaren Code-/Neupasswortzustand und zeigte die PasswortprÃ¼fung noch zu grob
 - Minimal umgesetzt:
   - `KGV.Wpf/ViewModels/LoginViewModel.cs`
-    - Passwortregeln für Länge, Groß-/Kleinbuchstaben, Zahl, Sonderzeichen und Wiederholung ergänzt
-    - `SetPasswordCommand` an dieselbe vollständige Prüfung gehängt
-    - kleinen `CancelOtpFlowCommand` für den sichtbaren Rückweg zum normalen Login ergänzt
+    - Passwortregeln fÃ¼r LÃ¤nge, GroÃŸ-/Kleinbuchstaben, Zahl, Sonderzeichen und Wiederholung ergÃ¤nzt
+    - `SetPasswordCommand` an dieselbe vollstÃ¤ndige PrÃ¼fung gehÃ¤ngt
+    - kleinen `CancelOtpFlowCommand` fÃ¼r den sichtbaren RÃ¼ckweg zum normalen Login ergÃ¤nzt
   - `KGV.Wpf/Views/LoginWindow.xaml`
-    - sichtbaren Loginzustand auf `E-Mail + Passwort`, `Anmelden`, OTP anfordern, Passwort vergessen zurückgezogen
-    - OTP-Code-Schritt und direktes neues Passwort mit sichtbaren Bedingungen ergänzt
-    - `Zurück zum Login` in OTP- und Neupasswort-Zustand ergänzt
+    - sichtbaren Loginzustand auf `E-Mail + Passwort`, `Anmelden`, OTP anfordern, Passwort vergessen zurÃ¼ckgezogen
+    - OTP-Code-Schritt und direktes neues Passwort mit sichtbaren Bedingungen ergÃ¤nzt
+    - `ZurÃ¼ck zum Login` in OTP- und Neupasswort-Zustand ergÃ¤nzt
   - `KGV.Wpf/Views/LoginWindow.xaml.cs`
-    - Passwortfelder mit dem ViewModel synchronisiert, damit Reset-/Rückkehrzustände sichtbar sauber geleert werden
+    - Passwortfelder mit dem ViewModel synchronisiert, damit Reset-/RÃ¼ckkehrzustÃ¤nde sichtbar sauber geleert werden
   - `KGV.Maui/Pages/LoginPage.xaml.cs`
-    - denselben sichtbaren Flow für OTP und neues Passwort nachgezogen
+    - denselben sichtbaren Flow fÃ¼r OTP und neues Passwort nachgezogen
     - Passwortregeln sichtbar gemacht
-    - `Passwort vergessen` führt jetzt direkt in denselben OTP-/Neupasswortpfad statt nur eine Statusmeldung stehen zu lassen
+    - `Passwort vergessen` fÃ¼hrt jetzt direkt in denselben OTP-/Neupasswortpfad statt nur eine Statusmeldung stehen zu lassen
 - Fachliches Ergebnis:
   - normales Login mit `E-Mail + Passwort` ist wieder der sichtbare Hauptzustand
   - Passwort-Sichtbarkeit bleibt vorhanden
-  - OTP-Code kann weiter angefordert und geprüft werden
+  - OTP-Code kann weiter angefordert und geprÃ¼ft werden
   - nach erfolgreichem OTP erscheint direkt der Bereich zum neuen Passwort setzen
-  - Passwortbedingungen und Prüfung sind sichtbar
-  - nach erfolgreichem Passwortsetzen kehrt der Flow wieder zum normalen Login zurück
+  - Passwortbedingungen und PrÃ¼fung sind sichtbar
+  - nach erfolgreichem Passwortsetzen kehrt der Flow wieder zum normalen Login zurÃ¼ck
   - ein Einstellungszugang wurde in diesem Block nicht auf die Login-Seite gelegt
 - Validierung:
   - `dotnet build KGV.Core/KGV.Core.csproj` erfolgreich
@@ -1667,9 +1706,9 @@
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
 
-## 2026-03-28 – Prompt 1/1: Startseiten-Sichtbarkeit und Editor-Defaults für Arbeitseinsätze, Termine und Bekanntmachungen vereinheitlicht
+## 2026-03-28 â€“ Prompt 1/1: Startseiten-Sichtbarkeit und Editor-Defaults fÃ¼r ArbeitseinsÃ¤tze, Termine und Bekanntmachungen vereinheitlicht
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
   - `KGV.Infrastructure/Services/SupabaseService.cs`
   - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
   - `KGV.Maui/Pages/TermineEditorPage.cs`
@@ -1679,21 +1718,21 @@
   - `KGV.Wpf/ViewModels/ArbeitseinsaetzeVerwaltungViewModel.cs`
   - `KGV.Wpf/ViewModels/TermineVerwaltungViewModel.cs`
   - `KGV.Wpf/ViewModels/BekanntmachungenVerwaltungViewModel.cs`
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
 - Ehrlicher Befund auf dem aktuellen Stand:
   - Home nutzte bereits gemeinsame Startseitenpfade, die Sichtbarkeitsregeln waren aber nicht explizit einheitlich auf die Basistabellen abgesichert
-  - MAUI-Editoren für Arbeitseinsatz und Termin arbeiteten noch mit Checkboxen für Zeit-/Sichtbarkeitsfelder
-  - WPF war beim Flow schon näher am Ziel, setzte neue Datensätze aber noch mit zu vielen leeren Feldern auf
+  - MAUI-Editoren fÃ¼r Arbeitseinsatz und Termin arbeiteten noch mit Checkboxen fÃ¼r Zeit-/Sichtbarkeitsfelder
+  - WPF war beim Flow schon nÃ¤her am Ziel, setzte neue DatensÃ¤tze aber noch mit zu vielen leeren Feldern auf
 - Minimal umgesetzt:
-  - Startseitenfilter für Arbeitseinsätze, Termine und Bekanntmachungen auf dieselbe Fachregel gezogen: `aktiv = true`, `sichtbar_ab` leer oder <= jetzt, `sichtbar_bis` leer oder >= jetzt
+  - Startseitenfilter fÃ¼r ArbeitseinsÃ¤tze, Termine und Bekanntmachungen auf dieselbe Fachregel gezogen: `aktiv = true`, `sichtbar_ab` leer oder <= jetzt, `sichtbar_bis` leer oder >= jetzt
   - Arbeitseinsatz-, Termin- und Bekanntmachungs-Defaults in WPF und MAUI vereinheitlicht
-  - MAUI-Checkboxen für Start-/Endzeit sowie Sichtbar-ab/-bis in den betroffenen Editorpfaden entfernt
-  - gemeinsame Create-Pfade härten Neuanlagen zusätzlich gegen fachlich leere Zeit-/Sichtbarkeitswerte ab
-  - der MAUI-Arbeitseinsatz-Editor kehrt nach Speichern jetzt zur Startseite zurück, sodass der Home-Reloadpfad direkt greift
+  - MAUI-Checkboxen fÃ¼r Start-/Endzeit sowie Sichtbar-ab/-bis in den betroffenen Editorpfaden entfernt
+  - gemeinsame Create-Pfade hÃ¤rten Neuanlagen zusÃ¤tzlich gegen fachlich leere Zeit-/Sichtbarkeitswerte ab
+  - der MAUI-Arbeitseinsatz-Editor kehrt nach Speichern jetzt zur Startseite zurÃ¼ck, sodass der Home-Reloadpfad direkt greift
 
-## 2026-03-28 – Prompt 2/5: Release Manager Settings-Grundgerüst für Laden/Speichern und UI sauber verdrahtet
+## 2026-03-28 â€“ Prompt 2/5: Release Manager Settings-GrundgerÃ¼st fÃ¼r Laden/Speichern und UI sauber verdrahtet
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
   - `KGV.ReleaseManager/Models/ReleaseManagerSettings.cs`
   - `KGV.ReleaseManager/ViewModels/MainViewModel.cs`
   - `KGV.ReleaseManager/Services/SettingsService.cs`
@@ -1701,25 +1740,25 @@
   - `KGV.ReleaseManager/MainWindow.xaml.cs`
   - `KGV.ReleaseManager/CHANGELOG.md`
   - `KGV.ReleaseManager/KGV_Fortschritt_ausfuehrlich.md`
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
 - Ehrlicher Befund auf dem aktuellen Stand:
-  - der Release Manager war bereits buildfähig und besaß schon ein kleines Settings-Scaffold
+  - der Release Manager war bereits buildfÃ¤hig und besaÃŸ schon ein kleines Settings-Scaffold
   - automatische Ladung beim Start, robuste Persistenz, Pflichtfeldvalidierung und vorbereitete Store-Felder waren aber noch nicht sauber fertig verdrahtet
 - Minimal umgesetzt, ohne neue Release-Automation:
-  - `ReleaseManagerSettings` um `StoreUrl` ergänzt und zentrale Normalisierung eingebaut
-  - `SettingsService` für robuste JSON-basierte lokale Persistenz mit Rückmeldungen bei fehlender oder beschädigter Datei erweitert
+  - `ReleaseManagerSettings` um `StoreUrl` ergÃ¤nzt und zentrale Normalisierung eingebaut
+  - `SettingsService` fÃ¼r robuste JSON-basierte lokale Persistenz mit RÃ¼ckmeldungen bei fehlender oder beschÃ¤digter Datei erweitert
   - `MainViewModel` validiert jetzt Hauptpfade und optionale Store-Felder grundlegend
-  - `MainWindow` in die Bereiche `Projektpfade`, `Android / Play Store` und `Veröffentlichung` gegliedert
-  - Einstellungen werden beim Start automatisch geladen und können sichtbar erneut gespeichert werden
+  - `MainWindow` in die Bereiche `Projektpfade`, `Android / Play Store` und `VerÃ¶ffentlichung` gegliedert
+  - Einstellungen werden beim Start automatisch geladen und kÃ¶nnen sichtbar erneut gespeichert werden
   - Speichern-Button steht jetzt klar am Ende des Settings-Formulars
 - Abgrenzung:
   - noch keine Git-, Build-, Inno- oder Android-Signing-Automation umgesetzt
-  - keine KGV-Endnutzer-Release-Notes verändert
+  - keine KGV-Endnutzer-Release-Notes verÃ¤ndert
 
-## 2026-03-28 – Prompt 1/1: Release Manager Buildfähigkeit geprüft und als buildfähig bestätigt
+## 2026-03-28 â€“ Prompt 1/1: Release Manager BuildfÃ¤higkeit geprÃ¼ft und als buildfÃ¤hig bestÃ¤tigt
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
-  - eingebundene Projekte der aktuellen Solution geprüft
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
+  - eingebundene Projekte der aktuellen Solution geprÃ¼ft
   - `KGV.ReleaseManager/KGV.ReleaseManager.csproj`
   - `KGV.ReleaseManager/App.xaml`
   - `KGV.ReleaseManager/App.xaml.cs`
@@ -1727,12 +1766,12 @@
   - `KGV.ReleaseManager/MainWindow.xaml.cs`
   - `KGV.ReleaseManager/KGV_Fortschritt_ausfuehrlich.md`
   - `KGV.ReleaseManager/CHANGELOG.md`
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
 - Ehrlicher Befund auf dem aktuellen Stand:
   - `KGV.ReleaseManager` ist im aktuellen Solution-Kontext vorhanden und eingebunden
   - das Projekt ist als WPF-Projekt mit `TargetFramework net8.0-windows` und `UseWPF=true` formal konsistent
   - `App.xaml` / `App.xaml.cs` / `MainWindow.xaml` / `MainWindow.xaml.cs` sind buildseitig sauber verdrahtet
-  - beim Prüflauf zeigten sich keine fehlenden NuGet-Pakete, keine fehlerhaften Projektverweise, keine XAML-Buildfehler und keine Namespace-/Klassenkonflikte
+  - beim PrÃ¼flauf zeigten sich keine fehlenden NuGet-Pakete, keine fehlerhaften Projektverweise, keine XAML-Buildfehler und keine Namespace-/Klassenkonflikte
   - damit war kein Buildfix am Release Manager notwendig
 - Validierung:
   - `dotnet restore KGV.ReleaseManager/KGV.ReleaseManager.csproj` erfolgreich
@@ -1741,11 +1780,11 @@
 - Abgrenzung:
   - keine fachlichen Erweiterungen
   - keine UI-Erweiterungen
-  - keine ReleaseManager-spezifischen Einträge in Endnutzer-Release-Notes des KGV-Produkts aufgenommen
+  - keine ReleaseManager-spezifischen EintrÃ¤ge in Endnutzer-Release-Notes des KGV-Produkts aufgenommen
 
-## 2026-03-28 – Prompt 1/1: MAUI-Home-Arbeitsstunden sauber vom ausgewählten Mitglied entkoppelt
+## 2026-03-28 â€“ Prompt 1/1: MAUI-Home-Arbeitsstunden sauber vom ausgewÃ¤hlten Mitglied entkoppelt
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
   - `KGV.Maui/ViewModels/HomeViewModel.cs`
   - `KGV.Maui/Pages/HomePage.xaml.cs`
   - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
@@ -1753,127 +1792,127 @@
   - `KGV.Maui/State/MemberContextState.cs`
   - `KGV.Core/Interfaces/ISupabaseService.cs`
   - `KGV.Infrastructure/Services/SupabaseService.cs`
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
 - Ehrlicher Befund auf dem aktuellen Stand:
-  - `CanCreateWorkHoursEntry` hing für `Admin/Vorstand` am `SelectedMember`
-  - derselbe gewählte Mitgliedskontext wurde auf Home auch für die Arbeitsstunden-Zusammenfassung verwendet
+  - `CanCreateWorkHoursEntry` hing fÃ¼r `Admin/Vorstand` am `SelectedMember`
+  - derselbe gewÃ¤hlte Mitgliedskontext wurde auf Home auch fÃ¼r die Arbeitsstunden-Zusammenfassung verwendet
   - dadurch konnten Home-Arbeitsstunden fachlich auf ein fremdes Mitglied umbiegen, obwohl Home in diesem Bereich immer der Eigenkontext sein soll
-  - zusätzlich öffnete der Home-Button den Arbeitsstunden-Editor ohne explizite Abgrenzung vom aktuellen Mitgliedskontext
+  - zusÃ¤tzlich Ã¶ffnete der Home-Button den Arbeitsstunden-Editor ohne explizite Abgrenzung vom aktuellen Mitgliedskontext
 - Minimal umgesetzt, ohne neuen Fachumfang:
   - `KGV.Maui/ViewModels/HomeViewModel.cs`
     - den Home-Arbeitsstundenkontext auf `CurrentMitgliedId` des eingeloggten Nutzers gezogen
-    - neue Property `CanCreateOwnWorkHoursEntry` ergänzt
-    - die Home-Pflichtstunden-Zusammenfassung hängt damit nicht mehr am `SelectedMember`
+    - neue Property `CanCreateOwnWorkHoursEntry` ergÃ¤nzt
+    - die Home-Pflichtstunden-Zusammenfassung hÃ¤ngt damit nicht mehr am `SelectedMember`
   - `KGV.Maui/Pages/HomePage.xaml.cs`
     - den Home-Button `Arbeitsstunde erfassen` auf den Eigenkontext umgestellt
-    - Öffnung des Editors jetzt explizit mit `context=self`
+    - Ã–ffnung des Editors jetzt explizit mit `context=self`
   - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
-    - expliziten Eigenkontext für den Home-Einstieg ergänzt
+    - expliziten Eigenkontext fÃ¼r den Home-Einstieg ergÃ¤nzt
     - der Editor respektiert `context=self` und greift dann nicht mehr still zuerst auf `SelectedMember` zu
 - Fachliches Ergebnis:
   - der Bereich `Arbeitsstunden` auf Home verwendet jetzt immer den eingeloggten Nutzer bzw. dessen eigenes Mitglied
-  - ein zuvor ausgewähltes anderes Mitglied biegt die Home-Arbeitsstunden nicht mehr um
-  - die mitgliedsbezogenen Arbeitsstundenpfade für andere Mitglieder bleiben separat und unverändert nutzbar
+  - ein zuvor ausgewÃ¤hltes anderes Mitglied biegt die Home-Arbeitsstunden nicht mehr um
+  - die mitgliedsbezogenen Arbeitsstundenpfade fÃ¼r andere Mitglieder bleiben separat und unverÃ¤ndert nutzbar
 - Validierung:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
 
-## 2026-03-28 – Prompt 1/1: MAUI-RFID-Ausstattung im bestehenden RFID-Pfad bearbeitbar gemacht
+## 2026-03-28 â€“ Prompt 1/1: MAUI-RFID-Ausstattung im bestehenden RFID-Pfad bearbeitbar gemacht
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
   - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
   - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
   - `KGV.Core/Models/ParzelleRecord.cs`
   - `KGV.Core/Interfaces/ISupabaseService.cs`
   - `KGV.Infrastructure/Services/SupabaseService.cs`
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
 - Ehrlicher Befund auf dem aktuellen Stand:
   - `hat Strom` und `hat Wasser` waren im RFID-Pfad bereits sichtbar, aber nur read-only
-  - Änderungen an der Ausstattung erforderten dadurch unnötig einen Wechsel in einen anderen Stammdatenbereich
-  - der bestehende Shared-Persistenzpfad `UpdateParzelleStammdatenAsync(ParzelleRecord)` war bereits vorhanden und für diese kleine Ergänzung ausreichend
+  - Ã„nderungen an der Ausstattung erforderten dadurch unnÃ¶tig einen Wechsel in einen anderen Stammdatenbereich
+  - der bestehende Shared-Persistenzpfad `UpdateParzelleStammdatenAsync(ParzelleRecord)` war bereits vorhanden und fÃ¼r diese kleine ErgÃ¤nzung ausreichend
 - Minimal umgesetzt, ohne neuen Fachumfang:
   - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
-    - editierbare Properties `EditHatStrom` und `EditHatWasser` ergänzt
-    - `HasAusstattungChanges`, `CanEditAusstattung` und `CanSaveAusstattung` ergänzt
-    - beim Wechsel der gewählten Parzelle werden die Edit-Werte jetzt aus `SelectedParzelle` initialisiert
-    - `SaveAusstattungAsync()` speichert die Änderungen über `UpdateParzelleStammdatenAsync(...)`
+    - editierbare Properties `EditHatStrom` und `EditHatWasser` ergÃ¤nzt
+    - `HasAusstattungChanges`, `CanEditAusstattung` und `CanSaveAusstattung` ergÃ¤nzt
+    - beim Wechsel der gewÃ¤hlten Parzelle werden die Edit-Werte jetzt aus `SelectedParzelle` initialisiert
+    - `SaveAusstattungAsync()` speichert die Ã„nderungen Ã¼ber `UpdateParzelleStammdatenAsync(...)`
     - nach erfolgreichem Speichern werden `SelectedParzelle`, relevante PropertyChanged-Ziele und `MediumOptions` direkt synchronisiert
   - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
     - die beiden Ausstattungsswitches auf editierbares TwoWay-Binding umgestellt
-    - Button `Ausstattung speichern` ergänzt
-    - bestehende RFID-Anzeigen und der vorhandene Prüf-/Speicherpfad bleiben unverändert erhalten
+    - Button `Ausstattung speichern` ergÃ¤nzt
+    - bestehende RFID-Anzeigen und der vorhandene PrÃ¼f-/Speicherpfad bleiben unverÃ¤ndert erhalten
 - Fachliches Ergebnis:
-  - Admin/Vorstand können die Ausstattung `hat Strom` / `hat Wasser` jetzt direkt im RFID-Pfad anpassen und speichern
-  - vorhandene Parzellen-Stammdaten werden wiederverwendet; es wurde kein neuer Spezial-Service eröffnet
-  - der Medium-Picker wird nach dem Speichern sofort neu geladen und bereinigt dadurch ungültige Auswahlen sauber
+  - Admin/Vorstand kÃ¶nnen die Ausstattung `hat Strom` / `hat Wasser` jetzt direkt im RFID-Pfad anpassen und speichern
+  - vorhandene Parzellen-Stammdaten werden wiederverwendet; es wurde kein neuer Spezial-Service erÃ¶ffnet
+  - der Medium-Picker wird nach dem Speichern sofort neu geladen und bereinigt dadurch ungÃ¼ltige Auswahlen sauber
 - Validierung:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
 
-## 2026-03-28 – Prompt 1/1: MAUI-Parzellen-Bearbeiten von Stammdatenanzeige getrennt und RFID-Ausstattung sichtbar gemacht
+## 2026-03-28 â€“ Prompt 1/1: MAUI-Parzellen-Bearbeiten von Stammdatenanzeige getrennt und RFID-Ausstattung sichtbar gemacht
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
   - `KGV.Maui/Pages/ParzellenPage.cs`
   - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
   - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
   - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
   - `KGV.Core/Models/ParzelleRecord.cs`
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
 - Ehrlicher Befund auf dem aktuellen Stand:
   - in der Parzellenverwaltung blieb die normale Stammdatenanzeige auch im Bearbeiten-Modus sichtbar
   - dadurch wurden ReadOnly-Stammdaten und Bearbeiten-Sektion parallel angezeigt
   - in `RFID einrichten` fehlte nach Parzellenauswahl weiterhin die sichtbare Anzeige von `hat Strom` und `hat Wasser`, obwohl die Werte im bestehenden Parzellenpfad bereits vorhanden sind
 - Minimal umgesetzt, ohne neuen Fachumfang:
   - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
-    - neue Property `ShowReadOnlyStammdaten` ergänzt
+    - neue Property `ShowReadOnlyStammdaten` ergÃ¤nzt
     - Sichtbarkeit der normalen Stammdatenanzeige sauber an `!IsEditMode` gebunden
   - `KGV.Maui/Pages/ParzellenPage.cs`
     - normale Stammdatensektion auf `ShowReadOnlyStammdaten` gebunden
     - Bearbeiten-Sektion bleibt wie bisher an `IsEditMode` gebunden
-    - andere Detailsektionen bleiben unverändert sichtbar
+    - andere Detailsektionen bleiben unverÃ¤ndert sichtbar
   - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
-    - kleine ReadOnly-Properties für `hat Strom` und `hat Wasser` aus `SelectedParzelle` ergänzt
+    - kleine ReadOnly-Properties fÃ¼r `hat Strom` und `hat Wasser` aus `SelectedParzelle` ergÃ¤nzt
   - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
-    - nach Parzellenauswahl read-only Anzeige für `hat Strom` und `hat Wasser` über deaktivierte Switches ergänzt
-    - bestehende RFID-Anzeigen und der Medium-Flow bleiben unverändert erhalten
+    - nach Parzellenauswahl read-only Anzeige fÃ¼r `hat Strom` und `hat Wasser` Ã¼ber deaktivierte Switches ergÃ¤nzt
+    - bestehende RFID-Anzeigen und der Medium-Flow bleiben unverÃ¤ndert erhalten
 - Fachliches Ergebnis:
   - im Bearbeiten-Modus zeigt die MAUI-Parzellenverwaltung nicht mehr gleichzeitig Stammdatenanzeige und Editor
   - `RFID einrichten` zeigt nach Parzellenauswahl jetzt sichtbar die Ausstattung `hat Strom` / `hat Wasser`
-  - keine neue Backendlogik und keine Schattenpfade eingeführt
+  - keine neue Backendlogik und keine Schattenpfade eingefÃ¼hrt
 - Validierung:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
 
-## 2026-03-28 – Prompt 1/1: MAUI-Parzellenverwaltung um echte Übersichtsliste mit Suche ergänzt
+## 2026-03-28 â€“ Prompt 1/1: MAUI-Parzellenverwaltung um echte Ãœbersichtsliste mit Suche ergÃ¤nzt
 
-- Vor Beginn den realen Istzustand im Repo geprüft:
+- Vor Beginn den realen Istzustand im Repo geprÃ¼ft:
   - `KGV_Fortschrittslog_ausfuehrlich.md`
   - `DEV_LOG.md`
   - `KGV.Maui/Pages/ParzellenPage.cs`
   - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
   - `KGV.Core/Models/ParzelleVerwaltungItem.cs`
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
 - Ehrlicher Befund auf dem aktuellen Stand:
   - die bestehende `ParzellenPage` zeigte direkt nur den bereits vorhandenen Detailpfad
-  - eine echte Übersichts-/Listenansicht aller Parzellen fehlte vollständig
+  - eine echte Ãœbersichts-/Listenansicht aller Parzellen fehlte vollstÃ¤ndig
   - Suchfunktion war nicht vorhanden
-  - `Items` wurde zwar intern befüllt, aber es gab keinen listenfähigen UI-Pfad, der nur `Garten Nr` und aktuellen Pächter anzeigt
+  - `Items` wurde zwar intern befÃ¼llt, aber es gab keinen listenfÃ¤higen UI-Pfad, der nur `Garten Nr` und aktuellen PÃ¤chter anzeigt
 - Minimal umgesetzt, ohne neuen Fachumfang:
   - `KGV.Core/Models/ParzelleVerwaltungItem.cs`
-    - listenbezogene Pächteranzeige als `Name, Vorname` ergänzt
-    - SortKey und SearchText ergänzt, ohne globale Namensformatierung an anderen Stellen umzubiegen
+    - listenbezogene PÃ¤chteranzeige als `Name, Vorname` ergÃ¤nzt
+    - SortKey und SearchText ergÃ¤nzt, ohne globale Namensformatierung an anderen Stellen umzubiegen
   - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
-    - zusätzliche bindbare Sammlung `FilteredItems` ergänzt
-    - `SearchText` mit Filterlogik für `Garten Nr` und Pächtername ergänzt
+    - zusÃ¤tzliche bindbare Sammlung `FilteredItems` ergÃ¤nzt
+    - `SearchText` mit Filterlogik fÃ¼r `Garten Nr` und PÃ¤chtername ergÃ¤nzt
     - Sortierung stabil nach vorhandenem `GartenNrSortKey` angezogen
-    - Auswahl bleibt an `SelectedItem` gebunden; der bestehende Detailladepfad `GetParzelleDetailAsync(...)` wird unverändert weitergenutzt
+    - Auswahl bleibt an `SelectedItem` gebunden; der bestehende Detailladepfad `GetParzelleDetailAsync(...)` wird unverÃ¤ndert weitergenutzt
   - `KGV.Maui/Pages/ParzellenPage.cs`
-    - oberhalb der bestehenden Detailansicht eine `SearchBar` und eine auswählbare `CollectionView` ergänzt
-    - pro Eintrag werden nur `Garten Nr` und `Name, Vorname` des aktuellen Pächters angezeigt
+    - oberhalb der bestehenden Detailansicht eine `SearchBar` und eine auswÃ¤hlbare `CollectionView` ergÃ¤nzt
+    - pro Eintrag werden nur `Garten Nr` und `Name, Vorname` des aktuellen PÃ¤chters angezeigt
     - freie Parzellen werden neutral als `Nicht verpachtet` dargestellt
     - IDs, Statuslabels und weitere Zusatzinfos erscheinen in der Liste bewusst nicht
 - Fachliches Ergebnis:
-  - die Liste ist jetzt der primäre Auswahlweg
+  - die Liste ist jetzt der primÃ¤re Auswahlweg
   - beim Antippen eines Eintrags wird `SelectedItem` gesetzt
   - darunter werden die vorhandenen Stammdaten-/Detailsektionen auf dem bestehenden Detailpfad geladen
   - der Mitglieds-/Kontextpfad bleibt funktional erhalten, weil die bisherige Kontextlogik nicht ersetzt wurde
@@ -1882,15 +1921,15 @@
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
   - im MAUI-Build blieben nur die bereits bekannten Warnungen (`XA1037`, Nullability in `KGV.Maui/Pages/HomeManagementPage.cs`)
 
-## 2026-03-27 – Prompt 3/3 Abschluss: begonnenen MAUI-Parzellen-/RFID-Block real validiert, direkte Restfehler korrigiert und für Commit/Push abgeschlossen
+## 2026-03-27 â€“ Prompt 3/3 Abschluss: begonnenen MAUI-Parzellen-/RFID-Block real validiert, direkte Restfehler korrigiert und fÃ¼r Commit/Push abgeschlossen
 
-- Vor dem Abschlusslauf erneut den echten Istzustand des begonnenen Blocks geprüft:
+- Vor dem Abschlusslauf erneut den echten Istzustand des begonnenen Blocks geprÃ¼ft:
   - `KGV_Fortschrittslog_ausfuehrlich.md`
   - `DEV_LOG.md`
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
-  - alle real geänderten Dateien des Parzellen-/RFID-Blocks
-- Reale Bestätigung im Arbeitsbaum:
-  - geändert vorgefunden wurden genau
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
+  - alle real geÃ¤nderten Dateien des Parzellen-/RFID-Blocks
+- Reale BestÃ¤tigung im Arbeitsbaum:
+  - geÃ¤ndert vorgefunden wurden genau
     - `KGV.Core/Interfaces/ISupabaseService.cs`
     - `KGV.Core/Models/ParzelleDetailDTO.cs`
     - `KGV.Core/Models/ParzelleRecord.cs`
@@ -1898,14 +1937,14 @@
     - `KGV.Maui/Pages/ParzellenPage.cs`
     - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
     - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
-  - WPF war in diesem Block real unverändert und wurde nicht erweitert
-  - `ParzellenPage` zeigt auf dem aktuellen Pfad nur noch reduzierte Stammdaten und die Belegung; frühere Zusatzblöcke für Zähler, Ablesungen und Dokumente sind aus der sichtbaren Verwaltung herausgenommen
-  - `ParzellenViewModel` liefert die reduzierte Detaildarstellung weiter über den bestehenden Produktivpfad `GetParzelleDetailAsync(...)` und hält die Bearbeitung/Stammdaten auf demselben Shared-Servicepfad
+  - WPF war in diesem Block real unverÃ¤ndert und wurde nicht erweitert
+  - `ParzellenPage` zeigt auf dem aktuellen Pfad nur noch reduzierte Stammdaten und die Belegung; frÃ¼here ZusatzblÃ¶cke fÃ¼r ZÃ¤hler, Ablesungen und Dokumente sind aus der sichtbaren Verwaltung herausgenommen
+  - `ParzellenViewModel` liefert die reduzierte Detaildarstellung weiter Ã¼ber den bestehenden Produktivpfad `GetParzelleDetailAsync(...)` und hÃ¤lt die Bearbeitung/Stammdaten auf demselben Shared-Servicepfad
 - Fachabgleich des begonnenen Blocks:
   - sichtbare Stammdaten der Parzellenverwaltung entsprechen exakt:
     - `ID`
     - `Garten Nr`
-    - `Fläche`
+    - `FlÃ¤che`
     - `hat Wasser`
     - `hat Strom`
     - `rfid Wasser`
@@ -1914,116 +1953,116 @@
   - `Belegung` arbeitet fachlich korrekt:
     - frei -> `Zuweisen`
     - belegt -> `Name, Vorname` als direkter Link/Button zur Mitgliedsstammdatenansicht
-  - die Schutzabfrage für `Fläche` ist real im Speichern-Pfad vorhanden und blockt die Änderung bis zur ausdrücklichen Bestätigung des Users
+  - die Schutzabfrage fÃ¼r `FlÃ¤che` ist real im Speichern-Pfad vorhanden und blockt die Ã„nderung bis zur ausdrÃ¼cklichen BestÃ¤tigung des Users
 - Reale Ursache des RFID-Problems:
   - die Medium-Liste in `RfidEinrichtenViewModel` wurde auf dem begonnenen Zwischenstand nur aus `HatStrom` / `HatWasser` aufgebaut
-  - dadurch lief die Auswahl bei Parzellen mit inkonsistentem Datenstand leer, obwohl fachlich über vorhandene RFID oder aktive Zähler weiterhin ein belastbarer Medium-Kontext existieren konnte
-  - zusätzlich fehlte bisher die dazu passende zentrale Service-Wahrheit für denselben Auswahlentscheid
+  - dadurch lief die Auswahl bei Parzellen mit inkonsistentem Datenstand leer, obwohl fachlich Ã¼ber vorhandene RFID oder aktive ZÃ¤hler weiterhin ein belastbarer Medium-Kontext existieren konnte
+  - zusÃ¤tzlich fehlte bisher die dazu passende zentrale Service-Wahrheit fÃ¼r denselben Auswahlentscheid
 - Minimal korrigiert, ohne neuen Fachumfang:
-  - `ISupabaseService` um `GetAvailableRfidMediumOptionsForParzelleAsync(...)` ergänzt
-  - `SupabaseService` bildet die Mediumsauswahl nun zentral aus vorhandener Ausstattung, hinterlegter RFID und aktivem Zähler; wenn kein belastbarer Ausstattungszustand ermittelbar ist, werden beide Medien angeboten statt leer zu bleiben
-  - dieselbe gemeinsame Logik wird in der RFID-Prüfung wiederverwendet; es wurde keine UI-Schattenlogik neben dem echten Servicepfad eingeführt
-  - `RfidEinrichtenViewModel` nutzt diese gemeinsame Service-Wahrheit asynchron für die Mediumsauswahl
+  - `ISupabaseService` um `GetAvailableRfidMediumOptionsForParzelleAsync(...)` ergÃ¤nzt
+  - `SupabaseService` bildet die Mediumsauswahl nun zentral aus vorhandener Ausstattung, hinterlegter RFID und aktivem ZÃ¤hler; wenn kein belastbarer Ausstattungszustand ermittelbar ist, werden beide Medien angeboten statt leer zu bleiben
+  - dieselbe gemeinsame Logik wird in der RFID-PrÃ¼fung wiederverwendet; es wurde keine UI-Schattenlogik neben dem echten Servicepfad eingefÃ¼hrt
+  - `RfidEinrichtenViewModel` nutzt diese gemeinsame Service-Wahrheit asynchron fÃ¼r die Mediumsauswahl
   - `ParzellenPage` compile-bedingt auf den real reduzierten C#-MAUI-Pfad bereinigt; keine neue Seite, keine neue Navigation, keine neue Architektur
-- Abschließende Validierung:
-  - dateibezogene Prüfung der direkt betroffenen Blockdateien blieb nach den Korrekturen unauffällig
+- AbschlieÃŸende Validierung:
+  - dateibezogene PrÃ¼fung der direkt betroffenen Blockdateien blieb nach den Korrekturen unauffÃ¤llig
   - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
   - im MAUI-Build blieben nur die bereits bekannten Warnungen (`XA1037`, Nullability in `HomeManagementPage.cs`)
-  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` war in diesem MAUI-Abschlusslauf nicht zwingend und wurde daher nicht zusätzlich ausgeführt
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` war in diesem MAUI-Abschlusslauf nicht zwingend und wurde daher nicht zusÃ¤tzlich ausgefÃ¼hrt
 - Abschlussstand:
   - die Parzellenverwaltung ist fachlich reduziert und konsistent
-  - `RFID einrichten` läuft bei Parzellen ohne belastbaren Ausstattungszustand nicht mehr leer
-  - der begonnene Parzellen-/RFID-Block ist damit inhaltlich abgeschlossen; danach folgt nur noch der verpflichtende Git-Abschluss mit Commit/Push aller aktuellen Änderungen
+  - `RFID einrichten` lÃ¤uft bei Parzellen ohne belastbaren Ausstattungszustand nicht mehr leer
+  - der begonnene Parzellen-/RFID-Block ist damit inhaltlich abgeschlossen; danach folgt nur noch der verpflichtende Git-Abschluss mit Commit/Push aller aktuellen Ã„nderungen
 
-## 2026-03-27 – Prompt 2/3 Abschluss: begonnenen Wartungsverträge-Nebenmitglieder-Block final abgeglichen und abgeschlossen
+## 2026-03-27 â€“ Prompt 2/3 Abschluss: begonnenen WartungsvertrÃ¤ge-Nebenmitglieder-Block final abgeglichen und abgeschlossen
 
-- Vor dem Abschlusslauf erneut den echten Istzustand des begonnenen Blocks geprüft:
+- Vor dem Abschlusslauf erneut den echten Istzustand des begonnenen Blocks geprÃ¼ft:
   - `KGV_Fortschrittslog_ausfuehrlich.md`
   - `DEV_LOG.md`
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
-  - alle real geänderten Wartungsvertragsdateien im Arbeitsbaum
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
+  - alle real geÃ¤nderten Wartungsvertragsdateien im Arbeitsbaum
   - neue Migration `supabase/migrations/20260327160000_wartungsvertraege_nebenmitglieder.sql`
-- Reale Bestätigung im Arbeitsbaum:
+- Reale BestÃ¤tigung im Arbeitsbaum:
   - Shared-/Infrastructure-Logik liegt in `KGV.Infrastructure/Services/SupabaseService.cs`
   - gemeinsames Detailmodell liegt in `KGV.Core/Models/WartungsvertragDetailItem.cs`
   - WPF-Zuweisungspfad liegt in `KGV.Wpf/ViewModels/WartungsvertragMitgliederZuordnungViewModel.cs`
   - MAUI-Zuweisungspfad liegt in `KGV.Maui/Pages/WartungsvertragAssignMembersPage.cs`
-  - die neue fachlich zugehörige Migration liegt uncommitted als `supabase/migrations/20260327160000_wartungsvertraege_nebenmitglieder.sql` vor
-  - zusätzlich waren die beiden Logdateien geändert
+  - die neue fachlich zugehÃ¶rige Migration liegt uncommitted als `supabase/migrations/20260327160000_wartungsvertraege_nebenmitglieder.sql` vor
+  - zusÃ¤tzlich waren die beiden Logdateien geÃ¤ndert
 - Fachabgleich des begonnenen Blocks:
-  - WPF und MAUI laufen fachlich weiter über denselben `ISupabaseService`-Pfad; es wurde keine UI-Sonderlogik mit eigener Wahrheit eingeführt
-  - Wartungsvertragslisten und Zuweisungen arbeiten mit direkter Mitgliedszuordnung; Nebenmitglieder bleiben eigenständige Vertragsträger
-  - Detailanzeige verwendet denselben Mitgliedskontext (`Hauptmitglied` / `Nebenmitglied`) in gemeinsamem Modell für beide Clients
+  - WPF und MAUI laufen fachlich weiter Ã¼ber denselben `ISupabaseService`-Pfad; es wurde keine UI-Sonderlogik mit eigener Wahrheit eingefÃ¼hrt
+  - Wartungsvertragslisten und Zuweisungen arbeiten mit direkter Mitgliedszuordnung; Nebenmitglieder bleiben eigenstÃ¤ndige VertragstrÃ¤ger
+  - Detailanzeige verwendet denselben Mitgliedskontext (`Hauptmitglied` / `Nebenmitglied`) in gemeinsamem Modell fÃ¼r beide Clients
   - die Migration passt dazu, weil sie
-    - den Trigger für Wartungsvertragszuordnungen auf reale Mitglieder statt nur Hauptmitglieder öffnet
+    - den Trigger fÃ¼r Wartungsvertragszuordnungen auf reale Mitglieder statt nur Hauptmitglieder Ã¶ffnet
     - die Pflichtstundenfunktion auf mitgliedsbezogenen Wartungsvertragsbezug bringt
     - die Pflichtstunden-View mit `mitglied_id` und `hauptmitglied_id` passend zum App-Code liefert
 - Einziger direkter Restfehler im begonnenen Block:
   - die WPF-Detailansicht enthielt im realen Arbeitsbaum noch nicht die bereits dokumentierte Kontextspalte
   - minimal korrigiert in `KGV.Wpf/Views/WartungsvertragDetailView.xaml`
-- Abschließende Validierung:
-  - dateibezogene Prüfung der Blockdateien blieb unauffällig
+- AbschlieÃŸende Validierung:
+  - dateibezogene PrÃ¼fung der Blockdateien blieb unauffÃ¤llig
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
   - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
-  - kein neuer Fachumfang eröffnet, keine neue Navigation, keine neue Seite, keine Zusatzarchitektur
+  - kein neuer Fachumfang erÃ¶ffnet, keine neue Navigation, keine neue Seite, keine Zusatzarchitektur
 - Abschlussstand:
-  - der Prompt-2/3-Block zu Wartungsverträgen für Nebenmitglieder ist damit fachlich konsistent, mit Migration abgesichert und bereit für Commit/Push
+  - der Prompt-2/3-Block zu WartungsvertrÃ¤gen fÃ¼r Nebenmitglieder ist damit fachlich konsistent, mit Migration abgesichert und bereit fÃ¼r Commit/Push
 
-## 2026-03-27 – Prompt 2/3: Wartungsverträge fachlich für Haupt- und Nebenmitglieder in Shared, WPF und MAUI korrigiert
+## 2026-03-27 â€“ Prompt 2/3: WartungsvertrÃ¤ge fachlich fÃ¼r Haupt- und Nebenmitglieder in Shared, WPF und MAUI korrigiert
 
-- Vor dem Block den echten Repo-Stand nach `4857f64` geprüft:
+- Vor dem Block den echten Repo-Stand nach `4857f64` geprÃ¼ft:
   - `KGV_Fortschrittslog_ausfuehrlich.md`
   - `DEV_LOG.md`
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
   - betroffene Wartungsvertrags-Dateien in `KGV.Core`, `KGV.Infrastructure`, WPF und MAUI
 - Exakter Istbefund im aktuellen Stand:
-  - die mitgliedsbezogenen Shared-Servicepfade für Wartungsverträge bogen Nebenmitglieder intern weiterhin auf `ResolveHomeMitgliedIdAsync(...)` bzw. `HauptmitgliedId` um
-  - dadurch wurden Anzeige und Zuweisung für Nebenmitglieder faktisch dem Hauptmitglied zugeschlagen
-  - zusätzlich filterten die WPF- und MAUI-Zuweisungslisten Nebenmitglieder noch direkt aus den auswählbaren Mitgliedern heraus
-  - die vorhandene Supabase-Migration enthielt sogar noch eine harte Trigger-Regel, nach der Wartungsverträge nur Hauptmitgliedern zugeordnet werden durften
+  - die mitgliedsbezogenen Shared-Servicepfade fÃ¼r WartungsvertrÃ¤ge bogen Nebenmitglieder intern weiterhin auf `ResolveHomeMitgliedIdAsync(...)` bzw. `HauptmitgliedId` um
+  - dadurch wurden Anzeige und Zuweisung fÃ¼r Nebenmitglieder faktisch dem Hauptmitglied zugeschlagen
+  - zusÃ¤tzlich filterten die WPF- und MAUI-Zuweisungslisten Nebenmitglieder noch direkt aus den auswÃ¤hlbaren Mitgliedern heraus
+  - die vorhandene Supabase-Migration enthielt sogar noch eine harte Trigger-Regel, nach der WartungsvertrÃ¤ge nur Hauptmitgliedern zugeordnet werden durften
   - auch der Pflichtstunden-/Wartungsvertragsbezug lief im Schema und Service noch zu eng auf Hauptmitgliedzeilen
 - Minimal korrigiert, ohne neuen Fachumfang:
   - `KGV.Infrastructure/Services/SupabaseService.cs`
     - `GetWartungsvertraegeForMitgliedAsync(...)` auf direkte mitgliedsbezogene Wartungsvertragszuordnungen gezogen
     - `GetAssignableWartungsvertraegeForMitgliedAsync(...)` ebenso auf direkte Mitgliedszuordnung umgestellt
     - `AssignMitgliederToWartungsvertragAsync(...)` und `AssignWartungsvertraegeToMitgliedAsync(...)` speichern Nebenmitglieder nicht mehr als Hauptmitglied umgebogen ab
-    - Detailanzeige liefert jetzt zusätzlich einen sichtbaren Mitgliedskontext `Hauptmitglied` / `Nebenmitglied`
-    - Pflichtstundenbezug auf exakte Mitgliedszeilen priorisiert, mit Fallback auf Hauptmitgliedbezug nur dort, wo nötig
+    - Detailanzeige liefert jetzt zusÃ¤tzlich einen sichtbaren Mitgliedskontext `Hauptmitglied` / `Nebenmitglied`
+    - Pflichtstundenbezug auf exakte Mitgliedszeilen priorisiert, mit Fallback auf Hauptmitgliedbezug nur dort, wo nÃ¶tig
   - `KGV.Wpf/ViewModels/WartungsvertragMitgliederZuordnungViewModel.cs`
     - Auswahlfilter so erweitert, dass aktive Nebenmitglieder nicht mehr ausgeschlossen werden
   - `KGV.Maui/Pages/WartungsvertragAssignMembersPage.cs`
-    - denselben Ausschluss für Nebenmitglieder entfernt
+    - denselben Ausschluss fÃ¼r Nebenmitglieder entfernt
   - `KGV.Wpf/Views/WartungsvertragDetailView.xaml`
     - Detailgrid um sichtbare Kontextspalte erweitert
   - `KGV.Core/Models/WartungsvertragDetailItem.cs`
-    - gemeinsames Kontextfeld für WPF und MAUI ergänzt
+    - gemeinsames Kontextfeld fÃ¼r WPF und MAUI ergÃ¤nzt
   - neue Migration `supabase/migrations/20260327160000_wartungsvertraege_nebenmitglieder.sql`
-    - Trigger `validate_wartungsvertrag_zuordnung()` erlaubt Zuordnungen jetzt auch für Nebenmitglieder
-    - `fn_berechne_pflichtstunden_status(...)` prüft Wartungsverträge mitgliedsbezogen statt still nur über das Hauptmitglied
-    - `v_pflichtstunden_uebersicht` liefert wieder mitgliedsbezogene Datensätze für Haupt- und Nebenmitglieder
+    - Trigger `validate_wartungsvertrag_zuordnung()` erlaubt Zuordnungen jetzt auch fÃ¼r Nebenmitglieder
+    - `fn_berechne_pflichtstunden_status(...)` prÃ¼ft WartungsvertrÃ¤ge mitgliedsbezogen statt still nur Ã¼ber das Hauptmitglied
+    - `v_pflichtstunden_uebersicht` liefert wieder mitgliedsbezogene DatensÃ¤tze fÃ¼r Haupt- und Nebenmitglieder
 - Betroffene Anzeige-/Zuweisungspfade dieses Blocks:
   - WPF globale Mitgliederzuweisung zum Wartungsvertrag
   - WPF Wartungsvertragsdetail mit Liste aktiver Mitgliedszuordnungen
   - MAUI globale Mitgliederzuweisung zum Wartungsvertrag
-  - MAUI mitgliedsbezogene Wartungsvertragsansicht über den gemeinsamen Shared-Servicepfad
+  - MAUI mitgliedsbezogene Wartungsvertragsansicht Ã¼ber den gemeinsamen Shared-Servicepfad
 - Technische Validierung:
-  - gezielte Dateiprüfung auf den geänderten C#-/XAML-Dateien blieb unauffällig
+  - gezielte DateiprÃ¼fung auf den geÃ¤nderten C#-/XAML-Dateien blieb unauffÃ¤llig
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
   - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
   - im MAUI-Build blieben nur die bereits bekannten Warnungen (`XA1037`, Nullability in `HomeManagementPage.cs`)
 - Abschlussstand dieses Blocks:
-  - Wartungsverträge funktionieren fachlich nicht mehr still nur über Hauptmitglieder
-  - Haupt- und Nebenmitglieder verwenden in WPF und MAUI jetzt dieselbe gemeinsame fachliche Wahrheit für Anzeige, Zuweisung und relevante Bezugspfade
-  - kein neuer Fachumfang, keine neue Seite, keine Schattenarchitektur eröffnet
+  - WartungsvertrÃ¤ge funktionieren fachlich nicht mehr still nur Ã¼ber Hauptmitglieder
+  - Haupt- und Nebenmitglieder verwenden in WPF und MAUI jetzt dieselbe gemeinsame fachliche Wahrheit fÃ¼r Anzeige, Zuweisung und relevante Bezugspfade
+  - kein neuer Fachumfang, keine neue Seite, keine Schattenarchitektur erÃ¶ffnet
 
-## 2026-03-27 – Prompt 1/3: MAUI-Startseite, Stammdaten und Flyout-Text auf dem aktiven Produktivpfad bereinigt
+## 2026-03-27 â€“ Prompt 1/3: MAUI-Startseite, Stammdaten und Flyout-Text auf dem aktiven Produktivpfad bereinigt
 
-- Vor dem Block den echten Istzustand gegen den aktuellen Repo-Stand geprüft:
+- Vor dem Block den echten Istzustand gegen den aktuellen Repo-Stand geprÃ¼ft:
   - `KGV_Fortschrittslog_ausfuehrlich.md`
   - `DEV_LOG.md`
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
-  - aktive MAUI-Dateien für `Home`, `Mitgliedskontext/Stammdaten` und Flyout-Navigation
-- Home/Startseite vollständig entlang des aktiven Produktivpfads geprüft:
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
+  - aktive MAUI-Dateien fÃ¼r `Home`, `Mitgliedskontext/Stammdaten` und Flyout-Navigation
+- Home/Startseite vollstÃ¤ndig entlang des aktiven Produktivpfads geprÃ¼ft:
   - `KGV.Maui/Pages/HomePage.xaml.cs`
   - `KGV.Maui/ViewModels/HomeViewModel.cs`
   - `KGV.Maui/State/MemberContextState.cs`
@@ -2031,117 +2070,117 @@
   - `KGV.Maui/AdminShell.cs`
   - `KGV.Maui/UserShell.cs`
 - Reale Ursache des Home-Problems im aktuellen Stand:
-  - der Home-Pfad reagierte nicht aktiv auf Änderungen des ausgewählten Mitgliedskontexts
-  - dadurch konnte Home mit altem Zustand weiterlaufen, bis die Seite später erneut erschien oder neu aufgebaut wurde
-  - der Button `Arbeitsstunde erfassen` hing fachlich bereits am richtigen Produktivpfad, wurde aber durch den verzögerten Kontext-Reload nicht immer schon beim ersten relevanten Öffnen korrekt neu bewertet
+  - der Home-Pfad reagierte nicht aktiv auf Ã„nderungen des ausgewÃ¤hlten Mitgliedskontexts
+  - dadurch konnte Home mit altem Zustand weiterlaufen, bis die Seite spÃ¤ter erneut erschien oder neu aufgebaut wurde
+  - der Button `Arbeitsstunde erfassen` hing fachlich bereits am richtigen Produktivpfad, wurde aber durch den verzÃ¶gerten Kontext-Reload nicht immer schon beim ersten relevanten Ã–ffnen korrekt neu bewertet
 - Minimal bereinigt, ohne neuen Fachumfang:
-  - `MemberContextState` um ein `Changed`-Signal ergänzt
-  - `HomePage` subscribt beim Anzeigen auf Kontextwechsel, invalidiert den Home-ViewModel-Zustand und lädt dann sofort erneut
-  - `HomeViewModel` verwendet weiter den bestehenden Shared-Servicepfad, zeigt den tatsächlich verwendeten Mitgliedskontext jetzt aber im UI explizit an
-  - für Admin/Vorstand gilt damit auf Home der aktive ausgewählte Mitgliedskontext; normale User bleiben beim eigenen Kontext
+  - `MemberContextState` um ein `Changed`-Signal ergÃ¤nzt
+  - `HomePage` subscribt beim Anzeigen auf Kontextwechsel, invalidiert den Home-ViewModel-Zustand und lÃ¤dt dann sofort erneut
+  - `HomeViewModel` verwendet weiter den bestehenden Shared-Servicepfad, zeigt den tatsÃ¤chlich verwendeten Mitgliedskontext jetzt aber im UI explizit an
+  - fÃ¼r Admin/Vorstand gilt damit auf Home der aktive ausgewÃ¤hlte Mitgliedskontext; normale User bleiben beim eigenen Kontext
 - Stammdaten-Seite fachlich entschlackt:
   - auf `MeineDatenPage` die sichtbaren Bereiche
     - `Mitgliedschaft`
-    - `Wartungsverträge / Pflichtstunden`
+    - `WartungsvertrÃ¤ge / Pflichtstunden`
     - `Verwaltung`
     entfernt
-  - übrig bleiben echte Stammdatenblöcke plus ggf. echter `Mitgliedskontext`
-  - `Mitgliedskontext` wird nur noch gezeigt, wenn wirklich eine Haupt-/Nebenmitglied-Verknüpfung vorhanden ist
+  - Ã¼brig bleiben echte StammdatenblÃ¶cke plus ggf. echter `Mitgliedskontext`
+  - `Mitgliedskontext` wird nur noch gezeigt, wenn wirklich eine Haupt-/Nebenmitglied-VerknÃ¼pfung vorhanden ist
   - angezeigt wird jetzt fachlich klar entweder
-    - `Hauptmitglied · Verknüpftes Nebenmitglied: ...`
-    - oder `Nebenmitglied · Zugeordnet zu Hauptmitglied: ...`
-  - ohne Verknüpfung bleibt der Bereich komplett verborgen
+    - `Hauptmitglied Â· VerknÃ¼pftes Nebenmitglied: ...`
+    - oder `Nebenmitglied Â· Zugeordnet zu Hauptmitglied: ...`
+  - ohne VerknÃ¼pfung bleibt der Bereich komplett verborgen
 - Navigation/Flyout nur textlich korrigiert:
-  - in `KGV.Maui/AdminShell.cs` den doppelten Text `Arbeitsstunden · Arbeitsstunden freigeben` auf `Arbeitsstunden freigeben` reduziert
-  - keine Rechte-, Routing- oder Reihenfolgeänderung vorgenommen
+  - in `KGV.Maui/AdminShell.cs` den doppelten Text `Arbeitsstunden Â· Arbeitsstunden freigeben` auf `Arbeitsstunden freigeben` reduziert
+  - keine Rechte-, Routing- oder ReihenfolgeÃ¤nderung vorgenommen
 - Technische Validierung:
-  - gezielte Dateiprüfung auf den geänderten MAUI-Dateien blieb unauffällig
+  - gezielte DateiprÃ¼fung auf den geÃ¤nderten MAUI-Dateien blieb unauffÃ¤llig
   - `dotnet build KGV.Maui/KGV.Maui.csproj` lief erfolgreich durch
-  - der Build blieb nur mit bereits bekannten Warnungen grün, insbesondere:
+  - der Build blieb nur mit bereits bekannten Warnungen grÃ¼n, insbesondere:
     - Android-Warnung `XA1037`
     - vorhandene Nullability-Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
 - Abschlussstand dieses Blocks:
-  - Home lädt auf dem vorhandenen Produktivpfad jetzt kontextsauber und ohne neuen Schattenpfad
+  - Home lÃ¤dt auf dem vorhandenen Produktivpfad jetzt kontextsauber und ohne neuen Schattenpfad
   - Stammdaten ist fachlich entschlackt
   - der doppelte Flyout-Text ist bereinigt
-  - WPF wurde in diesem Block bewusst nicht geändert
+  - WPF wurde in diesem Block bewusst nicht geÃ¤ndert
 
-## 2026-03-27 – Prompt 1/1: blockfremde MAUI-Altfehler gezielt repariert und MAUI-Gesamtbuild wieder grün gemacht
+## 2026-03-27 â€“ Prompt 1/1: blockfremde MAUI-Altfehler gezielt repariert und MAUI-Gesamtbuild wieder grÃ¼n gemacht
 
-- Vor dem Block den echten Istzustand auf Basis des gepushten Stands `85a7859` geprüft:
+- Vor dem Block den echten Istzustand auf Basis des gepushten Stands `85a7859` geprÃ¼ft:
   - `KGV_Fortschrittslog_ausfuehrlich.md`
   - `DEV_LOG.md`
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
   - echten Buildlauf `dotnet build KGV.Maui/KGV.Maui.csproj`
-- Der reale MAUI-Build bestätigte exakt nur die bekannten Altfehler in:
+- Der reale MAUI-Build bestÃ¤tigte exakt nur die bekannten Altfehler in:
   - `KGV.Maui/App.xaml.cs` wegen fehlendem `InitializeComponent`
   - `KGV.Maui/Pages/AblesungErfassenPage.cs` wegen fehlendem `IPlatformApplication`
   - `KGV.Maui/Pages/ZaehlerwechselPage.cs` wegen fehlendem `IPlatformApplication`
   - `KGV.Maui/Settings/AppSettings.cs` wegen fehlendem `FileSystem`
   - `KGV.Maui/Pages/MemberSearchPage.xaml.cs` wegen fehlendem `InitializeComponent`
 - Umsetzung bewusst klein und nur compile-orientiert:
-  - in `KGV.Maui/App.xaml.cs` den leeren XAML-Initialisierungspfad entfernt; fachliche App-Logik blieb unverändert auf dem bestehenden RootPage-/Window-Pfad
+  - in `KGV.Maui/App.xaml.cs` den leeren XAML-Initialisierungspfad entfernt; fachliche App-Logik blieb unverÃ¤ndert auf dem bestehenden RootPage-/Window-Pfad
   - in `KGV.Maui/Pages/AblesungErfassenPage.cs` und `KGV.Maui/Pages/ZaehlerwechselPage.cs` den Servicezugriff auf `Application.Current?.Handler?.MauiContext?.Services` umgestellt
-  - in `KGV.Maui/Settings/AppSettings.cs` den fehlenden MAUI-Storage-Namensraum ergänzt
+  - in `KGV.Maui/Settings/AppSettings.cs` den fehlenden MAUI-Storage-Namensraum ergÃ¤nzt
   - in `KGV.Maui/Pages/MemberSearchPage.xaml.cs` den bisherigen Seitenaufbau direkt in C# nachgezogen, damit die Seite ohne fehlende XAML-Generierung wieder sauber kompiliert
-  - keine Shell-, Routing-, Insert-/Create- oder WPF-Fachlogik geändert
+  - keine Shell-, Routing-, Insert-/Create- oder WPF-Fachlogik geÃ¤ndert
 - Technische Validierung:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` lief danach erfolgreich durch
-  - im grünen MAUI-Build blieben nur Warnungen:
+  - im grÃ¼nen MAUI-Build blieben nur Warnungen:
     - Android-Warnung `XA1037` zu `AndroidCreatePackagePerAbi`
     - bestehende Nullability-Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
-  - zusätzlicher Sicherheitslauf `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief ebenfalls erfolgreich; es wurde keine WPF-Regressionswirkung sichtbar
+  - zusÃ¤tzlicher Sicherheitslauf `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief ebenfalls erfolgreich; es wurde keine WPF-Regressionswirkung sichtbar
 - Abschlussstand:
   - die zuvor dokumentierten MAUI-Altfehler sind bereinigt
-  - der MAUI-Gesamtbuild ist wieder grün, ohne neuen Fachumfang zu eröffnen
+  - der MAUI-Gesamtbuild ist wieder grÃ¼n, ohne neuen Fachumfang zu erÃ¶ffnen
 
-## 2026-03-27 – Prompt 4/4: projektweite Gesamtprüfung der produktiven Create-Pfade gegen das ID-freie Insert-Schema abgeschlossen
+## 2026-03-27 â€“ Prompt 4/4: projektweite GesamtprÃ¼fung der produktiven Create-Pfade gegen das ID-freie Insert-Schema abgeschlossen
 
-- Vor dem Block den echten Repo- und Logstand gegen den gepushten Stand `f3b37dc` geprüft:
+- Vor dem Block den echten Repo- und Logstand gegen den gepushten Stand `f3b37dc` geprÃ¼ft:
   - `KGV_Fortschrittslog_ausfuehrlich.md`
   - `DEV_LOG.md`
   - `KGV.Core/Interfaces/ISupabaseService.cs`
   - `KGV.Infrastructure/Services/SupabaseService.cs`
   - `KGV.Core/Models/InsertRecordMappingExtensions.cs`
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
-- Danach projektweite Suchläufe auf dem aktuellen Stand durchgeführt:
-  - `.Insert(` über alle C#-Dateien, um reale Insert-Pfade vollständig zu sehen
-  - `From<...Record>().Insert(...)` sowie `Insert(new ...Record` über alle C#-Dateien, um verbleibende Inserts auf Basis echter Record-Typen zu finden
-  - `Id = 0`, `id = 0`, `entryId=0`, `entryId = 0` über C#-/XAML-Dateien zur Restprüfung auf künstliche Neu-IDs
-  - gezielte Aufrufsuche auf die produktiven Create-Pfade für `Nebenmitglied`, `Stromzähler`, `Wasserzähler`, `Ablesung`, `Arbeitsstunde`, `Wartungsvertrag`, `Arbeitseinsatz`, `Termin` und `Bekanntmachung`
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
+- Danach projektweite SuchlÃ¤ufe auf dem aktuellen Stand durchgefÃ¼hrt:
+  - `.Insert(` Ã¼ber alle C#-Dateien, um reale Insert-Pfade vollstÃ¤ndig zu sehen
+  - `From<...Record>().Insert(...)` sowie `Insert(new ...Record` Ã¼ber alle C#-Dateien, um verbleibende Inserts auf Basis echter Record-Typen zu finden
+  - `Id = 0`, `id = 0`, `entryId=0`, `entryId = 0` Ã¼ber C#-/XAML-Dateien zur RestprÃ¼fung auf kÃ¼nstliche Neu-IDs
+  - gezielte Aufrufsuche auf die produktiven Create-Pfade fÃ¼r `Nebenmitglied`, `StromzÃ¤hler`, `WasserzÃ¤hler`, `Ablesung`, `Arbeitsstunde`, `Wartungsvertrag`, `Arbeitseinsatz`, `Termin` und `Bekanntmachung`
 - Ehrlicher Befund der Gesamtsuche:
-  - die bekannten produktiven Create-Pfade im `SupabaseService` laufen bereits über `...InsertRecord` bzw. `NebenmitgliedCreateDTO`
-  - die betroffenen WPF-/MAUI-Aufrufer zeigen weiterhin sauber auf diese ID-freien Create-Verträge
-  - die Suche nach `Id = 0` / `entryId=0` blieb in C#-/XAML-Produktivdateien leer; Treffer gab es nur in historischen Logeinträgen, nicht in aktuellen Laufzeitpfaden
-  - als letzte produktive Reststelle blieb ein Insert im Auth-Bereich: `AuthService` erzeugte `app_user` noch über `AppUserRecord`
+  - die bekannten produktiven Create-Pfade im `SupabaseService` laufen bereits Ã¼ber `...InsertRecord` bzw. `NebenmitgliedCreateDTO`
+  - die betroffenen WPF-/MAUI-Aufrufer zeigen weiterhin sauber auf diese ID-freien Create-VertrÃ¤ge
+  - die Suche nach `Id = 0` / `entryId=0` blieb in C#-/XAML-Produktivdateien leer; Treffer gab es nur in historischen LogeintrÃ¤gen, nicht in aktuellen Laufzeitpfaden
+  - als letzte produktive Reststelle blieb ein Insert im Auth-Bereich: `AuthService` erzeugte `app_user` noch Ã¼ber `AppUserRecord`
 - Minimal bereinigt, ohne neuen Fachumfang:
   - neues Insert-Modell `KGV.Infrastructure/Models/AppUserInsertRecord.cs` angelegt
   - produktiven Insert in `KGV.Infrastructure/Authentication/AuthService.cs` von `AppUserRecord` auf `AppUserInsertRecord` umgestellt
-  - keine neue Auth-Logik, keine neue UI, keine Schattenarchitektur ergänzt
-- Abschließende Architekturprüfung:
+  - keine neue Auth-Logik, keine neue UI, keine Schattenarchitektur ergÃ¤nzt
+- AbschlieÃŸende ArchitekturprÃ¼fung:
   - Create-Pfade senden im aktuellen produktiven Suchraum keine DB-Records mit `Id` und kein `id = 0` mehr an Supabase/PostgREST
   - Update-Pfade bleiben getrennt und arbeiten weiter mit echten vorhandenen IDs
   - `CreateNebenmitgliedAsync(...)` bleibt produktiv aktiv und verwendet weiter `NebenmitgliedCreateDTO`; ein alter Altvertrag oder Altaufrufer war im aktuellen Repo-Stand nicht mehr vorhanden
   - die projektweite produktive Create-Architektur ist damit auf Insert-Modelle bzw. Create-Requests ohne `Id` vereinheitlicht
 
-## 2026-03-27 – Prompt 2/4 Abschlusslauf: realen Endstand der gemeinsamen Create-Aufrufer geprüft und final validiert
+## 2026-03-27 â€“ Prompt 2/4 Abschlusslauf: realen Endstand der gemeinsamen Create-Aufrufer geprÃ¼ft und final validiert
 
-- Vor dem organisatorischen Abschluss erneut den echten Endstand geprüft:
+- Vor dem organisatorischen Abschluss erneut den echten Endstand geprÃ¼ft:
   - `KGV_Fortschrittslog_ausfuehrlich.md`
   - `DEV_LOG.md`
   - `KGV.Core/Interfaces/ISupabaseService.cs`
   - `KGV.Infrastructure/Services/SupabaseService.cs`
   - `KGV.Core/Models/InsertRecordMappingExtensions.cs`
-  - die bereits geänderten WPF-/MAUI-Aufrufer des begonnenen Prompt-2/4-Blocks
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
-- Im echten Abschlussstand bestätigt:
-  - Create-Aufrufer für `Arbeitsstunden`, `Arbeitseinsätze`, `Termine`, `Bekanntmachungen`, `Wartungsverträge`, `Stromzähler`, `Wasserzähler` und `Ablesung` senden jetzt Insert-Modelle ohne `Id`
+  - die bereits geÃ¤nderten WPF-/MAUI-Aufrufer des begonnenen Prompt-2/4-Blocks
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
+- Im echten Abschlussstand bestÃ¤tigt:
+  - Create-Aufrufer fÃ¼r `Arbeitsstunden`, `ArbeitseinsÃ¤tze`, `Termine`, `Bekanntmachungen`, `WartungsvertrÃ¤ge`, `StromzÃ¤hler`, `WasserzÃ¤hler` und `Ablesung` senden jetzt Insert-Modelle ohne `Id`
   - der `Nebenmitglied`-Create-Aufrufer verwendet produktiv `NebenmitgliedCreateDTO`
   - `entryId = 0` / `Id = 0` bleibt nur UI-intern; an die gemeinsamen Create-Pfade geht keine DB-ID mehr mit
-  - Update-Pfade wurden in diesem Block nicht beschädigt
+  - Update-Pfade wurden in diesem Block nicht beschÃ¤digt
 - Technische Abschlussvalidierung:
-  - gezielte Dateifehler auf allen bereits geänderten Blockdateien blieben unauffällig
-  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erneut grün durch
+  - gezielte Dateifehler auf allen bereits geÃ¤nderten Blockdateien blieben unauffÃ¤llig
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erneut grÃ¼n durch
   - `dotnet build KGV.Maui/KGV.Maui.csproj` blieb nur an bereits vorhandenen blockfremden Altfehlern in
     - `KGV.Maui/App.xaml.cs`
     - `KGV.Maui/Pages/AblesungErfassenPage.cs`
@@ -2149,37 +2188,37 @@
     - `KGV.Maui/Settings/AppSettings.cs`
     - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
     rot
-  - ein neuer Reparaturblock außerhalb dieses Themas wurde bewusst nicht eröffnet
+  - ein neuer Reparaturblock auÃŸerhalb dieses Themas wurde bewusst nicht erÃ¶ffnet
 - Fachlicher Abschlussstand:
   - direkte Restfehler dieses Prompt-2/4-Blocks sind nicht mehr offen
-  - der gemeinsame Create-Aufrufer-Block ist fachlich abgeschlossen; es folgt nur noch der organisatorische Git-Abschluss mit allen aktuellen Änderungen
+  - der gemeinsame Create-Aufrufer-Block ist fachlich abgeschlossen; es folgt nur noch der organisatorische Git-Abschluss mit allen aktuellen Ã„nderungen
 
-## 2026-03-27 – Prompt 2/4 Abschluss: compile-bedingte WPF-/MAUI-Aufrufer auf die neuen Insert-Signaturen gezogen
+## 2026-03-27 â€“ Prompt 2/4 Abschluss: compile-bedingte WPF-/MAUI-Aufrufer auf die neuen Insert-Signaturen gezogen
 
-- Vor dem Block erneut den echten Istzustand im Repo und in den Logs geprüft:
+- Vor dem Block erneut den echten Istzustand im Repo und in den Logs geprÃ¼ft:
   - `KGV_Fortschrittslog_ausfuehrlich.md`
   - `DEV_LOG.md`
   - `KGV.Core/Interfaces/ISupabaseService.cs`
   - `KGV.Infrastructure/Services/SupabaseService.cs`
   - die neuen Insert-Modelle in `KGV.Core/Models`
-  - realen Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - realen Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj`
   - `dotnet build KGV.Maui/KGV.Maui.csproj`
 - Ehrlicher Befund auf dem realen Zwischenstand:
   - `ISupabaseService`, `SupabaseService` und die Insert-Modelle ohne `Id` waren bereits vorhanden
   - `CreateNebenmitgliedAsync(...)` war im Shared-Service wieder produktiv aktiviert
   - compile-bedingt offen waren jetzt die direkten WPF-/MAUI-Aufrufer, die noch alte Create-Signaturen oder DB-Records mit `Id` in Create-Pfaden verwendeten
-  - das echte Fehlerbild betraf genau diese Aufrufer für `Ablesung`, `Stromzaehler`, `Wasserzaehler`, `Arbeitsstunde`, `Arbeitseinsatz`, `Termin`, `Bekanntmachung`, `Wartungsvertrag` und `Nebenmitglied`
+  - das echte Fehlerbild betraf genau diese Aufrufer fÃ¼r `Ablesung`, `Stromzaehler`, `Wasserzaehler`, `Arbeitsstunde`, `Arbeitseinsatz`, `Termin`, `Bekanntmachung`, `Wartungsvertrag` und `Nebenmitglied`
 - Umsetzung dieses Prompt-2/4-Blocks bewusst klein und ohne neuen Fachumfang:
   - betroffene WPF-Aufrufer auf die neuen gemeinsamen Insert-Signaturen gezogen
   - betroffene MAUI-Aufrufer auf dieselben gemeinsamen Insert-Signaturen gezogen
-  - kleinen gemeinsamen Mapping-Helfer `KGV.Core/Models/InsertRecordMappingExtensions.cs` ergänzt, aber nur dort, wo er mehrfachen Compile-Aufwand reduziert
-  - Zähler-/Ablesungs-Createpfade direkt auf `StromzaehlerInsertRecord`, `WasserzaehlerInsertRecord` und `AblesungInsertRecord` umgestellt
-  - WPF-Nebenmitglied-Aufrufer auf `NebenmitgliedCreateDTO` umgestellt; keine UI-Sonderlogik neben dem gemeinsamen Servicevertrag ergänzt
-  - Update-Pfade blieben unverändert; `Id` bleibt nur in den echten Update-Flows relevant
-  - dadurch läuft in den umgestellten Create-Pfaden kein DB-Record mit `Id` bzw. kein `id = 0`-Payload mehr in den Insert-Weg
+  - kleinen gemeinsamen Mapping-Helfer `KGV.Core/Models/InsertRecordMappingExtensions.cs` ergÃ¤nzt, aber nur dort, wo er mehrfachen Compile-Aufwand reduziert
+  - ZÃ¤hler-/Ablesungs-Createpfade direkt auf `StromzaehlerInsertRecord`, `WasserzaehlerInsertRecord` und `AblesungInsertRecord` umgestellt
+  - WPF-Nebenmitglied-Aufrufer auf `NebenmitgliedCreateDTO` umgestellt; keine UI-Sonderlogik neben dem gemeinsamen Servicevertrag ergÃ¤nzt
+  - Update-Pfade blieben unverÃ¤ndert; `Id` bleibt nur in den echten Update-Flows relevant
+  - dadurch lÃ¤uft in den umgestellten Create-Pfaden kein DB-Record mit `Id` bzw. kein `id = 0`-Payload mehr in den Insert-Weg
 - Technische Validierung dieses Blocks:
-  - gezielte Dateifehler auf allen direkt geänderten Dateien blieben nach den Änderungen unauffällig
+  - gezielte Dateifehler auf allen direkt geÃ¤nderten Dateien blieben nach den Ã„nderungen unauffÃ¤llig
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
   - `dotnet build KGV.Maui/KGV.Maui.csproj` zeigte nach dem Nachziehen der Insert-Aufrufer nur noch bereits vorhandene blockfremde Fehler in:
     - `KGV.Maui/App.xaml.cs`
@@ -2191,19 +2230,19 @@
 - Fachlicher Abschlussstand von Prompt `2/4`:
   - die compile-bedingt betroffenen WPF-/MAUI-Aufrufer sind auf die gemeinsame Create-Architektur mit Insert-Modellen ohne `Id` gezogen
   - `CreateNebenmitgliedAsync(...)` ist auch aus den UI-Aufrufern wieder produktiv nutzbar
-  - der begonnene Prompt-2/4-Block ist damit sauber abgeschlossen; es wurde kein neuer Fachumfang eröffnet
+  - der begonnene Prompt-2/4-Block ist damit sauber abgeschlossen; es wurde kein neuer Fachumfang erÃ¶ffnet
 
-## 2026-03-27 – Prompt 1/4: gemeinsamen Core-/Infrastructure-Unterbau für Insert-Modelle ohne `Id` aufgebaut
+## 2026-03-27 â€“ Prompt 1/4: gemeinsamen Core-/Infrastructure-Unterbau fÃ¼r Insert-Modelle ohne `Id` aufgebaut
 
-- Vor dem Block erneut nur den echten Repo-/Log-/Vertragsstand geprüft:
+- Vor dem Block erneut nur den echten Repo-/Log-/Vertragsstand geprÃ¼ft:
   - `KGV_Fortschrittslog_ausfuehrlich.md`
   - `DEV_LOG.md`
   - `KGV.Core/Interfaces/ISupabaseService.cs`
-  - die betroffenen Create-Blöcke in `KGV.Infrastructure/Services/SupabaseService.cs`
+  - die betroffenen Create-BlÃ¶cke in `KGV.Infrastructure/Services/SupabaseService.cs`
   - bestehende Modell-/DTO-Dateien in `KGV.Core/Models`
 - Ehrlicher Befund im aktuellen Stand vor Umsetzung:
-  - bereits sauber waren nur die vorhandenen Insert-Pfade für `ParzellenBelegung` sowie der bestehende Infrastructure-Pfad mit `ArbeitsstundeInsertRecord`
-  - nicht sauber getrennt waren die Create-Pfade für:
+  - bereits sauber waren nur die vorhandenen Insert-Pfade fÃ¼r `ParzellenBelegung` sowie der bestehende Infrastructure-Pfad mit `ArbeitsstundeInsertRecord`
+  - nicht sauber getrennt waren die Create-Pfade fÃ¼r:
     - `Nebenmitglied`
     - `Stromzaehler`
     - `Wasserzaehler`
@@ -2215,7 +2254,7 @@
     - `Bekanntmachung`
   - diese Pfade verwendeten im aktuellen Stand noch DB-Records mit `Id` im Insert-Pfad oder waren wie `CreateNebenmitgliedAsync` noch gar nicht produktiv implementiert
 - Umsetzung dieses Prompt-1/4-Blocks bewusst klein und nur im gemeinsamen Unterbau:
-  - neue Insert-Modelle ohne Primärschlüssel `Id` angelegt:
+  - neue Insert-Modelle ohne PrimÃ¤rschlÃ¼ssel `Id` angelegt:
     - `MitgliedInsertRecord`
     - `StromzaehlerInsertRecord`
     - `WasserzaehlerInsertRecord`
@@ -2225,89 +2264,89 @@
     - `BekanntmachungInsertRecord`
     - `WartungsvertragInsertRecord`
     - `WartungsvertragZuordnungInsertRecord`
-  - `ISupabaseService` für die betroffenen Create-Pfade auf Insert-Modelle ohne `Id` umgestellt und damit Create-vs-Update im Vertrag klarer getrennt
-  - `SupabaseService` auf dieselben Signaturen nachgezogen; die tatsächlichen Create-Insert-Aufrufe für Strom-/Wasserzähler, Ablesung, Arbeitsstunde, Wartungsvertrag, Arbeitseinsatz, Termin und Bekanntmachung laufen jetzt über Insert-Modelle ohne `Id`
+  - `ISupabaseService` fÃ¼r die betroffenen Create-Pfade auf Insert-Modelle ohne `Id` umgestellt und damit Create-vs-Update im Vertrag klarer getrennt
+  - `SupabaseService` auf dieselben Signaturen nachgezogen; die tatsÃ¤chlichen Create-Insert-Aufrufe fÃ¼r Strom-/WasserzÃ¤hler, Ablesung, Arbeitsstunde, Wartungsvertrag, Arbeitseinsatz, Termin und Bekanntmachung laufen jetzt Ã¼ber Insert-Modelle ohne `Id`
   - beide Wartungsvertrag-Zuordnungspfade verwenden intern nun `WartungsvertragZuordnungInsertRecord`
   - WPF-/MAUI-Aufrufer wurden in diesem Block bewusst noch nicht umgebaut
-  - `CreateNebenmitgliedAsync` ist im gemeinsamen Vertrag nun sauber vorbereitet, bleibt in der Implementierung aber für einen späteren Block noch offen
+  - `CreateNebenmitgliedAsync` ist im gemeinsamen Vertrag nun sauber vorbereitet, bleibt in der Implementierung aber fÃ¼r einen spÃ¤teren Block noch offen
 - Technische Kurzvalidierung dieses Blocks:
-  - gezielte Dateifehler auf Interface, Service und neue Insert-Modelle blieben unauffällig
+  - gezielte Dateifehler auf Interface, Service und neue Insert-Modelle blieben unauffÃ¤llig
   - `dotnet build KGV.Core/KGV.Core.csproj` lief erfolgreich durch
   - `dotnet build KGV.Infrastructure/KGV.Infrastructure.csproj` lief erfolgreich durch
   - der Infrastructure-Build zeigte dabei nur bereits vorhandene Nullability-Warnungen in `KGV.Infrastructure/Services/SupabaseService.cs`, aber keinen blockierenden Fehler dieses Core-/Infrastructure-Blocks
-- Offener Rest für spätere Blöcke:
-  - direkte WPF-/MAUI-Aufrufer müssen erst im Anschluss auf die neuen gemeinsamen Create-Verträge umgestellt werden
-  - die produktive Reaktivierung von `CreateNebenmitgliedAsync` folgt in einem späteren Block
+- Offener Rest fÃ¼r spÃ¤tere BlÃ¶cke:
+  - direkte WPF-/MAUI-Aufrufer mÃ¼ssen erst im Anschluss auf die neuen gemeinsamen Create-VertrÃ¤ge umgestellt werden
+  - die produktive Reaktivierung von `CreateNebenmitgliedAsync` folgt in einem spÃ¤teren Block
 
-## 2026-03-27 – Prompt 1/1: Mitglieds-Unterpunkte optisch wie `↳ Wartungsverträge` vereinheitlicht, ohne neuen Fachumfang
+## 2026-03-27 â€“ Prompt 1/1: Mitglieds-Unterpunkte optisch wie `â†³ WartungsvertrÃ¤ge` vereinheitlicht, ohne neuen Fachumfang
 
-- Vor dem Block erneut nur den echten Repo-/Log-/Navigationsstand geprüft, ohne neuen Fachumfang zu eröffnen:
+- Vor dem Block erneut nur den echten Repo-/Log-/Navigationsstand geprÃ¼ft, ohne neuen Fachumfang zu erÃ¶ffnen:
   - `KGV_Fortschrittslog_ausfuehrlich.md`
   - `DEV_LOG.md`
   - `KGV.Maui/AdminShell.cs`
   - `KGV.Maui/UserShell.cs`
   - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
 - Ehrlicher Befund im aktuellen Stand vor Umsetzung:
-  - die relevanten Mitglieds-Unterpunkte waren im MAUI-Shell-/Flyout-Stand bereits mit `↳` konsistent dargestellt
-  - die optische Uneinheitlichkeit saß im WPF-Mitgliedsbereich in `MainWindowViewModel`
-  - dort liefen `Stammdaten`, `Arbeitsstunden`, `Dokumente` und `Admin-Menü` noch ohne denselben sichtbaren Stil wie `↳ Wartungsverträge`; `Benutzerverwaltung` war zwar bereits eingerückt, aber noch nicht mit demselben Präfix versehen
+  - die relevanten Mitglieds-Unterpunkte waren im MAUI-Shell-/Flyout-Stand bereits mit `â†³` konsistent dargestellt
+  - die optische Uneinheitlichkeit saÃŸ im WPF-Mitgliedsbereich in `MainWindowViewModel`
+  - dort liefen `Stammdaten`, `Arbeitsstunden`, `Dokumente` und `Admin-MenÃ¼` noch ohne denselben sichtbaren Stil wie `â†³ WartungsvertrÃ¤ge`; `Benutzerverwaltung` war zwar bereits eingerÃ¼ckt, aber noch nicht mit demselben PrÃ¤fix versehen
 - Den Korrekturblock deshalb bewusst klein und nur auf Optik/Labeling begrenzt umgesetzt:
   - in `KGV.Wpf/ViewModels/MainWindowViewModel.cs` die Mitglieds-Unterpunkte
     - `Stammdaten`
     - `Arbeitsstunden`
     - `Dokumente`
-    - `Admin-Menü`
+    - `Admin-MenÃ¼`
     - `Benutzerverwaltung`
-    jetzt mit demselben Symbol `↳` wie `Wartungsverträge` versehen
-  - dieselben fünf Unterpunkte zusätzlich auf dieselbe Einrückung/Margin wie `↳ Wartungsverträge` vereinheitlicht
-  - keine Änderung an Zielseiten, Routing, Rechtepfaden oder bestehender Sichtbarkeitslogik
-  - MAUI wurde nach echter Prüfung bewusst nicht geändert, weil der Shell-Stand dort für diese Unterpunkte bereits konsistent war
+    jetzt mit demselben Symbol `â†³` wie `WartungsvertrÃ¤ge` versehen
+  - dieselben fÃ¼nf Unterpunkte zusÃ¤tzlich auf dieselbe EinrÃ¼ckung/Margin wie `â†³ WartungsvertrÃ¤ge` vereinheitlicht
+  - keine Ã„nderung an Zielseiten, Routing, Rechtepfaden oder bestehender Sichtbarkeitslogik
+  - MAUI wurde nach echter PrÃ¼fung bewusst nicht geÃ¤ndert, weil der Shell-Stand dort fÃ¼r diese Unterpunkte bereits konsistent war
 - Technische Kurzvalidierung dieses Abschlusslaufs:
-  - `get_errors` auf `KGV.Wpf/ViewModels/MainWindowViewModel.cs` blieb unauffällig
+  - `get_errors` auf `KGV.Wpf/ViewModels/MainWindowViewModel.cs` blieb unauffÃ¤llig
   - passender WPF-Build `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
-  - der WPF-Build zeigte dabei nur bereits vorhandene Nullability-Warnungen in `KGV.Infrastructure/Services/SupabaseService.cs`, aber keinen blockierenden Fehler für diesen kleinen UI-Darstellungsblock
+  - der WPF-Build zeigte dabei nur bereits vorhandene Nullability-Warnungen in `KGV.Infrastructure/Services/SupabaseService.cs`, aber keinen blockierenden Fehler fÃ¼r diesen kleinen UI-Darstellungsblock
 - Fachlicher Abschlussstand von Prompt `1/1`:
-  - die genannten Mitglieds-Unterpunkte sind jetzt optisch einheitlich zum bestehenden Stil von `↳ Wartungsverträge`
+  - die genannten Mitglieds-Unterpunkte sind jetzt optisch einheitlich zum bestehenden Stil von `â†³ WartungsvertrÃ¤ge`
   - der Block bleibt ein reiner UI-/Darstellungsfix ohne neuen Fachumfang
 
-## 2026-03-27 – Prompt 1/1 Abschlusslauf: begonnenen WPF-Wartungsverträge-Bugfixblock geprüft, ehrlich fortgeschrieben und für sauberen Git-Abschluss eingegrenzt
+## 2026-03-27 â€“ Prompt 1/1 Abschlusslauf: begonnenen WPF-WartungsvertrÃ¤ge-Bugfixblock geprÃ¼ft, ehrlich fortgeschrieben und fÃ¼r sauberen Git-Abschluss eingegrenzt
 
-- Vor dem Abschlusslauf erneut nur den echten Repo-/Log-/Blockstand geprüft, ohne neuen Fachumfang zu eröffnen:
+- Vor dem Abschlusslauf erneut nur den echten Repo-/Log-/Blockstand geprÃ¼ft, ohne neuen Fachumfang zu erÃ¶ffnen:
   - `KGV_Fortschrittslog_ausfuehrlich.md`
   - `DEV_LOG.md`
-  - genau die ausdrücklich genannten Blockdateien:
+  - genau die ausdrÃ¼cklich genannten Blockdateien:
     - `KGV.Wpf/Views/WartungsvertraegeVerwaltungView.xaml`
     - `KGV.Wpf/Views/WartungsvertraegeVerwaltungView.xaml.cs`
     - `KGV.Wpf/ViewModels/WartungsvertragMitgliederZuordnungViewModel.cs`
     - `KGV.Infrastructure/Services/SupabaseService.cs`
   - gezielte Dateifehler auf genau diesen vier WPF-/Service-Dateien
-  - echter Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - echter Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
 - Ehrlicher Befund im Abschlusslauf:
-  - der kleine WPF-Wartungsverträge-Bugfixblock war in genau diesen Blockdateien bereits produktiv umgesetzt
-  - Doppelklick in der globalen Wartungsverträge-Liste öffnet jetzt denselben Detailpfad wie der vorhandene Button `Öffnen`
-  - die Sortierung im WPF-Mitgliederzuordnungsdialog läuft jetzt über Nachname/Vorname und nicht mehr nur über den zusammengebauten Anzeigenamen
+  - der kleine WPF-WartungsvertrÃ¤ge-Bugfixblock war in genau diesen Blockdateien bereits produktiv umgesetzt
+  - Doppelklick in der globalen WartungsvertrÃ¤ge-Liste Ã¶ffnet jetzt denselben Detailpfad wie der vorhandene Button `Ã–ffnen`
+  - die Sortierung im WPF-Mitgliederzuordnungsdialog lÃ¤uft jetzt Ã¼ber Nachname/Vorname und nicht mehr nur Ã¼ber den zusammengebauten Anzeigenamen
   - die echte Save-Ursache lag im Insertpfad `wartungsvertrag_zuordnungen`; dort werden `created_at` und `updated_at` im Produktivpfad jetzt gesetzt
-  - Postgrest-/DB-Details werden im direkt betroffenen Save-Fehlerpfad jetzt im Entwicklerlog aussagekräftiger sichtbar
-  - in genau diesen Blockdateien zeigte sich im aktuellen Stand kein zusätzlicher direkter Abschlussfehler mehr; deshalb wurde am Produktivcode dieses Abschlusslaufs nichts weiter geändert
+  - Postgrest-/DB-Details werden im direkt betroffenen Save-Fehlerpfad jetzt im Entwicklerlog aussagekrÃ¤ftiger sichtbar
+  - in genau diesen Blockdateien zeigte sich im aktuellen Stand kein zusÃ¤tzlicher direkter Abschlussfehler mehr; deshalb wurde am Produktivcode dieses Abschlusslaufs nichts weiter geÃ¤ndert
 - Technische Kurzvalidierung dieses Abschlusslaufs:
-  - `get_errors` auf den vier Blockdateien blieb unauffällig
+  - `get_errors` auf den vier Blockdateien blieb unauffÃ¤llig
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief im Abschlusslauf erfolgreich durch
-  - der WPF-Build zeigte dabei nur bereits vorhandene Nullability-Warnungen in `KGV.Infrastructure/Services/SupabaseService.cs`, aber keinen blockierenden Fehler für diesen kleinen Wartungsverträge-Abschlussblock
+  - der WPF-Build zeigte dabei nur bereits vorhandene Nullability-Warnungen in `KGV.Infrastructure/Services/SupabaseService.cs`, aber keinen blockierenden Fehler fÃ¼r diesen kleinen WartungsvertrÃ¤ge-Abschlussblock
 - Fachlicher Abschlussstand von Prompt `1/1`:
-  - globaler WPF-Wartungsverträge-Pfad reagiert jetzt auch per Doppelklick konsistent auf denselben Detailweg wie `Öffnen`
+  - globaler WPF-WartungsvertrÃ¤ge-Pfad reagiert jetzt auch per Doppelklick konsistent auf denselben Detailweg wie `Ã–ffnen`
   - die WPF-Mitgliederzuordnung sortiert belastbar nach Nachname/Vorname
-  - die Save-Stabilisierung für `wartungsvertrag_zuordnungen` ist im Shared-Service auf dem echten Insertpfad vorhanden
-  - der kleine WPF-Wartungsverträge-Bugfixblock ist damit fachlich abgeschlossen; es wurde kein neuer Umfang außerhalb dieses begonnenen Blocks eröffnet
+  - die Save-Stabilisierung fÃ¼r `wartungsvertrag_zuordnungen` ist im Shared-Service auf dem echten Insertpfad vorhanden
+  - der kleine WPF-WartungsvertrÃ¤ge-Bugfixblock ist damit fachlich abgeschlossen; es wurde kein neuer Umfang auÃŸerhalb dieses begonnenen Blocks erÃ¶ffnet
 - Git-Abschluss dieses Laufs wird bewusst strikt eingegrenzt:
   - nur die echten vier Blockdateien plus `DEV_LOG.md` und `KGV_Fortschrittslog_ausfuehrlich.md` werden in den Abschluss aufgenommen
-  - blockfremde offene WPF-/MAUI-/Supabase-/Artefaktdateien bleiben ausdrücklich außerhalb dieses Commitabschlusses
+  - blockfremde offene WPF-/MAUI-/Supabase-/Artefaktdateien bleiben ausdrÃ¼cklich auÃŸerhalb dieses Commitabschlusses
 
-## 2026-03-27 – Prompt 3/3 Abschlusslauf: begonnenen mitgliedsbezogenen Wartungsverträge-Block geprüft, ehrlich fortgeschrieben und für sauberen Git-Abschluss eingegrenzt
+## 2026-03-27 â€“ Prompt 3/3 Abschlusslauf: begonnenen mitgliedsbezogenen WartungsvertrÃ¤ge-Block geprÃ¼ft, ehrlich fortgeschrieben und fÃ¼r sauberen Git-Abschluss eingegrenzt
 
-- Vor dem Abschlusslauf erneut nur den echten Repo-/Log-/Blockstand geprüft, ohne neuen Fachumfang zu eröffnen:
+- Vor dem Abschlusslauf erneut nur den echten Repo-/Log-/Blockstand geprÃ¼ft, ohne neuen Fachumfang zu erÃ¶ffnen:
   - `KGV_Fortschrittslog_ausfuehrlich.md`
   - `DEV_LOG.md`
-  - genau die ausdrücklich genannten Blockdateien:
+  - genau die ausdrÃ¼cklich genannten Blockdateien:
     - `KGV.Core/Interfaces/ISupabaseService.cs`
     - `KGV.Core/Models/MemberWartungsvertragItem.cs`
     - `KGV.Infrastructure/Services/SupabaseService.cs`
@@ -2316,19 +2355,19 @@
     - `KGV.Maui/Pages/MemberWartungsvertraegePage.cs`
   - gezielte Dateifehler auf genau diesen sechs Blockdateien
   - `get_tests` mit Bezug auf `Wartungsvertrag`
-  - echter Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - echter Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
 - Ehrlicher Befund im Abschlusslauf:
-  - der mitgliedsbezogene Wartungsverträge-Flow war in genau diesen Blockdateien bereits produktiv vorhanden
-  - ergänzt sind im Shared-Service bereits die echten Pfade für:
-    - freie Wartungsverträge je Mitglied
+  - der mitgliedsbezogene WartungsvertrÃ¤ge-Flow war in genau diesen Blockdateien bereits produktiv vorhanden
+  - ergÃ¤nzt sind im Shared-Service bereits die echten Pfade fÃ¼r:
+    - freie WartungsvertrÃ¤ge je Mitglied
     - Zuweisen an genau ein Mitglied
-    - Beenden bestehender Zuordnungen über `gueltig_bis`
+    - Beenden bestehender Zuordnungen Ã¼ber `gueltig_bis`
   - `MemberWartungsvertraegeViewModel` / `MemberWartungsvertraegeView` bilden den produktiven WPF-Mitgliedspfad bereits ab
   - `MemberWartungsvertraegePage` bildet denselben mitgliedsbezogenen Flow in MAUI bereits produktiv ab
-  - in genau diesen Blockdateien zeigte sich im aktuellen Stand kein zusätzlicher direkter Abschlussfehler mehr
-  - deshalb wurde am Produktivcode dieses Prompt-3/3-Blocks nichts weiter geändert; nachgezogen wurden nur die Abschlusslogs
+  - in genau diesen Blockdateien zeigte sich im aktuellen Stand kein zusÃ¤tzlicher direkter Abschlussfehler mehr
+  - deshalb wurde am Produktivcode dieses Prompt-3/3-Blocks nichts weiter geÃ¤ndert; nachgezogen wurden nur die Abschlusslogs
 - Technische Kurzvalidierung dieses Abschlusslaufs:
-  - `get_errors` auf den sechs Blockdateien blieb unauffällig
+  - `get_errors` auf den sechs Blockdateien blieb unauffÃ¤llig
   - `get_tests` mit Bezug auf `Wartungsvertrag` lieferte weiterhin keinen passenden Testfall
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erneut erfolgreich durch
   - `dotnet build KGV.Maui/KGV.Maui.csproj` blieb im aktuellen Workspace nur blockfremd rot in:
@@ -2337,31 +2376,31 @@
     - `KGV.Maui/Pages/AblesungErfassenPage.cs`
     - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
     - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
-  - diese MAUI-Fehler wurden in diesem Abschlusslauf ausdrücklich nur dokumentiert und nicht in den Wartungsverträge-Block hineingezogen
+  - diese MAUI-Fehler wurden in diesem Abschlusslauf ausdrÃ¼cklich nur dokumentiert und nicht in den WartungsvertrÃ¤ge-Block hineingezogen
 - Fachlicher Abschlussstand von Prompt `3/3`:
   - mitgliedsbezogene WPF-Verwaltung bietet im bestehenden Mitgliedspfad produktiv:
-    - aktive Wartungsverträge laden
-    - freie Wartungsverträge dem Mitglied zuweisen
+    - aktive WartungsvertrÃ¤ge laden
+    - freie WartungsvertrÃ¤ge dem Mitglied zuweisen
     - bestehende Zuordnungen beenden
   - mitgliedsbezogene MAUI-Verwaltung bietet im bestehenden Mitgliedspfad produktiv denselben Funktionsumfang
-  - der mitgliedsbezogene Wartungsverträge-Flow ist damit fachlich abgeschlossen; es wurde kein neuer Umfang außerhalb des begonnenen Prompt-3/3-Blocks eröffnet
+  - der mitgliedsbezogene WartungsvertrÃ¤ge-Flow ist damit fachlich abgeschlossen; es wurde kein neuer Umfang auÃŸerhalb des begonnenen Prompt-3/3-Blocks erÃ¶ffnet
 - Git-Abschluss dieses Laufs wird bewusst strikt eingegrenzt:
   - nur die echten Prompt-3/3-Blockdateien plus die beiden Logdateien werden in den Abschluss aufgenommen
-  - blockfremde offene WPF-/MAUI-/Supabase-/Artefaktdateien bleiben ausdrücklich außerhalb dieses Commitabschlusses
+  - blockfremde offene WPF-/MAUI-/Supabase-/Artefaktdateien bleiben ausdrÃ¼cklich auÃŸerhalb dieses Commitabschlusses
 
-## 2026-03-27 – Prompt 2/3 Abschlusslauf: vorhandenen Wartungsverträge-Blockcommit geprüft und sauber nach `origin/main` gebracht
+## 2026-03-27 â€“ Prompt 2/3 Abschlusslauf: vorhandenen WartungsvertrÃ¤ge-Blockcommit geprÃ¼ft und sauber nach `origin/main` gebracht
 
-- Vor dem Abschluss erneut nur den echten Git-/Blockstand geprüft, ohne neue Facharbeit zu eröffnen:
-  - Git ausdrücklich über `C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe`
+- Vor dem Abschluss erneut nur den echten Git-/Blockstand geprÃ¼ft, ohne neue Facharbeit zu erÃ¶ffnen:
+  - Git ausdrÃ¼cklich Ã¼ber `C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe`
   - aktueller Branch `main`
   - `git status --short --branch`
   - Verifikation, dass `74d0f72` lokal existiert und `HEAD` auf diesem Commit liegt
   - Vergleich `origin/main...HEAD`
 - Ehrlicher Befund im Abschlusslauf:
-  - `74d0f72` enthielt den begonnenen Wartungsverträge-Prompt-2/3-Block bereits belastbar
-  - die ausdrücklich genannten Blockdateien lieferten im aktuellen Stand keinen zusätzlichen Abschlussfehler
-  - deshalb wurden keine weiteren Codeänderungen am Wartungsverträge-Block vorgenommen
-  - im Arbeitsbaum lagen weiterhin blockfremde offene Änderungen, die bewusst nicht in diesen Abschluss gezogen wurden
+  - `74d0f72` enthielt den begonnenen WartungsvertrÃ¤ge-Prompt-2/3-Block bereits belastbar
+  - die ausdrÃ¼cklich genannten Blockdateien lieferten im aktuellen Stand keinen zusÃ¤tzlichen Abschlussfehler
+  - deshalb wurden keine weiteren CodeÃ¤nderungen am WartungsvertrÃ¤ge-Block vorgenommen
+  - im Arbeitsbaum lagen weiterhin blockfremde offene Ã„nderungen, die bewusst nicht in diesen Abschluss gezogen wurden
 - Dateibezogene Kurzvalidierung im Abschlusslauf:
   - gezielte Dateifehler auf
     - `KGV.Wpf/ViewModels/WartungsvertraegeVerwaltungViewModel.cs`
@@ -2371,23 +2410,23 @@
     - `KGV.Maui/Pages/WartungsvertraegePage.cs`
     - `KGV.Maui/Pages/WartungsvertragDetailPage.cs`
     - `KGV.Maui/Pages/WartungsvertragAssignMembersPage.cs`
-    blieben unauffällig
-- Buildstatus im Abschlusslauf bewusst nur ehrlich fortgeschrieben, nicht neu zum Reparaturblock geöffnet:
-  - WPF bleibt im zuletzt verifizierten Stand grün
-  - MAUI bleibt für diesen Abschlusslauf blockfremd außerhalb des Wartungsverträge-Blocks rot in:
+    blieben unauffÃ¤llig
+- Buildstatus im Abschlusslauf bewusst nur ehrlich fortgeschrieben, nicht neu zum Reparaturblock geÃ¶ffnet:
+  - WPF bleibt im zuletzt verifizierten Stand grÃ¼n
+  - MAUI bleibt fÃ¼r diesen Abschlusslauf blockfremd auÃŸerhalb des WartungsvertrÃ¤ge-Blocks rot in:
     - `KGV.Maui/App.xaml.cs`
     - `KGV.Maui/Settings/AppSettings.cs`
     - `KGV.Maui/Pages/AblesungErfassenPage.cs`
     - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
     - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
 - Git-Abschluss dieses Laufs:
-  - vorhandenen Commit `74d0f72` unverändert verwendet
+  - vorhandenen Commit `74d0f72` unverÃ¤ndert verwendet
   - erfolgreicher Push nach `origin/main`
   - Prompt `2/3` ist damit technisch und organisatorisch sauber abgeschlossen; Prompt `3/3` wurde nicht vorgezogen
 
-## 2026-03-27 – Prompt 2/3: begonnenen Block `globale Wartungsverträge-Verwaltung in WPF und MAUI` auf realem Zwischenstand sauber fertiggestellt
+## 2026-03-27 â€“ Prompt 2/3: begonnenen Block `globale WartungsvertrÃ¤ge-Verwaltung in WPF und MAUI` auf realem Zwischenstand sauber fertiggestellt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und genau die ausdrücklich genannten begonnenen Prompt-2/3-Dateien geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und genau die ausdrÃ¼cklich genannten begonnenen Prompt-2/3-Dateien geprÃ¼ft:
   - Shared/Core/Infrastructure:
     - `KGV.Core/Models/WartungsvertragAssignmentSaveResult.cs`
     - `KGV.Core/Interfaces/ISupabaseService.cs`
@@ -2419,26 +2458,26 @@
   - `get_tests` mit Bezug auf `Wartungsvertrag`
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj`
   - `dotnet build KGV.Maui/KGV.Maui.csproj`
-  - Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
 - Ehrlicher Befund im vorhandenen Zwischenstand vor Fertigstellung:
-  - die eigentlichen Shared-Servicepfade für Wartungsvertrag `Neu`, `Bearbeiten` und globale Mitgliederzuweisung waren bereits real angelegt
+  - die eigentlichen Shared-Servicepfade fÃ¼r Wartungsvertrag `Neu`, `Bearbeiten` und globale Mitgliederzuweisung waren bereits real angelegt
   - die WPF-Seiten `WartungsvertragEditor` und `WartungsvertragMitgliederZuordnung` waren im aktuellen Stand fachlich bereits weitgehend konsistent
   - der offene Rest lag vor allem im MAUI-Anschluss des begonnenen Blocks:
-    - `WartungsvertragEditorPage` und `WartungsvertragAssignMembersPage` existierten bereits, waren aber noch nicht vollständig über DI/Routing angebunden
+    - `WartungsvertragEditorPage` und `WartungsvertragAssignMembersPage` existierten bereits, waren aber noch nicht vollstÃ¤ndig Ã¼ber DI/Routing angebunden
     - `WartungsvertraegePage` bot noch keinen produktiven Einstieg `Neu`
-    - `WartungsvertragDetailPage` hatte den Verwaltungsblock noch nicht mit `Bearbeiten`, `Mitglieder zuweisen` und sicherem Reload nach Rückkehr abgeschlossen
+    - `WartungsvertragDetailPage` hatte den Verwaltungsblock noch nicht mit `Bearbeiten`, `Mitglieder zuweisen` und sicherem Reload nach RÃ¼ckkehr abgeschlossen
 - Den Abschluss deshalb bewusst klein und nur auf diese begonnenen Restpunkte begrenzt umgesetzt:
   - WPF:
-    - Verwaltungsbeschreibung von `WartungsvertraegeVerwaltungViewModel` auf den produktiven Verwaltungsstand geschärft
-    - `EditCommand`/`NewCommand`-Requery bei Auswahl- und Busy-Wechsel ergänzt, damit die Verwaltungsbuttons im begonnenen Block konsistent deaktiviert/aktiviert bleiben
+    - Verwaltungsbeschreibung von `WartungsvertraegeVerwaltungViewModel` auf den produktiven Verwaltungsstand geschÃ¤rft
+    - `EditCommand`/`NewCommand`-Requery bei Auswahl- und Busy-Wechsel ergÃ¤nzt, damit die Verwaltungsbuttons im begonnenen Block konsistent deaktiviert/aktiviert bleiben
     - `WartungsvertragDetailViewModel` sprachlich an den jetzt produktiven Verwaltungsstand angepasst
   - MAUI:
-    - `WartungsvertragEditorPage` und `WartungsvertragAssignMembersPage` über `MauiProgram` und `ShellRouteRegistrar` produktiv angebunden
-    - `WartungsvertraegePage` um den produktiven Einstieg `Neu` ergänzt
+    - `WartungsvertragEditorPage` und `WartungsvertragAssignMembersPage` Ã¼ber `MauiProgram` und `ShellRouteRegistrar` produktiv angebunden
+    - `WartungsvertraegePage` um den produktiven Einstieg `Neu` ergÃ¤nzt
     - die globale Detailnavigation aus `WartungsvertraegePage` markiert den Verwaltungsweg jetzt explizit mit `adminMode=1`, damit die begonnenen Verwaltungsaktionen nur im globalen Pfad erscheinen und nicht in Prompt `3/3` vorgezogen werden
-    - `WartungsvertragDetailPage` um `Bearbeiten` und `Mitglieder zuweisen` ergänzt
-    - `WartungsvertragDetailPage` lädt beim Wiedererscheinen jetzt konsequent erneut, damit `Belegt` / `Frei` / Mitgliederliste nach Speichern oder Zuordnung korrekt neu geladen werden
-    - Busy-/Aktionszustände in Übersicht, Detail und Zuweisung klein konsistent gehalten
+    - `WartungsvertragDetailPage` um `Bearbeiten` und `Mitglieder zuweisen` ergÃ¤nzt
+    - `WartungsvertragDetailPage` lÃ¤dt beim Wiedererscheinen jetzt konsequent erneut, damit `Belegt` / `Frei` / Mitgliederliste nach Speichern oder Zuordnung korrekt neu geladen werden
+    - Busy-/AktionszustÃ¤nde in Ãœbersicht, Detail und Zuweisung klein konsistent gehalten
 - Fachlicher Stand nach dem Abschluss des Prompt-2/3-Blocks:
   - globale WPF-Verwaltung bietet produktiv:
     - `Neu`
@@ -2448,31 +2487,31 @@
     - `Neu`
     - `Bearbeiten`
     - `Mitglieder zuweisen`
-  - Create läuft ohne fehlerhafte DB-ID
-  - Update läuft nur mit echter bestehender ID
-  - globale Mitgliederzuweisung verhindert doppelte aktive Zuweisungen und berücksichtigt `max_aktive_zuordnungen` weiter sauber im Shared-Service
-  - freie Plätze bleiben in WPF und MAUI sichtbar; zusätzliche Auswahl wird bei erreichtem Kontingent blockiert bzw. serverseitig abgefangen
-  - Rückkehr nach Speichern/Zuordnen führt wieder in die passende Detailansicht; Altzustände bleiben im Detailpfad nicht hängen
+  - Create lÃ¤uft ohne fehlerhafte DB-ID
+  - Update lÃ¤uft nur mit echter bestehender ID
+  - globale Mitgliederzuweisung verhindert doppelte aktive Zuweisungen und berÃ¼cksichtigt `max_aktive_zuordnungen` weiter sauber im Shared-Service
+  - freie PlÃ¤tze bleiben in WPF und MAUI sichtbar; zusÃ¤tzliche Auswahl wird bei erreichtem Kontingent blockiert bzw. serverseitig abgefangen
+  - RÃ¼ckkehr nach Speichern/Zuordnen fÃ¼hrt wieder in die passende Detailansicht; AltzustÃ¤nde bleiben im Detailpfad nicht hÃ¤ngen
 - Bewusste Fachgrenze dieses Abschlussblocks:
   - nicht vorgezogen wurden mitgliedsbezogene Zuweisungswege aus der Mitgliedsansicht
   - nicht vorgezogen wurden Historienverwaltung / Beenden bestehender Zuordnungen
   - nicht vorgezogen wurden Massenoperationen
-  - Prompt `3/3` bleibt damit ausdrücklich offen
+  - Prompt `3/3` bleibt damit ausdrÃ¼cklich offen
 - Technische Verifikation nach dem Abschlussblock:
-  - `get_errors` auf den direkt geänderten Blockdateien blieb unauffällig
+  - `get_errors` auf den direkt geÃ¤nderten Blockdateien blieb unauffÃ¤llig
   - `get_tests` mit Bezug auf `Wartungsvertrag` lieferte weiterhin keinen passenden Testfall
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief erfolgreich durch
-  - `dotnet build KGV.Maui/KGV.Maui.csproj` blieb im aktuellen Workspace nicht grün, aber blockfremd an bereits offenen Fehlern in:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` blieb im aktuellen Workspace nicht grÃ¼n, aber blockfremd an bereits offenen Fehlern in:
     - `KGV.Maui/App.xaml.cs`
     - `KGV.Maui/Settings/AppSettings.cs`
     - `KGV.Maui/Pages/AblesungErfassenPage.cs`
     - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
     - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
-  - die direkt geänderten Wartungsverträge-Dateien selbst blieben dateibezogen fehlerfrei
+  - die direkt geÃ¤nderten WartungsvertrÃ¤ge-Dateien selbst blieben dateibezogen fehlerfrei
 
-## 2026-03-27 – Prompt 1/3 Abschlusslauf: Block `Wartungsverträge als produktive Lese-/Navigationsbasis in WPF und MAUI` technisch sauber abgeschlossen
+## 2026-03-27 â€“ Prompt 1/3 Abschlusslauf: Block `WartungsvertrÃ¤ge als produktive Lese-/Navigationsbasis in WPF und MAUI` technisch sauber abgeschlossen
 
-- Vor dem Abschlusslauf erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausschließlich die bereits zum Wartungsverträge-Basisblock gehörenden Dateien geprüft:
+- Vor dem Abschlusslauf erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausschlieÃŸlich die bereits zum WartungsvertrÃ¤ge-Basisblock gehÃ¶renden Dateien geprÃ¼ft:
   - Shared/Core/Infrastructure:
     - `KGV.Core/Interfaces/ISupabaseService.cs`
     - `KGV.Infrastructure/Services/SupabaseService.cs`
@@ -2504,38 +2543,38 @@
   - `get_tests` mit Bezug auf `Wartungsvertrag`
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj`
   - `dotnet build KGV.Maui/KGV.Maui.csproj`
-  - Git-Status über den ausdrücklich vorgegebenen Visual-Studio-Git-Pfad
+  - Git-Status Ã¼ber den ausdrÃ¼cklich vorgegebenen Visual-Studio-Git-Pfad
 - Ehrlicher Befund im aktuellen Abschlussstand:
-  - die bereits im Block angelegten Lese-/Navigationspfade für Wartungsverträge sind im aktuellen Workspace technisch konsistent vorhanden:
-    - Shared-Servicepfade für globale Übersicht, Detail und mitgliedsbezogene Übersicht
-    - WPF-Navigation für globale Übersicht, Mitgliedskontext und Detailansicht
-    - MAUI-Navigation für globale Übersicht, Mitgliedskontext und Detailansicht
-  - gezielte Dateifehler auf den Blockdateien lieferten im aktuellen Stand keinen zusätzlichen direkt blockbezogenen Compilefehler mehr
+  - die bereits im Block angelegten Lese-/Navigationspfade fÃ¼r WartungsvertrÃ¤ge sind im aktuellen Workspace technisch konsistent vorhanden:
+    - Shared-Servicepfade fÃ¼r globale Ãœbersicht, Detail und mitgliedsbezogene Ãœbersicht
+    - WPF-Navigation fÃ¼r globale Ãœbersicht, Mitgliedskontext und Detailansicht
+    - MAUI-Navigation fÃ¼r globale Ãœbersicht, Mitgliedskontext und Detailansicht
+  - gezielte Dateifehler auf den Blockdateien lieferten im aktuellen Stand keinen zusÃ¤tzlichen direkt blockbezogenen Compilefehler mehr
   - in diesem Abschlusslauf mussten deshalb keine weiteren Quelltextkorrekturen an den Blockdateien vorgenommen werden
-  - `get_tests` lieferte aktuell keinen passenden Testfall mit Bezug auf `Wartungsvertrag`; ein ergänzender Testlauf war daher nicht möglich
-  - blockfremde bereits vorhandene Änderungen im Arbeitsbaum wurden bewusst nicht in diesen Abschlussblock hineingezogen
+  - `get_tests` lieferte aktuell keinen passenden Testfall mit Bezug auf `Wartungsvertrag`; ein ergÃ¤nzender Testlauf war daher nicht mÃ¶glich
+  - blockfremde bereits vorhandene Ã„nderungen im Arbeitsbaum wurden bewusst nicht in diesen Abschlussblock hineingezogen
 - Technische Verifikation nach dem Abschlusslauf:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief im aktuellen Workspace erfolgreich durch
   - `dotnet build KGV.Maui/KGV.Maui.csproj` lief im aktuellen Workspace erfolgreich durch
-  - der MAUI-Build enthält im aktuellen Stand weiterhin bereits vorhandene Nullable-Warnungen in anderen Bereichen, aber keine blockierende Fehlermeldung für diesen Wartungsverträge-Basisblock
+  - der MAUI-Build enthÃ¤lt im aktuellen Stand weiterhin bereits vorhandene Nullable-Warnungen in anderen Bereichen, aber keine blockierende Fehlermeldung fÃ¼r diesen WartungsvertrÃ¤ge-Basisblock
 - Finaler Stand des Blocks:
-  - globale WPF-ReadOnly-Übersicht `Wartungsverträge` ist im Hauptnavigationspfad verdrahtet
-  - mitgliedsbezogene WPF-ReadOnly-Übersicht `↳ Wartungsverträge` ist im Mitgliedskontext verdrahtet
-  - gemeinsame WPF-Detailansicht für Wartungsverträge ist produktiv erreichbar
-  - globale MAUI-ReadOnly-Übersicht `Wartungsverträge` ist für Admin/Vorstand erreichbar
-  - mitgliedsbezogene MAUI-ReadOnly-Übersicht ist im Mitgliedskontext erreichbar
-  - gemeinsame MAUI-Detailansicht für Wartungsverträge ist aus beiden Listen erreichbar
-  - Shared-Modelle und Servicepfade liefern dafür die produktive Lesegrundlage
+  - globale WPF-ReadOnly-Ãœbersicht `WartungsvertrÃ¤ge` ist im Hauptnavigationspfad verdrahtet
+  - mitgliedsbezogene WPF-ReadOnly-Ãœbersicht `â†³ WartungsvertrÃ¤ge` ist im Mitgliedskontext verdrahtet
+  - gemeinsame WPF-Detailansicht fÃ¼r WartungsvertrÃ¤ge ist produktiv erreichbar
+  - globale MAUI-ReadOnly-Ãœbersicht `WartungsvertrÃ¤ge` ist fÃ¼r Admin/Vorstand erreichbar
+  - mitgliedsbezogene MAUI-ReadOnly-Ãœbersicht ist im Mitgliedskontext erreichbar
+  - gemeinsame MAUI-Detailansicht fÃ¼r WartungsvertrÃ¤ge ist aus beiden Listen erreichbar
+  - Shared-Modelle und Servicepfade liefern dafÃ¼r die produktive Lesegrundlage
 - Bewusste fachliche Abgrenzung dieses Abschlusslaufs:
-  - nicht vorgezogen wurden Neu/Bearbeiten von Wartungsverträgen
+  - nicht vorgezogen wurden Neu/Bearbeiten von WartungsvertrÃ¤gen
   - nicht vorgezogen wurden Mitgliederzuweisungen per Checkbox
   - nicht vorgezogen wurde Historienbearbeitung
   - nicht vorgezogen wurde Kontingent-Auswahllogik
   - Prompt `2/3` und Prompt `3/3` bleiben damit bewusst offen und sind in diesem Abschlusslauf nicht neu umgesetzt worden
 
-## 2026-03-27 – Prompt 2/3: MAUI-Menüpunkt `Wartungsverträge` wieder in die Navigation aufgenommen, fachlich über vorhandenen Mitgliedskontext
+## 2026-03-27 â€“ Prompt 2/3: MAUI-MenÃ¼punkt `WartungsvertrÃ¤ge` wieder in die Navigation aufgenommen, fachlich Ã¼ber vorhandenen Mitgliedskontext
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrücklich nur die fachlich nötigen WPF-Referenz- sowie direkt betroffenen MAUI-Dateien geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrÃ¼cklich nur die fachlich nÃ¶tigen WPF-Referenz- sowie direkt betroffenen MAUI-Dateien geprÃ¼ft:
   - WPF nur lesend als fachliche Referenz:
     - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
     - `KGV.Wpf/ViewModels/MemberWartungsvertraegeViewModel.cs`
@@ -2552,28 +2591,28 @@
   - Git-Status nur zur Blockeingrenzung, ohne blockfremde Dateien anzufassen
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen Stand vor Umsetzung:
-  - in WPF existieren für `Wartungsverträge` im aktuellen Stand zwar weiterhin die Placeholder `MemberWartungsvertraegeViewModel` und `WartungsvertraegeVerwaltungViewModel`, aber kein eigener produktiv verdrahteter Hauptnavigationspunkt
-  - fachlich ist `Wartungsverträge` in WPF damit näher am Mitgliedskontext als an einem freien globalen Root-Menü verortet
-  - in MAUI existierte aktuell ebenfalls keine eigene `Wartungsverträge`-Seite und keine separate Route dafür
-  - der belastbare bestehende mobile Produktivpfad war aber bereits vorhanden: `MeineDatenPage` zeigt die Sektion `Wartungsverträge / Pflichtstunden` auf Basis des vorhandenen Shared-Servicepfads
-  - der fehlende Teil war damit nicht Fachlogik oder eine neue Zielseite, sondern nur der saubere Navigationseintrag zurück in den vorhandenen Kontextpfad
+  - in WPF existieren fÃ¼r `WartungsvertrÃ¤ge` im aktuellen Stand zwar weiterhin die Placeholder `MemberWartungsvertraegeViewModel` und `WartungsvertraegeVerwaltungViewModel`, aber kein eigener produktiv verdrahteter Hauptnavigationspunkt
+  - fachlich ist `WartungsvertrÃ¤ge` in WPF damit nÃ¤her am Mitgliedskontext als an einem freien globalen Root-MenÃ¼ verortet
+  - in MAUI existierte aktuell ebenfalls keine eigene `WartungsvertrÃ¤ge`-Seite und keine separate Route dafÃ¼r
+  - der belastbare bestehende mobile Produktivpfad war aber bereits vorhanden: `MeineDatenPage` zeigt die Sektion `WartungsvertrÃ¤ge / Pflichtstunden` auf Basis des vorhandenen Shared-Servicepfads
+  - der fehlende Teil war damit nicht Fachlogik oder eine neue Zielseite, sondern nur der saubere Navigationseintrag zurÃ¼ck in den vorhandenen Kontextpfad
 - Den Korrekturblock deshalb bewusst klein und nur im MAUI-Navigationspfad umgesetzt:
-  - in `KGV.Maui/AdminShell.cs` unter dem ausgewählten Mitgliedskontext den Menüpunkt `↳ Wartungsverträge` ergänzt
-  - in `KGV.Maui/UserShell.cs` im eigenen Mitgliedskontext den Menüpunkt `↳ Wartungsverträge` ergänzt
-  - beide Menüeinträge verwenden bewusst die bereits vorhandene Zielseite `MeineDatenPage`
-  - keine neue Dummy-Seite, keine neue Shell-Route und keinen größeren Flyout-Umbau gestartet
+  - in `KGV.Maui/AdminShell.cs` unter dem ausgewÃ¤hlten Mitgliedskontext den MenÃ¼punkt `â†³ WartungsvertrÃ¤ge` ergÃ¤nzt
+  - in `KGV.Maui/UserShell.cs` im eigenen Mitgliedskontext den MenÃ¼punkt `â†³ WartungsvertrÃ¤ge` ergÃ¤nzt
+  - beide MenÃ¼eintrÃ¤ge verwenden bewusst die bereits vorhandene Zielseite `MeineDatenPage`
+  - keine neue Dummy-Seite, keine neue Shell-Route und keinen grÃ¶ÃŸeren Flyout-Umbau gestartet
   - Rollen-/Kontextsichtbarkeit bewusst am vorhandenen Produktivpfad gehalten:
-    - Admin/Vorstand sehen den Punkt im ausgewählten Mitgliedskontext
+    - Admin/Vorstand sehen den Punkt im ausgewÃ¤hlten Mitgliedskontext
     - User sehen den Punkt im eigenen Mitgliedskontext
-  - keine Rechte aufgeweicht und keine Rückkehr zu alten unpassenden Rootpfaden erzeugt
+  - keine Rechte aufgeweicht und keine RÃ¼ckkehr zu alten unpassenden Rootpfaden erzeugt
 - Technische Verifikation nach dem Fix:
-  - `get_errors` auf den direkt betroffenen Navigationsdateien blieb nach der Korrektur unauffällig
-  - anschließender `dotnet build KGV.Maui/KGV.Maui.csproj` lief im aktuellen Workspace erfolgreich durch
-  - der MAUI-Gesamtbuild blieb mit diesem kleinen Navigationsblock grün
+  - `get_errors` auf den direkt betroffenen Navigationsdateien blieb nach der Korrektur unauffÃ¤llig
+  - anschlieÃŸender `dotnet build KGV.Maui/KGV.Maui.csproj` lief im aktuellen Workspace erfolgreich durch
+  - der MAUI-Gesamtbuild blieb mit diesem kleinen Navigationsblock grÃ¼n
 
-## 2026-03-27 – Prompt 1/3: Neuen blockfremden MAUI-Compile-Rest in `ShellRouteRegistrar`, `MemberSearchViewModel`, `AblesenOverviewPage`, `ArbeitseinsaetzeManagementPage`, `BekanntmachungenManagementPage`, `MemberSearchPage.xaml.cs` und `TermineManagementPage` gezielt bereinigt
+## 2026-03-27 â€“ Prompt 1/3: Neuen blockfremden MAUI-Compile-Rest in `ShellRouteRegistrar`, `MemberSearchViewModel`, `AblesenOverviewPage`, `ArbeitseinsaetzeManagementPage`, `BekanntmachungenManagementPage`, `MemberSearchPage.xaml.cs` und `TermineManagementPage` gezielt bereinigt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrücklich nur den direkt betroffenen MAUI-Pfad geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrÃ¼cklich nur den direkt betroffenen MAUI-Pfad geprÃ¼ft:
   - `KGV.Maui/ShellRouteRegistrar.cs`
   - `KGV.Maui/ViewModels/MemberSearchViewModel.cs`
   - `KGV.Maui/Pages/AblesenOverviewPage.cs`
@@ -2582,72 +2621,72 @@
   - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
   - `KGV.Maui/Pages/MemberSearchPage.xaml`
   - `KGV.Maui/Pages/TermineManagementPage.cs`
-  - gezielte Dateifehler für genau diese MAUI-Dateien
+  - gezielte Dateifehler fÃ¼r genau diese MAUI-Dateien
   - `dotnet build KGV.Maui/KGV.Maui.csproj`
   - Git-Status nur zur Blockeingrenzung, ohne blockfremde Dateien anzufassen
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen Stand vor Umsetzung:
-  - die sichtbaren Fehler lagen erneut nicht in Fachlogik, sondern in fehlenden aktiven MAUI-Control-/System-Usings und dadurch fehlenden Typauflösungen
-  - betroffen waren dort u. a. Typauflösungen für:
+  - die sichtbaren Fehler lagen erneut nicht in Fachlogik, sondern in fehlenden aktiven MAUI-Control-/System-Usings und dadurch fehlenden TypauflÃ¶sungen
+  - betroffen waren dort u. a. TypauflÃ¶sungen fÃ¼r:
     - `Routing`
     - `Command`
     - `Shell`
     - `LineBreakMode`
     - `CornerRadius`
   - `ShellRouteRegistrar.cs`, `MemberSearchViewModel.cs`, `AblesenOverviewPage.cs` sowie die drei Managementseiten liegen im aktiven Stand als normale C#-MAUI-Dateien vor; die Ursache lag dort in fehlenden Usings
-  - `MemberSearchPage.xaml.cs` wurde ausdrücklich zusammen mit `MemberSearchPage.xaml` geprüft; `x:Class`, Namespace, Basistyp und Code-Behind-Vertrag passen im aktuellen Stand zusammen, `InitializeComponent` war damit aktuell nicht mehr der Fehlerursprung
+  - `MemberSearchPage.xaml.cs` wurde ausdrÃ¼cklich zusammen mit `MemberSearchPage.xaml` geprÃ¼ft; `x:Class`, Namespace, Basistyp und Code-Behind-Vertrag passen im aktuellen Stand zusammen, `InitializeComponent` war damit aktuell nicht mehr der Fehlerursprung
 - Den Korrekturblock deshalb bewusst klein und nur auf die Compile-Ursachen begrenzt umgesetzt:
-  - in `KGV.Maui/ShellRouteRegistrar.cs` `using Microsoft.Maui.Controls` ergänzt
-  - in `KGV.Maui/ViewModels/MemberSearchViewModel.cs` `using Microsoft.Maui.Controls` ergänzt
-  - in `KGV.Maui/Pages/AblesenOverviewPage.cs` `using Microsoft.Maui` ergänzt
-  - in `KGV.Maui/Pages/ArbeitseinsaetzeManagementPage.cs` `using Microsoft.Maui.Controls` ergänzt
-  - in `KGV.Maui/Pages/BekanntmachungenManagementPage.cs` `using Microsoft.Maui.Controls` ergänzt
-  - in `KGV.Maui/Pages/TermineManagementPage.cs` `using Microsoft.Maui.Controls` ergänzt
-  - an `MemberSearchPage.xaml.cs` und `MemberSearchPage.xaml` keinen künstlichen XAML-/Code-Behind-Umbau gestartet, weil der Vertrag dort im aktuellen Stand bereits konsistent ist
-  - keine Fachlogik, keine Rechte-Logik, keine Navigation und keine CRUD-/Supabase-Pfade verändert
+  - in `KGV.Maui/ShellRouteRegistrar.cs` `using Microsoft.Maui.Controls` ergÃ¤nzt
+  - in `KGV.Maui/ViewModels/MemberSearchViewModel.cs` `using Microsoft.Maui.Controls` ergÃ¤nzt
+  - in `KGV.Maui/Pages/AblesenOverviewPage.cs` `using Microsoft.Maui` ergÃ¤nzt
+  - in `KGV.Maui/Pages/ArbeitseinsaetzeManagementPage.cs` `using Microsoft.Maui.Controls` ergÃ¤nzt
+  - in `KGV.Maui/Pages/BekanntmachungenManagementPage.cs` `using Microsoft.Maui.Controls` ergÃ¤nzt
+  - in `KGV.Maui/Pages/TermineManagementPage.cs` `using Microsoft.Maui.Controls` ergÃ¤nzt
+  - an `MemberSearchPage.xaml.cs` und `MemberSearchPage.xaml` keinen kÃ¼nstlichen XAML-/Code-Behind-Umbau gestartet, weil der Vertrag dort im aktuellen Stand bereits konsistent ist
+  - keine Fachlogik, keine Rechte-Logik, keine Navigation und keine CRUD-/Supabase-Pfade verÃ¤ndert
 - Technische Verifikation nach dem Fix:
-  - `get_errors` auf den sieben Zielpfaden blieb nach der Korrektur unauffällig
+  - `get_errors` auf den sieben Zielpfaden blieb nach der Korrektur unauffÃ¤llig
   - die Zielpfade sind damit dateibezogen compile-seitig bereinigt
-  - anschließender `dotnet build KGV.Maui/KGV.Maui.csproj` lief im aktuellen Workspace wieder erfolgreich durch
-  - der MAUI-Gesamtbuild ist mit diesem kleinen Compileblock wieder grün
+  - anschlieÃŸender `dotnet build KGV.Maui/KGV.Maui.csproj` lief im aktuellen Workspace wieder erfolgreich durch
+  - der MAUI-Gesamtbuild ist mit diesem kleinen Compileblock wieder grÃ¼n
 
-## 2026-03-27 – Prompt 1/3: Blockfremden MAUI-Startup-Compilefehlerstand in `MauiProgram`, `App.xaml.cs` und `MainApplication` gezielt bereinigt
+## 2026-03-27 â€“ Prompt 1/3: Blockfremden MAUI-Startup-Compilefehlerstand in `MauiProgram`, `App.xaml.cs` und `MainApplication` gezielt bereinigt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrücklich nur den direkt betroffenen MAUI-Startup-Pfad geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrÃ¼cklich nur den direkt betroffenen MAUI-Startup-Pfad geprÃ¼ft:
   - `KGV.Maui/MauiProgram.cs`
   - `KGV.Maui/App.xaml.cs`
   - `KGV.Maui/MainApplication.cs`
-  - gezielte Dateifehler für genau diese drei Startup-Dateien
+  - gezielte Dateifehler fÃ¼r genau diese drei Startup-Dateien
   - `dotnet build KGV.Maui/KGV.Maui.csproj`
   - Git-Status nur zur Blockeingrenzung, ohne blockfremde Dateien anzufassen
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen Stand vor Umsetzung:
   - die sichtbaren Fehler in genau diesen drei Dateien lagen nicht in Fachlogik, sondern in fehlenden aktiven MAUI-Startup-/Hosting-/Storage-/DI-Namespaces
-  - betroffen waren vor allem Typauflösungen für:
+  - betroffen waren vor allem TypauflÃ¶sungen fÃ¼r:
     - `MauiApp`
     - `IActivationState`
-    - dazu direkt benachbarte Startup-Bezüge wie `UseMauiApp(...)`, `FileSystem` und DI-Erweiterungen `AddSingleton(...)` / `AddTransient(...)`
-  - `MauiProgram.cs` fehlten im aktuellen Stand aktive Referenzen für Hosting, Storage und Dependency-Injection-Erweiterungen
-  - `App.xaml.cs` fehlte der aktive MAUI-Typbezug für `IActivationState`
-  - `MainApplication.cs` fehlte der aktive Hosting-Typbezug für `MauiApp`
+    - dazu direkt benachbarte Startup-BezÃ¼ge wie `UseMauiApp(...)`, `FileSystem` und DI-Erweiterungen `AddSingleton(...)` / `AddTransient(...)`
+  - `MauiProgram.cs` fehlten im aktuellen Stand aktive Referenzen fÃ¼r Hosting, Storage und Dependency-Injection-Erweiterungen
+  - `App.xaml.cs` fehlte der aktive MAUI-Typbezug fÃ¼r `IActivationState`
+  - `MainApplication.cs` fehlte der aktive Hosting-Typbezug fÃ¼r `MauiApp`
 - Den Korrekturblock deshalb bewusst klein und nur auf die Compile-Ursachen begrenzt umgesetzt:
-  - in `KGV.Maui/MauiProgram.cs` die fehlenden aktiven `using`-Direktiven für:
+  - in `KGV.Maui/MauiProgram.cs` die fehlenden aktiven `using`-Direktiven fÃ¼r:
     - `Microsoft.Extensions.DependencyInjection`
     - `Microsoft.Maui.Controls.Hosting`
     - `Microsoft.Maui.Hosting`
     - `Microsoft.Maui.Storage`
-    ergänzt
-  - in `KGV.Maui/App.xaml.cs` die fehlenden aktiven `using`-Direktiven für:
+    ergÃ¤nzt
+  - in `KGV.Maui/App.xaml.cs` die fehlenden aktiven `using`-Direktiven fÃ¼r:
     - `Microsoft.Maui`
     - `System`
     - `System.Threading.Tasks`
-    ergänzt
-  - in `KGV.Maui/MainApplication.cs` die fehlende aktive `using`-Direktive `Microsoft.Maui.Hosting` ergänzt
-  - keine Fachlogik, keine Navigation, keine Shell-/Routing-/CRUD-/Supabase-Pfade verändert
+    ergÃ¤nzt
+  - in `KGV.Maui/MainApplication.cs` die fehlende aktive `using`-Direktive `Microsoft.Maui.Hosting` ergÃ¤nzt
+  - keine Fachlogik, keine Navigation, keine Shell-/Routing-/CRUD-/Supabase-Pfade verÃ¤ndert
 - Technische Verifikation nach dem Fix:
-  - `get_errors` auf den drei direkt betroffenen Startup-Dateien blieb nach der Korrektur unauffällig
+  - `get_errors` auf den drei direkt betroffenen Startup-Dateien blieb nach der Korrektur unauffÃ¤llig
   - die drei Zielpfade sind damit dateibezogen compile-seitig bereinigt
-  - anschließender `dotnet build KGV.Maui/KGV.Maui.csproj` ist im aktuellen Workspace nicht grün geblieben
+  - anschlieÃŸender `dotnet build KGV.Maui/KGV.Maui.csproj` ist im aktuellen Workspace nicht grÃ¼n geblieben
   - der Gesamtbuild scheitert aktuell jetzt blockfremd an weiteren bereits offenen MAUI-Compilefehlern, u. a. in:
     - `KGV.Maui/ShellRouteRegistrar.cs`
     - `KGV.Maui/ViewModels/MemberSearchViewModel.cs`
@@ -2656,11 +2695,11 @@
     - `KGV.Maui/Pages/BekanntmachungenManagementPage.cs`
     - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
     - `KGV.Maui/Pages/TermineManagementPage.cs`
-  - diese blockfremden Fehler wurden in diesem kleinen Startup-Block ausdrücklich nur dokumentiert und nicht mit umgebaut
+  - diese blockfremden Fehler wurden in diesem kleinen Startup-Block ausdrÃ¼cklich nur dokumentiert und nicht mit umgebaut
 
-## 2026-03-27 – Prompt 1/1: MAUI-RFID-Flows fachlich auf `Scan-first` zurückgezogen und NFC-Einstellungsweg erhalten
+## 2026-03-27 â€“ Prompt 1/1: MAUI-RFID-Flows fachlich auf `Scan-first` zurÃ¼ckgezogen und NFC-Einstellungsweg erhalten
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrücklich nur die fachlich relevanten WPF-Referenz- sowie direkt betroffenen MAUI-Dateien geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrÃ¼cklich nur die fachlich relevanten WPF-Referenz- sowie direkt betroffenen MAUI-Dateien geprÃ¼ft:
   - WPF nur lesend als fachliche Referenz:
     - `KGV.Wpf/Views/AblesenOverviewView.xaml`
     - `KGV.Wpf/Views/ZaehlerwechselScanView.xaml`
@@ -2682,51 +2721,51 @@
   - Git-Status nur zur Blockeingrenzung, ohne blockfremde Dateien anzufassen
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen Stand vor Umsetzung:
-  - der aktive MAUI-Einstieg `RfidEinrichtenPage` war fachlich nicht mehr scan-first, weil bereits auf dem ersten Screen `Parzelle`, `Medium`, Prüfen und Speichern sichtbar waren
-  - der gemeinsame MAUI-Scanpfad `RfidScanWorkflowPage` zeigte für `Ablesen` und `Zählerwechsel` schon am Einstieg zusätzliche Kontext-/Fallback-Bereiche statt zuerst nur den Scan
-  - der bestehende NFC-aus-Hinweis mit der direkten Öffnung der NFC-Systemeinstellungen war im aktuellen MAUI-Pfad gut vorhanden und durfte nicht verloren gehen
-  - WPF diente in diesem Block nur als fachliche Referenz für den gewünschten Start über den Scan; es wurde kein WPF-Code geändert
-  - direkt benachbart lag in `AblesenOverviewPage.cs` zusätzlich ein gleichartiger MAUI-Compilefehler durch fehlende Usings vor; da die Seite direkt zum betroffenen RFID-Einstieg gehört, wurde dieser kleine Compilepunkt mitgenommen
+  - der aktive MAUI-Einstieg `RfidEinrichtenPage` war fachlich nicht mehr scan-first, weil bereits auf dem ersten Screen `Parzelle`, `Medium`, PrÃ¼fen und Speichern sichtbar waren
+  - der gemeinsame MAUI-Scanpfad `RfidScanWorkflowPage` zeigte fÃ¼r `Ablesen` und `ZÃ¤hlerwechsel` schon am Einstieg zusÃ¤tzliche Kontext-/Fallback-Bereiche statt zuerst nur den Scan
+  - der bestehende NFC-aus-Hinweis mit der direkten Ã–ffnung der NFC-Systemeinstellungen war im aktuellen MAUI-Pfad gut vorhanden und durfte nicht verloren gehen
+  - WPF diente in diesem Block nur als fachliche Referenz fÃ¼r den gewÃ¼nschten Start Ã¼ber den Scan; es wurde kein WPF-Code geÃ¤ndert
+  - direkt benachbart lag in `AblesenOverviewPage.cs` zusÃ¤tzlich ein gleichartiger MAUI-Compilefehler durch fehlende Usings vor; da die Seite direkt zum betroffenen RFID-Einstieg gehÃ¶rt, wurde dieser kleine Compilepunkt mitgenommen
 - Den Korrekturblock deshalb bewusst klein und nur auf die direkt betroffenen RFID-Flows begrenzt umgesetzt:
-  - `RfidEinrichtenViewModel` um einen vorgeschalteten Scan-/Existenzprüfungsschritt ergänzt:
-    - gescannte UID wird jetzt zuerst über den vorhandenen Produktivpfad `ResolveRfidScanContextAsync(...)` global geprüft
+  - `RfidEinrichtenViewModel` um einen vorgeschalteten Scan-/ExistenzprÃ¼fungsschritt ergÃ¤nzt:
+    - gescannte UID wird jetzt zuerst Ã¼ber den vorhandenen Produktivpfad `ResolveRfidScanContextAsync(...)` global geprÃ¼ft
     - ist der Tag bereits bekannt, erscheint eine klare Meldung und der normale Speichern-Flow bleibt gesperrt
-    - ist der Tag unbekannt, wird erst dann der zweite Schritt mit `Parzelle`, `Medium`, Prüfen und Speichern eingeblendet
-    - sichtbare Busy-/Statusmeldungen für `RFID wird geprüft.` und `RFID wird gespeichert.` ergänzt
-  - `RfidEinrichtenPage` fachlich auf scan-first zurückgezogen:
+    - ist der Tag unbekannt, wird erst dann der zweite Schritt mit `Parzelle`, `Medium`, PrÃ¼fen und Speichern eingeblendet
+    - sichtbare Busy-/Statusmeldungen fÃ¼r `RFID wird geprÃ¼ft.` und `RFID wird gespeichert.` ergÃ¤nzt
+  - `RfidEinrichtenPage` fachlich auf scan-first zurÃ¼ckgezogen:
     - erster Screen zeigt jetzt nur noch den Scanbereich
-    - der Zuordnungsbereich erscheint erst nach erfolgreicher Existenzprüfung für einen unbekannten Tag
-    - der vorhandene NFC-Hinweis und der Button `NFC-Einstellungen öffnen` blieben erhalten
-  - `RfidScanWorkflowPage` für `Ablesen` und `Zählerwechsel` so geschärft, dass am Einstieg nur noch der Scanbereich sichtbar ist; Kontext-/Entscheidungsbereich erscheint erst nach aufgelöstem Scan
-  - in `AblesenOverviewPage.cs` nur die fehlenden aktiven MAUI-/Graphics-/System-Usings ergänzt, weil die Seite unmittelbar zum betroffenen RFID-Einstieg gehört
-  - keine neue RFID-Architektur, keine neuen Seiten, keine Shell-/Routing-/Supabase-Umbauten und keine WPF-Änderung gestartet
+    - der Zuordnungsbereich erscheint erst nach erfolgreicher ExistenzprÃ¼fung fÃ¼r einen unbekannten Tag
+    - der vorhandene NFC-Hinweis und der Button `NFC-Einstellungen Ã¶ffnen` blieben erhalten
+  - `RfidScanWorkflowPage` fÃ¼r `Ablesen` und `ZÃ¤hlerwechsel` so geschÃ¤rft, dass am Einstieg nur noch der Scanbereich sichtbar ist; Kontext-/Entscheidungsbereich erscheint erst nach aufgelÃ¶stem Scan
+  - in `AblesenOverviewPage.cs` nur die fehlenden aktiven MAUI-/Graphics-/System-Usings ergÃ¤nzt, weil die Seite unmittelbar zum betroffenen RFID-Einstieg gehÃ¶rt
+  - keine neue RFID-Architektur, keine neuen Seiten, keine Shell-/Routing-/Supabase-Umbauten und keine WPF-Ã„nderung gestartet
 - Technische Verifikation nach dem Fix:
-  - `get_errors` auf den direkt betroffenen RFID-Dateien blieb nach der Korrektur unauffällig
+  - `get_errors` auf den direkt betroffenen RFID-Dateien blieb nach der Korrektur unauffÃ¤llig
   - die direkt betroffenen RFID-Dateien sind damit dateibezogen fehlerfrei
-  - anschließender `dotnet build KGV.Maui/KGV.Maui.csproj` ist im aktuellen Workspace nicht grün geblieben
-  - der Gesamtbuild scheitert aktuell blockfremd an bereits offenen bzw. neu außerhalb dieses RFID-Blocks sichtbaren MAUI-Compilefehlern in:
+  - anschlieÃŸender `dotnet build KGV.Maui/KGV.Maui.csproj` ist im aktuellen Workspace nicht grÃ¼n geblieben
+  - der Gesamtbuild scheitert aktuell blockfremd an bereits offenen bzw. neu auÃŸerhalb dieses RFID-Blocks sichtbaren MAUI-Compilefehlern in:
     - `KGV.Maui/MauiProgram.cs`
     - `KGV.Maui/App.xaml.cs`
     - `KGV.Maui/MainApplication.cs`
-  - im aktuellen Buildauszug fehlen dort u. a. Typauflösungen für `MauiApp` bzw. `IActivationState`
-  - diese blockfremden Fehler wurden in diesem kleinen RFID-Block ausdrücklich nur dokumentiert und nicht mit umgebaut
+  - im aktuellen Buildauszug fehlen dort u. a. TypauflÃ¶sungen fÃ¼r `MauiApp` bzw. `IActivationState`
+  - diese blockfremden Fehler wurden in diesem kleinen RFID-Block ausdrÃ¼cklich nur dokumentiert und nicht mit umgebaut
 
-## 2026-03-27 – Prompt 1/1: Neuen blockfremden MAUI-Compile-Rest in `ArbeitsstundenReviewPage`, `DokumentePage` und `ExportPage` gezielt bereinigt
+## 2026-03-27 â€“ Prompt 1/1: Neuen blockfremden MAUI-Compile-Rest in `ArbeitsstundenReviewPage`, `DokumentePage` und `ExportPage` gezielt bereinigt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrücklich nur den direkt betroffenen MAUI-Pfad geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md`, `.github/copilot-instructions.md` und ausdrÃ¼cklich nur den direkt betroffenen MAUI-Pfad geprÃ¼ft:
   - `KGV.Maui/Pages/ArbeitsstundenReviewPage.cs`
   - `KGV.Maui/Pages/DokumentePage.xaml`
   - `KGV.Maui/Pages/DokumentePage.xaml.cs`
   - `KGV.Maui/Pages/ExportPage.cs`
-  - gezielte Dateifehler für genau diese drei MAUI-Pfade
+  - gezielte Dateifehler fÃ¼r genau diese drei MAUI-Pfade
   - `dotnet build KGV.Maui/KGV.Maui.csproj`
   - Git-Status nur zur Blockeingrenzung, ohne blockfremde Dateien anzufassen
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen Stand vor Umsetzung:
   - `ArbeitsstundenReviewPage.cs` und `ExportPage.cs` liegen im aktiven Repo-Stand als code-only MAUI-Seiten vor
-  - `DokumentePage.xaml.cs` liegt im aktiven Stand trotz Dateiendung `.xaml.cs` faktisch ebenfalls als code-only-Seite vor; die direkt zugehörige `DokumentePage.xaml` ist aktuell leer und trägt keinen aktiven `x:Class`-/Basistyp-/Namespacevertrag
-  - die gemeldeten Compilefehler lagen erneut nicht in Fachlogik, sondern in fehlenden bzw. falschen aktiven MAUI-Namespacebezügen im Seitenmodell
-  - betroffen waren dort u. a. Typauflösungen für:
+  - `DokumentePage.xaml.cs` liegt im aktiven Stand trotz Dateiendung `.xaml.cs` faktisch ebenfalls als code-only-Seite vor; die direkt zugehÃ¶rige `DokumentePage.xaml` ist aktuell leer und trÃ¤gt keinen aktiven `x:Class`-/Basistyp-/Namespacevertrag
+  - die gemeldeten Compilefehler lagen erneut nicht in Fachlogik, sondern in fehlenden bzw. falschen aktiven MAUI-NamespacebezÃ¼gen im Seitenmodell
+  - betroffen waren dort u. a. TypauflÃ¶sungen fÃ¼r:
     - `ContentPage`
     - `CollectionView`
     - `Label`
@@ -2736,22 +2775,22 @@
     - `VerticalStackLayout`
     - `SelectionChangedEventArgs`
     - `IValueConverter`
-    - zusätzlich Hilfstypen wie `LineBreakMode`, `Colors`, `Thickness`, `FileSystem`, `ShareFileRequest` und `ShareFile`
+    - zusÃ¤tzlich Hilfstypen wie `LineBreakMode`, `Colors`, `Thickness`, `FileSystem`, `ShareFileRequest` und `ShareFile`
 - Den Korrekturblock deshalb bewusst klein und nur auf die Compile-Ursachen begrenzt umgesetzt:
-  - in `KGV.Maui/Pages/ArbeitsstundenReviewPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-/Collections-/Linq-/Tasks-Usings ergänzt
-  - in `KGV.Maui/Pages/DokumentePage.xaml.cs` die fehlenden aktiven MAUI-/ApplicationModel-/Graphics-/System-/Linq-/Tasks-Usings ergänzt
-  - in `KGV.Maui/Pages/ExportPage.cs` die fehlenden aktiven MAUI-/ApplicationModel-/DataTransfer-/Storage-/Graphics-/System-Usings ergänzt
-  - keine Fachlogik, keine Rechte-Logik, keine Navigation und keine CRUD-/Supabase-Pfade verändert
-  - bei `DokumentePage.xaml.cs` keinen künstlichen XAML-/Code-Behind-Umbau gestartet, weil die zugehörige `.xaml` im aktuellen Stand leer und nicht der Fehlerursprung ist
+  - in `KGV.Maui/Pages/ArbeitsstundenReviewPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-/Collections-/Linq-/Tasks-Usings ergÃ¤nzt
+  - in `KGV.Maui/Pages/DokumentePage.xaml.cs` die fehlenden aktiven MAUI-/ApplicationModel-/Graphics-/System-/Linq-/Tasks-Usings ergÃ¤nzt
+  - in `KGV.Maui/Pages/ExportPage.cs` die fehlenden aktiven MAUI-/ApplicationModel-/DataTransfer-/Storage-/Graphics-/System-Usings ergÃ¤nzt
+  - keine Fachlogik, keine Rechte-Logik, keine Navigation und keine CRUD-/Supabase-Pfade verÃ¤ndert
+  - bei `DokumentePage.xaml.cs` keinen kÃ¼nstlichen XAML-/Code-Behind-Umbau gestartet, weil die zugehÃ¶rige `.xaml` im aktuellen Stand leer und nicht der Fehlerursprung ist
 - Technische Verifikation nach dem Fix:
-  - `get_errors` auf den direkt betroffenen Dateien blieb nach der Korrektur unauffällig
+  - `get_errors` auf den direkt betroffenen Dateien blieb nach der Korrektur unauffÃ¤llig
   - die drei Zielpfade sind damit dateibezogen compile-seitig bereinigt
-  - anschließender `dotnet build KGV.Maui/KGV.Maui.csproj` lief im aktuellen Workspace wieder erfolgreich durch
-  - der MAUI-Gesamtbuild ist mit diesem kleinen Compileblock wieder grün
+  - anschlieÃŸender `dotnet build KGV.Maui/KGV.Maui.csproj` lief im aktuellen Workspace wieder erfolgreich durch
+  - der MAUI-Gesamtbuild ist mit diesem kleinen Compileblock wieder grÃ¼n
 
-## 2026-03-26 – Prompt 1/1: MAUI-Laufzeit-/Fachpfade nach grünem Build gezielt geprüft und im aktiven Home-/Detail-/Editorpfad minimal gehärtet
+## 2026-03-26 â€“ Prompt 1/1: MAUI-Laufzeit-/Fachpfade nach grÃ¼nem Build gezielt geprÃ¼ft und im aktiven Home-/Detail-/Editorpfad minimal gehÃ¤rtet
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrücklich nur die direkt betroffenen MAUI-/Core-/Infrastructure-Pfade geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrÃ¼cklich nur die direkt betroffenen MAUI-/Core-/Infrastructure-Pfade geprÃ¼ft:
   - `KGV.Maui/Pages/HomePage.xaml.cs`
   - `KGV.Maui/ViewModels/HomeViewModel.cs`
   - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
@@ -2764,53 +2803,53 @@
   - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
   - `KGV.Core/Interfaces/ISupabaseService.cs`
   - `KGV.Infrastructure/Services/SupabaseService.cs`
-  - gezielte Suchläufe auf `entryId=0`, `id = 0`, Delete-Pfade, `IsBusy`, Busy-Texte, `.Result` und `.Wait(`
+  - gezielte SuchlÃ¤ufe auf `entryId=0`, `id = 0`, Delete-Pfade, `IsBusy`, Busy-Texte, `.Result` und `.Wait(`
   - `dotnet build KGV.Maui/KGV.Maui.csproj`
   - Git-Status nur zur Blockeingrenzung, ohne blockfremde Dateien anzufassen
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen Stand vor Umsetzung:
-  - die aktiven Admin-/Vorstand-Aktionen `Neu`, `Bearbeiten` und `Löschen` sind im aktuellen mobilen Produktivpfad bereits auf derselben Detailseite `HomeSectionDetailPage` vorhanden; es war dafür kein neuer Admin-Sonderpfad nötig
+  - die aktiven Admin-/Vorstand-Aktionen `Neu`, `Bearbeiten` und `LÃ¶schen` sind im aktuellen mobilen Produktivpfad bereits auf derselben Detailseite `HomeSectionDetailPage` vorhanden; es war dafÃ¼r kein neuer Admin-Sonderpfad nÃ¶tig
   - der Startseiten-Schnellzugriff `Arbeitsstunde erfassen` ist im aktiven `HomePage`-/`HomeViewModel`-Pfad bereits sichtbar und auf den vorhandenen `ArbeitsstundenEditorPage`-Pfad verdrahtet
-  - die mobilen Editorpfade für `Bekanntmachungen`, `Termine`, `Arbeitseinsätze` und auch `Arbeitsstunden` bauten ihre Persistenzobjekte lokal weiterhin mit expliziten `Id = 0`-Zuweisungen auf, obwohl im Produktivpfad Neu-Anlage nur ohne DB-ID in den Insert laufen soll
-  - produktive Delete-Pfade für `Bekanntmachung`, `Termin` und `Arbeitseinsatz` sind im Shared-Service bereits vorhanden; im aktiven Detailpfad fehlte dort aber noch robuste Fehlerbehandlung bei Laufzeitfehlern
+  - die mobilen Editorpfade fÃ¼r `Bekanntmachungen`, `Termine`, `ArbeitseinsÃ¤tze` und auch `Arbeitsstunden` bauten ihre Persistenzobjekte lokal weiterhin mit expliziten `Id = 0`-Zuweisungen auf, obwohl im Produktivpfad Neu-Anlage nur ohne DB-ID in den Insert laufen soll
+  - produktive Delete-Pfade fÃ¼r `Bekanntmachung`, `Termin` und `Arbeitseinsatz` sind im Shared-Service bereits vorhanden; im aktiven Detailpfad fehlte dort aber noch robuste Fehlerbehandlung bei Laufzeitfehlern
   - sichtbare Busy-Texte waren im betroffenen MAUI-Pfad bereits teilweise vorhanden, aber nicht durchgehend an allen Save-/Delete-Aktionen der aktiven Editor- und Detailseiten sauber angeschlossen
-  - der direkte Suchlauf auf `.Result` und `.Wait(` über die direkt betroffenen MAUI-Dateien blieb leer
-  - ein CPU-Profiler-Lauf für das angefragte Trägheits-/ANR-Thema ließ sich im aktuellen Visual-Studio-Setup trotz zweitem Versuch nicht starten, weil die referenzierte `.diagsession` nicht gefunden wurde; der Performance-Teil war damit messtechnisch blockiert
+  - der direkte Suchlauf auf `.Result` und `.Wait(` Ã¼ber die direkt betroffenen MAUI-Dateien blieb leer
+  - ein CPU-Profiler-Lauf fÃ¼r das angefragte TrÃ¤gheits-/ANR-Thema lieÃŸ sich im aktuellen Visual-Studio-Setup trotz zweitem Versuch nicht starten, weil die referenzierte `.diagsession` nicht gefunden wurde; der Performance-Teil war damit messtechnisch blockiert
 - Den Korrekturblock deshalb bewusst klein und nur auf die direkt betroffenen Laufzeit-/Fachursachen begrenzt umgesetzt:
-  - in `KGV.Maui/Pages/BekanntmachungEditorPage.cs` den Save-Pfad sichtbar auf `Daten werden gespeichert.` gezogen, per `Task.Yield()` kurz an den Renderzyklus zurückgegeben und die explizite `Id = 0`-Initialisierung entfernt; eine `Id` wird jetzt nur noch im echten Bearbeiten-Modus gesetzt
-  - in `KGV.Maui/Pages/TermineEditorPage.cs` dieselbe Korrektur für Busy-Text, kurzes Render-Yield und saubere Unterscheidung `Neu` vs. `Bearbeiten` ohne blinde `Id = 0`-Zuweisung umgesetzt
-  - in `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs` die Record-Erzeugung ebenfalls von der expliziten `Id = 0`-Initialisierung gelöst; eine `Id` wird nur noch gesetzt, wenn tatsächlich ein bestehender Datensatz bearbeitet wird
+  - in `KGV.Maui/Pages/BekanntmachungEditorPage.cs` den Save-Pfad sichtbar auf `Daten werden gespeichert.` gezogen, per `Task.Yield()` kurz an den Renderzyklus zurÃ¼ckgegeben und die explizite `Id = 0`-Initialisierung entfernt; eine `Id` wird jetzt nur noch im echten Bearbeiten-Modus gesetzt
+  - in `KGV.Maui/Pages/TermineEditorPage.cs` dieselbe Korrektur fÃ¼r Busy-Text, kurzes Render-Yield und saubere Unterscheidung `Neu` vs. `Bearbeiten` ohne blinde `Id = 0`-Zuweisung umgesetzt
+  - in `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs` die Record-Erzeugung ebenfalls von der expliziten `Id = 0`-Initialisierung gelÃ¶st; eine `Id` wird nur noch gesetzt, wenn tatsÃ¤chlich ein bestehender Datensatz bearbeitet wird
   - in `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs` denselben Save-Pfad klein nachgezogen: kurzes `Task.Yield()` vor dem produktiven Save und keine explizite `Id = 0`-Zuweisung mehr bei Neuanlage
-  - in `KGV.Maui/Pages/HomeSectionDetailPage.cs` die produktiven Aktionen `Anmelden`, `Abmelden` und `Löschen` robuster gemacht:
-    - Busy-Farbe für `Daten werden gespeichert.` / `Datensatz wird gelöscht.` sichtbar auf den aktiven Ladezustand gezogen
-    - zusätzliche Fehlerbehandlung ergänzt, damit Laufzeitfehler im Detailpfad nicht still oder unkontrolliert durchlaufen
-    - Delete bleibt auf demselben bestehenden Produktivpfad mit Bestätigungsdialog und anschließendem Home-Reload über `ReloadAsync()`
-  - keine neue Seite, keine neue CRUD-Architektur, keine Shell-/Routing-Rückkehr zu alten Rootpfaden und keine Änderung an WPF-Dateien
+  - in `KGV.Maui/Pages/HomeSectionDetailPage.cs` die produktiven Aktionen `Anmelden`, `Abmelden` und `LÃ¶schen` robuster gemacht:
+    - Busy-Farbe fÃ¼r `Daten werden gespeichert.` / `Datensatz wird gelÃ¶scht.` sichtbar auf den aktiven Ladezustand gezogen
+    - zusÃ¤tzliche Fehlerbehandlung ergÃ¤nzt, damit Laufzeitfehler im Detailpfad nicht still oder unkontrolliert durchlaufen
+    - Delete bleibt auf demselben bestehenden Produktivpfad mit BestÃ¤tigungsdialog und anschlieÃŸendem Home-Reload Ã¼ber `ReloadAsync()`
+  - keine neue Seite, keine neue CRUD-Architektur, keine Shell-/Routing-RÃ¼ckkehr zu alten Rootpfaden und keine Ã„nderung an WPF-Dateien
 - Technische Verifikation nach dem Fix:
-  - `get_errors` auf den direkt geänderten MAUI-Dateien blieb nach der Korrektur unauffällig
+  - `get_errors` auf den direkt geÃ¤nderten MAUI-Dateien blieb nach der Korrektur unauffÃ¤llig
   - der direkte Suchlauf auf `.Result|.Wait(` blieb im direkt betroffenen MAUI-Pfad weiter leer
-  - der Startseiten-Button `Arbeitsstunde erfassen` ist im aktiven Pfad weiter vorhanden; ein Wiederherstellungsumbau war in diesem Block nicht nötig
-  - `dotnet build KGV.Maui/KGV.Maui.csproj` ist im aktuellen Workspace nach diesem Lauf nicht grün geblieben
-  - der Gesamtbuild scheitert aktuell blockfremd an bereits vorhandenen bzw. neu außerhalb dieses Blocks offenen MAUI-Control-/Namespacefehlern, u. a. in:
+  - der Startseiten-Button `Arbeitsstunde erfassen` ist im aktiven Pfad weiter vorhanden; ein Wiederherstellungsumbau war in diesem Block nicht nÃ¶tig
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` ist im aktuellen Workspace nach diesem Lauf nicht grÃ¼n geblieben
+  - der Gesamtbuild scheitert aktuell blockfremd an bereits vorhandenen bzw. neu auÃŸerhalb dieses Blocks offenen MAUI-Control-/Namespacefehlern, u. a. in:
     - `KGV.Maui/Pages/ArbeitsstundenReviewPage.cs`
     - `KGV.Maui/Pages/DokumentePage.xaml.cs`
     - `KGV.Maui/Pages/ExportPage.cs`
-  - diese Fehler wurden in diesem kleinen Laufzeit-/Fachblock ausdrücklich nur dokumentiert und nicht mit umgebaut, weil der Auftrag auf die direkt betroffenen Home-/Detail-/Editorpfade begrenzt war
+  - diese Fehler wurden in diesem kleinen Laufzeit-/Fachblock ausdrÃ¼cklich nur dokumentiert und nicht mit umgebaut, weil der Auftrag auf die direkt betroffenen Home-/Detail-/Editorpfade begrenzt war
 
-## 2026-03-26 – Prompt 1/1: Nächsten blockfremden MAUI-Compilefehlerstand in `FaelligeZaehlerPage`, `ArbeitsstundenReviewDetailPage` und `ManagementOverviewPageBase` gezielt bereinigt
+## 2026-03-26 â€“ Prompt 1/1: NÃ¤chsten blockfremden MAUI-Compilefehlerstand in `FaelligeZaehlerPage`, `ArbeitsstundenReviewDetailPage` und `ManagementOverviewPageBase` gezielt bereinigt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrücklich nur den direkt betroffenen MAUI-Pfad geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrÃ¼cklich nur den direkt betroffenen MAUI-Pfad geprÃ¼ft:
   - `KGV.Maui/Pages/FaelligeZaehlerPage.cs`
   - `KGV.Maui/Pages/ArbeitsstundenReviewDetailPage.cs`
   - `KGV.Maui/Pages/ManagementOverviewPageBase.cs`
-  - gezielte Dateifehler für genau diese drei Seiten
+  - gezielte Dateifehler fÃ¼r genau diese drei Seiten
   - `dotnet build KGV.Maui/KGV.Maui.csproj`
   - Git-Status nur zur Blockeingrenzung, ohne blockfremde Dateien anzufassen
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen Stand vor Umsetzung:
-  - alle drei betroffenen Dateien liegen im aktiven Repo-Stand als code-only MAUI-Seiten vor; direkte aktive `.xaml`-Gegenstücke wurden im Seitenpfad nicht gefunden
-  - die gemeldeten Compilefehler lagen erneut nicht in Fachlogik, sondern in fehlenden bzw. falschen aktiven MAUI-Namespacebezügen im code-only-Seitenmodell
-  - betroffen waren dort u. a. Typauflösungen für:
+  - alle drei betroffenen Dateien liegen im aktiven Repo-Stand als code-only MAUI-Seiten vor; direkte aktive `.xaml`-GegenstÃ¼cke wurden im Seitenpfad nicht gefunden
+  - die gemeldeten Compilefehler lagen erneut nicht in Fachlogik, sondern in fehlenden bzw. falschen aktiven MAUI-NamespacebezÃ¼gen im code-only-Seitenmodell
+  - betroffen waren dort u. a. TypauflÃ¶sungen fÃ¼r:
     - `ContentPage`
     - `CollectionView`
     - `Label`
@@ -2821,35 +2860,35 @@
     - `Border`
     - `Editor`
     - `View`
-    - zusätzlich Hilfstypen wie `Colors`, `LineBreakMode`, `TextAlignment`, `GridLength`, `CornerRadius`, `Dispatcher` und `FontAttributes`
+    - zusÃ¤tzlich Hilfstypen wie `Colors`, `LineBreakMode`, `TextAlignment`, `GridLength`, `CornerRadius`, `Dispatcher` und `FontAttributes`
 - Den Korrekturblock deshalb bewusst klein und nur auf die Compile-Ursachen begrenzt umgesetzt:
-  - in `KGV.Maui/Pages/FaelligeZaehlerPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergänzt
-  - in `KGV.Maui/Pages/ArbeitsstundenReviewDetailPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-/Tasks-Usings ergänzt
-  - in `KGV.Maui/Pages/ManagementOverviewPageBase.cs` die fehlenden aktiven MAUI-/Graphics-/Collections-/Linq-/System-/Tasks-Usings ergänzt
-  - keine Fachlogik, keine Rechte-Logik, keine Navigation und keine CRUD-/Supabase-Pfade verändert
+  - in `KGV.Maui/Pages/FaelligeZaehlerPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergÃ¤nzt
+  - in `KGV.Maui/Pages/ArbeitsstundenReviewDetailPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-/Tasks-Usings ergÃ¤nzt
+  - in `KGV.Maui/Pages/ManagementOverviewPageBase.cs` die fehlenden aktiven MAUI-/Graphics-/Collections-/Linq-/System-/Tasks-Usings ergÃ¤nzt
+  - keine Fachlogik, keine Rechte-Logik, keine Navigation und keine CRUD-/Supabase-Pfade verÃ¤ndert
   - keine neue XAML-/Code-Behind-Struktur erfunden, weil die drei Zielseiten im aktiven Stand keine belastbar aktive XAML-Gegenseite besitzen
 - Technische Verifikation nach dem Fix:
-  - `get_errors` auf den direkt betroffenen Dateien blieb nach der Korrektur unauffällig
+  - `get_errors` auf den direkt betroffenen Dateien blieb nach der Korrektur unauffÃ¤llig
   - die drei Zielseiten sind damit dateibezogen compile-seitig bereinigt
-  - anschließender `dotnet build KGV.Maui/KGV.Maui.csproj` lief im aktuellen Workspace wieder erfolgreich durch
-  - der Gesamtbuild ist mit diesem kleinen Compileblock wieder grün
+  - anschlieÃŸender `dotnet build KGV.Maui/KGV.Maui.csproj` lief im aktuellen Workspace wieder erfolgreich durch
+  - der Gesamtbuild ist mit diesem kleinen Compileblock wieder grÃ¼n
 
-## 2026-03-26 – Prompt 1/1: Nächsten blockfremden MAUI-Compilefehlerstand in `NebenmitgliedPage`, `UserManagementPage`, `RfidEinrichtenPage`, `MemberGardensPage` und `RfidScanWorkflowPage` gezielt bereinigt
+## 2026-03-26 â€“ Prompt 1/1: NÃ¤chsten blockfremden MAUI-Compilefehlerstand in `NebenmitgliedPage`, `UserManagementPage`, `RfidEinrichtenPage`, `MemberGardensPage` und `RfidScanWorkflowPage` gezielt bereinigt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrücklich nur den direkt betroffenen MAUI-Pfad geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrÃ¼cklich nur den direkt betroffenen MAUI-Pfad geprÃ¼ft:
   - `KGV.Maui/Pages/NebenmitgliedPage.cs`
   - `KGV.Maui/Pages/UserManagementPage.cs`
   - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
   - `KGV.Maui/Pages/MemberGardensPage.cs`
   - `KGV.Maui/Pages/RfidScanWorkflowPage.cs`
-  - gezielte Dateifehler für genau diese fünf Seiten
+  - gezielte Dateifehler fÃ¼r genau diese fÃ¼nf Seiten
   - `dotnet build KGV.Maui/KGV.Maui.csproj`
   - Git-Status nur zur Blockeingrenzung, ohne blockfremde Dateien anzufassen
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen Stand vor Umsetzung:
-  - alle fünf betroffenen Dateien liegen im aktiven Repo-Stand als code-only MAUI-Seiten vor; direkte aktive `.xaml`-Gegenstücke wurden im Seitenpfad nicht gefunden
-  - die gemeldeten Compilefehler lagen erneut nicht in Fachlogik, sondern in fehlenden bzw. falschen aktiven MAUI-Namespacebezügen im code-only-Seitenmodell
-  - betroffen waren dort u. a. Typauflösungen für:
+  - alle fÃ¼nf betroffenen Dateien liegen im aktiven Repo-Stand als code-only MAUI-Seiten vor; direkte aktive `.xaml`-GegenstÃ¼cke wurden im Seitenpfad nicht gefunden
+  - die gemeldeten Compilefehler lagen erneut nicht in Fachlogik, sondern in fehlenden bzw. falschen aktiven MAUI-NamespacebezÃ¼gen im code-only-Seitenmodell
+  - betroffen waren dort u. a. TypauflÃ¶sungen fÃ¼r:
     - `ContentPage`
     - `View`
     - `Label`
@@ -2863,39 +2902,39 @@
     - `Keyboard`
     - `Thickness`
     - `CornerRadius`
-    - zusätzlich Hilfstypen wie `LineBreakMode`, `TextAlignment`, `GridLength` und `Shell`
+    - zusÃ¤tzlich Hilfstypen wie `LineBreakMode`, `TextAlignment`, `GridLength` und `Shell`
 - Den Korrekturblock deshalb bewusst klein und nur auf die Compile-Ursachen begrenzt umgesetzt:
-  - in `KGV.Maui/Pages/NebenmitgliedPage.cs` die fehlenden aktiven MAUI-/System-Usings ergänzt
-  - in `KGV.Maui/Pages/UserManagementPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergänzt
-  - in `KGV.Maui/Pages/RfidEinrichtenPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergänzt
-  - in `KGV.Maui/Pages/MemberGardensPage.cs` die fehlenden aktiven MAUI-/Graphics-/Collections-/System-Usings ergänzt
-  - in `KGV.Maui/Pages/RfidScanWorkflowPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergänzt
-  - keine Fachlogik, keine Rechte-Logik, keine Navigation und keine CRUD-/Supabase-Pfade verändert
-  - keine neue XAML-/Code-Behind-Struktur erfunden, weil die fünf Zielseiten im aktiven Stand keine belastbar aktive XAML-Gegenseite besitzen
+  - in `KGV.Maui/Pages/NebenmitgliedPage.cs` die fehlenden aktiven MAUI-/System-Usings ergÃ¤nzt
+  - in `KGV.Maui/Pages/UserManagementPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergÃ¤nzt
+  - in `KGV.Maui/Pages/RfidEinrichtenPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergÃ¤nzt
+  - in `KGV.Maui/Pages/MemberGardensPage.cs` die fehlenden aktiven MAUI-/Graphics-/Collections-/System-Usings ergÃ¤nzt
+  - in `KGV.Maui/Pages/RfidScanWorkflowPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergÃ¤nzt
+  - keine Fachlogik, keine Rechte-Logik, keine Navigation und keine CRUD-/Supabase-Pfade verÃ¤ndert
+  - keine neue XAML-/Code-Behind-Struktur erfunden, weil die fÃ¼nf Zielseiten im aktiven Stand keine belastbar aktive XAML-Gegenseite besitzen
 - Technische Verifikation nach dem Fix:
-  - `get_errors` auf den direkt betroffenen Dateien blieb nach der Korrektur unauffällig
-  - die fünf Zielseiten sind damit dateibezogen compile-seitig bereinigt
-  - anschließender `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - `get_errors` auf den direkt betroffenen Dateien blieb nach der Korrektur unauffÃ¤llig
+  - die fÃ¼nf Zielseiten sind damit dateibezogen compile-seitig bereinigt
+  - anschlieÃŸender `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
   - der Gesamtbuild scheitert nach diesem Block weiter blockfremd an gleichartigen bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
     - `KGV.Maui/Pages/FaelligeZaehlerPage.cs`
     - `KGV.Maui/Pages/ArbeitsstundenReviewDetailPage.cs`
     - `KGV.Maui/Pages/ManagementOverviewPageBase.cs`
-  - diese benachbarten Fehler wurden in diesem kleinen Compileblock ausdrücklich nur dokumentiert und nicht mit umgebaut, weil der Auftrag auf genau `NebenmitgliedPage`, `UserManagementPage`, `RfidEinrichtenPage`, `MemberGardensPage` und `RfidScanWorkflowPage` begrenzt war
+  - diese benachbarten Fehler wurden in diesem kleinen Compileblock ausdrÃ¼cklich nur dokumentiert und nicht mit umgebaut, weil der Auftrag auf genau `NebenmitgliedPage`, `UserManagementPage`, `RfidEinrichtenPage`, `MemberGardensPage` und `RfidScanWorkflowPage` begrenzt war
 
-## 2026-03-26 – Prompt 1/1: Nächsten blockfremden MAUI-Compilefehlerstand in `MyProfilePage`, `HomeSectionDetailPage` und `ParzellenPage` gezielt bereinigt
+## 2026-03-26 â€“ Prompt 1/1: NÃ¤chsten blockfremden MAUI-Compilefehlerstand in `MyProfilePage`, `HomeSectionDetailPage` und `ParzellenPage` gezielt bereinigt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrücklich nur den direkt betroffenen MAUI-Pfad geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrÃ¼cklich nur den direkt betroffenen MAUI-Pfad geprÃ¼ft:
   - `KGV.Maui/Pages/MyProfilePage.cs`
   - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
   - `KGV.Maui/Pages/ParzellenPage.cs`
-  - gezielte Dateifehler für genau diese drei Seiten
+  - gezielte Dateifehler fÃ¼r genau diese drei Seiten
   - `dotnet build KGV.Maui/KGV.Maui.csproj`
   - Git-Status nur zur Blockeingrenzung, ohne blockfremde Dateien anzufassen
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen Stand vor Umsetzung:
-  - alle drei betroffenen Dateien liegen im aktiven Repo-Stand als code-only MAUI-Seiten vor; direkte aktive `.xaml`-Gegenstücke wurden im Seitenpfad nicht gefunden
-  - die gemeldeten Compilefehler lagen erneut nicht in Fachlogik, sondern in fehlenden bzw. falschen aktiven MAUI-Namespacebezügen im code-only-Seitenmodell
-  - betroffen waren dort u. a. Typauflösungen für:
+  - alle drei betroffenen Dateien liegen im aktiven Repo-Stand als code-only MAUI-Seiten vor; direkte aktive `.xaml`-GegenstÃ¼cke wurden im Seitenpfad nicht gefunden
+  - die gemeldeten Compilefehler lagen erneut nicht in Fachlogik, sondern in fehlenden bzw. falschen aktiven MAUI-NamespacebezÃ¼gen im code-only-Seitenmodell
+  - betroffen waren dort u. a. TypauflÃ¶sungen fÃ¼r:
     - `ContentPage`
     - `View`
     - `Border`
@@ -2908,44 +2947,44 @@
     - `HorizontalStackLayout`
     - `IValueConverter`
     - `Launcher`
-    - zusätzlich Hilfstypen wie `Colors`, `Thickness`, `Keyboard`, `LineBreakMode`, `LayoutOptions` und `TextAlignment`
+    - zusÃ¤tzlich Hilfstypen wie `Colors`, `Thickness`, `Keyboard`, `LineBreakMode`, `LayoutOptions` und `TextAlignment`
 - Den Korrekturblock deshalb bewusst klein und nur auf die Compile-Ursachen begrenzt umgesetzt:
-  - in `KGV.Maui/Pages/MyProfilePage.cs` die fehlenden aktiven MAUI-/ApplicationModel-/System-Usings ergänzt:
+  - in `KGV.Maui/Pages/MyProfilePage.cs` die fehlenden aktiven MAUI-/ApplicationModel-/System-Usings ergÃ¤nzt:
     - `Microsoft.Maui`
     - `Microsoft.Maui.ApplicationModel`
     - `Microsoft.Maui.Controls`
     - `Microsoft.Maui.Graphics`
-    - nötige `System`-/Tasks-Namespaces
-  - in `KGV.Maui/Pages/HomeSectionDetailPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergänzt
-  - in `KGV.Maui/Pages/ParzellenPage.cs` die fehlenden aktiven MAUI-/ApplicationModel-/System-Usings ergänzt
-  - keine Fachlogik, keine Rechte-Logik, keine Navigation und keine CRUD-/Supabase-Pfade verändert
+    - nÃ¶tige `System`-/Tasks-Namespaces
+  - in `KGV.Maui/Pages/HomeSectionDetailPage.cs` die fehlenden aktiven MAUI-/Graphics-/System-Usings ergÃ¤nzt
+  - in `KGV.Maui/Pages/ParzellenPage.cs` die fehlenden aktiven MAUI-/ApplicationModel-/System-Usings ergÃ¤nzt
+  - keine Fachlogik, keine Rechte-Logik, keine Navigation und keine CRUD-/Supabase-Pfade verÃ¤ndert
   - keine neue XAML-/Code-Behind-Struktur erfunden, weil die drei Zielseiten im aktiven Stand keine belastbar aktive XAML-Gegenseite besitzen
 - Technische Verifikation nach dem Fix:
-  - `get_errors` auf den direkt betroffenen Dateien blieb nach der Korrektur unauffällig
+  - `get_errors` auf den direkt betroffenen Dateien blieb nach der Korrektur unauffÃ¤llig
   - die drei Zielseiten sind damit dateibezogen compile-seitig bereinigt
-  - anschließender `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - anschlieÃŸender `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
   - der Gesamtbuild scheitert nach diesem Block weiter blockfremd an gleichartigen bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
     - `KGV.Maui/Pages/NebenmitgliedPage.cs`
     - `KGV.Maui/Pages/UserManagementPage.cs`
     - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
     - `KGV.Maui/Pages/MemberGardensPage.cs`
     - `KGV.Maui/Pages/RfidScanWorkflowPage.cs`
-  - diese benachbarten Fehler wurden in diesem kleinen Compileblock ausdrücklich nur dokumentiert und nicht mit umgebaut, weil der Auftrag auf genau `MyProfilePage`, `HomeSectionDetailPage` und `ParzellenPage` begrenzt war
+  - diese benachbarten Fehler wurden in diesem kleinen Compileblock ausdrÃ¼cklich nur dokumentiert und nicht mit umgebaut, weil der Auftrag auf genau `MyProfilePage`, `HomeSectionDetailPage` und `ParzellenPage` begrenzt war
 
-## 2026-03-26 – Prompt 1/1: MAUI-Compilefehler in `HomeManagementPage` und `MeineDatenPage` gezielt auf Namespace-/Seitentyp-Ebene bereinigt
+## 2026-03-26 â€“ Prompt 1/1: MAUI-Compilefehler in `HomeManagementPage` und `MeineDatenPage` gezielt auf Namespace-/Seitentyp-Ebene bereinigt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrücklich nur den direkt betroffenen MAUI-Pfad geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrÃ¼cklich nur den direkt betroffenen MAUI-Pfad geprÃ¼ft:
   - `KGV.Maui/Pages/HomeManagementPage.cs`
   - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
-  - gezielte Dateifehler für genau diese beiden Seiten
+  - gezielte Dateifehler fÃ¼r genau diese beiden Seiten
   - `dotnet build KGV.Maui/KGV.Maui.csproj`
   - Git-Status nur zur Blockeingrenzung, ohne blockfremde Dateien anzufassen
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen Stand vor Umsetzung:
   - `HomeManagementPage` liegt im aktiven Repo-Stand als code-only MAUI-Seite vor; ein aktives `HomeManagementPage.xaml` wurde im direkten Seitenpfad nicht gefunden
   - `MeineDatenPage` liegt im aktiven Repo-Stand trotz Dateinamenssuffix `.xaml.cs` ebenfalls als code-only MAUI-Seite vor; ein aktives `MeineDatenPage.xaml` wurde im direkten Seitenpfad nicht gefunden
-  - die gemeldeten Compilefehler in genau diesen beiden Dateien lagen damit nicht an fachlicher Logik, sondern an fehlenden bzw. falschen MAUI-Namespacebezügen im aktiven Code-only-Seitenmodell
-  - betroffen waren dort u. a. Typauflösungen für:
+  - die gemeldeten Compilefehler in genau diesen beiden Dateien lagen damit nicht an fachlicher Logik, sondern an fehlenden bzw. falschen MAUI-NamespacebezÃ¼gen im aktiven Code-only-Seitenmodell
+  - betroffen waren dort u. a. TypauflÃ¶sungen fÃ¼r:
     - `ContentPage`
     - `IQueryAttributable`
     - `View`
@@ -2956,114 +2995,114 @@
     - `Label`
     - `CheckBox`
     - `Switch`
-    - zusätzlich auch aktive MAUI-Hilfstypen wie `Thickness`, `Keyboard`, `LineBreakMode` und `TextAlignment`
+    - zusÃ¤tzlich auch aktive MAUI-Hilfstypen wie `Thickness`, `Keyboard`, `LineBreakMode` und `TextAlignment`
 - Den Korrekturblock deshalb bewusst klein und nur auf die Compile-Ursachen begrenzt umgesetzt:
-  - in `KGV.Maui/Pages/HomeManagementPage.cs` die fehlenden aktiven MAUI- und System-Usings ergänzt:
+  - in `KGV.Maui/Pages/HomeManagementPage.cs` die fehlenden aktiven MAUI- und System-Usings ergÃ¤nzt:
     - `Microsoft.Maui`
     - `Microsoft.Maui.Controls`
     - `Microsoft.Maui.Graphics`
-    - nötige `System`-/Collections-/Tasks-Namespaces
-  - in `KGV.Maui/Pages/MeineDatenPage.xaml.cs` dieselben fehlenden aktiven MAUI- und System-Usings ergänzt
-  - keine Fachlogik, keine Rechte-Logik, keine Navigation und keine CRUD-/Supabase-Pfade verändert
+    - nÃ¶tige `System`-/Collections-/Tasks-Namespaces
+  - in `KGV.Maui/Pages/MeineDatenPage.xaml.cs` dieselben fehlenden aktiven MAUI- und System-Usings ergÃ¤nzt
+  - keine Fachlogik, keine Rechte-Logik, keine Navigation und keine CRUD-/Supabase-Pfade verÃ¤ndert
   - keine neue XAML-/Code-Behind-Struktur erfunden, weil die beiden betroffenen Seiten im aktiven Stand keine belastbar aktive XAML-Gegenseite besitzen
 - Technische Verifikation nach dem Fix:
-  - `get_errors` auf den direkt betroffenen Dateien blieb nach der Korrektur unauffällig
+  - `get_errors` auf den direkt betroffenen Dateien blieb nach der Korrektur unauffÃ¤llig
   - die beiden Zielseiten sind damit dateibezogen compile-seitig bereinigt
-  - anschließender `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
+  - anschlieÃŸender `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
   - der Gesamtbuild scheitert nach diesem Block weiter blockfremd an gleichartigen bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
     - `KGV.Maui/Pages/MyProfilePage.cs`
     - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
     - `KGV.Maui/Pages/ParzellenPage.cs`
-  - diese benachbarten Fehler wurden in diesem kleinen Compileblock ausdrücklich nur dokumentiert und nicht mit umgebaut, weil der Auftrag auf genau `HomeManagementPage` und `MeineDatenPage` begrenzt war
+  - diese benachbarten Fehler wurden in diesem kleinen Compileblock ausdrÃ¼cklich nur dokumentiert und nicht mit umgebaut, weil der Auftrag auf genau `HomeManagementPage` und `MeineDatenPage` begrenzt war
 
-## 2026-03-26 – Prompt 1/1: MAUI-Arbeitseinsatz-/Busy-Block sauber abgeschlossen, nur Blockdateien gestaged und Abschluss ehrlich dokumentiert
+## 2026-03-26 â€“ Prompt 1/1: MAUI-Arbeitseinsatz-/Busy-Block sauber abgeschlossen, nur Blockdateien gestaged und Abschluss ehrlich dokumentiert
 
-- Vor dem Abschlusslauf erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrücklich nur die echten Blockdateien geprüft:
+- Vor dem Abschlusslauf erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und ausdrÃ¼cklich nur die echten Blockdateien geprÃ¼ft:
   - `KGV.Infrastructure/Services/SupabaseService.cs`
   - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
   - `KGV.Maui/Pages/HomePage.xaml.cs`
   - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
   - `DEV_LOG.md`
   - `KGV_Fortschrittslog_ausfuehrlich.md`
-  - zusätzlich den echten Git-Status über den im aktuellen Setup vorhandenen Git-Pfad:
+  - zusÃ¤tzlich den echten Git-Status Ã¼ber den im aktuellen Setup vorhandenen Git-Pfad:
     - `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe`
 - WPF wurde in diesem Abschlusslauf bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen Stand vor dem Commitabschluss:
-  - im Arbeitsbaum liegen zusätzlich viele blockfremde offene Dateien, u. a. WPF-, Supabase- und lokale Artefaktpfade; diese gehören nicht zu diesem kleinen MAUI-Abschlussblock
-  - im direkt betroffenen Arbeitseinsatz-/Busy-Pfad war kein neuer Fachumbau mehr nötig; der bereits umgesetzte Fixstand ist konsistent
+  - im Arbeitsbaum liegen zusÃ¤tzlich viele blockfremde offene Dateien, u. a. WPF-, Supabase- und lokale Artefaktpfade; diese gehÃ¶ren nicht zu diesem kleinen MAUI-Abschlussblock
+  - im direkt betroffenen Arbeitseinsatz-/Busy-Pfad war kein neuer Fachumbau mehr nÃ¶tig; der bereits umgesetzte Fixstand ist konsistent
   - `CreateArbeitseinsatzAsync(...)` setzt beim Insert `CreatedAt` und `UpdatedAt` jetzt explizit auf `DateTime.UtcNow`
-  - `UpdateArbeitseinsatzAsync(...)` setzt beim Speichern zusätzlich `UpdatedAt` auf `DateTime.UtcNow`
-  - der Rückladepfad nach dem Arbeitseinsatz-Insert bleibt auf `Titel` und `Datum` eingegrenzt statt die komplette Tabelle breit neu zu laden
-  - `ArbeitseinsaetzeEditorPage` zeigt Busy-Texte für Laden/Speichern früh sichtbar an und deaktiviert die direkt betroffenen Eingaben/Buttons währenddessen konsistent
-  - `HomePage` setzt den Ladehinweis vor dem eigentlichen Reload sichtbar und deaktiviert die direkt betroffenen Aktionsbuttons während des Home-Reloads
-  - `HomeSectionDetailPage` gibt vor den direkt betroffenen Serviceaufrufen kurz an den Renderzyklus zurück, damit Busy-/Ladetexte im aktiven Detailpfad sichtbar werden
+  - `UpdateArbeitseinsatzAsync(...)` setzt beim Speichern zusÃ¤tzlich `UpdatedAt` auf `DateTime.UtcNow`
+  - der RÃ¼ckladepfad nach dem Arbeitseinsatz-Insert bleibt auf `Titel` und `Datum` eingegrenzt statt die komplette Tabelle breit neu zu laden
+  - `ArbeitseinsaetzeEditorPage` zeigt Busy-Texte fÃ¼r Laden/Speichern frÃ¼h sichtbar an und deaktiviert die direkt betroffenen Eingaben/Buttons wÃ¤hrenddessen konsistent
+  - `HomePage` setzt den Ladehinweis vor dem eigentlichen Reload sichtbar und deaktiviert die direkt betroffenen Aktionsbuttons wÃ¤hrend des Home-Reloads
+  - `HomeSectionDetailPage` gibt vor den direkt betroffenen Serviceaufrufen kurz an den Renderzyklus zurÃ¼ck, damit Busy-/Ladetexte im aktiven Detailpfad sichtbar werden
   - der Home-Schnellzugriff `Arbeitsstunde erfassen` ist im aktuellen aktiven Home-Pfad bereits vorhanden; in diesem Abschlusslauf musste er nicht neu gebaut oder umverdrahtet werden
 - Bewusst nicht gemacht:
   - keine neue Architektur
-  - keine neue Fachlogik außerhalb des bereits umgesetzten kleinen Fixblocks
-  - keine WPF-Datei geändert
+  - keine neue Fachlogik auÃŸerhalb des bereits umgesetzten kleinen Fixblocks
+  - keine WPF-Datei geÃ¤ndert
   - keine blockfremden MAUI-Fehlerpfade repariert
   - insbesondere `KGV.Maui/Pages/MeineDatenPage.xaml.cs` und `KGV.Maui/Pages/HomeManagementPage.cs` nur dokumentiert, nicht umgebaut
 - Technische Verifikation im Abschlusslauf:
-  - `get_errors` auf den direkt betroffenen Blockdateien blieb unauffällig
+  - `get_errors` auf den direkt betroffenen Blockdateien blieb unauffÃ¤llig
   - erneuter `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
   - der Build scheitert weiterhin blockfremd breit an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
     - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
     - `KGV.Maui/Pages/HomeManagementPage.cs`
-  - im aktuellen Auszug tauchten dort weiter fehlende Typauflösungen wie `View`, `Border`, `VerticalStackLayout`, `Picker`, `Button`, `Label`, `CheckBox` und `Switch` auf
-  - diese blockfremden Fehler wurden im Abschlusslauf ausdrücklich nur dokumentiert und nicht repariert
+  - im aktuellen Auszug tauchten dort weiter fehlende TypauflÃ¶sungen wie `View`, `Border`, `VerticalStackLayout`, `Picker`, `Button`, `Label`, `CheckBox` und `Switch` auf
+  - diese blockfremden Fehler wurden im Abschlusslauf ausdrÃ¼cklich nur dokumentiert und nicht repariert
 - Git-/Commit-Einordnung dieses Abschlusslaufs:
-  - für den Commit werden bewusst nur die echten Blockdateien dieses kleinen MAUI-Arbeitseinsatz-/Busy-Abschlusses gestaged
-  - blockfremde offene WPF-/Supabase-/Artefaktdateien bleiben ausdrücklich draußen
+  - fÃ¼r den Commit werden bewusst nur die echten Blockdateien dieses kleinen MAUI-Arbeitseinsatz-/Busy-Abschlusses gestaged
+  - blockfremde offene WPF-/Supabase-/Artefaktdateien bleiben ausdrÃ¼cklich drauÃŸen
   - der Commit dieses Laufs dient nur dem sauberen Abschluss und Lognachzug des bereits umgesetzten Fixblocks
 
-## 2026-03-26 – Prompt 1/1: MAUI-Arbeitseinsatz-Create über `created_at` repariert, direkte Busy-Pfade geschärft und Home-Schnellzugriff geprüft
+## 2026-03-26 â€“ Prompt 1/1: MAUI-Arbeitseinsatz-Create Ã¼ber `created_at` repariert, direkte Busy-Pfade geschÃ¤rft und Home-Schnellzugriff geprÃ¼ft
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und nur die direkt betroffenen MAUI-/Core-/Infrastructure-Dateien geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und nur die direkt betroffenen MAUI-/Core-/Infrastructure-Dateien geprÃ¼ft:
   - `KGV.Infrastructure/Services/SupabaseService.cs`
   - `KGV.Core/Interfaces/ISupabaseService.cs`
   - `KGV.Core/Models/ArbeitseinsatzRecord.cs`
   - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
   - `KGV.Maui/Pages/HomePage.xaml.cs`
   - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
-  - zusätzlich exakter Suchlauf auf `.Result` und `.Wait(` im direkt betroffenen MAUI-Pfad
+  - zusÃ¤tzlich exakter Suchlauf auf `.Result` und `.Wait(` im direkt betroffenen MAUI-Pfad
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen Stand vor Umsetzung:
   - der gemeldete Fehler `CreateArbeitseinsatzAsync failed` mit PG-Fehler `23502` war im Produktivpfad eindeutig reproduzierbar auf `arbeitseinsatz.created_at`
-  - `CreateArbeitseinsatzAsync` setzte beim Insert `CreatedAt` und `UpdatedAt` aktuell nicht, obwohl `ArbeitseinsatzRecord` diese Felder trägt und die Tabelle dafür einen Not-Null-Vertrag hat
+  - `CreateArbeitseinsatzAsync` setzte beim Insert `CreatedAt` und `UpdatedAt` aktuell nicht, obwohl `ArbeitseinsatzRecord` diese Felder trÃ¤gt und die Tabelle dafÃ¼r einen Not-Null-Vertrag hat
   - im direkt betroffenen MAUI-Pfad wurden keine direkten synchronen `.Result`-/`.Wait()`-Blockierer gefunden
-  - die spürbare UI-Trägheit lag dort eher daran, dass Busy-Texte/Ladehinweise im Home-/Detail-/Editorpfad nicht immer früh genug sichtbar wurden und Buttons währenddessen nicht konsistent deaktiviert waren
+  - die spÃ¼rbare UI-TrÃ¤gheit lag dort eher daran, dass Busy-Texte/Ladehinweise im Home-/Detail-/Editorpfad nicht immer frÃ¼h genug sichtbar wurden und Buttons wÃ¤hrenddessen nicht konsistent deaktiviert waren
   - der Home-Schnellzugriff `Arbeitsstunde erfassen` ist im aktuellen aktiven `HomePage`-Pfad bereits vorhanden; er musste in diesem Block nicht neu gebaut werden
 - Den Korrekturblock deshalb bewusst klein und nur im direkt betroffenen Produktivpfad umgesetzt:
   - `CreateArbeitseinsatzAsync` setzt beim Insert jetzt `CreatedAt` und `UpdatedAt` explizit auf `DateTime.UtcNow`
-  - `UpdateArbeitseinsatzAsync` setzt beim Speichern zusätzlich `UpdatedAt` auf `DateTime.UtcNow`
-  - der Rückladepfad nach `Insert(...)` wurde auf `Titel` und `Datum` eingegrenzt statt die komplette Arbeitseinsatzliste breit neu zu laden
-  - `ArbeitseinsaetzeEditorPage` deaktiviert beim Laden und Speichern die direkt betroffenen Eingaben/Buttons konsistent, zeigt die Busy-Texte sichtbar an und navigiert nach erfolgreichem `Speichern` in die vorhandene Arbeitseinsatz-Übersicht `management_workassignments` zurück
-  - `HomePage` setzt den Ladehinweis jetzt vor dem eigentlichen Reload sichtbar und deaktiviert die direkt betroffenen Aktionsbuttons während des Home-Reloads
-  - `HomeSectionDetailPage` gibt vor den direkt betroffenen Serviceaufrufen für Laden, Speichern/Anmelden, Abmelden und Löschen kurz an den Renderzyklus zurück, damit Busy-/Ladetexte im aktiven Detailpfad sichtbar werden
+  - `UpdateArbeitseinsatzAsync` setzt beim Speichern zusÃ¤tzlich `UpdatedAt` auf `DateTime.UtcNow`
+  - der RÃ¼ckladepfad nach `Insert(...)` wurde auf `Titel` und `Datum` eingegrenzt statt die komplette Arbeitseinsatzliste breit neu zu laden
+  - `ArbeitseinsaetzeEditorPage` deaktiviert beim Laden und Speichern die direkt betroffenen Eingaben/Buttons konsistent, zeigt die Busy-Texte sichtbar an und navigiert nach erfolgreichem `Speichern` in die vorhandene Arbeitseinsatz-Ãœbersicht `management_workassignments` zurÃ¼ck
+  - `HomePage` setzt den Ladehinweis jetzt vor dem eigentlichen Reload sichtbar und deaktiviert die direkt betroffenen Aktionsbuttons wÃ¤hrend des Home-Reloads
+  - `HomeSectionDetailPage` gibt vor den direkt betroffenen Serviceaufrufen fÃ¼r Laden, Speichern/Anmelden, Abmelden und LÃ¶schen kurz an den Renderzyklus zurÃ¼ck, damit Busy-/Ladetexte im aktiven Detailpfad sichtbar werden
 - Bewusst nicht gemacht:
   - keine neue Architektur
-  - keine WPF-Datei geändert
+  - keine WPF-Datei geÃ¤ndert
   - keine globale Busy-Infrastruktur erfunden
-  - `HomeManagementPage` nur geprüft, aber nicht unnötig umgebaut, weil dort im aktuellen direkten Block kein separater synchroner Main-Thread-Blockierer nachweisbar war
+  - `HomeManagementPage` nur geprÃ¼ft, aber nicht unnÃ¶tig umgebaut, weil dort im aktuellen direkten Block kein separater synchroner Main-Thread-Blockierer nachweisbar war
   - den vorhandenen Home-Schnellzugriff `Arbeitsstunde erfassen` nicht neu verdrahtet, weil er im aktiven Repo bereits vorhanden ist
 - Technische Verifikation:
-  - der exakte Suchlauf auf `.Result|.Wait(` über die direkt betroffenen MAUI-Dateien blieb leer
-  - `get_errors` auf den direkt betroffenen Blockdateien blieb unauffällig
+  - der exakte Suchlauf auf `.Result|.Wait(` Ã¼ber die direkt betroffenen MAUI-Dateien blieb leer
+  - `get_errors` auf den direkt betroffenen Blockdateien blieb unauffÃ¤llig
   - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
   - der Build scheitert weiter blockfremd breit an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
     - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
     - `KGV.Maui/Pages/HomeManagementPage.cs`
-  - diese vorhandenen Fehler wurden in diesem kleinen Arbeitseinsatz-/Busy-Block ausdrücklich nur dokumentiert und nicht umgebaut
+  - diese vorhandenen Fehler wurden in diesem kleinen Arbeitseinsatz-/Busy-Block ausdrÃ¼cklich nur dokumentiert und nicht umgebaut
 
-## 2026-03-26 – Prompt 1/1: MAUI-Home-/Detail-/Editor-Korrekturblock sauber abgeschlossen, Logs nachgezogen und nur Blockdateien für Commit vorbereitet
+## 2026-03-26 â€“ Prompt 1/1: MAUI-Home-/Detail-/Editor-Korrekturblock sauber abgeschlossen, Logs nachgezogen und nur Blockdateien fÃ¼r Commit vorbereitet
 
-- Vor dem Abschlusslauf erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und den Git-Status über den echten installierten Git-Pfad geprüft:
+- Vor dem Abschlusslauf erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, `DEV_LOG.md` und den Git-Status Ã¼ber den echten installierten Git-Pfad geprÃ¼ft:
   - `C:\Program Files\Git\cmd\git.exe`
 - WPF wurde in diesem Abschlusslauf bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen Stand vor dem Logabschluss:
   - der bereits umgesetzte MAUI-Korrekturblock war code-seitig in diesem Lauf schon vorhanden; neu offen war vor allem noch der saubere dokumentarische Abschluss mit ehrlicher Build-/Git-Einordnung
-  - vor der Logpflege war der Git-Arbeitsbaum im aktuellen Lauf sauber; es lag also kein neuer ungeprüfter Fachumbau mehr offen
+  - vor der Logpflege war der Git-Arbeitsbaum im aktuellen Lauf sauber; es lag also kein neuer ungeprÃ¼fter Fachumbau mehr offen
   - der Block selbst betrifft die bereits angepassten MAUI-/Shared-Dateien:
     - `KGV.Core/Interfaces/ISupabaseService.cs`
     - `KGV.Core/Models/HomeAnnouncementItem.cs`
@@ -3077,16 +3116,16 @@
     - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
     - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
     - `KGV.Maui/Pages/ManagementOverviewPageBase.cs`
-- Inhalt des bereits umgesetzten Korrekturblocks jetzt sauber und vollständig festgehalten:
-  - der frühere Neu-Sentinel `entryId=0` wurde in den betroffenen Editorpfaden bereinigt; neue Datensätze laufen dort jetzt nicht mehr über eine künstliche `0`, sondern über den echten Neu-Zustand ohne gültige `entryId`
-  - Admin/Vorstand erhalten auf denselben mobilen Produktivseiten zusätzliche Aktionen `Neu`, `Bearbeiten`, `Löschen`, statt dass dafür ein neuer Fachsonderpfad aufgebaut wurde
-  - produktive Delete-Pfade wurden für die drei betroffenen Bereiche direkt an `ISupabaseService` / `SupabaseService` angebunden:
+- Inhalt des bereits umgesetzten Korrekturblocks jetzt sauber und vollstÃ¤ndig festgehalten:
+  - der frÃ¼here Neu-Sentinel `entryId=0` wurde in den betroffenen Editorpfaden bereinigt; neue DatensÃ¤tze laufen dort jetzt nicht mehr Ã¼ber eine kÃ¼nstliche `0`, sondern Ã¼ber den echten Neu-Zustand ohne gÃ¼ltige `entryId`
+  - Admin/Vorstand erhalten auf denselben mobilen Produktivseiten zusÃ¤tzliche Aktionen `Neu`, `Bearbeiten`, `LÃ¶schen`, statt dass dafÃ¼r ein neuer Fachsonderpfad aufgebaut wurde
+  - produktive Delete-Pfade wurden fÃ¼r die drei betroffenen Bereiche direkt an `ISupabaseService` / `SupabaseService` angebunden:
     - `DeleteTerminAsync(long id)`
     - `DeleteArbeitseinsatzAsync(long id)`
     - `DeleteBekanntmachungAsync(long id)`
-  - `HomeAnnouncementItem` trägt für diesen gemeinsamen Detail-/Delete-Pfad jetzt ebenfalls eine `Id`
-  - `HomeViewModel` kann für den Blockkontext jetzt explizit invalidiert bzw. neu geladen werden, damit Home nach Save/Delete auf demselben Produktivpfad konsistent bleibt
-  - Busy-/Lade-/Speichertexte wurden in den direkt betroffenen Seiten ergänzt bzw. vereinheitlicht, insbesondere in:
+  - `HomeAnnouncementItem` trÃ¤gt fÃ¼r diesen gemeinsamen Detail-/Delete-Pfad jetzt ebenfalls eine `Id`
+  - `HomeViewModel` kann fÃ¼r den Blockkontext jetzt explizit invalidiert bzw. neu geladen werden, damit Home nach Save/Delete auf demselben Produktivpfad konsistent bleibt
+  - Busy-/Lade-/Speichertexte wurden in den direkt betroffenen Seiten ergÃ¤nzt bzw. vereinheitlicht, insbesondere in:
     - `HomePage`
     - `MyArbeitsstundenPage`
     - `ArbeitsstundenEditorPage`
@@ -3095,31 +3134,31 @@
     - `ArbeitseinsaetzeEditorPage`
     - `HomeSectionDetailPage`
     - `ManagementOverviewPageBase`
-  - mehrere direkt betroffene Seiten planen ihre Ladevorgänge jetzt nicht mehr sofort blockierend im `OnAppearing`, sondern per `Dispatcher` nach dem ersten Renderzyklus mit kleinen `_loadScheduled`-/Busy-Guards
-  - im betroffenen Pfad wurde zusätzlich der bisherige Home-Arbeitsstunden-Neustart über `entryId=0` auf den sauberen vorhandenen Neu-Pfad ohne künstliche `entryId` zurückgezogen
-  - ein Suchlauf auf `entryId=0`, `.Result` und `.Wait(` über die betroffenen MAUI-Dateien blieb im aktuellen Abschlusslauf leer; in diesem Block wurden also keine direkten synchron blockierenden Restnutzungen mehr im angefassten Pfad gefunden
+  - mehrere direkt betroffene Seiten planen ihre LadevorgÃ¤nge jetzt nicht mehr sofort blockierend im `OnAppearing`, sondern per `Dispatcher` nach dem ersten Renderzyklus mit kleinen `_loadScheduled`-/Busy-Guards
+  - im betroffenen Pfad wurde zusÃ¤tzlich der bisherige Home-Arbeitsstunden-Neustart Ã¼ber `entryId=0` auf den sauberen vorhandenen Neu-Pfad ohne kÃ¼nstliche `entryId` zurÃ¼ckgezogen
+  - ein Suchlauf auf `entryId=0`, `.Result` und `.Wait(` Ã¼ber die betroffenen MAUI-Dateien blieb im aktuellen Abschlusslauf leer; in diesem Block wurden also keine direkten synchron blockierenden Restnutzungen mehr im angefassten Pfad gefunden
 - Bewusst nicht gemacht:
   - keine neuen Features mehr in diesem Abschlusslauf
-  - keine weitere Namespace-/Control-/XAML-Reparatur außerhalb des bereits umgesetzten Blocks
+  - keine weitere Namespace-/Control-/XAML-Reparatur auÃŸerhalb des bereits umgesetzten Blocks
   - insbesondere `KGV.Maui/Pages/MeineDatenPage.xaml.cs`, `KGV.Maui/Pages/HomeManagementPage.cs` und weitere blockfremde Fehlerpfade bewusst nicht mehr angefasst
-  - keine WPF-Datei geändert
+  - keine WPF-Datei geÃ¤ndert
 - Technische Verifikation im Abschlusslauf:
-  - `get_errors` auf den direkt betroffenen Blockdateien blieb unauffällig
+  - `get_errors` auf den direkt betroffenen Blockdateien blieb unauffÃ¤llig
   - erneuter `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
-  - der Gesamtbuild ist weiterhin nicht grün, aber nach heutigem Stand aus blockfremden Gründen
+  - der Gesamtbuild ist weiterhin nicht grÃ¼n, aber nach heutigem Stand aus blockfremden GrÃ¼nden
   - im aktuellen Buildauszug scheitert der Lauf weiter breit an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
     - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
     - `KGV.Maui/Pages/HomeManagementPage.cs`
-  - im Fehlerbild tauchten dort weiterhin viele fehlende MAUI-Control-/Typauflösungen wie `View`, `Border`, `VerticalStackLayout`, `Picker`, `Button`, `Label` und `Switch` auf
-  - diese Fehler wurden im Abschlusslauf ausdrücklich nur dokumentiert und nicht mehr umgebaut, weil sie nicht Teil dieses kleinen MAUI-Korrekturblocks sind
+  - im Fehlerbild tauchten dort weiterhin viele fehlende MAUI-Control-/TypauflÃ¶sungen wie `View`, `Border`, `VerticalStackLayout`, `Picker`, `Button`, `Label` und `Switch` auf
+  - diese Fehler wurden im Abschlusslauf ausdrÃ¼cklich nur dokumentiert und nicht mehr umgebaut, weil sie nicht Teil dieses kleinen MAUI-Korrekturblocks sind
 - Git-/Commit-Einordnung dieses Abschlusslaufs:
   - es werden bewusst nur die echten Blockdateien dieses Abschlusses gestaged
-  - blockfremde offene Dateien, WPF-Dateien und sonstige Artefakte bleiben ausdrücklich draußen
-  - der eigentliche Abschluss-Commit dieses Laufs beschränkt sich damit auf den sauberen Lognachzug des bereits umgesetzten Blocks
+  - blockfremde offene Dateien, WPF-Dateien und sonstige Artefakte bleiben ausdrÃ¼cklich drauÃŸen
+  - der eigentliche Abschluss-Commit dieses Laufs beschrÃ¤nkt sich damit auf den sauberen Lognachzug des bereits umgesetzten Blocks
 
-## 2026-03-26 – Prompt 1/1: MAUI-Terminanlage-Rückladepfad nach Insert stabilisiert
+## 2026-03-26 â€“ Prompt 1/1: MAUI-Terminanlage-RÃ¼ckladepfad nach Insert stabilisiert
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die direkt betroffenen Dateien geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrÃ¼cklich nur die direkt betroffenen Dateien geprÃ¼ft:
   - `KGV.Infrastructure/Services/SupabaseService.cs`
   - `KGV.Maui/Pages/TermineEditorPage.cs`
   - aktuelles Debug-Output
@@ -3128,21 +3167,21 @@
   - der gemeldete Fehler lag nach dem letzten Fix nicht mehr im eigentlichen DB-Insert
   - im Debug-Log stand stattdessen weiter eindeutig:
     - `CreateTerminAsync created termin (null)`
-  - damit lief der Insert durch, aber der Rückgabepfad für den neu angelegten Datensatz schlug fehl
-  - `CreateTerminAsync` lud nach `Insert(...)` die komplette Terminliste neu und suchte den frisch angelegten Termin anschließend per In-Memory-Match wieder heraus
-  - dieser unfiltrierte Reload war unnötig fragil
+  - damit lief der Insert durch, aber der RÃ¼ckgabepfad fÃ¼r den neu angelegten Datensatz schlug fehl
+  - `CreateTerminAsync` lud nach `Insert(...)` die komplette Terminliste neu und suchte den frisch angelegten Termin anschlieÃŸend per In-Memory-Match wieder heraus
+  - dieser unfiltrierte Reload war unnÃ¶tig fragil
 - Den Korrekturblock deshalb bewusst klein und nur im betroffenen Produktivpfad umgesetzt:
   - den Reload nach `Insert(...)` auf `Titel` und `Datum` eingegrenzt
-  - den bestehenden Match danach beibehalten und bei Mehrdeutigkeit weiter die höchste `Id` gewählt
-  - keine UI- oder Fachlogik außerhalb dieses Rückladepfads verändert
+  - den bestehenden Match danach beibehalten und bei Mehrdeutigkeit weiter die hÃ¶chste `Id` gewÃ¤hlt
+  - keine UI- oder Fachlogik auÃŸerhalb dieses RÃ¼ckladepfads verÃ¤ndert
 - Technische Verifikation:
-  - `get_errors` auf `KGV.Infrastructure/Services/SupabaseService.cs` blieb unauffällig
+  - `get_errors` auf `KGV.Infrastructure/Services/SupabaseService.cs` blieb unauffÃ¤llig
   - `dotnet build KGV.Maui/KGV.Maui.csproj` lief im aktuellen Block ohne neue dateibezogene Fehler an
-  - abschließender Gesamtbuild wird nach dem Block weiter geprüft
+  - abschlieÃŸender Gesamtbuild wird nach dem Block weiter geprÃ¼ft
 
-## 2026-03-26 – Prompt 1/1: MAUI-Terminanlage repariert und Launcher-Icon wieder auf das vorhandene PNG zurückgestellt
+## 2026-03-26 â€“ Prompt 1/1: MAUI-Terminanlage repariert und Launcher-Icon wieder auf das vorhandene PNG zurÃ¼ckgestellt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-/Service-Dateien geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrÃ¼cklich nur die relevanten MAUI-/Service-Dateien geprÃ¼ft:
   - `KGV.Infrastructure/Services/SupabaseService.cs`
   - `KGV.Core/Models/TerminRecord.cs`
   - `KGV.Maui/Pages/TermineEditorPage.cs`
@@ -3153,39 +3192,39 @@
   - der Fehler beim Anlegen eines neuen Termins war im vorhandenen Laufzeitlog bereits eindeutig:
     - `CreateTerminAsync failed`
     - `null value in column "created_at" of relation "termin" violates not-null constraint`
-  - die Datenbankmigration für `termin` definiert `created_at` und `updated_at` als `NOT NULL` mit `DEFAULT now()`
+  - die Datenbankmigration fÃ¼r `termin` definiert `created_at` und `updated_at` als `NOT NULL` mit `DEFAULT now()`
   - im Produktivpfad `CreateTerminAsync` wurde beim Insert aber ein `TerminRecord` gebaut, der `CreatedAt` und `UpdatedAt` nicht setzte
-  - dadurch wurde faktisch `null` an die DB übergeben statt den Default sauber zu nutzen
+  - dadurch wurde faktisch `null` an die DB Ã¼bergeben statt den Default sauber zu nutzen
   - beim Starticon zeigte der aktive `MauiIcon`-Pfad im aktuellen `KGV.Maui.csproj` wieder auf `Resources/AppIcon/appicon.svg`
-  - das passte direkt zur Rückmeldung, dass das Icon trotz Löschen von `bin`/`obj` und Deinstallation weiter nicht korrekt ist
+  - das passte direkt zur RÃ¼ckmeldung, dass das Icon trotz LÃ¶schen von `bin`/`obj` und Deinstallation weiter nicht korrekt ist
 - Den Korrekturblock deshalb bewusst klein und nur auf diese beiden Produktivpfade begrenzt umgesetzt:
   - `CreateTerminAsync` setzt beim Insert jetzt `CreatedAt` und `UpdatedAt` explizit auf `DateTime.UtcNow`
   - `UpdateTerminAsync` setzt `UpdatedAt` beim Speichern ebenfalls auf `DateTime.UtcNow`
-  - `KGV.Maui/KGV.Maui.csproj` verwendet für das aktive Launcher-Icon wieder das vorhandene PNG:
+  - `KGV.Maui/KGV.Maui.csproj` verwendet fÃ¼r das aktive Launcher-Icon wieder das vorhandene PNG:
     - `Resources/AppIcon/appicon.png`
-  - zusätzlich `MauiIcon Remove="Resources\AppIcon\*.svg"`, damit die SVG nicht erneut versehentlich als Launcher-Icon aktiv wird
-  - die Splash-Konfiguration auf `appicon.svg` wurde bewusst unverändert gelassen
+  - zusÃ¤tzlich `MauiIcon Remove="Resources\AppIcon\*.svg"`, damit die SVG nicht erneut versehentlich als Launcher-Icon aktiv wird
+  - die Splash-Konfiguration auf `appicon.svg` wurde bewusst unverÃ¤ndert gelassen
 - Erwartetes Ergebnis nach dem Block:
   - neue Termine laufen nicht mehr in den `created_at`-Constraintfehler
-  - das Launcher-Icon folgt wieder dem explizit gewünschten PNG-Pfad statt der SVG
+  - das Launcher-Icon folgt wieder dem explizit gewÃ¼nschten PNG-Pfad statt der SVG
 - Bewusst nicht gemacht:
-  - keine breite Überarbeitung der Terminseite
-  - keine Änderung an WPF
-  - keine Änderung an der Splash-Logik
-  - keine blockfremden MAUI-Namespace-/Control-Fehler außerhalb dieses Bugfix-Blocks mit angefasst
+  - keine breite Ãœberarbeitung der Terminseite
+  - keine Ã„nderung an WPF
+  - keine Ã„nderung an der Splash-Logik
+  - keine blockfremden MAUI-Namespace-/Control-Fehler auÃŸerhalb dieses Bugfix-Blocks mit angefasst
 - Technische Verifikation:
-  - `get_errors` auf den geänderten Dateien blieb unauffällig
-  - `get_tests` für `Project=KGV.Maui` lieferte keine passenden Tests
+  - `get_errors` auf den geÃ¤nderten Dateien blieb unauffÃ¤llig
+  - `get_tests` fÃ¼r `Project=KGV.Maui` lieferte keine passenden Tests
   - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
   - der Lauf scheiterte weiterhin blockfremd an bereits vorhandenen MAUI-Typ-/Namespacefehlern, u. a. in:
     - `KGV.Maui/Pages/TermineEditorPage.cs`
     - `KGV.Maui/Pages/HomeManagementPage.cs`
     - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
-  - damit ist der Termin-/Icon-Block selbst isoliert korrigiert, der Gesamt-Workspace aber weiterhin nicht grün buildbar
+  - damit ist der Termin-/Icon-Block selbst isoliert korrigiert, der Gesamt-Workspace aber weiterhin nicht grÃ¼n buildbar
 
-## 2026-03-26 – Prompt 1/1: MAUI-Navigations-ANR beim Seitenwechsel entschärft und Android-Launcher-Icon auf zentrale SVG-Quelle gezogen
+## 2026-03-26 â€“ Prompt 1/1: MAUI-Navigations-ANR beim Seitenwechsel entschÃ¤rft und Android-Launcher-Icon auf zentrale SVG-Quelle gezogen
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-/Android-Dateien geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrÃ¼cklich nur die relevanten MAUI-/Android-Dateien geprÃ¼ft:
   - `KGV.Maui/Pages/HomePage.xaml.cs`
   - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
   - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
@@ -3196,39 +3235,39 @@
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
   - per Codeinspektion allein war nicht sicher trennbar, ob der ANR aus UI-Thread-Blockierung, Reentrancy oder einem konkreten RPC-/DB-Pfad stammt
-  - ein direkter CPU-Profiler-Lauf ließ sich im aktuellen Setup nicht erfolgreich starten
-  - die verfügbaren Debug-/Laufzeitlogs zeigten die Hänger aber trotzdem sehr klar:
+  - ein direkter CPU-Profiler-Lauf lieÃŸ sich im aktuellen Setup nicht erfolgreich starten
+  - die verfÃ¼gbaren Debug-/Laufzeitlogs zeigten die HÃ¤nger aber trotzdem sehr klar:
     - viele `Skipped frames`
     - `Davey! duration=22560ms`
-    - Home-Ladevorgänge mitten in Navigations-/UI-Phasen
-    - zusätzlicher Netzwerk-/DNS-Fehler im Home-Pfad (`Unable to resolve host ...supabase.co`)
+    - Home-LadevorgÃ¤nge mitten in Navigations-/UI-Phasen
+    - zusÃ¤tzlicher Netzwerk-/DNS-Fehler im Home-Pfad (`Unable to resolve host ...supabase.co`)
   - `HomePage`, `MyArbeitsstundenPage` und `ArbeitsstundenEditorPage` starteten ihr Laden weiterhin direkt in `OnAppearing` bzw. im unmittelbaren Navigationsfenster
   - `HomeViewModel.InitializeAsync()` lud bei gleichem Kontext erneut komplett nach
-  - `GetHomeOverviewAsync(...)` in `SupabaseService` lud die Home-Bereiche seriell; bei Störungen verlängerte das die Gesamtdauer unnötig
-  - Android meldete zusätzlich wiederholt `OnBackInvokedCallback is not enabled`
-  - beim Launcher-Icon blieb der Pfad zuletzt gemischt: PNG für `MauiIcon`, SVG für Splash
+  - `GetHomeOverviewAsync(...)` in `SupabaseService` lud die Home-Bereiche seriell; bei StÃ¶rungen verlÃ¤ngerte das die Gesamtdauer unnÃ¶tig
+  - Android meldete zusÃ¤tzlich wiederholt `OnBackInvokedCallback is not enabled`
+  - beim Launcher-Icon blieb der Pfad zuletzt gemischt: PNG fÃ¼r `MauiIcon`, SVG fÃ¼r Splash
 - Den Korrekturblock deshalb bewusst klein und direkt auf die gemessenen Verdachtsstellen begrenzt umgesetzt:
   - `HomePage`, `MyArbeitsstundenPage` und `ArbeitsstundenEditorPage` warten das Laden nicht mehr direkt in `OnAppearing` ab, sondern planen es per `Dispatcher` nach dem ersten Render-Zyklus ein
-  - zusätzliche `_loadScheduled`-/`_isLoading`-Guards verhindern doppelte Ladeplanung während schneller Navigation
+  - zusÃ¤tzliche `_loadScheduled`-/`_isLoading`-Guards verhindern doppelte Ladeplanung wÃ¤hrend schneller Navigation
   - Auswahl-/Listennavigation in `HomePage` und `MyArbeitsstundenPage` gegen Reentrancy/Doppeltaps abgesichert
-  - `HomeViewModel.InitializeAsync()` cached Rolle und `MitgliedId` des zuletzt geladenen Kontexts; bei unverändertem Kontext erfolgt kein erneuter Home-Reload
-  - `KGV.Infrastructure/Services/SupabaseService.cs` lädt Pflichtstundenübersicht, Arbeitseinsätze, Termine und Bekanntmachungen für Home jetzt parallel statt seriell
-  - `KGV.Maui/Platforms/Android/AndroidManifest.xml` um `android:enableOnBackInvokedCallback="true"` ergänzt
-  - `KGV.Maui/KGV.Maui.csproj` auf eine einheitliche zentrale SVG-Quelle für `MauiIcon` und `MauiSplashScreen` umgestellt (`Resources/AppIcon/appicon.svg`)
+  - `HomeViewModel.InitializeAsync()` cached Rolle und `MitgliedId` des zuletzt geladenen Kontexts; bei unverÃ¤ndertem Kontext erfolgt kein erneuter Home-Reload
+  - `KGV.Infrastructure/Services/SupabaseService.cs` lÃ¤dt PflichtstundenÃ¼bersicht, ArbeitseinsÃ¤tze, Termine und Bekanntmachungen fÃ¼r Home jetzt parallel statt seriell
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml` um `android:enableOnBackInvokedCallback="true"` ergÃ¤nzt
+  - `KGV.Maui/KGV.Maui.csproj` auf eine einheitliche zentrale SVG-Quelle fÃ¼r `MauiIcon` und `MauiSplashScreen` umgestellt (`Resources/AppIcon/appicon.svg`)
 - Fachlich/technisch erwartetes Ergebnis nach dem Block:
   - weniger UI-Druck genau im Navigationsfenster
-  - weniger unnötige Wiederholungs-Loads auf der Home-Seite
-  - kürzere Home-Gesamtwartezeit durch paralleles Laden der Teilbereiche
-  - weniger Risiko für doppelte Navigationsauslösung durch schnelle Mehrfachtaps
+  - weniger unnÃ¶tige Wiederholungs-Loads auf der Home-Seite
+  - kÃ¼rzere Home-Gesamtwartezeit durch paralleles Laden der Teilbereiche
+  - weniger Risiko fÃ¼r doppelte NavigationsauslÃ¶sung durch schnelle Mehrfachtaps
   - konsistentere Android-Back-Integration und eindeutigerer Launcher-Icon-Pfad
 - Bewusst nicht gemacht:
   - keine neue Schattenlogik neben vorhandenen DB-/RPC-Pfaden gebaut
-  - keine WPF-Datei geändert
+  - keine WPF-Datei geÃ¤ndert
   - keine fachlichen Produktivpfade von Home/Detail/Verwaltung umgebaut
-  - keine breiten Altfehler außerhalb dieses ANR-/Icon-Blocks mit angefasst
+  - keine breiten Altfehler auÃŸerhalb dieses ANR-/Icon-Blocks mit angefasst
 - Technische Verifikation:
-  - `get_errors` auf den geänderten Dateien blieb unauffällig
-  - `get_tests` für `Project=KGV.Maui` lieferte keine passenden Tests
+  - `get_errors` auf den geÃ¤nderten Dateien blieb unauffÃ¤llig
+  - `get_tests` fÃ¼r `Project=KGV.Maui` lieferte keine passenden Tests
   - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
   - erster Lauf scheiterte blockfremd u. a. an vorhandenen `InitializeComponent`-Fehlern in:
     - `KGV.Maui/App.xaml.cs`
@@ -3237,40 +3276,40 @@
     - `KGV.Maui/Pages/BekanntmachungEditorPage.cs`
     - `KGV.Maui/Pages/HomeManagementPage.cs`
     - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
-  - damit ist der ANR-/Home-/Icon-Block selbst isoliert angepasst, der Gesamt-Workspace aber weiterhin nicht grün buildbar
+  - damit ist der ANR-/Home-/Icon-Block selbst isoliert angepasst, der Gesamt-Workspace aber weiterhin nicht grÃ¼n buildbar
 
-## 2026-03-26 – Prompt 1/3: MAUI-Loginlogo auf korrektes KGV-Bild umgestellt, Launcher-Icon bewusst getrennt gelassen
+## 2026-03-26 â€“ Prompt 1/3: MAUI-Loginlogo auf korrektes KGV-Bild umgestellt, Launcher-Icon bewusst getrennt gelassen
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-Dateien geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrÃ¼cklich nur die relevanten MAUI-Dateien geprÃ¼ft:
   - `KGV.Maui/Pages/LoginPage.xaml.cs`
   - `KGV.Maui/KGV.Maui.csproj`
   - `KGV.Maui/Resources/Images/*`
   - `KGV.Maui/Resources/AppIcon/*`
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
-  - die Loginseite zeigte oben weiterhin das falsche grüne Personen-/Splash-Logo
+  - die Loginseite zeigte oben weiterhin das falsche grÃ¼ne Personen-/Splash-Logo
   - Ursache war ein falscher UI-Bildpfad in `LoginPage`: geladen wurde `kgv_logo.svg`
-  - dieses SVG war nicht das fachlich gewünschte KGV-Logo, sondern der bisherige grüne Ersatz-/Splashpfad
-  - das Launcher-Icon war ausdrücklich nicht das Problem:
+  - dieses SVG war nicht das fachlich gewÃ¼nschte KGV-Logo, sondern der bisherige grÃ¼ne Ersatz-/Splashpfad
+  - das Launcher-Icon war ausdrÃ¼cklich nicht das Problem:
     - der aktive `MauiIcon`-Pfad blieb korrekt `Resources/AppIcon/appicon.png`
-    - Manifest-/Launcher-Iconlogik mussten dafür nicht verändert werden
+    - Manifest-/Launcher-Iconlogik mussten dafÃ¼r nicht verÃ¤ndert werden
   - unter `Resources/Images` fehlte bisher ein normales PNG-UI-Asset, das inhaltlich dem echten KGV-Bild aus `Resources/AppIcon/appicon.png` entspricht
 - Den Korrekturblock deshalb bewusst klein und nur im UI-Logo-Pfad umgesetzt:
   - das fachlich richtige Bild `KGV.Maui/Resources/AppIcon/appicon.png` als normales UI-Bild unter `KGV.Maui/Resources/Images/kgv_logo.png` bereitgestellt
-  - `KGV.Maui.csproj` erweitert, damit `Resources/Images/*.png` zusätzlich als `MauiImage` eingebunden werden
+  - `KGV.Maui.csproj` erweitert, damit `Resources/Images/*.png` zusÃ¤tzlich als `MauiImage` eingebunden werden
   - das alte falsche `Resources/Images/kgv_logo.svg` entfernt, damit der Ausgabename `kgv_logo` nicht doppelt vom Resizetizer erzeugt wird
   - `LoginPage` vom falschen `kgv_logo.svg` auf `kgv_logo.png` umgestellt
-  - Launcher-Icon, Manifest und Android-Iconlogik bewusst unverändert gelassen
+  - Launcher-Icon, Manifest und Android-Iconlogik bewusst unverÃ¤ndert gelassen
 - Aktive Konfiguration nach dem Block:
   - sichtbares Login-/UI-Logo: `KGV.Maui/Resources/Images/kgv_logo.png`
-  - fachliche Bildquelle dafür: `KGV.Maui/Resources/AppIcon/appicon.png`
-  - Launcher-Icon unverändert: `KGV.Maui/Resources/AppIcon/appicon.png`
+  - fachliche Bildquelle dafÃ¼r: `KGV.Maui/Resources/AppIcon/appicon.png`
+  - Launcher-Icon unverÃ¤ndert: `KGV.Maui/Resources/AppIcon/appicon.png`
 - Bewusst nicht gemacht:
   - kein allgemeiner Design-Umbau
-  - keine Login-/Shell-/Fachlogik geändert
-  - keine erneute Änderung an `MauiIcon`, Manifest oder Android-Launcherpfaden außerhalb der unveränderten Prüfung
+  - keine Login-/Shell-/Fachlogik geÃ¤ndert
+  - keine erneute Ã„nderung an `MauiIcon`, Manifest oder Android-Launcherpfaden auÃŸerhalb der unverÃ¤nderten PrÃ¼fung
 - Technische Verifikation:
-  - `get_errors` auf den geänderten Dateien blieb unauffällig
+  - `get_errors` auf den geÃ¤nderten Dateien blieb unauffÃ¤llig
   - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
   - ein direkt benachbarter Resizetizer-Duplikatfehler um `kgv_logo` wurde in diesem Block noch mit bereinigt
   - der Lauf scheiterte weiterhin blockfremd an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
@@ -3278,11 +3317,11 @@
     - `KGV.Maui/Pages/HomeManagementPage.cs`
     - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
     - `KGV.Maui/Pages/TermineEditorPage.cs`
-  - damit ist der Loginlogo-Pfad selbst bereinigt, der Gesamt-Workspace aber weiterhin nicht grün buildbar
+  - damit ist der Loginlogo-Pfad selbst bereinigt, der Gesamt-Workspace aber weiterhin nicht grÃ¼n buildbar
 
-## 2026-03-26 – Prompt 1/3: MAUI-Arbeitsstundenpfad nach Flyout-Umbau stabilisiert
+## 2026-03-26 â€“ Prompt 1/3: MAUI-Arbeitsstundenpfad nach Flyout-Umbau stabilisiert
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-Dateien geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrÃ¼cklich nur die relevanten MAUI-Dateien geprÃ¼ft:
   - `KGV.Maui/ShellRouteRegistrar.cs`
   - `KGV.Maui/ShellNavigationHelper.cs`
   - `KGV.Maui/AdminShell.cs`
@@ -3297,45 +3336,45 @@
   - `workhours` war im aktuellen Stand kein allgemeiner universeller Shell-Root mehr
   - im `UserShell` existiert `workhours` weiterhin als sichtbarer Root-Unterpunkt
   - im `AdminShell` existiert der Arbeitsstunden-Unterpunkt dagegen unter der Route `member_workhours`
-  - `ArbeitsstundenEditorPage` verwendete für `Abbrechen` und Save-Erfolg aber noch starr `//workhours`
+  - `ArbeitsstundenEditorPage` verwendete fÃ¼r `Abbrechen` und Save-Erfolg aber noch starr `//workhours`
   - genau deshalb entstand der Fehler `unable to figure out route for: //workhours`, sobald der Pfad aus dem Admin-/Mitgliedskontext genutzt wurde
-  - `MyArbeitsstundenPage` selbst war noch nicht als Detailroute registriert; ein sauberer Fallback außerhalb sichtbarer Shell-Roots fehlte also
-  - der Home-Schnellzugriff `Arbeitsstunde erfassen` war für Admin/Vorstand noch an den eigenen Nutzerkontext gekoppelt statt an den ausgewählten Mitgliedskontext
+  - `MyArbeitsstundenPage` selbst war noch nicht als Detailroute registriert; ein sauberer Fallback auÃŸerhalb sichtbarer Shell-Roots fehlte also
+  - der Home-Schnellzugriff `Arbeitsstunde erfassen` war fÃ¼r Admin/Vorstand noch an den eigenen Nutzerkontext gekoppelt statt an den ausgewÃ¤hlten Mitgliedskontext
 - Den Korrekturblock deshalb bewusst klein und nur im vorhandenen mobilen Produktivpfad umgesetzt:
-  - `ShellRouteRegistrar` ergänzt um die Detailroute `nameof(MyArbeitsstundenPage)`
-  - `ShellNavigationHelper` erweitert um eine kleine Hilfsfunktion, die prüft, ob eine sichtbare Shell-Content-Route aktuell wirklich vorhanden ist
-  - `ArbeitsstundenEditorPage` leitet `Abbrechen` und Save-Erfolg jetzt fachlich passend zurück:
+  - `ShellRouteRegistrar` ergÃ¤nzt um die Detailroute `nameof(MyArbeitsstundenPage)`
+  - `ShellNavigationHelper` erweitert um eine kleine Hilfsfunktion, die prÃ¼ft, ob eine sichtbare Shell-Content-Route aktuell wirklich vorhanden ist
+  - `ArbeitsstundenEditorPage` leitet `Abbrechen` und Save-Erfolg jetzt fachlich passend zurÃ¼ck:
     - `//member_workhours`, wenn der Admin-/Mitgliedskontextpfad sichtbar ist
     - `//workhours`, wenn der User-Root sichtbar ist
     - `nameof(MyArbeitsstundenPage)` als vorhandener Detail-Fallback, falls aktuell kein sichtbarer Shell-Root greift
   - damit wurde kein neuer Dummy-Pfad gebaut, sondern nur der vorhandene Listen-/Editorpfad stabil verdrahtet
-  - `HomeViewModel.CanCreateWorkHoursEntry` für Admin/Vorstand an den vorhandenen ausgewählten `MemberContextState` gekoppelt
-  - User behalten unverändert den eigenen Mitgliedskontext über `CurrentMitgliedId`
+  - `HomeViewModel.CanCreateWorkHoursEntry` fÃ¼r Admin/Vorstand an den vorhandenen ausgewÃ¤hlten `MemberContextState` gekoppelt
+  - User behalten unverÃ¤ndert den eigenen Mitgliedskontext Ã¼ber `CurrentMitgliedId`
 - Fachliches Ergebnis nach dem Block:
-  - kein ungültiger universeller `//workhours`-Rücksprung mehr
-  - Arbeitsstunden-Liste und Editor bleiben erreichbar über die vorhandenen mobilen Produktivseiten
-  - `Abbrechen` und Save-Erfolg führen auf einen gültigen mobilen Arbeitsstundenpfad zurück
-  - Admin/Vorstand arbeiten im Arbeitsstundenpfad jetzt konsistent mit ausgewähltem Mitgliedskontext
+  - kein ungÃ¼ltiger universeller `//workhours`-RÃ¼cksprung mehr
+  - Arbeitsstunden-Liste und Editor bleiben erreichbar Ã¼ber die vorhandenen mobilen Produktivseiten
+  - `Abbrechen` und Save-Erfolg fÃ¼hren auf einen gÃ¼ltigen mobilen Arbeitsstundenpfad zurÃ¼ck
+  - Admin/Vorstand arbeiten im Arbeitsstundenpfad jetzt konsistent mit ausgewÃ¤hltem Mitgliedskontext
   - User arbeiten weiter mit dem eigenen Mitgliedskontext
 - Direkt bereinigte Aufrufer/Muster im selben Pfad:
-  - starre Rücknavigation aus `ArbeitsstundenEditorPage`
-  - Sichtbarkeit des Home-Schnellzugriffs für Admin/Vorstand
+  - starre RÃ¼cknavigation aus `ArbeitsstundenEditorPage`
+  - Sichtbarkeit des Home-Schnellzugriffs fÃ¼r Admin/Vorstand
 - Bewusst nicht gemacht:
   - keine neue Seite gebaut
   - keine WPF-Struktur nachgebildet
-  - keine zusätzliche Fachlogik außerhalb des vorhandenen Listen-/Editorpfads erfunden
-  - Save-Buttons am Ende des Formulars unverändert belassen
+  - keine zusÃ¤tzliche Fachlogik auÃŸerhalb des vorhandenen Listen-/Editorpfads erfunden
+  - Save-Buttons am Ende des Formulars unverÃ¤ndert belassen
 - Technische Verifikation:
-  - `get_errors` auf den geänderten Arbeitsstunden-Dateien blieb unauffällig
+  - `get_errors` auf den geÃ¤nderten Arbeitsstunden-Dateien blieb unauffÃ¤llig
   - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
   - der Lauf scheiterte weiterhin blockfremd an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
     - `KGV.Maui/Pages/HomeManagementPage.cs`
     - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
-  - damit ist der Arbeitsstunden-Navigationspfad selbst bereinigt, der Gesamt-Workspace aber weiterhin nicht grün buildbar
+  - damit ist der Arbeitsstunden-Navigationspfad selbst bereinigt, der Gesamt-Workspace aber weiterhin nicht grÃ¼n buildbar
 
-## 2026-03-26 – MAUI-Bugfix: Android-AppIcon final auf genau einen aktiven PNG-Pfad reduziert
+## 2026-03-26 â€“ MAUI-Bugfix: Android-AppIcon final auf genau einen aktiven PNG-Pfad reduziert
 
-- Vor dem kleinen Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur den MAUI-Icon-Pfad geprüft:
+- Vor dem kleinen Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrÃ¼cklich nur den MAUI-Icon-Pfad geprÃ¼ft:
   - `KGV.Maui/KGV.Maui.csproj`
   - `KGV.Maui/Resources/AppIcon/*`
   - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
@@ -3343,29 +3382,29 @@
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
   - es existierte weiterhin genau ein expliziter `MauiIcon`-Eintrag auf `Resources/AppIcon/appicon.png`
-  - konkurrierende `MauiIcon`-Einträge gab es also nicht direkt mehrfach
-  - im selben `AppIcon`-Ordner lag aber zusätzlich noch `appicon.svg`; die Datei war nicht als Launcher-Icon aktiv, wurde aber zusätzlich noch als normales `MauiImage` unter `Resources/Images/kgv_logo.svg` verlinkt und blieb damit eine echte Alt-/Verwechslungsquelle im Ressourcenpfad
+  - konkurrierende `MauiIcon`-EintrÃ¤ge gab es also nicht direkt mehrfach
+  - im selben `AppIcon`-Ordner lag aber zusÃ¤tzlich noch `appicon.svg`; die Datei war nicht als Launcher-Icon aktiv, wurde aber zusÃ¤tzlich noch als normales `MauiImage` unter `Resources/Images/kgv_logo.svg` verlinkt und blieb damit eine echte Alt-/Verwechslungsquelle im Ressourcenpfad
   - ein altes adaptives Foreground-Setup war im aktuellen Repo nicht aktiv
-  - `AndroidManifest.xml` überschreibt das Launcher-Icon nicht:
+  - `AndroidManifest.xml` Ã¼berschreibt das Launcher-Icon nicht:
     - kein `android:icon`
     - kein `android:roundIcon`
-  - unter `Platforms/Android/Resources/*` existieren im aktuellen Workspace keine manuellen `mipmap`-/`drawable`-Reste, die das MAUI-AppIcon überschreiben
+  - unter `Platforms/Android/Resources/*` existieren im aktuellen Workspace keine manuellen `mipmap`-/`drawable`-Reste, die das MAUI-AppIcon Ã¼berschreiben
 - Den Bugfix deshalb bewusst klein und nur auf die aktive Launcher-Konfiguration begrenzt:
-  - in `KGV.Maui.csproj` explizit `MauiIcon Remove="Resources\AppIcon\*.svg"` ergänzt
-  - die zusätzliche `MauiImage`-Verlinkung der `AppIcon`-SVG wurde entfernt
+  - in `KGV.Maui.csproj` explizit `MauiIcon Remove="Resources\AppIcon\*.svg"` ergÃ¤nzt
+  - die zusÃ¤tzliche `MauiImage`-Verlinkung der `AppIcon`-SVG wurde entfernt
   - stattdessen wurde das allgemeine Bild-Asset sauber separat unter `KGV.Maui/Resources/Images/kgv_logo.svg` abgelegt
-  - danach bleibt für den Launcher-Pfad eindeutig nur noch ein aktiver `MauiIcon` bestehen:
+  - danach bleibt fÃ¼r den Launcher-Pfad eindeutig nur noch ein aktiver `MauiIcon` bestehen:
     - `Resources/AppIcon/appicon.png`
-  - die bestehende Splash-Konfiguration wurde bewusst nicht verändert, weil sie das Launcher-Icon nicht überschreibt und der Block nur das AppIcon-Thema abschließen soll
+  - die bestehende Splash-Konfiguration wurde bewusst nicht verÃ¤ndert, weil sie das Launcher-Icon nicht Ã¼berschreibt und der Block nur das AppIcon-Thema abschlieÃŸen soll
   - keine Login-/Shell-/Fachlogik angefasst
 - Aktive Icon-Konfiguration nach dem Block:
-  - Launcher-Icon: ausschließlich `KGV.Maui/Resources/AppIcon/appicon.png`
+  - Launcher-Icon: ausschlieÃŸlich `KGV.Maui/Resources/AppIcon/appicon.png`
   - allgemeines Logo-Bild: `KGV.Maui/Resources/Images/kgv_logo.svg`
-  - keine Manifest-Überschreibung
+  - keine Manifest-Ãœberschreibung
   - keine manuellen Android-Resource-Overrides im Repo
 - Android-Test-/Bereinigungshinweis festgehalten:
-  - `bin` und `obj` löschen
-  - App auf dem Gerät deinstallieren
+  - `bin` und `obj` lÃ¶schen
+  - App auf dem GerÃ¤t deinstallieren
   - neu bauen und neu installieren, weil Android Launcher-Icons aggressiv cached
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
@@ -3373,11 +3412,11 @@
   - der Lauf scheiterte danach weiterhin blockfremd an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
     - `KGV.Maui/Pages/HomeManagementPage.cs`
     - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
-  - damit ist die Launcher-Icon-Konfiguration selbst klar reduziert, der Gesamt-Workspace aber weiterhin nicht grün buildbar
+  - damit ist die Launcher-Icon-Konfiguration selbst klar reduziert, der Gesamt-Workspace aber weiterhin nicht grÃ¼n buildbar
 
-## 2026-03-26 – Prompt 1/2: MAUI-Login-Root-Switch sofort sichtbar gemacht und AppIcon-Pfad sauber verdrahtet
+## 2026-03-26 â€“ Prompt 1/2: MAUI-Login-Root-Switch sofort sichtbar gemacht und AppIcon-Pfad sauber verdrahtet
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-Dateien geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrÃ¼cklich nur die relevanten MAUI-Dateien geprÃ¼ft:
   - `KGV.Maui/App.xaml.cs`
   - `KGV.Maui/Pages/LoginPage.xaml.cs`
   - `KGV.Maui/MauiProgram.cs`
@@ -3389,46 +3428,46 @@
   - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
-  - `LoginPage`, `AdminShell` und `UserShell` waren in `MauiProgram` bereits `transient` registriert; die DI-Lifetimes selbst waren also nicht der Auslöser für den verzögerten Wechsel
+  - `LoginPage`, `AdminShell` und `UserShell` waren in `MauiProgram` bereits `transient` registriert; die DI-Lifetimes selbst waren also nicht der AuslÃ¶ser fÃ¼r den verzÃ¶gerten Wechsel
   - der sichtbare Android-Fehler lag im vorhandenen `App.SwitchToCurrentRootAsync()`-Pfad:
-    - auf Android wurde nach erfolgreichem Login ein neues `Window` geöffnet
+    - auf Android wurde nach erfolgreichem Login ein neues `Window` geÃ¶ffnet
     - danach wurde das alte Fenster geschlossen
-    - genau dieser Ersatzfensterpfad erklärte plausibel, warum der Shell-Wechsel erst sichtbar wurde, wenn Android die App erneut in den Vordergrund holte
-  - zusätzlich hielt `LoginPage` noch einen zweiten Fallback-Codepfad vor, der selbst `AdminShell`/`UserShell` baute und direkt `window.Page` setzte
+    - genau dieser Ersatzfensterpfad erklÃ¤rte plausibel, warum der Shell-Wechsel erst sichtbar wurde, wenn Android die App erneut in den Vordergrund holte
+  - zusÃ¤tzlich hielt `LoginPage` noch einen zweiten Fallback-Codepfad vor, der selbst `AdminShell`/`UserShell` baute und direkt `window.Page` setzte
   - damit existierten zwei konkurrierende Login-Abschlusswege statt eines klaren zentralen Root-Wechsels
-  - beim App-Symbol zeigte `KGV.Maui.csproj` zwar bereits auf `Resources/AppIcon/appicon.png`, aber lokal lag die PNG-Datei noch nicht sauber im versionierten Pfad; parallel nutzte der Splash zusätzlich dieselbe `AppIcon`-SVG statt die vorhandene eigene `Splash`-SVG
-  - `AndroidManifest.xml` überschreibt das Icon nicht; der aktive Pfad liegt also tatsächlich im MAUI-Resizetizer/`csproj`
+  - beim App-Symbol zeigte `KGV.Maui.csproj` zwar bereits auf `Resources/AppIcon/appicon.png`, aber lokal lag die PNG-Datei noch nicht sauber im versionierten Pfad; parallel nutzte der Splash zusÃ¤tzlich dieselbe `AppIcon`-SVG statt die vorhandene eigene `Splash`-SVG
+  - `AndroidManifest.xml` Ã¼berschreibt das Icon nicht; der aktive Pfad liegt also tatsÃ¤chlich im MAUI-Resizetizer/`csproj`
 - Den Korrekturblock deshalb bewusst klein und nur im MAUI-Root-/Icon-Pfad umgesetzt:
   - `App.SwitchToCurrentRootAsync()` wechselt jetzt auf dem `MainThread` direkt das `Page`-Root des aktiven vorhandenen Fensters
   - der Android-spezifische `OpenWindow(nextWindow)`-/`CloseWindow(currentWindow)`-Pfad wurde entfernt
   - dadurch bleibt nach erfolgreichem Login genau ein sichtbarer stabiler Root-Wechsel auf die frisch aufgebaute `AdminShell` bzw. `UserShell`
-  - `CreateRootPage()` blieb der zentrale Ort für Shell-Erzeugung und `BuildMenu()`-Aufruf
-  - `LoginPage` nutzt für den erfolgreichen Loginabschluss jetzt nur noch diesen einen zentralen App-Root-Pfad; der lokale Shell-Fallback mit eigener `window.Page`-Zuweisung wurde entfernt
-  - überflüssige Fallback-Abhängigkeiten in `LoginPage` wurden direkt mit bereinigt
+  - `CreateRootPage()` blieb der zentrale Ort fÃ¼r Shell-Erzeugung und `BuildMenu()`-Aufruf
+  - `LoginPage` nutzt fÃ¼r den erfolgreichen Loginabschluss jetzt nur noch diesen einen zentralen App-Root-Pfad; der lokale Shell-Fallback mit eigener `window.Page`-Zuweisung wurde entfernt
+  - Ã¼berflÃ¼ssige Fallback-AbhÃ¤ngigkeiten in `LoginPage` wurden direkt mit bereinigt
   - aktiver AppIcon-Pfad in `KGV.Maui.csproj` verifiziert und beibehalten:
     - aktives AppIcon: `Resources/AppIcon/appicon.png`
-  - der Splash bleibt bewusst auf dem vorhandenen buildbaren `Resources/AppIcon/appicon.svg`, weil die vorhandene `Resources/Splash/splash.svg` in diesem Workspace aktuell keinen gültigen Android-`drawable/splash` erzeugte
-  - die tatsächlich referenzierte Datei `KGV.Maui/Resources/AppIcon/appicon.png` wird mit in den Commit genommen
+  - der Splash bleibt bewusst auf dem vorhandenen buildbaren `Resources/AppIcon/appicon.svg`, weil die vorhandene `Resources/Splash/splash.svg` in diesem Workspace aktuell keinen gÃ¼ltigen Android-`drawable/splash` erzeugte
+  - die tatsÃ¤chlich referenzierte Datei `KGV.Maui/Resources/AppIcon/appicon.png` wird mit in den Commit genommen
 - Entscheidung zum Icon-Pfad:
   - kein konkurrierender zweiter `MauiIcon`-Eintrag wurde gebaut
   - `PNG` bleibt das aktive Android-AppIcon
-  - die `SVG` bleibt im aktuellen Workspace nur für Splash-/Bildpfad aktiv; ein Umhängen auf die separate `Splash`-SVG wurde kurz geprüft, aber wegen Android-`drawable/splash`-Buildfehler nicht beibehalten
+  - die `SVG` bleibt im aktuellen Workspace nur fÃ¼r Splash-/Bildpfad aktiv; ein UmhÃ¤ngen auf die separate `Splash`-SVG wurde kurz geprÃ¼ft, aber wegen Android-`drawable/splash`-Buildfehler nicht beibehalten
 - Android-Test-/Bereinigungshinweis festgehalten:
   - `bin`/`obj` neu erzeugen
-  - App auf dem Gerät deinstallieren
+  - App auf dem GerÃ¤t deinstallieren
   - neu installieren, weil Android Launcher-Icons und App-Metadaten oft cached
 - Technische Verifikation:
-  - `get_errors` auf den geänderten Root-Switch-Dateien blieb unauffällig
+  - `get_errors` auf den geÃ¤nderten Root-Switch-Dateien blieb unauffÃ¤llig
   - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
   - der Lauf scheiterte weiterhin blockfremd an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
     - `KGV.Maui/Pages/TermineEditorPage.cs`
     - `KGV.Maui/Pages/HomeManagementPage.cs`
     - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
-  - damit ist der Login-/Icon-Block selbst codepfadseitig bereinigt, der Gesamt-Workspace aber weiterhin nicht grün buildbar
+  - damit ist der Login-/Icon-Block selbst codepfadseitig bereinigt, der Gesamt-Workspace aber weiterhin nicht grÃ¼n buildbar
 
-## 2026-03-26 – MAUI-Bugfix: Shell-Route `management_workassignments` nach Flyout-Umbau sauber repariert
+## 2026-03-26 â€“ MAUI-Bugfix: Shell-Route `management_workassignments` nach Flyout-Umbau sauber repariert
 
-- Vor dem kleinen Bugfix-Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die relevanten MAUI-Dateien geprüft:
+- Vor dem kleinen Bugfix-Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrÃ¼cklich nur die relevanten MAUI-Dateien geprÃ¼ft:
   - `KGV.Maui/ShellRouteRegistrar.cs`
   - `KGV.Maui/AdminShell.cs`
   - `KGV.Maui/UserShell.cs`
@@ -3440,31 +3479,31 @@
   - in `AdminShell` war `management_workassignments` damit kein `ShellContent.Route`-Root mehr
   - `ShellRouteRegistrar` registrierte zwar `nameof(ArbeitseinsaetzeManagementPage)`, aber keinen expliziten Alias `management_workassignments`
   - gleichzeitig wurde das Ziel weiterhin noch absolut per `//management_workassignments` angesprungen
-  - genau dieses Muster lag direkt benachbart im selben Pfad auch für `management_announcements` und `management_appointments` vor
-- Den Bugfix deshalb bewusst klein und im selben Muster zusammenhängend umgesetzt:
-  - `ShellRouteRegistrar` ergänzt um explizite Alias-Registrierungen:
-    - `management_announcements` → `BekanntmachungenManagementPage`
-    - `management_appointments` → `TermineManagementPage`
-    - `management_workassignments` → `ArbeitseinsaetzeManagementPage`
-  - fehlerhafte absolute Aufrufe auf nicht mehr rootfähige Managementziele auf relative Navigation umgestellt:
+  - genau dieses Muster lag direkt benachbart im selben Pfad auch fÃ¼r `management_announcements` und `management_appointments` vor
+- Den Bugfix deshalb bewusst klein und im selben Muster zusammenhÃ¤ngend umgesetzt:
+  - `ShellRouteRegistrar` ergÃ¤nzt um explizite Alias-Registrierungen:
+    - `management_announcements` â†’ `BekanntmachungenManagementPage`
+    - `management_appointments` â†’ `TermineManagementPage`
+    - `management_workassignments` â†’ `ArbeitseinsaetzeManagementPage`
+  - fehlerhafte absolute Aufrufe auf nicht mehr rootfÃ¤hige Managementziele auf relative Navigation umgestellt:
     - `KGV.Maui/Pages/HomePage.xaml.cs`
     - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
     - `KGV.Maui/Pages/HomeManagementPage.cs`
     - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
-  - dabei bewusst nur die direkt benachbarten gleichartigen `management_*`-Fehler mitgenommen, keinen größeren Navigationsumbau gestartet
-  - echte Root-Ziele mit `//` wurden in diesem Block bewusst nicht verändert
+  - dabei bewusst nur die direkt benachbarten gleichartigen `management_*`-Fehler mitgenommen, keinen grÃ¶ÃŸeren Navigationsumbau gestartet
+  - echte Root-Ziele mit `//` wurden in diesem Block bewusst nicht verÃ¤ndert
 - Technische Verifikation:
-  - `get_errors` auf den geänderten Bugfix-Dateien blieb unauffällig
+  - `get_errors` auf den geÃ¤nderten Bugfix-Dateien blieb unauffÃ¤llig
   - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
   - der Lauf scheiterte weiterhin blockfremd an bereits vorhandenen MAUI-Control-/Namespacefehlern, u. a. in:
     - `KGV.Maui/Pages/TermineEditorPage.cs`
     - `KGV.Maui/Pages/HomeManagementPage.cs`
     - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
-  - damit ist der Bugfix-Codepfad selbst bereinigt, der Gesamt-Workspace aber weiterhin nicht grün buildbar
+  - damit ist der Bugfix-Codepfad selbst bereinigt, der Gesamt-Workspace aber weiterhin nicht grÃ¼n buildbar
 
-## 2026-03-26 – Prompt 2/2: MAUI-Flyout-Navigation entschlackt und Mitgliedskontext sauber an Unterpunkte gebunden
+## 2026-03-26 â€“ Prompt 2/2: MAUI-Flyout-Navigation entschlackt und Mitgliedskontext sauber an Unterpunkte gebunden
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrücklich nur die aktiven MAUI-Dateien für Shell/Flyout und Mitgliedskontext geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und ausdrÃ¼cklich nur die aktiven MAUI-Dateien fÃ¼r Shell/Flyout und Mitgliedskontext geprÃ¼ft:
   - `KGV.Maui/AdminShell.cs`
   - `KGV.Maui/UserShell.cs`
   - `KGV.Maui/ShellRouteRegistrar.cs`
@@ -3473,60 +3512,60 @@
   - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
   - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
   - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
-  - ergänzend die tatsächlich vorhandenen Zielseiten `AblesenOverviewPage`, `ExportPage`, `UserManagementPage`, `MeineDatenPage`, `NebenmitgliedPage`, `MemberGardensPage`, `ArbeitsstundenReviewPage`
+  - ergÃ¤nzend die tatsÃ¤chlich vorhandenen Zielseiten `AblesenOverviewPage`, `ExportPage`, `UserManagementPage`, `MeineDatenPage`, `NebenmitgliedPage`, `MemberGardensPage`, `ArbeitsstundenReviewPage`
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
-  - das Flyout war noch deutlich breiter als für den gewünschten Handy-Hauptweg
-  - `AdminShell` enthielt zusätzlich direkte Einträge für `RFID einrichten`, `Fällige Zähler`, `Zählerwechsel`, mehrere Verwaltungsseiten, `Meine Arbeitsstunden` und `Mein Profil`
-  - `UserShell` enthielt noch die ältere Struktur `Mein Bereich · ...` statt einer bewusst kleinen, eingerückten Mitgliedskontextdarstellung
+  - das Flyout war noch deutlich breiter als fÃ¼r den gewÃ¼nschten Handy-Hauptweg
+  - `AdminShell` enthielt zusÃ¤tzlich direkte EintrÃ¤ge fÃ¼r `RFID einrichten`, `FÃ¤llige ZÃ¤hler`, `ZÃ¤hlerwechsel`, mehrere Verwaltungsseiten, `Meine Arbeitsstunden` und `Mein Profil`
+  - `UserShell` enthielt noch die Ã¤ltere Struktur `Mein Bereich Â· ...` statt einer bewusst kleinen, eingerÃ¼ckten Mitgliedskontextdarstellung
   - im Adminpfad waren die mitgliedsbezogenen Ziele bislang nicht an einen sichtbaren `SelectedMember` gebunden, sondern standen immer im Flyout
-  - `MemberSearchPage` setzte das ausgewählte Mitglied zwar bereits in `MemberContextState`, aktualisierte danach aber das Flyout nicht aktiv
-  - der vorhandene MAUI-Pfad `MyArbeitsstundenPage` / `ArbeitsstundenEditorPage` war real vorhanden, orientierte sich bisher im Adminkontext aber nur am eigenen `CurrentMitgliedId`-Pfad statt am ausgewählten Mitgliedskontext
+  - `MemberSearchPage` setzte das ausgewÃ¤hlte Mitglied zwar bereits in `MemberContextState`, aktualisierte danach aber das Flyout nicht aktiv
+  - der vorhandene MAUI-Pfad `MyArbeitsstundenPage` / `ArbeitsstundenEditorPage` war real vorhanden, orientierte sich bisher im Adminkontext aber nur am eigenen `CurrentMitgliedId`-Pfad statt am ausgewÃ¤hlten Mitgliedskontext
 - Den Korrekturblock deshalb bewusst klein und nur auf vorhandene mobile Produktivpfade begrenzt:
-  - `AdminShell` auf die gewünschten Hauptpunkte reduziert:
+  - `AdminShell` auf die gewÃ¼nschten Hauptpunkte reduziert:
     - `Startseite`
     - `Ablesen`
     - `Parzellenverwaltung`
     - `Arbeitsstunden freigeben`
     - `Export`
     - `Mitgliedersuche`
-  - alle übrigen direkten Flyout-Einträge aus dem mobilen Hauptweg entfernt, insbesondere:
+  - alle Ã¼brigen direkten Flyout-EintrÃ¤ge aus dem mobilen Hauptweg entfernt, insbesondere:
     - direkte Ablesen-Unterpunkte
-    - direkte Verwaltungsseiten für `Bekanntmachungen`, `Termine`, `Arbeitseinsätze`
+    - direkte Verwaltungsseiten fÃ¼r `Bekanntmachungen`, `Termine`, `ArbeitseinsÃ¤tze`
     - direkter Hauptpunkt `Meine Arbeitsstunden`
     - Profilpunkt
-  - die mitgliedsbezogenen Ziele jetzt als eingerückte Unterpunkte mit `↳` abgebildet:
-    - `↳ Stammdaten`
-    - `↳ Nebenmitglied`
-    - `↳ Gärten des Mitglieds`
-    - `↳ Benutzerverwaltung` *(nur Admin, nur wenn Seite vorhanden – im aktuellen Repo vorhanden)*
-    - `↳ Arbeitsstunden`
+  - die mitgliedsbezogenen Ziele jetzt als eingerÃ¼ckte Unterpunkte mit `â†³` abgebildet:
+    - `â†³ Stammdaten`
+    - `â†³ Nebenmitglied`
+    - `â†³ GÃ¤rten des Mitglieds`
+    - `â†³ Benutzerverwaltung` *(nur Admin, nur wenn Seite vorhanden â€“ im aktuellen Repo vorhanden)*
+    - `â†³ Arbeitsstunden`
   - im Admin-/Vorstandspfad erscheinen diese Unterpunkte nur noch, wenn `MemberContextState.SelectedMember` gesetzt ist
-  - `UserShell` baut den eigenen Mitgliedskontext weiterhin sofort aus `CurrentMitgliedId` auf und zeigt die eingerückten Unterpunkte daher direkt ohne vorgelagerte Mitgliedersuche
-  - `MemberSearchPage` baut das aktuelle Shell-Menü nach Mitgliedsauswahl sofort neu auf; dadurch wird das Flyout ohne App-Neustart aktualisiert, bevor die Navigation nach `//memberdetails` erfolgt
-  - um den Unterpunkt `↳ Arbeitsstunden` nicht auf einen falschen Eigenkontext laufen zu lassen, nutzen `MyArbeitsstundenPage` und `ArbeitsstundenEditorPage` im Admin-/Vorstandskontext jetzt den vorhandenen `MemberContextState` statt ausschließlich den eigenen Benutzerkontext
-  - dabei wurde kein neuer Arbeitsstunden-Sonderpfad gebaut; weiterverwendet bleiben ausschließlich:
+  - `UserShell` baut den eigenen Mitgliedskontext weiterhin sofort aus `CurrentMitgliedId` auf und zeigt die eingerÃ¼ckten Unterpunkte daher direkt ohne vorgelagerte Mitgliedersuche
+  - `MemberSearchPage` baut das aktuelle Shell-MenÃ¼ nach Mitgliedsauswahl sofort neu auf; dadurch wird das Flyout ohne App-Neustart aktualisiert, bevor die Navigation nach `//memberdetails` erfolgt
+  - um den Unterpunkt `â†³ Arbeitsstunden` nicht auf einen falschen Eigenkontext laufen zu lassen, nutzen `MyArbeitsstundenPage` und `ArbeitsstundenEditorPage` im Admin-/Vorstandskontext jetzt den vorhandenen `MemberContextState` statt ausschlieÃŸlich den eigenen Benutzerkontext
+  - dabei wurde kein neuer Arbeitsstunden-Sonderpfad gebaut; weiterverwendet bleiben ausschlieÃŸlich:
     - `MyArbeitsstundenPage`
     - `ArbeitsstundenEditorPage`
-    - bestehende Navigation auf `ArbeitsstundenEditorPage?entryId=0` bzw. über vorhandene Datensätze
-  - `ShellNavigationHelper` minimal auf den expliziten MAUI-Shell-Typ geschärft, damit der aktive Flyout-Pfad konsistent bleibt
+    - bestehende Navigation auf `ArbeitsstundenEditorPage?entryId=0` bzw. Ã¼ber vorhandene DatensÃ¤tze
+  - `ShellNavigationHelper` minimal auf den expliziten MAUI-Shell-Typ geschÃ¤rft, damit der aktive Flyout-Pfad konsistent bleibt
 - Bewusst nicht gemacht:
   - keine neuen Platzhalterseiten
-  - keine WPF-Menüstruktur nachgebaut
-  - keine neue Verwaltungsnavigation für `Bekanntmachungen`, `Termine` oder `Arbeitseinsätze` wieder ins Flyout gelegt
+  - keine WPF-MenÃ¼struktur nachgebaut
+  - keine neue Verwaltungsnavigation fÃ¼r `Bekanntmachungen`, `Termine` oder `ArbeitseinsÃ¤tze` wieder ins Flyout gelegt
   - keine neuen Rechte aufgeweicht
 - Technische Verifikation:
-  - `get_tests` mit Filter auf `KGV.Tests` ergab im aktuellen Workspace weiterhin keine passenden aktiven Tests für diesen Block
+  - `get_tests` mit Filter auf `KGV.Tests` ergab im aktuellen Workspace weiterhin keine passenden aktiven Tests fÃ¼r diesen Block
   - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace weiterhin nicht erfolgreich
   - der Lauf scheiterte blockfremd weiter an bereits bestehenden breiten MAUI-Control-/Namespacefehlern, u. a. in:
     - `KGV.Maui/Pages/TermineEditorPage.cs`
     - `KGV.Maui/Pages/HomeManagementPage.cs`
     - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
-  - damit ist dieser Block im aktuellen Workspace ehrlich nur code- und pfadseitig, nicht aber über einen sauberen grünen Gesamt-MAUI-Build validierbar
+  - damit ist dieser Block im aktuellen Workspace ehrlich nur code- und pfadseitig, nicht aber Ã¼ber einen sauberen grÃ¼nen Gesamt-MAUI-Build validierbar
 
-## 2026-03-26 – Prompt 1/2: MAUI-Login-UI korrigiert und Arbeitsstunden-Schnellzugriff auf Home ergänzt
+## 2026-03-26 â€“ Prompt 1/2: MAUI-Login-UI korrigiert und Arbeitsstunden-Schnellzugriff auf Home ergÃ¤nzt
 
-- Vor dem kleinen Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den aktiven MAUI-Pfad und ausdrücklich nur die relevanten mobilen Dateien geprüft:
+- Vor dem kleinen Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den aktiven MAUI-Pfad und ausdrÃ¼cklich nur die relevanten mobilen Dateien geprÃ¼ft:
   - `KGV.Maui/Pages/LoginPage.xaml.cs`
   - `KGV.Maui/Pages/HomePage.xaml.cs`
   - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
@@ -3537,58 +3576,58 @@
   - `KGV.Maui/UserShell.cs`
 - WPF wurde in diesem Block bewusst nicht angefasst.
 - Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
-  - die aktive Loginoberfläche wird im Repo derzeit direkt in `LoginPage.xaml.cs` aufgebaut und nicht über XAML getrennt beschrieben
+  - die aktive LoginoberflÃ¤che wird im Repo derzeit direkt in `LoginPage.xaml.cs` aufgebaut und nicht Ã¼ber XAML getrennt beschrieben
   - das Passwortfeld nutzte noch einen separaten Button `Passwort anzeigen` unterhalb des Felds
-  - der Hauptbutton `Anmelden` stand mobil noch hinter den sekundären Aktionen und damit nicht direkt am primären Passwortkontext
-  - auf der Startseite war der Bereich `Arbeitsstunden` bereits als Überblick vorhanden, zeigte aber noch keinen klaren Erfassungseinstieg
+  - der Hauptbutton `Anmelden` stand mobil noch hinter den sekundÃ¤ren Aktionen und damit nicht direkt am primÃ¤ren Passwortkontext
+  - auf der Startseite war der Bereich `Arbeitsstunden` bereits als Ãœberblick vorhanden, zeigte aber noch keinen klaren Erfassungseinstieg
   - ein belastbarer bestehender Erfassungspfad war bereits vorhanden:
-    - Übersicht `MyArbeitsstundenPage`
+    - Ãœbersicht `MyArbeitsstundenPage`
     - direkte Editorroute `ArbeitsstundenEditorPage?entryId=0`
-    - Rückweg des Editors weiterhin auf `//workhours`
+    - RÃ¼ckweg des Editors weiterhin auf `//workhours`
 - Den Korrekturblock deshalb bewusst klein und ohne neue Architektur umgesetzt:
   - auf `KGV.Maui/Pages/LoginPage.xaml.cs` den sichtbaren Passwort-UI-Block umgestellt auf ein eingebettetes Auge-/Auge-zu-Symbol direkt am Passwortfeld
   - den separaten Button `Passwort anzeigen` entfernt
   - `Anmelden` direkt unter das Passwortfeld gesetzt
-  - die beiden sekundären Aktionen bewusst darunter belassen:
+  - die beiden sekundÃ¤ren Aktionen bewusst darunter belassen:
     - `Einladung / Erstlogin-Code anfordern`
     - `Passwort vergessen`
-  - die eigentliche Login-/OTP-/Passwortsetzen-Logik nicht verändert, sondern nur die mobile UI-Anordnung
-  - auf `KGV.Maui/ViewModels/HomeViewModel.cs` eine kleine vorhandene Kontextsichtbarkeit für den Arbeitsstunden-Schnellzugriff ergänzt
-  - auf `KGV.Maui/Pages/HomePage.xaml.cs` im Bereich `Arbeitsstunden` den klar sichtbaren Button `Arbeitsstunde erfassen` ergänzt
+  - die eigentliche Login-/OTP-/Passwortsetzen-Logik nicht verÃ¤ndert, sondern nur die mobile UI-Anordnung
+  - auf `KGV.Maui/ViewModels/HomeViewModel.cs` eine kleine vorhandene Kontextsichtbarkeit fÃ¼r den Arbeitsstunden-Schnellzugriff ergÃ¤nzt
+  - auf `KGV.Maui/Pages/HomePage.xaml.cs` im Bereich `Arbeitsstunden` den klar sichtbaren Button `Arbeitsstunde erfassen` ergÃ¤nzt
   - der Button verwendet keinen neuen Dummy-Weg, sondern direkt den vorhandenen Produktivpfad `ArbeitsstundenEditorPage?entryId=0`
-  - `ArbeitsstundenEditorPage` selbst blieb unverändert; der vorhandene Save-Button bleibt dort weiterhin am Ende des Formulars
+  - `ArbeitsstundenEditorPage` selbst blieb unverÃ¤ndert; der vorhandene Save-Button bleibt dort weiterhin am Ende des Formulars
 - Rechte-/Kontextverhalten bewusst klein gehalten:
   - der neue Home-Schnellzugriff wird nur dann angeboten, wenn im vorhandenen Nutzerkontext eine eigene `MitgliedId` vorliegt
-  - damit werden keine Rechte aufgeweicht und keine toten Erfassungspfade für Kontexte ohne eigenes Mitglied erzeugt
+  - damit werden keine Rechte aufgeweicht und keine toten Erfassungspfade fÃ¼r Kontexte ohne eigenes Mitglied erzeugt
   - Admin/Vorstand erhalten den Schnellzugriff nur dann, wenn derselbe vorhandene Eigenkontext ebenfalls belastbar vorliegt
 - Technische Verifikation:
-  - `get_tests` mit Filter auf `KGV.Tests` ergab im aktuellen Workspace keine passenden aktiven Tests für diesen kleinen MAUI-Block
+  - `get_tests` mit Filter auf `KGV.Tests` ergab im aktuellen Workspace keine passenden aktiven Tests fÃ¼r diesen kleinen MAUI-Block
   - `dotnet build KGV.Maui/KGV.Maui.csproj` im aktuellen Workspace nicht erfolgreich
   - der Lauf scheiterte weiterhin an bereits breit vorhandenen MAUI-Typ-/Namespacefehlern, u. a. in `KGV.Maui/Pages/TermineEditorPage.cs` und `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
   - im selben Fehlerbild tauchten auch generische Control-/Namespacefehler in `KGV.Maui/Pages/HomePage.xaml.cs` auf; damit ist dieser Workspace-Stand aktuell nicht sauber blockisoliert buildvalidierbar
-  - ein Git-Abschluss konnte in diesem Lauf technisch nicht ausgeführt werden, weil `git` in der aktuellen Terminalumgebung nicht verfügbar war (`GIT_NOT_FOUND`)
+  - ein Git-Abschluss konnte in diesem Lauf technisch nicht ausgefÃ¼hrt werden, weil `git` in der aktuellen Terminalumgebung nicht verfÃ¼gbar war (`GIT_NOT_FOUND`)
 
-## 2026-03-25 – Prompt 1/1: MAUI-Launcher-Icon auf echtes Vereinslogo aus aktivem PNG-Pfad gezogen
+## 2026-03-25 â€“ Prompt 1/1: MAUI-Launcher-Icon auf echtes Vereinslogo aus aktivem PNG-Pfad gezogen
 
-- Vor dem kleinen Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum und den aktiven MAUI-AppIcon-Pfad geprüft.
+- Vor dem kleinen Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum und den aktiven MAUI-AppIcon-Pfad geprÃ¼ft.
 - Ehrlicher Befund im aktuellen Repo-Stand:
-  - `AndroidManifest.xml` überschreibt das Launcher-Icon nicht
-  - `KGV.Maui.csproj` nutzte für `MauiIcon` weiterhin `Resources/AppIcon/appicon.svg`
-  - im aktiven Repo lag aber zusätzlich bereits `KGV.Maui/Resources/AppIcon/appicon.png`
+  - `AndroidManifest.xml` Ã¼berschreibt das Launcher-Icon nicht
+  - `KGV.Maui.csproj` nutzte fÃ¼r `MauiIcon` weiterhin `Resources/AppIcon/appicon.svg`
+  - im aktiven Repo lag aber zusÃ¤tzlich bereits `KGV.Maui/Resources/AppIcon/appicon.png`
   - der Fehler am Android-Startbutton lag damit plausibel am aktiven Icon-Asset-Pfad und nicht an einer separaten Manifest-Verdrahtung
 - Den Korrekturblock deshalb bewusst klein und nur am aktiven Produktpfad umgesetzt:
   - `MauiIcon` in `KGV.Maui.csproj` von `appicon.svg` auf das vorhandene Vereinslogo `appicon.png` umgestellt
-  - `MauiSplashScreen` bewusst unverändert gelassen, weil der gemeldete Fehler den Startbutton bzw. Launcher betraf
-  - keine Änderungen an `AndroidManifest.xml`, Shell, Login oder sonstigen MAUI-Pfaden
+  - `MauiSplashScreen` bewusst unverÃ¤ndert gelassen, weil der gemeldete Fehler den Startbutton bzw. Launcher betraf
+  - keine Ã„nderungen an `AndroidManifest.xml`, Shell, Login oder sonstigen MAUI-Pfaden
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` folgt als Blockvalidierung
 
-## 2026-03-25 – Prompt 1/1: Finaler Git-Abschluss für den Artefakt-/FotoUploadTest-Block sauber eingegrenzt und nur mit Blockdateien vorbereitet
+## 2026-03-25 â€“ Prompt 1/1: Finaler Git-Abschluss fÃ¼r den Artefakt-/FotoUploadTest-Block sauber eingegrenzt und nur mit Blockdateien vorbereitet
 
-- Vor dem Git-Abschluss erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum und die aktiven Referenzen des `FotoUploadTest`-Pfads geprüft.
+- Vor dem Git-Abschluss erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum und die aktiven Referenzen des `FotoUploadTest`-Pfads geprÃ¼ft.
 - Ehrlicher Befund vor dem Abschluss:
   - der Arbeitsbaum enthielt weiterhin viele blockfremde offene WPF-/Supabase-/lokale Artefakte
-  - das WPF-`FotoUploadTest` war im aktiven Produkt-/Testpfad weiterhin nachweisbar verdrahtet über `App.xaml`, `App.xaml.cs`, `NavigationService`, `AblesenOverviewViewModel`, `MainWindowViewModel`, `AblesenOverviewView` und die neuen Core-/Infrastructure-Typen
+  - das WPF-`FotoUploadTest` war im aktiven Produkt-/Testpfad weiterhin nachweisbar verdrahtet Ã¼ber `App.xaml`, `App.xaml.cs`, `NavigationService`, `AblesenOverviewViewModel`, `MainWindowViewModel`, `AblesenOverviewView` und die neuen Core-/Infrastructure-Typen
   - die MAUI-Variante blieb weiterhin ungenutzt; nach der Verschiebung in `_Archiv` war die kleine Restbereinigung in `MauiProgram` deshalb eine echte Blockdatei
   - `.github/copilot-instructions.md` wurde bewusst nicht in diesen Block gezogen, weil die Datei kein belegter Bestandteil des Artefakt-/`FotoUploadTest`-Produktpfads ist
 - Den Git-Abschluss deshalb strikt nur auf den echten Block begrenzt:
@@ -3596,25 +3635,25 @@
   - notwendige kleine MAUI-Restbereinigung `MauiProgram` mit aufgenommen
   - aktive Supabase-Begleitdateien des aktuellen Functionpfads mit aufgenommen
   - Archivdateien des ungenutzten MAUI-/Altpfads mit aufgenommen
-  - `KGV_Fortschrittslog_ausfuehrlich.md` und `DEV_LOG.md` fortgeführt
-  - blockfremde offene WPF-XAML-Dateien, lokale Binaries, Secrets, Exporte, IDE-Artefakte und Asset-Dubletten ausdrücklich nicht in den Index übernommen
+  - `KGV_Fortschrittslog_ausfuehrlich.md` und `DEV_LOG.md` fortgefÃ¼hrt
+  - blockfremde offene WPF-XAML-Dateien, lokale Binaries, Secrets, Exporte, IDE-Artefakte und Asset-Dubletten ausdrÃ¼cklich nicht in den Index Ã¼bernommen
 - Build-Bezug vor dem Commit ehrlich gehalten:
-  - seit der letzten erfolgreichen Validierung wurden an den buildrelevanten Artefakt-Dateien keine neuen fachlichen Codeänderungen mehr außerhalb dieses bereits validierten Blocks vorgenommen
-  - deshalb wurde für den reinen Git-Abschluss kein neuer Build behauptet, sondern auf die bereits erfolgreichen Builds von `KGV.Wpf` und `KGV.Maui` Bezug genommen
+  - seit der letzten erfolgreichen Validierung wurden an den buildrelevanten Artefakt-Dateien keine neuen fachlichen CodeÃ¤nderungen mehr auÃŸerhalb dieses bereits validierten Blocks vorgenommen
+  - deshalb wurde fÃ¼r den reinen Git-Abschluss kein neuer Build behauptet, sondern auf die bereits erfolgreichen Builds von `KGV.Wpf` und `KGV.Maui` Bezug genommen
 
-## 2026-03-25 – Prompt 1/1: Block Artefaktbereinigung für blockfremde lokale Dateien geprüft, aktive Teile sauber eingeordnet und Archivkandidaten getrennt
+## 2026-03-25 â€“ Prompt 1/1: Block Artefaktbereinigung fÃ¼r blockfremde lokale Dateien geprÃ¼ft, aktive Teile sauber eingeordnet und Archivkandidaten getrennt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum und die unversionierten/blockfremden Artefakte geprüft.
-- Für den Block gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum und die unversionierten/blockfremden Artefakte geprÃ¼ft.
+- FÃ¼r den Block gezielt geprÃ¼ft:
   - unversionierte Dateien rund um `PhotoUploadTest` / `FotoUploadTest`
   - unversionierte Supabase-Konfigurationsdateien unter `supabase/functions/kgv-upload-photo`
-  - lokale Dubletten/Artefakte wie `package.json`, `package-lock.json`, `database.types.ts`, zusätzliche Icon-Dateien, IDE-/Secret-/Export-Verzeichnisse und lokale Buildartefakte
+  - lokale Dubletten/Artefakte wie `package.json`, `package-lock.json`, `database.types.ts`, zusÃ¤tzliche Icon-Dateien, IDE-/Secret-/Export-Verzeichnisse und lokale Buildartefakte
 - Ehrlicher Befund im aktuellen Repo-Stand vor Umsetzung:
-  - das WPF-`FotoUploadTest` war bereits aktiv in App-Start, Navigation, `Ablesen`-Übersicht und View-Verdrahtung eingebunden, die dazugehörigen Core-/Infrastructure-/WPF-Dateien lagen aber noch unversioniert im Arbeitsbaum
-  - die MAUI-Variante von `FotoUploadTest` war hingegen nicht produktiv über Route/Shell/Seitenpfad eingebunden; einzig eine lose ViewModel-Registrierung in `MauiProgram` verwies noch darauf
+  - das WPF-`FotoUploadTest` war bereits aktiv in App-Start, Navigation, `Ablesen`-Ãœbersicht und View-Verdrahtung eingebunden, die dazugehÃ¶rigen Core-/Infrastructure-/WPF-Dateien lagen aber noch unversioniert im Arbeitsbaum
+  - die MAUI-Variante von `FotoUploadTest` war hingegen nicht produktiv Ã¼ber Route/Shell/Seitenpfad eingebunden; einzig eine lose ViewModel-Registrierung in `MauiProgram` verwies noch darauf
   - `supabase/functions/kgv-upload-photo/deno.json`, `.npmrc` und `supabase/.gitignore` waren legitime aktive Begleitdateien des aktuellen Edge-Function-Pfads, aber noch unversioniert
-  - `supabase/kgv-upload-photo/index.ts` war nur noch ein älterer Nebenpfad neben dem aktiven Deploypfad `supabase/functions/kgv-upload-photo/index.ts`
-  - zusätzliche lokale Dubletten/Binaries/Secrets/Exporte waren nicht belastbar Teil der aktiven Produktivstruktur
+  - `supabase/kgv-upload-photo/index.ts` war nur noch ein Ã¤lterer Nebenpfad neben dem aktiven Deploypfad `supabase/functions/kgv-upload-photo/index.ts`
+  - zusÃ¤tzliche lokale Dubletten/Binaries/Secrets/Exporte waren nicht belastbar Teil der aktiven Produktivstruktur
 - Den Korrekturblock deshalb bewusst klein und sauber getrennt umgesetzt:
   - aktive WPF-`FotoUploadTest`-Dateien jetzt ordentlich als Repo-Bestand eingeordnet:
     - `IPhotoUploadTestService`
@@ -3623,239 +3662,239 @@
     - `PhotoUploadTestService`
     - `FotoUploadTestViewModel` (WPF)
     - `FotoUploadTestView.xaml.cs`
-    - zugehörige vorhandene WPF-/Core-/Infrastructure-Verdrahtung mit `GetAccessTokenAsync()` und Navigation
+    - zugehÃ¶rige vorhandene WPF-/Core-/Infrastructure-Verdrahtung mit `GetAccessTokenAsync()` und Navigation
   - lose MAUI-Registrierung des derzeit nicht produktiv angebundenen `FotoUploadTestViewModel` aus `MauiProgram` entfernt
   - ungenutzte MAUI-`FotoUploadTest`-Dateien in den Archivbereich verschoben:
     - `_Archiv/KGV.Maui/Pages/FotoUploadTestPage.cs`
     - `_Archiv/KGV.Maui/ViewModels/FotoUploadTestViewModel.cs`
   - alten Nebenpfad `supabase/kgv-upload-photo/index.ts` in `_Archiv/supabase/kgv-upload-photo/index.ts` verschoben
-  - aktive Supabase-Begleitdateien ordentlich ins Repo übernommen:
+  - aktive Supabase-Begleitdateien ordentlich ins Repo Ã¼bernommen:
     - `supabase/.gitignore`
     - `supabase/functions/kgv-upload-photo/deno.json`
     - `supabase/functions/kgv-upload-photo/.npmrc`
   - verbleibende lokale Artefaktkandidaten in `_Archiv/LOCAL_ARTIFACT_ARCHIVE_CANDIDATES.md` sauber dokumentiert statt auf Verdacht ins aktive Repo zu ziehen
 - Bewusst nicht gemacht:
-  - keine Secrets oder lokale Exportdaten ins aktive Repo übernommen
-  - keine lokalen Release-Binaries (`.exe`, `.apk`) ins Repo übernommen
-  - keine ungenutzte MAUI-Diagnoseseite künstlich produktiv angebunden
-  - keine aggressive Löschung weiterer lokaler Artefakte ohne sichere Einordnung
+  - keine Secrets oder lokale Exportdaten ins aktive Repo Ã¼bernommen
+  - keine lokalen Release-Binaries (`.exe`, `.apk`) ins Repo Ã¼bernommen
+  - keine ungenutzte MAUI-Diagnoseseite kÃ¼nstlich produktiv angebunden
+  - keine aggressive LÃ¶schung weiterer lokaler Artefakte ohne sichere Einordnung
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
   - blockbezogen keine neuen Buildfehler erzeugt
 
-## 2026-03-25 – Prompt 1/1: Block 5B-final für Abschlussprüfung, Restentkopplung und Repo-Bereinigung im aktuellen MAUI/WPF-Angleichungszyklus abgeschlossen
+## 2026-03-25 â€“ Prompt 1/1: Block 5B-final fÃ¼r AbschlussprÃ¼fung, Restentkopplung und Repo-Bereinigung im aktuellen MAUI/WPF-Angleichungszyklus abgeschlossen
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum sowie die Root-Struktur mit `README.md`, `KGV.slnx`, `KGV.Tests` und `_Archiv/KGV.Tests` geprüft.
-- Für Block `5B-final` gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum sowie die Root-Struktur mit `README.md`, `KGV.slnx`, `KGV.Tests` und `_Archiv/KGV.Tests` geprÃ¼ft.
+- FÃ¼r Block `5B-final` gezielt geprÃ¼ft:
   - WPF fachlich: `HomeView` sowie die bereits nachgezogenen getrennten Verwaltungs-/Detailrollen
   - MAUI aktiv: `AdminShell`, `UserShell`, `HomePage`, `HomeSectionDetailPage`, `BekanntmachungenManagementPage`, `BekanntmachungEditorPage`, `TermineManagementPage`, `TermineEditorPage`, `ArbeitseinsaetzeManagementPage`, `ArbeitseinsaetzeEditorPage`, `MyArbeitsstundenPage`, `HomeManagementPage`, `ShellRouteRegistrar`, `MauiProgram`
-  - Zustände/Hilfsklassen: `HomeContextState`, `ArbeitseinsaetzeUserState`, `TermineUserState`, `ArbeitseinsaetzeManagementState`
+  - ZustÃ¤nde/Hilfsklassen: `HomeContextState`, `ArbeitseinsaetzeUserState`, `TermineUserState`, `ArbeitseinsaetzeManagementState`
 - Ehrlicher Befund im aktuellen Repo-Stand vor Umsetzung:
-  - die wesentlichen MAUI-Hauptpfade waren fachlich bereits getrennt und buildfähig
-  - der letzte echte aktive Restübergang über `HomeManagementPage` lag noch in `HomeSectionDetailPage` bei `Termine` und `Bekanntmachungen`
-  - `ManagementOverviewPageBase` hielt zusätzlich noch einen ungenutzten Standard-Fallback auf `HomeManagementPage`, obwohl alle aktiven Managementseiten längst eigene Produktivpfade überschreiben
-  - `HomeManagementPage` hatte nach den bisherigen Blöcken keinen belegbaren internen Hauptaufrufer mehr, bleibt aber als technischer Kompatibilitäts-/Fallbackkandidat nachvollziehbar bestehen
-  - `KGV.Tests` existiert im Root weiterhin, ist aber nicht in `KGV.slnx`; parallel liegt `_Archiv/KGV.Tests` als archivierte ältere Kopie vor – fachlich war die Einordnung damit dokumentarisch noch nicht klar genug
+  - die wesentlichen MAUI-Hauptpfade waren fachlich bereits getrennt und buildfÃ¤hig
+  - der letzte echte aktive RestÃ¼bergang Ã¼ber `HomeManagementPage` lag noch in `HomeSectionDetailPage` bei `Termine` und `Bekanntmachungen`
+  - `ManagementOverviewPageBase` hielt zusÃ¤tzlich noch einen ungenutzten Standard-Fallback auf `HomeManagementPage`, obwohl alle aktiven Managementseiten lÃ¤ngst eigene Produktivpfade Ã¼berschreiben
+  - `HomeManagementPage` hatte nach den bisherigen BlÃ¶cken keinen belegbaren internen Hauptaufrufer mehr, bleibt aber als technischer KompatibilitÃ¤ts-/Fallbackkandidat nachvollziehbar bestehen
+  - `KGV.Tests` existiert im Root weiterhin, ist aber nicht in `KGV.slnx`; parallel liegt `_Archiv/KGV.Tests` als archivierte Ã¤ltere Kopie vor â€“ fachlich war die Einordnung damit dokumentarisch noch nicht klar genug
 - Den Abschlussblock deshalb bewusst klein und nur auf belegbare Restkorrekturen begrenzt:
-  - in `HomeSectionDetailPage` die Bearbeiten-Navigation für `Termine` direkt auf `//management_appointments` gezogen
-  - in `HomeSectionDetailPage` die Bearbeiten-Navigation für `Bekanntmachungen` direkt auf `//management_announcements` gezogen
-  - `Arbeitseinsätze` blieben auf dem bereits direkten Produktivpfad `//management_workassignments`
-  - `ManagementOverviewPageBase` vom alten Standard-Fortsetzungspfad über `HomeManagementPage` entkoppelt: `OpenNewAsync()` und `OpenExistingAsync(...)` sind jetzt abstrakt statt implizit auf den Altpfad zu zeigen
-  - der allgemeine Hinweistext der ruhigen Managementübersichten verweist jetzt auf den eigenen mobilen Produktivpfad statt auf einen technischen Fortsetzungspfad
+  - in `HomeSectionDetailPage` die Bearbeiten-Navigation fÃ¼r `Termine` direkt auf `//management_appointments` gezogen
+  - in `HomeSectionDetailPage` die Bearbeiten-Navigation fÃ¼r `Bekanntmachungen` direkt auf `//management_announcements` gezogen
+  - `ArbeitseinsÃ¤tze` blieben auf dem bereits direkten Produktivpfad `//management_workassignments`
+  - `ManagementOverviewPageBase` vom alten Standard-Fortsetzungspfad Ã¼ber `HomeManagementPage` entkoppelt: `OpenNewAsync()` und `OpenExistingAsync(...)` sind jetzt abstrakt statt implizit auf den Altpfad zu zeigen
+  - der allgemeine Hinweistext der ruhigen ManagementÃ¼bersichten verweist jetzt auf den eigenen mobilen Produktivpfad statt auf einen technischen Fortsetzungspfad
   - `README.md` dokumentiert jetzt klarer die Testprojekt-Einordnung:
     - `KGV.Tests` im Root ist vorhanden, aber aktuell nicht Teil von `KGV.slnx` und nicht im aktiven Build-/CI-Pfad
-    - `_Archiv/KGV.Tests` bleibt als archivierte ältere Kopie eingeordnet
+    - `_Archiv/KGV.Tests` bleibt als archivierte Ã¤ltere Kopie eingeordnet
 - Bewusste Abschlussentscheidung zu `HomeManagementPage`:
-  - keine Löschung in diesem Block
-  - keine neue Fachlogik dort ergänzt
-  - Seite bleibt als technischer Rest-/Kompatibilitätspfad im Repo, weil eine vollständige Entfernung ohne breiteren Navigations-/Historienaudit nicht sicher genug gewesen wäre
-  - im aktiven MAUI-Hauptweg wird sie nach diesem Block aber nicht mehr als regulärer Produktivübergang verwendet
-- WPF ↔ MAUI Abschlussprüfung fachlich entlang der Hauptpfade durchgeführt und gegen den aktiven Stand abgeglichen:
-  - `Home` bleibt Übersicht
-  - `Verwaltung` bleibt über eigene getrennte Verwaltungsseiten erreichbar
+  - keine LÃ¶schung in diesem Block
+  - keine neue Fachlogik dort ergÃ¤nzt
+  - Seite bleibt als technischer Rest-/KompatibilitÃ¤tspfad im Repo, weil eine vollstÃ¤ndige Entfernung ohne breiteren Navigations-/Historienaudit nicht sicher genug gewesen wÃ¤re
+  - im aktiven MAUI-Hauptweg wird sie nach diesem Block aber nicht mehr als regulÃ¤rer ProduktivÃ¼bergang verwendet
+- WPF â†” MAUI AbschlussprÃ¼fung fachlich entlang der Hauptpfade durchgefÃ¼hrt und gegen den aktiven Stand abgeglichen:
+  - `Home` bleibt Ãœbersicht
+  - `Verwaltung` bleibt Ã¼ber eigene getrennte Verwaltungsseiten erreichbar
   - `Editor` bleibt `Editor`
   - `Detail` bleibt `Detail`
   - Nutzerpfade bleiben ohne Verwaltungsbearbeitung
-  - mobile Abweichungen bleiben bewusst und begründet:
+  - mobile Abweichungen bleiben bewusst und begrÃ¼ndet:
     - getrennte Mobilseiten statt Desktop-Splitview
-    - `← x/y →` in mobilen Datensatzflows
-    - flacheres Flyout statt Desktop-Menühierarchie
+    - `â† x/y â†’` in mobilen Datensatzflows
+    - flacheres Flyout statt Desktop-MenÃ¼hierarchie
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
   - blockbezogen keine neuen Buildfehler erzeugt
 
-## 2026-03-25 – Prompt 1/1: Block 5A-final für direkte Home-Verwaltungszugänge in MAUI abgeschlossen
+## 2026-03-25 â€“ Prompt 1/1: Block 5A-final fÃ¼r direkte Home-VerwaltungszugÃ¤nge in MAUI abgeschlossen
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block `5A-final` gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block `5A-final` gezielt geprÃ¼ft:
   - MAUI: `HomePage`, `HomeManagementPage`, `ShellRouteRegistrar`, `MauiProgram`
   - vorhandene Managementseiten: `ArbeitseinsaetzeManagementPage`, `TermineManagementPage`, `BekanntmachungenManagementPage`
 - Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
-  - die echten Produktivseiten für `Arbeitseinsätze`, `Termine` und `Bekanntmachungen` waren bereits vorhanden und direkt routbar
-  - auf `Home` öffnete `Arbeitseinsätze bearbeiten` bereits direkt die echte Managementseite
-  - `Termine bearbeiten` und `Bekanntmachungen bearbeiten` liefen aber noch unnötig über `HomeManagementPage?section=...`
-  - `HomeManagementPage` hatte damit für diese beiden Home-Einstiege nur noch technischen Restcharakter als Fortsetzungs-/Kompatibilitätspfad
+  - die echten Produktivseiten fÃ¼r `ArbeitseinsÃ¤tze`, `Termine` und `Bekanntmachungen` waren bereits vorhanden und direkt routbar
+  - auf `Home` Ã¶ffnete `ArbeitseinsÃ¤tze bearbeiten` bereits direkt die echte Managementseite
+  - `Termine bearbeiten` und `Bekanntmachungen bearbeiten` liefen aber noch unnÃ¶tig Ã¼ber `HomeManagementPage?section=...`
+  - `HomeManagementPage` hatte damit fÃ¼r diese beiden Home-Einstiege nur noch technischen Restcharakter als Fortsetzungs-/KompatibilitÃ¤tspfad
 - Den Korrekturblock deshalb bewusst klein und nur in der direkten Verwaltungsnavigation umgesetzt:
-  - `HomePage` öffnet `Termine bearbeiten` jetzt direkt über die bestehende Produktivroute `//management_appointments`
-  - `HomePage` öffnet `Bekanntmachungen bearbeiten` jetzt direkt über die bestehende Produktivroute `//management_announcements`
-  - `Arbeitseinsätze bearbeiten` blieb auf dem bereits direkten Produktivpfad `//management_workassignments`
-  - bestehende Sichtbarkeitslogik für Admin/Vorstand blieb unverändert
-  - `HomeManagementPage` wurde nicht weiter ausgebaut und bleibt nur noch technischer Rest-/Kompatibilitätspfad für bestehende querybasierte Übergänge
-- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - `HomePage` Ã¶ffnet `Termine bearbeiten` jetzt direkt Ã¼ber die bestehende Produktivroute `//management_appointments`
+  - `HomePage` Ã¶ffnet `Bekanntmachungen bearbeiten` jetzt direkt Ã¼ber die bestehende Produktivroute `//management_announcements`
+  - `ArbeitseinsÃ¤tze bearbeiten` blieb auf dem bereits direkten Produktivpfad `//management_workassignments`
+  - bestehende Sichtbarkeitslogik fÃ¼r Admin/Vorstand blieb unverÃ¤ndert
+  - `HomeManagementPage` wurde nicht weiter ausgebaut und bleibt nur noch technischer Rest-/KompatibilitÃ¤tspfad fÃ¼r bestehende querybasierte ÃœbergÃ¤nge
+- Erlaubte mobile Abweichung ausdrÃ¼cklich benannt:
   - statt Desktop-Commands nutzt MAUI weiter direkte Shell-Routen auf die vorhandenen Managementseiten; die fachliche Trennung `Home` vs. `Verwaltung` bleibt identisch
 - Bewusst nicht gemacht:
-  - keine Änderungen an `AdminShell` oder `UserShell`
-  - keine Änderungen an Nutzerdetailpfaden
-  - keine Änderungen an Fachlogik von `Bekanntmachungen`, `Terminen` oder `Arbeitseinsätzen`
-  - keine große Bereinigung oder Löschung von `HomeManagementPage`
+  - keine Ã„nderungen an `AdminShell` oder `UserShell`
+  - keine Ã„nderungen an Nutzerdetailpfaden
+  - keine Ã„nderungen an Fachlogik von `Bekanntmachungen`, `Terminen` oder `ArbeitseinsÃ¤tzen`
+  - keine groÃŸe Bereinigung oder LÃ¶schung von `HomeManagementPage`
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
   - blockbezogen keine neuen Buildfehler erzeugt
 
-## 2026-03-25 – Prompt 1/1: Block 4B2-finish für Termine-Nutzerpfad in MAUI sichtbar mobil abgeschlossen
+## 2026-03-25 â€“ Prompt 1/1: Block 4B2-finish fÃ¼r Termine-Nutzerpfad in MAUI sichtbar mobil abgeschlossen
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block `4B2-finish` gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block `4B2-finish` gezielt geprÃ¼ft:
   - MAUI: `HomeSectionDetailPage`, `HomePage`, `TermineUserState`, `HomeContextState`
 - Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
   - `4B1` hatte den datensatzweisen Termine-Zustand bereits sauber vorbereitet
-  - sichtbar wurde die Footer-Navigation `← x/y →` in `HomeSectionDetailPage` aber noch nur für Arbeitseinsätze genutzt
-  - im Termin-Detail hätte dadurch noch keine mobile Datensatznavigation stattgefunden
-  - zusätzlich wäre der globale `Bearbeiten`-Button im Termin-Detail sonst ebenfalls sichtbar geblieben, obwohl der Nutzerpfad rein lesend bleiben soll
+  - sichtbar wurde die Footer-Navigation `â† x/y â†’` in `HomeSectionDetailPage` aber noch nur fÃ¼r ArbeitseinsÃ¤tze genutzt
+  - im Termin-Detail hÃ¤tte dadurch noch keine mobile Datensatznavigation stattgefunden
+  - zusÃ¤tzlich wÃ¤re der globale `Bearbeiten`-Button im Termin-Detail sonst ebenfalls sichtbar geblieben, obwohl der Nutzerpfad rein lesend bleiben soll
 - Den Korrekturblock deshalb bewusst klein und nur im sichtbaren Termine-Nutzerpfad umgesetzt:
-  - `TermineUserState` um reine Navigationshilfe `CanMovePrevious`, `CanMoveNext`, `MovePrevious()` und `MoveNext()` ergänzt
-  - `HomeSectionDetailPage` zeigt die bestehende Footer-Navigation jetzt auch für Termine sichtbar an
+  - `TermineUserState` um reine Navigationshilfe `CanMovePrevious`, `CanMoveNext`, `MovePrevious()` und `MoveNext()` ergÃ¤nzt
+  - `HomeSectionDetailPage` zeigt die bestehende Footer-Navigation jetzt auch fÃ¼r Termine sichtbar an
   - Anzeige bleibt mobil kompakt mit Pfeil links, `x/y` mittig und Pfeil rechts
-  - Blättern hängt direkt an `TermineUserState`; keine zweite Listenlogik in der UI gebaut
+  - BlÃ¤ttern hÃ¤ngt direkt an `TermineUserState`; keine zweite Listenlogik in der UI gebaut
   - der Detailinhalt wird beim Wechsel sofort aus dem aktuell aktiven Termin neu geladen
   - Grenzen bleiben sauber: erster Datensatz links deaktiviert, letzter Datensatz rechts deaktiviert
   - Fallback bleibt robust: wenn nur ein Einzeltermin aus `HomeContextState` vorhanden ist und kein valider datensatzweiser Zustand, bleibt der Termin sichtbar, aber der Navigationsbereich wird ausgeblendet
-  - der Termin-Nutzerpfad bleibt rein lesend; `Bearbeiten` wird für Termine in `HomeSectionDetailPage` nicht mehr sichtbar
-- Erlaubte mobile Abweichung ausdrücklich benannt:
-  - statt Desktop-Liste plus separatem Klickkontext nutzt MAUI mobil bewusst den sichtbaren datensatzweisen Footer `← x/y →`
+  - der Termin-Nutzerpfad bleibt rein lesend; `Bearbeiten` wird fÃ¼r Termine in `HomeSectionDetailPage` nicht mehr sichtbar
+- Erlaubte mobile Abweichung ausdrÃ¼cklich benannt:
+  - statt Desktop-Liste plus separatem Klickkontext nutzt MAUI mobil bewusst den sichtbaren datensatzweisen Footer `â† x/y â†’`
 - Bewusst nicht gemacht:
-  - keine Änderungen an `TermineManagementPage`
-  - keine Änderungen an `TermineEditorPage`
-  - keine neue Detailseite oder neue Shell-Route für Termine
-  - keine Änderungen an Arbeitseinsätzen oder Bekanntmachungen außerhalb der nötigen gemeinsamen Footerlogik
+  - keine Ã„nderungen an `TermineManagementPage`
+  - keine Ã„nderungen an `TermineEditorPage`
+  - keine neue Detailseite oder neue Shell-Route fÃ¼r Termine
+  - keine Ã„nderungen an ArbeitseinsÃ¤tzen oder Bekanntmachungen auÃŸerhalb der nÃ¶tigen gemeinsamen Footerlogik
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
   - blockbezogen keine neuen Buildfehler erzeugt
 
-## 2026-03-25 – Prompt 1/1: Block 4B1 für Termine-Nutzerpfad in MAUI auf datensatzweisen Zustand vorbereitet
+## 2026-03-25 â€“ Prompt 1/1: Block 4B1 fÃ¼r Termine-Nutzerpfad in MAUI auf datensatzweisen Zustand vorbereitet
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block `4B1` gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block `4B1` gezielt geprÃ¼ft:
   - MAUI: `HomePage`, `HomeSectionDetailPage`, `HomeContextState`, `HomeViewModel`
   - Shared/Modelle: `StartseiteTerminRecord`, `HomeAppointmentItem`, `SupabaseService`
 - Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
-  - der bestehende Nutzerpfad für Termine lief bereits korrekt über `HomePage` → `HomeSectionDetailPage`
+  - der bestehende Nutzerpfad fÃ¼r Termine lief bereits korrekt Ã¼ber `HomePage` â†’ `HomeSectionDetailPage`
   - beim Termin-Klick wurde aber nur der Einzeltermin in `HomeContextState` gesetzt
   - ein eigener datensatzweiser Termine-Nutzerzustand war noch nicht vorhanden
-  - die Home-Terminreihenfolge war im Shared-Pfad noch nicht vollständig auf `Datum`, `Startzeit`, `Endzeit`, `Titel` abgesichert
-- Den Korrekturblock deshalb bewusst klein und nur als Grundlage für den Nutzerpfad umgesetzt:
-  - bestehenden Produktivpfad `HomePage` → `HomeSectionDetailPage` beibehalten; keine neue Nutzerseite gebaut
-  - `HomeAppointmentItem` um `Id` ergänzt, damit der aktuelle Termin im datensatzweisen Zustand stabil referenziert werden kann
-  - neuer kleiner Zustand `TermineUserState` ergänzt, der nur Terminliste und aktuellen Index für den Nutzerpfad hält
+  - die Home-Terminreihenfolge war im Shared-Pfad noch nicht vollstÃ¤ndig auf `Datum`, `Startzeit`, `Endzeit`, `Titel` abgesichert
+- Den Korrekturblock deshalb bewusst klein und nur als Grundlage fÃ¼r den Nutzerpfad umgesetzt:
+  - bestehenden Produktivpfad `HomePage` â†’ `HomeSectionDetailPage` beibehalten; keine neue Nutzerseite gebaut
+  - `HomeAppointmentItem` um `Id` ergÃ¤nzt, damit der aktuelle Termin im datensatzweisen Zustand stabil referenziert werden kann
+  - neuer kleiner Zustand `TermineUserState` ergÃ¤nzt, der nur Terminliste und aktuellen Index fÃ¼r den Nutzerpfad hÃ¤lt
   - `HomePage` seedet beim Termin-Klick jetzt die gesamte chronologische Terminliste plus aktuelle Position in `TermineUserState`
-  - `HomeSectionDetailPage` nutzt für Termine jetzt bevorzugt den aktuellen Datensatz aus `TermineUserState`, bleibt in der sichtbaren UI aber bewusst noch ruhig unverändert
-  - die chronologische Reihenfolge für Home-/Nutzertermine im Shared-Pfad auf `Datum`, `Startzeit`, `Endzeit`, `Titel`, dann `Id` abgesichert
-  - `MauiProgram` minimal um den neuen Termine-Nutzerzustand ergänzt
-- Erlaubte mobile Abweichung ausdrücklich benannt:
-  - die sichtbare Pfeilnavigation wird bewusst noch nicht in `4B1` vorgezogen; dieser Block bereitet nur den datensatzweisen Mobilzustand für `4B2` vor
+  - `HomeSectionDetailPage` nutzt fÃ¼r Termine jetzt bevorzugt den aktuellen Datensatz aus `TermineUserState`, bleibt in der sichtbaren UI aber bewusst noch ruhig unverÃ¤ndert
+  - die chronologische Reihenfolge fÃ¼r Home-/Nutzertermine im Shared-Pfad auf `Datum`, `Startzeit`, `Endzeit`, `Titel`, dann `Id` abgesichert
+  - `MauiProgram` minimal um den neuen Termine-Nutzerzustand ergÃ¤nzt
+- Erlaubte mobile Abweichung ausdrÃ¼cklich benannt:
+  - die sichtbare Pfeilnavigation wird bewusst noch nicht in `4B1` vorgezogen; dieser Block bereitet nur den datensatzweisen Mobilzustand fÃ¼r `4B2` vor
 - Bewusst nicht gemacht:
-  - keine Änderungen an `TermineManagementPage`
-  - keine Änderungen an `TermineEditorPage`
+  - keine Ã„nderungen an `TermineManagementPage`
+  - keine Ã„nderungen an `TermineEditorPage`
   - keine neue Termine-Nutzerseite
   - keine sichtbare UI-Navigation mit Pfeilen in diesem Block
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
   - blockbezogen keine neuen Buildfehler erzeugt
 
-## 2026-03-25 – Prompt 1/1: Block 4A-small für Shell-/Menüordnung in MAUI bei `Admin-Menü` und `Mein Profil` nachgezogen
+## 2026-03-25 â€“ Prompt 1/1: Block 4A-small fÃ¼r Shell-/MenÃ¼ordnung in MAUI bei `Admin-MenÃ¼` und `Mein Profil` nachgezogen
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block `4A-small` gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block `4A-small` gezielt geprÃ¼ft:
   - MAUI: `AdminShell`, `UserShell`
-  - bestehende Shell-Zuordnung für `Benutzerverwaltung` und `Mein Profil`
+  - bestehende Shell-Zuordnung fÃ¼r `Benutzerverwaltung` und `Mein Profil`
 - Ehrlicher Befund im aktuellen MAUI-Stand vor Umsetzung:
   - `Benutzerverwaltung` hing in `AdminShell` fachlich noch im Bereich `Mitglieder`
-  - `Mein Profil` war zwar vorhanden, im Admin-Flyout aber noch nicht gleich ruhig als eigener persönlicher Bereich eingeordnet wie im User-Flyout
-  - `UserShell` war für `Mein Profil` bereits passend auf `Mein Bereich · Mein Profil` geordnet
+  - `Mein Profil` war zwar vorhanden, im Admin-Flyout aber noch nicht gleich ruhig als eigener persÃ¶nlicher Bereich eingeordnet wie im User-Flyout
+  - `UserShell` war fÃ¼r `Mein Profil` bereits passend auf `Mein Bereich Â· Mein Profil` geordnet
 - Den Korrekturblock deshalb bewusst klein und nur in der Shell-Struktur umgesetzt:
-  - `Benutzerverwaltung` in `AdminShell` fachlich aus dem Mitgliederbereich gelöst und als `Admin-Menü · Benutzerverwaltung` einsortiert
-  - Rechte unverändert belassen: sichtbar nur für `Admin`, nicht für `Vorstand`
-  - `Mein Profil` in `AdminShell` sprachlich auf denselben persönlichen Bereich wie mobil im Userpfad gezogen: `Mein Bereich · Mein Profil`
+  - `Benutzerverwaltung` in `AdminShell` fachlich aus dem Mitgliederbereich gelÃ¶st und als `Admin-MenÃ¼ Â· Benutzerverwaltung` einsortiert
+  - Rechte unverÃ¤ndert belassen: sichtbar nur fÃ¼r `Admin`, nicht fÃ¼r `Vorstand`
+  - `Mein Profil` in `AdminShell` sprachlich auf denselben persÃ¶nlichen Bereich wie mobil im Userpfad gezogen: `Mein Bereich Â· Mein Profil`
   - keine neuen Seiten, keine neuen Routen und keine neue Rechte-/Auth-Logik gebaut
-- Erlaubte mobile Abweichung ausdrücklich benannt:
-  - statt eines Desktop-Untermenüs nutzt MAUI weiter eine flache Flyout-Struktur mit ruhigen fachlichen Präfixen
+- Erlaubte mobile Abweichung ausdrÃ¼cklich benannt:
+  - statt eines Desktop-UntermenÃ¼s nutzt MAUI weiter eine flache Flyout-Struktur mit ruhigen fachlichen PrÃ¤fixen
 - Bewusst nicht gemacht:
-  - keine Änderungen an Fachlogik anderer Module
-  - keine Änderungen an `HomeManagementPage`
-  - keine Änderungen an `Arbeitseinsätzen`, `Terminen` oder `Bekanntmachungen`
+  - keine Ã„nderungen an Fachlogik anderer Module
+  - keine Ã„nderungen an `HomeManagementPage`
+  - keine Ã„nderungen an `ArbeitseinsÃ¤tzen`, `Terminen` oder `Bekanntmachungen`
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
   - blockbezogen keine neuen Buildfehler erzeugt
 
-## 2026-03-25 – Prompt 1/1: Block 3B3-finish für `Arbeitseinsätze` in MAUI fachlich auf Übersicht / Editor / Datensatzfluss abgeschlossen
+## 2026-03-25 â€“ Prompt 1/1: Block 3B3-finish fÃ¼r `ArbeitseinsÃ¤tze` in MAUI fachlich auf Ãœbersicht / Editor / Datensatzfluss abgeschlossen
 
-- Vor dem Abschlussblock erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenz `ArbeitseinsaetzeVerwaltungEditorView` und den echten Git-Arbeitsbaum geprüft.
-- Für Block `3B3-finish` gezielt geprüft:
+- Vor dem Abschlussblock erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenz `ArbeitseinsaetzeVerwaltungEditorView` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block `3B3-finish` gezielt geprÃ¼ft:
   - MAUI: `ArbeitseinsaetzeManagementPage`, `ArbeitseinsaetzeEditorPage`, `HomeManagementPage`, `HomePage`, `HomeSectionDetailPage`, `ShellRouteRegistrar`, `MauiProgram`
   - Shared/Modelle: `SupabaseService`, `HomeDashboardItems`, `StartseiteArbeitseinsatzRecord`
 - Ehrlicher Befund im aktuellen MAUI-Stand vor Abschluss:
-  - `ArbeitseinsaetzeManagementPage` war noch keine saubere chronologische Ruheübersicht
-  - der Editorpfad für `Arbeitseinsätze` war noch nicht vollständig als produktiver Weg für `Neu`/`Bearbeiten` verdrahtet
+  - `ArbeitseinsaetzeManagementPage` war noch keine saubere chronologische RuheÃ¼bersicht
+  - der Editorpfad fÃ¼r `ArbeitseinsÃ¤tze` war noch nicht vollstÃ¤ndig als produktiver Weg fÃ¼r `Neu`/`Bearbeiten` verdrahtet
   - mobiler Verwaltungs-Datensatzfluss und mobiler User-Datensatzfluss mit Pfeilnavigation fehlten noch
-  - `HomeManagementPage` war für `Arbeitseinsätze` noch technischer Hauptrestpfad
-- Den Korrekturblock deshalb bewusst klein und nur im Bereich `Arbeitseinsätze` umgesetzt:
-  - `ArbeitseinsaetzeManagementPage` lädt jetzt chronologisch nach `Datum`, `Startzeit`, `Endzeit`, `Titel` und bleibt eine ruhige Übersicht
-  - `ArbeitseinsaetzeEditorPage` als echter mobiler Editorpfad für `Neu` und `Bearbeiten` produktiv verdrahtet
+  - `HomeManagementPage` war fÃ¼r `ArbeitseinsÃ¤tze` noch technischer Hauptrestpfad
+- Den Korrekturblock deshalb bewusst klein und nur im Bereich `ArbeitseinsÃ¤tze` umgesetzt:
+  - `ArbeitseinsaetzeManagementPage` lÃ¤dt jetzt chronologisch nach `Datum`, `Startzeit`, `Endzeit`, `Titel` und bleibt eine ruhige Ãœbersicht
+  - `ArbeitseinsaetzeEditorPage` als echter mobiler Editorpfad fÃ¼r `Neu` und `Bearbeiten` produktiv verdrahtet
   - Editor bildet die fachlich relevanten Felder aus WPF/Shared-Pfad mobil ab: `Titel`, `Beschreibung`, `Datum`, Zeiten, `Treffpunkt`, `max_teilnehmer`, `stunden_wert`, `sichtbar_ab`, `sichtbar_bis`, `anmeldung_bis`, `aktiv`
-  - `max_teilnehmer` bleibt optional und wird leer als `NULL` geführt; `stunden_wert` bleibt optional
+  - `max_teilnehmer` bleibt optional und wird leer als `NULL` gefÃ¼hrt; `stunden_wert` bleibt optional
   - `Speichern` bleibt am Ende des Formulars
-  - mobiler Verwaltungs-Datensatzfluss im Editor ergänzt: Pfeil links, Positionsanzeige `x/y`, Pfeil rechts
-  - beim Blättern werden offene Änderungen zuerst validiert und gespeichert; bei Fehler bleibt der Datensatz stehen
-  - `HomeSectionDetailPage` für den Userpfad auf datensatzweisen Arbeitseinsatz-Flow mit `← x/y →` geschärft
-  - pro Datensatz ist jetzt direkt `Anmelden` bzw. `Abmelden` sichtbar, abhängig vom echten RPC-/Produktivzustand
+  - mobiler Verwaltungs-Datensatzfluss im Editor ergÃ¤nzt: Pfeil links, Positionsanzeige `x/y`, Pfeil rechts
+  - beim BlÃ¤ttern werden offene Ã„nderungen zuerst validiert und gespeichert; bei Fehler bleibt der Datensatz stehen
+  - `HomeSectionDetailPage` fÃ¼r den Userpfad auf datensatzweisen Arbeitseinsatz-Flow mit `â† x/y â†’` geschÃ¤rft
+  - pro Datensatz ist jetzt direkt `Anmelden` bzw. `Abmelden` sichtbar, abhÃ¤ngig vom echten RPC-/Produktivzustand
   - bestehende Produktivpfade `SignUpForArbeitseinsatzAsync` und `SignOffFromArbeitseinsatzAsync` werden weiterverwendet; keine Schattenlogik
   - `HomePage` seedet den datensatzweisen Userfluss aus der vorhandenen chronologischen Arbeitseinsatzliste
-  - `HomeManagementPage` wurde für `Arbeitseinsätze` als Hauptweg entkoppelt und leitet jetzt auf Übersicht bzw. Editor um
-  - `ShellRouteRegistrar` und `MauiProgram` minimal für Editorroute und Navigationszustände ergänzt
-- Erlaubte mobile Abweichung ausdrücklich benannt:
+  - `HomeManagementPage` wurde fÃ¼r `ArbeitseinsÃ¤tze` als Hauptweg entkoppelt und leitet jetzt auf Ãœbersicht bzw. Editor um
+  - `ShellRouteRegistrar` und `MauiProgram` minimal fÃ¼r Editorroute und NavigationszustÃ¤nde ergÃ¤nzt
+- Erlaubte mobile Abweichung ausdrÃ¼cklich benannt:
   - statt WPF-Liste plus Editor nebeneinander nutzt MAUI mobil getrennte Seiten mit kompakter Datensatznavigation
-  - diese Abweichung ist wegen kleinerem Bildschirm und Touch-Bedienung fachlich sinnvoll und näher an einem ruhigen mobilen Flow als eine Mischseite
+  - diese Abweichung ist wegen kleinerem Bildschirm und Touch-Bedienung fachlich sinnvoll und nÃ¤her an einem ruhigen mobilen Flow als eine Mischseite
 - Bewusst nicht gemacht:
-  - keine Änderungen an `Bekanntmachungen`
-  - keine Änderungen an `Termine`
-  - keine Änderungen an anderen Bereichen wie Home außer der zwingend nötigen Arbeitseinsatz-Navigation
+  - keine Ã„nderungen an `Bekanntmachungen`
+  - keine Ã„nderungen an `Termine`
+  - keine Ã„nderungen an anderen Bereichen wie Home auÃŸer der zwingend nÃ¶tigen Arbeitseinsatz-Navigation
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
   - blockeigene neue `FillAndExpand`-Warnungen beseitigt
   - verbleibende 4 Warnungen liegen weiter in `HomeManagementPage.cs` und stammen nicht aus dem Arbeitseinsatz-Block
 
-## 2026-03-25 – Prompt 1/1: Block 3B2 für `Termine` in MAUI auf eigenen Übersicht-/Editorpfad nachgezogen
+## 2026-03-25 â€“ Prompt 1/1: Block 3B2 fÃ¼r `Termine` in MAUI auf eigenen Ãœbersicht-/Editorpfad nachgezogen
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
-- Für Block `3B2` gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block `3B2` gezielt geprÃ¼ft:
   - WPF: `TermineVerwaltungEditorView`
   - MAUI: `TermineManagementPage`, `HomeManagementPage`, Routing/DI in `ShellRouteRegistrar` und `MauiProgram`
 - Ehrlicher Befund im aktuellen MAUI-Stand:
-  - `TermineManagementPage` war zwar bereits ruhige Übersicht, öffnete `Neu`/`Bearbeiten` aber noch in den technischen Restpfad `HomeManagementPage`
-  - damit blieb für Termine der eigentliche mobile Produktiv-Editor weiter an einer Mischseite hängen
-  - zusätzlich lief die sichtbare Übersicht noch nicht ausdrücklich auf der geforderten chronologischen Hauptsortierung nach Datum/Uhrzeit
-- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
-  - `Termine` brauchten neben der Übersicht einen klar getrennten Editorpfad
+  - `TermineManagementPage` war zwar bereits ruhige Ãœbersicht, Ã¶ffnete `Neu`/`Bearbeiten` aber noch in den technischen Restpfad `HomeManagementPage`
+  - damit blieb fÃ¼r Termine der eigentliche mobile Produktiv-Editor weiter an einer Mischseite hÃ¤ngen
+  - zusÃ¤tzlich lief die sichtbare Ãœbersicht noch nicht ausdrÃ¼cklich auf der geforderten chronologischen Hauptsortierung nach Datum/Uhrzeit
+- Wichtigste kleine Restabweichungen mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - `Termine` brauchten neben der Ãœbersicht einen klar getrennten Editorpfad
   - `Neu` und `Bearbeiten` sollten denselben eigenen Editorpfad nutzen
-  - die Übersicht musste Termine chronologisch nach Datum und Uhrzeit zeigen
-  - `HomeManagementPage` durfte für Termine nicht weiter der eigentliche Haupteditor bleiben
+  - die Ãœbersicht musste Termine chronologisch nach Datum und Uhrzeit zeigen
+  - `HomeManagementPage` durfte fÃ¼r Termine nicht weiter der eigentliche Haupteditor bleiben
 - Den Korrekturblock deshalb nur im Bereich `Termine` umgesetzt:
-  - neuer eigener Editorpfad `TermineEditorPage` ergänzt
-  - `TermineManagementPage` öffnet `Neu` und `Bearbeiten` jetzt direkt in diesen neuen Editorpfad
-  - die Übersicht wurde ausdrücklich auf chronologische Reihenfolge nach `Datum`, `Startzeit`, `Endzeit`, `Titel` gezogen
-  - der neue Editor trennt Übersicht und Bearbeitung sichtbar auf zwei Seiten
+  - neuer eigener Editorpfad `TermineEditorPage` ergÃ¤nzt
+  - `TermineManagementPage` Ã¶ffnet `Neu` und `Bearbeiten` jetzt direkt in diesen neuen Editorpfad
+  - die Ãœbersicht wurde ausdrÃ¼cklich auf chronologische Reihenfolge nach `Datum`, `Startzeit`, `Endzeit`, `Titel` gezogen
+  - der neue Editor trennt Ãœbersicht und Bearbeitung sichtbar auf zwei Seiten
   - fachlich relevante Felder aus dem bestehenden Shared-/WPF-Pfad bleiben im Editor erhalten:
     - `Titel`
     - `Beschreibung`
@@ -3865,47 +3904,47 @@
     - `Sichtbar ab`
     - `Sichtbar bis`
     - `Aktiv`
-  - `ShellRouteRegistrar` und `MauiProgram` minimal für den neuen Termine-Editor ergänzt
-  - `HomeManagementPage` wurde für den Bereich `Termine` als Haupteditor entkoppelt und leitet jetzt bei diesem Bereich auf Übersicht bzw. neuen Editorpfad weiter
+  - `ShellRouteRegistrar` und `MauiProgram` minimal fÃ¼r den neuen Termine-Editor ergÃ¤nzt
+  - `HomeManagementPage` wurde fÃ¼r den Bereich `Termine` als Haupteditor entkoppelt und leitet jetzt bei diesem Bereich auf Ãœbersicht bzw. neuen Editorpfad weiter
   - `Speichern` und `Abbrechen` bleiben am Ende des Formularpfads
-  - nach `Speichern` oder `Abbrechen` geht der Nutzer sauber zurück zur Übersicht `Termine`
+  - nach `Speichern` oder `Abbrechen` geht der Nutzer sauber zurÃ¼ck zur Ãœbersicht `Termine`
 - Warum dieser kleine Block fachlich sinnvoll ist:
-  - er zieht die mobile Trennung `Übersicht` vs. `Editor` sichtbar näher an die WPF-Rolle des Termineeditors
-  - die Übersicht bleibt ruhig und chronologisch lesbar
-  - bestehende Shared-Servicepfade für Laden/Erstellen/Speichern bleiben unverändert die fachliche Grundlage
-- Erlaubte mobile Abweichung ausdrücklich benannt:
-  - statt WPF-Liste plus Editor in derselben Breite nutzt MAUI mobil bewusst getrennte Seiten `Übersicht` und `Editor`
-  - für die touch-taugliche Zeit-/Datumsbearbeitung nutzt der mobile Editor stabile `DatePicker`-/`TimePicker`-Felder mit klaren Aktivschaltern für optionale Zeit- und Sichtbarkeitsangaben statt einer Desktop-artigen freien Zeiteingabe in derselben Formularfläche
+  - er zieht die mobile Trennung `Ãœbersicht` vs. `Editor` sichtbar nÃ¤her an die WPF-Rolle des Termineeditors
+  - die Ãœbersicht bleibt ruhig und chronologisch lesbar
+  - bestehende Shared-Servicepfade fÃ¼r Laden/Erstellen/Speichern bleiben unverÃ¤ndert die fachliche Grundlage
+- Erlaubte mobile Abweichung ausdrÃ¼cklich benannt:
+  - statt WPF-Liste plus Editor in derselben Breite nutzt MAUI mobil bewusst getrennte Seiten `Ãœbersicht` und `Editor`
+  - fÃ¼r die touch-taugliche Zeit-/Datumsbearbeitung nutzt der mobile Editor stabile `DatePicker`-/`TimePicker`-Felder mit klaren Aktivschaltern fÃ¼r optionale Zeit- und Sichtbarkeitsangaben statt einer Desktop-artigen freien Zeiteingabe in derselben FormularflÃ¤che
 - Bewusst nicht gemacht:
-  - keine Änderungen an `Bekanntmachungen`
-  - keine Änderungen an `Arbeitseinsätze`
-  - keine Änderungen an Home, Stammdaten, Gärten, Parzellen, Ablesen, Arbeitsstunden, Export oder Auth
+  - keine Ã„nderungen an `Bekanntmachungen`
+  - keine Ã„nderungen an `ArbeitseinsÃ¤tze`
+  - keine Ã„nderungen an Home, Stammdaten, GÃ¤rten, Parzellen, Ablesen, Arbeitsstunden, Export oder Auth
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - `get_tests` für `KGV.Tests` ergab keine passenden Testfälle für diesen Block
+  - `get_tests` fÃ¼r `KGV.Tests` ergab keine passenden TestfÃ¤lle fÃ¼r diesen Block
   - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` und stammen nicht aus dem neuen Termine-Editorpfad
 
-## 2026-03-25 – Prompt 1/1: Block 3B1 für `Bekanntmachungen` in MAUI auf eigenen Übersicht-/Editorpfad nachgezogen
+## 2026-03-25 â€“ Prompt 1/1: Block 3B1 fÃ¼r `Bekanntmachungen` in MAUI auf eigenen Ãœbersicht-/Editorpfad nachgezogen
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
-- Für Block `3B1` gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block `3B1` gezielt geprÃ¼ft:
   - WPF: `BekanntmachungenVerwaltungEditorView`
   - MAUI: `BekanntmachungenManagementPage`, `ManagementOverviewPageBase`, `HomeManagementPage`, Routing/DI in `ShellRouteRegistrar` und `MauiProgram`
 - Ehrlicher Befund im aktuellen MAUI-Stand:
-  - `BekanntmachungenManagementPage` war zwar bereits ruhige Übersicht, öffnete `Neu`/`Bearbeiten` aber noch in den technischen Restpfad `HomeManagementPage`
-  - damit blieb für Bekanntmachungen der eigentliche mobile Produktiv-Editor weiter an einer Mischseite hängen
+  - `BekanntmachungenManagementPage` war zwar bereits ruhige Ãœbersicht, Ã¶ffnete `Neu`/`Bearbeiten` aber noch in den technischen Restpfad `HomeManagementPage`
+  - damit blieb fÃ¼r Bekanntmachungen der eigentliche mobile Produktiv-Editor weiter an einer Mischseite hÃ¤ngen
   - die bestehende HTML-Bearbeitung war mobil noch nicht in einen eigenen getrennten Editorpfad gezogen
-- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
-  - `Bekanntmachungen` brauchte neben der Übersicht einen klar getrennten Editorpfad
+- Wichtigste kleine Restabweichungen mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - `Bekanntmachungen` brauchte neben der Ãœbersicht einen klar getrennten Editorpfad
   - `Neu` und `Bearbeiten` sollten denselben eigenen Editorpfad nutzen
   - HTML-Inhalt durfte mobil nicht zu einem Fake-Plaintext-Pfad vereinfacht werden
-  - `HomeManagementPage` durfte für Bekanntmachungen nicht weiter der eigentliche Haupteditor bleiben
+  - `HomeManagementPage` durfte fÃ¼r Bekanntmachungen nicht weiter der eigentliche Haupteditor bleiben
 - Den Korrekturblock deshalb nur im Bereich `Bekanntmachungen` umgesetzt:
-  - neuer eigener Editorpfad `BekanntmachungEditorPage` ergänzt
-  - `BekanntmachungenManagementPage` öffnet `Neu` und `Bearbeiten` jetzt direkt in diesen neuen Editorpfad
-  - `ManagementOverviewPageBase` dafür minimal von technischem Fortsetzungspfad auf überschreibbare Öffnen-/Neu-Aktionen erweitert
-  - der neue Editor trennt Übersicht und Bearbeitung sichtbar auf zwei Seiten
-  - HTML-Bearbeitung bleibt fachlich erhalten über echten HTML-Quelltexteditor, Snippet-Buttons und mobile Vorschau per `WebView`
+  - neuer eigener Editorpfad `BekanntmachungEditorPage` ergÃ¤nzt
+  - `BekanntmachungenManagementPage` Ã¶ffnet `Neu` und `Bearbeiten` jetzt direkt in diesen neuen Editorpfad
+  - `ManagementOverviewPageBase` dafÃ¼r minimal von technischem Fortsetzungspfad auf Ã¼berschreibbare Ã–ffnen-/Neu-Aktionen erweitert
+  - der neue Editor trennt Ãœbersicht und Bearbeitung sichtbar auf zwei Seiten
+  - HTML-Bearbeitung bleibt fachlich erhalten Ã¼ber echten HTML-Quelltexteditor, Snippet-Buttons und mobile Vorschau per `WebView`
   - fachlich relevante Felder aus dem bestehenden Shared-/WPF-Pfad bleiben im Editor erhalten:
     - `Titel`
     - `InhaltHtml`
@@ -3913,170 +3952,170 @@
     - `Sichtbar bis`
     - `SortOrder`
     - `Aktiv`
-  - `ShellRouteRegistrar` und `MauiProgram` minimal für den neuen Bekanntmachungen-Editor ergänzt
-  - `HomeManagementPage` wurde für den Bereich `Bekanntmachungen` als Haupteditor entkoppelt und leitet jetzt bei diesem Bereich auf Übersicht bzw. neuen Editorpfad weiter
+  - `ShellRouteRegistrar` und `MauiProgram` minimal fÃ¼r den neuen Bekanntmachungen-Editor ergÃ¤nzt
+  - `HomeManagementPage` wurde fÃ¼r den Bereich `Bekanntmachungen` als Haupteditor entkoppelt und leitet jetzt bei diesem Bereich auf Ãœbersicht bzw. neuen Editorpfad weiter
   - `Speichern` und `Abbrechen` bleiben am Ende des Formularpfads
-  - nach `Speichern` oder `Abbrechen` geht der Nutzer sauber zurück zur Übersicht `Bekanntmachungen`
+  - nach `Speichern` oder `Abbrechen` geht der Nutzer sauber zurÃ¼ck zur Ãœbersicht `Bekanntmachungen`
 - Warum dieser kleine Block fachlich sinnvoll ist:
-  - er zieht die mobile Trennung `Übersicht` vs. `Editor` sichtbar näher an die WPF-Rolle des Bekanntmachungseditors
-  - die Übersicht bleibt ruhig und lesbar
-  - HTML-Inhalt bleibt fachlich als HTML bearbeitbar statt auf einen vereinfachten Textpfad zurückzufallen
-  - bestehende Shared-Servicepfade für Laden/Erstellen/Speichern bleiben unverändert die fachliche Grundlage
-- Erlaubte mobile Abweichung ausdrücklich benannt:
-  - statt WPF-Liste plus Editor in derselben Breite nutzt MAUI mobil bewusst getrennte Seiten `Übersicht` und `Editor`
-  - die HTML-Bearbeitung bleibt dabei als Quelltext + Snippets + Vorschau erhalten, weil dies mobil belastbarer und risikoärmer ist als ein neuer Richtext-Sonderbau
+  - er zieht die mobile Trennung `Ãœbersicht` vs. `Editor` sichtbar nÃ¤her an die WPF-Rolle des Bekanntmachungseditors
+  - die Ãœbersicht bleibt ruhig und lesbar
+  - HTML-Inhalt bleibt fachlich als HTML bearbeitbar statt auf einen vereinfachten Textpfad zurÃ¼ckzufallen
+  - bestehende Shared-Servicepfade fÃ¼r Laden/Erstellen/Speichern bleiben unverÃ¤ndert die fachliche Grundlage
+- Erlaubte mobile Abweichung ausdrÃ¼cklich benannt:
+  - statt WPF-Liste plus Editor in derselben Breite nutzt MAUI mobil bewusst getrennte Seiten `Ãœbersicht` und `Editor`
+  - die HTML-Bearbeitung bleibt dabei als Quelltext + Snippets + Vorschau erhalten, weil dies mobil belastbarer und risikoÃ¤rmer ist als ein neuer Richtext-Sonderbau
 - Bewusst nicht gemacht:
-  - keine Änderungen an `Termine`
-  - keine Änderungen an `Arbeitseinsätze`
-  - keine Änderungen an Home, Stammdaten, Gärten, Parzellen, Ablesen, Arbeitsstunden, Export oder Auth
+  - keine Ã„nderungen an `Termine`
+  - keine Ã„nderungen an `ArbeitseinsÃ¤tze`
+  - keine Ã„nderungen an Home, Stammdaten, GÃ¤rten, Parzellen, Ablesen, Arbeitsstunden, Export oder Auth
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - `get_tests` für `KGV.Tests` ergab keine passenden Testfälle für diesen Block
+  - `get_tests` fÃ¼r `KGV.Tests` ergab keine passenden TestfÃ¤lle fÃ¼r diesen Block
   - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` sowie bestehenden blockfremden Pfaden und stammen nicht aus dem neuen Bekanntmachungen-Editorpfad
 
-## 2026-03-25 – Prompt 1/1: Block 3A für Verwaltungsbereiche in MAUI fachlich in `Bekanntmachungen` / `Termine` / `Arbeitseinsätze` entflochten
+## 2026-03-25 â€“ Prompt 1/1: Block 3A fÃ¼r Verwaltungsbereiche in MAUI fachlich in `Bekanntmachungen` / `Termine` / `ArbeitseinsÃ¤tze` entflochten
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
-- Für Block `3A` gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block `3A` gezielt geprÃ¼ft:
   - WPF: `BekanntmachungenVerwaltungEditorView`, `TermineVerwaltungEditorView`, `ArbeitseinsaetzeVerwaltungEditorView`
-  - MAUI: `HomeManagementPage`, `AdminShell`, `ShellRouteRegistrar`, `MauiProgram`, bestehende Home-/Verwaltungszugänge
+  - MAUI: `HomeManagementPage`, `AdminShell`, `ShellRouteRegistrar`, `MauiProgram`, bestehende Home-/VerwaltungszugÃ¤nge
 - Ehrlicher Befund im aktuellen MAUI-Stand:
-  - die drei Bereiche `Bekanntmachungen`, `Termine` und `Arbeitseinsätze` liefen mobil weiterhin primär über die Sammelseite `HomeManagementPage`
-  - fachliche Bereichstrennung und direkte Verwaltungs-Einstiege waren gegenüber WPF damit noch zu schwach
+  - die drei Bereiche `Bekanntmachungen`, `Termine` und `ArbeitseinsÃ¤tze` liefen mobil weiterhin primÃ¤r Ã¼ber die Sammelseite `HomeManagementPage`
+  - fachliche Bereichstrennung und direkte Verwaltungs-Einstiege waren gegenÃ¼ber WPF damit noch zu schwach
   - `HomeManagementPage` blieb damit faktisch noch die Produktiv-Sammelseite statt nur technischer Restpfad
-- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+- Wichtigste kleine Restabweichungen mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
   - jeder Verwaltungsbereich brauchte eine eigene ruhige Hauptseite
-  - `HomeManagementPage` durfte nicht weiter der eigentliche Hauptweg für alle drei Bereiche bleiben
+  - `HomeManagementPage` durfte nicht weiter der eigentliche Hauptweg fÃ¼r alle drei Bereiche bleiben
   - Shell-/Verwaltungseinstiege mussten direkt in die getrennten Bereiche zeigen
   - Bereichsumschaltung innerhalb derselben Seite durfte nicht der Hauptweg bleiben
-- Den Korrekturblock deshalb nur auf Bereichsstruktur/Übersicht umgesetzt:
-  - neue ruhige MAUI-Übersichtsseiten ergänzt:
+- Den Korrekturblock deshalb nur auf Bereichsstruktur/Ãœbersicht umgesetzt:
+  - neue ruhige MAUI-Ãœbersichtsseiten ergÃ¤nzt:
     - `BekanntmachungenManagementPage`
     - `TermineManagementPage`
     - `ArbeitseinsaetzeManagementPage`
-  - gemeinsame kleine Basis `ManagementOverviewPageBase` ergänzt, damit alle drei Seiten nur ihren jeweils eigenen Bereich zeigen
+  - gemeinsame kleine Basis `ManagementOverviewPageBase` ergÃ¤nzt, damit alle drei Seiten nur ihren jeweils eigenen Bereich zeigen
   - jede Seite zeigt nur:
-    - eigene Liste vorhandener Datensätze
+    - eigene Liste vorhandener DatensÃ¤tze
     - klaren Einstieg `Neu`
     - keinen Bereichswechsel innerhalb derselben Seite
   - `AdminShell` zeigt die drei Verwaltungsbereiche jetzt direkt auf diese drei neuen Hauptseiten statt auf die Sammelseite
-  - `ShellRouteRegistrar` und `MauiProgram` minimal für die drei neuen Seiten ergänzt
-  - `HomeManagementPage` nicht riskant gelöscht, sondern entkoppelt:
-    - neuer technischer Restpfad für Fortsetzung innerhalb genau eines Bereichs
-    - kann jetzt optional mit fixiertem Bereich, ausgewähltem Datensatz oder `Neu` geöffnet werden
+  - `ShellRouteRegistrar` und `MauiProgram` minimal fÃ¼r die drei neuen Seiten ergÃ¤nzt
+  - `HomeManagementPage` nicht riskant gelÃ¶scht, sondern entkoppelt:
+    - neuer technischer Restpfad fÃ¼r Fortsetzung innerhalb genau eines Bereichs
+    - kann jetzt optional mit fixiertem Bereich, ausgewÃ¤hltem Datensatz oder `Neu` geÃ¶ffnet werden
     - Bereichsauswahl wird in diesem technischen Fortsetzungspfad bei fixierter Herkunft ausgeblendet
 - Warum dieser kleine Block fachlich sinnvoll ist:
-  - er zieht die mobile Fachtrennung sichtbar näher an die drei getrennten WPF-Verwaltungsbereiche
+  - er zieht die mobile Fachtrennung sichtbar nÃ¤her an die drei getrennten WPF-Verwaltungsbereiche
   - jede Seite bleibt fachlich ruhig auf genau einen Bereich fokussiert
-  - statt riskant zu löschen, wird `HomeManagementPage` sauber aus dem Hauptweg herausgelöst und nur noch als technischer Restpfad gehalten
-  - bestehende Shared-Servicepfade für Laden/Schreiben bleiben unverändert die fachliche Grundlage
-- Erlaubte mobile Abweichung ausdrücklich benannt:
-  - statt WPF-Editor+Liste pro Bereich ist mobil in `3A` zunächst nur die ruhige Bereichsübersicht als eigener Hauptweg nachgezogen
-  - der technische Fortsetzungspfad über `HomeManagementPage` bleibt bis `3B` bewusst bestehen, um keinen riskanten Großumbau der Editorlogik vorzuziehen
+  - statt riskant zu lÃ¶schen, wird `HomeManagementPage` sauber aus dem Hauptweg herausgelÃ¶st und nur noch als technischer Restpfad gehalten
+  - bestehende Shared-Servicepfade fÃ¼r Laden/Schreiben bleiben unverÃ¤ndert die fachliche Grundlage
+- Erlaubte mobile Abweichung ausdrÃ¼cklich benannt:
+  - statt WPF-Editor+Liste pro Bereich ist mobil in `3A` zunÃ¤chst nur die ruhige BereichsÃ¼bersicht als eigener Hauptweg nachgezogen
+  - der technische Fortsetzungspfad Ã¼ber `HomeManagementPage` bleibt bis `3B` bewusst bestehen, um keinen riskanten GroÃŸumbau der Editorlogik vorzuziehen
 - Bewusst nicht gemacht:
   - keine eigentlichen Editorseiten pro Datensatz in diesem Block
   - keine HTML-/Zeit-/Validierungs-Feinschliffe
-  - keine Bearbeitungslogik für einzelne Einträge
-  - keine Änderungen an Home, Stammdaten, Gärten, Parzellen, Ablesen, Arbeitsstunden, Export oder Auth
+  - keine Bearbeitungslogik fÃ¼r einzelne EintrÃ¤ge
+  - keine Ã„nderungen an Home, Stammdaten, GÃ¤rten, Parzellen, Ablesen, Arbeitsstunden, Export oder Auth
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - `get_tests` für `KGV.Tests` ergab keine passenden Testfälle für diesen Block
+  - `get_tests` fÃ¼r `KGV.Tests` ergab keine passenden TestfÃ¤lle fÃ¼r diesen Block
   - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden und stammen nicht aus der neuen Bereichstrennung selbst
 
-## 2026-03-25 – Prompt 1/1: Block 2B für Arbeitsstunden-Freigabe/Adminpfad in MAUI WPF-nah als Einzeldatensatz-Prüfung umgesetzt
+## 2026-03-25 â€“ Prompt 1/1: Block 2B fÃ¼r Arbeitsstunden-Freigabe/Adminpfad in MAUI WPF-nah als Einzeldatensatz-PrÃ¼fung umgesetzt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
-- Für Block `2B` gezielt geprüft:
-  - WPF: `ArbeitsstundenPruefungView`, ergänzend `ArbeitsstundenView`, `ArbeitsstundenErfassungView`, `ArbeitsstundenErfassungWindow`, `ArbeitsstundeDialog`
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block `2B` gezielt geprÃ¼ft:
+  - WPF: `ArbeitsstundenPruefungView`, ergÃ¤nzend `ArbeitsstundenView`, `ArbeitsstundenErfassungView`, `ArbeitsstundenErfassungWindow`, `ArbeitsstundeDialog`
   - MAUI: `ArbeitsstundenReviewPage`, Routing/DI in `ShellRouteRegistrar` und `MauiProgram`
 - Ehrlicher Befund im aktuellen MAUI-Stand:
-  - `ArbeitsstundenReviewPage` zeigte offene Prüffälle noch mit direkter `Genehmigen`-/`Ablehnen`-Aktion direkt in der Listenansicht
-  - damit blieb mobil weiter eine Mischseite aus Übersicht und Entscheidung statt eines klaren Prüfpfads pro Datensatz
-  - eine WPF-nähere mobile Datensatznavigation für den Prüfkontext fehlte noch vollständig
-- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
-  - `Arbeitsstunden freigeben` sollte mobil wieder eine ruhige Übersicht offener Prüffälle sein
-  - die eigentliche Prüfung sollte auf einer eigenen mobilen Datensatzseite laufen
-  - mobile Navigation zwischen Prüffällen sollte klar und kompakt mit Pfeilen funktionieren
-  - offene Änderungen durften beim Blättern nicht still verloren gehen
+  - `ArbeitsstundenReviewPage` zeigte offene PrÃ¼ffÃ¤lle noch mit direkter `Genehmigen`-/`Ablehnen`-Aktion direkt in der Listenansicht
+  - damit blieb mobil weiter eine Mischseite aus Ãœbersicht und Entscheidung statt eines klaren PrÃ¼fpfads pro Datensatz
+  - eine WPF-nÃ¤here mobile Datensatznavigation fÃ¼r den PrÃ¼fkontext fehlte noch vollstÃ¤ndig
+- Wichtigste kleine Restabweichungen mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - `Arbeitsstunden freigeben` sollte mobil wieder eine ruhige Ãœbersicht offener PrÃ¼ffÃ¤lle sein
+  - die eigentliche PrÃ¼fung sollte auf einer eigenen mobilen Datensatzseite laufen
+  - mobile Navigation zwischen PrÃ¼ffÃ¤llen sollte klar und kompakt mit Pfeilen funktionieren
+  - offene Ã„nderungen durften beim BlÃ¤ttern nicht still verloren gehen
 - Den Korrekturblock deshalb nur im Review-/Adminpfad umgesetzt:
-  - `ArbeitsstundenReviewPage` auf ruhige Übersicht offener Prüffälle zurückgezogen
-  - Antippen eines offenen Falls öffnet jetzt eine eigene mobile Prüfdetailseite
-  - neue Seite `ArbeitsstundenReviewDetailPage` ergänzt
-  - neuer Zustand `ArbeitsstundenReviewState` hält die aktuelle offene Prüffallliste und die mobile Datensatzposition
-  - Prüfdetail zeigt genau einen Datensatz mit Mitglied, Datum, Stunden, Art der Arbeit und Status-/Anmerkungsfeld
+  - `ArbeitsstundenReviewPage` auf ruhige Ãœbersicht offener PrÃ¼ffÃ¤lle zurÃ¼ckgezogen
+  - Antippen eines offenen Falls Ã¶ffnet jetzt eine eigene mobile PrÃ¼fdetailseite
+  - neue Seite `ArbeitsstundenReviewDetailPage` ergÃ¤nzt
+  - neuer Zustand `ArbeitsstundenReviewState` hÃ¤lt die aktuelle offene PrÃ¼ffallliste und die mobile Datensatzposition
+  - PrÃ¼fdetail zeigt genau einen Datensatz mit Mitglied, Datum, Stunden, Art der Arbeit und Status-/Anmerkungsfeld
   - unten mobile Datensatznavigation nur mit Pfeil links, Positionsanzeige `x/y` mittig und Pfeil rechts
-  - bei offenen Änderungen wird vor dem Blättern zuerst gespeichert; bei Fehler bleibt die Seite stehen
-  - `Freigeben`, `Ablehnen` und `Speichern` laufen weiter über dieselben bestehenden Shared-Servicepfade
-  - entschiedene/freigegebene bzw. abgelehnte Fälle werden nicht mehr als normaler offener Prüffall behandelt
-  - `ShellRouteRegistrar` und `MauiProgram` minimal für neuen Prüfdetailpfad und Zustandsdienst ergänzt
+  - bei offenen Ã„nderungen wird vor dem BlÃ¤ttern zuerst gespeichert; bei Fehler bleibt die Seite stehen
+  - `Freigeben`, `Ablehnen` und `Speichern` laufen weiter Ã¼ber dieselben bestehenden Shared-Servicepfade
+  - entschiedene/freigegebene bzw. abgelehnte FÃ¤lle werden nicht mehr als normaler offener PrÃ¼ffall behandelt
+  - `ShellRouteRegistrar` und `MauiProgram` minimal fÃ¼r neuen PrÃ¼fdetailpfad und Zustandsdienst ergÃ¤nzt
 - Warum dieser kleine Block fachlich sinnvoll ist:
-  - er zieht den mobilen Prüfpfad sichtbarer an den WPF-Fluss `Übersicht` vs. `Prüfen/Bearbeiten` heran
-  - die Übersicht bleibt ruhig und touch-tauglich lesbar
-  - der eigentliche Prüfcharakter sitzt jetzt auf einer eigenen Seite mit genau einem Datensatz
-  - bestehende Shared-Servicepfade für Laden/Speichern/Freigeben bleiben unverändert die fachliche Grundlage
-- Erlaubte mobile Abweichung ausdrücklich benannt:
-  - statt einer WPF-Prüftabelle nutzt MAUI mobil bewusst Übersicht plus Einzeldatensatz-Prüfung auf eigener Seite
-  - diese Abweichung ist fachlich gewollt, weil sie auf kleineren Bildschirmen den Prüfkontext klarer und touch-tauglicher hält
+  - er zieht den mobilen PrÃ¼fpfad sichtbarer an den WPF-Fluss `Ãœbersicht` vs. `PrÃ¼fen/Bearbeiten` heran
+  - die Ãœbersicht bleibt ruhig und touch-tauglich lesbar
+  - der eigentliche PrÃ¼fcharakter sitzt jetzt auf einer eigenen Seite mit genau einem Datensatz
+  - bestehende Shared-Servicepfade fÃ¼r Laden/Speichern/Freigeben bleiben unverÃ¤ndert die fachliche Grundlage
+- Erlaubte mobile Abweichung ausdrÃ¼cklich benannt:
+  - statt einer WPF-PrÃ¼ftabelle nutzt MAUI mobil bewusst Ãœbersicht plus Einzeldatensatz-PrÃ¼fung auf eigener Seite
+  - diese Abweichung ist fachlich gewollt, weil sie auf kleineren Bildschirmen den PrÃ¼fkontext klarer und touch-tauglicher hÃ¤lt
 - Bewusst nicht gemacht:
-  - keine Änderung an `MyArbeitsstundenPage`
-  - keine Änderung am normalen Nutzer-Erfassungs-/Bearbeitungspfad
-  - keine Änderung an Home, Stammdaten, Gärten, Parzellen, Ablesen, Verwaltung, Export oder Auth
+  - keine Ã„nderung an `MyArbeitsstundenPage`
+  - keine Ã„nderung am normalen Nutzer-Erfassungs-/Bearbeitungspfad
+  - keine Ã„nderung an Home, Stammdaten, GÃ¤rten, Parzellen, Ablesen, Verwaltung, Export oder Auth
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - `get_tests` für `KGV.Tests` ergab keine passenden Testfälle für diesen Block
+  - `get_tests` fÃ¼r `KGV.Tests` ergab keine passenden TestfÃ¤lle fÃ¼r diesen Block
   - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` und stammen nicht aus diesem Block
 
-## 2026-03-25 – Prompt 1/1: Block 2A für Arbeitsstunden-Nutzerpfad in MAUI WPF-nah auf Übersicht / Erfassen / Bearbeiten getrennt
+## 2026-03-25 â€“ Prompt 1/1: Block 2A fÃ¼r Arbeitsstunden-Nutzerpfad in MAUI WPF-nah auf Ãœbersicht / Erfassen / Bearbeiten getrennt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprüft.
-- Für Block `2A` gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die WPF-Referenzpfade und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block `2A` gezielt geprÃ¼ft:
   - WPF: `ArbeitsstundenView`, `ArbeitsstundenErfassungView`, `ArbeitsstundenErfassungWindow`, `ArbeitsstundeDialog`
   - MAUI: `MyArbeitsstundenPage`, Routing/DI in `ShellRouteRegistrar` und `MauiProgram`
 - Ehrlicher Befund im aktuellen MAUI-Stand:
-  - `MyArbeitsstundenPage` mischte Übersicht und Editor noch auf einer Sammelseite
-  - Antippen eines Eintrags füllte dasselbe Formular unten wieder auf
-  - bestätigte/freigegebene Einträge waren im Nutzerpfad noch nicht klar genug als gesperrte Nur-Ansicht getrennt
-- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
-  - `Meine Arbeitsstunden` sollte wieder eine ruhige Übersichtsseite sein
+  - `MyArbeitsstundenPage` mischte Ãœbersicht und Editor noch auf einer Sammelseite
+  - Antippen eines Eintrags fÃ¼llte dasselbe Formular unten wieder auf
+  - bestÃ¤tigte/freigegebene EintrÃ¤ge waren im Nutzerpfad noch nicht klar genug als gesperrte Nur-Ansicht getrennt
+- Wichtigste kleine Restabweichungen mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - `Meine Arbeitsstunden` sollte wieder eine ruhige Ãœbersichtsseite sein
   - `Neu erfassen` brauchte einen klar getrennten mobilen Schritt
-  - bestehende Einträge sollten über einen eigenen Öffnen-/Bearbeitenpfad laufen statt im selben Sammelformular
-  - freigegebene Einträge durften im Nutzerpfad nicht mehr bearbeitbar bleiben
+  - bestehende EintrÃ¤ge sollten Ã¼ber einen eigenen Ã–ffnen-/Bearbeitenpfad laufen statt im selben Sammelformular
+  - freigegebene EintrÃ¤ge durften im Nutzerpfad nicht mehr bearbeitbar bleiben
 - Den Korrekturblock deshalb nur im normalen Nutzerpfad umgesetzt:
-  - `MyArbeitsstundenPage` auf ruhige Übersicht zurückgezogen
+  - `MyArbeitsstundenPage` auf ruhige Ãœbersicht zurÃ¼ckgezogen
   - `Soll`, `Geleistet`, `Offen` bleiben oben sichtbar
   - klarer Einstieg `Neu erfassen`
-  - vorhandene Einträge öffnen jetzt einen eigenen mobilen Arbeitsstunden-Pfad statt das Übersichtsformular wiederzuverwenden
-  - neue Seite `ArbeitsstundenEditorPage` ergänzt
-  - dieselbe Seite trägt mobil die drei fachlichen Rollen:
+  - vorhandene EintrÃ¤ge Ã¶ffnen jetzt einen eigenen mobilen Arbeitsstunden-Pfad statt das Ãœbersichtsformular wiederzuverwenden
+  - neue Seite `ArbeitsstundenEditorPage` ergÃ¤nzt
+  - dieselbe Seite trÃ¤gt mobil die drei fachlichen Rollen:
     - `Arbeitsstunde erfassen`
     - `Arbeitsstunde bearbeiten`
     - `Arbeitsstunde ansehen`
-  - unbestätigte Einträge öffnen bearbeitbar
-  - freigegebene Einträge öffnen nur noch lesbar mit klarem Sperrhinweis
-  - `ShellRouteRegistrar` und `MauiProgram` minimal für den neuen Editorpfad ergänzt
+  - unbestÃ¤tigte EintrÃ¤ge Ã¶ffnen bearbeitbar
+  - freigegebene EintrÃ¤ge Ã¶ffnen nur noch lesbar mit klarem Sperrhinweis
+  - `ShellRouteRegistrar` und `MauiProgram` minimal fÃ¼r den neuen Editorpfad ergÃ¤nzt
   - `Speichern` und `Abbrechen` bleiben am Ende des Eingabeformulars
-  - nach `Speichern` oder `Abbrechen` geht der Nutzer klar zurück zur Übersicht `Meine Arbeitsstunden`
+  - nach `Speichern` oder `Abbrechen` geht der Nutzer klar zurÃ¼ck zur Ãœbersicht `Meine Arbeitsstunden`
 - Warum dieser kleine Block fachlich sinnvoll ist:
-  - er zieht den mobilen Nutzerpfad sichtbarer an die WPF-Rollen `Übersicht` vs. `Erfassen/Bearbeiten` heran
-  - die Übersicht bleibt ruhig und lesbar
-  - bestätigte Einträge sind jetzt im Nutzerpfad sichtbar gesperrt statt nur implizit erschwert
-  - bestehende Shared-Servicepfade für Laden/Speichern/Aktualisieren bleiben unverändert die fachliche Grundlage
-- Erlaubte mobile Abweichung ausdrücklich benannt:
-  - statt WPF-Dialog/Fenster verwendet MAUI eine eigene mobile Seite für Erfassen/Bearbeiten/Ansicht
-  - diese Abweichung ist fachlich gewollt, weil sie auf kleineren Bildschirmen Übersicht und Editor sauber trennt
+  - er zieht den mobilen Nutzerpfad sichtbarer an die WPF-Rollen `Ãœbersicht` vs. `Erfassen/Bearbeiten` heran
+  - die Ãœbersicht bleibt ruhig und lesbar
+  - bestÃ¤tigte EintrÃ¤ge sind jetzt im Nutzerpfad sichtbar gesperrt statt nur implizit erschwert
+  - bestehende Shared-Servicepfade fÃ¼r Laden/Speichern/Aktualisieren bleiben unverÃ¤ndert die fachliche Grundlage
+- Erlaubte mobile Abweichung ausdrÃ¼cklich benannt:
+  - statt WPF-Dialog/Fenster verwendet MAUI eine eigene mobile Seite fÃ¼r Erfassen/Bearbeiten/Ansicht
+  - diese Abweichung ist fachlich gewollt, weil sie auf kleineren Bildschirmen Ãœbersicht und Editor sauber trennt
 - Bewusst nicht gemacht:
-  - keine Änderung an `ArbeitsstundenReviewPage`
-  - keine Änderung an Freigabe-/Prüflogik für Admin/Vorstand
-  - keine Änderung an Home, Stammdaten, Gärten, Parzellen, Ablesen, Verwaltung, Export oder Auth
+  - keine Ã„nderung an `ArbeitsstundenReviewPage`
+  - keine Ã„nderung an Freigabe-/PrÃ¼flogik fÃ¼r Admin/Vorstand
+  - keine Ã„nderung an Home, Stammdaten, GÃ¤rten, Parzellen, Ablesen, Verwaltung, Export oder Auth
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - `get_tests` für `KGV.Tests` ergab keine passenden Testfälle für diesen Block
+  - `get_tests` fÃ¼r `KGV.Tests` ergab keine passenden TestfÃ¤lle fÃ¼r diesen Block
   - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` und stammen nicht aus diesem Block
 
-## 2026-03-25 – Prompt 1/1: Block 1B2 für echten NFC-Hauptweg in MAUI technisch abgeschlossen, validiert und finalisiert
+## 2026-03-25 â€“ Prompt 1/1: Block 1B2 fÃ¼r echten NFC-Hauptweg in MAUI technisch abgeschlossen, validiert und finalisiert
 
-- Vor dem Abschlussblock erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block `1B2` gezielt den bereits begonnenen NFC-/Workflow-Stand geprüft:
+- Vor dem Abschlussblock erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block `1B2` gezielt den bereits begonnenen NFC-/Workflow-Stand geprÃ¼ft:
   - `AblesenOverviewPage`
   - `RfidScanWorkflowPage`
   - `AblesungErfassenPage`
@@ -4089,384 +4128,384 @@
   - der technische Abschluss fehlte aber noch
   - insbesondere waren Build, Logpflege, Commit und Push noch offen
 - Den Abschluss deshalb strikt auf den bestehenden `1B2`-Block begrenzt:
-  - MAUI-Build für `KGV.Maui/KGV.Maui.csproj` ausgeführt
+  - MAUI-Build fÃ¼r `KGV.Maui/KGV.Maui.csproj` ausgefÃ¼hrt
   - nur blockbezogene Buildfehler im neuen NFC-/Workflow-Pfad korrigiert
   - Android-Namespace-/Context-/Settings-Konflikte im NFC-Service bereinigt
-  - nicht verfügbare `Expander`-Verwendung in den MAUI-Seiten durch einfache ruhige Sektionen ersetzt
+  - nicht verfÃ¼gbare `Expander`-Verwendung in den MAUI-Seiten durch einfache ruhige Sektionen ersetzt
   - neue blockeigene Nullability-Warnung im RFID-Workflow entfernt
-  - `DEV_LOG.md` und `KGV_Fortschrittslog_ausfuehrlich.md` final für diesen Block nachgezogen
+  - `DEV_LOG.md` und `KGV_Fortschrittslog_ausfuehrlich.md` final fÃ¼r diesen Block nachgezogen
 - Fachlicher Endstand von `1B2` nach dem Abschluss:
   - NFC ist im mobilen operativen RFID-/Ablesen-Bereich jetzt der Hauptweg
   - gelesene UID wird weiter in die bestehenden echten Produktivpfade eingespeist
-  - `Parzelle + Medium` steht als fachlicher Ersatzweg bereit, wenn NFC nicht verfügbar oder deaktiviert ist
+  - `Parzelle + Medium` steht als fachlicher Ersatzweg bereit, wenn NFC nicht verfÃ¼gbar oder deaktiviert ist
   - manuelle UID-Eingabe bleibt nur noch als technischer Notfallweg sichtbar
-- Erlaubte mobile Abweichung ausdrücklich festgehalten:
-  - Geräte ohne NFC bzw. mit deaktiviertem NFC erhalten mobil den fachlichen Ersatzweg über `Parzelle + Medium`
+- Erlaubte mobile Abweichung ausdrÃ¼cklich festgehalten:
+  - GerÃ¤te ohne NFC bzw. mit deaktiviertem NFC erhalten mobil den fachlichen Ersatzweg Ã¼ber `Parzelle + Medium`
   - bei `RFID einrichten` bleibt UID-Tippen nur als technischer Notfallweg bestehen, weil ohne bekannte Tag-UID keine echte RFID-Zuordnung gespeichert werden kann
 - Bewusst nicht gemacht:
   - kein neuer Featureblock
-  - keine weiteren UI-Umbauten außerhalb der bereits begonnenen `1B2`-Dateien
-  - keine Änderung an Stammdaten, Gärten des Mitglieds, Arbeitsstunden, Verwaltung, Export oder Auth
+  - keine weiteren UI-Umbauten auÃŸerhalb der bereits begonnenen `1B2`-Dateien
+  - keine Ã„nderung an Stammdaten, GÃ¤rten des Mitglieds, Arbeitsstunden, Verwaltung, Export oder Auth
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
   - verbleibende Warnungen liegen weiter in `HomeManagementPage.cs` und stammen nicht aus diesem Block
 
-## 2026-03-25 – Prompt 1/1: Block 1B1 für ruhige Parzellen-Details begonnen und kleinen ReadOnly-Trennungsblock umgesetzt
+## 2026-03-25 â€“ Prompt 1/1: Block 1B1 fÃ¼r ruhige Parzellen-Details begonnen und kleinen ReadOnly-Trennungsblock umgesetzt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block 1B1 gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block 1B1 gezielt geprÃ¼ft:
   - MAUI: `ParzellenPage`, `ParzellenViewModel`
-  - WPF-Referenz: `GartenStromView`, `GartenWasserView`, fachlich ergänzend `AblesenOverviewView`
+  - WPF-Referenz: `GartenStromView`, `GartenWasserView`, fachlich ergÃ¤nzend `AblesenOverviewView`
 - Ehrlicher Befund im aktuellen Stand:
   - `ParzellenPage` enthielt zwar bereits einen ruhigeren Bereich `Aktuelle Ablesedaten`, stellte diesen aber noch kartenartig dar
-  - zusätzlich lag dort mit `Zum Ablesen-Bereich` noch eine direkte operative Aktion mitten im Detailblock
+  - zusÃ¤tzlich lag dort mit `Zum Ablesen-Bereich` noch eine direkte operative Aktion mitten im Detailblock
   - im mitgliedsgebundenen Detailkontext wirkte die Seite damit noch zu sehr wie eine Sammelarbeitsseite statt wie eine ruhige Leseseite
-- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
-  - aktuelle Ablesedaten sollten tabellenähnlich und nüchterner sichtbar werden
+- Wichtigste kleine Restabweichungen mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - aktuelle Ablesedaten sollten tabellenÃ¤hnlich und nÃ¼chterner sichtbar werden
   - die direkte operative Aktion `Zum Ablesen-Bereich` musste aus dem Detailblock verschwinden
   - der Detailkontext sollte sichtbarer nach `lesen / einordnen` statt `operativ arbeiten` wirken
-- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur im Detailpfad umgesetzt:
-  - `Aktuelle Ablesedaten` sichtbar von kartenartiger Darstellung auf eine nüchterne tabellenähnliche Zeilenstruktur umgebaut
-  - Kopfzeile für `Medium`, `Letzter Stand`, `Datum`, `Foto`
+- Den nÃ¤chsten kleinen buildfÃ¤higen Korrekturblock deshalb nur im Detailpfad umgesetzt:
+  - `Aktuelle Ablesedaten` sichtbar von kartenartiger Darstellung auf eine nÃ¼chterne tabellenÃ¤hnliche Zeilenstruktur umgebaut
+  - Kopfzeile fÃ¼r `Medium`, `Letzter Stand`, `Datum`, `Foto`
   - Zeilen zeigen jetzt nur die ruhigen Kerndaten statt einer dekorativen Kartenoptik
   - der direkte Button `Zum Ablesen-Bereich` aus dem Detailblock entfernt
   - der Hinweis auf den operativen Bereich `Ablesen` bleibt nur noch als ruhiger Einordnungstext bestehen
-  - der Verwaltungs-/Zuordnungsblock wird im mitgliedsgebundenen Detailkontext nicht mehr als operative Arbeitsfläche gezeigt; der globale Verwaltungsweg bleibt unverändert erhalten
+  - der Verwaltungs-/Zuordnungsblock wird im mitgliedsgebundenen Detailkontext nicht mehr als operative ArbeitsflÃ¤che gezeigt; der globale Verwaltungsweg bleibt unverÃ¤ndert erhalten
 - Warum dieser kleine Block fachlich sinnvoll ist:
   - er trennt das Lesen/Einordnen im Parzellen-Detail klarer vom operativen Arbeiten im Bereich `Ablesen`
   - die Detailseite wirkt im Mitglieds-/Gartenkontext sichtbar ruhiger
   - bestehende operative Fachpfade wurden nicht neu gebaut oder verlagert, sondern nur sauber aus dem Detailblock herausgezogen
 - Bewusst nicht gemacht:
   - kein Umbau von `AblesenOverviewPage`
-  - keine Änderung an `RfidEinrichtenPage`, `RfidScanWorkflowPage` oder `ZaehlerwechselPage`
+  - keine Ã„nderung an `RfidEinrichtenPage`, `RfidScanWorkflowPage` oder `ZaehlerwechselPage`
   - keine neue Parzellen-/Garten-Architektur
-  - keine Änderung an Stammdaten, Gärten des Mitglieds, Arbeitsstunden, Verwaltung, Export oder Auth
+  - keine Ã„nderung an Stammdaten, GÃ¤rten des Mitglieds, Arbeitsstunden, Verwaltung, Export oder Auth
 - Fachliche Kurzvalidierung nach dem kleinen Block:
   - Parzellen-Details wirken ruhiger
-  - aktuelle Ablesedaten sind tabellenähnlich sichtbar
+  - aktuelle Ablesedaten sind tabellenÃ¤hnlich sichtbar
   - direkte operative Ablesen-Aktion ist aus dem Detailblock entfernt
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - unveränderte bestehende Warnungen außerhalb dieses Blocks bleiben bestehen
+  - unverÃ¤nderte bestehende Warnungen auÃŸerhalb dieses Blocks bleiben bestehen
 
-## 2026-03-25 – Prompt 1/1: Block 1A für Stammdaten und Gärten des Mitglieds WPF-nah begonnen und kleinen Trennungsblock umgesetzt
+## 2026-03-25 â€“ Prompt 1/1: Block 1A fÃ¼r Stammdaten und GÃ¤rten des Mitglieds WPF-nah begonnen und kleinen Trennungsblock umgesetzt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block 1A gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block 1A gezielt geprÃ¼ft:
   - WPF-Referenz: `MemberDetailView`, `StammdatenView`, `MemberParzellenSection`
   - MAUI: `MeineDatenPage`, `AdminShell`, `UserShell`, `MauiProgram`, `ShellRouteRegistrar`, `MemberContextState`, `ParzellenContextState`
 - Ehrlicher Befund im aktuellen Stand:
-  - `MeineDatenPage` blieb trotz vorheriger Feinschliffe fachlich noch überladen, weil der Garten-/Parzellenbereich weiterhin direkt auf der Stammdatenseite eingebettet war
+  - `MeineDatenPage` blieb trotz vorheriger Feinschliffe fachlich noch Ã¼berladen, weil der Garten-/Parzellenbereich weiterhin direkt auf der Stammdatenseite eingebettet war
   - `Mitgliedsdokumente` waren bereits unten separat platziert, die Seite wirkte durch den eingebetteten Gartenblock aber weiter zu gemischt
-  - `Bearbeiten` war vorhanden, die fachliche Trennung `Stammdaten` vs. `Gärten des Mitglieds` blieb mobil aber noch schwächer als in WPF
-- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - `Bearbeiten` war vorhanden, die fachliche Trennung `Stammdaten` vs. `GÃ¤rten des Mitglieds` blieb mobil aber noch schwÃ¤cher als in WPF
+- Wichtigste kleine Restabweichungen mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
   - Stammdaten sollten als ruhige eigene Seite ohne eingebetteten Gartenblock stehen
-  - Gärten des Mitglieds sollten einen eigenen klaren Bereich erhalten
+  - GÃ¤rten des Mitglieds sollten einen eigenen klaren Bereich erhalten
   - der bisherige eigene Gartenzugang durfte dabei nicht still verloren gehen
   - `Parzelle zuordnen` durfte keinen Fake-Flow bekommen, sondern nur einen ehrlichen bestehenden Einstieg behalten
-- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur im Mitgliedskontext umgesetzt:
-  - den eingebetteten Bereich `Gärten` aus `MeineDatenPage` entfernt
+- Den nÃ¤chsten kleinen buildfÃ¤higen Korrekturblock deshalb nur im Mitgliedskontext umgesetzt:
+  - den eingebetteten Bereich `GÃ¤rten` aus `MeineDatenPage` entfernt
   - `MeineDatenPage` bleibt damit fachlich ruhiger auf Stammdaten-/Mitgliedskontext- und Verwaltungsinformationen fokussiert
   - `Bearbeiten` bleibt als sichtbarer Einstieg erhalten
   - `Mitgliedsdokumente` bleiben als eigener Button ganz unten auf der Seite
-  - neue Seite `MemberGardensPage` ergänzt
-  - diese zeigt die Garten-/Parzellenzuordnungen des ausgewählten Mitglieds jetzt in einer eigenen Seite
+  - neue Seite `MemberGardensPage` ergÃ¤nzt
+  - diese zeigt die Garten-/Parzellenzuordnungen des ausgewÃ¤hlten Mitglieds jetzt in einer eigenen Seite
   - vorhandener ehrlicher Einstieg `Parzelle zuordnen` bleibt dort erhalten
   - Antippen einer Zuordnung nutzt weiter den bestehenden Mitgliedskontext-/Parzellenpfad statt einer neuen Schattenarchitektur
-  - `AdminShell`: `Mitglieder · Gärten des Mitglieds` zeigt jetzt die neue `MemberGardensPage`
-  - `UserShell` erhielt zusätzlich `Mein Bereich · Gärten`, damit der bisherige eigene Gartenzugang nicht still entfällt
-  - `MauiProgram` und `ShellRouteRegistrar` wurden minimal für die neue Seite bzw. den bestehenden Parzellenpfad ergänzt
+  - `AdminShell`: `Mitglieder Â· GÃ¤rten des Mitglieds` zeigt jetzt die neue `MemberGardensPage`
+  - `UserShell` erhielt zusÃ¤tzlich `Mein Bereich Â· GÃ¤rten`, damit der bisherige eigene Gartenzugang nicht still entfÃ¤llt
+  - `MauiProgram` und `ShellRouteRegistrar` wurden minimal fÃ¼r die neue Seite bzw. den bestehenden Parzellenpfad ergÃ¤nzt
 - Warum dieser kleine Block fachlich sinnvoll ist:
-  - er trennt Stammdaten und Gärten im Mitgliedskontext klarer und WPF-näher
+  - er trennt Stammdaten und GÃ¤rten im Mitgliedskontext klarer und WPF-nÃ¤her
   - die Stammdatenseite wirkt ruhiger und fachlich sauberer
   - statt den Gartenbereich weiter in eine Sammelseite zu mischen, wird mobil bewusst eine eigene Seite verwendet
-- Erlaubte mobile Abweichung ausdrücklich benannt:
-  - statt eines innerhalb derselben Fläche dauerhaft eingebetteten Desktop-Unterbereichs wurde mobil bewusst eine eigene Seite `Gärten` ergänzt
-  - diese Abweichung ist fachlich gewollt und sinnvoll, weil sie Stammdaten ruhiger hält und den Mitgliedsgartenbereich klarer trennt
+- Erlaubte mobile Abweichung ausdrÃ¼cklich benannt:
+  - statt eines innerhalb derselben FlÃ¤che dauerhaft eingebetteten Desktop-Unterbereichs wurde mobil bewusst eine eigene Seite `GÃ¤rten` ergÃ¤nzt
+  - diese Abweichung ist fachlich gewollt und sinnvoll, weil sie Stammdaten ruhiger hÃ¤lt und den Mitgliedsgartenbereich klarer trennt
 - Bewusst nicht gemacht:
   - kein Umbau von `ParzellenPage`
-  - keine Änderung an Ablesen, NFC, Strom/Wasser oder Zählerwechsel
+  - keine Ã„nderung an Ablesen, NFC, Strom/Wasser oder ZÃ¤hlerwechsel
   - kein neuer mobiler Parzellen-Zuordnungseditor
-  - keine Änderung an Export, Profil, Auth oder Arbeitsstunden
+  - keine Ã„nderung an Export, Profil, Auth oder Arbeitsstunden
 - Fachliche Kurzvalidierung nach dem kleinen Block:
   - `Stammdaten` ist ruhiger
-  - `Gärten des Mitglieds` sind als eigener Bereich getrennt
+  - `GÃ¤rten des Mitglieds` sind als eigener Bereich getrennt
   - `Mitgliedsdokumente` bleiben korrekt unten als eigener Button
   - `Bearbeiten` bleibt sichtbar
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - unveränderte bestehende Warnungen außerhalb dieses Blocks bleiben bestehen
+  - unverÃ¤nderte bestehende Warnungen auÃŸerhalb dieses Blocks bleiben bestehen
 
-## 2026-03-24 – Prompt 1/1: Block 0A für Shell-/Menüstruktur in MAUI WPF-nah begonnen und kleinen Shell-Strukturblock umgesetzt
+## 2026-03-24 â€“ Prompt 1/1: Block 0A fÃ¼r Shell-/MenÃ¼struktur in MAUI WPF-nah begonnen und kleinen Shell-Strukturblock umgesetzt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block 0A gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block 0A gezielt geprÃ¼ft:
   - MAUI: `AdminShell`, `UserShell`, `MauiProgram`, `ShellNavigationHelper`
   - WPF-Referenz: fachliche Haupt-/Mitgliedsnavigation in `MainWindowViewModel`
 - Ehrlicher Befund im aktuellen Stand:
-  - `AdminShell` und `UserShell` enthielten zwar bereits produktive Kernziele, die fachliche Gruppierung war gegenüber WPF aber noch zu flach und zu unscharf
+  - `AdminShell` und `UserShell` enthielten zwar bereits produktive Kernziele, die fachliche Gruppierung war gegenÃ¼ber WPF aber noch zu flach und zu unscharf
   - besonders Mitgliedskontext, Parzellenverwaltung, Ablesen, Arbeitsstunden, Verwaltung und Profil lagen mobil noch nicht klar genug in einer WPF-nahen Reihenfolge und Gruppierung
-  - `Gärten des Mitglieds` durfte dabei ausdrücklich nicht mit der globalen `Parzellenverwaltung` vermischt werden
-- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
-  - Admin-/Vorstand-Menü sollte WPF-näher entlang klarer Fachgruppen gegliedert werden
-  - Nutzer-Menü sollte auf einen klaren Bereich `Mein Bereich` gezogen werden
+  - `GÃ¤rten des Mitglieds` durfte dabei ausdrÃ¼cklich nicht mit der globalen `Parzellenverwaltung` vermischt werden
+- Wichtigste kleine Restabweichungen mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - Admin-/Vorstand-MenÃ¼ sollte WPF-nÃ¤her entlang klarer Fachgruppen gegliedert werden
+  - Nutzer-MenÃ¼ sollte auf einen klaren Bereich `Mein Bereich` gezogen werden
   - die drei Verwaltungsunterpunkte sollten als getrennte Fachpunkte sichtbar werden, ohne neue Verwaltungsseiten zu bauen
-  - echte verschachtelte Untermenüs sind in der Standard-MAUI-Shell nur begrenzt ohne größeren Custom-Flyout-Umbau darstellbar
-- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur in `AdminShell` und `UserShell` umgesetzt:
+  - echte verschachtelte UntermenÃ¼s sind in der Standard-MAUI-Shell nur begrenzt ohne grÃ¶ÃŸeren Custom-Flyout-Umbau darstellbar
+- Den nÃ¤chsten kleinen buildfÃ¤higen Korrekturblock deshalb nur in `AdminShell` und `UserShell` umgesetzt:
   - `AdminShell` wurde WPF-nah neu geordnet in die Fachgruppen:
     - `Startseite`
-    - `Mitglieder · Mitgliedersuche`
-    - `Mitglieder · Stammdaten`
-    - `Mitglieder · Nebenmitglied`
-    - `Mitglieder · Benutzerverwaltung` *(Admin-only)*
-    - `Mitglieder · Gärten des Mitglieds`
+    - `Mitglieder Â· Mitgliedersuche`
+    - `Mitglieder Â· Stammdaten`
+    - `Mitglieder Â· Nebenmitglied`
+    - `Mitglieder Â· Benutzerverwaltung` *(Admin-only)*
+    - `Mitglieder Â· GÃ¤rten des Mitglieds`
     - `Parzellenverwaltung`
-    - `Ablesen · Ablesen`
-    - `Ablesen · RFID einrichten`
-    - `Ablesen · Fällige Zähler`
-    - `Ablesen · Zählerwechsel`
-    - `Arbeitsstunden · Meine Arbeitsstunden`
-    - `Arbeitsstunden · Arbeitsstunden freigeben`
-    - `Verwaltung · Bekanntmachungen`
-    - `Verwaltung · Termine`
-    - `Verwaltung · Arbeitseinsätze`
+    - `Ablesen Â· Ablesen`
+    - `Ablesen Â· RFID einrichten`
+    - `Ablesen Â· FÃ¤llige ZÃ¤hler`
+    - `Ablesen Â· ZÃ¤hlerwechsel`
+    - `Arbeitsstunden Â· Meine Arbeitsstunden`
+    - `Arbeitsstunden Â· Arbeitsstunden freigeben`
+    - `Verwaltung Â· Bekanntmachungen`
+    - `Verwaltung Â· Termine`
+    - `Verwaltung Â· ArbeitseinsÃ¤tze`
     - `Export`
     - `Mein Profil`
   - `UserShell` wurde auf die Fachgruppe `Mein Bereich` geordnet:
     - `Startseite`
-    - `Mein Bereich · Meine Stammdaten`
-    - `Mein Bereich · Nebenmitglied`
-    - `Mein Bereich · Meine Arbeitsstunden`
-    - `Mein Bereich · Mein Profil`
-  - für `Meine Stammdaten` im User-Shell wird vor dem Öffnen der vorhandene eigene Mitgliedskontext gesetzt, damit `MeineDatenPage` als eigener Stammdatenpfad nutzbar bleibt
-  - die drei Verwaltungsunterpunkte verwenden weiter die vorhandene `HomeManagementPage`, aber nur mit bestehendem Query-Parameter für Bereichsauswahl statt neuer Seitenarchitektur
-  - der Badge-/Titelpfad für `Arbeitsstunden freigeben` wurde an die neue Gruppierungsbenennung angepasst
+    - `Mein Bereich Â· Meine Stammdaten`
+    - `Mein Bereich Â· Nebenmitglied`
+    - `Mein Bereich Â· Meine Arbeitsstunden`
+    - `Mein Bereich Â· Mein Profil`
+  - fÃ¼r `Meine Stammdaten` im User-Shell wird vor dem Ã–ffnen der vorhandene eigene Mitgliedskontext gesetzt, damit `MeineDatenPage` als eigener Stammdatenpfad nutzbar bleibt
+  - die drei Verwaltungsunterpunkte verwenden weiter die vorhandene `HomeManagementPage`, aber nur mit bestehendem Query-Parameter fÃ¼r Bereichsauswahl statt neuer Seitenarchitektur
+  - der Badge-/Titelpfad fÃ¼r `Arbeitsstunden freigeben` wurde an die neue Gruppierungsbenennung angepasst
 - Warum dieser kleine Block fachlich sinnvoll ist:
-  - er zieht die sichtbare Fachstruktur der mobilen Shell näher an WPF, ohne Seiteninhalte anzufassen
-  - Mitgliedsbezogene Gärten und globale Parzellenverwaltung bleiben ausdrücklich getrennt
+  - er zieht die sichtbare Fachstruktur der mobilen Shell nÃ¤her an WPF, ohne Seiteninhalte anzufassen
+  - Mitgliedsbezogene GÃ¤rten und globale Parzellenverwaltung bleiben ausdrÃ¼cklich getrennt
   - die Struktur wird klarer, ohne neue Fachflows zu bauen
-- Erzwungene kleine mobile Abweichung ausdrücklich benannt:
-  - echtes verschachteltes Flyout mit visuellen Unterebenen bietet die Standard-MAUI-Shell ohne größeren Custom-Flyout-Umbau nicht belastbar an
-  - deshalb wurde die WPF-nahe Unterstruktur minimal-invasiv über klare fachliche Gruppierungspräfixe `Bereich · Unterpunkt` umgesetzt
+- Erzwungene kleine mobile Abweichung ausdrÃ¼cklich benannt:
+  - echtes verschachteltes Flyout mit visuellen Unterebenen bietet die Standard-MAUI-Shell ohne grÃ¶ÃŸeren Custom-Flyout-Umbau nicht belastbar an
+  - deshalb wurde die WPF-nahe Unterstruktur minimal-invasiv Ã¼ber klare fachliche GruppierungsprÃ¤fixe `Bereich Â· Unterpunkt` umgesetzt
 - Bewusst nicht gemacht:
   - kein Umbau von `LoginPage`
   - kein Eingriff in `App.xaml.cs` oder Android-Rootpfade
-  - keine Seitenkopf-/Hamburger-/Zurück-Themen dieses Blocks vorweggenommen
-  - keine Inhaltsänderung an Home-, Stammdaten-, Parzellen-, Ablesen-, Export- oder Verwaltungsseiten
+  - keine Seitenkopf-/Hamburger-/ZurÃ¼ck-Themen dieses Blocks vorweggenommen
+  - keine InhaltsÃ¤nderung an Home-, Stammdaten-, Parzellen-, Ablesen-, Export- oder Verwaltungsseiten
 - Fachliche Kurzvalidierung nach dem kleinen Block:
-  - Admin-/Vorstand-Menü ist fachlich deutlich WPF-näher gruppiert
-  - Nutzer-Menü ist auf `Mein Bereich` gebündelt
-  - Mitgliedsbezogene Gärten und globale Parzellenverwaltung bleiben getrennt
+  - Admin-/Vorstand-MenÃ¼ ist fachlich deutlich WPF-nÃ¤her gruppiert
+  - Nutzer-MenÃ¼ ist auf `Mein Bereich` gebÃ¼ndelt
+  - Mitgliedsbezogene GÃ¤rten und globale Parzellenverwaltung bleiben getrennt
   - keine produktiven Fachbereiche entfernt
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - unveränderte bestehende Warnungen außerhalb dieses Blocks bleiben bestehen
+  - unverÃ¤nderte bestehende Warnungen auÃŸerhalb dieses Blocks bleiben bestehen
 
-## 2026-03-24 – Prompt 1/2: MAUI Feinschliff für Stammdaten / Gärten / Parzelle / Ablesen begonnen und kleinen UI-/Flow-Block umgesetzt
+## 2026-03-24 â€“ Prompt 1/2: MAUI Feinschliff fÃ¼r Stammdaten / GÃ¤rten / Parzelle / Ablesen begonnen und kleinen UI-/Flow-Block umgesetzt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die Repo-Wahrheit und den echten Git-Arbeitsbaum geprüft.
-- Für diesen Feinschliff gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, die Repo-Wahrheit und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r diesen Feinschliff gezielt geprÃ¼ft:
   - MAUI: `MeineDatenPage`, `MemberSearchPage`, `AdminShell`, `ParzellenPage`, `RfidScanWorkflowPage`, `AblesenOverviewPage`, `ShellRouteRegistrar`
   - WPF-Referenz: `MemberDetailView`, `MemberParzellenSection`, `GartenStromView`, `GartenWasserView`
 - Ehrlicher Befund im aktuellen Stand:
-  - auf `MeineDatenPage` hing `Mitgliedsdokumente` noch fachlich unruhig im Bereich `Gärten / Parzellen`
-  - `Stammdaten aktualisieren` brachte gegenüber dem ohnehin vorhandenen Reload beim Wiedererscheinen nur geringen Mehrwert
-  - der fehlende Hamburger auf der mobilen Stammdatenseite lag nicht an einer kaputten Shell, sondern daran, dass der Admin-Mitgliedskontext bislang als gepushte Detailroute aus der Suche geöffnet wurde
-  - im Parzellen-Detailbereich waren die mobilen Strom-/Wasser-/Zählerwechsel-Bedienblöcke zu operativ und zogen fachlich wieder in eine Seite hinein, die ruhiger read-only bleiben sollte
-  - für NFC/RFID existiert im aktiven MAUI-Stand weiterhin keine direkte Geräteanbindung; die UI wirkte aber noch zu sehr so, als sei manuelle UID-Eingabe der Hauptweg
-- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - auf `MeineDatenPage` hing `Mitgliedsdokumente` noch fachlich unruhig im Bereich `GÃ¤rten / Parzellen`
+  - `Stammdaten aktualisieren` brachte gegenÃ¼ber dem ohnehin vorhandenen Reload beim Wiedererscheinen nur geringen Mehrwert
+  - der fehlende Hamburger auf der mobilen Stammdatenseite lag nicht an einer kaputten Shell, sondern daran, dass der Admin-Mitgliedskontext bislang als gepushte Detailroute aus der Suche geÃ¶ffnet wurde
+  - im Parzellen-Detailbereich waren die mobilen Strom-/Wasser-/ZÃ¤hlerwechsel-BedienblÃ¶cke zu operativ und zogen fachlich wieder in eine Seite hinein, die ruhiger read-only bleiben sollte
+  - fÃ¼r NFC/RFID existiert im aktiven MAUI-Stand weiterhin keine direkte GerÃ¤teanbindung; die UI wirkte aber noch zu sehr so, als sei manuelle UID-Eingabe der Hauptweg
+- Wichtigste kleine Restabweichungen mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
   - `Mitgliedsdokumente` sollten aus dem Gartenbereich heraus und als eigener Abschlussbutton sichtbar werden
   - `Bearbeiten` fehlte als sichtbarer Stammdaten-Einstieg
   - die Admin-Stammdatenseite brauchte einen echten Shell-Rootpfad statt eines reinen Such-Detailpushs
-  - der Parzellen-Detailbereich sollte von operativen Ablese-/Zählerwechsel-Steuerelementen auf ReadOnly-Kernkontext zurückgezogen werden
+  - der Parzellen-Detailbereich sollte von operativen Ablese-/ZÃ¤hlerwechsel-Steuerelementen auf ReadOnly-Kernkontext zurÃ¼ckgezogen werden
   - der RFID-/Ablesen-Flow sollte ehrlicher kommunizieren, dass manuelle UID-Eingabe aktuell nur der Fallback ist
-- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur in diesen vier Themen umgesetzt:
+- Den nÃ¤chsten kleinen buildfÃ¤higen Korrekturblock deshalb nur in diesen vier Themen umgesetzt:
   - `MeineDatenPage` erhielt einen kleinen `Bearbeiten`-Einstieg
-  - für eigene Stammdaten führt er in den vorhandenen mobilen Profilpfad; für fremde Mitglieder wird ehrlich erklärt, dass ein mobiler Volleditor aktuell noch fehlt
+  - fÃ¼r eigene Stammdaten fÃ¼hrt er in den vorhandenen mobilen Profilpfad; fÃ¼r fremde Mitglieder wird ehrlich erklÃ¤rt, dass ein mobiler Volleditor aktuell noch fehlt
   - `Mitgliedsdokumente` wurden aus dem Gartenbereich herausgezogen und als eigener Button an das Seitenende gesetzt
   - `Stammdaten aktualisieren` wurde entfernt
-  - der Bereich heißt jetzt nur noch `Gärten`
-  - zusätzlicher Button `Parzelle zuordnen` öffnet als ehrlichen bestehenden Einstieg die vorhandene Parzellenverwaltung statt einen Fake-Flow zu bauen
-  - `AdminShell` erhielt einen echten Shell-Einstieg `Stammdaten`; `MemberSearchPage` navigiert dorthin jetzt über den Shell-Rootpfad
-  - dadurch erscheint im Admin-Stammdatenpfad wieder das Flyout-/Hamburger-Menü statt eines reinen Zurück-Pfeils
+  - der Bereich heiÃŸt jetzt nur noch `GÃ¤rten`
+  - zusÃ¤tzlicher Button `Parzelle zuordnen` Ã¶ffnet als ehrlichen bestehenden Einstieg die vorhandene Parzellenverwaltung statt einen Fake-Flow zu bauen
+  - `AdminShell` erhielt einen echten Shell-Einstieg `Stammdaten`; `MemberSearchPage` navigiert dorthin jetzt Ã¼ber den Shell-Rootpfad
+  - dadurch erscheint im Admin-Stammdatenpfad wieder das Flyout-/Hamburger-MenÃ¼ statt eines reinen ZurÃ¼ck-Pfeils
   - `ParzellenPage` zeigt im Detailbereich jetzt nur noch einen ruhigen ReadOnly-Block `Aktuelle Ablesedaten`
-  - sichtbar bleiben dort Medium, letzter Stand, Datum, Zählernummer und ein Fotobutton, wenn ein Fotopfad vorhanden ist
-  - der operative Ablesen-/Zählerwechselpfad wurde bewusst aus dem Detailbereich herausgezogen und über einen klaren Übergang `Zum Ablesen-Bereich` getrennt
-  - `AblesenOverviewPage` und `RfidScanWorkflowPage` kommunizieren jetzt ehrlich, dass direkter NFC-/RFID-Gerätescan im aktuellen MAUI-Stand noch nicht aktiv angebunden ist
-  - manuelle UID-Eingabe wird sichtbar als `Fallback` gekennzeichnet und nicht mehr wie der primäre Produktpfad dargestellt
+  - sichtbar bleiben dort Medium, letzter Stand, Datum, ZÃ¤hlernummer und ein Fotobutton, wenn ein Fotopfad vorhanden ist
+  - der operative Ablesen-/ZÃ¤hlerwechselpfad wurde bewusst aus dem Detailbereich herausgezogen und Ã¼ber einen klaren Ãœbergang `Zum Ablesen-Bereich` getrennt
+  - `AblesenOverviewPage` und `RfidScanWorkflowPage` kommunizieren jetzt ehrlich, dass direkter NFC-/RFID-GerÃ¤tescan im aktuellen MAUI-Stand noch nicht aktiv angebunden ist
+  - manuelle UID-Eingabe wird sichtbar als `Fallback` gekennzeichnet und nicht mehr wie der primÃ¤re Produktpfad dargestellt
 - Warum dieser kleine Block fachlich sinnvoll ist:
-  - er beruhigt genau die von außen sichtbaren UI-/Flow-Schwächen, ohne neue Architektur zu eröffnen
-  - bestehende belastbare Shared-Servicepfade für Parzellen, Dokumente und RFID-Kontext bleiben unverändert die fachliche Grundlage
-  - an fehlenden mobilen Volleditoren oder fehlender NFC-Geräteintegration wird nichts beschönigt; stattdessen wird die UI ehrlicher und klarer
+  - er beruhigt genau die von auÃŸen sichtbaren UI-/Flow-SchwÃ¤chen, ohne neue Architektur zu erÃ¶ffnen
+  - bestehende belastbare Shared-Servicepfade fÃ¼r Parzellen, Dokumente und RFID-Kontext bleiben unverÃ¤ndert die fachliche Grundlage
+  - an fehlenden mobilen Volleditoren oder fehlender NFC-GerÃ¤teintegration wird nichts beschÃ¶nigt; stattdessen wird die UI ehrlicher und klarer
 - Bewusst nicht gemacht:
-  - kein neuer mobiler Volleditor für fremde Stammdaten
-  - kein neuer Parzellen-Zuordnungs-Spezialdialog nur für den Mitgliedskontext
-  - keine neue NFC-Architektur oder Geräteintegration
-  - keine Änderung an WPF-Dateien, Export, Arbeitsstunden, Home-Verwaltung oder Auth-Grundpfaden
+  - kein neuer mobiler Volleditor fÃ¼r fremde Stammdaten
+  - kein neuer Parzellen-Zuordnungs-Spezialdialog nur fÃ¼r den Mitgliedskontext
+  - keine neue NFC-Architektur oder GerÃ¤teintegration
+  - keine Ã„nderung an WPF-Dateien, Export, Arbeitsstunden, Home-Verwaltung oder Auth-Grundpfaden
 - Fachliche Kurzvalidierung nach dem kleinen Block:
   - Stammdatenseite wirkt ruhiger
   - Mitgliedsdokumente sind separat unten erreichbar
-  - Gärten sind sprachlich klarer getrennt
-  - Parzellen-Detail zeigt nur noch ReadOnly-Kernkontext für Ablesungen
+  - GÃ¤rten sind sprachlich klarer getrennt
+  - Parzellen-Detail zeigt nur noch ReadOnly-Kernkontext fÃ¼r Ablesungen
   - Ablesen-/RFID-Pfad kommuniziert jetzt ehrlich den manuellen Fallback
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - unveränderte bestehende Warnungen außerhalb dieses Blocks bleiben bestehen
+  - unverÃ¤nderte bestehende Warnungen auÃŸerhalb dieses Blocks bleiben bestehen
 
-## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 9 für Altlasten / MAUI-only-Seiten / Testpfade begonnen und kleinen MAUI-Altpfad-Aufräumblock umgesetzt
+## 2026-03-24 â€“ Prompt 1/1: Systematische View-PrÃ¼fung Block 9 fÃ¼r Altlasten / MAUI-only-Seiten / Testpfade begonnen und kleinen MAUI-Altpfad-AufrÃ¤umblock umgesetzt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block 9 gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block 9 gezielt geprÃ¼ft:
   - WPF: `FotoUploadTestView` sowie die derzeit sichtbaren Test-/Hilfspfade im Arbeitsbaum
-  - MAUI: `RoleChoicePage`, `ExitPage`, `MyProfilePage`, `AblesenFeaturePage`, Shell-Routen, produktive Menüsichtbarkeit und erkennbare Hilfs-/Altseiten
-- Systematischer Vergleich entlang derselben Logik durchgeführt:
-  - fachlich nötig oder nicht
+  - MAUI: `RoleChoicePage`, `ExitPage`, `MyProfilePage`, `AblesenFeaturePage`, Shell-Routen, produktive MenÃ¼sichtbarkeit und erkennbare Hilfs-/Altseiten
+- Systematischer Vergleich entlang derselben Logik durchgefÃ¼hrt:
+  - fachlich nÃ¶tig oder nicht
   - produktiv erreichbar oder nicht
   - Altlast oder legitimer MAUI-only-Pfad
   - Risiko beim Entfernen
   - Auswirkungen auf Navigation, Build und Rechte
 - Ehrlicher Befund im aktuellen Repo-Stand:
   - `RoleChoicePage` ist im aktiven Repo-Pfad bereits nicht mehr vorhanden und damit keine verbleibende produktive Altlast mehr
-  - `MyProfilePage` ist ein legitimer produktiver MAUI-only-Pfad und bleibt sinnvoll im User-Shell-Menü verankert
-  - `AblesenFeaturePage` war im aktiven MAUI-Pfad nur noch eine ungenutzte Hilfsseite ohne produktive Route oder Menüeinbindung
-  - `ExitPage` war zwar noch produktiv im User-/Admin-Shell-Menü eingehängt, ist mobil aber fachlich kein sinnvoller Produktpfad
-  - zusätzliche Foto-/Upload-Testpfade sind im aktuellen Arbeitsbaum sichtbar, aber teilweise lokal/unversioniert; diese wurden für diesen kleinen Block bewusst nicht aggressiv mitbereinigt
-- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
-  - produktiver Flyout-Eintrag `Beenden` in MAUI war als Altpfad überflüssig
-  - `ExitPage` selbst war nach Entfernen dieses Menüs ein toter MAUI-only-Pfad
+  - `MyProfilePage` ist ein legitimer produktiver MAUI-only-Pfad und bleibt sinnvoll im User-Shell-MenÃ¼ verankert
+  - `AblesenFeaturePage` war im aktiven MAUI-Pfad nur noch eine ungenutzte Hilfsseite ohne produktive Route oder MenÃ¼einbindung
+  - `ExitPage` war zwar noch produktiv im User-/Admin-Shell-MenÃ¼ eingehÃ¤ngt, ist mobil aber fachlich kein sinnvoller Produktpfad
+  - zusÃ¤tzliche Foto-/Upload-Testpfade sind im aktuellen Arbeitsbaum sichtbar, aber teilweise lokal/unversioniert; diese wurden fÃ¼r diesen kleinen Block bewusst nicht aggressiv mitbereinigt
+- Wichtigste kleine Restabweichungen mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - produktiver Flyout-Eintrag `Beenden` in MAUI war als Altpfad Ã¼berflÃ¼ssig
+  - `ExitPage` selbst war nach Entfernen dieses MenÃ¼s ein toter MAUI-only-Pfad
   - `AblesenFeaturePage` war eine ungenutzte Hilfsseite ohne produktive Einbindung
-- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur innerhalb von Altlasten / MAUI-only-Seiten / Testpfaden umgesetzt:
+- Den nÃ¤chsten kleinen buildfÃ¤higen Korrekturblock deshalb nur innerhalb von Altlasten / MAUI-only-Seiten / Testpfaden umgesetzt:
   - `Beenden` aus `AdminShell` entfernt
   - `Beenden` aus `UserShell` entfernt
   - `ExitPage` aus dem DI-Container entfernt
-  - ungenutzte Datei `ExitPage.cs` gelöscht
-  - ungenutzte Datei `AblesenFeaturePage.cs` gelöscht
+  - ungenutzte Datei `ExitPage.cs` gelÃ¶scht
+  - ungenutzte Datei `AblesenFeaturePage.cs` gelÃ¶scht
 - Warum dieser kleine Block fachlich sinnvoll ist:
-  - der Block entfernt klare tote bzw. produktiv fragwürdige Altpfade mit sehr geringem Risiko
-  - produktive Kernpfade wie `MyProfilePage`, Login, Home, Stammdaten, Export, Ablesen und Arbeitsstunden bleiben unberührt
-  - statt einer riskanten Großreinigung wurden nur eindeutig entkoppelte Altseiten bereinigt
+  - der Block entfernt klare tote bzw. produktiv fragwÃ¼rdige Altpfade mit sehr geringem Risiko
+  - produktive Kernpfade wie `MyProfilePage`, Login, Home, Stammdaten, Export, Ablesen und Arbeitsstunden bleiben unberÃ¼hrt
+  - statt einer riskanten GroÃŸreinigung wurden nur eindeutig entkoppelte Altseiten bereinigt
 - Bewusst nicht gemacht:
   - keine aggressive Bereinigung lokaler/unversionierter Testartefakte
-  - keine Änderung an `MyProfilePage`, weil die Seite produktiv sinnvoll bleibt
-  - keine WPF-Löschung von `FotoUploadTestView`, weil dessen aktiver Produkt-/Teststatus im aktuellen Arbeitsbaum nicht belastbar genug für eine sichere Kleinbereinigung war
+  - keine Ã„nderung an `MyProfilePage`, weil die Seite produktiv sinnvoll bleibt
+  - keine WPF-LÃ¶schung von `FotoUploadTestView`, weil dessen aktiver Produkt-/Teststatus im aktuellen Arbeitsbaum nicht belastbar genug fÃ¼r eine sichere Kleinbereinigung war
   - keine neue Navigationsarchitektur
 - Fachliche Kurzvalidierung nach dem kleinen Block:
   - produktive Navigation bleibt intakt
   - `MyProfilePage` bleibt erreichbar
   - kein produktiver MAUI-`Beenden`-Altpfad mehr im Flyout
-  - keine Verschlechterung der bisher geprüften Hauptpfade
+  - keine Verschlechterung der bisher geprÃ¼ften Hauptpfade
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - der kleine Aufräumblock bleibt buildfähig
+  - der kleine AufrÃ¤umblock bleibt buildfÃ¤hig
 
-## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 8 für Auth-Sonderwege / Dialogersatz begonnen und kleinen MAUI-Auth-Dialogersatz-Fix umgesetzt
+## 2026-03-24 â€“ Prompt 1/1: Systematische View-PrÃ¼fung Block 8 fÃ¼r Auth-Sonderwege / Dialogersatz begonnen und kleinen MAUI-Auth-Dialogersatz-Fix umgesetzt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block 8 gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block 8 gezielt geprÃ¼ft:
   - WPF: `ChangeEmailWindow`, `ResetPasswordWindow`, `DatumDialog`
-  - MAUI: `LoginPage`, `MyProfilePage`, aktive Auth-/OTP-/Passwort-/Mailänderungs-Pfade sowie die relevanten Auth-Servicepfade
-- Systematischer Vergleich entlang derselben Logik durchgeführt:
+  - MAUI: `LoginPage`, `MyProfilePage`, aktive Auth-/OTP-/Passwort-/MailÃ¤nderungs-Pfade sowie die relevanten Auth-Servicepfade
+- Systematischer Vergleich entlang derselben Logik durchgefÃ¼hrt:
   - UI/Struktur
   - Daten/Fachinhalt
   - Aktionen/Commands
   - Navigation/Flow
   - Rechte/Sichtbarkeit
 - Ehrlicher Befund im aktuellen Repo-Stand:
-  - der OTP-/Recovery-Unterbau ist in MAUI bereits vorhanden und läuft produktiv über `IAuthService`
-  - der Passwort-Reset ist mobil bereits fachlich tragfähig im Login integriert
-  - `DatumDialog` ist mobil durch vorhandene `DatePicker`-/Inline-Eingaben ausreichend implizit gelöst; dafür war kein eigener neuer Dialogpfad nötig
-  - die größte kleine Restlücke lag aktuell bei der Mailänderung auf `MyProfilePage`
-  - dort war der mobile Pfad bisher nur als Folge von `DisplayPromptAsync(...)` gelöst und damit schwächer als der vorhandene WPF-Dialogfluss
-- Wichtigste kleine Restabweichung mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
-  - die MAUI-Mailänderung bot noch keinen stabilen sichtbaren Dialogersatz mit klarer OTP-Stufe, Statusanzeige und Wiederholbarkeit
-  - zusätzlich fehlte auf der Profilseite ein kleiner direkter Passwort-Reset-Sonderweg analog zum WPF-/Login-Kontext
-- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur innerhalb von Auth-Sonderwegen / Dialogersatz umgesetzt:
-  - `MyProfilePage` erhielt einen echten inline Dialogersatz für die Mailänderung statt der bisherigen Prompt-Kette
+  - der OTP-/Recovery-Unterbau ist in MAUI bereits vorhanden und lÃ¤uft produktiv Ã¼ber `IAuthService`
+  - der Passwort-Reset ist mobil bereits fachlich tragfÃ¤hig im Login integriert
+  - `DatumDialog` ist mobil durch vorhandene `DatePicker`-/Inline-Eingaben ausreichend implizit gelÃ¶st; dafÃ¼r war kein eigener neuer Dialogpfad nÃ¶tig
+  - die grÃ¶ÃŸte kleine RestlÃ¼cke lag aktuell bei der MailÃ¤nderung auf `MyProfilePage`
+  - dort war der mobile Pfad bisher nur als Folge von `DisplayPromptAsync(...)` gelÃ¶st und damit schwÃ¤cher als der vorhandene WPF-Dialogfluss
+- Wichtigste kleine Restabweichung mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - die MAUI-MailÃ¤nderung bot noch keinen stabilen sichtbaren Dialogersatz mit klarer OTP-Stufe, Statusanzeige und Wiederholbarkeit
+  - zusÃ¤tzlich fehlte auf der Profilseite ein kleiner direkter Passwort-Reset-Sonderweg analog zum WPF-/Login-Kontext
+- Den nÃ¤chsten kleinen buildfÃ¤higen Korrekturblock deshalb nur innerhalb von Auth-Sonderwegen / Dialogersatz umgesetzt:
+  - `MyProfilePage` erhielt einen echten inline Dialogersatz fÃ¼r die MailÃ¤nderung statt der bisherigen Prompt-Kette
   - sichtbar sind jetzt:
     - aktuelle E-Mail
     - neue E-Mail
     - OTP-Stufe nach Codeanforderung
-    - laufende Statusrückmeldung direkt auf der Seite
+    - laufende StatusrÃ¼ckmeldung direkt auf der Seite
   - der mobile Flow nutzt weiterhin dieselben bestehenden Auth-Servicepfade:
     - `RequestEmailChangeAsync(...)`
     - `VerifyEmailChangeOtpAsync(...)`
-  - zusätzlich wurde auf derselben Profilseite ein kleiner stabiler Button `Passwort-Reset senden` ergänzt
+  - zusÃ¤tzlich wurde auf derselben Profilseite ein kleiner stabiler Button `Passwort-Reset senden` ergÃ¤nzt
   - dieser nutzt weiter den bestehenden produktiven Recovery-Pfad `SendPasswordResetEmailAsync(...)`
   - die eigentliche Codeeingabe und Passwort-Neusetzung bleiben bewusst im vorhandenen Login-Flow
 - Warum dieser kleine Block fachlich sinnvoll ist:
-  - Mailänderung war der sichtbar schwächste mobile Sonderpfad gegenüber WPF
+  - MailÃ¤nderung war der sichtbar schwÃ¤chste mobile Sonderpfad gegenÃ¼ber WPF
   - ein inline Dialogersatz ist mobil fachlich gleichwertiger als verschachtelte Prompts, ohne ein WPF-Fenster 1:1 nachzubauen
-  - der Block bleibt vollständig auf bestehenden Auth-/OTP-Pfaden und baut keine Schattenlogik
+  - der Block bleibt vollstÃ¤ndig auf bestehenden Auth-/OTP-Pfaden und baut keine Schattenlogik
 - Bewusst nicht gemacht:
   - keine neue Auth-Architektur
-  - kein separater neuer MAUI-Sonderseitenbaum nur für Mailänderung oder Reset
-  - kein künstlicher Nachbau von `DatumDialog`, weil `DatePicker`-Inlinepfade mobil bereits ausreichend sind
-  - keine Änderung an Home-, Mitglieds-, Garten-, Arbeitsstunden-, Verwaltungs-, Export- oder Ablesenpfaden
+  - kein separater neuer MAUI-Sonderseitenbaum nur fÃ¼r MailÃ¤nderung oder Reset
+  - kein kÃ¼nstlicher Nachbau von `DatumDialog`, weil `DatePicker`-Inlinepfade mobil bereits ausreichend sind
+  - keine Ã„nderung an Home-, Mitglieds-, Garten-, Arbeitsstunden-, Verwaltungs-, Export- oder Ablesenpfaden
 - Fachliche Kurzvalidierung nach dem kleinen Block:
   - Login bleibt stabil
   - bestehende OTP-/Auth-Pfade bleiben intakt
-  - Mailänderung ist mobil jetzt sichtbarer und stabiler erreichbar
-  - Passwort-Reset ist aus dem Login weiterhin nutzbar und zusätzlich im Profilkontext direkt anstoßbar
-  - keine Verschlechterung bereits geprüfter Home-, Mitglieds-, Garten-, Arbeitsstunden-, Verwaltungs-, Export- oder Ablesenpfade
+  - MailÃ¤nderung ist mobil jetzt sichtbarer und stabiler erreichbar
+  - Passwort-Reset ist aus dem Login weiterhin nutzbar und zusÃ¤tzlich im Profilkontext direkt anstoÃŸbar
+  - keine Verschlechterung bereits geprÃ¼fter Home-, Mitglieds-, Garten-, Arbeitsstunden-, Verwaltungs-, Export- oder Ablesenpfade
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - unveränderte bestehende Warnungen bleiben außerhalb dieses kleinen Blocks bestehen
+  - unverÃ¤nderte bestehende Warnungen bleiben auÃŸerhalb dieses kleinen Blocks bestehen
 
-## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 7 für Ablesen / RFID / Zählerwechsel begonnen und kleinen MAUI-Rückwege-/Refresh-/Reset-Fix umgesetzt
+## 2026-03-24 â€“ Prompt 1/1: Systematische View-PrÃ¼fung Block 7 fÃ¼r Ablesen / RFID / ZÃ¤hlerwechsel begonnen und kleinen MAUI-RÃ¼ckwege-/Refresh-/Reset-Fix umgesetzt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block 7 gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block 7 gezielt geprÃ¼ft:
   - WPF: `AblesenOverviewView`, `AblesungErfassenView`, `AblesungDialog`, `RfidEinrichtenView`, `RfidScanContextView`, `FaelligeZaehlerView`, `ZaehlerwechselScanView`, `ZaehlerwechselAusbauView`, `ZaehlerwechselEinbauView`, `ZaehlerTauschDialog`
-  - MAUI: `AblesenOverviewPage`, `AblesungErfassenPage`, `AblesenFeaturePage`, `RfidEinrichtenPage`, `RfidScanWorkflowPage`, `FaelligeZaehlerPage`, `ZaehlerwechselPage` sowie die zugehörigen RFID-/Scan-ViewModels
-- Systematischer Vergleich entlang derselben Logik durchgeführt:
+  - MAUI: `AblesenOverviewPage`, `AblesungErfassenPage`, `AblesenFeaturePage`, `RfidEinrichtenPage`, `RfidScanWorkflowPage`, `FaelligeZaehlerPage`, `ZaehlerwechselPage` sowie die zugehÃ¶rigen RFID-/Scan-ViewModels
+- Systematischer Vergleich entlang derselben Logik durchgefÃ¼hrt:
   - UI/Struktur
   - Daten/Fachinhalt
   - Aktionen/Commands
   - Navigation/Flow
   - Rechte/Sichtbarkeit
 - Ehrlicher Befund im aktuellen Repo-Stand:
-  - der MAUI-Ablesen-Bereich ist bereits erreichbar und nutzt die vorhandenen echten Shared-Servicepfade für RFID-Kontext, RFID-Zuordnung und fällige Zähler
+  - der MAUI-Ablesen-Bereich ist bereits erreichbar und nutzt die vorhandenen echten Shared-Servicepfade fÃ¼r RFID-Kontext, RFID-Zuordnung und fÃ¤llige ZÃ¤hler
   - `RfidEinrichtenPage` und `FaelligeZaehlerPage` sind fachlich bereits produktiv nutzbar
-  - `AblesungErfassenPage` und `ZaehlerwechselPage` sind mobil derzeit – analog zum aktuell sichtbaren WPF-Hauptpfad – vor allem Kontext-/Einordnungsseiten und noch kein voller mobiler Endausbau von Ablesungsdialog bzw. Ausbau-/Einbau-Workflow
-  - der größte kleine Restabstand lag damit aktuell vor allem in Flow, Rückwegen und Wiederverwendbarkeit im mobilen Scanpfad
-- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
-  - in den mobilen Unterseiten fehlte ein expliziter Rückweg zurück zur `Ablesen`-Übersicht
-  - wiederholte RFID-Prüfungen auf derselben Seite hatten noch keinen klaren Reset-/Neustartpfad
-  - `FaelligeZaehlerPage` lud bisher nur beim ersten Anzeigen und konnte beim Rückweg veraltet bleiben
+  - `AblesungErfassenPage` und `ZaehlerwechselPage` sind mobil derzeit â€“ analog zum aktuell sichtbaren WPF-Hauptpfad â€“ vor allem Kontext-/Einordnungsseiten und noch kein voller mobiler Endausbau von Ablesungsdialog bzw. Ausbau-/Einbau-Workflow
+  - der grÃ¶ÃŸte kleine Restabstand lag damit aktuell vor allem in Flow, RÃ¼ckwegen und Wiederverwendbarkeit im mobilen Scanpfad
+- Wichtigste kleine Restabweichungen mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - in den mobilen Unterseiten fehlte ein expliziter RÃ¼ckweg zurÃ¼ck zur `Ablesen`-Ãœbersicht
+  - wiederholte RFID-PrÃ¼fungen auf derselben Seite hatten noch keinen klaren Reset-/Neustartpfad
+  - `FaelligeZaehlerPage` lud bisher nur beim ersten Anzeigen und konnte beim RÃ¼ckweg veraltet bleiben
   - `RfidEinrichtenPage` initialisierte bisher ebenfalls nur einmal pro Seiteninstanz
-- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur innerhalb von Ablesen / RFID / Zählerwechsel umgesetzt:
-  - `RfidScanContextViewModel` erhielt einen kleinen `Reset()`-Pfad für neuen Scanbeginn ohne neue Schattenlogik
-  - `RfidScanWorkflowPage` bietet jetzt zusätzlich `Neuen Scan beginnen`
-  - dieselbe Workflowbasis bietet jetzt einen expliziten Button `Zur Ablesen-Übersicht`
-  - `RfidEinrichtenPage` erhielt ebenfalls einen expliziten Rückweg zur `Ablesen`-Übersicht
+- Den nÃ¤chsten kleinen buildfÃ¤higen Korrekturblock deshalb nur innerhalb von Ablesen / RFID / ZÃ¤hlerwechsel umgesetzt:
+  - `RfidScanContextViewModel` erhielt einen kleinen `Reset()`-Pfad fÃ¼r neuen Scanbeginn ohne neue Schattenlogik
+  - `RfidScanWorkflowPage` bietet jetzt zusÃ¤tzlich `Neuen Scan beginnen`
+  - dieselbe Workflowbasis bietet jetzt einen expliziten Button `Zur Ablesen-Ãœbersicht`
+  - `RfidEinrichtenPage` erhielt ebenfalls einen expliziten RÃ¼ckweg zur `Ablesen`-Ãœbersicht
   - `RfidEinrichtenPage` initialisiert beim Wiedererscheinen erneut und bleibt damit kontextstabiler
-  - `FaelligeZaehlerPage` lädt beim Wiedererscheinen jetzt erneut und bleibt dadurch aktueller
+  - `FaelligeZaehlerPage` lÃ¤dt beim Wiedererscheinen jetzt erneut und bleibt dadurch aktueller
 - Warum dieser kleine Block fachlich sinnvoll ist:
   - die zugrunde liegenden Fachpfade waren bereits vorhanden
-  - der größte direkte Nutzwert lag deshalb in saubereren Rückwegen und in einem wiederholbaren Scanfluss statt in vorschneller neuer Unterseitenarchitektur
-  - der Block bleibt vollständig auf bestehenden Shared-Services und bestehenden MAUI-Seiten
+  - der grÃ¶ÃŸte direkte Nutzwert lag deshalb in saubereren RÃ¼ckwegen und in einem wiederholbaren Scanfluss statt in vorschneller neuer Unterseitenarchitektur
+  - der Block bleibt vollstÃ¤ndig auf bestehenden Shared-Services und bestehenden MAUI-Seiten
 - Bewusst nicht gemacht:
-  - kein neuer mobiler Vollworkflow für `AblesungDialog`
-  - kein neuer Ausbau-/Einbau-Unterseitenbau für Zählerwechsel
+  - kein neuer mobiler Vollworkflow fÃ¼r `AblesungDialog`
+  - kein neuer Ausbau-/Einbau-Unterseitenbau fÃ¼r ZÃ¤hlerwechsel
   - kein Umbau von Foto-/Upload-/Cloudpfaden
-  - keine Änderung an Home-, Mitglieds-, Garten-, Arbeitsstunden-, Verwaltungs- oder Exportpfaden
+  - keine Ã„nderung an Home-, Mitglieds-, Garten-, Arbeitsstunden-, Verwaltungs- oder Exportpfaden
 - Fachliche Kurzvalidierung nach dem kleinen Block:
   - Ablesen-Bereich bleibt erreichbar
   - RFID-/Scanpfade bleiben erreichbar
-  - Zählerwechsel bleibt erreichbar
-  - Rückwege und Wiederholungsfluss im mobilen Scanpfad sind klarer
-  - keine Verschlechterung bereits geprüfter Home-, Mitglieds-, Garten-, Arbeitsstunden- oder Verwaltungs-/Exportpfade
+  - ZÃ¤hlerwechsel bleibt erreichbar
+  - RÃ¼ckwege und Wiederholungsfluss im mobilen Scanpfad sind klarer
+  - keine Verschlechterung bereits geprÃ¼fter Home-, Mitglieds-, Garten-, Arbeitsstunden- oder Verwaltungs-/Exportpfade
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - der geänderte MAUI-Pfad baut ohne neue eigene Warnungen
+  - der geÃ¤nderte MAUI-Pfad baut ohne neue eigene Warnungen
 
-## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 5 für Arbeitsstunden komplett begonnen und kleinen mobilen Überblick-/Erfassungs-/Bearbeitungs-Fix umgesetzt
+## 2026-03-24 â€“ Prompt 1/1: Systematische View-PrÃ¼fung Block 5 fÃ¼r Arbeitsstunden komplett begonnen und kleinen mobilen Ãœberblick-/Erfassungs-/Bearbeitungs-Fix umgesetzt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block 5 gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block 5 gezielt geprÃ¼ft:
   - WPF: `ArbeitsstundenView`, `ArbeitsstundenPruefungView`, `ArbeitsstundenErfassungView`, `ArbeitsstundenErfassungWindow`, `ArbeitsstundeDialog`
   - MAUI: `MyArbeitsstundenPage`, `ArbeitsstundenReviewPage` sowie die relevanten Shared-Servicepfade rund um Arbeitsstunden
-- Systematischer Vergleich entlang derselben Logik durchgeführt:
+- Systematischer Vergleich entlang derselben Logik durchgefÃ¼hrt:
   - UI/Struktur
   - Daten/Fachinhalt
   - Aktionen/Commands
@@ -4475,47 +4514,47 @@
 - Ehrlicher Befund im aktuellen Repo-Stand:
   - der mobile Arbeitsstunden-Unterbau ist bereits belastbar vorhanden
   - Erfassung und Review laufen in MAUI bereits auf denselben Shared-Servicepfaden wie in WPF
-  - der größte kleine Restabstand lag aktuell im normalen mobilen Nutzerpfad, nicht in fehlender Basisspeicherung
-  - `MyArbeitsstundenPage` blieb im aktuellen Stand gegenüber WPF schwächer bei Übersicht, Rückkehrstabilität und Bearbeitung bereits erfasster Einträge
-  - der mobile Freigabepfad bleibt funktional vorhanden, ist gegenüber WPF aber weiterhin deutlich einfacher
-- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
-  - `MyArbeitsstundenPage` initialisierte bisher nur einmal pro Seiteninstanz und konnte beim Rückweg veraltete Daten zeigen
-  - mobil fehlte auf der eigenen Arbeitsstunden-Seite ein klarer `Soll / Geleistet / Offen`-Überblick
+  - der grÃ¶ÃŸte kleine Restabstand lag aktuell im normalen mobilen Nutzerpfad, nicht in fehlender Basisspeicherung
+  - `MyArbeitsstundenPage` blieb im aktuellen Stand gegenÃ¼ber WPF schwÃ¤cher bei Ãœbersicht, RÃ¼ckkehrstabilitÃ¤t und Bearbeitung bereits erfasster EintrÃ¤ge
+  - der mobile Freigabepfad bleibt funktional vorhanden, ist gegenÃ¼ber WPF aber weiterhin deutlich einfacher
+- Wichtigste kleine Restabweichungen mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - `MyArbeitsstundenPage` initialisierte bisher nur einmal pro Seiteninstanz und konnte beim RÃ¼ckweg veraltete Daten zeigen
+  - mobil fehlte auf der eigenen Arbeitsstunden-Seite ein klarer `Soll / Geleistet / Offen`-Ãœberblick
   - bestehende Arbeitsstunden konnten mobil im normalen Erfassungspfad noch nicht im selben Formular wieder bearbeitet werden
-  - die mobile Stundenvalidierung wich mit einer zusätzlichen `<= 24`-Sonderregel unnötig vom WPF-/Shared-Pfad ab
-- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur innerhalb des Arbeitsstunden-Bereichs umgesetzt:
-  - `MyArbeitsstundenPage` lädt beim Wiedererscheinen jetzt erneut und bleibt dadurch kontextstabiler
-  - die Seite zeigt jetzt oben einen kleinen Pflichtstunden-Überblick mit `Soll`, `Geleistet` und `Offen`
-  - der Überblick nutzt den vorhandenen Shared-Servicepfad `GetPflichtstundenUebersichtForMitgliedAsync(...)`
+  - die mobile Stundenvalidierung wich mit einer zusÃ¤tzlichen `<= 24`-Sonderregel unnÃ¶tig vom WPF-/Shared-Pfad ab
+- Den nÃ¤chsten kleinen buildfÃ¤higen Korrekturblock deshalb nur innerhalb des Arbeitsstunden-Bereichs umgesetzt:
+  - `MyArbeitsstundenPage` lÃ¤dt beim Wiedererscheinen jetzt erneut und bleibt dadurch kontextstabiler
+  - die Seite zeigt jetzt oben einen kleinen Pflichtstunden-Ãœberblick mit `Soll`, `Geleistet` und `Offen`
+  - der Ãœberblick nutzt den vorhandenen Shared-Servicepfad `GetPflichtstundenUebersichtForMitgliedAsync(...)`
   - das bestehende mobile Erfassungsformular kann jetzt auch zum Bearbeiten bereits erfasster Arbeitsstunden wiederverwendet werden
-  - Antippen eines bestehenden Eintrags füllt das Formular; derselbe Speichern-Pfad schreibt dann per `UpdateArbeitsstundeAsync(...)`
-  - zusätzlicher Button `Bearbeiten abbrechen` setzt den Editorzustand sauber zurück
-  - die Stundenvalidierung wurde auf den belastbaren WPF-/Shared-Ansatz zurückgezogen: gültige Zahl größer als `0`, keine zusätzliche Schattenregel `<= 24`
+  - Antippen eines bestehenden Eintrags fÃ¼llt das Formular; derselbe Speichern-Pfad schreibt dann per `UpdateArbeitsstundeAsync(...)`
+  - zusÃ¤tzlicher Button `Bearbeiten abbrechen` setzt den Editorzustand sauber zurÃ¼ck
+  - die Stundenvalidierung wurde auf den belastbaren WPF-/Shared-Ansatz zurÃ¼ckgezogen: gÃ¼ltige Zahl grÃ¶ÃŸer als `0`, keine zusÃ¤tzliche Schattenregel `<= 24`
   - die Eingabe `Art der Arbeit` wurde mobil von einem einfachen Einzeilenfeld auf einen besser lesbaren Editor angehoben
 - Warum dieser kleine Block fachlich sinnvoll ist:
-  - der größte echte Praxisabstand lag im normalen mobilen Nutzerpfad
-  - Übersicht, Rückkehrstabilität und Bearbeitung liefern direkt Nutzwert ohne neue Architektur
-  - der Block bleibt vollständig auf bestehenden Shared-Servicepfaden und baut keine Schattenlogik
+  - der grÃ¶ÃŸte echte Praxisabstand lag im normalen mobilen Nutzerpfad
+  - Ãœbersicht, RÃ¼ckkehrstabilitÃ¤t und Bearbeitung liefern direkt Nutzwert ohne neue Architektur
+  - der Block bleibt vollstÃ¤ndig auf bestehenden Shared-Servicepfaden und baut keine Schattenlogik
 - Bewusst nicht gemacht:
-  - kein neuer mobiler Review-/Freigabeeditor analog zur WPF-Prüftabelle
+  - kein neuer mobiler Review-/Freigabeeditor analog zur WPF-PrÃ¼ftabelle
   - kein Umbau der bestehenden WPF-Dialogarchitektur
-  - keine Änderung an Home, Mitglieds-, Garten-, Verwaltungs-, Export- oder Ablesen-Pfaden
+  - keine Ã„nderung an Home, Mitglieds-, Garten-, Verwaltungs-, Export- oder Ablesen-Pfaden
 - Fachliche Kurzvalidierung nach dem kleinen Block:
   - Arbeitsstundenbereich bleibt erreichbar
-  - Nutzerpfad bleibt intakt und ist jetzt auf Mobil übersichtlicher und bearbeitbarer
-  - Review-/Freigabepfad bleibt unverändert nutzbar
-  - keine Verschlechterung bereits geprüfter Home-, Mitglieds- oder Gartenpfade
+  - Nutzerpfad bleibt intakt und ist jetzt auf Mobil Ã¼bersichtlicher und bearbeitbarer
+  - Review-/Freigabepfad bleibt unverÃ¤ndert nutzbar
+  - keine Verschlechterung bereits geprÃ¼fter Home-, Mitglieds- oder Gartenpfade
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - unveränderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
+  - unverÃ¤nderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
 
-## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 4 für Parzellen / Garten / Dokumente / Strom / Wasser begonnen und kleinen Rückwege-/Kontext-Fix umgesetzt
+## 2026-03-24 â€“ Prompt 1/1: Systematische View-PrÃ¼fung Block 4 fÃ¼r Parzellen / Garten / Dokumente / Strom / Wasser begonnen und kleinen RÃ¼ckwege-/Kontext-Fix umgesetzt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block 4 gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block 4 gezielt geprÃ¼ft:
   - WPF: `ParzellenVerwaltungView`, `DokumenteView`, `DokumenteParzellenView`, `GartenDokumenteView`, `GartenDokumenteListeView`, `GartenStromView`, `GartenWasserView`, `StromView`, `WasserView`
   - MAUI: `ParzellenPage`, `DokumentePage`, relevante Bereiche in `MeineDatenPage`, `ParzellenContextState`, `ParzellenViewModel`
-- Systematischer Vergleich entlang derselben Logik durchgeführt:
+- Systematischer Vergleich entlang derselben Logik durchgefÃ¼hrt:
   - UI/Struktur
   - Daten/Fachinhalt
   - Aktionen/Commands
@@ -4525,45 +4564,45 @@
   - der fachliche MAUI-Parzellenkern ist bereits belastbar vorhanden
   - Gartenkontext aus dem Mitgliedskontext funktioniert bereits
   - Strom, Wasser und Parzellen-Dokumente sind auf demselben mobilen Fachpfad bereits nutzbar
-  - der größte kleine Restabstand lag aktuell weniger in fehlender Fachlogik als in Rückwegen und Kontextklarheit
-- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
-  - aus dem mobilen Gartenkontext gab es noch keinen expliziten Rückweg direkt zurück in die Stammdatenansicht
-  - der Rückweg zur globalen Parzellenübersicht war sprachlich noch zu nah am Kontextpfad formuliert
+  - der grÃ¶ÃŸte kleine Restabstand lag aktuell weniger in fehlender Fachlogik als in RÃ¼ckwegen und Kontextklarheit
+- Wichtigste kleine Restabweichungen mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - aus dem mobilen Gartenkontext gab es noch keinen expliziten RÃ¼ckweg direkt zurÃ¼ck in die Stammdatenansicht
+  - der RÃ¼ckweg zur globalen ParzellenÃ¼bersicht war sprachlich noch zu nah am Kontextpfad formuliert
   - die Trennung zwischen Mitgliedsdokumenten und Garten-/Parzellen-Dokumenten war mobil funktional vorhanden, aber im UI noch nicht klar genug benannt
-  - beim Wiedererscheinen der `ParzellenPage` wurde der gewählte Detailkontext nicht ausdrücklich erneut nachgeladen
-- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur innerhalb von Parzellen / Garten / Dokumente / Strom / Wasser umgesetzt:
+  - beim Wiedererscheinen der `ParzellenPage` wurde der gewÃ¤hlte Detailkontext nicht ausdrÃ¼cklich erneut nachgeladen
+- Den nÃ¤chsten kleinen buildfÃ¤higen Korrekturblock deshalb nur innerhalb von Parzellen / Garten / Dokumente / Strom / Wasser umgesetzt:
   - `ParzellenPage` erhielt im mitgliedsgebundenen Gartenkontext jetzt einen expliziten Button `Zur Stammdatenansicht`
-  - der bisherige Kontext-Reset wurde sprachlich auf `Zur globalen Parzellenübersicht` geschärft
+  - der bisherige Kontext-Reset wurde sprachlich auf `Zur globalen ParzellenÃ¼bersicht` geschÃ¤rft
   - der Dokumentebereich im Parzellen-/Gartenkontext wird jetzt explizit als `Garten-Dokumente` bezeichnet
-  - zusätzlicher Hinweis macht klar, dass Mitgliedsdokumente weiterhin in den Stammdaten bleiben, während hier die Dokumente der ausgewählten Parzelle erscheinen
-  - `ParzellenViewModel` kann den aktuell gewählten Detailkontext jetzt gezielt erneut laden; `ParzellenPage` nutzt das beim Wiedererscheinen der Seite
+  - zusÃ¤tzlicher Hinweis macht klar, dass Mitgliedsdokumente weiterhin in den Stammdaten bleiben, wÃ¤hrend hier die Dokumente der ausgewÃ¤hlten Parzelle erscheinen
+  - `ParzellenViewModel` kann den aktuell gewÃ¤hlten Detailkontext jetzt gezielt erneut laden; `ParzellenPage` nutzt das beim Wiedererscheinen der Seite
 - Warum dieser kleine Block fachlich sinnvoll ist:
   - die bestehende MAUI-Parzellenlogik war bereits funktional belastbar
-  - der größte Unterschied lag damit im Flow, in der Trennung der Kontexte und in der Rücknavigation
+  - der grÃ¶ÃŸte Unterschied lag damit im Flow, in der Trennung der Kontexte und in der RÃ¼cknavigation
   - genau dort wurde jetzt nachgezogen, ohne neue Unterseiten oder Schattenlogik zu bauen
 - Bewusst nicht gemacht:
   - keine neue Parzellen-/Garten-Seitenarchitektur
   - kein neuer Dokumente-Unterbau
   - kein Umbau der bestehenden Strom-/Wasser-Speicherpfade
-  - keine Änderung an Arbeitsstunden, Verwaltung, Export oder Ablesen
+  - keine Ã„nderung an Arbeitsstunden, Verwaltung, Export oder Ablesen
 - Fachliche Kurzvalidierung nach dem kleinen Block:
   - Parzellenpfad bleibt erreichbar
   - Gartenkontext aus Stammdaten funktioniert weiter
-  - Rückwege zwischen Gartenkontext, globaler Parzellenübersicht und Stammdaten sind klarer
+  - RÃ¼ckwege zwischen Gartenkontext, globaler ParzellenÃ¼bersicht und Stammdaten sind klarer
   - Dokumente / Strom / Wasser bleiben nutzbar
-  - keine Verschlechterung bereits geprüfter Mitglieds- und Home-Pfade
+  - keine Verschlechterung bereits geprÃ¼fter Mitglieds- und Home-Pfade
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - unveränderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
+  - unverÃ¤nderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
 
-## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 3 für Mitglied neu / Wartungsverträge / erweiterte Mitgliedsverwaltung begonnen und kleinen Wartungsvertrags-Einstieg umgesetzt
+## 2026-03-24 â€“ Prompt 1/1: Systematische View-PrÃ¼fung Block 3 fÃ¼r Mitglied neu / WartungsvertrÃ¤ge / erweiterte Mitgliedsverwaltung begonnen und kleinen Wartungsvertrags-Einstieg umgesetzt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block 3 gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block 3 gezielt geprÃ¼ft:
   - WPF: `MitgliedNeuView`, `NewMemberView`, `MemberWartungsvertraegeView`, `WartungsvertraegeVerwaltungView`
-  - MAUI: vorhandene Pendants bzw. fehlende Pfade rund um Mitgliedsanlage, Wartungsverträge und erweiterte Mitgliedsverwaltung
-  - ergänzend die Shared-Service-/Schema-Pfade für Wartungsverträge und Pflichtstundenbezug
-- Systematischer Vergleich entlang derselben Logik durchgeführt:
+  - MAUI: vorhandene Pendants bzw. fehlende Pfade rund um Mitgliedsanlage, WartungsvertrÃ¤ge und erweiterte Mitgliedsverwaltung
+  - ergÃ¤nzend die Shared-Service-/Schema-Pfade fÃ¼r WartungsvertrÃ¤ge und Pflichtstundenbezug
+- Systematischer Vergleich entlang derselben Logik durchgefÃ¼hrt:
   - UI/Struktur
   - Daten/Fachinhalt
   - Aktionen/Commands
@@ -4572,78 +4611,78 @@
 - Ehrlicher Befund im aktuellen Repo-Stand:
   - `Mitglied neu` ist in WPF derzeit selbst nur als Placeholder vorhanden; in MAUI existiert aktuell kein belastbarer produktiver Pfad
   - `MemberWartungsvertraegeView` und `WartungsvertraegeVerwaltungView` sind in WPF derzeit ebenfalls nur vorbereitete Placeholder
-  - in MAUI existiert ebenfalls noch kein echter eigener Verwaltungseditor für Wartungsverträge
-  - belastbar vorhanden ist aber bereits der gemeinsame Datenpfad über `v_pflichtstunden_uebersicht`, inklusive `hat_wartungsvertrag`, `ist_befreit` und `regelgrund`
-- Die Leitlinie deshalb bewusst eingehalten und den kleineren, fachlich klareren Einstieg gewählt:
-  - keinen Fake-CRUD für `Mitglied neu`
+  - in MAUI existiert ebenfalls noch kein echter eigener Verwaltungseditor fÃ¼r WartungsvertrÃ¤ge
+  - belastbar vorhanden ist aber bereits der gemeinsame Datenpfad Ã¼ber `v_pflichtstunden_uebersicht`, inklusive `hat_wartungsvertrag`, `ist_befreit` und `regelgrund`
+- Die Leitlinie deshalb bewusst eingehalten und den kleineren, fachlich klareren Einstieg gewÃ¤hlt:
+  - keinen Fake-CRUD fÃ¼r `Mitglied neu`
   - keinen halben Wartungsvertragseditor ohne belastbaren Referenzpfad
   - stattdessen einen echten kleinen ReadOnly-Einstieg im mobilen Mitgliedskontext
-- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur innerhalb von Wartungsverträgen / erweiterter Mitgliedsverwaltung umgesetzt:
+- Den nÃ¤chsten kleinen buildfÃ¤higen Korrekturblock deshalb nur innerhalb von WartungsvertrÃ¤gen / erweiterter Mitgliedsverwaltung umgesetzt:
   - neuer Shared-Service-Lesepfad `GetPflichtstundenUebersichtForMitgliedAsync(int mitgliedId)` in `ISupabaseService` / `SupabaseService`
   - der Pfad nutzt den bestehenden Pflichtstunden-/Wartungsvertragsstatus statt Schattenlogik
-  - `MeineDatenPage` zeigt jetzt zusätzlich einen Abschnitt `Wartungsverträge / Pflichtstunden`
-  - sichtbar werden dort für das ausgewählte Mitglied:
+  - `MeineDatenPage` zeigt jetzt zusÃ¤tzlich einen Abschnitt `WartungsvertrÃ¤ge / Pflichtstunden`
+  - sichtbar werden dort fÃ¼r das ausgewÃ¤hlte Mitglied:
     - Bewertungsjahr
     - Wartungsvertrag ja/nein
     - von Pflichtstunden befreit ja/nein
     - Regelgrund
-  - für Admin/Vorstand wird zusätzlich ehrlich eingeblendet, dass ein eigener mobiler Wartungsvertrags-Verwaltungseditor im aktuellen Stand noch nicht vorhanden ist
-  - für normale Nutzer wird derselbe Status als ReadOnly-Kontextinformation aus der zentralen Pflichtstunden-Übersicht angezeigt
+  - fÃ¼r Admin/Vorstand wird zusÃ¤tzlich ehrlich eingeblendet, dass ein eigener mobiler Wartungsvertrags-Verwaltungseditor im aktuellen Stand noch nicht vorhanden ist
+  - fÃ¼r normale Nutzer wird derselbe Status als ReadOnly-Kontextinformation aus der zentralen Pflichtstunden-Ãœbersicht angezeigt
 - Warum dieser kleine Block fachlich sinnvoll ist:
-  - Wartungsverträge hängen direkt mit Pflichtstundenbefreiung und Mitgliedskontext zusammen
+  - WartungsvertrÃ¤ge hÃ¤ngen direkt mit Pflichtstundenbefreiung und Mitgliedskontext zusammen
   - die zugrunde liegenden Informationen sind bereits belastbar vorhanden
   - der Block liefert echten Nutzwert, ohne neue Pflege-/Schreibarchitektur zu erfinden
 - Bewusst nicht gemacht:
   - kein neuer Pfad `Mitglied neu`
-  - kein mobiler CRUD-Editor für `wartungsvertraege` oder `wartungsvertrag_zuordnungen`
-  - keine Änderung an Home, Shell, Parzellen, Export, Verwaltung oder Ablesen
+  - kein mobiler CRUD-Editor fÃ¼r `wartungsvertraege` oder `wartungsvertrag_zuordnungen`
+  - keine Ã„nderung an Home, Shell, Parzellen, Export, Verwaltung oder Ablesen
 - Fachliche Kurzvalidierung nach dem kleinen Block:
   - der neue bzw. erweiterte Pfad ist im Mitgliedskontext erreichbar
   - Rollen-/Rechtepfad bleibt korrekt
   - bestehender Mitgliedskontext bleibt intakt
-  - keine Verschlechterung in bereits geprüften Home-/Mitglieds-/Nebenmitgliedspfaden
+  - keine Verschlechterung in bereits geprÃ¼ften Home-/Mitglieds-/Nebenmitgliedspfaden
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - unveränderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
+  - unverÃ¤nderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
 
-## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 2 für Mitgliedersuche / Stammdaten / Mitgliedskontext begonnen und kleinen Kontext-/Nebenmitglied-Fix umgesetzt
+## 2026-03-24 â€“ Prompt 1/1: Systematische View-PrÃ¼fung Block 2 fÃ¼r Mitgliedersuche / Stammdaten / Mitgliedskontext begonnen und kleinen Kontext-/Nebenmitglied-Fix umgesetzt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block 2 gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block 2 gezielt geprÃ¼ft:
   - WPF: `MemberSearchView`, `MemberDetailView`, `StammdatenView`, `MemberParzellenSection`, `NebenmitgliedDialog`, `UserManagementView`
-  - MAUI: `MemberSearchPage`, `MeineDatenPage.xaml.cs`, `UserManagementPage`, `NebenmitgliedPage`, `MemberContextState` und die zugehörigen Kontextpfade
-- Systematischer Vergleich entlang derselben Logik durchgeführt:
+  - MAUI: `MemberSearchPage`, `MeineDatenPage.xaml.cs`, `UserManagementPage`, `NebenmitgliedPage`, `MemberContextState` und die zugehÃ¶rigen Kontextpfade
+- Systematischer Vergleich entlang derselben Logik durchgefÃ¼hrt:
   - UI/Struktur
   - Daten/Fachinhalt
   - Aktionen/Commands
   - Navigation/Flow
   - Rechte/Sichtbarkeit
 - Ehrlicher Befund im aktuellen Repo-Stand:
-  - Mitgliedersuche, Stammdaten und der grundsätzliche Mitgliedskontext sind mobil bereits vorhanden
-  - Stammdaten wurden zuletzt bereits sichtbar an WPF angenähert
+  - Mitgliedersuche, Stammdaten und der grundsÃ¤tzliche Mitgliedskontext sind mobil bereits vorhanden
+  - Stammdaten wurden zuletzt bereits sichtbar an WPF angenÃ¤hert
   - `UserManagement` bleibt im Mitgliedskontext gebunden
-  - der größte kleine Restabstand lag jetzt beim Rückkehrverhalten der Mitgliedersuche und beim mobilen Nebenmitgliedspfad im ausgewählten Mitgliedskontext
-- Wichtigste kleine Restabweichungen mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
-  - `MemberSearchPage` initialisierte bisher nur beim ersten Anzeigen und konnte beim Rückweg in dieselbe Seiteninstanz veraltet bleiben
-  - der Nebenmitgliedspfad war mobil zwar vorhanden, aber aus dem ausgewählten Mitgliedskontext nicht direkt erreichbar
-  - `NebenmitgliedPage` orientierte sich bisher nur am angemeldeten Hauptmitglied statt am aktuell ausgewählten Mitgliedskontext
-- Den nächsten kleinen buildfähigen Korrekturblock deshalb nur innerhalb von Mitgliedersuche / Stammdaten / Mitgliedskontext umgesetzt:
-  - `MemberSearchPage` initialisiert beim erneuten Anzeigen jetzt wieder und bleibt dadurch konsistenter zum WPF-Rückkehrverhalten
-  - `MeineDatenPage` zeigt jetzt einen kleinen Bereich `Mitgliedskontext` für den vorhandenen Nebenmitgliedspfad
+  - der grÃ¶ÃŸte kleine Restabstand lag jetzt beim RÃ¼ckkehrverhalten der Mitgliedersuche und beim mobilen Nebenmitgliedspfad im ausgewÃ¤hlten Mitgliedskontext
+- Wichtigste kleine Restabweichungen mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - `MemberSearchPage` initialisierte bisher nur beim ersten Anzeigen und konnte beim RÃ¼ckweg in dieselbe Seiteninstanz veraltet bleiben
+  - der Nebenmitgliedspfad war mobil zwar vorhanden, aber aus dem ausgewÃ¤hlten Mitgliedskontext nicht direkt erreichbar
+  - `NebenmitgliedPage` orientierte sich bisher nur am angemeldeten Hauptmitglied statt am aktuell ausgewÃ¤hlten Mitgliedskontext
+- Den nÃ¤chsten kleinen buildfÃ¤higen Korrekturblock deshalb nur innerhalb von Mitgliedersuche / Stammdaten / Mitgliedskontext umgesetzt:
+  - `MemberSearchPage` initialisiert beim erneuten Anzeigen jetzt wieder und bleibt dadurch konsistenter zum WPF-RÃ¼ckkehrverhalten
+  - `MeineDatenPage` zeigt jetzt einen kleinen Bereich `Mitgliedskontext` fÃ¼r den vorhandenen Nebenmitgliedspfad
   - dort wird jetzt klar sichtbar gemacht:
     - wenn ein Nebenmitglied vorhanden ist
     - wenn keines vorhanden ist
-    - wenn das ausgewählte Mitglied selbst kein Hauptmitglied ist
-  - `NebenmitgliedPage` nutzt den ausgewählten `MemberContextState` jetzt bevorzugt als Hauptmitgliedsbezug statt nur den global angemeldeten Benutzerkontext
-  - zusätzlich lädt die Seite beim Wiedererscheinen erneut und bleibt damit kontextstabiler
-  - die mobile Mitgliedsabbildung übernimmt jetzt auch `IstHauptmitglied`, damit die Kontextentscheidung belastbar bleibt
+    - wenn das ausgewÃ¤hlte Mitglied selbst kein Hauptmitglied ist
+  - `NebenmitgliedPage` nutzt den ausgewÃ¤hlten `MemberContextState` jetzt bevorzugt als Hauptmitgliedsbezug statt nur den global angemeldeten Benutzerkontext
+  - zusÃ¤tzlich lÃ¤dt die Seite beim Wiedererscheinen erneut und bleibt damit kontextstabiler
+  - die mobile Mitgliedsabbildung Ã¼bernimmt jetzt auch `IstHauptmitglied`, damit die Kontextentscheidung belastbar bleibt
 - Bewusst nicht gemacht:
   - keine Neuarchitektur
   - kein kompletter Nebenmitglied-Anlageflow in MAUI
   - keine tieferen Parzellen-/Gartenpfade in diesem Block mitgezogen
-  - keine Änderung an Home, Shell, Export, Verwaltung oder Ablesen
+  - keine Ã„nderung an Home, Shell, Export, Verwaltung oder Ablesen
 - Fachliche Kurzvalidierung nach dem kleinen Block:
-  - Mitglied auswählen funktioniert weiter
+  - Mitglied auswÃ¤hlen funktioniert weiter
   - Stammdaten bleiben stabil erreichbar
   - Mitgliedskontext bleibt konsistent
   - `UserManagement` bleibt im Mitgliedskontext gebunden
@@ -4651,15 +4690,15 @@
   - keine Verschlechterung der bereits gefixten Home-/Shell-Pfade
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - unveränderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
+  - unverÃ¤nderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
 
-## 2026-03-24 – Prompt 1/1: Systematische View-Prüfung Block 1 für Einstieg / Shell / Home begonnen und kleinen MAUI-Refresh-/Detailpfad-Fix umgesetzt
+## 2026-03-24 â€“ Prompt 1/1: Systematische View-PrÃ¼fung Block 1 fÃ¼r Einstieg / Shell / Home begonnen und kleinen MAUI-Refresh-/Detailpfad-Fix umgesetzt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Für Block 1 gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- FÃ¼r Block 1 gezielt geprÃ¼ft:
   - WPF: `LoginWindow`, `MainWindow`, `HomeView`, `HomeSectionDetailView`, relevanter Admin-/Rollen-Einstieg im Hauptfluss
   - MAUI: `LoginPage`, `App.xaml.cs`, `AdminShell`, `UserShell`, `HomePage`, `HomeSectionDetailPage`, `ShellNavigationHelper`
-- Systematischer Vergleich entlang derselben Logik durchgeführt:
+- Systematischer Vergleich entlang derselben Logik durchgefÃ¼hrt:
   - UI/Struktur
   - Daten/Fachinhalt
   - Aktionen/Commands
@@ -4670,62 +4709,62 @@
   - Home landet bereits direkt auf `home`
   - User-/Admin-Shell bleiben konsistent
   - der Home-Detailpfad ist vorhanden
-  - eine kleine, aber praxisrelevante Restabweichung blieb im Rückkehr-/Aktualisierungspfad gegenüber WPF
-- Wichtigste kleine Restabweichung mit größtem Praxisnutzen und geringstem Risiko eingegrenzt:
-  - WPF lädt Home beim erneuten Navigieren wieder frisch
+  - eine kleine, aber praxisrelevante Restabweichung blieb im RÃ¼ckkehr-/Aktualisierungspfad gegenÃ¼ber WPF
+- Wichtigste kleine Restabweichung mit grÃ¶ÃŸtem Praxisnutzen und geringstem Risiko eingegrenzt:
+  - WPF lÃ¤dt Home beim erneuten Navigieren wieder frisch
   - MAUI-`HomePage` initialisierte bisher nur einmal pro Seiteninstanz
-  - dadurch konnten Rückkehrpfade aus Detail-/Verwaltungsseiten mit veraltetem Home-Zustand stehenbleiben
-- Den ersten kleinen buildfähigen Korrekturblock deshalb nur im Einstieg-/Shell-/Home-Rahmen umgesetzt:
-  - `HomePage.OnAppearing()` lädt Home jetzt auch beim erneuten Sichtbarwerden der Seite wieder nach
-  - gegen parallele Doppel-Ladevorgänge klein über `_isLoading` abgesichert
-  - `HomeSectionDetailPage` erhielt zusätzlich einen expliziten Button `Zur Startseite`, analog zum klaren WPF-Rückweg
-  - der Rückweg nutzt den vorhandenen Shell-Home-Pfad und öffnet keine neue Navigationsarchitektur
+  - dadurch konnten RÃ¼ckkehrpfade aus Detail-/Verwaltungsseiten mit veraltetem Home-Zustand stehenbleiben
+- Den ersten kleinen buildfÃ¤higen Korrekturblock deshalb nur im Einstieg-/Shell-/Home-Rahmen umgesetzt:
+  - `HomePage.OnAppearing()` lÃ¤dt Home jetzt auch beim erneuten Sichtbarwerden der Seite wieder nach
+  - gegen parallele Doppel-LadevorgÃ¤nge klein Ã¼ber `_isLoading` abgesichert
+  - `HomeSectionDetailPage` erhielt zusÃ¤tzlich einen expliziten Button `Zur Startseite`, analog zum klaren WPF-RÃ¼ckweg
+  - der RÃ¼ckweg nutzt den vorhandenen Shell-Home-Pfad und Ã¶ffnet keine neue Navigationsarchitektur
 - Bewusst nicht gemacht:
   - keine Neuarchitektur
   - kein erneuter Eingriff in bereits gefixte Android-Root-/Fragment-Themen
-  - keine Folgeblöcke für Mitgliedersuche, Stammdaten, Parzellen, Arbeitsstunden, Verwaltung oder Ablesen mitgezogen
-  - weitere erkannte, aber weniger dringliche WPF-/MAUI-Deltas aus Einstieg/Home bleiben für spätere systematische Blöcke offen dokumentiert
+  - keine FolgeblÃ¶cke fÃ¼r Mitgliedersuche, Stammdaten, Parzellen, Arbeitsstunden, Verwaltung oder Ablesen mitgezogen
+  - weitere erkannte, aber weniger dringliche WPF-/MAUI-Deltas aus Einstieg/Home bleiben fÃ¼r spÃ¤tere systematische BlÃ¶cke offen dokumentiert
 - Fachliche Kurzvalidierung nach dem kleinen Block:
   - Login funktioniert weiter
   - Home ist direkt und stabil erreichbar
   - Home-Detailpfade funktionieren weiter
-  - Detailansicht hat jetzt einen expliziten Rückweg zur Startseite
-  - Home lädt beim Wiedererscheinen erneut und bleibt dadurch konsistenter zum WPF-Fluss
-  - keine Verschlechterung der bereits gehärteten Shell-/Root-Pfade
+  - Detailansicht hat jetzt einen expliziten RÃ¼ckweg zur Startseite
+  - Home lÃ¤dt beim Wiedererscheinen erneut und bleibt dadurch konsistenter zum WPF-Fluss
+  - keine Verschlechterung der bereits gehÃ¤rteten Shell-/Root-Pfade
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - unveränderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
+  - unverÃ¤nderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
 
-## 2026-03-24 – Prompt 1/1: mobilen Mitgliedskontext zu `Stammdaten` umbenannt und Stammdatenansicht an WPF angenähert
+## 2026-03-24 â€“ Prompt 1/1: mobilen Mitgliedskontext zu `Stammdaten` umbenannt und Stammdatenansicht an WPF angenÃ¤hert
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Relevante Referenzpfade geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- Relevante Referenzpfade geprÃ¼ft:
   - `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`
   - `KGV.Wpf/Views/MemberDetailView.xaml`
   - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
   - `KGV.Maui/State/MemberContextState.cs`
-  - ergänzend die vorhandenen MAUI-Such-/Kontextpfade, damit die bestehende Navigation nicht beschädigt wird
+  - ergÃ¤nzend die vorhandenen MAUI-Such-/Kontextpfade, damit die bestehende Navigation nicht beschÃ¤digt wird
 - Ausgangszustand vor diesem Block:
   - der mobile Mitgliedskontext war bereits vorhanden
   - die Seite lief sprachlich aber noch als `Mitgliedskontext`
-  - inhaltlich blieb die mobile Ansicht gegenüber WPF zu knapp und zeigte nur einen verkürzten Stammdatenauszug
+  - inhaltlich blieb die mobile Ansicht gegenÃ¼ber WPF zu knapp und zeigte nur einen verkÃ¼rzten Stammdatenauszug
 - Den Block bewusst klein und nur auf den mobilen Stammdatenbereich begrenzt:
   - keine Neuarchitektur
-  - kein neuer großer Paritätsblock
-  - keine Änderung an Home, Login, Export oder Android-Rootpfaden
+  - kein neuer groÃŸer ParitÃ¤tsblock
+  - keine Ã„nderung an Home, Login, Export oder Android-Rootpfaden
 - Umbenennung umgesetzt:
-  - der mobile Bereich heißt jetzt fachlich sauber `Stammdaten`
-  - die vorhandene Seite `MeineDatenPage` bleibt technisch erhalten, wird aber im sichtbaren UI nicht mehr missverständlich als `Mitgliedskontext` bezeichnet
-- Stammdatenansicht an WPF angenähert:
-  - vorhandene MAUI-Seite weiterverwendet statt neue Parallelseite zu eröffnen
+  - der mobile Bereich heiÃŸt jetzt fachlich sauber `Stammdaten`
+  - die vorhandene Seite `MeineDatenPage` bleibt technisch erhalten, wird aber im sichtbaren UI nicht mehr missverstÃ¤ndlich als `Mitgliedskontext` bezeichnet
+- Stammdatenansicht an WPF angenÃ¤hert:
+  - vorhandene MAUI-Seite weiterverwendet statt neue Parallelseite zu erÃ¶ffnen
   - Stammdaten jetzt mobil klar gruppiert analog zur WPF-Referenz:
     - `Grunddaten`
     - `Kontakt`
     - `Adresse`
     - `Mitgliedschaft`
-    - `Gärten / Parzellen`
+    - `GÃ¤rten / Parzellen`
     - `Verwaltung`
-  - zusätzliche relevante WPF-Felder jetzt auch mobil sichtbar:
+  - zusÃ¤tzliche relevante WPF-Felder jetzt auch mobil sichtbar:
     - Nachname
     - Vorname
     - Geburtsdatum
@@ -4733,7 +4772,7 @@
     - Telefon
     - Mobilnummer
     - WhatsApp-Einwilligung
-    - Straße / Hausnummer
+    - StraÃŸe / Hausnummer
     - PLZ
     - Ort
     - Rolle
@@ -4741,26 +4780,26 @@
     - Mitglied Ende
     - Aktiv
     - Bemerkungen
-  - statt weniger Sammeltexte werden die Werte jetzt in ruhigen ReadOnly-Feldern dargestellt, damit die Seite mobil vollständiger und besser lesbar bleibt
-  - der Verwaltungsbereich bleibt funktional erhalten, wird für nicht berechtigte Rollen aber vollständig ausgeblendet
+  - statt weniger Sammeltexte werden die Werte jetzt in ruhigen ReadOnly-Feldern dargestellt, damit die Seite mobil vollstÃ¤ndiger und besser lesbar bleibt
+  - der Verwaltungsbereich bleibt funktional erhalten, wird fÃ¼r nicht berechtigte Rollen aber vollstÃ¤ndig ausgeblendet
   - der Aktualisieren-Button wurde auf den Stammdatenkontext sprachlich angepasst
 - Bewusst nicht gemacht:
-  - keine neue Vollbearbeitung sämtlicher Stammdatenfelder in diesem kleinen Block
-  - keine WPF-Änderung
-  - keine Änderung an Dokumente-, Garten- oder Admin-Menü-Pfaden außerhalb dieses Stammdatenbereichs
+  - keine neue Vollbearbeitung sÃ¤mtlicher Stammdatenfelder in diesem kleinen Block
+  - keine WPF-Ã„nderung
+  - keine Ã„nderung an Dokumente-, Garten- oder Admin-MenÃ¼-Pfaden auÃŸerhalb dieses Stammdatenbereichs
 - Fachliche Kurzvalidierung nach dem Umbau:
-  - Bereich heißt jetzt `Stammdaten`
-  - die mobile Stammdatenansicht ist deutlich vollständiger und näher an WPF
+  - Bereich heiÃŸt jetzt `Stammdaten`
+  - die mobile Stammdatenansicht ist deutlich vollstÃ¤ndiger und nÃ¤her an WPF
   - bestehender Mitgliedskontext bleibt intakt
-  - Navigation, Admin-Menü, Dokumente und Gartenkontext bleiben erhalten
+  - Navigation, Admin-MenÃ¼, Dokumente und Gartenkontext bleiben erhalten
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - unveränderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
+  - unverÃ¤nderte Warnungen bleiben in `HomeManagementPage.cs` sowie bestehenden Infrastructure-Nullability-Pfaden
 
-## 2026-03-24 – Prompt 1/1: MAUI-Home nach Login direkt sichtbar gemacht, Arbeitsstunden-Kacheln geschärft, Home-Export entfernt und Mitgliedersuche beruhigt
+## 2026-03-24 â€“ Prompt 1/1: MAUI-Home nach Login direkt sichtbar gemacht, Arbeitsstunden-Kacheln geschÃ¤rft, Home-Export entfernt und Mitgliedersuche beruhigt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Relevante MAUI-Dateien gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- Relevante MAUI-Dateien gezielt geprÃ¼ft:
   - `KGV.Maui/App.xaml.cs`
   - `KGV.Maui/Pages/LoginPage.xaml.cs`
   - `KGV.Maui/AdminShell.cs`
@@ -4772,27 +4811,27 @@
   - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
   - `KGV.Maui/ViewModels/MemberSearchViewModel.cs`
 - Ausgangszustand vor diesem Block:
-  - Login funktionierte grundsätzlich bereits
-  - nach dem Login war Home aber nicht immer sofort sichtbar; es blieb ein zusätzlicher Tap auf `Startseite` plausibel nötig
+  - Login funktionierte grundsÃ¤tzlich bereits
+  - nach dem Login war Home aber nicht immer sofort sichtbar; es blieb ein zusÃ¤tzlicher Tap auf `Startseite` plausibel nÃ¶tig
   - die Home-Seite war optisch bereits gegliedert, brauchte aber noch klarere Arbeitsstunden-Kennzahlen
   - im Verwaltungsbereich lag weiterhin der Home-Shortcut `Mitglieder exportieren`
-  - in der Mitgliedersuche wirkte die große Checkbox `Hauptmitglied` optisch zu sperrig
+  - in der Mitgliedersuche wirkte die groÃŸe Checkbox `Hauptmitglied` optisch zu sperrig
 - Ursache des Home-Startproblems im aktiven Pfad klein und ehrlich eingegrenzt:
   - die Shell wurde korrekt erstellt
-  - der aktive Shell-Einstieg wurde aber nur generisch auf einen gültigen Eintrag gezogen, nicht gezielt auf die Content-Route `home`
+  - der aktive Shell-Einstieg wurde aber nur generisch auf einen gÃ¼ltigen Eintrag gezogen, nicht gezielt auf die Content-Route `home`
   - dadurch konnte die richtige Shell bereits aktiv sein, ohne dass Home sofort sichtbar als Startziel landet
-- Den Flow deshalb minimal-invasiv gehärtet:
+- Den Flow deshalb minimal-invasiv gehÃ¤rtet:
   - `ShellNavigationHelper` kann jetzt eine bevorzugte Content-Route gezielt aktivieren
   - `App`, `AdminShell`, `UserShell` und der Login-Fallback bevorzugen jetzt explizit `home`
   - damit landet der frische Shell-Aufbau nach Login direkt sichtbar auf der Home-/Startseite
-  - die bereits gezogene Android-Root-/Fragment-Härtung blieb dabei unverändert erhalten
+  - die bereits gezogene Android-Root-/Fragment-HÃ¤rtung blieb dabei unverÃ¤ndert erhalten
 - Home-Feinschliff im selben kleinen Block:
   - `Arbeitsstunden` zeigt `Soll`, `Geleistet` und `Offen` jetzt als drei klar erkennbare Kennzahl-Karten statt nur als verdichtete Textzeile
-  - die bisherige Fallback-Liste bleibt nur noch für Fälle ohne echte Pflichtstunden-Zusammenfassung sichtbar
+  - die bisherige Fallback-Liste bleibt nur noch fÃ¼r FÃ¤lle ohne echte Pflichtstunden-Zusammenfassung sichtbar
   - `Mitglieder exportieren` wurde aus dem Home-Verwaltungsbereich entfernt
-  - der separate Export-Menüpunkt bleibt unverändert erhalten
+  - der separate Export-MenÃ¼punkt bleibt unverÃ¤ndert erhalten
 - Mitgliedersuche optisch vereinfacht:
-  - die große Listen-Checkbox für `Hauptmitglied` wurde entfernt
+  - die groÃŸe Listen-Checkbox fÃ¼r `Hauptmitglied` wurde entfernt
   - stattdessen ruhigere Kartenstruktur mit:
     - Name links
     - Zusatzzeile darunter
@@ -4801,153 +4840,153 @@
   - bestehende Auswahl-/Navigationsfunktion der Mitgliedersuche bleibt erhalten
 - Bewusst nicht gemacht:
   - keine Neuarchitektur
-  - keine WPF-Änderung
-  - keine Änderung an Export-Logik oder bestehenden Detailpfaden außerhalb dieses kleinen Feinschliffs
+  - keine WPF-Ã„nderung
+  - keine Ã„nderung an Export-Logik oder bestehenden Detailpfaden auÃŸerhalb dieses kleinen Feinschliffs
 - Fachliche Kurzvalidierung nach dem Umbau:
   - Login soll jetzt direkt sichtbar auf Home landen
-  - Home bleibt vollständig nutzbar
+  - Home bleibt vollstÃ¤ndig nutzbar
   - `Soll`, `Geleistet`, `Offen` sind als drei klare Felder sichtbar
   - `Mitglieder exportieren` ist auf Home entfernt; Export bleibt als eigener Navigationspunkt erhalten
   - die Mitgliedersuche wirkt ruhiger; Namen und Gartennummern sind klarer erkennbar
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - unveränderte Warnungen bleiben in `HomeManagementPage.cs`
+  - unverÃ¤nderte Warnungen bleiben in `HomeManagementPage.cs`
 
-## 2026-03-24 – Prompt 1/1: MAUI-Home visuell gegliedert und `Schnellzugriff` entfernt
+## 2026-03-24 â€“ Prompt 1/1: MAUI-Home visuell gegliedert und `Schnellzugriff` entfernt
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
-- Den relevanten MAUI-Home-Pfad gezielt geprüft:
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
+- Den relevanten MAUI-Home-Pfad gezielt geprÃ¼ft:
   - `KGV.Maui/Pages/HomePage.xaml.cs`
   - `KGV.Maui/ViewModels/HomeViewModel.cs`
   - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
   - vorhandene MAUI-Stilressourcen
 - Ausgangszustand vor diesem Block:
   - die mobile Home-Seite war funktional bereits vorhanden
-  - der Bereich `Schnellzugriff` war aber weiterhin sichtbar, obwohl er im gewünschten Produktbild wegfallen soll
-  - die übrigen Bereiche wirkten optisch noch zu ähnlich und dadurch auf Handy/Tablet zu wenig klar getrennt
+  - der Bereich `Schnellzugriff` war aber weiterhin sichtbar, obwohl er im gewÃ¼nschten Produktbild wegfallen soll
+  - die Ã¼brigen Bereiche wirkten optisch noch zu Ã¤hnlich und dadurch auf Handy/Tablet zu wenig klar getrennt
 - Den Block bewusst klein und rein auf UI/UX gehalten:
   - keine neue Fachlogik
   - keine neue Navigation
-  - keine Änderung an den bestehenden Detail- und Verwaltungsrouten
+  - keine Ã„nderung an den bestehenden Detail- und Verwaltungsrouten
 - Auf der Home-Seite umgesetzt:
-  - `Schnellzugriff` vollständig entfernt
+  - `Schnellzugriff` vollstÃ¤ndig entfernt
   - die Seite beginnt jetzt mit einer ruhigeren Einleitungskarte statt vieler einzelner lose stehender Elemente
   - die vier fachlichen Bereiche wurden visuell sauber getrennt:
     - `Arbeitsstunden`
-    - `Arbeitseinsätze`
+    - `ArbeitseinsÃ¤tze`
     - `Termine`
     - `Bekanntmachungen`
-  - jede Sektion bekam eine eigene zurückhaltende Akzentfarbe, Headerstruktur, Untertitel und konsistentere Innenabstände
-  - die Einträge innerhalb der Bereiche werden jetzt ebenfalls als dezent akzentuierte Karten dargestellt statt nur als kaum getrennte Textzeilen
-  - der vorhandene Verwaltungsbereich für Admin/Vorstand wurde optisch an dieselbe Struktur angepasst
+  - jede Sektion bekam eine eigene zurÃ¼ckhaltende Akzentfarbe, Headerstruktur, Untertitel und konsistentere InnenabstÃ¤nde
+  - die EintrÃ¤ge innerhalb der Bereiche werden jetzt ebenfalls als dezent akzentuierte Karten dargestellt statt nur als kaum getrennte Textzeilen
+  - der vorhandene Verwaltungsbereich fÃ¼r Admin/Vorstand wurde optisch an dieselbe Struktur angepasst
 - Kleine Begradigung im ViewModel:
-  - der frühere operative Bereich wird auf Home jetzt klar als `Arbeitsstunden` bezeichnet
-  - damit ist die gewünschte Fachstruktur auf der Startseite direkt lesbar
+  - der frÃ¼here operative Bereich wird auf Home jetzt klar als `Arbeitsstunden` bezeichnet
+  - damit ist die gewÃ¼nschte Fachstruktur auf der Startseite direkt lesbar
 - Bewusst nicht gemacht:
-  - keine WPF-Änderung, weil der Auftrag ausdrücklich nur MAUI-Home-Feinschliff war
+  - keine WPF-Ã„nderung, weil der Auftrag ausdrÃ¼cklich nur MAUI-Home-Feinschliff war
   - keine neue Detail-/Inline-Architektur
-  - keine Änderung der bestehenden Klickpfade
+  - keine Ã„nderung der bestehenden Klickpfade
 - Fachliche Kurzvalidierung nach dem Umbau:
   - `Schnellzugriff` ist entfernt
-  - Home bleibt vollständig nutzbar
+  - Home bleibt vollstÃ¤ndig nutzbar
   - die vier Bereiche sind deutlich besser unterscheidbar
   - bestehende Klickpfade in Detail- und Verwaltungsseiten bleiben erhalten
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - unveränderte Warnungen bleiben in `HomeManagementPage.cs`
+  - unverÃ¤nderte Warnungen bleiben in `HomeManagementPage.cs`
 
-## 2026-03-24 – Prompt 1/1: echten Root-Handover-Stand verifiziert und verbleibenden NavigationRootManager-Crash auf Android geschlossen
+## 2026-03-24 â€“ Prompt 1/1: echten Root-Handover-Stand verifiziert und verbleibenden NavigationRootManager-Crash auf Android geschlossen
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum und zusätzlich die pausierte Android-Debugsitzung geprüft.
-- Zuerst ausdrücklich die Repo-Wahrheit verifiziert statt von der letzten Zusammenfassung auszugehen:
-  - der dokumentierte Root-Handover-Fix ist im aktiven Repo/Branch tatsächlich vorhanden
-  - `App.xaml.cs` enthält bereits den zentralen Root-Erzeugungspfad und `SwitchToCurrentRootAsync()`
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md`, den echten Git-Arbeitsbaum und zusÃ¤tzlich die pausierte Android-Debugsitzung geprÃ¼ft.
+- Zuerst ausdrÃ¼cklich die Repo-Wahrheit verifiziert statt von der letzten Zusammenfassung auszugehen:
+  - der dokumentierte Root-Handover-Fix ist im aktiven Repo/Branch tatsÃ¤chlich vorhanden
+  - `App.xaml.cs` enthÃ¤lt bereits den zentralen Root-Erzeugungspfad und `SwitchToCurrentRootAsync()`
   - `LoginPage.xaml.cs` delegiert den Wechsel bereits an `App`
   - damit war der ehrliche Befund: der behauptete Fix fehlt nicht, aber der Android-Crash bleibt trotz dieses Stands bestehen
-- Den verbleibenden Crashpfad anschließend über die echten Android-Debuglogs eingegrenzt:
+- Den verbleibenden Crashpfad anschlieÃŸend Ã¼ber die echten Android-Debuglogs eingegrenzt:
   - Crash weiterhin `No view found for id ... for fragment NavigationRootManager_ElementBasedFragment ...`
   - der Stack lief in den Android-Activity-/Fragment-Restorepfad hinein
-  - das passte nun genauer zu einem Restore/Recreate-Problem mit alten/stalen MAUI-Fragmentzuständen als zu einem komplett fehlenden Root-Handover-Fix
+  - das passte nun genauer zu einem Restore/Recreate-Problem mit alten/stalen MAUI-FragmentzustÃ¤nden als zu einem komplett fehlenden Root-Handover-Fix
 - Den verbleibenden Android-Fix deshalb klein und direkt am plausibelsten Restpfad umgesetzt:
-  - `MainActivity.OnCreate(Bundle? savedInstanceState)` ergänzt
-  - `base.OnCreate(null)` statt Restore des übergebenen Android-Zustands
-  - dadurch versucht Android beim Start nicht mehr, alte `NavigationRootManager`-/Fragmentzustände gegen eine inzwischen geänderte MAUI-Rootstruktur wieder anzuhängen
+  - `MainActivity.OnCreate(Bundle? savedInstanceState)` ergÃ¤nzt
+  - `base.OnCreate(null)` statt Restore des Ã¼bergebenen Android-Zustands
+  - dadurch versucht Android beim Start nicht mehr, alte `NavigationRootManager`-/FragmentzustÃ¤nde gegen eine inzwischen geÃ¤nderte MAUI-Rootstruktur wieder anzuhÃ¤ngen
 - Warum dieser kleine Zusatz hier fachlich plausibel ist:
   - der vorhandene Root-Handover kann die aktuelle Root jetzt bereits sauber erzeugen
-  - der beobachtete Restfehler lag aber weiterhin im Android-Restore alter Fragmentzustände
-  - genau diesen Restorepfad schneidet `base.OnCreate(null)` minimal-invasiv ab, ohne die neue Root-Logik wieder zurückzubauen
-- Loginbutton-/Altlogik nochmals geprüft:
+  - der beobachtete Restfehler lag aber weiterhin im Android-Restore alter FragmentzustÃ¤nde
+  - genau diesen Restorepfad schneidet `base.OnCreate(null)` minimal-invasiv ab, ohne die neue Root-Logik wieder zurÃ¼ckzubauen
+- Loginbutton-/Altlogik nochmals geprÃ¼ft:
   - `Anmelden` bleibt klarer Textbutton
   - keine alte Login-Button-Iconlogik mehr im aktiven Pfad gefunden
 - Build-/Packagereste ehrlich mitgedacht:
-  - die Debuglogs zeigen weiterhin FastDev-/Override-Pfade auf dem Gerät
-  - das kann alte Gerätezustände begünstigen, war hier aber nicht mehr der eigentliche aktive Codefehler im Repo
+  - die Debuglogs zeigen weiterhin FastDev-/Override-Pfade auf dem GerÃ¤t
+  - das kann alte GerÃ¤tezustÃ¤nde begÃ¼nstigen, war hier aber nicht mehr der eigentliche aktive Codefehler im Repo
 - Bewusst nicht gemacht:
   - keine Neuarchitektur
   - kein neuer Fachblock
-  - kein Rückbau des vorhandenen App-gesteuerten Root-Handover-Stands
-  - keine unnötigen WPF-Änderungen
+  - kein RÃ¼ckbau des vorhandenen App-gesteuerten Root-Handover-Stands
+  - keine unnÃ¶tigen WPF-Ã„nderungen
 - Fachliche Kurzvalidierung nach dem Umbau:
   - aktiver Repo-Stand wurde ehrlich gegen die letzte Behauptung verifiziert
   - Loginseite bleibt stabil mit Textbutton `Anmelden`
-  - der verbleibende Android-Crashpfad ist jetzt zusätzlich am Activity-/Fragment-Restore abgesichert
+  - der verbleibende Android-Crashpfad ist jetzt zusÃ¤tzlich am Activity-/Fragment-Restore abgesichert
   - User- und Admin-/Vorstand-Pfad bleiben auf demselben Root-Handover-Stand
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - unveränderte Warnungen bleiben in `HomeManagementPage.cs`
+  - unverÃ¤nderte Warnungen bleiben in `HomeManagementPage.cs`
 
-## 2026-03-24 – Prompt 1/1: NavigationRootManager-Fragment-Crash nach Login in MAUI behoben
+## 2026-03-24 â€“ Prompt 1/1: NavigationRootManager-Fragment-Crash nach Login in MAUI behoben
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
 - Ausgangszustand vor diesem Block:
   - auf Android trat jetzt der Fehler `No view found for id ... for fragment NavigationRootManager_ElementBasedFragment ...` auf
   - der aktuelle Repo-Stand startete das Window mit `LoginPage`
-  - nach Login wurde anschließend per `window.Page = shell` auf eine Shell-Root umgeschaltet
-- Den relevanten MAUI-Pfad erneut gezielt geprüft:
+  - nach Login wurde anschlieÃŸend per `window.Page = shell` auf eine Shell-Root umgeschaltet
+- Den relevanten MAUI-Pfad erneut gezielt geprÃ¼ft:
   - `App.xaml.cs`
   - `LoginPage.xaml.cs`
   - `AdminShell.cs`
   - `UserShell.cs`
   - `ShellNavigationHelper.cs`
   - `MauiProgram.cs`
-- Zusätzlich die Android-Debuglogs geprüft, weil die Debugsitzung pausiert vorlag.
+- ZusÃ¤tzlich die Android-Debuglogs geprÃ¼ft, weil die Debugsitzung pausiert vorlag.
 - Relevanter Logbefund:
   - Crash im Android-Activity-/Fragment-Lifecycle mit `NavigationRootManager_ElementBasedFragment`
-  - das passte präzise zu einem Rootcontainer-Mismatch zwischen restaurierter Navigation/Shell und aktuell erzeugter Window-Root-Seite
+  - das passte prÃ¤zise zu einem Rootcontainer-Mismatch zwischen restaurierter Navigation/Shell und aktuell erzeugter Window-Root-Seite
 - Plausibelste eigentliche Ursache im Istzustand:
   - `App.CreateWindow(...)` erzeugte immer wieder `LoginPage` als Window-Root
-  - der Loginpfad tauschte die Root später manuell auf Shell um
-  - bei Android-Restart/Recreate/Fragment-Restore konnte dadurch ein Fragmentzustand gegen einen Container laufen, der zur ursprünglichen Shell-Hierarchie nicht mehr passt
+  - der Loginpfad tauschte die Root spÃ¤ter manuell auf Shell um
+  - bei Android-Restart/Recreate/Fragment-Restore konnte dadurch ein Fragmentzustand gegen einen Container laufen, der zur ursprÃ¼nglichen Shell-Hierarchie nicht mehr passt
 - Den Fix deshalb klein und direkt am Root-Handover umgesetzt:
   - `App` erstellt den aktuellen Root jetzt zentral selbst anhand des vorhandenen Benutzerkontexts
   - `CreateWindow(...)` liefert damit nicht mehr blind `LoginPage`, sondern je nach Session `LoginPage` oder die passende neu aufgebaute Shell
   - `LoginPage` delegiert den Wechsel jetzt an `App.SwitchToCurrentRootAsync()` statt selbst nur `window.Page = shell` zu setzen
-  - auf Android wird beim Handover ein neues Window mit korrekter Ziel-Root geöffnet und das alte Login-Window erst danach geschlossen
-  - damit wird der komplette Login-Rootwechsel sauber neu organisiert statt Fragmente auf einer gerade ersetzten Rootstruktur nachzuhärten
-- Loginbutton-/Altlogik zusätzlich geprüft:
+  - auf Android wird beim Handover ein neues Window mit korrekter Ziel-Root geÃ¶ffnet und das alte Login-Window erst danach geschlossen
+  - damit wird der komplette Login-Rootwechsel sauber neu organisiert statt Fragmente auf einer gerade ersetzten Rootstruktur nachzuhÃ¤rten
+- Loginbutton-/Altlogik zusÃ¤tzlich geprÃ¼ft:
   - `Anmelden` ist im aktiven Repo-Stand weiterhin klarer Textbutton
   - keine veraltete Login-Button-Iconlogik mehr im aktiven Pfad gefunden
-  - die Debuglogs zeigen weiter FastDev-/Override-Deploypfade; das ist ein möglicher Hinweis auf Gerätecaches/ältere Deployreste, aber kein aktiver alter UI-Code im Repo
+  - die Debuglogs zeigen weiter FastDev-/Override-Deploypfade; das ist ein mÃ¶glicher Hinweis auf GerÃ¤tecaches/Ã¤ltere Deployreste, aber kein aktiver alter UI-Code im Repo
 - Bewusst nicht gemacht:
   - keine neue Navigationsarchitektur
-  - kein neuer MAUI-Paritätsblock
-  - keine unnötigen Änderungen an WPF-Dateien, weil der Fehler klar im Android-/MAUI-Rootwechsel lag
+  - kein neuer MAUI-ParitÃ¤tsblock
+  - keine unnÃ¶tigen Ã„nderungen an WPF-Dateien, weil der Fehler klar im Android-/MAUI-Rootwechsel lag
 - Fachliche Kurzvalidierung nach dem Umbau:
   - Loginseite zeigt weiterhin klar den Textbutton `Anmelden`
   - User- und Admin-/Vorstand-Pfad verwenden jetzt denselben zentralen Root-Handover
-  - auch bei späterer Android-Window-/Activity-Neuerzeugung wird jetzt wieder die zur Session passende Root-Hierarchie aufgebaut
+  - auch bei spÃ¤terer Android-Window-/Activity-Neuerzeugung wird jetzt wieder die zur Session passende Root-Hierarchie aufgebaut
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - unveränderte Warnungen bleiben in `HomeManagementPage.cs`
+  - unverÃ¤nderte Warnungen bleiben in `HomeManagementPage.cs`
 
-## 2026-03-24 – Prompt 1/1: Android-Shell-Fragment-Crash in MAUI behoben und Login-Branding korrigiert
+## 2026-03-24 â€“ Prompt 1/1: Android-Shell-Fragment-Crash in MAUI behoben und Login-Branding korrigiert
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
 - Ausgangszustand vor diesem Block:
-  - der MAUI-Hauptpfad war in den letzten Blöcken deutlich nachgezogen worden
+  - der MAUI-Hauptpfad war in den letzten BlÃ¶cken deutlich nachgezogen worden
   - danach trat auf Android der Fehler `Java.Lang.IllegalArgumentException: No view found for id 0x2 ... ShellItemRenderer` auf
-  - zusätzlich war das Login-Branding missverständlich, weil der Button durch das Logo im Button zu stark wie ein reines Logoelement wirkte
-- Den aktuellen MAUI-Start-/Shell-Pfad gezielt geprüft:
+  - zusÃ¤tzlich war das Login-Branding missverstÃ¤ndlich, weil der Button durch das Logo im Button zu stark wie ein reines Logoelement wirkte
+- Den aktuellen MAUI-Start-/Shell-Pfad gezielt geprÃ¼ft:
   - `App.xaml.cs`
   - `MauiProgram.cs`
   - `AdminShell.cs`
@@ -4957,40 +4996,40 @@
   - `LoginPage.xaml.cs`
 - Plausibelste Ursache des Android-Shell-Crashs im Istzustand:
   - Shell-Routen wurden erst in den Shell-Konstruktoren registriert
-  - nach dem Login wurde die neue Shell zusätzlich noch über nachgelagerte Aktivierungslogik/Dispatcher angefasst
-  - `AdminShell` blendete den Menüpunkt `Arbeitsstunden freigeben` asynchron nach Renderbeginn über `IsVisible` ein bzw. aus
-  - dadurch bestand ein realistischer Risikopfad, dass Android noch mit einem alten Shell-/Fragmentcontainer arbeitet, während Items bereits neu aufgebaut oder entfernt werden
+  - nach dem Login wurde die neue Shell zusÃ¤tzlich noch Ã¼ber nachgelagerte Aktivierungslogik/Dispatcher angefasst
+  - `AdminShell` blendete den MenÃ¼punkt `Arbeitsstunden freigeben` asynchron nach Renderbeginn Ã¼ber `IsVisible` ein bzw. aus
+  - dadurch bestand ein realistischer Risikopfad, dass Android noch mit einem alten Shell-/Fragmentcontainer arbeitet, wÃ¤hrend Items bereits neu aufgebaut oder entfernt werden
 - Den Fix deshalb klein und direkt am plausibelsten Risikopfad umgesetzt:
   - Shell-Routen werden jetzt einmal zentral in `MauiProgram` registriert
   - die Shell-Konstruktoren registrieren keine Routen mehr selbst
-  - `App.xaml.cs` startet direkt mit `LoginPage` statt mit zusätzlicher `NavigationPage`-Hülle
-  - `LoginPage.SwitchToUserContext(...)` setzt nach dem Shell-Bau direkt die Ziel-Shell, ohne zusätzliche nachgelagerte Dispatcher-Navigation gegen dieselbe Shell-Instanz
-  - `AdminShell.RefreshWorkhoursReviewMenuAsync()` aktualisiert nur noch den Titel/Badge-Text, blendet den Flyout-Eintrag aber nicht mehr nachträglich sichtbar/unsichtbar
+  - `App.xaml.cs` startet direkt mit `LoginPage` statt mit zusÃ¤tzlicher `NavigationPage`-HÃ¼lle
+  - `LoginPage.SwitchToUserContext(...)` setzt nach dem Shell-Bau direkt die Ziel-Shell, ohne zusÃ¤tzliche nachgelagerte Dispatcher-Navigation gegen dieselbe Shell-Instanz
+  - `AdminShell.RefreshWorkhoursReviewMenuAsync()` aktualisiert nur noch den Titel/Badge-Text, blendet den Flyout-Eintrag aber nicht mehr nachtrÃ¤glich sichtbar/unsichtbar
   - damit werden nach Renderbeginn keine Shell-Items mehr aus dem Android-Container entfernt
 - Branding/Login im selben kleinen Block korrigiert:
-  - geprüft: aktiver Launcher-Icon-Pfad ist weiterhin `Resources/AppIcon/appicon.svg`
+  - geprÃ¼ft: aktiver Launcher-Icon-Pfad ist weiterhin `Resources/AppIcon/appicon.svg`
   - der Launcher-Icon-Pfad wurde im Projektfile explizit abgesichert
   - der Splash bleibt beim KGV-Logo
   - das Logo bleibt oben auf der Loginseite sichtbar
-  - der `Anmelden`-Button wurde wieder auf einen klaren, gut erkennbaren Textbutton zurückgezogen statt wie ein Logobutton zu wirken
+  - der `Anmelden`-Button wurde wieder auf einen klaren, gut erkennbaren Textbutton zurÃ¼ckgezogen statt wie ein Logobutton zu wirken
 - Bewusst nicht gemacht:
   - keine neue Navigationsarchitektur
-  - kein unnötiger Umbau bereits geschlossener Fachblöcke
-  - keine Änderung an WPF-Dateien, weil der Fehler klar im Android-/MAUI-Shellpfad lag
+  - kein unnÃ¶tiger Umbau bereits geschlossener FachblÃ¶cke
+  - keine Ã„nderung an WPF-Dateien, weil der Fehler klar im Android-/MAUI-Shellpfad lag
 - Fachliche Kurzvalidierung nach dem Umbau:
   - Loginseite bleibt eindeutig bedienbar
   - aktives App-Icon bleibt das KGV-Logo
-  - Shell-Wechsel läuft jetzt ohne nachträgliches dynamisches Entfernen von Flyout-Items im laufenden Android-Shell-Container
-  - bereits nachgezogene MAUI-Hauptpfade bleiben unverändert nutzbar
+  - Shell-Wechsel lÃ¤uft jetzt ohne nachtrÃ¤gliches dynamisches Entfernen von Flyout-Items im laufenden Android-Shell-Container
+  - bereits nachgezogene MAUI-Hauptpfade bleiben unverÃ¤ndert nutzbar
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
   - verbleibende Warnungen liegen weiterhin in `HomeManagementPage.cs` und stammen nicht aus diesem Block
 
-## 2026-03-24 – Prompt 1/1: MAUI-Parität Block 5 mit Restabgleich, Platzhalter-Bereinigung und Editor-Feinschliff abgeschlossen
+## 2026-03-24 â€“ Prompt 1/1: MAUI-ParitÃ¤t Block 5 mit Restabgleich, Platzhalter-Bereinigung und Editor-Feinschliff abgeschlossen
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprüft.
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und den echten Git-Arbeitsbaum geprÃ¼ft.
 - Ausgangszustand vor diesem Block:
-  - die großen MAUI-Paritätsblöcke waren bereits gezogen
+  - die groÃŸen MAUI-ParitÃ¤tsblÃ¶cke waren bereits gezogen
   - offen blieben vor allem kleinere Altpfade, Platzhalterreste, Editor-/Validierungsdetails und Rechte-/Sichtbarkeitsfeinschliff
 - Den Block bewusst klein und risikoarm gehalten:
   - keine neue Architektur
@@ -4998,213 +5037,213 @@
   - nur erkennbare Restprobleme mit hohem Praxisnutzen bearbeitet
 - Bereinigte Altpfade/Platzhalterreste:
   - die fachlich veraltete `RoleChoicePage` wurde aus MAUI entfernt
-  - der aktive Test-/Altpfad `Foto-Upload testen` wurde aus der produktiven `Ablesen`-Übersicht und aus den Shell-Routen entfernt
+  - der aktive Test-/Altpfad `Foto-Upload testen` wurde aus der produktiven `Ablesen`-Ãœbersicht und aus den Shell-Routen entfernt
   - damit taucht im aktiven mobilen Produktpfad kein offensichtlicher Testeintrag mehr auf
-- Editor-/Verwaltungsfeinschliff für die mobilen Verwaltungsseiten umgesetzt:
+- Editor-/Verwaltungsfeinschliff fÃ¼r die mobilen Verwaltungsseiten umgesetzt:
   - `HomeManagementPage` sperrt Eingaben, Listen und Bereichswechsel jetzt sauber im Busy-Zustand
   - Start-/Endzeit sowie Teilnehmerbegrenzung werden mobil nur dann aktiv bedienbar, wenn sie im Formular wirklich genutzt werden
-  - bei `Neu` wird die bisherige Listenauswahl sauber zurückgesetzt
-  - Validierung mit größtem Praxisnutzen nachgeschärft:
+  - bei `Neu` wird die bisherige Listenauswahl sauber zurÃ¼ckgesetzt
+  - Validierung mit grÃ¶ÃŸtem Praxisnutzen nachgeschÃ¤rft:
     - Endzeit darf nicht vor Startzeit liegen
-    - Stundenwert bei Arbeitseinsätzen darf nicht negativ sein
+    - Stundenwert bei ArbeitseinsÃ¤tzen darf nicht negativ sein
     - Bekanntmachungs-HTML wird getrimmt gespeichert
   - `Speichern` bleibt am Ende des Formularbereichs
 - Rechte-/Sichtbarkeitsfeinschliff umgesetzt:
-  - `HomeManagementPage` blendet den Editorbereich für nicht berechtigte Benutzer aus statt nur eine Meldung zu zeigen
-  - `ExportPage` blendet die Exportaktion für nicht berechtigte Rollen aus
+  - `HomeManagementPage` blendet den Editorbereich fÃ¼r nicht berechtigte Benutzer aus statt nur eine Meldung zu zeigen
+  - `ExportPage` blendet die Exportaktion fÃ¼r nicht berechtigte Rollen aus
   - die bereits gezogenen Rechtepfade bleiben erhalten:
     - `Benutzerverwaltung` nur Admin
     - `Export` nur Admin/Vorstand
-    - Verwaltungseditoren nur aus Home und nur für berechtigte Rollen sichtbar
+    - Verwaltungseditoren nur aus Home und nur fÃ¼r berechtigte Rollen sichtbar
 - Ehrlicher Restabgleich nach diesem Block:
   - kein offensichtlicher neuer Blocker mehr im bereits nachgezogenen MAUI-Kernpfad
-  - offen sind vor allem Komfort-/Feintuningthemen gegenüber WPF:
-    - tiefere Feld-/Fokus-/Validierungsparität einzelner Editorseiten
+  - offen sind vor allem Komfort-/Feintuningthemen gegenÃ¼ber WPF:
+    - tiefere Feld-/Fokus-/ValidierungsparitÃ¤t einzelner Editorseiten
     - weitere optionale Exportvarianten
-    - einzelne Desktop-Komfortpfade ohne hohe fachliche Kritikalität
+    - einzelne Desktop-Komfortpfade ohne hohe fachliche KritikalitÃ¤t
   - das sind aktuell eher Ausbau- als Blockerthemen
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
 
-## 2026-03-24 – Prompt 1/1: MAUI-Parität Block 4 Export nachgezogen und Restlücken sauber eingeordnet
+## 2026-03-24 â€“ Prompt 1/1: MAUI-ParitÃ¤t Block 4 Export nachgezogen und RestlÃ¼cken sauber eingeordnet
 
-- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und zusätzlich den echten Git-Arbeitsbaum geprüft, weil der vorangegangene Terminalauszug nicht belastbar genug war.
+- Vor dem Block erneut den realen Repo-/Arbeitsbaumstand, den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` und zusÃ¤tzlich den echten Git-Arbeitsbaum geprÃ¼ft, weil der vorangegangene Terminalauszug nicht belastbar genug war.
 - Ausgangszustand vor diesem Block:
   - Mitgliedskontext, Gartenkontext und Home-/Verwaltungsbasis in MAUI waren bereits nachgezogen
-  - als nächste größere sichtbare WPF-/MAUI-Paritätslücke blieb nun vor allem der Bereich `Export`
-- WPF-Referenzpfad geprüft:
-  - produktiv vorhanden ist dort ein echter Mitglieder-CSV-Export über `ExportViewModel`
-  - damit war der fachlich sinnvollste kleine Block klar: zuerst denselben belastbaren Kernexport mobil nutzbar machen statt mehrere neue Exportarten halb zu öffnen
-- Shared-/Infrastructure-Pfade geprüft:
+  - als nÃ¤chste grÃ¶ÃŸere sichtbare WPF-/MAUI-ParitÃ¤tslÃ¼cke blieb nun vor allem der Bereich `Export`
+- WPF-Referenzpfad geprÃ¼ft:
+  - produktiv vorhanden ist dort ein echter Mitglieder-CSV-Export Ã¼ber `ExportViewModel`
+  - damit war der fachlich sinnvollste kleine Block klar: zuerst denselben belastbaren Kernexport mobil nutzbar machen statt mehrere neue Exportarten halb zu Ã¶ffnen
+- Shared-/Infrastructure-Pfade geprÃ¼ft:
   - Datenbasis ist der bestehende Servicepfad `GetMitgliederAsync()`
   - die CSV-Erzeugung lag bisher nur lokal in WPF
-  - MAUI bringt für Android bereits die nötigen Plattformpfade für Dateiablage und Teilen mit (`FileSystem`, `Share`)
+  - MAUI bringt fÃ¼r Android bereits die nÃ¶tigen Plattformpfade fÃ¼r Dateiablage und Teilen mit (`FileSystem`, `Share`)
 - Den Exportblock deshalb klein, aber produktiv am bestehenden Kern umgesetzt:
   - neue gemeinsame CSV-Hilfe `MitgliederCsvExportBuilder` in `KGV.Core`
   - WPF-`ExportViewModel` verwendet jetzt denselben gemeinsamen Exportkern
   - damit gibt es keine getrennte Schattenlogik WPF vs. MAUI mehr
-  - neue mobile `ExportPage` ergänzt
-  - Export erzeugt lokal eine echte CSV-Datei und übergibt sie anschließend an den nativen Android-Teilen-Pfad
-- Fachliche Regel für operative Daten im Export direkt berücksichtigt:
+  - neue mobile `ExportPage` ergÃ¤nzt
+  - Export erzeugt lokal eine echte CSV-Datei und Ã¼bergibt sie anschlieÃŸend an den nativen Android-Teilen-Pfad
+- Fachliche Regel fÃ¼r operative Daten im Export direkt berÃ¼cksichtigt:
   - Demo-/Test-/Play-Store-Mitglieder werden im mobilen operativen Export nicht mit ausgegeben
   - derselbe operative Filter steckt jetzt im gemeinsamen CSV-Builder
-- Mobil erreichbar gemacht für Admin/Vorstand:
-  - eigener Shell-Menüpunkt `Export`
-  - zusätzlicher Einstieg aus dem Home-Verwaltungsbereich
+- Mobil erreichbar gemacht fÃ¼r Admin/Vorstand:
+  - eigener Shell-MenÃ¼punkt `Export`
+  - zusÃ¤tzlicher Einstieg aus dem Home-Verwaltungsbereich
 - Bewusst nicht gemacht:
   - keine neue Export-Gesamtarchitektur
   - keine Portierung mehrerer weiterer Exportarten in denselben kleinen Block
-  - keine unnötigen Änderungen an Shell/Login/Home außerhalb der Einbindung des neuen Exportpfads
-- Restlücken nach dem Exportblock bewusst kurz und ehrlich eingeordnet:
+  - keine unnÃ¶tigen Ã„nderungen an Shell/Login/Home auÃŸerhalb der Einbindung des neuen Exportpfads
+- RestlÃ¼cken nach dem Exportblock bewusst kurz und ehrlich eingeordnet:
   - kritisch:
-    - aktuell keine neue kritische MAUI-Lücke mit vergleichbarem Gewicht zum zuvor geschlossenen Mitglieds-/Garten-/Home-Kern identifiziert
+    - aktuell keine neue kritische MAUI-LÃ¼cke mit vergleichbarem Gewicht zum zuvor geschlossenen Mitglieds-/Garten-/Home-Kern identifiziert
   - wichtig:
-    - feinere Parität der mobilen Verwaltungseditoren gegenüber WPF
-    - weitere Exportarten, sofern sie im produktiven WPF-Alltag tatsächlich relevant sind
-    - verbleibende einzelne Admin-/Kontextpfade außerhalb des bereits nachgezogenen MAUI-Kerns
-  - später:
+    - feinere ParitÃ¤t der mobilen Verwaltungseditoren gegenÃ¼ber WPF
+    - weitere Exportarten, sofern sie im produktiven WPF-Alltag tatsÃ¤chlich relevant sind
+    - verbleibende einzelne Admin-/Kontextpfade auÃŸerhalb des bereits nachgezogenen MAUI-Kerns
+  - spÃ¤ter:
     - Komfort-/UI-Ausbau des Exportpfads und optionale Exportvarianten
 - Fachliche Kurzvalidierung:
   - Admin/Vorstand erreicht Export mobil
   - Export erzeugt ein nutzbares CSV-Ergebnis
-  - Ergebnis kann auf Android über den nativen Teilen-Pfad sinnvoll weiterverwendet werden
+  - Ergebnis kann auf Android Ã¼ber den nativen Teilen-Pfad sinnvoll weiterverwendet werden
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
 
-## 2026-03-24 – Prompt 1/1: MAUI-Parität Block 3 für Home, Bekanntmachungen, Termine und Arbeitseinsätze auf belastbaren Kernpfad gezogen
+## 2026-03-24 â€“ Prompt 1/1: MAUI-ParitÃ¤t Block 3 fÃ¼r Home, Bekanntmachungen, Termine und ArbeitseinsÃ¤tze auf belastbaren Kernpfad gezogen
 
-- Vor dem Block wieder den realen Repo-/Arbeitsbaumstand und zusätzlich den aktuellen Stand im `KGV_Fortschrittslog_ausfuehrlich.md` geprüft und abgeglichen.
+- Vor dem Block wieder den realen Repo-/Arbeitsbaumstand und zusÃ¤tzlich den aktuellen Stand im `KGV_Fortschrittslog_ausfuehrlich.md` geprÃ¼ft und abgeglichen.
 - Ausgangszustand vor diesem Block:
   - Mitglieds-, Dokumenten- und Gartenkontext in MAUI waren bereits nachgezogen
-  - die nächste sichtbare Paritätslücke lag nun in der mobilen Startseite/Home und in den Verwaltungszugängen für `Bekanntmachungen`, `Termine` und `Arbeitseinsätze`
-  - `HomeOverviewDTO` brachte die Datenpfade für `Arbeitseinsätze`, `Termine` und `Bekanntmachungen` bereits mit, MAUI nutzte davon aber nur einen Teil
-  - MAUI hatte für die drei Verwaltungsbereiche noch keine echte mobile Bearbeitungsoberfläche, obwohl die Shared-Servicepfade bereits vorhanden waren
-- WPF-Referenzpfad für diesen Block geprüft:
+  - die nÃ¤chste sichtbare ParitÃ¤tslÃ¼cke lag nun in der mobilen Startseite/Home und in den VerwaltungszugÃ¤ngen fÃ¼r `Bekanntmachungen`, `Termine` und `ArbeitseinsÃ¤tze`
+  - `HomeOverviewDTO` brachte die Datenpfade fÃ¼r `ArbeitseinsÃ¤tze`, `Termine` und `Bekanntmachungen` bereits mit, MAUI nutzte davon aber nur einen Teil
+  - MAUI hatte fÃ¼r die drei Verwaltungsbereiche noch keine echte mobile BearbeitungsoberflÃ¤che, obwohl die Shared-Servicepfade bereits vorhanden waren
+- WPF-Referenzpfad fÃ¼r diesen Block geprÃ¼ft:
   - Home-Details laufen dort in einer eigenen View statt inline
-  - Verwaltungszugänge für die drei Bereiche hängen fachlich an den Shared-Service-CRUD-Pfaden, nicht an Home-Platzhaltern
+  - VerwaltungszugÃ¤nge fÃ¼r die drei Bereiche hÃ¤ngen fachlich an den Shared-Service-CRUD-Pfaden, nicht an Home-Platzhaltern
 - Den mobilen Block deshalb klein, aber produktiv am vorhandenen Kern umgesetzt:
   - `HomeViewModel` nutzt jetzt auch `WorkAssignments` und `Appointments` aus dem bestehenden `HomeOverviewDTO`
-  - `HomePage` zeigt mobil jetzt drei echte Listenblöcke:
-    - `Arbeitseinsätze`
+  - `HomePage` zeigt mobil jetzt drei echte ListenblÃ¶cke:
+    - `ArbeitseinsÃ¤tze`
     - `Termine`
     - `Bekanntmachungen`
-  - Auswahl eines Home-Eintrags öffnet keinen Inline-Teilbereich mehr, sondern einen eigenen mobilen Detailpfad
-- Neuer mobiler Detailpfad ergänzt:
-  - `HomeContextState` hält den ausgewählten Home-Eintrag
-  - `HomeSectionDetailPage` zeigt Details für `Arbeitseinsatz`, `Termin` und `Bekanntmachung`
+  - Auswahl eines Home-Eintrags Ã¶ffnet keinen Inline-Teilbereich mehr, sondern einen eigenen mobilen Detailpfad
+- Neuer mobiler Detailpfad ergÃ¤nzt:
+  - `HomeContextState` hÃ¤lt den ausgewÃ¤hlten Home-Eintrag
+  - `HomeSectionDetailPage` zeigt Details fÃ¼r `Arbeitseinsatz`, `Termin` und `Bekanntmachung`
   - beim `Arbeitseinsatz` bleibt der echte Anmeldepfad mobil nutzbar
-  - Admin/Vorstand sieht dort zusätzlich die Teilnehmerliste über `GetArbeitseinsatzParticipantsAsync(...)`
-- Den größten Verwaltungsnutzen in einem kleinen Block über eine gemeinsame mobile Verwaltungsseite hergestellt statt drei neue Parallelarchitekturen zu öffnen:
+  - Admin/Vorstand sieht dort zusÃ¤tzlich die Teilnehmerliste Ã¼ber `GetArbeitseinsatzParticipantsAsync(...)`
+- Den grÃ¶ÃŸten Verwaltungsnutzen in einem kleinen Block Ã¼ber eine gemeinsame mobile Verwaltungsseite hergestellt statt drei neue Parallelarchitekturen zu Ã¶ffnen:
   - neue `HomeManagementPage`
-  - Modulumschaltung für:
-    - `Arbeitseinsätze`
+  - Modulumschaltung fÃ¼r:
+    - `ArbeitseinsÃ¤tze`
     - `Termine`
     - `Bekanntmachungen`
   - jeweilige Liste wird direkt aus den vorhandenen Shared-Servicepfaden geladen
-  - Speichern läuft produktiv direkt über die bestehenden Create-/Update-Methoden der Shared-Service-Schicht
+  - Speichern lÃ¤uft produktiv direkt Ã¼ber die bestehenden Create-/Update-Methoden der Shared-Service-Schicht
   - `HTML-Inhalt` der Bekanntmachungen ist damit mobil nicht nur sichtbar, sondern auch bearbeitbar
   - `Speichern` bleibt am Ende des Formularpfads
-- Home-/Verwaltungszugänge für Admin/Vorstand direkt hergestellt:
-  - `Arbeitseinsätze bearbeiten`
+- Home-/VerwaltungszugÃ¤nge fÃ¼r Admin/Vorstand direkt hergestellt:
+  - `ArbeitseinsÃ¤tze bearbeiten`
   - `Termine bearbeiten`
   - `Bekanntmachungen bearbeiten`
-- Zusätzlich die MAUI-Routen für diese neuen Seiten zentralisiert registriert, damit User-/Admin-Shell keine doppelten Routen unabhängig voneinander anmelden.
+- ZusÃ¤tzlich die MAUI-Routen fÃ¼r diese neuen Seiten zentralisiert registriert, damit User-/Admin-Shell keine doppelten Routen unabhÃ¤ngig voneinander anmelden.
 - Bewusst nicht gemacht:
   - kein Vollnachbau aller WPF-Editorvalidierungen/Focus-Triggers in diesem Block
   - keine Neuarchitektur von Home oder Shell
-  - keine unnötigen Änderungen an den bereits stabilisierten Blöcken für Login, Mitgliedskontext und Gartenkontext
+  - keine unnÃ¶tigen Ã„nderungen an den bereits stabilisierten BlÃ¶cken fÃ¼r Login, Mitgliedskontext und Gartenkontext
 - Fachliche Kurzvalidierung nach dem Umbau:
   - Home zeigt neue/verbesserte Einstiege und Listen
-  - Admin/Vorstand erreicht mobil die Verwaltungsfunktionen für `Bekanntmachungen`, `Termine` und `Arbeitseinsätze`
+  - Admin/Vorstand erreicht mobil die Verwaltungsfunktionen fÃ¼r `Bekanntmachungen`, `Termine` und `ArbeitseinsÃ¤tze`
   - die bekannten Nutzerpfade bleiben nutzbar
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
 
-## 2026-03-24 – Prompt 3/2: MAUI-Parität Block 2 für Garten-/Parzellen-Unterbereiche im Mitgliedskontext nachgezogen
+## 2026-03-24 â€“ Prompt 3/2: MAUI-ParitÃ¤t Block 2 fÃ¼r Garten-/Parzellen-Unterbereiche im Mitgliedskontext nachgezogen
 
-- Vor dem Block den realen Repo-/Arbeitsbaumstand sowie den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` erneut geprüft und gegeneinander abgeglichen.
+- Vor dem Block den realen Repo-/Arbeitsbaumstand sowie den aktuellen `KGV_Fortschrittslog_ausfuehrlich.md` erneut geprÃ¼ft und gegeneinander abgeglichen.
 - Realer Ausgangszustand vor diesem Block:
   - der Mitgliedskontext in MAUI war bereits vorhanden
-  - `Admin-Menü` im Mitgliedskontext war bereits vorhanden
+  - `Admin-MenÃ¼` im Mitgliedskontext war bereits vorhanden
   - Mitgliedsdokumente waren bereits als echter Pfad nachgezogen
   - die tieferen Garten-/Parzellen-Unterbereiche fehlten aber im mobilen Mitgliedspfad weiterhin: `Strom`, `Wasser`, Garten-Dokumente
-- WPF-/MAUI-Abgleich für diesen Block gezielt fokussiert:
+- WPF-/MAUI-Abgleich fÃ¼r diesen Block gezielt fokussiert:
   - WPF hat im Mitgliedskontext den Gartenbezug mit separaten Unterpunkten `Strom`, `Wasser`, `Dokumente`
   - MAUI hatte fachlich bereits einen belastbaren Parzellenkern in `ParzellenPage` / `ParzellenViewModel`, nutzte ihn aber noch nicht aus dem Mitgliedskontext heraus
-- Den mobilen Gartenkontext deshalb minimal-invasiv auf dem vorhandenen MAUI-Parzellenkern aufgebaut statt neue Seitenarchitektur zu eröffnen:
-  - neuer `ParzellenContextState` hält den aus dem Mitgliedskontext angeforderten Garten-/Parzellenkontext
-  - `MeineDatenPage` zeigt Garten-/Parzellenzuordnungen jetzt nicht nur informativ, sondern öffnet beim Antippen den echten Gartenkontext
-  - Navigation läuft auf die bestehende `ParzellenPage`
-- Bestehenden Parzellenkern für den Kontextpfad nachgezogen:
-  - `ParzellenViewModel` übernimmt den angeforderten Kontext
+- Den mobilen Gartenkontext deshalb minimal-invasiv auf dem vorhandenen MAUI-Parzellenkern aufgebaut statt neue Seitenarchitektur zu erÃ¶ffnen:
+  - neuer `ParzellenContextState` hÃ¤lt den aus dem Mitgliedskontext angeforderten Garten-/Parzellenkontext
+  - `MeineDatenPage` zeigt Garten-/Parzellenzuordnungen jetzt nicht nur informativ, sondern Ã¶ffnet beim Antippen den echten Gartenkontext
+  - Navigation lÃ¤uft auf die bestehende `ParzellenPage`
+- Bestehenden Parzellenkern fÃ¼r den Kontextpfad nachgezogen:
+  - `ParzellenViewModel` Ã¼bernimmt den angeforderten Kontext
   - selektiert die Zielparzelle automatisch
   - schaltet Titel/Beschreibung/Hinweis auf den Mitgliedskontext um
-  - behält zugleich den bestehenden globalen Parzellenverwaltungsweg bei
-  - zusätzlicher Rückweg `Zur Parzellenübersicht`, damit der Kontextmodus die globale Verwaltung nicht dauerhaft blockiert
+  - behÃ¤lt zugleich den bestehenden globalen Parzellenverwaltungsweg bei
+  - zusÃ¤tzlicher RÃ¼ckweg `Zur ParzellenÃ¼bersicht`, damit der Kontextmodus die globale Verwaltung nicht dauerhaft blockiert
 - Fachliche Unterbereiche im Gartenkontext damit mobil wirklich erreichbar:
   - `Strom`
-    - aktiver Zähler-/Statusbezug
+    - aktiver ZÃ¤hler-/Statusbezug
     - vorhandene Ablesungen
     - Speichern/Bearbeiten von Ablesungen
-    - Zählerwechsel auf dem bestehenden Pfad
+    - ZÃ¤hlerwechsel auf dem bestehenden Pfad
   - `Wasser`
-    - aktiver Zähler-/Statusbezug
+    - aktiver ZÃ¤hler-/Statusbezug
     - vorhandene Ablesungen
     - Speichern/Bearbeiten von Ablesungen
     - Einbau/Ausbau auf dem bestehenden Pfad
   - Garten-Dokumente
     - Nutzung des vorhandenen Parzellen-Dokumentepfads
-    - Öffnen weiterhin über Signed URL
+    - Ã–ffnen weiterhin Ã¼ber Signed URL
 - Bewusst nicht gemacht:
-  - keine neue Schattenseite nur für Garten-Unterbereiche
-  - kein Endausbau zusätzlicher Garten-Spezialfälle außerhalb des vorhandenen Parzellenkerns
-  - keine unnötigen Änderungen an Login-/Shell-/Mitgliedskontextblöcken
+  - keine neue Schattenseite nur fÃ¼r Garten-Unterbereiche
+  - kein Endausbau zusÃ¤tzlicher Garten-SpezialfÃ¤lle auÃŸerhalb des vorhandenen Parzellenkerns
+  - keine unnÃ¶tigen Ã„nderungen an Login-/Shell-/MitgliedskontextblÃ¶cken
 - Fachliche Kurzvalidierung nach dem Umbau:
-  - Mitglied auswählen
+  - Mitglied auswÃ¤hlen
   - in Mitgliedskontext wechseln
-  - zugeordnete Parzelle/Garten öffnen
+  - zugeordnete Parzelle/Garten Ã¶ffnen
   - `Strom`, `Wasser` und Garten-Dokumente im Gartenkontext erreichbar
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
 
-## 2026-03-24 – Prompt 2/2: MAUI-Parität Block 1 für Mitgliedskontext, Admin-Menü und Dokumente sauber nachgezogen
+## 2026-03-24 â€“ Prompt 2/2: MAUI-ParitÃ¤t Block 1 fÃ¼r Mitgliedskontext, Admin-MenÃ¼ und Dokumente sauber nachgezogen
 
-- Den echten aktuellen Stand zuerst wieder direkt im lokalen Repository/Arbeitsbaum geprüft.
+- Den echten aktuellen Stand zuerst wieder direkt im lokalen Repository/Arbeitsbaum geprÃ¼ft.
 - Realer Ausgangszustand vor dem Block:
   - `MemberSearchPage` endete mobil weiterhin nur mit einem `DisplayAlert`
   - `MeineDatenPage` war noch ein Platzhalter und kein echter Mitgliedspfad
   - `DokumentePage` war weiterhin nur ein Platzhalter
-  - `Benutzerverwaltung` hing in MAUI noch lose global im Shell-Menü und nicht am ausgewählten Mitgliedskontext
-  - WPF hatte für denselben Bereich bereits den fachlich sauberen Referenzpfad `Mitgliedersuche -> MemberDetailViewModel`, kontextgebundene `Benutzerverwaltung` und einen echten Dokumente-Pfad
-- Den WPF-/MAUI-Abgleich für diesen Block gezielt auf die drei Kernlücken fokussiert:
+  - `Benutzerverwaltung` hing in MAUI noch lose global im Shell-MenÃ¼ und nicht am ausgewÃ¤hlten Mitgliedskontext
+  - WPF hatte fÃ¼r denselben Bereich bereits den fachlich sauberen Referenzpfad `Mitgliedersuche -> MemberDetailViewModel`, kontextgebundene `Benutzerverwaltung` und einen echten Dokumente-Pfad
+- Den WPF-/MAUI-Abgleich fÃ¼r diesen Block gezielt auf die drei KernlÃ¼cken fokussiert:
   - echter Mitgliedskontext statt Alert
-  - `Admin-Menü` im ausgewählten Mitgliedskontext
+  - `Admin-MenÃ¼` im ausgewÃ¤hlten Mitgliedskontext
   - echter Mitgliedsdokumente-Pfad statt Platzhalter
-- Für den mobilen Mitgliedskontext einen kleinen gemeinsamen Zustandsanker ergänzt:
-  - neuer `MemberContextState` hält das aktuell ausgewählte Mitglied für die mobilen Kontextseiten
+- FÃ¼r den mobilen Mitgliedskontext einen kleinen gemeinsamen Zustandsanker ergÃ¤nzt:
+  - neuer `MemberContextState` hÃ¤lt das aktuell ausgewÃ¤hlte Mitglied fÃ¼r die mobilen Kontextseiten
   - bewusst klein gehalten, keine neue Navigationsarchitektur
 - Mitgliedersuche mobil produktiv nachgezogen:
-  - `MemberSearchViewModel` löst die Auswahl jetzt bis zu einem echten `MemberDTO` auf
+  - `MemberSearchViewModel` lÃ¶st die Auswahl jetzt bis zu einem echten `MemberDTO` auf
   - `MemberSearchPage` setzt danach den Mitgliedskontext und navigiert in die vorhandene `MeineDatenPage`
-  - der alte reine `DisplayAlert`-Abbruch entfällt damit aus dem aktiven Flow
-- Die vorhandene `MeineDatenPage` minimal-invasiv in einen echten Mitgliedskontext umgebaut statt eine neue große Parallelseite zu eröffnen:
-  - Grunddaten des ausgewählten Mitglieds
+  - der alte reine `DisplayAlert`-Abbruch entfÃ¤llt damit aus dem aktiven Flow
+- Die vorhandene `MeineDatenPage` minimal-invasiv in einen echten Mitgliedskontext umgebaut statt eine neue groÃŸe Parallelseite zu erÃ¶ffnen:
+  - Grunddaten des ausgewÃ¤hlten Mitglieds
   - Kontakt/Adresse
   - aktuelle/historische Garten-/Parzellenzuordnungen
   - Dokumente-Einstieg
-  - eigenes `Admin-Menü`
-- `Admin-Menü` fachlich an WPF ausgerichtet:
-  - sichtbar für Admin/Vorstand im Mitgliedskontext
-  - Rollenanzeige/-wechsel läuft über denselben Lock-/`UpdateMitgliedAsync(...)`-Pfad wie auf dem Desktop
-  - `Benutzerverwaltung` bleibt Admin-only und wird nicht für Vorstand geöffnet
+  - eigenes `Admin-MenÃ¼`
+- `Admin-MenÃ¼` fachlich an WPF ausgerichtet:
+  - sichtbar fÃ¼r Admin/Vorstand im Mitgliedskontext
+  - Rollenanzeige/-wechsel lÃ¤uft Ã¼ber denselben Lock-/`UpdateMitgliedAsync(...)`-Pfad wie auf dem Desktop
+  - `Benutzerverwaltung` bleibt Admin-only und wird nicht fÃ¼r Vorstand geÃ¶ffnet
   - die bisher lose globale Shell-Variante `Benutzerverwaltung` wurde aus der `AdminShell` entfernt
 - Dokumente-Pfad auf den nutzbaren Kern gezogen:
-  - `DokumentePage` ist nicht mehr Platzhalter, sondern lädt reale Mitgliedsdokumente über `GetMitgliedDokumenteAsync(...)`
-  - Öffnen läuft über `CreateDokumentSignedUrlAsync(...)` und mobilen Launcher
-  - Garten-Dokumente wurden für diesen Block bewusst noch nicht mitgezogen; zuerst steht der belastbare Mitgliedsdokumente-Kern
+  - `DokumentePage` ist nicht mehr Platzhalter, sondern lÃ¤dt reale Mitgliedsdokumente Ã¼ber `GetMitgliedDokumenteAsync(...)`
+  - Ã–ffnen lÃ¤uft Ã¼ber `CreateDokumentSignedUrlAsync(...)` und mobilen Launcher
+  - Garten-Dokumente wurden fÃ¼r diesen Block bewusst noch nicht mitgezogen; zuerst steht der belastbare Mitgliedsdokumente-Kern
 - `Benutzerverwaltung` mobil an den Mitgliedskontext gebunden:
-  - `UserManagementViewModel` / `UserManagementPage` filtern auf das ausgewählte Mitglied
-  - bei noch fehlender Appuser-Zuordnung wird wie in WPF ein Platzhalterkontext für Einladung/Erstlogin aufgebaut
+  - `UserManagementViewModel` / `UserManagementPage` filtern auf das ausgewÃ¤hlte Mitglied
+  - bei noch fehlender Appuser-Zuordnung wird wie in WPF ein Platzhalterkontext fÃ¼r Einladung/Erstlogin aufgebaut
   - mobil nutzbar sind jetzt im Kontextpfad:
     - Einladung / Erstlogin
     - Passwort-Reset
@@ -5213,194 +5252,194 @@
 - Bewusst nicht gemacht:
   - kein Endausbau der Garten-Unterpfade innerhalb des Mitgliedskontexts
   - keine neue Shell-/Detailgesamtarchitektur
-  - keine Änderung an Login-/Shell-Härtung außer den für diesen Block nötigen Routen-/Menüanpassungen
+  - keine Ã„nderung an Login-/Shell-HÃ¤rtung auÃŸer den fÃ¼r diesen Block nÃ¶tigen Routen-/MenÃ¼anpassungen
 - Fachliche Kurzvalidierung nach dem Umbau:
-  - Admin kann Mitglied auswählen
+  - Admin kann Mitglied auswÃ¤hlen
   - landet im Mitgliedskontext
-  - sieht dort das `Admin-Menü`
+  - sieht dort das `Admin-MenÃ¼`
   - Mitgliedsdokumente sind erreichbar
 - Technische Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
 
-## 2026-03-24 – Prompt 1/2: MAUI-Branding korrigiert und ehrlichen WPF-/MAUI-Abgleich vorbereitet
+## 2026-03-24 â€“ Prompt 1/2: MAUI-Branding korrigiert und ehrlichen WPF-/MAUI-Abgleich vorbereitet
 
-- Den echten Stand zuerst direkt im lokalen Repository/Arbeitsbaum geprüft statt von einer bereits angeglichenen Mobilbasis auszugehen.
+- Den echten Stand zuerst direkt im lokalen Repository/Arbeitsbaum geprÃ¼ft statt von einer bereits angeglichenen Mobilbasis auszugehen.
 - Realer Befund vor dem Block:
   - WPF und MAUI sind aktuell nicht gleichauf.
-  - Im Arbeitsbaum liegen weiterhin viele blockfremde lokale Änderungen offen.
-  - MAUI enthält zwar mehrere nachgezogene Kernfunktionen, bleibt aber gegenüber WPF in mehreren Bereichen sichtbar zurück.
-- Branding-Istzustand in MAUI belastbar geprüft:
+  - Im Arbeitsbaum liegen weiterhin viele blockfremde lokale Ã„nderungen offen.
+  - MAUI enthÃ¤lt zwar mehrere nachgezogene Kernfunktionen, bleibt aber gegenÃ¼ber WPF in mehreren Bereichen sichtbar zurÃ¼ck.
+- Branding-Istzustand in MAUI belastbar geprÃ¼ft:
   - aktives App-Icon: `KGV.Maui/Resources/AppIcon/appicon.svg`
   - aktiver Splash: `KGV.Maui/Resources/Splash/splash.svg`
   - `splash.svg` war nur eine generische KGV-Platzhaltergrafik und gerade nicht dasselbe Vereinslogo wie das aktive App-Icon
   - `LoginPage` zeigte bisher kein Logo auf der Start-/Loginseite
-  - zusätzlich existieren lokale/unversionierte Logo-Dubletten im Arbeitsbaum (`KGV.Maui/Resources/AppIcon/appicon.png`, Root-`Logo.png`, Root-`appicon.svg`); diese wurden nur geprüft und nicht als neue Hauptquelle in den Block gezogen
+  - zusÃ¤tzlich existieren lokale/unversionierte Logo-Dubletten im Arbeitsbaum (`KGV.Maui/Resources/AppIcon/appicon.png`, Root-`Logo.png`, Root-`appicon.svg`); diese wurden nur geprÃ¼ft und nicht als neue Hauptquelle in den Block gezogen
 - Den Branding-Block bewusst klein und direkt am aktiven Pfad umgesetzt:
-  - `KGV.Maui.csproj` verwendet für den Splash jetzt ebenfalls `Resources/AppIcon/appicon.svg`
-  - dasselbe SVG wird zusätzlich als normale MAUI-Bildressource eingebunden, damit es im UI wiederverwendet werden kann
+  - `KGV.Maui.csproj` verwendet fÃ¼r den Splash jetzt ebenfalls `Resources/AppIcon/appicon.svg`
+  - dasselbe SVG wird zusÃ¤tzlich als normale MAUI-Bildressource eingebunden, damit es im UI wiederverwendet werden kann
   - `LoginPage` zeigt oben jetzt das Vereinslogo sichtbar an
-  - der Start-/Login-Button `Anmelden` enthält das Logo ebenfalls links im Button und bleibt kompakt
-- Keine unnötige Nebenbaustelle geöffnet:
-  - keine WPF-Änderung
+  - der Start-/Login-Button `Anmelden` enthÃ¤lt das Logo ebenfalls links im Button und bleibt kompakt
+- Keine unnÃ¶tige Nebenbaustelle geÃ¶ffnet:
+  - keine WPF-Ã„nderung
   - keine neue Branding-Architektur
-  - keine Übernahme unversionierter Dateien in diesen Block
+  - keine Ãœbernahme unversionierter Dateien in diesen Block
   - die alte generische `Resources/Splash/splash.svg` bleibt nur noch als nicht mehr aktiver Rest im Repo bestehen
-- Ehrlicher WPF-/MAUI-Abgleich aus diesem Prüfstand:
+- Ehrlicher WPF-/MAUI-Abgleich aus diesem PrÃ¼fstand:
   - WPF ist weiterhin breiter und tiefer ausgebaut als MAUI
   - MAUI ist nicht fachlich parity-fertig
-  - mehrere WPF-Pfade existieren mobil gar nicht oder nur verkürzt
-- Technische Verifikation für diesen Block:
+  - mehrere WPF-Pfade existieren mobil gar nicht oder nur verkÃ¼rzt
+- Technische Verifikation fÃ¼r diesen Block:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
 
-## 2026-03-24 – Prompt 2/2: offenen MAUI-Shell-Block sauber abgeschlossen und gegen `Active Shell Item not set` gehärtet
+## 2026-03-24 â€“ Prompt 2/2: offenen MAUI-Shell-Block sauber abgeschlossen und gegen `Active Shell Item not set` gehÃ¤rtet
 
-- Den echten Arbeitsstand vor dem Block erneut direkt im lokalen Repository geprüft statt auf den vorigen Agent-Lauf zu vertrauen.
+- Den echten Arbeitsstand vor dem Block erneut direkt im lokalen Repository geprÃ¼ft statt auf den vorigen Agent-Lauf zu vertrauen.
 - Reale Ausgangslage im Arbeitsbaum:
-  - Block 1 war im Kern bereits vorhanden: `LoginPage` lädt nach Login den echten `UserContext`, die aktive Rollenwahl wird nicht mehr benutzt, `AdminShell` richtet Menüs bereits am echten Benutzerkontext aus.
-  - Gleichzeitig waren aber noch viele blockfremde lokale Änderungen im Repo offen; diese wurden bewusst nicht mit in diesen Block gezogen.
+  - Block 1 war im Kern bereits vorhanden: `LoginPage` lÃ¤dt nach Login den echten `UserContext`, die aktive Rollenwahl wird nicht mehr benutzt, `AdminShell` richtet MenÃ¼s bereits am echten Benutzerkontext aus.
+  - Gleichzeitig waren aber noch viele blockfremde lokale Ã„nderungen im Repo offen; diese wurden bewusst nicht mit in diesen Block gezogen.
   - Der offene Fehler betraf damit nicht mehr die Rollenwahl selbst, sondern den Shell-Start-/Wechselpfad in MAUI.
-- Den MAUI-Shell-Istzustand gezielt geprüft:
-  - `App.xaml.cs` startet weiterhin sauber über `LoginPage`; dort war für diesen Block kein Umbau nötig.
-  - `LoginPage.SwitchToUserContext(...)` wechselte zwar nach dem Kontextladen in `AdminShell` bzw. `UserShell`, härtete den Shell-Zustand aber nicht explizit nach dem Aufbau.
-  - `AdminShell` und `UserShell` setzen beim Menüaufbau bisher nur implizit auf `CurrentItem = Items[0]`.
-  - `AdminShell.RefreshWorkhoursReviewMenuAsync()` blendet Menüeinträge dynamisch ein/aus; genau solche Sichtbarkeitswechsel sind ein realistischer Kandidat dafür, dass ein bereits aktiver Shell-Einstieg ungültig wird.
-  - Zusätzlich liefen `AdminShell` und `UserShell` bisher als Singletons, sodass alter Shell-Zustand zwischen Wechseln wiederverwendet werden konnte.
-- Den offenen Shell-Block deshalb klein und direkt an der Ursache gehärtet:
-  - neue gemeinsame MAUI-Hilfe `ShellNavigationHelper` ergänzt, die einen gültigen aktiven Einstieg belastbar nachzieht:
-    - gültiges `ShellItem`
-    - gültige `ShellSection`
-    - gültiges `ShellContent`
-  - die Hilfe berücksichtigt sichtbare/gültige Einträge zuerst und fällt nur kontrolliert auf den ersten belastbaren Menüpfad zurück.
+- Den MAUI-Shell-Istzustand gezielt geprÃ¼ft:
+  - `App.xaml.cs` startet weiterhin sauber Ã¼ber `LoginPage`; dort war fÃ¼r diesen Block kein Umbau nÃ¶tig.
+  - `LoginPage.SwitchToUserContext(...)` wechselte zwar nach dem Kontextladen in `AdminShell` bzw. `UserShell`, hÃ¤rtete den Shell-Zustand aber nicht explizit nach dem Aufbau.
+  - `AdminShell` und `UserShell` setzen beim MenÃ¼aufbau bisher nur implizit auf `CurrentItem = Items[0]`.
+  - `AdminShell.RefreshWorkhoursReviewMenuAsync()` blendet MenÃ¼eintrÃ¤ge dynamisch ein/aus; genau solche Sichtbarkeitswechsel sind ein realistischer Kandidat dafÃ¼r, dass ein bereits aktiver Shell-Einstieg ungÃ¼ltig wird.
+  - ZusÃ¤tzlich liefen `AdminShell` und `UserShell` bisher als Singletons, sodass alter Shell-Zustand zwischen Wechseln wiederverwendet werden konnte.
+- Den offenen Shell-Block deshalb klein und direkt an der Ursache gehÃ¤rtet:
+  - neue gemeinsame MAUI-Hilfe `ShellNavigationHelper` ergÃ¤nzt, die einen gÃ¼ltigen aktiven Einstieg belastbar nachzieht:
+    - gÃ¼ltiges `ShellItem`
+    - gÃ¼ltige `ShellSection`
+    - gÃ¼ltiges `ShellContent`
+  - die Hilfe berÃ¼cksichtigt sichtbare/gÃ¼ltige EintrÃ¤ge zuerst und fÃ¤llt nur kontrolliert auf den ersten belastbaren MenÃ¼pfad zurÃ¼ck.
 - `AdminShell` gezielt stabilisiert:
-  - nach `BuildMenu()` wird der aktive Shell-Einstieg jetzt nicht nur indirekt, sondern explizit über die neue Helferlogik gesetzt
+  - nach `BuildMenu()` wird der aktive Shell-Einstieg jetzt nicht nur indirekt, sondern explizit Ã¼ber die neue Helferlogik gesetzt
   - beim `Loaded`-Zeitpunkt wird der Shell-Zustand erneut abgesichert
-  - nach `RefreshWorkhoursReviewMenuAsync()` wird der aktive Einstieg ebenfalls erneut validiert, damit das Ein-/Ausblenden des Menüpunktes `Arbeitsstunden freigeben` keinen leeren Shell-Zustand hinterlässt
-- `UserShell` parallel gleichartig gehärtet:
-  - Menüaufbau mit expliziter Aktivierung eines gültigen Einstiegs
-  - zusätzliche Nachhärtung beim Laden der Shell
-- `LoginPage` für den Shell-Wechsel klein, aber belastbar nachgezogen:
+  - nach `RefreshWorkhoursReviewMenuAsync()` wird der aktive Einstieg ebenfalls erneut validiert, damit das Ein-/Ausblenden des MenÃ¼punktes `Arbeitsstunden freigeben` keinen leeren Shell-Zustand hinterlÃ¤sst
+- `UserShell` parallel gleichartig gehÃ¤rtet:
+  - MenÃ¼aufbau mit expliziter Aktivierung eines gÃ¼ltigen Einstiegs
+  - zusÃ¤tzliche NachhÃ¤rtung beim Laden der Shell
+- `LoginPage` fÃ¼r den Shell-Wechsel klein, aber belastbar nachgezogen:
   - Ziel-Shell wird jetzt zuerst aufgebaut
   - aktiver Einstieg wird vor dem Window-Wechsel validiert
   - erst danach erfolgt `window.Page = shell`
-  - direkt nach dem Wechsel wird die Shell auf dem UI-Dispatcher nochmals nachgehärtet, damit Timing-/Handler-Rennen nicht zu einem leeren aktiven Item führen
-- Die Shell-Lebensdauer zusätzlich stabilisiert, ohne die Architektur umzubauen:
+  - direkt nach dem Wechsel wird die Shell auf dem UI-Dispatcher nochmals nachgehÃ¤rtet, damit Timing-/Handler-Rennen nicht zu einem leeren aktiven Item fÃ¼hren
+- Die Shell-Lebensdauer zusÃ¤tzlich stabilisiert, ohne die Architektur umzubauen:
   - `AdminShell` und `UserShell` sind in `MauiProgram` jetzt `Transient` statt `Singleton`
-  - dadurch erhält jeder Login-/Start-/Wiederaufbau eine frische Shell-Instanz mit sauberem Menü- und Aktivzustand
-  - alte Shell-Zustände oder ungültige aktive Einträge werden nicht mehr zwischen Wechseln mitgeschleppt
-- Bewusst nicht geändert:
-  - keine Rückkehr zur `RoleChoicePage`
-  - keine Änderung am WPF-Startpfad
+  - dadurch erhÃ¤lt jeder Login-/Start-/Wiederaufbau eine frische Shell-Instanz mit sauberem MenÃ¼- und Aktivzustand
+  - alte Shell-ZustÃ¤nde oder ungÃ¼ltige aktive EintrÃ¤ge werden nicht mehr zwischen Wechseln mitgeschleppt
+- Bewusst nicht geÃ¤ndert:
+  - keine RÃ¼ckkehr zur `RoleChoicePage`
+  - keine Ã„nderung am WPF-Startpfad
   - kein Umbau von `App.xaml.cs` zu einer neuen App-Architektur
   - keine neue Navigationsabstraktion
-- Technische Verifikation für diesen Block:
+- Technische Verifikation fÃ¼r diesen Block:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - der offene Shell-Block ist damit buildfähig und fachlich auf den beobachteten Fehler fokussiert abgeschlossen
+  - der offene Shell-Block ist damit buildfÃ¤hig und fachlich auf den beobachteten Fehler fokussiert abgeschlossen
 
-## 2026-03-24 – Prompt 1/1: MAUI-Loginflow auf echten Benutzerkontext umgestellt und alte Rollenwahl aus aktivem Flow entfernt
+## 2026-03-24 â€“ Prompt 1/1: MAUI-Loginflow auf echten Benutzerkontext umgestellt und alte Rollenwahl aus aktivem Flow entfernt
 
-- Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprüft.
+- Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprÃ¼ft.
 - Einordnung vor Block 1:
   - Dateien dieses Blocks: `KGV.Maui/Pages/LoginPage.xaml.cs`, `KGV.Maui/AdminShell.cs`, `KGV.Maui/MauiProgram.cs` plus die beiden Logdateien
   - blockfremde offene WPF-/MAUI-/Supabase-Dateien blieben bewusst unangetastet
   - `_AI_DB_EXPORT/*`, `_secrets/*`, `.github/copilot-instructions.md` und sonstige lokale Artefakte wurden nicht als Grundlage verwendet
-- WPF-/MAUI-Vergleich für den Login-/Rechtepfad gezielt geprüft:
-  - WPF lädt nach erfolgreichem Login direkt den echten `UserContext` und startet ohne manuelle Rollenwahl in den passenden Rechtepfad
+- WPF-/MAUI-Vergleich fÃ¼r den Login-/Rechtepfad gezielt geprÃ¼ft:
+  - WPF lÃ¤dt nach erfolgreichem Login direkt den echten `UserContext` und startet ohne manuelle Rollenwahl in den passenden Rechtepfad
   - MAUI leitete nach Login dagegen noch entweder in eine manuelle Rollenwahl `RoleChoicePage` um oder hing an einem gespeicherten `AppMode`
   - damit war der mobile Startpfad fachlich nicht mehr sauber am authentifizierten Benutzerkontext ausgerichtet
 - Den ersten MAUI-Block deshalb klein und direkt an der Ursache umgesetzt:
-  - `LoginPage` lädt nach erfolgreichem Login jetzt den echten Benutzerkontext über `IUserContextService.GetUserContextAsync(...)`
-  - `UserContextState` übernimmt danach `CurrentUserId`, `CurrentMitgliedId`, `CurrentNebenMitgliedId`, `CurrentAppMode` und vor allem `CurrentUserContext` direkt aus dem geladenen Rechtepfad
+  - `LoginPage` lÃ¤dt nach erfolgreichem Login jetzt den echten Benutzerkontext Ã¼ber `IUserContextService.GetUserContextAsync(...)`
+  - `UserContextState` Ã¼bernimmt danach `CurrentUserId`, `CurrentMitgliedId`, `CurrentNebenMitgliedId`, `CurrentAppMode` und vor allem `CurrentUserContext` direkt aus dem geladenen Rechtepfad
   - die bisherige Rollenwahlseite wird nicht mehr aufgerufen
-  - ein alter gespeicherter `AppMode` wird für diesen Flow geleert, damit keine frühere manuelle Auswahl mehr in den aktiven Startpfad hineinwirkt
-- Die Shell-Auswahl läuft jetzt fachlich sauber automatisch:
+  - ein alter gespeicherter `AppMode` wird fÃ¼r diesen Flow geleert, damit keine frÃ¼here manuelle Auswahl mehr in den aktiven Startpfad hineinwirkt
+- Die Shell-Auswahl lÃ¤uft jetzt fachlich sauber automatisch:
   - `admin` / `vorstand` => `AdminShell`
   - normaler Benutzer => `UserShell`
-  - maßgeblich ist dabei der geladene authentifizierte Benutzerkontext und nicht mehr eine Auswahlseite
-- `AdminShell` zusätzlich an den echten Benutzerkontext angeglichen:
-  - Admin-only-Menüs richten sich jetzt an `UserContextState.CurrentUserContext.Role`
-  - damit folgt die mobile Menüfreigabe dem real geladenen Rechtekontext statt nur den alten `IAuthService`-Flags
-- Die alte Rollenwahl wurde außerdem aus dem aktiven DI-/Navigationspfad entfernt:
-  - `RoleChoicePage` wird nicht mehr im MAUI-Servicecontainer für den aktiven Loginflow registriert
-- Bewusst nicht geändert:
+  - maÃŸgeblich ist dabei der geladene authentifizierte Benutzerkontext und nicht mehr eine Auswahlseite
+- `AdminShell` zusÃ¤tzlich an den echten Benutzerkontext angeglichen:
+  - Admin-only-MenÃ¼s richten sich jetzt an `UserContextState.CurrentUserContext.Role`
+  - damit folgt die mobile MenÃ¼freigabe dem real geladenen Rechtekontext statt nur den alten `IAuthService`-Flags
+- Die alte Rollenwahl wurde auÃŸerdem aus dem aktiven DI-/Navigationspfad entfernt:
+  - `RoleChoicePage` wird nicht mehr im MAUI-Servicecontainer fÃ¼r den aktiven Loginflow registriert
+- Bewusst nicht geÃ¤ndert:
   - keine WPF-Datei
   - keine Supabase-Datei
   - keine neue Rollenarchitektur
-  - kein unnötiger Umbau außerhalb des Login-/Shell-Startpfads
+  - kein unnÃ¶tiger Umbau auÃŸerhalb des Login-/Shell-Startpfads
 - Ergebnis von Block 1:
-  - nach Login ist keine manuelle Auswahl `user` / `Vorstand/admin` mehr nötig
+  - nach Login ist keine manuelle Auswahl `user` / `Vorstand/admin` mehr nÃ¶tig
   - der mobile Shell-/Startpfad wird jetzt direkt aus dem echten Benutzerkontext gesetzt
   - damit ist der erste bekannte Android-Fehler fachlich sauber aus dem aktiven Flow entfernt
 - Verifikation:
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - Block 1 ist damit klein, buildfähig und commit-/push-fähig abgeschlossen
+  - Block 1 ist damit klein, buildfÃ¤hig und commit-/push-fÃ¤hig abgeschlossen
 
-## 2026-03-24 – Prompt 1/1: Root-Folder-Validierung in `kgv-upload-photo` gezielt abgesichert und diagnostisch geschärft
+## 2026-03-24 â€“ Prompt 1/1: Root-Folder-Validierung in `kgv-upload-photo` gezielt abgesichert und diagnostisch geschÃ¤rft
 
-- Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprüft.
+- Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprÃ¼ft.
 - Einordnung vor dem Fix:
   - Dateien dieses Blocks: `supabase/functions/kgv-upload-photo/index.ts` plus die beiden Logdateien
-  - `supabase/config.toml` wurde als Istzustand mitgeprüft und blieb unverändert bei `verify_jwt = false`
+  - `supabase/config.toml` wurde als Istzustand mitgeprÃ¼ft und blieb unverÃ¤ndert bei `verify_jwt = false`
   - blockfremde offene WPF-/MAUI-/Supabase-Dateien blieben bewusst unangetastet
   - `_AI_DB_EXPORT/*`, `_secrets/*`, `.github/copilot-instructions.md` und sonstige lokale Artefakte wurden nicht als Grundlage verwendet
-- Den aktuellen Root-Folder-Codepfad gezielt geprüft:
-  - `GOOGLE_DRIVE_ROOT_FOLDER_ID` wurde bislang direkt über `Deno.env.get(...)` gelesen
-  - die bisherige Validierung prüfte nur auf `null`/leer vor dem weiteren Ablauf
+- Den aktuellen Root-Folder-Codepfad gezielt geprÃ¼ft:
+  - `GOOGLE_DRIVE_ROOT_FOLDER_ID` wurde bislang direkt Ã¼ber `Deno.env.get(...)` gelesen
+  - die bisherige Validierung prÃ¼fte nur auf `null`/leer vor dem weiteren Ablauf
   - dadurch endete der Pfad zwar sichtbar in `root folder validate`, aber noch ohne ausreichend scharfe Diagnose zu `leer`, `nur Leerzeichen` oder `in Drive nicht erreichbar`
 - Den Root-Folder-Pfad deshalb klein, aber robust umgesetzt:
   - `GOOGLE_DRIVE_ROOT_FOLDER_ID` wird jetzt sauber gelesen
-  - anschließend getrimmt
-  - auf `null`/fehlend sowie auf nach `Trim()` leer geprüft
+  - anschlieÃŸend getrimmt
+  - auf `null`/fehlend sowie auf nach `Trim()` leer geprÃ¼ft
   - geloggt werden nur harmlose Diagnoseinfos:
     - ob ein Wert vorhanden ist
-    - Roh-Länge
-    - Trim-Länge
+    - Roh-LÃ¤nge
+    - Trim-LÃ¤nge
     - ob nach Trim leer
   - der echte Secret-/Ordnerwert selbst wird nicht geloggt
 - Fehlerbild jetzt klarer und mit Schrittbezug:
   - fehlend oder leer => `Google Drive root folder id missing or empty`
   - keine generische anonyme 500-Meldung mehr ohne Kontext im Fehlertext
-- Zusätzliche Root-Folder-Logmarker ergänzt:
+- ZusÃ¤tzliche Root-Folder-Logmarker ergÃ¤nzt:
   - `root folder validate start`
   - `root folder validate result`
   - `root folder validate failed`
   - `drive root folder lookup start`
   - `drive root folder lookup success`
-- Die Root-Folder-ID wird jetzt nicht nur lokal validiert, sondern einmal klein gegen Drive geprüft, bevor Unterordner angelegt werden:
+- Die Root-Folder-ID wird jetzt nicht nur lokal validiert, sondern einmal klein gegen Drive geprÃ¼ft, bevor Unterordner angelegt werden:
   - Lookup auf die angegebene Drive-Datei/den Ordner per ID
   - bei 403/404 => `Drive root folder not accessible`
   - bei sonstigen API-Problemen => `Drive root folder lookup failed: ...`
   - wenn das Ziel kein Ordner ist => klarer Lookup-Fehler statt stiller Weiterlauf
-- Die bestehende Function-Auth blieb vollständig unverändert aktiv:
+- Die bestehende Function-Auth blieb vollstÃ¤ndig unverÃ¤ndert aktiv:
   - Bearer-Token
   - `auth.getUser(jwt)`
-  - Rollenprüfung `admin` / `vorstand`
-- Bewusst nicht geändert:
+  - RollenprÃ¼fung `admin` / `vorstand`
+- Bewusst nicht geÃ¤ndert:
   - keine Secrets
   - keine WPF-/MAUI-Datei
   - keine andere Function
-  - kein Umbau des Uploadpfads außerhalb des Root-Folder-Problems
+  - kein Umbau des Uploadpfads auÃŸerhalb des Root-Folder-Problems
 - Ergebnis:
-  - beim nächsten Test ist klar erkennbar, ob das Env fehlt/leer ist
+  - beim nÃ¤chsten Test ist klar erkennbar, ob das Env fehlt/leer ist
   - oder ob die Root-Folder-ID zwar vorhanden, aber in Drive nicht erreichbar bzw. kein Ordner ist
-  - oder ob der Ablauf über `root folder validate` hinaus weiterläuft
+  - oder ob der Ablauf Ã¼ber `root folder validate` hinaus weiterlÃ¤uft
 - Verifikation:
   - `supabase functions deploy kgv-upload-photo --project-ref itjcabiibuodkxayhvjq` erfolgreich
   - der Root-Folder-Fix ist damit klein, zielgerichtet und deployt abgeschlossen
 
-## 2026-03-24 – Prompt 1/1: Supabase-Diagnoseblock für `kgv-upload-photo` ergänzt, Hänger lokalisiert und Google-Aufrufe fail-fast gemacht
+## 2026-03-24 â€“ Prompt 1/1: Supabase-Diagnoseblock fÃ¼r `kgv-upload-photo` ergÃ¤nzt, HÃ¤nger lokalisiert und Google-Aufrufe fail-fast gemacht
 
-- Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprüft.
+- Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprÃ¼ft.
 - Einordnung vor dem Diagnoseblock:
   - Dateien dieses Blocks: `supabase/functions/kgv-upload-photo/index.ts` plus die beiden Logdateien
-  - `supabase/config.toml` wurde als Istzustand mitgeprüft, blieb aber fachlich unverändert bei `verify_jwt = false`
+  - `supabase/config.toml` wurde als Istzustand mitgeprÃ¼ft, blieb aber fachlich unverÃ¤ndert bei `verify_jwt = false`
   - blockfremde offene WPF-/MAUI-/Supabase-Dateien blieben bewusst unangetastet
   - `_AI_DB_EXPORT/*`, `_secrets/*`, `.github/copilot-instructions.md` und sonstige lokale Artefakte wurden nicht als Grundlage verwendet
-- Den realen Function-Istzustand gezielt geprüft:
-  - `kgv-upload-photo` hatte bereits die eigene Auth-Prüfung mit Bearer-Token, `auth.getUser(jwt)` und Rollenprüfung auf `admin` / `vorstand`
-  - der frühere Plattformfehler `Invalid JWT` war damit nicht mehr der aktuelle Hänger
-  - das neue Fehlerbild passte zu einem stillen Hänger in einem der externen Google-/Netzwerkaufrufe innerhalb der Function
+- Den realen Function-Istzustand gezielt geprÃ¼ft:
+  - `kgv-upload-photo` hatte bereits die eigene Auth-PrÃ¼fung mit Bearer-Token, `auth.getUser(jwt)` und RollenprÃ¼fung auf `admin` / `vorstand`
+  - der frÃ¼here Plattformfehler `Invalid JWT` war damit nicht mehr der aktuelle HÃ¤nger
+  - das neue Fehlerbild passte zu einem stillen HÃ¤nger in einem der externen Google-/Netzwerkaufrufe innerhalb der Function
 - Den Block deshalb bewusst klein als Diagnose- und Fail-Fast-Schritt umgesetzt statt die Upload-Architektur umzubauen.
-- In `supabase/functions/kgv-upload-photo/index.ts` gezielte Diagnose-Logs ergänzt, mindestens für:
+- In `supabase/functions/kgv-upload-photo/index.ts` gezielte Diagnose-Logs ergÃ¤nzt, mindestens fÃ¼r:
   - Function-Start
   - Auth-Header erkannt / Auth-Start / Auth erfolgreich
   - Content-Type validiert
@@ -5421,7 +5460,7 @@
   - Drive `files.list`
   - Drive-Ordner anlegen
   - Drive-Datei-Upload
-- Fehlerverhalten jetzt schrittbezogen und nicht mehr weichgespült:
+- Fehlerverhalten jetzt schrittbezogen und nicht mehr weichgespÃ¼lt:
   - `Google token refresh timeout`
   - `Drive files.list timeout`
   - `Drive create folder timeout`
@@ -5429,117 +5468,117 @@
   - bei Nicht-Timeouts entsprechend schrittbezogene `... failed: ...`-Meldungen
 - Den Datums-Inputpfad klein und zielgerichtet stabilisiert:
   - bisher wurde nur `YYYY-MM-DD` akzeptiert
-  - für den Testpfad akzeptiert die Function jetzt zusätzlich `dd.MM.yyyy`
-  - ungültige Werte liefern weiterhin eine klare Validierungsfehlermeldung mit erwarteten Formaten
+  - fÃ¼r den Testpfad akzeptiert die Function jetzt zusÃ¤tzlich `dd.MM.yyyy`
+  - ungÃ¼ltige Werte liefern weiterhin eine klare Validierungsfehlermeldung mit erwarteten Formaten
   - keine neue Datumsarchitektur gebaut
-- Bewusst nicht geändert:
-  - keine Änderung an der grundsätzlichen Function-Auth
-  - `verify_jwt = false` bleibt wie bisher für diese Function bestehen
+- Bewusst nicht geÃ¤ndert:
+  - keine Ã„nderung an der grundsÃ¤tzlichen Function-Auth
+  - `verify_jwt = false` bleibt wie bisher fÃ¼r diese Function bestehen
   - keine Secrets
   - keine WPF-/MAUI-Datei
   - keine andere Function
 - Ergebnis:
-  - beim nächsten App-Test soll die Function nicht mehr still bis zum `HttpClient.Timeout` hängen
-  - stattdessen soll entweder Erfolg oder ein klarer Fehler mit Schrittbezug zurückkommen
-  - zusätzlich sind die relevanten Schritte jetzt in den Supabase-Function-Logs sichtbar
+  - beim nÃ¤chsten App-Test soll die Function nicht mehr still bis zum `HttpClient.Timeout` hÃ¤ngen
+  - stattdessen soll entweder Erfolg oder ein klarer Fehler mit Schrittbezug zurÃ¼ckkommen
+  - zusÃ¤tzlich sind die relevanten Schritte jetzt in den Supabase-Function-Logs sichtbar
 - Verifikation:
   - `supabase functions deploy kgv-upload-photo --project-ref itjcabiibuodkxayhvjq` erfolgreich
   - der Diagnoseblock ist damit klein, zielgerichtet und deployt abgeschlossen
 
-## 2026-03-24 â€“ Prompt 1/1: Supabase-Bugfix: doppelte JWT-PrÃ¼fung fÃ¼r `kgv-upload-photo` abgeschaltet
+## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Supabase-Bugfix: doppelte JWT-PrÃƒÂ¼fung fÃƒÂ¼r `kgv-upload-photo` abgeschaltet
 
-- Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprÃ¼ft.
+- Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprÃƒÂ¼ft.
 - Einordnung vor dem Fix:
   - Dateien dieses Blocks: `supabase/config.toml`, `supabase/functions/kgv-upload-photo/index.ts` plus die beiden Logdateien
   - blockfremde offene WPF-/MAUI-/Supabase-Dateien blieben bewusst unangetastet
   - `_AI_DB_EXPORT/*`, `_secrets/*`, `.github/copilot-instructions.md` und sonstige lokale Artefakte wurden nicht als Grundlage verwendet
-- Den realen Function-Istzustand gezielt geprÃ¼ft:
-  - `supabase/config.toml` enthielt bereits einen spezifischen Block fÃ¼r `kgv-upload-photo`, dort stand aber noch `verify_jwt = true`
+- Den realen Function-Istzustand gezielt geprÃƒÂ¼ft:
+  - `supabase/config.toml` enthielt bereits einen spezifischen Block fÃƒÂ¼r `kgv-upload-photo`, dort stand aber noch `verify_jwt = true`
   - `supabase/functions/kgv-upload-photo/index.ts` war im lokalen Arbeitsstand noch ein Standard-Placeholder und noch nicht der produktive Upload-Code
   - der echte bereits vorhandene Upload-/Auth-Code lag stattdessen in `supabase/kgv-upload-photo/index.ts`
 - Damit war der technische Kernpunkt dieses Fixes klar:
-  - nur `verify_jwt = false` in der Plattformkonfiguration zu setzen hÃ¤tte beim anschlieÃŸenden Deploy den Placeholder aus `supabase/functions/kgv-upload-photo/index.ts` ausgerollt
-  - dadurch wÃ¤re gerade die gewÃ¼nschte eigene Function-Auth nicht aktiv geblieben
+  - nur `verify_jwt = false` in der Plattformkonfiguration zu setzen hÃƒÂ¤tte beim anschlieÃƒÅ¸enden Deploy den Placeholder aus `supabase/functions/kgv-upload-photo/index.ts` ausgerollt
+  - dadurch wÃƒÂ¤re gerade die gewÃƒÂ¼nschte eigene Function-Auth nicht aktiv geblieben
 - Den Block deshalb klein, aber korrekt auf den echten Deploy-Pfad gezogen:
-  - vorhandenen produktiven `kgv-upload-photo`-Code in den echten Deploy-Pfad `supabase/functions/kgv-upload-photo/index.ts` Ã¼bernommen
-  - dabei keine neue Auth-Architektur gebaut und keine Secrets geÃ¤ndert
-- Die bestehende Self-Auth der Function damit auf dem tatsÃ¤chlichen Deploy-Pfad verifiziert und erhalten:
+  - vorhandenen produktiven `kgv-upload-photo`-Code in den echten Deploy-Pfad `supabase/functions/kgv-upload-photo/index.ts` ÃƒÂ¼bernommen
+  - dabei keine neue Auth-Architektur gebaut und keine Secrets geÃƒÂ¤ndert
+- Die bestehende Self-Auth der Function damit auf dem tatsÃƒÂ¤chlichen Deploy-Pfad verifiziert und erhalten:
   - Bearer-Token wird aus dem `Authorization`-Header gelesen
   - `supabaseAdmin.auth.getUser(jwt)` validiert den Benutzer-Token
-  - anschlieÃŸende RollenprÃ¼fung erfolgt Ã¼ber `app_user.role`
+  - anschlieÃƒÅ¸ende RollenprÃƒÂ¼fung erfolgt ÃƒÂ¼ber `app_user.role`
   - erlaubt bleiben nur `admin` und `vorstand`
-- Danach in `supabase/config.toml` gezielt nur fÃ¼r diese eine Function ergÃ¤nzt:
+- Danach in `supabase/config.toml` gezielt nur fÃƒÂ¼r diese eine Function ergÃƒÂ¤nzt:
   - `[functions.kgv-upload-photo]`
   - `verify_jwt = false`
-- Bewusst nicht geÃ¤ndert:
+- Bewusst nicht geÃƒÂ¤ndert:
   - keine andere Function-Konfiguration
   - keine Secrets
   - keine App-/WPF-/MAUI-Datei
   - keine Entfernung der eigenen Function-Auth
 - Ergebnis:
-  - die vorgeschaltete Supabase-JWT-VorprÃ¼fung ist fÃ¼r `kgv-upload-photo` jetzt abgeschaltet
-  - die Function bleibt weiterhin geschÃ¼tzt, aber ausschlieÃŸlich Ã¼ber ihre eigene Token- und RollenprÃ¼fung
-  - beim nÃ¤chsten Test soll dadurch nicht mehr `Invalid JWT` von der Plattform zurÃ¼ckkommen, sondern die echte Function-Antwort
+  - die vorgeschaltete Supabase-JWT-VorprÃƒÂ¼fung ist fÃƒÂ¼r `kgv-upload-photo` jetzt abgeschaltet
+  - die Function bleibt weiterhin geschÃƒÂ¼tzt, aber ausschlieÃƒÅ¸lich ÃƒÂ¼ber ihre eigene Token- und RollenprÃƒÂ¼fung
+  - beim nÃƒÂ¤chsten Test soll dadurch nicht mehr `Invalid JWT` von der Plattform zurÃƒÂ¼ckkommen, sondern die echte Function-Antwort
 - Verifikation:
   - `supabase functions deploy kgv-upload-photo` erfolgreich
   - der Block ist damit klein, zielgerichtet und auf dem echten Deploy-Pfad abgeschlossen
 
 
-## 2026-03-24 â€“ Prompt 1/1: kleinen WPF-Bindungsfehler in `FotoUploadTestView` fÃ¼r schreibgeschÃ¼tzte Diagnosefelder behoben
+## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: kleinen WPF-Bindungsfehler in `FotoUploadTestView` fÃƒÂ¼r schreibgeschÃƒÂ¼tzte Diagnosefelder behoben
 
-- Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprÃ¼ft.
+- Den Block zuerst wieder gegen den realen Istzustand des lokalen Repositories und des Git-Arbeitsbaums geprÃƒÂ¼ft.
 - Einordnung vor dem Fix:
   - Dateien dieses Blocks: `KGV.Wpf/Views/FotoUploadTestView.xaml` plus die beiden Logdateien
   - blockfremde offene WPF-/Supabase-/Upload-Testdateien blieben bewusst unangetastet
   - `_AI_DB_EXPORT/*`, `_secrets/*`, `.github/copilot-instructions.md` und sonstige lokale Artefakte wurden nicht als Grundlage verwendet
-- Den Fehler direkt am tatsÃ¤chlichen WPF-Pfad geprÃ¼ft:
+- Den Fehler direkt am tatsÃƒÂ¤chlichen WPF-Pfad geprÃƒÂ¼ft:
   - `FotoUploadTestView.xaml`
   - `FotoUploadTestViewModel`
-- Ursache bestÃ¤tigt:
-  - `RawResponseBody` ist im ViewModel ein schreibgeschÃ¼tztes Anzeige-/Diagnosefeld
+- Ursache bestÃƒÂ¤tigt:
+  - `RawResponseBody` ist im ViewModel ein schreibgeschÃƒÂ¼tztes Anzeige-/Diagnosefeld
   - die Bindung in `FotoUploadTestView.xaml` lief auf `TextBox.Text` ohne expliziten Modus
-  - `TextBox.Text` bindet in WPF standardmÃ¤ÃŸig `TwoWay`
-  - daraus entstand beim Ã–ffnen/Benutzen der Seite die Exception zur schreibgeschÃ¼tzten Eigenschaft `RawResponseBody`
+  - `TextBox.Text` bindet in WPF standardmÃƒÂ¤ÃƒÅ¸ig `TwoWay`
+  - daraus entstand beim Ãƒâ€“ffnen/Benutzen der Seite die Exception zur schreibgeschÃƒÂ¼tzten Eigenschaft `RawResponseBody`
 - Den Fix bewusst klein und nur an der richtigen Stelle umgesetzt:
   - `Text="{Binding RawResponseBody, Mode=OneWay}"`
   - `IsReadOnly="True"` blieb bestehen
-  - keine Setter im ViewModel ergÃ¤nzt
+  - keine Setter im ViewModel ergÃƒÂ¤nzt
   - keine Diagnosearchitektur umgebaut
   - keine MAUI-Datei angefasst
 - Ergebnis:
   - die Rohantwort bleibt weiterhin sichtbar
-  - die WPF-Seite versucht nicht mehr, in das schreibgeschÃ¼tzte Diagnosefeld zurÃ¼ckzuschreiben
-  - der restliche Upload-Testblock bleibt unverÃ¤ndert
+  - die WPF-Seite versucht nicht mehr, in das schreibgeschÃƒÂ¼tzte Diagnosefeld zurÃƒÂ¼ckzuschreiben
+  - der restliche Upload-Testblock bleibt unverÃƒÂ¤ndert
 - Verifikation:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
-  - der Bugfix bleibt damit klein, zielgerichtet und buildfÃ¤hig
+  - der Bugfix bleibt damit klein, zielgerichtet und buildfÃƒÂ¤hig
 
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Gemeinsamen RFID-Scan-Kontext fÃƒÂ¼r `Ablesung erfassen` und `ZÃƒÂ¤hlerwechsel` produktiv umgesetzt
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Gemeinsamen RFID-Scan-Kontext fÃƒÆ’Ã‚Â¼r `Ablesung erfassen` und `ZÃƒÆ’Ã‚Â¤hlerwechsel` produktiv umgesetzt
 
-- Den Block erneut mit echter IstzustandsprÃƒÂ¼fung begonnen.
+- Den Block erneut mit echter IstzustandsprÃƒÆ’Ã‚Â¼fung begonnen.
 - Einordnung vor dem Umbau:
-  - Dateien dieses Blocks waren die Placeholder fÃƒÂ¼r `Ablesung erfassen`, `ZÃƒÂ¤hlerwechsel` und `RfidScanContext` in WPF sowie die mobilen Placeholder fÃƒÂ¼r `AblesungErfassenPage` und `ZaehlerwechselPage`
+  - Dateien dieses Blocks waren die Placeholder fÃƒÆ’Ã‚Â¼r `Ablesung erfassen`, `ZÃƒÆ’Ã‚Â¤hlerwechsel` und `RfidScanContext` in WPF sowie die mobilen Placeholder fÃƒÆ’Ã‚Â¼r `AblesungErfassenPage` und `ZaehlerwechselPage`
   - blockfremde offene WPF-Dateien und `supabase/migrations/20260323093513_remote_schema.sql` blieben bewusst unangetastet
   - `_Archiv/_Recovery`, `_Archiv/_RecoveredArtifacts` und `_AI_DB_EXPORT/*` wurden nicht als fachliche Grundlage verwendet
-- Fachlich fehlte bisher der gemeinsame produktive RFID-Lesekern fÃƒÂ¼r beide Workflows.
+- Fachlich fehlte bisher der gemeinsame produktive RFID-Lesekern fÃƒÆ’Ã‚Â¼r beide Workflows.
 - Shared-Service nun klein und produktiv erweitert:
-  - `RfidScanContextState` mit den drei fachlichen ZustÃƒÂ¤nden
+  - `RfidScanContextState` mit den drei fachlichen ZustÃƒÆ’Ã‚Â¤nden
   - `RfidScanContextResult` als gemeinsames Ergebnisobjekt
   - `ResolveRfidScanContextAsync(string uid)` in `ISupabaseService` / `SupabaseService`
   - UID-Normalisierung zentral im Service, damit WPF und MAUI keine abweichende Logik bauen
-  - AuflÃƒÂ¶sung ausschlieÃƒÅ¸lich ÃƒÂ¼ber `v_rfid_scan_context`
+  - AuflÃƒÆ’Ã‚Â¶sung ausschlieÃƒÆ’Ã…Â¸lich ÃƒÆ’Ã‚Â¼ber `v_rfid_scan_context`
 - Zustandslogik jetzt fachlich klar und zentral:
   - kein Treffer in `v_rfid_scan_context` => `Unknown`
   - Treffer mit `aktiver_zaehler_id` => `KnownWithActiveMeter`
   - Treffer ohne `aktiver_zaehler_id` => `KnownWithoutActiveMeter`
-- `RfidScanContextRecord` nur am echten View-Vertrag orientiert und mit Anzeigehilfen ergÃƒÂ¤nzt:
+- `RfidScanContextRecord` nur am echten View-Vertrag orientiert und mit Anzeigehilfen ergÃƒÆ’Ã‚Â¤nzt:
   - Medium-Anzeige
   - RFID-Anzeige
-  - aktiver ZÃƒÂ¤hler ja/nein
-  - ZÃƒÂ¤hlernummer
+  - aktiver ZÃƒÆ’Ã‚Â¤hler ja/nein
+  - ZÃƒÆ’Ã‚Â¤hlernummer
   - Status
-  - Eichdatum / EichfÃƒÂ¤lligkeit
+  - Eichdatum / EichfÃƒÆ’Ã‚Â¤lligkeit
 - WPF konkret umgesetzt:
   - den vorhandenen `RfidScanContextViewModel`-Placeholder in eine echte gemeinsame WPF-Kontextlogik umgebaut
   - den vorhandenen `RfidScanContextView`-Placeholder in eine echte UID-Eingabe- und Ergebnisanzeige umgebaut
@@ -5551,41 +5590,41 @@
   - neue gemeinsame Basispage `RfidScanWorkflowPage`
   - `AblesungErfassenPage` von Placeholder auf produktive UID-Eingabe und Kontextanzeige umgestellt
   - `ZaehlerwechselPage` ebenso auf denselben gemeinsamen Kern umgestellt
-  - beide mobilen Seiten unterscheiden nun ebenfalls sauber zwischen unbekanntem Tag, bekanntem Tag mit aktivem ZÃƒÂ¤hler und bekanntem Tag ohne aktiven ZÃƒÂ¤hler
+  - beide mobilen Seiten unterscheiden nun ebenfalls sauber zwischen unbekanntem Tag, bekanntem Tag mit aktivem ZÃƒÆ’Ã‚Â¤hler und bekanntem Tag ohne aktiven ZÃƒÆ’Ã‚Â¤hler
 - Workflow-Einordnung nach Aufrufziel:
-  - `Ablesung erfassen`: bekannter Kontext wird angezeigt; mit aktivem ZÃƒÂ¤hler ist der Ablese-Kontext vorbereitet, ohne aktiven ZÃƒÂ¤hler wird sauber erklÃƒÂ¤rt, dass Ablesung noch nicht sinnvoll ist
-  - `ZÃƒÂ¤hlerwechsel`: mit aktivem ZÃƒÂ¤hler wird Ausbau als nÃƒÂ¤chster Schritt angezeigt, ohne aktiven ZÃƒÂ¤hler Einbau
+  - `Ablesung erfassen`: bekannter Kontext wird angezeigt; mit aktivem ZÃƒÆ’Ã‚Â¤hler ist der Ablese-Kontext vorbereitet, ohne aktiven ZÃƒÆ’Ã‚Â¤hler wird sauber erklÃƒÆ’Ã‚Â¤rt, dass Ablesung noch nicht sinnvoll ist
+  - `ZÃƒÆ’Ã‚Â¤hlerwechsel`: mit aktivem ZÃƒÆ’Ã‚Â¤hler wird Ausbau als nÃƒÆ’Ã‚Â¤chster Schritt angezeigt, ohne aktiven ZÃƒÆ’Ã‚Â¤hler Einbau
 - Rechte/Konsistenz:
   - Bereich bleibt fachlich auf Admin/Vorstand begrenzt
   - WPF und MAUI nutzen denselben Shared-Servicepfad und dieselbe Zustandsableitung
-  - keine QR- oder sonstige Schattenlogik ergÃƒÂ¤nzt
+  - keine QR- oder sonstige Schattenlogik ergÃƒÆ’Ã‚Â¤nzt
 - Verifikation:
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - Block ist damit als gemeinsamer produktiver RFID-Kontextkern fÃƒÂ¼r beide spÃƒÂ¤teren Fachflows buildfÃƒÂ¤hig abgeschlossen
+  - Block ist damit als gemeinsamer produktiver RFID-Kontextkern fÃƒÆ’Ã‚Â¼r beide spÃƒÆ’Ã‚Â¤teren Fachflows buildfÃƒÆ’Ã‚Â¤hig abgeschlossen
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: `FÃƒÂ¤llige ZÃƒÂ¤hler` auf `v_zaehler_eichstatus` produktiv umgesetzt
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: `FÃƒÆ’Ã‚Â¤llige ZÃƒÆ’Ã‚Â¤hler` auf `v_zaehler_eichstatus` produktiv umgesetzt
 
-- Den Block wieder mit echter VorprÃƒÂ¼fung gegen den aktuellen Repo- und Arbeitsbaumstand begonnen.
+- Den Block wieder mit echter VorprÃƒÆ’Ã‚Â¼fung gegen den aktuellen Repo- und Arbeitsbaumstand begonnen.
 - Blockeinordnung vor Umsetzung:
-  - Dateien dieses Blocks: `FaelligeZaehler`-Placeholder in WPF und MAUI plus fehlender Shared-Servicepfad fÃƒÂ¼r `v_zaehler_eichstatus`
-  - blockfremde AltÃƒÂ¤nderungen sollten ausdrÃƒÂ¼cklich unangetastet bleiben
+  - Dateien dieses Blocks: `FaelligeZaehler`-Placeholder in WPF und MAUI plus fehlender Shared-Servicepfad fÃƒÆ’Ã‚Â¼r `v_zaehler_eichstatus`
+  - blockfremde AltÃƒÆ’Ã‚Â¤nderungen sollten ausdrÃƒÆ’Ã‚Â¼cklich unangetastet bleiben
   - `_Archiv/_Recovery`, `_Archiv/_RecoveredArtifacts` und `_AI_DB_EXPORT/AI_DATABASE_CONTEXT.sql` wurden bewusst nicht als fachliche Grundlage verwendet
 - Fachlich war im aktiven Codepfad vorhanden:
   - WPF-Placeholder `FaelligeZaehlerViewModel` / `FaelligeZaehlerView`
   - MAUI-Placeholder `FaelligeZaehlerPage`
-  - noch kein produktiver Service-/Modelpfad fÃƒÂ¼r `v_zaehler_eichstatus`
+  - noch kein produktiver Service-/Modelpfad fÃƒÆ’Ã‚Â¼r `v_zaehler_eichstatus`
 - Gemeinsamen Datenpfad klein und produktiv hergestellt:
-  - neues Model `ZaehlerEichstatusRecord` direkt fÃƒÂ¼r die View `v_zaehler_eichstatus`
+  - neues Model `ZaehlerEichstatusRecord` direkt fÃƒÆ’Ã‚Â¼r die View `v_zaehler_eichstatus`
   - neue Shared-Service-Methode `GetZaehlerEichstatusAsync()` in `ISupabaseService` / `SupabaseService`
   - Sortierung zentral im Service:
     - `ueberfaellig` zuerst
     - dann `bald_faellig`
     - danach `ok`
     - innerhalb dessen nach Tagen
-    - anschlieÃƒÅ¸end nach Garten und Anlage
+    - anschlieÃƒÆ’Ã…Â¸end nach Garten und Anlage
 - WPF konkret umgesetzt:
-  - Placeholder-ViewModel ersetzt durch echte ÃƒÅ“bersicht
+  - Placeholder-ViewModel ersetzt durch echte ÃƒÆ’Ã…â€œbersicht
   - Textfilter
   - Statusfilter
   - `Aktualisieren`-Button
@@ -5593,12 +5632,12 @@
     - Anlage
     - Garten
     - Medium
-    - ZÃƒÂ¤hler
+    - ZÃƒÆ’Ã‚Â¤hler
     - Eichdatum
-    - EichfÃƒÂ¤lligkeit
+    - EichfÃƒÆ’Ã‚Â¤lligkeit
     - Status
     - Tage
-  - Leer- und FehlerzustÃƒÂ¤nde sauber sichtbar
+  - Leer- und FehlerzustÃƒÆ’Ã‚Â¤nde sauber sichtbar
   - NavigationService auf den neuen ViewModel-Konstruktor angepasst
 - MAUI konkret umgesetzt:
   - neue mobile ViewModel-Klasse `FaelligeZaehlerViewModel`
@@ -5611,18 +5650,18 @@
 - Rechte/Konsistenz:
   - Bereich bleibt in WPF und MAUI explizit auf Admin/Vorstand begrenzt
   - kein neuer Schattenpfad in der UI
-  - keine fachfremden Ablesen-/ZÃƒÂ¤hlerwechsel-/RFID-Workflows mit hineingezogen
+  - keine fachfremden Ablesen-/ZÃƒÆ’Ã‚Â¤hlerwechsel-/RFID-Workflows mit hineingezogen
 - Verifikation:
-  - `get_tests` fÃƒÂ¼r `KGV.Tests` ergab keine passenden TestfÃƒÂ¤lle fÃƒÂ¼r diesen Block
+  - `get_tests` fÃƒÆ’Ã‚Â¼r `KGV.Tests` ergab keine passenden TestfÃƒÆ’Ã‚Â¤lle fÃƒÆ’Ã‚Â¼r diesen Block
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
-  - nach kleiner MAUI-Nachkorrektur blieb der Block ohne neue eigene Buildwarnung aus der neuen Seite buildfÃƒÂ¤hig abgeschlossen
+  - nach kleiner MAUI-Nachkorrektur blieb der Block ohne neue eigene Buildwarnung aus der neuen Seite buildfÃƒÆ’Ã‚Â¤hig abgeschlossen
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: `RFID einrichten` fachlich auf neuem DB-Vertrag nutzbar gemacht
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: `RFID einrichten` fachlich auf neuem DB-Vertrag nutzbar gemacht
 
-- Den Block wieder ausdrÃƒÂ¼cklich gegen den realen Istzustand gefÃƒÂ¼hrt und nicht gegen Restore-/Recovery-Reste.
-- Git-/ArbeitsbaumprÃƒÂ¼fung vor dem Umbau:
-  - fÃƒÂ¼r diesen Block gab es anfangs noch keine offenen RFID-Implementierungsdateien
+- Den Block wieder ausdrÃƒÆ’Ã‚Â¼cklich gegen den realen Istzustand gefÃƒÆ’Ã‚Â¼hrt und nicht gegen Restore-/Recovery-Reste.
+- Git-/ArbeitsbaumprÃƒÆ’Ã‚Â¼fung vor dem Umbau:
+  - fÃƒÆ’Ã‚Â¼r diesen Block gab es anfangs noch keine offenen RFID-Implementierungsdateien
   - blockfremd offen waren weiterhin mehrere WPF-UI-Dateien, lokale Artefakte sowie `supabase/migrations/20260323093513_remote_schema.sql`
   - `_Archiv/_Recovery`, `_Archiv/_RecoveredArtifacts` und `_AI_DB_EXPORT/AI_DATABASE_CONTEXT.sql` wurden bewusst nicht als fachliche Grundlage verwendet
 - Fachliche Grundlage des Blocks sauber auf den neuen DB-Vertrag gezogen:
@@ -5630,102 +5669,102 @@
   - Datenbasis `parzelle.rfid_strom` / `parzelle.rfid_wasser`
   - Konflikt-/Scanreferenz aus `v_rfid_scan_context`
   - keine neue Schattenarchitektur neben dem vorhandenen DB-Vertrag
-- Den Shared-Service dafÃƒÂ¼r klein, aber belastbar ergÃƒÂ¤nzt:
+- Den Shared-Service dafÃƒÆ’Ã‚Â¼r klein, aber belastbar ergÃƒÆ’Ã‚Â¤nzt:
   - `CheckParzelleRfidAssignmentAsync(...)`
   - `AssignParzelleRfidAsync(...)`
-  - UID wird vor PrÃƒÂ¼fung/Speicherung konsistent getrimmt und in GroÃƒÅ¸buchstaben normalisiert
-  - VorabprÃƒÂ¼fung auf:
+  - UID wird vor PrÃƒÆ’Ã‚Â¼fung/Speicherung konsistent getrimmt und in GroÃƒÆ’Ã…Â¸buchstaben normalisiert
+  - VorabprÃƒÆ’Ã‚Â¼fung auf:
     - Parzelle vorhanden
-    - Medium gÃƒÂ¼ltig
+    - Medium gÃƒÆ’Ã‚Â¼ltig
     - UID vorhanden
     - Medium passt zur Parzelle (`hat_strom` / `hat_wasser`)
-  - zusÃƒÂ¤tzliche KonfliktprÃƒÂ¼fung gegen den realen DB-Bestand aus `v_rfid_scan_context`
+  - zusÃƒÆ’Ã‚Â¤tzliche KonfliktprÃƒÆ’Ã‚Â¼fung gegen den realen DB-Bestand aus `v_rfid_scan_context`
 - Konfliktverhalten jetzt fachlich klar:
-  - hÃƒÂ¤ngt die UID bereits an anderer Parzelle oder anderem Medium, wird Speichern blockiert und verstÃƒÂ¤ndlich erklÃƒÂ¤rt
-  - ist an derselben Parzelle fÃƒÂ¼r dasselbe Medium bereits dieselbe UID hinterlegt, wird dies als bereits erfÃƒÂ¼llt erkannt statt unnÃƒÂ¶tig nochmals zu schreiben
-  - existiert an derselben Parzelle fÃƒÂ¼r dasselbe Medium bereits eine andere UID, erfolgt kein stilles ÃƒÅ“berschreiben; erst nach ausdrÃƒÂ¼cklicher BestÃƒÂ¤tigung wird ÃƒÂ¼ber den RPC gespeichert
-- `ParzelleRecord` nur minimal fÃƒÂ¼r diesen Block auf den neuen Stand gezogen:
+  - hÃƒÆ’Ã‚Â¤ngt die UID bereits an anderer Parzelle oder anderem Medium, wird Speichern blockiert und verstÃƒÆ’Ã‚Â¤ndlich erklÃƒÆ’Ã‚Â¤rt
+  - ist an derselben Parzelle fÃƒÆ’Ã‚Â¼r dasselbe Medium bereits dieselbe UID hinterlegt, wird dies als bereits erfÃƒÆ’Ã‚Â¼llt erkannt statt unnÃƒÆ’Ã‚Â¶tig nochmals zu schreiben
+  - existiert an derselben Parzelle fÃƒÆ’Ã‚Â¼r dasselbe Medium bereits eine andere UID, erfolgt kein stilles ÃƒÆ’Ã…â€œberschreiben; erst nach ausdrÃƒÆ’Ã‚Â¼cklicher BestÃƒÆ’Ã‚Â¤tigung wird ÃƒÆ’Ã‚Â¼ber den RPC gespeichert
+- `ParzelleRecord` nur minimal fÃƒÆ’Ã‚Â¼r diesen Block auf den neuen Stand gezogen:
   - `Anlage`
   - `hat_strom`
   - `hat_wasser`
   - `rfid_strom`
   - `rfid_wasser`
-  - kleine Anzeigehilfen fÃƒÂ¼r benutzerfreundliche Parzellen-/RFID-Darstellung
+  - kleine Anzeigehilfen fÃƒÆ’Ã‚Â¼r benutzerfreundliche Parzellen-/RFID-Darstellung
 - WPF konkret umgesetzt:
   - Placeholder-`RfidEinrichtenViewModel` ersetzt durch echte Admin-/Vorstand-Maske
   - Parzellenauswahl mit benutzerfreundlicher Anzeige `GartenNr - Anlage`
   - aktuelle Strom-/Wasser-RFID sichtbar
-  - Mediumauswahl nur aus tatsÃƒÂ¤chlich passenden Medien der gewÃƒÂ¤hlten Parzelle
+  - Mediumauswahl nur aus tatsÃƒÆ’Ã‚Â¤chlich passenden Medien der gewÃƒÆ’Ã‚Â¤hlten Parzelle
   - UID-Eingabe
-  - `PrÃƒÂ¼fen`
+  - `PrÃƒÆ’Ã‚Â¼fen`
   - `Speichern`
-  - ÃƒÅ“berschreib-BestÃƒÂ¤tigung per `MessageBox`
+  - ÃƒÆ’Ã…â€œberschreib-BestÃƒÆ’Ã‚Â¤tigung per `MessageBox`
   - ViewModel-Fabrik in `NavigationService` passend erweitert
 - MAUI konkret umgesetzt:
   - mobile `RfidEinrichtenPage` von Placeholder auf echte Maske umgestellt
   - dieselben Fachschritte wie in WPF
-  - gleicher Shared-Servicepfad fÃƒÂ¼r PrÃƒÂ¼fen und Speichern
-  - ÃƒÅ“berschreib-BestÃƒÂ¤tigung per mobiler Dialogabfrage
+  - gleicher Shared-Servicepfad fÃƒÆ’Ã‚Â¼r PrÃƒÆ’Ã‚Â¼fen und Speichern
+  - ÃƒÆ’Ã…â€œberschreib-BestÃƒÆ’Ã‚Â¤tigung per mobiler Dialogabfrage
   - kein separater mobiler Schattenpfad
 - Rechte sauber gehalten:
-  - WPF bleibt ÃƒÂ¼ber Admin/Vorstand-Kontext begrenzt
-  - MAUI bleibt ÃƒÂ¼ber AdminShell plus expliziten ViewModel-Check auf Admin/Vorstand begrenzt
-  - normales `CanManageReadings` wurde fÃƒÂ¼r diesen Bereich bewusst nicht als alleinige Freigabe verwendet
+  - WPF bleibt ÃƒÆ’Ã‚Â¼ber Admin/Vorstand-Kontext begrenzt
+  - MAUI bleibt ÃƒÆ’Ã‚Â¼ber AdminShell plus expliziten ViewModel-Check auf Admin/Vorstand begrenzt
+  - normales `CanManageReadings` wurde fÃƒÆ’Ã‚Â¼r diesen Bereich bewusst nicht als alleinige Freigabe verwendet
 - Bewusst nicht in diesen Block gezogen:
-  - kein groÃƒÅ¸er Umbau von `Ablesung erfassen`
-  - kein ZÃƒÂ¤hlerwechsel-Workflow
+  - kein groÃƒÆ’Ã…Â¸er Umbau von `Ablesung erfassen`
+  - kein ZÃƒÆ’Ã‚Â¤hlerwechsel-Workflow
   - kein Komplettaustausch der alten Split-Modelle in allen Bereichen
   - keine Bereinigung aller Altpfade im selben Schritt
 - Technisch verifiziert:
   - `KGV.Wpf` baut erfolgreich
   - `KGV.Maui` baut erfolgreich
-  - der Block bleibt damit klein, buildfÃƒÂ¤hig und fachlich auf dem neuen RFID-DB-Vertrag abgeschlossen
+  - der Block bleibt damit klein, buildfÃƒÆ’Ã‚Â¤hig und fachlich auf dem neuen RFID-DB-Vertrag abgeschlossen
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Navigationsbereich `Ablesen` mit ÃƒÅ“bersichtsseite in WPF und MAUI angelegt
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Navigationsbereich `Ablesen` mit ÃƒÆ’Ã…â€œbersichtsseite in WPF und MAUI angelegt
 
-- Den Block zuerst gegen den realen Repo-Iststand geprÃƒÂ¼ft und nichts geraten.
-- Ergebnis der IstzustandsprÃƒÂ¼fung:
-  - WPF hatte bereits vorbereitete Einzelbausteine fÃƒÂ¼r `RfidEinrichten`, `FÃƒÂ¤llige ZÃƒÂ¤hler` und `ZÃƒÂ¤hlerwechsel`, aber keinen zusammenhÃƒÂ¤ngenden Navigationspunkt `Ablesen`
-  - fÃƒÂ¼r `Ablesung erfassen` existierte im WPF-Stand noch kein eigener Seitenpfad, nur Dialog-/Teilfragmente
-  - MAUI hatte noch keinen eigenen MenÃƒÂ¼punkt und keine ÃƒÅ“bersichtsseite fÃƒÂ¼r den gesamten Ablese-Bereich
-  - die bestehende Rollen-/Rechtebasis war bereits vorhanden: WPF ÃƒÂ¼ber `UserContext.Role`, MAUI ÃƒÂ¼ber `IAuthService.IsAdmin` / `IsVorstand`
-- Den globalen Einstieg deshalb klein und sauber ergÃƒÂ¤nzt statt direkt tiefe Fachlogik vorzuziehen:
-  - neuer MenÃƒÂ¼punkt `Ablesen` in WPF
-  - neuer MenÃƒÂ¼punkt `Ablesen` im MAUI-Admin-/Vorstand-Flyout
+- Den Block zuerst gegen den realen Repo-Iststand geprÃƒÆ’Ã‚Â¼ft und nichts geraten.
+- Ergebnis der IstzustandsprÃƒÆ’Ã‚Â¼fung:
+  - WPF hatte bereits vorbereitete Einzelbausteine fÃƒÆ’Ã‚Â¼r `RfidEinrichten`, `FÃƒÆ’Ã‚Â¤llige ZÃƒÆ’Ã‚Â¤hler` und `ZÃƒÆ’Ã‚Â¤hlerwechsel`, aber keinen zusammenhÃƒÆ’Ã‚Â¤ngenden Navigationspunkt `Ablesen`
+  - fÃƒÆ’Ã‚Â¼r `Ablesung erfassen` existierte im WPF-Stand noch kein eigener Seitenpfad, nur Dialog-/Teilfragmente
+  - MAUI hatte noch keinen eigenen MenÃƒÆ’Ã‚Â¼punkt und keine ÃƒÆ’Ã…â€œbersichtsseite fÃƒÆ’Ã‚Â¼r den gesamten Ablese-Bereich
+  - die bestehende Rollen-/Rechtebasis war bereits vorhanden: WPF ÃƒÆ’Ã‚Â¼ber `UserContext.Role`, MAUI ÃƒÆ’Ã‚Â¼ber `IAuthService.IsAdmin` / `IsVorstand`
+- Den globalen Einstieg deshalb klein und sauber ergÃƒÆ’Ã‚Â¤nzt statt direkt tiefe Fachlogik vorzuziehen:
+  - neuer MenÃƒÆ’Ã‚Â¼punkt `Ablesen` in WPF
+  - neuer MenÃƒÆ’Ã‚Â¼punkt `Ablesen` im MAUI-Admin-/Vorstand-Flyout
   - normale Nutzer sehen diesen Bereich nicht
 - WPF konkret umgesetzt:
   - neue `AblesenOverviewViewModel` + `AblesenOverviewView`
-  - vier groÃƒÅ¸e Kacheln mit den geforderten Texten und Untertiteln
+  - vier groÃƒÆ’Ã…Â¸e Kacheln mit den geforderten Texten und Untertiteln
   - Navigationsverkabelung zu:
     - `AblesungErfassenViewModel` *(neu als schlanker Platzhalter)*
     - `ZaehlerwechselScanViewModel` *(bestehender vorbereiteter Pfad)*
     - `RfidEinrichtenViewModel` *(bestehender vorbereiteter Pfad)*
     - `FaelligeZaehlerViewModel` *(bestehender vorbereiteter Pfad)*
-  - `App.xaml`, `NavigationService` und `MainWindowViewModel` dafÃƒÂ¼r sauber erweitert
+  - `App.xaml`, `NavigationService` und `MainWindowViewModel` dafÃƒÆ’Ã‚Â¼r sauber erweitert
 - MAUI konkret umgesetzt:
-  - neue mobile ÃƒÅ“bersichtsseite `AblesenOverviewPage`
-  - vier groÃƒÅ¸e tappbare Kacheln fÃƒÂ¼r dieselben Funktionen
+  - neue mobile ÃƒÆ’Ã…â€œbersichtsseite `AblesenOverviewPage`
+  - vier groÃƒÆ’Ã…Â¸e tappbare Kacheln fÃƒÆ’Ã‚Â¼r dieselben Funktionen
   - vier schlanke Zielseiten angelegt und als Shell-Routen registriert:
     - `AblesungErfassenPage`
     - `ZaehlerwechselPage`
     - `RfidEinrichtenPage`
     - `FaelligeZaehlerPage`
-  - damit ist der Navigationsfluss mobil bereits vollstÃƒÂ¤ndig, ohne die Fachflows dieses Folgeblocks vorwegzunehmen
+  - damit ist der Navigationsfluss mobil bereits vollstÃƒÆ’Ã‚Â¤ndig, ohne die Fachflows dieses Folgeblocks vorwegzunehmen
 - Rechte und Konsistenz:
-  - WPF zeigt `Ablesen` nur fÃƒÂ¼r `Admin`/`Vorstand`
-  - MAUI zeigt `Ablesen` nur im Admin-/Vorstand-Shell und zusÃƒÂ¤tzlich explizit nur bei `IsAdmin || IsVorstand`
-  - keine neue SchattenprÃƒÂ¼fung neben der vorhandenen Rollenbasis
+  - WPF zeigt `Ablesen` nur fÃƒÆ’Ã‚Â¼r `Admin`/`Vorstand`
+  - MAUI zeigt `Ablesen` nur im Admin-/Vorstand-Shell und zusÃƒÆ’Ã‚Â¤tzlich explizit nur bei `IsAdmin || IsVorstand`
+  - keine neue SchattenprÃƒÆ’Ã‚Â¼fung neben der vorhandenen Rollenbasis
 - Der Block bleibt bewusst klein:
   - keine RFID-Scanlogik vorgezogen
-  - kein ZÃƒÂ¤hlerwechsel-Workflow vorgezogen
-  - keine fÃƒÂ¤lligen ZÃƒÂ¤hler fachlich umgesetzt
+  - kein ZÃƒÆ’Ã‚Â¤hlerwechsel-Workflow vorgezogen
+  - keine fÃƒÆ’Ã‚Â¤lligen ZÃƒÆ’Ã‚Â¤hler fachlich umgesetzt
   - nur Struktur, Navigation, Rechte und vorbereitete Zielseiten
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: veralteten Remote-Snapshot von fachlichen QR-Resten bereinigt
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: veralteten Remote-Snapshot von fachlichen QR-Resten bereinigt
 
-- Den Zusatzblock zuerst gegen den Repo-Iststand geprÃƒÂ¼ft. Nach der Live-Bereinigung lagen fachliche QR-Reste nur noch im veralteten Snapshot `supabase/migrations/20260323093513_remote_schema.sql`.
-- Abgleich gegen `_AI_DB_EXPORT/database.types.ts` bestÃƒÂ¤tigt den aktuellen Stand:
-  - `public.parzelle` enthÃƒÂ¤lt dort keine `qr_code_*`-Felder mehr
+- Den Zusatzblock zuerst gegen den Repo-Iststand geprÃƒÆ’Ã‚Â¼ft. Nach der Live-Bereinigung lagen fachliche QR-Reste nur noch im veralteten Snapshot `supabase/migrations/20260323093513_remote_schema.sql`.
+- Abgleich gegen `_AI_DB_EXPORT/database.types.ts` bestÃƒÆ’Ã‚Â¤tigt den aktuellen Stand:
+  - `public.parzelle` enthÃƒÆ’Ã‚Â¤lt dort keine `qr_code_*`-Felder mehr
   - fachlich relevant sind nur noch `rfid_wasser` und `rfid_strom`
 - Der alte Snapshot wurde daher gezielt bereinigt statt eine neue Migrationslogik daneben aufzubauen:
   - `qr_code_wasser` aus `public.parzelle` entfernt
@@ -5733,79 +5772,79 @@
   - die alten Unique-Constraints auf beiden QR-Spalten entfernt
 - Damit entspricht der Repo-Snapshot wieder dem bereinigten fachlichen Stand der Live-DB bzw. der aktuellen Typdefinitionen; es verbleiben keine fachlichen QR-Reste mehr im Snapshot.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: kleine feste WPF-ButtonhÃƒÂ¶hen projektweit geprÃƒÂ¼ft und vereinheitlicht
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: kleine feste WPF-ButtonhÃƒÆ’Ã‚Â¶hen projektweit geprÃƒÆ’Ã‚Â¼ft und vereinheitlicht
 
-- Ausgehend vom Layoutproblem in Strom/Wasser wurden die WPF-XAML-Dateien gezielt auf kleine feste ButtonhÃƒÂ¶hen geprÃƒÂ¼ft.
-- Ergebnis: mehrere Buttons hatten noch feste HÃƒÂ¶hen von `30` bzw. `32`, was fÃƒÂ¼r die aktuelle Schrift-/Padding-Kombination zu knapp war.
-- Daher wurden die betroffenen expliziten HÃƒÂ¶hen in WPF einheitlich auf `35` angehoben.
+- Ausgehend vom Layoutproblem in Strom/Wasser wurden die WPF-XAML-Dateien gezielt auf kleine feste ButtonhÃƒÆ’Ã‚Â¶hen geprÃƒÆ’Ã‚Â¼ft.
+- Ergebnis: mehrere Buttons hatten noch feste HÃƒÆ’Ã‚Â¶hen von `30` bzw. `32`, was fÃƒÆ’Ã‚Â¼r die aktuelle Schrift-/Padding-Kombination zu knapp war.
+- Daher wurden die betroffenen expliziten HÃƒÆ’Ã‚Â¶hen in WPF einheitlich auf `35` angehoben.
 - Angepasst wurden die Buttons in:
   - `KGV.Wpf/Views/GartenStromView.xaml`
   - `KGV.Wpf/Views/GartenWasserView.xaml`
   - `KGV.Wpf/Views/ArbeitsstundenView.xaml`
   - `KGV.Wpf/Views/ChangeEmailWindow.xaml`
   - `KGV.Wpf/Views/ResetPasswordWindow.xaml`
-- Die bereits angehobene Parzellenzuordnungszeile bleibt davon unberÃƒÂ¼hrt; zusammen ergibt sich jetzt ein konsistenteres WPF-Buttonbild.
+- Die bereits angehobene Parzellenzuordnungszeile bleibt davon unberÃƒÆ’Ã‚Â¼hrt; zusammen ergibt sich jetzt ein konsistenteres WPF-Buttonbild.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: `MemberDetailView`-Parzellenzuordnung in der HÃƒÂ¶he leicht erhÃƒÂ¶ht
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: `MemberDetailView`-Parzellenzuordnung in der HÃƒÆ’Ã‚Â¶he leicht erhÃƒÆ’Ã‚Â¶ht
 
-- Den Istzustand zuerst geprÃƒÂ¼ft. Die betroffene Zeile sitzt nicht direkt in `MemberDetailView.xaml`, sondern in der ausgelagerten `KGV.Wpf/Views/MemberParzellenSection.xaml`.
+- Den Istzustand zuerst geprÃƒÆ’Ã‚Â¼ft. Die betroffene Zeile sitzt nicht direkt in `MemberDetailView.xaml`, sondern in der ausgelagerten `KGV.Wpf/Views/MemberParzellenSection.xaml`.
 - Der Fix bleibt bewusst klein und rein visuell:
-  - Zeile der Parzellenzuordnung ÃƒÂ¼ber `MinHeight="36"` leicht erhÃƒÂ¶ht
-  - die beiden Buttons `Garten zuordnen` und `Belegung beenden` jeweils von HÃƒÂ¶he `30` auf `35` angehoben
-- Ziel erreicht: die Beschriftungen passen wieder besser in die Buttons; Fachlogik, Bindings und Navigation bleiben unverÃƒÂ¤ndert.
+  - Zeile der Parzellenzuordnung ÃƒÆ’Ã‚Â¼ber `MinHeight="36"` leicht erhÃƒÆ’Ã‚Â¶ht
+  - die beiden Buttons `Garten zuordnen` und `Belegung beenden` jeweils von HÃƒÆ’Ã‚Â¶he `30` auf `35` angehoben
+- Ziel erreicht: die Beschriftungen passen wieder besser in die Buttons; Fachlogik, Bindings und Navigation bleiben unverÃƒÆ’Ã‚Â¤ndert.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Appuser-Verwaltung in `Admin-MenÃƒÂ¼` umgezogen und an das ausgewÃƒÂ¤hlte Mitglied gebunden
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Appuser-Verwaltung in `Admin-MenÃƒÆ’Ã‚Â¼` umgezogen und an das ausgewÃƒÆ’Ã‚Â¤hlte Mitglied gebunden
 
-- Den Block zuerst gegen den aktuellen Repo-Stand geprÃƒÂ¼ft. Ergebnis:
+- Den Block zuerst gegen den aktuellen Repo-Stand geprÃƒÆ’Ã‚Â¼ft. Ergebnis:
   - `Benutzerverwaltung` hing in WPF noch als globaler Navigationseintrag
-  - `Admin-MenÃƒÂ¼` existierte bereits im Mitgliedskontext
-  - der produktive Add-/Invite-Pfad fÃƒÂ¼r Appuser lief bereits ÃƒÂ¼ber `InviteUserAsync(...)`
-  - ein separater frei eingebetteter Mitgliedsbezug fÃƒÂ¼r die Benutzerverwaltung fehlte bisher
+  - `Admin-MenÃƒÆ’Ã‚Â¼` existierte bereits im Mitgliedskontext
+  - der produktive Add-/Invite-Pfad fÃƒÆ’Ã‚Â¼r Appuser lief bereits ÃƒÆ’Ã‚Â¼ber `InviteUserAsync(...)`
+  - ein separater frei eingebetteter Mitgliedsbezug fÃƒÆ’Ã‚Â¼r die Benutzerverwaltung fehlte bisher
 - Die Navigation wurde deshalb bewusst ohne Doppelpunkte neu geordnet:
   - globales `Benutzerverwaltung` aus der WPF-Hauptnavigation entfernt
-  - neuer Unterpunkt `Benutzerverwaltung` im Mitgliedsbereich direkt unter `Admin-MenÃƒÂ¼`
-  - der Unterpunkt ist eingerÃƒÂ¼ckt und folgt damit sichtbar dem Admin-MenÃƒÂ¼ statt einer zweiten parallelen Route
+  - neuer Unterpunkt `Benutzerverwaltung` im Mitgliedsbereich direkt unter `Admin-MenÃƒÆ’Ã‚Â¼`
+  - der Unterpunkt ist eingerÃƒÆ’Ã‚Â¼ckt und folgt damit sichtbar dem Admin-MenÃƒÆ’Ã‚Â¼ statt einer zweiten parallelen Route
 - Der Mitgliedsbezug wird jetzt strikt erzwungen:
-  - der neue Unterpunkt navigiert mit dem aktuell ausgewÃƒÂ¤hlten `MemberDTO`
+  - der neue Unterpunkt navigiert mit dem aktuell ausgewÃƒÆ’Ã‚Â¤hlten `MemberDTO`
   - die WPF-`UserManagementViewModel`-Instanz ist damit an genau dieses Mitglied gebunden
   - beim Laden werden nur noch Appuser-Daten dieses Mitglieds betrachtet
-  - gibt es noch keinen Appuser, wird ein Mitglieds-Platzhalter aufgebaut, damit `Nutzer hinzufÃƒÂ¼gen` weiterhin sauber auf genau diesem ausgewÃƒÂ¤hlten Datensatz arbeitet
+  - gibt es noch keinen Appuser, wird ein Mitglieds-Platzhalter aufgebaut, damit `Nutzer hinzufÃƒÆ’Ã‚Â¼gen` weiterhin sauber auf genau diesem ausgewÃƒÆ’Ã‚Â¤hlten Datensatz arbeitet
 - Die produktiven Nutzerpfade wurden nicht ersetzt, sondern weiterverwendet:
-  - `Nutzer hinzufÃƒÂ¼gen` nutzt weiter `InviteUserAsync(...)`
-  - `Nutzer entfernen` arbeitet auf der bestehenden Auth-/Mitglied-/`app_user`-Zuordnung und entfernt die Appuser-VerknÃƒÂ¼pfung des ausgewÃƒÂ¤hlten Mitglieds
-  - es wurde keine zweite Benutzerverwaltungsarchitektur daneben erÃƒÂ¶ffnet
+  - `Nutzer hinzufÃƒÆ’Ã‚Â¼gen` nutzt weiter `InviteUserAsync(...)`
+  - `Nutzer entfernen` arbeitet auf der bestehenden Auth-/Mitglied-/`app_user`-Zuordnung und entfernt die Appuser-VerknÃƒÆ’Ã‚Â¼pfung des ausgewÃƒÆ’Ã‚Â¤hlten Mitglieds
+  - es wurde keine zweite Benutzerverwaltungsarchitektur daneben erÃƒÆ’Ã‚Â¶ffnet
 - Die UI-/Bedienlogik wurde fachlich nachgezogen:
-  - ohne ausgewÃƒÂ¤hltes Mitglied keine AusfÃƒÂ¼hrung
-  - stattdessen klare fachliche RÃƒÂ¼ckmeldung
-  - `Nutzer hinzufÃƒÂ¼gen` und `Nutzer entfernen` beziehen sich jetzt sichtbar auf das ausgewÃƒÂ¤hlte Mitglied und nicht auf eine freischwebende Benutzerzeile
-  - keine Verwechslung mit LÃƒÂ¶schen des Mitglieds selbst
+  - ohne ausgewÃƒÆ’Ã‚Â¤hltes Mitglied keine AusfÃƒÆ’Ã‚Â¼hrung
+  - stattdessen klare fachliche RÃƒÆ’Ã‚Â¼ckmeldung
+  - `Nutzer hinzufÃƒÆ’Ã‚Â¼gen` und `Nutzer entfernen` beziehen sich jetzt sichtbar auf das ausgewÃƒÆ’Ã‚Â¤hlte Mitglied und nicht auf eine freischwebende Benutzerzeile
+  - keine Verwechslung mit LÃƒÆ’Ã‚Â¶schen des Mitglieds selbst
 - Rechte sauber getrennt:
-  - WPF-Unterpunkt `Benutzerverwaltung` nur fÃƒÂ¼r Admin sichtbar
+  - WPF-Unterpunkt `Benutzerverwaltung` nur fÃƒÆ’Ã‚Â¼r Admin sichtbar
   - Vorstand sieht den Punkt nicht mehr
-  - in MAUI wurde zumindest die MenÃƒÂ¼-Sichtbarkeit ebenfalls auf Admin begrenzt, ohne unnÃƒÂ¶tigen UI-Umbau zu starten
+  - in MAUI wurde zumindest die MenÃƒÆ’Ã‚Â¼-Sichtbarkeit ebenfalls auf Admin begrenzt, ohne unnÃƒÆ’Ã‚Â¶tigen UI-Umbau zu starten
 - Technisch verifiziert:
   - `KGV.Wpf` baut erfolgreich
   - der Shared-/Auth-Pfad bleibt konsistent
-  - MAUI wurde im Rechtepfad mitgezogen und nicht beschÃƒÂ¤digt
+  - MAUI wurde im Rechtepfad mitgezogen und nicht beschÃƒÆ’Ã‚Â¤digt
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Mitgliedersuche um E-Mail, Gartennummern und Hauptmitglied-Markierung erweitert
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Mitgliedersuche um E-Mail, Gartennummern und Hauptmitglied-Markierung erweitert
 
-- Den Block zuerst gegen den aktuellen Repo-Stand geprÃƒÂ¼ft. Die bestehende Mitgliedersuche war bereits vorhanden; erweitert werden sollte nur die Ergebnisliste, ohne neuen Suchdialog und ohne neue Fachlogik.
-- FÃƒÂ¼r die zusÃƒÂ¤tzliche ÃƒÅ“bersicht wurden keine neuen Backendpfade eingefÃƒÂ¼hrt. Die Erweiterung nutzt ausschlieÃƒÅ¸lich vorhandene Datenquellen:
-  - Mitglieder ÃƒÂ¼ber `GetMitgliederAsync()`
-  - Parzellen ÃƒÂ¼ber `GetAllParzellenAsync()`
-  - Belegungen ÃƒÂ¼ber `GetAllParzellenBelegungenAsync()`
+- Den Block zuerst gegen den aktuellen Repo-Stand geprÃƒÆ’Ã‚Â¼ft. Die bestehende Mitgliedersuche war bereits vorhanden; erweitert werden sollte nur die Ergebnisliste, ohne neuen Suchdialog und ohne neue Fachlogik.
+- FÃƒÆ’Ã‚Â¼r die zusÃƒÆ’Ã‚Â¤tzliche ÃƒÆ’Ã…â€œbersicht wurden keine neuen Backendpfade eingefÃƒÆ’Ã‚Â¼hrt. Die Erweiterung nutzt ausschlieÃƒÆ’Ã…Â¸lich vorhandene Datenquellen:
+  - Mitglieder ÃƒÆ’Ã‚Â¼ber `GetMitgliederAsync()`
+  - Parzellen ÃƒÆ’Ã‚Â¼ber `GetAllParzellenAsync()`
+  - Belegungen ÃƒÆ’Ã‚Â¼ber `GetAllParzellenBelegungenAsync()`
 - Aus diesen vorhandenen Daten wird die Ergebnisliste jetzt angereichert um:
   - E-Mailadresse
   - Gartennummern aus aktuell aktiven Belegungen, falls vorhanden
   - Hauptmitglied-Markierung auf Basis von `hauptmitglied_id`
 - WPF konkret umgesetzt:
   - bestehende GridView der Mitgliedersuche erweitert
-  - zusÃƒÂ¤tzliche Spalten `E-Mail`, `Gartennummern`, `Hauptmitglied`
-  - `Hauptmitglied` als deaktivierte Checkbox zur reinen ÃƒÅ“bersicht
+  - zusÃƒÆ’Ã‚Â¤tzliche Spalten `E-Mail`, `Gartennummern`, `Hauptmitglied`
+  - `Hauptmitglied` als deaktivierte Checkbox zur reinen ÃƒÆ’Ã…â€œbersicht
   - kein Wechsel des Suchdialogs und keine neue Selektionslogik
 - MAUI mitgedacht und gleichgezogen:
-  - bestehende Suchliste um Gartennummern und Hauptmitglied-Markierung ergÃƒÂ¤nzt
+  - bestehende Suchliste um Gartennummern und Hauptmitglied-Markierung ergÃƒÆ’Ã‚Â¤nzt
   - E-Mail bleibt sichtbar in den Ergebnisinfos
   - keine zweite Suchimplementierung neben der vorhandenen Seite
 - Technisch verifiziert:
@@ -5813,180 +5852,180 @@
   - `KGV.Maui` baut erfolgreich
   - damit ist der Block sowohl im WPF- als auch im MAUI-Pfad belastbar abgeschlossen
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Arbeitseinsatz-Teilnehmerliste fÃƒÂ¼r Admin/Vorstand um `Abmelden` pro Zeile ergÃƒÂ¤nzt
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Arbeitseinsatz-Teilnehmerliste fÃƒÆ’Ã‚Â¼r Admin/Vorstand um `Abmelden` pro Zeile ergÃƒÆ’Ã‚Â¤nzt
 
-- Den Block zuerst wieder gegen den realen Istzustand und ausdrÃƒÂ¼cklich gegen `_AI_DB_EXPORT` geprÃƒÂ¼ft. Belastbar bestÃƒÂ¤tigt wurden dabei in `database.types.ts` beide echten DB-Funktionspfade des An-/Abmeldekonzepts:
+- Den Block zuerst wieder gegen den realen Istzustand und ausdrÃƒÆ’Ã‚Â¼cklich gegen `_AI_DB_EXPORT` geprÃƒÆ’Ã‚Â¼ft. Belastbar bestÃƒÆ’Ã‚Â¤tigt wurden dabei in `database.types.ts` beide echten DB-Funktionspfade des An-/Abmeldekonzepts:
   - `sign_up_for_arbeitseinsatz(p_arbeitseinsatz_id, p_mitglied_id)`
   - `sign_off_from_arbeitseinsatz(p_arbeitseinsatz_id, p_mitglied_id)`
-- `roles.sql` enthÃƒÂ¤lt fÃƒÂ¼r diesen Block keine zusÃƒÂ¤tzliche App-Regel; `AI_DATABASE_CONTEXT.sql` liefert keinen alternativen App-Schreibpfad. Daraus wurde der vorhandene echte Abmeldepfad direkt als PrimÃƒÂ¤rweg verwendet.
-- Vor dem Fix geprÃƒÂ¼ft: Teilnehmerliste und `HinzufÃƒÂ¼gen` fÃƒÂ¼r Admin/Vorstand waren bereits vorhanden; `sign_off_from_arbeitseinsatz(...)` wurde App-seitig aber noch nicht produktiv genutzt.
-- Den Shared-Service deshalb klein ergÃƒÂ¤nzt statt eine Sonderlogik daneben zu bauen:
+- `roles.sql` enthÃƒÆ’Ã‚Â¤lt fÃƒÆ’Ã‚Â¼r diesen Block keine zusÃƒÆ’Ã‚Â¤tzliche App-Regel; `AI_DATABASE_CONTEXT.sql` liefert keinen alternativen App-Schreibpfad. Daraus wurde der vorhandene echte Abmeldepfad direkt als PrimÃƒÆ’Ã‚Â¤rweg verwendet.
+- Vor dem Fix geprÃƒÆ’Ã‚Â¼ft: Teilnehmerliste und `HinzufÃƒÆ’Ã‚Â¼gen` fÃƒÆ’Ã‚Â¼r Admin/Vorstand waren bereits vorhanden; `sign_off_from_arbeitseinsatz(...)` wurde App-seitig aber noch nicht produktiv genutzt.
+- Den Shared-Service deshalb klein ergÃƒÆ’Ã‚Â¤nzt statt eine Sonderlogik daneben zu bauen:
   - `SignOffFromArbeitseinsatzAsync(int arbeitseinsatzId, int mitgliedId)`
-  - fachliche VorabprÃƒÂ¼fung auf gÃƒÂ¼ltigen Arbeitseinsatz/Mitgliedsbezug
-  - PrÃƒÂ¼fung, ob ÃƒÂ¼berhaupt eine aktive Anmeldung fÃƒÂ¼r dieses Mitglied besteht
-  - produktiver RPC-Aufruf ÃƒÂ¼ber `sign_off_from_arbeitseinsatz(...)`
-  - verstÃƒÂ¤ndliche RÃƒÂ¼ckmeldung statt technischer Rohfehler
-- Die WPF-Detailview wurde fÃƒÂ¼r Admin/Vorstand gezielt erweitert:
-  - pro Teilnehmerzeile zusÃƒÂ¤tzlicher Button `Abmelden`
-  - kleine RÃƒÂ¼ckfrage vor der Aktion
+  - fachliche VorabprÃƒÆ’Ã‚Â¼fung auf gÃƒÆ’Ã‚Â¼ltigen Arbeitseinsatz/Mitgliedsbezug
+  - PrÃƒÆ’Ã‚Â¼fung, ob ÃƒÆ’Ã‚Â¼berhaupt eine aktive Anmeldung fÃƒÆ’Ã‚Â¼r dieses Mitglied besteht
+  - produktiver RPC-Aufruf ÃƒÆ’Ã‚Â¼ber `sign_off_from_arbeitseinsatz(...)`
+  - verstÃƒÆ’Ã‚Â¤ndliche RÃƒÆ’Ã‚Â¼ckmeldung statt technischer Rohfehler
+- Die WPF-Detailview wurde fÃƒÆ’Ã‚Â¼r Admin/Vorstand gezielt erweitert:
+  - pro Teilnehmerzeile zusÃƒÆ’Ã‚Â¤tzlicher Button `Abmelden`
+  - kleine RÃƒÆ’Ã‚Â¼ckfrage vor der Aktion
   - keine neue Dialogstrecke und keine freie Eingabe
-  - normale Nutzeransicht bleibt unverÃƒÂ¤ndert
-- Nach erfolgreichem oder fachlich abgefangenem Abmelden werden Teilnehmerliste und Detailzustand direkt neu geladen. Dadurch aktualisieren sich ÃƒÂ¼ber den bestehenden Detailpfad auch KapazitÃƒÂ¤ts- und Anmeldeinformationen mit.
+  - normale Nutzeransicht bleibt unverÃƒÆ’Ã‚Â¤ndert
+- Nach erfolgreichem oder fachlich abgefangenem Abmelden werden Teilnehmerliste und Detailzustand direkt neu geladen. Dadurch aktualisieren sich ÃƒÆ’Ã‚Â¼ber den bestehenden Detailpfad auch KapazitÃƒÆ’Ã‚Â¤ts- und Anmeldeinformationen mit.
 - Der Block bleibt bewusst klein:
   - keine Warteliste
   - keine Historienlogik
   - kein direkter Tabellenhack
   - kein Schattenpfad neben den echten DB-Funktionen
-- Technisch verifiziert: `KGV.Wpf` baut nach dem neuen Abmeldepfad erfolgreich; MAUI wurde durch die kleine Shared-Service-Erweiterung nicht beschÃƒÂ¤digt.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem neuen Abmeldepfad erfolgreich; MAUI wurde durch die kleine Shared-Service-Erweiterung nicht beschÃƒÆ’Ã‚Â¤digt.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Arbeitseinsatz-Block final geprÃƒÂ¼ft, gebaut und sauber abgeschlossen
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Arbeitseinsatz-Block final geprÃƒÆ’Ã‚Â¼ft, gebaut und sauber abgeschlossen
 
-- Den aktuellen Arbeitsbaum nochmals gezielt gegen den Auftrag geprÃƒÂ¼ft. Ergebnis: die fachlichen und technischen Ãƒâ€žnderungen dieses Blocks waren bereits im Repo umgesetzt; lokal offen waren nur blockfremde Dateien und Artefakte, die bewusst nicht aufgenommen wurden.
-- Die Zielpunkte des Blocks nochmals real bestÃƒÂ¤tigt:
-  - `Anmelden` ist sichtbar, wenn Anmeldung fachlich mÃƒÂ¶glich ist
+- Den aktuellen Arbeitsbaum nochmals gezielt gegen den Auftrag geprÃƒÆ’Ã‚Â¼ft. Ergebnis: die fachlichen und technischen ÃƒÆ’Ã¢â‚¬Å¾nderungen dieses Blocks waren bereits im Repo umgesetzt; lokal offen waren nur blockfremde Dateien und Artefakte, die bewusst nicht aufgenommen wurden.
+- Die Zielpunkte des Blocks nochmals real bestÃƒÆ’Ã‚Â¤tigt:
+  - `Anmelden` ist sichtbar, wenn Anmeldung fachlich mÃƒÆ’Ã‚Â¶glich ist
   - Home und Detail nutzen denselben echten Pfad `SignUpForArbeitseinsatzAsync(...)`
-  - dieser Shared-Service schreibt weiter produktiv ÃƒÂ¼ber `sign_up_for_arbeitseinsatz(...)`
-  - Teilnehmerliste nur fÃƒÂ¼r Admin/Vorstand in der Detailview
-  - `HinzufÃƒÂ¼gen` nur fÃƒÂ¼r Admin/Vorstand
-  - `HinzufÃƒÂ¼gen` verwendet die bestehende Maske `Mitglied suchen`
-  - das ausgewÃƒÂ¤hlte bestehende Mitglied wird ÃƒÂ¼ber denselben Anmeldungspfad eingetragen wie bei Selbstanmeldung
-- Die Ursache fÃƒÂ¼r das frÃƒÂ¼here Verschwinden von `Anmelden` bleibt damit klar bestÃƒÂ¤tigt: nicht der RPC war defekt, sondern die Sichtbarkeit hing zu eng nur am Startseitenzustand. Der Shared-Service bestimmt die Anmeldbarkeit jetzt belastbar aus realem `arbeitseinsatz`- und `arbeitseinsatz_anmeldung`-Zustand gegen Frist, Platzgrenze und bestehende Anmeldung.
-- Den technischen Abschluss ebenfalls nochmals sauber verifiziert: `KGV.Wpf` final gebaut. Ein erster Lauf scheiterte nur an einer gesperrten laufenden `KGV.Wpf`-Instanz; nach Beenden des Prozesses lief der Build erfolgreich durch. Kein neuer Codepfad und keine neue Fachlogik waren dafÃƒÂ¼r mehr nÃƒÂ¶tig.
-- Der Block ist damit jetzt wirklich abgeschlossen; fÃƒÂ¼r diesen finalen Schritt werden nur die fortgefÃƒÂ¼hrten Logdateien committed und gepusht, blockfremde lokale Ãƒâ€žnderungen bleiben unberÃƒÂ¼hrt.
+  - dieser Shared-Service schreibt weiter produktiv ÃƒÆ’Ã‚Â¼ber `sign_up_for_arbeitseinsatz(...)`
+  - Teilnehmerliste nur fÃƒÆ’Ã‚Â¼r Admin/Vorstand in der Detailview
+  - `HinzufÃƒÆ’Ã‚Â¼gen` nur fÃƒÆ’Ã‚Â¼r Admin/Vorstand
+  - `HinzufÃƒÆ’Ã‚Â¼gen` verwendet die bestehende Maske `Mitglied suchen`
+  - das ausgewÃƒÆ’Ã‚Â¤hlte bestehende Mitglied wird ÃƒÆ’Ã‚Â¼ber denselben Anmeldungspfad eingetragen wie bei Selbstanmeldung
+- Die Ursache fÃƒÆ’Ã‚Â¼r das frÃƒÆ’Ã‚Â¼here Verschwinden von `Anmelden` bleibt damit klar bestÃƒÆ’Ã‚Â¤tigt: nicht der RPC war defekt, sondern die Sichtbarkeit hing zu eng nur am Startseitenzustand. Der Shared-Service bestimmt die Anmeldbarkeit jetzt belastbar aus realem `arbeitseinsatz`- und `arbeitseinsatz_anmeldung`-Zustand gegen Frist, Platzgrenze und bestehende Anmeldung.
+- Den technischen Abschluss ebenfalls nochmals sauber verifiziert: `KGV.Wpf` final gebaut. Ein erster Lauf scheiterte nur an einer gesperrten laufenden `KGV.Wpf`-Instanz; nach Beenden des Prozesses lief der Build erfolgreich durch. Kein neuer Codepfad und keine neue Fachlogik waren dafÃƒÆ’Ã‚Â¼r mehr nÃƒÆ’Ã‚Â¶tig.
+- Der Block ist damit jetzt wirklich abgeschlossen; fÃƒÆ’Ã‚Â¼r diesen finalen Schritt werden nur die fortgefÃƒÆ’Ã‚Â¼hrten Logdateien committed und gepusht, blockfremde lokale ÃƒÆ’Ã¢â‚¬Å¾nderungen bleiben unberÃƒÆ’Ã‚Â¼hrt.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Arbeitseinsatz-Regression bei `Anmelden` und Admin-/Vorstand-Teilnehmerblock sauber abgeschlossen
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Arbeitseinsatz-Regression bei `Anmelden` und Admin-/Vorstand-Teilnehmerblock sauber abgeschlossen
 
-- Den begonnenen Block zuerst wieder gegen den realen Arbeitsbaum und ausdrÃƒÂ¼cklich gegen den lokalen DB-Analyseexport `_AI_DB_EXPORT` geprÃƒÂ¼ft. FÃƒÂ¼r diesen Abschluss waren erneut relevant:
+- Den begonnenen Block zuerst wieder gegen den realen Arbeitsbaum und ausdrÃƒÆ’Ã‚Â¼cklich gegen den lokalen DB-Analyseexport `_AI_DB_EXPORT` geprÃƒÆ’Ã‚Â¼ft. FÃƒÆ’Ã‚Â¼r diesen Abschluss waren erneut relevant:
   - `database.types.ts` mit Tabelle `arbeitseinsatz_anmeldung`
   - Enum `arbeitseinsatz_anmeldung_status`
   - Funktion `sign_up_for_arbeitseinsatz(p_arbeitseinsatz_id, p_mitglied_id)` als echter Schreibpfad
-  - `roles.sql` ohne abweichende zusÃƒÂ¤tzliche App-Regeln
-  - `AI_DATABASE_CONTEXT.sql` ohne zusÃƒÂ¤tzlichen alternativen App-Schreibpfad
-- TatsÃƒÂ¤chliche Ursache der neuen Regression: `Anmelden` war nicht wegen eines fehlenden RPC verschwunden, sondern wegen der Sichtbarkeit. `CanRegister` hing im sichtbaren UI zu eng nur am Startseitenzustand. Der Shared-Service ermittelt den Anmeldestatus jetzt wieder aus den realen Basisdaten von `arbeitseinsatz` plus aktiven `arbeitseinsatz_anmeldung`-DatensÃƒÂ¤tzen gegen Frist, Platzgrenze und bereits vorhandene Anmeldung im aktuellen Benutzerkontext.
+  - `roles.sql` ohne abweichende zusÃƒÆ’Ã‚Â¤tzliche App-Regeln
+  - `AI_DATABASE_CONTEXT.sql` ohne zusÃƒÆ’Ã‚Â¤tzlichen alternativen App-Schreibpfad
+- TatsÃƒÆ’Ã‚Â¤chliche Ursache der neuen Regression: `Anmelden` war nicht wegen eines fehlenden RPC verschwunden, sondern wegen der Sichtbarkeit. `CanRegister` hing im sichtbaren UI zu eng nur am Startseitenzustand. Der Shared-Service ermittelt den Anmeldestatus jetzt wieder aus den realen Basisdaten von `arbeitseinsatz` plus aktiven `arbeitseinsatz_anmeldung`-DatensÃƒÆ’Ã‚Â¤tzen gegen Frist, Platzgrenze und bereits vorhandene Anmeldung im aktuellen Benutzerkontext.
 - Damit ist die Sichtbarkeit jetzt wieder fachlich belastbar bestimmt:
-  - sichtbar, wenn Anmeldung im echten Zustand mÃƒÂ¶glich ist
-  - nicht sichtbar, wenn bereits angemeldet, Frist abgelaufen oder keine PlÃƒÂ¤tze frei
+  - sichtbar, wenn Anmeldung im echten Zustand mÃƒÆ’Ã‚Â¶glich ist
+  - nicht sichtbar, wenn bereits angemeldet, Frist abgelaufen oder keine PlÃƒÆ’Ã‚Â¤tze frei
   - kein zweiter Schattenpfad neben dem RPC
 - Home und Detail nutzen weiterhin denselben echten Produktpfad:
   - Home ruft `SignUpForArbeitseinsatzAsync(...)`
   - Detail ruft ebenfalls `SignUpForArbeitseinsatzAsync(...)`
-  - beide schreiben produktiv ÃƒÂ¼ber `sign_up_for_arbeitseinsatz(...)`
-- Die Detailview wurde fÃƒÂ¼r Admin/Vorstand jetzt gezielt erweitert, ohne die normale Ansicht zu verÃƒÂ¤ndern:
-  - Teilnehmerliste nur fÃƒÂ¼r Admin/Vorstand
-  - `HinzufÃƒÂ¼gen` nur fÃƒÂ¼r Admin/Vorstand
-  - reale Teilnehmerdaten aus aktiven `arbeitseinsatz_anmeldung`-DatensÃƒÂ¤tzen
-  - keine Teilnehmerliste fÃƒÂ¼r normale Nutzer
-- `HinzufÃƒÂ¼gen` lÃƒÂ¤uft ausschlieÃƒÅ¸lich ÃƒÂ¼ber Modell A:
+  - beide schreiben produktiv ÃƒÆ’Ã‚Â¼ber `sign_up_for_arbeitseinsatz(...)`
+- Die Detailview wurde fÃƒÆ’Ã‚Â¼r Admin/Vorstand jetzt gezielt erweitert, ohne die normale Ansicht zu verÃƒÆ’Ã‚Â¤ndern:
+  - Teilnehmerliste nur fÃƒÆ’Ã‚Â¼r Admin/Vorstand
+  - `HinzufÃƒÆ’Ã‚Â¼gen` nur fÃƒÆ’Ã‚Â¼r Admin/Vorstand
+  - reale Teilnehmerdaten aus aktiven `arbeitseinsatz_anmeldung`-DatensÃƒÆ’Ã‚Â¤tzen
+  - keine Teilnehmerliste fÃƒÆ’Ã‚Â¼r normale Nutzer
+- `HinzufÃƒÆ’Ã‚Â¼gen` lÃƒÆ’Ã‚Â¤uft ausschlieÃƒÆ’Ã…Â¸lich ÃƒÆ’Ã‚Â¼ber Modell A:
   - bestehende Maske `Mitglied suchen` wird im Auswahlmodus wiederverwendet
   - keine freie Texteingabe
-  - keine PrÃƒÂ¼fung, ob das gewÃƒÂ¤hlte Mitglied App-User ist
-  - ausgewÃƒÂ¤hltes bestehendes Mitglied wird anschlieÃƒÅ¸end ÃƒÂ¼ber denselben RPC-Pfad angemeldet wie bei Selbstanmeldung
+  - keine PrÃƒÆ’Ã‚Â¼fung, ob das gewÃƒÆ’Ã‚Â¤hlte Mitglied App-User ist
+  - ausgewÃƒÆ’Ã‚Â¤hltes bestehendes Mitglied wird anschlieÃƒÆ’Ã…Â¸end ÃƒÆ’Ã‚Â¼ber denselben RPC-Pfad angemeldet wie bei Selbstanmeldung
 - Den begonnenen technischen Randpunkt ebenfalls sauber finalisiert:
   - kleine Warnungsbereinigung im Auswahlpfad abgeschlossen
   - `KGV.Wpf` baut danach erfolgreich
-  - der Block ist damit jetzt wirklich abgeschlossen und commit-/push-fÃƒÂ¤hig
+  - der Block ist damit jetzt wirklich abgeschlossen und commit-/push-fÃƒÆ’Ã‚Â¤hig
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: `Anmelden` fÃƒÂ¼r Arbeitseinsatz im sichtbaren UI wirklich funktionsfÃƒÂ¤hig gemacht, Teilnehmerblock bewusst noch offen gelassen
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: `Anmelden` fÃƒÆ’Ã‚Â¼r Arbeitseinsatz im sichtbaren UI wirklich funktionsfÃƒÆ’Ã‚Â¤hig gemacht, Teilnehmerblock bewusst noch offen gelassen
 
-- Den realen Fehlernachweis nochmals gegen den tatsÃƒÂ¤chlich laufenden WPF-Pfad gefÃƒÂ¼hrt: `HomeView.xaml`, `HomeViewModel`, `HomeSectionDetailView.xaml`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext` und `SupabaseService` waren bereits auf denselben Shared-Servicepfad fÃƒÂ¼r `Anmelden` verdrahtet; der HÃƒÂ¤nger lag nicht mehr in einer fehlenden RPC-Anbindung.
-- TatsÃƒÂ¤chliche Ursache des sichtbaren No-Op: das sichtbare Home-Item fÃƒÂ¼r `Arbeitseinsatz` erhielt im Mapping seine `id` nicht. Dadurch wurde in der Detailansicht `WorkAssignmentId = 0` weitergereicht und der Detail-Command lief in einen stillen Vorab-Abbruch. Auch der Home-Pfad arbeitete damit nicht auf einem belastbaren ArbeitseinsatzschlÃƒÂ¼ssel.
+- Den realen Fehlernachweis nochmals gegen den tatsÃƒÆ’Ã‚Â¤chlich laufenden WPF-Pfad gefÃƒÆ’Ã‚Â¼hrt: `HomeView.xaml`, `HomeViewModel`, `HomeSectionDetailView.xaml`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext` und `SupabaseService` waren bereits auf denselben Shared-Servicepfad fÃƒÆ’Ã‚Â¼r `Anmelden` verdrahtet; der HÃƒÆ’Ã‚Â¤nger lag nicht mehr in einer fehlenden RPC-Anbindung.
+- TatsÃƒÆ’Ã‚Â¤chliche Ursache des sichtbaren No-Op: das sichtbare Home-Item fÃƒÆ’Ã‚Â¼r `Arbeitseinsatz` erhielt im Mapping seine `id` nicht. Dadurch wurde in der Detailansicht `WorkAssignmentId = 0` weitergereicht und der Detail-Command lief in einen stillen Vorab-Abbruch. Auch der Home-Pfad arbeitete damit nicht auf einem belastbaren ArbeitseinsatzschlÃƒÆ’Ã‚Â¼ssel.
 - Den Korrekturpfad deshalb klein direkt an der Ursache umgesetzt:
-  - `MapHomeWorkAssignment(...)` ÃƒÂ¼bernimmt jetzt `record.Id` in das sichtbare `HomeWorkAssignmentItem`
+  - `MapHomeWorkAssignment(...)` ÃƒÆ’Ã‚Â¼bernimmt jetzt `record.Id` in das sichtbare `HomeWorkAssignmentItem`
   - `HomeViewModel` setzt `ShowRegisterButton` im Detailkontext jetzt ehrlich aus `item.CanRegister` statt pauschal auf `true`
-  - `HomeView.xaml` zeigt den Home-Button nur dann an, wenn `CanRegister` tatsÃƒÂ¤chlich gilt
-  - `HomeSectionDetailViewModel` meldet einen ungÃƒÂ¼ltigen Detailkontext jetzt sichtbar, statt still zu `return`en
+  - `HomeView.xaml` zeigt den Home-Button nur dann an, wenn `CanRegister` tatsÃƒÆ’Ã‚Â¤chlich gilt
+  - `HomeSectionDetailViewModel` meldet einen ungÃƒÆ’Ã‚Â¼ltigen Detailkontext jetzt sichtbar, statt still zu `return`en
 - Ergebnis des Fixpfads:
   - Home-Button reagiert jetzt real auf den vorhandenen RPC-Pfad
   - Detail-Button reagiert ebenfalls real auf denselben RPC-Pfad
   - es gibt keine stillen Klicks mehr ohne Nutzerreaktion
   - nach erfolgreicher Anmeldung bleibt die kleine UI-Aktualisierung des bestehenden Blocks erhalten
-- Den Admin-/Vorstand-Teilnehmerblock bewusst noch nicht erÃƒÂ¶ffnet:
+- Den Admin-/Vorstand-Teilnehmerblock bewusst noch nicht erÃƒÆ’Ã‚Â¶ffnet:
   - keine Teilnehmerliste
-  - kein `HinzufÃƒÂ¼gen`
-  - keine neue Detailerweiterung fÃƒÂ¼r Admin/Vorstand
-  - dieser Block blieb ausdrÃƒÂ¼cklich nur auf dem normalen `Anmelden`-Pfad
-- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten UI-/Datensatzfix erfolgreich; MAUI wurde durch die kleine Shared-/WPF-Korrektur nicht beschÃƒÂ¤digt.
+  - kein `HinzufÃƒÆ’Ã‚Â¼gen`
+  - keine neue Detailerweiterung fÃƒÆ’Ã‚Â¼r Admin/Vorstand
+  - dieser Block blieb ausdrÃƒÆ’Ã‚Â¼cklich nur auf dem normalen `Anmelden`-Pfad
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten UI-/Datensatzfix erfolgreich; MAUI wurde durch die kleine Shared-/WPF-Korrektur nicht beschÃƒÆ’Ã‚Â¤digt.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: RPC-Anmeldeblock fÃƒÂ¼r Arbeitseinsatz sauber abgeschlossen, committed und gepusht
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: RPC-Anmeldeblock fÃƒÆ’Ã‚Â¼r Arbeitseinsatz sauber abgeschlossen, committed und gepusht
 
 - Den begonnenen Arbeitseinsatz-Anmeldeblock ohne neue Fachlogik sauber abgeschlossen.
-- Abschlussverifikation: `KGV.Wpf` baut erfolgreich; der produktive Pfad bleibt `sign_up_for_arbeitseinsatz(...)` ÃƒÂ¼ber den Shared-Service `SignUpForArbeitseinsatzAsync(...)`.
-- Home und Detailview nutzen weiterhin denselben Servicepfad; es wurde kein zweiter ViewModel-Schreibpfad erÃƒÂ¶ffnet.
-- Doppelanmeldung, abgelaufene Frist und volle Platzgrenze bleiben vor dem RPC geprÃƒÂ¼ft und werden zusÃƒÂ¤tzlich bei einem mÃƒÂ¶glichen RPC-Rennen verstÃƒÂ¤ndlich abgefangen.
-- FÃƒÂ¼r Commit und Push wurden ausschlieÃƒÅ¸lich die Blockdateien aufgenommen; blockfremde lokale Ãƒâ€žnderungen und Artefakte blieben bewusst unberÃƒÂ¼hrt.
+- Abschlussverifikation: `KGV.Wpf` baut erfolgreich; der produktive Pfad bleibt `sign_up_for_arbeitseinsatz(...)` ÃƒÆ’Ã‚Â¼ber den Shared-Service `SignUpForArbeitseinsatzAsync(...)`.
+- Home und Detailview nutzen weiterhin denselben Servicepfad; es wurde kein zweiter ViewModel-Schreibpfad erÃƒÆ’Ã‚Â¶ffnet.
+- Doppelanmeldung, abgelaufene Frist und volle Platzgrenze bleiben vor dem RPC geprÃƒÆ’Ã‚Â¼ft und werden zusÃƒÆ’Ã‚Â¤tzlich bei einem mÃƒÆ’Ã‚Â¶glichen RPC-Rennen verstÃƒÆ’Ã‚Â¤ndlich abgefangen.
+- FÃƒÆ’Ã‚Â¼r Commit und Push wurden ausschlieÃƒÆ’Ã…Â¸lich die Blockdateien aufgenommen; blockfremde lokale ÃƒÆ’Ã¢â‚¬Å¾nderungen und Artefakte blieben bewusst unberÃƒÆ’Ã‚Â¼hrt.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: `Anmelden` fÃƒÂ¼r Arbeitseinsatz produktiv ÃƒÂ¼ber den echten DB-Funktionspfad angeschlossen
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: `Anmelden` fÃƒÆ’Ã‚Â¼r Arbeitseinsatz produktiv ÃƒÆ’Ã‚Â¼ber den echten DB-Funktionspfad angeschlossen
 
-- Den Block zuerst ausdrÃƒÂ¼cklich gegen den lokalen DB-Analyseexport `_AI_DB_EXPORT` gefÃƒÂ¼hrt und nicht gegen Vermutungen. Belastbar geprÃƒÂ¼ft wurden `database.types.ts`, `roles.sql` sowie der mitreferenzierte SQL-Kontext. Ausschlaggebend war dabei die in `database.types.ts` bestÃƒÂ¤tigte DB-Struktur:
+- Den Block zuerst ausdrÃƒÆ’Ã‚Â¼cklich gegen den lokalen DB-Analyseexport `_AI_DB_EXPORT` gefÃƒÆ’Ã‚Â¼hrt und nicht gegen Vermutungen. Belastbar geprÃƒÆ’Ã‚Â¼ft wurden `database.types.ts`, `roles.sql` sowie der mitreferenzierte SQL-Kontext. Ausschlaggebend war dabei die in `database.types.ts` bestÃƒÆ’Ã‚Â¤tigte DB-Struktur:
   - Tabelle `arbeitseinsatz_anmeldung`
   - Enum `arbeitseinsatz_anmeldung_status` mit u. a. `angemeldet`
-  - Funktion `sign_up_for_arbeitseinsatz(p_arbeitseinsatz_id, p_mitglied_id)` mit RÃƒÂ¼ckgabe eines `arbeitseinsatz_anmeldung`-Datensatzes
-  - Funktion `sign_off_from_arbeitseinsatz(...)`, die fÃƒÂ¼r diesen Block bewusst noch nicht produktiv geÃƒÂ¶ffnet wurde
-- Daraus den fachlich richtigen Produktpfad abgeleitet: fÃƒÂ¼r die Anmeldung wird produktiv der vorhandene RPC-/DB-Funktionspfad `sign_up_for_arbeitseinsatz(...)` verwendet statt eines App-seitigen Direktinserts in `arbeitseinsatz_anmeldung`.
-- Den aktuellen Repo-Istzustand davor nochmals geprÃƒÂ¼ft:
+  - Funktion `sign_up_for_arbeitseinsatz(p_arbeitseinsatz_id, p_mitglied_id)` mit RÃƒÆ’Ã‚Â¼ckgabe eines `arbeitseinsatz_anmeldung`-Datensatzes
+  - Funktion `sign_off_from_arbeitseinsatz(...)`, die fÃƒÆ’Ã‚Â¼r diesen Block bewusst noch nicht produktiv geÃƒÆ’Ã‚Â¶ffnet wurde
+- Daraus den fachlich richtigen Produktpfad abgeleitet: fÃƒÆ’Ã‚Â¼r die Anmeldung wird produktiv der vorhandene RPC-/DB-Funktionspfad `sign_up_for_arbeitseinsatz(...)` verwendet statt eines App-seitigen Direktinserts in `arbeitseinsatz_anmeldung`.
+- Den aktuellen Repo-Istzustand davor nochmals geprÃƒÆ’Ã‚Â¼ft:
   - Home und Detailview hatten bereits sichtbare `Anmelden`-Buttons
   - beide hingen aber noch an einer reinen Hinweislogik in `HomeViewModel` bzw. `HomeSectionDetailViewModel`
-  - ein echter Schreibpfad im `SupabaseService` existierte dafÃƒÂ¼r im aktuellen Repo noch nicht
-- Den produktiven Shared-Servicepfad deshalb klein ergÃƒÂ¤nzt: `SignUpForArbeitseinsatzAsync(int arbeitseinsatzId, int mitgliedId)` lÃƒÂ¤uft jetzt zentral ÃƒÂ¼ber `SupabaseService` und wird ÃƒÂ¼ber `ISupabaseService` bereitgestellt.
-- Vor dem eigentlichen RPC werden die geforderten Mindestregeln real und klein geprÃƒÂ¼ft:
-  - fehlender Arbeitseinsatz-/Mitgliedsbezug -> verstÃƒÂ¤ndliche RÃƒÂ¼ckmeldung
-  - bestehende aktive Anmeldung (`arbeitseinsatz_anmeldung.status = angemeldet`) -> keine Doppelanmeldung, verstÃƒÂ¤ndliche RÃƒÂ¼ckmeldung
-  - `anmeldung_bis` abgelaufen -> verstÃƒÂ¤ndliche RÃƒÂ¼ckmeldung
-  - `max_teilnehmer` gesetzt und bereits erreicht -> verstÃƒÂ¤ndliche RÃƒÂ¼ckmeldung
-  - `max_teilnehmer = NULL` -> normale Anmeldung zulÃƒÂ¤ssig
+  - ein echter Schreibpfad im `SupabaseService` existierte dafÃƒÆ’Ã‚Â¼r im aktuellen Repo noch nicht
+- Den produktiven Shared-Servicepfad deshalb klein ergÃƒÆ’Ã‚Â¤nzt: `SignUpForArbeitseinsatzAsync(int arbeitseinsatzId, int mitgliedId)` lÃƒÆ’Ã‚Â¤uft jetzt zentral ÃƒÆ’Ã‚Â¼ber `SupabaseService` und wird ÃƒÆ’Ã‚Â¼ber `ISupabaseService` bereitgestellt.
+- Vor dem eigentlichen RPC werden die geforderten Mindestregeln real und klein geprÃƒÆ’Ã‚Â¼ft:
+  - fehlender Arbeitseinsatz-/Mitgliedsbezug -> verstÃƒÆ’Ã‚Â¤ndliche RÃƒÆ’Ã‚Â¼ckmeldung
+  - bestehende aktive Anmeldung (`arbeitseinsatz_anmeldung.status = angemeldet`) -> keine Doppelanmeldung, verstÃƒÆ’Ã‚Â¤ndliche RÃƒÆ’Ã‚Â¼ckmeldung
+  - `anmeldung_bis` abgelaufen -> verstÃƒÆ’Ã‚Â¤ndliche RÃƒÆ’Ã‚Â¼ckmeldung
+  - `max_teilnehmer` gesetzt und bereits erreicht -> verstÃƒÆ’Ã‚Â¤ndliche RÃƒÆ’Ã‚Â¼ckmeldung
+  - `max_teilnehmer = NULL` -> normale Anmeldung zulÃƒÆ’Ã‚Â¤ssig
   - keine Warteliste und keine Abmeldung in diesem Block
-- FÃƒÂ¼r den eigentlichen Schreibschritt wird anschlieÃƒÅ¸end der bestÃƒÂ¤tigte DB-Funktionspfad genutzt:
+- FÃƒÆ’Ã‚Â¼r den eigentlichen Schreibschritt wird anschlieÃƒÆ’Ã…Â¸end der bestÃƒÆ’Ã‚Â¤tigte DB-Funktionspfad genutzt:
   - `client.Rpc<ArbeitseinsatzAnmeldungRecord>("sign_up_for_arbeitseinsatz", ...)`
   - damit bleibt die App auf dem vorhandenen DB-Vertrag statt neuer Schattenarchitektur
-  - falls im Rennen zwischen VorabprÃƒÂ¼fung und RPC doch ein DB-seitiger Konflikt auftritt, wird dieser klein in eine verstÃƒÂ¤ndliche App-RÃƒÂ¼ckmeldung ÃƒÂ¼bersetzt
+  - falls im Rennen zwischen VorabprÃƒÆ’Ã‚Â¼fung und RPC doch ein DB-seitiger Konflikt auftritt, wird dieser klein in eine verstÃƒÆ’Ã‚Â¤ndliche App-RÃƒÆ’Ã‚Â¼ckmeldung ÃƒÆ’Ã‚Â¼bersetzt
 - Home und Detailview nutzen jetzt denselben echten Servicepfad statt doppelter Logik:
   - `HomeViewModel.RegisterForWorkAssignmentCommand` ruft den Shared-Service auf
-  - `HomeSectionDetailViewModel.AnmeldenCommand` ruft denselben Shared-Service ÃƒÂ¼ber den im Detailkontext mitgegebenen `WorkAssignmentId` auf
-  - die Detailansicht erhielt dafÃƒÂ¼r nur den kleinen zusÃƒÂ¤tzlichen Kontextwert `WorkAssignmentId`, keine neue Navigation
+  - `HomeSectionDetailViewModel.AnmeldenCommand` ruft denselben Shared-Service ÃƒÆ’Ã‚Â¼ber den im Detailkontext mitgegebenen `WorkAssignmentId` auf
+  - die Detailansicht erhielt dafÃƒÆ’Ã‚Â¼r nur den kleinen zusÃƒÆ’Ã‚Â¤tzlichen Kontextwert `WorkAssignmentId`, keine neue Navigation
 - Den Mitgliedsbezug bewusst am real vorhandenen Benutzerpfad gehalten:
   - bevorzugt `UserContext.MitgliedId`
-  - kleiner Fallback ÃƒÂ¼ber `EnsureCurrentMemberSelectedAsync()`
+  - kleiner Fallback ÃƒÆ’Ã‚Â¼ber `EnsureCurrentMemberSelectedAsync()`
   - keine neue Sonderzuordnung
 - UI-Verhalten nach erfolgreicher Anmeldung produktiv klein gehalten:
-  - Home und Detail erhalten den aktualisierten Startseiten-Datensatz zurÃƒÂ¼ck
-  - Registrierungs-/KapazitÃƒÂ¤tsanzeige wird damit direkt nachgezogen
-  - der Button wird ehrlich deaktiviert, damit keine zweite direkte Anmeldung aus derselben Sitzung ausgelÃƒÂ¶st wird
-  - keine neue groÃƒÅ¸e UI-Architektur
-- MAUI wurde in diesem Block nicht mit neuer OberflÃƒÂ¤che ausgebaut, aber der produktive Anmeldepfad liegt jetzt im Shared-Service und ist damit fÃƒÂ¼r spÃƒÂ¤tere mobile ParitÃƒÂ¤t vorbereitet statt verbaut.
+  - Home und Detail erhalten den aktualisierten Startseiten-Datensatz zurÃƒÆ’Ã‚Â¼ck
+  - Registrierungs-/KapazitÃƒÆ’Ã‚Â¤tsanzeige wird damit direkt nachgezogen
+  - der Button wird ehrlich deaktiviert, damit keine zweite direkte Anmeldung aus derselben Sitzung ausgelÃƒÆ’Ã‚Â¶st wird
+  - keine neue groÃƒÆ’Ã…Â¸e UI-Architektur
+- MAUI wurde in diesem Block nicht mit neuer OberflÃƒÆ’Ã‚Â¤che ausgebaut, aber der produktive Anmeldepfad liegt jetzt im Shared-Service und ist damit fÃƒÆ’Ã‚Â¼r spÃƒÆ’Ã‚Â¤tere mobile ParitÃƒÆ’Ã‚Â¤t vorbereitet statt verbaut.
 - Offene Restpunkte bewusst klein gelassen:
-  - `sign_off_from_arbeitseinsatz(...)` bleibt fÃƒÂ¼r einen spÃƒÂ¤teren separaten Block offen
+  - `sign_off_from_arbeitseinsatz(...)` bleibt fÃƒÆ’Ã‚Â¼r einen spÃƒÆ’Ã‚Â¤teren separaten Block offen
   - keine Warteliste
-  - keine zusÃƒÂ¤tzliche Anmeldehistorien-UI
-- Technisch verifiziert: `KGV.Wpf` baut nach dem produktiven Arbeitseinsatz-Anmeldeblock erfolgreich; MAUI wurde durch die Shared-Service-Erweiterung nicht beschÃƒÂ¤digt.
+  - keine zusÃƒÆ’Ã‚Â¤tzliche Anmeldehistorien-UI
+- Technisch verifiziert: `KGV.Wpf` baut nach dem produktiven Arbeitseinsatz-Anmeldeblock erfolgreich; MAUI wurde durch die Shared-Service-Erweiterung nicht beschÃƒÆ’Ã‚Â¤digt.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Start-/Endzeit fÃƒÂ¼r Arbeitseinsatz und Termin final aus dem echten Home-Lesepfad nachgereicht
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Start-/Endzeit fÃƒÆ’Ã‚Â¼r Arbeitseinsatz und Termin final aus dem echten Home-Lesepfad nachgereicht
 
-- Den verbleibenden Restfehler nach der expliziten WPF-Bindung nochmals bewusst Ende-zu-Ende geprÃƒÂ¼ft: `SupabaseService`, Home-Items, `HomeViewModel`, `HomeSectionDetailContext`, `HomeSectionDetailViewModel`, `HomeView.xaml` und `HomeSectionDetailView.xaml` waren weiterhin die sichtbare Strecke; dort war die Bindung inzwischen korrekt.
-- Der tatsÃƒÂ¤chliche HÃƒÂ¤nger saÃƒÅ¸ davor im Datenursprung des Home-Pfads: die Startseiten-Views `v_startseite_arbeitseinsatz` und `v_startseite_termine` lieferten `Beginn`/`Ende` im aktuellen Stand nicht in jedem Fall belastbar, obwohl die Zeiten in den Basistabellen `arbeitseinsatz.start_uhrzeit`, `arbeitseinsatz.end_uhrzeit`, `termin.start_uhrzeit` und `termin.end_uhrzeit` vorhanden sein konnten.
+- Den verbleibenden Restfehler nach der expliziten WPF-Bindung nochmals bewusst Ende-zu-Ende geprÃƒÆ’Ã‚Â¼ft: `SupabaseService`, Home-Items, `HomeViewModel`, `HomeSectionDetailContext`, `HomeSectionDetailViewModel`, `HomeView.xaml` und `HomeSectionDetailView.xaml` waren weiterhin die sichtbare Strecke; dort war die Bindung inzwischen korrekt.
+- Der tatsÃƒÆ’Ã‚Â¤chliche HÃƒÆ’Ã‚Â¤nger saÃƒÆ’Ã…Â¸ davor im Datenursprung des Home-Pfads: die Startseiten-Views `v_startseite_arbeitseinsatz` und `v_startseite_termine` lieferten `Beginn`/`Ende` im aktuellen Stand nicht in jedem Fall belastbar, obwohl die Zeiten in den Basistabellen `arbeitseinsatz.start_uhrzeit`, `arbeitseinsatz.end_uhrzeit`, `termin.start_uhrzeit` und `termin.end_uhrzeit` vorhanden sein konnten.
 - Den finalen Fix deshalb klein am vorhandenen Home-Servicepfad umgesetzt statt nochmals an der View zu drehen:
-  - `LoadStartseiteArbeitseinsaetzeAsync()` lÃƒÂ¤dt weiter aus `v_startseite_arbeitseinsatz`
-  - `LoadStartseiteTermineAsync()` lÃƒÂ¤dt weiter aus `v_startseite_termine`
-  - wenn dort `Beginn`/`Ende` leer ankommen, werden die Zeitwerte gezielt ÃƒÂ¼ber die vorhandene Datensatz-`Id` aus `arbeitseinsatz` bzw. `termin` nachangereichert
-  - die Nachanreicherung greift nur fÃƒÂ¼r fehlende Zeitwerte; bestehende View-Werte bleiben unverÃƒÂ¤ndert
+  - `LoadStartseiteArbeitseinsaetzeAsync()` lÃƒÆ’Ã‚Â¤dt weiter aus `v_startseite_arbeitseinsatz`
+  - `LoadStartseiteTermineAsync()` lÃƒÆ’Ã‚Â¤dt weiter aus `v_startseite_termine`
+  - wenn dort `Beginn`/`Ende` leer ankommen, werden die Zeitwerte gezielt ÃƒÆ’Ã‚Â¼ber die vorhandene Datensatz-`Id` aus `arbeitseinsatz` bzw. `termin` nachangereichert
+  - die Nachanreicherung greift nur fÃƒÆ’Ã‚Â¼r fehlende Zeitwerte; bestehende View-Werte bleiben unverÃƒÆ’Ã‚Â¤ndert
 - Damit ist jetzt final abgesichert:
-  - `start_uhrzeit` und `end_uhrzeit` erreichen den tatsÃƒÂ¤chlich sichtbaren WPF-Pfad auch dann, wenn die Startseiten-View sie im aktuellen Stand leer lÃƒÂ¤sst
+  - `start_uhrzeit` und `end_uhrzeit` erreichen den tatsÃƒÆ’Ã‚Â¤chlich sichtbaren WPF-Pfad auch dann, wenn die Startseiten-View sie im aktuellen Stand leer lÃƒÆ’Ã‚Â¤sst
   - Home zeigt den Zeitraum weiter aus derselben einen Zeitquelle
   - die Detailansicht rendert `Beginn` und `Ende` weiter explizit als eigene Datensatzangaben
-  - `Bekanntmachung` bleibt unverÃƒÂ¤ndert unbeeintrÃƒÂ¤chtigt
+  - `Bekanntmachung` bleibt unverÃƒÆ’Ã‚Â¤ndert unbeeintrÃƒÆ’Ã‚Â¤chtigt
 - Fachlich bleibt der Block bewusst klein: keine neue Home-Architektur, keine neue Navigation, keine Schattenlogik, sondern nur eine gezielte Fallback-Anreicherung im bestehenden Lese-/Mappingpfad.
-- Technisch verifiziert: `KGV.Wpf` baut nach dem finalen Home-Zeitfix erfolgreich; MAUI wurde durch die kleine Shared-Service-ErgÃƒÂ¤nzung nicht beschÃƒÂ¤digt.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem finalen Home-Zeitfix erfolgreich; MAUI wurde durch die kleine Shared-Service-ErgÃƒÆ’Ã‚Â¤nzung nicht beschÃƒÆ’Ã‚Â¤digt.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Start- und Endzeit im tatsÃƒÂ¤chlich sichtbaren WPF-Pfad final sichtbar gemacht
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Start- und Endzeit im tatsÃƒÆ’Ã‚Â¤chlich sichtbaren WPF-Pfad final sichtbar gemacht
 
-- Den sichtbaren Restfehler ausdrÃƒÂ¼cklich nochmals Ende-zu-Ende gegen den real gerenderten WPF-Pfad geprÃƒÂ¼ft: `SupabaseService`, Home-Items, `HomeViewModel`, `HomeSectionDetailContext`, `HomeSectionDetailViewModel`, `HomeView.xaml` und `HomeSectionDetailView.xaml` waren gemeinsam die tatsÃƒÂ¤chlich sichtbare Strecke dieses Blocks.
-- Ergebnis der PrÃƒÂ¼fung: `start_uhrzeit` und `end_uhrzeit` kamen im Mapping als normalisierte Werte grundsÃƒÂ¤tzlich an, blieben im UI aber weiterhin nicht zuverlÃƒÂ¤ssig genug sichtbar, weil der letzte Pfad noch zu stark an einem zusammengesetzten Zeitfeld hing und die Detailansicht die Zeiten nicht als eigene Datensatzangaben renderte.
-- Die Korrektur deshalb jetzt am tatsÃƒÂ¤chlich sichtbaren Anzeigeursprung umgesetzt:
+- Den sichtbaren Restfehler ausdrÃƒÆ’Ã‚Â¼cklich nochmals Ende-zu-Ende gegen den real gerenderten WPF-Pfad geprÃƒÆ’Ã‚Â¼ft: `SupabaseService`, Home-Items, `HomeViewModel`, `HomeSectionDetailContext`, `HomeSectionDetailViewModel`, `HomeView.xaml` und `HomeSectionDetailView.xaml` waren gemeinsam die tatsÃƒÆ’Ã‚Â¤chlich sichtbare Strecke dieses Blocks.
+- Ergebnis der PrÃƒÆ’Ã‚Â¼fung: `start_uhrzeit` und `end_uhrzeit` kamen im Mapping als normalisierte Werte grundsÃƒÆ’Ã‚Â¤tzlich an, blieben im UI aber weiterhin nicht zuverlÃƒÆ’Ã‚Â¤ssig genug sichtbar, weil der letzte Pfad noch zu stark an einem zusammengesetzten Zeitfeld hing und die Detailansicht die Zeiten nicht als eigene Datensatzangaben renderte.
+- Die Korrektur deshalb jetzt am tatsÃƒÆ’Ã‚Â¤chlich sichtbaren Anzeigeursprung umgesetzt:
   - `HomeWorkAssignmentItem` und `HomeAppointmentItem` tragen jetzt explizit `StartTimeText` und `EndTimeText`
-  - der Home-/Detailkontext ÃƒÂ¼bernimmt dieselben Felder 1:1 fÃƒÂ¼r genau den ausgewÃƒÂ¤hlten Datensatz
+  - der Home-/Detailkontext ÃƒÆ’Ã‚Â¼bernimmt dieselben Felder 1:1 fÃƒÆ’Ã‚Â¼r genau den ausgewÃƒÆ’Ã‚Â¤hlten Datensatz
   - `SupabaseService` schreibt die vorhandenen `Beginn`-/`Ende`-Werte nach `NormalizeTimeValue(...)` gezielt in diese Felder
 - Damit war belastbar abgesichert:
   - `start_uhrzeit` / `end_uhrzeit` kommen im Modell an
-  - sie werden nicht mehr erst spÃƒÂ¤t oder indirekt aus `Subtitle`, `AdditionalInfo` oder anderen Nebenfeldern abgeleitet
+  - sie werden nicht mehr erst spÃƒÆ’Ã‚Â¤t oder indirekt aus `Subtitle`, `AdditionalInfo` oder anderen Nebenfeldern abgeleitet
   - die final sichtbare Bindung greift direkt auf diese expliziten Start-/Endfelder zu
 - Home-Anzeige finaler Sichtpfad:
   - `HomeView.xaml` zeigt den Zeitraum weiter als klare Zeitzeile aus genau dieser einen Quelle
@@ -5994,22 +6033,22 @@
   - wenn beide Zeiten vorhanden sind, erscheint konsistent `Start - Ende`
 - Detailanzeige finaler Sichtpfad:
   - `HomeSectionDetailView.xaml` rendert `Beginn` und `Ende` jetzt als eigene sichtbare Datensatzangaben
-  - die Zeit ist damit fÃƒÂ¼r `Arbeitseinsatz` und `Termin` nicht nur implizit oder im FlieÃƒÅ¸text vorhanden, sondern explizit im sichtbaren UI erkennbar
-  - der Detailpfad bleibt weiterhin auf die Skalardaten des ausgewÃƒÂ¤hlten Datensatzes beschrÃƒÂ¤nkt
-- `Bekanntmachung` wurde erneut mitgeprÃƒÂ¼ft und nicht verschlechtert: dort bleiben die neuen Zeitfelder leer, wÃƒÂ¤hrend die generische Detailstruktur unverÃƒÂ¤ndert funktioniert.
-- Technisch verifiziert: `KGV.Wpf` baut nach dem finalen Sichtbarkeitsfix erfolgreich; MAUI wurde durch die kleinen Modell-/KontextergÃƒÂ¤nzungen nicht beschÃƒÂ¤digt.
+  - die Zeit ist damit fÃƒÆ’Ã‚Â¼r `Arbeitseinsatz` und `Termin` nicht nur implizit oder im FlieÃƒÆ’Ã…Â¸text vorhanden, sondern explizit im sichtbaren UI erkennbar
+  - der Detailpfad bleibt weiterhin auf die Skalardaten des ausgewÃƒÆ’Ã‚Â¤hlten Datensatzes beschrÃƒÆ’Ã‚Â¤nkt
+- `Bekanntmachung` wurde erneut mitgeprÃƒÆ’Ã‚Â¼ft und nicht verschlechtert: dort bleiben die neuen Zeitfelder leer, wÃƒÆ’Ã‚Â¤hrend die generische Detailstruktur unverÃƒÆ’Ã‚Â¤ndert funktioniert.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem finalen Sichtbarkeitsfix erfolgreich; MAUI wurde durch die kleinen Modell-/KontextergÃƒÆ’Ã‚Â¤nzungen nicht beschÃƒÆ’Ã‚Â¤digt.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Start- und Endzeit im tatsÃƒÂ¤chlich sichtbaren WPF-Pfad final sichtbar gemacht
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Start- und Endzeit im tatsÃƒÆ’Ã‚Â¤chlich sichtbaren WPF-Pfad final sichtbar gemacht
 
-- Den sichtbaren Restfehler ausdrÃƒÂ¼cklich nochmals Ende-zu-Ende gegen den real gerenderten WPF-Pfad geprÃƒÂ¼ft: `SupabaseService`, Home-Items, `HomeViewModel`, `HomeSectionDetailContext`, `HomeSectionDetailViewModel`, `HomeView.xaml` und `HomeSectionDetailView.xaml` waren gemeinsam die tatsÃƒÂ¤chlich sichtbare Strecke dieses Blocks.
-- Ergebnis der PrÃƒÂ¼fung: `start_uhrzeit` und `end_uhrzeit` kamen im Mapping als normalisierte Werte grundsÃƒÂ¤tzlich an, blieben im UI aber weiterhin nicht zuverlÃƒÂ¤ssig genug sichtbar, weil der letzte Pfad noch zu stark an einem zusammengesetzten Zeitfeld hing und die Detailansicht die Zeiten nicht als eigene Datensatzangaben renderte.
-- Die Korrektur deshalb jetzt am tatsÃƒÂ¤chlich sichtbaren Anzeigeursprung umgesetzt:
+- Den sichtbaren Restfehler ausdrÃƒÆ’Ã‚Â¼cklich nochmals Ende-zu-Ende gegen den real gerenderten WPF-Pfad geprÃƒÆ’Ã‚Â¼ft: `SupabaseService`, Home-Items, `HomeViewModel`, `HomeSectionDetailContext`, `HomeSectionDetailViewModel`, `HomeView.xaml` und `HomeSectionDetailView.xaml` waren gemeinsam die tatsÃƒÆ’Ã‚Â¤chlich sichtbare Strecke dieses Blocks.
+- Ergebnis der PrÃƒÆ’Ã‚Â¼fung: `start_uhrzeit` und `end_uhrzeit` kamen im Mapping als normalisierte Werte grundsÃƒÆ’Ã‚Â¤tzlich an, blieben im UI aber weiterhin nicht zuverlÃƒÆ’Ã‚Â¤ssig genug sichtbar, weil der letzte Pfad noch zu stark an einem zusammengesetzten Zeitfeld hing und die Detailansicht die Zeiten nicht als eigene Datensatzangaben renderte.
+- Die Korrektur deshalb jetzt am tatsÃƒÆ’Ã‚Â¤chlich sichtbaren Anzeigeursprung umgesetzt:
   - `HomeWorkAssignmentItem` und `HomeAppointmentItem` tragen jetzt explizit `StartTimeText` und `EndTimeText`
-  - der Home-/Detailkontext ÃƒÂ¼bernimmt dieselben Felder 1:1 fÃƒÂ¼r genau den ausgewÃƒÂ¤hlten Datensatz
+  - der Home-/Detailkontext ÃƒÆ’Ã‚Â¼bernimmt dieselben Felder 1:1 fÃƒÆ’Ã‚Â¼r genau den ausgewÃƒÆ’Ã‚Â¤hlten Datensatz
   - `SupabaseService` schreibt die vorhandenen `Beginn`-/`Ende`-Werte nach `NormalizeTimeValue(...)` gezielt in diese Felder
 - Damit war belastbar abgesichert:
   - `start_uhrzeit` / `end_uhrzeit` kommen im Modell an
-  - sie werden nicht mehr erst spÃƒÂ¤t oder indirekt aus `Subtitle`, `AdditionalInfo` oder anderen Nebenfeldern abgeleitet
+  - sie werden nicht mehr erst spÃƒÆ’Ã‚Â¤t oder indirekt aus `Subtitle`, `AdditionalInfo` oder anderen Nebenfeldern abgeleitet
   - die final sichtbare Bindung greift direkt auf diese expliziten Start-/Endfelder zu
 - Home-Anzeige finaler Sichtpfad:
   - `HomeView.xaml` zeigt den Zeitraum weiter als klare Zeitzeile aus genau dieser einen Quelle
@@ -6017,282 +6056,282 @@
   - wenn beide Zeiten vorhanden sind, erscheint konsistent `Start - Ende`
 - Detailanzeige finaler Sichtpfad:
   - `HomeSectionDetailView.xaml` rendert `Beginn` und `Ende` jetzt als eigene sichtbare Datensatzangaben
-  - die Zeit ist damit fÃƒÂ¼r `Arbeitseinsatz` und `Termin` nicht nur implizit oder im FlieÃƒÅ¸text vorhanden, sondern explizit im sichtbaren UI erkennbar
-  - der Detailpfad bleibt weiterhin auf die Skalardaten des ausgewÃƒÂ¤hlten Datensatzes beschrÃƒÂ¤nkt
-- `Bekanntmachung` wurde erneut mitgeprÃƒÂ¼ft und nicht verschlechtert: dort bleiben die neuen Zeitfelder leer, wÃƒÂ¤hrend die generische Detailstruktur unverÃƒÂ¤ndert funktioniert.
-- Technisch verifiziert: `KGV.Wpf` baut nach dem finalen Sichtbarkeitsfix erfolgreich; MAUI wurde durch die kleinen Modell-/KontextergÃƒÂ¤nzungen nicht beschÃƒÂ¤digt.
+  - die Zeit ist damit fÃƒÆ’Ã‚Â¼r `Arbeitseinsatz` und `Termin` nicht nur implizit oder im FlieÃƒÆ’Ã…Â¸text vorhanden, sondern explizit im sichtbaren UI erkennbar
+  - der Detailpfad bleibt weiterhin auf die Skalardaten des ausgewÃƒÆ’Ã‚Â¤hlten Datensatzes beschrÃƒÆ’Ã‚Â¤nkt
+- `Bekanntmachung` wurde erneut mitgeprÃƒÆ’Ã‚Â¼ft und nicht verschlechtert: dort bleiben die neuen Zeitfelder leer, wÃƒÆ’Ã‚Â¤hrend die generische Detailstruktur unverÃƒÆ’Ã‚Â¤ndert funktioniert.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem finalen Sichtbarkeitsfix erfolgreich; MAUI wurde durch die kleinen Modell-/KontextergÃƒÆ’Ã‚Â¤nzungen nicht beschÃƒÆ’Ã‚Â¤digt.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Home-/Detailanzeige fÃƒÂ¼r Arbeitseinsatz und Termin gezielt korrigiert: Uhrzeit sichtbar, doppelte `Angemeldet`-Anzeige entfernt
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Home-/Detailanzeige fÃƒÆ’Ã‚Â¼r Arbeitseinsatz und Termin gezielt korrigiert: Uhrzeit sichtbar, doppelte `Angemeldet`-Anzeige entfernt
 
-- Den bestehenden Anzeige-/Mappingpfad erneut gegen den realen Istzustand geprÃƒÂ¼ft: `HomeView.xaml`, `HomeSectionDetailView.xaml`, `HomeViewModel`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, `HomeDashboardItems` und das Home-Mapping in `SupabaseService` waren der tatsÃƒÂ¤chliche Fehlerort dieses Blocks.
-- Sichtbarer Hauptbefund: die Uhrzeit hing bislang nicht an einem eindeutigen Anzeigeweg. Sie lief teils im `Subtitle`, teils als separater Beginn-Text und in der Detailansicht zusÃƒÂ¤tzlich in `AdditionalInfo`, wodurch sie im aktuellen UI nicht verlÃƒÂ¤sslich bzw. nicht klar genug sichtbar war.
+- Den bestehenden Anzeige-/Mappingpfad erneut gegen den realen Istzustand geprÃƒÆ’Ã‚Â¼ft: `HomeView.xaml`, `HomeSectionDetailView.xaml`, `HomeViewModel`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, `HomeDashboardItems` und das Home-Mapping in `SupabaseService` waren der tatsÃƒÆ’Ã‚Â¤chliche Fehlerort dieses Blocks.
+- Sichtbarer Hauptbefund: die Uhrzeit hing bislang nicht an einem eindeutigen Anzeigeweg. Sie lief teils im `Subtitle`, teils als separater Beginn-Text und in der Detailansicht zusÃƒÆ’Ã‚Â¤tzlich in `AdditionalInfo`, wodurch sie im aktuellen UI nicht verlÃƒÆ’Ã‚Â¤sslich bzw. nicht klar genug sichtbar war.
 - Den Zeitpfad deshalb gezielt auf eine einzige explizite Anzeigeform gezogen:
-  - `HomeWorkAssignmentItem` und `HomeAppointmentItem` tragen jetzt `TimeText` statt eines bloÃƒÅ¸en Beginnfelds
-  - `SupabaseService` erzeugt diesen Wert zentral ÃƒÂ¼ber `BuildTimeRange(...)` aus Start- und Endzeit
-  - `HomeView.xaml` rendert `Uhrzeit: {TimeText}` jetzt fÃƒÂ¼r `Arbeitseinsatz` und `Termin` sichtbar in der ÃƒÅ“bersicht
-  - damit ist mindestens die Startzeit sichtbar; wenn Ende vorhanden ist, erscheint konsistent `Start Ã¢â‚¬â€œ Ende`
-- Dieselbe Korrektur auf den Detailpfad ÃƒÂ¼bertragen:
-  - `HomeSectionDetailContext` wurde um `TimeText` ergÃƒÂ¤nzt
-  - `HomeSectionDetailViewModel` reicht ihn unverÃƒÂ¤ndert nur fÃƒÂ¼r den ausgewÃƒÂ¤hlten Datensatz weiter
+  - `HomeWorkAssignmentItem` und `HomeAppointmentItem` tragen jetzt `TimeText` statt eines bloÃƒÆ’Ã…Â¸en Beginnfelds
+  - `SupabaseService` erzeugt diesen Wert zentral ÃƒÆ’Ã‚Â¼ber `BuildTimeRange(...)` aus Start- und Endzeit
+  - `HomeView.xaml` rendert `Uhrzeit: {TimeText}` jetzt fÃƒÆ’Ã‚Â¼r `Arbeitseinsatz` und `Termin` sichtbar in der ÃƒÆ’Ã…â€œbersicht
+  - damit ist mindestens die Startzeit sichtbar; wenn Ende vorhanden ist, erscheint konsistent `Start ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Ende`
+- Dieselbe Korrektur auf den Detailpfad ÃƒÆ’Ã‚Â¼bertragen:
+  - `HomeSectionDetailContext` wurde um `TimeText` ergÃƒÆ’Ã‚Â¤nzt
+  - `HomeSectionDetailViewModel` reicht ihn unverÃƒÆ’Ã‚Â¤ndert nur fÃƒÆ’Ã‚Â¼r den ausgewÃƒÆ’Ã‚Â¤hlten Datensatz weiter
   - `HomeSectionDetailView.xaml` zeigt `Uhrzeit` jetzt separat sichtbar an
-  - dadurch sind Start- und Endzeit fÃƒÂ¼r den ausgewÃƒÂ¤hlten `Arbeitseinsatz` und `Termin` in der Detailansicht klar sichtbar, ohne neue Navigation oder Mehrfachanzeige
+  - dadurch sind Start- und Endzeit fÃƒÆ’Ã‚Â¼r den ausgewÃƒÆ’Ã‚Â¤hlten `Arbeitseinsatz` und `Termin` in der Detailansicht klar sichtbar, ohne neue Navigation oder Mehrfachanzeige
 - Die doppelte Anzeige `Angemeldet: 0` konkret am Mappingursprung beseitigt:
-  - bislang kamen KapazitÃƒÂ¤tsdaten zweimal aus demselben Datensatzpfad
-  - einmal als einzelne Zeilen `Angemeldet` / `Freie PlÃƒÂ¤tze` in `DetailInfo`
-  - zusÃƒÂ¤tzlich nochmals zusammengefasst in `RegistrationInfo` ÃƒÂ¼ber `BuildCapacityText(...)`
-  - der `Arbeitseinsatz`-Mappingpfad wurde deshalb bereinigt: `RegistrationInfo` bleibt als einzige KapazitÃƒÂ¤tsanzeige erhalten; die redundanten Einzelzeilen wurden aus `DetailInfo` entfernt
+  - bislang kamen KapazitÃƒÆ’Ã‚Â¤tsdaten zweimal aus demselben Datensatzpfad
+  - einmal als einzelne Zeilen `Angemeldet` / `Freie PlÃƒÆ’Ã‚Â¤tze` in `DetailInfo`
+  - zusÃƒÆ’Ã‚Â¤tzlich nochmals zusammengefasst in `RegistrationInfo` ÃƒÆ’Ã‚Â¼ber `BuildCapacityText(...)`
+  - der `Arbeitseinsatz`-Mappingpfad wurde deshalb bereinigt: `RegistrationInfo` bleibt als einzige KapazitÃƒÆ’Ã‚Â¤tsanzeige erhalten; die redundanten Einzelzeilen wurden aus `DetailInfo` entfernt
 - Ergebnis des Korrekturpfads:
-  - Home zeigt die Uhrzeit jetzt sichtbar und eindeutig fÃƒÂ¼r `Arbeitseinsatz` und `Termin`
-  - die Detailansicht zeigt Start-/Endzeit des ausgewÃƒÂ¤hlten Datensatzes sichtbar an
-  - `Angemeldet: 0` erscheint fÃƒÂ¼r `Arbeitseinsatz` nicht mehr mehrfach
-  - die Detailview bleibt auf die Skalardaten des konkret ausgewÃƒÂ¤hlten Datensatzes beschrÃƒÂ¤nkt und zeigt keine Sammel-/Mehrfachanzeige
-- `Bekanntmachung` und die generische Detailstruktur wurden mitgeprÃƒÂ¼ft und nicht verschlechtert: dort bleibt `TimeText` leer, wÃƒÂ¤hrend `Subtitle`, `AdditionalInfo` und `Content` unverÃƒÂ¤ndert funktionieren.
-- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Anzeige-Fixblock erfolgreich; MAUI wurde durch die kleinen Home-/Detailmodell- und Mappinganpassungen nicht beschÃƒÂ¤digt.
+  - Home zeigt die Uhrzeit jetzt sichtbar und eindeutig fÃƒÆ’Ã‚Â¼r `Arbeitseinsatz` und `Termin`
+  - die Detailansicht zeigt Start-/Endzeit des ausgewÃƒÆ’Ã‚Â¤hlten Datensatzes sichtbar an
+  - `Angemeldet: 0` erscheint fÃƒÆ’Ã‚Â¼r `Arbeitseinsatz` nicht mehr mehrfach
+  - die Detailview bleibt auf die Skalardaten des konkret ausgewÃƒÆ’Ã‚Â¤hlten Datensatzes beschrÃƒÆ’Ã‚Â¤nkt und zeigt keine Sammel-/Mehrfachanzeige
+- `Bekanntmachung` und die generische Detailstruktur wurden mitgeprÃƒÆ’Ã‚Â¼ft und nicht verschlechtert: dort bleibt `TimeText` leer, wÃƒÆ’Ã‚Â¤hrend `Subtitle`, `AdditionalInfo` und `Content` unverÃƒÆ’Ã‚Â¤ndert funktionieren.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Anzeige-Fixblock erfolgreich; MAUI wurde durch die kleinen Home-/Detailmodell- und Mappinganpassungen nicht beschÃƒÆ’Ã‚Â¤digt.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Home-/Detailansicht fÃƒÂ¼r ArbeitseinsÃƒÂ¤tze und Termine sichtbar vervollstÃƒÂ¤ndigt, ohne neue Schattenlogik
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Home-/Detailansicht fÃƒÆ’Ã‚Â¼r ArbeitseinsÃƒÆ’Ã‚Â¤tze und Termine sichtbar vervollstÃƒÆ’Ã‚Â¤ndigt, ohne neue Schattenlogik
 
-- Den vorhandenen Home-/Detailpfad zuerst vollstÃƒÂ¤ndig gegen den realen Arbeitsbaum geprÃƒÂ¼ft: `HomeView.xaml`, `HomeViewModel`, `HomeSectionDetailView.xaml`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, die Home-Item-Modelle sowie das Mapping in `SupabaseService` waren bereits produktiv vorhanden und dienten als Basis des Blocks.
-- Ergebnis der IstzustandsprÃƒÂ¼fung:
+- Den vorhandenen Home-/Detailpfad zuerst vollstÃƒÆ’Ã‚Â¤ndig gegen den realen Arbeitsbaum geprÃƒÆ’Ã‚Â¼ft: `HomeView.xaml`, `HomeViewModel`, `HomeSectionDetailView.xaml`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, die Home-Item-Modelle sowie das Mapping in `SupabaseService` waren bereits produktiv vorhanden und dienten als Basis des Blocks.
+- Ergebnis der IstzustandsprÃƒÆ’Ã‚Â¼fung:
   - `Arbeitseinsatz` trug die Startzeit im Home-Item bereits separat als `BeginText`
   - `Termin` hatte die Zeit zwar indirekt im Untertitel/Detailmapping, aber noch nicht separat sichtbar in der Home-Karte
-  - die Detailansicht arbeitete bereits mit einem generischen Kontext aus Skalardaten, zeigte aber die Registrierungsinformation des ausgewÃƒÂ¤hlten Datensatzes noch nicht separat an
+  - die Detailansicht arbeitete bereits mit einem generischen Kontext aus Skalardaten, zeigte aber die Registrierungsinformation des ausgewÃƒÆ’Ã‚Â¤hlten Datensatzes noch nicht separat an
   - der `Anmelden`-Button war im Detailpfad nicht konsistent genug an den Arbeitseinsatz-Kontext gebunden
-- Die Home-ÃƒÅ“bersicht deshalb gezielt fachlich vervollstÃƒÂ¤ndigt und nicht umgebaut:
-  - `HomeAppointmentItem` wurde um `BeginText`/`HasBeginText` ergÃƒÂ¤nzt
+- Die Home-ÃƒÆ’Ã…â€œbersicht deshalb gezielt fachlich vervollstÃƒÆ’Ã‚Â¤ndigt und nicht umgebaut:
+  - `HomeAppointmentItem` wurde um `BeginText`/`HasBeginText` ergÃƒÆ’Ã‚Â¤nzt
   - das Termin-Mapping in `SupabaseService` reicht den normalisierten Beginn jetzt explizit in das Home-Item durch
   - `HomeView.xaml` zeigt damit bei `Termin` den Beginn sichtbar in derselben kleinen Kartenlogik wie bei `Arbeitseinsatz`
   - `Arbeitseinsatz` blieb bei der bereits passenden sichtbaren Beginn-Anzeige
-- Die Detailansicht innerhalb des bestehenden generischen Pfads vervollstÃƒÂ¤ndigt:
-  - `HomeSectionDetailContext` trÃƒÂ¤gt jetzt zusÃƒÂ¤tzlich `RegistrationInfo` und einen expliziten Schalter fÃƒÂ¼r die Sichtbarkeit der Anmelden-Aktion
+- Die Detailansicht innerhalb des bestehenden generischen Pfads vervollstÃƒÆ’Ã‚Â¤ndigt:
+  - `HomeSectionDetailContext` trÃƒÆ’Ã‚Â¤gt jetzt zusÃƒÆ’Ã‚Â¤tzlich `RegistrationInfo` und einen expliziten Schalter fÃƒÆ’Ã‚Â¼r die Sichtbarkeit der Anmelden-Aktion
   - `HomeSectionDetailViewModel` reicht diese Daten 1:1 an die View weiter, ohne neue Sammel- oder Listenlogik
-  - `HomeSectionDetailView.xaml` zeigt die Registrierungsinformation des ausgewÃƒÂ¤hlten Datensatzes jetzt in derselben Detailkarte zusÃƒÂ¤tzlich an
-  - der `Anmelden`-Button bleibt in der Detailansicht fÃƒÂ¼r `Arbeitseinsatz` sichtbar und verwendet denselben ehrlichen Hinweisdialog wie auf Home
-- Den Punkt Ã¢â‚¬Å¾Detailview zeigt nur den ausgewÃƒÂ¤hlten DatensatzÃ¢â‚¬Å“ bewusst am bestehenden Architekturpfad abgesichert:
-  - `HomeViewModel` ÃƒÂ¼bergibt beim Ãƒâ€“ffnen der Detailansicht ausschlieÃƒÅ¸lich die Skalardaten des konkret ausgewÃƒÂ¤hlten Home-Items
-  - keine Listen, keine Mehrfachobjekte und kein nachtrÃƒÂ¤gliches Nachladen eines unscharfen Datensatzpools im Detailpfad
+  - `HomeSectionDetailView.xaml` zeigt die Registrierungsinformation des ausgewÃƒÆ’Ã‚Â¤hlten Datensatzes jetzt in derselben Detailkarte zusÃƒÆ’Ã‚Â¤tzlich an
+  - der `Anmelden`-Button bleibt in der Detailansicht fÃƒÆ’Ã‚Â¼r `Arbeitseinsatz` sichtbar und verwendet denselben ehrlichen Hinweisdialog wie auf Home
+- Den Punkt ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Detailview zeigt nur den ausgewÃƒÆ’Ã‚Â¤hlten DatensatzÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ bewusst am bestehenden Architekturpfad abgesichert:
+  - `HomeViewModel` ÃƒÆ’Ã‚Â¼bergibt beim ÃƒÆ’Ã¢â‚¬â€œffnen der Detailansicht ausschlieÃƒÆ’Ã…Â¸lich die Skalardaten des konkret ausgewÃƒÆ’Ã‚Â¤hlten Home-Items
+  - keine Listen, keine Mehrfachobjekte und kein nachtrÃƒÆ’Ã‚Â¤gliches Nachladen eines unscharfen Datensatzpools im Detailpfad
   - dadurch bleibt die Detailansicht auf genau den angeklickten Datensatz begrenzt
-- `Termin`, `Arbeitseinsatz` und `Bekanntmachung` bleiben dabei im selben generischen DetailgerÃƒÂ¼st:
-  - `Arbeitseinsatz` erhÃƒÂ¤lt zusÃƒÂ¤tzliche sichtbare Registrierungs-/Aktionskonsistenz
-  - `Termin` erhÃƒÂ¤lt die separate Startzeit auf Home und behÃƒÂ¤lt die Datensatzdetails im Detailkontext
+- `Termin`, `Arbeitseinsatz` und `Bekanntmachung` bleiben dabei im selben generischen DetailgerÃƒÆ’Ã‚Â¼st:
+  - `Arbeitseinsatz` erhÃƒÆ’Ã‚Â¤lt zusÃƒÆ’Ã‚Â¤tzliche sichtbare Registrierungs-/Aktionskonsistenz
+  - `Termin` erhÃƒÆ’Ã‚Â¤lt die separate Startzeit auf Home und behÃƒÆ’Ã‚Â¤lt die Datensatzdetails im Detailkontext
   - `Bekanntmachung` verliert keine bestehenden Felder; die generische Detaildarstellung bleibt intakt
-- Offener Restpunkt bleibt bewusst unverÃƒÂ¤ndert klein: der echte produktive Schreibpfad fÃƒÂ¼r `Anmelden` ist im Repo weiterhin nicht belastbar vorhanden. Deshalb bleibt die Aktion auf Home und in der Detailansicht eine ehrliche Info-Verdrahtung statt neuer Fake-Fachlogik.
-- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Home-/Detailblock erfolgreich; MAUI wurde durch die kleinen Kontext-/DarstellungsÃƒÂ¤nderungen nicht beschÃƒÂ¤digt.
+- Offener Restpunkt bleibt bewusst unverÃƒÆ’Ã‚Â¤ndert klein: der echte produktive Schreibpfad fÃƒÆ’Ã‚Â¼r `Anmelden` ist im Repo weiterhin nicht belastbar vorhanden. Deshalb bleibt die Aktion auf Home und in der Detailansicht eine ehrliche Info-Verdrahtung statt neuer Fake-Fachlogik.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Home-/Detailblock erfolgreich; MAUI wurde durch die kleinen Kontext-/DarstellungsÃƒÆ’Ã‚Â¤nderungen nicht beschÃƒÆ’Ã‚Â¤digt.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Arbeitsstunden endgÃƒÂ¼ltig gegen `id = 0` abgesichert, Save-RÃƒÂ¼cknavigation abgeschlossen, Arbeitseinsatz-Home-Buttons korrigiert
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Arbeitsstunden endgÃƒÆ’Ã‚Â¼ltig gegen `id = 0` abgesichert, Save-RÃƒÆ’Ã‚Â¼cknavigation abgeschlossen, Arbeitseinsatz-Home-Buttons korrigiert
 
-- Den Block erneut bewusst gegen den realen laufenden Produktpfad gefÃƒÂ¼hrt, weil der erneute Datensatz `arbeitsstunde.id = 0` belegt hat, dass der vorige Schutz im tatsÃƒÂ¤chlichen Laufzeitverhalten noch nicht ausreichte.
-- Den kompletten Create-Pfad fÃƒÂ¼r `arbeitsstunde` nochmals Ende-zu-Ende geprÃƒÂ¼ft:
-  - WPF-Erfassung ÃƒÂ¼ber `ArbeitsstundenErfassungViewModel`
-  - WPF-Dialogpfad ÃƒÂ¼ber `ArbeitsstundenViewModel`
-  - MAUI-Erfassung ÃƒÂ¼ber `MyArbeitsstundenPage`
-  - Persistenzpfad ÃƒÂ¼ber `SupabaseService.AddArbeitsstundeAsync(...)`
+- Den Block erneut bewusst gegen den realen laufenden Produktpfad gefÃƒÆ’Ã‚Â¼hrt, weil der erneute Datensatz `arbeitsstunde.id = 0` belegt hat, dass der vorige Schutz im tatsÃƒÆ’Ã‚Â¤chlichen Laufzeitverhalten noch nicht ausreichte.
+- Den kompletten Create-Pfad fÃƒÆ’Ã‚Â¼r `arbeitsstunde` nochmals Ende-zu-Ende geprÃƒÆ’Ã‚Â¼ft:
+  - WPF-Erfassung ÃƒÆ’Ã‚Â¼ber `ArbeitsstundenErfassungViewModel`
+  - WPF-Dialogpfad ÃƒÆ’Ã‚Â¼ber `ArbeitsstundenViewModel`
+  - MAUI-Erfassung ÃƒÆ’Ã‚Â¼ber `MyArbeitsstundenPage`
+  - Persistenzpfad ÃƒÆ’Ã‚Â¼ber `SupabaseService.AddArbeitsstundeAsync(...)`
   - Ergebnis: die Aufrufer erzeugen weiterhin neue `ArbeitsstundeRecord`-Instanzen ohne fachliche `Id`, typbedingt aber mit lokalem Default `0`
-- Daraus die jetzt robuste technische Konsequenz gezogen: auf Attributverhalten allein wird fÃƒÂ¼r `arbeitsstunde` nicht mehr vertraut. Stattdessen verwendet der Create-Pfad nun einen expliziten Insert-Payloadtyp ohne `Id` (`ArbeitsstundeInsertRecord`).
-- Der tatsÃƒÂ¤chliche Korrekturpfad fÃƒÂ¼r den Insertfehler ist damit jetzt zweistufig belastbar:
-  - `AddArbeitsstundeAsync(...)` mappt neue DatensÃƒÂ¤tze in einen separaten Insert-Payload ohne PrimÃƒÂ¤rschlÃƒÂ¼sselspalte
-  - die Create-Payload ÃƒÂ¼bernimmt `Id` grundsÃƒÂ¤tzlich ÃƒÂ¼berhaupt nicht mehr; damit kann auch ein ankommendes `ArbeitsstundeRecord` mit `Id <= 0` technisch nicht mehr in einen Insert mit `id = 0` mÃƒÂ¼nden
-  - Updates bleiben unverÃƒÂ¤ndert ÃƒÂ¼ber `UpdateArbeitsstundeAsync(...)` und die echte bestehende `Id`
+- Daraus die jetzt robuste technische Konsequenz gezogen: auf Attributverhalten allein wird fÃƒÆ’Ã‚Â¼r `arbeitsstunde` nicht mehr vertraut. Stattdessen verwendet der Create-Pfad nun einen expliziten Insert-Payloadtyp ohne `Id` (`ArbeitsstundeInsertRecord`).
+- Der tatsÃƒÆ’Ã‚Â¤chliche Korrekturpfad fÃƒÆ’Ã‚Â¼r den Insertfehler ist damit jetzt zweistufig belastbar:
+  - `AddArbeitsstundeAsync(...)` mappt neue DatensÃƒÆ’Ã‚Â¤tze in einen separaten Insert-Payload ohne PrimÃƒÆ’Ã‚Â¤rschlÃƒÆ’Ã‚Â¼sselspalte
+  - die Create-Payload ÃƒÆ’Ã‚Â¼bernimmt `Id` grundsÃƒÆ’Ã‚Â¤tzlich ÃƒÆ’Ã‚Â¼berhaupt nicht mehr; damit kann auch ein ankommendes `ArbeitsstundeRecord` mit `Id <= 0` technisch nicht mehr in einen Insert mit `id = 0` mÃƒÆ’Ã‚Â¼nden
+  - Updates bleiben unverÃƒÆ’Ã‚Â¤ndert ÃƒÆ’Ã‚Â¼ber `UpdateArbeitsstundeAsync(...)` und die echte bestehende `Id`
   - keine `lastrow+1`-Logik
-- Den Abschluss des Userflows fÃƒÂ¼r Arbeitsstunden zugleich produktiv nachgezogen:
+- Den Abschluss des Userflows fÃƒÆ’Ã‚Â¼r Arbeitsstunden zugleich produktiv nachgezogen:
   - nach erfolgreichem Speichern in `Arbeitsstunden erfassen` bleibt die Eingabemaske nicht mehr offen stehen
-  - im Dialogkontext schlieÃƒÅ¸t sich das Fenster wie bisher
-  - im normalen WPF-Erfassungspfad wird nach erfolgreichem Save sauber zurÃƒÂ¼ck auf `Home` navigiert
-- Dasselbe Abschlussverhalten jetzt auch fÃƒÂ¼r `Arbeitsstunden freigeben` umgesetzt:
-  - Checkbox-/Status-Speichern bleibt wie im letzten Fix mÃƒÂ¶glich
-  - wenn alle geÃƒÂ¤nderten/markierten Zeilen erfolgreich gespeichert wurden, navigiert die WPF-PrÃƒÂ¼fansicht anschlieÃƒÅ¸end wieder auf `Home` zurÃƒÂ¼ck
+  - im Dialogkontext schlieÃƒÆ’Ã…Â¸t sich das Fenster wie bisher
+  - im normalen WPF-Erfassungspfad wird nach erfolgreichem Save sauber zurÃƒÆ’Ã‚Â¼ck auf `Home` navigiert
+- Dasselbe Abschlussverhalten jetzt auch fÃƒÆ’Ã‚Â¼r `Arbeitsstunden freigeben` umgesetzt:
+  - Checkbox-/Status-Speichern bleibt wie im letzten Fix mÃƒÆ’Ã‚Â¶glich
+  - wenn alle geÃƒÆ’Ã‚Â¤nderten/markierten Zeilen erfolgreich gespeichert wurden, navigiert die WPF-PrÃƒÆ’Ã‚Â¼fansicht anschlieÃƒÆ’Ã…Â¸end wieder auf `Home` zurÃƒÆ’Ã‚Â¼ck
   - der Fachpfad bleibt klein: `status` bleibt optionales Anmerkungsfeld, offen bleibt `freigegeben = false`, Freigabe setzt weiter `freigegeben = true`, `genehmigt_am`, `genehmigt_von`
-- ZusÃƒÂ¤tzlich den Home-Pfad fÃƒÂ¼r `Arbeitseinsatz` auf den gewÃƒÂ¼nschten Interaktionsstand zurÃƒÂ¼ckgezogen:
+- ZusÃƒÆ’Ã‚Â¤tzlich den Home-Pfad fÃƒÆ’Ã‚Â¼r `Arbeitseinsatz` auf den gewÃƒÆ’Ã‚Â¼nschten Interaktionsstand zurÃƒÆ’Ã‚Â¼ckgezogen:
   - der separate `Details`-Button wurde entfernt
-  - DetailÃƒÂ¶ffnung lÃƒÂ¤uft jetzt per Doppelklick auf die Karte
+  - DetailÃƒÆ’Ã‚Â¶ffnung lÃƒÆ’Ã‚Â¤uft jetzt per Doppelklick auf die Karte
   - stattdessen bleibt dort `Anmelden` sichtbar
-  - weil weiterhin kein belastbarer produktiver Schreibpfad fÃƒÂ¼r echte Anmeldungen im Repo nachweisbar ist, bleibt der Button bewusst eine ehrliche Info-Aktion statt neuer Schattenlogik
-- Technisch verifiziert: `KGV.Wpf` baut nach dem Abschlussblock erfolgreich; MAUI wurde im Shared-Arbeitsstundenpfad mitgedacht und nicht beschÃƒÂ¤digt.
+  - weil weiterhin kein belastbarer produktiver Schreibpfad fÃƒÆ’Ã‚Â¼r echte Anmeldungen im Repo nachweisbar ist, bleibt der Button bewusst eine ehrliche Info-Aktion statt neuer Schattenlogik
+- Technisch verifiziert: `KGV.Wpf` baut nach dem Abschlussblock erfolgreich; MAUI wurde im Shared-Arbeitsstundenpfad mitgedacht und nicht beschÃƒÆ’Ã‚Â¤digt.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Home-/Detailanzeige fÃƒÂ¼r Arbeitseinsatz und Termin gezielt korrigiert: Uhrzeit sichtbar, doppelte `Angemeldet`-Anzeige entfernt
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Home-/Detailanzeige fÃƒÆ’Ã‚Â¼r Arbeitseinsatz und Termin gezielt korrigiert: Uhrzeit sichtbar, doppelte `Angemeldet`-Anzeige entfernt
 
-- Den bestehenden Anzeige-/Mappingpfad erneut gegen den realen Istzustand geprÃƒÂ¼ft: `HomeView.xaml`, `HomeSectionDetailView.xaml`, `HomeViewModel`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, `HomeDashboardItems` und das Home-Mapping in `SupabaseService` waren der tatsÃƒÂ¤chliche Fehlerort dieses Blocks.
-- Sichtbarer Hauptbefund: die Uhrzeit hing bislang nicht an einem eindeutigen Anzeigeweg. Sie lief teils im `Subtitle`, teils als separater Beginn-Text und in der Detailansicht zusÃƒÂ¤tzlich in `AdditionalInfo`, wodurch sie im aktuellen UI nicht verlÃƒÂ¤sslich bzw. nicht klar genug sichtbar war.
+- Den bestehenden Anzeige-/Mappingpfad erneut gegen den realen Istzustand geprÃƒÆ’Ã‚Â¼ft: `HomeView.xaml`, `HomeSectionDetailView.xaml`, `HomeViewModel`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, `HomeDashboardItems` und das Home-Mapping in `SupabaseService` waren der tatsÃƒÆ’Ã‚Â¤chliche Fehlerort dieses Blocks.
+- Sichtbarer Hauptbefund: die Uhrzeit hing bislang nicht an einem eindeutigen Anzeigeweg. Sie lief teils im `Subtitle`, teils als separater Beginn-Text und in der Detailansicht zusÃƒÆ’Ã‚Â¤tzlich in `AdditionalInfo`, wodurch sie im aktuellen UI nicht verlÃƒÆ’Ã‚Â¤sslich bzw. nicht klar genug sichtbar war.
 - Den Zeitpfad deshalb gezielt auf eine einzige explizite Anzeigeform gezogen:
-  - `HomeWorkAssignmentItem` und `HomeAppointmentItem` tragen jetzt `TimeText` statt eines bloÃƒÅ¸en Beginnfelds
-  - `SupabaseService` erzeugt diesen Wert zentral ÃƒÂ¼ber `BuildTimeRange(...)` aus Start- und Endzeit
-  - `HomeView.xaml` rendert `Uhrzeit: {TimeText}` jetzt fÃƒÂ¼r `Arbeitseinsatz` und `Termin` sichtbar in der ÃƒÅ“bersicht
-  - damit ist mindestens die Startzeit sichtbar; wenn Ende vorhanden ist, erscheint konsistent `Start Ã¢â‚¬â€œ Ende`
-- Dieselbe Korrektur auf den Detailpfad ÃƒÂ¼bertragen:
-  - `HomeSectionDetailContext` wurde um `TimeText` ergÃƒÂ¤nzt
-  - `HomeSectionDetailViewModel` reicht ihn unverÃƒÂ¤ndert nur fÃƒÂ¼r den ausgewÃƒÂ¤hlten Datensatz weiter
+  - `HomeWorkAssignmentItem` und `HomeAppointmentItem` tragen jetzt `TimeText` statt eines bloÃƒÆ’Ã…Â¸en Beginnfelds
+  - `SupabaseService` erzeugt diesen Wert zentral ÃƒÆ’Ã‚Â¼ber `BuildTimeRange(...)` aus Start- und Endzeit
+  - `HomeView.xaml` rendert `Uhrzeit: {TimeText}` jetzt fÃƒÆ’Ã‚Â¼r `Arbeitseinsatz` und `Termin` sichtbar in der ÃƒÆ’Ã…â€œbersicht
+  - damit ist mindestens die Startzeit sichtbar; wenn Ende vorhanden ist, erscheint konsistent `Start ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Ende`
+- Dieselbe Korrektur auf den Detailpfad ÃƒÆ’Ã‚Â¼bertragen:
+  - `HomeSectionDetailContext` wurde um `TimeText` ergÃƒÆ’Ã‚Â¤nzt
+  - `HomeSectionDetailViewModel` reicht ihn unverÃƒÆ’Ã‚Â¤ndert nur fÃƒÆ’Ã‚Â¼r den ausgewÃƒÆ’Ã‚Â¤hlten Datensatz weiter
   - `HomeSectionDetailView.xaml` zeigt `Uhrzeit` jetzt separat sichtbar an
-  - dadurch sind Start- und Endzeit fÃƒÂ¼r den ausgewÃƒÂ¤hlten `Arbeitseinsatz` und `Termin` in der Detailansicht klar sichtbar, ohne neue Navigation oder Mehrfachanzeige
+  - dadurch sind Start- und Endzeit fÃƒÆ’Ã‚Â¼r den ausgewÃƒÆ’Ã‚Â¤hlten `Arbeitseinsatz` und `Termin` in der Detailansicht klar sichtbar, ohne neue Navigation oder Mehrfachanzeige
 - Die doppelte Anzeige `Angemeldet: 0` konkret am Mappingursprung beseitigt:
-  - bislang kamen KapazitÃƒÂ¤tsdaten zweimal aus demselben Datensatzpfad
-  - einmal als einzelne Zeilen `Angemeldet` / `Freie PlÃƒÂ¤tze` in `DetailInfo`
-  - zusÃƒÂ¤tzlich nochmals zusammengefasst in `RegistrationInfo` ÃƒÂ¼ber `BuildCapacityText(...)`
-  - der `Arbeitseinsatz`-Mappingpfad wurde deshalb bereinigt: `RegistrationInfo` bleibt als einzige KapazitÃƒÂ¤tsanzeige erhalten; die redundanten Einzelzeilen wurden aus `DetailInfo` entfernt
+  - bislang kamen KapazitÃƒÆ’Ã‚Â¤tsdaten zweimal aus demselben Datensatzpfad
+  - einmal als einzelne Zeilen `Angemeldet` / `Freie PlÃƒÆ’Ã‚Â¤tze` in `DetailInfo`
+  - zusÃƒÆ’Ã‚Â¤tzlich nochmals zusammengefasst in `RegistrationInfo` ÃƒÆ’Ã‚Â¼ber `BuildCapacityText(...)`
+  - der `Arbeitseinsatz`-Mappingpfad wurde deshalb bereinigt: `RegistrationInfo` bleibt als einzige KapazitÃƒÆ’Ã‚Â¤tsanzeige erhalten; die redundanten Einzelzeilen wurden aus `DetailInfo` entfernt
 - Ergebnis des Korrekturpfads:
-  - Home zeigt die Uhrzeit jetzt sichtbar und eindeutig fÃƒÂ¼r `Arbeitseinsatz` und `Termin`
-  - die Detailansicht zeigt Start-/Endzeit des ausgewÃƒÂ¤hlten Datensatzes sichtbar an
-  - `Angemeldet: 0` erscheint fÃƒÂ¼r `Arbeitseinsatz` nicht mehr mehrfach
-  - die Detailview bleibt auf die Skalardaten des konkret ausgewÃƒÂ¤hlten Datensatzes beschrÃƒÂ¤nkt und zeigt keine Sammel-/Mehrfachanzeige
-- `Bekanntmachung` und die generische Detailstruktur wurden mitgeprÃƒÂ¼ft und nicht verschlechtert: dort bleibt `TimeText` leer, wÃƒÂ¤hrend `Subtitle`, `AdditionalInfo` und `Content` unverÃƒÂ¤ndert funktionieren.
-- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Anzeige-Fixblock erfolgreich; MAUI wurde durch die kleinen Home-/Detailmodell- und Mappinganpassungen nicht beschÃƒÂ¤digt.
+  - Home zeigt die Uhrzeit jetzt sichtbar und eindeutig fÃƒÆ’Ã‚Â¼r `Arbeitseinsatz` und `Termin`
+  - die Detailansicht zeigt Start-/Endzeit des ausgewÃƒÆ’Ã‚Â¤hlten Datensatzes sichtbar an
+  - `Angemeldet: 0` erscheint fÃƒÆ’Ã‚Â¼r `Arbeitseinsatz` nicht mehr mehrfach
+  - die Detailview bleibt auf die Skalardaten des konkret ausgewÃƒÆ’Ã‚Â¤hlten Datensatzes beschrÃƒÆ’Ã‚Â¤nkt und zeigt keine Sammel-/Mehrfachanzeige
+- `Bekanntmachung` und die generische Detailstruktur wurden mitgeprÃƒÆ’Ã‚Â¼ft und nicht verschlechtert: dort bleibt `TimeText` leer, wÃƒÆ’Ã‚Â¤hrend `Subtitle`, `AdditionalInfo` und `Content` unverÃƒÆ’Ã‚Â¤ndert funktionieren.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Anzeige-Fixblock erfolgreich; MAUI wurde durch die kleinen Home-/Detailmodell- und Mappinganpassungen nicht beschÃƒÆ’Ã‚Â¤digt.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Home-/Detailansicht fÃƒÂ¼r ArbeitseinsÃƒÂ¤tze und Termine sichtbar vervollstÃƒÂ¤ndigt, ohne neue Schattenlogik
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Home-/Detailansicht fÃƒÆ’Ã‚Â¼r ArbeitseinsÃƒÆ’Ã‚Â¤tze und Termine sichtbar vervollstÃƒÆ’Ã‚Â¤ndigt, ohne neue Schattenlogik
 
-- Den vorhandenen Home-/Detailpfad zuerst vollstÃƒÂ¤ndig gegen den realen Arbeitsbaum geprÃƒÂ¼ft: `HomeView.xaml`, `HomeViewModel`, `HomeSectionDetailView.xaml`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, die Home-Item-Modelle sowie das Mapping in `SupabaseService` waren bereits produktiv vorhanden und dienten als Basis des Blocks.
-- Ergebnis der IstzustandsprÃƒÂ¼fung:
+- Den vorhandenen Home-/Detailpfad zuerst vollstÃƒÆ’Ã‚Â¤ndig gegen den realen Arbeitsbaum geprÃƒÆ’Ã‚Â¼ft: `HomeView.xaml`, `HomeViewModel`, `HomeSectionDetailView.xaml`, `HomeSectionDetailViewModel`, `HomeSectionDetailContext`, die Home-Item-Modelle sowie das Mapping in `SupabaseService` waren bereits produktiv vorhanden und dienten als Basis des Blocks.
+- Ergebnis der IstzustandsprÃƒÆ’Ã‚Â¼fung:
   - `Arbeitseinsatz` trug die Startzeit im Home-Item bereits separat als `BeginText`
   - `Termin` hatte die Zeit zwar indirekt im Untertitel/Detailmapping, aber noch nicht separat sichtbar in der Home-Karte
-  - die Detailansicht arbeitete bereits mit einem generischen Kontext aus Skalardaten, zeigte aber die Registrierungsinformation des ausgewÃƒÂ¤hlten Datensatzes noch nicht separat an
+  - die Detailansicht arbeitete bereits mit einem generischen Kontext aus Skalardaten, zeigte aber die Registrierungsinformation des ausgewÃƒÆ’Ã‚Â¤hlten Datensatzes noch nicht separat an
   - der `Anmelden`-Button war im Detailpfad nicht konsistent genug an den Arbeitseinsatz-Kontext gebunden
-- Die Home-ÃƒÅ“bersicht deshalb gezielt fachlich vervollstÃƒÂ¤ndigt und nicht umgebaut:
-  - `HomeAppointmentItem` wurde um `BeginText`/`HasBeginText` ergÃƒÂ¤nzt
+- Die Home-ÃƒÆ’Ã…â€œbersicht deshalb gezielt fachlich vervollstÃƒÆ’Ã‚Â¤ndigt und nicht umgebaut:
+  - `HomeAppointmentItem` wurde um `BeginText`/`HasBeginText` ergÃƒÆ’Ã‚Â¤nzt
   - das Termin-Mapping in `SupabaseService` reicht den normalisierten Beginn jetzt explizit in das Home-Item durch
   - `HomeView.xaml` zeigt damit bei `Termin` den Beginn sichtbar in derselben kleinen Kartenlogik wie bei `Arbeitseinsatz`
   - `Arbeitseinsatz` blieb bei der bereits passenden sichtbaren Beginn-Anzeige
-- Die Detailansicht innerhalb des bestehenden generischen Pfads vervollstÃƒÂ¤ndigt:
-  - `HomeSectionDetailContext` trÃƒÂ¤gt jetzt zusÃƒÂ¤tzlich `RegistrationInfo` und einen expliziten Schalter fÃƒÂ¼r die Sichtbarkeit der Anmelden-Aktion
+- Die Detailansicht innerhalb des bestehenden generischen Pfads vervollstÃƒÆ’Ã‚Â¤ndigt:
+  - `HomeSectionDetailContext` trÃƒÆ’Ã‚Â¤gt jetzt zusÃƒÆ’Ã‚Â¤tzlich `RegistrationInfo` und einen expliziten Schalter fÃƒÆ’Ã‚Â¼r die Sichtbarkeit der Anmelden-Aktion
   - `HomeSectionDetailViewModel` reicht diese Daten 1:1 an die View weiter, ohne neue Sammel- oder Listenlogik
-  - `HomeSectionDetailView.xaml` zeigt die Registrierungsinformation des ausgewÃƒÂ¤hlten Datensatzes jetzt in derselben Detailkarte zusÃƒÂ¤tzlich an
-  - der `Anmelden`-Button bleibt in der Detailansicht fÃƒÂ¼r `Arbeitseinsatz` sichtbar und verwendet denselben ehrlichen Hinweisdialog wie auf Home
-- Den Punkt Ã¢â‚¬Å¾Detailview zeigt nur den ausgewÃƒÂ¤hlten DatensatzÃ¢â‚¬Å“ bewusst am bestehenden Architekturpfad abgesichert:
-  - `HomeViewModel` ÃƒÂ¼bergibt beim Ãƒâ€“ffnen der Detailansicht ausschlieÃƒÅ¸lich die Skalardaten des konkret ausgewÃƒÂ¤hlten Home-Items
-  - keine Listen, keine Mehrfachobjekte und kein nachtrÃƒÂ¤gliches Nachladen eines unscharfen Datensatzpools im Detailpfad
+  - `HomeSectionDetailView.xaml` zeigt die Registrierungsinformation des ausgewÃƒÆ’Ã‚Â¤hlten Datensatzes jetzt in derselben Detailkarte zusÃƒÆ’Ã‚Â¤tzlich an
+  - der `Anmelden`-Button bleibt in der Detailansicht fÃƒÆ’Ã‚Â¼r `Arbeitseinsatz` sichtbar und verwendet denselben ehrlichen Hinweisdialog wie auf Home
+- Den Punkt ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Detailview zeigt nur den ausgewÃƒÆ’Ã‚Â¤hlten DatensatzÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ bewusst am bestehenden Architekturpfad abgesichert:
+  - `HomeViewModel` ÃƒÆ’Ã‚Â¼bergibt beim ÃƒÆ’Ã¢â‚¬â€œffnen der Detailansicht ausschlieÃƒÆ’Ã…Â¸lich die Skalardaten des konkret ausgewÃƒÆ’Ã‚Â¤hlten Home-Items
+  - keine Listen, keine Mehrfachobjekte und kein nachtrÃƒÆ’Ã‚Â¤gliches Nachladen eines unscharfen Datensatzpools im Detailpfad
   - dadurch bleibt die Detailansicht auf genau den angeklickten Datensatz begrenzt
-- `Termin`, `Arbeitseinsatz` und `Bekanntmachung` bleiben dabei im selben generischen DetailgerÃƒÂ¼st:
-  - `Arbeitseinsatz` erhÃƒÂ¤lt zusÃƒÂ¤tzliche sichtbare Registrierungs-/Aktionskonsistenz
-  - `Termin` erhÃƒÂ¤lt die separate Startzeit auf Home und behÃƒÂ¤lt die Datensatzdetails im Detailkontext
+- `Termin`, `Arbeitseinsatz` und `Bekanntmachung` bleiben dabei im selben generischen DetailgerÃƒÆ’Ã‚Â¼st:
+  - `Arbeitseinsatz` erhÃƒÆ’Ã‚Â¤lt zusÃƒÆ’Ã‚Â¤tzliche sichtbare Registrierungs-/Aktionskonsistenz
+  - `Termin` erhÃƒÆ’Ã‚Â¤lt die separate Startzeit auf Home und behÃƒÆ’Ã‚Â¤lt die Datensatzdetails im Detailkontext
   - `Bekanntmachung` verliert keine bestehenden Felder; die generische Detaildarstellung bleibt intakt
-- Offener Restpunkt bleibt bewusst unverÃƒÂ¤ndert klein: der echte produktive Schreibpfad fÃƒÂ¼r `Anmelden` ist im Repo weiterhin nicht belastbar vorhanden. Deshalb bleibt die Aktion auf Home und in der Detailansicht eine ehrliche Info-Verdrahtung statt neuer Fake-Fachlogik.
-- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Home-/Detailblock erfolgreich; MAUI wurde durch die kleinen Kontext-/DarstellungsÃƒÂ¤nderungen nicht beschÃƒÂ¤digt.
+- Offener Restpunkt bleibt bewusst unverÃƒÆ’Ã‚Â¤ndert klein: der echte produktive Schreibpfad fÃƒÆ’Ã‚Â¼r `Anmelden` ist im Repo weiterhin nicht belastbar vorhanden. Deshalb bleibt die Aktion auf Home und in der Detailansicht eine ehrliche Info-Verdrahtung statt neuer Fake-Fachlogik.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Home-/Detailblock erfolgreich; MAUI wurde durch die kleinen Kontext-/DarstellungsÃƒÆ’Ã‚Â¤nderungen nicht beschÃƒÆ’Ã‚Â¤digt.
 
-## 2026-03-24 Ã¢â‚¬â€œ Prompt 1/1: Arbeitsstunden endgÃƒÂ¼ltig gegen `id = 0` abgesichert, Save-RÃƒÂ¼cknavigation abgeschlossen, Arbeitseinsatz-Home-Buttons korrigiert
+## 2026-03-24 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Arbeitsstunden endgÃƒÆ’Ã‚Â¼ltig gegen `id = 0` abgesichert, Save-RÃƒÆ’Ã‚Â¼cknavigation abgeschlossen, Arbeitseinsatz-Home-Buttons korrigiert
 
-- Den Block erneut bewusst gegen den realen laufenden Produktpfad gefÃƒÂ¼hrt, weil der erneute Datensatz `arbeitsstunde.id = 0` belegt hat, dass der vorige Schutz im tatsÃƒÂ¤chlichen Laufzeitverhalten noch nicht ausreichte.
-- Den kompletten Create-Pfad fÃƒÂ¼r `arbeitsstunde` nochmals Ende-zu-Ende geprÃƒÂ¼ft:
-  - WPF-Erfassung ÃƒÂ¼ber `ArbeitsstundenErfassungViewModel`
-  - WPF-Dialogpfad ÃƒÂ¼ber `ArbeitsstundenViewModel`
-  - MAUI-Erfassung ÃƒÂ¼ber `MyArbeitsstundenPage`
-  - Persistenzpfad ÃƒÂ¼ber `SupabaseService.AddArbeitsstundeAsync(...)`
+- Den Block erneut bewusst gegen den realen laufenden Produktpfad gefÃƒÆ’Ã‚Â¼hrt, weil der erneute Datensatz `arbeitsstunde.id = 0` belegt hat, dass der vorige Schutz im tatsÃƒÆ’Ã‚Â¤chlichen Laufzeitverhalten noch nicht ausreichte.
+- Den kompletten Create-Pfad fÃƒÆ’Ã‚Â¼r `arbeitsstunde` nochmals Ende-zu-Ende geprÃƒÆ’Ã‚Â¼ft:
+  - WPF-Erfassung ÃƒÆ’Ã‚Â¼ber `ArbeitsstundenErfassungViewModel`
+  - WPF-Dialogpfad ÃƒÆ’Ã‚Â¼ber `ArbeitsstundenViewModel`
+  - MAUI-Erfassung ÃƒÆ’Ã‚Â¼ber `MyArbeitsstundenPage`
+  - Persistenzpfad ÃƒÆ’Ã‚Â¼ber `SupabaseService.AddArbeitsstundeAsync(...)`
   - Ergebnis: die Aufrufer erzeugen weiterhin neue `ArbeitsstundeRecord`-Instanzen ohne fachliche `Id`, typbedingt aber mit lokalem Default `0`
-- Daraus die jetzt robuste technische Konsequenz gezogen: auf Attributverhalten allein wird fÃƒÂ¼r `arbeitsstunde` nicht mehr vertraut. Stattdessen verwendet der Create-Pfad nun einen expliziten Insert-Payloadtyp ohne `Id` (`ArbeitsstundeInsertRecord`).
-- Der tatsÃƒÂ¤chliche Korrekturpfad fÃƒÂ¼r den Insertfehler ist damit jetzt zweistufig belastbar:
-  - `AddArbeitsstundeAsync(...)` mappt neue DatensÃƒÂ¤tze in einen separaten Insert-Payload ohne PrimÃƒÂ¤rschlÃƒÂ¼sselspalte
-  - die Create-Payload ÃƒÂ¼bernimmt `Id` grundsÃƒÂ¤tzlich ÃƒÂ¼berhaupt nicht mehr; damit kann auch ein ankommendes `ArbeitsstundeRecord` mit `Id <= 0` technisch nicht mehr in einen Insert mit `id = 0` mÃƒÂ¼nden
-  - Updates bleiben unverÃƒÂ¤ndert ÃƒÂ¼ber `UpdateArbeitsstundeAsync(...)` und die echte bestehende `Id`
+- Daraus die jetzt robuste technische Konsequenz gezogen: auf Attributverhalten allein wird fÃƒÆ’Ã‚Â¼r `arbeitsstunde` nicht mehr vertraut. Stattdessen verwendet der Create-Pfad nun einen expliziten Insert-Payloadtyp ohne `Id` (`ArbeitsstundeInsertRecord`).
+- Der tatsÃƒÆ’Ã‚Â¤chliche Korrekturpfad fÃƒÆ’Ã‚Â¼r den Insertfehler ist damit jetzt zweistufig belastbar:
+  - `AddArbeitsstundeAsync(...)` mappt neue DatensÃƒÆ’Ã‚Â¤tze in einen separaten Insert-Payload ohne PrimÃƒÆ’Ã‚Â¤rschlÃƒÆ’Ã‚Â¼sselspalte
+  - die Create-Payload ÃƒÆ’Ã‚Â¼bernimmt `Id` grundsÃƒÆ’Ã‚Â¤tzlich ÃƒÆ’Ã‚Â¼berhaupt nicht mehr; damit kann auch ein ankommendes `ArbeitsstundeRecord` mit `Id <= 0` technisch nicht mehr in einen Insert mit `id = 0` mÃƒÆ’Ã‚Â¼nden
+  - Updates bleiben unverÃƒÆ’Ã‚Â¤ndert ÃƒÆ’Ã‚Â¼ber `UpdateArbeitsstundeAsync(...)` und die echte bestehende `Id`
   - keine `lastrow+1`-Logik
-- Den Abschluss des Userflows fÃƒÂ¼r Arbeitsstunden zugleich produktiv nachgezogen:
+- Den Abschluss des Userflows fÃƒÆ’Ã‚Â¼r Arbeitsstunden zugleich produktiv nachgezogen:
   - nach erfolgreichem Speichern in `Arbeitsstunden erfassen` bleibt die Eingabemaske nicht mehr offen stehen
-  - im Dialogkontext schlieÃƒÅ¸t sich das Fenster wie bisher
-  - im normalen WPF-Erfassungspfad wird nach erfolgreichem Save sauber zurÃƒÂ¼ck auf `Home` navigiert
-- Dasselbe Abschlussverhalten jetzt auch fÃƒÂ¼r `Arbeitsstunden freigeben` umgesetzt:
-  - Checkbox-/Status-Speichern bleibt wie im letzten Fix mÃƒÂ¶glich
-  - wenn alle geÃƒÂ¤nderten/markierten Zeilen erfolgreich gespeichert wurden, navigiert die WPF-PrÃƒÂ¼fansicht anschlieÃƒÅ¸end wieder auf `Home` zurÃƒÂ¼ck
+  - im Dialogkontext schlieÃƒÆ’Ã…Â¸t sich das Fenster wie bisher
+  - im normalen WPF-Erfassungspfad wird nach erfolgreichem Save sauber zurÃƒÆ’Ã‚Â¼ck auf `Home` navigiert
+- Dasselbe Abschlussverhalten jetzt auch fÃƒÆ’Ã‚Â¼r `Arbeitsstunden freigeben` umgesetzt:
+  - Checkbox-/Status-Speichern bleibt wie im letzten Fix mÃƒÆ’Ã‚Â¶glich
+  - wenn alle geÃƒÆ’Ã‚Â¤nderten/markierten Zeilen erfolgreich gespeichert wurden, navigiert die WPF-PrÃƒÆ’Ã‚Â¼fansicht anschlieÃƒÆ’Ã…Â¸end wieder auf `Home` zurÃƒÆ’Ã‚Â¼ck
   - der Fachpfad bleibt klein: `status` bleibt optionales Anmerkungsfeld, offen bleibt `freigegeben = false`, Freigabe setzt weiter `freigegeben = true`, `genehmigt_am`, `genehmigt_von`
-- ZusÃƒÂ¤tzlich den Home-Pfad fÃƒÂ¼r `Arbeitseinsatz` auf den gewÃƒÂ¼nschten Interaktionsstand zurÃƒÂ¼ckgezogen:
+- ZusÃƒÆ’Ã‚Â¤tzlich den Home-Pfad fÃƒÆ’Ã‚Â¼r `Arbeitseinsatz` auf den gewÃƒÆ’Ã‚Â¼nschten Interaktionsstand zurÃƒÆ’Ã‚Â¼ckgezogen:
   - der separate `Details`-Button wurde entfernt
-  - DetailÃƒÂ¶ffnung lÃƒÂ¤uft jetzt per Doppelklick auf die Karte
+  - DetailÃƒÆ’Ã‚Â¶ffnung lÃƒÆ’Ã‚Â¤uft jetzt per Doppelklick auf die Karte
   - stattdessen bleibt dort `Anmelden` sichtbar
-  - weil weiterhin kein belastbarer produktiver Schreibpfad fÃƒÂ¼r echte Anmeldungen im Repo nachweisbar ist, bleibt der Button bewusst eine ehrliche Info-Aktion statt neuer Schattenlogik
-- Technisch verifiziert: `KGV.Wpf` baut nach dem Abschlussblock erfolgreich; MAUI wurde im Shared-Arbeitsstundenpfad mitgedacht und nicht beschÃƒÂ¤digt.
+  - weil weiterhin kein belastbarer produktiver Schreibpfad fÃƒÆ’Ã‚Â¼r echte Anmeldungen im Repo nachweisbar ist, bleibt der Button bewusst eine ehrliche Info-Aktion statt neuer Schattenlogik
+- Technisch verifiziert: `KGV.Wpf` baut nach dem Abschlussblock erfolgreich; MAUI wurde im Shared-Arbeitsstundenpfad mitgedacht und nicht beschÃƒÆ’Ã‚Â¤digt.
 
-## 2026-03-23 Ã¢â‚¬â€œ Prompt 1/1: zwei echte Arbeitsstundenfehler am realen Produktpfad behoben (`id = 0` bei Insert, Speichern in Freigabeansicht reagiert nicht auf Checkbox)
+## 2026-03-23 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: zwei echte Arbeitsstundenfehler am realen Produktpfad behoben (`id = 0` bei Insert, Speichern in Freigabeansicht reagiert nicht auf Checkbox)
 
-- Den Block ausdrÃƒÂ¼cklich gegen die zwei real reproduzierten Fehler gefÃƒÂ¼hrt und nicht als VermutungslÃƒÂ¶sung umgesetzt.
-- Ersten Fehler `id = 0` im echten Neuanlagepfad vollstÃƒÂ¤ndig zurÃƒÂ¼ckverfolgt:
-  - WPF-Usererfassung ÃƒÂ¼ber `ArbeitsstundenErfassungViewModel`
-  - WPF-Dialogpfad ÃƒÂ¼ber `ArbeitsstundenViewModel`
-  - MAUI-Usererfassung ÃƒÂ¼ber `MyArbeitsstundenPage`
-  - gemeinsamer Persistenzpfad ÃƒÂ¼ber `SupabaseService.AddArbeitsstundeAsync(...)`
-  - in allen drei Aufrufern wird fÃƒÂ¼r neue Arbeitsstunden keine fachliche `Id` gesetzt; die erzeugten `ArbeitsstundeRecord`-Instanzen tragen aber typbedingt lokal weiter den Defaultwert `0`
-  - der entscheidende Unterschied zu den ÃƒÂ¼brigen produktiven Create-Modellen lag im Modellattribut: `ArbeitsstundeRecord` verwendete noch `[PrimaryKey("id")]`, wÃƒÂ¤hrend die ÃƒÂ¼brigen Insert-relevanten Tabellen bereits explizit `[PrimaryKey("id", false)]` verwenden
-  - damit war die reale Ursache belastbar: im laufenden Paketstand konnte die PrimÃƒÂ¤rschlÃƒÂ¼sselspalte im Insertpfad weiterhin serialisiert werden und `Id = 0` in die Payload gelangen
-- Korrekturpfad fÃƒÂ¼r den Insertfehler:
+- Den Block ausdrÃƒÆ’Ã‚Â¼cklich gegen die zwei real reproduzierten Fehler gefÃƒÆ’Ã‚Â¼hrt und nicht als VermutungslÃƒÆ’Ã‚Â¶sung umgesetzt.
+- Ersten Fehler `id = 0` im echten Neuanlagepfad vollstÃƒÆ’Ã‚Â¤ndig zurÃƒÆ’Ã‚Â¼ckverfolgt:
+  - WPF-Usererfassung ÃƒÆ’Ã‚Â¼ber `ArbeitsstundenErfassungViewModel`
+  - WPF-Dialogpfad ÃƒÆ’Ã‚Â¼ber `ArbeitsstundenViewModel`
+  - MAUI-Usererfassung ÃƒÆ’Ã‚Â¼ber `MyArbeitsstundenPage`
+  - gemeinsamer Persistenzpfad ÃƒÆ’Ã‚Â¼ber `SupabaseService.AddArbeitsstundeAsync(...)`
+  - in allen drei Aufrufern wird fÃƒÆ’Ã‚Â¼r neue Arbeitsstunden keine fachliche `Id` gesetzt; die erzeugten `ArbeitsstundeRecord`-Instanzen tragen aber typbedingt lokal weiter den Defaultwert `0`
+  - der entscheidende Unterschied zu den ÃƒÆ’Ã‚Â¼brigen produktiven Create-Modellen lag im Modellattribut: `ArbeitsstundeRecord` verwendete noch `[PrimaryKey("id")]`, wÃƒÆ’Ã‚Â¤hrend die ÃƒÆ’Ã‚Â¼brigen Insert-relevanten Tabellen bereits explizit `[PrimaryKey("id", false)]` verwenden
+  - damit war die reale Ursache belastbar: im laufenden Paketstand konnte die PrimÃƒÆ’Ã‚Â¤rschlÃƒÆ’Ã‚Â¼sselspalte im Insertpfad weiterhin serialisiert werden und `Id = 0` in die Payload gelangen
+- Korrekturpfad fÃƒÆ’Ã‚Â¼r den Insertfehler:
   - `ArbeitsstundeRecord` auf `[PrimaryKey("id", false)]` umgestellt
   - keine App-seitige `lastrow+1`-Logik
-  - keine Ãƒâ€žnderung am Updatepfad; bestehende DatensÃƒÂ¤tze verwenden ihre `Id` weiter normal
+  - keine ÃƒÆ’Ã¢â‚¬Å¾nderung am Updatepfad; bestehende DatensÃƒÆ’Ã‚Â¤tze verwenden ihre `Id` weiter normal
   - Ergebnis: bei Neuanlagen wird die `id` nicht mehr aus der App in die Create-Payload aufgenommen
-- Zweiten Fehler in `Arbeitsstunden freigeben` ebenfalls bis zum realen UI-Pfad geprÃƒÂ¼ft:
+- Zweiten Fehler in `Arbeitsstunden freigeben` ebenfalls bis zum realen UI-Pfad geprÃƒÆ’Ã‚Â¼ft:
   - `status` / Anmerkung war fachlich und technisch bereits optional
-  - `HasChanges` in `PruefungseintragItem` wertet bereits korrekt `Freigeben || Status geÃƒÂ¤ndert`
-  - die tatsÃƒÂ¤chliche StÃƒÂ¶rung lag nicht in einer Pflichtlogik fÃƒÂ¼r `status`, sondern an der WPF-Darstellung der Freigabe-Checkbox ÃƒÂ¼ber `DataGridCheckBoxColumn`
-  - im laufenden Gridpfad wurde die CheckboxÃƒÂ¤nderung nicht zuverlÃƒÂ¤ssig sofort in das Item zurÃƒÂ¼ckgeschrieben; dadurch zogen `PropertyChanged`, `HasPendingChanges` und `SpeichernCommand` beim bloÃƒÅ¸en Setzen der Checkbox nicht unmittelbar an
-- Korrekturpfad fÃƒÂ¼r die Freigabeansicht:
+  - `HasChanges` in `PruefungseintragItem` wertet bereits korrekt `Freigeben || Status geÃƒÆ’Ã‚Â¤ndert`
+  - die tatsÃƒÆ’Ã‚Â¤chliche StÃƒÆ’Ã‚Â¶rung lag nicht in einer Pflichtlogik fÃƒÆ’Ã‚Â¼r `status`, sondern an der WPF-Darstellung der Freigabe-Checkbox ÃƒÆ’Ã‚Â¼ber `DataGridCheckBoxColumn`
+  - im laufenden Gridpfad wurde die CheckboxÃƒÆ’Ã‚Â¤nderung nicht zuverlÃƒÆ’Ã‚Â¤ssig sofort in das Item zurÃƒÆ’Ã‚Â¼ckgeschrieben; dadurch zogen `PropertyChanged`, `HasPendingChanges` und `SpeichernCommand` beim bloÃƒÆ’Ã…Â¸en Setzen der Checkbox nicht unmittelbar an
+- Korrekturpfad fÃƒÆ’Ã‚Â¼r die Freigabeansicht:
   - die Spalte `Freigeben` wurde auf `DataGridTemplateColumn` mit explizitem `CheckBox`-Binding umgestellt
   - Binding jetzt mit `Mode=TwoWay, UpdateSourceTrigger=PropertyChanged`
-  - dadurch gilt das Setzen der Checkbox sofort als relevante Ãƒâ€žnderung und aktiviert den Speichernpfad ohne zusÃƒÂ¤tzliche Statuspflicht
-- Fachregeln bewusst unverÃƒÂ¤ndert gelassen:
+  - dadurch gilt das Setzen der Checkbox sofort als relevante ÃƒÆ’Ã¢â‚¬Å¾nderung und aktiviert den Speichernpfad ohne zusÃƒÆ’Ã‚Â¤tzliche Statuspflicht
+- Fachregeln bewusst unverÃƒÆ’Ã‚Â¤ndert gelassen:
   - offen bleibt `freigegeben = false`
   - `status` bleibt reines optionales Anmerkungsfeld
   - Freigabe setzt weiter `freigegeben = true`, `genehmigt_am`, `genehmigt_von`
   - keine neue Freigabearchitektur
-- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Fixblock erfolgreich; MAUI wurde im Shared-Pfad mitgedacht und nicht beschÃƒÂ¤digt.
+- Technisch verifiziert: `KGV.Wpf` baut nach dem gezielten Fixblock erfolgreich; MAUI wurde im Shared-Pfad mitgedacht und nicht beschÃƒÆ’Ã‚Â¤digt.
 
-## 2026-03-23 Ã¢â‚¬â€œ Prompt 1/1: WPF-Bindingfehler in `ArbeitsstundenErfassungView` mit reinem Anzeige-Fix sauber abgeschlossen
+## 2026-03-23 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: WPF-Bindingfehler in `ArbeitsstundenErfassungView` mit reinem Anzeige-Fix sauber abgeschlossen
 
-- Den gemeldeten Fehler auf die reale Bindungsstelle in `KGV.Wpf/Views/ArbeitsstundenErfassungView.xaml` zurÃƒÂ¼ckgefÃƒÂ¼hrt: `CurrentMemberText` ist im `ArbeitsstundenErfassungViewModel` bewusst nur als schreibgeschÃƒÂ¼tzte Anzeigeproperty vorhanden.
+- Den gemeldeten Fehler auf die reale Bindungsstelle in `KGV.Wpf/Views/ArbeitsstundenErfassungView.xaml` zurÃƒÆ’Ã‚Â¼ckgefÃƒÆ’Ã‚Â¼hrt: `CurrentMemberText` ist im `ArbeitsstundenErfassungViewModel` bewusst nur als schreibgeschÃƒÆ’Ã‚Â¼tzte Anzeigeproperty vorhanden.
 - Damit blieb die fachliche Richtung klar: kein Setter im ViewModel, keine neue Fachlogik und keine Aufweichung des Anzeigevertrags nur zur Beruhigung des Bindings.
-- Den Fix bewusst klein und XAML-seitig gehalten: die bisherige Anzeige ÃƒÂ¼ber `Run Text="{Binding CurrentMemberText}"` wurde auf eine explizite Anzeige ÃƒÂ¼ber einen eigenen `TextBlock` mit `Mode=OneWay` umgestellt.
-- Die betroffene View wurde im Abschlusslauf nochmals gezielt gegen den Nachbarbereich geprÃƒÂ¼ft: der anschlieÃƒÅ¸ende `ValidationMessage`-`TextBlock` und die ÃƒÂ¼brige XAML-Struktur bleiben intakt; es wurde nur der kleine Anzeigeabschnitt fÃƒÂ¼r das Mitglied angepasst.
+- Den Fix bewusst klein und XAML-seitig gehalten: die bisherige Anzeige ÃƒÆ’Ã‚Â¼ber `Run Text="{Binding CurrentMemberText}"` wurde auf eine explizite Anzeige ÃƒÆ’Ã‚Â¼ber einen eigenen `TextBlock` mit `Mode=OneWay` umgestellt.
+- Die betroffene View wurde im Abschlusslauf nochmals gezielt gegen den Nachbarbereich geprÃƒÆ’Ã‚Â¼ft: der anschlieÃƒÆ’Ã…Â¸ende `ValidationMessage`-`TextBlock` und die ÃƒÆ’Ã‚Â¼brige XAML-Struktur bleiben intakt; es wurde nur der kleine Anzeigeabschnitt fÃƒÆ’Ã‚Â¼r das Mitglied angepasst.
 - Der Block bleibt bewusst minimal:
-  - keine Ãƒâ€žnderung an `ArbeitsstundenErfassungViewModel`
-  - keine Ãƒâ€žnderung an Shared-/Servicepfaden
-  - keine neue Fachlogik fÃƒÂ¼r Arbeitsstunden
-  - kein Umbau auÃƒÅ¸erhalb der betroffenen View
+  - keine ÃƒÆ’Ã¢â‚¬Å¾nderung an `ArbeitsstundenErfassungViewModel`
+  - keine ÃƒÆ’Ã¢â‚¬Å¾nderung an Shared-/Servicepfaden
+  - keine neue Fachlogik fÃƒÆ’Ã‚Â¼r Arbeitsstunden
+  - kein Umbau auÃƒÆ’Ã…Â¸erhalb der betroffenen View
 - Technisch verifiziert: finaler `KGV.Wpf`-Build erfolgreich. Damit ist der kleine Bindingfix sauber abgeschlossen; MAUI wurde in diesem Block nicht angefasst.
 
-## 2026-03-23 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: produktive Insert-Pfade auf feste ID-Mitgabe geprÃƒÆ’Ã‚Â¼ft und als aktuell korrekt dokumentiert
+## 2026-03-23 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Prompt 1/1: produktive Insert-Pfade auf feste ID-Mitgabe geprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ft und als aktuell korrekt dokumentiert
 
-- Den gewÃƒÆ’Ã‚Â¼nschten Block zuerst vollstÃƒÆ’Ã‚Â¤ndig als IstzustandsprÃƒÆ’Ã‚Â¼fung statt als Vorab-Fix angegangen: geprÃƒÆ’Ã‚Â¼ft wurden der aktuelle `SupabaseService`, alle relevanten produktiven Create-/Add-/Insert-Pfade, die beteiligten Record-/Request-Modelle sowie die WPF-/MAUI-Aufrufer fÃƒÆ’Ã‚Â¼r Neuanlagen.
-- Den stÃƒÆ’Ã‚Â¤rksten Verdachtspfad `arbeitstunde` konkret bis zur tatsÃƒÆ’Ã‚Â¤chlichen Insert-Stelle zurÃƒÆ’Ã‚Â¼ckverfolgt:
+- Den gewÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼nschten Block zuerst vollstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndig als IstzustandsprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼fung statt als Vorab-Fix angegangen: geprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ft wurden der aktuelle `SupabaseService`, alle relevanten produktiven Create-/Add-/Insert-Pfade, die beteiligten Record-/Request-Modelle sowie die WPF-/MAUI-Aufrufer fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Neuanlagen.
+- Den stÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤rksten Verdachtspfad `arbeitstunde` konkret bis zur tatsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤chlichen Insert-Stelle zurÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ckverfolgt:
   - WPF erzeugt neue Arbeitsstunden in `ArbeitsstundenViewModel`
   - MAUI erzeugt neue Arbeitsstunden in `MyArbeitsstundenPage`
   - beide erzeugen neue `ArbeitsstundeRecord`-Objekte **ohne** explizite `Id`
   - `SupabaseService.AddArbeitsstundeAsync(...)` baut daraus nochmals ein frisches Insert-Objekt und setzt ebenfalls **keine** `Id`
   - im aktuell produktiven Insert-Pfad konnte damit kein `id = 0` oder sonstige feste ID-Mitgabe aus der App nachgewiesen werden
-- Danach die ÃƒÆ’Ã‚Â¼brigen produktiven Verwaltungs-Neuanlagen geprÃƒÆ’Ã‚Â¼ft:
+- Danach die ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼brigen produktiven Verwaltungs-Neuanlagen geprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ft:
   - `CreateTerminAsync(...)`
   - `CreateBekanntmachungAsync(...)`
   - `CreateArbeitseinsatzAsync(...)`
-  - in den WPF-ViewModels laufen neue EditorzustÃƒÆ’Ã‚Â¤nde zwar als normale Record-Objekte, wobei `Id` im New-Mode lokal auf den Typdefault `0` fÃƒÆ’Ã‚Â¤llt
-  - entscheidend ist aber der Servicepfad: die drei Create-Methoden erzeugen vor dem tatsÃƒÆ’Ã‚Â¤chlichen PostgREST-Insert jeweils ein separates Insert-Objekt und ÃƒÆ’Ã‚Â¼bernehmen die lokale `Id` gerade nicht in die Payload
+  - in den WPF-ViewModels laufen neue EditorzustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nde zwar als normale Record-Objekte, wobei `Id` im New-Mode lokal auf den Typdefault `0` fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤llt
+  - entscheidend ist aber der Servicepfad: die drei Create-Methoden erzeugen vor dem tatsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤chlichen PostgREST-Insert jeweils ein separates Insert-Objekt und ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼bernehmen die lokale `Id` gerade nicht in die Payload
   - Ergebnis: auch diese produktiven Neuanlagen senden aktuell keine feste ID aus der App
-- Einen mÃƒÆ’Ã‚Â¶glichen Produktpfad `arbeitseinsatz_anmeldung` gesondert gesucht, weil er laut Zielarchitektur ebenfalls DB-gesteuert laufen mÃƒÆ’Ã‚Â¼sste. Im aktuellen Repo existiert dafÃƒÆ’Ã‚Â¼r aber weiterhin kein echter Schreibpfad; der vorhandene `Anmelden`-Button auf Home bleibt eine reine Hinweis-/Info-Aktion. Entsprechend war dort aktuell auch kein produktiver Insertpfad mit ID-Mitgabe vorhanden.
-- Den Serializer-/Bibliotheksaspekt zusÃƒÆ’Ã‚Â¤tzlich gegen den real verwendeten Paketstand abgesichert: im eingebundenen `Supabase.Postgrest` besitzt `PrimaryKeyAttribute` den optionalen Parameter `shouldInsert`, dessen Defaultwert `false` ist. Der verbleibende Arbeitsstunden-Record mit `[PrimaryKey("id")]` sendet seine PrimÃƒÆ’Ã‚Â¤rschlÃƒÆ’Ã‚Â¼sselspalte damit im Insert-Kontext ebenfalls nicht automatisch mit. Das erklÃƒÆ’Ã‚Â¤rt, warum auch dieser Pfad trotz impliziter Schreibweise aktuell korrekt bleibt.
+- Einen mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶glichen Produktpfad `arbeitseinsatz_anmeldung` gesondert gesucht, weil er laut Zielarchitektur ebenfalls DB-gesteuert laufen mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼sste. Im aktuellen Repo existiert dafÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r aber weiterhin kein echter Schreibpfad; der vorhandene `Anmelden`-Button auf Home bleibt eine reine Hinweis-/Info-Aktion. Entsprechend war dort aktuell auch kein produktiver Insertpfad mit ID-Mitgabe vorhanden.
+- Den Serializer-/Bibliotheksaspekt zusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzlich gegen den real verwendeten Paketstand abgesichert: im eingebundenen `Supabase.Postgrest` besitzt `PrimaryKeyAttribute` den optionalen Parameter `shouldInsert`, dessen Defaultwert `false` ist. Der verbleibende Arbeitsstunden-Record mit `[PrimaryKey("id")]` sendet seine PrimÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤rschlÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼sselspalte damit im Insert-Kontext ebenfalls nicht automatisch mit. Das erklÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤rt, warum auch dieser Pfad trotz impliziter Schreibweise aktuell korrekt bleibt.
 - Wichtiges Ergebnis des Blocks:
-  - in den geprÃƒÆ’Ã‚Â¼ften produktiven Insert-Pfaden wurde aktuell **kein** `id = 0` aus der App nachgewiesen
-  - es wurde auch keine feste `id` indirekt ÃƒÆ’Ã‚Â¼ber Mapper, Defaultkonstruktoren oder Insert-Helfer in die produktive Payload ÃƒÆ’Ã‚Â¼bernommen
-  - Unterschiede zwischen WPF und MAUI bestehen fÃƒÆ’Ã‚Â¼r `arbeitsstunde` nicht; beide laufen ÃƒÆ’Ã‚Â¼ber denselben korrekten Shared-Servicepfad
+  - in den geprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ften produktiven Insert-Pfaden wurde aktuell **kein** `id = 0` aus der App nachgewiesen
+  - es wurde auch keine feste `id` indirekt ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber Mapper, Defaultkonstruktoren oder Insert-Helfer in die produktive Payload ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼bernommen
+  - Unterschiede zwischen WPF und MAUI bestehen fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r `arbeitsstunde` nicht; beide laufen ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber denselben korrekten Shared-Servicepfad
 - Deshalb bewusst **kein** Codeumbau auf Verdacht:
   - keine `lastrow+1`-Logik
-  - keine unnÃƒÆ’Ã‚Â¶tigen zusÃƒÆ’Ã‚Â¤tzlichen Insert-Modelle nur zur kosmetischen Doppelabsicherung
+  - keine unnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶tigen zusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzlichen Insert-Modelle nur zur kosmetischen Doppelabsicherung
   - keine DB-Migration ohne versionierte Repo-Basis
   - stattdessen saubere Dokumentation, dass das Zielmuster im aktuellen Produktstand bereits eingehalten wird: `Insert ohne feste ID`, `Update mit vorhandener ID`
-- Repo-seitig zusÃƒÆ’Ã‚Â¤tzlich verifiziert: im aktuellen Arbeitsstand liegen keine SQL-/Migrationsdateien vor, ÃƒÆ’Ã‚Â¼ber die sich die Tabellen-Defaults oder Sequences versioniert nachprÃƒÆ’Ã‚Â¼fen lieÃƒÆ’Ã…Â¸en. Eine DB-seitige Sequence-/Defaultkorrektur war fÃƒÆ’Ã‚Â¼r diesen Block aber auch nicht nÃƒÆ’Ã‚Â¶tig, weil auf App-Seite kein fehlerhafter Insertpfad mehr vorliegt.
-- Technisch verifiziert: Workspace-Build erfolgreich; WPF bleibt buildbar und MAUI wurde durch diesen Analyse-/Dokublock nicht beschÃƒÆ’Ã‚Â¤digt.
+- Repo-seitig zusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzlich verifiziert: im aktuellen Arbeitsstand liegen keine SQL-/Migrationsdateien vor, ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber die sich die Tabellen-Defaults oder Sequences versioniert nachprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼fen lieÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸en. Eine DB-seitige Sequence-/Defaultkorrektur war fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r diesen Block aber auch nicht nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶tig, weil auf App-Seite kein fehlerhafter Insertpfad mehr vorliegt.
+- Technisch verifiziert: Workspace-Build erfolgreich; WPF bleibt buildbar und MAUI wurde durch diesen Analyse-/Dokublock nicht beschÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤digt.
 
-## 2026-03-23 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: begonnenen Home-/Detail-Block fÃƒÆ’Ã‚Â¼r Arbeitseinsatz sauber abgeschlossen, ohne Fake-Anmeldepfad
+## 2026-03-23 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Prompt 1/1: begonnenen Home-/Detail-Block fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Arbeitseinsatz sauber abgeschlossen, ohne Fake-Anmeldepfad
 
-- Den aktuellen Istzustand des begonnenen Blocks zuerst gegen den realen Arbeitsbaum geprÃƒÆ’Ã‚Â¼ft und nur konsolidiert: bereits vorhanden waren erweiterte Home-Items, ein optionaler `CanRegister`-/Detailkontext, vorbereitete ÃƒÆ’Ã¢â‚¬Å¾nderungen im `HomeViewModel` sowie ein halbfertig angefasster Mappingblock im `SupabaseService`; sichtbar offen waren vor allem die WPF-XAMLs `HomeView.xaml` und `HomeSectionDetailView.xaml`, auÃƒÆ’Ã…Â¸erdem war der hintere Helper-Tail des `SupabaseService` beschÃƒÆ’Ã‚Â¤digt/abgeschnitten.
-- Den gemeinsamen Home-/Detailpfad fÃƒÆ’Ã‚Â¼r `Arbeitseinsatz`, `Termin` und `Bekanntmachung` zusammen geprÃƒÆ’Ã‚Â¼ft, damit die Erweiterung nicht nur einen einzelnen Kartentyp verbessert, sondern die generische Detailview insgesamt konsistent hÃƒÆ’Ã‚Â¤lt. Dazu wurden zusÃƒÆ’Ã‚Â¤tzliche Felder fÃƒÆ’Ã‚Â¼r Detailinfos an den gemeinsamen Home-Modellen ergÃƒÆ’Ã‚Â¤nzt und die Mappings so erweitert, dass `Ort`/`Thema` bei Terminen sowie `Betreff`/`Kurztext`/VerÃƒÆ’Ã‚Â¶ffentlichungsdaten bei Bekanntmachungen nicht mehr im Detailpfad verloren gehen.
-- FÃƒÆ’Ã‚Â¼r `Arbeitseinsatz` auf Home den begonnenen Sichtpfad sauber fertiggestellt: die Karte zeigt jetzt explizit den Beginn, behÃƒÆ’Ã‚Â¤lt die vorhandenen Registrierungs-/KapazitÃƒÆ’Ã‚Â¤tshinweise und ÃƒÆ’Ã‚Â¶ffnet Details nicht mehr nur implizit ÃƒÆ’Ã‚Â¼ber die ganze Karte, sondern ÃƒÆ’Ã‚Â¼ber einen klaren `Details`-Button. ZusÃƒÆ’Ã‚Â¤tzlich wird ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ nur bei tatsÃƒÆ’Ã‚Â¤chlich als anmeldbar markierten DatensÃƒÆ’Ã‚Â¤tzen ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ ein eigener `Anmelden`-Button angezeigt.
-- FÃƒÆ’Ã‚Â¼r die Detailansicht den vorhandenen generischen Pfad wiederverwendet statt Sondernavigation zu bauen: `HomeSectionDetailView` zeigt jetzt optional den `Anmelden`-Button sowie die in `AdditionalInfo` transportierten ÃƒÆ’Ã‚Â¼brigen Datensatzinformationen vor dem eigentlichen Beschreibungstext. Dadurch bleiben `Arbeitseinsatz`, `Termin` und `Bekanntmachung` im selben DetailgerÃƒÆ’Ã‚Â¼st, aber mit vollstÃƒÆ’Ã‚Â¤ndigerer Fachanzeige.
-- Die Arbeitseinsatz-Detailinformationen bewusst klein und belastbar gehalten: Thema, Datum, Beginn, Ende, Treffpunkt, Anmelde-/KapazitÃƒÆ’Ã‚Â¤tsdaten und nur dann `Max. Teilnehmer`, wenn sich dieser Wert aus vorhandenen Viewdaten tatsÃƒÆ’Ã‚Â¤chlich ableiten lÃƒÆ’Ã‚Â¤sst. Wenn keine belastbare Maximalzahl vorliegt, wird dieses Feld nicht angezeigt.
-- Den halbfertig beschÃƒÆ’Ã‚Â¤digten Tail des `SupabaseService` sauber rekonstruiert und konsolidiert, damit der angefangene Block wieder auf einem kompilierbaren Produktstand liegt. Dazu gehÃƒÆ’Ã‚Â¶ren die kleinen Home-Helfer (`AddDetailLine`, Zeit-/Datumsformatierung, Textnormalisierung, Dokumentpfad-Helfer, `FirstNonEmpty`, `CreateUnavailableException` usw.), die durch den abgebrochenen Zwischenstand teilweise nicht mehr vollstÃƒÆ’Ã‚Â¤ndig in der Datei standen.
-- Den `Anmelden`-Usecase ausdrÃƒÆ’Ã‚Â¼cklich gegen das aktuelle Repo geprÃƒÆ’Ã‚Â¼ft: es gibt weiterhin keinen belastbar bestÃƒÆ’Ã‚Â¤tigten produktiven Schreibpfad fÃƒÆ’Ã‚Â¼r eine echte Arbeitseinsatz-Anmeldung. Deshalb wurde **keine** neue Schattenlogik eingefÃƒÆ’Ã‚Â¼hrt. Sowohl in der Home-Karte als auch in der Detailansicht ist `Anmelden` nur als ehrliche WPF-Info-Aktion verdrahtet, die klar darauf hinweist, dass der echte Schreibpfad noch nicht angebunden ist.
-- MAUI wurde im Rahmen dieses Blocks mitgedacht, aber bewusst nicht kÃƒÆ’Ã‚Â¼nstlich erweitert: die gemeinsam genutzten Home-Modelle und Mappings bleiben kompatibel, ohne dass mobil bereits eine neue pseudo-produktive Arbeitseinsatz-Anmeldung aufgebaut wird.
-- Technisch verifiziert: Workspace-Build erfolgreich. Der begonnene Home-/Detail-Block ist damit sauber abgeschlossen; offen bleibt nur die spÃƒÆ’Ã‚Â¤tere echte Anbindung eines bestÃƒÆ’Ã‚Â¤tigten Arbeitseinsatz-Anmelde-Schreibpfads.
+- Den aktuellen Istzustand des begonnenen Blocks zuerst gegen den realen Arbeitsbaum geprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ft und nur konsolidiert: bereits vorhanden waren erweiterte Home-Items, ein optionaler `CanRegister`-/Detailkontext, vorbereitete ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾nderungen im `HomeViewModel` sowie ein halbfertig angefasster Mappingblock im `SupabaseService`; sichtbar offen waren vor allem die WPF-XAMLs `HomeView.xaml` und `HomeSectionDetailView.xaml`, auÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸erdem war der hintere Helper-Tail des `SupabaseService` beschÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤digt/abgeschnitten.
+- Den gemeinsamen Home-/Detailpfad fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r `Arbeitseinsatz`, `Termin` und `Bekanntmachung` zusammen geprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ft, damit die Erweiterung nicht nur einen einzelnen Kartentyp verbessert, sondern die generische Detailview insgesamt konsistent hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤lt. Dazu wurden zusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzliche Felder fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Detailinfos an den gemeinsamen Home-Modellen ergÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nzt und die Mappings so erweitert, dass `Ort`/`Thema` bei Terminen sowie `Betreff`/`Kurztext`/VerÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffentlichungsdaten bei Bekanntmachungen nicht mehr im Detailpfad verloren gehen.
+- FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r `Arbeitseinsatz` auf Home den begonnenen Sichtpfad sauber fertiggestellt: die Karte zeigt jetzt explizit den Beginn, behÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤lt die vorhandenen Registrierungs-/KapazitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tshinweise und ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffnet Details nicht mehr nur implizit ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber die ganze Karte, sondern ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber einen klaren `Details`-Button. ZusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzlich wird ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ nur bei tatsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤chlich als anmeldbar markierten DatensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzen ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ ein eigener `Anmelden`-Button angezeigt.
+- FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r die Detailansicht den vorhandenen generischen Pfad wiederverwendet statt Sondernavigation zu bauen: `HomeSectionDetailView` zeigt jetzt optional den `Anmelden`-Button sowie die in `AdditionalInfo` transportierten ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼brigen Datensatzinformationen vor dem eigentlichen Beschreibungstext. Dadurch bleiben `Arbeitseinsatz`, `Termin` und `Bekanntmachung` im selben DetailgerÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼st, aber mit vollstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndigerer Fachanzeige.
+- Die Arbeitseinsatz-Detailinformationen bewusst klein und belastbar gehalten: Thema, Datum, Beginn, Ende, Treffpunkt, Anmelde-/KapazitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tsdaten und nur dann `Max. Teilnehmer`, wenn sich dieser Wert aus vorhandenen Viewdaten tatsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤chlich ableiten lÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤sst. Wenn keine belastbare Maximalzahl vorliegt, wird dieses Feld nicht angezeigt.
+- Den halbfertig beschÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤digten Tail des `SupabaseService` sauber rekonstruiert und konsolidiert, damit der angefangene Block wieder auf einem kompilierbaren Produktstand liegt. Dazu gehÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ren die kleinen Home-Helfer (`AddDetailLine`, Zeit-/Datumsformatierung, Textnormalisierung, Dokumentpfad-Helfer, `FirstNonEmpty`, `CreateUnavailableException` usw.), die durch den abgebrochenen Zwischenstand teilweise nicht mehr vollstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndig in der Datei standen.
+- Den `Anmelden`-Usecase ausdrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼cklich gegen das aktuelle Repo geprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ft: es gibt weiterhin keinen belastbar bestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigten produktiven Schreibpfad fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r eine echte Arbeitseinsatz-Anmeldung. Deshalb wurde **keine** neue Schattenlogik eingefÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼hrt. Sowohl in der Home-Karte als auch in der Detailansicht ist `Anmelden` nur als ehrliche WPF-Info-Aktion verdrahtet, die klar darauf hinweist, dass der echte Schreibpfad noch nicht angebunden ist.
+- MAUI wurde im Rahmen dieses Blocks mitgedacht, aber bewusst nicht kÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼nstlich erweitert: die gemeinsam genutzten Home-Modelle und Mappings bleiben kompatibel, ohne dass mobil bereits eine neue pseudo-produktive Arbeitseinsatz-Anmeldung aufgebaut wird.
+- Technisch verifiziert: Workspace-Build erfolgreich. Der begonnene Home-/Detail-Block ist damit sauber abgeschlossen; offen bleibt nur die spÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tere echte Anbindung eines bestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigten Arbeitseinsatz-Anmelde-Schreibpfads.
 
-## 2026-03-23 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/1: Zeit-/Datumsbug der drei Verwaltungseditoren zentral behoben, Editorverhalten abgeschlossen und Navigation auf Home-only zurÃƒÆ’Ã‚Â¼ckgezogen
+## 2026-03-23 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Prompt 1/1: Zeit-/Datumsbug der drei Verwaltungseditoren zentral behoben, Editorverhalten abgeschlossen und Navigation auf Home-only zurÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ckgezogen
 
-- Den begonnenen Bugfix-/UX-Block zuerst gegen den realen Arbeitsbaum konsolidiert: im halbfertigen Stand lagen bereits ein neuer zentraler Typ-/Mappingansatz, ZurÃƒÆ’Ã‚Â¼ck-/Dirty-Check-Grundlagen und die RÃƒÆ’Ã‚Â¼cknahme der Hauptnavigation vor, aber noch nicht sauber verifiziert, dokumentiert und bis zum Build-/Abschlusszustand durchgezogen.
-- Die tatsÃƒÆ’Ã‚Â¤chliche Ursache des Verschiebungsfehlers wurde im gemeinsamen Typ-/Serialisierungs-/Mappingpfad verortet und nicht pro Formular erraten:
+- Den begonnenen Bugfix-/UX-Block zuerst gegen den realen Arbeitsbaum konsolidiert: im halbfertigen Stand lagen bereits ein neuer zentraler Typ-/Mappingansatz, ZurÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ck-/Dirty-Check-Grundlagen und die RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼cknahme der Hauptnavigation vor, aber noch nicht sauber verifiziert, dokumentiert und bis zum Build-/Abschlusszustand durchgezogen.
+- Die tatsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤chliche Ursache des Verschiebungsfehlers wurde im gemeinsamen Typ-/Serialisierungs-/Mappingpfad verortet und nicht pro Formular erraten:
   - `termin.datum` ist fachlich eine PostgreSQL-`date`-Spalte
   - `arbeitseinsatz.sichtbar_ab`, `sichtbar_bis`, `anmeldung_bis`, `termin.sichtbar_ab`, `sichtbar_bis` sowie `bekanntmachung.sichtbar_ab`, `sichtbar_bis` sind fachlich `timestamp without time zone`
-  - im App-Pfad liefen diese Werte aber als normale `DateTime`-Werte ohne explizite JSON-Konverter fÃƒÆ’Ã‚Â¼r den tatsÃƒÆ’Ã‚Â¤chlichen DB-Typ
-  - dadurch konnten beim PostgREST-/JSON-Transport implizite `DateTimeKind`-/UTC-/Local-Interpretationen greifen, was die beobachteten `-1 Tag`- bzw. `-1/-2 Stunden`-Verschiebungen beim wiederholten Bearbeiten/Speichern erklÃƒÆ’Ã‚Â¤rt
+  - im App-Pfad liefen diese Werte aber als normale `DateTime`-Werte ohne explizite JSON-Konverter fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r den tatsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤chlichen DB-Typ
+  - dadurch konnten beim PostgREST-/JSON-Transport implizite `DateTimeKind`-/UTC-/Local-Interpretationen greifen, was die beobachteten `-1 Tag`- bzw. `-1/-2 Stunden`-Verschiebungen beim wiederholten Bearbeiten/Speichern erklÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤rt
 - Die Korrektur deshalb zentral im Shared-Pfad umgesetzt und nicht als View-Hotfix:
   - neue JSON-Konverter `PostgresDateOnlyJsonConverter` und `NullablePostgresTimestampWithoutTimeZoneJsonConverter`
   - gezielte Annotation der betroffenen Record-Felder in `ArbeitseinsatzRecord`, `TerminRecord` und `BekanntmachungRecord`
-  - zusÃƒÆ’Ã‚Â¤tzliche zentrale Normalisierung im `SupabaseService` fÃƒÆ’Ã‚Â¼r geladene VerwaltungsdatensÃƒÆ’Ã‚Â¤tze sowie fÃƒÆ’Ã‚Â¼r `Create*Async(...)` und `Update*Async(...)`
+  - zusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzliche zentrale Normalisierung im `SupabaseService` fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r geladene VerwaltungsdatensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tze sowie fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r `Create*Async(...)` und `Update*Async(...)`
   - die letzte verbliebene abweichende Datumsnormalisierung im `CreateArbeitseinsatzAsync(...)`-Pfad wurde noch auf denselben date-only-Pfad vereinheitlicht
 - Damit werden die fachlich kritischen Felder jetzt konsistent ohne Zeitzonenverschiebung behandelt:
   - `arbeitseinsatz.sichtbar_ab`
@@ -6308,154 +6347,154 @@
   Erneutes Speichern erzeugt damit keine weitere fachliche Verschiebung mehr.
 - Das Editorverhalten der drei bestehenden WPF-Verwaltungseditoren produktiv abgeschlossen, ohne neue Views oder neue Dialogarchitektur zu bauen:
   - alle drei ViewModels erhalten den vorhandenen `MainWindowViewModel`-Kontext
-  - nach erfolgreichem Speichern wird nicht mehr in der Bearbeiten-View verharrt, sondern ÃƒÆ’Ã‚Â¼ber den bestehenden Navigationspfad zurÃƒÆ’Ã‚Â¼ck auf `Home` gegangen
-  - alle drei Editor-Views besitzen jetzt einen `ZurÃƒÆ’Ã‚Â¼ck`-Button
-  - `ZurÃƒÆ’Ã‚Â¼ck` und `Abbrechen` verwenden denselben kleinen Dirty-Check ÃƒÆ’Ã‚Â¼ber einen initialen Snapshot des Editorzustands
-  - RÃƒÆ’Ã‚Â¼ckfrage erscheint nur bei echten ÃƒÆ’Ã¢â‚¬Å¾nderungen; nach erfolgreichem Speichern ist der Zustand wieder sauber
-- Die Navigation wurde auf den gewÃƒÆ’Ã‚Â¼nschten Produktpfad zurÃƒÆ’Ã‚Â¼ckgezogen:
-  - `ArbeitseinsÃƒÆ’Ã‚Â¤tze bearbeiten`
+  - nach erfolgreichem Speichern wird nicht mehr in der Bearbeiten-View verharrt, sondern ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber den bestehenden Navigationspfad zurÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ck auf `Home` gegangen
+  - alle drei Editor-Views besitzen jetzt einen `ZurÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ck`-Button
+  - `ZurÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ck` und `Abbrechen` verwenden denselben kleinen Dirty-Check ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber einen initialen Snapshot des Editorzustands
+  - RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ckfrage erscheint nur bei echten ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾nderungen; nach erfolgreichem Speichern ist der Zustand wieder sauber
+- Die Navigation wurde auf den gewÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼nschten Produktpfad zurÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ckgezogen:
+  - `ArbeitseinsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tze bearbeiten`
   - `Termine bearbeiten`
   - `Bekanntmachungen bearbeiten`
   sind nicht mehr Teil der Hauptnavigation
-  - erreichbar bleiben sie nur ÃƒÆ’Ã‚Â¼ber die vorhandenen Home-Buttons fÃƒÆ’Ã‚Â¼r Admin/Vorstand
+  - erreichbar bleiben sie nur ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber die vorhandenen Home-Buttons fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Admin/Vorstand
   - damit bleibt kein Doppelpfad Home + Hauptnavigation stehen
-- Kleine Abschlussbereinigung des halbfertigen Zustands zusÃƒÆ’Ã‚Â¤tzlich erledigt:
-  - die drei Top-Leisten der Editor-Views wurden mit `ZurÃƒÆ’Ã‚Â¼ck` ergÃƒÆ’Ã‚Â¤nzt
-  - der zwischenzeitliche Encodingrest beim Label `ÃƒÆ’Ã¢â‚¬â€œffnen` wurde bereinigt
-- WPF wurde konkret angepasst; MAUI wurde nicht mit neuer EditoroberflÃƒÆ’Ã‚Â¤che erweitert. Da die eigentliche Ursache im Shared-Core-/Service-/Typmapping lag, zieht MAUI fachlich denselben Fixpfad mit, ohne dass die mobile OberflÃƒÆ’Ã‚Â¤che beschÃƒÆ’Ã‚Â¤digt wird.
+- Kleine Abschlussbereinigung des halbfertigen Zustands zusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzlich erledigt:
+  - die drei Top-Leisten der Editor-Views wurden mit `ZurÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ck` ergÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nzt
+  - der zwischenzeitliche Encodingrest beim Label `ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ffnen` wurde bereinigt
+- WPF wurde konkret angepasst; MAUI wurde nicht mit neuer EditoroberflÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤che erweitert. Da die eigentliche Ursache im Shared-Core-/Service-/Typmapping lag, zieht MAUI fachlich denselben Fixpfad mit, ohne dass die mobile OberflÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤che beschÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤digt wird.
 - Technisch verifiziert:
   - `KGV.Wpf` baut erfolgreich
   - `KGV.Maui` baut erfolgreich
   - verbleibende Warnungen liegen im bestehenden `SupabaseService.Set(...)`-Pfad und sind reine Nullability-Hinweise, kein verbleibender Zeit-/Datumsfehler
-- Ergebnis: der begonnene Bugfix-/UX-Block fÃƒÆ’Ã‚Â¼r die drei bestehenden Verwaltungseditoren ist jetzt sauber abgeschlossen, dokumentiert, build-verifiziert und bereit fÃƒÆ’Ã‚Â¼r Commit/Push.
+- Ergebnis: der begonnene Bugfix-/UX-Block fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r die drei bestehenden Verwaltungseditoren ist jetzt sauber abgeschlossen, dokumentiert, build-verifiziert und bereit fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Commit/Push.
 
-## 2026-03-22 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 2/2: Arbeitsstunden-Freigabe sauber abgeschlossen mit globalem Review-Lock, PrÃƒÆ’Ã‚Â¼ftabelle und wiederverwendetem Editor
+## 2026-03-22 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Prompt 2/2: Arbeitsstunden-Freigabe sauber abgeschlossen mit globalem Review-Lock, PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ftabelle und wiederverwendetem Editor
 
-- Den begonnenen Arbeitsstunden-Freigabe-Block zuerst gegen den realen Arbeitsbaum konsolidiert statt neu aufgemacht: die vorbereiteten ÃƒÆ’Ã¢â‚¬Å¾nderungen fÃƒÆ’Ã‚Â¼r PrÃƒÆ’Ã‚Â¼ftabelle, globalen Lock auf `arbeitstunde`, Wiederverwendung des Erfassungseditors und die Umstellung auf `Arbeitsstunden freigeben` waren bereits im Repo angelegt, mussten aber noch sauber verifiziert, klein bereinigt und dokumentiert werden.
-- Die realen Felder fÃƒÆ’Ã‚Â¼r den Produktpfad nochmals explizit gegen Modell und Service geprÃƒÆ’Ã‚Â¼ft und dann unverÃƒÆ’Ã‚Â¤ndert korrekt genutzt:
+- Den begonnenen Arbeitsstunden-Freigabe-Block zuerst gegen den realen Arbeitsbaum konsolidiert statt neu aufgemacht: die vorbereiteten ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾nderungen fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ftabelle, globalen Lock auf `arbeitstunde`, Wiederverwendung des Erfassungseditors und die Umstellung auf `Arbeitsstunden freigeben` waren bereits im Repo angelegt, mussten aber noch sauber verifiziert, klein bereinigt und dokumentiert werden.
+- Die realen Felder fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r den Produktpfad nochmals explizit gegen Modell und Service geprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ft und dann unverÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndert korrekt genutzt:
   - `freigegeben`
   - `status`
   - `genehmigt_am`
   - `genehmigt_von`
   - `lockedbyuserid`
   - `lockat`
-- Den offenen PrÃƒÆ’Ã‚Â¼fzustand fachlich endgÃƒÆ’Ã‚Â¼ltig von `status` entkoppelt: offene Arbeitsstunden basieren jetzt konsistent auf `freigegeben = false`; `status` wird nicht mehr kÃƒÆ’Ã‚Â¼nstlich als Workflowwert `offen` erzwungen, sondern bleibt das Anmerkungsfeld fÃƒÆ’Ã‚Â¼r Admin/Vorstand.
-- Die WPF-Ansicht `Arbeitsstunden freigeben` dient jetzt wirklich primÃƒÆ’Ã‚Â¤r der PrÃƒÆ’Ã‚Â¼fung/Freigabe offener Arbeitsstunden und nicht mehr einer vorgelagerten Mitglieder-Sammelliste:
+- Den offenen PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼fzustand fachlich endgÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ltig von `status` entkoppelt: offene Arbeitsstunden basieren jetzt konsistent auf `freigegeben = false`; `status` wird nicht mehr kÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼nstlich als Workflowwert `offen` erzwungen, sondern bleibt das Anmerkungsfeld fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Admin/Vorstand.
+- Die WPF-Ansicht `Arbeitsstunden freigeben` dient jetzt wirklich primÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤r der PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼fung/Freigabe offener Arbeitsstunden und nicht mehr einer vorgelagerten Mitglieder-Sammelliste:
   - Darstellung als Tabelle
-  - Sortierung nach `datum` aufsteigend *(ÃƒÆ’Ã‚Â¤lteste zuerst)*
+  - Sortierung nach `datum` aufsteigend *(ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤lteste zuerst)*
   - pro Zeile sichtbar: Mitglied, Datum, Saison, Stunden, Art der Arbeit
-  - zusÃƒÆ’Ã‚Â¤tzlich bearbeitbares `status`-Feld als Anmerkungsbereich
+  - zusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzlich bearbeitbares `status`-Feld als Anmerkungsbereich
   - Checkbox `Freigeben`
   - Button `Bearbeiten`
-- Selektives Sitzungsspeichern produktiv umgesetzt: gespeichert werden ausdrÃƒÆ’Ã‚Â¼cklich nur markierte/geÃƒÆ’Ã‚Â¤nderte Zeilen; unbearbeitete offene DatensÃƒÆ’Ã‚Â¤tze bleiben offen. Damit ist die fachliche Vorgabe erfÃƒÆ’Ã‚Â¼llt, dass nicht jede Sitzung alle offenen FÃƒÆ’Ã‚Â¤lle abschlieÃƒÆ’Ã…Â¸en muss.
+- Selektives Sitzungsspeichern produktiv umgesetzt: gespeichert werden ausdrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼cklich nur markierte/geÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nderte Zeilen; unbearbeitete offene DatensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tze bleiben offen. Damit ist die fachliche Vorgabe erfÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼llt, dass nicht jede Sitzung alle offenen FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤lle abschlieÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸en muss.
 - Die eigentliche Freigabelogik nutzt die realen Freigabefelder korrekt:
   - `freigegeben = true`
   - `genehmigt_am` wird beim Speichern gesetzt
-  - `genehmigt_von` wird auf das aktuelle Mitglied des prÃƒÆ’Ã‚Â¼fenden Admins/Vorstands gesetzt
-  - geÃƒÆ’Ã‚Â¤nderte, aber nicht freigegebene Zeilen bleiben mit `freigegeben = false` in der offenen Liste
-- `Bearbeiten` verwendet jetzt bewusst denselben Arbeitsstunden-Erfassungseditor weiter, statt einen zweiten parallelen PrÃƒÆ’Ã‚Â¼feditor zu erfinden:
-  - Wiederverwendung ÃƒÆ’Ã‚Â¼ber `ArbeitsstundenErfassungViewModel` / `ArbeitsstundenErfassungView`
-  - im PrÃƒÆ’Ã‚Â¼f-/Adminkontext zusÃƒÆ’Ã‚Â¤tzlich sichtbares `status`-Feld
-  - ÃƒÆ’Ã¢â‚¬â€œffnung in einem kleinen Host-Window, damit der bestehende Editorpfad auch modal im Reviewkontext nutzbar bleibt
-  - nach dem Speichern wird die PrÃƒÆ’Ã‚Â¼ftabelle wieder frisch geladen
+  - `genehmigt_von` wird auf das aktuelle Mitglied des prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼fenden Admins/Vorstands gesetzt
+  - geÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nderte, aber nicht freigegebene Zeilen bleiben mit `freigegeben = false` in der offenen Liste
+- `Bearbeiten` verwendet jetzt bewusst denselben Arbeitsstunden-Erfassungseditor weiter, statt einen zweiten parallelen PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼feditor zu erfinden:
+  - Wiederverwendung ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber `ArbeitsstundenErfassungViewModel` / `ArbeitsstundenErfassungView`
+  - im PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼f-/Adminkontext zusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzlich sichtbares `status`-Feld
+  - ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ffnung in einem kleinen Host-Window, damit der bestehende Editorpfad auch modal im Reviewkontext nutzbar bleibt
+  - nach dem Speichern wird die PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ftabelle wieder frisch geladen
 - Globaler Review-Lock klein und nachvollziehbar auf dem vorhandenen Tabellenmodell umgesetzt:
-  - beim ÃƒÆ’Ã¢â‚¬â€œffnen der Freigabeansicht wird eine globale PrÃƒÆ’Ã‚Â¼fsperre fÃƒÆ’Ã‚Â¼r die offenen `arbeitstunde`-DatensÃƒÆ’Ã‚Â¤tze gesetzt
-  - andere PrÃƒÆ’Ã‚Â¼fer kÃƒÆ’Ã‚Â¶nnen wÃƒÆ’Ã‚Â¤hrenddessen nicht parallel produktiv dieselbe Freigabesitzung bearbeiten
-  - falls real auflÃƒÆ’Ã‚Â¶sbar, wird angezeigt, wer gesperrt hat und seit wann
-  - ein Heartbeat verlÃƒÆ’Ã‚Â¤ngert die Sperre wÃƒÆ’Ã‚Â¤hrend der Sitzung
+  - beim ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ffnen der Freigabeansicht wird eine globale PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼fsperre fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r die offenen `arbeitstunde`-DatensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tze gesetzt
+  - andere PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼fer kÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶nnen wÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤hrenddessen nicht parallel produktiv dieselbe Freigabesitzung bearbeiten
+  - falls real auflÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶sbar, wird angezeigt, wer gesperrt hat und seit wann
+  - ein Heartbeat verlÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ngert die Sperre wÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤hrend der Sitzung
   - beim Verlassen der Ansicht wird die Sperre wieder freigegeben
-  - hÃƒÆ’Ã‚Â¤ngende Locks laufen nach Timeout aus und kÃƒÆ’Ã‚Â¶nnen danach kontrolliert ÃƒÆ’Ã‚Â¼bernommen werden
-- Die bestehende Badge-/ZÃƒÆ’Ã‚Â¤hlerlogik wurde bewusst weiterverwendet: ÃƒÆ’Ã¢â‚¬Å¾nderungen und Freigaben senden weiterhin `ArbeitsstundenChangedMessage`, damit WPF-Navigation und vorhandene mobile Reviewindikatoren korrekt nachziehen.
-- MAUI wurde in diesem Block nicht mit neuer Review-UI ausgebaut; konsistent mitgezogen wurde aber die zugrunde liegende Regel, dass offene Arbeitsstunden ÃƒÆ’Ã‚Â¼ber `freigegeben = false` laufen und `status` kein kÃƒÆ’Ã‚Â¼nstlicher Workflowwert mehr ist.
-- Kleine technische Abschlussbereinigung des halbfertigen Zustands durchgefÃƒÆ’Ã‚Â¼hrt:
+  - hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ngende Locks laufen nach Timeout aus und kÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶nnen danach kontrolliert ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼bernommen werden
+- Die bestehende Badge-/ZÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤hlerlogik wurde bewusst weiterverwendet: ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾nderungen und Freigaben senden weiterhin `ArbeitsstundenChangedMessage`, damit WPF-Navigation und vorhandene mobile Reviewindikatoren korrekt nachziehen.
+- MAUI wurde in diesem Block nicht mit neuer Review-UI ausgebaut; konsistent mitgezogen wurde aber die zugrunde liegende Regel, dass offene Arbeitsstunden ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber `freigegeben = false` laufen und `status` kein kÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼nstlicher Workflowwert mehr ist.
+- Kleine technische Abschlussbereinigung des halbfertigen Zustands durchgefÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼hrt:
   - verbleibende Nullability-Warnung im WPF-Review-ViewModel bereinigt
-  - Statusmeldung der PrÃƒÆ’Ã‚Â¼fansicht von der Locknachricht entkoppelt, damit RÃƒÆ’Ã‚Â¼ckmeldungen unabhÃƒÆ’Ã‚Â¤ngig sichtbar bleiben
-  - die kurz sichtbare Design-Time-XAML-Meldung zu `ArbeitsstundenErfassungView` war nicht buildrelevant; der tatsÃƒÆ’Ã‚Â¤chliche WPF-Build lÃƒÆ’Ã‚Â¤uft erfolgreich durch
+  - Statusmeldung der PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼fansicht von der Locknachricht entkoppelt, damit RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ckmeldungen unabhÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ngig sichtbar bleiben
+  - die kurz sichtbare Design-Time-XAML-Meldung zu `ArbeitsstundenErfassungView` war nicht buildrelevant; der tatsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤chliche WPF-Build lÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤uft erfolgreich durch
 - Offene Restpunkte nach diesem Block bewusst klein gehalten:
   - die produktive WPF-Freigabe steht jetzt fachlich
-  - ein spÃƒÆ’Ã‚Â¤terer separater Block kÃƒÆ’Ã‚Â¶nnte nur noch UX-Feinschliff oder weitergehende Reviewentscheidungen behandeln, ohne dass der Produktpfad aktuell unvollstÃƒÆ’Ã‚Â¤ndig wÃƒÆ’Ã‚Â¤re
+  - ein spÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤terer separater Block kÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶nnte nur noch UX-Feinschliff oder weitergehende Reviewentscheidungen behandeln, ohne dass der Produktpfad aktuell unvollstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndig wÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤re
 - Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem sauber abgeschlossenen Arbeitsstunden-Freigabe-Block erfolgreich.
 
-## 2026-03-22 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/2: Arbeitsstunden-Unterbau fÃƒÆ’Ã‚Â¼r einfachen Userflow wiederverwendet und Freigabe-Navigation vorbereitet
+## 2026-03-22 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Prompt 1/2: Arbeitsstunden-Unterbau fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r einfachen Userflow wiederverwendet und Freigabe-Navigation vorbereitet
 
-- Den aktuellen Arbeitsstunden-Istzustand vor dem Umbau erneut geprÃƒÆ’Ã‚Â¼ft: produktiv vorhanden waren bereits `ArbeitsstundenView`/`ArbeitsstundenViewModel`, `ArbeitsstundeDialog`, `AddArbeitsstundeAsync(...)`, `GetUnapprovedArbeitsstundenByMitgliedAsync()`, die bestehende Review-Ansicht fÃƒÆ’Ã‚Â¼r Admin/Vorstand sowie der WPF-/MAUI-Badgepfad ÃƒÆ’Ã‚Â¼ber `ArbeitsstundenChangedMessage`.
+- Den aktuellen Arbeitsstunden-Istzustand vor dem Umbau erneut geprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ft: produktiv vorhanden waren bereits `ArbeitsstundenView`/`ArbeitsstundenViewModel`, `ArbeitsstundeDialog`, `AddArbeitsstundeAsync(...)`, `GetUnapprovedArbeitsstundenByMitgliedAsync()`, die bestehende Review-Ansicht fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Admin/Vorstand sowie der WPF-/MAUI-Badgepfad ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber `ArbeitsstundenChangedMessage`.
 - Den vorhandenen Unterbau bewusst weiterverwendet statt neue Gesamtarchitektur zu bauen:
-  - Speichern neuer User-EintrÃƒÆ’Ã‚Â¤ge lÃƒÆ’Ã‚Â¤uft weiter ÃƒÆ’Ã‚Â¼ber `AddArbeitsstundeAsync(...)`
-  - offene FreigabefÃƒÆ’Ã‚Â¤lle werden weiter ÃƒÆ’Ã‚Â¼ber `GetUnapprovedArbeitsstundenByMitgliedAsync()` ermittelt
+  - Speichern neuer User-EintrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ge lÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤uft weiter ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber `AddArbeitsstundeAsync(...)`
+  - offene FreigabefÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤lle werden weiter ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber `GetUnapprovedArbeitsstundenByMitgliedAsync()` ermittelt
   - Badge-/Sichtbarkeitsaktualisierung bleibt am vorhandenen `ArbeitsstundenChangedMessage`-Pfad angeschlossen
   - die bestehende Admin-/Vorstands-Reviewansicht wird nicht ersetzt, sondern nur sprachlich/navigativ konsolidiert
-- FÃƒÆ’Ã‚Â¼r normale Nutzer jetzt einen eigenen klaren WPF-Erfassungsweg ergÃƒÆ’Ã‚Â¤nzt: `ArbeitsstundenErfassungViewModel` + `ArbeitsstundenErfassungView` bilden ein separates einfaches View nur fÃƒÆ’Ã‚Â¼r die Erfassung, ohne den bisherigen Review-/Bearbeitungspfad zu verdoppeln.
+- FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r normale Nutzer jetzt einen eigenen klaren WPF-Erfassungsweg ergÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nzt: `ArbeitsstundenErfassungViewModel` + `ArbeitsstundenErfassungView` bilden ein separates einfaches View nur fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r die Erfassung, ohne den bisherigen Review-/Bearbeitungspfad zu verdoppeln.
 - Das neue Userformular zeigt bewusst nur die fachlich geforderten Felder:
   - `Datum` *(Pflichtfeld)*
   - `Stunden` *(Pflichtfeld)*
   - `Art der Arbeit` *(Pflichtfeld)*
-- `freigegeben` ist in diesem Userflow kein sichtbares Feld; neue DatensÃƒÆ’Ã‚Â¤tze werden im Usermodus immer automatisch mit `freigegeben = false` und dem bestehenden Statuspfad `offen` gespeichert.
-- Keine spekulativen Zusatzfelder eingefÃƒÆ’Ã‚Â¼hrt: insbesondere kein sichtbares Mitgliedsfeld, keine zusÃƒÆ’Ã‚Â¤tzliche Freigabesteuerung, keine neue Kommentierungs-/Ablehnungslogik und keine neue Saison-/Admin-Facharchitektur im Formular.
-- Der neue Einstieg ist jetzt klar und eigenstÃƒÆ’Ã‚Â¤ndig statt als Inline-Teil auf Home:
-  - neues WPF-Hauptnavigationselement `Arbeitsstunden erfassen` fÃƒÆ’Ã‚Â¼r Benutzer mit eigenem Mitgliedskontext
-  - zusÃƒÆ’Ã‚Â¤tzlicher klarer Button `Arbeitsstunden erfassen` im Home-Bereich `Meine Arbeitsstunden`, der in dieselbe eigene View navigiert
+- `freigegeben` ist in diesem Userflow kein sichtbares Feld; neue DatensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tze werden im Usermodus immer automatisch mit `freigegeben = false` und dem bestehenden Statuspfad `offen` gespeichert.
+- Keine spekulativen Zusatzfelder eingefÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼hrt: insbesondere kein sichtbares Mitgliedsfeld, keine zusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzliche Freigabesteuerung, keine neue Kommentierungs-/Ablehnungslogik und keine neue Saison-/Admin-Facharchitektur im Formular.
+- Der neue Einstieg ist jetzt klar und eigenstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndig statt als Inline-Teil auf Home:
+  - neues WPF-Hauptnavigationselement `Arbeitsstunden erfassen` fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Benutzer mit eigenem Mitgliedskontext
+  - zusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzlicher klarer Button `Arbeitsstunden erfassen` im Home-Bereich `Meine Arbeitsstunden`, der in dieselbe eigene View navigiert
 - Die neue WPF-Erfassungsansicht bleibt einfach, aber produktiv:
-  - aktueller eigener Mitgliedskontext wird ÃƒÆ’Ã‚Â¼ber den vorhandenen MainWindow-/UserContext-Pfad aufgelÃƒÆ’Ã‚Â¶st
-  - aktuelle Saison wird ÃƒÆ’Ã‚Â¼ber den vorhandenen `GetSaisonRecordsAsync()`-Pfad ermittelt
-  - `Abbrechen` setzt das Formular sauber zurÃƒÆ’Ã‚Â¼ck
+  - aktueller eigener Mitgliedskontext wird ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber den vorhandenen MainWindow-/UserContext-Pfad aufgelÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶st
+  - aktuelle Saison wird ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber den vorhandenen `GetSaisonRecordsAsync()`-Pfad ermittelt
+  - `Abbrechen` setzt das Formular sauber zurÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ck
   - `Speichern` steht am Ende des Formulars
-- Validierung fÃƒÆ’Ã‚Â¼r den Userflow fachlich klein und produktnah umgesetzt:
+- Validierung fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r den Userflow fachlich klein und produktnah umgesetzt:
   - Pflichtfelder werden markiert
   - fehlende Eingaben werden rot hervorgehoben
   - Fokus springt auf das erste fehlerhafte Feld von oben
-  - `Stunden` mÃƒÆ’Ã‚Â¼ssen numerisch und grÃƒÆ’Ã‚Â¶ÃƒÆ’Ã…Â¸er als `0` sein
-  - keine kÃƒÆ’Ã‚Â¼nstlich schÃƒÆ’Ã‚Â¤rferen Zusatzregeln wurden eingefÃƒÆ’Ã‚Â¼hrt
-- FÃƒÆ’Ã‚Â¼r Admin/Vorstand wurde in diesem Block bewusst noch keine neue Freigabe-OberflÃƒÆ’Ã‚Â¤che gebaut; stattdessen wurde der bestehende Pfad nur vorbereitet/konsolidiert:
-  - WPF-Navigationseintrag wird jetzt als `Arbeitsstunden freigeben` gefÃƒÆ’Ã‚Â¼hrt
+  - `Stunden` mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ssen numerisch und grÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸er als `0` sein
+  - keine kÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼nstlich schÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤rferen Zusatzregeln wurden eingefÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼hrt
+- FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Admin/Vorstand wurde in diesem Block bewusst noch keine neue Freigabe-OberflÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤che gebaut; stattdessen wurde der bestehende Pfad nur vorbereitet/konsolidiert:
+  - WPF-Navigationseintrag wird jetzt als `Arbeitsstunden freigeben` gefÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼hrt
   - vorhandene WPF-Reviewtitel wurden auf `freigeben` umbenannt
-  - bestehendes MAUI-AdminmenÃƒÆ’Ã‚Â¼ und die mobile Reviewtitel wurden ebenfalls auf `freigeben` konsolidiert
+  - bestehendes MAUI-AdminmenÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ und die mobile Reviewtitel wurden ebenfalls auf `freigeben` konsolidiert
   - es bleibt bei derselben bestehenden Review-Mechanik, keine zweite parallele Adminansicht
 - Der offene Freigabe-Indikator funktioniert weiter auf dem vorhandenen Produktpfad:
-  - sichtbar nur fÃƒÆ’Ã‚Â¼r Admin/Vorstand bzw. Rollen mit `CanManageWorkHours`
-  - sichtbar/hervorgehoben nur bei tatsÃƒÆ’Ã‚Â¤chlich offenen DatensÃƒÆ’Ã‚Â¤tzen mit `freigegeben = false`
-  - Badge/ZÃƒÆ’Ã‚Â¤hler zeigt die Anzahl offener PrÃƒÆ’Ã‚Â¼ffÃƒÆ’Ã‚Â¤lle
-  - nach neuer User-Erfassung aktualisiert sich dieser Pfad weiter ÃƒÆ’Ã‚Â¼ber `ArbeitsstundenChangedMessage`
-- MAUI wurde nicht mit Platzhalterseiten aufgeblÃƒÆ’Ã‚Â¤ht: der Block beschrÃƒÆ’Ã‚Â¤nkt sich mobil auf die sprachliche Konsolidierung der vorhandenen Arbeitsstunden-/Freigabebegriffe; der gemeinsame Service- und Statusunterbau bleibt damit fÃƒÆ’Ã‚Â¼r spÃƒÆ’Ã‚Â¤tere ParitÃƒÆ’Ã‚Â¤t offen und unverletzt.
-- FÃƒÆ’Ã‚Â¼r den nÃƒÆ’Ã‚Â¤chsten Freigabe-Block bleibt bewusst noch offen:
-  - ob und wie die bestehende Freigabe-/ReviewoberflÃƒÆ’Ã‚Â¤che fachlich weiter vereinfacht oder umgestaltet wird
-  - mÃƒÆ’Ã‚Â¶gliche weitergehende Admin-/Vorstandsentscheidungen jenseits der hier nur vorbereiteten Freigabenavigation
+  - sichtbar nur fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Admin/Vorstand bzw. Rollen mit `CanManageWorkHours`
+  - sichtbar/hervorgehoben nur bei tatsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤chlich offenen DatensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzen mit `freigegeben = false`
+  - Badge/ZÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤hler zeigt die Anzahl offener PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ffÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤lle
+  - nach neuer User-Erfassung aktualisiert sich dieser Pfad weiter ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber `ArbeitsstundenChangedMessage`
+- MAUI wurde nicht mit Platzhalterseiten aufgeblÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ht: der Block beschrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nkt sich mobil auf die sprachliche Konsolidierung der vorhandenen Arbeitsstunden-/Freigabebegriffe; der gemeinsame Service- und Statusunterbau bleibt damit fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r spÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tere ParitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤t offen und unverletzt.
+- FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r den nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤chsten Freigabe-Block bleibt bewusst noch offen:
+  - ob und wie die bestehende Freigabe-/ReviewoberflÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤che fachlich weiter vereinfacht oder umgestaltet wird
+  - mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶gliche weitergehende Admin-/Vorstandsentscheidungen jenseits der hier nur vorbereiteten Freigabenavigation
 - Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem Userflow-Block erfolgreich.
 
-## 2026-03-22 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 5/5: Verwaltungseditoren konsolidiert, alte Strukturreste entfernt und Abschlussstand fÃƒÆ’Ã‚Â¼r WPF/MAUI geschÃƒÆ’Ã‚Â¤rft
+## 2026-03-22 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Prompt 5/5: Verwaltungseditoren konsolidiert, alte Strukturreste entfernt und Abschlussstand fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r WPF/MAUI geschÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤rft
 
-- Den aktuellen Abschlussstand der drei Verwaltungseditoren vor dem Konsolidierungsschritt nochmals gezielt geprÃƒÆ’Ã‚Â¼ft: produktiv verdrahtet waren bereits `ArbeitseinsaetzeVerwaltungEditorView`, `TermineVerwaltungEditorView` und `BekanntmachungenVerwaltungEditorView`; parallel lagen im Repo aber noch die ÃƒÆ’Ã‚Â¤lteren vorbereitenden Strukturviews ohne produktive Verdrahtung.
+- Den aktuellen Abschlussstand der drei Verwaltungseditoren vor dem Konsolidierungsschritt nochmals gezielt geprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ft: produktiv verdrahtet waren bereits `ArbeitseinsaetzeVerwaltungEditorView`, `TermineVerwaltungEditorView` und `BekanntmachungenVerwaltungEditorView`; parallel lagen im Repo aber noch die ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤lteren vorbereitenden Strukturviews ohne produktive Verdrahtung.
 - Die produktive Navigation nochmals gegen `App.xaml`, `NavigationService`, `MainWindowViewModel` und `HomeViewModel` abgesichert:
-  - `App.xaml` mappt die drei Verwaltungs-ViewModels ausschlieÃƒÆ’Ã…Â¸lich auf die produktiven Editor-Views
+  - `App.xaml` mappt die drei Verwaltungs-ViewModels ausschlieÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸lich auf die produktiven Editor-Views
   - `NavigationService` erzeugt weiterhin nur die drei produktiven Verwaltungs-ViewModels
   - `MainWindowViewModel` bietet die drei Verwaltungswege nur im Admin-/Vorstandskontext an
-  - `HomeViewModel` ÃƒÆ’Ã‚Â¶ffnet aus Home heraus ebenfalls nur diese produktiven Verwaltungs-ViewModels
+  - `HomeViewModel` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffnet aus Home heraus ebenfalls nur diese produktiven Verwaltungs-ViewModels
 - Die alten strukturellen Verwaltungsviews wurden jetzt konsequent entfernt, weil sie nicht mehr produktiv genutzt wurden und nur noch doppeldeutige Koexistenz erzeugten:
   - `ArbeitseinsaetzeVerwaltungView.xaml` / `.xaml.cs`
   - `TermineVerwaltungView.xaml` / `.xaml.cs`
   - `BekanntmachungenVerwaltungView.xaml` / `.xaml.cs`
-- Auch der frÃƒÆ’Ã‚Â¼here gemeinsame Strukturunterbau wurde bereinigt:
+- Auch der frÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼here gemeinsame Strukturunterbau wurde bereinigt:
   - `HomeVerwaltungViewModelBase.cs`
   - `HomeVerwaltungListItem.cs`
   Diese Bausteine waren nach der Umstellung aller drei Bereiche auf echte Basistabellen-Editoren nicht mehr produktiv in Verwendung.
-- Die Benennung/Architektur bleibt damit im Abschlussstand klar lesbar: die produktiven WPF-VerwaltungsoberflÃƒÆ’Ã‚Â¤chen tragen bewusst den Suffix `EditorView`, und es existiert daneben kein konkurrierender Alt-View-Pfad mehr.
-- Einen grÃƒÆ’Ã‚Â¶ÃƒÆ’Ã…Â¸eren Umbenennungsblock bewusst nicht erÃƒÆ’Ã‚Â¶ffnet: da die produktiven Editor-Views bereits eindeutig und direkt in `App.xaml` verdrahtet sind, hÃƒÆ’Ã‚Â¤tte ein zusÃƒÆ’Ã‚Â¤tzlicher Klassen-/Datei-Rename in diesem Abschlussblock mehr mechanische Bewegung als fachlichen Nutzen erzeugt.
-- Gemeinsame Muster wurden nicht kÃƒÆ’Ã‚Â¼nstlich ÃƒÆ’Ã‚Â¼berabstrahiert: Validierungs-, Fokus- und Zeitlogik bleiben zwischen den drei Editor-ViewModels fachlich parallel und weiterhin gut nachvollziehbar. GrÃƒÆ’Ã‚Â¶ÃƒÆ’Ã…Â¸ere neue Basisklassen/Abstraktionen wurden bewusst nicht mehr eingezogen, um den Abschlussblock nicht unnÃƒÆ’Ã‚Â¶tig zu verbreitern.
-- Home-/Rechtepfad final abgesichert: Bearbeiten-Einstiege bleiben nur fÃƒÆ’Ã‚Â¼r Admin/Vorstand sichtbar und nutzbar; normale Nutzer bleiben sauber im lesenden Home-Modus. Es gibt im aktuellen Stand keine produktive Navigation mehr in veraltete Strukturviews und keine Bearbeitung direkt auf Home.
-- MAUI-ParitÃƒÆ’Ã‚Â¤t fÃƒÆ’Ã‚Â¼r spÃƒÆ’Ã‚Â¤teren Anschluss fachlich abgesichert, ohne neue Platzhalterseiten zu bauen:
-  - die produktiven Lese-/Create-/Update-Pfade fÃƒÆ’Ã‚Â¼r `termin`, `bekanntmachung` und `arbeitseinsatz` liegen jetzt vollstÃƒÆ’Ã‚Â¤ndig in den gemeinsamen Services/Modellen
-  - damit ist die fachliche Grundlage fÃƒÆ’Ã‚Â¼r spÃƒÆ’Ã‚Â¤tere mobile VerwaltungsoberflÃƒÆ’Ã‚Â¤chen plattformneutral vorhanden
-  - WPF-spezifisch bleiben aktuell nur die drei tatsÃƒÆ’Ã‚Â¤chlichen Editor-UIs inkl. Fokussteuerung/HTML-Vorschau
-- Kleiner QualitÃƒÆ’Ã‚Â¤tsblock erfolgreich abgeschlossen: keine neue Fachlogik erÃƒÆ’Ã‚Â¶ffnet, keine Home-Bearbeitung ergÃƒÆ’Ã‚Â¤nzt, keine zusÃƒÆ’Ã‚Â¤tzliche Doppelverdrahtung stehen gelassen, und die aktive WPF-/MAUI-Basis bleibt buildfÃƒÆ’Ã‚Â¤hig.
+- Die Benennung/Architektur bleibt damit im Abschlussstand klar lesbar: die produktiven WPF-VerwaltungsoberflÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤chen tragen bewusst den Suffix `EditorView`, und es existiert daneben kein konkurrierender Alt-View-Pfad mehr.
+- Einen grÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸eren Umbenennungsblock bewusst nicht erÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffnet: da die produktiven Editor-Views bereits eindeutig und direkt in `App.xaml` verdrahtet sind, hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tte ein zusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzlicher Klassen-/Datei-Rename in diesem Abschlussblock mehr mechanische Bewegung als fachlichen Nutzen erzeugt.
+- Gemeinsame Muster wurden nicht kÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼nstlich ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼berabstrahiert: Validierungs-, Fokus- und Zeitlogik bleiben zwischen den drei Editor-ViewModels fachlich parallel und weiterhin gut nachvollziehbar. GrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸ere neue Basisklassen/Abstraktionen wurden bewusst nicht mehr eingezogen, um den Abschlussblock nicht unnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶tig zu verbreitern.
+- Home-/Rechtepfad final abgesichert: Bearbeiten-Einstiege bleiben nur fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Admin/Vorstand sichtbar und nutzbar; normale Nutzer bleiben sauber im lesenden Home-Modus. Es gibt im aktuellen Stand keine produktive Navigation mehr in veraltete Strukturviews und keine Bearbeitung direkt auf Home.
+- MAUI-ParitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤t fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r spÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤teren Anschluss fachlich abgesichert, ohne neue Platzhalterseiten zu bauen:
+  - die produktiven Lese-/Create-/Update-Pfade fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r `termin`, `bekanntmachung` und `arbeitseinsatz` liegen jetzt vollstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndig in den gemeinsamen Services/Modellen
+  - damit ist die fachliche Grundlage fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r spÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tere mobile VerwaltungsoberflÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤chen plattformneutral vorhanden
+  - WPF-spezifisch bleiben aktuell nur die drei tatsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤chlichen Editor-UIs inkl. Fokussteuerung/HTML-Vorschau
+- Kleiner QualitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tsblock erfolgreich abgeschlossen: keine neue Fachlogik erÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffnet, keine Home-Bearbeitung ergÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nzt, keine zusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzliche Doppelverdrahtung stehen gelassen, und die aktive WPF-/MAUI-Basis bleibt buildfÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤hig.
 - Reale Restoffenheiten nach dem Abschlussblock:
-  - die drei produktiven WPF-Verwaltungseditoren stehen jetzt vollstÃƒÆ’Ã‚Â¤ndig
-  - fÃƒÆ’Ã‚Â¼r MAUI existiert bewusst noch keine produktive VerwaltungsoberflÃƒÆ’Ã‚Â¤che fÃƒÆ’Ã‚Â¼r diese drei Bereiche, aber der gemeinsame Unterbau ist vorbereitet
-  - verbleibend sind auÃƒÆ’Ã…Â¸erhalb dieses Blocks nur noch getrennte, nicht blockrelevante Arbeitsbaum-Artefakte bzw. unabhÃƒÆ’Ã‚Â¤ngige UI-Themen wie die bereits offene `LoginWindow.xaml`
+  - die drei produktiven WPF-Verwaltungseditoren stehen jetzt vollstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndig
+  - fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r MAUI existiert bewusst noch keine produktive VerwaltungsoberflÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤che fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r diese drei Bereiche, aber der gemeinsame Unterbau ist vorbereitet
+  - verbleibend sind auÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸erhalb dieses Blocks nur noch getrennte, nicht blockrelevante Arbeitsbaum-Artefakte bzw. unabhÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ngige UI-Themen wie die bereits offene `LoginWindow.xaml`
 - Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach der Konsolidierung und Altlast-Bereinigung erfolgreich.
 
-## 2026-03-22 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 4/5: ArbeitseinsÃƒÆ’Ã‚Â¤tze-Verwaltung produktiv an `arbeitseinsatz` angeschlossen, inklusive Sonderregeln fÃƒÆ’Ã‚Â¼r Teilnehmergrenze und Stundenwert
+## 2026-03-22 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Prompt 4/5: ArbeitseinsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tze-Verwaltung produktiv an `arbeitseinsatz` angeschlossen, inklusive Sonderregeln fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Teilnehmergrenze und Stundenwert
 
-- Den aktuellen Istzustand der vorbereiteten ArbeitseinsÃƒÆ’Ã‚Â¤tze-Verwaltung vor dem Umbau erneut geprÃƒÆ’Ã‚Â¼ft: `ArbeitseinsaetzeVerwaltungViewModel` war bislang noch nur strukturell aus dem gemeinsamen VerwaltungsgerÃƒÆ’Ã‚Â¼st abgeleitet, die Liste kam nur aus dem Startseiten-Lesepfad, und rechts gab es noch keinen produktiven Editor mit bestÃƒÆ’Ã‚Â¤tigten Basistabellenfeldern.
-- Den bestÃƒÆ’Ã‚Â¤tigten Tabellenvertrag von `arbeitseinsatz` jetzt direkt produktiv an die WPF-Verwaltung angebunden. Bearbeitet werden genau die bestÃƒÆ’Ã‚Â¤tigten Fachfelder:
+- Den aktuellen Istzustand der vorbereiteten ArbeitseinsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tze-Verwaltung vor dem Umbau erneut geprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ft: `ArbeitseinsaetzeVerwaltungViewModel` war bislang noch nur strukturell aus dem gemeinsamen VerwaltungsgerÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼st abgeleitet, die Liste kam nur aus dem Startseiten-Lesepfad, und rechts gab es noch keinen produktiven Editor mit bestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigten Basistabellenfeldern.
+- Den bestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigten Tabellenvertrag von `arbeitseinsatz` jetzt direkt produktiv an die WPF-Verwaltung angebunden. Bearbeitet werden genau die bestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigten Fachfelder:
   - `titel` *(Pflichtfeld)*
   - `beschreibung`
   - `datum` *(Pflichtfeld)*
@@ -6469,17 +6508,17 @@
   - `anmeldung_bis`
   - `aktiv`
 - Technische Felder wie `created_at` und `updated_at` sowie das technische Flag `is_demo` werden nicht als normale UI-Bearbeitungsfelder in den Vordergrund gestellt; `is_demo` wird im Produktpfad intern erhalten und nicht spekulativ umgedeutet.
-- Gemeinsamen produktiven Basistabellenpfad ergÃƒÆ’Ã‚Â¤nzt:
+- Gemeinsamen produktiven Basistabellenpfad ergÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nzt:
   - `GetArbeitseinsaetzeVerwaltungAsync()`
   - `CreateArbeitseinsatzAsync(...)`
   - `UpdateArbeitseinsatzAsync(...)`
-  Diese Methoden lesen/schreiben direkt auf `arbeitseinsatz`; es wird ausdrÃƒÆ’Ã‚Â¼cklich nicht gegen `v_startseite_arbeitseinsatz` geschrieben.
-- Die linke Verwaltungsseite nutzt damit jetzt reale DatensÃƒÆ’Ã‚Â¤tze aus `arbeitseinsatz` statt einer bloÃƒÆ’Ã…Â¸en Home-/View-Strukturableitung. Dadurch bleiben auch inaktive oder intern markierte DatensÃƒÆ’Ã‚Â¤tze im Admin-/Vorstandskontext sauber bearbeitbar.
+  Diese Methoden lesen/schreiben direkt auf `arbeitseinsatz`; es wird ausdrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼cklich nicht gegen `v_startseite_arbeitseinsatz` geschrieben.
+- Die linke Verwaltungsseite nutzt damit jetzt reale DatensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tze aus `arbeitseinsatz` statt einer bloÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸en Home-/View-Strukturableitung. Dadurch bleiben auch inaktive oder intern markierte DatensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tze im Admin-/Vorstandskontext sauber bearbeitbar.
 - Das rechte Bearbeitungsverhalten ist jetzt produktiv und konsistent:
   - ohne `Neu` oder Doppelklick bleibt rechts leer
-  - Doppelklick ÃƒÆ’Ã‚Â¶ffnet den Editor mit echten Werten
-  - `Neu` ÃƒÆ’Ã‚Â¶ffnet einen leeren Editorzustand
-  - `Abbrechen` verwirft den Bearbeitungszustand vollstÃƒÆ’Ã‚Â¤ndig
+  - Doppelklick ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffnet den Editor mit echten Werten
+  - `Neu` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffnet einen leeren Editorzustand
+  - `Abbrechen` verwirft den Bearbeitungszustand vollstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndig
   - `Speichern` bleibt wie gefordert am Ende des Formulars
 - Sonderregel `max_teilnehmer` fachlich sauber umgesetzt:
   - das Feld ist nicht verpflichtend
@@ -6489,74 +6528,74 @@
   - sobald eine Begrenzung aktiv ist, muss `max_teilnehmer > 0` gelten
 - Sonderregel `stunden_wert` ebenfalls sauber umgesetzt:
   - das Feld ist nicht verpflichtend
-  - leere Eingabe bleibt im Editor als optionaler Zustand zulÃƒÆ’Ã‚Â¤ssig
+  - leere Eingabe bleibt im Editor als optionaler Zustand zulÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ssig
   - beim Speichern wird der DB-konforme operative Wert `0` verwendet, damit der NOT-NULL-/Default-Vertrag sauber eingehalten bleibt
-  - eingegebene Werte mÃƒÆ’Ã‚Â¼ssen `>= 0` sein
-- BestÃƒÆ’Ã‚Â¤tigte Validierungsregeln direkt umgesetzt:
+  - eingegebene Werte mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ssen `>= 0` sein
+- BestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigte Validierungsregeln direkt umgesetzt:
   - `Titel` darf nicht leer oder nur Leerzeichen sein
   - `Datum` ist Pflicht
-  - `Enduhrzeit < Startuhrzeit` ist ungÃƒÆ’Ã‚Â¼ltig
-  - `Sichtbar bis < Sichtbar ab` ist ungÃƒÆ’Ã‚Â¼ltig
-  - `max_teilnehmer <= 0` bei aktiver Begrenzung ist ungÃƒÆ’Ã‚Â¼ltig
-  - `stunden_wert < 0` ist ungÃƒÆ’Ã‚Â¼ltig
-  - `anmeldung_bis` wird als optionaler Timestamp mit vollstÃƒÆ’Ã‚Â¤ndigem Datum+Uhrzeit-Paar geprÃƒÆ’Ã‚Â¼ft, sobald das Feld genutzt wird
+  - `Enduhrzeit < Startuhrzeit` ist ungÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ltig
+  - `Sichtbar bis < Sichtbar ab` ist ungÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ltig
+  - `max_teilnehmer <= 0` bei aktiver Begrenzung ist ungÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ltig
+  - `stunden_wert < 0` ist ungÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ltig
+  - `anmeldung_bis` wird als optionaler Timestamp mit vollstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndigem Datum+Uhrzeit-Paar geprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ft, sobald das Feld genutzt wird
 - Das Validierungs-/Fokusmuster aus `Termine` und `Bekanntmachungen` wurde bewusst wiederverwendet:
   - rote Hervorhebung fehlerhafter Felder
   - Fokus springt beim Speichern auf das erste fehlerhafte Feld von oben
-  - dieselbe zentrale tolerante Zeitlogik fÃƒÆ’Ã‚Â¼r `Startuhrzeit`, `Enduhrzeit`, `Sichtbar ab`, `Sichtbar bis` und `Anmeldung bis`
-- FÃƒÆ’Ã‚Â¼r `Stundenwert` wurde ergÃƒÆ’Ã‚Â¤nzend eine kleine tolerante numerische Parse-Logik eingebracht, damit Eingaben kulturrobust verarbeitet werden, ohne daraus ein neues grÃƒÆ’Ã‚Â¶ÃƒÆ’Ã…Â¸eres Shared-Parsing-Subsystem zu machen.
-- Nach erfolgreichem Speichern wird die Liste neu geladen und der gespeicherte Datensatz wieder selektiert/erneut angezeigt, damit ÃƒÆ’Ã¢â‚¬Å¾nderungen unmittelbar nachvollziehbar bleiben.
-- Kleiner technischer AufrÃƒÆ’Ã‚Â¤umcheck bewusst klein gehalten: die ÃƒÆ’Ã‚Â¤ltere strukturelle `ArbeitseinsaetzeVerwaltungView` bleibt vorerst noch im Repo, produktiv verdrahtet ist jetzt aber die neue Editoransicht; grÃƒÆ’Ã‚Â¶ÃƒÆ’Ã…Â¸ere Bereinigung wird nicht in diesen Block hineingezogen.
-- Offene Punkte fÃƒÆ’Ã‚Â¼r den letzten ParitÃƒÆ’Ã‚Â¤ts-/AufrÃƒÆ’Ã‚Â¤umblock: die drei produktiven Verwaltungseditoren stehen jetzt, offen bleibt vor allem die kleine Konsolidierung/ParitÃƒÆ’Ã‚Â¤t der verbliebenen Altstrukturen und der anschlieÃƒÆ’Ã…Â¸ende Abschluss-/AufrÃƒÆ’Ã‚Â¤umpfad.
-- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem produktiven ArbeitseinsÃƒÆ’Ã‚Â¤tze-Block erfolgreich.
+  - dieselbe zentrale tolerante Zeitlogik fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r `Startuhrzeit`, `Enduhrzeit`, `Sichtbar ab`, `Sichtbar bis` und `Anmeldung bis`
+- FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r `Stundenwert` wurde ergÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nzend eine kleine tolerante numerische Parse-Logik eingebracht, damit Eingaben kulturrobust verarbeitet werden, ohne daraus ein neues grÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸eres Shared-Parsing-Subsystem zu machen.
+- Nach erfolgreichem Speichern wird die Liste neu geladen und der gespeicherte Datensatz wieder selektiert/erneut angezeigt, damit ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾nderungen unmittelbar nachvollziehbar bleiben.
+- Kleiner technischer AufrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤umcheck bewusst klein gehalten: die ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ltere strukturelle `ArbeitseinsaetzeVerwaltungView` bleibt vorerst noch im Repo, produktiv verdrahtet ist jetzt aber die neue Editoransicht; grÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸ere Bereinigung wird nicht in diesen Block hineingezogen.
+- Offene Punkte fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r den letzten ParitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ts-/AufrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤umblock: die drei produktiven Verwaltungseditoren stehen jetzt, offen bleibt vor allem die kleine Konsolidierung/ParitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤t der verbliebenen Altstrukturen und der anschlieÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸ende Abschluss-/AufrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤umpfad.
+- Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem produktiven ArbeitseinsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tze-Block erfolgreich.
 
-## 2026-03-22 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 3/5: Bekanntmachungen-Verwaltung produktiv an `bekanntmachung` angeschlossen, inklusive kleinem HTML-Editor
+## 2026-03-22 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Prompt 3/5: Bekanntmachungen-Verwaltung produktiv an `bekanntmachung` angeschlossen, inklusive kleinem HTML-Editor
 
-- Den aktuellen Istzustand der vorbereiteten Bekanntmachungen-Verwaltung vor dem Umbau erneut geprÃƒÆ’Ã‚Â¼ft: `BekanntmachungenVerwaltungViewModel` war bislang noch nur strukturell aus dem gemeinsamen VerwaltungsgerÃƒÆ’Ã‚Â¼st abgeleitet, die Listenladung lief nur ÃƒÆ’Ã‚Â¼ber den Startseiten-Lesepfad, und es gab noch keinen produktiven Editor fÃƒÆ’Ã‚Â¼r `inhalt_html`.
-- Den bestÃƒÆ’Ã‚Â¤tigten Tabellenvertrag von `bekanntmachung` jetzt direkt produktiv an die WPF-Verwaltung angebunden. Bearbeitet werden genau die bestÃƒÆ’Ã‚Â¤tigten Fachfelder:
+- Den aktuellen Istzustand der vorbereiteten Bekanntmachungen-Verwaltung vor dem Umbau erneut geprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ft: `BekanntmachungenVerwaltungViewModel` war bislang noch nur strukturell aus dem gemeinsamen VerwaltungsgerÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼st abgeleitet, die Listenladung lief nur ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber den Startseiten-Lesepfad, und es gab noch keinen produktiven Editor fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r `inhalt_html`.
+- Den bestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigten Tabellenvertrag von `bekanntmachung` jetzt direkt produktiv an die WPF-Verwaltung angebunden. Bearbeitet werden genau die bestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigten Fachfelder:
   - `titel` *(Pflichtfeld)*
   - `inhalt_html` *(Pflichtfeld)*
   - `sichtbar_ab`
   - `sichtbar_bis`
   - `sort_order`
   - `aktiv`
-- Technische Felder wie `created_at` und `updated_at` bleiben weiterhin bewusst auÃƒÆ’Ã…Â¸erhalb der normalen Bearbeitung; es wurden keine zusÃƒÆ’Ã‚Â¤tzlichen Fantasiefelder ergÃƒÆ’Ã‚Â¤nzt.
-- Gemeinsamen produktiven Basistabellenpfad ergÃƒÆ’Ã‚Â¤nzt:
+- Technische Felder wie `created_at` und `updated_at` bleiben weiterhin bewusst auÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸erhalb der normalen Bearbeitung; es wurden keine zusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzlichen Fantasiefelder ergÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nzt.
+- Gemeinsamen produktiven Basistabellenpfad ergÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nzt:
   - `GetBekanntmachungenVerwaltungAsync()`
   - `CreateBekanntmachungAsync(...)`
   - `UpdateBekanntmachungAsync(...)`
-  Diese Methoden lesen/schreiben direkt auf `bekanntmachung`; es wird ausdrÃƒÆ’Ã‚Â¼cklich nicht gegen `v_startseite_bekanntmachungen` geschrieben.
-- Die linke Verwaltungsseite nutzt jetzt reale DatensÃƒÆ’Ã‚Â¤tze aus `bekanntmachung` statt einer Home-/View-Strukturableitung. Dadurch bleibt die Admin-/Vorstandsverwaltung auch fÃƒÆ’Ã‚Â¼r noch nicht sichtbare oder inaktive Bekanntmachungen fachlich korrekt.
+  Diese Methoden lesen/schreiben direkt auf `bekanntmachung`; es wird ausdrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼cklich nicht gegen `v_startseite_bekanntmachungen` geschrieben.
+- Die linke Verwaltungsseite nutzt jetzt reale DatensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tze aus `bekanntmachung` statt einer Home-/View-Strukturableitung. Dadurch bleibt die Admin-/Vorstandsverwaltung auch fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r noch nicht sichtbare oder inaktive Bekanntmachungen fachlich korrekt.
 - Das rechte Verhalten ist jetzt produktiv und konsistent:
   - ohne `Neu` oder Doppelklick bleibt rechts leer
-  - Doppelklick ÃƒÆ’Ã‚Â¶ffnet den Editor mit echten Werten
-  - `Neu` ÃƒÆ’Ã‚Â¶ffnet einen leeren Editorzustand
-  - `Abbrechen` verwirft den Bearbeitungszustand vollstÃƒÆ’Ã‚Â¤ndig
+  - Doppelklick ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffnet den Editor mit echten Werten
+  - `Neu` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffnet einen leeren Editorzustand
+  - `Abbrechen` verwirft den Bearbeitungszustand vollstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndig
   - `Speichern` bleibt wie gefordert am Ende des Formulars
-- HTML-Editor-Entscheidung bewusst klein und kontrolliert gehalten: im Repo gab es vor dem Block keine belastbare kleine HTML-/Preview-Komponente und keine bereits genutzte leichte EditorabhÃƒÆ’Ã‚Â¤ngigkeit. Deshalb wurde keine schwere neue Editor-Architektur eingefÃƒÆ’Ã‚Â¼hrt, sondern eine produktive Bordmittel-LÃƒÆ’Ã‚Â¶sung umgesetzt:
+- HTML-Editor-Entscheidung bewusst klein und kontrolliert gehalten: im Repo gab es vor dem Block keine belastbare kleine HTML-/Preview-Komponente und keine bereits genutzte leichte EditorabhÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ngigkeit. Deshalb wurde keine schwere neue Editor-Architektur eingefÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼hrt, sondern eine produktive Bordmittel-LÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶sung umgesetzt:
   - HTML-Quellbearbeitung in einem dedizierten Editorbereich
-  - kleine Snippet-Leiste fÃƒÆ’Ã‚Â¼r hÃƒÆ’Ã‚Â¤ufige HTML-Bausteine (`Absatz`, `ÃƒÆ’Ã…â€œberschrift`, `Fett`, `Link`, `Liste`)
-  - integrierte Live-Vorschau ÃƒÆ’Ã‚Â¼ber den vorhandenen WPF-`WebBrowser`
-- Damit bleibt `inhalt_html` nicht auf ein bloÃƒÆ’Ã…Â¸es Plaintext-Endfeld reduziert, ohne einen ÃƒÆ’Ã‚Â¼bergroÃƒÆ’Ã…Â¸en Richtext-Baukasten neu zu erfinden.
-- BestÃƒÆ’Ã‚Â¤tigte Validierungsregeln direkt umgesetzt:
+  - kleine Snippet-Leiste fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ufige HTML-Bausteine (`Absatz`, `ÃƒÆ’Ã†â€™Ãƒâ€¦Ã¢â‚¬Å“berschrift`, `Fett`, `Link`, `Liste`)
+  - integrierte Live-Vorschau ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber den vorhandenen WPF-`WebBrowser`
+- Damit bleibt `inhalt_html` nicht auf ein bloÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸es Plaintext-Endfeld reduziert, ohne einen ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼bergroÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸en Richtext-Baukasten neu zu erfinden.
+- BestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigte Validierungsregeln direkt umgesetzt:
   - `Titel` darf nicht leer oder nur Leerzeichen sein
   - `inhalt_html` darf nicht leer oder nur Leerzeichen sein
-  - `sichtbar_bis < sichtbar_ab` ist ungÃƒÆ’Ã‚Â¼ltig
-  - fÃƒÆ’Ã‚Â¼r `sichtbar_ab`/`sichtbar_bis` werden Datum und Uhrzeit gemeinsam benÃƒÆ’Ã‚Â¶tigt, sobald eines davon befÃƒÆ’Ã‚Â¼llt wird, damit keine stillen Timestamp-Annahmen entstehen
+  - `sichtbar_bis < sichtbar_ab` ist ungÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ltig
+  - fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r `sichtbar_ab`/`sichtbar_bis` werden Datum und Uhrzeit gemeinsam benÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶tigt, sobald eines davon befÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼llt wird, damit keine stillen Timestamp-Annahmen entstehen
   - `sort_order` ist optional, muss aber bei Eingabe eine ganze Zahl sein
 - Das Validierungs-/Fokusmuster aus `Termine` wurde bewusst wiederverwendet:
   - rote Hervorhebung fehlerhafter Felder
   - Fokus springt beim Speichern auf das erste fehlerhafte Feld von oben
-  - dieselbe tolerante Zeitlogik fÃƒÆ’Ã‚Â¼r die Sichtbarkeits-Timestamps
-- Nach erfolgreichem Speichern wird die Liste neu geladen und der gespeicherte Datensatz wieder selektiert/erneut angezeigt, damit ÃƒÆ’Ã¢â‚¬Å¾nderungen unmittelbar nachvollziehbar bleiben.
-- Kleiner technischer AufrÃƒÆ’Ã‚Â¤umcheck bewusst klein gehalten: die ÃƒÆ’Ã‚Â¤ltere strukturelle `BekanntmachungenVerwaltungView` bleibt vorerst noch im Repo, produktiv verdrahtet ist jetzt aber die neue Editoransicht mit HTML-Vorschau; eine Bereinigung kann spÃƒÆ’Ã‚Â¤ter separat folgen, ohne diesen Block aufzublÃƒÆ’Ã‚Â¤hen.
-- Offene Punkte fÃƒÆ’Ã‚Â¼r das nÃƒÆ’Ã‚Â¤chste Modul: `ArbeitseinsÃƒÆ’Ã‚Â¤tze` sind weiterhin das letzte der drei Home-nahen Verwaltungsfelder ohne bestÃƒÆ’Ã‚Â¤tigten produktiven Editor; dort fehlen im aktiven Stand noch die sauber verifizierten Schreibfelder/-pfade analog zu `termin` und `bekanntmachung`.
+  - dieselbe tolerante Zeitlogik fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r die Sichtbarkeits-Timestamps
+- Nach erfolgreichem Speichern wird die Liste neu geladen und der gespeicherte Datensatz wieder selektiert/erneut angezeigt, damit ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾nderungen unmittelbar nachvollziehbar bleiben.
+- Kleiner technischer AufrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤umcheck bewusst klein gehalten: die ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ltere strukturelle `BekanntmachungenVerwaltungView` bleibt vorerst noch im Repo, produktiv verdrahtet ist jetzt aber die neue Editoransicht mit HTML-Vorschau; eine Bereinigung kann spÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ter separat folgen, ohne diesen Block aufzublÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤hen.
+- Offene Punkte fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r das nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤chste Modul: `ArbeitseinsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tze` sind weiterhin das letzte der drei Home-nahen Verwaltungsfelder ohne bestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigten produktiven Editor; dort fehlen im aktiven Stand noch die sauber verifizierten Schreibfelder/-pfade analog zu `termin` und `bekanntmachung`.
 - Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem produktiven Bekanntmachungen-Block erfolgreich.
 
-## 2026-03-22 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 2/5: Termine-Verwaltung als erster echter Editor produktiv an `termin` angeschlossen
+## 2026-03-22 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Prompt 2/5: Termine-Verwaltung als erster echter Editor produktiv an `termin` angeschlossen
 
-- Den aktuellen Istzustand der vorbereiteten Termine-Verwaltung vor dem Umbau erneut geprÃƒÆ’Ã‚Â¼ft: `TermineVerwaltungViewModel` war bislang noch nur strukturell aus dem gemeinsamen VerwaltungsgerÃƒÆ’Ã‚Â¼st abgeleitet, die Listenladung lief nicht ÃƒÆ’Ã‚Â¼ber die bestÃƒÆ’Ã‚Â¤tigte Basistabelle `termin`, und im rechten Bereich gab es noch keinen produktiven Editor mit bestÃƒÆ’Ã‚Â¤tigten Feldern.
-- Den jetzt bestÃƒÆ’Ã‚Â¤tigten Tabellenvertrag von `termin` direkt in die produktive WPF-Bearbeitung ÃƒÆ’Ã‚Â¼berfÃƒÆ’Ã‚Â¼hrt. Bearbeitet werden genau die verifizierten Fachfelder:
+- Den aktuellen Istzustand der vorbereiteten Termine-Verwaltung vor dem Umbau erneut geprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ft: `TermineVerwaltungViewModel` war bislang noch nur strukturell aus dem gemeinsamen VerwaltungsgerÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼st abgeleitet, die Listenladung lief nicht ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber die bestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigte Basistabelle `termin`, und im rechten Bereich gab es noch keinen produktiven Editor mit bestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigten Feldern.
+- Den jetzt bestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigten Tabellenvertrag von `termin` direkt in die produktive WPF-Bearbeitung ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼berfÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼hrt. Bearbeitet werden genau die verifizierten Fachfelder:
   - `titel` *(Pflichtfeld)*
   - `beschreibung`
   - `datum` *(Pflichtfeld)*
@@ -6565,42 +6604,43 @@
   - `sichtbar_ab`
   - `sichtbar_bis`
   - `aktiv`
-- Technische Spalten wie `created_at` und `updated_at` bleiben bewusst auÃƒÆ’Ã…Â¸erhalb der normalen EditoroberflÃƒÆ’Ã‚Â¤che; es wurden keine zusÃƒÆ’Ã‚Â¤tzlichen oder geratenen Felder ergÃƒÆ’Ã‚Â¤nzt.
-- Gemeinsamen produktiven Servicepfad fÃƒÆ’Ã‚Â¼r die Basistabelle ergÃƒÆ’Ã‚Â¤nzt: `ISupabaseService`/`SupabaseService` laden die Verwaltungs-Liste jetzt direkt aus `termin` und schreiben neue/geÃƒÆ’Ã‚Â¤nderte DatensÃƒÆ’Ã‚Â¤tze per `CreateTerminAsync(...)` und `UpdateTerminAsync(...)` wieder gegen `termin` zurÃƒÆ’Ã‚Â¼ck. Es wird ausdrÃƒÆ’Ã‚Â¼cklich nicht gegen `v_startseite_termine` geschrieben.
-- Die Terminliste links zeigt jetzt reale DatensÃƒÆ’Ã‚Â¤tze aus der Basistabelle statt der bisherigen reinen Strukturvorbereitung; dadurch sind auch nicht fÃƒÆ’Ã‚Â¼r Home gedachte VerwaltungszustÃƒÆ’Ã‚Â¤nde wie `aktiv = false` im Admin-/Vorstandskontext korrekt bearbeitbar.
+- Technische Spalten wie `created_at` und `updated_at` bleiben bewusst auÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¸erhalb der normalen EditoroberflÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤che; es wurden keine zusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzlichen oder geratenen Felder ergÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nzt.
+- Gemeinsamen produktiven Servicepfad fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r die Basistabelle ergÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nzt: `ISupabaseService`/`SupabaseService` laden die Verwaltungs-Liste jetzt direkt aus `termin` und schreiben neue/geÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nderte DatensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tze per `CreateTerminAsync(...)` und `UpdateTerminAsync(...)` wieder gegen `termin` zurÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ck. Es wird ausdrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼cklich nicht gegen `v_startseite_termine` geschrieben.
+- Die Terminliste links zeigt jetzt reale DatensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tze aus der Basistabelle statt der bisherigen reinen Strukturvorbereitung; dadurch sind auch nicht fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Home gedachte VerwaltungszustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nde wie `aktiv = false` im Admin-/Vorstandskontext korrekt bearbeitbar.
 - Das rechte Bearbeitungsverhalten ist jetzt produktiv und konsistent:
   - ohne `Neu` oder Doppelklick bleibt rechts leer
-  - Doppelklick auf einen vorhandenen Termin ÃƒÆ’Ã‚Â¶ffnet rechts den echten Editor mit den geladenen Werten
-  - `Neu` ÃƒÆ’Ã‚Â¶ffnet einen leeren Editorzustand mit fachlich sinnvollem Default `aktiv = true`
-  - `Abbrechen` verwirft den Bearbeitungszustand wieder vollstÃƒÆ’Ã‚Â¤ndig
+  - Doppelklick auf einen vorhandenen Termin ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffnet rechts den echten Editor mit den geladenen Werten
+  - `Neu` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffnet einen leeren Editorzustand mit fachlich sinnvollem Default `aktiv = true`
+  - `Abbrechen` verwirft den Bearbeitungszustand wieder vollstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndig
   - `Speichern` steht wie gefordert am Ende des Formulars
-- BestÃƒÆ’Ã‚Â¤tigte Validierungsregeln direkt umgesetzt:
+- BestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigte Validierungsregeln direkt umgesetzt:
   - `Titel` darf nicht leer oder nur Leerzeichen sein
   - `Datum` ist Pflicht
-  - `Enduhrzeit < Startuhrzeit` ist ungÃƒÆ’Ã‚Â¼ltig
-  - `Sichtbar bis < Sichtbar ab` ist ungÃƒÆ’Ã‚Â¼ltig
-  - fÃƒÆ’Ã‚Â¼r `sichtbar_ab`/`sichtbar_bis` werden Datum und Uhrzeit jeweils gemeinsam benÃƒÆ’Ã‚Â¶tigt, sobald das Feld befÃƒÆ’Ã‚Â¼llt wird, damit kein stiller Timestamp-Anteil geraten wird
-- Wiederverwendbares Eingabe-/Validierungsmuster fÃƒÆ’Ã‚Â¼r Folgeeditoren vorbereitet:
+  - `Enduhrzeit < Startuhrzeit` ist ungÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ltig
+  - `Sichtbar bis < Sichtbar ab` ist ungÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ltig
+  - fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r `sichtbar_ab`/`sichtbar_bis` werden Datum und Uhrzeit jeweils gemeinsam benÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶tigt, sobald das Feld befÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼llt wird, damit kein stiller Timestamp-Anteil geraten wird
+- Wiederverwendbares Eingabe-/Validierungsmuster fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Folgeeditoren vorbereitet:
   - Pflicht- und Fehlerfelder werden rot markiert
   - beim Speichern springt der Fokus automatisch auf das erste fehlerhafte Feld von oben
   - tolerante Zeiteingaben wie `8`, `08`, `830`, `8:30` und `8.30` werden auf `HH:mm` normalisiert
-  - offensichtlich ungÃƒÆ’Ã‚Â¼ltige Zeiten bleiben sichtbar und werden nicht still geleert oder heimlich korrigiert
-- Nach erfolgreichem Speichern wird die Liste neu geladen und der gespeicherte Datensatz wieder selektiert/erneut im Editor geÃƒÆ’Ã‚Â¶ffnet, damit ÃƒÆ’Ã¢â‚¬Å¾nderungen direkt nachvollziehbar bleiben.
-- MAUI in diesem Block bewusst nicht mit Platzhalterseiten erweitert; durch den gemeinsamen produktiven Servicepfad fÃƒÆ’Ã‚Â¼r `termin` ist die spÃƒÆ’Ã‚Â¤tere mobile ParitÃƒÆ’Ã‚Â¤t aber nicht verbaut.
+  - offensichtlich ungÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ltige Zeiten bleiben sichtbar und werden nicht still geleert oder heimlich korrigiert
+- Nach erfolgreichem Speichern wird die Liste neu geladen und der gespeicherte Datensatz wieder selektiert/erneut im Editor geÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffnet, damit ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾nderungen direkt nachvollziehbar bleiben.
+- MAUI in diesem Block bewusst nicht mit Platzhalterseiten erweitert; durch den gemeinsamen produktiven Servicepfad fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r `termin` ist die spÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tere mobile ParitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤t aber nicht verbaut.
 - Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem produktiven Termin-Block erfolgreich.
 
-## 2026-03-22 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Prompt 1/5: Home nur mit Admin-Bearbeiten-Einstiegen, separate Verwaltungsviews ohne Platzhalter vorbereitet
+## 2026-03-22 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Prompt 1/5: Home nur mit Admin-Bearbeiten-Einstiegen, separate Verwaltungsviews ohne Platzhalter vorbereitet
 
-- Aktuellen WPF-/MAUI-Istzustand vor dem Umbau erneut geprÃƒÆ’Ã‚Â¼ft: `HomeView`/`HomeViewModel` zeigten bereits nur noch Listen plus separate Detailviews, `NavigationService` und `MainWindowViewModel` waren ViewModel-first organisiert, und die bestÃƒÆ’Ã‚Â¤tigten Lesepfade fÃƒÆ’Ã‚Â¼r Home liefen ÃƒÆ’Ã‚Â¼ber `v_startseite_arbeitseinsatz`, `v_startseite_termine` und `v_startseite_bekanntmachungen`.
-- Im aktiven Repo zugleich keine belastbar verifizierten Schreibmodelle oder bestehenden Create/Update-Servicepfade fÃƒÆ’Ã‚Â¼r ArbeitseinsÃƒÆ’Ã‚Â¤tze, Termine und Bekanntmachungen gefunden; genau deshalb wurde in diesem Block bewusst keine neue Formularlogik geraten.
-- Home fachlich weiter bereinigt: auf der Startseite gibt es fÃƒÆ’Ã‚Â¼r normale Nutzer weiterhin nur die bisherigen ÃƒÆ’Ã…â€œbersichtslisten; fÃƒÆ’Ã‚Â¼r Admin/Vorstand kommt jetzt zusÃƒÆ’Ã‚Â¤tzlich eine kleine Verwaltungssektion mit drei Bearbeiten-Einstiegen hinzu, aber keine Bearbeitung direkt auf Home.
+- Aktuellen WPF-/MAUI-Istzustand vor dem Umbau erneut geprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ft: `HomeView`/`HomeViewModel` zeigten bereits nur noch Listen plus separate Detailviews, `NavigationService` und `MainWindowViewModel` waren ViewModel-first organisiert, und die bestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigten Lesepfade fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Home liefen ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber `v_startseite_arbeitseinsatz`, `v_startseite_termine` und `v_startseite_bekanntmachungen`.
+- Im aktiven Repo zugleich keine belastbar verifizierten Schreibmodelle oder bestehenden Create/Update-Servicepfade fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r ArbeitseinsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tze, Termine und Bekanntmachungen gefunden; genau deshalb wurde in diesem Block bewusst keine neue Formularlogik geraten.
+- Home fachlich weiter bereinigt: auf der Startseite gibt es fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r normale Nutzer weiterhin nur die bisherigen ÃƒÆ’Ã†â€™Ãƒâ€¦Ã¢â‚¬Å“bersichtslisten; fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Admin/Vorstand kommt jetzt zusÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tzlich eine kleine Verwaltungssektion mit drei Bearbeiten-Einstiegen hinzu, aber keine Bearbeitung direkt auf Home.
 - Drei echte separate WPF-Verwaltungsviews angelegt und in die bestehende Navigation eingebunden:
   - `ArbeitseinsaetzeVerwaltungView`
   - `TermineVerwaltungView`
   - `BekanntmachungenVerwaltungView`
-- Jede Verwaltungsansicht nutzt bereits das Ziel-Layout mit linker Liste und rechter EditorflÃƒÆ’Ã‚Â¤che. Wenn weder ein vorhandener Datensatz geÃƒÆ’Ã‚Â¶ffnet noch `Neu` ausgelÃƒÆ’Ã‚Â¶st wurde, bleibt rechts bewusst ohne Formularfelder. Ein Doppelklick auf einen Listeneintrag ÃƒÆ’Ã‚Â¶ffnet rechts den Editierzustand mit den vorhandenen belastbaren Lesedaten; `Neu` ÃƒÆ’Ã‚Â¶ffnet denselben strukturellen Zustand leer.
-- Keine Platzhalterformulare aufgebaut: weil die echten Schreibfelder/Basistabellen im aktiven Repo noch nicht sicher genug ableitbar waren, zeigt der rechte Bereich aktuell nur den geÃƒÆ’Ã‚Â¶ffneten Bearbeitungszustand plus die verifizierten Lese-/Schreibpfad-Hinweise statt geratener Eingabefelder.
-- Reale Datenlisten statt Platzhalter verdrahtet: `ISupabaseService`/`SupabaseService` stellen die drei bestÃƒÆ’Ã‚Â¤tigten Startseiten-Lesepfade jetzt auch direkt fÃƒÆ’Ã‚Â¼r Verwaltungslisten bereit, sodass die neuen Views auf belastbaren Daten basieren und nicht auf Home-spezifischen Zwischenobjekten.
-- Rechte entlang des vorhandenen Pfads sauber eingehÃƒÆ’Ã‚Â¤ngt: die Verwaltungsviews erscheinen in WPF nur fÃƒÆ’Ã‚Â¼r Admin/Vorstand sowohl ÃƒÆ’Ã‚Â¼ber Home als auch in der Hauptnavigation; MAUI bleibt in diesem Block unverÃƒÆ’Ã‚Â¤ndert und wird nicht mit neuen Platzhalterseiten aufgeblÃƒÆ’Ã‚Â¤ht, profitiert aber spÃƒÆ’Ã‚Â¤ter vom gemeinsamen Lesepfad.
+- Jede Verwaltungsansicht nutzt bereits das Ziel-Layout mit linker Liste und rechter EditorflÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤che. Wenn weder ein vorhandener Datensatz geÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffnet noch `Neu` ausgelÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶st wurde, bleibt rechts bewusst ohne Formularfelder. Ein Doppelklick auf einen Listeneintrag ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffnet rechts den Editierzustand mit den vorhandenen belastbaren Lesedaten; `Neu` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffnet denselben strukturellen Zustand leer.
+- Keine Platzhalterformulare aufgebaut: weil die echten Schreibfelder/Basistabellen im aktiven Repo noch nicht sicher genug ableitbar waren, zeigt der rechte Bereich aktuell nur den geÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ffneten Bearbeitungszustand plus die verifizierten Lese-/Schreibpfad-Hinweise statt geratener Eingabefelder.
+- Reale Datenlisten statt Platzhalter verdrahtet: `ISupabaseService`/`SupabaseService` stellen die drei bestÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤tigten Startseiten-Lesepfade jetzt auch direkt fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Verwaltungslisten bereit, sodass die neuen Views auf belastbaren Daten basieren und nicht auf Home-spezifischen Zwischenobjekten.
+- Rechte entlang des vorhandenen Pfads sauber eingehÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ngt: die Verwaltungsviews erscheinen in WPF nur fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼r Admin/Vorstand sowohl ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¼ber Home als auch in der Hauptnavigation; MAUI bleibt in diesem Block unverÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndert und wird nicht mit neuen Platzhalterseiten aufgeblÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ht, profitiert aber spÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ter vom gemeinsamen Lesepfad.
 - Technisch verifiziert: `KGV.Wpf` und `KGV.Maui` bauen nach dem Block erfolgreich.
+
 

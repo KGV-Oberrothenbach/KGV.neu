@@ -1,4 +1,4 @@
-<UserControl x:Class="KGV.Views.ImpressumView"
+﻿<UserControl x:Class="KGV.Views.ImpressumView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -12,6 +12,10 @@
                         <TextBlock Text="Verein" FontSize="18" FontWeight="SemiBold" />
                         <TextBlock Text="Kleingartenverein Oberrothenbach e.V." Margin="0,10,0,4" FontWeight="SemiBold" />
                         <TextBlock Text="Amtsgericht Chemnitz VR 70502" />
+                        <TextBlock Margin="0,4,0,0">
+                            <Run Text="E-Mail: " />
+                            <Run Text="{Binding ClubEmail}" />
+                        </TextBlock>
                     </StackPanel>
                 </Border>
 
@@ -27,17 +31,22 @@
                                 <DataTemplate>
                                     <Border Margin="0,12,0,0" Padding="12" Background="White" CornerRadius="10">
                                         <StackPanel>
-                                            <TextBlock Text="{Binding Funktion}" FontWeight="SemiBold" />
-                                            <TextBlock Text="{Binding DisplayName}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Funktion}"
+                                                       FontWeight="SemiBold"
+                                                       TextWrapping="Wrap"
+                                                       Visibility="{Binding IsVorstandsvorsitzende, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                            <TextBlock Text="{Binding DisplayName}" Margin="0,4,0,0" FontWeight="SemiBold" TextWrapping="Wrap" />
                                             <TextBlock Margin="0,4,0,0"
-                                                       Visibility="{Binding HasEmail, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                <Run Text="E-Mail: " />
-                                                <Run Text="{Binding Email}" />
+                                                       TextWrapping="Wrap"
+                                                       Visibility="{Binding ShowAdresse, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <Run Text="Adresse: " />
+                                                <Run Text="{Binding Adresse}" />
                                             </TextBlock>
                                             <TextBlock Margin="0,2,0,0"
-                                                       Visibility="{Binding HasTelefon, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                <Run Text="Telefon: " />
-                                                <Run Text="{Binding Telefon}" />
+                                                       TextWrapping="Wrap"
+                                                       Visibility="{Binding HasHandy, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <Run Text="Handynummer: " />
+                                                <Run Text="{Binding Handy}" />
                                             </TextBlock>
                                         </StackPanel>
                                     </Border>
@@ -59,17 +68,16 @@
                                 <DataTemplate>
                                     <Border Margin="0,12,0,0" Padding="12" Background="White" CornerRadius="10">
                                         <StackPanel>
-                                            <TextBlock Text="{Binding Funktion}" FontWeight="SemiBold" />
-                                            <TextBlock Text="{Binding DisplayName}" Margin="0,4,0,0" TextWrapping="Wrap" />
-                                            <TextBlock Margin="0,4,0,0"
-                                                       Visibility="{Binding HasEmail, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                <Run Text="E-Mail: " />
-                                                <Run Text="{Binding Email}" />
-                                            </TextBlock>
+                                            <TextBlock Text="{Binding Funktion}"
+                                                       FontWeight="SemiBold"
+                                                       TextWrapping="Wrap"
+                                                       Visibility="{Binding IsVorstandsvorsitzende, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                            <TextBlock Text="{Binding DisplayName}" Margin="0,4,0,0" FontWeight="SemiBold" TextWrapping="Wrap" />
                                             <TextBlock Margin="0,2,0,0"
-                                                       Visibility="{Binding HasTelefon, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                <Run Text="Telefon: " />
-                                                <Run Text="{Binding Telefon}" />
+                                                       TextWrapping="Wrap"
+                                                       Visibility="{Binding HasHandy, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <Run Text="Handynummer: " />
+                                                <Run Text="{Binding Handy}" />
                                             </TextBlock>
                                         </StackPanel>
                                     </Border>

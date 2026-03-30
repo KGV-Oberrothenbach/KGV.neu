@@ -18,6 +18,7 @@ namespace KGV.ViewModels
 
         public string Title => "Impressum";
         public string Description => "Reiner Informationsbereich mit den statischen Vereinsangaben sowie den aktuell in Supabase hinterlegten Funktionen für Vorstand und Bauausschuss.";
+        public string ClubEmail => ImpressumInfo.VereinsEmail;
 
         public ObservableCollection<ImpressumKontaktItem> Vorstand { get; } = new();
         public ObservableCollection<ImpressumKontaktItem> Bauausschuss { get; } = new();

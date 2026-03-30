@@ -607,7 +607,7 @@ namespace KGV.Infrastructure.Services
                 {
                     ParzelleId = request.ParzelleId,
                     Zaehlernummer = request.Zaehlernummer.Trim(),
-                    Eichdatum = NormalizeDateTime(request.Eichdatum),
+                    Eichdatum = NormalizeMeterEichjahr(request.Eichdatum),
                     EingebautAm = NormalizeDateTime(request.EingebautAm.Date)
                 });
 
@@ -627,7 +627,7 @@ namespace KGV.Infrastructure.Services
                 {
                     ParzelleId = request.ParzelleId,
                     Zaehlernummer = request.Zaehlernummer.Trim(),
-                    Eichdatum = NormalizeDateTime(request.Eichdatum),
+                    Eichdatum = NormalizeMeterEichjahr(request.Eichdatum),
                     EingebautAm = NormalizeDateTime(request.EingebautAm.Date)
                 });
 
@@ -679,7 +679,8 @@ namespace KGV.Infrastructure.Services
                     ZaehlerId = request.ZaehlerId,
                     Ablesedatum = NormalizeDateTime(request.Ablesedatum),
                     Stand = request.Stand,
-                    Freigegeben = true,
+                    Art = AblesungArt.Normalize(request.Art),
+                    Freigegeben = request.Freigegeben,
                     FotoPfad = CleanOptionalText(request.FotoPfad)
                 });
 
@@ -2334,6 +2335,12 @@ namespace KGV.Infrastructure.Services
             return DateTime.SpecifyKind(normalized, DateTimeKind.Unspecified);
         }
 
+        private static DateTime NormalizeMeterEichjahr(DateTime value)
+        {
+            var normalized = value.Date.AddHours(12);
+            return DateTime.SpecifyKind(normalized, DateTimeKind.Unspecified);
+        }
+
         private static DateTime NormalizeDateTime(DateTime value)
         {
             return DateTime.SpecifyKind(value, DateTimeKind.Unspecified);
@@ -2906,12 +2913,17 @@ namespace KGV.Infrastructure.Services
             if (slot.MitgliedId.HasValue && membersById.TryGetValue(slot.MitgliedId.Value, out var resolvedMember))
                 member = resolvedMember;
 
+            var isVorstandsvorsitzende = IsVorstandsvorsitzSlot(slot);
+
             return new ImpressumKontaktItem
             {
                 Funktion = string.IsNullOrWhiteSpace(slot.Funktion) ? "Funktion" : slot.Funktion.Trim(),
                 Name = BuildImpressumDisplayName(member),
-                Email = string.IsNullOrWhiteSpace(member?.Email) ? string.Empty : member!.Email!.Trim(),
-                Telefon = BuildImpressumTelefon(member)
+                Email = string.Empty,
+                Telefon = string.Empty,
+                Handy = BuildImpressumHandy(member),
+                Adresse = isVorstandsvorsitzende ? BuildImpressumAdresse(member) : string.Empty,
+                IsVorstandsvorsitzende = isVorstandsvorsitzende
             };
         }
 
@@ -2929,6 +2941,22 @@ namespace KGV.Infrastructure.Services
                 || (funktion.Contains("bau", StringComparison.Ordinal) && funktion.Contains("ausschuss", StringComparison.Ordinal));
         }
 
+        private static bool IsVorstandsvorsitzSlot(ImpressumFunktionSlotRecord slot)
+        {
+            var combined = string.Join(" ", new[] { slot.SlotKey, slot.Funktion }
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim().ToLowerInvariant()));
+
+            if (string.IsNullOrWhiteSpace(combined) || !combined.Contains("vorsitz", StringComparison.Ordinal))
+                return false;
+
+            return !combined.Contains("stellv", StringComparison.Ordinal)
+                && !combined.Contains("stellvertr", StringComparison.Ordinal)
+                && !combined.Contains("stv", StringComparison.Ordinal)
+                && !combined.Contains("2. vorsitz", StringComparison.Ordinal)
+                && !combined.Contains("zweite vorsitz", StringComparison.Ordinal);
+        }
+
         private static string BuildImpressumDisplayName(MitgliedRecord? member)
         {
             if (member == null)
@@ -2943,15 +2971,34 @@ namespace KGV.Infrastructure.Services
                 : fullName;
         }
 
-        private static string BuildImpressumTelefon(MitgliedRecord? member)
+        private static string BuildImpressumHandy(MitgliedRecord? member)
         {
             if (member == null)
                 return string.Empty;
 
-            return string.Join(" / ", new[] { member.Telefon, member.Handy }
+            return string.IsNullOrWhiteSpace(member.Handy)
+                ? string.Empty
+                : member.Handy.Trim();
+        }
+
+        private static string BuildImpressumAdresse(MitgliedRecord? member)
+        {
+            if (member == null)
+                return string.Empty;
+
+            var addressParts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(member.Adresse))
+                addressParts.Add(member.Adresse.Trim());
+
+            var cityParts = new[] { member.Plz, member.Ort }
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => x!.Trim())
-                .Distinct(StringComparer.CurrentCultureIgnoreCase));
+                .ToList();
+
+            if (cityParts.Count > 0)
+                addressParts.Add(string.Join(" ", cityParts));
+
+            return string.Join(", ", addressParts);
         }
 
         private static WartungsvertragOverviewItem CreateWartungsvertragOverviewItem(

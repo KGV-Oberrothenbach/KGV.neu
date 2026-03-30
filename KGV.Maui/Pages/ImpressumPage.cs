@@ -126,6 +126,11 @@ public sealed class ImpressumPage : ContentPage
                     {
                         Text = "Amtsgericht Chemnitz VR 70502",
                         LineBreakMode = LineBreakMode.WordWrap
+                    },
+                    new Label
+                    {
+                        Text = $"E-Mail: {ImpressumInfo.VereinsEmail}",
+                        LineBreakMode = LineBreakMode.WordWrap
                     }
                 }
             }
@@ -177,32 +182,37 @@ public sealed class ImpressumPage : ContentPage
     private static Border CreateEntryView(ImpressumKontaktItem item)
     {
         var layout = new VerticalStackLayout { Spacing = 4 };
-        layout.Children.Add(new Label
-        {
-            Text = item.Funktion,
-            FontAttributes = FontAttributes.Bold,
-            LineBreakMode = LineBreakMode.WordWrap
-        });
-        layout.Children.Add(new Label
-        {
-            Text = item.DisplayName,
-            LineBreakMode = LineBreakMode.WordWrap
-        });
-
-        if (item.HasEmail)
+        if (item.IsVorstandsvorsitzende)
         {
             layout.Children.Add(new Label
             {
-                Text = $"E-Mail: {item.Email}",
+                Text = item.Funktion,
+                FontAttributes = FontAttributes.Bold,
                 LineBreakMode = LineBreakMode.WordWrap
             });
         }
 
-        if (item.HasTelefon)
+        layout.Children.Add(new Label
+        {
+            Text = item.DisplayName,
+            FontAttributes = FontAttributes.Bold,
+            LineBreakMode = LineBreakMode.WordWrap
+        });
+
+        if (item.ShowAdresse)
         {
             layout.Children.Add(new Label
             {
-                Text = $"Telefon: {item.Telefon}",
+                Text = $"Adresse: {item.Adresse}",
+                LineBreakMode = LineBreakMode.WordWrap
+            });
+        }
+
+        if (item.HasHandy)
+        {
+            layout.Children.Add(new Label
+            {
+                Text = $"Handynummer: {item.Handy}",
                 LineBreakMode = LineBreakMode.WordWrap
             });
         }

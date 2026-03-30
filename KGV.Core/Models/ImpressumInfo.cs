@@ -4,6 +4,8 @@ namespace KGV.Core.Models
 {
     public sealed class ImpressumInfo
     {
+        public const string VereinsEmail = "kgvoberrothenbach@gmx.de";
+
         public List<ImpressumKontaktItem> Vorstand { get; set; } = new();
         public List<ImpressumKontaktItem> Bauausschuss { get; set; } = new();
 
