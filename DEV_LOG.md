@@ -2,6 +2,60 @@
 
 ---
 
+## 2026-03-30 – Diagnoseblock: `Nutzer hinzufügen` schreibt produktiv weiter keine `auth_user_id`
+
+- Vor dem Block den echten Git-Stand gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main 7047fdd [origin/main] Fix auth user resolution for invites`
+  - keine Divergenz zu `origin/main`
+- Den aktuellen Produktivpfad erneut gegen den Code geprüft:
+  - WPF ruft `InviteUserAsync(...)` aus `KGV.Wpf/ViewModels/UserManagementViewModel.cs` auf
+  - MAUI ruft denselben Servicepfad im Mitgliedskontext aus `KGV.Maui/Pages/MemberDetailPage.cs` bzw. `KGV.Maui/ViewModels/UserManagementViewModel.cs` auf
+  - damit liegt der Hauptverdacht weiterhin zentral im `AuthService`, nicht in einer der UIs
+- Config-/Projektprüfung:
+  - WPF lädt `appsettings.json` aus dem Workspace-/Output-Pfad in `KGV.Wpf/App.xaml.cs`
+  - MAUI paketiert und lädt dieselbe `appsettings.json` in `KGV.Maui/MauiProgram.cs`
+  - beide zeigen im Repo auf dieselbe Supabase-URL `https://itjcabiibuodkxayhvjq.supabase.co`
+  - realer Repo-Befund: im Repo selbst kein `UserSecretsId`, also kein nachweisbarer separater Secrets-Pfad im Projektstand
+- SQL-/RPC-Prüfung:
+  - Migration `supabase/migrations/20260330104500_find_auth_user_id_by_email.sql` geprüft
+  - RPC-Name passt exakt zum C#-Aufruf `find_auth_user_id_by_email`
+  - Rechteprüfung in SQL ist vorhanden (`service_role` oder `is_admin_or_vorstand()`)
+  - aber: ob die Migration bereits wirklich im produktiven Supabase-Projekt eingespielt ist, lässt sich rein aus dem Repo nicht beweisen
+- Exakter technischer Blindspot des bisherigen Stands identifiziert:
+  - `EnsureMemberInviteMappingAsync(...)` behandelte ein `Update()` bislang ohne Readback-Verifikation als Erfolg
+  - wenn das DB-Update auf `mitglied.auth_user_id` produktiv wegen RLS, 0 geänderten Zeilen oder abweichendem Runtime-Kontext nicht wirklich persistiert wurde, lief der Flow bisher trotzdem weiter
+  - gleiches Problem bei `EnsureAppUserRecordAsync(...)`: Anlage/Aktualisierung wurde nicht belastbar nachgelesen
+  - dadurch konnte OTP ausgelöst werden, obwohl `mitglied.auth_user_id` oder `app_user` tatsächlich nicht sauber geschrieben waren
+- Für den Beweisblock umgesetzt:
+  - gezielte `AUTH_DIAG`-Logs in `AuthService` ergänzt
+  - Diagnosepunkte loggen jetzt u.a.:
+    - Start des Invite-Laufs inkl. Mitglied, E-Mail-Maske, Endpoint-Kontext
+    - Mitgliedsauflösung
+    - RPC-Lookup-Start / Erfolg / leeres Ergebnis / Fehlerstatus / Exception
+    - Wiederverwendeter oder neu aufgelöster Auth-User
+    - Erfolg / Retry / Verifikationsfehler beim Schreiben von `mitglied.auth_user_id`
+    - Erfolg / Verifikationsfehler bei `app_user`
+    - tatsächliches Auslösen des OTP-Versands
+  - Logs gehen nicht nur über `ILogger`, sondern zusätzlich über `System.Diagnostics.Trace`, damit der Beweisblock auch im WPF-Pfad ohne injizierten Logger sichtbar bleibt
+- Minimal gehärtet:
+  - `EnsureMemberInviteMappingAsync(...)` liest nach jedem Update das Mitglied zurück und betrachtet den Schritt erst dann als erfolgreich, wenn `AuthUserId` wirklich persistiert ist
+  - `EnsureAppUserRecordAsync(...)` verifiziert `app_user` nach Insert/Update per Readback
+  - `EnsureInvitePreparationAsync(...)` und `EnsureOtpPreparationAsync(...)` brechen jetzt sauber ab, wenn die Mitglied-Zuordnung zwar versucht, aber nicht wirklich persistiert wurde
+- Ergebnis dieses Diagnoseblocks:
+  - der bisher eindeutig nachweisbare technische Fehlerpunkt lag beim Schritt **DB-Update / Persistenznachweis von `mitglied.auth_user_id`**
+  - der bisherige Code konnte diesen Schritt fälschlich als erfolgreich behandeln, obwohl keine belastbare Persistenz nachgewiesen war
+  - mit dem neuen Diagnoseblock lässt sich der nächste produktive Test jetzt exakt auf einen der Schritte `RPC`, `mitglied.auth_user_id`, `app_user` oder `OTP` eingrenzen
+- Validierung:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
+- Bewusst nicht Teil dieses Diagnoseblocks geblieben:
+  - lokale Änderung in `KGV.Maui/KGV.Maui.csproj`
+  - ungetrackte Batch-Dateien `Android_Wpf_release_batch_v4.bat` und `Android_Wpf_release_batch_v5.bat`
+
 ## 2026-03-30 – Prompt 1/1: Harter Fix für Invite-Flow ohne geschriebenes `auth_user_id`
 
 - Vor dem Block den echten Git-Stand gegen `origin/main` geprüft:

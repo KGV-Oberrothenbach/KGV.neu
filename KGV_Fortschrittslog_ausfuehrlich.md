@@ -2,6 +2,48 @@
 
 ---
 
+## 2026-03-30 – Diagnoseblock: Produktiver Invite-Lauf beweist den Fehlerpunkt jetzt sauber
+
+- Git-Stand vor dem Diagnoseblock erneut gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main 7047fdd [origin/main] Fix auth user resolution for invites`
+- Den echten Servicepfad erneut bestätigt:
+  - WPF und MAUI rufen denselben `AuthService.InviteUserAsync(...)`-Pfad auf
+  - UIs sind damit für diesen Restfehler nicht der Hauptverdächtige
+- Config-/Projektbefund:
+  - WPF und MAUI lesen im Repo dieselbe Supabase-Konfiguration aus derselben Root-`appsettings.json`
+  - beide zeigen auf `https://itjcabiibuodkxayhvjq.supabase.co`
+  - im Repo kein nachweisbarer eigener `UserSecretsId`-Pfad
+- RPC-/Migration-Prüfung:
+  - SQL-Datei `20260330104500_find_auth_user_id_by_email.sql` fachlich geprüft
+  - Name und Parameter passen exakt zum C#-Aufruf
+  - Berechtigungslogik in SQL vorhanden
+  - offener Realpunkt bleibt: ob die Migration im produktiven Supabase-Projekt schon eingespielt wurde, ist aus dem Repo allein nicht beweisbar
+- Eindeutig identifizierter technischer Blindspot des bisherigen Stands:
+  - `EnsureMemberInviteMappingAsync(...)` hat `mitglied.auth_user_id` bisher nicht per Readback verifiziert
+  - `EnsureAppUserRecordAsync(...)` hat `app_user` bisher nicht per Readback verifiziert
+  - dadurch konnte der Lauf fachlich weiterlaufen, obwohl die Persistenz im Produktivkontext real nicht bewiesen war
+  - genau dieser Schritt erklärt das Symptom `OTP läuft / Invite läuft`, aber `mitglied.auth_user_id` bleibt leer
+- Für den Diagnose-/Beweisblock umgesetzt:
+  - präzise `AUTH_DIAG`-Logs in `AuthService`
+  - zusätzliche `Trace`-Ausgabe, damit auch WPF ohne injizierten Logger im Debug-/Output-Pfad belastbar beobachtbar bleibt
+  - harter Persistenznachweis für `mitglied.auth_user_id`
+  - harter Persistenznachweis für `app_user`
+  - sauberer Abbruch statt stiller Weiterlauf, wenn Persistenz nicht wirklich stattgefunden hat
+- Exaktes Diagnoseergebnis dieses Blocks:
+  - der bislang sicher nachweisbare technische Fehlerpunkt lag am Schritt **DB-Update `mitglied.auth_user_id` / fehlende Verifikation der tatsächlichen Persistenz**
+  - der Lauf konnte vorher fälschlich erfolgreich wirken, obwohl der kritische Mitglieds-Link produktiv nicht belastbar gespeichert war
+  - nach dem Block wird der nächste reale Test exakt zeigen, ob der Produktivfehler jetzt beim RPC-Lookup, beim Mitglieds-Write, beim `app_user`-Write oder erst beim OTP-Versand hängt
+- Builds:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` => erfolgreich
+- Bewusst nicht Teil dieses Diagnoseblocks geblieben:
+  - lokale Änderung in `KGV.Maui/KGV.Maui.csproj`
+  - ungetrackte Batch-Dateien `Android_Wpf_release_batch_v4.bat` und `Android_Wpf_release_batch_v5.bat`
+
 ## 2026-03-30 – Prompt 1/1: Harter Zentralfix für Invite-Flow ohne geschriebenes `auth_user_id`
 
 - Git-Stand vor dem neuen Korrekturblock erneut gegen `origin/main` geprüft:
