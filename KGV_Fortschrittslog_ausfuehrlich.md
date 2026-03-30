@@ -2,6 +2,51 @@
 
 ---
 
+## 2026-03-30 – Prompt 1/1: MAUI OTP-Fehlercode für Support direkt sichtbar gemacht
+
+- Vor dem Block den realen Git-/Workspace-Stand geprüft und nicht auf lokalen Altständen aufgebaut.
+- Direkt gelesen und gegengeprüft wurden:
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Befund vor dem Fix:
+  - der Shared-Auth-Pfad protokollierte die OTP-Stufen bereits präzise
+  - ein auslesbarer letzter OTP-Fehlercontainer existierte aber noch nicht
+  - MAUI zeigte dem Nutzer bei OTP-Fehlschlag nur die Sammelmeldung, ohne direkt nutzbaren Diagnosecode
+  - `KGV.Core/Interfaces/IAuthService.cs` lag im Arbeitsbaum bereits blockfremd verändert vor; deshalb wurde der kleine Supportcode-Block bewusst ohne weiteren Interface-Eingriff umgesetzt, um keine Fremdänderungen in diesen Commit zu ziehen
+- Minimal umgesetzt:
+  - neues Shared-Modell `KGV.Core/Models/OtpFailureDiagnosticInfo.cs` ergänzt mit:
+    - `Code`
+    - `UserMessage`
+    - `Timestamp`
+  - `KGV.Infrastructure/Authentication/AuthService.cs` hält jetzt die letzte OTP-Fehldiagnose als `LastOtpFailureInfo`
+  - gesetzt wird dieser Container direkt im realen Shared-OTP-Pfad und mit den echten Fehlercodes aus der bestehenden Diagnose:
+    - `OTP_REQUEST_BLOCK`
+    - `OTP_REQUEST_RESULT`
+    - `OTP_REQUEST_EXCEPTION`
+    - `OTP_RECOVERY_REQUEST_GOTRUE_FAIL`
+    - `OTP_RECOVERY_REQUEST_FAIL`
+  - die Endnutzermeldungen bleiben bewusst kurz und nicht-technisch
+  - `KGV.Maui/Pages/LoginPage.xaml.cs` liest den letzten OTP-Code direkt aus dem realen `AuthService`-Pfad aus und zeigt jetzt zusätzlich:
+    - kurzen Support-Hinweis
+    - `Diagnosecode: ...`
+    - kleinen Button `Code kopieren`
+  - roher Exception-Text oder Stacktrace wird weiterhin nicht an Endnutzer ausgegeben
+- Wichtig für die saubere Blockgrenze:
+  - keine WPF-UI-Änderung
+  - keine Konfigurationsänderung
+  - kein neuer OTP-Fachumbau
+  - keine doppelte Fehlercodepflege in `LoginPage`; der Code stammt weiterhin ausschließlich aus dem Shared-Auth-Pfad
+- Fachliches Ergebnis dieses Blocks:
+  - beim nächsten echten MAUI-OTP-Fehlschlag kann das Mitglied dem Support direkt einen kompakten Diagnosecode schicken oder als Screenshot weitergeben
+  - Logcat oder Entwicklerzugriff ist dafür nicht mehr zwingend nötig
+  - der Code bleibt belastbar an den echten Shared-Auth-Fehlerpfad gebunden
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - wegen neuem Shared-Modell zusätzlich: `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-03-30 – Prompt 1/1: MAUI vs. WPF OTP-Erstlogin über Konfiguration und Diagnose belastbar aufgeklärt
 
 - Vor dem Block den realen Git-/Workspace-Stand geprüft und nicht auf alten lokalen Annahmen aufgebaut.

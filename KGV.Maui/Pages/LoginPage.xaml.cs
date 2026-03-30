@@ -1,10 +1,13 @@
 using KGV.Core.Interfaces;
+using KGV.Core.Models;
 using KGV.Core.Security;
+using KGV.Infrastructure.Authentication;
 using KGV.Infrastructure.Services;
 using KGV.Maui;
 using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.State;
 using KGV.Maui.Settings;
+using Microsoft.Maui.ApplicationModel.DataTransfer;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
@@ -25,6 +28,9 @@ public class LoginPage : ContentPage
     private readonly Entry _emailEntry;
     private readonly Entry _passwordEntry;
     private readonly Label _statusLabel;
+    private readonly Label _otpDiagnosticLabel;
+    private readonly Button _copyOtpDiagnosticButton;
+    private string? _lastOtpDiagnosticCode;
 
     public LoginPage(
         IAuthService authService,
@@ -42,6 +48,9 @@ public class LoginPage : ContentPage
         _emailEntry = new Entry { Placeholder = "E-Mail", Keyboard = Keyboard.Email, Text = AppSettings.LastEmail ?? string.Empty };
         _passwordEntry = new Entry { Placeholder = "Passwort", IsPassword = true, BackgroundColor = Colors.Transparent };
         _statusLabel = new Label { TextColor = Colors.Red, LineBreakMode = LineBreakMode.WordWrap };
+        _otpDiagnosticLabel = new Label { TextColor = Colors.Gray, FontSize = 12, LineBreakMode = LineBreakMode.WordWrap, IsVisible = false };
+        _copyOtpDiagnosticButton = new Button { Text = "Code kopieren", IsVisible = false, FontSize = 12 };
+        _copyOtpDiagnosticButton.Clicked += async (_, _) => await CopyOtpDiagnosticCodeAsync();
         var logoImage = new Image
         {
             Source = LogoImageSource,
@@ -147,6 +156,7 @@ public class LoginPage : ContentPage
 
         void ShowNormalLogin()
         {
+            ResetOtpDiagnosticUi();
             _passwordEntry.IsPassword = true;
             togglePasswordButton.Text = "👁";
             newPasswordEntry.IsPassword = true;
@@ -214,6 +224,7 @@ public class LoginPage : ContentPage
         verifyOtpButton.Clicked += async (s, e) =>
         {
             _statusLabel.Text = string.Empty;
+            ResetOtpDiagnosticUi();
             var email = (_emailEntry.Text ?? string.Empty).Trim();
             var code = otpEntry.Text ?? string.Empty;
             if (await _authService.VerifyOtpAsync(email, code))
@@ -230,6 +241,7 @@ public class LoginPage : ContentPage
         requestOtpButton.Clicked += async (s, e) =>
         {
             _statusLabel.Text = string.Empty;
+            ResetOtpDiagnosticUi();
             var email = (_emailEntry.Text ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(email))
             {
@@ -246,14 +258,16 @@ public class LoginPage : ContentPage
             }
             else
             {
-                AppFileLog.Warning("KGV.Login", $"OTP-Anforderung fehlgeschlagen für {MaskEmail(email)}. Details siehe Diagnose-Log.");
-                _statusLabel.Text = "OTP-Anforderung fehlgeschlagen. Bitte prüfe die E-Mail-Adresse oder kontaktiere den Vorstand. Details wurden im Diagnose-Log festgehalten.";
+                var diagnostic = GetLastOtpFailureInfo();
+                AppFileLog.Warning("KGV.Login", $"OTP-Anforderung fehlgeschlagen für {MaskEmail(email)}. Diagnosecode: {diagnostic?.Code ?? "unknown"}. Details siehe Diagnose-Log.");
+                ShowOtpFailureForSupport("OTP-Anforderung fehlgeschlagen.");
             }
         };
 
         setPasswordButton.Clicked += async (s, e) =>
         {
             _statusLabel.Text = string.Empty;
+            ResetOtpDiagnosticUi();
             var email = (_emailEntry.Text ?? string.Empty).Trim();
             var code = otpEntry.Text ?? string.Empty;
             var newPwd = newPasswordEntry.Text ?? string.Empty;
@@ -282,6 +296,7 @@ public class LoginPage : ContentPage
         forgotPasswordButton.Clicked += async (s, e) =>
         {
             _statusLabel.Text = string.Empty;
+            ResetOtpDiagnosticUi();
             var email = (_emailEntry.Text ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(email))
             {
@@ -322,7 +337,9 @@ public class LoginPage : ContentPage
                 passwordHintLayout,
                 setPasswordButton,
                 backToLoginButton,
-                _statusLabel
+                _statusLabel,
+                _otpDiagnosticLabel,
+                _copyOtpDiagnosticButton
             }
         };
 
@@ -434,6 +451,47 @@ public class LoginPage : ContentPage
             : $"{localPart[0]}***{localPart[^1]}";
 
         return $"{maskedLocalPart}@{domain}";
+    }
+
+    private OtpFailureDiagnosticInfo? GetLastOtpFailureInfo()
+        => _authService is AuthService authService
+            ? authService.LastOtpFailureInfo
+            : null;
+
+    private void ShowOtpFailureForSupport(string fallbackUserMessage)
+    {
+        var diagnostic = GetLastOtpFailureInfo();
+        _statusLabel.Text = !string.IsNullOrWhiteSpace(diagnostic?.UserMessage)
+            ? diagnostic!.UserMessage
+            : fallbackUserMessage;
+
+        if (string.IsNullOrWhiteSpace(diagnostic?.Code))
+        {
+            ResetOtpDiagnosticUi();
+            return;
+        }
+
+        _lastOtpDiagnosticCode = diagnostic.Code.Trim();
+        _otpDiagnosticLabel.Text = $"Support-Hinweis: Bitte diesen Diagnosecode an den Vorstand weitergeben.\nDiagnosecode: {_lastOtpDiagnosticCode}";
+        _otpDiagnosticLabel.IsVisible = true;
+        _copyOtpDiagnosticButton.IsVisible = true;
+    }
+
+    private void ResetOtpDiagnosticUi()
+    {
+        _lastOtpDiagnosticCode = null;
+        _otpDiagnosticLabel.Text = string.Empty;
+        _otpDiagnosticLabel.IsVisible = false;
+        _copyOtpDiagnosticButton.IsVisible = false;
+    }
+
+    private async Task CopyOtpDiagnosticCodeAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_lastOtpDiagnosticCode))
+            return;
+
+        await Clipboard.Default.SetTextAsync(_lastOtpDiagnosticCode);
+        await DisplayAlert("Diagnosecode", "Diagnosecode wurde kopiert.", "OK");
     }
 
     private async Task<bool> SwitchToUserContextAsync(UserContext userContext)

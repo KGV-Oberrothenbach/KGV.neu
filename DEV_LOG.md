@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-03-30 – MAUI OTP Fehlercode für Support sichtbar gemacht
+
+- Den realen OTP-Iststand zuerst auf dem aktuellen `main` geprüft:
+  - `AuthService` loggt bereits die echten Stufen `OTP_REQUEST_BLOCK`, `OTP_RECOVERY_REQUEST_GOTRUE_FAIL`, `OTP_RECOVERY_REQUEST_FAIL` und `OTP_REQUEST_EXCEPTION`
+  - ein letzter auslesbarer OTP-Fehlercontainer existierte davor noch nicht
+  - `LoginPage` zeigte bei Fehlschlag weiterhin nur eine Sammelmeldung ohne direkt nutzbaren Support-Code
+- Minimal umgesetzt:
+  - neues Shared-Modell `KGV.Core/Models/OtpFailureDiagnosticInfo.cs` ergänzt
+  - `KGV.Infrastructure/Authentication/AuthService.cs` hält jetzt die letzte OTP-Fehldiagnose mit:
+    - `Code`
+    - `UserMessage`
+    - `Timestamp`
+  - der Container wird direkt im realen Shared-OTP-Pfad gesetzt, also nicht separat in der UI geraten:
+    - `OTP_REQUEST_BLOCK`
+    - `OTP_REQUEST_RESULT`
+    - `OTP_REQUEST_EXCEPTION`
+    - `OTP_RECOVERY_REQUEST_GOTRUE_FAIL`
+    - `OTP_RECOVERY_REQUEST_FAIL`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs` zeigt bei OTP-Fehlschlag jetzt zusätzlich einen kleinen Support-Hinweis mit Diagnosecode und bietet `Code kopieren` an
+  - keine rohen Exception-Texte an Endnutzer ausgegeben
+- Bewusst nicht gemacht:
+  - keine Konfigurationsänderung
+  - kein neuer OTP-Fachumbau
+  - keine WPF-UI-Änderung
+  - `IAuthService` bewusst nicht angefasst, weil die Datei im Arbeitsbaum bereits blockfremd verändert war; MAUI liest den letzten OTP-Code daher direkt aus dem realen `AuthService`
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-03-30 – MAUI OTP Diagnose und Konfigurationsabweichung geklärt
 
 - Realen Repo-/Git-/OTP-Iststand zuerst gegen den aktuellen Workspace geprüft.

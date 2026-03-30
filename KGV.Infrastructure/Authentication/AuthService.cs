@@ -29,6 +29,8 @@ namespace KGV.Infrastructure.Authentication
         private string? _verifiedOtpEmail;
         private string? _pendingEmailChangeTarget;
 
+        public OtpFailureDiagnosticInfo? LastOtpFailureInfo { get; private set; }
+
         public AuthService(ISupabaseClientFactory clientFactory, ILogger<AuthService>? logger = null)
         {
             _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
@@ -40,6 +42,8 @@ namespace KGV.Infrastructure.Authentication
             if (string.IsNullOrWhiteSpace(email))
                 return false;
 
+            LastOtpFailureInfo = null;
+
             try
             {
                 var emailTrim = email.Trim();
@@ -47,6 +51,7 @@ namespace KGV.Infrastructure.Authentication
                 var preparation = await EnsureOtpPreparationAsync(emailTrim, "first-login");
                 if (!preparation.Success)
                 {
+                    SetOtpFailureInfo("OTP_REQUEST_BLOCK", "Für diese E-Mail ist aktuell kein vorbereiteter App-Zugang verfügbar.");
                     _logger?.LogWarning("RequestOtpAsync blocked for {EmailMasked}: {Reason}", MaskEmail(emailTrim), preparation.Message);
                     LogDiagnosticWarning($"OTP_REQUEST_BLOCK flowKind=first-login email={MaskEmail(emailTrim)} reason={preparation.Message}");
                     return false;
@@ -54,10 +59,20 @@ namespace KGV.Infrastructure.Authentication
 
                 var requested = await RequestRecoveryOtpAsync(emailTrim, "first-login");
                 LogDiagnosticInformation($"OTP_REQUEST_RESULT flowKind=first-login email={MaskEmail(emailTrim)} success={requested}");
+                if (requested)
+                {
+                    LastOtpFailureInfo = null;
+                }
+                else if (LastOtpFailureInfo == null)
+                {
+                    SetOtpFailureInfo("OTP_REQUEST_RESULT", "Der Erstlogin-Code konnte aktuell nicht angefordert werden.");
+                }
+
                 return requested;
             }
             catch (Exception ex)
             {
+                SetOtpFailureInfo("OTP_REQUEST_EXCEPTION", "Der Erstlogin-Code konnte aktuell nicht angefordert werden.");
                 LogDiagnosticError($"OTP_REQUEST_EXCEPTION flowKind=first-login email={MaskEmail(email.Trim())} endpoint={GetSupabaseEndpointContext()}", ex);
                 _logger?.LogError(ex, "RequestOtpAsync failed for {EmailMasked}", MaskEmail(email));
                 return false;
@@ -798,12 +813,14 @@ namespace KGV.Infrastructure.Authentication
             }
             catch (GotrueException ex)
             {
+                SetOtpFailureInfo("OTP_RECOVERY_REQUEST_GOTRUE_FAIL", "Der Erstlogin-Code konnte aktuell nicht versendet werden.");
                 LogDiagnosticError($"OTP_RECOVERY_REQUEST_GOTRUE_FAIL flowKind={flowKind} email={MaskEmail(email)} endpoint={GetSupabaseEndpointContext()}", ex);
                 _logger?.LogError(ex, "RequestRecoveryOtpAsync gotrue failed for {FlowKind} and {EmailMasked}: {MessageMasked}", flowKind, MaskEmail(email), MaskDiagnosticMessage(ex.Message));
                 return false;
             }
             catch (Exception ex)
             {
+                SetOtpFailureInfo("OTP_RECOVERY_REQUEST_FAIL", "Der Erstlogin-Code konnte aktuell nicht versendet werden.");
                 LogDiagnosticError($"OTP_RECOVERY_REQUEST_FAIL flowKind={flowKind} email={MaskEmail(email)} endpoint={GetSupabaseEndpointContext()}", ex);
                 _logger?.LogError(ex, "RequestRecoveryOtpAsync failed for {FlowKind} and {EmailMasked}: {MessageMasked}", flowKind, MaskEmail(email), MaskDiagnosticMessage(ex.Message));
                 return false;
@@ -1557,6 +1574,16 @@ namespace KGV.Infrastructure.Authentication
             Trace.WriteLine($"AUTH_DIAG ERROR {message} :: {MaskDiagnosticMessage(ex.Message)}");
         }
 
+        private void SetOtpFailureInfo(string code, string userMessage)
+        {
+            LastOtpFailureInfo = new OtpFailureDiagnosticInfo
+            {
+                Code = code,
+                UserMessage = userMessage,
+                Timestamp = DateTimeOffset.UtcNow
+            };
+        }
+
         private sealed class InviteUserFunctionResult
         {
             public bool Success { get; init; }
@@ -1653,6 +1680,7 @@ namespace KGV.Infrastructure.Authentication
         {
             _verifiedOtpEmail = null;
             _pendingEmailChangeTarget = null;
+            LastOtpFailureInfo = null;
             CurrentUserId = null;
             IsVorstand = false;
             IsAdmin = false;
