@@ -2,6 +2,47 @@
 
 ---
 
+## 2026-03-30 – WPF-Bugfix: `Nutzer hinzufügen` in der gebundenen Benutzerverwaltung wieder sichtbar
+
+- Vor dem Block Git-Stand gegen `origin/main` geprüft:
+  - `git fetch origin`
+  - `git status -sb` => `## main...origin/main`
+  - `git branch -vv` => `main 43f5513 [origin/main] Document invite fix repo verification`
+  - keine Divergenz zu `origin/main`
+- Zusätzlich real im Arbeitsbaum sichtbar, aber bewusst **nicht** Teil dieses kleinen WPF-Blocks:
+  - laufende lokale Änderungen in `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Core/Models/InviteUserAccountResult.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - ungetrackte Dateien `KGV.Core/Models/MemberUserLinkStatus.cs`, `KGV.Core/Models/MemberUserLinkStatusDto.cs`, `Android_Wpf_release_batch_v4.bat`, `Android_Wpf_release_batch_v5.bat`
+- Direkt betroffenen WPF-Pfad geprüft:
+  - `KGV.Wpf/ViewModels/UserManagementViewModel.cs`
+  - `KGV.Wpf/Views/UserManagementView.xaml`
+  - MAUI nur lesend gegengeprüft: `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+- Reale Ursache des Restfehlers:
+  - `ShowInviteAction` ist in WPF eine berechnete Property
+  - der Button in `UserManagementView.xaml` war bereits korrekt an `ShowInviteAction` gebunden
+  - im WPF-ViewModel fehlten aber die notwendigen `PropertyChanged`-Benachrichtigungen für `ShowInviteAction`
+  - dadurch blieb die Visibility im gebundenen Mitgliedskontext nach `SelectedUser`-/`IsBusy`-/`LoadAsync()`-Wechseln hängen, obwohl der Invite-Fall fachlich vorlag
+- Minimal umgesetzt:
+  - in `KGV.Wpf/ViewModels/UserManagementViewModel.cs` `OnPropertyChanged(nameof(ShowInviteAction))` ergänzt:
+    - im Setter von `SelectedUser`
+    - im Setter von `IsBusy`
+    - nach dem relevanten Statuswechsel in `LoadAsync()`
+  - passend dazu in `LoadAsync()` und bei Busy-Wechseln die Command-Requery für Invite/Remove sauber nachgezogen
+  - `UserManagementView.xaml` blieb fachlich unverändert, weil das Visibility-Binding bereits korrekt auf `ShowInviteAction` zeigt
+- Fachliches Ergebnis:
+  - gebundenes Mitglied mit E-Mail und ohne verknüpften App-User/Auth-User zeigt `Nutzer hinzufügen` in WPF wieder sichtbar an
+  - konsistent verknüpfte Fälle blenden den Button weiter korrekt aus
+  - `Nutzer entfernen` bleibt auf dem vorhandenen WPF-Pfad unverändert fachlich gekoppelt
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly -v:q` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich, nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+  - dateibezogene Fehlerprüfung auf `KGV.Wpf/ViewModels/UserManagementViewModel.cs` und `KGV.Wpf/Views/UserManagementView.xaml` => unauffällig
+- Git-Abschluss dieses kleinen Blocks:
+  - nur `KGV.Wpf/ViewModels/UserManagementViewModel.cs`, `DEV_LOG.md` und `KGV_Fortschrittslog_ausfuehrlich.md` gehören zu diesem Commit
+  - blockfremde lokale Änderungen bleiben ausdrücklich außerhalb dieses WPF-Bugfix-Commits
+
 ## 2026-03-30 – Repo-Abgleich: Invite-/OTP-Fix ist real auf `origin/main` vorhanden
 
 - Vor dem Block Git-Realität gegen `origin/main` geprüft:

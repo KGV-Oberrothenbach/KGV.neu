@@ -43,6 +43,7 @@ namespace KGV.ViewModels
                 if (!SetProperty(ref _selectedUser, value))
                     return;
 
+                OnPropertyChanged(nameof(ShowInviteAction));
                 OnPropertyChanged(nameof(CanChangeSelectedEmail));
                 OnPropertyChanged(nameof(CanRemoveUser));
                 InviteCommand.NotifyCanExecuteChanged();
@@ -71,6 +72,7 @@ namespace KGV.ViewModels
                 RemoveUserCommand.NotifyCanExecuteChanged();
                 ChangeEmailCommand.NotifyCanExecuteChanged();
                 ResetPasswordCommand.NotifyCanExecuteChanged();
+                OnPropertyChanged(nameof(ShowInviteAction));
                 OnPropertyChanged(nameof(CanRemoveUser));
             }
         }
@@ -139,6 +141,10 @@ namespace KGV.ViewModels
                 }
 
                 StatusMessage = BuildStatusMessage();
+                OnPropertyChanged(nameof(ShowInviteAction));
+                OnPropertyChanged(nameof(CanRemoveUser));
+                InviteCommand.NotifyCanExecuteChanged();
+                RemoveUserCommand.NotifyCanExecuteChanged();
             }
             catch
             {
