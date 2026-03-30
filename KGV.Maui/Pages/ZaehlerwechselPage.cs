@@ -9,15 +9,19 @@ namespace KGV.Maui.Pages;
 
 public sealed class ZaehlerwechselPage : RfidScanWorkflowPage
 {
+    private readonly RfidScanContextViewModel _viewModel;
+    private bool _handlingResolution;
+
     public ZaehlerwechselPage()
         : base(
             "Zählerwechsel",
-            "RFID-Tag an das Gerät halten, produktiv auflösen und daraus den Ausbau- oder Einbaupfad fachlich ableiten.",
+            "RFID-Tag an das Gerät halten. Der produktive 3-Fall-Flow öffnet danach direkt RFID hinzufügen, Zählereinbau oder nach Bestätigung den Ausbaupfad.",
             "Einordnung für Zählerwechsel",
             CreateViewModel(),
-            GetDecisionText,
-            CreateActionSection)
+            GetDecisionText)
     {
+        _viewModel = (RfidScanContextViewModel)BindingContext;
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
     private static RfidScanContextViewModel CreateViewModel()
@@ -39,44 +43,77 @@ public sealed class ZaehlerwechselPage : RfidScanWorkflowPage
 
         return resolution.State switch
         {
-            RfidScanContextState.KnownWithActiveMeter => "Aktiver Zähler gefunden. Für den Zählerwechsel ist damit als nächster Schritt der Ausbaupfad vorbereitet.",
-            RfidScanContextState.KnownWithoutActiveMeter => "Bekannter Tag ohne aktiven Zähler. Für den Zählerwechsel ist damit als nächster Schritt der Einbaupfad vorbereitet.",
-            _ => "Der Tag ist unbekannt. Für den Zählerwechsel kann kein produktiver Kontext vorbereitet werden."
+            RfidScanContextState.KnownWithActiveMeter => "Aktiver Zähler gefunden. Vor dem Ausbau wird eine Bestätigung angezeigt.",
+            RfidScanContextState.KnownWithoutActiveMeter => "Bekannter Tag ohne aktiven Zähler. Der Zählereinbau wird direkt geöffnet.",
+            _ => "Der Tag ist unbekannt. Der bestehende Flow `RFID hinzufügen` wird direkt geöffnet."
         };
     }
 
-    private static View CreateActionSection(RfidScanContextViewModel viewModel)
+    protected override void OnAppearing()
     {
-        var continueToRemovalButton = new Button { Text = "Weiter zum Ausbau" };
-        continueToRemovalButton.SetBinding(IsVisibleProperty, nameof(RfidScanContextViewModel.CanContinueToMeterRemoval));
-        continueToRemovalButton.SetBinding(IsEnabledProperty, nameof(RfidScanContextViewModel.CanContinueToMeterRemoval));
-        continueToRemovalButton.Clicked += async (_, _) => await ContinueAsync(viewModel, nameof(ZaehlerwechselAusbauPage));
-
-        var continueToInstallationButton = new Button { Text = "Weiter zum Einbau" };
-        continueToInstallationButton.SetBinding(IsVisibleProperty, nameof(RfidScanContextViewModel.CanContinueToMeterInstallation));
-        continueToInstallationButton.SetBinding(IsEnabledProperty, nameof(RfidScanContextViewModel.CanContinueToMeterInstallation));
-        continueToInstallationButton.Clicked += async (_, _) => await ContinueAsync(viewModel, nameof(ZaehlerwechselEinbauPage));
-
-        return new VerticalStackLayout
-        {
-            Spacing = 8,
-            Children =
-            {
-                continueToRemovalButton,
-                continueToInstallationButton
-            }
-        };
+        _handlingResolution = false;
+        base.OnAppearing();
     }
 
-    private static async Task ContinueAsync(RfidScanContextViewModel viewModel, string route)
+    protected override void OnDisappearing()
     {
-        if (viewModel.Resolution == null)
+        _handlingResolution = false;
+        base.OnDisappearing();
+    }
+
+    private async void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(RfidScanContextViewModel.Resolution) || _handlingResolution || _viewModel.Resolution == null)
             return;
 
+        _handlingResolution = true;
+
+        try
+        {
+            switch (_viewModel.Resolution.State)
+            {
+                case RfidScanContextState.Unknown:
+                    await OpenRfidHinzufuegenAsync(_viewModel.Resolution.NormalizedUid);
+                    break;
+
+                case RfidScanContextState.KnownWithoutActiveMeter:
+                    await ContinueToWorkflowAsync(_viewModel.Resolution, nameof(ZaehlerwechselEinbauPage));
+                    break;
+
+                case RfidScanContextState.KnownWithActiveMeter:
+                    var confirmRemoval = await DisplayAlert(
+                        "Bestätigung",
+                        "Wollen Sie den Zähler ausbauen?",
+                        "Ja",
+                        "Nein");
+
+                    if (confirmRemoval)
+                        await ContinueToWorkflowAsync(_viewModel.Resolution, nameof(ZaehlerwechselAusbauPage));
+
+                    break;
+            }
+        }
+        finally
+        {
+            _handlingResolution = false;
+        }
+    }
+
+    private static async Task ContinueToWorkflowAsync(RfidScanContextResult resolution, string route)
+    {
         var services = Application.Current?.Handler?.MauiContext?.Services
             ?? throw new InvalidOperationException("MAUI-Services sind aktuell nicht verfügbar.");
 
-        services.GetRequiredService<ZaehlerwechselWorkflowState>().SetContext(viewModel.Resolution);
+        services.GetRequiredService<ZaehlerwechselWorkflowState>().SetContext(resolution);
+        await Shell.Current.GoToAsync(route);
+    }
+
+    private static async Task OpenRfidHinzufuegenAsync(string? normalizedUid)
+    {
+        var route = nameof(RfidEinrichtenPage);
+        if (!string.IsNullOrWhiteSpace(normalizedUid))
+            route += $"?uid={Uri.EscapeDataString(normalizedUid)}";
+
         await Shell.Current.GoToAsync(route);
     }
 }

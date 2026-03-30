@@ -2,6 +2,48 @@
 
 ---
 
+## 2026-03-30 – MAUI Zählerwechsel auf 3-Fall-Flow umgestellt
+
+- Vor dem Block Git-Stand gegen `origin/main` geprüft:
+  - `git status -sb` => `## main...origin/main`
+  - `git log --oneline -n 1` => `892b997 Parzellendetails in MAUI und WPF fachlich geschlossen`
+  - `git branch --contains 892b997` / `git branch -r --contains 892b997` => `main` und `origin/main`
+  - damit lag der geforderte Ausgangsstand nach `892b997` real vor
+- Gleichzeitig real im Arbeitsbaum sichtbar, aber bewusst **nicht** Teil dieses MAUI-Zählerwechsel-Blocks:
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Core/Models/InviteUserAccountResult.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Wpf/KGV.Wpf.csproj`
+  - `KGV.Core/Models/MemberUserLinkStatus.cs`
+  - `KGV.Core/Models/MemberUserLinkStatusDto.cs`
+  - `AWR.bat`
+  - `Android_Wpf_release_batch_v4.bat`
+- Direkt betroffene Dateien geprüft/angepasst:
+  - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+  - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor dem Fix:
+  - `ZaehlerwechselPage` nutzte noch den generischen RFID-Kontext-Workflow mit den Buttons `Weiter zum Ausbau` / `Weiter zum Einbau`
+  - unbekannte Tags wurden dort nur mit Hinweistext stehen gelassen statt direkt in den bestehenden RFID-Hinzufügen-Flow zu gehen
+  - `ZaehlerwechselAusbauPage` und `ZaehlerwechselEinbauPage` waren fachlich bereits produktiv nah dran und kehrten nach erfolgreichem Speichern schon wieder in einen frischen Scanpfad zurück
+- Minimal umgesetzt:
+  - generische Hauptlogik in `ZaehlerwechselPage` entfernt; die Seite reagiert jetzt direkt auf den aufgelösten RFID-Kontext
+  - 3-Fall-Flow jetzt produktiv:
+    - RFID unbekannt => bestehender Flow `RFID hinzufügen` über `RfidEinrichtenPage`
+    - RFID bekannt ohne aktiven Zähler => direkter Wechsel in `ZaehlerwechselEinbauPage`
+    - RFID bekannt mit aktivem Zähler => zuerst Bestätigung `Wollen Sie den Zähler ausbauen?`, nur bei `Ja` Wechsel in `ZaehlerwechselAusbauPage`
+  - dafür keinen neuen Service und keinen neuen Backendpfad gebaut; `ResolveRfidScanContextAsync(...)` bleibt der bestehende Auflösungspfad
+  - `RfidEinrichtenPage` kann jetzt optional eine bereits gescannte UID per Query übernehmen und direkt in den bestehenden RFID-Hinzufügen-Flow einsteigen, statt einen erneuten Scan zu erzwingen
+  - bestehende Ausbau-/Einbau-Seiten blieben unangetastet, weil sie den erfolgreichen Rückweg in einen frischen Scan-Zustand bereits korrekt abdecken
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs` blieben unverändert bestehen
+- Git-Abschluss dieses Blocks bewusst eng:
+  - nur `KGV.Maui/Pages/ZaehlerwechselPage.cs`, `KGV.Maui/Pages/RfidEinrichtenPage.cs`, `DEV_LOG.md` und `KGV_Fortschrittslog_ausfuehrlich.md`
+  - blockfremde lokale Änderungen bleiben außerhalb dieses Commits
+
 ## 2026-03-30 – Parzellendetails in MAUI und WPF fachlich geschlossen
 
 - Vor dem Block Git-Stand gegen `origin/main` geprüft:

@@ -6,17 +6,19 @@ using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace KGV.Maui.Pages;
 
-public sealed class RfidEinrichtenPage : ContentPage
+public sealed class RfidEinrichtenPage : ContentPage, IQueryAttributable
 {
     private readonly RfidEinrichtenViewModel _viewModel;
     private readonly INfcScanService _nfcScanService;
     private readonly Label _nfcStatusLabel;
     private readonly Button _openNfcSettingsButton;
     private readonly Button _restartScanButton;
+    private string? _pendingUid;
 
     public RfidEinrichtenPage()
     {
@@ -181,6 +183,12 @@ public sealed class RfidEinrichtenPage : ContentPage
         };
     }
 
+    public void ApplyQueryAttributes(IDictionary<string, object> query)
+    {
+        if (query.TryGetValue("uid", out var rawUid) && rawUid != null)
+            _pendingUid = rawUid.ToString()?.Trim();
+    }
+
     protected override async void OnAppearing()
     {
         base.OnAppearing();
@@ -188,6 +196,19 @@ public sealed class RfidEinrichtenPage : ContentPage
         _viewModel.ResetForNewScan();
         _nfcScanService.TagScanned -= OnTagScanned;
         _nfcScanService.TagScanned += OnTagScanned;
+
+        if (!string.IsNullOrWhiteSpace(_pendingUid))
+        {
+            _viewModel.UidInput = _pendingUid;
+            _pendingUid = null;
+            await _viewModel.ResolveUidAsync();
+            await _nfcScanService.StopScanningAsync();
+            _nfcStatusLabel.Text = "Der gescannte RFID-Tag wurde direkt in den bestehenden Flow `RFID hinzufügen` übernommen.";
+            _openNfcSettingsButton.IsVisible = false;
+            _restartScanButton.IsEnabled = true;
+            return;
+        }
+
         await StartNfcAsync();
     }
 
