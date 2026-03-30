@@ -246,7 +246,8 @@ public class LoginPage : ContentPage
             }
             else
             {
-                _statusLabel.Text = "OTP-Anforderung aktuell nicht möglich. Bitte prüfen lassen, ob für diese E-Mail ein vorbereiteter App-Zugang besteht.";
+                AppFileLog.Warning("KGV.Login", $"OTP-Anforderung fehlgeschlagen für {MaskEmail(email)}. Details siehe Diagnose-Log.");
+                _statusLabel.Text = "OTP-Anforderung fehlgeschlagen. Bitte prüfe die E-Mail-Adresse oder kontaktiere den Vorstand. Details wurden im Diagnose-Log festgehalten.";
             }
         };
 

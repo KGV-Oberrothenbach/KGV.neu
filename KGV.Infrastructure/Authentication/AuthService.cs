@@ -43,17 +43,22 @@ namespace KGV.Infrastructure.Authentication
             try
             {
                 var emailTrim = email.Trim();
+                LogDiagnosticInformation($"OTP_REQUEST_START flowKind=first-login email={MaskEmail(emailTrim)} endpoint={GetSupabaseEndpointContext()}");
                 var preparation = await EnsureOtpPreparationAsync(emailTrim, "first-login");
                 if (!preparation.Success)
                 {
                     _logger?.LogWarning("RequestOtpAsync blocked for {EmailMasked}: {Reason}", MaskEmail(emailTrim), preparation.Message);
+                    LogDiagnosticWarning($"OTP_REQUEST_BLOCK flowKind=first-login email={MaskEmail(emailTrim)} reason={preparation.Message}");
                     return false;
                 }
 
-                return await RequestRecoveryOtpAsync(emailTrim, "first-login");
+                var requested = await RequestRecoveryOtpAsync(emailTrim, "first-login");
+                LogDiagnosticInformation($"OTP_REQUEST_RESULT flowKind=first-login email={MaskEmail(emailTrim)} success={requested}");
+                return requested;
             }
             catch (Exception ex)
             {
+                LogDiagnosticError($"OTP_REQUEST_EXCEPTION flowKind=first-login email={MaskEmail(email.Trim())} endpoint={GetSupabaseEndpointContext()}", ex);
                 _logger?.LogError(ex, "RequestOtpAsync failed for {EmailMasked}", MaskEmail(email));
                 return false;
             }
@@ -142,9 +147,6 @@ namespace KGV.Infrastructure.Authentication
         public bool IsAdmin { get; private set; } = false;
         public string? CurrentUserId { get; private set; }
 
-        /// <summary>
-        /// Supabase Client initialisieren oder zurückgeben
-        /// </summary>
         public async Task<global::Supabase.Client> GetClientAsync()
         {
             if (_client == null)
@@ -220,16 +222,14 @@ namespace KGV.Infrastructure.Authentication
                 _verifiedOtpEmail = null;
                 CurrentUserId = user.Id;
 
-                // Rollen setzen – MitgliedRecord anhand AuthUserId (uuid) abrufen
                 MitgliedRecord? userRecord = null;
 
-                // user.Id ist string -> in Guid umwandeln, weil MitgliedRecord.AuthUserId = Guid?
                 if (!Guid.TryParse(user.Id, out var userGuid))
                 {
                     _logger?.LogWarning("LOGIN_FAIL_REASON:INVALID_USER_GUID for {EmailMasked}", MaskEmail(email));
                     IsVorstand = false;
                     IsAdmin = false;
-                    return true; // Login ist trotzdem ok, nur keine Rollen
+                    return true;
                 }
 
                 try
@@ -241,16 +241,12 @@ namespace KGV.Infrastructure.Authentication
                 }
                 catch (Exception ex)
                 {
-                    // Query kann fehlschlagen, z.B. wenn kein Datensatz existiert
                     _logger?.LogWarning(ex, "LOGIN_ROLE_LOOKUP_WARN for {EmailMasked}: {MessageMasked}", MaskEmail(email), MaskDiagnosticMessage(ex.Message));
                 }
 
                 if (userRecord != null)
                 {
                     var role = (userRecord.Role ?? string.Empty).Trim();
-
-                    // akzeptiere alte/uneinheitliche Rollenwerte aus der DB
-                    // (z.B. "Admin"/"Vorstand" vs. "admin"/"vorstand")
                     IsVorstand = string.Equals(role, "vorstand", StringComparison.OrdinalIgnoreCase);
                     IsAdmin = string.Equals(role, "admin", StringComparison.OrdinalIgnoreCase);
                 }
@@ -321,57 +317,62 @@ namespace KGV.Infrastructure.Authentication
 
         public async Task<List<AppUserDTO>> GetAppUsersAsync()
         {
+            var linkStatuses = await GetMemberUserLinkStatusesAsync();
+            return linkStatuses
+                .Select(CreateAppUserDto)
+                .OrderBy(x => x.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(x => x.Email, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+        }
+
+        public async Task<List<MemberUserLinkStatusDto>> GetMemberUserLinkStatusesAsync()
+        {
             try
             {
                 var client = await GetClientAsync();
-
-                var appUsersResponse = await client.From<AppUserRecord>().Get();
                 var membersResponse = await client.From<MitgliedRecord>().Get();
+                var appUsersResponse = await client.From<AppUserRecord>().Get();
 
+                var members = membersResponse?.Models?
+                    .Where(OperationalDataFilter.IsOperationalMember)
+                    .OrderBy(m => FormatDisplayName(m), StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(m => (m.Email ?? string.Empty).Trim(), StringComparer.CurrentCultureIgnoreCase)
+                    .ToList()
+                    ?? new List<MitgliedRecord>();
                 var appUsers = appUsersResponse?.Models?.ToList() ?? new List<AppUserRecord>();
-                var members = membersResponse?.Models?.ToList() ?? new List<MitgliedRecord>();
 
-                var result = new Dictionary<Guid, AppUserDTO>();
-                var orphanMembers = new List<AppUserDTO>();
-
-                foreach (var appUser in appUsers)
-                {
-                    var member = members.FirstOrDefault(x => x.AuthUserId == appUser.UserId);
-                    var dto = CreateAppUserDto(appUser, member);
-                    if (!OperationalDataFilter.IsOperationalAppUser(member, dto.DisplayName, dto.Email))
-                        continue;
-
-                    result[appUser.UserId] = dto;
-                }
-
-                foreach (var member in members)
-                {
-                    if (!OperationalDataFilter.IsOperationalMember(member))
-                        continue;
-
-                    if (member.AuthUserId.HasValue)
-                    {
-                        var authUserId = member.AuthUserId.Value;
-                        if (result.ContainsKey(authUserId))
-                            continue;
-
-                        result[authUserId] = CreateAppUserDto(appUser: null, member);
-                        continue;
-                    }
-
-                    orphanMembers.Add(CreateAppUserDto(appUser: null, member));
-                }
-
-                return result.Values
-                    .Concat(orphanMembers)
-                    .OrderBy(x => x.DisplayName, StringComparer.CurrentCultureIgnoreCase)
-                    .ThenBy(x => x.Email, StringComparer.CurrentCultureIgnoreCase)
+                return members
+                    .Select(member => BuildMemberUserLinkStatus(member, appUsers))
                     .ToList();
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "GetAppUsersAsync failed.");
-                return new List<AppUserDTO>();
+                _logger?.LogError(ex, "GetMemberUserLinkStatusesAsync failed.");
+                return new List<MemberUserLinkStatusDto>();
+            }
+        }
+
+        public async Task<MemberUserLinkStatusDto?> GetMemberUserLinkStatusAsync(int mitgliedId)
+        {
+            try
+            {
+                var client = await GetClientAsync();
+                var memberResponse = await client
+                    .From<MitgliedRecord>()
+                    .Where(x => x.Id == mitgliedId)
+                    .Get();
+                var member = memberResponse?.Models?.FirstOrDefault();
+                if (member == null)
+                    return null;
+
+                var appUsersResponse = await client.From<AppUserRecord>().Get();
+                var appUsers = appUsersResponse?.Models?.ToList() ?? new List<AppUserRecord>();
+                return BuildMemberUserLinkStatus(member, appUsers);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "GetMemberUserLinkStatusAsync failed for mitgliedId={MitgliedId}", mitgliedId);
+                return null;
             }
         }
 
@@ -382,10 +383,6 @@ namespace KGV.Infrastructure.Authentication
 
             var email = user.Email?.Trim();
             var mitgliedId = user.MitgliedId;
-            var authUserId = user.AuthUserId;
-            var inviteStep = "validate";
-            var authUserVerified = false;
-            var mappingAttempts = 0;
             if (string.IsNullOrWhiteSpace(email))
             {
                 return new InviteUserAccountResult
@@ -397,99 +394,43 @@ namespace KGV.Infrastructure.Authentication
 
             try
             {
-                LogDiagnosticInformation($"INVITE_START mitgliedId={mitgliedId?.ToString() ?? "<null>"} email={MaskEmail(email)} authUserId={authUserId?.ToString() ?? "<null>"} endpoint={GetSupabaseEndpointContext()}");
-
-                inviteStep = "prepare-invite-context";
-                var preparation = await EnsureInvitePreparationAsync(user, email, "invite", allowDeferredOtpRepair: false);
-                if (!preparation.Success)
+                if (!mitgliedId.HasValue || mitgliedId.Value <= 0)
                 {
-                    LogDiagnosticWarning($"INVITE_ABORT step={inviteStep} mitgliedId={mitgliedId?.ToString() ?? "<null>"} email={MaskEmail(email)} reason={preparation.Message}");
-                    _logger?.LogWarning(
-                        "InviteUserAsync aborted at step {InviteStep} for mitgliedId={MitgliedId} email={EmailMasked}: {Reason}",
-                        inviteStep,
-                        mitgliedId,
-                        MaskEmail(email),
-                        preparation.Message);
-
                     return new InviteUserAccountResult
                     {
                         Success = false,
                         Email = email,
-                        Message = preparation.Message
+                        Message = "Für die Einladung fehlt die Mitgliedszuordnung."
                     };
                 }
 
-                authUserId = preparation.AuthUserId;
-                authUserVerified = authUserId.HasValue;
-                mappingAttempts = preparation.MappingAttempts;
-
-                LogDiagnosticInformation($"INVITE_PREPARED mitgliedId={preparation.MitgliedId} email={MaskEmail(email)} authUserId={authUserId?.ToString() ?? "<null>"} mappingAttempts={mappingAttempts} authUserVerified={authUserVerified}");
-
-                _logger?.LogInformation(
-                    "InviteUserAsync auth user resolved for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId}",
-                    mitgliedId,
-                    MaskEmail(email),
-                    authUserId);
-
-                inviteStep = "request-recovery-otp";
-                var requested = await RequestRecoveryOtpAsync(email, "invite");
-                LogDiagnosticInformation($"INVITE_OTP_TRIGGERED mitgliedId={preparation.MitgliedId} email={MaskEmail(email)} authUserId={authUserId?.ToString() ?? "<null>"} requested={requested}");
-
-                _logger?.LogInformation(
-                    "InviteUserAsync finished for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId} authUserVerified={AuthUserVerified} mappingAttempts={MappingAttempts} otpRequested={OtpRequested}",
-                    mitgliedId,
-                    MaskEmail(email),
-                    authUserId,
-                    authUserVerified,
-                    mappingAttempts,
-                    requested);
+                LogDiagnosticInformation($"INVITE_EDGE_START mitgliedId={mitgliedId.Value} email={MaskEmail(email)} endpoint={GetSupabaseEndpointContext()}");
+                var functionResult = await InvokeInviteUserFunctionAsync(mitgliedId.Value, email, NormalizeRole(user.Role));
+                LogDiagnosticInformation($"INVITE_EDGE_RESULT mitgliedId={mitgliedId.Value} email={MaskEmail(email)} success={functionResult.Success} linkPrepared={functionResult.LinkPrepared} mailSent={functionResult.MailSent} authUserId={functionResult.AuthUserId?.ToString() ?? "<null>"}");
 
                 return new InviteUserAccountResult
                 {
-                    Success = requested,
-                    AuthUserId = authUserId,
+                    Success = functionResult.LinkPrepared,
+                    LinkPrepared = functionResult.LinkPrepared,
+                    MailSent = functionResult.MailSent,
+                    AuthUserId = functionResult.AuthUserId,
                     Email = email,
-                    Message = requested
-                        ? "Einladungs-/Erstlogin-Code wurde versendet. Einstieg über KGV-App oder PC-Login mit E-Mail + OTP + neuem Passwort."
-                        : "Einladungs-/Erstlogin-Code konnte nicht versendet werden."
-                };
-            }
-            catch (PostgrestException ex) when (IsMemberAuthUserForeignKeyFailure(ex))
-            {
-                _logger?.LogError(
-                    ex,
-                    "InviteUserAsync failed at step {InviteStep} for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId} authUserVerified={AuthUserVerified} mappingAttempts={MappingAttempts}. {PostgrestDetail}",
-                    inviteStep,
-                    mitgliedId,
-                    MaskEmail(email),
-                    authUserId,
-                    authUserVerified,
-                    mappingAttempts,
-                    ExtractPostgrestRelevantMessage(ex));
-                LogDiagnosticError($"INVITE_FAIL_POSTGREST step={inviteStep} mitgliedId={mitgliedId?.ToString() ?? "<null>"} email={MaskEmail(email)} authUserId={authUserId?.ToString() ?? "<null>"} mappingAttempts={mappingAttempts} detail={ExtractPostgrestRelevantMessage(ex)}", ex);
-
-                return new InviteUserAccountResult
-                {
-                    Success = false,
-                    Email = email,
-                    Message = "Einladung fehlgeschlagen, weil der Auth-User beim Verknüpfen noch nicht belastbar verfügbar war. Bitte erneut versuchen."
+                    Message = functionResult.Message
                 };
             }
             catch (Exception ex)
             {
                 _logger?.LogError(
                     ex,
-                    "InviteUserAsync failed at step {InviteStep} for mitgliedId={MitgliedId} email={EmailMasked} authUserId={AuthUserId} authUserVerified={AuthUserVerified} mappingAttempts={MappingAttempts}",
-                    inviteStep,
+                    "InviteUserAsync failed for mitgliedId={MitgliedId} email={EmailMasked}",
                     mitgliedId,
-                    MaskEmail(email),
-                    authUserId,
-                    authUserVerified,
-                    mappingAttempts);
-                LogDiagnosticError($"INVITE_FAIL step={inviteStep} mitgliedId={mitgliedId?.ToString() ?? "<null>"} email={MaskEmail(email)} authUserId={authUserId?.ToString() ?? "<null>"} mappingAttempts={mappingAttempts}", ex);
+                    MaskEmail(email));
+                LogDiagnosticError($"INVITE_EDGE_FAIL mitgliedId={mitgliedId?.ToString() ?? "<null>"} email={MaskEmail(email)}", ex);
                 return new InviteUserAccountResult
                 {
                     Success = false,
+                    LinkPrepared = false,
+                    MailSent = false,
                     Email = email,
                     Message = "Einladung fehlgeschlagen. Details stehen im Log."
                 };
@@ -501,31 +442,33 @@ namespace KGV.Infrastructure.Authentication
             if (user == null)
                 throw new ArgumentNullException(nameof(user));
 
-            if (!user.AuthUserId.HasValue && !user.MitgliedId.HasValue)
+            if (!user.MitgliedId.HasValue || user.MitgliedId.Value <= 0)
                 return false;
 
             try
             {
+                var linkStatus = await GetMemberUserLinkStatusAsync(user.MitgliedId.Value);
+                if (linkStatus?.Status != Core.Models.MemberUserLinkStatus.Consistent)
+                {
+                    LogDiagnosticWarning($"REMOVE_USER_BLOCK mitgliedId={user.MitgliedId.Value} reason=status_{linkStatus?.Status.ToString() ?? "unknown"}");
+                    return false;
+                }
+
                 var client = await GetClientAsync();
 
-                if (user.MitgliedId.HasValue)
-                {
-                    await client
-                        .From<MitgliedRecord>()
-                        .Where(x => x.Id == user.MitgliedId.Value)
-                        .Set(x => x.AuthUserId, (Guid?)null)
-                        .Update();
-                }
+                await client
+                    .From<MitgliedRecord>()
+                    .Where(x => x.Id == user.MitgliedId.Value)
+                    .Set(x => x.AuthUserId, (Guid?)null)
+                    .Update();
 
-                if (user.AuthUserId.HasValue)
-                {
-                    await client
-                        .From<AppUserRecord>()
-                        .Where(x => x.UserId == user.AuthUserId.Value)
-                        .Delete();
-                }
+                await client
+                    .From<AppUserRecord>()
+                    .Where(x => x.MitgliedId == user.MitgliedId.Value)
+                    .Delete();
 
-                return true;
+                var statusAfterRemoval = await GetMemberUserLinkStatusAsync(user.MitgliedId.Value);
+                return statusAfterRemoval?.Status == Core.Models.MemberUserLinkStatus.None;
             }
             catch (Exception ex)
             {
@@ -649,6 +592,112 @@ namespace KGV.Infrastructure.Authentication
             };
         }
 
+        private static AppUserDTO CreateAppUserDto(MemberUserLinkStatusDto linkStatus)
+        {
+            return new AppUserDTO
+            {
+                AuthUserId = linkStatus.MitgliedAuthUserId ?? linkStatus.AppUserUserId,
+                MitgliedId = linkStatus.MitgliedId,
+                Email = linkStatus.Email ?? string.Empty,
+                DisplayName = linkStatus.DisplayName ?? string.Empty,
+                Role = FirstNonEmpty(linkStatus.Role),
+                Aktiv = true,
+                EmailBestaetigt = false
+            };
+        }
+
+        private static MemberUserLinkStatusDto BuildMemberUserLinkStatus(MitgliedRecord member, IReadOnlyCollection<AppUserRecord> allAppUsers)
+        {
+            var memberAuthUserId = NormalizeUserId(member.AuthUserId);
+
+            var appUsersForMember = allAppUsers
+                .Where(x => x.MitgliedId == (long)member.Id)
+                .ToList();
+
+            var primaryAppUser = appUsersForMember.FirstOrDefault();
+            var appUserUserId = primaryAppUser != null ? NormalizeUserId(primaryAppUser.UserId) : null;
+            var appUserMitgliedId = primaryAppUser?.MitgliedId.HasValue == true
+                ? (int?)primaryAppUser.MitgliedId.Value
+                : null;
+
+            var appUsersReferencingMemberAuth = memberAuthUserId.HasValue
+                ? allAppUsers.Where(x => NormalizeUserId(x.UserId) == memberAuthUserId.Value).ToList()
+                : new List<AppUserRecord>();
+
+            var hasForeignAppUserMapping = appUsersReferencingMemberAuth.Any(x => x.MitgliedId != (long)member.Id);
+
+            var status = MemberUserLinkStatus.None;
+            string? warningText = null;
+
+            if (appUsersForMember.Count > 1)
+            {
+                status = MemberUserLinkStatus.Conflict;
+                warningText = "Für dieses Mitglied existieren mehrere app_user-Datensätze.";
+            }
+            else if (memberAuthUserId.HasValue
+                     && appUserUserId.HasValue
+                     && memberAuthUserId.Value == appUserUserId.Value
+                     && appUserMitgliedId == member.Id
+                     && !hasForeignAppUserMapping)
+            {
+                status = MemberUserLinkStatus.Consistent;
+            }
+            else if (!memberAuthUserId.HasValue && !appUserUserId.HasValue)
+            {
+                status = MemberUserLinkStatus.None;
+                warningText = "Für dieses Mitglied ist aktuell kein Nutzer vorbereitet.";
+            }
+            else if (!memberAuthUserId.HasValue && appUserUserId.HasValue)
+            {
+                status = MemberUserLinkStatus.MissingMemberAuthLink;
+                warningText = "app_user ist vorhanden, aber mitglied.auth_user_id fehlt.";
+            }
+            else if (memberAuthUserId.HasValue && !appUserUserId.HasValue && !hasForeignAppUserMapping)
+            {
+                status = MemberUserLinkStatus.MissingAppUser;
+                warningText = "mitglied.auth_user_id ist vorhanden, aber app_user fehlt.";
+            }
+            else
+            {
+                status = MemberUserLinkStatus.Conflict;
+                warningText = hasForeignAppUserMapping
+                    ? "Die Auth-User-ID ist bereits einem anderen Mitglied zugeordnet."
+                    : "Mitglied und app_user sind widersprüchlich verknüpft.";
+            }
+
+            return new MemberUserLinkStatusDto
+            {
+                MitgliedId = member.Id,
+                DisplayName = FormatDisplayName(member),
+                Role = FirstNonEmpty(member.Role),
+                Email = (member.Email ?? string.Empty).Trim(),
+                MitgliedAuthUserId = memberAuthUserId,
+                AppUserUserId = appUserUserId,
+                AppUserMitgliedId = appUserMitgliedId,
+                Status = status,
+                CanInvite = status is MemberUserLinkStatus.None
+                    or MemberUserLinkStatus.MissingMemberAuthLink
+                    or MemberUserLinkStatus.MissingAppUser,
+                CanRemove = status == MemberUserLinkStatus.Consistent,
+                IsConsistent = status == MemberUserLinkStatus.Consistent,
+                WarningText = warningText
+            };
+        }
+
+        private static Guid? NormalizeUserId(Guid? value)
+        {
+            return value.HasValue && value.Value != Guid.Empty
+                ? value.Value
+                : null;
+        }
+
+        private static Guid? NormalizeUserId(Guid value)
+        {
+            return value != Guid.Empty
+                ? value
+                : null;
+        }
+
         private static string FormatDisplayName(MitgliedRecord? member)
         {
             if (member == null)
@@ -736,12 +785,29 @@ namespace KGV.Infrastructure.Authentication
 
         private async Task<bool> RequestRecoveryOtpAsync(string email, string flowKind)
         {
-            ResetAuthState();
+            try
+            {
+                ResetAuthState();
 
-            var client = await GetClientAsync();
-            await client.Auth.ResetPasswordForEmail(email);
-            _logger?.LogInformation("Recovery OTP requested for {FlowKind} and {EmailMasked}", flowKind, MaskEmail(email));
-            return true;
+                LogDiagnosticInformation($"OTP_RECOVERY_REQUEST_START flowKind={flowKind} email={MaskEmail(email)} endpoint={GetSupabaseEndpointContext()}");
+                var client = await GetClientAsync();
+                await client.Auth.ResetPasswordForEmail(email);
+                _logger?.LogInformation("Recovery OTP requested for {FlowKind} and {EmailMasked}", flowKind, MaskEmail(email));
+                LogDiagnosticInformation($"OTP_RECOVERY_REQUEST_OK flowKind={flowKind} email={MaskEmail(email)}");
+                return true;
+            }
+            catch (GotrueException ex)
+            {
+                LogDiagnosticError($"OTP_RECOVERY_REQUEST_GOTRUE_FAIL flowKind={flowKind} email={MaskEmail(email)} endpoint={GetSupabaseEndpointContext()}", ex);
+                _logger?.LogError(ex, "RequestRecoveryOtpAsync gotrue failed for {FlowKind} and {EmailMasked}: {MessageMasked}", flowKind, MaskEmail(email), MaskDiagnosticMessage(ex.Message));
+                return false;
+            }
+            catch (Exception ex)
+            {
+                LogDiagnosticError($"OTP_RECOVERY_REQUEST_FAIL flowKind={flowKind} email={MaskEmail(email)} endpoint={GetSupabaseEndpointContext()}", ex);
+                _logger?.LogError(ex, "RequestRecoveryOtpAsync failed for {FlowKind} and {EmailMasked}: {MessageMasked}", flowKind, MaskEmail(email), MaskDiagnosticMessage(ex.Message));
+                return false;
+            }
         }
 
         private async Task<AuthUserPreparationResult> EnsureAuthUserForInviteAsync(string email)
@@ -824,30 +890,20 @@ namespace KGV.Infrastructure.Authentication
             }
 
             var member = memberResolution.Member;
-            LogDiagnosticInformation($"OTP_PREPARE_MEMBER flowKind={flowKind} email={MaskEmail(email)} mitgliedId={member.Id} memberAuthUserId={member.AuthUserId?.ToString() ?? "<null>"}");
-            var authUserId = member.AuthUserId ?? await ResolveAuthUserIdFromExistingMappingsAsync(member.Id, email);
-            if (!authUserId.HasValue)
+            var linkStatus = await GetMemberUserLinkStatusAsync(member.Id);
+            LogDiagnosticInformation($"OTP_PREPARE_MEMBER flowKind={flowKind} email={MaskEmail(email)} mitgliedId={member.Id} status={linkStatus?.Status.ToString() ?? "<null>"} memberAuthUserId={linkStatus?.MitgliedAuthUserId?.ToString() ?? "<null>"} appUserId={linkStatus?.AppUserUserId?.ToString() ?? "<null>"}");
+            if (linkStatus?.Status != MemberUserLinkStatus.Consistent)
             {
-                LogDiagnosticWarning($"OTP_PREPARE_BLOCK flowKind={flowKind} email={MaskEmail(email)} mitgliedId={member.Id} reason=no_prepared_auth_user");
-                return OtpPreparationResult.Fail("Für diese E-Mail-Adresse ist aktuell kein vorbereiteter App-Zugang vorhanden.");
+                LogDiagnosticWarning($"OTP_PREPARE_BLOCK flowKind={flowKind} email={MaskEmail(email)} mitgliedId={member.Id} reason=status_{linkStatus?.Status.ToString() ?? "unknown"}");
+                return OtpPreparationResult.Fail("Für diese E-Mail ist noch kein vollständiger Zugang vorbereitet.");
             }
-
-            var mappingAttempts = await EnsureMemberInviteMappingAsync(authUserId.Value, member.Id, email);
-            if (mappingAttempts <= 0)
-            {
-                LogDiagnosticWarning($"OTP_PREPARE_BLOCK flowKind={flowKind} email={MaskEmail(email)} mitgliedId={member.Id} authUserId={authUserId.Value} reason=member_mapping_not_persisted");
-                return OtpPreparationResult.Fail("Mitglied-Zuordnung konnte aktuell nicht vorbereitet werden.");
-            }
-
-            await EnsureAppUserRecordAsync(authUserId.Value, member.Id, NormalizeRole(member.Role));
 
             _logger?.LogInformation(
-                "EnsureOtpPreparationAsync verified prepared OTP context for flowKind={FlowKind} email={EmailMasked} mitgliedId={MitgliedId} authUserId={AuthUserId} mappingAttempts={MappingAttempts}",
+                "EnsureOtpPreparationAsync verified prepared OTP context for flowKind={FlowKind} email={EmailMasked} mitgliedId={MitgliedId} authUserId={AuthUserId}",
                 flowKind,
                 MaskEmail(email),
                 member.Id,
-                authUserId.Value,
-                mappingAttempts);
+                linkStatus.MitgliedAuthUserId);
 
             return OtpPreparationResult.Ok();
         }
@@ -922,22 +978,25 @@ namespace KGV.Infrastructure.Authentication
             }
 
             var member = memberResolution.Member;
-            var existingMappedAuthUserId = member.AuthUserId ?? await ResolveAuthUserIdFromExistingMappingsAsync(member.Id, email);
-            if (existingMappedAuthUserId.HasValue && existingMappedAuthUserId.Value != authUserId)
+            var linkStatus = await GetMemberUserLinkStatusAsync(member.Id);
+            if (linkStatus == null)
             {
-                LogDiagnosticWarning($"OTP_REPAIR_BLOCK email={MaskEmail(email)} mitgliedId={member.Id} currentAuthUserId={authUserId} existingMappedAuthUserId={existingMappedAuthUserId.Value} reason=conflicting_mapping");
-                return OtpVerificationRepairResult.Fail("Für diese E-Mail-Adresse besteht bereits eine andere Auth-Zuordnung.");
+                return OtpVerificationRepairResult.Fail("Mitglieds-Zuordnung konnte nach der OTP-Bestätigung nicht geladen werden.");
             }
 
-            var mappingAttempts = await EnsureMemberInviteMappingAsync(authUserId, member.Id, email);
-            if (mappingAttempts <= 0)
+            if (linkStatus.Status != MemberUserLinkStatus.Consistent)
             {
-                LogDiagnosticWarning($"OTP_REPAIR_BLOCK email={MaskEmail(email)} mitgliedId={member.Id} authUserId={authUserId} reason=member_mapping_not_persisted");
-                return OtpVerificationRepairResult.Fail("Mitglied-Zuordnung konnte nach der OTP-Bestätigung nicht gespeichert werden.");
+                LogDiagnosticWarning($"OTP_REPAIR_BLOCK email={MaskEmail(email)} mitgliedId={member.Id} currentAuthUserId={authUserId} reason=status_{linkStatus.Status}");
+                return OtpVerificationRepairResult.Fail("Für diese E-Mail ist noch kein vollständiger Zugang vorbereitet.");
             }
 
-            await EnsureAppUserRecordAsync(authUserId, member.Id, NormalizeRole(member.Role));
-            LogDiagnosticInformation($"OTP_REPAIR_OK email={MaskEmail(email)} mitgliedId={member.Id} authUserId={authUserId} mappingAttempts={mappingAttempts}");
+            if (linkStatus.MitgliedAuthUserId != authUserId || linkStatus.AppUserUserId != authUserId)
+            {
+                LogDiagnosticWarning($"OTP_REPAIR_BLOCK email={MaskEmail(email)} mitgliedId={member.Id} currentAuthUserId={authUserId} persistedMemberAuthUserId={linkStatus.MitgliedAuthUserId?.ToString() ?? "<null>"} persistedAppUserId={linkStatus.AppUserUserId?.ToString() ?? "<null>"} reason=verified_user_mismatch");
+                return OtpVerificationRepairResult.Fail("Der vorbereitete Zugang passt nicht zum bestätigten Benutzerkontext.");
+            }
+
+            LogDiagnosticInformation($"OTP_REPAIR_OK email={MaskEmail(email)} mitgliedId={member.Id} authUserId={authUserId}");
             return OtpVerificationRepairResult.Ok();
         }
 
@@ -1080,6 +1139,111 @@ namespace KGV.Infrastructure.Authentication
                 LogDiagnosticError($"AUTH_RPC_LOOKUP_EXCEPTION email={MaskEmail(email)} endpoint={GetSupabaseEndpointContext()}", ex);
                 _logger?.LogWarning(ex, "ResolveExistingAuthUserIdByEmailAsync failed for {EmailMasked}", MaskEmail(email));
                 return null;
+            }
+        }
+
+        private async Task<InviteUserFunctionResult> InvokeInviteUserFunctionAsync(int mitgliedId, string email, string role)
+        {
+            var accessToken = await GetAccessTokenAsync();
+            if (string.IsNullOrWhiteSpace(accessToken))
+            {
+                LogDiagnosticWarning($"INVITE_EDGE_SKIP mitgliedId={mitgliedId} email={MaskEmail(email)} reason=no_access_token");
+                return InviteUserFunctionResult.Fail("Für die Einladung ist keine gültige Session vorhanden.");
+            }
+
+            try
+            {
+                using var httpClient = new HttpClient();
+                using var request = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    $"{_clientFactory.Url.TrimEnd('/')}/functions/v1/kgv-invite-user");
+
+                request.Headers.Add("apikey", _clientFactory.Key);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                request.Content = new StringContent(
+                    JsonSerializer.Serialize(new
+                    {
+                        mitgliedId,
+                        role = NormalizeRole(role),
+                        inviteMethod = "otp"
+                    }),
+                    Encoding.UTF8,
+                    "application/json");
+
+                using var response = await httpClient.SendAsync(request);
+                var content = await response.Content.ReadAsStringAsync();
+
+                var result = ParseInviteUserFunctionResult(content, response.IsSuccessStatusCode);
+
+                if (!response.IsSuccessStatusCode && !result.LinkPrepared)
+                {
+                    LogDiagnosticWarning(
+                        $"INVITE_EDGE_HTTP_FAIL mitgliedId={mitgliedId} email={MaskEmail(email)} status={(int)response.StatusCode} content={MaskDiagnosticMessage(content)}");
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                LogDiagnosticError($"INVITE_EDGE_EXCEPTION mitgliedId={mitgliedId} email={MaskEmail(email)}", ex);
+                return InviteUserFunctionResult.Fail("Einladung fehlgeschlagen. Details stehen im Log.");
+            }
+        }
+
+        private static InviteUserFunctionResult ParseInviteUserFunctionResult(string content, bool httpSuccess)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return httpSuccess
+                    ? new InviteUserFunctionResult
+                    {
+                        Success = true,
+                        LinkPrepared = true,
+                        MailSent = false,
+                        Message = "Nutzerkonto wurde vorbereitet."
+                    }
+                    : InviteUserFunctionResult.Fail("Einladung fehlgeschlagen.");
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(content);
+                var root = document.RootElement;
+
+                var success = TryGetJsonBool(root, "success");
+                var outcome = (TryGetJsonString(root, "outcome") ?? string.Empty).Trim().ToLowerInvariant();
+                var message = (TryGetJsonString(root, "message") ?? string.Empty).Trim();
+                var mailSent = TryGetJsonBool(root, "mailSent");
+                var authUserId =
+                    TryParseGuid(TryGetJsonString(root, "authUserId")) ??
+                    TryParseGuid(TryGetJsonString(root, "userId"));
+
+                var linkPrepared = outcome is "prepared" or "prepared_mail_failed" or "already_linked";
+                var effectiveMessage = !string.IsNullOrWhiteSpace(message)
+                    ? message
+                    : (linkPrepared ? "Nutzerkonto wurde vorbereitet." : "Einladung fehlgeschlagen.");
+
+                return new InviteUserFunctionResult
+                {
+                    Success = success ?? httpSuccess,
+                    LinkPrepared = linkPrepared,
+                    MailSent = mailSent ?? outcome == "prepared",
+                    AuthUserId = authUserId,
+                    Message = effectiveMessage
+                };
+            }
+            catch
+            {
+                return httpSuccess
+                    ? new InviteUserFunctionResult
+                    {
+                        Success = true,
+                        LinkPrepared = true,
+                        MailSent = false,
+                        Message = "Nutzerkonto wurde vorbereitet."
+                    }
+                    : InviteUserFunctionResult.Fail(MaskDiagnosticMessage(content));
             }
         }
 
@@ -1354,6 +1518,27 @@ namespace KGV.Infrastructure.Authentication
                 : property.ToString();
         }
 
+        private static bool? TryGetJsonBool(JsonElement element, string propertyName)
+        {
+            if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind == JsonValueKind.Null)
+                return null;
+
+            if (property.ValueKind == JsonValueKind.True || property.ValueKind == JsonValueKind.False)
+                return property.GetBoolean();
+
+            if (property.ValueKind == JsonValueKind.String && bool.TryParse(property.GetString(), out var parsed))
+                return parsed;
+
+            return null;
+        }
+
+        private static Guid? TryParseGuid(string? value)
+        {
+            return Guid.TryParse(value, out var parsed)
+                ? parsed
+                : null;
+        }
+
         private void LogDiagnosticInformation(string message)
         {
             _logger?.LogInformation("AUTH_DIAG {Message}", message);
@@ -1370,6 +1555,24 @@ namespace KGV.Infrastructure.Authentication
         {
             _logger?.LogError(ex, "AUTH_DIAG {Message}", message);
             Trace.WriteLine($"AUTH_DIAG ERROR {message} :: {MaskDiagnosticMessage(ex.Message)}");
+        }
+
+        private sealed class InviteUserFunctionResult
+        {
+            public bool Success { get; init; }
+            public bool LinkPrepared { get; init; }
+            public bool MailSent { get; init; }
+            public Guid? AuthUserId { get; init; }
+            public string Message { get; init; } = string.Empty;
+
+            public static InviteUserFunctionResult Fail(string message)
+                => new()
+                {
+                    Success = false,
+                    LinkPrepared = false,
+                    MailSent = false,
+                    Message = message
+                };
         }
 
         private sealed class AuthUserPreparationResult

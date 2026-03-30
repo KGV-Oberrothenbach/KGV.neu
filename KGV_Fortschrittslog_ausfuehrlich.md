@@ -2,6 +2,95 @@
 
 ---
 
+## 2026-03-30 – Prompt 1/1: MAUI vs. WPF OTP-Erstlogin über Konfiguration und Diagnose belastbar aufgeklärt
+
+- Vor dem Block den realen Git-/Workspace-Stand geprüft und nicht auf alten lokalen Annahmen aufgebaut.
+- Direkt gelesen und verglichen wurden:
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Wpf/App.xaml.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Wpf/ViewModels/LoginViewModel.cs`
+  - `appsettings.json`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Wpf/KGV.Wpf.csproj`
+  - `KGV.Infrastructure/Supabase/SupabaseClientFactory.cs`
+  - `KGV.Infrastructure/DependencyInjection/ServiceCollectionExtensions.cs`
+  - `KGV.Core/Interfaces/IAuthService.cs`
+- Belastbarer Konfigurationsvergleich des echten Ladepfads:
+  - **WPF**
+    - lädt `appsettings.json` aus zwei expliziten Orten:
+      - `Directory.GetCurrentDirectory()`
+      - `AppContext.BaseDirectory`
+    - der Output-Pfad wird zuletzt geladen und überschreibt damit den CurrentDir-Wert
+    - zusätzlich wird per Reflection optional `AddUserSecrets<App>(...)` versucht
+  - **MAUI**
+    - lädt `appsettings.json` ausschließlich aus dem eingebetteten App-Paket über `FileSystem.OpenAppPackageFileAsync("appsettings.json")`
+    - MAUI kann damit fachlich durchaus einen anderen Stand verwenden, **wenn** das Paket nicht mit der aktuellen Root-Datei gebaut/deployt wurde
+- Den effektiven Stand deshalb nicht nur per Dateiname, sondern per gebauten Artefaktpfaden geprüft:
+  - Root-`appsettings.json` SHA256
+  - `KGV.Wpf\bin\Debug\net8.0-windows\appsettings.json` SHA256
+  - `KGV.Maui\obj\Debug\net9.0-android\assets\appsettings.json` SHA256
+  - `KGV.Maui\obj\Release\net9.0-android\assets\appsettings.json` SHA256
+  - Ergebnis: alle vier Hashes waren identisch
+  - damit liegt im aktuellen Repo-/Buildstand **keine nachweisbare Konfigurationsabweichung** zwischen Root, WPF-Output und MAUI-Paket-Asset vor
+- Zusätzlicher Abgleich zum möglichen User-Secrets-Unterschied:
+  - im aktiven Repo wurde kein `UserSecretsId` in den produktiven Projektdateien gefunden
+  - WPF versucht UserSecrets zwar optional zu laden, aber im aktuellen Repo-Stand ist kein belastbarer projektspezifischer User-Secrets-Pfad nachweisbar
+  - daraus folgt: der aktuell sichtbare OTP-Unterschied ist im vorliegenden Repo-/Buildstand **nicht belastbar als Konfigurationsdrift belegbar**
+- Den Fix deshalb bewusst auf Diagnose und Laufzeitaufklärung konzentriert statt einen blinden Auth-Umbau zu starten:
+  - **`KGV.Maui/MauiProgram.cs`**
+    - das tatsächlich geladene MAUI-Paket-`appsettings.json` wird jetzt vor dem Einlesen in einen Bytepuffer übernommen
+    - der SHA256 des wirklich geladenen Paket-Assets wird geloggt
+    - zusätzlich wird beim Supabase-Check ein nicht sensitiver Fingerprint geloggt:
+      - `host`
+      - `keyLength`
+      - `keySuffix`
+      - `keySha256`
+    - damit ist zur Laufzeit sichtbar, welche Supabase-Konfiguration MAUI tatsächlich aus dem Paket verwendet
+  - **`KGV.Wpf/App.xaml.cs`**
+    - WPF loggt jetzt die beiden effektiven JSON-Quellen samt `exists`-Status in `Debug`/`Trace`
+    - zusätzlich denselben Supabase-Fingerprint wie MAUI
+    - dadurch ist WPF gegenüber MAUI direkt vergleichbar, ohne Secrets im Klartext auszugeben
+  - **`KGV.Infrastructure/Authentication/AuthService.cs`**
+    - der OTP-Erstloginpfad wurde nicht fachlich umgebaut, aber deutlich präziser instrumentiert
+    - neue Diagnosemarker entlang des echten Pfads:
+      - `OTP_REQUEST_START`
+      - `OTP_REQUEST_BLOCK`
+      - `OTP_REQUEST_RESULT`
+      - `OTP_RECOVERY_REQUEST_START`
+      - `OTP_RECOVERY_REQUEST_OK`
+      - `OTP_RECOVERY_REQUEST_GOTRUE_FAIL`
+      - `OTP_RECOVERY_REQUEST_FAIL`
+    - `RequestRecoveryOtpAsync(...)` fängt jetzt stage-spezifisch `GotrueException` und allgemeine Exceptions ab und loggt sie mit Endpoint-Kontext statt nur im äußeren Sammelcatch unterzugehen
+    - dadurch wird künftig klarer unterscheidbar:
+      - OTP-Vorbereitung blockiert
+      - Recovery-/OTP-Request an Supabase schlägt fehl
+      - Gotrue-/Client-Exception
+  - **`KGV.Maui/Pages/LoginPage.xaml.cs`**
+    - Endnutzertext bleibt verständlich und ohne rohe Technikdetails
+    - bei OTP-Fehlschlag wird zusätzlich explizit ein Diagnose-Loghinweis geschrieben
+    - die sichtbare Meldung weist jetzt darauf hin, dass Details protokolliert wurden
+- WPF vs. MAUI Initialisierung gezielt gegenübergestellt:
+  - beide verwenden denselben `SupabaseClientFactory`
+  - beide verwenden denselben `AuthService.RequestOtpAsync(...)`-Pfad
+  - in `SupabaseClientFactory` gibt es aktuell keine plattformspezifischen `SupabaseOptions` oder unterschiedliche Clientinitialisierung zwischen WPF und MAUI
+  - der verbleibende Unterschied liegt damit im aktuellen Repo-Stand eher in Laufzeitumgebung bzw. tatsächlichem Requestverhalten als in abweichendem Produktcode des Client-Factories
+- Bewusst nicht gemacht:
+  - keine neue Auth-Architektur
+  - keine neuen Endpunkte
+  - keine OTP-Fake-Workarounds
+  - keine Nebenbaustellen in Admin-Menü, Impressum, Parzellen, Zählerwechsel usw.
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ein echter Laufzeittest des MAUI-OTP-Buttons war in diesem Block nicht automatisiert belastbar ausführbar; deshalb wurde die Ursache bis zur Konfigurations- und Diagnoseebene sauber eingegrenzt, aber nicht per Gerätetest final reproduziert
+- Fachliches Ergebnis dieses Blocks:
+  - **keine belastbare Konfigurationsabweichung** im aktuellen Repo-/Buildstand nachweisbar
+  - **kein nachweisbarer Unterschied** in `SupabaseClientFactory`/`RequestOtpAsync(...)` zwischen WPF und MAUI im Produktcode
+  - der Block liefert jetzt die nötige Präzisionsdiagnose, um beim nächsten MAUI-Fehlschlag exakt zu sehen, ob der Grund in OTP-Vorbereitung, Recovery-Request, Gotrue-/Client-Exception oder externer Laufzeitumgebung liegt
+  - Stand jetzt ist die wahrscheinlichste ehrliche Einordnung: **Diagnose verbessert, Konfigurationsdrift im aktuellen Repo-Stand nicht bestätigt; externer Laufzeit-/Request-Unterschied bleibt weiter zu beobachten**
+
 ## 2026-03-30 – Prompt 1/2: Mitgliedskontext in MAUI und WPF auf echtes Admin-Menü umgestellt
 
 - Den realen Git-Stand des geöffneten Repositories zuerst geprüft und nicht auf lokalen Altständen aufgebaut:

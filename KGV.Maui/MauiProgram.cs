@@ -15,6 +15,8 @@ using Microsoft.Maui.Controls.Hosting;
 using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Storage;
 using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace KGV.Maui;
 
@@ -113,10 +115,15 @@ public static class MauiProgram
     {
         try
         {
-            using var stream = FileSystem.OpenAppPackageFileAsync("appsettings.json").GetAwaiter().GetResult();
-            configuration.AddJsonStream(stream);
+                using var stream = FileSystem.OpenAppPackageFileAsync("appsettings.json").GetAwaiter().GetResult();
+                using var memoryStream = new MemoryStream();
+                stream.CopyTo(memoryStream);
+
+                var appSettingsBytes = memoryStream.ToArray();
+                configuration.AddJsonStream(new MemoryStream(appSettingsBytes));
+
             AppFileLog.Marker("APPSETTINGS_LOAD_OK");
-            AppFileLog.Info(StartupLogTag, "`appsettings.json` erfolgreich aus dem App-Paket geladen.");
+                AppFileLog.Info(StartupLogTag, $"`appsettings.json` erfolgreich aus dem App-Paket geladen. sha256={ComputeSha256(appSettingsBytes)}");
         }
         catch (Exception ex)
         {
@@ -135,7 +142,7 @@ public static class MauiProgram
         if (!string.IsNullOrWhiteSpace(supabaseUrl) && !string.IsNullOrWhiteSpace(supabaseKey))
         {
             AppFileLog.Marker("SUPABASE_CONFIG_PRESENT_YES");
-            AppFileLog.Info(StartupLogTag, "Supabase-Konfiguration vorhanden.");
+            AppFileLog.Info(StartupLogTag, $"Supabase-Konfiguration vorhanden. {BuildSupabaseConfigurationFingerprint(supabaseUrl, supabaseKey)}");
             return;
         }
 
@@ -195,5 +202,28 @@ public static class MauiProgram
 
         Debug.WriteLine(ex);
         Log.Error(StartupLogTag, $"{message} {ex.GetType().Name}: {ex.Message}");
+    }
+
+    private static string BuildSupabaseConfigurationFingerprint(string? url, string? key)
+    {
+        var host = Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            ? uri.Host
+            : "invalid";
+
+        var trimmedKey = (key ?? string.Empty).Trim();
+        var suffix = trimmedKey.Length >= 6
+            ? trimmedKey[^6..]
+            : trimmedKey;
+
+        return $"host={host} keyLength={trimmedKey.Length} keySuffix={suffix} keySha256={ComputeSha256(Encoding.UTF8.GetBytes(trimmedKey))}";
+    }
+
+    private static string ComputeSha256(byte[] content)
+    {
+        if (content.Length == 0)
+            return "empty";
+
+        var hash = SHA256.HashData(content);
+        return Convert.ToHexString(hash);
     }
 }

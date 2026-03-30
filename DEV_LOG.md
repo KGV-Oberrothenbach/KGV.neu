@@ -2,6 +2,52 @@
 
 ---
 
+## 2026-03-30 – MAUI OTP Diagnose und Konfigurationsabweichung geklärt
+
+- Realen Repo-/Git-/OTP-Iststand zuerst gegen den aktuellen Workspace geprüft.
+- Direkt verglichen wurden:
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Wpf/App.xaml.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Wpf/ViewModels/LoginViewModel.cs`
+  - `appsettings.json`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Wpf/KGV.Wpf.csproj`
+- Belastbarer Konfigurationsbefund:
+  - WPF lädt effektiv aus `CurrentDirectory` und `AppContext.BaseDirectory`; optional wird zusätzlich per Reflection `AddUserSecrets<App>(...)` versucht
+  - MAUI lädt effektiv nur das eingebettete Paket-Asset `appsettings.json`
+  - im aktuellen Repo-/Buildstand ist aber **keine aktive Konfigurationsabweichung nachweisbar**:
+    - Root-`appsettings.json`, WPF-Output-`appsettings.json` und MAUI-Paket-Asset `obj\...\assets\appsettings.json` hatten denselben SHA256-Hash
+    - im Repo selbst gibt es keinen nachweisbaren `UserSecretsId`-Pfad in den aktiven Projektdateien
+  - damit ist im aktuellen Stand nicht die Repo-Konfiguration der naheliegende Unterschied zwischen WPF und MAUI
+- Minimal nachgezogen wurde deshalb der Diagnoseblock statt eines blinden Auth-Umbaus:
+  - `KGV.Maui/MauiProgram.cs`
+    - Appsettings-Hash des tatsächlich geladenen MAUI-Paket-Assets wird jetzt geloggt
+    - effektiver Supabase-Fingerprint (`host`, `keyLength`, `keySuffix`, `keySha256`) wird beim MAUI-Startup geloggt
+  - `KGV.Wpf/App.xaml.cs`
+    - effektive WPF-Konfigurationsquellen und derselbe Supabase-Fingerprint werden jetzt in `Debug`/`Trace` ausgegeben
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+    - OTP-Anforderung jetzt mit klaren Diagnosemarkern für:
+      - `OTP_REQUEST_START`
+      - `OTP_REQUEST_BLOCK`
+      - `OTP_RECOVERY_REQUEST_START`
+      - `OTP_RECOVERY_REQUEST_OK`
+      - `OTP_RECOVERY_REQUEST_GOTRUE_FAIL`
+      - `OTP_RECOVERY_REQUEST_FAIL`
+      - `OTP_REQUEST_RESULT`
+    - dadurch ist künftig sichtbar, ob der Fehlschlag aus Vorbereitung, Recovery-Request oder Exception kommt
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+    - Endnutzer behält kurze verständliche Meldung
+    - zusätzlich wird beim Fehlschlag explizit auf den Diagnose-Log verwiesen und ein eigener Logeintrag erzeugt
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Ergebnis dieses Blocks:
+  - der aktuelle Repo-/Buildstand zeigt keine belastbare Konfigurationsabweichung zwischen WPF und MAUI
+  - der Unterschied ist aktuell eher ein Laufzeit-/Umgebungs- oder OTP-Request-Thema
+  - der MAUI-Pfad loggt den echten Fehlergrund jetzt deutlich präziser, ohne rohe Techniktexte direkt an Endnutzer auszugeben
+
 ## 2026-03-30 – Mitgliedskontext in MAUI und WPF auf Admin-Menü umgestellt
 
 - Realen Git-Stand vor dem Block geprüft:

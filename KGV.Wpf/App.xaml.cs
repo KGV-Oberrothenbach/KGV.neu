@@ -8,8 +8,11 @@ using KGV.ViewModels;
 using KGV.Views;
 using Microsoft.Extensions.Configuration;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using System.Windows;
 using KGV.Wpf.State;
 
@@ -71,6 +74,7 @@ namespace KGV.Wpf
 
             var supabaseUrl = config["Supabase:Url"];
             var supabasePublishableKey = config["Supabase:PublishableKey"] ?? config["Supabase:Key"];
+            LogSupabaseConfigurationDiagnostics(appSettingsInCurrentDir, appSettingsInOutput, File.Exists(appSettingsInCurrentDir), File.Exists(appSettingsInOutput), supabaseUrl, supabasePublishableKey);
 
             // Fail-fast mit brauchbarer Diagnose, bevor wir tief im Startup eine Exception bekommen.
             if (string.IsNullOrWhiteSpace(supabaseUrl) || string.IsNullOrWhiteSpace(supabasePublishableKey))
@@ -166,6 +170,23 @@ namespace KGV.Wpf
             Current.MainWindow = mainWindow;
             ShutdownMode = ShutdownMode.OnMainWindowClose;
             mainWindow.Show();
+        }
+
+        private static void LogSupabaseConfigurationDiagnostics(string appSettingsInCurrentDir, string appSettingsInOutput, bool currentExists, bool outputExists, string? supabaseUrl, string? supabasePublishableKey)
+        {
+            var host = Uri.TryCreate(supabaseUrl, UriKind.Absolute, out var uri)
+                ? uri.Host
+                : "invalid";
+            var trimmedKey = (supabasePublishableKey ?? string.Empty).Trim();
+            var keySuffix = trimmedKey.Length >= 6 ? trimmedKey[^6..] : trimmedKey;
+            var keyHash = trimmedKey.Length == 0
+                ? "empty"
+                : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(trimmedKey)));
+
+            Debug.WriteLine($"[KGV.Wpf] CONFIG current={appSettingsInCurrentDir} exists={currentExists}");
+            Debug.WriteLine($"[KGV.Wpf] CONFIG output={appSettingsInOutput} exists={outputExists}");
+            Debug.WriteLine($"[KGV.Wpf] SUPABASE host={host} keyLength={trimmedKey.Length} keySuffix={keySuffix} keySha256={keyHash}");
+            Trace.WriteLine($"[KGV.Wpf] SUPABASE host={host} keyLength={trimmedKey.Length} keySuffix={keySuffix} keySha256={keyHash}");
         }
     }
 }
