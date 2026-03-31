@@ -1564,11 +1564,12 @@ namespace KGV.Infrastructure.Services
                 var normalizedMemberIds = new List<long>();
                 foreach (var requestedId in requestedIds)
                 {
-                    if (bundle.MembersById.ContainsKey(requestedId)
-                        && !normalizedMemberIds.Contains(requestedId))
-                    {
-                        normalizedMemberIds.Add(requestedId);
-                    }
+                    if (!bundle.MembersById.ContainsKey(requestedId))
+                        continue;
+
+                    var normalizedId = await ResolveHomeMitgliedIdAsync(requestedId);
+                    if (normalizedId > 0 && !normalizedMemberIds.Contains(normalizedId))
+                        normalizedMemberIds.Add(normalizedId);
                 }
 
                 var newMemberIds = normalizedMemberIds
@@ -1649,6 +1650,10 @@ namespace KGV.Infrastructure.Services
                 if (requestedContractIds.Count == 0)
                     return CreateWartungsvertragAssignmentSaveResult(false, "Bitte mindestens einen Wartungsvertrag auswählen.", 0, 0, 0);
 
+                var normalizedMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
+                if (normalizedMitgliedId <= 0)
+                    return CreateWartungsvertragAssignmentSaveResult(false, "Das ausgewählte Mitglied konnte nicht belastbar aufgelöst werden.", requestedContractIds.Count, 0, 0);
+
                 var bundle = await LoadWartungsvertragBundleAsync();
                 if (!bundle.MembersById.ContainsKey(mitgliedId))
                     return CreateWartungsvertragAssignmentSaveResult(false, "Das ausgewählte Mitglied konnte nicht belastbar aufgelöst werden.", requestedContractIds.Count, 0, 0);
@@ -1657,7 +1662,7 @@ namespace KGV.Infrastructure.Services
                     .GroupBy(x => x.WartungsvertragId)
                     .ToDictionary(x => x.Key, x => x.Count());
                 var activeContractIds = bundle.ActiveAssignments
-                    .Where(x => x.HauptmitgliedId == mitgliedId)
+                    .Where(x => x.HauptmitgliedId == normalizedMitgliedId)
                     .Select(x => x.WartungsvertragId)
                     .ToHashSet();
                 var normalizedStartDate = gueltigAb.Date;
@@ -1681,7 +1686,7 @@ namespace KGV.Infrastructure.Services
                     insertRecords.Add(new WartungsvertragZuordnungInsertRecord
                     {
                         WartungsvertragId = contractId,
-                        HauptmitgliedId = mitgliedId,
+                        HauptmitgliedId = normalizedMitgliedId,
                         GueltigAb = normalizedStartDate,
                         CreatedAt = now,
                         UpdatedAt = now

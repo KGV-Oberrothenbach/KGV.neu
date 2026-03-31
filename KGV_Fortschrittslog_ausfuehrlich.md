@@ -61,6 +61,31 @@
 
 ---
 
+## 2026-03-31 – Wartungsverträge Prompt 2/2: Nebenmitglieder in Schreibpfaden vollständig freigegeben (Zuordnen/Bearbeiten/Entfernen)
+
+### Ziel dieses Schritts
+Nach dem bereits umgesetzten Lese-Fix (Prompt 1/2) sollen Nebenmitglieder Wartungsverträge auch in allen relevanten Schreibpfaden nutzen können – ohne DB-Schema-Änderung und ohne UI-Sonderlogik. Intern bleibt das Schema fachlich unverändert über `hauptmitglied_id`.
+
+### Istzustand (Befund)
+- Nebenmitglieder konnten Wartungsverträge bereits korrekt **lesen** (durch Normalisierung auf Hauptmitglied, Prompt 1/2).
+- In mindestens einem Schreibpfad wurden Zuordnungen weiterhin mit der übergebenen Mitglieder-ID als `hauptmitglied_id` gespeichert bzw. gegen aktive Zuordnungen geprüft.
+
+### Umgesetzt (minimal-invasiv)
+- Service-seitig die Mitglieder-ID in den Wartungsvertrags-Schreibpfaden konsequent auf die fachliche Hauptmitglieds-ID normalisiert (`ResolveHomeMitgliedIdAsync(...)`).
+- Dadurch bleiben WPF und MAUI aufrufseitig unverändert (keine UI-/VM-Sonderlogik nötig), während in der DB weiterhin korrekt `hauptmitglied_id` beschrieben wird.
+
+### Betroffene Dateien
+- `KGV.Infrastructure/Services/SupabaseService.cs`
+
+### Ergebnis
+- Zuordnen „Vertrag → Mitglieder“ und „Mitglied → Verträge“ funktioniert fachlich gleich für Haupt- und Nebenmitglieder.
+- Bestehende Regeln (Kontingente/aktiv/nicht-demo) bleiben unverändert.
+
+### Validierung
+- `dotnet build` erfolgreich.
+
+---
+
 ## 2026-03-31 – Prompt 1/5: Foto-Pending-Grundlage + „Fotos nur über WLAN hochladen“ (nur Basis, noch kein Retry/Queue)
 
 ### Ziel dieses Schritts
