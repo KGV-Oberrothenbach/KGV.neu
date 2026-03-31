@@ -70,6 +70,37 @@ In der MAUI-Detailansicht (Startseite → Detail) sollen Bekanntmachungen auch b
 - Lange Bekanntmachungen sind in der MAUI-Detailansicht vollständig sichtbar und nach unten scrollbar.
 
 ### Validierung
+- `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich (nur bekannte Warnungen)
+
+## Stand 2026-03-31 – MAUI Google-Play-Readiness: repo-seitige Signing-/Release-Blocker geprüft und Secrets entfernt
+
+### Ziel dieses Schritts
+Repo-seitig belastbar prüfen, ob ein AAB-/Release-Testlauf für Google Play grundsätzlich möglich ist, und offensichtliche Repo-Blocker minimal beheben. Außerdem klar trennen, was nicht im Repo lösbar ist (Play Console/Account/Tracks).
+
+### Geprüft
+- `KGV.Maui/KGV.Maui.csproj` (Target SDK/Min SDK, Paketname, Versionen, Release/AAB, Signing)
+- `KGV.Maui/Platforms/Android/AndroidManifest.xml` (Permissions/Icons, Manifest-Basis)
+- Logs: `DEV_LOG.md`, `KGV_Fortschrittslog_ausfuehrlich.md`, dieses Log
+
+### Ehrlicher Istzustand vor Umsetzung
+- AAB ist in Release grundsätzlich vorgesehen, aber es lagen harte Signing-Werte im Repo:
+  - `AndroidSigningStorePass` / `AndroidSigningKeyPass` waren als Klartext (`KGV_1234`) in der Projektdatei hinterlegt.
+  - `AndroidSigningKeyStore` verwies direkt auf `..\_secrets\...`.
+  - Debug war teilweise ebenfalls auf AAB + Signing umgestellt.
+- Das ist für Google-Play-Readiness problematisch (Secrets im Repo / riskante Default-Signierung) und kann lokale Builds/CI unklar machen.
+
+### Umgesetzt
+- Hardcoded Signing-Secrets aus `KGV.Maui.csproj` entfernt.
+- Keystore-Pfad aus der Projektdatei entfernt (Keystore wird nur noch über externe Build-/Publish-Konfiguration übergeben).
+- Release: AAB bleibt gesetzt; zusätzliche robuste Release-Defaults (`AndroidCreatePackagePerAbi=false`, `AndroidUseAapt2=true`) zentral im Release-Block.
+- Debug: wieder klar auf APK ohne Signing-Zwang zurückgeführt.
+
+### Ergebnis
+- Repo enthält keine Signing-Passwörter/Keystore-Pfade mehr.
+- Release-AAB ist weiterhin als Buildziel vorbereitet.
+- Für echte Play-Tests ist Signing jetzt sauber als externer Schritt erforderlich (Publish/CI), statt im Repo „blind“ fest verdrahtet zu sein.
+
+### Validierung
 - folgt: `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
 
 ## Stand 2026-03-31 – Zählereinbau: Speicherfehler diagnostizierbar gemacht (Zaehler-Insert liefert Ergebnis + fachliche Meldung)

@@ -78,6 +78,30 @@
       - Multipart-Content-Length wenn berechenbar
       - Exception-Typ
       - Exception-Message
+
+## 2026-03-31 – MAUI Google-Play-Readiness im Repo geprüft (Signing-Secrets entfernt, AAB-Publish verifiziert)
+
+- Vor dem Block den realen Git-Stand geprüft:
+  - `main` liegt auf `origin/main`
+  - ungetrackt bleiben wie gehabt lokal: `AWR.bat`, `_secrets/` (nicht committen)
+- Direkte Repo-Befunde (nur belastbare Punkte):
+  - `KGV.Maui/KGV.Maui.csproj` targetet `net9.0-android`, `AndroidTargetSdkVersion=35`, `AndroidMinSdkVersion=21`.
+  - `ApplicationId=de.kgv.oberrothenbach` ist gesetzt.
+  - Versionsfelder sind vorhanden: `ApplicationDisplayVersion` / `ApplicationVersion`.
+  - Release ist als AAB-Pfad vorgesehen.
+- Repo-seitiger Blocker vor Fix:
+  - In `KGV.Maui.csproj` waren Signing-Details als Klartext bzw. Secret-Pfad hinterlegt:
+    - `AndroidSigningStorePass` / `AndroidSigningKeyPass` (Klartext)
+    - `AndroidSigningKeyStore` zeigte direkt in `..\_secrets\...`
+  - Zusätzlich war Debug teilweise auf AAB + Signing verdrahtet (unnötig riskant/unklar).
+- Minimaler Fix:
+  - Hardcoded Signing-Passwörter und Keystore-Pfad aus `KGV.Maui.csproj` entfernt.
+  - Debug wieder auf APK ohne Signing-Zwang zurückgeführt.
+  - Release-AAB-Einstellung beibehalten; Release-Defaults (`AndroidCreatePackagePerAbi=false`, `AndroidUseAapt2=true`) sauber im Release-Block.
+- Lokale Verifikation:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich (nur bekannte Warnungen in `HomeManagementPage.cs`).
+  - `dotnet publish ... -c Release -p:AndroidPackageFormat=aab -p:AndroidKeyStore=false` erfolgreich.
+    - AABs liegen unter `KGV.Maui\bin\Release\net9.0-android\publish\` (`de.kgv.oberrothenbach*.aab`).
       - InnerException-Typ
       - InnerException-Message
       - HTTP-Status wenn schon vorhanden

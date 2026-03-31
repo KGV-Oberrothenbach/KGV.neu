@@ -18,7 +18,6 @@
     <ApplicationDisplayVersion>0.2.18</ApplicationDisplayVersion>
     <ApplicationVersion>36</ApplicationVersion>
     <TargetFrameworks>net9.0-android</TargetFrameworks>
-    <AndroidSigningKeyStore>..\_secrets\Android\kgv-upload.keystore</AndroidSigningKeyStore>
   </PropertyGroup>
   <!-- Debug stability settings -->
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
@@ -48,6 +47,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AndroidKeyStore>True</AndroidKeyStore>
+    <AndroidCreatePackagePerAbi>False</AndroidCreatePackagePerAbi>
+    <AndroidUseAapt2>True</AndroidUseAapt2>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AndroidUseAapt2>True</AndroidUseAapt2>
@@ -55,21 +56,12 @@
     <AndroidPackageFormat>apk</AndroidPackageFormat>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-android|AnyCPU'">
-    <AndroidKeyStore>True</AndroidKeyStore>
     <AndroidPackageFormat>aab</AndroidPackageFormat>
-    <AndroidCreatePackagePerAbi>False</AndroidCreatePackagePerAbi>
-    <AndroidUseAapt2>True</AndroidUseAapt2>
-    <AndroidSigningStorePass>KGV_1234</AndroidSigningStorePass>
-    <AndroidSigningKeyAlias>kgvupload</AndroidSigningKeyAlias>
-    <AndroidSigningKeyPass>$(AndroidSigningStorePass)</AndroidSigningKeyPass>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-android|AnyCPU'">
     <AndroidCreatePackagePerAbi>False</AndroidCreatePackagePerAbi>
     <AndroidUseAapt2>True</AndroidUseAapt2>
-    <AndroidPackageFormat>aab</AndroidPackageFormat>
-    <AndroidSigningStorePass>KGV_1234</AndroidSigningStorePass>
-    <AndroidSigningKeyAlias>kgvupload</AndroidSigningKeyAlias>
-    <AndroidSigningKeyPass>$(AndroidSigningStorePass)</AndroidSigningKeyPass>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\KGV.Core\KGV.Core.csproj" />
