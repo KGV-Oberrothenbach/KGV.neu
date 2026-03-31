@@ -1283,6 +1283,8 @@ namespace KGV.Infrastructure.Services
                 if (mitgliedId <= 0)
                     return new List<MemberWartungsvertragItem>();
 
+                var normalizedMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
+
                 var bundle = await LoadWartungsvertragBundleAsync();
                 var countsByContractId = bundle.ActiveAssignments
                     .GroupBy(x => x.WartungsvertragId)
@@ -1290,7 +1292,7 @@ namespace KGV.Infrastructure.Services
                 var contractsById = bundle.Contracts.ToDictionary(x => x.Id);
 
                 return bundle.ActiveAssignments
-                    .Where(x => x.HauptmitgliedId == mitgliedId)
+                    .Where(x => x.HauptmitgliedId == normalizedMitgliedId)
                     .OrderBy(x => contractsById.TryGetValue(x.WartungsvertragId, out var contract)
                         ? contract.Titel ?? string.Empty
                         : string.Empty,
@@ -1310,12 +1312,14 @@ namespace KGV.Infrastructure.Services
                 if (mitgliedId <= 0)
                     return new List<WartungsvertragOverviewItem>();
 
+                var normalizedMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
+
                 var bundle = await LoadWartungsvertragBundleAsync();
                 var countsByContractId = bundle.ActiveAssignments
                     .GroupBy(x => x.WartungsvertragId)
                     .ToDictionary(x => x.Key, x => x.Count());
                 var assignedContractIds = bundle.ActiveAssignments
-                    .Where(x => x.HauptmitgliedId == mitgliedId)
+                    .Where(x => x.HauptmitgliedId == normalizedMitgliedId)
                     .Select(x => x.WartungsvertragId)
                     .ToHashSet();
 

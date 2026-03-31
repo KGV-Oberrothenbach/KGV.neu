@@ -258,6 +258,51 @@ Den in Prompt 1–4 aufgebauten Pending-Foto-Upload-Block minimal-invasiv abrund
 - Gerätetest-Pfade sind robuster gegen „rohe Exception“-Anzeige, ohne neue Diagnose-/Parallelarchitektur.
 
 ### Gerätetest-Checkliste (manuell)
+
+---
+
+## 2026-03-31 – Prompt 1/2: Wartungsverträge für Nebenmitglieder fachlich geöffnet
+
+### Ziel dieses Schritts
+Wartungsverträge sollen nicht nur für Hauptmitglieder funktionieren, sondern auch für Nebenmitglieder: Anzeige und Zuweisung muss für Nebenmitglieder denselben fachlichen Stand abbilden, ohne die DB-Struktur/Zuordnungstabelle umzubauen.
+
+### Geprüft (Istzustand)
+- Datenmodell: `KGV.Core/Models/WartungsvertragZuordnungRecord.cs` nutzt Feld `hauptmitglied_id`.
+- Service-/Query-Pfade:
+  - `ISupabaseService.GetWartungsvertraegeForMitgliedAsync(int mitgliedId)`
+  - `ISupabaseService.GetAssignableWartungsvertraegeForMitgliedAsync(int mitgliedId)`
+  - Implementierung: `KGV.Infrastructure/Services/SupabaseService.cs`
+- UI-Pfade (Referenz):
+  - MAUI: `MemberWartungsvertraegePage`, `WartungsvertragAssignMembersPage`
+  - WPF: `MemberWartungsvertraegeViewModel`, `WartungsvertragMitgliederZuordnungViewModel`
+
+### Ehrlicher Istzustand vor Umsetzung
+- Mitgliedsbezogene Listen/„zuwenbare Wartungsverträge“ wurden intern ausschließlich über `HauptmitgliedId == mitgliedId` gefiltert.
+- Für Nebenmitglieder (die eine `HauptmitgliedId` besitzen) führte das zu:
+  - leeren Listen, obwohl fachlich Zuordnungen am Hauptmitglied hängen,
+  - und dazu, dass Zuweisungen für Nebenmitglieder fälschlich wie „noch nichts zugeordnet“ wirken.
+
+### Umgesetzt
+- `SupabaseService` normalisiert jetzt Mitglieds-IDs in den wartungsvertragsbezogenen Member-Queries:
+  - `GetWartungsvertraegeForMitgliedAsync(int mitgliedId)`
+  - `GetAssignableWartungsvertraegeForMitgliedAsync(int mitgliedId)`
+- Normalisierung via vorhandener Logik `ResolveHomeMitgliedIdAsync(...)` (liefert bei Nebenmitglied das Hauptmitglied).
+- Speicherschema bleibt unverändert: Zuordnungen werden weiterhin über `hauptmitglied_id` persistiert (kein Parallelpfad).
+
+### Ergebnis
+- Nebenmitglieder sehen (und bewerten) bei Wartungsverträgen jetzt denselben fachlichen Zuordnungsstand wie das zugehörige Hauptmitglied.
+- Zuweisbare Wartungsverträge werden für Nebenmitglieder korrekt als „bereits zugeordnet“ bzw. „noch frei“ berechnet.
+
+### Abgrenzung
+- Kein Umbau der DB-Tabellen/Schema (weiter `hauptmitglied_id`).
+- Keine Nebenbaustelle „Closed after timeout / Resume-Reset“.
+- Foto-Upload-Block bleibt unverändert.
+
+### Validierung
+- `dotnet build KGV.Infrastructure/KGV.Infrastructure.csproj -c Debug -clp:ErrorsOnly` erfolgreich (Warnungen wie zuvor).
+- `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` erfolgreich.
+- `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich (nur bekannte Warnungen).
+
 - Ablesung mit Foto bei Netz vorhanden → Upload direkt, Pending wird entfernt, lokale Datei gelöscht.
 - Ablesung mit Foto ohne/ungeeignetes Netz bzw. WLAN-only → Foto bleibt Pending, Hinweistext in Ablesung; Retry später über `↳ Foto-Upload (X)`.
 - Zählereinbau + Foto, App-Neustart zwischen Einbau und Anfangsablesung → Pending-ID bleibt im Workflow; Anfangsablesung nutzt das persistierte Foto.
