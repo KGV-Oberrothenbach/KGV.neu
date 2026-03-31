@@ -1429,6 +1429,18 @@ namespace KGV.Infrastructure.Services
             {
                 return ZaehlerInsertResult.Fail("Diese Zählernummer ist bereits vorhanden.", "DUPLICATE", BuildPostgrestDiagnosticDetail(ex));
             }
+            catch (PostgrestException ex) when (IsForeignKeyViolation(ex))
+            {
+                return ZaehlerInsertResult.Fail("Der Zähler konnte nicht angelegt werden (Bezug fehlt oder Parzelle ungültig).", "FOREIGN_KEY", BuildPostgrestDiagnosticDetail(ex));
+            }
+            catch (PostgrestException ex) when (IsCheckViolation(ex))
+            {
+                return ZaehlerInsertResult.Fail("Die Eingaben sind fachlich nicht zulässig. Bitte Daten prüfen.", "CHECK_VIOLATION", BuildPostgrestDiagnosticDetail(ex));
+            }
+            catch (PostgrestException ex) when (IsPermissionDenied(ex))
+            {
+                return ZaehlerInsertResult.Fail("Keine Berechtigung zum Anlegen des Zählers.", "PERMISSION", BuildPostgrestDiagnosticDetail(ex));
+            }
             catch (PostgrestException ex)
             {
                 LogPostgrestFailure($"TryAddZaehlerCoreAsync({normalizedMedium})", ex);
@@ -1443,12 +1455,46 @@ namespace KGV.Infrastructure.Services
 
         private static bool IsUniqueViolation(PostgrestException ex)
         {
+            var payload = TryParsePostgrestErrorPayload(ex.Content);
+            if (string.Equals(payload?.Code, "23505", StringComparison.OrdinalIgnoreCase))
+                return true;
+
             var content = (ex.Content ?? string.Empty).ToLowerInvariant();
             if (content.Contains("23505") || content.Contains("unique") || content.Contains("duplicate"))
                 return true;
 
             var msg = ExtractPostgrestRelevantMessage(ex).ToLowerInvariant();
             return msg.Contains("23505") || msg.Contains("unique") || msg.Contains("duplicate");
+        }
+
+        private static bool IsForeignKeyViolation(PostgrestException ex)
+        {
+            var payload = TryParsePostgrestErrorPayload(ex.Content);
+            if (string.Equals(payload?.Code, "23503", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            var content = (ex.Content ?? string.Empty).ToLowerInvariant();
+            return content.Contains("23503") || content.Contains("foreign key") || content.Contains("violates foreign key");
+        }
+
+        private static bool IsCheckViolation(PostgrestException ex)
+        {
+            var payload = TryParsePostgrestErrorPayload(ex.Content);
+            if (string.Equals(payload?.Code, "23514", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            var content = (ex.Content ?? string.Empty).ToLowerInvariant();
+            return content.Contains("23514") || content.Contains("check constraint") || content.Contains("violates check");
+        }
+
+        private static bool IsPermissionDenied(PostgrestException ex)
+        {
+            var payload = TryParsePostgrestErrorPayload(ex.Content);
+            if (string.Equals(payload?.Code, "42501", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            var content = (ex.Content ?? string.Empty).ToLowerInvariant();
+            return content.Contains("42501") || content.Contains("permission denied") || content.Contains("not authorized") || content.Contains("not allowed");
         }
 
         public async Task<bool> UpdateWartungsvertragAsync(WartungsvertragRecord record)
@@ -2833,18 +2879,39 @@ namespace KGV.Infrastructure.Services
             if (!string.IsNullOrWhiteSpace(ex.Reason.ToString()))
                 parts.Add($"Reason={ex.Reason}");
 
-            var relevantMessage = ExtractPostgrestRelevantMessage(ex);
-            if (!string.IsNullOrWhiteSpace(relevantMessage))
-                parts.Add(relevantMessage);
+            var payload = TryParsePostgrestErrorPayload(ex.Content);
+            if (payload != null)
+            {
+                if (!string.IsNullOrWhiteSpace(payload.Code))
+                    parts.Add($"Code={payload.Code}");
+
+                if (!string.IsNullOrWhiteSpace(payload.Message))
+                    parts.Add($"Message={payload.Message}");
+
+                if (!string.IsNullOrWhiteSpace(payload.Details))
+                    parts.Add($"Details={payload.Details}");
+
+                if (!string.IsNullOrWhiteSpace(payload.Hint))
+                    parts.Add($"Hint={payload.Hint}");
+            }
+            else
+            {
+                var relevantMessage = ExtractPostgrestRelevantMessage(ex);
+                if (!string.IsNullOrWhiteSpace(relevantMessage))
+                    parts.Add(relevantMessage);
+            }
 
             return string.Join(" | ", parts.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.CurrentCulture));
         }
 
         private static string ExtractPostgrestRelevantMessage(PostgrestException ex)
         {
-            var contentMessage = ExtractPostgrestContentMessage(ex.Content);
-            if (!string.IsNullOrWhiteSpace(contentMessage))
-                return contentMessage;
+            var payload = TryParsePostgrestErrorPayload(ex.Content);
+            if (!string.IsNullOrWhiteSpace(payload?.Message))
+                return payload!.Message!;
+
+            if (!string.IsNullOrWhiteSpace(payload?.Details))
+                return payload!.Details!;
 
             return string.IsNullOrWhiteSpace(ex.Message)
                 ? string.Empty
@@ -2878,27 +2945,26 @@ namespace KGV.Infrastructure.Services
             return normalized is "strom" or "wasser" ? normalized : null;
         }
 
-        private static string ExtractPostgrestContentMessage(string? content)
+        private static PostgrestErrorPayload? TryParsePostgrestErrorPayload(string? content)
         {
             if (string.IsNullOrWhiteSpace(content))
-                return string.Empty;
+                return null;
 
             try
             {
                 using var document = JsonDocument.Parse(content);
-                var values = new[]
-                {
+                if (document.RootElement.ValueKind != JsonValueKind.Object)
+                    return null;
+
+                return new PostgrestErrorPayload(
+                    TryGetJsonString(document.RootElement, "code"),
                     TryGetJsonString(document.RootElement, "message"),
                     TryGetJsonString(document.RootElement, "details"),
-                    TryGetJsonString(document.RootElement, "hint"),
-                    TryGetJsonString(document.RootElement, "code")
-                };
-
-                return string.Join(" | ", values.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim()));
+                    TryGetJsonString(document.RootElement, "hint"));
             }
             catch
             {
-                return Regex.Replace(content.Trim(), "\\s+", " ");
+                return null;
             }
         }
 
@@ -2911,6 +2977,8 @@ namespace KGV.Infrastructure.Services
                 ? property.GetString()
                 : property.ToString();
         }
+
+        private sealed record PostgrestErrorPayload(string? Code, string? Message, string? Details, string? Hint);
 
         private void LogHomeLoadFailure(string sectionName, Exception ex)
         {

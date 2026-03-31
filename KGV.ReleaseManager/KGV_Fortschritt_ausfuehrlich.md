@@ -76,6 +76,28 @@ Wenn das Anlegen eines neuen Zählers (Einbau) fehlschlägt, soll der Client nic
 - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` erfolgreich
 - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich (nur bekannte Warnungen)
 
+## Stand 2026-03-31 – Zählereinbau: PostgREST-Fehler strukturierter auswerten (code/details/hint) und sauberer mappen
+
+### Ziel dieses Schritts
+Die PostgREST-/Supabase-Fehler beim Zähler-Insert sollen nicht nur per String-Suche erraten werden, sondern strukturierter aus `PostgrestException.Content` (JSON) ausgewertet werden. Damit werden Diagnosefelder (`DiagnosticCode`/`DiagnosticDetail`) belastbarer und typische DB-Fehler lassen sich fachlich präziser auf verständliche Meldungen mappen.
+
+### Geprüft
+- `KGV.Infrastructure/Services/SupabaseService.cs` (PostgrestException-Auswertung)
+
+### Umgesetzt
+- JSON-Payload aus `PostgrestException.Content` wird jetzt robust in Felder (`code`, `message`, `details`, `hint`) geparsed.
+- Diagnosedetail wird aus diesen Feldern konsistent aufgebaut (ohne als Haupt-UI-Text zu dienen).
+- Zusätzliche Mappings im Zähler-Insert:
+  - `23505` / Unique Violation → "Zählernummer bereits vorhanden"
+  - `23503` / Foreign Key Violation → verständliche Bezug-/Parzellen-Meldung
+  - `23514` / Check Violation → "Eingaben fachlich nicht zulässig"
+  - `42501` / Permission Denied → "Keine Berechtigung"
+
+### Validierung
+- `dotnet build KGV.Infrastructure/KGV.Infrastructure.csproj -c Debug -clp:ErrorsOnly` erfolgreich (Warnungen wie zuvor)
+- `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+- `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich (nur bekannte Warnungen)
+
 ## Stand 2026-03-31 – MAUI Zählerwechsel Einbau: Foto-Upload fachlich sauber an Anfangsablesung gebunden (keine verwaisten Uploads)
 
 ### Ziel dieses Schritts
