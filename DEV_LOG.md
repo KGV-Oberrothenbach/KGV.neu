@@ -2,6 +2,106 @@
 
 ---
 
+## 2026-03-31 – Hängengebliebenen MAUI-Foto-Upload-Diagnoseblock sauber aufgenommen und abgeschlossen
+
+- Den echten Zwischenstand des hängen gebliebenen Blocks zuerst geprüft:
+  - `git status --short --branch` => `## main...origin/main`
+  - blockbezogen offen waren real:
+    - `KGV.Infrastructure/Services/PhotoUploadTestService.cs`
+    - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+    - `KGV.Core/Models/PhotoUploadTestResult.cs`
+    - `DEV_LOG.md`
+    - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `KGV.Core/Interfaces/IPhotoUploadTestService.cs` war im aktuellen Git-Stand unverändert; dort hing nichts offen
+  - blockfremde lokale Änderungen u. a. in `KGV.Core/Interfaces/IAuthService.cs`, `KGV.Core/Models/AblesungInsertRecord.cs`, `KGV.Core/Models/InviteUserAccountResult.cs`, `KGV.Maui/KGV.Maui.csproj`, `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`, `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`, `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`, `KGV.Wpf/KGV.Wpf.csproj` sowie ungetrackten Batch-/Modelldateien blieben bewusst draußen
+- Ehrliche Einordnung des Zwischenstands:
+  - der vorige Lauf hatte den Kern des Diagnoseblocks bereits lokal begonnen
+  - vorhanden waren schon:
+    - wiederverwendeter `HttpClient`
+    - Timeout von 3 Minuten
+    - Diagnosecodes/Failure-Stages im Ergebnis
+    - stufenbezogene Fehlerbehandlung in `PhotoUploadTestService`
+    - kompakte Anzeige des Diagnosecodes im MAUI-Testbereich
+  - offen bzw. noch nicht sauber abgeschlossen waren:
+    - präzisere Fehlerdiagnose im gestarteten Restpfad (`multipartContentLength`, saubere `FailureStage` beim Response-Lesen / HTTP-Fehler)
+    - kompakteres UI-Fallback statt roher Exception-Meldung im MAUI-Testbereich
+    - Build-/Log-/Git-Abschluss des Blocks
+- Nur den offenen Rest dieses Blocks fertiggestellt:
+  - `KGV.Infrastructure/Services/PhotoUploadTestService.cs`
+    - zusätzliche Vorab-Logs für `UPLOAD_AUTH_TOKEN_MISSING` und `UPLOAD_CONFIG_MISSING`
+    - Fehlerlogs enthalten jetzt auch `multipartContentLength`, wenn im Requestpfad vorhanden
+    - `FailureStage` wird bei `UPLOAD_RESPONSE_READ_FAIL` jetzt korrekt auf `response_read` gesetzt
+    - HTTP-Fehler nach gelesener Response tragen jetzt ebenfalls die korrekte Fehlerphase statt eines unscharfen Restzustands
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+    - UI-Fallback bei unerwartetem Aufrufer-/UI-Fehler jetzt kompakt mit `UPLOAD_UNHANDLED` statt rohem Exception-Text
+    - keine Stacktraces und keine lange technische Fehlermeldung im UI
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - verbleiben nur die bekannten Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+- Ehrliche Abschlussprüfung:
+  - hängengebliebener Block jetzt vollständig abgeschlossen => ja
+  - Uploadfehler genauer diagnostizierbar => ja
+  - UI zeigt kompakten Diagnosehinweis => ja
+
+## 2026-03-31 – MAUI Foto-Upload Diagnose für `Socket closed` verbessert
+
+- Den realen Git-Stand zuerst geprüft:
+  - `main` liegt auf `origin/main`
+  - gleichzeitig bestehen weiterhin blockfremde lokale Änderungen u. a. in `KGV.Core/Interfaces/IAuthService.cs`, `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`, `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`, `KGV.Maui/ViewModels/RfidScanContextViewModel.cs` sowie mehrere ungetrackte Batch-/Modelldateien
+  - diese Fremdstände wurden bewusst nicht als Grundlage verwendet und nicht mitgezogen
+- Für den Block gezielt geprüft:
+  - `KGV.Core/Interfaces/IPhotoUploadTestService.cs`
+  - `KGV.Core/Models/PhotoUploadTestResult.cs`
+  - `KGV.Infrastructure/Services/PhotoUploadTestService.cs`
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+- Ehrlicher Befund vor dem Fix:
+  - der produktive Uploadpfad lief direkt über `PhotoUploadTestService.UploadAsync(...)`
+  - dort wurde pro Upload ein neuer `HttpClient` erzeugt
+  - es war kein expliziter Timeout gesetzt
+  - Multipart wurde direkt erzeugt und die Antwort anschließend sofort per `ReadAsStringAsync()` gelesen
+  - Fehler wurden bisher praktisch auf `_logger.LogWarning(ex, ...)` plus `ex.Message` verkürzt
+  - dadurch kam in MAUI beim Fehler `Socket closed` kein belastbarer technischer Bruchpunkt in UI oder Log an
+- Minimal umgesetzt:
+  - `KGV.Infrastructure/Services/PhotoUploadTestService.cs`
+    - bestehender Uploadpfad bleibt erhalten; keine neue Upload-Architektur
+    - Service nutzt jetzt einen wiederverwendeten `HttpClient` mit explizitem Timeout von 3 Minuten statt pro Request einen neuen Client zu bauen
+    - Upload wird stufenbezogen diagnostiziert:
+      - `before_request`
+      - `send`
+      - `response_read`
+    - belastbare Entwicklerlogs ergänzt mit:
+      - Diagnosecode
+      - Stage
+      - Function-Name / URL
+      - Dateiname
+      - Dateigröße
+      - Multipart-Content-Length wenn berechenbar
+      - Exception-Typ
+      - Exception-Message
+      - InnerException-Typ
+      - InnerException-Message
+      - HTTP-Status wenn schon vorhanden
+      - Retry ja/nein
+    - kompakte Diagnosecodes ergänzt, u. a.:
+      - `UPLOAD_SOCKET_CLOSED`
+      - `UPLOAD_TIMEOUT`
+      - `UPLOAD_RESPONSE_READ_FAIL`
+      - `UPLOAD_SEND_FAIL`
+      - `UPLOAD_HTTP_ERROR`
+    - Response-Lesen separat abgesichert, damit ein Bruch beim Lesen nicht mehr als unscharfer Gesamtfehler endet
+    - kleiner enger Retry nur für diesen Testpfad bei transienten Transportfehlern im Send-Pfad ergänzt (maximal 1 Wiederholung)
+  - `KGV.Core/Models/PhotoUploadTestResult.cs`
+    - kompakte Rückgabefelder `DiagnosticCode` und `FailureStage` ergänzt
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+    - Statusmeldung bleibt kurz, zeigt bei Fehlern jetzt aber zusätzlich den kompakten Diagnosecode
+    - Ergebnisbereich zeigt bei Fehlern ebenfalls die Diagnosecode-Zeile, ohne Stacktraces ins UI zu kippen
+- Fachliches Ergebnis:
+  - der echte Uploadfehler `Socket closed` ist jetzt im bestehenden Testpfad deutlich genauer eingrenzbar
+  - UI bleibt knapp und nutzbar, liefert aber einen kompakten technischen Hinweis
+  - der Uploadpfad ist technisch robuster, ohne den großen Queue-/Hintergrundumbau vorzuziehen
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` folgt nach den Code- und Logänderungen in diesem Block
+
 ## 2026-03-31 – MAUI Foto-Testbutton und Versionshinweis ergänzt
 
 - Den realen Git-Stand zuerst geprüft:

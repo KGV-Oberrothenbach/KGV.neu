@@ -2,6 +2,148 @@
 
 ---
 
+## 2026-03-31 – Prompt 1/1: Hängengebliebenen MAUI-Foto-Upload-Diagnoseblock sauber aufgenommen und abgeschlossen
+
+- Vor dem Abschluss den echten Zwischenstand des hängen gebliebenen Blocks geprüft statt neu anzufangen.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - gleichzeitig existieren weiterhin blockfremde lokale Änderungen und ungetrackte Dateien außerhalb dieses Blocks, u. a. in:
+    - `KGV.Core/Interfaces/IAuthService.cs`
+    - `KGV.Core/Models/AblesungInsertRecord.cs`
+    - `KGV.Core/Models/AblesungRecord.cs`
+    - `KGV.Core/Models/InviteUserAccountResult.cs`
+    - `KGV.Maui/KGV.Maui.csproj`
+    - `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`
+    - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+    - `KGV.Maui/State/ZaehlerwechselWorkflowState.cs`
+    - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+    - `KGV.Wpf/KGV.Wpf.csproj`
+    - sowie ungetrackte Batch-/Modelldateien
+  - diese Fremdstände wurden bewusst nicht als Grundlage verwendet und bleiben außerhalb dieses Blocks
+- Direkt geprüft wurden:
+  - `KGV.Core/Interfaces/IPhotoUploadTestService.cs`
+  - `KGV.Infrastructure/Services/PhotoUploadTestService.cs`
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - ergänzend blockbezogen `KGV.Core/Models/PhotoUploadTestResult.cs`, weil dort bereits zum Diagnoseblock gehörige Teiländerungen lokal vorlagen
+- Ehrliche Einordnung des Zwischenstands:
+  - `KGV.Core/Interfaces/IPhotoUploadTestService.cs` war im aktuellen Git-Stand unverändert; dort hing nichts offen
+  - in `PhotoUploadTestService`, `PhotoUploadTestResult` und `AblesenOverviewPage` lagen bereits lokal begonnene Änderungen dieses Diagnoseblocks vor
+  - der vorige Lauf hatte also den Kern des Blocks code-seitig schon gestartet, aber noch nicht sauber zu Ende validiert und abgeschlossen
+  - offen blieben real:
+    - präzisere Restdiagnose im Fehlerlog
+    - saubere Fehlerphase im Response-Lese-/HTTP-Fehlerpfad
+    - kompakteres UI-Fallback statt roher Exception-Meldung
+    - Build-/Log-/Git-Abschluss
+- Nur den offenen Rest dieses Blocks fertiggestellt:
+  - `KGV.Infrastructure/Services/PhotoUploadTestService.cs`
+    - zusätzliche Vorab-Logs ergänzt für:
+      - `UPLOAD_AUTH_TOKEN_MISSING`
+      - `UPLOAD_CONFIG_MISSING`
+    - Fehlerlogs enthalten jetzt zusätzlich `multipartContentLength`, wenn im Requestpfad verfügbar
+    - `FailureStage` wird bei `UPLOAD_RESPONSE_READ_FAIL` jetzt korrekt auf `response_read` gesetzt
+    - HTTP-Fehler nach gelesener Response tragen jetzt ebenfalls eine saubere Fehlerphase statt eines unscharfen Restzustands
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+    - unerwartete UI-/Aufruferfehler im Testbereich werden jetzt kompakt als `UPLOAD_UNHANDLED` angezeigt
+    - kein roher Exception-Text und keine Stacktrace-artige Endnutzeranzeige mehr in diesem Fallbackpfad
+- Wichtig für die Blockgrenze:
+  - kein Hintergrund-Queue-Umbau
+  - keine neue Upload-Architektur
+  - kein WPF-Umbau
+  - keine Änderung an Edge Function oder Backend auf Verdacht
+  - blockfremde lokale Änderungen blieben vollständig draußen
+- Fachliches Ergebnis dieses Abschlussblocks:
+  - der hängen gebliebene MAUI-Foto-Upload-Diagnoseblock ist jetzt sauber abgeschlossen
+  - Uploadfehler wie `Socket closed` sind im bestehenden Testpfad genauer eingrenzbar
+  - die UI bleibt kurz und zeigt nur kompakte Diagnosehinweise statt roher Fehlermeldungen
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+    - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+  - ehrliche Abschlussprüfung:
+    - hängengebliebener Block vollständig abgeschlossen => ja
+    - Uploadfehler genauer diagnostizierbar => ja
+    - UI zeigt kompakten Diagnosehinweis => ja
+
+## 2026-03-31 – Prompt 1/1: MAUI Foto-Upload Diagnose für `Socket closed` verbessert
+
+- Vor dem Block den realen Git-/Repo-Stand geprüft und nicht auf lokalen Altständen oder blockfremden offenen Dateien aufgebaut.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - gleichzeitig existieren weiterhin blockfremde lokale Änderungen und ungetrackte Dateien außerhalb dieses Blocks, u. a. in:
+    - `KGV.Core/Interfaces/IAuthService.cs`
+    - `KGV.Core/Models/AblesungInsertRecord.cs`
+    - `KGV.Core/Models/AblesungRecord.cs`
+    - `KGV.Core/Models/InviteUserAccountResult.cs`
+    - `KGV.Maui/KGV.Maui.csproj`
+    - `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`
+    - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+    - `KGV.Maui/State/ZaehlerwechselWorkflowState.cs`
+    - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+    - `KGV.Wpf/KGV.Wpf.csproj`
+    - sowie ungetrackte Batch-/Modelldateien
+  - diese Fremdstände wurden bewusst nicht als Grundlage verwendet und bleiben außerhalb dieses Blocks
+- Direkt geprüft wurden:
+  - `KGV.Core/Interfaces/IPhotoUploadTestService.cs`
+  - `KGV.Core/Models/PhotoUploadTestResult.cs`
+  - `KGV.Infrastructure/Services/PhotoUploadTestService.cs`
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+- Ehrlicher Befund vor dem Fix:
+  - der reale Uploadpfad im MAUI-Testbereich läuft direkt über `IPhotoUploadTestService` / `PhotoUploadTestService`
+  - pro Upload wurde dort bisher ein neuer `HttpClient` erzeugt
+  - ein expliziter Timeout war nicht gesetzt
+  - Multipart und Response-Lesen liefen ohne zusätzliche Stufendiagnose
+  - bei Fehlern wurde im Ergebnis praktisch nur `ex.Message` weitergereicht
+  - dadurch war der reale Bruchpunkt bei `Socket closed` weder im UI noch im Entwicklerlog sauber sichtbar
+- Minimal umgesetzt:
+  - `KGV.Infrastructure/Services/PhotoUploadTestService.cs`
+    - bestehender Uploadservice bleibt der einzige Produktpfad; keine neue Upload-Architektur
+    - wiederverwendeten `HttpClient` mit explizitem Timeout von 3 Minuten ergänzt
+    - Uploadstufen jetzt klar getrennt:
+      - `before_request`
+      - `send`
+      - `response_read`
+    - belastbare Entwicklerlogs ergänzt mit:
+      - Diagnosecode
+      - Fehlerstufe
+      - Function-Name / Ziel-URL
+      - Dateiname
+      - Dateigröße
+      - Multipart-Content-Length wenn berechenbar
+      - Exception-Typ / Message
+      - InnerException-Typ / Message
+      - HTTP-Status wenn vorhanden
+      - Retry ja/nein
+    - kompakte Diagnosecodes ergänzt:
+      - `UPLOAD_SOCKET_CLOSED`
+      - `UPLOAD_TIMEOUT`
+      - `UPLOAD_RESPONSE_READ_FAIL`
+      - `UPLOAD_SEND_FAIL`
+      - `UPLOAD_HTTP_ERROR`
+    - Response-Body-Lesen separat abgesichert
+    - kleiner enger Retry für genau diesen Testpfad bei transienten Send-Transportfehlern ergänzt (maximal ein Wiederholungsversuch)
+  - `KGV.Core/Models/PhotoUploadTestResult.cs`
+    - `DiagnosticCode` und `FailureStage` ergänzt
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+    - Statusmeldung bleibt kurz, zeigt bei Fehlern aber zusätzlich den kompakten Diagnosehinweis
+    - Ergebnisbereich zeigt jetzt ebenfalls den Diagnosecode, ohne Stacktraces oder Fehlerflut
+- Wichtig für die Blockgrenze:
+  - kein Hintergrund-Queue-Umbau
+  - kein großer Retry-/Upload-Architekturumbau
+  - kein WPF-Umbau
+  - keine Änderung an der Edge Function auf Verdacht
+  - bestehender Uploadservice bleibt der einzige Produktpfad
+- Fachliches Ergebnis dieses Blocks:
+  - Uploadfehler wie `Socket closed` sind jetzt deutlich genauer diagnostizierbar
+  - UI liefert einen kompakten technischen Hinweis statt nur leeren Rückgabefeldern
+  - der Uploadpfad ist technisch etwas robuster, ohne den großen Folgeumbau vorwegzunehmen
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` folgt nach diesem Block
+  - ehrliche Abschlussprüfung nach dem Build:
+    - Uploadfehler genauer diagnostizierbar => code-seitig ja
+    - UI zeigt besseren kompakten Fehlerhinweis => code-seitig ja
+    - technischer Uploadpfad robuster => code-seitig ja
+
 ## 2026-03-31 – Prompt 1/1: MAUI Foto-Testbutton und Versionshinweis ergänzt
 
 - Vor dem Block den realen Git-/Repo-Stand geprüft und nicht auf lokalen Altständen oder blockfremden offenen Dateien aufgebaut.

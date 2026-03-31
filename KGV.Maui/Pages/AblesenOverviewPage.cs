@@ -265,16 +265,16 @@ public sealed class AblesenOverviewPage : ContentPage
 
             SetStatus(result.Success
                 ? "Upload erfolgreich abgeschlossen."
-                : string.IsNullOrWhiteSpace(result.ErrorSummary)
-                    ? "Upload fehlgeschlagen."
-                    : result.ErrorSummary, result.Success);
+                : BuildFailureStatus(result), result.Success);
 
             _resultLabel.Text = BuildResultText(result);
             _resultLabel.IsVisible = true;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            SetStatus($"Upload fehlgeschlagen: {ex.Message}", success: false);
+            SetStatus("Upload fehlgeschlagen. Diagnose: UPLOAD_UNHANDLED", success: false);
+            _resultLabel.Text = $"Diagnose: UPLOAD_UNHANDLED{Environment.NewLine}Hinweis: Unerwarteter UI-/Aufruferfehler beim Testpfad.";
+            _resultLabel.IsVisible = true;
         }
         finally
         {
@@ -310,6 +310,8 @@ public sealed class AblesenOverviewPage : ContentPage
     {
         var builder = new StringBuilder();
         builder.AppendLine($"HTTP: {(result.HttpStatusCode?.ToString() ?? "—")} {result.HttpStatusText}".TrimEnd());
+        if (!string.IsNullOrWhiteSpace(result.DiagnosticCode))
+            builder.AppendLine($"Diagnose: {result.DiagnosticCode}");
         builder.AppendLine($"FileId: {DisplayValue(result.FileId)}");
         builder.AppendLine($"Dateiname: {DisplayValue(result.FileName)}");
         builder.AppendLine($"Pfad: {DisplayValue(result.RelativePath)}");
@@ -322,6 +324,17 @@ public sealed class AblesenOverviewPage : ContentPage
 
     private static string DisplayValue(string? value)
         => string.IsNullOrWhiteSpace(value) ? "—" : value.Trim();
+
+    private static string BuildFailureStatus(PhotoUploadTestResult result)
+    {
+        var message = string.IsNullOrWhiteSpace(result.ErrorSummary)
+            ? "Upload fehlgeschlagen."
+            : result.ErrorSummary;
+
+        return string.IsNullOrWhiteSpace(result.DiagnosticCode)
+            ? message
+            : $"{message} Diagnose: {result.DiagnosticCode}";
+    }
 
     private static string GetContentType(string? fileName)
     {
