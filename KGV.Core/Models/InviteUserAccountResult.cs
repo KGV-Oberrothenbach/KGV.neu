@@ -5,6 +5,8 @@ namespace KGV.Core.Models
     public sealed class InviteUserAccountResult
     {
         public bool Success { get; set; }
+        public bool LinkPrepared { get; set; }
+        public bool MailSent { get; set; }
         public Guid? AuthUserId { get; set; }
         public string? Email { get; set; }
         public string? InviteLink { get; set; }

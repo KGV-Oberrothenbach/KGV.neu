@@ -112,6 +112,7 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
             ZaehlerTyp = GetZaehlerTyp(context.Medium),
             Ablesedatum = _ausbauDatumPicker.Date,
             Stand = stand,
+            Art = AblesungArt.Ausbau,
             FotoPfad = null,
             Freigegeben = true
         };

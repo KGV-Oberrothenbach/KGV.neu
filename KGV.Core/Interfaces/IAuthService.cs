@@ -13,6 +13,8 @@ namespace KGV.Core.Interfaces
         Task<bool> LoginAsync(string email, string password);
 
         Task<List<AppUserDTO>> GetAppUsersAsync();
+        Task<List<MemberUserLinkStatusDto>> GetMemberUserLinkStatusesAsync();
+        Task<MemberUserLinkStatusDto?> GetMemberUserLinkStatusAsync(int mitgliedId);
         Task<InviteUserAccountResult> InviteUserAsync(AppUserDTO user);
         Task<bool> RemoveUserAsync(AppUserDTO user);
         Task<bool> ChangeEmailAsync(string newEmail);

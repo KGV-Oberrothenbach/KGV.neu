@@ -15,9 +15,8 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
     private readonly Label _contextLabel;
     private readonly Label _statusLabel;
     private readonly DatePicker _einbauDatumPicker;
-    private readonly Entry _anfangsstandEntry;
     private readonly Entry _zaehlernummerEntry;
-    private readonly DatePicker _eichdatumPicker;
+    private readonly Entry _eichjahrEntry;
     private RfidScanContextResult? _context;
     private bool _isBusy;
 
@@ -31,9 +30,8 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
         _contextLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
         _einbauDatumPicker = new DatePicker { Date = DateTime.Today };
-        _anfangsstandEntry = new Entry { Placeholder = "Anfangsstand", Keyboard = Keyboard.Numeric };
         _zaehlernummerEntry = new Entry { Placeholder = "Zählernummer" };
-        _eichdatumPicker = new DatePicker { Date = DateTime.Today };
+        _eichjahrEntry = new Entry { Placeholder = "Eichjahr", Keyboard = Keyboard.Numeric, Text = DateTime.Today.Year.ToString(CultureInfo.InvariantCulture) };
 
         var cancelButton = new Button { Text = "Zurück zum Zählerwechsel" };
         cancelButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(ZaehlerwechselPage));
@@ -52,16 +50,15 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
                     new Label { Text = "Zählereinbau", FontSize = 24, FontAttributes = FontAttributes.Bold },
                     new Label
                     {
-                        Text = "Für den bekannten RFID-Kontext ohne aktiven Zähler wird ein neuer Zähler angelegt und direkt die Anfangsablesung gespeichert.",
+                        Text = "Für den bekannten RFID-Kontext ohne aktiven Zähler wird nur der neue Zähler angelegt. Die Anfangsablesung folgt danach im bestehenden Ablese-Flow als eigene Ablesung mit `Art = einbau`.",
                         LineBreakMode = LineBreakMode.WordWrap
                     },
                     CreateSection("Scan-Kontext", _contextLabel),
                     CreateSection(
                         "Einbau",
                         CreateField("Einbau-Datum", _einbauDatumPicker),
-                        CreateField("Anfangsstand", _anfangsstandEntry),
                         CreateField("Zählernummer", _zaehlernummerEntry),
-                        CreateField("Eichdatum", _eichdatumPicker),
+                        CreateField("Eichjahr", _eichjahrEntry),
                         _statusLabel),
                     cancelButton,
                     saveButton
@@ -103,13 +100,6 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
             return;
         }
 
-        if (!TryParseDecimal(_anfangsstandEntry.Text, out var stand) || stand < 0)
-        {
-            await DisplayAlert("Validierung", "Bitte einen gültigen Anfangsstand eingeben.", "OK");
-            _anfangsstandEntry.Focus();
-            return;
-        }
-
         if (string.IsNullOrWhiteSpace(_zaehlernummerEntry.Text))
         {
             await DisplayAlert("Validierung", "Bitte eine Zählernummer eingeben.", "OK");
@@ -117,10 +107,18 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
             return;
         }
 
+        if (!TryParseYear(_eichjahrEntry.Text, out var eichjahr))
+        {
+            await DisplayAlert("Validierung", "Bitte ein gültiges Eichjahr eingeben.", "OK");
+            _eichjahrEntry.Focus();
+            return;
+        }
+
         var context = _context.Context;
         var medium = context.Medium;
         var einbauDatum = _einbauDatumPicker.Date;
         var zaehlernummer = _zaehlernummerEntry.Text.Trim();
+        var eichdatum = new DateTime(eichjahr, 1, 1);
 
         _isBusy = true;
         try
@@ -130,14 +128,14 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
                 {
                     ParzelleId = context.ParzelleId,
                     Zaehlernummer = zaehlernummer,
-                    Eichdatum = _eichdatumPicker.Date,
+                    Eichdatum = eichdatum,
                     EingebautAm = einbauDatum
                 })
                 : await _supabaseService.AddStromzaehlerAsync(new StromzaehlerInsertRecord
                 {
                     ParzelleId = context.ParzelleId,
                     Zaehlernummer = zaehlernummer,
-                    Eichdatum = _eichdatumPicker.Date,
+                    Eichdatum = eichdatum,
                     EingebautAm = einbauDatum
                 });
 
@@ -150,29 +148,18 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
             var activeMeterId = await ResolveNewMeterIdAsync(context.ParzelleId, medium, einbauDatum, zaehlernummer);
             if (activeMeterId <= 0)
             {
-                _statusLabel.Text = "Der neu angelegte Zähler konnte für die Anfangsablesung nicht wieder aufgelöst werden.";
+            _statusLabel.Text = "Der neu angelegte Zähler konnte für den anschließenden Ablese-Flow nicht wieder aufgelöst werden.";
                 return;
             }
 
-            var readingSaved = await _supabaseService.AddAblesungAsync(new AblesungInsertRecord
-            {
-                ZaehlerId = activeMeterId,
-                ZaehlerTyp = GetZaehlerTyp(medium),
-                Ablesedatum = einbauDatum,
-                Stand = stand,
-                FotoPfad = null,
-                Freigegeben = true
-            });
+        _workflowState.SetPendingAblesungFlow(
+            CreateInitialReadingContext(context, activeMeterId, zaehlernummer, eichdatum, einbauDatum),
+            AblesungArt.Einbau,
+            einbauDatum,
+            "Neuer Zähler angelegt. Jetzt folgt direkt die Anfangsablesung mit `Art = einbau`.");
 
-            if (!readingSaved)
-            {
-                _statusLabel.Text = "Anfangsablesung konnte nicht gespeichert werden.";
-                return;
-            }
-
-            _workflowState.Clear();
-            await DisplayAlert("OK", "Zählereinbau erfolgreich gespeichert.", "OK");
-            await NavigateToFreshScanAsync();
+        await DisplayAlert("OK", "Zählereinbau erfolgreich gespeichert. Die Anfangsablesung folgt jetzt im bestehenden Ablese-Flow.", "OK");
+        await Shell.Current.GoToAsync(nameof(AblesungErfassenPage));
         }
         catch (Exception ex)
         {
@@ -202,11 +189,43 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
         return stromMeter?.Id ?? 0;
     }
 
-    private static short GetZaehlerTyp(string? medium)
-        => string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase) ? (short)2 : (short)1;
+    private static RfidScanContextResult CreateInitialReadingContext(
+        RfidScanContextRecord sourceContext,
+        long activeMeterId,
+        string zaehlernummer,
+        DateTime eichdatum,
+        DateTime einbauDatum)
+    {
+        var context = new RfidScanContextRecord
+        {
+            ParzelleId = sourceContext.ParzelleId,
+            Anlage = sourceContext.Anlage,
+            GartenNr = sourceContext.GartenNr,
+            Medium = sourceContext.Medium,
+            RfidTagUid = sourceContext.RfidTagUid,
+            AktiverZaehlerId = Convert.ToInt32(activeMeterId),
+            Zaehlernummer = zaehlernummer,
+            Eichdatum = eichdatum,
+            EingebautAm = einbauDatum,
+            Status = "Aktiv"
+        };
 
-    private static bool TryParseDecimal(string? value, out decimal result)
-        => decimal.TryParse((value ?? string.Empty).Trim().Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out result);
+        return new RfidScanContextResult
+        {
+            NormalizedUid = sourceContext.RfidTagUid?.Trim() ?? string.Empty,
+            State = RfidScanContextState.KnownWithActiveMeter,
+            Context = context,
+            Message = "Neuer Zähler angelegt. Die Anfangsablesung kann jetzt erfasst werden."
+        };
+    }
+
+    private static bool TryParseYear(string? value, out int year)
+    {
+        if (!int.TryParse((value ?? string.Empty).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out year))
+            return false;
+
+        return year >= 1900 && year <= 9999;
+    }
 
     private static Border CreateSection(string title, params View[] children)
     {
@@ -235,11 +254,5 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
                 input
             }
         };
-    }
-
-    private static async Task NavigateToFreshScanAsync()
-    {
-        await Shell.Current.GoToAsync("//ablesen");
-        await Shell.Current.GoToAsync(nameof(ZaehlerwechselPage));
     }
 }

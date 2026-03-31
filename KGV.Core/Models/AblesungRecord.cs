@@ -24,6 +24,9 @@ namespace KGV.Core.Models
         [Column("ablesedatum")]
         public DateTime Ablesedatum { get; set; }
 
+        [Column("art")]
+        public string Art { get; set; } = AblesungArt.Normal;
+
         [Column("freigegeben")]
         public bool Freigegeben { get; set; }
 

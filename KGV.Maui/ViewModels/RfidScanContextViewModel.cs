@@ -1,6 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Maui.Services;
+using System.Globalization;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -187,8 +188,14 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
     public string ActiveMeterDisplay => Resolution?.Context?.ActiveMeterDisplay ?? "Nein";
     public string ZaehlernummerDisplay => Resolution?.Context?.ZaehlernummerDisplay ?? "—";
     public string StatusDisplay => Resolution?.Context?.StatusDisplay ?? "Kein Kontext";
-    public string EichdatumDisplay => Resolution?.Context?.EichdatumDisplay ?? "—";
+    public string EichdatumDisplay => Resolution?.Context?.Eichdatum?.Year.ToString(CultureInfo.InvariantCulture) ?? "—";
     public string EichfaelligDisplay => Resolution?.Context?.EichfaelligDisplay ?? "—";
+
+    public void ApplyResolvedContext(RfidScanContextResult result, string? statusMessage = null)
+    {
+        Resolution = result;
+        StatusMessage = string.IsNullOrWhiteSpace(statusMessage) ? result.Message : statusMessage.Trim();
+    }
 
     public async Task InitializeAsync()
     {
