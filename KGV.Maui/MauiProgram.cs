@@ -64,6 +64,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<PendingPhotoQueue>();
         builder.Services.AddSingleton<PendingPhotoService>();
         builder.Services.AddSingleton<PendingPhotoSyncService>();
+        builder.Services.AddSingleton<PendingPhotoMenuState>();
         builder.Services.AddSingleton<INfcScanService, AndroidNfcScanService>();
         builder.Services.AddSingleton<IRfidFeedbackService, AndroidRfidFeedbackService>();
 
@@ -73,6 +74,7 @@ public static class MauiProgram
         builder.Services.AddTransient<HomeViewModel>();
         builder.Services.AddTransient<HomePage>();
         builder.Services.AddTransient<AblesenOverviewPage>();
+        builder.Services.AddTransient<PendingPhotoUploadsPage>();
         builder.Services.AddTransient<HomeSectionDetailPage>();
         builder.Services.AddTransient<HomeManagementPage>();
         builder.Services.AddTransient<BekanntmachungenManagementPage>();

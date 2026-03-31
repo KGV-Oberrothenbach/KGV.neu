@@ -19,6 +19,7 @@ public sealed class AblesenOverviewPage : ContentPage
 {
     private readonly IPhotoUploadTestService _photoUploadTestService;
     private readonly PendingPhotoSyncService _pendingPhotoSyncService;
+    private readonly PendingPhotoMenuState _pendingPhotoMenuState;
     private readonly Button _capturePhotoButton;
     private readonly Button _pickPhotoButton;
     private readonly Button _uploadButton;
@@ -38,10 +39,11 @@ public sealed class AblesenOverviewPage : ContentPage
     private string _selectedContentType = "application/octet-stream";
     private bool _isBusy;
 
-    public AblesenOverviewPage(IPhotoUploadTestService photoUploadTestService, PendingPhotoSyncService pendingPhotoSyncService)
+    public AblesenOverviewPage(IPhotoUploadTestService photoUploadTestService, PendingPhotoSyncService pendingPhotoSyncService, PendingPhotoMenuState pendingPhotoMenuState)
     {
         _photoUploadTestService = photoUploadTestService;
         _pendingPhotoSyncService = pendingPhotoSyncService;
+        _pendingPhotoMenuState = pendingPhotoMenuState;
         Title = "Ablesen";
 
         _capturePhotoButton = new Button { Text = "Foto aufnehmen" };
@@ -218,6 +220,7 @@ public sealed class AblesenOverviewPage : ContentPage
         try
         {
             await _pendingPhotoSyncService.TrySyncOnceAsync();
+            _pendingPhotoMenuState.Refresh();
         }
         catch
         {

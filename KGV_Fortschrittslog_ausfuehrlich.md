@@ -170,6 +170,53 @@ Die vorhandene Pending-Foto-Architektur fachlich schließen, damit Pending-Fotos
 
 ### Validierung
 - `dotnet build` erfolgreich.
+
+---
+
+## 2026-03-31 – Prompt 4/5: Sichtbarkeit der Pending-Fotos in Navigation + kleine Übersichtsseite (Retry) ergänzt
+
+### Ziel dieses Schritts
+Offene/fehlgeschlagene Foto-Uploads sollen in der MAUI-Navigation sichtbar werden und eine kleine, mobile Übersicht mit Retry-Möglichkeit erhalten – ohne WorkManager/Hintergrunddienst und ohne große Sync-Architektur.
+
+### Geprüft (Istzustand)
+- Shell-/Flyout-Struktur:
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+- Pending-Foto-Basis:
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoQueue.cs`
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoService.cs`
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoSyncService.cs`
+
+### Umgesetzt
+1) Pending-Zähler/State minimal ergänzt:
+   - `KGV.Maui/Services/PendingPhotos/PendingPhotoMenuState.cs`
+   - zählt offene Items (`Pending`/`Failed`/`Uploading`) und liefert `HasOpenItems` + `↳ Foto-Upload (X)`.
+
+2) Navigation: Menüpunkt nur bei X>0 sichtbar
+   - `KGV.Maui/AdminShell.cs`
+     - im Ablesen-Bereich wird ein eingerückter Flyout-Punkt `↳ Foto-Upload (X)` ergänzt.
+     - Visibility hängt an `PendingPhotoMenuState.HasOpenItems`.
+   - Menü aktualisiert sich nach Retry über `AdminShell.RefreshPendingPhotoUploadsMenu()`.
+
+3) Kleine Übersichtsseite
+   - `KGV.Maui/Pages/PendingPhotoUploadsPage.cs`
+   - zeigt pro Eintrag: Dateiname, Parzelle, Medium, Status, Erstellzeit, kurzer Fehlertext.
+   - Button „Offene Uploads erneut versuchen“ nutzt `PendingPhotoSyncService.TrySyncOnceAsync()`.
+   - Nach Retry wird Liste + Menüpunkt aktualisiert; bei 0 offenen Uploads verschwindet der Menüpunkt wieder.
+
+4) Trigger/Refresh
+   - `AblesenOverviewPage.OnAppearing()` refresht nach Sync den Menu-State.
+   - DI ergänzt: `PendingPhotoMenuState`, `PendingPhotoUploadsPage`.
+   - Route ergänzt: `ShellRouteRegistrar`.
+
+### Abgrenzung dieses Blocks
+- keine große Pending-Admin-Konsole
+- keine Einzel-Retry-Buttons pro Eintrag (nur globaler Retry)
+- kein WorkManager / kein Android-Background-Job
+
+### Validierung
+- `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich (nur bekannte Warnungen außerhalb dieses Blocks).
   - `ZaehlerwechselEinbauPage`: Foto wird persistiert + queued; im Workflow-State wird die stabile `PendingPhotoId` referenziert.
   - `ZaehlerwechselWorkflowState.PendingAblesungFlowContext`: erweitert um `PendingPhotoId`/`PendingPhotoLocalPath`.
   - `AblesungErfassenPage.ApplyPendingPhotoSelection`: lädt Foto bei Pending-Initialflow aus dem app-internen Speicher anhand der `PendingPhotoId` (Fallback auf alte Byte[]-Übergabe bleibt).

@@ -41,6 +41,7 @@ internal static class ShellRouteRegistrar
         Routing.RegisterRoute(nameof(ArbeitsstundenEditorPage), typeof(ArbeitsstundenEditorPage));
         Routing.RegisterRoute(nameof(ArbeitsstundenReviewDetailPage), typeof(ArbeitsstundenReviewDetailPage));
         Routing.RegisterRoute(nameof(AblesungErfassenPage), typeof(AblesungErfassenPage));
+        Routing.RegisterRoute(nameof(PendingPhotoUploadsPage), typeof(PendingPhotoUploadsPage));
         Routing.RegisterRoute(nameof(ZaehlerwechselPage), typeof(ZaehlerwechselPage));
         Routing.RegisterRoute(nameof(ZaehlerwechselAusbauPage), typeof(ZaehlerwechselAusbauPage));
         Routing.RegisterRoute(nameof(ZaehlerwechselEinbauPage), typeof(ZaehlerwechselEinbauPage));

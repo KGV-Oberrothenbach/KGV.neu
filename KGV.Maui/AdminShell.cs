@@ -2,6 +2,7 @@ using KGV.Core.Interfaces;
 using KGV.Core.Security;
 using KGV.Maui.Pages;
 using KGV.Maui.State;
+using KGV.Maui.Services.PendingPhotos;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
@@ -13,13 +14,16 @@ public sealed class AdminShell : Shell, IAppShellInitializer
     private readonly IServiceProvider _services;
     private readonly UserContextState _userContextState;
     private readonly MemberContextState _memberContextState;
+    private readonly PendingPhotoMenuState _pendingPhotoMenuState;
     private FlyoutItem? _workhoursReviewItem;
+    private FlyoutItem? _pendingPhotoUploadsItem;
 
-    public AdminShell(IServiceProvider services, UserContextState userContextState, MemberContextState memberContextState)
+    public AdminShell(IServiceProvider services, UserContextState userContextState, MemberContextState memberContextState, PendingPhotoMenuState pendingPhotoMenuState)
     {
         _services = services;
         _userContextState = userContextState;
         _memberContextState = memberContextState;
+        _pendingPhotoMenuState = pendingPhotoMenuState;
         FlyoutBehavior = FlyoutBehavior.Flyout;
         Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this, "home");
     }
@@ -32,7 +36,17 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
         Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+        {
             Items.Add(CreateItem("Ablesen", "ablesen", () => _services.GetRequiredService<AblesenOverviewPage>()));
+
+            _pendingPhotoMenuState.Refresh();
+            _pendingPhotoUploadsItem = CreateItem(
+                _pendingPhotoMenuState.MenuTitle,
+                "photo_uploads",
+                () => _services.GetRequiredService<PendingPhotoUploadsPage>());
+            _pendingPhotoUploadsItem.IsVisible = _pendingPhotoMenuState.HasOpenItems;
+            Items.Add(_pendingPhotoUploadsItem);
+        }
 
         Items.Add(CreateItem("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
 
@@ -61,6 +75,16 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         ShellNavigationHelper.EnsureActiveShellItem(this, preferredRoute);
 
         _ = RefreshWorkhoursReviewMenuAsync();
+    }
+
+    public void RefreshPendingPhotoUploadsMenu()
+    {
+        if (_pendingPhotoUploadsItem == null)
+            return;
+
+        _pendingPhotoMenuState.Refresh();
+        _pendingPhotoUploadsItem.Title = _pendingPhotoMenuState.MenuTitle;
+        _pendingPhotoUploadsItem.IsVisible = _pendingPhotoMenuState.HasOpenItems;
     }
 
     private bool HasSelectedMember()
