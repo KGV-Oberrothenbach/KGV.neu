@@ -11,6 +11,7 @@ public static class AppSettings
     {
         public string? LastEmail { get; set; }
         public string? AppMode { get; set; }
+        public DateTime? LastBackgroundedAtUtc { get; set; }
     }
 
     private static UserSettings _settings = new();
@@ -25,6 +26,31 @@ public static class AppSettings
     {
         get => _settings.AppMode;
         set => _settings.AppMode = value;
+    }
+
+    public static DateTime? LastBackgroundedAtUtc
+    {
+        get => _settings.LastBackgroundedAtUtc;
+        private set => _settings.LastBackgroundedAtUtc = value;
+    }
+
+    public static void MarkBackgroundedNowUtc()
+    {
+        LastBackgroundedAtUtc = DateTime.UtcNow;
+        Save();
+    }
+
+    public static TimeSpan? TryGetTimeSinceLastBackgroundUtc(DateTime utcNow)
+    {
+        var last = LastBackgroundedAtUtc;
+        if (last == null)
+            return null;
+
+        var delta = utcNow - last.Value;
+        if (delta < TimeSpan.Zero)
+            return TimeSpan.Zero;
+
+        return delta;
     }
 
     public static void Load()

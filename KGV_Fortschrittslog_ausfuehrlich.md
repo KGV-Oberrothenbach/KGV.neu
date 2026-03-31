@@ -86,6 +86,34 @@ Nach dem bereits umgesetzten Lese-Fix (Prompt 1/2) sollen Nebenmitglieder Wartun
 
 ---
 
+## 2026-03-31 – Resume/Timeout Prompt 1/3: Lifecycle-Istzustand analysiert + Hintergrundzeit-Erfassung als Grundlage für späteren Login-Reset
+
+### Ziel dieses Schritts
+Den realen MAUI-App-Lifecycle/Resume-Pfad so vorbereiten, dass nach längerer Hintergrundzeit später (in Folgeblöcken) ein sauberer Login-/Start-Reset entschieden werden kann – ohne in diesem Block bereits Navigation/Logout zu erzwingen und ohne die Pending-Foto-Logik zu beschädigen.
+
+### Istzustand (Befund)
+- Root-Navigation läuft zentral über `App.CreateRootPage()`/`SwitchToCurrentRootAsync()` und hängt direkt am befüllten `UserContextState` (Login → Shell; ohne UserContext → `LoginPage`).
+- Es gab bislang keinen zentral persistierten Zeitstempel „App in Hintergrund“ und damit keine belastbare Grundlage, beim Resume die Hintergrunddauer auszuwerten.
+
+### Umgesetzt (minimal-invasiv)
+- Persistente Erfassung des letzten Background-Zeitpunkts (UTC) in den bestehenden MAUI-User-Settings.
+- Hook an den Window-Lifecycle (`Stopped`/`Resumed`), der den Zeitstempel setzt und beim Resume die Dauer berechnet und ins App-Diagnose-Log schreibt.
+- Noch kein Login-Reset erzwungen (nur Grundlage + Telemetrie/Diagnose).
+
+### Betroffene Dateien
+- `KGV.Maui/Settings/AppSettings.cs`
+- `KGV.Maui/App.xaml.cs`
+
+### Ergebnis
+- Beim Wechsel in den Hintergrund wird ein Timestamp gespeichert.
+- Beim Resume ist die Dauer seit dem letzten Background robust (persistiert) berechenbar und wird protokolliert.
+- Bestehende Login-/Shell-Logik bleibt unverändert.
+
+### Validierung
+- `dotnet build` erfolgreich.
+
+---
+
 ## 2026-03-31 – Prompt 1/5: Foto-Pending-Grundlage + „Fotos nur über WLAN hochladen“ (nur Basis, noch kein Retry/Queue)
 
 ### Ziel dieses Schritts

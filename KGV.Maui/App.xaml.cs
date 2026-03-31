@@ -25,6 +25,22 @@ public partial class App : Application
     protected override Window CreateWindow(IActivationState? activationState)
     {
         _mainWindow = new Window(CreateRootPage());
+
+        _mainWindow.Stopped += (_, _) =>
+        {
+            Settings.AppSettings.MarkBackgroundedNowUtc();
+            Services.Diagnostics.AppFileLog.Marker("APP_STOPPED");
+        };
+
+        _mainWindow.Resumed += (_, _) =>
+        {
+            var delta = Settings.AppSettings.TryGetTimeSinceLastBackgroundUtc(DateTime.UtcNow);
+            Services.Diagnostics.AppFileLog.Marker("APP_RESUMED");
+            Services.Diagnostics.AppFileLog.Info("KGV.Lifecycle", delta == null
+                ? "App resumed (kein Background-Timestamp)."
+                : $"App resumed nach {delta.Value.TotalSeconds:0} Sekunden im Hintergrund.");
+        };
+
         return _mainWindow;
     }
 
