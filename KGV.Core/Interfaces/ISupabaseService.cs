@@ -47,6 +47,9 @@ namespace KGV.Core.Interfaces
         Task<bool> AddStromzaehlerAsync(StromzaehlerInsertRecord request);
         Task<bool> AddWasserzaehlerAsync(WasserzaehlerInsertRecord request);
 
+        Task<ZaehlerInsertResult> TryAddStromzaehlerAsync(StromzaehlerInsertRecord request);
+        Task<ZaehlerInsertResult> TryAddWasserzaehlerAsync(WasserzaehlerInsertRecord request);
+
         Task<bool> SetStromzaehlerAusgebautAmAsync(long stromzaehlerId, DateTime ausgebautAm);
         Task<bool> SetWasserzaehlerAusgebautAmAsync(long wasserzaehlerId, DateTime ausgebautAm);
 

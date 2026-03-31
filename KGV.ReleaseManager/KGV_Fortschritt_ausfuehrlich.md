@@ -47,6 +47,35 @@ Bei Foto-Upload-Testfehlern eine eindeutige Support-ID ausgeben, damit Admins/Su
 ### Validierung
 - `dotnet build` erfolgreich.
 
+## Stand 2026-03-31 – Zählereinbau: Speicherfehler diagnostizierbar gemacht (Zaehler-Insert liefert Ergebnis + fachliche Meldung)
+
+### Ziel dieses Schritts
+Wenn das Anlegen eines neuen Zählers (Einbau) fehlschlägt, soll der Client nicht nur ein anonymes `false` bekommen, sondern eine fachlich verständliche Rückmeldung (z. B. "Zählernummer bereits vorhanden"), ohne rohe PostgREST-/DB-Dumps prominent im UI anzuzeigen. Technische Diagnoseinfos sollen intern verfügbar bleiben.
+
+### Geprüft
+- `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+- `KGV.Infrastructure/Services/SupabaseService.cs`
+- `KGV.Core/Interfaces/ISupabaseService.cs`
+- WPF-Nutzung desselben Servicepfads: `KGV.Wpf/ViewModels/ZaehlerwechselEinbauViewModel.cs`
+
+### Ehrlicher Istzustand vor Umsetzung
+- `AddWasserzaehlerAsync` / `AddStromzaehlerAsync` lieferten im Fehlerfall meist nur `false`.
+- PostgREST-/DB-Fehler (z. B. Unique-Constraint, Preconditions) waren damit im UI kaum unterscheidbar.
+
+### Umgesetzt
+- Neues Ergebnisobjekt `ZaehlerInsertResult` (Success + `UserMessage` + optionale Diagnosefelder).
+- `ISupabaseService` erweitert um `TryAddWasserzaehlerAsync` / `TryAddStromzaehlerAsync`.
+- `SupabaseService` liefert jetzt:
+  - verständliche Meldungen für bekannte Preconditions (RFID fehlt / Medium nicht erlaubt)
+  - verständliche Meldung bei erkennbarer Unique-/Duplicate-Situation (Zählernummer bereits vorhanden)
+  - generische Fehlmeldung bei sonstigen PostgREST-/Serverfehlern, mit internem Diagnose-Detail im Result
+- MAUI- und WPF-Einbaupfad nutzen die neuen `TryAdd...`-Methoden und zeigen `UserMessage` statt generischem Not-Text.
+
+### Validierung
+- `dotnet build KGV.Infrastructure/KGV.Infrastructure.csproj -c Debug -clp:ErrorsOnly` erfolgreich (Warnungen wie zuvor)
+- `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+- `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich (nur bekannte Warnungen)
+
 ## Stand 2026-03-31 – MAUI Zählerwechsel Einbau: Foto-Upload fachlich sauber an Anfangsablesung gebunden (keine verwaisten Uploads)
 
 ### Ziel dieses Schritts

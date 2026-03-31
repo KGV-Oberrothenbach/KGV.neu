@@ -601,6 +601,12 @@ namespace KGV.Infrastructure.Services
         public Task<bool> AddWasserzaehlerAsync(WasserzaehlerInsertRecord request)
             => AddZaehlerCoreAsync("wasser", request?.ParzelleId ?? 0, request?.Zaehlernummer, request?.Eichdatum ?? default, request?.EingebautAm ?? default);
 
+        public Task<ZaehlerInsertResult> TryAddStromzaehlerAsync(StromzaehlerInsertRecord request)
+            => TryAddZaehlerCoreAsync("strom", request?.ParzelleId ?? 0, request?.Zaehlernummer, request?.Eichdatum ?? default, request?.EingebautAm ?? default);
+
+        public Task<ZaehlerInsertResult> TryAddWasserzaehlerAsync(WasserzaehlerInsertRecord request)
+            => TryAddZaehlerCoreAsync("wasser", request?.ParzelleId ?? 0, request?.Zaehlernummer, request?.Eichdatum ?? default, request?.EingebautAm ?? default);
+
         public Task<bool> SetStromzaehlerAusgebautAmAsync(long stromzaehlerId, DateTime ausgebautAm) => ExecuteAsync(
             "SetStromzaehlerAusgebautAmAsync",
             async () =>
@@ -1377,6 +1383,72 @@ namespace KGV.Infrastructure.Services
                 _logger?.LogError(ex, "CreateWartungsvertragAsync failed.");
                 throw;
             }
+        }
+
+        private async Task<ZaehlerInsertResult> TryAddZaehlerCoreAsync(string medium, long parzelleId, string? zaehlernummer, DateTime eichdatum, DateTime eingebautAm)
+        {
+            var normalizedMedium = NormalizeZaehlerMedium(medium);
+            if (string.IsNullOrWhiteSpace(normalizedMedium) || parzelleId <= 0)
+                return ZaehlerInsertResult.Fail("Bitte Parzelle und Medium prüfen.", "VALIDATION");
+
+            if (string.IsNullOrWhiteSpace(zaehlernummer))
+                return ZaehlerInsertResult.Fail("Bitte eine Zählernummer eingeben.", "VALIDATION");
+
+            try
+            {
+                await ValidateZaehlerInsertPreconditionsAsync(parzelleId, normalizedMedium);
+
+                var client = await EnsureClientAsync();
+                await client.From<ZaehlerInsertRecord>().Insert(new ZaehlerInsertRecord
+                {
+                    ParzelleId = parzelleId,
+                    Medium = normalizedMedium,
+                    Zaehlernummer = zaehlernummer.Trim(),
+                    Eichdatum = NormalizeMeterEichjahr(eichdatum),
+                    EingebautAm = NormalizeDateTime(eingebautAm.Date)
+                });
+
+                return ZaehlerInsertResult.Ok();
+            }
+            catch (InvalidOperationException ex)
+            {
+                var message = string.IsNullOrWhiteSpace(ex.Message)
+                    ? "Der Zähler konnte nicht angelegt werden."
+                    : ex.Message.Trim();
+                return ZaehlerInsertResult.Fail(message, "PRECONDITION", ex.Message);
+            }
+            catch (PostgrestException ex) when (IsMissingZaehlerRfidPrecondition(ex))
+            {
+                return ZaehlerInsertResult.Fail(BuildMissingZaehlerRfidMessage(normalizedMedium), "RFID_MISSING", BuildPostgrestDiagnosticDetail(ex));
+            }
+            catch (PostgrestException ex) when (IsZaehlerMediumNotAllowedPrecondition(ex))
+            {
+                return ZaehlerInsertResult.Fail(BuildZaehlerMediumNotAllowedMessage(normalizedMedium), "MEDIUM_NOT_ALLOWED", BuildPostgrestDiagnosticDetail(ex));
+            }
+            catch (PostgrestException ex) when (IsUniqueViolation(ex))
+            {
+                return ZaehlerInsertResult.Fail("Diese Zählernummer ist bereits vorhanden.", "DUPLICATE", BuildPostgrestDiagnosticDetail(ex));
+            }
+            catch (PostgrestException ex)
+            {
+                LogPostgrestFailure($"TryAddZaehlerCoreAsync({normalizedMedium})", ex);
+                return ZaehlerInsertResult.Fail("Der Zähler konnte nicht gespeichert werden.", "POSTGREST", BuildPostgrestDiagnosticDetail(ex));
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "TryAddZaehlerCoreAsync({Medium}) failed.", normalizedMedium);
+                return ZaehlerInsertResult.Fail("Der Zähler konnte nicht gespeichert werden.", "ERROR", ex.Message);
+            }
+        }
+
+        private static bool IsUniqueViolation(PostgrestException ex)
+        {
+            var content = (ex.Content ?? string.Empty).ToLowerInvariant();
+            if (content.Contains("23505") || content.Contains("unique") || content.Contains("duplicate"))
+                return true;
+
+            var msg = ExtractPostgrestRelevantMessage(ex).ToLowerInvariant();
+            return msg.Contains("23505") || msg.Contains("unique") || msg.Contains("duplicate");
         }
 
         public async Task<bool> UpdateWartungsvertragAsync(WartungsvertragRecord record)

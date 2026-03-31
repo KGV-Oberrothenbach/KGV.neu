@@ -113,14 +113,14 @@ namespace KGV.ViewModels
             try
             {
                 var meterCreated = string.Equals(_medium, "wasser", StringComparison.OrdinalIgnoreCase)
-                    ? await _supabaseService.AddWasserzaehlerAsync(new WasserzaehlerInsertRecord
+                    ? await _supabaseService.TryAddWasserzaehlerAsync(new WasserzaehlerInsertRecord
                     {
                         ParzelleId = _detail.ParzelleId,
                         Zaehlernummer = Zaehlernummer.Trim(),
                         Eichdatum = Eichdatum.Date,
                         EingebautAm = EinbauDatum.Date
                     })
-                    : await _supabaseService.AddStromzaehlerAsync(new StromzaehlerInsertRecord
+                    : await _supabaseService.TryAddStromzaehlerAsync(new StromzaehlerInsertRecord
                     {
                         ParzelleId = _detail.ParzelleId,
                         Zaehlernummer = Zaehlernummer.Trim(),
@@ -128,9 +128,11 @@ namespace KGV.ViewModels
                         EingebautAm = EinbauDatum.Date
                     });
 
-                if (!meterCreated)
+                if (!meterCreated.Success)
                 {
-                    StatusMessage = "Der neue Zähler konnte nicht angelegt werden.";
+                    StatusMessage = string.IsNullOrWhiteSpace(meterCreated.UserMessage)
+                        ? "Der neue Zähler konnte nicht angelegt werden."
+                        : meterCreated.UserMessage;
                     return;
                 }
 

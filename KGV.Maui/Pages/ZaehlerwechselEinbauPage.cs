@@ -203,14 +203,14 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
         try
         {
             var meterCreated = string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase)
-                ? await _supabaseService.AddWasserzaehlerAsync(new WasserzaehlerInsertRecord
+                ? await _supabaseService.TryAddWasserzaehlerAsync(new WasserzaehlerInsertRecord
                 {
                     ParzelleId = context.ParzelleId,
                     Zaehlernummer = zaehlernummer,
                     Eichdatum = eichdatum,
                     EingebautAm = einbauDatum
                 })
-                : await _supabaseService.AddStromzaehlerAsync(new StromzaehlerInsertRecord
+                : await _supabaseService.TryAddStromzaehlerAsync(new StromzaehlerInsertRecord
                 {
                     ParzelleId = context.ParzelleId,
                     Zaehlernummer = zaehlernummer,
@@ -218,9 +218,11 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
                     EingebautAm = einbauDatum
                 });
 
-            if (!meterCreated)
+            if (!meterCreated.Success)
             {
-                _statusLabel.Text = "Neuer Zähler konnte nicht angelegt werden.";
+                _statusLabel.Text = string.IsNullOrWhiteSpace(meterCreated.UserMessage)
+                    ? "Neuer Zähler konnte nicht angelegt werden."
+                    : meterCreated.UserMessage;
                 return;
             }
 
