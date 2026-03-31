@@ -29,6 +29,24 @@ Die direkt sichtbare Restlücke im neuen transaktionalen Release-Status minimal 
 - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich, nur bekannte Warnungen
 - `dotnet build KGV.slnx -c Debug -clp:ErrorsOnly` erfolgreich
 
+## Stand 2026-03-31 – Foto-Upload Diagnose gehärtet: Support-ID / Request-ID durchreichen
+
+### Ziel dieses Schritts
+Bei Foto-Upload-Testfehlern eine eindeutige Support-ID ausgeben, damit Admins/Support die konkrete Anfrage im Supabase Edge Function Log eindeutig wiederfinden können, ohne rohe Google/Drive-Details an den Client zu leaken.
+
+### Geprüft
+- `supabase/functions/kgv-upload-photo/index.ts`
+- `KGV.Infrastructure/Services/PhotoUploadTestService.cs`
+- `KGV.Maui/Pages/AblesenOverviewPage.cs`
+
+### Umgesetzt
+- Edge Function erzeugt pro Request eine `request_id`, loggt sie durchgehend und liefert sie in Success- und Error-Antworten zurück.
+- Client liest `request_id` aus der JSON-Antwort und setzt sie im Ergebnis.
+- MAUI zeigt die Support-ID im Ergebnistext an; optionale Details bleiben gekürzt.
+
+### Validierung
+- `dotnet build` erfolgreich.
+
 ## Stand 2026-03-30 – Kurzkorrektur: Inno-Setup-Prüfung im Systemcheck auf reale ExitCode-Semantik gehärtet
 
 ### Ziel dieses Schritts

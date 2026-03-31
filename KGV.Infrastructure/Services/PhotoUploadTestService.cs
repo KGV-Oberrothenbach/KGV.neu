@@ -313,6 +313,8 @@ namespace KGV.Infrastructure.Services
             {
                 using var document = JsonDocument.Parse(rawResponse);
 
+                result.RequestId = FindString(document.RootElement, "request_id");
+
                 var serverErrorCode = FindString(document.RootElement, "error_code");
                 if (!string.IsNullOrWhiteSpace(serverErrorCode))
                 {

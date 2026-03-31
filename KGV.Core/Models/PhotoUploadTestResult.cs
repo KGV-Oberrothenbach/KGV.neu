@@ -6,6 +6,7 @@ namespace KGV.Core.Models
         public int? HttpStatusCode { get; set; }
         public string HttpStatusText { get; set; } = string.Empty;
         public string RawResponseBody { get; set; } = string.Empty;
+        public string RequestId { get; set; } = string.Empty;
         public string DiagnosticCode { get; set; } = string.Empty;
         public string FailureStage { get; set; } = string.Empty;
         public string ExceptionMessage { get; set; } = string.Empty;

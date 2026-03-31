@@ -91,6 +91,14 @@ function json(status: number, body: unknown) {
   });
 }
 
+function createRequestId(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+}
+
 type ApiErrorCode =
   | "BAD_REQUEST"
   | "UNAUTHORIZED"
@@ -103,13 +111,15 @@ type ApiErrorBody = {
   success: false;
   error_code: ApiErrorCode;
   message: string;
+  request_id: string;
 };
 
-function errorResponse(status: number, error_code: ApiErrorCode, message: string) {
+function errorResponse(status: number, error_code: ApiErrorCode, message: string, requestId: string) {
   const body: ApiErrorBody = {
     success: false,
     error_code,
     message,
+    request_id: requestId,
   };
 
   return json(status, body);
@@ -616,7 +626,7 @@ Deno.serve(async (req) => {
 
     const relativePath = `${folderSegments.join("/")}/${upload.name}`;
 
-    logStep("return success", { relativePath });
+    logStep("return success", { requestId, relativePath });
     return json(200, {
       success: true,
       file_id: upload.id,
@@ -625,16 +635,19 @@ Deno.serve(async (req) => {
       web_view_link: upload.webViewLink ?? null,
       uploaded_by_user_id: auth.userId,
       role: auth.role,
+      request_id: requestId,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logError("return error", error);
+    logStep("return error details", { requestId, message });
 
     if (message.includes("Google-Drive-Secrets fehlen")) {
       return errorResponse(
         503,
         "CONFIG_MISSING",
         "Cloud-Upload ist nicht konfiguriert. Bitte Serverkonfiguration prüfen.",
+        requestId,
       );
     }
 
@@ -643,6 +656,7 @@ Deno.serve(async (req) => {
         503,
         "GOOGLE_AUTH_ERROR",
         "Cloud-Upload aktuell nicht verfügbar. Bitte Google-Drive-Autorisierung/Refresh-Token prüfen.",
+        requestId,
       );
     }
 
@@ -651,6 +665,7 @@ Deno.serve(async (req) => {
         503,
         "GOOGLE_AUTH_ERROR",
         "Cloud-Upload aktuell nicht verfügbar. Bitte Google-Drive-Autorisierung/Serverkonfiguration prüfen.",
+        requestId,
       );
     }
 
@@ -659,9 +674,10 @@ Deno.serve(async (req) => {
         502,
         "GOOGLE_DRIVE_ERROR",
         "Cloud-Upload ist aktuell nicht erreichbar. Bitte später erneut versuchen.",
+        requestId,
       );
     }
 
-    return errorResponse(500, "INTERNAL_ERROR", "Unerwarteter Serverfehler beim Cloud-Upload.");
+    return errorResponse(500, "INTERNAL_ERROR", "Unerwarteter Serverfehler beim Cloud-Upload.", requestId);
   }
 });

@@ -312,6 +312,8 @@ public sealed class AblesenOverviewPage : ContentPage
         builder.AppendLine($"HTTP: {(result.HttpStatusCode?.ToString() ?? "—")} {result.HttpStatusText}".TrimEnd());
         if (!string.IsNullOrWhiteSpace(result.DiagnosticCode))
             builder.AppendLine($"Diagnose: {result.DiagnosticCode}");
+        if (!string.IsNullOrWhiteSpace(result.RequestId))
+            builder.AppendLine($"Support-ID: {result.RequestId}");
         builder.AppendLine($"FileId: {DisplayValue(result.FileId)}");
         builder.AppendLine($"Dateiname: {DisplayValue(result.FileName)}");
         builder.AppendLine($"Pfad: {DisplayValue(result.RelativePath)}");
