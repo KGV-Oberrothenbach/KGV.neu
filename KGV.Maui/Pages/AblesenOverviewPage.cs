@@ -11,12 +11,14 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using KGV.Maui.Settings;
+using KGV.Maui.Services.PendingPhotos;
 
 namespace KGV.Maui.Pages;
 
 public sealed class AblesenOverviewPage : ContentPage
 {
     private readonly IPhotoUploadTestService _photoUploadTestService;
+    private readonly PendingPhotoSyncService _pendingPhotoSyncService;
     private readonly Button _capturePhotoButton;
     private readonly Button _pickPhotoButton;
     private readonly Button _uploadButton;
@@ -36,9 +38,10 @@ public sealed class AblesenOverviewPage : ContentPage
     private string _selectedContentType = "application/octet-stream";
     private bool _isBusy;
 
-    public AblesenOverviewPage(IPhotoUploadTestService photoUploadTestService)
+    public AblesenOverviewPage(IPhotoUploadTestService photoUploadTestService, PendingPhotoSyncService pendingPhotoSyncService)
     {
         _photoUploadTestService = photoUploadTestService;
+        _pendingPhotoSyncService = pendingPhotoSyncService;
         Title = "Ablesen";
 
         _capturePhotoButton = new Button { Text = "Foto aufnehmen" };
@@ -203,6 +206,22 @@ public sealed class AblesenOverviewPage : ContentPage
                 }
             }
         };
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+
+        if (_isBusy)
+            return;
+
+        try
+        {
+            await _pendingPhotoSyncService.TrySyncOnceAsync();
+        }
+        catch
+        {
+        }
     }
 
     private async Task CapturePhotoAsync()

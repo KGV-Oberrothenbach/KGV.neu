@@ -13,6 +13,7 @@ using Microsoft.Maui.ApplicationModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
+using KGV.Maui.Settings;
 
 namespace KGV.Maui.Pages;
 
@@ -389,6 +390,14 @@ public sealed class AblesungErfassenPage : ContentPage
                     await DisplayAlert("Validierung", "Bitte zuerst ein Foto aufnehmen oder übernehmen.", "OK");
                     return;
                 }
+            }
+
+            if (!PendingPhotoUploadDecision.CanUploadNow(out _))
+            {
+                _statusLabel.Text = PhotoUploadPreferences.WifiOnly
+                    ? "Foto wurde lokal gespeichert und wird automatisch bei WLAN hochgeladen."
+                    : "Foto wurde lokal gespeichert und wird automatisch hochgeladen, sobald wieder Internet verfügbar ist.";
+                return;
             }
 
             var photoResult = await _photoUploadService.UploadAsync(new PhotoUploadTestRequest

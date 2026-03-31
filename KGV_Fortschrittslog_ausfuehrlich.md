@@ -118,6 +118,58 @@ Die in Prompt 1 vorbereiteten Pending-Foto-Bausteine so erweitern, dass eine **p
 - Produktiver Ablese-Flow angebunden:
   - `AblesungErfassenPage`: vor Upload wird das Foto persistiert + queued; Upload nutzt die persistierte Datei; bei Erfolg wird Queue-Eintrag entfernt und lokale Datei gelöscht; bei Fehler bleibt Pending erhalten.
 - Zählereinbau/Anfangsablesung angebunden:
+
+---
+
+## 2026-03-31 – Prompt 3/5: Upload-Entscheidung (WLAN-only + Connectivity) + Retry/Sync für Pending-Fotos geschlossen
+
+### Ziel dieses Schritts
+Die vorhandene Pending-Foto-Architektur fachlich schließen, damit Pending-Fotos **kontrolliert** erneut hochgeladen werden können – abhängig von Netzwerkstatus und der Einstellung „Fotos nur über WLAN hochladen“, ohne WorkManager/Hintergrunddienst und ohne neue Übersichts-UI.
+
+### Geprüft (Istzustand)
+- Pending-Basis:
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoQueue.cs`
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoService.cs`
+  - `KGV.Maui/Models/PendingPhotoUpload.cs`
+  - `KGV.Maui/Settings/PhotoUploadPreferences.cs`
+- Produktive Einbindung:
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs` (persistiert vor Upload)
+  - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs` (persistiert + reicht Pending-ID in Anfangsablesung durch)
+- Kandidaten für Triggerpunkte:
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs` (Einstieg Ablesen-Bereich)
+  - `KGV.Maui/MauiProgram.cs` (DI)
+
+### Umgesetzt
+1) Upload-Entscheidung (fachlich zentral):
+   - `KGV.Maui/Services/PendingPhotos/PendingPhotoUploadDecision.cs`
+   - Regel:
+     - kein Internet → kein Upload
+     - WLAN-only aktiv → Upload nur bei `ConnectionProfile.WiFi`
+
+2) Minimaler Retry-/Sync-Service (ein kontrollierter Durchlauf, keine Parallel-Dubletten):
+   - `KGV.Maui/Services/PendingPhotos/PendingPhotoSyncService.cs`
+   - verarbeitet nur `Pending`/`Failed` Einträge, markiert kurz als `Uploading`
+   - `AttemptCount`/`LastAttemptAtUtc`/`LastError` werden sauber fortgeschrieben
+   - Erfolg: `MarkUploadedAndDeleteLocal` löscht Datei und entfernt Queue-Eintrag
+   - Fehler: Pending bleibt bestehen; pro Eintrag wird weitergemacht (ein Fehler blockiert nicht alles)
+   - Schutz gegen doppelte Läufe pro ID via In-Flight-Guard
+
+3) Triggerpunkt (ohne Background-Job):
+   - `AblesenOverviewPage.OnAppearing()` stößt `TrySyncOnceAsync()` an
+   - damit erfolgt Retry z. B. bei App-Start und bei Rückkehr in den Ablesen-Bereich.
+
+4) Produktiver Flow: sofortiger Upload nur wenn erlaubt
+   - `AblesungErfassenPage`: vor dem unmittelbaren Upload wird die Entscheidung geprüft
+     - wenn Upload **nicht** erlaubt: Foto bleibt queued, Status meldet nur fachlich („lokal gespeichert, Upload bei WLAN/Internet“)
+
+### Abgrenzung dieses Blocks
+- keine neue Pending-Übersichtsseite
+- kein Navigationspunkt „Foto-Upload (X)“
+- kein WorkManager / kein Android-Hintergrunddienst
+- kein Umbau der Backend-Edge-Function
+
+### Validierung
+- `dotnet build` erfolgreich.
   - `ZaehlerwechselEinbauPage`: Foto wird persistiert + queued; im Workflow-State wird die stabile `PendingPhotoId` referenziert.
   - `ZaehlerwechselWorkflowState.PendingAblesungFlowContext`: erweitert um `PendingPhotoId`/`PendingPhotoLocalPath`.
   - `AblesungErfassenPage.ApplyPendingPhotoSelection`: lädt Foto bei Pending-Initialflow aus dem app-internen Speicher anhand der `PendingPhotoId` (Fallback auf alte Byte[]-Übergabe bleibt).

@@ -63,6 +63,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<ZaehlerwechselWorkflowState>();
         builder.Services.AddSingleton<PendingPhotoQueue>();
         builder.Services.AddSingleton<PendingPhotoService>();
+        builder.Services.AddSingleton<PendingPhotoSyncService>();
         builder.Services.AddSingleton<INfcScanService, AndroidNfcScanService>();
         builder.Services.AddSingleton<IRfidFeedbackService, AndroidRfidFeedbackService>();
 
