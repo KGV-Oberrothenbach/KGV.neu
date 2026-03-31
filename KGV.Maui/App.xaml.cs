@@ -1,4 +1,5 @@
 using KGV.Maui.Pages;
+using KGV.Core.Interfaces;
 using KGV.Maui.State;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui;
@@ -12,9 +13,13 @@ namespace KGV.Maui;
 
 public partial class App : Application
 {
+    private static readonly TimeSpan ResumeTimeoutThreshold = TimeSpan.FromMinutes(15);
+
     private readonly IServiceProvider _services;
     private readonly UserContextState _userContextState;
     private Window? _mainWindow;
+    private string? _pendingLoginMessage;
+    private bool _resumeTimeoutResetInProgress;
 
     public App(IServiceProvider services, UserContextState userContextState)
     {
@@ -32,14 +37,7 @@ public partial class App : Application
             Services.Diagnostics.AppFileLog.Marker("APP_STOPPED");
         };
 
-        _mainWindow.Resumed += (_, _) =>
-        {
-            var delta = Settings.AppSettings.TryGetTimeSinceLastBackgroundUtc(DateTime.UtcNow);
-            Services.Diagnostics.AppFileLog.Marker("APP_RESUMED");
-            Services.Diagnostics.AppFileLog.Info("KGV.Lifecycle", delta == null
-                ? "App resumed (kein Background-Timestamp)."
-                : $"App resumed nach {delta.Value.TotalSeconds:0} Sekunden im Hintergrund.");
-        };
+        _mainWindow.Resumed += async (_, _) => await HandleWindowResumedAsync();
 
         return _mainWindow;
     }
@@ -66,7 +64,16 @@ public partial class App : Application
     private Page CreateRootPage()
     {
         if (_userContextState.CurrentUserId == null || _userContextState.CurrentUserContext == null)
-            return _services.GetRequiredService<LoginPage>();
+        {
+            var loginPage = _services.GetRequiredService<LoginPage>();
+            if (!string.IsNullOrWhiteSpace(_pendingLoginMessage))
+            {
+                loginPage.ShowResumeTimeoutMessage(_pendingLoginMessage);
+                _pendingLoginMessage = null;
+            }
+
+            return loginPage;
+        }
 
         var shell = _userContextState.CurrentUserContext.Role is Core.Security.UserRole.Admin or Core.Security.UserRole.Vorstand
             ? (Shell)_services.GetRequiredService<AdminShell>()
@@ -77,5 +84,85 @@ public partial class App : Application
 
         ShellNavigationHelper.EnsureActiveShellItem(shell, "home");
         return shell;
+    }
+
+    private async Task HandleWindowResumedAsync()
+    {
+        var delta = Settings.AppSettings.TryGetTimeSinceLastBackgroundUtc(DateTime.UtcNow);
+
+        Services.Diagnostics.AppFileLog.Marker("APP_RESUMED");
+        Services.Diagnostics.AppFileLog.Info("KGV.Lifecycle", delta == null
+            ? "App resumed (kein Background-Timestamp)."
+            : $"App resumed nach {delta.Value.TotalSeconds:0} Sekunden im Hintergrund.");
+
+        Settings.AppSettings.ClearBackgroundedTimestamp();
+
+        if (delta == null || delta <= ResumeTimeoutThreshold)
+            return;
+
+        if (_userContextState.CurrentUserId == null || _userContextState.CurrentUserContext == null)
+            return;
+
+        await ResetToLoginAfterResumeTimeoutAsync(delta.Value);
+    }
+
+    private async Task ResetToLoginAfterResumeTimeoutAsync(TimeSpan backgroundDuration)
+    {
+        if (_resumeTimeoutResetInProgress)
+            return;
+
+        _resumeTimeoutResetInProgress = true;
+        try
+        {
+            Services.Diagnostics.AppFileLog.Marker("APP_RESUME_TIMEOUT_TRIGGERED");
+            Services.Diagnostics.AppFileLog.Warning(
+                "KGV.Lifecycle",
+                $"Resume-Timeout überschritten ({backgroundDuration.TotalMinutes:0.0} Minuten im Hintergrund). Sitzung wird auf Login zurückgesetzt.");
+
+            await ClearActiveSessionAsync();
+            ClearTransientState();
+
+            Settings.AppSettings.AppMode = null;
+            Settings.AppSettings.Save();
+
+            _pendingLoginMessage = "Die App war zu lange im Hintergrund. Bitte erneut anmelden.";
+            await SwitchToCurrentRootAsync();
+        }
+        finally
+        {
+            _resumeTimeoutResetInProgress = false;
+        }
+    }
+
+    private async Task ClearActiveSessionAsync()
+    {
+        try
+        {
+            var authService = _services.GetService<IAuthService>();
+            if (authService != null)
+                await authService.LogoutAsync();
+        }
+        catch (Exception ex)
+        {
+            Services.Diagnostics.AppFileLog.Warning("KGV.Lifecycle", $"Logout beim Resume-Timeout fehlgeschlagen: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    private void ClearTransientState()
+    {
+        _userContextState.CurrentUserId = null;
+        _userContextState.CurrentMitgliedId = null;
+        _userContextState.CurrentNebenMitgliedId = null;
+        _userContextState.CurrentAppMode = null;
+        _userContextState.CurrentUserContext = null;
+
+        _services.GetService<MemberContextState>()?.Clear();
+        _services.GetService<ParzellenContextState>()?.Clear();
+        _services.GetService<HomeContextState>()?.Clear();
+        _services.GetService<ArbeitsstundenReviewState>()?.Clear();
+        _services.GetService<ArbeitseinsaetzeManagementState>()?.Clear();
+        _services.GetService<ArbeitseinsaetzeUserState>()?.Clear();
+        _services.GetService<TermineUserState>()?.Clear();
+        _services.GetService<ZaehlerwechselWorkflowState>()?.Clear();
     }
 }

@@ -2,6 +2,56 @@
 
 ---
 
+## 2026-03-31 – Resume-Timeout ab 15 Minuten sauber auf Login/Root zurückgesetzt
+
+- Den realen Zwischenstand nach Prompt `1/3` zuerst geprüft:
+  - `AppSettings.LastBackgroundedAtUtc` war bereits vorhanden
+  - `App.xaml.cs` berechnete beim Window-`Resumed` die Hintergrunddauer bereits und loggte sie
+  - der eigentliche Timeout-Reset auf Login war noch nicht umgesetzt
+  - im Arbeitsbaum lagen für diesen Block nur die direkt betroffenen Session-/Lifecycle-Dateien offen; untracked `AWR.bat` und `Android_Wpf_release_batch_v4.bat` blieben bewusst unangetastet
+- Für den Block gezielt geprüft:
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/Settings/AppSettings.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Maui/State/UserContextState.cs`
+  - weitere flüchtige MAUI-State-Klassen (`MemberContextState`, `ParzellenContextState`, `HomeContextState`, `ArbeitsstundenReviewState`, `ArbeitseinsaetzeManagementState`, `ArbeitseinsaetzeUserState`, `TermineUserState`, `ZaehlerwechselWorkflowState`)
+  - vorhandene Pending-Foto-Pfade (`PendingPhotoQueue`, `PendingPhotoStorage`, `PendingPhotoSyncService`)
+  - minimal nötiger Auth-Pfad `KGV.Core/Interfaces/IAuthService.cs` / `KGV.Infrastructure/Authentication/AuthService.cs`
+- Minimal umgesetzt:
+  - `KGV.Maui/App.xaml.cs`
+    - zentrale Resume-Auswertung jetzt mit fester Schwelle `15` Minuten
+    - Verhalten:
+      - `<= 15` Minuten Hintergrundzeit => normales Resume
+      - `> 15` Minuten Hintergrundzeit => Timeout-Reset
+    - bei Timeout wird jetzt zentral:
+      - aktive Sitzung verworfen
+      - nur flüchtiger MAUI-Session-/Navigationszustand geleert
+      - Root über den bestehenden `CreateRootPage()`-/`SwitchToCurrentRootAsync()`-Pfad auf `LoginPage` zurückgesetzt
+    - zusätzlicher Lifecycle-Logmarker für den ausgelösten Timeout-Reset
+  - `KGV.Maui/Settings/AppSettings.cs`
+    - kleiner Reset-Pfad für den persistierten Background-Timestamp ergänzt, damit Resume-Entscheidungen nicht mit alten Werten weiterlaufen
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+    - kompakter, nicht-technischer Hinweis nach Timeout-Reset möglich:
+      - `Die App war zu lange im Hintergrund. Bitte erneut anmelden.`
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+    - kleiner produktiver `LogoutAsync()`-Pfad ergänzt, damit die aktive Supabase-Sitzung beim Resume-Timeout sauber verworfen werden kann
+- Wichtig für die Blockgrenze:
+  - Pending-Fotos, Pending-Queue, WLAN-only-Schalter und sonstige persistente Einstellungen bleiben erhalten
+  - es werden nur flüchtige Session-/Navigationszustände zurückgesetzt
+  - kein Eingriff in den Foto-Upload-Block außer der bewussten Nicht-Beschädigung seiner persistenten Queue
+  - kein WPF-Umbau außer dem minimal nötigen Shared-/Auth-Vertrag
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+    - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Ehrliche Abschlussprüfung:
+  - App startet normal => code-seitig ja
+  - Resume unter 15 Minuten bleibt normal => code-seitig ja
+  - Resume über 15 Minuten führt sauber auf Login => code-seitig ja
+  - Pending-Fotos bleiben erhalten => code-seitig ja
+  - Shell-/Login-Initialisierung nicht regressiv geändert => build- und code-seitig ja
+
 ## 2026-03-31 – Hängengebliebenen MAUI-Foto-Upload-Diagnoseblock sauber aufgenommen und abgeschlossen
 
 - Den echten Zwischenstand des hängen gebliebenen Blocks zuerst geprüft:

@@ -264,6 +264,24 @@ namespace KGV.Infrastructure.Authentication
             return ExtractAccessToken(currentSession);
         }
 
+        public async Task LogoutAsync()
+        {
+            try
+            {
+                var client = _client ?? await GetClientAsync();
+                await TrySignOutAsync(client);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "LogoutAsync failed while clearing the current auth session.");
+            }
+            finally
+            {
+                _client = null;
+                ResetAuthState();
+            }
+        }
+
         public async Task<bool> LoginAsync(string email, string password)
         {
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))

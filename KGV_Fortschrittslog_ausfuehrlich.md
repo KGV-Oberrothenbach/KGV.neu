@@ -2,6 +2,85 @@
 
 ---
 
+## 2026-03-31 – Prompt 2/3: Resume-Timeout ab 15 Minuten sauber auf Login/Root zurückgesetzt
+
+- Vor dem Block den realen Repo-/Arbeitsstand erneut geprüft und gegen den vorhandenen Prompt-1/3-Stand abgeglichen.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - für diesen Block offen waren nur die direkt betroffenen Session-/Lifecycle-Dateien:
+    - `KGV.Core/Interfaces/IAuthService.cs`
+    - `KGV.Infrastructure/Authentication/AuthService.cs`
+    - `KGV.Maui/App.xaml.cs`
+    - `KGV.Maui/Pages/LoginPage.xaml.cs`
+    - `KGV.Maui/Settings/AppSettings.cs`
+  - untracked `AWR.bat` und `Android_Wpf_release_batch_v4.bat` blieben bewusst unangetastet
+  - blockfremde Dateien wie `KGV.ReleaseManager/KGV_Fortschritt_ausfuehrlich.md` wurden nicht angefasst
+- Direkt geprüft wurden:
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/Settings/AppSettings.cs`
+  - Login-/Root-/Shell-Initialisierung über `LoginPage` und `CreateRootPage()` / `SwitchToCurrentRootAsync()`
+  - `KGV.Maui/State/UserContextState.cs`
+  - relevante flüchtige Workflow-/Navigationszustände:
+    - `MemberContextState`
+    - `ParzellenContextState`
+    - `HomeContextState`
+    - `ArbeitsstundenReviewState`
+    - `ArbeitseinsaetzeManagementState`
+    - `ArbeitseinsaetzeUserState`
+    - `TermineUserState`
+    - `ZaehlerwechselWorkflowState`
+  - persistente Pending-Foto-Pfade:
+    - `PendingPhotoQueue`
+    - `PendingPhotoStorage`
+    - `PendingPhotoService`
+    - `PendingPhotoSyncService`
+- Ehrlicher Befund vor dem Fix:
+  - die Hintergrundzeit-Erfassung aus Prompt `1/3` war bereits vorhanden und belastbar
+  - beim Resume wurde die Dauer schon berechnet und geloggt
+  - der eigentliche Timeout-Reset fehlte aber noch vollständig
+  - Pending-Fotos und ihre Queue liegen bereits persistent im App-Data-Pfad und dürfen deshalb beim Reset nicht angefasst werden
+- Minimal umgesetzt:
+  - `KGV.Maui/App.xaml.cs`
+    - zentrale Schwelle von `15` Minuten ergänzt
+    - Verhalten jetzt klar:
+      - `<= 15` Minuten Hintergrundzeit => normales Resume
+      - `> 15` Minuten Hintergrundzeit => Timeout-Reset
+    - bei Timeout wird jetzt zentral und robust:
+      - aktive Sitzung verworfen
+      - nur flüchtiger MAUI-Session-/Navigationszustand geleert
+      - Root über den bestehenden zentralen App-Pfad auf `LoginPage` zurückgesetzt
+    - zusätzlicher Lifecycle-Logmarker für den ausgelösten Timeout-Reset
+  - `KGV.Maui/Settings/AppSettings.cs`
+    - kleiner Resetpfad für den gespeicherten Background-Timestamp ergänzt, damit Resume-Entscheidungen nicht auf alten Werten hängen bleiben
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+    - kurzer, nicht-technischer Hinweis nach Timeout-Reset möglich:
+      - `Die App war zu lange im Hintergrund. Bitte erneut anmelden.`
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+    - kleiner produktiver `LogoutAsync()`-Pfad ergänzt, damit die aktive Supabase-Sitzung beim Timeout sauber verworfen werden kann
+- Wichtig für die Blockgrenze:
+  - Pending-Fotos, Pending-Queue, WLAN-only-Schalter und sonstige persistente Einstellungen bleiben vollständig erhalten
+  - nur flüchtige App-/Session-/Navigationszustände werden zurückgesetzt
+  - kein Eingriff in den abgeschlossenen Foto-Upload-Block außer der bewussten Nicht-Beschädigung seiner persistenten Queue
+  - kein neuer Fachblock
+- Fachliches Ergebnis dieses Blocks:
+  - Resume unterhalb der Schwelle läuft normal weiter
+  - überschreitet die App die Resume-Schwelle, landet sie nicht mehr auf der alten Seite, sondern sauber wieder auf `LoginPage`
+  - persistente Pending-Daten bleiben erhalten und werden nicht gelöscht
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+    - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+  - wegen kleinem Shared-/Auth-Vertrag zusätzlich:
+    - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrliche Abschlussprüfung:
+    - App startet normal => code-seitig ja
+    - Resume unter 15 Minuten bleibt normal => code-seitig ja
+    - Resume über 15 Minuten führt sauber auf Login => code-seitig ja
+    - Pending-Fotos bleiben erhalten => code-seitig ja
+    - keine Regression in Shell-/Login-Initialisierung => build- und code-seitig ja
+  - bewusst noch offen für Prompt `3/3`:
+    - weiterer Lifecycle-/Resume-Feinschliff außerhalb dieses reinen Login-Reset-Blocks
+
 ## 2026-03-31 – Prompt 1/1: Hängengebliebenen MAUI-Foto-Upload-Diagnoseblock sauber aufgenommen und abgeschlossen
 
 - Vor dem Abschluss den echten Zwischenstand des hängen gebliebenen Blocks geprüft statt neu anzufangen.

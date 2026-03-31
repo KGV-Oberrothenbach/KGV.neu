@@ -543,6 +543,13 @@ public class LoginPage : ContentPage
         return true;
     }
 
+    public void ShowResumeTimeoutMessage(string message)
+    {
+        ResetOtpDiagnosticUi();
+        _passwordEntry.Text = string.Empty;
+        _statusLabel.Text = message;
+    }
+
     private static string SanitizeDiagnosticMessage(string? message)
     {
         if (string.IsNullOrWhiteSpace(message))

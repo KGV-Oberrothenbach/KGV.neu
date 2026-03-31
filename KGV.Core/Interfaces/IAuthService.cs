@@ -46,6 +46,7 @@ namespace KGV.Core.Interfaces
         /// </summary>
         Task<Client> GetClientAsync();
         Task<string?> GetAccessTokenAsync();
+        Task LogoutAsync();
 
         /// <summary>
         /// Rollen des eingeloggten Users

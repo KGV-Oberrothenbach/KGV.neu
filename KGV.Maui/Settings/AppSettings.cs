@@ -40,6 +40,12 @@ public static class AppSettings
         Save();
     }
 
+    public static void ClearBackgroundedTimestamp()
+    {
+        LastBackgroundedAtUtc = null;
+        Save();
+    }
+
     public static TimeSpan? TryGetTimeSinceLastBackgroundUtc(DateTime utcNow)
     {
         var last = LastBackgroundedAtUtc;
