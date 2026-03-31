@@ -47,6 +47,35 @@ Bei Foto-Upload-Testfehlern eine eindeutige Support-ID ausgeben, damit Admins/Su
 ### Validierung
 - `dotnet build` erfolgreich.
 
+## Stand 2026-03-31 – MAUI Zählerwechsel: Foto-Flow in Ausbau/Einbau geschlossen
+
+### Ziel dieses Schritts
+Im Zählerwechsel-/Zähleranlage-Flow die bisher fehlende Fotoaufnahme/-auswahl sowie den Upload nach Google Drive (über `kgv-upload-photo`) ergänzen – inklusive konsistenter Fehlerbehandlung und Support-ID.
+
+### Geprüft
+- `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`
+- `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+- Referenz: `KGV.Maui/Pages/AblesungErfassenPage.cs` (bestehender produktiver Foto-Upload)
+
+### Ehrlicher Istzustand vor Umsetzung
+- Ausbau speicherte eine Schlussablesung (`Art = ausbau`), aber ohne Foto.
+- Einbau legte nur den neuen Zähler an; die Anfangsablesung (inkl. Foto) sollte danach im bestehenden Ablese-Flow erfolgen.
+- In beiden Zählerwechsel-Seiten fehlte ein Foto-UI und die Upload-/Fehlerlogik.
+
+### Umgesetzt
+- `ZaehlerwechselAusbauPage`:
+  - Foto aufnehmen/übernehmen/entfernen ergänzt.
+  - Upload wird vor dem Speichern der Schlussablesung ausgeführt.
+  - `FotoPfad` wird in der Schlussablesung gespeichert.
+  - Bei Upload-Fehlern: verständliche Meldung + `Support-ID` (request_id), kein Rohdump.
+- `ZaehlerwechselEinbauPage`:
+  - Foto aufnehmen/übernehmen/entfernen ergänzt.
+  - Upload wird vor dem Zähler-Anlegen ausgeführt und im UI validiert.
+  - Hinweis: Das Foto wird in diesem Flow **nicht** am Zählerdatensatz gespeichert (Insert-Modelle haben kein `FotoPfad`). Die tatsächliche Fotoablage erfolgt weiterhin über die nachgelagerte Anfangsablesung im bestehenden Ablese-Flow.
+
+### Validierung
+- `dotnet build` erfolgreich.
+
 ## Stand 2026-03-31 – Foto-Upload Fehlerlogik in MAUI-Einstiegspunkten vereinheitlicht
 
 ### Ziel dieses Schritts
