@@ -79,6 +79,23 @@
   - echter Deploy/Test der Function in dieser Umgebung nicht ausführbar, da `supabase`/`deno` CLI lokal nicht verfügbar war.
   - Hinweis: durch die vorherigen 500er Tests könnten bereits Duplikate in Google Drive liegen (Upload war ja erfolgreich, Response schlug nur danach fehl).
 
+## 2026-03-31 – Prompt 1/1: MAUI Android – direkte Fotoaufnahme (Kamera) für Ablesung erfassen & Zählereinbau geschlossen
+
+- Ausgangslage: Galerie-/Speicherfoto lief, aber Kameraaufnahme nicht stabil nutzbar; bekannter Blocker war fehlende Android-Kamera-Berechtigung.
+- Betroffene MAUI-Dateien im Istzustand:
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs` (Foto aufnehmen/übernehmen, Upload via bestehendem `IPhotoUploadTestService`)
+  - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs` (Foto aufnehmen/übernehmen, Durchreichen in Pending-Flow zur Anfangsablesung)
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml` (Permissions)
+- Umgesetzt (minimal-invasiv, ohne neuen Fotopfad):
+  - `android.permission.CAMERA` im Android-Manifest ergänzt.
+  - Kameraaufnahme nutzt weiter `MediaPicker.Default.CapturePhotoAsync()` und geht in denselben Byte-/Filename-/ContentType-Pfad wie Galerie (`PickPhotoAsync`).
+  - Laufzeit-Berechtigung für Kamera wird vor Aufnahme abgefragt/angefordert; bei Verweigerung gibt es eine klare UI-Meldung.
+  - Abbruch/kein Ergebnis wird als "Fotoauswahl abgebrochen" behandelt.
+  - Keine rohen Exceptions mehr als UI-Text; Details nur via Debug-Log.
+- Ergebnis:
+  - Ablesung erfassen: Kameraaufnahme + Uploadpfad sind geschlossen (gleicher Vorschau-/Uploadpfad wie Galerie).
+  - Zählereinbau: Kameraaufnahme funktioniert und wird weiterhin fachlich korrekt nur bis zur nachgelagerten Anfangsablesung durchgereicht (kein verwaister Upload).
+
 ## 2026-03-31 – Prompt 1/1: MAUI Foto-Upload Diagnose für `Socket closed` verbessert
 
 - Vor dem Block den realen Git-/Repo-Stand geprüft und nicht auf lokalen Altständen oder blockfremden offenen Dateien aufgebaut.

@@ -5,6 +5,7 @@ using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Media;
+using Microsoft.Maui.ApplicationModel;
 using System.IO;
 using System.Globalization;
 
@@ -127,12 +128,28 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
                 return;
             }
 
+            if (capture)
+            {
+                var permissionStatus = await Permissions.CheckStatusAsync<Permissions.Camera>();
+                if (permissionStatus != PermissionStatus.Granted)
+                    permissionStatus = await Permissions.RequestAsync<Permissions.Camera>();
+
+                if (permissionStatus != PermissionStatus.Granted)
+                {
+                    _photoLabel.Text = "Kamera-Berechtigung wurde nicht erteilt.";
+                    return;
+                }
+            }
+
             var fileResult = capture
                 ? await MediaPicker.Default.CapturePhotoAsync()
                 : await MediaPicker.Default.PickPhotoAsync();
 
             if (fileResult == null)
+            {
+                _photoLabel.Text = "Fotoauswahl abgebrochen.";
                 return;
+            }
 
             await using var stream = await fileResult.OpenReadAsync();
             using var memoryStream = new MemoryStream();
@@ -150,8 +167,14 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
         }
         catch (Exception ex)
         {
-            _photoLabel.Text = ex.Message;
+            LogErrorForUser("Fotoaufnahme fehlgeschlagen", ex);
         }
+    }
+
+    private void LogErrorForUser(string title, Exception ex)
+    {
+        System.Diagnostics.Debug.WriteLine($"[ZaehlerwechselEinbauPage] {title}: {ex}");
+        _photoLabel.Text = title;
     }
 
     private void ClearPhotoSelection()
