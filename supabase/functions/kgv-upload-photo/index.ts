@@ -501,6 +501,7 @@ async function requireAdminOrVorstand(authHeader: string) {
 }
 
 Deno.serve(async (req) => {
+  const requestId = createRequestId();
   logStep("function start", { method: req.method });
 
   if (req.method === "OPTIONS") {
@@ -508,25 +509,25 @@ Deno.serve(async (req) => {
   }
 
   if (req.method !== "POST") {
-    logStep("return error", { step: "method validate", status: 405 });
-    return json(405, { error: "Method not allowed" });
+    logStep("return error", { step: "method validate", status: 405, requestId });
+    return errorResponse(405, "BAD_REQUEST", "Method not allowed", requestId);
   }
 
   try {
     const authHeader = req.headers.get("Authorization") ?? "";
-    logStep("auth header received", { hasAuthorizationHeader: !authHeader ? false : true });
+    logStep("auth header received", { requestId, hasAuthorizationHeader: !authHeader ? false : true });
     const auth = await requireAdminOrVorstand(authHeader);
     if (!auth.ok) {
-      logStep("return error", { step: "auth failed", status: auth.status });
-      return json(auth.status, { error: auth.message });
+      logStep("return error", { step: "auth failed", status: auth.status, requestId });
+      return errorResponse(auth.status, "UNAUTHORIZED", auth.message, requestId);
     }
 
     const rootFolderId = readGoogleDriveRootFolderId();
 
     const contentType = req.headers.get("content-type") ?? "";
     if (!contentType.toLowerCase().includes("multipart/form-data")) {
-      logStep("return error", { step: "content-type validate", status: 400, contentType });
-      return json(400, { error: "Erwartet multipart/form-data mit Datei und Metadaten." });
+      logStep("return error", { step: "content-type validate", status: 400, contentType, requestId });
+      return errorResponse(400, "BAD_REQUEST", "Erwartet multipart/form-data mit Datei und Metadaten.", requestId);
     }
 
     logStep("content-type validated", { contentType });
@@ -546,8 +547,8 @@ Deno.serve(async (req) => {
 
     const file = form.get("file");
     if (!(file instanceof File)) {
-      logStep("return error", { step: "file validate", status: 400 });
-      return json(400, { error: "Datei-Feld 'file' fehlt." });
+      logStep("return error", { step: "file validate", status: 400, requestId });
+      return errorResponse(400, "BAD_REQUEST", "Datei-Feld 'file' fehlt.", requestId);
     }
 
     const rawDate = String(form.get("datum") ?? "").trim();
@@ -559,28 +560,28 @@ Deno.serve(async (req) => {
     const meterNumberRaw = String(form.get("zaehlernummer") ?? "").trim();
 
     if (!kind) {
-      logStep("return error", { step: "kind validate", status: 400 });
-      return json(400, { error: "Ungültiges Feld 'kind'. Erlaubt: ablesung, ausbau, einbau." });
+      logStep("return error", { step: "kind validate", status: 400, requestId });
+      return errorResponse(400, "BAD_REQUEST", "Ungültiges Feld 'kind'. Erlaubt: ablesung, ausbau, einbau.", requestId);
     }
 
     if (!medium) {
-      logStep("return error", { step: "medium validate", status: 400 });
-      return json(400, { error: "Ungültiges Feld 'medium'. Erlaubt: strom, wasser." });
+      logStep("return error", { step: "medium validate", status: 400, requestId });
+      return errorResponse(400, "BAD_REQUEST", "Ungültiges Feld 'medium'. Erlaubt: strom, wasser.", requestId);
     }
 
     if (!date) {
-      logStep("return error", { step: "datum validate", status: 400, rawDate });
-      return json(400, { error: "Ungültiges Feld 'datum'. Erwartet YYYY-MM-DD oder dd.MM.yyyy." });
+      logStep("return error", { step: "datum validate", status: 400, rawDate, requestId });
+      return errorResponse(400, "BAD_REQUEST", "Ungültiges Feld 'datum'. Erwartet YYYY-MM-DD oder dd.MM.yyyy.", requestId);
     }
 
     if (!anlageRaw) {
-      logStep("return error", { step: "anlage validate", status: 400 });
-      return json(400, { error: "Feld 'anlage' fehlt." });
+      logStep("return error", { step: "anlage validate", status: 400, requestId });
+      return errorResponse(400, "BAD_REQUEST", "Feld 'anlage' fehlt.", requestId);
     }
 
     if (!gardenRaw) {
-      logStep("return error", { step: "garten validate", status: 400 });
-      return json(400, { error: "Feld 'garten' fehlt." });
+      logStep("return error", { step: "garten validate", status: 400, requestId });
+      return errorResponse(400, "BAD_REQUEST", "Feld 'garten' fehlt.", requestId);
     }
 
     logStep("input normalized / validated", {

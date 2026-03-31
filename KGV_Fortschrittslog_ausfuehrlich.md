@@ -65,6 +65,20 @@
     - Uploadfehler genauer diagnostizierbar => ja
     - UI zeigt kompakten Diagnosehinweis => ja
 
+## 2026-03-31 – Prompt 1/1: Edge Function `kgv-upload-photo` – Response-Crash nach erfolgreichem Drive-Upload (request_id) behoben
+
+- Ausgangslage: Uploadpfad bis Google Drive war erfolgreich (`auth passed`, `google token refresh success`, `drive upload success`), aber danach 500 durch Runtime-Crash.
+- Fehlerbild im Function-Log: `ReferenceError: requestId is not defined` in `supabase/functions/kgv-upload-photo/index.ts`.
+- Ursache: `requestId` wurde in Success-/Error-Returns verwendet, aber im Request-Handler nicht im Scope initialisiert.
+- Minimaler Fix:
+  - pro Request wird nun ganz am Anfang eine `requestId` erzeugt (`createRequestId()`), sodass sie in allen Returns/Logs verfügbar ist.
+  - Success-Antwort liefert wieder sauber das strukturierte Schema inkl. `request_id`.
+  - Error-Pfade liefern strukturierte Fehlerantworten statt unstrukturiertem `{ error: ... }` bzw. statt eines Runtime-Crashs.
+- Validierung:
+  - strukturelle Codeprüfung (Scope/ReferenceError) erledigt.
+  - echter Deploy/Test der Function in dieser Umgebung nicht ausführbar, da `supabase`/`deno` CLI lokal nicht verfügbar war.
+  - Hinweis: durch die vorherigen 500er Tests könnten bereits Duplikate in Google Drive liegen (Upload war ja erfolgreich, Response schlug nur danach fehl).
+
 ## 2026-03-31 – Prompt 1/1: MAUI Foto-Upload Diagnose für `Socket closed` verbessert
 
 - Vor dem Block den realen Git-/Repo-Stand geprüft und nicht auf lokalen Altständen oder blockfremden offenen Dateien aufgebaut.
