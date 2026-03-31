@@ -2,6 +2,84 @@
 
 ---
 
+## 2026-03-31 – Prompt 1/1: Zähleranlage auf gemeinsame Tabelle `zaehler` umgestellt und RFID-Vorbedingung fachlich abgefangen
+
+- Vor dem Block den realen Git-/Repo-Stand geprüft und nicht auf lokalen Altständen oder blockfremden offenen Dateien aufgebaut.
+- Direkt geprüft wurden:
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Core/Models/StromzaehlerInsertRecord.cs`
+  - `KGV.Core/Models/WasserzaehlerInsertRecord.cs`
+  - `KGV.Core/Models/StromzaehlerRecord.cs`
+  - `KGV.Core/Models/WasserzaehlerRecord.cs`
+  - `KGV.Core/Models/RfidScanContextRecord.cs`
+  - `KGV.Core/Models/ParzelleRecord.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+  - reale WPF-/MAUI-Verwendungen von:
+    - `AddStromzaehlerAsync(...)`
+    - `AddWasserzaehlerAsync(...)`
+    - `GetActiveStromzaehlerAsync(...)`
+    - `GetActiveWasserzaehlerAsync(...)`
+    - `SetStromzaehlerAusgebautAmAsync(...)`
+    - `SetWasserzaehlerAusgebautAmAsync(...)`
+- Ehrlicher Befund vor dem Fix:
+  - der produktive Zählereinbau lief im Shared-Service noch gegen die alten Tabellen `stromzaehler` / `wasserzaehler`
+  - die reale produktive Tabelle ist aber `public.zaehler`
+  - der echte Produktivfehler war damit kein UI- oder Feldvalidierungsproblem, sondern der veraltete Tabellenzugriffspfad
+  - zusätzlich blockiert der produktive Trigger den Insert, wenn für die Parzelle keine passende RFID für das Medium hinterlegt ist
+  - im MAUI-Einbaupfad selbst war kein separater Nebenumbau nötig; der Block saß zentral im Shared-/Infrastructure-Service
+- Minimal umgesetzt:
+  - neue gemeinsame Core-Modelle für die produktive Tabelle `zaehler` ergänzt:
+    - `KGV.Core/Models/ZaehlerRecord.cs`
+    - `KGV.Core/Models/ZaehlerInsertRecord.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - neuer gemeinsamer privater Kernpfad `AddZaehlerCoreAsync(...)`
+    - bestehende öffentliche Methoden `AddStromzaehlerAsync(...)` und `AddWasserzaehlerAsync(...)` bleiben erhalten und mappen intern nur noch auf den gemeinsamen `zaehler`-Insert
+    - es werden nur die produktiv nötigen Felder an `zaehler` gesendet:
+      - `parzelle_id`
+      - `medium`
+      - `zaehlernummer`
+      - `eichdatum`
+      - `eingebaut_am`
+    - bewusst **nicht** aus der App gesetzt werden:
+      - `id`
+      - `status`
+      - `eichfaellig_am`
+    - `eichdatum` wird fachlich jetzt immer auf `01.01.<Eichjahr>` normalisiert
+    - die internen Auflösungs-/Kompatibilitätspfade `GetActiveStromzaehlerAsync(...)`, `GetActiveWasserzaehlerAsync(...)`, `SetStromzaehlerAusgebautAmAsync(...)` und `SetWasserzaehlerAusgebautAmAsync(...)` wurden ebenfalls auf `zaehler` umgebogen, damit WPF und MAUI bei unveränderten öffentlichen Methoden nicht mehr an alten Tabellennamen hängen
+  - RFID-Vorbedingung sauber behandelt:
+    - Vorabprüfung gegen `parzelle.rfid_strom` / `parzelle.rfid_wasser`
+    - wenn RFID fehlt, wird jetzt eine verständliche Fachmeldung erzeugt statt eines rohen Trigger-/PostgREST-Fehlers
+    - zusätzlich wurde ein kleines Trigger-/PostgREST-Sicherheitsnetz eingebaut, falls dieselbe Bedingung DB-seitig dennoch als Fehler zurückkommt
+- Wichtig für die Blockgrenze:
+  - kein Foto-Flow-Umbau
+  - keine Ableseflow-Neuarchitektur
+  - keine Supabase-Migration
+  - keine Triggeränderung
+  - keine neue WPF-Fachbaustelle
+  - `ZaehlerwechselEinbauPage` selbst musste nicht refaktoriert werden, weil sie die bestehenden Shared-Methoden bereits nutzt und damit automatisch auf dem neuen `zaehler`-Pfad landet
+- Fachliches Ergebnis dieses Blocks:
+  - Zählereinbau schreibt jetzt nicht mehr gegen `stromzaehler` / `wasserzaehler`, sondern gegen `zaehler`
+  - der bestehende Folgeflow bleibt erhalten:
+    - Zähler anlegen
+    - danach Anfangsablesung als eigener Schritt
+  - der alte Tabellennamenfehler ist code-seitig geschlossen
+  - wenn für eine Parzelle die RFID für das Medium fehlt, bekommt der Nutzer jetzt eine verständliche Fachmeldung statt eines technischen Rohfehlers
+  - der aktuelle Realtestkandidat `Parzelle 6` ist damit auf Codeebene belastbar vorbereitet, ohne dass ein produktiver DB-Schreibtest in diesem Block behauptet wurde
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+    - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrliche Abschlussbewertung:
+    - alter Tabellennamenfehler behoben => ja
+    - RFID-Fehlersituation fachlich verständlich behandelt => ja
+    - produktiver DB-Schreibtest in diesem Block => bewusst nein
+- Abschlussstand dieses Blocks:
+  - Commit-/Push-Abschluss wird strikt nur mit den Blockdateien der `zaehler`-Umstellung durchgeführt
+  - blockfremde offene Änderungen bleiben weiter außerhalb dieses Abschlusses
+  - für den ersten echten Produktivtest ist `Parzelle 6` der sinnvolle Kandidat, weil dort die passende RFID bereits hinterlegt ist
+  - dieser Realtest wird hier bewusst nur vorbereitet und nicht als bereits durchgeführt behauptet
+
 ## 2026-03-30 – Prompt 1/1: OTP Passwort-Neusetzen Felder nach erfolgreichem OTP in MAUI entsperrt
 
 - Vor dem Block den realen Git-/Repo-Stand geprüft und blockfremde offene Änderungen bewusst nicht als Grundlage verwendet.

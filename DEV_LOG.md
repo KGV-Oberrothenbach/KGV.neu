@@ -2,6 +2,64 @@
 
 ---
 
+## 2026-03-31 – Zähleranlage auf gemeinsame Tabelle `zaehler` umgestellt
+
+- Den realen Repo-/Git-Stand zuerst geprüft und den Block nur auf den gemeinsamen Zählerpfad plus Logdateien begrenzt.
+- Direkt geprüft wurden:
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Core/Models/StromzaehlerInsertRecord.cs`
+  - `KGV.Core/Models/WasserzaehlerInsertRecord.cs`
+  - `KGV.Core/Models/StromzaehlerRecord.cs`
+  - `KGV.Core/Models/WasserzaehlerRecord.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+  - die realen Shared-Verwendungen in WPF/MAUI für `AddStromzaehlerAsync(...)`, `AddWasserzaehlerAsync(...)`, `GetActiveStromzaehlerAsync(...)`, `GetActiveWasserzaehlerAsync(...)`, `SetStromzaehlerAusgebautAmAsync(...)`, `SetWasserzaehlerAusgebautAmAsync(...)`
+- Ehrlicher Befund vor dem Fix:
+  - der produktive Zählereinbau schrieb im Shared-Service noch gegen die alten Tabellen `stromzaehler` / `wasserzaehler`
+  - der neue produktive DB-Vertrag liegt aber auf der gemeinsamen Tabelle `public.zaehler`
+  - dadurch war der reale Produktivfehler nicht Validierung, sondern der veraltete Tabellenzugriffspfad
+  - zusätzlich blockiert der produktive Trigger den Insert, wenn für die Parzelle keine passende RFID für das Medium hinterlegt ist
+- Minimal umgesetzt:
+  - neue gemeinsame Core-Modelle:
+    - `KGV.Core/Models/ZaehlerRecord.cs`
+    - `KGV.Core/Models/ZaehlerInsertRecord.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - neue gemeinsame private Kernlogik `AddZaehlerCoreAsync(...)`
+    - bestehende öffentliche Methoden `AddStromzaehlerAsync(...)` / `AddWasserzaehlerAsync(...)` bleiben erhalten und mappen intern nur noch auf den gemeinsamen `zaehler`-Insert
+    - es werden nur die für `zaehler` nötigen Felder gesendet:
+      - `parzelle_id`
+      - `medium`
+      - `zaehlernummer`
+      - `eichdatum`
+      - `eingebaut_am`
+    - `id`, `status` und `eichfaellig_am` werden nicht mehr unnötig aus der App gesetzt
+    - `eichdatum` wird fachlich aus dem eingegebenen Jahr auf `01.01.<Jahr>` normalisiert
+    - aktive Zählerauflösung und Ausbaupfade wurden intern ebenfalls auf `zaehler` umgebogen, damit bestehende Strom-/Wasser-Methoden für WPF/MAUI kompatibel bleiben
+  - RFID-Vorbedingung jetzt fachlich sauber behandelt:
+    - Vorabprüfung gegen `parzelle.rfid_strom` / `parzelle.rfid_wasser`
+    - verständliche Meldung statt technischem Rohfehler, z. B.:
+      - `Für diese Parzelle ist noch keine RFID für Wasser hinterlegt. Bitte zuerst RFID einrichten.`
+    - zusätzlich kleine Trigger-/PostgREST-Übersetzung als Sicherheitsnetz, falls DB-seitig doch noch derselbe Fehler zurückkommt
+- Wichtig für die Blockgrenze:
+  - kein Foto-Flow-Umbau
+  - keine DB-Migration
+  - keine Triggeränderung
+  - keine neue WPF-Fachbaustelle
+  - `ZaehlerwechselEinbauPage` musste nicht separat umgebaut werden, weil sie bereits die bestehenden Shared-Methoden nutzt und damit automatisch auf dem neuen `zaehler`-Pfad landet
+- Fachliches Ergebnis:
+  - der produktive Zählereinbau schreibt nicht mehr gegen `stromzaehler` / `wasserzaehler`, sondern gegen `zaehler`
+  - der Folgeflow `Zähler anlegen -> Anfangsablesung` bleibt erhalten
+  - der alte Tabellennamenfehler ist damit code-seitig geschlossen
+  - die RFID-Fehlersituation wird fachlich verständlich abgefangen statt als roher technischer DB-Fehler an Nutzer weiterzureichen
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - bewusst nicht behauptet wurde ein produktiver DB-Schreibtest; der Code ist jetzt aber für den realen Testkandidaten `Parzelle 6` auf dem aktuellen Stand fachlich vorbereitet
+- Abschlussstand:
+  - der Block ist bereit für Commit und Push mit strikt auf die `zaehler`-Umstellung begrenzten Dateien
+  - der erste sinnvolle echte Produktivtest ist `Parzelle 6`, weil dort die passende RFID bereits hinterlegt ist
+  - dieser Realtest wird hier nur vorbereitet und nicht als bereits durchgeführt behauptet
+
 ## 2026-03-30 – OTP Passwort-Neusetzen: Passwortfelder nach OTP in MAUI entsperrt
 
 - Den realen Repo-/Git-Stand zuerst geprüft; blockfremde offene Änderungen bewusst nicht als Grundlage verwendet.

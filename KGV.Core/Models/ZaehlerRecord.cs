@@ -1,0 +1,46 @@
+using System;
+using Supabase.Postgrest.Attributes;
+using Supabase.Postgrest.Models;
+
+namespace KGV.Core.Models;
+
+[Table("zaehler")]
+public sealed class ZaehlerRecord : BaseModel
+{
+    [PrimaryKey("id", false)]
+    [Column("id")]
+    public long Id { get; set; }
+
+    [Column("parzelle_id")]
+    public long ParzelleId { get; set; }
+
+    [Column("medium")]
+    public string Medium { get; set; } = string.Empty;
+
+    [Column("zaehlernummer")]
+    public string Zaehlernummer { get; set; } = string.Empty;
+
+    [Column("eichdatum")]
+    public DateTime Eichdatum { get; set; }
+
+    [Column("eichfaellig_am")]
+    public DateTime EichfaelligAm { get; set; }
+
+    [Column("eingebaut_am")]
+    public DateTime EingebautAm { get; set; }
+
+    [Column("ausgebaut_am")]
+    public DateTime? AusgebautAm { get; set; }
+
+    [Column("status")]
+    public string? Status { get; set; }
+
+    [Column("einbau_foto_pfad")]
+    public string? EinbauFotoPfad { get; set; }
+
+    [Column("einbau_foto_dateiname")]
+    public string? EinbauFotoDateiname { get; set; }
+
+    [Column("einbau_foto_drive_file_id")]
+    public string? EinbauFotoDriveFileId { get; set; }
+}

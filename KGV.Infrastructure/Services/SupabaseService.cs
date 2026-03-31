@@ -595,45 +595,11 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
-        public Task<bool> AddStromzaehlerAsync(StromzaehlerInsertRecord request) => ExecuteAsync(
-            "AddStromzaehlerAsync",
-            async () =>
-            {
-                if (request == null || request.ParzelleId <= 0 || string.IsNullOrWhiteSpace(request.Zaehlernummer))
-                    return false;
+        public Task<bool> AddStromzaehlerAsync(StromzaehlerInsertRecord request)
+            => AddZaehlerCoreAsync("strom", request?.ParzelleId ?? 0, request?.Zaehlernummer, request?.Eichdatum ?? default, request?.EingebautAm ?? default);
 
-                var client = await EnsureClientAsync();
-                await client.From<StromzaehlerInsertRecord>().Insert(new StromzaehlerInsertRecord
-                {
-                    ParzelleId = request.ParzelleId,
-                    Zaehlernummer = request.Zaehlernummer.Trim(),
-                    Eichdatum = NormalizeMeterEichjahr(request.Eichdatum),
-                    EingebautAm = NormalizeDateTime(request.EingebautAm.Date)
-                });
-
-                return true;
-            },
-            false);
-
-        public Task<bool> AddWasserzaehlerAsync(WasserzaehlerInsertRecord request) => ExecuteAsync(
-            "AddWasserzaehlerAsync",
-            async () =>
-            {
-                if (request == null || request.ParzelleId <= 0 || string.IsNullOrWhiteSpace(request.Zaehlernummer))
-                    return false;
-
-                var client = await EnsureClientAsync();
-                await client.From<WasserzaehlerInsertRecord>().Insert(new WasserzaehlerInsertRecord
-                {
-                    ParzelleId = request.ParzelleId,
-                    Zaehlernummer = request.Zaehlernummer.Trim(),
-                    Eichdatum = NormalizeMeterEichjahr(request.Eichdatum),
-                    EingebautAm = NormalizeDateTime(request.EingebautAm.Date)
-                });
-
-                return true;
-            },
-            false);
+        public Task<bool> AddWasserzaehlerAsync(WasserzaehlerInsertRecord request)
+            => AddZaehlerCoreAsync("wasser", request?.ParzelleId ?? 0, request?.Zaehlernummer, request?.Eichdatum ?? default, request?.EingebautAm ?? default);
 
         public Task<bool> SetStromzaehlerAusgebautAmAsync(long stromzaehlerId, DateTime ausgebautAm) => ExecuteAsync(
             "SetStromzaehlerAusgebautAmAsync",
@@ -641,7 +607,7 @@ namespace KGV.Infrastructure.Services
             {
                 var client = await EnsureClientAsync();
                 await client
-                    .From<StromzaehlerRecord>()
+                    .From<ZaehlerRecord>()
                     .Where(x => x.Id == stromzaehlerId)
                     .Set(x => x.AusgebautAm, NormalizeDateTime(ausgebautAm.Date))
                     .Update();
@@ -656,7 +622,7 @@ namespace KGV.Infrastructure.Services
             {
                 var client = await EnsureClientAsync();
                 await client
-                    .From<WasserzaehlerRecord>()
+                    .From<ZaehlerRecord>()
                     .Where(x => x.Id == wasserzaehlerId)
                     .Set(x => x.AusgebautAm, NormalizeDateTime(ausgebautAm.Date))
                     .Update();
@@ -2337,7 +2303,7 @@ namespace KGV.Infrastructure.Services
 
         private static DateTime NormalizeMeterEichjahr(DateTime value)
         {
-            var normalized = value.Date.AddHours(12);
+            var normalized = new DateTime(value.Year, 1, 1, 12, 0, 0);
             return DateTime.SpecifyKind(normalized, DateTimeKind.Unspecified);
         }
 
@@ -2561,31 +2527,142 @@ namespace KGV.Infrastructure.Services
         }
 
         private async Task<List<StromzaehlerRecord>> GetStromzaehlerForParzelleAsync(int parzelleId)
-        {
-            var client = await EnsureClientAsync();
-            var response = await client
-                .From<StromzaehlerRecord>()
-                .Where(x => x.ParzelleId == parzelleId)
-                .Get();
-
-            return response?.Models?
-                .OrderByDescending(x => x.EingebautAm)
-                .ToList()
-                ?? new List<StromzaehlerRecord>();
-        }
+            => (await GetZaehlerForParzelleAsync(parzelleId, "strom"))
+                .Select(MapStromzaehlerRecord)
+                .ToList();
 
         private async Task<List<WasserzaehlerRecord>> GetWasserzaehlerForParzelleAsync(int parzelleId)
+            => (await GetZaehlerForParzelleAsync(parzelleId, "wasser"))
+                .Select(MapWasserzaehlerRecord)
+                .ToList();
+
+        private async Task<bool> AddZaehlerCoreAsync(string medium, long parzelleId, string? zaehlernummer, DateTime eichdatum, DateTime eingebautAm)
         {
+            var normalizedMedium = NormalizeZaehlerMedium(medium);
+            if (string.IsNullOrWhiteSpace(normalizedMedium) || parzelleId <= 0 || string.IsNullOrWhiteSpace(zaehlernummer))
+                return false;
+
+            try
+            {
+                await ValidateZaehlerInsertPreconditionsAsync(parzelleId, normalizedMedium);
+
+                var client = await EnsureClientAsync();
+                await client.From<ZaehlerInsertRecord>().Insert(new ZaehlerInsertRecord
+                {
+                    ParzelleId = parzelleId,
+                    Medium = normalizedMedium,
+                    Zaehlernummer = zaehlernummer.Trim(),
+                    Eichdatum = NormalizeMeterEichjahr(eichdatum),
+                    EingebautAm = NormalizeDateTime(eingebautAm.Date)
+                });
+
+                return true;
+            }
+            catch (InvalidOperationException)
+            {
+                throw;
+            }
+            catch (PostgrestException ex) when (IsMissingZaehlerRfidPrecondition(ex))
+            {
+                throw new InvalidOperationException(BuildMissingZaehlerRfidMessage(normalizedMedium), ex);
+            }
+            catch (PostgrestException ex) when (IsZaehlerMediumNotAllowedPrecondition(ex))
+            {
+                throw new InvalidOperationException(BuildZaehlerMediumNotAllowedMessage(normalizedMedium), ex);
+            }
+            catch (PostgrestException ex)
+            {
+                LogPostgrestFailure($"AddZaehlerCoreAsync({normalizedMedium})", ex);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "AddZaehlerCoreAsync({Medium}) failed.", normalizedMedium);
+                return false;
+            }
+        }
+
+        private async Task ValidateZaehlerInsertPreconditionsAsync(long parzelleId, string normalizedMedium)
+        {
+            var parzelle = await GetParzelleRecordByIdAsync(parzelleId)
+                ?? throw new InvalidOperationException("Die gewählte Parzelle wurde nicht gefunden.");
+
+            if (string.Equals(normalizedMedium, "wasser", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!parzelle.HatWasser)
+                    throw new InvalidOperationException($"Für {parzelle.DisplayName} ist Wasser nicht freigeschaltet.");
+
+                if (string.IsNullOrWhiteSpace(parzelle.RfidWasser))
+                    throw new InvalidOperationException(BuildMissingZaehlerRfidMessage(normalizedMedium));
+
+                return;
+            }
+
+            if (!parzelle.HatStrom)
+                throw new InvalidOperationException($"Für {parzelle.DisplayName} ist Strom nicht freigeschaltet.");
+
+            if (string.IsNullOrWhiteSpace(parzelle.RfidStrom))
+                throw new InvalidOperationException(BuildMissingZaehlerRfidMessage(normalizedMedium));
+        }
+
+        private async Task<ParzelleRecord?> GetParzelleRecordByIdAsync(long parzelleId)
+        {
+            if (parzelleId <= 0 || parzelleId > int.MaxValue)
+                return null;
+
             var client = await EnsureClientAsync();
             var response = await client
-                .From<WasserzaehlerRecord>()
+                .From<ParzelleRecord>()
+                .Where(x => x.Id == (int)parzelleId)
+                .Get();
+
+            return response?.Models?.FirstOrDefault();
+        }
+
+        private async Task<List<ZaehlerRecord>> GetZaehlerForParzelleAsync(int parzelleId, string medium)
+        {
+            var normalizedMedium = NormalizeZaehlerMedium(medium);
+            if (string.IsNullOrWhiteSpace(normalizedMedium))
+                return new List<ZaehlerRecord>();
+
+            var client = await EnsureClientAsync();
+            var response = await client
+                .From<ZaehlerRecord>()
                 .Where(x => x.ParzelleId == parzelleId)
+                .Where(x => x.Medium == normalizedMedium)
                 .Get();
 
             return response?.Models?
                 .OrderByDescending(x => x.EingebautAm)
+                .ThenByDescending(x => x.Id)
                 .ToList()
-                ?? new List<WasserzaehlerRecord>();
+                ?? new List<ZaehlerRecord>();
+        }
+
+        private static StromzaehlerRecord MapStromzaehlerRecord(ZaehlerRecord source)
+        {
+            return new StromzaehlerRecord
+            {
+                Id = source.Id,
+                ParzelleId = source.ParzelleId,
+                Zaehlernummer = source.Zaehlernummer,
+                Eichdatum = source.Eichdatum,
+                EingebautAm = source.EingebautAm,
+                AusgebautAm = source.AusgebautAm
+            };
+        }
+
+        private static WasserzaehlerRecord MapWasserzaehlerRecord(ZaehlerRecord source)
+        {
+            return new WasserzaehlerRecord
+            {
+                Id = source.Id,
+                ParzelleId = source.ParzelleId,
+                Zaehlernummer = source.Zaehlernummer,
+                Eichdatum = source.Eichdatum,
+                EingebautAm = source.EingebautAm,
+                AusgebautAm = source.AusgebautAm
+            };
         }
 
         private async Task<List<ZaehlerAblesungDTO>> GetAblesungenAsync<TMeter>(IReadOnlyCollection<TMeter> meters, short zaehlerTyp)
@@ -2700,6 +2777,33 @@ namespace KGV.Infrastructure.Services
             return string.IsNullOrWhiteSpace(ex.Message)
                 ? string.Empty
                 : Regex.Replace(ex.Message.Trim(), "\\s+", " ");
+        }
+
+        private static bool IsMissingZaehlerRfidPrecondition(PostgrestException ex)
+        {
+            var message = ExtractPostgrestRelevantMessage(ex).ToLowerInvariant();
+            return message.Contains("rfid") && (message.Contains("parzelle") || message.Contains("medium") || message.Contains("zaehler"));
+        }
+
+        private static bool IsZaehlerMediumNotAllowedPrecondition(PostgrestException ex)
+        {
+            var message = ExtractPostgrestRelevantMessage(ex).ToLowerInvariant();
+            return message.Contains("medium") && (message.Contains("not allowed") || message.Contains("nicht") || message.Contains("parzelle"));
+        }
+
+        private static string BuildMissingZaehlerRfidMessage(string medium)
+            => $"Für diese Parzelle ist noch keine RFID für {MediumDisplayName(medium)} hinterlegt. Bitte zuerst RFID einrichten.";
+
+        private static string BuildZaehlerMediumNotAllowedMessage(string medium)
+            => $"Für diese Parzelle ist {MediumDisplayName(medium)} nicht freigeschaltet.";
+
+        private static string? NormalizeZaehlerMedium(string? medium)
+        {
+            if (string.IsNullOrWhiteSpace(medium))
+                return null;
+
+            var normalized = medium.Trim().ToLowerInvariant();
+            return normalized is "strom" or "wasser" ? normalized : null;
         }
 
         private static string ExtractPostgrestContentMessage(string? content)
