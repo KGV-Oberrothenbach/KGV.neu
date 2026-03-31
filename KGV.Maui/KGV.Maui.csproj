@@ -15,8 +15,8 @@
     <AndroidMinSdkVersion>21</AndroidMinSdkVersion>
     <AndroidTargetSdkVersion>35</AndroidTargetSdkVersion>
     <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
-    <ApplicationDisplayVersion>0.2.17</ApplicationDisplayVersion>
-    <ApplicationVersion>33</ApplicationVersion>
+    <ApplicationDisplayVersion>0.2.18</ApplicationDisplayVersion>
+    <ApplicationVersion>36</ApplicationVersion>
     <TargetFrameworks>net9.0-android</TargetFrameworks>
     <AndroidSigningKeyStore>..\_secrets\Android\kgv-upload.keystore</AndroidSigningKeyStore>
   </PropertyGroup>
