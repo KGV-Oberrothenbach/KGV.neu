@@ -1,5 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Maui.Models;
+using KGV.Maui.Services.PendingPhotos;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +21,8 @@ public sealed class AblesungErfassenPage : ContentPage
     private readonly ISupabaseService _supabaseService;
     private readonly IPhotoUploadTestService _photoUploadService;
     private readonly ZaehlerwechselWorkflowState _workflowState;
+    private readonly PendingPhotoQueue _pendingPhotoQueue;
+    private readonly PendingPhotoService _pendingPhotoService;
     private readonly RfidScanContextViewModel _scanContext;
     private readonly Label _introLabel;
     private readonly Label _flowHintLabel;
@@ -55,6 +59,8 @@ public sealed class AblesungErfassenPage : ContentPage
         _supabaseService = services.GetRequiredService<ISupabaseService>();
         _photoUploadService = services.GetRequiredService<IPhotoUploadTestService>();
         _workflowState = services.GetRequiredService<ZaehlerwechselWorkflowState>();
+        _pendingPhotoQueue = services.GetRequiredService<PendingPhotoQueue>();
+        _pendingPhotoService = services.GetRequiredService<PendingPhotoService>();
         _scanContext = new RfidScanContextViewModel(
             _supabaseService,
             services.GetRequiredService<IAuthService>(),
@@ -359,6 +365,22 @@ public sealed class AblesungErfassenPage : ContentPage
         {
             var context = _activeResolution.Context;
 
+            var operationType = MapPhotoKind(_currentArt);
+            var pending = _pendingPhotoService.SaveAndEnqueue(
+                _selectedPhotoContent ?? Array.Empty<byte>(),
+                operationType,
+                context.ParzelleDisplayName,
+                NormalizeMedium(context.Medium),
+                _selectedPhotoContentType);
+
+            byte[]? pendingContent = null;
+            if (!_pendingPhotoService.TryLoadContent(pending, out pendingContent) || pendingContent is not { Length: > 0 })
+            {
+                _pendingPhotoService.MarkFailed(pending, "PENDING_FILE_READ_FAIL");
+                _statusLabel.Text = "Das Foto konnte lokal nicht vorbereitet werden.";
+                return;
+            }
+
             if (_currentArt == AblesungArt.Einbau)
             {
                 var validContent = _selectedPhotoContent != null && _selectedPhotoContent.Length > 0;
@@ -371,10 +393,10 @@ public sealed class AblesungErfassenPage : ContentPage
 
             var photoResult = await _photoUploadService.UploadAsync(new PhotoUploadTestRequest
             {
-                FileName = _selectedPhotoFileName,
-                ContentType = _selectedPhotoContentType,
-                FileContent = _selectedPhotoContent ?? Array.Empty<byte>(),
-                Kind = MapPhotoKind(_currentArt),
+                FileName = pending.FileName,
+                ContentType = pending.ContentType,
+                FileContent = pendingContent,
+                Kind = operationType,
                 Medium = NormalizeMedium(context.Medium),
                 Anlage = context.Anlage?.Trim() ?? string.Empty,
                 Garten = context.GartenNr?.Trim() ?? string.Empty,
@@ -384,6 +406,7 @@ public sealed class AblesungErfassenPage : ContentPage
 
             if (!photoResult.Success || string.IsNullOrWhiteSpace(photoResult.RelativePath))
             {
+                _pendingPhotoService.MarkFailed(pending, photoResult.DiagnosticCode ?? "UPLOAD_FAILED");
                 var message = string.IsNullOrWhiteSpace(photoResult.ErrorSummary)
                     ? "Das Foto konnte nicht hochgeladen werden."
                     : photoResult.ErrorSummary;
@@ -394,6 +417,8 @@ public sealed class AblesungErfassenPage : ContentPage
                 _statusLabel.Text = message;
                 return;
             }
+
+            _pendingPhotoService.MarkUploadedAndDeleteLocal(pending);
 
             var readingSaved = await _supabaseService.AddAblesungAsync(new AblesungInsertRecord
             {
@@ -426,7 +451,8 @@ public sealed class AblesungErfassenPage : ContentPage
         }
         catch (Exception ex)
         {
-            _statusLabel.Text = ex.Message;
+            System.Diagnostics.Debug.WriteLine(ex);
+            _statusLabel.Text = "Unerwarteter Fehler beim Speichern.";
         }
         finally
         {
@@ -453,6 +479,23 @@ public sealed class AblesungErfassenPage : ContentPage
 
     private void ApplyPendingPhotoSelection(PendingAblesungFlowContext pendingFlow)
     {
+        if (pendingFlow.PendingPhotoId is Guid pendingId && _pendingPhotoQueue.TryGet(pendingId, out var pendingItem) && pendingItem != null)
+        {
+            if (_pendingPhotoService.TryLoadContent(pendingItem, out var content) && content is { Length: > 0 })
+            {
+                _selectedPhotoContent = content;
+                _selectedPhotoFileName = string.IsNullOrWhiteSpace(pendingItem.FileName)
+                    ? $"ablesung-{DateTime.Now:yyyyMMdd-HHmmss}.jpg"
+                    : pendingItem.FileName;
+                _selectedPhotoContentType = string.IsNullOrWhiteSpace(pendingItem.ContentType)
+                    ? GetContentType(_selectedPhotoFileName)
+                    : pendingItem.ContentType;
+
+                _photoLabel.Text = $"Foto gewählt: {_selectedPhotoFileName}";
+                return;
+            }
+        }
+
         if (pendingFlow.PendingPhotoContent == null || pendingFlow.PendingPhotoContent.Length == 0)
             return;
 

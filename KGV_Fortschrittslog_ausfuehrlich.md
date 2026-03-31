@@ -93,6 +93,45 @@ Die technische Grundlage schaffen, damit Fotos bei Bedarf lokal app-intern zwisc
 ### Validierung
 - folgt im Anschluss über `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
 
+---
+
+## 2026-03-31 – Prompt 2/5: Persistente Pending-Queue an produktive Foto-Flows angebunden (Ablesung + Einbau/Anfangsablesung)
+
+### Ziel dieses Schritts
+Die in Prompt 1 vorbereiteten Pending-Foto-Bausteine so erweitern, dass eine **persistente** lokale Queue existiert und die produktiven Foto-Flows (Ablesung speichern, Zählereinbau → Anfangsablesung) Fotos vor dem Uploadversuch app-intern dauerhaft ablegen und referenzieren. Bei Erfolg wird lokal gelöscht; bei Fehler bleibt Pending erhalten.
+
+### Geprüft (Istzustand)
+- Produktiver Ablese-Flow: `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - Foto lag bisher nur als Byte[] im RAM und wurde direkt hochgeladen.
+  - Bei App-Schließen/Crash vor dem Upload war das Foto verloren.
+- Zählereinbau-Flow: `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+  - Foto wurde (fachlich korrekt) erst in der nachgelagerten Anfangsablesung hochgeladen.
+  - Übergabe erfolgte aber nur transient per Byte[] über `PendingAblesungFlowContext`.
+
+### Umgesetzt
+- Persistente Queue minimal ergänzt (ohne neue DB):
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoQueue.cs`
+  - Speicherung als JSON im app-internen Pending-Ordner (`FileSystem.AppDataDirectory/pending/photos/pending-photo-queue.json`).
+- Pending-Service ergänzt:
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoService.cs`
+  - schreibt Datei app-intern (`{id}_{fachlicherDateiname}.jpg`), legt Queue-Eintrag an, kann Datei wieder laden, markiert Fail/Uploaded und löscht lokale Datei erst nach bestätigtem Upload.
+- Produktiver Ablese-Flow angebunden:
+  - `AblesungErfassenPage`: vor Upload wird das Foto persistiert + queued; Upload nutzt die persistierte Datei; bei Erfolg wird Queue-Eintrag entfernt und lokale Datei gelöscht; bei Fehler bleibt Pending erhalten.
+- Zählereinbau/Anfangsablesung angebunden:
+  - `ZaehlerwechselEinbauPage`: Foto wird persistiert + queued; im Workflow-State wird die stabile `PendingPhotoId` referenziert.
+  - `ZaehlerwechselWorkflowState.PendingAblesungFlowContext`: erweitert um `PendingPhotoId`/`PendingPhotoLocalPath`.
+  - `AblesungErfassenPage.ApplyPendingPhotoSelection`: lädt Foto bei Pending-Initialflow aus dem app-internen Speicher anhand der `PendingPhotoId` (Fallback auf alte Byte[]-Übergabe bleibt).
+- DI/Startup:
+  - `MauiProgram`: `PendingPhotoQueue` + `PendingPhotoService` als Singleton registriert.
+
+### Abgrenzung dieses Blocks
+- kein globaler Retry-/Sync-Service beim App-Start/Resume
+- kein WorkManager / kein Hintergrunddienst
+- keine neue UI-Übersichtsseite/Navigation für Pending-Uploads
+
+### Validierung
+- `dotnet build` erfolgreich.
+
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
     - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
   - ehrliche Abschlussprüfung:

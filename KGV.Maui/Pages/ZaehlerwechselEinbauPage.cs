@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Maui.Services.PendingPhotos;
 using KGV.Maui.State;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
@@ -16,6 +17,7 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
     private readonly ISupabaseService _supabaseService;
     private readonly IPhotoUploadTestService _photoUploadService;
     private readonly ZaehlerwechselWorkflowState _workflowState;
+    private readonly PendingPhotoService _pendingPhotoService;
     private readonly Label _contextLabel;
     private readonly Label _statusLabel;
     private readonly DatePicker _einbauDatumPicker;
@@ -31,11 +33,12 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
     private RfidScanContextResult? _context;
     private bool _isBusy;
 
-    public ZaehlerwechselEinbauPage(ISupabaseService supabaseService, IPhotoUploadTestService photoUploadService, ZaehlerwechselWorkflowState workflowState)
+    public ZaehlerwechselEinbauPage(ISupabaseService supabaseService, IPhotoUploadTestService photoUploadService, ZaehlerwechselWorkflowState workflowState, PendingPhotoService pendingPhotoService)
     {
         _supabaseService = supabaseService;
         _photoUploadService = photoUploadService;
         _workflowState = workflowState;
+        _pendingPhotoService = pendingPhotoService;
 
         Title = "Zählereinbau";
 
@@ -264,9 +267,20 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
 
         if (_workflowState.PendingAblesungFlow != null)
         {
-            _workflowState.PendingAblesungFlow.PendingPhotoContent = _selectedPhotoContent;
-            _workflowState.PendingAblesungFlow.PendingPhotoFileName = _selectedPhotoFileName;
-            _workflowState.PendingAblesungFlow.PendingPhotoContentType = _selectedPhotoContentType;
+            var pending = _pendingPhotoService.SaveAndEnqueue(
+                _selectedPhotoContent,
+                operationType: "einbau",
+                parzelle: context.ParzelleDisplayName,
+                medium: NormalizeMedium(context.Medium),
+                contentType: _selectedPhotoContentType);
+
+            _workflowState.PendingAblesungFlow.PendingPhotoId = pending.Id;
+            _workflowState.PendingAblesungFlow.PendingPhotoLocalPath = pending.LocalFilePath;
+
+            _workflowState.PendingAblesungFlow.PendingPhotoFileName = pending.FileName;
+            _workflowState.PendingAblesungFlow.PendingPhotoContentType = pending.ContentType;
+
+            _workflowState.PendingAblesungFlow.PendingPhotoContent = null;
         }
 
         await DisplayAlert("OK", "Zählereinbau erfolgreich gespeichert. Die Anfangsablesung folgt jetzt im bestehenden Ablese-Flow.", "OK");

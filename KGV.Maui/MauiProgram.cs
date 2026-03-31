@@ -5,6 +5,7 @@ using KGV.Maui.Pages;
 using KGV.Maui.Platforms.Android.Services;
 using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.Services;
+using KGV.Maui.Services.PendingPhotos;
 using KGV.Maui.Settings;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
@@ -60,6 +61,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<ArbeitseinsaetzeUserState>();
         builder.Services.AddSingleton<TermineUserState>();
         builder.Services.AddSingleton<ZaehlerwechselWorkflowState>();
+        builder.Services.AddSingleton<PendingPhotoQueue>();
+        builder.Services.AddSingleton<PendingPhotoService>();
         builder.Services.AddSingleton<INfcScanService, AndroidNfcScanService>();
         builder.Services.AddSingleton<IRfidFeedbackService, AndroidRfidFeedbackService>();
 
