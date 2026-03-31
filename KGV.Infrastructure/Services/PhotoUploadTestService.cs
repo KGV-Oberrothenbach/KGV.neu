@@ -312,6 +312,19 @@ namespace KGV.Infrastructure.Services
             try
             {
                 using var document = JsonDocument.Parse(rawResponse);
+
+                var serverErrorCode = FindString(document.RootElement, "error_code");
+                if (!string.IsNullOrWhiteSpace(serverErrorCode))
+                {
+                    result.DiagnosticCode = NormalizeServerErrorCode(serverErrorCode, result.DiagnosticCode);
+                    if (!result.Success)
+                    {
+                        var serverMessage = FindString(document.RootElement, "message");
+                        if (!string.IsNullOrWhiteSpace(serverMessage))
+                            result.ExceptionMessage = serverMessage.Trim();
+                    }
+                }
+
                 result.FileId = FindString(document.RootElement, "file_id");
                 result.FileName = FindString(document.RootElement, "file_name");
                 result.RelativePath = FindString(document.RootElement, "relative_path");
@@ -319,6 +332,18 @@ namespace KGV.Infrastructure.Services
             catch
             {
             }
+        }
+
+        private static string NormalizeServerErrorCode(string serverErrorCode, string fallback)
+        {
+            var code = serverErrorCode.Trim().ToUpperInvariant();
+            return code switch
+            {
+                "GOOGLE_AUTH_ERROR" => "UPLOAD_GOOGLE_AUTH_ERROR",
+                "CONFIG_MISSING" => "UPLOAD_CONFIG_MISSING",
+                "GOOGLE_DRIVE_ERROR" => "UPLOAD_GOOGLE_DRIVE_ERROR",
+                _ => string.IsNullOrWhiteSpace(fallback) ? code : fallback
+            };
         }
 
         private static string FindString(JsonElement element, string propertyName)

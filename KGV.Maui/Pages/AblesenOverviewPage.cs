@@ -316,8 +316,19 @@ public sealed class AblesenOverviewPage : ContentPage
         builder.AppendLine($"Dateiname: {DisplayValue(result.FileName)}");
         builder.AppendLine($"Pfad: {DisplayValue(result.RelativePath)}");
 
-        if (!result.Success && !string.IsNullOrWhiteSpace(result.RawResponseBody))
-            builder.AppendLine($"Rohantwort: {result.RawResponseBody}");
+        if (!result.Success)
+        {
+            var detail = result.RawResponseBody;
+            if (!string.IsNullOrWhiteSpace(detail))
+            {
+                const int maxLen = 300;
+                detail = detail.Trim();
+                if (detail.Length > maxLen)
+                    detail = detail[..maxLen] + "…";
+
+                builder.AppendLine($"Details (gekürzt): {detail}");
+            }
+        }
 
         return builder.ToString().Trim();
     }

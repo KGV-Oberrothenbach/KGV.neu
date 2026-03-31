@@ -91,6 +91,41 @@ function json(status: number, body: unknown) {
   });
 }
 
+type ApiErrorCode =
+  | "BAD_REQUEST"
+  | "UNAUTHORIZED"
+  | "CONFIG_MISSING"
+  | "GOOGLE_AUTH_ERROR"
+  | "GOOGLE_DRIVE_ERROR"
+  | "INTERNAL_ERROR";
+
+type ApiErrorBody = {
+  success: false;
+  error_code: ApiErrorCode;
+  message: string;
+};
+
+function errorResponse(status: number, error_code: ApiErrorCode, message: string) {
+  const body: ApiErrorBody = {
+    success: false,
+    error_code,
+    message,
+  };
+
+  return json(status, body);
+}
+
+function isGoogleAuthErrorMessage(message: string): boolean {
+  const m = (message ?? "").toLowerCase();
+  return m.includes("invalid_grant") ||
+    m.includes("token has been expired") ||
+    m.includes("token has been revoked") ||
+    m.includes("unauthorized_client") ||
+    m.includes("invalid_client") ||
+    m.includes("invalid refresh token") ||
+    m.includes("refresh token") && m.includes("invalid");
+}
+
 function sanitizeSegment(value: string): string {
   return value
     .trim()
@@ -181,7 +216,13 @@ async function getGoogleAccessToken(): Promise<string> {
   const refreshToken = Deno.env.get("GOOGLE_DRIVE_REFRESH_TOKEN");
 
   if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error("Google-Drive-Secrets fehlen: GOOGLE_DRIVE_CLIENT_ID / SECRET / REFRESH_TOKEN.");
+    const missing = {
+      hasClientId: !!clientId,
+      hasClientSecret: !!clientSecret,
+      hasRefreshToken: !!refreshToken,
+    };
+    logStep("google token refresh config missing", missing);
+    throw new Error("Google-Drive-Secrets fehlen");
   }
 
   const body = new URLSearchParams({
@@ -203,7 +244,13 @@ async function getGoogleAccessToken(): Promise<string> {
 
     const tokenJson = await tokenRes.json();
     if (!tokenRes.ok || !tokenJson.access_token) {
-      throw new Error(`Google token refresh failed: ${JSON.stringify(tokenJson)}`);
+      const safeDetails = {
+        status: tokenRes.status,
+        error: typeof tokenJson?.error === "string" ? tokenJson.error : undefined,
+        error_description: typeof tokenJson?.error_description === "string" ? tokenJson.error_description : undefined,
+      };
+      logStep("google token refresh failed", safeDetails);
+      throw new Error(`Google token refresh failed: ${safeDetails.error ?? "unknown"}`);
     }
 
     logStep("google token refresh success");
@@ -582,9 +629,39 @@ Deno.serve(async (req) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logError("return error", error);
-    return json(500, {
-      success: false,
-      error: message,
-    });
+
+    if (message.includes("Google-Drive-Secrets fehlen")) {
+      return errorResponse(
+        503,
+        "CONFIG_MISSING",
+        "Cloud-Upload ist nicht konfiguriert. Bitte Serverkonfiguration prüfen.",
+      );
+    }
+
+    if (message.toLowerCase().includes("google token refresh") && isGoogleAuthErrorMessage(message)) {
+      return errorResponse(
+        503,
+        "GOOGLE_AUTH_ERROR",
+        "Cloud-Upload aktuell nicht verfügbar. Bitte Google-Drive-Autorisierung/Refresh-Token prüfen.",
+      );
+    }
+
+    if (message.toLowerCase().includes("google token refresh")) {
+      return errorResponse(
+        503,
+        "GOOGLE_AUTH_ERROR",
+        "Cloud-Upload aktuell nicht verfügbar. Bitte Google-Drive-Autorisierung/Serverkonfiguration prüfen.",
+      );
+    }
+
+    if (message.toLowerCase().includes("drive")) {
+      return errorResponse(
+        502,
+        "GOOGLE_DRIVE_ERROR",
+        "Cloud-Upload ist aktuell nicht erreichbar. Bitte später erneut versuchen.",
+      );
+    }
+
+    return errorResponse(500, "INTERNAL_ERROR", "Unerwarteter Serverfehler beim Cloud-Upload.");
   }
 });
