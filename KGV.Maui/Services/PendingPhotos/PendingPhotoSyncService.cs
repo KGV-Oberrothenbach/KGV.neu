@@ -92,7 +92,8 @@ public sealed class PendingPhotoSyncService
                 }
                 catch (Exception ex)
                 {
-                    _pendingPhotoService.MarkFailed(latest, ex.Message);
+                    System.Diagnostics.Debug.WriteLine($"[PendingPhotoSync] UploadAsync failed for {latest.Id}: {ex}");
+                    _pendingPhotoService.MarkFailed(latest, "Upload fehlgeschlagen. Erneuter Versuch möglich.");
                     result.Failed++;
                     continue;
                 }

@@ -218,6 +218,56 @@ Offene/fehlgeschlagene Foto-Uploads sollen in der MAUI-Navigation sichtbar werde
 ### Validierung
 - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich (nur bekannte Warnungen außerhalb dieses Blocks).
   - `ZaehlerwechselEinbauPage`: Foto wird persistiert + queued; im Workflow-State wird die stabile `PendingPhotoId` referenziert.
+
+---
+
+## 2026-03-31 – Prompt 5/5: Foto-Upload-Block fachlich abgeschlossen (UI-Randfälle geglättet, Gerätetest-Guardrails)
+
+### Ziel dieses Schritts
+Den in Prompt 1–4 aufgebauten Pending-Foto-Upload-Block minimal-invasiv abrunden, damit echte Android-Gerätetests (online/offline/WLAN-only/Retry/App-Neustart) fachlich klarer und robuster durchführbar sind.
+
+### Geprüft (Istzustand)
+- Pending-Übersicht und Menü-Count:
+  - `KGV.Maui/Pages/PendingPhotoUploadsPage.cs`
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoMenuState.cs`
+  - `KGV.Maui/AdminShell.cs`
+- Retry-/Sync:
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoSyncService.cs`
+- Produktive Foto-Flows:
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+
+### Ehrlicher Istzustand vor Umsetzung
+- Pending-Übersichtsseite zeigte bei „keine Items“ die Meldung über das Statuslabel (wirkte wie ein Fehlerzustand) und der Retry-Button war auch ohne offene Items klickbar.
+- In einzelnen Catch-Pfaden wurden roh `Exception.Message`-Texte in UI-Labels geschrieben (nicht ideal für Endnutzer/Support).
+
+### Umgesetzt
+1) Pending-Übersichtsseite fachlich gerundet (ohne UI-Umbau)
+   - klarer Empty-State-Text (`_emptyLabel`) statt „Status wie Fehler“
+   - Retry-Button wird deaktiviert, wenn keine offenen Uploads vorhanden sind
+   - Menüpunkt-Refresh bleibt konsistent nach Refresh/Retry
+
+2) Fehlertexte gehärtet (keine rohen technischen Messages als Haupttext)
+   - `PendingPhotoSyncService`: bei unerwarteten Upload-Exceptions kurze nutzerverständliche Meldung; Details nur via Debug-Log
+   - `ZaehlerwechselEinbauPage`: unerwartete Exceptions → kurze Statusmeldung + Debug-Log
+
+### Ergebnis
+- Nutzerführung in `↳ Foto-Upload (X)` ist klarer:
+  - leerer Zustand wird als „fertig“ lesbar
+  - Retry ist nur aktiv, wenn wirklich offene Items existieren
+- Gerätetest-Pfade sind robuster gegen „rohe Exception“-Anzeige, ohne neue Diagnose-/Parallelarchitektur.
+
+### Gerätetest-Checkliste (manuell)
+- Ablesung mit Foto bei Netz vorhanden → Upload direkt, Pending wird entfernt, lokale Datei gelöscht.
+- Ablesung mit Foto ohne/ungeeignetes Netz bzw. WLAN-only → Foto bleibt Pending, Hinweistext in Ablesung; Retry später über `↳ Foto-Upload (X)`.
+- Zählereinbau + Foto, App-Neustart zwischen Einbau und Anfangsablesung → Pending-ID bleibt im Workflow; Anfangsablesung nutzt das persistierte Foto.
+- Retry über `↳ Foto-Upload (X)` → Menü zählt runter/verschwindet bei 0.
+
+### Abgrenzung
+- kein WorkManager / kein Hintergrunddienst
+- keine Nebenbaustellen (Wartungsverträge / Resume-Reset / Closed-after-timeout) begonnen
+- `KGV.ReleaseManager/KGV_Fortschritt_ausfuehrlich.md` ausdrücklich nicht als Block-Datei angefasst/committet
+
   - `ZaehlerwechselWorkflowState.PendingAblesungFlowContext`: erweitert um `PendingPhotoId`/`PendingPhotoLocalPath`.
   - `AblesungErfassenPage.ApplyPendingPhotoSelection`: lädt Foto bei Pending-Initialflow aus dem app-internen Speicher anhand der `PendingPhotoId` (Fallback auf alte Byte[]-Übergabe bleibt).
 - DI/Startup:

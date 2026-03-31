@@ -12,7 +12,9 @@ public sealed class PendingPhotoUploadsPage : ContentPage
     private readonly PendingPhotoMenuState _menuState;
 
     private readonly Label _statusLabel;
+    private readonly Label _emptyLabel;
     private readonly CollectionView _list;
+    private readonly Button _retryAllButton;
     private bool _isBusy;
 
     public PendingPhotoUploadsPage(PendingPhotoQueue queue, PendingPhotoSyncService syncService, PendingPhotoMenuState menuState)
@@ -30,12 +32,20 @@ public sealed class PendingPhotoUploadsPage : ContentPage
             LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap
         };
 
-        var retryAllButton = new Button { Text = "Offene Uploads erneut versuchen" };
-        retryAllButton.Clicked += async (_, _) => await RetryAllAsync();
+        _retryAllButton = new Button { Text = "Offene Uploads erneut versuchen" };
+        _retryAllButton.Clicked += async (_, _) => await RetryAllAsync();
 
         _statusLabel = new Label
         {
             TextColor = Colors.DarkSlateBlue,
+            LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap,
+            IsVisible = false
+        };
+
+        _emptyLabel = new Label
+        {
+            Text = "Keine offenen Foto-Uploads.",
+            TextColor = Colors.Gray,
             LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap,
             IsVisible = false
         };
@@ -56,8 +66,9 @@ public sealed class PendingPhotoUploadsPage : ContentPage
                 {
                     new Label { Text = "Foto-Uploads", FontSize = 24, FontAttributes = FontAttributes.Bold },
                     infoLabel,
-                    retryAllButton,
+                    _retryAllButton,
                     _statusLabel,
+                    _emptyLabel,
                     _list
                 }
             }
@@ -68,8 +79,6 @@ public sealed class PendingPhotoUploadsPage : ContentPage
     {
         base.OnAppearing();
         RefreshList();
-            if (Shell.Current is AdminShell adminShell)
-                adminShell.RefreshPendingPhotoUploadsMenu();
     }
 
     private async Task RetryAllAsync()
@@ -122,14 +131,11 @@ public sealed class PendingPhotoUploadsPage : ContentPage
         _list.ItemsSource = items;
         _menuState.Refresh();
 
+        _retryAllButton.IsEnabled = !_isBusy && items.Count > 0;
+        _emptyLabel.IsVisible = items.Count == 0;
+
         if (Shell.Current is AdminShell adminShell)
             adminShell.RefreshPendingPhotoUploadsMenu();
-
-        if (items.Count == 0)
-        {
-            _statusLabel.IsVisible = true;
-            _statusLabel.Text = "Keine offenen Foto-Uploads.";
-        }
     }
 
     private static View CreateItemTemplate()

@@ -288,7 +288,8 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
         }
         catch (Exception ex)
         {
-            _statusLabel.Text = ex.Message;
+            System.Diagnostics.Debug.WriteLine($"[ZaehlerwechselEinbauPage] Save failed: {ex}");
+            _statusLabel.Text = "Unerwarteter Fehler beim Speichern.";
         }
         finally
         {
