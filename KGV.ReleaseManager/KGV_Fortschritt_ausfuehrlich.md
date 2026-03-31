@@ -47,6 +47,22 @@ Bei Foto-Upload-Testfehlern eine eindeutige Support-ID ausgeben, damit Admins/Su
 ### Validierung
 - `dotnet build` erfolgreich.
 
+## Stand 2026-03-31 – Foto-Upload Fehlerlogik in MAUI-Einstiegspunkten vereinheitlicht
+
+### Ziel dieses Schritts
+Prüfen, ob neben dem Foto-Upload-Testpfad weitere reale MAUI-Foto-Upload-Einstiegspunkte existieren, und dort die gleiche Support-ID-/Fehlerlogik minimal-invasiv anwenden.
+
+### Befund
+- Reale Upload-Nutzung von `kgv-upload-photo` außerhalb des Testbuttons vorhanden in `KGV.Maui/Pages/AblesungErfassenPage.cs` (produktiver Ablese-Flow: Foto wird hochgeladen und `FotoPfad` in DB gespeichert).
+- `ZaehlerwechselAusbauPage` und `ZaehlerwechselEinbauPage` speichern aktuell keine Fotos.
+- WPF hat nur den Diagnose-/Testpfad `FotoUploadTestViewModel` (kein produktiver Foto-Upload-Flow im UI gefunden).
+
+### Umgesetzt
+- `AblesungErfassenPage`: Bei fehlgeschlagenem Foto-Upload wird die `Support-ID` (request_id) zusätzlich zur nutzerverständlichen Fehlmeldung angezeigt.
+
+### Validierung
+- `dotnet build` erfolgreich.
+
 ## Stand 2026-03-30 – Kurzkorrektur: Inno-Setup-Prüfung im Systemcheck auf reale ExitCode-Semantik gehärtet
 
 ### Ziel dieses Schritts

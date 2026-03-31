@@ -349,9 +349,14 @@ public sealed class AblesungErfassenPage : ContentPage
 
             if (!photoResult.Success || string.IsNullOrWhiteSpace(photoResult.RelativePath))
             {
-                _statusLabel.Text = string.IsNullOrWhiteSpace(photoResult.ErrorSummary)
+                var message = string.IsNullOrWhiteSpace(photoResult.ErrorSummary)
                     ? "Das Foto konnte nicht hochgeladen werden."
                     : photoResult.ErrorSummary;
+
+                if (!string.IsNullOrWhiteSpace(photoResult.RequestId))
+                    message = $"{message}{Environment.NewLine}Support-ID: {photoResult.RequestId}";
+
+                _statusLabel.Text = message;
                 return;
             }
 
