@@ -2,6 +2,70 @@
 
 ---
 
+## 2026-03-31 – Prompt 3/3: Timeout-/Resume-Block fachlich abgerundet und sauber abgeschlossen
+
+- Vor dem Abschluss den realen Repo-Stand erneut geprüft und gegen Prompt `1/3` und `2/3` abgeglichen.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - offen im Arbeitsbaum war für diesen Block real nur noch:
+    - `KGV.Maui/App.xaml.cs`
+  - blockfremd lokal geändert war zusätzlich `.github/copilot-instructions.md`; diese Datei wurde bewusst nicht angefasst und nicht mitgenommen
+  - untracked `AWR.bat` und `Android_Wpf_release_batch_v4.bat` blieben ebenfalls bewusst unangetastet
+- Direkt geprüft wurden:
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/Settings/AppSettings.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - relevante flüchtige State-Klassen nur soweit für den Timeout-Reset nötig
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Befund vor dem Fix:
+  - der fachliche Kern aus Prompt `2/3` war bereits vorhanden:
+    - persistente Background-Zeit-Erfassung
+    - zentrale Resume-Dauerberechnung
+    - Login-Reset bei `> 15` Minuten
+    - Leeren flüchtiger Session-/Navigationszustände
+    - Erhalt persistenter Pending-Fotos und Queue-Daten
+  - echte Restkante war nur noch kleiner Lifecycle-/Guardrail-Feinschliff:
+    - defensive Fehlerbehandlung im Resume-Handler
+    - klarere Logmarker für gerätetest-nahe Nachvollziehbarkeit
+    - expliziter Marker für bereits laufenden Reset statt stiller Rückkehr
+- Minimal umgesetzt:
+  - `KGV.Maui/App.xaml.cs`
+    - Resume-Verarbeitung jetzt zusätzlich defensiv in kleinem `try/catch`
+    - zusätzliche Lifecycle-Marker ergänzt:
+      - `APP_RESUME_TIMEOUT_NO_TIMESTAMP`
+      - `APP_RESUME_TIMEOUT_WITHIN_THRESHOLD`
+      - `APP_RESUME_TIMEOUT_SKIPPED_NO_SESSION`
+      - `APP_RESUME_TIMEOUT_ALREADY_RUNNING`
+      - `APP_RESUME_TIMEOUT_COMPLETED`
+    - doppelte parallele Timeout-Resets werden weiterhin verhindert und jetzt zusätzlich explizit protokolliert
+- Wichtig für die Blockgrenze:
+  - keine Änderung am abgeschlossenen Foto-Upload-Block
+  - keine Änderung an Pending-Foto-Queue/-Retry-/Sync-Logik
+  - keine Änderung am Wartungsvertragsblock
+  - kein weiterer Lifecycle-Umbau außerhalb des Timeout-Falls
+  - blockfremde lokale Dateien blieben vollständig draußen
+- Fachliches Ergebnis dieses Abschlussblocks:
+  - Resume unterhalb der Schwelle arbeitet normal weiter
+  - Resume oberhalb der Schwelle setzt sauber auf Login zurück
+  - mehrfache Resume-/Reset-Situationen sind robuster und im Diagnose-Log klarer nachvollziehbar
+  - die Nutzerführung bleibt kurz und nicht-technisch
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+    - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+  - zusätzlich WPF-Gegenprüfung durchgeführt:
+    - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrliche Abschlussprüfung:
+    - keine Regression im normalen Login-Flow => build- und code-seitig ja
+    - Resume-Timeout bleibt stabil => code-seitig ja
+    - Pending-Fotos bleiben erhalten => code-seitig ja
+    - Navigation bleibt konsistent => code-seitig ja
+- Timeout-/Resume-Thema mit Prompt `3/3` jetzt abgeschlossen.
+- Bewusst offen / sinnvolle nächste To-dos außerhalb dieses Blocks:
+  - echter Android-Gerätetest mit den neuen Lifecycle-Markern
+  - allgemeiner Lifecycle-/ANR-Feinschliff außerhalb des reinen Timeout-Falls
+
 ## 2026-03-31 – Prompt 2/3: Resume-Timeout ab 15 Minuten sauber auf Login/Root zurückgesetzt
 
 - Vor dem Block den realen Repo-/Arbeitsstand erneut geprüft und gegen den vorhandenen Prompt-1/3-Stand abgeglichen.

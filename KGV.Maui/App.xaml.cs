@@ -88,28 +88,50 @@ public partial class App : Application
 
     private async Task HandleWindowResumedAsync()
     {
-        var delta = Settings.AppSettings.TryGetTimeSinceLastBackgroundUtc(DateTime.UtcNow);
+        try
+        {
+            var delta = Settings.AppSettings.TryGetTimeSinceLastBackgroundUtc(DateTime.UtcNow);
 
-        Services.Diagnostics.AppFileLog.Marker("APP_RESUMED");
-        Services.Diagnostics.AppFileLog.Info("KGV.Lifecycle", delta == null
-            ? "App resumed (kein Background-Timestamp)."
-            : $"App resumed nach {delta.Value.TotalSeconds:0} Sekunden im Hintergrund.");
+            Services.Diagnostics.AppFileLog.Marker("APP_RESUMED");
+            Services.Diagnostics.AppFileLog.Info("KGV.Lifecycle", delta == null
+                ? "App resumed (kein Background-Timestamp)."
+                : $"App resumed nach {delta.Value.TotalSeconds:0} Sekunden im Hintergrund.");
 
-        Settings.AppSettings.ClearBackgroundedTimestamp();
+            Settings.AppSettings.ClearBackgroundedTimestamp();
 
-        if (delta == null || delta <= ResumeTimeoutThreshold)
-            return;
+            if (delta == null)
+            {
+                Services.Diagnostics.AppFileLog.Marker("APP_RESUME_TIMEOUT_NO_TIMESTAMP");
+                return;
+            }
 
-        if (_userContextState.CurrentUserId == null || _userContextState.CurrentUserContext == null)
-            return;
+            if (delta <= ResumeTimeoutThreshold)
+            {
+                Services.Diagnostics.AppFileLog.Marker("APP_RESUME_TIMEOUT_WITHIN_THRESHOLD");
+                return;
+            }
 
-        await ResetToLoginAfterResumeTimeoutAsync(delta.Value);
+            if (_userContextState.CurrentUserId == null || _userContextState.CurrentUserContext == null)
+            {
+                Services.Diagnostics.AppFileLog.Marker("APP_RESUME_TIMEOUT_SKIPPED_NO_SESSION");
+                return;
+            }
+
+            await ResetToLoginAfterResumeTimeoutAsync(delta.Value);
+        }
+        catch (Exception ex)
+        {
+            Services.Diagnostics.AppFileLog.Error("KGV.Lifecycle", "Resume-Verarbeitung ist fehlgeschlagen.", ex);
+        }
     }
 
     private async Task ResetToLoginAfterResumeTimeoutAsync(TimeSpan backgroundDuration)
     {
         if (_resumeTimeoutResetInProgress)
+        {
+            Services.Diagnostics.AppFileLog.Marker("APP_RESUME_TIMEOUT_ALREADY_RUNNING");
             return;
+        }
 
         _resumeTimeoutResetInProgress = true;
         try
@@ -127,6 +149,7 @@ public partial class App : Application
 
             _pendingLoginMessage = "Die App war zu lange im Hintergrund. Bitte erneut anmelden.";
             await SwitchToCurrentRootAsync();
+            Services.Diagnostics.AppFileLog.Marker("APP_RESUME_TIMEOUT_COMPLETED");
         }
         finally
         {

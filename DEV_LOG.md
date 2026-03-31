@@ -2,6 +2,50 @@
 
 ---
 
+## 2026-03-31 – Timeout-/Resume-Block fachlich abgerundet und sauber abgeschlossen
+
+- Den realen Istzustand von Prompt `2/3` zuerst geprüft:
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/Settings/AppSettings.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - relevante flüchtige State-Klassen nur lesend
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Befund vor dem Abschlussblock:
+  - der fachliche Kern war bereits umgesetzt:
+    - Background-Zeitstempel vorhanden
+    - Resume-Dauer vorhanden
+    - Reset auf Login bei mehr als 15 Minuten vorhanden
+    - flüchtige States wurden bereits geleert
+    - persistente Pending-Fotos blieben bereits erhalten
+  - offen blieb nur noch kleiner Lifecycle-/Guardrail-Feinschliff im zentralen Resume-Pfad
+- Minimal umgesetzt:
+  - `KGV.Maui/App.xaml.cs`
+    - Resume-Verarbeitung jetzt zusätzlich in kleinem `try/catch`, damit ein Fehler im Resume-Handler nicht unkontrolliert durchläuft
+    - zusätzliche kleine Lifecycle-Marker für gerätetest-nahe Nachvollziehbarkeit ergänzt:
+      - `APP_RESUME_TIMEOUT_NO_TIMESTAMP`
+      - `APP_RESUME_TIMEOUT_WITHIN_THRESHOLD`
+      - `APP_RESUME_TIMEOUT_SKIPPED_NO_SESSION`
+      - `APP_RESUME_TIMEOUT_ALREADY_RUNNING`
+      - `APP_RESUME_TIMEOUT_COMPLETED`
+    - parallele bzw. doppelte Timeout-Resets werden jetzt weiterhin verhindert und zusätzlich explizit geloggt
+- Wichtig für die Blockgrenze:
+  - keine Änderung am Foto-Upload-Block
+  - keine Änderung an Pending-Foto-Queue/-Sync-Logik
+  - keine Änderung am Wartungsvertragsblock
+  - keine Änderung an blockfremden lokalen Dateien
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+    - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Ehrlicher Abschlussstand:
+  - Resume unter 15 Minuten => normales Weiterarbeiten
+  - Resume über 15 Minuten => sauberer Root-Reset auf Login
+  - doppelte Resets werden abgefangen
+  - Gerätetest ist über die zusätzlichen Lifecycle-Marker klarer nachvollziehbar
+  - Timeout-/Resume-Thema für diesen 3/3-Block fachlich abgeschlossen => ja
+
 ## 2026-03-31 – Resume-Timeout ab 15 Minuten sauber auf Login/Root zurückgesetzt
 
 - Den realen Zwischenstand nach Prompt `1/3` zuerst geprüft:
