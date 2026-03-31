@@ -23,29 +23,40 @@ public sealed class BuildCommandService
         string projectPath,
         string packageFormat,
         string packageName,
-        string keystorePath,
-        string keyAlias,
-        string storePassword,
-        string keyPassword)
+        string? keystorePath,
+        string? keyAlias,
+        string? storePassword,
+        string? keyPassword)
     {
         var arguments = new StringBuilder();
         arguments.Append($"publish \"{projectPath}\" -c Release -f net9.0-android");
         arguments.Append($" /p:AndroidPackageFormat={packageFormat}");
         arguments.Append(" /p:AndroidCreatePackagePerAbi=false");
-        arguments.Append(" /p:AndroidKeyStore=true");
+        var hasKeystore = !string.IsNullOrWhiteSpace(keystorePath);
+        var hasAlias = !string.IsNullOrWhiteSpace(keyAlias);
+        var hasPassword = !string.IsNullOrWhiteSpace(storePassword) || !string.IsNullOrWhiteSpace(keyPassword);
+        var enableSigning = hasKeystore && hasAlias && hasPassword;
+
+        arguments.Append($" /p:AndroidKeyStore={(enableSigning ? "true" : "false")}");
         if (!string.IsNullOrWhiteSpace(packageName))
         {
             arguments.Append($" /p:ApplicationId=\"{packageName}\"");
         }
 
-        arguments.Append($" /p:AndroidSigningKeyStore=\"{keystorePath}\"");
-        arguments.Append($" /p:AndroidSigningStorePass=$({AndroidSigningStorePasswordProperty})");
-        arguments.Append($" /p:AndroidSigningKeyAlias=\"{keyAlias}\"");
-        arguments.Append($" /p:AndroidSigningKeyPass=$({AndroidSigningKeyPasswordProperty})");
+        if (enableSigning)
+        {
+            arguments.Append($" /p:AndroidSigningKeyStore=\"{keystorePath}\"");
+            arguments.Append($" /p:AndroidSigningStorePass=$({AndroidSigningStorePasswordProperty})");
+            arguments.Append($" /p:AndroidSigningKeyAlias=\"{keyAlias}\"");
+            arguments.Append($" /p:AndroidSigningKeyPass=$({AndroidSigningKeyPasswordProperty})");
+        }
 
         var startInfo = CreateDotnetCommand(projectPath, arguments.ToString());
-        startInfo.Environment[AndroidSigningStorePasswordProperty] = storePassword;
-        startInfo.Environment[AndroidSigningKeyPasswordProperty] = keyPassword;
+        if (enableSigning)
+        {
+            startInfo.Environment[AndroidSigningStorePasswordProperty] = storePassword ?? string.Empty;
+            startInfo.Environment[AndroidSigningKeyPasswordProperty] = keyPassword ?? string.Empty;
+        }
         return startInfo;
     }
 

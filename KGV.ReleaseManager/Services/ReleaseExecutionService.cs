@@ -714,20 +714,17 @@ public sealed class ReleaseExecutionService
                 errors.Add("Das MAUI-Projekt `KGV.Maui.csproj` wurde nicht gefunden.");
             }
 
-            if (string.IsNullOrWhiteSpace(request.AndroidKeystorePath) || !File.Exists(request.AndroidKeystorePath))
-            {
-                errors.Add("Für Android-Builds fehlt ein gültiger Keystore-Pfad.");
-            }
+            var hasKeystore = !string.IsNullOrWhiteSpace(request.AndroidKeystorePath) && File.Exists(request.AndroidKeystorePath);
+            var hasAlias = !string.IsNullOrWhiteSpace(request.AndroidKeystoreAlias);
+            var hasStorePassword = !string.IsNullOrWhiteSpace(request.AndroidStorePassword);
+            var hasKeyPassword = !string.IsNullOrWhiteSpace(request.AndroidKeyPassword);
 
-            if (string.IsNullOrWhiteSpace(request.AndroidKeystoreAlias))
-            {
-                errors.Add("Für Android-Builds fehlt der Keystore-Alias.");
-            }
-
-            if (string.IsNullOrWhiteSpace(request.AndroidStorePassword))
-            {
-                errors.Add("Für Android-Builds fehlt das Keystore-Passwort zur Laufzeit.");
-            }
+            if (!hasKeystore)
+                messages.Add("Hinweis: Kein Android-Keystore konfiguriert. Android-Artefakte werden (sofern möglich) unsigniert gebaut.");
+            if (!hasAlias)
+                messages.Add("Hinweis: Kein Android-Keystore-Alias konfiguriert. Android-Artefakte werden (sofern möglich) unsigniert gebaut.");
+            if (!hasStorePassword && !hasKeyPassword)
+                messages.Add("Hinweis: Keine Android-Signing-Passwörter eingegeben. Android-Artefakte werden (sofern möglich) unsigniert gebaut.");
 
             if (request.BuildApk && string.IsNullOrWhiteSpace(request.ApkOutputPath))
             {

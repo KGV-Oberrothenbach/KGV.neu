@@ -102,6 +102,23 @@
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich (nur bekannte Warnungen in `HomeManagementPage.cs`).
   - `dotnet publish ... -c Release -p:AndroidPackageFormat=aab -p:AndroidKeyStore=false` erfolgreich.
     - AABs liegen unter `KGV.Maui\bin\Release\net9.0-android\publish\` (`de.kgv.oberrothenbach*.aab`).
+
+## 2026-03-31 – Release Manager: Android Signing nach csproj-Bereinigung weiterhin sauber externalisiert
+
+- Ausgangslage:
+  - `KGV.Maui.csproj` enthält keine hardcodierten Signing-Passwörter und keinen festen `_secrets`-Keystorepfad mehr.
+  - Android-Signing muss im `KGV.ReleaseManager` weiter über lokale Settings (Keystore/Alias) + Laufzeitpasswörter erfolgen.
+- Befund im Repo:
+  - `BuildCommandService.CreateAndroidPublishCommand(...)` transportiert Passwörter bereits korrekt als Prozess-Umgebungsvariablen.
+  - Gleichzeitig waren Keystore/Alias/StorePass im Release-Lauf als Pflichtbedingungen verdrahtet.
+  - `AndroidKeyStore=true` + Signing-Properties wurden immer übergeben.
+- Minimal umgesetzt:
+  - Signing wird im Publish-Command nur dann aktiviert (inkl. `AndroidKeyStore=true` + Signing-Properties), wenn Keystore + Alias + Passwortdaten tatsächlich vorhanden sind.
+  - Fehlen Signing-Daten, wird `AndroidKeyStore=false` gesetzt und der Release-Lauf liefert Hinweise statt harter Fehler.
+  - Keine Secrets werden geloggt oder im Repo hinterlegt.
+- Validierung:
+  - `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` erfolgreich.
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich.
       - InnerException-Typ
       - InnerException-Message
       - HTTP-Status wenn schon vorhanden

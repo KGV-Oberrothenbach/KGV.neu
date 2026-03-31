@@ -101,7 +101,37 @@ Repo-seitig belastbar prüfen, ob ein AAB-/Release-Testlauf für Google Play gru
 - Für echte Play-Tests ist Signing jetzt sauber als externer Schritt erforderlich (Publish/CI), statt im Repo „blind“ fest verdrahtet zu sein.
 
 ### Validierung
-- folgt: `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+- `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich (nur bekannte Warnungen)
+
+## Stand 2026-03-31 – Release Manager: Android-Signing nach csproj-Bereinigung sauber externalisiert (Signing optional, keine Secrets im Repo)
+
+### Ziel dieses Schritts
+Nach dem Entfernen der hardcodierten Android-Signing-Secrets aus `KGV.Maui.csproj` muss der Android-Buildpfad im `KGV.ReleaseManager` weiterhin nutzbar bleiben: signierte Artefakte sollen mit lokal konfiguriertem Keystore + Laufzeitpasswörtern gebaut werden können, ohne dass der Release Manager implizit wieder auf csproj-Secrets angewiesen ist.
+
+### Geprüft
+- `KGV.ReleaseManager/Services/BuildCommandService.cs` (Android `dotnet publish` Commandline + Environment-Secrets)
+- `KGV.ReleaseManager/Services/ReleaseExecutionService.cs` (Request-Validierung + Android-Buildschritt)
+- `KGV.ReleaseManager/Models/ReleaseManagerSettings.cs` / `ReleaseExecutionRequest.cs` (Settings: Keystore/Alias, Laufzeit-Secrets)
+- Referenz: `KGV.Maui/KGV.Maui.csproj` (neuer Istzustand ohne Signing-Secrets)
+
+### Ehrlicher Istzustand vor Umsetzung
+- Der Release Manager war bereits weitgehend externalisiert:
+  - Keystore-Pfad/Alias kommen aus Settings.
+  - Passwörter werden zur Laufzeit abgefragt und nur als Prozess-Umgebungsvariable an `dotnet publish` übergeben.
+- Allerdings war der Release Manager weiterhin so validiert/verdrahtet, dass Android-Builds zwingend an Keystore/Alias/Passwort gebunden waren.
+- Nach der csproj-Bereinigung braucht es einen sauberen Modus, in dem ein Android-Releasebuild auch ohne Signing-Daten starten kann (z. B. für reine Build-/AAB-Strukturvalidierung), ohne dass der Release Manager dabei Secrets loggt oder im Repo erwartet.
+
+### Umgesetzt
+- `BuildCommandService.CreateAndroidPublishCommand(...)` aktiviert `AndroidKeyStore=true` und übergibt `AndroidSigning*`-Properties nur noch, wenn Keystore + Alias + Passwortdaten tatsächlich vorhanden sind; sonst wird explizit `AndroidKeyStore=false` gesetzt.
+- `ReleaseExecutionService.ValidateRequest(...)` behandelt fehlende Signing-Daten nicht mehr als harte Fehler, sondern protokolliert verständliche Hinweise und lässt (sofern `dotnet publish` es zulässt) einen unsignierten Build zu.
+
+### Ergebnis
+- Android-Signing bleibt vollständig externalisiert (Settings + Runtime Prompt), ohne Secrets im Repo.
+- Release Manager kann bei Bedarf auch einen unsignierten Buildpfad nutzen, statt an csproj-Secrets zu hängen.
+
+### Validierung
+- `dotnet build KGV.ReleaseManager/KGV.ReleaseManager.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+- `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich (nur bekannte Warnungen)
 
 ## Stand 2026-03-31 – Zählereinbau: Speicherfehler diagnostizierbar gemacht (Zaehler-Insert liefert Ergebnis + fachliche Meldung)
 
