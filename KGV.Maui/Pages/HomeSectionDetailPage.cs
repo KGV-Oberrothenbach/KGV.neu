@@ -64,7 +64,12 @@ public sealed class HomeSectionDetailPage : ContentPage
         _subtitleLabel = new Label { FontSize = 14, TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _timeLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _contentLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
-        _htmlContentView = new WebView { HeightRequest = 420, IsVisible = false };
+        _htmlContentView = new WebView
+        {
+            IsVisible = false,
+            HorizontalOptions = LayoutOptions.Fill,
+            VerticalOptions = LayoutOptions.Fill
+        };
         _additionalInfoLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
         _registrationInfoLabel = new Label { LineBreakMode = LineBreakMode.WordWrap, TextColor = Colors.DarkSlateBlue };
         _statusLabel = new Label { LineBreakMode = LineBreakMode.WordWrap, TextColor = Colors.DarkRed };

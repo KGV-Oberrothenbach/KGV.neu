@@ -47,6 +47,31 @@ Bei Foto-Upload-Testfehlern eine eindeutige Support-ID ausgeben, damit Admins/Su
 ### Validierung
 - `dotnet build` erfolgreich.
 
+## Stand 2026-03-31 – MAUI Bekanntmachungen: HTML-Detail vollständig sichtbar und scrollbar (WebView nicht mehr abgeschnitten)
+
+### Ziel dieses Schritts
+In der MAUI-Detailansicht (Startseite → Detail) sollen Bekanntmachungen auch bei langen HTML-Inhalten vollständig lesbar sein. Der HTML-Bereich darf nicht durch eine fixe Höhe abgeschnitten werden und muss in der Seite sauber mitscrollen.
+
+### Geprüft
+- `KGV.Maui/Pages/HomeSectionDetailPage.cs` (Detailanzeige inkl. Bekanntmachungs-HTML)
+- WPF-Referenz: `KGV.Wpf/Views/HomeSectionDetailView.xaml.cs`
+- Shared HTML-Helfer: `KGV.Core/Utilities/HtmlContentHelper.cs`
+
+### Ehrlicher Istzustand vor Umsetzung
+- Bekanntmachungen wurden im MAUI-Detail über eine `WebView` angezeigt.
+- Die `WebView` hatte eine fixe `HeightRequest = 420`.
+- Dadurch wurde längerer HTML-Inhalt unten abgeschnitten; innerhalb der Seiten-`ScrollView` war der Inhalt nicht vollständig erreichbar.
+
+### Umgesetzt
+- Fixe Höhe der `WebView` entfernt.
+- `WebView` so konfiguriert, dass sie in der bestehenden `ScrollView` am verfügbaren Platz sauber mitwächst (Fill-Options), während die Seite weiterhin insgesamt scrollbar bleibt.
+
+### Ergebnis
+- Lange Bekanntmachungen sind in der MAUI-Detailansicht vollständig sichtbar und nach unten scrollbar.
+
+### Validierung
+- folgt: `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## Stand 2026-03-31 – Zählereinbau: Speicherfehler diagnostizierbar gemacht (Zaehler-Insert liefert Ergebnis + fachliche Meldung)
 
 ### Ziel dieses Schritts
