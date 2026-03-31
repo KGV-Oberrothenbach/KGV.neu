@@ -58,6 +58,41 @@
   - Uploadfehler wie `Socket closed` sind im bestehenden Testpfad genauer eingrenzbar
   - die UI bleibt kurz und zeigt nur kompakte Diagnosehinweise statt roher Fehlermeldungen
 - Validierung:
+
+---
+
+## 2026-03-31 – Prompt 1/5: Foto-Pending-Grundlage + „Fotos nur über WLAN hochladen“ (nur Basis, noch kein Retry/Queue)
+
+### Ziel dieses Schritts
+Die technische Grundlage schaffen, damit Fotos bei Bedarf lokal app-intern zwischengespeichert und später hochgeladen werden können – ohne Nutzer-Pfadabfrage und ohne Ablage in Galerie/privater Cloud. Zusätzlich eine persistente Option „Fotos nur über WLAN hochladen“ auf der Ablesen-Übersichtsseite vorbereiten.
+
+### Geprüft (Istzustand)
+- `KGV.Maui/Pages/AblesenOverviewPage.cs`
+  - enthält bereits eine Foto-Upload-Testsektion (Diagnosepfad) und ist damit ein geeigneter Startpunkt für den WLAN-Schalter.
+- `KGV.Maui/Settings/AppSettings.cs`
+  - vorhandene JSON-basierte User-Settings (AppDataDirectory), aber bislang ohne Foto-/Upload-Preference.
+- Lokale Persistenz für „Pending Uploads“ im MAUI-Produktpfad: in diesem Stand keine vorhandene DB/Queue für Foto-Pending gefunden → daher in diesem Block nur Modell + Dateispeicher (noch keine vollständige Queue/Retry-Mechanik).
+
+### Umgesetzt (nur Grundlage)
+- Persistente Option „Fotos nur über WLAN hochladen“ ergänzt:
+  - `KGV.Maui/Settings/PhotoUploadPreferences.cs` (Preference-Key `photo_upload_wifi_only`)
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`: Schalter + kurzer Hilfetext oben auf der Seite (vor den Kacheln)
+- App-interner Pending-Speicherort vorbereitet:
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoStorage.cs` nutzt `FileSystem.AppDataDirectory/pending/photos`
+  - keine Nutzerabfrage, keine Ablage in öffentlichen Medienordnern
+- Pending-Datenmodell vorbereitet:
+  - `KGV.Maui/Models/PendingPhotoUpload.cs` (ID, OperationType, Parzelle, Medium, LocalFilePath, FileName, ContentType, Status, CreatedAtUtc, AttemptCount/LastAttemptAtUtc, LastError)
+- Dateinamenschema für Pending-Fotos vorbereitet:
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoFileNameFactory.cs` erzeugt `(<typ>_)<YYYY-MM-DD>_<HH-mm-ss>_<Parzelle>_<medium>.jpg` mit robuster Token-Sanitisierung
+
+### Abgrenzung dieses Blocks
+- noch kein Retry-Service / keine Upload-Warteschlange
+- noch kein WorkManager / kein Hintergrunddienst
+- noch keine Anbindung der realen Foto-Flows (Ablesung/Zählerwechsel) an Pending-Speichern
+
+### Validierung
+- folgt im Anschluss über `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
     - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
   - ehrliche Abschlussprüfung:

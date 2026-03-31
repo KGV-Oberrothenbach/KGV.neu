@@ -5,10 +5,12 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Media;
 using Microsoft.Maui.Storage;
+using Microsoft.Maui.ApplicationModel;
 using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using KGV.Maui.Settings;
 
 namespace KGV.Maui.Pages;
 
@@ -27,6 +29,8 @@ public sealed class AblesenOverviewPage : ContentPage
     private readonly Picker _kindPicker;
     private readonly Picker _mediumPicker;
     private readonly DatePicker _datumPicker;
+    private readonly Switch _wifiOnlySwitch;
+    private readonly Label _wifiOnlyHelpLabel;
     private byte[]? _selectedFileContent;
     private string _selectedFileName = string.Empty;
     private string _selectedContentType = "application/octet-stream";
@@ -67,6 +71,16 @@ public sealed class AblesenOverviewPage : ContentPage
         _zaehlernummerEntry = new Entry { Placeholder = "Zählernummer (optional)" };
         _datumPicker = new DatePicker { Date = DateTime.Today };
 
+        _wifiOnlySwitch = new Switch { IsToggled = PhotoUploadPreferences.WifiOnly };
+        _wifiOnlySwitch.Toggled += (_, e) => PhotoUploadPreferences.WifiOnly = e.Value;
+
+        _wifiOnlyHelpLabel = new Label
+        {
+            Text = "Wenn aktiviert, werden Fotos lokal zwischengespeichert und erst bei WLAN hochgeladen.",
+            TextColor = Colors.Gray,
+            LineBreakMode = LineBreakMode.WordWrap
+        };
+
         _uploadButton = new Button { Text = "Upload testen" };
         _uploadButton.Clicked += async (_, _) => await UploadPhotoAsync();
 
@@ -93,6 +107,27 @@ public sealed class AblesenOverviewPage : ContentPage
                 Children =
                 {
                     new Label { Text = "Ablesen", FontSize = 24, FontAttributes = FontAttributes.Bold },
+                    new VerticalStackLayout
+                    {
+                        Spacing = 6,
+                        Children =
+                        {
+                            new HorizontalStackLayout
+                            {
+                                Spacing = 12,
+                                Children =
+                                {
+                                    new Label
+                                    {
+                                        Text = "Fotos nur über WLAN hochladen",
+                                        VerticalOptions = LayoutOptions.Center
+                                    },
+                                    _wifiOnlySwitch
+                                }
+                            },
+                            _wifiOnlyHelpLabel
+                        }
+                    },
                     new Label { Text = "Bitte wähle eine Funktion.", LineBreakMode = LineBreakMode.WordWrap },
                     CreateTile("Ablesung erfassen", "RFID-Tag am Gerät scannen; wenn NFC nicht nutzbar ist, steht ein fachlicher Ersatzweg über Parzelle und Medium bereit.", () => Shell.Current.GoToAsync(nameof(AblesungErfassenPage))),
                     CreateTile("Zählerwechsel", "RFID-Tag am Gerät scannen; wenn NFC nicht nutzbar ist, steht ein fachlicher Ersatzweg über Parzelle und Medium bereit.", () => Shell.Current.GoToAsync(nameof(ZaehlerwechselPage))),
@@ -180,12 +215,30 @@ public sealed class AblesenOverviewPage : ContentPage
 
         try
         {
+            var permissionStatus = await Permissions.CheckStatusAsync<Permissions.Camera>();
+            if (permissionStatus != PermissionStatus.Granted)
+                permissionStatus = await Permissions.RequestAsync<Permissions.Camera>();
+
+            if (permissionStatus != PermissionStatus.Granted)
+            {
+                SetStatus("Kamera-Berechtigung fehlt. Bitte in den App-Einstellungen aktivieren.", success: false);
+                return;
+            }
+
             var file = await MediaPicker.Default.CapturePhotoAsync();
+
+            if (file == null)
+            {
+                SetStatus("Fotoauswahl abgebrochen.", success: false);
+                return;
+            }
+
             await LoadSelectedFileAsync(file);
         }
         catch (Exception ex)
         {
-            SetStatus($"Fotoaufnahme fehlgeschlagen: {ex.Message}", success: false);
+            System.Diagnostics.Debug.WriteLine(ex);
+            SetStatus("Fotoaufnahme fehlgeschlagen.", success: false);
         }
     }
 
@@ -194,11 +247,19 @@ public sealed class AblesenOverviewPage : ContentPage
         try
         {
             var file = await MediaPicker.Default.PickPhotoAsync();
+
+            if (file == null)
+            {
+                SetStatus("Fotoauswahl abgebrochen.", success: false);
+                return;
+            }
+
             await LoadSelectedFileAsync(file);
         }
         catch (Exception ex)
         {
-            SetStatus($"Fotoauswahl fehlgeschlagen: {ex.Message}", success: false);
+            System.Diagnostics.Debug.WriteLine(ex);
+            SetStatus("Fotoauswahl fehlgeschlagen.", success: false);
         }
     }
 
