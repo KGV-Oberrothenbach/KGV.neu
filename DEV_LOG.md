@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-03-31 – MAUI Ablesen UI nach erfolgreichem Scan beruhigt
+
+- Den realen MAUI-Ablesen-Pfad zuerst direkt geprüft:
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - ergänzend die bestehende gemeinsame Scanlogik in `KGV.Maui/Pages/RfidScanWorkflowPage.cs` und `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+- Ehrlicher Befund vor dem Fix:
+  - die produktive Ablesen-Seite zeigte nach erfolgreichem aktivem Scan weiter parallel den festen Bereich `RFID-Scan`, den Fallback-Bereich und zusätzlich noch die Einordnungssektion
+  - dadurch war die UI im aktiven Ablese-Zustand unnötig unruhig, obwohl fachlich nur noch `Ablesekontext` und `Ablesen` relevant sind
+  - der Scan- und Ablesepfad selbst funktionierte bereits; betroffen war nur die Sichtbarkeitslogik der Seite
+- Minimal umgesetzt:
+  - in `KGV.Maui/Pages/AblesungErfassenPage.cs`
+    - scanbezogene Einleitung in eine eigene sichtbarkeitssteuerbare Labelinstanz gezogen
+    - feste Sections `RFID-Scan` und `Fallback ohne NFC` als eigene Felder referenzierbar gemacht
+    - nach einem erfolgreichen aktiven Ablese-Kontext werden jetzt ausgeblendet:
+      - scanbezogene Einleitung
+      - `RFID-Scan`
+      - `Fallback ohne NFC`
+      - `Einordnung`
+    - sichtbar bleiben dann nur noch:
+      - `Ablesekontext`
+      - `Ablesen`
+  - kein Foto-Flow-Umbau
+  - kein Backend-/Supabase-Umbau
+  - kein neuer RFID- oder Zählerwechsel-Fachflow
+- Fachliches Ergebnis:
+  - nach erfolgreichem aktivem Scan ist die Ablesen-UI jetzt deutlich ruhiger
+  - der Nutzer sieht im Arbeitszustand nur noch den relevanten Kontext und das eigentliche Ableseformular
+  - der bestehende funktionierende Scan- und Speicherpfad bleibt unverändert erhalten
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+    - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+
 ## 2026-03-31 – Zähleranlage auf gemeinsame Tabelle `zaehler` umgestellt
 
 - Den realen Repo-/Git-Stand zuerst geprüft und den Block nur auf den gemeinsamen Zählerpfad plus Logdateien begrenzt.

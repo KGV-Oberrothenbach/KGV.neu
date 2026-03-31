@@ -2,6 +2,53 @@
 
 ---
 
+## 2026-03-31 – Prompt 1/1: MAUI Ablesen-UI nach erfolgreichem Scan auf `Ablesekontext` + `Ablesen` reduziert
+
+- Vor dem Block den realen Git-/Repo-Stand geprüft und nicht auf lokalen Altständen oder blockfremden offenen Dateien aufgebaut.
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - ergänzend die gemeinsame Scan-/Sichtbarkeitsbasis in
+    - `KGV.Maui/Pages/RfidScanWorkflowPage.cs`
+    - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+    - `KGV.Maui/State/ZaehlerwechselWorkflowState.cs`
+- Ehrlicher Befund vor dem Fix:
+  - der produktive Ablesen-/Scanpfad funktionierte fachlich bereits bis zum bestehenden Ableseformular
+  - nach erfolgreichem aktivem Scan blieben in `AblesungErfassenPage` aber weiterhin mehrere scanbezogene Hilfsbereiche sichtbar:
+    - scanbezogene Einleitung
+    - `RFID-Scan`
+    - `Fallback ohne NFC`
+    - `Einordnung`
+  - dadurch war die Seite im eigentlichen Arbeitszustand unnötig unruhig, obwohl fachlich nur noch `Ablesekontext` und `Ablesen` relevant sind
+  - es war kein Backendproblem und kein Foto-Problem, sondern reine Sichtbarkeitslogik in der aktiven MAUI-Seite
+- Minimal umgesetzt:
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+    - scanbezogene Einleitung in ein eigenes steuerbares UI-Element gezogen
+    - den festen Bereich `RFID-Scan` als eigene Section-Instanz referenzierbar gemacht
+    - den festen Bereich `Fallback ohne NFC` ebenso als eigene Section-Instanz referenzierbar gemacht
+    - in `ApplyResolution(...)` den aktiven Ablese-Zustand sauber abgegrenzt:
+      - bei erfolgreichem aktivem Scan werden ausgeblendet:
+        - scanbezogene Einleitung
+        - `RFID-Scan`
+        - `Fallback ohne NFC`
+        - `Einordnung`
+      - sichtbar bleiben dann nur noch:
+        - `Ablesekontext`
+        - `Ablesen`
+  - kein neuer Fachflow
+  - kein Foto-Flow-Umbau
+  - kein Supabase-/Shared-Umbau
+  - keine neue Seitenteilung
+- Fachliches Ergebnis dieses Blocks:
+  - nach erfolgreichem aktivem Scan ist die MAUI-Ablesen-Seite deutlich ruhiger
+  - der Nutzer sieht im Arbeitszustand nur noch den relevanten Ablesekontext und das Ableseformular
+  - der bestehende funktionierende Scan-, Kontext- und Speichervorgang bleibt unverändert erhalten
+- Validierung:
+  - dateibezogene Prüfung der geänderten MAUI-Seite auf direkte Fehler durchgeführt
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+    - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+  - ehrliche Abschlussbewertung fachlich:
+    - nach erfolgreichem Scan nur noch `Ablesekontext` + `Ablesen` sichtbar => code-seitig ja
+
 ## 2026-03-31 – Prompt 1/1: Zähleranlage auf gemeinsame Tabelle `zaehler` umgestellt und RFID-Vorbedingung fachlich abgefangen
 
 - Vor dem Block den realen Git-/Repo-Stand geprüft und nicht auf lokalen Altständen oder blockfremden offenen Dateien aufgebaut.
