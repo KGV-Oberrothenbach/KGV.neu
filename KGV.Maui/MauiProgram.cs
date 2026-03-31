@@ -68,6 +68,7 @@ public static class MauiProgram
         builder.Services.AddTransient<LoginPage>();
         builder.Services.AddTransient<HomeViewModel>();
         builder.Services.AddTransient<HomePage>();
+        builder.Services.AddTransient<AblesenOverviewPage>();
         builder.Services.AddTransient<HomeSectionDetailPage>();
         builder.Services.AddTransient<HomeManagementPage>();
         builder.Services.AddTransient<BekanntmachungenManagementPage>();

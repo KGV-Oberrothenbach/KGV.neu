@@ -7,6 +7,7 @@ using KGV.Maui;
 using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.State;
 using KGV.Maui.Settings;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
@@ -96,6 +97,14 @@ public class LoginPage : ContentPage
             Text = "Anmelden",
             Padding = new Thickness(16, 12),
             FontAttributes = FontAttributes.Bold
+        };
+        var versionLabel = new Label
+        {
+            Text = BuildVersionText(),
+            FontSize = 12,
+            TextColor = Colors.Gray,
+            HorizontalTextAlignment = TextAlignment.Center,
+            Margin = new Thickness(0, 12, 0, 0)
         };
         var setPasswordButton = new Button { Text = "Neues Passwort setzen", IsVisible = false };
         var verifyOtpButton = new Button { Text = "Code prüfen", IsVisible = false };
@@ -340,11 +349,22 @@ public class LoginPage : ContentPage
                 backToLoginButton,
                 _statusLabel,
                 _otpDiagnosticLabel,
-                _copyOtpDiagnosticButton
+                _copyOtpDiagnosticButton,
+                versionLabel
             }
         };
 
         ShowNormalLogin();
+    }
+
+    private static string BuildVersionText()
+    {
+        var version = AppInfo.Current.VersionString;
+        var build = AppInfo.Current.BuildString;
+
+        return string.IsNullOrWhiteSpace(build)
+            ? $"Version {version}"
+            : $"Version {version} (Build {build})";
     }
 
     private async void OnLoginClicked(object? sender, EventArgs e)

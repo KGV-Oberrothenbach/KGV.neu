@@ -2,6 +2,61 @@
 
 ---
 
+## 2026-03-31 – MAUI Foto-Testbutton und Versionshinweis ergänzt
+
+- Den realen Git-Stand zuerst geprüft:
+  - `main` liegt auf `origin/main`
+  - gleichzeitig bestehen blockfremde lokale Änderungen u. a. in `KGV.Core/Interfaces/IAuthService.cs`, `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`, `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`, `KGV.Maui/ViewModels/RfidScanContextViewModel.cs` sowie mehrere ungetrackte Batch-/Modelldateien
+  - diese Fremdstände wurden bewusst nicht als Grundlage verwendet
+- Für den Block gezielt geprüft:
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Infrastructure/Services/PhotoUploadTestService.cs`
+  - `KGV.Core/Interfaces/IPhotoUploadTestService.cs`
+  - `KGV.Core/Models/PhotoUploadTestRequest.cs`
+  - `KGV.Core/Models/PhotoUploadTestResult.cs`
+  - ergänzend der bestehende WPF-Referenzpfad `KGV.Wpf/ViewModels/FotoUploadTestViewModel.cs`
+- Ehrlicher Befund vor dem Fix:
+  - der produktive Uploadpfad für `kgv-upload-photo` ist bereits im Shared-Service `PhotoUploadTestService` vorhanden
+  - der Service liefert für den Testpfad bereits sichtbare Rückgabedaten wie `file_id`, `file_name`, `relative_path`, HTTP-Status und Rohantwort
+  - in MAUI gab es auf dem echten committed Produktpfad aber noch keinen kleinen Diagnoseeinstieg dafür
+  - eine bestehende frühere MAUI-Testseite liegt nur noch im Archiv und sollte laut Blockgrenze gerade nicht als eigener großer neuer Seitenpfad reaktiviert werden
+  - eine sichtbare Versionsanzeige aus dem realen AppInfo-Pfad war in MAUI bisher nicht vorhanden
+- Minimal umgesetzt:
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+    - kleinen Diagnosebereich `Foto-Upload testen` direkt auf dem stabilen Admin-/Vorstand-Pfad `Ablesen` ergänzt
+    - zwei kleine Einstiege für echten Gerätetest:
+      - `Foto aufnehmen`
+      - `Foto hinzufügen`
+    - vorhandenen Shared-Uploadservice `IPhotoUploadTestService` wiederverwendet; keine neue Backendlogik und keine neue Edge Function
+    - sichtbare Rückgabe knapp ergänzt:
+      - HTTP-Status
+      - `FileId`
+      - `Dateiname`
+      - `Pfad`
+      - bei Fehlern zusätzlich Rohantwort
+    - der normale Ablesen-Produktfluss bleibt unverändert; der Testbereich ist nur ein kleiner separater Diagnoseblock unter den normalen Kacheln
+  - `KGV.Maui/MauiProgram.cs`
+    - `AblesenOverviewPage` für DI registriert
+  - `KGV.Maui/AdminShell.cs`
+    - `Ablesen` zieht die Seite jetzt sauber über DI, damit der Testbereich den bestehenden Uploadservice direkt nutzen kann
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+    - kleiner sichtbarer Versionshinweis ergänzt
+    - Version wird real aus `AppInfo.Current.VersionString` und `AppInfo.Current.BuildString` abgeleitet, nicht hart codiert
+- Fachliches Ergebnis:
+  - auf einem echten committed MAUI-Produktpfad gibt es jetzt einen kleinen Foto-Test-/Diagnosebereich
+  - derselbe bestehende Uploadpfad wie im WPF-Testkontext ist damit auf Gerät testbar
+  - die App zeigt ihre Version jetzt sichtbar und nachvollziehbar direkt aus dem realen Produktpfad an
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+    - nur bekannte Warnungen in `KGV.Maui/Pages/HomeManagementPage.cs`
+  - ehrliche Abschlussprüfung:
+    - Foto-Testbutton vorhanden => ja
+    - Uploadpfad damit testbar => ja
+    - Versionshinweis sichtbar => ja
+
 ## 2026-03-31 – MAUI Ablesen UI nach erfolgreichem Scan beruhigt
 
 - Den realen MAUI-Ablesen-Pfad zuerst direkt geprüft:
