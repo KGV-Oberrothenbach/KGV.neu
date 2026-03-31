@@ -69,7 +69,7 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
                     new Label { Text = "Zählereinbau", FontSize = 24, FontAttributes = FontAttributes.Bold },
                     new Label
                     {
-                        Text = "Für den bekannten RFID-Kontext ohne aktiven Zähler wird nur der neue Zähler angelegt. Die Anfangsablesung folgt danach im bestehenden Ablese-Flow als eigene Ablesung mit `Art = einbau`.",
+                        Text = "Für den bekannten RFID-Kontext ohne aktiven Zähler wird nur der neue Zähler angelegt. Das Foto wird erst im nachgelagerten Ablese-Flow hochgeladen und in der Anfangsablesung gespeichert (kein Upload ohne Datensatz).",
                         LineBreakMode = LineBreakMode.WordWrap
                     },
                     CreateSection("Scan-Kontext", _contextLabel),
@@ -202,32 +202,6 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
         _isBusy = true;
         try
         {
-            var photoResult = await _photoUploadService.UploadAsync(new PhotoUploadTestRequest
-            {
-                FileName = _selectedPhotoFileName,
-                ContentType = _selectedPhotoContentType,
-                FileContent = _selectedPhotoContent,
-                Kind = "einbau",
-                Medium = NormalizeMedium(context.Medium),
-                Anlage = context.Anlage?.Trim() ?? string.Empty,
-                Garten = context.GartenNr?.Trim() ?? string.Empty,
-                Zaehlernummer = zaehlernummer,
-                Datum = einbauDatum
-            });
-
-            if (!photoResult.Success || string.IsNullOrWhiteSpace(photoResult.RelativePath))
-            {
-                var message = string.IsNullOrWhiteSpace(photoResult.ErrorSummary)
-                    ? "Das Foto konnte nicht hochgeladen werden."
-                    : photoResult.ErrorSummary;
-
-                if (!string.IsNullOrWhiteSpace(photoResult.RequestId))
-                    message = $"{message}{Environment.NewLine}Support-ID: {photoResult.RequestId}";
-
-                _statusLabel.Text = message;
-                return;
-            }
-
             var meterCreated = string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase)
                 ? await _supabaseService.AddWasserzaehlerAsync(new WasserzaehlerInsertRecord
                 {
@@ -261,7 +235,14 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
             CreateInitialReadingContext(context, activeMeterId, zaehlernummer, eichdatum, einbauDatum),
             AblesungArt.Einbau,
             einbauDatum,
-            "Neuer Zähler angelegt. Jetzt folgt direkt die Anfangsablesung mit `Art = einbau`.");
+            "Neuer Zähler angelegt. Jetzt folgt direkt die Anfangsablesung mit `Art = einbau`. Das Foto wird erst dort hochgeladen und gespeichert.");
+
+        if (_workflowState.PendingAblesungFlow != null)
+        {
+            _workflowState.PendingAblesungFlow.PendingPhotoContent = _selectedPhotoContent;
+            _workflowState.PendingAblesungFlow.PendingPhotoFileName = _selectedPhotoFileName;
+            _workflowState.PendingAblesungFlow.PendingPhotoContentType = _selectedPhotoContentType;
+        }
 
         await DisplayAlert("OK", "Zählereinbau erfolgreich gespeichert. Die Anfangsablesung folgt jetzt im bestehenden Ablese-Flow.", "OK");
         await Shell.Current.GoToAsync(nameof(AblesungErfassenPage));

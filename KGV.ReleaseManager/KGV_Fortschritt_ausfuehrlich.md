@@ -47,6 +47,31 @@ Bei Foto-Upload-Testfehlern eine eindeutige Support-ID ausgeben, damit Admins/Su
 ### Validierung
 - `dotnet build` erfolgreich.
 
+## Stand 2026-03-31 – MAUI Zählerwechsel Einbau: Foto-Upload fachlich sauber an Anfangsablesung gebunden (keine verwaisten Uploads)
+
+### Ziel dieses Schritts
+Den Einbau-/Neuzähler-Flow so korrigieren, dass kein Foto hochgeladen wird, solange noch kein persistenter Datensatz existiert, der den `FotoPfad` speichern kann. Das Foto soll – wie fachlich vorgesehen – erst in der nachgelagerten Anfangsablesung (`Art = einbau`) hochgeladen und gespeichert werden.
+
+### Geprüft
+- `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+- `KGV.Maui/Pages/AblesungErfassenPage.cs`
+- `KGV.Maui/State/ZaehlerwechselWorkflowState.cs`
+- Insert-Modelle: Zähler-Insert ohne `FotoPfad`, Ablesung-Insert mit `FotoPfad`
+
+### Ehrlicher Istzustand vor Umsetzung
+- Einbau-Seite verlangte bereits ein Foto und führte den Upload **vor** dem Anlegen des neuen Zählers aus.
+- Da die Zähler-Insert-Modelle keinen `FotoPfad` besitzen und die Anfangsablesung erst danach erfolgt, konnte ein Upload entstehen, der bei einem späteren Fehler nicht mehr sauber referenziert/persistiert wird (verwaister Google-Drive-Upload).
+
+### Umgesetzt
+- Foto wird im Einbau-Flow weiterhin ausgewählt (UI bleibt minimal-invasiv), aber der Upload wird **nicht** mehr in `ZaehlerwechselEinbauPage` ausgeführt.
+- Das Foto (Bytes + Dateiname + ContentType) wird stattdessen im Workflow-State (`PendingAblesungFlowContext`) zur nachgelagerten `AblesungErfassenPage` durchgereicht.
+- `AblesungErfassenPage` übernimmt bei Pending-Flow das Foto automatisch als ausgewählt und führt den Upload erst beim Speichern der Anfangsablesung aus.
+- Persistenz bleibt fachlich korrekt: `FotoPfad` wird beim Speichern der `AblesungInsertRecord` gesetzt.
+- Support-ID-/Fehlerlogik bleibt erhalten und wird weiterhin am tatsächlichen Upload-Punkt ausgegeben.
+
+### Validierung
+- `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich (nur bekannte Warnungen außerhalb dieses Blocks).
+
 ## Stand 2026-03-31 – MAUI Zählerwechsel: Foto-Flow in Ausbau/Einbau geschlossen
 
 ### Ziel dieses Schritts

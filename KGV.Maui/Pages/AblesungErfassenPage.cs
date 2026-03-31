@@ -189,6 +189,7 @@ public sealed class AblesungErfassenPage : ContentPage
             _isPendingInitialFlow = true;
             _currentArt = AblesungArt.Normalize(pendingFlow.Art);
             _ablesedatumPicker.Date = pendingFlow.DefaultDate.Date;
+            ApplyPendingPhotoSelection(pendingFlow);
             _scanContext.ApplyResolvedContext(pendingFlow.Context, pendingFlow.Hint);
             ApplyResolution(pendingFlow.Context, pendingFlow.Hint);
             return;
@@ -334,11 +335,22 @@ public sealed class AblesungErfassenPage : ContentPage
         try
         {
             var context = _activeResolution.Context;
+
+            if (_currentArt == AblesungArt.Einbau)
+            {
+                var validContent = _selectedPhotoContent != null && _selectedPhotoContent.Length > 0;
+                if (!validContent)
+                {
+                    await DisplayAlert("Validierung", "Bitte zuerst ein Foto aufnehmen oder übernehmen.", "OK");
+                    return;
+                }
+            }
+
             var photoResult = await _photoUploadService.UploadAsync(new PhotoUploadTestRequest
             {
                 FileName = _selectedPhotoFileName,
                 ContentType = _selectedPhotoContentType,
-                FileContent = _selectedPhotoContent,
+                FileContent = _selectedPhotoContent ?? Array.Empty<byte>(),
                 Kind = MapPhotoKind(_currentArt),
                 Medium = NormalizeMedium(context.Medium),
                 Anlage = context.Anlage?.Trim() ?? string.Empty,
@@ -414,6 +426,22 @@ public sealed class AblesungErfassenPage : ContentPage
         _scanContext.Reset();
         ApplyResolution(null, string.Empty);
         await _scanContext.StartNfcSessionAsync();
+    }
+
+    private void ApplyPendingPhotoSelection(PendingAblesungFlowContext pendingFlow)
+    {
+        if (pendingFlow.PendingPhotoContent == null || pendingFlow.PendingPhotoContent.Length == 0)
+            return;
+
+        _selectedPhotoContent = pendingFlow.PendingPhotoContent;
+        _selectedPhotoFileName = string.IsNullOrWhiteSpace(pendingFlow.PendingPhotoFileName)
+            ? $"ablesung-{DateTime.Now:yyyyMMdd-HHmmss}.jpg"
+            : pendingFlow.PendingPhotoFileName;
+        _selectedPhotoContentType = string.IsNullOrWhiteSpace(pendingFlow.PendingPhotoContentType)
+            ? GetContentType(_selectedPhotoFileName)
+            : pendingFlow.PendingPhotoContentType;
+
+        _photoLabel.Text = $"Foto gewählt: {_selectedPhotoFileName}";
     }
 
     private void UpdateBusyState()
