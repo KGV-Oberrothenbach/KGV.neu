@@ -2,6 +2,42 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: `MemberParzellenDetailPage`-Route final verifiziert, kein Produktivcode-Nachzug nötig
+
+- Vor dem Minimalblock den realen lokalen Repo-/Git-/Codezustand erneut geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - lokal bewusst untracked blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+  - `KGV.Maui/Pages/MemberParzellenDetailPage.cs`
+  - `KGV.Maui/MauiProgram.cs`
+- Ehrlicher Befund im aktuellen lokalen Stand:
+  - die Route `Routing.RegisterRoute(nameof(MemberParzellenDetailPage), typeof(MemberParzellenDetailPage));` ist bereits vorhanden
+  - `MemberGardensPage` navigiert bereits auf `nameof(MemberParzellenDetailPage)`
+  - `MemberParzellenDetailPage` ist bereits vorhanden
+  - die Seite ist in `MauiProgram.cs` bereits für DI registriert
+  - ein alter Gartenpfad auf `nameof(ParzellenPage)` ist in den direkt geprüften Verdrahtungsdateien nicht mehr vorhanden; der einzige verbliebene `nameof(ParzellenPage)`-Treffer ist die bewusst bestehen bleibende globale Routenregistrierung der globalen `ParzellenPage`
+  - damit war für diesen Minimalblock kein Produktivcode-Nachzug mehr nötig
+- In diesem Verifikationslauf umgesetzt:
+  - kein MAUI-Produktcode geändert
+  - nur ehrliche Verifikation des vorhandenen Routing-/Aufruferstands durchgeführt
+  - Logdateien für diesen Abschlussblock fortgeschrieben
+- Wichtig für die Blockgrenze:
+  - keine Änderung an Root-/Shell-Architektur
+  - keine Änderung an der globalen `ParzellenPage`
+  - keine Änderung an `MemberParzellenDetailPage` außerhalb der Verifikation
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - code-seitige Gegenprüfung:
+    - `MemberGardensPage` navigiert auf `nameof(MemberParzellenDetailPage)`
+    - `ShellRouteRegistrar` registriert `nameof(MemberParzellenDetailPage)`
+    - `MauiProgram` registriert `MemberParzellenDetailPage` für DI
+    - keine alte Garten-Navigation auf `nameof(ParzellenPage)` mehr; die globale `ParzellenPage`-Route bleibt bewusst separat registriert
+
 ## 2026-04-01 – Prompt 1/1: MemberParzellenDetailPage-Verdrahtung lokal verifiziert und ohne weiteren Codeumbau sauber abgeschlossen
 
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand erneut geprüft.

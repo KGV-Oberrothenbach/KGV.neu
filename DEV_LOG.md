@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: `MemberParzellenDetailPage`-Route final verifiziert, kein Produktivcode-Nachzug nötig
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Bewusst lokal geblieben:
+  - `AWR.bat`
+  - `_secrets/`
+- Direkt geprüft:
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+  - `KGV.Maui/Pages/MemberParzellenDetailPage.cs`
+  - `KGV.Maui/MauiProgram.cs`
+- Ehrlicher Befund:
+  - die Route für `MemberParzellenDetailPage` war bereits registriert
+  - `MemberGardensPage` navigierte lokal bereits auf `MemberParzellenDetailPage`
+  - die DI-Registrierung war bereits vorhanden
+  - der einzige verbliebene `nameof(ParzellenPage)`-Treffer in den direkt geprüften Verdrahtungsdateien ist die bewusst bestehen bleibende globale Route der globalen `ParzellenPage`
+- Umgesetzt:
+  - kein weiterer MAUI-Codefix nötig
+  - nur Verifikation und ehrliche Abschlussdokumentation dieses Minimalblocks
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Prompt 1/1: MemberParzellenDetailPage-Verdrahtung lokal verifiziert und ohne weiteren Codeumbau sauber abgeschlossen
 
 - Den realen lokalen Repo-/Git-/Codezustand geprüft.
