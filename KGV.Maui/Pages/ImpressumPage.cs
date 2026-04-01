@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Shapes;
@@ -13,7 +14,7 @@ namespace KGV.Maui.Pages;
 public sealed class ImpressumPage : ContentPage
 {
     private readonly ISupabaseService _supabaseService;
-    private readonly VerticalStackLayout _vorstandContainer;
+    private readonly VerticalStackLayout _weitereVorstandContainer;
     private readonly VerticalStackLayout _bauausschussContainer;
     private readonly Label _statusLabel;
     private bool _isBusy;
@@ -30,8 +31,14 @@ public sealed class ImpressumPage : ContentPage
             IsVisible = false
         };
 
-        _vorstandContainer = new VerticalStackLayout { Spacing = 12 };
+        _weitereVorstandContainer = new VerticalStackLayout { Spacing = 12 };
         _bauausschussContainer = new VerticalStackLayout { Spacing = 12 };
+
+        var datenschutzButton = new Button
+        {
+            Text = "Datenschutzerklärung öffnen"
+        };
+        datenschutzButton.Clicked += async (_, _) => await OpenDatenschutzAsync();
 
         Content = new ScrollView
         {
@@ -49,12 +56,13 @@ public sealed class ImpressumPage : ContentPage
                     },
                     new Label
                     {
-                        Text = "Reiner Informationsbereich mit den statischen Vereinsangaben sowie den aktuell in Supabase hinterlegten Funktionen für Vorstand und Bauausschuss.",
+                        Text = "Fester Vereinskopf mit Verantwortlichkeit sowie – falls vorhanden – weitere Vorstands- und Bauausschusskontakte aus dem bestehenden Datenpfad.",
                         LineBreakMode = LineBreakMode.WordWrap
                     },
                     CreateStaticSection(),
-                    CreateDynamicSection("Vorstand", _vorstandContainer),
+                    CreateDynamicSection("Weitere Vorstandsmitglieder", _weitereVorstandContainer),
                     CreateDynamicSection("Bauausschuss", _bauausschussContainer),
+                    CreateDatenschutzSection(datenschutzButton),
                     _statusLabel
                 }
             }
@@ -79,17 +87,17 @@ public sealed class ImpressumPage : ContentPage
             _statusLabel.IsVisible = true;
 
             var info = await _supabaseService.GetImpressumInfoAsync() ?? new ImpressumInfo();
-            RenderSection(_vorstandContainer, info.Vorstand, "Aktuell keine Vorstandsangaben hinterlegt.");
-            RenderSection(_bauausschussContainer, info.Bauausschuss, "Aktuell keine Angaben zum Bauausschuss hinterlegt.");
+            RenderSection(_weitereVorstandContainer, info.WeitereVorstandsmitglieder, "Aktuell keine weiteren Vorstandsangaben hinterlegt.");
+            RenderSection(_bauausschussContainer, info.WeitereBauausschussmitglieder, "Aktuell keine Angaben zum Bauausschuss hinterlegt.");
 
             _statusLabel.IsVisible = false;
             _statusLabel.Text = string.Empty;
         }
         catch (Exception ex)
         {
-            RenderSection(_vorstandContainer, Array.Empty<ImpressumKontaktItem>(), "Aktuell keine Vorstandsangaben hinterlegt.");
+            RenderSection(_weitereVorstandContainer, Array.Empty<ImpressumKontaktItem>(), "Aktuell keine weiteren Vorstandsangaben hinterlegt.");
             RenderSection(_bauausschussContainer, Array.Empty<ImpressumKontaktItem>(), "Aktuell keine Angaben zum Bauausschuss hinterlegt.");
-            _statusLabel.Text = $"Impressum konnte nicht geladen werden: {ex.Message}";
+            _statusLabel.Text = "Weitere Impressumskontakte konnten aktuell nicht geladen werden.";
             _statusLabel.IsVisible = true;
         }
         finally
@@ -112,26 +120,65 @@ public sealed class ImpressumPage : ContentPage
                 {
                     new Label
                     {
-                        Text = "Verein",
+                        Text = "Impressum",
                         FontSize = 18,
                         FontAttributes = FontAttributes.Bold
                     },
                     new Label
                     {
-                        Text = "Kleingartenverein Oberrothenbach e.V.",
+                        Text = ImpressumInfo.VereinsName,
                         FontAttributes = FontAttributes.Bold,
                         LineBreakMode = LineBreakMode.WordWrap
                     },
                     new Label
                     {
-                        Text = "Amtsgericht Chemnitz VR 70502",
+                        Text = ImpressumInfo.VereinsRegister,
                         LineBreakMode = LineBreakMode.WordWrap
                     },
+                    new Label
+                    {
+                        Text = "Verantwortlich:",
+                        Margin = new Thickness(0, 8, 0, 0),
+                        FontAttributes = FontAttributes.Bold,
+                        LineBreakMode = LineBreakMode.WordWrap
+                    },
+                    new Label { Text = ImpressumInfo.VerantwortlichName, LineBreakMode = LineBreakMode.WordWrap },
+                    new Label { Text = ImpressumInfo.VerantwortlichStrasse, LineBreakMode = LineBreakMode.WordWrap },
+                    new Label { Text = ImpressumInfo.VerantwortlichOrt, LineBreakMode = LineBreakMode.WordWrap },
                     new Label
                     {
                         Text = $"E-Mail: {ImpressumInfo.VereinsEmail}",
                         LineBreakMode = LineBreakMode.WordWrap
                     }
+                }
+            }
+        };
+    }
+
+    private static Border CreateDatenschutzSection(Button datenschutzButton)
+    {
+        return new Border
+        {
+            StrokeShape = new RoundRectangle { CornerRadius = 12 },
+            BackgroundColor = Colors.White,
+            Padding = 16,
+            Content = new VerticalStackLayout
+            {
+                Spacing = 10,
+                Children =
+                {
+                    new Label
+                    {
+                        Text = "Datenschutz",
+                        FontSize = 18,
+                        FontAttributes = FontAttributes.Bold
+                    },
+                    new Label
+                    {
+                        Text = ImpressumInfo.DatenschutzHinweis,
+                        LineBreakMode = LineBreakMode.WordWrap
+                    },
+                    datenschutzButton
                 }
             }
         };
@@ -182,16 +229,6 @@ public sealed class ImpressumPage : ContentPage
     private static Border CreateEntryView(ImpressumKontaktItem item)
     {
         var layout = new VerticalStackLayout { Spacing = 4 };
-        if (item.IsVorstandsvorsitzende)
-        {
-            layout.Children.Add(new Label
-            {
-                Text = item.Funktion,
-                FontAttributes = FontAttributes.Bold,
-                LineBreakMode = LineBreakMode.WordWrap
-            });
-        }
-
         layout.Children.Add(new Label
         {
             Text = item.DisplayName,
@@ -199,23 +236,11 @@ public sealed class ImpressumPage : ContentPage
             LineBreakMode = LineBreakMode.WordWrap
         });
 
-        if (item.ShowAdresse)
+        layout.Children.Add(new Label
         {
-            layout.Children.Add(new Label
-            {
-                Text = $"Adresse: {item.Adresse}",
-                LineBreakMode = LineBreakMode.WordWrap
-            });
-        }
-
-        if (item.HasHandy)
-        {
-            layout.Children.Add(new Label
-            {
-                Text = $"Handynummer: {item.Handy}",
-                LineBreakMode = LineBreakMode.WordWrap
-            });
-        }
+            Text = item.DisplayHandyText,
+            LineBreakMode = LineBreakMode.WordWrap
+        });
 
         return new Border
         {
@@ -224,5 +249,20 @@ public sealed class ImpressumPage : ContentPage
             Padding = 12,
             Content = layout
         };
+    }
+
+    private async Task OpenDatenschutzAsync()
+    {
+        try
+        {
+            await Launcher.Default.OpenAsync(ImpressumInfo.DatenschutzUrl);
+            _statusLabel.Text = string.Empty;
+            _statusLabel.IsVisible = false;
+        }
+        catch
+        {
+            _statusLabel.Text = "Datenschutzerklärung konnte nicht geöffnet werden.";
+            _statusLabel.IsVisible = true;
+        }
     }
 }

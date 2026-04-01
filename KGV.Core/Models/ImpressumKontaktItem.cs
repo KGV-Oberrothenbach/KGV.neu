@@ -17,6 +17,9 @@ namespace KGV.Core.Models
         public bool HasHandy => !string.IsNullOrWhiteSpace(Handy);
         public bool HasAdresse => !string.IsNullOrWhiteSpace(Adresse);
         public bool ShowAdresse => IsVorstandsvorsitzende && HasAdresse;
+        public string DisplayHandyText => HasHandy
+            ? $"Handynummer: {Handy.Trim()}"
+            : "Handynummer: aktuell nicht hinterlegt.";
 
         public string DisplayName
         {
