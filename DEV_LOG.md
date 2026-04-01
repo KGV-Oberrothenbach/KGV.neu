@@ -2,6 +2,39 @@
 
 ---
 
+## 2026-04-01 – Block 1.3: MAUI-RFID-Quittungston mobil minimal und robust abgeschlossen
+
+- Den realen Repo-/Git-/Logstand geprüft; `main` liegt auf `origin/main`, Divergenz `0 0`.
+- Bewusst lokal geblieben:
+  - `AWR.bat`
+  - `_secrets/`
+- Direkt geprüft:
+  - `KGV.Maui/Services/IRfidFeedbackService.cs`
+  - `KGV.Maui/Platforms/Android/Services/AndroidRfidFeedbackService.cs`
+  - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+  - `KGV.Maui/Pages/RfidScanWorkflowPage.cs`
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/MainActivity.cs`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+- Ehrlicher Befund:
+  - der RFID-Tonpfad war bereits grundsätzlich vorhanden, aber noch nicht robust genug
+  - der bestehende Pfad spielte noch einen langen Notification-/Ringtone
+  - der Dedupe-Guard im Scanpfad wurde durch das `UidInput`-Reset faktisch wieder neutralisiert
+- Umgesetzt:
+  - Quittungston nur noch beim echten mobilen NFC-Scan-Erfolg
+  - manueller UID-Notfallweg und Fallback-Kontext bleiben tonlos
+  - kurzer Android-System-Beep statt langem Klingel-/Notificationton
+  - Dedupe-/Busy-Guard im Scanpfad geradegezogen, damit derselbe Tag nicht direkt mehrfach erneut Ton und Resolve auslöst
+- Wichtig:
+  - keine neue Audioarchitektur
+  - keine Änderung an WPF-Dateien
+  - keine Änderung an fachlicher Scan-/Ableselogik
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Block 2.3.2: `DokumentePage` im MAUI-Parzellenkontext UI-seitig sauber geschlossen
 
 - Den realen Repo-/Git-/Logstand geprüft; `main` liegt auf `origin/main`, Divergenz `0 0`.

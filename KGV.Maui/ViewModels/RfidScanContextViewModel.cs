@@ -272,7 +272,7 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
         return _nfcScanService.OpenSettingsAsync();
     }
 
-    public async Task ResolveAsync()
+    public async Task ResolveAsync(bool playSuccessFeedback = false)
     {
         if (string.IsNullOrWhiteSpace(UidInput))
         {
@@ -287,7 +287,7 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
             Resolution = result;
             StatusMessage = result.Message;
 
-            if (result.IsKnown && !string.IsNullOrWhiteSpace(result.NormalizedUid))
+            if (playSuccessFeedback && result.IsKnown && !string.IsNullOrWhiteSpace(result.NormalizedUid))
                 await _rfidFeedbackService.PlaySuccessAsync();
         }
         finally
@@ -349,21 +349,22 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
 
     private async void OnTagScanned(object? sender, string uid)
     {
-        if (string.IsNullOrWhiteSpace(uid))
+        if (IsBusy || string.IsNullOrWhiteSpace(uid))
             return;
 
+        var normalizedUid = uid.Trim();
         var now = DateTime.UtcNow;
-        if (string.Equals(_lastScannedUid, uid, StringComparison.OrdinalIgnoreCase)
+        if (string.Equals(_lastScannedUid, normalizedUid, StringComparison.OrdinalIgnoreCase)
             && (now - _lastScannedAt) < TimeSpan.FromSeconds(2))
         {
             return;
         }
 
-        _lastScannedUid = uid;
+        UidInput = normalizedUid;
+        _lastScannedUid = normalizedUid;
         _lastScannedAt = now;
-        UidInput = uid;
-        StatusMessage = $"RFID-Tag {uid} gelesen. Kontext wird geladen.";
-        await ResolveAsync();
+        StatusMessage = $"RFID-Tag {normalizedUid} gelesen. Kontext wird geladen.";
+        await ResolveAsync(playSuccessFeedback: true);
         await _nfcScanService.StopScanningAsync();
     }
 

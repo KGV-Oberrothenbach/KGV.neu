@@ -2,6 +2,58 @@
 
 ---
 
+## 2026-04-01 – Block 1.3: MAUI-RFID-Quittungston mobil minimal und robust abgeschlossen
+
+- Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft und nicht auf Altannahmen aufgebaut.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - untracked blieben bewusst lokal:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/Services/IRfidFeedbackService.cs`
+  - `KGV.Maui/Platforms/Android/Services/AndroidRfidFeedbackService.cs`
+  - `KGV.Maui/Services/INfcScanService.cs`
+  - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+  - `KGV.Maui/Pages/RfidScanWorkflowPage.cs`
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/MainActivity.cs`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Befund vor dem Umbau:
+  - der MAUI-RFID-Quittungston war im aktuellen Repo bereits grundsätzlich vorhanden
+  - die zentrale Erfolgsstelle für den mobilen RFID-Scan liegt im MAUI-Pfad `RfidScanContextViewModel.OnTagScanned(...)` -> `ResolveAsync(...)`
+  - der bestehende Tonpfad war aber noch nicht robust genug:
+    - es wurde ein kompletter Notification-/Ringtone gestartet statt eines kurzen mobilen Quittungstons
+    - der vorhandene Duplicate-Guard im Scanpfad wurde durch das `UidInput`-Reset faktisch wieder aufgehoben, sodass derselbe Tag zu leicht erneut durchlaufen konnte
+    - `ResolveAsync(...)` spielte den Ton auch generisch für bekannte Auflösungen, statt den Ton explizit nur an den echten NFC-Scan-Erfolg zu koppeln
+- Minimal umgesetzt:
+  - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+    - `ResolveAsync(...)` kann den Quittungston jetzt explizit nur für den echten Scan-Erfolg auslösen
+    - manuelle UID-Prüfung und Fallback-Kontext lösen damit keinen Ton mehr aus
+    - `OnTagScanned(...)` hält den bekannten Tag jetzt sauber über den Dedupe-Zeitbereich fest statt ihn im selben Ablauf wieder zu verlieren
+    - zusätzlicher Guard gegen erneutes Scan-Handling während eines laufenden Resolve-Pfads
+  - `KGV.Maui/Platforms/Android/Services/AndroidRfidFeedbackService.cs`
+    - langer Notification-/Ringtone durch kurzen Android-System-Beep (`ToneGenerator`) ersetzt
+    - kurzer, klarer Ton statt Dauerton oder Klingeltonkaskade
+- Wichtig für die Blockgrenze:
+  - keine neue Audio- oder Medienarchitektur
+  - kein neuer globaler Sound-/Settings-Block
+  - keine Änderung an fachlicher RFID-Auflösung oder Ableselogik
+  - keine WPF-Datei geändert; WPF nur zur Gegenprüfung gebaut
+  - Block `2` Mitglieds-/Parzellenpfad bleibt unberührt
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Fachliches Ergebnis:
+  - erfolgreicher mobiler RFID-Scan erzeugt jetzt einen kurzen Quittungston
+  - kein Ton bei manuellem UID-Notfallweg oder Fallback-Kontext
+  - kein Ton-Spam bei unmittelbarem Doppeltrigger desselben Tags im Zeitfenster
+  - bestehender Scan-/Ablesefluss bleibt unverändert produktiv nutzbar
+
 ## 2026-04-01 – Block 2.3.2: `DokumentePage` im MAUI-Parzellenkontext des Mitgliedspfads UI-seitig sauber geschlossen
 
 - Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft und nicht auf Altannahmen aufgebaut.
