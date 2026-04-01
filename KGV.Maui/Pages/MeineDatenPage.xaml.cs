@@ -193,7 +193,7 @@ public class MeineDatenPage : ContentPage
         _saveRoleButton.Clicked += OnSaveRoleClicked;
 
         _documentsButton = new Button { Text = "Mitgliedsdokumente" };
-        _documentsButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(DokumentePage));
+        _documentsButton.Clicked += async (_, _) => await Shell.Current.GoToAsync($"{nameof(DokumentePage)}?scope=mitglied");
 
         _linkedMemberButton = new Button { Text = "Verknüpftes Mitglied öffnen", IsVisible = false };
         _linkedMemberButton.Clicked += OnLinkedMemberClicked;

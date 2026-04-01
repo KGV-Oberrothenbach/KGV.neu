@@ -2,6 +2,57 @@
 
 ---
 
+## 2026-04-01 – Prompt 2/3: MAUI-Dokumente-UI auf den bestehenden Google-Drive-Unterbau aufgesetzt
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - nach Abschluss von Prompt 1/3 waren für diesen Block nur noch MAUI-Dateien plus Logdateien offen
+  - bewusst lokal untracked blieben weiter `AWR.bat` und `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - MAUI-Aufrufer aus `ParzellenPage` und `MemberParzellenDetailPage`
+  - `MemberContextState` und `ParzellenContextState`
+  - bestehender gemeinsamer Dokument-Servicepfad in `SupabaseService`
+- Ehrlicher Istzustand vor der Umsetzung:
+  - die bestehende `DokumentePage` war noch kein echter Upload-/Listenpfad, sondern im Wesentlichen nur eine kleine Listen-/Öffnen-Seite
+  - der Parzellenpfad war in der Seite unnötig auf Mitgliedskontext eingeschränkt, obwohl es bereits globale Parzellenaufrufer gab
+  - ein mitgliedsbezogener Einstieg war vorhanden, aber noch nicht explizit per Scope gekennzeichnet
+  - der Shared-Service-Unterbau aus Prompt 1/3 war bereits vorhanden und sollte weiterverwendet werden
+- Minimal umgesetzt:
+  - `DokumentePage` owner-kontextgesteuert für Mitglied und Parzelle aufgebaut
+  - bestehender gemeinsamer Servicepfad bleibt führend; kein neuer Upload-/Open-Parallelpfad
+  - schlanke mobile Uploadmaske ergänzt mit:
+    - Titel-Eingabe
+    - Dateiauswahl per `FilePicker`
+    - Upload-Button am Ende der Eingabemaske
+  - Upload nur bei gültigem Kontext, vorhandenem Titel und gewählter Datei aktiv
+  - Busy-State mit deaktivierten Bedienelementen und ActivityIndicator ergänzt, um Doppeltap/Mehrfachauslösung zu verhindern
+  - nach erfolgreichem Upload werden Liste neu geladen, Eingaben zurückgesetzt und eine freundliche Erfolgsmeldung angezeigt
+  - Dokumentliste zeigt jetzt Titel, Dateiname sowie Metainfos zu Datum/Größe lesbarer an
+  - Öffnen läuft weiter ausschließlich über `ResolveDokumentOpenUrlAsync(...)`
+  - ungültige Owner-Kontexte liefern sichtbare Fehlermeldungen statt stiller Rückkehr
+  - `MeineDatenPage` navigiert jetzt explizit mit `scope=mitglied`
+- Warum dieser Block die fachliche Lücke schließt:
+  - MAUI nutzt jetzt denselben produktiven Dokumentpfad wie WPF und Shared-Service
+  - sowohl Mitglieds- als auch Parzellendokumente laufen über dieselbe gemeinsame Tabelle `public.dokument`
+  - die Seite bleibt klein und blockgerecht, ohne eine neue Dokumentarchitektur zu eröffnen
+- Wichtig für die Blockgrenze:
+  - keine WPF-Überarbeitung in diesem Block
+  - kein Löschen, Umbenennen, keine Mehrfachauswahl, keine Kategorien
+  - keine Änderung am bestehenden Drive-/Storage-Fallback im Shared-Service
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - logische Codeprüfung:
+    - Mitgliedspfad lädt/hält nur Mitgliedsdokumente
+    - Parzellenpfad lädt/hält nur Parzellendokumente
+    - Upload setzt nie beide Owner gleichzeitig
+    - Öffnen bleibt Drive-first
+    - Busy-State verhindert Mehrfachupload
+  - echter End-to-End-Laufzeittest auf Gerät gegen Supabase/Google Drive wurde nicht ausgeführt und daher nicht behauptet
+
 ## 2026-04-01 – Prompt 1/3: Dokumente-Grundblock auf Google Drive buildfähig abgeschlossen
 
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.

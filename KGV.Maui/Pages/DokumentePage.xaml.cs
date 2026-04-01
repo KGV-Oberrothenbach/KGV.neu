@@ -5,16 +5,23 @@ using Microsoft.Maui;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Storage;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace KGV.Maui.Pages;
 
 public class DokumentePage : ContentPage, IQueryAttributable
 {
+    private enum DokumentOwnerScope
+    {
+        Mitglied,
+        Parzelle
+    }
+
     private readonly ISupabaseService _supabaseService;
     private readonly MemberContextState _memberContextState;
     private readonly ParzellenContextState _parzellenContextState;
@@ -24,10 +31,19 @@ public class DokumentePage : ContentPage, IQueryAttributable
     private readonly Label _hintLabel;
     private readonly Label _statusLabel;
     private readonly Label _emptyLabel;
+    private readonly Entry _titelEntry;
+    private readonly Label _selectedFileLabel;
+    private readonly Button _pickFileButton;
+    private readonly Button _uploadButton;
+    private readonly Button _refreshButton;
+    private readonly ActivityIndicator _activityIndicator;
     private readonly CollectionView _documentsView;
     private bool _isBusy;
-    private bool _loadParzelleDocuments;
+    private DokumentOwnerScope _requestedScope = DokumentOwnerScope.Mitglied;
     private int? _requestedParzelleId;
+    private byte[]? _selectedFileContent;
+    private string _selectedFileName = string.Empty;
+    private string _selectedFileContentType = "application/octet-stream";
 
     public DokumentePage(ISupabaseService supabaseService, MemberContextState memberContextState, ParzellenContextState parzellenContextState)
     {
@@ -42,6 +58,16 @@ public class DokumentePage : ContentPage, IQueryAttributable
         _hintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
         _emptyLabel = new Label { Text = "Keine Mitgliedsdokumente gefunden.", TextColor = Colors.Gray, IsVisible = false };
+        _titelEntry = new Entry { Placeholder = "Dokumenttitel" };
+        _titelEntry.TextChanged += (_, _) => UpdateUiState();
+        _selectedFileLabel = new Label { Text = "Noch keine Datei ausgewählt.", TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+        _pickFileButton = new Button { Text = "Datei auswählen" };
+        _pickFileButton.Clicked += async (_, _) => await PickFileAsync();
+        _uploadButton = new Button { Text = "Upload starten" };
+        _uploadButton.Clicked += async (_, _) => await UploadAsync();
+        _refreshButton = new Button { Text = "Dokumente aktualisieren" };
+        _refreshButton.Clicked += async (_, _) => await LoadAsync();
+        _activityIndicator = new ActivityIndicator { Color = Colors.DarkSlateBlue, IsVisible = false, IsRunning = false };
 
         _documentsView = new CollectionView
         {
@@ -50,14 +76,24 @@ public class DokumentePage : ContentPage, IQueryAttributable
             ItemTemplate = new DataTemplate(() =>
             {
                 var title = new Label { FontAttributes = FontAttributes.Bold };
-                title.SetBinding(Label.TextProperty, nameof(DocumentInfo.Name));
+                title.SetBinding(Label.TextProperty, nameof(DocumentInfo.Title));
 
-                var subtitle = new Label { FontSize = 12, TextColor = Colors.Gray };
-                subtitle.SetBinding(Label.TextProperty, new Binding(nameof(DocumentInfo.UpdatedAt), stringFormat: "Aktualisiert: {0:dd.MM.yyyy HH:mm}"));
+                var fileName = new Label { FontSize = 13, TextColor = Colors.Black, LineBreakMode = LineBreakMode.TailTruncation };
+                fileName.SetBinding(Label.TextProperty, new Binding(nameof(DocumentInfo.Dateiname), stringFormat: "Datei: {0}"));
+
+                var subtitle = new Label { FontSize = 12, TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+                subtitle.BindingContextChanged += (_, _) =>
+                {
+                    if (subtitle.BindingContext is DocumentInfo document)
+                        subtitle.Text = BuildDocumentMetaText(document);
+                };
 
                 var actionButton = new Button { Text = "Einsehen / Download" };
                 actionButton.Clicked += async (_, _) =>
                 {
+                    if (_isBusy)
+                        return;
+
                     if (actionButton.BindingContext is DocumentInfo document)
                         await OpenDocumentAsync(document);
                 };
@@ -70,14 +106,11 @@ public class DokumentePage : ContentPage, IQueryAttributable
                     Content = new VerticalStackLayout
                     {
                         Spacing = 4,
-                        Children = { title, subtitle, actionButton }
+                        Children = { title, fileName, subtitle, actionButton }
                     }
                 };
             })
         };
-
-        var refreshButton = new Button { Text = "Dokumente aktualisieren" };
-        refreshButton.Clicked += async (_, _) => await LoadAsync();
 
         Content = new ScrollView
         {
@@ -90,7 +123,16 @@ public class DokumentePage : ContentPage, IQueryAttributable
                     _headlineLabel,
                     _contextLabel,
                     _hintLabel,
-                    refreshButton,
+                    CreateSection(
+                        "Dokument hochladen",
+                        new Label { Text = "Titel", FontAttributes = FontAttributes.Bold },
+                        _titelEntry,
+                        new Label { Text = "Datei", FontAttributes = FontAttributes.Bold },
+                        _selectedFileLabel,
+                        _pickFileButton,
+                        _uploadButton),
+                    _refreshButton,
+                    _activityIndicator,
                     _statusLabel,
                     _emptyLabel,
                     _documentsView
@@ -99,13 +141,18 @@ public class DokumentePage : ContentPage, IQueryAttributable
         };
 
         Appearing += async (_, _) => await LoadAsync();
+        UpdateUiState();
     }
 
     public void ApplyQueryAttributes(IDictionary<string, object> query)
     {
         var scope = TryGetQueryString(query, "scope");
-        _loadParzelleDocuments = string.Equals(scope, "parzelle", StringComparison.OrdinalIgnoreCase);
+        _requestedScope = string.Equals(scope, "parzelle", StringComparison.OrdinalIgnoreCase)
+            ? DokumentOwnerScope.Parzelle
+            : DokumentOwnerScope.Mitglied;
         _requestedParzelleId = TryGetQueryInt(query, "parzelleId");
+        SetStatus(string.Empty, success: true);
+        UpdateUiState();
     }
 
     private async Task LoadAsync()
@@ -116,88 +163,318 @@ public class DokumentePage : ContentPage, IQueryAttributable
         _isBusy = true;
         try
         {
-            _statusLabel.Text = string.Empty;
             _documents.Clear();
             _emptyLabel.IsVisible = false;
-
-            if (_loadParzelleDocuments)
+            var context = await ResolveContextAsync();
+            ApplyContext(context);
+            if (!context.IsValid)
             {
-                await LoadParzelleDocumentsAsync();
+                SetStatus(context.ValidationMessage, success: false);
                 return;
             }
 
-            var member = _memberContextState.SelectedMember;
-            if (member?.Id is not > 0)
-            {
-                _headlineLabel.Text = "Keine Mitgliedsdokumente verfügbar";
-                _contextLabel.Text = string.Empty;
-                _hintLabel.Text = "Bitte zuerst in der Mitgliedersuche ein Mitglied auswählen.";
-                return;
-            }
-
-            _headlineLabel.Text = $"Dokumente – {member.DisplayName}";
-            _contextLabel.Text = member.DisplayName;
-            _hintLabel.Text = "Es werden nur die Dokumente des aktuell ausgewählten Mitglieds angezeigt. Einsehen und Download laufen über den bestehenden Dokumentpfad.";
-            _emptyLabel.Text = "Keine Mitgliedsdokumente gefunden.";
-            var documents = await _supabaseService.GetMitgliedDokumenteAsync(member.Id);
-            foreach (var document in documents)
-                _documents.Add(document);
-
-            _emptyLabel.IsVisible = _documents.Count == 0;
+            await ReloadDocumentsAsync(context);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            _statusLabel.Text = "Dokumente konnten nicht geladen werden.";
+            System.Diagnostics.Debug.WriteLine($"[DokumentePage] LoadAsync failed: {ex}");
+            SetStatus("Dokumente konnten nicht geladen werden.", success: false);
         }
         finally
         {
             _isBusy = false;
+            UpdateUiState();
         }
     }
 
-    private async Task LoadParzelleDocumentsAsync()
+    private async Task PickFileAsync()
     {
-        var parzelleId = _requestedParzelleId ?? _parzellenContextState.SelectedParzelleId;
-        if (!_parzellenContextState.IsFromMemberContext || parzelleId is not > 0)
+        if (_isBusy)
+            return;
+
+        try
         {
-            _headlineLabel.Text = "Keine Parzellendokumente verfügbar";
-            _contextLabel.Text = string.Empty;
-            _hintLabel.Text = "Bitte zuerst im Pfad `Gärten des Mitgliedes` eine Parzelle auswählen.";
+            var file = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Dokument auswählen"
+            });
+
+            if (file == null)
+            {
+                SetStatus("Dateiauswahl abgebrochen.", success: false);
+                return;
+            }
+
+            await using var stream = await file.OpenReadAsync();
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+
+            _selectedFileContent = memoryStream.ToArray();
+            _selectedFileName = file.FileName ?? string.Empty;
+            _selectedFileContentType = string.IsNullOrWhiteSpace(file.ContentType)
+                ? GetContentType(_selectedFileName)
+                : file.ContentType;
+
+            if (string.IsNullOrWhiteSpace(_titelEntry.Text))
+                _titelEntry.Text = Path.GetFileNameWithoutExtension(_selectedFileName);
+
+            _selectedFileLabel.Text = $"Ausgewählt: {_selectedFileName}";
+            _selectedFileLabel.TextColor = Colors.Black;
+            SetStatus("Datei bereit zum Upload.", success: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DokumentePage] PickFileAsync failed: {ex}");
+            SetStatus("Dateiauswahl fehlgeschlagen.", success: false);
+        }
+
+        UpdateUiState();
+    }
+
+    private async Task UploadAsync()
+    {
+        if (_isBusy)
+            return;
+
+        var context = await ResolveContextAsync();
+        ApplyContext(context);
+        if (!context.IsValid)
+        {
+            SetStatus(context.ValidationMessage, success: false);
+            UpdateUiState();
             return;
         }
 
-        var detail = await _supabaseService.GetParzelleDetailAsync(parzelleId.Value);
-        _headlineLabel.Text = detail == null
-            ? $"Parzellen-Dokumente – Parzelle #{parzelleId.Value}"
-            : $"Parzellen-Dokumente – {detail.DisplayName}";
-        _contextLabel.Text = detail?.DisplayName ?? $"Parzelle #{parzelleId.Value}";
-        _hintLabel.Text = "Es werden nur die Dokumente dieser aktuell ausgewählten Parzelle angezeigt. Einsehen und Download laufen über den bestehenden Dokumentpfad.";
-        _emptyLabel.Text = "Keine Dokumente für diese Parzelle gefunden.";
+        var titel = (_titelEntry.Text ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(titel))
+        {
+            SetStatus("Bitte einen Dokumenttitel eingeben.", success: false);
+            UpdateUiState();
+            return;
+        }
 
-        var documents = await _supabaseService.GetParzelleDokumenteAsync(parzelleId.Value);
+        if (_selectedFileContent == null || _selectedFileContent.Length == 0 || string.IsNullOrWhiteSpace(_selectedFileName))
+        {
+            SetStatus("Bitte zuerst eine Datei auswählen.", success: false);
+            UpdateUiState();
+            return;
+        }
+
+        _isBusy = true;
+        UpdateUiState();
+        try
+        {
+            var request = new DokumentUploadRequest
+            {
+                MitgliedId = context.Scope == DokumentOwnerScope.Mitglied ? context.OwnerId : null,
+                ParzelleId = context.Scope == DokumentOwnerScope.Parzelle ? context.OwnerId : null,
+                Titel = titel,
+                FileName = _selectedFileName,
+                MimeType = _selectedFileContentType,
+                FileContent = _selectedFileContent
+            };
+
+            var result = await _supabaseService.CreateDokumentAsync(request);
+            if (!result.Success)
+            {
+                SetStatus(result.Message, success: false);
+                return;
+            }
+
+            await ReloadDocumentsAsync(context);
+            ResetUploadInputs();
+            SetStatus("Dokument wurde erfolgreich hochgeladen.", success: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DokumentePage] UploadAsync failed: {ex}");
+            SetStatus("Dokument konnte nicht hochgeladen werden.", success: false);
+        }
+        finally
+        {
+            _isBusy = false;
+            UpdateUiState();
+        }
+    }
+
+    private async Task OpenDocumentAsync(DocumentInfo document)
+    {
+        if (_isBusy)
+            return;
+
+        try
+        {
+            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                SetStatus("Dokument konnte nicht geöffnet werden.", success: false);
+                return;
+            }
+
+            await Launcher.Default.OpenAsync(url);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DokumentePage] OpenDocumentAsync failed: {ex}");
+            SetStatus("Dokument konnte nicht geöffnet werden.", success: false);
+        }
+    }
+
+    private async Task ReloadDocumentsAsync(DokumentPageContext context)
+    {
+        var documents = context.Scope == DokumentOwnerScope.Parzelle
+            ? await _supabaseService.GetParzelleDokumenteAsync(context.OwnerId!.Value)
+            : await _supabaseService.GetMitgliedDokumenteAsync(context.OwnerId!.Value);
+
+        _documents.Clear();
         foreach (var document in documents)
             _documents.Add(document);
 
         _emptyLabel.IsVisible = _documents.Count == 0;
     }
 
-    private async Task OpenDocumentAsync(DocumentInfo document)
+    private async Task<DokumentPageContext> ResolveContextAsync()
     {
-        try
+        if (_requestedScope == DokumentOwnerScope.Parzelle)
         {
-            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
-            if (string.IsNullOrWhiteSpace(url))
+            var parzelleId = _requestedParzelleId ?? _parzellenContextState.SelectedParzelleId;
+            if (parzelleId is not > 0)
             {
-                _statusLabel.Text = "Dokument konnte nicht geöffnet werden.";
-                return;
+                return DokumentPageContext.Invalid(
+                    DokumentOwnerScope.Parzelle,
+                    "Keine Parzellendokumente verfügbar",
+                    "Bitte zuerst eine gültige Parzelle auswählen.",
+                    "Bitte zuerst im Parzellenpfad eine Parzelle auswählen.");
             }
 
-            await Launcher.Default.OpenAsync(url);
+            var detail = await _supabaseService.GetParzelleDetailAsync(parzelleId.Value);
+            var displayName = detail?.DisplayName ?? $"Parzelle #{parzelleId.Value}";
+            return DokumentPageContext.Valid(
+                DokumentOwnerScope.Parzelle,
+                parzelleId.Value,
+                $"Parzellen-Dokumente – {displayName}",
+                displayName,
+                "Es werden nur die Dokumente der aktuell ausgewählten Parzelle angezeigt. Upload und Öffnen laufen über den gemeinsamen Google-Drive-Dokumentpfad.",
+                "Keine Dokumente für diese Parzelle gefunden.");
         }
-        catch (Exception)
+
+        var member = _memberContextState.SelectedMember;
+        if (member?.Id is not > 0)
         {
-            _statusLabel.Text = "Dokument konnte nicht geöffnet werden.";
+            return DokumentPageContext.Invalid(
+                DokumentOwnerScope.Mitglied,
+                "Keine Mitgliedsdokumente verfügbar",
+                "Bitte zuerst ein gültiges Mitglied auswählen.",
+                "Bitte zuerst im Mitgliedspfad ein Mitglied auswählen.");
         }
+
+        return DokumentPageContext.Valid(
+            DokumentOwnerScope.Mitglied,
+            member.Id,
+            $"Dokumente – {member.DisplayName}",
+            member.DisplayName,
+            "Es werden nur die Dokumente des aktuell ausgewählten Mitglieds angezeigt. Upload und Öffnen laufen über den gemeinsamen Google-Drive-Dokumentpfad.",
+            "Keine Mitgliedsdokumente gefunden.");
+    }
+
+    private void ApplyContext(DokumentPageContext context)
+    {
+        _headlineLabel.Text = context.Headline;
+        _contextLabel.Text = context.ContextLabel;
+        _hintLabel.Text = context.HintText;
+        _emptyLabel.Text = context.EmptyText;
+    }
+
+    private void ResetUploadInputs()
+    {
+        _titelEntry.Text = string.Empty;
+        _selectedFileContent = null;
+        _selectedFileName = string.Empty;
+        _selectedFileContentType = "application/octet-stream";
+        _selectedFileLabel.Text = "Noch keine Datei ausgewählt.";
+        _selectedFileLabel.TextColor = Colors.Gray;
+    }
+
+    private void SetStatus(string message, bool success)
+    {
+        _statusLabel.Text = message ?? string.Empty;
+        _statusLabel.TextColor = success ? Colors.DarkSlateBlue : Colors.DarkRed;
+    }
+
+    private void UpdateUiState()
+    {
+        var hasContext = _requestedScope == DokumentOwnerScope.Parzelle
+            ? (_requestedParzelleId ?? _parzellenContextState.SelectedParzelleId) is > 0
+            : _memberContextState.SelectedMember?.Id is > 0;
+        var canUpload = !_isBusy
+            && hasContext
+            && !string.IsNullOrWhiteSpace(_titelEntry.Text)
+            && _selectedFileContent is { Length: > 0 }
+            && !string.IsNullOrWhiteSpace(_selectedFileName);
+
+        _titelEntry.IsEnabled = !_isBusy && hasContext;
+        _pickFileButton.IsEnabled = !_isBusy && hasContext;
+        _uploadButton.IsEnabled = canUpload;
+        _refreshButton.IsEnabled = !_isBusy;
+        _documentsView.IsEnabled = !_isBusy;
+        _activityIndicator.IsVisible = _isBusy;
+        _activityIndicator.IsRunning = _isBusy;
+    }
+
+    private static Border CreateSection(string title, params View[] children)
+    {
+        var stack = new VerticalStackLayout { Spacing = 8 };
+        stack.Children.Add(new Label { Text = title, FontAttributes = FontAttributes.Bold });
+        foreach (var child in children)
+            stack.Children.Add(child);
+
+        return new Border
+        {
+            Stroke = Colors.LightGray,
+            Padding = 12,
+            Content = stack
+        };
+    }
+
+    private static string BuildDocumentMetaText(DocumentInfo document)
+    {
+        var updated = document.UpdatedAt.HasValue
+            ? $"Aktualisiert: {document.UpdatedAt.Value:dd.MM.yyyy HH:mm}"
+            : "Aktualisiert: -";
+        var size = document.Size.HasValue
+            ? FormatFileSize(document.Size.Value)
+            : "Größe unbekannt";
+        return $"{updated} · {size}";
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024)
+            return $"{bytes} B";
+        if (bytes < 1024 * 1024)
+            return $"{bytes / 1024d:0.#} KB";
+        if (bytes < 1024 * 1024 * 1024)
+            return $"{bytes / 1024d / 1024d:0.#} MB";
+
+        return $"{bytes / 1024d / 1024d / 1024d:0.#} GB";
+    }
+
+    private static string GetContentType(string fileName)
+    {
+        return Path.GetExtension(fileName ?? string.Empty).ToLowerInvariant() switch
+        {
+            ".pdf" => "application/pdf",
+            ".doc" => "application/msword",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".xls" => "application/vnd.ms-excel",
+            ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ".txt" => "text/plain",
+            ".rtf" => "application/rtf",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
     }
 
     private static int? TryGetQueryInt(IDictionary<string, object> query, string key)
@@ -213,5 +490,47 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
         var value = raw.ToString();
         return string.IsNullOrWhiteSpace(value) ? null : Uri.UnescapeDataString(value);
+    }
+
+    private sealed class DokumentPageContext
+    {
+        private DokumentPageContext()
+        {
+        }
+
+        public bool IsValid { get; private init; }
+        public DokumentOwnerScope Scope { get; private init; }
+        public int? OwnerId { get; private init; }
+        public string Headline { get; private init; } = string.Empty;
+        public string ContextLabel { get; private init; } = string.Empty;
+        public string HintText { get; private init; } = string.Empty;
+        public string EmptyText { get; private init; } = string.Empty;
+        public string ValidationMessage { get; private init; } = string.Empty;
+
+        public static DokumentPageContext Valid(DokumentOwnerScope scope, int ownerId, string headline, string contextLabel, string hintText, string emptyText)
+            => new()
+            {
+                IsValid = true,
+                Scope = scope,
+                OwnerId = ownerId,
+                Headline = headline,
+                ContextLabel = contextLabel,
+                HintText = hintText,
+                EmptyText = emptyText,
+                ValidationMessage = string.Empty
+            };
+
+        public static DokumentPageContext Invalid(DokumentOwnerScope scope, string headline, string hintText, string validationMessage)
+            => new()
+            {
+                IsValid = false,
+                Scope = scope,
+                OwnerId = null,
+                Headline = headline,
+                ContextLabel = string.Empty,
+                HintText = hintText,
+                EmptyText = string.Empty,
+                ValidationMessage = validationMessage
+            };
     }
 }

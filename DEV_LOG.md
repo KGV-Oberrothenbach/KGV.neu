@@ -2,6 +2,50 @@
 
 ---
 
+## 2026-04-01 – Prompt 2/3: MAUI-DokumentePage auf echten Drive-Dokumentpfad gezogen
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - nach Prompt 1/3 waren nur noch lokal untracked:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - bestehende Parzellen-Aufrufer zur `DokumentePage`
+  - `MemberContextState` und `ParzellenContextState`
+  - der gemeinsame Shared-Servicepfad für Dokument-Upload/-Öffnen
+- Ehrlicher Befund vor dem Block:
+  - die MAUI-`DokumentePage` war weiterhin nur ein Lese-/Platzhalterpfad ohne echte Uploadmaske
+  - parzellenbezogene Dokumente wurden in der Seite noch unnötig auf den Mitgliedskontextpfad eingeschränkt
+  - der mitgliedsbezogene Einstieg lief ohne expliziten Scope-Parameter
+- Minimal umgesetzt:
+  - `DokumentePage` owner-kontextfähig für Mitglied und Parzelle gemacht
+  - schlanke Uploadmaske ergänzt:
+    - Titel-Eingabe
+    - Dateiauswahl
+    - Upload-Button am Ende der Eingabemaske
+  - Datei wird per MAUI-FilePicker gewählt und als gemeinsamer `DokumentUploadRequest` an den vorhandenen Shared-Service übergeben
+  - Busy-State, ActivityIndicator und deaktivierte Buttons verhindern Mehrfachauslösung/Doppeltap beim Upload
+  - Liste lädt jetzt im korrekten Kontext, auch für Parzellen aus dem globalen Parzellenpfad
+  - Dokumentöffnung bleibt zentral über den vorhandenen Drive-first-Servicepfad
+  - nutzerfreundliche Statusmeldungen für ungültigen Kontext, Dateiauswahl, Upload und Öffnen ergänzt
+  - `MeineDatenPage` navigiert jetzt explizit mit `scope=mitglied`
+- Wichtig zur Blockgrenze:
+  - keine WPF-Neuüberarbeitung
+  - kein Löschen/Umbenennen/Mehrfachauswahl/Kategorien
+  - kein neuer Parallelpfad neben dem vorhandenen Shared-Service
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - logische Codeprüfung:
+    - Mitgliedsdokumente können im Mitgliedskontext hochgeladen, gelistet und geöffnet werden
+    - Parzellendokumente können im Parzellenkontext hochgeladen, gelistet und geöffnet werden
+    - Öffnen nutzt weiter den gemeinsamen Drive-first-Pfad
+    - ungültige Owner-Kontexte liefern sichtbare Fehlermeldungen statt stiller Fehler
+  - echter Laufzeittest auf Gerät gegen Supabase/Google Drive wurde in diesem Block nicht ausgeführt
+
 ## 2026-04-01 – Prompt 1/3: Dokumente-Grundblock auf Google Drive umgestellt
 
 - Den realen lokalen Repo-/Git-/Codezustand geprüft.
