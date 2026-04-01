@@ -1,6 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
+using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.State;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
@@ -28,6 +29,7 @@ public sealed class MemberGardensPage : ContentPage
     private readonly CollectionView _gardensView;
 
     private bool _isBusy;
+    private bool _gardenNavigationInProgress;
 
     public MemberGardensPage(
         ISupabaseService supabaseService,
@@ -196,12 +198,36 @@ public sealed class MemberGardensPage : ContentPage
         if (selected == null)
             return;
 
+        if (_gardenNavigationInProgress)
+        {
+            AppFileLog.Warning("KGV.Navigation", $"Mitgliedsgarten-Navigation unterdrückt. Parzelle {selected.ParzelleId} ist bereits in Bearbeitung.");
+            return;
+        }
+
         var selectedMember = _memberContextState.SelectedMember;
         if (selectedMember?.Id is not > 0)
             return;
 
-        _parzellenContextState.SetMemberContext(selectedMember.Id, selected.ParzelleId, _headlineLabel.Text);
-        await Shell.Current.GoToAsync(nameof(ParzellenPage));
+        _gardenNavigationInProgress = true;
+        _gardensView.IsEnabled = false;
+
+        try
+        {
+            AppFileLog.Info("KGV.Navigation", $"Mitgliedsgarten-Navigation angefordert. Mitglied={selectedMember.Id}, Parzelle={selected.ParzelleId}.");
+            _parzellenContextState.SetMemberContext(selectedMember.Id, selected.ParzelleId, _headlineLabel.Text);
+            AppFileLog.Info("KGV.Navigation", $"Mitgliedsgarten-Navigation gestartet. Route={nameof(ParzellenPage)}, Parzelle={selected.ParzelleId}.");
+            await Shell.Current.GoToAsync(nameof(ParzellenPage));
+        }
+        catch (Exception ex)
+        {
+            AppFileLog.Error("KGV.Navigation", $"Mitgliedsgarten-Navigation fehlgeschlagen. Mitglied={selectedMember.Id}, Parzelle={selected.ParzelleId}.", ex);
+            _statusLabel.Text = "Die Parzellenansicht konnte nicht geöffnet werden.";
+        }
+        finally
+        {
+            _gardenNavigationInProgress = false;
+            _gardensView.IsEnabled = true;
+        }
     }
 
     private async void OnAssignGardenClicked(object? sender, EventArgs e)

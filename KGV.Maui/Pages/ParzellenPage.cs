@@ -1,4 +1,5 @@
 using KGV.Core.Models;
+using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
 using Microsoft.Maui.Controls;
@@ -12,6 +13,7 @@ public sealed class ParzellenPage : ContentPage
 {
     private readonly ParzellenViewModel _viewModel;
     private bool _initialized;
+    private bool _appearingInProgress;
 
     public ParzellenPage(ParzellenViewModel viewModel, MemberContextState memberContextState)
     {
@@ -288,22 +290,43 @@ public sealed class ParzellenPage : ContentPage
     {
         base.OnAppearing();
 
-        if (IsGlobalParzellenRoute() && _viewModel.IsContextBound)
+        if (_appearingInProgress)
         {
-            await _viewModel.ClearRequestedContextAsync();
-            _initialized = true;
+            AppFileLog.Warning("KGV.Navigation", "ParzellenPage.OnAppearing unterdrückt, weil bereits ein Ladepfad aktiv ist.");
             return;
         }
 
-        if (!_initialized)
-        {
-            await _viewModel.InitializeAsync();
-            _initialized = true;
-            return;
-        }
+        _appearingInProgress = true;
 
-        await _viewModel.ApplyRequestedContextAsync();
-        await _viewModel.RefreshSelectedDetailAsync();
+        try
+        {
+            AppFileLog.Info("KGV.Navigation", $"ParzellenPage.OnAppearing gestartet. Initialized={_initialized}, IsContextBound={_viewModel.IsContextBound}, Route={(Shell.Current?.CurrentState?.Location?.OriginalString ?? "<none>")}.");
+
+            if (IsGlobalParzellenRoute() && _viewModel.IsContextBound)
+            {
+                await _viewModel.ClearRequestedContextAsync();
+                _initialized = true;
+                return;
+            }
+
+            if (!_initialized)
+            {
+                await _viewModel.InitializeAsync();
+                _initialized = true;
+                return;
+            }
+
+            await _viewModel.ApplyRequestedContextAsync();
+            await _viewModel.RefreshSelectedDetailAsync();
+        }
+        catch (Exception ex)
+        {
+            AppFileLog.Error("KGV.Navigation", "ParzellenPage.OnAppearing ist fehlgeschlagen.", ex);
+        }
+        finally
+        {
+            _appearingInProgress = false;
+        }
     }
 
     private static bool IsGlobalParzellenRoute()

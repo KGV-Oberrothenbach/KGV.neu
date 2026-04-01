@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: Android-Fehler `child already has a parent` auf Shell-/Reattach-Root-Cause zurückgeführt und MAUI-Pfade nachgehärtet
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Bewusst lokal geblieben:
+  - `AWR.bat`
+  - `_secrets/`
+- Direkt geprüft:
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/App.xaml.cs`
+- Ehrlicher Befund:
+  - `BuildMenu()` wird lokal nur noch im Rootaufbau verwendet
+  - `Items.Clear()` existiert im aktuellen `AdminShell`-/`UserShell`-Pfad nicht mehr
+  - offen blieb als technischer Rest vor allem blindes Route-Touching trotz bereits gültiger aktiver Shell sowie ein ungeschützter Garten-/Parzellenpfad
+- Umgesetzt:
+  - `AdminShell` und `UserShell` härten `BuildMenu()`/`Loaded` jetzt so, dass ein bereits gültiger aktiver Shell-Content nicht mehr unnötig erneut gesetzt wird
+  - zusätzliche Diagnose-Logs zeigen, ob Route belassen oder auf `home` zurückgefallen wurde
+  - `MemberGardensPage` mit lokalem Doppeltap-Guard, `try/catch` und Logs für die Parzellen-Navigation gehärtet
+  - `ParzellenPage.OnAppearing()` mit Reentry-Guard und Fehlerlogging abgesichert
+- Wichtig:
+  - keine Shell-Neuarchitektur
+  - keine Root-/Sessionänderung
+  - keine fachliche Änderung an Parzellen oder Mitgliedspfaden
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Prompt 1/1: MAUI-Mitgliedswechselpfade gegen Mehrfachtap/Doppelaufruf im Seitenpfad nachgezogen
 
 - Den realen lokalen Repo-/Git-/Codezustand geprüft.

@@ -2,6 +2,68 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: Android-Fehler `child already has a parent` auf Shell-/Reattach-Root-Cause zurückgeführt und MAUI-Pfade nachgehärtet
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand erneut geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - lokal bewusst untracked blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/MauiProgram.cs`
+- Ehrlicher Befund vor dem Fix:
+  - der frühere harte Shell-Rebuild mit `Items.Clear()` auf sichtbarer Shell ist im aktuellen lokalen Stand bereits entfernt
+  - `BuildMenu()` wird aktuell nur noch im Rootaufbau aus `App.CreateRootPage(...)` aufgerufen
+  - `AdminShell` und `UserShell` bauen ihre Menüstruktur nur einmalig auf
+  - der Android-Fehler `child already has a parent` passt damit lokal nicht mehr zu einem noch vorhandenen Shell-Live-Rebuild per `Items.Clear()`, sondern eher zu einem verbleibenden Reattach-/Reentry-Risiko im sichtbaren Shell-/Navigationszustand
+  - konkret verblieben lokal zwei technische Restkanten:
+    - `BuildMenu()`/`Loaded` berührten den aktiven Shell-Zustand noch bei jedem Aufruf bzw. Laden, auch wenn bereits ein gültiger sichtbarer Content aktiv war
+    - `MemberGardensPage` und `ParzellenPage` hatten im Garten-/Parzellenpfad noch keinen kleinen Schutz gegen Mehrfachauslösung bzw. unbehandelte Fehler im `async void`-Lebenszyklus
+- Minimal umgesetzt:
+  - `KGV.Maui/ShellNavigationHelper.cs`
+    - kleine Hilfsfunktion `HasValidActiveShellContentRoute(...)` ergänzt
+    - damit können `BuildMenu()` und `Loaded` jetzt sauber zwischen gültigem aktivem Shell-Content und echtem Fallback unterscheiden
+  - `KGV.Maui/AdminShell.cs`
+    - `BuildMenu()` loggt jetzt den Aufrufzustand, baut aber die Shell nicht neu auf
+    - der aktive Shell-Pfad wird nur noch korrigiert, wenn keine gültige sichtbare Route vorhanden ist
+    - `Loaded` zieht nicht mehr blind `home` nach, wenn bereits ein gültiger aktiver Shell-Content vorhanden ist
+    - zusätzliche Diagnose-Logs zeigen jetzt explizit, ob Route belassen oder Fallback verwendet wurde
+  - `KGV.Maui/UserShell.cs`
+    - dieselbe kleine Härtung wie in `AdminShell`
+    - auch hier kein blindes Nachziehen der Route mehr bei bereits gültigem aktivem Shell-Content
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+    - lokaler Guard gegen Mehrfachauslösung beim Öffnen einer Parzelle ergänzt
+    - `CollectionView` wird während laufender Navigation kurz deaktiviert
+    - `try/catch` um Kontextsetzen + Navigation ergänzt
+    - Diagnose-Logs für angefordert / gestartet / unterdrückt / fehlgeschlagen ergänzt
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+    - `OnAppearing()` mit kleinem Reentry-Guard abgesichert
+    - kompletter `OnAppearing()`-Pfad jetzt in `try/catch`, damit Fehler geloggt statt als unbehandelter `async void`-Fehler hochzureißen
+    - keine fachliche Änderung an Parzellenlogik, nur technische Härtung des Seitenlebenszyklus
+- Warum dieser Block die Root Cause trifft:
+  - der alte Hauptauslöser `Items.Clear()` auf aktiver Shell ist lokal bereits entfernt und wurde in diesem Block ausdrücklich verifiziert
+  - der verbleibende technische Risikopfad lag jetzt im erneuten Berühren des aktiven Shell-Zustands trotz bereits gültiger Route sowie im ungeschützten Garten-/Parzellen-Eventpfad
+  - damit wurde nicht nur der Gartenpfad „gepflastert“, sondern zuerst der echte verbleibende Shell-/Reattach-Restpfad geprüft und danach nur minimal nachgehärtet
+- Wichtig für die Blockgrenze:
+  - keine Änderung an Root-/Sessionarchitektur
+  - keine Änderung an Shell-Struktur durch neue Architektur
+  - keine fachliche Änderung an Parzellen, Mitgliedern oder Stammdaten
+  - kein neuer globaler Navigationsumbau
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - code-seitige Gegenprüfung:
+    - `BuildMenu()` wird lokal nur noch beim Rootaufbau verwendet
+    - in `AdminShell`/`UserShell` gibt es keine `Items.Clear()`-Live-Rebuilds mehr
+    - `Loaded` greift nur noch bei fehlender gültiger aktiver Route ein
+    - der Gartenpfad ist gegen Doppeltap und unbehandelte Navigationsfehler abgesichert
+
 ## 2026-04-01 – Prompt 1/1: MAUI-Mitgliedswechselpfade gegen Mehrfachtap/Doppelaufruf im Seitenpfad nachgezogen
 
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand erneut geprüft.

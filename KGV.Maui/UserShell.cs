@@ -1,5 +1,6 @@
 using KGV.Core.Models;
 using KGV.Maui.Pages;
+using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.State;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui;
@@ -28,8 +29,9 @@ public sealed class UserShell : Shell, IAppShellInitializer
 
     public void BuildMenu()
     {
+        AppFileLog.Info("KGV.Navigation", $"UserShell.BuildMenu angefordert. MenuBuilt={_menuBuilt}, ActiveRoute={ShellNavigationHelper.GetActiveShellContentRoute(this) ?? "<none>"}.");
         EnsureMenuBuilt();
-        ShellNavigationHelper.EnsureActiveShellItem(this, ShellNavigationHelper.GetActiveShellContentRoute(this) ?? "home");
+        EnsureValidActiveRoute();
     }
 
     private Page CreateOwnMemberDetailsPage()
@@ -76,9 +78,26 @@ public sealed class UserShell : Shell, IAppShellInitializer
 
     private void EnsureActiveRouteAfterLoad()
     {
-        if (ShellNavigationHelper.GetActiveShellContentRoute(this) != null)
+        if (ShellNavigationHelper.HasValidActiveShellContentRoute(this))
+        {
+            AppFileLog.Info("KGV.Navigation", $"UserShell.Loaded belässt aktive Route: {ShellNavigationHelper.GetActiveShellContentRoute(this)}.");
             return;
+        }
 
+        AppFileLog.Warning("KGV.Navigation", "UserShell.Loaded setzt Fallback auf home, weil kein gültiger aktiver Shell-Content vorhanden ist.");
+        ShellNavigationHelper.EnsureActiveShellItem(this, "home");
+    }
+
+    private void EnsureValidActiveRoute()
+    {
+        var currentRoute = ShellNavigationHelper.GetActiveShellContentRoute(this);
+        if (currentRoute != null && ShellNavigationHelper.HasVisibleShellContentRoute(this, currentRoute))
+        {
+            AppFileLog.Info("KGV.Navigation", $"UserShell belässt aktive Route: {currentRoute}.");
+            return;
+        }
+
+        AppFileLog.Warning("KGV.Navigation", $"UserShell verwendet Fallback auf home. Aktive Route war {(currentRoute ?? "<none>")}.");
         ShellNavigationHelper.EnsureActiveShellItem(this, "home");
     }
 

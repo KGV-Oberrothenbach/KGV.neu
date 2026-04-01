@@ -1,6 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Security;
 using KGV.Maui.Pages;
+using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.State;
 using KGV.Maui.Services.PendingPhotos;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,12 +39,13 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
     public void BuildMenu()
     {
+        AppFileLog.Info("KGV.Navigation", $"AdminShell.BuildMenu angefordert. MenuBuilt={_menuBuilt}, ActiveRoute={ShellNavigationHelper.GetActiveShellContentRoute(this) ?? "<none>"}.");
+
         EnsureMenuBuilt();
         UpdateSelectedMemberItemsVisibility();
         RefreshPendingPhotoUploadsMenu();
 
-        var preferredRoute = ShellNavigationHelper.GetActiveShellContentRoute(this) ?? "home";
-        ShellNavigationHelper.EnsureActiveShellItem(this, preferredRoute);
+        EnsureValidActiveRoute();
 
         _ = RefreshWorkhoursReviewMenuAsync();
     }
@@ -143,9 +145,13 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
     private void EnsureActiveRouteAfterLoad()
     {
-        if (ShellNavigationHelper.GetActiveShellContentRoute(this) != null)
+        if (ShellNavigationHelper.HasValidActiveShellContentRoute(this))
+        {
+            AppFileLog.Info("KGV.Navigation", $"AdminShell.Loaded belässt aktive Route: {ShellNavigationHelper.GetActiveShellContentRoute(this)}.");
             return;
+        }
 
+        AppFileLog.Warning("KGV.Navigation", "AdminShell.Loaded setzt Fallback auf home, weil kein gültiger aktiver Shell-Content vorhanden ist.");
         ShellNavigationHelper.EnsureActiveShellItem(this, "home");
     }
 
@@ -153,8 +159,12 @@ public sealed class AdminShell : Shell, IAppShellInitializer
     {
         var currentRoute = ShellNavigationHelper.GetActiveShellContentRoute(this);
         if (currentRoute != null && ShellNavigationHelper.HasVisibleShellContentRoute(this, currentRoute))
+        {
+            AppFileLog.Info("KGV.Navigation", $"AdminShell belässt aktive Route: {currentRoute}.");
             return;
+        }
 
+        AppFileLog.Warning("KGV.Navigation", $"AdminShell verwendet Fallback auf home. Aktive Route war {(currentRoute ?? "<none>")}.");
         ShellNavigationHelper.EnsureActiveShellItem(this, "home");
     }
 
