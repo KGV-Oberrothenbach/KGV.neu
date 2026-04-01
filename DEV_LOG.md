@@ -2,6 +2,29 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: MemberParzellenDetailPage-Verdrahtung lokal verifiziert und ohne weiteren Codeumbau sauber abgeschlossen
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Bewusst lokal geblieben:
+  - `AWR.bat`
+  - `_secrets/`
+- Direkt geprüft:
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+  - `KGV.Maui/Pages/MemberParzellenDetailPage.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/MauiProgram.cs`
+- Ehrlicher Befund:
+  - die neue Seite war bereits vorhanden
+  - DI-Registrierung war bereits vorhanden
+  - die Route war bereits registriert
+  - `MemberGardensPage` navigierte lokal bereits auf `MemberParzellenDetailPage`
+  - der globale Pfad `Parzelle zuordnen` blieb korrekt auf `//parzellen`
+- Umgesetzt:
+  - kein weiterer MAUI-Codefix nötig
+  - nur Verifikation und ehrliche Abschlussdokumentation dieses Verdrahtungsblocks
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Prompt 1/2 Block 1: Eigene MAUI-Seite für `Gärten des Mitglieds -> Parzellendetail` eingeführt
 
 - Den realen lokalen Repo-/Git-/Codezustand geprüft.

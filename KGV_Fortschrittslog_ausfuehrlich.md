@@ -2,6 +2,43 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: MemberParzellenDetailPage-Verdrahtung lokal verifiziert und ohne weiteren Codeumbau sauber abgeschlossen
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand erneut geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - lokal bewusst untracked blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+  - `KGV.Maui/Pages/MemberParzellenDetailPage.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/MauiProgram.cs`
+- Ehrlicher Befund im aktuellen lokalen Stand:
+  - `MemberParzellenDetailPage` war bereits vorhanden
+  - die Seite war in `MauiProgram.cs` bereits für DI registriert
+  - `ShellRouteRegistrar.cs` enthielt die Route für `MemberParzellenDetailPage` bereits
+  - `MemberGardensPage` navigierte beim Antippen einer Parzelle lokal bereits auf `nameof(MemberParzellenDetailPage)`
+  - die Logtexte im Gartenpfad waren ebenfalls bereits auf die neue Detailroute gezogen
+  - der globale Pfad `Parzelle zuordnen` blieb lokal korrekt auf `//parzellen`
+  - damit war der angeforderte Verdrahtungsblock im echten lokalen Stand bereits abgeschlossen; ein weiterer Codeumbau war nicht mehr nötig
+- In diesem Abschlusslauf umgesetzt:
+  - kein weiterer MAUI-Produktcode geändert
+  - nur ehrliche Verifikation des vorhandenen Verdrahtungsstands durchgeführt
+  - Logdateien für diesen Abschlussblock fortgeschrieben
+- Wichtig für die Blockgrenze:
+  - keine Änderung an Root-/Shell-Architektur
+  - keine Änderung an der globalen `ParzellenPage`
+  - keine neue fachliche Erweiterung an `MemberParzellenDetailPage`
+  - nur der bereits vorhandene Verdrahtungsstand wurde bestätigt
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - code-seitige Gegenprüfung:
+    - `MemberGardensPage` enthält keine Navigation mehr auf `nameof(ParzellenPage)`
+    - `Gärten des Mitglieds -> Parzelle öffnen` zeigt auf `MemberParzellenDetailPage`
+    - globale Pfade wie `//parzellen` bleiben unverändert nutzbar
+
 ## 2026-04-01 – Prompt 1/2 Block 1: Eigene MAUI-Seite für `Gärten des Mitglieds -> Parzellendetail` eingeführt
 
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand erneut geprüft.
