@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-04-01 – Prompt 2/3 Block 2: MAUI-Shell stabilisiert und Live-Rebuild der sichtbaren Shell reduziert
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Bewusst lokal geblieben:
+  - `AWR.bat`
+  - `_secrets/`
+- Direkt geprüft:
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/State/MemberContextState.cs`
+- Ehrlicher Befund:
+  - Block 1 war bereits vorhanden
+  - die verbleibende Shell-Schwachstelle lag in `BuildMenu()`-/`Items.Clear()`-Rebuilds und im nachgelagerten `Loaded`-Eingriff
+- Umgesetzt:
+  - `AdminShell` und `UserShell` bauen ihre Shell-Struktur nur noch einmal auf
+  - `BuildMenu()` dient jetzt primär als Initialisierungs-/Refreshpfad statt als sichtbarer Live-Rebuild der Shell
+  - `Loaded` fasst die Route nur noch an, wenn noch kein gültiger aktiver Content gesetzt ist
+  - `AdminShell` hält mitgliedsbezogene Menüpunkte dauerhaft im Shell-Baum und steuert nur noch deren Sichtbarkeit über den Mitgliedskontext
+  - `UserShell` koppelt den eigenen Mitgliedskontext nicht mehr unnötig an `BuildMenu()`
+- Wichtig:
+  - kein Block 3 vorgezogen
+  - keine WPF-Datei geändert
+  - Rootwechsel für Sessionfälle bleibt in `App.xaml.cs` unverändert nutzbar
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Prompt 1/3 Block 1: MAUI-Mitgliedswechsel vom Rootwechsel entkoppelt und auf In-Shell-Navigation umgestellt
 
 - Den realen lokalen Repo-/Git-/Logstand geprüft.

@@ -12,6 +12,7 @@ public sealed class UserShell : Shell, IAppShellInitializer
     private readonly IServiceProvider _services;
     private readonly UserContextState _state;
     private readonly MemberContextState _memberContextState;
+    private bool _menuBuilt;
 
     public UserShell(IServiceProvider services, UserContextState state, MemberContextState memberContextState)
     {
@@ -19,26 +20,16 @@ public sealed class UserShell : Shell, IAppShellInitializer
         _state = state;
         _memberContextState = memberContextState;
 
+        SetOwnMemberContext();
+
         FlyoutBehavior = FlyoutBehavior.Flyout;
-        Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this, GetCurrentRoute() ?? "home");
+        Loaded += (_, _) => EnsureActiveRouteAfterLoad();
     }
 
     public void BuildMenu()
     {
-        var preferredRoute = GetCurrentRoute() ?? "home";
-        SetOwnMemberContext();
-
-        Items.Clear();
-
-        Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
-        Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
-        Items.Add(CreateItem("↳ Stammdaten", "mydetails", CreateOwnMemberDetailsPage));
-        Items.Add(CreateItem("↳ Wartungsverträge", "my_wartungsvertraege", CreateOwnMemberWartungsvertraegePage));
-        Items.Add(CreateItem("↳ Nebenmitglied", "nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
-        Items.Add(CreateItem("↳ Gärten des Mitglieds", "mygardens", CreateOwnMemberGardensPage));
-        Items.Add(CreateItem("↳ Arbeitsstunden", "workhours", () => _services.GetRequiredService<MyArbeitsstundenPage>()));
-
-        ShellNavigationHelper.EnsureActiveShellItem(this, preferredRoute);
+        EnsureMenuBuilt();
+        ShellNavigationHelper.EnsureActiveShellItem(this, ShellNavigationHelper.GetActiveShellContentRoute(this) ?? "home");
     }
 
     private Page CreateOwnMemberDetailsPage()
@@ -67,8 +58,29 @@ public sealed class UserShell : Shell, IAppShellInitializer
         }
     }
 
-    private string? GetCurrentRoute()
-        => CurrentItem?.CurrentItem?.CurrentItem?.Route;
+    private void EnsureMenuBuilt()
+    {
+        if (_menuBuilt)
+            return;
+
+        Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
+        Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
+        Items.Add(CreateItem("↳ Stammdaten", "mydetails", CreateOwnMemberDetailsPage));
+        Items.Add(CreateItem("↳ Wartungsverträge", "my_wartungsvertraege", CreateOwnMemberWartungsvertraegePage));
+        Items.Add(CreateItem("↳ Nebenmitglied", "nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
+        Items.Add(CreateItem("↳ Gärten des Mitglieds", "mygardens", CreateOwnMemberGardensPage));
+        Items.Add(CreateItem("↳ Arbeitsstunden", "workhours", () => _services.GetRequiredService<MyArbeitsstundenPage>()));
+
+        _menuBuilt = true;
+    }
+
+    private void EnsureActiveRouteAfterLoad()
+    {
+        if (ShellNavigationHelper.GetActiveShellContentRoute(this) != null)
+            return;
+
+        ShellNavigationHelper.EnsureActiveShellItem(this, "home");
+    }
 
     private static FlyoutItem CreateItem(string title, string route, Func<Page> pageFactory)
     {

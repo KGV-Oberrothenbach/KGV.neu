@@ -5,6 +5,25 @@ namespace KGV.Maui;
 
 internal static class ShellNavigationHelper
 {
+    public static string? GetActiveShellContentRoute(Shell shell)
+    {
+        ArgumentNullException.ThrowIfNull(shell);
+
+        var item = shell.CurrentItem;
+        if (!IsValid(item))
+            return null;
+
+        var section = item.CurrentItem;
+        if (!IsValid(section))
+            return null;
+
+        var content = section.CurrentItem;
+        if (!IsValid(content))
+            return null;
+
+        return content.Route;
+    }
+
     public static void EnsureActiveShellItem(Shell shell, string? preferredContentRoute = null)
     {
         ArgumentNullException.ThrowIfNull(shell);

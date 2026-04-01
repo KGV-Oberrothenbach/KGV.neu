@@ -2,6 +2,70 @@
 
 ---
 
+## 2026-04-01 – Prompt 2/3 Block 2: MAUI-Shell stabilisiert und Live-Rebuild der sichtbaren Shell reduziert
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand erneut geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - lokal bewusst untracked blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/State/MemberContextState.cs`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Gesamtzielbild für die Folgeblöcke erneut festgehalten:
+  - genau eine aktive Shell pro Sitzung
+  - Rootwechsel nur für Login -> App, Logout und Resume-Timeout -> Login
+  - Mitgliedswechsel und normale Fachnavigation nur innerhalb der bestehenden Shell
+  - keine fragile Live-Änderung der sichtbaren Shell-Struktur mehr
+- Ehrlicher Befund vor Block 2:
+  - Block 1 war lokal bereits enthalten: Mitgliedswechsel läuft ohne Rootwechsel innerhalb der bestehenden Shell
+  - die nächste technische Schwachstelle lag in `AdminShell` und `UserShell`
+  - `BuildMenu()` baute die Shell-Struktur weiterhin mit `Items.Clear()` neu auf
+  - `UserShell.BuildMenu()` setzte den eigenen Mitgliedskontext noch als Seiteneffekt des Menübaufads
+  - `Loaded` griff in beiden Shells weiterhin pauschal in die aktive Route ein, auch wenn bereits ein gültiger Shell-Zielpfad gesetzt war
+- In Block 2 minimal umgesetzt:
+  - `KGV.Maui/ShellNavigationHelper.cs`
+    - neue kleine Hilfsfunktion für die aktuell aktive sichtbare Content-Route ergänzt
+    - damit kann die Shell jetzt zwischen bereits gültiger aktiver Route und echtem Fallback sauber unterscheiden
+  - `KGV.Maui/AdminShell.cs`
+    - Shell-Struktur wird nur noch einmal aufgebaut statt bei jedem `BuildMenu()` sichtbar neu zu entstehen
+    - `Items.Clear()` aus dem laufenden Shell-Aktualisierungspfad entfernt
+    - `BuildMenu()` reduziert auf einmaligen Aufbau plus reinen Zustands-/Sichtbarkeitsrefresh
+    - mitgliedsbezogene Menüpunkte bleiben dauerhaft im Shell-Baum und werden nur noch über Sichtbarkeit am `MemberContextState` nachgeführt
+    - wenn durch Kontextwechsel die aktive Route ungültig wird, fällt die Shell gezielt und kontrolliert auf `home` zurück
+  - `KGV.Maui/UserShell.cs`
+    - Shell-Struktur ebenfalls auf einmaligen Aufbau umgestellt
+    - `Items.Clear()` aus dem laufenden Pfad entfernt
+    - der eigene Mitgliedskontext hängt nicht mehr unnötig an `BuildMenu()`, sondern wird früh gesetzt und in den bestehenden Seitenfabriken weiterverwendet
+  - `Loaded`-Pfad in beiden Shells
+    - greift jetzt nur noch ein, wenn noch kein gültiger aktiver Shell-Content vorhanden ist
+    - kein blindes nachträgliches Überschreiben einer bereits korrekt gesetzten Route mehr
+- Welche `Items.Clear()`-/`BuildMenu()`-Abhängigkeiten reduziert wurden:
+  - Shell-Struktur wird nicht mehr bei jedem `BuildMenu()` live neu aufgebaut
+  - `BuildMenu()` ist jetzt primär ein Refresh-/Initialisierungshook statt ein laufender Rebuild der sichtbaren Shell
+  - mitgliedsbezogene Admin-Menüpunkte hängen nicht mehr funktional an einem kompletten Menüneubau
+- Wie Mitgliedskontext und Menü jetzt sauberer getrennt sind:
+  - Mitgliedskontext steuert Sichtbarkeit und gültige Zielroute
+  - die Shell-Struktur selbst bleibt bestehen
+  - Root-/Sessionwechsel bleiben in `App.xaml.cs`, Kontextwechsel und Menüaktualisierung bleiben in derselben Shell
+- Wichtig für die Blockgrenze:
+  - kein globaler Navigation-Guard aus Block 3 vorgezogen
+  - keine WPF-Datei geändert
+  - Block-1-Verhalten bleibt erhalten: Mitgliedsauswahl und verknüpfte Mitgliedswechsel bleiben innerhalb derselben Shell
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - code-seitige Gegenprüfung:
+    - Shell-Struktur wird in `AdminShell` und `UserShell` nicht mehr im laufenden Pfad über `Items.Clear()` live neu aufgebaut
+    - `Loaded` fällt nicht mehr blind auf `home` zurück
+    - mitgliedsbezogene Menüpunkte im Adminpfad bleiben ohne Shell-Neuaufbau über Sichtbarkeit nutzbar
+
 ## 2026-04-01 – Prompt 1/3 Block 1: MAUI-Mitgliedswechsel vom Rootwechsel entkoppelt und auf In-Shell-Navigation umgestellt
 
 - Vor dem Block den realen lokalen Repo-/Git-/Logstand erneut geprüft und nicht auf die Zielarchitekturannahme allein vertraut.

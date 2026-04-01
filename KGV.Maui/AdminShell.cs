@@ -23,6 +23,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
     private FlyoutItem? _memberGardensItem;
     private FlyoutItem? _memberAdminMenuItem;
     private FlyoutItem? _memberWorkhoursItem;
+    private bool _menuBuilt;
 
     public AdminShell(IServiceProvider services, UserContextState userContextState, MemberContextState memberContextState, PendingPhotoMenuState pendingPhotoMenuState)
     {
@@ -31,14 +32,39 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         _memberContextState = memberContextState;
         _pendingPhotoMenuState = pendingPhotoMenuState;
         FlyoutBehavior = FlyoutBehavior.Flyout;
-        Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this, GetCurrentRoute() ?? "home");
-        _memberContextState.Changed += (_, _) => UpdateSelectedMemberItemsVisibility();
+        Loaded += (_, _) => EnsureActiveRouteAfterLoad();
+        _memberContextState.Changed += (_, _) => OnMemberContextChanged();
     }
 
     public void BuildMenu()
     {
-        var preferredRoute = GetCurrentRoute() ?? "home";
-        Items.Clear();
+        EnsureMenuBuilt();
+        UpdateSelectedMemberItemsVisibility();
+        RefreshPendingPhotoUploadsMenu();
+
+        var preferredRoute = ShellNavigationHelper.GetActiveShellContentRoute(this) ?? "home";
+        ShellNavigationHelper.EnsureActiveShellItem(this, preferredRoute);
+
+        _ = RefreshWorkhoursReviewMenuAsync();
+    }
+
+    public void RefreshPendingPhotoUploadsMenu()
+    {
+        if (_pendingPhotoUploadsItem == null)
+            return;
+
+        _pendingPhotoMenuState.Refresh();
+        _pendingPhotoUploadsItem.Title = _pendingPhotoMenuState.MenuTitle;
+        _pendingPhotoUploadsItem.IsVisible = _pendingPhotoMenuState.HasOpenItems;
+    }
+
+    private bool HasSelectedMember()
+        => _memberContextState.SelectedMember?.Id is > 0;
+
+    private void EnsureMenuBuilt()
+    {
+        if (_menuBuilt)
+            return;
 
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
         Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
@@ -82,25 +108,14 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         Items.Add(_memberAdminMenuItem);
         Items.Add(_memberWorkhoursItem);
 
-        UpdateSelectedMemberItemsVisibility();
-
-        ShellNavigationHelper.EnsureActiveShellItem(this, preferredRoute);
-
-        _ = RefreshWorkhoursReviewMenuAsync();
+        _menuBuilt = true;
     }
 
-    public void RefreshPendingPhotoUploadsMenu()
+    private void OnMemberContextChanged()
     {
-        if (_pendingPhotoUploadsItem == null)
-            return;
-
-        _pendingPhotoMenuState.Refresh();
-        _pendingPhotoUploadsItem.Title = _pendingPhotoMenuState.MenuTitle;
-        _pendingPhotoUploadsItem.IsVisible = _pendingPhotoMenuState.HasOpenItems;
+        UpdateSelectedMemberItemsVisibility();
+        EnsureValidActiveRoute();
     }
-
-    private bool HasSelectedMember()
-        => _memberContextState.SelectedMember?.Id is > 0;
 
     private void UpdateSelectedMemberItemsVisibility()
     {
@@ -126,8 +141,22 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             _memberWorkhoursItem.IsVisible = hasSelectedMember;
     }
 
-    private string? GetCurrentRoute()
-        => CurrentItem?.CurrentItem?.CurrentItem?.Route;
+    private void EnsureActiveRouteAfterLoad()
+    {
+        if (ShellNavigationHelper.GetActiveShellContentRoute(this) != null)
+            return;
+
+        ShellNavigationHelper.EnsureActiveShellItem(this, "home");
+    }
+
+    private void EnsureValidActiveRoute()
+    {
+        var currentRoute = ShellNavigationHelper.GetActiveShellContentRoute(this);
+        if (currentRoute != null && ShellNavigationHelper.HasVisibleShellContentRoute(this, currentRoute))
+            return;
+
+        ShellNavigationHelper.EnsureActiveShellItem(this, "home");
+    }
 
     public async Task RefreshWorkhoursReviewMenuAsync()
     {
