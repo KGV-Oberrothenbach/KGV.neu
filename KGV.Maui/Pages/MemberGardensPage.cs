@@ -215,13 +215,13 @@ public sealed class MemberGardensPage : ContentPage
         {
             AppFileLog.Info("KGV.Navigation", $"Mitgliedsgarten-Navigation angefordert. Mitglied={selectedMember.Id}, Parzelle={selected.ParzelleId}.");
             _parzellenContextState.SetMemberContext(selectedMember.Id, selected.ParzelleId, _headlineLabel.Text);
-            AppFileLog.Info("KGV.Navigation", $"Mitgliedsgarten-Navigation gestartet. Route={nameof(ParzellenPage)}, Parzelle={selected.ParzelleId}.");
-            await Shell.Current.GoToAsync(nameof(ParzellenPage));
+            AppFileLog.Info("KGV.Navigation", $"Mitgliedsgarten-Navigation gestartet. Route={nameof(MemberParzellenDetailPage)}, Parzelle={selected.ParzelleId}.");
+            await Shell.Current.GoToAsync(nameof(MemberParzellenDetailPage));
         }
         catch (Exception ex)
         {
             AppFileLog.Error("KGV.Navigation", $"Mitgliedsgarten-Navigation fehlgeschlagen. Mitglied={selectedMember.Id}, Parzelle={selected.ParzelleId}.", ex);
-            _statusLabel.Text = "Die Parzellenansicht konnte nicht geöffnet werden.";
+            _statusLabel.Text = "Die Parzellen-Detailansicht konnte nicht geöffnet werden.";
         }
         finally
         {
@@ -240,7 +240,7 @@ public sealed class MemberGardensPage : ContentPage
         }
 
         _parzellenContextState.Clear();
-        await Shell.Current.GoToAsync(nameof(ParzellenPage));
+        await Shell.Current.GoToAsync("//parzellen");
     }
 
     private static Border CreateSection(string title, params View[] children)

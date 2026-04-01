@@ -2,6 +2,67 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/2 Block 1: Eigene MAUI-Seite für `Gärten des Mitglieds -> Parzellendetail` eingeführt
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand erneut geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - lokal bewusst untracked blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Maui/State/ParzellenContextState.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/MauiProgram.cs`
+- Ehrlicher Befund vor Block 1:
+  - `MemberGardensPage` navigierte lokal beim Antippen einer Parzelle weiterhin direkt auf `nameof(ParzellenPage)`
+  - `ParzellenPage` trägt im aktuellen Stand aber gleichzeitig die globale Parzellen-/Verwaltungsrolle und den mitgliedsbezogenen Detailkontext
+  - genau diese Doppelrolle sollte in diesem Block aufgelöst werden, ohne die globale `ParzellenPage` fachlich umzubauen
+  - der vorhandene `ParzellenContextState` und `ParzellenViewModel` bieten bereits einen belastbaren mitgliedsbezogenen Auswahl-/Detailkontext, auf dem ein eigener Detailpfad minimal aufsetzen kann
+- In Block 1 minimal umgesetzt:
+  - neue MAUI-Seite `KGV.Maui/Pages/MemberParzellenDetailPage.cs`
+    - liest ausschließlich den vorhandenen mitgliedsbezogenen `ParzellenContextState`
+    - initialisiert den bestehenden `ParzellenViewModel` nur dann, wenn wirklich ein Mitgliedskontext vorhanden ist
+    - zeigt die relevanten Kerndaten der ausgewählten Parzelle in einer eigenen mobilen Detailseite:
+      - ID
+      - Garten Nr
+      - Größe / Fläche
+      - Strom
+      - Wasser
+      - RFID Wasser
+      - RFID Strom
+      - Anlage
+    - nutzt weiter den vorhandenen mitgliedsbezogenen Detailkontext für `Strom`, `Wasser`, `Dokumente` und die Navigation zwischen den Parzellen dieses Mitglieds
+    - übernimmt bewusst nicht die globale Verwaltungsrolle der `ParzellenPage`
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+    - öffnet beim Antippen eines Gartens jetzt nicht mehr `nameof(ParzellenPage)`
+    - navigiert stattdessen auf die neue Route `nameof(MemberParzellenDetailPage)`
+    - vorhandene Guards/Logs bleiben erhalten und wurden nur auf die neue Detailroute nachgezogen
+    - der vorhandene globale Einstieg `Parzelle zuordnen` bleibt über die globale Shell-Route `//parzellen` erhalten; damit enthält `MemberGardensPage` keine Navigation mehr auf `nameof(ParzellenPage)`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+    - neue Route für `MemberParzellenDetailPage` ergänzt
+  - `KGV.Maui/MauiProgram.cs`
+    - neue Seite in DI registriert
+- Warum Block 1 genau so geschnitten ist:
+  - Ziel war zuerst die Doppelrolle der globalen `ParzellenPage` aufzulösen, nicht schon alle Unterfunktionen neu zu strukturieren
+  - deshalb wurde kein großer Umbau von `ParzellenPage` oder `ParzellenViewModel` gestartet
+  - stattdessen wurde der vorhandene mitgliedsbezogene Kontext minimal wiederverwendet und nur in eine eigene Seite überführt
+  - die globale `ParzellenPage` bleibt bewusst unverändert als globale Parzellen-/Verwaltungsseite bestehen
+- Wichtig für die Blockgrenze:
+  - keine Änderung an Root-/Shell-Architektur
+  - keine Änderung an Mitgliedssuche oder Stammdaten außerhalb dieses Pfads
+  - keine große Nachsanierung der Unterfunktionen in diesem Schritt
+  - keine Duplizierung großer globaler Verwaltungslogik aus `ParzellenPage`
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - code-seitige Gegenprüfung:
+    - `MemberGardensPage` navigiert nicht mehr auf `nameof(ParzellenPage)`
+    - `Gärten des Mitglieds -> Parzelle` öffnet jetzt eine eigene mitgliedsbezogene Detailroute
+    - die globale `ParzellenPage` bleibt separat registriert und erreichbar
+
 ## 2026-04-01 – Prompt 1/1: Android-Fehler `child already has a parent` auf Shell-/Reattach-Root-Cause zurückgeführt und MAUI-Pfade nachgehärtet
 
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand erneut geprüft.

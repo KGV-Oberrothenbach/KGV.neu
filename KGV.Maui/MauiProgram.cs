@@ -96,6 +96,7 @@ public static class MauiProgram
         builder.Services.AddTransient<MeineDatenPage>();
         builder.Services.AddTransient<AdminMenuPage>();
         builder.Services.AddTransient<MemberGardensPage>();
+        builder.Services.AddTransient<MemberParzellenDetailPage>();
         builder.Services.AddTransient<DokumentePage>();
         builder.Services.AddTransient<UserManagementViewModel>();
         builder.Services.AddTransient<UserManagementPage>();

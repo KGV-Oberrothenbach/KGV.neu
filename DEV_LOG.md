@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/2 Block 1: Eigene MAUI-Seite für `Gärten des Mitglieds -> Parzellendetail` eingeführt
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Bewusst lokal geblieben:
+  - `AWR.bat`
+  - `_secrets/`
+- Direkt geprüft:
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Maui/State/ParzellenContextState.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/MauiProgram.cs`
+- Ehrlicher Befund:
+  - `MemberGardensPage` öffnete lokal noch direkt `ParzellenPage`
+  - die globale `ParzellenPage` trug damit weiter gleichzeitig die globale Verwaltungsrolle und den mitgliedsbezogenen Detailpfad
+- Umgesetzt:
+  - neue MAUI-Seite `MemberParzellenDetailPage` für den Pfad `Gärten des Mitglieds -> Parzelle`
+  - die neue Seite nutzt den vorhandenen `ParzellenContextState` und den bestehenden `ParzellenViewModel`, bleibt aber bewusst reine mitgliedsbezogene Detailseite
+  - `MemberGardensPage` navigiert beim Antippen eines Gartens jetzt auf `MemberParzellenDetailPage`
+  - der globale Einstieg `Parzelle zuordnen` bleibt auf der globalen Shell-Route `//parzellen`
+  - Route und DI für die neue Seite ergänzt
+- Wichtig:
+  - globale `ParzellenPage` bleibt bewusst unangetastete globale Parzellen-/Verwaltungsseite
+  - kein Root-/Shell-Umbau
+  - nur Block 1 umgesetzt
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Prompt 1/1: Android-Fehler `child already has a parent` auf Shell-/Reattach-Root-Cause zurückgeführt und MAUI-Pfade nachgehärtet
 
 - Den realen lokalen Repo-/Git-/Codezustand geprüft.
