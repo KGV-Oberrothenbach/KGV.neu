@@ -92,7 +92,11 @@ public partial class App : Application
         if (shell is IAppShellInitializer initializer)
             initializer.BuildMenu();
 
-        ShellNavigationHelper.EnsureActiveShellItem(shell, preferredContentRoute ?? "home");
+        var initialRoute = string.IsNullOrWhiteSpace(preferredContentRoute)
+            ? "home"
+            : preferredContentRoute;
+
+        ShellNavigationHelper.EnsureActiveShellItem(shell, initialRoute);
         return shell;
     }
 

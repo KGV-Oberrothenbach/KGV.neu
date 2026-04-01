@@ -25,7 +25,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         _memberContextState = memberContextState;
         _pendingPhotoMenuState = pendingPhotoMenuState;
         FlyoutBehavior = FlyoutBehavior.Flyout;
-        Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this, "home");
+        Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this, GetCurrentRoute() ?? "home");
     }
 
     public void BuildMenu()

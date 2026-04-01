@@ -2,6 +2,32 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: MAUI-Mitgliedsauswahl sauber auf `Stammdaten` geroutet und Shell-Rootwechsel technisch korrigiert
+
+- Den realen lokalen Repo-/Git-/Logstand geprüft.
+- Bewusst lokal geblieben:
+  - `AWR.bat`
+  - `_secrets/`
+- Direkt geprüft:
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+- Ehrlicher Befund:
+  - der Zielrouten-Overload `SwitchToCurrentRootAsync(string? preferredContentRoute)` existiert lokal bereits
+  - der Rückfall auf `home` kam nicht aus einem fehlenden Overload, sondern aus den Shell-`Loaded`-Handlern, die nach dem Rootwechsel hart wieder `home` setzten
+- Umgesetzt:
+  - `App.xaml.cs` trennt Zielroute und Default `home` jetzt expliziter
+  - `AdminShell` und `UserShell` erhalten im `Loaded`-Pfad die schon aktive Route und fallen nur ohne aktive Route auf `home` zurück
+- Wichtig:
+  - keine WPF-Datei geändert
+  - keine fachliche Änderung an Mitgliedskontext oder Stammdatenlogik
+  - kein neuer Live-Rebuild der sichtbaren Shell
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Prompt 1/1: MAUI-Android-Crash `child already has a parent` im Shell-/Navigationspfad minimal behoben
 
 - Den realen Repo-/Git-/Logstand geprüft; `main` liegt auf `origin/main`.

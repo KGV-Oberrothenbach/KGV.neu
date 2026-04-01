@@ -20,7 +20,7 @@ public sealed class UserShell : Shell, IAppShellInitializer
         _memberContextState = memberContextState;
 
         FlyoutBehavior = FlyoutBehavior.Flyout;
-        Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this, "home");
+        Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this, GetCurrentRoute() ?? "home");
     }
 
     public void BuildMenu()
