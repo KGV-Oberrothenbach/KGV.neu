@@ -5,12 +5,8 @@ using Supabase.Postgrest.Models;
 namespace KGV.Core.Models
 {
     [Table("dokument")]
-    public class DokumentRecord : BaseModel
+    public sealed class DokumentInsertRecord : BaseModel
     {
-        [PrimaryKey("id", false)]
-        [Column("id")]
-        public long Id { get; set; }
-
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
 
@@ -24,10 +20,10 @@ namespace KGV.Core.Models
         public int? ParzelleId { get; set; }
 
         [Column("bucket")]
-        public string? Bucket { get; set; }
+        public string Bucket { get; set; } = "dokumente";
 
         [Column("storage_path")]
-        public string? StoragePath { get; set; }
+        public string StoragePath { get; set; } = string.Empty;
 
         [Column("titel")]
         public string? Titel { get; set; }

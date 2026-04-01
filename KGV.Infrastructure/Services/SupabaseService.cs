@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using KGV.Core.Interfaces;
@@ -18,19 +21,34 @@ namespace KGV.Infrastructure.Services
 {
     public class SupabaseService : ISupabaseService
     {
+        private const string DokumentUploadFunctionName = "kgv-upload-document";
         private readonly ISupabaseClientFactory _clientFactory;
         private readonly ILogger<SupabaseService>? _logger;
         private readonly Func<UserContext?>? _currentUserContextAccessor;
+        private readonly IAuthService _authService;
+        private readonly string _supabaseUrl;
+        private readonly string _publishableKey;
+        private readonly HttpClient _documentUploadHttpClient;
         private Client? _client;
 
         public SupabaseService(
             ISupabaseClientFactory clientFactory,
             ILogger<SupabaseService>? logger,
-            Func<UserContext?>? currentUserContextAccessor)
+            Func<UserContext?>? currentUserContextAccessor,
+            IAuthService authService,
+            string supabaseUrl,
+            string publishableKey)
         {
             _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
             _logger = logger;
             _currentUserContextAccessor = currentUserContextAccessor;
+            _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+            _supabaseUrl = (supabaseUrl ?? string.Empty).Trim();
+            _publishableKey = (publishableKey ?? string.Empty).Trim();
+            _documentUploadHttpClient = new HttpClient
+            {
+                Timeout = TimeSpan.FromMinutes(3)
+            };
         }
 
         public Client Client => _client ?? throw CreateUnavailableException();
@@ -709,6 +727,42 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
+        public Task<string?> ResolveDokumentOpenUrlAsync(DocumentInfo? document, int expiresInSeconds = 3600) => ExecuteAsync<string?>(
+            "ResolveDokumentOpenUrlAsync",
+            async () =>
+            {
+                if (document == null)
+                    return null;
+
+                var normalizedDriveFileId = CleanOptionalText(document.DriveFileId);
+                if (!string.IsNullOrWhiteSpace(normalizedDriveFileId))
+                    return BuildGoogleDriveFileViewUrl(normalizedDriveFileId);
+
+                var storagePath = CleanOptionalText(document.StoragePath);
+                if (Uri.TryCreate(storagePath, UriKind.Absolute, out var absoluteUri)
+                    && (string.Equals(absoluteUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(absoluteUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return absoluteUri.ToString();
+                }
+
+                var normalizedBucket = CleanOptionalText(document.Bucket);
+                if (!string.IsNullOrWhiteSpace(normalizedBucket) && !string.IsNullOrWhiteSpace(storagePath))
+                {
+                    var client = await EnsureClientAsync();
+                    return await client.Storage.From(normalizedBucket).CreateSignedUrl(storagePath.TrimStart('/').Replace('\\', '/'), expiresInSeconds);
+                }
+
+                if (TryParseStorageReference(storagePath, out var bucket, out var path))
+                {
+                    var client = await EnsureClientAsync();
+                    return await client.Storage.From(bucket).CreateSignedUrl(path, expiresInSeconds);
+                }
+
+                return null;
+            },
+            null);
+
         public Task<string?> ResolveAblesungFotoOpenUrlAsync(string? fotoPfad, string? fotoDriveFileId, int expiresInSeconds = 3600) => ExecuteAsync<string?>(
             "ResolveAblesungFotoOpenUrlAsync",
             async () =>
@@ -1202,6 +1256,78 @@ namespace KGV.Infrastructure.Services
                     ?? new List<DocumentInfo>();
             },
             new List<DocumentInfo>());
+
+        public async Task<DokumentUploadResult> CreateDokumentAsync(DokumentUploadRequest request)
+        {
+            if (request == null)
+                return DokumentUploadResult.Fail("Dokumentdaten fehlen.", "VALIDATION");
+
+            var normalizedTitle = CleanRequiredText(request.Titel);
+            if (string.IsNullOrWhiteSpace(normalizedTitle))
+                return DokumentUploadResult.Fail("Bitte einen Dokumenttitel eingeben.", "VALIDATION");
+
+            if ((request.FileContent?.Length ?? 0) <= 0)
+                return DokumentUploadResult.Fail("Bitte eine Dokumentdatei auswählen.", "VALIDATION");
+
+            var ownerCount = (request.MitgliedId.HasValue && request.MitgliedId.Value > 0 ? 1 : 0)
+                + (request.ParzelleId.HasValue && request.ParzelleId.Value > 0 ? 1 : 0);
+            if (ownerCount != 1)
+                return DokumentUploadResult.Fail("Ein Dokument muss genau einem Mitglied oder genau einer Parzelle zugeordnet sein.", "VALIDATION");
+
+            var uploadResult = await UploadDokumentToDriveAsync(request, normalizedTitle);
+            if (!uploadResult.Success)
+                return uploadResult;
+
+            try
+            {
+                var client = await EnsureClientAsync();
+                var now = DateTime.UtcNow;
+                var insertRecord = new DokumentInsertRecord
+                {
+                    MitgliedId = request.MitgliedId > 0 ? request.MitgliedId : null,
+                    ParzelleId = request.ParzelleId > 0 ? request.ParzelleId : null,
+                    StoragePath = uploadResult.Document?.StoragePath ?? string.Empty,
+                    Titel = normalizedTitle,
+                    Dateiname = uploadResult.Document?.Dateiname,
+                    MimeType = uploadResult.Document?.MimeType,
+                    SizeBytes = uploadResult.Document?.Size,
+                    DriveFileId = uploadResult.Document?.DriveFileId,
+                    CreatedBy = ResolveCurrentAuthUserId(),
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+
+                await client.From<DokumentInsertRecord>().Insert(insertRecord);
+
+                var createdDocument = await ReloadInsertedDokumentAsync(client, insertRecord)
+                    ?? new DocumentInfo
+                    {
+                        Title = normalizedTitle,
+                        Name = normalizedTitle,
+                        Bucket = insertRecord.Bucket,
+                        StoragePath = insertRecord.StoragePath,
+                        Dateiname = insertRecord.Dateiname ?? string.Empty,
+                        MimeType = insertRecord.MimeType ?? string.Empty,
+                        Size = insertRecord.SizeBytes,
+                        DriveFileId = insertRecord.DriveFileId ?? string.Empty,
+                        CreatedBy = insertRecord.CreatedBy,
+                        CreatedAt = insertRecord.CreatedAt,
+                        UpdatedAt = insertRecord.UpdatedAt
+                    };
+
+                return DokumentUploadResult.Ok(createdDocument, uploadResult.RequestId);
+            }
+            catch (PostgrestException ex)
+            {
+                LogPostgrestFailure("CreateDokumentAsync", ex);
+                return DokumentUploadResult.Fail("Dokumentmetadaten konnten nach dem Upload nicht gespeichert werden.", "POSTGREST");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "CreateDokumentAsync failed after upload.");
+                return DokumentUploadResult.Fail("Dokument konnte aktuell nicht gespeichert werden.", "UNEXPECTED");
+            }
+        }
 
         public Task<List<DocumentInfo>> GetParzelleDokumenteAsync(int parzelleId) => ExecuteAsync(
             "GetParzelleDokumenteAsync",
@@ -3904,31 +4030,26 @@ namespace KGV.Infrastructure.Services
 
         private static DocumentInfo MapDocumentInfo(DokumentRecord record)
         {
-            var storagePath = ComposeStorageReference(record);
-            var fallbackName = string.IsNullOrWhiteSpace(record.StoragePath)
+            var storagePath = CleanOptionalText(record.StoragePath) ?? string.Empty;
+            var fallbackName = string.IsNullOrWhiteSpace(storagePath)
                 ? string.Empty
-                : Path.GetFileName(record.StoragePath.Replace('\\', '/'));
+                : Path.GetFileName(storagePath.Replace('\\', '/'));
 
             return new DocumentInfo
             {
-                Name = FirstNonEmpty(record.Titel, record.Dateiname, fallbackName),
+                Id = record.Id,
+                Title = FirstNonEmpty(record.Titel, record.Dateiname, fallbackName) ?? string.Empty,
+                Name = FirstNonEmpty(record.Titel, record.Dateiname, fallbackName) ?? string.Empty,
+                Bucket = CleanOptionalText(record.Bucket) ?? string.Empty,
                 StoragePath = storagePath,
+                Dateiname = FirstNonEmpty(record.Dateiname, fallbackName) ?? string.Empty,
+                MimeType = CleanOptionalText(record.MimeType) ?? string.Empty,
+                DriveFileId = CleanOptionalText(record.DriveFileId) ?? string.Empty,
                 Size = record.SizeBytes,
+                CreatedBy = record.CreatedBy,
+                CreatedAt = record.CreatedAt,
                 UpdatedAt = record.UpdatedAt
             };
-        }
-
-        private static string ComposeStorageReference(DokumentRecord record)
-        {
-            var path = (record.StoragePath ?? string.Empty).Trim().TrimStart('/');
-            var bucket = (record.Bucket ?? string.Empty).Trim();
-
-            if (string.IsNullOrWhiteSpace(bucket))
-                return path;
-            if (string.IsNullOrWhiteSpace(path))
-                return bucket;
-
-            return $"{bucket}:{path}";
         }
 
         private static bool TryParseStorageReference(string? storageReference, out string bucket, out string path)
@@ -3951,6 +4072,209 @@ namespace KGV.Infrastructure.Services
 
         private static string BuildGoogleDriveFileViewUrl(string driveFileId)
             => $"https://drive.google.com/file/d/{Uri.EscapeDataString(driveFileId)}/view";
+
+        private async Task<DokumentUploadResult> UploadDokumentToDriveAsync(DokumentUploadRequest request, string normalizedTitle)
+        {
+            var token = await _authService.GetAccessTokenAsync();
+            if (string.IsNullOrWhiteSpace(token))
+                return DokumentUploadResult.Fail("Die aktuelle Anmeldung ist abgelaufen. Bitte erneut anmelden.", "UPLOAD_AUTH_TOKEN_MISSING");
+
+            if (string.IsNullOrWhiteSpace(_supabaseUrl) || string.IsNullOrWhiteSpace(_publishableKey))
+                return DokumentUploadResult.Fail("Supabase-URL oder Publishable Key ist nicht konfiguriert.", "UPLOAD_CONFIG_MISSING");
+
+            var ownerKind = request.MitgliedId.HasValue && request.MitgliedId.Value > 0 ? "mitglied" : "parzelle";
+            var ownerId = request.MitgliedId.HasValue && request.MitgliedId.Value > 0
+                ? request.MitgliedId.Value
+                : request.ParzelleId.GetValueOrDefault();
+
+            var endpoint = new Uri(new Uri(_supabaseUrl.TrimEnd('/') + "/"), $"functions/v1/{DokumentUploadFunctionName}");
+
+            try
+            {
+                using var multipart = new MultipartFormDataContent();
+                var fileName = string.IsNullOrWhiteSpace(request.FileName) ? "dokument.bin" : request.FileName.Trim();
+                var contentType = string.IsNullOrWhiteSpace(request.MimeType) ? "application/octet-stream" : request.MimeType.Trim();
+                var fileContent = new ByteArrayContent(request.FileContent);
+                fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
+
+                multipart.Add(fileContent, "file", fileName);
+                multipart.Add(new StringContent(ownerKind), "owner_kind");
+                multipart.Add(new StringContent(ownerId.ToString()), "owner_id");
+                multipart.Add(new StringContent(normalizedTitle), "titel");
+
+                using var message = new HttpRequestMessage(HttpMethod.Post, endpoint)
+                {
+                    Content = multipart
+                };
+                message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                message.Headers.Add("apikey", _publishableKey);
+
+                using var response = await _documentUploadHttpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead);
+                var rawBody = await response.Content.ReadAsStringAsync();
+                var uploadResponse = DeserializeDokumentUploadResponse(rawBody);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger?.LogWarning(
+                        "UploadDokumentToDriveAsync failed. StatusCode={StatusCode} DiagnosticCode={DiagnosticCode} RequestId={RequestId}",
+                        (int)response.StatusCode,
+                        uploadResponse?.ErrorCode,
+                        uploadResponse?.RequestId);
+
+                    return DokumentUploadResult.Fail(
+                        uploadResponse?.Message ?? "Dokument-Upload wurde vom Server abgelehnt.",
+                        uploadResponse?.ErrorCode ?? $"UPLOAD_HTTP_{(int)response.StatusCode}",
+                        uploadResponse?.RequestId);
+                }
+
+                if (uploadResponse == null
+                    || string.IsNullOrWhiteSpace(uploadResponse.DriveFileId)
+                    || string.IsNullOrWhiteSpace(uploadResponse.StoragePath)
+                    || string.IsNullOrWhiteSpace(uploadResponse.Dateiname))
+                {
+                    _logger?.LogWarning("UploadDokumentToDriveAsync returned incomplete payload. RawBodyLength={RawBodyLength}", rawBody?.Length ?? 0);
+                    return DokumentUploadResult.Fail("Dokument-Upload lieferte keine vollständigen Metadaten zurück.", "UPLOAD_RESPONSE_INVALID", uploadResponse?.RequestId);
+                }
+
+                return DokumentUploadResult.Ok(
+                    new DocumentInfo
+                    {
+                        Title = normalizedTitle,
+                        Name = normalizedTitle,
+                        StoragePath = uploadResponse.StoragePath.Trim(),
+                        Dateiname = uploadResponse.Dateiname.Trim(),
+                        MimeType = CleanOptionalText(uploadResponse.MimeType) ?? contentType,
+                        Size = uploadResponse.SizeBytes,
+                        DriveFileId = uploadResponse.DriveFileId.Trim()
+                    },
+                    uploadResponse.RequestId);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "UploadDokumentToDriveAsync transport failure.");
+                return DokumentUploadResult.Fail("Dokument-Upload ist aktuell nicht erreichbar.", "UPLOAD_SEND_FAIL");
+            }
+        }
+
+        private Guid? ResolveCurrentAuthUserId()
+        {
+            var userContext = _currentUserContextAccessor?.Invoke();
+            if (userContext != null && userContext.UserId != Guid.Empty)
+                return userContext.UserId;
+
+            return Guid.TryParse(_authService.CurrentUserId, out var authUserId)
+                ? authUserId
+                : null;
+        }
+
+        private async Task<DocumentInfo?> ReloadInsertedDokumentAsync(Client client, DokumentInsertRecord insertRecord)
+        {
+            var response = await client.From<DokumentRecord>().Get();
+            var models = response?.Models;
+            if (models == null)
+                return null;
+
+            return models
+                .Where(x => !insertRecord.MitgliedId.HasValue || x.MitgliedId == insertRecord.MitgliedId.Value)
+                .Where(x => !insertRecord.ParzelleId.HasValue || x.ParzelleId == insertRecord.ParzelleId.Value)
+                .Where(x => IsSameDokumentForReload(x, insertRecord))
+                .OrderByDescending(x => x.Id)
+                .Select(MapDocumentInfo)
+                .FirstOrDefault();
+        }
+
+        private static bool IsSameDokumentForReload(DokumentRecord existing, DokumentInsertRecord candidate)
+        {
+            return existing.MitgliedId == candidate.MitgliedId
+                && existing.ParzelleId == candidate.ParzelleId
+                && string.Equals(CleanOptionalText(existing.StoragePath), CleanOptionalText(candidate.StoragePath), StringComparison.CurrentCulture)
+                && string.Equals(CleanOptionalText(existing.Titel), CleanOptionalText(candidate.Titel), StringComparison.CurrentCulture)
+                && string.Equals(CleanOptionalText(existing.Dateiname), CleanOptionalText(candidate.Dateiname), StringComparison.CurrentCulture)
+                && string.Equals(CleanOptionalText(existing.MimeType), CleanOptionalText(candidate.MimeType), StringComparison.CurrentCulture)
+                && existing.SizeBytes == candidate.SizeBytes
+                && string.Equals(CleanOptionalText(existing.DriveFileId), CleanOptionalText(candidate.DriveFileId), StringComparison.CurrentCulture)
+                && existing.CreatedBy == candidate.CreatedBy;
+        }
+
+        private static DokumentUploadFunctionResponse? DeserializeDokumentUploadResponse(string? rawBody)
+        {
+            if (string.IsNullOrWhiteSpace(rawBody))
+                return null;
+
+            try
+            {
+                return JsonSerializer.Deserialize<DokumentUploadFunctionResponse>(rawBody);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private sealed class DokumentUploadFunctionResponse
+        {
+            [JsonPropertyName("success")]
+            public bool Success { get; set; }
+
+            [JsonPropertyName("message")]
+            public string? Message { get; set; }
+
+            [JsonPropertyName("request_id")]
+            public string? RequestId { get; set; }
+
+            [JsonPropertyName("error_code")]
+            public string? ErrorCode { get; set; }
+
+            [JsonPropertyName("drive_file_id")]
+            public string? DriveFileId { get; set; }
+
+            [JsonPropertyName("fileId")]
+            public string? DriveFileIdAlias
+            {
+                get => DriveFileId;
+                set => DriveFileId ??= value;
+            }
+
+            [JsonPropertyName("storage_path")]
+            public string? StoragePath { get; set; }
+
+            [JsonPropertyName("relativePath")]
+            public string? StoragePathAlias
+            {
+                get => StoragePath;
+                set => StoragePath ??= value;
+            }
+
+            [JsonPropertyName("dateiname")]
+            public string? Dateiname { get; set; }
+
+            [JsonPropertyName("fileName")]
+            public string? DateinameAlias
+            {
+                get => Dateiname;
+                set => Dateiname ??= value;
+            }
+
+            [JsonPropertyName("mime_type")]
+            public string? MimeType { get; set; }
+
+            [JsonPropertyName("mimeType")]
+            public string? MimeTypeAlias
+            {
+                get => MimeType;
+                set => MimeType ??= value;
+            }
+
+            [JsonPropertyName("size_bytes")]
+            public long? SizeBytes { get; set; }
+
+            [JsonPropertyName("sizeBytes")]
+            public long? SizeBytesAlias
+            {
+                get => SizeBytes;
+                set => SizeBytes ??= value;
+            }
+        }
 
         private static string? FirstNonEmpty(params string?[] values)
         {

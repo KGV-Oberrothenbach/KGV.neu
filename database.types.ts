@@ -389,6 +389,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           dateiname: string | null
+          drive_file_id: string | null
           id: number
           mime_type: string | null
           mitglied_id: number | null
@@ -403,6 +404,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           dateiname?: string | null
+          drive_file_id?: string | null
           id?: number
           mime_type?: string | null
           mitglied_id?: number | null
@@ -417,6 +419,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           dateiname?: string | null
+          drive_file_id?: string | null
           id?: number
           mime_type?: string | null
           mitglied_id?: number | null

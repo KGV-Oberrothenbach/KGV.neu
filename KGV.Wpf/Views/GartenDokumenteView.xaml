@@ -4,12 +4,62 @@
              Background="{DynamicResource KgvBackgroundBrush}">
 
     <Grid Margin="30">
-        <StackPanel>
-            <TextBlock Text="Dokumente" FontSize="24" FontWeight="Bold" />
-            <TextBlock Text="" Margin="0,10,0,0">
-                <Run Text="Garten: " />
-                <Run Text="{Binding GartenNr, Mode=OneWay}" FontWeight="SemiBold" />
-            </TextBlock>
-        </StackPanel>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" LastChildFill="False">
+            <StackPanel DockPanel.Dock="Left">
+                <TextBlock Text="Dokumente" FontSize="24" FontWeight="Bold" />
+                <TextBlock Margin="0,10,0,0">
+                    <Run Text="Garten: " />
+                    <Run Text="{Binding GartenNr, Mode=OneWay}" FontWeight="SemiBold" />
+                </TextBlock>
+            </StackPanel>
+
+            <Button DockPanel.Dock="Right" Content="Aktualisieren" Width="160" Height="35" Command="{Binding RefreshCommand}" />
+        </DockPanel>
+
+        <Grid Grid.Row="1" Margin="0,15,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <GroupBox Header="Parzellendokument hochladen" Margin="0,0,0,12">
+                <StackPanel Margin="12">
+                    <TextBlock Text="Titel" FontWeight="SemiBold" />
+                    <TextBox Margin="0,4,0,10" Text="{Binding UploadTitel, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Text="Datei" FontWeight="SemiBold" />
+                    <DockPanel Margin="0,4,0,10" LastChildFill="True">
+                        <Button DockPanel.Dock="Right" Content="Datei auswählen" Width="140" Margin="8,0,0,0" Command="{Binding SelectFileCommand}" />
+                        <TextBox Text="{Binding SelectedFileName}" IsReadOnly="True" />
+                    </DockPanel>
+
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="DarkSlateBlue" TextWrapping="Wrap" Margin="0,0,0,10" />
+                    <Button Content="Upload starten" Width="160" HorizontalAlignment="Right" Command="{Binding UploadCommand}" />
+                </StackPanel>
+            </GroupBox>
+
+            <ListView Grid.Row="1" ItemsSource="{Binding Dokumente}">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="Titel" Width="220" DisplayMemberBinding="{Binding Title}" />
+                        <GridViewColumn Header="Dateiname" Width="260" DisplayMemberBinding="{Binding Dateiname}" />
+                        <GridViewColumn Header="Geändert" Width="160" DisplayMemberBinding="{Binding UpdatedAt}" />
+                        <GridViewColumn Header="Größe" Width="90" DisplayMemberBinding="{Binding Size}" />
+                        <GridViewColumn Header="" Width="100">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Öffnen" Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                    </GridView>
+                </ListView.View>
+            </ListView>
+        </Grid>
     </Grid>
 </UserControl>

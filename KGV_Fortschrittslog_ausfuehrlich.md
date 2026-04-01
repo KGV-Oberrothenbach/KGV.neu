@@ -2,6 +2,61 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/3: Dokumente-Grundblock auf Google Drive buildfähig abgeschlossen
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - lokal bereits in Arbeit bzw. neu vorhanden waren die Dokument-/Drive-Blockdateien in `KGV.Core`, `KGV.Infrastructure`, `KGV.Wpf`, `supabase/functions`, `supabase/config.toml`, `database.types.ts` und die Migration `20260401113000_dokument_drive_google.sql`
+  - bewusst lokal untracked blieben weiter `AWR.bat` und `_secrets/`
+- Direkt geprüft wurden:
+  - vorhandene Dokumentmodelle `DocumentInfo`, `DokumentRecord`
+  - vorhandene Dokument-Servicepfade in `SupabaseService`
+  - vorhandene WPF-Dokument-ViewModels/-Views
+  - aktuelle MAUI-`DokumentePage` als noch schlichte Platzhalterseite
+  - bestehender produktiver Google-Drive-Foto-Upload `supabase/functions/kgv-upload-photo/index.ts`
+  - manueller `SupabaseService`-Bootstrapper in `KGV.Wpf/App.xaml.cs`
+- Ehrlicher Istzustand vor der Umsetzung:
+  - `public.dokument` blieb bereits der gemeinsame Datenpfad für Mitglied und Parzelle
+  - Dokumentlisten existierten in WPF und über Shared-Service bereits
+  - `ResolveDokumentOpenUrlAsync(...)` hatte schon eine Grundlogik, war aber im Gesamtblock noch mit altem Storage-Kompatibilitätskontext gemischt
+  - der neue Dokument-Uploadpfad war zwar angefangen, aber im Shared-Service noch nicht vollständig buildfähig verdrahtet
+  - WPF konnte Dokumente noch nicht hochladen; MAUI sollte in diesem Block bewusst noch keine neue Upload-Oberfläche bekommen
+  - real wiederverwendete Vorlage war der bestehende Foto-Uploadpfad `kgv-upload-photo` inklusive Auth-Prüfung, Drive-Folder-Handling, Logging und Fehlerbehandlung
+- Minimal umgesetzt:
+  - Dokument-Shared-Modelle und Insert-/Request-/Result-Typen sauber auf den realen DB-/Uploadvertrag ergänzt
+  - `SupabaseService` um den fehlenden gemeinsamen Dokument-Upload-Unterbau vervollständigt:
+    - Upload an `kgv-upload-document`
+    - Auswertung der Function-Antwort
+    - Insert nach `public.dokument` erst nach erfolgreichem Drive-Upload
+    - `created_by` aus vorhandenem Auth-/User-Kontext gesetzt
+    - konsistenter Reload-/Fallback-Rückgabepfad für den frisch angelegten Datensatz
+  - Dokument-Mapping und Open-URL-Auflösung auf Drive-first gehärtet:
+    - `drive_file_id` erzeugt eine echte Google-Drive-Ansichts-URL
+    - absolute URLs und alte Storage-/Signed-URL-Fälle bleiben kompatibel
+    - keine rohen relativen Pfade werden direkt an Browser/Launcher weitergereicht
+  - WPF-Mitgliedsdokumentseite minimal um Uploadform erweitert
+  - WPF-Parzellendokumentseite vom Platzhalter auf dieselbe minimale Upload-/Listen-/Öffnen-Funktionalität gezogen
+  - `KGV.Wpf/App.xaml.cs` auf den erweiterten `SupabaseService`-Konstruktor angepasst
+  - `kgv-upload-document` gibt zusätzlich zu snake_case auch die angefragten Aliasfelder `fileId`, `relativePath`, `fileName`, `mimeType`, `sizeBytes` zurück
+- Warum dieser Block die fachliche Basis trifft:
+  - es gibt jetzt genau einen gemeinsamen Produktivpfad für neuen Dokument-Upload über Google Drive
+  - der DB-Vertrag von `public.dokument` bleibt erhalten und wird um `drive_file_id` führend nutzbar gemacht
+  - Öffnen/Download läuft künftig zentral über denselben Shared-Servicepfad
+  - WPF kann den Grundworkflow bereits nutzen, ohne dass parallel eine zweite Dokumentarchitektur entstanden ist
+- Wichtig für die Blockgrenze:
+  - dies ist nur Block 1/3
+  - keine große MAUI-Dokumentverwaltung
+  - kein Löschen, Umbenennen, keine Kategorien, keine Mehrfachauswahl, keine Archiv-/Versionierungslogik
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - logische Codeprüfung:
+    - Uploadantwort liefert `drive_file_id`
+    - Dokumentdatensatz kann zentral in `public.dokument` angelegt werden
+    - Open-URL-Auflösung nutzt `drive_file_id` priorisiert
+  - echter Laufzeittest gegen Supabase/Google Drive war in diesem Block nicht möglich und wurde daher nicht behauptet
+
 ## 2026-04-01 – Prompt 1/1: Erstablesung beim Zählereinbau auf `zaehler_ablesung` korrigiert und doppelten Foto-Schritt im Einbau-Flow entfernt
 
 ## 2026-04-01 – Prompt 1/1: Foto öffnen in Strom-/Wasser-Historie robust auflösbar gemacht

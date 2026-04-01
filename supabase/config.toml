@@ -406,6 +406,12 @@ entrypoint = "./functions/kgv-upload-photo/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/kgv-upload-photo/*.html" ]
 
+[functions.kgv-upload-document]
+enabled = true
+verify_jwt = false
+import_map = "./functions/kgv-upload-document/deno.json"
+entrypoint = "./functions/kgv-upload-document/index.ts"
+
 [functions.kgv-request-first-login-otp]
 enabled = true
 verify_jwt = false

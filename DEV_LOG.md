@@ -2,6 +2,75 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/3: Dokumente-Grundblock auf Google Drive umgestellt
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - lokal bereits im Block geändert bzw. neu vorhanden:
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Core/Models/DocumentInfo.cs`
+    - `KGV.Core/Models/DokumentRecord.cs`
+    - `KGV.Core/Models/DokumentInsertRecord.cs`
+    - `KGV.Core/Models/DokumentUploadRequest.cs`
+    - `KGV.Core/Models/DokumentUploadResult.cs`
+    - `KGV.Infrastructure/DependencyInjection/ServiceCollectionExtensions.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+    - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+    - `KGV.Wpf/App.xaml.cs`
+    - `KGV.Wpf/ViewModels/DokumenteViewModel.cs`
+    - `KGV.Wpf/ViewModels/GartenDokumenteViewModel.cs`
+    - `KGV.Wpf/Views/DokumenteView.xaml`
+    - `KGV.Wpf/Views/GartenDokumenteView.xaml`
+    - `supabase/functions/kgv-upload-document/index.ts`
+    - `supabase/functions/kgv-upload-document/deno.json`
+    - `supabase/config.toml`
+    - `database.types.ts`
+    - `supabase/migrations/20260401113000_dokument_drive_google.sql`
+  - bewusst lokal untracked blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - bestehende Dokumentmodelle/-listen in `KGV.Core`
+  - bestehende Dokumentpfade und Öffnungslogik in `KGV.Infrastructure/Services/SupabaseService.cs`
+  - bestehende WPF-Dokument-ViewModels/-Views
+  - aktuelle MAUI-`DokumentePage` als Platzhalterpfad
+  - bestehender Google-Drive-Foto-Uploadpfad `supabase/functions/kgv-upload-photo/index.ts`
+  - WPF-Bootstrapper `KGV.Wpf/App.xaml.cs`
+- Ehrlicher Befund vor dem Abschluss dieses Blocks:
+  - Dokumentlisten und zentrales Öffnen existierten bereits
+  - alte Dokumentöffnungen liefen teils noch über Storage-/Signed-URL-Kompatibilität
+  - der neue Dokument-Uploadpfad war im Repo bereits begonnen, aber im Shared-Service noch nicht vollständig verdrahtet
+  - die WPF-Dokumentansichten hatten noch keine Uploadmöglichkeit; die MAUI-Seite blieb bewusst Platzhalter
+  - als reale Vorlage wurde der bestehende Drive-Foto-Upload `kgv-upload-photo` wiederverwendet, nicht neu parallel erfunden
+- Minimal umgesetzt:
+  - Shared-Dokumentmodelle auf `drive_file_id`, `titel`, `dateiname`, `mime_type`, `size_bytes`, `created_by`, `created_at`, `updated_at` vervollständigt
+  - zentralen Dokument-Uploadpfad in `SupabaseService` fertig verdrahtet:
+    - Function-Aufruf an `kgv-upload-document`
+    - Auswertung der Uploadantwort
+    - Insert in `public.dokument`
+    - `created_by` aus vorhandenem Auth-/User-Kontext gesetzt
+    - konsistentes Reload/Fallback-Ergebnis geliefert
+  - Dokument-Öffnen bleibt jetzt robust Drive-first über `drive_file_id`, toleriert aber alte Storage-Fälle weiter
+  - WPF-`App.xaml.cs` auf den erweiterten `SupabaseService`-Konstruktor gezogen
+  - vorhandene WPF-Dokumentpfade minimal um Upload ergänzt:
+    - Mitgliedsdokumente: Titel + Dateiauswahl + Upload + Listenrefresh + Öffnen
+    - Parzellendokumente: Titel + Dateiauswahl + Upload + Listenrefresh + Öffnen
+  - `kgv-upload-document` liefert zusätzlich zu den bestehenden snake_case-Feldern auch die fachlich gewünschten Aliasfelder `fileId`, `relativePath`, `fileName`, `mimeType`, `sizeBytes`
+- Wichtig zur Blockgrenze:
+  - nur Grundblock 1/3 umgesetzt
+  - keine große MAUI-Upload-UI gebaut
+  - kein Löschen/Umbenennen/Kategorien/Versionierung ergänzt
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - logische Gegenprüfung im Code:
+    - neuer Uploadpfad liefert `drive_file_id`
+    - `public.dokument`-Insert speichert Drive-Metadaten zentral
+    - Dokument-Öffnen nutzt `drive_file_id` priorisiert
+  - echter Laufzeit-Upload gegen Supabase/Google Drive wurde in dieser Sitzung nicht ausgeführt
+
 ## 2026-04-01 – Prompt 1/1: Erstablesung beim Zählereinbau auf `zaehler_ablesung` korrigiert und doppelten Foto-Schritt im Einbau-Flow entfernt
 
 ## 2026-04-01 – Prompt 1/1: Foto öffnen in Strom-/Wasser-Historie robust auflösbar gemacht

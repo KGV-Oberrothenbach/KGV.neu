@@ -185,7 +185,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
     {
         try
         {
-            var url = await _supabaseService.CreateDokumentSignedUrlAsync(document.StoragePath, 3600);
+            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
             if (string.IsNullOrWhiteSpace(url))
             {
                 _statusLabel.Text = "Dokument konnte nicht geöffnet werden.";

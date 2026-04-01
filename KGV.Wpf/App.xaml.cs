@@ -98,7 +98,13 @@ namespace KGV.Wpf
 
             // Services initialisieren
             var authService = new AuthService(clientFactory, null); // Logger optional
-            var supabaseService = new SupabaseService(clientFactory, null, () => AppState.CurrentUserContext);
+            var supabaseService = new SupabaseService(
+                clientFactory,
+                null,
+                () => AppState.CurrentUserContext,
+                authService,
+                supabaseUrl,
+                supabasePublishableKey);
             var photoUploadTestService = new PhotoUploadTestService(authService, config, null);
 
             // NavigationService braucht SupabaseService für VM-Erzeugung

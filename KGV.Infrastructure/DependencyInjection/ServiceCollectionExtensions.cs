@@ -36,7 +36,10 @@ namespace KGV.Infrastructure.DependencyInjection
                 new SupabaseService(
                     sp.GetRequiredService<ISupabaseClientFactory>(),
                     sp.GetService<ILogger<SupabaseService>>(),
-                    () => sp.GetService<IUserContextAccessor>()?.CurrentUserContext));
+                    () => sp.GetService<IUserContextAccessor>()?.CurrentUserContext,
+                    sp.GetRequiredService<IAuthService>(),
+                    (configuration["Supabase:Url"] ?? string.Empty).Trim(),
+                    (configuration["Supabase:PublishableKey"] ?? configuration["Supabase:Key"] ?? string.Empty).Trim()));
 
             services.AddSingleton<IPhotoUploadTestService>(sp =>
                 new PhotoUploadTestService(
