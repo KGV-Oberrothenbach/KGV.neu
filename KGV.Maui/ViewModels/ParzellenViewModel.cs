@@ -60,6 +60,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         ? "Die Auswahl und Navigation bleiben hier auf die dem aktuell ausgewählten Mitglied zugewiesenen Parzellen begrenzt."
         : "Parzellenstammdaten bleiben hier fachlich getrennt von Ablesen und anderen Verwaltungsblöcken.";
     public bool IsContextBound => _parzellenContextState.IsFromMemberContext;
+    public bool ShowListSection => !IsContextBound;
     public bool ShowGlobalActions => !IsContextBound;
     public bool ShowSearch => !IsContextBound;
     public string ListTitle => IsContextBound ? "Parzellen des Mitglieds" : "Parzellenübersicht";
@@ -91,6 +92,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
                 return;
 
             _selectedItem = value;
+            _parzellenContextState.SetSelectedParzelle(_selectedItem?.ParzelleId);
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanSelectPrevious));
             OnPropertyChanged(nameof(CanSelectNext));
@@ -123,9 +125,14 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(ShowMemberContextDetail));
             OnPropertyChanged(nameof(ShowGlobalDetail));
             OnPropertyChanged(nameof(SelectedParzelleSizeText));
+            OnPropertyChanged(nameof(SelectedParzelleStromAvailabilityText));
+            OnPropertyChanged(nameof(SelectedParzelleWasserAvailabilityText));
             OnPropertyChanged(nameof(StromButtonText));
             OnPropertyChanged(nameof(WasserButtonText));
             OnPropertyChanged(nameof(DokumenteButtonText));
+            OnPropertyChanged(nameof(CanOpenStromAction));
+            OnPropertyChanged(nameof(CanOpenWasserAction));
+            OnPropertyChanged(nameof(CanOpenDokumenteAction));
 
             if (!IsEditMode)
                 SyncEditFieldsFromDetail(value);
@@ -136,7 +143,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     public bool ShowMemberContextDetail => HasSelectedDetail && IsContextBound;
     public bool ShowGlobalDetail => HasSelectedDetail && !IsContextBound && !IsEditMode;
     public bool ShowReadOnlyStammdaten => HasSelectedDetail && !IsEditMode;
-    public bool ShowSelectionHint => !HasSelectedDetail && HasFilteredItems;
+    public bool ShowSelectionHint => !HasSelectedDetail && HasFilteredItems && ShowListSection;
     public bool CanEditStammdaten => HasSelectedDetail && !IsBusy && !IsEditMode;
     public bool CanManageAssignment => HasSelectedDetail && !IsBusy;
     public bool CanAssign => CanManageAssignment && IsAssignMode && SelectedAssignMember != null;
@@ -184,9 +191,14 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         : $"{Items.IndexOf(SelectedItem) + 1} / {Items.Count}";
     public string SelectedParzelleDisplayName => SelectedDetail?.DisplayName ?? SelectedItem?.DisplayText ?? "Parzelle";
     public string SelectedParzelleSizeText => SelectedDetail?.FlaecheText ?? "Nicht hinterlegt";
+    public string SelectedParzelleStromAvailabilityText => SelectedDetail == null ? "Nicht hinterlegt" : (SelectedDetail.HatStrom ? "Vorhanden" : "Nicht vorhanden");
+    public string SelectedParzelleWasserAvailabilityText => SelectedDetail == null ? "Nicht hinterlegt" : (SelectedDetail.HatWasser ? "Vorhanden" : "Nicht vorhanden");
     public string StromButtonText => SelectedDetail == null ? "Strom" : $"Strom ({SelectedDetail.StromAblesungenCount})";
     public string WasserButtonText => SelectedDetail == null ? "Wasser" : $"Wasser ({SelectedDetail.WasserAblesungenCount})";
     public string DokumenteButtonText => SelectedDetail == null ? "Dokumente" : $"Dokumente ({SelectedDetail.Dokumente.Count})";
+    public bool CanOpenStromAction => HasSelectedDetail && SelectedDetail?.HatStrom == true;
+    public bool CanOpenWasserAction => HasSelectedDetail && SelectedDetail?.HatWasser == true;
+    public bool CanOpenDokumenteAction => HasSelectedDetail;
     public bool HasStromAblesungen => StromAblesungen.Count > 0;
     public bool HasWasserAblesungen => WasserAblesungen.Count > 0;
     public bool HasDokumente => Dokumente.Count > 0;
@@ -390,6 +402,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(Description));
         OnPropertyChanged(nameof(DetailHint));
         OnPropertyChanged(nameof(IsContextBound));
+        OnPropertyChanged(nameof(ShowListSection));
         OnPropertyChanged(nameof(ShowGlobalActions));
         OnPropertyChanged(nameof(ShowSearch));
         OnPropertyChanged(nameof(ListTitle));
@@ -405,6 +418,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(Description));
         OnPropertyChanged(nameof(DetailHint));
         OnPropertyChanged(nameof(IsContextBound));
+        OnPropertyChanged(nameof(ShowListSection));
         OnPropertyChanged(nameof(ShowGlobalActions));
         OnPropertyChanged(nameof(ShowSearch));
         OnPropertyChanged(nameof(ListTitle));

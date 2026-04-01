@@ -95,6 +95,7 @@ public sealed class ParzellenPage : ContentPage
                 }
             }
         };
+        listSection.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowListSection));
 
         var selectionHint = new Label { Text = "Keine Parzelle ausgewählt.", TextColor = Colors.Gray };
         selectionHint.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowSelectionHint));
@@ -122,36 +123,18 @@ public sealed class ParzellenPage : ContentPage
 
         var stromButton = new Button();
         stromButton.SetBinding(Button.TextProperty, nameof(ParzellenViewModel.StromButtonText));
-        stromButton.Clicked += async (_, _) =>
-        {
-            var detail = _viewModel.SelectedDetail;
-            if (detail == null)
-                return;
-
-            await DisplayAlert("Strom", detail.StromStatusText, "OK");
-        };
+        stromButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanOpenStromAction));
+        stromButton.Clicked += async (_, _) => await OpenAblesungAsync("strom");
 
         var wasserButton = new Button();
         wasserButton.SetBinding(Button.TextProperty, nameof(ParzellenViewModel.WasserButtonText));
-        wasserButton.Clicked += async (_, _) =>
-        {
-            var detail = _viewModel.SelectedDetail;
-            if (detail == null)
-                return;
-
-            await DisplayAlert("Wasser", detail.WasserStatusText, "OK");
-        };
+        wasserButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanOpenWasserAction));
+        wasserButton.Clicked += async (_, _) => await OpenAblesungAsync("wasser");
 
         var dokumenteButton = new Button();
         dokumenteButton.SetBinding(Button.TextProperty, nameof(ParzellenViewModel.DokumenteButtonText));
-        dokumenteButton.Clicked += async (_, _) =>
-        {
-            var detail = _viewModel.SelectedDetail;
-            if (detail == null)
-                return;
-
-            await DisplayAlert("Dokumente", detail.DokumenteText, "OK");
-        };
+        dokumenteButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanOpenDokumenteAction));
+        dokumenteButton.Clicked += async (_, _) => await OpenDokumenteAsync();
 
         var memberContextDetailSection = new Border
         {
@@ -164,7 +147,16 @@ public sealed class ParzellenPage : ContentPage
                 {
                     currentParzelleLabel,
                     CreateSection("Parzellen-Details",
-                        CreateValueLabel("Größe", nameof(ParzellenViewModel.SelectedParzelleSizeText)),
+                        CreateValueLabel("Größe / Fläche", nameof(ParzellenViewModel.SelectedParzelleSizeText)),
+                        CreateValueLabel("Strom", nameof(ParzellenViewModel.SelectedParzelleStromAvailabilityText)),
+                        CreateValueLabel("Wasser", nameof(ParzellenViewModel.SelectedParzelleWasserAvailabilityText))),
+                    CreateSection("Aktionen",
+                        new Label
+                        {
+                            Text = "Die Aktionen beziehen sich nur auf die aktuell ausgewählte Parzelle dieses Mitglieds.",
+                            TextColor = Colors.Gray,
+                            LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap
+                        },
                         new HorizontalStackLayout
                         {
                             Spacing = 8,
@@ -339,6 +331,35 @@ public sealed class ParzellenPage : ContentPage
         var ok = await _viewModel.SaveStammdatenAsync();
         if (ok)
             await DisplayAlert("OK", "Parzellen-Stammdaten gespeichert.", "OK");
+    }
+
+    private async Task OpenAblesungAsync(string medium)
+    {
+        var detail = _viewModel.SelectedDetail;
+        if (detail == null)
+            return;
+
+        var hasMedium = string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase)
+            ? detail.HatWasser
+            : detail.HatStrom;
+        if (!hasMedium)
+        {
+            await DisplayAlert("Hinweis", string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase)
+                ? "Für diese Parzelle ist kein Wasseranschluss hinterlegt."
+                : "Für diese Parzelle ist kein Stromanschluss hinterlegt.", "OK");
+            return;
+        }
+
+        await Shell.Current.GoToAsync($"{nameof(AblesungErfassenPage)}?parzelleId={detail.ParzelleId}&medium={medium}");
+    }
+
+    private async Task OpenDokumenteAsync()
+    {
+        var detail = _viewModel.SelectedDetail;
+        if (detail == null)
+            return;
+
+        await Shell.Current.GoToAsync($"{nameof(DokumentePage)}?scope=parzelle&parzelleId={detail.ParzelleId}");
     }
 
     private static Border CreateSection(string title, params View[] children)

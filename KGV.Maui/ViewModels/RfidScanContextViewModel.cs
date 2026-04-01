@@ -56,6 +56,38 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
         }
     }
 
+    public async Task<bool> LoadFallbackContextAsync(int parzelleId, string? medium)
+    {
+        if (FallbackParzellen.Count == 0)
+            await LoadFallbackParzellenAsync();
+
+        var parzelle = FallbackParzellen.FirstOrDefault(x => x.Id == parzelleId);
+        if (parzelle == null)
+        {
+            Resolution = null;
+            StatusMessage = "Die ausgewählte Parzelle konnte für den Ablese-Kontext nicht geladen werden.";
+            return false;
+        }
+
+        SelectedFallbackParzelle = parzelle;
+
+        var normalizedMedium = string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase) ? "wasser" : "strom";
+        var mediumOption = FallbackMediumOptions.FirstOrDefault(x => string.Equals(x.Key, normalizedMedium, StringComparison.OrdinalIgnoreCase));
+        if (mediumOption == null)
+        {
+            Resolution = null;
+            StatusMessage = normalizedMedium == "wasser"
+                ? "Für diese Parzelle ist kein Wasseranschluss hinterlegt."
+                : "Für diese Parzelle ist kein Stromanschluss hinterlegt.";
+            return false;
+        }
+
+        SelectedFallbackMedium = mediumOption;
+        await ApplyFallbackContextAsync();
+        return Resolution?.Context?.ParzelleId == parzelleId
+            && string.Equals(Resolution.Context?.Medium, normalizedMedium, StringComparison.OrdinalIgnoreCase);
+    }
+
     public string StatusMessage
     {
         get => _statusMessage;

@@ -14,10 +14,12 @@ using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using KGV.Maui.Settings;
+using System;
+using System.Collections.Generic;
 
 namespace KGV.Maui.Pages;
 
-public sealed class AblesungErfassenPage : ContentPage
+public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
 {
     private readonly ISupabaseService _supabaseService;
     private readonly IPhotoUploadTestService _photoUploadService;
@@ -46,7 +48,10 @@ public sealed class AblesungErfassenPage : ContentPage
     private bool _initialized;
     private bool _isBusy;
     private bool _isPendingInitialFlow;
+    private bool _hasRequestedFallbackContext;
     private string _currentArt = AblesungArt.Normal;
+    private int? _requestedParzelleId;
+    private string _requestedMedium = "strom";
     private RfidScanContextResult? _activeResolution;
     private byte[]? _selectedPhotoContent;
     private string _selectedPhotoFileName = string.Empty;
@@ -203,10 +208,30 @@ public sealed class AblesungErfassenPage : ContentPage
             return;
         }
 
+        if (_hasRequestedFallbackContext && _requestedParzelleId is > 0)
+        {
+            _hasRequestedFallbackContext = false;
+            _workflowState.Clear();
+            _isPendingInitialFlow = false;
+            _currentArt = AblesungArt.Normal;
+            _ablesedatumPicker.Date = DateTime.Today;
+            ClearPhotoSelection();
+            await _scanContext.LoadFallbackContextAsync(_requestedParzelleId.Value, _requestedMedium);
+            ApplyResolution(_scanContext.Resolution, _scanContext.StatusMessage);
+            return;
+        }
+
         _isPendingInitialFlow = false;
         _currentArt = AblesungArt.Normal;
         await _scanContext.StartNfcSessionAsync();
         ApplyResolution(_scanContext.Resolution, _scanContext.StatusMessage);
+    }
+
+    public void ApplyQueryAttributes(IDictionary<string, object> query)
+    {
+        _requestedParzelleId = TryGetQueryInt(query, "parzelleId");
+        _requestedMedium = TryGetQueryString(query, "medium") ?? "strom";
+        _hasRequestedFallbackContext = _requestedParzelleId is > 0;
     }
 
     protected override async void OnDisappearing()
@@ -590,6 +615,21 @@ public sealed class AblesungErfassenPage : ContentPage
 
     private static string NormalizeMedium(string? medium)
         => string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase) ? "wasser" : "strom";
+
+    private static int? TryGetQueryInt(IDictionary<string, object> query, string key)
+    {
+        var raw = TryGetQueryString(query, key);
+        return int.TryParse(raw, out var value) && value > 0 ? value : null;
+    }
+
+    private static string? TryGetQueryString(IDictionary<string, object> query, string key)
+    {
+        if (!query.TryGetValue(key, out var raw) || raw == null)
+            return null;
+
+        var value = raw.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : Uri.UnescapeDataString(value);
+    }
 
     private static bool TryParseDecimal(string? value, out decimal result)
         => decimal.TryParse((value ?? string.Empty).Trim().Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out result);

@@ -2,6 +2,78 @@
 
 ---
 
+## 2026-04-01 – Abschluss-Prompt Block 2.2: MAUI `Gärten des Mitgliedes` / Parzellen-Detailansicht ohne weiteren Fachumbau sauber abgeschlossen
+
+- Vor dem Abschluss den realen Git-/Arbeitsstand erneut geprüft und nicht auf Altannahmen aufgebaut.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - als echte Blockdateien von `2.2` bestätigt:
+    - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+    - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+    - `KGV.Maui/Pages/ParzellenPage.cs`
+    - `KGV.Maui/State/ParzellenContextState.cs`
+    - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+    - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+  - blockfremd lokal offen blieben bewusst draußen:
+    - `.github/copilot-instructions.md`
+    - `KGV.Maui/KGV.Maui.csproj`
+    - `KGV.ReleaseManager/KGV_Fortschritt_ausfuehrlich.md`
+  - untracked blieben weiterhin bewusst draußen:
+    - `AWR.bat`
+    - `_secrets/`
+- Ehrlicher Istzustand dieses Abschlusslaufs:
+  - der fachliche Umbau von `2.2` lag in den MAUI-Blockdateien bereits buildfähig vor
+  - fachlich vorhanden waren im begonnenen Block bereits:
+    - stärkere Parzellen-Detailwirkung im Mitgliedspfad `Gärten des Mitgliedes`
+    - `Strom` / `Wasser` an den bestehenden Ablese-/Fallbackpfad angeschlossen
+    - `Dokumente` im Parzellen-/Mitgliedspfad an den vorhandenen Dokumentepfad angebunden
+    - sauber nachgeführter Parzellenkontext beim Wechsel innerhalb der Mitglieds-Parzellen
+  - in diesem Abschlusslauf zeigte sich kein direkter Abschlussfehler in den Blockdateien
+  - deshalb waren keine weiteren Codeänderungen an den sechs Blockdateien nötig
+- In diesem Abschlusslauf umgesetzt:
+  - nur `KGV_Fortschrittslog_ausfuehrlich.md` und `DEV_LOG.md` ehrlich für den Abschluss nachgezogen
+  - kein weiterer Fachumbau
+- Wichtig für die Blockgrenze:
+  - keine Änderung an blockfremden offenen Dateien
+  - kein neuer MAUI- oder WPF-Fachblock begonnen
+  - weitergehende Detail-/Folgeausbauten bleiben bewusst außerhalb von `2.2`
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Ehrlicher Abschlussstand:
+  - Block `2.2` ist technisch sauber abgeschlossen => ja
+  - zusätzliche Codeänderungen an den Blockdateien nötig => nein
+  - offene Folgepunkte wurden bewusst nicht in diesen Abschluss gezogen => ja
+
+## 2026-04-01 – Block 2.2: MAUI `Gärten des Mitgliedes` / Parzellen-Detailansicht begonnen
+
+- Realen Istzustand vor Änderungen geprüft.
+- Direkt gelesen/geprüft:
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Maui/State/ParzellenContextState.cs`
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Core/Models/ParzelleDetailDTO.cs`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Zwischenbefund vor dem Umbau:
+  - Mitgliedspfad `Gärten des Mitgliedes` öffnet bereits `ParzellenPage` mit mitgliedsbezogenem `ParzellenContextState`
+  - die Datenfilterung auf Parzellen des gewählten Mitglieds ist im ViewModel real vorhanden
+  - in der Detailansicht werden aktuell zwar Größe und drei Aktionsbuttons gezeigt, die Buttons enden aber nur in Alerts statt in fachlicher Navigation
+  - im mitgliedsbezogenen Pfad wird weiterhin ein Listenblock angezeigt; global und mitgliedsbezogen sind logisch getrennt, die Detailwirkung ist aber noch nicht klar genug
+  - bestehende produktive Anschlussstellen sind vorhanden:
+    - parzellenspezifische Daten über `GetParzelleDetailAsync(...)` / `GetParzelleDokumenteAsync(...)`
+    - vorhandener Ablese-Fallback über `RfidScanContextViewModel`
+    - vorhandene MAUI-Seiten `AblesungErfassenPage` und `DokumentePage`
+- Geplante Minimalumsetzung in diesem Block:
+  - Mitgliedspfad stärker als echte Detailansicht zuschneiden
+  - `Strom` / `Wasser` auf den bestehenden Ablese-/Fallbackpfad routbar machen
+  - `Dokumente` für parzellenspezifische Dokumente im Mitgliedspfad minimal ergänzen
+  - aktuellen Parzellenkontext beim Wechsel innerhalb der Mitglieds-Parzellen sauber nachführen
+
 ## 2026-04-01 – Abschluss-Prompt Block 2.1: MAUI `Gärten des Mitgliedes` / Mitgliedsfokussierung / Haupt-Nebenmitglied-Verknüpfung sauber abgeschlossen
 
 - Vor dem Abschluss den realen Git-/Arbeitsstand erneut geprüft und nicht auf Altannahmen aufgebaut.

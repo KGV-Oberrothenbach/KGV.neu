@@ -2,6 +2,39 @@
 
 ---
 
+## 2026-04-01 – Abschluss Block 2.2: MAUI `Gärten des Mitgliedes` / Parzellen-Detailansicht ohne weiteren Fachumbau sauber abgeschlossen
+
+- Den realen Git-/Arbeitsstand erneut geprüft.
+- Als echte Blockdateien von `2.2` bestätigt:
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/State/ParzellenContextState.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+- Ehrlicher Befund im Abschlusslauf:
+  - der fachliche Umbau des Blocks lag im aktuellen Arbeitsbaum bereits vor
+  - der Mitgliedspfad wirkt bereits als stärkere Parzellen-Detailansicht
+  - `Strom` und `Wasser` sind an den bestehenden Ablese-/Fallbackpfad angeschlossen
+  - `Dokumente` laufen im Mitglieds-/Parzellenkontext über den vorhandenen Dokumentepfad
+  - der Parzellenkontext wird beim Wechsel innerhalb des Mitgliedspfads bereits sauber nachgeführt
+  - im Abschlusslauf zeigte sich kein direkter weiterer Fachfehler, der noch neue Codeänderungen an den Blockdateien erfordert hätte
+- In diesem Abschlusslauf umgesetzt:
+  - `DEV_LOG.md` und `KGV_Fortschrittslog_ausfuehrlich.md` ehrlich für den Abschluss nachgezogen
+  - kein weiterer Fachumbau an den MAUI-Blockdateien
+- Blockfremd lokal offen bzw. bewusst nicht Teil dieses Abschlussblocks:
+  - `.github/copilot-instructions.md`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.ReleaseManager/KGV_Fortschritt_ausfuehrlich.md`
+  - `AWR.bat`
+  - `_secrets/`
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Offene Abgrenzung zu `2.3`:
+  - kein neuer MAUI-Fachblock begonnen
+  - weitergehender Ausbau über die in `2.2` geschlossene Parzellen-Detailwirkung hinaus bleibt bewusst Thema eines Folgeblocks
+
 ## 2026-04-01 – Abschluss Block 2.1: MAUI `Gärten des Mitgliedes` / Mitgliedsfokussierung / Haupt-Nebenmitglied-Verknüpfung ohne weitere Codeänderung abgeschlossen
 
 - Den realen Git-/Arbeitsstand erneut geprüft.

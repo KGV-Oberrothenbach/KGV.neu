@@ -15,6 +15,14 @@ public sealed class ParzellenContextState
         IsFromMemberContext = ContextMitgliedId.HasValue;
     }
 
+    public void SetSelectedParzelle(int? parzelleId)
+    {
+        if (!IsFromMemberContext)
+            return;
+
+        SelectedParzelleId = parzelleId is > 0 ? parzelleId : null;
+    }
+
     public void Clear()
     {
         ContextMitgliedId = null;

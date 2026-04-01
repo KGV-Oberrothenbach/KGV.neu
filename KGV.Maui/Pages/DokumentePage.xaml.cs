@@ -6,27 +6,32 @@ using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace KGV.Maui.Pages;
 
-public class DokumentePage : ContentPage
+public class DokumentePage : ContentPage, IQueryAttributable
 {
     private readonly ISupabaseService _supabaseService;
     private readonly MemberContextState _memberContextState;
+    private readonly ParzellenContextState _parzellenContextState;
     private readonly ObservableCollection<DocumentInfo> _documents = new();
     private readonly Label _headlineLabel;
     private readonly Label _statusLabel;
     private readonly Label _emptyLabel;
     private readonly CollectionView _documentsView;
     private bool _isBusy;
+    private bool _loadParzelleDocuments;
+    private int? _requestedParzelleId;
 
-    public DokumentePage(ISupabaseService supabaseService, MemberContextState memberContextState)
+    public DokumentePage(ISupabaseService supabaseService, MemberContextState memberContextState, ParzellenContextState parzellenContextState)
     {
         _supabaseService = supabaseService;
         _memberContextState = memberContextState;
+        _parzellenContextState = parzellenContextState;
 
         Title = "Dokumente";
 
@@ -84,6 +89,13 @@ public class DokumentePage : ContentPage
         Appearing += async (_, _) => await LoadAsync();
     }
 
+    public void ApplyQueryAttributes(IDictionary<string, object> query)
+    {
+        var scope = TryGetQueryString(query, "scope");
+        _loadParzelleDocuments = string.Equals(scope, "parzelle", StringComparison.OrdinalIgnoreCase);
+        _requestedParzelleId = TryGetQueryInt(query, "parzelleId");
+    }
+
     private async Task LoadAsync()
     {
         if (_isBusy)
@@ -96,6 +108,12 @@ public class DokumentePage : ContentPage
             _documents.Clear();
             _emptyLabel.IsVisible = false;
 
+            if (_loadParzelleDocuments)
+            {
+                await LoadParzelleDocumentsAsync();
+                return;
+            }
+
             var member = _memberContextState.SelectedMember;
             if (member?.Id is not > 0)
             {
@@ -105,6 +123,7 @@ public class DokumentePage : ContentPage
             }
 
             _headlineLabel.Text = $"Dokumente – {member.DisplayName}";
+            _emptyLabel.Text = "Keine Mitgliedsdokumente gefunden.";
             var documents = await _supabaseService.GetMitgliedDokumenteAsync(member.Id);
             foreach (var document in documents)
                 _documents.Add(document);
@@ -119,6 +138,29 @@ public class DokumentePage : ContentPage
         {
             _isBusy = false;
         }
+    }
+
+    private async Task LoadParzelleDocumentsAsync()
+    {
+        var parzelleId = _requestedParzelleId ?? _parzellenContextState.SelectedParzelleId;
+        if (!_parzellenContextState.IsFromMemberContext || parzelleId is not > 0)
+        {
+            _headlineLabel.Text = "Keine Parzellendokumente verfügbar";
+            _statusLabel.Text = "Bitte zuerst im Pfad `Gärten des Mitgliedes` eine Parzelle auswählen.";
+            return;
+        }
+
+        var detail = await _supabaseService.GetParzelleDetailAsync(parzelleId.Value);
+        _headlineLabel.Text = detail == null
+            ? $"Dokumente – Parzelle #{parzelleId.Value}"
+            : $"Dokumente – {detail.DisplayName}";
+        _emptyLabel.Text = "Keine Dokumente für diese Parzelle gefunden.";
+
+        var documents = await _supabaseService.GetParzelleDokumenteAsync(parzelleId.Value);
+        foreach (var document in documents)
+            _documents.Add(document);
+
+        _emptyLabel.IsVisible = _documents.Count == 0;
     }
 
     private async void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -144,5 +186,20 @@ public class DokumentePage : ContentPage
         {
             _statusLabel.Text = ex.Message;
         }
+    }
+
+    private static int? TryGetQueryInt(IDictionary<string, object> query, string key)
+    {
+        var raw = TryGetQueryString(query, key);
+        return int.TryParse(raw, out var value) && value > 0 ? value : null;
+    }
+
+    private static string? TryGetQueryString(IDictionary<string, object> query, string key)
+    {
+        if (!query.TryGetValue(key, out var raw) || raw == null)
+            return null;
+
+        var value = raw.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : Uri.UnescapeDataString(value);
     }
 }
