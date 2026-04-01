@@ -2,6 +2,58 @@
 
 ---
 
+## 2026-04-01 – Prompt 3/3: Dokumente-Drive-Vertrag serverseitig und fachlich nachgeschärft
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - offen waren nur noch die direkt blockbezogenen Dokumentdateien; bewusst untracked blieben weiter `AWR.bat` und `_secrets/`
+- Direkt geprüft wurden:
+  - `supabase/functions/kgv-upload-document/index.ts`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - Dokument-Upload-Response-/Result-/Insert-Vertrag
+  - `ResolveDokumentOpenUrlAsync(...)`
+- Ehrlicher Istzustand vor der Umsetzung:
+  - der Uploadpfad war bereits grundsätzlich korrekt auf `Dokumente/Mitglieder/<id>/...` bzw. `Dokumente/Parzellen/<id>/...`
+  - es wurden bereits keine zusätzlichen Unterordner unterhalb der Owner-ID angelegt
+  - Dateinamen wurden bereits serverseitig aus Titel + Timestamp erzeugt
+  - die bisherige E2E-Absicherung zwischen Edge Function und Shared-Service war aber noch nicht explizit genug gegen abweichende Pfad-/Dateinamensantworten
+  - die Original-Dateiendung wurde bisher bei vorhandener Datei unnötig auf Lowercase normalisiert
+- Minimal umgesetzt:
+  - serverseitigen Pfadaufbau in `kgv-upload-document` über kleine Hilfsfunktionen explizit zentralisiert
+  - serverseitige Vertragsprüfung ergänzt:
+    - genau `Dokumente/Mitglieder/<id>/<dateiname>` oder
+    - genau `Dokumente/Parzellen/<id>/<dateiname>`
+    - exakt vier Segmente inklusive Dateiname
+    - keine zusätzlichen Unterordner unterhalb der ID
+  - serverseitige Dateinamensprüfung ergänzt:
+    - enthält Titelanteil
+    - enthält Timestamp `yyyy-MM-dd_HH-mm-ss`
+    - enthält Dateiendung
+  - bei vorhandener Datei bleibt die Original-Dateiendung jetzt erhalten statt unnötig lowercased zu werden
+  - `SupabaseService` prüft die Uploadantwort vor dem DB-Insert zusätzlich gegen denselben Pfadvertrag
+  - wenn dieser Vertrag nicht erfüllt ist, wird kein Datensatz in `public.dokument` gespeichert
+  - bestehende Drive-first-Öffnungslogik blieb unverändert funktional, alte Fallbacks wurden nicht beschädigt
+- Warum dieser Block die fachliche Zielregel sauber abschließt:
+  - Pfad und Dateiname werden jetzt zentral/serverseitig gebaut und zusätzlich auf dem Shared-Service-Eingang geprüft
+  - die Owner-Regel bleibt client- und service-seitig strikt: genau ein Owner, sonst kein Upload und kein Insert
+  - neue Dokumente bleiben zuverlässig über `drive_file_id` öffnungsfähig
+- Wichtig für die Blockgrenze:
+  - keine neue UI-Funktion
+  - kein Löschen/Umbenennen/Mehrfachauswahl
+  - keine Parallelarchitektur neben dem vorhandenen Dokumentpfad
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - logische Codeprüfung:
+    - Mitgliedsdokument -> richtiger Pfad
+    - Parzellendokument -> richtiger Pfad
+    - Dateiname enthält Titel + Timestamp
+    - kein weiterer Unterordner entsteht
+    - Öffnen neuer Dokumente läuft weiter Drive-first
+    - ungültiger Owner-/Pfadvertrag wird sauber abgefangen
+  - echter End-to-End-Lauf gegen Supabase/Google Drive wurde in diesem Block nicht durchgeführt
+
 ## 2026-04-01 – Prompt 2/3: MAUI-Dokumente-UI auf den bestehenden Google-Drive-Unterbau aufgesetzt
 
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.

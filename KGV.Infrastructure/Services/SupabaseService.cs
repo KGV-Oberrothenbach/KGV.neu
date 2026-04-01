@@ -4073,6 +4073,32 @@ namespace KGV.Infrastructure.Services
         private static string BuildGoogleDriveFileViewUrl(string driveFileId)
             => $"https://drive.google.com/file/d/{Uri.EscapeDataString(driveFileId)}/view";
 
+        private static string BuildExpectedDokumentStoragePrefix(DokumentUploadRequest request)
+        {
+            if (request.MitgliedId.HasValue && request.MitgliedId.Value > 0)
+                return $"Dokumente/Mitglieder/{request.MitgliedId.Value}/";
+
+            return $"Dokumente/Parzellen/{request.ParzelleId.GetValueOrDefault()}/";
+        }
+
+        private static bool IsValidDokumentStorageContract(string? storagePath, string? dateiname, DokumentUploadRequest request)
+        {
+            var normalizedStoragePath = CleanOptionalText(storagePath)?.Replace('\\', '/').TrimStart('/') ?? string.Empty;
+            var normalizedDateiname = CleanOptionalText(dateiname) ?? string.Empty;
+            var expectedPrefix = BuildExpectedDokumentStoragePrefix(request);
+            if (string.IsNullOrWhiteSpace(normalizedStoragePath)
+                || string.IsNullOrWhiteSpace(normalizedDateiname)
+                || !normalizedStoragePath.StartsWith(expectedPrefix, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var segments = normalizedStoragePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            return segments.Length == 4
+                && string.Equals(segments[3], normalizedDateiname, StringComparison.Ordinal)
+                && Regex.IsMatch(normalizedDateiname, @"^.+_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.[^./\\]+$", RegexOptions.CultureInvariant);
+        }
+
         private async Task<DokumentUploadResult> UploadDokumentToDriveAsync(DokumentUploadRequest request, string normalizedTitle)
         {
             var token = await _authService.GetAccessTokenAsync();
@@ -4134,6 +4160,15 @@ namespace KGV.Infrastructure.Services
                 {
                     _logger?.LogWarning("UploadDokumentToDriveAsync returned incomplete payload. RawBodyLength={RawBodyLength}", rawBody?.Length ?? 0);
                     return DokumentUploadResult.Fail("Dokument-Upload lieferte keine vollständigen Metadaten zurück.", "UPLOAD_RESPONSE_INVALID", uploadResponse?.RequestId);
+                }
+
+                if (!IsValidDokumentStorageContract(uploadResponse.StoragePath, uploadResponse.Dateiname, request))
+                {
+                    _logger?.LogWarning(
+                        "UploadDokumentToDriveAsync returned unexpected storage contract. StoragePath={StoragePath} Dateiname={Dateiname}",
+                        uploadResponse.StoragePath,
+                        uploadResponse.Dateiname);
+                    return DokumentUploadResult.Fail("Dokument-Upload lieferte einen ungültigen Pfadvertrag zurück.", "UPLOAD_RESPONSE_PATH_INVALID", uploadResponse.RequestId);
                 }
 
                 return DokumentUploadResult.Ok(

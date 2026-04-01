@@ -2,6 +2,44 @@
 
 ---
 
+## 2026-04-01 – Prompt 3/3: Dokumentpfad serverseitig auf festen Drive-Vertrag nachgeschärft
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - lokal offen waren nur noch die gezielten Prompt-3/3-Dateien und die weiter bewusst untracked Dateien:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `supabase/functions/kgv-upload-document/index.ts`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - Dokument-Insertvertrag und Upload-Response-Typen
+  - bestehende Öffnungslogik `ResolveDokumentOpenUrlAsync(...)`
+- Ehrlicher Befund vor der Nachschärfung:
+  - die Zielstruktur `Dokumente/Mitglieder/<id>/...` bzw. `Dokumente/Parzellen/<id>/...` wurde bereits eingehalten
+  - es wurden bereits keine weiteren Unterordner unterhalb der Owner-ID erzeugt
+  - der Dateiname wurde bereits serverseitig aus Titel + Timestamp gebaut
+  - die bisherige Absicherung war aber noch nicht explizit genug gegen unerwartete Response-/Pfadabweichungen zwischen Edge Function und Shared-Service
+  - die Dateiendung wurde aus dem Originalnamen bisher auf Kleinbuchstaben normalisiert statt exakt beibehalten
+- Minimal umgesetzt:
+  - Edge Function erzeugt den Storage-Pfad jetzt noch expliziter zentral über kleine Hilfsfunktionen für Segmente/Pfadaufbau
+  - serverseitige Validierung ergänzt, dass der finale Vertrag exakt nur `Dokumente/<Mitglieder|Parzellen>/<id>/<dateiname>` ist
+  - serverseitige Dateinamensprüfung ergänzt: Titel + Timestamp + Endung im erwarteten Format
+  - vorhandene Dateiendung bleibt jetzt bei vorhandener Originalendung erhalten statt unnötig lowercased zu werden
+  - `SupabaseService` validiert die Uploadantwort vor dem DB-Insert zusätzlich gegen denselben Pfadvertrag
+  - bei ungültigem Owner-/Pfad-/Dateivertrag wird kein `public.dokument`-Insert ausgeführt
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - logische Codeprüfung:
+    - Mitgliedsdokumente laufen auf `Dokumente/Mitglieder/<id>/<dateiname>`
+    - Parzellendokumente laufen auf `Dokumente/Parzellen/<id>/<dateiname>`
+    - kein weiterer Unterordner unterhalb der ID
+    - Dateiname enthält serverseitig Titel + Timestamp
+    - Öffnen neuer Dokumente bleibt Drive-first über `drive_file_id`
+    - ungültige Owner-/Pfadkonstellationen werden vor DB-Insert abgefangen
+  - echter End-to-End-Lauf gegen Supabase/Google Drive wurde in diesem Block nicht ausgeführt
+
 ## 2026-04-01 – Prompt 2/3: MAUI-DokumentePage auf echten Drive-Dokumentpfad gezogen
 
 - Den realen lokalen Repo-/Git-/Codezustand geprüft.

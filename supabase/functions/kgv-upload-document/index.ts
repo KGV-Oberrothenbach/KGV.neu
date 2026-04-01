@@ -166,7 +166,7 @@ function guessExtension(file: File): string {
   const name = file.name ?? "";
   const dotIndex = name.lastIndexOf(".");
   if (dotIndex > -1 && dotIndex < name.length - 1) {
-    return name.slice(dotIndex).toLowerCase();
+    return name.slice(dotIndex);
   }
 
   const type = (file.type || "").toLowerCase();
@@ -186,6 +186,28 @@ function buildFileName(title: string, file: File): string {
   const sanitizedTitle = sanitizeSegment(title) || "Dokument";
   const timestamp = buildTimestamp();
   return `${sanitizedTitle}_${timestamp}${guessExtension(file)}`;
+}
+
+function buildStorageSegments(ownerKind: OwnerKind, ownerId: number): string[] {
+  return ["Dokumente", ownerKind === "mitglied" ? "Mitglieder" : "Parzellen", ownerId.toString()];
+}
+
+function buildStoragePath(storageSegments: string[], fileName: string): string {
+  return `${storageSegments.join("/")}/${fileName}`;
+}
+
+function isExpectedStoragePath(storagePath: string, ownerKind: OwnerKind, ownerId: number, fileName: string): boolean {
+  const segments = storagePath.split("/").filter(Boolean);
+  const expectedOwnerFolder = ownerKind === "mitglied" ? "Mitglieder" : "Parzellen";
+  return segments.length === 4
+    && segments[0] === "Dokumente"
+    && segments[1] === expectedOwnerFolder
+    && segments[2] === ownerId.toString()
+    && segments[3] === fileName;
+}
+
+function isGeneratedFileName(fileName: string): boolean {
+  return /^.+_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.[^./\\]+$/u.test(fileName);
 }
 
 async function getGoogleAccessToken(): Promise<string> {
@@ -486,9 +508,8 @@ Deno.serve(async (req) => {
       return errorResponse(400, "BAD_REQUEST", "Feld 'titel' fehlt.", requestId);
     }
 
-    const ownerFolder = ownerKind === "mitglied" ? "Mitglieder" : "Parzellen";
     const fileName = buildFileName(titel, file);
-    const storageSegments = ["Dokumente", ownerFolder, ownerId.toString()];
+    const storageSegments = buildStorageSegments(ownerKind, ownerId);
 
     const accessToken = await getGoogleAccessToken();
     await verifyDriveRootFolder(accessToken, rootFolderId);
@@ -506,7 +527,11 @@ Deno.serve(async (req) => {
       file,
     });
 
-    const storagePath = `${storageSegments.join("/")}/${upload.name}`;
+    const storagePath = buildStoragePath(storageSegments, upload.name);
+    if (!isGeneratedFileName(upload.name) || !isExpectedStoragePath(storagePath, ownerKind, ownerId, upload.name)) {
+      throw new Error("Drive upload returned unexpected document path contract");
+    }
+
     logStep("drive upload success", { driveFileId: upload.id, storagePath });
 
     return json(200, {
