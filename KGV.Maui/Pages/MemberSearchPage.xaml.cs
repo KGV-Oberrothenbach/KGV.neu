@@ -249,12 +249,12 @@ public partial class MemberSearchPage : ContentPage
 
         _memberContextState.SetSelectedMember(member);
 
-        if (Application.Current is App app)
+        if (Shell.Current is Shell shell && ShellNavigationHelper.HasVisibleShellContentRoute(shell, "memberdetails"))
         {
-            await app.SwitchToCurrentRootAsync("memberdetails");
+            await Shell.Current.GoToAsync("//memberdetails");
             return;
         }
 
-        await Shell.Current.GoToAsync("//memberdetails");
+        await Shell.Current.GoToAsync(nameof(MeineDatenPage));
     }
 }

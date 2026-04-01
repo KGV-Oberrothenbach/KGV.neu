@@ -2,6 +2,39 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/3 Block 1: MAUI-Mitgliedswechsel vom Rootwechsel entkoppelt und auf In-Shell-Navigation umgestellt
+
+- Den realen lokalen Repo-/Git-/Logstand geprüft.
+- Bewusst lokal geblieben:
+  - `AWR.bat`
+  - `_secrets/`
+- Direkt geprüft:
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/MauiProgram.cs`
+- Gesamtzielbild der Folgeblöcke festgehalten:
+  - eine Shell pro Sitzung
+  - Rootwechsel nur für Login/Logout/Resume-Timeout
+  - Mitgliedswechsel innerhalb derselben Shell
+- Ehrlicher Befund:
+  - `MemberSearchPage` und `MeineDatenPage` nutzten für Mitgliedswechsel noch `SwitchToCurrentRootAsync(...)`
+  - damit war normaler Mitgliedswechsel noch fälschlich an einen echten Rootwechsel gekoppelt
+- Umgesetzt:
+  - Rootwechsel aus `MemberSearchPage` entfernt; direkte In-Shell-Navigation in die Stammdaten
+  - Rootwechsel aus verknüpftem Mitgliedswechsel in `MeineDatenPage` entfernt; Stammdaten laden dort direkt neu
+  - `AdminShell` hält die mitgliedsbezogenen Menüpunkte jetzt ohne Shell-Neuaufbau über Sichtbarkeit am `MemberContextState` nach
+- Wichtig:
+  - `SwitchToCurrentRootAsync(...)` bleibt für Session-/Rootwechsel erhalten
+  - kein großer Shell-Umbau vorgezogen
+  - keine WPF-Datei geändert
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Prompt 1/1: MAUI-Mitgliedsauswahl sauber auf `Stammdaten` geroutet und Shell-Rootwechsel technisch korrigiert
 
 - Den realen lokalen Repo-/Git-/Logstand geprüft.

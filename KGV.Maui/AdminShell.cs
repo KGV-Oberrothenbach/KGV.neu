@@ -17,6 +17,12 @@ public sealed class AdminShell : Shell, IAppShellInitializer
     private readonly PendingPhotoMenuState _pendingPhotoMenuState;
     private FlyoutItem? _workhoursReviewItem;
     private FlyoutItem? _pendingPhotoUploadsItem;
+    private FlyoutItem? _memberDetailsItem;
+    private FlyoutItem? _memberWartungsvertraegeItem;
+    private FlyoutItem? _memberNebenmitgliedItem;
+    private FlyoutItem? _memberGardensItem;
+    private FlyoutItem? _memberAdminMenuItem;
+    private FlyoutItem? _memberWorkhoursItem;
 
     public AdminShell(IServiceProvider services, UserContextState userContextState, MemberContextState memberContextState, PendingPhotoMenuState pendingPhotoMenuState)
     {
@@ -26,6 +32,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         _pendingPhotoMenuState = pendingPhotoMenuState;
         FlyoutBehavior = FlyoutBehavior.Flyout;
         Loaded += (_, _) => ShellNavigationHelper.EnsureActiveShellItem(this, GetCurrentRoute() ?? "home");
+        _memberContextState.Changed += (_, _) => UpdateSelectedMemberItemsVisibility();
     }
 
     public void BuildMenu()
@@ -61,16 +68,21 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
         Items.Add(CreateItem("Mitgliedersuche", "membersearch", () => _services.GetRequiredService<MemberSearchPage>()));
 
-        if (HasSelectedMember())
-        {
-            Items.Add(CreateItem("↳ Stammdaten", "memberdetails", () => _services.GetRequiredService<MeineDatenPage>()));
-            Items.Add(CreateItem("↳ Wartungsverträge", "member_wartungsvertraege", () => _services.GetRequiredService<MemberWartungsvertraegePage>()));
-            Items.Add(CreateItem("↳ Nebenmitglied", "member_nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
-            Items.Add(CreateItem("↳ Gärten des Mitglieds", "member_gardens", () => _services.GetRequiredService<MemberGardensPage>()));
-            if (_userContextState.CurrentUserContext?.Role == UserRole.Admin)
-                Items.Add(CreateItem("↳ Admin-Menü", "member_adminmenu", () => _services.GetRequiredService<AdminMenuPage>()));
-            Items.Add(CreateItem("↳ Arbeitsstunden", "member_workhours", () => _services.GetRequiredService<MyArbeitsstundenPage>()));
-        }
+        _memberDetailsItem = CreateItem("↳ Stammdaten", "memberdetails", () => _services.GetRequiredService<MeineDatenPage>());
+        _memberWartungsvertraegeItem = CreateItem("↳ Wartungsverträge", "member_wartungsvertraege", () => _services.GetRequiredService<MemberWartungsvertraegePage>());
+        _memberNebenmitgliedItem = CreateItem("↳ Nebenmitglied", "member_nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>());
+        _memberGardensItem = CreateItem("↳ Gärten des Mitglieds", "member_gardens", () => _services.GetRequiredService<MemberGardensPage>());
+        _memberAdminMenuItem = CreateItem("↳ Admin-Menü", "member_adminmenu", () => _services.GetRequiredService<AdminMenuPage>());
+        _memberWorkhoursItem = CreateItem("↳ Arbeitsstunden", "member_workhours", () => _services.GetRequiredService<MyArbeitsstundenPage>());
+
+        Items.Add(_memberDetailsItem);
+        Items.Add(_memberWartungsvertraegeItem);
+        Items.Add(_memberNebenmitgliedItem);
+        Items.Add(_memberGardensItem);
+        Items.Add(_memberAdminMenuItem);
+        Items.Add(_memberWorkhoursItem);
+
+        UpdateSelectedMemberItemsVisibility();
 
         ShellNavigationHelper.EnsureActiveShellItem(this, preferredRoute);
 
@@ -89,6 +101,30 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
     private bool HasSelectedMember()
         => _memberContextState.SelectedMember?.Id is > 0;
+
+    private void UpdateSelectedMemberItemsVisibility()
+    {
+        var hasSelectedMember = HasSelectedMember();
+        var showAdminMenu = hasSelectedMember && _userContextState.CurrentUserContext?.Role == UserRole.Admin;
+
+        if (_memberDetailsItem != null)
+            _memberDetailsItem.IsVisible = hasSelectedMember;
+
+        if (_memberWartungsvertraegeItem != null)
+            _memberWartungsvertraegeItem.IsVisible = hasSelectedMember;
+
+        if (_memberNebenmitgliedItem != null)
+            _memberNebenmitgliedItem.IsVisible = hasSelectedMember;
+
+        if (_memberGardensItem != null)
+            _memberGardensItem.IsVisible = hasSelectedMember;
+
+        if (_memberAdminMenuItem != null)
+            _memberAdminMenuItem.IsVisible = showAdminMenu;
+
+        if (_memberWorkhoursItem != null)
+            _memberWorkhoursItem.IsVisible = hasSelectedMember;
+    }
 
     private string? GetCurrentRoute()
         => CurrentItem?.CurrentItem?.CurrentItem?.Route;
