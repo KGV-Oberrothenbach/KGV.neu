@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-04-01 – Block 2.3.2: `DokumentePage` im MAUI-Parzellenkontext UI-seitig sauber geschlossen
+
+- Den realen Repo-/Git-/Logstand geprüft; `main` liegt auf `origin/main`, Divergenz `0 0`.
+- Bewusst lokal geblieben:
+  - `AWR.bat`
+  - `_secrets/`
+- Direkt geprüft:
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/State/ParzellenContextState.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - WPF-Referenz `GartenDokumenteViewModel` / `DokumenteViewModel`
+- Ehrlicher Befund:
+  - der Parzellenkontext war fachlich bereits vorhanden, aber UI-seitig noch nicht klar genug auf "Dokumente dieser Parzelle" zugeschnitten
+  - Öffnen lief noch implizit über Listenselektion; der bestehende Signed-URL-/Launcher-Pfad war jedoch bereits produktiv vorhanden
+- Umgesetzt:
+  - `DokumentePage` im Parzellenkontext auf `Parzellen-Dokumente` geschärft
+  - klarer Kontext-/Hinweistext für die aktuell ausgewählte Parzelle
+  - explizite mobile Aktion `Einsehen / Download` pro Dokument statt impliziter Selektion
+  - bestehender Signed-URL-/Launcher-Pfad unverändert weiterverwendet
+  - technische Rohfehlermeldungen im UI entfernt
+- Wichtig:
+  - keine neue Dokumentenarchitektur
+  - keine Änderung an `ParzellenPage`
+  - keine Änderung an Shared-Service- oder WPF-Dateien
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Block 2.3.1: lesende Strom-/Wasser-Historie im MAUI-Mitglieds-Parzellenpfad umgesetzt
 
 - Den realen Repo-/Git-/Logstand geprüft; `main` liegt auf `origin/main`, Divergenz `0 0`.

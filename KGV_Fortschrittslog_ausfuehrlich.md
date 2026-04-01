@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-04-01 – Block 2.3.2: `DokumentePage` im MAUI-Parzellenkontext des Mitgliedspfads UI-seitig sauber geschlossen
+
+- Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft und nicht auf Altannahmen aufgebaut.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - untracked blieben bewusst lokal:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/State/ParzellenContextState.cs`
+  - `KGV.Core/Models/DocumentInfo.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - WPF-Referenz:
+    - `KGV.Wpf/ViewModels/GartenDokumenteViewModel.cs`
+    - `KGV.Wpf/ViewModels/DokumenteViewModel.cs`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Befund vor dem Umbau:
+  - `ParzellenPage` routete `Dokumente` im Mitglieds-Parzellenpfad bereits korrekt auf `DokumentePage?scope=parzelle&parzelleId=...`
+  - `DokumentePage` unterstützte den Parzellenkontext fachlich schon über `scope=parzelle`
+  - UI-seitig wirkte der Parzellenkontext aber noch nicht klar genug auf "Dokumente dieser Parzelle" zugeschnitten:
+    - die Seite nutzte noch dieselbe eher globale Überschrift-/Leerlaufstruktur wie im Mitgliedsdokumentenpfad
+    - Öffnen lief implizit über Listenselektion statt über eine klare mobile Aktion
+    - Fehler-/Statusmeldungen gaben technische Rohtexte weiter
+  - der bestehende produktive Pfad für Einsehen/Download ist bereits vorhanden und bleibt:
+    - `CreateDokumentSignedUrlAsync(...)`
+    - danach `Launcher.Default.OpenAsync(...)`
+- Minimal umgesetzt:
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+    - Parzellenkontext optisch klarer auf `Parzellen-Dokumente` zugeschnitten
+    - zusätzlicher Kontext-/Hinweisbereich zeigt im Mitgliedspfad deutlich, dass nur die Dokumente der aktuell ausgewählten Parzelle geladen werden
+    - Listeneinträge erhalten jetzt eine explizite mobile Aktion `Einsehen / Download`
+    - die implizite Öffnung per Listenselektion entfällt im aktiven MAUI-Pfad
+    - bestehender Signed-URL-/Launcher-Pfad bleibt unverändert der einzige Produktivpfad für Einsehen/Download
+    - technische Rohfehlermeldungen im UI durch kurze fachliche Meldungen ersetzt
+- Wichtig für die Blockgrenze:
+  - keine neue Dokumentenarchitektur
+  - keine globale Dokumentenverwaltung in den Mitglieds-Parzellenpfad gezogen
+  - keine Änderung an `ParzellenPage` nötig
+  - keine Änderung an Shared-Service- oder WPF-Dateien nötig; WPF nur als Referenz und Build-Gegenprüfung genutzt
+  - Block `2.3.1` bleibt fachlich unverändert erhalten
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Fachliches Ergebnis:
+  - `DokumentePage` zeigt im Parzellenkontext des Mitgliedspfads nur die Dokumente der ausgewählten Parzelle
+  - die Seite macht den aktuellen Parzellenbezug mobil klar erkennbar
+  - `Einsehen / Download` läuft weiter über den bestehenden Dokumentpfad ohne Sonderlogik
+  - keine Regression in Block `2.1`, `2.2` oder `2.3.1`
+
 ## 2026-04-01 – Block 2.3.1: MAUI lesende Strom-/Wasser-Unterseite im Mitglieds-Parzellenpfad umgesetzt
 
 - Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft und nicht auf Altannahmen aufgebaut.

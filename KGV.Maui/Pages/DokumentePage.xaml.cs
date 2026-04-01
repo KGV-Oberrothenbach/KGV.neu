@@ -20,6 +20,8 @@ public class DokumentePage : ContentPage, IQueryAttributable
     private readonly ParzellenContextState _parzellenContextState;
     private readonly ObservableCollection<DocumentInfo> _documents = new();
     private readonly Label _headlineLabel;
+    private readonly Label _contextLabel;
+    private readonly Label _hintLabel;
     private readonly Label _statusLabel;
     private readonly Label _emptyLabel;
     private readonly CollectionView _documentsView;
@@ -36,13 +38,15 @@ public class DokumentePage : ContentPage, IQueryAttributable
         Title = "Dokumente";
 
         _headlineLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold };
-        _statusLabel = new Label { TextColor = Colors.DarkRed, LineBreakMode = LineBreakMode.WordWrap };
+        _contextLabel = new Label { FontAttributes = FontAttributes.Bold, FontSize = 16 };
+        _hintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+        _statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
         _emptyLabel = new Label { Text = "Keine Mitgliedsdokumente gefunden.", TextColor = Colors.Gray, IsVisible = false };
 
         _documentsView = new CollectionView
         {
             ItemsSource = _documents,
-            SelectionMode = SelectionMode.Single,
+            SelectionMode = SelectionMode.None,
             ItemTemplate = new DataTemplate(() =>
             {
                 var title = new Label { FontAttributes = FontAttributes.Bold };
@@ -50,6 +54,13 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
                 var subtitle = new Label { FontSize = 12, TextColor = Colors.Gray };
                 subtitle.SetBinding(Label.TextProperty, new Binding(nameof(DocumentInfo.UpdatedAt), stringFormat: "Aktualisiert: {0:dd.MM.yyyy HH:mm}"));
+
+                var actionButton = new Button { Text = "Einsehen / Download" };
+                actionButton.Clicked += async (_, _) =>
+                {
+                    if (actionButton.BindingContext is DocumentInfo document)
+                        await OpenDocumentAsync(document);
+                };
 
                 return new Border
                 {
@@ -59,14 +70,13 @@ public class DokumentePage : ContentPage, IQueryAttributable
                     Content = new VerticalStackLayout
                     {
                         Spacing = 4,
-                        Children = { title, subtitle }
+                        Children = { title, subtitle, actionButton }
                     }
                 };
             })
         };
-        _documentsView.SelectionChanged += OnSelectionChanged;
 
-        var refreshButton = new Button { Text = "Aktualisieren" };
+        var refreshButton = new Button { Text = "Dokumente aktualisieren" };
         refreshButton.Clicked += async (_, _) => await LoadAsync();
 
         Content = new ScrollView
@@ -78,6 +88,8 @@ public class DokumentePage : ContentPage, IQueryAttributable
                 Children =
                 {
                     _headlineLabel,
+                    _contextLabel,
+                    _hintLabel,
                     refreshButton,
                     _statusLabel,
                     _emptyLabel,
@@ -118,11 +130,14 @@ public class DokumentePage : ContentPage, IQueryAttributable
             if (member?.Id is not > 0)
             {
                 _headlineLabel.Text = "Keine Mitgliedsdokumente verfügbar";
-                _statusLabel.Text = "Bitte zuerst in der Mitgliedersuche ein Mitglied auswählen.";
+                _contextLabel.Text = string.Empty;
+                _hintLabel.Text = "Bitte zuerst in der Mitgliedersuche ein Mitglied auswählen.";
                 return;
             }
 
             _headlineLabel.Text = $"Dokumente – {member.DisplayName}";
+            _contextLabel.Text = member.DisplayName;
+            _hintLabel.Text = "Es werden nur die Dokumente des aktuell ausgewählten Mitglieds angezeigt. Einsehen und Download laufen über den bestehenden Dokumentpfad.";
             _emptyLabel.Text = "Keine Mitgliedsdokumente gefunden.";
             var documents = await _supabaseService.GetMitgliedDokumenteAsync(member.Id);
             foreach (var document in documents)
@@ -130,9 +145,9 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
             _emptyLabel.IsVisible = _documents.Count == 0;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _statusLabel.Text = ex.Message;
+            _statusLabel.Text = "Dokumente konnten nicht geladen werden.";
         }
         finally
         {
@@ -146,14 +161,17 @@ public class DokumentePage : ContentPage, IQueryAttributable
         if (!_parzellenContextState.IsFromMemberContext || parzelleId is not > 0)
         {
             _headlineLabel.Text = "Keine Parzellendokumente verfügbar";
-            _statusLabel.Text = "Bitte zuerst im Pfad `Gärten des Mitgliedes` eine Parzelle auswählen.";
+            _contextLabel.Text = string.Empty;
+            _hintLabel.Text = "Bitte zuerst im Pfad `Gärten des Mitgliedes` eine Parzelle auswählen.";
             return;
         }
 
         var detail = await _supabaseService.GetParzelleDetailAsync(parzelleId.Value);
         _headlineLabel.Text = detail == null
-            ? $"Dokumente – Parzelle #{parzelleId.Value}"
-            : $"Dokumente – {detail.DisplayName}";
+            ? $"Parzellen-Dokumente – Parzelle #{parzelleId.Value}"
+            : $"Parzellen-Dokumente – {detail.DisplayName}";
+        _contextLabel.Text = detail?.DisplayName ?? $"Parzelle #{parzelleId.Value}";
+        _hintLabel.Text = "Es werden nur die Dokumente dieser aktuell ausgewählten Parzelle angezeigt. Einsehen und Download laufen über den bestehenden Dokumentpfad.";
         _emptyLabel.Text = "Keine Dokumente für diese Parzelle gefunden.";
 
         var documents = await _supabaseService.GetParzelleDokumenteAsync(parzelleId.Value);
@@ -163,14 +181,8 @@ public class DokumentePage : ContentPage, IQueryAttributable
         _emptyLabel.IsVisible = _documents.Count == 0;
     }
 
-    private async void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private async Task OpenDocumentAsync(DocumentInfo document)
     {
-        if (sender is CollectionView collectionView)
-            collectionView.SelectedItem = null;
-
-        if (e.CurrentSelection.FirstOrDefault() is not DocumentInfo document)
-            return;
-
         try
         {
             var url = await _supabaseService.CreateDokumentSignedUrlAsync(document.StoragePath, 3600);
@@ -182,9 +194,9 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
             await Launcher.Default.OpenAsync(url);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _statusLabel.Text = ex.Message;
+            _statusLabel.Text = "Dokument konnte nicht geöffnet werden.";
         }
     }
 
