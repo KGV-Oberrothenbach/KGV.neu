@@ -2,6 +2,78 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: Erstablesung beim Zählereinbau auf `zaehler_ablesung` korrigiert und doppelten Foto-Schritt im Einbau-Flow entfernt
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand erneut geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - lokal geändert im Block:
+    - `KGV.Core/Models/AblesungInsertRecord.cs`
+    - `KGV.Core/Models/AblesungRecord.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+    - `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`
+    - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+    - `KGV.Maui/State/ZaehlerwechselWorkflowState.cs`
+    - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+    - `KGV.Wpf/ViewModels/GartenStromViewModel.cs`
+    - `KGV.Wpf/ViewModels/GartenWasserViewModel.cs`
+    - `KGV.Wpf/ViewModels/ZaehlerwechselAusbauViewModel.cs`
+    - `KGV.Wpf/ViewModels/ZaehlerwechselEinbauViewModel.cs`
+  - lokal bewusst untracked blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Core/Models/AblesungInsertRecord.cs`
+  - `KGV.Core/Models/AblesungRecord.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/State/ZaehlerwechselWorkflowState.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`
+  - betroffene WPF-Aufrufer des Ablesungspfads
+  - Schema-Referenz:
+    - `database.types.ts`
+    - `supabase/migrations/20260323093513_remote_schema.sql`
+- Ehrlicher Befund vor dem Fix:
+  - der produktive Ablesungsinsert lief im aktuellen Stand noch auf `[Table("ablesung")]`
+  - `AblesungInsertRecord` und `AblesungRecord` enthielten noch das alte Feld `zaehler_typ`
+  - `SupabaseService.AddAblesungAsync(...)` insertete damit weiter gegen das alte Schema statt gegen `public.zaehler_ablesung`
+  - die Lese-/Filterpfade für Strom/Wasser nutzten ebenfalls noch `zaehler_typ` statt den ohnehin bereits vorhandenen Zählerbezug
+  - im MAUI-Zählereinbau wurde zusätzlich bereits vor der Erstablesung ein Foto aufgenommen, als Pending-Datei zwischengespeichert und danach im Ablese-Flow nochmals als Foto-Schritt geführt; fachlich war das derselbe Vorgang und damit doppelt
+- Minimal umgesetzt:
+  - `AblesungInsertRecord` und `AblesungRecord` auf `[Table("zaehler_ablesung")]` gezogen
+  - altes Feld `zaehler_typ` aus den Ablesungsmodellen entfernt
+  - `SupabaseService.AddAblesungAsync(...)` speichert jetzt nur noch gültige Spalten in `zaehler_ablesung`
+  - `SupabaseService.UpdateAblesungAsync(...)` arbeitet jetzt ebenfalls explizit gegen `zaehler_ablesung`
+  - Erfolgslogs für Insert/Update der Ablesung ergänzt, damit im Produktivpfad klar sichtbar ist, dass der Insert jetzt auf `zaehler_ablesung` läuft
+  - Strom-/Wasser-Ablesungslisten filtern nicht mehr über `zaehler_typ`, sondern nur noch über die jeweils bereits aufgelösten Zähler-IDs
+  - alle direkten Aufrufer in MAUI und WPF von `AddAblesungAsync(...)` auf das bereinigte Modell ohne `zaehler_typ` gezogen
+  - MAUI-`ZaehlerwechselEinbauPage` vom zusätzlichen Foto-Schritt bereinigt:
+    - kein Foto mehr im Einbau-Schritt
+    - kein Pending-Foto mehr aus dem Einbau-Schritt in den Ablese-Flow
+    - genau ein Foto jetzt nur noch in `AblesungErfassenPage` im Rahmen der Erstablesung
+  - MAUI-Workflow-State um die nur dafür benutzten Pending-Fotofelder bereinigt
+- Warum dieser Block die Root Cause trifft:
+  - der reale Produktivfehler war nicht der Upload, sondern der nachgelagerte Ablesungsinsert auf die nicht mehr existierende Tabelle `public.ablesung`
+  - zusätzlich war das alte Feldmodell mit `zaehler_typ` nicht mehr schema-konform für `zaehler_ablesung`
+  - der Foto-Flow war nicht upload-defekt, sondern fachlich doppelt, weil im Einbau bereits ein Foto vorbereitet wurde und der Erstablese-Schritt denselben Vorgang nochmals als Fotopfad führte
+- Wichtig für die Blockgrenze:
+  - keine Root-/Shell-/Navigationsänderung
+  - keine neue Ablesearchitektur
+  - bestehender Uploadpfad bleibt produktiv erhalten
+  - nur der inkonsistente Ablesungs-/Zählereinbaupfad wurde auf das reale Schema und den gewünschten Einzelfoto-Flow gezogen
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Infrastructure/KGV.Infrastructure.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - zusätzliche Gegenprüfung wegen direkt geänderter WPF-Aufrufer:
+    - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - code-seitige Gegenprüfung:
+    - kein Ablesungsinsert mehr auf `public.ablesung`
+    - kein `zaehler_typ` mehr im Ablesungsmodell oder in direkten Ablesungsinserts
+    - MAUI-Zählereinbau fordert kein separates zusätzliches Foto mehr an
+    - Erstablesung bleibt mit genau einem Foto im bestehenden Ablese-Flow erhalten
+
 ## 2026-04-01 – Prompt 1/1: `MemberParzellenDetailPage`-Route final verifiziert, kein Produktivcode-Nachzug nötig
 
 - Vor dem Minimalblock den realen lokalen Repo-/Git-/Codezustand erneut geprüft.

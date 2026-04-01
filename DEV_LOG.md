@@ -2,6 +2,46 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: Erstablesung beim Zählereinbau auf `zaehler_ablesung` korrigiert und doppelten Foto-Schritt im Einbau-Flow entfernt
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Lokal geändert im Block:
+  - `KGV.Core/Models/AblesungInsertRecord.cs`
+  - `KGV.Core/Models/AblesungRecord.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+  - `KGV.Maui/State/ZaehlerwechselWorkflowState.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Wpf/ViewModels/GartenStromViewModel.cs`
+  - `KGV.Wpf/ViewModels/GartenWasserViewModel.cs`
+  - `KGV.Wpf/ViewModels/ZaehlerwechselAusbauViewModel.cs`
+  - `KGV.Wpf/ViewModels/ZaehlerwechselEinbauViewModel.cs`
+- Bewusst lokal geblieben:
+  - `AWR.bat`
+  - `_secrets/`
+- Direkt geprüft:
+  - alte Ablesungsmodelle und `SupabaseService`
+  - MAUI-Zählereinbau-/Ablesepfad
+  - direkte WPF-Ablesungsaufrufer
+  - `database.types.ts` und `supabase/migrations/20260323093513_remote_schema.sql`
+- Ehrlicher Befund:
+  - Root Cause war der alte Tabellenname `ablesung`
+  - zusätzlich war das Feldmodell mit `zaehler_typ` veraltet und nicht mehr schema-konform zu `zaehler_ablesung`
+  - im MAUI-Zählereinbau wurde für denselben fachlichen Vorgang noch ein separates zusätzliches Foto vorbereitet
+- Umgesetzt:
+  - Ablesungsmodelle auf `zaehler_ablesung` umgestellt
+  - `zaehler_typ` aus Modell und direkten Insertionen entfernt
+  - `AddAblesungAsync(...)` / `UpdateAblesungAsync(...)` auf den realen Tabellenpfad gezogen
+  - Erfolgslogs für Ablesungsinsert/-update ergänzt
+  - Strom-/Wasser-Ablesungslisten nicht mehr über `zaehler_typ`, sondern über vorhandene Zähler-IDs gefiltert
+  - doppelten Foto-Schritt im MAUI-Zählereinbau entfernt; genau ein Foto bleibt jetzt nur im Erstablese-Schritt
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Infrastructure/KGV.Infrastructure.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Prompt 1/1: `MemberParzellenDetailPage`-Route final verifiziert, kein Produktivcode-Nachzug nötig
 
 - Den realen lokalen Repo-/Git-/Codezustand geprüft.

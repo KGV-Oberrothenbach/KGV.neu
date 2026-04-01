@@ -114,7 +114,6 @@ namespace KGV.ViewModels
                 var readingSaved = await _supabaseService.AddAblesungAsync(new AblesungInsertRecord
                 {
                     ZaehlerId = ActiveMeterId,
-                    ZaehlerTyp = GetZaehlerTyp(),
                     Ablesedatum = AusbauDatum.Date,
                     Stand = schlussstand,
                     FotoPfad = null,

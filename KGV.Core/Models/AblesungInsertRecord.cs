@@ -4,7 +4,7 @@ using Supabase.Postgrest.Models;
 
 namespace KGV.Core.Models;
 
-[Table("ablesung")]
+[Table("zaehler_ablesung")]
 public sealed class AblesungInsertRecord : BaseModel
 {
     [Column("zaehler_id")]
@@ -12,9 +12,6 @@ public sealed class AblesungInsertRecord : BaseModel
 
     [Column("stand")]
     public decimal Stand { get; set; }
-
-    [Column("zaehler_typ")]
-    public short ZaehlerTyp { get; set; }
 
     [Column("ablesedatum")]
     public DateTime Ablesedatum { get; set; }

@@ -558,7 +558,7 @@ namespace KGV.Infrastructure.Services
             async () =>
             {
                 var meters = await GetStromzaehlerForParzelleAsync(parzelleId);
-                return await GetAblesungenAsync(meters, zaehlerTyp: 1);
+                return await GetAblesungenAsync(meters);
             },
             new List<ZaehlerAblesungDTO>());
 
@@ -567,7 +567,7 @@ namespace KGV.Infrastructure.Services
             async () =>
             {
                 var meters = await GetWasserzaehlerForParzelleAsync(parzelleId);
-                return await GetAblesungenAsync(meters, zaehlerTyp: 2);
+                return await GetAblesungenAsync(meters);
             },
             new List<ZaehlerAblesungDTO>());
 
@@ -645,16 +645,23 @@ namespace KGV.Infrastructure.Services
                     return false;
 
                 var client = await EnsureClientAsync();
-                await client.From<AblesungInsertRecord>().Insert(new AblesungInsertRecord
+                var insertRecord = new AblesungInsertRecord
                 {
-                    ZaehlerTyp = request.ZaehlerTyp,
                     ZaehlerId = request.ZaehlerId,
                     Ablesedatum = NormalizeDateTime(request.Ablesedatum),
                     Stand = request.Stand,
                     Art = AblesungArt.Normalize(request.Art),
                     Freigegeben = request.Freigegeben,
                     FotoPfad = CleanOptionalText(request.FotoPfad)
-                });
+                };
+
+                await client.From<AblesungInsertRecord>().Insert(insertRecord);
+                _logger?.LogInformation(
+                    "AddAblesungAsync saved reading to zaehler_ablesung. ZaehlerId={ZaehlerId}, Art={Art}, Ablesedatum={Ablesedatum}, FotoPfadPresent={FotoPfadPresent}",
+                    insertRecord.ZaehlerId,
+                    insertRecord.Art,
+                    insertRecord.Ablesedatum,
+                    !string.IsNullOrWhiteSpace(insertRecord.FotoPfad));
 
                 return true;
             },
@@ -673,6 +680,12 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.FotoPfad, CleanOptionalText(fotoPfad))
                     .Set(x => x.Freigegeben, true)
                     .Update();
+
+                _logger?.LogInformation(
+                    "UpdateAblesungAsync updated reading in zaehler_ablesung. AblesungId={AblesungId}, Ablesedatum={Ablesedatum}, FotoPfadPresent={FotoPfadPresent}",
+                    ablesungId,
+                    NormalizeDateTime(ablesedatum),
+                    !string.IsNullOrWhiteSpace(fotoPfad));
 
                 return true;
             },
@@ -2792,7 +2805,7 @@ namespace KGV.Infrastructure.Services
             };
         }
 
-        private async Task<List<ZaehlerAblesungDTO>> GetAblesungenAsync<TMeter>(IReadOnlyCollection<TMeter> meters, short zaehlerTyp)
+        private async Task<List<ZaehlerAblesungDTO>> GetAblesungenAsync<TMeter>(IReadOnlyCollection<TMeter> meters)
             where TMeter : class
         {
             if (meters.Count == 0)
@@ -2806,7 +2819,7 @@ namespace KGV.Infrastructure.Services
             {
                 var meterById = meters.Cast<StromzaehlerRecord>().ToDictionary(x => x.Id, x => x);
                 return ablesungen
-                    .Where(x => x.ZaehlerTyp == zaehlerTyp && meterById.ContainsKey(x.ZaehlerId))
+                    .Where(x => meterById.ContainsKey(x.ZaehlerId))
                     .OrderByDescending(x => x.Ablesedatum)
                     .ThenByDescending(x => x.Id)
                     .Select(x => MapZaehlerAblesungDto(x, meterById[x.ZaehlerId].Zaehlernummer, meterById[x.ZaehlerId].Eichdatum))
@@ -2815,7 +2828,7 @@ namespace KGV.Infrastructure.Services
 
             var wasserById = meters.Cast<WasserzaehlerRecord>().ToDictionary(x => x.Id, x => x);
             return ablesungen
-                .Where(x => x.ZaehlerTyp == zaehlerTyp && wasserById.ContainsKey(x.ZaehlerId))
+                .Where(x => wasserById.ContainsKey(x.ZaehlerId))
                 .OrderByDescending(x => x.Ablesedatum)
                 .ThenByDescending(x => x.Id)
                 .Select(x => MapZaehlerAblesungDto(x, wasserById[x.ZaehlerId].Zaehlernummer, wasserById[x.ZaehlerId].Eichdatum))

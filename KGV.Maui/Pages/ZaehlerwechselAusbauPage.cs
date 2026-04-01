@@ -217,7 +217,6 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
             var ablesung = new AblesungInsertRecord
             {
                 ZaehlerId = context.AktiverZaehlerId!.Value,
-                ZaehlerTyp = GetZaehlerTyp(context.Medium),
                 Ablesedatum = _ausbauDatumPicker.Date,
                 Stand = stand,
                 Art = AblesungArt.Ausbau,
@@ -265,9 +264,6 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
         _pickPhotoButton.IsEnabled = !_isBusy;
         _clearPhotoButton.IsEnabled = !_isBusy;
     }
-
-    private static short GetZaehlerTyp(string? medium)
-        => string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase) ? (short)2 : (short)1;
 
     private static string NormalizeMedium(string? medium)
         => string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase) ? "wasser" : "strom";

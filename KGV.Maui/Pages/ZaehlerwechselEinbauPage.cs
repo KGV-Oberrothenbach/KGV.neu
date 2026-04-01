@@ -1,13 +1,9 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
-using KGV.Maui.Services.PendingPhotos;
 using KGV.Maui.State;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
-using Microsoft.Maui.Media;
-using Microsoft.Maui.ApplicationModel;
-using System.IO;
 using System.Globalization;
 
 namespace KGV.Maui.Pages;
@@ -15,30 +11,19 @@ namespace KGV.Maui.Pages;
 public sealed class ZaehlerwechselEinbauPage : ContentPage
 {
     private readonly ISupabaseService _supabaseService;
-    private readonly IPhotoUploadTestService _photoUploadService;
     private readonly ZaehlerwechselWorkflowState _workflowState;
-    private readonly PendingPhotoService _pendingPhotoService;
     private readonly Label _contextLabel;
     private readonly Label _statusLabel;
     private readonly DatePicker _einbauDatumPicker;
     private readonly Entry _zaehlernummerEntry;
     private readonly Entry _eichjahrEntry;
-    private readonly Label _photoLabel;
-    private readonly Button _capturePhotoButton;
-    private readonly Button _pickPhotoButton;
-    private readonly Button _clearPhotoButton;
-    private byte[]? _selectedPhotoContent;
-    private string _selectedPhotoFileName = string.Empty;
-    private string _selectedPhotoContentType = "application/octet-stream";
     private RfidScanContextResult? _context;
     private bool _isBusy;
 
-    public ZaehlerwechselEinbauPage(ISupabaseService supabaseService, IPhotoUploadTestService photoUploadService, ZaehlerwechselWorkflowState workflowState, PendingPhotoService pendingPhotoService)
+    public ZaehlerwechselEinbauPage(ISupabaseService supabaseService, ZaehlerwechselWorkflowState workflowState)
     {
         _supabaseService = supabaseService;
-        _photoUploadService = photoUploadService;
         _workflowState = workflowState;
-        _pendingPhotoService = pendingPhotoService;
 
         Title = "Zählereinbau";
 
@@ -47,14 +32,6 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
         _einbauDatumPicker = new DatePicker { Date = DateTime.Today };
         _zaehlernummerEntry = new Entry { Placeholder = "Zählernummer" };
         _eichjahrEntry = new Entry { Placeholder = "Eichjahr", Keyboard = Keyboard.Numeric, Text = DateTime.Today.Year.ToString(CultureInfo.InvariantCulture) };
-
-        _photoLabel = new Label { Text = "Noch kein Foto gewählt.", LineBreakMode = LineBreakMode.WordWrap, TextColor = Colors.Gray };
-        _capturePhotoButton = new Button { Text = "Foto aufnehmen" };
-        _capturePhotoButton.Clicked += async (_, _) => await SelectPhotoAsync(capture: true);
-        _pickPhotoButton = new Button { Text = "Foto übernehmen" };
-        _pickPhotoButton.Clicked += async (_, _) => await SelectPhotoAsync(capture: false);
-        _clearPhotoButton = new Button { Text = "Foto entfernen" };
-        _clearPhotoButton.Clicked += (_, _) => ClearPhotoSelection();
 
         var cancelButton = new Button { Text = "Zurück zum Zählerwechsel" };
         cancelButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(ZaehlerwechselPage));
@@ -73,7 +50,7 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
                     new Label { Text = "Zählereinbau", FontSize = 24, FontAttributes = FontAttributes.Bold },
                     new Label
                     {
-                        Text = "Für den bekannten RFID-Kontext ohne aktiven Zähler wird nur der neue Zähler angelegt. Das Foto wird erst im nachgelagerten Ablese-Flow hochgeladen und in der Anfangsablesung gespeichert (kein Upload ohne Datensatz).",
+                        Text = "Für den bekannten RFID-Kontext ohne aktiven Zähler wird hier nur der neue Zähler angelegt. Die Erstablesung folgt direkt im bestehenden Ablese-Flow und enthält genau ein Foto für diesen Vorgang.",
                         LineBreakMode = LineBreakMode.WordWrap
                     },
                     CreateSection("Scan-Kontext", _contextLabel),
@@ -82,12 +59,6 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
                         CreateField("Einbau-Datum", _einbauDatumPicker),
                         CreateField("Zählernummer", _zaehlernummerEntry),
                         CreateField("Eichjahr", _eichjahrEntry),
-                        CreateField("Foto", _photoLabel),
-                        new HorizontalStackLayout
-                        {
-                            Spacing = 8,
-                            Children = { _capturePhotoButton, _pickPhotoButton, _clearPhotoButton }
-                        },
                         _statusLabel),
                     cancelButton,
                     saveButton
@@ -118,76 +89,6 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
         _statusLabel.Text = string.Empty;
     }
 
-    private async Task SelectPhotoAsync(bool capture)
-    {
-        if (_isBusy)
-            return;
-
-        try
-        {
-            if (capture && !MediaPicker.Default.IsCaptureSupported)
-            {
-                _photoLabel.Text = "Fotoaufnahme wird auf diesem Gerät aktuell nicht unterstützt.";
-                return;
-            }
-
-            if (capture)
-            {
-                var permissionStatus = await Permissions.CheckStatusAsync<Permissions.Camera>();
-                if (permissionStatus != PermissionStatus.Granted)
-                    permissionStatus = await Permissions.RequestAsync<Permissions.Camera>();
-
-                if (permissionStatus != PermissionStatus.Granted)
-                {
-                    _photoLabel.Text = "Kamera-Berechtigung wurde nicht erteilt.";
-                    return;
-                }
-            }
-
-            var fileResult = capture
-                ? await MediaPicker.Default.CapturePhotoAsync()
-                : await MediaPicker.Default.PickPhotoAsync();
-
-            if (fileResult == null)
-            {
-                _photoLabel.Text = "Fotoauswahl abgebrochen.";
-                return;
-            }
-
-            await using var stream = await fileResult.OpenReadAsync();
-            using var memoryStream = new MemoryStream();
-            await stream.CopyToAsync(memoryStream);
-
-            _selectedPhotoContent = memoryStream.ToArray();
-            _selectedPhotoFileName = string.IsNullOrWhiteSpace(fileResult.FileName)
-                ? $"einbau-{DateTime.Now:yyyyMMdd-HHmmss}.jpg"
-                : fileResult.FileName;
-            _selectedPhotoContentType = string.IsNullOrWhiteSpace(fileResult.ContentType)
-                ? GetContentType(_selectedPhotoFileName)
-                : fileResult.ContentType;
-            _photoLabel.Text = $"Foto gewählt: {_selectedPhotoFileName}";
-            _statusLabel.Text = string.Empty;
-        }
-        catch (Exception ex)
-        {
-            LogErrorForUser("Fotoaufnahme fehlgeschlagen", ex);
-        }
-    }
-
-    private void LogErrorForUser(string title, Exception ex)
-    {
-        System.Diagnostics.Debug.WriteLine($"[ZaehlerwechselEinbauPage] {title}: {ex}");
-        _photoLabel.Text = title;
-    }
-
-    private void ClearPhotoSelection()
-    {
-        _selectedPhotoContent = null;
-        _selectedPhotoFileName = string.Empty;
-        _selectedPhotoContentType = "application/octet-stream";
-        _photoLabel.Text = "Noch kein Foto gewählt.";
-    }
-
     private async void OnSaveClicked(object? sender, EventArgs e)
     {
         if (_isBusy)
@@ -196,12 +97,6 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
         if (_context?.Context == null)
         {
             await DisplayAlert("Hinweis", "Es liegt kein Einbau-Kontext vor.", "OK");
-            return;
-        }
-
-        if (_selectedPhotoContent == null || _selectedPhotoContent.Length == 0)
-        {
-            await DisplayAlert("Validierung", "Bitte zuerst ein Foto aufnehmen oder übernehmen.", "OK");
             return;
         }
 
@@ -263,25 +158,7 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
             CreateInitialReadingContext(context, activeMeterId, zaehlernummer, eichdatum, einbauDatum),
             AblesungArt.Einbau,
             einbauDatum,
-            "Neuer Zähler angelegt. Jetzt folgt direkt die Anfangsablesung mit `Art = einbau`. Das Foto wird erst dort hochgeladen und gespeichert.");
-
-        if (_workflowState.PendingAblesungFlow != null)
-        {
-            var pending = _pendingPhotoService.SaveAndEnqueue(
-                _selectedPhotoContent,
-                operationType: "einbau",
-                parzelle: context.ParzelleDisplayName,
-                medium: NormalizeMedium(context.Medium),
-                contentType: _selectedPhotoContentType);
-
-            _workflowState.PendingAblesungFlow.PendingPhotoId = pending.Id;
-            _workflowState.PendingAblesungFlow.PendingPhotoLocalPath = pending.LocalFilePath;
-
-            _workflowState.PendingAblesungFlow.PendingPhotoFileName = pending.FileName;
-            _workflowState.PendingAblesungFlow.PendingPhotoContentType = pending.ContentType;
-
-            _workflowState.PendingAblesungFlow.PendingPhotoContent = null;
-        }
+            "Neuer Zähler angelegt. Jetzt folgt direkt die Anfangsablesung mit `Art = einbau` und genau einem Foto in diesem Schritt.");
 
         await DisplayAlert("OK", "Zählereinbau erfolgreich gespeichert. Die Anfangsablesung folgt jetzt im bestehenden Ablese-Flow.", "OK");
         await Shell.Current.GoToAsync(nameof(AblesungErfassenPage));
@@ -303,9 +180,6 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
         _einbauDatumPicker.IsEnabled = !_isBusy;
         _zaehlernummerEntry.IsEnabled = !_isBusy;
         _eichjahrEntry.IsEnabled = !_isBusy;
-        _capturePhotoButton.IsEnabled = !_isBusy && MediaPicker.Default.IsCaptureSupported;
-        _pickPhotoButton.IsEnabled = !_isBusy;
-        _clearPhotoButton.IsEnabled = !_isBusy;
     }
 
     private async Task<long> ResolveNewMeterIdAsync(int parzelleId, string? medium, DateTime onDate, string zaehlernummer)
@@ -362,23 +236,6 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
             return false;
 
         return year >= 1900 && year <= 9999;
-    }
-
-    private static string NormalizeMedium(string? medium)
-        => string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase) ? "wasser" : "strom";
-
-    private static string GetContentType(string? fileName)
-    {
-        var extension = Path.GetExtension(fileName)?.Trim().ToLowerInvariant();
-        return extension switch
-        {
-            ".jpg" or ".jpeg" => "image/jpeg",
-            ".png" => "image/png",
-            ".webp" => "image/webp",
-            ".bmp" => "image/bmp",
-            ".gif" => "image/gif",
-            _ => "application/octet-stream"
-        };
     }
 
     private static Border CreateSection(string title, params View[] children)

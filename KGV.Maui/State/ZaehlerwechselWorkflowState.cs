@@ -43,9 +43,4 @@ public sealed class PendingAblesungFlowContext
     public string Art { get; set; } = AblesungArt.Normal;
     public DateTime DefaultDate { get; set; } = DateTime.Today;
     public string Hint { get; set; } = string.Empty;
-    public Guid? PendingPhotoId { get; set; }
-    public string PendingPhotoLocalPath { get; set; } = string.Empty;
-    public byte[]? PendingPhotoContent { get; set; }
-    public string PendingPhotoFileName { get; set; } = string.Empty;
-    public string PendingPhotoContentType { get; set; } = "application/octet-stream";
 }

@@ -106,7 +106,6 @@ namespace KGV.ViewModels
 
             var ok = await _supabaseService.AddAblesungAsync(new AblesungInsertRecord
             {
-                ZaehlerTyp = ZaehlerTypWasser,
                 ZaehlerId = meter.Id,
                 Ablesedatum = dlg.Ablesedatum.Value,
                 Stand = dlg.Stand.Value,

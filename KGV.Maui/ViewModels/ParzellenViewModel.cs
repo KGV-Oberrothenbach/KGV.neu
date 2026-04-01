@@ -472,7 +472,6 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         var ok = existing == null
             ? await _supabaseService.AddAblesungAsync(new AblesungInsertRecord
             {
-                ZaehlerTyp = 1,
                 ZaehlerId = meterId.Value,
                 Ablesedatum = ablesedatum,
                 Stand = stand,
@@ -509,7 +508,6 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         var ok = existing == null
             ? await _supabaseService.AddAblesungAsync(new AblesungInsertRecord
             {
-                ZaehlerTyp = 2,
                 ZaehlerId = meterId.Value,
                 Ablesedatum = ablesedatum,
                 Stand = stand,

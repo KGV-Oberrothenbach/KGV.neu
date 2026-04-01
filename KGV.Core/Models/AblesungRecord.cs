@@ -5,7 +5,7 @@ using System;
 
 namespace KGV.Core.Models
 {
-    [Table("ablesung")]
+    [Table("zaehler_ablesung")]
     public class AblesungRecord : BaseModel
     {
         [PrimaryKey("id", false)]
@@ -17,9 +17,6 @@ namespace KGV.Core.Models
 
         [Column("stand")]
         public decimal Stand { get; set; }
-
-        [Column("zaehler_typ")]
-        public short ZaehlerTyp { get; set; }
 
         [Column("ablesedatum")]
         public DateTime Ablesedatum { get; set; }

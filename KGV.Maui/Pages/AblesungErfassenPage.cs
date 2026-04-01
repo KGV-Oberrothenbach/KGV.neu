@@ -24,7 +24,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
     private readonly ISupabaseService _supabaseService;
     private readonly IPhotoUploadTestService _photoUploadService;
     private readonly ZaehlerwechselWorkflowState _workflowState;
-    private readonly PendingPhotoQueue _pendingPhotoQueue;
     private readonly PendingPhotoService _pendingPhotoService;
     private readonly RfidScanContextViewModel _scanContext;
     private readonly Label _introLabel;
@@ -65,7 +64,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         _supabaseService = services.GetRequiredService<ISupabaseService>();
         _photoUploadService = services.GetRequiredService<IPhotoUploadTestService>();
         _workflowState = services.GetRequiredService<ZaehlerwechselWorkflowState>();
-        _pendingPhotoQueue = services.GetRequiredService<PendingPhotoQueue>();
         _pendingPhotoService = services.GetRequiredService<PendingPhotoService>();
         _scanContext = new RfidScanContextViewModel(
             _supabaseService,
@@ -202,7 +200,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
             _isPendingInitialFlow = true;
             _currentArt = AblesungArt.Normalize(pendingFlow.Art);
             _ablesedatumPicker.Date = pendingFlow.DefaultDate.Date;
-            ApplyPendingPhotoSelection(pendingFlow);
             _scanContext.ApplyResolvedContext(pendingFlow.Context, pendingFlow.Hint);
             ApplyResolution(pendingFlow.Context, pendingFlow.Hint);
             return;
@@ -407,16 +404,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
                 return;
             }
 
-            if (_currentArt == AblesungArt.Einbau)
-            {
-                var validContent = _selectedPhotoContent != null && _selectedPhotoContent.Length > 0;
-                if (!validContent)
-                {
-                    await DisplayAlert("Validierung", "Bitte zuerst ein Foto aufnehmen oder übernehmen.", "OK");
-                    return;
-                }
-            }
-
             if (!PendingPhotoUploadDecision.CanUploadNow(out _))
             {
                 _statusLabel.Text = PhotoUploadPreferences.WifiOnly
@@ -457,7 +444,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
             var readingSaved = await _supabaseService.AddAblesungAsync(new AblesungInsertRecord
             {
                 ZaehlerId = context.AktiverZaehlerId.Value,
-                ZaehlerTyp = GetZaehlerTyp(context.Medium),
                 Ablesedatum = _ablesedatumPicker.Date,
                 Stand = stand,
                 Art = _currentArt,
@@ -509,39 +495,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         _scanContext.Reset();
         ApplyResolution(null, string.Empty);
         await _scanContext.StartNfcSessionAsync();
-    }
-
-    private void ApplyPendingPhotoSelection(PendingAblesungFlowContext pendingFlow)
-    {
-        if (pendingFlow.PendingPhotoId is Guid pendingId && _pendingPhotoQueue.TryGet(pendingId, out var pendingItem) && pendingItem != null)
-        {
-            if (_pendingPhotoService.TryLoadContent(pendingItem, out var content) && content is { Length: > 0 })
-            {
-                _selectedPhotoContent = content;
-                _selectedPhotoFileName = string.IsNullOrWhiteSpace(pendingItem.FileName)
-                    ? $"ablesung-{DateTime.Now:yyyyMMdd-HHmmss}.jpg"
-                    : pendingItem.FileName;
-                _selectedPhotoContentType = string.IsNullOrWhiteSpace(pendingItem.ContentType)
-                    ? GetContentType(_selectedPhotoFileName)
-                    : pendingItem.ContentType;
-
-                _photoLabel.Text = $"Foto gewählt: {_selectedPhotoFileName}";
-                return;
-            }
-        }
-
-        if (pendingFlow.PendingPhotoContent == null || pendingFlow.PendingPhotoContent.Length == 0)
-            return;
-
-        _selectedPhotoContent = pendingFlow.PendingPhotoContent;
-        _selectedPhotoFileName = string.IsNullOrWhiteSpace(pendingFlow.PendingPhotoFileName)
-            ? $"ablesung-{DateTime.Now:yyyyMMdd-HHmmss}.jpg"
-            : pendingFlow.PendingPhotoFileName;
-        _selectedPhotoContentType = string.IsNullOrWhiteSpace(pendingFlow.PendingPhotoContentType)
-            ? GetContentType(_selectedPhotoFileName)
-            : pendingFlow.PendingPhotoContentType;
-
-        _photoLabel.Text = $"Foto gewählt: {_selectedPhotoFileName}";
     }
 
     private void UpdateBusyState()
@@ -599,9 +552,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
             Children = { backToOverviewButton }
         };
     }
-
-    private static short GetZaehlerTyp(string? medium)
-        => string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase) ? (short)2 : (short)1;
 
     private static string MapPhotoKind(string art)
     {
