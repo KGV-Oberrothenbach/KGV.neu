@@ -2,6 +2,53 @@
 
 ---
 
+## 2026-04-01 – Abschluss-Prompt Block 2.1: MAUI `Gärten des Mitgliedes` / Mitgliedsfokussierung / Haupt-Nebenmitglied-Verknüpfung sauber abgeschlossen
+
+- Vor dem Abschluss den realen Git-/Arbeitsstand erneut geprüft und nicht auf Altannahmen aufgebaut.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - als echte Blockdateien von `2.1` bestätigt:
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - `KGV.Maui/Pages/MemberGardensPage.cs`
+    - `KGV.Maui/Pages/ParzellenPage.cs`
+    - `KGV.Maui/State/ParzellenContextState.cs`
+    - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - blockfremd lokal geändert blieben bewusst draußen:
+    - `.github/copilot-instructions.md`
+    - `KGV.Core/Models/ImpressumInfo.cs`
+    - `KGV.Core/Models/ImpressumKontaktItem.cs`
+    - `KGV.Maui/Pages/ImpressumPage.cs`
+    - `KGV.Wpf/ViewModels/ImpressumViewModel.cs`
+    - `KGV.Wpf/Views/ImpressumView.xaml`
+  - untracked blieben weiterhin bewusst draußen:
+    - `AWR.bat`
+    - `Android_Wpf_release_batch_v4.bat`
+- Ehrlicher Istzustand dieses Abschlusslaufs:
+  - der Block `2.1` lag in den fünf MAUI-Blockdateien bereits buildfähig vor
+  - fachlich vorhanden waren im begonnenen Block bereits:
+    - eigener mobiler Pfad `Gärten des Mitgliedes`
+    - Mitgliedsfokussierung über den ausgewählten Mitgliedskontext
+    - Nutzung des bestehenden Parzellenkontexts statt neuer Schattenlogik
+    - sichtbare Trennung zwischen Stammdaten und Garten-/Parzellenbezug
+    - Berücksichtigung der Haupt-/Nebenmitglied-Verknüpfung im mobilen Kontext
+  - in diesem Abschlusslauf zeigte sich kein direkter Abschlussfehler in den Blockdateien
+  - deshalb waren keine weiteren Codeänderungen an den fünf Blockdateien nötig
+- In diesem Abschlusslauf umgesetzt:
+  - nur `KGV_Fortschrittslog_ausfuehrlich.md` und `DEV_LOG.md` ehrlich für den Abschluss nachgezogen
+  - kein weiterer Fachumbau
+  - keine neuen Detailfunktionen für `Strom`, `Wasser` oder `Dokumente`
+- Wichtig für die Blockgrenze:
+  - keine Änderung an blockfremden Impressum-Dateien
+  - kein Eingriff in andere offene lokale Änderungen
+  - kein neuer MAUI- oder WPF-Fachblock begonnen
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Ehrlicher Abschlussstand:
+  - Block `2.1` ist technisch sauber abgeschlossen => ja
+  - zusätzliche Codeänderungen an den fünf Blockdateien nötig => nein
+  - blockfremde lokale Änderungen wurden bewusst nicht mitgenommen => ja
+
 ## 2026-04-01 – Prompt 2/3: MAUI Foto-Upload-Connectivity-Hinweis „Netzwerkstatus konnte nicht ermittelt werden“ analysiert und minimal behoben
 
 - Vor dem Fix den realen Repo-/Blockstand geprüft und gegen den bestehenden Foto-Upload-/Pending-Stand abgeglichen.

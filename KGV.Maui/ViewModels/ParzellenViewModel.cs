@@ -54,12 +54,18 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         ? (_parzellenContextState.ContextTitle ?? "Gartenkontext")
         : "Parzellen";
     public string Description => _parzellenContextState.IsFromMemberContext
-        ? "Mitgliedsbezogener Garten-/Parzellenkontext mit fokussierten Parzellenstammdaten."
+        ? "Mitgliedsbezogene Parzellenansicht für das aktuell ausgewählte Mitglied."
         : "Zentrale Parzellenübersicht mit fokussierten Parzellenstammdaten.";
     public string DetailHint => _parzellenContextState.IsFromMemberContext
-        ? "Parzellenstammdaten bleiben hier fachlich getrennt von Ablesen, Wartungsverträgen und sonstigen Verwaltungsblöcken."
+        ? "Die Auswahl und Navigation bleiben hier auf die dem aktuell ausgewählten Mitglied zugewiesenen Parzellen begrenzt."
         : "Parzellenstammdaten bleiben hier fachlich getrennt von Ablesen und anderen Verwaltungsblöcken.";
     public bool IsContextBound => _parzellenContextState.IsFromMemberContext;
+    public bool ShowGlobalActions => !IsContextBound;
+    public bool ShowSearch => !IsContextBound;
+    public string ListTitle => IsContextBound ? "Parzellen des Mitglieds" : "Parzellenübersicht";
+    public string EmptyListText => IsContextBound
+        ? "Für das aktuell ausgewählte Mitglied sind keine zugeordneten Parzellen vorhanden."
+        : "Keine Parzellen für die aktuelle Suche gefunden.";
     public string SearchText
     {
         get => _searchText;
@@ -114,6 +120,12 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(HasAssignedMember));
             OnPropertyChanged(nameof(CanOpenAssignedMember));
             OnPropertyChanged(nameof(SelectedParzelleDisplayName));
+            OnPropertyChanged(nameof(ShowMemberContextDetail));
+            OnPropertyChanged(nameof(ShowGlobalDetail));
+            OnPropertyChanged(nameof(SelectedParzelleSizeText));
+            OnPropertyChanged(nameof(StromButtonText));
+            OnPropertyChanged(nameof(WasserButtonText));
+            OnPropertyChanged(nameof(DokumenteButtonText));
 
             if (!IsEditMode)
                 SyncEditFieldsFromDetail(value);
@@ -121,6 +133,8 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     }
 
     public bool HasSelectedDetail => SelectedDetail != null;
+    public bool ShowMemberContextDetail => HasSelectedDetail && IsContextBound;
+    public bool ShowGlobalDetail => HasSelectedDetail && !IsContextBound && !IsEditMode;
     public bool ShowReadOnlyStammdaten => HasSelectedDetail && !IsEditMode;
     public bool ShowSelectionHint => !HasSelectedDetail && HasFilteredItems;
     public bool CanEditStammdaten => HasSelectedDetail && !IsBusy && !IsEditMode;
@@ -156,6 +170,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
             _isEditMode = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(ShowReadOnlyStammdaten));
+            OnPropertyChanged(nameof(ShowGlobalDetail));
             OnPropertyChanged(nameof(CanEditStammdaten));
             OnPropertyChanged(nameof(CanSaveStammdaten));
         }
@@ -168,6 +183,10 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         ? "Keine Parzelle ausgewählt"
         : $"{Items.IndexOf(SelectedItem) + 1} / {Items.Count}";
     public string SelectedParzelleDisplayName => SelectedDetail?.DisplayName ?? SelectedItem?.DisplayText ?? "Parzelle";
+    public string SelectedParzelleSizeText => SelectedDetail?.FlaecheText ?? "Nicht hinterlegt";
+    public string StromButtonText => SelectedDetail == null ? "Strom" : $"Strom ({SelectedDetail.StromAblesungenCount})";
+    public string WasserButtonText => SelectedDetail == null ? "Wasser" : $"Wasser ({SelectedDetail.WasserAblesungenCount})";
+    public string DokumenteButtonText => SelectedDetail == null ? "Dokumente" : $"Dokumente ({SelectedDetail.Dokumente.Count})";
     public bool HasStromAblesungen => StromAblesungen.Count > 0;
     public bool HasWasserAblesungen => WasserAblesungen.Count > 0;
     public bool HasDokumente => Dokumente.Count > 0;
@@ -351,14 +370,19 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
 
     public async Task ApplyRequestedContextAsync()
     {
-        if (_parzellenContextState.SelectedParzelleId is not > 0)
-            return;
-
         if (Items.Count == 0)
             await LoadAsync(resetItems: true);
 
-        var requestedId = _parzellenContextState.SelectedParzelleId.Value;
-        var target = Items.FirstOrDefault(x => x.ParzelleId == requestedId);
+        ParzelleVerwaltungItem? target = null;
+        if (_parzellenContextState.SelectedParzelleId is > 0)
+        {
+            var requestedId = _parzellenContextState.SelectedParzelleId.Value;
+            target = Items.FirstOrDefault(x => x.ParzelleId == requestedId);
+        }
+
+        if (target == null && _parzellenContextState.IsFromMemberContext)
+            target = Items.FirstOrDefault();
+
         if (target != null)
             SelectedItem = target;
 
@@ -366,6 +390,12 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(Description));
         OnPropertyChanged(nameof(DetailHint));
         OnPropertyChanged(nameof(IsContextBound));
+        OnPropertyChanged(nameof(ShowGlobalActions));
+        OnPropertyChanged(nameof(ShowSearch));
+        OnPropertyChanged(nameof(ListTitle));
+        OnPropertyChanged(nameof(EmptyListText));
+        OnPropertyChanged(nameof(ShowMemberContextDetail));
+        OnPropertyChanged(nameof(ShowGlobalDetail));
     }
 
     public async Task ClearRequestedContextAsync()
@@ -375,6 +405,12 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(Description));
         OnPropertyChanged(nameof(DetailHint));
         OnPropertyChanged(nameof(IsContextBound));
+        OnPropertyChanged(nameof(ShowGlobalActions));
+        OnPropertyChanged(nameof(ShowSearch));
+        OnPropertyChanged(nameof(ListTitle));
+        OnPropertyChanged(nameof(EmptyListText));
+        OnPropertyChanged(nameof(ShowMemberContextDetail));
+        OnPropertyChanged(nameof(ShowGlobalDetail));
         await RefreshAsync();
     }
 
@@ -713,6 +749,15 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
                 IsEditMode = false;
             }
 
+            HashSet<int>? memberParzellenIds = null;
+            if (_parzellenContextState.IsFromMemberContext && _parzellenContextState.ContextMitgliedId is > 0)
+            {
+                memberParzellenIds = (await _supabaseService.GetBelegungenForMitgliedAsync(_parzellenContextState.ContextMitgliedId.Value))
+                    .Where(x => x.ParzelleId > 0)
+                    .Select(x => x.ParzelleId)
+                    .ToHashSet();
+            }
+
             var parzellen = await _supabaseService.GetAllParzellenAsync();
             var belegungen = await _supabaseService.GetAllParzellenBelegungenAsync();
             var mitglieder = await _supabaseService.GetMitgliederAsync();
@@ -736,6 +781,9 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
 
             foreach (var parzelle in parzellen.OrderBy(x => x.GartenNrSortKey, StringComparer.CurrentCultureIgnoreCase))
             {
+                if (memberParzellenIds != null && !memberParzellenIds.Contains(parzelle.Id))
+                    continue;
+
                 currentByParzelle.TryGetValue(parzelle.Id, out var belegung);
                 mitgliederById.TryGetValue(belegung?.MitgliedId ?? 0, out var mitglied);
 
@@ -758,7 +806,9 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
 
             ApplyFilter();
 
-            StatusMessage = Items.Count == 0 ? "Keine Parzellen geladen." : string.Empty;
+            StatusMessage = Items.Count == 0
+                ? (IsContextBound ? "Für das aktuell ausgewählte Mitglied sind keine Parzellen vorhanden." : "Keine Parzellen geladen.")
+                : string.Empty;
         }
         catch (Exception ex)
         {

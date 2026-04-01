@@ -2,19 +2,22 @@ namespace KGV.Maui.State;
 
 public sealed class ParzellenContextState
 {
+    public int? ContextMitgliedId { get; private set; }
     public int? SelectedParzelleId { get; private set; }
     public string? ContextTitle { get; private set; }
     public bool IsFromMemberContext { get; private set; }
 
-    public void SetMemberContext(int parzelleId, string? contextTitle)
+    public void SetMemberContext(int mitgliedId, int? parzelleId, string? contextTitle)
     {
-        SelectedParzelleId = parzelleId;
+        ContextMitgliedId = mitgliedId > 0 ? mitgliedId : null;
+        SelectedParzelleId = parzelleId is > 0 ? parzelleId : null;
         ContextTitle = string.IsNullOrWhiteSpace(contextTitle) ? null : contextTitle.Trim();
-        IsFromMemberContext = true;
+        IsFromMemberContext = ContextMitgliedId.HasValue;
     }
 
     public void Clear()
     {
+        ContextMitgliedId = null;
         SelectedParzelleId = null;
         ContextTitle = null;
         IsFromMemberContext = false;

@@ -29,18 +29,20 @@ public sealed class ParzellenPage : ContentPage
         hintLabel.SetBinding(Label.TextProperty, nameof(ParzellenViewModel.DetailHint));
 
         var refreshButton = new Button { Text = "Aktualisieren" };
+        refreshButton.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowGlobalActions));
         refreshButton.Clicked += async (_, _) => await _viewModel.RefreshAsync();
 
         var searchBar = new SearchBar { Placeholder = "Nach Garten Nr oder Pächter suchen" };
+        searchBar.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowSearch));
         searchBar.SetBinding(SearchBar.TextProperty, nameof(ParzellenViewModel.SearchText), BindingMode.TwoWay);
 
         var listEmptyLabel = new Label
         {
-            Text = "Keine Parzellen für die aktuelle Suche gefunden.",
             TextColor = Colors.Gray,
             HorizontalTextAlignment = Microsoft.Maui.TextAlignment.Center,
             VerticalTextAlignment = Microsoft.Maui.TextAlignment.Center
         };
+        listEmptyLabel.SetBinding(Label.TextProperty, nameof(ParzellenViewModel.EmptyListText));
 
         var parzellenList = new CollectionView
         {
@@ -75,15 +77,24 @@ public sealed class ParzellenPage : ContentPage
         parzellenList.SetBinding(ItemsView.ItemsSourceProperty, nameof(ParzellenViewModel.FilteredItems));
         parzellenList.SetBinding(SelectableItemsView.SelectedItemProperty, nameof(ParzellenViewModel.SelectedItem), BindingMode.TwoWay);
 
-        var listSection = CreateSection("Parzellenübersicht", searchBar, parzellenList);
+        var listSectionTitleLabel = new Label { FontAttributes = FontAttributes.Bold, FontSize = 18 };
+        listSectionTitleLabel.SetBinding(Label.TextProperty, nameof(ParzellenViewModel.ListTitle));
 
-        var backToMemberButton = new Button { Text = "Zur Stammdatenansicht" };
-        backToMemberButton.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsContextBound));
-        backToMemberButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(MeineDatenPage));
-
-        var clearContextButton = new Button { Text = "Zur globalen Parzellenübersicht" };
-        clearContextButton.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.IsContextBound));
-        clearContextButton.Clicked += async (_, _) => await _viewModel.ClearRequestedContextAsync();
+        var listSection = new Border
+        {
+            Stroke = Colors.LightGray,
+            Padding = 16,
+            Content = new VerticalStackLayout
+            {
+                Spacing = 8,
+                Children =
+                {
+                    listSectionTitleLabel,
+                    searchBar,
+                    parzellenList
+                }
+            }
+        };
 
         var selectionHint = new Label { Text = "Keine Parzelle ausgewählt.", TextColor = Colors.Gray };
         selectionHint.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowSelectionHint));
@@ -105,8 +116,65 @@ public sealed class ParzellenPage : ContentPage
         currentParzelleLabel.SetBinding(Label.TextProperty, nameof(ParzellenViewModel.SelectedParzelleDisplayName));
 
         var editButton = new Button { Text = "Stammdaten bearbeiten" };
+        editButton.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowGlobalActions));
         editButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanEditStammdaten));
         editButton.Clicked += (_, _) => _viewModel.BeginEditMode();
+
+        var stromButton = new Button();
+        stromButton.SetBinding(Button.TextProperty, nameof(ParzellenViewModel.StromButtonText));
+        stromButton.Clicked += async (_, _) =>
+        {
+            var detail = _viewModel.SelectedDetail;
+            if (detail == null)
+                return;
+
+            await DisplayAlert("Strom", detail.StromStatusText, "OK");
+        };
+
+        var wasserButton = new Button();
+        wasserButton.SetBinding(Button.TextProperty, nameof(ParzellenViewModel.WasserButtonText));
+        wasserButton.Clicked += async (_, _) =>
+        {
+            var detail = _viewModel.SelectedDetail;
+            if (detail == null)
+                return;
+
+            await DisplayAlert("Wasser", detail.WasserStatusText, "OK");
+        };
+
+        var dokumenteButton = new Button();
+        dokumenteButton.SetBinding(Button.TextProperty, nameof(ParzellenViewModel.DokumenteButtonText));
+        dokumenteButton.Clicked += async (_, _) =>
+        {
+            var detail = _viewModel.SelectedDetail;
+            if (detail == null)
+                return;
+
+            await DisplayAlert("Dokumente", detail.DokumenteText, "OK");
+        };
+
+        var memberContextDetailSection = new Border
+        {
+            Stroke = Colors.LightGray,
+            Padding = 12,
+            Content = new VerticalStackLayout
+            {
+                Spacing = 10,
+                Children =
+                {
+                    currentParzelleLabel,
+                    CreateSection("Parzellen-Details",
+                        CreateValueLabel("Größe", nameof(ParzellenViewModel.SelectedParzelleSizeText)),
+                        new HorizontalStackLayout
+                        {
+                            Spacing = 8,
+                            Children = { stromButton, wasserButton, dokumenteButton }
+                        })
+                }
+            }
+        };
+        memberContextDetailSection.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowMemberContextDetail));
+        detailContainer.Children.Add(memberContextDetailSection);
 
         var readOnlyStammdatenSection = new Border
         {
@@ -131,7 +199,7 @@ public sealed class ParzellenPage : ContentPage
                 }
             }
         };
-        readOnlyStammdatenSection.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowReadOnlyStammdaten));
+        readOnlyStammdatenSection.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowGlobalDetail));
         detailContainer.Children.Add(readOnlyStammdatenSection);
 
         var editSection = CreateSection("Stammdaten bearbeiten",
@@ -214,8 +282,6 @@ public sealed class ParzellenPage : ContentPage
                     titleLabel,
                     descriptionLabel,
                     hintLabel,
-                    backToMemberButton,
-                    clearContextButton,
                     refreshButton,
                     listSection,
                     selectionHint,
@@ -230,6 +296,13 @@ public sealed class ParzellenPage : ContentPage
     {
         base.OnAppearing();
 
+        if (IsGlobalParzellenRoute() && _viewModel.IsContextBound)
+        {
+            await _viewModel.ClearRequestedContextAsync();
+            _initialized = true;
+            return;
+        }
+
         if (!_initialized)
         {
             await _viewModel.InitializeAsync();
@@ -239,6 +312,14 @@ public sealed class ParzellenPage : ContentPage
 
         await _viewModel.ApplyRequestedContextAsync();
         await _viewModel.RefreshSelectedDetailAsync();
+    }
+
+    private static bool IsGlobalParzellenRoute()
+    {
+        var location = Shell.Current?.CurrentState?.Location?.OriginalString;
+        return !string.IsNullOrWhiteSpace(location)
+            && location.Contains("/parzellen", StringComparison.OrdinalIgnoreCase)
+            && !location.Contains(nameof(ParzellenPage), StringComparison.Ordinal);
     }
 
     private async Task SaveStammdatenAsync()

@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-04-01 – Abschluss Block 2.1: MAUI `Gärten des Mitgliedes` / Mitgliedsfokussierung / Haupt-Nebenmitglied-Verknüpfung ohne weitere Codeänderung abgeschlossen
+
+- Den realen Git-/Arbeitsstand erneut geprüft.
+- Als echte Blockdateien von `2.1` bestätigt:
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/State/ParzellenContextState.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+- Blockfremd lokal geändert blieben bewusst draußen:
+  - `.github/copilot-instructions.md`
+  - `KGV.Core/Models/ImpressumInfo.cs`
+  - `KGV.Core/Models/ImpressumKontaktItem.cs`
+  - `KGV.Maui/Pages/ImpressumPage.cs`
+  - `KGV.Wpf/ViewModels/ImpressumViewModel.cs`
+  - `KGV.Wpf/Views/ImpressumView.xaml`
+  - untracked weiterhin `AWR.bat` und `Android_Wpf_release_batch_v4.bat`
+- Ehrlicher Befund:
+  - der begonnene Block `2.1` war in den fünf MAUI-Dateien bereits buildfähig vorhanden
+  - kein direkter Abschlussfehler in den Blockdateien sichtbar
+  - deshalb keine weiteren Codeänderungen an den fünf Blockdateien vorgenommen
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Ergebnis:
+  - Block `2.1` nur technisch/ehrlich abgeschlossen
+  - keine neuen Detailfunktionen oder Nebenbaustellen begonnen
+
 ## 2026-04-01 – MAUI Foto-Upload/Connectivity: Hinweis „Netzwerkstatus konnte nicht ermittelt werden“ minimal behoben
 
 - Vor dem Fix den realen Blockzustand geprüft:

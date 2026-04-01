@@ -101,7 +101,7 @@ public sealed class MemberGardensPage : ContentPage
                         "Gärten",
                         new Label
                         {
-                            Text = "Der Gartenbereich ist im Mitgliedskontext bewusst von den eigentlichen Stammdaten getrennt. Tippen öffnet den bestehenden Garten-/Parzellenpfad des ausgewählten Mitglieds.",
+                            Text = "Diese Ansicht zeigt nur die dem aktuell ausgewählten Mitglied zugewiesenen Parzellen. Tippen öffnet die mitgliedsbezogene Parzellen-Detailansicht.",
                             TextColor = Colors.Gray,
                             LineBreakMode = LineBreakMode.WordWrap
                         },
@@ -153,7 +153,7 @@ public sealed class MemberGardensPage : ContentPage
                 : $"Gärten von {contextMember.DisplayName}";
 
             await LoadAssignmentsAsync(contextMember.Id);
-            _assignGardenButton.IsVisible = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            _assignGardenButton.IsVisible = false;
         }
         catch (Exception ex)
         {
@@ -196,7 +196,11 @@ public sealed class MemberGardensPage : ContentPage
         if (selected == null)
             return;
 
-        _parzellenContextState.SetMemberContext(selected.ParzelleId, selected.Title);
+        var selectedMember = _memberContextState.SelectedMember;
+        if (selectedMember?.Id is not > 0)
+            return;
+
+        _parzellenContextState.SetMemberContext(selectedMember.Id, selected.ParzelleId, _headlineLabel.Text);
         await Shell.Current.GoToAsync(nameof(ParzellenPage));
     }
 

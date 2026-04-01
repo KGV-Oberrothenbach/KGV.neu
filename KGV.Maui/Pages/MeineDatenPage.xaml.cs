@@ -76,6 +76,7 @@ public class MeineDatenPage : ContentPage
     private readonly Button _cancelButton;
     private readonly Button _saveRoleButton;
     private readonly Button _documentsButton;
+    private readonly Button _linkedMemberButton;
     private readonly Button _userManagementButton;
     private readonly Button _nebenmitgliedButton;
     private readonly HorizontalStackLayout _topActionSection;
@@ -85,6 +86,7 @@ public class MeineDatenPage : ContentPage
     private readonly List<View> _editModeViews = new();
 
     private MemberDTO? _currentMember;
+    private MemberDTO? _linkedMember;
     private bool _currentMemberHasAuthUser;
     private DateTime? _editGeburtsdatum;
     private DateTime? _editMitgliedSeit;
@@ -191,6 +193,9 @@ public class MeineDatenPage : ContentPage
         _documentsButton = new Button { Text = "Mitgliedsdokumente" };
         _documentsButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(DokumentePage));
 
+        _linkedMemberButton = new Button { Text = "Verknüpftes Mitglied öffnen", IsVisible = false };
+        _linkedMemberButton.Clicked += OnLinkedMemberClicked;
+
         _nebenmitgliedButton = new Button { Text = "Nebenmitglied öffnen", IsVisible = false };
         _nebenmitgliedButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(NebenmitgliedPage));
 
@@ -229,7 +234,7 @@ public class MeineDatenPage : ContentPage
             CreateValueField("Von Pflichtstunden befreit", _befreiungLabel),
             CreateValueField("Regelgrund", _regelgrundLabel),
             _wartungsvertragHintLabel);
-        _nebenmitgliedSectionCard = CreateSection("Mitgliedskontext", _nebenmitgliedButton, _nebenmitgliedHintLabel);
+        _nebenmitgliedSectionCard = CreateSection("Mitgliedskontext", _linkedMemberButton, _nebenmitgliedButton, _nebenmitgliedHintLabel);
         _adminSectionCard = CreateSection("Verwaltung", _adminMenuSection);
 
         var grunddatenSection = CreateSection("Grunddaten",
@@ -308,7 +313,7 @@ public class MeineDatenPage : ContentPage
                 SetEditMode(false);
                 SetMemberFieldsEmpty();
                 SetWartungsvertragFieldsEmpty();
-                UpdateNebenmitgliedSection(null, false);
+                UpdateNebenmitgliedSection(null, null, null, false);
                 UpdateAdminMenu(null);
                 _nachnameLabel.Text = "Bitte zuerst in der Mitgliedersuche ein Mitglied auswählen.";
                 _editHintLabel.Text = string.Empty;
@@ -323,7 +328,7 @@ public class MeineDatenPage : ContentPage
                 _statusLabel.Text = "Das ausgewählte Mitglied konnte nicht geladen werden.";
                 SetMemberFieldsEmpty();
                 SetWartungsvertragFieldsEmpty();
-                UpdateNebenmitgliedSection(null, false);
+                UpdateNebenmitgliedSection(null, null, null, false);
                 UpdateAdminMenu(null);
                 return;
             }
@@ -468,7 +473,28 @@ public class MeineDatenPage : ContentPage
         _clearGeburtsdatumButton.IsEnabled = _isEditMode && !_isBusy;
         _clearMitgliedSeitButton.IsEnabled = _isEditMode && !_isBusy;
         _clearMitgliedEndeButton.IsEnabled = _isEditMode && !_isBusy;
+        _linkedMemberButton.IsEnabled = !_isBusy && _linkedMember?.Id is > 0;
         UpdateEmailEditState();
+    }
+
+    private async void OnLinkedMemberClicked(object? sender, EventArgs e)
+    {
+        if (_linkedMember?.Id is not > 0)
+            return;
+
+        _statusLabel.Text = string.Empty;
+        SetEditMode(false);
+        _memberContextState.SetSelectedMember(_linkedMember);
+
+        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand
+            && Shell.Current is IAppShellInitializer shellInitializer)
+        {
+            shellInitializer.BuildMenu();
+            await Shell.Current.GoToAsync("//memberdetails");
+            return;
+        }
+
+        await LoadAsync();
     }
 
     private bool CanEditEmailInCurrentContext()
@@ -643,7 +669,7 @@ public class MeineDatenPage : ContentPage
     {
         if (member.Id <= 0)
         {
-            UpdateNebenmitgliedSection(null, false);
+            UpdateNebenmitgliedSection(null, null, null, false);
             return;
         }
 
@@ -654,18 +680,26 @@ public class MeineDatenPage : ContentPage
                 ? "Hauptmitglied"
                 : BuildDisplayName(hauptmitglied.Vorname, hauptmitglied.Name);
 
-            UpdateNebenmitgliedSection($"Nebenmitglied · Zugeordnet zu Hauptmitglied: {hauptmitgliedName}", false);
+            UpdateNebenmitgliedSection(
+                $"Nebenmitglied · Zugeordnet zu Hauptmitglied: {hauptmitgliedName}",
+                hauptmitglied == null ? null : MapMember(hauptmitglied),
+                "Hauptmitglied öffnen",
+                false);
             return;
         }
 
         var nebenmitglied = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(member.Id);
         if (nebenmitglied == null)
         {
-            UpdateNebenmitgliedSection(null, false);
+            UpdateNebenmitgliedSection(null, null, null, false);
             return;
         }
 
-        UpdateNebenmitgliedSection($"Hauptmitglied · Verknüpftes Nebenmitglied: {BuildDisplayName(nebenmitglied.Vorname, nebenmitglied.Name)}", true);
+        UpdateNebenmitgliedSection(
+            $"Hauptmitglied · Verknüpftes Nebenmitglied: {BuildDisplayName(nebenmitglied.Vorname, nebenmitglied.Name)}",
+            MapMember(nebenmitglied),
+            "Nebenmitglied öffnen",
+            true);
     }
 
     private async Task LoadWartungsvertragSummaryAsync(int mitgliedId)
@@ -688,13 +722,17 @@ public class MeineDatenPage : ContentPage
             : "Die Angaben stammen aus der zentralen Pflichtstunden-Übersicht des ausgewählten Mitglieds.";
     }
 
-    private void UpdateNebenmitgliedSection(string? hint, bool canOpen)
+    private void UpdateNebenmitgliedSection(string? hint, MemberDTO? linkedMember, string? linkedMemberButtonText, bool canOpenNebenmitgliedPage)
     {
+        _linkedMember = linkedMember?.Id is > 0 ? linkedMember.Clone() : null;
         var hasHint = !string.IsNullOrWhiteSpace(hint);
-        _nebenmitgliedButton.IsVisible = canOpen;
+        _linkedMemberButton.Text = string.IsNullOrWhiteSpace(linkedMemberButtonText) ? "Verknüpftes Mitglied öffnen" : linkedMemberButtonText;
+        _linkedMemberButton.IsVisible = _linkedMember?.Id is > 0;
+        _linkedMemberButton.IsEnabled = !_isBusy && _linkedMember?.Id is > 0;
+        _nebenmitgliedButton.IsVisible = canOpenNebenmitgliedPage;
         _nebenmitgliedHintLabel.Text = hasHint ? hint : string.Empty;
         _nebenmitgliedHintLabel.IsVisible = hasHint;
-        _nebenmitgliedSectionCard.IsVisible = canOpen || hasHint;
+        _nebenmitgliedSectionCard.IsVisible = _linkedMemberButton.IsVisible || canOpenNebenmitgliedPage || hasHint;
     }
 
     private void UpdateAdminMenu(MemberDTO? member)
