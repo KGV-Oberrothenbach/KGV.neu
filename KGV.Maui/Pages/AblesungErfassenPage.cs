@@ -448,6 +448,8 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
                 Stand = stand,
                 Art = _currentArt,
                 FotoPfad = photoResult.RelativePath,
+                FotoDateiname = string.IsNullOrWhiteSpace(photoResult.FileName) ? null : photoResult.FileName,
+                FotoDriveFileId = string.IsNullOrWhiteSpace(photoResult.FileId) ? null : photoResult.FileId,
                 Freigegeben = true
             });
 

@@ -24,4 +24,10 @@ public sealed class AblesungInsertRecord : BaseModel
 
     [Column("foto_pfad")]
     public string? FotoPfad { get; set; }
+
+    [Column("foto_dateiname")]
+    public string? FotoDateiname { get; set; }
+
+    [Column("foto_drive_file_id")]
+    public string? FotoDriveFileId { get; set; }
 }

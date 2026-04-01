@@ -13,5 +13,7 @@ namespace KGV.Core.Models
         public DateTime Eichdatum { get; set; }
 
         public string? FotoPfad { get; set; }
+        public string? FotoDateiname { get; set; }
+        public string? FotoDriveFileId { get; set; }
     }
 }

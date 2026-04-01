@@ -7,6 +7,7 @@ using Microsoft.Maui.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -68,10 +69,11 @@ public sealed class ParzellenAblesungenPage : ContentPage, IQueryAttributable
 
                 var fotoButton = new Button { Text = "Foto öffnen" };
                 fotoButton.SetBinding(IsVisibleProperty, nameof(ParzellenAblesungHistorieItem.HasFoto));
+                fotoButton.SetBinding(IsEnabledProperty, nameof(ParzellenAblesungHistorieItem.CanOpenFoto));
                 fotoButton.Clicked += async (_, _) =>
                 {
                     if (fotoButton.BindingContext is ParzellenAblesungHistorieItem item)
-                        await OpenFotoAsync(item.FotoPfad);
+                        await OpenFotoAsync(item);
                 };
 
                 return new Border
@@ -215,18 +217,25 @@ public sealed class ParzellenAblesungenPage : ContentPage, IQueryAttributable
         }
     }
 
-    private async Task OpenFotoAsync(string? fotoPfad)
+    private async Task OpenFotoAsync(ParzellenAblesungHistorieItem item)
     {
-        if (string.IsNullOrWhiteSpace(fotoPfad))
+        if (!item.HasFoto)
             return;
 
         try
         {
-            await Launcher.Default.OpenAsync(fotoPfad);
+            var openUrl = await _supabaseService.ResolveAblesungFotoOpenUrlAsync(item.FotoPfad, item.FotoDriveFileId);
+            if (string.IsNullOrWhiteSpace(openUrl))
+            {
+                SetStatus("Foto konnte nicht geöffnet werden. Für den gespeicherten Fotopfad konnte kein öffnungsfähiger Link erzeugt werden.");
+                return;
+            }
+
+            await Launcher.Default.OpenAsync(openUrl);
         }
-        catch (Exception ex)
+        catch
         {
-            SetStatus($"Foto konnte nicht geöffnet werden: {ex.Message}");
+            SetStatus("Foto konnte nicht geöffnet werden.");
         }
     }
 
@@ -317,10 +326,15 @@ public sealed class ParzellenAblesungenPage : ContentPage, IQueryAttributable
         public string EichdatumText { get; private set; } = string.Empty;
         public bool HasEichdatum { get; private set; }
         public string? FotoPfad { get; private set; }
+        public string? FotoDriveFileId { get; private set; }
         public bool HasFoto { get; private set; }
+        public bool CanOpenFoto { get; private set; }
 
         public static ParzellenAblesungHistorieItem FromDto(ZaehlerAblesungDTO dto)
         {
+            var fotoPfad = string.IsNullOrWhiteSpace(dto.FotoPfad) ? null : dto.FotoPfad.Trim();
+            var fotoDriveFileId = string.IsNullOrWhiteSpace(dto.FotoDriveFileId) ? null : dto.FotoDriveFileId.Trim();
+
             return new ParzellenAblesungHistorieItem
             {
                 AblesungId = dto.AblesungId,
@@ -329,11 +343,28 @@ public sealed class ParzellenAblesungenPage : ContentPage, IQueryAttributable
                 StandText = dto.Stand.ToString("0.##"),
                 ZaehlernummerText = string.IsNullOrWhiteSpace(dto.Zaehlernummer) ? string.Empty : dto.Zaehlernummer.Trim(),
                 HasZaehlernummer = !string.IsNullOrWhiteSpace(dto.Zaehlernummer),
-                EichdatumText = dto.Eichdatum == default ? string.Empty : dto.Eichdatum.ToString("dd.MM.yyyy"),
+                EichdatumText = dto.Eichdatum == default ? string.Empty : dto.Eichdatum.Year.ToString(CultureInfo.InvariantCulture),
                 HasEichdatum = dto.Eichdatum != default,
-                FotoPfad = string.IsNullOrWhiteSpace(dto.FotoPfad) ? null : dto.FotoPfad.Trim(),
-                HasFoto = !string.IsNullOrWhiteSpace(dto.FotoPfad)
+                FotoPfad = fotoPfad,
+                FotoDriveFileId = fotoDriveFileId,
+                HasFoto = !string.IsNullOrWhiteSpace(fotoPfad) || !string.IsNullOrWhiteSpace(fotoDriveFileId),
+                CanOpenFoto = CanResolveFotoReference(fotoPfad, fotoDriveFileId)
             };
+        }
+
+        private static bool CanResolveFotoReference(string? fotoPfad, string? fotoDriveFileId)
+        {
+            if (!string.IsNullOrWhiteSpace(fotoDriveFileId))
+                return true;
+
+            if (string.IsNullOrWhiteSpace(fotoPfad))
+                return false;
+
+            if (Uri.TryCreate(fotoPfad, UriKind.Absolute, out var uri))
+                return string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
+
+            return fotoPfad.Contains(':');
         }
     }
 }

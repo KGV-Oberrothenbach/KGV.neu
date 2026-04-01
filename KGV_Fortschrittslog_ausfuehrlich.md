@@ -4,6 +4,51 @@
 
 ## 2026-04-01 – Prompt 1/1: Erstablesung beim Zählereinbau auf `zaehler_ablesung` korrigiert und doppelten Foto-Schritt im Einbau-Flow entfernt
 
+## 2026-04-01 – Prompt 1/1: Foto öffnen in Strom-/Wasser-Historie robust auflösbar gemacht
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand erneut geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - lokal bewusst untracked blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/ParzellenAblesungenPage.cs`
+  - `KGV.Core/Models/ZaehlerAblesungDTO.cs`
+  - `KGV.Core/Models/AblesungRecord.cs`
+  - `KGV.Core/Models/AblesungInsertRecord.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`
+  - bestehende Dokument-/Signed-URL-Pfade in MAUI
+  - Schema-Referenz:
+    - `database.types.ts`
+- Ehrlicher Befund vor dem Fix:
+  - der MAUI-Historienpfad `Strom-/Wasser-Historie -> Foto öffnen` übergab `foto_pfad` noch direkt an `Launcher.Default.OpenAsync(...)`
+  - im aktuellen Produktpfad wird bei Ablesungsfotos nach dem Upload aber `relative_path` gespeichert
+  - der konkrete gespeicherte Werttyp ist damit ein fachlicher relativer Pfad wie `Ablesungen/.../datei.jpg` und gerade keine direkt öffnungsfähige absolute URI
+  - dadurch entstand beim Öffnen der reale Fehler `Invalid URI: The format of the URI could not be determined.`
+  - das aktuelle Schema `zaehler_ablesung` enthält zusätzlich bereits `foto_drive_file_id` und `foto_dateiname`, diese Metadaten wurden im mobilen Ablesungsinsert lokal aber noch nicht mitgespeichert bzw. im Historienlesepfad noch nicht genutzt
+- Minimal umgesetzt:
+  - neuen gemeinsamen Shared-Servicepfad zur Auflösung von Ablesungsfotos ergänzt
+  - absolute `http/https`-Links werden direkt geöffnet
+  - vorhandene Storage-Referenzen nutzen weiter den bestehenden Signed-URL-Pfad
+  - vorhandene `foto_drive_file_id` wird jetzt zentral auf eine echte Google-Drive-Ansichts-URL aufgelöst
+  - `ParzellenAblesungenPage` nutzt diesen gemeinsamen Auflösungspfad statt relativen `foto_pfad` direkt zu öffnen
+  - nutzerfreundliche Fehlermeldung ergänzt, wenn kein öffnungsfähiger Link erzeugt werden kann
+  - betroffene mobile Ablesungsinserts speichern jetzt zusätzlich `foto_drive_file_id` und `foto_dateiname`, damit neue Historieneinträge robust auflösbar bleiben
+  - Eichdatum wird im betroffenen Historienpfad nur noch als Jahr angezeigt statt als `01.01.JJJJ`
+- Warum dieser Block die Root Cause trifft:
+  - der Produktivfehler lag nicht am Button selbst, sondern daran, dass ein fachlicher relativer Uploadpfad direkt als URI geöffnet wurde
+  - die robuste Lösung liegt deshalb in einer echten vorgeschalteten Link-Auflösung und nicht in einem direkten `Launcher`-Aufruf auf Rohwerte
+  - mit den zusätzlich mitgespeicherten Foto-Metadaten bleibt derselbe Historienpfad auch für neue Ablesungen belastbar auflösbar
+- Wichtig für die Blockgrenze:
+  - keine Root-/Shell-/Navigationsänderung
+  - keine Änderung an Zählereinbau-Architektur außerhalb des direkt betroffenen Foto-Metadatenpfads für neue Ablesungen
+  - kein neuer Download-/Dokumenten-Schattenpfad
+- Validierung:
+  - folgt nach dem Block über `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand erneut geprüft.
 - Echter Git-Befund zu Beginn:
   - `main` liegt auf `origin/main`

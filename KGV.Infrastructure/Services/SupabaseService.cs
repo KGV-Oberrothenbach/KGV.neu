@@ -652,16 +652,19 @@ namespace KGV.Infrastructure.Services
                     Stand = request.Stand,
                     Art = AblesungArt.Normalize(request.Art),
                     Freigegeben = request.Freigegeben,
-                    FotoPfad = CleanOptionalText(request.FotoPfad)
+                    FotoPfad = CleanOptionalText(request.FotoPfad),
+                    FotoDateiname = CleanOptionalText(request.FotoDateiname),
+                    FotoDriveFileId = CleanOptionalText(request.FotoDriveFileId)
                 };
 
                 await client.From<AblesungInsertRecord>().Insert(insertRecord);
                 _logger?.LogInformation(
-                    "AddAblesungAsync saved reading to zaehler_ablesung. ZaehlerId={ZaehlerId}, Art={Art}, Ablesedatum={Ablesedatum}, FotoPfadPresent={FotoPfadPresent}",
+                    "AddAblesungAsync saved reading to zaehler_ablesung. ZaehlerId={ZaehlerId}, Art={Art}, Ablesedatum={Ablesedatum}, FotoPfadPresent={FotoPfadPresent}, FotoDriveFileIdPresent={FotoDriveFileIdPresent}",
                     insertRecord.ZaehlerId,
                     insertRecord.Art,
                     insertRecord.Ablesedatum,
-                    !string.IsNullOrWhiteSpace(insertRecord.FotoPfad));
+                    !string.IsNullOrWhiteSpace(insertRecord.FotoPfad),
+                    !string.IsNullOrWhiteSpace(insertRecord.FotoDriveFileId));
 
                 return true;
             },
@@ -703,6 +706,32 @@ namespace KGV.Infrastructure.Services
                 return response?.Models?
                     .OrderBy(x => x.Id)
                     .FirstOrDefault();
+            },
+            null);
+
+        public Task<string?> ResolveAblesungFotoOpenUrlAsync(string? fotoPfad, string? fotoDriveFileId, int expiresInSeconds = 3600) => ExecuteAsync<string?>(
+            "ResolveAblesungFotoOpenUrlAsync",
+            async () =>
+            {
+                var normalizedFotoPfad = CleanOptionalText(fotoPfad);
+                if (Uri.TryCreate(normalizedFotoPfad, UriKind.Absolute, out var absoluteUri)
+                    && (string.Equals(absoluteUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(absoluteUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return absoluteUri.ToString();
+                }
+
+                if (TryParseStorageReference(normalizedFotoPfad, out var bucket, out var path))
+                {
+                    var client = await EnsureClientAsync();
+                    return await client.Storage.From(bucket).CreateSignedUrl(path, expiresInSeconds);
+                }
+
+                var normalizedDriveFileId = CleanOptionalText(fotoDriveFileId);
+                if (!string.IsNullOrWhiteSpace(normalizedDriveFileId))
+                    return BuildGoogleDriveFileViewUrl(normalizedDriveFileId);
+
+                return null;
             },
             null);
         public Task<MitgliedRecord?> CreateNebenmitgliedAsync(NebenmitgliedCreateDTO request) => ExecuteAsync<MitgliedRecord?>(
@@ -2845,7 +2874,9 @@ namespace KGV.Infrastructure.Services
                 Stand = record.Stand,
                 Zaehlernummer = zaehlernummer,
                 Eichdatum = eichdatum,
-                FotoPfad = record.FotoPfad
+                FotoPfad = record.FotoPfad,
+                FotoDateiname = record.FotoDateiname,
+                FotoDriveFileId = record.FotoDriveFileId
             };
         }
 
@@ -3917,6 +3948,9 @@ namespace KGV.Infrastructure.Services
             path = normalized[(separatorIndex + 1)..].Trim().TrimStart('/');
             return !string.IsNullOrWhiteSpace(bucket) && !string.IsNullOrWhiteSpace(path);
         }
+
+        private static string BuildGoogleDriveFileViewUrl(string driveFileId)
+            => $"https://drive.google.com/file/d/{Uri.EscapeDataString(driveFileId)}/view";
 
         private static string? FirstNonEmpty(params string?[] values)
         {

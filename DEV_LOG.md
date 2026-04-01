@@ -4,6 +4,40 @@
 
 ## 2026-04-01 – Prompt 1/1: Erstablesung beim Zählereinbau auf `zaehler_ablesung` korrigiert und doppelten Foto-Schritt im Einbau-Flow entfernt
 
+## 2026-04-01 – Prompt 1/1: Foto öffnen in Strom-/Wasser-Historie robust auflösbar gemacht
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - bewusst untracked blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft:
+  - `KGV.Maui/Pages/ParzellenAblesungenPage.cs`
+  - `KGV.Core/Models/ZaehlerAblesungDTO.cs`
+  - `KGV.Core/Models/AblesungRecord.cs`
+  - `KGV.Core/Models/AblesungInsertRecord.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`
+  - bestehende Dokument-/Signed-URL-Pfade
+  - `database.types.ts`
+- Ehrlicher Befund:
+  - der MAUI-Historienpfad öffnete `foto_pfad` noch direkt per `Launcher.Default.OpenAsync(...)`
+  - im aktuellen Produktpfad wird nach dem Foto-Upload in Ablesungen aber `relative_path` gespeichert (`Ablesungen/.../datei.jpg`)
+  - dieser fachliche relative Pfad ist keine direkt öffnungsfähige absolute URI; daraus kam der reale Fehler `Invalid URI`
+  - das Schema `zaehler_ablesung` enthält bereits zusätzlich `foto_drive_file_id` und `foto_dateiname`, der aktuelle mobile Insertpfad nutzte diese Metadaten aber noch nicht
+- Umgesetzt:
+  - zentrale Auflösung `foto_pfad`/`foto_drive_file_id` im Shared-Service ergänzt
+  - absolute `http/https`-Links werden direkt geöffnet
+  - vorhandene Storage-Referenzen laufen weiter über den bestehenden Signed-URL-Pfad
+  - vorhandene `foto_drive_file_id` wird jetzt auf eine echte Google-Drive-Ansichts-URL aufgelöst
+  - MAUI-Historie nutzt diesen gemeinsamen Auflösungspfad statt relativen `foto_pfad` direkt zu öffnen
+  - neue mobile Ablesungsinserts speichern jetzt zusätzlich `foto_drive_file_id` und `foto_dateiname`
+  - Eichdatum wird im betroffenen Historienpfad nur noch als Jahr angezeigt
+- Validierung:
+  - folgt nach dem Block über `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 - Den realen lokalen Repo-/Git-/Codezustand geprüft.
 - Lokal geändert im Block:
   - `KGV.Core/Models/AblesungInsertRecord.cs`
