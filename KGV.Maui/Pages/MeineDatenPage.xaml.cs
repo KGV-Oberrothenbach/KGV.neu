@@ -482,6 +482,14 @@ public class MeineDatenPage : ContentPage
         if (_linkedMember?.Id is not > 0)
             return;
 
+        using var navigationScope = NavigationCoordinator.TryBegin(
+            NavigationCoordinator.MemberSwitchScope,
+            $"verknüpftes mitglied -> {_linkedMember.Id}",
+            NavigationCoordinator.RootSwitchScope);
+
+        if (navigationScope == null)
+            return;
+
         _statusLabel.Text = string.Empty;
         SetEditMode(false);
         _memberContextState.SetSelectedMember(_linkedMember);

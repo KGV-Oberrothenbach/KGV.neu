@@ -47,6 +47,19 @@ public partial class App : Application
 
     public async Task SwitchToCurrentRootAsync(string? preferredContentRoute)
     {
+        using var navigationScope = NavigationCoordinator.TryBegin(
+            NavigationCoordinator.RootSwitchScope,
+            $"root -> {(string.IsNullOrWhiteSpace(preferredContentRoute) ? "login/default" : preferredContentRoute)}",
+            NavigationCoordinator.MemberSwitchScope);
+
+        if (navigationScope == null)
+            return;
+
+        await SwitchToCurrentRootCoreAsync(preferredContentRoute);
+    }
+
+    private async Task SwitchToCurrentRootCoreAsync(string? preferredContentRoute)
+    {
         await MainThread.InvokeOnMainThreadAsync(() =>
         {
             var nextRootPage = CreateRootPage(preferredContentRoute);
@@ -147,6 +160,17 @@ public partial class App : Application
             return;
         }
 
+        using var navigationScope = NavigationCoordinator.TryBegin(
+            NavigationCoordinator.RootSwitchScope,
+            "resume-timeout -> login",
+            NavigationCoordinator.MemberSwitchScope);
+
+        if (navigationScope == null)
+        {
+            Services.Diagnostics.AppFileLog.Marker("APP_RESUME_TIMEOUT_SUPPRESSED_NAVIGATION_ACTIVE");
+            return;
+        }
+
         _resumeTimeoutResetInProgress = true;
         try
         {
@@ -162,7 +186,7 @@ public partial class App : Application
             Settings.AppSettings.Save();
 
             _pendingLoginMessage = "Die App war zu lange im Hintergrund. Bitte erneut anmelden.";
-            await SwitchToCurrentRootAsync();
+            await SwitchToCurrentRootCoreAsync(null);
             Services.Diagnostics.AppFileLog.Marker("APP_RESUME_TIMEOUT_COMPLETED");
         }
         finally

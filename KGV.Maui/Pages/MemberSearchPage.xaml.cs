@@ -243,6 +243,14 @@ public partial class MemberSearchPage : ContentPage
         if (sender is CollectionView cv)
             cv.SelectedItem = null;
 
+        using var navigationScope = NavigationCoordinator.TryBegin(
+            NavigationCoordinator.MemberSwitchScope,
+            "mitgliedersuche -> stammdaten",
+            NavigationCoordinator.RootSwitchScope);
+
+        if (navigationScope == null)
+            return;
+
         var member = await _vm.SelectResultAsync(item);
         if (member == null)
             return;

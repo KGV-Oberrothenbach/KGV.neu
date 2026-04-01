@@ -2,6 +2,74 @@
 
 ---
 
+## 2026-04-01 – Prompt 3/3 Block 3: MAUI-Navigation gegen Reentrancy und parallele Wechsel technisch abgesichert
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand erneut geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - lokal bewusst untracked blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Befund vor Block 3:
+  - Block 1 war lokal bereits enthalten: Mitgliedswechsel läuft innerhalb derselben Shell
+  - Block 2 war lokal bereits enthalten: die sichtbare Shell-Struktur wird nicht mehr laufend per `Items.Clear()` live neu aufgebaut
+  - verbliebene technische Restschwäche lag jetzt nicht mehr in der Fachnavigation selbst, sondern in Doppelaufruf-/Reentrancy-Risiken:
+    - schneller Mehrfachtap in der Mitgliedersuche
+    - wiederholter Wechsel auf verknüpfte Mitglieder
+    - möglicher Root-/Resume-Wechsel parallel zu bereits laufendem Mitgliedswechsel
+    - mehrfach ausgelöster Rootwechselpfad bei sensiblen Session-/Lifecycle-Wechseln
+- In Block 3 minimal umgesetzt:
+  - neue kleine zentrale MAUI-Hilfe `KGV.Maui/NavigationCoordinator.cs`
+    - hält nur schmale Reentrancy-Scopes für die empfindlichen Wechselpfade
+    - keine neue Shell-Architektur und keine neue Navigationsschicht
+    - aktuell abgesichert werden die kritischen Scopes:
+      - `root-switch`
+      - `member-switch`
+  - `KGV.Maui/App.xaml.cs`
+    - `SwitchToCurrentRootAsync(...)` läuft jetzt nicht mehr parallel mehrfach an
+    - Rootwechsel wird unterdrückt, wenn bereits ein Rootwechsel oder ein mitgliedsbezogener Wechsel aktiv ist
+    - der Resume-Timeout-Pfad prüft denselben kritischen Guard, bevor Session geleert und auf Login zurückgesetzt wird
+    - Resume-/Rootwechsel wird damit nicht mehr parallel in einen bereits laufenden empfindlichen Wechsel hineingestoßen
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+    - Mitgliedsauswahl aus der Suche ist jetzt gegen schnellen Doppeltap bzw. parallele Mehrfachnavigation abgesichert
+    - derselbe kritische Mitgliedswechselpfad wird nur einmal gleichzeitig ausgeführt
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - Wechsel auf ein verknüpftes Mitglied ist jetzt ebenfalls gegen unmittelbare Mehrfachauslösung abgesichert
+- Schlanke Diagnose-Logs ergänzt:
+  - Navigation angefordert
+  - Navigation gestartet
+  - Navigation unterdrückt, weil derselbe oder ein konfliktierender kritischer Wechsel bereits aktiv ist
+  - zusätzlicher Resume-Marker bei unterdrücktem Timeout-Rootwechsel wegen laufender Navigation
+- Welche Doppelaufruf-/Reentrancy-Risiken konkret bestanden:
+  - `MemberSearchPage` konnte bei schnellem Tippen denselben Mitgliedswechselpfad mehrfach parallel starten
+  - `MeineDatenPage` konnte den Wechsel auf ein verknüpftes Mitglied mehrfach direkt hintereinander auslösen
+  - `App.xaml.cs` besaß für Root-/Resume-Wechsel bereits Session-Guards, aber noch keinen kleinen gemeinsamen Navigation-Guard gegen parallel laufende kritische Wechselpfade
+- Warum Block 3 bewusst nur technische Stabilisierung ist:
+  - keine Änderung an Mitgliedersuche -> Stammdaten
+  - keine Änderung am fachlichen Mitgliedswechsel
+  - keine Änderung an Shell-Struktur, Rollen oder Zielrouten
+  - nur die technische Ausführung empfindlicher Navigationen wurde gegen parallele Mehrfachauslöser abgesichert
+- Wichtig für die Blockgrenze:
+  - keine WPF-Datei geändert
+  - keine neue Shell-Architektur eingeführt
+  - kein zusätzlicher globaler Feature-Umbau außerhalb der kleinen Guardrails
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - code-seitige Gegenprüfung:
+    - Login -> Shell bleibt auf dem bestehenden Rootwechselpfad
+    - Mitgliedersuche -> Auswahl -> Stammdaten bleibt fachlich unverändert
+    - Wechsel auf verknüpftes Mitglied bleibt fachlich unverändert
+    - parallele Wiederholung derselben kritischen Wechselpfade wird jetzt technisch unterdrückt statt erneut angelaufen
+
 ## 2026-04-01 – Prompt 2/3 Block 2: MAUI-Shell stabilisiert und Live-Rebuild der sichtbaren Shell reduziert
 
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand erneut geprüft.

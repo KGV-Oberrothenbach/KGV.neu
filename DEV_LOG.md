@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-04-01 – Prompt 3/3 Block 3: MAUI-Navigation gegen Reentrancy und parallele Wechsel technisch abgesichert
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Bewusst lokal geblieben:
+  - `AWR.bat`
+  - `_secrets/`
+- Direkt geprüft:
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+- Ehrlicher Befund:
+  - Block 1 und 2 waren lokal bereits vorhanden
+  - offen blieb vor allem technisches Reentrancy-Risiko in sensiblen Navigationspfaden
+- Umgesetzt:
+  - kleiner zentraler Guard `NavigationCoordinator` für kritische Pfade `root-switch` und `member-switch`
+  - Rootwechsel wird nicht mehr parallel zu laufendem Root-/Mitgliedswechsel gestartet
+  - Resume-Timeout-Reset wird bei laufender kritischer Navigation unterdrückt statt parallel hineinzulaufen
+  - Mitgliedersuche und verknüpfte Mitgliedswechsel sind gegen unmittelbare Mehrfachauslösung abgesichert
+  - schlanke Diagnose-Logs für angefordert/gestartet/unterdrückt ergänzt
+- Wichtig:
+  - keine fachliche Änderung am Mitgliedswechsel oder an den Zielrouten
+  - keine WPF-Datei geändert
+  - keine neue Shell-Architektur eingeführt
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Prompt 2/3 Block 2: MAUI-Shell stabilisiert und Live-Rebuild der sichtbaren Shell reduziert
 
 - Den realen lokalen Repo-/Git-/Codezustand geprüft.
