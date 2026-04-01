@@ -16,5 +16,8 @@ namespace KGV.Core.Models
         public Guid? CreatedBy { get; set; }
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+
+        public bool CanOpen => !string.IsNullOrWhiteSpace(DriveFileId)
+            || !string.IsNullOrWhiteSpace(StoragePath);
     }
 }

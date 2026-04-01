@@ -10,7 +10,7 @@
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0" LastChildFill="False">
-            <TextBlock Text="Dokumente" FontSize="24" FontWeight="Bold" DockPanel.Dock="Left" />
+            <TextBlock Text="{Binding KontextTitel}" FontSize="24" FontWeight="Bold" DockPanel.Dock="Left" />
             <Button DockPanel.Dock="Right" Content="Aktualisieren" Width="160" Height="35" Command="{Binding RefreshCommand}" />
         </DockPanel>
 
@@ -24,32 +24,28 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0">
-                        <TextBlock Margin="0,0,0,10">
-                            <Run Text="Name: " />
-                            <Run Text="{Binding Context.Member.Nachname}" FontWeight="SemiBold" />
-                            <Run Text=" " />
-                            <Run Text="{Binding Context.Member.Vorname}" FontWeight="SemiBold" />
-                            <Run Text=" (ID: " />
-                            <Run Text="{Binding Context.Member.Id}" />
-                            <Run Text=")" />
-                        </TextBlock>
+                        <TextBlock Margin="0,0,0,10" Text="{Binding KontextBeschreibung}" TextWrapping="Wrap" />
 
                         <GroupBox Header="Dokument hochladen" Margin="0,0,0,12">
                             <StackPanel Margin="12">
                                 <TextBlock Text="Titel" FontWeight="SemiBold" />
-                                <TextBox Margin="0,4,0,10" Text="{Binding UploadTitel, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBox Margin="0,4,0,10" Text="{Binding UploadTitel, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditUpload}" />
 
                                 <TextBlock Text="Datei" FontWeight="SemiBold" />
                                 <DockPanel Margin="0,4,0,10" LastChildFill="True">
                                     <Button DockPanel.Dock="Right" Content="Datei auswählen" Width="140" Margin="8,0,0,0" Command="{Binding SelectFileCommand}" />
-                                    <TextBox Text="{Binding SelectedFileName}" IsReadOnly="True" />
+                                    <TextBox Text="{Binding SelectedFileName}" IsReadOnly="True" IsEnabled="{Binding CanEditUpload}" />
                                 </DockPanel>
 
-                                <TextBlock Text="{Binding StatusMessage}" Foreground="DarkSlateBlue" TextWrapping="Wrap" Margin="0,0,0,10" />
+                                <TextBlock Text="{Binding StatusMessage}" Foreground="DarkSlateBlue" TextWrapping="Wrap" Margin="0,0,0,10"
+                                           Visibility="{Binding HasStatusMessage, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                 <Button Content="Upload starten" Width="160" HorizontalAlignment="Right" Command="{Binding UploadCommand}" />
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>
+
+                    <TextBlock Grid.Row="1" Margin="0,0,0,12" Text="{Binding EmptyStateMessage}" Foreground="Gray"
+                               Visibility="{Binding HasNoDokumente, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                     <ListView Grid.Row="2" ItemsSource="{Binding MitgliedDokumente}">
                         <ListView.View>
@@ -61,7 +57,7 @@
                                 <GridViewColumn Header="" Width="100">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Button Content="Öffnen" Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding}" />
+                                            <Button Content="Öffnen" Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding}" IsEnabled="{Binding CanOpen}" />
                                         </DataTemplate>
                                     </GridViewColumn.CellTemplate>
                                 </GridViewColumn>

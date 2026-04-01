@@ -29,6 +29,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
     private readonly Label _headlineLabel;
     private readonly Label _contextLabel;
     private readonly Label _hintLabel;
+    private readonly Label _uploadSectionTitleLabel;
     private readonly Label _statusLabel;
     private readonly Label _emptyLabel;
     private readonly Entry _titelEntry;
@@ -56,6 +57,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
         _headlineLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold };
         _contextLabel = new Label { FontAttributes = FontAttributes.Bold, FontSize = 16 };
         _hintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+        _uploadSectionTitleLabel = new Label { FontAttributes = FontAttributes.Bold };
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
         _emptyLabel = new Label { Text = "Keine Mitgliedsdokumente gefunden.", TextColor = Colors.Gray, IsVisible = false };
         _titelEntry = new Entry { Placeholder = "Dokumenttitel" };
@@ -89,6 +91,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
                 };
 
                 var actionButton = new Button { Text = "Einsehen / Download" };
+                actionButton.SetBinding(IsEnabledProperty, nameof(DocumentInfo.CanOpen));
                 actionButton.Clicked += async (_, _) =>
                 {
                     if (_isBusy)
@@ -124,7 +127,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
                     _contextLabel,
                     _hintLabel,
                     CreateSection(
-                        "Dokument hochladen",
+                        _uploadSectionTitleLabel,
                         new Label { Text = "Titel", FontAttributes = FontAttributes.Bold },
                         _titelEntry,
                         new Label { Text = "Datei", FontAttributes = FontAttributes.Bold },
@@ -281,9 +284,11 @@ public class DokumentePage : ContentPage, IQueryAttributable
                 return;
             }
 
-            await ReloadDocumentsAsync(context);
-            ResetUploadInputs();
-            SetStatus("Dokument wurde erfolgreich hochgeladen.", success: true);
+            var reloaded = await TryReloadDocumentsAsync(context);
+            ResetUploadInputs(clearTitle: false);
+            SetStatus(reloaded
+                ? "Dokument hochgeladen."
+                : "Dokument hochgeladen. Bitte Liste aktualisieren.", success: true);
         }
         catch (Exception ex)
         {
@@ -304,10 +309,16 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
         try
         {
+            if (!document.CanOpen)
+            {
+                SetStatus("Dieses Dokument ist noch nicht vollständig zum Öffnen verknüpft.", success: false);
+                return;
+            }
+
             var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
             if (string.IsNullOrWhiteSpace(url))
             {
-                SetStatus("Dokument konnte nicht geöffnet werden.", success: false);
+                SetStatus("Dokument konnte aktuell nicht geöffnet werden.", success: false);
                 return;
             }
 
@@ -316,7 +327,21 @@ public class DokumentePage : ContentPage, IQueryAttributable
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[DokumentePage] OpenDocumentAsync failed: {ex}");
-            SetStatus("Dokument konnte nicht geöffnet werden.", success: false);
+            SetStatus("Dokument konnte aktuell nicht geöffnet werden.", success: false);
+        }
+    }
+
+    private async Task<bool> TryReloadDocumentsAsync(DokumentPageContext context)
+    {
+        try
+        {
+            await ReloadDocumentsAsync(context);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DokumentePage] TryReloadDocumentsAsync failed: {ex}");
+            return false;
         }
     }
 
@@ -383,11 +408,16 @@ public class DokumentePage : ContentPage, IQueryAttributable
         _contextLabel.Text = context.ContextLabel;
         _hintLabel.Text = context.HintText;
         _emptyLabel.Text = context.EmptyText;
+        _uploadSectionTitleLabel.Text = context.Scope == DokumentOwnerScope.Parzelle
+            ? "Parzellendokument hochladen"
+            : "Mitgliedsdokument hochladen";
     }
 
-    private void ResetUploadInputs()
+    private void ResetUploadInputs(bool clearTitle)
     {
-        _titelEntry.Text = string.Empty;
+        if (clearTitle)
+            _titelEntry.Text = string.Empty;
+
         _selectedFileContent = null;
         _selectedFileName = string.Empty;
         _selectedFileContentType = "application/octet-stream";
@@ -421,10 +451,10 @@ public class DokumentePage : ContentPage, IQueryAttributable
         _activityIndicator.IsRunning = _isBusy;
     }
 
-    private static Border CreateSection(string title, params View[] children)
+    private static Border CreateSection(View titleView, params View[] children)
     {
         var stack = new VerticalStackLayout { Spacing = 8 };
-        stack.Children.Add(new Label { Text = title, FontAttributes = FontAttributes.Bold });
+        stack.Children.Add(titleView);
         foreach (var child in children)
             stack.Children.Add(child);
 

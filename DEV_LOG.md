@@ -2,6 +2,54 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: Dokumente E2E-nah in WPF und MAUI geglättet
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - lokal bewusst untracked blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Wpf/ViewModels/DokumenteViewModel.cs`
+  - `KGV.Wpf/ViewModels/GartenDokumenteViewModel.cs`
+  - `KGV.Wpf/Views/DokumenteView.xaml`
+  - `KGV.Wpf/Views/GartenDokumenteView.xaml`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - gemeinsame Öffnungslogik `ResolveDokumentOpenUrlAsync(...)`
+- Ehrlicher Befund vor dem Block:
+  - Upload und Öffnen waren fachlich bereits vorhanden
+  - WPF und MAUI luden nach Upload grundsätzlich nach, aber die UX war noch kantig
+  - Titel wurde nach Upload komplett geleert
+  - leere Zustände und Kontextsichtbarkeit waren in WPF noch schwach ausgeprägt
+  - Öffnen war noch nicht sichtbar deaktiviert, wenn ein Datensatz offensichtlich keinen brauchbaren Open-Referenzwert hatte
+- Minimal umgesetzt:
+  - `DocumentInfo` um die kleine gemeinsame Eigenschaft `CanOpen` ergänzt
+  - WPF-Mitglieds- und Parzellen-Dokumentpfade geglättet:
+    - klarere Kontextanzeige
+    - sichtbare Empty States
+    - Uploadfelder während Busy/ungültigem Kontext deaktiviert
+    - Öffnen deaktiviert, wenn das Dokument nicht plausibel öffnungsfähig ist
+    - nach erfolgreichem Upload wird nur die Dateiauswahl zurückgesetzt; der Titel bleibt erhalten
+    - sofortiger Reload mit kurzer Erfolgsrückmeldung bzw. freundlichem Hinweis, falls nur der Reload scheitert
+    - weniger technischer Öffnen-/Uploadtext für Nutzer
+  - MAUI-`DokumentePage` geglättet:
+    - aktueller Uploadkontext sichtbarer (`Mitglied`/`Parzelle`)
+    - Öffnen-Schaltfläche nur aktiv bei plausibel öffnungsfähigem Datensatz
+    - nach erfolgreichem Upload bleibt der Titel erhalten, Dateiauswahl wird zurückgesetzt
+    - kurze Erfolgsrückmeldung und klarerer Hinweis, wenn nur die Listenaktualisierung scheitert
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - logische Codeprüfung:
+    - Mitgliedsdokument hochladen -> direkter Reloadpfad vorhanden
+    - Parzellendokument hochladen -> direkter Reloadpfad vorhanden
+    - leere Zustände werden sichtbar dargestellt
+    - Busy-State verhindert Mehrfachauslösung weiter robust
+    - Öffnen neuer Dokumente bleibt über den bestehenden Drive-first-Pfad
+    - fehlender Kontext wird sichtbar statt still behandelt
+
 ## 2026-04-01 – Prompt 3/3: Dokumentpfad serverseitig auf festen Drive-Vertrag nachgeschärft
 
 - Den realen lokalen Repo-/Git-/Codezustand geprüft.

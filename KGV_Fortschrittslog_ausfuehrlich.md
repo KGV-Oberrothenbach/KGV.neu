@@ -2,6 +2,58 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: Dokumente E2E-nah abgeschlossen und UI in WPF/MAUI geglättet
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - bewusst untracked blieben weiter `AWR.bat` und `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Wpf/ViewModels/DokumenteViewModel.cs`
+  - `KGV.Wpf/ViewModels/GartenDokumenteViewModel.cs`
+  - `KGV.Wpf/Views/DokumenteView.xaml`
+  - `KGV.Wpf/Views/GartenDokumenteView.xaml`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `ResolveDokumentOpenUrlAsync(...)`
+- Ehrlicher Istzustand vor der Umsetzung:
+  - der Dokumentpfad war fachlich bereits da, aber im täglichen Fluss noch etwas kantig
+  - sofortiger Reload nach Upload war grundsätzlich vorhanden, aber die Nutzerführung danach konnte noch klarer sein
+  - Kontextanzeige und leere Zustände waren in WPF noch zu schwach
+  - Öffnen war in WPF/MAUI noch nicht vorab sichtbar deaktiviert, wenn ein Dokument offensichtlich keinen brauchbaren Open-Referenzwert hatte
+  - nach erfolgreichem Upload wurde der Titel bisher komplett geleert
+- Minimal umgesetzt:
+  - `DocumentInfo` um `CanOpen` ergänzt, damit beide Clients denselben kleinen Plausibilitätscheck nutzen
+  - WPF-Mitglieds- und Parzellenansichten geglättet:
+    - klarere Kontextüberschrift/-beschreibung
+    - sichtbare Empty States
+    - Upload-Eingaben während Busy/ungültigem Kontext deaktiviert
+    - Öffnen-Schaltflächen bei nicht plausibel öffnungsfähigen Datensätzen deaktiviert
+    - nach Upload wird nur die Dateiauswahl zurückgesetzt; der Titel bleibt erhalten
+    - direkter Reload bleibt bestehen; wenn nur der Reload scheitert, wird das transparent, aber nutzerfreundlich kommuniziert
+    - nicht-technische Fehlermeldungen für Öffnen/Upload ergänzt
+  - MAUI-`DokumentePage` geglättet:
+    - Uploadbereich zeigt den aktuellen Kontext klarer an
+    - Öffnen-Button nur aktiv bei plausibel öffnungsfähigem Dokument
+    - nach erfolgreichem Upload bleibt der Titel erhalten, nur die Dateiauswahl wird zurückgesetzt
+    - direkter Reload mit kurzer Erfolgsmeldung bzw. freundlichem Hinweis, wenn nur das Nachladen scheitert
+- Warum dieser Block den bestehenden Fluss sauber schließt:
+  - kein neuer Fachumfang, sondern nur Glättung des vorhandenen Produktivpfads
+  - WPF und MAUI verhalten sich jetzt beim Upload-/Reload-/Open-Fluss konsistenter
+  - der bestehende Drive-first-Shared-Service bleibt unangetastet führend
+- Wichtig für die Blockgrenze:
+  - kein Löschen, Umbenennen, Mehrfachupload, keine Kategorien, keine neue Datenarchitektur
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - logische Codeprüfung:
+    - Mitgliedsdokument hochladen -> erscheint nach Reload sofort im vorgesehenen Listenpfad
+    - Parzellendokument hochladen -> erscheint nach Reload sofort im vorgesehenen Listenpfad
+    - Öffnen neuer Dokumente läuft weiter über die vorhandene Drive-first-Logik
+    - leere Zustände sind sichtbar
+    - Upload ist weiter nicht doppelt auslösbar
+    - Kontextfehler werden verständlich sichtbar behandelt
+
 ## 2026-04-01 – Prompt 3/3: Dokumente-Drive-Vertrag serverseitig und fachlich nachgeschärft
 
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.

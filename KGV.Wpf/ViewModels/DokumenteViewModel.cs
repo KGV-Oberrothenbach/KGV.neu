@@ -24,6 +24,24 @@ namespace KGV.ViewModels
 
         public ObservableCollection<DocumentInfo> MitgliedDokumente { get; } = new();
 
+        public string KontextTitel => "Mitgliedsdokumente";
+
+        public string KontextBeschreibung => Context.Member?.Id > 0
+            ? $"Dokumente für {Context.Member.Nachname} {Context.Member.Vorname} (Mitglied-ID: {Context.Member.Id})"
+            : "Es ist aktuell kein gültiges Mitglied für Dokumente ausgewählt.";
+
+        public string EmptyStateMessage => "Für dieses Mitglied sind noch keine Dokumente vorhanden.";
+
+        public bool HasDokumente => MitgliedDokumente.Count > 0;
+
+        public bool HasNoDokumente => IsContextValid && !HasDokumente;
+
+        public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
+
+        public bool IsContextValid => Context.Member?.Id > 0;
+
+        public bool CanEditUpload => !IsBusy && IsContextValid;
+
         public string UploadTitel
         {
             get => _uploadTitel;
@@ -51,7 +69,13 @@ namespace KGV.ViewModels
         public string StatusMessage
         {
             get => _statusMessage;
-            private set => SetProperty(ref _statusMessage, value ?? string.Empty);
+            private set
+            {
+                if (!SetProperty(ref _statusMessage, value ?? string.Empty))
+                    return;
+
+                OnPropertyChanged(nameof(HasStatusMessage));
+            }
         }
 
         public bool IsBusy
@@ -65,6 +89,9 @@ namespace KGV.ViewModels
                 SelectFileCommand.RaiseCanExecuteChanged();
                 UploadCommand.RaiseCanExecuteChanged();
                 RefreshCommand.RaiseCanExecuteChanged();
+                OpenCommand.RaiseCanExecuteChanged();
+                OnPropertyChanged(nameof(CanEditUpload));
+                OnPropertyChanged(nameof(HasNoDokumente));
             }
         }
 
@@ -88,7 +115,7 @@ namespace KGV.ViewModels
             {
                 if (doc == null) return;
                 _ = OpenAsync(doc);
-            });
+            }, doc => !IsBusy && doc?.CanOpen == true);
             SelectFileCommand = new RelayCommand<object?>(_ => SelectFile(), _ => !IsBusy);
             UploadCommand = new RelayCommand<object?>(_ => _ = UploadAsync(), _ => CanUpload);
         }
@@ -100,19 +127,38 @@ namespace KGV.ViewModels
 
         public Task OnNavigatedFromAsync() => Task.CompletedTask;
 
-        private async Task LoadAsync()
+        private async Task<bool> LoadAsync(bool showDialogOnError = true)
         {
+            if (!IsContextValid)
+            {
+                MitgliedDokumente.Clear();
+                OnPropertyChanged(nameof(HasDokumente));
+                OnPropertyChanged(nameof(HasNoDokumente));
+                StatusMessage = "Bitte zuerst ein gültiges Mitglied auswählen.";
+                return false;
+            }
+
             try
             {
                 IsBusy = true;
                 MitgliedDokumente.Clear();
                 foreach (var d in await _supabaseService.GetMitgliedDokumenteAsync(Context.Member.Id))
                     MitgliedDokumente.Add(d);
+
+                OnPropertyChanged(nameof(HasDokumente));
+                OnPropertyChanged(nameof(HasNoDokumente));
+                return true;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Dokumente konnten nicht geladen werden: {ex.Message}", "Fehler", MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                StatusMessage = "Dokumente konnten nicht geladen werden.";
+                if (showDialogOnError)
+                {
+                    MessageBox.Show($"Dokumente konnten nicht geladen werden: {ex.Message}", "Fehler", MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+
+                return false;
             }
             finally
             {
@@ -167,15 +213,16 @@ namespace KGV.ViewModels
                     return;
                 }
 
-                StatusMessage = "Dokument wurde hochgeladen.";
                 _selectedFilePath = string.Empty;
                 SelectedFileName = string.Empty;
-                UploadTitel = string.Empty;
-                await LoadAsync();
+                var reloaded = await LoadAsync(showDialogOnError: false);
+                StatusMessage = reloaded
+                    ? "Dokument hochgeladen."
+                    : "Dokument hochgeladen. Bitte Liste aktualisieren.";
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                StatusMessage = $"Upload fehlgeschlagen: {ex.Message}";
+                StatusMessage = "Dokument konnte nicht hochgeladen werden.";
             }
             finally
             {
@@ -190,19 +237,26 @@ namespace KGV.ViewModels
                 if (doc == null)
                     return;
 
+                if (!doc.CanOpen)
+                {
+                    MessageBox.Show("Dieses Dokument ist noch nicht vollständig zum Öffnen verknüpft.", "Hinweis", MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    return;
+                }
+
                 var url = await _supabaseService.ResolveDokumentOpenUrlAsync(doc, 3600);
                 if (string.IsNullOrWhiteSpace(url))
                 {
-                    MessageBox.Show("Dokument konnte nicht geöffnet werden (kein URL).", "Fehler", MessageBoxButton.OK,
+                    MessageBox.Show("Dokument konnte aktuell nicht geöffnet werden.", "Fehler", MessageBoxButton.OK,
                         MessageBoxImage.Error);
                     return;
                 }
 
                 Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                MessageBox.Show($"Öffnen fehlgeschlagen: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Dokument konnte aktuell nicht geöffnet werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
