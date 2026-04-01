@@ -42,12 +42,22 @@ public partial class App : Application
         return _mainWindow;
     }
 
-    public async Task SwitchToCurrentRootAsync()
+    public Task SwitchToCurrentRootAsync()
+        => SwitchToCurrentRootAsync(null);
+
+    public async Task SwitchToCurrentRootAsync(string? preferredContentRoute)
     {
         await MainThread.InvokeOnMainThreadAsync(() =>
         {
-            var nextRootPage = CreateRootPage();
+            var nextRootPage = CreateRootPage(preferredContentRoute);
             var currentWindow = _mainWindow ?? Windows.FirstOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(preferredContentRoute))
+            {
+                Services.Diagnostics.AppFileLog.Info(
+                    "KGV.Navigation",
+                    $"Shell-Root wird neu aufgebaut. Zielroute: {preferredContentRoute}.");
+            }
 
             if (currentWindow == null)
             {
@@ -61,7 +71,7 @@ public partial class App : Application
         });
     }
 
-    private Page CreateRootPage()
+    private Page CreateRootPage(string? preferredContentRoute = null)
     {
         if (_userContextState.CurrentUserId == null || _userContextState.CurrentUserContext == null)
         {
@@ -82,7 +92,7 @@ public partial class App : Application
         if (shell is IAppShellInitializer initializer)
             initializer.BuildMenu();
 
-        ShellNavigationHelper.EnsureActiveShellItem(shell, "home");
+        ShellNavigationHelper.EnsureActiveShellItem(shell, preferredContentRoute ?? "home");
         return shell;
     }
 

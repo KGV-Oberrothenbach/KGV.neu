@@ -249,8 +249,11 @@ public partial class MemberSearchPage : ContentPage
 
         _memberContextState.SetSelectedMember(member);
 
-        if (Shell.Current is IAppShellInitializer shellInitializer)
-            shellInitializer.BuildMenu();
+        if (Application.Current is App app)
+        {
+            await app.SwitchToCurrentRootAsync("memberdetails");
+            return;
+        }
 
         await Shell.Current.GoToAsync("//memberdetails");
     }

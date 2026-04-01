@@ -2,6 +2,64 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: MAUI-Android-Crash `child already has a parent` im Shell-/Navigationspfad minimal behoben
+
+- Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft und nicht auf Altannahmen aufgebaut.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - der Arbeitsbaum war vor dem Block nur lokal durch die bewusst ausgenommenen Dateien belastet:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/MainActivity.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/State/MemberContextState.cs`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Befund vor dem Fix:
+  - der Crash lag nicht an einer allgemeinen Android-View oder an einer global falschen Shell-Initialisierung, sondern an einem konkreten Live-Rebuild des bereits sichtbaren Shell-Baums
+  - `MemberSearchPage.xaml.cs` und `MeineDatenPage.xaml.cs` riefen im laufenden Shell-Kontext direkt `BuildMenu()` auf
+  - `AdminShell.BuildMenu()` / `UserShell.BuildMenu()` löschen dabei über `Items.Clear()` den vorhandenen Flyout-/Shell-Baum und bauen neue `ShellContent`-Instanzen auf
+  - wenn dieser Rebuild auf einer bereits sichtbaren Shell mit aktivem `ShellContentFragment` passiert, kann Android dieselbe visuelle Instanz erneut an einen Parent hängen wollen
+  - genau das adressiert die Exception `The specified child already has a parent`
+- Minimal umgesetzt:
+  - `KGV.Maui/App.xaml.cs`
+    - `SwitchToCurrentRootAsync(...)` kann jetzt optional eine bevorzugte Zielroute übernehmen
+    - beim Rootwechsel wird eine frische Shell-Root aufgebaut und direkt auf die gewünschte Route gesetzt statt die aktive sichtbare Shell live umzubauen
+    - kleiner Diagnose-Logeintrag nur für den gezielten Shell-Rootwechsel ergänzt
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+    - nach Mitgliedsauswahl kein `BuildMenu()`-Live-Rebuild mehr auf der bereits sichtbaren Shell
+    - stattdessen frischer Rootwechsel auf `memberdetails`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - derselbe Fix für den Wechsel auf ein verknüpftes Mitglied
+- Warum genau der Crash entstand:
+  - der bereits sichtbare Shell-Baum wurde im laufenden UI-Lebenszyklus per `Items.Clear()` entfernt und sofort mit neuen `ShellContent`-Instanzen wieder aufgebaut
+  - Android hielt dabei noch aktive `ShellContentFragment`-/View-Referenzen auf dem alten Parentpfad
+  - der nächste Reattach derselben visuellen Struktur führte dann in `ShellContentFragment.onCreateView` auf `child already has a parent`
+- Warum der Fix die Root Cause adressiert:
+  - es gibt keinen Live-Rebuild der sichtbaren Shell mehr an den beiden kontextwechselnden Stellen
+  - stattdessen wird eine neue Root-Shell aufgebaut, bevor die Zielroute aktiv wird
+  - damit wird keine bereits an einen Parent gebundene Shell-View im laufenden Fragmentpfad erneut verwendet
+- Wichtig für die Blockgrenze:
+  - keine Änderung an fachlicher Navigation außer dem technisch sauberen Rootwechsel
+  - keine Änderung an Mitgliedsauswahl, Parzellenpfad oder Ablesen-Logik
+  - kein blindes `try/catch`-Schlucken
+  - kein neuer globaler Navigationsumbau
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - bekannte bestehende Warnungen außerhalb dieses Blocks bleiben u. a. in `HomeManagementPage.cs` und `ImpressumPage.cs` erhalten
+- Fachliches Ergebnis:
+  - Mitgliedsauswahl und Wechsel auf verknüpfte Mitglieder bauen die Shell jetzt nicht mehr live um
+  - der Shell-/Navigationspfad bleibt für Resume, Rücknavigation und normalen Shell-Wechsel technisch sauberer
+  - die Root Cause des Android-Crashes ist im aktiven MAUI-Pfad direkt adressiert
+
 ## 2026-04-01 – Block 1.3: MAUI-RFID-Quittungston mobil minimal und robust abgeschlossen
 
 - Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft und nicht auf Altannahmen aufgebaut.

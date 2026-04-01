@@ -2,6 +2,40 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: MAUI-Android-Crash `child already has a parent` im Shell-/Navigationspfad minimal behoben
+
+- Den realen Repo-/Git-/Logstand geprüft; `main` liegt auf `origin/main`.
+- Bewusst lokal geblieben:
+  - `AWR.bat`
+  - `_secrets/`
+- Direkt geprüft:
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/MainActivity.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - `KGV.Maui/Pages/LoginPage.xaml.cs`
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/State/MemberContextState.cs`
+- Ehrlicher Befund:
+  - der Crash saß an einem Live-Rebuild der bereits sichtbaren Shell
+  - `MemberSearchPage` und `MeineDatenPage` riefen direkt `BuildMenu()` auf
+  - `BuildMenu()` löscht dabei per `Items.Clear()` den aktiven Shell-Baum und baut neue `ShellContent`-Instanzen auf
+  - genau dieser Rebuild im sichtbaren Shell-/Fragment-Lebenszyklus ist die belastbare Root Cause für `child already has a parent`
+- Umgesetzt:
+  - `App.SwitchToCurrentRootAsync(...)` um optionalen Zielrouten-Rootwechsel erweitert
+  - Mitgliedsauswahl und Wechsel auf verknüpfte Mitglieder bauen die Shell jetzt frisch neu auf, statt die sichtbare Shell live umzubauen
+  - kleiner Diagnose-Logeintrag für den gezielten Shell-Rootwechsel ergänzt
+- Wichtig:
+  - kein fachlicher Navigationsumbau
+  - keine Änderung an WPF-Dateien
+  - kein blindes Exception-Schlucken
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Block 1.3: MAUI-RFID-Quittungston mobil minimal und robust abgeschlossen
 
 - Den realen Repo-/Git-/Logstand geprüft; `main` liegt auf `origin/main`, Divergenz `0 0`.

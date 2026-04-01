@@ -487,10 +487,9 @@ public class MeineDatenPage : ContentPage
         _memberContextState.SetSelectedMember(_linkedMember);
 
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand
-            && Shell.Current is IAppShellInitializer shellInitializer)
+            && Application.Current is App app)
         {
-            shellInitializer.BuildMenu();
-            await Shell.Current.GoToAsync("//memberdetails");
+            await app.SwitchToCurrentRootAsync("memberdetails");
             return;
         }
 
