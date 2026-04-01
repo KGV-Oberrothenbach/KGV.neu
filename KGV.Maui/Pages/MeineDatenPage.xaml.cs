@@ -1,6 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
+using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.State;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
@@ -93,6 +94,7 @@ public class MeineDatenPage : ContentPage
     private DateTime? _editMitgliedEnde;
     private bool _isBusy;
     private bool _isEditMode;
+    private bool _linkedMemberSwitchInProgress;
 
     public MeineDatenPage(
         ISupabaseService supabaseService,
@@ -473,7 +475,7 @@ public class MeineDatenPage : ContentPage
         _clearGeburtsdatumButton.IsEnabled = _isEditMode && !_isBusy;
         _clearMitgliedSeitButton.IsEnabled = _isEditMode && !_isBusy;
         _clearMitgliedEndeButton.IsEnabled = _isEditMode && !_isBusy;
-        _linkedMemberButton.IsEnabled = !_isBusy && _linkedMember?.Id is > 0;
+        _linkedMemberButton.IsEnabled = !_isBusy && !_linkedMemberSwitchInProgress && _linkedMember?.Id is > 0;
         UpdateEmailEditState();
     }
 
@@ -482,25 +484,42 @@ public class MeineDatenPage : ContentPage
         if (_linkedMember?.Id is not > 0)
             return;
 
-        using var navigationScope = NavigationCoordinator.TryBegin(
-            NavigationCoordinator.MemberSwitchScope,
-            $"verknüpftes mitglied -> {_linkedMember.Id}",
-            NavigationCoordinator.RootSwitchScope);
-
-        if (navigationScope == null)
-            return;
-
-        _statusLabel.Text = string.Empty;
-        SetEditMode(false);
-        _memberContextState.SetSelectedMember(_linkedMember);
-
-        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+        if (_linkedMemberSwitchInProgress)
         {
-            await LoadAsync();
+            AppFileLog.Warning("KGV.Navigation", $"Mitgliedswechsel unterdrückt: verknüpftes mitglied -> {_linkedMember.Id}. Bereits aktiv: local-member-switch.");
             return;
         }
 
-        await LoadAsync();
+        _linkedMemberSwitchInProgress = true;
+        UpdateActionState();
+
+        try
+        {
+            using var navigationScope = NavigationCoordinator.TryBegin(
+                NavigationCoordinator.MemberSwitchScope,
+                $"verknüpftes mitglied -> {_linkedMember.Id}",
+                NavigationCoordinator.RootSwitchScope);
+
+            if (navigationScope == null)
+                return;
+
+            _statusLabel.Text = string.Empty;
+            SetEditMode(false);
+            _memberContextState.SetSelectedMember(_linkedMember);
+
+            if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+            {
+                await LoadAsync();
+                return;
+            }
+
+            await LoadAsync();
+        }
+        finally
+        {
+            _linkedMemberSwitchInProgress = false;
+            UpdateActionState();
+        }
     }
 
     private bool CanEditEmailInCurrentContext()

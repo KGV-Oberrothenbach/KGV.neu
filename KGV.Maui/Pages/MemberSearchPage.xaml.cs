@@ -1,5 +1,6 @@
 using KGV.Maui.ViewModels;
 using KGV.Maui.State;
+using KGV.Maui.Services.Diagnostics;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
@@ -11,6 +12,8 @@ public partial class MemberSearchPage : ContentPage
 {
     private readonly MemberSearchViewModel _vm;
     private readonly MemberContextState _memberContextState;
+    private CollectionView? _resultsCollectionView;
+    private bool _memberSwitchInProgress;
 
     public MemberSearchPage(MemberSearchViewModel vm, MemberContextState memberContextState)
     {
@@ -82,7 +85,7 @@ public partial class MemberSearchPage : ContentPage
             Children = { searchGrid, optionsLayout, activityIndicator }
         };
 
-        var resultsCollectionView = new CollectionView
+        _resultsCollectionView = new CollectionView
         {
             SelectionMode = SelectionMode.Single,
             ItemTemplate = new DataTemplate(() =>
@@ -189,8 +192,8 @@ public partial class MemberSearchPage : ContentPage
                 };
             })
         };
-        resultsCollectionView.SetBinding(ItemsView.ItemsSourceProperty, nameof(MemberSearchViewModel.Results));
-        resultsCollectionView.SelectionChanged += ResultsCollectionView_SelectionChanged;
+        _resultsCollectionView.SetBinding(ItemsView.ItemsSourceProperty, nameof(MemberSearchViewModel.Results));
+        _resultsCollectionView.SelectionChanged += ResultsCollectionView_SelectionChanged;
 
         var debugCollectionView = new CollectionView
         {
@@ -223,8 +226,8 @@ public partial class MemberSearchPage : ContentPage
         rootGrid.Children.Add(titleLabel);
         rootGrid.Children.Add(searchSection);
         Grid.SetRow(searchSection, 1);
-        rootGrid.Children.Add(resultsCollectionView);
-        Grid.SetRow(resultsCollectionView, 2);
+        rootGrid.Children.Add(_resultsCollectionView);
+        Grid.SetRow(_resultsCollectionView, 2);
         rootGrid.Children.Add(debugCollectionView);
         Grid.SetRow(debugCollectionView, 3);
 
@@ -243,26 +246,48 @@ public partial class MemberSearchPage : ContentPage
         if (sender is CollectionView cv)
             cv.SelectedItem = null;
 
-        using var navigationScope = NavigationCoordinator.TryBegin(
-            NavigationCoordinator.MemberSwitchScope,
-            "mitgliedersuche -> stammdaten",
-            NavigationCoordinator.RootSwitchScope);
-
-        if (navigationScope == null)
+        if (item == null)
             return;
 
-        var member = await _vm.SelectResultAsync(item);
-        if (member == null)
-            return;
-
-        _memberContextState.SetSelectedMember(member);
-
-        if (Shell.Current is Shell shell && ShellNavigationHelper.HasVisibleShellContentRoute(shell, "memberdetails"))
+        if (_memberSwitchInProgress)
         {
-            await Shell.Current.GoToAsync("//memberdetails");
+            AppFileLog.Warning("KGV.Navigation", "Mitgliedswechsel unterdrückt: mitgliedersuche -> stammdaten. Bereits aktiv: local-member-switch.");
             return;
         }
 
-        await Shell.Current.GoToAsync(nameof(MeineDatenPage));
+        _memberSwitchInProgress = true;
+        if (_resultsCollectionView != null)
+            _resultsCollectionView.IsEnabled = false;
+
+        try
+        {
+            using var navigationScope = NavigationCoordinator.TryBegin(
+                NavigationCoordinator.MemberSwitchScope,
+                "mitgliedersuche -> stammdaten",
+                NavigationCoordinator.RootSwitchScope);
+
+            if (navigationScope == null)
+                return;
+
+            var member = await _vm.SelectResultAsync(item);
+            if (member == null)
+                return;
+
+            _memberContextState.SetSelectedMember(member);
+
+            if (Shell.Current is Shell shell && ShellNavigationHelper.HasVisibleShellContentRoute(shell, "memberdetails"))
+            {
+                await Shell.Current.GoToAsync("//memberdetails");
+                return;
+            }
+
+            await Shell.Current.GoToAsync(nameof(MeineDatenPage));
+        }
+        finally
+        {
+            _memberSwitchInProgress = false;
+            if (_resultsCollectionView != null)
+                _resultsCollectionView.IsEnabled = true;
+        }
     }
 }

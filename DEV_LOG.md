@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: MAUI-Mitgliedswechselpfade gegen Mehrfachtap/Doppelaufruf im Seitenpfad nachgezogen
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Bewusst lokal geblieben:
+  - `AWR.bat`
+  - `_secrets/`
+- Direkt geprüft:
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/NavigationCoordinator.cs`
+- Ehrlicher Befund:
+  - Root-/Shell-Guards waren bereits vorhanden
+  - offen blieb nur noch der kleine direkte Seitenpfad bei sehr schnellem Mehrfachtap
+- Umgesetzt:
+  - `MemberSearchPage` mit lokalem Reentrancy-Guard und kurzer UI-Sperre für die Ergebnisliste gehärtet
+  - `MeineDatenPage` mit lokalem Guard und sofortiger Button-Sperre für verknüpfte Mitgliedswechsel gehärtet
+  - bestehender `NavigationCoordinator` mit Scope `member-switch` bleibt der zentrale kritische Guard; lokal wurde nur der direkte Eventpfad ergänzt
+- Wichtig:
+  - keine Shell- oder Rootänderung
+  - keine fachliche Änderung am Mitgliedswechsel
+  - keine WPF-Datei geändert
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Prompt 3/3 Block 3: MAUI-Navigation gegen Reentrancy und parallele Wechsel technisch abgesichert
 
 - Den realen lokalen Repo-/Git-/Codezustand geprüft.

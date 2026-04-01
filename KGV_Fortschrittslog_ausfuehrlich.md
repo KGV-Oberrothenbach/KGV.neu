@@ -2,6 +2,49 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: MAUI-Mitgliedswechselpfade gegen Mehrfachtap/Doppelaufruf im Seitenpfad nachgezogen
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand erneut geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - lokal bewusst untracked blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/NavigationCoordinator.cs`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Befund vor dem Mini-Nachziehblock:
+  - Root-/Resume-Guard aus dem vorherigen Block war bereits vorhanden
+  - auch der zentrale `member-switch`-Scope war bereits vorhanden
+  - im direkten Seitenpfad blieb aber noch eine kleine praktische Restkante bei sehr schnellem Mehrfachtap:
+    - `MemberSearchPage` konnte denselben Auswahlhandler mehrfach unmittelbar hintereinander anwerfen
+    - `MeineDatenPage` konnte den Wechsel auf das verknüpfte Mitglied mehrfach direkt hintereinander auslösen, bevor der lokale Seitenzustand sichtbar gesperrt war
+- Minimal umgesetzt:
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+    - lokaler Guard gegen parallele Mehrfachauslösung im Auswahlhandler ergänzt
+    - Null-/Deselection-Ereignisse verlassen den Pfad jetzt früh statt unnötig in den Mitgliedswechsel zu laufen
+    - Ergebnisliste wird während des laufenden Mitgliedswechsels kurz deaktiviert
+    - der bestehende zentrale `NavigationCoordinator` mit Scope `member-switch` bleibt der eigentliche kritische Guard; lokal wurde nur der direkte Seiteneinstieg zusätzlich gehärtet
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - kleiner lokaler Guard für den Wechsel auf ein verknüpftes Mitglied ergänzt
+    - der Button wird während des laufenden Mitgliedswechsels sofort deaktiviert
+    - mehrfaches Kontextsetzen und mehrfaches direktes `LoadAsync()` durch schnellen Doppeltap werden damit im Seitenpfad abgefangen
+- Schlanke Diagnose-Logs:
+  - der bestehende `NavigationCoordinator` protokolliert weiter `angefordert` / `gestartet` / `unterdrückt`
+  - zusätzlich loggen die beiden Seiten jetzt die lokale Unterdrückung, wenn ein Mehrfachtap schon vor dem erneuten Einstieg in den zentralen Scope abgefangen wird
+- Warum dieser Block keine fachliche Änderung ist:
+  - keine Änderung an Shell-Struktur
+  - keine Änderung an Rootwechseln
+  - keine Änderung an `Mitgliedersuche -> Stammdaten`
+  - nur die beiden direkten Seitenpfade wurden technisch nachgehärtet
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - code-seitige Gegenprüfung:
+    - mehrfach schnelles Tippen in der Mitgliedersuche führt nicht zu erneutem parallelem Kontextsetzen oder doppeltem `GoToAsync(...)`
+    - mehrfach schnelles Tippen auf `Verknüpftes Mitglied öffnen` führt nicht zu mehrfacher Neuladung oder mehrfach gesetztem Kontext
+
 ## 2026-04-01 – Prompt 3/3 Block 3: MAUI-Navigation gegen Reentrancy und parallele Wechsel technisch abgesichert
 
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand erneut geprüft.
