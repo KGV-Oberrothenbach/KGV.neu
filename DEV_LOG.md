@@ -2,6 +2,48 @@
 
 ---
 
+## 2026-04-01 – MAUI Foto-Upload/Connectivity: Hinweis „Netzwerkstatus konnte nicht ermittelt werden“ minimal behoben
+
+- Vor dem Fix den realen Blockzustand geprüft:
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoUploadDecision.cs`
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoSyncService.cs`
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoService.cs`
+  - `KGV.Maui/Settings/PhotoUploadPreferences.cs`
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/PendingPhotoUploadsPage.cs`
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoMenuState.cs`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Echter Befund:
+  - der Hinweis `Netzwerkstatus konnte nicht ermittelt werden.` entstand zentral in `PendingPhotoUploadDecision.CanUploadNow(...)` im generischen `catch`
+  - laut MAUI-Connectivity-Doku können `NetworkAccess` und `ConnectionProfiles` auf Android ohne `ACCESS_NETWORK_STATE` fehlschlagen
+  - im aktuellen Repo fehlte diese Permission real in `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+  - dadurch lief der Connectivity-Check auf Android in den Catch-Pfad und lieferte die technische Meldung, obwohl die Pending-/Retry-Architektur an sich intakt war
+  - zusätzlich war der `Unknown`-/unklare Status im bestehenden Entscheidungsblock zu grob behandelt; fachlich soll dann lieber pending geblieben werden
+- Minimal umgesetzt:
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+    - `android.permission.ACCESS_NETWORK_STATE` ergänzt, damit MAUI `Connectivity` den Status auf Android sauber lesen kann
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoUploadDecision.cs`
+    - bestehende Logik beibehalten, aber robuster gemacht
+    - `NetworkAccess.Unknown` führt jetzt nicht mehr zu einer technischen Fehlermeldung, sondern zu einer nutzerfreundlichen Pending-Aussage
+    - bei WLAN-only und leerem/unklarem `ConnectionProfiles` wird kein unsicherer Sofort-Upload erzwungen; das Foto bleibt pending
+    - Catch-Pfad liefert jetzt ebenfalls eine fachlich sinnvolle Pending-Meldung statt `Netzwerkstatus konnte nicht ermittelt werden.`
+- Wichtig für die Blockgrenze:
+  - keine neue Upload-Architektur
+  - keine Änderung an Pending-Queue, Retry-/Sync-Flow oder Menülogik `Foto-Upload (X)`
+  - keine Änderung am Timeout-/Resume-Block
+  - kein WPF-Code angepasst; WPF nur gegengeprüft
+- Validierung:
+  - Test-Explorer: keine passenden automatisierten Tests für `PendingPhoto`/`PhotoUpload` gefunden
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+    - nur bekannte Warnungen, u. a. in `KGV.Maui/Pages/HomeManagementPage.cs` sowie eine vorhandene Warnung in `KGV.Maui/Pages/ImpressumPage.cs`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Fachliches Ergebnis:
+  - bei normal ermittelbarem Netz greift die bestehende Upload-Entscheidung wieder sauber
+  - bei unklarem Netzstatus bleibt das Foto lokal/pending statt unsicher hochgeladen zu werden
+  - die Nutzerführung ist weniger technisch und widerspruchsfrei
+
 ## 2026-03-31 – Timeout-/Resume-Block fachlich abgerundet und sauber abgeschlossen
 
 - Den realen Istzustand von Prompt `2/3` zuerst geprüft:

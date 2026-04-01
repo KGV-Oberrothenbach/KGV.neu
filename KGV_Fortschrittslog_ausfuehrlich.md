@@ -2,6 +2,70 @@
 
 ---
 
+## 2026-04-01 – Prompt 2/3: MAUI Foto-Upload-Connectivity-Hinweis „Netzwerkstatus konnte nicht ermittelt werden“ analysiert und minimal behoben
+
+- Vor dem Fix den realen Repo-/Blockstand geprüft und gegen den bestehenden Foto-Upload-/Pending-Stand abgeglichen.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - blockfremd lokal geändert waren bereits:
+    - `.github/copilot-instructions.md`
+    - `KGV.Core/Models/ImpressumInfo.cs`
+    - `KGV.Core/Models/ImpressumKontaktItem.cs`
+    - `KGV.Maui/Pages/ImpressumPage.cs`
+    - `KGV.Wpf/ViewModels/ImpressumViewModel.cs`
+    - `KGV.Wpf/Views/ImpressumView.xaml`
+  - untracked blieben u. a. `AWR.bat` und `Android_Wpf_release_batch_v4.bat`
+  - diese Fremdstände wurden bewusst nicht als Grundlage verwendet und nicht mitgezogen
+- Direkt geprüft wurden:
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoUploadDecision.cs`
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoSyncService.cs`
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoService.cs`
+  - `KGV.Maui/Settings/PhotoUploadPreferences.cs`
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/PendingPhotoUploadsPage.cs`
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoMenuState.cs`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+  - `KGV.Maui/MainApplication.cs`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Befund vor dem Fix:
+  - die irritierende Meldung entstand zentral in `PendingPhotoUploadDecision.CanUploadNow(...)` im Catch-Fall
+  - laut offizieller .NET-MAUI-Connectivity-Doku benötigen Android-Zugriffe auf `NetworkAccess`/`ConnectionProfiles` die Permission `ACCESS_NETWORK_STATE`
+  - genau diese Permission fehlte im aktuellen Android-Manifest real
+  - dadurch war der eigentliche fachliche Uploadentscheid nicht kaputt, sondern der Connectivity-Check fiel auf Android in den generischen Fehlerpfad zurück
+  - zusätzlich behandelte der bestehende Code unklare/noch nicht belastbare Zustände (`Unknown`, leere Profile) nicht nutzerfreundlich genug
+- Minimal umgesetzt:
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+    - `android.permission.ACCESS_NETWORK_STATE` ergänzt
+  - `KGV.Maui/Services/PendingPhotos/PendingPhotoUploadDecision.cs`
+    - bestehende zentrale Entscheidung beibehalten; keine Parallel-Connectivity-Logik gebaut
+    - `NetworkAccess.Unknown` wird jetzt als unsicherer Zustand behandelt: pending lassen statt Upload erzwingen
+    - bei WLAN-only und leeren/unklaren `ConnectionProfiles` bleibt der Upload ebenfalls pending
+    - technische Rohmeldung `Netzwerkstatus konnte nicht ermittelt werden.` ersetzt durch kurze fachliche Pending-Hinweise
+- Wichtig für die Blockgrenze:
+  - keine Änderung an PendingPhotoQueue, PendingPhotoService oder PendingPhotoSyncService
+  - kein Umbau des Retry-/Sync-Flows
+  - Menüpunkt `Foto-Upload (X)` bleibt unverändert und konsistent
+  - WLAN-only-Schalter bleibt maßgeblich
+  - kein Eingriff in den abgeschlossenen Timeout-/Resume-Block
+  - kein WPF-Umbau, nur WPF-Gegenprüfung
+- Fachliches Ergebnis dieses Blocks:
+  - normal ermittelbares Netz arbeitet wieder mit der vorhandenen Upload-Entscheidung
+  - unklarer Netzwerkstatus führt nicht mehr zu einer technischen Fehlermeldung, sondern zu sauberem Pending-Verhalten
+  - im Zweifel bleibt das Foto lokal gespeichert; kein unsicherer Sofort-Upload
+  - Pending-/Retry-Verhalten und `Foto-Upload (X)` bleiben unverändert tragfähig
+- Validierung:
+  - Test-Explorer: keine passenden automatisierten Tests für diesen Pfad gefunden
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+    - nur bekannte Warnungen, u. a. in `KGV.Maui/Pages/HomeManagementPage.cs` sowie eine vorhandene Warnung in `KGV.Maui/Pages/ImpressumPage.cs`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrliche Abschlussprüfung:
+    - Pending-Fotos bleiben erhalten => code-seitig ja
+    - Retry-/Sync-Flow bleibt erhalten => code-seitig ja
+    - WLAN-only bleibt fachlich maßgeblich => code-seitig ja
+    - unklarer Connectivity-Status erzwingt keinen Upload => code-seitig ja
+    - WPF bleibt unbeeinflusst => build-seitig ja
+
 ## 2026-03-31 – Prompt 3/3: Timeout-/Resume-Block fachlich abgerundet und sauber abgeschlossen
 
 - Vor dem Abschluss den realen Repo-Stand erneut geprüft und gegen Prompt `1/3` und `2/3` abgeglichen.
