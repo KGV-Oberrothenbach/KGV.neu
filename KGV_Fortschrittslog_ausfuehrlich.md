@@ -2,6 +2,74 @@
 
 ---
 
+## 2026-04-01 – Block 2.3.1: MAUI lesende Strom-/Wasser-Unterseite im Mitglieds-Parzellenpfad umgesetzt
+
+- Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft und nicht auf Altannahmen aufgebaut.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - untracked blieben bewusst außerhalb des Repo-Abschlusses:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Maui/State/ParzellenContextState.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Core/Models/ParzelleDetailDTO.cs`
+  - `KGV.Core/Models/ZaehlerAblesungDTO.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - WPF-Referenz:
+    - `KGV.Wpf/Views/GartenStromView.xaml`
+    - `KGV.Wpf/Views/GartenWasserView.xaml`
+    - `KGV.Wpf/ViewModels/GartenStromViewModel.cs`
+    - `KGV.Wpf/ViewModels/GartenWasserViewModel.cs`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Befund vor dem Umbau:
+  - `ParzellenViewModel` lädt die parzellenspezifischen Strom-/Wasser-Ablesungen bereits produktiv über `GetStromAblesungenAsync(...)` / `GetWasserAblesungenAsync(...)`
+  - `ParzellenPage` routete `Strom` / `Wasser` im Mitgliedspfad bisher noch auf `AblesungErfassenPage` statt auf eine eigene lesende Historienunterseite
+  - die WPF-Referenz zeigt für den lesenden Kern genau die sinnvollen Felder:
+    - `Datum`
+    - `Zählerstand`
+    - `Zählernummer`
+    - `Eichdatum`
+    - optional `Foto`
+  - damit fehlte im MAUI-Mitgliedspfad kein Datenzugriff, sondern nur die kleine lesende Mobil-Unterseite und deren Routing
+- Minimal umgesetzt:
+  - neue MAUI-Seite `KGV.Maui/Pages/ParzellenAblesungenPage.cs`
+    - lesende Unterseite für `strom` oder `wasser` per Query-/Kontextparameter
+    - nutzt ausschließlich die vorhandenen Shared-Servicepfade `GetStromAblesungenAsync(...)`, `GetWasserAblesungenAsync(...)` und `GetParzelleDetailAsync(...)`
+    - mobil lesbare Kartenansicht mit den vorhandenen Kernfeldern:
+      - `Datum`
+      - `Zählerstand`
+      - `Zählernummer`
+      - `Eichdatum`
+      - optional `Foto öffnen`
+    - kein Speichern, keine Erfassungslogik, keine Parallelarchitektur
+    - der aktuelle Parzellenkontext bleibt über `ParzellenContextState` sauber nachgeführt
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+    - `Strom` und `Wasser` routen jetzt auf die neue lesende Historienunterseite statt auf `AblesungErfassenPage`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+    - Route für `ParzellenAblesungenPage` ergänzt
+  - `KGV.Maui/MauiProgram.cs`
+    - neue Seite für DI registriert
+- Wichtig für die Blockgrenze:
+  - keine Änderung an `DokumentePage` nötig
+  - keine neue Erfassungsfunktion
+  - kein Umbau des Shared-Datenzugriffs
+  - keine Änderung an Block `2.1` oder `2.2` außerhalb der nötigen Button-Routen
+  - keine WPF-Datei geändert; WPF nur als Feld-/Darstellungsreferenz und Build-Gegenprüfung genutzt
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Fachliches Ergebnis:
+  - `Strom` zeigt jetzt die strombezogene Historie der ausgewählten Parzelle auf einer eigenen lesenden MAUI-Unterseite
+  - `Wasser` zeigt jetzt dieselbe Art Unterseite für die wasserbezogene Historie
+  - Mitglieds-/Parzellenkontext bleibt im Mitgliedspfad erhalten
+  - `Ablesung erfassen` wird für diesen lesenden Verlauf nicht mehr als Ersatzseite missbraucht
+
 ## 2026-04-01 – Abschluss-Prompt Block 2.2: MAUI `Gärten des Mitgliedes` / Parzellen-Detailansicht ohne weiteren Fachumbau sauber abgeschlossen
 
 - Vor dem Abschluss den realen Git-/Arbeitsstand erneut geprüft und nicht auf Altannahmen aufgebaut.

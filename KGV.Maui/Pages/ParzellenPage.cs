@@ -350,7 +350,7 @@ public sealed class ParzellenPage : ContentPage
             return;
         }
 
-        await Shell.Current.GoToAsync($"{nameof(AblesungErfassenPage)}?parzelleId={detail.ParzelleId}&medium={medium}");
+        await Shell.Current.GoToAsync($"{nameof(ParzellenAblesungenPage)}?parzelleId={detail.ParzelleId}&medium={medium}");
     }
 
     private async Task OpenDokumenteAsync()

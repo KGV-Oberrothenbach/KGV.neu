@@ -2,6 +2,43 @@
 
 ---
 
+## 2026-04-01 – Block 2.3.1: lesende Strom-/Wasser-Historie im MAUI-Mitglieds-Parzellenpfad umgesetzt
+
+- Den realen Repo-/Git-/Logstand geprüft; `main` liegt auf `origin/main`, Divergenz `0 0`.
+- Untracked blieben bewusst außerhalb des Repo-Abschlusses:
+  - `AWR.bat`
+  - `_secrets/`
+- Direkt geprüft:
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Maui/State/ParzellenContextState.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Core/Models/ParzelleDetailDTO.cs`
+  - `KGV.Core/Models/ZaehlerAblesungDTO.cs`
+  - WPF-Referenz `GartenStrom` / `GartenWasser`
+- Ehrlicher Befund:
+  - die parzellenspezifischen Ablesungslisten lagen bereits produktiv im Shared-Service vor
+  - im MAUI-Mitgliedspfad fehlte nur die kleine lesende Unterseite; `Strom`/`Wasser` liefen bisher noch auf `AblesungErfassenPage`
+- Umgesetzt:
+  - neue MAUI-Seite `KGV.Maui/Pages/ParzellenAblesungenPage.cs`
+  - lesender Verlauf für `strom` oder `wasser` über den bestehenden Shared-Service
+  - angezeigte Kernfelder:
+    - `Datum`
+    - `Zählerstand`
+    - `Zählernummer`
+    - `Eichdatum`
+    - optional `Foto öffnen`
+  - `ParzellenPage`-Buttons `Strom` / `Wasser` auf diese Seite umgeroutet
+  - Route/DI in `ShellRouteRegistrar` und `MauiProgram` ergänzt
+- Wichtig:
+  - keine neue Erfassungslogik
+  - keine Änderung an `DokumentePage`
+  - keine Shared-/WPF-Architekturänderung
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Abschluss Block 2.2: MAUI `Gärten des Mitgliedes` / Parzellen-Detailansicht ohne weiteren Fachumbau sauber abgeschlossen
 
 - Den realen Git-/Arbeitsstand erneut geprüft.

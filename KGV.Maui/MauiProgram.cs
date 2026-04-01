@@ -109,6 +109,7 @@ public static class MauiProgram
         builder.Services.AddTransient<ArbeitsstundenEditorPage>();
         builder.Services.AddTransient<ArbeitsstundenReviewPage>();
         builder.Services.AddTransient<ArbeitsstundenReviewDetailPage>();
+        builder.Services.AddTransient<ParzellenAblesungenPage>();
         builder.Services.AddTransient<ZaehlerwechselAusbauPage>();
         builder.Services.AddTransient<ZaehlerwechselEinbauPage>();
 
