@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/2: Dokumentfluss E2E-validiert, kein weiterer Minimalfix nötig
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - bewusst untracked blieben weiter `AWR.bat` und `_secrets/`
+- Direkt geprüft wurden:
+  - `supabase/functions/kgv-upload-document/index.ts`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Wpf/ViewModels/DokumenteViewModel.cs`
+  - `KGV.Wpf/ViewModels/GartenDokumenteViewModel.cs`
+  - `KGV.Wpf/Views/DokumenteView.xaml`
+  - `KGV.Wpf/Views/GartenDokumenteView.xaml`
+- Ehrlicher Istzustand aus der Prüfung:
+  - Mitglieds-Uploadpfade laufen serverseitig auf `KGV-APP/Dokumente/Mitglieder/<mitglied_id>/<dateiname>`
+  - Parzellen-Uploadpfade laufen serverseitig auf `KGV-App/Dokumente/Parzellen/<parzelle_id>/<dateiname>`
+  - `SupabaseService` prüft denselben finalen Rootvertrag vor dem DB-Insert
+  - Öffnen arbeitet weiter Drive-first über `drive_file_id`
+  - Löschen arbeitet weiter Drive-first und löscht erst danach den DB-Datensatz
+  - Reload/Refresh nach Upload und Löschen ist in WPF und MAUI vorhanden
+  - aus dieser E2E-nahen Gegenprüfung ergab sich keine weitere echte Restlücke, daher war kein zusätzlicher Codefix außerhalb der Logpflege nötig
+- Fachliche Gegenprüfung des Vertrags:
+  - keine zusätzlichen Unterordner unterhalb von Mitglieds-/Parzellen-ID
+  - Dateiname bleibt Titel + Timestamp + Endung
+  - `storage_path` bleibt konsistent zum finalen Rootvertrag
+  - `drive_file_id`, `titel`, `dateiname`, `mime_type`, `size_bytes` bleiben Teil desselben gemeinsamen DB-/Uploadvertrags
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Befund: in diesem Block war kein weiterer Minimalfix am Dokumentpfad nötig; die zuvor nachgezogenen finalen Rootpfade waren bereits konsistent verdrahtet
+
 ## 2026-04-01 – Prompt 1/1: Dokumentpfad auf finalen Drive-Rootvertrag nachgezogen
 
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.

@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/2: Dokumente E2E-validiert, kein weiterer Minimalfix nötig
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - lokal bewusst untracked blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `supabase/functions/kgv-upload-document/index.ts`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Wpf/ViewModels/DokumenteViewModel.cs`
+  - `KGV.Wpf/ViewModels/GartenDokumenteViewModel.cs`
+  - `KGV.Wpf/Views/DokumenteView.xaml`
+  - `KGV.Wpf/Views/GartenDokumenteView.xaml`
+- Ehrlicher Befund aus der Validierung:
+  - Mitglieds-Uploadpfad ist serverseitig auf `KGV-APP/Dokumente/Mitglieder/<mitglied_id>/<dateiname>` ausgerichtet
+  - Parzellen-Uploadpfad ist serverseitig auf `KGV-App/Dokumente/Parzellen/<parzelle_id>/<dateiname>` ausgerichtet
+  - Shared-Service validiert denselben finalen Rootvertrag vor dem DB-Insert
+  - Öffnen bleibt Drive-first über `drive_file_id`
+  - Löschen bleibt Drive-first und entfernt erst danach den DB-Datensatz
+  - Reload nach Upload und Löschen ist in WPF und MAUI vorhanden
+  - in diesem Validierungslauf wurde keine weitere echte Restlücke gefunden; daher kein zusätzlicher Fach-/Codeumbau außerhalb der Logpflege
+- Fachliche E2E-Gegenprüfung im Code:
+  - keine zusätzlichen Unterordner unterhalb der Owner-ID
+  - Dateiname bleibt Titel + Timestamp + Endung
+  - `storage_path`, `drive_file_id`, `titel`, `dateiname`, `mime_type`, `size_bytes` laufen weiter über denselben gemeinsamen Vertrag
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Prompt 1/1: Dokument-Drive-Rootpfade auf finalen Vertrag ausgerichtet
 
 - Den realen lokalen Repo-/Git-/Codezustand geprüft.
