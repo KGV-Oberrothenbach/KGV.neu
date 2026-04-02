@@ -114,29 +114,6 @@ async function deleteDriveFile(accessToken: string, driveFileId: string): Promis
   }
 }
 
-async function deleteDriveFile(accessToken: string, driveFileId: string): Promise<void> {
-  try {
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(driveFileId)}?supportsAllDrives=true`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      signal: AbortSignal.timeout(DRIVE_DELETE_TIMEOUT_MS),
-    });
-
-    if (res.status === 404) {
-      throw new Error("Drive file not found");
-    }
-
-    if (!res.ok) {
-      const responseText = await res.text();
-      throw new Error(`Drive delete failed: ${responseText}`);
-    }
-  } catch (error) {
-    throw buildStepError("Drive delete", error);
-  }
-}
-
 function errorResponse(status: number, errorCode: ApiErrorCode, message: string, requestId: string) {
   return json(status, {
     success: false,
@@ -241,7 +218,12 @@ function buildFileName(title: string, file: File): string {
 }
 
 function buildStorageSegments(ownerKind: OwnerKind, ownerId: number): string[] {
-  return ["Dokumente", ownerKind === "mitglied" ? "Mitglieder" : "Parzellen", ownerId.toString()];
+  return [
+    ownerKind === "mitglied" ? "KGV-APP" : "KGV-App",
+    "Dokumente",
+    ownerKind === "mitglied" ? "Mitglieder" : "Parzellen",
+    ownerId.toString(),
+  ];
 }
 
 function buildStoragePath(storageSegments: string[], fileName: string): string {
@@ -250,12 +232,14 @@ function buildStoragePath(storageSegments: string[], fileName: string): string {
 
 function isExpectedStoragePath(storagePath: string, ownerKind: OwnerKind, ownerId: number, fileName: string): boolean {
   const segments = storagePath.split("/").filter(Boolean);
+  const expectedRootFolder = ownerKind === "mitglied" ? "KGV-APP" : "KGV-App";
   const expectedOwnerFolder = ownerKind === "mitglied" ? "Mitglieder" : "Parzellen";
-  return segments.length === 4
-    && segments[0] === "Dokumente"
-    && segments[1] === expectedOwnerFolder
-    && segments[2] === ownerId.toString()
-    && segments[3] === fileName;
+  return segments.length === 5
+    && segments[0] === expectedRootFolder
+    && segments[1] === "Dokumente"
+    && segments[2] === expectedOwnerFolder
+    && segments[3] === ownerId.toString()
+    && segments[4] === fileName;
 }
 
 function isGeneratedFileName(fileName: string): boolean {

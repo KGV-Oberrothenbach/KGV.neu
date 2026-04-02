@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: Dokument-Drive-Rootpfade auf finalen Vertrag ausgerichtet
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Ehrlicher Befund vor der Anpassung:
+  - der serverseitige Dokumentpfad war noch nicht auf dem final vorgegebenen Rootvertrag
+  - aktuell wurden Uploadpfade als `Dokumente/Mitglieder/<id>/...` bzw. `Dokumente/Parzellen/<id>/...` gebaut und clientseitig genauso validiert
+  - Upload, Öffnen und Löschen waren untereinander konsistent, aber noch nicht auf den finalen Produktiv-Root gezogen
+- Minimal umgesetzt:
+  - Edge Function `kgv-upload-document` auf den finalen Rootvertrag gezogen:
+    - `KGV-APP/Dokumente/Mitglieder/<mitglied_id>/<dateiname>`
+    - `KGV-App/Dokumente/Parzellen/<parzelle_id>/<dateiname>`
+  - dabei die bewusst unterschiedliche Schreibweise `KGV-APP` vs. `KGV-App` exakt übernommen
+  - serverseitige Pfadprüfung auf fünf Segmente angepasst und doppelte `deleteDriveFile(...)`-Hilfsfunktion bereinigt
+  - `SupabaseService`-Pfadvertragsprüfung auf denselben finalen Rootvertrag nachgezogen
+  - WPF/MAUI mussten für diesen Block nicht fachlich angepasst werden, da Upload/Öffnen/Löschen dort keine festen Rootpfad-Annahmen hatten
+- Finaler Produktivpfad:
+  - Mitglied: `KGV-APP/Dokumente/Mitglieder/<mitglied_id>/<dateiname>`
+  - Parzelle: `KGV-App/Dokumente/Parzellen/<parzelle_id>/<dateiname>`
+- Konsistenz nach dem Block:
+  - Upload validiert den finalen Rootvertrag serverseitig und im Shared-Service
+  - Öffnen bleibt Drive-first
+  - Löschen bleibt Drive-first und danach DB-Löschung
+  - bei ungültigem Uploadpfad erfolgt kein DB-Insert
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Prompt 1/1: Dokumente löschen in WPF + MAUI ergänzt
 
 - Den realen lokalen Repo-/Git-/Codezustand geprüft.

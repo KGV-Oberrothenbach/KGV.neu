@@ -2,6 +2,37 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: Dokumentpfad auf finalen Drive-Rootvertrag nachgezogen
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Ehrlicher Istzustand vor der Umsetzung:
+  - der Dokumentpfad war noch nicht auf dem final vorgegebenen Rootvertrag
+  - serverseitig wurde aktuell `Dokumente/Mitglieder/<id>/<dateiname>` bzw. `Dokumente/Parzellen/<id>/<dateiname>` gebaut
+  - der Shared-Service validierte denselben älteren Vertrag
+  - Upload, Öffnen und Löschen waren also untereinander konsistent, aber noch nicht auf dem finalen Produktivpfad
+- Minimal umgesetzt:
+  - `supabase/functions/kgv-upload-document/index.ts` auf den finalen Rootvertrag umgestellt:
+    - `KGV-APP/Dokumente/Mitglieder/<mitglied_id>/<dateiname>`
+    - `KGV-App/Dokumente/Parzellen/<parzelle_id>/<dateiname>`
+  - die bewusst unterschiedliche Schreibweise `KGV-APP` und `KGV-App` wurde exakt übernommen und nicht vereinheitlicht
+  - keine zusätzlichen Unterordner unterhalb von `Mitglieder/<id>` oder `Parzellen/<id>`
+  - Dateiname bleibt weiter Titel + Timestamp + Endung
+  - doppelte Hilfsfunktion `deleteDriveFile(...)` in der Edge Function bereinigt
+  - `SupabaseService`-Vertragsprüfung auf denselben finalen Rootvertrag nachgezogen, damit bei falschem Rückgabepfad kein DB-Insert erfolgt
+  - WPF/MAUI mussten nicht geändert werden, weil dort keine harte Rootpfad-UI-Annahme vorhanden war und Öffnen/Löschen weiter Drive-first arbeiten
+- Finaler Produktivpfad nach diesem Block:
+  - Mitglied: `KGV-APP/Dokumente/Mitglieder/<mitglied_id>/<dateiname>`
+  - Parzelle: `KGV-App/Dokumente/Parzellen/<parzelle_id>/<dateiname>`
+- Konsistenz nach dem Block:
+  - Upload: finaler Rootvertrag serverseitig + im Shared-Service abgesichert
+  - Öffnen: weiter Drive-first
+  - Löschen: weiter Drive-first und danach DB-Löschung
+  - Alt-Fallbacks bleiben nur tolerant erhalten und stören den Produktivpfad nicht
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Befund: der Pfad musste tatsächlich geändert werden; er war vor diesem Block noch nicht final korrekt
+
 ## 2026-04-01 – Prompt 1/1: Dokumente löschen in WPF und MAUI mit Drive-/DB-Abgleich ergänzt
 
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.

@@ -4116,9 +4116,9 @@ namespace KGV.Infrastructure.Services
         private static string BuildExpectedDokumentStoragePrefix(DokumentUploadRequest request)
         {
             if (request.MitgliedId.HasValue && request.MitgliedId.Value > 0)
-                return $"Dokumente/Mitglieder/{request.MitgliedId.Value}/";
+                return $"KGV-APP/Dokumente/Mitglieder/{request.MitgliedId.Value}/";
 
-            return $"Dokumente/Parzellen/{request.ParzelleId.GetValueOrDefault()}/";
+            return $"KGV-App/Dokumente/Parzellen/{request.ParzelleId.GetValueOrDefault()}/";
         }
 
         private static bool IsValidDokumentStorageContract(string? storagePath, string? dateiname, DokumentUploadRequest request)
@@ -4134,8 +4134,8 @@ namespace KGV.Infrastructure.Services
             }
 
             var segments = normalizedStoragePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            return segments.Length == 4
-                && string.Equals(segments[3], normalizedDateiname, StringComparison.Ordinal)
+            return segments.Length == 5
+                && string.Equals(segments[4], normalizedDateiname, StringComparison.Ordinal)
                 && Regex.IsMatch(normalizedDateiname, @"^.+_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.[^./\\]+$", RegexOptions.CultureInvariant);
         }
 
