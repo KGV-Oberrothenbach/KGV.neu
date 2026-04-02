@@ -8,6 +8,7 @@ using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System.Globalization;
+using Debug = System.Diagnostics.Debug;
 
 namespace KGV.Maui.Pages;
 
@@ -270,6 +271,10 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
             if (!TryBuildRecord(out var record))
                 return;
 
+            var saveMessage = _existingRecord == null
+                ? "Bekanntmachung erstellt."
+                : "Bekanntmachung gespeichert.";
+
             if (_existingRecord == null)
             {
                 var created = await _supabaseService.CreateBekanntmachungAsync(record.ToInsertRecord());
@@ -289,8 +294,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
                 }
             }
 
-            _homeViewModel.Invalidate();
-            await NavigateToOverviewAsync();
+            await CompleteSuccessfulSaveAsync(saveMessage);
         }
         catch (Exception ex)
         {
@@ -514,6 +518,25 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
                 }
             }
         };
+    }
+
+    private async Task CompleteSuccessfulSaveAsync(string successMessage)
+    {
+        _statusLabel.Text = successMessage;
+        _statusLabel.TextColor = Colors.Green;
+
+        _homeViewModel.Invalidate();
+
+        try
+        {
+            await NavigateToOverviewAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[BekanntmachungEditorPage] Post-save navigation failed after successful save: {ex}");
+            _statusLabel.Text = $"{successMessage} Startseite wird beim nächsten Öffnen aktualisiert.";
+            _statusLabel.TextColor = Colors.DarkGoldenrod;
+        }
     }
 
     private Task NavigateToOverviewAsync()

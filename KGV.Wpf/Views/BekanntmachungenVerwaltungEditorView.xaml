@@ -211,6 +211,12 @@
                         </Border>
 
                         <DockPanel Margin="0,18,0,0" LastChildFill="False">
+                            <Button Content="Löschen"
+                                    Width="110"
+                                    DockPanel.Dock="Left"
+                                    Margin="0,0,10,0"
+                                    Command="{Binding LoeschenCommand}"
+                                    Visibility="{Binding IsExistingEntry, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <Button Content="Abbrechen"
                                     Width="110"
                                     DockPanel.Dock="Right"

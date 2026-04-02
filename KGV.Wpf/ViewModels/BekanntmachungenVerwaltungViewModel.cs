@@ -21,6 +21,7 @@ namespace KGV.ViewModels
         private readonly ISupabaseService _supabaseService;
         private readonly MainWindowViewModel _mainWindowViewModel;
         private long? _editingBekanntmachungId;
+        private bool _isDeleteInProgress;
         private EditorStateSnapshot? _initialEditorState;
 
         public BekanntmachungenVerwaltungViewModel(ISupabaseService supabaseService, MainWindowViewModel mainWindowViewModel)
@@ -32,6 +33,7 @@ namespace KGV.ViewModels
             OeffnenCommand = new RelayCommand<object?>(_ => OpenSelectedEditor(), _ => SelectedEntry != null);
             AbbrechenCommand = new RelayCommand<object?>(_ => CancelEdit(), _ => IsEditorOpen);
             SpeichernCommand = new RelayCommand<object?>(_ => _ = SaveAsync(), _ => IsEditorOpen);
+            LoeschenCommand = new RelayCommand<object?>(_ => _ = DeleteAsync(), _ => IsExistingEntry && !_isDeleteInProgress);
             ZurueckCommand = new RelayCommand<object?>(_ => _ = NavigateBackAsync());
         }
 
@@ -42,6 +44,7 @@ namespace KGV.ViewModels
         public string ValidationHintText => "Pflichtfelder: Titel und HTML-Inhalt. `Sichtbar bis` darf nicht vor `Sichtbar ab` liegen. `Sortierreihenfolge` ist optional und muss eine ganze Zahl sein.";
         public bool HasEntries => Entries.Count > 0;
         public bool ShowEmptyState => !HasEntries;
+        public bool IsExistingEntry => IsEditorOpen && !IsNewMode;
         public bool ShowValidationMessage => !string.IsNullOrWhiteSpace(ValidationMessage);
 
         public ObservableCollection<BekanntmachungRecord> Entries { get; } = new();
@@ -65,8 +68,10 @@ namespace KGV.ViewModels
             {
                 if (SetProperty(ref _isEditorOpen, value))
                 {
+                    OnPropertyChanged(nameof(IsExistingEntry));
                     AbbrechenCommand.RaiseCanExecuteChanged();
                     SpeichernCommand.RaiseCanExecuteChanged();
+                    LoeschenCommand.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -75,7 +80,14 @@ namespace KGV.ViewModels
         public bool IsNewMode
         {
             get => _isNewMode;
-            private set => SetProperty(ref _isNewMode, value);
+            private set
+            {
+                if (SetProperty(ref _isNewMode, value))
+                {
+                    OnPropertyChanged(nameof(IsExistingEntry));
+                    LoeschenCommand.RaiseCanExecuteChanged();
+                }
+            }
         }
 
         private string _editorCaption = string.Empty;
@@ -234,6 +246,7 @@ namespace KGV.ViewModels
         public RelayCommand<object?> OeffnenCommand { get; }
         public RelayCommand<object?> AbbrechenCommand { get; }
         public RelayCommand<object?> SpeichernCommand { get; }
+        public RelayCommand<object?> LoeschenCommand { get; }
         public RelayCommand<object?> ZurueckCommand { get; }
 
         public async Task OnNavigatedToAsync()
@@ -353,6 +366,55 @@ namespace KGV.ViewModels
 
             _initialEditorState = CaptureEditorState();
             await NavigateHomeAsync();
+        }
+
+        private async Task DeleteAsync()
+        {
+            if (!IsExistingEntry || _editingBekanntmachungId.GetValueOrDefault() <= 0)
+                return;
+
+            var titel = string.IsNullOrWhiteSpace(Titel)
+                ? "diese Bekanntmachung"
+                : $"die Bekanntmachung \"{Titel.Trim()}\"";
+
+            if (MessageBox.Show(
+                    $"Soll {titel} wirklich gelöscht werden?",
+                    "Bekanntmachung löschen",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            _isDeleteInProgress = true;
+            LoeschenCommand.RaiseCanExecuteChanged();
+            SpeichernCommand.RaiseCanExecuteChanged();
+            AbbrechenCommand.RaiseCanExecuteChanged();
+
+            try
+            {
+                var success = await _supabaseService.DeleteBekanntmachungAsync(_editingBekanntmachungId.Value);
+                if (!success)
+                {
+                    ValidationMessage = "Die Bekanntmachung konnte nicht gelöscht werden. Details stehen im Debug-/Anwendungslog.";
+                    return;
+                }
+
+                ResetEditor();
+                await LoadAsync();
+                MessageBox.Show(
+                    "Die Bekanntmachung wurde gelöscht.",
+                    "Bekanntmachung löschen",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            finally
+            {
+                _isDeleteInProgress = false;
+                LoeschenCommand.RaiseCanExecuteChanged();
+                SpeichernCommand.RaiseCanExecuteChanged();
+                AbbrechenCommand.RaiseCanExecuteChanged();
+            }
         }
 
         private bool TryBuildRecord(out BekanntmachungRecord record)

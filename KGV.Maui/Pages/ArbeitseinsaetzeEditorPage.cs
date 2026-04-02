@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using Debug = System.Diagnostics.Debug;
 
 namespace KGV.Maui.Pages;
 
@@ -346,6 +347,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
             await Task.Yield();
 
             ArbeitseinsatzRecord? persistedRecord;
+            string successMessage;
             if (_editingEntryId.HasValue)
             {
                 var updated = await _supabaseService.UpdateArbeitseinsatzAsync(record!);
@@ -358,7 +360,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
                 }
 
                 persistedRecord = record;
-                _statusLabel.Text = "Arbeitseinsatz aktualisiert.";
+                successMessage = "Arbeitseinsatz aktualisiert.";
             }
             else
             {
@@ -371,24 +373,11 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
                     return false;
                 }
 
-                _editingEntryId = persistedRecord.Id;
-                _statusLabel.Text = "Arbeitseinsatz erstellt.";
+                _editingEntryId = persistedRecord.Id > 0 ? persistedRecord.Id : null;
+                successMessage = "Arbeitseinsatz erstellt.";
             }
 
-            _statusLabel.TextColor = Colors.Green;
-            _statusLabel.IsVisible = true;
-            _homeViewModel.Invalidate();
-
-            await ReloadNavigationStateAsync(_editingEntryId);
-            if (_editingEntryId.HasValue && _managementState.CurrentEntry != null)
-                ApplyRecordToForm(_managementState.CurrentEntry);
-            else if (persistedRecord != null)
-                ApplyRecordToForm(persistedRecord);
-
-            UpdateNavigationFooter();
-
-            if (navigateToOverviewAfterSave)
-                await NavigateToOverviewAsync();
+            await CompleteSuccessfulSaveAsync(persistedRecord, successMessage, navigateToOverviewAfterSave);
 
             return true;
         }
@@ -403,6 +392,48 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         {
             _isBusy = false;
             SetEnabledState(true);
+        }
+    }
+
+    private async Task CompleteSuccessfulSaveAsync(ArbeitseinsatzRecord? persistedRecord, string successMessage, bool navigateToOverviewAfterSave)
+    {
+        _statusLabel.Text = successMessage;
+        _statusLabel.TextColor = Colors.Green;
+        _statusLabel.IsVisible = true;
+
+        _homeViewModel.Invalidate();
+
+        try
+        {
+            await ReloadNavigationStateAsync(_editingEntryId);
+            if (_editingEntryId.HasValue && _managementState.CurrentEntry != null)
+                ApplyRecordToForm(_managementState.CurrentEntry);
+            else if (persistedRecord != null)
+                ApplyRecordToForm(persistedRecord);
+
+            UpdateNavigationFooter();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ArbeitseinsaetzeEditorPage] Post-save reload failed after successful save: {ex}");
+            _statusLabel.Text = $"{successMessage} Startseite wird beim nächsten Öffnen aktualisiert.";
+            _statusLabel.TextColor = Colors.DarkGoldenrod;
+            _statusLabel.IsVisible = true;
+        }
+
+        if (!navigateToOverviewAfterSave)
+            return;
+
+        try
+        {
+            await NavigateToOverviewAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ArbeitseinsaetzeEditorPage] Post-save navigation failed after successful save: {ex}");
+            _statusLabel.Text = $"{successMessage} Startseite wird beim nächsten Öffnen aktualisiert.";
+            _statusLabel.TextColor = Colors.DarkGoldenrod;
+            _statusLabel.IsVisible = true;
         }
     }
 

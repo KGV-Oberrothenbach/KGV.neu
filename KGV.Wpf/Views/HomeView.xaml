@@ -99,8 +99,15 @@
             </Grid.ColumnDefinitions>
 
             <GroupBox Grid.Column="0" Header="Arbeitseinsätze" Margin="0,0,12,0">
-                <StackPanel>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <ScrollViewer Grid.Row="0"
+                                  VerticalScrollBarVisibility="Auto"
+                                  CanContentScroll="True"
                                   Visibility="{Binding HasWorkAssignments, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <ItemsControl ItemsSource="{Binding WorkAssignments}">
                             <ItemsControl.ItemTemplate>
@@ -117,7 +124,7 @@
                                         </Border.InputBindings>
                                         <StackPanel>
                                             <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                            <TextBlock Text="{Binding Subtitle}" Margin="0,4,0,0" Foreground="Gray" />
+                                            <TextBlock Text="{Binding Subtitle, StringFormat=Einsatzdatum: {0}}" Margin="0,4,0,0" Foreground="Gray" />
                                             <TextBlock Text="{Binding TimeText, StringFormat=Uhrzeit: {0}}"
                                                        Margin="0,4,0,0"
                                                        Foreground="Gray"
@@ -140,72 +147,93 @@
                         </ItemsControl>
                     </ScrollViewer>
 
-                    <TextBlock Text="{Binding WorkAssignmentsEmptyText}"
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding WorkAssignmentsEmptyText}"
                                TextWrapping="Wrap"
                                Visibility="{Binding ShowWorkAssignmentsEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                </StackPanel>
+                </Grid>
             </GroupBox>
 
             <GroupBox Grid.Column="1" Header="Termine" Margin="0,0,12,0">
-                <StackPanel>
-                    <ItemsControl ItemsSource="{Binding Appointments}"
-                                  Visibility="{Binding HasAppointments, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Button Margin="0,0,0,8"
-                                        Padding="12"
-                                        Background="{StaticResource KgvBackgroundBrush}"
-                                        BorderBrush="{StaticResource KgvBorderBrush}"
-                                        BorderThickness="1"
-                                        HorizontalContentAlignment="Stretch"
-                                        Command="{Binding DataContext.OpenAppointmentDetailCommand, RelativeSource={RelativeSource AncestorType=GroupBox}}"
-                                        CommandParameter="{Binding}">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Subtitle}" Foreground="Gray" />
-                                        <TextBlock Text="{Binding TimeText, StringFormat=Uhrzeit: {0}}"
-                                                   Margin="0,4,0,0"
-                                                   Foreground="Gray"
-                                                   Visibility="{Binding HasTimeText, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                    </StackPanel>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-                    <TextBlock Text="{Binding AppointmentsEmptyText}"
+                    <ScrollViewer Grid.Row="0"
+                                  VerticalScrollBarVisibility="Auto"
+                                  CanContentScroll="True"
+                                  Visibility="{Binding HasAppointments, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ItemsControl ItemsSource="{Binding Appointments}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Margin="0,0,0,8"
+                                            Padding="12"
+                                            Background="{StaticResource KgvBackgroundBrush}"
+                                            BorderBrush="{StaticResource KgvBorderBrush}"
+                                            BorderThickness="1"
+                                            HorizontalContentAlignment="Stretch"
+                                            Command="{Binding DataContext.OpenAppointmentDetailCommand, RelativeSource={RelativeSource AncestorType=GroupBox}}"
+                                            CommandParameter="{Binding}">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Subtitle}" Foreground="Gray" />
+                                            <TextBlock Text="{Binding TimeText, StringFormat=Uhrzeit: {0}}"
+                                                       Margin="0,4,0,0"
+                                                       Foreground="Gray"
+                                                       Visibility="{Binding HasTimeText, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding AppointmentsEmptyText}"
                                TextWrapping="Wrap"
                                Visibility="{Binding ShowAppointmentEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                </StackPanel>
+                </Grid>
             </GroupBox>
 
             <GroupBox Grid.Column="2" Header="Bekanntmachungen">
-                <StackPanel>
-                    <ItemsControl ItemsSource="{Binding Announcements}"
-                                  Visibility="{Binding HasAnnouncements, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Button Margin="0,0,0,8"
-                                        Padding="12"
-                                        Background="{StaticResource KgvBackgroundBrush}"
-                                        BorderBrush="{StaticResource KgvBorderBrush}"
-                                        BorderThickness="1"
-                                        HorizontalContentAlignment="Stretch"
-                                        Command="{Binding DataContext.OpenAnnouncementDetailCommand, RelativeSource={RelativeSource AncestorType=GroupBox}}"
-                                        CommandParameter="{Binding}">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Subtitle}" Foreground="Gray" />
-                                    </StackPanel>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-                    <TextBlock Text="{Binding AnnouncementEmptyText}"
+                    <ScrollViewer Grid.Row="0"
+                                  VerticalScrollBarVisibility="Auto"
+                                  CanContentScroll="True"
+                                  Visibility="{Binding HasAnnouncements, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ItemsControl ItemsSource="{Binding Announcements}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Margin="0,0,0,8"
+                                            Padding="12"
+                                            Background="{StaticResource KgvBackgroundBrush}"
+                                            BorderBrush="{StaticResource KgvBorderBrush}"
+                                            BorderThickness="1"
+                                            HorizontalContentAlignment="Stretch"
+                                            Command="{Binding DataContext.OpenAnnouncementDetailCommand, RelativeSource={RelativeSource AncestorType=GroupBox}}"
+                                            CommandParameter="{Binding}">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Subtitle}" Foreground="Gray" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding AnnouncementEmptyText}"
                                TextWrapping="Wrap"
                                Visibility="{Binding ShowAnnouncementEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                </StackPanel>
+                </Grid>
             </GroupBox>
         </Grid>
     </Grid>

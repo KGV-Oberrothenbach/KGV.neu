@@ -20,8 +20,10 @@ public class HomePage : ContentPage
     private readonly Button _newWorkAssignmentButton;
     private readonly Button _newAppointmentButton;
     private readonly Button _newAnnouncementButton;
+    private readonly RefreshView _refreshView;
     private bool _isLoading;
     private bool _loadScheduled;
+    private bool _scheduledForceReload;
     private bool _isSubscribed;
 
     public HomePage(HomeViewModel viewModel, HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, TermineUserState termineUserState, MemberContextState memberContextState)
@@ -228,7 +230,7 @@ public class HomePage : ContentPage
             announcementsView,
             announcementEmptyLabel);
 
-        Content = new ScrollView
+        var scrollView = new ScrollView
         {
             Content = new VerticalStackLayout
             {
@@ -245,6 +247,14 @@ public class HomePage : ContentPage
                 }
             }
         };
+
+        _refreshView = new RefreshView
+        {
+            Content = scrollView
+        };
+        _refreshView.Refreshing += async (_, _) => await RefreshAsync();
+
+        Content = _refreshView;
     }
 
     protected override void OnAppearing()
@@ -280,6 +290,13 @@ public class HomePage : ContentPage
 
     private void ScheduleLoad()
     {
+        ScheduleLoad(forceReload: false);
+    }
+
+    private void ScheduleLoad(bool forceReload)
+    {
+        _scheduledForceReload |= forceReload;
+
         if (_isLoading || _loadScheduled)
             return;
 
@@ -293,25 +310,51 @@ public class HomePage : ContentPage
             if (_isLoading)
                 return;
 
-            _isLoading = true;
-            var loadFailed = false;
-            try
-            {
-                await _viewModel.InitializeAsync();
-            }
-            catch (Exception ex)
-            {
-                loadFailed = true;
-                SetLoadingState(false, ex.Message, isError: true);
-            }
-            finally
-            {
-                if (!loadFailed)
-                    SetLoadingState(false);
-
-                _isLoading = false;
-            }
+            var forceScheduledReload = _scheduledForceReload;
+            _scheduledForceReload = false;
+            await LoadHomeAsync(forceScheduledReload);
         });
+    }
+
+    private async Task RefreshAsync()
+    {
+        if (_isLoading)
+        {
+            _refreshView.IsRefreshing = false;
+            return;
+        }
+
+        SetLoadingState(true, "Daten werden geladen.");
+        await LoadHomeAsync(forceReload: true);
+    }
+
+    private async Task LoadHomeAsync(bool forceReload)
+    {
+        _isLoading = true;
+        var loadFailed = false;
+        try
+        {
+            if (forceReload)
+                await _viewModel.ReloadAsync();
+            else
+                await _viewModel.InitializeAsync();
+        }
+        catch (Exception ex)
+        {
+            loadFailed = true;
+            SetLoadingState(false, ex.Message, isError: true);
+        }
+        finally
+        {
+            if (!loadFailed)
+                SetLoadingState(false);
+
+            _refreshView.IsRefreshing = false;
+            _isLoading = false;
+
+            if (_scheduledForceReload)
+                ScheduleLoad(forceReload: true);
+        }
     }
 
     private void SetLoadingState(bool isLoading, string? statusText = null, bool isError = false)

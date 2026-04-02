@@ -2,6 +2,103 @@
 
 ---
 
+## 2026-04-02 – Prompt 2/3: WPF-Startseite und Verwaltungslisten für Bekanntmachungen, Termine und Arbeitseinsätze fachlich geschlossen
+
+- Den realen Repo-/Git-/Codezustand vor Änderungen geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - bereits offen im Arbeitsbaum lagen weiter die aktuellen Prompt-1/3-Dateien:
+    - `DEV_LOG.md`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
+    - `KGV.Maui/Pages/BekanntmachungEditorPage.cs`
+    - `KGV.Maui/Pages/HomePage.xaml.cs`
+    - `KGV.Maui/Pages/TermineEditorPage.cs`
+    - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - lokal untracked blieben bewusst weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Wpf/Views/HomeView.xaml`
+  - `KGV.Wpf/ViewModels/HomeViewModel.cs`
+  - `KGV.Core/Models/HomeDashboardItems.cs`
+  - `KGV.Core/Models/StartseiteArbeitseinsatzRecord.cs`
+  - `KGV.Wpf/ViewModels/BekanntmachungenVerwaltungViewModel.cs`
+  - `KGV.Wpf/ViewModels/TermineVerwaltungViewModel.cs`
+  - `KGV.Wpf/ViewModels/ArbeitseinsaetzeVerwaltungViewModel.cs`
+  - `KGV.Wpf/Views/BekanntmachungenVerwaltungEditorView.xaml`
+  - `KGV.Wpf/Views/TermineVerwaltungEditorView.xaml`
+  - `KGV.Wpf/Views/ArbeitseinsaetzeVerwaltungEditorView.xaml`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+- Ehrlicher Befund vor dem Fix:
+  - auf der WPF-Startseite lag der Scroll-Fehler nicht in fehlenden Daten, sondern im Layout:
+    - `Arbeitseinsätze` hatte zwar bereits einen `ScrollViewer`, dieser hing aber innerhalb eines `StackPanel` und erhielt dadurch keine sinnvolle Höhenbegrenzung
+    - `Termine` und `Bekanntmachungen` nutzten in der Home-Ansicht noch gar keinen eigenen `ScrollViewer`
+  - beim Arbeitseinsatz wurde im aktuellen Produktivpfad service-seitig bereits das echte Feld `datum` auf `Subtitle` gemappt
+  - die sichtbare Restkante war damit kein falsches Servicefeld `anmeldung_bis`, sondern die zu unklare unlabeled Anzeige der Datumszeile auf Home
+  - direkte Löschpfade existierten im Shared-Service bereits:
+    - `DeleteBekanntmachungAsync(long id)`
+    - `DeleteTerminAsync(long id)`
+    - `DeleteArbeitseinsatzAsync(long id)`
+  - in den WPF-Verwaltungseditoren fehlte dafür aber noch die echte UI-/Command-Verdrahtung inklusive Sicherheitsabfrage und Reload
+- Minimal umgesetzt:
+  - `HomeView.xaml` so korrigiert, dass die drei Startseitenbereiche `Arbeitseinsätze`, `Termine` und `Bekanntmachungen` jetzt in einem höhenbegrenzten Grid-Bereich mit eigenem `ScrollViewer` laufen statt bei vielen Einträgen abgeschnitten zu wirken
+  - im Arbeitseinsatz-Block der Startseite wird das Datum jetzt explizit als `Einsatzdatum` gerendert; damit ist fachlich sichtbar klar, dass das echte Einsatzdatum gezeigt wird und nicht eine Fristinformation
+  - `BekanntmachungenVerwaltungViewModel`, `TermineVerwaltungViewModel` und `ArbeitseinsaetzeVerwaltungViewModel` um echten `Löschen`-Command ergänzt
+  - Löschpfad nutzt dabei ausschließlich die bereits vorhandenen Shared-Service-Delete-Methoden; keine neue CRUD-Architektur gebaut
+  - vor dem Löschen wird jeweils eine Sicherheitsabfrage angezeigt
+  - während des Löschens wird der Löschpfad lokal gegen Mehrfachauslösung gesperrt
+  - nach erfolgreichem Löschen wird der Editor geschlossen, die betroffene Verwaltungsliste neu geladen und eine kurze Erfolgsmeldung angezeigt
+  - die drei WPF-Editorviews erhielten dafür jeweils einen direkten Button `Löschen` im bestehenden Aktionsbereich; sichtbar nur für bestehende Datensätze, nicht im `Neu`-Modus
+- Ergebnis:
+  - die WPF-Startseite bleibt bei vielen Einträgen in `Arbeitseinsätze`, `Termine` und `Bekanntmachungen` sauber scrollbar
+  - Arbeitseinsätze zeigen auf Home sichtbar das echte Einsatzdatum
+  - Bekanntmachungen, Termine und Arbeitseinsätze sind in WPF jetzt direkt aus den bestehenden Verwaltungseditoren löschbar
+  - Löschen läuft mit Sicherheitsabfrage, ohne Mehrfachauslösung und mit sauberem Listen-Reload
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
+## 2026-04-02 – Prompt 1/3: Save-/Rücknavigation-/Home-Refresh für Bekanntmachungen, Termine und Arbeitseinsätze sauber geschlossen
+
+- Den realen Repo-/Git-/Codezustand vor Änderungen geprüft.
+- Direkt geprüft wurden:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Wpf/ViewModels/BekanntmachungenVerwaltungViewModel.cs`
+  - `KGV.Wpf/ViewModels/TermineVerwaltungViewModel.cs`
+  - `KGV.Wpf/ViewModels/ArbeitseinsaetzeVerwaltungViewModel.cs`
+  - `KGV.Wpf/ViewModels/HomeViewModel.cs`
+  - `KGV.Wpf/ViewModels/HomeSectionDetailViewModel.cs`
+  - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+  - `KGV.Maui/Pages/BekanntmachungEditorPage.cs`
+  - `KGV.Maui/Pages/TermineEditorPage.cs`
+  - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+  - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
+- Ehrlicher Befund vor dem Fix:
+  - ein echter Save-Fehler lag nicht in jedem gemeldeten Fall vor
+  - Root Cause 1: die Shared-Create-Pfade für `Bekanntmachung`, `Termin` und `Arbeitseinsatz` behandelten das unmittelbare Re-Read nach erfolgreichem Insert faktisch als Pflichtteil des Saves
+  - wenn dieses strenge Re-Read keinen exakten Treffer lieferte, kam `null` zurück, obwohl der Datensatz real bereits gespeichert war; WPF und MAUI zeigten dadurch eine falsche Fehlermeldung
+  - Root Cause 2: im MAUI-Arbeitseinsatz-Editor liefen Follow-up-Schritte wie Reload der Verwaltungsnavigation und Rücknavigation noch im selben Fehlerpfad wie das eigentliche Speichern; ein Fehler danach wurde dadurch als Save-Fehler gezeigt, obwohl das Update schon persistiert war
+  - die mobile Startseite hatte bereits einen vorhandenen Reload-/Invalidate-Pfad, aber noch keinen sauberen Pull-to-Refresh-Einstieg
+- Minimal umgesetzt:
+  - `SupabaseService` behandelt erfolgreiche Inserts für `Bekanntmachung`, `Termin` und `Arbeitseinsatz` jetzt tolerant: wenn das optionale direkte Re-Read keinen exakten Match liefert, wird nicht mehr fälschlich `null` und damit kein falscher Save-Fehler zurückgegeben
+  - MAUI-Editoren für `Bekanntmachung`, `Termin` und `Arbeitseinsatz` trennen jetzt echten Save-Erfolg von optionalem Folge-Reload/Navigation
+  - Folgefehler nach erfolgreichem Save führen damit nicht mehr zu einer falschen Meldung `konnte nicht gespeichert werden`
+  - `HomePage` nutzt jetzt einen zentralen Reloadpfad für Initialladung und manuelles Aktualisieren
+  - auf der MAUI-Startseite wurde Pull-to-Refresh über `RefreshView` ergänzt und an denselben vorhandenen Home-Reloadpfad gebunden
+  - der bestehende Invalidate-/Home-Reload-Mechanismus bleibt erhalten; es wurde keine neue Home-Architektur gebaut
+- Ergebnis:
+  - Save erfolgreich => keine falsche Fehlermeldung mehr wegen strengem Nachladepfad
+  - nach Save bleibt die Rücknavigation auf `Home`/Startseite erhalten
+  - MAUI-Startseite kann zusätzlich manuell per Nach-unten-Ziehen aktualisiert werden
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-02 – Prompt 1/1: Dokumentrechte auf View-only für normale Nutzer geschlossen
 
 - Den realen Repo-/Git-/Codezustand vor Änderungen geprüft.

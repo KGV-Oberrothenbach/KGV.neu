@@ -6,6 +6,7 @@ using KGV.Maui.ViewModels;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using Debug = System.Diagnostics.Debug;
 
 namespace KGV.Maui.Pages;
 
@@ -228,6 +229,10 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
             if (!TryBuildRecord(out var record))
                 return;
 
+            var saveMessage = _existingRecord == null
+                ? "Termin erstellt."
+                : "Termin gespeichert.";
+
             if (_existingRecord == null)
             {
                 var created = await _supabaseService.CreateTerminAsync(record.ToInsertRecord());
@@ -247,8 +252,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
                 }
             }
 
-            _homeViewModel.Invalidate();
-            await NavigateToOverviewAsync();
+            await CompleteSuccessfulSaveAsync(saveMessage);
         }
         catch (Exception ex)
         {
@@ -322,6 +326,25 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         _activeSwitch.IsEnabled = enabled;
         _saveButton.IsEnabled = enabled;
         _cancelButton.IsEnabled = enabled;
+    }
+
+    private async Task CompleteSuccessfulSaveAsync(string successMessage)
+    {
+        _statusLabel.Text = successMessage;
+        _statusLabel.TextColor = Colors.Green;
+
+        _homeViewModel.Invalidate();
+
+        try
+        {
+            await NavigateToOverviewAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TermineEditorPage] Post-save navigation failed after successful save: {ex}");
+            _statusLabel.Text = $"{successMessage} Startseite wird beim nächsten Öffnen aktualisiert.";
+            _statusLabel.TextColor = Colors.DarkGoldenrod;
+        }
     }
 
     private Task NavigateToOverviewAsync()

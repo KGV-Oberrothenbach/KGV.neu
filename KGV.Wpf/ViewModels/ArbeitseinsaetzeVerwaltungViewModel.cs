@@ -27,6 +27,7 @@ namespace KGV.ViewModels
         private readonly MainWindowViewModel _mainWindowViewModel;
         private long? _editingArbeitseinsatzId;
         private bool _isDemo;
+        private bool _isDeleteInProgress;
         private EditorStateSnapshot? _initialEditorState;
 
         public ArbeitseinsaetzeVerwaltungViewModel(ISupabaseService supabaseService, MainWindowViewModel mainWindowViewModel)
@@ -38,6 +39,7 @@ namespace KGV.ViewModels
             OeffnenCommand = new RelayCommand<object?>(_ => OpenSelectedEditor(), _ => SelectedEntry != null);
             AbbrechenCommand = new RelayCommand<object?>(_ => CancelEdit(), _ => IsEditorOpen);
             SpeichernCommand = new RelayCommand<object?>(_ => _ = SaveAsync(), _ => IsEditorOpen);
+            LoeschenCommand = new RelayCommand<object?>(_ => _ = DeleteAsync(), _ => IsExistingEntry && !_isDeleteInProgress);
             ZurueckCommand = new RelayCommand<object?>(_ => _ = NavigateBackAsync());
         }
 
@@ -48,6 +50,7 @@ namespace KGV.ViewModels
         public string ValidationHintText => "Pflichtfelder: Titel und Datum. `Enduhrzeit` darf nicht vor `Startuhrzeit` liegen. `Sichtbar bis` darf nicht vor `Sichtbar ab` liegen. Teilnehmerbegrenzung speichert unbegrenzt als leer/NULL, `Stundenwert` bleibt optional und darf nicht negativ sein.";
         public bool HasEntries => Entries.Count > 0;
         public bool ShowEmptyState => !HasEntries;
+        public bool IsExistingEntry => IsEditorOpen && !IsNewMode;
         public bool ShowValidationMessage => !string.IsNullOrWhiteSpace(ValidationMessage);
         public bool ShowMaxTeilnehmerInput => HasTeilnehmerbegrenzung;
         public bool ShowUnbegrenztHint => !HasTeilnehmerbegrenzung;
@@ -73,8 +76,10 @@ namespace KGV.ViewModels
             {
                 if (SetProperty(ref _isEditorOpen, value))
                 {
+                    OnPropertyChanged(nameof(IsExistingEntry));
                     AbbrechenCommand.RaiseCanExecuteChanged();
                     SpeichernCommand.RaiseCanExecuteChanged();
+                    LoeschenCommand.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -83,7 +88,14 @@ namespace KGV.ViewModels
         public bool IsNewMode
         {
             get => _isNewMode;
-            private set => SetProperty(ref _isNewMode, value);
+            private set
+            {
+                if (SetProperty(ref _isNewMode, value))
+                {
+                    OnPropertyChanged(nameof(IsExistingEntry));
+                    LoeschenCommand.RaiseCanExecuteChanged();
+                }
+            }
         }
 
         private string _editorCaption = string.Empty;
@@ -355,6 +367,7 @@ namespace KGV.ViewModels
         public RelayCommand<object?> OeffnenCommand { get; }
         public RelayCommand<object?> AbbrechenCommand { get; }
         public RelayCommand<object?> SpeichernCommand { get; }
+        public RelayCommand<object?> LoeschenCommand { get; }
         public RelayCommand<object?> ZurueckCommand { get; }
 
         public async Task OnNavigatedToAsync()
@@ -492,6 +505,55 @@ namespace KGV.ViewModels
 
             _initialEditorState = CaptureEditorState();
             await NavigateHomeAsync();
+        }
+
+        private async Task DeleteAsync()
+        {
+            if (!IsExistingEntry || _editingArbeitseinsatzId.GetValueOrDefault() <= 0)
+                return;
+
+            var titel = string.IsNullOrWhiteSpace(Titel)
+                ? "diesen Arbeitseinsatz"
+                : $"den Arbeitseinsatz \"{Titel.Trim()}\"";
+
+            if (MessageBox.Show(
+                    $"Soll {titel} wirklich gelöscht werden?",
+                    "Arbeitseinsatz löschen",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            _isDeleteInProgress = true;
+            LoeschenCommand.RaiseCanExecuteChanged();
+            SpeichernCommand.RaiseCanExecuteChanged();
+            AbbrechenCommand.RaiseCanExecuteChanged();
+
+            try
+            {
+                var success = await _supabaseService.DeleteArbeitseinsatzAsync(_editingArbeitseinsatzId.Value);
+                if (!success)
+                {
+                    ValidationMessage = "Der Arbeitseinsatz konnte nicht gelöscht werden. Details stehen im Debug-/Anwendungslog.";
+                    return;
+                }
+
+                ResetEditor();
+                await LoadAsync();
+                MessageBox.Show(
+                    "Der Arbeitseinsatz wurde gelöscht.",
+                    "Arbeitseinsatz löschen",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            finally
+            {
+                _isDeleteInProgress = false;
+                LoeschenCommand.RaiseCanExecuteChanged();
+                SpeichernCommand.RaiseCanExecuteChanged();
+                AbbrechenCommand.RaiseCanExecuteChanged();
+            }
         }
 
         private bool TryBuildRecord(out ArbeitseinsatzRecord record)

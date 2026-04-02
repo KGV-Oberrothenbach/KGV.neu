@@ -2295,11 +2295,23 @@ namespace KGV.Infrastructure.Services
                     .Where(x => x.Titel == insertRecord.Titel)
                     .Where(x => x.Datum == insertRecord.Datum)
                     .Get();
-                var created = reloadResponse?.Models?
+                var reloadItems = reloadResponse?.Models?
                     .Select(NormalizeArbeitseinsatzRecord)
+                    .ToList()
+                    ?? new List<ArbeitseinsatzRecord>();
+                var created = reloadItems
                     .Where(x => IsSameArbeitseinsatzForReload(x, reloadCandidate))
                     .OrderByDescending(x => x.Id)
-                    .FirstOrDefault();
+                    .FirstOrDefault()
+                    ?? reloadItems
+                        .OrderByDescending(x => x.Id)
+                        .FirstOrDefault();
+
+                if (created == null)
+                {
+                    _logger?.LogWarning("CreateArbeitseinsatzAsync insert succeeded, but reload returned no matching row. Returning fallback record without reloaded id.");
+                    created = NormalizeArbeitseinsatzRecord(reloadCandidate);
+                }
 
                 _logger?.LogInformation("CreateArbeitseinsatzAsync created arbeitseinsatz {ArbeitseinsatzId}", created?.Id);
                 return created;
@@ -2415,11 +2427,23 @@ namespace KGV.Infrastructure.Services
                     .Where(x => x.Titel == insertRecord.Titel)
                     .Where(x => x.Datum == insertRecord.Datum)
                     .Get();
-                var created = reloadResponse?.Models?
+                var reloadItems = reloadResponse?.Models?
                     .Select(NormalizeTerminRecord)
+                    .ToList()
+                    ?? new List<TerminRecord>();
+                var created = reloadItems
                     .Where(x => IsSameTerminForReload(x, reloadCandidate))
                     .OrderByDescending(x => x.Id)
-                    .FirstOrDefault();
+                    .FirstOrDefault()
+                    ?? reloadItems
+                        .OrderByDescending(x => x.Id)
+                        .FirstOrDefault();
+
+                if (created == null)
+                {
+                    _logger?.LogWarning("CreateTerminAsync insert succeeded, but reload returned no matching row. Returning fallback record without reloaded id.");
+                    created = NormalizeTerminRecord(reloadCandidate);
+                }
 
                 _logger?.LogInformation("CreateTerminAsync created termin {TerminId}", created?.Id);
                 return created;
@@ -2522,11 +2546,24 @@ namespace KGV.Infrastructure.Services
                     UpdatedAt = insertRecord.UpdatedAt
                 };
                 var reloadResponse = await client.From<BekanntmachungRecord>().Get();
-                var created = reloadResponse?.Models?
+                var reloadItems = reloadResponse?.Models?
                     .Select(NormalizeBekanntmachungRecord)
+                    .ToList()
+                    ?? new List<BekanntmachungRecord>();
+                var created = reloadItems
                     .Where(x => IsSameBekanntmachungForReload(x, reloadCandidate))
                     .OrderByDescending(x => x.Id)
-                    .FirstOrDefault();
+                    .FirstOrDefault()
+                    ?? reloadItems
+                        .Where(x => string.Equals(CleanRequiredText(x.Titel), insertRecord.Titel, StringComparison.CurrentCulture))
+                        .OrderByDescending(x => x.Id)
+                        .FirstOrDefault();
+
+                if (created == null)
+                {
+                    _logger?.LogWarning("CreateBekanntmachungAsync insert succeeded, but reload returned no matching row. Returning fallback record without reloaded id.");
+                    created = NormalizeBekanntmachungRecord(reloadCandidate);
+                }
 
                 _logger?.LogInformation("CreateBekanntmachungAsync created bekanntmachung {BekanntmachungId}", created?.Id);
                 return created;
