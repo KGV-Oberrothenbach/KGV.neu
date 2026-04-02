@@ -277,8 +277,10 @@ public partial class MemberSearchPage : ContentPage
 
             if (Shell.Current is Shell shell && ShellNavigationHelper.HasVisibleShellContentRoute(shell, "memberdetails"))
             {
-                await Shell.Current.GoToAsync("//memberdetails");
-                return;
+                ShellNavigationHelper.EnsureActiveShellItem(shell, "memberdetails");
+
+                if (string.Equals(ShellNavigationHelper.GetActiveShellContentRoute(shell), "memberdetails", StringComparison.OrdinalIgnoreCase))
+                    return;
             }
 
             await Shell.Current.GoToAsync(nameof(MeineDatenPage));

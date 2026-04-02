@@ -2,6 +2,50 @@
 
 ---
 
+## 2026-04-02 – Prompt 1/1: MAUI-Mitgliedersuche öffnet ausgewähltes Mitglied jetzt direkt in `Stammdaten`
+
+- Den realen Repo-/Git-/Codezustand vor Änderungen geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - keine lokalen tracked Änderungen offen
+  - lokal untracked blieben bewusst weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+  - `KGV.Maui/ViewModels/MemberSearchViewModel.cs`
+  - `KGV.Maui/State/MemberContextState.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - gegen den Folgekontext zusätzlich geprüft:
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - `KGV.Maui/Pages/MemberGardensPage.cs`
+    - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+    - `KGV.Maui/Pages/UserManagementPage.cs`
+    - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
+- Ehrlicher Befund vor dem Fix:
+  - die Mitgliedsauswahl setzte den `SelectedMember` bereits korrekt in `MemberContextState`
+  - der anschließende Einstieg in `Stammdaten` lief aber noch über `Shell.Current.GoToAsync("//memberdetails")`
+  - `memberdetails` ist in `AdminShell` ein dynamisch sichtbarer mitgliedsbezogener Shell-Eintrag, der erst nach gesetztem Mitgliedskontext sichtbar wird
+  - der Navigationspfad verließ sich damit auf Shell-Routenauflösung in genau dem Moment, in dem die Sichtbarkeit des Zielpunkts gerade erst umgeschaltet wurde
+  - wenn dieser Wechsel nicht sofort als aktiver Shell-Content übernommen wurde, blieb die Shell auf ihrem Default-/Fallback-Pfad `home`
+  - Folgepfade wie `Stammdaten`, `Gärten des Mitglieds`, `Dokumente`, `Arbeitsstunden` und `Benutzerverwaltung` selbst arbeiten bereits korrekt auf `MemberContextState.SelectedMember`; dort war kein zusätzlicher Umbau nötig
+- Minimal umgesetzt:
+  - in `KGV.Maui/Pages/MemberSearchPage.xaml.cs` nach gesetztem Mitgliedskontext nicht mehr primär per absoluter Shell-Route navigiert
+  - stattdessen wird jetzt der bereits vorhandene Shell-Eintrag `memberdetails` direkt über `ShellNavigationHelper.EnsureActiveShellItem(shell, "memberdetails")` aktiviert
+  - nur wenn dieser direkte Stammdaten-Einstieg wider Erwarten nicht aktiviert werden kann, bleibt der vorhandene Fallback auf `MeineDatenPage` bestehen
+  - keine Änderung an `MemberContextState`, Shell-Struktur, Garten-/Dokumente-/Arbeitsstundenpfaden oder WPF
+- Ergebnis:
+  - `Mitgliedersuche -> Mitglied auswählen` öffnet im Admin-/Mitgliedskontext jetzt direkt die Stammdatenansicht des ausgewählten Mitglieds
+  - kein unnötiger Zwischensprung auf `Home`
+  - der gesetzte Mitgliedskontext bleibt für die vorhandenen Unterpunkte erhalten
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - kein echter Laufzeittest in dieser Umgebung; nur code-/build-seitige Validierung
+
 ## 2026-04-02 – Prompt 2/3: WPF-Startseite und Verwaltungslisten für Bekanntmachungen, Termine und Arbeitseinsätze fachlich geschlossen
 
 - Den realen Repo-/Git-/Codezustand vor Änderungen geprüft.
