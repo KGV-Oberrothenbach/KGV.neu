@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Maui.State;
 using Microsoft.Maui;
 using Microsoft.Maui.ApplicationModel;
@@ -25,6 +26,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
     private readonly ISupabaseService _supabaseService;
     private readonly MemberContextState _memberContextState;
     private readonly ParzellenContextState _parzellenContextState;
+    private readonly UserContextState _userContextState;
     private readonly ObservableCollection<DocumentInfo> _documents = new();
     private readonly Label _headlineLabel;
     private readonly Label _contextLabel;
@@ -34,6 +36,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
     private readonly Label _emptyLabel;
     private readonly Entry _titelEntry;
     private readonly Label _selectedFileLabel;
+    private readonly Border _uploadSection;
     private readonly Button _pickFileButton;
     private readonly Button _uploadButton;
     private readonly Button _refreshButton;
@@ -46,11 +49,12 @@ public class DokumentePage : ContentPage, IQueryAttributable
     private string _selectedFileName = string.Empty;
     private string _selectedFileContentType = "application/octet-stream";
 
-    public DokumentePage(ISupabaseService supabaseService, MemberContextState memberContextState, ParzellenContextState parzellenContextState)
+    public DokumentePage(ISupabaseService supabaseService, MemberContextState memberContextState, ParzellenContextState parzellenContextState, UserContextState userContextState)
     {
         _supabaseService = supabaseService;
         _memberContextState = memberContextState;
         _parzellenContextState = parzellenContextState;
+        _userContextState = userContextState;
 
         Title = "Dokumente";
 
@@ -103,6 +107,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
                 var deleteButton = new Button { Text = "Löschen" };
                 deleteButton.SetBinding(IsEnabledProperty, nameof(DocumentInfo.CanDelete));
+                deleteButton.SetBinding(IsVisibleProperty, new Binding(nameof(CanManageDocuments), source: this));
                 deleteButton.Clicked += async (_, _) =>
                 {
                     if (_isBusy)
@@ -136,6 +141,15 @@ public class DokumentePage : ContentPage, IQueryAttributable
             })
         };
 
+        _uploadSection = CreateSection(
+            _uploadSectionTitleLabel,
+            new Label { Text = "Titel", FontAttributes = FontAttributes.Bold },
+            _titelEntry,
+            new Label { Text = "Datei", FontAttributes = FontAttributes.Bold },
+            _selectedFileLabel,
+            _pickFileButton,
+            _uploadButton);
+
         Content = new ScrollView
         {
             Content = new VerticalStackLayout
@@ -147,14 +161,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
                     _headlineLabel,
                     _contextLabel,
                     _hintLabel,
-                    CreateSection(
-                        _uploadSectionTitleLabel,
-                        new Label { Text = "Titel", FontAttributes = FontAttributes.Bold },
-                        _titelEntry,
-                        new Label { Text = "Datei", FontAttributes = FontAttributes.Bold },
-                        _selectedFileLabel,
-                        _pickFileButton,
-                        _uploadButton),
+                    _uploadSection,
                     _refreshButton,
                     _activityIndicator,
                     _statusLabel,
@@ -260,6 +267,13 @@ public class DokumentePage : ContentPage, IQueryAttributable
         if (_isBusy)
             return;
 
+        if (!CanManageDocuments)
+        {
+            SetStatus("Upload ist nur für Admin/Vorstand erlaubt.", success: false);
+            UpdateUiState();
+            return;
+        }
+
         var context = await ResolveContextAsync();
         ApplyContext(context);
         if (!context.IsValid)
@@ -356,6 +370,13 @@ public class DokumentePage : ContentPage, IQueryAttributable
     {
         if (_isBusy)
             return;
+
+        if (!CanManageDocuments)
+        {
+            SetStatus("Löschen ist nur für Admin/Vorstand erlaubt.", success: false);
+            UpdateUiState();
+            return;
+        }
 
         if (!document.CanDelete)
         {
@@ -456,7 +477,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
                 parzelleId.Value,
                 $"Parzellen-Dokumente – {displayName}",
                 displayName,
-                "Es werden nur die Dokumente der aktuell ausgewählten Parzelle angezeigt. Upload und Öffnen laufen über den gemeinsamen Google-Drive-Dokumentpfad.",
+                BuildContextHint(DokumentOwnerScope.Parzelle),
                 "Keine Dokumente für diese Parzelle gefunden.");
         }
 
@@ -475,7 +496,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
             member.Id,
             $"Dokumente – {member.DisplayName}",
             member.DisplayName,
-            "Es werden nur die Dokumente des aktuell ausgewählten Mitglieds angezeigt. Upload und Öffnen laufen über den gemeinsamen Google-Drive-Dokumentpfad.",
+            BuildContextHint(DokumentOwnerScope.Mitglied),
             "Keine Mitgliedsdokumente gefunden.");
     }
 
@@ -510,22 +531,38 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
     private void UpdateUiState()
     {
+        var canManageDocuments = CanManageDocuments;
         var hasContext = _requestedScope == DokumentOwnerScope.Parzelle
             ? (_requestedParzelleId ?? _parzellenContextState.SelectedParzelleId) is > 0
             : _memberContextState.SelectedMember?.Id is > 0;
         var canUpload = !_isBusy
+            && canManageDocuments
             && hasContext
             && !string.IsNullOrWhiteSpace(_titelEntry.Text)
             && _selectedFileContent is { Length: > 0 }
             && !string.IsNullOrWhiteSpace(_selectedFileName);
 
-        _titelEntry.IsEnabled = !_isBusy && hasContext;
-        _pickFileButton.IsEnabled = !_isBusy && hasContext;
+        _uploadSection.IsVisible = canManageDocuments;
+        _titelEntry.IsEnabled = !_isBusy && hasContext && canManageDocuments;
+        _pickFileButton.IsEnabled = !_isBusy && hasContext && canManageDocuments;
         _uploadButton.IsEnabled = canUpload;
         _refreshButton.IsEnabled = !_isBusy;
         _documentsView.IsEnabled = !_isBusy;
         _activityIndicator.IsVisible = _isBusy;
         _activityIndicator.IsRunning = _isBusy;
+    }
+
+    public bool CanManageDocuments => _userContextState.CurrentUserContext?.Has(PermissionFlags.CanManageDocuments) == true;
+
+    private string BuildContextHint(DokumentOwnerScope scope)
+    {
+        var subject = scope == DokumentOwnerScope.Parzelle
+            ? "die aktuell ausgewählte Parzelle"
+            : "das aktuell ausgewählte Mitglied";
+
+        return CanManageDocuments
+            ? $"Es werden nur die Dokumente für {subject} angezeigt. Upload, Öffnen und Löschen laufen über den gemeinsamen Google-Drive-Dokumentpfad."
+            : $"Es werden nur die Dokumente für {subject} angezeigt. Öffnen und Aktualisieren bleiben verfügbar.";
     }
 
     private static Border CreateSection(View titleView, params View[] children)

@@ -2,6 +2,49 @@
 
 ---
 
+## 2026-04-02 – Prompt 1/1: Dokumentrechte auf View-only für normale Nutzer geschlossen
+
+- Den realen Repo-/Git-/Codezustand vor Änderungen geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - lokal untracked blieben bewusst weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Core/Security/PermissionService.cs`
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Wpf/ViewModels/DokumenteViewModel.cs`
+  - `KGV.Wpf/ViewModels/GartenDokumenteViewModel.cs`
+  - `KGV.Wpf/Views/DokumenteView.xaml`
+  - `KGV.Wpf/Views/GartenDokumenteView.xaml`
+  - zusätzlich direkt nötig für den Rechtepfad:
+    - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+    - `KGV.Wpf/Infrastructure/Services/NavigationService.cs`
+    - `KGV.Wpf/ViewModels/ParzellenVerwaltungViewModel.cs`
+    - `KGV.Maui/State/UserContextState.cs`
+- Ehrlicher Befund vor dem Fix:
+  - normale Nutzer erhielten zentral in `PermissionService` weiterhin `CanManageDocuments`
+  - dadurch waren Upload- und Löschpfade fachlich nicht sauber auf Admin/Vorstand begrenzt
+  - im MAUI-Dokumentpfad fehlten zusätzlich direkte Code-Guards; die Seite vertraute weitgehend auf UI-/Datensatzzustände
+  - im WPF-Pfad waren Upload/Löschen ebenfalls nicht explizit an den echten Dokumentrechtezustand gebunden
+  - zusätzliche kleine Restlücke: nach dem Entfernen von `CanManageDocuments` für normale Nutzer würde die WPF-Mitgliedsnavigation `↳ Dokumente` sonst komplett verschwinden, obwohl normale Nutzer Dokumente weiter sehen/öffnen dürfen
+- Minimal umgesetzt:
+  - `PermissionService` so korrigiert, dass normale Nutzer `CanManageDocuments` nicht mehr erhalten
+  - Admin und Vorstand behalten `CanManageDocuments` unverändert
+  - WPF-Mitgliedsnavigation `↳ Dokumente` auf View-only-Zugriff erweitert, damit normale Nutzer Dokumente weiter öffnen können
+  - WPF-`DokumenteViewModel` und `GartenDokumenteViewModel` um echten Rechteparameter `CanManageDocuments` ergänzt
+  - Upload-/Dateiauswahl-/Löschpfade in beiden WPF-ViewModels jetzt zusätzlich code-seitig gegen unberechtigte Aufrufe abgesichert
+  - WPF-Views blenden Uploadbereich und Löschbuttons für unberechtigte Nutzer aus; Öffnen/Aktualisieren bleiben erhalten
+  - MAUI-`DokumentePage` nutzt jetzt den echten Benutzerkontext für `CanManageDocuments`
+  - Uploadbereich in MAUI nur noch sichtbar für Admin/Vorstand
+  - Löschbutton in MAUI nur noch sichtbar für Admin/Vorstand
+  - Upload-/Delete-Methoden in MAUI brechen zusätzlich sauber mit kurzer Meldung ab, wenn ein normaler Nutzer technisch doch in den Pfad gelangt
+  - bestehender Google-Drive-/Supabase-Dokumentpfad blieb unverändert
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-02 – Prompt 1/1: MAUI-Mitgliedsdokumentpfade verifiziert und globalen Parzellenabsturz minimal behoben
 
 - Den realen Repo-/Git-/Codezustand vor Änderungen geprüft.

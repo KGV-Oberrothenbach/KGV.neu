@@ -208,7 +208,7 @@ namespace KGV.Infrastructure.Services
                 if (parameter is not ParzellenBelegungDTO belegung)
                     return null;
 
-                return new GartenDokumenteViewModel(_supabaseService, belegung);
+                return new GartenDokumenteViewModel(_supabaseService, belegung, mainVm.UserContext.Has(KGV.Core.Security.PermissionFlags.CanManageDocuments));
             }
 
             if (viewModelType == typeof(DokumenteViewModel))
@@ -216,7 +216,7 @@ namespace KGV.Infrastructure.Services
                 if (parameter is not DokumenteContext ctx)
                     return null;
 
-                return new DokumenteViewModel(_supabaseService, ctx);
+                return new DokumenteViewModel(_supabaseService, ctx, mainVm.UserContext.Has(KGV.Core.Security.PermissionFlags.CanManageDocuments));
             }
 
             if (viewModelType == typeof(MemberWartungsvertraegeViewModel))

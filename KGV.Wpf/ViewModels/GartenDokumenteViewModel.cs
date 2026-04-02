@@ -15,6 +15,7 @@ namespace KGV.ViewModels
     public sealed class GartenDokumenteViewModel : BaseViewModel, INavigationAware
     {
         private readonly ISupabaseService _supabaseService;
+        private readonly bool _canManageDocuments;
         private string _uploadTitel = string.Empty;
         private string _selectedFileName = string.Empty;
         private string _selectedFilePath = string.Empty;
@@ -43,7 +44,9 @@ namespace KGV.ViewModels
 
         public bool IsContextValid => Belegung?.ParzelleId > 0;
 
-        public bool CanEditUpload => !IsBusy && IsContextValid;
+        public bool CanManageDocuments => _canManageDocuments;
+
+        public bool CanEditUpload => CanManageDocuments && !IsBusy && IsContextValid;
 
         public string UploadTitel
         {
@@ -100,6 +103,7 @@ namespace KGV.ViewModels
         }
 
         public bool CanUpload => !IsBusy
+            && CanManageDocuments
             && Belegung?.ParzelleId > 0
             && !string.IsNullOrWhiteSpace(UploadTitel)
             && !string.IsNullOrWhiteSpace(_selectedFilePath);
@@ -110,10 +114,11 @@ namespace KGV.ViewModels
         public RelayCommand<object?> SelectFileCommand { get; }
         public RelayCommand<object?> UploadCommand { get; }
 
-        public GartenDokumenteViewModel(ISupabaseService supabaseService, ParzellenBelegungDTO belegung)
+        public GartenDokumenteViewModel(ISupabaseService supabaseService, ParzellenBelegungDTO belegung, bool canManageDocuments)
         {
             _supabaseService = supabaseService;
             Belegung = belegung;
+            _canManageDocuments = canManageDocuments;
 
             RefreshCommand = new RelayCommand<object?>(_ => _ = LoadAsync(), _ => !IsBusy);
             OpenCommand = new RelayCommand<DocumentInfo>(doc =>
@@ -125,8 +130,8 @@ namespace KGV.ViewModels
             {
                 if (doc == null) return;
                 _ = DeleteAsync(doc);
-            }, doc => !IsBusy && doc?.CanDelete == true);
-            SelectFileCommand = new RelayCommand<object?>(_ => SelectFile(), _ => !IsBusy);
+            }, doc => !IsBusy && CanManageDocuments && doc?.CanDelete == true);
+            SelectFileCommand = new RelayCommand<object?>(_ => SelectFile(), _ => CanEditUpload);
             UploadCommand = new RelayCommand<object?>(_ => _ = UploadAsync(), _ => CanUpload);
         }
 
@@ -178,6 +183,13 @@ namespace KGV.ViewModels
 
         private void SelectFile()
         {
+            if (!CanManageDocuments)
+            {
+                StatusMessage = "Dokumente sind hier nur lesbar.";
+                MessageBox.Show("Dokumente sind hier nur lesbar.", "Hinweis", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
             var dialog = new OpenFileDialog
             {
                 Filter = "Dokumente|*.pdf;*.doc;*.docx;*.xls;*.xlsx;*.txt;*.rtf;*.jpg;*.jpeg;*.png;*.webp|Alle Dateien|*.*",
@@ -198,6 +210,13 @@ namespace KGV.ViewModels
 
         private async Task UploadAsync()
         {
+            if (!CanManageDocuments)
+            {
+                StatusMessage = "Upload ist nur für Admin/Vorstand erlaubt.";
+                MessageBox.Show("Upload ist nur für Admin/Vorstand erlaubt.", "Hinweis", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
             if (!CanUpload)
             {
                 StatusMessage = "Bitte Titel und Dokumentdatei auswählen.";
@@ -272,6 +291,13 @@ namespace KGV.ViewModels
 
         private async Task DeleteAsync(DocumentInfo? doc)
         {
+            if (!CanManageDocuments)
+            {
+                StatusMessage = "Löschen ist nur für Admin/Vorstand erlaubt.";
+                MessageBox.Show("Löschen ist nur für Admin/Vorstand erlaubt.", "Hinweis", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
             if (doc == null || !doc.CanDelete || IsBusy)
                 return;
 

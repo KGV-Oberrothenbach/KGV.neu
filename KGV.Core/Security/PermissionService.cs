@@ -34,7 +34,6 @@ namespace KGV.Core.Security
                 _ =>
                     PermissionFlags.CanViewMembers |
                     PermissionFlags.CanSeeOwnDataOnly |
-                    PermissionFlags.CanManageDocuments |
                     PermissionFlags.CanManageReadings
             };
         }

@@ -261,7 +261,7 @@ namespace KGV.ViewModels
             if (context == null)
                 return;
 
-            await _mainVm.NavigateToAsync(new GartenDokumenteViewModel(_supabaseService, context));
+            await _mainVm.NavigateToAsync(new GartenDokumenteViewModel(_supabaseService, context, _mainVm.UserContext.Has(KGV.Core.Security.PermissionFlags.CanManageDocuments)));
         }
 
         private async Task OpenStromAsync()

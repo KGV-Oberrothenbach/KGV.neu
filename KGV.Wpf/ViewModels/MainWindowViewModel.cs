@@ -343,7 +343,7 @@ namespace KGV.ViewModels
             {
                 Title = "↳ Dokumente",
                 ViewModelType = typeof(DokumenteViewModel),
-                IsVisible = SelectedMember != null && UserContext.Has(PermissionFlags.CanManageDocuments),
+                IsVisible = SelectedMember != null && (UserContext.Has(PermissionFlags.CanManageDocuments) || UserContext.Has(PermissionFlags.CanSeeOwnDataOnly)),
                 ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
             });
 

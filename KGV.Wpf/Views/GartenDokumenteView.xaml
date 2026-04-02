@@ -25,7 +25,8 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <GroupBox Header="Parzellendokument hochladen" Margin="0,0,0,12">
+            <GroupBox Header="Parzellendokument hochladen" Margin="0,0,0,12"
+                      Visibility="{Binding CanManageDocuments, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <StackPanel Margin="12">
                     <TextBlock Text="Titel" FontWeight="SemiBold" />
                     <TextBox Margin="0,4,0,10" Text="{Binding UploadTitel, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditUpload}" />
@@ -62,7 +63,11 @@
                         <GridViewColumn Header="" Width="100">
                             <GridViewColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Button Content="Löschen" Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding}" IsEnabled="{Binding CanDelete}" />
+                                    <Button Content="Löschen"
+                                            Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                            CommandParameter="{Binding}"
+                                            IsEnabled="{Binding CanDelete}"
+                                            Visibility="{Binding DataContext.CanManageDocuments, RelativeSource={RelativeSource AncestorType=ListView}, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                 </DataTemplate>
                             </GridViewColumn.CellTemplate>
                         </GridViewColumn>
