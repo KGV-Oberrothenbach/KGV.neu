@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Maui.Services;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -13,6 +14,7 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
 {
     private readonly ISupabaseService _supabaseService;
     private readonly IAuthService _authService;
+    private readonly IRfidFeedbackService _rfidFeedbackService;
     private ParzelleRecord? _selectedParzelle;
     private RfidMediumOption? _selectedMedium;
     private bool _editHatStrom;
@@ -22,11 +24,14 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
     private bool _isBusy;
     private RfidAssignmentCheckResult? _lastCheck;
     private RfidScanContextResult? _scanResolution;
+    private string _lastFeedbackUid = string.Empty;
+    private DateTime _lastFeedbackAt = DateTime.MinValue;
 
-    public RfidEinrichtenViewModel(ISupabaseService supabaseService, IAuthService authService)
+    public RfidEinrichtenViewModel(ISupabaseService supabaseService, IAuthService authService, IRfidFeedbackService rfidFeedbackService)
     {
         _supabaseService = supabaseService;
         _authService = authService;
+        _rfidFeedbackService = rfidFeedbackService;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -323,7 +328,7 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
         }
     }
 
-    public async Task<RfidScanContextResult> ResolveUidAsync()
+    public async Task<RfidScanContextResult> ResolveUidAsync(bool playSuccessFeedback = false)
     {
         if (string.IsNullOrWhiteSpace(UidInput))
             return CreateClientScanError("Bitte zuerst einen RFID-Tag scannen.");
@@ -340,6 +345,9 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
             StatusMessage = result.IsKnown
                 ? ExistingTagSummary
                 : "RFID ist noch nicht zugeordnet. Bitte jetzt Parzelle und Medium wählen.";
+
+            if (playSuccessFeedback && result.IsKnown && !string.IsNullOrWhiteSpace(result.NormalizedUid))
+                await PlaySuccessFeedbackAsync(result.NormalizedUid);
 
             return result;
         }
@@ -373,6 +381,21 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
 
         if (clearStatus)
             StatusMessage = string.Empty;
+    }
+
+    private async Task PlaySuccessFeedbackAsync(string normalizedUid)
+    {
+        var uid = normalizedUid.Trim();
+        var now = DateTime.UtcNow;
+        if (string.Equals(_lastFeedbackUid, uid, StringComparison.OrdinalIgnoreCase)
+            && (now - _lastFeedbackAt) < TimeSpan.FromSeconds(2))
+        {
+            return;
+        }
+
+        _lastFeedbackUid = uid;
+        _lastFeedbackAt = now;
+        await _rfidFeedbackService.PlaySuccessAsync();
     }
 
     private async Task LoadParzellenAsync(int? preferredParzelleId = null)

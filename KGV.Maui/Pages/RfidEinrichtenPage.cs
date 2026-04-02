@@ -19,6 +19,8 @@ public sealed class RfidEinrichtenPage : ContentPage, IQueryAttributable
     private readonly Button _openNfcSettingsButton;
     private readonly Button _restartScanButton;
     private string? _pendingUid;
+    private string _lastScannedUid = string.Empty;
+    private DateTime _lastScannedAt = DateTime.MinValue;
 
     public RfidEinrichtenPage()
     {
@@ -253,11 +255,22 @@ public sealed class RfidEinrichtenPage : ContentPage, IQueryAttributable
 
     private async void OnTagScanned(object? sender, string uid)
     {
-        if (string.IsNullOrWhiteSpace(uid))
+        if (_viewModel.IsBusy || string.IsNullOrWhiteSpace(uid))
             return;
 
-        _viewModel.UidInput = uid;
-        await _viewModel.ResolveUidAsync();
+        var normalizedUid = uid.Trim();
+        var now = DateTime.UtcNow;
+        if (string.Equals(_lastScannedUid, normalizedUid, StringComparison.OrdinalIgnoreCase)
+            && (now - _lastScannedAt) < TimeSpan.FromSeconds(2))
+        {
+            return;
+        }
+
+        _lastScannedUid = normalizedUid;
+        _lastScannedAt = now;
+
+        _viewModel.UidInput = normalizedUid;
+        await _viewModel.ResolveUidAsync(playSuccessFeedback: true);
         await _nfcScanService.StopScanningAsync();
     }
 

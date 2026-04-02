@@ -2,6 +2,49 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: MAUI RFID-Quittungston minimal-invasiv ergänzt
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Direkt geprüft wurden:
+  - `KGV.Maui/Services/IRfidFeedbackService.cs`
+  - `KGV.Maui/Platforms/Android/Services/AndroidRfidFeedbackService.cs`
+  - `KGV.Maui/Platforms/Android/Services/AndroidNfcScanService.cs`
+  - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+  - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
+  - `KGV.Maui/Pages/RfidEinrichtenPage.cs`
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+  - `KGV.Maui/MauiProgram.cs`
+- Ehrlicher Istzustand vor der Umsetzung:
+  - ein bestehender Android-/MAUI-Systemtonpfad war bereits vorhanden und registriert
+  - `RfidScanContextViewModel` spielte bei erfolgreichem bekanntem RFID-Scan bereits einen kurzen Systemton ab
+  - die mobile Seite `RFID einrichten` nutzte diesen bestehenden Quittungston beim echten NFC-Scan jedoch noch nicht konsistent
+  - daher war kein neuer Audio-Architekturpfad nötig, sondern nur das Schließen dieser Restlücke
+- Minimal umgesetzt:
+  - `RfidEinrichtenViewModel` um Nutzung des bestehenden `IRfidFeedbackService` ergänzt
+  - `ResolveUidAsync(...)` optional um `playSuccessFeedback` erweitert
+  - Quittungston wird dort nur abgespielt,
+    - wenn die UID erfolgreich übernommen wurde,
+    - der RFID-Tag fachlich bekannt ist,
+    - und keine Doppeltrigger-Situation vorliegt
+  - bewusst kein Ton bei:
+    - unbekannter RFID
+    - Fehlerpfaden
+    - leerer/abgebrochener UID-Übernahme
+  - `RfidEinrichtenPage` ruft den erfolgreichen NFC-Resolve-Pfad nun mit Ton an
+  - Guardrails gegen Mehrfachton ergänzt:
+    - auf der Page Duplicate-Block für gleiche UID innerhalb von 2 Sekunden
+    - im ViewModel Duplicate-Block für denselben Erfolgston innerhalb von 2 Sekunden
+- Warum dieser Block minimal bleibt:
+  - kein neues Audio-Subsystem
+  - keine Mediendateien
+  - kein WPF-Umbau
+  - nur bestehende mobile Vor-Ort-Scans nachgezogen
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Ehrlicher Befund nach dem Block:
+  - der technisch sinnvollste Tonpfad war bereits vorhanden; es musste nur der reale Restpfad `RFID einrichten` sauber angebunden werden
+
 ## 2026-04-01 – Prompt 2/2: Google-Play-Testfähigkeit / Release-Readiness der MAUI-App geprüft und minimal geschlossen
 
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.

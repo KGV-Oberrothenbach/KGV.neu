@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: MAUI RFID-Quittungston minimal ergänzt
+
+- Den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Ehrlicher Befund vor der Änderung:
+  - ein zentral nutzbarer MAUI-/Android-Tonpfad war bereits vorhanden:
+    - `KGV.Maui/Services/IRfidFeedbackService.cs`
+    - `KGV.Maui/Platforms/Android/Services/AndroidRfidFeedbackService.cs`
+  - der Ton war auch schon im mobilen RFID-Scan-Workflow über `RfidScanContextViewModel` verdrahtet
+  - echte Restlücke war der bestehende mobile Pfad `RFID einrichten`, der bei erfolgreicher NFC-UID-Übernahme noch keinen konsistenten Quittungston nutzte
+- Minimal umgesetzt:
+  - `RfidEinrichtenViewModel` nutzt jetzt ebenfalls den bestehenden `IRfidFeedbackService`
+  - Erfolgston wird dort nur abgespielt, wenn der Scan/UID-Pfad erfolgreich ist und der RFID-Tag bereits bekannt ist
+  - bei unbekannter RFID, Fehlern oder abgebrochener Übernahme wird bewusst kein Erfolgston abgespielt
+  - `RfidEinrichtenPage` ruft den Resolve-Pfad bei echtem NFC-Scan jetzt mit `playSuccessFeedback: true` auf
+  - Guardrails gegen Doppelauslösung ergänzt:
+    - Page-seitig kurzer Duplicate-Block für gleiche UID innerhalb von 2 Sekunden
+    - ViewModel-seitig kurzer Duplicate-Block für den eigentlichen Ton derselben UID innerhalb von 2 Sekunden
+- Bewusst nicht geändert:
+  - kein neuer Audio-Pfad
+  - keine Mediendatei
+  - kein WPF-Umbau
+  - kein Erfolgston bei unbekannten Tags
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-01 – Prompt 2/2: Google-Play-Testfähigkeit der MAUI-App geprüft und Release-Blocker minimal behoben
 
 - Den realen lokalen Repo-/Git-/Codezustand geprüft.
