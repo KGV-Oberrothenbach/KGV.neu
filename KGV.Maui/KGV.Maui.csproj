@@ -33,8 +33,7 @@
     <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
     <!-- Play-Store-Builds verwenden keinen eigenen Update-Download-/Installationspfad. -->
     <DefineConstants>$(DefineConstants);KGV_PLAYSTORE</DefineConstants>
-    <!-- Default: kein eigener Keystore. Release wird dann mit Debug-Key signiert (installierbar).
-		     Ein echter Release-Keystore wird ausschlieÃƒÅ¸lich ÃƒÂ¼ber den Publish-Aufruf (z.B. `release_android.bat`) gesetzt. -->
+    <!-- Default: kein eigener Keystore. Ein echter Release-Keystore wird nur bei vollstaendigen Signierungsdaten aktiviert. -->
     <AndroidKeyStore>false</AndroidKeyStore>
   </PropertyGroup>
   <!-- Ensure MSBuild can find Android SDK when building from CLI (or if VS value is empty) -->
@@ -46,7 +45,6 @@
     <AdbToolExe Condition="'$(AdbToolExe)'==''">adb.exe</AdbToolExe>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <AndroidKeyStore>True</AndroidKeyStore>
     <AndroidCreatePackagePerAbi>False</AndroidCreatePackagePerAbi>
     <AndroidUseAapt2>True</AndroidUseAapt2>
   </PropertyGroup>
@@ -57,6 +55,12 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-android|AnyCPU'">
     <AndroidPackageFormat>aab</AndroidPackageFormat>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <AndroidSigningKeyStore Condition="'$(AndroidSigningKeyStore)'=='' and Exists('$(MSBuildProjectDirectory)\..\_secrets\Android\kgv-upload.keystore')">$(MSBuildProjectDirectory)\..\_secrets\Android\kgv-upload.keystore</AndroidSigningKeyStore>
+    <AndroidSigningKeyAlias Condition="'$(AndroidSigningKeyAlias)'=='' and '$(AndroidSigningKeyStore)'!=''">kgvupload</AndroidSigningKeyAlias>
+    <AndroidSigningKeyPass Condition="'$(AndroidSigningKeyPass)'=='' and '$(AndroidSigningStorePass)'!=''">$(AndroidSigningStorePass)</AndroidSigningKeyPass>
+    <AndroidKeyStore Condition="'$(AndroidSigningKeyStore)'!='' and '$(AndroidSigningStorePass)'!='' and '$(AndroidSigningKeyAlias)'!='' and '$(AndroidSigningKeyPass)'!=''">true</AndroidKeyStore>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-android|AnyCPU'">
     <AndroidCreatePackagePerAbi>False</AndroidCreatePackagePerAbi>

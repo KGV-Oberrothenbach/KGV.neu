@@ -12,8 +12,11 @@ REM - baut signierte APK und AAB
 REM - zeigt die neu erzeugten Signed-Dateien an
 REM =========================================================
 
-set "REPO=C:\Programmieren\Restore KGV\KGV.neu\03_Arbeitsstand"
+set "REPO=%~dp0"
+if "%REPO:~-1%"=="\" set "REPO=%REPO:~0,-1%"
 set "CSPROJ=%REPO%\KGV.Maui\KGV.Maui.csproj"
+set "KEYSTORE=%REPO%\_secrets\Android\kgv-upload.keystore"
+set "KEYALIAS=kgvupload"
 
 cd /d "%REPO%" || (
   echo FEHLER: Repo-Pfad nicht gefunden: %REPO%
@@ -29,6 +32,11 @@ echo.
 
 if not exist "%CSPROJ%" (
   echo FEHLER: csproj nicht gefunden: %CSPROJ%
+  exit /b 1
+)
+
+if not exist "%KEYSTORE%" (
+  echo FEHLER: Keystore-Datei nicht gefunden: %KEYSTORE%
   exit /b 1
 )
 
@@ -109,6 +117,8 @@ if not defined STOREPASS (
   exit /b 1
 )
 
+set "KEYPASS=%STOREPASS%"
+
 echo.
 echo =========================================================
 echo Baue signierte APK...
@@ -117,7 +127,11 @@ dotnet publish ".\KGV.Maui\KGV.Maui.csproj" ^
   -f net9.0-android ^
   -c Release ^
   -p:AndroidPackageFormat=apk ^
-  -p:AndroidSigningStorePass="%STOREPASS%"
+  -p:AndroidKeyStore=true ^
+  -p:AndroidSigningKeyStore="%KEYSTORE%" ^
+  -p:AndroidSigningStorePass="%STOREPASS%" ^
+  -p:AndroidSigningKeyAlias="%KEYALIAS%" ^
+  -p:AndroidSigningKeyPass="%KEYPASS%"
 
 if errorlevel 1 (
   echo FEHLER: APK-Build fehlgeschlagen.
@@ -132,7 +146,11 @@ dotnet publish ".\KGV.Maui\KGV.Maui.csproj" ^
   -f net9.0-android ^
   -c Release ^
   -p:AndroidPackageFormat=aab ^
-  -p:AndroidSigningStorePass="%STOREPASS%"
+  -p:AndroidKeyStore=true ^
+  -p:AndroidSigningKeyStore="%KEYSTORE%" ^
+  -p:AndroidSigningStorePass="%STOREPASS%" ^
+  -p:AndroidSigningKeyAlias="%KEYALIAS%" ^
+  -p:AndroidSigningKeyPass="%KEYPASS%"
 
 if errorlevel 1 (
   echo FEHLER: AAB-Build fehlgeschlagen.

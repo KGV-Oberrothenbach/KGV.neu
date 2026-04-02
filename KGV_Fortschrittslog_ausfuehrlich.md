@@ -2,6 +2,56 @@
 
 ---
 
+## 2026-04-01 – Prompt 2/2: Google-Play-Testfähigkeit / Release-Readiness der MAUI-App geprüft und minimal geschlossen
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - bewusst untracked blieben weiter `AWR.bat` und `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+  - `KGV.Maui/MainActivity.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - `Android_release_batch.bat`
+  - `Android_Wpf_release_batch_v3.bat`
+  - exemplarische Kamera-/Picker-Pfade in MAUI-Seiten
+- Ehrliche Liste aus der Repo-Prüfung:
+  - Bereits ok:
+    - `ApplicationId`: `de.kgv.oberrothenbach`
+    - `ApplicationTitle`: `KGV`
+    - Versionswerte vorhanden (`0.3.5` / `48`)
+    - Release-AAB-Format im Projekt vorhanden
+    - Basis-Permissions für Internet/Netzwerk/Kamera/NFC vorhanden
+    - Dokument-Upload, Foto-Upload, Picker- und Kameraaufrufe nutzen bestehende MAUI-/MediaPicker-Pfade und ergaben in diesem Block keinen neuen technischen Play-Blocker
+  - Echter Blocker:
+    - Release-/AAB-nahe Validierung schlug real fehl:
+      - `dotnet publish KGV.Maui/KGV.Maui.csproj -f net9.0-android -c Release -p:AndroidPackageFormat=aab`
+      - Fehler: `AndroidSignPackage ... erforderlichen KeyStore-Parameter`
+    - Ursache: `KGV.Maui.csproj` erzwang in Release faktisch `AndroidKeyStore=True`, obwohl nicht immer vollständige Signing-Daten gesetzt waren
+    - zusätzlicher Repo-Blocker: die vorhandenen Release-Batchdateien nutzten einen veralteten harten Repo-Pfad und übergaben keine vollständigen Android-Signing-Parameter
+  - Nice-to-have, bewusst nicht in diesem Block:
+    - bestehende Compilerwarnungen in `HomeManagementPage.cs` / `ImpressumPage.cs`
+    - optische Launcher-/Store-Icon-Endprüfung
+    - tiefergehende ANR-/Resume-Optimierung
+- Minimal umgesetzt:
+  - `KGV.Maui.csproj` so angepasst, dass Signing nur bei vollständigen Signierungsdaten aktiviert wird
+  - optional repo-relativen Keystore-Pfad `_secrets\Android\kgv-upload.keystore` und Standard-Alias `kgvupload` hinterlegt
+  - `Android_release_batch.bat` auf aktuellen Repo-Root umgestellt und um `AndroidSigningKeyStore`, `AndroidSigningStorePass`, `AndroidSigningKeyAlias`, `AndroidSigningKeyPass` ergänzt
+  - `Android_Wpf_release_batch_v3.bat` analog nachgezogen
+- Warum das den Block schließt:
+  - der reale Release-Blocker war die fehlerhafte Signierungsverdrahtung, nicht die App-Logik selbst
+  - Debug-Build bleibt unverändert nutzbar
+  - Release-/AAB-nahe Validierung läuft jetzt technisch durch
+  - für echte Play-Tests ist der Artefaktpfad jetzt sauber vorbereitet; das Keystore-Secret bleibt korrekt außerhalb des Repos
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -f net9.0-android -c Release -p:AndroidPackageFormat=aab -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Verbleibende echte Play-Store-/Testrisiken:
+  - finaler Upload zur Play Console benoetigt weiterhin echten Keystore + Passwort zur Releasesignierung
+  - vorhandene MAUI-Warnungen sind noch da, aber in diesem Block kein nachgewiesener Release-Blocker
+
 ## 2026-04-01 – Prompt 1/2: Dokumentfluss E2E-validiert, kein weiterer Minimalfix nötig
 
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.

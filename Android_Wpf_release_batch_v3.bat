@@ -11,11 +11,14 @@ REM - kopiert diese EXE zusaetzlich ins Repo KGV-WPF
 REM - fuehrt dort Commit + Push aus
 REM =========================================================
 
-set "REPO=C:\Programmieren\Restore KGV\KGV.neu\03_Arbeitsstand"
+set "REPO=%~dp0"
+if "%REPO:~-1%"=="\" set "REPO=%REPO:~0,-1%"
 set "WPF_RELEASE_REPO=C:\Programmieren\Restore KGV\KGV-WPF"
 set "MAUI_CSPROJ=%REPO%\KGV.Maui\KGV.Maui.csproj"
 set "WPF_CSPROJ=%REPO%\KGV.Wpf\KGV.Wpf.csproj"
 set "PUBLISH_ROOT=%REPO%\publish"
+set "KEYSTORE=%REPO%\_secrets\Android\kgv-upload.keystore"
+set "KEYALIAS=kgvupload"
 
 set "GIT="
 if exist "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe" set "GIT=C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Git\cmd\git.exe"
@@ -53,6 +56,11 @@ if not exist "%WPF_CSPROJ%" (
 
 if not exist "%WPF_RELEASE_REPO%" (
   echo FEHLER: WPF-Zielrepo nicht gefunden: %WPF_RELEASE_REPO%
+  exit /b 1
+)
+
+if not exist "%KEYSTORE%" (
+  echo FEHLER: Keystore-Datei nicht gefunden: %KEYSTORE%
   exit /b 1
 )
 
@@ -198,6 +206,8 @@ if not defined STOREPASS (
   exit /b 1
 )
 
+set "KEYPASS=%STOREPASS%"
+
 echo.
 echo =========================================================
 echo Baue signierte APK...
@@ -206,7 +216,11 @@ dotnet publish ".\KGV.Maui\KGV.Maui.csproj" ^
   -f net9.0-android ^
   -c Release ^
   -p:AndroidPackageFormat=apk ^
-  -p:AndroidSigningStorePass="%STOREPASS%"
+  -p:AndroidKeyStore=true ^
+  -p:AndroidSigningKeyStore="%KEYSTORE%" ^
+  -p:AndroidSigningStorePass="%STOREPASS%" ^
+  -p:AndroidSigningKeyAlias="%KEYALIAS%" ^
+  -p:AndroidSigningKeyPass="%KEYPASS%"
 
 if errorlevel 1 (
   echo FEHLER: APK-Build fehlgeschlagen.
@@ -221,7 +235,11 @@ dotnet publish ".\KGV.Maui\KGV.Maui.csproj" ^
   -f net9.0-android ^
   -c Release ^
   -p:AndroidPackageFormat=aab ^
-  -p:AndroidSigningStorePass="%STOREPASS%"
+  -p:AndroidKeyStore=true ^
+  -p:AndroidSigningKeyStore="%KEYSTORE%" ^
+  -p:AndroidSigningStorePass="%STOREPASS%" ^
+  -p:AndroidSigningKeyAlias="%KEYALIAS%" ^
+  -p:AndroidSigningKeyPass="%KEYPASS%"
 
 if errorlevel 1 (
   echo FEHLER: AAB-Build fehlgeschlagen.
