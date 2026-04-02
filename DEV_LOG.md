@@ -61,6 +61,38 @@
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
 
+## 2026-04-02 – Prompt 3/3: WPF-Dokumente Restfehler um `SelectedFileName` stabil geschlossen
+
+- Den realen Repo-/Git-/Codezustand vor Änderungen geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - lokal untracked blieben bewusst weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Wpf/ViewModels/DokumenteViewModel.cs`
+  - `KGV.Wpf/ViewModels/GartenDokumenteViewModel.cs`
+  - `KGV.Wpf/Views/DokumenteView.xaml`
+  - `KGV.Wpf/Views/GartenDokumenteView.xaml`
+- Ehrlicher Befund vor dem Fix:
+  - die reale Ursache des Absturzes lag nicht im Upload-/Delete-Servicepfad, sondern im WPF-Binding der Dateinamensanzeige
+  - `SelectedFileName` ist in beiden ViewModels bewusst nur mit `private set` lesbar für die View
+  - in beiden XAML-Views hing diese Property aber an einem `TextBox.Text` ohne expliziten Modus
+  - bei `TextBox.Text` verwendet WPF standardmäßig ein TwoWay-Binding; genau das führt hier zu `TwoWay- oder OneWayToSource-Bindungen funktionieren nicht mit der schreibgeschützten Eigenschaft 'SelectedFileName'`
+  - derselbe Fehler steckte identisch im Mitglieds- und im Parzellen-Dokumentpfad
+- Minimal umgesetzt:
+  - in `KGV.Wpf/Views/DokumenteView.xaml` das Binding auf `SelectedFileName` explizit auf `Mode=OneWay` gesetzt
+  - in `KGV.Wpf/Views/GartenDokumenteView.xaml` denselben Fix analog gesetzt
+  - keine Änderung an Dokumentarchitektur, Rechtepfaden, Upload-, Open- oder Delete-Logik
+- Ergebnis:
+  - WPF-Mitgliedsdokumente öffnen nun ohne Bindingabsturz
+  - WPF-Parzellendokumente öffnen nun ohne denselben Bindingabsturz
+  - View-only für normale Nutzer sowie Upload/Löschen für Admin/Vorstand bleiben unverändert auf dem bestehenden Pfad
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-02 – Prompt 1/3: Save-/Rücknavigation-/Home-Refresh für Bekanntmachungen, Termine und Arbeitseinsätze sauber geschlossen
 
 - Den realen Repo-/Git-/Codezustand vor Änderungen geprüft.

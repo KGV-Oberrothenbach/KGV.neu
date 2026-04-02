@@ -49,6 +49,33 @@
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
   - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
 
+## 2026-04-02 – Prompt 3/3: WPF-Dokumente Restfehler um `SelectedFileName` stabil geschlossen
+
+- Vor dem Block den realen Repo-/Git-/Codezustand geprüft.
+- Direkt geprüft wurden:
+  - `KGV.Wpf/ViewModels/DokumenteViewModel.cs`
+  - `KGV.Wpf/ViewModels/GartenDokumenteViewModel.cs`
+  - `KGV.Wpf/Views/DokumenteView.xaml`
+  - `KGV.Wpf/Views/GartenDokumenteView.xaml`
+- Ehrlicher Istzustand vor der Umsetzung:
+  - der konkrete WPF-Absturz kam aus einem echten Bindingproblem und nicht aus dem Dokumentservice
+  - `SelectedFileName` ist in beiden WPF-ViewModels eine schreibgeschützte View-Property mit `private set`
+  - in beiden WPF-Views war diese Property direkt an `TextBox.Text` gebunden
+  - `TextBox.Text` verwendet in WPF standardmäßig `TwoWay`; dadurch entstand beim Öffnen der View genau der gemeldete Fehler auf eine schreibgeschützte Property
+  - dieselbe Bindingkonstellation existierte sowohl im Mitglieds-Dokumentpfad als auch im Parzellen-Dokumentpfad
+- Minimal umgesetzt:
+  - in `KGV.Wpf/Views/DokumenteView.xaml` das Binding auf `SelectedFileName` explizit auf `Mode=OneWay` gesetzt
+  - in `KGV.Wpf/Views/GartenDokumenteView.xaml` denselben Fix analog gesetzt
+  - kein Umbau an Upload-, Open-, Delete- oder Permission-Logik
+- Fachliches Ergebnis nach dem Block:
+  - WPF-Mitgliedsdokumente öffnen ohne Bindingabsturz
+  - WPF-Parzellendokumente öffnen ohne Bindingabsturz
+  - normaler Nutzer bleibt view-only
+  - Admin/Vorstand behalten Upload und Löschen auf dem bestehenden Pfad
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-02 – Prompt 1/3: Save, Rücknavigation und Home-Refresh für Bekanntmachungen, Termine und Arbeitseinsätze sauber geschlossen
 
 - Vor dem Block den realen Repo-/Git-/Codezustand geprüft.

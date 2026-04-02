@@ -35,7 +35,7 @@
                                 <TextBlock Text="Datei" FontWeight="SemiBold" />
                                 <DockPanel Margin="0,4,0,10" LastChildFill="True">
                                     <Button DockPanel.Dock="Right" Content="Datei auswählen" Width="140" Margin="8,0,0,0" Command="{Binding SelectFileCommand}" />
-                                    <TextBox Text="{Binding SelectedFileName}" IsReadOnly="True" IsEnabled="{Binding CanEditUpload}" />
+                                    <TextBox Text="{Binding SelectedFileName, Mode=OneWay}" IsReadOnly="True" IsEnabled="{Binding CanEditUpload}" />
                                 </DockPanel>
 
                                 <TextBlock Text="{Binding StatusMessage}" Foreground="DarkSlateBlue" TextWrapping="Wrap" Margin="0,0,0,10"
