@@ -101,6 +101,17 @@ public class DokumentePage : ContentPage, IQueryAttributable
                         await OpenDocumentAsync(document);
                 };
 
+                var deleteButton = new Button { Text = "Löschen" };
+                deleteButton.SetBinding(IsEnabledProperty, nameof(DocumentInfo.CanDelete));
+                deleteButton.Clicked += async (_, _) =>
+                {
+                    if (_isBusy)
+                        return;
+
+                    if (deleteButton.BindingContext is DocumentInfo document)
+                        await DeleteDocumentAsync(document);
+                };
+
                 return new Border
                 {
                     Padding = 12,
@@ -109,7 +120,17 @@ public class DokumentePage : ContentPage, IQueryAttributable
                     Content = new VerticalStackLayout
                     {
                         Spacing = 4,
-                        Children = { title, fileName, subtitle, actionButton }
+                        Children =
+                        {
+                            title,
+                            fileName,
+                            subtitle,
+                            new HorizontalStackLayout
+                            {
+                                Spacing = 8,
+                                Children = { actionButton, deleteButton }
+                            }
+                        }
                     }
                 };
             })
@@ -331,6 +352,62 @@ public class DokumentePage : ContentPage, IQueryAttributable
         }
     }
 
+    private async Task DeleteDocumentAsync(DocumentInfo document)
+    {
+        if (_isBusy)
+            return;
+
+        if (!document.CanDelete)
+        {
+            SetStatus("Dokument kann aktuell nicht gelöscht werden.", success: false);
+            return;
+        }
+
+        var confirmed = await DisplayAlert(
+            "Dokument löschen",
+            $"Dokument '{GetDocumentDisplayName(document)}' wirklich löschen?",
+            "Löschen",
+            "Abbrechen");
+        if (!confirmed)
+            return;
+
+        var context = await ResolveContextAsync();
+        ApplyContext(context);
+        if (!context.IsValid)
+        {
+            SetStatus(context.ValidationMessage, success: false);
+            UpdateUiState();
+            return;
+        }
+
+        _isBusy = true;
+        UpdateUiState();
+        try
+        {
+            var result = await _supabaseService.DeleteDokumentAsync(document);
+            if (!result.Success)
+            {
+                SetStatus(result.Message, success: false);
+                return;
+            }
+
+            var reloaded = await TryReloadDocumentsAsync(context);
+            SetStatus(reloaded
+                ? "Dokument gelöscht."
+                : "Dokument gelöscht. Bitte Liste aktualisieren.", success: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DokumentePage] DeleteDocumentAsync failed: {ex}");
+            SetStatus("Dokument konnte aktuell nicht gelöscht werden.", success: false);
+        }
+        finally
+        {
+            _isBusy = false;
+            UpdateUiState();
+        }
+    }
+
     private async Task<bool> TryReloadDocumentsAsync(DokumentPageContext context)
     {
         try
@@ -476,6 +553,11 @@ public class DokumentePage : ContentPage, IQueryAttributable
             : "Größe unbekannt";
         return $"{updated} · {size}";
     }
+
+    private static string GetDocumentDisplayName(DocumentInfo document)
+        => !string.IsNullOrWhiteSpace(document.Title)
+            ? document.Title
+            : (!string.IsNullOrWhiteSpace(document.Dateiname) ? document.Dateiname : "dieses Dokument");
 
     private static string FormatFileSize(long bytes)
     {

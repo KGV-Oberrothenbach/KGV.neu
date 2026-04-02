@@ -2,6 +2,60 @@
 
 ---
 
+## 2026-04-01 – Prompt 1/1: Dokumente löschen in WPF und MAUI mit Drive-/DB-Abgleich ergänzt
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Echter Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - bewusst untracked blieben weiter `AWR.bat` und `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Core/Models/DocumentInfo.cs`
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Wpf/ViewModels/DokumenteViewModel.cs`
+  - `KGV.Wpf/ViewModels/GartenDokumenteViewModel.cs`
+  - `KGV.Wpf/Views/DokumenteView.xaml`
+  - `KGV.Wpf/Views/GartenDokumenteView.xaml`
+  - `supabase/functions/kgv-upload-document/index.ts`
+  - bestehende Dokument-Open-/Uploadpfade
+- Ehrlicher Istzustand vor der Umsetzung:
+  - Upload und Öffnen waren bereits da, aber Löschen fehlte noch komplett
+  - die nötigen Löschdaten lagen bereits fachlich vor: `id`, `drive_file_id`, `storage_path`, Owner-Kontext
+  - ältere Bestände ohne vollständigen Drive-Bezug waren möglich und mussten tolerant behandelt werden
+  - ein bestehender Google-Drive-Delete-Helfer für Dokumente war im Repo nicht vorhanden
+- Minimal umgesetzt:
+  - `DocumentInfo` um `CanDelete` ergänzt, damit beide Clients Löschaktionen nur für echte Datensätze aktivieren
+  - neues Ergebnisobjekt `DokumentDeleteResult` ergänzt
+  - `ISupabaseService`/`SupabaseService` um einen gemeinsamen Löschpfad ergänzt
+  - zentrale Löschlogik jetzt:
+    - Dokumentdatensatz per `id` nachladen
+    - bei vorhandenem `drive_file_id` zuerst Drive-Datei löschen
+    - nur bei erfolgreicher Drive-Löschung danach DB-Datensatz in `public.dokument` löschen
+    - bei Drive-Fehler kein blindes DB-Löschen
+    - bei bereits fehlendem Datensatz klare Rückmeldung
+    - Altbestände ohne `drive_file_id` werden robust nur per DB-Eintrag entfernt
+  - bestehende Edge Function `kgv-upload-document` minimal um `DELETE` erweitert statt neuen Architekturzweig zu bauen
+  - WPF-Mitglieds- und Parzellendokumentansichten um Löschbutton + Sicherheitsabfrage + Sofort-Reload ergänzt
+  - MAUI-`DokumentePage` um Löschbutton + Sicherheitsabfrage + Sofort-Reload ergänzt
+  - Busy-State blockiert Mehrfachauslösung in beiden Clients weiter konsistent
+- Warum dieser Block fachlich passt:
+  - kein Parallelpfad, sondern Löschlogik direkt auf dem vorhandenen gemeinsamen Dokumentservice
+  - Drive-first bleibt auch beim Entfernen erhalten
+  - der DB-Zustand wird nicht von einer fehlgeschlagenen Drive-Löschung entkoppelt
+- Wichtig für die Blockgrenze:
+  - kein Papierkorb, kein Undo, kein Umbenennen, keine Mehrfachauswahl, keine neue Dokumentarchitektur
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - logische Codeprüfung:
+    - Mitgliedsdokument löschen
+    - Parzellendokument löschen
+    - Sicherheitsabfrage erscheint
+    - Liste wird nach Erfolg direkt aktualisiert
+    - Mehrfachklick/Doppeltap wird über Busy-State blockiert
+    - Fehlertexte bleiben verständlich
+
 ## 2026-04-01 – Prompt 1/1: Dokumente E2E-nah abgeschlossen und UI in WPF/MAUI geglättet
 
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.

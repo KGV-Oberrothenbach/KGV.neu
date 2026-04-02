@@ -93,6 +93,7 @@ namespace KGV.ViewModels
                 UploadCommand.RaiseCanExecuteChanged();
                 RefreshCommand.RaiseCanExecuteChanged();
                 OpenCommand.RaiseCanExecuteChanged();
+                DeleteCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(CanEditUpload));
                 OnPropertyChanged(nameof(HasNoDokumente));
             }
@@ -105,6 +106,7 @@ namespace KGV.ViewModels
 
         public RelayCommand<object?> RefreshCommand { get; }
         public RelayCommand<DocumentInfo> OpenCommand { get; }
+        public RelayCommand<DocumentInfo> DeleteCommand { get; }
         public RelayCommand<object?> SelectFileCommand { get; }
         public RelayCommand<object?> UploadCommand { get; }
 
@@ -119,6 +121,11 @@ namespace KGV.ViewModels
                 if (doc == null) return;
                 _ = OpenAsync(doc);
             }, doc => !IsBusy && doc?.CanOpen == true);
+            DeleteCommand = new RelayCommand<DocumentInfo>(doc =>
+            {
+                if (doc == null) return;
+                _ = DeleteAsync(doc);
+            }, doc => !IsBusy && doc?.CanDelete == true);
             SelectFileCommand = new RelayCommand<object?>(_ => SelectFile(), _ => !IsBusy);
             UploadCommand = new RelayCommand<object?>(_ => _ = UploadAsync(), _ => CanUpload);
         }
@@ -260,6 +267,46 @@ namespace KGV.ViewModels
             catch (Exception)
             {
                 MessageBox.Show("Dokument konnte aktuell nicht geöffnet werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task DeleteAsync(DocumentInfo? doc)
+        {
+            if (doc == null || !doc.CanDelete || IsBusy)
+                return;
+
+            var name = !string.IsNullOrWhiteSpace(doc.Title) ? doc.Title : doc.Dateiname;
+            var confirmed = MessageBox.Show(
+                    $"Dokument '{name}' wirklich löschen?",
+                    "Dokument löschen",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning)
+                == MessageBoxResult.Yes;
+            if (!confirmed)
+                return;
+
+            IsBusy = true;
+            try
+            {
+                var result = await _supabaseService.DeleteDokumentAsync(doc);
+                if (!result.Success)
+                {
+                    StatusMessage = result.Message;
+                    return;
+                }
+
+                var reloaded = await LoadAsync(showDialogOnError: false);
+                StatusMessage = reloaded
+                    ? "Dokument gelöscht."
+                    : "Dokument gelöscht. Bitte Liste aktualisieren.";
+            }
+            catch (Exception)
+            {
+                StatusMessage = "Dokument konnte aktuell nicht gelöscht werden.";
+            }
+            finally
+            {
+                IsBusy = false;
             }
         }
 

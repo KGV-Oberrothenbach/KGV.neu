@@ -11,6 +11,7 @@ const DRIVE_FILES_LIST_TIMEOUT_MS = 15_000;
 const DRIVE_CREATE_FOLDER_TIMEOUT_MS = 15_000;
 const DRIVE_ROOT_FOLDER_LOOKUP_TIMEOUT_MS = 15_000;
 const DRIVE_UPLOAD_TIMEOUT_MS = 30_000;
+const DRIVE_DELETE_TIMEOUT_MS = 30_000;
 
 type OwnerKind = "mitglied" | "parzelle";
 
@@ -27,6 +28,11 @@ type ApiErrorCode =
   | "GOOGLE_AUTH_ERROR"
   | "GOOGLE_DRIVE_ERROR"
   | "INTERNAL_ERROR";
+
+type DeleteDocumentRequest = {
+  drive_file_id?: string | null;
+  fileId?: string | null;
+};
 
 function logStep(step: string, details?: Record<string, unknown>) {
   if (details) {
@@ -82,6 +88,52 @@ function createRequestId(): string {
     return crypto.randomUUID();
   } catch {
     return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+}
+
+async function deleteDriveFile(accessToken: string, driveFileId: string): Promise<void> {
+  try {
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(driveFileId)}?supportsAllDrives=true`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      signal: AbortSignal.timeout(DRIVE_DELETE_TIMEOUT_MS),
+    });
+
+    if (res.status === 404) {
+      throw new Error("Drive file not found");
+    }
+
+    if (!res.ok) {
+      const responseText = await res.text();
+      throw new Error(`Drive delete failed: ${responseText}`);
+    }
+  } catch (error) {
+    throw buildStepError("Drive delete", error);
+  }
+}
+
+async function deleteDriveFile(accessToken: string, driveFileId: string): Promise<void> {
+  try {
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(driveFileId)}?supportsAllDrives=true`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      signal: AbortSignal.timeout(DRIVE_DELETE_TIMEOUT_MS),
+    });
+
+    if (res.status === 404) {
+      throw new Error("Drive file not found");
+    }
+
+    if (!res.ok) {
+      const responseText = await res.text();
+      throw new Error(`Drive delete failed: ${responseText}`);
+    }
+  } catch (error) {
+    throw buildStepError("Drive delete", error);
   }
 }
 
@@ -451,7 +503,7 @@ async function requireAdminOrVorstand(authHeader: string) {
 
   const role = (appUser?.role ?? "").trim().toLowerCase();
   if (role !== "admin" && role !== "vorstand") {
-    return { ok: false as const, status: 403, message: "Nur Admin oder Vorstand dürfen Dokumente hochladen." };
+    return { ok: false as const, status: 403, message: "Nur Admin oder Vorstand dürfen Dokumente verwalten." };
   }
 
   logStep("auth passed", { role });
@@ -466,7 +518,7 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  if (req.method !== "POST") {
+  if (req.method !== "POST" && req.method !== "DELETE") {
     return errorResponse(405, "BAD_REQUEST", "Method not allowed", requestId);
   }
 
@@ -475,6 +527,24 @@ Deno.serve(async (req) => {
     const auth = await requireAdminOrVorstand(authHeader);
     if (!auth.ok) {
       return errorResponse(auth.status, "UNAUTHORIZED", auth.message, requestId);
+    }
+
+    if (req.method === "DELETE") {
+      const payload = await req.json() as DeleteDocumentRequest;
+      const driveFileId = (payload.drive_file_id ?? payload.fileId ?? "").trim();
+      if (!driveFileId) {
+        return errorResponse(400, "BAD_REQUEST", "drive_file_id fehlt für das Löschen.", requestId);
+      }
+
+      const accessToken = await getGoogleAccessToken();
+      await deleteDriveFile(accessToken, driveFileId);
+
+      return json(200, {
+        success: true,
+        message: "Datei erfolgreich gelöscht.",
+        drive_file_id: driveFileId,
+        request_id: requestId,
+      });
     }
 
     const rootFolderId = readGoogleDriveRootFolderId();
@@ -556,19 +626,23 @@ Deno.serve(async (req) => {
     logError("return error", error);
 
     if (message.includes("Google-Drive-Secrets fehlen")) {
-      return errorResponse(503, "CONFIG_MISSING", "Cloud-Upload ist nicht konfiguriert. Bitte Serverkonfiguration prüfen.", requestId);
+      return errorResponse(503, "CONFIG_MISSING", "Cloud-Dokumentdienst ist nicht konfiguriert. Bitte Serverkonfiguration prüfen.", requestId);
     }
 
     if (message.toLowerCase().includes("google token refresh") && isGoogleAuthErrorMessage(message)) {
-      return errorResponse(503, "GOOGLE_AUTH_ERROR", "Cloud-Upload aktuell nicht verfügbar. Bitte Google-Drive-Autorisierung/Refresh-Token prüfen.", requestId);
+      return errorResponse(503, "GOOGLE_AUTH_ERROR", "Cloud-Dokumentdienst aktuell nicht verfügbar. Bitte Google-Drive-Autorisierung/Refresh-Token prüfen.", requestId);
     }
 
     if (message.toLowerCase().includes("google token refresh")) {
-      return errorResponse(503, "GOOGLE_AUTH_ERROR", "Cloud-Upload aktuell nicht verfügbar. Bitte Google-Drive-Autorisierung/Serverkonfiguration prüfen.", requestId);
+      return errorResponse(503, "GOOGLE_AUTH_ERROR", "Cloud-Dokumentdienst aktuell nicht verfügbar. Bitte Google-Drive-Autorisierung/Serverkonfiguration prüfen.", requestId);
+    }
+
+    if (message.toLowerCase().includes("drive file not found")) {
+      return errorResponse(409, "GOOGLE_DRIVE_ERROR", "Die Dokumentdatei wurde in Google Drive nicht gefunden. Der Datenbankeintrag bleibt daher unverändert.", requestId);
     }
 
     if (message.toLowerCase().includes("drive")) {
-      return errorResponse(502, "GOOGLE_DRIVE_ERROR", "Cloud-Upload ist aktuell nicht erreichbar. Bitte später erneut versuchen.", requestId);
+      return errorResponse(502, "GOOGLE_DRIVE_ERROR", "Cloud-Dokumentdienst ist aktuell nicht erreichbar. Bitte später erneut versuchen.", requestId);
     }
 
     return errorResponse(500, "INTERNAL_ERROR", "Unerwarteter Serverfehler beim Cloud-Upload.", requestId);
