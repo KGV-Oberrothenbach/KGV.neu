@@ -2,6 +2,43 @@
 
 ---
 
+## 2026-04-02 – Prompt 1/1: MAUI-Mitgliedsdokumentpfade verifiziert und globalen Parzellenabsturz minimal behoben
+
+- Den realen Repo-/Git-/Codezustand vor Änderungen geprüft.
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/Pages/MemberParzellenDetailPage.cs`
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Maui/State/ParzellenContextState.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - vorhandene Debug-/Output-Logs zur MAUI-Sitzung
+- Ehrlicher Befund vor dem Fix:
+  - Mitgliedsdokumente waren im aktuellen Repo bereits auf dem echten Produktivpfad verdrahtet:
+    - `MeineDatenPage` öffnet `DokumentePage?scope=mitglied`
+    - `DokumentePage` enthält bereits Upload-UI, Dateiauswahl, Upload, Liste, Öffnen und Löschen
+  - Parzellendokumente im mitgliedsbezogenen Gartenpfad waren ebenfalls bereits richtig verdrahtet:
+    - `MemberParzellenDetailPage` öffnet `DokumentePage?scope=parzelle&parzelleId=...`
+    - dadurch bleibt der Pfad parzellenbezogen und fällt nicht auf globale Parzellenlogik zurück
+  - echter Restblocker war die globale `Parzellenverwaltung`
+  - Root Cause im Code:
+    - in `ParzellenPage` wurde dieselbe `Label`-Instanz `currentParzelleLabel` gleichzeitig in zwei verschiedene UI-Container eingefügt
+    - das ist im MAUI-Visual-Tree unzulässig und passt exakt zu einem Android-/MAUI-Fehlerbild `child already has a parent`
+    - der Fehler lag damit nicht in Shell-Routing, nicht im Dokumentpfad und nicht in einer neuen Parallelarchitektur, sondern in einer realen View-Reuse-Stelle der globalen Parzellen-Seite
+- Minimal umgesetzt:
+  - `ParzellenPage` so korrigiert, dass für globalen Detailblock und mitgliedsbezogenen Detailblock jeweils eine eigene gebundene Überschrifts-Label-Instanz erzeugt wird
+  - keine Änderung an Dokument-/Drive-Servicepfaden
+  - keine Änderung an WPF-Produktlogik
+  - keine Änderung an der Trennung von globalem vs. mitgliedsbezogenem Parzellenpfad
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-01 – Prompt 1/1: MAUI RFID-Quittungston minimal ergänzt
 
 - Den realen lokalen Repo-/Git-/Codezustand geprüft.

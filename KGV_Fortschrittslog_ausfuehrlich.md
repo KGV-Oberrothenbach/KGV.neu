@@ -2,6 +2,57 @@
 
 ---
 
+## 2026-04-02 – Prompt 1/1: MAUI-Dokumentpfade im Mitgliedskontext verifiziert und globalen Parzellenabsturz minimal geschlossen
+
+- Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/Pages/MemberParzellenDetailPage.cs`
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Maui/State/ParzellenContextState.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - vorhandene Debug-/Output-Logs der MAUI-Sitzung
+- Ehrlicher Istzustand vor der Umsetzung:
+  - Mitgliedspfad `Dokumente` war im aktuellen Repo bereits produktiv auf `DokumentePage?scope=mitglied` verdrahtet
+  - `DokumentePage` enthielt real bereits den kompletten mobilen Dokumentpfad:
+    - Titel
+    - Datei wählen
+    - Upload
+    - Liste
+    - Öffnen
+    - Löschen
+    - Aktualisieren nur als Nebenfunktion
+  - auch der mitgliedsbezogene Garten-/Parzellenpfad war im aktuellen Repo bereits korrekt vorhanden:
+    - `MemberParzellenDetailPage` öffnet `DokumentePage?scope=parzelle&parzelleId=...`
+    - `DokumentePage` löst diesen Pfad parzellenbezogen über den bestehenden Shared-/Drive-Service auf
+    - kein Rückfall auf globale Parzellenlogik war im echten Aufrufpfad mehr nötig
+  - der echte offene Blocker lag stattdessen in der globalen `Parzellenverwaltung`
+- Reale Root Cause des globalen Absturzes:
+  - in `KGV.Maui/Pages/ParzellenPage.cs` wurde dieselbe View-Instanz `currentParzelleLabel` in zwei unterschiedliche Parent-Container eingehängt:
+    - in den mitgliedsbezogenen Detailblock
+    - und zusätzlich in den globalen Stammdatenblock
+  - das ist im MAUI-Visual-Tree unzulässig und passt exakt zu einem Android-/MAUI-Absturzbild `child already has a parent`
+  - der Fehler lag damit real in einer View-Reuse-Stelle der globalen Parzellen-Seite, nicht in Shell-Routing, nicht im Dokumentpfad und nicht in einem zusätzlichen Parallelpfad
+- Minimal umgesetzt:
+  - `ParzellenPage` so korrigiert, dass beide Detailblöcke jetzt jeweils ihre eigene gebundene Überschrifts-Label-Instanz erhalten
+  - keine Änderung an Dokument-/Drive-Pfaden
+  - keine Änderung am mitgliedsbezogenen Dokumentaufruf
+  - keine Änderung an WPF-Produktlogik
+  - keine Vermischung von globalem und mitgliedsbezogenem Parzellenkontext eingeführt
+- Wichtige ehrliche Ergebnisfesthaltung:
+  - Mitgliedsdokumente werden mobil weiterhin über `MeineDatenPage -> Shell.Current.GoToAsync($"{nameof(DokumentePage)}?scope=mitglied")` geöffnet
+  - Parzellendokumente im Mitgliedspfad werden mobil weiterhin über `MemberParzellenDetailPage -> Shell.Current.GoToAsync($"{nameof(DokumentePage)}?scope=parzelle&parzelleId=...")` geöffnet
+  - beide Dokumentpfade blieben im aktuellen Repo fachlich bereits korrekt getrennt; der einzige Produktivcode-Fix dieses Blocks war der globale Parzellenabsturz
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-01 – Prompt 1/1: MAUI RFID-Quittungston minimal-invasiv ergänzt
 
 - Vor dem Block den realen lokalen Repo-/Git-/Codezustand geprüft.

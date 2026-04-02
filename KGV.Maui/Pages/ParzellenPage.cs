@@ -115,9 +115,6 @@ public sealed class ParzellenPage : ContentPage
             Command = new Command(async () => await _viewModel.SelectPreviousAsync())
         });
 
-        var currentParzelleLabel = new Label { FontSize = 20, FontAttributes = FontAttributes.Bold };
-        currentParzelleLabel.SetBinding(Label.TextProperty, nameof(ParzellenViewModel.SelectedParzelleDisplayName));
-
         var editButton = new Button { Text = "Stammdaten bearbeiten" };
         editButton.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowGlobalActions));
         editButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanEditStammdaten));
@@ -147,7 +144,7 @@ public sealed class ParzellenPage : ContentPage
                 Spacing = 10,
                 Children =
                 {
-                    currentParzelleLabel,
+                    CreateCurrentParzelleLabel(),
                     CreateSection("Parzellen-Details",
                         CreateValueLabel("Größe / Fläche", nameof(ParzellenViewModel.SelectedParzelleSizeText)),
                         CreateValueLabel("Strom", nameof(ParzellenViewModel.SelectedParzelleStromAvailabilityText)),
@@ -179,7 +176,7 @@ public sealed class ParzellenPage : ContentPage
                 Spacing = 10,
                 Children =
                 {
-                    currentParzelleLabel,
+                    CreateCurrentParzelleLabel(),
                     CreateSection("Stammdaten",
                         CreateValueLabel("ID", "SelectedDetail.ParzelleId"),
                         CreateValueLabel("Garten Nr", "SelectedDetail.GartenNr"),
@@ -398,6 +395,13 @@ public sealed class ParzellenPage : ContentPage
             Padding = 12,
             Content = stack
         };
+    }
+
+    private static Label CreateCurrentParzelleLabel()
+    {
+        var label = new Label { FontSize = 20, FontAttributes = FontAttributes.Bold };
+        label.SetBinding(Label.TextProperty, nameof(ParzellenViewModel.SelectedParzelleDisplayName));
+        return label;
     }
 
     private static View CreateValueLabel(string title, string path)

@@ -34,7 +34,9 @@
     <!-- Play-Store-Builds verwenden keinen eigenen Update-Download-/Installationspfad. -->
     <DefineConstants>$(DefineConstants);KGV_PLAYSTORE</DefineConstants>
     <!-- Default: kein eigener Keystore. Ein echter Release-Keystore wird nur bei vollstaendigen Signierungsdaten aktiviert. -->
+
     <AndroidKeyStore>false</AndroidKeyStore>
+
   </PropertyGroup>
   <!-- Ensure MSBuild can find Android SDK when building from CLI (or if VS value is empty) -->
   <PropertyGroup Condition="('$(AndroidSdkDirectory)'=='' Or !Exists('$(AndroidSdkDirectory)\platform-tools\adb.exe')) And Exists('$(LocalAppData)\Android\Sdk\platform-tools\adb.exe')">
