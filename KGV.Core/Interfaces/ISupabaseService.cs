@@ -55,7 +55,10 @@ namespace KGV.Core.Interfaces
 
         Task<bool> AddAblesungAsync(AblesungInsertRecord request);
         Task<bool> UpdateAblesungAsync(long ablesungId, DateTime ablesedatum, decimal stand, string? fotoPfad);
+        Task<List<AblesungReviewItem>> GetOffeneAblesungenZurFreigabeAsync();
         Task<bool> UpdateAblesungPruefstatusAsync(long ablesungId, string pruefstatus, string? pruefkommentar, int? geprueftVon, DateTime? geprueftAm = null);
+        Task<bool> CorrectAblesungImPruefprozessAsync(long ablesungId, DateTime ablesedatum, decimal stand, string korrekturkommentar, int geprueftVon, DateTime? geprueftAm = null);
+        Task<bool> RemoveAblesungImPruefprozessAsync(long ablesungId, string begruendung, int geprueftVon, DateTime? geprueftAm = null);
         Task<bool> GetAllowUserMeterReadingSubmissionsAsync();
         Task<bool> SetAllowUserMeterReadingSubmissionsAsync(bool allowed);
 

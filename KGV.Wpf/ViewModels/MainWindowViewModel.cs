@@ -633,6 +633,11 @@ namespace KGV.ViewModels
             return _navigationService.CreateViewModel(typeof(FaelligeZaehlerViewModel), this) as BaseViewModel;
         }
 
+        public BaseViewModel? NavigateToAblesungenFreigabeViewModel()
+        {
+            return _navigationService.CreateViewModel(typeof(AblesungenFreigabeViewModel), this) as BaseViewModel;
+        }
+
         public BaseViewModel? NavigateToFotoUploadTestViewModel()
         {
             return _navigationService.CreateViewModel(typeof(FotoUploadTestViewModel), this) as BaseViewModel;

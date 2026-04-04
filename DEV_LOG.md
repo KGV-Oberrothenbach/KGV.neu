@@ -2,6 +2,86 @@
 
 ---
 
+## 2026-04-04 – Prompt 5/6b: Korrektur und Entfernen eingereichter Ablesungen auf dem begonnenen Workspace-Stand fertiggestellt
+
+- Den realen Repo-/Git-/Logstand zu Beginn des Abschlusslaufs geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - tracked offen lagen für den begonnenen 5/6b-Block:
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Core/Models/OperationalDataFilter.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Maui/MauiProgram.cs`
+    - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+    - `KGV.Maui/ShellRouteRegistrar.cs`
+    - `KGV.Wpf/App.xaml`
+    - `KGV.Wpf/Infrastructure/Services/NavigationService.cs`
+    - `KGV.Wpf/ViewModels/AblesenOverviewViewModel.cs`
+    - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+    - `KGV.Wpf/Views/AblesenOverviewView.xaml`
+  - untracked lagen zu Beginn für denselben Block:
+    - `KGV.Core/Models/AblesungReviewItem.cs`
+    - `KGV.Maui/Pages/AblesungenFreigabePage.cs`
+    - `KGV.Wpf/ViewModels/AblesungenFreigabeViewModel.cs`
+    - `KGV.Wpf/Views/AblesungenFreigabeView.xaml`
+    - `KGV.Wpf/Views/AblesungenFreigabeView.xaml.cs`
+  - bewusst unberührt außerhalb des Blocks blieben:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Abschlusslauf:
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Core/Models/OperationalDataFilter.cs`
+  - `KGV.Core/Models/AblesungReviewItem.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Wpf/ViewModels/AblesungenFreigabeViewModel.cs`
+  - `KGV.Wpf/Views/AblesungenFreigabeView.xaml`
+  - `KGV.Wpf/Views/AblesungenFreigabeView.xaml.cs`
+  - `KGV.Wpf/ViewModels/AblesenOverviewViewModel.cs`
+  - `KGV.Wpf/Views/AblesenOverviewView.xaml`
+  - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+  - `KGV.Wpf/Infrastructure/Services/NavigationService.cs`
+  - `KGV.Wpf/App.xaml`
+  - `KGV.Maui/Pages/AblesungenFreigabePage.cs`
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/MauiProgram.cs`
+- Ehrlicher Istzustand vor dem Abschluss:
+  - der Shared-Service-Pfad für `Korrigieren` und `Entfernen` war bereits fachlich begonnen
+  - `GetOffeneAblesungenZurFreigabeAsync()` filtert weiterhin operative Daten und hält Demo-/Test-/Play-Store-Marker aus offenen Prüflisten heraus
+  - offen waren vor allem UI- und Navigationsreste in WPF und MAUI
+  - die MAUI-Seite `KGV.Maui/Pages/AblesungenFreigabePage.cs` lag begonnen, aber noch nicht buildfähig vor
+- Minimal fertiggestellt:
+  - WPF-Ablesen um den Einstieg `Ablesungen freigeben` ergänzt und nur für Rollen mit Freigaberecht sichtbar gemacht
+  - WPF-Prüfseite vollständig ergänzt um:
+    - Pflichtkommentar-Hinweis
+    - Pflichtkommentar für `Freigeben`, `Ablehnen`, `Korrigieren` und `Entfernen`
+    - Korrektur von mindestens `Ablesedatum` und `Zählerstand`
+    - Aktionen `Freigeben`, `Ablehnen`, `Korrigieren`, `Entfernen`
+  - MAUI-Prüfseite `AblesungenFreigabePage` fertiggestellt und in `Ablesen` verdrahtet
+  - MAUI-Routing und DI für die neue Prüfseite ergänzt
+  - den einzigen echten Block-Compilefehler im Abschlusslauf minimal behoben:
+    - fehlende `using Microsoft.Maui;`-Direktive in `KGV.Maui/Pages/AblesungenFreigabePage.cs`
+- Fachliche Bedeutung dieses Blocks:
+  - `Korrigieren`
+    - aktualisiert die Ablesung fachlich im bestehenden Shared-Service
+    - speichert den Pflichtkommentar
+    - behandelt den Datensatz danach direkt als `freigegeben`
+  - `Entfernen`
+    - erfordert ebenfalls Pflichtkommentar
+    - verwendet keinen physischen Delete
+    - markiert die Einreichung minimal sauber als `abgelehnt`
+    - nimmt sie dadurch aus dem offenen Prüfprozess heraus
+- Bewusst nicht Bestandteil dieses Blocks:
+  - keine vollständige Verlaufshistorie
+  - keine neue Rechteverwaltungs-UI
+  - kein großer Refactor des Prüfprozesses
+  - kein zweiter Prüfpfad neben dem Shared-Service
+- Validierung im selben Lauf:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-04 – Prompt 3/6b: Nutzer-Ablesung als Einreichung gegen aktuellen Blockstand verifiziert und für Abschlusslauf dokumentiert
 
 - Den realen Repo-/Git-/Logstand vor dem Abschlusslauf geprüft.

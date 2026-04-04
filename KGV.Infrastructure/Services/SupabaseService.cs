@@ -767,6 +767,185 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
+        public Task<List<AblesungReviewItem>> GetOffeneAblesungenZurFreigabeAsync() => ExecuteAsync(
+            "GetOffeneAblesungenZurFreigabeAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var ablesungenResponse = await client.From<AblesungRecord>().Get();
+                var offeneAblesungen = ablesungenResponse?.Models?
+                    .Where(x => !x.Freigegeben)
+                    .Where(x => string.Equals(AblesungPruefstatus.Normalize(x.Pruefstatus, x.Freigegeben), AblesungPruefstatus.Eingereicht, StringComparison.Ordinal))
+                    .ToList()
+                    ?? new List<AblesungRecord>();
+
+                if (offeneAblesungen.Count == 0)
+                    return new List<AblesungReviewItem>();
+
+                var meterIds = offeneAblesungen
+                    .Select(x => x.ZaehlerId)
+                    .Distinct()
+                    .ToHashSet();
+
+                var zaehlerResponse = await client.From<ZaehlerRecord>().Get();
+                var meterById = (zaehlerResponse?.Models ?? new List<ZaehlerRecord>())
+                    .Where(x => meterIds.Contains(x.Id))
+                    .ToDictionary(x => x.Id, x => x);
+
+                if (meterById.Count == 0)
+                    return new List<AblesungReviewItem>();
+
+                var parzelleIds = meterById.Values
+                    .Select(x => (int)x.ParzelleId)
+                    .Distinct()
+                    .ToHashSet();
+
+                var parzellenById = (await GetAllParzellenAsync())
+                    .Where(x => parzelleIds.Contains(x.Id))
+                    .ToDictionary(x => x.Id, x => x);
+
+                var belegungen = await GetAllParzellenBelegungenAsync();
+                var operativeMembersById = (await GetMitgliederAsync())
+                    .Where(OperationalDataFilter.IsOperationalMember)
+                    .ToDictionary(x => x.Id, x => x);
+
+                var result = new List<AblesungReviewItem>();
+                foreach (var record in offeneAblesungen)
+                {
+                    if (!meterById.TryGetValue(record.ZaehlerId, out var meter))
+                        continue;
+
+                    var parzelleId = (int)meter.ParzelleId;
+                    parzellenById.TryGetValue(parzelleId, out var parzelle);
+
+                    if (!OperationalDataFilter.IsOperationalText(parzelle?.GartenNr)
+                        || !OperationalDataFilter.IsOperationalText(parzelle?.Anlage)
+                        || !OperationalDataFilter.IsOperationalText(meter.Zaehlernummer))
+                    {
+                        continue;
+                    }
+
+                    var activeBelegung = belegungen
+                        .Where(x => x.ParzelleId == parzelleId)
+                        .Where(x => IsBelegungActiveOn(x, record.Ablesedatum))
+                        .OrderByDescending(x => x.VonDatum ?? DateTime.MinValue)
+                        .FirstOrDefault();
+
+                    MitgliedRecord? member = null;
+                    if (activeBelegung != null)
+                    {
+                        if (!operativeMembersById.TryGetValue(activeBelegung.MitgliedId, out member))
+                            continue;
+                    }
+
+                    result.Add(new AblesungReviewItem
+                    {
+                        AblesungId = record.Id,
+                        ZaehlerId = record.ZaehlerId,
+                        ParzelleId = parzelleId,
+                        GartenNr = parzelle?.GartenNr ?? parzelleId.ToString(),
+                        Anlage = parzelle?.Anlage ?? string.Empty,
+                        Medium = NormalizeZaehlerMedium(meter.Medium) ?? meter.Medium,
+                        Zaehlernummer = meter.Zaehlernummer,
+                        Ablesedatum = record.Ablesedatum,
+                        Stand = record.Stand,
+                        Pruefstatus = AblesungPruefstatus.Normalize(record.Pruefstatus, record.Freigegeben),
+                        Pruefkommentar = record.Pruefkommentar,
+                        GeprueftVon = record.GeprueftVon,
+                        GeprueftAm = record.GeprueftAm,
+                        MitgliedName = FormatMemberName(member),
+                        QuelleHinweis = activeBelegung == null ? "Quelle im Modell nicht verfügbar" : "Aktive Belegung zur Ablesung",
+                        FotoPfad = record.FotoPfad,
+                        FotoDateiname = record.FotoDateiname,
+                        FotoDriveFileId = record.FotoDriveFileId
+                    });
+                }
+
+                return result
+                    .OrderBy(x => x.Ablesedatum)
+                    .ThenBy(x => GetGartenNrSortKey(x.GartenNr))
+                    .ThenBy(x => x.GartenNr, StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(x => x.MediumDisplay, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList();
+            },
+            new List<AblesungReviewItem>());
+
+        public Task<bool> CorrectAblesungImPruefprozessAsync(long ablesungId, DateTime ablesedatum, decimal stand, string korrekturkommentar, int geprueftVon, DateTime? geprueftAm = null) => ExecuteAsync(
+            "CorrectAblesungImPruefprozessAsync",
+            async () =>
+            {
+                if (ablesungId <= 0 || geprueftVon <= 0 || stand < 0)
+                    return false;
+
+                var normalizedKommentar = CleanOptionalText(korrekturkommentar);
+                if (string.IsNullOrWhiteSpace(normalizedKommentar))
+                    return false;
+
+                var existing = await GetOffeneReviewAblesungAsync(ablesungId);
+                if (existing == null)
+                    return false;
+
+                var normalizedGeprueftAm = geprueftAm ?? DateTime.UtcNow;
+                var client = await EnsureClientAsync();
+                await client
+                    .From<AblesungRecord>()
+                    .Where(x => x.Id == ablesungId)
+                    .Set(x => x.Ablesedatum, NormalizeDateTime(ablesedatum))
+                    .Set(x => x.Stand, stand)
+                    .Set(x => x.Pruefstatus, AblesungPruefstatus.Freigegeben)
+                    .Set(x => x.Pruefkommentar, BuildReviewCorrectionComment(normalizedKommentar))
+                    .Set(x => x.GeprueftVon, geprueftVon)
+                    .Set(x => x.GeprueftAm, normalizedGeprueftAm)
+                    .Set(x => x.Freigegeben, true)
+                    .Update();
+
+                _logger?.LogInformation(
+                    "CorrectAblesungImPruefprozessAsync corrected and approved submitted reading. AblesungId={AblesungId}, Ablesedatum={Ablesedatum}, Stand={Stand}, GeprueftVon={GeprueftVon}",
+                    ablesungId,
+                    NormalizeDateTime(ablesedatum),
+                    stand,
+                    geprueftVon);
+
+                return true;
+            },
+            false);
+
+        public Task<bool> RemoveAblesungImPruefprozessAsync(long ablesungId, string begruendung, int geprueftVon, DateTime? geprueftAm = null) => ExecuteAsync(
+            "RemoveAblesungImPruefprozessAsync",
+            async () =>
+            {
+                if (ablesungId <= 0 || geprueftVon <= 0)
+                    return false;
+
+                var normalizedBegruendung = CleanOptionalText(begruendung);
+                if (string.IsNullOrWhiteSpace(normalizedBegruendung))
+                    return false;
+
+                var existing = await GetOffeneReviewAblesungAsync(ablesungId);
+                if (existing == null)
+                    return false;
+
+                var normalizedGeprueftAm = geprueftAm ?? DateTime.UtcNow;
+                var client = await EnsureClientAsync();
+                await client
+                    .From<AblesungRecord>()
+                    .Where(x => x.Id == ablesungId)
+                    .Set(x => x.Pruefstatus, AblesungPruefstatus.Abgelehnt)
+                    .Set(x => x.Pruefkommentar, BuildReviewRemovalComment(normalizedBegruendung))
+                    .Set(x => x.GeprueftVon, geprueftVon)
+                    .Set(x => x.GeprueftAm, normalizedGeprueftAm)
+                    .Set(x => x.Freigegeben, false)
+                    .Update();
+
+                _logger?.LogInformation(
+                    "RemoveAblesungImPruefprozessAsync removed submitted reading from active process via rejected review state. AblesungId={AblesungId}, GeprueftVon={GeprueftVon}",
+                    ablesungId,
+                    geprueftVon);
+
+                return true;
+            },
+            false);
+
         public Task<bool> UpdateAblesungPruefstatusAsync(long ablesungId, string pruefstatus, string? pruefkommentar, int? geprueftVon, DateTime? geprueftAm = null) => ExecuteAsync(
             "UpdateAblesungPruefstatusAsync",
             async () =>
@@ -775,6 +954,13 @@ namespace KGV.Infrastructure.Services
                     return false;
 
                 var normalizedPruefstatus = AblesungPruefstatus.Normalize(pruefstatus);
+                var normalizedPruefkommentar = CleanOptionalText(pruefkommentar);
+                if (normalizedPruefstatus != AblesungPruefstatus.Eingereicht)
+                {
+                    if (string.IsNullOrWhiteSpace(normalizedPruefkommentar) || !geprueftVon.HasValue || geprueftVon.Value <= 0)
+                        return false;
+                }
+
                 DateTime? normalizedGeprueftAm = normalizedPruefstatus == AblesungPruefstatus.Eingereicht
                     ? null
                     : geprueftAm ?? DateTime.UtcNow;
@@ -784,7 +970,7 @@ namespace KGV.Infrastructure.Services
                     .From<AblesungRecord>()
                     .Where(x => x.Id == ablesungId)
                     .Set(x => x.Pruefstatus, normalizedPruefstatus)
-                    .Set(x => x.Pruefkommentar, CleanOptionalText(pruefkommentar))
+                    .Set(x => x.Pruefkommentar, normalizedPruefkommentar)
                     .Set(x => x.GeprueftVon, normalizedPruefstatus == AblesungPruefstatus.Eingereicht ? null : geprueftVon)
                     .Set(x => x.GeprueftAm, normalizedGeprueftAm)
                     .Set(x => x.Freigegeben, AblesungPruefstatus.IsFreigegeben(normalizedPruefstatus))
@@ -3141,6 +3327,7 @@ namespace KGV.Infrastructure.Services
                 var meterById = meters.Cast<StromzaehlerRecord>().ToDictionary(x => x.Id, x => x);
                 return ablesungen
                     .Where(x => meterById.ContainsKey(x.ZaehlerId))
+                    .Where(x => !AblesungPruefstatus.IsAbgelehnt(x.Pruefstatus))
                     .OrderByDescending(x => x.Ablesedatum)
                     .ThenByDescending(x => x.Id)
                     .Select(x => MapZaehlerAblesungDto(x, meterById[x.ZaehlerId].Zaehlernummer, meterById[x.ZaehlerId].Eichdatum))
@@ -3150,11 +3337,36 @@ namespace KGV.Infrastructure.Services
             var wasserById = meters.Cast<WasserzaehlerRecord>().ToDictionary(x => x.Id, x => x);
             return ablesungen
                 .Where(x => wasserById.ContainsKey(x.ZaehlerId))
+                .Where(x => !AblesungPruefstatus.IsAbgelehnt(x.Pruefstatus))
                 .OrderByDescending(x => x.Ablesedatum)
                 .ThenByDescending(x => x.Id)
                 .Select(x => MapZaehlerAblesungDto(x, wasserById[x.ZaehlerId].Zaehlernummer, wasserById[x.ZaehlerId].Eichdatum))
                 .ToList();
         }
+
+        private async Task<AblesungRecord?> GetOffeneReviewAblesungAsync(long ablesungId)
+        {
+            if (ablesungId <= 0)
+                return null;
+
+            var client = await EnsureClientAsync();
+            var response = await client
+                .From<AblesungRecord>()
+                .Where(x => x.Id == ablesungId)
+                .Get();
+
+            var existing = response?.Models?.FirstOrDefault();
+            return existing != null
+                   && string.Equals(AblesungPruefstatus.Normalize(existing.Pruefstatus, existing.Freigegeben), AblesungPruefstatus.Eingereicht, StringComparison.Ordinal)
+                ? existing
+                : null;
+        }
+
+        private static string BuildReviewCorrectionComment(string kommentar)
+            => $"Korrigiert im Prüfprozess: {kommentar}";
+
+        private static string BuildReviewRemovalComment(string begruendung)
+            => $"Im Prüfprozess entfernt: {begruendung}";
 
         private static ZaehlerAblesungDTO MapZaehlerAblesungDto(AblesungRecord record, string zaehlernummer, DateTime eichdatum)
         {

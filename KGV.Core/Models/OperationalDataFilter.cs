@@ -23,6 +23,9 @@ namespace KGV.Core.Models
                 && !ContainsMarker(email);
         }
 
+        public static bool IsOperationalText(string? value)
+            => !ContainsMarker(value);
+
         private static bool ContainsMarker(string? value)
         {
             if (string.IsNullOrWhiteSpace(value))

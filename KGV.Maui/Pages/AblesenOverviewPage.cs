@@ -51,6 +51,7 @@ public sealed class AblesenOverviewPage : ContentPage
 
         var canReadMeters = PermissionChecks.CanReadMeters(_userContextState.CurrentUserContext);
         var canManageMeterChanges = PermissionChecks.CanManageMeterChanges(_userContextState.CurrentUserContext);
+        var canApproveMeterReadings = PermissionChecks.CanApproveMeterReadings(_userContextState.CurrentUserContext);
         var hasAnyMeterAccess = PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext);
 
         _capturePhotoButton = new Button { Text = "Foto aufnehmen" };
@@ -122,6 +123,12 @@ public sealed class AblesenOverviewPage : ContentPage
         var faelligeZaehlerTile = CreateTile("Fällige Zähler", "Zähler mit naher Eichfälligkeit anzeigen", () => Shell.Current.GoToAsync(nameof(FaelligeZaehlerPage)));
         faelligeZaehlerTile.IsVisible = canReadMeters;
 
+        var ablesungenFreigebenTile = CreateTile(
+            "Ablesungen freigeben",
+            "Eingereichte Ablesungen mit Pflichtkommentar freigeben, korrigieren oder aus dem offenen Prüfprozess entfernen.",
+            () => Shell.Current.GoToAsync(nameof(AblesungenFreigabePage)));
+        ablesungenFreigebenTile.IsVisible = canApproveMeterReadings;
+
         var accessHintLabel = new Label
         {
             Text = hasAnyMeterAccess
@@ -171,6 +178,7 @@ public sealed class AblesenOverviewPage : ContentPage
                     zaehlerwechselTile,
                     rfidTile,
                     faelligeZaehlerTile,
+                    ablesungenFreigebenTile,
                     photoTestSection
                 }
             }

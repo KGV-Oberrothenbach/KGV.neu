@@ -131,6 +131,11 @@ namespace KGV.Infrastructure.Services
                 return new FaelligeZaehlerViewModel(_supabaseService, mainVm);
             }
 
+            if (viewModelType == typeof(AblesungenFreigabeViewModel))
+            {
+                return new AblesungenFreigabeViewModel(_supabaseService, mainVm);
+            }
+
             if (viewModelType == typeof(FotoUploadTestViewModel))
             {
                 return new FotoUploadTestViewModel(_photoUploadTestService, mainVm);

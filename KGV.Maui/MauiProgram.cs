@@ -113,6 +113,7 @@ public static class MauiProgram
         builder.Services.AddTransient<ParzellenAblesungenPage>();
         builder.Services.AddTransient<ZaehlerwechselAusbauPage>();
         builder.Services.AddTransient<ZaehlerwechselEinbauPage>();
+        builder.Services.AddTransient<AblesungenFreigabePage>();
 
         builder.Services.AddTransient<AdminShell>();
         builder.Services.AddTransient<UserShell>();
