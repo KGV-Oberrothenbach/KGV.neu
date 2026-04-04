@@ -26,7 +26,7 @@ namespace KGV.ViewModels
 
         public string Title => "RFID einrichten";
         public string Description => "Parzelle wählen, Medium festlegen, UID prüfen und anschließend produktiv speichern.";
-        public bool IsAuthorized => _mainVm.UserContext.Role is UserRole.Admin or UserRole.Vorstand;
+        public bool IsAuthorized => PermissionChecks.CanManageMeterChanges(_mainVm.UserContext);
         public bool HasSelectedParzelle => SelectedParzelle != null;
         public string CurrentStromRfid => SelectedParzelle?.StromRfidDisplay ?? "Nicht hinterlegt";
         public string CurrentWasserRfid => SelectedParzelle?.WasserRfidDisplay ?? "Nicht hinterlegt";

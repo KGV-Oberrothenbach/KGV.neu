@@ -1,6 +1,8 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Maui.Services;
+using KGV.Maui.State;
 using System.Globalization;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -11,9 +13,10 @@ namespace KGV.Maui.ViewModels;
 public sealed class RfidScanContextViewModel : INotifyPropertyChanged
 {
     private readonly ISupabaseService _supabaseService;
-    private readonly IAuthService _authService;
+    private readonly UserContextState _userContextState;
     private readonly INfcScanService _nfcScanService;
     private readonly IRfidFeedbackService _rfidFeedbackService;
+    private readonly PermissionFlags _requiredPermission;
     private string _uidInput = string.Empty;
     private string _statusMessage = string.Empty;
     private bool _isBusy;
@@ -24,12 +27,13 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
     private string _lastScannedUid = string.Empty;
     private DateTime _lastScannedAt = DateTime.MinValue;
 
-    public RfidScanContextViewModel(ISupabaseService supabaseService, IAuthService authService, INfcScanService nfcScanService, IRfidFeedbackService rfidFeedbackService)
+    public RfidScanContextViewModel(ISupabaseService supabaseService, UserContextState userContextState, INfcScanService nfcScanService, IRfidFeedbackService rfidFeedbackService, PermissionFlags requiredPermission)
     {
         _supabaseService = supabaseService;
-        _authService = authService;
+        _userContextState = userContextState;
         _nfcScanService = nfcScanService;
         _rfidFeedbackService = rfidFeedbackService;
+        _requiredPermission = requiredPermission;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -37,7 +41,7 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
     public ObservableCollection<ParzelleRecord> FallbackParzellen { get; } = new();
     public ObservableCollection<RfidMediumOption> FallbackMediumOptions { get; } = new();
 
-    public bool IsAuthorized => _authService.IsAdmin || _authService.IsVorstand;
+    public bool IsAuthorized => PermissionChecks.HasPermission(_userContextState.CurrentUserContext, _requiredPermission);
     public string UidInput
     {
         get => _uidInput;
@@ -120,10 +124,10 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
         }
     }
 
-    public bool CanResolve => !IsBusy && !string.IsNullOrWhiteSpace(UidInput);
+    public bool CanResolve => IsAuthorized && !IsBusy && !string.IsNullOrWhiteSpace(UidInput);
     public bool CanStartNfcScan => !IsBusy && IsAuthorized && NfcAvailability.State == NfcAvailabilityState.Available;
     public bool CanOpenNfcSettings => NfcAvailability.State == NfcAvailabilityState.Disabled;
-    public bool CanApplyFallbackContext => !IsBusy && SelectedFallbackParzelle != null && SelectedFallbackMedium != null;
+    public bool CanApplyFallbackContext => IsAuthorized && !IsBusy && SelectedFallbackParzelle != null && SelectedFallbackMedium != null;
     public bool CanContinueToMeterRemoval => !IsBusy && Resolution?.State == RfidScanContextState.KnownWithActiveMeter;
     public bool CanContinueToMeterInstallation => !IsBusy && Resolution?.State == RfidScanContextState.KnownWithoutActiveMeter;
 
@@ -233,7 +237,7 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
     {
         if (!IsAuthorized)
         {
-            StatusMessage = "Dieser Bereich ist nur für Admin oder Vorstand verfügbar.";
+            StatusMessage = "Dieser Bereich ist mit den aktuellen Fachrechten nicht verfügbar.";
             return;
         }
 
@@ -274,6 +278,12 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
 
     public async Task ResolveAsync(bool playSuccessFeedback = false)
     {
+        if (!IsAuthorized)
+        {
+            StatusMessage = "Dieser Bereich ist mit den aktuellen Fachrechten nicht verfügbar.";
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(UidInput))
         {
             StatusMessage = "Bitte eine RFID-UID eingeben.";
@@ -298,6 +308,12 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
 
     public async Task ApplyFallbackContextAsync()
     {
+        if (!IsAuthorized)
+        {
+            StatusMessage = "Dieser Bereich ist mit den aktuellen Fachrechten nicht verfügbar.";
+            return;
+        }
+
         if (SelectedFallbackParzelle == null || SelectedFallbackMedium == null)
         {
             StatusMessage = "Bitte zuerst Parzelle und Medium wählen.";

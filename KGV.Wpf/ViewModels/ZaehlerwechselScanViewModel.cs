@@ -39,7 +39,7 @@ namespace KGV.ViewModels
 
         public string Title => "Zählerwechsel";
         public string Description => "Korrektur- und Verwaltungsweg über Gartennummer oder Parzelle. RFID-Scan ist in WPF kein Pflichtschritt.";
-        public bool IsAuthorized => _mainVm.UserContext.Role is UserRole.Admin or UserRole.Vorstand;
+        public bool IsAuthorized => PermissionChecks.CanManageMeterChanges(_mainVm.UserContext);
         public bool HasFilteredParzellen => FilteredParzellen.Count > 0;
         public bool HasSelectedDetail => SelectedDetail != null;
         public bool ShowSelectionHint => !HasSelectedDetail;

@@ -12,29 +12,65 @@ namespace KGV.Core.Security
     {
         public PermissionFlags GetPermissions(UserRole role)
         {
+            return GetMemberPermissions(role)
+                | GetDocumentPermissions(role)
+                | GetMeterPermissions(role)
+                | GetAdministrativePermissions(role);
+        }
+
+        private static PermissionFlags GetMemberPermissions(UserRole role)
+        {
             return role switch
             {
                 UserRole.Admin =>
                     PermissionFlags.CanSearchMembers |
                     PermissionFlags.CanViewMembers |
-                    PermissionFlags.CanEditAllMembers |
-                    PermissionFlags.CanManageDocuments |
-                    PermissionFlags.CanManageReadings |
-                    PermissionFlags.CanManageWorkHours |
-                    PermissionFlags.CanManageRoles,
+                    PermissionFlags.CanEditAllMembers,
 
                 UserRole.Vorstand =>
                     PermissionFlags.CanSearchMembers |
                     PermissionFlags.CanViewMembers |
-                    PermissionFlags.CanEditAllMembers |
-                    PermissionFlags.CanManageDocuments |
-                    PermissionFlags.CanManageReadings |
-                    PermissionFlags.CanManageWorkHours,
+                    PermissionFlags.CanEditAllMembers,
 
                 _ =>
                     PermissionFlags.CanViewMembers |
-                    PermissionFlags.CanSeeOwnDataOnly |
-                    PermissionFlags.CanManageReadings
+                    PermissionFlags.CanSeeOwnDataOnly
+            };
+        }
+
+        private static PermissionFlags GetDocumentPermissions(UserRole role)
+        {
+            return role switch
+            {
+                UserRole.Admin or UserRole.Vorstand => PermissionFlags.CanManageDocuments,
+                _ => PermissionFlags.None
+            };
+        }
+
+        private static PermissionFlags GetMeterPermissions(UserRole role)
+        {
+            return role switch
+            {
+                UserRole.Admin or UserRole.Vorstand =>
+                    PermissionFlags.CanReadMeters |
+                    PermissionFlags.CanManageMeterChanges |
+                    PermissionFlags.CanApproveMeterReadings,
+                _ => PermissionFlags.None
+            };
+        }
+
+        private static PermissionFlags GetAdministrativePermissions(UserRole role)
+        {
+            return role switch
+            {
+                UserRole.Admin =>
+                    PermissionFlags.CanManageWorkHours |
+                    PermissionFlags.CanManageRoles,
+
+                UserRole.Vorstand =>
+                    PermissionFlags.CanManageWorkHours,
+
+                _ => PermissionFlags.None
             };
         }
 

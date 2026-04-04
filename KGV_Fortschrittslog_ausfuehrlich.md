@@ -2,6 +2,86 @@
 
 ---
 
+## 2026-04-04 – Prompt 1/1: Rechtebasis V1 sauber abgeschlossen
+
+- Vor dem Abschlusslauf den realen Repo-/Git-/Codezustand geprüft.
+- Direkt geprüft wurden:
+  - `KGV.Core/Security/PermissionFlags.cs`
+  - `KGV.Core/Security/PermissionChecks.cs`
+  - `KGV.Core/Security/PermissionService.cs`
+  - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+  - `KGV.Wpf/ViewModels/AblesenOverviewViewModel.cs`
+  - `KGV.Wpf/ViewModels/AblesungErfassenViewModel.cs`
+  - `KGV.Wpf/ViewModels/FaelligeZaehlerViewModel.cs`
+  - `KGV.Wpf/ViewModels/RfidEinrichtenViewModel.cs`
+  - `KGV.Wpf/ViewModels/ZaehlerwechselScanViewModel.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+  - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
+  - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+- Ehrlicher Istzustand vor dem Umbau:
+  - Rollen- und Fachrechte waren im aktiven Produktivpfad noch nicht sauber getrennt; viele Freigaben hingen direkt an `Role`, `IsAdmin` oder `IsVorstand`
+  - für Ablesen / Zählerwechsel fehlte damit eine kleine zentrale Rechtebasis, die WPF und MAUI dieselben Fachzugriffe konsistent gibt
+  - der Dokumente-Pfad war für normale Nutzer bereits auf View-only korrigiert und wurde in diesem V1-Block bewusst nicht erneut umgebaut
+- Neu eingeführt bzw. im aktuellen Diff bestätigt:
+  - neue zentrale Rechtebasis V1 über `PermissionFlags`
+  - neuer Helper `PermissionChecks` für die ersten produktiven Fachabfragen
+  - Aggregation der Meterrechte über:
+    - `CanReadMeters`
+    - `CanManageMeterChanges`
+    - `CanApproveMeterReadings`
+    - Sammelprüfung `HasAnyMeterAccess(...)`
+- Übergangsmapping Rolle -> Fachrechte im aktuellen Stand:
+  - `Admin`:
+    - Mitgliedersuche/-sicht/-bearbeitung
+    - Dokumente verwalten
+    - Zähler lesen
+    - Zählerwechsel / RFID einrichten
+    - Ablesefreigabe
+    - Arbeitsstunden freigeben
+    - Rollen verwalten
+  - `Vorstand`:
+    - Mitgliedersuche/-sicht/-bearbeitung
+    - Dokumente verwalten
+    - Zähler lesen
+    - Zählerwechsel / RFID einrichten
+    - Ablesefreigabe
+    - Arbeitsstunden freigeben
+  - normaler Nutzer:
+    - Mitglied sichtbar
+    - eigener Datenkontext über `CanSeeOwnDataOnly`
+    - keine erweiterten Meter-/RFID-/Dokumentenverwaltungsrechte
+- Bereits angebundene Bereiche in WPF und MAUI:
+  - WPF:
+    - Hauptnavigation `Ablesen` in `MainWindowViewModel`
+    - `AblesenOverviewViewModel`
+    - `AblesungErfassenViewModel`
+    - `FaelligeZaehlerViewModel`
+    - `RfidEinrichtenViewModel`
+    - `ZaehlerwechselScanViewModel`
+  - MAUI:
+    - `AdminShell` / `UserShell` für den Hauptpunkt `Ablesen`
+    - `AblesenOverviewPage`
+    - `AblesungErfassenPage`
+    - `ZaehlerwechselPage`
+    - `RfidEinrichtenViewModel`
+    - `RfidScanContextViewModel`
+- Minimal umgesetzt in diesem Abschlusslauf:
+  - kein weiterer Produktivcode-Fix an der Rechtebasis
+  - nur belastbare Logpflege des bereits umgesetzten Rechtebasis-V1-Blocks
+  - danach Build-Validierung und Git-Abschluss für genau diesen Block
+- Offen gebliebene Punkte:
+  - V1 ist bewusst nur die erste Rechtebasis; weitere Module außerhalb von Ablesen / Zählerwechsel hängen noch nicht vollständig auf `PermissionChecks`
+  - keine neue Rechteverwaltungs-UI
+  - keine DB-Erweiterung für nutzerspezifische Einzelrechte
+  - Dokumente bleiben für normale Nutzer auf dem bereits bestehenden View-only-Pfad
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-04 – Prompt 2/3: MAUI-Zählereinbau und Erstablesung gegen den aktuellen Repo-Stand end-to-end hart validiert
 
 - Vor dem Block den realen Repo-/Git-/Codezustand geprüft.

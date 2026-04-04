@@ -20,7 +20,7 @@ namespace KGV.ViewModels
 
         public string Title => "Ablesung erfassen";
         public string Description => "RFID-UID eingeben oder scannen, produktiv über `v_rfid_scan_context` auflösen und den Ablese-Kontext prüfen.";
-        public bool IsAuthorized => _mainVm.UserContext.Role is UserRole.Admin or UserRole.Vorstand;
+        public bool IsAuthorized => PermissionChecks.CanReadMeters(_mainVm.UserContext);
         public RfidScanContextViewModel ScanContext { get; }
         public string WorkflowDecisionText => GetDecisionText(ScanContext.Resolution);
 

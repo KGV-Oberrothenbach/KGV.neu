@@ -266,14 +266,14 @@ namespace KGV.ViewModels
                 });
             }
 
-            if (UserContext.Role is UserRole.Admin or UserRole.Vorstand)
+            if (PermissionChecks.HasAnyMeterAccess(UserContext))
             {
                 NavigationItems.Add(new NavigationItem
                 {
                     Title = "Ablesen",
                     ViewModelType = typeof(AblesenOverviewViewModel),
                     IsVisible = true,
-                    IsAdminOnly = true
+                    IsAdminOnly = false
                 });
             }
 
@@ -457,7 +457,7 @@ namespace KGV.ViewModels
                     visible = visible && UserContext.Has(PermissionFlags.CanManageWorkHours);
 
                 if (item.ViewModelType == typeof(DokumenteViewModel))
-                    visible = visible && UserContext.Has(PermissionFlags.CanManageDocuments);
+                    visible = visible && (PermissionChecks.CanManageDocuments(UserContext) || UserContext.Has(PermissionFlags.CanSeeOwnDataOnly));
 
                 if (item.ViewModelType == typeof(GartenStromViewModel) ||
                     item.ViewModelType == typeof(GartenWasserViewModel) ||

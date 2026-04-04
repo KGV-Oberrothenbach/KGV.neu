@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Maui.Models;
 using KGV.Maui.Services.PendingPhotos;
 using KGV.Maui.State;
@@ -67,9 +68,10 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         _pendingPhotoService = services.GetRequiredService<PendingPhotoService>();
         _scanContext = new RfidScanContextViewModel(
             _supabaseService,
-            services.GetRequiredService<IAuthService>(),
+            services.GetRequiredService<UserContextState>(),
             services.GetRequiredService<KGV.Maui.Services.INfcScanService>(),
-            services.GetRequiredService<KGV.Maui.Services.IRfidFeedbackService>());
+            services.GetRequiredService<KGV.Maui.Services.IRfidFeedbackService>(),
+            PermissionFlags.CanReadMeters);
         _scanContext.PropertyChanged += OnScanContextPropertyChanged;
 
         BindingContext = _scanContext;

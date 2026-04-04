@@ -14,9 +14,13 @@ namespace KGV.Core.Security
         CanSeeOwnDataOnly = 1 << 3,
 
         CanManageDocuments = 1 << 4,
-        CanManageReadings = 1 << 5,
-        CanManageWorkHours = 1 << 6,
+        CanReadMeters = 1 << 5,
+        CanManageMeterChanges = 1 << 6,
+        CanApproveMeterReadings = 1 << 7,
 
-        CanManageRoles = 1 << 7
+        CanManageReadings = CanReadMeters | CanManageMeterChanges | CanApproveMeterReadings,
+        CanManageWorkHours = 1 << 8,
+
+        CanManageRoles = 1 << 9
     }
 }

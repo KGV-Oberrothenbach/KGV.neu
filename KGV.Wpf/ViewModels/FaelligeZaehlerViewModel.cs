@@ -25,7 +25,7 @@ namespace KGV.ViewModels
 
         public string Title => "Fällige Zähler";
         public string Description => "Übersicht zu Eichfälligkeit und Status der aktiven Zähler auf Basis von `v_zaehler_eichstatus`.";
-        public bool IsAuthorized => _mainVm.UserContext.Role is UserRole.Admin or UserRole.Vorstand;
+        public bool IsAuthorized => PermissionChecks.CanReadMeters(_mainVm.UserContext);
         public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
         public bool HasItems => Items.Count > 0;
         public bool HasEmptyState => !IsBusy && Items.Count == 0;

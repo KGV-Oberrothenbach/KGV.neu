@@ -2,6 +2,76 @@
 
 ---
 
+## 2026-04-04 – Prompt 1/1: Rechtebasis V1 sauber abgeschlossen, Logpflege nachgezogen und Git-Abschluss vorbereitet
+
+- Den realen Repo-/Git-/Arbeitsstand vor dem Abschlusslauf geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - tracked offen im Arbeitsbaum lagen genau die Rechtebasis-V1-Dateien:
+    - `KGV.Core/Security/PermissionFlags.cs`
+    - `KGV.Core/Security/PermissionService.cs`
+    - `KGV.Core/Security/PermissionChecks.cs` *(neu)*
+    - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+    - `KGV.Wpf/ViewModels/AblesenOverviewViewModel.cs`
+    - `KGV.Wpf/ViewModels/AblesungErfassenViewModel.cs`
+    - `KGV.Wpf/ViewModels/FaelligeZaehlerViewModel.cs`
+    - `KGV.Wpf/ViewModels/RfidEinrichtenViewModel.cs`
+    - `KGV.Wpf/ViewModels/ZaehlerwechselScanViewModel.cs`
+    - `KGV.Maui/AdminShell.cs`
+    - `KGV.Maui/UserShell.cs`
+    - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+    - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+    - `KGV.Maui/Pages/ZaehlerwechselPage.cs`
+    - `KGV.Maui/ViewModels/RfidEinrichtenViewModel.cs`
+    - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+  - lokal untracked blieben bewusst weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Ehrlicher Istzustand vor dem Umbau:
+  - Rollen- und Fachrechte waren im aktiven Produktivpfad noch nicht sauber getrennt; viele Stellen hingen direkt an `Role`, `IsAdmin` oder `IsVorstand`
+  - für Ablesen / Zählerwechsel fehlte damit eine kleine zentrale Rechtebasis, die WPF und MAUI konsistent dieselben Fachzugriffe gibt
+  - Dokumente waren für normale Nutzer bereits auf View-only zurückgezogen und wurden in diesem Block bewusst nicht erneut umgebaut
+- Neu eingeführte Rechtebasis V1 im aktuellen Diff:
+  - neue zentrale Flags in `PermissionFlags`:
+    - `CanSearchMembers`
+    - `CanViewMembers`
+    - `CanEditAllMembers`
+    - `CanSeeOwnDataOnly`
+    - `CanManageDocuments`
+    - `CanReadMeters`
+    - `CanManageMeterChanges`
+    - `CanApproveMeterReadings`
+    - `CanManageWorkHours`
+    - `CanManageRoles`
+  - neues Hilfsmodul `PermissionChecks` für die ersten produktiven Fachabfragen:
+    - `CanManageDocuments(...)`
+    - `CanReadMeters(...)`
+    - `CanManageMeterChanges(...)`
+    - `CanApproveMeterReadings(...)`
+    - `HasAnyMeterAccess(...)`
+- Übergangsmapping Rolle -> Fachrechte im aktuellen Stand:
+  - `Admin` => Mitgliedersuche/-sicht/-bearbeitung, Dokumente verwalten, Zähler lesen, Zählerwechsel, Ablesefreigabe, Arbeitsstunden freigeben, Rollen verwalten
+  - `Vorstand` => Mitgliedersuche/-sicht/-bearbeitung, Dokumente verwalten, Zähler lesen, Zählerwechsel, Ablesefreigabe, Arbeitsstunden freigeben
+  - normaler Nutzer => Mitglied sichtbar, eigener Datenkontext (`CanSeeOwnDataOnly`), keine erweiterten Ablesen-/Zählerwechsel-/Dokumentenverwaltungsrechte
+- Bereits angebundene Bereiche in WPF und MAUI:
+  - WPF:
+    - Hauptnavigation `Ablesen` in `MainWindowViewModel` jetzt über `PermissionChecks.HasAnyMeterAccess(...)`
+    - `AblesenOverviewViewModel` schaltet `Ablesung erfassen`, `Zählerwechsel`, `RFID einrichten` und `Fällige Zähler` fachrechtbasiert frei
+    - `AblesungErfassenViewModel`, `FaelligeZaehlerViewModel`, `RfidEinrichtenViewModel` und `ZaehlerwechselScanViewModel` prüfen ihre Produktivpfade jetzt gegen die neuen Meter-Rechte
+  - MAUI:
+    - `AdminShell` und `UserShell` blenden den Hauptpunkt `Ablesen` jetzt über `PermissionChecks.HasAnyMeterAccess(...)` ein
+    - `AblesenOverviewPage` schaltet die vier Kacheln für `Ablesung erfassen`, `Zählerwechsel`, `RFID einrichten` und `Fällige Zähler` fachrechtbasiert
+    - `AblesungErfassenPage`, `ZaehlerwechselPage`, `RfidEinrichtenViewModel` und `RfidScanContextViewModel` verwenden die neue Rechtebasis direkt für den Meter-/RFID-Kontext
+- Offen gebliebene Punkte dieses V1-Blocks:
+  - die Rechtebasis ist bewusst nur V1; weitere Bereiche außerhalb von Ablesen / Zählerwechsel hängen noch nicht vollständig auf `PermissionChecks`
+  - keine neue Rechteverwaltungs-UI
+  - keine DB-Erweiterung für nutzerspezifische Einzelrechte
+  - keine Nachschärfung des Dokumente-Blocks in diesem Prompt; normaler Nutzer bleibt dort auf dem bereits vorhandenen View-only-Pfad
+- Validierung dieses Abschlusslaufs folgt im Anschluss über:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-04 – Prompt 2/3: Zählereinbau und Erstablesung im MAUI-End-to-End-Pfad gegen aktuellen Repo-Stand hart validiert, kein neuer Produktivfix nötig
 
 - Den realen Repo-/Git-/Codezustand vor Änderungen geprüft.

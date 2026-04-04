@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
@@ -20,6 +21,7 @@ public sealed class AblesenOverviewPage : ContentPage
     private readonly IPhotoUploadTestService _photoUploadTestService;
     private readonly PendingPhotoSyncService _pendingPhotoSyncService;
     private readonly PendingPhotoMenuState _pendingPhotoMenuState;
+    private readonly KGV.Maui.State.UserContextState _userContextState;
     private readonly Button _capturePhotoButton;
     private readonly Button _pickPhotoButton;
     private readonly Button _uploadButton;
@@ -39,12 +41,17 @@ public sealed class AblesenOverviewPage : ContentPage
     private string _selectedContentType = "application/octet-stream";
     private bool _isBusy;
 
-    public AblesenOverviewPage(IPhotoUploadTestService photoUploadTestService, PendingPhotoSyncService pendingPhotoSyncService, PendingPhotoMenuState pendingPhotoMenuState)
+    public AblesenOverviewPage(IPhotoUploadTestService photoUploadTestService, PendingPhotoSyncService pendingPhotoSyncService, PendingPhotoMenuState pendingPhotoMenuState, KGV.Maui.State.UserContextState userContextState)
     {
         _photoUploadTestService = photoUploadTestService;
         _pendingPhotoSyncService = pendingPhotoSyncService;
         _pendingPhotoMenuState = pendingPhotoMenuState;
+        _userContextState = userContextState;
         Title = "Ablesen";
+
+        var canReadMeters = PermissionChecks.CanReadMeters(_userContextState.CurrentUserContext);
+        var canManageMeterChanges = PermissionChecks.CanManageMeterChanges(_userContextState.CurrentUserContext);
+        var hasAnyMeterAccess = PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext);
 
         _capturePhotoButton = new Button { Text = "Foto aufnehmen" };
         _capturePhotoButton.Clicked += async (_, _) => await CapturePhotoAsync();
@@ -103,6 +110,31 @@ public sealed class AblesenOverviewPage : ContentPage
             IsVisible = false
         };
 
+        var ablesungTile = CreateTile("Ablesung erfassen", "RFID-Tag am Gerät scannen; wenn NFC nicht nutzbar ist, steht ein fachlicher Ersatzweg über Parzelle und Medium bereit.", () => Shell.Current.GoToAsync(nameof(AblesungErfassenPage)));
+        ablesungTile.IsVisible = canReadMeters;
+
+        var zaehlerwechselTile = CreateTile("Zählerwechsel", "RFID-Tag am Gerät scannen; wenn NFC nicht nutzbar ist, steht ein fachlicher Ersatzweg über Parzelle und Medium bereit.", () => Shell.Current.GoToAsync(nameof(ZaehlerwechselPage)));
+        zaehlerwechselTile.IsVisible = canManageMeterChanges;
+
+        var rfidTile = CreateTile("RFID einrichten", "RFID-Tag am Gerät scannen und der gewählten Parzelle für das gewählte Medium zuordnen.", () => Shell.Current.GoToAsync(nameof(RfidEinrichtenPage)));
+        rfidTile.IsVisible = canManageMeterChanges;
+
+        var faelligeZaehlerTile = CreateTile("Fällige Zähler", "Zähler mit naher Eichfälligkeit anzeigen", () => Shell.Current.GoToAsync(nameof(FaelligeZaehlerPage)));
+        faelligeZaehlerTile.IsVisible = canReadMeters;
+
+        var accessHintLabel = new Label
+        {
+            Text = hasAnyMeterAccess
+                ? "Die sichtbaren Funktionen folgen bereits der zentralen Rechtebasis V1 für Ablesen und Zählerwechsel."
+                : "Mit den aktuellen Fachrechten ist im Bereich `Ablesen` derzeit keine Funktion freigeschaltet.",
+            TextColor = Colors.Gray,
+            LineBreakMode = LineBreakMode.WordWrap,
+            IsVisible = !hasAnyMeterAccess
+        };
+
+        var photoTestSection = CreatePhotoTestSection();
+        photoTestSection.IsVisible = hasAnyMeterAccess;
+
         Content = new ScrollView
         {
             Content = new VerticalStackLayout
@@ -134,11 +166,12 @@ public sealed class AblesenOverviewPage : ContentPage
                         }
                     },
                     new Label { Text = "Bitte wähle eine Funktion.", LineBreakMode = LineBreakMode.WordWrap },
-                    CreateTile("Ablesung erfassen", "RFID-Tag am Gerät scannen; wenn NFC nicht nutzbar ist, steht ein fachlicher Ersatzweg über Parzelle und Medium bereit.", () => Shell.Current.GoToAsync(nameof(AblesungErfassenPage))),
-                    CreateTile("Zählerwechsel", "RFID-Tag am Gerät scannen; wenn NFC nicht nutzbar ist, steht ein fachlicher Ersatzweg über Parzelle und Medium bereit.", () => Shell.Current.GoToAsync(nameof(ZaehlerwechselPage))),
-                    CreateTile("RFID einrichten", "RFID-Tag am Gerät scannen und der gewählten Parzelle für das gewählte Medium zuordnen.", () => Shell.Current.GoToAsync(nameof(RfidEinrichtenPage))),
-                    CreateTile("Fällige Zähler", "Zähler mit naher Eichfälligkeit anzeigen", () => Shell.Current.GoToAsync(nameof(FaelligeZaehlerPage))),
-                    CreatePhotoTestSection()
+                    accessHintLabel,
+                    ablesungTile,
+                    zaehlerwechselTile,
+                    rfidTile,
+                    faelligeZaehlerTile,
+                    photoTestSection
                 }
             }
         };

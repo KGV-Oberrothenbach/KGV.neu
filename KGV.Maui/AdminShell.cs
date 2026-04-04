@@ -70,7 +70,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
         Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
-        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+        if (PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext))
         {
             Items.Add(CreateItem("Ablesen", "ablesen", () => _services.GetRequiredService<AblesenOverviewPage>()));
 

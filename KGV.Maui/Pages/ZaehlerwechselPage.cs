@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,9 +32,10 @@ public sealed class ZaehlerwechselPage : RfidScanWorkflowPage
 
         return new RfidScanContextViewModel(
             services.GetRequiredService<ISupabaseService>(),
-            services.GetRequiredService<IAuthService>(),
+            services.GetRequiredService<UserContextState>(),
             services.GetRequiredService<KGV.Maui.Services.INfcScanService>(),
-            services.GetRequiredService<KGV.Maui.Services.IRfidFeedbackService>());
+            services.GetRequiredService<KGV.Maui.Services.IRfidFeedbackService>(),
+            PermissionFlags.CanManageMeterChanges);
     }
 
     private static string GetDecisionText(RfidScanContextResult? resolution)

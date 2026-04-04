@@ -1,6 +1,8 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Maui.Services;
+using KGV.Maui.State;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -13,7 +15,7 @@ namespace KGV.Maui.ViewModels;
 public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
 {
     private readonly ISupabaseService _supabaseService;
-    private readonly IAuthService _authService;
+    private readonly UserContextState _userContextState;
     private readonly IRfidFeedbackService _rfidFeedbackService;
     private ParzelleRecord? _selectedParzelle;
     private RfidMediumOption? _selectedMedium;
@@ -27,10 +29,10 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
     private string _lastFeedbackUid = string.Empty;
     private DateTime _lastFeedbackAt = DateTime.MinValue;
 
-    public RfidEinrichtenViewModel(ISupabaseService supabaseService, IAuthService authService, IRfidFeedbackService rfidFeedbackService)
+    public RfidEinrichtenViewModel(ISupabaseService supabaseService, UserContextState userContextState, IRfidFeedbackService rfidFeedbackService)
     {
         _supabaseService = supabaseService;
-        _authService = authService;
+        _userContextState = userContextState;
         _rfidFeedbackService = rfidFeedbackService;
     }
 
@@ -39,7 +41,7 @@ public sealed class RfidEinrichtenViewModel : INotifyPropertyChanged
     public ObservableCollection<ParzelleRecord> Parzellen { get; } = new();
     public ObservableCollection<RfidMediumOption> MediumOptions { get; } = new();
 
-    public bool IsAuthorized => _authService.IsAdmin || _authService.IsVorstand;
+    public bool IsAuthorized => PermissionChecks.CanManageMeterChanges(_userContextState.CurrentUserContext);
     public bool HasSelectedParzelle => SelectedParzelle != null;
     public bool SelectedParzelleHatStrom => SelectedParzelle?.HatStrom == true;
     public bool SelectedParzelleHatWasser => SelectedParzelle?.HatWasser == true;

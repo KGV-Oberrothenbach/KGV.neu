@@ -1,4 +1,5 @@
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Maui.Pages;
 using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.State;
@@ -67,6 +68,10 @@ public sealed class UserShell : Shell, IAppShellInitializer
 
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
         Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
+
+        if (PermissionChecks.HasAnyMeterAccess(_state.CurrentUserContext))
+            Items.Add(CreateItem("Ablesen", "ablesen", () => _services.GetRequiredService<AblesenOverviewPage>()));
+
         Items.Add(CreateItem("↳ Stammdaten", "mydetails", CreateOwnMemberDetailsPage));
         Items.Add(CreateItem("↳ Wartungsverträge", "my_wartungsvertraege", CreateOwnMemberWartungsvertraegePage));
         Items.Add(CreateItem("↳ Nebenmitglied", "nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
