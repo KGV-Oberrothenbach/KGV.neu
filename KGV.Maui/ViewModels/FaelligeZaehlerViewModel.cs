@@ -1,5 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
+using KGV.Maui.State;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -9,17 +11,17 @@ namespace KGV.Maui.ViewModels;
 public sealed class FaelligeZaehlerViewModel : INotifyPropertyChanged
 {
     private readonly ISupabaseService _supabaseService;
-    private readonly IAuthService _authService;
+    private readonly UserContextState _userContextState;
     private readonly List<ZaehlerEichstatusRecord> _allItems = new();
     private string _filterText = string.Empty;
     private string _selectedStatusFilter;
     private string _statusMessage = string.Empty;
     private bool _isBusy;
 
-    public FaelligeZaehlerViewModel(ISupabaseService supabaseService, IAuthService authService)
+    public FaelligeZaehlerViewModel(ISupabaseService supabaseService, UserContextState userContextState)
     {
         _supabaseService = supabaseService;
-        _authService = authService;
+        _userContextState = userContextState;
         StatusFilters.Add("Alle Status");
         StatusFilters.Add("Überfällig");
         StatusFilters.Add("Bald fällig");
@@ -32,7 +34,7 @@ public sealed class FaelligeZaehlerViewModel : INotifyPropertyChanged
     public ObservableCollection<ZaehlerEichstatusRecord> Items { get; } = new();
     public ObservableCollection<string> StatusFilters { get; } = new();
 
-    public bool IsAuthorized => _authService.IsAdmin || _authService.IsVorstand;
+    public bool IsAuthorized => PermissionChecks.CanReadMeters(_userContextState.CurrentUserContext);
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
     public bool HasItems => Items.Count > 0;
     public bool HasEmptyState => !IsBusy && Items.Count == 0;

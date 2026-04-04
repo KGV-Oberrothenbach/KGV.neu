@@ -2,6 +2,43 @@
 
 ---
 
+## 2026-04-04 – Prompt 1/6: Restliche Rollenprüfungen im Meter-/Scanbereich gegen die zentrale Rechtebasis weiter bereinigt
+
+- Den realen Repo-/Git-/Logstand vor dem Block geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - keine tracked Änderungen offen
+  - lokal untracked blieben bewusst weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Für diesen Bereinigungsblock gezielt geprüft wurden nur Meter-/Scanpfade in:
+  - `KGV.Maui`
+  - `KGV.Wpf`
+  - `KGV.Core`
+- Ehrlicher Istbefund im Zielbereich `Ablesen` / `Zählerwechsel` / `RFID` / `Fällige Zähler` / Scan-/Meterkontext:
+  - die meisten direkt betroffenen WPF-/MAUI-Pfade waren bereits auf `PermissionChecks` umgestellt
+  - als echte verbliebene direkte Rollenprüfung im Zielbereich blieb noch:
+    - `KGV.Maui/ViewModels/FaelligeZaehlerViewModel.cs`
+      - bisher: `_authService.IsAdmin || _authService.IsVorstand`
+      - fachlich sollte hier bereits dieselbe Meter-Rechteprüfung wie in WPF gelten
+  - direkte Rollenvergleiche in anderen nicht betroffenen Shell-/Verwaltungspfaden wurden bewusst nicht in diesen Block hineingezogen
+- Minimal umgesetzt:
+  - `KGV.Maui/ViewModels/FaelligeZaehlerViewModel.cs`
+    - Abhängigkeit von `IAuthService` entfernt
+    - stattdessen `UserContextState` genutzt
+    - `IsAuthorized` auf die zentrale Rechtebasis umgestellt:
+      - `PermissionChecks.CanReadMeters(_userContextState.CurrentUserContext)`
+  - keine neue Fachlogik
+  - keine Änderung an Dokumentenpfaden
+  - keine Erweiterung des Permission-Modells nötig
+- Ergebnis dieses Blocks:
+  - `Fällige Zähler` prüft in MAUI jetzt dieselbe zentrale Meterberechtigung wie der entsprechende WPF-Pfad
+  - im gezielt geprüften Meter-/Scanbereich blieb damit keine weitere echte direkte Rollenprüfung mehr übrig, die in diesem Block noch zwingend auf `PermissionChecks` gezogen werden musste
+- Validierung folgt im Anschluss über:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-04 – Prompt 1/1: Rechtebasis V1 sauber abgeschlossen, Logpflege nachgezogen und Git-Abschluss vorbereitet
 
 - Den realen Repo-/Git-/Arbeitsstand vor dem Abschlusslauf geprüft.
