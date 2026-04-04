@@ -2,6 +2,54 @@
 
 ---
 
+## 2026-04-04 – Prompt 2/3: Zählereinbau und Erstablesung im MAUI-End-to-End-Pfad gegen aktuellen Repo-Stand hart validiert, kein neuer Produktivfix nötig
+
+- Den realen Repo-/Git-/Codezustand vor Änderungen geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - keine lokalen tracked Änderungen offen
+  - lokal untracked blieben bewusst weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`
+  - `KGV.Maui/State/ZaehlerwechselWorkflowState.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Core/Models/AblesungInsertRecord.cs`
+  - `KGV.Core/Models/AblesungRecord.cs`
+  - `KGV.Core/Models/ZaehlerInsertRecord.cs`
+  - `KGV.Core/Models/StromzaehlerInsertRecord.cs`
+  - `KGV.Core/Models/WasserzaehlerInsertRecord.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - zum Gegencheck des Korrektur-/Verwaltungswegs zusätzlich:
+    - `KGV.Wpf/ViewModels/ZaehlerwechselEinbauViewModel.cs`
+    - `KGV.Wpf/ViewModels/ZaehlerwechselAusbauViewModel.cs`
+- Ehrlicher Befund nach Repo-Prüfung:
+  - der produktive MAUI-Einbaupfad legt in `ZaehlerwechselEinbauPage` nur den Zähler an und verzichtet dort bereits vollständig auf ein separates Foto
+  - die anschließende Erstablesung wird über `ZaehlerwechselWorkflowState.PendingAblesungFlow` in den bestehenden `AblesungErfassenPage`-Pfad übergeben
+  - im Erstablese-Pfad wird genau ein Foto verlangt und zusammen mit `Art = einbau` in `zaehler_ablesung` gespeichert
+  - `AblesungInsertRecord` und `AblesungRecord` zeigen produktiv auf `zaehler_ablesung`; ein alter Insertpfad gegen `ablesung` oder mit `zaehler_typ` war im aktiven Repo-Stand in diesem Flow nicht mehr vorhanden
+  - der gemeinsame Zähler-Insert läuft produktiv über `ZaehlerInsertRecord` auf `zaehler`; die alten DTO-Namen `StromzaehlerInsertRecord` / `WasserzaehlerInsertRecord` dienen im aktuellen Stand nur noch als Request-Container für den Shared-Service
+  - das Eichjahr wird im mobilen Einbaupfad fachlich bereits nur als Jahr behandelt:
+    - Eingabe in MAUI als `Eichjahr`
+    - Umwandlung zu `new DateTime(eichjahr, 1, 1)`
+    - zusätzlicher Shared-Service-Pfad `NormalizeMeterEichjahr(...)` im echten Zählerinsert
+  - ein doppelter Foto-Pfad im Einbau-/Erstablese-Gesamtflow war im aktiven MAUI-Stand nicht mehr vorhanden
+  - ein Save-Nachlauf, der erfolgreiche Erstablesungen fälschlich wieder als Fehler behandelt, war im aktiven Pfad nicht mehr nachweisbar; `AddAblesungAsync(...)` speichert direkt und verwirft keinen erfolgreichen Datensatz über einen strengen Re-Read
+  - der WPF-Pfad bleibt wie gewünscht Korrektur-/Verwaltungsweg; dort wurde in diesem Prompt bewusst nichts umgebaut
+- Ergebnis dieses Blocks:
+  - kein neuer Produktivcode-Fix nötig
+  - der mobile Zählereinbau-/Erstablese-End-to-End-Pfad ist im aktuellen Repo-Stand bereits fachlich geschlossen
+  - exakt ein Foto im Gesamtflow bleibt erhalten, und zwar nur im Erstablese-Schritt
+  - der aktive Tabellen-/Feldvertrag für Zähler und Ablesung ist konsistent auf `zaehler` und `zaehler_ablesung`
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Befund: nur code-/build-seitige Gegenprüfung, kein echter Laufzeittest in dieser Umgebung
+
 ## 2026-04-02 – Prompt 1/1: MAUI-Mitgliedersuche öffnet ausgewähltes Mitglied jetzt direkt in `Stammdaten`
 
 - Den realen Repo-/Git-/Codezustand vor Änderungen geprüft.

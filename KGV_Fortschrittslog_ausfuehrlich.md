@@ -2,6 +2,50 @@
 
 ---
 
+## 2026-04-04 – Prompt 2/3: MAUI-Zählereinbau und Erstablesung gegen den aktuellen Repo-Stand end-to-end hart validiert
+
+- Vor dem Block den realen Repo-/Git-/Codezustand geprüft.
+- Direkt geprüft wurden:
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselEinbauPage.cs`
+  - `KGV.Maui/Pages/ZaehlerwechselAusbauPage.cs`
+  - `KGV.Maui/State/ZaehlerwechselWorkflowState.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Core/Models/AblesungInsertRecord.cs`
+  - `KGV.Core/Models/AblesungRecord.cs`
+  - `KGV.Core/Models/ZaehlerInsertRecord.cs`
+  - `KGV.Core/Models/StromzaehlerInsertRecord.cs`
+  - `KGV.Core/Models/WasserzaehlerInsertRecord.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - zum Gegencheck des Korrektur-/Verwaltungswegs zusätzlich:
+    - `KGV.Wpf/ViewModels/ZaehlerwechselEinbauViewModel.cs`
+    - `KGV.Wpf/ViewModels/ZaehlerwechselAusbauViewModel.cs`
+- Ehrlicher Istzustand nach der Gegenprüfung:
+  - der mobile Einbaupfad in `ZaehlerwechselEinbauPage` legt den Zähler bereits separat an und fordert dort kein eigenes Foto mehr an
+  - die Erstablesung wird anschließend bereits sauber über `ZaehlerwechselWorkflowState.PendingAblesungFlow` in `AblesungErfassenPage` übergeben
+  - im Erstablese-Schritt wird genau ein Foto verlangt und mit `Art = einbau` gespeichert
+  - der aktive Shared-Service-Vertrag läuft bereits konsistent auf:
+    - Zähler: `zaehler`
+    - Ablesung: `zaehler_ablesung`
+  - ein Altpfad gegen die alte Tabelle `ablesung` oder mit altem Feld `zaehler_typ` war im direkt betroffenen Produktivpfad nicht mehr vorhanden
+  - das Eichdatum wird im mobilen Einbaupfad fachlich bereits nur als Kalenderjahr behandelt:
+    - UI-Eingabe als `Eichjahr`
+    - Umwandlung zu `01.01.<Jahr>`
+    - zusätzlicher Shared-Service-Pfad `NormalizeMeterEichjahr(...)`
+  - ein Folge-Reload, der eine bereits gespeicherte Erstablesung fälschlich wieder als Fehler meldet, war im aktiven Repo-Stand in diesem Pfad nicht mehr nachweisbar
+- Minimal umgesetzt:
+  - kein Produktivcode geändert
+  - nur belastbare Gegenprüfung des End-to-End-Pfads und Logpflege durchgeführt
+- Fachliches Ergebnis nach dem Block:
+  - `Zählereinbau -> Erstablesung` ist im aktuellen MAUI-Produktpfad fachlich geschlossen
+  - der Gesamtflow enthält genau ein Foto, und zwar nur im Erstablese-Schritt
+  - der Tabellen-/Feldvertrag für Zähler und Ablesung ist auf dem aktuellen Repo-Stand konsistent
+  - WPF bleibt in diesem Prompt unverändert der Korrektur-/Verwaltungsweg
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - ehrlicher Befund: nur code-/build-seitig validiert; kein echter Laufzeittest in dieser Umgebung
+
 ## 2026-04-02 – Prompt 1/1: MAUI-Mitgliedersuche öffnet ausgewähltes Mitglied jetzt direkt in `Stammdaten`
 
 - Vor dem Block den realen Repo-/Git-/Codezustand geprüft.
