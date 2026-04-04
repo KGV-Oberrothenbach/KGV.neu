@@ -2,6 +2,61 @@
 
 ---
 
+## 2026-04-04 – Prompt 6/6 Abschlusslauf: benutzerspezifische Fachrechte im Admin-Menü auf dem vorhandenen Workspace-Stand end-to-end abgeschlossen
+
+- Den realen Repo-/Git-/Logstand zu Beginn des Abschlusslaufs erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - lokal offen lagen genau die begonnenen 6/6-Dateien für den Rechteblock:
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Core/Security/PermissionCatalog.cs`
+    - `KGV.Core/Security/PermissionService.cs`
+    - `KGV.Core/Security/UserContext.cs`
+    - `KGV.Core/Security/UserPermissionSettings.cs`
+    - `KGV.Infrastructure/Models/AppUserRecord.cs`
+    - `KGV.Infrastructure/Models/AppUserInsertRecord.cs`
+    - `KGV.Infrastructure/Services/UserContextService.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - `KGV.Wpf/Views/AdminRoleView.xaml`
+    - `KGV.Maui/Pages/AdminMenuPage.cs`
+    - `database.types.ts`
+    - `supabase/migrations/20260404183000_app_user_permission_overrides.sql`
+  - bewusst unberührt außerhalb des Blocks blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Abschlusslauf zusätzlich:
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ausgangslage aus dem Wiederanlauf bestätigt:
+  - der vorige Lauf war fachlich fast fertig und nur am externen Workspace-/Toolfehler beim Abschluss gescheitert
+  - `UserPermissionSettings`, Migration, `database.types.ts`, WPF-Admin-Menü und MAUI-Admin-Menü lagen lokal bereits begonnen bzw. weitgehend produktiv vor
+  - echte Restlücke war vor allem der belastbare Endabschluss mit kleinem Compile-/Verdrahtungsfix, Logpflege, Build, Commit und Push
+- Minimal sauber nachgezogen:
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - fehlende `using KGV.Core.Security;`-Direktive ergänzt, damit `UserPermissionSettings` im Shared-Service sauber auflösbar ist
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - benutzerspezifische Rechtebearbeitung gegen unsaubere Speicherung bei gleichzeitig ungespeicherter Rollenänderung abgesichert
+    - Rollenbearbeitung fachlich explizit auf Admin begrenzt
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+    - Rollen-Combo an die Admin-Berechtigung gebunden
+    - Save-Button bleibt am Ende des Formulars
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+    - bestehende produktive Rechte-UI beibehalten
+    - den neu eingeführten Layoutpfad minimal auf Grid umgestellt, um die neue eigene `FillAndExpand`-Warnung zu vermeiden
+- Fachstand dieses Blocks nach dem Abschluss:
+  - Rolle bleibt Basispaket
+  - `permission_grants` ergänzt zentral Fachrechte
+  - `permission_revocations` entzieht zentral Fachrechte gezielt
+  - `PermissionService`, `UserContext` und `UserContextService` werten die Overrides zentral aus
+  - WPF und MAUI zeigen Rollenbasis, Override-Zustand, wirksames Recht sowie den Hinweis bei fehlendem App-User an
+  - Speichern der benutzerspezifischen Fachrechte bleibt ohne verknüpften App-User gesperrt und erzeugt keine Scheinspeicherung
+- Validierung im selben Lauf:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - verbliebene Buildwarnungen lagen außerhalb dieses Blocks bereits in anderen Dateien und wurden hier bewusst nicht refaktoriert
+
 ## 2026-04-04 – Prompt 5/6b: Korrektur und Entfernen eingereichter Ablesungen auf dem begonnenen Workspace-Stand fertiggestellt
 
 - Den realen Repo-/Git-/Logstand zu Beginn des Abschlusslaufs geprüft.

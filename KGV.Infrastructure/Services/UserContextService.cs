@@ -56,7 +56,11 @@ namespace KGV.Infrastructure.Services
                 if (list != null && list.Count > 1)
                     _logger?.LogWarning("Multiple app_user records found for user {UserId}. Using the first one.", userId);
 
-                return _permissionService.CreateContext(userId, record.Role, record.MitgliedId);
+                var role = string.IsNullOrWhiteSpace(record.Role)
+                    ? UserRoles.User
+                    : record.Role;
+
+                return _permissionService.CreateContext(userId, role, record.MitgliedId, record.PermissionGrants, record.PermissionRevocations);
             }
             catch (Exception ex)
             {

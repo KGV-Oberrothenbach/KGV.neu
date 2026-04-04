@@ -11,11 +11,12 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0" LastChildFill="False">
             <TextBlock Text="Admin-Menü" FontSize="24" FontWeight="Bold" DockPanel.Dock="Left" />
-            <Button DockPanel.Dock="Right" Content="Speichern" Width="160" Height="35" Command="{Binding SaveCommand}" />
         </DockPanel>
 
         <TextBlock Grid.Row="1" Margin="0,15,0,0">
@@ -33,7 +34,7 @@
             <ComboBox Width="200"
                       ItemsSource="{Binding Roles}"
                       SelectedItem="{Binding SelectedRole}"
-                      IsEnabled="{Binding IsRoleEditable}" />
+                      IsEnabled="{Binding CanEditRole}" />
         </StackPanel>
 
         <TextBlock Grid.Row="3" Margin="0,10,0,0" Foreground="DarkRed" FontWeight="SemiBold">
@@ -80,5 +81,98 @@
                        TextWrapping="Wrap"
                        Text="Der Schalter legt zentral fest, ob eigene Nutzerablesungen außerhalb der direkten Freigabepfade eingereicht werden dürfen." />
         </StackPanel>
+
+        <Border Grid.Row="6"
+                Margin="0,24,0,0"
+                Padding="16"
+                BorderBrush="#D0D7DE"
+                BorderThickness="1"
+                CornerRadius="6">
+            <StackPanel>
+                <TextBlock Text="Benutzerspezifische Fachrechte" FontWeight="SemiBold" FontSize="16" />
+                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap">
+                    <Run Text="Rollenbasis: " />
+                    <Run Text="{Binding PermissionRoleBasis}" FontWeight="SemiBold" />
+                </TextBlock>
+                <TextBlock Margin="0,4,0,0" TextWrapping="Wrap">
+                    <Run Text="App-User: " />
+                    <Run Text="nicht verknüpft" FontWeight="SemiBold">
+                        <Run.Style>
+                            <Style TargetType="Run">
+                                <Setter Property="Text" Value="nicht verknüpft" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasLinkedAppUser}" Value="True">
+                                        <Setter Property="Text" Value="verknüpft" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Run.Style>
+                    </Run>
+                </TextBlock>
+                <TextBlock Margin="0,4,0,0" Foreground="Gray" TextWrapping="Wrap" Text="{Binding PermissionSaveHint}" />
+
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="3*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="220" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="Fachrecht" FontWeight="SemiBold" Margin="0,0,12,0" />
+                    <TextBlock Grid.Column="1" Text="Rollenbasis" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,12,0" />
+                    <TextBlock Grid.Column="2" Text="Override" FontWeight="SemiBold" Margin="0,0,12,0" />
+                    <TextBlock Grid.Column="3" Text="Wirksam" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                </Grid>
+
+                <ItemsControl ItemsSource="{Binding PermissionOverrides}" Margin="0,8,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="3*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="220" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0" Text="{Binding DisplayName}" />
+                                <CheckBox Grid.Column="1" Margin="0,0,12,0" VerticalAlignment="Center" IsChecked="{Binding IsBaseGranted}" IsEnabled="False" />
+                                <ComboBox Grid.Column="2"
+                                          Margin="0,0,12,0"
+                                          ItemsSource="{Binding OverrideModes}"
+                                          SelectedItem="{Binding SelectedOverrideMode}"
+                                          IsEnabled="{Binding IsEditable}" />
+                                <CheckBox Grid.Column="3" VerticalAlignment="Center" IsChecked="{Binding IsEffectivelyGranted}" IsEnabled="False" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Margin="0,12,0,0" TextWrapping="Wrap">
+                    <Run Text="Aktueller Override-Zustand: " />
+                    <Run Text="{Binding CurrentOverrideState}" />
+                </TextBlock>
+                <TextBlock Margin="0,4,0,0" TextWrapping="Wrap">
+                    <Run Text="Wirksame Rechte: " />
+                    <Run Text="{Binding EffectivePermissionState}" />
+                </TextBlock>
+
+                <Button Margin="0,16,0,0"
+                        Width="220"
+                        Height="35"
+                        HorizontalAlignment="Left"
+                        Content="Fachrechte speichern"
+                        Command="{Binding SavePermissionOverridesCommand}" />
+            </StackPanel>
+        </Border>
+
+        <Button Grid.Row="7"
+                Margin="0,20,0,0"
+                Width="220"
+                Height="35"
+                HorizontalAlignment="Left"
+                Content="Speichern"
+                Command="{Binding SaveCommand}" />
     </Grid>
 </UserControl>

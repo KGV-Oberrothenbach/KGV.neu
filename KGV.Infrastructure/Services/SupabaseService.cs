@@ -13,6 +13,7 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Core.Utilities;
+using KGV.Infrastructure.Models;
 using Microsoft.Extensions.Logging;
 using Supabase;
 using Supabase.Postgrest.Exceptions;
@@ -211,6 +212,63 @@ namespace KGV.Infrastructure.Services
                     .From<AppSettingRecord>()
                     .Where(x => x.SettingKey == AllowUserMeterReadingSubmissionsSettingKey)
                     .Set(x => x.BoolValue, allowed)
+                    .Set(x => x.UpdatedAt, DateTime.UtcNow)
+                    .Update();
+
+                return true;
+            },
+            false);
+
+        public Task<UserPermissionSettings?> GetUserPermissionSettingsAsync(int mitgliedId) => ExecuteAsync<UserPermissionSettings?>(
+            "GetUserPermissionSettingsAsync",
+            async () =>
+            {
+                if (mitgliedId <= 0)
+                    return null;
+
+                var client = await EnsureClientAsync();
+                var mitglied = await GetMitgliedByIdAsync(mitgliedId);
+                if (mitglied == null)
+                    return null;
+
+                var appUser = await GetAppUserByMitgliedIdAsync(client, mitgliedId);
+                var role = string.IsNullOrWhiteSpace(appUser?.Role)
+                    ? (string.IsNullOrWhiteSpace(mitglied.Role) ? UserRoles.User : mitglied.Role!)
+                    : appUser!.Role!;
+
+                return new UserPermissionSettings
+                {
+                    AuthUserId = appUser?.UserId,
+                    MitgliedId = mitgliedId,
+                    Role = UserRoles.ToStorageValue(UserRoles.Parse(role)),
+                    GrantedPermissions = PermissionService.NormalizeStoredPermissions(appUser?.PermissionGrants),
+                    RevokedPermissions = PermissionService.NormalizeStoredPermissions(appUser?.PermissionRevocations)
+                };
+            },
+            null);
+
+        public Task<bool> SetUserPermissionSettingsAsync(int mitgliedId, string role, long grantedPermissions, long revokedPermissions) => ExecuteAsync(
+            "SetUserPermissionSettingsAsync",
+            async () =>
+            {
+                if (mitgliedId <= 0)
+                    return false;
+
+                var client = await EnsureClientAsync();
+                var appUser = await GetAppUserByMitgliedIdAsync(client, mitgliedId);
+                if (appUser == null)
+                    return false;
+
+                var normalizedRole = UserRoles.ToStorageValue(UserRoles.Parse(role));
+                var normalizedGrantedPermissions = (long)PermissionService.NormalizeStoredPermissions(grantedPermissions);
+                var normalizedRevokedPermissions = (long)PermissionService.NormalizeStoredPermissions(revokedPermissions);
+
+                await client
+                    .From<AppUserRecord>()
+                    .Where(x => x.UserId == appUser.UserId)
+                    .Set(x => x.Role, normalizedRole)
+                    .Set(x => x.PermissionGrants, normalizedGrantedPermissions)
+                    .Set(x => x.PermissionRevocations, normalizedRevokedPermissions)
                     .Set(x => x.UpdatedAt, DateTime.UtcNow)
                     .Update();
 
@@ -2937,6 +2995,16 @@ namespace KGV.Infrastructure.Services
                 _logger?.LogError(ex, "{Operation} failed.", operation);
                 return fallback;
             }
+        }
+
+        private static async Task<AppUserRecord?> GetAppUserByMitgliedIdAsync(Client client, int mitgliedId)
+        {
+            var response = await client
+                .From<AppUserRecord>()
+                .Where(x => x.MitgliedId == (long?)mitgliedId)
+                .Get();
+
+            return response?.Models?.FirstOrDefault();
         }
 
         private static DateTime? NormalizeDate(DateTime? value)

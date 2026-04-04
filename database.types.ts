@@ -19,6 +19,8 @@ export type Database = {
           created_at: string
           is_demo_account: boolean
           mitglied_id: number | null
+          permission_grants: number
+          permission_revocations: number
           role: string
           updated_at: string
           user_id: string
@@ -27,6 +29,8 @@ export type Database = {
           created_at?: string
           is_demo_account?: boolean
           mitglied_id?: number | null
+          permission_grants?: number
+          permission_revocations?: number
           role?: string
           updated_at?: string
           user_id: string
@@ -35,6 +39,8 @@ export type Database = {
           created_at?: string
           is_demo_account?: boolean
           mitglied_id?: number | null
+          permission_grants?: number
+          permission_revocations?: number
           role?: string
           updated_at?: string
           user_id?: string

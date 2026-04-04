@@ -1,6 +1,7 @@
 // File: Core/Interfaces/ISupabaseService.cs
 using Supabase;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -61,6 +62,8 @@ namespace KGV.Core.Interfaces
         Task<bool> RemoveAblesungImPruefprozessAsync(long ablesungId, string begruendung, int geprueftVon, DateTime? geprueftAm = null);
         Task<bool> GetAllowUserMeterReadingSubmissionsAsync();
         Task<bool> SetAllowUserMeterReadingSubmissionsAsync(bool allowed);
+        Task<UserPermissionSettings?> GetUserPermissionSettingsAsync(int mitgliedId);
+        Task<bool> SetUserPermissionSettingsAsync(int mitgliedId, string role, long grantedPermissions, long revokedPermissions);
 
         // =========================
         // Nebenmitglied

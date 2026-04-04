@@ -16,6 +16,15 @@ namespace KGV.Infrastructure.Models
         [Column("role")]
         public string? Role { get; set; }
 
+        [Column("is_demo_account")]
+        public bool IsDemoAccount { get; set; }
+
+        [Column("permission_grants")]
+        public long PermissionGrants { get; set; }
+
+        [Column("permission_revocations")]
+        public long PermissionRevocations { get; set; }
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
 

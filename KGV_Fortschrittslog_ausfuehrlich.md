@@ -2,6 +2,76 @@
 
 ---
 
+## 2026-04-04 – Prompt 6/6 Abschlusslauf: benutzerspezifische Fachrechte im Admin-Menü auf dem vorhandenen Workspace-Stand sauber end-to-end abgeschlossen
+
+- Vor dem Abschlusslauf den realen Repo-/Git-/Logzustand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - lokal offen lagen genau die begonnenen 6/6-Dateien des Rechteblocks:
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Core/Security/PermissionCatalog.cs`
+    - `KGV.Core/Security/PermissionService.cs`
+    - `KGV.Core/Security/UserContext.cs`
+    - `KGV.Core/Security/UserPermissionSettings.cs`
+    - `KGV.Infrastructure/Models/AppUserRecord.cs`
+    - `KGV.Infrastructure/Models/AppUserInsertRecord.cs`
+    - `KGV.Infrastructure/Services/UserContextService.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - `KGV.Wpf/Views/AdminRoleView.xaml`
+    - `KGV.Maui/Pages/AdminMenuPage.cs`
+    - `database.types.ts`
+    - `supabase/migrations/20260404183000_app_user_permission_overrides.sql`
+  - bewusst außerhalb des Blocks unberührt blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Abschlusslauf zusätzlich:
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor dem Endabschluss:
+  - der vorige Lauf war nur am externen Workspace-/Toolfehler beim Abschluss gescheitert
+  - die zentralen Blockbestandteile lagen lokal bereits auf begonnenem bzw. weitgehend produktivem Stand vor:
+    - Migration für `permission_grants` / `permission_revocations`
+    - nachgezogene `database.types.ts`
+    - Shared-Service-Signaturen für `GetUserPermissionSettingsAsync(...)` und `SetUserPermissionSettingsAsync(...)`
+    - zentrale Rechteauswertung über `PermissionService`, `UserContext` und `UserContextService`
+    - produktive erste Rechte-UI in WPF und MAUI
+  - echte Restlücke war der belastbare technische Abschlusslauf mit kleinem Compile-/Verdrahtungsfix, Logpflege, Builds, Commit und Push
+- Im Wiederanlauf minimal fertiggestellt:
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - fehlende `using KGV.Core.Security;`-Direktive ergänzt, damit `UserPermissionSettings` im Interface und allen Verbrauchern sauber auflösbar ist
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - produktive Rechtebearbeitung beibehalten
+    - zusätzlich abgesichert, dass benutzerspezifische Rechte nicht gegen eine noch ungespeicherte Rollenänderung gespeichert werden
+    - Rollenbearbeitung explizit auf Admin begrenzt
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+    - Rollen-Combo an die Admin-Berechtigung gebunden
+    - allgemeiner Save-Button bleibt am Ende des Formulars
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+    - produktive Rechte-UI mit Override-Pickern, Rollenbasis- und Wirksamkeitsanzeige beibehalten
+    - das Zählerablesungs-Layout minimal auf Grid umgestellt, damit die neu eingeführte eigene `FillAndExpand`-Warnung entfällt
+- Fachlicher Endstand dieses Blocks:
+  - Rolle bleibt das Basispaket
+  - `permission_grants` ergänzt zusätzliche Fachrechte
+  - `permission_revocations` entzieht Rechte gezielt
+  - keine Schattenkonfiguration, keine lokale Scheinspeicherung
+  - ohne verknüpften App-User bleibt die Rechteübersicht sichtbar, Speichern aber gesperrt und fachlich klar erläutert
+  - erste produktiv editierbare Rechte bleiben:
+    - `CanReadMeters`
+    - `CanManageMeterChanges`
+    - `CanApproveMeterReadings`
+    - `CanManageDocuments`
+  - WPF und MAUI zeigen sichtbar an:
+    - Rollenbasis
+    - aktuellen Override-Zustand
+    - wirksame Rechte
+    - ob Speichern aktuell möglich ist
+- Validierung im selben Lauf:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund: verbleibende Warnungen stammen aus bereits bestehenden blockfremden Dateien und wurden in diesem Abschlusslauf bewusst nicht refaktoriert
+
 ## 2026-04-04 – Prompt 5/6b: Korrektur und Entfernen eingereichter Ablesungen auf dem begonnenen Workspace-Stand sauber abgeschlossen
 
 - Vor dem Abschlusslauf den realen Repo-/Git-/Logzustand geprüft.
