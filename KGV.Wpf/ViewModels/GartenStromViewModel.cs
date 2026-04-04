@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Helpers;
 using KGV.Views;
 using System;
@@ -16,6 +17,8 @@ namespace KGV.ViewModels
     {
         private const short ZaehlerTypStrom = 1;
         private readonly ISupabaseService _supabaseService;
+        private readonly MainWindowViewModel _mainVm;
+        private bool _allowUserMeterReadingSubmissions;
 
         public ParzellenBelegungDTO Belegung { get; }
 
@@ -41,20 +44,40 @@ namespace KGV.ViewModels
             }
         }
 
-        public GartenStromViewModel(ISupabaseService supabaseService, ParzellenBelegungDTO belegung)
+        public GartenStromViewModel(ISupabaseService supabaseService, ParzellenBelegungDTO belegung, MainWindowViewModel mainVm)
         {
             _supabaseService = supabaseService;
             Belegung = belegung;
+            _mainVm = mainVm ?? throw new ArgumentNullException(nameof(mainVm));
 
-            ZaehlerTauschCommand = new RelayCommand<object?>(_ => _ = ZaehlerTauschAsync());
-            NeueAblesungCommand = new RelayCommand<object?>(_ => _ = NeueAblesungAsync());
-            AblesungBearbeitenCommand = new RelayCommand<object?>(_ => _ = AblesungBearbeitenAsync(), _ => SelectedAblesung != null);
+            ZaehlerTauschCommand = new RelayCommand<object?>(_ => _ = ZaehlerTauschAsync(), _ => PermissionChecks.CanManageMeterChanges(_mainVm.UserContext));
+            NeueAblesungCommand = new RelayCommand<object?>(_ => _ = NeueAblesungAsync(), _ => CanCreateReadings);
+            AblesungBearbeitenCommand = new RelayCommand<object?>(_ => _ = AblesungBearbeitenAsync(), _ => SelectedAblesung != null && CanEditReadings);
             OpenFotoCommand = new RelayCommand<object?>(p => OpenFoto(p));
         }
 
         public async Task OnNavigatedToAsync()
         {
+            _allowUserMeterReadingSubmissions = await _supabaseService.GetAllowUserMeterReadingSubmissionsAsync();
+            RaiseCommandStates();
             await LoadAsync();
+        }
+
+        private bool CanCreateReadings
+            => PermissionChecks.CanApproveMeterReadings(_mainVm.UserContext)
+               || (PermissionChecks.CanSubmitOwnMeterReadings(_mainVm.UserContext) && _allowUserMeterReadingSubmissions);
+
+        private bool CanEditReadings => PermissionChecks.CanApproveMeterReadings(_mainVm.UserContext);
+
+        private bool SavesAsSubmission
+            => PermissionChecks.CanSubmitOwnMeterReadings(_mainVm.UserContext)
+               && !PermissionChecks.CanApproveMeterReadings(_mainVm.UserContext);
+
+        private void RaiseCommandStates()
+        {
+            ZaehlerTauschCommand.RaiseCanExecuteChanged();
+            NeueAblesungCommand.RaiseCanExecuteChanged();
+            AblesungBearbeitenCommand.RaiseCanExecuteChanged();
         }
 
         private async Task LoadAsync()
@@ -81,6 +104,18 @@ namespace KGV.ViewModels
 
         private async Task NeueAblesungAsync()
         {
+            if (!CanCreateReadings)
+            {
+                MessageBox.Show(
+                    PermissionChecks.CanSubmitOwnMeterReadings(_mainVm.UserContext)
+                        ? "Eigene Zählerablesungen sind aktuell nicht freigeschaltet."
+                        : "Mit den aktuellen Rechten können hier keine Ablesungen erfasst werden.",
+                    "Hinweis",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
             var dlg = new AblesungDialog
             {
                 Owner = Application.Current?.MainWindow,
@@ -103,18 +138,25 @@ namespace KGV.ViewModels
                 return;
             }
 
+            var savesAsSubmission = SavesAsSubmission;
             var ok = await _supabaseService.AddAblesungAsync(new AblesungInsertRecord
             {
                 ZaehlerId = meter.Id,
                 Ablesedatum = dlg.Ablesedatum.Value,
                 Stand = dlg.Stand.Value,
                 FotoPfad = string.IsNullOrWhiteSpace(dlg.FotoPfad) ? null : dlg.FotoPfad.Trim(),
-                Freigegeben = true
+                Freigegeben = !savesAsSubmission,
+                Pruefstatus = savesAsSubmission ? AblesungPruefstatus.Eingereicht : AblesungPruefstatus.Freigegeben
             });
             if (!ok)
             {
                 MessageBox.Show("Ablesung konnte nicht gespeichert werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
+            }
+
+            if (savesAsSubmission)
+            {
+                MessageBox.Show("Ablesung eingereicht. Sie ist noch nicht direkt freigegeben.", "Ablesung", MessageBoxButton.OK, MessageBoxImage.Information);
             }
 
             await LoadAsync();

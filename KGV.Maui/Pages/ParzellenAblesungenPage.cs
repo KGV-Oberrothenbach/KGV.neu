@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Maui.State;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
@@ -17,14 +18,18 @@ public sealed class ParzellenAblesungenPage : ContentPage, IQueryAttributable
 {
     private readonly ISupabaseService _supabaseService;
     private readonly ParzellenContextState _parzellenContextState;
+    private readonly UserContextState _userContextState;
+    private readonly Button _submitReadingButton;
+    private readonly Label _submissionHintLabel;
     private int? _parzelleId;
     private string _medium = "strom";
     private bool _pendingLoad;
 
-    public ParzellenAblesungenPage(ISupabaseService supabaseService, ParzellenContextState parzellenContextState)
+    public ParzellenAblesungenPage(ISupabaseService supabaseService, ParzellenContextState parzellenContextState, UserContextState userContextState)
     {
         _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
         _parzellenContextState = parzellenContextState ?? throw new ArgumentNullException(nameof(parzellenContextState));
+        _userContextState = userContextState ?? throw new ArgumentNullException(nameof(userContextState));
 
         BindingContext = this;
         Title = "Ablesungen";
@@ -102,6 +107,20 @@ public sealed class ParzellenAblesungenPage : ContentPage, IQueryAttributable
         statusLabel.SetBinding(Label.TextProperty, nameof(StatusMessage));
         statusLabel.SetBinding(IsVisibleProperty, nameof(HasStatusMessage));
 
+        _submissionHintLabel = new Label
+        {
+            TextColor = Colors.Gray,
+            LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap,
+            IsVisible = false
+        };
+
+        _submitReadingButton = new Button
+        {
+            Text = "Ablesung einreichen",
+            IsVisible = false
+        };
+        _submitReadingButton.Clicked += async (_, _) => await OpenSubmissionAsync();
+
         Content = new ScrollView
         {
             Content = new VerticalStackLayout
@@ -115,7 +134,9 @@ public sealed class ParzellenAblesungenPage : ContentPage, IQueryAttributable
                     hintLabel,
                     loadingIndicator,
                     list,
-                    statusLabel
+                    statusLabel,
+                    _submissionHintLabel,
+                    _submitReadingButton
                 }
             }
         };
@@ -176,6 +197,7 @@ public sealed class ParzellenAblesungenPage : ContentPage, IQueryAttributable
                 SetStatus("Parzelle konnte nicht geladen werden.");
                 EmptyText = BuildEmptyText();
                 OnPropertyChanged(nameof(EmptyText));
+                UpdateSubmissionUi(false, string.Empty);
                 return;
             }
 
@@ -188,6 +210,7 @@ public sealed class ParzellenAblesungenPage : ContentPage, IQueryAttributable
                     ? "Für diese Parzelle ist kein Wasseranschluss hinterlegt."
                     : "Für diese Parzelle ist kein Stromanschluss hinterlegt.";
                 OnPropertyChanged(nameof(EmptyText));
+                UpdateSubmissionUi(false, string.Empty);
                 return;
             }
 
@@ -205,10 +228,13 @@ public sealed class ParzellenAblesungenPage : ContentPage, IQueryAttributable
 
             EmptyText = BuildEmptyText();
             OnPropertyChanged(nameof(EmptyText));
+
+            await UpdateSubmissionUiAsync();
         }
         catch (Exception ex)
         {
             SetStatus($"Historie konnte nicht geladen werden: {ex.Message}");
+            UpdateSubmissionUi(false, string.Empty);
         }
         finally
         {
@@ -292,6 +318,55 @@ public sealed class ParzellenAblesungenPage : ContentPage, IQueryAttributable
         => string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase)
             ? "wasser"
             : "strom";
+
+    private async Task UpdateSubmissionUiAsync()
+    {
+        if (!PermissionChecks.CanSubmitOwnMeterReadings(_userContextState.CurrentUserContext))
+        {
+            UpdateSubmissionUi(false, string.Empty);
+            return;
+        }
+
+        if (!_parzellenContextState.IsFromMemberContext
+            || _parzellenContextState.ContextMitgliedId is not > 0
+            || _userContextState.CurrentMitgliedId is not > 0
+            || _parzellenContextState.ContextMitgliedId != (int)_userContextState.CurrentMitgliedId.Value)
+        {
+            UpdateSubmissionUi(false, string.Empty);
+            return;
+        }
+
+        var allowSubmissions = false;
+        try
+        {
+            allowSubmissions = await _supabaseService.GetAllowUserMeterReadingSubmissionsAsync();
+        }
+        catch
+        {
+            allowSubmissions = false;
+        }
+
+        UpdateSubmissionUi(
+            allowSubmissions,
+            allowSubmissions
+                ? "Eigene Zählerablesungen werden hier als Einreichung gespeichert und später geprüft."
+                : "Eigene Zählerablesungen sind aktuell nicht freigeschaltet.");
+    }
+
+    private void UpdateSubmissionUi(bool canSubmit, string hint)
+    {
+        _submitReadingButton.IsVisible = canSubmit;
+        _submissionHintLabel.IsVisible = !string.IsNullOrWhiteSpace(hint);
+        _submissionHintLabel.Text = hint;
+    }
+
+    private async Task OpenSubmissionAsync()
+    {
+        if (_parzelleId is not > 0)
+            return;
+
+        await Shell.Current.GoToAsync($"{nameof(AblesungErfassenPage)}?parzelleId={_parzelleId.Value}&medium={Uri.EscapeDataString(_medium)}");
+    }
 
     private static View CreateValueLabel(string title, string path)
     {

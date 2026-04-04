@@ -41,7 +41,10 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
     public ObservableCollection<ParzelleRecord> FallbackParzellen { get; } = new();
     public ObservableCollection<RfidMediumOption> FallbackMediumOptions { get; } = new();
 
-    public bool IsAuthorized => PermissionChecks.HasPermission(_userContextState.CurrentUserContext, _requiredPermission);
+    private bool HasDirectMeterPermission => PermissionChecks.HasPermission(_userContextState.CurrentUserContext, _requiredPermission);
+    private bool CanUseOwnSubmissionFallback => PermissionChecks.CanSubmitOwnMeterReadings(_userContextState.CurrentUserContext);
+
+    public bool IsAuthorized => HasDirectMeterPermission || CanUseOwnSubmissionFallback;
     public string UidInput
     {
         get => _uidInput;
@@ -124,8 +127,8 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
         }
     }
 
-    public bool CanResolve => IsAuthorized && !IsBusy && !string.IsNullOrWhiteSpace(UidInput);
-    public bool CanStartNfcScan => !IsBusy && IsAuthorized && NfcAvailability.State == NfcAvailabilityState.Available;
+    public bool CanResolve => HasDirectMeterPermission && !IsBusy && !string.IsNullOrWhiteSpace(UidInput);
+    public bool CanStartNfcScan => !IsBusy && HasDirectMeterPermission && NfcAvailability.State == NfcAvailabilityState.Available;
     public bool CanOpenNfcSettings => NfcAvailability.State == NfcAvailabilityState.Disabled;
     public bool CanApplyFallbackContext => IsAuthorized && !IsBusy && SelectedFallbackParzelle != null && SelectedFallbackMedium != null;
     public bool CanContinueToMeterRemoval => !IsBusy && Resolution?.State == RfidScanContextState.KnownWithActiveMeter;
@@ -242,6 +245,9 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
         }
 
         await LoadFallbackParzellenAsync();
+        if (CanUseOwnSubmissionFallback && FallbackParzellen.Count == 0)
+            StatusMessage = "Für das eigene Mitglied sind aktuell keine aktiven Parzellen verfügbar.";
+
         await RefreshNfcAvailabilityAsync();
     }
 
@@ -386,12 +392,38 @@ public sealed class RfidScanContextViewModel : INotifyPropertyChanged
 
     private async Task LoadFallbackParzellenAsync()
     {
-        var parzellen = await _supabaseService.GetAllParzellenAsync();
-        var ordered = parzellen
-            .Where(x => x.Aktiv)
-            .OrderBy(x => x.GartenNrSortKey)
-            .ThenBy(x => x.GartenNr, StringComparer.CurrentCultureIgnoreCase)
-            .ToList();
+        List<ParzelleRecord> ordered;
+        if (HasDirectMeterPermission)
+        {
+            var parzellen = await _supabaseService.GetAllParzellenAsync();
+            ordered = parzellen
+                .Where(x => x.Aktiv)
+                .OrderBy(x => x.GartenNrSortKey)
+                .ThenBy(x => x.GartenNr, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+        }
+        else if (CanUseOwnSubmissionFallback && _userContextState.CurrentMitgliedId is > 0 and <= int.MaxValue)
+        {
+            var parzellen = await _supabaseService.GetAllParzellenAsync();
+            var activeBelegungen = await _supabaseService.GetBelegungenForMitgliedAsync((int)_userContextState.CurrentMitgliedId.Value);
+            var allowedParzellenIds = activeBelegungen
+                .Where(x => x.ParzelleId > 0
+                    && (x.VonDatum == null || x.VonDatum.Value.Date <= DateTime.Today)
+                    && (x.BisDatum == null || x.BisDatum.Value.Date >= DateTime.Today))
+                .Select(x => x.ParzelleId)
+                .Distinct()
+                .ToHashSet();
+
+            ordered = parzellen
+                .Where(x => x.Aktiv && allowedParzellenIds.Contains(x.Id))
+                .OrderBy(x => x.GartenNrSortKey)
+                .ThenBy(x => x.GartenNr, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+        }
+        else
+        {
+            ordered = new List<ParzelleRecord>();
+        }
 
         FallbackParzellen.Clear();
         foreach (var item in ordered)

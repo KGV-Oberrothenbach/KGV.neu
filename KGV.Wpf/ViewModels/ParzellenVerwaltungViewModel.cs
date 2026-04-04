@@ -270,7 +270,7 @@ namespace KGV.ViewModels
             if (context == null)
                 return;
 
-            await _mainVm.NavigateToAsync(new GartenStromViewModel(_supabaseService, context));
+            await _mainVm.NavigateToAsync(new GartenStromViewModel(_supabaseService, context, _mainVm));
         }
 
         private async Task OpenWasserAsync()
@@ -279,7 +279,7 @@ namespace KGV.ViewModels
             if (context == null)
                 return;
 
-            await _mainVm.NavigateToAsync(new GartenWasserViewModel(_supabaseService, context));
+            await _mainVm.NavigateToAsync(new GartenWasserViewModel(_supabaseService, context, _mainVm));
         }
 
         private async Task LoadSelectedDetailAsync()

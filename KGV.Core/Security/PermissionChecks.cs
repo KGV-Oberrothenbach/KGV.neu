@@ -17,6 +17,9 @@ namespace KGV.Core.Security
         public static bool CanApproveMeterReadings(UserContext? context)
             => HasPermission(context, PermissionFlags.CanApproveMeterReadings);
 
+        public static bool CanSubmitOwnMeterReadings(UserContext? context)
+            => context?.MitgliedId is > 0 && HasPermission(context, PermissionFlags.CanSeeOwnDataOnly);
+
         public static bool HasAnyMeterAccess(UserContext? context)
             => CanReadMeters(context)
                || CanManageMeterChanges(context)

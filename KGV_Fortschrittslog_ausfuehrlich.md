@@ -2,6 +2,69 @@
 
 ---
 
+## 2026-04-04 – Prompt 3/6b: Nutzer-Ablesung als Einreichung auf dem aktuellen Repo-Stand ehrlich verifiziert und für den Abschlusslauf dokumentiert
+
+- Vor dem Block den realen Repo-/Git-/Logzustand geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - tracked offen lagen genau die bereits begonnenen Blockdateien des Nutzer-Ablesungs-Pfads:
+    - `KGV.Core/Security/PermissionChecks.cs`
+    - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+    - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+    - `KGV.Maui/Pages/ParzellenAblesungenPage.cs`
+    - `KGV.Wpf/ViewModels/GartenStromViewModel.cs`
+    - `KGV.Wpf/ViewModels/GartenWasserViewModel.cs`
+    - `KGV.Wpf/Infrastructure/Services/NavigationService.cs`
+- Durch den Abschlusslauf zusätzlich als echter kleiner Restfix geprüft und minimal nachgezogen:
+  - `KGV.Wpf/ViewModels/ParzellenVerwaltungViewModel.cs`
+    - dort waren die Aufrufe auf `GartenStromViewModel(...)` und `GartenWasserViewModel(...)` noch nicht auf die bereits aktive Konstruktor-Signatur mit `MainWindowViewModel` nachgezogen
+  - untracked blieben bewusst außerhalb des Blocks:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden in diesem Abschlusslauf:
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `KGV.Core/Security/PermissionChecks.cs`
+  - `KGV.Maui/ViewModels/RfidScanContextViewModel.cs`
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/ParzellenAblesungenPage.cs`
+  - `KGV.Wpf/ViewModels/GartenStromViewModel.cs`
+  - `KGV.Wpf/ViewModels/GartenWasserViewModel.cs`
+  - `KGV.Wpf/Infrastructure/Services/NavigationService.cs`
+- Ehrlicher Istzustand vor dem Abschluss:
+  - der Block „normale Nutzer-Ablesung als Einreichung“ war im Workspace bereits technisch umgesetzt
+  - `PermissionChecks.CanSubmitOwnMeterReadings(...)` kapselt den Nutzerpfad weiter bewusst nur über den eigenen Mitgliedskontext; `HasAnyMeterAccess(...)` öffnet dadurch keine globalen Admin-/Meter-Menüs für normale Nutzer
+  - `RfidScanContextViewModel` erlaubt normalen Nutzern keinen direkten RFID-Scanpfad, sondern nur den eigenen Fallback-Kontext über die aktiven Parzellen des eigenen Mitglieds
+  - `ParzellenAblesungenPage` zeigt `Ablesung einreichen` nur dann,
+    - wenn der aktuelle Nutzer überhaupt `CanSubmitOwnMeterReadings(...)` erfüllt,
+    - wenn der Parzellenkontext wirklich aus dem eigenen Mitgliedspfad stammt,
+    - und wenn `allow_user_meter_reading_submissions` aktiv ist
+  - `AblesungErfassenPage` wertet denselben globalen Schalter zusätzlich beim Öffnen und Speichern aus
+  - für normale Nutzer läuft das Speichern fachlich als Einreichung:
+    - `pruefstatus = eingereicht`
+    - `freigegeben = false`
+  - für berechtigte Rollen bleibt der bestehende Direktpfad unverändert:
+    - `pruefstatus = freigegeben`
+    - `freigegeben = true`
+  - die WPF-Pfade `GartenStromViewModel` und `GartenWasserViewModel` bilden dieselbe Logik für normale Nutzer nach und werten ebenfalls den globalen Schalter aus
+  - globale Admin-/RFID-Pfade wurden in diesem Block für normale Nutzer bewusst nicht geöffnet
+  - in den gezielt geprüften sieben Blockdateien zeigte sich kein weiterer echter kleiner Konsistenzrest; deshalb war kein zusätzlicher Produktivcode-Fix nötig
+- Minimal umgesetzt:
+  - `KGV.Wpf/ViewModels/ParzellenVerwaltungViewModel.cs`
+    - beide Aufrufe auf die aktive Signatur mit `_mainVm` korrigiert, damit der Nutzer-Ablesungs-Block wieder vollständig buildfähig ist
+  - nur belastbare Logpflege des bereits umgesetzten Nutzer-Ablesungs-Blocks durchgeführt
+- Fachliches Ergebnis nach diesem Abschlusslauf:
+  - normale Nutzer können Ablesungen nur im eigenen Garten-/Parzellenkontext einreichen
+  - der globale Schalter `allow_user_meter_reading_submissions` wird im aktiven Produktivpfad tatsächlich ausgewertet
+  - Nutzer-Ablesungen bleiben als prüfpflichtige Einreichung gespeichert
+  - berechtigte Rollen speichern weiter direkt freigegeben
+  - globale Admin-/RFID-Pfade bleiben normalen Nutzern verschlossen
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Befund: Build-/Codevalidierung in dieser Umgebung; kein echter Laufzeit- oder Datenbanktest
+
 ## 2026-04-04 – Prompt 2/6b: Freigabefundament für Ablesungen und globalen Admin-Schalter technisch sauber abgeschlossen
 
 - Vor dem Block den realen Repo-/Git-/Logzustand geprüft.

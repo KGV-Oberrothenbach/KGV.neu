@@ -192,7 +192,7 @@ namespace KGV.Infrastructure.Services
                 if (parameter is not ParzellenBelegungDTO belegung)
                     return null;
 
-                return new GartenStromViewModel(_supabaseService, belegung);
+                return new GartenStromViewModel(_supabaseService, belegung, mainVm);
             }
 
             if (viewModelType == typeof(GartenWasserViewModel))
@@ -200,7 +200,7 @@ namespace KGV.Infrastructure.Services
                 if (parameter is not ParzellenBelegungDTO belegung)
                     return null;
 
-                return new GartenWasserViewModel(_supabaseService, belegung);
+                return new GartenWasserViewModel(_supabaseService, belegung, mainVm);
             }
 
             if (viewModelType == typeof(GartenDokumenteViewModel))

@@ -26,6 +26,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
     private readonly IPhotoUploadTestService _photoUploadService;
     private readonly ZaehlerwechselWorkflowState _workflowState;
     private readonly PendingPhotoService _pendingPhotoService;
+    private readonly UserContextState _userContextState;
     private readonly RfidScanContextViewModel _scanContext;
     private readonly Label _introLabel;
     private readonly Label _flowHintLabel;
@@ -49,6 +50,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
     private bool _isBusy;
     private bool _isPendingInitialFlow;
     private bool _hasRequestedFallbackContext;
+    private bool _allowUserMeterReadingSubmissions;
     private string _currentArt = AblesungArt.Normal;
     private int? _requestedParzelleId;
     private string _requestedMedium = "strom";
@@ -66,9 +68,10 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         _photoUploadService = services.GetRequiredService<IPhotoUploadTestService>();
         _workflowState = services.GetRequiredService<ZaehlerwechselWorkflowState>();
         _pendingPhotoService = services.GetRequiredService<PendingPhotoService>();
+        _userContextState = services.GetRequiredService<UserContextState>();
         _scanContext = new RfidScanContextViewModel(
             _supabaseService,
-            services.GetRequiredService<UserContextState>(),
+            _userContextState,
             services.GetRequiredService<KGV.Maui.Services.INfcScanService>(),
             services.GetRequiredService<KGV.Maui.Services.IRfidFeedbackService>(),
             PermissionFlags.CanReadMeters);
@@ -196,6 +199,23 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
             await _scanContext.RefreshNfcAvailabilityAsync();
         }
 
+        _allowUserMeterReadingSubmissions = await TryLoadAllowUserMeterReadingSubmissionsAsync();
+
+        if (IsOwnSubmissionMode && !_allowUserMeterReadingSubmissions)
+        {
+            _workflowState.Clear();
+            _activeResolution = null;
+            _introLabel.IsVisible = true;
+            _introLabel.Text = "Eigene Zählerablesungen können nur eingereicht werden, wenn die Freigabe für Nutzer-Ablesungen aktiv ist.";
+            _scanSection.IsVisible = false;
+            _fallbackSection.IsVisible = false;
+            _contextSection.IsVisible = false;
+            _decisionSection.IsVisible = false;
+            _formSection.IsVisible = false;
+            _statusLabel.Text = "Nutzer-Ablesungen sind aktuell deaktiviert.";
+            return;
+        }
+
         var pendingFlow = _workflowState.ConsumePendingAblesungFlow();
         if (pendingFlow?.Context?.Context?.AktiverZaehlerId is > 0)
         {
@@ -222,6 +242,14 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
 
         _isPendingInitialFlow = false;
         _currentArt = AblesungArt.Normal;
+
+        if (IsOwnSubmissionMode)
+        {
+            _scanContext.Reset();
+            ApplyResolution(_scanContext.Resolution, "Bitte die eigene Parzelle und das Medium wählen oder den Pfad direkt aus der Historie öffnen.");
+            return;
+        }
+
         await _scanContext.StartNfcSessionAsync();
         ApplyResolution(_scanContext.Resolution, _scanContext.StatusMessage);
     }
@@ -254,8 +282,9 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
             && resolution.State == RfidScanContextState.KnownWithActiveMeter;
 
         _introLabel.IsVisible = !hasActiveReadingContext;
-        _scanSection.IsVisible = !hasActiveReadingContext;
+        _scanSection.IsVisible = !IsOwnSubmissionMode && !hasActiveReadingContext;
         _fallbackSection.IsVisible = !hasActiveReadingContext;
+        _resetButton.IsVisible = !IsOwnSubmissionMode;
 
         if (resolution?.Context == null)
         {
@@ -279,7 +308,9 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         {
             _flowHintLabel.Text = _currentArt == AblesungArt.Einbau
                 ? "Bitte Anfangsstand und Foto erfassen. Der Zähler selbst wurde bereits angelegt; jetzt folgt separat die Anfangsablesung."
-                : "Bitte aktuelle Ablesung und Foto erfassen. Normale Ablesungen werden mit `Art = normal` gespeichert.";
+                : IsOwnSubmissionMode
+                    ? "Bitte aktuelle Ablesung und Foto erfassen. Eigene Nutzer-Ablesungen werden als Einreichung gespeichert und zunächst nicht direkt freigegeben."
+                    : "Bitte aktuelle Ablesung und Foto erfassen. Berechtigte Rollen speichern normale Ablesungen weiterhin direkt freigegeben mit `Art = normal`.";
             _decisionSection.IsVisible = false;
             _formSection.IsVisible = true;
             return;
@@ -370,6 +401,12 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
             return;
         }
 
+        if (IsOwnSubmissionMode && !_allowUserMeterReadingSubmissions)
+        {
+            await DisplayAlert("Hinweis", "Eigene Zählerablesungen sind aktuell nicht freigeschaltet.", "OK");
+            return;
+        }
+
         if (!TryParseDecimal(_standEntry.Text, out var stand) || stand < 0)
         {
             await DisplayAlert("Validierung", "Bitte einen gültigen Zählerstand eingeben.", "OK");
@@ -443,6 +480,8 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
 
             _pendingPhotoService.MarkUploadedAndDeleteLocal(pending);
 
+            var savesAsSubmission = IsOwnSubmissionMode && !IsDirectApprovalMode;
+
             var readingSaved = await _supabaseService.AddAblesungAsync(new AblesungInsertRecord
             {
                 ZaehlerId = context.AktiverZaehlerId.Value,
@@ -452,7 +491,8 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
                 FotoPfad = photoResult.RelativePath,
                 FotoDateiname = string.IsNullOrWhiteSpace(photoResult.FileName) ? null : photoResult.FileName,
                 FotoDriveFileId = string.IsNullOrWhiteSpace(photoResult.FileId) ? null : photoResult.FileId,
-                Freigegeben = true
+                Freigegeben = !savesAsSubmission,
+                Pruefstatus = savesAsSubmission ? AblesungPruefstatus.Eingereicht : AblesungPruefstatus.Freigegeben
             });
 
             if (!readingSaved)
@@ -461,12 +501,24 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
                 return;
             }
 
-            await DisplayAlert("OK", _currentArt == AblesungArt.Einbau ? "Anfangsablesung gespeichert." : "Ablesung gespeichert.", "OK");
+            var successMessage = _currentArt == AblesungArt.Einbau
+                ? "Anfangsablesung gespeichert."
+                : savesAsSubmission
+                    ? "Ablesung eingereicht. Sie ist noch nicht direkt freigegeben."
+                    : "Ablesung gespeichert.";
+
+            await DisplayAlert("OK", successMessage, "OK");
 
             if (_isPendingInitialFlow)
             {
                 _workflowState.Clear();
                 await Shell.Current.GoToAsync("//ablesen");
+                return;
+            }
+
+            if (savesAsSubmission)
+            {
+                await Shell.Current.GoToAsync("..");
                 return;
             }
 
@@ -510,6 +562,21 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         _clearPhotoButton.IsEnabled = !_isBusy;
         _saveButton.IsEnabled = !_isBusy;
         _resetButton.IsEnabled = !_isBusy;
+    }
+
+    private bool IsDirectApprovalMode => PermissionChecks.CanApproveMeterReadings(_userContextState.CurrentUserContext);
+    private bool IsOwnSubmissionMode => !IsDirectApprovalMode && PermissionChecks.CanSubmitOwnMeterReadings(_userContextState.CurrentUserContext);
+
+    private async Task<bool> TryLoadAllowUserMeterReadingSubmissionsAsync()
+    {
+        try
+        {
+            return await _supabaseService.GetAllowUserMeterReadingSubmissionsAsync();
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private View CreateFallbackSection()
