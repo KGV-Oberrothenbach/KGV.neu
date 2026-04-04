@@ -2,6 +2,73 @@
 
 ---
 
+## 2026-04-04 – Prompt 2/6b: Freigabefundament und Admin-Schalter buildfähig abgeschlossen, validiert und Git-Abschluss vorbereitet
+
+- Den realen Repo-/Git-/Logstand vor dem Block geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - tracked offen lagen genau die bereits begonnenen Fundamentdateien für Ablesungs-Prüfstatus / globalen Admin-Schalter sowie deren direkte Folgepfade
+  - lokal untracked blieben bewusst weiter unberührt:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden für diesen Abschlusslauf insbesondere:
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Core/Models/AblesungInsertRecord.cs`
+  - `KGV.Core/Models/AblesungRecord.cs`
+  - `KGV.Core/Models/AblesungPruefstatus.cs`
+  - `KGV.Core/Models/AppSettingRecord.cs`
+  - `KGV.Core/Models/ZaehlerAblesungDTO.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+  - `database.types.ts`
+  - `supabase/migrations/20260404130000_ablesung_pruefstatus_foundation.sql`
+- Ehrlicher Istbefund vor dem Abschluss:
+  - der Prüfstatusvertrag für `zaehler_ablesung` war bereits im Workspace begonnen:
+    - neues Modell `AblesungPruefstatus`
+    - Prüfstatusfelder an Insert-/Read-/DTO-Modellen
+    - Shared-Service-Methoden für Statusupdate und globalen Settings-Schalter
+    - Migration für Enum/Felder plus `app_setting`
+  - Altkompatibilität bleibt im begonnenen Stand erhalten über das bestehende bool-Feld `freigegeben`:
+    - beim Insert wird `pruefstatus` aus `freigegeben` normalisiert
+    - bei Statusupdates wird `freigegeben` synchron zum Prüfstatus nachgeführt
+  - der globale Schalter `allow_user_meter_reading_submissions` hing bereits konsistent an genau einem Shared-Service-Pfad:
+    - Konstante nur in `KGV.Infrastructure/Services/SupabaseService.cs`
+    - WPF (`AdminRoleViewModel` / `AdminRoleView`) liest/schreibt nur über `GetAllowUserMeterReadingSubmissionsAsync` / `SetAllowUserMeterReadingSubmissionsAsync`
+    - MAUI (`AdminMenuPage`) liest/schreibt denselben Shared-Service-Pfad
+    - kein zweiter Schattenpfad und kein lokaler Persistenz-Bypass gefunden
+  - echte Restfehler im begonnenen Block waren nur technisch:
+    - `SupabaseService.UpdateAblesungPruefstatusAsync(...)` hatte noch eine Nullable-Typinferenzkante bei `geprueft_am`
+    - im MAUI-Admin-Menü fehlte noch die `ISupabaseService`-Namespace-Referenz
+- Minimal umgesetzt:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `normalizedGeprueftAm` explizit als `DateTime?` typisiert, damit der Prüfstatuspfad sauber kompiliert
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+    - fehlende `using KGV.Core.Interfaces;` ergänzt
+  - keine neue Fachlogik
+  - keine neue Freigabe-UI
+  - keine Nutzer-Einreichungslogik vorgezogen
+- Fachlicher Stand nach diesem Abschlussblock:
+  - Prüfstatusvertrag eingeführt über:
+    - `eingereicht`
+    - `freigegeben`
+    - `abgelehnt`
+  - Altkompatibilität über `freigegeben` bleibt bestehen und hält ältere Freigabepfade weiter funktionsfähig
+  - globaler Schalter `allow_user_meter_reading_submissions` ist zentral vorbereitet und bereits angebunden in:
+    - WPF-Admin-Menü
+    - MAUI-Admin-Menü
+    - Shared-Service-Persistenz
+    - Supabase-Migration / `app_setting`
+  - spätere Folgeblöcke nutzen darauf erst noch aufbauend:
+    - echte Nutzer-Einreichung außerhalb bestehender Admin-/Direktpfade
+    - konkrete Freigabe-/Ablehnungsoberflächen für Ablesungen
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+
 ## 2026-04-04 – Prompt 1/6: Restliche Rollenprüfungen im Meter-/Scanbereich gegen die zentrale Rechtebasis weiter bereinigt
 
 - Den realen Repo-/Git-/Logstand vor dem Block geprüft.

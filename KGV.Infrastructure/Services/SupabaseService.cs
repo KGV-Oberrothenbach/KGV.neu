@@ -22,6 +22,7 @@ namespace KGV.Infrastructure.Services
     public class SupabaseService : ISupabaseService
     {
         private const string DokumentUploadFunctionName = "kgv-upload-document";
+        private const string AllowUserMeterReadingSubmissionsSettingKey = "allow_user_meter_reading_submissions";
         private readonly ISupabaseClientFactory _clientFactory;
         private readonly ILogger<SupabaseService>? _logger;
         private readonly Func<UserContext?>? _currentUserContextAccessor;
@@ -163,6 +164,54 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.MitgliedSeit, NormalizeDate(dto.MitgliedSeit))
                     .Set(x => x.MitgliedEnde, NormalizeDate(dto.MitgliedEnde))
                     .Set(x => x.Aktiv, dto.MitgliedEnde == null)
+                    .Update();
+
+                return true;
+            },
+            false);
+
+        public Task<bool> GetAllowUserMeterReadingSubmissionsAsync() => ExecuteAsync(
+            "GetAllowUserMeterReadingSubmissionsAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<AppSettingRecord>()
+                    .Where(x => x.SettingKey == AllowUserMeterReadingSubmissionsSettingKey)
+                    .Get();
+
+                return response?.Models?.FirstOrDefault()?.BoolValue ?? false;
+            },
+            false);
+
+        public Task<bool> SetAllowUserMeterReadingSubmissionsAsync(bool allowed) => ExecuteAsync(
+            "SetAllowUserMeterReadingSubmissionsAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<AppSettingRecord>()
+                    .Where(x => x.SettingKey == AllowUserMeterReadingSubmissionsSettingKey)
+                    .Get();
+
+                var existing = response?.Models?.FirstOrDefault();
+                if (existing == null)
+                {
+                    await client.From<AppSettingRecord>().Insert(new AppSettingRecord
+                    {
+                        SettingKey = AllowUserMeterReadingSubmissionsSettingKey,
+                        BoolValue = allowed,
+                        UpdatedAt = DateTime.UtcNow
+                    });
+
+                    return true;
+                }
+
+                await client
+                    .From<AppSettingRecord>()
+                    .Where(x => x.SettingKey == AllowUserMeterReadingSubmissionsSettingKey)
+                    .Set(x => x.BoolValue, allowed)
+                    .Set(x => x.UpdatedAt, DateTime.UtcNow)
                     .Update();
 
                 return true;
@@ -663,13 +712,18 @@ namespace KGV.Infrastructure.Services
                     return false;
 
                 var client = await EnsureClientAsync();
+                var normalizedPruefstatus = AblesungPruefstatus.Normalize(request.Pruefstatus, request.Freigegeben);
                 var insertRecord = new AblesungInsertRecord
                 {
                     ZaehlerId = request.ZaehlerId,
                     Ablesedatum = NormalizeDateTime(request.Ablesedatum),
                     Stand = request.Stand,
                     Art = AblesungArt.Normalize(request.Art),
-                    Freigegeben = request.Freigegeben,
+                    Freigegeben = AblesungPruefstatus.IsFreigegeben(normalizedPruefstatus),
+                    Pruefstatus = normalizedPruefstatus,
+                    Pruefkommentar = CleanOptionalText(request.Pruefkommentar),
+                    GeprueftVon = request.GeprueftVon,
+                    GeprueftAm = request.GeprueftAm,
                     FotoPfad = CleanOptionalText(request.FotoPfad),
                     FotoDateiname = CleanOptionalText(request.FotoDateiname),
                     FotoDriveFileId = CleanOptionalText(request.FotoDriveFileId)
@@ -700,6 +754,7 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.Stand, stand)
                     .Set(x => x.FotoPfad, CleanOptionalText(fotoPfad))
                     .Set(x => x.Freigegeben, true)
+                    .Set(x => x.Pruefstatus, AblesungPruefstatus.Freigegeben)
                     .Update();
 
                 _logger?.LogInformation(
@@ -707,6 +762,40 @@ namespace KGV.Infrastructure.Services
                     ablesungId,
                     NormalizeDateTime(ablesedatum),
                     !string.IsNullOrWhiteSpace(fotoPfad));
+
+                return true;
+            },
+            false);
+
+        public Task<bool> UpdateAblesungPruefstatusAsync(long ablesungId, string pruefstatus, string? pruefkommentar, int? geprueftVon, DateTime? geprueftAm = null) => ExecuteAsync(
+            "UpdateAblesungPruefstatusAsync",
+            async () =>
+            {
+                if (ablesungId <= 0)
+                    return false;
+
+                var normalizedPruefstatus = AblesungPruefstatus.Normalize(pruefstatus);
+                DateTime? normalizedGeprueftAm = normalizedPruefstatus == AblesungPruefstatus.Eingereicht
+                    ? null
+                    : geprueftAm ?? DateTime.UtcNow;
+
+                var client = await EnsureClientAsync();
+                await client
+                    .From<AblesungRecord>()
+                    .Where(x => x.Id == ablesungId)
+                    .Set(x => x.Pruefstatus, normalizedPruefstatus)
+                    .Set(x => x.Pruefkommentar, CleanOptionalText(pruefkommentar))
+                    .Set(x => x.GeprueftVon, normalizedPruefstatus == AblesungPruefstatus.Eingereicht ? null : geprueftVon)
+                    .Set(x => x.GeprueftAm, normalizedGeprueftAm)
+                    .Set(x => x.Freigegeben, AblesungPruefstatus.IsFreigegeben(normalizedPruefstatus))
+                    .Update();
+
+                _logger?.LogInformation(
+                    "UpdateAblesungPruefstatusAsync updated reading review state. AblesungId={AblesungId}, Pruefstatus={Pruefstatus}, GeprueftVon={GeprueftVon}, GeprueftAm={GeprueftAm}",
+                    ablesungId,
+                    normalizedPruefstatus,
+                    geprueftVon,
+                    normalizedGeprueftAm);
 
                 return true;
             },
@@ -3077,6 +3166,11 @@ namespace KGV.Infrastructure.Services
                 Stand = record.Stand,
                 Zaehlernummer = zaehlernummer,
                 Eichdatum = eichdatum,
+                Freigegeben = record.Freigegeben,
+                Pruefstatus = AblesungPruefstatus.Normalize(record.Pruefstatus, record.Freigegeben),
+                Pruefkommentar = record.Pruefkommentar,
+                GeprueftVon = record.GeprueftVon,
+                GeprueftAm = record.GeprueftAm,
                 FotoPfad = record.FotoPfad,
                 FotoDateiname = record.FotoDateiname,
                 FotoDriveFileId = record.FotoDriveFileId

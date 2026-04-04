@@ -475,7 +475,8 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
                 ZaehlerId = meterId.Value,
                 Ablesedatum = ablesedatum,
                 Stand = stand,
-                FotoPfad = NormalizeOptionalText(fotoPfad)
+                FotoPfad = NormalizeOptionalText(fotoPfad),
+                Freigegeben = true
             })
             : await _supabaseService.UpdateAblesungAsync(existing.AblesungId, ablesedatum, stand, NormalizeOptionalText(fotoPfad));
 
@@ -511,7 +512,8 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
                 ZaehlerId = meterId.Value,
                 Ablesedatum = ablesedatum,
                 Stand = stand,
-                FotoPfad = NormalizeOptionalText(fotoPfad)
+                FotoPfad = NormalizeOptionalText(fotoPfad),
+                Freigegeben = true
             })
             : await _supabaseService.UpdateAblesungAsync(existing.AblesungId, ablesedatum, stand, NormalizeOptionalText(fotoPfad));
 

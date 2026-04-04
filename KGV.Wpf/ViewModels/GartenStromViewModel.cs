@@ -108,7 +108,8 @@ namespace KGV.ViewModels
                 ZaehlerId = meter.Id,
                 Ablesedatum = dlg.Ablesedatum.Value,
                 Stand = dlg.Stand.Value,
-                FotoPfad = string.IsNullOrWhiteSpace(dlg.FotoPfad) ? null : dlg.FotoPfad.Trim()
+                FotoPfad = string.IsNullOrWhiteSpace(dlg.FotoPfad) ? null : dlg.FotoPfad.Trim(),
+                Freigegeben = true
             });
             if (!ok)
             {

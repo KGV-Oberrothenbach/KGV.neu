@@ -172,6 +172,24 @@ export type Database = {
           },
         ]
       }
+      app_setting: {
+        Row: {
+          bool_value: boolean
+          setting_key: string
+          updated_at: string
+        }
+        Insert: {
+          bool_value?: boolean
+          setting_key: string
+          updated_at?: string
+        }
+        Update: {
+          bool_value?: boolean
+          setting_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       arbeitsstunde: {
         Row: {
           art_der_arbeit: string
@@ -1444,6 +1462,7 @@ export type Database = {
         | "abgesagt"
         | "teilgenommen"
         | "nicht_erschienen"
+      ablesung_pruefstatus: "eingereicht" | "freigegeben" | "abgelehnt"
       zaehler_medium: "wasser" | "strom"
       zaehler_status: "aktiv" | "ausgebaut"
     }
@@ -1574,6 +1593,7 @@ export const Constants = {
   public: {
     Enums: {
       ablesung_art: ["normal", "ausbau"],
+      ablesung_pruefstatus: ["eingereicht", "freigegeben", "abgelehnt"],
       arbeitseinsatz_anmeldung_status: [
         "angemeldet",
         "abgesagt",

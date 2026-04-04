@@ -10,6 +10,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0" LastChildFill="False">
@@ -67,6 +68,17 @@
                     </Style>
                 </Button.Style>
             </Button>
+        </StackPanel>
+
+        <StackPanel Grid.Row="5" Margin="0,20,0,0">
+            <TextBlock Text="Zählerablesungen" FontWeight="SemiBold" Margin="0,0,0,8" />
+            <CheckBox Content="Normale Nutzer dürfen eigene Zählerablesungen einreichen"
+                      IsChecked="{Binding AllowUserMeterReadingSubmissions}"
+                      IsEnabled="{Binding CanManageUserMeterReadingSubmissions}" />
+            <TextBlock Margin="24,6,0,0"
+                       Foreground="Gray"
+                       TextWrapping="Wrap"
+                       Text="Der Schalter legt zentral fest, ob eigene Nutzerablesungen außerhalb der direkten Freigabepfade eingereicht werden dürfen." />
         </StackPanel>
     </Grid>
 </UserControl>

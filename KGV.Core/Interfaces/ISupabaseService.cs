@@ -55,6 +55,9 @@ namespace KGV.Core.Interfaces
 
         Task<bool> AddAblesungAsync(AblesungInsertRecord request);
         Task<bool> UpdateAblesungAsync(long ablesungId, DateTime ablesedatum, decimal stand, string? fotoPfad);
+        Task<bool> UpdateAblesungPruefstatusAsync(long ablesungId, string pruefstatus, string? pruefkommentar, int? geprueftVon, DateTime? geprueftAm = null);
+        Task<bool> GetAllowUserMeterReadingSubmissionsAsync();
+        Task<bool> SetAllowUserMeterReadingSubmissionsAsync(bool allowed);
 
         // =========================
         // Nebenmitglied

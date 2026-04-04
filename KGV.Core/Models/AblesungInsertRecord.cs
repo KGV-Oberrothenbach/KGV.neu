@@ -22,6 +22,18 @@ public sealed class AblesungInsertRecord : BaseModel
     [Column("freigegeben")]
     public bool Freigegeben { get; set; }
 
+    [Column("pruefstatus")]
+    public string? Pruefstatus { get; set; } = AblesungPruefstatus.Eingereicht;
+
+    [Column("pruefkommentar")]
+    public string? Pruefkommentar { get; set; }
+
+    [Column("geprueft_von")]
+    public int? GeprueftVon { get; set; }
+
+    [Column("geprueft_am")]
+    public DateTime? GeprueftAm { get; set; }
+
     [Column("foto_pfad")]
     public string? FotoPfad { get; set; }
 

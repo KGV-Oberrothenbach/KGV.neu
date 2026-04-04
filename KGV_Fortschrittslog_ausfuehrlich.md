@@ -2,6 +2,81 @@
 
 ---
 
+## 2026-04-04 – Prompt 2/6b: Freigabefundament für Ablesungen und globalen Admin-Schalter technisch sauber abgeschlossen
+
+- Vor dem Block den realen Repo-/Git-/Logzustand geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - tracked offen lagen genau die bereits begonnenen Dateien des Fundamentblocks für Ablesungs-Prüfstatus und den globalen Nutzer-Ablesungs-Schalter
+  - untracked blieben bewusst außerhalb des Blocks:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Abschlusslauf:
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Core/Models/AblesungInsertRecord.cs`
+  - `KGV.Core/Models/AblesungRecord.cs`
+  - `KGV.Core/Models/AblesungPruefstatus.cs`
+  - `KGV.Core/Models/AppSettingRecord.cs`
+  - `KGV.Core/Models/ZaehlerAblesungDTO.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+  - `database.types.ts`
+  - `supabase/migrations/20260404130000_ablesung_pruefstatus_foundation.sql`
+- Ehrlicher Istzustand vor der Restkorrektur:
+  - der begonnenen Fundamentblock brachte bereits den neuen Prüfstatusvertrag für `zaehler_ablesung` mit:
+    - Enum-/Wertelogik über `AblesungPruefstatus`
+    - Felder `pruefstatus`, `pruefkommentar`, `geprueft_von`, `geprueft_am`
+    - Shared-Service-Pfad für Insert, Update und Reviewstatus-Änderung
+  - Altkompatibilität war im begonnenen Stand bereits vorgesehen über das Bestandsfeld `freigegeben`
+  - zusätzlich war der zentrale Schalter `allow_user_meter_reading_submissions` bereits vorbereitet:
+    - Persistenzmodell `AppSettingRecord`
+    - Migration für `app_setting`
+    - Shared-Service-Methoden zum Lesen und Speichern
+    - erste Admin-Anbindung in WPF und MAUI
+  - echte Restlücken waren technisch klein und blockbezogen:
+    - Nullable-Compilekante im Prüfstatus-Updatepfad in `SupabaseService`
+    - fehlende Namespace-Referenz im MAUI-Admin-Menü
+- Konsistenzprüfung des globalen Schalters:
+  - gleicher Setting-Key in Persistenz und Migration:
+    - `allow_user_meter_reading_submissions`
+  - gleicher Shared-Service-Pfad für WPF und MAUI:
+    - `GetAllowUserMeterReadingSubmissionsAsync()`
+    - `SetAllowUserMeterReadingSubmissionsAsync(bool allowed)`
+  - keine zweite lokale Speicherung oder Schattenlogik gefunden
+  - kein lokaler harter Default gefunden, der eine gespeicherte Einstellung überschreiben würde; nicht berechtigte Clients lesen nur nicht aktiv in den Settingpfad hinein
+- Minimal umgesetzt:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `normalizedGeprueftAm` im Reviewstatuspfad explizit als `DateTime?` typisiert
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+    - fehlende `using KGV.Core.Interfaces;` ergänzt
+  - sonst keine weitere Fach- oder UI-Erweiterung
+- Fachliches Ergebnis nach dem Block:
+  - neuer Prüfstatusvertrag sauber im Code- und Migrationsstand verankert:
+    - `eingereicht`
+    - `freigegeben`
+    - `abgelehnt`
+  - Altkompatibilität über `freigegeben` bleibt bestehen:
+    - Inserts normalisieren fehlende/alte Zustände weiterhin belastbar
+    - Statusupdates halten `freigegeben` synchron
+  - der globale Admin-/Vorstand-Schalter für Nutzer-Ablesungen ist zentral vorbereitet und bereits angebunden in:
+    - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - `KGV.Wpf/Views/AdminRoleView.xaml`
+    - `KGV.Maui/Pages/AdminMenuPage.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `supabase/migrations/20260404130000_ablesung_pruefstatus_foundation.sql`
+  - bewusst noch nicht in diesem Block vorgezogen:
+    - echter Einreichungspfad für normale Nutzer
+    - Freigabe-/Ablehnungsoberflächen für Ablesungen
+    - weitere Folgeprozesse, die den neuen Schalter fachlich auswerten
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Befund: Build-/Codevalidierung in dieser Umgebung, kein echter Laufzeit- oder Datenbankmigrationstest
+
 ## 2026-04-04 – Prompt 1/6: Verbleibende direkte Rollenprüfung im Meterbereich auf `PermissionChecks` gezogen
 
 - Vor dem Block den realen Repo-/Git-/Codezustand geprüft.

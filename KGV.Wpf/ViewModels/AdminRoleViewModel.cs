@@ -17,6 +17,8 @@ namespace KGV.ViewModels
         private readonly INavigationService _navigationService;
 
         private string? _lockUserId;
+        private bool _allowUserMeterReadingSubmissions;
+        private bool _initialAllowUserMeterReadingSubmissions;
 
         public MemberDTO SelectedMember { get; }
 
@@ -45,6 +47,22 @@ namespace KGV.ViewModels
 
         public bool IsRoleEditable => SelectedMember.Id != 7;
         public bool CanOpenUserManagement => _authService.IsAdmin && SelectedMember.Id > 0;
+        public bool CanManageUserMeterReadingSubmissions => _authService.IsAdmin || _authService.IsVorstand;
+
+        public bool AllowUserMeterReadingSubmissions
+        {
+            get => _allowUserMeterReadingSubmissions;
+            set
+            {
+                if (!SetProperty(ref _allowUserMeterReadingSubmissions, value))
+                    return;
+
+                OnPropertyChanged(nameof(IsUserMeterReadingSubmissionSettingDirty));
+                SaveCommand.RaiseCanExecuteChanged();
+            }
+        }
+
+        public bool IsUserMeterReadingSubmissionSettingDirty => AllowUserMeterReadingSubmissions != _initialAllowUserMeterReadingSubmissions;
 
         public RelayCommand<object?> SaveCommand { get; }
         public RelayCommand<object?> OpenUserManagementCommand { get; }
@@ -89,95 +107,114 @@ namespace KGV.ViewModels
             SelectedMember.Role = rec.Role ?? "user";
 
             SelectedRole = SelectedMember.Role;
+            AllowUserMeterReadingSubmissions = await _supabaseService.GetAllowUserMeterReadingSubmissionsAsync();
+            _initialAllowUserMeterReadingSubmissions = AllowUserMeterReadingSubmissions;
             IsDirty = false;
+            OnPropertyChanged(nameof(IsUserMeterReadingSubmissionSettingDirty));
+            SaveCommand.RaiseCanExecuteChanged();
         }
 
         private bool CanSave()
         {
-            if (!_authService.IsAdmin)
-                return false;
-
-            if (!IsDirty)
-                return false;
-
-            if (!IsRoleEditable)
-                return false;
-
-            return true;
+            var canSaveRole = _authService.IsAdmin && IsDirty && IsRoleEditable;
+            var canSaveSetting = CanManageUserMeterReadingSubmissions && IsUserMeterReadingSubmissionSettingDirty;
+            return canSaveRole || canSaveSetting;
         }
 
         private async Task SaveAsync()
         {
             try
             {
-                if (!IsRoleEditable)
+                if (_authService.IsAdmin && IsDirty && !IsRoleEditable)
                 {
                     MessageBox.Show("Für dieses Mitglied ist die Rollenbearbeitung gesperrt.", "Gesperrt", MessageBoxButton.OK,
                         MessageBoxImage.Information);
                     return;
                 }
 
-                var userId = _authService.CurrentUserId;
-                if (string.IsNullOrWhiteSpace(userId))
-                {
-                    MessageBox.Show("Nicht angemeldet. Bitte erneut einloggen.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                if (!CanSave())
                     return;
+
+                var savedParts = new List<string>();
+
+                if (_authService.IsAdmin && IsDirty)
+                {
+                    var userId = _authService.CurrentUserId;
+                    if (string.IsNullOrWhiteSpace(userId))
+                    {
+                        MessageBox.Show("Nicht angemeldet. Bitte erneut einloggen.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    var locked = await _supabaseService.TryLockMitgliedAsync(SelectedMember.Id, userId);
+                    if (!locked)
+                    {
+                        MessageBox.Show("Datensatz ist aktuell gesperrt. Bitte später erneut versuchen.", "Gesperrt",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                        return;
+                    }
+
+                    _lockUserId = userId;
+
+                    var rec = await _supabaseService.GetMitgliedByIdAsync(SelectedMember.Id);
+                    if (rec == null)
+                    {
+                        MessageBox.Show("Mitglied konnte nicht geladen werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    var dto = new MemberDTO
+                    {
+                        Id = rec.Id,
+                        Vorname = rec.Vorname ?? string.Empty,
+                        Nachname = rec.Name ?? string.Empty,
+                        Email = rec.Email ?? string.Empty,
+                        Role = SelectedRole,
+
+                        Geburtsdatum = rec.Geburtsdatum,
+                        Strasse = rec.Adresse ?? string.Empty,
+                        PLZ = rec.Plz ?? string.Empty,
+                        Ort = rec.Ort ?? string.Empty,
+                        Telefon = rec.Telefon ?? string.Empty,
+                        Mobilnummer = rec.Handy ?? string.Empty,
+                        Bemerkungen = rec.Bemerkung ?? string.Empty,
+                        WhatsappEinwilligung = rec.WhatsappEinwilligung,
+                        MitgliedSeit = rec.MitgliedSeit,
+                        MitgliedEnde = rec.MitgliedEnde
+                    };
+
+                    var ok = await _supabaseService.UpdateMitgliedAsync(dto, userId);
+                    if (!ok)
+                    {
+                        MessageBox.Show("Speichern fehlgeschlagen (ggf. Lock verloren oder keine Berechtigung).", "Fehler",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    SelectedMember.Role = SelectedRole;
+                    IsDirty = false;
+                    savedParts.Add("Rolle");
+
+                    await _supabaseService.ReleaseLockMitgliedAsync(SelectedMember.Id, userId, force: false);
+                    _lockUserId = null;
                 }
 
-                var locked = await _supabaseService.TryLockMitgliedAsync(SelectedMember.Id, userId);
-                if (!locked)
+                if (CanManageUserMeterReadingSubmissions && IsUserMeterReadingSubmissionSettingDirty)
                 {
-                    MessageBox.Show("Datensatz ist aktuell gesperrt. Bitte später erneut versuchen.", "Gesperrt",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
+                    var ok = await _supabaseService.SetAllowUserMeterReadingSubmissionsAsync(AllowUserMeterReadingSubmissions);
+                    if (!ok)
+                    {
+                        MessageBox.Show("Die globale Ablesungs-Einstellung konnte nicht gespeichert werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    _initialAllowUserMeterReadingSubmissions = AllowUserMeterReadingSubmissions;
+                    OnPropertyChanged(nameof(IsUserMeterReadingSubmissionSettingDirty));
+                    savedParts.Add("Ablesungs-Einstellung");
                 }
 
-                _lockUserId = userId;
-
-                // vollständiges DTO laden (damit UpdateMitgliedAsync nichts überschreibt)
-                var rec = await _supabaseService.GetMitgliedByIdAsync(SelectedMember.Id);
-                if (rec == null)
-                {
-                    MessageBox.Show("Mitglied konnte nicht geladen werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
-                var dto = new MemberDTO
-                {
-                    Id = rec.Id,
-                    Vorname = rec.Vorname ?? string.Empty,
-                    Nachname = rec.Name ?? string.Empty,
-                    Email = rec.Email ?? string.Empty,
-                    Role = SelectedRole,
-
-                    Geburtsdatum = rec.Geburtsdatum,
-                    Strasse = rec.Adresse ?? string.Empty,
-                    PLZ = rec.Plz ?? string.Empty,
-                    Ort = rec.Ort ?? string.Empty,
-                    Telefon = rec.Telefon ?? string.Empty,
-                    Mobilnummer = rec.Handy ?? string.Empty,
-                    Bemerkungen = rec.Bemerkung ?? string.Empty,
-                    WhatsappEinwilligung = rec.WhatsappEinwilligung,
-                    MitgliedSeit = rec.MitgliedSeit,
-                    MitgliedEnde = rec.MitgliedEnde
-                };
-
-                var ok = await _supabaseService.UpdateMitgliedAsync(dto, userId);
-                if (!ok)
-                {
-                    MessageBox.Show("Speichern fehlgeschlagen (ggf. Lock verloren oder keine Berechtigung).", "Fehler",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
-                SelectedMember.Role = SelectedRole;
-                IsDirty = false;
                 SaveCommand.RaiseCanExecuteChanged();
-
-                await _supabaseService.ReleaseLockMitgliedAsync(SelectedMember.Id, userId, force: false);
-                _lockUserId = null;
-
-                MessageBox.Show("Rolle gespeichert.", "OK", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(savedParts.Count == 0 ? "Keine Änderungen gespeichert." : $"Gespeichert: {string.Join(", ", savedParts)}.", "OK", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
