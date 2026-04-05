@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-04-05 – Git-/Remote-Klärung nach behauptetem Merge: echter Stand bestätigt, keine Korrektur nötig
+
+- Ausgangspunkt dieses Laufs war die sichtbare Unsicherheit, ob der zuvor dokumentierte Merge nach `main` tatsächlich auf dem öffentlichen Remote-Stand liegt.
+- Deshalb wurde ausdrücklich zuerst der echte Git-Stand lokal geprüft:
+  - aktueller Branch: `main`
+  - `origin` zeigt auf `https://github.com/KGV-Oberrothenbach/KGV.neu.git`
+  - `git branch -vv` zeigte:
+    - `main` auf `073cdf3 [origin/main] Merge branch 'feature/app-user-role-source'`
+    - `feature/app-user-role-source` auf `ca7edc1 [origin/feature/app-user-role-source] Finalize merge readiness for app user role source`
+  - `git status --short --branch` zeigte zu Beginn weiterhin blockfremd offen:
+    - `.github/copilot-instructions.md`
+    - `AWR.bat`
+    - `_secrets/`
+  - diese Dateien blieben bewusst außerhalb dieses Blocks
+  - `git log --oneline --decorate -n 20` bestätigte lokal denselben Stand
+  - Commit `073cdf3` ist lokal vorhanden: ja
+  - Commit `073cdf3` ist auf lokalem `main` enthalten: ja
+- Danach wurde der echte Remote-Stand geprüft:
+  - `git fetch --all --prune` ausgeführt
+  - `git branch -r --contains 073cdf3` ergab nur:
+    - `origin/main`
+    - `origin/HEAD -> origin/main`
+  - `origin/feature/app-user-role-source` enthält `073cdf3` nicht; das ist korrekt, weil der Merge-Commit auf `main` entstanden ist
+  - `origin/feature/app-user-role-source` zeigt weiter auf `ca7edc1`
+  - `git branch -r --contains ca7edc1` bestätigte:
+    - `origin/feature/app-user-role-source`
+    - `origin/main`
+  - damit ist die Spitze des Feature-Branches fachlich in `origin/main` enthalten
+- Der Merge-Commit selbst wurde zusätzlich roh geprüft:
+  - `073cdf3` hat die Eltern:
+    - `e9224d6`
+    - `ca7edc1`
+  - das bestätigt einen echten Merge von `feature/app-user-role-source` nach `main`
+- Fachlicher Abgleich `main` vs. `feature/app-user-role-source` bewusst nur an den relevanten Rollenstellen:
+  - `SetAppUserRoleAsync(...)` ist in `main` enthalten: ja
+  - `SetAppUserRoleAsync(...)` ist im Feature-Branch ebenfalls enthalten: ja
+  - `GetUserPermissionSettingsAsync(...)` verwendet in `main` `NormalizeAppUserRole(appUser?.Role)` und fällt dort nicht aktiv auf `mitglied.Role` zurück
+  - derselbe Stand liegt auch im Feature-Branch vor
+  - zusätzliche Negativprüfung in den relevanten C#-Dateien ergab für `mitglied.Role` keine aktiven Treffer
+  - zusätzliche Negativprüfung in `supabase/migrations` ergab für `coalesce(au.role, m.role)` und `new.role` keine aktiven Treffer
+  - `main` und `feature/app-user-role-source` zeigen damit im ausdrücklich geprüften Rollenquellen-Pfad keinen fachlichen Drift mehr
+- Ehrliche Fallklärung:
+  - Fall A `lokal gemergt, aber nicht nach origin/main gepusht`: nein
+  - Fall B `auf anderem Remote/Repo gemergt`: nein
+  - Fall C `später teilweise überschrieben oder reverted`: nein, denn `origin/main` steht aktuell direkt auf dem Merge-Commit und enthält die Feature-Spitze
+  - Fall D `frühere Zusammenfassung passte nicht zum tatsächlich gepushten Stand`: im Kern ebenfalls nein; der wahrscheinliche sichtbare Widerspruch entsteht daraus, dass der Feature-Remote-Branch nach dem Merge weiter existiert und daher öffentlich noch separat sichtbar ist
+- Konsequenz dieses Laufs:
+  - keine Git-/Remote-Korrektur nötig
+  - kein nachträglicher Merge nötig
+  - kein fehlender Push nötig
+  - keine Buildvalidierung erneut ausgelöst, weil kein Korrektureingriff am Repo-Stand erforderlich war
+  - keine neue Fachänderung am Rollen-/Rechtepfad vorgenommen
+
 ## 2026-04-05 – Merge-Abschluss Branch `feature/app-user-role-source`: sauber nach `main` übernommen
 
 - Vor dem Merge den realen Repo-/Git-/Logzustand erneut geprüft.
