@@ -2,6 +2,46 @@
 
 ---
 
+## 2026-04-05 – WPF-Bindingfix AdminRoleView: schreibgeschützte Anzeigeeigenschaften sauber auf OneWay gehärtet
+
+- Vor dem Fix den realen Repo-/Git-/Logzustand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - der Arbeitsbaum war zu Beginn sauber bis auf bewusst unberührte untracked Dateien:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Lauf:
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor diesem Fix:
+  - im laufenden WPF-Debugpfad schlug das Admin-Menü mit einer `InvalidOperationException` fehl
+  - die Exception kam nicht aus der Fachlogik von `AdminRoleViewModel`, sondern aus WPF-Binding auf schreibgeschützte Anzeigeeigenschaften
+  - betroffen waren insbesondere reine Anzeige-Bindings in `Run.Text` und `CheckBox.IsChecked`, die für diese Daten keinen Schreibpfad brauchen
+- Minimal in diesem Lauf nachgezogen:
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+    - reine Anzeige-Bindings explizit auf `Mode=OneWay` gesetzt
+    - damit schreibt WPF nicht mehr in Properties ohne Setter wie:
+      - `PermissionRoleBasis`
+      - `CurrentOverrideState`
+      - `EffectivePermissionState`
+      - `DisplayName`
+      - `IsBaseGranted`
+      - `IsEffectivelyGranted`
+    - ergänzend auch die zugehörigen read-only-Hinweise explizit als `OneWay` markiert
+- Fachlicher Endstand dieses Fixes:
+  - Admin-Menü bleibt fachlich unverändert
+  - Rollenbasis, Grants, Revocations und wirksame Rechte bleiben sichtbar
+  - die betroffenen Bindings sind jetzt technisch korrekt als read-only-Anzeige modelliert
+  - keine neue UI- oder Security-Logik eingeführt
+- Validierung im Abschlusslauf:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - der Fix adressiert gezielt die im Debuglauf gemeldete WPF-Binding-Exception auf schreibgeschützte Anzeigeeigenschaften in `AdminRoleView`
+  - `AWR.bat` und `_secrets/` blieben bewusst außerhalb dieses Fixes
+
 ## 2026-04-05 – Block 1/1 Rollen-Defaultlogik: `PermissionService` konsequent auf die neue Fachrechte-Matrix gehoben
 
 - Vor dem Block den realen Repo-/Git-/Logzustand erneut geprüft.

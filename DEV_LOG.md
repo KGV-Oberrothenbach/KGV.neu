@@ -2,6 +2,46 @@
 
 ---
 
+## 2026-04-05 – WPF-Bindingfix AdminRoleView: reine Anzeige-Bindings im Admin-Menü explizit auf OneWay gesetzt
+
+- Vor dem Fix den realen Repo-/Git-/Logstand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - Arbeitsbaum zu Beginn sauber bis auf bewusst unberührte untracked Dateien:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden in diesem Lauf:
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor der Umsetzung:
+  - im WPF-Admin-Menü trat zur Laufzeit eine `InvalidOperationException` auf
+  - Ursache war eine Binding-Konstellation mit schreibgeschützten ViewModel-Eigenschaften wie `PermissionRoleBasis`
+  - speziell in `AdminRoleView.xaml` hingen mehrere reine Anzeige-Bindings an Targets, die ohne expliziten Modus in einen unzulässigen Write-Pfad laufen konnten
+- Minimal umgesetzt:
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+    - reine Anzeige-Bindings explizit auf `Mode=OneWay` gesetzt für:
+      - `PermissionRoleBasis`
+      - `PermissionSaveHint`
+      - `RoleManagementHint`
+      - `DisplayName`
+      - `IsBaseGranted`
+      - `IsEffectivelyGranted`
+      - `CurrentOverrideState`
+      - `EffectivePermissionState`
+  - `AdminRoleViewModel` blieb unverändert; der Fehler lag nicht in der Logik, sondern im WPF-Bindingmodus
+- Fachlicher Stand nach dem Fix:
+  - Admin-Menü bleibt fachlich unverändert
+  - Rollenbasis, Grants, Revocations und wirksame Rechte bleiben reine Anzeige- bzw. read-only-Auswertung an den betroffenen Stellen
+  - es wurde keine neue Rechte- oder UI-Logik eingeführt
+- Validierung in diesem Lauf:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - der Fix adressiert gezielt die im Debuglauf gemeldete WPF-Binding-Exception auf schreibgeschützte Anzeigeeigenschaften in `AdminRoleView`
+  - `AWR.bat` und `_secrets/` blieben bewusst unberührt
+
 ## 2026-04-05 – Block 1/1 Rollen-Defaultlogik: PermissionService fachlich auf die neue Rechtebasis harmonisiert
 
 - Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.

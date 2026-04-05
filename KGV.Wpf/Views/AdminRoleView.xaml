@@ -55,7 +55,7 @@
                    Margin="0,34,0,0"
                    Foreground="Gray"
                    TextWrapping="Wrap"
-                   Text="{Binding RoleManagementHint}" />
+                   Text="{Binding RoleManagementHint, Mode=OneWay}" />
 
         <StackPanel Grid.Row="4" Margin="0,20,0,0">
             <TextBlock Text="Benutzerverwaltung" FontWeight="SemiBold" Margin="0,0,0,8" />
@@ -98,7 +98,7 @@
                 <TextBlock Text="Benutzerspezifische Fachrechte" FontWeight="SemiBold" FontSize="16" />
                 <TextBlock Margin="0,8,0,0" TextWrapping="Wrap">
                     <Run Text="Rollenbasis: " />
-                    <Run Text="{Binding PermissionRoleBasis}" FontWeight="SemiBold" />
+                    <Run Text="{Binding PermissionRoleBasis, Mode=OneWay}" FontWeight="SemiBold" />
                 </TextBlock>
                 <TextBlock Margin="0,4,0,0" TextWrapping="Wrap">
                     <Run Text="App-User: " />
@@ -115,7 +115,7 @@
                         </Run.Style>
                     </Run>
                 </TextBlock>
-                <TextBlock Margin="0,4,0,0" Foreground="Gray" TextWrapping="Wrap" Text="{Binding PermissionSaveHint}" />
+                <TextBlock Margin="0,4,0,0" Foreground="Gray" TextWrapping="Wrap" Text="{Binding PermissionSaveHint, Mode=OneWay}" />
 
                 <Grid Margin="0,12,0,0">
                     <Grid.ColumnDefinitions>
@@ -142,14 +142,14 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0" Text="{Binding DisplayName}" />
-                                <CheckBox Grid.Column="1" Margin="0,0,12,0" VerticalAlignment="Center" IsChecked="{Binding IsBaseGranted}" IsEnabled="False" />
+                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0" Text="{Binding DisplayName, Mode=OneWay}" />
+                                <CheckBox Grid.Column="1" Margin="0,0,12,0" VerticalAlignment="Center" IsChecked="{Binding IsBaseGranted, Mode=OneWay}" IsEnabled="False" />
                                 <ComboBox Grid.Column="2"
                                           Margin="0,0,12,0"
                                           ItemsSource="{Binding OverrideModes}"
                                           SelectedItem="{Binding SelectedOverrideMode}"
                                           IsEnabled="{Binding IsEditable}" />
-                                <CheckBox Grid.Column="3" VerticalAlignment="Center" IsChecked="{Binding IsEffectivelyGranted}" IsEnabled="False" />
+                                <CheckBox Grid.Column="3" VerticalAlignment="Center" IsChecked="{Binding IsEffectivelyGranted, Mode=OneWay}" IsEnabled="False" />
                             </Grid>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -157,11 +157,11 @@
 
                 <TextBlock Margin="0,12,0,0" TextWrapping="Wrap">
                     <Run Text="Aktueller Override-Zustand: " />
-                    <Run Text="{Binding CurrentOverrideState}" />
+                    <Run Text="{Binding CurrentOverrideState, Mode=OneWay}" />
                 </TextBlock>
                 <TextBlock Margin="0,4,0,0" TextWrapping="Wrap">
                     <Run Text="Wirksame Rechte: " />
-                    <Run Text="{Binding EffectivePermissionState}" />
+                    <Run Text="{Binding EffectivePermissionState, Mode=OneWay}" />
                 </TextBlock>
 
                 <Button Margin="0,16,0,0"
