@@ -2,6 +2,56 @@
 
 ---
 
+## 2026-04-05 – Finaler Abschlusslauf Branch `feature/app-user-role-source`: Git-/Reststatus erneut geprüft, merge-reif bestätigt
+
+- Vor dem Abschlusslauf den realen Repo-/Git-/Logzustand erneut geprüft.
+- Git-Befund zu Beginn auf `feature/app-user-role-source`:
+  - aktueller Branch: `feature/app-user-role-source`
+  - der Branch hat einen Remote-Tracking-Branch `origin/feature/app-user-role-source`
+  - Divergenz zu `main`: `0 6`
+  - Divergenz zu `origin/main`: `0 6`
+  - Divergenz zum Upstream `origin/feature/app-user-role-source`: `0 0`
+  - im Arbeitsbaum lagen weiterhin bewusst außerhalb dieses Blocks offen und unberührt:
+    - `.github/copilot-instructions.md`
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Lauf:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+  - `KGV.Core/Models/AppUserDTO.cs`
+  - `KGV.Core/Models/MemberUserLinkStatusDto.cs`
+  - `supabase/migrations/20260323093513_remote_schema.sql`
+  - `supabase/migrations/20260405173000_app_user_role_sql_cleanup.sql`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Zusätzliche Reststatus-Prüfung außerhalb der Logdateien wirklich ausgeführt über:
+  - `mitglied.role`
+  - `coalesce(au.role, m.role)`
+  - `new.role`
+  - `excluded.role`
+  - `UPDATE OF auth_user_id, role`
+- Ergebnis des erneuten Restchecks:
+  - keine aktive fachliche Nutzung von `mitglied.role` mehr in C#, WPF, MAUI oder SQL/RPC/Trigger/Schema gefunden
+  - `app_user.role` bleibt im aktuellen Branch die einzige führende Rollenquelle
+  - `mitglied.role` ist fachlich nur noch physischer Altbestand im Schema
+- Ehrlicher Abschlussbefund dieses Laufs:
+  - der Rollenquellen-Umbau ist im aktuellen Branch fachlich abgeschlossen
+  - eine neue Fachänderung hätte keinen belastbaren Zusatzgewinn mehr gebracht und wurde deshalb bewusst nicht erzwungen
+  - es wurden nur die Logs auf den finalen Merge-Reife-Stand gebracht
+- Validierung im Abschlusslauf wirklich erneut ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund:
+    - bestehende Warnungen bleiben u. a. in `KGV.Infrastructure/Services/SupabaseService.cs`, `KGV.Wpf/ViewModels/BekanntmachungenVerwaltungViewModel.cs`, `KGV.Wpf/ViewModels/ArbeitseinsaetzeVerwaltungViewModel.cs`, `KGV.Wpf/ViewModels/TermineVerwaltungViewModel.cs`, `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/ImpressumPage.cs` außerhalb dieses Blocks unverändert bestehen
+- Merge-Reife dieses Laufs:
+  - Branch `feature/app-user-role-source` ist fachlich merge-reif vorbereitet: ja
+  - automatischer Merge nach `main` in diesem Block: nein
+
 ## 2026-04-05 – Merge-Reifeprüfung Branch `feature/app-user-role-source`: Rollenquelle `app_user.role` fachlich konsistent, `mitglied.role` nur noch Altbestand
 
 - Vor dem Abschlussblock den realen Repo-/Git-/Logzustand erneut geprüft.
