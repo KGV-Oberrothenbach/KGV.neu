@@ -54,7 +54,9 @@ namespace KGV.ViewModels
 
         public bool IsRoleEditable => SelectedMember.Id != 7;
         public bool CanReadRoleManagement => PermissionChecks.CanReadRoleManagement(_mainWindowViewModel.UserContext);
-        public bool CanEditRole => PermissionChecks.CanManageRoleManagement(_mainWindowViewModel.UserContext) && IsRoleEditable;
+        public bool CanManageRoleManagement => PermissionChecks.CanManageRoleManagement(_mainWindowViewModel.UserContext);
+        public bool CanEditRole => CanManageRoleManagement && IsRoleEditable;
+        public bool IsRoleManagementReadOnly => CanReadRoleManagement && !CanManageRoleManagement;
         public bool CanOpenUserManagement => _authService.IsAdmin && SelectedMember.Id > 0;
         public bool CanManageUserMeterReadingSubmissions => _authService.IsAdmin || _authService.IsVorstand;
 
@@ -74,7 +76,7 @@ namespace KGV.ViewModels
         public bool IsUserMeterReadingSubmissionSettingDirty => AllowUserMeterReadingSubmissions != _initialAllowUserMeterReadingSubmissions;
 
         public bool HasLinkedAppUser => _permissionSettings?.HasLinkedUser == true;
-        public bool CanEditPermissionOverrides => PermissionChecks.CanManageRoleManagement(_mainWindowViewModel.UserContext) && HasLinkedAppUser;
+        public bool CanEditPermissionOverrides => CanManageRoleManagement && HasLinkedAppUser;
         public PermissionFlags CurrentGrantedPermissions => PermissionOverrides.Aggregate(PermissionFlags.None, (current, item) => current | item.GrantedPermissions);
         public PermissionFlags CurrentRevokedPermissions => PermissionOverrides.Aggregate(PermissionFlags.None, (current, item) => current | item.RevokedPermissions);
         public bool ArePermissionOverridesDirty => CurrentGrantedPermissions != _initialGrantedPermissions || CurrentRevokedPermissions != _initialRevokedPermissions;
@@ -86,8 +88,18 @@ namespace KGV.ViewModels
         public string PermissionSaveHint => HasLinkedAppUser
             ? IsDirty
                 ? "Die Rollenbasis wurde geändert. Bitte zuerst die Rolle speichern und danach die benutzerspezifischen Fachrechte sichern."
+                : IsRoleManagementReadOnly
+                    ? "Rollen-/Rechteverwaltung ist in diesem Kontext nur lesend freigegeben. Die Rollenbasis und die wirksamen Fachrechte bleiben sichtbar, Speichern ist gesperrt."
                 : "Benutzerspezifische Fachrechte werden zentral als Grants/Revocations über der Rollenbasis gespeichert."
             : "Für dieses Mitglied existiert aktuell kein verknüpfter App-User. Die Rechteübersicht bleibt sichtbar, Speichern ist gesperrt.";
+
+        public string RoleManagementHint => !CanReadRoleManagement
+            ? "Rollen-/Rechteverwaltung ist für den aktuellen Kontext nicht freigegeben."
+            : IsRoleManagementReadOnly
+                ? "Rollen-/Rechteverwaltung ist in diesem Kontext nur lesend freigegeben. Rolle, Rollenbasis und wirksame Rechte bleiben sichtbar."
+                : IsRoleEditable
+                    ? "Rolle bleibt das Basispaket. Benutzerspezifische Fachrechte werden als Grants/Revocations darüber gespeichert."
+                    : "Rollenbearbeitung für dieses Mitglied ist gesperrt. Die Rollenbasis und die benutzerspezifischen Fachrechte bleiben sichtbar.";
 
         public RelayCommand<object?> SaveCommand { get; }
         public RelayCommand<object?> SavePermissionOverridesCommand { get; }
@@ -170,7 +182,7 @@ namespace KGV.ViewModels
 
         private bool CanSave()
         {
-            var canSaveRole = _authService.IsAdmin && IsDirty && IsRoleEditable;
+            var canSaveRole = CanEditRole && IsDirty;
             var canSaveSetting = CanManageUserMeterReadingSubmissions && IsUserMeterReadingSubmissionSettingDirty;
             return canSaveRole || canSaveSetting;
         }
@@ -182,7 +194,7 @@ namespace KGV.ViewModels
         {
             try
             {
-                if (_authService.IsAdmin && IsDirty && !IsRoleEditable)
+                if (CanManageRoleManagement && IsDirty && !IsRoleEditable)
                 {
                     MessageBox.Show("Für dieses Mitglied ist die Rollenbearbeitung gesperrt.", "Gesperrt", MessageBoxButton.OK,
                         MessageBoxImage.Information);
@@ -194,7 +206,7 @@ namespace KGV.ViewModels
 
                 var savedParts = new List<string>();
 
-                if (_authService.IsAdmin && IsDirty)
+                if (CanEditRole && IsDirty)
                 {
                     var userId = _authService.CurrentUserId;
                     if (string.IsNullOrWhiteSpace(userId))
@@ -340,9 +352,12 @@ namespace KGV.ViewModels
             }
 
             OnPropertyChanged(nameof(HasLinkedAppUser));
+            OnPropertyChanged(nameof(CanManageRoleManagement));
             OnPropertyChanged(nameof(CanEditRole));
+            OnPropertyChanged(nameof(IsRoleManagementReadOnly));
             OnPropertyChanged(nameof(CanEditPermissionOverrides));
             OnPropertyChanged(nameof(ArePermissionOverridesDirty));
+            OnPropertyChanged(nameof(RoleManagementHint));
             OnPropertyChanged(nameof(PermissionRoleBasis));
             OnPropertyChanged(nameof(CurrentOverrideState));
             OnPropertyChanged(nameof(EffectivePermissionState));

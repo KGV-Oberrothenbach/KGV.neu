@@ -2,6 +2,72 @@
 
 ---
 
+## 2026-04-05 – Block 2/3 Admin-Menü / Rechtevergabeoberfläche: WPF und MAUI auf denselben permission-basierten Produktpfad gezogen
+
+- Vor dem Block den realen Repo-/Git-/Logzustand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - der Arbeitsbaum war zu Beginn sauber bis auf bewusst unberührte untracked Dateien:
+    - `AWR.bat`
+    - `_secrets/`
+  - als Ausgangspunkt dieses Blocks lag bereits der gepushte Abschluss von Block 1/3 vor:
+    - Commit `bd00e43`
+    - `Konsolidiere zentrale Permission-Basis`
+- Direkt geprüft wurden im Lauf:
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+  - `KGV.Maui/Pages/UserManagementPage.cs`
+  - `KGV.Core/Security/PermissionCatalog.cs`
+  - `KGV.Core/Security/PermissionChecks.cs`
+  - `KGV.Core/Security/PermissionService.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor dem Block:
+  - die zentrale Rechtebasis aus Block 1/3 war konsolidiert und releasefähig
+  - WPF war im Admin-Menü bereits nah am Zielpfad und zeigte die neue editierbare Rechtebasis schon produktiv an
+  - die eigentlichen Restlücken lagen vor allem in der Oberflächenkonsistenz und bei alten Sonderpfaden:
+    - WPF-Rollenspeicherung lief intern noch nicht vollständig auf derselben permission-basierten Write-Auswertung wie die Override-Bearbeitung
+    - MAUI arbeitete im Admin-Menü, in `MeineDatenPage` und in `UserManagementPage` bei Rollen-/Rechteaktionen noch teils mit harten Rollenannahmen (`Admin` / `Vorstand`) statt mit den neuen zentralen `PermissionChecks`
+    - das MAUI-Admin-Menü zeigte die Override-Basis bereits, bot aber noch keine vollständige Rollenbasis-Bearbeitung analog zu WPF
+- Minimal in diesem Lauf produktiv nachgezogen:
+  - WPF:
+    - `AdminRoleViewModel`
+      - zentrale Write-Auswertung der Rollenbearbeitung auf `CanManageRoleManagement` gezogen
+      - read-only-/write-Hinweise für Rollen-/Rechteverwaltung ergänzt
+    - `AdminRoleView.xaml`
+      - klaren UI-Hinweis für den Rollen-/Rechtestatus ergänzt
+  - MAUI:
+    - `AdminMenuPage`
+      - Rollen-Picker und Speichern der Rollenbasis ergänzt
+      - Rollenbasis, Override-Zustand und wirksame Rechte jetzt analog zu WPF auf Basis der zentralen `PermissionCatalog`-/`PermissionService`-/`PermissionChecks`-Logik berechnet
+      - Speichern von Overrides wird blockiert, solange die Rollenbasis lokal geändert, aber noch nicht gespeichert wurde
+      - read-only vs. write wird konsequent über `CanReadRoleManagement(...)` und `CanManageRoleManagement(...)` unterschieden
+    - `UserManagementViewModel` / `UserManagementPage`
+      - vorhandenen mobilen Rollenpfad minimal auf dieselbe permission-basierte Editierbarkeit gezogen
+    - `MeineDatenPage.xaml.cs`
+      - bestehenden Rollenpfad im Mitgliedskontext minimal auf die neue Read-/Write-Semantik umgestellt
+- Fachlicher Endstand dieses Blocks:
+  - Rolle bleibt das Basispaket
+  - benutzerspezifische Fachrechte bleiben zentrale Grants/Revocations darüber
+  - WPF und MAUI verwenden jetzt dieselbe Liste der aktuell fachlich editierbaren Rechte über `PermissionCatalog.GetUserSpecificEditablePermissions()`
+  - `CanReadRoles` öffnet die Sicht auf Rollenbasis und wirksame Rechte
+  - `CanManageRoles` steuert tatsächlich die Schreibfähigkeit für Rolle und Overrides
+  - damit darf insbesondere nicht mehr jeder `Vorstand` automatisch schreiben; der mobile und der WPF-Pfad respektieren jetzt denselben permission-basierten Zielstand
+  - keine Schattenlogik neben dem vorhandenen Security-Modell aufgebaut
+  - Nutzer-Ablesung und Arbeitsstunden-Prüfprozess wurden in diesem Block bewusst nicht verändert
+- Validierung im Abschlusslauf:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - Workspace-Build => erfolgreich
+  - ehrlicher Restbefund:
+    - bestehende Warnungen in blockfremden WPF-Dateien bleiben unverändert
+    - bestehende Warnungen in blockfremden MAUI-Dateien bleiben unverändert
+    - `AWR.bat` und `_secrets/` blieben bewusst außerhalb dieses Blocks
+
 ## 2026-04-05 – Abschlusslauf Security-Basis: zentrale Fachrechts-Schicht in `KGV.Core/Security` sauber konsolidiert und releasefähig gemacht
 
 - Vor dem Block den realen Repo-/Git-/Logzustand erneut geprüft.

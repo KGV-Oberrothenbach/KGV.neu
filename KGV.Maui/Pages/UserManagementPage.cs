@@ -74,15 +74,15 @@ public sealed class UserManagementPage : ContentPage
         var rolePicker = new Picker { Title = "Rolle wählen" };
         rolePicker.SetBinding(Picker.ItemsSourceProperty, nameof(UserManagementViewModel.Roles));
         rolePicker.SetBinding(Picker.SelectedItemProperty, nameof(UserManagementViewModel.SelectedRole), BindingMode.TwoWay);
-        rolePicker.SetBinding(IsEnabledProperty, nameof(UserManagementViewModel.IsRoleEditable));
+        rolePicker.SetBinding(IsEnabledProperty, nameof(UserManagementViewModel.CanEditRole));
 
         var roleHintLabel = new Label
         {
-            Text = "Rollenbearbeitung für dieses Mitglied ist gesperrt oder nur für Admin freigegeben.",
+            Text = "Rollenbearbeitung für dieses Mitglied ist gesperrt oder in diesem Kontext nur lesend freigegeben.",
             TextColor = Colors.DarkRed,
             LineBreakMode = LineBreakMode.WordWrap
         };
-        roleHintLabel.SetBinding(IsVisibleProperty, nameof(UserManagementViewModel.IsRoleEditable), converter: new InverseBooleanConverter());
+        roleHintLabel.SetBinding(IsVisibleProperty, nameof(UserManagementViewModel.CanEditRole), converter: new InverseBooleanConverter());
 
         var saveRoleButton = new Button { Text = "Rolle speichern" };
         saveRoleButton.SetBinding(IsEnabledProperty, nameof(UserManagementViewModel.CanSaveRole));

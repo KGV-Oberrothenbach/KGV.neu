@@ -762,7 +762,10 @@ public class MeineDatenPage : ContentPage
 
     private void UpdateAdminMenu(MemberDTO? member)
     {
-        var currentRole = _userContextState.CurrentUserContext?.Role;
+        var currentContext = _userContextState.CurrentUserContext;
+        var currentRole = currentContext?.Role;
+        var canReadRoleManagement = PermissionChecks.CanReadRoleManagement(currentContext);
+        var canManageRoleManagement = PermissionChecks.CanManageRoleManagement(currentContext);
         var hasAdminMenu = currentRole is UserRole.Admin or UserRole.Vorstand;
         _adminSectionCard.IsVisible = hasAdminMenu;
         _adminMenuSection.IsVisible = hasAdminMenu;
@@ -782,11 +785,13 @@ public class MeineDatenPage : ContentPage
 
         var normalizedRole = NormalizeRole(member.Role);
         _rolePicker.SelectedItem = normalizedRole;
-        _rolePicker.IsEnabled = currentRole == UserRole.Admin && member.Id != 7;
+        _rolePicker.IsEnabled = canManageRoleManagement && member.Id != 7;
         _saveRoleButton.IsEnabled = _rolePicker.IsEnabled && !_isBusy;
-        _adminHintLabel.Text = currentRole == UserRole.Admin
-            ? "Benutzerverwaltung bleibt im Mitgliedskontext gebunden. Rollenänderungen laufen über denselben Lock-/Update-Pfad wie in WPF."
-            : "Vorstand sieht den Mitgliedskontext und die freigegebenen Admin-Informationen; Admin-only-Punkte bleiben ausgeblendet.";
+        _adminHintLabel.Text = !canReadRoleManagement
+            ? "Rollen-/Rechteverwaltung ist in diesem Kontext nicht freigegeben. Admin-only-Punkte bleiben ausgeblendet."
+            : canManageRoleManagement
+                ? "Benutzerverwaltung bleibt im Mitgliedskontext gebunden. Rollenänderungen laufen über denselben Lock-/Update-Pfad wie in WPF."
+                : "Rollen-/Rechteverwaltung ist in diesem Kontext nur lesend freigegeben. Admin-only-Punkte bleiben ausgeblendet.";
     }
 
     private async void OnSaveRoleClicked(object? sender, EventArgs e)
@@ -795,9 +800,9 @@ public class MeineDatenPage : ContentPage
         if (selectedMember?.Id is not > 0)
             return;
 
-        if (_userContextState.CurrentUserContext?.Role != UserRole.Admin)
+        if (!PermissionChecks.CanManageRoleManagement(_userContextState.CurrentUserContext))
         {
-            await DisplayAlert("Hinweis", "Rollen können mobil nur von Admins gespeichert werden.", "OK");
+            await DisplayAlert("Hinweis", "Rollen können mobil in diesem Kontext nicht gespeichert werden.", "OK");
             return;
         }
 

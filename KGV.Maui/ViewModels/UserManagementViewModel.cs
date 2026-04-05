@@ -15,16 +15,18 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
     private readonly IAuthService _authService;
     private readonly ISupabaseService _supabaseService;
     private readonly MemberContextState _memberContextState;
+    private readonly UserContextState _userContextState;
     private AppUserDTO? _selectedUser;
     private string _selectedRole = UserRoles.User;
     private string _statusMessage = string.Empty;
     private bool _isBusy;
 
-    public UserManagementViewModel(IAuthService authService, ISupabaseService supabaseService, MemberContextState memberContextState)
+    public UserManagementViewModel(IAuthService authService, ISupabaseService supabaseService, MemberContextState memberContextState, UserContextState userContextState)
     {
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
         _memberContextState = memberContextState ?? throw new ArgumentNullException(nameof(memberContextState));
+        _userContextState = userContextState ?? throw new ArgumentNullException(nameof(userContextState));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -67,7 +69,9 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
     public bool CanChangeSelectedEmail => !IsBusy && TargetUser?.AuthUserId?.ToString().Equals(_authService.CurrentUserId, StringComparison.OrdinalIgnoreCase) == true;
     public bool CanRemoveUser => !IsBusy && IsBoundToMember && TargetUser?.AuthUserId != null;
     public bool IsRoleEditable => TargetUser?.MitgliedId is > 0 and not 7;
-    public bool CanSaveRole => !IsBusy && _authService.IsAdmin && IsRoleEditable && TargetUser != null && !string.Equals(SelectedRole, NormalizeRole(TargetUser.Role), StringComparison.OrdinalIgnoreCase);
+    public bool CanManageRoleManagement => PermissionChecks.CanManageRoleManagement(_userContextState.CurrentUserContext);
+    public bool CanEditRole => CanManageRoleManagement && IsRoleEditable;
+    public bool CanSaveRole => !IsBusy && CanEditRole && TargetUser != null && !string.Equals(SelectedRole, NormalizeRole(TargetUser.Role), StringComparison.OrdinalIgnoreCase);
 
     public string SelectedRole
     {
@@ -102,6 +106,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(CanChangeSelectedEmail));
             OnPropertyChanged(nameof(HasSelectedUser));
             OnPropertyChanged(nameof(IsRoleEditable));
+            OnPropertyChanged(nameof(CanEditRole));
             OnPropertyChanged(nameof(CanRemoveUser));
             OnPropertyChanged(nameof(EmailChangeHint));
             _ = LoadSelectedRoleAsync(value);
@@ -201,6 +206,8 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(CanChangeSelectedEmail));
             OnPropertyChanged(nameof(CanRemoveUser));
             OnPropertyChanged(nameof(CanSaveRole));
+            OnPropertyChanged(nameof(CanManageRoleManagement));
+            OnPropertyChanged(nameof(CanEditRole));
             OnPropertyChanged(nameof(EmailChangeHint));
         }
     }
