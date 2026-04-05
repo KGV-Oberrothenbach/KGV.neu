@@ -2,6 +2,74 @@
 
 ---
 
+## 2026-04-05 – Block 1/1 Rollen-Defaultlogik: PermissionService fachlich auf die neue Rechtebasis harmonisiert
+
+- Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - Arbeitsbaum zu Beginn sauber bis auf bewusst unberührte untracked Dateien:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden in diesem Lauf:
+  - `KGV.Core/Security/PermissionService.cs`
+  - `KGV.Core/Security/PermissionFlags.cs`
+  - `KGV.Core/Security/PermissionCatalog.cs`
+  - `KGV.Core/Security/PermissionChecks.cs`
+  - `KGV.Core/Security/PermissionMatrixV1.cs`
+  - `KGV.Core/Security/UserRole.cs`
+  - `KGV.Core/Security/UserContext.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor der Umsetzung:
+  - `PermissionFlags`, `PermissionCatalog`, `PermissionChecks` und die Admin-Rechteoberfläche waren bereits auf der neuen Fachrechtebasis angekommen
+  - die Rollen-Defaultlogik in `PermissionService` hinkte dieser Matrix aber noch hinterher
+  - größte fachliche Restinkonsistenzen:
+    - `Vorstand` erhielt noch `CanEditAllMembers`, aber nicht konsequent die dazu passende granulare Write-Basis für `Stammdaten` und `Parzellen`
+    - `Vorstand` bekam in Teilbereichen noch ein gemischtes Altbild aus Sammelrecht und zu schmaler granularer Basis
+    - `Admin` war funktional zwar weitgehend nutzbar, die Rollenbasis war aber nicht klar genug als explizites Basispaket formuliert
+  - `User`-Basis war grundsätzlich auf den eigenen/freigegebenen Kontext ausgerichtet und sollte nicht unnötig verbreitert werden
+- Minimal umgesetzt:
+  - `KGV.Core/Security/PermissionService.cs`
+    - Rollenbasis jetzt explizit und fachlich nachvollziehbar je Rolle definiert:
+      - `User`
+      - `Vorstand`
+      - `Admin`
+    - `User` bleibt auf eigenen/freigegebenen Kontext begrenzt mit:
+      - Mitglied sehen
+      - eigene Daten sehen
+      - Stammdaten anzeigen/lesen/bearbeiten
+      - Parzellen anzeigen/lesen
+      - Dokumente lesen
+      - Arbeitsstunden lesen
+    - `Vorstand` erhält die granulare Fachrechtebasis jetzt konsistent als Basispaket:
+      - Mitglieder suchen/sehen/bearbeiten
+      - Stammdaten anzeigen/lesen/bearbeiten
+      - Parzellen anzeigen/lesen/bearbeiten
+      - Dokumente lesen/verwalten
+      - Arbeitsstunden lesen/verwalten
+      - Zähler lesen / Zählerwechsel verwalten / Ablesungen freigeben
+      - Rollen/Rechte lesen
+    - `Admin` baut auf `Vorstand` auf und ergänzt nur noch `CanManageRoles`
+  - keine Overrides zurückgebaut
+  - keine UI-Baustelle in WPF oder MAUI eröffnet
+- Fachlicher Stand nach dem Block:
+  - Rolle bleibt Basispaket
+  - Grants/Revocations bleiben Overrides
+  - `PermissionService`, `PermissionFlags`, `PermissionCatalog`, `PermissionChecks` und `AdminRoleViewModel` passen jetzt fachlich sauberer zusammen
+  - `Vorstand` bekommt nicht mehr nur alte grobe Sammelwirkung ohne passende granulare Write-Basis
+  - `Admin` bleibt voll handlungsfähig
+  - `User` bleibt auf den vorgesehenen eigenen/freigegebenen Kontext begrenzt
+  - Nutzer-Ablesung und Arbeitsstunden-Prüfprozess wurden nicht beschädigt
+- Validierung in diesem Lauf:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `AdminRoleViewModel` arbeitet weiter konsistent mit Rollenbasis, Grants, Revocations und `EffectivePermissions`; der Block hat dort keine Anschlusskorrektur erzwungen
+  - `ApplyOverrides(...)` und der `CreateContext(...)`-Pfad blieben unverändert korrekt, sodass EffectivePermissions, Grants und Revocations weiter sauber berechnet werden
+  - `AWR.bat` und `_secrets/` blieben bewusst unberührt
+
 ## 2026-04-05 – Block 3/3 Navigation / Sichtbarkeit / Schreibpfade: neue Fachrechte in WPF und MAUI konsequent wirksam gemacht
 
 - Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.

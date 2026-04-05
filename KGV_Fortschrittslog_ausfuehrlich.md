@@ -2,6 +2,77 @@
 
 ---
 
+## 2026-04-05 – Block 1/1 Rollen-Defaultlogik: `PermissionService` konsequent auf die neue Fachrechte-Matrix gehoben
+
+- Vor dem Block den realen Repo-/Git-/Logzustand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - der Arbeitsbaum war zu Beginn sauber bis auf bewusst unberührte untracked Dateien:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Lauf:
+  - `KGV.Core/Security/PermissionService.cs`
+  - `KGV.Core/Security/PermissionFlags.cs`
+  - `KGV.Core/Security/PermissionCatalog.cs`
+  - `KGV.Core/Security/PermissionChecks.cs`
+  - `KGV.Core/Security/PermissionMatrixV1.cs`
+  - `KGV.Core/Security/UserRole.cs`
+  - `KGV.Core/Security/UserContext.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor diesem Block:
+  - `PermissionFlags`, `PermissionCatalog`, `PermissionChecks` und die Admin-Rechteoberfläche waren bereits auf dem neuen Fachrechtezielpfad
+  - die eigentliche Restlücke lag jetzt in der Rollenbasis selbst:
+    - `PermissionService` verteilte die Defaultrechte noch nicht konsequent entlang der neuen granularen Matrix
+    - `Vorstand` hatte noch eine fachlich inkonsistente Mischung aus altem Sammelrecht und zu schmaler granularer Write-Basis
+    - `Admin` war funktional weitgehend nutzbar, aber nicht sauber als explizites Basispaket formuliert
+  - die produktive Rechteoberfläche in `AdminRoleViewModel` arbeitete bereits korrekt mit:
+    - Rollenbasis
+    - Grants
+    - Revocations
+    - EffectivePermissions
+    - `CanReadRoleManagement`
+    - `CanManageRoleManagement`
+- Minimal in diesem Lauf nachgezogen:
+  - `KGV.Core/Security/PermissionService.cs`
+    - Rollen-Defaultlogik nicht mehr aus fachlich uneinheitlichen Teilstücken zusammengesetzt, sondern klar je Rolle harmonisiert
+    - `User` bleibt Basispaket für den eigenen/freigegebenen Kontext:
+      - Mitglied sehen
+      - eigene Daten sehen
+      - Stammdaten anzeigen/lesen/bearbeiten
+      - Parzellen anzeigen/lesen
+      - Dokumente lesen
+      - Arbeitsstunden lesen
+    - `Vorstand` jetzt fachlich konsistent auf der neuen granularen Basis:
+      - Mitglieder suchen/sehen/bearbeiten
+      - Stammdaten anzeigen/lesen/bearbeiten
+      - Parzellen anzeigen/lesen/bearbeiten
+      - Dokumente lesen/verwalten
+      - Arbeitsstunden lesen/verwalten
+      - Zähler lesen
+      - Zählerwechsel verwalten
+      - Ablesungen freigeben
+      - Rollen/Rechte lesen
+    - `Admin` baut auf `Vorstand` auf und ergänzt nur noch die tatsächliche Schreibfähigkeit für Rollen/Rechte
+- Fachlicher Endstand dieses Blocks:
+  - Rollenbasis, PermissionFlags, PermissionCatalog, PermissionChecks und die Admin-Rechteoberfläche passen jetzt fachlich sauberer zusammen
+  - Rolle bleibt das Basispaket
+  - Grants und Revocations bleiben echte Overrides darüber
+  - `Vorstand` bekommt nicht mehr nur alte grobe Sammelwirkung ohne dazu passende granulare Write-Basis
+  - `Admin` bleibt voll handlungsfähig
+  - `User` bleibt auf den vorgesehenen eigenen/freigegebenen Kontext begrenzt
+  - keine zweite Rechtewelt neben `PermissionService` / `PermissionChecks` aufgebaut
+  - keine große WPF-/MAUI-UI-Baustelle eröffnet
+- Validierung im Abschlusslauf:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `AdminRoleViewModel` arbeitet weiter logisch mit Rollenbasis, Grants, Revocations und `EffectivePermissions`; für diesen Block war keine zusätzliche UI-Anschlusskorrektur nötig
+  - EffectivePermissions, Grants und Revocations bleiben korrekt, weil der Override-Pfad in `ApplyOverrides(...)` und die Kontexterzeugung in `CreateContext(...)` unverändert konsistent geblieben sind
+  - `AWR.bat` und `_secrets/` blieben bewusst außerhalb dieses Blocks
+
 ## 2026-04-05 – Block 3/3 Navigation / Sichtbarkeit / Schreibpfade: neue Fachrechte im laufenden WPF-/MAUI-UI wirklich durchgezogen
 
 - Vor dem Block den realen Repo-/Git-/Logzustand erneut geprüft.
