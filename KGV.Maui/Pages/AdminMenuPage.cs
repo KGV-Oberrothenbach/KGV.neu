@@ -573,6 +573,10 @@ public sealed class AdminMenuPage : ContentPage
             UpdateRoleManagementState(updatedMember, true, CanReadRoleManagement());
             await DisplayAlert("Gespeichert", "Rolle wurde gespeichert.", "OK");
         }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Fehler", $"Die Rolle konnte aktuell nicht gespeichert werden: {ex.Message}", "OK");
+        }
     }
 
     private static string NormalizeRole(string? role)

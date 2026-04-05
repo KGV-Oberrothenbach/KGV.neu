@@ -2,6 +2,45 @@
 
 ---
 
+## 2026-04-05 – MAUI-Buildfix Rollenquelle `app_user.role`: offenen `try`-Block in `AdminMenuPage` minimal geschlossen und Build wieder grün gezogen
+
+- Vor dem Fixlauf den realen Repo-/Git-/Logzustand erneut geprüft.
+- Git-Befund zu Beginn auf `feature/app-user-role-source`:
+  - aktueller Branch: `feature/app-user-role-source`
+  - der Branch hat aktuell einen Remote-Tracking-Branch `origin/feature/app-user-role-source`
+  - im Arbeitsbaum waren zu Beginn für diesen Fixlauf direkt blockbezogen relevant:
+    - `KGV.Maui/Pages/AdminMenuPage.cs`
+    - `DEV_LOG.md`
+    - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - zusätzlich bewusst außerhalb dieses Fixblocks geblieben:
+    - `.github/copilot-instructions.md`
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Lauf:
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Echter Fehler vor dem Fix:
+  - `KGV.Maui/Pages/AdminMenuPage.cs(575,9): error CS1524: "catch" oder "finally" erwartet.`
+- Minimal umgesetzt:
+  - in `KGV.Maui/Pages/AdminMenuPage.cs` den syntaktisch offenen `try`-Block in `SaveRoleAsync()` mit einem kleinen `catch` sauber geschlossen
+  - keine neue Fachlogik begonnen
+  - keine neue WPF-Baustelle eröffnet
+- Direkte Anschlussprüfung nach dem Fix:
+  - dateibezogene Fehlerprüfung auf `KGV.Maui/Pages/AdminMenuPage.cs` blieb unauffällig
+  - aus genau diesem Fix waren keine weiteren direkten MAUI-Anschlusskorrekturen nötig
+- Validierung im Fixlauf wirklich ausgeführt:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund:
+    - der MAUI-Build ist wieder grün
+    - es verbleiben nur bereits bestehende Warnungen, u. a. in `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/ImpressumPage.cs`
+- Ehrlicher Abschlussstand dieses Fixblocks:
+  - der begonnene Rollen-/Rechteumbau wurde im MAUI-Pfad syntaktisch sauber geschlossen
+  - der vorher rote MAUI-Build ist für diesen Block wieder grün
+  - keine zusätzliche fachliche Ausweitung vorgenommen
+
 ## 2026-04-05 – Abschlusslauf Rollenquelle `app_user.role`: vorhandenen Rollen-/Invite-Block geprüft, Builds ausgeführt und als fehlschlagenden Zwischenstand abgeschlossen
 
 - Vor dem Abschlusslauf den realen Repo-/Git-/Logzustand erneut geprüft.
