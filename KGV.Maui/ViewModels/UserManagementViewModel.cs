@@ -71,7 +71,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
     public bool IsRoleEditable => TargetUser?.MitgliedId is > 0 and not 7;
     public bool CanManageRoleManagement => PermissionChecks.CanManageRoleManagement(_userContextState.CurrentUserContext);
     public bool CanEditRole => CanManageRoleManagement && IsRoleEditable;
-    public bool CanSaveRole => !IsBusy && CanEditRole && TargetUser != null && !string.Equals(SelectedRole, NormalizeRole(TargetUser.Role), StringComparison.OrdinalIgnoreCase);
+    public bool CanSaveRole => !IsBusy && CanEditRole && HasLinkedUser && TargetUser != null && !string.Equals(SelectedRole, NormalizeRole(TargetUser.Role), StringComparison.OrdinalIgnoreCase);
 
     public string SelectedRole
     {
@@ -132,45 +132,33 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
         if (!CanSaveRole || TargetUser?.MitgliedId is not > 0)
             return false;
 
-        var userId = _authService.CurrentUserId;
-        if (string.IsNullOrWhiteSpace(userId))
+        if (!HasLinkedUser)
         {
-            StatusMessage = "Nicht angemeldet. Bitte erneut einloggen.";
+            StatusMessage = "Für das ausgewählte Mitglied existiert aktuell kein verknüpfter App-User. Die Rolle kann deshalb noch nicht über app_user.role gespeichert werden.";
             return false;
         }
 
         IsBusy = true;
         StatusMessage = string.Empty;
-        var lockAcquired = false;
 
         try
         {
             var memberId = TargetUser.MitgliedId.Value;
-            lockAcquired = await _supabaseService.TryLockMitgliedAsync(memberId, userId);
-            if (!lockAcquired)
-            {
-                StatusMessage = "Datensatz ist aktuell gesperrt. Bitte später erneut versuchen.";
-                return false;
-            }
-
-            var rec = await _supabaseService.GetMitgliedByIdAsync(memberId);
-            if (rec == null)
-            {
-                StatusMessage = "Mitglied konnte nicht geladen werden.";
-                return false;
-            }
-
-            var dto = MapMember(rec);
-            dto.Role = SelectedRole;
-
-            var ok = await _supabaseService.UpdateMitgliedAsync(dto, userId);
+            var ok = await _supabaseService.SetAppUserRoleAsync(memberId, SelectedRole);
             if (!ok)
             {
-                StatusMessage = "Speichern fehlgeschlagen (ggf. Lock verloren oder keine Berechtigung).";
+                StatusMessage = "Die Rolle konnte aktuell nicht über app_user.role gespeichert werden.";
                 return false;
             }
 
-            _memberContextState.SetSelectedMember(dto);
+            TargetUser!.Role = SelectedRole;
+            if (_memberContextState.SelectedMember?.Id == memberId)
+            {
+                var updatedMember = _memberContextState.SelectedMember.Clone();
+                updatedMember.Role = SelectedRole;
+                _memberContextState.SetSelectedMember(updatedMember);
+            }
+
             StatusMessage = "Rolle gespeichert.";
             await LoadAsync(reselectSelected: TargetUser);
             return true;
@@ -182,9 +170,6 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
         }
         finally
         {
-            if (lockAcquired)
-                await _supabaseService.ReleaseLockMitgliedAsync(TargetUser!.MitgliedId!.Value, userId!, force: false);
-
             IsBusy = false;
         }
     }
@@ -451,7 +436,7 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
             MitgliedId = BoundMember?.Id,
             DisplayName = BoundMemberDisplayName,
             Email = BoundMember?.Email ?? string.Empty,
-            Role = BoundMember?.Role ?? string.Empty,
+                Role = UserRoles.User,
             Aktiv = true
         };
     }
@@ -467,11 +452,11 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 
         try
         {
-            var member = await _supabaseService.GetMitgliedByIdAsync(target.MitgliedId.Value);
+            var settings = await _supabaseService.GetUserPermissionSettingsAsync(target.MitgliedId.Value);
             if (TargetUser?.MitgliedId != target.MitgliedId)
                 return;
 
-            SelectedRole = NormalizeRole(member?.Role ?? target.Role);
+            SelectedRole = NormalizeRole(settings?.Role ?? target.Role);
         }
         catch
         {

@@ -153,7 +153,6 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.Vorname, CleanRequiredText(dto.Vorname))
                     .Set(x => x.Name, CleanRequiredText(dto.Nachname))
                     .Set(x => x.Email, existing.AuthUserId.HasValue ? existing.Email : CleanOptionalText(dto.Email))
-                    .Set(x => x.Role, string.IsNullOrWhiteSpace(dto.Role) ? existing.Role : dto.Role.Trim())
                     .Set(x => x.Geburtsdatum, NormalizeDate(dto.Geburtsdatum))
                     .Set(x => x.Adresse, CleanOptionalText(dto.Strasse))
                     .Set(x => x.Plz, CleanOptionalText(dto.PLZ))
@@ -246,6 +245,36 @@ namespace KGV.Infrastructure.Services
                 };
             },
             null);
+
+        public Task<bool> SetAppUserRoleAsync(int mitgliedId, string role) => ExecuteAsync(
+            "SetAppUserRoleAsync",
+            async () =>
+            {
+                if (mitgliedId <= 0)
+                    return false;
+
+                var client = await EnsureClientAsync();
+                var mitglied = await GetMitgliedByIdAsync(mitgliedId);
+                if (mitglied == null)
+                    return false;
+
+                var appUser = await GetAppUserByMitgliedIdAsync(client, mitgliedId, mitglied.AuthUserId);
+                if (appUser == null)
+                    return false;
+
+                var normalizedRole = UserRoles.ToStorageValue(UserRoles.Parse(role));
+
+                await client
+                    .From<AppUserRecord>()
+                    .Where(x => x.UserId == appUser.UserId)
+                    .Set(x => x.MitgliedId, mitgliedId)
+                    .Set(x => x.Role, normalizedRole)
+                    .Set(x => x.UpdatedAt, DateTime.UtcNow)
+                    .Update();
+
+                return true;
+            },
+            false);
 
         public Task<bool> SetUserPermissionSettingsAsync(int mitgliedId, string role, long grantedPermissions, long revokedPermissions) => ExecuteAsync(
             "SetUserPermissionSettingsAsync",

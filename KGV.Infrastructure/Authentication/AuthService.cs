@@ -1,5 +1,6 @@
 ﻿using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Infrastructure.Models;
 using KGV.Infrastructure.Supabase;
 using Supabase;
@@ -689,7 +690,7 @@ namespace KGV.Infrastructure.Authentication
                 MitgliedId = memberId,
                 Email = member?.Email ?? string.Empty,
                 DisplayName = FormatDisplayName(member),
-                Role = FirstNonEmpty(member?.Role, appUser?.Role),
+                Role = FirstNonEmpty(appUser?.Role, member?.Role, UserRoles.User),
                 Aktiv = member?.Aktiv ?? true,
                 EmailBestaetigt = false,
                 CreatedAt = appUser?.CreatedAt
@@ -704,7 +705,7 @@ namespace KGV.Infrastructure.Authentication
                 MitgliedId = linkStatus.MitgliedId,
                 Email = linkStatus.Email ?? string.Empty,
                 DisplayName = linkStatus.DisplayName ?? string.Empty,
-                Role = FirstNonEmpty(linkStatus.Role),
+                Role = FirstNonEmpty(linkStatus.Role, UserRoles.User),
                 Aktiv = true,
                 EmailBestaetigt = false
             };
@@ -773,7 +774,7 @@ namespace KGV.Infrastructure.Authentication
             {
                 MitgliedId = member.Id,
                 DisplayName = FormatDisplayName(member),
-                Role = FirstNonEmpty(member.Role),
+                Role = FirstNonEmpty(primaryAppUser?.Role, member.Role, UserRoles.User),
                 Email = (member.Email ?? string.Empty).Trim(),
                 MitgliedAuthUserId = memberAuthUserId,
                 AppUserUserId = appUserUserId,
@@ -1025,7 +1026,7 @@ namespace KGV.Infrastructure.Authentication
 
             var member = memberResolution.Member;
             LogDiagnosticInformation($"INVITE_MEMBER_FOUND flowKind={flowKind} email={MaskEmail(email)} mitgliedId={member.Id} currentMemberAuthUserId={member.AuthUserId?.ToString() ?? "<null>"}");
-            var normalizedRole = NormalizeRole(FirstNonEmpty(user.Role, member.Role));
+            var normalizedRole = NormalizeRole(FirstNonEmpty(user.Role, UserRoles.User));
             var authUserId = user.AuthUserId ?? member.AuthUserId ?? await ResolveAuthUserIdFromExistingMappingsAsync(member.Id, email);
             var mappingAttempts = 0;
 

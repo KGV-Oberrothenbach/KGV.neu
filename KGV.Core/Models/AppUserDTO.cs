@@ -1,3 +1,4 @@
+using KGV.Core.Security;
 using System;
 
 namespace KGV.Core.Models
@@ -8,7 +9,7 @@ namespace KGV.Core.Models
         public int? MitgliedId { get; set; }
         public string Email { get; set; } = string.Empty;
         public string DisplayName { get; set; } = string.Empty;
-        public string Role { get; set; } = string.Empty;
+        public string Role { get; set; } = UserRoles.User;
         public bool Aktiv { get; set; }
         public bool EmailBestaetigt { get; set; }
         public DateTime? CreatedAt { get; set; }

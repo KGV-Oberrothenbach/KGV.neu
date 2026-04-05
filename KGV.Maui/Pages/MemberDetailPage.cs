@@ -410,7 +410,7 @@ public sealed class MemberDetailPage : ContentPage
             MitgliedId = member.Id,
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? $"Mitglied #{member.Id}" : displayName,
             Email = member.Email ?? string.Empty,
-            Role = member.Role ?? string.Empty,
+            Role = UserRoles.User,
             Aktiv = true
         };
     }

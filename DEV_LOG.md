@@ -2,6 +2,138 @@
 
 ---
 
+## 2026-04-05 – Abschlusslauf Rollenquelle `app_user.role`: vorhandenen Rollen-/Invite-Block ehrlich geprüft, validiert und als fehlschlagenden Zwischenstand abgeschlossen
+
+- Vor dem Abschlusslauf den realen Repo-/Git-/Logstand erneut geprüft.
+- Git-Befund zu Beginn auf `feature/app-user-role-source`:
+  - aktueller Branch: `feature/app-user-role-source`
+  - für den Branch existiert aktuell kein eigener Remote-Tracking-Branch auf `origin`
+  - die Branch-Spitze liegt commit-seitig weiterhin auf demselben Commit wie `main` / `origin/main` (`e9224d6`)
+  - der Arbeitsbaum war nicht sauber durch die bereits vorhandenen blockbezogenen Änderungen an:
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Core/Models/AppUserDTO.cs`
+    - `KGV.Core/Models/MemberUserLinkStatusDto.cs`
+    - `KGV.Infrastructure/Authentication/AuthService.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Maui/Pages/AdminMenuPage.cs`
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - `KGV.Maui/Pages/MemberDetailPage.cs`
+    - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+    - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - `KGV.Wpf/ViewModels/UserManagementViewModel.cs`
+    - `DEV_LOG.md`
+    - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - blockfremd geändert und bewusst außerhalb dieses Blocks geblieben:
+    - `.github/copilot-instructions.md`
+  - bewusst untracked und unberührt geblieben:
+    - `AWR.bat`
+    - `_secrets/`
+- In diesem Lauf bewusst keine neuen fachlichen Änderungen mehr umgesetzt und keine Refactorings begonnen.
+- Ehrlich geprüfter fachlicher Endstand des vorhandenen Rollen-/Invite-Blocks:
+  - produktiver Rollenschreibpfad läuft im vorhandenen Stand jetzt über `app_user.role`
+  - `mitglied.role` wird im aktiven Client-/Servicepfad des Blocks nicht mehr produktiv beschrieben
+  - Invite-/Neuanlagepfad ist clientseitig auf `app_user.role` bzw. Fallback/Default `user` vorbereitet
+  - die zusätzlich außerhalb des Workspace angepasste/deployte Edge Function `kgv-invite-user` wurde für diesen Abschluss ausdrücklich als Bestandteil des Blocks festgehalten:
+    - dort wird `mitglied.role` nicht mehr geschrieben
+    - `app_user.role` bleibt auch serverseitig führende Rollenquelle
+- Validierung in diesem Abschlusslauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => fehlgeschlagen
+    - echter aktueller Fehlerstand:
+      - `KGV.Maui/Pages/AdminMenuPage.cs(575,9): error CS1524: "catch" oder "finally" erwartet.`
+- Ehrlicher Abschlussstand dieses Laufs:
+  - die Logs wurden fortgeschrieben
+  - der vorhandene Rollen-/Invite-Block wird wegen des fehlgeschlagenen MAUI-Builds als fehlschlagender Zwischenstand abgeschlossen
+  - `.github/copilot-instructions.md` bleibt bewusst außerhalb dieses Blocks
+
+## 2026-04-05 – Analyseblock Rollenquelle `mitglied.role` vs. `app_user.role` auf Branch `feature/app-user-role-source`
+
+- Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.
+- Git-Befund zu Beginn auf `feature/app-user-role-source`:
+  - `HEAD` ist commit-seitig synchron zu `origin/main` (`0 0`)
+  - der Arbeitsbaum ist nicht sauber wegen bereits vorhandener lokaler Änderungen:
+    - `.github/copilot-instructions.md`
+    - `DEV_LOG.md`
+    - `KGV_Fortschrittslog_ausfuehrlich.md`
+    - untracked bewusst unberührt:
+      - `AWR.bat`
+      - `_secrets/`
+- In diesem Block bewusst nur Istzustand analysiert, keine fachlichen Codeänderungen umgesetzt.
+- Direkt geprüft wurden im Lauf insbesondere:
+  - `KGV.Infrastructure/Services/UserContextService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Core/Interfaces/IAuthService.cs`
+  - `KGV.Core/Models/MitgliedRecord.cs`
+  - `KGV.Infrastructure/Models/AppUserRecord.cs`
+  - `KGV.Core/Models/AppUserDTO.cs`
+  - `KGV.Core/Models/MemberUserLinkStatusDto.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `KGV.Wpf/ViewModels/UserManagementViewModel.cs`
+  - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+  - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+  - `supabase/migrations/20260323093513_remote_schema.sql`
+- Festgestellter echter Istzustand zum Rollenfluss:
+  - `mitglied.role` ist aktuell weiterhin an vielen Stellen führend oder zumindest mitführend:
+    - `SupabaseService.UpdateMitgliedAsync(...)` schreibt `mitglied.role`
+    - WPF-Rollenspeicherung in `AdminRoleViewModel` lädt Mitglied und speichert Rolle über `UpdateMitgliedAsync(...)`
+    - MAUI-Rollenspeicherung in `MeineDatenPage.xaml.cs` und `UserManagementViewModel` speichert Rolle ebenfalls über `UpdateMitgliedAsync(...)`
+    - Invite-Vorbereitung in `MemberDetailPage.CreateInviteUser(...)` nimmt Rolle aus `member.Role`
+    - `AuthService.CreateAppUserDto(...)` bevorzugt aktuell `member.Role` vor `appUser.Role`
+    - `MemberUserLinkStatusDto.Role` wird aktuell aus `member.Role` befüllt
+  - `app_user.role` ist aktuell ebenfalls produktiv führend in einzelnen Kernpfaden:
+    - `UserContextService.GetUserContextAsync(...)` baut den produktiven Laufzeit-Kontext primär aus `app_user.role`
+    - `SupabaseService.GetUserPermissionSettingsAsync(...)` bevorzugt `appUser.Role` vor `mitglied.Role`
+    - `SupabaseService.SetUserPermissionSettingsAsync(...)` schreibt `app_user.role`
+    - `AuthService.InvokeInviteUserFunctionAsync(...)` sendet die Rolle an `kgv-invite-user`
+  - beide Quellen werden aktuell parallel verwendet:
+    - SQL-Funktion `who_am_i()` nutzt `coalesce(au.role, m.role)`
+    - Link-/User-DTOs in `AuthService` und User-Management mischen `mitglied.role` und `app_user.role`
+    - UI-Rollenanzeige und Rollenspeicherung in WPF/MAUI laufen heute noch über `MitgliedRecord` / `MemberDTO.Role`
+- Befund zu `kgv-invite-user`:
+  - im aktuellen Repo ist keine lokale Edge-Function-Datei `kgv-invite-user` gefunden worden
+  - es gibt nur den produktiven Aufruf aus `AuthService.InvokeInviteUserFunctionAsync(...)`
+  - der Aufruf übergibt explizit `mitgliedId` und normalisierte `role`
+  - damit ist die Funktion fachlich betroffen, ihr Code liegt aber im aktuellen Workspace nicht direkt vor
+- Befund zum Neuanlegen/Verknüpfen von App-Usern:
+  - App-User-Erzeugung/-Vorbereitung läuft über den Invite-Pfad in `AuthService`
+  - beim späteren Permission-Speichern wird `app_user.role` in `SetUserPermissionSettingsAsync(...)` aktualisiert
+  - `RemoveUserAsync(...)` löscht `app_user` und setzt `mitglied.auth_user_id` zurück, fasst `mitglied.role` aber nicht an
+- Empfohlene nächste fachliche Startkante aus der Analyse:
+  - zuerst die produktive Rollen-Schreibstelle konsolidieren:
+    - UI-Rollenspeicherung in WPF/MAUI von `UpdateMitgliedAsync(... dto.Role ...)` auf einen dedizierten `app_user.role`-Pfad heben
+  - danach DTO-/Anzeigequellen harmonisieren:
+    - `AuthService.CreateAppUserDto(...)`, `MemberUserLinkStatusDto` und verwandte Anzeigen auf `app_user.role` als führende Quelle umstellen
+  - erst danach Fallbacks wie `who_am_i()` / Mischpfade aufräumen
+- Kein Commit und kein Push in diesem Analyseblock ausgeführt.
+
+## 2026-04-05 – Branch-Start für Rollenquelle-Umbau: eigener Arbeitsbranch ohne fachliche Codeänderung angelegt
+
+- Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.
+- Git-Befund zu Beginn auf `main`:
+  - `main` lag commit-seitig auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - der Arbeitsbaum war nicht sauber wegen bereits vorhandener blockfremder lokaler Änderungen:
+    - `.github/copilot-instructions.md`
+    - `AWR.bat`
+    - `_secrets/`
+- In diesem Block bewusst nur Git-Start für den nächsten Umbau ausgeführt:
+  - `origin` aktualisiert
+  - Git-Stand von `main` geprüft
+  - neuen Branch `feature/app-user-role-source` angelegt
+  - auf den neuen Branch gewechselt
+- Keine fachlichen Codeänderungen umgesetzt.
+- Kein zusätzlicher Commit für den Branch-Start erzeugt.
+- Ehrlicher Stand nach dem Branch-Wechsel:
+  - aktueller Branch: `feature/app-user-role-source`
+  - Branch-Spitze ist weiterhin commit-seitig synchron zu `origin/main`
+  - der Arbeitsbaum bleibt nicht sauber wegen der bereits vorhandenen blockfremden Dateien und der in diesem Block fortgeschriebenen Logdateien
+
 ## 2026-04-05 – WPF App-User-Status im Admin-Menü gehärtet: Null-Fallback wird nicht mehr als „nicht verknüpft“ angezeigt
 
 - Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.

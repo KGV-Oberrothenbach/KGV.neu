@@ -18,7 +18,6 @@ namespace KGV.ViewModels
         private readonly MainWindowViewModel _mainWindowViewModel;
         private readonly INavigationService _navigationService;
 
-        private string? _lockUserId;
         private bool _allowUserMeterReadingSubmissions;
         private bool _initialAllowUserMeterReadingSubmissions;
         private UserPermissionSettings? _permissionSettings;
@@ -142,11 +141,7 @@ namespace KGV.ViewModels
 
         public async Task OnNavigatedFromAsync()
         {
-            if (!string.IsNullOrEmpty(_lockUserId))
-            {
-                await _supabaseService.ReleaseLockMitgliedAsync(SelectedMember.Id, _lockUserId, force: false);
-                _lockUserId = null;
-            }
+            await Task.CompletedTask;
         }
 
         private async Task LoadAsync()
@@ -164,6 +159,7 @@ namespace KGV.ViewModels
             AllowUserMeterReadingSubmissions = await _supabaseService.GetAllowUserMeterReadingSubmissionsAsync();
             _initialAllowUserMeterReadingSubmissions = AllowUserMeterReadingSubmissions;
             await LoadPermissionSettingsAsync();
+            SelectedMember.Role = SelectedRole;
             IsDirty = false;
             OnPropertyChanged(nameof(IsUserMeterReadingSubmissionSettingDirty));
             SaveCommand.RaiseCanExecuteChanged();
@@ -246,64 +242,28 @@ namespace KGV.ViewModels
 
                 if (CanEditRole && IsDirty)
                 {
-                    var userId = _authService.CurrentUserId;
-                    if (string.IsNullOrWhiteSpace(userId))
+                    if (!HasLinkedAppUser)
                     {
-                        MessageBox.Show("Nicht angemeldet. Bitte erneut einloggen.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBox.Show(IsLinkedAppUserStatusKnown
+                                ? "Für dieses Mitglied existiert aktuell kein verknüpfter App-User. Die Rolle kann deshalb noch nicht über app_user.role gespeichert werden."
+                                : "Der Verknüpfungsstatus des App-Users konnte aktuell nicht belastbar geladen werden. Die Rolle bleibt deshalb vorsorglich gesperrt.",
+                            "Hinweis", MessageBoxButton.OK, MessageBoxImage.Information);
                         return;
                     }
 
-                    var locked = await _supabaseService.TryLockMitgliedAsync(SelectedMember.Id, userId);
-                    if (!locked)
-                    {
-                        MessageBox.Show("Datensatz ist aktuell gesperrt. Bitte später erneut versuchen.", "Gesperrt",
-                            MessageBoxButton.OK, MessageBoxImage.Information);
-                        return;
-                    }
-
-                    _lockUserId = userId;
-
-                    var rec = await _supabaseService.GetMitgliedByIdAsync(SelectedMember.Id);
-                    if (rec == null)
-                    {
-                        MessageBox.Show("Mitglied konnte nicht geladen werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
-                        return;
-                    }
-
-                    var dto = new MemberDTO
-                    {
-                        Id = rec.Id,
-                        Vorname = rec.Vorname ?? string.Empty,
-                        Nachname = rec.Name ?? string.Empty,
-                        Email = rec.Email ?? string.Empty,
-                        Role = SelectedRole,
-
-                        Geburtsdatum = rec.Geburtsdatum,
-                        Strasse = rec.Adresse ?? string.Empty,
-                        PLZ = rec.Plz ?? string.Empty,
-                        Ort = rec.Ort ?? string.Empty,
-                        Telefon = rec.Telefon ?? string.Empty,
-                        Mobilnummer = rec.Handy ?? string.Empty,
-                        Bemerkungen = rec.Bemerkung ?? string.Empty,
-                        WhatsappEinwilligung = rec.WhatsappEinwilligung,
-                        MitgliedSeit = rec.MitgliedSeit,
-                        MitgliedEnde = rec.MitgliedEnde
-                    };
-
-                    var ok = await _supabaseService.UpdateMitgliedAsync(dto, userId);
+                    var ok = await _supabaseService.SetAppUserRoleAsync(SelectedMember.Id, SelectedRole);
                     if (!ok)
                     {
-                        MessageBox.Show("Speichern fehlgeschlagen (ggf. Lock verloren oder keine Berechtigung).", "Fehler",
+                        MessageBox.Show("Die Rolle konnte nicht über app_user.role gespeichert werden.", "Fehler",
                             MessageBoxButton.OK, MessageBoxImage.Error);
                         return;
                     }
 
                     SelectedMember.Role = SelectedRole;
+                    if (_permissionSettings != null)
+                        _permissionSettings.Role = SelectedRole;
                     IsDirty = false;
                     savedParts.Add("Rolle");
-
-                    await _supabaseService.ReleaseLockMitgliedAsync(SelectedMember.Id, userId, force: false);
-                    _lockUserId = null;
                 }
 
                 if (CanManageUserMeterReadingSubmissions && IsUserMeterReadingSubmissionSettingDirty)

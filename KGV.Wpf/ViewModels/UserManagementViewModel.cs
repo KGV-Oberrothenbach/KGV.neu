@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.Input;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using System;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
@@ -289,7 +290,7 @@ namespace KGV.ViewModels
                 MitgliedId = _boundMember?.Id,
                 DisplayName = BoundMemberDisplayName,
                 Email = _boundMember?.Email ?? string.Empty,
-                Role = _boundMember?.Role ?? string.Empty,
+                Role = UserRoles.User,
                 Aktiv = true
             };
         }
