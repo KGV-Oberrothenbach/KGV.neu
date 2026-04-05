@@ -350,6 +350,9 @@ namespace KGV.Infrastructure.Services
                     var normalizedRole = UserRoles.ToStorageValue(UserRoles.Parse(role));
                     var normalizedGrantedPermissions = (long)PermissionService.NormalizeStoredPermissions(grantedPermissions);
                     var normalizedRevokedPermissions = (long)PermissionService.NormalizeStoredPermissions(revokedPermissions);
+                    long? storedMitgliedId = mitgliedId;
+                    long? storedGrantedPermissions = normalizedGrantedPermissions;
+                    long? storedRevokedPermissions = normalizedRevokedPermissions;
                     var previousUpdatedAt = appUser.UpdatedAt;
                     var updateTimestamp = DateTime.UtcNow;
 
@@ -369,10 +372,10 @@ namespace KGV.Infrastructure.Services
                     await client
                         .From<AppUserRecord>()
                         .Where(x => x.UserId == appUser.UserId)
-                        .Set(x => x.MitgliedId, mitgliedId)
+                        .Set(x => x.MitgliedId, storedMitgliedId)
                         .Set(x => x.Role, normalizedRole)
-                        .Set(x => x.PermissionGrants, normalizedGrantedPermissions)
-                        .Set(x => x.PermissionRevocations, normalizedRevokedPermissions)
+                        .Set(x => x.PermissionGrants, storedGrantedPermissions)
+                        .Set(x => x.PermissionRevocations, storedRevokedPermissions)
                         .Set(x => x.UpdatedAt, updateTimestamp)
                         .Update();
 

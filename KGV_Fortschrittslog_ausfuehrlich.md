@@ -2,6 +2,50 @@
 
 ---
 
+## 2026-04-05 – Typfix für `SetUserPermissionSettingsAsync(...)`: `app_user.int8`-Write-Pfad explizit auf `long?` gezogen
+
+- Ausgangspunkt dieses Laufs war ausdrücklich kein neuer Rechteumbau, sondern nur der jetzt klar eingegrenzte Save-Fehler im WPF-/MAUI-Permission-Settings-Pfad.
+- Zu Beginn wurde der echte Stand in den direkt betroffenen Dateien geprüft:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - speziell `SetUserPermissionSettingsAsync(...)`
+  - `KGV.Infrastructure/Models/AppUserRecord.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor dem Fix:
+  - `app_user` wurde im Save-Pfad bereits korrekt aufgelöst
+  - das Schreiben scheiterte aber mit
+    - `System.ArgumentException: Expected Value to be of Type: Nullable\`1, instead received: Int32.`
+  - zusätzlicher gesicherter DB-Befund für `public.app_user`:
+    - `permission_grants` = `int8`
+    - `permission_revocations` = `int8`
+  - der Modellstand im Workspace passt dazu bereits fachlich:
+    - `MitgliedId` = `long?`
+    - `PermissionGrants` = `long?`
+    - `PermissionRevocations` = `long?`
+  - die Restlücke saß damit im tatsächlichen `Set(...)`-Write-Pfad, der nicht durchgehend explizit mit `long?` arbeitete
+- Minimal umgesetzt:
+  - in `SetUserPermissionSettingsAsync(...)` vor dem `Update()` drei explizit typisierte Write-Werte eingeführt:
+    - `storedMitgliedId` als `long?`
+    - `storedGrantedPermissions` als `long?`
+    - `storedRevokedPermissions` als `long?`
+  - genau diese Werte werden jetzt an `Set(...)` für
+    - `mitglied_id`
+    - `permission_grants`
+    - `permission_revocations`
+    übergeben
+  - keine Änderung an Verify-/Reload-Logik, keine UI-Änderung, keine neue Rechtearchitektur
+- Fachliche Wirkung dieses Fixes:
+  - der Write-Pfad ist jetzt typkonsistent zu den `int8`-Spalten in `public.app_user`
+  - der bisherige `Nullable<long>`-/`Int32`-Konflikt im Save-Pfad ist code-seitig beseitigt
+  - der bestehende Verify-/Reload-Pfad kann danach wieder denselben `app_user`-Datensatz auf Persistenz prüfen
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+- Ehrlicher Restbefund dieses Laufs:
+  - der Typfehler im Save-Pfad ist code-seitig korrigiert
+  - eine echte Live-Verifikation speziell für Mitglied `1`, inklusive sichtbarer Änderung von `permission_grants` / `permission_revocations` und `updated_at`, war in diesem Headless-Lauf nicht belastbar ausführbar; sie bleibt der externe Restcheck
+
 ## 2026-04-05 – Predicate-Fix für `GetAppUserByMitgliedIdAsync(...)`: problematischen `mitglied_id`-Predicate entfernt und WPF-Permission-Pfad wieder auf echten `app_user`-Lookup gezogen
 
 - Ausgangspunkt dieses Laufs war ausdrücklich kein neuer Rechteumbau, sondern nur der bereits eingegrenzte Fehler im WPF-Permission-Settings-Pfad.

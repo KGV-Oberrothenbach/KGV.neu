@@ -2,6 +2,37 @@
 
 ---
 
+## 2026-04-05 – Typfix im WPF-Permission-Save-Pfad für `app_user.int8`-Felder minimal korrigiert
+
+- Arbeitsgrundlage war ausdrücklich nur der eingegrenzte Save-Fehler in `SetUserPermissionSettingsAsync(...)`; keine neue Rechtearchitektur und keine neue UI-Baustelle.
+- Zu Beginn geprüft:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - speziell `SetUserPermissionSettingsAsync(...)`
+  - `KGV.Infrastructure/Models/AppUserRecord.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Echter Typbefund im aktuellen Stand:
+  - `AppUserRecord.MitgliedId` ist `long?`
+  - `AppUserRecord.PermissionGrants` ist `long?`
+  - `AppUserRecord.PermissionRevocations` ist `long?`
+  - im Save-Pfad wurden `permission_grants` / `permission_revocations` zwar bereits als `long` normalisiert, der tatsächliche `Set(...)`-Write-Pfad übergab aber nicht durchgehend explizit `long?`-Werte an die `app_user`-Spalten mit PostgreSQL-Typ `int8`
+  - der beobachtete Laufzeitfehler dazu war: `Expected Value to be of Type: Nullable\`1, instead received: Int32.`
+- Minimal umgesetzt:
+  - in `SetUserPermissionSettingsAsync(...)` die tatsächlich geschriebenen Werte für
+    - `mitglied_id`
+    - `permission_grants`
+    - `permission_revocations`
+    jetzt vor dem `Set(...)` explizit als `long?` typisiert
+  - der bestehende Write-/Verify-/Reload-Pfad blieb unverändert erhalten
+  - keine Änderung an Rollenquellen, Permission-Architektur oder UI
+- Ehrlicher Verifikationsstand dieses Laufs:
+  - der Codepfad ist jetzt typkonsistent zu `public.app_user.int8`
+  - eine echte Live-Prüfung für Mitglied `1` gegen die laufende DB war in diesem Headless-Lauf nicht belastbar ausführbar; sie bleibt externer Restcheck
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-05 – Predicate-Fix für `GetAppUserByMitgliedIdAsync(...)` im WPF-Permission-Settings-Pfad umgesetzt
 
 - Arbeitsgrundlage war ausdrücklich nur der eingegrenzte WPF-Rechtepfad rund um `GetUserPermissionSettingsAsync(...)`; kein neuer Rechteumbau und keine neue UI-Baustelle.
