@@ -2,6 +2,65 @@
 
 ---
 
+## 2026-04-05 – WPF Admin-Menü: Linked-User-Statuspfad gegen binären Null-Fallback gehärtet
+
+- Vor dem Block den realen Repo-/Git-/Logzustand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - blockfremde lokale Änderung an `.github/copilot-instructions.md` blieb bewusst außerhalb dieses Blocks
+  - bewusst unberührt blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Lauf:
+  - WPF:
+    - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - `KGV.Wpf/Views/AdminRoleView.xaml`
+  - gemeinsamer Service-/Datenpfad:
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Core/Security/UserPermissionSettings.cs`
+    - `KGV.Core/Models/MitgliedRecord.cs`
+    - `KGV.Infrastructure/Models/AppUserRecord.cs`
+    - `GetUserPermissionSettingsAsync(...)`
+    - Mitglied-Lookup / `auth_user_id` / `app_user`
+  - Logdateien:
+    - `DEV_LOG.md`
+    - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor diesem Block:
+  - der gemeinsame Servicepfad war im aktuellen Repo-Stand bereits nicht die eigentliche Hauptursache:
+    - `MitgliedRecord` lädt `auth_user_id`
+    - `GetUserPermissionSettingsAsync(...)` übernimmt `AuthUserId` korrekt aus `appUser.user_id` oder `mitglied.auth_user_id`
+  - die fachliche Restlücke lag im WPF-Ladepfad selbst:
+    - `AdminRoleViewModel.LoadPermissionSettingsAsync()` ersetzte `null` weiterhin durch ein neues `UserPermissionSettings` ohne `AuthUserId`
+    - damit wurde ein unklarer Null-/Fehlerpfad fachlich falsch in `nicht verknüpft` umgedeutet
+    - `AdminRoleView.xaml` konnte nur zwischen `verknüpft` und `nicht verknüpft` unterscheiden, nicht zwischen sicherem Nicht-Link und unbekanntem Ladezustand
+- Minimal in diesem Lauf nachgezogen:
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - WPF-Fallbackpfad auf Permission-Settings gehärtet
+    - bei `null` aus `GetUserPermissionSettingsAsync(...)` wird zusätzlich das Mitglied erneut geladen
+    - ein vorhandenes `auth_user_id` wird in den Fallback übernommen
+    - zusätzlicher Zustand `Status belastbar / nicht belastbar geladen` ergänzt
+    - Speichern bleibt bei unklarem Status vorsorglich gesperrt
+    - Hinweistext unterscheidet jetzt sauber zwischen:
+      - verknüpftem App-User
+      - nicht verknüpftem Mitglied
+      - aktuell unbekanntem Verknüpfungsstatus
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+    - Statusanzeige nicht mehr binär per Trigger aus `HasLinkedAppUser`, sondern direkt über eine ViewModel-Statusausgabe
+  - `SupabaseService` blieb unverändert, weil der produktive gemeinsame Ladepfad bereits korrekt genug war und der echte Fehler im WPF-Fallback lag
+- Fachlicher Endstand dieses Blocks:
+  - ein tatsächlich verknüpftes Mitglied wird im WPF-Admin-Menü nicht mehr durch einen lokalen Null-Fallback als `nicht verknüpft` angezeigt
+  - ein nicht verknüpftes Mitglied bleibt korrekt als `nicht verknüpft` erkennbar
+  - unvollständige Ladezustände werden nicht mehr als sicherer Nicht-Link maskiert
+  - Fachrechte-Speichern bleibt nur bei belastbar erkanntem verknüpftem App-User freigegeben
+  - keine zusätzliche Schattenlogik neben `AuthUserId` / `HasLinkedUser` eingeführt
+- Validierung im Abschlusslauf:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund:
+    - keine automatisierte Live-Prüfung mit einem konkreten verknüpften Mitglied im WPF-UI durchgeführt
+    - die Korrektheit wurde statisch über den gemeinsamen Servicepfad und den gehärteten WPF-Fallback verifiziert
+    - `.github/copilot-instructions.md`, `AWR.bat` und `_secrets/` blieben bewusst außerhalb dieses Blocks
+
 ## 2026-04-05 – Globale Rechte-Matrix fachlich entkoppelt: `user`-Basis nur noch Eigenkontext, WPF und MAUI auf gleiche Semantik gehoben
 
 - Vor dem Block den realen Repo-/Git-/Logzustand erneut geprüft.

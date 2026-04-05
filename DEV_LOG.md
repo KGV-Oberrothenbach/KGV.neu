@@ -2,6 +2,64 @@
 
 ---
 
+## 2026-04-05 – WPF App-User-Status im Admin-Menü gehärtet: Null-Fallback wird nicht mehr als „nicht verknüpft“ angezeigt
+
+- Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - blockfremde lokale Änderung an `.github/copilot-instructions.md` blieb bewusst unberührt
+  - bewusst unberührt blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden in diesem Lauf:
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Core/Security/UserPermissionSettings.cs`
+  - angrenzende Modell-/Servicepfade:
+    - `KGV.Core/Models/MitgliedRecord.cs`
+    - `KGV.Infrastructure/Models/AppUserRecord.cs`
+    - `GetMitgliedByIdAsync(...)`
+    - `GetUserPermissionSettingsAsync(...)`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor der Umsetzung:
+  - der gemeinsame Servicepfad war bereits fachlich korrekt genug, um einen vorhandenen Link zu erkennen:
+    - `MitgliedRecord` enthält `auth_user_id`
+    - `AppUserRecord` enthält `user_id` und `mitglied_id`
+    - `GetUserPermissionSettingsAsync(...)` setzt `AuthUserId = appUser?.UserId ?? mitglied.AuthUserId`
+  - der eigentliche Restfehler lag im WPF-Fallback:
+    - `AdminRoleViewModel.LoadPermissionSettingsAsync()` erzeugte bei `null` weiterhin ein Ersatz-`UserPermissionSettings` ohne `AuthUserId`
+    - dadurch wurde ein Service-/Ladeproblem oder ein unvollständiger Nullpfad fachlich falsch als `nicht verknüpft` angezeigt
+    - die WPF-UI zeigte den Status rein binär über `HasLinkedAppUser`, ohne einen unbekannten Ladezustand unterscheiden zu können
+- Minimal umgesetzt:
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - Permission-Settings-Ladepfad gehärtet
+    - bei `null` aus `GetUserPermissionSettingsAsync(...)` wird zusätzlich `GetMitgliedByIdAsync(...)` genutzt
+    - ein dabei vorhandenes `auth_user_id` wird in den Fallback übernommen
+    - zusätzlicher belastbarer Status `geladen / nicht belastbar geladen` ergänzt
+    - Speichern bleibt bei unklarem Status vorsorglich gesperrt
+    - Support-Hinweise unterscheiden jetzt sauber zwischen:
+      - verknüpft
+      - nicht verknüpft
+      - Status derzeit unbekannt
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+    - App-User-Text auf direkte ViewModel-Statusanzeige umgestellt, damit ein unbekannter Zustand nicht mehr als `nicht verknüpft` erscheint
+  - keine Änderung am gemeinsamen Servicepfad nötig, weil die eigentliche Ursache im WPF-Null-Fallback lag
+- Fachlicher Stand nach dem Block:
+  - tatsächlich verknüpfte Mitglieder werden im WPF-Admin-Menü nicht mehr durch den lokalen Null-Fallback als `nicht verknüpft` angezeigt
+  - wirklich nicht verknüpfte Mitglieder bleiben korrekt erkennbar
+  - unvollständig geladene Zustände werden nicht mehr als sicherer Nicht-Link maskiert
+  - Speichern bleibt nur bei belastbar erkanntem und verknüpftem App-User freigegeben
+  - keine Schattenlogik neben `AuthUserId` / `HasLinkedUser` eingeführt
+- Validierung in diesem Lauf:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund:
+    - keine automatisierte Live-UI-Prüfung mit einem konkreten verknüpften Mitglied durchgeführt
+    - die Korrektheit wurde statisch über den realen WPF-Fallbackpfad, `MitgliedRecord.AuthUserId` und die gemeinsame `HasLinkedUser`-Semantik geprüft
+    - `.github/copilot-instructions.md`, `AWR.bat` und `_secrets/` blieben bewusst unberührt
+
 ## 2026-04-05 – Eigenkontext von globaler Rechte-Matrix getrennt: `user`-Basis nur noch Minimalrechte, WPF/MAUI fachlich angeglichen
 
 - Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.

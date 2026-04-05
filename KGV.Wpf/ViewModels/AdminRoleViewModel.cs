@@ -22,6 +22,7 @@ namespace KGV.ViewModels
         private bool _allowUserMeterReadingSubmissions;
         private bool _initialAllowUserMeterReadingSubmissions;
         private UserPermissionSettings? _permissionSettings;
+        private bool _isPermissionSettingsLoadReliable;
         private PermissionFlags _initialGrantedPermissions;
         private PermissionFlags _initialRevokedPermissions;
 
@@ -76,7 +77,13 @@ namespace KGV.ViewModels
         public bool IsUserMeterReadingSubmissionSettingDirty => AllowUserMeterReadingSubmissions != _initialAllowUserMeterReadingSubmissions;
 
         public bool HasLinkedAppUser => _permissionSettings?.HasLinkedUser == true;
-        public bool CanEditPermissionOverrides => CanManageRoleManagement && HasLinkedAppUser;
+        public bool IsLinkedAppUserStatusKnown => _isPermissionSettingsLoadReliable;
+        public string LinkedAppUserStatusText => !_isPermissionSettingsLoadReliable
+            ? "Status derzeit unbekannt"
+            : HasLinkedAppUser
+                ? "verknüpft"
+                : "nicht verknüpft";
+        public bool CanEditPermissionOverrides => CanManageRoleManagement && IsLinkedAppUserStatusKnown && HasLinkedAppUser;
         public PermissionFlags CurrentGrantedPermissions => BuildPermissionOverrideState().GrantedPermissions;
         public PermissionFlags CurrentRevokedPermissions => BuildPermissionOverrideState().RevokedPermissions;
         public bool ArePermissionOverridesDirty => CurrentGrantedPermissions != _initialGrantedPermissions || CurrentRevokedPermissions != _initialRevokedPermissions;
@@ -86,7 +93,9 @@ namespace KGV.ViewModels
         public string EffectivePermissionState => PermissionCatalog.FormatPermissions(
             _permissionSettings?.EffectivePermissions ?? PermissionFlags.None,
             "Keine wirksamen Fachrechte aktiv.");
-        public string PermissionSaveHint => HasLinkedAppUser
+        public string PermissionSaveHint => !IsLinkedAppUserStatusKnown
+            ? "Der Verknüpfungsstatus des App-Users konnte aktuell nicht belastbar geladen werden. Die Rechteübersicht bleibt sichtbar, Speichern ist vorsorglich gesperrt."
+            : HasLinkedAppUser
             ? IsDirty
                 ? "Die Rollenbasis wurde geändert. Bitte zuerst die Rolle speichern und danach die benutzerspezifischen Fachrechte sichern."
                 : IsRoleManagementReadOnly
@@ -162,14 +171,37 @@ namespace KGV.ViewModels
 
         private async Task LoadPermissionSettingsAsync()
         {
-            var settings = await _supabaseService.GetUserPermissionSettingsAsync(SelectedMember.Id)
-                ?? new UserPermissionSettings
+            _isPermissionSettingsLoadReliable = false;
+
+            var settings = await _supabaseService.GetUserPermissionSettingsAsync(SelectedMember.Id);
+            if (settings != null)
+            {
+                _isPermissionSettingsLoadReliable = true;
+            }
+            else
+            {
+                var memberRecord = await _supabaseService.GetMitgliedByIdAsync(SelectedMember.Id);
+                if (memberRecord != null)
                 {
-                    MitgliedId = SelectedMember.Id,
-                    Role = string.IsNullOrWhiteSpace(SelectedRole) ? UserRoles.User : SelectedRole,
-                    GrantedPermissions = PermissionFlags.None,
-                    RevokedPermissions = PermissionFlags.None
-                };
+                    settings = new UserPermissionSettings
+                    {
+                        AuthUserId = memberRecord.AuthUserId,
+                        MitgliedId = SelectedMember.Id,
+                        Role = UserRoles.ToStorageValue(UserRoles.Parse(string.IsNullOrWhiteSpace(memberRecord.Role) ? SelectedRole : memberRecord.Role)),
+                        GrantedPermissions = PermissionFlags.None,
+                        RevokedPermissions = PermissionFlags.None
+                    };
+                    _isPermissionSettingsLoadReliable = true;
+                }
+            }
+
+            settings ??= new UserPermissionSettings
+            {
+                MitgliedId = SelectedMember.Id,
+                Role = string.IsNullOrWhiteSpace(SelectedRole) ? UserRoles.User : SelectedRole,
+                GrantedPermissions = PermissionFlags.None,
+                RevokedPermissions = PermissionFlags.None
+            };
 
             _permissionSettings = settings;
             _selectedRole = UserRoles.ToStorageValue(settings.ParsedRole);
@@ -303,7 +335,10 @@ namespace KGV.ViewModels
             {
                 if (!HasLinkedAppUser)
                 {
-                    MessageBox.Show("Für dieses Mitglied existiert aktuell kein verknüpfter App-User. Fachrechte können deshalb noch nicht gespeichert werden.", "Hinweis", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show(IsLinkedAppUserStatusKnown
+                            ? "Für dieses Mitglied existiert aktuell kein verknüpfter App-User. Fachrechte können deshalb noch nicht gespeichert werden."
+                            : "Der Verknüpfungsstatus des App-Users konnte aktuell nicht belastbar geladen werden. Fachrechte bleiben deshalb vorsorglich gesperrt.",
+                        "Hinweis", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
 
@@ -385,6 +420,8 @@ namespace KGV.ViewModels
             }
 
             OnPropertyChanged(nameof(HasLinkedAppUser));
+            OnPropertyChanged(nameof(IsLinkedAppUserStatusKnown));
+            OnPropertyChanged(nameof(LinkedAppUserStatusText));
             OnPropertyChanged(nameof(CanManageRoleManagement));
             OnPropertyChanged(nameof(CanEditRole));
             OnPropertyChanged(nameof(IsRoleManagementReadOnly));

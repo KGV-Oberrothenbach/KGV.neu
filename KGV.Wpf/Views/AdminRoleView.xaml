@@ -104,18 +104,7 @@
                     </TextBlock>
                     <TextBlock Margin="0,4,0,0" TextWrapping="Wrap">
                         <Run Text="App-User: " />
-                        <Run Text="nicht verknüpft" FontWeight="SemiBold">
-                            <Run.Style>
-                                <Style TargetType="Run">
-                                    <Setter Property="Text" Value="nicht verknüpft" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasLinkedAppUser}" Value="True">
-                                            <Setter Property="Text" Value="verknüpft" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Run.Style>
-                        </Run>
+                        <Run Text="{Binding LinkedAppUserStatusText, Mode=OneWay}" FontWeight="SemiBold" />
                     </TextBlock>
                     <TextBlock Margin="0,4,0,0" Foreground="Gray" TextWrapping="Wrap" Text="{Binding PermissionSaveHint, Mode=OneWay}" />
 
