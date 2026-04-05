@@ -144,7 +144,7 @@ namespace KGV.ViewModels
 
         private async Task ToggleEditAsync()
         {
-            if (!PermissionChecks.CanWriteStammdaten(_userContext))
+            if (!PermissionChecks.CanWriteStammdatenForMember(_userContext, Hauptmitglied.Id))
                 return;
 
             if (!IsEditMode)
@@ -182,7 +182,7 @@ namespace KGV.ViewModels
         private bool CanSave() => IsEditMode && IsDirty;
         private bool CanCancel() => IsEditMode;
 
-        private bool CanToggleEdit() => !IsEditMode && PermissionChecks.CanWriteStammdaten(_userContext) || IsEditMode;
+        private bool CanToggleEdit() => !IsEditMode && PermissionChecks.CanWriteStammdatenForMember(_userContext, Hauptmitglied.Id) || IsEditMode;
 
         private async Task SaveAsync()
         {

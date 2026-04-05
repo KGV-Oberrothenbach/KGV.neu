@@ -50,6 +50,7 @@ public sealed class AblesenOverviewPage : ContentPage
         Title = "Ablesen";
 
         var canReadMeters = PermissionChecks.CanReadMeters(_userContextState.CurrentUserContext);
+        var canSubmitOwnMeterReadings = PermissionChecks.CanSubmitOwnMeterReadings(_userContextState.CurrentUserContext);
         var canManageMeterChanges = PermissionChecks.CanManageMeterChanges(_userContextState.CurrentUserContext);
         var canApproveMeterReadings = PermissionChecks.CanApproveMeterReadings(_userContextState.CurrentUserContext);
         var hasAnyMeterAccess = PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext);
@@ -112,7 +113,7 @@ public sealed class AblesenOverviewPage : ContentPage
         };
 
         var ablesungTile = CreateTile("Ablesung erfassen", "RFID-Tag am Gerät scannen; wenn NFC nicht nutzbar ist, steht ein fachlicher Ersatzweg über Parzelle und Medium bereit.", () => Shell.Current.GoToAsync(nameof(AblesungErfassenPage)));
-        ablesungTile.IsVisible = canReadMeters;
+        ablesungTile.IsVisible = canReadMeters || canSubmitOwnMeterReadings;
 
         var zaehlerwechselTile = CreateTile("Zählerwechsel", "RFID-Tag am Gerät scannen; wenn NFC nicht nutzbar ist, steht ein fachlicher Ersatzweg über Parzelle und Medium bereit.", () => Shell.Current.GoToAsync(nameof(ZaehlerwechselPage)));
         zaehlerwechselTile.IsVisible = canManageMeterChanges;

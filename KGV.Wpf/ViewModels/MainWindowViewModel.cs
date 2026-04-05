@@ -237,7 +237,7 @@ namespace KGV.ViewModels
                 IsVisible = true
             });
 
-            if (PermissionChecks.CanShowStammdaten(UserContext) && PermissionChecks.CanSeeOwnDataOnly(UserContext))
+            if (PermissionChecks.HasOwnMemberContextAccess(UserContext))
             {
                 NavigationItems.Add(new NavigationItem
                 {
@@ -321,7 +321,7 @@ namespace KGV.ViewModels
             {
                 Title = "↳ Stammdaten",
                 ViewModelType = typeof(MemberDetailViewModel),
-                IsVisible = SelectedMember != null && PermissionChecks.CanShowStammdaten(UserContext),
+                IsVisible = SelectedMember != null && PermissionChecks.CanShowStammdatenForMember(UserContext, SelectedMember.Id),
                 ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
             });
 
@@ -337,7 +337,7 @@ namespace KGV.ViewModels
             {
                 Title = "↳ Arbeitsstunden",
                 ViewModelType = typeof(ArbeitsstundenViewModel),
-                IsVisible = SelectedMember != null && PermissionChecks.CanReadWorkHours(UserContext),
+                IsVisible = SelectedMember != null && PermissionChecks.CanReadWorkHoursForMember(UserContext, SelectedMember.Id),
                 ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
             });
 
@@ -345,7 +345,7 @@ namespace KGV.ViewModels
             {
                 Title = "↳ Dokumente",
                 ViewModelType = typeof(DokumenteViewModel),
-                IsVisible = SelectedMember != null && PermissionChecks.CanReadDocuments(UserContext),
+                IsVisible = SelectedMember != null && PermissionChecks.CanReadDocumentsForMember(UserContext, SelectedMember.Id),
                 ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
             });
 

@@ -2,6 +2,80 @@
 
 ---
 
+## 2026-04-05 – Eigenkontext von globaler Rechte-Matrix getrennt: `user`-Basis nur noch Minimalrechte, WPF/MAUI fachlich angeglichen
+
+- Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - blockfremde lokale Änderung an `.github/copilot-instructions.md` blieb bewusst unberührt
+  - bewusst unberührt blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden in diesem Lauf:
+  - `KGV.Core/Security/PermissionService.cs`
+  - `KGV.Core/Security/PermissionFlags.cs`
+  - `KGV.Core/Security/PermissionChecks.cs`
+  - `KGV.Core/Security/PermissionCatalog.cs`
+  - `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`
+  - `KGV.Wpf/ViewModels/NebenmitgliedDetailViewModel.cs`
+  - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+  - `KGV.Wpf/ViewModels/AblesenOverviewViewModel.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor der Umsetzung:
+  - die kompakte globale Rechte-Matrix war bereits vorhanden, aber die Basisrolle `user` brachte noch globale Fachrechte für `Stammdaten`, `Parzellen`, `Dokumente` und `Arbeitsstunden` mit
+  - dadurch zeigte die Matrix bei `user` noch globale Standardrechte, obwohl fachlich eher Eigenkontext gemeint war
+  - WPF koppelte eigene Stammdatenbearbeitung noch an globale `CanWriteStammdaten`-Freigabe
+  - MAUI erlaubte den Eigenkontext noch über eine eigene Rollen-/Self-Id-Logik statt auf derselben Fachsemantik wie WPF
+  - der Sonderfall eigene Zählerablesung musste separat erhalten bleiben
+- Minimal umgesetzt:
+  - `KGV.Core/Security/PermissionService.cs`
+    - Basisrolle `user` auf Minimal-/Eigenkontextrechte zurückgeführt:
+      - `CanViewMembers`
+      - `CanSeeOwnDataOnly`
+    - globale Fachrechte werden für `user` nicht mehr automatisch als Basispaket gesetzt
+  - `KGV.Core/Security/PermissionChecks.cs`
+    - neue member-kontextbezogene Helfer ergänzt, die Eigenkontext sauber von globalen Fachrechten trennen
+    - eigene Nutzung für konkretes Mitglied jetzt getrennt ableitbar für:
+      - `Stammdaten`
+      - `Parzellen`
+      - `Dokumente`
+      - `Arbeitsstunden`
+    - `HasAnyMeterAccess(...)` berücksichtigt jetzt auch den Sonderfall `CanSubmitOwnMeterReadings(...)`
+  - `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`
+    - eigene Stammdatenbearbeitung hängt nicht mehr indirekt an globalem Fachrecht, sondern an der member-kontextbezogenen Prüfung
+  - `KGV.Wpf/ViewModels/NebenmitgliedDetailViewModel.cs`
+    - eigener Nebenmitgliedskontext folgt derselben Trennung über das Hauptmitglied
+  - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+    - Navigation `Meine Daten` und Mitgliedskontextpunkte auf Eigenkontext-/Mitgliedsprüfungen umgestellt
+    - globale Matrix und eigener Kontext laufen damit nicht mehr durcheinander
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - mobiler Editpfad auf dieselbe member-kontextbezogene Fachlogik gehoben wie in WPF
+  - `KGV.Maui/UserShell.cs`
+    - eigene Shell-Navigation für `Stammdaten`, `Nebenmitglied`, `Gärten des Mitglieds` und `Arbeitsstunden` auf Eigenkontext-/Mitgliedslogik gehoben
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+  - `KGV.Wpf/ViewModels/AblesenOverviewViewModel.cs`
+    - Sonderfall eigene Zählerablesung bleibt separat nutzbar, auch wenn globale Zählerrechte für `user` auf `Aus` stehen
+- Fachlicher Stand nach dem Block:
+  - globale Matrix bildet für `user` nur noch echte globale Standardrechte ab
+  - Eigenkontext-Rechte bleiben außerhalb der globalen Matrix
+  - wenn die Matrix global auf `Aus` steht, bleibt der eigene Mitgliedskontext weiter benutzbar
+  - WPF und MAUI nutzen für den Eigenkontext jetzt dieselbe Fachsemantik
+  - `Vorstand` und `Admin` bleiben als Basispakete erhalten
+  - Overrides via Grants/Revocations bleiben unverändert produktiv nutzbar
+- Validierung in diesem Lauf:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund:
+    - keine automatisierte Live-UI-Prüfung mit angemeldetem Normal-User durchgeführt
+    - die fachliche Gleichheit von WPF und MAUI wurde statisch über dieselben `PermissionChecks`-Hilfen und die geänderten Navigations-/Editpfade sichergestellt
+    - `.github/copilot-instructions.md`, `AWR.bat` und `_secrets/` blieben bewusst unberührt
+
 ## 2026-04-05 – MAUI Linked-User-Status im Admin-Menü gehärtet: Fallback maskiert Service-Nullpfad nicht mehr als „nicht verknüpft“
 
 - Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.

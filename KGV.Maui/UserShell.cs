@@ -81,18 +81,18 @@ public sealed class UserShell : Shell, IAppShellInitializer
         if (PermissionChecks.HasAnyMeterAccess(_state.CurrentUserContext))
             Items.Add(CreateItem("Ablesen", "ablesen", () => _services.GetRequiredService<AblesenOverviewPage>()));
 
-        if (PermissionChecks.CanShowStammdaten(_state.CurrentUserContext))
+        if (PermissionChecks.HasOwnMemberContextAccess(_state.CurrentUserContext))
             Items.Add(CreateItem("↳ Stammdaten", "mydetails", CreateOwnMemberDetailsPage));
 
         Items.Add(CreateItem("↳ Wartungsverträge", "my_wartungsvertraege", CreateOwnMemberWartungsvertraegePage));
 
-        if (PermissionChecks.CanReadStammdaten(_state.CurrentUserContext))
+        if (PermissionChecks.CanReadStammdatenForMember(_state.CurrentUserContext, _state.CurrentMitgliedId is > 0 and <= int.MaxValue ? (int)_state.CurrentMitgliedId.Value : null))
             Items.Add(CreateItem("↳ Nebenmitglied", "nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
 
-        if (PermissionChecks.CanShowParzellen(_state.CurrentUserContext))
+        if (PermissionChecks.CanShowParzellenForMember(_state.CurrentUserContext, _state.CurrentMitgliedId is > 0 and <= int.MaxValue ? (int)_state.CurrentMitgliedId.Value : null))
             Items.Add(CreateItem("↳ Gärten des Mitglieds", "mygardens", CreateOwnMemberGardensPage));
 
-        if (PermissionChecks.CanReadWorkHours(_state.CurrentUserContext))
+        if (PermissionChecks.CanReadWorkHoursForMember(_state.CurrentUserContext, _state.CurrentMitgliedId is > 0 and <= int.MaxValue ? (int)_state.CurrentMitgliedId.Value : null))
             Items.Add(CreateItem("↳ Arbeitsstunden", "workhours", () => _services.GetRequiredService<MyArbeitsstundenPage>()));
 
         if (PermissionChecks.CanReadRoleManagement(_state.CurrentUserContext))

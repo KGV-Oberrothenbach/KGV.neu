@@ -48,8 +48,7 @@ namespace KGV.ViewModels
         public string NebenmitgliedButtonText => HasNebenmitglied ? "Nebenmitglied" : "Nebenmitglied anlegen";
 
         public bool ShowAdresseUebernehmenButton => false;
-        public bool CanEditMemberStammdaten => PermissionChecks.CanWriteStammdaten(_userContext)
-                                               && (!_userContext.Has(PermissionFlags.CanSeeOwnDataOnly) || _currentUserMemberId == SelectedMember.Id);
+        public bool CanEditMemberStammdaten => PermissionChecks.CanWriteStammdatenForMember(_userContext, SelectedMember.Id);
 
         private MemberDTO _originalSnapshot;
 

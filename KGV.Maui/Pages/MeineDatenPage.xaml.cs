@@ -409,9 +409,7 @@ public class MeineDatenPage : ContentPage
         if (member?.Id is not > 0)
             return false;
 
-        var currentRole = _userContextState.CurrentUserContext?.Role;
-        return currentRole is UserRole.Admin or UserRole.Vorstand
-            || _userContextState.CurrentMitgliedId == member.Id;
+        return PermissionChecks.CanWriteStammdatenForMember(_userContextState.CurrentUserContext, member.Id);
     }
 
     private void UpdateEditHint(MemberDTO? member)

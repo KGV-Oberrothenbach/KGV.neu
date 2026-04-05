@@ -12,6 +12,7 @@ namespace KGV.ViewModels
         public string Title => "Ablesen";
         public string Description => "Bitte wähle eine Funktion.";
         public bool CanReadMeters => PermissionChecks.CanReadMeters(_mainVm.UserContext);
+        public bool CanSubmitOwnMeterReadings => PermissionChecks.CanSubmitOwnMeterReadings(_mainVm.UserContext);
         public bool CanManageMeterChanges => PermissionChecks.CanManageMeterChanges(_mainVm.UserContext);
         public bool CanApproveMeterReadings => PermissionChecks.CanApproveMeterReadings(_mainVm.UserContext);
         public bool HasAnyMeterAccess => PermissionChecks.HasAnyMeterAccess(_mainVm.UserContext);
@@ -26,7 +27,7 @@ namespace KGV.ViewModels
         public AblesenOverviewViewModel(MainWindowViewModel mainVm)
         {
             _mainVm = mainVm ?? throw new ArgumentNullException(nameof(mainVm));
-            OpenAblesungErfassenCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToAblesungErfassenViewModel()), _ => CanReadMeters);
+            OpenAblesungErfassenCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToAblesungErfassenViewModel()), _ => CanReadMeters || CanSubmitOwnMeterReadings);
             OpenZaehlerwechselCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToZaehlerwechselScanViewModel()), _ => CanManageMeterChanges);
             OpenRfidEinrichtenCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToRfidEinrichtenViewModel()), _ => CanManageMeterChanges);
             OpenFaelligeZaehlerCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToFaelligeZaehlerViewModel()), _ => CanReadMeters);

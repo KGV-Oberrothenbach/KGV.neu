@@ -45,14 +45,7 @@ namespace KGV.Core.Security
 
         private static PermissionFlags GetUserPermissions()
             => PermissionFlags.CanViewMembers
-               | PermissionFlags.CanSeeOwnDataOnly
-               | PermissionFlags.CanShowStammdaten
-               | PermissionFlags.CanReadStammdaten
-               | PermissionFlags.CanWriteStammdaten
-               | PermissionFlags.CanShowParzellen
-               | PermissionFlags.CanReadParzellen
-               | PermissionFlags.CanReadDocuments
-               | PermissionFlags.CanReadWorkHours;
+               | PermissionFlags.CanSeeOwnDataOnly;
 
         private static PermissionFlags GetVorstandPermissions()
             => PermissionFlags.CanSearchMembers
