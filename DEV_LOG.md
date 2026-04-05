@@ -2,6 +2,63 @@
 
 ---
 
+## 2026-04-05 – C#-Restkonsumenten von `mitglied.role` zentral über den gemeinsamen Mitglieder-Ladepfad neutralisiert
+
+- Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.
+- Git-Befund zu Beginn auf `feature/app-user-role-source`:
+  - aktueller Branch: `feature/app-user-role-source`
+  - Remote-Tracking vorhanden: `origin/feature/app-user-role-source`
+  - im Arbeitsbaum bewusst außerhalb dieses Blocks offen und unberührt:
+    - `.github/copilot-instructions.md`
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Lauf:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+  - `KGV.Wpf/ViewModels/MemberSearchViewModel.cs`
+  - weitere aktive C#-Konsumenten mit `MitgliedRecord.Role`-/`MemberDTO.Role`-Nutzung in WPF/MAUI
+  - Exportpfade über `KGV.Core/Utilities/MitgliederCsvExportBuilder.cs` sowie `KGV.Wpf/ViewModels/ExportViewModel.cs` / `KGV.Maui/Pages/ExportPage.cs`
+  - `KGV.Core/Models/MemberDTO.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Restbefund vor der Umsetzung:
+  - verbleibende UI-/Navigation-/Export-Konsumenten lasen `Role` weiterhin aus `MitgliedRecord` bzw. `MemberDTO`
+  - der eigentliche offene Rest saß aber nicht mehr in vielen einzelnen UI-Pfaden, sondern zentral im gemeinsamen Mitglieder-Ladepfad:
+    - `GetMitgliederAsync(...)`
+    - `GetMitgliedByIdAsync(...)`
+    - `GetMitgliedByAuthUserIdAsync(...)`
+    - Nebenmitglied-/Create-Rückgabepfade
+  - zusätzlich nutzte `AuthService.LoginAsync(...)` für `IsAdmin` / `IsVorstand` noch direkt `mitglied.role`
+- Minimal umgesetzt:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - gemeinsame Mitglieder-Ladepfade blenden `MitgliedRecord.Role` jetzt zentral aus `app_user.role` über
+    - ohne belastbaren `app_user.role`-Datensatz fällt die sichtbare Rolle nur noch auf den Default `user` zurück, nicht mehr auf `mitglied.role`
+    - nachgezogen wurden gezielt:
+      - `GetMitgliederAsync(...)`
+      - `GetMitgliedByIdAsync(...)`
+      - `GetMitgliedByAuthUserIdAsync(...)`
+      - `GetNebenmitgliedByHauptmitgliedIdAsync(...)`
+      - `CreateNebenmitgliedAsync(...)`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+    - Login-Rollenauflösung nutzt jetzt `app_user.role` statt `mitglied.role`
+    - `IsAdmin` / `IsVorstand` hängen damit im Auth-Produktivpfad nicht mehr fachlich an `mitglied.role`
+- Fachlicher Endstand dieses Blocks:
+  - `app_user.role` ist jetzt auch für allgemeine Mitglieder-/Navigation-/Such-/Exportpfade die einzige führende Rollenquelle
+  - `mitglied.role` bleibt im C#-Pfad nur noch physischer Altbestand und keine aktive fachliche Quelle mehr
+  - bestehende Konsumenten von `MemberDTO.Role` / `MitgliedRecord.Role` lesen jetzt zentral überblendete Rollenwerte
+  - Invite-/App-User-Verknüpfung bleibt intakt
+  - Permission-/Override-Logik blieb unangetastet
+- Zusätzliche Prüfung nach der Umsetzung wirklich ausgeführt:
+  - Suchlauf über verbleibende `MitgliedRecord.Role`-/`MemberDTO.Role`-/`dto.Role`-Nutzungen zeigte nur noch Konsumenten, deren Rollenwerte aus den zentral überblendeten Mitglieder-Ladepfaden oder direkt aus `app_user.role` stammen
+  - der frühere direkte Login-Abhängigkeitspfad auf `mitglied.role` in `AuthService.LoginAsync(...)` ist entfernt
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund:
+    - bestehende Warnungen bleiben u. a. in `KGV.Infrastructure/Services/SupabaseService.cs`, `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/ImpressumPage.cs` außerhalb dieses Blocks unverändert bestehen
+
 ## 2026-04-05 – SQL-/RPC-Randbereich für Rollenquelle `app_user.role` sauber abgeschlossen
 
 - Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.

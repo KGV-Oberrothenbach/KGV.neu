@@ -327,8 +327,6 @@ namespace KGV.Infrastructure.Authentication
                 _verifiedOtpEmail = null;
                 CurrentUserId = user.Id;
 
-                MitgliedRecord? userRecord = null;
-
                 if (!Guid.TryParse(user.Id, out var userGuid))
                 {
                     _logger?.LogWarning("LOGIN_FAIL_REASON:INVALID_USER_GUID for {EmailMasked}", MaskEmail(email));
@@ -339,24 +337,18 @@ namespace KGV.Infrastructure.Authentication
 
                 try
                 {
-                    userRecord = await client
-                        .From<MitgliedRecord>()
-                        .Where(m => m.AuthUserId == userGuid)
+                    var appUserResponse = await client
+                        .From<AppUserRecord>()
+                        .Where(x => x.UserId == userGuid)
                         .Single();
+
+                    var role = NormalizeRoleValue(appUserResponse?.Role);
+                    IsVorstand = string.Equals(role, "vorstand", StringComparison.OrdinalIgnoreCase);
+                    IsAdmin = string.Equals(role, "admin", StringComparison.OrdinalIgnoreCase);
                 }
                 catch (Exception ex)
                 {
                     _logger?.LogWarning(ex, "LOGIN_ROLE_LOOKUP_WARN for {EmailMasked}: {MessageMasked}", MaskEmail(email), MaskDiagnosticMessage(ex.Message));
-                }
-
-                if (userRecord != null)
-                {
-                    var role = (userRecord.Role ?? string.Empty).Trim();
-                    IsVorstand = string.Equals(role, "vorstand", StringComparison.OrdinalIgnoreCase);
-                    IsAdmin = string.Equals(role, "admin", StringComparison.OrdinalIgnoreCase);
-                }
-                else
-                {
                     IsVorstand = false;
                     IsAdmin = false;
                 }

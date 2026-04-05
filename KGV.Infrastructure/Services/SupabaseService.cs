@@ -75,12 +75,16 @@ namespace KGV.Infrastructure.Services
             {
                 var client = await EnsureClientAsync();
                 var response = await client.From<MitgliedRecord>().Get();
-                return response?.Models?
+                var members = response?.Models?
                     .OrderBy(x => x.Name ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                     .ThenBy(x => x.Vorname ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                     .ThenBy(x => x.Email ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                     .ToList()
+
                     ?? new List<MitgliedRecord>();
+
+                await ApplyAppUserRolesAsync(client, members);
+                return members;
             },
             new List<MitgliedRecord>());
 
@@ -128,7 +132,8 @@ namespace KGV.Infrastructure.Services
                     .Where(x => x.Id == mitgliedId)
                     .Get();
 
-                return response?.Models?.FirstOrDefault();
+                var member = response?.Models?.FirstOrDefault();
+                return await ApplyAppUserRoleAsync(client, member);
             },
             null);
 
@@ -1086,9 +1091,11 @@ namespace KGV.Infrastructure.Services
                     .Where(x => x.HauptmitgliedId == hauptmitgliedId)
                     .Get();
 
-                return response?.Models?
+                var member = response?.Models?
                     .OrderBy(x => x.Id)
                     .FirstOrDefault();
+
+                return await ApplyAppUserRoleAsync(client, member);
             },
             null);
 
@@ -1181,7 +1188,7 @@ namespace KGV.Infrastructure.Services
                     .FirstOrDefault();
 
                 _logger?.LogInformation("CreateNebenmitgliedAsync created nebenmitglied {MitgliedId} for hauptmitglied {HauptmitgliedId}", created?.Id, request.HauptmitgliedId);
-                return created;
+                return await ApplyAppUserRoleAsync(client, created);
             },
             null);
         public Task<List<SaisonRecord>> GetSaisonRecordsAsync() => ExecuteAsync(
@@ -1208,7 +1215,8 @@ namespace KGV.Infrastructure.Services
                     .Where(x => x.AuthUserId == authUserId)
                     .Get();
 
-                return response?.Models?.FirstOrDefault();
+                var member = response?.Models?.FirstOrDefault();
+                return await ApplyAppUserRoleAsync(client, member);
             },
             null);
 
@@ -3365,6 +3373,56 @@ namespace KGV.Infrastructure.Services
                 .Get();
 
             return authUserResponse?.Models?.FirstOrDefault();
+        }
+
+        private static async Task ApplyAppUserRolesAsync(Client client, IReadOnlyCollection<MitgliedRecord> members)
+        {
+            if (members == null || members.Count == 0)
+                return;
+
+            try
+            {
+                var appUsersResponse = await client.From<AppUserRecord>().Get();
+                var appUsers = appUsersResponse?.Models?.ToList() ?? new List<AppUserRecord>();
+
+                foreach (var member in members)
+                    ApplyAppUserRole(member, appUsers);
+            }
+            catch
+            {
+                foreach (var member in members)
+                    member.Role = NormalizeAppUserRole(null);
+            }
+        }
+
+        private static async Task<MitgliedRecord?> ApplyAppUserRoleAsync(Client client, MitgliedRecord? member)
+        {
+            if (member == null)
+                return null;
+
+            try
+            {
+                var appUser = await GetAppUserByMitgliedIdAsync(client, member.Id, member.AuthUserId);
+                member.Role = NormalizeAppUserRole(appUser?.Role);
+            }
+            catch
+            {
+                member.Role = NormalizeAppUserRole(null);
+            }
+
+            return member;
+        }
+
+        private static void ApplyAppUserRole(MitgliedRecord member, IReadOnlyCollection<AppUserRecord> appUsers)
+        {
+            if (member == null)
+                return;
+
+            var appUser = appUsers.FirstOrDefault(x => x.MitgliedId == (long?)member.Id);
+            if (appUser == null && member.AuthUserId.HasValue)
+                appUser = appUsers.FirstOrDefault(x => x.UserId == member.AuthUserId.Value);
+
+            member.Role = NormalizeAppUserRole(appUser?.Role);
         }
 
         private static string NormalizeAppUserRole(string? role)
