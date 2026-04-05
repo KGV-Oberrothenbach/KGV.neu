@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Maui.State;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
@@ -295,7 +296,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
 
     private int? GetContextMemberId()
     {
-        if (_state.CurrentUserContext?.Role is KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand)
+        if (PermissionChecks.CanReadWorkHours(_state.CurrentUserContext))
         {
             var selectedId = _memberContextState.SelectedMember?.Id;
             if (selectedId is > 0)

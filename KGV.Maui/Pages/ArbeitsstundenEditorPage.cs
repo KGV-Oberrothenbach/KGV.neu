@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Maui.State;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
@@ -461,7 +462,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
 
     private int? GetContextMemberId()
     {
-        if (!_forceOwnContext && _state.CurrentUserContext?.Role is KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand)
+        if (!_forceOwnContext && PermissionChecks.CanManageWorkHours(_state.CurrentUserContext))
         {
             var selectedId = _memberContextState.SelectedMember?.Id;
             if (selectedId is > 0)
@@ -476,7 +477,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
     private bool UsesSelectedMemberContext(MemberDTO? selectedMember)
     {
         return !_forceOwnContext
-            && _state.CurrentUserContext?.Role is KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand
+            && PermissionChecks.CanManageWorkHours(_state.CurrentUserContext)
             && selectedMember?.Id is > 0;
     }
 

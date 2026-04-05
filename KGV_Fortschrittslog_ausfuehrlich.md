@@ -2,6 +2,84 @@
 
 ---
 
+## 2026-04-05 – Block 3/3 Navigation / Sichtbarkeit / Schreibpfade: neue Fachrechte im laufenden WPF-/MAUI-UI wirklich durchgezogen
+
+- Vor dem Block den realen Repo-/Git-/Logzustand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - der Arbeitsbaum war zu Beginn sauber bis auf bewusst unberührte untracked Dateien:
+    - `AWR.bat`
+    - `_secrets/`
+  - als fachlicher Ausgangspunkt lagen die bereits gepushten Blöcke vor:
+    - Block 1/3: `bd00e43` – `Konsolidiere zentrale Permission-Basis`
+    - Block 2/3: `8d5ecb6` – `Hebe Admin-Rechteoberflaechen auf neue Basis`
+- Direkt geprüft wurden im Lauf:
+  - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+  - weitere direkt betroffene WPF-Pfade:
+    - `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`
+    - `KGV.Wpf/ViewModels/ParzellenVerwaltungViewModel.cs`
+    - `KGV.Wpf/ViewModels/DokumenteViewModel.cs`
+    - `KGV.Wpf/ViewModels/GartenDokumenteViewModel.cs`
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - direkt betroffene MAUI-Pfade:
+    - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+    - `KGV.Maui/Pages/ParzellenPage.cs`
+    - `KGV.Maui/Pages/MemberParzellenDetailPage.cs`
+    - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+    - `KGV.Maui/Pages/MyArbeitsstundenPage.cs`
+    - `KGV.Maui/Pages/ArbeitsstundenEditorPage.cs`
+  - `KGV.Core/Security/PermissionChecks.cs`
+  - `KGV.Core/Security/PermissionCatalog.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor diesem Block:
+  - Security-Basis und Rechtevergabeoberflächen waren bereits auf dem richtigen Zielpfad
+  - die eigentliche Restlücke lag jetzt in der alltäglichen Wirksamkeit der Rechte:
+    - noch vorhandene rohe Flag- oder Rollenprüfungen statt zentraler `PermissionChecks`
+    - pauschal sichtbare Menüpunkte in den MAUI-Shells
+    - sichtbare bzw. aktivierbare Schreibpfade in Parzellen-/Arbeitsstunden-Kontexten trotz fehlender neuer Fachrechte
+    - einzelne Dokument-/Parzellen-Aktionen waren noch zu grob sichtbar
+- Minimal in diesem Lauf konsequent nachgezogen:
+  - WPF:
+    - `MainWindowViewModel`
+      - verbliebene rohe Flag-Prüfungen in der Navigation auf zentrale `PermissionChecks` angehoben
+      - Garten-Dokumente im Mitgliedskontext zusätzlich an `CanReadDocuments(...)` gekoppelt
+  - MAUI:
+    - `App.xaml.cs`
+      - Shell-Auswahl neben Rollen auch an wirksame Fachrechte für Suche, Rollen-/Rechteverwaltung und Arbeitsstunden-Management gekoppelt
+    - `AdminShell`
+      - globale Menüpunkte wie Mitgliedersuche und Parzellenverwaltung jetzt nicht mehr pauschal sichtbar
+      - Mitgliedskontext-Menüs nur noch bei passenden Fachrechten sichtbar
+      - eigener Mitgliedskontext wird bei Bedarf als Startkontext gesetzt
+    - `UserShell`
+      - Menüpunkte für eigene Stammdaten, Gärten, Arbeitsstunden und eigenes Admin-Menü an die zentralen Fachrechte gebunden
+    - `ParzellenViewModel`
+      - Parzellen-Stammdatenbearbeitung und Zuordnungen auf `CanWriteParzellen(...)` gehärtet
+      - Parzellen-Dokumente auf `CanReadDocuments(...)` gehärtet
+      - Strom-/Wasser-Aktionen auf vorhandene Meterrechte gehärtet
+    - `MyArbeitsstundenPage`
+      - Kontextwahl für andere Mitglieder nicht mehr an starre Rolle, sondern an `CanReadWorkHours(...)`
+    - `ArbeitsstundenEditorPage`
+      - Bearbeitung fremder Mitgliedskontexte nicht mehr an starre Rolle, sondern an `CanManageWorkHours(...)`
+- Fachlicher Endstand dieses Blocks:
+  - WPF und MAUI respektieren die neue Rechtebasis jetzt nicht nur in der Vergabeoberfläche, sondern auch in Menüs, Navigation, Sichtbarkeit und offensichtlichen Schreibpfaden
+  - normale User sehen weiter nur die zu ihrem Fachrechtsstand passenden Bereiche
+  - zusätzliche Einzelrechte greifen jetzt auch im laufenden UI realer durch
+  - Vorstand bekommt nicht mehr automatisch alles über pauschale Shell-/Seitenlogik, sondern nur die Bereiche, die über die wirksamen Fachrechte erlaubt sind
+  - Admin-Menü und benutzerspezifische Rechte greifen dadurch im UI jetzt spürbar konsequenter durch
+  - keine zweite Rechtewelt neben `PermissionChecks` / `PermissionService` aufgebaut
+- Validierung im Abschlusslauf:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - Workspace-Build => erfolgreich
+  - ehrlicher Restbefund:
+    - bestehende Warnungen in blockfremden WPF-Dateien bleiben unverändert
+    - bestehende Warnungen in blockfremden MAUI-Dateien bleiben unverändert
+    - `AWR.bat` und `_secrets/` blieben bewusst außerhalb dieses Blocks
+
 ## 2026-04-05 – Block 2/3 Admin-Menü / Rechtevergabeoberfläche: WPF und MAUI auf denselben permission-basierten Produktpfad gezogen
 
 - Vor dem Block den realen Repo-/Git-/Logzustand erneut geprüft.

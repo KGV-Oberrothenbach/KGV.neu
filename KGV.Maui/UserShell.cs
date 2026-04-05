@@ -64,6 +64,12 @@ public sealed class UserShell : Shell, IAppShellInitializer
         return _services.GetRequiredService<MemberWartungsvertraegePage>();
     }
 
+    private Page CreateOwnAdminMenuPage()
+    {
+        EnsureOwnMemberContext();
+        return _services.GetRequiredService<AdminMenuPage>();
+    }
+
     private void EnsureMenuBuilt()
     {
         if (_menuBuilt)
@@ -75,11 +81,22 @@ public sealed class UserShell : Shell, IAppShellInitializer
         if (PermissionChecks.HasAnyMeterAccess(_state.CurrentUserContext))
             Items.Add(CreateItem("Ablesen", "ablesen", () => _services.GetRequiredService<AblesenOverviewPage>()));
 
-        Items.Add(CreateItem("↳ Stammdaten", "mydetails", CreateOwnMemberDetailsPage));
+        if (PermissionChecks.CanShowStammdaten(_state.CurrentUserContext))
+            Items.Add(CreateItem("↳ Stammdaten", "mydetails", CreateOwnMemberDetailsPage));
+
         Items.Add(CreateItem("↳ Wartungsverträge", "my_wartungsvertraege", CreateOwnMemberWartungsvertraegePage));
-        Items.Add(CreateItem("↳ Nebenmitglied", "nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
-        Items.Add(CreateItem("↳ Gärten des Mitglieds", "mygardens", CreateOwnMemberGardensPage));
-        Items.Add(CreateItem("↳ Arbeitsstunden", "workhours", () => _services.GetRequiredService<MyArbeitsstundenPage>()));
+
+        if (PermissionChecks.CanReadStammdaten(_state.CurrentUserContext))
+            Items.Add(CreateItem("↳ Nebenmitglied", "nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
+
+        if (PermissionChecks.CanShowParzellen(_state.CurrentUserContext))
+            Items.Add(CreateItem("↳ Gärten des Mitglieds", "mygardens", CreateOwnMemberGardensPage));
+
+        if (PermissionChecks.CanReadWorkHours(_state.CurrentUserContext))
+            Items.Add(CreateItem("↳ Arbeitsstunden", "workhours", () => _services.GetRequiredService<MyArbeitsstundenPage>()));
+
+        if (PermissionChecks.CanReadRoleManagement(_state.CurrentUserContext))
+            Items.Add(CreateItem("↳ Admin-Menü", "my_adminmenu", CreateOwnAdminMenuPage));
 
         if (PermissionChecks.CanManageWorkHours(_state.CurrentUserContext))
             Items.Add(CreateItem("Arbeitsstunden freigeben", "workhours_review", () => _services.GetRequiredService<ArbeitsstundenReviewPage>()));

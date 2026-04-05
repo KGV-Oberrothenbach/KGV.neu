@@ -149,7 +149,7 @@ namespace KGV.ViewModels
         {
             try
             {
-                if (!UserContext.Has(PermissionFlags.CanSearchMembers))
+                if (!PermissionChecks.CanSearchMembers(UserContext))
                     await EnsureCurrentMemberSelectedAsync();
 
                 var created = _navigationService.CreateViewModel(typeof(HomeViewModel), this);
@@ -237,7 +237,7 @@ namespace KGV.ViewModels
                 IsVisible = true
             });
 
-            if (PermissionChecks.CanShowStammdaten(UserContext) && UserContext.Has(PermissionFlags.CanSeeOwnDataOnly))
+            if (PermissionChecks.CanShowStammdaten(UserContext) && PermissionChecks.CanSeeOwnDataOnly(UserContext))
             {
                 NavigationItems.Add(new NavigationItem
                 {
@@ -247,7 +247,7 @@ namespace KGV.ViewModels
                 });
             }
 
-            if (UserContext.Has(PermissionFlags.CanSearchMembers) && PermissionChecks.CanReadParzellen(UserContext))
+            if (PermissionChecks.CanSearchMembers(UserContext) && PermissionChecks.CanReadParzellen(UserContext))
             {
                 NavigationItems.Add(new NavigationItem
                 {
@@ -257,7 +257,7 @@ namespace KGV.ViewModels
                 });
             }
 
-            if (UserContext.Has(PermissionFlags.CanEditAllMembers))
+            if (PermissionChecks.CanEditAllMembers(UserContext))
             {
                 NavigationItems.Add(new NavigationItem
                 {
@@ -279,7 +279,7 @@ namespace KGV.ViewModels
                 });
             }
 
-            if (UserContext.Has(PermissionFlags.CanManageWorkHours))
+            if (PermissionChecks.CanManageWorkHours(UserContext))
             {
                 NavigationItems.Add(new NavigationItem
                 {
@@ -301,7 +301,7 @@ namespace KGV.ViewModels
                 IsVisible = true
             });
 
-            if (UserContext.Has(PermissionFlags.CanSearchMembers))
+            if (PermissionChecks.CanSearchMembers(UserContext))
             {
                 NavigationItems.Add(new NavigationItem
                 {
@@ -463,7 +463,12 @@ namespace KGV.ViewModels
                 if (item.ViewModelType == typeof(GartenStromViewModel) ||
                     item.ViewModelType == typeof(GartenWasserViewModel) ||
                     item.ViewModelType == typeof(GartenDokumenteViewModel))
+                {
                     visible = visible && SelectedParzelle != null && PermissionChecks.CanShowParzellen(UserContext);
+
+                    if (item.ViewModelType == typeof(GartenDokumenteViewModel))
+                        visible = visible && PermissionChecks.CanReadDocuments(UserContext);
+                }
 
                 // Überschrift "Garten Nr..." (nicht klickbar)
                 if (item.ViewModelType == null)

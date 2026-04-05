@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Maui.State;
 using Microsoft.Maui.ApplicationModel;
 using System;
@@ -17,6 +18,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
 {
     private readonly ISupabaseService _supabaseService;
     private readonly ParzellenContextState _parzellenContextState;
+    private readonly UserContextState _userContextState;
     private readonly List<ParzelleVerwaltungItem> _allItems = new();
     private ParzelleVerwaltungItem? _selectedItem;
     private ParzelleDetailDTO? _selectedDetail;
@@ -35,10 +37,11 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     private bool _editHatStrom;
     private bool _editHatWasser;
 
-    public ParzellenViewModel(ISupabaseService supabaseService, ParzellenContextState parzellenContextState)
+    public ParzellenViewModel(ISupabaseService supabaseService, ParzellenContextState parzellenContextState, UserContextState userContextState)
     {
         _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
         _parzellenContextState = parzellenContextState ?? throw new ArgumentNullException(nameof(parzellenContextState));
+        _userContextState = userContextState ?? throw new ArgumentNullException(nameof(userContextState));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -144,8 +147,8 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     public bool ShowGlobalDetail => HasSelectedDetail && !IsContextBound && !IsEditMode;
     public bool ShowReadOnlyStammdaten => HasSelectedDetail && !IsEditMode;
     public bool ShowSelectionHint => !HasSelectedDetail && HasFilteredItems && ShowListSection;
-    public bool CanEditStammdaten => HasSelectedDetail && !IsBusy && !IsEditMode;
-    public bool CanManageAssignment => HasSelectedDetail && !IsBusy;
+    public bool CanEditStammdaten => PermissionChecks.CanWriteParzellen(_userContextState.CurrentUserContext) && HasSelectedDetail && !IsBusy && !IsEditMode;
+    public bool CanManageAssignment => PermissionChecks.CanWriteParzellen(_userContextState.CurrentUserContext) && HasSelectedDetail && !IsBusy;
     public bool CanAssign => CanManageAssignment && IsAssignMode && SelectedAssignMember != null;
     public bool CanStartAssign => CanManageAssignment && SelectedDetail?.IstVergeben == false && !IsAssignMode;
     public bool CanEndAssignment => CanManageAssignment && SelectedDetail?.BelegungId is > 0 && SelectedDetail.BisDatum == null;
@@ -183,7 +186,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         }
     }
 
-    public bool CanSaveStammdaten => HasSelectedDetail && IsEditMode && !IsBusy;
+    public bool CanSaveStammdaten => PermissionChecks.CanWriteParzellen(_userContextState.CurrentUserContext) && HasSelectedDetail && IsEditMode && !IsBusy;
     public bool CanSelectPrevious => SelectedItem != null && Items.IndexOf(SelectedItem) > 0;
     public bool CanSelectNext => SelectedItem != null && Items.IndexOf(SelectedItem) >= 0 && Items.IndexOf(SelectedItem) < Items.Count - 1;
     public string NavigationText => SelectedItem == null || Items.Count == 0
@@ -196,9 +199,9 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     public string StromButtonText => SelectedDetail == null ? "Strom" : $"Strom ({SelectedDetail.StromAblesungenCount})";
     public string WasserButtonText => SelectedDetail == null ? "Wasser" : $"Wasser ({SelectedDetail.WasserAblesungenCount})";
     public string DokumenteButtonText => SelectedDetail == null ? "Dokumente" : $"Dokumente ({SelectedDetail.Dokumente.Count})";
-    public bool CanOpenStromAction => HasSelectedDetail && SelectedDetail?.HatStrom == true;
-    public bool CanOpenWasserAction => HasSelectedDetail && SelectedDetail?.HatWasser == true;
-    public bool CanOpenDokumenteAction => HasSelectedDetail;
+    public bool CanOpenStromAction => PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext) && HasSelectedDetail && SelectedDetail?.HatStrom == true;
+    public bool CanOpenWasserAction => PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext) && HasSelectedDetail && SelectedDetail?.HatWasser == true;
+    public bool CanOpenDokumenteAction => PermissionChecks.CanReadDocuments(_userContextState.CurrentUserContext) && HasSelectedDetail;
     public bool HasStromAblesungen => StromAblesungen.Count > 0;
     public bool HasWasserAblesungen => WasserAblesungen.Count > 0;
     public bool HasDokumente => Dokumente.Count > 0;
@@ -600,7 +603,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
 
     public async Task<bool> AssignAsync()
     {
-        if (SelectedItem == null || SelectedAssignMember == null)
+        if (!CanManageAssignment || SelectedItem == null || SelectedAssignMember == null)
             return false;
 
         var parzelleId = SelectedItem.ParzelleId;
@@ -659,7 +662,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
 
     public async Task<bool> SaveStammdatenAsync()
     {
-        if (SelectedDetail == null || SelectedItem == null)
+        if (!CanSaveStammdaten || SelectedDetail == null || SelectedItem == null)
             return false;
 
         var parzelleId = SelectedDetail.ParzelleId;
@@ -728,7 +731,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
 
     public async Task<bool> EndAssignmentAsync()
     {
-        if (SelectedItem == null || SelectedDetail?.BelegungId is not > 0)
+        if (!CanManageAssignment || SelectedItem == null || SelectedDetail?.BelegungId is not > 0)
             return false;
 
         var parzelleId = SelectedItem.ParzelleId;

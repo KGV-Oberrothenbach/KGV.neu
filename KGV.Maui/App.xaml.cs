@@ -98,7 +98,13 @@ public partial class App : Application
             return loginPage;
         }
 
-        var shell = _userContextState.CurrentUserContext.Role is Core.Security.UserRole.Admin or Core.Security.UserRole.Vorstand
+        var currentContext = _userContextState.CurrentUserContext;
+        var useAdminShell = currentContext.Role is Core.Security.UserRole.Admin or Core.Security.UserRole.Vorstand
+            || Core.Security.PermissionChecks.CanSearchMembers(currentContext)
+            || Core.Security.PermissionChecks.CanManageWorkHours(currentContext)
+            || Core.Security.PermissionChecks.HasAnyRoleManagementAccess(currentContext);
+
+        var shell = useAdminShell
             ? (Shell)_services.GetRequiredService<AdminShell>()
             : _services.GetRequiredService<UserShell>();
 

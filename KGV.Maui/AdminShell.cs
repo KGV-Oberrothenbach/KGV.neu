@@ -15,6 +15,7 @@ public sealed class AdminShell : Shell
 {
     private readonly IServiceProvider _services;
     private readonly UserContextState _userContextState;
+    private readonly MemberContextState _memberContextState;
     private readonly PendingPhotoMenuState _pendingPhotoMenuState;
     private bool _menuBuilt;
 
@@ -31,19 +32,31 @@ public sealed class AdminShell : Shell
     {
         _services = services;
         _userContextState = userContextState;
+        _memberContextState = memberContextState;
         _pendingPhotoMenuState = pendingPhotoMenuState;
 
         FlyoutBehavior = FlyoutBehavior.Flyout;
         BindingContext = memberContextState;
         Loaded += async (_, _) =>
         {
+            EnsureOwnMemberContext();
             BuildMenu();
             EnsureActiveRouteAfterLoad();
             await RefreshPendingPhotoUploadsMenu();
             await RefreshWorkhoursReviewMenuAsync();
         };
         memberContextState.Changed += (_, _) => RefreshMemberContextMenu(memberContextState);
+        EnsureOwnMemberContext();
         BuildMenu();
+    }
+
+    private void EnsureOwnMemberContext()
+    {
+        if (_memberContextState.SelectedMember != null)
+            return;
+
+        if (_userContextState.CurrentMitgliedId is > 0 and <= int.MaxValue)
+            _memberContextState.SetSelectedMember(new MemberDTO { Id = (int)_userContextState.CurrentMitgliedId.Value });
     }
 
     public void BuildMenu()
@@ -72,9 +85,10 @@ public sealed class AdminShell : Shell
             Items.Add(_pendingPhotoUploadsItem);
         }
 
-        Items.Add(CreateItem("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
+        if (PermissionChecks.CanReadParzellen(_userContextState.CurrentUserContext))
+            Items.Add(CreateItem("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
 
-        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+        if (PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Wartungsverträge", "wartungsvertraege", () => _services.GetRequiredService<WartungsvertraegePage>()));
 
         if (PermissionChecks.CanManageWorkHours(_userContextState.CurrentUserContext))
@@ -83,10 +97,11 @@ public sealed class AdminShell : Shell
             Items.Add(_workhoursReviewItem);
         }
 
-        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
+        if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Export", "export", () => _services.GetRequiredService<ExportPage>()));
 
-        Items.Add(CreateItem("Mitgliedersuche", "membersearch", () => _services.GetRequiredService<MemberSearchPage>()));
+        if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
+            Items.Add(CreateItem("Mitgliedersuche", "membersearch", () => _services.GetRequiredService<MemberSearchPage>()));
 
         _memberDetailsItem = CreateItem("↳ Stammdaten", "memberdetails", () => _services.GetRequiredService<MeineDatenPage>());
         _memberWartungsvertraegeItem = CreateItem("↳ Wartungsverträge", "member_wartungsvertraege", () => _services.GetRequiredService<MemberWartungsvertraegePage>());
@@ -111,12 +126,12 @@ public sealed class AdminShell : Shell
     private void RefreshMemberContextMenu(MemberContextState? state)
     {
         var hasMember = state?.SelectedMember != null;
-        if (_memberDetailsItem != null) _memberDetailsItem.IsVisible = hasMember;
+        if (_memberDetailsItem != null) _memberDetailsItem.IsVisible = hasMember && PermissionChecks.CanShowStammdaten(_userContextState.CurrentUserContext);
         if (_memberWartungsvertraegeItem != null) _memberWartungsvertraegeItem.IsVisible = hasMember;
-        if (_memberNebenmitgliedItem != null) _memberNebenmitgliedItem.IsVisible = hasMember;
-        if (_memberGardensItem != null) _memberGardensItem.IsVisible = hasMember;
-        if (_memberAdminMenuItem != null) _memberAdminMenuItem.IsVisible = hasMember;
-        if (_memberWorkhoursItem != null) _memberWorkhoursItem.IsVisible = hasMember;
+        if (_memberNebenmitgliedItem != null) _memberNebenmitgliedItem.IsVisible = hasMember && PermissionChecks.CanReadStammdaten(_userContextState.CurrentUserContext);
+        if (_memberGardensItem != null) _memberGardensItem.IsVisible = hasMember && PermissionChecks.CanShowParzellen(_userContextState.CurrentUserContext);
+        if (_memberAdminMenuItem != null) _memberAdminMenuItem.IsVisible = hasMember && PermissionChecks.CanReadRoleManagement(_userContextState.CurrentUserContext);
+        if (_memberWorkhoursItem != null) _memberWorkhoursItem.IsVisible = hasMember && PermissionChecks.CanReadWorkHours(_userContextState.CurrentUserContext);
 
         var currentRoute = ShellNavigationHelper.GetActiveShellContentRoute(this);
         if (currentRoute is "memberdetails" or "member_wartungsvertraege" or "member_nebenmitglied" or "member_gardens" or "member_adminmenu" or "member_workhours")
