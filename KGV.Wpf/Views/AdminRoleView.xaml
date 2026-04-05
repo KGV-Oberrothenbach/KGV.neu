@@ -5,7 +5,7 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled">
-    <Grid Margin="30">
+        <Grid Margin="30">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -90,112 +90,125 @@
                        Text="Der Schalter legt zentral fest, ob eigene Nutzerablesungen außerhalb der direkten Freigabepfade eingereicht werden dürfen." />
         </StackPanel>
 
-        <Border Grid.Row="6"
-                Margin="0,24,0,0"
-                Padding="16"
-                BorderBrush="#D0D7DE"
-                BorderThickness="1"
-                CornerRadius="6">
-            <StackPanel>
-                <TextBlock Text="Benutzerspezifische Fachrechte" FontWeight="SemiBold" FontSize="16" />
-                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap">
-                    <Run Text="Rollenbasis: " />
-                    <Run Text="{Binding PermissionRoleBasis, Mode=OneWay}" FontWeight="SemiBold" />
-                </TextBlock>
-                <TextBlock Margin="0,4,0,0" TextWrapping="Wrap">
-                    <Run Text="App-User: " />
-                    <Run Text="nicht verknüpft" FontWeight="SemiBold">
-                        <Run.Style>
-                            <Style TargetType="Run">
-                                <Setter Property="Text" Value="nicht verknüpft" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding HasLinkedAppUser}" Value="True">
-                                        <Setter Property="Text" Value="verknüpft" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Run.Style>
-                    </Run>
-                </TextBlock>
-                <TextBlock Margin="0,4,0,0" Foreground="Gray" TextWrapping="Wrap" Text="{Binding PermissionSaveHint, Mode=OneWay}" />
+            <Border Grid.Row="6"
+                    Margin="0,24,0,0"
+                    Padding="16"
+                    BorderBrush="#D0D7DE"
+                    BorderThickness="1"
+                    CornerRadius="6">
+                <StackPanel>
+                    <TextBlock Text="Globale Fachrechte" FontWeight="SemiBold" FontSize="16" />
+                    <TextBlock Margin="0,8,0,0" TextWrapping="Wrap">
+                        <Run Text="Rollenbasis: " />
+                        <Run Text="{Binding PermissionRoleBasis, Mode=OneWay}" FontWeight="SemiBold" />
+                    </TextBlock>
+                    <TextBlock Margin="0,4,0,0" TextWrapping="Wrap">
+                        <Run Text="App-User: " />
+                        <Run Text="nicht verknüpft" FontWeight="SemiBold">
+                            <Run.Style>
+                                <Style TargetType="Run">
+                                    <Setter Property="Text" Value="nicht verknüpft" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasLinkedAppUser}" Value="True">
+                                            <Setter Property="Text" Value="verknüpft" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Run.Style>
+                        </Run>
+                    </TextBlock>
+                    <TextBlock Margin="0,4,0,0" Foreground="Gray" TextWrapping="Wrap" Text="{Binding PermissionSaveHint, Mode=OneWay}" />
 
-                <Button Margin="0,12,0,0"
-                        Width="260"
-                        Height="35"
-                        HorizontalAlignment="Left"
-                        Content="Alles auf Rollen-Standard zurücksetzen"
-                        Command="{Binding ResetPermissionOverridesCommand}" />
+                    <Button Margin="0,12,0,0"
+                            Width="260"
+                            Height="35"
+                            HorizontalAlignment="Left"
+                            Content="Alles auf Rollen-Standard zurücksetzen"
+                            Command="{Binding ResetPermissionOverridesCommand}" />
 
-                <ScrollViewer Margin="0,12,0,0"
-                              MaxHeight="360"
-                              VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Auto">
-                    <StackPanel>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="3*" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock Grid.Column="0" Text="Fachrecht" FontWeight="SemiBold" Margin="0,0,12,0" />
-                            <TextBlock Grid.Column="1" Text="User" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,12,0" />
-                            <TextBlock Grid.Column="2" Text="Vorstand" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,12,0" />
-                            <TextBlock Grid.Column="3" Text="Admin" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,12,0" />
-                            <TextBlock Grid.Column="4" Text="Zusätzlich" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,12,0" />
-                            <TextBlock Grid.Column="5" Text="Entziehen" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,12,0" />
-                            <TextBlock Grid.Column="6" Text="Wirksam" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                        </Grid>
-
-                        <ItemsControl ItemsSource="{Binding PermissionOverrides}" Margin="0,8,0,0">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Margin="0,0,0,8">
+                    <ScrollViewer Margin="0,12,0,0"
+                                  MaxHeight="360"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="3*" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="70" />
+                                    <ColumnDefinition Width="70" />
+                                    <ColumnDefinition Width="90" />
+                                </Grid.ColumnDefinitions>
 
-                                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0" Text="{Binding DisplayName, Mode=OneWay}" />
-                                        <CheckBox Grid.Column="1" Margin="0,0,12,0" VerticalAlignment="Center" IsChecked="{Binding IsGrantedForUser, Mode=OneWay}" IsEnabled="False" />
-                                        <CheckBox Grid.Column="2" Margin="0,0,12,0" VerticalAlignment="Center" IsChecked="{Binding IsGrantedForVorstand, Mode=OneWay}" IsEnabled="False" />
-                                        <CheckBox Grid.Column="3" Margin="0,0,12,0" VerticalAlignment="Center" IsChecked="{Binding IsGrantedForAdmin, Mode=OneWay}" IsEnabled="False" />
-                                        <CheckBox Grid.Column="4" Margin="0,0,12,0" VerticalAlignment="Center" IsChecked="{Binding IsGrantOverrideSelected}" IsEnabled="{Binding IsEditable}" />
-                                        <CheckBox Grid.Column="5" Margin="0,0,12,0" VerticalAlignment="Center" IsChecked="{Binding IsRevokeOverrideSelected}" IsEnabled="{Binding IsEditable}" />
-                                        <CheckBox Grid.Column="6" VerticalAlignment="Center" IsChecked="{Binding IsEffectivelyGranted, Mode=OneWay}" IsEnabled="False" />
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </ScrollViewer>
+                                <TextBlock Grid.Column="0" Text="Fachbereich" FontWeight="SemiBold" Margin="0,0,12,0" />
+                                <TextBlock Grid.Column="1" Text="Rollenbasis" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,12,0" />
+                                <TextBlock Grid.Column="2" Text="Aus" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,12,0" />
+                                <TextBlock Grid.Column="3" Text="Lesen" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,12,0" />
+                                <TextBlock Grid.Column="4" Text="Bearbeiten" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                            </Grid>
 
-                <TextBlock Margin="0,12,0,0" TextWrapping="Wrap">
-                    <Run Text="Aktueller Override-Zustand: " />
-                    <Run Text="{Binding CurrentOverrideState, Mode=OneWay}" />
-                </TextBlock>
-                <TextBlock Margin="0,4,0,0" TextWrapping="Wrap">
-                    <Run Text="Wirksame Rechte: " />
-                    <Run Text="{Binding EffectivePermissionState, Mode=OneWay}" />
-                </TextBlock>
+                            <ItemsControl ItemsSource="{Binding PermissionOverrides}" Margin="0,8,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="3*" />
+                                                <ColumnDefinition Width="120" />
+                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="90" />
+                                            </Grid.ColumnDefinitions>
 
-                <Button Margin="0,16,0,0"
-                        Width="220"
-                        Height="35"
-                        HorizontalAlignment="Left"
-                        Content="Fachrechte speichern"
-                        Command="{Binding SavePermissionOverridesCommand}" />
-            </StackPanel>
-        </Border>
+                                            <TextBlock Grid.Column="0"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,12,0"
+                                                       Text="{Binding DisplayName, Mode=OneWay}" />
+                                            <TextBlock Grid.Column="1"
+                                                       VerticalAlignment="Center"
+                                                       HorizontalAlignment="Center"
+                                                       Margin="0,0,12,0"
+                                                       Text="{Binding BaseLevelDisplay, Mode=OneWay}" />
+                                            <CheckBox Grid.Column="2"
+                                                      VerticalAlignment="Center"
+                                                      HorizontalAlignment="Center"
+                                                      Margin="0,0,12,0"
+                                                      IsChecked="{Binding IsNoneSelected}"
+                                                      IsEnabled="{Binding IsEditable}" />
+                                            <CheckBox Grid.Column="3"
+                                                      VerticalAlignment="Center"
+                                                      HorizontalAlignment="Center"
+                                                      Margin="0,0,12,0"
+                                                      IsChecked="{Binding IsReadSelected}"
+                                                      IsEnabled="{Binding IsEditable}" />
+                                            <CheckBox Grid.Column="4"
+                                                      VerticalAlignment="Center"
+                                                      HorizontalAlignment="Center"
+                                                      IsChecked="{Binding IsWriteSelected}"
+                                                      IsEnabled="{Binding IsEditable}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <TextBlock Margin="0,12,0,0" TextWrapping="Wrap">
+                        <Run Text="Aktueller Override-Zustand: " />
+                        <Run Text="{Binding CurrentOverrideState, Mode=OneWay}" />
+                    </TextBlock>
+                    <TextBlock Margin="0,4,0,0" TextWrapping="Wrap">
+                        <Run Text="Wirksame Rechte: " />
+                        <Run Text="{Binding EffectivePermissionState, Mode=OneWay}" />
+                    </TextBlock>
+
+                    <Button Margin="0,16,0,0"
+                            Width="220"
+                            Height="35"
+                            HorizontalAlignment="Left"
+                            Content="Fachrechte speichern"
+                            Command="{Binding SavePermissionOverridesCommand}" />
+                </StackPanel>
+            </Border>
 
         <Button Grid.Row="7"
                 Margin="0,20,0,0"
@@ -204,6 +217,6 @@
                 HorizontalAlignment="Left"
                 Content="Speichern"
                 Command="{Binding SaveCommand}" />
-    </Grid>
+        </Grid>
     </ScrollViewer>
 </UserControl>

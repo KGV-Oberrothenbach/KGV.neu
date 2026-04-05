@@ -30,9 +30,10 @@ public sealed class AdminMenuPage : ContentPage
     private readonly Label _permissionOverrideStateLabel;
     private readonly Label _effectivePermissionStateLabel;
     private readonly Label _permissionEditorHintLabel;
+    private readonly Button _resetPermissionOverridesButton;
     private readonly Button _savePermissionOverridesButton;
     private readonly VerticalStackLayout _permissionOverridesLayout;
-    private readonly List<PermissionOverrideEditorRow> _permissionOverrideRows = new();
+    private readonly List<PermissionAreaEditorRow> _permissionOverrideRows = new();
     private bool _allowUserMeterReadingSubmissions;
     private UserPermissionSettings? _permissionSettings;
     private bool _suppressPermissionOverrideRefresh;
@@ -116,12 +117,18 @@ public sealed class AdminMenuPage : ContentPage
         _permissionEditorHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _permissionOverridesLayout = new VerticalStackLayout { Spacing = 12 };
 
-        foreach (var definition in PermissionCatalog.GetUserSpecificEditablePermissions())
+        foreach (var definition in PermissionCatalog.GetGlobalEditablePermissionAreas())
         {
-            var row = new PermissionOverrideEditorRow(definition, OnPermissionOverrideChanged);
+            var row = new PermissionAreaEditorRow(definition, OnPermissionOverrideChanged);
             _permissionOverrideRows.Add(row);
             _permissionOverridesLayout.Children.Add(row.Container);
         }
+
+        _resetPermissionOverridesButton = new Button
+        {
+            Text = "Alles auf Rollen-Standard zurücksetzen"
+        };
+        _resetPermissionOverridesButton.Clicked += (_, _) => ResetPermissionOverrides();
 
         _savePermissionOverridesButton = new Button
         {
@@ -154,9 +161,10 @@ public sealed class AdminMenuPage : ContentPage
                     _rolePicker,
                     _roleManagementHintLabel,
                     _saveRoleButton,
-                    new Label { Text = "Benutzerspezifische Fachrechte", FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 12, 0, 0) },
+                    new Label { Text = "Globale Fachrechte", FontAttributes = FontAttributes.Bold, Margin = new Thickness(0, 12, 0, 0) },
                     _permissionRoleBasisLabel,
                     _permissionEditorHintLabel,
+                    _resetPermissionOverridesButton,
                     _permissionOverridesLayout,
                     _permissionOverrideStateLabel,
                     _effectivePermissionStateLabel,
@@ -287,15 +295,42 @@ public sealed class AdminMenuPage : ContentPage
            && !IsRoleDirty();
 
     private PermissionFlags CurrentGrantedPermissions
-        => _permissionOverrideRows.Aggregate(PermissionFlags.None, (current, row) => current | row.GrantedPermissions);
+        => BuildPermissionOverrideState().GrantedPermissions;
 
     private PermissionFlags CurrentRevokedPermissions
-        => _permissionOverrideRows.Aggregate(PermissionFlags.None, (current, row) => current | row.RevokedPermissions);
+        => BuildPermissionOverrideState().RevokedPermissions;
+
+    private bool HasCustomPermissionOverrides()
+        => CurrentGrantedPermissions != PermissionFlags.None || CurrentRevokedPermissions != PermissionFlags.None;
 
     private void OnPermissionOverrideChanged()
     {
         if (_suppressPermissionOverrideRefresh)
             return;
+
+        RefreshPermissionOverrideState();
+    }
+
+    private (PermissionFlags GrantedPermissions, PermissionFlags RevokedPermissions) BuildPermissionOverrideState()
+    {
+        var basePermissions = PermissionService.GetRolePermissions(UserRoles.Parse(_selectedRole));
+        var requiredPermissions = _permissionOverrideRows.Aggregate(
+            PermissionFlags.None,
+            (current, row) => current | PermissionCatalog.GetRequiredPermissions(row.Definition, row.SelectedLevel));
+
+        var controllableMask = PermissionCatalog.GetGlobalEditablePermissionMask();
+        var grantedPermissions = requiredPermissions & ~basePermissions;
+        var revokedPermissions = (basePermissions & controllableMask) & ~requiredPermissions;
+        return (grantedPermissions, revokedPermissions);
+    }
+
+    private void ResetPermissionOverrides()
+    {
+        if (!CanEditPermissionOverrides() || !HasCustomPermissionOverrides())
+            return;
+
+        foreach (var row in _permissionOverrideRows)
+            row.ResetToDefault();
 
         RefreshPermissionOverrideState();
     }
@@ -320,7 +355,7 @@ public sealed class AdminMenuPage : ContentPage
                 : IsRoleDirty()
                     ? "Die Rollenbasis wurde geändert. Bitte zuerst die Rolle speichern und danach die benutzerspezifischen Fachrechte sichern."
                     : CanManageRoleManagement()
-                        ? "Benutzerspezifische Fachrechte werden zentral als Grants/Revocations über der Rollenbasis gespeichert."
+                        ? "Globale Fachrechte werden kompakt pro Fachbereich als Aus / Lesen / Bearbeiten über der Rollenbasis gespeichert. Eigenkontext-Rechte bleiben davon getrennt; der Sonderfall Nutzerablesung bleibt separat."
                         : "Rollen-/Rechteverwaltung ist in diesem Kontext nur lesend freigegeben. Die Rollenbasis und die wirksamen Fachrechte bleiben sichtbar.";
 
         var effectivePermissions = _permissionSettings == null
@@ -332,6 +367,7 @@ public sealed class AdminMenuPage : ContentPage
 
         _permissionOverrideStateLabel.Text = $"Aktueller Override-Zustand: Gewährt: {PermissionCatalog.FormatPermissions(CurrentGrantedPermissions, "keine")} · Entzogen: {PermissionCatalog.FormatPermissions(CurrentRevokedPermissions, "keine")}";
         _effectivePermissionStateLabel.Text = $"Wirksame Rechte: {PermissionCatalog.FormatPermissions(effectivePermissions, "Keine wirksamen Fachrechte aktiv.")}";
+        _resetPermissionOverridesButton.IsEnabled = canEditPermissionOverrides && HasCustomPermissionOverrides();
         _savePermissionOverridesButton.IsEnabled = canEditPermissionOverrides && _permissionSettings != null && (CurrentGrantedPermissions != _permissionSettings.GrantedPermissions || CurrentRevokedPermissions != _permissionSettings.RevokedPermissions);
     }
 
@@ -569,32 +605,38 @@ public sealed class AdminMenuPage : ContentPage
     private bool IsRoleDirty()
         => !string.Equals(_selectedRole, _initialRole, StringComparison.OrdinalIgnoreCase);
 
-    private sealed class PermissionOverrideEditorRow
+    private sealed class PermissionAreaEditorRow
     {
-        private const string DefaultMode = "Standard";
-        private const string GrantMode = "Zusätzlich gewähren";
-        private const string RevokeMode = "Entziehen";
         private readonly Action _changed;
         private readonly Label _roleBaseValueLabel;
-        private readonly Label _effectiveValueLabel;
+        private readonly Button _noneButton;
+        private readonly Button _readButton;
+        private readonly Button _writeButton;
+        private PermissionAreaAccessLevel _baseLevel;
+        private PermissionAreaAccessLevel _selectedLevel;
 
-        public PermissionOverrideEditorRow(PermissionDefinition definition, Action changed)
+        public PermissionAreaEditorRow(PermissionAreaDefinition definition, Action changed)
         {
             Definition = definition;
             _changed = changed;
-            OverridePicker = new Picker
-            {
-                Title = "Override wählen",
-                ItemsSource = new List<string> { DefaultMode, GrantMode, RevokeMode }
-            };
-            OverridePicker.SelectedIndexChanged += (_, _) =>
-            {
-                UpdateLabels();
-                _changed();
-            };
-
             _roleBaseValueLabel = new Label { TextColor = Colors.Gray, FontSize = 12 };
-            _effectiveValueLabel = new Label { FontSize = 12 };
+            _noneButton = CreateLevelButton("Aus", PermissionAreaAccessLevel.None);
+            _readButton = CreateLevelButton("Lesen", PermissionAreaAccessLevel.Read);
+            _writeButton = CreateLevelButton("Bearbeiten", PermissionAreaAccessLevel.Write);
+
+            var levelGrid = new Grid
+            {
+                ColumnDefinitions =
+                {
+                    new ColumnDefinition(GridLength.Star),
+                    new ColumnDefinition(GridLength.Star),
+                    new ColumnDefinition(GridLength.Star)
+                },
+                ColumnSpacing = 8
+            };
+            levelGrid.Add(_noneButton, 0, 0);
+            levelGrid.Add(_readButton, 1, 0);
+            levelGrid.Add(_writeButton, 2, 0);
 
             Container = new Border
             {
@@ -608,48 +650,75 @@ public sealed class AdminMenuPage : ContentPage
                     {
                         new Label { Text = Definition.DisplayName, FontAttributes = FontAttributes.Bold },
                         _roleBaseValueLabel,
-                        OverridePicker,
-                        _effectiveValueLabel
+                        levelGrid
                     }
                 }
             };
         }
 
-        public PermissionDefinition Definition { get; }
+        public PermissionAreaDefinition Definition { get; }
         public Border Container { get; }
-        public Picker OverridePicker { get; }
-        public bool IsBaseGranted { get; private set; }
-
-        public PermissionFlags GrantedPermissions => SelectedMode == GrantMode ? Definition.Flag : PermissionFlags.None;
-        public PermissionFlags RevokedPermissions => SelectedMode == RevokeMode ? Definition.Flag : PermissionFlags.None;
-
-        private string SelectedMode => OverridePicker.SelectedItem as string ?? DefaultMode;
+        public PermissionAreaAccessLevel SelectedLevel => _selectedLevel;
 
         public void Apply(UserPermissionSettings? settings, bool canEdit)
         {
-            IsBaseGranted = settings?.BasePermissions.HasFlag(Definition.Flag) == true;
-            OverridePicker.SelectedItem = settings?.GrantedPermissions.HasFlag(Definition.Flag) == true
-                ? GrantMode
-                : settings?.RevokedPermissions.HasFlag(Definition.Flag) == true
-                    ? RevokeMode
-                    : DefaultMode;
-            OverridePicker.IsEnabled = canEdit;
-            UpdateLabels();
+            _baseLevel = settings == null
+                ? PermissionAreaAccessLevel.None
+                : PermissionCatalog.GetAccessLevel(settings.BasePermissions, Definition);
+            _selectedLevel = settings == null
+                ? PermissionAreaAccessLevel.None
+                : PermissionCatalog.GetAccessLevel(settings.EffectivePermissions, Definition);
+            SetEditable(canEdit);
+            UpdateVisualState();
         }
 
         public void SetEditable(bool canEdit)
-            => OverridePicker.IsEnabled = canEdit;
-
-        private void UpdateLabels()
         {
-            _roleBaseValueLabel.Text = $"Rollenbasis: {(IsBaseGranted ? "Ja" : "Nein")} · Override: {SelectedMode}";
-            var isEffectiveGranted = SelectedMode switch
+            _noneButton.IsEnabled = canEdit;
+            _readButton.IsEnabled = canEdit;
+            _writeButton.IsEnabled = canEdit;
+        }
+
+        public void ResetToDefault()
+        {
+            SetLevel(_baseLevel);
+        }
+
+        private Button CreateLevelButton(string text, PermissionAreaAccessLevel level)
+        {
+            var button = new Button
             {
-                GrantMode => true,
-                RevokeMode => false,
-                _ => IsBaseGranted
+                Text = text,
+                Padding = new Thickness(10, 6),
+                CornerRadius = 8,
+                FontSize = 13
             };
-            _effectiveValueLabel.Text = $"Wirksames Recht: {(isEffectiveGranted ? "Ja" : "Nein")}";
+            button.Clicked += (_, _) => SetLevel(level);
+            return button;
+        }
+
+        private void SetLevel(PermissionAreaAccessLevel level)
+        {
+            if (_selectedLevel == level)
+                return;
+
+            _selectedLevel = level;
+            UpdateVisualState();
+            _changed();
+        }
+
+        private void UpdateVisualState()
+        {
+            _roleBaseValueLabel.Text = $"Rollenbasis: {PermissionCatalog.FormatAccessLevel(_baseLevel)} · Wirksam: {PermissionCatalog.FormatAccessLevel(_selectedLevel)}";
+            ApplyButtonStyle(_noneButton, _selectedLevel == PermissionAreaAccessLevel.None);
+            ApplyButtonStyle(_readButton, _selectedLevel == PermissionAreaAccessLevel.Read);
+            ApplyButtonStyle(_writeButton, _selectedLevel == PermissionAreaAccessLevel.Write);
+        }
+
+        private static void ApplyButtonStyle(Button button, bool isSelected)
+        {
+            button.BackgroundColor = isSelected ? Color.FromArgb("#0F6CBD") : Color.FromArgb("#F3F4F6");
+            button.TextColor = isSelected ? Colors.White : Colors.Black;
         }
     }
 }

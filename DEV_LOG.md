@@ -2,6 +2,79 @@
 
 ---
 
+## 2026-04-05 – Rollen-/Fachrechte kompakt gemacht: WPF-Checkboxmatrix und MAUI-3-Stufen-Selector auf gemeinsamer Fachbereichsbasis
+
+- Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - lokal lag weiterhin eine blockfremde Änderung an `.github/copilot-instructions.md`; diese bleibt bewusst außerhalb dieses Blocks
+  - bewusst unberührt blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden in diesem Lauf:
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+  - `KGV.Core/Security/PermissionCatalog.cs`
+  - `KGV.Core/Security/PermissionFlags.cs`
+  - `KGV.Core/Security/PermissionChecks.cs`
+  - `KGV.Core/Security/UserPermissionSettings.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor der Umsetzung:
+  - der aktuelle Workspace enthielt den App-User-Fallback in `SupabaseService` bereits, sodass `GetUserPermissionSettingsAsync(...)` `AuthUserId` jetzt über `appUser.UserId ?? mitglied.AuthUserId` korrekt befüllt
+  - `AdminMenuPage` und `AdminRoleViewModel` bewerten den Linked-Status beide über `HasLinkedUser => AuthUserId.HasValue`; die frühere Fehlanzeige kam daher fachlich aus dem Servicepfad und nicht aus einer zusätzlichen UI-Schattenlogik
+  - die Rechteoberflächen waren aber noch zu technisch und zu feingranular:
+    - WPF zeigte weiterhin eine technisch geprägte Matrix statt kompakter Fachbereiche
+    - MAUI nutzte noch Einzelrecht-Zeilen mit Picker statt eines gut bedienbaren 3-Stufen-Selectors
+    - globale Fachrechte und Eigenkontext-Themen waren in der Erklärung noch nicht klar genug getrennt
+- Minimal umgesetzt:
+  - `KGV.Core/Security/PermissionCatalog.cs`
+    - neue kompakte globale Fachbereichsdefinitionen ergänzt
+    - gemeinsame Level-Logik `Aus / Lesen / Bearbeiten` zentralisiert
+    - global editierbare Fachbereiche jetzt einheitlich für WPF und MAUI:
+      - `Stammdaten`
+      - `Parzellen`
+      - `Dokumente`
+      - `Arbeitsstunden`
+      - `Zählerwechsel`
+      - `Ablesungsfreigaben`
+      - `Rollen/Rechte`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - technische Einzelrechte auf kompakte Fachbereichs-Level umgestellt
+    - Grants/Revocations werden jetzt zentral aus Basisrolle plus gewünschter Bereichsstufe berechnet
+    - globaler Reset auf Rollenstandard bleibt erhalten
+    - Hinweistexte auf Trennung von globalen Fachrechten und Eigenkontext-Rechten geschärft
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+    - Spalten `User / Vorstand / Admin` entfernt
+    - tabellarische Checkboxmatrix auf `Aus / Lesen / Bearbeiten` mit separater Rollenbasis-Spalte umgestellt
+    - Checkbox-Ausrichtung unter den Überschriften geglättet
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+    - Einzelrecht-Picker durch kompakte Fachbereichszeilen ersetzt
+    - pro Fachbereich 3-stufigen Selector `Aus / Lesen / Bearbeiten` als ButtonGroup umgesetzt
+    - globalen Rollenstandard-Reset in die kompakte Fachrechteansicht übernommen
+    - Hinweistexte auf globale Rechtebasis, Eigenkontext-Trennung und Sonderfall Nutzerablesung gehoben
+  - keine zusätzliche Schattenlogik neben `PermissionService` / `PermissionChecks` eingeführt
+  - keine weitere Serviceänderung nötig, weil der App-User-Fallback im aktuellen Workspace bereits korrekt vorhanden war und bewusst weiterverwendet wurde
+- Fachlicher Stand nach dem Block:
+  - Basisrolle bleibt unverändert das Basispaket
+  - benutzerspezifische Overrides bleiben möglich
+  - globale Fachrechte werden kompakt pro Fachbereich bearbeitet
+  - Eigenkontext-Rechte wie `Eigene Daten sehen` sind nicht Teil der globalen Matrix
+  - der Sonderfall Nutzerablesung bleibt separat
+  - WPF und MAUI arbeiten jetzt auf derselben kompakten Fachbereichsbasis aus `PermissionCatalog`
+- Validierung in diesem Lauf:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund:
+    - eine Live-UI-Prüfung gegen konkrete Mitgliedsdaten wurde in diesem Lauf nicht automatisiert ausgeführt; die Linked-User-Korrektheit wurde statisch über den produktiven Servicepfad und die gemeinsame `HasLinkedUser`-Auswertung geprüft
+    - `.github/copilot-instructions.md` blieb als blockfremde lokale Änderung bewusst unberührt
+    - `AWR.bat` und `_secrets/` blieben bewusst unberührt
+
 ## 2026-04-05 – WPF-Admin-Menü Fachrechte: Scrollbarkeit, Rollenmatrix, Standard-Reset und App-User-Erkennung nachgezogen
 
 - Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.

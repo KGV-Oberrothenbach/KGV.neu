@@ -4,6 +4,19 @@ using System.Linq;
 namespace KGV.Core.Security
 {
     public readonly record struct PermissionDefinition(PermissionFlags Flag, string DisplayName);
+    public readonly record struct PermissionAreaDefinition(
+        string AreaKey,
+        string DisplayName,
+        PermissionFlags AllPermissions,
+        PermissionFlags ReadPermissions,
+        PermissionFlags WritePermissions);
+
+    public enum PermissionAreaAccessLevel
+    {
+        None = 0,
+        Read = 1,
+        Write = 2
+    }
 
     public static class PermissionCatalog
     {
@@ -53,9 +66,93 @@ namespace KGV.Core.Security
             .Where(x => UserSpecificEditablePermissionFlags.Contains(x.Flag))
             .ToArray();
 
+        private static readonly PermissionAreaDefinition[] GlobalEditablePermissionAreas =
+        {
+            new(
+                "stammdaten",
+                "Stammdaten",
+                PermissionFlags.CanShowStammdaten | PermissionFlags.CanReadStammdaten | PermissionFlags.CanWriteStammdaten,
+                PermissionFlags.CanReadStammdaten,
+                PermissionFlags.CanWriteStammdaten),
+            new(
+                "parzellen",
+                "Parzellen",
+                PermissionFlags.CanShowParzellen | PermissionFlags.CanReadParzellen | PermissionFlags.CanWriteParzellen,
+                PermissionFlags.CanReadParzellen,
+                PermissionFlags.CanWriteParzellen),
+            new(
+                "dokumente",
+                "Dokumente",
+                PermissionFlags.CanReadDocuments | PermissionFlags.CanManageDocuments,
+                PermissionFlags.CanReadDocuments,
+                PermissionFlags.CanManageDocuments),
+            new(
+                "arbeitsstunden",
+                "Arbeitsstunden",
+                PermissionFlags.CanReadWorkHours | PermissionFlags.CanManageWorkHours,
+                PermissionFlags.CanReadWorkHours,
+                PermissionFlags.CanManageWorkHours),
+            new(
+                "zaehlerwechsel",
+                "Zählerwechsel",
+                PermissionFlags.CanReadMeters | PermissionFlags.CanManageMeterChanges,
+                PermissionFlags.CanReadMeters,
+                PermissionFlags.CanManageMeterChanges),
+            new(
+                "ablesungsfreigaben",
+                "Ablesungsfreigaben",
+                PermissionFlags.CanReadMeters | PermissionFlags.CanApproveMeterReadings,
+                PermissionFlags.CanReadMeters,
+                PermissionFlags.CanApproveMeterReadings),
+            new(
+                "rollen_rechte",
+                "Rollen/Rechte",
+                PermissionFlags.CanReadRoles | PermissionFlags.CanManageRoles,
+                PermissionFlags.CanReadRoles,
+                PermissionFlags.CanManageRoles)
+        };
+
         public static IReadOnlyList<PermissionDefinition> GetAllPermissions() => AllPermissions;
 
         public static IReadOnlyList<PermissionDefinition> GetUserSpecificEditablePermissions() => UserSpecificEditablePermissions;
+
+        public static IReadOnlyList<PermissionAreaDefinition> GetGlobalEditablePermissionAreas() => GlobalEditablePermissionAreas;
+
+        public static PermissionFlags GetGlobalEditablePermissionMask()
+        {
+            var mask = PermissionFlags.None;
+            foreach (var area in GlobalEditablePermissionAreas)
+                mask |= area.AllPermissions;
+
+            return mask;
+        }
+
+        public static PermissionAreaAccessLevel GetAccessLevel(PermissionFlags permissions, PermissionAreaDefinition area)
+        {
+            if (area.WritePermissions != PermissionFlags.None && permissions.HasFlag(area.WritePermissions))
+                return PermissionAreaAccessLevel.Write;
+
+            if (area.ReadPermissions != PermissionFlags.None && permissions.HasFlag(area.ReadPermissions))
+                return PermissionAreaAccessLevel.Read;
+
+            return PermissionAreaAccessLevel.None;
+        }
+
+        public static PermissionFlags GetRequiredPermissions(PermissionAreaDefinition area, PermissionAreaAccessLevel level)
+            => level switch
+            {
+                PermissionAreaAccessLevel.Write => area.WritePermissions,
+                PermissionAreaAccessLevel.Read => area.ReadPermissions,
+                _ => PermissionFlags.None
+            };
+
+        public static string FormatAccessLevel(PermissionAreaAccessLevel level)
+            => level switch
+            {
+                PermissionAreaAccessLevel.Write => "Bearbeiten",
+                PermissionAreaAccessLevel.Read => "Lesen",
+                _ => "Aus"
+            };
 
         public static PermissionFlags GetKnownPermissionMask()
         {

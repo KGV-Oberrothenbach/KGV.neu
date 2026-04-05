@@ -77,8 +77,8 @@ namespace KGV.ViewModels
 
         public bool HasLinkedAppUser => _permissionSettings?.HasLinkedUser == true;
         public bool CanEditPermissionOverrides => CanManageRoleManagement && HasLinkedAppUser;
-        public PermissionFlags CurrentGrantedPermissions => PermissionOverrides.Aggregate(PermissionFlags.None, (current, item) => current | item.GrantedPermissions);
-        public PermissionFlags CurrentRevokedPermissions => PermissionOverrides.Aggregate(PermissionFlags.None, (current, item) => current | item.RevokedPermissions);
+        public PermissionFlags CurrentGrantedPermissions => BuildPermissionOverrideState().GrantedPermissions;
+        public PermissionFlags CurrentRevokedPermissions => BuildPermissionOverrideState().RevokedPermissions;
         public bool ArePermissionOverridesDirty => CurrentGrantedPermissions != _initialGrantedPermissions || CurrentRevokedPermissions != _initialRevokedPermissions;
         public bool HasCustomPermissionOverrides => CurrentGrantedPermissions != PermissionFlags.None || CurrentRevokedPermissions != PermissionFlags.None;
         public string PermissionRoleBasis => _permissionSettings == null ? "wird geladen" : UserRoles.ToStorageValue(_permissionSettings.ParsedRole);
@@ -91,7 +91,7 @@ namespace KGV.ViewModels
                 ? "Die Rollenbasis wurde geändert. Bitte zuerst die Rolle speichern und danach die benutzerspezifischen Fachrechte sichern."
                 : IsRoleManagementReadOnly
                     ? "Rollen-/Rechteverwaltung ist in diesem Kontext nur lesend freigegeben. Die Rollenbasis und die wirksamen Fachrechte bleiben sichtbar, Speichern ist gesperrt."
-                    : "Benutzerspezifische Fachrechte werden zentral als Grants/Revocations über der Rollenbasis gespeichert. Über den Standard-Button lassen sich alle Abweichungen der aktuellen Rolle gesammelt zurücksetzen."
+                    : "Globale Fachrechte werden kompakt pro Fachbereich als Aus / Lesen / Bearbeiten über der Rollenbasis gespeichert. Eigenkontext-Rechte bleiben davon getrennt; der Sonderfall Nutzerablesung bleibt separat."
             : "Für dieses Mitglied existiert aktuell kein verknüpfter App-User. Die Rechteübersicht bleibt sichtbar, Speichern ist gesperrt.";
 
         public string RoleManagementHint => !CanReadRoleManagement
@@ -99,7 +99,7 @@ namespace KGV.ViewModels
             : IsRoleManagementReadOnly
                 ? "Rollen-/Rechteverwaltung ist in diesem Kontext nur lesend freigegeben. Rolle, Rollenbasis und wirksame Rechte bleiben sichtbar."
                 : IsRoleEditable
-                    ? "Rolle bleibt das Basispaket. Benutzerspezifische Fachrechte werden als Grants/Revocations darüber gespeichert."
+                    ? "Rolle bleibt das Basispaket. Globale Fachrechte werden kompakt pro Fachbereich darüber angepasst; Eigenkontext-Rechte bleiben getrennt."
                     : "Rollenbearbeitung für dieses Mitglied ist gesperrt. Die Rollenbasis und die benutzerspezifischen Fachrechte bleiben sichtbar.";
 
         public RelayCommand<object?> SaveCommand { get; }
@@ -120,7 +120,7 @@ namespace KGV.ViewModels
             ResetPermissionOverridesCommand = new RelayCommand<object?>(_ => ResetPermissionOverrides(), _ => CanResetPermissionOverrides());
             OpenUserManagementCommand = new RelayCommand<object?>(_ => _ = OpenUserManagementAsync(), _ => CanOpenUserManagement);
 
-            foreach (var definition in PermissionCatalog.GetUserSpecificEditablePermissions())
+            foreach (var definition in PermissionCatalog.GetGlobalEditablePermissionAreas())
                 PermissionOverrides.Add(new UserPermissionOverrideItemViewModel(this, definition));
         }
 
@@ -348,6 +348,22 @@ namespace KGV.ViewModels
         internal void OnPermissionOverrideChanged()
             => RefreshPermissionState();
 
+        private PermissionFlags GetBasePermissionsForSelectedRole()
+            => PermissionService.GetRolePermissions(UserRoles.Parse(SelectedRole));
+
+        private (PermissionFlags GrantedPermissions, PermissionFlags RevokedPermissions) BuildPermissionOverrideState()
+        {
+            var basePermissions = GetBasePermissionsForSelectedRole();
+            var requiredPermissions = PermissionOverrides.Aggregate(
+                PermissionFlags.None,
+                (current, item) => current | PermissionCatalog.GetRequiredPermissions(item.Definition, item.SelectedLevel));
+
+            var controllableMask = PermissionCatalog.GetGlobalEditablePermissionMask();
+            var grantedPermissions = requiredPermissions & ~basePermissions;
+            var revokedPermissions = (basePermissions & controllableMask) & ~requiredPermissions;
+            return (grantedPermissions, revokedPermissions);
+        }
+
         private void ResetPermissionOverrides()
         {
             if (!CanResetPermissionOverrides())
@@ -419,53 +435,44 @@ namespace KGV.ViewModels
 
         public sealed class UserPermissionOverrideItemViewModel : BaseViewModel
         {
-            private const string DefaultOverrideMode = "Standard";
-            private const string GrantOverrideMode = "Zusätzlich gewähren";
-            private const string RevokeOverrideMode = "Entziehen";
-            private static readonly PermissionFlags UserRolePermissions = PermissionService.GetRolePermissions(UserRole.User);
-            private static readonly PermissionFlags VorstandRolePermissions = PermissionService.GetRolePermissions(UserRole.Vorstand);
-            private static readonly PermissionFlags AdminRolePermissions = PermissionService.GetRolePermissions(UserRole.Admin);
-
             private readonly AdminRoleViewModel _owner;
-            private bool _isBaseGranted;
-            private string _selectedOverrideMode = DefaultOverrideMode;
+            private PermissionAreaAccessLevel _baseLevel;
+            private PermissionAreaAccessLevel _selectedLevel;
             private bool _isEditable;
 
-            public UserPermissionOverrideItemViewModel(AdminRoleViewModel owner, PermissionDefinition definition)
+            public UserPermissionOverrideItemViewModel(AdminRoleViewModel owner, PermissionAreaDefinition definition)
             {
                 _owner = owner;
                 Definition = definition;
             }
 
-            public PermissionDefinition Definition { get; }
+            public PermissionAreaDefinition Definition { get; }
             public string DisplayName => Definition.DisplayName;
-            public IReadOnlyList<string> OverrideModes { get; } = new[] { DefaultOverrideMode, GrantOverrideMode, RevokeOverrideMode };
-            public bool IsGrantedForUser => UserRolePermissions.HasFlag(Definition.Flag);
-            public bool IsGrantedForVorstand => VorstandRolePermissions.HasFlag(Definition.Flag);
-            public bool IsGrantedForAdmin => AdminRolePermissions.HasFlag(Definition.Flag);
-
-            public bool IsBaseGranted
+            public string BaseLevelDisplay => PermissionCatalog.FormatAccessLevel(BaseLevel);
+            public PermissionAreaAccessLevel BaseLevel
             {
-                get => _isBaseGranted;
+                get => _baseLevel;
                 private set
                 {
-                    if (!SetProperty(ref _isBaseGranted, value))
+                    if (!SetProperty(ref _baseLevel, value))
                         return;
 
-                    OnPropertyChanged(nameof(IsEffectivelyGranted));
+                    OnPropertyChanged(nameof(BaseLevelDisplay));
                 }
             }
 
-            public string SelectedOverrideMode
+            public PermissionAreaAccessLevel SelectedLevel
             {
-                get => _selectedOverrideMode;
-                set
+                get => _selectedLevel;
+                private set
                 {
-                    var normalized = OverrideModes.Contains(value) ? value : DefaultOverrideMode;
-                    if (!SetProperty(ref _selectedOverrideMode, normalized))
+                    if (!SetProperty(ref _selectedLevel, value))
                         return;
 
-                    OnPropertyChanged(nameof(IsEffectivelyGranted));
+                    OnPropertyChanged(nameof(IsNoneSelected));
+                    OnPropertyChanged(nameof(IsReadSelected));
+                    OnPropertyChanged(nameof(IsWriteSelected));
+                    OnPropertyChanged(nameof(EffectiveLevelDisplay));
                     _owner.OnPermissionOverrideChanged();
                 }
             }
@@ -476,67 +483,51 @@ namespace KGV.ViewModels
                 private set => SetProperty(ref _isEditable, value);
             }
 
-            public bool IsGrantOverrideSelected
+            public bool IsNoneSelected
             {
-                get => SelectedOverrideMode == GrantOverrideMode;
+                get => SelectedLevel == PermissionAreaAccessLevel.None;
                 set
                 {
                     if (value)
-                    {
-                        SelectedOverrideMode = GrantOverrideMode;
-                        return;
-                    }
-
-                    if (SelectedOverrideMode == GrantOverrideMode)
-                        SelectedOverrideMode = DefaultOverrideMode;
+                        SelectedLevel = PermissionAreaAccessLevel.None;
                 }
             }
 
-            public bool IsRevokeOverrideSelected
+            public bool IsReadSelected
             {
-                get => SelectedOverrideMode == RevokeOverrideMode;
+                get => SelectedLevel == PermissionAreaAccessLevel.Read;
                 set
                 {
                     if (value)
-                    {
-                        SelectedOverrideMode = RevokeOverrideMode;
-                        return;
-                    }
-
-                    if (SelectedOverrideMode == RevokeOverrideMode)
-                        SelectedOverrideMode = DefaultOverrideMode;
+                        SelectedLevel = PermissionAreaAccessLevel.Read;
                 }
             }
 
-            public bool IsEffectivelyGranted => SelectedOverrideMode switch
+            public bool IsWriteSelected
             {
-                GrantOverrideMode => true,
-                RevokeOverrideMode => false,
-                _ => IsBaseGranted
-            };
+                get => SelectedLevel == PermissionAreaAccessLevel.Write;
+                set
+                {
+                    if (value)
+                        SelectedLevel = PermissionAreaAccessLevel.Write;
+                }
+            }
 
-            public PermissionFlags GrantedPermissions => SelectedOverrideMode == GrantOverrideMode ? Definition.Flag : PermissionFlags.None;
-            public PermissionFlags RevokedPermissions => SelectedOverrideMode == RevokeOverrideMode ? Definition.Flag : PermissionFlags.None;
+            public string EffectiveLevelDisplay => PermissionCatalog.FormatAccessLevel(SelectedLevel);
 
             public void ResetToDefault()
-                => SelectedOverrideMode = DefaultOverrideMode;
+                => SelectedLevel = BaseLevel;
 
             public void Apply(UserPermissionSettings settings, bool isEditable)
             {
-                IsBaseGranted = settings.BasePermissions.HasFlag(Definition.Flag);
+                BaseLevel = PermissionCatalog.GetAccessLevel(settings.BasePermissions, Definition);
                 IsEditable = isEditable;
-
-                if (settings.GrantedPermissions.HasFlag(Definition.Flag))
-                    _selectedOverrideMode = GrantOverrideMode;
-                else if (settings.RevokedPermissions.HasFlag(Definition.Flag))
-                    _selectedOverrideMode = RevokeOverrideMode;
-                else
-                    _selectedOverrideMode = DefaultOverrideMode;
-
-                OnPropertyChanged(nameof(SelectedOverrideMode));
-                OnPropertyChanged(nameof(IsGrantOverrideSelected));
-                OnPropertyChanged(nameof(IsRevokeOverrideSelected));
-                OnPropertyChanged(nameof(IsEffectivelyGranted));
+                _selectedLevel = PermissionCatalog.GetAccessLevel(settings.EffectivePermissions, Definition);
+                OnPropertyChanged(nameof(SelectedLevel));
+                OnPropertyChanged(nameof(IsNoneSelected));
+                OnPropertyChanged(nameof(IsReadSelected));
+                OnPropertyChanged(nameof(IsWriteSelected));
+                OnPropertyChanged(nameof(EffectiveLevelDisplay));
             }
 
             public void RefreshEditState(bool isEditable)
