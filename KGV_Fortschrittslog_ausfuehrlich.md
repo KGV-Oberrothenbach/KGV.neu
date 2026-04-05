@@ -2,6 +2,70 @@
 
 ---
 
+## 2026-04-05 – Merge-Reifeprüfung Branch `feature/app-user-role-source`: Rollenquelle `app_user.role` fachlich konsistent, `mitglied.role` nur noch Altbestand
+
+- Vor dem Abschlussblock den realen Repo-/Git-/Logzustand erneut geprüft.
+- Git-Befund zu Beginn auf `feature/app-user-role-source`:
+  - aktueller Branch: `feature/app-user-role-source`
+  - der Branch hat einen Remote-Tracking-Branch `origin/feature/app-user-role-source`
+  - im Arbeitsbaum lagen zu Beginn blockfremd offen und bewusst außerhalb dieses Blocks:
+    - `.github/copilot-instructions.md`
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Lauf:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+  - `KGV.Core/Models/AppUserDTO.cs`
+  - `KGV.Core/Models/MemberUserLinkStatusDto.cs`
+  - `supabase/migrations/20260323093513_remote_schema.sql`
+  - `supabase/migrations/20260405173000_app_user_role_sql_cleanup.sql`
+  - weitere direkt betroffene SQL-/Schema-Dateien unter `supabase/migrations`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand im Abschlusslauf:
+  - der Rollenquellen-Umbau auf `app_user.role` war in Code und SQL bereits weitgehend abgeschlossen
+  - im aktuellen Branch zeigte sich in den ausdrücklich geprüften Dateien keine neue fachliche Restlücke mehr, die noch einen weiteren Codeumbau gerechtfertigt hätte
+  - verbleibende `Role`-Konsumenten in WPF/MAUI lesen jetzt zentral überblendete Mitgliederdaten oder direkte `app_user`-/Permission-Daten, nicht mehr `mitglied.role` als führende Quelle
+- Zusätzliche Reststatus-Prüfung nach dem ausdrücklich geprüften Abschlussmaßstab wirklich ausgeführt:
+  - Suchlauf außerhalb der Logdateien über:
+    - `mitglied.role`
+    - `coalesce(au.role, m.role)`
+    - `new.role`
+    - `excluded.role`
+    - `UPDATE OF auth_user_id, role`
+  - Ergebnis: keine verbleibende aktive Restmischung mehr in Code oder SQL
+- Fachlicher Endbefund dieses Abschlussblocks:
+  - `SupabaseService` überblendet `MitgliedRecord.Role` zentral aus `app_user.role` oder dem neutralen Default `user`
+  - `AuthService.LoginAsync(...)` zieht `IsAdmin` / `IsVorstand` aus `app_user.role`
+  - `AppUserDTO` und `MemberUserLinkStatusDto` verwenden keine aktive Rollenmischung mit `mitglied.role` mehr
+  - WPF und MAUI sind im ausdrücklich geprüften Rollen-/Rechtepfad auf dieselbe führende Rollenquelle gezogen
+  - der SQL-/RPC-/Schema-Randbereich ist mit `current_app_role()` ebenfalls auf denselben app-user-basierten Maßstab gezogen
+  - `mitglied.role` ist damit im aktuellen Branch fachlich nur noch physischer Altbestand im Schema (`public.mitglied.role`) und keine aktive Rollenquelle mehr
+  - die Spalte bleibt in diesem Abschlussblock bewusst nur dokumentierter Altbestand; eine physische Entfernung wurde nicht erzwungen, weil sie hier keinen belastbaren Zusatzgewinn mehr bringt und unnötiges Migrationsrisiko eröffnen würde
+- Merge-Reifeprüfung:
+  - Builds grün: ja
+  - Rollenanzeige und Rollenspeicherung konsistent: ja
+  - keine aktive Rollenableitung mehr aus `mitglied.role`: ja
+  - Invite-/App-User-Verknüpfung bleibt intakt: ja
+  - Rechte-/Override-Logik bleibt intakt: ja
+- In diesem Abschlussblock war keine neue Fachänderung mehr nötig.
+- Deshalb wurden nur die Logs auf den finalen Stand gebracht; keine unnötige Codeänderung nur um der Änderung willen.
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund:
+    - bestehende Warnungen u. a. in `KGV.Infrastructure/Services/SupabaseService.cs`, `KGV.Wpf/ViewModels/BekanntmachungenVerwaltungViewModel.cs`, `KGV.Wpf/ViewModels/ArbeitseinsaetzeVerwaltungViewModel.cs`, `KGV.Wpf/ViewModels/TermineVerwaltungViewModel.cs`, `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/ImpressumPage.cs` blieben außerhalb dieses Blocks unverändert bestehen
+- Bewusst nicht Bestandteil dieses Abschlussblocks:
+  - keine physische Entfernung von `mitglied.role`
+  - keine neue Rechte-/UI-Baustelle
+  - kein automatischer Merge nach `main`
+  - kein weiterer Fachumbau jenseits der ehrlichen Merge-Reifeprüfung
+
 ## 2026-04-05 – Verbleibende C#-Restkonsumenten von `mitglied.role` zentral über den gemeinsamen Mitglieder-Ladepfad neutralisiert
 
 - Vor dem Block den realen Repo-/Git-/Logzustand erneut geprüft.

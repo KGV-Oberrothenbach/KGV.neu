@@ -2,6 +2,62 @@
 
 ---
 
+## 2026-04-05 – Merge-Reifeprüfung Branch `feature/app-user-role-source`: Rollenquelle `app_user.role` fachlich konsistent, `mitglied.role` nur noch Altbestand
+
+- Vor dem Abschlussblock den realen Repo-/Git-/Logstand erneut geprüft.
+- Git-Befund zu Beginn auf `feature/app-user-role-source`:
+  - aktueller Branch: `feature/app-user-role-source`
+  - Remote-Tracking vorhanden: `origin/feature/app-user-role-source`
+  - im Arbeitsbaum bewusst außerhalb dieses Blocks offen und unberührt:
+    - `.github/copilot-instructions.md`
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Lauf:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+  - `KGV.Core/Models/AppUserDTO.cs`
+  - `KGV.Core/Models/MemberUserLinkStatusDto.cs`
+  - `supabase/migrations/20260323093513_remote_schema.sql`
+  - `supabase/migrations/20260405173000_app_user_role_sql_cleanup.sql`
+  - weitere direkt betroffene SQL-/Schema-Dateien unter `supabase/migrations`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Zusätzliche Reststatus-Prüfung wirklich ausgeführt:
+  - Suchlauf auf aktive Restmischungen außerhalb der Logs über:
+    - `mitglied.role`
+    - `coalesce(au.role, m.role)`
+    - `new.role`
+    - `excluded.role`
+    - `UPDATE OF auth_user_id, role`
+  - Ergebnis im aktiven Repo-Pfad: keine Treffer mehr außerhalb der Logdateien
+- Ehrlicher fachlicher Endbefund dieses Abschlussblocks:
+  - `SupabaseService` überblendet geladene `MitgliedRecord.Role`-Werte zentral aus `app_user.role` oder Default `user`
+  - `AuthService.LoginAsync(...)` zieht `IsAdmin` / `IsVorstand` aus `app_user.role`
+  - `AppUserDTO` und `MemberUserLinkStatusDto` leiten Rollen nur noch aus `app_user.role` ab
+  - WPF/MAUI lesen verbleibende `Role`-Werte nur noch aus zentral überblendeten Mitgliederpfaden bzw. aus `GetUserPermissionSettingsAsync(...)`
+  - der SQL-/RPC-Randbereich verwendet mit `current_app_role()` ebenfalls nur noch `app_user.role` als führende Quelle
+  - `mitglied.role` ist damit im aktuellen Branch fachlich nur noch physischer Altbestand im Schema (`public.mitglied.role`), aber keine aktive Rollenquelle mehr
+  - eine physische Entfernung der Spalte wurde bewusst nicht begonnen, weil sie in diesem Abschlussblock keinen belastbaren Zusatzgewinn bringt und unnötiges Migrationsrisiko eröffnen würde
+- Merge-Reifeprüfung:
+  - Rollenanzeige konsistent: ja
+  - Rollenspeicherung konsistent über `SetAppUserRoleAsync(...)` / `app_user.role`: ja
+  - aktive Rollenableitung aus `mitglied.role`: nein
+  - Invite-/App-User-Verknüpfung bleibt im geprüften Stand intakt: ja
+  - Rechte-/Override-Logik blieb unverändert intakt: ja
+- In diesem Abschlussblock war keine neue Fachänderung mehr nötig.
+- Deshalb nur Logs auf den finalen Stand gebracht; keine unnötige Codeänderung nur um der Änderung willen.
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund:
+    - bestehende Warnungen bleiben u. a. in `KGV.Infrastructure/Services/SupabaseService.cs`, `KGV.Wpf/ViewModels/BekanntmachungenVerwaltungViewModel.cs`, `KGV.Wpf/ViewModels/ArbeitseinsaetzeVerwaltungViewModel.cs`, `KGV.Wpf/ViewModels/TermineVerwaltungViewModel.cs`, `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/ImpressumPage.cs` außerhalb dieses Blocks unverändert bestehen
+  - kein automatischer Merge nach `main`; der Branch ist in diesem Stand nur auf Merge-/Abschlussreife geprüft und dokumentiert
+
 ## 2026-04-05 – C#-Restkonsumenten von `mitglied.role` zentral über den gemeinsamen Mitglieder-Ladepfad neutralisiert
 
 - Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.
