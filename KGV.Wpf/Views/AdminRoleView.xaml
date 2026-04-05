@@ -3,6 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="{DynamicResource KgvBackgroundBrush}">
 
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
     <Grid Margin="30">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -117,43 +119,65 @@
                 </TextBlock>
                 <TextBlock Margin="0,4,0,0" Foreground="Gray" TextWrapping="Wrap" Text="{Binding PermissionSaveHint, Mode=OneWay}" />
 
-                <Grid Margin="0,12,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="3*" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="220" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+                <Button Margin="0,12,0,0"
+                        Width="260"
+                        Height="35"
+                        HorizontalAlignment="Left"
+                        Content="Alles auf Rollen-Standard zurücksetzen"
+                        Command="{Binding ResetPermissionOverridesCommand}" />
 
-                    <TextBlock Grid.Column="0" Text="Fachrecht" FontWeight="SemiBold" Margin="0,0,12,0" />
-                    <TextBlock Grid.Column="1" Text="Rollenbasis" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,12,0" />
-                    <TextBlock Grid.Column="2" Text="Override" FontWeight="SemiBold" Margin="0,0,12,0" />
-                    <TextBlock Grid.Column="3" Text="Wirksam" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                </Grid>
+                <ScrollViewer Margin="0,12,0,0"
+                              MaxHeight="360"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="3*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                <ItemsControl ItemsSource="{Binding PermissionOverrides}" Margin="0,8,0,0">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Grid Margin="0,0,0,8">
+                            <TextBlock Grid.Column="0" Text="Fachrecht" FontWeight="SemiBold" Margin="0,0,12,0" />
+                            <TextBlock Grid.Column="1" Text="User" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,12,0" />
+                            <TextBlock Grid.Column="2" Text="Vorstand" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,12,0" />
+                            <TextBlock Grid.Column="3" Text="Admin" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,12,0" />
+                            <TextBlock Grid.Column="4" Text="Zusätzlich" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,12,0" />
+                            <TextBlock Grid.Column="5" Text="Entziehen" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,12,0" />
+                            <TextBlock Grid.Column="6" Text="Wirksam" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                        </Grid>
+
+                        <ItemsControl ItemsSource="{Binding PermissionOverrides}" Margin="0,8,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="3*" />
                                     <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="220" />
                                     <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0" Text="{Binding DisplayName, Mode=OneWay}" />
-                                <CheckBox Grid.Column="1" Margin="0,0,12,0" VerticalAlignment="Center" IsChecked="{Binding IsBaseGranted, Mode=OneWay}" IsEnabled="False" />
-                                <ComboBox Grid.Column="2"
-                                          Margin="0,0,12,0"
-                                          ItemsSource="{Binding OverrideModes}"
-                                          SelectedItem="{Binding SelectedOverrideMode}"
-                                          IsEnabled="{Binding IsEditable}" />
-                                <CheckBox Grid.Column="3" VerticalAlignment="Center" IsChecked="{Binding IsEffectivelyGranted, Mode=OneWay}" IsEnabled="False" />
-                            </Grid>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0" Text="{Binding DisplayName, Mode=OneWay}" />
+                                        <CheckBox Grid.Column="1" Margin="0,0,12,0" VerticalAlignment="Center" IsChecked="{Binding IsGrantedForUser, Mode=OneWay}" IsEnabled="False" />
+                                        <CheckBox Grid.Column="2" Margin="0,0,12,0" VerticalAlignment="Center" IsChecked="{Binding IsGrantedForVorstand, Mode=OneWay}" IsEnabled="False" />
+                                        <CheckBox Grid.Column="3" Margin="0,0,12,0" VerticalAlignment="Center" IsChecked="{Binding IsGrantedForAdmin, Mode=OneWay}" IsEnabled="False" />
+                                        <CheckBox Grid.Column="4" Margin="0,0,12,0" VerticalAlignment="Center" IsChecked="{Binding IsGrantOverrideSelected}" IsEnabled="{Binding IsEditable}" />
+                                        <CheckBox Grid.Column="5" Margin="0,0,12,0" VerticalAlignment="Center" IsChecked="{Binding IsRevokeOverrideSelected}" IsEnabled="{Binding IsEditable}" />
+                                        <CheckBox Grid.Column="6" VerticalAlignment="Center" IsChecked="{Binding IsEffectivelyGranted, Mode=OneWay}" IsEnabled="False" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
 
                 <TextBlock Margin="0,12,0,0" TextWrapping="Wrap">
                     <Run Text="Aktueller Override-Zustand: " />
@@ -181,4 +205,5 @@
                 Content="Speichern"
                 Command="{Binding SaveCommand}" />
     </Grid>
+    </ScrollViewer>
 </UserControl>

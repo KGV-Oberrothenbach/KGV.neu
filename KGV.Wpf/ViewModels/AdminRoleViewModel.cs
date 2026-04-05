@@ -80,6 +80,7 @@ namespace KGV.ViewModels
         public PermissionFlags CurrentGrantedPermissions => PermissionOverrides.Aggregate(PermissionFlags.None, (current, item) => current | item.GrantedPermissions);
         public PermissionFlags CurrentRevokedPermissions => PermissionOverrides.Aggregate(PermissionFlags.None, (current, item) => current | item.RevokedPermissions);
         public bool ArePermissionOverridesDirty => CurrentGrantedPermissions != _initialGrantedPermissions || CurrentRevokedPermissions != _initialRevokedPermissions;
+        public bool HasCustomPermissionOverrides => CurrentGrantedPermissions != PermissionFlags.None || CurrentRevokedPermissions != PermissionFlags.None;
         public string PermissionRoleBasis => _permissionSettings == null ? "wird geladen" : UserRoles.ToStorageValue(_permissionSettings.ParsedRole);
         public string CurrentOverrideState => $"Gewährt: {PermissionCatalog.FormatPermissions(CurrentGrantedPermissions, "keine")} | Entzogen: {PermissionCatalog.FormatPermissions(CurrentRevokedPermissions, "keine")}";
         public string EffectivePermissionState => PermissionCatalog.FormatPermissions(
@@ -90,7 +91,7 @@ namespace KGV.ViewModels
                 ? "Die Rollenbasis wurde geändert. Bitte zuerst die Rolle speichern und danach die benutzerspezifischen Fachrechte sichern."
                 : IsRoleManagementReadOnly
                     ? "Rollen-/Rechteverwaltung ist in diesem Kontext nur lesend freigegeben. Die Rollenbasis und die wirksamen Fachrechte bleiben sichtbar, Speichern ist gesperrt."
-                : "Benutzerspezifische Fachrechte werden zentral als Grants/Revocations über der Rollenbasis gespeichert."
+                    : "Benutzerspezifische Fachrechte werden zentral als Grants/Revocations über der Rollenbasis gespeichert. Über den Standard-Button lassen sich alle Abweichungen der aktuellen Rolle gesammelt zurücksetzen."
             : "Für dieses Mitglied existiert aktuell kein verknüpfter App-User. Die Rechteübersicht bleibt sichtbar, Speichern ist gesperrt.";
 
         public string RoleManagementHint => !CanReadRoleManagement
@@ -103,6 +104,7 @@ namespace KGV.ViewModels
 
         public RelayCommand<object?> SaveCommand { get; }
         public RelayCommand<object?> SavePermissionOverridesCommand { get; }
+        public RelayCommand<object?> ResetPermissionOverridesCommand { get; }
         public RelayCommand<object?> OpenUserManagementCommand { get; }
 
         public AdminRoleViewModel(ISupabaseService supabaseService, IAuthService authService, MemberDTO member, MainWindowViewModel mainWindowViewModel, INavigationService navigationService)
@@ -115,6 +117,7 @@ namespace KGV.ViewModels
 
             SaveCommand = new RelayCommand<object?>(_ => _ = SaveAsync(), _ => CanSave());
             SavePermissionOverridesCommand = new RelayCommand<object?>(_ => _ = SavePermissionOverridesAsync(), _ => CanSavePermissionOverrides());
+            ResetPermissionOverridesCommand = new RelayCommand<object?>(_ => ResetPermissionOverrides(), _ => CanResetPermissionOverrides());
             OpenUserManagementCommand = new RelayCommand<object?>(_ => _ = OpenUserManagementAsync(), _ => CanOpenUserManagement);
 
             foreach (var definition in PermissionCatalog.GetUserSpecificEditablePermissions())
@@ -189,6 +192,9 @@ namespace KGV.ViewModels
 
         private bool CanSavePermissionOverrides()
             => CanEditPermissionOverrides && ArePermissionOverridesDirty && !IsDirty;
+
+        private bool CanResetPermissionOverrides()
+            => CanEditPermissionOverrides && HasCustomPermissionOverrides && !IsDirty;
 
         private async Task SaveAsync()
         {
@@ -342,6 +348,17 @@ namespace KGV.ViewModels
         internal void OnPermissionOverrideChanged()
             => RefreshPermissionState();
 
+        private void ResetPermissionOverrides()
+        {
+            if (!CanResetPermissionOverrides())
+                return;
+
+            foreach (var item in PermissionOverrides)
+                item.ResetToDefault();
+
+            RefreshPermissionState();
+        }
+
         private void RefreshPermissionState()
         {
             if (_permissionSettings != null)
@@ -357,12 +374,14 @@ namespace KGV.ViewModels
             OnPropertyChanged(nameof(IsRoleManagementReadOnly));
             OnPropertyChanged(nameof(CanEditPermissionOverrides));
             OnPropertyChanged(nameof(ArePermissionOverridesDirty));
+            OnPropertyChanged(nameof(HasCustomPermissionOverrides));
             OnPropertyChanged(nameof(RoleManagementHint));
             OnPropertyChanged(nameof(PermissionRoleBasis));
             OnPropertyChanged(nameof(CurrentOverrideState));
             OnPropertyChanged(nameof(EffectivePermissionState));
             OnPropertyChanged(nameof(PermissionSaveHint));
             SavePermissionOverridesCommand.RaiseCanExecuteChanged();
+            ResetPermissionOverridesCommand.RaiseCanExecuteChanged();
 
             foreach (var item in PermissionOverrides)
                 item.RefreshEditState(CanEditPermissionOverrides);
@@ -403,6 +422,9 @@ namespace KGV.ViewModels
             private const string DefaultOverrideMode = "Standard";
             private const string GrantOverrideMode = "Zusätzlich gewähren";
             private const string RevokeOverrideMode = "Entziehen";
+            private static readonly PermissionFlags UserRolePermissions = PermissionService.GetRolePermissions(UserRole.User);
+            private static readonly PermissionFlags VorstandRolePermissions = PermissionService.GetRolePermissions(UserRole.Vorstand);
+            private static readonly PermissionFlags AdminRolePermissions = PermissionService.GetRolePermissions(UserRole.Admin);
 
             private readonly AdminRoleViewModel _owner;
             private bool _isBaseGranted;
@@ -418,6 +440,9 @@ namespace KGV.ViewModels
             public PermissionDefinition Definition { get; }
             public string DisplayName => Definition.DisplayName;
             public IReadOnlyList<string> OverrideModes { get; } = new[] { DefaultOverrideMode, GrantOverrideMode, RevokeOverrideMode };
+            public bool IsGrantedForUser => UserRolePermissions.HasFlag(Definition.Flag);
+            public bool IsGrantedForVorstand => VorstandRolePermissions.HasFlag(Definition.Flag);
+            public bool IsGrantedForAdmin => AdminRolePermissions.HasFlag(Definition.Flag);
 
             public bool IsBaseGranted
             {
@@ -451,6 +476,38 @@ namespace KGV.ViewModels
                 private set => SetProperty(ref _isEditable, value);
             }
 
+            public bool IsGrantOverrideSelected
+            {
+                get => SelectedOverrideMode == GrantOverrideMode;
+                set
+                {
+                    if (value)
+                    {
+                        SelectedOverrideMode = GrantOverrideMode;
+                        return;
+                    }
+
+                    if (SelectedOverrideMode == GrantOverrideMode)
+                        SelectedOverrideMode = DefaultOverrideMode;
+                }
+            }
+
+            public bool IsRevokeOverrideSelected
+            {
+                get => SelectedOverrideMode == RevokeOverrideMode;
+                set
+                {
+                    if (value)
+                    {
+                        SelectedOverrideMode = RevokeOverrideMode;
+                        return;
+                    }
+
+                    if (SelectedOverrideMode == RevokeOverrideMode)
+                        SelectedOverrideMode = DefaultOverrideMode;
+                }
+            }
+
             public bool IsEffectivelyGranted => SelectedOverrideMode switch
             {
                 GrantOverrideMode => true,
@@ -460,6 +517,9 @@ namespace KGV.ViewModels
 
             public PermissionFlags GrantedPermissions => SelectedOverrideMode == GrantOverrideMode ? Definition.Flag : PermissionFlags.None;
             public PermissionFlags RevokedPermissions => SelectedOverrideMode == RevokeOverrideMode ? Definition.Flag : PermissionFlags.None;
+
+            public void ResetToDefault()
+                => SelectedOverrideMode = DefaultOverrideMode;
 
             public void Apply(UserPermissionSettings settings, bool isEditable)
             {
@@ -474,6 +534,8 @@ namespace KGV.ViewModels
                     _selectedOverrideMode = DefaultOverrideMode;
 
                 OnPropertyChanged(nameof(SelectedOverrideMode));
+                OnPropertyChanged(nameof(IsGrantOverrideSelected));
+                OnPropertyChanged(nameof(IsRevokeOverrideSelected));
                 OnPropertyChanged(nameof(IsEffectivelyGranted));
             }
 

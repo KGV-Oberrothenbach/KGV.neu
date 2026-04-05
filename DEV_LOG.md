@@ -2,6 +2,62 @@
 
 ---
 
+## 2026-04-05 – WPF-Admin-Menü Fachrechte: Scrollbarkeit, Rollenmatrix, Standard-Reset und App-User-Erkennung nachgezogen
+
+- Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - lokal lag zusätzlich eine bereits vorhandene, blockfremde Änderung an `.github/copilot-instructions.md`; diese blieb bewusst außerhalb dieses Blocks
+  - bewusst unberührt blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden in diesem Lauf:
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Core/Security/PermissionService.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor der Umsetzung:
+  - der WPF-Pfad im Admin-Menü war fachlich grundsätzlich vorhanden, entsprach aber noch nicht der gewünschten Bedienung
+  - konkrete Restlücken:
+    - der Bereich `Benutzerspezifische Fachrechte` war bei längerer Liste nicht praktikabel scrollbar
+    - pro Zeile gab es noch den kombinierten `Standard`/`Zusätzlich gewähren`/`Entziehen`-Picker statt eines einfachen zentralen Standard-Resets
+    - die Tabelle zeigte die Rollenbasis nicht als klare Matrix über `User` / `Vorstand` / `Admin`
+    - die App-User-Erkennung konnte fachlich falsch `nicht verknüpft` anzeigen, wenn die Zuordnung produktiv über `auth_user_id` / `user_id` statt direkt über `mitglied_id` lief
+- Minimal umgesetzt:
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+    - Admin-Menü insgesamt scrollbar gemacht
+    - Fachrechtebereich zusätzlich intern scrollbar gemacht
+    - globale Aktion `Alles auf Rollen-Standard zurücksetzen` ergänzt
+    - Fachrechte-Tabelle auf Rollenmatrix umgestellt:
+      - `User`
+      - `Vorstand`
+      - `Admin`
+      - `Zusätzlich`
+      - `Entziehen`
+      - `Wirksam`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - globale Standard-Rücksetzung für alle Overrides des aktuell gewählten Rollenbasispakets ergänzt
+    - pro Fachrecht einfache Checkbox-Overrides für `Zusätzlich` und `Entziehen` statt Standard-Combobox vorbereitet
+    - Rollenmatrix pro Fachrecht aus der zentralen `PermissionService`-Basis abgeleitet
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - Permission-Settings erkennen verknüpfte App-User jetzt nicht nur über `mitglied_id`, sondern bei Bedarf auch über `auth_user_id`/`user_id`
+    - beim Speichern von Permission-Settings wird `mitglied_id` im `app_user`-Datensatz mitgeführt, sodass der Lookup künftig stabiler ist
+- Fachlicher Stand nach dem Block:
+  - WPF-Admin-Menü bleibt auf derselben zentralen Rechtebasis
+  - Rollenbasis wird jetzt klarer und kompakter als Matrix angezeigt
+  - Standard-Rücksetzung erfolgt gesammelt pro aktuell gewählter Rolle statt pro Zeile über eine zusätzliche Standard-Auswahl
+  - App-User-Hinweis entspricht jetzt besser dem produktiven Verknüpfungspfad
+  - keine Schattenlogik neben bestehenden Permission-/Supabase-Pfaden eingeführt
+- Validierung in diesem Lauf:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund:
+    - `.github/copilot-instructions.md` blieb als vorhandene blockfremde lokale Änderung bewusst unberührt
+    - `AWR.bat` und `_secrets/` blieben bewusst unberührt
+
 ## 2026-04-05 – WPF-Bindingfix AdminRoleView: reine Anzeige-Bindings im Admin-Menü explizit auf OneWay gesetzt
 
 - Vor dem Fix den realen Repo-/Git-/Logstand erneut geprüft.

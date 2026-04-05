@@ -231,14 +231,14 @@ namespace KGV.Infrastructure.Services
                 if (mitglied == null)
                     return null;
 
-                var appUser = await GetAppUserByMitgliedIdAsync(client, mitgliedId);
+                var appUser = await GetAppUserByMitgliedIdAsync(client, mitgliedId, mitglied.AuthUserId);
                 var role = string.IsNullOrWhiteSpace(appUser?.Role)
                     ? (string.IsNullOrWhiteSpace(mitglied.Role) ? UserRoles.User : mitglied.Role!)
                     : appUser!.Role!;
 
                 return new UserPermissionSettings
                 {
-                    AuthUserId = appUser?.UserId,
+                    AuthUserId = appUser?.UserId ?? mitglied.AuthUserId,
                     MitgliedId = mitgliedId,
                     Role = UserRoles.ToStorageValue(UserRoles.Parse(role)),
                     GrantedPermissions = PermissionService.NormalizeStoredPermissions(appUser?.PermissionGrants),
@@ -255,7 +255,11 @@ namespace KGV.Infrastructure.Services
                     return false;
 
                 var client = await EnsureClientAsync();
-                var appUser = await GetAppUserByMitgliedIdAsync(client, mitgliedId);
+                var mitglied = await GetMitgliedByIdAsync(mitgliedId);
+                if (mitglied == null)
+                    return false;
+
+                var appUser = await GetAppUserByMitgliedIdAsync(client, mitgliedId, mitglied.AuthUserId);
                 if (appUser == null)
                     return false;
 
@@ -266,6 +270,7 @@ namespace KGV.Infrastructure.Services
                 await client
                     .From<AppUserRecord>()
                     .Where(x => x.UserId == appUser.UserId)
+                    .Set(x => x.MitgliedId, mitgliedId)
                     .Set(x => x.Role, normalizedRole)
                     .Set(x => x.PermissionGrants, normalizedGrantedPermissions)
                     .Set(x => x.PermissionRevocations, normalizedRevokedPermissions)
@@ -3316,14 +3321,23 @@ namespace KGV.Infrastructure.Services
             }
         }
 
-        private static async Task<AppUserRecord?> GetAppUserByMitgliedIdAsync(Client client, int mitgliedId)
+        private static async Task<AppUserRecord?> GetAppUserByMitgliedIdAsync(Client client, int mitgliedId, Guid? authUserId = null)
         {
             var response = await client
                 .From<AppUserRecord>()
                 .Where(x => x.MitgliedId == (long?)mitgliedId)
                 .Get();
 
-            return response?.Models?.FirstOrDefault();
+            var appUser = response?.Models?.FirstOrDefault();
+            if (appUser != null || !authUserId.HasValue)
+                return appUser;
+
+            var authUserResponse = await client
+                .From<AppUserRecord>()
+                .Where(x => x.UserId == authUserId.Value)
+                .Get();
+
+            return authUserResponse?.Models?.FirstOrDefault();
         }
 
         private static DateTime? NormalizeDate(DateTime? value)
