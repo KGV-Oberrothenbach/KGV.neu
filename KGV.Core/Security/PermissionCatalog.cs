@@ -30,24 +30,28 @@ namespace KGV.Core.Security
             new(PermissionFlags.CanManageRoles, "Rollen verwalten")
         };
 
-        private static readonly PermissionDefinition[] UserSpecificEditablePermissions =
+        private static readonly PermissionFlags[] UserSpecificEditablePermissionFlags =
         {
-            new(PermissionFlags.CanShowStammdaten, "Stammdaten anzeigen"),
-            new(PermissionFlags.CanReadStammdaten, "Stammdaten lesen"),
-            new(PermissionFlags.CanWriteStammdaten, "Stammdaten bearbeiten"),
-            new(PermissionFlags.CanShowParzellen, "Parzellen anzeigen"),
-            new(PermissionFlags.CanReadParzellen, "Parzellen lesen"),
-            new(PermissionFlags.CanWriteParzellen, "Parzellen bearbeiten"),
-            new(PermissionFlags.CanReadDocuments, "Dokumente lesen"),
-            new(PermissionFlags.CanReadWorkHours, "Arbeitsstunden lesen"),
-            new(PermissionFlags.CanReadMeters, "Zähler lesen"),
-            new(PermissionFlags.CanManageMeterChanges, "Zählerwechsel verwalten"),
-            new(PermissionFlags.CanApproveMeterReadings, "Ablesungen freigeben"),
-            new(PermissionFlags.CanManageDocuments, "Dokumente verwalten"),
-            new(PermissionFlags.CanManageWorkHours, "Arbeitsstunden verwalten"),
-            new(PermissionFlags.CanReadRoles, "Rollen/Rechte sehen"),
-            new(PermissionFlags.CanManageRoles, "Rollen verwalten")
+            PermissionFlags.CanShowStammdaten,
+            PermissionFlags.CanReadStammdaten,
+            PermissionFlags.CanWriteStammdaten,
+            PermissionFlags.CanShowParzellen,
+            PermissionFlags.CanReadParzellen,
+            PermissionFlags.CanWriteParzellen,
+            PermissionFlags.CanReadDocuments,
+            PermissionFlags.CanManageDocuments,
+            PermissionFlags.CanReadWorkHours,
+            PermissionFlags.CanManageWorkHours,
+            PermissionFlags.CanReadMeters,
+            PermissionFlags.CanManageMeterChanges,
+            PermissionFlags.CanApproveMeterReadings,
+            PermissionFlags.CanReadRoles,
+            PermissionFlags.CanManageRoles
         };
+
+        private static readonly PermissionDefinition[] UserSpecificEditablePermissions = AllPermissions
+            .Where(x => UserSpecificEditablePermissionFlags.Contains(x.Flag))
+            .ToArray();
 
         public static IReadOnlyList<PermissionDefinition> GetAllPermissions() => AllPermissions;
 

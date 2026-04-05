@@ -33,8 +33,13 @@ namespace KGV.Core.Security
 
         public static PermissionFlags ApplyOverrides(PermissionFlags basePermissions, PermissionFlags grantedPermissions, PermissionFlags revokedPermissions)
         {
-            var effectivePermissions = basePermissions | grantedPermissions;
-            effectivePermissions &= ~revokedPermissions;
+            var knownMask = PermissionCatalog.GetKnownPermissionMask();
+            var normalizedBasePermissions = basePermissions & knownMask;
+            var normalizedGrantedPermissions = grantedPermissions & knownMask;
+            var normalizedRevokedPermissions = revokedPermissions & knownMask;
+
+            var effectivePermissions = normalizedBasePermissions | normalizedGrantedPermissions;
+            effectivePermissions &= ~normalizedRevokedPermissions;
             return effectivePermissions;
         }
 

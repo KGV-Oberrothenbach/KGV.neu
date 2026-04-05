@@ -2,6 +2,71 @@
 
 ---
 
+## 2026-04-05 – Abschlusslauf Security-Basis: zentrale Fachrechts-Schicht in `KGV.Core/Security` sauber konsolidiert und releasefähig gemacht
+
+- Vor dem Block den realen Repo-/Git-/Logzustand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - lokal offen lagen für diesen Block nur:
+    - `KGV.Core/Security/PermissionCatalog.cs`
+    - `KGV.Core/Security/PermissionChecks.cs`
+    - `KGV.Core/Security/PermissionService.cs`
+    - `KGV.Core/Security/PermissionMatrixV1.cs`
+  - bewusst außerhalb des Blocks unberührt blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Lauf:
+  - `KGV.Core/Security/PermissionFlags.cs`
+  - `KGV.Core/Security/PermissionCatalog.cs`
+  - `KGV.Core/Security/PermissionChecks.cs`
+  - `KGV.Core/Security/PermissionService.cs`
+  - `KGV.Core/Security/PermissionMatrixV1.cs`
+  - `KGV.Core/Security/UserContext.cs`
+  - `KGV.Core/Security/UserPermissionSettings.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor der Konsolidierung:
+  - `PermissionFlags` war bereits der echte führende Stand für die neue Rechtebasis mit Show/Read/Write bei `Stammdaten` und `Parzellen` sowie Read/Manage bei weiteren Bereichen
+  - `PermissionCatalog` enthielt die Rechte zwar schon weitgehend vollständig, hielt die user-spezifisch editierbaren Rechte aber noch als separate Definitionsliste statt als sichere Ableitung aus dem Hauptkatalog
+  - `PermissionChecks` hatte bereits erste zentrale Auswertung, aber noch keine vollständige und konsistente Helper-Schicht für alle vorhandenen Basisrechte
+  - speziell bei `Stammdaten` und `Parzellen` war die zentrale Semantik `Write => Read => Show` noch nicht sauber in den Helpern gekapselt
+  - `PermissionService` war fachlich korrekt, normalisierte in `ApplyOverrides(...)` aber noch nicht zentral gegen den bekannten Rechte-Maskenstand
+  - `AdminRoleViewModel` war bereits auf dem richtigen Produktpfad und musste in diesem Block nicht umgebaut werden
+- Minimal in diesem Lauf konsolidiert:
+  - `KGV.Core/Security/PermissionCatalog.cs`
+    - user-spezifisch editierbare Rechte jetzt aus einer Flag-Auswahlliste auf Basis des Hauptkatalogs abgeleitet
+    - doppelte Definitionen reduziert, Reihenfolge pro Fachbereich geglättet
+    - dadurch bleiben Anzeigenamen und Override-Auswahl automatisch konsistent zum echten Katalog
+  - `KGV.Core/Security/PermissionChecks.cs`
+    - fehlende zentrale Helper ergänzt für Mitglieds-Basisrechte und `CanSeeOwnDataOnly(...)`
+    - zusätzliche Sammelhelper für Member-, Stammdaten-, Parzellen- und Rollen-/Rechtezugriff ergänzt
+    - zentrale Auswertung für `Stammdaten` und `Parzellen` vereinheitlicht:
+      - `Write` impliziert `Read`
+      - `Read` und `Write` implizieren `Show`
+    - `CanSubmitOwnMeterReadings(...)` verwendet jetzt ebenfalls den zentralen Helper statt direkten Flag-Zugriff
+  - `KGV.Core/Security/PermissionService.cs`
+    - Override-Berechnung normalisiert Basisrechte, Grants und Revocations jetzt immer gegen den bekannten Permission-Maskenstand
+    - dadurch bleibt `EffectivePermissions` stabil, auch wenn aus Persistenzpfaden alte oder unbekannte Bits kämen
+  - `KGV.Core/Security/PermissionMatrixV1.cs`
+    - Bereich `ablesen` fachlich geschärft: kein implizites Schreibrecht mehr allein über `CanReadMeters`
+- Fachlicher Endstand dieses Blocks:
+  - zentrale Rechtebasis, Katalog, Checks, Matrix und Override-Berechnung sprechen jetzt denselben tatsächlichen Rechtebestand
+  - `GetAllPermissions()` und `GetUserSpecificEditablePermissions()` sind konsistenter, weil die editierbare Auswahl nicht mehr unabhängig vom Hauptkatalog driftet
+  - `AdminRoleViewModel` arbeitet unverändert weiter, aber auf stabilerer Basis für Grants/Revocations und wirksame Rechte
+  - vorhandene produktive Pfade für Nutzer-Ablesung, Arbeitsstunden-Prüfprozess und bestehende Rechte-Overrides bleiben intakt
+  - es wurde bewusst kein UI-Umbau in WPF oder MAUI gestartet
+- Validierung im Abschlusslauf:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - Workspace-Build => erfolgreich
+  - ehrlicher Restbefund:
+    - bestehende Warnungen in blockfremden WPF-Verwaltungs-ViewModels bleiben unverändert
+    - bestehende Warnungen in blockfremden MAUI-Seiten bleiben unverändert
+    - bestehende Nullability-Warnungen in `SupabaseService.cs` bleiben außerhalb dieses Blocks unverändert
+
 ## 2026-04-05 – Abschlusslauf Arbeitsstunden-Prüfprozess WPF/MAUI: vorhandenen Block technisch abgesichert, Logs ergänzt und Commit/Push vorbereitet
 
 - Vor dem Abschlusslauf den realen Repo-/Git-/Logzustand erneut geprüft.

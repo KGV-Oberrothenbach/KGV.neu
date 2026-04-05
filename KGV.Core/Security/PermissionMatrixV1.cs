@@ -17,7 +17,7 @@ namespace KGV.Core.Security
             new("parzellen", "Parzellen", PermissionFlags.CanShowParzellen, PermissionFlags.CanReadParzellen, PermissionFlags.CanWriteParzellen),
             new("dokumente", "Dokumente", PermissionFlags.None, PermissionFlags.CanReadDocuments, PermissionFlags.CanManageDocuments),
             new("arbeitsstunden", "Arbeitsstunden", PermissionFlags.None, PermissionFlags.CanReadWorkHours, PermissionFlags.CanManageWorkHours),
-            new("ablesen", "Ablesen", PermissionFlags.None, PermissionFlags.CanReadMeters, PermissionFlags.CanReadMeters),
+            new("ablesen", "Ablesen", PermissionFlags.None, PermissionFlags.CanReadMeters, PermissionFlags.None),
             new("zaehlerwechsel", "Zählerwechsel", PermissionFlags.None, PermissionFlags.CanReadMeters, PermissionFlags.CanManageMeterChanges),
             new("freigaben", "Freigaben", PermissionFlags.None, PermissionFlags.CanApproveMeterReadings, PermissionFlags.CanApproveMeterReadings),
             new("rollen_rechte", "Rollen-/Rechteverwaltung", PermissionFlags.None, PermissionFlags.CanReadRoles, PermissionFlags.CanManageRoles)
