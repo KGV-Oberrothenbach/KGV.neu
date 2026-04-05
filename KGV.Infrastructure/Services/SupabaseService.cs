@@ -75,12 +75,16 @@ namespace KGV.Infrastructure.Services
             {
                 var client = await EnsureClientAsync();
                 var response = await client.From<MitgliedRecord>().Get();
-                return response?.Models?
+                var members = response?.Models?
                     .OrderBy(x => x.Name ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                     .ThenBy(x => x.Vorname ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                     .ThenBy(x => x.Email ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                     .ToList()
+
                     ?? new List<MitgliedRecord>();
+
+                await ApplyAppUserRolesAsync(client, members);
+                return members;
             },
             new List<MitgliedRecord>());
 
@@ -128,7 +132,8 @@ namespace KGV.Infrastructure.Services
                     .Where(x => x.Id == mitgliedId)
                     .Get();
 
-                return response?.Models?.FirstOrDefault();
+                var member = response?.Models?.FirstOrDefault();
+                return await ApplyAppUserRoleAsync(client, member);
             },
             null);
 
@@ -153,7 +158,6 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.Vorname, CleanRequiredText(dto.Vorname))
                     .Set(x => x.Name, CleanRequiredText(dto.Nachname))
                     .Set(x => x.Email, existing.AuthUserId.HasValue ? existing.Email : CleanOptionalText(dto.Email))
-                    .Set(x => x.Role, string.IsNullOrWhiteSpace(dto.Role) ? existing.Role : dto.Role.Trim())
                     .Set(x => x.Geburtsdatum, NormalizeDate(dto.Geburtsdatum))
                     .Set(x => x.Adresse, CleanOptionalText(dto.Strasse))
                     .Set(x => x.Plz, CleanOptionalText(dto.PLZ))
@@ -232,20 +236,48 @@ namespace KGV.Infrastructure.Services
                     return null;
 
                 var appUser = await GetAppUserByMitgliedIdAsync(client, mitgliedId, mitglied.AuthUserId);
-                var role = string.IsNullOrWhiteSpace(appUser?.Role)
-                    ? (string.IsNullOrWhiteSpace(mitglied.Role) ? UserRoles.User : mitglied.Role!)
-                    : appUser!.Role!;
+                var role = NormalizeAppUserRole(appUser?.Role);
 
                 return new UserPermissionSettings
                 {
                     AuthUserId = appUser?.UserId ?? mitglied.AuthUserId,
                     MitgliedId = mitgliedId,
-                    Role = UserRoles.ToStorageValue(UserRoles.Parse(role)),
+                    Role = role,
                     GrantedPermissions = PermissionService.NormalizeStoredPermissions(appUser?.PermissionGrants),
                     RevokedPermissions = PermissionService.NormalizeStoredPermissions(appUser?.PermissionRevocations)
                 };
             },
             null);
+
+        public Task<bool> SetAppUserRoleAsync(int mitgliedId, string role) => ExecuteAsync(
+            "SetAppUserRoleAsync",
+            async () =>
+            {
+                if (mitgliedId <= 0)
+                    return false;
+
+                var client = await EnsureClientAsync();
+                var mitglied = await GetMitgliedByIdAsync(mitgliedId);
+                if (mitglied == null)
+                    return false;
+
+                var appUser = await GetAppUserByMitgliedIdAsync(client, mitgliedId, mitglied.AuthUserId);
+                if (appUser == null)
+                    return false;
+
+                var normalizedRole = UserRoles.ToStorageValue(UserRoles.Parse(role));
+
+                await client
+                    .From<AppUserRecord>()
+                    .Where(x => x.UserId == appUser.UserId)
+                    .Set(x => x.MitgliedId, mitgliedId)
+                    .Set(x => x.Role, normalizedRole)
+                    .Set(x => x.UpdatedAt, DateTime.UtcNow)
+                    .Update();
+
+                return true;
+            },
+            false);
 
         public Task<bool> SetUserPermissionSettingsAsync(int mitgliedId, string role, long grantedPermissions, long revokedPermissions) => ExecuteAsync(
             "SetUserPermissionSettingsAsync",
@@ -1059,9 +1091,11 @@ namespace KGV.Infrastructure.Services
                     .Where(x => x.HauptmitgliedId == hauptmitgliedId)
                     .Get();
 
-                return response?.Models?
+                var member = response?.Models?
                     .OrderBy(x => x.Id)
                     .FirstOrDefault();
+
+                return await ApplyAppUserRoleAsync(client, member);
             },
             null);
 
@@ -1154,7 +1188,7 @@ namespace KGV.Infrastructure.Services
                     .FirstOrDefault();
 
                 _logger?.LogInformation("CreateNebenmitgliedAsync created nebenmitglied {MitgliedId} for hauptmitglied {HauptmitgliedId}", created?.Id, request.HauptmitgliedId);
-                return created;
+                return await ApplyAppUserRoleAsync(client, created);
             },
             null);
         public Task<List<SaisonRecord>> GetSaisonRecordsAsync() => ExecuteAsync(
@@ -1181,7 +1215,8 @@ namespace KGV.Infrastructure.Services
                     .Where(x => x.AuthUserId == authUserId)
                     .Get();
 
-                return response?.Models?.FirstOrDefault();
+                var member = response?.Models?.FirstOrDefault();
+                return await ApplyAppUserRoleAsync(client, member);
             },
             null);
 
@@ -3338,6 +3373,61 @@ namespace KGV.Infrastructure.Services
                 .Get();
 
             return authUserResponse?.Models?.FirstOrDefault();
+        }
+
+        private static async Task ApplyAppUserRolesAsync(Client client, IReadOnlyCollection<MitgliedRecord> members)
+        {
+            if (members == null || members.Count == 0)
+                return;
+
+            try
+            {
+                var appUsersResponse = await client.From<AppUserRecord>().Get();
+                var appUsers = appUsersResponse?.Models?.ToList() ?? new List<AppUserRecord>();
+
+                foreach (var member in members)
+                    ApplyAppUserRole(member, appUsers);
+            }
+            catch
+            {
+                foreach (var member in members)
+                    member.Role = NormalizeAppUserRole(null);
+            }
+        }
+
+        private static async Task<MitgliedRecord?> ApplyAppUserRoleAsync(Client client, MitgliedRecord? member)
+        {
+            if (member == null)
+                return null;
+
+            try
+            {
+                var appUser = await GetAppUserByMitgliedIdAsync(client, member.Id, member.AuthUserId);
+                member.Role = NormalizeAppUserRole(appUser?.Role);
+            }
+            catch
+            {
+                member.Role = NormalizeAppUserRole(null);
+            }
+
+            return member;
+        }
+
+        private static void ApplyAppUserRole(MitgliedRecord member, IReadOnlyCollection<AppUserRecord> appUsers)
+        {
+            if (member == null)
+                return;
+
+            var appUser = appUsers.FirstOrDefault(x => x.MitgliedId == (long?)member.Id);
+            if (appUser == null && member.AuthUserId.HasValue)
+                appUser = appUsers.FirstOrDefault(x => x.UserId == member.AuthUserId.Value);
+
+            member.Role = NormalizeAppUserRole(appUser?.Role);
+        }
+
+        private static string NormalizeAppUserRole(string? role)
+        {
+            return UserRoles.ToStorageValue(UserRoles.Parse(role));
         }
 
         private static DateTime? NormalizeDate(DateTime? value)

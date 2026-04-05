@@ -254,7 +254,7 @@ public sealed class AdminMenuPage : ContentPage
                     {
                         AuthUserId = memberRecord.AuthUserId,
                         MitgliedId = selectedMember.Id,
-                        Role = NormalizeRole(string.IsNullOrWhiteSpace(memberRecord.Role) ? selectedMember.Role : memberRecord.Role),
+                        Role = UserRoles.User,
                         GrantedPermissions = PermissionFlags.None,
                         RevokedPermissions = PermissionFlags.None
                     };
@@ -263,7 +263,7 @@ public sealed class AdminMenuPage : ContentPage
             }
         }
 
-        _selectedRole = NormalizeRole(_permissionSettings?.Role ?? selectedMember?.Role);
+        _selectedRole = NormalizeRole(_permissionSettings?.Role ?? UserRoles.User);
         _initialRole = _selectedRole;
 
         _suppressRoleRefresh = true;
@@ -513,7 +513,7 @@ public sealed class AdminMenuPage : ContentPage
                 : !isRoleEditable
                     ? "Rollenbearbeitung für dieses Mitglied ist gesperrt. Die Rollenbasis und die wirksamen Rechte bleiben sichtbar."
                     : canManageRoleManagement
-                        ? "Rolle bleibt das Basispaket. Benutzerspezifische Fachrechte werden als Grants/Revocations darüber gespeichert."
+                        ? "Rolle bleibt das Basispaket. Rollenänderungen werden produktiv über app_user.role gespeichert; benutzerspezifische Fachrechte bleiben separate Grants/Revocations."
                         : "Rollen-/Rechteverwaltung ist in diesem Kontext nur lesend freigegeben. Rolle, Rollenbasis und wirksame Rechte bleiben sichtbar.";
     }
 
@@ -547,69 +547,35 @@ public sealed class AdminMenuPage : ContentPage
             return;
         }
 
-        var userId = _userContextState.CurrentUserId?.ToString();
-        if (string.IsNullOrWhiteSpace(userId))
-        {
-            await DisplayAlert("Fehler", "Nicht angemeldet. Bitte erneut einloggen.", "OK");
-            return;
-        }
-
-        var lockAcquired = false;
         try
         {
-            lockAcquired = await _supabaseService.TryLockMitgliedAsync(selectedMember.Id, userId);
-            if (!lockAcquired)
+            if (!(_permissionSettings?.HasLinkedUser ?? false))
             {
-                await DisplayAlert("Gesperrt", "Datensatz ist aktuell gesperrt. Bitte später erneut versuchen.", "OK");
+                await DisplayAlert("Hinweis", "Für dieses Mitglied existiert aktuell kein verknüpfter App-User. Die Rolle kann deshalb noch nicht über app_user.role gespeichert werden.", "OK");
                 return;
             }
 
-            var rec = await _supabaseService.GetMitgliedByIdAsync(selectedMember.Id);
-            if (rec == null)
-            {
-                await DisplayAlert("Fehler", "Mitglied konnte nicht geladen werden.", "OK");
-                return;
-            }
-
-            var dto = new MemberDTO
-            {
-                Id = rec.Id,
-                Vorname = rec.Vorname ?? string.Empty,
-                Nachname = rec.Name ?? string.Empty,
-                Email = rec.Email ?? string.Empty,
-                Role = _selectedRole,
-                Geburtsdatum = rec.Geburtsdatum,
-                Strasse = rec.Adresse ?? string.Empty,
-                PLZ = rec.Plz ?? string.Empty,
-                Ort = rec.Ort ?? string.Empty,
-                Telefon = rec.Telefon ?? string.Empty,
-                Mobilnummer = rec.Handy ?? string.Empty,
-                Bemerkungen = rec.Bemerkung ?? string.Empty,
-                WhatsappEinwilligung = rec.WhatsappEinwilligung,
-                MitgliedSeit = rec.MitgliedSeit,
-                MitgliedEnde = rec.MitgliedEnde
-            };
-
-            var ok = await _supabaseService.UpdateMitgliedAsync(dto, userId);
+            var ok = await _supabaseService.SetAppUserRoleAsync(selectedMember.Id, _selectedRole);
             if (!ok)
             {
-                await DisplayAlert("Fehler", "Rolle konnte nicht gespeichert werden.", "OK");
+                await DisplayAlert("Fehler", "Die Rolle konnte aktuell nicht über app_user.role gespeichert werden.", "OK");
                 return;
             }
 
-            _memberContextState.SetSelectedMember(dto.Clone());
+            var updatedMember = selectedMember.Clone();
+            updatedMember.Role = _selectedRole;
+            _memberContextState.SetSelectedMember(updatedMember);
             _initialRole = _selectedRole;
             if (_permissionSettings != null)
                 _permissionSettings.Role = _selectedRole;
 
             RefreshPermissionOverrideState();
-            UpdateRoleManagementState(dto, true, CanReadRoleManagement());
+            UpdateRoleManagementState(updatedMember, true, CanReadRoleManagement());
             await DisplayAlert("Gespeichert", "Rolle wurde gespeichert.", "OK");
         }
-        finally
+        catch (Exception ex)
         {
-            if (lockAcquired)
-                await _supabaseService.ReleaseLockMitgliedAsync(selectedMember.Id, userId, force: false);
+            await DisplayAlert("Fehler", $"Die Rolle konnte aktuell nicht gespeichert werden: {ex.Message}", "OK");
         }
     }
 

@@ -695,12 +695,7 @@ ALTER FUNCTION "public"."get_hauptmitglied_id"("p_mitglied_id" bigint) OWNER TO 
 CREATE OR REPLACE FUNCTION "public"."get_user_role"() RETURNS "text"
     LANGUAGE "sql" STABLE
     AS $$
-  select coalesce(au.role, m.role)
-  from public.mitglied m
-  left join public.app_user au
-    on au.user_id = m.auth_user_id
-  where m.auth_user_id = auth.uid()
-  limit 1
+  select public.current_app_role()
 $$;
 
 
@@ -987,12 +982,11 @@ begin
     return new;
   end if;
 
-  -- auth_user_id existiert: upsert app_user
-  insert into public.app_user (user_id, mitglied_id, role, updated_at)
-  values (new.auth_user_id, new.id, new.role, now())
+  -- auth_user_id existiert: app_user-Verknüpfung sicherstellen, Rolle bleibt führend in app_user
+  insert into public.app_user (user_id, mitglied_id, updated_at)
+  values (new.auth_user_id, new.id, now())
   on conflict (user_id) do update
     set mitglied_id = excluded.mitglied_id,
-        role        = excluded.role,
         updated_at  = now();
 
   return new;
@@ -1361,10 +1355,8 @@ CREATE OR REPLACE FUNCTION "public"."who_am_i"() RETURNS TABLE("vorname" "text",
     AS $$
   select
     m.vorname,
-    coalesce(au.role, m.role) as role
+    public.current_app_role() as role
   from public.mitglied m
-  left join public.app_user au
-    on au.user_id = m.auth_user_id
   where m.auth_user_id = auth.uid()
   limit 1
 $$;
@@ -2361,7 +2353,7 @@ CREATE OR REPLACE TRIGGER "trg_set_jahr" BEFORE INSERT ON "public"."saison" FOR 
 
 
 
-CREATE OR REPLACE TRIGGER "trg_sync_app_user_from_mitglied" AFTER INSERT OR UPDATE OF "auth_user_id", "role" ON "public"."mitglied" FOR EACH ROW EXECUTE FUNCTION "public"."sync_app_user_from_mitglied"();
+CREATE OR REPLACE TRIGGER "trg_sync_app_user_from_mitglied" AFTER INSERT OR UPDATE OF "auth_user_id" ON "public"."mitglied" FOR EACH ROW EXECUTE FUNCTION "public"."sync_app_user_from_mitglied"();
 
 
 

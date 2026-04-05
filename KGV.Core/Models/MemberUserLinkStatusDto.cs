@@ -1,3 +1,4 @@
+using KGV.Core.Security;
 using System;
 
 namespace KGV.Core.Models
@@ -6,7 +7,7 @@ namespace KGV.Core.Models
     {
         public int MitgliedId { get; set; }
         public string DisplayName { get; set; } = string.Empty;
-        public string Role { get; set; } = string.Empty;
+        public string Role { get; set; } = UserRoles.User;
         public string Email { get; set; } = string.Empty;
         public Guid? MitgliedAuthUserId { get; set; }
         public Guid? AppUserUserId { get; set; }

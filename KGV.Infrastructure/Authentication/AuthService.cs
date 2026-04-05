@@ -1,5 +1,6 @@
 ﻿using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Infrastructure.Models;
 using KGV.Infrastructure.Supabase;
 using Supabase;
@@ -326,8 +327,6 @@ namespace KGV.Infrastructure.Authentication
                 _verifiedOtpEmail = null;
                 CurrentUserId = user.Id;
 
-                MitgliedRecord? userRecord = null;
-
                 if (!Guid.TryParse(user.Id, out var userGuid))
                 {
                     _logger?.LogWarning("LOGIN_FAIL_REASON:INVALID_USER_GUID for {EmailMasked}", MaskEmail(email));
@@ -338,24 +337,18 @@ namespace KGV.Infrastructure.Authentication
 
                 try
                 {
-                    userRecord = await client
-                        .From<MitgliedRecord>()
-                        .Where(m => m.AuthUserId == userGuid)
+                    var appUserResponse = await client
+                        .From<AppUserRecord>()
+                        .Where(x => x.UserId == userGuid)
                         .Single();
+
+                    var role = NormalizeRoleValue(appUserResponse?.Role);
+                    IsVorstand = string.Equals(role, "vorstand", StringComparison.OrdinalIgnoreCase);
+                    IsAdmin = string.Equals(role, "admin", StringComparison.OrdinalIgnoreCase);
                 }
                 catch (Exception ex)
                 {
                     _logger?.LogWarning(ex, "LOGIN_ROLE_LOOKUP_WARN for {EmailMasked}: {MessageMasked}", MaskEmail(email), MaskDiagnosticMessage(ex.Message));
-                }
-
-                if (userRecord != null)
-                {
-                    var role = (userRecord.Role ?? string.Empty).Trim();
-                    IsVorstand = string.Equals(role, "vorstand", StringComparison.OrdinalIgnoreCase);
-                    IsAdmin = string.Equals(role, "admin", StringComparison.OrdinalIgnoreCase);
-                }
-                else
-                {
                     IsVorstand = false;
                     IsAdmin = false;
                 }
@@ -689,7 +682,7 @@ namespace KGV.Infrastructure.Authentication
                 MitgliedId = memberId,
                 Email = member?.Email ?? string.Empty,
                 DisplayName = FormatDisplayName(member),
-                Role = FirstNonEmpty(member?.Role, appUser?.Role),
+                Role = NormalizeRoleValue(appUser?.Role),
                 Aktiv = member?.Aktiv ?? true,
                 EmailBestaetigt = false,
                 CreatedAt = appUser?.CreatedAt
@@ -704,7 +697,7 @@ namespace KGV.Infrastructure.Authentication
                 MitgliedId = linkStatus.MitgliedId,
                 Email = linkStatus.Email ?? string.Empty,
                 DisplayName = linkStatus.DisplayName ?? string.Empty,
-                Role = FirstNonEmpty(linkStatus.Role),
+                Role = NormalizeRoleValue(linkStatus.Role),
                 Aktiv = true,
                 EmailBestaetigt = false
             };
@@ -773,7 +766,7 @@ namespace KGV.Infrastructure.Authentication
             {
                 MitgliedId = member.Id,
                 DisplayName = FormatDisplayName(member),
-                Role = FirstNonEmpty(member.Role),
+                Role = NormalizeRoleValue(primaryAppUser?.Role),
                 Email = (member.Email ?? string.Empty).Trim(),
                 MitgliedAuthUserId = memberAuthUserId,
                 AppUserUserId = appUserUserId,
@@ -820,6 +813,11 @@ namespace KGV.Infrastructure.Authentication
             }
 
             return string.Empty;
+        }
+
+        private static string NormalizeRoleValue(string? role)
+        {
+            return UserRoles.ToStorageValue(UserRoles.Parse(role));
         }
 
         private static string MaskEmail(string? email)
@@ -1025,7 +1023,7 @@ namespace KGV.Infrastructure.Authentication
 
             var member = memberResolution.Member;
             LogDiagnosticInformation($"INVITE_MEMBER_FOUND flowKind={flowKind} email={MaskEmail(email)} mitgliedId={member.Id} currentMemberAuthUserId={member.AuthUserId?.ToString() ?? "<null>"}");
-            var normalizedRole = NormalizeRole(FirstNonEmpty(user.Role, member.Role));
+            var normalizedRole = NormalizeRole(FirstNonEmpty(user.Role, UserRoles.User));
             var authUserId = user.AuthUserId ?? member.AuthUserId ?? await ResolveAuthUserIdFromExistingMappingsAsync(member.Id, email);
             var mappingAttempts = 0;
 
