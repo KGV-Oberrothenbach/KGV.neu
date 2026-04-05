@@ -181,6 +181,7 @@ namespace KGV.ViewModels
                     {
                         AuthUserId = memberRecord.AuthUserId,
                         MitgliedId = SelectedMember.Id,
+                        HasAppUserRecord = false,
                         Role = UserRoles.User,
                         GrantedPermissions = PermissionFlags.None,
                         RevokedPermissions = PermissionFlags.None
@@ -192,6 +193,7 @@ namespace KGV.ViewModels
             settings ??= new UserPermissionSettings
             {
                 MitgliedId = SelectedMember.Id,
+                HasAppUserRecord = false,
                 Role = UserRoles.User,
                 GrantedPermissions = PermissionFlags.None,
                 RevokedPermissions = PermissionFlags.None
@@ -317,19 +319,11 @@ namespace KGV.ViewModels
 
                 if (!ok)
                 {
-                    MessageBox.Show("Die benutzerspezifischen Fachrechte konnten nicht gespeichert werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("Die benutzerspezifischen Fachrechte konnten nicht gespeichert werden. Details stehen im Anwendungslog.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
 
-                _initialGrantedPermissions = CurrentGrantedPermissions;
-                _initialRevokedPermissions = CurrentRevokedPermissions;
-                if (_permissionSettings != null)
-                {
-                    _permissionSettings.GrantedPermissions = _initialGrantedPermissions;
-                    _permissionSettings.RevokedPermissions = _initialRevokedPermissions;
-                }
-
-                RefreshPermissionState();
+                await LoadPermissionSettingsAsync();
                 MessageBox.Show("Benutzerspezifische Fachrechte wurden gespeichert.", "OK", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)

@@ -2,6 +2,69 @@
 
 ---
 
+## 2026-04-05 – Save-Fix benutzerspezifische Fachbereiche: vorhandenen `app_user`-Write-/Verify-/Reload-Pfad im Workspace geprüft, Builds ausgeführt und Live-SQL-Test vorbereitet
+
+- Ausgangspunkt dieses Laufs war ausdrücklich kein neuer Rechteumbau, sondern nur der saubere Abschluss des bereits lokal analysierten Save-Fix-Blocks für benutzerspezifische Fachbereiche.
+- Zu Beginn wurde der echte Git-/Arbeitsbaumstand geprüft:
+  - aktueller Branch: `main`
+  - im Arbeitsbaum lagen blockfremd offen und bewusst außerhalb dieses Blocks:
+    - `.github/copilot-instructions.md`
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Lauf:
+  - `KGV.Core/Security/UserPermissionSettings.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Der ausdrücklich gesuchte Fixstand wurde im aktuellen Workspace wirklich geprüft und bestätigt:
+  - `UserPermissionSettings` enthält `HasAppUserRecord`
+  - `HasLinkedUser` hängt jetzt an `HasAppUserRecord` und damit am echten `app_user`-Datensatz statt nur an einer vorhandenen `AuthUserId`
+  - `GetUserPermissionSettingsAsync(...)` setzt `HasAppUserRecord = appUser != null` und lädt `permission_grants` / `permission_revocations` direkt aus `public.app_user`
+  - `SetUserPermissionSettingsAsync(...)` läuft persistenzverifiziert:
+    - Abbruch mit Warnlog, wenn kein auflösbarer `app_user`-Datensatz vorhanden ist
+    - produktives Update von `role`, `permission_grants`, `permission_revocations`, `mitglied_id` und `updated_at`
+    - anschließender Reload des tatsächlich gespeicherten `app_user`-Datensatzes über `user_id`
+    - Vergleich des persistierten Stands gegen die erwarteten Werte
+    - zusätzlicher Verify-Check, dass sich `updated_at` gegenüber dem vorherigen Wert wirklich geändert hat
+  - WPF lädt die Permission-Settings nach erfolgreichem Save über `LoadPermissionSettingsAsync()` erneut
+  - MAUI lädt die Permission-Settings nach erfolgreichem Save über `LoadPermissionSettingsAsync(selectedMember, true)` erneut
+  - Fehlermeldung und Logging sind für den Save-Fall geschärft:
+    - UI meldet bei Fehlschlag ausdrücklich, dass Details im Anwendungslog stehen
+    - `SupabaseService` schreibt Start-, Fehler- und Erfolgslogs für den Save-/Verify-Pfad
+- Ehrlicher Befund dieses Laufs:
+  - die in der letzten Zusammenfassung genannten Codeänderungen stehen im aktuellen Workspace bereits vollständig im betroffenen Save-Pfad
+  - deshalb war in diesem Lauf keine weitere Fachänderung an `UserPermissionSettings`, `SupabaseService`, `AdminRoleViewModel` oder `AdminMenuPage` nötig
+  - es wurde bewusst kein neuer Rechtepfad, keine neue UI-Struktur und kein weiterer Rollenquellen-Umbau erzwungen
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund:
+    - bestehende Warnungen bleiben u. a. in `KGV.Infrastructure/Services/SupabaseService.cs`, `KGV.Wpf/ViewModels/ArbeitseinsaetzeVerwaltungViewModel.cs`, `KGV.Wpf/ViewModels/BekanntmachungenVerwaltungViewModel.cs`, `KGV.Wpf/ViewModels/TermineVerwaltungViewModel.cs`, `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/ImpressumPage.cs` außerhalb dieses Blocks unverändert bestehen
+- Live-Fachtest für Mitglied `1` in diesem Lauf nicht direkt gegen die Datenbank ausgeführt; er wurde aber ausdrücklich vorbereitet und dokumentiert:
+  - bekannter Zielkontext:
+    - `mitglied_id = 1`
+    - `app_user.user_id = 4e123db9-f3ef-4507-b23b-7a16847991a3`
+  - vor dem letzten fehlgeschlagenen Speicherversuch waren:
+    - `permission_grants = 0`
+    - `permission_revocations = 0`
+    - `updated_at = 2026-03-31 06:48:57.408+00`
+  - nach dem Fix muss bei erneutem Speichern mindestens einer dieser Werte sichtbar ändern:
+    - `permission_grants`
+    - `permission_revocations`
+    - `updated_at`
+  - dafür im nächsten Live-Lauf knapp referenzierter SQL-Prüfablauf:
+    - `select user_id, permission_grants, permission_revocations, updated_at from public.app_user where mitglied_id = 1;`
+    - danach Speichervorgang in WPF oder MAUI auslösen
+    - dieselbe Abfrage erneut ausführen und auf Wertänderung prüfen
+- Abschlussstand dieses Laufs:
+  - der vorhandene Save-Fix für benutzerspezifische Fachbereiche ist im Workspace geprüft: ja
+  - der Buildzustand dieses Blocks ist grün: ja
+  - eine zusätzliche Codeänderung am Save-Pfad war in diesem Lauf nötig: nein
+  - offener Rest bleibt nur die externe Live-DB-Verifikation des bereits vorhandenen Verify-/Reload-Fixes
+
 ## 2026-04-05 – Git-/Remote-Klärung nach behauptetem Merge: echter Stand bestätigt, keine Korrektur nötig
 
 - Ausgangspunkt dieses Laufs war die sichtbare Unsicherheit, ob der zuvor dokumentierte Merge nach `main` tatsächlich auf dem öffentlichen Remote-Stand liegt.

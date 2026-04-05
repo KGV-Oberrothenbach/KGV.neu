@@ -243,6 +243,7 @@ namespace KGV.Infrastructure.Services
                     AuthUserId = appUser?.UserId ?? mitglied.AuthUserId,
                     MitgliedId = mitgliedId,
                     Role = role,
+                    HasAppUserRecord = appUser != null,
                     GrantedPermissions = PermissionService.NormalizeStoredPermissions(appUser?.PermissionGrants),
                     RevokedPermissions = PermissionService.NormalizeStoredPermissions(appUser?.PermissionRevocations)
                 };
@@ -293,11 +294,31 @@ namespace KGV.Infrastructure.Services
 
                 var appUser = await GetAppUserByMitgliedIdAsync(client, mitgliedId, mitglied.AuthUserId);
                 if (appUser == null)
+                {
+                    _logger?.LogWarning(
+                        "SetUserPermissionSettingsAsync aborted because no app_user record could be resolved. MitgliedId={MitgliedId}, AuthUserId={AuthUserId}, Role={Role}, PermissionGrants={PermissionGrants}, PermissionRevocations={PermissionRevocations}",
+                        mitgliedId,
+                        mitglied.AuthUserId,
+                        role,
+                        grantedPermissions,
+                        revokedPermissions);
                     return false;
+                }
 
                 var normalizedRole = UserRoles.ToStorageValue(UserRoles.Parse(role));
                 var normalizedGrantedPermissions = (long)PermissionService.NormalizeStoredPermissions(grantedPermissions);
                 var normalizedRevokedPermissions = (long)PermissionService.NormalizeStoredPermissions(revokedPermissions);
+                var previousUpdatedAt = appUser.UpdatedAt;
+                var updateTimestamp = DateTime.UtcNow;
+
+                _logger?.LogInformation(
+                    "SetUserPermissionSettingsAsync started. MitgliedId={MitgliedId}, AppUserUserId={AppUserUserId}, PreviousUpdatedAt={PreviousUpdatedAt}, Role={Role}, PermissionGrants={PermissionGrants}, PermissionRevocations={PermissionRevocations}",
+                    mitgliedId,
+                    appUser.UserId,
+                    previousUpdatedAt,
+                    normalizedRole,
+                    normalizedGrantedPermissions,
+                    normalizedRevokedPermissions);
 
                 await client
                     .From<AppUserRecord>()
@@ -306,8 +327,52 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.Role, normalizedRole)
                     .Set(x => x.PermissionGrants, normalizedGrantedPermissions)
                     .Set(x => x.PermissionRevocations, normalizedRevokedPermissions)
-                    .Set(x => x.UpdatedAt, DateTime.UtcNow)
+                    .Set(x => x.UpdatedAt, updateTimestamp)
                     .Update();
+
+                var persistedAppUser = await GetAppUserByUserIdAsync(client, appUser.UserId);
+                if (persistedAppUser == null)
+                {
+                    _logger?.LogError(
+                        "SetUserPermissionSettingsAsync failed verification because the updated app_user record could not be reloaded. MitgliedId={MitgliedId}, AppUserUserId={AppUserUserId}",
+                        mitgliedId,
+                        appUser.UserId);
+                    return false;
+                }
+
+                var persistedRole = NormalizeAppUserRole(persistedAppUser.Role);
+                var persistedGrantedPermissions = (long)PermissionService.NormalizeStoredPermissions(persistedAppUser.PermissionGrants);
+                var persistedRevokedPermissions = (long)PermissionService.NormalizeStoredPermissions(persistedAppUser.PermissionRevocations);
+                var updatedAtChanged = persistedAppUser.UpdatedAt != previousUpdatedAt;
+                var persistedAsExpected = persistedAppUser.MitgliedId == mitgliedId
+                                          && string.Equals(persistedRole, normalizedRole, StringComparison.OrdinalIgnoreCase)
+                                          && persistedGrantedPermissions == normalizedGrantedPermissions
+                                          && persistedRevokedPermissions == normalizedRevokedPermissions;
+
+                if (!persistedAsExpected || !updatedAtChanged)
+                {
+                    _logger?.LogError(
+                        "SetUserPermissionSettingsAsync failed verification after update. MitgliedId={MitgliedId}, AppUserUserId={AppUserUserId}, ExpectedRole={ExpectedRole}, PersistedRole={PersistedRole}, ExpectedPermissionGrants={ExpectedPermissionGrants}, PersistedPermissionGrants={PersistedPermissionGrants}, ExpectedPermissionRevocations={ExpectedPermissionRevocations}, PersistedPermissionRevocations={PersistedPermissionRevocations}, PreviousUpdatedAt={PreviousUpdatedAt}, PersistedUpdatedAt={PersistedUpdatedAt}",
+                        mitgliedId,
+                        appUser.UserId,
+                        normalizedRole,
+                        persistedRole,
+                        normalizedGrantedPermissions,
+                        persistedGrantedPermissions,
+                        normalizedRevokedPermissions,
+                        persistedRevokedPermissions,
+                        previousUpdatedAt,
+                        persistedAppUser.UpdatedAt);
+                    return false;
+                }
+
+                _logger?.LogInformation(
+                    "SetUserPermissionSettingsAsync completed successfully. MitgliedId={MitgliedId}, AppUserUserId={AppUserUserId}, PermissionGrants={PermissionGrants}, PermissionRevocations={PermissionRevocations}, UpdatedAt={UpdatedAt}",
+                    mitgliedId,
+                    appUser.UserId,
+                    persistedGrantedPermissions,
+                    persistedRevokedPermissions,
+                    persistedAppUser.UpdatedAt);
 
                 return true;
             },
@@ -3373,6 +3438,16 @@ namespace KGV.Infrastructure.Services
                 .Get();
 
             return authUserResponse?.Models?.FirstOrDefault();
+        }
+
+        private static async Task<AppUserRecord?> GetAppUserByUserIdAsync(Client client, Guid userId)
+        {
+            var response = await client
+                .From<AppUserRecord>()
+                .Where(x => x.UserId == userId)
+                .Get();
+
+            return response?.Models?.FirstOrDefault();
         }
 
         private static async Task ApplyAppUserRolesAsync(Client client, IReadOnlyCollection<MitgliedRecord> members)

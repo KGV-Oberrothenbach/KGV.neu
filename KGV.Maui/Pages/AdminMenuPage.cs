@@ -254,6 +254,7 @@ public sealed class AdminMenuPage : ContentPage
                     {
                         AuthUserId = memberRecord.AuthUserId,
                         MitgliedId = selectedMember.Id,
+                        HasAppUserRecord = false,
                         Role = UserRoles.User,
                         GrantedPermissions = PermissionFlags.None,
                         RevokedPermissions = PermissionFlags.None
@@ -443,17 +444,11 @@ public sealed class AdminMenuPage : ContentPage
 
         if (!ok)
         {
-            await DisplayAlert("Fehler", "Die benutzerspezifischen Fachrechte konnten nicht gespeichert werden.", "OK");
+            await DisplayAlert("Fehler", "Die benutzerspezifischen Fachrechte konnten nicht gespeichert werden. Details stehen im Anwendungslog.", "OK");
             return;
         }
 
-        if (_permissionSettings != null)
-        {
-            _permissionSettings.GrantedPermissions = CurrentGrantedPermissions;
-            _permissionSettings.RevokedPermissions = CurrentRevokedPermissions;
-        }
-
-        RefreshPermissionOverrideState();
+        await LoadPermissionSettingsAsync(selectedMember, true);
         await DisplayAlert("Gespeichert", "Die benutzerspezifischen Fachrechte wurden gespeichert.", "OK");
     }
 

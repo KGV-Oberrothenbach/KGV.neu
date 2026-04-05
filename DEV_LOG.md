@@ -2,6 +2,44 @@
 
 ---
 
+## 2026-04-05 – Save-Fix benutzerspezifische Fachbereiche: vorhandenen `app_user`-Write-/Verify-/Reload-Pfad ehrlich validiert und Abschluss vorbereitet
+
+- Arbeitsgrundlage war der bereits lokal begonnene Save-Fix-Block für benutzerspezifische Fachbereiche; es wurde keine neue Rechtearchitektur und keine neue UI-Baustelle eröffnet.
+- Zu Beginn den echten Git-/Arbeitsbaumstand geprüft:
+  - aktueller Branch: `main`
+  - blockfremd offen und bewusst unberührt:
+    - `.github/copilot-instructions.md`
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden:
+  - `KGV.Core/Security/UserPermissionSettings.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Codebefund im aktuellen Workspace:
+  - `UserPermissionSettings` enthält `HasAppUserRecord`
+  - `HasLinkedUser` hängt jetzt am echten `app_user`-Bezug statt an einer bloßen `AuthUserId`
+  - `SetUserPermissionSettingsAsync(...)` schreibt nicht nur, sondern verifiziert den Write jetzt per Reload des `app_user`-Datensatzes und prüft dabei `role`, `permission_grants`, `permission_revocations` und `updated_at`
+  - WPF und MAUI laden die Permission-Settings nach erfolgreichem Save erneut
+  - Fehlermeldung und Logging sind für den Save-Pfad geschärft; fehlgeschlagene Persistenz verweist ausdrücklich auf das Anwendungslog
+- In diesem Lauf war deshalb keine weitere Fachänderung am Save-Pfad nötig; der bereits vorhandene Fix wurde bewusst nur validiert und nicht erneut umgebaut.
+- Buildvalidierung wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund:
+    - bestehende Warnungen bleiben u. a. in `KGV.Infrastructure/Services/SupabaseService.cs`, `KGV.Wpf/ViewModels/ArbeitseinsaetzeVerwaltungViewModel.cs`, `KGV.Wpf/ViewModels/BekanntmachungenVerwaltungViewModel.cs`, `KGV.Wpf/ViewModels/TermineVerwaltungViewModel.cs`, `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/ImpressumPage.cs` außerhalb dieses Blocks unverändert bestehen
+- Live-Fachtest für Mitglied `1` in diesem Lauf nicht direkt gegen die Datenbank ausgeführt; als offener Verifikationsschritt bleibt vorbereitet:
+  - vor erneutem Speichern prüfen für `app_user.user_id = 4e123db9-f3ef-4507-b23b-7a16847991a3`
+  - nach dem Speichern muss sich mindestens einer der Werte ändern:
+    - `permission_grants`
+    - `permission_revocations`
+    - `updated_at`
+  - SQL-Prüfablauf dafür bewusst knapp referenziert:
+    - `select user_id, permission_grants, permission_revocations, updated_at from public.app_user where mitglied_id = 1;`
+
 ## 2026-04-05 – Git-/Remote-Klärung nach behauptetem Merge: echter Stand bestätigt, keine Korrektur nötig
 
 - Arbeitsgrundlage erneut gegen den realen Repo- und Remote-Stand geprüft.

@@ -9,8 +9,9 @@ namespace KGV.Core.Security
         public string Role { get; set; } = UserRoles.User;
         public PermissionFlags GrantedPermissions { get; set; }
         public PermissionFlags RevokedPermissions { get; set; }
+        public bool HasAppUserRecord { get; set; }
 
-        public bool HasLinkedUser => AuthUserId.HasValue;
+        public bool HasLinkedUser => HasAppUserRecord;
         public UserRole ParsedRole => UserRoles.Parse(Role);
         public PermissionFlags BasePermissions => PermissionService.GetRolePermissions(ParsedRole);
         public PermissionFlags EffectivePermissions => PermissionService.ApplyOverrides(BasePermissions, GrantedPermissions, RevokedPermissions);
