@@ -36,6 +36,7 @@ public sealed class AdminMenuPage : ContentPage
     private readonly List<PermissionAreaEditorRow> _permissionOverrideRows = new();
     private bool _allowUserMeterReadingSubmissions;
     private UserPermissionSettings? _permissionSettings;
+    private bool _isPermissionSettingsLoadReliable;
     private bool _suppressPermissionOverrideRefresh;
     private bool _suppressRoleRefresh;
     private string _selectedRole = UserRoles.User;
@@ -234,19 +235,32 @@ public sealed class AdminMenuPage : ContentPage
 
     private async Task LoadPermissionSettingsAsync(MemberDTO? selectedMember, bool hasSelectedMember)
     {
-        _permissionSettings = hasSelectedMember
-            ? await _supabaseService.GetUserPermissionSettingsAsync(selectedMember!.Id)
-            : null;
+        _isPermissionSettingsLoadReliable = !hasSelectedMember;
+        _permissionSettings = null;
 
-        if (_permissionSettings == null && hasSelectedMember)
+        if (hasSelectedMember)
         {
-            _permissionSettings = new UserPermissionSettings
+            _permissionSettings = await _supabaseService.GetUserPermissionSettingsAsync(selectedMember!.Id);
+            if (_permissionSettings != null)
             {
-                MitgliedId = selectedMember!.Id,
-                Role = NormalizeRole(selectedMember.Role),
-                GrantedPermissions = PermissionFlags.None,
-                RevokedPermissions = PermissionFlags.None
-            };
+                _isPermissionSettingsLoadReliable = true;
+            }
+            else
+            {
+                var memberRecord = await _supabaseService.GetMitgliedByIdAsync(selectedMember.Id);
+                if (memberRecord != null)
+                {
+                    _permissionSettings = new UserPermissionSettings
+                    {
+                        AuthUserId = memberRecord.AuthUserId,
+                        MitgliedId = selectedMember.Id,
+                        Role = NormalizeRole(string.IsNullOrWhiteSpace(memberRecord.Role) ? selectedMember.Role : memberRecord.Role),
+                        GrantedPermissions = PermissionFlags.None,
+                        RevokedPermissions = PermissionFlags.None
+                    };
+                    _isPermissionSettingsLoadReliable = true;
+                }
+            }
         }
 
         _selectedRole = NormalizeRole(_permissionSettings?.Role ?? selectedMember?.Role);
@@ -346,10 +360,16 @@ public sealed class AdminMenuPage : ContentPage
             ? "Rollenbasis: –"
             : $"Rollenbasis: {_selectedRole}";
 
-        var linkedUser = _permissionSettings?.HasLinkedUser == true ? "App-User verknüpft" : "Kein App-User verknüpft";
+        var linkedUser = !_isPermissionSettingsLoadReliable
+            ? "App-User-Status unbekannt"
+            : _permissionSettings?.HasLinkedUser == true
+                ? "App-User verknüpft"
+                : "Kein App-User verknüpft";
         _permissionRoleBasisLabel.Text = $"{roleBasis} · {linkedUser}";
         _permissionEditorHintLabel.Text = !canReadRoleManagement
             ? "Rollen-/Rechteverwaltung ist für den aktuellen Kontext nicht freigegeben."
+            : !_isPermissionSettingsLoadReliable
+                ? "Der Verknüpfungsstatus des App-Users konnte aktuell nicht belastbar geladen werden. Rechte bleiben vorsorglich gesperrt, bis die Daten erneut erfolgreich geladen wurden."
             : _permissionSettings?.HasLinkedUser != true
                 ? "Für dieses Mitglied existiert aktuell kein verknüpfter App-User. Die Rechteübersicht bleibt sichtbar, Speichern ist gesperrt."
                 : IsRoleDirty()

@@ -2,6 +2,53 @@
 
 ---
 
+## 2026-04-05 – MAUI Linked-User-Status im Admin-Menü gehärtet: Fallback maskiert Service-Nullpfad nicht mehr als „nicht verknüpft“
+
+- Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - blockfremde lokale Änderung an `.github/copilot-instructions.md` blieb bewusst unberührt
+  - bewusst unberührt blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden in diesem Lauf:
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+  - `KGV.Core/Security/UserPermissionSettings.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Core/Models/MemberDTO.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor der Umsetzung:
+  - `GetUserPermissionSettingsAsync(...)` setzt im aktuellen Repo-Stand `AuthUserId = appUser?.UserId ?? mitglied.AuthUserId` bereits korrekt
+  - `HasLinkedUser` basiert korrekt nur auf `AuthUserId.HasValue`
+  - der eigentliche Restfehler lag im MAUI-Fallback:
+    - wenn `GetUserPermissionSettingsAsync(...)` `null` zurückgab, erzeugte `AdminMenuPage.LoadPermissionSettingsAsync(...)` ein neues `UserPermissionSettings` ohne `AuthUserId`
+    - dadurch wurde ein unbekannter bzw. unvollständig geladener Zustand fälschlich als `kein App-User verknüpft` interpretiert
+    - der Fallback maskierte damit Service-/Ladeprobleme als fachlich sicheren Nicht-Link
+- Minimal umgesetzt:
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+    - Fallback auf Permission-Settings gehärtet
+    - bei `null` aus `GetUserPermissionSettingsAsync(...)` wird jetzt zusätzlich `GetMitgliedByIdAsync(...)` genutzt
+    - wenn das Mitglied geladen werden kann, übernimmt der Fallback `AuthUserId` direkt aus `mitglied.AuthUserId`
+    - zusätzlicher Status `load reliable / nicht belastbar geladen` verhindert, dass unbekannte Datenlage als `kein App-User verknüpft` angezeigt wird
+    - bei unklarer Datenlage bleibt Speichern vorsorglich gesperrt und die UI sagt explizit, dass der Verknüpfungsstatus aktuell nicht belastbar geladen werden konnte
+  - keine Änderung an `HasLinkedUser`-Semantik
+  - keine Änderung am Servicepfad nötig, weil der produktive `AuthUserId`-Fallback dort bereits korrekt vorhanden war
+- Fachlicher Stand nach dem Block:
+  - tatsächlich verknüpfte App-User werden im MAUI-Admin-Menü nicht mehr durch den lokalen Null-Fallback verloren
+  - wirklich nicht verknüpfte Mitglieder bleiben korrekt als nicht verknüpft erkennbar
+  - Service-/Ladeprobleme werden nicht mehr als fachlich sicherer Nicht-Link maskiert
+  - Rechte-Speichern bleibt nur bei belastbar geladenem Linked-Status freigegeben
+- Validierung in diesem Lauf:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund:
+    - keine automatisierte Live-UI-Prüfung gegen ein konkretes verknüpftes Mitglied ausgeführt
+    - die fachliche Korrektur wurde über den realen Null-Fallbackpfad und die `AuthUserId`-/`HasLinkedUser`-Logik geprüft
+    - `.github/copilot-instructions.md`, `AWR.bat` und `_secrets/` blieben bewusst unberührt
+
 ## 2026-04-05 – Rollen-/Fachrechte kompakt gemacht: WPF-Checkboxmatrix und MAUI-3-Stufen-Selector auf gemeinsamer Fachbereichsbasis
 
 - Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.
