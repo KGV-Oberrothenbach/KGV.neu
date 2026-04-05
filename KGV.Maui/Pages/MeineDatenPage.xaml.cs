@@ -337,8 +337,7 @@ public class MeineDatenPage : ContentPage
 
             var contextMember = MapMember(member);
             var permissionSettings = await _supabaseService.GetUserPermissionSettingsAsync(member.Id);
-            if (!string.IsNullOrWhiteSpace(permissionSettings?.Role))
-                contextMember.Role = NormalizeRole(permissionSettings.Role);
+            contextMember.Role = NormalizeRole(permissionSettings?.Role ?? UserRoles.User);
 
             _currentMember = contextMember;
             _currentMemberHasAuthUser = member.AuthUserId.HasValue;

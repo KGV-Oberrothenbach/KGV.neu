@@ -254,7 +254,7 @@ public sealed class AdminMenuPage : ContentPage
                     {
                         AuthUserId = memberRecord.AuthUserId,
                         MitgliedId = selectedMember.Id,
-                        Role = NormalizeRole(string.IsNullOrWhiteSpace(memberRecord.Role) ? selectedMember.Role : memberRecord.Role),
+                        Role = UserRoles.User,
                         GrantedPermissions = PermissionFlags.None,
                         RevokedPermissions = PermissionFlags.None
                     };
@@ -263,7 +263,7 @@ public sealed class AdminMenuPage : ContentPage
             }
         }
 
-        _selectedRole = NormalizeRole(_permissionSettings?.Role ?? selectedMember?.Role);
+        _selectedRole = NormalizeRole(_permissionSettings?.Role ?? UserRoles.User);
         _initialRole = _selectedRole;
 
         _suppressRoleRefresh = true;

@@ -153,9 +153,7 @@ namespace KGV.ViewModels
             SelectedMember.Vorname = rec.Vorname ?? string.Empty;
             SelectedMember.Nachname = rec.Name ?? string.Empty;
             SelectedMember.Mobilnummer = rec.Handy ?? string.Empty;
-            SelectedMember.Role = rec.Role ?? "user";
 
-            SelectedRole = SelectedMember.Role;
             AllowUserMeterReadingSubmissions = await _supabaseService.GetAllowUserMeterReadingSubmissionsAsync();
             _initialAllowUserMeterReadingSubmissions = AllowUserMeterReadingSubmissions;
             await LoadPermissionSettingsAsync();
@@ -183,7 +181,7 @@ namespace KGV.ViewModels
                     {
                         AuthUserId = memberRecord.AuthUserId,
                         MitgliedId = SelectedMember.Id,
-                        Role = UserRoles.ToStorageValue(UserRoles.Parse(string.IsNullOrWhiteSpace(memberRecord.Role) ? SelectedRole : memberRecord.Role)),
+                        Role = UserRoles.User,
                         GrantedPermissions = PermissionFlags.None,
                         RevokedPermissions = PermissionFlags.None
                     };
@@ -194,7 +192,7 @@ namespace KGV.ViewModels
             settings ??= new UserPermissionSettings
             {
                 MitgliedId = SelectedMember.Id,
-                Role = string.IsNullOrWhiteSpace(SelectedRole) ? UserRoles.User : SelectedRole,
+                Role = UserRoles.User,
                 GrantedPermissions = PermissionFlags.None,
                 RevokedPermissions = PermissionFlags.None
             };

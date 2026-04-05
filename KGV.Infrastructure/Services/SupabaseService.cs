@@ -231,15 +231,13 @@ namespace KGV.Infrastructure.Services
                     return null;
 
                 var appUser = await GetAppUserByMitgliedIdAsync(client, mitgliedId, mitglied.AuthUserId);
-                var role = string.IsNullOrWhiteSpace(appUser?.Role)
-                    ? (string.IsNullOrWhiteSpace(mitglied.Role) ? UserRoles.User : mitglied.Role!)
-                    : appUser!.Role!;
+                var role = NormalizeAppUserRole(appUser?.Role);
 
                 return new UserPermissionSettings
                 {
                     AuthUserId = appUser?.UserId ?? mitglied.AuthUserId,
                     MitgliedId = mitgliedId,
-                    Role = UserRoles.ToStorageValue(UserRoles.Parse(role)),
+                    Role = role,
                     GrantedPermissions = PermissionService.NormalizeStoredPermissions(appUser?.PermissionGrants),
                     RevokedPermissions = PermissionService.NormalizeStoredPermissions(appUser?.PermissionRevocations)
                 };
@@ -3367,6 +3365,11 @@ namespace KGV.Infrastructure.Services
                 .Get();
 
             return authUserResponse?.Models?.FirstOrDefault();
+        }
+
+        private static string NormalizeAppUserRole(string? role)
+        {
+            return UserRoles.ToStorageValue(UserRoles.Parse(role));
         }
 
         private static DateTime? NormalizeDate(DateTime? value)

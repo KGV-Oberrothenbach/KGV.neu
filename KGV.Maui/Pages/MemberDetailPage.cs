@@ -179,6 +179,8 @@ public sealed class MemberDetailPage : ContentPage
 
             _memberRecord = member;
             var memberDto = MapMember(member);
+            var permissionSettings = await _supabaseService.GetUserPermissionSettingsAsync(member.Id);
+            memberDto.Role = NormalizeRole(permissionSettings?.Role ?? UserRoles.User);
             _memberContextState.SetSelectedMember(memberDto);
             _hasLinkedAppUser = member.AuthUserId.HasValue || await HasLinkedAppUserAsync(member.Id);
 
@@ -437,6 +439,9 @@ public sealed class MemberDetailPage : ContentPage
             IstHauptmitglied = rec.HauptmitgliedId == null
         };
     }
+
+    private static string NormalizeRole(string? role)
+        => UserRoles.ToStorageValue(UserRoles.Parse(role));
 
     private static void SetOptionalDate(Switch toggle, DatePicker picker, DateTime? value)
     {

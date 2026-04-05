@@ -690,7 +690,7 @@ namespace KGV.Infrastructure.Authentication
                 MitgliedId = memberId,
                 Email = member?.Email ?? string.Empty,
                 DisplayName = FormatDisplayName(member),
-                Role = FirstNonEmpty(appUser?.Role, member?.Role, UserRoles.User),
+                Role = NormalizeRoleValue(appUser?.Role),
                 Aktiv = member?.Aktiv ?? true,
                 EmailBestaetigt = false,
                 CreatedAt = appUser?.CreatedAt
@@ -705,7 +705,7 @@ namespace KGV.Infrastructure.Authentication
                 MitgliedId = linkStatus.MitgliedId,
                 Email = linkStatus.Email ?? string.Empty,
                 DisplayName = linkStatus.DisplayName ?? string.Empty,
-                Role = FirstNonEmpty(linkStatus.Role, UserRoles.User),
+                Role = NormalizeRoleValue(linkStatus.Role),
                 Aktiv = true,
                 EmailBestaetigt = false
             };
@@ -774,7 +774,7 @@ namespace KGV.Infrastructure.Authentication
             {
                 MitgliedId = member.Id,
                 DisplayName = FormatDisplayName(member),
-                Role = FirstNonEmpty(primaryAppUser?.Role, member.Role, UserRoles.User),
+                Role = NormalizeRoleValue(primaryAppUser?.Role),
                 Email = (member.Email ?? string.Empty).Trim(),
                 MitgliedAuthUserId = memberAuthUserId,
                 AppUserUserId = appUserUserId,
@@ -821,6 +821,11 @@ namespace KGV.Infrastructure.Authentication
             }
 
             return string.Empty;
+        }
+
+        private static string NormalizeRoleValue(string? role)
+        {
+            return UserRoles.ToStorageValue(UserRoles.Parse(role));
         }
 
         private static string MaskEmail(string? email)

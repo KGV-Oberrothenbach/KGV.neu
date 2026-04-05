@@ -2,6 +2,70 @@
 
 ---
 
+## 2026-04-05 – WPF/MAUI Rollenpfad auf gemeinsame führende Quelle `app_user.role` nachgezogen, Restfallbacks auf `mitglied.role` im Clientpfad bereinigt
+
+- Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.
+- Git-Befund zu Beginn auf `feature/app-user-role-source`:
+  - aktueller Branch: `feature/app-user-role-source`
+  - Remote-Tracking vorhanden: `origin/feature/app-user-role-source`
+  - im Arbeitsbaum blockbezogen relevant waren:
+    - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - `KGV.Wpf/ViewModels/UserManagementViewModel.cs`
+    - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+    - `KGV.Wpf/Views/AdminRoleView.xaml`
+    - `KGV.Wpf/Views/UserManagementView.xaml`
+    - `KGV.Wpf/Views/MemberDetailView.xaml`
+    - `KGV.Maui/Pages/AdminMenuPage.cs`
+    - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - `KGV.Maui/ViewModels/UserManagementViewModel.cs`
+    - `KGV.Maui/Pages/MemberDetailPage.cs`
+    - `KGV.Maui/Pages/UserManagementPage.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Infrastructure/Authentication/AuthService.cs`
+    - `KGV.Core/Models/AppUserDTO.cs`
+    - `KGV.Core/Models/MemberUserLinkStatusDto.cs`
+    - `DEV_LOG.md`
+    - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - bewusst außerhalb dieses Blocks geblieben:
+    - `.github/copilot-instructions.md`
+    - `AWR.bat`
+    - `_secrets/`
+- Ehrlicher Restbefund vor der Umsetzung:
+  - Rollenspeicherung lief in WPF und MAUI bereits produktiv über `SetAppUserRoleAsync(...)` und damit auf `app_user.role`
+  - die eigentliche Restlücke lag noch in der Rollenanzeige und in Fallback-/DTO-Pfaden:
+    - `SupabaseService.GetUserPermissionSettingsAsync(...)` fiel noch auf `mitglied.role` zurück
+    - `AuthService.CreateAppUserDto(...)` und `BuildMemberUserLinkStatus(...)` mischten noch `mitglied.role` in die angezeigte Rolle hinein
+    - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs` initialisierte die angezeigte Rolle noch aus `MitgliedRecord.Role`
+    - `KGV.Maui/Pages/AdminMenuPage.cs`, `KGV.Maui/Pages/MeineDatenPage.xaml.cs` und `KGV.Maui/Pages/MemberDetailPage.cs` konnten ohne saubere Service-Rolle noch auf `mitglied.role` nachwirken
+- Minimal umgesetzt:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `GetUserPermissionSettingsAsync(...)` verwendet für die führende Rolle jetzt nur noch `app_user.role`
+    - ohne belastbare `app_user.role` fällt der Pfad nur noch auf den Default `user` zurück, nicht mehr aktiv auf `mitglied.role`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+    - `AppUserDTO`- und `MemberUserLinkStatusDto`-Aufbau auf `app_user.role` als führende Quelle gezogen
+    - aktive Rollenmischung aus `mitglied.role` entfernt
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - Rollenanzeige und Fallback-Ladung nicht mehr aus `MitgliedRecord.Role` initialisiert
+    - WPF-Adminpfad nutzt jetzt dieselbe führende Rollenquelle wie MAUI
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+    - Rollenfallback im Admin-Menü auf Default `user` statt `mitglied.role` gezogen
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - sichtbare Rollenanzeige im Stammdatenpfad konsequent über `GetUserPermissionSettingsAsync(...)`
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+    - Rollenanzeige im mobilen Mitgliedsdetail ebenfalls an denselben app-user-basierten Pfad gehängt
+- Bewusst nicht in diesem Block:
+  - keine DB-Bereinigung von `mitglied.role`
+  - kein Umbau von `who_am_i()` oder SQL-/RPC-Fallbacks
+  - keine neue UI-Baustelle in WPF oder MAUI
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+- Ehrlicher Abschlussstand dieses Blocks:
+  - `app_user.role` ist im betroffenen WPF-/MAUI-Rollenpfad jetzt die führende Rollenquelle
+  - `mitglied.role` wird im betroffenen Clientpfad weder für Rollenanzeige noch für Rollenspeicherung aktiv herangezogen
+  - Permission-/Override-Logik bleibt intakt
+
 ## 2026-04-05 – MAUI-Buildfix Rollenquelle `app_user.role`: offenen `try`-Block in `AdminMenuPage` minimal geschlossen und Build wieder grün gezogen
 
 - Vor dem Fixlauf den realen Repo-/Git-/Logstand erneut geprüft.
