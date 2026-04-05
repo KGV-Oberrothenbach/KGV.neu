@@ -4,6 +4,7 @@ using System.Windows;
 using CommunityToolkit.Mvvm.Messaging;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Helpers;
 
 namespace KGV.ViewModels
@@ -12,6 +13,7 @@ namespace KGV.ViewModels
     {
         private readonly ISupabaseService _supabaseService;
         private readonly IAuthService _authService;
+        private readonly UserContext _userContext;
 
         private string? _lockUserId;
 
@@ -53,10 +55,11 @@ namespace KGV.ViewModels
         public RelayCommand<object?> NewContractCommand { get; }
         public RelayCommand<object?> CancelMembershipCommand { get; }
 
-        public NebenmitgliedDetailViewModel(ISupabaseService supabaseService, IAuthService authService, NebenmitgliedContext context)
+        public NebenmitgliedDetailViewModel(ISupabaseService supabaseService, IAuthService authService, UserContext userContext, NebenmitgliedContext context)
         {
             _supabaseService = supabaseService;
             _authService = authService;
+            _userContext = userContext;
 
             Hauptmitglied = context.Hauptmitglied;
             SelectedMember = context.Nebenmitglied;
@@ -72,7 +75,7 @@ namespace KGV.ViewModels
                 InvalidateCommands();
             };
 
-            ToggleEditCommand = new RelayCommand<object?>(_ => _ = ToggleEditAsync());
+            ToggleEditCommand = new RelayCommand<object?>(_ => _ = ToggleEditAsync(), _ => CanToggleEdit());
             SaveCommand = new RelayCommand<object?>(_ => _ = SaveAsync(), _ => CanSave());
             CancelCommand = new RelayCommand<object?>(_ => _ = CancelAsync(), _ => CanCancel());
             CopyAddressFromHauptmitgliedCommand = new RelayCommand<object?>(_ => CopyAddressFromHauptmitglied(), _ => IsEditMode);
@@ -141,6 +144,9 @@ namespace KGV.ViewModels
 
         private async Task ToggleEditAsync()
         {
+            if (!PermissionChecks.CanWriteStammdaten(_userContext))
+                return;
+
             if (!IsEditMode)
             {
                 var userId = _authService.CurrentUserId;
@@ -175,6 +181,8 @@ namespace KGV.ViewModels
 
         private bool CanSave() => IsEditMode && IsDirty;
         private bool CanCancel() => IsEditMode;
+
+        private bool CanToggleEdit() => !IsEditMode && PermissionChecks.CanWriteStammdaten(_userContext) || IsEditMode;
 
         private async Task SaveAsync()
         {

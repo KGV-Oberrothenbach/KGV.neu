@@ -25,5 +25,12 @@ namespace KGV.Core.Models
         public DateTime? FreigegebenAm { get; set; }
         public int? FreigegebenVonId { get; set; }
         public string? FreigegebenVonName { get; set; }
+
+        public bool IstOffenerPrueffall => ArbeitsstundenPruefprozess.IsOffenerPrueffall(Status, Freigegeben);
+        public bool IstAbgelehnt => string.Equals(
+            ArbeitsstundenPruefprozess.NormalizeStatus(Status, Freigegeben),
+            ArbeitsstundenPruefprozess.StatusAbgelehnt,
+            StringComparison.OrdinalIgnoreCase);
+        public string PruefstatusDisplay => ArbeitsstundenPruefprozess.BuildStatusDisplay(Status, Freigegeben);
     }
 }

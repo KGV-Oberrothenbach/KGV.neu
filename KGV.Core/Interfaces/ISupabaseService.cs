@@ -81,9 +81,14 @@ namespace KGV.Core.Interfaces
         Task<bool> UpdateOwnContactAsync(int mitgliedId, string? telefon, string? handy, string? adresse, string? plz, string? ort);
         Task<List<ArbeitsstundeDTO>> GetArbeitsstundenAsync(params int[] mitgliedIds);
         Task<List<ArbeitsstundeDTO>> GetOffeneArbeitsstundenZurFreigabeAsync();
+        Task<List<ArbeitsstundenPruefverlaufItem>> GetArbeitsstundenPruefverlaufAsync(int arbeitsstundeId);
         Task<bool> AddArbeitsstundeAsync(ArbeitsstundeInsertRecord request);
         Task<bool> UpdateArbeitsstundeAsync(ArbeitsstundeRecord record);
         Task<bool> DeleteArbeitsstundeAsync(int arbeitsstundeId);
+        Task<bool> ApproveArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null);
+        Task<bool> RejectArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null);
+        Task<bool> CorrectArbeitsstundeImPruefprozessAsync(ArbeitsstundenPruefkorrekturRequest request);
+        Task<bool> DeleteArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null);
         Task<List<(int MitgliedId, string Vorname, string Nachname, int Count)>> GetUnapprovedArbeitsstundenByMitgliedAsync();
         Task<ArbeitsstundenReviewLockResult> TryAcquireArbeitsstundenReviewLockAsync(string userId, int timeoutMinutes = 10);
         Task<bool> RefreshArbeitsstundenReviewLockAsync(string userId, int timeoutMinutes = 10);

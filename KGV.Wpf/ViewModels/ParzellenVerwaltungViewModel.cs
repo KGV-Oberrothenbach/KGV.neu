@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.Input;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -79,8 +80,8 @@ namespace KGV.ViewModels
         public bool HasSelectedDetail => SelectedDetail != null;
         public bool ShowSelectionHint => !HasSelectedDetail;
         public bool ShowReadOnlyStammdaten => HasSelectedDetail && !IsEditMode;
-        public bool CanEditStammdaten => HasSelectedDetail && !IsBusy && !IsEditMode;
-        public bool CanSaveStammdaten => HasSelectedDetail && IsEditMode && !IsBusy;
+        public bool CanEditStammdaten => PermissionChecks.CanWriteParzellen(_mainVm.UserContext) && HasSelectedDetail && !IsBusy && !IsEditMode;
+        public bool CanSaveStammdaten => PermissionChecks.CanWriteParzellen(_mainVm.UserContext) && HasSelectedDetail && IsEditMode && !IsBusy;
 
         public bool IsEditMode
         {
@@ -252,7 +253,7 @@ namespace KGV.ViewModels
 
             var member = ToMemberDto(memberRecord);
             _mainVm.SelectedMember = member;
-            await _mainVm.NavigateToAsync(new MemberDetailViewModel(_supabaseService, _mainVm.AuthService, member));
+            await _mainVm.NavigateToAsync(new MemberDetailViewModel(_supabaseService, _mainVm.AuthService, _mainVm.UserContext, member));
         }
 
         private async Task OpenDokumenteAsync()

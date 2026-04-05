@@ -363,7 +363,7 @@ namespace KGV.ViewModels
 
             _mainVm.SelectedMember = memberForDetail;
 
-            var detailVm = new MemberDetailViewModel(_supabaseService, _mainVm.AuthService, memberForDetail);
+            var detailVm = new MemberDetailViewModel(_supabaseService, _mainVm.AuthService, _mainVm.UserContext, memberForDetail);
             await _mainVm.NavigateToAsync(detailVm);
         }
     }

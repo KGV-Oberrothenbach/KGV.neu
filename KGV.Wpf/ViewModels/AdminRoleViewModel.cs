@@ -53,7 +53,8 @@ namespace KGV.ViewModels
         }
 
         public bool IsRoleEditable => SelectedMember.Id != 7;
-        public bool CanEditRole => _authService.IsAdmin && IsRoleEditable;
+        public bool CanReadRoleManagement => PermissionChecks.CanReadRoleManagement(_mainWindowViewModel.UserContext);
+        public bool CanEditRole => PermissionChecks.CanManageRoleManagement(_mainWindowViewModel.UserContext) && IsRoleEditable;
         public bool CanOpenUserManagement => _authService.IsAdmin && SelectedMember.Id > 0;
         public bool CanManageUserMeterReadingSubmissions => _authService.IsAdmin || _authService.IsVorstand;
 
@@ -73,7 +74,7 @@ namespace KGV.ViewModels
         public bool IsUserMeterReadingSubmissionSettingDirty => AllowUserMeterReadingSubmissions != _initialAllowUserMeterReadingSubmissions;
 
         public bool HasLinkedAppUser => _permissionSettings?.HasLinkedUser == true;
-        public bool CanEditPermissionOverrides => (_authService.IsAdmin || _authService.IsVorstand) && HasLinkedAppUser;
+        public bool CanEditPermissionOverrides => PermissionChecks.CanManageRoleManagement(_mainWindowViewModel.UserContext) && HasLinkedAppUser;
         public PermissionFlags CurrentGrantedPermissions => PermissionOverrides.Aggregate(PermissionFlags.None, (current, item) => current | item.GrantedPermissions);
         public PermissionFlags CurrentRevokedPermissions => PermissionOverrides.Aggregate(PermissionFlags.None, (current, item) => current | item.RevokedPermissions);
         public bool ArePermissionOverridesDirty => CurrentGrantedPermissions != _initialGrantedPermissions || CurrentRevokedPermissions != _initialRevokedPermissions;

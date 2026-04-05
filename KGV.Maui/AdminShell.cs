@@ -1,72 +1,61 @@
 using KGV.Core.Interfaces;
+using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Maui.Pages;
 using KGV.Maui.Services.Diagnostics;
-using KGV.Maui.State;
 using KGV.Maui.Services.PendingPhotos;
+using KGV.Maui.State;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 
 namespace KGV.Maui;
 
-public sealed class AdminShell : Shell, IAppShellInitializer
+public sealed class AdminShell : Shell
 {
     private readonly IServiceProvider _services;
     private readonly UserContextState _userContextState;
-    private readonly MemberContextState _memberContextState;
     private readonly PendingPhotoMenuState _pendingPhotoMenuState;
-    private FlyoutItem? _workhoursReviewItem;
+    private bool _menuBuilt;
+
     private FlyoutItem? _pendingPhotoUploadsItem;
+    private FlyoutItem? _workhoursReviewItem;
     private FlyoutItem? _memberDetailsItem;
     private FlyoutItem? _memberWartungsvertraegeItem;
     private FlyoutItem? _memberNebenmitgliedItem;
     private FlyoutItem? _memberGardensItem;
     private FlyoutItem? _memberAdminMenuItem;
     private FlyoutItem? _memberWorkhoursItem;
-    private bool _menuBuilt;
 
     public AdminShell(IServiceProvider services, UserContextState userContextState, MemberContextState memberContextState, PendingPhotoMenuState pendingPhotoMenuState)
     {
         _services = services;
         _userContextState = userContextState;
-        _memberContextState = memberContextState;
         _pendingPhotoMenuState = pendingPhotoMenuState;
+
         FlyoutBehavior = FlyoutBehavior.Flyout;
-        Loaded += (_, _) => EnsureActiveRouteAfterLoad();
-        _memberContextState.Changed += (_, _) => OnMemberContextChanged();
+        BindingContext = memberContextState;
+        Loaded += async (_, _) =>
+        {
+            BuildMenu();
+            EnsureActiveRouteAfterLoad();
+            await RefreshPendingPhotoUploadsMenu();
+            await RefreshWorkhoursReviewMenuAsync();
+        };
+        memberContextState.Changed += (_, _) => RefreshMemberContextMenu(memberContextState);
+        BuildMenu();
     }
 
     public void BuildMenu()
     {
-        AppFileLog.Info("KGV.Navigation", $"AdminShell.BuildMenu angefordert. MenuBuilt={_menuBuilt}, ActiveRoute={ShellNavigationHelper.GetActiveShellContentRoute(this) ?? "<none>"}.");
+        AppFileLog.Info("KGV.Navigation", $"AdminShell.BuildMenu aufgerufen. Items={Items.Count}, CurrentRoute={ShellNavigationHelper.GetActiveShellContentRoute(this) ?? "<none>"}.");
 
-        EnsureMenuBuilt();
-        UpdateSelectedMemberItemsVisibility();
-        RefreshPendingPhotoUploadsMenu();
-
-        EnsureValidActiveRoute();
-
-        _ = RefreshWorkhoursReviewMenuAsync();
-    }
-
-    public void RefreshPendingPhotoUploadsMenu()
-    {
-        if (_pendingPhotoUploadsItem == null)
-            return;
-
-        _pendingPhotoMenuState.Refresh();
-        _pendingPhotoUploadsItem.Title = _pendingPhotoMenuState.MenuTitle;
-        _pendingPhotoUploadsItem.IsVisible = _pendingPhotoMenuState.HasOpenItems;
-    }
-
-    private bool HasSelectedMember()
-        => _memberContextState.SelectedMember?.Id is > 0;
-
-    private void EnsureMenuBuilt()
-    {
         if (_menuBuilt)
+        {
+            AppFileLog.Info("KGV.Navigation", "AdminShell.BuildMenu aktualisiert nur Sichtbarkeit/Status ohne Rebuild.");
+            RefreshMemberContextMenu(BindingContext as MemberContextState);
             return;
+        }
 
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
         Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
@@ -88,8 +77,11 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
             Items.Add(CreateItem("Wartungsverträge", "wartungsvertraege", () => _services.GetRequiredService<WartungsvertraegePage>()));
 
-        _workhoursReviewItem = CreateItem("Arbeitsstunden freigeben", "workhours_review", () => _services.GetRequiredService<ArbeitsstundenReviewPage>());
-        Items.Add(_workhoursReviewItem);
+        if (PermissionChecks.CanManageWorkHours(_userContextState.CurrentUserContext))
+        {
+            _workhoursReviewItem = CreateItem("Arbeitsstunden freigeben", "workhours_review", () => _services.GetRequiredService<ArbeitsstundenReviewPage>());
+            Items.Add(_workhoursReviewItem);
+        }
 
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand)
             Items.Add(CreateItem("Export", "export", () => _services.GetRequiredService<ExportPage>()));
@@ -110,52 +102,31 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         Items.Add(_memberAdminMenuItem);
         Items.Add(_memberWorkhoursItem);
 
+        RefreshMemberContextMenu(BindingContext as MemberContextState);
+
         _menuBuilt = true;
-    }
-
-    private void OnMemberContextChanged()
-    {
-        UpdateSelectedMemberItemsVisibility();
-        EnsureValidActiveRoute();
-    }
-
-    private void UpdateSelectedMemberItemsVisibility()
-    {
-        var hasSelectedMember = HasSelectedMember();
-        var showAdminMenu = hasSelectedMember && _userContextState.CurrentUserContext?.Role == UserRole.Admin;
-
-        if (_memberDetailsItem != null)
-            _memberDetailsItem.IsVisible = hasSelectedMember;
-
-        if (_memberWartungsvertraegeItem != null)
-            _memberWartungsvertraegeItem.IsVisible = hasSelectedMember;
-
-        if (_memberNebenmitgliedItem != null)
-            _memberNebenmitgliedItem.IsVisible = hasSelectedMember;
-
-        if (_memberGardensItem != null)
-            _memberGardensItem.IsVisible = hasSelectedMember;
-
-        if (_memberAdminMenuItem != null)
-            _memberAdminMenuItem.IsVisible = showAdminMenu;
-
-        if (_memberWorkhoursItem != null)
-            _memberWorkhoursItem.IsVisible = hasSelectedMember;
-    }
-
-    private void EnsureActiveRouteAfterLoad()
-    {
-        if (ShellNavigationHelper.HasValidActiveShellContentRoute(this))
-        {
-            AppFileLog.Info("KGV.Navigation", $"AdminShell.Loaded belässt aktive Route: {ShellNavigationHelper.GetActiveShellContentRoute(this)}.");
-            return;
-        }
-
-        AppFileLog.Warning("KGV.Navigation", "AdminShell.Loaded setzt Fallback auf home, weil kein gültiger aktiver Shell-Content vorhanden ist.");
         ShellNavigationHelper.EnsureActiveShellItem(this, "home");
     }
 
-    private void EnsureValidActiveRoute()
+    private void RefreshMemberContextMenu(MemberContextState? state)
+    {
+        var hasMember = state?.SelectedMember != null;
+        if (_memberDetailsItem != null) _memberDetailsItem.IsVisible = hasMember;
+        if (_memberWartungsvertraegeItem != null) _memberWartungsvertraegeItem.IsVisible = hasMember;
+        if (_memberNebenmitgliedItem != null) _memberNebenmitgliedItem.IsVisible = hasMember;
+        if (_memberGardensItem != null) _memberGardensItem.IsVisible = hasMember;
+        if (_memberAdminMenuItem != null) _memberAdminMenuItem.IsVisible = hasMember;
+        if (_memberWorkhoursItem != null) _memberWorkhoursItem.IsVisible = hasMember;
+
+        var currentRoute = ShellNavigationHelper.GetActiveShellContentRoute(this);
+        if (currentRoute is "memberdetails" or "member_wartungsvertraege" or "member_nebenmitglied" or "member_gardens" or "member_adminmenu" or "member_workhours")
+        {
+            if (!hasMember)
+                ShellNavigationHelper.EnsureActiveShellItem(this, "home");
+        }
+    }
+
+    private void EnsureActiveRouteAfterLoad()
     {
         var currentRoute = ShellNavigationHelper.GetActiveShellContentRoute(this);
         if (currentRoute != null && ShellNavigationHelper.HasVisibleShellContentRoute(this, currentRoute))
@@ -204,5 +175,16 @@ public sealed class AdminShell : Shell, IAppShellInitializer
                 }
             }
         };
+    }
+
+    public Task RefreshPendingPhotoUploadsMenu()
+    {
+        if (_pendingPhotoUploadsItem == null)
+            return Task.CompletedTask;
+
+        _pendingPhotoMenuState.Refresh();
+        _pendingPhotoUploadsItem.Title = _pendingPhotoMenuState.MenuTitle;
+        _pendingPhotoUploadsItem.IsVisible = _pendingPhotoMenuState.HasOpenItems;
+        return Task.CompletedTask;
     }
 }

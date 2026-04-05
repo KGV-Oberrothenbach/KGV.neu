@@ -152,7 +152,7 @@ namespace KGV.Infrastructure.Services
                 if (parameter is not MemberDTO member)
                     return null;
 
-                return new MemberDetailViewModel(_supabaseService, _authService, member);
+                return new MemberDetailViewModel(_supabaseService, _authService, mainVm.UserContext, member);
             }
 
             if (viewModelType == typeof(NebenmitgliedDetailViewModel))
@@ -160,7 +160,7 @@ namespace KGV.Infrastructure.Services
                 if (parameter is not NebenmitgliedContext ctx)
                     return null;
 
-                return new NebenmitgliedDetailViewModel(_supabaseService, _authService, ctx);
+                return new NebenmitgliedDetailViewModel(_supabaseService, _authService, mainVm.UserContext, ctx);
             }
 
             if (viewModelType == typeof(ArbeitsstundenViewModel))
@@ -213,7 +213,7 @@ namespace KGV.Infrastructure.Services
                 if (parameter is not ParzellenBelegungDTO belegung)
                     return null;
 
-                return new GartenDokumenteViewModel(_supabaseService, belegung, mainVm.UserContext.Has(KGV.Core.Security.PermissionFlags.CanManageDocuments));
+                return new GartenDokumenteViewModel(_supabaseService, belegung, KGV.Core.Security.PermissionChecks.CanManageDocuments(mainVm.UserContext));
             }
 
             if (viewModelType == typeof(DokumenteViewModel))
@@ -221,7 +221,7 @@ namespace KGV.Infrastructure.Services
                 if (parameter is not DokumenteContext ctx)
                     return null;
 
-                return new DokumenteViewModel(_supabaseService, ctx, mainVm.UserContext.Has(KGV.Core.Security.PermissionFlags.CanManageDocuments));
+                return new DokumenteViewModel(_supabaseService, ctx, KGV.Core.Security.PermissionChecks.CanManageDocuments(mainVm.UserContext));
             }
 
             if (viewModelType == typeof(MemberWartungsvertraegeViewModel))

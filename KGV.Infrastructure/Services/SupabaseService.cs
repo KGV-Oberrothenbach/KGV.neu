@@ -1320,7 +1320,7 @@ namespace KGV.Infrastructure.Services
                 Datum = NormalizeDateOnly(request.Datum),
                 Stunden = request.Stunden,
                 ArtDerArbeit = request.ArtDerArbeit.Trim(),
-                Status = CleanOptionalText(request.Status),
+                Status = ArbeitsstundenPruefprozess.NormalizeStatus(request.Status, request.Freigegeben),
                 Freigegeben = request.Freigegeben,
                 GenehmigtAm = request.GenehmigtAm,
                 GenehmigtVon = request.GenehmigtVon,
@@ -1361,7 +1361,7 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.Datum, record.Datum.Date)
                     .Set(x => x.Stunden, record.Stunden)
                     .Set(x => x.ArtDerArbeit, record.ArtDerArbeit ?? string.Empty)
-                    .Set(x => x.Status, CleanOptionalText(record.Status))
+                    .Set(x => x.Status, ArbeitsstundenPruefprozess.NormalizeStatus(record.Status, record.Freigegeben))
                     .Set(x => x.Freigegeben, record.Freigegeben)
                     .Set(x => x.GenehmigtAm, record.GenehmigtAm)
                     .Set(x => x.GenehmigtVon, record.GenehmigtVon)
@@ -1386,6 +1386,325 @@ namespace KGV.Infrastructure.Services
                 return true;
             },
             false);
+        public Task<List<ArbeitsstundenPruefverlaufItem>> GetArbeitsstundenPruefverlaufAsync(int arbeitsstundeId) => ExecuteAsync(
+            "GetArbeitsstundenPruefverlaufAsync",
+            async () =>
+            {
+                if (arbeitsstundeId <= 0)
+                    return new List<ArbeitsstundenPruefverlaufItem>();
+
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<ArbeitsstundenPruefverlaufRecord>()
+                    .Where(x => x.ArbeitsstundeId == arbeitsstundeId)
+                    .Get();
+
+                var records = response?.Models?
+                    .OrderByDescending(x => x.GeprueftAm)
+                    .ThenByDescending(x => x.Id)
+                    .ToList()
+                    ?? new List<ArbeitsstundenPruefverlaufRecord>();
+
+                if (records.Count == 0)
+                    return new List<ArbeitsstundenPruefverlaufItem>();
+
+                var mitglieder = await GetMitgliederAsync();
+                var mitgliederById = mitglieder.ToDictionary(x => x.Id, x => x);
+
+                return records.Select(record =>
+                {
+                    var vorherSnapshot = DeserializeArbeitsstundenPruefSnapshot(record.VorherSnapshot);
+                    var nachherSnapshot = DeserializeArbeitsstundenPruefSnapshot(record.NachherSnapshot);
+                    var vorherName = ResolveArbeitsstundenSnapshotMitgliedName(vorherSnapshot, mitgliederById);
+                    var nachherName = ResolveArbeitsstundenSnapshotMitgliedName(nachherSnapshot, mitgliederById);
+                    mitgliederById.TryGetValue(record.GeprueftVon, out var pruefer);
+
+                    return new ArbeitsstundenPruefverlaufItem
+                    {
+                        Id = record.Id,
+                        ArbeitsstundeId = record.ArbeitsstundeId,
+                        Aktion = record.Aktion,
+                        Begruendung = record.Begruendung,
+                        GeprueftVon = record.GeprueftVon,
+                        GeprueftVonName = FormatMemberName(pruefer) ?? record.GeprueftVon.ToString(),
+                        GeprueftAm = record.GeprueftAm,
+                        VorherSnapshot = vorherSnapshot,
+                        NachherSnapshot = nachherSnapshot,
+                        VorherSummary = vorherSnapshot?.ToSummary(vorherName) ?? string.Empty,
+                        NachherSummary = nachherSnapshot?.ToSummary(nachherName)
+                    };
+                }).ToList();
+            },
+            new List<ArbeitsstundenPruefverlaufItem>());
+
+        public Task<bool> ApproveArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null) => ExecuteAsync(
+            "ApproveArbeitsstundeImPruefprozessAsync",
+            async () =>
+            {
+                var action = CreateArbeitsstundenPruefaktionRequest(arbeitsstundeId, ArbeitsstundenPruefprozess.AktionFreigegeben, begruendung, geprueftVon, geprueftAm);
+                if (!IsValidArbeitsstundenPruefaktion(action))
+                    return false;
+
+                var client = await EnsureClientAsync();
+                var existing = await GetOffeneArbeitsstundeImPruefprozessAsync(client, arbeitsstundeId);
+                if (existing == null)
+                    return false;
+
+                var normalizedGeprueftAm = NormalizeArbeitsstundenPruefzeitpunkt(action.GeprueftAm);
+                var updatedRecord = CloneArbeitsstundeForReview(existing);
+                updatedRecord.Status = ArbeitsstundenPruefprozess.BuildFreigegebenStatus(action.Kommentar);
+                updatedRecord.Freigegeben = true;
+                updatedRecord.GenehmigtVon = action.GeprueftVon;
+                updatedRecord.GenehmigtAm = normalizedGeprueftAm;
+                updatedRecord.LockedByUserId = null;
+                updatedRecord.LockedAt = null;
+
+                await client
+                    .From<ArbeitsstundeRecord>()
+                    .Where(x => x.Id == arbeitsstundeId)
+                    .Set(x => x.Status, updatedRecord.Status)
+                    .Set(x => x.Freigegeben, updatedRecord.Freigegeben)
+                    .Set(x => x.GenehmigtVon, updatedRecord.GenehmigtVon)
+                    .Set(x => x.GenehmigtAm, updatedRecord.GenehmigtAm)
+                    .Set(x => x.LockedByUserId, (string?)null)
+                    .Set(x => x.LockedAt, (DateTime?)null)
+                    .Update();
+
+                await AppendArbeitsstundenPruefverlaufAsync(client, action, existing, updatedRecord, normalizedGeprueftAm);
+                return true;
+            },
+            false);
+
+        public Task<bool> RejectArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null) => ExecuteAsync(
+            "RejectArbeitsstundeImPruefprozessAsync",
+            async () =>
+            {
+                var action = CreateArbeitsstundenPruefaktionRequest(arbeitsstundeId, ArbeitsstundenPruefprozess.AktionAbgelehnt, begruendung, geprueftVon, geprueftAm);
+                if (!IsValidArbeitsstundenPruefaktion(action))
+                    return false;
+
+                var client = await EnsureClientAsync();
+                var existing = await GetOffeneArbeitsstundeImPruefprozessAsync(client, arbeitsstundeId);
+                if (existing == null)
+                    return false;
+
+                var normalizedGeprueftAm = NormalizeArbeitsstundenPruefzeitpunkt(action.GeprueftAm);
+                var updatedRecord = CloneArbeitsstundeForReview(existing);
+                updatedRecord.Status = ArbeitsstundenPruefprozess.BuildAbgelehntStatus(action.Kommentar);
+                updatedRecord.Freigegeben = false;
+                updatedRecord.GenehmigtVon = null;
+                updatedRecord.GenehmigtAm = null;
+                updatedRecord.LockedByUserId = null;
+                updatedRecord.LockedAt = null;
+
+                await client
+                    .From<ArbeitsstundeRecord>()
+                    .Where(x => x.Id == arbeitsstundeId)
+                    .Set(x => x.Status, updatedRecord.Status)
+                    .Set(x => x.Freigegeben, updatedRecord.Freigegeben)
+                    .Set(x => x.GenehmigtVon, (int?)null)
+                    .Set(x => x.GenehmigtAm, (DateTime?)null)
+                    .Set(x => x.LockedByUserId, (string?)null)
+                    .Set(x => x.LockedAt, (DateTime?)null)
+                    .Update();
+
+                await AppendArbeitsstundenPruefverlaufAsync(client, action, existing, updatedRecord, normalizedGeprueftAm);
+                return true;
+            },
+            false);
+
+        public Task<bool> CorrectArbeitsstundeImPruefprozessAsync(ArbeitsstundenPruefkorrekturRequest request) => ExecuteAsync(
+            "CorrectArbeitsstundeImPruefprozessAsync",
+            async () =>
+            {
+                if (request == null || request.ArbeitsstundeId <= 0 || request.GeprueftVon <= 0 || request.Stunden <= 0 || string.IsNullOrWhiteSpace(request.ArtDerArbeit))
+                    return false;
+
+                var action = CreateArbeitsstundenPruefaktionRequest(
+                    request.ArbeitsstundeId,
+                    ArbeitsstundenPruefprozess.AktionKorrigiert,
+                    request.Begruendung,
+                    request.GeprueftVon,
+                    request.GeprueftAm);
+
+                if (!IsValidArbeitsstundenPruefaktion(action))
+                    return false;
+
+                var client = await EnsureClientAsync();
+                var existing = await GetOffeneArbeitsstundeImPruefprozessAsync(client, request.ArbeitsstundeId);
+                if (existing == null)
+                    return false;
+
+                var normalizedGeprueftAm = NormalizeArbeitsstundenPruefzeitpunkt(action.GeprueftAm);
+                var updatedRecord = CloneArbeitsstundeForReview(existing);
+                updatedRecord.Datum = NormalizeDateOnly(request.Datum);
+                updatedRecord.Stunden = request.Stunden;
+                updatedRecord.ArtDerArbeit = CleanRequiredText(request.ArtDerArbeit);
+                updatedRecord.Status = ArbeitsstundenPruefprozess.BuildKorrigiertStatus(action.Kommentar);
+                updatedRecord.Freigegeben = true;
+                updatedRecord.GenehmigtVon = action.GeprueftVon;
+                updatedRecord.GenehmigtAm = normalizedGeprueftAm;
+                updatedRecord.LockedByUserId = null;
+                updatedRecord.LockedAt = null;
+
+                await client
+                    .From<ArbeitsstundeRecord>()
+                    .Where(x => x.Id == request.ArbeitsstundeId)
+                    .Set(x => x.Datum, updatedRecord.Datum)
+                    .Set(x => x.Stunden, updatedRecord.Stunden)
+                    .Set(x => x.ArtDerArbeit, updatedRecord.ArtDerArbeit)
+                    .Set(x => x.Status, updatedRecord.Status)
+                    .Set(x => x.Freigegeben, updatedRecord.Freigegeben)
+                    .Set(x => x.GenehmigtVon, updatedRecord.GenehmigtVon)
+                    .Set(x => x.GenehmigtAm, updatedRecord.GenehmigtAm)
+                    .Set(x => x.LockedByUserId, (string?)null)
+                    .Set(x => x.LockedAt, (DateTime?)null)
+                    .Update();
+
+                await AppendArbeitsstundenPruefverlaufAsync(client, action, existing, updatedRecord, normalizedGeprueftAm);
+                return true;
+            },
+            false);
+
+        public Task<bool> DeleteArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null) => ExecuteAsync(
+            "DeleteArbeitsstundeImPruefprozessAsync",
+            async () =>
+            {
+                var action = CreateArbeitsstundenPruefaktionRequest(arbeitsstundeId, ArbeitsstundenPruefprozess.AktionGeloescht, begruendung, geprueftVon, geprueftAm);
+                if (!IsValidArbeitsstundenPruefaktion(action))
+                    return false;
+
+                var client = await EnsureClientAsync();
+                var existing = await GetOffeneArbeitsstundeImPruefprozessAsync(client, arbeitsstundeId);
+                if (existing == null)
+                    return false;
+
+                var normalizedGeprueftAm = NormalizeArbeitsstundenPruefzeitpunkt(action.GeprueftAm);
+
+                await client
+                    .From<ArbeitsstundeRecord>()
+                    .Where(x => x.Id == arbeitsstundeId)
+                    .Delete();
+
+                await AppendArbeitsstundenPruefverlaufAsync(client, action, existing, null, normalizedGeprueftAm);
+                return true;
+            },
+            false);
+
+        private ArbeitsstundenPruefSnapshot? DeserializeArbeitsstundenPruefSnapshot(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                return null;
+
+            try
+            {
+                return JsonSerializer.Deserialize<ArbeitsstundenPruefSnapshot>(json);
+            }
+            catch (JsonException ex)
+            {
+                _logger?.LogWarning(ex, "Arbeitsstunden-Prüfsnapshot konnte nicht deserialisiert werden.");
+                return null;
+            }
+        }
+
+        private string? ResolveArbeitsstundenSnapshotMitgliedName(ArbeitsstundenPruefSnapshot? snapshot, IReadOnlyDictionary<int, MitgliedRecord> mitgliederById)
+        {
+            if (snapshot == null || snapshot.MitgliedId <= 0)
+                return null;
+
+            return mitgliederById.TryGetValue(snapshot.MitgliedId, out var mitglied)
+                ? FormatMemberName(mitglied)
+                : $"Mitglied {snapshot.MitgliedId}";
+        }
+
+        private static ArbeitsstundenPruefaktionRequest CreateArbeitsstundenPruefaktionRequest(int arbeitsstundeId, string aktion, string? kommentar, int geprueftVon, DateTime? geprueftAm)
+        {
+            return new ArbeitsstundenPruefaktionRequest
+            {
+                ArbeitsstundeId = arbeitsstundeId,
+                Aktion = string.IsNullOrWhiteSpace(aktion) ? string.Empty : aktion.Trim(),
+                Kommentar = ArbeitsstundenPruefprozess.NormalizeKommentar(kommentar),
+                GeprueftVon = geprueftVon,
+                GeprueftAm = geprueftAm
+            };
+        }
+
+        private static bool IsValidArbeitsstundenPruefaktion(ArbeitsstundenPruefaktionRequest? action)
+        {
+            if (action == null || action.ArbeitsstundeId <= 0 || action.GeprueftVon <= 0)
+                return false;
+
+            var isKnownAction = string.Equals(action.Aktion, ArbeitsstundenPruefprozess.AktionFreigegeben, StringComparison.Ordinal)
+                || string.Equals(action.Aktion, ArbeitsstundenPruefprozess.AktionAbgelehnt, StringComparison.Ordinal)
+                || string.Equals(action.Aktion, ArbeitsstundenPruefprozess.AktionKorrigiert, StringComparison.Ordinal)
+                || string.Equals(action.Aktion, ArbeitsstundenPruefprozess.AktionGeloescht, StringComparison.Ordinal);
+
+            return isKnownAction
+                && ArbeitsstundenPruefprozess.HasRequiredKommentar(action.Kommentar);
+        }
+
+        private async Task<ArbeitsstundeRecord?> GetOffeneArbeitsstundeImPruefprozessAsync(Client client, int arbeitsstundeId)
+        {
+            if (arbeitsstundeId <= 0)
+                return null;
+
+            var response = await client
+                .From<ArbeitsstundeRecord>()
+                .Where(x => x.Id == arbeitsstundeId)
+                .Get();
+
+            var existing = response?.Models?.FirstOrDefault();
+            return existing != null && ArbeitsstundenPruefprozess.IsOffenerPrueffall(existing.Status, existing.Freigegeben)
+                ? existing
+                : null;
+        }
+
+        private static DateTime NormalizeArbeitsstundenPruefzeitpunkt(DateTime? value)
+        {
+            var timestamp = value ?? DateTime.UtcNow;
+            return NormalizeTimestampWithoutTimeZone(timestamp) ?? DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+        }
+
+        private static ArbeitsstundeRecord CloneArbeitsstundeForReview(ArbeitsstundeRecord source)
+        {
+            return new ArbeitsstundeRecord
+            {
+                Id = source.Id,
+                MitgliedId = source.MitgliedId,
+                SaisonId = source.SaisonId,
+                Datum = NormalizeDateOnly(source.Datum),
+                Stunden = source.Stunden,
+                ArtDerArbeit = source.ArtDerArbeit,
+                Status = source.Status,
+                Freigegeben = source.Freigegeben,
+                GenehmigtVon = source.GenehmigtVon,
+                GenehmigtAm = source.GenehmigtAm,
+                LockedByUserId = source.LockedByUserId,
+                LockedAt = source.LockedAt
+            };
+        }
+
+        private async Task AppendArbeitsstundenPruefverlaufAsync(Client client, ArbeitsstundenPruefaktionRequest action, ArbeitsstundeRecord vorher, ArbeitsstundeRecord? nachher, DateTime geprueftAm)
+        {
+            if (!IsValidArbeitsstundenPruefaktion(action))
+                return;
+
+            var verlaufRecord = new ArbeitsstundenPruefverlaufRecord
+            {
+                ArbeitsstundeId = action.ArbeitsstundeId,
+                Aktion = action.Aktion,
+                Begruendung = action.Kommentar,
+                GeprueftVon = action.GeprueftVon,
+                GeprueftAm = geprueftAm,
+                VorherSnapshot = JsonSerializer.Serialize(ArbeitsstundenPruefSnapshot.FromRecord(vorher)),
+                NachherSnapshot = nachher == null
+                    ? null
+                    : JsonSerializer.Serialize(ArbeitsstundenPruefSnapshot.FromRecord(nachher))
+            };
+
+            await client.From<ArbeitsstundenPruefverlaufRecord>().Insert(verlaufRecord);
+        }
+
         public Task<List<(int MitgliedId, string Vorname, string Nachname, int Count)>> GetUnapprovedArbeitsstundenByMitgliedAsync() => ExecuteAsync(
             "GetUnapprovedArbeitsstundenByMitgliedAsync",
             async () =>
@@ -3170,9 +3489,7 @@ namespace KGV.Infrastructure.Services
         }
 
         private static bool IsArbeitsstundeOffen(ArbeitsstundeRecord record)
-        {
-            return !record.Freigegeben;
-        }
+            => ArbeitsstundenPruefprozess.IsOffenerPrueffall(record.Status, record.Freigegeben);
 
         private static bool HasActiveArbeitsstundenLock(ArbeitsstundeRecord record, string currentUserId, DateTime now, int timeoutMinutes)
         {

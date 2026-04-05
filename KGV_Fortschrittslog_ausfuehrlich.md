@@ -2,6 +2,121 @@
 
 ---
 
+## 2026-04-05 – Abschlusslauf Arbeitsstunden-Prüfprozess WPF/MAUI: vorhandenen Block technisch abgesichert, Logs ergänzt und Commit/Push vorbereitet
+
+- Vor dem Abschlusslauf den realen Repo-/Git-/Logzustand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - offen lagen blockbezogene Änderungen an:
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Core/Models/ArbeitsstundeDTO.cs`
+    - `KGV.Core/Models/ArbeitsstundenPruefprozess.cs`
+    - `KGV.Core/Models/ArbeitsstundenPruefSnapshot.cs`
+    - `KGV.Core/Models/ArbeitsstundenPruefaktionRequest.cs`
+    - `KGV.Core/Models/ArbeitsstundenPruefkorrekturRequest.cs`
+    - `KGV.Core/Models/ArbeitsstundenPruefverlaufItem.cs`
+    - `KGV.Core/Models/ArbeitsstundenPruefverlaufRecord.cs`
+    - `KGV.Core/Security/PermissionCatalog.cs`
+    - `KGV.Core/Security/PermissionChecks.cs`
+    - `KGV.Core/Security/PermissionFlags.cs`
+    - `KGV.Core/Security/PermissionMatrixV1.cs`
+    - `KGV.Core/Security/PermissionService.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `KGV.Maui/AdminShell.cs`
+    - `KGV.Maui/UserShell.cs`
+    - `KGV.Maui/Pages/ArbeitsstundenReviewDetailPage.cs`
+    - `KGV.Wpf/Infrastructure/Services/NavigationService.cs`
+    - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - `KGV.Wpf/ViewModels/ArbeitsstundenPruefungViewModel.cs`
+    - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+    - `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`
+    - `KGV.Wpf/ViewModels/MemberSearchViewModel.cs`
+    - `KGV.Wpf/ViewModels/NebenmitgliedDetailViewModel.cs`
+    - `KGV.Wpf/ViewModels/ParzellenVerwaltungViewModel.cs`
+    - `KGV.Wpf/Views/ArbeitsstundenPruefungView.xaml`
+  - bewusst außerhalb des Blocks unberührt blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Ehrlicher Istzustand vor dem Abschlusslauf:
+  - der aktuelle Workspace enthielt bereits einen deutlich begonnenen Arbeitsstunden-Prüfprozess-Block in Shared/Core, Infrastructure, WPF und MAUI
+  - die produktiven Pfade für Prüfstatus, Pflichtkommentar, Korrektur, Löschpfad, Verlauf und Menüeinbindung lagen bereits im Workspace vor und wurden in diesem Lauf nicht neu erfunden
+  - Ziel dieses Abschlusslaufs war ausdrücklich kein neuer Fachumfang, sondern ehrliche Dokumentation, technische Absicherung und saubere Übergabe per Commit/Push
+  - echter kleiner Restfehler war ein WPF-Compileproblem im `NebenmitgliedDetailViewModel`
+- Minimal in diesem Lauf ergänzt:
+  - `KGV.Wpf/ViewModels/NebenmitgliedDetailViewModel.cs`
+    - fehlenden Security-Namespace ergänzt
+    - Konstruktor auf die bereits aktive Aufrufsignatur mit `UserContext` angehoben
+- Fachlicher Blockstand nach dem Abschlusslauf:
+  - Arbeitsstunden-Prüfprozess bleibt auf dem vorhandenen Shared-Service ohne Schattenlogik
+  - WPF bietet offene Prüfliste, Pflichtkommentar, Korrekturfelder, Verlauf und Löschpfad im selben Prüfkontext
+  - MAUI bildet denselben Prüfkontext pro Prüffall inkl. Verlauf, Korrektur und Navigation zwischen Einträgen ab
+  - Rechte-/Navigationspfade in WPF und MAUI berücksichtigen die Arbeitsstunden-Prüfung im bestehenden Rollenmodell
+- Validierung im Abschlusslauf:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - Workspace-Build => erfolgreich
+  - Testsuche ergab keine im aktuellen Workspace entdeckten passenden Testfälle
+  - ehrlicher Restbefund: bestehende Nullability-Warnungen in einigen WPF-Verwaltungs-ViewModels bleiben außerhalb dieses Blocks unverändert
+
+## 2026-04-05 – Prompt Arbeitsstunden-Prüfprozess Infrastrukturblock: fehlende `SupabaseService`-Helper sauber fertig implementiert und Core/Infrastructure wieder buildfähig gemacht
+
+- Vor dem Block den realen Repo-/Git-/Logzustand erneut geprüft.
+- Git-Befund zu Beginn:
+  - `main` liegt auf `origin/main`
+  - Divergenz `origin/main...HEAD` => `0 0`
+  - im Arbeitsbaum lagen bereits blockbezogene Änderungen an:
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Core/Models/ArbeitsstundenPruefprozess.cs`
+    - `KGV.Core/Models/ArbeitsstundenPruefSnapshot.cs`
+    - `KGV.Core/Models/ArbeitsstundenPruefaktionRequest.cs`
+    - `KGV.Core/Models/ArbeitsstundenPruefverlaufRecord.cs`
+    - `KGV.Core/Models/ArbeitsstundenPruefverlaufItem.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - zusätzlich lagen blockfremde offene Dateien im Workspace; diese blieben bewusst außerhalb dieses Blocks
+  - bewusst außerhalb des Blocks unberührt blieben weiter:
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden in diesem Lauf:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Core/Models/ArbeitsstundenPruefprozess.cs`
+  - `KGV.Core/Models/ArbeitsstundenPruefSnapshot.cs`
+  - `KGV.Core/Models/ArbeitsstundenPruefverlaufRecord.cs`
+  - `KGV.Core/Models/ArbeitsstundenPruefverlaufItem.cs`
+  - `KGV.Core/Models/ArbeitsstundenPruefaktionRequest.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor der Fertigstellung:
+  - die eigene Nutzer-Ablesung war bereits umgesetzt und blieb bewusst unangetastet
+  - `KGV.Core` war für den Arbeitsstunden-Prüfprozess bereits vorbereitet
+  - `ISupabaseService` enthielt die öffentlichen Prüfprozess-Methoden bereits
+  - die eigentliche Restlücke lag im `SupabaseService`: die öffentlichen Prüfprozess-Methoden referenzierten noch nicht vorhandene interne Helper
+  - dadurch war `KGV.Infrastructure` im aktuellen Workspace nicht mehr buildfähig
+- Minimal fertiggestellt:
+  - fehlende interne Helper im `SupabaseService` produktiv ergänzt:
+    - `DeserializeArbeitsstundenPruefSnapshot(...)`
+    - `ResolveArbeitsstundenSnapshotMitgliedName(...)`
+    - `CreateArbeitsstundenPruefaktionRequest(...)`
+    - `IsValidArbeitsstundenPruefaktion(...)`
+    - `GetOffeneArbeitsstundeImPruefprozessAsync(...)`
+    - `NormalizeArbeitsstundenPruefzeitpunkt(...)`
+    - `CloneArbeitsstundeForReview(...)`
+    - `AppendArbeitsstundenPruefverlaufAsync(...)`
+  - Freigeben / Ablehnen / Korrigieren jetzt auf die gemeinsamen Statusbuilder des Prüfprozesses gezogen
+  - `IsArbeitsstundeOffen(...)` fachlich auf `ArbeitsstundenPruefprozess.IsOffenerPrueffall(record.Status, record.Freigegeben)` umgestellt
+- Fachlicher Stand nach dem Block:
+  - `abgelehnt` gilt nicht mehr als offener Prüfprozessfall
+  - Freigeben / Ablehnen / Korrigieren / Löschen verlangen weiterhin Pflichtkommentar
+  - Prüfer und Prüfzeitpunkt werden im Aktionsrequest und im Verlauf mitgeführt
+  - Verlaufspersistenz auf `ArbeitsstundenPruefverlaufRecord` funktioniert jetzt im gemeinsamen Infrastructure-Pfad
+  - Snapshot-Deserialisierung und Mapping zu `ArbeitsstundenPruefverlaufItem` funktionieren ohne zusätzliche Parallelpfade
+  - WPF-/MAUI-UI wurden in diesem Block bewusst nicht geändert
+- Validierung in diesem Lauf:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Infrastructure/KGV.Infrastructure.csproj -c Debug` => erfolgreich
+  - ehrlicher Restbefund: im Infrastructure-Build verbleiben bestehende Nullability-Warnungen in `SupabaseService.cs`, aber keine blockierende Fehlermeldung mehr für den Arbeitsstunden-Prüfprozessblock
+
 ## 2026-04-04 – Prompt 6/6 Abschlusslauf: benutzerspezifische Fachrechte im Admin-Menü auf dem vorhandenen Workspace-Stand sauber end-to-end abgeschlossen
 
 - Vor dem Abschlusslauf den realen Repo-/Git-/Logzustand erneut geprüft.

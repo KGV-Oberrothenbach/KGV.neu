@@ -11,19 +11,16 @@ namespace KGV.Core.Security
     public sealed class PermissionService : IPermissionService
     {
         public PermissionFlags GetPermissions(UserRole role)
-        {
-            return GetRolePermissions(role)
-                | GetDocumentPermissions(role)
-                | GetMeterPermissions(role)
-                | GetAdministrativePermissions(role);
-        }
+            => GetRolePermissions(role);
 
         public static PermissionFlags GetRolePermissions(UserRole role)
         {
             return GetMemberPermissions(role)
+                | GetParzellenPermissions(role)
                 | GetDocumentPermissions(role)
+                | GetWorkHoursPermissions(role)
                 | GetMeterPermissions(role)
-                | GetAdministrativePermissions(role);
+                | GetRoleManagementPermissions(role);
         }
 
         public static PermissionFlags NormalizeStoredPermissions(long? permissionMask)
@@ -48,16 +45,43 @@ namespace KGV.Core.Security
                 UserRole.Admin =>
                     PermissionFlags.CanSearchMembers |
                     PermissionFlags.CanViewMembers |
-                    PermissionFlags.CanEditAllMembers,
+                    PermissionFlags.CanEditAllMembers |
+                    PermissionFlags.CanShowStammdaten |
+                    PermissionFlags.CanReadStammdaten |
+                    PermissionFlags.CanWriteStammdaten,
 
                 UserRole.Vorstand =>
                     PermissionFlags.CanSearchMembers |
                     PermissionFlags.CanViewMembers |
-                    PermissionFlags.CanEditAllMembers,
+                    PermissionFlags.CanEditAllMembers |
+                    PermissionFlags.CanShowStammdaten |
+                    PermissionFlags.CanReadStammdaten,
 
                 _ =>
                     PermissionFlags.CanViewMembers |
-                    PermissionFlags.CanSeeOwnDataOnly
+                    PermissionFlags.CanSeeOwnDataOnly |
+                    PermissionFlags.CanShowStammdaten |
+                    PermissionFlags.CanReadStammdaten |
+                    PermissionFlags.CanWriteStammdaten
+            };
+        }
+
+        private static PermissionFlags GetParzellenPermissions(UserRole role)
+        {
+            return role switch
+            {
+                UserRole.Admin =>
+                    PermissionFlags.CanShowParzellen |
+                    PermissionFlags.CanReadParzellen |
+                    PermissionFlags.CanWriteParzellen,
+
+                UserRole.Vorstand =>
+                    PermissionFlags.CanShowParzellen |
+                    PermissionFlags.CanReadParzellen,
+
+                _ =>
+                    PermissionFlags.CanShowParzellen |
+                    PermissionFlags.CanReadParzellen
             };
         }
 
@@ -65,8 +89,17 @@ namespace KGV.Core.Security
         {
             return role switch
             {
-                UserRole.Admin or UserRole.Vorstand => PermissionFlags.CanManageDocuments,
-                _ => PermissionFlags.None
+                UserRole.Admin or UserRole.Vorstand => PermissionFlags.CanReadDocuments | PermissionFlags.CanManageDocuments,
+                _ => PermissionFlags.CanReadDocuments
+            };
+        }
+
+        private static PermissionFlags GetWorkHoursPermissions(UserRole role)
+        {
+            return role switch
+            {
+                UserRole.Admin or UserRole.Vorstand => PermissionFlags.CanReadWorkHours | PermissionFlags.CanManageWorkHours,
+                _ => PermissionFlags.CanReadWorkHours
             };
         }
 
@@ -82,16 +115,16 @@ namespace KGV.Core.Security
             };
         }
 
-        private static PermissionFlags GetAdministrativePermissions(UserRole role)
+        private static PermissionFlags GetRoleManagementPermissions(UserRole role)
         {
             return role switch
             {
                 UserRole.Admin =>
-                    PermissionFlags.CanManageWorkHours |
+                    PermissionFlags.CanReadRoles |
                     PermissionFlags.CanManageRoles,
 
                 UserRole.Vorstand =>
-                    PermissionFlags.CanManageWorkHours,
+                    PermissionFlags.CanReadRoles,
 
                 _ => PermissionFlags.None
             };

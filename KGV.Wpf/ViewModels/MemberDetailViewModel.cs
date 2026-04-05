@@ -8,6 +8,7 @@ using System.Windows.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Helpers;
 using KGV.Messages;
 using KGV.Views;
@@ -18,6 +19,7 @@ namespace KGV.ViewModels
     {
         private readonly ISupabaseService _supabaseService;
         private readonly IAuthService _authService;
+        private readonly UserContext _userContext;
 
         private string? _lockUserId;
         private int? _currentUserMemberId;
@@ -46,6 +48,8 @@ namespace KGV.ViewModels
         public string NebenmitgliedButtonText => HasNebenmitglied ? "Nebenmitglied" : "Nebenmitglied anlegen";
 
         public bool ShowAdresseUebernehmenButton => false;
+        public bool CanEditMemberStammdaten => PermissionChecks.CanWriteStammdaten(_userContext)
+                                               && (!_userContext.Has(PermissionFlags.CanSeeOwnDataOnly) || _currentUserMemberId == SelectedMember.Id);
 
         private MemberDTO _originalSnapshot;
 
@@ -130,10 +134,11 @@ namespace KGV.ViewModels
             ? "Mailadresse wird separat per OTP-Code geändert und nicht über das normale Stammdaten-Speichern."
             : "Mailadresse kann nur vom aktuell angemeldeten Benutzer über den separaten OTP-Flow geändert werden.";
 
-        public MemberDetailViewModel(ISupabaseService supabaseService, IAuthService authService, MemberDTO member)
+        public MemberDetailViewModel(ISupabaseService supabaseService, IAuthService authService, UserContext userContext, MemberDTO member)
         {
             _supabaseService = supabaseService;
             _authService = authService;
+            _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
             SelectedMember = member;
 
             _originalSnapshot = SelectedMember.Clone();
@@ -147,7 +152,7 @@ namespace KGV.ViewModels
                 InvalidateCommands();
             };
 
-            ToggleEditCommand = new RelayCommand<object?>(_ => _ = ToggleEditAsync());
+            ToggleEditCommand = new RelayCommand<object?>(_ => _ = ToggleEditAsync(), _ => CanToggleEdit());
             SaveCommand = new RelayCommand<object?>(_ => _ = SaveAsync(), _ => CanSave());
             CancelCommand = new RelayCommand<object?>(_ => _ = CancelAsync(), _ => CanCancel());
             ChangeEmailCommand = new RelayCommand<object?>(_ => _ = ChangeEmailAsync(), _ => CanChangeEmail);
@@ -179,6 +184,7 @@ namespace KGV.ViewModels
 
             IsEditMode = false;
             IsDirty = false;
+            OnPropertyChanged(nameof(CanEditMemberStammdaten));
             InvalidateCommands();
         }
 
@@ -385,6 +391,9 @@ namespace KGV.ViewModels
 
         private async Task ToggleEditAsync()
         {
+            if (!CanEditMemberStammdaten)
+                return;
+
             if (!IsEditMode)
             {
                 var userId = _authService.CurrentUserId;
@@ -425,6 +434,8 @@ namespace KGV.ViewModels
 
         private bool CanSave() => IsEditMode && IsDirty;
         private bool CanCancel() => IsEditMode;
+
+        private bool CanToggleEdit() => !IsEditMode && CanEditMemberStammdaten || IsEditMode;
 
         private async Task SaveAsync()
         {

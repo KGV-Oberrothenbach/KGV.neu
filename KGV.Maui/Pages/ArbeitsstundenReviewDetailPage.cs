@@ -5,6 +5,9 @@ using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
+using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace KGV.Maui.Pages;
@@ -22,17 +25,25 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
     private readonly Label _hoursLabel;
     private readonly Label _workTypeLabel;
     private readonly Label _approvalInfoLabel;
-    private readonly Editor _statusEditor;
-    private readonly Button _saveButton;
+    private readonly Editor _commentEditor;
+    private readonly DatePicker _correctionDatePicker;
+    private readonly Entry _correctionHoursEntry;
+    private readonly Editor _correctionWorkTypeEditor;
     private readonly Button _approveButton;
     private readonly Button _rejectButton;
+    private readonly Button _correctButton;
+    private readonly Button _deleteButton;
     private readonly Button _previousButton;
     private readonly Button _nextButton;
     private readonly Label _positionLabel;
+    private readonly ObservableCollection<ArbeitsstundenPruefverlaufItem> _historyItems = new();
+    private readonly CollectionView _historyList;
+    private readonly Label _historyEmptyLabel;
+    private readonly Label _historyLoadingLabel;
 
     private bool _isBusy;
     private bool _isApplyingEntry;
-    private string _originalStatusText = string.Empty;
+    private bool _isLoadingHistory;
 
     public ArbeitsstundenReviewDetailPage(
         ISupabaseService supabaseService,
@@ -53,13 +64,13 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
         _workTypeLabel = CreateValueLabel();
         _approvalInfoLabel = CreateValueLabel();
 
-        _statusEditor = new Editor
+        _commentEditor = new Editor
         {
             AutoSize = EditorAutoSizeOption.TextChanges,
-            HeightRequest = 110,
-            Placeholder = "Status / Anmerkung"
+            HeightRequest = 100,
+            Placeholder = "Prüfkommentar (Pflichtfeld)"
         };
-        _statusEditor.TextChanged += (_, _) =>
+        _commentEditor.TextChanged += (_, _) =>
         {
             if (_isApplyingEntry)
                 return;
@@ -67,14 +78,35 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
             UpdateActionState();
         };
 
-        _saveButton = new Button { Text = "Speichern" };
-        _saveButton.Clicked += async (_, _) => await SaveAsync();
+        _correctionDatePicker = new DatePicker();
+        _correctionDatePicker.DateSelected += (_, _) => UpdateActionState();
+
+        _correctionHoursEntry = new Entry
+        {
+            Keyboard = Keyboard.Numeric,
+            Placeholder = "Stunden"
+        };
+        _correctionHoursEntry.TextChanged += (_, _) => UpdateActionState();
+
+        _correctionWorkTypeEditor = new Editor
+        {
+            AutoSize = EditorAutoSizeOption.TextChanges,
+            HeightRequest = 90,
+            Placeholder = "Art der Arbeit"
+        };
+        _correctionWorkTypeEditor.TextChanged += (_, _) => UpdateActionState();
 
         _approveButton = new Button { Text = "Freigeben", BackgroundColor = Colors.LightGreen };
-        _approveButton.Clicked += async (_, _) => await ApplyDecisionAsync(true);
+        _approveButton.Clicked += async (_, _) => await FreigebenAsync();
 
         _rejectButton = new Button { Text = "Ablehnen", BackgroundColor = Colors.LightPink };
-        _rejectButton.Clicked += async (_, _) => await ApplyDecisionAsync(false);
+        _rejectButton.Clicked += async (_, _) => await AblehnenAsync();
+
+        _correctButton = new Button { Text = "Korrigieren", BackgroundColor = Colors.LightGoldenrodYellow };
+        _correctButton.Clicked += async (_, _) => await KorrigierenAsync();
+
+        _deleteButton = new Button { Text = "Löschen", BackgroundColor = Colors.MistyRose };
+        _deleteButton.Clicked += async (_, _) => await LoeschenAsync();
 
         _previousButton = new Button { Text = "←", WidthRequest = 56 };
         _previousButton.Clicked += async (_, _) => await NavigateRelativeAsync(-1);
@@ -89,6 +121,100 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
             FontAttributes = FontAttributes.Bold
         };
 
+        _historyLoadingLabel = new Label { Text = "Verlauf wird geladen...", TextColor = Colors.Gray, IsVisible = false };
+        _historyEmptyLabel = new Label { Text = "Zu diesem Prüffall liegt noch kein Verlauf vor.", TextColor = Colors.Gray, IsVisible = false };
+        _historyList = new CollectionView
+        {
+            ItemsSource = _historyItems,
+            SelectionMode = SelectionMode.None,
+            ItemTemplate = new DataTemplate(() =>
+            {
+                var action = new Label { FontAttributes = FontAttributes.Bold };
+                action.SetBinding(Label.TextProperty, nameof(ArbeitsstundenPruefverlaufItem.AktionDisplay));
+
+                var meta = new Label { FontSize = 12, TextColor = Colors.Gray };
+                meta.SetBinding(Label.TextProperty, new Binding(nameof(ArbeitsstundenPruefverlaufItem.GeprueftAm), stringFormat: "{0:dd.MM.yyyy HH:mm}"));
+
+                var reviewer = new Label();
+                reviewer.SetBinding(Label.TextProperty, nameof(ArbeitsstundenPruefverlaufItem.GeprueftVonName));
+
+                var commentHeadline = new Label { Text = "Kommentar", FontAttributes = FontAttributes.Bold };
+                var comment = new Label { LineBreakMode = LineBreakMode.WordWrap };
+                comment.SetBinding(Label.TextProperty, nameof(ArbeitsstundenPruefverlaufItem.Kommentar));
+
+                var beforeHeadline = new Label { Text = "Vorher", FontAttributes = FontAttributes.Bold };
+                var before = new Label { LineBreakMode = LineBreakMode.WordWrap };
+                before.SetBinding(Label.TextProperty, nameof(ArbeitsstundenPruefverlaufItem.VorherSummary));
+
+                var afterHeadline = new Label { Text = "Nachher", FontAttributes = FontAttributes.Bold };
+                var after = new Label { LineBreakMode = LineBreakMode.WordWrap };
+                after.SetBinding(Label.TextProperty, nameof(ArbeitsstundenPruefverlaufItem.NachherSummary));
+
+                return new Border
+                {
+                    Stroke = Colors.LightGray,
+                    Padding = 12,
+                    Margin = new Thickness(0, 0, 0, 10),
+                    Content = new VerticalStackLayout
+                    {
+                        Spacing = 4,
+                        Children = { action, meta, reviewer, commentHeadline, comment, beforeHeadline, before, afterHeadline, after }
+                    }
+                };
+            })
+        };
+
+        var actionGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitionCollection
+            {
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Star)
+            },
+            RowDefinitions = new RowDefinitionCollection
+            {
+                new RowDefinition(GridLength.Auto),
+                new RowDefinition(GridLength.Auto)
+            },
+            ColumnSpacing = 8,
+            RowSpacing = 8,
+            Children =
+            {
+                _approveButton,
+                _rejectButton,
+                _correctButton,
+                _deleteButton
+            }
+        };
+
+        Grid.SetColumn(_approveButton, 0);
+        Grid.SetColumn(_rejectButton, 1);
+        Grid.SetRow(_approveButton, 0);
+        Grid.SetRow(_rejectButton, 0);
+        Grid.SetColumn(_correctButton, 0);
+        Grid.SetColumn(_deleteButton, 1);
+        Grid.SetRow(_correctButton, 1);
+        Grid.SetRow(_deleteButton, 1);
+
+        var navigationGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitionCollection
+            {
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Auto)
+            },
+            Children =
+            {
+                _previousButton,
+                _positionLabel,
+                _nextButton
+            }
+        };
+        Grid.SetColumn(_previousButton, 0);
+        Grid.SetColumn(_positionLabel, 1);
+        Grid.SetColumn(_nextButton, 2);
+
         Content = new ScrollView
         {
             Content = new VerticalStackLayout
@@ -100,7 +226,7 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
                     _headlineLabel,
                     new Label
                     {
-                        Text = "Ein offener Prüffall pro Seite. Daten oben, Entscheidung unten; bei offenen Änderungen wird vor dem Blättern zuerst gespeichert.",
+                        Text = "Ein Prüffall pro Seite. Alle vier Aktionen laufen über denselben Prüfservice; der Prüfkommentar ist immer verpflichtend.",
                         TextColor = Colors.Gray,
                         LineBreakMode = LineBreakMode.WordWrap
                     },
@@ -114,36 +240,30 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
                         CreateReadonlyField("Freigabe", _approvalInfoLabel)),
                     CreateSection(
                         "Prüfung / Entscheidung",
-                        new Label { Text = "Status / Anmerkung", FontAttributes = FontAttributes.Bold },
-                        _statusEditor,
-                        _saveButton,
-                        new HorizontalStackLayout
+                        new Label { Text = "Prüfkommentar *", FontAttributes = FontAttributes.Bold },
+                        _commentEditor,
+                        new Label
                         {
-                            Spacing = 8,
-                            Children = { _approveButton, _rejectButton }
-                        }),
-                    new Grid
-                    {
-                        ColumnDefinitions = new ColumnDefinitionCollection
-                        {
-                            new ColumnDefinition(GridLength.Auto),
-                            new ColumnDefinition(GridLength.Star),
-                            new ColumnDefinition(GridLength.Auto)
+                            Text = "Korrekturwerte werden nur für die Aktion Korrigieren verwendet. Freigeben, Ablehnen und Löschen verlangen ebenfalls denselben Pflichtkommentar.",
+                            TextColor = Colors.Gray,
+                            LineBreakMode = LineBreakMode.WordWrap
                         },
-                        Children =
-                        {
-                            _previousButton,
-                            _positionLabel,
-                            _nextButton
-                        }
-                    }
+                        new Label { Text = "Korrekturdatum", FontAttributes = FontAttributes.Bold },
+                        _correctionDatePicker,
+                        new Label { Text = "Korrigierte Stunden", FontAttributes = FontAttributes.Bold },
+                        _correctionHoursEntry,
+                        new Label { Text = "Korrigierte Art der Arbeit", FontAttributes = FontAttributes.Bold },
+                        _correctionWorkTypeEditor,
+                        actionGrid),
+                    navigationGrid,
+                    CreateSection(
+                        "Verlauf",
+                        _historyLoadingLabel,
+                        _historyEmptyLabel,
+                        _historyList)
                 }
             }
         };
-
-        Grid.SetColumn(_previousButton, 0);
-        Grid.SetColumn(_positionLabel, 1);
-        Grid.SetColumn(_nextButton, 2);
     }
 
     protected override async void OnAppearing()
@@ -169,6 +289,11 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
             _workTypeLabel.Text = "-";
             _approvalInfoLabel.Text = "Aktuell liegen keine offenen Prüffälle vor.";
             _positionLabel.Text = "0/0";
+            _commentEditor.Text = string.Empty;
+            _correctionHoursEntry.Text = string.Empty;
+            _correctionWorkTypeEditor.Text = string.Empty;
+            _historyItems.Clear();
+            UpdateHistoryState();
             UpdateActionState();
             return;
         }
@@ -179,13 +304,15 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
             _headlineLabel.Text = $"Prüffall: {BuildMemberDisplay(entry)}";
             _memberLabel.Text = BuildMemberDisplay(entry);
             _dateLabel.Text = entry.Datum.ToString("dd.MM.yyyy");
-            _hoursLabel.Text = entry.Stunden.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture);
+            _hoursLabel.Text = entry.Stunden.ToString("0.##", CultureInfo.CurrentCulture);
             _workTypeLabel.Text = string.IsNullOrWhiteSpace(entry.Beschreibung) ? "-" : entry.Beschreibung.Trim();
             _approvalInfoLabel.Text = entry.Freigegeben
                 ? $"Freigegeben am {entry.FreigegebenAm:dd.MM.yyyy HH:mm}"
                 : "Offener Prüffall";
-            _statusEditor.Text = entry.Status ?? string.Empty;
-            _originalStatusText = NormalizeStatus(entry.Status);
+            _commentEditor.Text = string.Empty;
+            _correctionDatePicker.Date = entry.Datum.Date;
+            _correctionHoursEntry.Text = entry.Stunden.ToString("0.##", CultureInfo.CurrentCulture);
+            _correctionWorkTypeEditor.Text = entry.Beschreibung ?? string.Empty;
             _positionLabel.Text = $"{_reviewState.CurrentIndex + 1}/{_reviewState.TotalCount}";
         }
         finally
@@ -193,6 +320,7 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
             _isApplyingEntry = false;
         }
 
+        await LoadHistoryAsync(entry.Id);
         UpdateActionState();
     }
 
@@ -205,24 +333,143 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
             await shell.RefreshWorkhoursReviewMenuAsync();
     }
 
-    private async Task SaveAsync()
+    private async Task LoadHistoryAsync(int arbeitsstundeId)
     {
-        await SaveCurrentAsync(saveAsDecision: null);
+        _isLoadingHistory = true;
+        UpdateHistoryState();
+
+        try
+        {
+            var items = await _supabaseService.GetArbeitsstundenPruefverlaufAsync(arbeitsstundeId);
+            _historyItems.Clear();
+            foreach (var item in items)
+                _historyItems.Add(item);
+        }
+        finally
+        {
+            _isLoadingHistory = false;
+            UpdateHistoryState();
+        }
     }
 
-    private async Task ApplyDecisionAsync(bool approve)
+    private async Task FreigebenAsync()
     {
-        var saved = await SaveCurrentAsync(approve);
-        if (!saved)
+        if (!TryGetReviewKommentar(out var kommentar) || !TryResolveApproverId(out var approverId))
             return;
 
-        if (_reviewState.CurrentEntry == null)
+        await ExecuteReviewActionAsync(
+            async () => await _supabaseService.ApproveArbeitsstundeImPruefprozessAsync(_reviewState.CurrentEntry!.Id, kommentar, approverId),
+            "Prüffall wurde freigegeben.");
+    }
+
+    private async Task AblehnenAsync()
+    {
+        if (!TryGetReviewKommentar(out var kommentar) || !TryResolveApproverId(out var approverId))
+            return;
+
+        await ExecuteReviewActionAsync(
+            async () => await _supabaseService.RejectArbeitsstundeImPruefprozessAsync(_reviewState.CurrentEntry!.Id, kommentar, approverId),
+            "Prüffall wurde abgelehnt und aus der offenen Liste entfernt.");
+    }
+
+    private async Task KorrigierenAsync()
+    {
+        if (!TryGetReviewKommentar(out var kommentar) || !TryResolveApproverId(out var approverId))
+            return;
+
+        var entry = _reviewState.CurrentEntry;
+        if (entry == null)
+            return;
+
+        if (!TryParseHours(_correctionHoursEntry.Text, out var stunden) || stunden <= 0)
         {
-            await Shell.Current.GoToAsync("..");
+            _statusLabel.Text = "Für die Korrektur müssen Stunden größer als 0 angegeben werden.";
             return;
         }
 
-        await LoadCurrentEntryAsync(refreshEntries: false);
+        if (string.IsNullOrWhiteSpace(_correctionWorkTypeEditor.Text))
+        {
+            _statusLabel.Text = "Für die Korrektur ist die Art der Arbeit erforderlich.";
+            return;
+        }
+
+        var request = new ArbeitsstundenPruefkorrekturRequest
+        {
+            ArbeitsstundeId = entry.Id,
+            Datum = _correctionDatePicker.Date,
+            Stunden = stunden,
+            ArtDerArbeit = _correctionWorkTypeEditor.Text.Trim(),
+            Begruendung = kommentar,
+            GeprueftVon = approverId
+        };
+
+        await ExecuteReviewActionAsync(
+            async () => await _supabaseService.CorrectArbeitsstundeImPruefprozessAsync(request),
+            "Prüffall wurde korrigiert, freigegeben und im Verlauf dokumentiert.");
+    }
+
+    private async Task LoeschenAsync()
+    {
+        if (!TryGetReviewKommentar(out var kommentar) || !TryResolveApproverId(out var approverId))
+            return;
+
+        var entry = _reviewState.CurrentEntry;
+        if (entry == null)
+            return;
+
+        var confirm = await DisplayAlert(
+            "Arbeitsstunde löschen",
+            $"Soll die Arbeitsstunde von {BuildMemberDisplay(entry)} wirklich im Prüfprozess gelöscht werden?",
+            "Ja",
+            "Nein");
+
+        if (!confirm)
+            return;
+
+        await ExecuteReviewActionAsync(
+            async () => await _supabaseService.DeleteArbeitsstundeImPruefprozessAsync(entry.Id, kommentar, approverId),
+            "Prüffall wurde gelöscht. Der Verlauf bleibt nachvollziehbar erhalten.");
+    }
+
+    private async Task ExecuteReviewActionAsync(Func<Task<bool>> action, string successMessage)
+    {
+        var entry = _reviewState.CurrentEntry;
+        if (entry == null || _isBusy)
+            return;
+
+        _isBusy = true;
+        UpdateActionState();
+
+        try
+        {
+            var success = await action();
+            if (!success)
+            {
+                _statusLabel.Text = "Die Prüfaktion konnte nicht ausgeführt werden. Details stehen im Anwendungslog oder der Datensatz ist nicht mehr offen.";
+                return;
+            }
+
+            _statusLabel.Text = successMessage;
+            var currentId = entry.Id;
+            await RefreshEntriesAsync(currentId);
+
+            if (_reviewState.CurrentEntry == null)
+            {
+                await Shell.Current.GoToAsync("..");
+                return;
+            }
+
+            await LoadCurrentEntryAsync(refreshEntries: false);
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = ex.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+            UpdateActionState();
+        }
     }
 
     private async Task NavigateRelativeAsync(int offset)
@@ -234,13 +481,6 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
         if (!canMove)
             return;
 
-        if (HasPendingChanges())
-        {
-            var saved = await SaveCurrentAsync(saveAsDecision: null);
-            if (!saved)
-                return;
-        }
-
         if (offset < 0)
             _reviewState.MovePrevious();
         else
@@ -249,120 +489,67 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
         await LoadCurrentEntryAsync(refreshEntries: false);
     }
 
-    private async Task<bool> SaveCurrentAsync(bool? saveAsDecision)
-    {
-        var entry = _reviewState.CurrentEntry;
-        if (entry == null || _isBusy)
-            return false;
-
-        _isBusy = true;
-        UpdateActionState();
-
-        try
-        {
-            var normalizedStatus = BuildPersistedStatus(saveAsDecision, _statusEditor.Text);
-            var approverId = ResolveApproverId();
-            if (saveAsDecision.HasValue && !approverId.HasValue)
-            {
-                _statusLabel.Text = "Genehmiger-MitgliedId fehlt.";
-                return false;
-            }
-
-            var record = new ArbeitsstundeRecord
-            {
-                Id = entry.Id,
-                MitgliedId = entry.MitgliedId,
-                SaisonId = entry.SaisonId,
-                Datum = entry.Datum.Date,
-                Stunden = entry.Stunden,
-                ArtDerArbeit = entry.Beschreibung,
-                Status = string.IsNullOrWhiteSpace(normalizedStatus) ? null : normalizedStatus,
-                Freigegeben = saveAsDecision == true,
-                GenehmigtAm = saveAsDecision == true ? DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified) : null,
-                GenehmigtVon = saveAsDecision == true ? approverId : null
-            };
-
-            var success = await _supabaseService.UpdateArbeitsstundeAsync(record);
-            if (!success)
-            {
-                _statusLabel.Text = "Arbeitsstunde konnte nicht gespeichert werden.";
-                return false;
-            }
-
-            var currentId = entry.Id;
-            await RefreshEntriesAsync(currentId);
-
-            if (saveAsDecision == true)
-                _statusLabel.Text = "Prüffall wurde freigegeben.";
-            else if (saveAsDecision == false)
-                _statusLabel.Text = "Prüffall wurde abgelehnt und aus der offenen Liste entfernt.";
-            else
-                _statusLabel.Text = "Änderungen gespeichert.";
-
-            if (_reviewState.CurrentEntry == null)
-                return true;
-
-            await LoadCurrentEntryAsync(refreshEntries: false);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _statusLabel.Text = ex.Message;
-            return false;
-        }
-        finally
-        {
-            _isBusy = false;
-            UpdateActionState();
-        }
-    }
-
     private void UpdateActionState()
     {
         var hasEntry = _reviewState.CurrentEntry != null;
-        _saveButton.IsEnabled = hasEntry && !_isBusy && HasPendingChanges();
-        _approveButton.IsEnabled = hasEntry && !_isBusy;
-        _rejectButton.IsEnabled = hasEntry && !_isBusy;
+        var hasComment = ArbeitsstundenPruefprozess.HasRequiredKommentar(_commentEditor.Text);
+        _approveButton.IsEnabled = hasEntry && !_isBusy && hasComment;
+        _rejectButton.IsEnabled = hasEntry && !_isBusy && hasComment;
+        _correctButton.IsEnabled = hasEntry && !_isBusy && hasComment;
+        _deleteButton.IsEnabled = hasEntry && !_isBusy && hasComment;
         _previousButton.IsEnabled = hasEntry && !_isBusy && _reviewState.CanMovePrevious;
         _nextButton.IsEnabled = hasEntry && !_isBusy && _reviewState.CanMoveNext;
-        _statusEditor.IsEnabled = hasEntry && !_isBusy;
+        _commentEditor.IsEnabled = hasEntry && !_isBusy;
+        _correctionDatePicker.IsEnabled = hasEntry && !_isBusy;
+        _correctionHoursEntry.IsEnabled = hasEntry && !_isBusy;
+        _correctionWorkTypeEditor.IsEnabled = hasEntry && !_isBusy;
     }
 
-    private bool HasPendingChanges()
+    private void UpdateHistoryState()
     {
-        return !string.Equals(_originalStatusText, NormalizeStatus(_statusEditor.Text), StringComparison.Ordinal);
+        _historyLoadingLabel.IsVisible = _isLoadingHistory;
+        _historyList.IsVisible = !_isLoadingHistory && _historyItems.Count > 0;
+        _historyEmptyLabel.IsVisible = !_isLoadingHistory && _historyItems.Count == 0 && _reviewState.CurrentEntry != null;
     }
 
-    private int? ResolveApproverId()
+    private bool TryGetReviewKommentar(out string kommentar)
     {
-        return _userContextState.CurrentMitgliedId is > 0 and <= int.MaxValue
-            ? (int)_userContextState.CurrentMitgliedId.Value
-            : null;
+        kommentar = ArbeitsstundenPruefprozess.NormalizeKommentar(_commentEditor.Text);
+        if (ArbeitsstundenPruefprozess.HasRequiredKommentar(kommentar))
+            return true;
+
+        _statusLabel.Text = "Für Freigeben, Ablehnen, Korrigieren und Löschen ist ein Prüfkommentar verpflichtend.";
+        return false;
     }
 
-    private static string NormalizeStatus(string? value)
+    private bool TryResolveApproverId(out int approverId)
     {
-        return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
-    }
-
-    private static string BuildPersistedStatus(bool? saveAsDecision, string? editorText)
-    {
-        var normalized = NormalizeStatus(editorText);
-
-        return saveAsDecision switch
+        approverId = 0;
+        var mitgliedId = _userContextState.CurrentMitgliedId;
+        if (mitgliedId.HasValue && mitgliedId.Value > 0 && mitgliedId.Value <= int.MaxValue)
         {
-            true => normalized,
-            false when string.IsNullOrWhiteSpace(normalized) => "abgelehnt",
-            false when normalized.StartsWith("abgelehnt", StringComparison.OrdinalIgnoreCase) => normalized,
-            false => $"abgelehnt: {normalized}",
-            _ => normalized
-        };
+            approverId = (int)mitgliedId.Value;
+            return true;
+        }
+
+        _statusLabel.Text = "Genehmiger-MitgliedId fehlt.";
+        return false;
+    }
+
+    private static bool TryParseHours(string? value, out decimal stunden)
+    {
+        var normalized = string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : value.Trim().Replace(',', '.');
+
+        return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out stunden)
+               || decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.CurrentCulture, out stunden);
     }
 
     private static string BuildMemberDisplay(ArbeitsstundeDTO entry)
     {
-        var member = $"{entry.Nachname}, {entry.Vorname}".Trim(' ', ',');
-        return string.IsNullOrWhiteSpace(member) ? "Unbekanntes Mitglied" : member;
+        var display = $"{entry.Nachname} {entry.Vorname}".Trim();
+        return string.IsNullOrWhiteSpace(display) ? $"Mitglied {entry.MitgliedId}" : display;
     }
 
     private static Label CreateValueLabel()
@@ -370,31 +557,35 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
         return new Label { LineBreakMode = LineBreakMode.WordWrap };
     }
 
-    private static View CreateReadonlyField(string title, View valueView)
+    private static Border CreateReadonlyField(string title, View valueView)
     {
-        return new VerticalStackLayout
+        return new Border
         {
-            Spacing = 2,
-            Children =
+            Stroke = Colors.LightGray,
+            Padding = 10,
+            Content = new VerticalStackLayout
             {
-                new Label { Text = title, FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
-                valueView
+                Spacing = 4,
+                Children =
+                {
+                    new Label { Text = title, FontAttributes = FontAttributes.Bold },
+                    valueView
+                }
             }
         };
     }
 
-    private static View CreateSection(string title, params View[] children)
+    private static Border CreateSection(string title, params View[] content)
     {
-        var stack = new VerticalStackLayout { Spacing = 8 };
-        stack.Children.Add(new Label { Text = title, FontAttributes = FontAttributes.Bold, FontSize = 18 });
-        foreach (var child in children)
-            stack.Children.Add(child);
+        var stack = new VerticalStackLayout { Spacing = 10 };
+        stack.Children.Add(new Label { Text = title, FontSize = 18, FontAttributes = FontAttributes.Bold });
+        foreach (var item in content)
+            stack.Children.Add(item);
 
         return new Border
         {
             Stroke = Colors.LightGray,
-            Padding = 14,
-            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(14) },
+            Padding = 16,
             Content = stack
         };
     }

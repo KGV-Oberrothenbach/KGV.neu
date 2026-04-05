@@ -21,6 +21,21 @@ namespace KGV.Core.Security
         CanManageReadings = CanReadMeters | CanManageMeterChanges | CanApproveMeterReadings,
         CanManageWorkHours = 1 << 8,
 
-        CanManageRoles = 1 << 9
+        CanManageRoles = 1 << 9,
+
+        CanShowStammdaten = 1 << 10,
+        CanReadStammdaten = 1 << 11,
+        CanWriteStammdaten = 1 << 12,
+
+        CanShowParzellen = 1 << 13,
+        CanReadParzellen = 1 << 14,
+        CanWriteParzellen = 1 << 15,
+
+        CanReadDocuments = 1 << 16,
+        CanReadWorkHours = 1 << 17,
+        CanReadRoles = 1 << 18,
+
+        CanManageStammdaten = CanReadStammdaten | CanWriteStammdaten,
+        CanManageParzellen = CanReadParzellen | CanWriteParzellen
     }
 }

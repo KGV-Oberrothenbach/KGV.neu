@@ -127,7 +127,7 @@ namespace KGV.ViewModels
             UpdateNavigationVisibility();
             UpdateMemberNavigationVisibility();
 
-            IsAdmin = UserContext.Has(PermissionFlags.CanEditAllMembers);
+            IsAdmin = PermissionChecks.CanManageRoleManagement(UserContext);
 
             WeakReferenceMessenger.Default.Register<ParzelleSelectedMessage>(this, (_, msg) =>
                 _ = OnParzelleSelectedAsync(msg.Belegung));
@@ -237,7 +237,7 @@ namespace KGV.ViewModels
                 IsVisible = true
             });
 
-            if (UserContext.Has(PermissionFlags.CanSeeOwnDataOnly))
+            if (PermissionChecks.CanShowStammdaten(UserContext) && UserContext.Has(PermissionFlags.CanSeeOwnDataOnly))
             {
                 NavigationItems.Add(new NavigationItem
                 {
@@ -247,16 +247,18 @@ namespace KGV.ViewModels
                 });
             }
 
-            if (UserContext.Has(PermissionFlags.CanEditAllMembers))
+            if (UserContext.Has(PermissionFlags.CanSearchMembers) && PermissionChecks.CanReadParzellen(UserContext))
             {
                 NavigationItems.Add(new NavigationItem
                 {
                     Title = "Parzellenverwaltung",
                     ViewModelType = typeof(ParzellenVerwaltungViewModel),
-                    IsVisible = true,
-                    IsAdminOnly = true
+                    IsVisible = true
                 });
+            }
 
+            if (UserContext.Has(PermissionFlags.CanEditAllMembers))
+            {
                 NavigationItems.Add(new NavigationItem
                 {
                     Title = "Wartungsverträge",
@@ -319,7 +321,7 @@ namespace KGV.ViewModels
             {
                 Title = "↳ Stammdaten",
                 ViewModelType = typeof(MemberDetailViewModel),
-                IsVisible = SelectedMember != null,
+                IsVisible = SelectedMember != null && PermissionChecks.CanShowStammdaten(UserContext),
                 ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
             });
 
@@ -335,7 +337,7 @@ namespace KGV.ViewModels
             {
                 Title = "↳ Arbeitsstunden",
                 ViewModelType = typeof(ArbeitsstundenViewModel),
-                IsVisible = SelectedMember != null && (UserContext.Has(PermissionFlags.CanManageWorkHours) || UserContext.Has(PermissionFlags.CanSeeOwnDataOnly)),
+                IsVisible = SelectedMember != null && PermissionChecks.CanReadWorkHours(UserContext),
                 ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
             });
 
@@ -343,7 +345,7 @@ namespace KGV.ViewModels
             {
                 Title = "↳ Dokumente",
                 ViewModelType = typeof(DokumenteViewModel),
-                IsVisible = SelectedMember != null && (UserContext.Has(PermissionFlags.CanManageDocuments) || UserContext.Has(PermissionFlags.CanSeeOwnDataOnly)),
+                IsVisible = SelectedMember != null && PermissionChecks.CanReadDocuments(UserContext),
                 ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
             });
 
@@ -352,8 +354,7 @@ namespace KGV.ViewModels
             {
                 Title = "↳ Admin-Menü",
                 ViewModelType = typeof(AdminRoleViewModel),
-                IsAdminOnly = true,
-                IsVisible = SelectedMember != null,
+                IsVisible = SelectedMember != null && PermissionChecks.CanReadRoleManagement(UserContext),
                 ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
             });
 
@@ -451,18 +452,18 @@ namespace KGV.ViewModels
                 var visible = true;
 
                 if (item.IsAdminOnly)
-                    visible = IsAdmin;
+                    visible = PermissionChecks.CanReadRoleManagement(UserContext);
 
                 if (item.ViewModelType == typeof(ArbeitsstundenViewModel))
-                    visible = visible && UserContext.Has(PermissionFlags.CanManageWorkHours);
+                    visible = visible && PermissionChecks.CanReadWorkHours(UserContext);
 
                 if (item.ViewModelType == typeof(DokumenteViewModel))
-                    visible = visible && (PermissionChecks.CanManageDocuments(UserContext) || UserContext.Has(PermissionFlags.CanSeeOwnDataOnly));
+                    visible = visible && PermissionChecks.CanReadDocuments(UserContext);
 
                 if (item.ViewModelType == typeof(GartenStromViewModel) ||
                     item.ViewModelType == typeof(GartenWasserViewModel) ||
                     item.ViewModelType == typeof(GartenDokumenteViewModel))
-                    visible = visible && SelectedParzelle != null;
+                    visible = visible && SelectedParzelle != null && PermissionChecks.CanShowParzellen(UserContext);
 
                 // Überschrift "Garten Nr..." (nicht klickbar)
                 if (item.ViewModelType == null)

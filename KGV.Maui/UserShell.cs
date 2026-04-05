@@ -22,10 +22,21 @@ public sealed class UserShell : Shell, IAppShellInitializer
         _state = state;
         _memberContextState = memberContextState;
 
-        SetOwnMemberContext();
-
         FlyoutBehavior = FlyoutBehavior.Flyout;
-        Loaded += (_, _) => EnsureActiveRouteAfterLoad();
+        Loaded += (_, _) =>
+        {
+            EnsureOwnMemberContext();
+            EnsureMenuBuilt();
+            EnsureActiveRouteAfterLoad();
+        };
+        EnsureOwnMemberContext();
+        EnsureMenuBuilt();
+    }
+
+    private void EnsureOwnMemberContext()
+    {
+        if (_state.CurrentMitgliedId.HasValue && _state.CurrentMitgliedId.Value > 0)
+            _memberContextState.SetSelectedMember(new MemberDTO { Id = (int)_state.CurrentMitgliedId.Value });
     }
 
     public void BuildMenu()
@@ -37,28 +48,20 @@ public sealed class UserShell : Shell, IAppShellInitializer
 
     private Page CreateOwnMemberDetailsPage()
     {
-        SetOwnMemberContext();
+        EnsureOwnMemberContext();
         return _services.GetRequiredService<MeineDatenPage>();
     }
 
     private Page CreateOwnMemberGardensPage()
     {
-        SetOwnMemberContext();
+        EnsureOwnMemberContext();
         return _services.GetRequiredService<MemberGardensPage>();
     }
 
     private Page CreateOwnMemberWartungsvertraegePage()
     {
-        SetOwnMemberContext();
+        EnsureOwnMemberContext();
         return _services.GetRequiredService<MemberWartungsvertraegePage>();
-    }
-
-    private void SetOwnMemberContext()
-    {
-        if (_state.CurrentMitgliedId is > 0 and <= int.MaxValue)
-        {
-            _memberContextState.SetSelectedMember(new MemberDTO { Id = (int)_state.CurrentMitgliedId.Value });
-        }
     }
 
     private void EnsureMenuBuilt()
@@ -77,6 +80,9 @@ public sealed class UserShell : Shell, IAppShellInitializer
         Items.Add(CreateItem("↳ Nebenmitglied", "nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
         Items.Add(CreateItem("↳ Gärten des Mitglieds", "mygardens", CreateOwnMemberGardensPage));
         Items.Add(CreateItem("↳ Arbeitsstunden", "workhours", () => _services.GetRequiredService<MyArbeitsstundenPage>()));
+
+        if (PermissionChecks.CanManageWorkHours(_state.CurrentUserContext))
+            Items.Add(CreateItem("Arbeitsstunden freigeben", "workhours_review", () => _services.GetRequiredService<ArbeitsstundenReviewPage>()));
 
         _menuBuilt = true;
     }
