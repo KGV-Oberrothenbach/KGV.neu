@@ -2,6 +2,42 @@
 
 ---
 
+## 2026-04-05 – WPF-Dateilogging für Permission-Settings-/App-User-Fehlerpfad minimal eingebaut
+
+- Arbeitsgrundlage war der aktuell noch offene WPF-Rechte-/App-User-Fehlerpfad; es wurde bewusst keine neue Rechtearchitektur und keine neue UI-Baustelle eröffnet.
+- Zu Beginn den echten Stand in den direkt betroffenen Dateien geprüft:
+  - `KGV.Wpf/App.xaml.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Minimal umgesetzt:
+  - neue kleine zentrale Datei-Loghilfe `KGV.Core/Diagnostics/AppLocalFileLog.cs`
+  - bevorzugter Logpfad: Workspace-Root `_logs`; fallback-sicher zusätzlich aktuelles Verzeichnis, App-Basisverzeichnis oder `%LocalAppData%\KGV\_logs`
+  - Dateiname pro WPF-Start mit Timestamp, z. B. `wpf-permissiondiag-YYYYMMDD-HHMMSSfff.log`
+  - `KGV.Wpf/App.xaml.cs` initialisiert das Logging jetzt beim Start und protokolliert zusätzlich globale unbehandelte Fehler über:
+    - `AppDomain.CurrentDomain.UnhandledException`
+    - `DispatcherUnhandledException`
+  - `SupabaseService` loggt im echten Permission-Settings-Pfad jetzt gezielt:
+    - Start/Ende von `GetUserPermissionSettingsAsync(...)`
+    - Start/Ende von `SetUserPermissionSettingsAsync(...)`
+    - Erkennung, ob ein echter `app_user` gefunden wurde
+    - `MitgliedId`
+    - `app_user.user_id`
+    - `permission_grants`
+    - `permission_revocations`
+    - `updated_at` vor/nach Save
+    - Exceptions inkl. Typ, Message, StackTrace und InnerException
+  - `AdminRoleViewModel` loggt zusätzlich den WPF-Lade-/Speicherpfad für Permission-Settings, damit UI- und Shared-Service-Logzeilen in derselben Datei korrelierbar bleiben
+- Bewusst nicht gemacht:
+  - kein Logging-Framework eingeführt
+  - keine neue Rechte- oder Save-Architektur
+  - keine UI-Änderung außerhalb des nötigen Fehlerdiagnosepfads
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-05 – Save-Fix benutzerspezifische Fachbereiche: vorhandenen `app_user`-Write-/Verify-/Reload-Pfad ehrlich validiert und Abschluss vorbereitet
 
 - Arbeitsgrundlage war der bereits lokal begonnene Save-Fix-Block für benutzerspezifische Fachbereiche; es wurde keine neue Rechtearchitektur und keine neue UI-Baustelle eröffnet.

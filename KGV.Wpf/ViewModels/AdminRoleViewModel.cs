@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using KGV.Core.Diagnostics;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
@@ -13,6 +14,8 @@ namespace KGV.ViewModels
 {
     public sealed class AdminRoleViewModel : BaseViewModel, INavigationAware
     {
+        private const string PermissionLogCategory = "PermissionSettings.Wpf";
+
         private readonly ISupabaseService _supabaseService;
         private readonly IAuthService _authService;
         private readonly MainWindowViewModel _mainWindowViewModel;
@@ -165,50 +168,68 @@ namespace KGV.ViewModels
 
         private async Task LoadPermissionSettingsAsync()
         {
-            _isPermissionSettingsLoadReliable = false;
+            try
+            {
+                AppLocalFileLog.Info(PermissionLogCategory, $"Load started. MitgliedId={SelectedMember.Id}");
 
-            var settings = await _supabaseService.GetUserPermissionSettingsAsync(SelectedMember.Id);
-            if (settings != null)
-            {
-                _isPermissionSettingsLoadReliable = true;
-            }
-            else
-            {
-                var memberRecord = await _supabaseService.GetMitgliedByIdAsync(SelectedMember.Id);
-                if (memberRecord != null)
+                _isPermissionSettingsLoadReliable = false;
+
+                var settings = await _supabaseService.GetUserPermissionSettingsAsync(SelectedMember.Id);
+                if (settings != null)
                 {
-                    settings = new UserPermissionSettings
-                    {
-                        AuthUserId = memberRecord.AuthUserId,
-                        MitgliedId = SelectedMember.Id,
-                        HasAppUserRecord = false,
-                        Role = UserRoles.User,
-                        GrantedPermissions = PermissionFlags.None,
-                        RevokedPermissions = PermissionFlags.None
-                    };
                     _isPermissionSettingsLoadReliable = true;
                 }
+                else
+                {
+                    var memberRecord = await _supabaseService.GetMitgliedByIdAsync(SelectedMember.Id);
+                    if (memberRecord != null)
+                    {
+                        settings = new UserPermissionSettings
+                        {
+                            AuthUserId = memberRecord.AuthUserId,
+                            MitgliedId = SelectedMember.Id,
+                            HasAppUserRecord = false,
+                            Role = UserRoles.User,
+                            GrantedPermissions = PermissionFlags.None,
+                            RevokedPermissions = PermissionFlags.None
+                        };
+                        _isPermissionSettingsLoadReliable = true;
+
+                        AppLocalFileLog.Warning(
+                            PermissionLogCategory,
+                            $"Service returned null permission settings; member fallback applied. MitgliedId={SelectedMember.Id}, MemberAuthUserId={memberRecord.AuthUserId}");
+                    }
+                }
+
+                settings ??= new UserPermissionSettings
+                {
+                    MitgliedId = SelectedMember.Id,
+                    HasAppUserRecord = false,
+                    Role = UserRoles.User,
+                    GrantedPermissions = PermissionFlags.None,
+                    RevokedPermissions = PermissionFlags.None
+                };
+
+                _permissionSettings = settings;
+                _selectedRole = UserRoles.ToStorageValue(settings.ParsedRole);
+                OnPropertyChanged(nameof(SelectedRole));
+                _initialGrantedPermissions = settings.GrantedPermissions;
+                _initialRevokedPermissions = settings.RevokedPermissions;
+
+                foreach (var item in PermissionOverrides)
+                    item.Apply(settings, CanEditPermissionOverrides);
+
+                RefreshPermissionState();
+
+                AppLocalFileLog.Info(
+                    PermissionLogCategory,
+                    $"Load completed. MitgliedId={SelectedMember.Id}, IsReliable={_isPermissionSettingsLoadReliable}, HasAppUserRecord={settings.HasAppUserRecord}, AuthUserId={settings.AuthUserId}, Role={settings.Role}, PermissionGrants={(long)settings.GrantedPermissions}, PermissionRevocations={(long)settings.RevokedPermissions}");
             }
-
-            settings ??= new UserPermissionSettings
+            catch (Exception ex)
             {
-                MitgliedId = SelectedMember.Id,
-                HasAppUserRecord = false,
-                Role = UserRoles.User,
-                GrantedPermissions = PermissionFlags.None,
-                RevokedPermissions = PermissionFlags.None
-            };
-
-            _permissionSettings = settings;
-            _selectedRole = UserRoles.ToStorageValue(settings.ParsedRole);
-            OnPropertyChanged(nameof(SelectedRole));
-            _initialGrantedPermissions = settings.GrantedPermissions;
-            _initialRevokedPermissions = settings.RevokedPermissions;
-
-            foreach (var item in PermissionOverrides)
-                item.Apply(settings, CanEditPermissionOverrides);
-
-            RefreshPermissionState();
+                AppLocalFileLog.Error(PermissionLogCategory, $"Load failed. MitgliedId={SelectedMember.Id}", ex);
+                throw;
+            }
         }
 
         private bool CanSave()
@@ -293,8 +314,15 @@ namespace KGV.ViewModels
         {
             try
             {
+                AppLocalFileLog.Info(
+                    PermissionLogCategory,
+                    $"Save started. MitgliedId={SelectedMember.Id}, Role={SelectedRole}, PermissionGrants={(long)CurrentGrantedPermissions}, PermissionRevocations={(long)CurrentRevokedPermissions}, HasLinkedAppUser={HasLinkedAppUser}, IsReliable={IsLinkedAppUserStatusKnown}");
+
                 if (!HasLinkedAppUser)
                 {
+                    AppLocalFileLog.Warning(
+                        PermissionLogCategory,
+                        $"Save aborted because no linked app_user is available. MitgliedId={SelectedMember.Id}, IsReliable={IsLinkedAppUserStatusKnown}");
                     MessageBox.Show(IsLinkedAppUserStatusKnown
                             ? "Für dieses Mitglied existiert aktuell kein verknüpfter App-User. Fachrechte können deshalb noch nicht gespeichert werden."
                             : "Der Verknüpfungsstatus des App-Users konnte aktuell nicht belastbar geladen werden. Fachrechte bleiben deshalb vorsorglich gesperrt.",
@@ -304,12 +332,20 @@ namespace KGV.ViewModels
 
                 if (IsDirty)
                 {
+                    AppLocalFileLog.Warning(
+                        PermissionLogCategory,
+                        $"Save aborted because the role is dirty. MitgliedId={SelectedMember.Id}, Role={SelectedRole}");
                     MessageBox.Show("Bitte zuerst die geänderte Rollenbasis speichern und danach die benutzerspezifischen Fachrechte sichern.", "Hinweis", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
 
                 if (!CanSavePermissionOverrides())
+                {
+                    AppLocalFileLog.Warning(
+                        PermissionLogCategory,
+                        $"Save aborted because CanSavePermissionOverrides=false. MitgliedId={SelectedMember.Id}, Role={SelectedRole}, PermissionGrants={(long)CurrentGrantedPermissions}, PermissionRevocations={(long)CurrentRevokedPermissions}");
                     return;
+                }
 
                 var ok = await _supabaseService.SetUserPermissionSettingsAsync(
                     SelectedMember.Id,
@@ -319,15 +355,25 @@ namespace KGV.ViewModels
 
                 if (!ok)
                 {
+                    AppLocalFileLog.Error(
+                        PermissionLogCategory,
+                        $"Save failed in shared service. MitgliedId={SelectedMember.Id}, Role={SelectedRole}, PermissionGrants={(long)CurrentGrantedPermissions}, PermissionRevocations={(long)CurrentRevokedPermissions}");
                     MessageBox.Show("Die benutzerspezifischen Fachrechte konnten nicht gespeichert werden. Details stehen im Anwendungslog.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
 
                 await LoadPermissionSettingsAsync();
+                AppLocalFileLog.Info(
+                    PermissionLogCategory,
+                    $"Save completed. MitgliedId={SelectedMember.Id}, Role={SelectedRole}, PermissionGrants={(long)CurrentGrantedPermissions}, PermissionRevocations={(long)CurrentRevokedPermissions}");
                 MessageBox.Show("Benutzerspezifische Fachrechte wurden gespeichert.", "OK", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
+                AppLocalFileLog.Error(
+                    PermissionLogCategory,
+                    $"Save failed with exception. MitgliedId={SelectedMember.Id}, Role={SelectedRole}, PermissionGrants={(long)CurrentGrantedPermissions}, PermissionRevocations={(long)CurrentRevokedPermissions}",
+                    ex);
                 MessageBox.Show($"Fehler beim Speichern der Fachrechte: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }

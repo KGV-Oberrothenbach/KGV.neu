@@ -2,6 +2,54 @@
 
 ---
 
+## 2026-04-05 – WPF-Dateilogging für Permission-Settings-/App-User-Fehlerpfad minimal und robust eingebaut
+
+- Ausgangspunkt dieses Laufs war ausdrücklich kein neuer Rechteumbau, sondern nur belastbare Fehlerdiagnose für den aktuell noch offenen WPF-Rechte-/App-User-Pfad.
+- Zu Beginn wurde der echte Stand in den direkt betroffenen Dateien geprüft:
+  - `KGV.Wpf/App.xaml.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - direkt betroffene WPF-Pfade für Laden/Speichern der Permission-Settings
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Minimal umgesetzt:
+  - neue kleine zentrale Helper-Klasse `KGV.Core/Diagnostics/AppLocalFileLog.cs`
+  - bevorzugter Logordner: Workspace-Root `_logs`
+  - fallback-sicher zusätzlich aktuelles Verzeichnis, App-Basisverzeichnis oder `%LocalAppData%\KGV\_logs`
+  - Dateiname pro WPF-Start mit Timestamp, z. B. `wpf-permissiondiag-YYYYMMDD-HHMMSSfff.log`
+- WPF-Startpfad jetzt mit kleinem globalen Fehlerlogging:
+  - Initialisierung des Datei-Logs direkt in `KGV.Wpf/App.xaml.cs`
+  - Logging für:
+    - `AppDomain.CurrentDomain.UnhandledException`
+    - `DispatcherUnhandledException`
+  - bewusst keine neue große Fehlerarchitektur eingeführt
+- Permission-Settings-/App-User-Diagnose jetzt gezielt im echten Produktivpfad:
+  - `SupabaseService.GetUserPermissionSettingsAsync(...)` loggt Start/Ende und den tatsächlich aufgelösten Zustand mit:
+    - `MitgliedId`
+    - `AuthUserId`
+    - `HasAppUserRecord`
+    - `app_user.user_id`
+    - `role`
+    - `permission_grants`
+    - `permission_revocations`
+    - `updated_at`
+  - `SupabaseService.SetUserPermissionSettingsAsync(...)` loggt zusätzlich:
+    - Lookup des echten `app_user`
+    - `updated_at` vor Save
+    - Update-Payload
+    - Reload-/Verify-Ergebnis
+    - `updated_at` vor/nach Save
+    - Exceptions mit Typ, Message, StackTrace und InnerException
+  - `AdminRoleViewModel` loggt den WPF-Lade-/Speicherpfad zusätzlich, damit UI- und Shared-Service-Schrittfolge in derselben Datei korrelierbar bleibt
+- Bewusst nicht Bestandteil dieses Blocks:
+  - keine neue Rechtearchitektur
+  - keine neue UI-Struktur
+  - keine Änderung der Fachlogik außer dem für sinnvolle Diagnose nötigen Logging
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-05 – Save-Fix benutzerspezifische Fachbereiche: vorhandenen `app_user`-Write-/Verify-/Reload-Pfad im Workspace geprüft, Builds ausgeführt und Live-SQL-Test vorbereitet
 
 - Ausgangspunkt dieses Laufs war ausdrücklich kein neuer Rechteumbau, sondern nur der saubere Abschluss des bereits lokal analysierten Save-Fix-Blocks für benutzerspezifische Fachbereiche.

@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using KGV.Core.Diagnostics;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
@@ -227,26 +228,48 @@ namespace KGV.Infrastructure.Services
             "GetUserPermissionSettingsAsync",
             async () =>
             {
-                if (mitgliedId <= 0)
-                    return null;
-
-                var client = await EnsureClientAsync();
-                var mitglied = await GetMitgliedByIdAsync(mitgliedId);
-                if (mitglied == null)
-                    return null;
-
-                var appUser = await GetAppUserByMitgliedIdAsync(client, mitgliedId, mitglied.AuthUserId);
-                var role = NormalizeAppUserRole(appUser?.Role);
-
-                return new UserPermissionSettings
+                try
                 {
-                    AuthUserId = appUser?.UserId ?? mitglied.AuthUserId,
-                    MitgliedId = mitgliedId,
-                    Role = role,
-                    HasAppUserRecord = appUser != null,
-                    GrantedPermissions = PermissionService.NormalizeStoredPermissions(appUser?.PermissionGrants),
-                    RevokedPermissions = PermissionService.NormalizeStoredPermissions(appUser?.PermissionRevocations)
-                };
+                    AppLocalFileLog.Info("PermissionSettings.Load.Service", $"Started. MitgliedId={mitgliedId}");
+
+                    if (mitgliedId <= 0)
+                    {
+                        AppLocalFileLog.Warning("PermissionSettings.Load.Service", $"Aborted because MitgliedId is invalid. MitgliedId={mitgliedId}");
+                        return null;
+                    }
+
+                    var client = await EnsureClientAsync();
+                    var mitglied = await GetMitgliedByIdAsync(mitgliedId);
+                    if (mitglied == null)
+                    {
+                        AppLocalFileLog.Warning("PermissionSettings.Load.Service", $"No member record found. MitgliedId={mitgliedId}");
+                        return null;
+                    }
+
+                    var appUser = await GetAppUserByMitgliedIdAsync(client, mitgliedId, mitglied.AuthUserId);
+                    var role = NormalizeAppUserRole(appUser?.Role);
+                    var grantedPermissions = PermissionService.NormalizeStoredPermissions(appUser?.PermissionGrants);
+                    var revokedPermissions = PermissionService.NormalizeStoredPermissions(appUser?.PermissionRevocations);
+
+                    AppLocalFileLog.Info(
+                        "PermissionSettings.Load.Service",
+                        $"Resolved. MitgliedId={mitgliedId}, MemberAuthUserId={mitglied.AuthUserId}, HasAppUserRecord={appUser != null}, AppUserUserId={appUser?.UserId}, Role={role}, PermissionGrants={(long)grantedPermissions}, PermissionRevocations={(long)revokedPermissions}, AppUserUpdatedAt={FormatNullableDateTime(appUser?.UpdatedAt)}");
+
+                    return new UserPermissionSettings
+                    {
+                        AuthUserId = appUser?.UserId ?? mitglied.AuthUserId,
+                        MitgliedId = mitgliedId,
+                        Role = role,
+                        HasAppUserRecord = appUser != null,
+                        GrantedPermissions = grantedPermissions,
+                        RevokedPermissions = revokedPermissions
+                    };
+                }
+                catch (Exception ex)
+                {
+                    AppLocalFileLog.Error("PermissionSettings.Load.Service", $"Failed. MitgliedId={mitgliedId}", ex);
+                    throw;
+                }
             },
             null);
 
@@ -284,97 +307,143 @@ namespace KGV.Infrastructure.Services
             "SetUserPermissionSettingsAsync",
             async () =>
             {
-                if (mitgliedId <= 0)
-                    return false;
-
-                var client = await EnsureClientAsync();
-                var mitglied = await GetMitgliedByIdAsync(mitgliedId);
-                if (mitglied == null)
-                    return false;
-
-                var appUser = await GetAppUserByMitgliedIdAsync(client, mitgliedId, mitglied.AuthUserId);
-                if (appUser == null)
+                try
                 {
-                    _logger?.LogWarning(
-                        "SetUserPermissionSettingsAsync aborted because no app_user record could be resolved. MitgliedId={MitgliedId}, AuthUserId={AuthUserId}, Role={Role}, PermissionGrants={PermissionGrants}, PermissionRevocations={PermissionRevocations}",
-                        mitgliedId,
-                        mitglied.AuthUserId,
-                        role,
-                        grantedPermissions,
-                        revokedPermissions);
-                    return false;
-                }
+                    AppLocalFileLog.Info(
+                        "PermissionSettings.Save.Service",
+                        $"Started. MitgliedId={mitgliedId}, Role={role}, PermissionGrants={grantedPermissions}, PermissionRevocations={revokedPermissions}");
 
-                var normalizedRole = UserRoles.ToStorageValue(UserRoles.Parse(role));
-                var normalizedGrantedPermissions = (long)PermissionService.NormalizeStoredPermissions(grantedPermissions);
-                var normalizedRevokedPermissions = (long)PermissionService.NormalizeStoredPermissions(revokedPermissions);
-                var previousUpdatedAt = appUser.UpdatedAt;
-                var updateTimestamp = DateTime.UtcNow;
+                    if (mitgliedId <= 0)
+                    {
+                        AppLocalFileLog.Warning("PermissionSettings.Save.Service", $"Aborted because MitgliedId is invalid. MitgliedId={mitgliedId}");
+                        return false;
+                    }
 
-                _logger?.LogInformation(
-                    "SetUserPermissionSettingsAsync started. MitgliedId={MitgliedId}, AppUserUserId={AppUserUserId}, PreviousUpdatedAt={PreviousUpdatedAt}, Role={Role}, PermissionGrants={PermissionGrants}, PermissionRevocations={PermissionRevocations}",
-                    mitgliedId,
-                    appUser.UserId,
-                    previousUpdatedAt,
-                    normalizedRole,
-                    normalizedGrantedPermissions,
-                    normalizedRevokedPermissions);
+                    var client = await EnsureClientAsync();
+                    var mitglied = await GetMitgliedByIdAsync(mitgliedId);
+                    if (mitglied == null)
+                    {
+                        AppLocalFileLog.Warning("PermissionSettings.Save.Service", $"Aborted because member record could not be loaded. MitgliedId={mitgliedId}");
+                        return false;
+                    }
 
-                await client
-                    .From<AppUserRecord>()
-                    .Where(x => x.UserId == appUser.UserId)
-                    .Set(x => x.MitgliedId, mitgliedId)
-                    .Set(x => x.Role, normalizedRole)
-                    .Set(x => x.PermissionGrants, normalizedGrantedPermissions)
-                    .Set(x => x.PermissionRevocations, normalizedRevokedPermissions)
-                    .Set(x => x.UpdatedAt, updateTimestamp)
-                    .Update();
+                    var appUser = await GetAppUserByMitgliedIdAsync(client, mitgliedId, mitglied.AuthUserId);
+                    AppLocalFileLog.Info(
+                        "PermissionSettings.Save.Service",
+                        $"AppUser lookup completed. MitgliedId={mitgliedId}, MemberAuthUserId={mitglied.AuthUserId}, HasAppUserRecord={appUser != null}, AppUserUserId={appUser?.UserId}, AppUserUpdatedAtBeforeSave={FormatNullableDateTime(appUser?.UpdatedAt)}");
 
-                var persistedAppUser = await GetAppUserByUserIdAsync(client, appUser.UserId);
-                if (persistedAppUser == null)
-                {
-                    _logger?.LogError(
-                        "SetUserPermissionSettingsAsync failed verification because the updated app_user record could not be reloaded. MitgliedId={MitgliedId}, AppUserUserId={AppUserUserId}",
-                        mitgliedId,
-                        appUser.UserId);
-                    return false;
-                }
+                    if (appUser == null)
+                    {
+                        _logger?.LogWarning(
+                            "SetUserPermissionSettingsAsync aborted because no app_user record could be resolved. MitgliedId={MitgliedId}, AuthUserId={AuthUserId}, Role={Role}, PermissionGrants={PermissionGrants}, PermissionRevocations={PermissionRevocations}",
+                            mitgliedId,
+                            mitglied.AuthUserId,
+                            role,
+                            grantedPermissions,
+                            revokedPermissions);
+                        AppLocalFileLog.Warning(
+                            "PermissionSettings.Save.Service",
+                            $"Aborted because no app_user record could be resolved. MitgliedId={mitgliedId}, MemberAuthUserId={mitglied.AuthUserId}, Role={role}, PermissionGrants={grantedPermissions}, PermissionRevocations={revokedPermissions}");
+                        return false;
+                    }
 
-                var persistedRole = NormalizeAppUserRole(persistedAppUser.Role);
-                var persistedGrantedPermissions = (long)PermissionService.NormalizeStoredPermissions(persistedAppUser.PermissionGrants);
-                var persistedRevokedPermissions = (long)PermissionService.NormalizeStoredPermissions(persistedAppUser.PermissionRevocations);
-                var updatedAtChanged = persistedAppUser.UpdatedAt != previousUpdatedAt;
-                var persistedAsExpected = persistedAppUser.MitgliedId == mitgliedId
-                                          && string.Equals(persistedRole, normalizedRole, StringComparison.OrdinalIgnoreCase)
-                                          && persistedGrantedPermissions == normalizedGrantedPermissions
-                                          && persistedRevokedPermissions == normalizedRevokedPermissions;
+                    var normalizedRole = UserRoles.ToStorageValue(UserRoles.Parse(role));
+                    var normalizedGrantedPermissions = (long)PermissionService.NormalizeStoredPermissions(grantedPermissions);
+                    var normalizedRevokedPermissions = (long)PermissionService.NormalizeStoredPermissions(revokedPermissions);
+                    var previousUpdatedAt = appUser.UpdatedAt;
+                    var updateTimestamp = DateTime.UtcNow;
 
-                if (!persistedAsExpected || !updatedAtChanged)
-                {
-                    _logger?.LogError(
-                        "SetUserPermissionSettingsAsync failed verification after update. MitgliedId={MitgliedId}, AppUserUserId={AppUserUserId}, ExpectedRole={ExpectedRole}, PersistedRole={PersistedRole}, ExpectedPermissionGrants={ExpectedPermissionGrants}, PersistedPermissionGrants={PersistedPermissionGrants}, ExpectedPermissionRevocations={ExpectedPermissionRevocations}, PersistedPermissionRevocations={PersistedPermissionRevocations}, PreviousUpdatedAt={PreviousUpdatedAt}, PersistedUpdatedAt={PersistedUpdatedAt}",
+                    _logger?.LogInformation(
+                        "SetUserPermissionSettingsAsync started. MitgliedId={MitgliedId}, AppUserUserId={AppUserUserId}, PreviousUpdatedAt={PreviousUpdatedAt}, Role={Role}, PermissionGrants={PermissionGrants}, PermissionRevocations={PermissionRevocations}",
                         mitgliedId,
                         appUser.UserId,
-                        normalizedRole,
-                        persistedRole,
-                        normalizedGrantedPermissions,
-                        persistedGrantedPermissions,
-                        normalizedRevokedPermissions,
-                        persistedRevokedPermissions,
                         previousUpdatedAt,
+                        normalizedRole,
+                        normalizedGrantedPermissions,
+                        normalizedRevokedPermissions);
+
+                    AppLocalFileLog.Info(
+                        "PermissionSettings.Save.Service",
+                        $"Update payload prepared. MitgliedId={mitgliedId}, AppUserUserId={appUser.UserId}, Role={normalizedRole}, PermissionGrants={normalizedGrantedPermissions}, PermissionRevocations={normalizedRevokedPermissions}, UpdatedAtBeforeSave={FormatNullableDateTime(previousUpdatedAt)}");
+
+                    await client
+                        .From<AppUserRecord>()
+                        .Where(x => x.UserId == appUser.UserId)
+                        .Set(x => x.MitgliedId, mitgliedId)
+                        .Set(x => x.Role, normalizedRole)
+                        .Set(x => x.PermissionGrants, normalizedGrantedPermissions)
+                        .Set(x => x.PermissionRevocations, normalizedRevokedPermissions)
+                        .Set(x => x.UpdatedAt, updateTimestamp)
+                        .Update();
+
+                    var persistedAppUser = await GetAppUserByUserIdAsync(client, appUser.UserId);
+                    if (persistedAppUser == null)
+                    {
+                        _logger?.LogError(
+                            "SetUserPermissionSettingsAsync failed verification because the updated app_user record could not be reloaded. MitgliedId={MitgliedId}, AppUserUserId={AppUserUserId}",
+                            mitgliedId,
+                            appUser.UserId);
+                        AppLocalFileLog.Error(
+                            "PermissionSettings.Save.Service",
+                            $"Verification failed because persisted app_user could not be reloaded. MitgliedId={mitgliedId}, AppUserUserId={appUser.UserId}");
+                        return false;
+                    }
+
+                    var persistedRole = NormalizeAppUserRole(persistedAppUser.Role);
+                    var persistedGrantedPermissions = (long)PermissionService.NormalizeStoredPermissions(persistedAppUser.PermissionGrants);
+                    var persistedRevokedPermissions = (long)PermissionService.NormalizeStoredPermissions(persistedAppUser.PermissionRevocations);
+                    var updatedAtChanged = persistedAppUser.UpdatedAt != previousUpdatedAt;
+                    var persistedAsExpected = persistedAppUser.MitgliedId == mitgliedId
+                                              && string.Equals(persistedRole, normalizedRole, StringComparison.OrdinalIgnoreCase)
+                                              && persistedGrantedPermissions == normalizedGrantedPermissions
+                                              && persistedRevokedPermissions == normalizedRevokedPermissions;
+
+                    AppLocalFileLog.Info(
+                        "PermissionSettings.Save.Service",
+                        $"Verification reloaded persisted app_user. MitgliedId={mitgliedId}, AppUserUserId={persistedAppUser.UserId}, PersistedRole={persistedRole}, PermissionGrants={persistedGrantedPermissions}, PermissionRevocations={persistedRevokedPermissions}, UpdatedAtBeforeSave={FormatNullableDateTime(previousUpdatedAt)}, UpdatedAtAfterSave={FormatNullableDateTime(persistedAppUser.UpdatedAt)}, UpdatedAtChanged={updatedAtChanged}, PersistedAsExpected={persistedAsExpected}");
+
+                    if (!persistedAsExpected || !updatedAtChanged)
+                    {
+                        _logger?.LogError(
+                            "SetUserPermissionSettingsAsync failed verification after update. MitgliedId={MitgliedId}, AppUserUserId={AppUserUserId}, ExpectedRole={ExpectedRole}, PersistedRole={PersistedRole}, ExpectedPermissionGrants={ExpectedPermissionGrants}, PersistedPermissionGrants={PersistedPermissionGrants}, ExpectedPermissionRevocations={ExpectedPermissionRevocations}, PersistedPermissionRevocations={PersistedPermissionRevocations}, PreviousUpdatedAt={PreviousUpdatedAt}, PersistedUpdatedAt={PersistedUpdatedAt}",
+                            mitgliedId,
+                            appUser.UserId,
+                            normalizedRole,
+                            persistedRole,
+                            normalizedGrantedPermissions,
+                            persistedGrantedPermissions,
+                            normalizedRevokedPermissions,
+                            persistedRevokedPermissions,
+                            previousUpdatedAt,
+                            persistedAppUser.UpdatedAt);
+                        AppLocalFileLog.Error(
+                            "PermissionSettings.Save.Service",
+                            $"Verification failed after update. MitgliedId={mitgliedId}, AppUserUserId={appUser.UserId}, ExpectedRole={normalizedRole}, PersistedRole={persistedRole}, ExpectedPermissionGrants={normalizedGrantedPermissions}, PersistedPermissionGrants={persistedGrantedPermissions}, ExpectedPermissionRevocations={normalizedRevokedPermissions}, PersistedPermissionRevocations={persistedRevokedPermissions}, UpdatedAtBeforeSave={FormatNullableDateTime(previousUpdatedAt)}, UpdatedAtAfterSave={FormatNullableDateTime(persistedAppUser.UpdatedAt)}");
+                        return false;
+                    }
+
+                    _logger?.LogInformation(
+                        "SetUserPermissionSettingsAsync completed successfully. MitgliedId={MitgliedId}, AppUserUserId={AppUserUserId}, PermissionGrants={PermissionGrants}, PermissionRevocations={PermissionRevocations}, UpdatedAt={UpdatedAt}",
+                        mitgliedId,
+                        appUser.UserId,
+                        persistedGrantedPermissions,
+                        persistedRevokedPermissions,
                         persistedAppUser.UpdatedAt);
-                    return false;
+
+                    AppLocalFileLog.Info(
+                        "PermissionSettings.Save.Service",
+                        $"Completed successfully. MitgliedId={mitgliedId}, AppUserUserId={appUser.UserId}, PermissionGrants={persistedGrantedPermissions}, PermissionRevocations={persistedRevokedPermissions}, UpdatedAtBeforeSave={FormatNullableDateTime(previousUpdatedAt)}, UpdatedAtAfterSave={FormatNullableDateTime(persistedAppUser.UpdatedAt)}");
+
+                    return true;
                 }
-
-                _logger?.LogInformation(
-                    "SetUserPermissionSettingsAsync completed successfully. MitgliedId={MitgliedId}, AppUserUserId={AppUserUserId}, PermissionGrants={PermissionGrants}, PermissionRevocations={PermissionRevocations}, UpdatedAt={UpdatedAt}",
-                    mitgliedId,
-                    appUser.UserId,
-                    persistedGrantedPermissions,
-                    persistedRevokedPermissions,
-                    persistedAppUser.UpdatedAt);
-
-                return true;
+                catch (Exception ex)
+                {
+                    AppLocalFileLog.Error(
+                        "PermissionSettings.Save.Service",
+                        $"Failed. MitgliedId={mitgliedId}, Role={role}, PermissionGrants={grantedPermissions}, PermissionRevocations={revokedPermissions}",
+                        ex);
+                    throw;
+                }
             },
             false);
         public Task<ParzelleRecord?> GetParzelleByNumberAsync(string gartenNr) => ExecuteAsync<ParzelleRecord?>(
@@ -3590,6 +3659,9 @@ namespace KGV.Infrastructure.Services
             var normalized = NormalizeDateOnly(date);
             return new DateTime(normalized.Year, normalized.Month, normalized.Day, 23, 59, 0, DateTimeKind.Unspecified);
         }
+
+        private static string FormatNullableDateTime(DateTime? value)
+            => value.HasValue ? value.Value.ToString("O") : "null";
 
         private static TimeSpan CreateDefaultTerminStartTime()
         {

@@ -1,4 +1,5 @@
 using KGV;
+using KGV.Core.Diagnostics;
 using KGV.Core.Interfaces;
 using KGV.Core.Security;
 using KGV.Infrastructure.Authentication;
@@ -14,15 +15,26 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
+using System.Windows.Threading;
 using KGV.Wpf.State;
 
 namespace KGV.Wpf
 {
     public partial class App : Application
     {
+        private const string StartupLogCategory = "WpfStartup";
+
         protected override async void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+
+            AppLocalFileLog.Initialize();
+            AppLocalFileLog.Info(StartupLogCategory, $"WPF startup initialized. LogFile={AppLocalFileLog.LogFilePath}");
+
+            AppDomain.CurrentDomain.UnhandledException -= CurrentDomain_UnhandledException;
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+            DispatcherUnhandledException -= App_DispatcherUnhandledException;
+            DispatcherUnhandledException += App_DispatcherUnhandledException;
 
             // Während des Login-Dialogs soll die App NICHT automatisch beenden,
             // nur weil das erste Window (Login) geschlossen wird.
@@ -193,6 +205,22 @@ namespace KGV.Wpf
             Debug.WriteLine($"[KGV.Wpf] CONFIG output={appSettingsInOutput} exists={outputExists}");
             Debug.WriteLine($"[KGV.Wpf] SUPABASE host={host} keyLength={trimmedKey.Length} keySuffix={keySuffix} keySha256={keyHash}");
             Trace.WriteLine($"[KGV.Wpf] SUPABASE host={host} keyLength={trimmedKey.Length} keySuffix={keySuffix} keySha256={keyHash}");
+        }
+
+        private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            if (e.ExceptionObject is Exception exception)
+            {
+                AppLocalFileLog.Error(StartupLogCategory, $"AppDomain.CurrentDomain.UnhandledException IsTerminating={e.IsTerminating}", exception);
+                return;
+            }
+
+            AppLocalFileLog.Error(StartupLogCategory, $"AppDomain.CurrentDomain.UnhandledException without ExceptionObject. IsTerminating={e.IsTerminating}");
+        }
+
+        private static void App_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+        {
+            AppLocalFileLog.Error(StartupLogCategory, "DispatcherUnhandledException", e.Exception);
         }
     }
 }
