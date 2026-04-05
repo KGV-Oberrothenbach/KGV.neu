@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-04-05 – Predicate-Fix für `GetAppUserByMitgliedIdAsync(...)`: problematischen `mitglied_id`-Predicate entfernt und WPF-Permission-Pfad wieder auf echten `app_user`-Lookup gezogen
+
+- Ausgangspunkt dieses Laufs war ausdrücklich kein neuer Rechteumbau, sondern nur der bereits eingegrenzte Fehler im WPF-Permission-Settings-Pfad.
+- Zu Beginn wurde der echte Stand in den direkt betroffenen Dateien geprüft:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - speziell `GetUserPermissionSettingsAsync(...)`
+  - speziell `GetAppUserByMitgliedIdAsync(...)`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor dem Fix:
+  - `GetUserPermissionSettingsAsync(...)` lief im Produktivpfad in `GetAppUserByMitgliedIdAsync(...)`
+  - dort wurde `app_user` über den Predicate-Ausdruck `x => x.MitgliedId == (long?)mitgliedId` geladen
+  - genau dieser Ausdruck führte im aktuellen Lauf zu `System.ArgumentException: Unable to parse the supplied predicate...`
+  - dadurch wurde `app_user` nicht geladen, der Service fiel auf den Member-Fallback zurück und WPF zeigte anschließend fälschlich `HasAppUserRecord=False` bzw. „App-User nicht verbunden“
+- Minimal umgesetzt:
+  - den problematischen Postgrest-`Where(...)`-Ausdruck für `mitglied_id` entfernt
+  - `GetAppUserByMitgliedIdAsync(...)` lädt `app_user` jetzt zuerst ohne diesen fehlerhaften Predicate-Ausdruck und filtert die `mitglied_id` anschließend in einem einfachen In-Memory-Schritt
+  - der bestehende einfache Fallback-Lookup über `user_id` blieb unverändert erhalten
+  - keine neue Rechtearchitektur, keine neue UI-Struktur und kein weiterer Rollenquellen-Umbau
+- Fachliche Wirkung dieses Fixes:
+  - der bisherige Parserfehler im `app_user`-Lookup ist code-seitig beseitigt
+  - `GetUserPermissionSettingsAsync(...)` kann damit im normalen Lauf wieder einen echten `app_user` statt nur den Member-Fallback auflösen
+  - der WPF-Pfad `HasAppUserRecord` / Linked-Status hängt dadurch wieder am echten `app_user`-Datensatz statt am fehlergetriggerten Null-Rückfall
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+- Ehrlicher Restbefund dieses Laufs:
+  - die Query-Ursache ist im Code behoben
+  - eine echte Live-Verifikation speziell für Mitglied `1` gegen die laufende DB war in diesem Headless-Lauf nicht belastbar ausführbar; sie bleibt der einzig offene Außencheck
+
 ## 2026-04-05 – WPF-Dateilogging für Permission-Settings-/App-User-Fehlerpfad minimal und robust eingebaut
 
 - Ausgangspunkt dieses Laufs war ausdrücklich kein neuer Rechteumbau, sondern nur belastbare Fehlerdiagnose für den aktuell noch offenen WPF-Rechte-/App-User-Pfad.

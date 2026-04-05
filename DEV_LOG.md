@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-04-05 – Predicate-Fix für `GetAppUserByMitgliedIdAsync(...)` im WPF-Permission-Settings-Pfad umgesetzt
+
+- Arbeitsgrundlage war ausdrücklich nur der eingegrenzte WPF-Rechtepfad rund um `GetUserPermissionSettingsAsync(...)`; kein neuer Rechteumbau und keine neue UI-Baustelle.
+- Zu Beginn geprüft:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Echter Fehler im aktuellen Stand:
+  - `GetAppUserByMitgliedIdAsync(...)` verwendete im `app_user`-Lookup den Predicate-Ausdruck `x => x.MitgliedId == (long?)mitgliedId`
+  - genau dieser Ausdruck führte im Produktivpfad zu `Unable to parse the supplied predicate...`
+  - dadurch fiel `GetUserPermissionSettingsAsync(...)` auf den Member-Fallback zurück und WPF zeigte fälschlich keinen `app_user`
+- Minimal umgesetzt:
+  - den problematischen Postgrest-`Where(...)`-Ausdruck für `mitglied_id` entfernt
+  - `GetAppUserByMitgliedIdAsync(...)` lädt `app_user` jetzt zuerst ohne diesen fehlerhaften Predicate-Ausdruck und filtert die `mitglied_id` anschließend in einem einfachen In-Memory-Schritt
+  - der bestehende einfache Fallback über `user_id` blieb unverändert erhalten
+- Bewusst nicht gemacht:
+  - kein neuer Rechtepfad
+  - keine UI-Änderung
+  - keine neue Query- oder Repository-Architektur
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+  - ehrlicher Restbefund:
+    - der Predicate-Parserfehler ist code-seitig beseitigt
+    - eine echte Live-Verifikation für Mitglied `1` gegen die laufende DB war in diesem Headless-Lauf nicht belastbar ausführbar
+
 ## 2026-04-05 – WPF-Dateilogging für Permission-Settings-/App-User-Fehlerpfad minimal eingebaut
 
 - Arbeitsgrundlage war der aktuell noch offene WPF-Rechte-/App-User-Fehlerpfad; es wurde bewusst keine neue Rechtearchitektur und keine neue UI-Baustelle eröffnet.

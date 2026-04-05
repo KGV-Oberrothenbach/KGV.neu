@@ -3492,21 +3492,24 @@ namespace KGV.Infrastructure.Services
 
         private static async Task<AppUserRecord?> GetAppUserByMitgliedIdAsync(Client client, int mitgliedId, Guid? authUserId = null)
         {
-            var response = await client
-                .From<AppUserRecord>()
-                .Where(x => x.MitgliedId == (long?)mitgliedId)
-                .Get();
+            AppUserRecord? appUser = null;
 
-            var appUser = response?.Models?.FirstOrDefault();
+            if (mitgliedId > 0)
+            {
+                var response = await client
+                    .From<AppUserRecord>()
+                    .Get();
+
+                appUser = response?.Models?
+                    .Where(x => x.MitgliedId == mitgliedId)
+                    .OrderByDescending(x => x.UpdatedAt)
+                    .FirstOrDefault();
+            }
+
             if (appUser != null || !authUserId.HasValue)
                 return appUser;
 
-            var authUserResponse = await client
-                .From<AppUserRecord>()
-                .Where(x => x.UserId == authUserId.Value)
-                .Get();
-
-            return authUserResponse?.Models?.FirstOrDefault();
+            return await GetAppUserByUserIdAsync(client, authUserId.Value);
         }
 
         private static async Task<AppUserRecord?> GetAppUserByUserIdAsync(Client client, Guid userId)
