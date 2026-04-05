@@ -2,6 +2,64 @@
 
 ---
 
+## 2026-04-05 – SQL-/RPC-Randbereich für Rollenquelle `app_user.role` sauber abgeschlossen
+
+- Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.
+- Git-Befund zu Beginn auf `feature/app-user-role-source`:
+  - aktueller Branch: `feature/app-user-role-source`
+  - Remote-Tracking vorhanden: `origin/feature/app-user-role-source`
+  - im Arbeitsbaum zu Beginn blockfremd offen und bewusst unberührt:
+    - `.github/copilot-instructions.md`
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Lauf:
+  - `supabase/migrations/20260323093513_remote_schema.sql`
+  - weitere SQL-/Schema-/RPC-Dateien unter `supabase/migrations`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Core/Models/AppUserDTO.cs`
+  - `KGV.Core/Models/MemberUserLinkStatusDto.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Echter Restbefund vor der Umsetzung:
+  - im C#-Pfad der ausdrücklich geprüften Dateien zeigte sich keine neue aktive Rollenmischung mehr aus `mitglied.role`
+  - der verbleibende echte Rest saß nur noch im SQL-/RPC-/Schema-Randbereich von `supabase/migrations/20260323093513_remote_schema.sql`:
+    - `get_user_role()` nutzte noch `coalesce(au.role, m.role)`
+    - `who_am_i()` nutzte noch `coalesce(au.role, m.role)`
+    - `sync_app_user_from_mitglied()` schrieb `new.role` aktiv nach `app_user.role`
+    - Trigger `trg_sync_app_user_from_mitglied` reagierte noch auf `UPDATE OF auth_user_id, role`
+- Minimal umgesetzt:
+  - `supabase/migrations/20260323093513_remote_schema.sql`
+    - `get_user_role()` auf denselben app-user-basierten Maßstab wie `current_app_role()` gezogen
+    - `who_am_i()` ebenfalls auf `app_user.role` + vorhandenen Defaultpfad umgestellt
+    - `sync_app_user_from_mitglied()` behält nur noch die Verknüpfung `auth_user_id` ↔ `app_user.mitglied_id`, aber synchronisiert keine Rolle mehr aus `mitglied.role`
+    - Trigger `trg_sync_app_user_from_mitglied` reagiert jetzt nur noch auf `auth_user_id`, nicht mehr auf `role`
+  - neue Migration `supabase/migrations/20260405173000_app_user_role_sql_cleanup.sql`
+    - dieselben SQL-/RPC-Anpassungen als echte DB-Änderung für den Rollensource-Abschluss ergänzt
+- Fachlicher Endstand dieses Blocks:
+  - `app_user.role` ist jetzt auch im verbleibenden SQL-/RPC-Pfad die einzige führende Rollenquelle
+  - `mitglied.role` ist dort kein aktiver Fallback mehr
+  - aktive Synchronisierung `mitglied.role -> app_user.role` findet im Repo-SQL nicht mehr statt
+  - ohne belastbare `app_user.role` greift im vorhandenen SQL-Helferpfad weiter nur der Default `user` für authentifizierte User; der bestehende `anon`-Fallback für nicht authentifizierte Kontexte bleibt unverändert intakt
+  - Invite-/App-User-Verknüpfung bleibt erhalten, weil die Sync-Funktion weiter `auth_user_id` und `mitglied_id` koppelt
+- Zusätzliche fachliche Prüfung nach der Umsetzung wirklich ausgeführt:
+  - Suchlauf über `supabase/migrations` zeigte keine verbleibende aktive Restmischung mehr über:
+    - `coalesce(au.role, m.role)`
+    - `new.role`
+    - `excluded.role`
+    - `UPDATE OF auth_user_id, role`
+  - Suchlauf über die ausdrücklich geprüften C#-Dateien zeigte keine verbleibende aktive Rollenableitung mehr aus `mitglied.role`
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund:
+    - bestehende Warnungen bleiben u. a. in `KGV.Infrastructure/Services/SupabaseService.cs`, `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/ImpressumPage.cs` außerhalb dieses Blocks unverändert bestehen
+- Ehrlicher Abschlussstand dieses Blocks:
+  - der SQL-/RPC-/Schema-Randbereich ist jetzt auf dieselbe Zielsemantik wie der C#-Pfad gezogen
+  - keine UI-Baustelle eröffnet
+  - keine physische DB-Entfernung von `mitglied.role` begonnen
+
 ## 2026-04-05 – WPF/MAUI Rollenpfad auf gemeinsame führende Quelle `app_user.role` nachgezogen, Restfallbacks auf `mitglied.role` im Clientpfad bereinigt
 
 - Vor dem Block den realen Repo-/Git-/Logstand erneut geprüft.

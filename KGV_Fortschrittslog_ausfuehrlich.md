@@ -2,6 +2,66 @@
 
 ---
 
+## 2026-04-05 – SQL-/RPC-/Schema-Randbereich auf `app_user.role` als einzige führende Rollenquelle gezogen
+
+- Vor dem Block den realen Repo-/Git-/Logzustand erneut geprüft.
+- Git-Befund zu Beginn auf `feature/app-user-role-source`:
+  - aktueller Branch: `feature/app-user-role-source`
+  - der Branch hat einen Remote-Tracking-Branch `origin/feature/app-user-role-source`
+  - im Arbeitsbaum lagen zu Beginn blockfremd offen und bewusst außerhalb dieses Blocks:
+    - `.github/copilot-instructions.md`
+    - `AWR.bat`
+    - `_secrets/`
+- Direkt geprüft wurden im Lauf:
+  - `supabase/migrations/20260323093513_remote_schema.sql`
+  - weitere direkt betroffene SQL-/Schema-/RPC-Dateien unter `supabase/migrations`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Infrastructure/Authentication/AuthService.cs`
+  - `KGV.Core/Models/AppUserDTO.cs`
+  - `KGV.Core/Models/MemberUserLinkStatusDto.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor der Korrektur:
+  - die ausdrücklich geprüften C#-Pfade waren bereits weitgehend auf `app_user.role` als führende Quelle gezogen
+  - der echte verbleibende Rest saß nur noch im SQL-/RPC-/Schema-Randbereich der alten Remote-Snapshot-Datei:
+    - `get_user_role()` mit `coalesce(au.role, m.role)`
+    - `who_am_i()` mit `coalesce(au.role, m.role)`
+    - `sync_app_user_from_mitglied()` mit aktivem Schreiben `new.role -> app_user.role`
+    - Trigger `trg_sync_app_user_from_mitglied` reagierte noch auf `UPDATE OF auth_user_id, role`
+- Minimal umgesetzt:
+  - `supabase/migrations/20260323093513_remote_schema.sql`
+    - `get_user_role()` auf den bestehenden app-user-basierten Helfer `current_app_role()` gezogen
+    - `who_am_i()` ebenfalls auf denselben app-user-basierten Rollenmaßstab gezogen
+    - `sync_app_user_from_mitglied()` so reduziert, dass nur noch die App-User-Verknüpfung synchronisiert wird, nicht mehr die Rolle
+    - Trigger `trg_sync_app_user_from_mitglied` auf `auth_user_id` als einzig relevanten Auslöser reduziert
+  - neue Migration `supabase/migrations/20260405173000_app_user_role_sql_cleanup.sql`
+    - dieselben SQL-/RPC-Anpassungen als echter Migrationsschritt ergänzt
+- Fachlicher Endstand dieses Blocks:
+  - `app_user.role` ist jetzt auch im verbleibenden SQL-/RPC-/Schema-Randbereich die einzige führende Rollenquelle
+  - `mitglied.role` ist in diesen Pfaden kein aktiver Fallback mehr
+  - aktive Synchronisierung `mitglied.role -> app_user.role` findet im Repo-SQL nicht mehr statt
+  - der vorhandene Defaultpfad bleibt für authentifizierte User `user`; der bestehende `anon`-Fallback des bereits vorhandenen Helfers `current_app_role()` für nicht authentifizierte Kontexte wurde bewusst nicht beschädigt
+  - Invite-/App-User-Verknüpfung bleibt intakt, weil `sync_app_user_from_mitglied()` weiter nur die Verknüpfung `auth_user_id` ↔ `mitglied_id` sicherstellt
+  - Permission-/Override-Logik bleibt unverändert intakt
+- Zusätzliche fachliche Anschlussprüfung nach der Umsetzung wirklich ausgeführt:
+  - Suchlauf über `supabase/migrations` zeigte keine verbleibende aktive Restmischung mehr über:
+    - `coalesce(au.role, m.role)`
+    - `new.role`
+    - `excluded.role`
+    - `UPDATE OF auth_user_id, role`
+  - Suchlauf über die ausdrücklich geprüften C#-Dateien zeigte keine verbleibende aktive Rollenableitung mehr aus `mitglied.role`
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` => erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` => erfolgreich
+  - ehrlicher Restbefund:
+    - bestehende Warnungen u. a. in `KGV.Infrastructure/Services/SupabaseService.cs`, `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/ImpressumPage.cs` blieben außerhalb dieses Blocks unverändert bestehen
+- Bewusst nicht Bestandteil dieses Blocks:
+  - keine physische Entfernung von `mitglied.role` aus der Datenbank
+  - keine große Datenmigration für Altbestände
+  - keine neue UI-Baustelle
+  - kein neuer Rechtearchitektur-Umbau
+
 ## 2026-04-05 – WPF/MAUI Rollenpfad auf gemeinsame führende Quelle `app_user.role` gezogen und letzte Client-Fallbacks auf `mitglied.role` bereinigt
 
 - Vor dem Block den realen Repo-/Git-/Logzustand erneut geprüft.
