@@ -2824,10 +2824,9 @@ namespace KGV.Infrastructure.Services
 
                 if (mitgliedId is > 0)
                 {
-                    var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId.Value);
                     summaryTask = TryLoadHomeSectionAsync(
                         "LoadPflichtstundenSummaryAsync",
-                        () => LoadPflichtstundenSummaryAsync(homeMitgliedId, DateTime.Today.Year),
+                        () => LoadPflichtstundenSummaryAsync(mitgliedId.Value, DateTime.Today.Year),
                         (HomeWorkHoursSummary?)null);
                 }
 

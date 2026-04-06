@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-04-06 – ToDo-Zielbild ersetzt und Folgeblock `22` für Wartungsverträge/Nebenmitglieder begonnen
+
+- Ausgangspunkt dieses Laufs war die explizite Vorgabe, `ToDo.md` durch den aktuellen Prompt zu ersetzen und das Zielbild gegen den realen Repo-Stand neu einzuordnen.
+- Zu Beginn wurde der Repo-Stand gegen das Zielbild geprüft und sauber eingeordnet:
+  - bereits erledigt: u. a. `1`, `2`, `3`, `4`, `5`, `7`, `9`, `10`, `11`
+  - teilweise erledigt: u. a. `8`, `12`, `14`, `15`
+  - offen: Beobachtungs-, Praxis- und Folgeblöcke sowie der neue Wartungsverträge-/Nebenmitgliederblock
+- Minimal umgesetzt:
+  - in `ToDo.md`
+    - vollständige Umstellung auf den aktuellen Prompt als neues Zielbild
+    - alle Punkte gegen den echten Repo-Stand als `erledigt`, `teilweise` oder `offen` eingeordnet
+    - aktuellen nächsten Umsetzungsblock explizit auf `22. Wartungsverträge dürfen auch Nebenmitglieder haben` gesetzt
+  - in `KGV.Infrastructure/Services/SupabaseService.cs`
+    - Wartungsvertrags-Listen und Zuweisungen nicht mehr pauschal auf das Hauptmitglied normalisiert
+    - gilt für:
+      - mitgliedsbezogene aktive Vertragsliste
+      - zuweisbare Wartungsverträge pro Mitglied
+      - Zuweisung mehrerer Mitglieder zu einem Wartungsvertrag
+      - Zuweisung mehrerer Wartungsverträge zu einem Mitglied
+    - Home-Pflichtstunden-Summary lädt dabei wieder über die konkrete Mitglieds-ID statt über eine vorgezogene Hauptmitglied-Normalisierung
+- Fachliche Wirkung dieses begonnenen Folgeblocks:
+  - Nebenmitglieder können auf Serviceebene jetzt als eigenständige Wartungsvertrags-Träger behandelt werden
+  - WPF und MAUI profitieren gemeinsam über den Shared-Service, ohne neue Schattenlogik
+  - Restprüfung des Gesamtverhaltens für Pflichtstunden-, Home- und UI-Kontexte bleibt bewusst offen; der Punkt ist deshalb im Zielbild aktuell nur `teilweise`
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-06 – ToDo `F2`: MAUI-Mitgliedsparzellen-Detail blendet ohne Kontext keine stale Detailansicht mehr ein
 
 - Ausgangspunkt dieses Laufs war die direkte Weiterarbeit an `ToDo.md` für `F2. Restinkonsistenzen in Stammdaten-/Parzellen-Navigation beobachten`.
