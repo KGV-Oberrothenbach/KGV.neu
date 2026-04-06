@@ -221,6 +221,85 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
+        public Task<MembershipEndResult> EndMembershipAsync(int mainMemberId, DateTime endDate, MembershipEndDecision? secondaryDecision, string userId, int timeoutMinutes = 10) => ExecuteAsync(
+            "EndMembershipAsync",
+            async () =>
+            {
+                if (mainMemberId <= 0)
+                    return MembershipEndResult.Failure("Hauptmitglied ist ungültig.");
+
+                if (!Guid.TryParse(userId, out var userGuid))
+                    return MembershipEndResult.Failure("Aktueller Benutzer ist ungültig.");
+
+                var client = await EnsureClientAsync();
+                var mainMember = await GetMitgliedByIdAsync(mainMemberId);
+                if (mainMember == null)
+                    return MembershipEndResult.Failure("Hauptmitglied konnte nicht geladen werden.");
+
+                if (mainMember.HauptmitgliedId.HasValue && mainMember.HauptmitgliedId.Value > 0)
+                    return MembershipEndResult.Failure("Der Folgeentscheid ist nur für Hauptmitglieder verfügbar.");
+
+                if (mainMember.MitgliedEnde.HasValue)
+                    return MembershipEndResult.Failure("Die Mitgliedschaft ist bereits beendet.");
+
+                if (mainMember.LockedByUserId != userGuid)
+                    return MembershipEndResult.Failure("Kein gültiger Lock auf dem Hauptmitglied.");
+
+                var normalizedEndDate = NormalizeDate(endDate) ?? DateTime.Today;
+                var secondaryMember = await GetNebenmitgliedByHauptmitgliedIdAsync(mainMemberId);
+                if (secondaryMember != null && !secondaryDecision.HasValue)
+                    return MembershipEndResult.Failure("Für das vorhandene Nebenmitglied ist eine Folgeentscheidung erforderlich.");
+
+                if (secondaryMember != null && HasActiveForeignMitgliedLock(secondaryMember, userGuid, timeoutMinutes))
+                    return MembershipEndResult.Failure("Das Nebenmitglied ist aktuell gesperrt.");
+
+                if (secondaryMember != null)
+                {
+                    switch (secondaryDecision)
+                    {
+                        case MembershipEndDecision.EndSecondaryMember:
+                            await client
+                                .From<MitgliedRecord>()
+                                .Where(x => x.Id == secondaryMember.Id)
+                                .Set(x => x.MitgliedEnde, normalizedEndDate)
+                                .Set(x => x.Aktiv, false)
+                                .Update();
+                            break;
+                        case MembershipEndDecision.PromoteSecondaryMember:
+                            await client
+                                .From<MitgliedRecord>()
+                                .Where(x => x.Id == secondaryMember.Id)
+                                .Set(x => x.HauptmitgliedId, (int?)null)
+                                .Set(x => x.MitgliedEnde, (DateTime?)null)
+                                .Set(x => x.Aktiv, true)
+                                .Update();
+                            break;
+                    }
+                }
+
+                await client
+                    .From<MitgliedRecord>()
+                    .Where(x => x.Id == mainMemberId)
+                    .Set(x => x.MitgliedEnde, normalizedEndDate)
+                    .Set(x => x.Aktiv, false)
+                    .Update();
+
+                var updatedMainMember = await GetMitgliedByIdAsync(mainMemberId);
+                MitgliedRecord? updatedSecondaryMember = null;
+                if (secondaryMember != null)
+                    updatedSecondaryMember = await GetMitgliedByIdAsync(secondaryMember.Id);
+
+                var message = secondaryDecision switch
+                {
+                    MembershipEndDecision.EndSecondaryMember => "Haupt- und Nebenmitglied wurden beendet.",
+                    MembershipEndDecision.PromoteSecondaryMember => "Hauptmitglied wurde beendet und das Nebenmitglied zum Hauptmitglied gemacht.",
+                    _ => "Mitgliedschaft wurde beendet."
+                };
+
+                return MembershipEndResult.SuccessResult(message, updatedMainMember, updatedSecondaryMember, secondaryDecision);
+            },
+            MembershipEndResult.Failure("Mitgliedschaft konnte nicht beendet werden."));
+
         public Task<bool> GetAllowUserMeterReadingSubmissionsAsync() => ExecuteAsync(
             "GetAllowUserMeterReadingSubmissionsAsync",
             async () =>
@@ -3632,6 +3711,14 @@ namespace KGV.Infrastructure.Services
 
             var normalized = value.Value.Date.AddHours(12);
             return DateTime.SpecifyKind(normalized, DateTimeKind.Unspecified);
+        }
+
+        private static bool HasActiveForeignMitgliedLock(MitgliedRecord member, Guid userGuid, int timeoutMinutes)
+        {
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            return member.LockedByUserId.HasValue
+                && member.LockedByUserId.Value != userGuid
+                && (!member.LockedAt.HasValue || member.LockedAt.Value.AddMinutes(timeoutMinutes) > now);
         }
 
         private static DateTime NormalizeMeterEichjahr(DateTime value)

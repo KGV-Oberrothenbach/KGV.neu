@@ -48,6 +48,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly DatePicker _mitgliedEndePicker;
     private readonly Button _nutzerHinzufuegenButton;
     private readonly Button _benutzerverwaltungButton;
+    private readonly Button _cancelMembershipButton;
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
 
@@ -103,6 +104,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _benutzerverwaltungButton = new Button { Text = "Benutzerverwaltung", IsVisible = false };
         _benutzerverwaltungButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(UserManagementPage));
 
+        _cancelMembershipButton = new Button { Text = "Mitgliedschaft beenden", IsVisible = false, BackgroundColor = Colors.IndianRed, TextColor = Colors.White };
+        _cancelMembershipButton.Clicked += async (_, _) => await CancelMembershipAsync();
+
         _cancelButton = new Button { Text = "Abbrechen" };
         _cancelButton.Clicked += async (_, _) =>
         {
@@ -148,6 +152,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                         _appUserHintLabel,
                         _nutzerHinzufuegenButton,
                         _benutzerverwaltungButton),
+                    _cancelMembershipButton,
                     new HorizontalStackLayout
                     {
                         Spacing = 12,
@@ -260,6 +265,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         SetOptionalDate(_mitgliedSeitEnabledSwitch, _mitgliedSeitPicker, null);
         SetOptionalDate(_mitgliedEndeEnabledSwitch, _mitgliedEndePicker, null);
         UpdateAdminActions(null);
+        UpdateCancelMembershipButton(null);
     }
 
     private void ConfigureCreateMode()
@@ -288,6 +294,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _nutzerHinzufuegenButton.IsVisible = false;
         _benutzerverwaltungButton.IsVisible = false;
         _appUserHintLabel.Text = "Der App-User wird nicht direkt beim Anlegen erzeugt, sondern später über den bestehenden Invite-/Benutzerverwaltungsweg.";
+        UpdateCancelMembershipButton(null);
     }
 
     private void UpdateAdminActions(MemberDTO? member)
@@ -313,6 +320,82 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 : string.IsNullOrWhiteSpace(member.Email)
                     ? "Für 'Nutzer hinzufügen' wird eine E-Mail-Adresse im ausgewählten Mitglied benötigt."
                     : "Für dieses Mitglied besteht aktuell noch kein App-User. Über 'Nutzer hinzufügen' wird derselbe produktive Invite-/Erstlogin-Flow wie in WPF gestartet.";
+
+        UpdateCancelMembershipButton(member);
+    }
+
+    private void UpdateCancelMembershipButton(MemberDTO? member)
+    {
+        var canManageMembership = !_isCreateMode
+            && member?.Id is > 0
+            && member.IstHauptmitglied
+            && !member.MitgliedEnde.HasValue
+            && _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+
+        _cancelMembershipButton.IsVisible = canManageMembership;
+    }
+
+    private async Task CancelMembershipAsync()
+    {
+        if (_memberRecord == null || _isCreateMode || _memberRecord.HauptmitgliedId.HasValue || _memberRecord.MitgliedEnde.HasValue)
+            return;
+
+        var userId = _authService.CurrentUserId;
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            await DisplayAlert("Fehler", "Nicht angemeldet. Bitte erneut einloggen.", "OK");
+            return;
+        }
+
+        var secondaryMember = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(_memberRecord.Id);
+        MembershipEndDecision? decision = null;
+        if (secondaryMember != null)
+        {
+            var action = await DisplayActionSheet(
+                "Folgeentscheid für Nebenmitglied",
+                "Abbrechen",
+                null,
+                "Nebenmitglied ebenfalls beenden",
+                "Nebenmitglied zum Hauptmitglied machen");
+
+            if (string.Equals(action, "Abbrechen", StringComparison.Ordinal))
+                return;
+
+            decision = string.Equals(action, "Nebenmitglied ebenfalls beenden", StringComparison.Ordinal)
+                ? MembershipEndDecision.EndSecondaryMember
+                : MembershipEndDecision.PromoteSecondaryMember;
+        }
+
+        var confirmed = await DisplayAlert("Mitgliedschaft beenden", $"Soll die Mitgliedschaft zum {DateTime.Today:dd.MM.yyyy} beendet werden?", "Beenden", "Abbrechen");
+        if (!confirmed)
+            return;
+
+        var lockAcquired = await _supabaseService.TryLockMitgliedAsync(_memberRecord.Id, userId);
+        if (!lockAcquired)
+        {
+            await DisplayAlert("Gesperrt", "Datensatz ist aktuell gesperrt. Bitte später erneut versuchen.", "OK");
+            return;
+        }
+
+        try
+        {
+            var result = await _supabaseService.EndMembershipAsync(_memberRecord.Id, DateTime.Today, decision, userId);
+            if (!result.Success || result.UpdatedMainMember == null)
+            {
+                await DisplayAlert("Fehler", string.IsNullOrWhiteSpace(result.Message) ? "Mitgliedschaft konnte nicht beendet werden." : result.Message, "OK");
+                return;
+            }
+
+            _memberRecord = result.UpdatedMainMember;
+            _memberContextState.SetSelectedMember(MapMember(result.UpdatedMainMember));
+            _memberSearchRefreshState.RequestReload();
+            await DisplayAlert("OK", result.Message, "OK");
+            await LoadAsync();
+        }
+        finally
+        {
+            await _supabaseService.ReleaseLockMitgliedAsync(_memberRecord.Id, userId, force: false);
+        }
     }
 
     private async void OnNutzerHinzufuegenClicked(object? sender, EventArgs e)

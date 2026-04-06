@@ -2,6 +2,46 @@
 
 ---
 
+## 2026-04-06 – Folgeblock abgeschlossen: `Mitgliedschaft beenden` mit Nebenmitglied-Entscheid in WPF und MAUI ergänzt
+
+- Ausgangspunkt dieses Laufs war der letzte offen markierte Folgepunkt aus der Zusatzprüfung: `Mitgliedschaft beenden mit Folgeentscheid`.
+- Ehrlicher Repo-Befund vor dem Fix:
+  - WPF hatte bereits einen Button `Mitgliedschaft beenden`, der aber noch nicht implementiert war
+  - MAUI hatte für denselben Fachfall noch keinen eigenen Abschlussknopf im Stammdatenpfad
+  - ein gemeinsamer Servicepfad für die Entscheidung `Nebenmitglied ebenfalls beenden` oder `Nebenmitglied zum Hauptmitglied machen` fehlte noch komplett
+- Minimal umgesetzt:
+  - in `KGV.Core/Models/MembershipEndDecision.cs`
+  - in `KGV.Core/Models/MembershipEndResult.cs`
+    - kleiner gemeinsamer Vertrags-/Ergebnisrahmen für den Folgeentscheid ergänzt
+  - in `KGV.Core/Interfaces/ISupabaseService.cs`
+    - neuen gemeinsamen Servicepfad `EndMembershipAsync(...)` ergänzt
+  - in `KGV.Infrastructure/Services/SupabaseService.cs`
+    - gemeinsame Fachlogik ergänzt:
+      - Hauptmitglied beenden
+      - Nebenmitglied ebenfalls beenden
+      - oder Nebenmitglied zum Hauptmitglied machen
+      - mit Lock-Prüfung gegen Fremdbearbeitung auf betroffenen Mitgliedsdatensätzen
+  - in `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`
+    - WPF-Button jetzt fachlich verdrahtet
+    - bei vorhandenem Nebenmitglied wird der Folgeentscheid abgefragt
+    - Suchlistenaktualisierung läuft über bestehende `MemberSavedMessage`-Pfade mit
+  - in `KGV.Wpf/Views/MemberDetailView.xaml`
+    - Sichtbarkeit des Buttons auf echte Hauptmitglied-/Aktiv-Fälle begrenzt
+  - in `KGV.Maui/Pages/MemberDetailPage.cs`
+    - MAUI-Button `Mitgliedschaft beenden` ergänzt
+    - bei vorhandenem Nebenmitglied wird derselbe Folgeentscheid per ActionSheet abgefragt
+    - danach Reload-Markierung für die MAUI-Mitgliedersuche
+  - in `ToDo.md`
+    - Status des offenen Folgepunkts auf `erledigt` gesetzt
+- Fachliche Wirkung dieses Blocks:
+  - Hauptmitgliedschaften können jetzt in WPF und MAUI über denselben Servicepfad beendet werden
+  - bei vorhandenem Nebenmitglied wird der Folgeentscheid sauber und nachvollziehbar abgefragt
+  - keine neue Schattenlogik neben den bestehenden Mitglieds-/Nebenmitglied-Servicepfaden
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-06 – MAUI-Folgeblock: Mitgliedersuche lädt nach Neuanlage wieder sauber neu, Pull-to-Refresh funktioniert, `Nebenmitglied` zeigt `Neu`
 
 - Ausgangspunkt dieses Laufs war die Vorgabe, drei eng zusammenhängende MAUI-Restlücken im Mitgliedskontext minimalinvasiv zu schließen:

@@ -27,6 +27,7 @@ namespace KGV.ViewModels
 
         public MemberDTO SelectedMember { get; }
         public bool IsNewMode => _isNewMode;
+        public bool ShowCancelMembershipButton => !_isNewMode && !IsEditMode && SelectedMember.Id > 0 && SelectedMember.IstHauptmitglied && !SelectedMember.MitgliedEnde.HasValue;
 
         public bool ShowParzellenSection => true;
         public bool ShowNewContractButton => !_isNewMode;
@@ -168,7 +169,7 @@ namespace KGV.ViewModels
             CopyAddressFromHauptmitgliedCommand = new RelayCommand<object?>(_ => { }, _ => false);
 
             NewContractCommand = new RelayCommand<object?>(_ => MessageBox.Show("Noch nicht implementiert.", "Info", MessageBoxButton.OK, MessageBoxImage.Information));
-            CancelMembershipCommand = new RelayCommand<object?>(_ => MessageBox.Show("Noch nicht implementiert.", "Info", MessageBoxButton.OK, MessageBoxImage.Information));
+            CancelMembershipCommand = new RelayCommand<object?>(_ => _ = CancelMembershipAsync(), _ => CanCancelMembership());
         }
 
         private void OpenSelectedParzelle()
@@ -252,8 +253,81 @@ namespace KGV.ViewModels
                 WhatsappEinwilligung = rec.WhatsappEinwilligung,
                 MitgliedSeit = rec.MitgliedSeit,
                 MitgliedEnde = rec.MitgliedEnde,
-                Role = rec.Role ?? string.Empty
+                Role = rec.Role ?? string.Empty,
+                IstHauptmitglied = !rec.HauptmitgliedId.HasValue || rec.HauptmitgliedId.Value <= 0
             };
+        }
+
+        private bool CanCancelMembership()
+            => ShowCancelMembershipButton && PermissionChecks.CanWriteStammdatenForMember(_userContext, SelectedMember.Id);
+
+        private async Task CancelMembershipAsync()
+        {
+            var userId = _authService.CurrentUserId;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                MessageBox.Show("Nicht angemeldet. Bitte erneut einloggen.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var secondaryMember = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(SelectedMember.Id);
+            MembershipEndDecision? decision = null;
+            if (secondaryMember != null)
+            {
+                var choice = MessageBox.Show(
+                    "Ja = Nebenmitglied ebenfalls beenden.\nNein = Nebenmitglied zum Hauptmitglied machen.\nAbbrechen = keine Änderung.",
+                    "Folgeentscheid für Nebenmitglied",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Question);
+
+                if (choice == MessageBoxResult.Cancel)
+                    return;
+
+                decision = choice == MessageBoxResult.Yes
+                    ? MembershipEndDecision.EndSecondaryMember
+                    : MembershipEndDecision.PromoteSecondaryMember;
+            }
+
+            if (MessageBox.Show(
+                    $"Soll die Mitgliedschaft zum {DateTime.Today:dd.MM.yyyy} beendet werden?",
+                    "Mitgliedschaft beenden",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            var lockAcquired = await _supabaseService.TryLockMitgliedAsync(SelectedMember.Id, userId);
+            if (!lockAcquired)
+            {
+                MessageBox.Show("Datensatz ist aktuell gesperrt. Bitte später erneut versuchen.", "Gesperrt", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                var result = await _supabaseService.EndMembershipAsync(SelectedMember.Id, DateTime.Today, decision, userId);
+                if (!result.Success || result.UpdatedMainMember == null)
+                {
+                    MessageBox.Show(string.IsNullOrWhiteSpace(result.Message) ? "Mitgliedschaft konnte nicht beendet werden." : result.Message, "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                SelectedMember.CopyFrom(ToMemberDto(result.UpdatedMainMember));
+                _originalSnapshot = SelectedMember.Clone();
+                HasNebenmitglied = result.AppliedDecision != MembershipEndDecision.PromoteSecondaryMember && secondaryMember != null;
+                OnPropertyChanged(nameof(ShowCancelMembershipButton));
+                InvalidateCommands();
+                WeakReferenceMessenger.Default.Send(new MemberSavedMessage(SelectedMember.Clone()));
+                if (result.UpdatedSecondaryMember != null)
+                    WeakReferenceMessenger.Default.Send(new MemberSavedMessage(ToMemberDto(result.UpdatedSecondaryMember)));
+
+                MessageBox.Show(result.Message, "OK", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            finally
+            {
+                await _supabaseService.ReleaseLockMitgliedAsync(SelectedMember.Id, userId, force: false);
+            }
         }
 
         private async Task NebenmitgliedAsync()
@@ -476,6 +550,7 @@ namespace KGV.ViewModels
                 IsDirty = false;
 
                 OnPropertyChanged(nameof(ShowNebenmitgliedButton));
+                OnPropertyChanged(nameof(ShowCancelMembershipButton));
                 OnPropertyChanged(nameof(CanChangeEmail));
                 OnPropertyChanged(nameof(ChangeEmailHint));
                 ChangeEmailCommand.RaiseCanExecuteChanged();
@@ -606,6 +681,7 @@ namespace KGV.ViewModels
                 InvalidateCommands();
 
                 OnPropertyChanged(nameof(ShowNebenmitgliedButton));
+                OnPropertyChanged(nameof(ShowCancelMembershipButton));
                 OnPropertyChanged(nameof(CanChangeEmail));
                 OnPropertyChanged(nameof(ChangeEmailHint));
                 ChangeEmailCommand.RaiseCanExecuteChanged();

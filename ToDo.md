@@ -68,9 +68,12 @@ Diese Folgeprüfung wurde nach zusätzlicher Nutzerpriorisierung gegen den echte
 - auf der Startseite erscheint die Rückfrage zum App-Beenden
 
 ### Mitgliedschaft beenden mit Folgeentscheid
-**Status:** offen
-- fachlicher Folgeentscheid für Haupt-/Nebenmitglied ist noch nicht umgesetzt
-- Risiko bleibt fachlich relevant und muss als eigener Folgeblock sauber geplant werden
+**Status:** erledigt
+- Hauptmitglied kann jetzt über den bestehenden Stammdatenpfad beendet werden
+- bei vorhandenem Nebenmitglied wird der Folgeentscheid abgefragt:
+  - Nebenmitglied ebenfalls beenden
+  - oder Nebenmitglied zum Hauptmitglied machen
+- WPF und MAUI laufen dafür auf demselben Servicepfad
 
 ---
 
