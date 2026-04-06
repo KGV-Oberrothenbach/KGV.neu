@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-04-06 – AWR-/Google-Play-Diagnoseartefakte-Block sauber abgeschlossen
+
+- Ausgangspunkt dieses Laufs war kein neuer Android-Build-Block, sondern nur der saubere Abschluss des bereits code-seitig umgesetzten AWR-/Google-Play-Diagnoseartefakte-Blocks.
+- Kurz geprüft wurden nur die direkt relevanten Dateien:
+  - `AWR.bat`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Iststand dieses Abschlusslaufs:
+  - `AWR.bat` ist bereits erweitert
+  - pro Release gibt es jetzt den festen Diagnoseordner `publish\<Version>\Android\GooglePlay-Diagnose`
+  - vorhandene Mapping-Dateien werden dort unter `Mapping` gesammelt
+  - vorhandene native Debug-Symbole werden dort unter `NativeDebugSymbols` gesammelt
+  - `STATUS.txt` dokumentiert pro Release sauber, wenn diese Artefakte im aktuellen Build nicht entstehen
+  - aktuell erzeugt der Android-/MAUI-Build weiterhin keine app-spezifische Mapping-Datei und keine nativen Debug-Symbol-Artefakte
+- In diesem Lauf bewusst nicht gemacht:
+  - keine weitere Android-Build-Großbaustelle eröffnet
+  - keine Änderung an App-Fachlogik
+  - keine Änderung an Android-Runtime-/Packaging-Properties außerhalb des bereits vorhandenen Batch-Blocks
+- Ergebnis dieses Abschlusslaufs:
+  - der Block ist jetzt in den Logs sauber auf den echten Stand nachgezogen
+  - der Release-Prozess ist für spätere Play-Console-Uploads vorbereitend ergänzt, auch wenn der aktuelle Build selbst Mapping/Symbole noch nicht liefert
+
 ## 2026-04-06 – MAUI-/Nebenmitglied-Block technisch abgeschlossen: Admin-Shell-Mitgliedskontext gehärtet, globales Android-Back angebunden, Nebenmitglied-Create vollständig gezogen
 
 - Ausgangspunkt dieses Laufs war ein zusammenhängender MAUI-/Nebenmitglied-Restblock mit vier realen Ursachen:
