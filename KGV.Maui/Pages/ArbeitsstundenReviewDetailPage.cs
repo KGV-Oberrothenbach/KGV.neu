@@ -2,24 +2,30 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Maui.State;
 using Microsoft.Maui;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace KGV.Maui.Pages;
 
 public sealed class ArbeitsstundenReviewDetailPage : ContentPage
 {
+    private const int LockTimeoutMinutes = 10;
+    private static readonly TimeSpan LockHeartbeatInterval = TimeSpan.FromMinutes(3);
+
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _userContextState;
     private readonly ArbeitsstundenReviewState _reviewState;
 
     private readonly Label _headlineLabel;
     private readonly Label _statusLabel;
+    private readonly Label _lockLabel;
     private readonly Label _memberLabel;
     private readonly Label _dateLabel;
     private readonly Label _hoursLabel;
@@ -40,6 +46,9 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
     private readonly CollectionView _historyList;
     private readonly Label _historyEmptyLabel;
     private readonly Label _historyLoadingLabel;
+    private CancellationTokenSource? _lockHeartbeatCts;
+    private bool _lockAcquired;
+    private string? _currentUserId;
 
     private bool _isBusy;
     private bool _isApplyingEntry;
@@ -58,6 +67,7 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
 
         _headlineLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, LineBreakMode = LineBreakMode.WordWrap };
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
+        _lockLabel = new Label { TextColor = Colors.DarkRed, LineBreakMode = LineBreakMode.WordWrap, IsVisible = false };
         _memberLabel = CreateValueLabel();
         _dateLabel = CreateValueLabel();
         _hoursLabel = CreateValueLabel();
@@ -230,6 +240,7 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
                         TextColor = Colors.Gray,
                         LineBreakMode = LineBreakMode.WordWrap
                     },
+                    _lockLabel,
                     _statusLabel,
                     CreateSection(
                         "Prüffall",
@@ -269,7 +280,22 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+
+        _currentUserId = ResolveCurrentUserId();
+        var lockResult = await EnsureReviewLockAsync();
+        if (!lockResult.Acquired)
+        {
+            ShowLockedState();
+            return;
+        }
+
         await LoadCurrentEntryAsync(refreshEntries: _reviewState.TotalCount == 0);
+    }
+
+    protected override async void OnDisappearing()
+    {
+        base.OnDisappearing();
+        await ReleaseReviewLockAsync();
     }
 
     private async Task LoadCurrentEntryAsync(bool refreshEntries)
@@ -434,7 +460,7 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
     private async Task ExecuteReviewActionAsync(Func<Task<bool>> action, string successMessage)
     {
         var entry = _reviewState.CurrentEntry;
-        if (entry == null || _isBusy)
+        if (!_lockAcquired || entry == null || _isBusy)
             return;
 
         _isBusy = true;
@@ -493,16 +519,147 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
     {
         var hasEntry = _reviewState.CurrentEntry != null;
         var hasComment = ArbeitsstundenPruefprozess.HasRequiredKommentar(_commentEditor.Text);
-        _approveButton.IsEnabled = hasEntry && !_isBusy && hasComment;
-        _rejectButton.IsEnabled = hasEntry && !_isBusy && hasComment;
-        _correctButton.IsEnabled = hasEntry && !_isBusy && hasComment;
-        _deleteButton.IsEnabled = hasEntry && !_isBusy && hasComment;
-        _previousButton.IsEnabled = hasEntry && !_isBusy && _reviewState.CanMovePrevious;
-        _nextButton.IsEnabled = hasEntry && !_isBusy && _reviewState.CanMoveNext;
-        _commentEditor.IsEnabled = hasEntry && !_isBusy;
-        _correctionDatePicker.IsEnabled = hasEntry && !_isBusy;
-        _correctionHoursEntry.IsEnabled = hasEntry && !_isBusy;
-        _correctionWorkTypeEditor.IsEnabled = hasEntry && !_isBusy;
+        _approveButton.IsEnabled = _lockAcquired && hasEntry && !_isBusy && hasComment;
+        _rejectButton.IsEnabled = _lockAcquired && hasEntry && !_isBusy && hasComment;
+        _correctButton.IsEnabled = _lockAcquired && hasEntry && !_isBusy && hasComment;
+        _deleteButton.IsEnabled = _lockAcquired && hasEntry && !_isBusy && hasComment;
+        _previousButton.IsEnabled = _lockAcquired && hasEntry && !_isBusy && _reviewState.CanMovePrevious;
+        _nextButton.IsEnabled = _lockAcquired && hasEntry && !_isBusy && _reviewState.CanMoveNext;
+        _commentEditor.IsEnabled = _lockAcquired && hasEntry && !_isBusy;
+        _correctionDatePicker.IsEnabled = _lockAcquired && hasEntry && !_isBusy;
+        _correctionHoursEntry.IsEnabled = _lockAcquired && hasEntry && !_isBusy;
+        _correctionWorkTypeEditor.IsEnabled = _lockAcquired && hasEntry && !_isBusy;
+    }
+
+    private async Task<ArbeitsstundenReviewLockResult> EnsureReviewLockAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_currentUserId))
+        {
+            _lockAcquired = false;
+            SetLockMessage("Die Prüfsperre konnte nicht gesetzt werden, weil keine aktuelle Benutzer-ID verfügbar ist.");
+            UpdateActionState();
+            return new ArbeitsstundenReviewLockResult();
+        }
+
+        var result = await _supabaseService.TryAcquireArbeitsstundenReviewLockAsync(_currentUserId, LockTimeoutMinutes);
+        _lockAcquired = result.Acquired;
+        if (_lockAcquired)
+        {
+            SetLockMessage("Prüfsitzung aktiv. Offene Arbeitsstunden sind während dieser mobilen Sitzung global für andere Prüfer gesperrt.");
+            StartLockHeartbeat();
+        }
+        else
+        {
+            StopLockHeartbeat();
+            SetLockMessage(BuildForeignLockMessage(result));
+        }
+
+        UpdateActionState();
+        return result;
+    }
+
+    private async Task ReleaseReviewLockAsync()
+    {
+        StopLockHeartbeat();
+        if (!_lockAcquired || string.IsNullOrWhiteSpace(_currentUserId))
+            return;
+
+        try
+        {
+            await _supabaseService.ReleaseArbeitsstundenReviewLockAsync(_currentUserId);
+        }
+        catch
+        {
+        }
+        finally
+        {
+            _lockAcquired = false;
+            UpdateActionState();
+        }
+    }
+
+    private void StartLockHeartbeat()
+    {
+        StopLockHeartbeat();
+        var cts = new CancellationTokenSource();
+        _lockHeartbeatCts = cts;
+        _ = Task.Run(() => RunLockHeartbeatAsync(cts.Token));
+    }
+
+    private void StopLockHeartbeat()
+    {
+        var cts = _lockHeartbeatCts;
+        _lockHeartbeatCts = null;
+        if (cts == null)
+            return;
+
+        try
+        {
+            cts.Cancel();
+            cts.Dispose();
+        }
+        catch
+        {
+        }
+    }
+
+    private async Task RunLockHeartbeatAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(LockHeartbeatInterval);
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                if (!_lockAcquired || string.IsNullOrWhiteSpace(_currentUserId))
+                    return;
+
+                var ok = await _supabaseService.RefreshArbeitsstundenReviewLockAsync(_currentUserId, LockTimeoutMinutes);
+                if (ok)
+                    continue;
+
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    StopLockHeartbeat();
+                    _lockAcquired = false;
+                    SetLockMessage("Die globale Prüfsperre konnte nicht verlängert werden. Bitte die Seite neu öffnen, bevor weitere Aktionen ausgeführt werden.");
+                    _statusLabel.Text = string.Empty;
+                    UpdateActionState();
+                });
+                return;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private string? ResolveCurrentUserId()
+    {
+        var userId = _userContextState.CurrentUserContext?.UserId;
+        return userId.HasValue && userId.Value != Guid.Empty ? userId.Value.ToString() : null;
+    }
+
+    private void SetLockMessage(string? message)
+    {
+        _lockLabel.Text = message ?? string.Empty;
+        _lockLabel.IsVisible = !string.IsNullOrWhiteSpace(_lockLabel.Text);
+    }
+
+    private void ShowLockedState()
+    {
+        _headlineLabel.Text = "Prüfsitzung nicht verfügbar";
+        _memberLabel.Text = "-";
+        _dateLabel.Text = "-";
+        _hoursLabel.Text = "-";
+        _workTypeLabel.Text = "-";
+        _approvalInfoLabel.Text = "Die mobile Arbeitsstundenprüfung ist aktuell global gesperrt.";
+        _positionLabel.Text = "0/0";
+        _commentEditor.Text = string.Empty;
+        _correctionHoursEntry.Text = string.Empty;
+        _correctionWorkTypeEditor.Text = string.Empty;
+        _historyItems.Clear();
+        UpdateHistoryState();
+        UpdateActionState();
     }
 
     private void UpdateHistoryState()
@@ -550,6 +707,18 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
     {
         var display = $"{entry.Nachname} {entry.Vorname}".Trim();
         return string.IsNullOrWhiteSpace(display) ? $"Mitglied {entry.MitgliedId}" : display;
+    }
+
+    private static string BuildForeignLockMessage(ArbeitsstundenReviewLockResult result)
+    {
+        var lockedBy = string.IsNullOrWhiteSpace(result.LockedByDisplayName)
+            ? (!string.IsNullOrWhiteSpace(result.LockedByUserId) ? result.LockedByUserId : "einen anderen Prüfer")
+            : result.LockedByDisplayName;
+
+        if (result.LockedAt.HasValue)
+            return $"Die Freigabeansicht ist aktuell global durch {lockedBy} gesperrt (seit {result.LockedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.CurrentCulture)}). Bitte warte auf die Freigabe oder auf das Timeout einer hängenden Sitzung.";
+
+        return $"Die Freigabeansicht ist aktuell global durch {lockedBy} gesperrt. Bitte warte auf die Freigabe oder auf das Timeout einer hängenden Sitzung.";
     }
 
     private static Label CreateValueLabel()

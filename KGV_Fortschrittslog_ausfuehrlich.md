@@ -2,6 +2,39 @@
 
 ---
 
+## 2026-04-06 – ToDo `E1`/`E2`: Mobile Arbeitsstunden-Prüfung an die bestehende globale Prüfsperre angeglichen
+
+- Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für:
+  - `E1. Arbeitsstunden-Prüfprozess praktisch durchtesten`
+  - `E2. Arbeitsstunden-Freigaben weiter beobachten`
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `KGV.Wpf/ViewModels/ArbeitsstundenPruefungViewModel.cs`
+  - `KGV.Maui/Pages/ArbeitsstundenReviewPage.cs`
+  - `KGV.Maui/Pages/ArbeitsstundenReviewDetailPage.cs`
+  - `KGV.Core/Models/ArbeitsstundenReviewLockResult.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+- Ehrlicher Istzustand vor dem Minimalfix:
+  - WPF nutzte im Arbeitsstunden-Prüfprozess bereits die globale Prüfsperre inklusive Heartbeat und Sperrfreigabe beim Verlassen der Ansicht
+  - MAUI verwendete zwar denselben Prüfservice für Freigeben, Ablehnen, Korrigieren, Löschen und Verlauf, die mobile Detailprüfung lief aber noch ohne diese globale Prüfsperre
+  - damit bestand im selben fachlichen Prüfprozess ein echter Verhaltensunterschied zwischen WPF und MAUI
+  - genau dieser Unterschied passt zu `E1`/`E2`: kein prophylaktischer Umbau, sondern gezieltes Nachziehen bei realer Auffälligkeit
+- Minimal umgesetzt:
+  - in `KGV.Maui/Pages/ArbeitsstundenReviewDetailPage.cs`
+    - vorhandene globale Prüfsperre aus dem Shared-Service auch für die mobile Detailprüfung aktiviert
+    - Sperre beim Öffnen der Detailseite angefordert
+    - Heartbeat zur Verlängerung der Sperre ergänzt
+    - Sperre beim Verlassen der Detailseite wieder freigegeben
+    - Aktionen und Datensatznavigation bei fehlender oder verlorener Sperre deaktiviert
+    - sichtbare Sperrhinweise für mobile Prüfer ergänzt
+  - keine Änderung am bestehenden Prüfservice, Statusmodell, Verlauf oder den eigentlichen Freigabeaktionen
+- Fachliche Wirkung dieses Fixes:
+  - MAUI und WPF verhalten sich im Arbeitsstunden-Prüfprozess nun konsistenter
+  - konkurrierende mobile Prüfaktionen laufen nicht mehr ohne die bereits vorhandene globale Prüfsperre
+  - der reale Restpunkt aus `E1`/`E2` wurde damit minimal und produktivpfadnah geschlossen
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -nologo -clp:ErrorsOnly`
+
 ## 2026-04-06 – ToDo `C2`/`C3`: Legacy-Rollenquelle klar markiert und Eigenkontext-/Globalpfade im Rechtemodell geglättet
 
 - Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für:

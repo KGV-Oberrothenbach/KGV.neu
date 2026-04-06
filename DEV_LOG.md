@@ -2,6 +2,77 @@
 
 ---
 
+## 2026-04-06 – ToDo `E1`/`E2`: Mobile Arbeitsstunden-Prüfung an die bestehende globale Prüfsperre angeglichen
+
+- Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für:
+  - `E1. Arbeitsstunden-Prüfprozess praktisch durchtesten`
+  - `E2. Arbeitsstunden-Freigaben weiter beobachten`
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `KGV.Wpf/ViewModels/ArbeitsstundenPruefungViewModel.cs`
+  - `KGV.Maui/Pages/ArbeitsstundenReviewPage.cs`
+  - `KGV.Maui/Pages/ArbeitsstundenReviewDetailPage.cs`
+  - `KGV.Core/Models/ArbeitsstundenReviewLockResult.cs`
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+- Ehrlicher Istbefund vor dem Fix:
+  - WPF nutzte für die Arbeitsstunden-Freigabe bereits die globale Prüfsperre inklusive Heartbeat
+  - MAUI verwendete denselben Prüfservice für Freigeben, Ablehnen, Korrigieren, Löschen und Verlauf, aber die mobile Detailprüfung lief noch ohne diese globale Prüfsperre
+  - das war ein echter Verhaltensunterschied im selben Prüfprozess, keine bloß prophylaktische Architekturfrage
+- Minimal umgesetzt:
+  - `KGV.Maui/Pages/ArbeitsstundenReviewDetailPage.cs`
+    - bestehende globale Prüfsperre auch auf der mobilen Detailprüfung verwendet
+    - Sperre beim Öffnen der Detailseite angefordert
+    - Heartbeat zur Verlängerung der Sperre ergänzt
+    - Sperrfreigabe beim Verlassen der Detailseite ergänzt
+    - Aktionen und Navigation bei fehlender oder verlorener Sperre deaktiviert
+    - sichtbare Sperrhinweise für mobile Prüfer ergänzt
+- Fachliches Ergebnis dieses Laufs:
+  - MAUI und WPF verhalten sich im Arbeitsstunden-Prüfprozess nun deutlich konsistenter
+  - konkurrierende mobile Prüfaktionen laufen nicht mehr ohne die vorhandene globale Prüfsperre
+  - keine Änderung am bestehenden Prüfservice, Statusmodell oder Verlaufspfad
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -nologo -clp:ErrorsOnly`
+
+## 2026-04-06 – ToDo `D1`/`D2`: Nutzerablesung in den Einstiegen sauber vom Admin-/Freigabepfad getrennt
+
+- Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für:
+  - `D1. Eigene Zählerablesung für normale Nutzer mit Freigabeprozess`
+  - `D2. Ablesen / Zählerwechsel / Freigaben weiter fachlich absichern`
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `ToDo.md`
+  - `KGV.Wpf/ViewModels/AblesenOverviewViewModel.cs`
+  - `KGV.Wpf/Views/AblesenOverviewView.xaml`
+  - `KGV.Wpf/ViewModels/GartenStromViewModel.cs`
+  - `KGV.Wpf/ViewModels/GartenWasserViewModel.cs`
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+  - `KGV.Maui/Pages/AblesungErfassenPage.cs`
+  - `KGV.Maui/Pages/AblesungenFreigabePage.cs`
+- Ehrlicher Istbefund vor dem Fix:
+  - Statusmodell und Freigabeprozess für Nutzerablesungen waren im Kern bereits vorhanden
+  - WPF speicherte Nutzerablesungen schon als `eingereicht`, MAUI berücksichtigte den Freigabemodus bereits im Erfassungspfad
+  - die echte Restlücke saß im Einstieg: normale Nutzer sahen den Ablese-Einstieg noch nicht konsequent nach dem zentralen Admin-Schalter, und die sichtbare Trennung zwischen Nutzerablesung, Freigabe und Zählerwechsel war noch nicht sauber genug
+- Minimal umgesetzt:
+  - `KGV.Wpf/ViewModels/AblesenOverviewViewModel.cs`
+    - zentralen App-Setting-Stand für Nutzerablesungen beim Öffnen geladen
+    - effektiven Einstieg `Ablesung erfassen` an Rechte plus Admin-Schalter gebunden
+    - Sichtbarkeit von Foto-Upload-Test gegenüber reinem Nutzer-Einreichungskontext getrennt
+    - Beschreibungstext für reinen Nutzer-Einreichungskontext präzisiert
+  - `KGV.Wpf/Views/AblesenOverviewView.xaml`
+    - Tiles für Ablesung, Zählerwechsel, RFID, fällige Zähler und Foto-Upload an die effektiven Sichtbarkeiten gebunden
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+    - dieselbe effektive Einstiegstrennung im mobilen Ablesen-Home ergänzt
+    - Admin-Schalter für Nutzerablesungen schon auf der Übersichtsseite berücksichtigt
+    - klare Hinweistexte für deaktivierte Nutzerablesung bzw. reinen Einreichungskontext ergänzt
+  - `KGV.Wpf/Infrastructure/Services/NavigationService.cs`
+    - neuen Service-Parameter für das WPF-Ablesen-Overview sauber verdrahtet
+- Fachliches Ergebnis dieses Laufs:
+  - normale Nutzer sehen den Einstieg zur eigenen Zählerablesung nur noch, wenn der zentrale Admin-Schalter aktiv ist
+  - Nutzerablesung bleibt sichtbar als Einreichungspfad und ist sprachlich klar vom Freigabe- und Zählerwechselpfad getrennt
+  - Admin-/Vorstandspfade für Freigabe und Zählerwechsel bleiben unverändert getrennt sichtbar
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -nologo -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -nologo -clp:ErrorsOnly`
+
 ## 2026-04-06 – ToDo `C2`/`C3`: Legacy-Rollenquelle klar markiert und Eigenkontext-/Globalpfade im Rechtemodell geglättet
 
 - Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für:
