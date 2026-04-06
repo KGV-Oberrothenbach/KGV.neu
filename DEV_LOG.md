@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-04-06 – ToDo `F1`: MAUI-Dokumenteseite liest Kontextrechte jetzt auch direkt auf Seitenebene aus
+
+- Ausgangspunkt dieses kleinen Nachzugs war die direkte Weiterarbeit in `ToDo.md` an `F1. Dokumente im Parzellen-/Mitgliedskontext weiter gegenprüfen`.
+- Zu Beginn wurde der echte Stand in den relevanten Dateien geprüft:
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+  - `KGV.Maui/Pages/ParzellenPage.cs`
+  - `KGV.Maui/Pages/MemberParzellenDetailPage.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+  - `KGV.Core/Security/PermissionChecks.cs`
+- Ehrlicher Restbefund vor dem Fix:
+  - die Einstiegspfade in MAUI waren bereits verbessert
+  - die eigentliche `DokumentePage` erzwang den Lesekontext aber noch nicht selbst und konnte damit bei direkter Navigation fachlich zu großzügig reagieren
+  - schreibende Aktionen waren bereits korrekt an `CanManageDocuments` gebunden
+- Minimal umgesetzt:
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+    - explizite Leserechteprüfung pro Dokumente-Kontext ergänzt
+    - für Mitgliedskontext: `CanReadDocumentsForMember(...)`
+    - für Parzellenkontext: globale Dokumentrechte oder Eigenkontext-Leserecht über das aktuell gebundene Mitglied
+    - Seite blendet Liste/Refresh/Upload jetzt passend zum echten Lesekontext
+    - Hints und Statusmeldung machen einen nicht freigegebenen Dokumente-Kontext verständlich sichtbar
+- Fachliches Ergebnis dieses Laufs:
+  - MAUI schützt den Dokumente-Lesepfad jetzt nicht nur über Navigation, sondern auch direkt in der Seite selbst
+  - normale Nutzer bleiben im Eigenkontext view-only
+  - nicht freigegebene Dokumentkontexte werden klar gesperrt
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-06 – ToDo `F1`: MAUI-Dokumente im mitgliedsgebundenen Parzellenpfad auf View-only-Eigenkontext geglättet
 
 - Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für `F1. Dokumente im Parzellen-/Mitgliedskontext weiter gegenprüfen`.

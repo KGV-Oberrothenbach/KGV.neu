@@ -204,6 +204,14 @@ public class DokumentePage : ContentPage, IQueryAttributable
                 return;
             }
 
+            if (!CanReadContext(context))
+            {
+                _documents.Clear();
+                _emptyLabel.IsVisible = false;
+                SetStatus("Mit den aktuellen Rechten ist dieser Dokumente-Kontext nicht freigegeben.", success: false);
+                return;
+            }
+
             await ReloadDocumentsAsync(context);
         }
         catch (Exception ex)
@@ -504,7 +512,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
     {
         _headlineLabel.Text = context.Headline;
         _contextLabel.Text = context.ContextLabel;
-        _hintLabel.Text = context.HintText;
+        _hintLabel.Text = BuildContextHint(context);
         _emptyLabel.Text = context.EmptyText;
         _uploadSectionTitleLabel.Text = context.Scope == DokumentOwnerScope.Parzelle
             ? "Parzellendokument hochladen"
@@ -532,27 +540,44 @@ public class DokumentePage : ContentPage, IQueryAttributable
     private void UpdateUiState()
     {
         var canManageDocuments = CanManageDocuments;
+        var canReadDocuments = CanReadRequestedContext();
         var hasContext = _requestedScope == DokumentOwnerScope.Parzelle
             ? (_requestedParzelleId ?? _parzellenContextState.SelectedParzelleId) is > 0
             : _memberContextState.SelectedMember?.Id is > 0;
         var canUpload = !_isBusy
             && canManageDocuments
+            && canReadDocuments
             && hasContext
             && !string.IsNullOrWhiteSpace(_titelEntry.Text)
             && _selectedFileContent is { Length: > 0 }
             && !string.IsNullOrWhiteSpace(_selectedFileName);
 
-        _uploadSection.IsVisible = canManageDocuments;
-        _titelEntry.IsEnabled = !_isBusy && hasContext && canManageDocuments;
-        _pickFileButton.IsEnabled = !_isBusy && hasContext && canManageDocuments;
+        _uploadSection.IsVisible = canManageDocuments && canReadDocuments;
+        _titelEntry.IsEnabled = !_isBusy && hasContext && canManageDocuments && canReadDocuments;
+        _pickFileButton.IsEnabled = !_isBusy && hasContext && canManageDocuments && canReadDocuments;
         _uploadButton.IsEnabled = canUpload;
-        _refreshButton.IsEnabled = !_isBusy;
-        _documentsView.IsEnabled = !_isBusy;
+        _refreshButton.IsEnabled = !_isBusy && canReadDocuments;
+        _documentsView.IsEnabled = !_isBusy && canReadDocuments;
+        _documentsView.IsVisible = canReadDocuments;
         _activityIndicator.IsVisible = _isBusy;
         _activityIndicator.IsRunning = _isBusy;
     }
 
     public bool CanManageDocuments => _userContextState.CurrentUserContext?.Has(PermissionFlags.CanManageDocuments) == true;
+
+    private string BuildContextHint(DokumentPageContext context)
+    {
+        var subject = context.Scope == DokumentOwnerScope.Parzelle
+            ? "die aktuell ausgewählte Parzelle"
+            : "das aktuell ausgewählte Mitglied";
+
+        if (!CanReadContext(context))
+            return $"Für {subject} ist der Dokumente-Zugriff mit dem aktuellen Rechtekontext nicht freigegeben.";
+
+        return CanManageDocuments
+            ? $"Es werden nur die Dokumente für {subject} angezeigt. Upload, Öffnen und Löschen laufen über den gemeinsamen Google-Drive-Dokumentpfad."
+            : $"Es werden nur die Dokumente für {subject} angezeigt. Öffnen und Aktualisieren bleiben verfügbar.";
+    }
 
     private string BuildContextHint(DokumentOwnerScope scope)
     {
@@ -563,6 +588,35 @@ public class DokumentePage : ContentPage, IQueryAttributable
         return CanManageDocuments
             ? $"Es werden nur die Dokumente für {subject} angezeigt. Upload, Öffnen und Löschen laufen über den gemeinsamen Google-Drive-Dokumentpfad."
             : $"Es werden nur die Dokumente für {subject} angezeigt. Öffnen und Aktualisieren bleiben verfügbar.";
+    }
+
+    private bool CanReadRequestedContext()
+    {
+        var userContext = _userContextState.CurrentUserContext;
+        if (_requestedScope == DokumentOwnerScope.Parzelle)
+        {
+            if (PermissionChecks.CanReadDocuments(userContext))
+                return true;
+
+            return PermissionChecks.CanReadDocumentsForMember(userContext, _memberContextState.SelectedMember?.Id);
+        }
+
+        return PermissionChecks.CanReadDocumentsForMember(userContext, _memberContextState.SelectedMember?.Id);
+    }
+
+    private bool CanReadContext(DokumentPageContext context)
+    {
+        if (!context.IsValid)
+            return false;
+
+        var userContext = _userContextState.CurrentUserContext;
+        if (context.Scope == DokumentOwnerScope.Mitglied)
+            return PermissionChecks.CanReadDocumentsForMember(userContext, context.OwnerId);
+
+        if (PermissionChecks.CanReadDocuments(userContext))
+            return true;
+
+        return PermissionChecks.CanReadDocumentsForMember(userContext, _memberContextState.SelectedMember?.Id);
     }
 
     private static Border CreateSection(View titleView, params View[] children)
