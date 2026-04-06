@@ -2,6 +2,32 @@
 
 ---
 
+## 2026-04-06 – ToDo `F2`: MAUI-Mitgliedsparzellen-Detail blendet ohne Kontext keine stale Detailansicht mehr ein
+
+- Ausgangspunkt dieses Laufs war die direkte Weiterarbeit an `ToDo.md` für `F2. Restinkonsistenzen in Stammdaten-/Parzellen-Navigation beobachten`.
+- Zu Beginn wurde der echte Stand in den relevanten Dateien geprüft:
+  - `KGV.Maui/Pages/MemberParzellenDetailPage.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Maui/State/ParzellenContextState.cs`
+  - `KGV.Maui/State/MemberContextState.cs`
+  - `KGV.Maui/Pages/MemberGardensPage.cs`
+- Ehrlicher Istzustand vor dem Minimalfix:
+  - `MemberParzellenDetailPage` zeigte bei fehlendem Mitgliedskontext bereits eine Fehlmeldung
+  - der eigentliche Detailcontainer war aber noch an `HasSelectedDetail` gebunden
+  - dadurch konnten außerhalb des echten Mitgliedskontexts alte oder stale Parzellendetails sichtbar stehen bleiben
+  - die Restlücke lag damit nicht im Navigationsstart, sondern in der Sichtbarkeitsbindung der Detailseite selbst
+- Minimal umgesetzt:
+  - in `KGV.Maui/Pages/MemberParzellenDetailPage.cs`
+    - Detailcontainer von `HasSelectedDetail` auf `ShowMemberContextDetail` umgebunden
+  - keine Änderung an `ParzellenContextState`, keine neue Reset- oder Schattenlogik
+- Fachliche Wirkung dieses Fixes:
+  - die Seite zeigt Parzellendetails jetzt nur noch im echten Mitgliedskontext
+  - bei fehlendem Kontext bleibt ausschließlich die bestehende Fehlmeldung sichtbar
+  - damit ist eine kleine, aber reale Navigationsinkonsistenz aus `F2` minimal behoben
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-06 – ToDo `F1`: MAUI-Dokumenteseite liest Kontextrechte jetzt auch direkt auf Seitenebene aus
 
 - Ausgangspunkt dieses kleinen Nachzugs war die direkte Weiterarbeit in `ToDo.md` an `F1. Dokumente im Parzellen-/Mitgliedskontext weiter gegenprüfen`.

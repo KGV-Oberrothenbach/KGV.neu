@@ -58,7 +58,7 @@ public sealed class MemberParzellenDetailPage : ContentPage
         dokumenteButton.Clicked += async (_, _) => await OpenDokumenteAsync();
 
         var detailContainer = new VerticalStackLayout { Spacing = 12 };
-        detailContainer.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.HasSelectedDetail));
+        detailContainer.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowMemberContextDetail));
 
         detailContainer.Children.Add(new Border
         {
