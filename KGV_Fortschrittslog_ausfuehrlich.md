@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-04-06 – ToDo `B1`: WPF-Bindingwarnung `MemberDTO.Name` im echten Such-View-Pfad beseitigt
+
+- Ausgangspunkt dieses Laufs war ausdrücklich die Fortsetzung von `ToDo.md` für:
+  - `B1. WPF-Bindingfehler MemberDTO.Name`
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `ToDo.md`
+  - `KGV.Core/Models/MemberDTO.cs`
+  - `KGV.Wpf/Views/MemberSearchView.xaml`
+  - `KGV.Wpf/ViewModels/MemberSearchViewModel.cs`
+  - zusätzlicher Suchlauf über WPF-XAML/C# auf echte `Name`-Bindings
+- Ehrlicher Istzustand vor dem Minimalfix:
+  - `MemberDTO` hat im aktuellen Workspace keine Property `Name`, sondern u. a. `Nachname`, `Vorname`, `DisplayName`
+  - die echte Warnstelle saß in `KGV.Wpf/Views/MemberSearchView.xaml`
+  - dort verwendete die Spalte `Name` noch ein Fallback-Binding auf `Name` und `Nachname`
+  - andere gefundene `Name`-Bindings, z. B. in Dokumentlisten, betrafen nicht `MemberDTO` und waren für `B1` nicht ursächlich
+- Minimal umgesetzt:
+  - in `KGV.Wpf/Views/MemberSearchView.xaml` die Spalte `Name` direkt auf `Nachname` gezogen
+  - den nur dafür verwendeten `FirstNonEmptyConverter` aus dieser View entfernt
+  - keine Änderung an `MemberDTO`, kein ViewModel-Umbau und keine künstliche Schattenproperty `Name`
+- Fachliche Wirkung dieses Fixes:
+  - die WPF-Mitgliedersuche bindet im betroffenen Bereich jetzt nur noch auf echte `MemberDTO`-Properties
+  - die konkrete Bindingwarnung `MemberDTO.Name` ist im echten Such-View-Pfad code-seitig beseitigt
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-06 – ToDo `A4`: MAUI-Zurück-Taste zentral auf `home` geglättet
 
 - Ausgangspunkt dieses Laufs war ausdrücklich die Fortsetzung von `ToDo.md` für:

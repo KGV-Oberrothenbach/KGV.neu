@@ -6,7 +6,6 @@
 
     <UserControl.Resources>
         <helpers:BoolToVisibilityConverterLocal x:Key="BoolToVisibilityConverterLocal"/>
-        <helpers:FirstNonEmptyConverter x:Key="FirstNonEmptyConverter" />
     </UserControl.Resources>
 
     <Grid Margin="10">
@@ -39,18 +38,9 @@
                             <GridViewColumn.Header>
                                 <GridViewColumnHeader Content="Name" Click="GridViewColumnHeader_Click" Tag="Nachname" />
                             </GridViewColumn.Header>
-                            <GridViewColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBlock>
-                                        <TextBlock.Text>
-                                            <MultiBinding Converter="{StaticResource FirstNonEmptyConverter}">
-                                                <Binding Path="Name" />
-                                                <Binding Path="Nachname" />
-                                            </MultiBinding>
-                                        </TextBlock.Text>
-                                    </TextBlock>
-                                </DataTemplate>
-                            </GridViewColumn.CellTemplate>
+                            <GridViewColumn.DisplayMemberBinding>
+                                <Binding Path="Nachname" />
+                            </GridViewColumn.DisplayMemberBinding>
                         </GridViewColumn>
 
                         <GridViewColumn>
