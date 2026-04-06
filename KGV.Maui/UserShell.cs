@@ -17,6 +17,7 @@ public sealed class UserShell : Shell, IAppShellInitializer
     private readonly MemberContextState _memberContextState;
     private bool _menuBuilt;
     private bool _backNavigationInProgress;
+    private bool _exitConfirmationInProgress;
 
     public UserShell(IServiceProvider services, UserContextState state, MemberContextState memberContextState)
     {
@@ -41,7 +42,34 @@ public sealed class UserShell : Shell, IAppShellInitializer
             return true;
 
         if (ShellNavigationHelper.IsOnShellContentRoot(this, "home"))
-            return base.OnBackButtonPressed();
+        {
+            if (_exitConfirmationInProgress)
+                return true;
+
+            _exitConfirmationInProgress = true;
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                try
+                {
+                    var confirmExit = await DisplayAlert("App beenden", "Soll die App wirklich beendet werden?", "Beenden", "Abbrechen");
+                    if (!confirmExit)
+                        return;
+
+                    AppFileLog.Info("KGV.Navigation", "UserShell.Zurück auf Startseite bestätigt App-Beenden.");
+                    Application.Current?.Quit();
+                }
+                catch (Exception ex)
+                {
+                    AppFileLog.Warning("KGV.Navigation", $"UserShell.Beenden-Rückfrage fehlgeschlagen: {ex.GetType().Name}: {ex.Message}");
+                }
+                finally
+                {
+                    _exitConfirmationInProgress = false;
+                }
+            });
+
+            return true;
+        }
 
         _backNavigationInProgress = true;
         MainThread.BeginInvokeOnMainThread(async () =>

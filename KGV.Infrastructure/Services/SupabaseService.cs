@@ -4753,6 +4753,7 @@ namespace KGV.Infrastructure.Services
 
             return new HomeAppointmentItem
             {
+                Id = record.Id,
                 Title = title,
                 Subtitle = record.Datum?.ToString("dd.MM.yyyy") ?? string.Empty,
                 StartTimeText = begin ?? string.Empty,

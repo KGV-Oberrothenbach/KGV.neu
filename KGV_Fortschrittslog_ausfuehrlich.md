@@ -2,6 +2,43 @@
 
 ---
 
+## 2026-04-06 – MAUI-Abschlussblock: Termin-Bearbeiten/Löschen sichtbar gemacht und Zurück-Taste mit Exit-Rückfrage geglättet
+
+- Ausgangspunkt dieses Laufs war die explizite Vorgabe, nur noch zwei technisch offene MAUI-Punkte minimalinvasiv zu schließen:
+  - Termin: Buttons für `Bearbeiten` und `Löschen`
+  - Zurück-Taste: Unterseiten zuerst Home, auf Home danach Exit-Rückfrage
+- Zu Beginn wurde der echte Repo-Stand geprüft in:
+  - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
+  - `KGV.Maui/Pages/TermineEditorPage.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+- Ehrlicher Istzustand vor dem Fix:
+  - Bearbeiten-/Löschen-Pfade für Termine waren fachlich bereits vorhanden
+  - die Buttons fehlten im Termin-Detailpfad faktisch, weil im Home-Terminmapping die `Id` nicht gesetzt wurde
+  - die Zurück-Taste navigierte auf Unterseiten bereits zur Startseite, auf der Startseite beendete sie die App aber noch ohne Rückfrage
+- Minimal umgesetzt:
+  - in `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `MapHomeAppointment(...)` setzt jetzt wieder belastbar `Id = record.Id`
+    - dadurch werden im MAUI-Termin-Detail `Bearbeiten` und `Löschen` wieder sichtbar und an die bestehenden Pfade angebunden
+  - in `KGV.Maui/UserShell.cs`
+    - auf Unterseiten weiterhin zuerst Navigation zu `//home`
+    - auf `home` jetzt Exit-Rückfrage per `DisplayAlert`
+    - nur bei Bestätigung wird die App beendet
+  - in `KGV.Maui/AdminShell.cs`
+    - gleiches Verhalten wie im `UserShell`
+  - in `ToDo.md`
+    - Punkt `1` um den belastbaren Termin-Detailpfad ergänzt
+    - Punkt `4` um die Exit-Rückfrage auf Home ergänzt
+- Fachliche Wirkung dieses Fixes:
+  - der Termin-Detailpfad nutzt wieder vollständig die bereits vorhandenen Bearbeiten-/Löschen-Pfade
+  - keine neue Schattenlogik und keine neue Rechtearchitektur
+  - die Back-Navigation bleibt auf Unterseiten sicher, beendet die App aber nicht mehr ohne Rückfrage direkt aus Home
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-06 – ToDo `23` abgeschlossen: Mehrschicht-Pfad über separate Arbeitseinsätze jetzt als fertiger Produktivweg markiert
 
 - Ausgangspunkt dieses Laufs war die explizite Vorgabe, Punkt `23` fertigzuziehen.

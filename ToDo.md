@@ -51,6 +51,7 @@ dann ist damit genau diese Datei gemeint.
 - Sicherheitsabfrage vorhanden
 - echtes Löschen vorhanden
 - Rückkehr/Aktualisierung der Übersicht vorhanden
+- Termin-Detailpfad liefert jetzt auch belastbar die Buttons für `Bearbeiten` und `Löschen`
 
 ### 2. MAUI: Bekanntmachung komplett löschen
 **Status:** erledigt
@@ -67,7 +68,7 @@ dann ist damit genau diese Datei gemeint.
 ### 4. MAUI-Zurück-Taste glätten
 **Status:** erledigt
 - Unterseiten navigieren zuerst zur Startseite zurück
-- erst auf der Startseite greift das normale App-Back-Verhalten
+- auf der Startseite erscheint jetzt die Rückfrage zum App-Beenden statt eines direkten Exits
 
 ### 5. WPF-Bindingfehler `MemberDTO.Name`
 **Status:** erledigt

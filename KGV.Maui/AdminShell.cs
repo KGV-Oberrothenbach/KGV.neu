@@ -29,6 +29,7 @@ public sealed class AdminShell : Shell
     private FlyoutItem? _memberAdminMenuItem;
     private FlyoutItem? _memberWorkhoursItem;
     private bool _backNavigationInProgress;
+    private bool _exitConfirmationInProgress;
 
     public AdminShell(IServiceProvider services, UserContextState userContextState, MemberContextState memberContextState, PendingPhotoMenuState pendingPhotoMenuState)
     {
@@ -58,7 +59,34 @@ public sealed class AdminShell : Shell
             return true;
 
         if (ShellNavigationHelper.IsOnShellContentRoot(this, "home"))
-            return base.OnBackButtonPressed();
+        {
+            if (_exitConfirmationInProgress)
+                return true;
+
+            _exitConfirmationInProgress = true;
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                try
+                {
+                    var confirmExit = await DisplayAlert("App beenden", "Soll die App wirklich beendet werden?", "Beenden", "Abbrechen");
+                    if (!confirmExit)
+                        return;
+
+                    AppFileLog.Info("KGV.Navigation", "AdminShell.Zurück auf Startseite bestätigt App-Beenden.");
+                    Application.Current?.Quit();
+                }
+                catch (Exception ex)
+                {
+                    AppFileLog.Warning("KGV.Navigation", $"AdminShell.Beenden-Rückfrage fehlgeschlagen: {ex.GetType().Name}: {ex.Message}");
+                }
+                finally
+                {
+                    _exitConfirmationInProgress = false;
+                }
+            });
+
+            return true;
+        }
 
         _backNavigationInProgress = true;
         MainThread.BeginInvokeOnMainThread(async () =>
