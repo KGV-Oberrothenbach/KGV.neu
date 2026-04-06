@@ -1426,7 +1426,7 @@ namespace KGV.Infrastructure.Services
             "CreateNebenmitgliedAsync",
             async () =>
             {
-                if (request == null || request.HauptmitgliedId <= 0 || string.IsNullOrWhiteSpace(request.Vorname) || string.IsNullOrWhiteSpace(request.Nachname))
+                if (request == null || request.HauptmitgliedId <= 0 || string.IsNullOrWhiteSpace(request.Vorname) || string.IsNullOrWhiteSpace(request.Nachname) || !request.MitgliedSeit.HasValue)
                     return null;
 
                 var client = await EnsureClientAsync();
@@ -1633,17 +1633,31 @@ namespace KGV.Infrastructure.Services
 
         private MitgliedInsertRecord CreateNebenmitgliedInsertPayload(NebenmitgliedCreateDTO request, MitgliedRecord hauptmitglied)
         {
+            var adresse = request.AdresseUebernehmen
+                ? CleanOptionalText(hauptmitglied.Adresse)
+                : CleanOptionalText(request.Adresse);
+            var plz = request.AdresseUebernehmen
+                ? CleanOptionalText(hauptmitglied.Plz)
+                : CleanOptionalText(request.Plz);
+            var ort = request.AdresseUebernehmen
+                ? CleanOptionalText(hauptmitglied.Ort)
+                : CleanOptionalText(request.Ort);
+
             return new MitgliedInsertRecord
             {
                 HauptmitgliedId = request.HauptmitgliedId,
                 Name = CleanRequiredText(request.Nachname),
                 Vorname = CleanRequiredText(request.Vorname),
-                Adresse = request.AdresseUebernehmen ? CleanOptionalText(hauptmitglied.Adresse) : null,
-                Plz = request.AdresseUebernehmen ? CleanOptionalText(hauptmitglied.Plz) : null,
-                Ort = request.AdresseUebernehmen ? CleanOptionalText(hauptmitglied.Ort) : null,
-                Telefon = null,
-                Handy = null,
-                Email = null
+                Adresse = adresse,
+                Plz = plz,
+                Ort = ort,
+                Telefon = CleanOptionalText(request.Telefon),
+                Handy = CleanOptionalText(request.Handy),
+                Email = CleanOptionalText(request.Email),
+                Geburtsdatum = request.Geburtsdatum.HasValue ? NormalizeDateOnly(request.Geburtsdatum.Value) : null,
+                MitgliedSeit = NormalizeDateOnly(request.MitgliedSeit.Value),
+                WhatsappEinwilligung = request.WhatsappEinwilligung,
+                Aktiv = true
             };
         }
 

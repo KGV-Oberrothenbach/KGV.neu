@@ -15,6 +15,7 @@ namespace KGV.Maui.Pages;
 public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
 {
     private static readonly Regex PlzRegex = new("^\\d{5}$", RegexOptions.Compiled);
+    private static readonly Regex EmailRegex = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _state;
@@ -36,6 +37,11 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
     private readonly Entry _adresseEntry;
     private readonly Entry _plzEntry;
     private readonly Entry _ortEntry;
+    private readonly Entry _emailEntry;
+    private readonly CheckBox _geburtsdatumCheckBox;
+    private readonly DatePicker _geburtsdatumPicker;
+    private readonly DatePicker _mitgliedSeitPicker;
+    private readonly Switch _whatsappSwitch;
     private readonly Button _newButton;
     private readonly Button _saveButton;
 
@@ -81,6 +87,22 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
         _adresseEntry = new Entry { Placeholder = "Adresse (Pflicht)" };
         _plzEntry = new Entry { Placeholder = "PLZ (Pflicht)", Keyboard = Keyboard.Numeric };
         _ortEntry = new Entry { Placeholder = "Ort (Pflicht)" };
+        _emailEntry = new Entry { Placeholder = "E-Mail-Adresse", Keyboard = Keyboard.Email };
+        _geburtsdatumCheckBox = new CheckBox();
+        _geburtsdatumPicker = new DatePicker { IsVisible = false };
+        _geburtsdatumCheckBox.CheckedChanged += (_, args) => _geburtsdatumPicker.IsVisible = args.Value;
+        _mitgliedSeitPicker = new DatePicker();
+        _whatsappSwitch = new Switch();
+
+        _adresseUebernehmenCheckBox.CheckedChanged += (_, args) =>
+        {
+            if (!args.Value || _hauptmitglied == null)
+                return;
+
+            _adresseEntry.Text = _hauptmitglied.Adresse ?? string.Empty;
+            _plzEntry.Text = _hauptmitglied.Plz ?? string.Empty;
+            _ortEntry.Text = _hauptmitglied.Ort ?? string.Empty;
+        };
 
         _newButton = new Button { Text = "Neu", IsVisible = false };
         _newButton.Clicked += (_, _) => EnterCreateMode();
@@ -183,6 +205,11 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
                 _adresseEntry.Text = string.Empty;
                 _plzEntry.Text = string.Empty;
                 _ortEntry.Text = string.Empty;
+                _emailEntry.Text = string.Empty;
+                _geburtsdatumCheckBox.IsChecked = false;
+                _geburtsdatumPicker.IsVisible = false;
+                _mitgliedSeitPicker.Date = DateTime.Today;
+                _whatsappSwitch.IsToggled = false;
                 _createSection.IsVisible = false;
                 return;
             }
@@ -298,7 +325,8 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
         var adresse = (_adresseEntry.Text ?? string.Empty).Trim();
         var plz = (_plzEntry.Text ?? string.Empty).Trim();
         var ort = (_ortEntry.Text ?? string.Empty).Trim();
-        var error = Validate(adresse, plz, ort, telefon, handy);
+        var email = (_emailEntry.Text ?? string.Empty).Trim();
+        var error = Validate(adresse, plz, ort, telefon, handy, email, _mitgliedSeitPicker.Date);
         if (!string.IsNullOrEmpty(error))
         {
             await DisplayAlert("Ungültige Eingabe", error, "OK");
@@ -313,19 +341,21 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
                 HauptmitgliedId = _hauptmitglied.Id,
                 Vorname = vorname,
                 Nachname = nachname,
-                AdresseUebernehmen = _adresseUebernehmenCheckBox.IsChecked
+                AdresseUebernehmen = _adresseUebernehmenCheckBox.IsChecked,
+                Telefon = EmptyToNull(telefon),
+                Handy = EmptyToNull(handy),
+                Adresse = adresse,
+                Plz = plz,
+                Ort = ort,
+                Email = EmptyToNull(email),
+                Geburtsdatum = _geburtsdatumCheckBox.IsChecked ? _geburtsdatumPicker.Date : null,
+                MitgliedSeit = _mitgliedSeitPicker.Date,
+                WhatsappEinwilligung = _whatsappSwitch.IsToggled
             });
 
             if (created == null)
             {
                 await DisplayAlert("Fehler", "Nebenmitglied konnte nicht angelegt werden.", "OK");
-                return;
-            }
-
-            var contactSaved = await _supabaseService.UpdateOwnContactAsync(created.Id, EmptyToNull(telefon), EmptyToNull(handy), adresse, plz, ort);
-            if (!contactSaved)
-            {
-                await DisplayAlert("Fehler", "Nebenmitglied wurde angelegt, aber Kontakt/Adresse konnten nicht gespeichert werden.", "OK");
                 return;
             }
 
@@ -360,12 +390,14 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
         ConfigureCreateMode(_hauptmitglied);
     }
 
-    private static string? Validate(string adresse, string plz, string ort, string telefon, string handy)
+    private static string? Validate(string adresse, string plz, string ort, string telefon, string handy, string email = "", DateTime? mitgliedSeit = null)
     {
         if (string.IsNullOrWhiteSpace(adresse)) return "Adresse ist Pflicht.";
         if (string.IsNullOrWhiteSpace(plz)) return "PLZ ist Pflicht.";
         if (!PlzRegex.IsMatch(plz)) return "PLZ muss 5-stellig sein (Regex ^\\d{5}$).";
         if (string.IsNullOrWhiteSpace(ort)) return "Ort ist Pflicht.";
+        if (!string.IsNullOrWhiteSpace(email) && !EmailRegex.IsMatch(email)) return "E-Mail-Adresse ist nicht plausibel.";
+        if (mitgliedSeit.HasValue && mitgliedSeit.Value == default) return "Beginn ist Pflicht.";
 
         if (!IsValidPhone(telefon)) return "Telefon ist nicht plausibel.";
         if (!IsValidPhone(handy)) return "Handy ist nicht plausibel.";

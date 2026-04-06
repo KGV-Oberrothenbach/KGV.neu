@@ -42,14 +42,14 @@ public sealed class AdminShell : Shell
         BindingContext = memberContextState;
         Loaded += async (_, _) =>
         {
-            EnsureOwnMemberContext();
+            ClearImplicitOwnMemberContext();
             BuildMenu();
             EnsureActiveRouteAfterLoad();
             await RefreshPendingPhotoUploadsMenu();
             await RefreshWorkhoursReviewMenuAsync();
         };
         memberContextState.Changed += (_, _) => RefreshMemberContextMenu(memberContextState);
-        EnsureOwnMemberContext();
+        ClearImplicitOwnMemberContext();
         BuildMenu();
     }
 
@@ -107,15 +107,6 @@ public sealed class AdminShell : Shell
         });
 
         return true;
-    }
-
-    private void EnsureOwnMemberContext()
-    {
-        if (_memberContextState.SelectedMember != null)
-            return;
-
-        if (_userContextState.CurrentMitgliedId is > 0 and <= int.MaxValue)
-            _memberContextState.SetSelectedMember(new MemberDTO { Id = (int)_userContextState.CurrentMitgliedId.Value });
     }
 
     public void BuildMenu()
@@ -184,7 +175,7 @@ public sealed class AdminShell : Shell
 
     private void RefreshMemberContextMenu(MemberContextState? state)
     {
-        var hasMember = state?.SelectedMember != null;
+        var hasMember = state?.SelectedMember?.Id is > 0;
         if (_memberDetailsItem != null) _memberDetailsItem.IsVisible = hasMember && PermissionChecks.CanShowStammdaten(_userContextState.CurrentUserContext);
         if (_memberWartungsvertraegeItem != null) _memberWartungsvertraegeItem.IsVisible = hasMember;
         if (_memberNebenmitgliedItem != null) _memberNebenmitgliedItem.IsVisible = hasMember && PermissionChecks.CanReadStammdaten(_userContextState.CurrentUserContext);
@@ -198,6 +189,27 @@ public sealed class AdminShell : Shell
             if (!hasMember)
                 ShellNavigationHelper.EnsureActiveShellItem(this, "home");
         }
+    }
+
+    private void ClearImplicitOwnMemberContext()
+    {
+        var ownMemberId = _userContextState.CurrentMitgliedId is > 0 and <= int.MaxValue
+            ? (int?)_userContextState.CurrentMitgliedId.Value
+            : null;
+
+        var selectedMember = _memberContextState.SelectedMember;
+        if (!ownMemberId.HasValue || selectedMember?.Id != ownMemberId.Value)
+            return;
+
+        var hasExplicitSelectionContext = !string.IsNullOrWhiteSpace(selectedMember.DisplayName)
+            || !string.IsNullOrWhiteSpace(selectedMember.Vorname)
+            || !string.IsNullOrWhiteSpace(selectedMember.Nachname)
+            || selectedMember.IstHauptmitglied;
+
+        if (hasExplicitSelectionContext)
+            return;
+
+        _memberContextState.Clear();
     }
 
     private void EnsureActiveRouteAfterLoad()

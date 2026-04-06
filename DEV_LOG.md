@@ -2,6 +2,40 @@
 
 ---
 
+## 2026-04-06 – MAUI-/Nebenmitglied-Block technisch abgeschlossen: Admin-Shell-Mitgliedskontext gehärtet, globales Android-Back angebunden, Nebenmitglied-Create vollständig gezogen
+
+- Ausgangspunkt dieses Laufs war ein zusammenhängender MAUI-/Nebenmitglied-Restblock mit vier realen Ursachen:
+  - im Admin-Shell-Kontext konnten mitgliedsspezifische Unterpunkte ohne echte Mitgliedsauswahl sichtbar werden
+  - das Android-Hardware-Back hing nicht robust genug global am vorhandenen Shell-Backverhalten
+  - der mobile Nebenmitglied-Create-Modus zeigte wichtige Felder noch nicht an
+  - der Shared-Create-Pfad für Nebenmitglieder setzte `mitglied_seit` nicht und lief dadurch in `23502`
+- Minimal umgesetzt:
+  - `KGV.Maui/AdminShell.cs`
+    - impliziten eigenen Mitgliedskontext im Admin-Shell-Pfad ausgeräumt, wenn nur ein leerer Stub des eigenen Mitglieds vorliegt
+    - mitgliedsspezifische Unterpunkte bleiben weiter strikt an echte Auswahl in `MemberContextState` gebunden
+  - `KGV.Maui/MainActivity.cs`
+    - globalen Hardware-Backpfad jetzt sauber an die aktive Window-/Shell-Seite gekoppelt
+    - vorhandene Shell-Backlogik bleibt führend; Unterseiten gehen zuerst nach `home`, auf `home` greift erst die bestehende Beenden-Abfrage
+  - `KGV.Core/Models/NebenmitgliedCreateDTO.cs`
+    - DTO um Kontakt-, Adress-, E-Mail-, Geburtsdatum-, Beginn- und WhatsApp-Felder ergänzt
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - Nebenmitglied-Insertpayload vervollständigt
+    - `mitglied_seit`, `geburtsdatum`, `email`, `whatsapp_einwilligung`, Kontakt- und Adressfelder laufen jetzt direkt über denselben Create-Pfad
+    - bestehende Adressübernahme bleibt erhalten und wirkt nur auf Adresse/PLZ/Ort
+  - `KGV.Maui/Pages/NebenmitgliedPage.cs`
+    - Create-UI um `Geburtsdatum`, `Beginn`, `E-Mail-Adresse` und `WhatsApp` ergänzt
+    - Create-Aufruf auf den vollständigen DTO-Pfad umgestellt
+    - nach erfolgreicher Anlage kein nachgelagerter Kontakt-Schattenpfad mehr nötig
+- Fachliches Ergebnis dieses Laufs:
+  - Admin-Shell zeigt keine mitgliedsspezifischen Unterpunkte mehr wegen eines impliziten eigenen Stub-Mitglieds
+  - Android-Hardware-Back greift jetzt belastbarer auf die vorhandene Shell-Backlogik durch
+  - Nebenmitglied-Anlage in MAUI deckt jetzt die fehlenden Felder sauber ab
+  - der echte Insertfehler auf `mitglied.mitglied_seit` ist im gemeinsamen Create-Pfad code-seitig geschlossen
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-06 – Folgeblock abgeschlossen: `Mitgliedschaft beenden` mit Nebenmitglied-Entscheid in WPF und MAUI ergänzt
 
 - Ausgangspunkt dieses Laufs war der letzte offen markierte Folgepunkt aus der Zusatzprüfung: `Mitgliedschaft beenden mit Folgeentscheid`.
