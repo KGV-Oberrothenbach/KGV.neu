@@ -21,6 +21,10 @@ namespace KGV.Core.Models
         [Column("name")]
         public string? Name { get; set; }
 
+        // Altbestand: Die physische DB-Spalte `mitglied.role` existiert noch,
+        // fachlich führend ist im laufenden Code aber ausschließlich `app_user.role`.
+        // Der Runtime-Wert dieser Property wird deshalb im Servicepfad aus `app_user`
+        // übersteuert und darf nicht als eigenständige Rollenquelle interpretiert werden.
         [Column("role")]
         public string? Role { get; set; }
 

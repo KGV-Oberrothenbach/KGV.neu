@@ -8,6 +8,28 @@ namespace KGV.Core.Security
         public static bool HasOwnMemberContextAccess(UserContext? context)
             => context?.MitgliedId is > 0 && CanSeeOwnDataOnly(context);
 
+        public static bool HasGlobalStammdatenAccess(UserContext? context)
+            => CanShowStammdaten(context)
+               || CanReadStammdaten(context)
+               || CanWriteStammdaten(context);
+
+        public static bool HasGlobalParzellenAccess(UserContext? context)
+            => CanShowParzellen(context)
+               || CanReadParzellen(context)
+               || CanWriteParzellen(context);
+
+        public static bool HasOwnStammdatenAccessForMember(UserContext? context, int? memberId)
+            => IsOwnMemberContext(context, memberId);
+
+        public static bool HasOwnParzellenAccessForMember(UserContext? context, int? memberId)
+            => IsOwnMemberContext(context, memberId);
+
+        public static bool HasOwnDocumentsAccessForMember(UserContext? context, int? memberId)
+            => IsOwnMemberContext(context, memberId);
+
+        public static bool HasOwnWorkHoursAccessForMember(UserContext? context, int? memberId)
+            => IsOwnMemberContext(context, memberId);
+
         public static bool IsOwnMemberContext(UserContext? context, int? memberId)
             => HasOwnMemberContextAccess(context)
                && memberId is > 0
@@ -39,15 +61,15 @@ namespace KGV.Core.Security
 
         public static bool CanShowStammdatenForMember(UserContext? context, int? memberId)
             => CanShowStammdaten(context)
-               || IsOwnMemberContext(context, memberId);
+               || HasOwnStammdatenAccessForMember(context, memberId);
 
         public static bool CanReadStammdatenForMember(UserContext? context, int? memberId)
             => CanReadStammdaten(context)
-               || IsOwnMemberContext(context, memberId);
+               || HasOwnStammdatenAccessForMember(context, memberId);
 
         public static bool CanWriteStammdatenForMember(UserContext? context, int? memberId)
             => CanWriteStammdaten(context)
-               || IsOwnMemberContext(context, memberId);
+               || HasOwnStammdatenAccessForMember(context, memberId);
 
         public static bool CanShowParzellen(UserContext? context)
             => HasPermission(context, PermissionFlags.CanShowParzellen)
@@ -63,11 +85,11 @@ namespace KGV.Core.Security
 
         public static bool CanShowParzellenForMember(UserContext? context, int? memberId)
             => CanShowParzellen(context)
-               || IsOwnMemberContext(context, memberId);
+               || HasOwnParzellenAccessForMember(context, memberId);
 
         public static bool CanReadParzellenForMember(UserContext? context, int? memberId)
             => CanReadParzellen(context)
-               || IsOwnMemberContext(context, memberId);
+               || HasOwnParzellenAccessForMember(context, memberId);
 
         public static bool CanReadDocuments(UserContext? context)
             => HasPermission(context, PermissionFlags.CanReadDocuments)
@@ -78,7 +100,7 @@ namespace KGV.Core.Security
 
         public static bool CanReadDocumentsForMember(UserContext? context, int? memberId)
             => CanReadDocuments(context)
-               || IsOwnMemberContext(context, memberId);
+               || HasOwnDocumentsAccessForMember(context, memberId);
 
         public static bool CanReadWorkHours(UserContext? context)
             => HasPermission(context, PermissionFlags.CanReadWorkHours)
@@ -89,7 +111,7 @@ namespace KGV.Core.Security
 
         public static bool CanReadWorkHoursForMember(UserContext? context, int? memberId)
             => CanReadWorkHours(context)
-               || IsOwnMemberContext(context, memberId);
+               || HasOwnWorkHoursAccessForMember(context, memberId);
 
         public static bool CanReadRoleManagement(UserContext? context)
             => HasPermission(context, PermissionFlags.CanReadRoles)
@@ -117,14 +139,10 @@ namespace KGV.Core.Security
                || CanSeeOwnDataOnly(context);
 
         public static bool HasAnyStammdatenAccess(UserContext? context)
-            => CanShowStammdaten(context)
-               || CanReadStammdaten(context)
-               || CanWriteStammdaten(context);
+            => HasGlobalStammdatenAccess(context);
 
         public static bool HasAnyParzellenAccess(UserContext? context)
-            => CanShowParzellen(context)
-               || CanReadParzellen(context)
-               || CanWriteParzellen(context);
+            => HasGlobalParzellenAccess(context);
 
         public static bool HasAnyMeterAccess(UserContext? context)
             => CanReadMeters(context)

@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-04-06 – ToDo `C2`/`C3`: Legacy-Rollenquelle klar markiert und Eigenkontext-/Globalpfade im Rechtemodell geglättet
+
+- Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für:
+  - `C2. mitglied.role als Altbestand bewusst beobachten`
+  - `C3. Rechte-/Freigabemodell weiter fachlich glätten`
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `KGV.Core/Models/MitgliedRecord.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Core/Security/PermissionChecks.cs`
+  - zusätzlicher Suchlauf auf echte `Role`-Zuweisungen sowie Member-/Rechtepfade
+- Ehrlicher Istzustand vor dem Minimalfix:
+  - `MitgliedRecord.Role` ist weiterhin als physische Altspalte vorhanden
+  - im aktuellen Produktivpfad wird dieser Wert bereits zuverlässig aus `app_user.role` übersteuert und fachlich nicht mehr als führende Quelle verwendet
+  - die fachliche Trennung zwischen globalen Rechten und Eigenkontext war im Rechtemodell zwar vorhanden, aber in den `...ForMember`-Checks noch nicht klar genug explizit gemacht
+- Minimal umgesetzt:
+  - in `KGV.Core/Models/MitgliedRecord.cs` die Property `Role` ausdrücklich als Legacy-Altbestand markiert
+  - direkt am Modell dokumentiert, dass fachlich `app_user.role` führend bleibt und der Runtime-Wert im Servicepfad gesetzt wird
+  - in `KGV.Core/Security/PermissionChecks.cs` kleine explizite Helfer für:
+    - globale Stammdaten-/Parzellenzugriffe
+    - Eigenkontextzugriffe für Stammdaten, Parzellen, Dokumente und Arbeitsstunden
+  - die bestehenden Member-spezifischen Checks (`...ForMember`) auf diese getrennten Pfade umgestellt
+  - bewusst keine fachliche Änderung am bestehenden Berechtigungsverhalten und keine neue Parallel- oder Schattenlogik
+- Fachliche Wirkung dieses Fixes:
+  - `mitglied.role` bleibt bewusst beobachteter Altbestand und ist im Code jetzt klarer als nicht führende Rollenquelle markiert
+  - Eigenkontext- und globale Rechtepfade sind im Code deutlicher getrennt und damit nachvollziehbarer
+  - die Grundlage für spätere Rechte-/Freigabeglättungen ist sauberer, ohne den bestehenden Produktivpfad über `app_user` umzubauen
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -nologo -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -nologo -clp:ErrorsOnly`
+
 ## 2026-04-06 – ToDo `C1`: Rechte-Reload in WPF und MAUI transparent gemacht
 
 - Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für:

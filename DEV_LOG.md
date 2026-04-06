@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-04-06 – ToDo `C2`/`C3`: Legacy-Rollenquelle klar markiert und Eigenkontext-/Globalpfade im Rechtemodell geglättet
+
+- Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für:
+  - `C2. mitglied.role als Altbestand bewusst beobachten`
+  - `C3. Rechte-/Freigabemodell weiter fachlich glätten`
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `KGV.Core/Models/MitgliedRecord.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Core/Security/PermissionChecks.cs`
+  - zusätzlicher Suchlauf auf echte `Role`-Zuweisungen und Berechtigungspfade
+- Ehrlicher Istbefund vor dem Fix:
+  - `MitgliedRecord.Role` existiert weiterhin als physische Altspalte im Schema
+  - der laufende Produktivpfad übersteuert diesen Wert bereits sauber aus `app_user.role`
+  - im Permission-Code war die fachliche Trennung zwischen globalen Rechten und Eigenkontext zwar vorhanden, aber in den Member-spezifischen Checks noch nicht explizit genug lesbar
+- Minimal umgesetzt:
+  - `KGV.Core/Models/MitgliedRecord.cs`
+    - `Role` explizit als Legacy-Altbestand dokumentiert
+    - festgehalten, dass fachlich `app_user.role` führend ist und der Runtime-Wert aus dem Servicepfad kommt
+  - `KGV.Core/Security/PermissionChecks.cs`
+    - kleine explizite Helfer für globale Zugriffe und Eigenkontext-Zugriffe ergänzt
+    - bestehende `...ForMember`-Checks auf diese getrennten Pfade umgestellt
+    - kein fachlicher Umbau der Berechtigungen, sondern klare Trennung im Codepfad
+- Fachliches Ergebnis dieses Laufs:
+  - `mitglied.role` bleibt bewusst beobachteter Altbestand und ist im Code jetzt klarer als nicht führende Rollenquelle markiert
+  - Eigenkontext- und globale Rechtepfade sind in den Member-spezifischen Permission-Checks expliziter getrennt
+  - keine neue Schattenlogik und keine Änderung am produktiven Rollenpfad über `app_user`
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -nologo -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -nologo -clp:ErrorsOnly`
+
 ## 2026-04-06 – ToDo `C1`: Rechte-Reload in WPF und MAUI transparent gemacht
 
 - Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für `C1. Live-Verifikation benutzerspezifischer Fachrechte`.
