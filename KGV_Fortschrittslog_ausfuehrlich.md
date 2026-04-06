@@ -2,6 +2,48 @@
 
 ---
 
+## 2026-04-06 – Android-Release für Google-Play-Diagnoseartefakte minimal aktiviert
+
+- Ausgangspunkt dieses Laufs war der bereits vorbereitete AWR-/Diagnoseartefakte-Block: der Batchpfad war fertig, aber der Android-/MAUI-Release erzeugte die benötigten Artefakte noch nicht.
+- Direkt geprüft wurden nur die blockrelevanten Dateien und die unmittelbare Android-Release-Konfiguration:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `AWR.bat`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Echter Konfigurationsstand vor der Änderung:
+  - `AndroidLinkMode=None`
+  - `AndroidLinkTool` leer
+  - `AndroidIncludeDebugSymbols=false`
+  - `MonoSymbolArchive=false`
+  - im realen Release entstand deshalb keine app-spezifische Mapping-Datei und kein durch `AWR.bat` sammelbarer Native-Symbolpfad
+- Minimal umgesetzt wurde nur der technisch nötige Android-Release-Block:
+  - in `KGV.Maui/KGV.Maui.csproj`
+    - `AndroidLinkTool=r8`
+    - `AndroidEnableProguard=true`
+    - `AndroidIncludeDebugSymbols=true`
+  - `AndroidLinkMode=None` blieb absichtlich stehen, damit kein zusätzlicher Managed-Linking-/Trim-Block eröffnet wird
+  - in `AWR.bat`
+    - die bestehende Native-Diagnosesuche wurde nur um den realen Buildordner `app_shared_libraries` ergänzt
+- Echte Build-/Publish-Befunde nach der Änderung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release -clp:ErrorsOnly` erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=aab -clp:ErrorsOnly -v:q` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Release -clp:ErrorsOnly` im Abschlusslauf erneut erfolgreich
+  - der WPF-Release-Build lief mit bereits vorhandenen Warnungen in `BekanntmachungenVerwaltungViewModel`, `ArbeitseinsaetzeVerwaltungViewModel` und `TermineVerwaltungViewModel`, aber ohne blockbezogene Folgefehler
+  - die Mapping-Datei wird jetzt real erzeugt unter:
+    - `KGV.Maui\bin\Release\net9.0-android\mapping.txt`
+    - `KGV.Maui\bin\Release\net9.0-android\publish\mapping.txt`
+  - native Debug-Symbole entstehen mit dem aktuellen Setup nicht als separates `mSYM`-/`symbols.zip`-Artefakt, sondern als symbolhaltige `.so`-Bibliotheken unter:
+    - `KGV.Maui\obj\Release\net9.0-android\app_shared_libraries\arm64-v8a\...`
+    - `KGV.Maui\obj\Release\net9.0-android\app_shared_libraries\x86_64\...`
+  - kurzer Abschluss-Check gegen den aktuellen Output bestätigt zusätzlich:
+    - `KGV.Maui\bin\Release\net9.0-android\mapping.txt` vorhanden
+    - `KGV.Maui\obj\Release\net9.0-android\app_shared_libraries` vorhanden, aktuell mit `6` Dateien
+  - `AWR.bat` übernimmt diesen Pfad jetzt sauber in den Release-Diagnoseordner `publish\<Version>\Android\GooglePlay-Diagnose\NativeDebugSymbols`
+- Ehrlich festgehaltene technische Grenze dieses Laufs:
+  - `MonoSymbolArchive=true` wurde testweise geprüft, aber in der aktuellen Umgebung nicht aktiviert, weil der Build damit am fehlenden SDK-Tool `mono-symbolicate.exe` scheitert
+  - deshalb wurde bewusst kein zusätzlicher Tooling-/SDK-Reparaturblock eröffnet
+- Fachlogik blieb vollständig unverändert.
+
 ## 2026-04-06 – AWR-/Google-Play-Diagnoseartefakte-Block sauber abgeschlossen
 
 - Ausgangspunkt dieses Laufs war kein neuer Android-Build-Block, sondern nur der saubere Abschluss des bereits code-seitig umgesetzten AWR-/Google-Play-Diagnoseartefakte-Blocks.

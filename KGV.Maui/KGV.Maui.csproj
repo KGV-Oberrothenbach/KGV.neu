@@ -28,6 +28,9 @@
     <!-- Play Store Distribution: AAB als Release-Artefakt -->
     <AndroidPackageFormat>aab</AndroidPackageFormat>
     <AndroidLinkMode>None</AndroidLinkMode>
+    <AndroidLinkTool>r8</AndroidLinkTool>
+    <AndroidEnableProguard>true</AndroidEnableProguard>
+    <AndroidIncludeDebugSymbols>true</AndroidIncludeDebugSymbols>
     <PublishTrimmed>false</PublishTrimmed>
     <RunAOTCompilation>false</RunAOTCompilation>
     <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>

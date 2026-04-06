@@ -339,7 +339,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$mappingFile = $mappingCandidates | Sort-Object LastWriteTime -Descending | Select-Object -First 1;" ^
   "if ($mappingFile) { Copy-Item $mappingFile.FullName (Join-Path $mappingOut $mappingFile.Name) -Force }" ^
   "$nativeFiles = foreach ($root in $searchRoots) { Get-ChildItem $root -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\lp\\' -and (($_.Name.ToLowerInvariant() -in @('native-debug-symbols.zip','symbols.zip')) -or ($_.Extension.ToLowerInvariant() -in @('.dbg','.sym'))) } };" ^
-  "$nativeDirs = foreach ($root in $searchRoots) { Get-ChildItem $root -Recurse -Directory -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\lp\\' -and ($_.Name -eq 'symbols' -or $_.Name -eq 'native-debug-symbols' -or $_.Name -like '*.mSYM') } };" ^
+  "$nativeDirs = foreach ($root in $searchRoots) { Get-ChildItem $root -Recurse -Directory -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\lp\\' -and ($_.Name -eq 'symbols' -or $_.Name -eq 'native-debug-symbols' -or $_.Name -eq 'app_shared_libraries' -or $_.Name -like '*.mSYM') } };" ^
   "$copiedNative = @();" ^
   "foreach ($file in ($nativeFiles | Sort-Object FullName -Unique)) { Copy-Item $file.FullName (Join-Path $nativeOut $file.Name) -Force; $copiedNative += $file.FullName }" ^
   "foreach ($dir in ($nativeDirs | Sort-Object FullName -Unique)) { $dest = Join-Path $nativeOut $dir.Name; if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }; Copy-Item $dir.FullName $dest -Recurse -Force; $copiedNative += $dir.FullName }" ^
