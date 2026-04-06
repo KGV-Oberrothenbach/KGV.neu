@@ -201,7 +201,10 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     public string DokumenteButtonText => SelectedDetail == null ? "Dokumente" : $"Dokumente ({SelectedDetail.Dokumente.Count})";
     public bool CanOpenStromAction => PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext) && HasSelectedDetail && SelectedDetail?.HatStrom == true;
     public bool CanOpenWasserAction => PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext) && HasSelectedDetail && SelectedDetail?.HatWasser == true;
-    public bool CanOpenDokumenteAction => PermissionChecks.CanReadDocuments(_userContextState.CurrentUserContext) && HasSelectedDetail;
+    public bool CanOpenDokumenteAction
+        => HasSelectedDetail
+           && (PermissionChecks.CanReadDocuments(_userContextState.CurrentUserContext)
+               || (IsContextBound && PermissionChecks.CanReadDocumentsForMember(_userContextState.CurrentUserContext, SelectedDetail?.MitgliedId)));
     public bool HasStromAblesungen => StromAblesungen.Count > 0;
     public bool HasWasserAblesungen => WasserAblesungen.Count > 0;
     public bool HasDokumente => Dokumente.Count > 0;

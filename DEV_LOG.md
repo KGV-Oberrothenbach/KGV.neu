@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-04-06 – ToDo `F1`: MAUI-Dokumente im mitgliedsgebundenen Parzellenpfad auf View-only-Eigenkontext geglättet
+
+- Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für `F1. Dokumente im Parzellen-/Mitgliedskontext weiter gegenprüfen`.
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `KGV.Wpf/ViewModels/DokumenteViewModel.cs`
+  - `KGV.Wpf/ViewModels/GartenDokumenteViewModel.cs`
+  - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Maui/Pages/MemberParzellenDetailPage.cs`
+  - `KGV.Core/Security/PermissionChecks.cs`
+- Ehrlicher Istbefund vor dem Fix:
+  - schreibende Dokumentaktionen waren in WPF und MAUI bereits sauber auf `CanManageDocuments` begrenzt
+  - WPF ließ Dokumente im mitgliedsgebundenen Parzellenpfad faktisch view-only zu
+  - MAUI verlangte dort bisher fälschlich globale Dokumentrechte und sperrte damit Eigenkontext-Nutzer unnötig aus
+- Minimal umgesetzt:
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+    - `CanOpenDokumenteAction` so geglättet, dass im mitgliedsgebundenen Parzellenpfad auch `CanReadDocumentsForMember(..., SelectedDetail.MitgliedId)` genügt
+    - globale Dokumentrechte bleiben weiterhin gültig
+    - schreibende Aktionen wurden nicht erweitert; Upload/Löschen bleiben separat auf `CanManageDocuments`
+- Fachliches Ergebnis dieses Laufs:
+  - normale Nutzer bleiben im Dokumente-Kontext weiter view-only
+  - berechtigte Rollen behalten schreibende Aktionen
+  - MAUI ist im mitgliedsgebundenen Parzellen-Dokumentpfad jetzt näher am bestehenden WPF-Verhalten
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-06 – Vergleichslauf `main` vs. `compare/lokaler-stand`: sinnvolle Ablesen-/Home-Nachzüge übernommen
 
 - Ausgangspunkt dieses Laufs war der gezielte Vergleich zwischen:

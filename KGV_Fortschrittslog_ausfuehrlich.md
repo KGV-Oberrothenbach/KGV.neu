@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-04-06 – ToDo `F1`: MAUI-Dokumente im mitgliedsgebundenen Parzellenpfad auf View-only-Eigenkontext geglättet
+
+- Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für `F1. Dokumente im Parzellen-/Mitgliedskontext weiter gegenprüfen`.
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `KGV.Wpf/ViewModels/DokumenteViewModel.cs`
+  - `KGV.Wpf/ViewModels/GartenDokumenteViewModel.cs`
+  - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+  - `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+  - `KGV.Maui/Pages/MemberParzellenDetailPage.cs`
+  - `KGV.Core/Security/PermissionChecks.cs`
+- Ehrlicher Istzustand vor dem Minimalfix:
+  - schreibende Dokumentaktionen waren in WPF und MAUI bereits sauber an `CanManageDocuments` gebunden
+  - WPF ließ Dokumente im mitgliedsgebundenen Parzellenpfad faktisch view-only zu
+  - MAUI verlangte dort bisher fälschlich globale Dokumentrechte und sperrte damit Eigenkontext-Nutzer im gleichen Fachpfad unnötig aus
+  - die echte Restlücke lag damit nicht in Upload/Löschen, sondern in der Lesefreigabe für den Eigenkontext im MAUI-Parzellenpfad
+- Minimal umgesetzt:
+  - in `KGV.Maui/ViewModels/ParzellenViewModel.cs`
+    - `CanOpenDokumenteAction` so geglättet, dass im mitgliedsgebundenen Parzellenpfad auch `CanReadDocumentsForMember(..., SelectedDetail.MitgliedId)` genügt
+    - globale Dokumentrechte bleiben unverändert ebenfalls gültig
+    - schreibende Aktionen wurden bewusst nicht erweitert; Upload und Löschen bleiben separat an `CanManageDocuments` gebunden
+- Fachliche Wirkung dieses Fixes:
+  - normale Nutzer bleiben im Dokumente-Kontext weiter view-only
+  - berechtigte Rollen behalten exklusiv die schreibenden Aktionen
+  - MAUI verhält sich im mitgliedsgebundenen Parzellen-Dokumentpfad jetzt näher am bestehenden WPF-Fachverhalten
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-06 – Vergleichslauf `main` vs. `compare/lokaler-stand`: sinnvolle Ablesen-/Home-Nachzüge übernommen
 
 - Ausgangspunkt dieses Laufs war der gezielte Vergleich zwischen:
