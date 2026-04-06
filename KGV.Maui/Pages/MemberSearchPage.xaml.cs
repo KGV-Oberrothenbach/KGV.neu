@@ -1,6 +1,7 @@
 using KGV.Maui.ViewModels;
 using KGV.Maui.State;
 using KGV.Maui.Services.Diagnostics;
+using KGV.Core.Security;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
@@ -12,13 +13,15 @@ public partial class MemberSearchPage : ContentPage
 {
     private readonly MemberSearchViewModel _vm;
     private readonly MemberContextState _memberContextState;
+    private readonly UserContextState _userContextState;
     private CollectionView? _resultsCollectionView;
     private bool _memberSwitchInProgress;
 
-    public MemberSearchPage(MemberSearchViewModel vm, MemberContextState memberContextState)
+    public MemberSearchPage(MemberSearchViewModel vm, MemberContextState memberContextState, UserContextState userContextState)
     {
         _vm = vm;
         _memberContextState = memberContextState;
+        _userContextState = userContextState;
         BindingContext = _vm;
         Title = "Mitgliedersuche";
 
@@ -82,7 +85,18 @@ public partial class MemberSearchPage : ContentPage
         var searchSection = new VerticalStackLayout
         {
             Spacing = 8,
-            Children = { searchGrid, optionsLayout, activityIndicator }
+            Children =
+            {
+                searchGrid,
+                new Button
+                {
+                    Text = "Mitglied neu anlegen",
+                    IsVisible = PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext),
+                    Command = new Command(async () => await Shell.Current.GoToAsync($"{nameof(MemberDetailPage)}?mode=new"))
+                },
+                optionsLayout,
+                activityIndicator
+            }
         };
 
         _resultsCollectionView = new CollectionView

@@ -19,6 +19,7 @@ namespace KGV.Core.Interfaces
 
         // ✅ Vollständige Stammdaten
         Task<MitgliedRecord?> GetMitgliedByIdAsync(int mitgliedId);
+        Task<MitgliedRecord?> CreateMitgliedAsync(MemberDTO dto);
         Task<bool> UpdateMitgliedAsync(MemberDTO dto, string userId);
 
         Task<ParzelleRecord?> GetParzelleByNumberAsync(string gartenNr);

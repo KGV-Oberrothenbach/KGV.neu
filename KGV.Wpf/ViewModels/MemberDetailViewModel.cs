@@ -20,14 +20,16 @@ namespace KGV.ViewModels
         private readonly ISupabaseService _supabaseService;
         private readonly IAuthService _authService;
         private readonly UserContext _userContext;
+        private readonly bool _isNewMode;
 
         private string? _lockUserId;
         private int? _currentUserMemberId;
 
         public MemberDTO SelectedMember { get; }
+        public bool IsNewMode => _isNewMode;
 
         public bool ShowParzellenSection => true;
-        public bool ShowNewContractButton => true;
+        public bool ShowNewContractButton => !_isNewMode;
 
         private MitgliedRecord? _nebenmitgliedRecord;
         private bool _hasNebenmitglied;
@@ -44,11 +46,13 @@ namespace KGV.ViewModels
             }
         }
 
-        public bool ShowNebenmitgliedButton => HasNebenmitglied || IsEditMode;
+        public bool ShowNebenmitgliedButton => !_isNewMode && (HasNebenmitglied || IsEditMode);
         public string NebenmitgliedButtonText => HasNebenmitglied ? "Nebenmitglied" : "Nebenmitglied anlegen";
 
         public bool ShowAdresseUebernehmenButton => false;
-        public bool CanEditMemberStammdaten => PermissionChecks.CanWriteStammdatenForMember(_userContext, SelectedMember.Id);
+        public bool CanEditMemberStammdaten => _isNewMode
+            ? PermissionChecks.CanEditAllMembers(_userContext)
+            : PermissionChecks.CanWriteStammdatenForMember(_userContext, SelectedMember.Id);
 
         private MemberDTO _originalSnapshot;
 
@@ -133,11 +137,12 @@ namespace KGV.ViewModels
             ? "Mailadresse wird separat per OTP-Code geändert und nicht über das normale Stammdaten-Speichern."
             : "Mailadresse kann nur vom aktuell angemeldeten Benutzer über den separaten OTP-Flow geändert werden.";
 
-        public MemberDetailViewModel(ISupabaseService supabaseService, IAuthService authService, UserContext userContext, MemberDTO member)
+        public MemberDetailViewModel(ISupabaseService supabaseService, IAuthService authService, UserContext userContext, MemberDTO member, bool isNewMode = false)
         {
             _supabaseService = supabaseService;
             _authService = authService;
             _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
+            _isNewMode = isNewMode;
             SelectedMember = member;
 
             _originalSnapshot = SelectedMember.Clone();
@@ -177,6 +182,21 @@ namespace KGV.ViewModels
         public async Task OnNavigatedToAsync()
         {
             await LoadCurrentUserMemberAsync();
+            if (_isNewMode)
+            {
+                SelectedMember.IstHauptmitglied = true;
+                SelectedMember.Aktiv = true;
+                if (!SelectedMember.MitgliedSeit.HasValue)
+                    SelectedMember.MitgliedSeit = DateTime.Today;
+
+                _originalSnapshot = SelectedMember.Clone();
+                IsEditMode = true;
+                IsDirty = false;
+                OnPropertyChanged(nameof(CanEditMemberStammdaten));
+                InvalidateCommands();
+                return;
+            }
+
             await LoadMemberAsync();
             await LoadParzellenAsync();
             await RefreshNebenmitgliedAsync();
@@ -189,7 +209,7 @@ namespace KGV.ViewModels
 
         public async Task OnNavigatedFromAsync()
         {
-            if (IsEditMode && !string.IsNullOrEmpty(_lockUserId))
+            if (!_isNewMode && IsEditMode && !string.IsNullOrEmpty(_lockUserId))
             {
                 await _supabaseService.ReleaseLockMitgliedAsync(SelectedMember.Id, _lockUserId, force: false);
                 _lockUserId = null;
@@ -201,6 +221,14 @@ namespace KGV.ViewModels
 
         private async Task RefreshNebenmitgliedAsync()
         {
+            if (_isNewMode || SelectedMember.Id <= 0)
+            {
+                _nebenmitgliedRecord = null;
+                HasNebenmitglied = false;
+                NebenmitgliedCommand.RaiseCanExecuteChanged();
+                return;
+            }
+
             _nebenmitgliedRecord = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(SelectedMember.Id);
             HasNebenmitglied = _nebenmitgliedRecord != null;
             NebenmitgliedCommand.RaiseCanExecuteChanged();
@@ -249,21 +277,34 @@ namespace KGV.ViewModels
             if (!IsEditMode)
                 return;
 
+            await CreateAndOpenNebenmitgliedAsync();
+        }
+
+        private async Task CreateAndOpenNebenmitgliedAsync()
+        {
+            var created = await PromptCreateNebenmitgliedAsync();
+            if (created == null)
+                return;
+
+            OpenNebenmitgliedDetail(created);
+        }
+
+        private async Task<MitgliedRecord?> PromptCreateNebenmitgliedAsync()
+        {
             var dlg = new NebenmitgliedDialog
             {
                 Owner = Application.Current?.MainWindow
             };
 
-            // Vorschlag: Nachname übernehmen
             dlg.SetInitialValues(vorname: string.Empty, nachname: SelectedMember.Nachname, adresseUebernehmen: true);
 
             if (dlg.ShowDialog() != true)
-                return;
+                return null;
 
             if (string.IsNullOrWhiteSpace(dlg.Vorname) || string.IsNullOrWhiteSpace(dlg.Nachname))
             {
                 MessageBox.Show("Bitte Vorname und Nachname angeben.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
+                return null;
             }
 
             var created = await _supabaseService.CreateNebenmitgliedAsync(new NebenmitgliedCreateDTO
@@ -273,20 +314,28 @@ namespace KGV.ViewModels
                 Nachname = dlg.Nachname.Trim(),
                 AdresseUebernehmen = dlg.AdresseUebernehmen
             });
+
             if (created == null)
             {
                 MessageBox.Show("Nebenmitglied konnte nicht angelegt werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
+                return null;
             }
 
             await RefreshNebenmitgliedAsync();
+            return created;
+        }
 
+        private void OpenNebenmitgliedDetail(MitgliedRecord created)
+        {
             var context = new NebenmitgliedContext(SelectedMember.Clone(), ToMemberDto(created));
             WeakReferenceMessenger.Default.Send(new NebenmitgliedSelectedMessage(context));
         }
 
         private async Task LoadMemberAsync()
         {
+            if (_isNewMode || SelectedMember.Id <= 0)
+                return;
+
             var rec = await _supabaseService.GetMitgliedByIdAsync(SelectedMember.Id);
             if (rec == null)
                 return;
@@ -335,6 +384,12 @@ namespace KGV.ViewModels
             SelectedBelegung = null;
             SelectedParzelleToAssign = null;
             AssignVonDatum = DateTime.Today;
+
+            if (_isNewMode || SelectedMember.Id <= 0)
+            {
+                InvalidateCommands();
+                return;
+            }
 
             var parzellen = await _supabaseService.GetAllParzellenAsync();
             var memberBelegungen = await _supabaseService.GetBelegungenForMitgliedAsync(SelectedMember.Id);
@@ -390,6 +445,9 @@ namespace KGV.ViewModels
 
         private async Task ToggleEditAsync()
         {
+            if (_isNewMode)
+                return;
+
             if (!CanEditMemberStammdaten)
                 return;
 
@@ -440,6 +498,50 @@ namespace KGV.ViewModels
         {
             try
             {
+                if (_isNewMode)
+                {
+                    var created = await _supabaseService.CreateMitgliedAsync(SelectedMember);
+                    if (created == null)
+                    {
+                        MessageBox.Show("Mitglied konnte nicht angelegt werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    SelectedMember.Id = created.Id;
+                    SelectedMember.Vorname = created.Vorname ?? string.Empty;
+                    SelectedMember.Nachname = created.Name ?? string.Empty;
+                    SelectedMember.Email = created.Email ?? string.Empty;
+                    SelectedMember.Strasse = created.Adresse ?? string.Empty;
+                    SelectedMember.PLZ = created.Plz ?? string.Empty;
+                    SelectedMember.Ort = created.Ort ?? string.Empty;
+                    SelectedMember.Telefon = created.Telefon ?? string.Empty;
+                    SelectedMember.Mobilnummer = created.Handy ?? string.Empty;
+                    SelectedMember.Bemerkungen = created.Bemerkung ?? string.Empty;
+                    SelectedMember.WhatsappEinwilligung = created.WhatsappEinwilligung;
+                    SelectedMember.MitgliedSeit = created.MitgliedSeit;
+                    SelectedMember.MitgliedEnde = created.MitgliedEnde;
+                    SelectedMember.Aktiv = created.Aktiv;
+                    SelectedMember.IstHauptmitglied = !created.HauptmitgliedId.HasValue || created.HauptmitgliedId.Value <= 0;
+                    SelectedMember.Role = created.Role ?? string.Empty;
+
+                    _originalSnapshot = SelectedMember.Clone();
+                    IsDirty = false;
+                    IsEditMode = false;
+                    OnPropertyChanged(nameof(CanEditMemberStammdaten));
+                    WeakReferenceMessenger.Default.Send(new MemberSavedMessage(SelectedMember.Clone()));
+
+                    var createNebenmitglied = MessageBox.Show(
+                        "Mitglied angelegt. Soll jetzt ein Nebenmitglied angelegt werden?",
+                        "Nebenmitglied anlegen",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+
+                    if (createNebenmitglied == MessageBoxResult.Yes)
+                        await CreateAndOpenNebenmitgliedAsync();
+
+                    return;
+                }
+
                 if (string.IsNullOrWhiteSpace(_lockUserId))
                 {
                     MessageBox.Show("Kein Lock aktiv. Bitte Bearbeiten erneut starten.", "Fehler",
@@ -484,6 +586,13 @@ namespace KGV.ViewModels
         {
             try
             {
+                if (_isNewMode)
+                {
+                    SelectedMember.CopyFrom(_originalSnapshot);
+                    IsDirty = false;
+                    return;
+                }
+
                 SelectedMember.CopyFrom(_originalSnapshot);
 
                 if (!string.IsNullOrEmpty(_lockUserId))

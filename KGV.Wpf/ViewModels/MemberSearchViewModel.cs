@@ -8,6 +8,7 @@ using System.Windows.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Messages;
 
 namespace KGV.ViewModels
@@ -53,6 +54,8 @@ namespace KGV.ViewModels
 
         public ICommand SearchCommand { get; }
         public ICommand SelectCommand { get; }
+        public ICommand NewMemberCommand { get; }
+        public bool CanCreateMember => PermissionChecks.CanEditAllMembers(_mainVm.UserContext);
 
         private object? _selectedResult;
         public object? SelectedResult
@@ -78,6 +81,7 @@ namespace KGV.ViewModels
 
             SearchCommand = new KGV.Helpers.RelayCommand<object?>(_ => UpdateFilter());
             SelectCommand = new KGV.Helpers.RelayCommand<object?>(_ => _ = SelectResultAsync(SelectedResult));
+            NewMemberCommand = new KGV.Helpers.RelayCommand<object?>(_ => _ = OpenNewMemberAsync(), _ => CanCreateMember);
 
             _allMembers = new System.Collections.Generic.List<MemberDTO>();
             _allParzellen = new System.Collections.Generic.List<ParzelleRecord>();
@@ -364,6 +368,32 @@ namespace KGV.ViewModels
             _mainVm.SelectedMember = memberForDetail;
 
             var detailVm = new MemberDetailViewModel(_supabaseService, _mainVm.AuthService, _mainVm.UserContext, memberForDetail);
+            await _mainVm.NavigateToAsync(detailVm);
+        }
+
+        private async Task OpenNewMemberAsync()
+        {
+            if (!CanCreateMember)
+                return;
+
+            var newMember = new MemberDTO
+            {
+                Vorname = string.Empty,
+                Nachname = string.Empty,
+                Email = string.Empty,
+                Strasse = string.Empty,
+                PLZ = string.Empty,
+                Ort = string.Empty,
+                Telefon = string.Empty,
+                Mobilnummer = string.Empty,
+                Bemerkungen = string.Empty,
+                Aktiv = true,
+                IstHauptmitglied = true,
+                MitgliedSeit = DateTime.Today
+            };
+
+            _mainVm.SelectedMember = newMember;
+            var detailVm = new MemberDetailViewModel(_supabaseService, _mainVm.AuthService, _mainVm.UserContext, newMember, isNewMode: true);
             await _mainVm.NavigateToAsync(detailVm);
         }
     }

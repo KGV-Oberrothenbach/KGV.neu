@@ -138,6 +138,51 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
+        public Task<MitgliedRecord?> CreateMitgliedAsync(MemberDTO dto) => ExecuteAsync<MitgliedRecord?>(
+            "CreateMitgliedAsync",
+            async () =>
+            {
+                if (dto == null || string.IsNullOrWhiteSpace(dto.Vorname) || string.IsNullOrWhiteSpace(dto.Nachname))
+                    return null;
+
+                var client = await EnsureClientAsync();
+                var insertRecord = new MitgliedInsertRecord
+                {
+                    Vorname = dto.Vorname.Trim(),
+                    Name = dto.Nachname.Trim(),
+                    Adresse = CleanOptionalText(dto.Strasse),
+                    Plz = CleanOptionalText(dto.PLZ),
+                    Ort = CleanOptionalText(dto.Ort),
+                    Telefon = CleanOptionalText(dto.Telefon),
+                    Handy = CleanOptionalText(dto.Mobilnummer),
+                    Email = CleanOptionalText(dto.Email),
+                    Geburtsdatum = dto.Geburtsdatum,
+                    Bemerkung = CleanOptionalText(dto.Bemerkungen),
+                    WhatsappEinwilligung = dto.WhatsappEinwilligung,
+                    MitgliedSeit = dto.MitgliedSeit,
+                    MitgliedEnde = dto.MitgliedEnde,
+                    Aktiv = dto.Aktiv
+                };
+
+                await client.From<MitgliedInsertRecord>().Insert(insertRecord);
+
+                var response = await client
+                    .From<MitgliedRecord>()
+                    .Where(x => x.Vorname == insertRecord.Vorname)
+                    .Where(x => x.Name == insertRecord.Name)
+                    .Get();
+
+                var created = response?.Models?
+                    .Where(x => string.Equals(CleanRequiredText(x.Vorname), insertRecord.Vorname, StringComparison.CurrentCulture))
+                    .Where(x => string.Equals(CleanRequiredText(x.Name), insertRecord.Name, StringComparison.CurrentCulture))
+                    .Where(x => string.Equals(CleanOptionalText(x.Email), insertRecord.Email, StringComparison.CurrentCulture))
+                    .OrderByDescending(x => x.Id)
+                    .FirstOrDefault();
+
+                return await ApplyAppUserRoleAsync(client, created);
+            },
+            null);
+
         public Task<bool> UpdateMitgliedAsync(MemberDTO dto, string userId) => ExecuteAsync(
             "UpdateMitgliedAsync",
             async () =>

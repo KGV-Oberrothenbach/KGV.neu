@@ -21,6 +21,10 @@
         <StackPanel Orientation="Horizontal" Grid.Row="1" Margin="0,8,0,8">
             <TextBox Width="300" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
             <Button Content="Suchen" Margin="8,0,0,0" Command="{Binding SearchCommand}" />
+            <Button Content="Mitglied neu anlegen"
+                    Margin="8,0,0,0"
+                    Command="{Binding NewMemberCommand}"
+                    Visibility="{Binding CanCreateMember, Converter={StaticResource BoolToVisibilityConverterLocal}}" />
             <CheckBox Content="nach Gartennummer suchen"
                       Margin="12,0,0,0"
                       IsChecked="{Binding SearchByParzelle}" />

@@ -2,6 +2,74 @@
 
 ---
 
+## 2026-04-06 – Folgeflow nach Mitglied-Neuanlage ergänzt: direkte Nachfrage und Nebenmitglied-Start in WPF und MAUI
+
+- Ausgangspunkt dieses Laufs war der nächste offene Folgeblock nach dem bereits erledigten Button `Mitglied neu anlegen`.
+- Ehrlicher Repo-Befund vor dem Fix:
+  - WPF konnte Nebenmitglieder bereits über den vorhandenen `NebenmitgliedDialog` anlegen
+  - MAUI hatte mit `NebenmitgliedPage` nur einen Pfad für ein bereits vorhandenes Nebenmitglied, aber noch keinen direkten Create-Einstieg nach erfolgreicher Hauptmitglied-Neuanlage
+  - Adressübernahme existierte fachlich bereits als Flag im bestehenden `CreateNebenmitgliedAsync`-Pfad
+- Minimal umgesetzt:
+  - in `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`
+    - nach erfolgreicher Hauptmitglied-Neuanlage direkte Ja/Nein-Frage ergänzt
+    - bei `Ja` wird direkt der vorhandene WPF-Nebenmitglied-Dialog geöffnet
+    - der bestehende Dialog bleibt mit `Adresse übernehmen` und vorbelegtem Nachnamen produktiv führend
+  - in `KGV.Maui/Pages/MemberDetailPage.cs`
+    - nach erfolgreicher Hauptmitglied-Neuanlage direkte Ja/Nein-Frage ergänzt
+    - bei `Ja` wird direkt in `NebenmitgliedPage` im Create-Modus gewechselt
+  - in `KGV.Maui/Pages/NebenmitgliedPage.cs`
+    - minimalen Create-Modus ergänzt
+    - Bezug zum gerade angelegten Hauptmitglied wird über den bestehenden Mitgliedskontext genutzt
+    - Option `Adresse des Hauptmitglieds übernehmen` ergänzt
+    - nach erfolgreicher Anlage bleibt dieselbe Seite als bestehender Nebenmitglied-Pfad nutzbar
+  - in `KGV.Maui/ShellRouteRegistrar.cs`
+    - Route für `NebenmitgliedPage` ergänzt
+  - in `ToDo.md`
+    - Folgeprüfung für den Neuanlagepfad ergänzt
+- Fachliche Wirkung dieses Blocks:
+  - nur echte Hauptmitglied-Neuanlagen lösen die neue Rückfrage aus
+  - bei `Nein` bleibt das bisherige Abschlussverhalten erhalten
+  - bei `Ja` wird ohne Schattenlogik direkt der vorhandene Nebenmitglied-Pfad genutzt
+  - WPF und MAUI sind in diesem Folgeflow fachlich näher zusammengezogen
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
+## 2026-04-06 – Folgeblock begonnen: `Mitglied neu anlegen` in WPF- und MAUI-Mitgliedersuche ergänzt
+
+- Ausgangspunkt dieses Laufs war die explizite Vorgabe, die vier offenen Folgepunkte gegen den echten Repo-Stand einzuordnen und nur den ersten sinnvollen Block umzusetzen.
+- Ehrliche Einordnung vor dem Fix:
+  - `Mitglied neu anlegen` fehlte in WPF und MAUI tatsächlich im Bereich Mitgliedersuche
+  - Termin-Bearbeiten/Löschen war im Repo bereits fachlich vorhanden
+  - die MAUI-Zurück-Taste mit Exit-Rückfrage war im Repo bereits vorhanden
+  - `Mitgliedschaft beenden` mit Folgeentscheid bleibt fachlich offen und wurde bewusst noch nicht angetastet
+- Minimal umgesetzt:
+  - in `KGV.Wpf/Views/MemberSearchView.xaml`
+    - Button `Mitglied neu anlegen` im Suchbereich ergänzt
+  - in `KGV.Wpf/ViewModels/MemberSearchViewModel.cs`
+    - neuen Command für den Neuanlagepfad ergänzt
+  - in `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`
+    - minimalen Neuanlage-Modus für neue Hauptmitglieder ergänzt
+  - in `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+    - Button `Mitglied neu anlegen` im Suchbereich ergänzt
+  - in `KGV.Maui/Pages/MemberDetailPage.cs`
+    - minimalen mobilen Neuanlage-Modus ergänzt
+  - in `KGV.Maui/ShellRouteRegistrar.cs`
+    - Route `MemberDetailPage` auf die echte Seite gelegt
+  - in `KGV.Core/Interfaces/ISupabaseService.cs`
+  - in `KGV.Core/Models/MitgliedInsertRecord.cs`
+  - in `KGV.Infrastructure/Services/SupabaseService.cs`
+    - gemeinsamer minimaler Create-Pfad für neue Hauptmitglieder ergänzt
+- Fachliche Wirkung dieses ersten Blocks:
+  - in beiden Apps ist `Mitglied neu anlegen` jetzt direkt aus der Mitgliedersuche erreichbar
+  - der Block bleibt bewusst klein und nutzt einen gemeinsamen Servicepfad statt Schattenlogik
+  - der fachlich heikle Folgeentscheid bei `Mitgliedschaft beenden` bleibt bewusst für einen separaten Folgeblock offen
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-06 – MAUI-Abschlussblock: Termin-Bearbeiten/Löschen sichtbar gemacht und Zurück-Taste mit Exit-Rückfrage geglättet
 
 - Ausgangspunkt dieses Laufs war die explizite Vorgabe, nur noch zwei technisch offene MAUI-Punkte minimalinvasiv zu schließen:

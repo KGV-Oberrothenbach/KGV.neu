@@ -44,6 +44,34 @@ dann ist damit genau diese Datei gemeint.
 
 ---
 
+## 2a. Zusätzliche Folgeprüfung 2026-04-06
+
+Diese Folgeprüfung wurde nach zusätzlicher Nutzerpriorisierung gegen den echten Repo-Stand eingeordnet:
+
+### Mitgliedersuche: Button `Mitglied neu anlegen`
+**Status:** erledigt
+- WPF-Mitgliedersuche hat den Button jetzt im Suchbereich
+- MAUI-Mitgliedersuche hat den Button jetzt im Suchbereich
+- beide Pfade öffnen einen minimalen produktiven Neuanlagepfad für neue Hauptmitglieder
+- nach erfolgreicher Hauptmitglied-Neuanlage wird jetzt direkt gefragt, ob ein Nebenmitglied angelegt werden soll
+
+### Termin: Buttons `Bearbeiten` und `Löschen`
+**Status:** erledigt
+- Termin-Detailpfad liefert belastbar die nötige Termin-ID
+- Bearbeiten-/Löschen-Pfade sind dadurch im MAUI-Detail verfügbar
+
+### MAUI-Zurück-Taste mit Exit-Rückfrage
+**Status:** erledigt
+- Unterseiten navigieren zuerst zur Startseite
+- auf der Startseite erscheint die Rückfrage zum App-Beenden
+
+### Mitgliedschaft beenden mit Folgeentscheid
+**Status:** offen
+- fachlicher Folgeentscheid für Haupt-/Nebenmitglied ist noch nicht umgesetzt
+- Risiko bleibt fachlich relevant und muss als eigener Folgeblock sauber geplant werden
+
+---
+
 ## 3. Zielbild – Repo-Abgleich
 
 ### 1. MAUI: Termin komplett löschen

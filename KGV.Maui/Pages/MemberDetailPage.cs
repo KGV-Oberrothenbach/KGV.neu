@@ -6,12 +6,13 @@ using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace KGV.Maui.Pages;
 
-public sealed class MemberDetailPage : ContentPage
+public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 {
     private readonly ISupabaseService _supabaseService;
     private readonly IAuthService _authService;
@@ -21,6 +22,7 @@ public sealed class MemberDetailPage : ContentPage
     private MitgliedRecord? _memberRecord;
     private bool _hasLinkedAppUser;
     private bool _isBusy;
+    private bool _isCreateMode;
 
     private readonly Label _headlineLabel;
     private readonly Label _statusLabel;
@@ -99,7 +101,13 @@ public sealed class MemberDetailPage : ContentPage
         _benutzerverwaltungButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(UserManagementPage));
 
         _cancelButton = new Button { Text = "Abbrechen" };
-        _cancelButton.Clicked += async (_, _) => await LoadAsync();
+        _cancelButton.Clicked += async (_, _) =>
+        {
+            if (_isCreateMode)
+                await Shell.Current.GoToAsync("..");
+            else
+                await LoadAsync();
+        };
 
         _saveButton = new Button { Text = "Speichern" };
         _saveButton.Clicked += OnSaveClicked;
@@ -149,6 +157,12 @@ public sealed class MemberDetailPage : ContentPage
         Appearing += async (_, _) => await LoadAsync();
     }
 
+    public void ApplyQueryAttributes(IDictionary<string, object> query)
+    {
+        _isCreateMode = query.TryGetValue("mode", out var mode)
+            && string.Equals(mode?.ToString(), "new", StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task LoadAsync()
     {
         if (_isBusy)
@@ -160,6 +174,12 @@ public sealed class MemberDetailPage : ContentPage
             _statusLabel.Text = string.Empty;
 
             var selectedMember = _memberContextState.SelectedMember;
+            if (_isCreateMode)
+            {
+                ConfigureCreateMode();
+                return;
+            }
+
             if (selectedMember?.Id is not > 0)
             {
                 _headlineLabel.Text = "Kein Mitglied ausgewählt";
@@ -239,6 +259,34 @@ public sealed class MemberDetailPage : ContentPage
         UpdateAdminActions(null);
     }
 
+    private void ConfigureCreateMode()
+    {
+        _memberRecord = null;
+        _hasLinkedAppUser = false;
+        _headlineLabel.Text = "Neues Mitglied";
+        _statusLabel.Text = "Neues Mitglied anlegen.";
+        _nachnameEntry.Text = string.Empty;
+        _vornameEntry.Text = string.Empty;
+        _emailEntry.Text = string.Empty;
+        _emailEntry.IsReadOnly = false;
+        _emailHintLabel.Text = "Für neue Mitglieder kann eine E-Mail-Adresse direkt hinterlegt werden.";
+        _rolleLabel.Text = UserRoles.User;
+        _telefonEntry.Text = string.Empty;
+        _mobilEntry.Text = string.Empty;
+        _whatsappSwitch.IsToggled = false;
+        _strasseEntry.Text = string.Empty;
+        _plzEntry.Text = string.Empty;
+        _ortEntry.Text = string.Empty;
+        _bemerkungenEditor.Text = string.Empty;
+        SetOptionalDate(_geburtsdatumEnabledSwitch, _geburtsdatumPicker, null);
+        SetOptionalDate(_mitgliedSeitEnabledSwitch, _mitgliedSeitPicker, DateTime.Today);
+        SetOptionalDate(_mitgliedEndeEnabledSwitch, _mitgliedEndePicker, null);
+        _saveButton.Text = "Mitglied anlegen";
+        _nutzerHinzufuegenButton.IsVisible = false;
+        _benutzerverwaltungButton.IsVisible = false;
+        _appUserHintLabel.Text = "Der App-User wird nicht direkt beim Anlegen erzeugt, sondern später über den bestehenden Invite-/Benutzerverwaltungsweg.";
+    }
+
     private void UpdateAdminActions(MemberDTO? member)
     {
         var canManageUsers = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
@@ -303,9 +351,6 @@ public sealed class MemberDetailPage : ContentPage
 
     private async void OnSaveClicked(object? sender, EventArgs e)
     {
-        if (_memberRecord == null)
-            return;
-
         var currentRole = _userContextState.CurrentUserContext?.Role;
         if (currentRole is not UserRole.Admin and not UserRole.Vorstand)
         {
@@ -326,6 +371,68 @@ public sealed class MemberDetailPage : ContentPage
             _nachnameEntry.Focus();
             return;
         }
+
+        if (_isCreateMode)
+        {
+            _isBusy = true;
+            try
+            {
+                var created = await _supabaseService.CreateMitgliedAsync(new MemberDTO
+                {
+                    Vorname = _vornameEntry.Text.Trim(),
+                    Nachname = _nachnameEntry.Text.Trim(),
+                    Email = (_emailEntry.Text ?? string.Empty).Trim(),
+                    Telefon = (_telefonEntry.Text ?? string.Empty).Trim(),
+                    Mobilnummer = (_mobilEntry.Text ?? string.Empty).Trim(),
+                    Strasse = (_strasseEntry.Text ?? string.Empty).Trim(),
+                    PLZ = (_plzEntry.Text ?? string.Empty).Trim(),
+                    Ort = (_ortEntry.Text ?? string.Empty).Trim(),
+                    Bemerkungen = (_bemerkungenEditor.Text ?? string.Empty).Trim(),
+                    WhatsappEinwilligung = _whatsappSwitch.IsToggled,
+                    Geburtsdatum = _geburtsdatumEnabledSwitch.IsToggled ? _geburtsdatumPicker.Date : null,
+                    MitgliedSeit = _mitgliedSeitEnabledSwitch.IsToggled ? _mitgliedSeitPicker.Date : null,
+                    MitgliedEnde = _mitgliedEndeEnabledSwitch.IsToggled ? _mitgliedEndePicker.Date : null,
+                    Aktiv = true,
+                    IstHauptmitglied = true,
+                    Role = UserRoles.User
+                });
+
+                if (created == null)
+                {
+                    _statusLabel.Text = "Mitglied konnte nicht angelegt werden.";
+                    return;
+                }
+
+                _memberContextState.SetSelectedMember(MapMember(created));
+                var createNebenmitglied = await DisplayAlert(
+                    "Nebenmitglied anlegen",
+                    "Mitglied angelegt. Soll jetzt ein Nebenmitglied angelegt werden?",
+                    "Ja",
+                    "Nein");
+
+                if (createNebenmitglied)
+                {
+                    await Shell.Current.GoToAsync($"{nameof(NebenmitgliedPage)}?mode=create");
+                    return;
+                }
+
+                await DisplayAlert("OK", "Mitglied angelegt.", "OK");
+                await Shell.Current.GoToAsync(nameof(MeineDatenPage));
+            }
+            catch (Exception ex)
+            {
+                _statusLabel.Text = ex.Message;
+            }
+            finally
+            {
+                _isBusy = false;
+            }
+
+            return;
+        }
+
+        if (_memberRecord == null)
+            return;
 
         var userId = _authService.CurrentUserId;
         if (string.IsNullOrWhiteSpace(userId))
