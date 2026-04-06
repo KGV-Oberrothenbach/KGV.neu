@@ -1,3 +1,4 @@
+using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
 using Microsoft.Maui;
@@ -12,24 +13,27 @@ namespace KGV.Maui.Pages;
 
 public sealed class AblesenOverviewPage : ContentPage
 {
+    private readonly ISupabaseService _supabaseService;
     private readonly PendingPhotoSyncService _pendingPhotoSyncService;
     private readonly PendingPhotoMenuState _pendingPhotoMenuState;
     private readonly KGV.Maui.State.UserContextState _userContextState;
     private readonly Switch _wifiOnlySwitch;
     private readonly Label _wifiOnlyHelpLabel;
+    private readonly View _ablesungTile;
+    private readonly View _zaehlerwechselTile;
+    private readonly View _rfidTile;
+    private readonly View _faelligeZaehlerTile;
+    private readonly View _ablesungenFreigebenTile;
+    private readonly Label _accessHintLabel;
+    private bool _allowUserMeterReadingSubmissions;
 
-  public AblesenOverviewPage(PendingPhotoSyncService pendingPhotoSyncService, PendingPhotoMenuState pendingPhotoMenuState, KGV.Maui.State.UserContextState userContextState)
+    public AblesenOverviewPage(ISupabaseService supabaseService, PendingPhotoSyncService pendingPhotoSyncService, PendingPhotoMenuState pendingPhotoMenuState, KGV.Maui.State.UserContextState userContextState)
     {
+        _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
         _pendingPhotoSyncService = pendingPhotoSyncService;
         _pendingPhotoMenuState = pendingPhotoMenuState;
         _userContextState = userContextState;
         Title = "Ablesen";
-
-        var canReadMeters = PermissionChecks.CanReadMeters(_userContextState.CurrentUserContext);
-        var canSubmitOwnMeterReadings = PermissionChecks.CanSubmitOwnMeterReadings(_userContextState.CurrentUserContext);
-        var canManageMeterChanges = PermissionChecks.CanManageMeterChanges(_userContextState.CurrentUserContext);
-        var canApproveMeterReadings = PermissionChecks.CanApproveMeterReadings(_userContextState.CurrentUserContext);
-        var hasAnyMeterAccess = PermissionChecks.HasAnyMeterAccess(_userContextState.CurrentUserContext);
 
         _wifiOnlySwitch = new Switch { IsToggled = PhotoUploadPreferences.WifiOnly };
         _wifiOnlySwitch.Toggled += (_, e) => PhotoUploadPreferences.WifiOnly = e.Value;
@@ -41,32 +45,24 @@ public sealed class AblesenOverviewPage : ContentPage
             LineBreakMode = LineBreakMode.WordWrap
         };
 
-        var ablesungTile = CreateTile("Ablesung erfassen", "RFID-Tag am Gerät scannen; wenn NFC nicht nutzbar ist, steht ein fachlicher Ersatzweg über Parzelle und Medium bereit.", () => Shell.Current.GoToAsync(nameof(AblesungErfassenPage)));
-        ablesungTile.IsVisible = canReadMeters || canSubmitOwnMeterReadings;
+        _ablesungTile = CreateTile("Ablesung erfassen", "RFID-Tag am Gerät scannen; wenn NFC nicht nutzbar ist, steht ein fachlicher Ersatzweg über Parzelle und Medium bereit.", () => Shell.Current.GoToAsync(nameof(AblesungErfassenPage)));
 
-        var zaehlerwechselTile = CreateTile("Zählerwechsel", "RFID-Tag am Gerät scannen; wenn NFC nicht nutzbar ist, steht ein fachlicher Ersatzweg über Parzelle und Medium bereit.", () => Shell.Current.GoToAsync(nameof(ZaehlerwechselPage)));
-        zaehlerwechselTile.IsVisible = canManageMeterChanges;
+        _zaehlerwechselTile = CreateTile("Zählerwechsel", "RFID-Tag am Gerät scannen; wenn NFC nicht nutzbar ist, steht ein fachlicher Ersatzweg über Parzelle und Medium bereit.", () => Shell.Current.GoToAsync(nameof(ZaehlerwechselPage)));
 
-        var rfidTile = CreateTile("RFID einrichten", "RFID-Tag am Gerät scannen und der gewählten Parzelle für das gewählte Medium zuordnen.", () => Shell.Current.GoToAsync(nameof(RfidEinrichtenPage)));
-        rfidTile.IsVisible = canManageMeterChanges;
+        _rfidTile = CreateTile("RFID einrichten", "RFID-Tag am Gerät scannen und der gewählten Parzelle für das gewählte Medium zuordnen.", () => Shell.Current.GoToAsync(nameof(RfidEinrichtenPage)));
 
-        var faelligeZaehlerTile = CreateTile("Fällige Zähler", "Zähler mit naher Eichfälligkeit anzeigen", () => Shell.Current.GoToAsync(nameof(FaelligeZaehlerPage)));
-        faelligeZaehlerTile.IsVisible = canReadMeters;
+        _faelligeZaehlerTile = CreateTile("Fällige Zähler", "Zähler mit naher Eichfälligkeit anzeigen", () => Shell.Current.GoToAsync(nameof(FaelligeZaehlerPage)));
 
-        var ablesungenFreigebenTile = CreateTile(
+        _ablesungenFreigebenTile = CreateTile(
             "Ablesungen freigeben",
             "Eingereichte Ablesungen mit Pflichtkommentar freigeben, korrigieren oder aus dem offenen Prüfprozess entfernen.",
             () => Shell.Current.GoToAsync(nameof(AblesungenFreigabePage)));
-        ablesungenFreigebenTile.IsVisible = canApproveMeterReadings;
 
-        var accessHintLabel = new Label
+        _accessHintLabel = new Label
         {
-            Text = hasAnyMeterAccess
-                ? "Die sichtbaren Funktionen folgen bereits der zentralen Rechtebasis V1 für Ablesen und Zählerwechsel."
-                : "Mit den aktuellen Fachrechten ist im Bereich `Ablesen` derzeit keine Funktion freigeschaltet.",
             TextColor = Colors.Gray,
             LineBreakMode = LineBreakMode.WordWrap,
-            IsVisible = !hasAnyMeterAccess
+            IsVisible = false
         };
 
         Content = new ScrollView
@@ -100,15 +96,59 @@ public sealed class AblesenOverviewPage : ContentPage
                         }
                     },
                     new Label { Text = "Bitte wähle eine Funktion.", LineBreakMode = LineBreakMode.WordWrap },
-                    accessHintLabel,
-                    ablesungTile,
-                    zaehlerwechselTile,
-                    rfidTile,
-                    faelligeZaehlerTile,
-                    ablesungenFreigebenTile
+                    _accessHintLabel,
+                    _ablesungTile,
+                    _zaehlerwechselTile,
+                    _rfidTile,
+                    _faelligeZaehlerTile,
+                    _ablesungenFreigebenTile
                 }
             }
         };
+
+        UpdateAccessUi();
+    }
+
+    private bool CanReadMeters => PermissionChecks.CanReadMeters(_userContextState.CurrentUserContext);
+    private bool CanSubmitOwnMeterReadings => PermissionChecks.CanSubmitOwnMeterReadings(_userContextState.CurrentUserContext);
+    private bool EffectiveCanSubmitOwnMeterReadings => CanSubmitOwnMeterReadings && _allowUserMeterReadingSubmissions;
+    private bool CanManageMeterChanges => PermissionChecks.CanManageMeterChanges(_userContextState.CurrentUserContext);
+    private bool CanApproveMeterReadings => PermissionChecks.CanApproveMeterReadings(_userContextState.CurrentUserContext);
+    private bool HasAnyVisibleMeterAccess => CanReadMeters || EffectiveCanSubmitOwnMeterReadings || CanManageMeterChanges || CanApproveMeterReadings;
+
+    private async Task<bool> LoadAllowUserMeterReadingSubmissionsAsync()
+    {
+        try
+        {
+            return await _supabaseService.GetAllowUserMeterReadingSubmissionsAsync();
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private void UpdateAccessUi()
+    {
+        _ablesungTile.IsVisible = CanReadMeters || EffectiveCanSubmitOwnMeterReadings;
+        _zaehlerwechselTile.IsVisible = CanManageMeterChanges;
+        _rfidTile.IsVisible = CanManageMeterChanges;
+        _faelligeZaehlerTile.IsVisible = CanReadMeters;
+        _ablesungenFreigebenTile.IsVisible = CanApproveMeterReadings;
+
+        if (!HasAnyVisibleMeterAccess)
+        {
+            _accessHintLabel.Text = CanSubmitOwnMeterReadings
+                ? "Eigene Zählerablesungen sind aktuell zentral deaktiviert. Weitere Funktionen sind mit dem aktuellen Kontext nicht freigeschaltet."
+                : "Mit den aktuellen Fachrechten ist im Bereich `Ablesen` derzeit keine Funktion freigeschaltet.";
+            _accessHintLabel.IsVisible = true;
+            return;
+        }
+
+        _accessHintLabel.Text = EffectiveCanSubmitOwnMeterReadings && !CanReadMeters && !CanManageMeterChanges && !CanApproveMeterReadings
+            ? "Eigene Zählerablesungen werden in diesem Kontext als Einreichung gespeichert und erst über den Prüfprozess wirksam."
+            : "Die sichtbaren Funktionen folgen der zentralen Rechtebasis für Nutzerablesung, Freigabe und Zählerwechsel.";
+        _accessHintLabel.IsVisible = true;
     }
 
     private static View CreateTile(string title, string subtitle, Func<Task> navigateAsync)
@@ -138,6 +178,9 @@ public sealed class AblesenOverviewPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+
+        _allowUserMeterReadingSubmissions = await LoadAllowUserMeterReadingSubmissionsAsync();
+        UpdateAccessUi();
 
         try
         {

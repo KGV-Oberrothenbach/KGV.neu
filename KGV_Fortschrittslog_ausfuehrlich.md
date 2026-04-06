@@ -2,6 +2,48 @@
 
 ---
 
+## 2026-04-06 – Vergleichslauf `main` vs. `compare/lokaler-stand`: sinnvolle Ablesen-/Home-Nachzüge übernommen
+
+- Ausgangspunkt dieses Laufs war der gezielte Vergleich zwischen:
+  - Zielstand `main`
+  - Vergleichsquelle `compare/lokaler-stand`
+- Zu Beginn wurde der echte Git-Stand geprüft:
+  - aktiver Ausgangsbranch war `compare/lokaler-stand`
+  - relevante Unterschiede gegen `main` wurden gezielt für die angeforderten Dateien geprüft
+  - blockfremde Dateien wie `.github/copilot-instructions.md`, `AWR.bat`, `_secrets/` und `ToDo.md` wurden bewusst nicht übernommen
+- Verglichene Schwerpunktdateien:
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Wpf/Infrastructure/Services/NavigationService.cs`
+  - `KGV.Wpf/ViewModels/AblesenOverviewViewModel.cs`
+  - `KGV.Wpf/Views/AblesenOverviewView.xaml`
+- Ehrlicher Vergleichsbefund:
+  - in `KGV.Wpf/ViewModels/AblesenOverviewViewModel.cs` fehlte auf `main` noch die wirksame Berücksichtigung des Admin-Schalters für Nutzer-Ablesungen
+  - in `KGV.Wpf/Infrastructure/Services/NavigationService.cs` fehlte folgerichtig noch die Verdrahtung des zusätzlichen Service-Parameters
+  - in `KGV.Maui/Pages/AblesenOverviewPage.cs` fehlte auf `main` ebenfalls noch die wirksame Berücksichtigung des Admin-Schalters samt klareren Hinweistexte im Einstieg
+  - in `KGV.Maui/Pages/HomePage.xaml.cs` lag lokal ein kleiner, sinnvoller Reload-Nachzug für `OnAppearing` und Member-Kontextwechsel vor
+  - `KGV.Wpf/Views/AblesenOverviewView.xaml` wurde mitverglichen; die fachlich sinnvollen Sichtbarkeiten waren auf `main` bereits vorhanden, der lokale Zusatzpfad wurde bewusst nicht blind übernommen
+- Minimal übernommen:
+  - in `KGV.Wpf/ViewModels/AblesenOverviewViewModel.cs`
+    - `ISupabaseService` eingebunden
+    - Admin-Schalter für Nutzer-Ablesungen wirksam berücksichtigt
+    - Beschreibung und `HasAnyMeterAccess` an den effektiven Freigabestand angepasst
+  - in `KGV.Wpf/Infrastructure/Services/NavigationService.cs`
+    - neuen Konstruktor sauber verdrahtet
+  - in `KGV.Maui/Pages/AblesenOverviewPage.cs`
+    - Admin-Schalter für Nutzer-Ablesungen wirksam berücksichtigt
+    - sichtbare Tiles und Hinweistexte an den effektiven Freigabestand gebunden
+  - in `KGV.Maui/Pages/HomePage.xaml.cs`
+    - Home-Reload bei `OnAppearing` und Member-Kontextwechsel auf erzwungenen Reload nachgezogen
+- Bewusst nicht übernommen:
+  - lokaler blockfremder Stand aus `.github/copilot-instructions.md`
+  - untracked `AWR.bat`, `ToDo.md`, `_secrets/`
+  - kein blindes Zurückdrehen des neueren `main`-Stands in `KGV.Wpf/Views/AblesenOverviewView.xaml`
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-06 – Ablesen-Abschlusslauf: WPF-Sichtbarkeiten im Produktiv-Einstieg sauber nachgezogen
 
 - Ausgangspunkt dieses Laufs war der noch offene Arbeitsbaum zum bereits begonnenen `Ablesen`-Block.

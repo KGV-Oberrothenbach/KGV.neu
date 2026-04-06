@@ -72,7 +72,7 @@ namespace KGV.Infrastructure.Services
 
             if (viewModelType == typeof(AblesenOverviewViewModel))
             {
-                return new AblesenOverviewViewModel(mainVm);
+                return new AblesenOverviewViewModel(mainVm, _supabaseService);
             }
 
             if (viewModelType == typeof(AblesungErfassenViewModel))

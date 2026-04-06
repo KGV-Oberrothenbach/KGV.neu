@@ -267,7 +267,7 @@ public class HomePage : ContentPage
             _isSubscribed = true;
         }
 
-        ScheduleLoad();
+        ScheduleLoad(forceReload: true);
     }
 
     protected override void OnDisappearing()
@@ -285,7 +285,7 @@ public class HomePage : ContentPage
     {
         _viewModel.Invalidate();
         if (IsVisible)
-            ScheduleLoad();
+            ScheduleLoad(forceReload: true);
     }
 
     private void ScheduleLoad()
