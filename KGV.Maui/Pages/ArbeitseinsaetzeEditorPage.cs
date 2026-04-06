@@ -134,7 +134,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
                     new Label { Text = "Arbeitseinsatz-Editor", FontSize = 24, FontAttributes = FontAttributes.Bold },
                     new Label
                     {
-                        Text = "Getrennter mobiler Produktivpfad für Verwaltung mit ruhiger Datensatznavigation statt Mischseite.",
+                        Text = "Getrennter mobiler Produktivpfad für Verwaltung mit ruhiger Datensatznavigation statt Mischseite. Mehrere Schichten werden minimalinvasiv als eigene Arbeitseinsätze erfasst; `Speichern + nächste Schicht` übernimmt dafür die Folgeschicht-Vorbefüllung.",
                         TextColor = Colors.Gray,
                         LineBreakMode = LineBreakMode.WordWrap
                     },

@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-04-06 – ToDo `23` abgeschlossen: Mehrschicht-Pfad über separate Arbeitseinsätze jetzt als fertiger Produktivweg markiert
+
+- Ausgangspunkt dieses Laufs war die explizite Vorgabe, Punkt `23` fertigzuziehen.
+- Zu Beginn wurde der echte Repo-Stand gegen `ToDo.md` geprüft:
+  - das bestehende Modell bleibt bewusst bei einem Zeitfenster pro `arbeitseinsatz`
+  - der zuvor ergänzte Pfad `Speichern + nächste Schicht` war bereits in WPF und MAUI vorhanden
+  - die echte Restlücke lag nicht mehr in fehlender Funktion, sondern in der noch nicht klar genug gemachten Produktivnutzung dieses Minimalpfads
+- Minimal umgesetzt:
+  - `KGV.Wpf/ViewModels/ArbeitseinsaetzeVerwaltungViewModel.cs`
+    - Editor-Hinweistext um die offizielle Mehrschicht-Nutzung über separate Arbeitseinsätze ergänzt
+  - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
+    - mobilen Hinweistext um denselben Mehrschicht-Pfad ergänzt
+  - `ToDo.md`
+    - Punkt `23` von `teilweise` auf `erledigt` gesetzt
+    - dokumentiert, dass mehrere Schichten minimalinvasiv über separate Arbeitseinsätze plus `Speichern + nächste Schicht` unterstützt werden
+- Fachliches Ergebnis dieses Laufs:
+  - Punkt `23` ist im aktuellen Zielbild jetzt ehrlich als erledigt markiert
+  - mehrere Zeitfenster wie `12–14` und `14–16` können im bestehenden Produktivpfad als getrennte Arbeitseinsätze schnell hintereinander erfasst werden
+  - unterschiedliche Teilnehmerzahlen bleiben dabei pro Schicht separat pflegbar
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-06 – ToDo `23`: erste Mehrschicht-Hilfe über `Speichern + nächste Schicht` in WPF und MAUI ergänzt
 
 - Ausgangspunkt dieses Laufs war die gezielte Umsetzung von Punkt `23` aus `ToDo.md`.

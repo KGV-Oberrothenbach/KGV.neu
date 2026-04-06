@@ -48,7 +48,7 @@ namespace KGV.ViewModels
         public string EmptyText => "Aktuell wurden in der Basistabelle `arbeitseinsatz` keine Arbeitseinsätze gefunden.";
         public string ReadPathText => "Lesepfad: arbeitseinsatz";
         public string WritePathText => "Schreibpfad: arbeitseinsatz";
-        public string ValidationHintText => "Pflichtfelder: Titel und Datum. `Enduhrzeit` darf nicht vor `Startuhrzeit` liegen. `Sichtbar bis` darf nicht vor `Sichtbar ab` liegen. Teilnehmerbegrenzung speichert unbegrenzt als leer/NULL, `Stundenwert` bleibt optional und darf nicht negativ sein.";
+        public string ValidationHintText => "Pflichtfelder: Titel und Datum. `Enduhrzeit` darf nicht vor `Startuhrzeit` liegen. `Sichtbar bis` darf nicht vor `Sichtbar ab` liegen. Teilnehmerbegrenzung speichert unbegrenzt als leer/NULL, `Stundenwert` bleibt optional und darf nicht negativ sein. Mehrere Schichten werden minimalinvasiv als eigene Arbeitseinsätze erfasst; `Speichern + nächste Schicht` übernimmt dafür die Folgeschicht-Vorbefüllung.";
         public bool HasEntries => Entries.Count > 0;
         public bool ShowEmptyState => !HasEntries;
         public bool IsExistingEntry => IsEditorOpen && !IsNewMode;
