@@ -30,6 +30,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
     private readonly Switch _activeSwitch;
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
+    private readonly Button _deleteButton;
 
     private long? _entryId;
     private TerminRecord? _existingRecord;
@@ -75,6 +76,9 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         _cancelButton = new Button { Text = "Abbrechen" };
         _cancelButton.Clicked += async (_, _) => await NavigateToOverviewAsync();
 
+        _deleteButton = new Button { Text = "Löschen", IsVisible = false, BackgroundColor = Colors.IndianRed, TextColor = Colors.White };
+        _deleteButton.Clicked += async (_, _) => await DeleteAsync();
+
         Content = new ScrollView
         {
             Content = new VerticalStackLayout
@@ -97,7 +101,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
                     new HorizontalStackLayout
                     {
                         Spacing = 8,
-                        Children = { _cancelButton, _saveButton }
+                        Children = { _cancelButton, _deleteButton, _saveButton }
                     }
                 }
             }
@@ -188,6 +192,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         _visibleToDatePicker.Date = visibleTo.Date;
         _visibleToTimePicker.Time = visibleTo.TimeOfDay;
         _activeSwitch.IsToggled = _existingRecord.Aktiv;
+        _deleteButton.IsVisible = true;
         SetEnabledState(true);
     }
 
@@ -210,6 +215,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         _visibleToDatePicker.Date = visibleTo.Date;
         _visibleToTimePicker.Time = visibleTo.TimeOfDay;
         _activeSwitch.IsToggled = true;
+        _deleteButton.IsVisible = false;
         SetEnabledState(true);
     }
 
@@ -326,6 +332,55 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         _activeSwitch.IsEnabled = enabled;
         _saveButton.IsEnabled = enabled;
         _cancelButton.IsEnabled = enabled;
+        _deleteButton.IsEnabled = enabled && _existingRecord != null;
+    }
+
+    private async Task DeleteAsync()
+    {
+        var existingRecord = _existingRecord;
+        if (!_isAuthorized)
+            return;
+
+        if (existingRecord is null || existingRecord.Id <= 0)
+            return;
+
+        var titel = string.IsNullOrWhiteSpace(existingRecord.Titel)
+            ? "diesen Termin"
+            : $"den Termin \"{existingRecord.Titel.Trim()}\"";
+
+        var confirmed = await DisplayAlert("Termin löschen", $"Soll {titel} wirklich gelöscht werden?", "Löschen", "Abbrechen");
+        if (!confirmed)
+            return;
+
+        _statusLabel.Text = "Datensatz wird gelöscht.";
+        _statusLabel.TextColor = Colors.DarkSlateBlue;
+        SetEnabledState(false);
+
+        try
+        {
+            await Task.Yield();
+
+            var success = await _supabaseService.DeleteTerminAsync(existingRecord.Id);
+            if (!success)
+            {
+                _statusLabel.Text = "Termin konnte nicht gelöscht werden.";
+                _statusLabel.TextColor = Colors.IndianRed;
+                return;
+            }
+
+            _homeViewModel.Invalidate();
+            await DisplayAlert("Termin löschen", "Der Termin wurde gelöscht.", "OK");
+            await NavigateToOverviewAsync();
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = ex.Message;
+            _statusLabel.TextColor = Colors.IndianRed;
+        }
+        finally
+        {
+            SetEnabledState(true);
+        }
     }
 
     private async Task CompleteSuccessfulSaveAsync(string successMessage)
@@ -349,7 +404,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
 
     private Task NavigateToOverviewAsync()
     {
-        return Shell.Current.GoToAsync("//home");
+        return Shell.Current.GoToAsync("//management_appointments");
     }
 
     private static View CreateField(string title, View field)

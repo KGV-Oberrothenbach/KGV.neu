@@ -35,6 +35,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
     private readonly WebView _previewWebView;
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
+    private readonly Button _deleteButton;
 
     private long? _entryId;
     private BekanntmachungRecord? _existingRecord;
@@ -117,6 +118,9 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         _cancelButton = new Button { Text = "Abbrechen" };
         _cancelButton.Clicked += async (_, _) => await NavigateToOverviewAsync();
 
+        _deleteButton = new Button { Text = "Löschen", IsVisible = false, BackgroundColor = Colors.IndianRed, TextColor = Colors.White };
+        _deleteButton.Clicked += async (_, _) => await DeleteAsync();
+
         Content = new ScrollView
         {
             Content = new VerticalStackLayout
@@ -140,7 +144,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
                     new HorizontalStackLayout
                     {
                         Spacing = 8,
-                        Children = { _cancelButton, _saveButton }
+                        Children = { _cancelButton, _deleteButton, _saveButton }
                     }
                 }
             }
@@ -231,6 +235,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         _visibleToTimeEntry.Text = visibleTo.ToString("HH:mm", CultureInfo.CurrentCulture);
         _sortOrderEntry.Text = _existingRecord.SortOrder?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         _activeSwitch.IsToggled = _existingRecord.Aktiv;
+        _deleteButton.IsVisible = true;
         SetEnabledState(true);
         RefreshPreview();
     }
@@ -251,6 +256,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         _visibleToTimeEntry.Text = visibleTo.ToString("HH:mm", CultureInfo.CurrentCulture);
         _sortOrderEntry.Text = string.Empty;
         _activeSwitch.IsToggled = true;
+        _deleteButton.IsVisible = false;
         SetEnabledState(true);
         RefreshPreview();
     }
@@ -420,6 +426,55 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         _previewTabButton.IsEnabled = enabled;
         _saveButton.IsEnabled = enabled;
         _cancelButton.IsEnabled = enabled;
+        _deleteButton.IsEnabled = enabled && _existingRecord != null;
+    }
+
+    private async Task DeleteAsync()
+    {
+        var existingRecord = _existingRecord;
+        if (!_isAuthorized)
+            return;
+
+        if (existingRecord is null || existingRecord.Id <= 0)
+            return;
+
+        var titel = string.IsNullOrWhiteSpace(existingRecord.Titel)
+            ? "diese Bekanntmachung"
+            : $"die Bekanntmachung \"{existingRecord.Titel.Trim()}\"";
+
+        var confirmed = await DisplayAlert("Bekanntmachung löschen", $"Soll {titel} wirklich gelöscht werden?", "Löschen", "Abbrechen");
+        if (!confirmed)
+            return;
+
+        _statusLabel.Text = "Datensatz wird gelöscht.";
+        _statusLabel.TextColor = Colors.DarkSlateBlue;
+        SetEnabledState(false);
+
+        try
+        {
+            await Task.Yield();
+
+            var success = await _supabaseService.DeleteBekanntmachungAsync(existingRecord.Id);
+            if (!success)
+            {
+                _statusLabel.Text = "Bekanntmachung konnte nicht gelöscht werden.";
+                _statusLabel.TextColor = Colors.IndianRed;
+                return;
+            }
+
+            _homeViewModel.Invalidate();
+            await DisplayAlert("Bekanntmachung löschen", "Die Bekanntmachung wurde gelöscht.", "OK");
+            await NavigateToOverviewAsync();
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = ex.Message;
+            _statusLabel.TextColor = Colors.IndianRed;
+        }
+        finally
+        {
+            SetEnabledState(true);
+        }
     }
 
     private void SetHtmlMode(bool showPreview)
@@ -541,7 +596,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
 
     private Task NavigateToOverviewAsync()
     {
-        return Shell.Current.GoToAsync("//home");
+        return Shell.Current.GoToAsync("//management_announcements");
     }
 
     private static long? TryReadLong(IDictionary<string, object> query, string key)

@@ -2,6 +2,37 @@
 
 ---
 
+## 2026-04-06 – ToDo `A1`/`A2`: MAUI-Löschpfade für `Termin` und `Bekanntmachung` gegen echte Management-Übersichten finalisiert
+
+- Ausgangspunkt dieses Laufs war ausdrücklich die Fortsetzung von `ToDo.md` für:
+  - `A1. Termin komplett löschen`
+  - `A2. Bekanntmachung komplett löschen`
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `ToDo.md`
+  - `KGV.Wpf/ViewModels/TermineVerwaltungViewModel.cs`
+  - `KGV.Wpf/ViewModels/BekanntmachungenVerwaltungViewModel.cs`
+  - `KGV.Maui/Pages/TermineEditorPage.cs`
+  - `KGV.Maui/Pages/BekanntmachungEditorPage.cs`
+  - `KGV.Maui/Pages/TermineManagementPage.cs`
+  - `KGV.Maui/Pages/BekanntmachungenManagementPage.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+- Ehrlicher Istzustand vor dem Minimalfix:
+  - WPF war für `Termin löschen` und `Bekanntmachung löschen` im aktuellen Workspace bereits vollständig: Sicherheitsabfrage, Shared-Service-Löschpfad, Listen-Reload und Erfolgsdialog waren vorhanden
+  - MAUI hatte die Löschaktionen in den beiden Editorseiten bereits weitgehend produktiv angebunden
+  - der verbleibende fachliche Rest saß nur noch im Rückweg der mobilen `Bekanntmachung`: nach `Speichern/Löschen` wurde noch `//home` statt der echten Bekanntmachungen-Übersicht geöffnet
+- Minimal umgesetzt:
+  - in `KGV.Maui/Pages/BekanntmachungEditorPage.cs` den Überblick-Rückweg von `//home` auf `//management_announcements` umgestellt
+  - `KGV.Maui/Pages/TermineEditorPage.cs` blieb unverändert, weil der Rückweg dort bereits korrekt auf `//management_appointments` lief
+  - keine neue Löscharchitektur, keine neue Managementseite und keine Änderung an WPF erzwungen
+- Fachliche Wirkung dieses Fixes:
+  - `Termin löschen` bleibt in MAUI vollständig auf demselben sauberen Produktpfad
+  - `Bekanntmachung löschen` führt mobil jetzt ebenfalls zurück in die richtige Management-Übersicht
+  - die bestehende Reload-Logik der mobilen Übersichtsseiten beim Wiedererscheinen sorgt danach für die sichtbare Aktualisierung der Liste
+  - ToDo `A1` und `A2` sind damit im aktuellen Workspace fachlich geschlossen, soweit der echte Produktivpfad belastbar im Code vorliegt
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-05 – Typfix für `SetUserPermissionSettingsAsync(...)`: `app_user.int8`-Write-Pfad explizit auf `long?` gezogen
 
 - Ausgangspunkt dieses Laufs war ausdrücklich kein neuer Rechteumbau, sondern nur der jetzt klar eingegrenzte Save-Fehler im WPF-/MAUI-Permission-Settings-Pfad.

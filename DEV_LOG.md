@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-04-06 – MAUI-Löschpfade für `Termin` und `Bekanntmachung` gegen ToDo `A1`/`A2` sauber abgeschlossen
+
+- Ausgangspunkt dieses Laufs war ausdrücklich die ToDo-Fortsetzung zu:
+  - `A1. Termin komplett löschen`
+  - `A2. Bekanntmachung komplett löschen`
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `ToDo.md`
+  - `KGV.Wpf/ViewModels/TermineVerwaltungViewModel.cs`
+  - `KGV.Wpf/ViewModels/BekanntmachungenVerwaltungViewModel.cs`
+  - `KGV.Maui/Pages/TermineEditorPage.cs`
+  - `KGV.Maui/Pages/BekanntmachungEditorPage.cs`
+  - `KGV.Maui/Pages/TermineManagementPage.cs`
+  - `KGV.Maui/Pages/BekanntmachungenManagementPage.cs`
+- Ehrlicher Istbefund vor dem Abschluss:
+  - WPF hatte die produktiven Löschpfade für `Termin` und `Bekanntmachung` bereits vollständig inklusive Sicherheitsabfrage, Reload und Erfolgsrückmeldung
+  - MAUI hatte die Löschbuttons und den Shared-Service-Aufruf bereits weitgehend vorbereitet
+  - die verbleibende reale Restkante saß im mobilen Rückweg der `Bekanntmachung` nach `Speichern/Löschen`: dort wurde noch auf `//home` statt auf die echte Bekanntmachungen-Übersicht navigiert
+- Minimal umgesetzt:
+  - `KGV.Maui/Pages/BekanntmachungEditorPage.cs`
+    - `NavigateToOverviewAsync()` auf `//management_announcements` gezogen
+  - `KGV.Maui/Pages/TermineEditorPage.cs` blieb im bereits korrekten Stand auf `//management_appointments`
+  - keine Änderung an WPF, weil der WPF-Pfad für `A1`/`A2` im aktuellen Workspace bereits fachlich korrekt war
+- Fachliches Ergebnis dieses Laufs:
+  - `Termin löschen` in MAUI bleibt mit Sicherheitsabfrage, Shared-Service-Delete, Erfolgsdialog und Rückkehr in die echte Termin-Übersicht konsistent
+  - `Bekanntmachung löschen` in MAUI läuft jetzt ebenfalls mit Sicherheitsabfrage, Shared-Service-Delete, Erfolgsdialog und Rückkehr in die echte Bekanntmachungen-Übersicht statt zurück auf `Home`
+  - die Management-Übersichten laden beim Wiedererscheinen weiter neu; damit wird die Liste nach dem Löschen sauber aktualisiert
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-05 – Typfix im WPF-Permission-Save-Pfad für `app_user.int8`-Felder minimal korrigiert
 
 - Arbeitsgrundlage war ausdrücklich nur der eingegrenzte Save-Fehler in `SetUserPermissionSettingsAsync(...)`; keine neue Rechtearchitektur und keine neue UI-Baustelle.
