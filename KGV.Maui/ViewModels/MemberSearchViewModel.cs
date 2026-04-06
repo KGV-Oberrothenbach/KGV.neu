@@ -23,12 +23,15 @@ public class MemberSearchViewModel : INotifyPropertyChanged
     private string _searchText = string.Empty;
     private string _statusMessage = string.Empty;
     private bool _isBusy;
+    private bool _isRefreshing;
+    private bool _hasLoaded;
     private bool _searchByParzelle;
 
     public MemberSearchViewModel(ISupabaseService supabaseService)
     {
         _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
         SearchCommand = new Command(ApplyFilter);
+        RefreshCommand = new Command(async () => await RefreshAsync());
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -36,6 +39,7 @@ public class MemberSearchViewModel : INotifyPropertyChanged
     public ObservableCollection<MemberSearchResultItem> Results { get; } = new();
     public ObservableCollection<string> DebugMessages { get; } = new();
     public ICommand SearchCommand { get; }
+    public ICommand RefreshCommand { get; }
 
     public string SearchText
     {
@@ -48,6 +52,19 @@ public class MemberSearchViewModel : INotifyPropertyChanged
             _searchText = value ?? string.Empty;
             OnPropertyChanged();
             ApplyFilter();
+        }
+    }
+
+    public bool IsRefreshing
+    {
+        get => _isRefreshing;
+        private set
+        {
+            if (_isRefreshing == value)
+                return;
+
+            _isRefreshing = value;
+            OnPropertyChanged();
         }
     }
 
@@ -94,9 +111,22 @@ public class MemberSearchViewModel : INotifyPropertyChanged
         }
     }
 
-    public async Task InitializeAsync()
+    public async Task InitializeAsync(bool forceReload = false)
     {
-        if (_allMembers.Count > 0 || _allParzellen.Count > 0)
+        await LoadAsync(forceReload);
+    }
+
+    public async Task RefreshAsync()
+    {
+        await LoadAsync(forceReload: true, isManualRefresh: true);
+    }
+
+    private async Task LoadAsync(bool forceReload, bool isManualRefresh = false)
+    {
+        if (IsBusy)
+            return;
+
+        if (_hasLoaded && !forceReload)
         {
             ApplyFilter();
             return;
@@ -105,6 +135,7 @@ public class MemberSearchViewModel : INotifyPropertyChanged
         try
         {
             IsBusy = true;
+            IsRefreshing = isManualRefresh;
             DebugMessages.Clear();
             StatusMessage = "Mitglieder werden geladen...";
 
@@ -130,6 +161,7 @@ public class MemberSearchViewModel : INotifyPropertyChanged
             DebugMessages.Add($"Mitglieder geladen: {_allMembers.Count}");
             DebugMessages.Add($"Parzellen geladen: {_allParzellen.Count}");
 
+            _hasLoaded = true;
             ApplyFilter();
             StatusMessage = _allMembers.Count == 0 ? "Keine Mitglieder gefunden." : string.Empty;
         }
@@ -140,6 +172,7 @@ public class MemberSearchViewModel : INotifyPropertyChanged
         }
         finally
         {
+            IsRefreshing = false;
             IsBusy = false;
         }
     }

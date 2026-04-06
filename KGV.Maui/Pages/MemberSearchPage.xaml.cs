@@ -13,14 +13,16 @@ public partial class MemberSearchPage : ContentPage
 {
     private readonly MemberSearchViewModel _vm;
     private readonly MemberContextState _memberContextState;
+    private readonly MemberSearchRefreshState _memberSearchRefreshState;
     private readonly UserContextState _userContextState;
     private CollectionView? _resultsCollectionView;
     private bool _memberSwitchInProgress;
 
-    public MemberSearchPage(MemberSearchViewModel vm, MemberContextState memberContextState, UserContextState userContextState)
+    public MemberSearchPage(MemberSearchViewModel vm, MemberContextState memberContextState, MemberSearchRefreshState memberSearchRefreshState, UserContextState userContextState)
     {
         _vm = vm;
         _memberContextState = memberContextState;
+        _memberSearchRefreshState = memberSearchRefreshState;
         _userContextState = userContextState;
         BindingContext = _vm;
         Title = "Mitgliedersuche";
@@ -209,6 +211,13 @@ public partial class MemberSearchPage : ContentPage
         _resultsCollectionView.SetBinding(ItemsView.ItemsSourceProperty, nameof(MemberSearchViewModel.Results));
         _resultsCollectionView.SelectionChanged += ResultsCollectionView_SelectionChanged;
 
+        var refreshView = new RefreshView
+        {
+            Content = _resultsCollectionView
+        };
+        refreshView.SetBinding(RefreshView.CommandProperty, nameof(MemberSearchViewModel.RefreshCommand));
+        refreshView.SetBinding(RefreshView.IsRefreshingProperty, nameof(MemberSearchViewModel.IsRefreshing), mode: BindingMode.TwoWay);
+
         var debugCollectionView = new CollectionView
         {
             HeightRequest = 120,
@@ -240,8 +249,8 @@ public partial class MemberSearchPage : ContentPage
         rootGrid.Children.Add(titleLabel);
         rootGrid.Children.Add(searchSection);
         Grid.SetRow(searchSection, 1);
-        rootGrid.Children.Add(_resultsCollectionView);
-        Grid.SetRow(_resultsCollectionView, 2);
+        rootGrid.Children.Add(refreshView);
+        Grid.SetRow(refreshView, 2);
         rootGrid.Children.Add(debugCollectionView);
         Grid.SetRow(debugCollectionView, 3);
 
@@ -250,7 +259,7 @@ public partial class MemberSearchPage : ContentPage
 
     private async void MemberSearchPage_Appearing(object? sender, EventArgs e)
     {
-        await _vm.InitializeAsync();
+        await _vm.InitializeAsync(_memberSearchRefreshState.ConsumeReloadRequest());
     }
 
     private async void ResultsCollectionView_SelectionChanged(object? sender, SelectionChangedEventArgs e)

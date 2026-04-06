@@ -2,6 +2,45 @@
 
 ---
 
+## 2026-04-06 – MAUI-Folgeblock: Mitgliedersuche lädt nach Neuanlage wieder sauber neu, Pull-to-Refresh funktioniert, `Nebenmitglied` zeigt `Neu`
+
+- Ausgangspunkt dieses Laufs war die Vorgabe, drei eng zusammenhängende MAUI-Restlücken im Mitgliedskontext minimalinvasiv zu schließen:
+  - Mitgliedersuche lädt nach erfolgreicher Neuanlage nicht zuverlässig neu
+  - Pull-to-Refresh in der Mitgliedersuche war noch nicht wirksam
+  - auf der Seite `Nebenmitglied` fehlte bei nicht vorhandenem Nebenmitglied ein sichtbarer `Neu`-Einstieg
+- Ehrlicher Repo-Befund vor dem Fix:
+  - `MemberSearchPage` rief beim `Appearing` nur `InitializeAsync()` auf, das nach erstem Laden nur noch filterte und keine echte Neuladung mehr auslöste
+  - ein echter Pull-to-Refresh-Container fehlte
+  - `NebenmitgliedPage` konnte im No-Data-Fall nur einen Hinweis zeigen; ein eigener `Neu`-Button auf dieser Seite fehlte
+  - ein wiederverwendbarer Nebenmitglied-Create-Pfad war aber bereits vorhanden (`mode=create` auf derselben Seite plus bestehender Servicepfad `CreateNebenmitgliedAsync`)
+- Minimal umgesetzt:
+  - `KGV.Maui/State/MemberSearchRefreshState.cs`
+    - kleine Reload-Flag für die Mitgliedersuche ergänzt
+  - `KGV.Maui/MauiProgram.cs`
+    - Reload-State als Singleton registriert
+  - `KGV.Maui/ViewModels/MemberSearchViewModel.cs`
+    - echte Reload-/Refresh-Logik ergänzt
+    - Pull-to-Refresh-Command ergänzt
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+    - `RefreshView` ergänzt
+    - beim Zurückkehren wird jetzt nur bei angeforderter Neuladung wirklich reloadet
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+    - nach erfolgreicher Hauptmitglied-Neuanlage wird jetzt ein Reload der Mitgliedersuche markiert
+  - `KGV.Maui/Pages/NebenmitgliedPage.cs`
+    - bei fehlendem Nebenmitglied wird jetzt `Neu` angezeigt
+    - `Neu` öffnet denselben Create-Pfad direkt auf der Seite
+    - Adressübernahme bleibt Vorbelegung; eingegebene Kontakt-/Adressdaten werden nach der Anlage über den bestehenden Update-Pfad gespeichert
+  - `ToDo.md`
+    - Folgeprüfung um den jetzt belastbaren Search-Reload- und `Nebenmitglied`-Neu-Zustand ergänzt
+- Fachliches Ergebnis dieses Laufs:
+  - neu angelegte Mitglieder erscheinen nach Rückkehr zur MAUI-Mitgliedersuche wieder belastbar nach echter Neuladung
+  - Nach-unten-Ziehen löst jetzt wirklich einen Reload aus
+  - `Nebenmitglied` bietet bei fehlendem Datensatz jetzt einen klaren `Neu`-Einstieg ohne neue Schattenlogik
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-06 – Folgeflow nach Mitglied-Neuanlage ergänzt: direkte Nachfrage und Nebenmitglied-Start in WPF und MAUI
 
 - Ausgangspunkt dieses Laufs war der nächste offene Folgeblock nach dem bereits erledigten Button `Mitglied neu anlegen`.

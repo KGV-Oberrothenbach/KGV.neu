@@ -54,6 +54,8 @@ Diese Folgeprüfung wurde nach zusätzlicher Nutzerpriorisierung gegen den echte
 - MAUI-Mitgliedersuche hat den Button jetzt im Suchbereich
 - beide Pfade öffnen einen minimalen produktiven Neuanlagepfad für neue Hauptmitglieder
 - nach erfolgreicher Hauptmitglied-Neuanlage wird jetzt direkt gefragt, ob ein Nebenmitglied angelegt werden soll
+- MAUI-Mitgliedersuche lädt nach erfolgreicher Neuanlage beim Rückweg wieder belastbar neu und unterstützt funktionierendes Pull-to-Refresh
+- auf der MAUI-Seite `Nebenmitglied` erscheint bei fehlendem Nebenmitglied jetzt `Neu` und öffnet denselben Create-Pfad mit optionaler Adressübernahme
 
 ### Termin: Buttons `Bearbeiten` und `Löschen`
 **Status:** erledigt

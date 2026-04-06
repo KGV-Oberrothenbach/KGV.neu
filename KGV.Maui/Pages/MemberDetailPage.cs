@@ -16,6 +16,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 {
     private readonly ISupabaseService _supabaseService;
     private readonly IAuthService _authService;
+    private readonly MemberSearchRefreshState _memberSearchRefreshState;
     private readonly UserContextState _userContextState;
     private readonly MemberContextState _memberContextState;
 
@@ -53,11 +54,13 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     public MemberDetailPage(
         ISupabaseService supabaseService,
         IAuthService authService,
+        MemberSearchRefreshState memberSearchRefreshState,
         UserContextState userContextState,
         MemberContextState memberContextState)
     {
         _supabaseService = supabaseService;
         _authService = authService;
+        _memberSearchRefreshState = memberSearchRefreshState;
         _userContextState = userContextState;
         _memberContextState = memberContextState;
 
@@ -403,6 +406,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     return;
                 }
 
+                _memberSearchRefreshState.RequestReload();
                 _memberContextState.SetSelectedMember(MapMember(created));
                 var createNebenmitglied = await DisplayAlert(
                     "Nebenmitglied anlegen",

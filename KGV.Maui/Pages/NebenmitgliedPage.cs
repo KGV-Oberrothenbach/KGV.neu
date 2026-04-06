@@ -36,6 +36,7 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
     private readonly Entry _adresseEntry;
     private readonly Entry _plzEntry;
     private readonly Entry _ortEntry;
+    private readonly Button _newButton;
     private readonly Button _saveButton;
 
     public NebenmitgliedPage(ISupabaseService supabaseService, UserContextState state, MemberContextState memberContextState)
@@ -81,6 +82,9 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
         _plzEntry = new Entry { Placeholder = "PLZ (Pflicht)", Keyboard = Keyboard.Numeric };
         _ortEntry = new Entry { Placeholder = "Ort (Pflicht)" };
 
+        _newButton = new Button { Text = "Neu", IsVisible = false };
+        _newButton.Clicked += (_, _) => EnterCreateMode();
+
         _saveButton = new Button { Text = "Speichern" };
         _saveButton.Clicked += OnSaveClicked;
 
@@ -94,6 +98,7 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
                 {
                     _nameLabel,
                     _hintLabel,
+                    _newButton,
                     _createSection,
                     new Label { Text = "Kontakt/Adresse (nur diese Felder sind editierbar)", FontAttributes = FontAttributes.Italic },
                     _telefonEntry,
@@ -167,21 +172,27 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
                     return;
                 }
 
-                await DisplayAlert("Hinweis", "Kein Nebenmitglied vorhanden.", "OK");
                 _state.CurrentNebenMitgliedId = null;
                 _neben = null;
                 _nameLabel.Text = "Kein Nebenmitglied vorhanden";
+                _hintLabel.Text = "Für dieses Hauptmitglied besteht aktuell noch kein Nebenmitglied. Über `Neu` kann jetzt direkt eines angelegt werden.";
+                _newButton.IsVisible = true;
+                _saveButton.IsEnabled = false;
                 _telefonEntry.Text = string.Empty;
                 _handyEntry.Text = string.Empty;
                 _adresseEntry.Text = string.Empty;
                 _plzEntry.Text = string.Empty;
                 _ortEntry.Text = string.Empty;
+                _createSection.IsVisible = false;
                 return;
             }
 
             _neben = rec;
             _state.CurrentNebenMitgliedId = rec.Id;
             _createSection.IsVisible = false;
+            _newButton.IsVisible = false;
+            _saveButton.IsEnabled = true;
+            _saveButton.Text = "Speichern";
 
             _nameLabel.Text = $"{rec.Vorname} {rec.Name}".Trim();
             _hintLabel.Text = "Kontakt/Adresse des bestehenden Nebenmitglieds.";
@@ -251,6 +262,9 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
     private void ConfigureCreateMode(MitgliedRecord hauptmitglied)
     {
         _createSection.IsVisible = true;
+        _newButton.IsVisible = false;
+        _saveButton.IsEnabled = true;
+        _saveButton.Text = "Nebenmitglied anlegen";
         _nameLabel.Text = $"Nebenmitglied für {BuildDisplayName(hauptmitglied.Vorname, hauptmitglied.Name, hauptmitglied.Id)}";
         _hintLabel.Text = "Nach erfolgreicher Hauptmitglied-Neuanlage kann direkt ein Nebenmitglied angelegt werden. Die Adresse des Hauptmitglieds kann dabei als Vorbelegung übernommen werden.";
         _vornameEntry.Text = string.Empty;
@@ -279,6 +293,18 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
             return;
         }
 
+        var telefon = (_telefonEntry.Text ?? string.Empty).Trim();
+        var handy = (_handyEntry.Text ?? string.Empty).Trim();
+        var adresse = (_adresseEntry.Text ?? string.Empty).Trim();
+        var plz = (_plzEntry.Text ?? string.Empty).Trim();
+        var ort = (_ortEntry.Text ?? string.Empty).Trim();
+        var error = Validate(adresse, plz, ort, telefon, handy);
+        if (!string.IsNullOrEmpty(error))
+        {
+            await DisplayAlert("Ungültige Eingabe", error, "OK");
+            return;
+        }
+
         _saveButton.IsEnabled = false;
         try
         {
@@ -293,6 +319,13 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
             if (created == null)
             {
                 await DisplayAlert("Fehler", "Nebenmitglied konnte nicht angelegt werden.", "OK");
+                return;
+            }
+
+            var contactSaved = await _supabaseService.UpdateOwnContactAsync(created.Id, EmptyToNull(telefon), EmptyToNull(handy), adresse, plz, ort);
+            if (!contactSaved)
+            {
+                await DisplayAlert("Fehler", "Nebenmitglied wurde angelegt, aber Kontakt/Adresse konnten nicht gespeichert werden.", "OK");
                 return;
             }
 
@@ -316,6 +349,15 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
     {
         var displayName = $"{vorname} {nachname}".Trim();
         return string.IsNullOrWhiteSpace(displayName) ? $"Mitglied #{fallbackId}" : displayName;
+    }
+
+    private void EnterCreateMode()
+    {
+        if (_hauptmitglied == null || _neben != null)
+            return;
+
+        _isCreateMode = true;
+        ConfigureCreateMode(_hauptmitglied);
     }
 
     private static string? Validate(string adresse, string plz, string ort, string telefon, string handy)
