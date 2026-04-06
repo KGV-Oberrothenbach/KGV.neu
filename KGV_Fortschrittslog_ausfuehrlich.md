@@ -1,4 +1,70 @@
-﻿# KGV_Fortschrittslog_ausfuehrlich
+# KGV_Fortschrittslog_ausfuehrlich
+
+---
+
+## 2026-04-06 – ToDo `A4`: MAUI-Zurück-Taste zentral auf `home` geglättet
+
+- Ausgangspunkt dieses Laufs war ausdrücklich die Fortsetzung von `ToDo.md` für:
+  - `A4. MAUI-Zurück-Taste glätten`
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `ToDo.md`
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/MainActivity.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - zusätzlich vorhandene `OnBackButtonPressed`-/Backpfade in angrenzenden MAUI-Seiten
+- Ehrlicher Istzustand vor dem Minimalfix:
+  - der mobile Rootpfad war im aktuellen Workspace bereits sauber auf `home` als sichtbares Startziel verdrahtet
+  - die echte Restlücke saß im Android-Backpfad: auf Unterseiten oder anderen Rootpunkten griff weiter der Standardpfad statt eines zentral geglätteten Rücksprungs nach `home`
+  - vorhandene Seiten-Backpfade wie `Zur Startseite` oder `Zur Ablesen-Übersicht` waren bereits produktiv und durften nicht durch eine zweite Seitenlogik ersetzt werden
+- Minimal umgesetzt:
+  - in `KGV.Maui/ShellNavigationHelper.cs` eine kleine Root-Erkennung `IsOnShellContentRoot(shell, "home")` ergänzt
+  - in `KGV.Maui/AdminShell.cs` den Hardware-Backpfad zentral gehärtet:
+    - wenn nicht auf echtem `home`-Root, dann einmalig `//home`
+    - nur auf echtem `home`-Root bleibt der normale App-Exit aktiv
+  - derselbe zentrale Backpfad jetzt auch in `KGV.Maui/UserShell.cs`
+  - kleine Reentrancy-Sperre gegen doppeltes Navigieren im Back-Handler ergänzt
+  - keine Änderung an WPF, keine neue Seitenarchitektur und keine zusätzliche Schattenlogik in Einzelseiten
+- Fachliche Wirkung dieses Fixes:
+  - auf Android führt `Zurück` von Unterseiten und anderen Rootpunkten jetzt zuerst sauber zur Startseite
+  - nur ein erneutes `Zurück` auf der Startseite selbst darf die App beenden
+  - Schleifen und doppeltes Back-Navigieren sind im zentralen Shell-Pfad abgefangen
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
+## 2026-04-06 – ToDo `A3`: mobile Startseite lädt beim Anzeigen jetzt immer frisch
+
+- Ausgangspunkt dieses Laufs war ausdrücklich die Fortsetzung von `ToDo.md` für:
+  - `A3. Startseite immer frisch laden`
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `ToDo.md`
+  - `KGV.Wpf/ViewModels/HomeViewModel.cs`
+  - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+  - `KGV.Wpf/Infrastructure/Services/NavigationService.cs`
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
+- Ehrlicher Istzustand vor dem Minimalfix:
+  - WPF war für `A3` im aktuellen Workspace bereits fachlich sauber, weil `HomeViewModel` pro Navigation neu erzeugt und beim Öffnen direkt geladen wird
+  - MAUI hatte noch die echte Restlücke: `HomePage.OnAppearing()` lief standardmäßig nur über `InitializeAsync()` und damit über den Cache von `HomeViewModel`
+  - bei Rückkehr von Unterseiten ohne Kontextwechsel konnte die sichtbare Startseite dadurch veraltet bleiben
+  - der vorhandene manuelle Pull-to-Refresh-Pfad war bereits korrekt und durfte nicht beschädigt werden
+- Minimal umgesetzt:
+  - in `KGV.Maui/Pages/HomePage.xaml.cs` wird `Home` beim `OnAppearing()` jetzt immer mit `forceReload: true` geladen
+  - derselbe explizite Reload gilt jetzt auch für den direkten Reaktionspfad auf `MemberContextState`-Änderungen
+  - keine Änderung an WPF, weil dort kein belastbarer Restfehler mehr offen war
+  - keine neue Home-Architektur, kein Umbau von `HomeViewModel` und keine Änderung am bestehenden Pull-to-Refresh-Produktpfad
+- Fachliche Wirkung dieses Fixes:
+  - die mobile Startseite lädt beim direkten Aufruf frisch
+  - die mobile Startseite lädt bei Rückkehr von Unterseiten ebenfalls frisch
+  - das bestehende manuelle Aktualisieren bleibt unverändert funktionsfähig
+  - ToDo `A3` ist damit im aktuellen Workspace fachlich geschlossen, soweit der echte Produktivpfad belastbar im Code vorliegt
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
+# KGV_Fortschrittslog_ausfuehrlich
 
 ---
 

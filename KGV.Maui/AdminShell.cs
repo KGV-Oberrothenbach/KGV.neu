@@ -7,6 +7,7 @@ using KGV.Maui.Services.PendingPhotos;
 using KGV.Maui.State;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 
 namespace KGV.Maui;
@@ -27,6 +28,7 @@ public sealed class AdminShell : Shell
     private FlyoutItem? _memberGardensItem;
     private FlyoutItem? _memberAdminMenuItem;
     private FlyoutItem? _memberWorkhoursItem;
+    private bool _backNavigationInProgress;
 
     public AdminShell(IServiceProvider services, UserContextState userContextState, MemberContextState memberContextState, PendingPhotoMenuState pendingPhotoMenuState)
     {
@@ -48,6 +50,35 @@ public sealed class AdminShell : Shell
         memberContextState.Changed += (_, _) => RefreshMemberContextMenu(memberContextState);
         EnsureOwnMemberContext();
         BuildMenu();
+    }
+
+    protected override bool OnBackButtonPressed()
+    {
+        if (_backNavigationInProgress)
+            return true;
+
+        if (ShellNavigationHelper.IsOnShellContentRoot(this, "home"))
+            return base.OnBackButtonPressed();
+
+        _backNavigationInProgress = true;
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            try
+            {
+                AppFileLog.Info("KGV.Navigation", $"AdminShell.Zurück navigiert zur Startseite. Aktive Route={ShellNavigationHelper.GetActiveShellContentRoute(this) ?? "<none>"}.");
+                await GoToAsync("//home");
+            }
+            catch (Exception ex)
+            {
+                AppFileLog.Warning("KGV.Navigation", $"AdminShell.Zurück zur Startseite fehlgeschlagen: {ex.GetType().Name}: {ex.Message}");
+            }
+            finally
+            {
+                _backNavigationInProgress = false;
+            }
+        });
+
+        return true;
     }
 
     private void EnsureOwnMemberContext()

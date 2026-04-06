@@ -5,6 +5,7 @@ using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.State;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 
 namespace KGV.Maui;
@@ -15,6 +16,7 @@ public sealed class UserShell : Shell, IAppShellInitializer
     private readonly UserContextState _state;
     private readonly MemberContextState _memberContextState;
     private bool _menuBuilt;
+    private bool _backNavigationInProgress;
 
     public UserShell(IServiceProvider services, UserContextState state, MemberContextState memberContextState)
     {
@@ -31,6 +33,35 @@ public sealed class UserShell : Shell, IAppShellInitializer
         };
         EnsureOwnMemberContext();
         EnsureMenuBuilt();
+    }
+
+    protected override bool OnBackButtonPressed()
+    {
+        if (_backNavigationInProgress)
+            return true;
+
+        if (ShellNavigationHelper.IsOnShellContentRoot(this, "home"))
+            return base.OnBackButtonPressed();
+
+        _backNavigationInProgress = true;
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            try
+            {
+                AppFileLog.Info("KGV.Navigation", $"UserShell.Zurück navigiert zur Startseite. Aktive Route={ShellNavigationHelper.GetActiveShellContentRoute(this) ?? "<none>"}.");
+                await GoToAsync("//home");
+            }
+            catch (Exception ex)
+            {
+                AppFileLog.Warning("KGV.Navigation", $"UserShell.Zurück zur Startseite fehlgeschlagen: {ex.GetType().Name}: {ex.Message}");
+            }
+            finally
+            {
+                _backNavigationInProgress = false;
+            }
+        });
+
+        return true;
     }
 
     private void EnsureOwnMemberContext()

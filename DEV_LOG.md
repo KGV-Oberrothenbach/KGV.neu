@@ -1,4 +1,68 @@
-﻿# KGV Entwicklungslog
+# KGV Entwicklungslog
+
+---
+
+## 2026-04-06 – ToDo `A4`: MAUI-Zurück-Taste zentral auf `home` geglättet
+
+- Ausgangspunkt dieses Laufs war ausdrücklich die Fortsetzung von `ToDo.md` für `A4. MAUI-Zurück-Taste glätten`.
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `ToDo.md`
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/MainActivity.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - zusätzlich vorhandene Back-Overrides in betroffenen MAUI-Seiten
+- Ehrlicher Istbefund vor dem Fix:
+  - der mobile Rootpfad war bereits sauber auf `home` als Startziel verdrahtet
+  - die echte Restlücke saß im Android-Backpfad: auf Unterseiten bzw. anderen Rootpunkten griff noch der Standardpfad statt eines zentral geglätteten Rücksprungs nach `home`
+  - bestehende Einzelseiten-Backpfade durften nicht durch neue Schattenlogik überschrieben werden
+- Minimal umgesetzt:
+  - `KGV.Maui/ShellNavigationHelper.cs`
+    - kleine Hilfsregel `IsOnShellContentRoot(shell, "home")` ergänzt
+  - `KGV.Maui/AdminShell.cs`
+    - zentraler Hardware-Backpfad ergänzt: wenn nicht auf `home`-Root, dann einmalig `//home` statt App-Exit
+  - `KGV.Maui/UserShell.cs`
+    - derselbe zentrale Backpfad auch für den User-Shell-Zweig
+  - kleine Reentrancy-Sperre gegen doppeltes Back-Navigieren ergänzt
+  - keine Änderung an WPF, keine neue Seitenlogik und kein Eingriff in bestehende Detail-/Editorseiten
+- Fachliches Ergebnis dieses Laufs:
+  - Android-`Zurück` führt auf Unterseiten und anderen Rootpunkten jetzt zuerst nach `home`
+  - nur wenn `home` selbst bereits der echte Rootzustand ist, darf der normale App-Exit weiter greifen
+  - Schleifen und doppeltes Navigieren im Shell-Backpfad sind zentral abgefangen
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
+## 2026-04-06 – ToDo `A3`: mobile Startseite lädt beim Anzeigen jetzt immer frisch
+
+- Ausgangspunkt dieses Laufs war ausdrücklich die Fortsetzung von `ToDo.md` für `A3. Startseite immer frisch laden`.
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `ToDo.md`
+  - `KGV.Wpf/ViewModels/HomeViewModel.cs`
+  - `KGV.Wpf/ViewModels/MainWindowViewModel.cs`
+  - `KGV.Wpf/Infrastructure/Services/NavigationService.cs`
+  - `KGV.Maui/ViewModels/HomeViewModel.cs`
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+  - `KGV.Maui/Pages/HomeSectionDetailPage.cs`
+- Ehrlicher Istbefund vor dem Fix:
+  - WPF war im aktuellen Workspace für `A3` bereits fachlich sauber: `HomeViewModel` wird pro Navigation neu erzeugt und in `OnNavigatedToAsync()` geladen
+  - MAUI hatte dagegen noch eine echte Restlücke: `HomePage.OnAppearing()` lief nur über `InitializeAsync()` und damit über den Cache von `HomeViewModel`
+  - bei Rückkehr von Unterseiten ohne Kontextwechsel konnte `Home` dadurch sichtbar veraltet bleiben, obwohl Pull-to-Refresh bereits korrekt funktionierte
+- Minimal umgesetzt:
+  - `KGV.Maui/Pages/HomePage.xaml.cs`
+    - `OnAppearing()` lädt `Home` jetzt immer mit `forceReload: true`
+    - auch der direkte Reload nach `MemberContextState`-Änderung läuft jetzt explizit als erzwungener Reload
+  - keine Änderung an WPF, weil dort kein belastbarer Restfehler mehr offen war
+  - keine neue Home-Architektur und keine Änderung am manuellen Pull-to-Refresh-Pfad
+- Fachliches Ergebnis dieses Laufs:
+  - die mobile Startseite lädt beim direkten Aufruf frisch
+  - die mobile Startseite lädt bei Rückkehr von Unterseiten ebenfalls frisch
+  - das bestehende manuelle Aktualisieren bleibt unverändert auf demselben Reload-Pfad funktionsfähig
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
+# KGV Entwicklungslog
 
 ---
 
