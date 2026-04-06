@@ -23,6 +23,7 @@
                             Padding="18"
                             MinHeight="150"
                             HorizontalContentAlignment="Stretch"
+                            Visibility="{Binding CanOpenAblesungErfassen, Converter={StaticResource BooleanToVisibilityConverter}}"
                             Command="{Binding OpenAblesungErfassenCommand}">
                         <StackPanel>
                             <TextBlock Text="Ablesung erfassen" FontSize="18" FontWeight="SemiBold" />
@@ -38,6 +39,7 @@
                             Padding="18"
                             MinHeight="150"
                             HorizontalContentAlignment="Stretch"
+                            Visibility="{Binding CanManageMeterChanges, Converter={StaticResource BooleanToVisibilityConverter}}"
                             Command="{Binding OpenZaehlerwechselCommand}">
                         <StackPanel>
                             <TextBlock Text="Zählerwechsel" FontSize="18" FontWeight="SemiBold" />
@@ -53,6 +55,7 @@
                             Padding="18"
                             MinHeight="150"
                             HorizontalContentAlignment="Stretch"
+                            Visibility="{Binding CanManageMeterChanges, Converter={StaticResource BooleanToVisibilityConverter}}"
                             Command="{Binding OpenRfidEinrichtenCommand}">
                         <StackPanel>
                             <TextBlock Text="RFID einrichten" FontSize="18" FontWeight="SemiBold" />
@@ -68,6 +71,7 @@
                             Padding="18"
                             MinHeight="150"
                             HorizontalContentAlignment="Stretch"
+                            Visibility="{Binding CanReadMeters, Converter={StaticResource BooleanToVisibilityConverter}}"
                             Command="{Binding OpenFaelligeZaehlerCommand}">
                         <StackPanel>
                             <TextBlock Text="Fällige Zähler" FontSize="18" FontWeight="SemiBold" />
@@ -79,7 +83,8 @@
                     </Button>
 
                     <Button Grid.Row="2" Grid.Column="0"
-                            Margin="0,12,12,0"
+                          Grid.ColumnSpan="2"
+                            Margin="0,12,0,0"
                             Padding="18"
                             MinHeight="150"
                             HorizontalContentAlignment="Stretch"
@@ -94,21 +99,13 @@
                         </StackPanel>
                     </Button>
 
-                    <Button Grid.Row="2" Grid.Column="1"
-                            Margin="12,12,0,0"
-                            Padding="18"
-                            MinHeight="150"
-                            HorizontalContentAlignment="Stretch"
-                            Command="{Binding OpenFotoUploadTestCommand}">
-                        <StackPanel>
-                            <TextBlock Text="Foto-Upload testen" FontSize="18" FontWeight="SemiBold" />
-                            <TextBlock Text="Echten Upload gegen `kgv-upload-photo` aus der App testen und HTTP-/Rohfehler sichtbar machen"
-                                       Margin="0,10,0,0"
-                                       TextWrapping="Wrap"
-                                       Foreground="Gray" />
-                        </StackPanel>
-                    </Button>
                 </Grid>
+
+                <TextBlock Margin="0,16,0,0"
+                           Text="Mit den aktuellen Fachrechten ist im Bereich Ablesen derzeit keine Funktion freigeschaltet."
+                           TextWrapping="Wrap"
+                           Foreground="Gray"
+                           Visibility="{Binding HasAnyMeterAccess, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
             </StackPanel>
         </Grid>
     </ScrollViewer>

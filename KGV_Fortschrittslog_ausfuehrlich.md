@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-04-06 – Ablesen-Abschlusslauf: WPF-Sichtbarkeiten im Produktiv-Einstieg sauber nachgezogen
+
+- Ausgangspunkt dieses Laufs war der noch offene Arbeitsbaum zum bereits begonnenen `Ablesen`-Block.
+- Zu Beginn wurde der echte Stand in den direkt betroffenen Dateien geprüft:
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+  - `KGV.Wpf/ViewModels/AblesenOverviewViewModel.cs`
+  - `KGV.Wpf/Views/AblesenOverviewView.xaml`
+- Ehrlicher Restbefund vor dem Abschluss:
+  - der sichtbare Diagnosepfad war bereits entfernt
+  - in WPF waren die Kacheln für `Ablesung erfassen`, `Zählerwechsel`, `RFID einrichten` und `Fällige Zähler` aber noch nicht konsequent an die effektiven Sichtbarkeiten gebunden
+  - in MAUI lag zusätzlich ein kleiner toter Rest (`_isBusy`) in der Overview
+- Minimal umgesetzt:
+  - `KGV.Wpf/ViewModels/AblesenOverviewViewModel.cs`
+    - explizite Property `CanOpenAblesungErfassen` ergänzt
+  - `KGV.Wpf/Views/AblesenOverviewView.xaml`
+    - alle Produktivkacheln an die echten fachlichen Sichtbarkeiten gebunden
+    - klaren Hinweis für den Fall ohne freigeschaltete Ablesen-Funktion ergänzt
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+    - ungenutzten Overview-Rest entfernt
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -nologo -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -nologo -clp:ErrorsOnly`
+- Ehrlicher Restbefund nach dem Abschluss:
+  - WPF und MAUI bauen erfolgreich
+  - verbleibende MAUI-Warnungen liegen weiter außerhalb dieses Blocks, vor allem in `KGV.Maui/Pages/HomeManagementPage.cs` und `KGV.Maui/Pages/ImpressumPage.cs`
+
+## 2026-04-06 – ToDo `D2`: sichtbaren Diagnosepfad aus `Ablesen` entfernt und Produktiv-Einstieg geglättet
+
+- Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für:
+  - `D2. Ablesen / Zählerwechsel / Freigaben weiter fachlich absichern`
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `ToDo.md`
+  - `KGV.Maui/Pages/AblesenOverviewPage.cs`
+  - `KGV.Wpf/ViewModels/AblesenOverviewViewModel.cs`
+  - `KGV.Wpf/Views/AblesenOverviewView.xaml`
+- Ehrlicher Istzustand vor dem Minimalfix:
+  - Nutzerablesung, Freigabe und Zählerwechsel waren fachlich bereits vorhanden
+  - im aktiven Produktiv-Einstieg `Ablesen` hing aber in WPF und MAUI weiterhin der sichtbare Diagnosepfad `Foto-Upload testen`
+  - genau dieser Testpfad mischte einen internen Diagnoseweg unnötig in die produktive Ablesen-Übersicht
+- Minimal umgesetzt:
+  - in `KGV.Maui/Pages/AblesenOverviewPage.cs`
+    - sichtbare Foto-Testsektion komplett aus der produktiven Ablesen-Übersicht entfernt
+    - die übrigen echten Produktivkacheln für Ablesung, Zählerwechsel, RFID, fällige Zähler und Freigabe unverändert belassen
+  - in `KGV.Wpf/ViewModels/AblesenOverviewViewModel.cs`
+    - sichtbaren Foto-Test-Command aus der produktiven Ablesen-Übersicht entfernt
+  - in `KGV.Wpf/Views/AblesenOverviewView.xaml`
+    - Foto-Test-Kachel entfernt
+    - Kachel `Ablesungen freigeben` auf die volle Breite der letzten Zeile gezogen
+- Fachliche Wirkung dieses Fixes:
+  - der produktive Bereich `Ablesen` ist in WPF und MAUI jetzt sichtbarer auf echte Fachpfade fokussiert
+  - Nutzerablesung, Freigabe, Zählerwechsel und RFID stehen nicht mehr direkt neben einem internen Testpfad
+  - die eigentlichen Diagnosebausteine wurden bewusst nicht gelöscht, sondern nur aus dem aktiven Produktiv-Einstieg herausgenommen
+
 ## 2026-04-06 – ToDo `E1`/`E2`: Mobile Arbeitsstunden-Prüfung an die bestehende globale Prüfsperre angeglichen
 
 - Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für:

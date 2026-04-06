@@ -16,23 +16,22 @@ namespace KGV.ViewModels
         public bool CanManageMeterChanges => PermissionChecks.CanManageMeterChanges(_mainVm.UserContext);
         public bool CanApproveMeterReadings => PermissionChecks.CanApproveMeterReadings(_mainVm.UserContext);
         public bool HasAnyMeterAccess => PermissionChecks.HasAnyMeterAccess(_mainVm.UserContext);
+        public bool CanOpenAblesungErfassen => CanReadMeters || CanSubmitOwnMeterReadings;
 
         public RelayCommand<object?> OpenAblesungErfassenCommand { get; }
         public RelayCommand<object?> OpenZaehlerwechselCommand { get; }
         public RelayCommand<object?> OpenRfidEinrichtenCommand { get; }
         public RelayCommand<object?> OpenFaelligeZaehlerCommand { get; }
         public RelayCommand<object?> OpenAblesungenFreigabeCommand { get; }
-        public RelayCommand<object?> OpenFotoUploadTestCommand { get; }
 
         public AblesenOverviewViewModel(MainWindowViewModel mainVm)
         {
             _mainVm = mainVm ?? throw new ArgumentNullException(nameof(mainVm));
-            OpenAblesungErfassenCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToAblesungErfassenViewModel()), _ => CanReadMeters || CanSubmitOwnMeterReadings);
+            OpenAblesungErfassenCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToAblesungErfassenViewModel()), _ => CanOpenAblesungErfassen);
             OpenZaehlerwechselCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToZaehlerwechselScanViewModel()), _ => CanManageMeterChanges);
             OpenRfidEinrichtenCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToRfidEinrichtenViewModel()), _ => CanManageMeterChanges);
             OpenFaelligeZaehlerCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToFaelligeZaehlerViewModel()), _ => CanReadMeters);
             OpenAblesungenFreigabeCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToAblesungenFreigabeViewModel()), _ => CanApproveMeterReadings);
-            OpenFotoUploadTestCommand = new RelayCommand<object?>(_ => _ = NavigateAsync(_mainVm.NavigateToFotoUploadTestViewModel()), _ => HasAnyMeterAccess);
         }
 
         private async Task NavigateAsync(BaseViewModel? target)
