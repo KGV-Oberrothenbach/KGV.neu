@@ -41,6 +41,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
     private readonly Label _statusLabel;
     private readonly Label _positionLabel;
     private readonly Button _saveButton;
+    private readonly Button _saveAndNextShiftButton;
     private readonly Button _cancelButton;
     private readonly Button _previousButton;
     private readonly Button _nextButton;
@@ -108,7 +109,10 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         };
 
         _saveButton = new Button { Text = "Speichern", WidthRequest = 120 };
-        _saveButton.Clicked += async (_, _) => await SaveAsync(navigateToOverviewAfterSave: true);
+        _saveButton.Clicked += async (_, _) => await SaveAsync(navigateToOverviewAfterSave: true, prepareNextShiftAfterSave: false);
+
+        _saveAndNextShiftButton = new Button { Text = "Speichern + nächste Schicht" };
+        _saveAndNextShiftButton.Clicked += async (_, _) => await SaveAsync(navigateToOverviewAfterSave: false, prepareNextShiftAfterSave: true);
 
         _cancelButton = new Button { Text = "Zur Übersicht", WidthRequest = 120 };
         _cancelButton.Clicked += async (_, _) => await NavigateToOverviewAsync();
@@ -156,7 +160,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
                     {
                         Spacing = 12,
                         Margin = new Thickness(0, 12, 0, 0),
-                        Children = { _cancelButton, _saveButton }
+                        Children = { _cancelButton, _saveAndNextShiftButton, _saveButton }
                     },
                     CreateNavigationFooter()
                 }
@@ -328,7 +332,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _initialSnapshot = CaptureSnapshot();
     }
 
-    private async Task<bool> SaveAsync(bool navigateToOverviewAfterSave)
+    private async Task<bool> SaveAsync(bool navigateToOverviewAfterSave, bool prepareNextShiftAfterSave)
     {
         if (_isBusy)
             return false;
@@ -377,7 +381,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
                 successMessage = "Arbeitseinsatz erstellt.";
             }
 
-            await CompleteSuccessfulSaveAsync(persistedRecord, successMessage, navigateToOverviewAfterSave);
+            await CompleteSuccessfulSaveAsync(persistedRecord, successMessage, navigateToOverviewAfterSave, prepareNextShiftAfterSave);
 
             return true;
         }
@@ -395,7 +399,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         }
     }
 
-    private async Task CompleteSuccessfulSaveAsync(ArbeitseinsatzRecord? persistedRecord, string successMessage, bool navigateToOverviewAfterSave)
+    private async Task CompleteSuccessfulSaveAsync(ArbeitseinsatzRecord? persistedRecord, string successMessage, bool navigateToOverviewAfterSave, bool prepareNextShiftAfterSave)
     {
         _statusLabel.Text = successMessage;
         _statusLabel.TextColor = Colors.Green;
@@ -406,6 +410,12 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         try
         {
             await ReloadNavigationStateAsync(_editingEntryId);
+            if (prepareNextShiftAfterSave)
+            {
+                PrepareNextShiftEditor(_managementState.CurrentEntry ?? persistedRecord);
+                return;
+            }
+
             if (_editingEntryId.HasValue && _managementState.CurrentEntry != null)
                 ApplyRecordToForm(_managementState.CurrentEntry);
             else if (persistedRecord != null)
@@ -552,7 +562,57 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         if (!HasPendingChanges())
             return true;
 
-        return await SaveAsync(navigateToOverviewAfterSave: false);
+        return await SaveAsync(navigateToOverviewAfterSave: false, prepareNextShiftAfterSave: false);
+    }
+
+    private void PrepareNextShiftEditor(ArbeitseinsatzRecord? source)
+    {
+        if (source == null)
+        {
+            ResetEditorForNew();
+            return;
+        }
+
+        var startTime = source.StartUhrzeit ?? new TimeSpan(10, 0, 0);
+        var endTime = source.EndUhrzeit ?? new TimeSpan(13, 0, 0);
+        var duration = endTime > startTime ? endTime - startTime : new TimeSpan(3, 0, 0);
+        var nextStart = endTime;
+        var nextEnd = nextStart + duration;
+        var maxTime = new TimeSpan(23, 59, 0);
+        if (nextStart > maxTime)
+            nextStart = maxTime;
+        if (nextEnd > maxTime)
+            nextEnd = maxTime;
+
+        _editingEntryId = null;
+        Title = "Neue Folgeschicht";
+        _titleEntry.Text = source.Titel ?? string.Empty;
+        _descriptionEditor.Text = source.Beschreibung ?? string.Empty;
+        _datePicker.Date = source.Datum == default ? DateTime.Today : source.Datum.Date;
+        _startTimePicker.Time = nextStart;
+        _endTimePicker.Time = nextEnd;
+        _treffpunktEntry.Text = source.Treffpunkt ?? string.Empty;
+        _hasTeilnehmerbegrenzungCheckBox.IsChecked = source.MaxTeilnehmer.HasValue;
+        _maxTeilnehmerEntry.Text = source.MaxTeilnehmer?.ToString(CultureInfo.CurrentCulture) ?? string.Empty;
+        _stundenWertEntry.Text = source.StundenWert > 0
+            ? source.StundenWert.ToString("0.##", CultureInfo.CurrentCulture)
+            : string.Empty;
+
+        var sichtbarAb = source.SichtbarAb ?? CreateCurrentTimestampDefault();
+        _sichtbarAbDatePicker.Date = sichtbarAb.Date;
+        _sichtbarAbTimePicker.Time = sichtbarAb.TimeOfDay;
+        var sichtbarBis = source.SichtbarBis ?? CreateWorkAssignmentVisibleToDefault(_datePicker.Date);
+        _sichtbarBisDatePicker.Date = sichtbarBis.Date;
+        _sichtbarBisTimePicker.Time = sichtbarBis.TimeOfDay;
+        _hasAnmeldungBisCheckBox.IsChecked = source.AnmeldungBis.HasValue;
+        _anmeldungBisDatePicker.Date = source.AnmeldungBis?.Date ?? DateTime.Today;
+        _anmeldungBisTimePicker.Time = source.AnmeldungBis?.TimeOfDay ?? TimeSpan.Zero;
+        _aktivSwitch.IsToggled = source.Aktiv;
+        _statusLabel.Text = "Arbeitseinsatz gespeichert. Folgeschicht ist zur schnellen Mehrschicht-Erfassung vorbefüllt.";
+        _statusLabel.TextColor = Colors.Green;
+        _statusLabel.IsVisible = true;
+        _initialSnapshot = CaptureSnapshot();
+        UpdateNavigationFooter();
     }
 
     private bool HasPendingChanges()
@@ -612,6 +672,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _anmeldungBisTimePicker.IsEnabled = enabled && _hasAnmeldungBisCheckBox.IsChecked;
         _aktivSwitch.IsEnabled = enabled;
         _saveButton.IsEnabled = enabled;
+        _saveAndNextShiftButton.IsEnabled = enabled;
         _cancelButton.IsEnabled = enabled;
         _previousButton.IsEnabled = enabled && _previousButton.IsVisible && _managementState.CanMovePrevious;
         _nextButton.IsEnabled = enabled && _nextButton.IsVisible && _managementState.CanMoveNext;

@@ -39,6 +39,7 @@ namespace KGV.ViewModels
             OeffnenCommand = new RelayCommand<object?>(_ => OpenSelectedEditor(), _ => SelectedEntry != null);
             AbbrechenCommand = new RelayCommand<object?>(_ => CancelEdit(), _ => IsEditorOpen);
             SpeichernCommand = new RelayCommand<object?>(_ => _ = SaveAsync(), _ => IsEditorOpen);
+            SpeichernUndNaechsteSchichtCommand = new RelayCommand<object?>(_ => _ = SaveAsync(createNextShiftAfterSave: true), _ => IsEditorOpen);
             LoeschenCommand = new RelayCommand<object?>(_ => _ = DeleteAsync(), _ => IsExistingEntry && !_isDeleteInProgress);
             ZurueckCommand = new RelayCommand<object?>(_ => _ = NavigateBackAsync());
         }
@@ -79,6 +80,7 @@ namespace KGV.ViewModels
                     OnPropertyChanged(nameof(IsExistingEntry));
                     AbbrechenCommand.RaiseCanExecuteChanged();
                     SpeichernCommand.RaiseCanExecuteChanged();
+                    SpeichernUndNaechsteSchichtCommand.RaiseCanExecuteChanged();
                     LoeschenCommand.RaiseCanExecuteChanged();
                 }
             }
@@ -367,6 +369,7 @@ namespace KGV.ViewModels
         public RelayCommand<object?> OeffnenCommand { get; }
         public RelayCommand<object?> AbbrechenCommand { get; }
         public RelayCommand<object?> SpeichernCommand { get; }
+        public RelayCommand<object?> SpeichernUndNaechsteSchichtCommand { get; }
         public RelayCommand<object?> LoeschenCommand { get; }
         public RelayCommand<object?> ZurueckCommand { get; }
 
@@ -477,7 +480,7 @@ namespace KGV.ViewModels
             ResetEditor();
         }
 
-        private async Task SaveAsync()
+        private async Task SaveAsync(bool createNextShiftAfterSave = false)
         {
             if (!TryBuildRecord(out var record))
                 return;
@@ -492,6 +495,13 @@ namespace KGV.ViewModels
                 }
 
                 _initialEditorState = CaptureEditorState();
+                await LoadAsync(created.Id);
+                if (createNextShiftAfterSave)
+                {
+                    OpenNextShiftEditor(created);
+                    return;
+                }
+
                 await NavigateHomeAsync();
                 return;
             }
@@ -504,7 +514,55 @@ namespace KGV.ViewModels
             }
 
             _initialEditorState = CaptureEditorState();
+            await LoadAsync(record.Id);
+            if (createNextShiftAfterSave)
+            {
+                OpenNextShiftEditor(record);
+                return;
+            }
+
             await NavigateHomeAsync();
+        }
+
+        private void OpenNextShiftEditor(ArbeitseinsatzRecord source)
+        {
+            var startUhrzeit = source.StartUhrzeit ?? new TimeSpan(10, 0, 0);
+            var endUhrzeit = source.EndUhrzeit ?? new TimeSpan(13, 0, 0);
+            var duration = endUhrzeit > startUhrzeit ? endUhrzeit - startUhrzeit : new TimeSpan(3, 0, 0);
+            var nextStart = endUhrzeit;
+            var nextEnd = nextStart + duration;
+            var maxTime = new TimeSpan(23, 59, 0);
+            if (nextStart > maxTime)
+                nextStart = maxTime;
+            if (nextEnd > maxTime)
+                nextEnd = maxTime;
+
+            _editingArbeitseinsatzId = null;
+            _isDemo = false;
+            IsEditorOpen = true;
+            IsNewMode = true;
+            EditorCaption = "Neue Folgeschicht";
+            Titel = source.Titel ?? string.Empty;
+            Beschreibung = source.Beschreibung ?? string.Empty;
+            Datum = source.Datum.Date;
+            StartUhrzeitText = nextStart.ToString(@"hh\:mm");
+            EndUhrzeitText = nextEnd.ToString(@"hh\:mm");
+            Treffpunkt = source.Treffpunkt ?? string.Empty;
+            HasTeilnehmerbegrenzung = source.MaxTeilnehmer.HasValue;
+            MaxTeilnehmerText = source.MaxTeilnehmer?.ToString() ?? string.Empty;
+            StundenWertText = source.StundenWert == 0 ? string.Empty : source.StundenWert.ToString("0.##", CultureInfo.CurrentCulture);
+            var sichtbarAb = source.SichtbarAb ?? CreateCurrentTimestampDefault();
+            SichtbarAbDatum = sichtbarAb.Date;
+            SichtbarAbZeitText = sichtbarAb.ToString("HH:mm");
+            var sichtbarBis = source.SichtbarBis ?? CreateWorkAssignmentVisibleToDefault(source.Datum.Date);
+            SichtbarBisDatum = sichtbarBis.Date;
+            SichtbarBisZeitText = sichtbarBis.ToString("HH:mm");
+            AnmeldungBisDatum = source.AnmeldungBis?.Date;
+            AnmeldungBisZeitText = source.AnmeldungBis.HasValue ? source.AnmeldungBis.Value.ToString("HH:mm") : string.Empty;
+            Aktiv = source.Aktiv;
+            ClearValidation();
+            ValidationMessage = "Arbeitseinsatz gespeichert. Die nächste Schicht ist zur schnellen Mehrschicht-Erfassung bereits vorbefüllt.";
+            _initialEditorState = CaptureEditorState();
         }
 
         private async Task DeleteAsync()

@@ -276,6 +276,11 @@
                                     DockPanel.Dock="Right"
                                     Margin="0,0,10,0"
                                     Command="{Binding AbbrechenCommand}" />
+                            <Button Content="Speichern + nächste Schicht"
+                                    Width="190"
+                                    DockPanel.Dock="Right"
+                                    Margin="0,0,10,0"
+                                    Command="{Binding SpeichernUndNaechsteSchichtCommand}" />
                             <Button Content="Speichern"
                                     Width="110"
                                     DockPanel.Dock="Right"

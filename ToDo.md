@@ -165,12 +165,13 @@ dann ist damit genau diese Datei gemeint.
 - Restprüfung für Gesamtverhalten in WPF/MAUI und Pflichtstunden-Kontext bleibt offen
 
 ### 23. Terminserie / Mehrschicht-Funktion für Arbeitseinsätze
-**Status:** offen
+**Status:** teilweise
 - mehrere Zeitfenster / Schichten minimalinvasiv unterstützen
 - Beispiel:
   - 12–14 Uhr
   - 14–16 Uhr
   - unterschiedliche Teilnehmerzahlen
+- erster Teilblock umgesetzt: `Speichern + nächste Schicht` in WPF und MAUI auf dem bestehenden Einzelslot-Modell
 
 ### 24. Technische Restpunkte / Warnungen
 **Status:** offen

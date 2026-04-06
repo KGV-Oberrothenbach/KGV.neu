@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-04-06 – ToDo `23`: erste Mehrschicht-Hilfe über `Speichern + nächste Schicht` in WPF und MAUI ergänzt
+
+- Ausgangspunkt dieses Laufs war die gezielte Umsetzung von Punkt `23` aus `ToDo.md`.
+- Zu Beginn wurde der echte Repo-Stand gegen das Zielbild geprüft:
+  - Punkt `23` war fachlich noch offen
+  - das bestehende Datenmodell nutzt pro Arbeitseinsatz aktuell einen einzelnen Zeitblock (`datum`, `start_uhrzeit`, `end_uhrzeit`)
+  - ein direkter DB-Großumbau für Terminserie/Schichten wäre für diesen Lauf zu groß gewesen
+- Minimal umgesetzt:
+  - `KGV.Maui/Pages/ArbeitseinsaetzeEditorPage.cs`
+    - neuen Button `Speichern + nächste Schicht` ergänzt
+    - nach erfolgreichem Save wird eine neue Folgeschicht vorbefüllt geöffnet
+    - Zeitfenster wird aus dem gerade gespeicherten Block minimal weitergeschoben
+  - `KGV.Wpf/ViewModels/ArbeitseinsaetzeVerwaltungViewModel.cs`
+    - gleiches Verhalten über neuen Command `SpeichernUndNaechsteSchichtCommand` ergänzt
+  - `KGV.Wpf/Views/ArbeitseinsaetzeVerwaltungEditorView.xaml`
+    - neuen Button am Ende des Eingabeformulars ergänzt
+  - `ToDo.md`
+    - Punkt `23` auf `teilweise` gesetzt
+- Fachliches Ergebnis dieses Laufs:
+  - mehrere Schichten können jetzt schneller hintereinander auf dem bestehenden Einzelslot-Modell erfasst werden
+  - keine neue Schattenlogik und kein DB-/RPC-Großumbau
+  - WPF und MAUI wurden für diesen Teilblock fachlich gleichgezogen
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-06 – Wartungsverträge Prompt `3/3`: direkter MAUI-Einstieg aus dem Mitgliedskontext ergänzt
 
 - Ausgangspunkt dieses Laufs war die direkte Fortsetzung des begonnenen Wartungsverträge-/Nebenmitglieder-Blocks.
