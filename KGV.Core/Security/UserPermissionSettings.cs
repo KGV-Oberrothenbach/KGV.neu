@@ -10,6 +10,7 @@ namespace KGV.Core.Security
         public PermissionFlags GrantedPermissions { get; set; }
         public PermissionFlags RevokedPermissions { get; set; }
         public bool HasAppUserRecord { get; set; }
+        public DateTime? UpdatedAt { get; set; }
 
         public bool HasLinkedUser => HasAppUserRecord;
         public UserRole ParsedRole => UserRoles.Parse(Role);

@@ -261,6 +261,7 @@ namespace KGV.Infrastructure.Services
                         MitgliedId = mitgliedId,
                         Role = role,
                         HasAppUserRecord = appUser != null,
+                        UpdatedAt = appUser?.UpdatedAt,
                         GrantedPermissions = grantedPermissions,
                         RevokedPermissions = revokedPermissions
                     };

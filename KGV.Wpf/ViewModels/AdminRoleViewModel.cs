@@ -85,6 +85,14 @@ namespace KGV.ViewModels
             : HasLinkedAppUser
                 ? "verknüpft"
                 : "nicht verknüpft";
+        public string LinkedAppUserIdText => !_isPermissionSettingsLoadReliable
+            ? "unbekannt"
+            : _permissionSettings?.AuthUserId?.ToString() ?? "-";
+        public string PermissionSettingsUpdatedAtText => !_isPermissionSettingsLoadReliable
+            ? "noch nicht belastbar geladen"
+            : _permissionSettings?.UpdatedAt is DateTime updatedAt
+                ? updatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")
+                : "-";
         public bool CanEditPermissionOverrides => CanManageRoleManagement && IsLinkedAppUserStatusKnown && HasLinkedAppUser;
         public PermissionFlags CurrentGrantedPermissions => BuildPermissionOverrideState().GrantedPermissions;
         public PermissionFlags CurrentRevokedPermissions => BuildPermissionOverrideState().RevokedPermissions;
@@ -420,6 +428,7 @@ namespace KGV.ViewModels
             OnPropertyChanged(nameof(HasLinkedAppUser));
             OnPropertyChanged(nameof(IsLinkedAppUserStatusKnown));
             OnPropertyChanged(nameof(LinkedAppUserStatusText));
+            OnPropertyChanged(nameof(LinkedAppUserIdText));
             OnPropertyChanged(nameof(CanManageRoleManagement));
             OnPropertyChanged(nameof(CanEditRole));
             OnPropertyChanged(nameof(IsRoleManagementReadOnly));
@@ -430,6 +439,7 @@ namespace KGV.ViewModels
             OnPropertyChanged(nameof(PermissionRoleBasis));
             OnPropertyChanged(nameof(CurrentOverrideState));
             OnPropertyChanged(nameof(EffectivePermissionState));
+            OnPropertyChanged(nameof(PermissionSettingsUpdatedAtText));
             OnPropertyChanged(nameof(PermissionSaveHint));
             SavePermissionOverridesCommand.RaiseCanExecuteChanged();
             ResetPermissionOverridesCommand.RaiseCanExecuteChanged();

@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-04-06 – ToDo `C1`: Rechte-Reload in WPF und MAUI transparent gemacht
+
+- Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für `C1. Live-Verifikation benutzerspezifischer Fachrechte`.
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `KGV.Core/Security/UserPermissionSettings.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+- Ehrlicher Istbefund vor dem Fix:
+  - `permission_grants`, `permission_revocations` und `updated_at` wurden im Shared-Service beim Speichern bereits verifiziert
+  - WPF und MAUI luden die Permission-Settings nach Save bereits neu
+  - die echte Restlücke war UI-Transparenz: verknüpfter App-User und Reload-Zeitpunkt waren für den Nutzer am Screen noch nicht konkret sichtbar
+- Minimal umgesetzt:
+  - `KGV.Core/Security/UserPermissionSettings.cs`
+    - `UpdatedAt` ergänzt
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `app_user.updated_at` in das geladene `UserPermissionSettings` übernommen
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+    - Anzeige-Properties für `App-User-ID` und `Letzter Reload` ergänzt
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+    - beide Werte im Fachrechte-Block sichtbar gemacht
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+    - dieselbe Transparenz im mobilen Admin-Menü direkt im bestehenden Rollen-/Rechtekopf ergänzt
+- Fachliches Ergebnis dieses Laufs:
+  - verknüpfter App-User ist in WPF und MAUI jetzt nicht nur als Status, sondern auch mit konkreter `App-User-ID` sichtbar
+  - der Reload-Zeitpunkt der geladenen Rechte ist in WPF und MAUI sichtbar
+  - bestehende Save-/Reload-Pfade und die produktive Persistenz über `app_user` blieben unverändert
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -nologo -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -nologo -clp:ErrorsOnly`
+
 ## 2026-04-06 – ToDo `B1`: WPF-Bindingwarnung `MemberDTO.Name` im echten Such-View-Pfad beseitigt
 
 - Ausgangspunkt dieses Laufs war ausdrücklich die Fortsetzung von `ToDo.md` für `B1. WPF-Bindingfehler MemberDTO.Name`.

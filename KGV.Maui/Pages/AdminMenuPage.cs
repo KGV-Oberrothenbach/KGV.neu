@@ -366,7 +366,17 @@ public sealed class AdminMenuPage : ContentPage
             : _permissionSettings?.HasLinkedUser == true
                 ? "App-User verknüpft"
                 : "Kein App-User verknüpft";
-        _permissionRoleBasisLabel.Text = $"{roleBasis} · {linkedUser}";
+        var appUserIdText = !_isPermissionSettingsLoadReliable
+            ? "App-User-ID: unbekannt"
+            : _permissionSettings?.AuthUserId is Guid authUserId
+                ? $"App-User-ID: {authUserId}"
+                : "App-User-ID: -";
+        var updatedAtText = !_isPermissionSettingsLoadReliable
+            ? "Letzter Reload: noch nicht belastbar geladen"
+            : _permissionSettings?.UpdatedAt is DateTime updatedAt
+                ? $"Letzter Reload: {updatedAt.ToLocalTime():dd.MM.yyyy HH:mm:ss}"
+                : "Letzter Reload: -";
+        _permissionRoleBasisLabel.Text = $"{roleBasis} · {linkedUser}{Environment.NewLine}{appUserIdText}{Environment.NewLine}{updatedAtText}";
         _permissionEditorHintLabel.Text = !canReadRoleManagement
             ? "Rollen-/Rechteverwaltung ist für den aktuellen Kontext nicht freigegeben."
             : !_isPermissionSettingsLoadReliable

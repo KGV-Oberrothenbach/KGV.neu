@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-04-06 – ToDo `C1`: Rechte-Reload in WPF und MAUI transparent gemacht
+
+- Ausgangspunkt dieses Laufs war die Fortsetzung von `ToDo.md` für:
+  - `C1. Live-Verifikation benutzerspezifischer Fachrechte`
+- Zu Beginn wurde der echte Stand in den direkt relevanten Dateien geprüft:
+  - `KGV.Core/Security/UserPermissionSettings.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `KGV.Wpf/ViewModels/AdminRoleViewModel.cs`
+  - `KGV.Wpf/Views/AdminRoleView.xaml`
+  - `KGV.Maui/Pages/AdminMenuPage.cs`
+- Ehrlicher Istzustand vor dem Minimalfix:
+  - `permission_grants`, `permission_revocations` und `updated_at` wurden im Shared-Service beim Speichern bereits gegen den reloadeten `app_user` verifiziert
+  - WPF und MAUI luden die Permission-Settings nach erfolgreichem Save bereits neu
+  - die echte Restlücke lag deshalb nicht mehr im Speicherpfad, sondern in der UI-Transparenz: verknüpfter App-User und Reload-Zeitpunkt waren am Screen noch nicht konkret sichtbar
+- Minimal umgesetzt:
+  - in `KGV.Core/Security/UserPermissionSettings.cs` `UpdatedAt` ergänzt
+  - in `KGV.Infrastructure/Services/SupabaseService.cs` `app_user.updated_at` in das geladene `UserPermissionSettings` übernommen
+  - in `KGV.Wpf/ViewModels/AdminRoleViewModel.cs` Anzeige-Properties für `App-User-ID` und `Letzter Reload` ergänzt
+  - in `KGV.Wpf/Views/AdminRoleView.xaml` beide Werte im bestehenden Fachrechte-Block sichtbar gemacht
+  - in `KGV.Maui/Pages/AdminMenuPage.cs` dieselbe Transparenz im bestehenden mobilen Rollen-/Rechtekopf ergänzt
+  - keine Änderung an den produktiven Save-Pfaden, keine neue Schattenlogik neben `app_user`
+- Fachliche Wirkung dieses Fixes:
+  - der verknüpfte App-User ist in WPF und MAUI jetzt konkret nachvollziehbar
+  - der Reload-Zeitpunkt der geladenen Rechte ist in WPF und MAUI sichtbar
+  - damit wird die Live-Verifikation nach Save/Reload im UI deutlich nachvollziehbarer, ohne den bestehenden Persistenzpfad umzubauen
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -nologo -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -nologo -clp:ErrorsOnly`
+
 ## 2026-04-06 – ToDo `B1`: WPF-Bindingwarnung `MemberDTO.Name` im echten Such-View-Pfad beseitigt
 
 - Ausgangspunkt dieses Laufs war ausdrücklich die Fortsetzung von `ToDo.md` für:
