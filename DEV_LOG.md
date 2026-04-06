@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-04-06 – Wartungsverträge Prompt `3/3`: direkter MAUI-Einstieg aus dem Mitgliedskontext ergänzt
+
+- Ausgangspunkt dieses Laufs war die direkte Fortsetzung des begonnenen Wartungsverträge-/Nebenmitglieder-Blocks.
+- Zu Beginn wurde der echte Stand gegen `ToDo.md` und die direkt betroffenen MAUI-Dateien geprüft.
+- Ehrlicher Restbefund vor dem Fix:
+  - die Servicepfade für Nebenmitglieder waren bereits begonnen
+  - im mobilen Mitgliedskontext fehlte im Screen selbst aber noch ein direkter Einstieg in die mitgliedsbezogenen Wartungsverträge
+  - WPF hatte diesen Einstieg im Mitgliedsbaum bereits als eigenen Kontextpunkt
+- Minimal umgesetzt:
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - Button `Wartungsverträge öffnen` im Abschnitt `Wartungsverträge / Pflichtstunden` ergänzt
+    - Sichtbarkeit/Aktivierung an den aktuellen Mitgliedskontext gebunden
+    - Hinweistext im Abschnitt auf den realen mobilen Stand aktualisiert
+  - `ToDo.md`
+    - Fortschritt in Punkt `22` nachgezogen
+- Fachliches Ergebnis dieses Laufs:
+  - der mobile Mitgliedskontext ist näher an WPF angeglichen
+  - der Einstieg in die mitgliedsbezogenen Wartungsverträge ist direkt aus `MeineDatenPage` erreichbar
+  - der Gesamtblock `22` bleibt bewusst `teilweise`, weil die Restprüfung für Pflichtstunden- und Gesamtkontexte noch offen ist
+- Validierung im Lauf wirklich ausgeführt:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-06 – ToDo-Zielbild ersetzt und Folgeblock `22` für Wartungsverträge/Nebenmitglieder begonnen
 
 - Ausgangspunkt dieses Laufs war die explizite Vorgabe, `ToDo.md` durch den aktuellen Prompt zu ersetzen und das Zielbild gegen den realen Repo-Stand neu einzuordnen.

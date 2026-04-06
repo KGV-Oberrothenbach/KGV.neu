@@ -161,6 +161,7 @@ dann ist damit genau diese Datei gemeint.
 **Status:** teilweise
 - Folgeblock begonnen
 - mitgliedsbezogene Wartungsvertrags-Servicepfade werden nicht mehr pauschal auf das Hauptmitglied normalisiert
+- MAUI hat im Mitgliedskontext jetzt auch einen direkten Einstieg in die mitgliedsbezogenen Wartungsverträge
 - Restprüfung für Gesamtverhalten in WPF/MAUI und Pflichtstunden-Kontext bleibt offen
 
 ### 23. Terminserie / Mehrschicht-Funktion für Arbeitseinsätze

@@ -77,6 +77,7 @@ public class MeineDatenPage : ContentPage
     private readonly Button _cancelButton;
     private readonly Button _saveRoleButton;
     private readonly Button _documentsButton;
+    private readonly Button _wartungsvertraegeButton;
     private readonly Button _linkedMemberButton;
     private readonly Button _userManagementButton;
     private readonly Button _nebenmitgliedButton;
@@ -195,6 +196,9 @@ public class MeineDatenPage : ContentPage
         _documentsButton = new Button { Text = "Mitgliedsdokumente" };
         _documentsButton.Clicked += async (_, _) => await Shell.Current.GoToAsync($"{nameof(DokumentePage)}?scope=mitglied");
 
+        _wartungsvertraegeButton = new Button { Text = "Wartungsverträge öffnen", IsVisible = false };
+        _wartungsvertraegeButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(MemberWartungsvertraegePage));
+
         _linkedMemberButton = new Button { Text = "Verknüpftes Mitglied öffnen", IsVisible = false };
         _linkedMemberButton.Clicked += OnLinkedMemberClicked;
 
@@ -235,6 +239,7 @@ public class MeineDatenPage : ContentPage
             CreateValueField("Wartungsvertrag", _wartungsvertragLabel),
             CreateValueField("Von Pflichtstunden befreit", _befreiungLabel),
             CreateValueField("Regelgrund", _regelgrundLabel),
+            _wartungsvertraegeButton,
             _wartungsvertragHintLabel);
         _nebenmitgliedSectionCard = CreateSection("Mitgliedskontext", _linkedMemberButton, _nebenmitgliedButton, _nebenmitgliedHintLabel);
         _adminSectionCard = CreateSection("Verwaltung", _adminMenuSection);
@@ -477,6 +482,8 @@ public class MeineDatenPage : ContentPage
         _clearMitgliedSeitButton.IsEnabled = _isEditMode && !_isBusy;
         _clearMitgliedEndeButton.IsEnabled = _isEditMode && !_isBusy;
         _linkedMemberButton.IsEnabled = !_isBusy && !_linkedMemberSwitchInProgress && _linkedMember?.Id is > 0;
+        _wartungsvertraegeButton.IsVisible = _currentMember?.Id is > 0;
+        _wartungsvertraegeButton.IsEnabled = !_isBusy && _currentMember?.Id is > 0;
         UpdateEmailEditState();
     }
 
@@ -744,7 +751,7 @@ public class MeineDatenPage : ContentPage
         _befreiungLabel.Text = summary.IstBefreit ? "Ja" : "Nein";
         _regelgrundLabel.Text = FormatValue(summary.Regelgrund);
         _wartungsvertragHintLabel.Text = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand
-            ? "Ein eigener mobiler Verwaltungseditor für Wartungsverträge ist im aktuellen Stand noch nicht vorhanden; der Mitgliedskontext zeigt hier zunächst den belastbaren Status aus der Pflichtstunden-Übersicht."
+            ? "Über `Wartungsverträge öffnen` kann die mitgliedsbezogene mobile Übersicht geöffnet werden; Zuordnungen bleiben dort für berechtigte Rollen möglich."
             : "Die Angaben stammen aus der zentralen Pflichtstunden-Übersicht des ausgewählten Mitglieds.";
     }
 
