@@ -2,6 +2,43 @@
 
 ---
 
+## 2026-04-06 – AWR-Android-Upload-Ordner fuer manuellen Release-Upload ergänzt
+
+- Ausgangspunkt dieses Laufs war kein neuer Android-Buildpfad, sondern nur die praktische Nachbereitung des bestehenden `AWR.bat`-Releases: die für den manuellen Upload relevanten Android-Dateien sollten gesammelt in einem klaren Upload-Ordner landen.
+- Direkt geprüft wurden nur die Blockdateien und die realen Android-Ausgabepfade:
+  - `AWR.bat`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+  - `KGV.Maui\bin\Release\net9.0-android\publish`
+  - `KGV.Maui\bin\Release\net9.0-android\mapping.txt`
+  - `KGV.Maui\obj\Release\net9.0-android\app_shared_libraries`
+- Minimal umgesetzt wurde nur der Batchpfad:
+  - neuer Zielordner `publish\<Version>\Android\Upload`
+  - Sammlung der im aktuellen Build praktisch nutzbaren Upload-Dateien mit versionsbezogenen Namen:
+    - `KGV-Android-<Version>.apk`
+    - `KGV-Android-<Version>.aab`
+    - `KGV-Android-<Version>-mapping.txt` falls vorhanden
+    - `KGV-Android-<Version>-native-debug-symbols.zip` falls native Symbole vorhanden sind
+    - `README.txt`
+  - die vorhandene Diagnose-Sammellogik unter `Android\GooglePlay-Diagnose` blieb erhalten und wurde nicht umgebaut
+  - falls kein fertiges Native-Symbol-ZIP vorliegt, wird die Upload-ZIP jetzt aus dem bereits eingesammelten Diagnoseinhalt erzeugt
+- Echte Validierung dieses Laufs:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release -clp:ErrorsOnly` erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=apk -clp:ErrorsOnly -v:q` erfolgreich
+  - `dotnet publish KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -p:AndroidPackageFormat=aab -clp:ErrorsOnly -v:q` erfolgreich
+  - der reale Publish-Output enthielt weiterhin die praktisch relevanten Dateien `de.kgv.oberrothenbach-Signed.apk`, `de.kgv.oberrothenbach-Signed.aab` und `mapping.txt`
+  - der reale Native-Symbolpfad `KGV.Maui\obj\Release\net9.0-android\app_shared_libraries` war erneut vorhanden
+  - der volle `AWR.bat`-Lauf wurde bewusst nicht automatisiert erzwungen, weil er interaktiv Zielversion und Signaturpasswort verlangt und zusätzlich WPF-/Git-Nebenpfade startet
+  - stattdessen wurde der neue Android-Teilpfad des Batchs mit echten Buildartefakten gegen einen temporären Release-Zielordner validiert
+  - Ergebnis dieses echten Upload-Checks:
+    - `KGV-Android-0.4.5.apk`
+    - `KGV-Android-0.4.5.aab`
+    - `KGV-Android-0.4.5-mapping.txt`
+    - `KGV-Android-0.4.5-native-debug-symbols.zip`
+    - `README.txt`
+  - der Upload-Ordner enthielt dabei genau `5` Dateien; blockfremde Zusatzdateien wurden nicht mitkopiert
+- Fachlogik blieb vollständig unverändert.
+
 ## 2026-04-06 – Android-Release für Google-Play-Diagnoseartefakte minimal aktiviert
 
 - Ausgangspunkt dieses Laufs war der bereits vorbereitete AWR-/Diagnoseartefakte-Block: der Batchpfad war fertig, aber der Android-/MAUI-Release erzeugte die benötigten Artefakte noch nicht.

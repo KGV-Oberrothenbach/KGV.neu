@@ -156,6 +156,7 @@ for /f "tokens=1,2 delims=|" %%A in ("%VERCHECK%") do (
 set /a NEW_ANDROID_CODE=%CUR_MAUI_CODE%+1
 set "VERSION_ROOT=%PUBLISH_ROOT%\%TARGET_VERSION%"
 set "ANDROID_OUT=%VERSION_ROOT%\Android"
+set "ANDROID_UPLOAD_OUT=%ANDROID_OUT%\Upload"
 set "ANDROID_DIAG_OUT=%ANDROID_OUT%\GooglePlay-Diagnose"
 set "WPF_OUT=%VERSION_ROOT%\WPF"
 set "WPF_PUBLISH_OUT=%WPF_OUT%\Publish"
@@ -168,6 +169,7 @@ set "LATEST_SETUP_NAME=KGV-Setup.exe"
 if not exist "%PUBLISH_ROOT%" mkdir "%PUBLISH_ROOT%"
 if not exist "%VERSION_ROOT%" mkdir "%VERSION_ROOT%"
 if not exist "%ANDROID_OUT%" mkdir "%ANDROID_OUT%"
+if not exist "%ANDROID_UPLOAD_OUT%" mkdir "%ANDROID_UPLOAD_OUT%"
 if not exist "%WPF_OUT%" mkdir "%WPF_OUT%"
 if not exist "%WPF_PUBLISH_OUT%" mkdir "%WPF_PUBLISH_OUT%"
 if not exist "%WPF_SETUP_OUT%" mkdir "%WPF_SETUP_OUT%"
@@ -367,6 +369,58 @@ if errorlevel 1 (
 
 echo.
 echo =========================================================
+echo Erstelle Android-Upload-Ordner...
+echo =========================================================
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ErrorActionPreference = 'Stop';" ^
+  "$uploadOut = '%ANDROID_UPLOAD_OUT%';" ^
+  "$diagOut = '%ANDROID_DIAG_OUT%';" ^
+  "$mappingOut = Join-Path $diagOut 'Mapping';" ^
+  "$nativeOut = Join-Path $diagOut 'NativeDebugSymbols';" ^
+  "$apkSource = '%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.apk';" ^
+  "$aabSource = '%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.aab';" ^
+  "$mappingTarget = Join-Path $uploadOut 'KGV-Android-%TARGET_VERSION%-mapping.txt';" ^
+  "$nativeZipTarget = Join-Path $uploadOut 'KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip';" ^
+  "$readmeFile = Join-Path $uploadOut 'README.txt';" ^
+  "New-Item -ItemType Directory -Force -Path $uploadOut | Out-Null;" ^
+  "$uploadPattern = Join-Path $uploadOut '*'; if (Test-Path $uploadPattern) { Remove-Item $uploadPattern -Recurse -Force -ErrorAction SilentlyContinue }" ^
+  "Copy-Item $apkSource (Join-Path $uploadOut ([System.IO.Path]::GetFileName($apkSource))) -Force;" ^
+  "Copy-Item $aabSource (Join-Path $uploadOut ([System.IO.Path]::GetFileName($aabSource))) -Force;" ^
+  "$mappingFile = Get-ChildItem $mappingOut -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1;" ^
+  "if ($mappingFile) { Copy-Item $mappingFile.FullName $mappingTarget -Force }" ^
+  "$nativeZipSource = Get-ChildItem $nativeOut -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Name.ToLowerInvariant() -in @('native-debug-symbols.zip','symbols.zip') } | Sort-Object LastWriteTime -Descending | Select-Object -First 1;" ^
+  "if ($nativeZipSource) { Copy-Item $nativeZipSource.FullName $nativeZipTarget -Force } else { $nativeItems = Get-ChildItem $nativeOut -Force -ErrorAction SilentlyContinue; if ($nativeItems.Count -gt 0) { Compress-Archive -Path ($nativeItems | ForEach-Object { $_.FullName }) -DestinationPath $nativeZipTarget -CompressionLevel Optimal -Force } }" ^
+  "$lines = @();" ^
+  "$lines += 'Android-Upload-Artefakte';" ^
+  "$lines += 'Version: %TARGET_VERSION%';" ^
+  "$lines += '';" ^
+  "$lines += 'Play Console:';" ^
+  "$lines += '  - AAB: fuer den Store-Upload';" ^
+  "$lines += '  - Mapping: fuer Deobfuskation/Diagnose, falls vorhanden';" ^
+  "$lines += '  - Native ZIP: fuer native Debug-Symbole, falls vorhanden';" ^
+  "$lines += '';" ^
+  "$lines += 'Direkte Verteilung/Website:';" ^
+  "$lines += '  - APK: fuer manuelle Weitergabe/Installation';" ^
+  "$lines += '';" ^
+  "$lines += 'Status:';" ^
+  "$lines += ('  - APK: ' + (Test-Path (Join-Path $uploadOut 'KGV-Android-%TARGET_VERSION%.apk')));" ^
+  "$lines += ('  - AAB: ' + (Test-Path (Join-Path $uploadOut 'KGV-Android-%TARGET_VERSION%.aab')));" ^
+  "$lines += ('  - Mapping: ' + (Test-Path $mappingTarget));" ^
+  "$lines += ('  - Native ZIP: ' + (Test-Path $nativeZipTarget));" ^
+  "Set-Content -Path $readmeFile -Value $lines -Encoding UTF8;" ^
+  "Write-Host ('Upload-Ordner befuellt: ' + $uploadOut);" ^
+  "Write-Host ('APK: ' + (Join-Path $uploadOut 'KGV-Android-%TARGET_VERSION%.apk'));" ^
+  "Write-Host ('AAB: ' + (Join-Path $uploadOut 'KGV-Android-%TARGET_VERSION%.aab'));" ^
+  "if (Test-Path $mappingTarget) { Write-Host ('Mapping: ' + $mappingTarget) } else { Write-Host 'Mapping: nicht vorhanden.' }" ^
+  "if (Test-Path $nativeZipTarget) { Write-Host ('Native ZIP: ' + $nativeZipTarget) } else { Write-Host 'Native ZIP: nicht vorhanden.' }"
+
+if errorlevel 1 (
+  echo FEHLER: Android-Upload-Ordner konnte nicht erstellt werden.
+  exit /b 1
+)
+
+echo.
+echo =========================================================
 echo Baue WPF Release-Binaries fuer Publish...
 echo =========================================================
 dotnet publish ".\KGV.Wpf\KGV.Wpf.csproj" ^
@@ -560,6 +614,14 @@ echo.
 echo Google-Play-Diagnose:
 echo   %ANDROID_DIAG_OUT%
 echo   %ANDROID_DIAG_OUT%\STATUS.txt
+echo.
+echo Android Upload:
+echo   %ANDROID_UPLOAD_OUT%
+echo   %ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%.apk
+echo   %ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%.aab
+echo   %ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%-mapping.txt
+echo   %ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%-native-debug-symbols.zip
+echo   %ANDROID_UPLOAD_OUT%\README.txt
 echo.
 echo Zusaetzliche Unterordner:
 echo   %ANDROID_OUT%
