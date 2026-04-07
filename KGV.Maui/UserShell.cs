@@ -19,6 +19,7 @@ public sealed class UserShell : Shell, IAppShellInitializer
     private bool _backNavigationInProgress;
     private bool _exitConfirmationInProgress;
     private string? _preferredStartupRoute;
+    private bool _loadedInitializationScheduled;
 
     public UserShell(IServiceProvider services, UserContextState state, MemberContextState memberContextState)
     {
@@ -29,9 +30,23 @@ public sealed class UserShell : Shell, IAppShellInitializer
         FlyoutBehavior = FlyoutBehavior.Flyout;
         Loaded += (_, _) =>
         {
-            EnsureOwnMemberContext();
-            EnsureMenuBuilt();
-            EnsureActiveRouteAfterLoad();
+            if (_loadedInitializationScheduled)
+                return;
+
+            _loadedInitializationScheduled = true;
+            Dispatcher.Dispatch(() =>
+            {
+                try
+                {
+                    EnsureOwnMemberContext();
+                    EnsureMenuBuilt();
+                    EnsureActiveRouteAfterLoad();
+                }
+                finally
+                {
+                    _loadedInitializationScheduled = false;
+                }
+            });
         };
     }
 

@@ -2,6 +2,66 @@
 
 ---
 
+## 2026-04-07 – MAUI-Android-Normalstart weiter auf frühen Root-/Shell-VisualElement-Pfad eingegrenzt und zusätzlich entschärft
+
+- Ausgangspunkt dieses Laufs war ein echter Android-Normalstart-Crash mit belastbaren externen Logs im Pfad:
+  - `System.TypeInitializationException`
+  - `The type initializer for 'Microsoft.Maui.Controls.VisualElement' threw an exception.`
+  - `Microsoft.Maui.Controls.Hosting.AppHostBuilderExtensions.UseMauiApp`
+  - `KGV.Maui.MauiProgram.CreateMauiApp`
+  - `KGV.Maui.MainApplication.CreateMauiApp`
+  - `Microsoft.Maui.MauiApplication.OnCreate`
+- Direkt geprüft wurden nur die blockrelevanten Start-/Shell-/Resource-Dateien:
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/App.xaml`
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/MainActivity.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - `KGV.Maui/Resources/Styles/Styles.xaml`
+  - `KGV.Maui/Resources/Styles/Colors.xaml`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand dieses Laufs:
+  - `AppShell.xaml` existiert im aktuellen Repo nicht; ein separater globaler Shell-XAML-Pfad ist damit aktuell keine belastbare Crashquelle
+  - `App.xaml` ist weiterhin praktisch leer; aktive globale Resource-/Style-Initialisierung läuft darüber aktuell nicht
+  - `Colors.xaml` bleibt ein auffälliger Altbestand mit WPF-Namespaces, wird im aktuellen aktiven Startup-Pfad aber nicht global gemerged und war deshalb in diesem Lauf nicht die belastbar aktive Ursache
+  - der vorhandene Debug-Start lief real erneut bis mindestens:
+    - `APP_START`
+    - `APPSETTINGS_LOAD_OK`
+    - `SUPABASE_CONFIG_PRESENT_YES`
+    durch; ein Debug-Crash direkt in `CreateMauiApp` war damit weiter nicht headless reproduzierbar
+  - die real auffälligste Restursache lag weiter im zu frühen VisualElement-Aufbau des echten Rootpfads:
+    - `App.CreateWindow(...)` erzeugte Login-Seite oder Shell bisher synchron direkt im frühesten Window-Startpfad
+    - `AdminShell` und `UserShell` initialisierten ihren Menü-/Routenpfad weiterhin bereits im ersten `Loaded`-Tick
+    - damit lag noch immer komplexe Root-/Shell-VisualElement-Erzeugung im frühesten Android-Startup-Fenster statt erst nach aufgebautem Window
+- Minimal umgesetzt:
+  - `KGV.Maui/App.xaml.cs`
+    - `CreateWindow(...)` startet jetzt nur noch mit einer sehr kleinen Bootstrap-Seite statt sofort mit Login-Seite oder Shell
+    - der echte Root-Wechsel auf Login/Shell wird erst nach Window-Erstellung per `MainThread` + `Task.Yield()` ausgeführt
+    - dadurch läuft derselbe robuste Rootpfad jetzt auch beim normalen Android-Start nicht mehr synchron im frühesten Window-Aufbau
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+    - Shell-Menü-/Routeninitialisierung wird jetzt zusätzlich um genau einen Dispatcher-Tick verzögert
+    - damit entsteht die eigentliche Flyout-/Shell-VisualElement-Struktur erst nach wirklich geladener Shell statt bereits im ersten `Loaded`-Moment
+- Bewusst nicht gemacht:
+  - keine neue Fachlogik
+  - kein neuer Shell-/Routing-Großumbau
+  - kein globaler Resource-/Style-Umbau auf Verdacht
+  - kein WPF-Eingriff
+- Echte Validierung dieses Laufs:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+  - der MAUI-Build blieb dabei nur mit bereits vorhandenen Warnungen grün, u. a. in `MainActivity.cs`, `HomeManagementPage.cs` und `ImpressumPage.cs`
+- Ehrliche technische Grenze dieses Laufs:
+  - der echte Android-Normalstart-Crash war im Headless-Lauf nicht direkt erneut reproduzierbar
+  - code-seitig wurde aber der real verdächtige Pfad weiter stabilisiert: Root-Seite und Shell-Menü entstehen jetzt nicht mehr synchron im frühesten Android-Startup-Fenster
+
 ## 2026-04-07 – MAUI-Startup-/Initialisierungsfehler auf frühen Shell-/VisualElement-Startpfad eingegrenzt und minimal stabilisiert
 
 - Ausgangspunkt dieses Laufs war ein echter mobiler Startup-/Initialisierungsfehler im Bereich:

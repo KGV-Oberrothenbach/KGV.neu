@@ -31,6 +31,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
     private bool _backNavigationInProgress;
     private bool _exitConfirmationInProgress;
     private string? _preferredStartupRoute;
+    private bool _loadedInitializationScheduled;
 
     public AdminShell(IServiceProvider services, UserContextState userContextState, MemberContextState memberContextState, PendingPhotoMenuState pendingPhotoMenuState)
     {
@@ -41,13 +42,27 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
         FlyoutBehavior = FlyoutBehavior.Flyout;
         BindingContext = memberContextState;
-        Loaded += async (_, _) =>
+        Loaded += (_, _) =>
         {
-            ClearImplicitOwnMemberContext();
-            BuildMenu();
-            EnsureActiveRouteAfterLoad();
-            await RefreshPendingPhotoUploadsMenu();
-            await RefreshWorkhoursReviewMenuAsync();
+            if (_loadedInitializationScheduled)
+                return;
+
+            _loadedInitializationScheduled = true;
+            Dispatcher.Dispatch(async () =>
+            {
+                try
+                {
+                    ClearImplicitOwnMemberContext();
+                    BuildMenu();
+                    EnsureActiveRouteAfterLoad();
+                    await RefreshPendingPhotoUploadsMenu();
+                    await RefreshWorkhoursReviewMenuAsync();
+                }
+                finally
+                {
+                    _loadedInitializationScheduled = false;
+                }
+            });
         };
         memberContextState.Changed += (_, _) => RefreshMemberContextMenu(memberContextState);
     }
