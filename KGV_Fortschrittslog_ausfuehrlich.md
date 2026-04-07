@@ -2,6 +2,65 @@
 
 ---
 
+## 2026-04-07 – MAUI-Startup-/Initialisierungsfehler auf frühen Shell-/VisualElement-Startpfad eingegrenzt und minimal stabilisiert
+
+- Ausgangspunkt dieses Laufs war ein echter mobiler Startup-/Initialisierungsfehler im Bereich:
+  - `MauiProgram.CreateMauiApp`
+  - `MainApplication.CreateMauiApp`
+  - `Microsoft.Maui.Controls.VisualElement`
+- Direkt geprüft wurden nur die blockrelevanten Startdateien und eng angebundenen globalen Shell-/Stylepfade:
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/App.xaml`
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/MainActivity.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/Resources/Styles/Styles.xaml`
+  - `KGV.Maui/Resources/Styles/Colors.xaml`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor dem Fix:
+  - der aktuelle Debug-Start lief real bis in den Loginpfad durch; im vorhandenen Debug-Log standen sauber:
+    - `APP_START`
+    - `APPSETTINGS_LOAD_OK`
+    - `SUPABASE_CONFIG_PRESENT_YES`
+  - ein neuer reproduzierbarer Debug-Crash direkt in `CreateMauiApp` war in diesem Lauf nicht sichtbar
+  - `App.xaml` ist aktuell praktisch leer; daraus ergab sich kein belastbarer aktiver Resource-/Style-Crashpfad
+  - die auffälligste reale Startpfad-Risikoquelle lag stattdessen in der Shell-Erzeugung:
+    - `AdminShell` und `UserShell` bauten ihre Menü-/Flyout-Struktur bereits im Konstruktor auf
+    - `App.CreateRootPage()` erzwang diesen Shell-Menüpfad zusätzlich schon während des Rootaufbaus
+    - damit wurden Shell-/Flyout-`VisualElement`-Strukturen sehr früh im globalen Startpfad erzeugt, noch bevor die Shell tatsächlich geladen war
+  - genau dieser Pfad passt fachlich am besten zum gemeldeten Crashbereich `VisualElement` während `CreateMauiApp` / `MainApplication.CreateMauiApp`
+- Minimal umgesetzt:
+  - in `KGV.Maui/IAppShellInitializer.cs`
+    - kleinen Vertrag `SetPreferredStartupRoute(...)` ergänzt
+  - in `KGV.Maui/App.xaml.cs`
+    - Shell-Menüaufbau nicht mehr direkt im frühen `CreateRootPage()`-Pfad erzwungen
+    - stattdessen wird nur noch die gewünschte Start-Route an die Shell übergeben
+  - in `KGV.Maui/AdminShell.cs`
+  - in `KGV.Maui/UserShell.cs`
+    - frühen Menüaufbau aus dem Konstruktor entfernt
+    - Menü-/Flyout-Struktur wird jetzt erst im echten `Loaded`-Pfad aufgebaut
+    - die bevorzugte Start-Route wird erst nach gebauter Shell aktiviert
+    - bestehende Back-/Kontext-/Sichtbarkeitslogik blieb dabei unverändert führend
+- Bewusst nicht gemacht:
+  - keine neue Fachlogik
+  - kein neuer Shell-/Routing-Großumbau
+  - kein globaler Resource-/Style-Umbau auf Verdacht
+  - kein WPF-Eingriff
+  - ein kurzer Test, `App.xaml` explizit per `InitializeComponent()` zu initialisieren, wurde bewusst wieder zurückgenommen, weil der aktuelle Workspace dafür keinen generierten Pfad liefert und der Block dadurch nicht fachlich gelöst worden wäre
+- Echte Validierung dieses Laufs:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+  - der MAUI-Build blieb dabei nur mit bereits vorhandenen Warnungen grün, u. a. in `MainActivity.cs`, `HomeManagementPage.cs` und `ImpressumPage.cs`
+- Ehrliche technische Grenze dieses Laufs:
+  - der normale Geräte-Startcrash war in diesem Headless-Lauf nicht erneut automatisiert reproduzierbar
+  - der wahrscheinlich verursachende globale Startpfad wurde trotzdem code-seitig sauber stabilisiert: keine frühe Shell-/VisualElement-Erzeugung mehr im Konstruktor-/`CreateRootPage()`-Pfad
+
 ## 2026-04-06 – AWR-Android-Upload-Ordner fuer manuellen Release-Upload ergänzt
 
 - Ausgangspunkt dieses Laufs war kein neuer Android-Buildpfad, sondern nur die praktische Nachbereitung des bestehenden `AWR.bat`-Releases: die für den manuellen Upload relevanten Android-Dateien sollten gesammelt in einem klaren Upload-Ordner landen.

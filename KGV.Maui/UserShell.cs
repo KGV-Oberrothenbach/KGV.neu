@@ -18,6 +18,7 @@ public sealed class UserShell : Shell, IAppShellInitializer
     private bool _menuBuilt;
     private bool _backNavigationInProgress;
     private bool _exitConfirmationInProgress;
+    private string? _preferredStartupRoute;
 
     public UserShell(IServiceProvider services, UserContextState state, MemberContextState memberContextState)
     {
@@ -32,8 +33,11 @@ public sealed class UserShell : Shell, IAppShellInitializer
             EnsureMenuBuilt();
             EnsureActiveRouteAfterLoad();
         };
-        EnsureOwnMemberContext();
-        EnsureMenuBuilt();
+    }
+
+    public void SetPreferredStartupRoute(string? route)
+    {
+        _preferredStartupRoute = route;
     }
 
     protected override bool OnBackButtonPressed()
@@ -134,24 +138,30 @@ public sealed class UserShell : Shell, IAppShellInitializer
         if (_menuBuilt)
             return;
 
+        var ownMemberId = _state.CurrentMitgliedId is > 0 and <= int.MaxValue
+            ? (int?)_state.CurrentMitgliedId.Value
+            : null;
+        var hasOwnMemberContext = PermissionChecks.HasOwnMemberContextAccess(_state.CurrentUserContext) && ownMemberId.HasValue;
+
         Items.Add(CreateItem("Startseite", "home", () => _services.GetRequiredService<HomePage>()));
         Items.Add(CreateItem("Impressum", "impressum", () => _services.GetRequiredService<ImpressumPage>()));
 
         if (PermissionChecks.HasAnyMeterAccess(_state.CurrentUserContext))
             Items.Add(CreateItem("Ablesen", "ablesen", () => _services.GetRequiredService<AblesenOverviewPage>()));
 
-        if (PermissionChecks.HasOwnMemberContextAccess(_state.CurrentUserContext))
+        if (hasOwnMemberContext)
             Items.Add(CreateItem("↳ Stammdaten", "mydetails", CreateOwnMemberDetailsPage));
 
-        Items.Add(CreateItem("↳ Wartungsverträge", "my_wartungsvertraege", CreateOwnMemberWartungsvertraegePage));
+        if (hasOwnMemberContext)
+            Items.Add(CreateItem("↳ Wartungsverträge", "my_wartungsvertraege", CreateOwnMemberWartungsvertraegePage));
 
-        if (PermissionChecks.CanReadStammdatenForMember(_state.CurrentUserContext, _state.CurrentMitgliedId is > 0 and <= int.MaxValue ? (int)_state.CurrentMitgliedId.Value : null))
+        if (PermissionChecks.CanReadStammdatenForMember(_state.CurrentUserContext, ownMemberId))
             Items.Add(CreateItem("↳ Nebenmitglied", "nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>()));
 
-        if (PermissionChecks.CanShowParzellenForMember(_state.CurrentUserContext, _state.CurrentMitgliedId is > 0 and <= int.MaxValue ? (int)_state.CurrentMitgliedId.Value : null))
+        if (PermissionChecks.CanShowParzellenForMember(_state.CurrentUserContext, ownMemberId))
             Items.Add(CreateItem("↳ Gärten des Mitglieds", "mygardens", CreateOwnMemberGardensPage));
 
-        if (PermissionChecks.CanReadWorkHoursForMember(_state.CurrentUserContext, _state.CurrentMitgliedId is > 0 and <= int.MaxValue ? (int)_state.CurrentMitgliedId.Value : null))
+        if (PermissionChecks.CanReadWorkHoursForMember(_state.CurrentUserContext, ownMemberId))
             Items.Add(CreateItem("↳ Arbeitsstunden", "workhours", () => _services.GetRequiredService<MyArbeitsstundenPage>()));
 
         if (PermissionChecks.CanReadRoleManagement(_state.CurrentUserContext))
@@ -165,6 +175,17 @@ public sealed class UserShell : Shell, IAppShellInitializer
 
     private void EnsureActiveRouteAfterLoad()
     {
+        var preferredRoute = _preferredStartupRoute;
+        _preferredStartupRoute = null;
+
+        if (!string.IsNullOrWhiteSpace(preferredRoute)
+            && ShellNavigationHelper.HasVisibleShellContentRoute(this, preferredRoute))
+        {
+            AppFileLog.Info("KGV.Navigation", $"UserShell aktiviert bevorzugte Start-Route: {preferredRoute}.");
+            ShellNavigationHelper.EnsureActiveShellItem(this, preferredRoute);
+            return;
+        }
+
         if (ShellNavigationHelper.HasValidActiveShellContentRoute(this))
         {
             AppFileLog.Info("KGV.Navigation", $"UserShell.Loaded belässt aktive Route: {ShellNavigationHelper.GetActiveShellContentRoute(this)}.");

@@ -109,13 +109,8 @@ public partial class App : Application
             : _services.GetRequiredService<UserShell>();
 
         if (shell is IAppShellInitializer initializer)
-            initializer.BuildMenu();
+            initializer.SetPreferredStartupRoute(preferredContentRoute);
 
-        var initialRoute = string.IsNullOrWhiteSpace(preferredContentRoute)
-            ? "home"
-            : preferredContentRoute;
-
-        ShellNavigationHelper.EnsureActiveShellItem(shell, initialRoute);
         return shell;
     }
 

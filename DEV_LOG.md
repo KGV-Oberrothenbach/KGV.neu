@@ -2,6 +2,56 @@
 
 ---
 
+## 2026-04-07 – MAUI-Startup-/Initialisierungsfehler im Shell-Startpfad eingegrenzt und minimal stabilisiert
+
+- Ausgangspunkt dieses Laufs war ein echter mobiler Startup-/Initialisierungsfehler im Bereich `MauiProgram.CreateMauiApp` / `MainApplication.CreateMauiApp` / `Microsoft.Maui.Controls.VisualElement`.
+- Direkt geprüft wurden nur die blockrelevanten Startdateien und Logs:
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/App.xaml`
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/MainActivity.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - `KGV.Maui/ShellRouteRegistrar.cs`
+  - `KGV.Maui/ShellNavigationHelper.cs`
+  - `KGV.Maui/Resources/Styles/Styles.xaml`
+  - `KGV.Maui/Resources/Styles/Colors.xaml`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istbefund dieses Laufs:
+  - der aktuelle Debug-Start lief real bis `APP_START`, `APPSETTINGS_LOAD_OK` und `SUPABASE_CONFIG_PRESENT_YES` sauber durch; der bekannte Debug-Log zeigte keinen neuen reproduzierbaren Crash direkt in `CreateMauiApp`
+  - `App.xaml` ist aktuell praktisch leer; der Startfehler kam damit nicht aus einer aktiven globalen ResourceDictionary-Initialisierung
+  - der verdächtigste echte Produktivpfad war die Shell-Erzeugung:
+    - `AdminShell` und `UserShell` bauten ihre Menü-`VisualElement`-Struktur bereits im Konstruktor bzw. indirekt schon aus `App.CreateRootPage()` heraus auf
+    - damit wurde globale Shell-/Flyout-Struktur zu früh im Startpfad erzeugt, noch bevor die Shell tatsächlich geladen war
+  - genau dieser Pfad passt fachlich am besten zum gemeldeten Crashbereich `VisualElement` während `CreateMauiApp`/`MainApplication.CreateMauiApp`
+- Minimal umgesetzt wurde nur die Startpfad-Stabilisierung:
+  - `KGV.Maui/IAppShellInitializer.cs`
+    - kleinen Vertrag `SetPreferredStartupRoute(...)` ergänzt
+  - `KGV.Maui/App.xaml.cs`
+    - Shell-Menüaufbau nicht mehr direkt in `CreateRootPage()` erzwungen
+    - stattdessen wird nur noch die gewünschte Start-Route an die Shell übergeben
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+    - frühen Menüaufbau aus dem Konstruktor entfernt
+    - Shell-Menüs werden jetzt erst im echten `Loaded`-Pfad aufgebaut
+    - bevorzugte Start-Route wird ebenfalls erst nach gebauter/geladener Shell aktiviert
+    - bestehende Back-/Kontext-/Sichtbarkeitslogik blieb erhalten
+- Bewusst nicht gemacht:
+  - keine neue Fachlogik
+  - kein Umbau von globalen Styles/Resources auf Verdacht
+  - kein Eingriff in WPF oder fachliche Module außerhalb des Shell-Startpfads
+  - ein kurzer Versuch, `App.xaml` explizit per `InitializeComponent()` zu initialisieren, wurde wieder zurückgenommen, weil der aktuelle Workspace dafür keinen generierten Pfad liefert und das nicht die echte Ursache des Blocks war
+- Echte Validierung dieses Laufs:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+  - der MAUI-Build blieb dabei nur mit bereits vorhandenen Warnungen grün, u. a. in `MainActivity.cs`, `HomeManagementPage.cs` und `ImpressumPage.cs`
+- Ehrliche Grenze dieses Laufs:
+  - der normale Geräte-Startcrash war in diesem Headless-Lauf nicht erneut automatisiert reproduzierbar
+  - code-seitig wurde deshalb der wahrscheinlich verursachende globale Startpfad stabilisiert: keine frühe Shell-/VisualElement-Erzeugung mehr im Konstruktor-/`CreateRootPage()`-Pfad
+
 ## 2026-04-06 – AWR-Android-Upload-Ordner fuer manuellen Release-Upload ergänzt
 
 - Ausgangspunkt dieses Laufs war kein neuer Android-Buildpfad, sondern die praktische Bündelung der bereits erzeugten Release-Artefakte aus `AWR.bat` für den manuellen Upload.

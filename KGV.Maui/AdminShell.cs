@@ -12,7 +12,7 @@ using Microsoft.Maui.Controls;
 
 namespace KGV.Maui;
 
-public sealed class AdminShell : Shell
+public sealed class AdminShell : Shell, IAppShellInitializer
 {
     private readonly IServiceProvider _services;
     private readonly UserContextState _userContextState;
@@ -30,6 +30,7 @@ public sealed class AdminShell : Shell
     private FlyoutItem? _memberWorkhoursItem;
     private bool _backNavigationInProgress;
     private bool _exitConfirmationInProgress;
+    private string? _preferredStartupRoute;
 
     public AdminShell(IServiceProvider services, UserContextState userContextState, MemberContextState memberContextState, PendingPhotoMenuState pendingPhotoMenuState)
     {
@@ -49,8 +50,11 @@ public sealed class AdminShell : Shell
             await RefreshWorkhoursReviewMenuAsync();
         };
         memberContextState.Changed += (_, _) => RefreshMemberContextMenu(memberContextState);
-        ClearImplicitOwnMemberContext();
-        BuildMenu();
+    }
+
+    public void SetPreferredStartupRoute(string? route)
+    {
+        _preferredStartupRoute = route;
     }
 
     protected override bool OnBackButtonPressed()
@@ -170,7 +174,6 @@ public sealed class AdminShell : Shell
         RefreshMemberContextMenu(BindingContext as MemberContextState);
 
         _menuBuilt = true;
-        ShellNavigationHelper.EnsureActiveShellItem(this, "home");
     }
 
     private void RefreshMemberContextMenu(MemberContextState? state)
@@ -214,6 +217,17 @@ public sealed class AdminShell : Shell
 
     private void EnsureActiveRouteAfterLoad()
     {
+        var preferredRoute = _preferredStartupRoute;
+        _preferredStartupRoute = null;
+
+        if (!string.IsNullOrWhiteSpace(preferredRoute)
+            && ShellNavigationHelper.HasVisibleShellContentRoute(this, preferredRoute))
+        {
+            AppFileLog.Info("KGV.Navigation", $"AdminShell aktiviert bevorzugte Start-Route: {preferredRoute}.");
+            ShellNavigationHelper.EnsureActiveShellItem(this, preferredRoute);
+            return;
+        }
+
         var currentRoute = ShellNavigationHelper.GetActiveShellContentRoute(this);
         if (currentRoute != null && ShellNavigationHelper.HasVisibleShellContentRoute(this, currentRoute))
         {
