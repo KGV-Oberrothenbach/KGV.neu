@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
-using Microsoft.Maui.Graphics;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -21,7 +20,6 @@ public partial class App : Application
     private Window? _mainWindow;
     private string? _pendingLoginMessage;
     private bool _resumeTimeoutResetInProgress;
-    private bool _initialRootInitializationScheduled;
 
     public App(IServiceProvider services, UserContextState userContextState)
     {
@@ -31,7 +29,7 @@ public partial class App : Application
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        _mainWindow = new Window(CreateBootstrapPage());
+        _mainWindow = new Window(CreateRootPage());
 
         _mainWindow.Stopped += (_, _) =>
         {
@@ -40,8 +38,6 @@ public partial class App : Application
         };
 
         _mainWindow.Resumed += async (_, _) => await HandleWindowResumedAsync();
-
-        ScheduleInitialRootInitialization();
 
         return _mainWindow;
     }
@@ -88,27 +84,6 @@ public partial class App : Application
         });
     }
 
-    private void ScheduleInitialRootInitialization()
-    {
-        if (_initialRootInitializationScheduled)
-            return;
-
-        _initialRootInitializationScheduled = true;
-        MainThread.BeginInvokeOnMainThread(async () =>
-        {
-            try
-            {
-                Services.Diagnostics.AppFileLog.Info("KGV.Navigation", "Initiale Root-Seite wird nach Window-Erstellung verzögert aufgebaut.");
-                await Task.Yield();
-                await SwitchToCurrentRootCoreAsync(null);
-            }
-            catch (Exception ex)
-            {
-                Services.Diagnostics.AppFileLog.Error("KGV.Navigation", "Initiale Root-Seite konnte nach Window-Erstellung nicht aufgebaut werden.", ex);
-            }
-        });
-    }
-
     private Page CreateRootPage(string? preferredContentRoute = null)
     {
         if (_userContextState.CurrentUserId == null || _userContextState.CurrentUserContext == null)
@@ -134,17 +109,14 @@ public partial class App : Application
             : _services.GetRequiredService<UserShell>();
 
         if (shell is IAppShellInitializer initializer)
-            initializer.SetPreferredStartupRoute(preferredContentRoute);
+            initializer.BuildMenu();
 
+        var initialRoute = string.IsNullOrWhiteSpace(preferredContentRoute)
+            ? "home"
+            : preferredContentRoute;
+
+        ShellNavigationHelper.EnsureActiveShellItem(shell, initialRoute);
         return shell;
-    }
-
-    private static Page CreateBootstrapPage()
-    {
-        return new ContentPage
-        {
-            BackgroundColor = Colors.White
-        };
     }
 
     private async Task HandleWindowResumedAsync()

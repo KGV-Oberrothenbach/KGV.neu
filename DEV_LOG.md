@@ -2,6 +2,52 @@
 
 ---
 
+## 2026-04-07 – MAUI-Android-Startup gezielt gegen den letzten stabilen Vor-07.04-Stand zurückverglichen und am frühesten Rootpfad minimal zurückgeführt
+
+- Ausgangspunkt dieses Laufs war derselbe echte Android-Normalstart-Crash im frühen Startup-Pfad:
+  - `System.TypeInitializationException`
+  - `The type initializer for 'Microsoft.Maui.Controls.VisualElement' threw an exception.`
+  - `UseMauiApp` / `KGV.Maui.MauiProgram.CreateMauiApp` / `KGV.Maui.MainApplication.CreateMauiApp` / `Microsoft.Maui.MauiApplication.OnCreate`
+- Direkt geprüft wurden nur die vorgegebenen Blockdateien:
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/MainActivity.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Git-/Diff-Befund gegen den letzten stabilen Stand vor den 07.04.-Startup-/Shell-Umbauten:
+  - als belastbarer Vor-07.04-Stand wurde `7a9a4ac` verwendet
+  - `KGV.Maui/MauiProgram.cs` ist gegenüber `7a9a4ac` im aktiven Startup-Pfad unverändert
+  - `KGV.Maui/MainActivity.cs` ist gegenüber `7a9a4ac` ebenfalls unverändert (`base.OnCreate(null)` war also nicht neu die Ursache)
+  - die reale Änderungslinie seit 07.04 saß damit nur in:
+    - `KGV.Maui/App.xaml.cs`
+    - `KGV.Maui/AdminShell.cs`
+    - `KGV.Maui/UserShell.cs`
+- Echte Einordnung der verdächtigen Änderungslinie:
+  - `AdminShell`/`UserShell` wurden am 07.04 zwar in den `Loaded`-Pfad verschoben und verzögert, diese Logik greift aber erst nach Shell-Erzeugung
+  - der früheste aktive Unterschied im Android-Normalstart war dagegen der neue Bootstrap-/deferred-root-Pfad in `App.xaml.cs`
+  - zusätzlich lag im aktuellen Workspace genau dort noch ein weiterer uncommitteter Ausbau des Delays vor (`Bootstrap-Seite` + Wechsel erst nach `Appearing`)
+  - genau dieser Pfad wirkte am frühesten im normalen Android-Startup und war damit als kleinster plausibler Auslöser belastbarer als der spätere Shell-`Loaded`-Tick
+- Minimal umgesetzt:
+  - `KGV.Maui/App.xaml.cs`
+    - Bootstrap-Seite vollständig zurückgenommen
+    - `CreateWindow(...)` wieder auf den stabilen synchronen Root-Aufbau aus `7a9a4ac` zurückgeführt
+    - `CreateRootPage(...)` baut Login/Shell wieder direkt und setzt die initiale Zielroute sofort über `ShellNavigationHelper.EnsureActiveShellItem(...)`
+    - der 07.04-Pfad `SetPreferredStartupRoute(...)`/deferred-root wird damit im frühesten Startup nicht mehr benutzt
+- Bewusst nicht gemacht:
+  - `MauiProgram.cs` nicht angefasst, weil im Vergleich zum stabilen Stand keine neue Startup-Differenz vorlag
+  - `MainActivity.cs` nicht angefasst, weil ebenfalls keine neue Vor-07.04-Differenz vorlag
+  - `AdminShell.cs` und `UserShell.cs` in diesem Lauf nicht zusätzlich zurückgebaut, weil deren Unterschiede später greifen als der jetzt zurückgenommene Root-Delay-Pfad
+  - keine neue Fachlogik, keine neue Shell-Architektur, keine Schattennavigation
+- Echte Validierung dieses Laufs:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug` erfolgreich
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly` erfolgreich
+- Ehrliche Grenze dieses Laufs:
+  - der echte Android-Normalstart-Crash war im Headless-Lauf weiterhin nicht direkt reproduzierbar
+  - behandelt wurde deshalb gezielt der im Git-/Diff-Vergleich früheste und plausibelste 07.04-Auslöser: der Bootstrap-/deferred-root-Startup-Pfad in `App.xaml.cs`
+
 ## 2026-04-07 – MAUI-Android-Normalstart im verbleibenden frühen Shell-Loaded-Pfad nochmals entschärft
 
 - Ausgangspunkt dieses Laufs war erneut derselbe echte Android-Normalstart-Crash im frühen Startup-Pfad:
