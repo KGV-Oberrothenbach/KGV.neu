@@ -2,6 +2,54 @@
 
 ---
 
+## 2026-04-07 – MAUI-Android-Normalstart im verbleibenden frühen Shell-Loaded-Pfad nochmals entschärft
+
+- Ausgangspunkt dieses Laufs war erneut derselbe echte Android-Normalstart-Crash mit belastbaren externen Logs im frühen Startup-Pfad:
+  - `System.TypeInitializationException`
+  - `The type initializer for 'Microsoft.Maui.Controls.VisualElement' threw an exception.`
+  - `Microsoft.Maui.Controls.Hosting.AppHostBuilderExtensions.UseMauiApp`
+  - `KGV.Maui.MauiProgram.CreateMauiApp`
+  - `KGV.Maui.MainApplication.CreateMauiApp`
+  - `Microsoft.Maui.MauiApplication.OnCreate`
+- Direkt geprüft wurden diesmal nur die ausdrücklich vorgegebenen Blockdateien:
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/AdminShell.cs`
+  - `KGV.Maui/UserShell.cs`
+  - `KGV.Maui/MainActivity.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand dieses Laufs auf dem aktuellen Workspace-`main`:
+  - der global frühe synchrone Root-Aufbau aus `new Window(CreateRootPage())` war im aktuellen Workspace bereits nicht mehr der aktive Codezustand; `App.xaml.cs` startet schon mit einer kleinen Bootstrap-Seite und verschiebt den echten Root-Wechsel per `MainThread` + `Task.Yield()`
+  - `MainActivity.cs` war ebenfalls bereits auf dem robusteren Android-Pfad mit `base.OnCreate(null)` und ohne zusätzlichen frühen Shell-/Lifecycle-Sonderpfad
+  - offen blieb damit vor allem noch der erste Shell-`Loaded`-Tick:
+    - `AdminShell` führte Menü-/Kontext-/Routeninitialisierung weiterhin sofort im ersten Dispatcher-Aufruf aus
+    - `UserShell` initialisierte den eigenen Kontext und das Menü ebenfalls noch ohne zusätzlichen Yield-Tick
+    - dadurch konnte komplexe Flyout-/Shell-`VisualElement`-Struktur weiterhin sehr früh im Android-Startupfenster entstehen
+- Minimal zusätzlich umgesetzt:
+  - `KGV.Maui/AdminShell.cs`
+    - im `Loaded`-Pfad jetzt vor `ClearImplicitOwnMemberContext()`, `BuildMenu()`, `EnsureActiveRouteAfterLoad()` und den Shell-Refreshs explizit `await Task.Yield()`
+    - damit startet die vorhandene Fachlogik nicht mehr im ersten unmittelbaren Dispatcher-Tick, sondern erst einen Tick später
+  - `KGV.Maui/UserShell.cs`
+    - denselben frühen `Loaded`-Pfad ebenfalls auf `Dispatcher` + `await Task.Yield()` gezogen
+    - eigener Kontext, Menüaufbau und Routenaktivierung laufen dadurch ebenfalls erst nach dem zusätzlichen Yield-Tick an
+  - `KGV.Maui/App.xaml.cs`
+    - nur geprüft; der Bootstrap-/deferred-root-Fix war hier bereits vorhanden und blieb unverändert
+  - `KGV.Maui/MainActivity.cs`
+    - nur geprüft; kein weiterer direkter Startup-/Lifecycle-Code gefunden, der für diesen Block zusätzlich hätte entschärft werden müssen
+- Bewusst nicht gemacht:
+  - keine neue Fachlogik
+  - kein neuer Shell-/Routing-Großumbau
+  - keine neue Schattennavigation
+  - keine Änderungen an blockfremden MAUI-/WPF-/Core-Pfaden
+- Echte Validierung dieses Laufs:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+- Ehrliche technische Grenze dieses Laufs:
+  - der echte Android-Normalstart-Crash bleibt headless nicht direkt reproduzierbar
+  - code-seitig wurde aber der verbleibende frühe Shell-Loaded-Pfad nochmals entschärft; Debug- und Normalstart nutzen damit denselben weiter verzögerten Root-/Shell-Aufbau
+
 ## 2026-04-07 – MAUI-Android-Normalstart weiter auf frühen Root-/Shell-VisualElement-Pfad eingegrenzt und zusätzlich entschärft
 
 - Ausgangspunkt dieses Laufs war ein echter Android-Normalstart-Crash mit belastbaren externen Logs im Pfad:

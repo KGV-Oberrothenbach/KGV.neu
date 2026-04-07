@@ -34,10 +34,11 @@ public sealed class UserShell : Shell, IAppShellInitializer
                 return;
 
             _loadedInitializationScheduled = true;
-            Dispatcher.Dispatch(() =>
+            Dispatcher.Dispatch(async () =>
             {
                 try
                 {
+                    await Task.Yield();
                     EnsureOwnMemberContext();
                     EnsureMenuBuilt();
                     EnsureActiveRouteAfterLoad();

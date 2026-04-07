@@ -52,6 +52,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             {
                 try
                 {
+                    await Task.Yield();
                     ClearImplicitOwnMemberContext();
                     BuildMenu();
                     EnsureActiveRouteAfterLoad();
