@@ -2,6 +2,42 @@
 
 ---
 
+## 2026-04-07 – MAUI-Nebenmitglied-Maske um die bereits vorbereiteten Zusatzfelder vervollständigt
+
+- Ausgangspunkt dieses Laufs war kein neuer Create-/Service-Umbau, sondern die sichtbare MAUI-Maske für `Nebenmitglied neu anlegen`.
+- Direkt geprüft wurden nur die freigegebenen Blockdateien und der unmittelbar nötige Shared-Abgleich:
+  - `KGV.Maui/Pages/NebenmitgliedPage.cs`
+  - `KGV.Core/Models/NebenmitgliedCreateDTO.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Iststand vor dem Fix:
+  - der DTO-/Create-/Servicepfad war bereits vorhanden:
+    - `NebenmitgliedCreateDTO` enthält bereits `Email`, `Geburtsdatum`, `MitgliedSeit` und `WhatsappEinwilligung`
+    - `CreateNebenmitgliedAsync(...)` in `SupabaseService` übernimmt diese Felder bereits in den Insert-Payload
+  - in `NebenmitgliedPage` existierten die Controls für:
+    - `E-Mail-Adresse`
+    - `Geburtsdatum`
+    - `Beginn`
+    - `WhatsApp`
+  - diese Controls waren aber noch nicht in die sichtbare Create-Maske eingebunden; sichtbar waren dort bisher nur Vorname/Nachname und die Adressübernahme, während Telefon/Handy/Adresse außerhalb des Create-Abschnitts lagen
+- Minimal umgesetzt:
+  - `KGV.Maui/Pages/NebenmitgliedPage.cs`
+    - die bereits vorhandenen Controls für `E-Mail-Adresse`, `Geburtsdatum`, `Beginn` und `WhatsApp` jetzt sichtbar in die Create-Maske eingebunden
+    - `Geburtsdatum` bleibt über bestehende Checkbox + DatePicker steuerbar
+    - `Beginn` bleibt am vorhandenen `MitgliedSeit`-/Validierungspfad gebunden
+    - `WhatsApp` bleibt am vorhandenen DTO-Pfad `WhatsappEinwilligung` gebunden
+    - bestehende Adressübernahme sowie Telefon-/Handy-/Adresslogik bleiben unverändert führend
+    - Create-Modus initialisiert die neu sichtbaren Felder jetzt konsistent zurück
+- Bewusst nicht gemacht:
+  - kein neuer Servicepfad
+  - keine neue Nebenmitglied-Architektur
+  - keine Änderung an der bestehenden Update-Logik für das bereits vorhandene Nebenmitglied
+- Reale Validierung dieses Laufs:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+
 ## 2026-04-07 – Android-Startup-Crash auf echten R8/ProGuard-Packagingpfad eingegrenzt und minimal auf stabilen Zustand zurückgeführt
 
 - Ausgangspunkt dieses Laufs war jetzt nicht mehr nur ein früher MAUI-Controls-Crash, sondern eine echte belastbare innere Geräteursache aus dem App-Dateilog:

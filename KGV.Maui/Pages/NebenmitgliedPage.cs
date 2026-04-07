@@ -78,6 +78,28 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
                         _adresseUebernehmenCheckBox,
                         new Label { Text = "Adresse des Hauptmitglieds übernehmen", VerticalTextAlignment = TextAlignment.Center }
                     }
+                },
+                _emailEntry,
+                new HorizontalStackLayout
+                {
+                    Spacing = 8,
+                    Children =
+                    {
+                        _geburtsdatumCheckBox,
+                        new Label { Text = "Geburtsdatum erfassen", VerticalTextAlignment = TextAlignment.Center }
+                    }
+                },
+                _geburtsdatumPicker,
+                new Label { Text = "Beginn" },
+                _mitgliedSeitPicker,
+                new HorizontalStackLayout
+                {
+                    Spacing = 8,
+                    Children =
+                    {
+                        _whatsappSwitch,
+                        new Label { Text = "WhatsApp", VerticalTextAlignment = TextAlignment.Center }
+                    }
                 }
             }
         };
@@ -302,6 +324,12 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
         _adresseEntry.Text = hauptmitglied.Adresse ?? string.Empty;
         _plzEntry.Text = hauptmitglied.Plz ?? string.Empty;
         _ortEntry.Text = hauptmitglied.Ort ?? string.Empty;
+        _emailEntry.Text = string.Empty;
+        _geburtsdatumCheckBox.IsChecked = false;
+        _geburtsdatumPicker.IsVisible = false;
+        _geburtsdatumPicker.Date = DateTime.Today;
+        _mitgliedSeitPicker.Date = DateTime.Today;
+        _whatsappSwitch.IsToggled = false;
     }
 
     private async Task CreateNebenmitgliedAsync()
