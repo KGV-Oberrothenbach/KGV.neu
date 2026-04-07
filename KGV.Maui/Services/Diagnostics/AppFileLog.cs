@@ -13,7 +13,10 @@ internal static partial class AppFileLog
     private const long MaxLogFileBytes = 512 * 1024;
     private static readonly object SyncRoot = new();
     private static string? _logFilePath;
+    private static string? _externalLogFilePath;
+    private static bool _externalLogPathResolved;
     private static bool _androidLogUnavailableReported;
+    private static bool _externalLogUnavailableReported;
 
     public static string LogFilePath
     {
@@ -28,6 +31,29 @@ internal static partial class AppFileLog
             {
                 _logFilePath ??= Path.Combine(GetAppDataDirectory(), "kgv-release.log");
                 return _logFilePath;
+            }
+        }
+    }
+
+    public static string? ExternalLogFilePath
+    {
+        get
+        {
+            if (_externalLogPathResolved)
+            {
+                return _externalLogFilePath;
+            }
+
+            lock (SyncRoot)
+            {
+                if (_externalLogPathResolved)
+                {
+                    return _externalLogFilePath;
+                }
+
+                _externalLogFilePath = ResolveExternalLogFilePath();
+                _externalLogPathResolved = true;
+                return _externalLogFilePath;
             }
         }
     }
@@ -52,13 +78,13 @@ internal static partial class AppFileLog
         try
         {
             var logFilePath = LogFilePath;
-            var directory = Path.GetDirectoryName(logFilePath);
-            if (!string.IsNullOrWhiteSpace(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
+            var externalLogFilePath = ExternalLogFilePath;
 
             TrimLogFileIfNeeded(logFilePath);
+            if (!string.IsNullOrWhiteSpace(externalLogFilePath))
+            {
+                TrimLogFileIfNeeded(externalLogFilePath);
+            }
 
             var sanitizedMessage = Sanitize(message);
             var line = $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff zzz} [{level}] {category}: {sanitizedMessage}";
@@ -67,35 +93,47 @@ internal static partial class AppFileLog
                 line += $" | {exception.GetType().Name}: {Sanitize(exception.Message)}";
             }
 
-            WriteLineToPersistentOutputs(logFilePath, line);
-            TryWriteToAndroidLog(level, $"{category}: {sanitizedMessage}", exception, logFilePath);
+            WriteLineToPersistentOutputs(logFilePath, externalLogFilePath, line);
+            TryWriteToAndroidLog(level, $"{category}: {sanitizedMessage}", exception, logFilePath, externalLogFilePath);
         }
         catch
         {
         }
     }
 
-    private static void WriteLineToPersistentOutputs(string logFilePath, string line)
+    private static void WriteLineToPersistentOutputs(string logFilePath, string? externalLogFilePath, string line)
     {
+        string? externalLogFailureLine = null;
+
         lock (SyncRoot)
         {
+            EnsureDirectoryExists(logFilePath);
             File.AppendAllText(logFilePath, line + Environment.NewLine);
+
+            if (!string.IsNullOrWhiteSpace(externalLogFilePath))
+            {
+                try
+                {
+                    EnsureDirectoryExists(externalLogFilePath);
+                    File.AppendAllText(externalLogFilePath, line + Environment.NewLine);
+                }
+                catch (Exception ex)
+                {
+                    if (!_externalLogUnavailableReported)
+                    {
+                        _externalLogUnavailableReported = true;
+                        externalLogFailureLine = $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff zzz} [WARN] APPLOG: Extern lesbares Spiegel-Log konnte nicht geschrieben werden. Internes File-/stderr-Logging bleibt aktiv. {ex.GetType().Name}: {Sanitize(ex.Message)}";
+                        File.AppendAllText(logFilePath, externalLogFailureLine + Environment.NewLine);
+                    }
+                }
+            }
         }
 
-        try
-        {
-            Debug.WriteLine(line);
-        }
-        catch
-        {
-        }
+        WriteToDebugAndError(line);
 
-        try
+        if (!string.IsNullOrWhiteSpace(externalLogFailureLine))
         {
-            Console.Error.WriteLine(line);
-        }
-        catch
-        {
+            WriteToDebugAndError(externalLogFailureLine);
         }
     }
 
@@ -121,33 +159,33 @@ internal static partial class AppFileLog
         try
         {
             var logFilePath = LogFilePath;
+            var externalLogFilePath = ExternalLogFilePath;
             var begin = $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff zzz} [ERROR] {category}.Exception.Full: BEGIN";
             var end = $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff zzz} [ERROR] {category}.Exception.Full: END";
 
-            WriteLineToPersistentOutputs(logFilePath, begin);
+            WriteLineToPersistentOutputs(logFilePath, externalLogFilePath, begin);
 
             lock (SyncRoot)
             {
+                EnsureDirectoryExists(logFilePath);
                 File.AppendAllText(logFilePath, exception + Environment.NewLine);
+
+                if (!string.IsNullOrWhiteSpace(externalLogFilePath))
+                {
+                    try
+                    {
+                        EnsureDirectoryExists(externalLogFilePath);
+                        File.AppendAllText(externalLogFilePath, exception + Environment.NewLine);
+                    }
+                    catch
+                    {
+                    }
+                }
             }
 
-            try
-            {
-                Debug.WriteLine(exception.ToString());
-            }
-            catch
-            {
-            }
+            WriteToDebugAndError(exception.ToString());
 
-            try
-            {
-                Console.Error.WriteLine(exception.ToString());
-            }
-            catch
-            {
-            }
-
-            WriteLineToPersistentOutputs(logFilePath, end);
+            WriteLineToPersistentOutputs(logFilePath, externalLogFilePath, end);
         }
         catch
         {
@@ -158,6 +196,8 @@ internal static partial class AppFileLog
     {
         lock (SyncRoot)
         {
+            EnsureDirectoryExists(logFilePath);
+
             if (!File.Exists(logFilePath))
             {
                 return;
@@ -170,6 +210,15 @@ internal static partial class AppFileLog
             }
 
             File.WriteAllText(logFilePath, string.Empty);
+        }
+    }
+
+    private static void EnsureDirectoryExists(string logFilePath)
+    {
+        var directory = Path.GetDirectoryName(logFilePath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
         }
     }
 
@@ -190,7 +239,24 @@ internal static partial class AppFileLog
         return Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
     }
 
-    private static void TryWriteToAndroidLog(string level, string message, Exception? exception, string logFilePath)
+    private static string? ResolveExternalLogFilePath()
+    {
+        try
+        {
+            var externalDirectory = Android.App.Application.Context?.GetExternalFilesDir(null)?.AbsolutePath;
+            if (!string.IsNullOrWhiteSpace(externalDirectory))
+            {
+                return Path.Combine(externalDirectory, "diagnostics", "kgv-release.log");
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
+    }
+
+    private static void TryWriteToAndroidLog(string level, string message, Exception? exception, string logFilePath, string? externalLogFilePath)
     {
         try
         {
@@ -220,7 +286,26 @@ internal static partial class AppFileLog
 
             _androidLogUnavailableReported = true;
             var fallbackLine = $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff zzz} [WARN] APPLOG: Android liblog bridge unavailable. File-/stderr-logging remains active. {ex.GetType().Name}: {Sanitize(ex.Message)}";
-            WriteLineToPersistentOutputs(logFilePath, fallbackLine);
+            WriteLineToPersistentOutputs(logFilePath, externalLogFilePath, fallbackLine);
+        }
+    }
+
+    private static void WriteToDebugAndError(string line)
+    {
+        try
+        {
+            Debug.WriteLine(line);
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            Console.Error.WriteLine(line);
+        }
+        catch
+        {
         }
     }
 

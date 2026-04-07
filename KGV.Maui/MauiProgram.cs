@@ -62,7 +62,11 @@ public static class MauiProgram
             RunStartupStep("LOAD_APPSETTINGS", () =>
             {
                 AppSettings.Load();
-                AppFileLog.Info(StartupLogTag, $"AppSettings geladen. Diagnose-Log: {AppFileLog.LogFilePath}");
+                var externalLogPath = AppFileLog.ExternalLogFilePath;
+                var logTargetInfo = string.IsNullOrWhiteSpace(externalLogPath)
+                    ? $"Diagnose-Log intern: {AppFileLog.LogFilePath}"
+                    : $"Diagnose-Log intern: {AppFileLog.LogFilePath} | extern lesbar: {externalLogPath}";
+                AppFileLog.Info(StartupLogTag, $"AppSettings geladen. {logTargetInfo}");
             });
 
             RunStartupStep("REGISTER_CONFIGURATION", () =>

@@ -2,6 +2,39 @@
 
 ---
 
+## 2026-04-07 – MAUI-Diagnoselog zusätzlich nach extern lesbaren Android-Pfad gespiegelt
+
+- Ausgangspunkt dieses Laufs war kein neuer Startup-Fix, sondern die reale Geräteauslesbarkeit der bereits vorhandenen MAUI-Startup-Diagnose.
+- Direkt geprüft wurden nur die ausdrücklich freigegebenen Dateien:
+  - `KGV.Maui/Services/Diagnostics/AppFileLog.cs`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Istzustand vor dem Fix:
+  - das interne Diagnose-Log unter `FileSystem.AppDataDirectory` war auf nicht debuggablem Android-Paket ohne `run-as` nicht lesbar
+  - damit war der vorhandene frühe MAUI-Startup-/Crash-Logpfad auf echten Geräten zwar da, aber praktisch schlecht auslesbar
+- Minimal umgesetzt:
+  - `KGV.Maui/Services/Diagnostics/AppFileLog.cs`
+    - interner Logpfad bleibt unverändert führend
+    - zusätzlich wird jetzt in einen extern lesbaren Android-App-spezifischen Pfad gespiegelt, sofern `GetExternalFilesDir(null)` verfügbar ist
+    - Spiegelziel:
+      - `/storage/emulated/0/Android/data/de.kgv.oberrothenbach/files/diagnostics/kgv-release.log`
+    - Spiegel-Fehler werden einmalig protokolliert, ohne das interne File-/`Debug`-/`stderr`-Logging zu beschädigen
+    - vollständige Exception-Dumps werden ebenfalls in das externe Spiegel-Log geschrieben
+  - `KGV.Maui/MauiProgram.cs`
+    - früher Startup-Hinweis erweitert, damit interner und externer Logpfad direkt im Log sichtbar sind
+- Bewusst nicht gemacht:
+  - keine Fachlogik geändert
+  - keine neue Startup-/Shell-/Root-Baustelle eröffnet
+  - keine Änderungen außerhalb des direkt betroffenen Diagnosepfads
+- Echte Validierung dieses Laufs:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+- Praktischer Gerätepfad nach diesem Lauf:
+  - `adb shell ls /storage/emulated/0/Android/data/de.kgv.oberrothenbach/files/diagnostics`
+  - `adb pull /storage/emulated/0/Android/data/de.kgv.oberrothenbach/files/diagnostics/kgv-release.log`
+
 ## 2026-04-07 – MAUI-Android-Startup weiter auf den echten Minimalpfad eingegrenzt und frühes `liblog`-/InnerException-Logging gehärtet
 
 - Ausgangspunkt dieses Laufs war weiterhin derselbe echte Android-Startup-Crash direkt im frühen MAUI-Controls-Pfad:
