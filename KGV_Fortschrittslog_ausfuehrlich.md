@@ -2,6 +2,56 @@
 
 ---
 
+## 2026-04-07 – MAUI-Android-Startup im Packaging-/Resource-/frühen Controls-Pfad isoliert und die früheste eigene VisualElement-Probe entfernt
+
+- Ausgangspunkt dieses Laufs war weiterhin derselbe echte Android-Startup-Crash direkt im sehr frühen MAUI-Controls-Pfad:
+  - `KGV.Maui: Appstart initialisiert.`
+  - direkt danach:
+    - `Assembly 'de-DE/System.Private.CoreLib.resources' not found`
+    - `open_from_bundles: failed to load bundled assembly de-DE/System.Private.CoreLib.resources`
+    - `Assembly 'de/System.Private.CoreLib.resources' not found`
+    - `open_from_bundles: failed to load bundled assembly de/System.Private.CoreLib.resources`
+  - danach harter Crash:
+    - `System.TypeInitializationException`
+    - `The type initializer for 'Microsoft.Maui.Controls.VisualElement' threw an exception.`
+    - Stack weiter bei `Microsoft.Maui.Controls.Hosting.AppHostBuilderExtensions.RemapForControls`, `UseMauiApp` und `KGV.Maui.MauiProgram.CreateMauiApp`
+- Direkt geprüft wurden nur die vorgegebenen Blockdateien und der unmittelbar angebundene Resource-/Packaging-Pfad:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/App.xaml`
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/Platforms/Android/AndroidManifest.xml`
+  - `KGV.Maui/Resources/Styles/Styles.xaml`
+  - `KGV.Maui/Resources/Styles/Colors.xaml`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Packaging-/Resource-Befund dieses Laufs:
+  - `KGV.Maui.csproj` enthält im aktuellen aktiven Debug-Pfad keine neue Kultur-/Satellitenassembly-Einschränkung wie `SatelliteResourceLanguages`, `NeutralLanguage`, `InvariantGlobalization` oder trim-basierte Resource-Ausfilterung
+  - `AndroidLinkMode=None` bleibt im Debug-Pfad aktiv; ein neuer Linker-/Trim-/AOT-Culture-Block war damit im aktuellen Debug-Startup nicht die belastbar neue Ursache
+  - `App.xaml` ist weiterhin praktisch leer; `Styles.xaml`/`Colors.xaml` sind im aktiven App-Startup weiterhin nicht global gemerged und damit nicht die früheste aktive Controls-Ursache
+  - die `de-DE`/`de`-Meldungen treten unmittelbar vor dem Crash auf, aber der einzige im aktuellen Workspace zusätzlich selbst eingebaute frühe Startup-Schritt, der genau in diesem Fenster Kulturen und `VisualElement` vorzeitig berührt, war die manuelle Probe in `MauiProgram`
+- Wahrscheinlichster echter Verursacherpfad dieses Laufs:
+  - nicht Shell/Root/Delay, sondern eine selbst eingeführte frühe Controls-Probe in `MauiProgram.CreateMauiApp()`
+  - dort wurden vor dem normalen `.UseMauiApp<App>()`-Pfad zuerst Kulturwerte gelesen und anschließend `VisualElement.BackgroundColorProperty` direkt angefasst
+  - damit wurde die `VisualElement`-Static-Initialisierung künstlich vorgezogen; genau dieser Pfad passt zeitlich zum Logbild `de-DE`/`de` Resource-Lookup direkt vor dem frühen Controls-Crash
+- Minimal umgesetzt:
+  - `KGV.Maui/MauiProgram.cs`
+    - die explizite frühe Probe `ProbeVisualElementStaticInitialization()` vollständig entfernt
+    - damit wird `VisualElement` nicht mehr vor dem regulären `.UseMauiApp<App>()`-Pfad künstlich initialisiert
+    - stattdessen nur noch ein nicht invasiver Startup-Logmarker ergänzt, dass keine eigene VisualElement-/Culture-Probe mehr vor `UseMauiApp` läuft
+- Bewusst nicht gemacht:
+  - keine neue Shell-/Root-/Delay-Baustelle
+  - keine Packaging-Eigenschaft auf Verdacht umgeschaltet, weil im aktuellen `csproj` keine belastbare neue Culture-/Satellite-Regression nachweisbar war
+  - keine neue Fachlogik
+  - kein globaler ResourceDictionary-Umbau auf Verdacht
+- Echte Validierung dieses Laufs:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+- Ehrliche technische Grenze dieses Laufs:
+  - der echte Android-Gerätestart wurde headless weiterhin nicht reproduziert
+  - code-seitig wurde aber die früheste selbst eingebaute Controls-Initialisierung entfernt; der nächste Geräte-Log kann damit sauberer zeigen, ob die `de-DE`/`de`-Warnings nur Begleitrauschen sind oder ob danach noch ein separater Packaging-/Resource-Verursacher übrig bleibt
+
 ## 2026-04-07 – MAUI-Android-Startup gezielt gegen den letzten stabilen Vor-07.04-Stand zurückverglichen und am frühesten Rootpfad minimal zurückgeführt
 
 - Ausgangspunkt dieses Laufs war derselbe echte Android-Normalstart-Crash mit belastbaren externen Logs im frühen Startup-Pfad:

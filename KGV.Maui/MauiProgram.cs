@@ -12,6 +12,7 @@ using KGV.Maui.ViewModels;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Hosting;
 using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Storage;
@@ -29,97 +30,130 @@ public static class MauiProgram
     {
         AppFileLog.Marker("APP_START");
         AppFileLog.Info(StartupLogTag, "Appstart initialisiert.");
-        var builder = MauiApp.CreateBuilder();
-        builder
-            .UseMauiApp<App>();
-
-        ShellRouteRegistrar.RegisterCommonRoutes();
-
-        builder.Logging.AddDebug();
-        builder.Logging.AddProvider(new AppFileLoggerProvider());
-        builder.Logging.SetMinimumLevel(LogLevel.Information);
-
         RegisterUnhandledExceptionLogging();
 
-        // Use the same appsettings.json as the WPF app.
-        // For Android this must be packaged as an app asset (see `KGV.Maui.csproj`).
-        AddAppSettings(builder.Configuration);
-        ValidateSupabaseConfiguration(builder.Configuration);
+        try
+        {
+            AppFileLog.Marker("MAUI_CREATE_BUILDER_BEGIN");
+            var builder = MauiApp.CreateBuilder();
+            AppFileLog.Marker("MAUI_CREATE_BUILDER_OK");
 
-        AppSettings.Load();
-        AppFileLog.Info(StartupLogTag, $"AppSettings geladen. Diagnose-Log: {AppFileLog.LogFilePath}");
+            AppFileLog.Info(
+                StartupLogTag,
+                "Keine explizite VisualElement-/Culture-Probe mehr vor UseMauiApp. Controls werden nur noch im regulären MAUI-Startup initialisiert.");
 
-        builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
+            RunStartupStep("USE_MAUI_APP", () =>
+            {
+                builder.UseMauiApp<App>();
+            });
 
-        builder.Services.AddSingleton<UserContextState>();
-        builder.Services.AddSingleton<IUserContextAccessor>(sp => sp.GetRequiredService<UserContextState>());
-        builder.Services.AddSingleton<MemberContextState>();
-        builder.Services.AddSingleton<ParzellenContextState>();
-        builder.Services.AddSingleton<HomeContextState>();
-        builder.Services.AddSingleton<ArbeitsstundenReviewState>();
-        builder.Services.AddSingleton<ArbeitseinsaetzeManagementState>();
-        builder.Services.AddSingleton<ArbeitseinsaetzeUserState>();
-        builder.Services.AddSingleton<TermineUserState>();
-        builder.Services.AddSingleton<ZaehlerwechselWorkflowState>();
-        builder.Services.AddSingleton<PendingPhotoQueue>();
-        builder.Services.AddSingleton<PendingPhotoService>();
-        builder.Services.AddSingleton<PendingPhotoSyncService>();
-        builder.Services.AddSingleton<PendingPhotoMenuState>();
-        builder.Services.AddSingleton<INfcScanService, AndroidNfcScanService>();
-        builder.Services.AddSingleton<IRfidFeedbackService, AndroidRfidFeedbackService>();
+            RunStartupStep("REGISTER_COMMON_ROUTES", ShellRouteRegistrar.RegisterCommonRoutes);
 
-        builder.Services.AddKgvServices(builder.Configuration);
+            RunStartupStep("CONFIGURE_LOGGING", () =>
+            {
+                builder.Logging.AddDebug();
+                builder.Logging.AddProvider(new AppFileLoggerProvider());
+                builder.Logging.SetMinimumLevel(LogLevel.Information);
+            });
 
-        builder.Services.AddTransient<LoginPage>();
-        builder.Services.AddTransient<HomeViewModel>();
-        builder.Services.AddTransient<HomePage>();
-        builder.Services.AddTransient<AblesenOverviewPage>();
-        builder.Services.AddTransient<PendingPhotoUploadsPage>();
-        builder.Services.AddTransient<HomeSectionDetailPage>();
-        builder.Services.AddTransient<HomeManagementPage>();
-        builder.Services.AddTransient<BekanntmachungenManagementPage>();
-        builder.Services.AddTransient<BekanntmachungEditorPage>();
-        builder.Services.AddTransient<TermineManagementPage>();
-        builder.Services.AddTransient<TermineEditorPage>();
-        builder.Services.AddTransient<ArbeitseinsaetzeManagementPage>();
-        builder.Services.AddTransient<ArbeitseinsaetzeEditorPage>();
-        builder.Services.AddTransient<ExportPage>();
-        builder.Services.AddTransient<ImpressumPage>();
-        builder.Services.AddSingleton<MemberSearchRefreshState>();
-        builder.Services.AddTransient<MemberSearchViewModel>();
-        builder.Services.AddTransient<MemberSearchPage>();
-        builder.Services.AddTransient<MemberDetailPage>();
-        builder.Services.AddTransient<WartungsvertraegePage>();
-        builder.Services.AddTransient<MemberWartungsvertraegePage>();
-        builder.Services.AddTransient<WartungsvertragDetailPage>();
-        builder.Services.AddTransient<WartungsvertragEditorPage>();
-        builder.Services.AddTransient<WartungsvertragAssignMembersPage>();
-        builder.Services.AddTransient<MeineDatenPage>();
-        builder.Services.AddTransient<AdminMenuPage>();
-        builder.Services.AddTransient<MemberGardensPage>();
-        builder.Services.AddTransient<MemberParzellenDetailPage>();
-        builder.Services.AddTransient<DokumentePage>();
-        builder.Services.AddTransient<UserManagementViewModel>();
-        builder.Services.AddTransient<UserManagementPage>();
-        builder.Services.AddTransient<ParzellenViewModel>();
-        builder.Services.AddTransient<ParzellenPage>();
-        builder.Services.AddTransient<RfidEinrichtenViewModel>();
-        builder.Services.AddTransient<FaelligeZaehlerViewModel>();
-        builder.Services.AddTransient<MyProfilePage>();
-        builder.Services.AddTransient<NebenmitgliedPage>();
-        builder.Services.AddTransient<MyArbeitsstundenPage>();
-        builder.Services.AddTransient<ArbeitsstundenEditorPage>();
-        builder.Services.AddTransient<ArbeitsstundenReviewPage>();
-        builder.Services.AddTransient<ArbeitsstundenReviewDetailPage>();
-        builder.Services.AddTransient<ParzellenAblesungenPage>();
-        builder.Services.AddTransient<ZaehlerwechselAusbauPage>();
-        builder.Services.AddTransient<ZaehlerwechselEinbauPage>();
-        builder.Services.AddTransient<AblesungenFreigabePage>();
+            RunStartupStep("ADD_APPSETTINGS", () => AddAppSettings(builder.Configuration));
+            RunStartupStep("VALIDATE_SUPABASE_CONFIGURATION", () => ValidateSupabaseConfiguration(builder.Configuration));
+            RunStartupStep("LOAD_APPSETTINGS", () =>
+            {
+                AppSettings.Load();
+                AppFileLog.Info(StartupLogTag, $"AppSettings geladen. Diagnose-Log: {AppFileLog.LogFilePath}");
+            });
 
-        builder.Services.AddTransient<AdminShell>();
-        builder.Services.AddTransient<UserShell>();
+            RunStartupStep("REGISTER_CONFIGURATION", () =>
+            {
+                builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
+            });
 
-        return builder.Build();
+            RunStartupStep("REGISTER_MAUI_STATE_SERVICES", () => RegisterStateServices(builder.Services));
+            RunStartupStep("REGISTER_KGV_SERVICES", () => builder.Services.AddKgvServices(builder.Configuration));
+            RunStartupStep("REGISTER_MAUI_PAGES_AND_VIEWMODELS", () => RegisterPageServices(builder.Services));
+
+            AppFileLog.Marker("MAUI_BUILDER_BUILD_BEGIN");
+            var app = builder.Build();
+            AppFileLog.Marker("MAUI_BUILDER_BUILD_OK");
+            return app;
+        }
+        catch (Exception ex)
+        {
+            LogStartupError("CreateMauiApp ist im frühen MAUI-Startup fehlgeschlagen.", ex);
+            throw;
+        }
+    }
+
+    private static void RegisterStateServices(IServiceCollection services)
+    {
+        services.AddSingleton<UserContextState>();
+        services.AddSingleton<IUserContextAccessor>(sp => sp.GetRequiredService<UserContextState>());
+        services.AddSingleton<MemberContextState>();
+        services.AddSingleton<ParzellenContextState>();
+        services.AddSingleton<HomeContextState>();
+        services.AddSingleton<ArbeitsstundenReviewState>();
+        services.AddSingleton<ArbeitseinsaetzeManagementState>();
+        services.AddSingleton<ArbeitseinsaetzeUserState>();
+        services.AddSingleton<TermineUserState>();
+        services.AddSingleton<ZaehlerwechselWorkflowState>();
+        services.AddSingleton<PendingPhotoQueue>();
+        services.AddSingleton<PendingPhotoService>();
+        services.AddSingleton<PendingPhotoSyncService>();
+        services.AddSingleton<PendingPhotoMenuState>();
+        services.AddSingleton<INfcScanService, AndroidNfcScanService>();
+        services.AddSingleton<IRfidFeedbackService, AndroidRfidFeedbackService>();
+    }
+
+    private static void RegisterPageServices(IServiceCollection services)
+    {
+        services.AddTransient<LoginPage>();
+        services.AddTransient<HomeViewModel>();
+        services.AddTransient<HomePage>();
+        services.AddTransient<AblesenOverviewPage>();
+        services.AddTransient<PendingPhotoUploadsPage>();
+        services.AddTransient<HomeSectionDetailPage>();
+        services.AddTransient<HomeManagementPage>();
+        services.AddTransient<BekanntmachungenManagementPage>();
+        services.AddTransient<BekanntmachungEditorPage>();
+        services.AddTransient<TermineManagementPage>();
+        services.AddTransient<TermineEditorPage>();
+        services.AddTransient<ArbeitseinsaetzeManagementPage>();
+        services.AddTransient<ArbeitseinsaetzeEditorPage>();
+        services.AddTransient<ExportPage>();
+        services.AddTransient<ImpressumPage>();
+        services.AddSingleton<MemberSearchRefreshState>();
+        services.AddTransient<MemberSearchViewModel>();
+        services.AddTransient<MemberSearchPage>();
+        services.AddTransient<MemberDetailPage>();
+        services.AddTransient<WartungsvertraegePage>();
+        services.AddTransient<MemberWartungsvertraegePage>();
+        services.AddTransient<WartungsvertragDetailPage>();
+        services.AddTransient<WartungsvertragEditorPage>();
+        services.AddTransient<WartungsvertragAssignMembersPage>();
+        services.AddTransient<MeineDatenPage>();
+        services.AddTransient<AdminMenuPage>();
+        services.AddTransient<MemberGardensPage>();
+        services.AddTransient<MemberParzellenDetailPage>();
+        services.AddTransient<DokumentePage>();
+        services.AddTransient<UserManagementViewModel>();
+        services.AddTransient<UserManagementPage>();
+        services.AddTransient<ParzellenViewModel>();
+        services.AddTransient<ParzellenPage>();
+        services.AddTransient<RfidEinrichtenViewModel>();
+        services.AddTransient<FaelligeZaehlerViewModel>();
+        services.AddTransient<MyProfilePage>();
+        services.AddTransient<NebenmitgliedPage>();
+        services.AddTransient<MyArbeitsstundenPage>();
+        services.AddTransient<ArbeitsstundenEditorPage>();
+        services.AddTransient<ArbeitsstundenReviewPage>();
+        services.AddTransient<ArbeitsstundenReviewDetailPage>();
+        services.AddTransient<ParzellenAblesungenPage>();
+        services.AddTransient<ZaehlerwechselAusbauPage>();
+        services.AddTransient<ZaehlerwechselEinbauPage>();
+        services.AddTransient<AblesungenFreigabePage>();
+        services.AddTransient<AdminShell>();
+        services.AddTransient<UserShell>();
     }
 
     private static void AddAppSettings(IConfigurationBuilder configuration)
@@ -202,7 +236,15 @@ public static class MauiProgram
 
     private static void LogStartupError(string message, Exception? ex = null)
     {
-        AppFileLog.Error(StartupLogTag, message, ex);
+        if (ex == null)
+        {
+            AppFileLog.Error(StartupLogTag, message);
+        }
+        else
+        {
+            AppFileLog.ErrorDetailed(StartupLogTag, message, ex);
+        }
+
         Debug.WriteLine($"[{StartupLogTag}] {message}");
 
         if (ex is null)
@@ -211,8 +253,25 @@ public static class MauiProgram
             return;
         }
 
-        Debug.WriteLine(ex);
-        Log.Error(StartupLogTag, $"{message} {ex.GetType().Name}: {ex.Message}");
+        Debug.WriteLine(ex.ToString());
+        Log.Error(StartupLogTag, $"{message}{Environment.NewLine}{ex}");
+    }
+
+    private static void RunStartupStep(string stepName, Action action)
+    {
+        AppFileLog.Marker($"STARTUP_STEP_BEGIN:{stepName}");
+
+        try
+        {
+            action();
+            AppFileLog.Marker($"STARTUP_STEP_OK:{stepName}");
+        }
+        catch (Exception ex)
+        {
+            AppFileLog.Marker($"STARTUP_STEP_FAIL:{stepName}");
+            LogStartupError($"Startup-Schritt {stepName} ist fehlgeschlagen.", ex);
+            throw;
+        }
     }
 
     private static string BuildSupabaseConfigurationFingerprint(string? url, string? key)
@@ -237,4 +296,5 @@ public static class MauiProgram
         var hash = SHA256.HashData(content);
         return Convert.ToHexString(hash);
     }
+
 }
