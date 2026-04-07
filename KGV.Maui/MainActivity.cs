@@ -1,6 +1,7 @@
 using Android.App;
 using Android.OS;
 using Android.Content.PM;
+using KGV.Maui.Services.Diagnostics;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using System.Linq;
@@ -22,7 +23,19 @@ public class MainActivity : MauiAppCompatActivity
 {
     protected override void OnCreate(Bundle? savedInstanceState)
     {
-        base.OnCreate(null);
+        AppFileLog.Marker("MAIN_ACTIVITY_ONCREATE_BEGIN");
+
+        try
+        {
+            base.OnCreate(null);
+            AppFileLog.Marker("MAIN_ACTIVITY_ONCREATE_OK");
+        }
+        catch (Exception ex)
+        {
+            AppFileLog.Marker("MAIN_ACTIVITY_ONCREATE_FAIL");
+            AppFileLog.ErrorDetailed("KGV.Maui", "MainActivity.OnCreate ist fehlgeschlagen.", ex);
+            throw;
+        }
     }
 
     public override void OnBackPressed()

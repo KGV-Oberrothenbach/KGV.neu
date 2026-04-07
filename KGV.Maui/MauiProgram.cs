@@ -1,4 +1,3 @@
-using Android.Util;
 using KGV.Core.Security;
 using KGV.Infrastructure.DependencyInjection;
 using KGV.Maui.Pages;
@@ -31,6 +30,7 @@ public static class MauiProgram
         AppFileLog.Marker("APP_START");
         AppFileLog.Info(StartupLogTag, "Appstart initialisiert.");
         RegisterUnhandledExceptionLogging();
+        var useMauiAppCompleted = false;
 
         try
         {
@@ -42,10 +42,11 @@ public static class MauiProgram
                 StartupLogTag,
                 "Keine explizite VisualElement-/Culture-Probe mehr vor UseMauiApp. Controls werden nur noch im regulären MAUI-Startup initialisiert.");
 
-            RunStartupStep("USE_MAUI_APP", () =>
+            RunStartupStep("USE_MAUI_APP_MINIMAL", () =>
             {
                 builder.UseMauiApp<App>();
             });
+            useMauiAppCompleted = true;
 
             RunStartupStep("REGISTER_COMMON_ROUTES", ShellRouteRegistrar.RegisterCommonRoutes);
 
@@ -80,6 +81,13 @@ public static class MauiProgram
         }
         catch (Exception ex)
         {
+            if (!useMauiAppCompleted)
+            {
+                AppFileLog.Warning(
+                    StartupLogTag,
+                    "Der Crash liegt bereits im minimalen `.UseMauiApp<App>()`-Pfad. Spätere Registrierungen für Routen, Logging, Konfiguration, Services und Seiten wurden noch nicht erreicht.");
+            }
+
             LogStartupError("CreateMauiApp ist im frühen MAUI-Startup fehlgeschlagen.", ex);
             throw;
         }
@@ -249,12 +257,10 @@ public static class MauiProgram
 
         if (ex is null)
         {
-            Log.Error(StartupLogTag, message);
             return;
         }
 
         Debug.WriteLine(ex.ToString());
-        Log.Error(StartupLogTag, $"{message}{Environment.NewLine}{ex}");
     }
 
     private static void RunStartupStep(string stepName, Action action)

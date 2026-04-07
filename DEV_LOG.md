@@ -2,6 +2,57 @@
 
 ---
 
+## 2026-04-07 – MAUI-Android-Startup weiter auf echten Minimalpfad eingegrenzt und frühes `liblog`-/InnerException-Logging gehärtet
+
+- Ausgangspunkt dieses Laufs war weiterhin derselbe echte Android-Startup-Crash direkt im frühen MAUI-Controls-Pfad:
+  - `System.TypeInitializationException`
+  - `The type initializer for 'Microsoft.Maui.Controls.VisualElement' threw an exception.`
+  - Stack weiter bei `RemapForControls` / `SetupDefaults` / `UseMauiApp` / `MauiProgram.CreateMauiApp` / `MainApplication.CreateMauiApp`
+  - zusätzlich direkt davor: `monodroid-assembly: Shared library 'liblog' not loaded, p/invoke '__android_log_print' may fail`
+- Direkt geprüft wurden in diesem Block nur die vorgegebenen Startdateien plus direkt eingebundene Logging-/Startup-Pfade:
+  - `KGV.Maui/MauiProgram.cs`
+  - `KGV.Maui/MainApplication.cs`
+  - `KGV.Maui/KGV.Maui.csproj`
+  - `KGV.Maui/App.xaml`
+  - `KGV.Maui/App.xaml.cs`
+  - `KGV.Maui/MainActivity.cs`
+  - `KGV.Maui/Services/Diagnostics/AppFileLog.cs`
+  - `KGV.Maui/Services/Diagnostics/AppFileLogger.cs`
+  - `KGV.Maui/Services/Diagnostics/AppFileLoggerProvider.cs`
+  - `KGV.Infrastructure/DependencyInjection/ServiceCollectionExtensions.cs`
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Isolationsbefund dieses Laufs:
+  - der Crash sitzt weiterhin unverändert schon in `builder.UseMauiApp<App>()`
+  - in `MauiProgram` laufen `RegisterCommonRoutes`, `ConfigureLogging`, `AddAppSettings`, `ValidateSupabaseConfiguration`, `AddKgvServices` und die Seiten-/State-Registrierungen erst nach `UseMauiApp<App>()`; diese späteren Registrierungen sind damit als Primärverursacher dieses Crashs ausgeschlossen
+  - `App.xaml` ist weiterhin praktisch leer und `App.xaml.cs` enthält keinen eigenen frühen Controls-/Resource-Block vor `UseMauiApp<App>()`
+  - der zuletzt entfernte frühe `VisualElement`-Probezugriff war damit nicht die Hauptursache; der Crash bleibt auch ohne diesen Probezugriff auf demselben frühen MAUI-Controls-Pfad bestehen
+- Reale zusätzliche Diagnoseursache gefunden:
+  - der frühe Logging-Pfad war selbst problematisch für die Fehlerdiagnose
+  - `AppFileLog` versuchte bisher zuerst nach `Android.Util.Log` zu schreiben und schrieb die Datei erst danach
+  - wenn der frühe Android-`liblog`-Pfad nicht belastbar verfügbar ist, konnte dadurch genau die eigentliche `InnerException`-/`ToString()`-Diagnose verloren gehen
+- Minimal umgesetzt:
+  - `KGV.Maui/Services/Diagnostics/AppFileLog.cs`
+    - Logging schreibt jetzt zuerst belastbar in Datei/`Debug`/`stderr`
+    - der Android-`liblog`-Bridgepfad wird nur noch zusätzlich versucht und separat abgefangen
+    - bei früher `liblog`-Unverfügbarkeit wird einmalig explizit protokolliert, dass File-/`stderr`-Logging aktiv bleibt
+    - `ErrorDetailed(...)` schreibt jetzt zusätzlich den vollständigen Exception-`ToString()`-Dump in Datei und `stderr`, damit `InnerException` nicht mehr am frühen Android-Logging verloren geht
+  - `KGV.Maui/MauiProgram.cs`
+    - `UseMauiApp` jetzt explizit als minimaler Isolationsschritt `USE_MAUI_APP_MINIMAL` markiert
+    - wenn dieser Schritt scheitert, wird zusätzlich ausdrücklich protokolliert, dass spätere Registrierungen noch gar nicht erreicht wurden
+    - direkte `Android.Util.Log`-Verwendung im frühen Startup-Fehlerpfad entfernt; die Diagnose läuft dort jetzt nur noch über den gehärteten Logging-Pfad
+- Bewusst nicht gemacht:
+  - keine neue Shell-/Root-/Delay-Baustelle
+  - kein Packaging-Umbau auf Verdacht
+  - kein neuer Toolkit-/Handler-/Font-Umbau, weil der Crash schon vor allen späteren Registrierungen in `UseMauiApp<App>()` sitzt
+- Echte Validierung dieses Laufs:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+- Ehrliche Grenze dieses Laufs:
+  - die konkrete innere `VisualElement`-Ursache ist headless weiterhin nicht reproduziert und damit in diesem Lauf noch nicht inhaltlich behoben
+  - konkret gefunden und behoben wurde aber der Diagnoseblocker: frühes `liblog` konnte die eigentliche `InnerException` verdecken; der nächste echte Android-Start sollte deshalb jetzt den vollen Fehler deutlich belastbarer liefern
+
 ## 2026-04-07 – MAUI-Android-Startup gezielt im Packaging-/Resource-/frühen Controls-Pfad isoliert und die früheste eigene VisualElement-Probe entfernt
 
 - Ausgangspunkt dieses Laufs war weiterhin derselbe echte Android-Startup-Crash direkt im sehr frühen MAUI-Controls-Pfad:
