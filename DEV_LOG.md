@@ -2,6 +2,40 @@
 
 ---
 
+## 2026-04-07 – MAUI-System-Zurück auf bestehendem Shell-Modell schrittweise stabilisiert
+
+- Recovery / echter Istzustand vor der Umsetzung:
+  - `git fetch origin` ausgeführt
+  - `git status --short --branch` zeigte auf `main...origin/main` keinen lokalen Diff in Blockdateien; nur blockfremd untracked: `PS_Log.bat`, `_logs/`, `_secrets/`
+  - `origin/main...HEAD` stand auf `0 0`
+- Geprüfter Navigations-Iststand:
+  - `MainActivity.OnBackPressed()` reicht die Android-Zurück-Taste bereits an die aktive MAUI-Seite via `SendBackButtonPressed()` weiter
+  - Root-/Login-Wechsel laufen zentral über `App.CreateRootPage(...)` und `SwitchToCurrentRootAsync(...)`
+  - die Shell-Menüs entstehen weiterhin in `AdminShell` und `UserShell`; Root-Switches bauen eine neue Shell bzw. Login-Seite auf
+  - beide Shells fingen Zurück bisher zentral ab, sprangen aber aus jeder Unterseite direkt mit `//home` auf die Startseite statt Ebene für Ebene zurückzugehen
+  - eigene Back-Overrides außerhalb der Shells wurden im aktuellen Stand nicht gefunden
+- Minimal umgesetzt:
+  - `KGV.Maui/ShellNavigationHelper.cs`
+    - kleine zentrale Back-Hilfslogik ergänzt statt neuer Navigationsarchitektur
+    - Reihenfolge des Back-Verhaltens jetzt:
+      - offenes Modal schließen
+      - bei normalem Detail-/Unterseiten-Stack eine Ebene mit `..` zurück
+      - ohne sinnvollen Stack-Fortsatz Fallback zur Startseite `home`
+      - während aktivem Root-/Mitgliedswechsel Back unterdrücken, damit kein Rücksprung in ungültige Shell-Kontexte entsteht
+  - `KGV.Maui/UserShell.cs`
+    - bestehendes zentrales Back-Handling auf die neue Hilfslogik umgestellt
+    - Exit-Rückfrage auf `home` unverändert belassen
+  - `KGV.Maui/AdminShell.cs`
+    - analog zum User-Shell-Pfad auf schrittweises Zurück umgestellt
+    - Exit-Rückfrage auf `home` unverändert belassen
+- Typische Back-Fälle nach diesem Lauf:
+  - Unterseite -> eine Ebene zurück
+  - Detailseite / tieferer Push-Pfad -> schrittweise zurück bis zum jeweiligen Shell-Root
+  - Shell-Root außerhalb `home` -> Fallback zur Startseite
+  - `home` -> normales bestehendes Beenden mit Rückfrage
+- Reale Validierung dieses Laufs:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+
 ## 2026-04-07 – Nebenmitglied-Bearbeiten gegen `origin/main` geprüft und vorhandenen lokalen Block weiterverwendet
 
 - Recovery / echter Istzustand vor dem Abschluss:

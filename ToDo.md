@@ -64,7 +64,9 @@ Diese Folgeprüfung wurde nach zusätzlicher Nutzerpriorisierung gegen den echte
 
 ### MAUI-Zurück-Taste mit Exit-Rückfrage
 **Status:** erledigt
-- Unterseiten navigieren zuerst zur Startseite
+- Unterseiten und Detailseiten navigieren jetzt schrittweise Ebene für Ebene zurück
+- modale MAUI-Seiten werden über System-Zurück zuerst geschlossen
+- wenn kein sinnvoller Rückpfad mehr existiert, erfolgt der Fallback zur Startseite
 - auf der Startseite erscheint die Rückfrage zum App-Beenden
 
 ### Mitgliedschaft beenden mit Folgeentscheid

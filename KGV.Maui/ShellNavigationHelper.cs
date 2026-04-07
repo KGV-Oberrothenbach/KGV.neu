@@ -1,4 +1,6 @@
 using System.Linq;
+using System.Threading.Tasks;
+using KGV.Maui.Services.Diagnostics;
 using Microsoft.Maui.Controls;
 
 namespace KGV.Maui;
@@ -96,6 +98,43 @@ internal static class ShellNavigationHelper
             return false;
 
         return FindPreferredTarget(shell, route).Content != null;
+    }
+
+    public static bool ShouldSuppressBackNavigation()
+    {
+        if (!NavigationCoordinator.IsActive(NavigationCoordinator.RootSwitchScope, NavigationCoordinator.MemberSwitchScope))
+            return false;
+
+        AppFileLog.Info("KGV.Navigation", "System-Zurück wird während aktivem Root-/Mitgliedswechsel unterdrückt.");
+        return true;
+    }
+
+    public static async Task NavigateBackAsync(Shell shell, string homeRoute)
+    {
+        ArgumentNullException.ThrowIfNull(shell);
+
+        if (shell.Navigation.ModalStack.Count > 0)
+        {
+            AppFileLog.Info("KGV.Navigation", $"System-Zurück schließt Modal. Aktive Route={GetActiveShellContentRoute(shell) ?? "<none>"}.");
+            await shell.Navigation.PopModalAsync();
+            return;
+        }
+
+        if (shell.Navigation.NavigationStack.Count > 1)
+        {
+            AppFileLog.Info("KGV.Navigation", $"System-Zurück navigiert eine Ebene zurück. Aktive Route={GetActiveShellContentRoute(shell) ?? "<none>"}, Stack={shell.Navigation.NavigationStack.Count}.");
+            await shell.GoToAsync("..");
+            return;
+        }
+
+        var currentRoute = GetActiveShellContentRoute(shell);
+        if (string.IsNullOrWhiteSpace(currentRoute)
+            || !HasVisibleShellContentRoute(shell, currentRoute)
+            || !string.Equals(currentRoute, homeRoute, StringComparison.OrdinalIgnoreCase))
+        {
+            AppFileLog.Info("KGV.Navigation", $"System-Zurück verwendet Fallback zur Startseite. Aktive Route={currentRoute ?? "<none>"}." );
+            await shell.GoToAsync($"//{homeRoute}");
+        }
     }
 
     private static bool IsValid(ShellItem? item)

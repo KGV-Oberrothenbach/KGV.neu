@@ -78,6 +78,9 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (_backNavigationInProgress)
             return true;
 
+        if (ShellNavigationHelper.ShouldSuppressBackNavigation())
+            return true;
+
         if (ShellNavigationHelper.IsOnShellContentRoot(this, "home"))
         {
             if (_exitConfirmationInProgress)
@@ -113,12 +116,11 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         {
             try
             {
-                AppFileLog.Info("KGV.Navigation", $"AdminShell.Zurück navigiert zur Startseite. Aktive Route={ShellNavigationHelper.GetActiveShellContentRoute(this) ?? "<none>"}.");
-                await GoToAsync("//home");
+                await ShellNavigationHelper.NavigateBackAsync(this, "home");
             }
             catch (Exception ex)
             {
-                AppFileLog.Warning("KGV.Navigation", $"AdminShell.Zurück zur Startseite fehlgeschlagen: {ex.GetType().Name}: {ex.Message}");
+                AppFileLog.Warning("KGV.Navigation", $"AdminShell.System-Zurück fehlgeschlagen: {ex.GetType().Name}: {ex.Message}");
             }
             finally
             {
