@@ -2,6 +2,47 @@
 
 ---
 
+## 2026-04-07 – Android-Startup-Crash auf echten R8/ProGuard-Packagingpfad eingegrenzt und minimal auf stabilen Zustand zurückgeführt
+
+- Ausgangspunkt dieses Laufs war jetzt nicht mehr nur ein früher MAUI-Controls-Crash, sondern eine echte belastbare innere Geräteursache aus dem App-Dateilog:
+  - `System.TypeInitializationException: The type initializer for 'Microsoft.Maui.Controls.VisualElement' threw an exception.`
+  - innere Ursache:
+    - `Java.Lang.ClassNotFoundException: com.microsoft.maui.PlatformDispatcher`
+  - Stack u. a. bei:
+    - `Microsoft.Maui.PlatformDispatcher.Create()`
+    - `DispatcherProvider.GetForCurrentThreadImplementation()`
+    - `Dispatcher.GetForCurrentThread()`
+    - `Microsoft.Maui.Controls.VisualElement..cctor()`
+    - `UseMauiApp<App>()`
+- Direkt geprüft wurden in diesem Block nur die vorgegebenen Android-Packaging-Dateien:
+  - `KGV.Maui/KGV.Maui.csproj`
+  - Android-/R8-/ProGuard-Bezug im MAUI-Projekt
+  - `AWR.bat` nur für den Build-/Artefaktpfad
+  - `DEV_LOG.md`
+  - `KGV_Fortschrittslog_ausfuehrlich.md`
+- Ehrlicher Packaging-Befund:
+  - `AndroidLinkTool=r8` und `AndroidEnableProguard=true` wurden erst mit `a40f4a1` vorbereitet und mit `4508ca9` aktiv in den Release-Pfad von `KGV.Maui.csproj` aufgenommen
+  - Debug verwendet diesen Shrinker-Pfad nicht; dort bleibt `AndroidLinkMode=None` ohne R8/ProGuard aktiv
+  - das passt exakt zum Fehlerbild: Debug-Build grün, Release-Packaging entfernt den Java-Typ `com.microsoft.maui.PlatformDispatcher`, wodurch `VisualElement` schon in `UseMauiApp<App>()` scheitert
+  - `AWR.bat` wurde nur geprüft; der Batch behandelt fehlende Mapping-/Symbolartefakte bereits tolerant und musste für diesen Fix nicht geändert werden
+- Minimal umgesetzt:
+  - `KGV.Maui/KGV.Maui.csproj`
+    - `AndroidLinkTool=r8` aus dem Release-Pfad entfernt
+    - `AndroidEnableProguard=true` aus dem Release-Pfad entfernt
+    - übrige Release-/Diagnoseeinstellungen wie `AndroidIncludeDebugSymbols=true` unverändert belassen
+  - damit ist der Android-Shrinker-/ProGuard-Pfad auf den letzten stabilen Zustand zurückgeführt, ohne neue Fachlogik oder Shell-/Root-Umbauten zu eröffnen
+- Reale Packaging-Validierung nach dem Fix:
+  - `dotnet build KGV.Core/KGV.Core.csproj -c Debug`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug -clp:ErrorsOnly`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj -c Release -f net9.0-android -clp:ErrorsOnly`
+  - zusätzlicher Paketcheck am erzeugten Android-Artefakt:
+    - `com.microsoft.maui.PlatformDispatcher` ist nach dem Fix wieder im finalen APK vorhanden (`classes2.dex`)
+- Ehrliche Wirkung dieses Laufs:
+  - die echte innere Ursache war ein Android-Packaging-/Shrinker-Problem, nicht Shell/Root/Fachlogik
+  - der Release-Pfad entfernt `PlatformDispatcher` jetzt nicht mehr; damit ist genau der bekannte Startup-Verursacher code-seitig geschlossen
+  - der finale Geräte-Start selbst ist in diesem Headless-Lauf weiterhin nicht direkt ausgeführt, aber das Paket enthält die vorher fehlende Klasse jetzt wieder belastbar
+
 ## 2026-04-07 – MAUI-Diagnoselog zusätzlich nach extern lesbaren Android-Pfad gespiegelt
 
 - Ausgangspunkt dieses Laufs war kein neuer Startup-Umbau, sondern die praktische Auslesbarkeit der bereits vorhandenen MAUI-Startup-Diagnose auf echten Android-Geräten.
