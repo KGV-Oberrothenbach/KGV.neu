@@ -5,10 +5,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <Version>0.4.14</Version>
-    <FileVersion>0.4.14</FileVersion>
-    <InformationalVersion>0.4.14</InformationalVersion>
-    <AssemblyVersion>0.4.14.0</AssemblyVersion>
+    <Version>0.4.15</Version>
+    <FileVersion>0.4.15</FileVersion>
+    <InformationalVersion>0.4.15</InformationalVersion>
+    <AssemblyVersion>0.4.15.0</AssemblyVersion>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\KGV.Core\KGV.Core.csproj" />
