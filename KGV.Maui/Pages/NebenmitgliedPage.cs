@@ -61,6 +61,18 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
 
         _adresseUebernehmenCheckBox = new CheckBox { IsChecked = true };
 
+        _telefonEntry = new Entry { Placeholder = "Telefon" };
+        _handyEntry = new Entry { Placeholder = "Handy" };
+        _adresseEntry = new Entry { Placeholder = "Adresse (Pflicht)" };
+        _plzEntry = new Entry { Placeholder = "PLZ (Pflicht)", Keyboard = Keyboard.Numeric };
+        _ortEntry = new Entry { Placeholder = "Ort (Pflicht)" };
+        _emailEntry = new Entry { Placeholder = "E-Mail-Adresse", Keyboard = Keyboard.Email };
+        _geburtsdatumCheckBox = new CheckBox();
+        _geburtsdatumPicker = new DatePicker { IsVisible = false, MaximumDate = DateTime.Today };
+        _geburtsdatumCheckBox.CheckedChanged += (_, args) => _geburtsdatumPicker.IsVisible = args.Value;
+        _mitgliedSeitPicker = new DatePicker { MaximumDate = DateTime.Today };
+        _whatsappSwitch = new Switch();
+
         _createSection = new VerticalStackLayout
         {
             Spacing = 8,
@@ -78,43 +90,9 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
                         _adresseUebernehmenCheckBox,
                         new Label { Text = "Adresse des Hauptmitglieds übernehmen", VerticalTextAlignment = TextAlignment.Center }
                     }
-                },
-                _emailEntry,
-                new HorizontalStackLayout
-                {
-                    Spacing = 8,
-                    Children =
-                    {
-                        _geburtsdatumCheckBox,
-                        new Label { Text = "Geburtsdatum erfassen", VerticalTextAlignment = TextAlignment.Center }
-                    }
-                },
-                _geburtsdatumPicker,
-                new Label { Text = "Beginn" },
-                _mitgliedSeitPicker,
-                new HorizontalStackLayout
-                {
-                    Spacing = 8,
-                    Children =
-                    {
-                        _whatsappSwitch,
-                        new Label { Text = "WhatsApp", VerticalTextAlignment = TextAlignment.Center }
-                    }
                 }
             }
         };
-
-        _telefonEntry = new Entry { Placeholder = "Telefon" };
-        _handyEntry = new Entry { Placeholder = "Handy" };
-        _adresseEntry = new Entry { Placeholder = "Adresse (Pflicht)" };
-        _plzEntry = new Entry { Placeholder = "PLZ (Pflicht)", Keyboard = Keyboard.Numeric };
-        _ortEntry = new Entry { Placeholder = "Ort (Pflicht)" };
-        _emailEntry = new Entry { Placeholder = "E-Mail-Adresse", Keyboard = Keyboard.Email };
-        _geburtsdatumCheckBox = new CheckBox();
-        _geburtsdatumPicker = new DatePicker { IsVisible = false };
-        _geburtsdatumCheckBox.CheckedChanged += (_, args) => _geburtsdatumPicker.IsVisible = args.Value;
-        _mitgliedSeitPicker = new DatePicker();
-        _whatsappSwitch = new Switch();
 
         _adresseUebernehmenCheckBox.CheckedChanged += (_, args) =>
         {
@@ -150,6 +128,28 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
                     _adresseEntry,
                     _plzEntry,
                     _ortEntry,
+                    _emailEntry,
+                    new HorizontalStackLayout
+                    {
+                        Spacing = 8,
+                        Children =
+                        {
+                            _geburtsdatumCheckBox,
+                            new Label { Text = "Geburtsdatum erfassen", VerticalTextAlignment = TextAlignment.Center }
+                        }
+                    },
+                    _geburtsdatumPicker,
+                    new Label { Text = "Beginn" },
+                    _mitgliedSeitPicker,
+                    new HorizontalStackLayout
+                    {
+                        Spacing = 8,
+                        Children =
+                        {
+                            _whatsappSwitch,
+                            new Label { Text = "WhatsApp", VerticalTextAlignment = TextAlignment.Center }
+                        }
+                    },
                     _saveButton
                 }
             }
@@ -251,6 +251,12 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
             _adresseEntry.Text = rec.Adresse ?? string.Empty;
             _plzEntry.Text = rec.Plz ?? string.Empty;
             _ortEntry.Text = rec.Ort ?? string.Empty;
+            _emailEntry.Text = rec.Email ?? string.Empty;
+            _geburtsdatumCheckBox.IsChecked = rec.Geburtsdatum.HasValue;
+            _geburtsdatumPicker.IsVisible = rec.Geburtsdatum.HasValue;
+            _geburtsdatumPicker.Date = rec.Geburtsdatum?.Date ?? DateTime.Today;
+            _mitgliedSeitPicker.Date = rec.MitgliedSeit?.Date ?? DateTime.Today;
+            _whatsappSwitch.IsToggled = rec.WhatsappEinwilligung;
         }
         finally
         {
@@ -277,8 +283,12 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
         var adresse = (_adresseEntry.Text ?? string.Empty).Trim();
         var plz = (_plzEntry.Text ?? string.Empty).Trim();
         var ort = (_ortEntry.Text ?? string.Empty).Trim();
+        var email = (_emailEntry.Text ?? string.Empty).Trim();
+        DateTime? geburtsdatum = _geburtsdatumCheckBox.IsChecked ? _geburtsdatumPicker.Date : null;
+        var mitgliedSeit = _mitgliedSeitPicker.Date;
+        var whatsappEinwilligung = _whatsappSwitch.IsToggled;
 
-        var error = Validate(adresse, plz, ort, telefon, handy);
+        var error = Validate(adresse, plz, ort, telefon, handy, email, mitgliedSeit, geburtsdatum);
         if (!string.IsNullOrEmpty(error))
         {
             await DisplayAlert("Ungültige Eingabe", error, "OK");
@@ -288,7 +298,7 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
         _saveButton.IsEnabled = false;
         try
         {
-            var ok = await _supabaseService.UpdateOwnContactAsync(_neben.Id, EmptyToNull(telefon), EmptyToNull(handy), adresse, plz, ort);
+            var ok = await _supabaseService.UpdateOwnContactAsync(_neben.Id, EmptyToNull(telefon), EmptyToNull(handy), adresse, plz, ort, EmptyToNull(email), geburtsdatum, mitgliedSeit, whatsappEinwilligung);
             if (!ok)
             {
                 await DisplayAlert("Fehler", "Speichern fehlgeschlagen.", "OK");
@@ -354,7 +364,7 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
         var plz = (_plzEntry.Text ?? string.Empty).Trim();
         var ort = (_ortEntry.Text ?? string.Empty).Trim();
         var email = (_emailEntry.Text ?? string.Empty).Trim();
-        var error = Validate(adresse, plz, ort, telefon, handy, email, _mitgliedSeitPicker.Date);
+        var error = Validate(adresse, plz, ort, telefon, handy, email, _mitgliedSeitPicker.Date, _geburtsdatumCheckBox.IsChecked ? (DateTime?)_geburtsdatumPicker.Date : null);
         if (!string.IsNullOrEmpty(error))
         {
             await DisplayAlert("Ungültige Eingabe", error, "OK");
@@ -418,7 +428,7 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
         ConfigureCreateMode(_hauptmitglied);
     }
 
-    private static string? Validate(string adresse, string plz, string ort, string telefon, string handy, string email = "", DateTime? mitgliedSeit = null)
+    private static string? Validate(string adresse, string plz, string ort, string telefon, string handy, string email = "", DateTime? mitgliedSeit = null, DateTime? geburtsdatum = null)
     {
         if (string.IsNullOrWhiteSpace(adresse)) return "Adresse ist Pflicht.";
         if (string.IsNullOrWhiteSpace(plz)) return "PLZ ist Pflicht.";
@@ -426,6 +436,9 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
         if (string.IsNullOrWhiteSpace(ort)) return "Ort ist Pflicht.";
         if (!string.IsNullOrWhiteSpace(email) && !EmailRegex.IsMatch(email)) return "E-Mail-Adresse ist nicht plausibel.";
         if (mitgliedSeit.HasValue && mitgliedSeit.Value == default) return "Beginn ist Pflicht.";
+        if (mitgliedSeit.HasValue && mitgliedSeit.Value.Date > DateTime.Today) return "Beginn darf nicht in der Zukunft liegen.";
+        if (geburtsdatum.HasValue && geburtsdatum.Value.Date > DateTime.Today) return "Geburtsdatum darf nicht in der Zukunft liegen.";
+        if (geburtsdatum.HasValue && mitgliedSeit.HasValue && geburtsdatum.Value.Date > mitgliedSeit.Value.Date) return "Beginn darf nicht vor dem Geburtsdatum liegen.";
 
         if (!IsValidPhone(telefon)) return "Telefon ist nicht plausibel.";
         if (!IsValidPhone(handy)) return "Handy ist nicht plausibel.";

@@ -82,6 +82,7 @@ namespace KGV.Core.Interfaces
         Task<MitgliedRecord?> GetMitgliedByAuthUserIdAsync(string authUserId);
 
         Task<bool> UpdateOwnContactAsync(int mitgliedId, string? telefon, string? handy, string? adresse, string? plz, string? ort);
+        Task<bool> UpdateOwnContactAsync(int mitgliedId, string? telefon, string? handy, string? adresse, string? plz, string? ort, string? email, DateTime? geburtsdatum, DateTime? mitgliedSeit, bool whatsappEinwilligung);
         Task<List<ArbeitsstundeDTO>> GetArbeitsstundenAsync(params int[] mitgliedIds);
         Task<List<ArbeitsstundeDTO>> GetOffeneArbeitsstundenZurFreigabeAsync();
         Task<List<ArbeitsstundenPruefverlaufItem>> GetArbeitsstundenPruefverlaufAsync(int arbeitsstundeId);

@@ -1,6 +1,6 @@
 # ToDo / Zielbild – KGV-Software
 
-Stand: 2026-04-06 nach Repo-Abgleich gegen `main`.
+Stand: 2026-04-07 nach Recovery-Abgleich gegen `origin/main`.
 
 ## 1. Bedeutung dieses Dokuments
 
@@ -74,6 +74,17 @@ Diese Folgeprüfung wurde nach zusätzlicher Nutzerpriorisierung gegen den echte
   - Nebenmitglied ebenfalls beenden
   - oder Nebenmitglied zum Hauptmitglied machen
 - WPF und MAUI laufen dafür auf demselben Servicepfad
+
+### MAUI: Nebenmitglied-Bearbeiten für Bestandsdatensatz vervollständigt
+**Status:** erledigt
+- der bestehende Bearbeiten-Pfad lädt und speichert jetzt zusätzlich:
+  - `E-Mail-Adresse`
+  - `Geburtsdatum`
+  - `Beginn / MitgliedSeit`
+  - `WhatsApp-Einwilligung`
+- der Shared-Servicepfad respektiert dabei weiterhin die Auth-Mail-Regel:
+  - mit vorhandenem `auth_user` bleibt die Mailadresse führend unverändert
+  - ohne `auth_user` darf die Mailadresse über diesen Pfad geändert werden
 
 ---
 

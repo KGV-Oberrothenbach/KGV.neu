@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-04-07 – Nebenmitglied-Bearbeiten gegen `origin/main` geprüft, lokalen Rettungsstand weiterverwendet und Abschluss validiert
+
+- Recovery / Repo-Abgleich vor dem Abschluss:
+  - `git fetch origin` ausgeführt
+  - `git status --short --branch` zeigte auf `main` bereits vorhandene lokale Änderungen in den Blockdateien:
+    - `KGV.Maui/Pages/NebenmitgliedPage.cs`
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `DEV_LOG.md`
+    - `ToDo.md`
+  - zusätzlich war bereits `KGV_Fortschrittslog_ausfuehrlich.md` lokal geändert; blockfremd untracked blieben `PS_Log.bat`, `_logs/`, `_secrets/`
+  - `rev-list --left-right --count origin/main...HEAD` ergab `0 0`; `main` lag also commit-seitig gleichauf mit `origin/main`
+- Ehrlicher Iststand des lokalen Rettungsstands:
+  - die angeforderten Restpunkte waren im lokalen, noch nicht committeten Code bereits fachlich umgesetzt:
+    - `NebenmitgliedPage` lädt und speichert `Email`, `Geburtsdatum`, `MitgliedSeit` und `WhatsappEinwilligung`
+    - die Validierung prüft Mailformat sowie Datumsgrenzen/-reihenfolge
+    - die Controls werden im aktuellen lokalen Stand nicht mehr vor ihrer Instanziierung verwendet
+    - `ISupabaseService.UpdateOwnContactAsync(...)` ist rückwärtskompatibel per Overload erweitert
+    - `SupabaseService.UpdateOwnContactAsync(...)` speichert den vollständigen Feldsatz und respektiert die Auth-Mail-Regel
+  - `Mitgliedschaft beenden` wurde nur kurz gegengeprüft und nicht umgebaut
+- Ergänzt bzw. bereinigt in diesem Lauf:
+  - Logeinträge auf den echten Recovery-Befund korrigiert
+  - `ToDo.md` auf den verifizierten Abschlussstand gegen `origin/main` nachgezogen
+  - den vorhandenen lokalen Nebenmitglied-Block build-validiert, staged, committed und für Push vorbereitet
+- Reale Validierung dieses Laufs:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj`
+
 ## 2026-04-07 – MAUI-Nebenmitglied-Maske um die bereits vorbereiteten Zusatzfelder vervollständigt
 
 - Ausgangspunkt dieses Laufs war kein neuer Nebenmitglied-Serviceblock, sondern die sichtbare MAUI-Maske für `Nebenmitglied neu anlegen`.

@@ -1489,7 +1489,59 @@ namespace KGV.Infrastructure.Services
 
             return await GetMitgliedByAuthUserIdAsync(parsed);
         }
-        public Task<bool> UpdateOwnContactAsync(int mitgliedId, string? telefon, string? handy, string? adresse, string? plz, string? ort) => Unavailable<bool>();
+
+        public Task<bool> UpdateOwnContactAsync(int mitgliedId, string? telefon, string? handy, string? adresse, string? plz, string? ort) => ExecuteAsync(
+            "UpdateOwnContactAsync",
+            async () =>
+            {
+                if (mitgliedId <= 0)
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client
+                    .From<MitgliedRecord>()
+                    .Where(x => x.Id == mitgliedId)
+                    .Set(x => x.Telefon, CleanOptionalText(telefon))
+                    .Set(x => x.Handy, CleanOptionalText(handy))
+                    .Set(x => x.Adresse, CleanOptionalText(adresse))
+                    .Set(x => x.Plz, CleanOptionalText(plz))
+                    .Set(x => x.Ort, CleanOptionalText(ort))
+                    .Update();
+
+                return true;
+            },
+            false);
+
+        public Task<bool> UpdateOwnContactAsync(int mitgliedId, string? telefon, string? handy, string? adresse, string? plz, string? ort, string? email, DateTime? geburtsdatum, DateTime? mitgliedSeit, bool whatsappEinwilligung) => ExecuteAsync(
+            "UpdateOwnContactAsync(extended)",
+            async () =>
+            {
+                if (mitgliedId <= 0)
+                    return false;
+
+                var existing = await GetMitgliedByIdAsync(mitgliedId);
+                if (existing == null)
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client
+                    .From<MitgliedRecord>()
+                    .Where(x => x.Id == mitgliedId)
+                    .Set(x => x.Telefon, CleanOptionalText(telefon))
+                    .Set(x => x.Handy, CleanOptionalText(handy))
+                    .Set(x => x.Adresse, CleanOptionalText(adresse))
+                    .Set(x => x.Plz, CleanOptionalText(plz))
+                    .Set(x => x.Ort, CleanOptionalText(ort))
+                    .Set(x => x.Email, existing.AuthUserId.HasValue ? existing.Email : CleanOptionalText(email))
+                    .Set(x => x.Geburtsdatum, NormalizeDate(geburtsdatum))
+                    .Set(x => x.MitgliedSeit, NormalizeDate(mitgliedSeit))
+                    .Set(x => x.WhatsappEinwilligung, whatsappEinwilligung)
+                    .Update();
+
+                return true;
+            },
+            false);
+
         public Task<List<ArbeitsstundeDTO>> GetArbeitsstundenAsync(params int[] mitgliedIds) => ExecuteAsync(
             "GetArbeitsstundenAsync",
             async () =>

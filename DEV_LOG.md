@@ -2,6 +2,41 @@
 
 ---
 
+## 2026-04-07 – Nebenmitglied-Bearbeiten gegen `origin/main` geprüft und vorhandenen lokalen Block weiterverwendet
+
+- Recovery / echter Istzustand vor dem Abschluss:
+  - `git fetch origin` ausgeführt
+  - `git status --short --branch` zeigte bereits lokale Änderungen in den Blockdateien:
+    - `KGV.Maui/Pages/NebenmitgliedPage.cs`
+    - `KGV.Core/Interfaces/ISupabaseService.cs`
+    - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `DEV_LOG.md`
+    - `ToDo.md`
+  - zusätzlich war `KGV_Fortschrittslog_ausfuehrlich.md` bereits lokal geändert; untracked außerhalb des Blocks blieben `PS_Log.bat`, `_logs/`, `_secrets/`
+  - `origin/main...HEAD` stand auf `0 0`; der Branch war also nicht divergent
+- Bereits lokal vorhanden und in diesem Lauf bewusst weiterverwendet:
+  - `NebenmitgliedPage` lädt und speichert im Edit-Pfad bereits:
+    - `E-Mail-Adresse`
+    - `Geburtsdatum`
+    - `Beginn / MitgliedSeit`
+    - `WhatsApp-Einwilligung`
+  - die Validierung deckt Mailformat sowie Zukunfts-/Reihenfolgeprüfung der Datumsfelder ab
+  - die Control-Reihenfolge ist im aktuellen lokalen Stand build-sicher
+  - `ISupabaseService.UpdateOwnContactAsync(...)` ist rückwärtskompatibel erweitert
+  - `SupabaseService.UpdateOwnContactAsync(...)` speichert den vollständigen Feldsatz produktiv und beachtet die Mail-Regel:
+    - mit vorhandenem `auth_user` bleibt `Email` unverändert
+    - ohne `auth_user` darf `Email` gespeichert werden
+- Ergänzt in diesem Lauf:
+  - Logeinträge auf den realen Recovery-Befund korrigiert
+  - Abschluss gegen `origin/main` validiert
+  - Block für Commit/Push vorbereitet
+- Bewusst nicht gemacht:
+  - `Mitgliedschaft beenden` nicht umgebaut
+  - keine neue Parallelarchitektur gebaut
+- Reale Validierung dieses Laufs:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj`
+
 ## 2026-04-07 – MAUI-Nebenmitglied-Maske um die bereits vorbereiteten Zusatzfelder vervollständigt
 
 - Ausgangspunkt dieses Laufs war kein neuer Create-/Service-Umbau, sondern die sichtbare MAUI-Maske für `Nebenmitglied neu anlegen`.
