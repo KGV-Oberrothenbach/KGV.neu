@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using KGV.Maui.Services.Diagnostics;
@@ -7,6 +9,17 @@ namespace KGV.Maui;
 
 internal static class ShellNavigationHelper
 {
+    private static readonly Dictionary<string, string> LogicalBackRoutes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["memberdetails"] = "membersearch",
+        ["member_wartungsvertraege"] = "memberdetails",
+        ["member_nebenmitglied"] = "memberdetails",
+        ["member_gardens"] = "memberdetails",
+        ["member_adminmenu"] = "memberdetails",
+        ["member_workhours"] = "memberdetails",
+        ["photo_uploads"] = "ablesen"
+    };
+
     public static bool IsOnShellContentRoot(Shell shell, string route)
     {
         ArgumentNullException.ThrowIfNull(shell);
@@ -128,13 +141,42 @@ internal static class ShellNavigationHelper
         }
 
         var currentRoute = GetActiveShellContentRoute(shell);
-        if (string.IsNullOrWhiteSpace(currentRoute)
-            || !HasVisibleShellContentRoute(shell, currentRoute)
-            || !string.Equals(currentRoute, homeRoute, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(currentRoute) || !HasVisibleShellContentRoute(shell, currentRoute))
         {
-            AppFileLog.Info("KGV.Navigation", $"System-Zurück verwendet Fallback zur Startseite. Aktive Route={currentRoute ?? "<none>"}." );
+            AppFileLog.Info("KGV.Navigation", $"System-Zurück verwendet Fallback zur Startseite. Aktive Route={currentRoute ?? "<none>"}.");
             await shell.GoToAsync($"//{homeRoute}");
+            return;
         }
+
+        var targetRoute = ResolveLogicalBackTarget(shell, currentRoute, homeRoute);
+        if (string.IsNullOrWhiteSpace(targetRoute) || string.Equals(targetRoute, currentRoute, StringComparison.OrdinalIgnoreCase))
+        {
+            AppFileLog.Info("KGV.Navigation", $"System-Zurück verwendet Fallback zur Startseite. Aktive Route={currentRoute}.");
+            await shell.GoToAsync($"//{homeRoute}");
+            return;
+        }
+
+        AppFileLog.Info("KGV.Navigation", $"System-Zurück navigiert logisch von {currentRoute} nach {targetRoute}.");
+        await shell.GoToAsync($"//{targetRoute}");
+    }
+
+    private static string ResolveLogicalBackTarget(Shell shell, string currentRoute, string homeRoute)
+    {
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var candidate = currentRoute;
+
+        while (!string.IsNullOrWhiteSpace(candidate) && visited.Add(candidate))
+        {
+            if (!LogicalBackRoutes.TryGetValue(candidate, out var parentRoute) || string.IsNullOrWhiteSpace(parentRoute))
+                break;
+
+            if (HasVisibleShellContentRoute(shell, parentRoute))
+                return parentRoute;
+
+            candidate = parentRoute;
+        }
+
+        return homeRoute;
     }
 
     private static bool IsValid(ShellItem? item)
