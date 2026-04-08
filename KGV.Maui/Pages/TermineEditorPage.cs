@@ -98,7 +98,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
                     CreateTimestampField("Sichtbar ab", _visibleFromDatePicker, _visibleFromTimePicker),
                     CreateTimestampField("Sichtbar bis", _visibleToDatePicker, _visibleToTimePicker),
                     CreateField("Aktiv", _activeSwitch),
-                    new HorizontalStackLayout
+                    new VerticalStackLayout
                     {
                         Spacing = 8,
                         Children = { _cancelButton, _deleteButton, _saveButton }
@@ -304,7 +304,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         {
             Titel = _titleEntry.Text.Trim(),
             Beschreibung = string.IsNullOrWhiteSpace(_descriptionEditor.Text) ? null : _descriptionEditor.Text.Trim(),
-            Datum = _datePicker.Date,
+            Datum = _datePicker.Date.Date,
             StartUhrzeit = startTime,
             EndUhrzeit = endTime,
             SichtbarAb = visibleFrom,

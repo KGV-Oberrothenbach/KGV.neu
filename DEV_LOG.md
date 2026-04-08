@@ -2,6 +2,27 @@
 
 ---
 
+## 2026-04-08 – WPF-Buildrest ehrlich geprüft und verbleibenden Compile-Block minimal geschlossen
+
+- Recovery / echter Istzustand vor dem Fix:
+  - `git fetch origin` ausgeführt
+  - `git status --short --branch` zeigte `main...origin/main [ahead 1]`
+  - im Workspace lagen bereits uncommittete Änderungen aus dem laufenden Arbeitseinsatz-/Termin-Block in `KGV.Core`, `KGV.Infrastructure` und `KGV.Maui`; blockfremd untracked blieben `PS_Log.bat`, `_logs/`, `_secrets/`
+- Geprüfter WPF-Iststand:
+  - `KGV.Wpf/Views/HomeView.xaml` enthält im aktuellen Workspace keine ungültige WPF-Eigenschaft `Spacing` mehr; die frühere XAML-Stelle war im echten Iststand bereits nicht mehr vorhanden
+  - der reale verbleibende WPF-Buildblocker lag stattdessen im aktuell offenen `KGV.Infrastructure/Services/SupabaseService.cs`
+  - dort fehlten nach dem laufenden DateOnly-Block noch:
+    - der Helper `NormalizeStartseiteArbeitseinsatzRecord(...)`
+    - eine nullable Überladung für `NormalizeDateOnly(...)`
+- Minimal umgesetzt:
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - fehlenden Startseiten-Normalisierungshelper ergänzt
+    - nullable `NormalizeDateOnly(DateTime?)` ergänzt
+  - keine MAUI-Logik erweitert
+  - `HomeView.xaml` bewusst nicht umgebaut, weil die gemeldete ungültige `Spacing`-Eigenschaft im echten aktuellen Stand nicht mehr vorhanden war
+- Reale Validierung dieses Laufs:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj`
+
 ## 2026-04-07 – MAUI-System-Zurück auf bestehendem Shell-Modell schrittweise stabilisiert
 
 - Recovery / echter Istzustand vor der Umsetzung:

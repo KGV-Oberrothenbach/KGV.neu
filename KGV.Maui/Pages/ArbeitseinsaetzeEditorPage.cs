@@ -156,9 +156,9 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
                     CreateField("Anmeldung bis Zeit", _anmeldungBisTimePicker),
                     CreateSwitchField("Aktiv", _aktivSwitch),
                     _statusLabel,
-                    new HorizontalStackLayout
+                    new VerticalStackLayout
                     {
-                        Spacing = 12,
+                        Spacing = 8,
                         Margin = new Thickness(0, 12, 0, 0),
                         Children = { _cancelButton, _saveAndNextShiftButton, _saveButton }
                     },

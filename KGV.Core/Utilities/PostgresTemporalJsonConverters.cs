@@ -49,6 +49,29 @@ namespace KGV.Core.Utilities
         }
     }
 
+    public sealed class NullablePostgresDateOnlyJsonConverter : JsonConverter<DateTime?>
+    {
+        private readonly PostgresDateOnlyJsonConverter _inner = new();
+
+        public override DateTime? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            return reader.TokenType == JsonTokenType.Null
+                ? null
+                : _inner.Read(ref reader, typeof(DateTime), options);
+        }
+
+        public override void Write(Utf8JsonWriter writer, DateTime? value, JsonSerializerOptions options)
+        {
+            if (!value.HasValue)
+            {
+                writer.WriteNullValue();
+                return;
+            }
+
+            _inner.Write(writer, value.Value, options);
+        }
+    }
+
     public sealed class PostgresTimestampWithoutTimeZoneJsonConverter : JsonConverter<DateTime>
     {
         private static readonly string[] ReadFormats =

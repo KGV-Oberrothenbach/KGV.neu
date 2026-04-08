@@ -33,6 +33,15 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 
 ## Chronologischer Kurzverlauf
 
+## 2026-04-08
+- Den gemeldeten WPF-Buildrest um `HomeView.xaml` ehrlich gegen den aktuellen Workspace geprüft.
+- Befund: Die ungültige WPF-XAML-Eigenschaft `Spacing` war in `HomeView.xaml` im realen Stand bereits nicht mehr vorhanden.
+- Der echte verbleibende Buildblocker lag im laufenden DateOnly-Block in `SupabaseService`:
+  - fehlender Helper `NormalizeStartseiteArbeitseinsatzRecord(...)`
+  - fehlende nullable Überladung von `NormalizeDateOnly(...)`
+- Diese beiden Reste wurden minimal ergänzt; `HomeView.xaml` selbst blieb unverändert.
+- Ergebnis: `KGV.Wpf/KGV.Wpf.csproj` baut wieder erfolgreich.
+
 ## 2026-04-07
 - Die Android-/MAUI-System-Zurück-Taste wurde auf dem bestehenden Shell-Modell nachgezogen:
   - tiefe Unterseiten gehen jetzt schrittweise Ebene für Ebene zurück

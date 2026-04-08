@@ -1,4 +1,6 @@
 using System;
+using System.Text.Json.Serialization;
+using KGV.Core.Utilities;
 using Supabase.Postgrest.Attributes;
 using Supabase.Postgrest.Models;
 
@@ -18,6 +20,7 @@ public sealed class StartseiteTerminRecord : BaseModel
     public string? Thema { get; set; }
 
     [Column("datum")]
+    [JsonConverter(typeof(NullablePostgresDateOnlyJsonConverter))]
     public DateTime? Datum { get; set; }
 
     [Column("beginn")]

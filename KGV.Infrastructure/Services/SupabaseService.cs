@@ -3843,6 +3843,13 @@ namespace KGV.Infrastructure.Services
             return new DateTime(value.Year, value.Month, value.Day, 0, 0, 0, DateTimeKind.Unspecified);
         }
 
+        private static DateTime? NormalizeDateOnly(DateTime? value)
+        {
+            return value.HasValue
+                ? NormalizeDateOnly(value.Value)
+                : null;
+        }
+
         private static DateTime? NormalizeTimestampWithoutTimeZone(DateTime? value)
         {
             if (!value.HasValue)
@@ -4767,7 +4774,10 @@ namespace KGV.Infrastructure.Services
         {
             var client = await EnsureClientAsync();
             var response = await client.From<StartseiteArbeitseinsatzRecord>().Get();
-            var records = response?.Models?.ToList() ?? new List<StartseiteArbeitseinsatzRecord>();
+            var records = response?.Models?
+                .Select(NormalizeStartseiteArbeitseinsatzRecord)
+                .ToList()
+                ?? new List<StartseiteArbeitseinsatzRecord>();
 
             await EnrichStartseiteArbeitseinsatzTimesAsync(client, records);
             await EnrichStartseiteArbeitseinsatzRegistrationStateAsync(client, records);
@@ -4787,7 +4797,10 @@ namespace KGV.Infrastructure.Services
         {
             var client = await EnsureClientAsync();
             var response = await client.From<StartseiteTerminRecord>().Get();
-            var records = response?.Models?.ToList() ?? new List<StartseiteTerminRecord>();
+            var records = response?.Models?
+                .Select(NormalizeStartseiteTerminRecord)
+                .ToList()
+                ?? new List<StartseiteTerminRecord>();
 
             await EnrichStartseiteTerminTimesAsync(client, records);
             records = await FilterVisibleStartseiteTermineAsync(client, records);
@@ -5273,6 +5286,41 @@ namespace KGV.Infrastructure.Services
                 CreatedBy = record.CreatedBy,
                 CreatedAt = record.CreatedAt,
                 UpdatedAt = record.UpdatedAt
+            };
+        }
+
+        private static StartseiteTerminRecord NormalizeStartseiteTerminRecord(StartseiteTerminRecord record)
+        {
+            return new StartseiteTerminRecord
+            {
+                Id = record.Id,
+                Titel = record.Titel,
+                Thema = record.Thema,
+                Datum = NormalizeDateOnly(record.Datum),
+                Beginn = record.Beginn,
+                Ende = record.Ende,
+                Ort = record.Ort,
+                Beschreibung = record.Beschreibung,
+                Inhalt = record.Inhalt
+            };
+        }
+
+        private static StartseiteArbeitseinsatzRecord NormalizeStartseiteArbeitseinsatzRecord(StartseiteArbeitseinsatzRecord record)
+        {
+            return new StartseiteArbeitseinsatzRecord
+            {
+                Id = record.Id,
+                Titel = record.Titel,
+                Thema = record.Thema,
+                Datum = NormalizeDateOnly(record.Datum),
+                Beginn = record.Beginn,
+                Ende = record.Ende,
+                Treffpunkt = record.Treffpunkt,
+                Beschreibung = record.Beschreibung,
+                FreiePlaetze = record.FreiePlaetze,
+                AngemeldetCount = record.AngemeldetCount,
+                AnmeldungMoeglich = record.AnmeldungMoeglich,
+                IstAngemeldet = record.IstAngemeldet
             };
         }
 
