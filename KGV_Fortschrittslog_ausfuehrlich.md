@@ -35,6 +35,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-08
+- Den Impressum-Demo-Schalter im Abschlusslauf noch einmal direkt gegen `origin/main` nur in den drei Ziel-Dateien geprüft und anschließend minimal nachgeschärft.
+- WPF verwendet für den Demo-Schalter nicht mehr den alten fehleranfälligen Converter-Pfad `Visibility="{Binding IsDemoToggleVisible, Converter={StaticResource BoolToVisibilityConverter}}"`, sondern explizit den bestehenden ViewModel-Pfad `Visibility="{Binding DemoToggleVisibility, Mode=OneWay}"`.
+- In `KGV.Wpf/ViewModels/ImpressumViewModel.cs` erzwingt `ShowDemoData` jetzt zusätzlich logisch, dass Demo-Daten nur mit Admin-Rolle aktiv sein können.
+- In `KGV.Maui/Pages/ImpressumPage.cs` bleibt der Schalter in der Seitenkonstruktion direkt unter der Beschreibungs-Label-Zeile eingebunden; `UpdateDemoToggleVisibility()` refiltert jetzt explizit, wenn ein Admin-Demostatus beim Rollenwechsel entfällt.
+- Beide UIs laufen weiter über denselben bestehenden Demo-/Operativpfad `OperationalDataFilter.IsOperationalImpressumKontakt(...)`.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den Impressum-Demo-Schalter im finalen Abschlusslauf robust auf die bestehende WPF-ViewModel-Sichtbarkeit umgestellt und den vorhandenen MAUI-Adminpfad explizit konsolidiert.
 - WPF-Ursache des Absturzes war die `StaticResource`-Abhängigkeit am Demo-Schalter in `KGV.Wpf/Views/ImpressumView.xaml`; beim Öffnen der View konnte dieser Ressourcenpfad eine `XamlParseException` auslösen.
 - Reale WPF-Behebung: Converter-Abhängigkeit vollständig entfernt und `Visibility` direkt an die bestehende `DemoToggleVisibility`-Property aus `KGV.Wpf/ViewModels/ImpressumViewModel.cs` gebunden.

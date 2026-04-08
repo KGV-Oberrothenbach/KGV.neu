@@ -2,6 +2,27 @@
 
 ---
 
+## 2026-04-08 – Impressum-Demo-Schalter gegen origin/main in den drei Ziel-Dateien final nachgeschärft
+
+- Repo-Check nur auf den Ziel-Dateien:
+  - `git diff -- origin/main -- KGV.Wpf/Views/ImpressumView.xaml KGV.Wpf/ViewModels/ImpressumViewModel.cs KGV.Maui/Pages/ImpressumPage.cs`
+  - vor dem Block kein Unterschied gegen `origin/main`
+- Minimal umgesetzt direkt in den drei Ziel-Dateien:
+  - `KGV.Wpf/Views/ImpressumView.xaml`
+    - problematische alte Converter-Zeile bleibt entfernt
+    - Schalter bindet jetzt explizit über `Visibility="{Binding DemoToggleVisibility, Mode=OneWay}"`
+    - `ShowDemoData` bindet explizit TwoWay mit `UpdateSourceTrigger=PropertyChanged`
+  - `KGV.Wpf/ViewModels/ImpressumViewModel.cs`
+    - `ShowDemoData` erzwingt jetzt auch logisch Admin-only-Verhalten
+    - Nicht-Admin kann den internen Demostatus nicht auf `true` setzen
+  - `KGV.Maui/Pages/ImpressumPage.cs`
+    - vorhandenen Demo-Schalterpfad weiterverwendet und gegen Rollenwechsel robuster gemacht
+    - `UpdateDemoToggleVisibility()` refiltert jetzt explizit, wenn ein Admin-Demostatus zurückgenommen wird
+    - `Switch` erhielt `AutomationId = "ImpressumShowDemoDataSwitch"`
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-08 – Impressum-Demo-Schalter final ohne WPF-StaticResource und mit bestätigtem MAUI-Adminpfad
 
 - Repo-Check vor dem Block:

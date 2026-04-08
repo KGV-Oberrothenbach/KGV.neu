@@ -8,8 +8,8 @@
                 <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,18" />
                 <CheckBox Content="Demo-Datensätze einblenden"
                           Margin="0,0,0,16"
-                          IsChecked="{Binding ShowDemoData}"
-                          Visibility="{Binding DemoToggleVisibility}" />
+                          IsChecked="{Binding ShowDemoData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                          Visibility="{Binding DemoToggleVisibility, Mode=OneWay}" />
 
                 <Border Padding="16" Background="{StaticResource KgvSurfaceBrush}" CornerRadius="12">
                     <StackPanel>

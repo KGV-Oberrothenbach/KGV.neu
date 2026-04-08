@@ -47,7 +47,8 @@ public sealed class ImpressumPage : ContentPage
         _bauausschussContainer = new VerticalStackLayout { Spacing = 12 };
         _showDemoDataSwitch = new Switch
         {
-            IsToggled = false
+            IsToggled = false,
+            AutomationId = "ImpressumShowDemoDataSwitch"
         };
         _showDemoDataSwitch.Toggled += (_, _) => ApplyVisibleItems();
         _demoToggleRow = new HorizontalStackLayout
@@ -144,9 +145,14 @@ public sealed class ImpressumPage : ContentPage
 
     private void UpdateDemoToggleVisibility()
     {
+        var wasShowingDemoData = ShowDemoData;
+
         _demoToggleRow.IsVisible = IsDemoToggleVisible;
         if (!IsDemoToggleVisible)
             _showDemoDataSwitch.IsToggled = false;
+
+        if (wasShowingDemoData != ShowDemoData)
+            ApplyVisibleItems();
     }
 
     private void ApplyVisibleItems()

@@ -44,15 +44,16 @@ namespace KGV.ViewModels
         public ObservableCollection<ImpressumKontaktItem> WeitereVorstandsmitglieder { get; } = new();
         public ObservableCollection<ImpressumKontaktItem> Bauausschussmitglieder { get; } = new();
         public ICommand OpenDatenschutzCommand { get; }
-        public bool IsDemoToggleVisible => _mainWindowViewModel.UserContext.Role == UserRole.Admin;
+        public bool IsDemoToggleVisible => _mainWindowViewModel.UserContext?.Role == UserRole.Admin;
         public Visibility DemoToggleVisibility => IsDemoToggleVisible ? Visibility.Visible : Visibility.Collapsed;
 
         public bool ShowDemoData
         {
-            get => _showDemoData;
+            get => IsDemoToggleVisible && _showDemoData;
             set
             {
-                if (!SetProperty(ref _showDemoData, value))
+                var nextValue = IsDemoToggleVisible && value;
+                if (!SetProperty(ref _showDemoData, nextValue))
                     return;
 
                 ApplyVisibleItems();
