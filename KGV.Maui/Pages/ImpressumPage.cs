@@ -27,6 +27,8 @@ public sealed class ImpressumPage : ContentPage
     private List<ImpressumKontaktItem> _allBauausschussmitglieder = new();
     private bool _isBusy;
 
+    private bool IsDemoToggleVisible => _userContextState.CurrentUserContext?.Role == UserRole.Admin;
+
     public ImpressumPage(ISupabaseService supabaseService, UserContextState userContextState)
     {
         _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
@@ -138,9 +140,8 @@ public sealed class ImpressumPage : ContentPage
 
     private void UpdateDemoToggleVisibility()
     {
-        var isAdmin = _userContextState.CurrentUserContext?.Role == UserRole.Admin;
-        _demoToggleRow.IsVisible = isAdmin;
-        if (!isAdmin)
+        _demoToggleRow.IsVisible = IsDemoToggleVisible;
+        if (!IsDemoToggleVisible)
             _showDemoDataSwitch.IsToggled = false;
     }
 
@@ -158,7 +159,7 @@ public sealed class ImpressumPage : ContentPage
 
     private IReadOnlyCollection<ImpressumKontaktItem> FilterVisibleItems(IEnumerable<ImpressumKontaktItem> items)
     {
-        if (_showDemoDataSwitch.IsToggled && _userContextState.CurrentUserContext?.Role == UserRole.Admin)
+        if (_showDemoDataSwitch.IsToggled && IsDemoToggleVisible)
             return items.ToList();
 
         return items.Where(OperationalDataFilter.IsOperationalImpressumKontakt).ToList();

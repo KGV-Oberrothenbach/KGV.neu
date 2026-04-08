@@ -35,6 +35,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-08
+- Den Impressum-Demo-Schalter auf dem echten Repo-Stand final für WPF und MAUI vereinheitlicht.
+- WPF-Ursache des Absturzes war die `StaticResource`-/Converter-Abhängigkeit am Demo-Schalter in `KGV.Wpf/Views/ImpressumView.xaml`; im View-Kontext war dieser Pfad nicht robust genug und konnte in eine `XamlParseException` laufen.
+- Behebung in WPF: `BooleanToVisibilityConverter` direkt lokal in der View als Ressource `BoolToVisibilityConverter` bereitgestellt und die Sichtbarkeit des Schalters an die bestehende ViewModel-Property `IsDemoToggleVisible` gebunden; `ShowDemoData` bleibt unverändert im bestehenden Pfad.
+- MAUI nutzt auf `KGV.Maui/Pages/ImpressumPage.cs` denselben vorhandenen Schalterpfad weiter, jetzt mit expliziter zentraler Admin-Sichtbarkeit; Vorstand sieht ihn nicht, bei Nicht-Admin bleibt der Switch auf `aus`.
+- Beide UIs laufen weiter über denselben bestehenden Demo-/Operativfilterpfad `OperationalDataFilter.IsOperationalImpressumKontakt(...)`.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich; passende automatisierte `Impressum`-Tests waren nicht vorhanden.
+
 - Den noch offenen Impressum-Demo-Schalter-Block sauber abgeschlossen.
 - WPF-Ursache des Absturzes war die Converter-/`StaticResource`-Abhängigkeit im Demo-Schalter der `ImpressumView`; dieser Pfad wurde robust entfernt und die Sichtbarkeit stattdessen direkt aus dem bestehenden ViewModel über `DemoToggleVisibility` abgeleitet.
 - In MAUI wurde der fehlende Schalter `Demo-Datensätze einblenden` auf der `ImpressumPage` ergänzt, nur für Admin sichtbar und standardmäßig aus.
