@@ -44,8 +44,11 @@ namespace KGV.ViewModels
         public ObservableCollection<ImpressumKontaktItem> WeitereVorstandsmitglieder { get; } = new();
         public ObservableCollection<ImpressumKontaktItem> Bauausschussmitglieder { get; } = new();
         public ICommand OpenDatenschutzCommand { get; }
+
         public bool IsDemoToggleVisible => _mainWindowViewModel.UserContext?.Role == UserRole.Admin;
-        public Visibility DemoToggleVisibility => IsDemoToggleVisible ? Visibility.Visible : Visibility.Collapsed;
+
+        public Visibility DemoToggleVisibility =>
+            IsDemoToggleVisible ? Visibility.Visible : Visibility.Collapsed;
 
         public bool ShowDemoData
         {
@@ -72,17 +75,20 @@ namespace KGV.ViewModels
             private set => SetProperty(ref _statusMessage, value);
         }
 
-        public Visibility StatusVisibility => string.IsNullOrWhiteSpace(StatusMessage)
-            ? Visibility.Collapsed
-            : Visibility.Visible;
+        public Visibility StatusVisibility =>
+            string.IsNullOrWhiteSpace(StatusMessage)
+                ? Visibility.Collapsed
+                : Visibility.Visible;
 
-        public Visibility VorstandFallbackVisibility => WeitereVorstandsmitglieder.Count == 0
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        public Visibility VorstandFallbackVisibility =>
+            WeitereVorstandsmitglieder.Count == 0
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
-        public Visibility BauausschussFallbackVisibility => Bauausschussmitglieder.Count == 0
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        public Visibility BauausschussFallbackVisibility =>
+            Bauausschussmitglieder.Count == 0
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
         public Task OnNavigatedFromAsync() => Task.CompletedTask;
 
@@ -99,6 +105,7 @@ namespace KGV.ViewModels
                 var info = await _supabaseService.GetImpressumInfoAsync() ?? new ImpressumInfo();
                 _allWeitereVorstandsmitglieder = info.WeitereVorstandsmitglieder.ToList();
                 _allBauausschussmitglieder = info.WeitereBauausschussmitglieder.ToList();
+
                 ApplyVisibleItems();
                 StatusMessage = string.Empty;
             }
@@ -107,6 +114,7 @@ namespace KGV.ViewModels
                 _allWeitereVorstandsmitglieder = new List<ImpressumKontaktItem>();
                 _allBauausschussmitglieder = new List<ImpressumKontaktItem>();
                 ApplyVisibleItems();
+
                 StatusMessage = "Weitere Impressumskontakte konnten aktuell nicht geladen werden.";
                 Debug.WriteLine($"[KGV.Wpf] Impressum.LoadAsync failed: {ex}");
             }
@@ -132,7 +140,9 @@ namespace KGV.ViewModels
             }
         }
 
-        private static void ApplyItems(ObservableCollection<ImpressumKontaktItem> target, System.Collections.Generic.IEnumerable<ImpressumKontaktItem> items)
+        private static void ApplyItems(
+            ObservableCollection<ImpressumKontaktItem> target,
+            IEnumerable<ImpressumKontaktItem> items)
         {
             target.Clear();
             foreach (var item in items)

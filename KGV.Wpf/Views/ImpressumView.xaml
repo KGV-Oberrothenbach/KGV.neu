@@ -6,6 +6,7 @@
             <StackPanel MaxWidth="820">
                 <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,8" />
                 <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,18" />
+
                 <CheckBox Content="Demo-Datensätze einblenden"
                           Margin="0,0,0,16"
                           IsChecked="{Binding ShowDemoData, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -33,7 +34,7 @@
                         <TextBlock Text="Aktuell keine Vorstandsangaben hinterlegt."
                                    Margin="0,12,0,0"
                                    TextWrapping="Wrap"
-                                    Visibility="{Binding VorstandFallbackVisibility}" />
+                                   Visibility="{Binding VorstandFallbackVisibility}" />
                         <ItemsControl ItemsSource="{Binding WeitereVorstandsmitglieder}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
