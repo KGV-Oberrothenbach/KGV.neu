@@ -48,6 +48,9 @@ public sealed class MitgliedInsertRecord : BaseModel
     [Column("email_info_einwilligung")]
     public bool EmailInfoEinwilligung { get; set; }
 
+    [Column("arbeitsstunden_altersregel_typ")]
+    public string ArbeitsstundenAltersregelTyp { get; set; } = "keine";
+
     [Column("mitglied_seit")]
     public DateTime? MitgliedSeit { get; set; }
 

@@ -8,6 +8,8 @@ namespace KGV.Core.Models
 {
     public class MemberDTO : INotifyPropertyChanged
     {
+        public static readonly string[] HauptmitgliedArbeitsstundenAltersregelTypOptions = ["mann80", "frau75"];
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public event EventHandler? Changed;
@@ -146,6 +148,13 @@ namespace KGV.Core.Models
             set => SetField(ref _emailInfoEinwilligung, value, nameof(EmailInfoEinwilligung));
         }
 
+        private string _arbeitsstundenAltersregelTyp = "";
+        public string ArbeitsstundenAltersregelTyp
+        {
+            get => _arbeitsstundenAltersregelTyp;
+            set => SetField(ref _arbeitsstundenAltersregelTyp, value ?? "", nameof(ArbeitsstundenAltersregelTyp));
+        }
+
         private DateTime? _mitgliedSeit;
         public DateTime? MitgliedSeit
         {
@@ -242,6 +251,7 @@ namespace KGV.Core.Models
                 WhatsappEinwilligung = other.WhatsappEinwilligung;
                 EmailRechnungEinwilligung = other.EmailRechnungEinwilligung;
                 EmailInfoEinwilligung = other.EmailInfoEinwilligung;
+                ArbeitsstundenAltersregelTyp = other.ArbeitsstundenAltersregelTyp;
 
                 MitgliedSeit = other.MitgliedSeit;
                 MitgliedEnde = other.MitgliedEnde;
@@ -276,6 +286,7 @@ namespace KGV.Core.Models
                 WhatsappEinwilligung == other.WhatsappEinwilligung &&
                 EmailRechnungEinwilligung == other.EmailRechnungEinwilligung &&
                 EmailInfoEinwilligung == other.EmailInfoEinwilligung &&
+                string.Equals(ArbeitsstundenAltersregelTyp ?? "", other.ArbeitsstundenAltersregelTyp ?? "", StringComparison.Ordinal) &&
                 MitgliedSeit == other.MitgliedSeit &&
                 MitgliedEnde == other.MitgliedEnde &&
                 string.Equals(Role ?? "", other.Role ?? "", StringComparison.Ordinal) &&

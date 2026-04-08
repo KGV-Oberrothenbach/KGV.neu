@@ -145,6 +145,9 @@ namespace KGV.Infrastructure.Services
                 if (dto == null || string.IsNullOrWhiteSpace(dto.Vorname) || string.IsNullOrWhiteSpace(dto.Nachname))
                     return null;
 
+                if (dto.IstHauptmitglied && !MemberDTO.HauptmitgliedArbeitsstundenAltersregelTypOptions.Contains(dto.ArbeitsstundenAltersregelTyp, StringComparer.Ordinal))
+                    return null;
+
                 var client = await EnsureClientAsync();
                 var insertRecord = new MitgliedInsertRecord
                 {
@@ -161,6 +164,7 @@ namespace KGV.Infrastructure.Services
                     WhatsappEinwilligung = dto.WhatsappEinwilligung,
                     EmailRechnungEinwilligung = dto.EmailRechnungEinwilligung,
                     EmailInfoEinwilligung = dto.EmailInfoEinwilligung,
+                    ArbeitsstundenAltersregelTyp = dto.IstHauptmitglied ? dto.ArbeitsstundenAltersregelTyp : "keine",
                     MitgliedSeit = dto.MitgliedSeit,
                     MitgliedEnde = dto.MitgliedEnde,
                     Aktiv = dto.Aktiv
@@ -199,6 +203,9 @@ namespace KGV.Infrastructure.Services
                 if (existing == null || existing.LockedByUserId != userGuid)
                     return false;
 
+                if (dto.IstHauptmitglied && !MemberDTO.HauptmitgliedArbeitsstundenAltersregelTypOptions.Contains(dto.ArbeitsstundenAltersregelTyp, StringComparer.Ordinal))
+                    return false;
+
                 var client = await EnsureClientAsync();
                 await client
                     .From<MitgliedRecord>()
@@ -216,6 +223,7 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.WhatsappEinwilligung, dto.WhatsappEinwilligung)
                     .Set(x => x.EmailRechnungEinwilligung, dto.EmailRechnungEinwilligung)
                     .Set(x => x.EmailInfoEinwilligung, dto.EmailInfoEinwilligung)
+                    .Set(x => x.ArbeitsstundenAltersregelTyp, dto.IstHauptmitglied ? dto.ArbeitsstundenAltersregelTyp : existing.ArbeitsstundenAltersregelTyp)
                     .Set(x => x.MitgliedSeit, NormalizeDate(dto.MitgliedSeit))
                     .Set(x => x.MitgliedEnde, NormalizeDate(dto.MitgliedEnde))
                     .Set(x => x.Aktiv, dto.MitgliedEnde == null)

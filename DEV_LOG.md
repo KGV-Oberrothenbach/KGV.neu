@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-04-08 – Arbeitsstunden-Altersregel für Hauptmitglieder in MAUI-Stammdaten ergänzt
+
+- Kurzer Repo-Check vor dem Block:
+  - `git status -sb` zeigte `main...origin/main`
+  - blockfremd untracked blieben Bilddateien, `PS_Log.bat`, `_logs/`, `_secrets/`
+- Minimal umgesetzt nur in den direkt nötigen MAUI-/Datenpfaden:
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - Feld `arbeitsstunden_altersregel_typ` als Picker im Hauptmitglied-Stammdatenkontext ergänzt
+    - nur für Hauptmitglieder sichtbar; bei Nebenmitgliedern ausgeblendet
+    - Save-Validierung ergänzt, damit Hauptmitglieder nur mit `mann80` oder `frau75` gespeichert werden
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+    - Picker auch im Hauptmitglied-Anlegen/Bearbeiten ergänzt
+    - beim Anlegen eines Hauptmitglieds als Pflichtfeld umgesetzt
+  - `KGV.Core/Models/MemberDTO.cs`
+  - `KGV.Core/Models/MitgliedRecord.cs`
+  - `KGV.Core/Models/MitgliedInsertRecord.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - Feld durch DTO-/DB-/Create-/Update-Pfad gezogen
+- Fachliche Wirkung:
+  - Hauptmitglieder führen die Altersregel jetzt mobil explizit über Picker
+  - Nebenmitglieder bekommen das Feld weder angezeigt noch als Pflichtlogik aufgezwungen
+- Reale Validierung dieses Laufs:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+
 ## 2026-04-08 – MAUI-Stammdaten nach Save sofort auf frisch geladenen Stand aktualisiert
 
 - Kurzer Repo-Check vor dem Block:

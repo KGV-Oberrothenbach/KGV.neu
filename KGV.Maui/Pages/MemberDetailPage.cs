@@ -30,6 +30,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly Label _emailHintLabel;
     private readonly Label _rolleLabel;
     private readonly Label _appUserHintLabel;
+    private readonly Picker _arbeitsstundenAltersregelTypPicker;
     private readonly Entry _vornameEntry;
     private readonly Entry _nachnameEntry;
     private readonly Entry _emailEntry;
@@ -51,6 +52,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly Button _cancelMembershipButton;
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
+    private readonly View _arbeitsstundenAltersregelTypField;
 
     public MemberDetailPage(
         ISupabaseService supabaseService,
@@ -73,6 +75,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _emailHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _rolleLabel = CreateReadOnlyLabel();
         _appUserHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+        _arbeitsstundenAltersregelTypPicker = new Picker { Title = "Altersregel wählen" };
+        foreach (var option in MemberDTO.HauptmitgliedArbeitsstundenAltersregelTypOptions)
+            _arbeitsstundenAltersregelTypPicker.Items.Add(option);
 
         _vornameEntry = new Entry { Placeholder = "Vorname" };
         _nachnameEntry = new Entry { Placeholder = "Nachname" };
@@ -119,6 +124,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _saveButton = new Button { Text = "Speichern" };
         _saveButton.Clicked += OnSaveClicked;
 
+        _arbeitsstundenAltersregelTypField = CreatePickerField("Arbeitsstunden-Altersregel", _arbeitsstundenAltersregelTypPicker);
+
         Content = new ScrollView
         {
             Content = new VerticalStackLayout
@@ -133,6 +140,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                         CreateEditorField("Nachname", _nachnameEntry),
                         CreateEditorField("Vorname", _vornameEntry),
                         CreateOptionalDateField("Geburtsdatum", _geburtsdatumEnabledSwitch, _geburtsdatumPicker),
+                        _arbeitsstundenAltersregelTypField,
                         CreateEditorField("E-Mail", _emailEntry),
                         _emailHintLabel,
                         CreateReadOnlyField("Rolle", _rolleLabel)),
@@ -220,6 +228,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             _vornameEntry.Text = memberDto.Vorname;
             _emailEntry.Text = memberDto.Email;
             _rolleLabel.Text = FormatValue(memberDto.Role);
+            _arbeitsstundenAltersregelTypPicker.SelectedItem = MemberDTO.HauptmitgliedArbeitsstundenAltersregelTypOptions.Contains(memberDto.ArbeitsstundenAltersregelTyp, StringComparer.Ordinal)
+                ? memberDto.ArbeitsstundenAltersregelTyp
+                : null;
             _telefonEntry.Text = memberDto.Telefon;
             _mobilEntry.Text = memberDto.Mobilnummer;
             _whatsappSwitch.IsToggled = memberDto.WhatsappEinwilligung;
@@ -232,6 +243,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             SetOptionalDate(_mitgliedSeitEnabledSwitch, _mitgliedSeitPicker, memberDto.MitgliedSeit);
             SetOptionalDate(_mitgliedEndeEnabledSwitch, _mitgliedEndePicker, memberDto.MitgliedEnde);
 
+            UpdateArbeitsstundenAltersregelVisibility(memberDto);
             UpdateAdminActions(memberDto);
         }
         catch (Exception)
@@ -254,6 +266,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _emailEntry.IsReadOnly = true;
         _emailHintLabel.Text = string.Empty;
         _rolleLabel.Text = "-";
+        _arbeitsstundenAltersregelTypPicker.SelectedItem = null;
         _telefonEntry.Text = string.Empty;
         _mobilEntry.Text = string.Empty;
         _whatsappSwitch.IsToggled = false;
@@ -280,6 +293,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _emailEntry.IsReadOnly = false;
         _emailHintLabel.Text = "Für neue Mitglieder kann eine E-Mail-Adresse direkt hinterlegt werden.";
         _rolleLabel.Text = UserRoles.User;
+        _arbeitsstundenAltersregelTypPicker.SelectedItem = null;
         _telefonEntry.Text = string.Empty;
         _mobilEntry.Text = string.Empty;
         _whatsappSwitch.IsToggled = false;
@@ -294,6 +308,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _nutzerHinzufuegenButton.IsVisible = false;
         _benutzerverwaltungButton.IsVisible = false;
         _appUserHintLabel.Text = "Der App-User wird nicht direkt beim Anlegen erzeugt, sondern später über den bestehenden Invite-/Benutzerverwaltungsweg.";
+        UpdateArbeitsstundenAltersregelVisibility(new MemberDTO { IstHauptmitglied = true });
         UpdateCancelMembershipButton(null);
     }
 
@@ -321,6 +336,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     ? "Für 'Nutzer hinzufügen' wird eine E-Mail-Adresse im ausgewählten Mitglied benötigt."
                     : "Für dieses Mitglied besteht aktuell noch kein App-User. Über 'Nutzer hinzufügen' wird derselbe produktive Invite-/Erstlogin-Flow wie in WPF gestartet.";
 
+        UpdateArbeitsstundenAltersregelVisibility(member);
         UpdateCancelMembershipButton(member);
     }
 
@@ -458,6 +474,15 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             return;
         }
 
+        var requiresArbeitsstundenAltersregel = _isCreateMode || _memberRecord?.HauptmitgliedId == null;
+        var selectedArbeitsstundenAltersregelTyp = _arbeitsstundenAltersregelTypPicker.SelectedItem as string;
+        if (requiresArbeitsstundenAltersregel && string.IsNullOrWhiteSpace(selectedArbeitsstundenAltersregelTyp))
+        {
+            await DisplayAlert("Validierung", "Für Hauptmitglieder ist die Arbeitsstunden-Altersregel erforderlich.", "OK");
+            _arbeitsstundenAltersregelTypPicker.Focus();
+            return;
+        }
+
         if (_isCreateMode)
         {
             _isBusy = true;
@@ -475,6 +500,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     Ort = (_ortEntry.Text ?? string.Empty).Trim(),
                     Bemerkungen = (_bemerkungenEditor.Text ?? string.Empty).Trim(),
                     WhatsappEinwilligung = _whatsappSwitch.IsToggled,
+                    ArbeitsstundenAltersregelTyp = selectedArbeitsstundenAltersregelTyp ?? string.Empty,
                     Geburtsdatum = _geburtsdatumEnabledSwitch.IsToggled ? _geburtsdatumPicker.Date : null,
                     MitgliedSeit = _mitgliedSeitEnabledSwitch.IsToggled ? _mitgliedSeitPicker.Date : null,
                     MitgliedEnde = _mitgliedEndeEnabledSwitch.IsToggled ? _mitgliedEndePicker.Date : null,
@@ -559,6 +585,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             dto.Bemerkungen = (_bemerkungenEditor.Text ?? string.Empty).Trim();
             dto.MitgliedSeit = GetOptionalDate(_mitgliedSeitEnabledSwitch, _mitgliedSeitPicker);
             dto.MitgliedEnde = GetOptionalDate(_mitgliedEndeEnabledSwitch, _mitgliedEndePicker);
+            dto.ArbeitsstundenAltersregelTyp = requiresArbeitsstundenAltersregel
+                ? selectedArbeitsstundenAltersregelTyp ?? string.Empty
+                : current.ArbeitsstundenAltersregelTyp;
             dto.Role = current.Role ?? dto.Role;
             dto.Email = _hasLinkedAppUser
                 ? current.Email ?? dto.Email
@@ -627,11 +656,17 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             Email = rec.Email ?? string.Empty,
             Bemerkungen = rec.Bemerkung ?? string.Empty,
             WhatsappEinwilligung = rec.WhatsappEinwilligung,
+            ArbeitsstundenAltersregelTyp = rec.ArbeitsstundenAltersregelTyp,
             MitgliedSeit = rec.MitgliedSeit,
             MitgliedEnde = rec.MitgliedEnde,
             Role = rec.Role ?? string.Empty,
             IstHauptmitglied = rec.HauptmitgliedId == null
         };
+    }
+
+    private void UpdateArbeitsstundenAltersregelVisibility(MemberDTO? member)
+    {
+        _arbeitsstundenAltersregelTypField.IsVisible = _isCreateMode || member?.IstHauptmitglied == true;
     }
 
     private static string NormalizeRole(string? role)
@@ -664,6 +699,19 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             StrokeThickness = 1,
             Padding = 14,
             Content = stack
+        };
+    }
+
+    private static View CreatePickerField(string title, Picker picker)
+    {
+        return new VerticalStackLayout
+        {
+            Spacing = 4,
+            Children =
+            {
+                new Label { Text = title, FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+                picker
+            }
         };
     }
 

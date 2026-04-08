@@ -30,6 +30,7 @@ public class MeineDatenPage : ContentPage
     private readonly Label _vornameLabel;
     private readonly Label _nachnameLabel;
     private readonly Label _geburtsdatumLabel;
+    private readonly Label _arbeitsstundenAltersregelTypLabel;
     private readonly Label _emailLabel;
     private readonly Label _emailRechnungEinwilligungLabel;
     private readonly Label _emailInfoEinwilligungLabel;
@@ -64,6 +65,7 @@ public class MeineDatenPage : ContentPage
     private readonly Switch _whatsappSwitch;
     private readonly Switch _emailRechnungEinwilligungSwitch;
     private readonly Switch _emailInfoEinwilligungSwitch;
+    private readonly Picker _arbeitsstundenAltersregelTypPicker;
     private readonly DatePicker _geburtsdatumPicker;
     private readonly DatePicker _mitgliedSeitPicker;
     private readonly DatePicker _mitgliedEndePicker;
@@ -87,6 +89,7 @@ public class MeineDatenPage : ContentPage
     private readonly Button _nebenmitgliedButton;
     private readonly HorizontalStackLayout _topActionSection;
     private readonly HorizontalStackLayout _editActionSection;
+    private readonly View _arbeitsstundenAltersregelTypField;
 
     private readonly List<View> _displayModeViews = new();
     private readonly List<View> _editModeViews = new();
@@ -121,6 +124,7 @@ public class MeineDatenPage : ContentPage
         _vornameLabel = CreateValueLabel();
         _nachnameLabel = CreateValueLabel();
         _geburtsdatumLabel = CreateValueLabel();
+        _arbeitsstundenAltersregelTypLabel = CreateValueLabel();
         _emailLabel = CreateValueLabel();
         _emailRechnungEinwilligungLabel = CreateValueLabel();
         _emailInfoEinwilligungLabel = CreateValueLabel();
@@ -155,6 +159,9 @@ public class MeineDatenPage : ContentPage
         _whatsappSwitch = new Switch();
         _emailRechnungEinwilligungSwitch = new Switch();
         _emailInfoEinwilligungSwitch = new Switch();
+        _arbeitsstundenAltersregelTypPicker = new Picker { Title = "Altersregel wählen" };
+        foreach (var option in MemberDTO.HauptmitgliedArbeitsstundenAltersregelTypOptions)
+            _arbeitsstundenAltersregelTypPicker.Items.Add(option);
 
         _geburtsdatumPicker = CreateDatePicker(date =>
         {
@@ -252,10 +259,13 @@ public class MeineDatenPage : ContentPage
         _nebenmitgliedSectionCard = CreateSection("Mitgliedskontext", _linkedMemberButton, _nebenmitgliedButton, _nebenmitgliedHintLabel);
         _adminSectionCard = CreateSection("Verwaltung", _adminMenuSection);
 
+        _arbeitsstundenAltersregelTypField = CreateModeField("Arbeitsstunden-Altersregel", _arbeitsstundenAltersregelTypLabel, _arbeitsstundenAltersregelTypPicker);
+
         var grunddatenSection = CreateSection("Grunddaten",
             CreateModeField("Nachname", _nachnameLabel, _nachnameEntry),
             CreateModeField("Vorname", _vornameLabel, _vornameEntry),
-            CreateModeField("Geburtsdatum", _geburtsdatumLabel, CreateDateEditor(_geburtsdatumPicker, _clearGeburtsdatumButton)));
+            CreateModeField("Geburtsdatum", _geburtsdatumLabel, CreateDateEditor(_geburtsdatumPicker, _clearGeburtsdatumButton)),
+            _arbeitsstundenAltersregelTypField);
 
         var kontaktSection = CreateSection("Kontakt",
             CreateModeField("E-Mail", _emailLabel, CreateEmailEditor()),
@@ -376,6 +386,7 @@ public class MeineDatenPage : ContentPage
         _nachnameLabel.Text = FormatValue(member.Nachname);
         _vornameLabel.Text = FormatValue(member.Vorname);
         _geburtsdatumLabel.Text = FormatDate(member.Geburtsdatum);
+        _arbeitsstundenAltersregelTypLabel.Text = FormatArbeitsstundenAltersregelTyp(member.ArbeitsstundenAltersregelTyp);
         _emailLabel.Text = FormatValue(member.Email);
         _emailRechnungEinwilligungLabel.Text = member.EmailRechnungEinwilligung ? "Ja" : "Nein";
         _emailInfoEinwilligungLabel.Text = member.EmailInfoEinwilligung ? "Ja" : "Nein";
@@ -406,6 +417,9 @@ public class MeineDatenPage : ContentPage
         _whatsappSwitch.IsToggled = member.WhatsappEinwilligung;
         _emailRechnungEinwilligungSwitch.IsToggled = member.EmailRechnungEinwilligung;
         _emailInfoEinwilligungSwitch.IsToggled = member.EmailInfoEinwilligung;
+        _arbeitsstundenAltersregelTypPicker.SelectedItem = MemberDTO.HauptmitgliedArbeitsstundenAltersregelTypOptions.Contains(member.ArbeitsstundenAltersregelTyp, StringComparer.Ordinal)
+            ? member.ArbeitsstundenAltersregelTyp
+            : null;
 
         _editGeburtsdatum = member.Geburtsdatum;
         _editMitgliedSeit = member.MitgliedSeit;
@@ -481,6 +495,7 @@ public class MeineDatenPage : ContentPage
         _whatsappSwitch.IsEnabled = _isEditMode && !_isBusy;
         _emailRechnungEinwilligungSwitch.IsEnabled = _isEditMode && !_isBusy;
         _emailInfoEinwilligungSwitch.IsEnabled = _isEditMode && !_isBusy;
+        _arbeitsstundenAltersregelTypPicker.IsEnabled = _isEditMode && !_isBusy && _currentMember?.IstHauptmitglied == true;
         _geburtsdatumPicker.IsEnabled = _isEditMode && !_isBusy;
         _mitgliedSeitPicker.IsEnabled = _isEditMode && !_isBusy;
         _mitgliedEndePicker.IsEnabled = _isEditMode && !_isBusy;
@@ -602,6 +617,14 @@ public class MeineDatenPage : ContentPage
             return;
         }
 
+        var selectedArbeitsstundenAltersregelTyp = _arbeitsstundenAltersregelTypPicker.SelectedItem as string;
+        if (_currentMember.IstHauptmitglied && string.IsNullOrWhiteSpace(selectedArbeitsstundenAltersregelTyp))
+        {
+            await DisplayAlert("Validierung", "Für Hauptmitglieder ist die Arbeitsstunden-Altersregel erforderlich.", "OK");
+            _arbeitsstundenAltersregelTypPicker.Focus();
+            return;
+        }
+
         var userId = _authService.CurrentUserId;
         if (string.IsNullOrWhiteSpace(userId))
         {
@@ -644,6 +667,9 @@ public class MeineDatenPage : ContentPage
             dto.WhatsappEinwilligung = _whatsappSwitch.IsToggled;
             dto.EmailRechnungEinwilligung = _emailRechnungEinwilligungSwitch.IsToggled;
             dto.EmailInfoEinwilligung = _emailInfoEinwilligungSwitch.IsToggled;
+            dto.ArbeitsstundenAltersregelTyp = dto.IstHauptmitglied
+                ? selectedArbeitsstundenAltersregelTyp ?? string.Empty
+                : current.ArbeitsstundenAltersregelTyp;
 
             var currentEmail = (current.Email ?? string.Empty).Trim();
             if (CanEditEmailInCurrentContext())
@@ -976,6 +1002,7 @@ public class MeineDatenPage : ContentPage
         _vornameLabel.Text = string.Empty;
         _nachnameLabel.Text = string.Empty;
         _geburtsdatumLabel.Text = string.Empty;
+        _arbeitsstundenAltersregelTypLabel.Text = string.Empty;
         _emailLabel.Text = string.Empty;
         _emailRechnungEinwilligungLabel.Text = string.Empty;
         _emailInfoEinwilligungLabel.Text = string.Empty;
@@ -1005,6 +1032,7 @@ public class MeineDatenPage : ContentPage
         _whatsappSwitch.IsToggled = false;
         _emailRechnungEinwilligungSwitch.IsToggled = false;
         _emailInfoEinwilligungSwitch.IsToggled = false;
+        _arbeitsstundenAltersregelTypPicker.SelectedItem = null;
         _editGeburtsdatum = null;
         _editMitgliedSeit = null;
         _editMitgliedEnde = null;
@@ -1038,6 +1066,12 @@ public class MeineDatenPage : ContentPage
     private static string FormatDate(DateTime? value) => value?.ToString("dd.MM.yyyy") ?? "-";
     private static string FormatValue(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value.Trim();
     private static string FormatRole(string? role) => NormalizeRole(role);
+    private static string FormatArbeitsstundenAltersregelTyp(string? value) => MemberDTO.HauptmitgliedArbeitsstundenAltersregelTypOptions.Contains(value, StringComparer.Ordinal) ? value! : "-";
+
+    private void UpdateArbeitsstundenAltersregelVisibility(MemberDTO? member)
+    {
+        _arbeitsstundenAltersregelTypField.IsVisible = member?.IstHauptmitglied == true;
+    }
 
     private static string NormalizeRole(string? role)
     {
@@ -1075,6 +1109,7 @@ public class MeineDatenPage : ContentPage
             WhatsappEinwilligung = rec.WhatsappEinwilligung,
             EmailRechnungEinwilligung = rec.EmailRechnungEinwilligung,
             EmailInfoEinwilligung = rec.EmailInfoEinwilligung,
+            ArbeitsstundenAltersregelTyp = rec.ArbeitsstundenAltersregelTyp,
             IstHauptmitglied = !rec.HauptmitgliedId.HasValue || rec.HauptmitgliedId.Value <= 0,
             Role = rec.Role ?? string.Empty
         };

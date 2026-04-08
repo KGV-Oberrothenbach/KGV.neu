@@ -35,6 +35,12 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-08
+- In MAUI das Feld `arbeitsstunden_altersregel_typ` im Hauptmitglied-Kontext ergänzt.
+- Umsetzung auf der Stammdatenseite sowie im Hauptmitglied-Anlegen/Bearbeiten als Picker mit genau den Werten `mann80` und `frau75`.
+- Für Hauptmitglieder ist das Feld beim Anlegen jetzt Pflicht; im Save-Pfad wird nur einer der beiden zulässigen Werte akzeptiert.
+- Beim Nebenmitglied bleibt das Feld fachlich irrelevant, wird mobil nicht angezeigt und nicht als Pflichtfeld behandelt.
+- Der DTO-/Supabase-Pfad wurde minimal mitgezogen, damit der Wert für Hauptmitglieder produktiv geladen und gespeichert wird.
+
 - Den realen MAUI-Save-/Reload-Pfad der Stammdatenseite geprüft und minimal korrigiert.
 - Ursache war kein fehlendes Binding, sondern dass der Reload nach erfolgreichem Speichern noch innerhalb des aktiven Busy-Zustands lief und dadurch am Busy-Guard von `LoadAsync()` sofort abbrach.
 - `MeineDatenPage` lädt nach erfolgreichem Speichern jetzt erzwungen frisch nach, ohne manuellen Seitenwechsel und ohne erneutes Öffnen der Seite.
