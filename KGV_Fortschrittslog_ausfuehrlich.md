@@ -35,6 +35,12 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-08
+- Den defekten Impressum-Demo-Schalter in WPF gegen den echten Runtime-Stand repariert und den fehlenden MAUI-Schalter ergänzt.
+- WPF-Ursache war kein Fehler im ViewModel, sondern eine `StaticResource`-Referenz auf `BoolToVisibilityConverter`, die in `ImpressumView.xaml` lokal nicht auflösbar war und die View beim Öffnen in eine `XamlParseException` laufen ließ.
+- Der WPF-Ressourcenfehler wurde minimal behoben, indem der benötigte `BooleanToVisibilityConverter` direkt in der View als Ressource bereitgestellt wurde; die vorhandenen ViewModel-Properties `IsDemoToggleVisible` und `ShowDemoData` bleiben unverändert im Einsatz.
+- In MAUI wurde auf `ImpressumPage` derselbe Schalter `Demo-Datensätze einblenden` ergänzt, nur für Admin sichtbar, standardmäßig aus und ohne Sonderarchitektur.
+- Beide UIs filtern die sichtbaren Impressum-Kontakte über denselben bestehenden gemeinsamen Demo-/Operativpfad `OperationalDataFilter.IsOperationalImpressumKontakt(...)`.
+
 - Das WPF-Impressum um den fehlenden Demo-Schalter ergänzt.
 - Der Schalter erscheint nur auf der Impressum-Seite und nur für Admin; Vorstand sieht ihn nicht.
 - Standardzustand bleibt aus, sodass Demo-Datensätze ohne explizites Einblenden weiter verborgen bleiben.

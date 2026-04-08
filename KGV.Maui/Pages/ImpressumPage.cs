@@ -1,5 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
+using KGV.Maui.State;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
@@ -7,6 +9,7 @@ using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Graphics;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace KGV.Maui.Pages;
@@ -14,14 +17,20 @@ namespace KGV.Maui.Pages;
 public sealed class ImpressumPage : ContentPage
 {
     private readonly ISupabaseService _supabaseService;
+    private readonly UserContextState _userContextState;
     private readonly VerticalStackLayout _weitereVorstandContainer;
     private readonly VerticalStackLayout _bauausschussContainer;
+    private readonly HorizontalStackLayout _demoToggleRow;
+    private readonly Switch _showDemoDataSwitch;
     private readonly Label _statusLabel;
+    private List<ImpressumKontaktItem> _allWeitereVorstandsmitglieder = new();
+    private List<ImpressumKontaktItem> _allBauausschussmitglieder = new();
     private bool _isBusy;
 
-    public ImpressumPage(ISupabaseService supabaseService)
+    public ImpressumPage(ISupabaseService supabaseService, UserContextState userContextState)
     {
         _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
+        _userContextState = userContextState ?? throw new ArgumentNullException(nameof(userContextState));
         Title = "Impressum";
 
         _statusLabel = new Label
@@ -33,6 +42,23 @@ public sealed class ImpressumPage : ContentPage
 
         _weitereVorstandContainer = new VerticalStackLayout { Spacing = 12 };
         _bauausschussContainer = new VerticalStackLayout { Spacing = 12 };
+        _showDemoDataSwitch = new Switch();
+        _showDemoDataSwitch.Toggled += (_, _) => ApplyVisibleItems();
+        _demoToggleRow = new HorizontalStackLayout
+        {
+            Spacing = 10,
+            IsVisible = false,
+            Children =
+            {
+                _showDemoDataSwitch,
+                new Label
+                {
+                    Text = "Demo-Datensätze einblenden",
+                    VerticalTextAlignment = TextAlignment.Center,
+                    LineBreakMode = LineBreakMode.WordWrap
+                }
+            }
+        };
 
         var datenschutzButton = new Button
         {
@@ -59,6 +85,7 @@ public sealed class ImpressumPage : ContentPage
                         Text = "Fester Vereinskopf mit Verantwortlichkeit sowie – falls vorhanden – weitere Vorstands- und Bauausschusskontakte aus dem bestehenden Datenpfad.",
                         LineBreakMode = LineBreakMode.WordWrap
                     },
+                    _demoToggleRow,
                     CreateStaticSection(),
                     CreateDynamicSection("Weitere Vorstandsmitglieder", _weitereVorstandContainer),
                     CreateDynamicSection("Bauausschuss", _bauausschussContainer),
@@ -72,6 +99,7 @@ public sealed class ImpressumPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        UpdateDemoToggleVisibility();
         await LoadAsync();
     }
 
@@ -87,16 +115,18 @@ public sealed class ImpressumPage : ContentPage
             _statusLabel.IsVisible = true;
 
             var info = await _supabaseService.GetImpressumInfoAsync() ?? new ImpressumInfo();
-            RenderSection(_weitereVorstandContainer, info.WeitereVorstandsmitglieder, "Aktuell keine weiteren Vorstandsangaben hinterlegt.");
-            RenderSection(_bauausschussContainer, info.WeitereBauausschussmitglieder, "Aktuell keine Angaben zum Bauausschuss hinterlegt.");
+            _allWeitereVorstandsmitglieder = info.WeitereVorstandsmitglieder.ToList();
+            _allBauausschussmitglieder = info.WeitereBauausschussmitglieder.ToList();
+            ApplyVisibleItems();
 
             _statusLabel.IsVisible = false;
             _statusLabel.Text = string.Empty;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            RenderSection(_weitereVorstandContainer, Array.Empty<ImpressumKontaktItem>(), "Aktuell keine weiteren Vorstandsangaben hinterlegt.");
-            RenderSection(_bauausschussContainer, Array.Empty<ImpressumKontaktItem>(), "Aktuell keine Angaben zum Bauausschuss hinterlegt.");
+            _allWeitereVorstandsmitglieder = new List<ImpressumKontaktItem>();
+            _allBauausschussmitglieder = new List<ImpressumKontaktItem>();
+            ApplyVisibleItems();
             _statusLabel.Text = "Weitere Impressumskontakte konnten aktuell nicht geladen werden.";
             _statusLabel.IsVisible = true;
         }
@@ -104,6 +134,34 @@ public sealed class ImpressumPage : ContentPage
         {
             _isBusy = false;
         }
+    }
+
+    private void UpdateDemoToggleVisibility()
+    {
+        var isAdmin = _userContextState.CurrentUserContext?.Role == UserRole.Admin;
+        _demoToggleRow.IsVisible = isAdmin;
+        if (!isAdmin)
+            _showDemoDataSwitch.IsToggled = false;
+    }
+
+    private void ApplyVisibleItems()
+    {
+        RenderSection(
+            _weitereVorstandContainer,
+            FilterVisibleItems(_allWeitereVorstandsmitglieder),
+            "Aktuell keine weiteren Vorstandsangaben hinterlegt.");
+        RenderSection(
+            _bauausschussContainer,
+            FilterVisibleItems(_allBauausschussmitglieder),
+            "Aktuell keine Angaben zum Bauausschuss hinterlegt.");
+    }
+
+    private IReadOnlyCollection<ImpressumKontaktItem> FilterVisibleItems(IEnumerable<ImpressumKontaktItem> items)
+    {
+        if (_showDemoDataSwitch.IsToggled && _userContextState.CurrentUserContext?.Role == UserRole.Admin)
+            return items.ToList();
+
+        return items.Where(OperationalDataFilter.IsOperationalImpressumKontakt).ToList();
     }
 
     private static Border CreateStaticSection()
