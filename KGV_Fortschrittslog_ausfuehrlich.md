@@ -19,12 +19,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 - `KGV.Wpf`
 - `KGV.Maui`
 
-## Aktueller Gesamtstand (Stand 2026-04-07)
+## Aktueller Gesamtstand (Stand 2026-04-08)
 
 - **WPF und MAUI** sind in den großen Fachbereichen deutlich näher zusammengezogen.
 - **Arbeitsstunden** inkl. Prüf-/Freigabeprozess, Review-Lock und mobilem Nachzug sind produktiv ausgebaut.
 - **Termine, Bekanntmachungen und Arbeitseinsätze** laufen über echte Verwaltungs-/Editorpfade statt Platzhalter.
 - **Dokumente** sind produktiv an den Google-Drive-Unterbau angebunden; normale Nutzer bleiben view-only.
+- **Demo-/Play-Store-Konten** können im Adminpfad jetzt auf echte Demo-Daten begrenzt werden, ohne produktive Vereinsdaten freizugeben.
 - **Mitglieder-/Nebenmitglied-Flows** wurden stark ausgebaut: Neuanlage, Nebenmitglied anlegen/bearbeiten, Mitgliedschaft beenden mit Folgeentscheid.
 - **Wartungsverträge** sind auch für Nebenmitglieder geöffnet.
 - **Rechte-/Rollenmodell** wurde auf `app_user.role` als führende Quelle gezogen; benutzerspezifische Fachrechte inkl. Ablese-Freigaben sind aufgebaut.
@@ -34,6 +35,12 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-08
+- Den Demo-/Play-Store-Adminblock auf dem echten Supabase-/RLS-Stand umgesetzt statt nur über UI-Sichtbarkeit.
+- Vorrangregel ergänzt: Demo-/Reviewer-Konten bleiben auch mit Rolle `admin`/`vorstand` auf Demo-Daten begrenzt; nur echte produktive Admins/Vorstand behalten Vollzugriff auf Produktivdaten.
+- Dafür relevante Admin-Lese-/Übersichts-/Detailpfade u. a. für `app_user`, `mitglied`, `parzelle`, `dokument`, `termin`, `arbeitseinsatz`, `bekanntmachung`, `arbeitsstunden`, `wartungsverträge`, `zaehler` und zugehörige Zuordnungen/Übersichten auf getrennte Produktiv-/Demo-RLS umgestellt.
+- `termin` und `bekanntmachung` erhielten echte `is_demo`-Kennzeichnung; `v_startseite_arbeitseinsatz` und `v_pflichtstunden_uebersicht` wurden auf RLS-wirksamen `security_invoker` zurückgeführt.
+- Ergebnis: Der vorhandene Demouser kann fachlich als Admin genutzt werden, ohne echte Vereinsdaten aus Adminlisten, Details oder Übersichten offenzulegen.
+
 - Den gemeldeten WPF-Buildrest um `HomeView.xaml` ehrlich gegen den aktuellen Workspace geprüft.
 - Befund: Die ungültige WPF-XAML-Eigenschaft `Spacing` war in `HomeView.xaml` im realen Stand bereits nicht mehr vorhanden.
 - Der echte verbleibende Buildblocker lag im laufenden DateOnly-Block in `SupabaseService`:

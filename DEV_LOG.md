@@ -2,6 +2,48 @@
 
 ---
 
+## 2026-04-08 – Demo-/Play-Store-Adminpfade auf echten Demo-Datenscope begrenzt
+
+- Recovery / echter Istzustand vor dem Fix:
+  - `git fetch origin` ausgeführt
+  - `git status --short --branch` zeigte `main...origin/main`
+  - blockfremd untracked blieben `PS_Log.bat`, `_logs/`, `_secrets/`
+- Geprüfter Iststand:
+  - die bisherigen RLS-Policies gaben Admin-/Vorstandsrollen in vielen Tabellen direkt über `is_admin_or_vorstand()` Vollzugriff
+  - damit hätte ein Demo-/Reviewer-Konto nach Hochstufen auf `admin` oder `vorstand` produktive Mitglieder-, Dokument-, Termin-, Arbeitsstunden- und Verwaltungsdaten sehen können
+  - `v_startseite_arbeitseinsatz` und `v_pflichtstunden_uebersicht` liefen im bisherigen Schema noch ohne `security_invoker` und mussten für den echten Demo-Scope auf die Tabellen-RLS zurückgeführt werden
+- Minimal umgesetzt:
+  - neue Supabase-Migration `supabase/migrations/20260408153000_demo_admin_data_scope.sql` ergänzt
+  - zentrale Helper ergänzt:
+    - `is_demo_or_reviewer()`
+    - `is_productive_admin_or_vorstand()`
+    - `is_restricted_demo_admin_or_vorstand()`
+    - kleine Scope-Helfer für Demo-Mitglied, Demo-Parzelle, Demo-Dokument, Demo-Zähler, Demo-Arbeitseinsatz und Demo-Wartungsvertrag
+  - `termin` und `bekanntmachung` um `is_demo` ergänzt, damit diese Inhalte im Review-Betrieb sauber getrennt werden können
+  - Admin-Full-Policies der relevanten Lese-/Detailpfade von globalem `is_admin_or_vorstand()` auf produktive Admins umgestellt und parallele Demo-Admin-Policies nur für echten Demo-Scope ergänzt
+  - betroffen sind die produktiven Datenpfade u. a. für:
+    - `app_user`
+    - `mitglied`, `mitglied_saison`
+    - `parzelle`, `parzellen_belegung`
+    - `dokument`
+    - `arbeitseinsatz`, `arbeitseinsatz_anmeldung`, `arbeitsstunde`
+    - `termin`, `bekanntmachung`
+    - `wartungsvertraege`, `wartungsvertrag_zuordnungen`
+    - `zaehler`, `zaehler_ablesung`
+    - `impressum_funktion_slot`
+  - sichtbare Listenpfade für normale Nutzer bleiben getrennt:
+    - produktive Nutzer sehen weiter nur produktive sichtbare Inhalte
+    - Demo-/Reviewer-Konten sehen in sichtbaren Listen nur Demo-Inhalte
+  - `v_startseite_arbeitseinsatz` und `v_pflichtstunden_uebersicht` auf `security_invoker` gezogen, damit die Tabellen-RLS auch in Home-/Arbeitsstunden-Übersichten greift
+- Wirkung dieses Blocks:
+  - derselbe Demouser kann fachlich auf Adminpfade geschaltet werden, ohne über die reine Rolle automatisch in produktive Vereinsdaten zu kippen
+  - echte produktive Admins/Vorstand behalten ihren bisherigen Vollzugriff auf echte Daten
+  - normale produktive Nutzer bekommen weiterhin keinen Demo-Scope
+- Reale Validierung dieses Laufs:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+  - Workspace-Build erfolgreich
+
 ## 2026-04-08 – WPF-Buildrest ehrlich geprüft und verbleibenden Compile-Block minimal geschlossen
 
 - Recovery / echter Istzustand vor dem Fix:
