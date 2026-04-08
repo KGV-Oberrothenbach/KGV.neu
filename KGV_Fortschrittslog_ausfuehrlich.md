@@ -35,6 +35,11 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-08
+- WPF-Impressum gegen den gemeldeten Runtime-Bindingfehler geprüft.
+- Ursache war kein Fehler in `PropertyPathWorker`, sondern eine schreibgeschützte ViewModel-Eigenschaft `ClubEmail`, die in `ImpressumView.xaml` in einem `Run` ohne explizites `OneWay` gebunden war.
+- Minimaler Fix: `ClubEmail` im WPF-Impressum explizit auf `Mode=OneWay` gesetzt.
+- Ergebnis: Der Runtime-Fehler `TwoWay- oder OneWayToSource-Bindungen funktionieren nicht mit der schreibgeschützten Eigenschaft "ClubEmail"` ist auf diesem Pfad geschlossen.
+
 - Den Demo-/Play-Store-Adminblock auf dem echten Supabase-/RLS-Stand umgesetzt statt nur über UI-Sichtbarkeit.
 - Vorrangregel ergänzt: Demo-/Reviewer-Konten bleiben auch mit Rolle `admin`/`vorstand` auf Demo-Daten begrenzt; nur echte produktive Admins/Vorstand behalten Vollzugriff auf Produktivdaten.
 - Dafür relevante Admin-Lese-/Übersichts-/Detailpfade u. a. für `app_user`, `mitglied`, `parzelle`, `dokument`, `termin`, `arbeitseinsatz`, `bekanntmachung`, `arbeitsstunden`, `wartungsverträge`, `zaehler` und zugehörige Zuordnungen/Übersichten auf getrennte Produktiv-/Demo-RLS umgestellt.

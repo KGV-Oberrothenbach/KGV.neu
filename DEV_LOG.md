@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-04-08 – WPF-Impressum-Binding gegen schreibgeschützte `ClubEmail` korrigiert
+
+- Recovery / echter Istzustand vor dem Fix:
+  - `git status --short --branch` zeigte `main...origin/main`
+  - blockfremd untracked blieben `PS_Log.bat`, `_logs/`, `_secrets/` sowie Bilddateien im Repo-Root
+- Geprüfter WPF-Iststand:
+  - `KGV.Wpf/ViewModels/ImpressumViewModel.cs` liefert `ClubEmail` nur lesend über eine get-only-Eigenschaft
+  - `KGV.Wpf/Views/ImpressumView.xaml` band `ClubEmail` in einem `Run` ohne expliziten Modus
+  - dadurch lief WPF im aktuellen Pfad in eine `TwoWay`-/`OneWayToSource`-Prüfung gegen die schreibgeschützte Eigenschaft
+- Minimal umgesetzt:
+  - `KGV.Wpf/Views/ImpressumView.xaml`
+    - `ClubEmail`-Binding im `Run` explizit auf `Mode=OneWay` gesetzt
+  - keine ViewModel-/Service-/MAUI-Logik geändert
+- Reale Validierung dieses Laufs:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj`
+
 ## 2026-04-08 – Demo-/Play-Store-Adminpfade auf echten Demo-Datenscope begrenzt
 
 - Recovery / echter Istzustand vor dem Fix:
