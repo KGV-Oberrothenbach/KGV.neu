@@ -35,6 +35,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-08
+- Die bestehende Demodaten-Ausblendung auf dem zentralen Operational-/Sichtbarkeitspfad auch für Admin erweitert.
+- Dazu `OperationalDataFilter` um zentrale Prüfungen für `Arbeitseinsatz`, `Termin` und `Bekanntmachung` ergänzt; `TerminRecord` und `BekanntmachungRecord` tragen dafür jetzt ebenfalls `is_demo`.
+- In `SupabaseService` hängen jetzt sowohl die Verwaltungslisten als auch die Home-/Startseitenpfade für Arbeitseinsätze, Termine und Bekanntmachungen an denselben bestehenden Operational-Filtern; dadurch bleiben diese Demodatensätze nun auch im Adminkontext ausgeblendet.
+- `GetMitgliederAsync()` blendet Demomitglieder jetzt ebenfalls zentral aus, sodass der bestehende Mitgliedspfad auch für Admin keinen Demomitglied-Listenstand mehr liefert.
+- Die früher eingebauten Demo-Schalterreste im Impressum wurden in WPF und MAUI wieder sauber zurückgebaut; beide UIs filtern die Impressum-Kontakte jetzt nur noch über `OperationalDataFilter.IsOperationalImpressumKontakt(...)`.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den Impressum-Demo-Schalter im Abschlusslauf noch einmal direkt gegen `origin/main` nur in den drei Ziel-Dateien geprüft und anschließend minimal nachgeschärft.
 - WPF verwendet für den Demo-Schalter nicht mehr den alten fehleranfälligen Converter-Pfad `Visibility="{Binding IsDemoToggleVisible, Converter={StaticResource BoolToVisibilityConverter}}"`, sondern explizit den bestehenden ViewModel-Pfad `Visibility="{Binding DemoToggleVisibility, Mode=OneWay}"`.
 - In `KGV.Wpf/ViewModels/ImpressumViewModel.cs` erzwingt `ShowDemoData` jetzt zusätzlich logisch, dass Demo-Daten nur mit Admin-Rolle aktiv sein können.

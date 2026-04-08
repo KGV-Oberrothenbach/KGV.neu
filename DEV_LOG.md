@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-04-08 – Demodaten-Ausblendung auf Admin erweitert und Impressum-Schalterreste zurückgebaut
+
+- Repo-Check vor dem Block:
+  - `git fetch origin`
+  - `git status --short --branch`
+- Minimal umgesetzt auf dem bestehenden zentralen Pfad:
+  - `KGV.Core/Models/OperationalDataFilter.cs`
+    - bestehende Demodatenfilterung um `IsOperationalArbeitseinsatz(...)`, `IsOperationalTermin(...)` und `IsOperationalBekanntmachung(...)` erweitert
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - `GetMitgliederAsync()` filtert Demomitglieder jetzt zentral ebenfalls aus dem Adminpfad heraus
+    - Verwaltungs- und Home-/Startseitenpfade für Arbeitseinsätze, Termine und Bekanntmachungen hängen jetzt alle am selben bestehenden Operational-Filter
+    - Detail-/Teilnehmerpfad für Arbeitseinsätze gibt für Demo-Datensätze nichts mehr zurück
+  - `KGV.Wpf/Views/ImpressumView.xaml`
+  - `KGV.Wpf/ViewModels/ImpressumViewModel.cs`
+  - `KGV.Maui/Pages/ImpressumPage.cs`
+    - vorhandene Demo-Schalter-/Toggle-Reste sauber entfernt
+    - Impressum filtert in beiden UIs nur noch direkt über `OperationalDataFilter.IsOperationalImpressumKontakt(...)`
+  - `KGV.Core/Models/TerminRecord.cs`
+  - `KGV.Core/Models/BekanntmachungRecord.cs`
+    - `is_demo` in die Modelle aufgenommen, damit der bestehende Filterpfad auch diese Datensätze sicher erkennt
+- Fachliche Wirkung:
+  - Demodaten bleiben jetzt auch für Admin standardmäßig unsichtbar
+  - betroffen sind Arbeitseinsätze, Termine, Bekanntmachungen und Demomitglieder in den zentralen Mitglieds-/Impressumspfaden
+  - User und Vorstand bleiben auf demselben fachlichen Verhalten wie zuvor
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-08 – Impressum-Demo-Schalter gegen origin/main in den drei Ziel-Dateien final nachgeschärft
 
 - Repo-Check nur auf den Ziel-Dateien:

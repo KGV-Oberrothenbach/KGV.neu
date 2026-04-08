@@ -45,4 +45,7 @@ public sealed class TerminRecord : BaseModel
 
     [Column("updated_at")]
     public DateTime? UpdatedAt { get; set; }
+
+    [Column("is_demo")]
+    public bool IsDemo { get; set; }
 }

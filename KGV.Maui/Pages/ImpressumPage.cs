@@ -1,6 +1,5 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
-using KGV.Core.Security;
 using KGV.Maui.State;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui;
@@ -17,23 +16,17 @@ namespace KGV.Maui.Pages;
 public sealed class ImpressumPage : ContentPage
 {
     private readonly ISupabaseService _supabaseService;
-    private readonly UserContextState _userContextState;
     private readonly VerticalStackLayout _weitereVorstandContainer;
     private readonly VerticalStackLayout _bauausschussContainer;
-    private readonly HorizontalStackLayout _demoToggleRow;
-    private readonly Switch _showDemoDataSwitch;
     private readonly Label _statusLabel;
     private List<ImpressumKontaktItem> _allWeitereVorstandsmitglieder = new();
     private List<ImpressumKontaktItem> _allBauausschussmitglieder = new();
     private bool _isBusy;
 
-    private bool IsDemoToggleVisible => _userContextState.CurrentUserContext?.Role == UserRole.Admin;
-    private bool ShowDemoData => IsDemoToggleVisible && _showDemoDataSwitch.IsToggled;
-
     public ImpressumPage(ISupabaseService supabaseService, UserContextState userContextState)
     {
         _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
-        _userContextState = userContextState ?? throw new ArgumentNullException(nameof(userContextState));
+        _ = userContextState ?? throw new ArgumentNullException(nameof(userContextState));
         Title = "Impressum";
 
         _statusLabel = new Label
@@ -45,27 +38,6 @@ public sealed class ImpressumPage : ContentPage
 
         _weitereVorstandContainer = new VerticalStackLayout { Spacing = 12 };
         _bauausschussContainer = new VerticalStackLayout { Spacing = 12 };
-        _showDemoDataSwitch = new Switch
-        {
-            IsToggled = false,
-            AutomationId = "ImpressumShowDemoDataSwitch"
-        };
-        _showDemoDataSwitch.Toggled += (_, _) => ApplyVisibleItems();
-        _demoToggleRow = new HorizontalStackLayout
-        {
-            Spacing = 10,
-            IsVisible = false,
-            Children =
-            {
-                _showDemoDataSwitch,
-                new Label
-                {
-                    Text = "Demo-Datensätze einblenden",
-                    VerticalTextAlignment = TextAlignment.Center,
-                    LineBreakMode = LineBreakMode.WordWrap
-                }
-            }
-        };
 
         var datenschutzButton = new Button
         {
@@ -92,7 +64,6 @@ public sealed class ImpressumPage : ContentPage
                         Text = "Fester Vereinskopf mit Verantwortlichkeit sowie – falls vorhanden – weitere Vorstands- und Bauausschusskontakte aus dem bestehenden Datenpfad.",
                         LineBreakMode = LineBreakMode.WordWrap
                     },
-                    _demoToggleRow,
                     CreateStaticSection(),
                     CreateDynamicSection("Weitere Vorstandsmitglieder", _weitereVorstandContainer),
                     CreateDynamicSection("Bauausschuss", _bauausschussContainer),
@@ -106,7 +77,6 @@ public sealed class ImpressumPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        UpdateDemoToggleVisibility();
         await LoadAsync();
     }
 
@@ -143,18 +113,6 @@ public sealed class ImpressumPage : ContentPage
         }
     }
 
-    private void UpdateDemoToggleVisibility()
-    {
-        var wasShowingDemoData = ShowDemoData;
-
-        _demoToggleRow.IsVisible = IsDemoToggleVisible;
-        if (!IsDemoToggleVisible)
-            _showDemoDataSwitch.IsToggled = false;
-
-        if (wasShowingDemoData != ShowDemoData)
-            ApplyVisibleItems();
-    }
-
     private void ApplyVisibleItems()
     {
         RenderSection(
@@ -169,9 +127,6 @@ public sealed class ImpressumPage : ContentPage
 
     private IReadOnlyCollection<ImpressumKontaktItem> FilterVisibleItems(IEnumerable<ImpressumKontaktItem> items)
     {
-        if (ShowDemoData)
-            return items.ToList();
-
         return items.Where(OperationalDataFilter.IsOperationalImpressumKontakt).ToList();
     }
 

@@ -9,7 +9,8 @@ namespace KGV.Core.Models
             if (member == null)
                 return false;
 
-            return !ContainsMarker(member.Vorname)
+            return !member.IsDemo
+                && !ContainsMarker(member.Vorname)
                 && !ContainsMarker(member.Name)
                 && !ContainsMarker(member.Email);
         }
@@ -33,6 +34,37 @@ namespace KGV.Core.Models
                 && !ContainsMarker(item.Telefon)
                 && !ContainsMarker(item.Handy)
                 && !ContainsMarker(item.Adresse);
+        }
+
+        public static bool IsOperationalArbeitseinsatz(ArbeitseinsatzRecord? item)
+        {
+            if (item == null)
+                return false;
+
+            return !item.IsDemo
+                && !ContainsMarker(item.Titel)
+                && !ContainsMarker(item.Beschreibung)
+                && !ContainsMarker(item.Treffpunkt);
+        }
+
+        public static bool IsOperationalTermin(TerminRecord? item)
+        {
+            if (item == null)
+                return false;
+
+            return !item.IsDemo
+                && !ContainsMarker(item.Titel)
+                && !ContainsMarker(item.Beschreibung);
+        }
+
+        public static bool IsOperationalBekanntmachung(BekanntmachungRecord? item)
+        {
+            if (item == null)
+                return false;
+
+            return !item.IsDemo
+                && !ContainsMarker(item.Titel)
+                && !ContainsMarker(item.InhaltHtml);
         }
 
         public static bool IsOperationalText(string? value)
