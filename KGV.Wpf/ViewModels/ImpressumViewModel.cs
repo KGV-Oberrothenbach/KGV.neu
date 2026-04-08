@@ -45,6 +45,7 @@ namespace KGV.ViewModels
         public ObservableCollection<ImpressumKontaktItem> Bauausschussmitglieder { get; } = new();
         public ICommand OpenDatenschutzCommand { get; }
         public bool IsDemoToggleVisible => _mainWindowViewModel.UserContext.Role == UserRole.Admin;
+        public Visibility DemoToggleVisibility => IsDemoToggleVisible ? Visibility.Visible : Visibility.Collapsed;
 
         public bool ShowDemoData
         {
@@ -158,6 +159,7 @@ namespace KGV.ViewModels
             OnPropertyChanged(nameof(VorstandFallbackVisibility));
             OnPropertyChanged(nameof(BauausschussFallbackVisibility));
             OnPropertyChanged(nameof(IsDemoToggleVisible));
+            OnPropertyChanged(nameof(DemoToggleVisibility));
         }
     }
 }

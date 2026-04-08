@@ -2,6 +2,32 @@
 
 ---
 
+## 2026-04-08 – Impressum-Demo-Schalter in WPF und MAUI sauber geschlossen
+
+- Kurzer Repo-Check vor dem Block:
+  - `git status -sb` zeigte `main...origin/main`
+  - blockfremd untracked blieben Bilddateien, `PS_Log.bat`, `_logs/`, `_secrets/`
+- Echter Befund vor dem Fix:
+  - WPF-Impressum referenzierte den Demo-Schalter über `BoolToVisibilityConverter` als `StaticResource`; dieser Pfad lief im View-Kontext nicht belastbar und führte beim Öffnen der View in den gemeldeten Ressourcen-/XAML-Fehler
+  - in MAUI fehlte der Demo-Schalter auf der Impressum-Seite noch komplett
+- Minimal umgesetzt:
+  - `KGV.Wpf/Views/ImpressumView.xaml`
+    - Converter-Abhängigkeit entfernt
+    - Sichtbarkeit des Schalters direkt auf `DemoToggleVisibility` aus dem bestehenden ViewModel gezogen
+  - `KGV.Wpf/ViewModels/ImpressumViewModel.cs`
+    - `DemoToggleVisibility` als robuste WPF-Sichtbarkeit aus der vorhandenen Admin-Logik ergänzt
+  - `KGV.Maui/Pages/ImpressumPage.cs`
+    - Schalter `Demo-Datensätze einblenden` ergänzt
+    - nur für Admin sichtbar, Standardzustand aus
+    - sichtbare Kontakte laufen über denselben bestehenden `OperationalDataFilter.IsOperationalImpressumKontakt(...)`-Pfad wie in WPF
+- Fachliche Wirkung:
+  - WPF-Impressum öffnet ohne `XamlParseException`
+  - WPF und MAUI verhalten sich auf der Impressum-Seite jetzt gleich
+  - ohne explizites Einblenden bleiben Demo-Datensätze ausgeblendet
+- Reale Validierung dieses Laufs:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+
 ## 2026-04-08 – Impressum-Demo-Schalter in WPF repariert und in MAUI ergänzt
 
 - Kurzer Repo-Check vor dem Block:

@@ -35,6 +35,12 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-08
+- Den noch offenen Impressum-Demo-Schalter-Block sauber abgeschlossen.
+- WPF-Ursache des Absturzes war die Converter-/`StaticResource`-Abhängigkeit im Demo-Schalter der `ImpressumView`; dieser Pfad wurde robust entfernt und die Sichtbarkeit stattdessen direkt aus dem bestehenden ViewModel über `DemoToggleVisibility` abgeleitet.
+- In MAUI wurde der fehlende Schalter `Demo-Datensätze einblenden` auf der `ImpressumPage` ergänzt, nur für Admin sichtbar und standardmäßig aus.
+- Beide UIs filtern die sichtbaren Impressum-Kontakte jetzt auf demselben bestehenden gemeinsamen Demo-/Operativpfad `OperationalDataFilter.IsOperationalImpressumKontakt(...)`.
+- Ergebnis: WPF crasht beim Öffnen des Impressums nicht mehr und MAUI besitzt nun denselben Admin-only-Demo-Schalter mit identischem Fachverhalten.
+
 - Den defekten Impressum-Demo-Schalter in WPF gegen den echten Runtime-Stand repariert und den fehlenden MAUI-Schalter ergänzt.
 - WPF-Ursache war kein Fehler im ViewModel, sondern eine `StaticResource`-Referenz auf `BoolToVisibilityConverter`, die in `ImpressumView.xaml` lokal nicht auflösbar war und die View beim Öffnen in eine `XamlParseException` laufen ließ.
 - Der WPF-Ressourcenfehler wurde minimal behoben, indem der benötigte `BooleanToVisibilityConverter` direkt in der View als Ressource bereitgestellt wurde; die vorhandenen ViewModel-Properties `IsDemoToggleVisible` und `ShowDemoData` bleiben unverändert im Einsatz.
