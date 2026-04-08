@@ -2,6 +2,25 @@
 
 ---
 
+## 2026-04-08 – MAUI-Stammdaten nach Save sofort auf frisch geladenen Stand aktualisiert
+
+- Kurzer Repo-Check vor dem Block:
+  - `git status -sb` zeigte `main...origin/main`
+  - blockfremd untracked blieben Bilddateien, `PS_Log.bat`, `_logs/`, `_secrets/`
+- Geprüfter Iststand im realen Save-/Reload-Pfad:
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs` rief nach erfolgreichem Speichern `LoadAsync()` auf
+  - derselbe Reload lief aber noch innerhalb des aktiven `_isBusy`-Fensters und wurde deshalb direkt vom Busy-Guard abgebrochen
+  - dadurch blieb die sichtbare Readonly-Anzeige nach dem Speichern auf alten Werten, bis die Seite erneut geöffnet oder anderweitig neu geladen wurde
+- Minimal umgesetzt:
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - `LoadAsync(...)` um einen minimalen Override für den internen Busy-Guard ergänzt
+    - Save-Pfad auf einen erzwungenen Reload mit Erhalt der Erfolgsmeldung umgestellt
+- Fachliche Wirkung:
+  - nach erfolgreichem Speichern lädt die aktuell angezeigte Stammdatenseite sofort die frischen Daten nach
+  - kein manueller Seitenwechsel und kein erneutes Öffnen der Seite mehr nötig
+- Reale Validierung dieses Laufs:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+
 ## 2026-04-08 – MAUI-Stammdaten verschlankt und E-Mail-Einwilligungen eingebunden
 
 - Kurzer Repo-Check vor dem Block:

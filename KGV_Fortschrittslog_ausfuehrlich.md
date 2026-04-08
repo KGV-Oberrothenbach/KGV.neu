@@ -35,6 +35,11 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-08
+- Den realen MAUI-Save-/Reload-Pfad der Stammdatenseite geprüft und minimal korrigiert.
+- Ursache war kein fehlendes Binding, sondern dass der Reload nach erfolgreichem Speichern noch innerhalb des aktiven Busy-Zustands lief und dadurch am Busy-Guard von `LoadAsync()` sofort abbrach.
+- `MeineDatenPage` lädt nach erfolgreichem Speichern jetzt erzwungen frisch nach, ohne manuellen Seitenwechsel und ohne erneutes Öffnen der Seite.
+- Ergebnis: Die geänderten Stammdaten sind direkt nach dem Speichern auf der sichtbaren MAUI-Stammdatenseite sichtbar.
+
 - Die sichtbare MAUI-Stammdatenseite im Mitgliedskontext gezielt verschlankt.
 - Sichtbar bleiben dort jetzt nur noch `Grunddaten`, `Kontakt`, `Adresse` und `Bemerkung`.
 - Aus der sichtbaren Stammdatenseite entfernt wurden die Blöcke `Mitgliedschaft`, `Wartungsverträge / Pflichtstunden`, `Mitgliedskontext`, `Verwaltung` sowie der direkte Dokumente-Button.

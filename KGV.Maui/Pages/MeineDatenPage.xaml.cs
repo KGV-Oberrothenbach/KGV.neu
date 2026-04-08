@@ -298,9 +298,9 @@ public class MeineDatenPage : ContentPage
         SetEditMode(false);
     }
 
-    private async Task LoadAsync()
+    private async Task LoadAsync(bool ignoreBusyGuard = false, bool clearStatus = true)
     {
-        if (_isBusy)
+        if (_isBusy && !ignoreBusyGuard)
             return;
 
         _isBusy = true;
@@ -308,7 +308,8 @@ public class MeineDatenPage : ContentPage
 
         try
         {
-            _statusLabel.Text = string.Empty;
+            if (clearStatus)
+                _statusLabel.Text = string.Empty;
 
             var selectedMember = _memberContextState.SelectedMember;
             if (selectedMember?.Id is not > 0)
@@ -685,11 +686,9 @@ public class MeineDatenPage : ContentPage
                 return;
             }
 
-            _memberContextState.SetSelectedMember(dto);
-            _currentMember = dto;
             SetEditMode(false);
+            await LoadAsync(ignoreBusyGuard: true, clearStatus: false);
             _statusLabel.Text = "Stammdaten gespeichert.";
-            await LoadAsync();
         }
         catch (Exception ex)
         {
