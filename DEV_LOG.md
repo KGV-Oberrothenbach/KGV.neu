@@ -2,6 +2,29 @@
 
 ---
 
+## 2026-04-08 – Impressum-Demo-Schalter final ohne WPF-StaticResource und mit bestätigtem MAUI-Adminpfad
+
+- Repo-Check vor dem Block:
+  - `git fetch origin`
+  - `git status --short --branch` zeigte `## main...origin/main`
+  - blockfremd untracked blieben Bilddateien, `PS_Log.bat`, `_logs/`, `_secrets/`
+- Minimal umgesetzt:
+  - `KGV.Wpf/Views/ImpressumView.xaml`
+    - fehleranfällige `StaticResource`-Abhängigkeit am Demo-Schalter entfernt
+    - Sichtbarkeit direkt auf die bereits vorhandene ViewModel-Property `DemoToggleVisibility` gelegt
+    - damit braucht die View keinen lokalen Converter mehr und öffnet robust ohne Ressourcenauflösung
+  - `KGV.Maui/Pages/ImpressumPage.cs`
+    - vorhandenen Demo-Schalterpfad explizit auf Standardzustand `aus` festgezogen
+    - Admin-Freigabe über `IsDemoToggleVisible` plus zentrale `ShowDemoData`-Property konsolidiert
+    - Filter bleibt unverändert auf `OperationalDataFilter.IsOperationalImpressumKontakt(...)`
+- Fachliche Wirkung:
+  - WPF-Impressum öffnet ohne `XamlParseException` durch fehlende Converter-Resource
+  - der MAUI-Schalter bleibt nur für Admin sichtbar; Vorstand sieht ihn nicht
+  - ohne explizites Einschalten bleiben Demo-Datensätze in beiden UIs ausgeblendet
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-08 – Impressum-Demo-Schalter final für WPF und MAUI vereinheitlicht
 
 - Repo-Check vor dem Block:

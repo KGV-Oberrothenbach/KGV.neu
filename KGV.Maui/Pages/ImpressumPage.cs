@@ -28,6 +28,7 @@ public sealed class ImpressumPage : ContentPage
     private bool _isBusy;
 
     private bool IsDemoToggleVisible => _userContextState.CurrentUserContext?.Role == UserRole.Admin;
+    private bool ShowDemoData => IsDemoToggleVisible && _showDemoDataSwitch.IsToggled;
 
     public ImpressumPage(ISupabaseService supabaseService, UserContextState userContextState)
     {
@@ -44,7 +45,10 @@ public sealed class ImpressumPage : ContentPage
 
         _weitereVorstandContainer = new VerticalStackLayout { Spacing = 12 };
         _bauausschussContainer = new VerticalStackLayout { Spacing = 12 };
-        _showDemoDataSwitch = new Switch();
+        _showDemoDataSwitch = new Switch
+        {
+            IsToggled = false
+        };
         _showDemoDataSwitch.Toggled += (_, _) => ApplyVisibleItems();
         _demoToggleRow = new HorizontalStackLayout
         {
@@ -159,7 +163,7 @@ public sealed class ImpressumPage : ContentPage
 
     private IReadOnlyCollection<ImpressumKontaktItem> FilterVisibleItems(IEnumerable<ImpressumKontaktItem> items)
     {
-        if (_showDemoDataSwitch.IsToggled && IsDemoToggleVisible)
+        if (ShowDemoData)
             return items.ToList();
 
         return items.Where(OperationalDataFilter.IsOperationalImpressumKontakt).ToList();
