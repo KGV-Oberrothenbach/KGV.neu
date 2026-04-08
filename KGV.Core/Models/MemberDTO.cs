@@ -132,6 +132,20 @@ namespace KGV.Core.Models
             set => SetField(ref _whatsappEinwilligung, value, nameof(WhatsappEinwilligung));
         }
 
+        private bool _emailRechnungEinwilligung;
+        public bool EmailRechnungEinwilligung
+        {
+            get => _emailRechnungEinwilligung;
+            set => SetField(ref _emailRechnungEinwilligung, value, nameof(EmailRechnungEinwilligung));
+        }
+
+        private bool _emailInfoEinwilligung;
+        public bool EmailInfoEinwilligung
+        {
+            get => _emailInfoEinwilligung;
+            set => SetField(ref _emailInfoEinwilligung, value, nameof(EmailInfoEinwilligung));
+        }
+
         private DateTime? _mitgliedSeit;
         public DateTime? MitgliedSeit
         {
@@ -226,6 +240,8 @@ namespace KGV.Core.Models
 
                 Bemerkungen = other.Bemerkungen;
                 WhatsappEinwilligung = other.WhatsappEinwilligung;
+                EmailRechnungEinwilligung = other.EmailRechnungEinwilligung;
+                EmailInfoEinwilligung = other.EmailInfoEinwilligung;
 
                 MitgliedSeit = other.MitgliedSeit;
                 MitgliedEnde = other.MitgliedEnde;
@@ -258,6 +274,8 @@ namespace KGV.Core.Models
                 string.Equals(Email ?? "", other.Email ?? "", StringComparison.Ordinal) &&
                 string.Equals(Bemerkungen ?? "", other.Bemerkungen ?? "", StringComparison.Ordinal) &&
                 WhatsappEinwilligung == other.WhatsappEinwilligung &&
+                EmailRechnungEinwilligung == other.EmailRechnungEinwilligung &&
+                EmailInfoEinwilligung == other.EmailInfoEinwilligung &&
                 MitgliedSeit == other.MitgliedSeit &&
                 MitgliedEnde == other.MitgliedEnde &&
                 string.Equals(Role ?? "", other.Role ?? "", StringComparison.Ordinal) &&

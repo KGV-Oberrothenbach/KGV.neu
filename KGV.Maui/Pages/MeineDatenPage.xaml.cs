@@ -31,6 +31,8 @@ public class MeineDatenPage : ContentPage
     private readonly Label _nachnameLabel;
     private readonly Label _geburtsdatumLabel;
     private readonly Label _emailLabel;
+    private readonly Label _emailRechnungEinwilligungLabel;
+    private readonly Label _emailInfoEinwilligungLabel;
     private readonly Label _emailEditHintLabel;
     private readonly Label _telefonLabel;
     private readonly Label _mobilLabel;
@@ -60,6 +62,8 @@ public class MeineDatenPage : ContentPage
     private readonly Entry _ortEntry;
     private readonly Editor _bemerkungenEditor;
     private readonly Switch _whatsappSwitch;
+    private readonly Switch _emailRechnungEinwilligungSwitch;
+    private readonly Switch _emailInfoEinwilligungSwitch;
     private readonly DatePicker _geburtsdatumPicker;
     private readonly DatePicker _mitgliedSeitPicker;
     private readonly DatePicker _mitgliedEndePicker;
@@ -118,6 +122,8 @@ public class MeineDatenPage : ContentPage
         _nachnameLabel = CreateValueLabel();
         _geburtsdatumLabel = CreateValueLabel();
         _emailLabel = CreateValueLabel();
+        _emailRechnungEinwilligungLabel = CreateValueLabel();
+        _emailInfoEinwilligungLabel = CreateValueLabel();
         _emailEditHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap, IsVisible = false };
         _telefonLabel = CreateValueLabel();
         _mobilLabel = CreateValueLabel();
@@ -147,6 +153,8 @@ public class MeineDatenPage : ContentPage
         _ortEntry = new Entry { Placeholder = "Ort" };
         _bemerkungenEditor = new Editor { AutoSize = EditorAutoSizeOption.TextChanges, Placeholder = "Bemerkung" };
         _whatsappSwitch = new Switch();
+        _emailRechnungEinwilligungSwitch = new Switch();
+        _emailInfoEinwilligungSwitch = new Switch();
 
         _geburtsdatumPicker = CreateDatePicker(date =>
         {
@@ -253,18 +261,14 @@ public class MeineDatenPage : ContentPage
             CreateModeField("E-Mail", _emailLabel, CreateEmailEditor()),
             CreateModeField("Telefon", _telefonLabel, _telefonEntry),
             CreateModeField("Mobilnummer", _mobilLabel, _mobilEntry),
+            CreateModeField("E-Mail Rechnungseinwilligung", _emailRechnungEinwilligungLabel, CreateSwitchEditor(_emailRechnungEinwilligungSwitch, "Rechnungen per E-Mail erhalten")),
+            CreateModeField("E-Mail Infoeinwilligung", _emailInfoEinwilligungLabel, CreateSwitchEditor(_emailInfoEinwilligungSwitch, "Infos per E-Mail erhalten")),
             CreateModeField("WhatsApp", _whatsappLabel, CreateSwitchEditor(_whatsappSwitch, "WhatsApp-Einwilligung")));
 
         var adresseSection = CreateSection("Adresse",
             CreateModeField("Straße / Hausnummer", _strasseLabel, _strasseEntry),
             CreateModeField("PLZ", _plzLabel, _plzEntry),
             CreateModeField("Ort", _ortLabel, _ortEntry));
-
-        var mitgliedschaftSection = CreateSection("Mitgliedschaft",
-            CreateValueField("Rolle", _rolleLabel),
-            CreateModeField("Mitglied seit", _mitgliedSeitLabel, CreateDateEditor(_mitgliedSeitPicker, _clearMitgliedSeitButton)),
-            CreateModeField("Mitglied Ende", _mitgliedEndeLabel, CreateDateEditor(_mitgliedEndePicker, _clearMitgliedEndeButton)),
-            CreateValueField("Aktiv", _aktivLabel));
 
         var bemerkungenSection = CreateSection("Bemerkung",
             CreateModeField("Bemerkung", _bemerkungenLabel, _bemerkungenEditor));
@@ -284,12 +288,7 @@ public class MeineDatenPage : ContentPage
                     grunddatenSection,
                     kontaktSection,
                     adresseSection,
-                    mitgliedschaftSection,
                     bemerkungenSection,
-                    _wartungsvertragSectionCard,
-                    _nebenmitgliedSectionCard,
-                    _adminSectionCard,
-                    _documentsButton,
                     _editActionSection
                 }
             }
@@ -377,6 +376,8 @@ public class MeineDatenPage : ContentPage
         _vornameLabel.Text = FormatValue(member.Vorname);
         _geburtsdatumLabel.Text = FormatDate(member.Geburtsdatum);
         _emailLabel.Text = FormatValue(member.Email);
+        _emailRechnungEinwilligungLabel.Text = member.EmailRechnungEinwilligung ? "Ja" : "Nein";
+        _emailInfoEinwilligungLabel.Text = member.EmailInfoEinwilligung ? "Ja" : "Nein";
         _telefonLabel.Text = FormatValue(member.Telefon);
         _mobilLabel.Text = FormatValue(member.Mobilnummer);
         _whatsappLabel.Text = member.WhatsappEinwilligung ? "Ja" : "Nein";
@@ -402,6 +403,8 @@ public class MeineDatenPage : ContentPage
         _ortEntry.Text = member.Ort;
         _bemerkungenEditor.Text = member.Bemerkungen;
         _whatsappSwitch.IsToggled = member.WhatsappEinwilligung;
+        _emailRechnungEinwilligungSwitch.IsToggled = member.EmailRechnungEinwilligung;
+        _emailInfoEinwilligungSwitch.IsToggled = member.EmailInfoEinwilligung;
 
         _editGeburtsdatum = member.Geburtsdatum;
         _editMitgliedSeit = member.MitgliedSeit;
@@ -475,6 +478,8 @@ public class MeineDatenPage : ContentPage
         _ortEntry.IsEnabled = _isEditMode && !_isBusy;
         _bemerkungenEditor.IsEnabled = _isEditMode && !_isBusy;
         _whatsappSwitch.IsEnabled = _isEditMode && !_isBusy;
+        _emailRechnungEinwilligungSwitch.IsEnabled = _isEditMode && !_isBusy;
+        _emailInfoEinwilligungSwitch.IsEnabled = _isEditMode && !_isBusy;
         _geburtsdatumPicker.IsEnabled = _isEditMode && !_isBusy;
         _mitgliedSeitPicker.IsEnabled = _isEditMode && !_isBusy;
         _mitgliedEndePicker.IsEnabled = _isEditMode && !_isBusy;
@@ -636,6 +641,8 @@ public class MeineDatenPage : ContentPage
             dto.MitgliedSeit = _editMitgliedSeit;
             dto.MitgliedEnde = _editMitgliedEnde;
             dto.WhatsappEinwilligung = _whatsappSwitch.IsToggled;
+            dto.EmailRechnungEinwilligung = _emailRechnungEinwilligungSwitch.IsToggled;
+            dto.EmailInfoEinwilligung = _emailInfoEinwilligungSwitch.IsToggled;
 
             var currentEmail = (current.Email ?? string.Empty).Trim();
             if (CanEditEmailInCurrentContext())
@@ -971,6 +978,8 @@ public class MeineDatenPage : ContentPage
         _nachnameLabel.Text = string.Empty;
         _geburtsdatumLabel.Text = string.Empty;
         _emailLabel.Text = string.Empty;
+        _emailRechnungEinwilligungLabel.Text = string.Empty;
+        _emailInfoEinwilligungLabel.Text = string.Empty;
         _emailEditHintLabel.Text = string.Empty;
         _emailEditHintLabel.IsVisible = false;
         _telefonLabel.Text = string.Empty;
@@ -995,6 +1004,8 @@ public class MeineDatenPage : ContentPage
         _ortEntry.Text = string.Empty;
         _bemerkungenEditor.Text = string.Empty;
         _whatsappSwitch.IsToggled = false;
+        _emailRechnungEinwilligungSwitch.IsToggled = false;
+        _emailInfoEinwilligungSwitch.IsToggled = false;
         _editGeburtsdatum = null;
         _editMitgliedSeit = null;
         _editMitgliedEnde = null;
@@ -1063,6 +1074,8 @@ public class MeineDatenPage : ContentPage
             MitgliedEnde = rec.MitgliedEnde,
             Bemerkungen = rec.Bemerkung ?? string.Empty,
             WhatsappEinwilligung = rec.WhatsappEinwilligung,
+            EmailRechnungEinwilligung = rec.EmailRechnungEinwilligung,
+            EmailInfoEinwilligung = rec.EmailInfoEinwilligung,
             IstHauptmitglied = !rec.HauptmitgliedId.HasValue || rec.HauptmitgliedId.Value <= 0,
             Role = rec.Role ?? string.Empty
         };

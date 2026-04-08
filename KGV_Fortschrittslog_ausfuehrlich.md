@@ -35,6 +35,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-08
+- Die sichtbare MAUI-Stammdatenseite im Mitgliedskontext gezielt verschlankt.
+- Sichtbar bleiben dort jetzt nur noch `Grunddaten`, `Kontakt`, `Adresse` und `Bemerkung`.
+- Aus der sichtbaren Stammdatenseite entfernt wurden die Blöcke `Mitgliedschaft`, `Wartungsverträge / Pflichtstunden`, `Mitgliedskontext`, `Verwaltung` sowie der direkte Dokumente-Button.
+- Die entfernten Inhalte bleiben fachlich über die vorhandenen Shell-Untermenüs erreichbar; WPF blieb in diesem Block unverändert.
+- Zusätzlich `email_rechnung_einwilligung` und `email_info_einwilligung` im MAUI-Kontaktbereich als Schalter eingebunden und durch den DTO-/Supabase-Speicherpfad gezogen.
+- Ergebnis: Die mobile Stammdatenseite ist klarer fokussiert, ohne dass die entfernten Fachbereiche oder die beiden E-Mail-Einwilligungen im Datenpfad verloren gehen.
+
 - WPF-Impressum gegen den gemeldeten Runtime-Bindingfehler geprüft.
 - Ursache war kein Fehler in `PropertyPathWorker`, sondern eine schreibgeschützte ViewModel-Eigenschaft `ClubEmail`, die in `ImpressumView.xaml` in einem `Run` ohne explizites `OneWay` gebunden war.
 - Minimaler Fix: `ClubEmail` im WPF-Impressum explizit auf `Mode=OneWay` gesetzt.

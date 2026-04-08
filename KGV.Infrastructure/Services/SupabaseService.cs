@@ -159,6 +159,8 @@ namespace KGV.Infrastructure.Services
                     Geburtsdatum = dto.Geburtsdatum,
                     Bemerkung = CleanOptionalText(dto.Bemerkungen),
                     WhatsappEinwilligung = dto.WhatsappEinwilligung,
+                    EmailRechnungEinwilligung = dto.EmailRechnungEinwilligung,
+                    EmailInfoEinwilligung = dto.EmailInfoEinwilligung,
                     MitgliedSeit = dto.MitgliedSeit,
                     MitgliedEnde = dto.MitgliedEnde,
                     Aktiv = dto.Aktiv
@@ -212,6 +214,8 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.Handy, CleanOptionalText(dto.Mobilnummer))
                     .Set(x => x.Bemerkung, CleanOptionalText(dto.Bemerkungen))
                     .Set(x => x.WhatsappEinwilligung, dto.WhatsappEinwilligung)
+                    .Set(x => x.EmailRechnungEinwilligung, dto.EmailRechnungEinwilligung)
+                    .Set(x => x.EmailInfoEinwilligung, dto.EmailInfoEinwilligung)
                     .Set(x => x.MitgliedSeit, NormalizeDate(dto.MitgliedSeit))
                     .Set(x => x.MitgliedEnde, NormalizeDate(dto.MitgliedEnde))
                     .Set(x => x.Aktiv, dto.MitgliedEnde == null)

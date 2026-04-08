@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-04-08 – MAUI-Stammdaten verschlankt und E-Mail-Einwilligungen eingebunden
+
+- Kurzer Repo-Check vor dem Block:
+  - `git status -sb` zeigte `main...origin/main`
+  - blockfremd untracked blieben Bilddateien, `PS_Log.bat`, `_logs/`, `_secrets/`
+- Minimal umgesetzt nur im MAUI-/gemeinsamen Datenpfad:
+  - `KGV.Maui/Pages/MeineDatenPage.xaml.cs`
+    - sichtbare Stammdatenseite auf `Grunddaten`, `Kontakt`, `Adresse`, `Bemerkung` reduziert
+    - sichtbare Blöcke `Mitgliedschaft`, `Wartungsverträge / Pflichtstunden`, `Mitgliedskontext`, `Verwaltung` sowie der direkte Dokumente-Button aus der Stammdatenseite entfernt
+    - `email_rechnung_einwilligung` und `email_info_einwilligung` im Kontaktbereich als MAUI-Switches ergänzt
+  - `KGV.Core/Models/MemberDTO.cs`
+  - `KGV.Core/Models/MitgliedRecord.cs`
+  - `KGV.Core/Models/MitgliedInsertRecord.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - beide Einwilligungsfelder durch DTO-/DB-/Create-/Update-Pfad gezogen
+- Fachliche Wirkung:
+  - die mobile Stammdatenseite ist deutlich schlanker
+  - entfernte Fachbereiche bleiben über die vorhandenen Shell-Untermenüs erreichbar
+  - beide E-Mail-Einwilligungen werden mobil jetzt sichtbar geladen und speicherbar geführt
+- Reale Validierung dieses Laufs:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+
 ## 2026-04-08 – WPF-Impressum-Binding gegen schreibgeschützte `ClubEmail` korrigiert
 
 - Recovery / echter Istzustand vor dem Fix:

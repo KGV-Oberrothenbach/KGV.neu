@@ -42,6 +42,12 @@ public sealed class MitgliedInsertRecord : BaseModel
     [Column("whatsapp_einwilligung")]
     public bool WhatsappEinwilligung { get; set; }
 
+    [Column("email_rechnung_einwilligung")]
+    public bool EmailRechnungEinwilligung { get; set; }
+
+    [Column("email_info_einwilligung")]
+    public bool EmailInfoEinwilligung { get; set; }
+
     [Column("mitglied_seit")]
     public DateTime? MitgliedSeit { get; set; }
 
