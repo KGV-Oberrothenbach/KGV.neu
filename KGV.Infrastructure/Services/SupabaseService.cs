@@ -85,7 +85,9 @@ namespace KGV.Infrastructure.Services
                     ?? new List<MitgliedRecord>();
 
                 await ApplyAppUserRolesAsync(client, members);
-                return members;
+                return members
+                    .Where(OperationalDataFilter.IsOperationalMember)
+                    .ToList();
             },
             new List<MitgliedRecord>());
 
@@ -3266,6 +3268,7 @@ namespace KGV.Infrastructure.Services
 
                 return response?.Models?
                     .Select(NormalizeArbeitseinsatzRecord)
+                    .Where(OperationalDataFilter.IsOperationalArbeitseinsatz)
                     .OrderBy(x => x.Datum)
                     .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
                     .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
@@ -3408,6 +3411,7 @@ namespace KGV.Infrastructure.Services
 
                 return response?.Models?
                     .Select(NormalizeTerminRecord)
+                    .Where(OperationalDataFilter.IsOperationalTermin)
                     .OrderBy(x => x.Datum)
                     .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
                     .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
@@ -3535,6 +3539,7 @@ namespace KGV.Infrastructure.Services
 
                 return response?.Models?
                     .Select(NormalizeBekanntmachungRecord)
+                    .Where(OperationalDataFilter.IsOperationalBekanntmachung)
                     .OrderBy(x => x.SortOrder ?? int.MaxValue)
                     .ThenByDescending(x => x.SichtbarAb ?? x.CreatedAt ?? DateTime.MinValue)
                     .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
@@ -4856,6 +4861,7 @@ namespace KGV.Infrastructure.Services
 
             return records
                 .Where(x => byId.TryGetValue(x.Id, out var record)
+                            && OperationalDataFilter.IsOperationalArbeitseinsatz(record)
                             && IsCurrentlyVisible(record.Aktiv, record.SichtbarAb, record.SichtbarBis, now))
                 .ToList();
         }
@@ -4873,6 +4879,7 @@ namespace KGV.Infrastructure.Services
 
             return records
                 .Where(x => byId.TryGetValue(x.Id, out var record)
+                            && OperationalDataFilter.IsOperationalTermin(record)
                             && IsCurrentlyVisible(record.Aktiv, record.SichtbarAb, record.SichtbarBis, now))
                 .ToList();
         }
@@ -4890,6 +4897,7 @@ namespace KGV.Infrastructure.Services
 
             return records
                 .Where(x => byId.TryGetValue(x.BekanntmachungId ?? x.Id, out var record)
+                            && OperationalDataFilter.IsOperationalBekanntmachung(record)
                             && IsCurrentlyVisible(record.Aktiv, record.SichtbarAb, record.SichtbarBis, now))
                 .ToList();
         }
@@ -5071,9 +5079,13 @@ namespace KGV.Infrastructure.Services
                 .Where(x => x.Id == arbeitseinsatzId)
                 .Get();
 
-            return response?.Models?
+            var record = response?.Models?
                 .Select(NormalizeArbeitseinsatzRecord)
                 .FirstOrDefault();
+
+            return OperationalDataFilter.IsOperationalArbeitseinsatz(record)
+                ? record
+                : null;
         }
 
         private async Task<List<ArbeitseinsatzAnmeldungRecord>> GetAktiveArbeitseinsatzAnmeldungenAsync(global::Supabase.Client client, int arbeitseinsatzId)
@@ -5089,6 +5101,15 @@ namespace KGV.Infrastructure.Services
 
         private async Task<HomeWorkAssignmentItem?> TryLoadHomeWorkAssignmentItemAsync(global::Supabase.Client client, int arbeitseinsatzId)
         {
+            var arbeitseinsatz = await GetArbeitseinsatzByIdAsync(client, arbeitseinsatzId);
+            var now = CreateEditorNowDefault();
+            if (arbeitseinsatz == null
+                || !OperationalDataFilter.IsOperationalArbeitseinsatz(arbeitseinsatz)
+                || !IsCurrentlyVisible(arbeitseinsatz.Aktiv, arbeitseinsatz.SichtbarAb, arbeitseinsatz.SichtbarBis, now))
+            {
+                return null;
+            }
+
             var response = await client
                 .From<StartseiteArbeitseinsatzRecord>()
                 .Where(x => x.Id == arbeitseinsatzId)
