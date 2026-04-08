@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-04-08 – WPF-Impressum um Admin-Schalter für Demo-Datensätze ergänzt
+
+- Kurzer Repo-Check vor dem Block:
+  - `git status -sb` zeigte `main...origin/main`
+  - blockfremd untracked blieben Bilddateien, `PS_Log.bat`, `_logs/`, `_secrets/`
+- Geprüfter Iststand:
+  - `KGV.Wpf/Views/ImpressumView.xaml` zeigte bisher keinen Demo-Schalter
+  - `KGV.Wpf/ViewModels/ImpressumViewModel.cs` lud die Impressum-Kontakte bereits über den bestehenden gemeinsamen Impressum-/Mitgliederpfad, aber ohne lokale Umschaltmöglichkeit für Demo-Kontakte
+- Minimal umgesetzt:
+  - `KGV.Wpf/Views/ImpressumView.xaml`
+    - `CheckBox` nur auf der Impressum-Seite ergänzt
+  - `KGV.Wpf/ViewModels/ImpressumViewModel.cs`
+    - Admin-Sichtbarkeit ergänzt; Vorstand sieht den Schalter nicht
+    - Standardzustand `aus`
+    - Umschalten filtert nur die sichtbaren Impressum-Kontakte und lädt keine Sonderpfade
+  - `KGV.Core/Models/OperationalDataFilter.cs`
+    - vorhandene gemeinsame Demo-/Operativ-Filterlogik um Impressum-Kontakte erweitert
+  - `KGV.Wpf/Infrastructure/Services/NavigationService.cs`
+    - `MainWindowViewModel` an `ImpressumViewModel` durchgereicht
+- Fachliche Wirkung:
+  - ohne explizites Einblenden bleiben Demo-Datensätze auch im WPF-Impressum ausgeblendet
+  - nur Admin kann auf der Impressum-Seite die vorhandenen Demo-Kontakte sichtbar schalten
+  - Vorstand bekommt keinen Schalter und bleibt auf dem ausgeblendeten Standardpfad
+- Reale Validierung dieses Laufs:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj`
+  - `dotnet build KGV.Maui/KGV.Maui.csproj`
+
 ## 2026-04-08 – Arbeitsstunden-Altersregel für Hauptmitglieder in MAUI-Stammdaten ergänzt
 
 - Kurzer Repo-Check vor dem Block:

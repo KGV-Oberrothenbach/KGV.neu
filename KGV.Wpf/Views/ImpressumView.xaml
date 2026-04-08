@@ -6,6 +6,10 @@
             <StackPanel MaxWidth="820">
                 <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,8" />
                 <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,0,0,18" />
+                <CheckBox Content="Demo-Datensätze einblenden"
+                          Margin="0,0,0,16"
+                          IsChecked="{Binding ShowDemoData}"
+                          Visibility="{Binding IsDemoToggleVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
 
                 <Border Padding="16" Background="{StaticResource KgvSurfaceBrush}" CornerRadius="12">
                     <StackPanel>

@@ -67,7 +67,7 @@ namespace KGV.Infrastructure.Services
 
             if (viewModelType == typeof(ImpressumViewModel))
             {
-                return new ImpressumViewModel(_supabaseService);
+                return new ImpressumViewModel(_supabaseService, mainVm);
             }
 
             if (viewModelType == typeof(AblesenOverviewViewModel))

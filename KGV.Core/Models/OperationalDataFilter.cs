@@ -23,6 +23,18 @@ namespace KGV.Core.Models
                 && !ContainsMarker(email);
         }
 
+        public static bool IsOperationalImpressumKontakt(ImpressumKontaktItem? item)
+        {
+            if (item == null)
+                return false;
+
+            return !ContainsMarker(item.Name)
+                && !ContainsMarker(item.Email)
+                && !ContainsMarker(item.Telefon)
+                && !ContainsMarker(item.Handy)
+                && !ContainsMarker(item.Adresse);
+        }
+
         public static bool IsOperationalText(string? value)
             => !ContainsMarker(value);
 

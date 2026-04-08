@@ -35,6 +35,12 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-08
+- Das WPF-Impressum um den fehlenden Demo-Schalter ergänzt.
+- Der Schalter erscheint nur auf der Impressum-Seite und nur für Admin; Vorstand sieht ihn nicht.
+- Standardzustand bleibt aus, sodass Demo-Datensätze ohne explizites Einblenden weiter verborgen bleiben.
+- Der Schalter nutzt keine WPF-Sonderlogik, sondern filtert die Impressum-Kontakte über den bestehenden gemeinsamen Demo-/Operativfilterpfad.
+- Ergebnis: WPF kann Demo-Kontakte im Impressum nur gezielt durch Admin sichtbar machen, ohne die bestehende Demo-/Reviewer-Isolierung aufzuweichen.
+
 - In MAUI das Feld `arbeitsstunden_altersregel_typ` im Hauptmitglied-Kontext ergänzt.
 - Umsetzung auf der Stammdatenseite sowie im Hauptmitglied-Anlegen/Bearbeiten als Picker mit genau den Werten `mann80` und `frau75`.
 - Für Hauptmitglieder ist das Feld beim Anlegen jetzt Pflicht; im Save-Pfad wird nur einer der beiden zulässigen Werte akzeptiert.

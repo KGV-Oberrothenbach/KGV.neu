@@ -1,9 +1,12 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Helpers;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -13,12 +16,17 @@ namespace KGV.ViewModels
     public sealed class ImpressumViewModel : BaseViewModel, INavigationAware
     {
         private readonly ISupabaseService _supabaseService;
+        private readonly MainWindowViewModel _mainWindowViewModel;
+        private List<ImpressumKontaktItem> _allWeitereVorstandsmitglieder = new();
+        private List<ImpressumKontaktItem> _allBauausschussmitglieder = new();
         private bool _isBusy;
+        private bool _showDemoData;
         private string _statusMessage = string.Empty;
 
-        public ImpressumViewModel(ISupabaseService supabaseService)
+        public ImpressumViewModel(ISupabaseService supabaseService, MainWindowViewModel mainWindowViewModel)
         {
             _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
+            _mainWindowViewModel = mainWindowViewModel ?? throw new ArgumentNullException(nameof(mainWindowViewModel));
             OpenDatenschutzCommand = new RelayCommand<object?>(_ => OpenDatenschutz());
         }
 
@@ -36,6 +44,19 @@ namespace KGV.ViewModels
         public ObservableCollection<ImpressumKontaktItem> WeitereVorstandsmitglieder { get; } = new();
         public ObservableCollection<ImpressumKontaktItem> Bauausschussmitglieder { get; } = new();
         public ICommand OpenDatenschutzCommand { get; }
+        public bool IsDemoToggleVisible => _mainWindowViewModel.UserContext.Role == UserRole.Admin;
+
+        public bool ShowDemoData
+        {
+            get => _showDemoData;
+            set
+            {
+                if (!SetProperty(ref _showDemoData, value))
+                    return;
+
+                ApplyVisibleItems();
+            }
+        }
 
         public bool IsBusy
         {
@@ -74,14 +95,16 @@ namespace KGV.ViewModels
             try
             {
                 var info = await _supabaseService.GetImpressumInfoAsync() ?? new ImpressumInfo();
-                ApplyItems(WeitereVorstandsmitglieder, info.WeitereVorstandsmitglieder);
-                ApplyItems(Bauausschussmitglieder, info.WeitereBauausschussmitglieder);
+                _allWeitereVorstandsmitglieder = info.WeitereVorstandsmitglieder.ToList();
+                _allBauausschussmitglieder = info.WeitereBauausschussmitglieder.ToList();
+                ApplyVisibleItems();
                 StatusMessage = string.Empty;
             }
             catch (Exception ex)
             {
-                ApplyItems(WeitereVorstandsmitglieder, Array.Empty<ImpressumKontaktItem>());
-                ApplyItems(Bauausschussmitglieder, Array.Empty<ImpressumKontaktItem>());
+                _allWeitereVorstandsmitglieder = new List<ImpressumKontaktItem>();
+                _allBauausschussmitglieder = new List<ImpressumKontaktItem>();
+                ApplyVisibleItems();
                 StatusMessage = "Weitere Impressumskontakte konnten aktuell nicht geladen werden.";
                 Debug.WriteLine($"[KGV.Wpf] Impressum.LoadAsync failed: {ex}");
             }
@@ -114,11 +137,27 @@ namespace KGV.ViewModels
                 target.Add(item);
         }
 
+        private void ApplyVisibleItems()
+        {
+            ApplyItems(WeitereVorstandsmitglieder, FilterVisibleItems(_allWeitereVorstandsmitglieder));
+            ApplyItems(Bauausschussmitglieder, FilterVisibleItems(_allBauausschussmitglieder));
+            RaiseSectionStateChanged();
+        }
+
+        private IEnumerable<ImpressumKontaktItem> FilterVisibleItems(IEnumerable<ImpressumKontaktItem> items)
+        {
+            if (ShowDemoData && IsDemoToggleVisible)
+                return items;
+
+            return items.Where(OperationalDataFilter.IsOperationalImpressumKontakt);
+        }
+
         private void RaiseSectionStateChanged()
         {
             OnPropertyChanged(nameof(StatusVisibility));
             OnPropertyChanged(nameof(VorstandFallbackVisibility));
             OnPropertyChanged(nameof(BauausschussFallbackVisibility));
+            OnPropertyChanged(nameof(IsDemoToggleVisible));
         }
     }
 }
