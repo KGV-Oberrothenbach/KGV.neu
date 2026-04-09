@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-04-09 – MAUI-Digitalsignatur für Vertragsdokumente technisch abgeschlossen
+
+- Abschlusslauf auf dem echten Branch-Stand `feature/formularverwaltung` gestartet:
+  - `git status --short --branch`
+- Nur den begonnenen MAUI-Digitalsignatur-Block abgeschlossen, ohne neuen Fachumfang zu starten.
+- Final validierter Minimalstand:
+  - `DokumentePage` zeigt für vorhandene unsignierte Vertragsdokumente zusätzlich `Digital signieren`
+  - `VertragsSignaturPage` stellt eine dedizierte Signaturseite mit großer Signaturfläche sowie `Leeren`, `Übernehmen`, `Abbrechen` bereit
+  - `MainActivity` kann für diese Seite auf Android gezielt Querformat aktivieren und beim Verlassen wieder freigeben
+  - `CreateSignedVertragsdokumentAsync(...)` erzeugt aus der bestehenden unsignierten Vertragsfassung ein separates `signiert`-Enddokument auf dem vorhandenen Dokumentpfad
+  - die unsignierte Fassung bleibt unverändert erhalten
+- Nur die verbliebenen technischen Restarbeiten des begonnenen Blocks ergänzt:
+  - gemeinsames Signaturmodell `DigitalSignatureCapture`
+  - PDF-Erzeugung `SignedVertragsdokumentPdfBuilder`
+  - MAUI-Signaturseite `VertragsSignaturPage`
+  - gemeinsamer Servicepfad in `ISupabaseService` / `SupabaseService`
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-09 – Signatur-/Status-Folgepfad für Vertragsdokumente geschlossen
 
 - Repo-Check vor dem Block auf `feature/formularverwaltung`:

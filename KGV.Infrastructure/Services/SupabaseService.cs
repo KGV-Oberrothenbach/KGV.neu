@@ -2431,21 +2431,59 @@ namespace KGV.Infrastructure.Services
                 if (!OperationalDataFilter.IsOperationalMember(member))
                     return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell keine signierte Vertragsfassung abgelegt werden.", "NOT_OPERATIONAL");
 
-                var uploadRequest = new DokumentUploadRequest
-                {
-                    MitgliedId = mitgliedId,
-                    Titel = FormularDokumentDateiname.BuildTitel(dokumenttyp, FormularDokumentStatus.Signiert),
-                    FileName = FormularDokumentDateiname.BuildMitgliedDateiname(member, dokumenttyp, FormularDokumentStatus.Signiert, DateTime.Today),
-                    MimeType = "application/pdf",
-                    FileContent = fileContent
-                };
-
+                var uploadRequest = BuildSignedVertragsdokumentUploadRequest(member, dokumenttyp, fileContent);
                 return await CreateDokumentAsync(uploadRequest);
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "UploadSignedVertragsdokumentAsync failed for MitgliedId={MitgliedId}, SourceDocumentId={DokumentId}", mitgliedId, sourceDocument.Id);
                 return DokumentUploadResult.Fail("Signierte Vertragsfassung konnte aktuell nicht abgelegt werden.", "UNEXPECTED");
+            }
+        }
+
+        public async Task<DokumentUploadResult> CreateSignedVertragsdokumentAsync(int mitgliedId, DocumentInfo sourceDocument, DigitalSignatureCapture signatureCapture)
+        {
+            if (mitgliedId <= 0)
+                return DokumentUploadResult.Fail("Bitte zuerst ein gültiges Mitglied auswählen.", "VALIDATION");
+
+            if (sourceDocument == null)
+                return DokumentUploadResult.Fail("Bitte zuerst ein unsigniertes Vertragsdokument auswählen.", "VALIDATION");
+
+            if (signatureCapture == null || !signatureCapture.HasContent)
+                return DokumentUploadResult.Fail("Bitte zuerst eine digitale Signatur erfassen.", "VALIDATION");
+
+            var dokumenttyp = FormularDokumentTyp.Normalize(sourceDocument.FormularDokumentTypKey);
+            if (!string.Equals(sourceDocument.FormularDokumentStatusKey, FormularDokumentStatus.Unsigniert, StringComparison.Ordinal))
+                return DokumentUploadResult.Fail("Als Quelle muss eine vorhandene unsignierte Vertragsfassung ausgewählt werden.", "STATUS_INVALID");
+            if (dokumenttyp is not FormularDokumentTyp.Mitgliedsvertrag and not FormularDokumentTyp.Pachtvertrag)
+                return DokumentUploadResult.Fail("Digitale Signaturen sind in diesem Block nur für Mitgliedsvertrag oder Pachtvertrag verfügbar.", "TYPE_INVALID");
+
+            try
+            {
+                var member = await GetMitgliedByIdAsync(mitgliedId);
+                if (member == null)
+                    return DokumentUploadResult.Fail("Mitglied konnte nicht geladen werden.", "NOT_FOUND");
+
+                if (!OperationalDataFilter.IsOperationalMember(member))
+                    return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell keine digitale Signatur abgelegt werden.", "NOT_OPERATIONAL");
+
+                var originalPdf = await DownloadDokumentContentAsync(sourceDocument);
+                if ((originalPdf?.Length ?? 0) <= 0)
+                    return DokumentUploadResult.Fail("Die unsignierte Vertragsfassung konnte nicht als PDF geladen werden.", "SOURCE_DOWNLOAD_FAILED");
+
+                var signedPdf = SignedVertragsdokumentPdfBuilder.Build(member, sourceDocument, originalPdf, signatureCapture);
+                var uploadRequest = BuildSignedVertragsdokumentUploadRequest(member, dokumenttyp, signedPdf);
+                return await CreateDokumentAsync(uploadRequest);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger?.LogWarning(ex, "CreateSignedVertragsdokumentAsync validation failed for MitgliedId={MitgliedId}, SourceDocumentId={DokumentId}", mitgliedId, sourceDocument.Id);
+                return DokumentUploadResult.Fail(ex.Message, "VALIDATION");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "CreateSignedVertragsdokumentAsync failed for MitgliedId={MitgliedId}, SourceDocumentId={DokumentId}", mitgliedId, sourceDocument.Id);
+                return DokumentUploadResult.Fail("Digital signierte Vertragsfassung konnte aktuell nicht erzeugt werden.", "UNEXPECTED");
             }
         }
 
@@ -5543,8 +5581,38 @@ namespace KGV.Infrastructure.Services
             return !string.IsNullOrWhiteSpace(bucket) && !string.IsNullOrWhiteSpace(path);
         }
 
+        private async Task<byte[]?> DownloadDokumentContentAsync(DocumentInfo document)
+        {
+            if (document == null)
+                return null;
+
+            if (!string.IsNullOrWhiteSpace(document.DriveFileId))
+                return await _documentUploadHttpClient.GetByteArrayAsync(BuildGoogleDriveFileDownloadUrl(document.DriveFileId));
+
+            var url = await ResolveDokumentOpenUrlAsync(document, 600);
+            if (string.IsNullOrWhiteSpace(url))
+                return null;
+
+            return await _documentUploadHttpClient.GetByteArrayAsync(url);
+        }
+
+        private static DokumentUploadRequest BuildSignedVertragsdokumentUploadRequest(MitgliedRecord member, string dokumenttyp, byte[] fileContent)
+        {
+            return new DokumentUploadRequest
+            {
+                MitgliedId = member.Id,
+                Titel = FormularDokumentDateiname.BuildTitel(dokumenttyp, FormularDokumentStatus.Signiert),
+                FileName = FormularDokumentDateiname.BuildMitgliedDateiname(member, dokumenttyp, FormularDokumentStatus.Signiert, DateTime.Today),
+                MimeType = "application/pdf",
+                FileContent = fileContent
+            };
+        }
+
         private static string BuildGoogleDriveFileViewUrl(string driveFileId)
             => $"https://drive.google.com/file/d/{Uri.EscapeDataString(driveFileId)}/view";
+
+        private static string BuildGoogleDriveFileDownloadUrl(string driveFileId)
+            => $"https://drive.google.com/uc?export=download&id={Uri.EscapeDataString(driveFileId)}";
 
         private static string BuildExpectedDokumentStoragePrefix(DokumentUploadRequest request)
         {

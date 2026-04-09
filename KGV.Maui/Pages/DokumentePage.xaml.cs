@@ -120,9 +120,8 @@ public class DokumentePage : ContentPage, IQueryAttributable
                 var uploadSignedButton = new Button { Text = "Signierte Fassung ablegen", IsVisible = false };
                 uploadSignedButton.BindingContextChanged += (_, _) =>
                 {
-                    uploadSignedButton.IsVisible = CanManageDocuments
-                        && uploadSignedButton.BindingContext is DocumentInfo document
-                        && document.CanUploadSignedContractVersion;
+                    var document = uploadSignedButton.BindingContext as DocumentInfo;
+                    uploadSignedButton.IsVisible = CanManageDocuments && document?.CanUploadSignedContractVersion == true;
                 };
                 uploadSignedButton.Clicked += async (_, _) =>
                 {
@@ -131,6 +130,21 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
                     if (uploadSignedButton.BindingContext is DocumentInfo document)
                         await UploadSignedContractVersionAsync(document);
+                };
+
+                var digitalSignButton = new Button { Text = "Digital signieren", IsVisible = false };
+                digitalSignButton.BindingContextChanged += (_, _) =>
+                {
+                    var document = digitalSignButton.BindingContext as DocumentInfo;
+                    digitalSignButton.IsVisible = CanManageDocuments && document?.CanDigitallySignContractVersion == true;
+                };
+                digitalSignButton.Clicked += async (_, _) =>
+                {
+                    if (_isBusy)
+                        return;
+
+                    if (digitalSignButton.BindingContext is DocumentInfo document)
+                        await DigitalSignContractAsync(document);
                 };
 
                 return new Border
@@ -149,7 +163,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
                             new HorizontalStackLayout
                             {
                                 Spacing = 8,
-                                Children = { actionButton, deleteButton, uploadSignedButton }
+                                Children = { actionButton, deleteButton, uploadSignedButton, digitalSignButton }
                             }
                         }
                     }
@@ -189,6 +203,61 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
         Appearing += async (_, _) => await LoadAsync();
         UpdateUiState();
+    }
+
+    private async Task DigitalSignContractAsync(DocumentInfo document)
+    {
+        if (_isBusy)
+            return;
+
+        if (!CanManageDocuments)
+        {
+            SetStatus("Digitale Signaturen sind nur für Admin/Vorstand erlaubt.", success: false);
+            UpdateUiState();
+            return;
+        }
+
+        var signPage = new VertragsSignaturPage(document);
+        await Navigation.PushModalAsync(new NavigationPage(signPage));
+        var signature = await signPage.WaitForResultAsync();
+        if (signature == null)
+            return;
+
+        var context = await ResolveContextAsync();
+        ApplyContext(context);
+        if (!context.IsValid || context.Scope != DokumentOwnerScope.Mitglied || context.OwnerId is not > 0)
+        {
+            SetStatus("Bitte zuerst ein gültiges Mitglied auswählen.", success: false);
+            UpdateUiState();
+            return;
+        }
+
+        _isBusy = true;
+        UpdateUiState();
+        try
+        {
+            var result = await _supabaseService.CreateSignedVertragsdokumentAsync(context.OwnerId.Value, document, signature);
+            if (!result.Success)
+            {
+                SetStatus(result.Message, success: false);
+                return;
+            }
+
+            var reloaded = await TryReloadDocumentsAsync(context);
+            SetStatus(reloaded
+                ? "Digital signierte Vertragsfassung gespeichert."
+                : "Digital signierte Vertragsfassung gespeichert. Bitte Liste aktualisieren.", success: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DokumentePage] DigitalSignContractAsync failed: {ex}");
+            SetStatus("Digital signierte Vertragsfassung konnte nicht erzeugt werden.", success: false);
+        }
+        finally
+        {
+            _isBusy = false;
+            UpdateUiState();
+        }
     }
 
     private async Task UploadSignedContractVersionAsync(DocumentInfo document)

@@ -35,6 +35,15 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Den begonnenen MAUI-Digitalsignatur-Block auf dem echten Branch-Stand `feature/formularverwaltung` ohne neuen Fachblock technisch sauber abgeschlossen.
+- Im mobilen Dokumentpfad gibt es für vorhandene unsignierte Vertragsdokumente (`Mitgliedsvertrag`, `Pachtvertrag`) jetzt zusätzlich die Aktion `Digital signieren`; der bestehende Upload-/Statuspfad für signierte Fassungen bleibt dabei führend.
+- Dafür wurde ein gemeinsames, MAUI-unabhängiges Signaturmodell `DigitalSignatureCapture` ergänzt, damit die erfassten Striche/Punkte nicht als App-spezifische Sonderlogik im UI hängen bleiben.
+- Die dedizierte Seite `VertragsSignaturPage` stellt eine große Signaturfläche sowie `Leeren`, `Übernehmen` und `Abbrechen` bereit; auf Android wird während dieses Flows über `MainActivity` gezielt Querformat aktiviert und beim Verlassen wieder freigegeben.
+- Im Shared-/Servicepfad wurde `CreateSignedVertragsdokumentAsync(...)` ergänzt: Die bestehende unsignierte Vertragsfassung wird geladen, um eine zusätzliche Signaturseite ergänzt und anschließend als eigenes `signiert`-Enddokument im vorhandenen Mitglieds-Dokumentpfad gespeichert.
+- Das bestehende Dateinamenschema bleibt auch für die digital signierte Fassung erhalten; die unsignierte Ausgangsfassung wird weder überschrieben noch gelöscht.
+- Es wurde bewusst keine neue WPF-UI-Erweiterung und keine zusätzliche Fachlogik ergänzt; der Block schließt nur den bereits begonnenen MAUI-Digitalsignaturpfad technisch ab.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den nächsten kleinen, buildfähigen Formularblock auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt und den Signatur-/Status-Folgepfad für Vertragsdokumente geschlossen.
 - Der bestehende Dokumenttyp-/Statuspfad bleibt führend: `Mitgliedsvertrag` und `Pachtvertrag` werden weiterhin separat über `unsigniert` und `signiert` unterschieden; die unsignierte Fassung bleibt beim Nachpflegen einer unterschriebenen Fassung unverändert erhalten und wird weder überschrieben noch gelöscht.
 - Dafür wurde im gemeinsamen Servicepfad `UploadSignedVertragsdokumentAsync(...)` ergänzt. Der Pfad akzeptiert nur bestehende unsignierte Vertragskontexte (`Mitgliedsvertrag`, `Pachtvertrag`) und nur PDF-Dateien; die signierte Fassung wird als eigenes Enddokument im bestehenden Mitglieds-Dokumentpfad abgelegt.

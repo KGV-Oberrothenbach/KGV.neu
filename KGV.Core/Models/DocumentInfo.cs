@@ -44,6 +44,9 @@ namespace KGV.Core.Models
         public bool CanUploadSignedContractVersion
             => IsVertragsDokument && string.Equals(FormularDokumentStatusKey, FormularDokumentStatus.Unsigniert, StringComparison.Ordinal);
 
+        public bool CanDigitallySignContractVersion
+            => CanUploadSignedContractVersion;
+
         private bool TryResolveFormularMetadaten(out string dokumenttyp, out string status)
         {
             foreach (var candidate in new[] { Dateiname, StoragePath, Name, Title })

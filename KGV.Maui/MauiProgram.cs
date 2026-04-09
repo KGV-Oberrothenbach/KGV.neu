@@ -148,6 +148,7 @@ public static class MauiProgram
         services.AddTransient<MemberGardensPage>();
         services.AddTransient<MemberParzellenDetailPage>();
         services.AddTransient<DokumentePage>();
+        services.AddTransient<VertragsSignaturPage>();
         services.AddTransient<UserManagementViewModel>();
         services.AddTransient<UserManagementPage>();
         services.AddTransient<ParzellenViewModel>();

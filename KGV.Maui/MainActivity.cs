@@ -45,6 +45,26 @@ public class MainActivity : MauiAppCompatActivity
         base.OnBackPressed();
     }
 
+    public static void SetLandscapeOrientationEnabled(bool enabled)
+    {
+        try
+        {
+            if (Microsoft.Maui.ApplicationModel.Platform.CurrentActivity is not MainActivity activity)
+                return;
+
+            activity.RunOnUiThread(() =>
+            {
+                activity.RequestedOrientation = enabled
+                    ? ScreenOrientation.SensorLandscape
+                    : ScreenOrientation.Unspecified;
+            });
+        }
+        catch (Exception ex)
+        {
+            AppFileLog.Warning("KGV.Navigation", $"MainActivity.SetLandscapeOrientationEnabled fehlgeschlagen: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
     private bool TryHandleMauiBackNavigation()
     {
         try
