@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-04-08 – WPF-UpdatePrompt kompiliert wieder mit bestehender AppUpdateInfo-Hilfsmethode
+
+- Repo-Check vor dem Block:
+  - `git status --short --branch`
+- Minimal umgesetzt:
+  - `KGV.Wpf/Models/AppUpdateInfo.cs`
+    - fehlende Methode `GetNotesText()` ergänzt, die vom bestehenden `UpdatePromptWindow` erwartet wird
+- Wirkung:
+  - `KGV.Wpf/Views/UpdatePromptWindow.xaml.cs` kompiliert wieder ohne `CS1061`
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-08 – Demodaten-Ausblendung auf Admin erweitert und Impressum-Schalterreste zurückgebaut
 
 - Repo-Check vor dem Block:

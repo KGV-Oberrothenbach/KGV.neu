@@ -35,6 +35,10 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-08
+- Den WPF-UpdatePrompt minimal repariert, indem `AppUpdateInfo` wieder die erwartete Methode `GetNotesText()` bereitstellt.
+- Dadurch kompiliert `KGV.Wpf/Views/UpdatePromptWindow.xaml.cs` wieder ohne `CS1061` auf `AppUpdateInfo.GetNotesText()`.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Die bestehende Demodaten-Ausblendung auf dem zentralen Operational-/Sichtbarkeitspfad auch für Admin erweitert.
 - Dazu `OperationalDataFilter` um zentrale Prüfungen für `Arbeitseinsatz`, `Termin` und `Bekanntmachung` ergänzt; `TerminRecord` und `BekanntmachungRecord` tragen dafür jetzt ebenfalls `is_demo`.
 - In `SupabaseService` hängen jetzt sowohl die Verwaltungslisten als auch die Home-/Startseitenpfade für Arbeitseinsätze, Termine und Bekanntmachungen an denselben bestehenden Operational-Filtern; dadurch bleiben diese Demodatensätze nun auch im Adminkontext ausgeblendet.
