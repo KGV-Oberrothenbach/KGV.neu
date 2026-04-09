@@ -35,6 +35,14 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Den begonnenen Block `Pachtvertrag nutzt Saisonwerte` auf dem echten Branch-Stand `feature/formularverwaltung` sauber abgeschlossen, ohne neuen Fachblock zu starten.
+- Der bestehende Saison-/Pachtvertragspfad nutzt jetzt für den Zahlungskasten gemeinsam `pacht_pro_qm` und `mitgliedsbeitrag` der zum Vertragsjahr passenden Saison; Ersatzwerte oder Schattenlogik wurden nicht ergänzt.
+- Die fachliche Berechnung lautet jetzt `Pachtzins = Parzellenfläche * Saison.Pacht_pro_qm` mit kaufmännischer Rundung auf zwei Nachkommastellen und `Gesamt = Pachtzins + Mitgliedsbeitrag`.
+- Fehlende Pflichtwerte laufen nicht mehr still weiter: fehlende Saison, fehlendes `pacht_pro_qm` und fehlender `mitgliedsbeitrag` brechen den bestehenden Produktivpfad jetzt mit klaren Fehlermeldungen ab.
+- Die bestehende PDF-Vorlage und der vorhandene Feldbefüllungspfad bleiben führend; im Betragskasten werden jetzt mindestens Mitgliedsbeitrag, Pacht und Gesamt korrekt befüllt.
+- Der bereits begonnene Saisonpfad wurde nur minimal mitgezogen, damit der aktuelle Stand buildfähig bleibt; es wurde keine weitere Saison-UI-Erweiterung gestartet.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Einen kleinen, buildfähigen UI-/UX-Feinschliff-Block für die Formularverwaltung auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neue Vertrags- oder Verwaltungslogik zu starten.
 - Die Dokumentlisten in WPF und MAUI stellen Vertragsstatus jetzt klarer dar: Vertragsdokumente verwenden statt des bloßen Statuswerts die lesbaren Bezeichnungen `Unsignierte Vertragsfassung` und `Signierte Vertragsfassung`.
 - `DocumentInfo` wurde dafür nur minimal um UI-Hilfseigenschaften ergänzt, sodass WPF und MAUI denselben bestehenden Dokumentpfad weiterverwenden und keine Schattenlogik für Anzeige oder Folgeaktionen aufbauen.

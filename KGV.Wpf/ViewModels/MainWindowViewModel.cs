@@ -213,10 +213,33 @@ namespace KGV.ViewModels
         {
             if (Seasons.Count > 0) return;
 
-            Seasons.Add("2024");
-            Seasons.Add("2025");
-            Seasons.Add("2026");
-            SelectedSeason = "2026";
+            var currentYear = DateTime.Today.Year.ToString();
+            Seasons.Add(currentYear);
+            SelectedSeason = currentYear;
+            _ = RefreshSeasonsAsync();
+        }
+
+        public async Task RefreshSeasonsAsync(int? preferredYear = null)
+        {
+            try
+            {
+                var seasons = await _supabaseService.GetSeasonsAsync();
+                var fallback = DateTime.Today.Year.ToString();
+                if (seasons.Count == 0)
+                    seasons.Add(fallback);
+
+                Seasons.Clear();
+                foreach (var season in seasons.Distinct())
+                    Seasons.Add(season);
+
+                var preferred = preferredYear?.ToString();
+                SelectedSeason = !string.IsNullOrWhiteSpace(preferred) && Seasons.Contains(preferred)
+                    ? preferred
+                    : Seasons.FirstOrDefault() ?? fallback;
+            }
+            catch
+            {
+            }
         }
 
         private void BuildNavigation()

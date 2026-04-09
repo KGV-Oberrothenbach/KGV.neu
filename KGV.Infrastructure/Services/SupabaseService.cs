@@ -1481,6 +1481,43 @@ namespace KGV.Infrastructure.Services
             },
             new List<SaisonRecord>());
 
+        public Task<SaisonRecord?> SaveSaisonAsync(SaisonRecord saison) => ExecuteAsync<SaisonRecord?>(
+            "SaveSaisonAsync",
+            async () =>
+            {
+                var normalized = SaisonverwaltungHelper.NormalizeForSave(saison);
+                if (!SaisonverwaltungHelper.IsEditable(normalized))
+                    throw new InvalidOperationException("Vergangene Jahre dürfen nicht bearbeitet werden.");
+
+                var client = await EnsureClientAsync();
+                var response = await client.From<SaisonRecord>().Get();
+                var existing = response?.Models?
+                    .FirstOrDefault(x => x.Id == normalized.Id || x.Jahr == normalized.Jahr);
+
+                if (existing == null)
+                {
+                    var insertResponse = await client
+                        .From<SaisonRecord>()
+                        .Insert(normalized);
+
+                    return insertResponse?.Models?.FirstOrDefault() ?? normalized;
+                }
+
+                await client
+                    .From<SaisonRecord>()
+                    .Where(x => x.Id == existing.Id)
+                    .Set(x => x.Jahr, normalized.Jahr)
+                    .Set(x => x.PflichtstundenSoll, normalized.PflichtstundenSoll)
+                    .Set(x => x.EuroProFehlstunde, normalized.EuroProFehlstunde)
+                    .Set(x => x.Bemerkung, normalized.Bemerkung)
+                    .Set(x => x.PachtProQm, normalized.PachtProQm)
+                    .Set(x => x.Mitgliedsbeitrag, normalized.Mitgliedsbeitrag)
+                    .Update();
+
+                return normalized;
+            },
+            null);
+
         public Task<MitgliedRecord?> GetMitgliedByAuthUserIdAsync(Guid authUserId) => ExecuteAsync<MitgliedRecord?>(
             "GetMitgliedByAuthUserIdAsync(Guid)",
             async () =>
@@ -2380,6 +2417,9 @@ namespace KGV.Infrastructure.Services
 
                 if (!saison.PachtProQm.HasValue)
                     return DokumentUploadResult.Fail($"Für die Saison {saison.Jahr} fehlt pacht_pro_qm.", "Pacht_PRO_QM_MISSING");
+
+                if (!saison.Mitgliedsbeitrag.HasValue)
+                    return DokumentUploadResult.Fail($"Für die Saison {saison.Jahr} fehlt mitgliedsbeitrag.", "MITGLIEDSBEITRAG_MISSING");
 
                 var secondaryMember = await GetNebenmitgliedByHauptmitgliedIdAsync(member.Id);
                 var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(member, secondaryMember, parzelle, saison, vertragsbeginnDatum, status);

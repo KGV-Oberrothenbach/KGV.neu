@@ -78,6 +78,7 @@ namespace KGV.Core.Interfaces
         // Arbeitsstunden
         // =========================
         Task<List<SaisonRecord>> GetSaisonRecordsAsync();
+        Task<SaisonRecord?> SaveSaisonAsync(SaisonRecord saison);
         Task<MitgliedRecord?> GetMitgliedByAuthUserIdAsync(Guid authUserId);
         Task<MitgliedRecord?> GetMitgliedByAuthUserIdAsync(string authUserId);
 

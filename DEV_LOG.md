@@ -11248,3 +11248,13 @@
 
 
 
+## 2026-04-09 - Abschluss Pachtvertrag nutzt Saisonwerte
+
+- Echten Repo-Stand auf `feature/formularverwaltung` geprüft und den begonnenen Block nur gegen die bereits umgesetzten Dateien abgesichert; blockfremde untracked Dateien bewusst nicht angerührt.
+- `PachtvertragDokumentFactory` nutzt im Zahlungskasten jetzt gemeinsam `pacht_pro_qm` und `mitgliedsbeitrag` aus der zum Vertragsjahr passenden Saison.
+- Fachliche Berechnung ist jetzt: `Pachtzins = Parzellenfläche * Saison.Pacht_pro_qm` mit kaufmännischer Rundung auf zwei Nachkommastellen, `Gesamt = Pachtzins + Mitgliedsbeitrag`.
+- `SupabaseService.CreatePachtvertragDokumentAsync(...)` und die PDF-Erzeugung brechen bei fehlender Saison, fehlendem `pacht_pro_qm` oder fehlendem `mitgliedsbeitrag` jetzt mit klaren Fehlermeldungen ab; Ersatzwerte werden nicht verwendet.
+- Zusätzlich den bereits begonnenen Saisonpfad nur so weit mitgezogen, dass der aktuelle Stand buildfähig bleibt (`SaisonRecord`, `SaveSaisonAsync`, Saison-Refresh in WPF).
+- Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
+
+
