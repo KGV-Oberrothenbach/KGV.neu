@@ -35,6 +35,15 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Einen kleinen, buildfähigen UI-/UX-Feinschliff-Block für die Formularverwaltung auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neue Vertrags- oder Verwaltungslogik zu starten.
+- Die Dokumentlisten in WPF und MAUI stellen Vertragsstatus jetzt klarer dar: Vertragsdokumente verwenden statt des bloßen Statuswerts die lesbaren Bezeichnungen `Unsignierte Vertragsfassung` und `Signierte Vertragsfassung`.
+- `DocumentInfo` wurde dafür nur minimal um UI-Hilfseigenschaften ergänzt, sodass WPF und MAUI denselben bestehenden Dokumentpfad weiterverwenden und keine Schattenlogik für Anzeige oder Folgeaktionen aufbauen.
+- In WPF bleibt der Pfad bewusst auf Verwaltung, Kontrolle, Dokumentanzeige und Upload signierter Scan-Fassungen beschränkt; ein kleiner Hinweistext stellt nun explizit klar, dass die direkte digitale Signatur ausschließlich in MAUI erfolgt und die unsignierte Fassung erhalten bleibt.
+- Die WPF-Folgeaktion für unsignierte Vertragsdokumente wurde sprachlich auf `Signierten Scan hochladen` geschärft; für signierte Enddokumente und Nicht-Vertragsdokumente erscheinen weiterhin keine unpassenden Vertrags-Sonderaktionen.
+- In MAUI wurden die Dokumentaktionen ebenfalls geglättet: `Öffnen`, `Signierten Scan ablegen` und `Digital signieren` sind für unsignierte Vertragsdokumente sauber getrennt sichtbar; signierte Enddokumente und Nicht-Vertragsdokumente zeigen keine unpassenden Folgeaktionen.
+- Ergänzend wurden Meta-/Kontexthinweise in MAUI so geschärft, dass Folgeaktionen verständlich bleiben und ausdrücklich sichtbar ist, dass die unsignierte Vertragsfassung bei Scan-Upload oder digitaler Signatur erhalten bleibt.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den begonnenen MAUI-Digitalsignatur-Block auf dem echten Branch-Stand `feature/formularverwaltung` ohne neuen Fachblock technisch sauber abgeschlossen.
 - Im mobilen Dokumentpfad gibt es für vorhandene unsignierte Vertragsdokumente (`Mitgliedsvertrag`, `Pachtvertrag`) jetzt zusätzlich die Aktion `Digital signieren`; der bestehende Upload-/Statuspfad für signierte Fassungen bleibt dabei führend.
 - Dafür wurde ein gemeinsames, MAUI-unabhängiges Signaturmodell `DigitalSignatureCapture` ergänzt, damit die erfassten Striche/Punkte nicht als App-spezifische Sonderlogik im UI hängen bleiben.

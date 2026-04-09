@@ -45,6 +45,9 @@ namespace KGV.ViewModels
 
         public bool CanEditUpload => CanManageDocuments && !IsBusy && IsContextValid;
 
+        public string VertragsDokumentHinweis
+            => "Für Vertragsdokumente laden Sie hier signierte Scan-Fassungen hoch. Die direkte digitale Signatur bleibt MAUI vorbehalten; die unsignierte Fassung bleibt erhalten.";
+
         public string UploadTitel
         {
             get => _uploadTitel;
@@ -230,8 +233,8 @@ namespace KGV.ViewModels
 
                 var reloaded = await LoadAsync(showDialogOnError: false);
                 StatusMessage = reloaded
-                    ? "Signierte Vertragsfassung hochgeladen."
-                    : "Signierte Vertragsfassung hochgeladen. Bitte Liste aktualisieren.";
+                    ? "Signierte Vertragsfassung hochgeladen. Die unsignierte Fassung bleibt erhalten."
+                    : "Signierte Vertragsfassung hochgeladen. Die unsignierte Fassung bleibt erhalten. Bitte Liste aktualisieren.";
             }
             catch (Exception)
             {

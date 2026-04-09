@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-04-09 – Formularverwaltung UI-Feinschliff für Dokumentlisten und Folgeaktionen
+
+- Repo-Check vor dem Block auf `feature/formularverwaltung`:
+  - `git status --short --branch`
+- Nur UI-/UX-Feinschliff auf dem bestehenden Dokument-/Vertragspfad umgesetzt.
+- Minimal ergänzt:
+  - `KGV.Core/Models/DocumentInfo.cs`
+    - klarere UI-Hilfseigenschaften für Vertragsstatus, Folgeaktionshinweise und Buttontexte ergänzt
+  - `KGV.Wpf/ViewModels/DokumenteViewModel.cs`
+  - `KGV.Wpf/Views/DokumenteView.xaml`
+    - Statusdarstellung für Vertragsdokumente auf `Unsignierte Vertragsfassung` / `Signierte Vertragsfassung` geglättet
+    - WPF-Hinweis ergänzt, dass signierte Scan-Fassungen hier hochgeladen werden und die direkte digitale Signatur nur in MAUI erfolgt
+    - Aktionsbutton für Vertragsdokumente sprachlich auf `Signierten Scan hochladen` geschärft
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+    - Aktionen je Dokument sprachlich geglättet (`Öffnen`, `Signierten Scan ablegen`, `Digital signieren`)
+    - Kontext- und Statushinweise so ergänzt, dass Folgeaktionen und Erhalt der unsignierten Fassung klar bleiben
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-09 – MAUI-Digitalsignatur für Vertragsdokumente technisch abgeschlossen
 
 - Abschlusslauf auf dem echten Branch-Stand `feature/formularverwaltung` gestartet:

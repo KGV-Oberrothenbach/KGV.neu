@@ -25,6 +25,11 @@
 
                     <StackPanel Grid.Row="0">
                         <TextBlock Margin="0,0,0,10" Text="{Binding KontextBeschreibung}" TextWrapping="Wrap" />
+                        <TextBlock Margin="0,0,0,10"
+                                   Text="{Binding VertragsDokumentHinweis}"
+                                   Foreground="Gray"
+                                   TextWrapping="Wrap"
+                                   Visibility="{Binding CanManageDocuments, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                         <GroupBox Header="Dokument hochladen" Margin="0,0,0,12"
                                   Visibility="{Binding CanManageDocuments, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -54,7 +59,7 @@
                                 <GridViewColumn Header="Titel" Width="220" DisplayMemberBinding="{Binding Title}" />
                                 <GridViewColumn Header="Dateiname" Width="260" DisplayMemberBinding="{Binding Dateiname}" />
                                  <GridViewColumn Header="Typ" Width="150" DisplayMemberBinding="{Binding FormularDokumentTypAnzeige}" />
-                                 <GridViewColumn Header="Status" Width="120" DisplayMemberBinding="{Binding FormularDokumentStatusAnzeige}" />
+                                 <GridViewColumn Header="Status" Width="190" DisplayMemberBinding="{Binding FormularDokumentStatusKlartext}" />
                                 <GridViewColumn Header="Geändert" Width="160" DisplayMemberBinding="{Binding UpdatedAt}" />
                                 <GridViewColumn Header="Größe" Width="90" DisplayMemberBinding="{Binding Size}" />
                                 <GridViewColumn Header="" Width="100">
@@ -78,7 +83,7 @@
                                 <GridViewColumn Header="" Width="170">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Button Content="Signierte Fassung"
+                                            <Button Content="{Binding WpfSignedUploadButtonText}"
                                                     Command="{Binding DataContext.UploadSignedVersionCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
                                                     CommandParameter="{Binding}"
                                                     Visibility="{Binding CanUploadSignedContractVersion, Converter={StaticResource BooleanToVisibilityConverter}}" />

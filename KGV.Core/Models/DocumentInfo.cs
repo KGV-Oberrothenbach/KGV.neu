@@ -41,11 +41,37 @@ namespace KGV.Core.Models
         public bool IsVertragsDokument
             => FormularDokumentTypKey is FormularDokumentTyp.Mitgliedsvertrag or FormularDokumentTyp.Pachtvertrag;
 
-        public bool CanUploadSignedContractVersion
+        public bool IsUnsigniertesVertragsDokument
             => IsVertragsDokument && string.Equals(FormularDokumentStatusKey, FormularDokumentStatus.Unsigniert, StringComparison.Ordinal);
+
+        public bool IsSigniertesVertragsDokument
+            => IsVertragsDokument && string.Equals(FormularDokumentStatusKey, FormularDokumentStatus.Signiert, StringComparison.Ordinal);
+
+        public bool CanUploadSignedContractVersion
+            => IsUnsigniertesVertragsDokument;
 
         public bool CanDigitallySignContractVersion
             => CanUploadSignedContractVersion;
+
+        public string FormularDokumentStatusKlartext
+            => IsUnsigniertesVertragsDokument
+                ? "Unsignierte Vertragsfassung"
+                : IsSigniertesVertragsDokument
+                    ? "Signierte Vertragsfassung"
+                    : FormularDokumentStatusAnzeige;
+
+        public string VertragsFolgeaktionHinweis
+            => IsUnsigniertesVertragsDokument
+                ? "Folgeaktion: signierte Fassung ablegen. Die unsignierte Fassung bleibt erhalten."
+                : IsSigniertesVertragsDokument
+                    ? "Enddokument liegt signiert vor."
+                    : string.Empty;
+
+        public string WpfSignedUploadButtonText
+            => IsUnsigniertesVertragsDokument ? "Signierten Scan hochladen" : string.Empty;
+
+        public string MauiSignedUploadButtonText
+            => IsUnsigniertesVertragsDokument ? "Signierten Scan ablegen" : string.Empty;
 
         private bool TryResolveFormularMetadaten(out string dokumenttyp, out string status)
         {

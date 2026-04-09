@@ -94,7 +94,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
                         subtitle.Text = BuildDocumentMetaText(document);
                 };
 
-                var actionButton = new Button { Text = "Einsehen / Download" };
+                var actionButton = new Button { Text = "Öffnen" };
                 actionButton.SetBinding(IsEnabledProperty, nameof(DocumentInfo.CanOpen));
                 actionButton.Clicked += async (_, _) =>
                 {
@@ -117,7 +117,8 @@ public class DokumentePage : ContentPage, IQueryAttributable
                         await DeleteDocumentAsync(document);
                 };
 
-                var uploadSignedButton = new Button { Text = "Signierte Fassung ablegen", IsVisible = false };
+                var uploadSignedButton = new Button { IsVisible = false };
+                uploadSignedButton.SetBinding(Button.TextProperty, nameof(DocumentInfo.MauiSignedUploadButtonText));
                 uploadSignedButton.BindingContextChanged += (_, _) =>
                 {
                     var document = uploadSignedButton.BindingContext as DocumentInfo;
@@ -245,8 +246,8 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
             var reloaded = await TryReloadDocumentsAsync(context);
             SetStatus(reloaded
-                ? "Digital signierte Vertragsfassung gespeichert."
-                : "Digital signierte Vertragsfassung gespeichert. Bitte Liste aktualisieren.", success: true);
+                ? "Digital signierte Vertragsfassung gespeichert. Die unsignierte Fassung bleibt erhalten."
+                : "Digital signierte Vertragsfassung gespeichert. Die unsignierte Fassung bleibt erhalten. Bitte Liste aktualisieren.", success: true);
         }
         catch (Exception ex)
         {
@@ -320,8 +321,8 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
             var reloaded = await TryReloadDocumentsAsync(context);
             SetStatus(reloaded
-                ? "Signierte Vertragsfassung hochgeladen."
-                : "Signierte Vertragsfassung hochgeladen. Bitte Liste aktualisieren.", success: true);
+                ? "Signierte Vertragsfassung abgelegt. Die unsignierte Fassung bleibt erhalten."
+                : "Signierte Vertragsfassung abgelegt. Die unsignierte Fassung bleibt erhalten. Bitte Liste aktualisieren.", success: true);
         }
         catch (Exception ex)
         {
@@ -735,7 +736,9 @@ public class DokumentePage : ContentPage, IQueryAttributable
             return $"Für {subject} ist der Dokumente-Zugriff mit dem aktuellen Rechtekontext nicht freigegeben.";
 
         return CanManageDocuments
-            ? $"Es werden nur die Dokumente für {subject} angezeigt. Upload, Öffnen und Löschen laufen über den gemeinsamen Google-Drive-Dokumentpfad."
+            ? context.Scope == DokumentOwnerScope.Mitglied
+                ? $"Es werden nur die Dokumente für {subject} angezeigt. Für unsignierte Vertragsdokumente stehen Öffnen, signierten Scan ablegen und digital signieren zur Verfügung. Die unsignierte Fassung bleibt erhalten."
+                : $"Es werden nur die Dokumente für {subject} angezeigt. Upload, Öffnen und Löschen laufen über den gemeinsamen Google-Drive-Dokumentpfad."
             : $"Es werden nur die Dokumente für {subject} angezeigt. Öffnen und Aktualisieren bleiben verfügbar.";
     }
 
@@ -746,7 +749,9 @@ public class DokumentePage : ContentPage, IQueryAttributable
             : "das aktuell ausgewählte Mitglied";
 
         return CanManageDocuments
-            ? $"Es werden nur die Dokumente für {subject} angezeigt. Upload, Öffnen und Löschen laufen über den gemeinsamen Google-Drive-Dokumentpfad."
+            ? scope == DokumentOwnerScope.Mitglied
+                ? $"Es werden nur die Dokumente für {subject} angezeigt. Für unsignierte Vertragsdokumente stehen Öffnen, signierten Scan ablegen und digital signieren zur Verfügung. Die unsignierte Fassung bleibt erhalten."
+                : $"Es werden nur die Dokumente für {subject} angezeigt. Upload, Öffnen und Löschen laufen über den gemeinsamen Google-Drive-Dokumentpfad."
             : $"Es werden nur die Dokumente für {subject} angezeigt. Öffnen und Aktualisieren bleiben verfügbar.";
     }
 
@@ -798,14 +803,17 @@ public class DokumentePage : ContentPage, IQueryAttributable
     {
         var formularMeta = document.FormularDokumentTypAnzeige == "-"
             ? string.Empty
-            : $"Typ: {document.FormularDokumentTypAnzeige} · Status: {document.FormularDokumentStatusAnzeige} · ";
+            : $"Typ: {document.FormularDokumentTypAnzeige} · Status: {document.FormularDokumentStatusKlartext} · ";
+        var actionHint = string.IsNullOrWhiteSpace(document.VertragsFolgeaktionHinweis)
+            ? string.Empty
+            : $"{document.VertragsFolgeaktionHinweis} · ";
         var updated = document.UpdatedAt.HasValue
             ? $"Aktualisiert: {document.UpdatedAt.Value:dd.MM.yyyy HH:mm}"
             : "Aktualisiert: -";
         var size = document.Size.HasValue
             ? FormatFileSize(document.Size.Value)
             : "Größe unbekannt";
-        return $"{formularMeta}{updated} · {size}";
+        return $"{formularMeta}{actionHint}{updated} · {size}";
     }
 
     private static string GetDocumentDisplayName(DocumentInfo document)
