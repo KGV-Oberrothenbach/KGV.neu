@@ -2291,6 +2291,30 @@ namespace KGV.Infrastructure.Services
             },
             new List<DocumentInfo>());
 
+        public async Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert)
+        {
+            if (mitgliedId <= 0)
+                return DokumentUploadResult.Fail("Bitte zuerst ein gültiges Mitglied auswählen.", "VALIDATION");
+
+            try
+            {
+                var member = await GetMitgliedByIdAsync(mitgliedId);
+                if (member == null)
+                    return DokumentUploadResult.Fail("Mitglied konnte nicht geladen werden.", "NOT_FOUND");
+
+                if (!OperationalDataFilter.IsOperationalMember(member))
+                    return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell kein Antrag erzeugt werden.", "NOT_OPERATIONAL");
+
+                var uploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(member, status);
+                return await CreateDokumentAsync(uploadRequest);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "CreateMitgliedsantragDokumentAsync failed for MitgliedId={MitgliedId}", mitgliedId);
+                return DokumentUploadResult.Fail("Mitgliedsantrag konnte aktuell nicht erzeugt werden.", "UNEXPECTED");
+            }
+        }
+
         public async Task<DokumentUploadResult> CreateDokumentAsync(DokumentUploadRequest request)
         {
             if (request == null)

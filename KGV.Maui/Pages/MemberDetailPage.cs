@@ -3,6 +3,7 @@ using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Maui.State;
 using Microsoft.Maui;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
@@ -49,6 +50,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly DatePicker _mitgliedEndePicker;
     private readonly Button _nutzerHinzufuegenButton;
     private readonly Button _benutzerverwaltungButton;
+    private readonly Button _mitgliedsantragButton;
     private readonly Button _cancelMembershipButton;
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
@@ -109,6 +111,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _benutzerverwaltungButton = new Button { Text = "Benutzerverwaltung", IsVisible = false };
         _benutzerverwaltungButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(UserManagementPage));
 
+        _mitgliedsantragButton = new Button { Text = "Mitgliedsantrag als PDF", IsVisible = false };
+        _mitgliedsantragButton.Clicked += async (_, _) => await CreateMitgliedsantragAsync();
+
         _cancelMembershipButton = new Button { Text = "Mitgliedschaft beenden", IsVisible = false, BackgroundColor = Colors.IndianRed, TextColor = Colors.White };
         _cancelMembershipButton.Clicked += async (_, _) => await CancelMembershipAsync();
 
@@ -160,6 +165,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                         _appUserHintLabel,
                         _nutzerHinzufuegenButton,
                         _benutzerverwaltungButton),
+                    _mitgliedsantragButton,
                     _cancelMembershipButton,
                     new HorizontalStackLayout
                     {
@@ -278,6 +284,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         SetOptionalDate(_mitgliedSeitEnabledSwitch, _mitgliedSeitPicker, null);
         SetOptionalDate(_mitgliedEndeEnabledSwitch, _mitgliedEndePicker, null);
         UpdateAdminActions(null);
+        UpdateFormActions(null);
         UpdateCancelMembershipButton(null);
     }
 
@@ -307,8 +314,10 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _saveButton.Text = "Mitglied anlegen";
         _nutzerHinzufuegenButton.IsVisible = false;
         _benutzerverwaltungButton.IsVisible = false;
+        _mitgliedsantragButton.IsVisible = false;
         _appUserHintLabel.Text = "Der App-User wird nicht direkt beim Anlegen erzeugt, sondern später über den bestehenden Invite-/Benutzerverwaltungsweg.";
         UpdateArbeitsstundenAltersregelVisibility(new MemberDTO { IstHauptmitglied = true });
+        UpdateFormActions(null);
         UpdateCancelMembershipButton(null);
     }
 
@@ -336,8 +345,19 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     ? "Für 'Nutzer hinzufügen' wird eine E-Mail-Adresse im ausgewählten Mitglied benötigt."
                     : "Für dieses Mitglied besteht aktuell noch kein App-User. Über 'Nutzer hinzufügen' wird derselbe produktive Invite-/Erstlogin-Flow wie in WPF gestartet.";
 
+        UpdateFormActions(member);
         UpdateArbeitsstundenAltersregelVisibility(member);
         UpdateCancelMembershipButton(member);
+    }
+
+    private void UpdateFormActions(MemberDTO? member)
+    {
+        var canCreateMemberApplication = !_isCreateMode
+            && member?.Id is > 0
+            && PermissionChecks.CanManageDocuments(_userContextState.CurrentUserContext);
+
+        _mitgliedsantragButton.IsVisible = canCreateMemberApplication;
+        _mitgliedsantragButton.IsEnabled = canCreateMemberApplication;
     }
 
     private void UpdateCancelMembershipButton(MemberDTO? member)
@@ -444,6 +464,47 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         catch (Exception)
         {
             _statusLabel.Text = "Nutzer hinzufügen fehlgeschlagen. Bitte später erneut versuchen.";
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task CreateMitgliedsantragAsync()
+    {
+        if (_isBusy || _memberRecord?.Id is not > 0)
+            return;
+
+        _isBusy = true;
+        try
+        {
+            var result = await _supabaseService.CreateMitgliedsantragDokumentAsync(_memberRecord.Id, FormularDokumentStatus.Unsigniert);
+            if (!result.Success)
+            {
+                await DisplayAlert("Mitgliedsantrag", result.Message, "OK");
+                return;
+            }
+
+            var document = result.Document;
+            if (document?.CanOpen != true)
+            {
+                await DisplayAlert("Mitgliedsantrag", "Mitgliedsantrag wurde als Dokument abgelegt.", "OK");
+                return;
+            }
+
+            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                await DisplayAlert("Mitgliedsantrag", "Mitgliedsantrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "OK");
+                return;
+            }
+
+            await Launcher.Default.OpenAsync(url);
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Mitgliedsantrag", ex.Message, "OK");
         }
         finally
         {

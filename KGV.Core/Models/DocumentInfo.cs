@@ -21,5 +21,34 @@ namespace KGV.Core.Models
 
         public bool CanOpen => !string.IsNullOrWhiteSpace(DriveFileId)
             || !string.IsNullOrWhiteSpace(StoragePath);
+
+        public string FormularDokumentTypKey
+            => TryResolveFormularMetadaten(out var dokumenttyp, out _) ? dokumenttyp : string.Empty;
+
+        public string FormularDokumentStatusKey
+            => TryResolveFormularMetadaten(out _, out var status) ? status : string.Empty;
+
+        public string FormularDokumentTypAnzeige
+            => string.IsNullOrWhiteSpace(FormularDokumentTypKey)
+                ? "-"
+                : FormularDokumentTyp.ToDisplayName(FormularDokumentTypKey);
+
+        public string FormularDokumentStatusAnzeige
+            => string.IsNullOrWhiteSpace(FormularDokumentStatusKey)
+                ? "-"
+                : FormularDokumentStatus.ToDisplayName(FormularDokumentStatusKey);
+
+        private bool TryResolveFormularMetadaten(out string dokumenttyp, out string status)
+        {
+            foreach (var candidate in new[] { Dateiname, StoragePath, Name, Title })
+            {
+                if (Utilities.FormularDokumentDateiname.TryParse(candidate, out dokumenttyp, out status))
+                    return true;
+            }
+
+            dokumenttyp = string.Empty;
+            status = string.Empty;
+            return false;
+        }
     }
 }

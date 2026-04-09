@@ -7,8 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="PdfSharpCore" Version="1.3.67" />
     <PackageReference Include="supabase" Version="1.1.1" />
     <PackageReference Include="Supabase.Postgrest" Version="4.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\KGV.Maui\Resources\Images\kgv_logo.png" Link="Assets\kgv_logo.png" />
   </ItemGroup>
 
 </Project>

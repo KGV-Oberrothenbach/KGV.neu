@@ -34,7 +34,23 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 
 ## Chronologischer Kurzverlauf
 
+## 2026-04-09
+- Den nächsten kleinen Block der Formularverwaltung auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt und den vorhandenen Zwischenstand direkt weiterverwendet.
+- Der Mitgliedsantrag nutzt jetzt keine einfache technische Text-PDF mehr, sondern eine echte Vereinsvorlage mit sauberem Briefkopf, Vereinsname, Register-/Kontaktzeile und identischem Vereinslogo.
+- Dafür wurde ein gemeinsamer Core-Pfad für Vereinsbranding und Vereins-PDF-Layout aufgebaut; spätere Dokumente wie Mitgliedsvertrag oder Pachtvertrag können denselben Briefkopf-/Abschnitts-/Unterschriftsrahmen mitbenutzen.
+- Die Logo-Quelle bleibt fachlich konsistent: Das bestehende Vereinslogo aus `KGV.Maui/Resources/Images/kgv_logo.png` wird zentral als eingebettete Core-Ressource verwendet und im PDF gerendert.
+- Der Mitgliedsantrag gibt jetzt strukturiert mindestens Antragsteller/in, Geburtsdatum, Adresse, Kontaktangaben, Mitgliedskontext sowie einen Unterschriftsbereich aus und bleibt auf dem bestehenden Mitglied-/Dokumentpfad gespeichert.
+- Die Einstiege in WPF und MAUI bleiben bestehen und wurden nur minimal auf `Mitgliedsantrag als PDF` geglättet.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 ## 2026-04-08
+- Den ersten kleinen Grundblock für die neue Formularverwaltung auf dem Branch `feature/formularverwaltung` umgesetzt.
+- Dafür eine gemeinsame Core-Grundlage für Formular-Dokumenttyp, Formular-Dokumentstatus, Dateinamenschema und einfache PDF-Erzeugung eingeführt; vorbereitet für `Mitgliedsantrag`, `Mitgliedsvertrag` und `Pachtvertrag` sowie `unsigniert`/`signiert`.
+- Den ersten konkreten Formularfall `Mitgliedsantrag` über den bestehenden Mitglieds-/Dokumentpfad angebunden: Mitglied laden, PDF erzeugen, über den vorhandenen Dokument-Upload speichern und dem Mitglied zuordnen.
+- In WPF und MAUI jeweils einen ersten sichtbaren Einstieg im Mitgliedskontext ergänzt; nach Erzeugung wird das abgelegte Dokument direkt geöffnet, sofern der bestehende Dokumentpfad bereits eine Open-URL liefert.
+- Dokumentlisten können die neue Grundlage jetzt fachlich mindestens nach Typ und Status unterscheiden, ohne neue Schattenablage neben dem bestehenden Dokumentpfad aufzubauen.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Im WPF-Mitgliedsdetail die E-Mail-Sperrlogik minimal korrigiert: Bei Neuanlage bzw. ohne bestehenden App-User bleibt das Feld editierbar.
 - Gesperrt bleibt das Feld jetzt nur noch, wenn das Mitglied bereits einen App-User über `AuthUserId` hat; der OTP-Button wird nur in diesem Fall eingeblendet.
 - Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich; `dotnet build KGV.Maui/KGV.Maui.csproj` scheitert in diesem Block extern an `java.exe`/Systemressourcen.

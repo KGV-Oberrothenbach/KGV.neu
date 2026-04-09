@@ -636,13 +636,16 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
     private static string BuildDocumentMetaText(DocumentInfo document)
     {
+        var formularMeta = document.FormularDokumentTypAnzeige == "-"
+            ? string.Empty
+            : $"Typ: {document.FormularDokumentTypAnzeige} · Status: {document.FormularDokumentStatusAnzeige} · ";
         var updated = document.UpdatedAt.HasValue
             ? $"Aktualisiert: {document.UpdatedAt.Value:dd.MM.yyyy HH:mm}"
             : "Aktualisiert: -";
         var size = document.Size.HasValue
             ? FormatFileSize(document.Size.Value)
             : "Größe unbekannt";
-        return $"{updated} · {size}";
+        return $"{formularMeta}{updated} · {size}";
     }
 
     private static string GetDocumentDisplayName(DocumentInfo document)

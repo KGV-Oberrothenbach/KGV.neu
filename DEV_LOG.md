@@ -2,6 +2,55 @@
 
 ---
 
+## 2026-04-09 – Mitgliedsantrag auf echte Vereinsvorlage mit Briefkopf und identischem Logo angehoben
+
+- Repo-Check vor dem Block auf `feature/formularverwaltung`:
+  - `git fetch origin`
+  - `git status --short --branch`
+- Vorhandenen Zwischenstand eingeordnet und direkt weiterverwendet:
+  - bestehender Formular-Grundrahmen aus dem lokalen Branch-Stand blieb erhalten
+  - vorhandene uncommitted Formularverwaltungsdateien wurden nicht parallel neu gebaut, sondern im nächsten kleinen Block fortgeführt
+- Minimal umgesetzt:
+  - `KGV.Core/KGV.Core.csproj`
+    - `PdfSharpCore` für den robusten PDF-Vorlagenpfad ergänzt
+    - vorhandenes Logo `KGV.Maui/Resources/Images/kgv_logo.png` zentral als eingebettete Core-Ressource angebunden
+  - `KGV.Core/Utilities/VereinsdokumentBranding.cs`
+    - gemeinsamer Branding-Pfad mit Vereinsname, Register, Vereinsmail und identischem Vereinslogo aufgebaut
+  - `KGV.Core/Models/VereinsdokumentAbschnitt.cs`
+  - `KGV.Core/Utilities/VereinsdokumentPdfBuilder.cs`
+    - wiederverwendbarer Vereins-PDF-Pfad für Briefkopf/Logo, Dokumentkopf, Abschnitte und Unterschriftsbereich angelegt
+  - `KGV.Core/Utilities/MitgliedsantragDokumentFactory.cs`
+    - einfache technische Zeilen-PDF-Erzeugung durch echte Vereinsvorlage ersetzt
+    - saubere Abschnitte für Antragsteller/in, Adresse, Kontakt, Mitgliedsart/Kontext und Hinweis ergänzt
+  - `KGV.Wpf/Views/MemberDetailView.xaml`
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+    - Einstieg minimal textlich auf `Mitgliedsantrag als PDF` geglättet
+- Fachliche Wirkung:
+  - Mitgliedsantrag wird weiter im bestehenden Dokumentpfad gespeichert
+  - Dokumenttyp, Status und Dateinamenschema aus dem Grundrahmen bleiben unverändert
+  - dieselbe Logo-Datei ist jetzt die gemeinsame Quelle für die Vereinsvorlage im PDF-Pfad
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
+## 2026-04-08 – Formularverwaltung Grundrahmen mit erstem Mitgliedsantrag auf bestehendem Dokumentpfad
+
+- Repo-Check vor dem Block auf `feature/formularverwaltung`:
+  - `git fetch origin`
+  - `git status --short --branch`
+- Minimal umgesetzt:
+  - gemeinsame Core-Grundlage für Formular-Dokumenttyp, Dokumentstatus, zentrales Dateinamenschema und PDF-Basis geschaffen
+  - vorbereitet für `Mitgliedsantrag`, `Mitgliedsvertrag`, `Pachtvertrag`
+  - vorbereitet für Status `unsigniert` und `signiert`
+  - zentrales Schema umgesetzt: `<Name_Vorname>-<ID>-<yyyy-MM-dd>-<Dokumenttyp>-<status>.pdf`
+  - erster echter Formularfall `Mitgliedsantrag` erzeugt aus Mitgliedskontext und speichert als PDF über den bestehenden Dokumentpfad beim Mitglied
+  - WPF-Mitgliedskontext um sichtbaren Einstieg `Mitgliedsantrag erzeugen` erweitert
+  - MAUI-Mitgliedskontext um denselben Einstieg erweitert
+  - bestehende Dokumentlisten um fachliche Typ-/Status-Erkennung aus dem Dateinamen ergänzt
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-08 – WPF-Mitgliedsneuanlage: E-Mail nur bei bestehendem App-User gesperrt
 
 - Repo-Check vor dem Block:

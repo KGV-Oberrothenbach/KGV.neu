@@ -1,6 +1,7 @@
 ﻿// File: ViewModels/MemberDetailViewModel.cs
 using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -150,6 +151,7 @@ namespace KGV.ViewModels
         public RelayCommand<object?> SaveCommand { get; }
         public RelayCommand<object?> CancelCommand { get; }
         public RelayCommand<object?> ChangeEmailCommand { get; }
+        public RelayCommand<object?> CreateMitgliedsantragCommand { get; }
         public RelayCommand<object?> NebenmitgliedCommand { get; }
         public RelayCommand<object?> CopyAddressFromHauptmitgliedCommand { get; }
 
@@ -160,6 +162,8 @@ namespace KGV.ViewModels
         public RelayCommand<object?> EndBelegungCommand { get; }
         public RelayCommand<object?> OpenSelectedParzelleCommand { get; }
 
+        public bool ShowMitgliedsantragButton => !_isNewMode && PermissionChecks.CanManageDocuments(_userContext);
+        public bool CanCreateMitgliedsantrag => ShowMitgliedsantragButton && SelectedMember.Id > 0 && !IsEditMode;
         public bool CanChangeEmail => HasSelectedMemberAppUser && IsEditMode && _currentUserMemberId == SelectedMember.Id;
         public string ChangeEmailHint => !HasSelectedMemberAppUser
             ? "Mailadresse kann direkt in den Stammdaten bearbeitet werden, solange noch kein App-User verknüpft ist."
@@ -190,6 +194,7 @@ namespace KGV.ViewModels
             SaveCommand = new RelayCommand<object?>(_ => _ = SaveAsync(), _ => CanSave());
             CancelCommand = new RelayCommand<object?>(_ => _ = CancelAsync(), _ => CanCancel());
             ChangeEmailCommand = new RelayCommand<object?>(_ => _ = ChangeEmailAsync(), _ => CanChangeEmail);
+            CreateMitgliedsantragCommand = new RelayCommand<object?>(_ => _ = CreateMitgliedsantragAsync(), _ => CanCreateMitgliedsantrag);
             AssignParzelleCommand = new RelayCommand<object?>(_ => _ = AssignParzelleAsync(), _ => CanAssignParzelle());
             EndBelegungCommand = new RelayCommand<object?>(_ => _ = EndBelegungAsync(), _ => CanEndBelegung());
             OpenSelectedParzelleCommand = new RelayCommand<object?>(_ => OpenSelectedParzelle(), _ => SelectedBelegung != null);
@@ -815,10 +820,40 @@ namespace KGV.ViewModels
             SaveCommand.RaiseCanExecuteChanged();
             CancelCommand.RaiseCanExecuteChanged();
             ChangeEmailCommand.RaiseCanExecuteChanged();
+            CreateMitgliedsantragCommand.RaiseCanExecuteChanged();
             AssignParzelleCommand.RaiseCanExecuteChanged();
             EndBelegungCommand.RaiseCanExecuteChanged();
             OpenSelectedParzelleCommand.RaiseCanExecuteChanged();
             NebenmitgliedCommand.RaiseCanExecuteChanged();
+        }
+
+        private async Task CreateMitgliedsantragAsync()
+        {
+            if (!CanCreateMitgliedsantrag)
+                return;
+
+            var result = await _supabaseService.CreateMitgliedsantragDokumentAsync(SelectedMember.Id, FormularDokumentStatus.Unsigniert);
+            if (!result.Success)
+            {
+                MessageBox.Show(result.Message, "Mitgliedsantrag", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var document = result.Document;
+            if (document?.CanOpen != true)
+            {
+                MessageBox.Show("Mitgliedsantrag wurde als Dokument abgelegt.", "Mitgliedsantrag", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                MessageBox.Show("Mitgliedsantrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "Mitgliedsantrag", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
         }
 
         private async Task ChangeEmailAsync()
