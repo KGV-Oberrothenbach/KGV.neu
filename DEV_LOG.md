@@ -11257,4 +11257,12 @@
 - Zusätzlich den bereits begonnenen Saisonpfad nur so weit mitgezogen, dass der aktuelle Stand buildfähig bleibt (`SaisonRecord`, `SaveSaisonAsync`, Saison-Refresh in WPF).
 - Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
 
+## 2026-04-09 - MAUI Mitgliedsvertrag/Pachtvertrag Einstiege ergänzt
+
+- Reellen Repo-Stand geprüft und nur die vorhandenen MAUI-Seitenpfade `MemberDetailPage` und `MemberParzellenDetailPage` erweitert; keine neue Vertragslogik und kein neuer Parallelpfad gebaut.
+- Auf der mobilen Stammdatenseite gibt es jetzt zusätzlich `Mitgliedsvertrag als PDF`; der Button nutzt denselben bestehenden Servicepfad `CreateMitgliedsvertragDokumentAsync(...)` wie die bisherige Vertragserzeugung.
+- Im mitgliedsbezogenen Gärten-/Parzellen-Detailpfad gibt es jetzt zusätzlich `Pachtvertrag als PDF`; der Button nutzt direkt `CreatePachtvertragDokumentAsync(...)` und öffnet das erzeugte Dokument bei verfügbarer Open-URL sofort.
+- Für den mobilen Pachtvertrag wird kein Ersatzdatum konstruiert: fehlt im Mitglieds-/Parzellenkontext das Zuordnungs-Startdatum, bricht der UI-Pfad mit klarer Meldung ab.
+- Abschlussvalidierung erfolgreich: `dotnet build KGV.Maui/KGV.Maui.csproj`.
+
 

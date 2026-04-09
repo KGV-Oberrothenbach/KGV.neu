@@ -51,6 +51,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly Button _nutzerHinzufuegenButton;
     private readonly Button _benutzerverwaltungButton;
     private readonly Button _mitgliedsantragButton;
+    private readonly Button _mitgliedsvertragButton;
     private readonly Button _cancelMembershipButton;
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
@@ -114,6 +115,13 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _mitgliedsantragButton = new Button { Text = "Mitgliedsantrag als PDF", IsVisible = false };
         _mitgliedsantragButton.Clicked += async (_, _) => await CreateMitgliedsantragAsync();
 
+        _mitgliedsvertragButton = new Button { Text = "Mitgliedsvertrag als PDF", IsVisible = false };
+        _mitgliedsvertragButton.Clicked += async (_, _) =>
+        {
+            if (_memberRecord?.Id is > 0)
+                await CreateMitgliedsvertragAsync(_memberRecord.Id);
+        };
+
         _cancelMembershipButton = new Button { Text = "Mitgliedschaft beenden", IsVisible = false, BackgroundColor = Colors.IndianRed, TextColor = Colors.White };
         _cancelMembershipButton.Clicked += async (_, _) => await CancelMembershipAsync();
 
@@ -166,6 +174,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                         _nutzerHinzufuegenButton,
                         _benutzerverwaltungButton),
                     _mitgliedsantragButton,
+                    _mitgliedsvertragButton,
                     _cancelMembershipButton,
                     new HorizontalStackLayout
                     {
@@ -358,6 +367,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
         _mitgliedsantragButton.IsVisible = canCreateMemberApplication;
         _mitgliedsantragButton.IsEnabled = canCreateMemberApplication;
+        _mitgliedsvertragButton.IsVisible = canCreateMemberApplication;
+        _mitgliedsvertragButton.IsEnabled = canCreateMemberApplication;
     }
 
     private void UpdateCancelMembershipButton(MemberDTO? member)

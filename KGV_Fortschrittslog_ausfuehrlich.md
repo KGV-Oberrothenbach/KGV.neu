@@ -35,6 +35,12 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Den kleinen MAUI-Nachziehblock für Vertrags-Einstiege auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neue Formular- oder Signaturlogik zu starten.
+- Auf der mobilen Stammdatenseite des Mitglieds gibt es jetzt zusätzlich den Einstieg `Mitgliedsvertrag als PDF`; der Button nutzt den bereits bestehenden Produktivpfad `CreateMitgliedsvertragDokumentAsync(...)`.
+- Im mitgliedsbezogenen Pfad `Gärten` bzw. in der zugehörigen Parzellen-Detailansicht gibt es jetzt zusätzlich den Einstieg `Pachtvertrag als PDF`; auch dieser nutzt direkt den bestehenden Produktivpfad `CreatePachtvertragDokumentAsync(...)`.
+- Der neue mobile Pachtvertragspfad baut keine Schattenlogik und keine Ersatzwerte auf: maßgeblich bleibt das im Parzellenkontext vorhandene Zuordnungs-Startdatum; fehlt es, wird mit klarer Meldung abgebrochen.
+- Validierung: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den begonnenen Block `Pachtvertrag nutzt Saisonwerte` auf dem echten Branch-Stand `feature/formularverwaltung` sauber abgeschlossen, ohne neuen Fachblock zu starten.
 - Der bestehende Saison-/Pachtvertragspfad nutzt jetzt für den Zahlungskasten gemeinsam `pacht_pro_qm` und `mitgliedsbeitrag` der zum Vertragsjahr passenden Saison; Ersatzwerte oder Schattenlogik wurden nicht ergänzt.
 - Die fachliche Berechnung lautet jetzt `Pachtzins = Parzellenfläche * Saison.Pacht_pro_qm` mit kaufmännischer Rundung auf zwei Nachkommastellen und `Gesamt = Pachtzins + Mitgliedsbeitrag`.
