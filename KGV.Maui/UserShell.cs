@@ -58,6 +58,8 @@ public sealed class UserShell : Shell, IAppShellInitializer
 
     protected override bool OnBackButtonPressed()
     {
+        AppFileLog.Info("KGV.Navigation", $"UserShell.OnBackButtonPressed erreicht. Route={ShellNavigationHelper.GetActiveShellContentRoute(this) ?? "<none>"}");
+
         if (_backNavigationInProgress)
             return true;
 

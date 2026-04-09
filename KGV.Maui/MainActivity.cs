@@ -1,11 +1,12 @@
+using System;
+using System.Linq;
 using Android.App;
-using Android.OS;
 using Android.Content.PM;
+using Android.OS;
+using AndroidX.Activity;
 using KGV.Maui.Services.Diagnostics;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
-using System.Linq;
-using MauiApplication = Microsoft.Maui.Controls.Application;
 
 namespace KGV.Maui;
 
@@ -21,36 +22,110 @@ namespace KGV.Maui;
         | ConfigChanges.Density)]
 public class MainActivity : MauiAppCompatActivity
 {
+    private ActivityBackPressedCallback? _backPressedCallback;
+
     protected override void OnCreate(Bundle? savedInstanceState)
     {
-        AppFileLog.Marker("MAIN_ACTIVITY_ONCREATE_BEGIN");
+        AppFileLog.Info("KGV.Navigation", "MainActivity.OnCreate registriert Android-BackCallback.");
+        base.OnCreate(savedInstanceState);
 
-        try
-        {
-            base.OnCreate(null);
-            AppFileLog.Marker("MAIN_ACTIVITY_ONCREATE_OK");
-        }
-        catch (Exception ex)
-        {
-            AppFileLog.Marker("MAIN_ACTIVITY_ONCREATE_FAIL");
-            AppFileLog.ErrorDetailed("KGV.Maui", "MainActivity.OnCreate ist fehlgeschlagen.", ex);
-            throw;
-        }
+        if (_backPressedCallback == null)
+            _backPressedCallback = new ActivityBackPressedCallback(this);
+
+        OnBackPressedDispatcher.AddCallback(this, _backPressedCallback);
     }
 
     public override void OnBackPressed()
     {
-        var currentPage = GetActiveWindowPage();
-        if (currentPage?.SendBackButtonPressed() == true)
+        AppFileLog.Info("KGV.Navigation", "MainActivity.OnBackPressed erreicht.");
+
+        if (TryHandleMauiBackNavigation())
             return;
 
         base.OnBackPressed();
     }
 
-    private static Page? GetActiveWindowPage()
+    private bool TryHandleMauiBackNavigation()
     {
-        return MauiApplication.Current?.Windows
-            .LastOrDefault(window => window.Page != null)
-            ?.Page;
+        try
+        {
+            var rootPage = Microsoft.Maui.Controls.Application.Current?
+                .Windows
+                .FirstOrDefault()?
+                .Page;
+
+            if (rootPage == null)
+            {
+                AppFileLog.Warning("KGV.Navigation", "MainActivity.TryHandleMauiBackNavigation: keine RootPage vorhanden.");
+                return false;
+            }
+
+            var handled = rootPage.SendBackButtonPressed();
+
+            AppFileLog.Info(
+                "KGV.Navigation",
+                $"MainActivity.TryHandleMauiBackNavigation: RootPage={rootPage.GetType().Name}, Handled={handled}");
+
+            return handled;
+        }
+        catch (Exception ex)
+        {
+            AppFileLog.Warning(
+                "KGV.Navigation",
+                $"MainActivity.TryHandleMauiBackNavigation fehlgeschlagen: {ex.GetType().Name}: {ex.Message}");
+            return false;
+        }
+    }
+
+    private void InvokeSystemBackFallback()
+    {
+        if (_backPressedCallback != null)
+            _backPressedCallback.Enabled = false;
+
+        try
+        {
+            base.OnBackPressed();
+        }
+        finally
+        {
+            if (_backPressedCallback != null)
+                _backPressedCallback.Enabled = true;
+        }
+    }
+
+    protected override void OnDestroy()
+    {
+        try
+        {
+            _backPressedCallback?.Remove();
+            _backPressedCallback?.Dispose();
+            _backPressedCallback = null;
+        }
+        catch
+        {
+            // bewusst schluckend
+        }
+
+        base.OnDestroy();
+    }
+
+    private sealed class ActivityBackPressedCallback : OnBackPressedCallback
+    {
+        private readonly MainActivity _activity;
+
+        public ActivityBackPressedCallback(MainActivity activity) : base(true)
+        {
+            _activity = activity;
+        }
+
+        public override void HandleOnBackPressed()
+        {
+            AppFileLog.Info("KGV.Navigation", "MainActivity.ActivityBackPressedCallback.HandleOnBackPressed erreicht.");
+
+            if (_activity.TryHandleMauiBackNavigation())
+                return;
+
+            _activity.InvokeSystemBackFallback();
+        }
     }
 }

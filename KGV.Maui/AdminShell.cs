@@ -75,6 +75,8 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
     protected override bool OnBackButtonPressed()
     {
+        AppFileLog.Info("KGV.Navigation", $"AdminShell.OnBackButtonPressed erreicht. Route={ShellNavigationHelper.GetActiveShellContentRoute(this) ?? "<none>"}");
+
         if (_backNavigationInProgress)
             return true;
 
