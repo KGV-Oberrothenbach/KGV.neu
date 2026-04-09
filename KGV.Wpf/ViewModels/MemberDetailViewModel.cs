@@ -24,10 +24,28 @@ namespace KGV.ViewModels
 
         private string? _lockUserId;
         private int? _currentUserMemberId;
+        private bool _hasSelectedMemberAppUser;
 
         public MemberDTO SelectedMember { get; }
         public bool IsNewMode => _isNewMode;
         public bool ShowCancelMembershipButton => !_isNewMode && !IsEditMode && SelectedMember.Id > 0 && SelectedMember.IstHauptmitglied && !SelectedMember.MitgliedEnde.HasValue;
+        public bool HasSelectedMemberAppUser
+        {
+            get => _hasSelectedMemberAppUser;
+            private set
+            {
+                if (!SetProperty(ref _hasSelectedMemberAppUser, value))
+                    return;
+
+                OnPropertyChanged(nameof(IsEmailReadOnly));
+                OnPropertyChanged(nameof(ShowChangeEmailButton));
+                OnPropertyChanged(nameof(ChangeEmailHint));
+                ChangeEmailCommand.RaiseCanExecuteChanged();
+            }
+        }
+
+        public bool IsEmailReadOnly => !IsEditMode || HasSelectedMemberAppUser;
+        public bool ShowChangeEmailButton => HasSelectedMemberAppUser && IsEditMode;
 
         public bool ShowParzellenSection => true;
         public bool ShowNewContractButton => !_isNewMode;
@@ -109,7 +127,16 @@ namespace KGV.ViewModels
         public bool IsEditMode
         {
             get => _isEditMode;
-            private set => SetProperty(ref _isEditMode, value);
+            private set
+            {
+                if (!SetProperty(ref _isEditMode, value))
+                    return;
+
+                OnPropertyChanged(nameof(IsEmailReadOnly));
+                OnPropertyChanged(nameof(ShowChangeEmailButton));
+                OnPropertyChanged(nameof(CanChangeEmail));
+                OnPropertyChanged(nameof(ChangeEmailHint));
+            }
         }
 
         private bool _isDirty;
@@ -133,10 +160,12 @@ namespace KGV.ViewModels
         public RelayCommand<object?> EndBelegungCommand { get; }
         public RelayCommand<object?> OpenSelectedParzelleCommand { get; }
 
-        public bool CanChangeEmail => IsEditMode && _currentUserMemberId == SelectedMember.Id;
-        public string ChangeEmailHint => CanChangeEmail
-            ? "Mailadresse wird separat per OTP-Code geändert und nicht über das normale Stammdaten-Speichern."
-            : "Mailadresse kann nur vom aktuell angemeldeten Benutzer über den separaten OTP-Flow geändert werden.";
+        public bool CanChangeEmail => HasSelectedMemberAppUser && IsEditMode && _currentUserMemberId == SelectedMember.Id;
+        public string ChangeEmailHint => !HasSelectedMemberAppUser
+            ? "Mailadresse kann direkt in den Stammdaten bearbeitet werden, solange noch kein App-User verknüpft ist."
+            : CanChangeEmail
+                ? "Mailadresse wird separat per OTP-Code geändert und nicht über das normale Stammdaten-Speichern."
+                : "Mailadresse kann nur vom aktuell angemeldeten Benutzer über den separaten OTP-Flow geändert werden.";
 
         public MemberDetailViewModel(ISupabaseService supabaseService, IAuthService authService, UserContext userContext, MemberDTO member, bool isNewMode = false)
         {

@@ -35,6 +35,10 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-08
+- Im WPF-Mitgliedsdetail die E-Mail-Sperrlogik minimal korrigiert: Bei Neuanlage bzw. ohne bestehenden App-User bleibt das Feld editierbar.
+- Gesperrt bleibt das Feld jetzt nur noch, wenn das Mitglied bereits einen App-User über `AuthUserId` hat; der OTP-Button wird nur in diesem Fall eingeblendet.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich; `dotnet build KGV.Maui/KGV.Maui.csproj` scheitert in diesem Block extern an `java.exe`/Systemressourcen.
+
 - Den WPF-UpdatePrompt minimal repariert, indem `AppUpdateInfo` wieder die erwartete Methode `GetNotesText()` bereitstellt.
 - Dadurch kompiliert `KGV.Wpf/Views/UpdatePromptWindow.xaml.cs` wieder ohne `CS1061` auf `AppUpdateInfo.GetNotesText()`.
 - Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.

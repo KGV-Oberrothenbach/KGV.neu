@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-04-08 – WPF-Mitgliedsneuanlage: E-Mail nur bei bestehendem App-User gesperrt
+
+- Repo-Check vor dem Block:
+  - `git status --short --branch`
+- Minimal umgesetzt:
+  - `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`
+    - E-Mail-Sperrlogik auf bestehenden Pfad gezogen: Feld ist nur read-only, wenn Edit-Modus fehlt oder das Mitglied bereits einen App-User (`AuthUserId`) hat
+    - bei Neuanlage bleibt das Feld editierbar
+    - Hinweistext und Sichtbarkeit des OTP-Buttons an denselben Zustand gekoppelt
+  - `KGV.Wpf/Views/MemberDetailView.xaml`
+    - E-Mail-TextBox an `IsEmailReadOnly` gebunden
+    - Button `Mailadresse ändern` nur noch sichtbar, wenn wirklich ein App-User vorhanden ist
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` mit externem Java-/Ressourcenfehler fehlgeschlagen (`java.exe`, nicht genügend Systemressourcen)
+
 ## 2026-04-08 – WPF-UpdatePrompt kompiliert wieder mit bestehender AppUpdateInfo-Hilfsmethode
 
 - Repo-Check vor dem Block:
