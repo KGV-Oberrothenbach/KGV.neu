@@ -11,13 +11,31 @@ internal static class ShellNavigationHelper
 {
     private static readonly Dictionary<string, string> LogicalBackRoutes = new(StringComparer.OrdinalIgnoreCase)
     {
+        // AdminShell
         ["memberdetails"] = "membersearch",
         ["member_wartungsvertraege"] = "memberdetails",
         ["member_nebenmitglied"] = "memberdetails",
         ["member_gardens"] = "memberdetails",
         ["member_adminmenu"] = "memberdetails",
         ["member_workhours"] = "memberdetails",
-        ["photo_uploads"] = "ablesen"
+
+        // UserShell
+        ["mydetails"] = "home",
+        ["my_wartungsvertraege"] = "mydetails",
+        ["nebenmitglied"] = "mydetails",
+        ["mygardens"] = "mydetails",
+        ["workhours"] = "mydetails",
+        ["my_adminmenu"] = "mydetails",
+        ["workhours_review"] = "home",
+
+        // gemeinsame Punkte
+        ["photo_uploads"] = "ablesen",
+        ["ablesen"] = "home",
+        ["impressum"] = "home",
+        ["membersearch"] = "home",
+        ["parzellen"] = "home",
+        ["wartungsvertraege"] = "home",
+        ["export"] = "home"
     };
 
     public static bool IsOnShellContentRoot(Shell shell, string route)
