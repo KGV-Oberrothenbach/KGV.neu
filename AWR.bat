@@ -165,6 +165,10 @@ set "WPF_SETUP_FILE=%WPF_SETUP_OUT%\KGV-Setup-%TARGET_VERSION%.exe"
 set "VERSIONED_SETUP_NAME=KGV-Setup-%TARGET_VERSION%.exe"
 set "LEGACY_VERSIONED_SETUP_NAME=KGV.Setup-%TARGET_VERSION%.exe"
 set "LATEST_SETUP_NAME=KGV-Setup.exe"
+set "VERSION_MANIFEST_NAME=version.json"
+set "VERSION_MANIFEST_FILE=%WPF_SETUP_OUT%\%VERSION_MANIFEST_NAME%"
+set "VERSION_MANIFEST_RELEASE_FILE=%VERSION_ROOT%\%VERSION_MANIFEST_NAME%"
+set "WPF_RELEASE_BASE_URL=https://kgv-oberrothenbach.github.io/KGV-WPF"
 
 if not exist "%PUBLISH_ROOT%" mkdir "%PUBLISH_ROOT%"
 if not exist "%VERSION_ROOT%" mkdir "%VERSION_ROOT%"
@@ -494,6 +498,37 @@ copy /Y "%INNO_OUTPUT_FILE%" "%VERSION_ROOT%\%VERSIONED_SETUP_NAME%" >nul || (
 
 echo.
 echo =========================================================
+echo Erzeuge version.json fuer WPF-Updatepruefung...
+echo =========================================================
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ErrorActionPreference = 'Stop';" ^
+  "$manifestPath = '%VERSION_MANIFEST_FILE%';" ^
+  "$manifestReleasePath = '%VERSION_MANIFEST_RELEASE_FILE%';" ^
+  "$baseUrl = '%WPF_RELEASE_BASE_URL%'.TrimEnd('/');" ^
+  "$version = '%TARGET_VERSION%';" ^
+  "$latestSetupName = '%LATEST_SETUP_NAME%';" ^
+  "$versionedSetupName = '%VERSIONED_SETUP_NAME%';" ^
+  "$manifest = [ordered]@{" ^
+  "  version = $version;" ^
+  "  setupUrl = ($baseUrl + '/' + $latestSetupName);" ^
+  "  versionedSetupUrl = ($baseUrl + '/' + $versionedSetupName);" ^
+  "  publishedAt = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ');" ^
+  "  mandatory = $false;" ^
+  "  notes = '';" ^
+  "};" ^
+  "$json = $manifest | ConvertTo-Json -Depth 5;" ^
+  "Set-Content -Path $manifestPath -Value $json -Encoding UTF8;" ^
+  "Set-Content -Path $manifestReleasePath -Value $json -Encoding UTF8;" ^
+  "Write-Host ('version.json erstellt: ' + $manifestPath);" ^
+  "Write-Host ('version.json kopiert nach: ' + $manifestReleasePath);"
+
+if errorlevel 1 (
+  echo FEHLER: version.json konnte nicht erstellt werden.
+  exit /b 1
+)
+
+echo.
+echo =========================================================
 echo Synchronisiere WPF-Release-Repo vor Dateikopie...
 echo =========================================================
 pushd "%WPF_RELEASE_REPO%" || (
@@ -548,6 +583,12 @@ copy /Y "%INNO_OUTPUT_FILE%" "%WPF_RELEASE_REPO%\%VERSIONED_SETUP_NAME%" >nul ||
   exit /b 1
 )
 
+copy /Y "%VERSION_MANIFEST_FILE%" "%WPF_RELEASE_REPO%\%VERSION_MANIFEST_NAME%" >nul || (
+  echo FEHLER: version.json konnte nicht ins WPF-Release-Repo kopiert werden.
+  popd
+  exit /b 1
+)
+
 if exist "%WPF_RELEASE_REPO%\%LEGACY_VERSIONED_SETUP_NAME%" (
   del /F /Q "%WPF_RELEASE_REPO%\%LEGACY_VERSIONED_SETUP_NAME%"
 )
@@ -557,7 +598,7 @@ echo =========================================================
 echo Commit + Push im WPF-Release-Repo...
 echo =========================================================
 "%GIT%" status -sb
-"%GIT%" add "%LATEST_SETUP_NAME%" "%VERSIONED_SETUP_NAME%"
+"%GIT%" add "%LATEST_SETUP_NAME%" "%VERSIONED_SETUP_NAME%" "%VERSION_MANIFEST_NAME%"
 "%GIT%" rm --ignore-unmatch "%LEGACY_VERSIONED_SETUP_NAME%" >nul 2>&1
 "%GIT%" diff --cached --quiet
 if errorlevel 1 (
@@ -632,8 +673,10 @@ echo   %WPF_PUBLISH_OUT%
 echo.
 echo WPF Setup:
 echo   %WPF_SETUP_FILE%
+echo   %VERSION_MANIFEST_RELEASE_FILE%
 echo   %WPF_RELEASE_REPO%\%VERSIONED_SETUP_NAME%
 echo   %WPF_RELEASE_REPO%\%LATEST_SETUP_NAME%
+echo   %WPF_RELEASE_REPO%\%VERSION_MANIFEST_NAME%
 echo.
 "%GIT%" -C "%WPF_RELEASE_REPO%" status -sb
 
