@@ -2,6 +2,37 @@
 
 ---
 
+## 2026-04-09 – Pachtvertragsblock mit offizieller PDF-Vorlage produktiv geschlossen
+
+- Repo-Check vor dem Abschlusslauf auf `feature/formularverwaltung`:
+  - `git status --short --branch`
+- Vorhandenen Zwischenstand eingeordnet und minimal fertiggestellt:
+  - nur die begonnenen Pachtvertragsdateien weitergeführt
+  - keine neue Parallelarchitektur neben dem bestehenden Dokumentpfad aufgebaut
+- Minimal umgesetzt:
+  - `KGV.Core/KGV.Core.csproj`
+    - offizielle Vorlage `Formulare/Pachtvertrag_KGV_bereinigt_mit_Feldern.pdf` zentral als eingebettete Core-Ressource angebunden
+  - `KGV.Core/Models/SaisonRecord.cs`
+    - `pacht_pro_qm` als Produktivfeld ergänzt
+  - `KGV.Core/Utilities/PachtvertragDokumentFactory.cs`
+    - produktive Befüllung der echten PDF-Formularfelder über die offizielle Pachtvertragsvorlage ergänzt
+    - kaufmännische Rundung des Pachtzinses auf 2 Nachkommastellen umgesetzt
+    - Pflicht- und Signaturfelder der offiziellen Vorlage werden jetzt hart geprüft statt still ignoriert
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - gemeinsamer Servicepfad `CreatePachtvertragDokumentAsync(...)` ergänzt
+    - Saison über Vertragsbeginn geladen; klare Fehlerfälle für fehlende Saison, fehlendes `pacht_pro_qm` und ungültige Parzellenfläche abgesichert
+    - Speicherung läuft über den bestehenden Dokumentpfad des Mitglieds
+  - `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`
+    - `NewContractCommand` produktiv auf den neuen Servicepfad gezogen
+    - Nachfrage `Pachtvertrag erstellen?` an den bestehenden Parzellenzuweisungsflow gehängt
+    - Nullzugriff nach `LoadParzellenAsync()` im Zuweisungspfad minimal behoben
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+- Hinweis zum Minimaltest:
+  - automatisierter UI-Test für Parzellenzuweisung/MessageBox/Dokumentöffnung ist im Repo nicht vorhanden; fachliche Fehlerpfade wurden über den produktiven Codepfad abgesichert
+
 ## 2026-04-09 – Mitgliedsantrag auf echte Vereinsvorlage mit Briefkopf und identischem Logo angehoben
 
 - Repo-Check vor dem Block auf `feature/formularverwaltung`:

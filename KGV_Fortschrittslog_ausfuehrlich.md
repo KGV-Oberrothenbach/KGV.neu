@@ -35,6 +35,16 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Den begonnenen Pachtvertragsblock auf dem echten Branch-Stand `feature/formularverwaltung` sauber technisch geschlossen, ohne einen neuen Fachblock zu starten.
+- Die offizielle Vorlage `Formulare/Pachtvertrag_KGV_bereinigt_mit_Feldern.pdf` ist jetzt bewusst im nachverfolgten Projektstand eingebunden und wird zentral aus `KGV.Core` als echte PDF-Formularvorlage verwendet; eine Ersatzvorlage oder ein nachgebautes Layout wird nicht verwendet.
+- Dafür wurde der gemeinsame Produktivpfad für `Pachtvertrag (unsigniert)` ergänzt: `SaisonRecord` kennt jetzt `pacht_pro_qm`, `SupabaseService` erzeugt den Vertrag über `CreatePachtvertragDokumentAsync(...)`, und `PachtvertragDokumentFactory` berechnet den Pachtzins zentral als `Parzellenfläche * Saison.Pacht_pro_qm` mit kaufmännischer Rundung auf zwei Nachkommastellen.
+- Fehlerfälle laufen nicht mehr still weiter: fehlende Saison, fehlendes `pacht_pro_qm`, ungültige oder fehlende Parzellenfläche sowie fehlende Pflicht-/Signaturfelder in der offiziellen PDF-Vorlage brechen den Produktivpfad jetzt mit klaren Fehlermeldungen ab.
+- Die echte PDF-Vorlage wird direkt befüllt; mindestens Pächter 1/2, Geburtsdaten, Anschrift, Telefon, Parzellennummer, Parzellenfläche, Vertragsbeginn, `pacht_pro_qm`, Pachtzins, Betragskasten sowie Ort/Datum laufen über die vorhandenen Formularfelder.
+- Im WPF-Mitgliedsdetail ist `NewContractCommand` jetzt produktiv, und nach erfolgreicher Parzellenzuweisung folgt im bestehenden Flow die Nachfrage `Pachtvertrag erstellen?`; bei Zustimmung wird der unsignierte Vertrag im bestehenden Mitglieds-Dokumentpfad gespeichert und bei verfügbarer Open-URL direkt geöffnet.
+- Der begonnene Restfehler im WPF-Zuweisungspfad wurde minimal behoben, indem die Parzellen-ID vor dem Reload gesichert wird und der nachfolgende Vertragsdialog damit keinen Nullzugriff mehr auf die zurückgesetzte UI-Auswahl hat.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+- Für den fachlichen Minimaltest existiert im aktuellen Repo kein automatisierter UI-Testpfad; deshalb wurde der Block build-validiert und die Fehlerpfade wurden direkt im produktiven Codepfad abgesichert.
+
 - Den nächsten kleinen Block der Formularverwaltung auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt und den vorhandenen Zwischenstand direkt weiterverwendet.
 - Der Mitgliedsantrag nutzt jetzt keine einfache technische Text-PDF mehr, sondern eine echte Vereinsvorlage mit sauberem Briefkopf, Vereinsname, Register-/Kontaktzeile und identischem Vereinslogo.
 - Dafür wurde ein gemeinsamer Core-Pfad für Vereinsbranding und Vereins-PDF-Layout aufgebaut; spätere Dokumente wie Mitgliedsvertrag oder Pachtvertrag können denselben Briefkopf-/Abschnitts-/Unterschriftsrahmen mitbenutzen.

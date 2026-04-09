@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="..\KGV.Maui\Resources\Images\kgv_logo.png" Link="Assets\kgv_logo.png" />
+    <EmbeddedResource Include="..\Formulare\Pachtvertrag_KGV_bereinigt_mit_Feldern.pdf" Link="Templates\Pachtvertrag_KGV_bereinigt_mit_Feldern.pdf" />
   </ItemGroup>
 
 </Project>

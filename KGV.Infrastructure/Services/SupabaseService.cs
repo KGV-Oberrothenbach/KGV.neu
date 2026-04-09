@@ -2315,6 +2315,59 @@ namespace KGV.Infrastructure.Services
             }
         }
 
+        public async Task<DokumentUploadResult> CreatePachtvertragDokumentAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn, string status = FormularDokumentStatus.Unsigniert)
+        {
+            if (mitgliedId <= 0)
+                return DokumentUploadResult.Fail("Bitte zuerst ein gültiges Mitglied auswählen.", "VALIDATION");
+
+            if (parzelleId <= 0)
+                return DokumentUploadResult.Fail("Bitte zuerst eine gültige Parzelle auswählen.", "VALIDATION");
+
+            var vertragsbeginnDatum = vertragsbeginn.Date;
+            if (vertragsbeginnDatum == DateTime.MinValue)
+                return DokumentUploadResult.Fail("Bitte ein gültiges Vertragsbeginn-Datum angeben.", "VALIDATION");
+
+            try
+            {
+                var member = await GetMitgliedByIdAsync(mitgliedId);
+                if (member == null)
+                    return DokumentUploadResult.Fail("Mitglied konnte nicht geladen werden.", "NOT_FOUND");
+
+                if (!OperationalDataFilter.IsOperationalMember(member))
+                    return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell kein Pachtvertrag erzeugt werden.", "NOT_OPERATIONAL");
+
+                if (member.HauptmitgliedId.HasValue && member.HauptmitgliedId.Value > 0)
+                    return DokumentUploadResult.Fail("Pachtvertrag kann nur aus dem Hauptmitglied-Kontext erzeugt werden.", "NOT_MAIN_MEMBER");
+
+                var client = await EnsureClientAsync();
+                var parzelle = await LoadParzelleByIdAsync(client, parzelleId);
+                if (parzelle == null)
+                    return DokumentUploadResult.Fail("Parzelle konnte nicht geladen werden.", "PARCEL_NOT_FOUND");
+
+                var saison = (await GetSaisonRecordsAsync())
+                    .FirstOrDefault(x => x.Jahr == vertragsbeginnDatum.Year);
+                if (saison == null)
+                    return DokumentUploadResult.Fail($"Für das Vertragsjahr {vertragsbeginnDatum.Year} ist keine Saison hinterlegt.", "SAISON_NOT_FOUND");
+
+                if (!saison.PachtProQm.HasValue)
+                    return DokumentUploadResult.Fail($"Für die Saison {saison.Jahr} fehlt pacht_pro_qm.", "Pacht_PRO_QM_MISSING");
+
+                var secondaryMember = await GetNebenmitgliedByHauptmitgliedIdAsync(member.Id);
+                var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(member, secondaryMember, parzelle, saison, vertragsbeginnDatum, status);
+                return await CreateDokumentAsync(uploadRequest);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger?.LogWarning(ex, "CreatePachtvertragDokumentAsync validation failed for MitgliedId={MitgliedId}, ParzelleId={ParzelleId}", mitgliedId, parzelleId);
+                return DokumentUploadResult.Fail(ex.Message, "VALIDATION");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "CreatePachtvertragDokumentAsync failed for MitgliedId={MitgliedId}, ParzelleId={ParzelleId}", mitgliedId, parzelleId);
+                return DokumentUploadResult.Fail("Pachtvertrag konnte aktuell nicht erzeugt werden.", "UNEXPECTED");
+            }
+        }
+
         public async Task<DokumentUploadResult> CreateDokumentAsync(DokumentUploadRequest request)
         {
             if (request == null)
@@ -2425,6 +2478,16 @@ namespace KGV.Infrastructure.Services
                 _logger?.LogError(ex, "DeleteDokumentAsync failed.");
                 return DokumentDeleteResult.Fail("Dokument konnte aktuell nicht gelöscht werden.", "UNEXPECTED");
             }
+        }
+
+        private async Task<ParzelleRecord?> LoadParzelleByIdAsync(Client client, int parzelleId)
+        {
+            var response = await client
+                .From<ParzelleRecord>()
+                .Where(x => x.Id == parzelleId)
+                .Get();
+
+            return response?.Models?.FirstOrDefault();
         }
 
         public Task<List<DocumentInfo>> GetParzelleDokumenteAsync(int parzelleId) => ExecuteAsync(

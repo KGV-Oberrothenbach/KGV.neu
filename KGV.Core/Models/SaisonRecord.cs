@@ -12,5 +12,8 @@ namespace KGV.Core.Models
 
         [Column("jahr")]
         public int Jahr { get; set; }
+
+        [Column("pacht_pro_qm")]
+        public decimal? PachtProQm { get; set; }
     }
 }
