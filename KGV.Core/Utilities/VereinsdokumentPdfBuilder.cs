@@ -20,7 +20,8 @@ namespace KGV.Core.Utilities
             string dokumentStatusAnzeige,
             DateTime ausstellungsdatum,
             IReadOnlyCollection<VereinsdokumentAbschnitt> abschnitte,
-            IReadOnlyCollection<string> unterschriftFelder)
+            IReadOnlyCollection<string> unterschriftFelder,
+            string? introText = null)
         {
             var document = new PdfDocument();
             var effectiveFormularTitel = formularTitel ?? string.Empty;
@@ -46,7 +47,7 @@ namespace KGV.Core.Utilities
             double cursorY = PageMargin;
 
             DrawHeader(graphics, page, titleFont, subtitleFont, accentPen, ref cursorY);
-            DrawDocumentMeta(graphics, page, titleFont, subtitleFont, bodyFont, effectiveFormularTitel, dokumentStatusAnzeige, ausstellungsdatum, ref cursorY);
+            DrawDocumentMeta(graphics, page, titleFont, subtitleFont, bodyFont, effectiveFormularTitel, dokumentStatusAnzeige, ausstellungsdatum, introText, ref cursorY);
 
             var contentSections = abschnitte?
                 .Where(x => x != null && x.HasContent)
@@ -99,6 +100,7 @@ namespace KGV.Core.Utilities
             string formularTitel,
             string dokumentStatusAnzeige,
             DateTime ausstellungsdatum,
+            string? introText,
             ref double cursorY)
         {
             graphics.DrawString(formularTitel, titleFont, XBrushes.Black,
@@ -113,7 +115,9 @@ namespace KGV.Core.Utilities
                 XStringFormats.TopLeft);
             cursorY += 26;
 
-            var intro = "Hiermit wird der Antrag auf Mitgliedschaft im Kleingartenverein in einer standardisierten Vereinsvorlage dokumentiert.";
+            var intro = string.IsNullOrWhiteSpace(introText)
+                ? "Dieses Vereinsdokument wird in einer standardisierten Vereinsvorlage dokumentiert."
+                : introText.Trim();
             graphics.DrawString(intro, bodyFont, XBrushes.Black,
                 new XRect(PageMargin, cursorY, page.Width - PageMargin * 2, 32), XStringFormats.TopLeft);
             cursorY += 36;

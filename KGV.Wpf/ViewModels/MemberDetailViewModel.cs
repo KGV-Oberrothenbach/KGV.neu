@@ -639,8 +639,17 @@ namespace KGV.ViewModels
                     IsDirty = false;
                     IsEditMode = false;
                     OnPropertyChanged(nameof(CanEditMemberStammdaten));
-                     OnPropertyChanged(nameof(ShowNewContractButton));
+                    OnPropertyChanged(nameof(ShowNewContractButton));
                     WeakReferenceMessenger.Default.Send(new MemberSavedMessage(SelectedMember.Clone()));
+
+                    var createMitgliedsvertrag = MessageBox.Show(
+                        "Mitglied angelegt. Mitgliedsvertrag erstellen?",
+                        "Mitgliedsvertrag",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+
+                    if (createMitgliedsvertrag == MessageBoxResult.Yes)
+                        await CreateMitgliedsvertragAsync(SelectedMember.Id);
 
                     var createNebenmitglied = MessageBox.Show(
                         "Mitglied angelegt. Soll jetzt ein Nebenmitglied angelegt werden?",
@@ -893,6 +902,32 @@ namespace KGV.ViewModels
             if (string.IsNullOrWhiteSpace(url))
             {
                 MessageBox.Show("Pachtvertrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "Pachtvertrag", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+
+        private async Task CreateMitgliedsvertragAsync(int mitgliedId)
+        {
+            var result = await _supabaseService.CreateMitgliedsvertragDokumentAsync(mitgliedId, FormularDokumentStatus.Unsigniert);
+            if (!result.Success)
+            {
+                MessageBox.Show(result.Message, "Mitgliedsvertrag", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var document = result.Document;
+            if (document?.CanOpen != true)
+            {
+                MessageBox.Show("Mitgliedsvertrag wurde als Dokument abgelegt.", "Mitgliedsvertrag", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                MessageBox.Show("Mitgliedsvertrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "Mitgliedsvertrag", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 

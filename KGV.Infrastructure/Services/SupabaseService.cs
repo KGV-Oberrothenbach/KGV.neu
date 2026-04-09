@@ -2315,6 +2315,35 @@ namespace KGV.Infrastructure.Services
             }
         }
 
+        public async Task<DokumentUploadResult> CreateMitgliedsvertragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert)
+        {
+            if (mitgliedId <= 0)
+                return DokumentUploadResult.Fail("Bitte zuerst ein gültiges Mitglied auswählen.", "VALIDATION");
+
+            try
+            {
+                var member = await GetMitgliedByIdAsync(mitgliedId);
+                if (member == null)
+                    return DokumentUploadResult.Fail("Mitglied konnte nicht geladen werden.", "NOT_FOUND");
+
+                if (!OperationalDataFilter.IsOperationalMember(member))
+                    return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell kein Vertrag erzeugt werden.", "NOT_OPERATIONAL");
+
+                var uploadRequest = MitgliedsvertragDokumentFactory.CreateUploadRequest(member, status);
+                return await CreateDokumentAsync(uploadRequest);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger?.LogWarning(ex, "CreateMitgliedsvertragDokumentAsync validation failed for MitgliedId={MitgliedId}", mitgliedId);
+                return DokumentUploadResult.Fail(ex.Message, "VALIDATION");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "CreateMitgliedsvertragDokumentAsync failed for MitgliedId={MitgliedId}", mitgliedId);
+                return DokumentUploadResult.Fail("Mitgliedsvertrag konnte aktuell nicht erzeugt werden.", "UNEXPECTED");
+            }
+        }
+
         public async Task<DokumentUploadResult> CreatePachtvertragDokumentAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn, string status = FormularDokumentStatus.Unsigniert)
         {
             if (mitgliedId <= 0)

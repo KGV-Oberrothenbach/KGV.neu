@@ -578,6 +578,16 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
                 _memberSearchRefreshState.RequestReload();
                 _memberContextState.SetSelectedMember(MapMember(created));
+
+                var createMitgliedsvertrag = await DisplayAlert(
+                    "Mitgliedsvertrag",
+                    "Mitglied angelegt. Mitgliedsvertrag erstellen?",
+                    "Ja",
+                    "Nein");
+
+                if (createMitgliedsvertrag)
+                    await CreateMitgliedsvertragAsync(created.Id, manageBusyState: false);
+
                 var createNebenmitglied = await DisplayAlert(
                     "Nebenmitglied anlegen",
                     "Mitglied angelegt. Soll jetzt ein Nebenmitglied angelegt werden?",
@@ -676,6 +686,50 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 await _supabaseService.ReleaseLockMitgliedAsync(_memberRecord.Id, userId, force: false);
 
             _isBusy = false;
+        }
+    }
+
+    private async Task CreateMitgliedsvertragAsync(int mitgliedId, bool manageBusyState = true)
+    {
+        if ((manageBusyState && _isBusy) || mitgliedId <= 0)
+            return;
+
+        if (manageBusyState)
+            _isBusy = true;
+
+        try
+        {
+            var result = await _supabaseService.CreateMitgliedsvertragDokumentAsync(mitgliedId, FormularDokumentStatus.Unsigniert);
+            if (!result.Success)
+            {
+                await DisplayAlert("Mitgliedsvertrag", result.Message, "OK");
+                return;
+            }
+
+            var document = result.Document;
+            if (document?.CanOpen != true)
+            {
+                await DisplayAlert("Mitgliedsvertrag", "Mitgliedsvertrag wurde als Dokument abgelegt.", "OK");
+                return;
+            }
+
+            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                await DisplayAlert("Mitgliedsvertrag", "Mitgliedsvertrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "OK");
+                return;
+            }
+
+            await Launcher.Default.OpenAsync(url);
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Mitgliedsvertrag", ex.Message, "OK");
+        }
+        finally
+        {
+            if (manageBusyState)
+                _isBusy = false;
         }
     }
 

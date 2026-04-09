@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-04-09 – Mitgliedsvertrag auf bestehenden Formular-/Dokumentpfad gezogen
+
+- Repo-Check vor dem Block auf `feature/formularverwaltung`:
+  - `git status --short --branch`
+- Vorhandenen Formular-Zwischenstand minimal weiterverwendet:
+  - bestehender Vereinsdokument-/Brandingpfad blieb die gemeinsame Grundlage
+  - bestehender Dokument-Upload/-Ablagepfad beim Mitglied blieb unverändert führend
+- Minimal umgesetzt:
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - gemeinsamer Produktivpfad `CreateMitgliedsvertragDokumentAsync(...)` für `Mitgliedsvertrag (unsigniert)` ergänzt
+  - `KGV.Core/Utilities/MitgliedsvertragDokumentFactory.cs`
+    - Mitgliedsvertrag als wiederverwendbare Vereins-PDF auf dem vorhandenen Branding-/Vorlagenpfad ergänzt
+    - gibt mindestens Name, Vorname, Geburtsdatum soweit vorhanden, Adresse, Kontakt, Mitgliedskontext, Eintritts-/Vertragsdatum sowie Unterschriftsbereich aus
+    - Dateiname bleibt auf dem bestehenden Formularschema `<Name_Vorname>-<ID>-<yyyy-MM-dd>-mitgliedsvertrag-unsigniert.pdf`
+  - `KGV.Core/Utilities/VereinsdokumentPdfBuilder.cs`
+  - `KGV.Core/Utilities/MitgliedsantragDokumentFactory.cs`
+    - Builder minimal um ein formulierbares Intro erweitert, damit Mitgliedsantrag und Mitgliedsvertrag denselben Branding-/Dokumentpfad sauber teilen können
+  - `KGV.Wpf/ViewModels/MemberDetailViewModel.cs`
+    - nach erfolgreicher Mitglied-Neuanlage folgt jetzt die Nachfrage `Mitgliedsvertrag erstellen?`
+    - bei Zustimmung wird der unsignierte Vertrag erzeugt, im bestehenden Dokumentpfad gespeichert und wenn möglich direkt geöffnet
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+    - denselben Flow nach Mitglied-Neuanlage minimal mitgezogen
+    - Busy-Guard dabei so korrigiert, dass die Vertragserzeugung im Neuanlagepfad nicht blockiert wird
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+- Hinweis zum Minimaltest:
+  - automatisierte Tests für den UI-Flow `Mitglied neu anlegen -> Nachfrage -> Dokument erzeugen/öffnen` sind im Workspace nicht vorhanden; `get_tests` für `KGV.Wpf` und `KGV.Maui` lieferte keine passenden Tests
+
 ## 2026-04-09 – Pachtvertragsblock mit offizieller PDF-Vorlage produktiv geschlossen
 
 - Repo-Check vor dem Abschlusslauf auf `feature/formularverwaltung`:
