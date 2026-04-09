@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-04-09 – Signatur-/Status-Folgepfad für Vertragsdokumente geschlossen
+
+- Repo-Check vor dem Block auf `feature/formularverwaltung`:
+  - `git status --short --branch`
+- Vorhandenen Formular-/Dokumentpfad minimal weiterverwendet:
+  - unsignierte Fassungen bleiben unverändert im bestehenden Mitglieds-Dokumentpfad erhalten
+  - signierte Fassungen werden als eigenes Enddokument über denselben Dokument-Uploadpfad abgelegt
+- Minimal umgesetzt:
+  - `KGV.Core/Models/DocumentInfo.cs`
+    - Vertragsdokumente und unsignierte Vertragsfassungen werden jetzt als UI-fähige Metadaten (`IsVertragsDokument`, `CanUploadSignedContractVersion`) gekennzeichnet
+  - `KGV.Core/Interfaces/ISupabaseService.cs`
+  - `KGV.Infrastructure/Services/SupabaseService.cs`
+    - gemeinsamer Produktivpfad `UploadSignedVertragsdokumentAsync(...)` ergänzt
+    - akzeptiert nur unsignierte Vertragsquellen (`Mitgliedsvertrag`, `Pachtvertrag`) und nur PDF-Uploads
+    - erzeugt signierte Enddokumente mit dem bestehenden Dateinamenschema `<Name_Vorname>-<ID>-<yyyy-MM-dd>-<Dokumenttyp>-signiert.pdf`
+    - unsignierte Fassung wird dabei nicht überschrieben oder gelöscht
+  - `KGV.Wpf/ViewModels/DokumenteViewModel.cs`
+  - `KGV.Wpf/Views/DokumenteView.xaml`
+    - im Mitglieds-Dokumentkontext minimalen Folgepfad `Signierte Fassung` für vorhandene unsignierte Vertragsdokumente ergänzt
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+    - denselben kleinen Folgepfad im mobilen Dokumentkontext ergänzt
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+- Hinweis:
+  - noch keine digitale Signatur-/Canvas-Logik; der Block schließt nur sauber den Status-/Upload-Folgepfad für signierte Vertragsfassungen
+
 ## 2026-04-09 – Mitgliedsvertrag auf bestehenden Formular-/Dokumentpfad gezogen
 
 - Repo-Check vor dem Block auf `feature/formularverwaltung`:

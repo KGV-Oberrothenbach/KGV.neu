@@ -112,6 +112,7 @@ namespace KGV.Core.Interfaces
         Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert);
         Task<DokumentUploadResult> CreateMitgliedsvertragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert);
         Task<DokumentUploadResult> CreatePachtvertragDokumentAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn, string status = FormularDokumentStatus.Unsigniert);
+        Task<DokumentUploadResult> UploadSignedVertragsdokumentAsync(int mitgliedId, DocumentInfo sourceDocument, byte[] fileContent, string originalFileName, string mimeType = "application/pdf");
         Task<DokumentUploadResult> CreateDokumentAsync(DokumentUploadRequest request);
         Task<DokumentDeleteResult> DeleteDokumentAsync(DocumentInfo? document);
         Task<string?> CreateDokumentSignedUrlAsync(string storagePath, int expiresInSeconds = 3600);

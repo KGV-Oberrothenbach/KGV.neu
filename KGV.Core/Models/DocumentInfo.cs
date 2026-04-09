@@ -38,6 +38,12 @@ namespace KGV.Core.Models
                 ? "-"
                 : FormularDokumentStatus.ToDisplayName(FormularDokumentStatusKey);
 
+        public bool IsVertragsDokument
+            => FormularDokumentTypKey is FormularDokumentTyp.Mitgliedsvertrag or FormularDokumentTyp.Pachtvertrag;
+
+        public bool CanUploadSignedContractVersion
+            => IsVertragsDokument && string.Equals(FormularDokumentStatusKey, FormularDokumentStatus.Unsigniert, StringComparison.Ordinal);
+
         private bool TryResolveFormularMetadaten(out string dokumenttyp, out string status)
         {
             foreach (var candidate in new[] { Dateiname, StoragePath, Name, Title })

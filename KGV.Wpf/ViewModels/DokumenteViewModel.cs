@@ -108,6 +108,7 @@ namespace KGV.ViewModels
         public RelayCommand<object?> RefreshCommand { get; }
         public RelayCommand<DocumentInfo> OpenCommand { get; }
         public RelayCommand<DocumentInfo> DeleteCommand { get; }
+        public RelayCommand<DocumentInfo> UploadSignedVersionCommand { get; }
         public RelayCommand<object?> SelectFileCommand { get; }
         public RelayCommand<object?> UploadCommand { get; }
 
@@ -128,6 +129,11 @@ namespace KGV.ViewModels
                 if (doc == null) return;
                 _ = DeleteAsync(doc);
             }, doc => !IsBusy && CanManageDocuments && doc?.CanDelete == true);
+            UploadSignedVersionCommand = new RelayCommand<DocumentInfo>(doc =>
+            {
+                if (doc == null) return;
+                _ = UploadSignedVersionAsync(doc);
+            }, doc => !IsBusy && CanManageDocuments && IsContextValid && doc?.CanUploadSignedContractVersion == true);
             SelectFileCommand = new RelayCommand<object?>(_ => SelectFile(), _ => CanEditUpload);
             UploadCommand = new RelayCommand<object?>(_ => _ = UploadAsync(), _ => CanUpload);
         }
@@ -171,6 +177,65 @@ namespace KGV.ViewModels
                 }
 
                 return false;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private async Task UploadSignedVersionAsync(DocumentInfo? doc)
+        {
+            if (!CanManageDocuments)
+            {
+                StatusMessage = "Signierte Fassungen sind nur für Admin/Vorstand erlaubt.";
+                MessageBox.Show(StatusMessage, "Hinweis", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (doc == null || Context.Member?.Id is not > 0 || !doc.CanUploadSignedContractVersion)
+            {
+                StatusMessage = "Bitte zuerst eine unsignierte Vertragsfassung auswählen.";
+                return;
+            }
+
+            var dialog = new OpenFileDialog
+            {
+                Filter = "PDF-Dateien|*.pdf",
+                Multiselect = false,
+                CheckFileExists = true,
+                Title = "Signierte Vertragsfassung auswählen"
+            };
+
+            if (dialog.ShowDialog() != true)
+                return;
+
+            IsBusy = true;
+            try
+            {
+                var filePath = dialog.FileName;
+                var fileBytes = await File.ReadAllBytesAsync(filePath);
+                var result = await _supabaseService.UploadSignedVertragsdokumentAsync(
+                    Context.Member.Id,
+                    doc,
+                    fileBytes,
+                    Path.GetFileName(filePath),
+                    GetMimeType(filePath));
+
+                if (!result.Success)
+                {
+                    StatusMessage = result.Message;
+                    return;
+                }
+
+                var reloaded = await LoadAsync(showDialogOnError: false);
+                StatusMessage = reloaded
+                    ? "Signierte Vertragsfassung hochgeladen."
+                    : "Signierte Vertragsfassung hochgeladen. Bitte Liste aktualisieren.";
+            }
+            catch (Exception)
+            {
+                StatusMessage = "Signierte Vertragsfassung konnte nicht hochgeladen werden.";
             }
             finally
             {

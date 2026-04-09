@@ -2397,6 +2397,58 @@ namespace KGV.Infrastructure.Services
             }
         }
 
+        public async Task<DokumentUploadResult> UploadSignedVertragsdokumentAsync(int mitgliedId, DocumentInfo sourceDocument, byte[] fileContent, string originalFileName, string mimeType = "application/pdf")
+        {
+            if (mitgliedId <= 0)
+                return DokumentUploadResult.Fail("Bitte zuerst ein gültiges Mitglied auswählen.", "VALIDATION");
+
+            if (sourceDocument == null)
+                return DokumentUploadResult.Fail("Bitte zuerst ein unsigniertes Vertragsdokument auswählen.", "VALIDATION");
+
+            if ((fileContent?.Length ?? 0) <= 0)
+                return DokumentUploadResult.Fail("Bitte eine signierte PDF-Datei auswählen.", "VALIDATION");
+
+            if (!string.Equals(sourceDocument.FormularDokumentStatusKey, FormularDokumentStatus.Unsigniert, StringComparison.Ordinal))
+                return DokumentUploadResult.Fail("Als Quelle muss eine vorhandene unsignierte Vertragsfassung ausgewählt werden.", "STATUS_INVALID");
+
+            var dokumenttyp = FormularDokumentTyp.Normalize(sourceDocument.FormularDokumentTypKey);
+            if (dokumenttyp is not FormularDokumentTyp.Mitgliedsvertrag and not FormularDokumentTyp.Pachtvertrag)
+                return DokumentUploadResult.Fail("Signierte Fassungen können in diesem Block nur für Mitgliedsvertrag oder Pachtvertrag abgelegt werden.", "TYPE_INVALID");
+
+            var normalizedMimeType = string.IsNullOrWhiteSpace(mimeType) ? "application/pdf" : mimeType.Trim();
+            var originalName = CleanRequiredText(originalFileName);
+            var isPdfUpload = string.Equals(normalizedMimeType, "application/pdf", StringComparison.OrdinalIgnoreCase)
+                || originalName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+            if (!isPdfUpload)
+                return DokumentUploadResult.Fail("Bitte eine signierte PDF-Datei hochladen.", "PDF_REQUIRED");
+
+            try
+            {
+                var member = await GetMitgliedByIdAsync(mitgliedId);
+                if (member == null)
+                    return DokumentUploadResult.Fail("Mitglied konnte nicht geladen werden.", "NOT_FOUND");
+
+                if (!OperationalDataFilter.IsOperationalMember(member))
+                    return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell keine signierte Vertragsfassung abgelegt werden.", "NOT_OPERATIONAL");
+
+                var uploadRequest = new DokumentUploadRequest
+                {
+                    MitgliedId = mitgliedId,
+                    Titel = FormularDokumentDateiname.BuildTitel(dokumenttyp, FormularDokumentStatus.Signiert),
+                    FileName = FormularDokumentDateiname.BuildMitgliedDateiname(member, dokumenttyp, FormularDokumentStatus.Signiert, DateTime.Today),
+                    MimeType = "application/pdf",
+                    FileContent = fileContent
+                };
+
+                return await CreateDokumentAsync(uploadRequest);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "UploadSignedVertragsdokumentAsync failed for MitgliedId={MitgliedId}, SourceDocumentId={DokumentId}", mitgliedId, sourceDocument.Id);
+                return DokumentUploadResult.Fail("Signierte Vertragsfassung konnte aktuell nicht abgelegt werden.", "UNEXPECTED");
+            }
+        }
+
         public async Task<DokumentUploadResult> CreateDokumentAsync(DokumentUploadRequest request)
         {
             if (request == null)

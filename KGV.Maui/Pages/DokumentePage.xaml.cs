@@ -117,6 +117,22 @@ public class DokumentePage : ContentPage, IQueryAttributable
                         await DeleteDocumentAsync(document);
                 };
 
+                var uploadSignedButton = new Button { Text = "Signierte Fassung ablegen", IsVisible = false };
+                uploadSignedButton.BindingContextChanged += (_, _) =>
+                {
+                    uploadSignedButton.IsVisible = CanManageDocuments
+                        && uploadSignedButton.BindingContext is DocumentInfo document
+                        && document.CanUploadSignedContractVersion;
+                };
+                uploadSignedButton.Clicked += async (_, _) =>
+                {
+                    if (_isBusy)
+                        return;
+
+                    if (uploadSignedButton.BindingContext is DocumentInfo document)
+                        await UploadSignedContractVersionAsync(document);
+                };
+
                 return new Border
                 {
                     Padding = 12,
@@ -133,7 +149,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
                             new HorizontalStackLayout
                             {
                                 Spacing = 8,
-                                Children = { actionButton, deleteButton }
+                                Children = { actionButton, deleteButton, uploadSignedButton }
                             }
                         }
                     }
@@ -173,6 +189,81 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
         Appearing += async (_, _) => await LoadAsync();
         UpdateUiState();
+    }
+
+    private async Task UploadSignedContractVersionAsync(DocumentInfo document)
+    {
+        if (_isBusy)
+            return;
+
+        if (!CanManageDocuments)
+        {
+            SetStatus("Signierte Fassungen sind nur für Admin/Vorstand erlaubt.", success: false);
+            UpdateUiState();
+            return;
+        }
+
+        var context = await ResolveContextAsync();
+        ApplyContext(context);
+        if (!context.IsValid || context.Scope != DokumentOwnerScope.Mitglied || context.OwnerId is not > 0)
+        {
+            SetStatus("Bitte zuerst ein gültiges Mitglied auswählen.", success: false);
+            UpdateUiState();
+            return;
+        }
+
+        if (!document.CanUploadSignedContractVersion)
+        {
+            SetStatus("Bitte zuerst eine unsignierte Vertragsfassung auswählen.", success: false);
+            UpdateUiState();
+            return;
+        }
+
+        try
+        {
+            var file = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Signierte Vertragsfassung auswählen"
+            });
+
+            if (file == null)
+                return;
+
+            await using var stream = await file.OpenReadAsync();
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+
+            _isBusy = true;
+            UpdateUiState();
+
+            var result = await _supabaseService.UploadSignedVertragsdokumentAsync(
+                context.OwnerId.Value,
+                document,
+                memoryStream.ToArray(),
+                file.FileName ?? string.Empty,
+                string.IsNullOrWhiteSpace(file.ContentType) ? GetContentType(file.FileName ?? string.Empty) : file.ContentType);
+
+            if (!result.Success)
+            {
+                SetStatus(result.Message, success: false);
+                return;
+            }
+
+            var reloaded = await TryReloadDocumentsAsync(context);
+            SetStatus(reloaded
+                ? "Signierte Vertragsfassung hochgeladen."
+                : "Signierte Vertragsfassung hochgeladen. Bitte Liste aktualisieren.", success: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DokumentePage] UploadSignedContractVersionAsync failed: {ex}");
+            SetStatus("Signierte Vertragsfassung konnte nicht hochgeladen werden.", success: false);
+        }
+        finally
+        {
+            _isBusy = false;
+            UpdateUiState();
+        }
     }
 
     public void ApplyQueryAttributes(IDictionary<string, object> query)

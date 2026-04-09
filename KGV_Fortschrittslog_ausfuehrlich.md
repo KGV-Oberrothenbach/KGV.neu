@@ -35,6 +35,16 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Den nächsten kleinen, buildfähigen Formularblock auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt und den Signatur-/Status-Folgepfad für Vertragsdokumente geschlossen.
+- Der bestehende Dokumenttyp-/Statuspfad bleibt führend: `Mitgliedsvertrag` und `Pachtvertrag` werden weiterhin separat über `unsigniert` und `signiert` unterschieden; die unsignierte Fassung bleibt beim Nachpflegen einer unterschriebenen Fassung unverändert erhalten und wird weder überschrieben noch gelöscht.
+- Dafür wurde im gemeinsamen Servicepfad `UploadSignedVertragsdokumentAsync(...)` ergänzt. Der Pfad akzeptiert nur bestehende unsignierte Vertragskontexte (`Mitgliedsvertrag`, `Pachtvertrag`) und nur PDF-Dateien; die signierte Fassung wird als eigenes Enddokument im bestehenden Mitglieds-Dokumentpfad abgelegt.
+- Das bestehende Dateinamenschema bleibt erhalten und wird für die signierte Fassung sauber fortgeführt: `<Name_Vorname>-<ID>-<yyyy-MM-dd>-<Dokumenttyp>-signiert.pdf`.
+- `DocumentInfo` erkennt jetzt explizit, ob ein Dokument ein Vertragsdokument ist und ob dazu im UI eine signierte Fassung abgelegt werden darf; damit bleiben signierte und unsignierte Fassungen im bestehenden Dokumentkontext getrennt sichtbar und nachvollziehbar.
+- In WPF wurde der Folgepfad minimal in die bestehende Mitglieds-Dokumentliste eingebunden: Für vorhandene unsignierte Vertragsdokumente erscheint dort jetzt `Signierte Fassung`, ohne den übrigen Dokumentpfad oder die Listenstruktur umzubauen.
+- In MAUI wurde derselbe kleine Folgepfad in `DokumentePage` ergänzt; auch mobil kann damit eine unterschriebene Fassung zu einem vorhandenen unsignierten Vertragsdokument abgelegt werden, ohne neue Parallelansicht oder Signatur-Canvas.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+- Noch bewusst offen bleibt die spätere echte digitale Signatur-/Canvas-Logik; der aktuelle Block schafft nur den anschlussfähigen Status- und Upload-Unterbau.
+
 - Den nächsten kleinen Formularblock auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt und den Mitgliedsvertrag auf den bestehenden Formular-/Dokumentpfad gezogen.
 - Dafür wurde ein gemeinsamer Produktivpfad `Mitgliedsvertrag (unsigniert)` ergänzt: `ISupabaseService` und `SupabaseService` besitzen jetzt `CreateMitgliedsvertragDokumentAsync(...)`, das wie die vorhandenen Formularfälle direkt über den bestehenden Dokument-Upload und die Mitgliedsablage läuft.
 - Da für den Mitgliedsvertrag noch keine eigene offizielle PDF-Vorlage im Repo geführt wird, wird der Vertrag zunächst als saubere wiederverwendbare Vereins-PDF über den vorhandenen Branding-/Vorlagenpfad erzeugt; die Kapselung liegt in `MitgliedsvertragDokumentFactory`, sodass später leicht auf eine echte Vorlage gewechselt werden kann.
