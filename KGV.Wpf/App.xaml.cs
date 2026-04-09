@@ -11,10 +11,16 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Net.Http;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 using KGV.Wpf.State;
 
@@ -23,6 +29,12 @@ namespace KGV.Wpf
     public partial class App : Application
     {
         private const string StartupLogCategory = "WpfStartup";
+        private const string VersionMetadataUrl = "https://kgv-oberrothenbach.github.io/KGV-WPF/version.json";
+
+        private static readonly HttpClient UpdateHttpClient = new()
+        {
+            Timeout = TimeSpan.FromSeconds(10)
+        };
 
         protected override async void OnStartup(StartupEventArgs e)
         {
@@ -86,7 +98,13 @@ namespace KGV.Wpf
 
             var supabaseUrl = config["Supabase:Url"];
             var supabasePublishableKey = config["Supabase:PublishableKey"] ?? config["Supabase:Key"];
-            LogSupabaseConfigurationDiagnostics(appSettingsInCurrentDir, appSettingsInOutput, File.Exists(appSettingsInCurrentDir), File.Exists(appSettingsInOutput), supabaseUrl, supabasePublishableKey);
+            LogSupabaseConfigurationDiagnostics(
+                appSettingsInCurrentDir,
+                appSettingsInOutput,
+                File.Exists(appSettingsInCurrentDir),
+                File.Exists(appSettingsInOutput),
+                supabaseUrl,
+                supabasePublishableKey);
 
             // Fail-fast mit brauchbarer Diagnose, bevor wir tief im Startup eine Exception bekommen.
             if (string.IsNullOrWhiteSpace(supabaseUrl) || string.IsNullOrWhiteSpace(supabasePublishableKey))
@@ -98,6 +116,13 @@ namespace KGV.Wpf
                     "Erwartete JSON-Struktur:\n{\n  \"Supabase\": {\n    \"Url\": \"...\",\n    \"PublishableKey\": \"sb_publishable_...\"\n  }\n}";
 
                 MessageBox.Show(msg, "Konfiguration fehlt", MessageBoxButton.OK, MessageBoxImage.Error);
+                Shutdown();
+                return;
+            }
+
+            var continueStartup = await CheckForApplicationUpdateAsync();
+            if (!continueStartup)
+            {
                 Shutdown();
                 return;
             }
@@ -190,6 +215,359 @@ namespace KGV.Wpf
             mainWindow.Show();
         }
 
+        private async Task<bool> CheckForApplicationUpdateAsync()
+        {
+            try
+            {
+                AppLocalFileLog.Info(StartupLogCategory, $"Updateprüfung gestartet. MetadataUrl={VersionMetadataUrl}");
+
+                var currentVersionText = GetCurrentApplicationVersion();
+                if (!TryParseComparableVersion(currentVersionText, out var currentVersion))
+                {
+                    AppLocalFileLog.Warning(StartupLogCategory, $"Updateprüfung übersprungen, lokale Version nicht parsebar: {currentVersionText}");
+                    return true;
+                }
+
+                var remoteInfo = await TryLoadRemoteVersionInfoAsync();
+                if (remoteInfo == null)
+                {
+                    AppLocalFileLog.Info(StartupLogCategory, "Updateprüfung: keine Remote-Metadaten geladen.");
+                    return true;
+                }
+
+                if (!TryParseComparableVersion(remoteInfo.Version, out var remoteVersion))
+                {
+                    AppLocalFileLog.Warning(StartupLogCategory, $"Updateprüfung: Remote-Version nicht parsebar: {remoteInfo.Version}");
+                    return true;
+                }
+
+                AppLocalFileLog.Info(
+                    StartupLogCategory,
+                    $"Updateprüfung: lokal={currentVersionText}, remote={remoteInfo.Version}, mandatory={remoteInfo.Mandatory}");
+
+                if (remoteVersion <= currentVersion)
+                {
+                    AppLocalFileLog.Info(StartupLogCategory, "Updateprüfung: keine neuere Version verfügbar.");
+                    return true;
+                }
+
+                var downloadUrl = FirstNonEmpty(remoteInfo.VersionedSetupUrl, remoteInfo.SetupUrl);
+                if (string.IsNullOrWhiteSpace(downloadUrl))
+                {
+                    AppLocalFileLog.Warning(StartupLogCategory, "Updateprüfung: neuere Version erkannt, aber keine Download-URL vorhanden.");
+                    return true;
+                }
+
+                var wantsUpdateNow = ShowUpdateDialog(remoteInfo, currentVersionText);
+
+                if (wantsUpdateNow)
+                {
+                    Process.Start(new ProcessStartInfo(downloadUrl) { UseShellExecute = true });
+                    AppLocalFileLog.Info(StartupLogCategory, $"Updateprüfung: Download geöffnet. Url={downloadUrl}");
+                    return false;
+                }
+
+                if (remoteInfo.Mandatory)
+                {
+                    AppLocalFileLog.Warning(StartupLogCategory, "Updateprüfung: Pflichtupdate abgebrochen, App wird beendet.");
+                    return false;
+                }
+
+                AppLocalFileLog.Info(StartupLogCategory, "Updateprüfung: optionales Update zurückgestellt.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                AppLocalFileLog.Error(StartupLogCategory, "Updateprüfung fehlgeschlagen, Startup läuft ohne Updateabfrage weiter.", ex);
+                return true;
+            }
+        }
+
+        private static async Task<VersionMetadata?> TryLoadRemoteVersionInfoAsync()
+        {
+            var rawJson = await UpdateHttpClient.GetStringAsync(VersionMetadataUrl);
+            if (string.IsNullOrWhiteSpace(rawJson))
+                return null;
+
+            return JsonSerializer.Deserialize<VersionMetadata>(
+                rawJson,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+        }
+
+        private bool ShowUpdateDialog(VersionMetadata remoteInfo, string currentVersionText)
+        {
+            var decision = false;
+            var isMandatory = remoteInfo.Mandatory;
+            var title = isMandatory ? "Update erforderlich" : "Update verfügbar";
+            var publishedAtText = TryFormatPublishedAt(remoteInfo.PublishedAt);
+            var notes = string.IsNullOrWhiteSpace(remoteInfo.Notes)
+                ? null
+                : remoteInfo.Notes.Trim();
+
+            var heading = new TextBlock
+            {
+                Text = isMandatory
+                    ? $"Version {remoteInfo.Version} muss installiert werden"
+                    : $"Version {remoteInfo.Version} ist verfügbar",
+                FontSize = 22,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.Black,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 12)
+            };
+
+            var description = new TextBlock
+            {
+                Text = isMandatory
+                    ? $"Installiert ist aktuell Version {currentVersionText}. Vor der weiteren Nutzung muss die neue Version installiert werden."
+                    : $"Installiert ist aktuell Version {currentVersionText}. Möchtest du die neue Version jetzt herunterladen?",
+                FontSize = 14,
+                Foreground = Brushes.DimGray,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 18)
+            };
+
+            var versionCard = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(243, 246, 250)),
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(16),
+                Margin = new Thickness(0, 0, 0, 18),
+                Child = new StackPanel
+                {
+                    Children =
+                    {
+                        CreateInfoLine("Installiert", currentVersionText),
+                        CreateInfoLine("Verfügbar", remoteInfo.Version ?? "-"),
+                        CreateInfoLine("Veröffentlicht", publishedAtText),
+                        CreateInfoLine("Pflichtupdate", isMandatory ? "Ja" : "Nein")
+                    }
+                }
+            };
+
+            UIElement? notesElement = null;
+            if (!string.IsNullOrWhiteSpace(notes))
+            {
+                notesElement = new Border
+                {
+                    Background = Brushes.White,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(220, 225, 232)),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(12),
+                    Padding = new Thickness(16),
+                    Margin = new Thickness(0, 0, 0, 18),
+                    Child = new StackPanel
+                    {
+                        Children =
+                        {
+                            new TextBlock
+                            {
+                                Text = "Hinweise",
+                                FontSize = 16,
+                                FontWeight = FontWeights.SemiBold,
+                                Margin = new Thickness(0, 0, 0, 8)
+                            },
+                            new TextBlock
+                            {
+                                Text = notes,
+                                TextWrapping = TextWrapping.Wrap,
+                                Foreground = Brushes.Black
+                            }
+                        }
+                    }
+                };
+            }
+
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            var updateButton = new Button
+            {
+                Content = "Jetzt aktualisieren",
+                MinWidth = 150,
+                Height = 36,
+                Margin = new Thickness(0, 0, 12, 0),
+                Padding = new Thickness(16, 0, 16, 0)
+            };
+
+            var laterOrExitButton = new Button
+            {
+                Content = isMandatory ? "Beenden" : "Später",
+                MinWidth = 110,
+                Height = 36,
+                Padding = new Thickness(16, 0, 16, 0)
+            };
+
+            var contentStack = new StackPanel();
+            contentStack.Children.Add(heading);
+            contentStack.Children.Add(description);
+            contentStack.Children.Add(versionCard);
+            if (notesElement != null)
+                contentStack.Children.Add(notesElement);
+            contentStack.Children.Add(buttonPanel);
+
+            var dialog = new Window
+            {
+                Title = title,
+                Width = 560,
+                SizeToContent = SizeToContent.Height,
+                ResizeMode = ResizeMode.NoResize,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = Brushes.White,
+                Content = new Border
+                {
+                    Padding = new Thickness(24),
+                    Child = contentStack
+                }
+            };
+
+            if (Current?.MainWindow != null && Current.MainWindow.IsVisible)
+            {
+                dialog.Owner = Current.MainWindow;
+                dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            }
+
+            updateButton.Click += (_, _) =>
+            {
+                decision = true;
+                dialog.DialogResult = true;
+                dialog.Close();
+            };
+
+            laterOrExitButton.Click += (_, _) =>
+            {
+                decision = false;
+                dialog.DialogResult = false;
+                dialog.Close();
+            };
+
+            buttonPanel.Children.Add(updateButton);
+            buttonPanel.Children.Add(laterOrExitButton);
+
+            dialog.ShowDialog();
+            return decision;
+        }
+
+        private static FrameworkElement CreateInfoLine(string label, string value)
+        {
+            var grid = new Grid { Margin = new Thickness(0, 4, 0, 4) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var labelBlock = new TextBlock
+            {
+                Text = label,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.DimGray
+            };
+
+            var valueBlock = new TextBlock
+            {
+                Text = string.IsNullOrWhiteSpace(value) ? "-" : value,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = Brushes.Black
+            };
+
+            Grid.SetColumn(labelBlock, 0);
+            Grid.SetColumn(valueBlock, 1);
+
+            grid.Children.Add(labelBlock);
+            grid.Children.Add(valueBlock);
+            return grid;
+        }
+
+        private static string GetCurrentApplicationVersion()
+        {
+            var informationalVersion = Assembly.GetEntryAssembly()?
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                .InformationalVersion;
+
+            if (!string.IsNullOrWhiteSpace(informationalVersion))
+            {
+                var cleaned = informationalVersion.Split('+', StringSplitOptions.RemoveEmptyEntries)[0].Trim();
+                if (!string.IsNullOrWhiteSpace(cleaned))
+                    return cleaned;
+            }
+
+            var assemblyVersion = Assembly.GetEntryAssembly()?.GetName().Version;
+            if (assemblyVersion != null)
+            {
+                if (assemblyVersion.Build >= 0)
+                    return $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}";
+
+                return $"{assemblyVersion.Major}.{assemblyVersion.Minor}";
+            }
+
+            return "0.0.0";
+        }
+
+        private static bool TryParseComparableVersion(string? value, out Version version)
+        {
+            version = new Version(0, 0, 0, 0);
+
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+
+            var cleaned = value.Trim();
+
+            var plusIndex = cleaned.IndexOf('+');
+            if (plusIndex >= 0)
+                cleaned = cleaned[..plusIndex];
+
+            var dashIndex = cleaned.IndexOf('-');
+            if (dashIndex >= 0)
+                cleaned = cleaned[..dashIndex];
+
+            var parts = cleaned
+                .Split('.', StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .ToList();
+
+            if (parts.Count < 2 || parts.Count > 4)
+                return false;
+
+            if (parts.Any(x => !int.TryParse(x, out _)))
+                return false;
+
+            while (parts.Count < 4)
+                parts.Add("0");
+
+            version = new Version(
+                int.Parse(parts[0]),
+                int.Parse(parts[1]),
+                int.Parse(parts[2]),
+                int.Parse(parts[3]));
+
+            return true;
+        }
+
+        private static string TryFormatPublishedAt(string? publishedAt)
+        {
+            if (string.IsNullOrWhiteSpace(publishedAt))
+                return "-";
+
+            return DateTimeOffset.TryParse(publishedAt, out var parsed)
+                ? parsed.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                : publishedAt.Trim();
+        }
+
+        private static string? FirstNonEmpty(params string?[] values)
+        {
+            foreach (var value in values)
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                    return value.Trim();
+            }
+
+            return null;
+        }
+
         private static void LogSupabaseConfigurationDiagnostics(string appSettingsInCurrentDir, string appSettingsInOutput, bool currentExists, bool outputExists, string? supabaseUrl, string? supabasePublishableKey)
         {
             var host = Uri.TryCreate(supabaseUrl, UriKind.Absolute, out var uri)
@@ -221,6 +599,27 @@ namespace KGV.Wpf
         private static void App_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
             AppLocalFileLog.Error(StartupLogCategory, "DispatcherUnhandledException", e.Exception);
+        }
+
+        private sealed class VersionMetadata
+        {
+            [JsonPropertyName("version")]
+            public string? Version { get; set; }
+
+            [JsonPropertyName("setupUrl")]
+            public string? SetupUrl { get; set; }
+
+            [JsonPropertyName("versionedSetupUrl")]
+            public string? VersionedSetupUrl { get; set; }
+
+            [JsonPropertyName("publishedAt")]
+            public string? PublishedAt { get; set; }
+
+            [JsonPropertyName("mandatory")]
+            public bool Mandatory { get; set; }
+
+            [JsonPropertyName("notes")]
+            public string? Notes { get; set; }
         }
     }
 }
