@@ -51,7 +51,6 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly Button _nutzerHinzufuegenButton;
     private readonly Button _benutzerverwaltungButton;
     private readonly Button _mitgliedsantragButton;
-    private readonly Button _mitgliedsvertragButton;
     private readonly Button _cancelMembershipButton;
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
@@ -119,13 +118,6 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 await CreateMitgliedsantragAsync(_memberRecord.Id);
         };
 
-        _mitgliedsvertragButton = new Button { Text = "Mitgliedsvertrag als PDF", IsVisible = false };
-        _mitgliedsvertragButton.Clicked += async (_, _) =>
-        {
-            if (_memberRecord?.Id is > 0)
-                await CreateMitgliedsvertragAsync(_memberRecord.Id);
-        };
-
         _cancelMembershipButton = new Button { Text = "Mitgliedschaft beenden", IsVisible = false, BackgroundColor = Colors.IndianRed, TextColor = Colors.White };
         _cancelMembershipButton.Clicked += async (_, _) => await CancelMembershipAsync();
 
@@ -178,7 +170,6 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                         _nutzerHinzufuegenButton,
                         _benutzerverwaltungButton),
                     _mitgliedsantragButton,
-                    _mitgliedsvertragButton,
                     _cancelMembershipButton,
                     new HorizontalStackLayout
                     {
@@ -371,8 +362,6 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
         _mitgliedsantragButton.IsVisible = canCreateMemberApplication;
         _mitgliedsantragButton.IsEnabled = canCreateMemberApplication;
-        _mitgliedsvertragButton.IsVisible = canCreateMemberApplication;
-        _mitgliedsvertragButton.IsEnabled = canCreateMemberApplication;
     }
 
     private void UpdateCancelMembershipButton(MemberDTO? member)
@@ -704,50 +693,6 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 await _supabaseService.ReleaseLockMitgliedAsync(_memberRecord.Id, userId, force: false);
 
             _isBusy = false;
-        }
-    }
-
-    private async Task CreateMitgliedsvertragAsync(int mitgliedId, bool manageBusyState = true)
-    {
-        if ((manageBusyState && _isBusy) || mitgliedId <= 0)
-            return;
-
-        if (manageBusyState)
-            _isBusy = true;
-
-        try
-        {
-            var result = await _supabaseService.CreateMitgliedsvertragDokumentAsync(mitgliedId, FormularDokumentStatus.Unsigniert);
-            if (!result.Success)
-            {
-                await DisplayAlert("Mitgliedsvertrag", result.Message, "OK");
-                return;
-            }
-
-            var document = result.Document;
-            if (document?.CanOpen != true)
-            {
-                await DisplayAlert("Mitgliedsvertrag", "Mitgliedsvertrag wurde als Dokument abgelegt.", "OK");
-                return;
-            }
-
-            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
-            if (string.IsNullOrWhiteSpace(url))
-            {
-                await DisplayAlert("Mitgliedsvertrag", "Mitgliedsvertrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "OK");
-                return;
-            }
-
-            await Launcher.Default.OpenAsync(url);
-        }
-        catch (Exception ex)
-        {
-            await DisplayAlert("Mitgliedsvertrag", ex.Message, "OK");
-        }
-        finally
-        {
-            if (manageBusyState)
-                _isBusy = false;
         }
     }
 

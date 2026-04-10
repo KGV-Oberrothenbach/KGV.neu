@@ -35,6 +35,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Den kleinen MAUI-Bereinigungsblock für alte `Mitgliedsvertrag`-Reste auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- Im mobilen Mitgliedsdetail wird kein eigenständiger sichtbarer Pfad `Mitgliedsvertrag als PDF` mehr angeboten; fachlich sichtbar bleibt dort nur noch `Mitgliedsantrag als PDF`.
+- Der bereits angepasste mobile Neuanlage-Flow bleibt damit konsistent: Nach erfolgreicher Anlage wird weiter nur `Mitgliedsantrag erstellen?` angeboten; ein separater sichtbarer MAUI-Flow für `Mitgliedsvertrag` entfällt.
+- Im mobilen Dokumentpfad wurden die sichtbaren Vertrags-Folgeaktionen zusätzlich auf fachlich gültige `Pachtvertrag`-Dokumente begrenzt, sodass alte `Mitgliedsvertrag`-Dokumente in MAUI keine gesonderten Vertrags-Folgeaktionen mehr anbieten.
+- Bestehende gemeinsame Service- und Dokumentpfade bleiben unverändert nutzbar; es wurde keine neue Vertragslogik und kein neuer Signaturblock ergänzt.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den kleinen MAUI-Formularblock für `Mitgliedsantrag` und `Pachtvertrag` auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
 - Im mobilen Neuanlage-Flow des Mitglieds wird nach erfolgreicher Anlage jetzt `Mitgliedsantrag erstellen?` gefragt; bei Zustimmung nutzt der Pfad direkt den bestehenden Produktivpfad `CreateMitgliedsantragDokumentAsync(...)` und legt das Dokument im vorhandenen Mitglieds-Dokumentpfad ab.
 - Wird der Antrag im Neuanlage-Moment noch nicht erzeugt, bleibt der bestehende mobile Folgepfad erhalten: Im Mitgliedskontext kann `Mitgliedsantrag als PDF` weiterhin nachträglich manuell erzeugt werden.

@@ -11307,3 +11307,13 @@
 - Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
 
 
+## 2026-04-10 - MAUI Mitgliedsvertrag-Altlasten bereinigt
+
+- Echten Repo-Stand geprüft und den Bereinigungsblock nur auf die sichtbaren MAUI-Reste um `Mitgliedsvertrag` begrenzt; blockfremde lokale Dateien sowie WPF-Dateien bewusst nicht angerührt.
+- Im mobilen Mitgliedsdetail wurde der sichtbare Button-/Erzeugungspfad `Mitgliedsvertrag als PDF` entfernt; fachlich bleibt dort jetzt nur noch der gültige Folgepfad `Mitgliedsantrag als PDF` sichtbar.
+- Die bestehende MAUI-Neuanlage bleibt damit fachlich konsistent: Nach Neuanlage wird weiter nur `Mitgliedsantrag erstellen?` angeboten; ein separater sichtbarer MAUI-Flow für `Mitgliedsvertrag` wird nicht mehr angeboten.
+- Im mobilen Dokumentpfad wurden die sichtbaren Vertrags-Folgeaktionen zusätzlich auf fachlich gültige `Pachtvertrag`-Dokumente begrenzt; für alte `Mitgliedsvertrag`-Dokumente werden in MAUI keine gesonderten Folgeaktionen mehr angeboten.
+- Die bestehenden gemeinsamen Service- und Dokumentpfade bleiben erhalten; es wurde keine neue Vertragslogik und keine Schattenlogik ergänzt.
+- Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
+
+

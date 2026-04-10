@@ -122,7 +122,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
                 uploadSignedButton.BindingContextChanged += (_, _) =>
                 {
                     var document = uploadSignedButton.BindingContext as DocumentInfo;
-                    uploadSignedButton.IsVisible = CanManageDocuments && document?.CanUploadSignedContractVersion == true;
+                    uploadSignedButton.IsVisible = CanShowMauiPachtvertragFollowActions(document);
                 };
                 uploadSignedButton.Clicked += async (_, _) =>
                 {
@@ -137,7 +137,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
                 digitalSignButton.BindingContextChanged += (_, _) =>
                 {
                     var document = digitalSignButton.BindingContext as DocumentInfo;
-                    digitalSignButton.IsVisible = CanManageDocuments && document?.CanDigitallySignContractVersion == true;
+                    digitalSignButton.IsVisible = CanShowMauiPachtvertragFollowActions(document);
                 };
                 digitalSignButton.Clicked += async (_, _) =>
                 {
@@ -285,6 +285,13 @@ public class DokumentePage : ContentPage, IQueryAttributable
         if (!document.CanUploadSignedContractVersion)
         {
             SetStatus("Bitte zuerst eine unsignierte Vertragsfassung auswählen.", success: false);
+            UpdateUiState();
+            return;
+        }
+
+        if (!IsMauiSupportedContractDocument(document))
+        {
+            SetStatus("Im mobilen Dokumentpfad werden Folgeaktionen nur noch für Pachtverträge angeboten.", success: false);
             UpdateUiState();
             return;
         }
@@ -737,7 +744,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
         return CanManageDocuments
             ? context.Scope == DokumentOwnerScope.Mitglied
-                ? $"Es werden nur die Dokumente für {subject} angezeigt. Für unsignierte Vertragsdokumente stehen Öffnen, signierten Scan ablegen und digital signieren zur Verfügung. Die unsignierte Fassung bleibt erhalten."
+                ? $"Es werden nur die Dokumente für {subject} angezeigt. Für unsignierte Pachtverträge stehen Öffnen, signierten Scan ablegen und digital signieren zur Verfügung. Die unsignierte Fassung bleibt erhalten."
                 : $"Es werden nur die Dokumente für {subject} angezeigt. Upload, Öffnen und Löschen laufen über den gemeinsamen Google-Drive-Dokumentpfad."
             : $"Es werden nur die Dokumente für {subject} angezeigt. Öffnen und Aktualisieren bleiben verfügbar.";
     }
@@ -750,10 +757,18 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
         return CanManageDocuments
             ? scope == DokumentOwnerScope.Mitglied
-                ? $"Es werden nur die Dokumente für {subject} angezeigt. Für unsignierte Vertragsdokumente stehen Öffnen, signierten Scan ablegen und digital signieren zur Verfügung. Die unsignierte Fassung bleibt erhalten."
+                ? $"Es werden nur die Dokumente für {subject} angezeigt. Für unsignierte Pachtverträge stehen Öffnen, signierten Scan ablegen und digital signieren zur Verfügung. Die unsignierte Fassung bleibt erhalten."
                 : $"Es werden nur die Dokumente für {subject} angezeigt. Upload, Öffnen und Löschen laufen über den gemeinsamen Google-Drive-Dokumentpfad."
             : $"Es werden nur die Dokumente für {subject} angezeigt. Öffnen und Aktualisieren bleiben verfügbar.";
     }
+
+    private bool CanShowMauiPachtvertragFollowActions(DocumentInfo? document)
+        => CanManageDocuments
+            && document?.CanUploadSignedContractVersion == true
+            && IsMauiSupportedContractDocument(document);
+
+    private static bool IsMauiSupportedContractDocument(DocumentInfo? document)
+        => string.Equals(document?.FormularDokumentTypKey, FormularDokumentTyp.Pachtvertrag, StringComparison.Ordinal);
 
     private bool CanReadRequestedContext()
     {
