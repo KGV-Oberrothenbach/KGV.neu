@@ -35,6 +35,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Den noch offenen Abschluss zum Datumsfix auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- Nach dem bereits ergänzten gemeinsamen `date`-Pfad wurde jetzt auch der fehlende gemeinsame `Newtonsoft.Json`-Pfad für PostgreSQL-`timestamp without time zone` ergänzt, weil der reale Save-/PostgREST-/Supabase-Pfad hier über `Newtonsoft.Json` serialisiert.
+- Damit sind jetzt nicht nur `datum`, sondern auch die Datums-/Zeitfelder `sichtbar_ab`, `sichtbar_bis` und `anmeldung_bis` im gemeinsamen Produktivpfad gegen ungewollte UTC-/Offset-Verschiebungen abgesichert.
+- Die betroffenen Modellfelder in `Arbeitseinsatz` und `Termin` tragen dafür jetzt zusätzlich passende `Newtonsoft.Json.JsonConverter(...)`-Attribute; denselben gemeinsamen Timestamp-Pfad wurde minimal auch für `Bekanntmachung` mitgezogen.
+- Ergebnis: Der reale Save-Pfad ist jetzt für beide relevanten PostgreSQL-Typen gemeinsam abgesichert: `date` und `timestamp without time zone`, jeweils für `System.Text.Json` und `Newtonsoft.Json`.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den kleinen WPF-Startup-Block zur Updateprüfung auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
 - Die bestehende Updateprüfung lief bisher noch vor dem Login im frühen App-Startup; dieser Pfad wurde jetzt hinter den erfolgreichen Login und hinter das Anzeigen des `MainWindow` verschoben.
 - Dadurch bleibt der eigentliche Login-/Frühstartpfad schlanker, und die Updateabfrage kann den Start vor der Anmeldung nicht mehr vorzeitig beeinflussen.

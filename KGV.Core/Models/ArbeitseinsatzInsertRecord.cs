@@ -36,14 +36,17 @@ public sealed class ArbeitseinsatzInsertRecord : BaseModel
     public decimal StundenWert { get; set; }
 
     [Column("sichtbar_ab")]
+    [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftNullablePostgresTimestampWithoutTimeZoneJsonConverter))]
     [JsonConverter(typeof(NullablePostgresTimestampWithoutTimeZoneJsonConverter))]
     public DateTime? SichtbarAb { get; set; }
 
     [Column("sichtbar_bis")]
+    [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftNullablePostgresTimestampWithoutTimeZoneJsonConverter))]
     [JsonConverter(typeof(NullablePostgresTimestampWithoutTimeZoneJsonConverter))]
     public DateTime? SichtbarBis { get; set; }
 
     [Column("anmeldung_bis")]
+    [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftNullablePostgresTimestampWithoutTimeZoneJsonConverter))]
     [JsonConverter(typeof(NullablePostgresTimestampWithoutTimeZoneJsonConverter))]
     public DateTime? AnmeldungBis { get; set; }
 

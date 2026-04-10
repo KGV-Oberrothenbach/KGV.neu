@@ -11285,3 +11285,13 @@
 - Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
 
 
+## 2026-04-10 - Abschluss fehlender Newtonsoft-Timestamp-Pfad
+
+- Echten Repo-Stand geprüft und den begonnenen Datumsfix nur auf den noch offenen gemeinsamen `timestamp without time zone`-Pfad begrenzt; blockfremde lokale Dateien bewusst nicht angerührt.
+- `PostgresTemporalJsonConverters.cs` enthält jetzt zusätzlich `NewtonsoftPostgresTimestampWithoutTimeZoneJsonConverter` und `NewtonsoftNullablePostgresTimestampWithoutTimeZoneJsonConverter`, passend zum real genutzten PostgREST-/Supabase-Serialisierungspfad über `Newtonsoft.Json`.
+- Der gemeinsame Timestamp-Pfad speichert Datum und Uhrzeit jetzt ohne ungewollte UTC-/Offset-Interpretation als PostgreSQL-`timestamp without time zone`; es wurde keine weitere Fachlogik und kein UI-Workaround ergänzt.
+- Die betroffenen Modellfelder für `sichtbar_ab`, `sichtbar_bis` und `anmeldung_bis` sind jetzt zusätzlich mit den passenden `Newtonsoft.Json.JsonConverter(...)`-Attributen abgesichert; neben `Arbeitseinsatz` und `Termin` wurde derselbe gemeinsame Pfad minimal auch für `Bekanntmachung` mitgezogen.
+- Gegenprüfung: Der reale Save-Pfad ist damit jetzt sowohl für `date` als auch für `timestamp without time zone` in beiden JSON-Stacks abgesichert (`System.Text.Json` und `Newtonsoft.Json`).
+- Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
+
+

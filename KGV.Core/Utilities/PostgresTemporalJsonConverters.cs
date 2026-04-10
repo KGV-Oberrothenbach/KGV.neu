@@ -197,4 +197,72 @@ namespace KGV.Core.Utilities
             _inner.Write(writer, value.Value, options);
         }
     }
+
+    public sealed class NewtonsoftPostgresTimestampWithoutTimeZoneJsonConverter : NSJ.JsonConverter<DateTime>
+    {
+        private static readonly string[] ReadFormats =
+        {
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm:ss.FFFFFFF",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss.FFFFFFF",
+            "O"
+        };
+
+        public override DateTime ReadJson(NSJ.JsonReader reader, Type objectType, DateTime existingValue, bool hasExistingValue, NSJ.JsonSerializer serializer)
+        {
+            if (reader.TokenType == NSJ.JsonToken.Null)
+                return DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Unspecified);
+
+            var raw = reader.Value?.ToString();
+            if (string.IsNullOrWhiteSpace(raw))
+                return DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Unspecified);
+
+            if (DateTime.TryParseExact(raw, ReadFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+                return CreateTimestamp(parsed);
+
+            if (DateTimeOffset.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var offsetValue))
+                return CreateTimestamp(offsetValue.Year, offsetValue.Month, offsetValue.Day, offsetValue.Hour, offsetValue.Minute, offsetValue.Second, offsetValue.Millisecond);
+
+            if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out parsed))
+                return CreateTimestamp(parsed);
+
+            throw new NSJ.JsonSerializationException("Ungültiger timestamp-Wert.");
+        }
+
+        public override void WriteJson(NSJ.JsonWriter writer, DateTime value, NSJ.JsonSerializer serializer)
+        {
+            writer.WriteValue(CreateTimestamp(value).ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff", CultureInfo.InvariantCulture));
+        }
+
+        private static DateTime CreateTimestamp(DateTime value)
+            => CreateTimestamp(value.Year, value.Month, value.Day, value.Hour, value.Minute, value.Second, value.Millisecond);
+
+        private static DateTime CreateTimestamp(int year, int month, int day, int hour, int minute, int second, int millisecond)
+            => new(year, month, day, hour, minute, second, millisecond, DateTimeKind.Unspecified);
+    }
+
+    public sealed class NewtonsoftNullablePostgresTimestampWithoutTimeZoneJsonConverter : NSJ.JsonConverter<DateTime?>
+    {
+        private readonly NewtonsoftPostgresTimestampWithoutTimeZoneJsonConverter _inner = new();
+
+        public override DateTime? ReadJson(NSJ.JsonReader reader, Type objectType, DateTime? existingValue, bool hasExistingValue, NSJ.JsonSerializer serializer)
+        {
+            if (reader.TokenType == NSJ.JsonToken.Null)
+                return null;
+
+            return _inner.ReadJson(reader, typeof(DateTime), existingValue ?? default, hasExistingValue, serializer);
+        }
+
+        public override void WriteJson(NSJ.JsonWriter writer, DateTime? value, NSJ.JsonSerializer serializer)
+        {
+            if (!value.HasValue)
+            {
+                writer.WriteNull();
+                return;
+            }
+
+            _inner.WriteJson(writer, value.Value, serializer);
+        }
+    }
 }
