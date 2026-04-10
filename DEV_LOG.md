@@ -11317,3 +11317,12 @@
 - Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
 
 
+## 2026-04-10 - MAUI Mitgliedsantrag UX-Fix im Stammdatenkontext
+
+- Echten Repo-Stand geprüft und den UX-Fix nur auf `KGV.Maui\Pages\MemberDetailPage.cs` begrenzt; blockfremde lokale Dateien sowie WPF-Dateien bewusst nicht angerührt.
+- Nach erfolgreicher Mitglieds-Neuanlage wird mobil nicht mehr blind auf `MeineDatenPage` gesprungen. Stattdessen übernimmt die Seite den neu angelegten Datensatz direkt in den normalen Stammdatenkontext.
+- Dadurch endet der Flow nicht mehr in einem unklaren Create-Zustand: `_isCreateMode` wird sauber verlassen, der Datensatz bleibt sichtbar auf derselben Seite und die regulären Formularaktionen werden direkt wieder verfügbar.
+- Der bestehende Folgepfad `Mitgliedsantrag erstellen?` bleibt unverändert erhalten; zusätzlich ist `Mitgliedsantrag als PDF` danach in den Stammdaten des gerade angelegten Mitglieds mit Dokumentrechten direkt weiter sichtbar und nutzbar.
+- Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
+
+

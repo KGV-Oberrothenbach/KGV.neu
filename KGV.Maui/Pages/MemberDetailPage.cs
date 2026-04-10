@@ -584,7 +584,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 }
 
                 _memberSearchRefreshState.RequestReload();
-                _memberContextState.SetSelectedMember(MapMember(created));
+                ApplyCreatedMemberContext(created);
 
                 var createMitgliedsantrag = await DisplayAlert(
                     "Mitgliedsantrag",
@@ -607,8 +607,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     return;
                 }
 
-                await DisplayAlert("OK", "Mitglied angelegt.", "OK");
-                await Shell.Current.GoToAsync(nameof(MeineDatenPage));
+                _statusLabel.Text = "Mitglied angelegt. Stammdaten bleiben geöffnet; der Mitgliedsantrag kann hier weiter erzeugt werden.";
             }
             catch (Exception ex)
             {
@@ -700,6 +699,43 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     {
         var users = await _authService.GetAppUsersAsync();
         return users.Any(x => x.MitgliedId == mitgliedId && x.AuthUserId.HasValue);
+    }
+
+    private void ApplyCreatedMemberContext(MitgliedRecord created)
+    {
+        _isCreateMode = false;
+        _memberRecord = created;
+        _hasLinkedAppUser = created.AuthUserId.HasValue;
+
+        var memberDto = MapMember(created);
+        _memberContextState.SetSelectedMember(memberDto);
+
+        _headlineLabel.Text = string.IsNullOrWhiteSpace(memberDto.DisplayName)
+            ? $"Mitglied #{memberDto.Id}"
+            : memberDto.DisplayName;
+
+        _nachnameEntry.Text = memberDto.Nachname;
+        _vornameEntry.Text = memberDto.Vorname;
+        _emailEntry.Text = memberDto.Email;
+        _rolleLabel.Text = FormatValue(memberDto.Role);
+        _arbeitsstundenAltersregelTypPicker.SelectedItem = MemberDTO.HauptmitgliedArbeitsstundenAltersregelTypOptions.Contains(memberDto.ArbeitsstundenAltersregelTyp, StringComparer.Ordinal)
+            ? memberDto.ArbeitsstundenAltersregelTyp
+            : null;
+        _telefonEntry.Text = memberDto.Telefon;
+        _mobilEntry.Text = memberDto.Mobilnummer;
+        _whatsappSwitch.IsToggled = memberDto.WhatsappEinwilligung;
+        _strasseEntry.Text = memberDto.Strasse;
+        _plzEntry.Text = memberDto.PLZ;
+        _ortEntry.Text = memberDto.Ort;
+        _bemerkungenEditor.Text = memberDto.Bemerkungen;
+
+        SetOptionalDate(_geburtsdatumEnabledSwitch, _geburtsdatumPicker, memberDto.Geburtsdatum);
+        SetOptionalDate(_mitgliedSeitEnabledSwitch, _mitgliedSeitPicker, memberDto.MitgliedSeit);
+        SetOptionalDate(_mitgliedEndeEnabledSwitch, _mitgliedEndePicker, memberDto.MitgliedEnde);
+
+        _saveButton.Text = "Speichern";
+        UpdateArbeitsstundenAltersregelVisibility(memberDto);
+        UpdateAdminActions(memberDto);
     }
 
     private static AppUserDTO CreateInviteUser(MitgliedRecord member)

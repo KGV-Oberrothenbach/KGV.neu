@@ -35,6 +35,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Den kleinen MAUI-UX-Fix für den Mitgliedsantrag im Stammdatenkontext auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- Nach erfolgreicher Mitglieds-Neuanlage springt der mobile Pfad nicht mehr blind auf `MeineDatenPage`, sondern übernimmt den neu angelegten Datensatz direkt in den normalen Stammdatenkontext derselben Seite.
+- Dadurch bleibt der Create-Modus nicht mehr hängen: Die Seite läuft danach als normale Stammdatenansicht weiter, und der bestehende Button `Mitgliedsantrag als PDF` ist für das gerade angelegte Mitglied mit Dokumentrechten direkt sichtbar und nutzbar.
+- Der vorhandene Dialog `Mitgliedsantrag erstellen?` im Neuanlage-Flow bleibt bestehen; zusätzlich kann derselbe Mitgliedsantrag danach weiterhin klar aus den Stammdaten des gerade angelegten Mitglieds erzeugt werden.
+- Ergebnis: Der mobile Mitgliedsantrag ist jetzt sowohl direkt im Neuanlage-Flow als auch anschließend alltagstauglich im normalen Stammdatenkontext erreichbar, ohne verwirrenden Seitensprung.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den kleinen MAUI-Bereinigungsblock für alte `Mitgliedsvertrag`-Reste auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
 - Im mobilen Mitgliedsdetail wird kein eigenständiger sichtbarer Pfad `Mitgliedsvertrag als PDF` mehr angeboten; fachlich sichtbar bleibt dort nur noch `Mitgliedsantrag als PDF`.
 - Der bereits angepasste mobile Neuanlage-Flow bleibt damit konsistent: Nach erfolgreicher Anlage wird weiter nur `Mitgliedsantrag erstellen?` angeboten; ein separater sichtbarer MAUI-Flow für `Mitgliedsvertrag` entfällt.
