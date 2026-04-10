@@ -11295,3 +11295,15 @@
 - Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
 
 
+## 2026-04-10 - MAUI Mitgliedsantrag/Pachtvertrag Flow vervollständigt
+
+- Echten Repo-Stand geprüft und nur die relevanten MAUI-Seitenpfade für Mitgliedsdetail und mitgliedsbezogene Gärten ergänzt; blockfremde lokale Dateien und WPF-Dateien bewusst nicht angerührt.
+- Im mobilen Neuanlage-Flow des Mitglieds wird nach erfolgreichem Anlegen jetzt `Mitgliedsantrag erstellen?` gefragt; bei Zustimmung wird direkt der bestehende gemeinsame Produktivpfad `CreateMitgliedsantragDokumentAsync(...)` genutzt, inklusive Dokumentablage und direktem Öffnen, wenn bereits möglich.
+- Bei Ablehnung geht nichts verloren: Der Mitgliedsantrag bleibt weiterhin später manuell über den bestehenden Button `Mitgliedsantrag als PDF` im Mitgliedskontext erzeugbar.
+- Für den mitgliedsbezogenen Gartenpfad wurde eine kleine mobile Zuweisungsseite `MemberGardenAssignPage` ergänzt. Sie verwendet den bestehenden Servicepfad `AssignParzelleToMitgliedAsync(...)`, erlaubt die Auswahl einer freien Parzelle sowie des Startdatums und hält die Eingabe bewusst klein ohne großen UI-Umbau.
+- Nach erfolgreicher Parzellenzuweisung wird mobil jetzt direkt `Pachtvertrag erstellen?` gefragt; bei Zustimmung läuft derselbe bestehende Produktivpfad `CreatePachtvertragDokumentAsync(...)`, inklusive Dokumentablage und direktem Öffnen, wenn verfügbar.
+- Die nachträgliche Erzeugung bleibt erhalten: `Mitgliedsantrag als PDF` bleibt im Mitgliedsdetail bestehen, und der Pachtvertrag bleibt weiter im mitgliedsbezogenen Parzellen-Detailpfad erzeugbar, sofern eine passende Parzellenzuweisung mit Startdatum vorhanden ist.
+- Der bestehende mobile Dokumentpfad wurde nicht umgebaut; Folgeaktionen wie Öffnen, signierten Scan ablegen oder digital signieren bleiben unverändert auf dem vorhandenen Dokumentunterbau.
+- Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
+
+

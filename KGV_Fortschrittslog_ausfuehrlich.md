@@ -35,6 +35,15 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Den kleinen MAUI-Formularblock für `Mitgliedsantrag` und `Pachtvertrag` auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- Im mobilen Neuanlage-Flow des Mitglieds wird nach erfolgreicher Anlage jetzt `Mitgliedsantrag erstellen?` gefragt; bei Zustimmung nutzt der Pfad direkt den bestehenden Produktivpfad `CreateMitgliedsantragDokumentAsync(...)` und legt das Dokument im vorhandenen Mitglieds-Dokumentpfad ab.
+- Wird der Antrag im Neuanlage-Moment noch nicht erzeugt, bleibt der bestehende mobile Folgepfad erhalten: Im Mitgliedskontext kann `Mitgliedsantrag als PDF` weiterhin nachträglich manuell erzeugt werden.
+- Für den mitgliedsbezogenen Gartenpfad wurde eine kleine mobile Parzellenzuweisung ergänzt. Sie nutzt den bestehenden gemeinsamen Servicepfad `AssignParzelleToMitgliedAsync(...)`, erlaubt die Auswahl einer freien Parzelle sowie des Zuweisungsdatums und baut keine neue Parallelarchitektur.
+- Nach erfolgreicher Parzellenzuweisung wird mobil jetzt direkt `Pachtvertrag erstellen?` angeboten; bei Zustimmung nutzt der bestehende gemeinsame Dokumentpfad `CreatePachtvertragDokumentAsync(...)` direkt die neue Zuordnung und speichert den Vertrag im vorhandenen Mitglieds-Dokumentpfad.
+- Auch der nachträgliche Pachtvertragspfad bleibt erhalten: Im mitgliedsbezogenen Gärten-/Parzellen-Detail ist `Pachtvertrag als PDF` weiterhin verfügbar, sofern eine passende Parzellenzuweisung mit Startdatum vorhanden ist.
+- Der bestehende MAUI-Dokumentpfad bleibt führend; Folgeaktionen wie Öffnen, signierten Scan ablegen oder digital signieren wurden in diesem Block nicht neu erfunden und nicht umgebaut.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den noch offenen Abschluss zum Datumsfix auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
 - Nach dem bereits ergänzten gemeinsamen `date`-Pfad wurde jetzt auch der fehlende gemeinsame `Newtonsoft.Json`-Pfad für PostgreSQL-`timestamp without time zone` ergänzt, weil der reale Save-/PostgREST-/Supabase-Pfad hier über `Newtonsoft.Json` serialisiert.
 - Damit sind jetzt nicht nur `datum`, sondern auch die Datums-/Zeitfelder `sichtbar_ab`, `sichtbar_bis` und `anmeldung_bis` im gemeinsamen Produktivpfad gegen ungewollte UTC-/Offset-Verschiebungen abgesichert.

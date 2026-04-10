@@ -113,7 +113,11 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _benutzerverwaltungButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(UserManagementPage));
 
         _mitgliedsantragButton = new Button { Text = "Mitgliedsantrag als PDF", IsVisible = false };
-        _mitgliedsantragButton.Clicked += async (_, _) => await CreateMitgliedsantragAsync();
+        _mitgliedsantragButton.Clicked += async (_, _) =>
+        {
+            if (_memberRecord?.Id is > 0)
+                await CreateMitgliedsantragAsync(_memberRecord.Id);
+        };
 
         _mitgliedsvertragButton = new Button { Text = "Mitgliedsvertrag als PDF", IsVisible = false };
         _mitgliedsvertragButton.Clicked += async (_, _) =>
@@ -482,15 +486,17 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         }
     }
 
-    private async Task CreateMitgliedsantragAsync()
+    private async Task CreateMitgliedsantragAsync(int mitgliedId, bool manageBusyState = true)
     {
-        if (_isBusy || _memberRecord?.Id is not > 0)
+        if ((manageBusyState && _isBusy) || mitgliedId <= 0)
             return;
 
-        _isBusy = true;
+        if (manageBusyState)
+            _isBusy = true;
+
         try
         {
-            var result = await _supabaseService.CreateMitgliedsantragDokumentAsync(_memberRecord.Id, FormularDokumentStatus.Unsigniert);
+            var result = await _supabaseService.CreateMitgliedsantragDokumentAsync(mitgliedId, FormularDokumentStatus.Unsigniert);
             if (!result.Success)
             {
                 await DisplayAlert("Mitgliedsantrag", result.Message, "OK");
@@ -519,7 +525,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         }
         finally
         {
-            _isBusy = false;
+            if (manageBusyState)
+                _isBusy = false;
         }
     }
 
@@ -590,14 +597,14 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 _memberSearchRefreshState.RequestReload();
                 _memberContextState.SetSelectedMember(MapMember(created));
 
-                var createMitgliedsvertrag = await DisplayAlert(
-                    "Mitgliedsvertrag",
-                    "Mitglied angelegt. Mitgliedsvertrag erstellen?",
+                var createMitgliedsantrag = await DisplayAlert(
+                    "Mitgliedsantrag",
+                    "Mitglied angelegt. Mitgliedsantrag erstellen?",
                     "Ja",
                     "Nein");
 
-                if (createMitgliedsvertrag)
-                    await CreateMitgliedsvertragAsync(created.Id, manageBusyState: false);
+                if (createMitgliedsantrag)
+                    await CreateMitgliedsantragAsync(created.Id, manageBusyState: false);
 
                 var createNebenmitglied = await DisplayAlert(
                     "Nebenmitglied anlegen",
