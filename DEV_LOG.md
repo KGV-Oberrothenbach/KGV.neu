@@ -11276,3 +11276,12 @@
 - Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
 
 
+## 2026-04-10 - WPF Updateprüfung hinter Login verschoben
+
+- Echten Repo-Stand geprüft und nur den bestehenden WPF-Startup-Pfad in `KGV.Wpf\App.xaml.cs` minimal angepasst; blockfremde lokale Dateien bewusst nicht angerührt.
+- Die Updateprüfung lief bisher vor dem Login. Der Pfad wurde jetzt hinter den erfolgreichen Login und hinter das Anzeigen des `MainWindow` verschoben, damit der frühe Startup-/Login-Pfad nicht mehr durch die Updateabfrage belastet wird.
+- Zusätzlich wurde der statische App-Pfad minimal mit Frühstart-Logging ergänzt, damit ein Absturz vor `OnStartup(...)` künftig wenigstens im lokalen WPF-Log sichtbarer wird.
+- Keine neue Update- oder Login-Architektur ergänzt; bestehende `CheckForApplicationUpdateAsync(...)`-Logik und das vorhandene Update-Dialogverhalten bleiben erhalten.
+- Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
+
+

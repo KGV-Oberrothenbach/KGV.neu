@@ -35,6 +35,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Den kleinen WPF-Startup-Block zur Updateprüfung auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- Die bestehende Updateprüfung lief bisher noch vor dem Login im frühen App-Startup; dieser Pfad wurde jetzt hinter den erfolgreichen Login und hinter das Anzeigen des `MainWindow` verschoben.
+- Dadurch bleibt der eigentliche Login-/Frühstartpfad schlanker, und die Updateabfrage kann den Start vor der Anmeldung nicht mehr vorzeitig beeinflussen.
+- Ergänzend wurde der statische App-Pfad minimal mit Frühstart-Logging versehen, damit ein Absturz vor `OnStartup(...)` im WPF-Dateilog transparenter sichtbar wird.
+- Die bestehende Updateprüfungslogik selbst bleibt erhalten; es wurde keine neue Update-Architektur und keine neue Login-Logik eingeführt.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den begonnenen Datumsfix-Block für `Arbeitseinsätze` und `Termine` auf dem echten Branch-Stand `feature/formularverwaltung` sauber abgeschlossen, ohne neuen Fachblock zu starten.
 - Fehlerursache lag im gemeinsamen DateOnly-Save-Pfad: der reale PostgREST-/Supabase-Pfad serialisiert die betroffenen `date`-Felder hier über `Newtonsoft.Json`, während die bisherigen Modelle nur `System.Text.Json`-Konverter trugen.
 - Dadurch konnten reine Datumswerte im Produktivpfad zeitzonenbedingt um `-1 Tag` kippen; der Fehler lag also nicht nur im Rücklesen, sondern bereits im zentralen Speichern.
