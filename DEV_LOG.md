@@ -11337,3 +11337,12 @@
 - Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
 
 
+## 2026-04-10 - CreateMitglied Vererbung für Vorstand korrigiert
+
+- Echten Repo-Stand geprüft und den Abschlussblock nur auf die fachliche Vererbung von `CreateMitglied` in `KGV.Core\Security\PermissionService.cs` begrenzt; blockfremde lokale Dateien bewusst nicht angerührt.
+- Korrektur der Rollenbasis: `CreateMitglied` wird nicht mehr automatisch an `Vorstand` vererbt.
+- `Admin` behält `CreateMitglied` weiterhin automatisch über `GetAdminPermissions()`.
+- `Vorstand` kann `CreateMitglied` jetzt nur noch per expliziter Rechtezuweisung erhalten; `PermissionChecks.CanCreateMitglied(...)` bleibt dafür unverändert korrekt auf dem effektiven Permission-Set.
+- Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
+
+
