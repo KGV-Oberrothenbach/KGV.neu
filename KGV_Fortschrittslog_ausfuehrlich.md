@@ -35,6 +35,14 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Den kleinen Rechteblock `CreateMitglied` auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- Dafür wurde im bestehenden Permission-Pfad ein eigenes Fachrecht `CreateMitglied` ergänzt; es ist kein neuer globaler Rollentyp, sondern ein gezielter Fachblock für Aufnahme-/Onboarding- und Verpachtungspflichten.
+- Vorstand behält den bisherigen Zugriff bewusst weiter über die Rollenbasis; Admin bleibt ebenfalls voll funktionsfähig. Zusätzlich kann das neue Fachrecht jetzt gezielt vergeben werden, ohne fremde Adminbereiche wie Rechteverwaltung oder Saisonverwaltung mit freizuschalten.
+- `PermissionChecks` kennt jetzt den gemeinsamen Check `CanCreateMitglied(...)`; daran hängen die direkt betroffenen sichtbaren Einstiege und Freigaben für `Mitglied anlegen`, `Mitgliedsantrag erstellen`, `Parzelle zuweisen` und `Pachtvertrag erstellen`.
+- In MAUI wurden dafür der sichtbare Einstieg `Mitglied neu anlegen`, der Stammdaten-Folgepfad `Mitgliedsantrag als PDF`, die mobile Parzellenzuweisung und der Pachtvertragspfad auf das neue Recht umgestellt.
+- In WPF wurden die entsprechenden Einstiege analog an denselben gemeinsamen Check gehängt; für die Parzellenzuweisung wurde der bestehende Mitglieds-Bearbeitungspfad minimal so geöffnet, dass der Onboarding-/Verpachtungspfad mit `CreateMitglied` nutzbar bleibt.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den kleinen MAUI-UX-Fix für den Mitgliedsantrag im Stammdatenkontext auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
 - Nach erfolgreicher Mitglieds-Neuanlage springt der mobile Pfad nicht mehr blind auf `MeineDatenPage`, sondern übernimmt den neu angelegten Datensatz direkt in den normalen Stammdatenkontext derselben Seite.
 - Dadurch bleibt der Create-Modus nicht mehr hängen: Die Seite läuft danach als normale Stammdatenansicht weiter, und der bestehende Button `Mitgliedsantrag als PDF` ist für das gerade angelegte Mitglied mit Dokumentrechten direkt sichtbar und nutzbar.

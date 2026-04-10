@@ -25,6 +25,7 @@ namespace KGV.Core.Security
             new(PermissionFlags.CanSearchMembers, "Mitglieder suchen"),
             new(PermissionFlags.CanViewMembers, "Mitglieder sehen"),
             new(PermissionFlags.CanEditAllMembers, "Mitglieder bearbeiten"),
+            new(PermissionFlags.CanCreateMitglied, "Mitglieder aufnehmen / verpachten"),
             new(PermissionFlags.CanSeeOwnDataOnly, "Eigene Daten sehen"),
             new(PermissionFlags.CanShowStammdaten, "Stammdaten anzeigen"),
             new(PermissionFlags.CanReadStammdaten, "Stammdaten lesen"),
@@ -45,6 +46,7 @@ namespace KGV.Core.Security
 
         private static readonly PermissionFlags[] UserSpecificEditablePermissionFlags =
         {
+            PermissionFlags.CanCreateMitglied,
             PermissionFlags.CanShowStammdaten,
             PermissionFlags.CanReadStammdaten,
             PermissionFlags.CanWriteStammdaten,
@@ -68,6 +70,12 @@ namespace KGV.Core.Security
 
         private static readonly PermissionAreaDefinition[] GlobalEditablePermissionAreas =
         {
+            new(
+                "mitgliedaufnahme",
+                "Mitglieder aufnehmen / verpachten",
+                PermissionFlags.CanCreateMitglied,
+                PermissionFlags.CanCreateMitglied,
+                PermissionFlags.CanCreateMitglied),
             new(
                 "stammdaten",
                 "Stammdaten",

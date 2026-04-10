@@ -49,7 +49,7 @@ namespace KGV.ViewModels
         public bool ShowChangeEmailButton => HasSelectedMemberAppUser && IsEditMode;
 
         public bool ShowParzellenSection => true;
-        public bool ShowNewContractButton => !_isNewMode && SelectedMember.Id > 0 && SelectedMember.IstHauptmitglied && PermissionChecks.CanManageDocuments(_userContext);
+        public bool ShowNewContractButton => !_isNewMode && SelectedMember.Id > 0 && SelectedMember.IstHauptmitglied && PermissionChecks.CanCreateMitglied(_userContext);
 
         private MitgliedRecord? _nebenmitgliedRecord;
         private bool _hasNebenmitglied;
@@ -71,8 +71,9 @@ namespace KGV.ViewModels
 
         public bool ShowAdresseUebernehmenButton => false;
         public bool CanEditMemberStammdaten => _isNewMode
-            ? PermissionChecks.CanEditAllMembers(_userContext)
-            : PermissionChecks.CanWriteStammdatenForMember(_userContext, SelectedMember.Id);
+            ? PermissionChecks.CanCreateMitglied(_userContext)
+            : PermissionChecks.CanWriteStammdatenForMember(_userContext, SelectedMember.Id)
+              || PermissionChecks.CanCreateMitglied(_userContext);
 
         private MemberDTO _originalSnapshot;
 
@@ -161,7 +162,7 @@ namespace KGV.ViewModels
         public RelayCommand<object?> EndBelegungCommand { get; }
         public RelayCommand<object?> OpenSelectedParzelleCommand { get; }
 
-        public bool ShowMitgliedsantragButton => !_isNewMode && PermissionChecks.CanManageDocuments(_userContext);
+        public bool ShowMitgliedsantragButton => !_isNewMode && PermissionChecks.CanCreateMitglied(_userContext);
         public bool CanCreateMitgliedsantrag => ShowMitgliedsantragButton && SelectedMember.Id > 0 && !IsEditMode;
         public bool CanChangeEmail => HasSelectedMemberAppUser && IsEditMode && _currentUserMemberId == SelectedMember.Id;
         public string ChangeEmailHint => !HasSelectedMemberAppUser

@@ -69,7 +69,7 @@ public sealed class MemberParzellenDetailPage : ContentPage
         _pachtvertragButton = new Button
         {
             Text = "Pachtvertrag als PDF",
-            IsVisible = PermissionChecks.CanManageDocuments(_userContextState.CurrentUserContext)
+            IsVisible = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext)
         };
         _pachtvertragButton.Clicked += async (_, _) => await CreatePachtvertragAsync();
 

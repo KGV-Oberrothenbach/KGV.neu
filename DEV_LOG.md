@@ -11326,3 +11326,14 @@
 - Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
 
 
+## 2026-04-10 - Fachrecht CreateMitglied eingeführt
+
+- Echten Repo-Stand geprüft und den Block nur auf den bestehenden Rechte-/Permission-Pfad sowie die direkt betroffenen WPF-/MAUI-Einstiege für Aufnahme und Verpachtung begrenzt; blockfremde lokale Dateien bewusst nicht angerührt.
+- Neues Fachrecht `CreateMitglied` als eigener Permission-Flag im bestehenden Rechtepfad ergänzt; keine neue Hauptrolle eingeführt.
+- `PermissionCatalog` kennt das neue Recht jetzt als eigenen Fachblock `Mitglieder aufnehmen / verpachten`, sodass es im bestehenden Rechte-UI vergeben werden kann; Vorstand behält den bisherigen Zugriff bewusst über die Rollenbasis und Admin weiterhin implizit ebenfalls.
+- `PermissionChecks` enthält jetzt den gemeinsamen Check `CanCreateMitglied(...)`; daran hängen die direkt betroffenen sichtbaren Einstiege und Freigaben für `Mitglied anlegen`, `Mitgliedsantrag erstellen`, `Parzelle zuweisen` und `Pachtvertrag erstellen`.
+- In MAUI wurden dafür der Button `Mitglied neu anlegen`, der Stammdaten-Folgepfad `Mitgliedsantrag als PDF`, die mobile Parzellenzuweisung und der sichtbare Pachtvertrags-Einstieg auf das neue Recht umgestellt; der Create-Save-Pfad akzeptiert jetzt ebenfalls `CreateMitglied`.
+- In WPF wurden die direkt betroffenen Einstiege analog an den gemeinsamen Check gehängt: `Mitglied neu anlegen`, `Mitgliedsantrag als PDF`, `Neuer Pachtvertrag` sowie der für die Parzellenzuweisung nötige Bearbeitungspfad im Mitgliedskontext.
+- Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
+
+

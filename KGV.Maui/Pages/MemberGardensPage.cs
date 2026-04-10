@@ -239,9 +239,9 @@ public sealed class MemberGardensPage : ContentPage
             return;
         }
 
-        if (_userContextState.CurrentUserContext?.Role is not UserRole.Admin and not UserRole.Vorstand)
+        if (!PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext))
         {
-            await DisplayAlert("Hinweis", "Parzellenzuweisung ist mobil nur für Admin oder Vorstand freigegeben.", "OK");
+            await DisplayAlert("Hinweis", "Parzellenzuweisung ist mobil nur mit dem Fachrecht 'CreateMitglied' oder als Admin/Vorstand freigegeben.", "OK");
             return;
         }
 
@@ -251,7 +251,7 @@ public sealed class MemberGardensPage : ContentPage
     private void UpdateAssignGardenButtonVisibility(int mitgliedId)
     {
         _assignGardenButton.IsVisible = mitgliedId > 0
-            && _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            && PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
     }
 
     private static Border CreateSection(string title, params View[] children)

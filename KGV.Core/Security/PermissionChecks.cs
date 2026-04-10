@@ -44,6 +44,9 @@ namespace KGV.Core.Security
         public static bool CanEditAllMembers(UserContext? context)
             => HasPermission(context, PermissionFlags.CanEditAllMembers);
 
+        public static bool CanCreateMitglied(UserContext? context)
+            => HasPermission(context, PermissionFlags.CanCreateMitglied);
+
         public static bool CanSeeOwnDataOnly(UserContext? context)
             => HasPermission(context, PermissionFlags.CanSeeOwnDataOnly);
 
@@ -136,6 +139,7 @@ namespace KGV.Core.Security
             => CanSearchMembers(context)
                || CanViewMembers(context)
                || CanEditAllMembers(context)
+               || CanCreateMitglied(context)
                || CanSeeOwnDataOnly(context);
 
         public static bool HasAnyStammdatenAccess(UserContext? context)

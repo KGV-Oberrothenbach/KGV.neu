@@ -51,6 +51,7 @@ namespace KGV.Core.Security
             => PermissionFlags.CanSearchMembers
                | PermissionFlags.CanViewMembers
                | PermissionFlags.CanEditAllMembers
+               | PermissionFlags.CanCreateMitglied
                | PermissionFlags.CanShowStammdaten
                | PermissionFlags.CanReadStammdaten
                | PermissionFlags.CanWriteStammdaten

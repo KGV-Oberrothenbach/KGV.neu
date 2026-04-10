@@ -90,10 +90,10 @@ public sealed class MemberGardenAssignPage : ContentPage
             _parzellePicker.Items.Clear();
             _availableParzellen.Clear();
 
-            if (_userContextState.CurrentUserContext?.Role is not UserRole.Admin and not UserRole.Vorstand)
+            if (!PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext))
             {
                 _headlineLabel.Text = "Parzelle zuordnen";
-                _hintLabel.Text = "Parzellenzuweisungen sind mobil nur für Admin oder Vorstand freigegeben.";
+                _hintLabel.Text = "Parzellenzuweisungen sind mobil nur mit dem Fachrecht 'CreateMitglied' oder als Admin/Vorstand freigegeben.";
                 _statusLabel.Text = "Keine Berechtigung für Parzellenzuweisungen.";
                 UpdateUiState();
                 return;
@@ -173,9 +173,9 @@ public sealed class MemberGardenAssignPage : ContentPage
             return;
         }
 
-        if (_userContextState.CurrentUserContext?.Role is not UserRole.Admin and not UserRole.Vorstand)
+        if (!PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext))
         {
-            await DisplayAlert("Parzellenzuweisung", "Parzellenzuweisungen sind mobil nur für Admin oder Vorstand freigegeben.", "OK");
+            await DisplayAlert("Parzellenzuweisung", "Parzellenzuweisungen sind mobil nur mit dem Fachrecht 'CreateMitglied' oder als Admin/Vorstand freigegeben.", "OK");
             return;
         }
 
@@ -258,7 +258,7 @@ public sealed class MemberGardenAssignPage : ContentPage
         var hasParzellen = _availableParzellen.Count > 0;
         var canEdit = !_isBusy
             && _memberRecord?.Id is > 0
-            && _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            && PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
 
         _parzellePicker.IsEnabled = canEdit && hasParzellen;
         _assignDatePicker.IsEnabled = canEdit;

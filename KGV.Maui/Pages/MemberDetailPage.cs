@@ -358,7 +358,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     {
         var canCreateMemberApplication = !_isCreateMode
             && member?.Id is > 0
-            && PermissionChecks.CanManageDocuments(_userContextState.CurrentUserContext);
+            && PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
 
         _mitgliedsantragButton.IsVisible = canCreateMemberApplication;
         _mitgliedsantragButton.IsEnabled = canCreateMemberApplication;
@@ -521,10 +521,16 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
     private async void OnSaveClicked(object? sender, EventArgs e)
     {
-        var currentRole = _userContextState.CurrentUserContext?.Role;
-        if (currentRole is not UserRole.Admin and not UserRole.Vorstand)
+        var currentUserContext = _userContextState.CurrentUserContext;
+        var canSave = _isCreateMode
+            ? PermissionChecks.CanCreateMitglied(currentUserContext)
+            : currentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+
+        if (!canSave)
         {
-            await DisplayAlert("Hinweis", "Stammdaten können mobil nur von Admin oder Vorstand gespeichert werden.", "OK");
+            await DisplayAlert("Hinweis", _isCreateMode
+                ? "Mitglieder anlegen ist mobil nur mit dem Fachrecht 'CreateMitglied' oder als Admin/Vorstand freigegeben."
+                : "Stammdaten können mobil nur von Admin oder Vorstand gespeichert werden.", "OK");
             return;
         }
 

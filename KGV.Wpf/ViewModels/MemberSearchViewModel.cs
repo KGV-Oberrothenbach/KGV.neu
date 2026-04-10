@@ -55,7 +55,7 @@ namespace KGV.ViewModels
         public ICommand SearchCommand { get; }
         public ICommand SelectCommand { get; }
         public ICommand NewMemberCommand { get; }
-        public bool CanCreateMember => PermissionChecks.CanEditAllMembers(_mainVm.UserContext);
+        public bool CanCreateMember => PermissionChecks.CanCreateMitglied(_mainVm.UserContext);
 
         private object? _selectedResult;
         public object? SelectedResult
