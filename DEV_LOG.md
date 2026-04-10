@@ -11266,3 +11266,13 @@
 - Abschlussvalidierung erfolgreich: `dotnet build KGV.Maui/KGV.Maui.csproj`.
 
 
+## 2026-04-10 - Abschluss DateOnly-Serialisierungsfix für Arbeitseinsätze und Termine
+
+- Echten Repo-Stand geprüft und den begonnenen Datumsfix-Block nur auf die betroffenen gemeinsamen `date`-Modell- und Konverterdateien begrenzt; blockfremde untracked Dateien bewusst nicht angerührt.
+- Fehlerursache lag nicht im UI und nicht in `NormalizeDateOnly(...)`, sondern im gemeinsamen DateOnly-Save-Pfad: der reale PostgREST-/Supabase-Pfad serialisiert hier über `Newtonsoft.Json`, während die bisherigen Modelle nur `System.Text.Json`-Konverter trugen.
+- Dadurch konnten reine Datumswerte im Save-Pfad zeitzonenbedingt um `-1 Tag` kippen, obwohl fachlich nur ein PostgreSQL-`date` ohne Uhrzeit gespeichert werden sollte.
+- Zentraler Fix: gemeinsame `Newtonsoft.Json`-Konverter für PostgreSQL-`date` ergänzt und an die betroffenen Modelle mit reinem Datumsfeld angebunden; der bestehende `System.Text.Json`-Pfad bleibt für die übrigen Leser-/Schreibpfade erhalten.
+- Der Fix gilt damit zentral für `Arbeitseinsätze` und `Termine` und zieht denselben gemeinsamen DateOnly-Pfad für Insert und Update gerade, ohne lokale Sonderlogik nur für einen Fachbereich zu bauen.
+- Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
+
+

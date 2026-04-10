@@ -16,6 +16,7 @@ public sealed class ArbeitseinsatzInsertRecord : BaseModel
     public string? Beschreibung { get; set; }
 
     [Column("datum")]
+    [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftPostgresDateOnlyJsonConverter))]
     [JsonConverter(typeof(PostgresDateOnlyJsonConverter))]
     public DateTime Datum { get; set; }
 

@@ -16,11 +16,13 @@ public sealed class WartungsvertragZuordnungInsertRecord : BaseModel
     public long HauptmitgliedId { get; set; }
 
     [Column("gueltig_ab")]
+    [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftPostgresDateOnlyJsonConverter))]
     [JsonConverter(typeof(PostgresDateOnlyJsonConverter))]
     public DateTime GueltigAb { get; set; }
 
     [Column("gueltig_bis")]
-    [JsonConverter(typeof(PostgresDateOnlyJsonConverter))]
+    [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftNullablePostgresDateOnlyJsonConverter))]
+    [JsonConverter(typeof(NullablePostgresDateOnlyJsonConverter))]
     public DateTime? GueltigBis { get; set; }
 
     [Column("bemerkung")]

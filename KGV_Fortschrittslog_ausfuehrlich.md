@@ -35,6 +35,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Den begonnenen Datumsfix-Block für `Arbeitseinsätze` und `Termine` auf dem echten Branch-Stand `feature/formularverwaltung` sauber abgeschlossen, ohne neuen Fachblock zu starten.
+- Fehlerursache lag im gemeinsamen DateOnly-Save-Pfad: der reale PostgREST-/Supabase-Pfad serialisiert die betroffenen `date`-Felder hier über `Newtonsoft.Json`, während die bisherigen Modelle nur `System.Text.Json`-Konverter trugen.
+- Dadurch konnten reine Datumswerte im Produktivpfad zeitzonenbedingt um `-1 Tag` kippen; der Fehler lag also nicht nur im Rücklesen, sondern bereits im zentralen Speichern.
+- Zentraler Fix: gemeinsame `Newtonsoft.Json`-Konverter für PostgreSQL-`date` ergänzt und an die betroffenen gemeinsamen `date`-Modelle angebunden; der vorhandene `System.Text.Json`-Pfad bleibt parallel erhalten.
+- Der Fix gilt damit zentral für `Arbeitseinsätze` und `Termine`; Insert und Update nutzen denselben korrigierten DateOnly-Pfad ohne UI-Sonderlogik oder verstreute Workarounds.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den kleinen MAUI-Nachziehblock für Vertrags-Einstiege auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neue Formular- oder Signaturlogik zu starten.
 - Auf der mobilen Stammdatenseite des Mitglieds gibt es jetzt zusätzlich den Einstieg `Mitgliedsvertrag als PDF`; der Button nutzt den bereits bestehenden Produktivpfad `CreateMitgliedsvertragDokumentAsync(...)`.
 - Im mitgliedsbezogenen Pfad `Gärten` bzw. in der zugehörigen Parzellen-Detailansicht gibt es jetzt zusätzlich den Einstieg `Pachtvertrag als PDF`; auch dieser nutzt direkt den bestehenden Produktivpfad `CreatePachtvertragDokumentAsync(...)`.
