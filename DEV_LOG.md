@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-04-11 – MAUI-Mitgliedsantrag auf Preview vor Unterschrift/Speichern umgestellt
+
+- Repo-Check auf `main`:
+  - `git status --short --branch`
+- Den bestehenden MAUI-Mitgliedsantrag-Flow nur im bereits begonnenen Pfad nachgezogen, ohne neuen Fachblock zu starten.
+- Echte Ist-Einordnung:
+  - `KGV.Maui/Pages/MemberDetailPage.cs` hat den Antrag bisher direkt über `_supabaseService.CreateMitgliedsantragDokumentAsync(request)` gespeichert
+  - damit lag die finale Persistierung zu früh im Flow, noch vor Dokumentprüfung und noch vor der digitalen Unterschrift
+  - genau dieser zu frühe Save-Schritt war der falsche fachliche Ablauf und zugleich die aktuelle Fehlerstelle im mobilen Flow
+- Neuer Ablauf in MAUI:
+  - Bearbeitungsdialog bleibt bestehen, Button jetzt fachlich als Vorschau-Schritt
+  - nach Beitragsbestätigung wird der Mitgliedsantrag zunächst nur temporär als PDF aufgebaut
+  - neue `KGV.Maui/Pages/MitgliedsantragPreviewPage.cs` öffnet die vollständige PDF-Vorschau aus dem Cache-/Temp-Pfad und bietet `Zurück`, `Abbrechen`, `Weiter zur Unterschrift`
+  - erst nach erfolgreicher digitaler Signatur wird der finale Mitgliedsantrag im offiziellen Dokumentpfad gespeichert
+  - bei Abbruch vor oder während der Unterschrift erfolgt keine endgültige Speicherung
+- Gemeinsamer Dokument-/Servicepfad bleibt führend:
+  - `BuildMitgliedsantragPreviewAsync(...)` erzeugt nur die temporäre Vorschau
+  - `CreateSignedMitgliedsantragDokumentAsync(...)` nutzt dieselbe gemeinsame Mitgliedsantrag-Erzeugung weiter und speichert erst nach Signatur
+  - die vorhandene MAUI-Signaturseite im Querformat bleibt unverändert führend
+- Zusätzlich wurde die Signatur-Seite textlich auf generische unsignierte Dokumentfassung geöffnet, damit derselbe PDF-Signaturpfad auch für den Mitgliedsantrag fachlich sauber passt.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-11 – Saisonverwaltung in WPF und MAUI produktiv vervollständigt
 
 - Repo-Check auf `main`:

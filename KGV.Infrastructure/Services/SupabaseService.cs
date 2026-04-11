@@ -2401,10 +2401,68 @@ namespace KGV.Infrastructure.Services
             }
         }
 
+        public Task<DokumentUploadRequest?> BuildMitgliedsantragPreviewAsync(MitgliedsantragDokumentRequest request) => ExecuteAsync<DokumentUploadRequest?>(
+            "BuildMitgliedsantragPreviewAsync",
+            async () =>
+            {
+                var (member, mitgliedsbeitrag, beginnDatum) = await ResolveMitgliedsantragRequestAsync(request);
+                return MitgliedsantragDokumentFactory.CreateUploadRequest(member, mitgliedsbeitrag, beginnDatum, FormularDokumentStatus.Unsigniert);
+            },
+            null);
+
+        public Task<DokumentUploadResult> CreateSignedMitgliedsantragDokumentAsync(MitgliedsantragDokumentRequest request, DigitalSignatureCapture signatureCapture) => ExecuteAsync(
+            "CreateSignedMitgliedsantragDokumentAsync",
+            async () =>
+            {
+                if (signatureCapture == null || !signatureCapture.HasContent)
+                    return DokumentUploadResult.Fail("Bitte zuerst eine digitale Signatur erfassen.", "VALIDATION");
+
+                var (member, mitgliedsbeitrag, beginnDatum) = await ResolveMitgliedsantragRequestAsync(request);
+                var previewUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(member, mitgliedsbeitrag, beginnDatum, FormularDokumentStatus.Unsigniert);
+                var finalUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(member, mitgliedsbeitrag, beginnDatum, FormularDokumentStatus.Signiert);
+                var sourceDocument = CreatePreviewDocumentInfo(previewUploadRequest, FormularDokumentTyp.Mitgliedsantrag, FormularDokumentStatus.Unsigniert);
+                finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(member, sourceDocument, previewUploadRequest.FileContent, signatureCapture);
+                return await CreateDokumentAsync(finalUploadRequest);
+            },
+            DokumentUploadResult.Fail("Mitgliedsantrag konnte aktuell nicht signiert gespeichert werden.", "UNEXPECTED"));
+
         private async Task<DokumentUploadResult> CreateMitgliedsantragDokumentInternalAsync(MitgliedRecord member, decimal mitgliedsbeitrag, DateTime beginnDatum, string? status)
         {
             var uploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(member, mitgliedsbeitrag, beginnDatum, status);
             return await CreateDokumentAsync(uploadRequest);
+        }
+
+        private async Task<(MitgliedRecord Member, decimal Mitgliedsbeitrag, DateTime BeginnDatum)> ResolveMitgliedsantragRequestAsync(MitgliedsantragDokumentRequest request)
+        {
+            if (request == null || request.MitgliedId <= 0)
+                throw new InvalidOperationException("Bitte zuerst ein gültiges Mitglied auswählen.");
+
+            var member = await GetMitgliedByIdAsync(request.MitgliedId);
+            if (member == null)
+                throw new InvalidOperationException("Mitglied konnte nicht geladen werden.");
+
+            if (!OperationalDataFilter.IsOperationalMember(member))
+                throw new InvalidOperationException("Für dieses Mitglied kann aktuell kein Antrag erzeugt werden.");
+
+            var beginnDatum = request.BeginnDatum == default
+                ? (member.MitgliedSeit ?? DateTime.Today)
+                : request.BeginnDatum;
+
+            return (member, MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag), beginnDatum);
+        }
+
+        private static DocumentInfo CreatePreviewDocumentInfo(DokumentUploadRequest uploadRequest, string dokumenttyp, string status)
+        {
+            return new DocumentInfo
+            {
+                Title = uploadRequest.Titel,
+                Dateiname = uploadRequest.FileName,
+                Name = uploadRequest.FileName,
+                MimeType = uploadRequest.MimeType,
+                StoragePath = uploadRequest.FileName,
+                Bucket = string.Empty,
+                DriveFileId = string.Empty
+            };
         }
 
         public async Task<DokumentUploadResult> CreateMitgliedsvertragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert)

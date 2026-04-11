@@ -16,7 +16,7 @@ public sealed class MitgliedsantragDialogPage : ContentPage
     private readonly TaskCompletionSource<decimal?> _resultSource = new();
     private readonly Entry _mitgliedsbeitragEntry;
 
-    public MitgliedsantragDialogPage(MitgliedRecord member, MitgliedsantragBeitragVorschlag vorschlag)
+    public MitgliedsantragDialogPage(MitgliedRecord member, MitgliedsantragBeitragVorschlag vorschlag, decimal? initialMitgliedsbeitrag = null)
     {
         var displayName = string.Join(' ', new[] { member.Vorname, member.Name }
             .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -29,7 +29,7 @@ public sealed class MitgliedsantragDialogPage : ContentPage
 
         _mitgliedsbeitragEntry = new Entry
         {
-            Text = vorschlag.VorgeschlagenerBeitrag.ToString("0.00", DeCulture),
+            Text = MitgliedsantragBeitragHelper.NormalizeBeitrag(initialMitgliedsbeitrag ?? vorschlag.VorgeschlagenerBeitrag).ToString("0.00", DeCulture),
             Keyboard = Microsoft.Maui.Keyboard.Numeric,
             Placeholder = "Mitgliedsbeitrag"
         };
@@ -37,7 +37,7 @@ public sealed class MitgliedsantragDialogPage : ContentPage
         var cancelButton = new Button { Text = "Abbrechen" };
         cancelButton.Clicked += async (_, _) => await CancelAsync();
 
-        var createButton = new Button { Text = "Erzeugen" };
+        var createButton = new Button { Text = "Vorschau" };
         createButton.Clicked += async (_, _) => await AcceptAsync();
 
         Content = new ScrollView

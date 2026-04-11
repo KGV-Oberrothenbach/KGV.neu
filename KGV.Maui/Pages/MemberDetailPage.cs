@@ -515,32 +515,58 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
         try
         {
-            var request = await PromptMitgliedsantragRequestAsync(mitgliedId);
-            if (request == null)
-                return;
-
-            var result = await _supabaseService.CreateMitgliedsantragDokumentAsync(request);
-            if (!result.Success)
+            decimal? initialMitgliedsbeitrag = null;
+            while (true)
             {
-                await DisplayAlert("Mitgliedsantrag", result.Message, "OK");
+                var request = await PromptMitgliedsantragRequestAsync(mitgliedId, initialMitgliedsbeitrag);
+                if (request == null)
+                    return;
+
+                var previewUploadRequest = await _supabaseService.BuildMitgliedsantragPreviewAsync(request);
+                if (previewUploadRequest == null || (previewUploadRequest.FileContent?.Length ?? 0) <= 0)
+                {
+                    await DisplayAlert("Mitgliedsantrag", "Mitgliedsantrag-Vorschau konnte nicht erzeugt werden.", "OK");
+                    return;
+                }
+
+                var previewDecision = await ShowMitgliedsantragPreviewAsync(previewUploadRequest);
+                if (previewDecision == MitgliedsantragPreviewDecision.BackToEditor)
+                {
+                    initialMitgliedsbeitrag = request.Mitgliedsbeitrag;
+                    continue;
+                }
+
+                if (previewDecision != MitgliedsantragPreviewDecision.ContinueToSignature)
+                    return;
+
+                var signatureCapture = await CaptureMitgliedsantragSignatureAsync(previewUploadRequest);
+                if (signatureCapture == null)
+                    return;
+
+                var result = await _supabaseService.CreateSignedMitgliedsantragDokumentAsync(request, signatureCapture);
+                if (!result.Success)
+                {
+                    await DisplayAlert("Mitgliedsantrag", result.Message, "OK");
+                    return;
+                }
+
+                var document = result.Document;
+                if (document?.CanOpen != true)
+                {
+                    await DisplayAlert("Mitgliedsantrag", "Mitgliedsantrag wurde nach der Unterschrift als Dokument abgelegt.", "OK");
+                    return;
+                }
+
+                var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
+                if (string.IsNullOrWhiteSpace(url))
+                {
+                    await DisplayAlert("Mitgliedsantrag", "Mitgliedsantrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "OK");
+                    return;
+                }
+
+                await Launcher.Default.OpenAsync(url);
                 return;
             }
-
-            var document = result.Document;
-            if (document?.CanOpen != true)
-            {
-                await DisplayAlert("Mitgliedsantrag", "Mitgliedsantrag wurde als Dokument abgelegt.", "OK");
-                return;
-            }
-
-            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
-            if (string.IsNullOrWhiteSpace(url))
-            {
-                await DisplayAlert("Mitgliedsantrag", "Mitgliedsantrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "OK");
-                return;
-            }
-
-            await Launcher.Default.OpenAsync(url);
         }
         catch (Exception ex)
         {
@@ -553,7 +579,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         }
     }
 
-    private async Task<MitgliedsantragDokumentRequest?> PromptMitgliedsantragRequestAsync(int mitgliedId)
+    private async Task<MitgliedsantragDokumentRequest?> PromptMitgliedsantragRequestAsync(int mitgliedId, decimal? initialMitgliedsbeitrag = null)
     {
         var member = _memberRecord?.Id == mitgliedId
             ? _memberRecord
@@ -576,7 +602,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             return null;
         }
 
-        var dialogPage = new MitgliedsantragDialogPage(member, vorschlag);
+        var dialogPage = new MitgliedsantragDialogPage(member, vorschlag, initialMitgliedsbeitrag);
         await Navigation.PushModalAsync(new NavigationPage(dialogPage));
         var mitgliedsbeitrag = await dialogPage.WaitForResultAsync();
         if (!mitgliedsbeitrag.HasValue)
@@ -589,6 +615,29 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             Mitgliedsbeitrag = mitgliedsbeitrag.Value,
             Status = FormularDokumentStatus.Unsigniert
         };
+    }
+
+    private async Task<MitgliedsantragPreviewDecision> ShowMitgliedsantragPreviewAsync(DokumentUploadRequest previewUploadRequest)
+    {
+        var previewPage = new MitgliedsantragPreviewPage(previewUploadRequest);
+        await Navigation.PushModalAsync(new NavigationPage(previewPage));
+        return await previewPage.WaitForResultAsync();
+    }
+
+    private async Task<DigitalSignatureCapture?> CaptureMitgliedsantragSignatureAsync(DokumentUploadRequest previewUploadRequest)
+    {
+        var sourceDocument = new DocumentInfo
+        {
+            Title = previewUploadRequest.Titel,
+            Dateiname = previewUploadRequest.FileName,
+            Name = previewUploadRequest.FileName,
+            MimeType = previewUploadRequest.MimeType,
+            StoragePath = previewUploadRequest.FileName
+        };
+
+        var signaturPage = new VertragsSignaturPage(sourceDocument);
+        await Navigation.PushModalAsync(new NavigationPage(signaturPage));
+        return await signaturPage.WaitForResultAsync();
     }
 
     private async void OnSaveClicked(object? sender, EventArgs e)

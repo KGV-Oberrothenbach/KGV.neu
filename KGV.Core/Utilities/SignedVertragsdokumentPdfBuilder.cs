@@ -17,7 +17,7 @@ namespace KGV.Core.Utilities
             if (sourceDocument == null)
                 throw new ArgumentNullException(nameof(sourceDocument));
             if ((originalPdfContent?.Length ?? 0) <= 0)
-                throw new InvalidOperationException("Die unsignierte Vertragsfassung konnte nicht geladen werden.");
+                throw new InvalidOperationException("Die unsignierte Dokumentfassung konnte nicht geladen werden.");
             if (signatureCapture == null || !signatureCapture.HasContent)
                 throw new InvalidOperationException("Es liegt keine digitale Signatur zum Übernehmen vor.");
 
@@ -51,7 +51,7 @@ namespace KGV.Core.Utilities
             cursorY += 30;
 
             graphics.DrawString(
-                "Diese Seite ergänzt die bestehende unsignierte Vertragsfassung. Das Original bleibt unverändert im Dokumentpfad erhalten.",
+                "Diese Seite ergänzt die bestehende unsignierte Dokumentfassung. Das Original bleibt unverändert im Dokumentpfad erhalten.",
                 subtitleFont,
                 XBrushes.DimGray,
                 new XRect(pageMargin, cursorY, signaturePage.Width - pageMargin * 2, 32),
