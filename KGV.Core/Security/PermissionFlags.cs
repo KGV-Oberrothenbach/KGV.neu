@@ -10,6 +10,7 @@ namespace KGV.Core.Security
         CanSearchMembers = 1 << 0,
         CanViewMembers = 1 << 1,
         CanEditAllMembers = 1 << 2,
+        CanCreateMitglied = 1 << 19,
 
         CanSeeOwnDataOnly = 1 << 3,
 

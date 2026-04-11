@@ -93,7 +93,7 @@ public partial class MemberSearchPage : ContentPage
                 new Button
                 {
                     Text = "Mitglied neu anlegen",
-                    IsVisible = PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext),
+                    IsVisible = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext),
                     Command = new Command(async () => await Shell.Current.GoToAsync($"{nameof(MemberDetailPage)}?mode=new"))
                 },
                 optionsLayout,

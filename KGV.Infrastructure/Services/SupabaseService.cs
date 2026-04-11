@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -1481,6 +1482,43 @@ namespace KGV.Infrastructure.Services
             },
             new List<SaisonRecord>());
 
+        public Task<SaisonRecord?> SaveSaisonAsync(SaisonRecord saison) => ExecuteAsync<SaisonRecord?>(
+            "SaveSaisonAsync",
+            async () =>
+            {
+                var normalized = SaisonverwaltungHelper.NormalizeForSave(saison);
+                if (!SaisonverwaltungHelper.IsEditable(normalized))
+                    throw new InvalidOperationException("Vergangene Jahre dürfen nicht bearbeitet werden.");
+
+                var client = await EnsureClientAsync();
+                var response = await client.From<SaisonRecord>().Get();
+                var existing = response?.Models?
+                    .FirstOrDefault(x => x.Id == normalized.Id || x.Jahr == normalized.Jahr);
+
+                if (existing == null)
+                {
+                    var insertResponse = await client
+                        .From<SaisonRecord>()
+                        .Insert(normalized);
+
+                    return insertResponse?.Models?.FirstOrDefault() ?? normalized;
+                }
+
+                await client
+                    .From<SaisonRecord>()
+                    .Where(x => x.Id == existing.Id)
+                    .Set(x => x.Jahr, normalized.Jahr)
+                    .Set(x => x.PflichtstundenSoll, normalized.PflichtstundenSoll)
+                    .Set(x => x.EuroProFehlstunde, normalized.EuroProFehlstunde)
+                    .Set(x => x.Bemerkung, normalized.Bemerkung)
+                    .Set(x => x.PachtProQm, normalized.PachtProQm)
+                    .Set(x => x.Mitgliedsbeitrag, normalized.Mitgliedsbeitrag)
+                    .Update();
+
+                return normalized;
+            },
+            null);
+
         public Task<MitgliedRecord?> GetMitgliedByAuthUserIdAsync(Guid authUserId) => ExecuteAsync<MitgliedRecord?>(
             "GetMitgliedByAuthUserIdAsync(Guid)",
             async () =>
@@ -2291,6 +2329,253 @@ namespace KGV.Infrastructure.Services
             },
             new List<DocumentInfo>());
 
+        public async Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert)
+        {
+            if (mitgliedId <= 0)
+                return DokumentUploadResult.Fail("Bitte zuerst ein gültiges Mitglied auswählen.", "VALIDATION");
+
+            try
+            {
+                var member = await GetMitgliedByIdAsync(mitgliedId);
+                if (member == null)
+                    return DokumentUploadResult.Fail("Mitglied konnte nicht geladen werden.", "NOT_FOUND");
+
+                if (!OperationalDataFilter.IsOperationalMember(member))
+                    return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell kein Antrag erzeugt werden.", "NOT_OPERATIONAL");
+
+                var saisons = await GetSaisonRecordsAsync();
+                var vorschlag = MitgliedsantragBeitragHelper.CreateSuggestion(member, saisons);
+                return await CreateMitgliedsantragDokumentInternalAsync(
+                    member,
+                    MitgliedsantragBeitragHelper.NormalizeBeitrag(vorschlag.VorgeschlagenerBeitrag),
+                    vorschlag.BeginnDatum,
+                    status);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger?.LogWarning(ex, "CreateMitgliedsantragDokumentAsync validation failed for MitgliedId={MitgliedId}", mitgliedId);
+                return DokumentUploadResult.Fail(ex.Message, "VALIDATION");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "CreateMitgliedsantragDokumentAsync failed for MitgliedId={MitgliedId}", mitgliedId);
+                return DokumentUploadResult.Fail("Mitgliedsantrag konnte aktuell nicht erzeugt werden.", "UNEXPECTED");
+            }
+        }
+
+        public async Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(MitgliedsantragDokumentRequest request)
+        {
+            if (request == null || request.MitgliedId <= 0)
+                return DokumentUploadResult.Fail("Bitte zuerst ein gültiges Mitglied auswählen.", "VALIDATION");
+
+            try
+            {
+                var member = await GetMitgliedByIdAsync(request.MitgliedId);
+                if (member == null)
+                    return DokumentUploadResult.Fail("Mitglied konnte nicht geladen werden.", "NOT_FOUND");
+
+                if (!OperationalDataFilter.IsOperationalMember(member))
+                    return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell kein Antrag erzeugt werden.", "NOT_OPERATIONAL");
+
+                var beginnDatum = request.BeginnDatum == default
+                    ? (member.MitgliedSeit ?? DateTime.Today)
+                    : request.BeginnDatum;
+                var mitgliedsbeitrag = MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag);
+                return await CreateMitgliedsantragDokumentInternalAsync(member, mitgliedsbeitrag, beginnDatum, request.Status);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger?.LogWarning(ex, "CreateMitgliedsantragDokumentAsync(request) validation failed for MitgliedId={MitgliedId}", request?.MitgliedId);
+                return DokumentUploadResult.Fail(ex.Message, "VALIDATION");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "CreateMitgliedsantragDokumentAsync(request) failed for MitgliedId={MitgliedId}", request?.MitgliedId);
+                return DokumentUploadResult.Fail("Mitgliedsantrag konnte aktuell nicht erzeugt werden.", "UNEXPECTED");
+            }
+        }
+
+        private async Task<DokumentUploadResult> CreateMitgliedsantragDokumentInternalAsync(MitgliedRecord member, decimal mitgliedsbeitrag, DateTime beginnDatum, string? status)
+        {
+            var uploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(member, mitgliedsbeitrag, beginnDatum, status);
+            return await CreateDokumentAsync(uploadRequest);
+        }
+
+        public async Task<DokumentUploadResult> CreateMitgliedsvertragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert)
+        {
+            if (mitgliedId <= 0)
+                return DokumentUploadResult.Fail("Bitte zuerst ein gültiges Mitglied auswählen.", "VALIDATION");
+
+            try
+            {
+                var member = await GetMitgliedByIdAsync(mitgliedId);
+                if (member == null)
+                    return DokumentUploadResult.Fail("Mitglied konnte nicht geladen werden.", "NOT_FOUND");
+
+                if (!OperationalDataFilter.IsOperationalMember(member))
+                    return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell kein Vertrag erzeugt werden.", "NOT_OPERATIONAL");
+
+                var uploadRequest = MitgliedsvertragDokumentFactory.CreateUploadRequest(member, status);
+                return await CreateDokumentAsync(uploadRequest);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger?.LogWarning(ex, "CreateMitgliedsvertragDokumentAsync validation failed for MitgliedId={MitgliedId}", mitgliedId);
+                return DokumentUploadResult.Fail(ex.Message, "VALIDATION");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "CreateMitgliedsvertragDokumentAsync failed for MitgliedId={MitgliedId}", mitgliedId);
+                return DokumentUploadResult.Fail("Mitgliedsvertrag konnte aktuell nicht erzeugt werden.", "UNEXPECTED");
+            }
+        }
+
+        public async Task<DokumentUploadResult> CreatePachtvertragDokumentAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn, string status = FormularDokumentStatus.Unsigniert)
+        {
+            if (mitgliedId <= 0)
+                return DokumentUploadResult.Fail("Bitte zuerst ein gültiges Mitglied auswählen.", "VALIDATION");
+
+            if (parzelleId <= 0)
+                return DokumentUploadResult.Fail("Bitte zuerst eine gültige Parzelle auswählen.", "VALIDATION");
+
+            var vertragsbeginnDatum = vertragsbeginn.Date;
+            if (vertragsbeginnDatum == DateTime.MinValue)
+                return DokumentUploadResult.Fail("Bitte ein gültiges Vertragsbeginn-Datum angeben.", "VALIDATION");
+
+            try
+            {
+                var member = await GetMitgliedByIdAsync(mitgliedId);
+                if (member == null)
+                    return DokumentUploadResult.Fail("Mitglied konnte nicht geladen werden.", "NOT_FOUND");
+
+                if (!OperationalDataFilter.IsOperationalMember(member))
+                    return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell kein Pachtvertrag erzeugt werden.", "NOT_OPERATIONAL");
+
+                if (member.HauptmitgliedId.HasValue && member.HauptmitgliedId.Value > 0)
+                    return DokumentUploadResult.Fail("Pachtvertrag kann nur aus dem Hauptmitglied-Kontext erzeugt werden.", "NOT_MAIN_MEMBER");
+
+                var client = await EnsureClientAsync();
+                var parzelle = await LoadParzelleByIdAsync(client, parzelleId);
+                if (parzelle == null)
+                    return DokumentUploadResult.Fail("Parzelle konnte nicht geladen werden.", "PARCEL_NOT_FOUND");
+
+                var saison = (await GetSaisonRecordsAsync())
+                    .FirstOrDefault(x => x.Jahr == vertragsbeginnDatum.Year);
+                if (saison == null)
+                    return DokumentUploadResult.Fail($"Für das Vertragsjahr {vertragsbeginnDatum.Year} ist keine Saison hinterlegt.", "SAISON_NOT_FOUND");
+
+                if (!saison.PachtProQm.HasValue)
+                    return DokumentUploadResult.Fail($"Für die Saison {saison.Jahr} fehlt pacht_pro_qm.", "Pacht_PRO_QM_MISSING");
+
+                if (!saison.Mitgliedsbeitrag.HasValue)
+                    return DokumentUploadResult.Fail($"Für die Saison {saison.Jahr} fehlt mitgliedsbeitrag.", "MITGLIEDSBEITRAG_MISSING");
+
+                var secondaryMember = await GetNebenmitgliedByHauptmitgliedIdAsync(member.Id);
+                var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(member, secondaryMember, parzelle, saison, vertragsbeginnDatum, status);
+                return await CreateDokumentAsync(uploadRequest);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger?.LogWarning(ex, "CreatePachtvertragDokumentAsync validation failed for MitgliedId={MitgliedId}, ParzelleId={ParzelleId}", mitgliedId, parzelleId);
+                return DokumentUploadResult.Fail(ex.Message, "VALIDATION");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "CreatePachtvertragDokumentAsync failed for MitgliedId={MitgliedId}, ParzelleId={ParzelleId}", mitgliedId, parzelleId);
+                return DokumentUploadResult.Fail("Pachtvertrag konnte aktuell nicht erzeugt werden.", "UNEXPECTED");
+            }
+        }
+
+        public async Task<DokumentUploadResult> UploadSignedVertragsdokumentAsync(int mitgliedId, DocumentInfo sourceDocument, byte[] fileContent, string originalFileName, string mimeType = "application/pdf")
+        {
+            if (mitgliedId <= 0)
+                return DokumentUploadResult.Fail("Bitte zuerst ein gültiges Mitglied auswählen.", "VALIDATION");
+
+            if (sourceDocument == null)
+                return DokumentUploadResult.Fail("Bitte zuerst ein unsigniertes Vertragsdokument auswählen.", "VALIDATION");
+
+            if ((fileContent?.Length ?? 0) <= 0)
+                return DokumentUploadResult.Fail("Bitte eine signierte PDF-Datei auswählen.", "VALIDATION");
+
+            if (!string.Equals(sourceDocument.FormularDokumentStatusKey, FormularDokumentStatus.Unsigniert, StringComparison.Ordinal))
+                return DokumentUploadResult.Fail("Als Quelle muss eine vorhandene unsignierte Vertragsfassung ausgewählt werden.", "STATUS_INVALID");
+
+            var dokumenttyp = FormularDokumentTyp.Normalize(sourceDocument.FormularDokumentTypKey);
+            if (dokumenttyp is not FormularDokumentTyp.Mitgliedsvertrag and not FormularDokumentTyp.Pachtvertrag)
+                return DokumentUploadResult.Fail("Signierte Fassungen können in diesem Block nur für Mitgliedsvertrag oder Pachtvertrag abgelegt werden.", "TYPE_INVALID");
+
+            var normalizedMimeType = string.IsNullOrWhiteSpace(mimeType) ? "application/pdf" : mimeType.Trim();
+            var originalName = CleanRequiredText(originalFileName);
+            var isPdfUpload = string.Equals(normalizedMimeType, "application/pdf", StringComparison.OrdinalIgnoreCase)
+                || originalName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+            if (!isPdfUpload)
+                return DokumentUploadResult.Fail("Bitte eine signierte PDF-Datei hochladen.", "PDF_REQUIRED");
+
+            try
+            {
+                var member = await GetMitgliedByIdAsync(mitgliedId);
+                if (member == null)
+                    return DokumentUploadResult.Fail("Mitglied konnte nicht geladen werden.", "NOT_FOUND");
+
+                if (!OperationalDataFilter.IsOperationalMember(member))
+                    return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell keine signierte Vertragsfassung abgelegt werden.", "NOT_OPERATIONAL");
+
+                var uploadRequest = BuildSignedVertragsdokumentUploadRequest(member, dokumenttyp, fileContent);
+                return await CreateDokumentAsync(uploadRequest);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "UploadSignedVertragsdokumentAsync failed for MitgliedId={MitgliedId}, SourceDocumentId={DokumentId}", mitgliedId, sourceDocument.Id);
+                return DokumentUploadResult.Fail("Signierte Vertragsfassung konnte aktuell nicht abgelegt werden.", "UNEXPECTED");
+            }
+        }
+
+        public async Task<DokumentUploadResult> CreateSignedVertragsdokumentAsync(int mitgliedId, DocumentInfo sourceDocument, DigitalSignatureCapture signatureCapture)
+        {
+            if (mitgliedId <= 0)
+                return DokumentUploadResult.Fail("Bitte zuerst ein gültiges Mitglied auswählen.", "VALIDATION");
+
+            if (sourceDocument == null)
+                return DokumentUploadResult.Fail("Bitte zuerst ein unsigniertes Vertragsdokument auswählen.", "VALIDATION");
+
+            if (signatureCapture == null || !signatureCapture.HasContent)
+                return DokumentUploadResult.Fail("Bitte zuerst eine digitale Signatur erfassen.", "VALIDATION");
+
+            var dokumenttyp = FormularDokumentTyp.Normalize(sourceDocument.FormularDokumentTypKey);
+            if (!string.Equals(sourceDocument.FormularDokumentStatusKey, FormularDokumentStatus.Unsigniert, StringComparison.Ordinal))
+                return DokumentUploadResult.Fail("Als Quelle muss eine vorhandene unsignierte Vertragsfassung ausgewählt werden.", "STATUS_INVALID");
+            if (dokumenttyp is not FormularDokumentTyp.Mitgliedsvertrag and not FormularDokumentTyp.Pachtvertrag)
+                return DokumentUploadResult.Fail("Digitale Signaturen sind in diesem Block nur für Mitgliedsvertrag oder Pachtvertrag verfügbar.", "TYPE_INVALID");
+
+            try
+            {
+                var member = await GetMitgliedByIdAsync(mitgliedId);
+                if (member == null)
+                    return DokumentUploadResult.Fail("Mitglied konnte nicht geladen werden.", "NOT_FOUND");
+
+                if (!OperationalDataFilter.IsOperationalMember(member))
+                    return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell keine digitale Signatur abgelegt werden.", "NOT_OPERATIONAL");
+
+                var originalPdf = await DownloadDokumentContentAsync(sourceDocument);
+                if ((originalPdf?.Length ?? 0) <= 0)
+                    return DokumentUploadResult.Fail("Die unsignierte Vertragsfassung konnte nicht als PDF geladen werden.", "SOURCE_DOWNLOAD_FAILED");
+
+                var signedPdf = SignedVertragsdokumentPdfBuilder.Build(member, sourceDocument, originalPdf, signatureCapture);
+                var uploadRequest = BuildSignedVertragsdokumentUploadRequest(member, dokumenttyp, signedPdf);
+                return await CreateDokumentAsync(uploadRequest);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger?.LogWarning(ex, "CreateSignedVertragsdokumentAsync validation failed for MitgliedId={MitgliedId}, SourceDocumentId={DokumentId}", mitgliedId, sourceDocument.Id);
+                return DokumentUploadResult.Fail(ex.Message, "VALIDATION");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "CreateSignedVertragsdokumentAsync failed for MitgliedId={MitgliedId}, SourceDocumentId={DokumentId}", mitgliedId, sourceDocument.Id);
+                return DokumentUploadResult.Fail("Digital signierte Vertragsfassung konnte aktuell nicht erzeugt werden.", "UNEXPECTED");
+            }
+        }
+
         public async Task<DokumentUploadResult> CreateDokumentAsync(DokumentUploadRequest request)
         {
             if (request == null)
@@ -2401,6 +2686,16 @@ namespace KGV.Infrastructure.Services
                 _logger?.LogError(ex, "DeleteDokumentAsync failed.");
                 return DokumentDeleteResult.Fail("Dokument konnte aktuell nicht gelöscht werden.", "UNEXPECTED");
             }
+        }
+
+        private async Task<ParzelleRecord?> LoadParzelleByIdAsync(Client client, int parzelleId)
+        {
+            var response = await client
+                .From<ParzelleRecord>()
+                .Where(x => x.Id == parzelleId)
+                .Get();
+
+            return response?.Models?.FirstOrDefault();
         }
 
         public Task<List<DocumentInfo>> GetParzelleDokumenteAsync(int parzelleId) => ExecuteAsync(
@@ -3284,7 +3579,6 @@ namespace KGV.Infrastructure.Services
                 if (request == null || string.IsNullOrWhiteSpace(request.Titel))
                     return null;
 
-                var client = await EnsureClientAsync();
                 var now = DateTime.UtcNow;
                 var insertRecord = new ArbeitseinsatzInsertRecord
                 {
@@ -3305,7 +3599,10 @@ namespace KGV.Infrastructure.Services
                     IsDemo = request.IsDemo
                 };
 
-                await client.From<ArbeitseinsatzInsertRecord>().Insert(insertRecord);
+                if (!await InsertArbeitseinsatzAsync(insertRecord))
+                    return null;
+
+                var client = await EnsureClientAsync();
                 var reloadCandidate = new ArbeitseinsatzRecord
                 {
                     Titel = insertRecord.Titel,
@@ -3359,25 +3656,8 @@ namespace KGV.Infrastructure.Services
                 if (record == null || record.Id <= 0 || string.IsNullOrWhiteSpace(record.Titel))
                     return false;
 
-                var client = await EnsureClientAsync();
-                await client
-                    .From<ArbeitseinsatzRecord>()
-                    .Where(x => x.Id == record.Id)
-                    .Set(x => x.Titel, CleanRequiredText(record.Titel))
-                    .Set(x => x.Beschreibung, CleanOptionalText(record.Beschreibung))
-                    .Set(x => x.Datum, NormalizeDateOnly(record.Datum))
-                    .Set(x => x.StartUhrzeit, NormalizeTerminTime(record.StartUhrzeit))
-                    .Set(x => x.EndUhrzeit, NormalizeTerminTime(record.EndUhrzeit))
-                    .Set(x => x.Treffpunkt, CleanOptionalText(record.Treffpunkt))
-                    .Set(x => x.MaxTeilnehmer, record.MaxTeilnehmer)
-                    .Set(x => x.StundenWert, record.StundenWert < 0 ? 0 : record.StundenWert)
-                    .Set(x => x.SichtbarAb, NormalizeTimestampWithoutTimeZone(record.SichtbarAb))
-                    .Set(x => x.SichtbarBis, NormalizeTimestampWithoutTimeZone(record.SichtbarBis))
-                    .Set(x => x.AnmeldungBis, NormalizeTimestampWithoutTimeZone(record.AnmeldungBis))
-                    .Set(x => x.Aktiv, record.Aktiv)
-                    .Set(x => x.UpdatedAt, DateTime.UtcNow)
-                    .Set(x => x.IsDemo, record.IsDemo)
-                    .Update();
+                if (!await UpdateArbeitseinsatzPostgrestAsync(record))
+                    return false;
 
                 _logger?.LogInformation("UpdateArbeitseinsatzAsync updated arbeitseinsatz {ArbeitseinsatzId}", record.Id);
                 return true;
@@ -3427,7 +3707,6 @@ namespace KGV.Infrastructure.Services
                 if (request == null || string.IsNullOrWhiteSpace(request.Titel))
                     return null;
 
-                var client = await EnsureClientAsync();
                 var now = DateTime.UtcNow;
                 var insertRecord = new TerminInsertRecord
                 {
@@ -3443,7 +3722,10 @@ namespace KGV.Infrastructure.Services
                     UpdatedAt = now
                 };
 
-                await client.From<TerminInsertRecord>().Insert(insertRecord);
+                if (!await InsertTerminAsync(insertRecord))
+                    return null;
+
+                var client = await EnsureClientAsync();
                 var reloadCandidate = new TerminRecord
                 {
                     Titel = insertRecord.Titel,
@@ -3492,20 +3774,8 @@ namespace KGV.Infrastructure.Services
                 if (record == null || record.Id <= 0 || string.IsNullOrWhiteSpace(record.Titel))
                     return false;
 
-                var client = await EnsureClientAsync();
-                await client
-                    .From<TerminRecord>()
-                    .Where(x => x.Id == record.Id)
-                    .Set(x => x.Titel, CleanRequiredText(record.Titel))
-                    .Set(x => x.Beschreibung, CleanOptionalText(record.Beschreibung))
-                    .Set(x => x.Datum, NormalizeDateOnly(record.Datum))
-                    .Set(x => x.StartUhrzeit, NormalizeTerminTime(record.StartUhrzeit))
-                    .Set(x => x.EndUhrzeit, NormalizeTerminTime(record.EndUhrzeit))
-                    .Set(x => x.SichtbarAb, NormalizeTimestampWithoutTimeZone(record.SichtbarAb))
-                    .Set(x => x.SichtbarBis, NormalizeTimestampWithoutTimeZone(record.SichtbarBis))
-                    .Set(x => x.Aktiv, record.Aktiv)
-                    .Set(x => x.UpdatedAt, DateTime.UtcNow)
-                    .Update();
+                if (!await UpdateTerminPostgrestAsync(record))
+                    return false;
 
                 _logger?.LogInformation("UpdateTerminAsync updated termin {TerminId}", record.Id);
                 return true;
@@ -3881,6 +4151,124 @@ namespace KGV.Infrastructure.Services
             var now = DateTime.Now;
             return new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0, DateTimeKind.Unspecified);
         }
+
+        private async Task<bool> InsertArbeitseinsatzAsync(ArbeitseinsatzInsertRecord record)
+        {
+            var payload = new Dictionary<string, object?>
+            {
+                ["titel"] = record.Titel,
+                ["beschreibung"] = record.Beschreibung,
+                ["datum"] = FormatPostgresDate(NormalizeDateOnly(record.Datum)),
+                ["start_uhrzeit"] = FormatPostgresTime(record.StartUhrzeit),
+                ["end_uhrzeit"] = FormatPostgresTime(record.EndUhrzeit),
+                ["treffpunkt"] = record.Treffpunkt,
+                ["max_teilnehmer"] = record.MaxTeilnehmer,
+                ["stunden_wert"] = record.StundenWert,
+                ["sichtbar_ab"] = FormatPostgresTimestampWithoutTimeZone(record.SichtbarAb),
+                ["sichtbar_bis"] = FormatPostgresTimestampWithoutTimeZone(record.SichtbarBis),
+                ["anmeldung_bis"] = FormatPostgresTimestampWithoutTimeZone(record.AnmeldungBis),
+                ["aktiv"] = record.Aktiv,
+                ["created_at"] = FormatPostgresTimestampWithoutTimeZone(record.CreatedAt),
+                ["updated_at"] = FormatPostgresTimestampWithoutTimeZone(record.UpdatedAt),
+                ["is_demo"] = record.IsDemo
+            };
+
+            return await SendPostgrestWriteAsync(HttpMethod.Post, "arbeitseinsatz", payload);
+        }
+
+        private async Task<bool> UpdateArbeitseinsatzPostgrestAsync(ArbeitseinsatzRecord record)
+        {
+            var payload = new Dictionary<string, object?>
+            {
+                ["titel"] = CleanRequiredText(record.Titel),
+                ["beschreibung"] = CleanOptionalText(record.Beschreibung),
+                ["datum"] = FormatPostgresDate(NormalizeDateOnly(record.Datum)),
+                ["start_uhrzeit"] = FormatPostgresTime(NormalizeTerminTime(record.StartUhrzeit)),
+                ["end_uhrzeit"] = FormatPostgresTime(NormalizeTerminTime(record.EndUhrzeit)),
+                ["treffpunkt"] = CleanOptionalText(record.Treffpunkt),
+                ["max_teilnehmer"] = record.MaxTeilnehmer,
+                ["stunden_wert"] = record.StundenWert < 0 ? 0 : record.StundenWert,
+                ["sichtbar_ab"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(record.SichtbarAb)),
+                ["sichtbar_bis"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(record.SichtbarBis)),
+                ["anmeldung_bis"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(record.AnmeldungBis)),
+                ["aktiv"] = record.Aktiv,
+                ["updated_at"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(DateTime.UtcNow)),
+                ["is_demo"] = record.IsDemo
+            };
+
+            return await SendPostgrestWriteAsync(HttpMethod.Patch, $"arbeitseinsatz?id=eq.{record.Id}", payload);
+        }
+
+        private async Task<bool> InsertTerminAsync(TerminInsertRecord record)
+        {
+            var payload = new Dictionary<string, object?>
+            {
+                ["titel"] = record.Titel,
+                ["beschreibung"] = record.Beschreibung,
+                ["datum"] = FormatPostgresDate(NormalizeDateOnly(record.Datum)),
+                ["start_uhrzeit"] = FormatPostgresTime(record.StartUhrzeit),
+                ["end_uhrzeit"] = FormatPostgresTime(record.EndUhrzeit),
+                ["sichtbar_ab"] = FormatPostgresTimestampWithoutTimeZone(record.SichtbarAb),
+                ["sichtbar_bis"] = FormatPostgresTimestampWithoutTimeZone(record.SichtbarBis),
+                ["aktiv"] = record.Aktiv,
+                ["created_at"] = FormatPostgresTimestampWithoutTimeZone(record.CreatedAt),
+                ["updated_at"] = FormatPostgresTimestampWithoutTimeZone(record.UpdatedAt)
+            };
+
+            return await SendPostgrestWriteAsync(HttpMethod.Post, "termin", payload);
+        }
+
+        private async Task<bool> UpdateTerminPostgrestAsync(TerminRecord record)
+        {
+            var payload = new Dictionary<string, object?>
+            {
+                ["titel"] = CleanRequiredText(record.Titel),
+                ["beschreibung"] = CleanOptionalText(record.Beschreibung),
+                ["datum"] = FormatPostgresDate(NormalizeDateOnly(record.Datum)),
+                ["start_uhrzeit"] = FormatPostgresTime(NormalizeTerminTime(record.StartUhrzeit)),
+                ["end_uhrzeit"] = FormatPostgresTime(NormalizeTerminTime(record.EndUhrzeit)),
+                ["sichtbar_ab"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(record.SichtbarAb)),
+                ["sichtbar_bis"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(record.SichtbarBis)),
+                ["aktiv"] = record.Aktiv,
+                ["updated_at"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(DateTime.UtcNow))
+            };
+
+            return await SendPostgrestWriteAsync(HttpMethod.Patch, $"termin?id=eq.{record.Id}", payload);
+        }
+
+        private async Task<bool> SendPostgrestWriteAsync(HttpMethod method, string relativePathAndQuery, IReadOnlyDictionary<string, object?> payload)
+        {
+            var accessToken = await _authService.GetAccessTokenAsync();
+            using var request = new HttpRequestMessage(method, BuildPostgrestUri(relativePathAndQuery));
+            request.Headers.Add("apikey", _publishableKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", string.IsNullOrWhiteSpace(accessToken) ? _publishableKey : accessToken);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            request.Headers.TryAddWithoutValidation("Prefer", "return=minimal");
+            request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+            using var response = await _documentUploadHttpClient.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+                return true;
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            _logger?.LogWarning("PostgREST write failed for {RelativePath}. Status={StatusCode} Content={Content}", relativePathAndQuery, (int)response.StatusCode, responseContent);
+            return false;
+        }
+
+        private Uri BuildPostgrestUri(string relativePathAndQuery)
+            => new($"{_supabaseUrl.TrimEnd('/')}/rest/v1/{relativePathAndQuery.TrimStart('/')}", UriKind.Absolute);
+
+        private static string FormatPostgresDate(DateTime value)
+            => NormalizeDateOnly(value).ToString("yyyy-MM-dd");
+
+        private static string? FormatPostgresTimestampWithoutTimeZone(DateTime? value)
+        {
+            var normalized = NormalizeTimestampWithoutTimeZone(value);
+            return normalized?.ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff");
+        }
+
+        private static string? FormatPostgresTime(TimeSpan? value)
+            => value.HasValue ? value.Value.ToString(@"hh\:mm\:ss") : null;
 
         private static DateTime CreateEndOfDayTimestamp(DateTime date)
         {
@@ -5375,8 +5763,38 @@ namespace KGV.Infrastructure.Services
             return !string.IsNullOrWhiteSpace(bucket) && !string.IsNullOrWhiteSpace(path);
         }
 
+        private async Task<byte[]?> DownloadDokumentContentAsync(DocumentInfo document)
+        {
+            if (document == null)
+                return null;
+
+            if (!string.IsNullOrWhiteSpace(document.DriveFileId))
+                return await _documentUploadHttpClient.GetByteArrayAsync(BuildGoogleDriveFileDownloadUrl(document.DriveFileId));
+
+            var url = await ResolveDokumentOpenUrlAsync(document, 600);
+            if (string.IsNullOrWhiteSpace(url))
+                return null;
+
+            return await _documentUploadHttpClient.GetByteArrayAsync(url);
+        }
+
+        private static DokumentUploadRequest BuildSignedVertragsdokumentUploadRequest(MitgliedRecord member, string dokumenttyp, byte[] fileContent)
+        {
+            return new DokumentUploadRequest
+            {
+                MitgliedId = member.Id,
+                Titel = FormularDokumentDateiname.BuildTitel(dokumenttyp, FormularDokumentStatus.Signiert),
+                FileName = FormularDokumentDateiname.BuildMitgliedDateiname(member, dokumenttyp, FormularDokumentStatus.Signiert, DateTime.Today),
+                MimeType = "application/pdf",
+                FileContent = fileContent
+            };
+        }
+
         private static string BuildGoogleDriveFileViewUrl(string driveFileId)
             => $"https://drive.google.com/file/d/{Uri.EscapeDataString(driveFileId)}/view";
+
+        private static string BuildGoogleDriveFileDownloadUrl(string driveFileId)
+            => $"https://drive.google.com/uc?export=download&id={Uri.EscapeDataString(driveFileId)}";
 
         private static string BuildExpectedDokumentStoragePrefix(DokumentUploadRequest request)
         {

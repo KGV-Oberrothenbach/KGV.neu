@@ -36,6 +36,15 @@ namespace KGV.Wpf
             Timeout = TimeSpan.FromSeconds(10)
         };
 
+        static App()
+        {
+            AppLocalFileLog.Initialize();
+            AppLocalFileLog.Info(StartupLogCategory, "Static App-Konstruktor erreicht.");
+
+            AppDomain.CurrentDomain.UnhandledException -= CurrentDomain_UnhandledException;
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+        }
+
         protected override async void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
@@ -43,8 +52,6 @@ namespace KGV.Wpf
             AppLocalFileLog.Initialize();
             AppLocalFileLog.Info(StartupLogCategory, $"WPF startup initialized. LogFile={AppLocalFileLog.LogFilePath}");
 
-            AppDomain.CurrentDomain.UnhandledException -= CurrentDomain_UnhandledException;
-            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             DispatcherUnhandledException -= App_DispatcherUnhandledException;
             DispatcherUnhandledException += App_DispatcherUnhandledException;
 
@@ -116,13 +123,6 @@ namespace KGV.Wpf
                     "Erwartete JSON-Struktur:\n{\n  \"Supabase\": {\n    \"Url\": \"...\",\n    \"PublishableKey\": \"sb_publishable_...\"\n  }\n}";
 
                 MessageBox.Show(msg, "Konfiguration fehlt", MessageBoxButton.OK, MessageBoxImage.Error);
-                Shutdown();
-                return;
-            }
-
-            var continueStartup = await CheckForApplicationUpdateAsync();
-            if (!continueStartup)
-            {
                 Shutdown();
                 return;
             }
@@ -213,6 +213,27 @@ namespace KGV.Wpf
             Current.MainWindow = mainWindow;
             ShutdownMode = ShutdownMode.OnMainWindowClose;
             mainWindow.Show();
+
+            StartUpdateCheckAfterMainWindowLoaded(mainWindow);
+        }
+
+        private void StartUpdateCheckAfterMainWindowLoaded(Window mainWindow)
+        {
+            void OnContentRendered(object? sender, EventArgs args)
+            {
+                mainWindow.ContentRendered -= OnContentRendered;
+
+                _ = Dispatcher.BeginInvoke(async () =>
+                {
+                    AppLocalFileLog.Info(StartupLogCategory, "MainWindow wurde erstmals gerendert. Updateprüfung startet jetzt nach erfolgreichem Login und geladenem Startfenster.");
+
+                    var continueStartup = await CheckForApplicationUpdateAsync();
+                    if (!continueStartup)
+                        Shutdown();
+                }, DispatcherPriority.ApplicationIdle);
+            }
+
+            mainWindow.ContentRendered += OnContentRendered;
         }
 
         private async Task<bool> CheckForApplicationUpdateAsync()

@@ -21,5 +21,69 @@ namespace KGV.Core.Models
 
         public bool CanOpen => !string.IsNullOrWhiteSpace(DriveFileId)
             || !string.IsNullOrWhiteSpace(StoragePath);
+
+        public string FormularDokumentTypKey
+            => TryResolveFormularMetadaten(out var dokumenttyp, out _) ? dokumenttyp : string.Empty;
+
+        public string FormularDokumentStatusKey
+            => TryResolveFormularMetadaten(out _, out var status) ? status : string.Empty;
+
+        public string FormularDokumentTypAnzeige
+            => string.IsNullOrWhiteSpace(FormularDokumentTypKey)
+                ? "-"
+                : FormularDokumentTyp.ToDisplayName(FormularDokumentTypKey);
+
+        public string FormularDokumentStatusAnzeige
+            => string.IsNullOrWhiteSpace(FormularDokumentStatusKey)
+                ? "-"
+                : FormularDokumentStatus.ToDisplayName(FormularDokumentStatusKey);
+
+        public bool IsVertragsDokument
+            => FormularDokumentTypKey is FormularDokumentTyp.Mitgliedsvertrag or FormularDokumentTyp.Pachtvertrag;
+
+        public bool IsUnsigniertesVertragsDokument
+            => IsVertragsDokument && string.Equals(FormularDokumentStatusKey, FormularDokumentStatus.Unsigniert, StringComparison.Ordinal);
+
+        public bool IsSigniertesVertragsDokument
+            => IsVertragsDokument && string.Equals(FormularDokumentStatusKey, FormularDokumentStatus.Signiert, StringComparison.Ordinal);
+
+        public bool CanUploadSignedContractVersion
+            => IsUnsigniertesVertragsDokument;
+
+        public bool CanDigitallySignContractVersion
+            => CanUploadSignedContractVersion;
+
+        public string FormularDokumentStatusKlartext
+            => IsUnsigniertesVertragsDokument
+                ? "Unsignierte Vertragsfassung"
+                : IsSigniertesVertragsDokument
+                    ? "Signierte Vertragsfassung"
+                    : FormularDokumentStatusAnzeige;
+
+        public string VertragsFolgeaktionHinweis
+            => IsUnsigniertesVertragsDokument
+                ? "Folgeaktion: signierte Fassung ablegen. Die unsignierte Fassung bleibt erhalten."
+                : IsSigniertesVertragsDokument
+                    ? "Enddokument liegt signiert vor."
+                    : string.Empty;
+
+        public string WpfSignedUploadButtonText
+            => IsUnsigniertesVertragsDokument ? "Signierten Scan hochladen" : string.Empty;
+
+        public string MauiSignedUploadButtonText
+            => IsUnsigniertesVertragsDokument ? "Signierten Scan ablegen" : string.Empty;
+
+        private bool TryResolveFormularMetadaten(out string dokumenttyp, out string status)
+        {
+            foreach (var candidate in new[] { Dateiname, StoragePath, Name, Title })
+            {
+                if (Utilities.FormularDokumentDateiname.TryParse(candidate, out dokumenttyp, out status))
+                    return true;
+            }
+
+            dokumenttyp = string.Empty;
+            status = string.Empty;
+            return false;
+        }
     }
 }

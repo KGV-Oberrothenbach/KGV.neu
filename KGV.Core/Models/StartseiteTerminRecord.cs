@@ -20,6 +20,7 @@ public sealed class StartseiteTerminRecord : BaseModel
     public string? Thema { get; set; }
 
     [Column("datum")]
+    [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftNullablePostgresDateOnlyJsonConverter))]
     [JsonConverter(typeof(NullablePostgresDateOnlyJsonConverter))]
     public DateTime? Datum { get; set; }
 

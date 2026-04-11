@@ -135,6 +135,12 @@ public sealed class UserShell : Shell, IAppShellInitializer
         return _services.GetRequiredService<MeineDatenPage>();
     }
 
+    private Page CreateOwnMemberDocumentsPage()
+    {
+        EnsureOwnMemberContext();
+        return _services.GetRequiredService<DokumentePage>();
+    }
+
     private Page CreateOwnMemberGardensPage()
     {
         EnsureOwnMemberContext();
@@ -171,6 +177,9 @@ public sealed class UserShell : Shell, IAppShellInitializer
 
         if (hasOwnMemberContext)
             Items.Add(CreateItem("↳ Stammdaten", "mydetails", CreateOwnMemberDetailsPage));
+
+        if (hasOwnMemberContext)
+            Items.Add(CreateItem("↳ Dokumente", "my_documents", CreateOwnMemberDocumentsPage));
 
         if (hasOwnMemberContext)
             Items.Add(CreateItem("↳ Wartungsverträge", "my_wartungsvertraege", CreateOwnMemberWartungsvertraegePage));

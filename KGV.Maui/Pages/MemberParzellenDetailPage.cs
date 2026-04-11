@@ -1,8 +1,11 @@
+using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
 using Microsoft.Maui;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
@@ -12,16 +15,22 @@ namespace KGV.Maui.Pages;
 
 public sealed class MemberParzellenDetailPage : ContentPage
 {
+    private readonly ISupabaseService _supabaseService;
     private readonly ParzellenViewModel _viewModel;
     private readonly ParzellenContextState _parzellenContextState;
+    private readonly UserContextState _userContextState;
     private readonly Label _contextErrorLabel;
+    private readonly Button _pachtvertragButton;
     private bool _initialized;
     private bool _appearingInProgress;
+    private bool _contractCreationInProgress;
 
-    public MemberParzellenDetailPage(ParzellenViewModel viewModel, ParzellenContextState parzellenContextState)
+    public MemberParzellenDetailPage(ISupabaseService supabaseService, ParzellenViewModel viewModel, ParzellenContextState parzellenContextState, UserContextState userContextState)
     {
+        _supabaseService = supabaseService;
         _viewModel = viewModel;
         _parzellenContextState = parzellenContextState;
+        _userContextState = userContextState;
         BindingContext = _viewModel;
         Title = "Parzellen-Details";
 
@@ -57,6 +66,13 @@ public sealed class MemberParzellenDetailPage : ContentPage
         dokumenteButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanOpenDokumenteAction));
         dokumenteButton.Clicked += async (_, _) => await OpenDokumenteAsync();
 
+        _pachtvertragButton = new Button
+        {
+            Text = "Pachtvertrag als PDF",
+            IsVisible = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext)
+        };
+        _pachtvertragButton.Clicked += async (_, _) => await CreatePachtvertragAsync();
+
         var detailContainer = new VerticalStackLayout { Spacing = 12 };
         detailContainer.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowMemberContextDetail));
 
@@ -90,7 +106,8 @@ public sealed class MemberParzellenDetailPage : ContentPage
                         {
                             Spacing = 8,
                             Children = { stromButton, wasserButton, dokumenteButton }
-                        })
+                        },
+                        _pachtvertragButton)
                 }
             }
         });
@@ -230,6 +247,71 @@ public sealed class MemberParzellenDetailPage : ContentPage
             return;
 
         await Shell.Current.GoToAsync($"{nameof(DokumentePage)}?scope=parzelle&parzelleId={detail.ParzelleId}");
+    }
+
+    private async Task CreatePachtvertragAsync()
+    {
+        if (_contractCreationInProgress)
+            return;
+
+        var detail = _viewModel.SelectedDetail;
+        if (detail == null)
+            return;
+
+        if (_parzellenContextState.ContextMitgliedId is not > 0)
+        {
+            await DisplayAlert("Pachtvertrag", "Für den aktuellen Mitgliedskontext fehlt die Mitglieds-ID.", "OK");
+            return;
+        }
+
+        if (!detail.VonDatum.HasValue)
+        {
+            await DisplayAlert("Pachtvertrag", "Für diese Parzellenzuordnung fehlt das Startdatum. Pachtvertrag kann hier nicht erzeugt werden.", "OK");
+            return;
+        }
+
+        _contractCreationInProgress = true;
+        _pachtvertragButton.IsEnabled = false;
+
+        try
+        {
+            var result = await _supabaseService.CreatePachtvertragDokumentAsync(
+                _parzellenContextState.ContextMitgliedId.Value,
+                detail.ParzelleId,
+                detail.VonDatum.Value.Date,
+                FormularDokumentStatus.Unsigniert);
+
+            if (!result.Success)
+            {
+                await DisplayAlert("Pachtvertrag", result.Message, "OK");
+                return;
+            }
+
+            var document = result.Document;
+            if (document?.CanOpen != true)
+            {
+                await DisplayAlert("Pachtvertrag", "Pachtvertrag wurde als Dokument abgelegt.", "OK");
+                return;
+            }
+
+            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                await DisplayAlert("Pachtvertrag", "Pachtvertrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "OK");
+                return;
+            }
+
+            await Launcher.Default.OpenAsync(url);
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Pachtvertrag", ex.Message, "OK");
+        }
+        finally
+        {
+            _contractCreationInProgress = false;
+            _pachtvertragButton.IsEnabled = _pachtvertragButton.IsVisible;
+        }
     }
 
     private static Border CreateSection(string title, params View[] children)

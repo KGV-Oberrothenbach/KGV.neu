@@ -1,8 +1,10 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
+using KGV.Core.Utilities;
 using KGV.Maui.State;
 using Microsoft.Maui;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
@@ -14,6 +16,8 @@ namespace KGV.Maui.Pages;
 
 public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 {
+    private const string TemporaryRuntimeBuildMarker = "2026-04-11 19:44:54 UTC / git b1a571f";
+
     private readonly ISupabaseService _supabaseService;
     private readonly IAuthService _authService;
     private readonly MemberSearchRefreshState _memberSearchRefreshState;
@@ -26,10 +30,12 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private bool _isCreateMode;
 
     private readonly Label _headlineLabel;
+    private readonly Label _runtimeIdentityLabel;
     private readonly Label _statusLabel;
     private readonly Label _emailHintLabel;
     private readonly Label _rolleLabel;
     private readonly Label _appUserHintLabel;
+    private readonly Label _mitgliedsantragDiagnoseLabel;
     private readonly Picker _arbeitsstundenAltersregelTypPicker;
     private readonly Entry _vornameEntry;
     private readonly Entry _nachnameEntry;
@@ -49,6 +55,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly DatePicker _mitgliedEndePicker;
     private readonly Button _nutzerHinzufuegenButton;
     private readonly Button _benutzerverwaltungButton;
+    private readonly Button _mitgliedsantragButton;
     private readonly Button _cancelMembershipButton;
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
@@ -70,11 +77,13 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         Title = "Stammdaten";
 
         _headlineLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold };
+        _runtimeIdentityLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap, FontSize = 12 };
         _statusLabel = new Label { TextColor = Colors.DarkRed, LineBreakMode = LineBreakMode.WordWrap };
         _emailEntry = new Entry { Placeholder = "E-Mail", Keyboard = Keyboard.Email };
         _emailHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _rolleLabel = CreateReadOnlyLabel();
         _appUserHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+        _mitgliedsantragDiagnoseLabel = new Label { TextColor = Colors.DarkOrange, LineBreakMode = LineBreakMode.WordWrap, FontSize = 12 };
         _arbeitsstundenAltersregelTypPicker = new Picker { Title = "Altersregel wählen" };
         foreach (var option in MemberDTO.HauptmitgliedArbeitsstundenAltersregelTypOptions)
             _arbeitsstundenAltersregelTypPicker.Items.Add(option);
@@ -109,6 +118,13 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _benutzerverwaltungButton = new Button { Text = "Benutzerverwaltung", IsVisible = false };
         _benutzerverwaltungButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(UserManagementPage));
 
+        _mitgliedsantragButton = new Button { Text = "Mitgliedsantrag als PDF", IsVisible = false };
+        _mitgliedsantragButton.Clicked += async (_, _) =>
+        {
+            if (_memberRecord?.Id is > 0)
+                await CreateMitgliedsantragAsync(_memberRecord.Id);
+        };
+
         _cancelMembershipButton = new Button { Text = "Mitgliedschaft beenden", IsVisible = false, BackgroundColor = Colors.IndianRed, TextColor = Colors.White };
         _cancelMembershipButton.Clicked += async (_, _) => await CancelMembershipAsync();
 
@@ -135,6 +151,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 Children =
                 {
                     _headlineLabel,
+                    _runtimeIdentityLabel,
                     _statusLabel,
                     CreateSection("Grunddaten",
                         CreateEditorField("Nachname", _nachnameEntry),
@@ -160,6 +177,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                         _appUserHintLabel,
                         _nutzerHinzufuegenButton,
                         _benutzerverwaltungButton),
+                    _mitgliedsantragButton,
+                    _mitgliedsantragDiagnoseLabel,
                     _cancelMembershipButton,
                     new HorizontalStackLayout
                     {
@@ -187,6 +206,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _isBusy = true;
         try
         {
+            UpdateRuntimeIdentityDiagnostic(null);
             _statusLabel.Text = string.Empty;
 
             var selectedMember = _memberContextState.SelectedMember;
@@ -243,6 +263,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             SetOptionalDate(_mitgliedSeitEnabledSwitch, _mitgliedSeitPicker, memberDto.MitgliedSeit);
             SetOptionalDate(_mitgliedEndeEnabledSwitch, _mitgliedEndePicker, memberDto.MitgliedEnde);
 
+            UpdateRuntimeIdentityDiagnostic(memberDto);
             UpdateArbeitsstundenAltersregelVisibility(memberDto);
             UpdateAdminActions(memberDto);
         }
@@ -260,6 +281,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     {
         _memberRecord = null;
         _hasLinkedAppUser = false;
+        UpdateRuntimeIdentityDiagnostic(null);
         _nachnameEntry.Text = string.Empty;
         _vornameEntry.Text = string.Empty;
         _emailEntry.Text = string.Empty;
@@ -278,6 +300,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         SetOptionalDate(_mitgliedSeitEnabledSwitch, _mitgliedSeitPicker, null);
         SetOptionalDate(_mitgliedEndeEnabledSwitch, _mitgliedEndePicker, null);
         UpdateAdminActions(null);
+        UpdateFormActions(null);
         UpdateCancelMembershipButton(null);
     }
 
@@ -285,6 +308,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     {
         _memberRecord = null;
         _hasLinkedAppUser = false;
+        UpdateRuntimeIdentityDiagnostic(null);
         _headlineLabel.Text = "Neues Mitglied";
         _statusLabel.Text = "Neues Mitglied anlegen.";
         _nachnameEntry.Text = string.Empty;
@@ -307,8 +331,11 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _saveButton.Text = "Mitglied anlegen";
         _nutzerHinzufuegenButton.IsVisible = false;
         _benutzerverwaltungButton.IsVisible = false;
+        _mitgliedsantragButton.IsVisible = false;
+        _mitgliedsantragDiagnoseLabel.Text = BuildMitgliedsantragDiagnoseText(null);
         _appUserHintLabel.Text = "Der App-User wird nicht direkt beim Anlegen erzeugt, sondern später über den bestehenden Invite-/Benutzerverwaltungsweg.";
         UpdateArbeitsstundenAltersregelVisibility(new MemberDTO { IstHauptmitglied = true });
+        UpdateFormActions(null);
         UpdateCancelMembershipButton(null);
     }
 
@@ -336,8 +363,56 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     ? "Für 'Nutzer hinzufügen' wird eine E-Mail-Adresse im ausgewählten Mitglied benötigt."
                     : "Für dieses Mitglied besteht aktuell noch kein App-User. Über 'Nutzer hinzufügen' wird derselbe produktive Invite-/Erstlogin-Flow wie in WPF gestartet.";
 
+        UpdateFormActions(member);
         UpdateArbeitsstundenAltersregelVisibility(member);
         UpdateCancelMembershipButton(member);
+    }
+
+    private void UpdateFormActions(MemberDTO? member)
+    {
+        var canCreateMitglied = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
+        var canCreateMemberApplication = !_isCreateMode
+            && member?.Id is > 0
+            && canCreateMitglied;
+
+        _mitgliedsantragButton.IsVisible = canCreateMemberApplication;
+        _mitgliedsantragButton.IsEnabled = canCreateMemberApplication;
+        _mitgliedsantragDiagnoseLabel.Text = BuildMitgliedsantragDiagnoseText(member);
+    }
+
+    private void UpdateRuntimeIdentityDiagnostic(MemberDTO? member)
+    {
+        var currentUserContext = _userContextState.CurrentUserContext;
+        var version = AppInfo.Current.VersionString;
+        var build = AppInfo.Current.BuildString;
+        var memberId = member?.Id ?? _memberRecord?.Id ?? 0;
+        var pageType = GetType().FullName ?? nameof(MemberDetailPage);
+        var route = Shell.Current?.CurrentState?.Location?.ToString() ?? "-";
+
+        _runtimeIdentityLabel.Text = $"[TEMP Laufzeitidentität] Diagnose: MemberDetailPage aktiv | Version={version} ({build}) | BuildMarker={TemporaryRuntimeBuildMarker} | Page={pageType} | Route={route} | Mode={(_isCreateMode ? "Create" : "Detail")} | member.Id={memberId} | Rolle={currentUserContext?.Role.ToString() ?? "-"}";
+    }
+
+    private string BuildMitgliedsantragDiagnoseText(MemberDTO? member)
+    {
+        var currentUserContext = _userContextState.CurrentUserContext;
+        var memberId = member?.Id ?? 0;
+        var canCreateMitglied = PermissionChecks.CanCreateMitglied(currentUserContext);
+        var reasons = new List<string>();
+
+        if (_isCreateMode)
+            reasons.Add("Create-Modus aktiv");
+
+        if (memberId <= 0)
+            reasons.Add("member.Id <= 0");
+
+        if (!canCreateMitglied)
+            reasons.Add("CanCreateMitglied = false");
+
+        var reasonText = reasons.Count == 0
+            ? "Button sollte sichtbar sein."
+            : $"Button unsichtbar wegen: {string.Join(", ", reasons)}";
+
+        return $"[TEMP Diagnose Mitgliedsantrag] Mode={(_isCreateMode ? "Create" : "Detail")}, member.Id={memberId}, CanCreateMitglied={canCreateMitglied}, Rolle={currentUserContext?.Role.ToString() ?? "-"}. {reasonText}";
     }
 
     private void UpdateCancelMembershipButton(MemberDTO? member)
@@ -451,12 +526,104 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         }
     }
 
+    private async Task CreateMitgliedsantragAsync(int mitgliedId, bool manageBusyState = true)
+    {
+        if ((manageBusyState && _isBusy) || mitgliedId <= 0)
+            return;
+
+        if (manageBusyState)
+            _isBusy = true;
+
+        try
+        {
+            var request = await PromptMitgliedsantragRequestAsync(mitgliedId);
+            if (request == null)
+                return;
+
+            var result = await _supabaseService.CreateMitgliedsantragDokumentAsync(request);
+            if (!result.Success)
+            {
+                await DisplayAlert("Mitgliedsantrag", result.Message, "OK");
+                return;
+            }
+
+            var document = result.Document;
+            if (document?.CanOpen != true)
+            {
+                await DisplayAlert("Mitgliedsantrag", "Mitgliedsantrag wurde als Dokument abgelegt.", "OK");
+                return;
+            }
+
+            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                await DisplayAlert("Mitgliedsantrag", "Mitgliedsantrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "OK");
+                return;
+            }
+
+            await Launcher.Default.OpenAsync(url);
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Mitgliedsantrag", ex.Message, "OK");
+        }
+        finally
+        {
+            if (manageBusyState)
+                _isBusy = false;
+        }
+    }
+
+    private async Task<MitgliedsantragDokumentRequest?> PromptMitgliedsantragRequestAsync(int mitgliedId)
+    {
+        var member = _memberRecord?.Id == mitgliedId
+            ? _memberRecord
+            : await _supabaseService.GetMitgliedByIdAsync(mitgliedId);
+        if (member == null)
+        {
+            await DisplayAlert("Mitgliedsantrag", "Mitglied konnte nicht geladen werden.", "OK");
+            return null;
+        }
+
+        MitgliedsantragBeitragVorschlag vorschlag;
+        try
+        {
+            var saisons = await _supabaseService.GetSaisonRecordsAsync();
+            vorschlag = MitgliedsantragBeitragHelper.CreateSuggestion(member, saisons);
+        }
+        catch (InvalidOperationException ex)
+        {
+            await DisplayAlert("Mitgliedsantrag", ex.Message, "OK");
+            return null;
+        }
+
+        var dialogPage = new MitgliedsantragDialogPage(member, vorschlag);
+        await Navigation.PushModalAsync(new NavigationPage(dialogPage));
+        var mitgliedsbeitrag = await dialogPage.WaitForResultAsync();
+        if (!mitgliedsbeitrag.HasValue)
+            return null;
+
+        return new MitgliedsantragDokumentRequest
+        {
+            MitgliedId = mitgliedId,
+            BeginnDatum = vorschlag.BeginnDatum,
+            Mitgliedsbeitrag = mitgliedsbeitrag.Value,
+            Status = FormularDokumentStatus.Unsigniert
+        };
+    }
+
     private async void OnSaveClicked(object? sender, EventArgs e)
     {
-        var currentRole = _userContextState.CurrentUserContext?.Role;
-        if (currentRole is not UserRole.Admin and not UserRole.Vorstand)
+        var currentUserContext = _userContextState.CurrentUserContext;
+        var canSave = _isCreateMode
+            ? PermissionChecks.CanCreateMitglied(currentUserContext)
+            : currentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+
+        if (!canSave)
         {
-            await DisplayAlert("Hinweis", "Stammdaten können mobil nur von Admin oder Vorstand gespeichert werden.", "OK");
+            await DisplayAlert("Hinweis", _isCreateMode
+                ? "Mitglieder anlegen ist mobil nur mit dem Fachrecht 'CreateMitglied' oder als Admin/Vorstand freigegeben."
+                : "Stammdaten können mobil nur von Admin oder Vorstand gespeichert werden.", "OK");
             return;
         }
 
@@ -516,7 +683,17 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 }
 
                 _memberSearchRefreshState.RequestReload();
-                _memberContextState.SetSelectedMember(MapMember(created));
+                ApplyCreatedMemberContext(created);
+
+                var createMitgliedsantrag = await DisplayAlert(
+                    "Mitgliedsantrag",
+                    "Mitglied angelegt. Mitgliedsantrag erstellen?",
+                    "Ja",
+                    "Nein");
+
+                if (createMitgliedsantrag)
+                    await CreateMitgliedsantragAsync(created.Id, manageBusyState: false);
+
                 var createNebenmitglied = await DisplayAlert(
                     "Nebenmitglied anlegen",
                     "Mitglied angelegt. Soll jetzt ein Nebenmitglied angelegt werden?",
@@ -529,8 +706,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     return;
                 }
 
-                await DisplayAlert("OK", "Mitglied angelegt.", "OK");
-                await Shell.Current.GoToAsync(nameof(MeineDatenPage));
+                _statusLabel.Text = "Mitglied angelegt. Stammdaten bleiben geöffnet; der Mitgliedsantrag kann hier weiter erzeugt werden.";
             }
             catch (Exception ex)
             {
@@ -622,6 +798,43 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     {
         var users = await _authService.GetAppUsersAsync();
         return users.Any(x => x.MitgliedId == mitgliedId && x.AuthUserId.HasValue);
+    }
+
+    private void ApplyCreatedMemberContext(MitgliedRecord created)
+    {
+        _isCreateMode = false;
+        _memberRecord = created;
+        _hasLinkedAppUser = created.AuthUserId.HasValue;
+
+        var memberDto = MapMember(created);
+        _memberContextState.SetSelectedMember(memberDto);
+
+        _headlineLabel.Text = string.IsNullOrWhiteSpace(memberDto.DisplayName)
+            ? $"Mitglied #{memberDto.Id}"
+            : memberDto.DisplayName;
+
+        _nachnameEntry.Text = memberDto.Nachname;
+        _vornameEntry.Text = memberDto.Vorname;
+        _emailEntry.Text = memberDto.Email;
+        _rolleLabel.Text = FormatValue(memberDto.Role);
+        _arbeitsstundenAltersregelTypPicker.SelectedItem = MemberDTO.HauptmitgliedArbeitsstundenAltersregelTypOptions.Contains(memberDto.ArbeitsstundenAltersregelTyp, StringComparer.Ordinal)
+            ? memberDto.ArbeitsstundenAltersregelTyp
+            : null;
+        _telefonEntry.Text = memberDto.Telefon;
+        _mobilEntry.Text = memberDto.Mobilnummer;
+        _whatsappSwitch.IsToggled = memberDto.WhatsappEinwilligung;
+        _strasseEntry.Text = memberDto.Strasse;
+        _plzEntry.Text = memberDto.PLZ;
+        _ortEntry.Text = memberDto.Ort;
+        _bemerkungenEditor.Text = memberDto.Bemerkungen;
+
+        SetOptionalDate(_geburtsdatumEnabledSwitch, _geburtsdatumPicker, memberDto.Geburtsdatum);
+        SetOptionalDate(_mitgliedSeitEnabledSwitch, _mitgliedSeitPicker, memberDto.MitgliedSeit);
+        SetOptionalDate(_mitgliedEndeEnabledSwitch, _mitgliedEndePicker, memberDto.MitgliedEnde);
+
+        _saveButton.Text = "Speichern";
+        UpdateArbeitsstundenAltersregelVisibility(memberDto);
+        UpdateAdminActions(memberDto);
     }
 
     private static AppUserDTO CreateInviteUser(MitgliedRecord member)

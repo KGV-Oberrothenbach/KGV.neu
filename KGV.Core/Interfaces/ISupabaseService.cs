@@ -78,6 +78,7 @@ namespace KGV.Core.Interfaces
         // Arbeitsstunden
         // =========================
         Task<List<SaisonRecord>> GetSaisonRecordsAsync();
+        Task<SaisonRecord?> SaveSaisonAsync(SaisonRecord saison);
         Task<MitgliedRecord?> GetMitgliedByAuthUserIdAsync(Guid authUserId);
         Task<MitgliedRecord?> GetMitgliedByAuthUserIdAsync(string authUserId);
 
@@ -109,6 +110,12 @@ namespace KGV.Core.Interfaces
         // =========================
         Task<List<DocumentInfo>> GetMitgliedDokumenteAsync(int mitgliedId);
         Task<List<DocumentInfo>> GetParzelleDokumenteAsync(int parzelleId);
+        Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert);
+        Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(MitgliedsantragDokumentRequest request);
+        Task<DokumentUploadResult> CreateMitgliedsvertragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert);
+        Task<DokumentUploadResult> CreatePachtvertragDokumentAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn, string status = FormularDokumentStatus.Unsigniert);
+        Task<DokumentUploadResult> CreateSignedVertragsdokumentAsync(int mitgliedId, DocumentInfo sourceDocument, DigitalSignatureCapture signatureCapture);
+        Task<DokumentUploadResult> UploadSignedVertragsdokumentAsync(int mitgliedId, DocumentInfo sourceDocument, byte[] fileContent, string originalFileName, string mimeType = "application/pdf");
         Task<DokumentUploadResult> CreateDokumentAsync(DokumentUploadRequest request);
         Task<DokumentDeleteResult> DeleteDokumentAsync(DocumentInfo? document);
         Task<string?> CreateDokumentSignedUrlAsync(string storagePath, int expiresInSeconds = 3600);

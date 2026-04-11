@@ -34,7 +34,189 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 
 ## Chronologischer Kurzverlauf
 
+## 2026-04-11
+- Den kleinen temporären MAUI-Diagnoseblock zur Laufzeitidentität auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- Im betroffenen Stammdatenpfad `MemberDetailPage` wird jetzt direkt sichtbar angezeigt, dass technisch wirklich `MemberDetailPage` geöffnet ist.
+- Zusätzlich zeigt der temporäre Hinweis App-Version und Buildnummer aus dem bestehenden MAUI-Versionspfad, einen Build-Marker mit Zeitstempel/Git-Kennung sowie den aktuellen Page-Typ und den aktuellen Shell-/Seitenpfad an.
+- Ziel des Blocks ist nur die eindeutige Laufzeitidentifikation des tatsächlich installierten Builds und des tatsächlich geöffneten Seitenpfads; Rechte, Dokumentpfade und Fachlogik blieben unverändert.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den kleinen temporären MAUI-Diagnoseblock für den im Lauf weiterhin fehlenden sichtbaren Button `Mitgliedsantrag als PDF` auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- In `KGV.Maui/Pages/MemberDetailPage.cs` wurde direkt an der bestehenden Sichtbarkeitsberechnung ein leicht wieder entfernbarer Diagnosehinweis ergänzt.
+- Der Hinweis zeigt zur Laufzeit genau die drei relevanten Bedingungen des Buttons an: Page-Modus (`_isCreateMode`), geladene `member.Id` und Ergebnis von `PermissionChecks.CanCreateMitglied(...)`; zusätzlich wird die aktuelle Rolle und ein kurzer Begründungstext für einen unsichtbaren Button ausgegeben.
+- Die eigentliche Fachlogik wurde bewusst nicht geändert; der Block dient nur dazu, sichtbar zu machen, welche Bedingung im echten MAUI-Lauf greift.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den kleinen MAUI-Abschlussblock `CreateMitglied`/Mitgliedsantrag gegen den echten Branch-Stand `feature/formularverwaltung` geprüft, ohne neuen Fachblock zu starten.
+- Die fachliche Gegenprüfung zeigte, dass der sichtbare mobile Einstieg `Mitgliedsantrag als PDF` im bestehenden `MemberDetailPage`-Pfad bereits korrekt an `PermissionChecks.CanCreateMitglied(...)` hängt; der frühere Dokumentrechtepfad `CanManageDocuments(...)` ist dort nicht mehr aktiv.
+- Auch die direkt angrenzenden mobilen Onboarding-/Verpachtungspfade sind bereits konsistent: Parzellenzuweisung in `MemberGardensPage` und `Pachtvertrag als PDF` in `MemberParzellenDetailPage` nutzen ebenfalls `CanCreateMitglied(...)`.
+- Ergebnis: Für diesen Abschlusslauf war kein weiterer Codeeingriff nötig; es wurden bewusst keine WPF-Änderungen, keine neue Dokumentlogik und keine neue Rechte-/Schattenlogik ergänzt.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den bereits begonnenen Datumsfix im realen Save-/Serializer-Pfad auf dem echten Branch-Stand `feature/formularverwaltung` sauber abgeschlossen, ohne neuen Fachblock zu starten.
+- Der reale Restfehler lag nicht mehr in den Modell-Convertern, sondern im bisherigen `.Set(...)`-Updatepfad des Services: Dort wurden rohe `DateTime`-Werte geschrieben und die erweiterten Modell-Converter damit umgangen.
+- Der zentrale Fix liegt jetzt ausschließlich in `KGV.Infrastructure/Services/SupabaseService.cs`: Arbeitseinsatz und Termin nutzen für `Insert` und `Update` denselben sicheren gemeinsamen Write-Pfad.
+- Dabei werden reine Datumswerte explizit als `yyyy-MM-dd` und `timestamp without time zone` explizit ohne `Z`/Offset an PostgREST geschrieben, damit keine ungewollte UTC-/Offset-Verschiebung mehr in den DB-Speicherpfad hineinläuft.
+- Es wurden bewusst keine UI-Workarounds, keine neue Fachlogik und keine weiteren Modell-Experimente ergänzt.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+## 2026-04-09
+- Den bereits umgesetzten Block `Mitgliedsantrag mit Mitgliedsbeitrag` auf dem echten Branch-Stand `feature/formularverwaltung` im Abschlusslauf fachlich und technisch sauber geschlossen, ohne neuen Fachblock zu starten.
+- Der Mitgliedsantrag nutzt dafür weiter den bestehenden Saisonpfad `SaisonRecord.Mitgliedsbeitrag`; die Vorschlagsregel bleibt wie begonnen konsistent in WPF und MAUI: Beginn vor `01.07.` voller Jahresbeitrag, Beginn ab `01.07.` halber Jahresbeitrag.
+- Der vorgeschlagene Beitrag bleibt in beiden Erzeugungsdialogen vor dem finalen Erzeugen manuell editierbar; der final verwendete Betrag wird sichtbar im PDF ausgegeben.
+- Der Mitgliedsantrag bleibt fachlich rein mitgliedsbezogen; parzellenbezogene Inhalte werden dort nicht ausgegeben und bleiben weiterhin dem Pachtvertrag vorbehalten.
+- Im Abschlusslauf wurde nur noch der kleine technische MAUI-Buildrest des bereits umgesetzten Dialogpfads geschlossen, indem die numerische Tastatur explizit auf `Microsoft.Maui.Keyboard.Numeric` gezogen wurde.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den kleinen MAUI-Block `Mitgliedsdokumente im Mitgliedskontext` auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- In der mobilen mitgliedsbezogenen Navigation gibt es jetzt den sichtbaren Menüpunkt `Dokumente` direkt zwischen `Stammdaten` und `Wartungsverträge`; er führt nicht auf eine globale Dokumente-Startseite, sondern direkt in die bestehende Dokumentansicht des aktuell ausgewählten Mitglieds.
+- Dafür wurden keine neuen Dokumentservices und kein neues MAUI-ViewModel eingeführt: die vorhandene `DokumentePage` bleibt führend und nutzt weiter die bestehenden Produktivpfade `GetMitgliedDokumenteAsync(...)`, `GetParzelleDokumenteAsync(...)` und `ResolveDokumentOpenUrlAsync(...)`.
+- Die bisher falsche Kopplung von reiner Lesbarkeit an Dokument-Verwaltungsrechte wurde im mobilen Mitgliedskontext gelöst: Dokumente sehen und öffnen folgt dort jetzt dem ausgewählten Mitgliedskontext, während Upload, Löschen, signierten Scan ablegen und digitale Signatur weiter nur mit dem bestehenden Fachrecht `CanManageDocuments` sichtbar bleiben.
+- Ergebnis: Die mitgliedsbezogene MAUI-Dokumentansicht zeigt jetzt die echten Dokumente des aktuell ausgewählten Mitglieds an; dazu gehören auch `Mitgliedsantrag` und `Pachtvertrag`, wobei der Pachtvertrag fachlich im Mitglied sichtbar bleibt, auch wenn er aus einem Parzellenkontext stammt.
+- Validierung: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den bereits begonnenen WPF-Updateprüfungsblock auf dem echten Branch-Stand `feature/formularverwaltung` fachlich sauber nachgeschärft, ohne neuen Fachblock zu starten.
+- Die Updateprüfung startet jetzt nicht mehr nur allgemein nach erfolgreichem Login, sondern erst nachdem das `MainWindow` bzw. die Startseite erstmals sauber gerendert wurde.
+- Dafür wurde der bestehende WPF-Startup-Pfad minimal von einem frühen Dispatcher-Start auf den vorhandenen Window-Lifecycle `ContentRendered` plus Dispatcher-Idle verschoben; die eigentliche Updateprüfungslogik bleibt unverändert.
+- Ergebnis: Die WPF-Updateabfrage läuft jetzt erst nach erfolgreichem Login und nach sauber geladenem Startfenster an, statt den frühen Hauptfenster-/Startseitenaufbau zu unterbrechen.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den bereits begonnenen Rechteblock `CreateMitglied` auf dem echten Branch-Stand `feature/formularverwaltung` fachlich sauber abgeschlossen, ohne neuen Fachblock zu starten.
+- Die Vererbungslogik wurde korrigiert: `CreateMitglied` wird nicht mehr automatisch an `Vorstand` vererbt.
+- `Admin` behält das Recht weiterhin automatisch über die Rollenbasis; `Vorstand` kann `CreateMitglied` jetzt nur noch per expliziter Zuweisung erhalten.
+- Der bestehende gemeinsame Check `CanCreateMitglied(...)` bleibt unverändert auf dem effektiven Rechte-Set und spiegelt damit den Sollzustand korrekt wider.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den kleinen Rechteblock `CreateMitglied` auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- Dafür wurde im bestehenden Permission-Pfad ein eigenes Fachrecht `CreateMitglied` ergänzt; es ist kein neuer globaler Rollentyp, sondern ein gezielter Fachblock für Aufnahme-/Onboarding- und Verpachtungspflichten.
+- Vorstand behält den bisherigen Zugriff bewusst weiter über die Rollenbasis; Admin bleibt ebenfalls voll funktionsfähig. Zusätzlich kann das neue Fachrecht jetzt gezielt vergeben werden, ohne fremde Adminbereiche wie Rechteverwaltung oder Saisonverwaltung mit freizuschalten.
+- `PermissionChecks` kennt jetzt den gemeinsamen Check `CanCreateMitglied(...)`; daran hängen die direkt betroffenen sichtbaren Einstiege und Freigaben für `Mitglied anlegen`, `Mitgliedsantrag erstellen`, `Parzelle zuweisen` und `Pachtvertrag erstellen`.
+- In MAUI wurden dafür der sichtbare Einstieg `Mitglied neu anlegen`, der Stammdaten-Folgepfad `Mitgliedsantrag als PDF`, die mobile Parzellenzuweisung und der Pachtvertragspfad auf das neue Recht umgestellt.
+- In WPF wurden die entsprechenden Einstiege analog an denselben gemeinsamen Check gehängt; für die Parzellenzuweisung wurde der bestehende Mitglieds-Bearbeitungspfad minimal so geöffnet, dass der Onboarding-/Verpachtungspfad mit `CreateMitglied` nutzbar bleibt.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den kleinen MAUI-UX-Fix für den Mitgliedsantrag im Stammdatenkontext auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- Nach erfolgreicher Mitglieds-Neuanlage springt der mobile Pfad nicht mehr blind auf `MeineDatenPage`, sondern übernimmt den neu angelegten Datensatz direkt in den normalen Stammdatenkontext derselben Seite.
+- Dadurch bleibt der Create-Modus nicht mehr hängen: Die Seite läuft danach als normale Stammdatenansicht weiter, und der bestehende Button `Mitgliedsantrag als PDF` ist für das gerade angelegte Mitglied mit Dokumentrechten direkt sichtbar und nutzbar.
+- Der vorhandene Dialog `Mitgliedsantrag erstellen?` im Neuanlage-Flow bleibt bestehen; zusätzlich kann derselbe Mitgliedsantrag danach weiterhin klar aus den Stammdaten des gerade angelegten Mitglieds erzeugt werden.
+- Ergebnis: Der mobile Mitgliedsantrag ist jetzt sowohl direkt im Neuanlage-Flow als auch anschließend alltagstauglich im normalen Stammdatenkontext erreichbar, ohne verwirrenden Seitensprung.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den kleinen MAUI-Bereinigungsblock für alte `Mitgliedsvertrag`-Reste auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- Im mobilen Mitgliedsdetail wird kein eigenständiger sichtbarer Pfad `Mitgliedsvertrag als PDF` mehr angeboten; fachlich sichtbar bleibt dort nur noch `Mitgliedsantrag als PDF`.
+- Der bereits angepasste mobile Neuanlage-Flow bleibt damit konsistent: Nach erfolgreicher Anlage wird weiter nur `Mitgliedsantrag erstellen?` angeboten; ein separater sichtbarer MAUI-Flow für `Mitgliedsvertrag` entfällt.
+- Im mobilen Dokumentpfad wurden die sichtbaren Vertrags-Folgeaktionen zusätzlich auf fachlich gültige `Pachtvertrag`-Dokumente begrenzt, sodass alte `Mitgliedsvertrag`-Dokumente in MAUI keine gesonderten Vertrags-Folgeaktionen mehr anbieten.
+- Bestehende gemeinsame Service- und Dokumentpfade bleiben unverändert nutzbar; es wurde keine neue Vertragslogik und kein neuer Signaturblock ergänzt.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den kleinen MAUI-Formularblock für `Mitgliedsantrag` und `Pachtvertrag` auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- Im mobilen Neuanlage-Flow des Mitglieds wird nach erfolgreicher Anlage jetzt `Mitgliedsantrag erstellen?` gefragt; bei Zustimmung nutzt der Pfad direkt den bestehenden Produktivpfad `CreateMitgliedsantragDokumentAsync(...)` und legt das Dokument im vorhandenen Mitglieds-Dokumentpfad ab.
+- Wird der Antrag im Neuanlage-Moment noch nicht erzeugt, bleibt der bestehende mobile Folgepfad erhalten: Im Mitgliedskontext kann `Mitgliedsantrag als PDF` weiterhin nachträglich manuell erzeugt werden.
+- Für den mitgliedsbezogenen Gartenpfad wurde eine kleine mobile Parzellenzuweisung ergänzt. Sie nutzt den bestehenden gemeinsamen Servicepfad `AssignParzelleToMitgliedAsync(...)`, erlaubt die Auswahl einer freien Parzelle sowie des Zuweisungsdatums und baut keine neue Parallelarchitektur.
+- Nach erfolgreicher Parzellenzuweisung wird mobil jetzt direkt `Pachtvertrag erstellen?` angeboten; bei Zustimmung nutzt der bestehende gemeinsame Dokumentpfad `CreatePachtvertragDokumentAsync(...)` direkt die neue Zuordnung und speichert den Vertrag im vorhandenen Mitglieds-Dokumentpfad.
+- Auch der nachträgliche Pachtvertragspfad bleibt erhalten: Im mitgliedsbezogenen Gärten-/Parzellen-Detail ist `Pachtvertrag als PDF` weiterhin verfügbar, sofern eine passende Parzellenzuweisung mit Startdatum vorhanden ist.
+- Der bestehende MAUI-Dokumentpfad bleibt führend; Folgeaktionen wie Öffnen, signierten Scan ablegen oder digital signieren wurden in diesem Block nicht neu erfunden und nicht umgebaut.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den noch offenen Abschluss zum Datumsfix auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- Nach dem bereits ergänzten gemeinsamen `date`-Pfad wurde jetzt auch der fehlende gemeinsame `Newtonsoft.Json`-Pfad für PostgreSQL-`timestamp without time zone` ergänzt, weil der reale Save-/PostgREST-/Supabase-Pfad hier über `Newtonsoft.Json` serialisiert.
+- Damit sind jetzt nicht nur `datum`, sondern auch die Datums-/Zeitfelder `sichtbar_ab`, `sichtbar_bis` und `anmeldung_bis` im gemeinsamen Produktivpfad gegen ungewollte UTC-/Offset-Verschiebungen abgesichert.
+- Die betroffenen Modellfelder in `Arbeitseinsatz` und `Termin` tragen dafür jetzt zusätzlich passende `Newtonsoft.Json.JsonConverter(...)`-Attribute; denselben gemeinsamen Timestamp-Pfad wurde minimal auch für `Bekanntmachung` mitgezogen.
+- Ergebnis: Der reale Save-Pfad ist jetzt für beide relevanten PostgreSQL-Typen gemeinsam abgesichert: `date` und `timestamp without time zone`, jeweils für `System.Text.Json` und `Newtonsoft.Json`.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den kleinen WPF-Startup-Block zur Updateprüfung auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- Die bestehende Updateprüfung lief bisher noch vor dem Login im frühen App-Startup; dieser Pfad wurde jetzt hinter den erfolgreichen Login und hinter das Anzeigen des `MainWindow` verschoben.
+- Dadurch bleibt der eigentliche Login-/Frühstartpfad schlanker, und die Updateabfrage kann den Start vor der Anmeldung nicht mehr vorzeitig beeinflussen.
+- Ergänzend wurde der statische App-Pfad minimal mit Frühstart-Logging versehen, damit ein Absturz vor `OnStartup(...)` im WPF-Dateilog transparenter sichtbar wird.
+- Die bestehende Updateprüfungslogik selbst bleibt erhalten; es wurde keine neue Update-Architektur und keine neue Login-Logik eingeführt.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den begonnenen Datumsfix-Block für `Arbeitseinsätze` und `Termine` auf dem echten Branch-Stand `feature/formularverwaltung` sauber abgeschlossen, ohne neuen Fachblock zu starten.
+- Fehlerursache lag im gemeinsamen DateOnly-Save-Pfad: der reale PostgREST-/Supabase-Pfad serialisiert die betroffenen `date`-Felder hier über `Newtonsoft.Json`, während die bisherigen Modelle nur `System.Text.Json`-Konverter trugen.
+- Dadurch konnten reine Datumswerte im Produktivpfad zeitzonenbedingt um `-1 Tag` kippen; der Fehler lag also nicht nur im Rücklesen, sondern bereits im zentralen Speichern.
+- Zentraler Fix: gemeinsame `Newtonsoft.Json`-Konverter für PostgreSQL-`date` ergänzt und an die betroffenen gemeinsamen `date`-Modelle angebunden; der vorhandene `System.Text.Json`-Pfad bleibt parallel erhalten.
+- Der Fix gilt damit zentral für `Arbeitseinsätze` und `Termine`; Insert und Update nutzen denselben korrigierten DateOnly-Pfad ohne UI-Sonderlogik oder verstreute Workarounds.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den kleinen MAUI-Nachziehblock für Vertrags-Einstiege auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neue Formular- oder Signaturlogik zu starten.
+- Auf der mobilen Stammdatenseite des Mitglieds gibt es jetzt zusätzlich den Einstieg `Mitgliedsvertrag als PDF`; der Button nutzt den bereits bestehenden Produktivpfad `CreateMitgliedsvertragDokumentAsync(...)`.
+- Im mitgliedsbezogenen Pfad `Gärten` bzw. in der zugehörigen Parzellen-Detailansicht gibt es jetzt zusätzlich den Einstieg `Pachtvertrag als PDF`; auch dieser nutzt direkt den bestehenden Produktivpfad `CreatePachtvertragDokumentAsync(...)`.
+- Der neue mobile Pachtvertragspfad baut keine Schattenlogik und keine Ersatzwerte auf: maßgeblich bleibt das im Parzellenkontext vorhandene Zuordnungs-Startdatum; fehlt es, wird mit klarer Meldung abgebrochen.
+- Validierung: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den begonnenen Block `Pachtvertrag nutzt Saisonwerte` auf dem echten Branch-Stand `feature/formularverwaltung` sauber abgeschlossen, ohne neuen Fachblock zu starten.
+- Der bestehende Saison-/Pachtvertragspfad nutzt jetzt für den Zahlungskasten gemeinsam `pacht_pro_qm` und `mitgliedsbeitrag` der zum Vertragsjahr passenden Saison; Ersatzwerte oder Schattenlogik wurden nicht ergänzt.
+- Die fachliche Berechnung lautet jetzt `Pachtzins = Parzellenfläche * Saison.Pacht_pro_qm` mit kaufmännischer Rundung auf zwei Nachkommastellen und `Gesamt = Pachtzins + Mitgliedsbeitrag`.
+- Fehlende Pflichtwerte laufen nicht mehr still weiter: fehlende Saison, fehlendes `pacht_pro_qm` und fehlender `mitgliedsbeitrag` brechen den bestehenden Produktivpfad jetzt mit klaren Fehlermeldungen ab.
+- Die bestehende PDF-Vorlage und der vorhandene Feldbefüllungspfad bleiben führend; im Betragskasten werden jetzt mindestens Mitgliedsbeitrag, Pacht und Gesamt korrekt befüllt.
+- Der bereits begonnene Saisonpfad wurde nur minimal mitgezogen, damit der aktuelle Stand buildfähig bleibt; es wurde keine weitere Saison-UI-Erweiterung gestartet.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Einen kleinen, buildfähigen UI-/UX-Feinschliff-Block für die Formularverwaltung auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neue Vertrags- oder Verwaltungslogik zu starten.
+- Die Dokumentlisten in WPF und MAUI stellen Vertragsstatus jetzt klarer dar: Vertragsdokumente verwenden statt des bloßen Statuswerts die lesbaren Bezeichnungen `Unsignierte Vertragsfassung` und `Signierte Vertragsfassung`.
+- `DocumentInfo` wurde dafür nur minimal um UI-Hilfseigenschaften ergänzt, sodass WPF und MAUI denselben bestehenden Dokumentpfad weiterverwenden und keine Schattenlogik für Anzeige oder Folgeaktionen aufbauen.
+- In WPF bleibt der Pfad bewusst auf Verwaltung, Kontrolle, Dokumentanzeige und Upload signierter Scan-Fassungen beschränkt; ein kleiner Hinweistext stellt nun explizit klar, dass die direkte digitale Signatur ausschließlich in MAUI erfolgt und die unsignierte Fassung erhalten bleibt.
+- Die WPF-Folgeaktion für unsignierte Vertragsdokumente wurde sprachlich auf `Signierten Scan hochladen` geschärft; für signierte Enddokumente und Nicht-Vertragsdokumente erscheinen weiterhin keine unpassenden Vertrags-Sonderaktionen.
+- In MAUI wurden die Dokumentaktionen ebenfalls geglättet: `Öffnen`, `Signierten Scan ablegen` und `Digital signieren` sind für unsignierte Vertragsdokumente sauber getrennt sichtbar; signierte Enddokumente und Nicht-Vertragsdokumente zeigen keine unpassenden Folgeaktionen.
+- Ergänzend wurden Meta-/Kontexthinweise in MAUI so geschärft, dass Folgeaktionen verständlich bleiben und ausdrücklich sichtbar ist, dass die unsignierte Vertragsfassung bei Scan-Upload oder digitaler Signatur erhalten bleibt.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den begonnenen MAUI-Digitalsignatur-Block auf dem echten Branch-Stand `feature/formularverwaltung` ohne neuen Fachblock technisch sauber abgeschlossen.
+- Im mobilen Dokumentpfad gibt es für vorhandene unsignierte Vertragsdokumente (`Mitgliedsvertrag`, `Pachtvertrag`) jetzt zusätzlich die Aktion `Digital signieren`; der bestehende Upload-/Statuspfad für signierte Fassungen bleibt dabei führend.
+- Dafür wurde ein gemeinsames, MAUI-unabhängiges Signaturmodell `DigitalSignatureCapture` ergänzt, damit die erfassten Striche/Punkte nicht als App-spezifische Sonderlogik im UI hängen bleiben.
+- Die dedizierte Seite `VertragsSignaturPage` stellt eine große Signaturfläche sowie `Leeren`, `Übernehmen` und `Abbrechen` bereit; auf Android wird während dieses Flows über `MainActivity` gezielt Querformat aktiviert und beim Verlassen wieder freigegeben.
+- Im Shared-/Servicepfad wurde `CreateSignedVertragsdokumentAsync(...)` ergänzt: Die bestehende unsignierte Vertragsfassung wird geladen, um eine zusätzliche Signaturseite ergänzt und anschließend als eigenes `signiert`-Enddokument im vorhandenen Mitglieds-Dokumentpfad gespeichert.
+- Das bestehende Dateinamenschema bleibt auch für die digital signierte Fassung erhalten; die unsignierte Ausgangsfassung wird weder überschrieben noch gelöscht.
+- Es wurde bewusst keine neue WPF-UI-Erweiterung und keine zusätzliche Fachlogik ergänzt; der Block schließt nur den bereits begonnenen MAUI-Digitalsignaturpfad technisch ab.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den nächsten kleinen, buildfähigen Formularblock auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt und den Signatur-/Status-Folgepfad für Vertragsdokumente geschlossen.
+- Der bestehende Dokumenttyp-/Statuspfad bleibt führend: `Mitgliedsvertrag` und `Pachtvertrag` werden weiterhin separat über `unsigniert` und `signiert` unterschieden; die unsignierte Fassung bleibt beim Nachpflegen einer unterschriebenen Fassung unverändert erhalten und wird weder überschrieben noch gelöscht.
+- Dafür wurde im gemeinsamen Servicepfad `UploadSignedVertragsdokumentAsync(...)` ergänzt. Der Pfad akzeptiert nur bestehende unsignierte Vertragskontexte (`Mitgliedsvertrag`, `Pachtvertrag`) und nur PDF-Dateien; die signierte Fassung wird als eigenes Enddokument im bestehenden Mitglieds-Dokumentpfad abgelegt.
+- Das bestehende Dateinamenschema bleibt erhalten und wird für die signierte Fassung sauber fortgeführt: `<Name_Vorname>-<ID>-<yyyy-MM-dd>-<Dokumenttyp>-signiert.pdf`.
+- `DocumentInfo` erkennt jetzt explizit, ob ein Dokument ein Vertragsdokument ist und ob dazu im UI eine signierte Fassung abgelegt werden darf; damit bleiben signierte und unsignierte Fassungen im bestehenden Dokumentkontext getrennt sichtbar und nachvollziehbar.
+- In WPF wurde der Folgepfad minimal in die bestehende Mitglieds-Dokumentliste eingebunden: Für vorhandene unsignierte Vertragsdokumente erscheint dort jetzt `Signierte Fassung`, ohne den übrigen Dokumentpfad oder die Listenstruktur umzubauen.
+- In MAUI wurde derselbe kleine Folgepfad in `DokumentePage` ergänzt; auch mobil kann damit eine unterschriebene Fassung zu einem vorhandenen unsignierten Vertragsdokument abgelegt werden, ohne neue Parallelansicht oder Signatur-Canvas.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+- Noch bewusst offen bleibt die spätere echte digitale Signatur-/Canvas-Logik; der aktuelle Block schafft nur den anschlussfähigen Status- und Upload-Unterbau.
+
+- Den nächsten kleinen Formularblock auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt und den Mitgliedsvertrag auf den bestehenden Formular-/Dokumentpfad gezogen.
+- Dafür wurde ein gemeinsamer Produktivpfad `Mitgliedsvertrag (unsigniert)` ergänzt: `ISupabaseService` und `SupabaseService` besitzen jetzt `CreateMitgliedsvertragDokumentAsync(...)`, das wie die vorhandenen Formularfälle direkt über den bestehenden Dokument-Upload und die Mitgliedsablage läuft.
+- Da für den Mitgliedsvertrag noch keine eigene offizielle PDF-Vorlage im Repo geführt wird, wird der Vertrag zunächst als saubere wiederverwendbare Vereins-PDF über den vorhandenen Branding-/Vorlagenpfad erzeugt; die Kapselung liegt in `MitgliedsvertragDokumentFactory`, sodass später leicht auf eine echte Vorlage gewechselt werden kann.
+- Der Mitgliedsvertrag gibt jetzt mindestens Name, Vorname, Geburtsdatum soweit vorhanden, Adresse, Kontaktangaben, Mitgliedskontext, Eintritts-/Vertragsdatum sowie einen Unterschriftsbereich aus und bleibt beim bestehenden Dateinamenschema `<Name_Vorname>-<ID>-<yyyy-MM-dd>-mitgliedsvertrag-unsigniert.pdf`.
+- Der gemeinsame Vereinsdokument-Builder wurde nur minimal geöffnet: Statt eines fest verdrahteten Mitgliedsantrags-Intros akzeptiert er jetzt einen formularspezifischen Introtext, sodass Mitgliedsantrag und Mitgliedsvertrag denselben Brandingpfad weiterverwenden können, ohne neue Schattenlogik aufzubauen.
+- Im WPF-Mitgliedsdetail wird nach erfolgreicher Mitglied-Neuanlage jetzt direkt gefragt `Mitgliedsvertrag erstellen?`; bei Zustimmung wird der unsignierte Vertrag erzeugt, im bestehenden Dokumentpfad des Mitglieds gespeichert und bei verfügbarer Open-URL direkt geöffnet.
+- Der bestehende MAUI-Mitgliedspfad wurde in diesem kleinen Block ebenfalls mitgezogen: Nach erfolgreicher Neuanlage erscheint dieselbe Nachfrage, und der Vertrag wird über denselben gemeinsamen Servicepfad erzeugt; dabei wurde der Busy-Guard so korrigiert, dass die Vertragserzeugung im Neuanlagepfad nicht blockiert wird.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+- Für den fachlichen Minimaltest existiert im aktuellen Workspace kein automatisierter UI-Testpfad; `get_tests` lieferte weder für `KGV.Wpf` noch für `KGV.Maui` passende Tests, daher wurde der Block build-validiert und der sichtbare Flow über die echten UI-/Servicepfade implementiert.
+
+- Den begonnenen Pachtvertragsblock auf dem echten Branch-Stand `feature/formularverwaltung` sauber technisch geschlossen, ohne einen neuen Fachblock zu starten.
+- Die offizielle Vorlage `Formulare/Pachtvertrag_KGV_bereinigt_mit_Feldern.pdf` ist jetzt bewusst im nachverfolgten Projektstand eingebunden und wird zentral aus `KGV.Core` als echte PDF-Formularvorlage verwendet; eine Ersatzvorlage oder ein nachgebautes Layout wird nicht verwendet.
+- Dafür wurde der gemeinsame Produktivpfad für `Pachtvertrag (unsigniert)` ergänzt: `SaisonRecord` kennt jetzt `pacht_pro_qm`, `SupabaseService` erzeugt den Vertrag über `CreatePachtvertragDokumentAsync(...)`, und `PachtvertragDokumentFactory` berechnet den Pachtzins zentral als `Parzellenfläche * Saison.Pacht_pro_qm` mit kaufmännischer Rundung auf zwei Nachkommastellen.
+- Fehlerfälle laufen nicht mehr still weiter: fehlende Saison, fehlendes `pacht_pro_qm`, ungültige oder fehlende Parzellenfläche sowie fehlende Pflicht-/Signaturfelder in der offiziellen PDF-Vorlage brechen den Produktivpfad jetzt mit klaren Fehlermeldungen ab.
+- Die echte PDF-Vorlage wird direkt befüllt; mindestens Pächter 1/2, Geburtsdaten, Anschrift, Telefon, Parzellennummer, Parzellenfläche, Vertragsbeginn, `pacht_pro_qm`, Pachtzins, Betragskasten sowie Ort/Datum laufen über die vorhandenen Formularfelder.
+- Im WPF-Mitgliedsdetail ist `NewContractCommand` jetzt produktiv, und nach erfolgreicher Parzellenzuweisung folgt im bestehenden Flow die Nachfrage `Pachtvertrag erstellen?`; bei Zustimmung wird der unsignierte Vertrag im bestehenden Mitglieds-Dokumentpfad gespeichert und bei verfügbarer Open-URL direkt geöffnet.
+- Der begonnene Restfehler im WPF-Zuweisungspfad wurde minimal behoben, indem die Parzellen-ID vor dem Reload gesichert wird und der nachfolgende Vertragsdialog damit keinen Nullzugriff mehr auf die zurückgesetzte UI-Auswahl hat.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+- Für den fachlichen Minimaltest existiert im aktuellen Repo kein automatisierter UI-Testpfad; deshalb wurde der Block build-validiert und die Fehlerpfade wurden direkt im produktiven Codepfad abgesichert.
+
+- Den nächsten kleinen Block der Formularverwaltung auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt und den vorhandenen Zwischenstand direkt weiterverwendet.
+- Der Mitgliedsantrag nutzt jetzt keine einfache technische Text-PDF mehr, sondern eine echte Vereinsvorlage mit sauberem Briefkopf, Vereinsname, Register-/Kontaktzeile und identischem Vereinslogo.
+- Dafür wurde ein gemeinsamer Core-Pfad für Vereinsbranding und Vereins-PDF-Layout aufgebaut; spätere Dokumente wie Mitgliedsvertrag oder Pachtvertrag können denselben Briefkopf-/Abschnitts-/Unterschriftsrahmen mitbenutzen.
+- Die Logo-Quelle bleibt fachlich konsistent: Das bestehende Vereinslogo aus `KGV.Maui/Resources/Images/kgv_logo.png` wird zentral als eingebettete Core-Ressource verwendet und im PDF gerendert.
+- Der Mitgliedsantrag gibt jetzt strukturiert mindestens Antragsteller/in, Geburtsdatum, Adresse, Kontaktangaben, Mitgliedskontext sowie einen Unterschriftsbereich aus und bleibt auf dem bestehenden Mitglied-/Dokumentpfad gespeichert.
+- Die Einstiege in WPF und MAUI bleiben bestehen und wurden nur minimal auf `Mitgliedsantrag als PDF` geglättet.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 ## 2026-04-08
+- Den ersten kleinen Grundblock für die neue Formularverwaltung auf dem Branch `feature/formularverwaltung` umgesetzt.
+- Dafür eine gemeinsame Core-Grundlage für Formular-Dokumenttyp, Formular-Dokumentstatus, Dateinamenschema und einfache PDF-Erzeugung eingeführt; vorbereitet für `Mitgliedsantrag`, `Mitgliedsvertrag` und `Pachtvertrag` sowie `unsigniert`/`signiert`.
+- Den ersten konkreten Formularfall `Mitgliedsantrag` über den bestehenden Mitglieds-/Dokumentpfad angebunden: Mitglied laden, PDF erzeugen, über den vorhandenen Dokument-Upload speichern und dem Mitglied zuordnen.
+- In WPF und MAUI jeweils einen ersten sichtbaren Einstieg im Mitgliedskontext ergänzt; nach Erzeugung wird das abgelegte Dokument direkt geöffnet, sofern der bestehende Dokumentpfad bereits eine Open-URL liefert.
+- Dokumentlisten können die neue Grundlage jetzt fachlich mindestens nach Typ und Status unterscheiden, ohne neue Schattenablage neben dem bestehenden Dokumentpfad aufzubauen.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Im WPF-Mitgliedsdetail die E-Mail-Sperrlogik minimal korrigiert: Bei Neuanlage bzw. ohne bestehenden App-User bleibt das Feld editierbar.
 - Gesperrt bleibt das Feld jetzt nur noch, wenn das Mitglied bereits einen App-User über `AuthUserId` hat; der OTP-Button wird nur in diesem Fall eingeblendet.
 - Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich; `dotnet build KGV.Maui/KGV.Maui.csproj` scheitert in diesem Block extern an `java.exe`/Systemressourcen.

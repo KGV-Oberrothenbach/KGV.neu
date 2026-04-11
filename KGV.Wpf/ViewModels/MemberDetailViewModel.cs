@@ -1,6 +1,7 @@
 ﻿// File: ViewModels/MemberDetailViewModel.cs
 using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -9,6 +10,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
+using KGV.Core.Utilities;
 using KGV.Helpers;
 using KGV.Messages;
 using KGV.Views;
@@ -48,7 +50,7 @@ namespace KGV.ViewModels
         public bool ShowChangeEmailButton => HasSelectedMemberAppUser && IsEditMode;
 
         public bool ShowParzellenSection => true;
-        public bool ShowNewContractButton => !_isNewMode;
+        public bool ShowNewContractButton => !_isNewMode && SelectedMember.Id > 0 && SelectedMember.IstHauptmitglied && PermissionChecks.CanCreateMitglied(_userContext);
 
         private MitgliedRecord? _nebenmitgliedRecord;
         private bool _hasNebenmitglied;
@@ -70,8 +72,9 @@ namespace KGV.ViewModels
 
         public bool ShowAdresseUebernehmenButton => false;
         public bool CanEditMemberStammdaten => _isNewMode
-            ? PermissionChecks.CanEditAllMembers(_userContext)
-            : PermissionChecks.CanWriteStammdatenForMember(_userContext, SelectedMember.Id);
+            ? PermissionChecks.CanCreateMitglied(_userContext)
+            : PermissionChecks.CanWriteStammdatenForMember(_userContext, SelectedMember.Id)
+              || PermissionChecks.CanCreateMitglied(_userContext);
 
         private MemberDTO _originalSnapshot;
 
@@ -150,16 +153,18 @@ namespace KGV.ViewModels
         public RelayCommand<object?> SaveCommand { get; }
         public RelayCommand<object?> CancelCommand { get; }
         public RelayCommand<object?> ChangeEmailCommand { get; }
+        public RelayCommand<object?> CreateMitgliedsantragCommand { get; }
         public RelayCommand<object?> NebenmitgliedCommand { get; }
         public RelayCommand<object?> CopyAddressFromHauptmitgliedCommand { get; }
 
-        // noch nicht implementiert (Binding existiert in View)
         public RelayCommand<object?> NewContractCommand { get; }
         public RelayCommand<object?> CancelMembershipCommand { get; }
         public RelayCommand<object?> AssignParzelleCommand { get; }
         public RelayCommand<object?> EndBelegungCommand { get; }
         public RelayCommand<object?> OpenSelectedParzelleCommand { get; }
 
+        public bool ShowMitgliedsantragButton => !_isNewMode && PermissionChecks.CanCreateMitglied(_userContext);
+        public bool CanCreateMitgliedsantrag => ShowMitgliedsantragButton && SelectedMember.Id > 0 && !IsEditMode;
         public bool CanChangeEmail => HasSelectedMemberAppUser && IsEditMode && _currentUserMemberId == SelectedMember.Id;
         public string ChangeEmailHint => !HasSelectedMemberAppUser
             ? "Mailadresse kann direkt in den Stammdaten bearbeitet werden, solange noch kein App-User verknüpft ist."
@@ -190,6 +195,7 @@ namespace KGV.ViewModels
             SaveCommand = new RelayCommand<object?>(_ => _ = SaveAsync(), _ => CanSave());
             CancelCommand = new RelayCommand<object?>(_ => _ = CancelAsync(), _ => CanCancel());
             ChangeEmailCommand = new RelayCommand<object?>(_ => _ = ChangeEmailAsync(), _ => CanChangeEmail);
+            CreateMitgliedsantragCommand = new RelayCommand<object?>(_ => _ = CreateMitgliedsantragAsync(), _ => CanCreateMitgliedsantrag);
             AssignParzelleCommand = new RelayCommand<object?>(_ => _ = AssignParzelleAsync(), _ => CanAssignParzelle());
             EndBelegungCommand = new RelayCommand<object?>(_ => _ = EndBelegungAsync(), _ => CanEndBelegung());
             OpenSelectedParzelleCommand = new RelayCommand<object?>(_ => OpenSelectedParzelle(), _ => SelectedBelegung != null);
@@ -197,7 +203,7 @@ namespace KGV.ViewModels
             NebenmitgliedCommand = new RelayCommand<object?>(_ => _ = NebenmitgliedAsync(), _ => ShowNebenmitgliedButton);
             CopyAddressFromHauptmitgliedCommand = new RelayCommand<object?>(_ => { }, _ => false);
 
-            NewContractCommand = new RelayCommand<object?>(_ => MessageBox.Show("Noch nicht implementiert.", "Info", MessageBoxButton.OK, MessageBoxImage.Information));
+            NewContractCommand = new RelayCommand<object?>(_ => _ = CreatePachtvertragFromCurrentContextAsync(), _ => CanCreatePachtvertragFromCurrentContext());
             CancelMembershipCommand = new RelayCommand<object?>(_ => _ = CancelMembershipAsync(), _ => CanCancelMembership());
         }
 
@@ -223,6 +229,7 @@ namespace KGV.ViewModels
                 IsEditMode = true;
                 IsDirty = false;
                 OnPropertyChanged(nameof(CanEditMemberStammdaten));
+                OnPropertyChanged(nameof(ShowNewContractButton));
                 InvalidateCommands();
                 return;
             }
@@ -234,6 +241,7 @@ namespace KGV.ViewModels
             IsEditMode = false;
             IsDirty = false;
             OnPropertyChanged(nameof(CanEditMemberStammdaten));
+            OnPropertyChanged(nameof(ShowNewContractButton));
             InvalidateCommands();
         }
 
@@ -580,6 +588,7 @@ namespace KGV.ViewModels
 
                 OnPropertyChanged(nameof(ShowNebenmitgliedButton));
                 OnPropertyChanged(nameof(ShowCancelMembershipButton));
+                OnPropertyChanged(nameof(ShowNewContractButton));
                 OnPropertyChanged(nameof(CanChangeEmail));
                 OnPropertyChanged(nameof(ChangeEmailHint));
                 ChangeEmailCommand.RaiseCanExecuteChanged();
@@ -632,7 +641,17 @@ namespace KGV.ViewModels
                     IsDirty = false;
                     IsEditMode = false;
                     OnPropertyChanged(nameof(CanEditMemberStammdaten));
+                    OnPropertyChanged(nameof(ShowNewContractButton));
                     WeakReferenceMessenger.Default.Send(new MemberSavedMessage(SelectedMember.Clone()));
+
+                    var createMitgliedsvertrag = MessageBox.Show(
+                        "Mitglied angelegt. Mitgliedsvertrag erstellen?",
+                        "Mitgliedsvertrag",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+
+                    if (createMitgliedsvertrag == MessageBoxResult.Yes)
+                        await CreateMitgliedsvertragAsync(SelectedMember.Id);
 
                     var createNebenmitglied = MessageBox.Show(
                         "Mitglied angelegt. Soll jetzt ein Nebenmitglied angelegt werden?",
@@ -672,6 +691,7 @@ namespace KGV.ViewModels
 
                 IsEditMode = false;
                 InvalidateCommands();
+                OnPropertyChanged(nameof(ShowNewContractButton));
                 OnPropertyChanged(nameof(CanChangeEmail));
                 OnPropertyChanged(nameof(ChangeEmailHint));
                 ChangeEmailCommand.RaiseCanExecuteChanged();
@@ -711,6 +731,7 @@ namespace KGV.ViewModels
 
                 OnPropertyChanged(nameof(ShowNebenmitgliedButton));
                 OnPropertyChanged(nameof(ShowCancelMembershipButton));
+                OnPropertyChanged(nameof(ShowNewContractButton));
                 OnPropertyChanged(nameof(CanChangeEmail));
                 OnPropertyChanged(nameof(ChangeEmailHint));
                 ChangeEmailCommand.RaiseCanExecuteChanged();
@@ -743,11 +764,12 @@ namespace KGV.ViewModels
 
             try
             {
+                var assignedParzelleId = SelectedParzelleToAssign.Id;
                 var start = (AssignVonDatum ?? DateTime.Today).Date;
 
                 var ok = await _supabaseService.AssignParzelleToMitgliedAsync(
                     SelectedMember.Id,
-                    SelectedParzelleToAssign.Id,
+                    assignedParzelleId,
                     start);
 
                 if (!ok)
@@ -761,8 +783,7 @@ namespace KGV.ViewModels
                 }
 
                 await LoadParzellenAsync();
-
-                MessageBox.Show("Parzelle zugewiesen.", "OK", MessageBoxButton.OK, MessageBoxImage.Information);
+                await PromptCreatePachtvertragAfterAssignAsync(assignedParzelleId, start);
             }
             catch (Exception ex)
             {
@@ -815,10 +836,176 @@ namespace KGV.ViewModels
             SaveCommand.RaiseCanExecuteChanged();
             CancelCommand.RaiseCanExecuteChanged();
             ChangeEmailCommand.RaiseCanExecuteChanged();
+            CreateMitgliedsantragCommand.RaiseCanExecuteChanged();
+            NewContractCommand.RaiseCanExecuteChanged();
             AssignParzelleCommand.RaiseCanExecuteChanged();
             EndBelegungCommand.RaiseCanExecuteChanged();
             OpenSelectedParzelleCommand.RaiseCanExecuteChanged();
             NebenmitgliedCommand.RaiseCanExecuteChanged();
+        }
+
+        private bool CanCreatePachtvertragFromCurrentContext()
+            => ShowNewContractButton && GetBelegungForPachtvertrag() != null;
+
+        private async Task CreatePachtvertragFromCurrentContextAsync()
+        {
+            var belegung = GetBelegungForPachtvertrag();
+            if (belegung == null)
+            {
+                MessageBox.Show("Es gibt aktuell keine aktive Parzellenzuweisung für einen Pachtvertrag.", "Pachtvertrag", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            await CreatePachtvertragAsync(belegung.ParzelleId, belegung.VonDatum ?? DateTime.Today);
+        }
+
+        private ParzellenBelegungDTO? GetBelegungForPachtvertrag()
+        {
+            if (SelectedBelegung != null && SelectedBelegung.IsAktiv)
+                return SelectedBelegung;
+
+            return ParzellenBelegungen
+                .Where(x => x.IsAktiv)
+                .OrderByDescending(x => x.VonDatum ?? DateTime.MinValue)
+                .FirstOrDefault();
+        }
+
+        private async Task PromptCreatePachtvertragAfterAssignAsync(int parzelleId, DateTime vertragsbeginn)
+        {
+            var createContract = MessageBox.Show(
+                "Parzelle zugewiesen. Pachtvertrag erstellen?",
+                "Pachtvertrag",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (createContract != MessageBoxResult.Yes)
+                return;
+
+            await CreatePachtvertragAsync(parzelleId, vertragsbeginn);
+        }
+
+        private async Task CreatePachtvertragAsync(int parzelleId, DateTime vertragsbeginn)
+        {
+            var result = await _supabaseService.CreatePachtvertragDokumentAsync(SelectedMember.Id, parzelleId, vertragsbeginn, FormularDokumentStatus.Unsigniert);
+            if (!result.Success)
+            {
+                MessageBox.Show(result.Message, "Pachtvertrag", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var document = result.Document;
+            if (document?.CanOpen != true)
+            {
+                MessageBox.Show("Pachtvertrag wurde als Dokument abgelegt.", "Pachtvertrag", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                MessageBox.Show("Pachtvertrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "Pachtvertrag", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+
+        private async Task CreateMitgliedsvertragAsync(int mitgliedId)
+        {
+            var result = await _supabaseService.CreateMitgliedsvertragDokumentAsync(mitgliedId, FormularDokumentStatus.Unsigniert);
+            if (!result.Success)
+            {
+                MessageBox.Show(result.Message, "Mitgliedsvertrag", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var document = result.Document;
+            if (document?.CanOpen != true)
+            {
+                MessageBox.Show("Mitgliedsvertrag wurde als Dokument abgelegt.", "Mitgliedsvertrag", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                MessageBox.Show("Mitgliedsvertrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "Mitgliedsvertrag", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+
+        private async Task CreateMitgliedsantragAsync()
+        {
+            if (!CanCreateMitgliedsantrag)
+                return;
+
+            var request = await PromptMitgliedsantragRequestAsync();
+            if (request == null)
+                return;
+
+            var result = await _supabaseService.CreateMitgliedsantragDokumentAsync(request);
+            if (!result.Success)
+            {
+                MessageBox.Show(result.Message, "Mitgliedsantrag", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var document = result.Document;
+            if (document?.CanOpen != true)
+            {
+                MessageBox.Show("Mitgliedsantrag wurde als Dokument abgelegt.", "Mitgliedsantrag", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                MessageBox.Show("Mitgliedsantrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "Mitgliedsantrag", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+
+        private async Task<MitgliedsantragDokumentRequest?> PromptMitgliedsantragRequestAsync()
+        {
+            var member = await _supabaseService.GetMitgliedByIdAsync(SelectedMember.Id);
+            if (member == null)
+            {
+                MessageBox.Show("Mitglied konnte nicht geladen werden.", "Mitgliedsantrag", MessageBoxButton.OK, MessageBoxImage.Error);
+                return null;
+            }
+
+            MitgliedsantragBeitragVorschlag vorschlag;
+            try
+            {
+                var saisons = await _supabaseService.GetSaisonRecordsAsync();
+                vorschlag = MitgliedsantragBeitragHelper.CreateSuggestion(member, saisons);
+            }
+            catch (InvalidOperationException ex)
+            {
+                MessageBox.Show(ex.Message, "Mitgliedsantrag", MessageBoxButton.OK, MessageBoxImage.Error);
+                return null;
+            }
+
+            var dialog = new MitgliedsantragDialog
+            {
+                Owner = Application.Current?.MainWindow
+            };
+
+            dialog.SetInitialValues(SelectedMember.DisplayName, vorschlag);
+            if (dialog.ShowDialog() != true)
+                return null;
+
+            return new MitgliedsantragDokumentRequest
+            {
+                MitgliedId = SelectedMember.Id,
+                BeginnDatum = vorschlag.BeginnDatum,
+                Mitgliedsbeitrag = dialog.Mitgliedsbeitrag,
+                Status = FormularDokumentStatus.Unsigniert
+            };
         }
 
         private async Task ChangeEmailAsync()

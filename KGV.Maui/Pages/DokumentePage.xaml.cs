@@ -94,7 +94,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
                         subtitle.Text = BuildDocumentMetaText(document);
                 };
 
-                var actionButton = new Button { Text = "Einsehen / Download" };
+                var actionButton = new Button { Text = "Öffnen" };
                 actionButton.SetBinding(IsEnabledProperty, nameof(DocumentInfo.CanOpen));
                 actionButton.Clicked += async (_, _) =>
                 {
@@ -117,6 +117,37 @@ public class DokumentePage : ContentPage, IQueryAttributable
                         await DeleteDocumentAsync(document);
                 };
 
+                var uploadSignedButton = new Button { IsVisible = false };
+                uploadSignedButton.SetBinding(Button.TextProperty, nameof(DocumentInfo.MauiSignedUploadButtonText));
+                uploadSignedButton.BindingContextChanged += (_, _) =>
+                {
+                    var document = uploadSignedButton.BindingContext as DocumentInfo;
+                    uploadSignedButton.IsVisible = CanShowMauiPachtvertragFollowActions(document);
+                };
+                uploadSignedButton.Clicked += async (_, _) =>
+                {
+                    if (_isBusy)
+                        return;
+
+                    if (uploadSignedButton.BindingContext is DocumentInfo document)
+                        await UploadSignedContractVersionAsync(document);
+                };
+
+                var digitalSignButton = new Button { Text = "Digital signieren", IsVisible = false };
+                digitalSignButton.BindingContextChanged += (_, _) =>
+                {
+                    var document = digitalSignButton.BindingContext as DocumentInfo;
+                    digitalSignButton.IsVisible = CanShowMauiPachtvertragFollowActions(document);
+                };
+                digitalSignButton.Clicked += async (_, _) =>
+                {
+                    if (_isBusy)
+                        return;
+
+                    if (digitalSignButton.BindingContext is DocumentInfo document)
+                        await DigitalSignContractAsync(document);
+                };
+
                 return new Border
                 {
                     Padding = 12,
@@ -133,7 +164,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
                             new HorizontalStackLayout
                             {
                                 Spacing = 8,
-                                Children = { actionButton, deleteButton }
+                                Children = { actionButton, deleteButton, uploadSignedButton, digitalSignButton }
                             }
                         }
                     }
@@ -173,6 +204,143 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
         Appearing += async (_, _) => await LoadAsync();
         UpdateUiState();
+    }
+
+    private async Task DigitalSignContractAsync(DocumentInfo document)
+    {
+        if (_isBusy)
+            return;
+
+        if (!CanManageDocuments)
+        {
+            SetStatus("Digitale Signaturen sind nur für Admin/Vorstand erlaubt.", success: false);
+            UpdateUiState();
+            return;
+        }
+
+        var signPage = new VertragsSignaturPage(document);
+        await Navigation.PushModalAsync(new NavigationPage(signPage));
+        var signature = await signPage.WaitForResultAsync();
+        if (signature == null)
+            return;
+
+        var context = await ResolveContextAsync();
+        ApplyContext(context);
+        if (!context.IsValid || context.Scope != DokumentOwnerScope.Mitglied || context.OwnerId is not > 0)
+        {
+            SetStatus("Bitte zuerst ein gültiges Mitglied auswählen.", success: false);
+            UpdateUiState();
+            return;
+        }
+
+        _isBusy = true;
+        UpdateUiState();
+        try
+        {
+            var result = await _supabaseService.CreateSignedVertragsdokumentAsync(context.OwnerId.Value, document, signature);
+            if (!result.Success)
+            {
+                SetStatus(result.Message, success: false);
+                return;
+            }
+
+            var reloaded = await TryReloadDocumentsAsync(context);
+            SetStatus(reloaded
+                ? "Digital signierte Vertragsfassung gespeichert. Die unsignierte Fassung bleibt erhalten."
+                : "Digital signierte Vertragsfassung gespeichert. Die unsignierte Fassung bleibt erhalten. Bitte Liste aktualisieren.", success: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DokumentePage] DigitalSignContractAsync failed: {ex}");
+            SetStatus("Digital signierte Vertragsfassung konnte nicht erzeugt werden.", success: false);
+        }
+        finally
+        {
+            _isBusy = false;
+            UpdateUiState();
+        }
+    }
+
+    private async Task UploadSignedContractVersionAsync(DocumentInfo document)
+    {
+        if (_isBusy)
+            return;
+
+        if (!CanManageDocuments)
+        {
+            SetStatus("Signierte Fassungen sind nur für Admin/Vorstand erlaubt.", success: false);
+            UpdateUiState();
+            return;
+        }
+
+        var context = await ResolveContextAsync();
+        ApplyContext(context);
+        if (!context.IsValid || context.Scope != DokumentOwnerScope.Mitglied || context.OwnerId is not > 0)
+        {
+            SetStatus("Bitte zuerst ein gültiges Mitglied auswählen.", success: false);
+            UpdateUiState();
+            return;
+        }
+
+        if (!document.CanUploadSignedContractVersion)
+        {
+            SetStatus("Bitte zuerst eine unsignierte Vertragsfassung auswählen.", success: false);
+            UpdateUiState();
+            return;
+        }
+
+        if (!IsMauiSupportedContractDocument(document))
+        {
+            SetStatus("Im mobilen Dokumentpfad werden Folgeaktionen nur noch für Pachtverträge angeboten.", success: false);
+            UpdateUiState();
+            return;
+        }
+
+        try
+        {
+            var file = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Signierte Vertragsfassung auswählen"
+            });
+
+            if (file == null)
+                return;
+
+            await using var stream = await file.OpenReadAsync();
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+
+            _isBusy = true;
+            UpdateUiState();
+
+            var result = await _supabaseService.UploadSignedVertragsdokumentAsync(
+                context.OwnerId.Value,
+                document,
+                memoryStream.ToArray(),
+                file.FileName ?? string.Empty,
+                string.IsNullOrWhiteSpace(file.ContentType) ? GetContentType(file.FileName ?? string.Empty) : file.ContentType);
+
+            if (!result.Success)
+            {
+                SetStatus(result.Message, success: false);
+                return;
+            }
+
+            var reloaded = await TryReloadDocumentsAsync(context);
+            SetStatus(reloaded
+                ? "Signierte Vertragsfassung abgelegt. Die unsignierte Fassung bleibt erhalten."
+                : "Signierte Vertragsfassung abgelegt. Die unsignierte Fassung bleibt erhalten. Bitte Liste aktualisieren.", success: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DokumentePage] UploadSignedContractVersionAsync failed: {ex}");
+            SetStatus("Signierte Vertragsfassung konnte nicht hochgeladen werden.", success: false);
+        }
+        finally
+        {
+            _isBusy = false;
+            UpdateUiState();
+        }
     }
 
     public void ApplyQueryAttributes(IDictionary<string, object> query)
@@ -565,6 +733,18 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
     public bool CanManageDocuments => _userContextState.CurrentUserContext?.Has(PermissionFlags.CanManageDocuments) == true;
 
+    private bool CanReadMemberDocuments(int? memberId)
+    {
+        if (memberId is not > 0)
+            return false;
+
+        var userContext = _userContextState.CurrentUserContext;
+        return PermissionChecks.CanReadDocumentsForMember(userContext, memberId)
+               || PermissionChecks.CanShowStammdatenForMember(userContext, memberId)
+               || PermissionChecks.CanViewMembers(userContext)
+               || PermissionChecks.CanSearchMembers(userContext);
+    }
+
     private string BuildContextHint(DokumentPageContext context)
     {
         var subject = context.Scope == DokumentOwnerScope.Parzelle
@@ -575,7 +755,9 @@ public class DokumentePage : ContentPage, IQueryAttributable
             return $"Für {subject} ist der Dokumente-Zugriff mit dem aktuellen Rechtekontext nicht freigegeben.";
 
         return CanManageDocuments
-            ? $"Es werden nur die Dokumente für {subject} angezeigt. Upload, Öffnen und Löschen laufen über den gemeinsamen Google-Drive-Dokumentpfad."
+            ? context.Scope == DokumentOwnerScope.Mitglied
+                ? $"Es werden nur die Dokumente für {subject} angezeigt. Für unsignierte Pachtverträge stehen Öffnen, signierten Scan ablegen und digital signieren zur Verfügung. Die unsignierte Fassung bleibt erhalten."
+                : $"Es werden nur die Dokumente für {subject} angezeigt. Upload, Öffnen und Löschen laufen über den gemeinsamen Google-Drive-Dokumentpfad."
             : $"Es werden nur die Dokumente für {subject} angezeigt. Öffnen und Aktualisieren bleiben verfügbar.";
     }
 
@@ -586,9 +768,19 @@ public class DokumentePage : ContentPage, IQueryAttributable
             : "das aktuell ausgewählte Mitglied";
 
         return CanManageDocuments
-            ? $"Es werden nur die Dokumente für {subject} angezeigt. Upload, Öffnen und Löschen laufen über den gemeinsamen Google-Drive-Dokumentpfad."
+            ? scope == DokumentOwnerScope.Mitglied
+                ? $"Es werden nur die Dokumente für {subject} angezeigt. Für unsignierte Pachtverträge stehen Öffnen, signierten Scan ablegen und digital signieren zur Verfügung. Die unsignierte Fassung bleibt erhalten."
+                : $"Es werden nur die Dokumente für {subject} angezeigt. Upload, Öffnen und Löschen laufen über den gemeinsamen Google-Drive-Dokumentpfad."
             : $"Es werden nur die Dokumente für {subject} angezeigt. Öffnen und Aktualisieren bleiben verfügbar.";
     }
+
+    private bool CanShowMauiPachtvertragFollowActions(DocumentInfo? document)
+        => CanManageDocuments
+            && document?.CanUploadSignedContractVersion == true
+            && IsMauiSupportedContractDocument(document);
+
+    private static bool IsMauiSupportedContractDocument(DocumentInfo? document)
+        => string.Equals(document?.FormularDokumentTypKey, FormularDokumentTyp.Pachtvertrag, StringComparison.Ordinal);
 
     private bool CanReadRequestedContext()
     {
@@ -601,7 +793,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
             return PermissionChecks.CanReadDocumentsForMember(userContext, _memberContextState.SelectedMember?.Id);
         }
 
-        return PermissionChecks.CanReadDocumentsForMember(userContext, _memberContextState.SelectedMember?.Id);
+        return CanReadMemberDocuments(_memberContextState.SelectedMember?.Id);
     }
 
     private bool CanReadContext(DokumentPageContext context)
@@ -611,7 +803,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
         var userContext = _userContextState.CurrentUserContext;
         if (context.Scope == DokumentOwnerScope.Mitglied)
-            return PermissionChecks.CanReadDocumentsForMember(userContext, context.OwnerId);
+            return CanReadMemberDocuments(context.OwnerId);
 
         if (PermissionChecks.CanReadDocuments(userContext))
             return true;
@@ -636,13 +828,19 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
     private static string BuildDocumentMetaText(DocumentInfo document)
     {
+        var formularMeta = document.FormularDokumentTypAnzeige == "-"
+            ? string.Empty
+            : $"Typ: {document.FormularDokumentTypAnzeige} · Status: {document.FormularDokumentStatusKlartext} · ";
+        var actionHint = string.IsNullOrWhiteSpace(document.VertragsFolgeaktionHinweis)
+            ? string.Empty
+            : $"{document.VertragsFolgeaktionHinweis} · ";
         var updated = document.UpdatedAt.HasValue
             ? $"Aktualisiert: {document.UpdatedAt.Value:dd.MM.yyyy HH:mm}"
             : "Aktualisiert: -";
         var size = document.Size.HasValue
             ? FormatFileSize(document.Size.Value)
             : "Größe unbekannt";
-        return $"{updated} · {size}";
+        return $"{formularMeta}{actionHint}{updated} · {size}";
     }
 
     private static string GetDocumentDisplayName(DocumentInfo document)

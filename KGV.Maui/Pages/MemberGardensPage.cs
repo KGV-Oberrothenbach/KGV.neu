@@ -155,7 +155,7 @@ public sealed class MemberGardensPage : ContentPage
                 : $"Gärten von {contextMember.DisplayName}";
 
             await LoadAssignmentsAsync(contextMember.Id);
-            _assignGardenButton.IsVisible = false;
+            UpdateAssignGardenButtonVisibility(contextMember.Id);
         }
         catch (Exception ex)
         {
@@ -239,8 +239,19 @@ public sealed class MemberGardensPage : ContentPage
             return;
         }
 
-        _parzellenContextState.Clear();
-        await Shell.Current.GoToAsync("//parzellen");
+        if (!PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext))
+        {
+            await DisplayAlert("Hinweis", "Parzellenzuweisung ist mobil nur mit dem Fachrecht 'CreateMitglied' oder als Admin/Vorstand freigegeben.", "OK");
+            return;
+        }
+
+        await Navigation.PushAsync(new MemberGardenAssignPage(_supabaseService, _memberContextState, _userContextState));
+    }
+
+    private void UpdateAssignGardenButtonVisibility(int mitgliedId)
+    {
+        _assignGardenButton.IsVisible = mitgliedId > 0
+            && PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
     }
 
     private static Border CreateSection(string title, params View[] children)
