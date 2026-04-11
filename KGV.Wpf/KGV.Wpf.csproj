@@ -6,10 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Resources\AppIcon\kgv.ico</ApplicationIcon>
-    <Version>0.4.40</Version>
-    <FileVersion>0.4.40</FileVersion>
-    <InformationalVersion>0.4.40</InformationalVersion>
-    <AssemblyVersion>0.4.40.0</AssemblyVersion>
+    <Version>0.4.41</Version>
+    <FileVersion>0.4.41</FileVersion>
+    <InformationalVersion>0.4.41</InformationalVersion>
+    <AssemblyVersion>0.4.41.0</AssemblyVersion>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\KGV.Core\KGV.Core.csproj" />
