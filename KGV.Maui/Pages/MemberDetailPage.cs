@@ -16,6 +16,8 @@ namespace KGV.Maui.Pages;
 
 public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 {
+    private const string TemporaryRuntimeBuildMarker = "2026-04-11 19:44:54 UTC / git b1a571f";
+
     private readonly ISupabaseService _supabaseService;
     private readonly IAuthService _authService;
     private readonly MemberSearchRefreshState _memberSearchRefreshState;
@@ -28,6 +30,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private bool _isCreateMode;
 
     private readonly Label _headlineLabel;
+    private readonly Label _runtimeIdentityLabel;
     private readonly Label _statusLabel;
     private readonly Label _emailHintLabel;
     private readonly Label _rolleLabel;
@@ -74,6 +77,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         Title = "Stammdaten";
 
         _headlineLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold };
+        _runtimeIdentityLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap, FontSize = 12 };
         _statusLabel = new Label { TextColor = Colors.DarkRed, LineBreakMode = LineBreakMode.WordWrap };
         _emailEntry = new Entry { Placeholder = "E-Mail", Keyboard = Keyboard.Email };
         _emailHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
@@ -147,6 +151,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 Children =
                 {
                     _headlineLabel,
+                    _runtimeIdentityLabel,
                     _statusLabel,
                     CreateSection("Grunddaten",
                         CreateEditorField("Nachname", _nachnameEntry),
@@ -201,6 +206,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _isBusy = true;
         try
         {
+            UpdateRuntimeIdentityDiagnostic(null);
             _statusLabel.Text = string.Empty;
 
             var selectedMember = _memberContextState.SelectedMember;
@@ -257,6 +263,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             SetOptionalDate(_mitgliedSeitEnabledSwitch, _mitgliedSeitPicker, memberDto.MitgliedSeit);
             SetOptionalDate(_mitgliedEndeEnabledSwitch, _mitgliedEndePicker, memberDto.MitgliedEnde);
 
+            UpdateRuntimeIdentityDiagnostic(memberDto);
             UpdateArbeitsstundenAltersregelVisibility(memberDto);
             UpdateAdminActions(memberDto);
         }
@@ -274,6 +281,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     {
         _memberRecord = null;
         _hasLinkedAppUser = false;
+        UpdateRuntimeIdentityDiagnostic(null);
         _nachnameEntry.Text = string.Empty;
         _vornameEntry.Text = string.Empty;
         _emailEntry.Text = string.Empty;
@@ -300,6 +308,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     {
         _memberRecord = null;
         _hasLinkedAppUser = false;
+        UpdateRuntimeIdentityDiagnostic(null);
         _headlineLabel.Text = "Neues Mitglied";
         _statusLabel.Text = "Neues Mitglied anlegen.";
         _nachnameEntry.Text = string.Empty;
@@ -369,6 +378,18 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _mitgliedsantragButton.IsVisible = canCreateMemberApplication;
         _mitgliedsantragButton.IsEnabled = canCreateMemberApplication;
         _mitgliedsantragDiagnoseLabel.Text = BuildMitgliedsantragDiagnoseText(member);
+    }
+
+    private void UpdateRuntimeIdentityDiagnostic(MemberDTO? member)
+    {
+        var currentUserContext = _userContextState.CurrentUserContext;
+        var version = AppInfo.Current.VersionString;
+        var build = AppInfo.Current.BuildString;
+        var memberId = member?.Id ?? _memberRecord?.Id ?? 0;
+        var pageType = GetType().FullName ?? nameof(MemberDetailPage);
+        var route = Shell.Current?.CurrentState?.Location?.ToString() ?? "-";
+
+        _runtimeIdentityLabel.Text = $"[TEMP Laufzeitidentität] Diagnose: MemberDetailPage aktiv | Version={version} ({build}) | BuildMarker={TemporaryRuntimeBuildMarker} | Page={pageType} | Route={route} | Mode={(_isCreateMode ? "Create" : "Detail")} | member.Id={memberId} | Rolle={currentUserContext?.Role.ToString() ?? "-"}";
     }
 
     private string BuildMitgliedsantragDiagnoseText(MemberDTO? member)

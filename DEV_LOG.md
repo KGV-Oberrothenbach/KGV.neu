@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-04-11 – Temporäre MAUI-Laufzeitidentität für MemberDetailPage ergänzt
+
+- Repo-Check auf `feature/formularverwaltung`:
+  - `git status --short --branch`
+- Den kleinen temporären Diagnoseblock nur zur Laufzeitidentifikation ergänzt, ohne neuen Fachblock zu starten.
+- Geprüfter Versionspfad:
+  - `KGV.Maui/KGV.Maui.csproj` führt weiter `ApplicationDisplayVersion=0.4.39` und `ApplicationVersion=91`
+- In `KGV.Maui/Pages/MemberDetailPage.cs` einen leicht entfernbaren Laufzeit-Hinweis ergänzt.
+- Der Hinweis zeigt im betroffenen Stammdatenpfad jetzt sichtbar an:
+  - `Diagnose: MemberDetailPage aktiv`
+  - App-Version und Buildnummer aus `AppInfo`
+  - temporären Build-Marker mit Zeitstempel und Git-Kennung
+  - aktuellen Page-Typ
+  - aktuellen Shell-/Seitenpfad
+  - aktuellen Modus sowie `member.Id` und Rolle
+- Die bestehende Fachlogik, Rechteverdrahtung und Buttonlogik wurden nicht geändert.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-11 – Temporäre MAUI-Diagnose für Mitgliedsantrag-Button ergänzt
 
 - Repo-Check auf `feature/formularverwaltung`:

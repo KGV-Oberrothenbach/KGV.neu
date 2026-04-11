@@ -35,6 +35,12 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-11
+- Den kleinen temporären MAUI-Diagnoseblock zur Laufzeitidentität auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- Im betroffenen Stammdatenpfad `MemberDetailPage` wird jetzt direkt sichtbar angezeigt, dass technisch wirklich `MemberDetailPage` geöffnet ist.
+- Zusätzlich zeigt der temporäre Hinweis App-Version und Buildnummer aus dem bestehenden MAUI-Versionspfad, einen Build-Marker mit Zeitstempel/Git-Kennung sowie den aktuellen Page-Typ und den aktuellen Shell-/Seitenpfad an.
+- Ziel des Blocks ist nur die eindeutige Laufzeitidentifikation des tatsächlich installierten Builds und des tatsächlich geöffneten Seitenpfads; Rechte, Dokumentpfade und Fachlogik blieben unverändert.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den kleinen temporären MAUI-Diagnoseblock für den im Lauf weiterhin fehlenden sichtbaren Button `Mitgliedsantrag als PDF` auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
 - In `KGV.Maui/Pages/MemberDetailPage.cs` wurde direkt an der bestehenden Sichtbarkeitsberechnung ein leicht wieder entfernbarer Diagnosehinweis ergänzt.
 - Der Hinweis zeigt zur Laufzeit genau die drei relevanten Bedingungen des Buttons an: Page-Modus (`_isCreateMode`), geladene `member.Id` und Ergebnis von `PermissionChecks.CanCreateMitglied(...)`; zusätzlich wird die aktuelle Rolle und ein kurzer Begründungstext für einen unsichtbaren Button ausgegeben.
