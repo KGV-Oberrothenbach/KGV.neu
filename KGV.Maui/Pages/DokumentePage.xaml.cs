@@ -733,6 +733,18 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
     public bool CanManageDocuments => _userContextState.CurrentUserContext?.Has(PermissionFlags.CanManageDocuments) == true;
 
+    private bool CanReadMemberDocuments(int? memberId)
+    {
+        if (memberId is not > 0)
+            return false;
+
+        var userContext = _userContextState.CurrentUserContext;
+        return PermissionChecks.CanReadDocumentsForMember(userContext, memberId)
+               || PermissionChecks.CanShowStammdatenForMember(userContext, memberId)
+               || PermissionChecks.CanViewMembers(userContext)
+               || PermissionChecks.CanSearchMembers(userContext);
+    }
+
     private string BuildContextHint(DokumentPageContext context)
     {
         var subject = context.Scope == DokumentOwnerScope.Parzelle
@@ -781,7 +793,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
             return PermissionChecks.CanReadDocumentsForMember(userContext, _memberContextState.SelectedMember?.Id);
         }
 
-        return PermissionChecks.CanReadDocumentsForMember(userContext, _memberContextState.SelectedMember?.Id);
+        return CanReadMemberDocuments(_memberContextState.SelectedMember?.Id);
     }
 
     private bool CanReadContext(DokumentPageContext context)
@@ -791,7 +803,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
         var userContext = _userContextState.CurrentUserContext;
         if (context.Scope == DokumentOwnerScope.Mitglied)
-            return PermissionChecks.CanReadDocumentsForMember(userContext, context.OwnerId);
+            return CanReadMemberDocuments(context.OwnerId);
 
         if (PermissionChecks.CanReadDocuments(userContext))
             return true;

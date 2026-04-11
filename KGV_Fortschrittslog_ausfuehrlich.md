@@ -35,6 +35,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Den kleinen MAUI-Block `Mitgliedsdokumente im Mitgliedskontext` auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- In der mobilen mitgliedsbezogenen Navigation gibt es jetzt den sichtbaren Menüpunkt `Dokumente` direkt zwischen `Stammdaten` und `Wartungsverträge`; er führt nicht auf eine globale Dokumente-Startseite, sondern direkt in die bestehende Dokumentansicht des aktuell ausgewählten Mitglieds.
+- Dafür wurden keine neuen Dokumentservices und kein neues MAUI-ViewModel eingeführt: die vorhandene `DokumentePage` bleibt führend und nutzt weiter die bestehenden Produktivpfade `GetMitgliedDokumenteAsync(...)`, `GetParzelleDokumenteAsync(...)` und `ResolveDokumentOpenUrlAsync(...)`.
+- Die bisher falsche Kopplung von reiner Lesbarkeit an Dokument-Verwaltungsrechte wurde im mobilen Mitgliedskontext gelöst: Dokumente sehen und öffnen folgt dort jetzt dem ausgewählten Mitgliedskontext, während Upload, Löschen, signierten Scan ablegen und digitale Signatur weiter nur mit dem bestehenden Fachrecht `CanManageDocuments` sichtbar bleiben.
+- Ergebnis: Die mitgliedsbezogene MAUI-Dokumentansicht zeigt jetzt die echten Dokumente des aktuell ausgewählten Mitglieds an; dazu gehören auch `Mitgliedsantrag` und `Pachtvertrag`, wobei der Pachtvertrag fachlich im Mitglied sichtbar bleibt, auch wenn er aus einem Parzellenkontext stammt.
+- Validierung: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den bereits begonnenen WPF-Updateprüfungsblock auf dem echten Branch-Stand `feature/formularverwaltung` fachlich sauber nachgeschärft, ohne neuen Fachblock zu starten.
 - Die Updateprüfung startet jetzt nicht mehr nur allgemein nach erfolgreichem Login, sondern erst nachdem das `MainWindow` bzw. die Startseite erstmals sauber gerendert wurde.
 - Dafür wurde der bestehende WPF-Startup-Pfad minimal von einem frühen Dispatcher-Start auf den vorhandenen Window-Lifecycle `ContentRendered` plus Dispatcher-Idle verschoben; die eigentliche Updateprüfungslogik bleibt unverändert.

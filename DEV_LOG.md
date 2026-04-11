@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-04-11 – MAUI-Mitgliedskontext für Dokumente an echte Mitgliedsdokumente angebunden
+
+- Repo-Check vor dem Block auf `feature/formularverwaltung`:
+  - `git status --short --branch`
+- Bestehenden MAUI-/Dokumentpfad geprüft statt neuen Parallelpfad zu bauen:
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs` war bereits die produktive Seite mit `GetMitgliedDokumenteAsync(...)`, `GetParzelleDokumenteAsync(...)` und `ResolveDokumentOpenUrlAsync(...)`
+  - ein eigenes MAUI-`DokumenteViewModel` existiert nicht; der bestehende WPF-`DokumenteViewModel`-Pfad blieb unverändert
+- Minimal umgesetzt:
+  - `KGV.Maui/AdminShell.cs`
+    - mitgliedsbezogenen Menüpunkt `↳ Dokumente` direkt zwischen `↳ Stammdaten` und `↳ Wartungsverträge` ergänzt
+    - reine Sichtbarkeit/Lesbarkeit nicht mehr an `CanManageDocuments` gekoppelt, sondern am ausgewählten Mitgliedskontext
+  - `KGV.Maui/UserShell.cs`
+    - denselben Menüpunkt auch im Eigenkontext zwischen `↳ Stammdaten` und `↳ Wartungsverträge` ergänzt
+  - `KGV.Maui/Pages/DokumentePage.xaml.cs`
+    - bestehende Mitgliedsansicht bleibt führend und lädt weiterhin die echten mitgliedsbezogenen Dokumente über `GetMitgliedDokumenteAsync(...)`
+    - Öffnen bleibt auf der vorhandenen Signed-URL-Logik `ResolveDokumentOpenUrlAsync(...)`
+    - reine Lesbarkeit für Mitgliedsdokumente folgt jetzt dem Mitgliedskontext; schreibende Aktionen bleiben an `CanManageDocuments` gebunden
+- Wirkung:
+  - die MAUI-Mitgliedsnavigation führt jetzt direkt in die echte Dokumentansicht des aktuell ausgewählten Mitglieds
+  - `Mitgliedsantrag` und `Pachtvertrag` bleiben dort sichtbar, weil weiter der bestehende mitgliedsbezogene Dokumentpfad genutzt wird
+  - normale Nutzer bleiben view-only; Upload/Löschen/Folgeaktionen bleiben fachrechtlich geschützt
+- Validierung:
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-09 – Formularverwaltung UI-Feinschliff für Dokumentlisten und Folgeaktionen
 
 - Repo-Check vor dem Block auf `feature/formularverwaltung`:

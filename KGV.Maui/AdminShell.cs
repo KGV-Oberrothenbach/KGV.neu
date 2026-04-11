@@ -23,6 +23,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
     private FlyoutItem? _pendingPhotoUploadsItem;
     private FlyoutItem? _workhoursReviewItem;
     private FlyoutItem? _memberDetailsItem;
+    private FlyoutItem? _memberDocumentsItem;
     private FlyoutItem? _memberWartungsvertraegeItem;
     private FlyoutItem? _memberNebenmitgliedItem;
     private FlyoutItem? _memberGardensItem;
@@ -178,6 +179,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             Items.Add(CreateItem("Mitgliedersuche", "membersearch", () => _services.GetRequiredService<MemberSearchPage>()));
 
         _memberDetailsItem = CreateItem("↳ Stammdaten", "memberdetails", () => _services.GetRequiredService<MeineDatenPage>());
+        _memberDocumentsItem = CreateItem("↳ Dokumente", "member_documents", () => _services.GetRequiredService<DokumentePage>());
         _memberWartungsvertraegeItem = CreateItem("↳ Wartungsverträge", "member_wartungsvertraege", () => _services.GetRequiredService<MemberWartungsvertraegePage>());
         _memberNebenmitgliedItem = CreateItem("↳ Nebenmitglied", "member_nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>());
         _memberGardensItem = CreateItem("↳ Gärten des Mitglieds", "member_gardens", () => _services.GetRequiredService<MemberGardensPage>());
@@ -185,6 +187,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         _memberWorkhoursItem = CreateItem("↳ Arbeitsstunden", "member_workhours", () => _services.GetRequiredService<MyArbeitsstundenPage>());
 
         Items.Add(_memberDetailsItem);
+        Items.Add(_memberDocumentsItem);
         Items.Add(_memberWartungsvertraegeItem);
         Items.Add(_memberNebenmitgliedItem);
         Items.Add(_memberGardensItem);
@@ -198,8 +201,10 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
     private void RefreshMemberContextMenu(MemberContextState? state)
     {
-        var hasMember = state?.SelectedMember?.Id is > 0;
+        var selectedMemberId = state?.SelectedMember?.Id;
+        var hasMember = selectedMemberId is > 0;
         if (_memberDetailsItem != null) _memberDetailsItem.IsVisible = hasMember && PermissionChecks.CanShowStammdaten(_userContextState.CurrentUserContext);
+        if (_memberDocumentsItem != null) _memberDocumentsItem.IsVisible = hasMember && CanOpenMemberDocuments(selectedMemberId);
         if (_memberWartungsvertraegeItem != null) _memberWartungsvertraegeItem.IsVisible = hasMember;
         if (_memberNebenmitgliedItem != null) _memberNebenmitgliedItem.IsVisible = hasMember && PermissionChecks.CanReadStammdaten(_userContextState.CurrentUserContext);
         if (_memberGardensItem != null) _memberGardensItem.IsVisible = hasMember && PermissionChecks.CanShowParzellen(_userContextState.CurrentUserContext);
@@ -207,11 +212,23 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (_memberWorkhoursItem != null) _memberWorkhoursItem.IsVisible = hasMember && PermissionChecks.CanReadWorkHours(_userContextState.CurrentUserContext);
 
         var currentRoute = ShellNavigationHelper.GetActiveShellContentRoute(this);
-        if (currentRoute is "memberdetails" or "member_wartungsvertraege" or "member_nebenmitglied" or "member_gardens" or "member_adminmenu" or "member_workhours")
+        if (currentRoute is "memberdetails" or "member_documents" or "member_wartungsvertraege" or "member_nebenmitglied" or "member_gardens" or "member_adminmenu" or "member_workhours")
         {
             if (!hasMember)
                 ShellNavigationHelper.EnsureActiveShellItem(this, "home");
         }
+    }
+
+    private bool CanOpenMemberDocuments(int? memberId)
+    {
+        if (memberId is not > 0)
+            return false;
+
+        var userContext = _userContextState.CurrentUserContext;
+        return PermissionChecks.CanReadDocumentsForMember(userContext, memberId)
+               || PermissionChecks.CanShowStammdatenForMember(userContext, memberId)
+               || PermissionChecks.CanViewMembers(userContext)
+               || PermissionChecks.CanSearchMembers(userContext);
     }
 
     private void ClearImplicitOwnMemberContext()
