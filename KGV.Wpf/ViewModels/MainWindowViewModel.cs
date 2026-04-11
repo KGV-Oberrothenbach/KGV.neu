@@ -333,6 +333,25 @@ namespace KGV.ViewModels
                     IsVisible = true
                 });
             }
+
+            if (UserContext.Role == UserRole.Admin)
+            {
+                NavigationItems.Add(new NavigationItem
+                {
+                    Title = "Verwaltung",
+                    ViewModelType = null,
+                    IsVisible = true,
+                    ButtonMargin = new System.Windows.Thickness(5, 12, 5, 4)
+                });
+
+                NavigationItems.Add(new NavigationItem
+                {
+                    Title = "↳ Saisonverwaltung",
+                    ViewModelType = typeof(SaisonverwaltungViewModel),
+                    IsVisible = true,
+                    ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
+                });
+            }
         }
 
         private void BuildMemberNavigation()
@@ -454,6 +473,13 @@ namespace KGV.ViewModels
             {
                 if (item.ViewModelType == typeof(ArbeitsstundenPruefungViewModel))
                     continue;
+
+                if (item.ViewModelType == typeof(SaisonverwaltungViewModel)
+                    || (item.ViewModelType == null && string.Equals(item.Title, "Verwaltung", StringComparison.Ordinal)))
+                {
+                    item.IsVisible = UserContext.Role == UserRole.Admin;
+                    continue;
+                }
 
                 item.IsVisible = !item.IsAdminOnly || IsAdmin;
             }

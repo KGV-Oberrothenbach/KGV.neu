@@ -16,8 +16,6 @@ namespace KGV.Maui.Pages;
 
 public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 {
-    private const string TemporaryRuntimeBuildMarker = "main / temp-hard-visibility-test / 2026-04-11";
-
     private readonly ISupabaseService _supabaseService;
     private readonly IAuthService _authService;
     private readonly MemberSearchRefreshState _memberSearchRefreshState;
@@ -30,7 +28,6 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private bool _isCreateMode;
 
     private readonly Label _headlineLabel;
-    private readonly Label _runtimeIdentityLabel;
     private readonly Label _statusLabel;
     private readonly Label _emailHintLabel;
     private readonly Label _rolleLabel;
@@ -77,16 +74,6 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         Title = "Stammdaten";
 
         _headlineLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold };
-        _runtimeIdentityLabel = new Label
-        {
-            BackgroundColor = Colors.Red,
-            TextColor = Colors.White,
-            LineBreakMode = LineBreakMode.WordWrap,
-            FontSize = 18,
-            FontAttributes = FontAttributes.Bold,
-            Padding = new Thickness(14, 12),
-            Margin = new Thickness(0, 0, 0, 8)
-        };
         _statusLabel = new Label { TextColor = Colors.DarkRed, LineBreakMode = LineBreakMode.WordWrap };
         _emailEntry = new Entry { Placeholder = "E-Mail", Keyboard = Keyboard.Email };
         _emailHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
@@ -160,7 +147,6 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 Children =
                 {
                     _headlineLabel,
-                    _runtimeIdentityLabel,
                     _statusLabel,
                     CreateSection("Grunddaten",
                         CreateEditorField("Nachname", _nachnameEntry),
@@ -215,7 +201,6 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _isBusy = true;
         try
         {
-            UpdateRuntimeIdentityDiagnostic(null);
             _statusLabel.Text = string.Empty;
 
             var selectedMember = _memberContextState.SelectedMember;
@@ -272,7 +257,6 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             SetOptionalDate(_mitgliedSeitEnabledSwitch, _mitgliedSeitPicker, memberDto.MitgliedSeit);
             SetOptionalDate(_mitgliedEndeEnabledSwitch, _mitgliedEndePicker, memberDto.MitgliedEnde);
 
-            UpdateRuntimeIdentityDiagnostic(memberDto);
             UpdateArbeitsstundenAltersregelVisibility(memberDto);
             UpdateAdminActions(memberDto);
         }
@@ -290,7 +274,6 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     {
         _memberRecord = null;
         _hasLinkedAppUser = false;
-        UpdateRuntimeIdentityDiagnostic(null);
         _nachnameEntry.Text = string.Empty;
         _vornameEntry.Text = string.Empty;
         _emailEntry.Text = string.Empty;
@@ -317,7 +300,6 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     {
         _memberRecord = null;
         _hasLinkedAppUser = false;
-        UpdateRuntimeIdentityDiagnostic(null);
         _headlineLabel.Text = "Neues Mitglied";
         _statusLabel.Text = "Neues Mitglied anlegen.";
         _nachnameEntry.Text = string.Empty;
@@ -387,18 +369,6 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _mitgliedsantragButton.IsVisible = canCreateMemberApplication;
         _mitgliedsantragButton.IsEnabled = canCreateMemberApplication;
         _mitgliedsantragDiagnoseLabel.Text = BuildMitgliedsantragDiagnoseText(member);
-    }
-
-    private void UpdateRuntimeIdentityDiagnostic(MemberDTO? member)
-    {
-        var currentUserContext = _userContextState.CurrentUserContext;
-        var version = AppInfo.Current.VersionString;
-        var build = AppInfo.Current.BuildString;
-        var memberId = member?.Id ?? _memberRecord?.Id ?? 0;
-        var pageType = GetType().FullName ?? nameof(MemberDetailPage);
-        var canCreateMitglied = PermissionChecks.CanCreateMitglied(currentUserContext);
-
-        _runtimeIdentityLabel.Text = $"TEST MemberDetailPage aktiv\nBuild main\nCommit/Marker: {TemporaryRuntimeBuildMarker}\nPageType: {pageType}\nmember.Id: {memberId}\nCreateMode: {_isCreateMode}\nCanCreateMitglied: {canCreateMitglied}\nVersion: {version} ({build})";
     }
 
     private string BuildMitgliedsantragDiagnoseText(MemberDTO? member)

@@ -1476,7 +1476,7 @@ namespace KGV.Infrastructure.Services
                 var response = await client.From<SaisonRecord>().Get();
 
                 return response?.Models?
-                    .OrderByDescending(x => x.Jahr)
+                    .OrderByDescending(SaisonverwaltungHelper.GetSaisonJahr)
                     .ToList()
                     ?? new List<SaisonRecord>();
             },
@@ -1507,6 +1507,7 @@ namespace KGV.Infrastructure.Services
                 await client
                     .From<SaisonRecord>()
                     .Where(x => x.Id == existing.Id)
+                    .Set(x => x.Id, normalized.Id)
                     .Set(x => x.Jahr, normalized.Jahr)
                     .Set(x => x.PflichtstundenSoll, normalized.PflichtstundenSoll)
                     .Set(x => x.EuroProFehlstunde, normalized.EuroProFehlstunde)
@@ -1515,7 +1516,12 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.Mitgliedsbeitrag, normalized.Mitgliedsbeitrag)
                     .Update();
 
-                return normalized;
+                var reloadResponse = await client
+                    .From<SaisonRecord>()
+                    .Where(x => x.Id == normalized.Id)
+                    .Get();
+
+                return reloadResponse?.Models?.FirstOrDefault() ?? normalized;
             },
             null);
 

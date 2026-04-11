@@ -35,6 +35,14 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-11
+- Den bereits begonnenen Saisonverwaltungs-Block auf dem echten Stand von `main` produktiv in WPF und MAUI vervollständigt, ohne neuen Fachblock zu starten.
+- Der gemeinsame Servicepfad `saison` wurde dabei sauber geschlossen: `GetSaisonRecordsAsync()` lädt die Saisondaten produktiv, `SaveSaisonAsync(...)` normalisiert `id` und `jahr` auf das Kalenderjahr und speichert die Felder der bestehenden Saisonstruktur produktiv zurück.
+- In WPF wurden die bereits vorhandenen Bausteine `SaisonverwaltungViewModel` und `SaisonverwaltungView` jetzt wirklich an die Navigation angeschlossen; der Einstieg ist für Admin sichtbar als `Verwaltung` mit Unterpunkt `Saisonverwaltung`.
+- In MAUI wurde die fehlende `SaisonverwaltungPage` ergänzt und in `MauiProgram`, `ShellRouteRegistrar` sowie `AdminShell` produktiv verdrahtet; auch dort erscheint der Einstieg nur für Admin unter `Verwaltung` / `Saisonverwaltung`.
+- Fachlich bleibt der Block klein und konsistent: vorhandene Saisons werden angezeigt, neue Saisonvorschläge übernehmen die Vorjahreswerte, `id` und `jahr` entsprechen dem Kalenderjahr, vergangene Jahre bleiben schreibgeschützt und der Speichern-Button steht am Ende des Formulars.
+- Der temporäre harte rote Sichtbarkeitstest aus `MemberDetailPage` wurde im selben Abschlusslauf wieder sauber zurückgebaut, ohne dort die Fachlogik zu ändern.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den kleinen Analyse-/Routingblock `memberdetails` auf dem echten Stand von `main` sauber aufgelöst und minimal korrigiert, ohne neuen Fachblock zu starten.
 - Der Pfad aus der Mitgliedersuche schreibt das ausgewählte Mitglied korrekt in den `MemberContextState` und aktiviert danach bevorzugt die sichtbare Shell-Route `memberdetails`.
 - Die eigentliche Abweichung lag im `AdminShell`: Dort war `memberdetails` im echten Stand nicht auf `MemberDetailPage`, sondern auf `MeineDatenPage` verdrahtet.

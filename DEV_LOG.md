@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-04-11 – Saisonverwaltung in WPF und MAUI produktiv vervollständigt
+
+- Repo-Check auf `main`:
+  - `git status --short --branch`
+- Den bereits begonnenen Saisonverwaltungs-Block nur produktiv vervollständigt, ohne neuen Fachblock zu starten.
+- Servicepfad in `KGV.Infrastructure/Services/SupabaseService.cs` fachlich geschlossen:
+  - `GetSaisonRecordsAsync()` lädt die Tabelle `saison` produktiv und sortiert konsistent nach Saisonjahr
+  - `SaveSaisonAsync(...)` normalisiert `id` und `jahr` auf das Kalenderjahr, schreibt dieselben Saisonfelder produktiv in `saison` und lädt den gespeicherten Datensatz anschließend erneut
+- WPF angeschlossen:
+  - vorhandene `SaisonverwaltungViewModel` / `SaisonverwaltungView` jetzt produktiv in Navigation und ViewModel-Factory verdrahtet
+  - Admin-only Einstieg als `Verwaltung` mit Unterpunkt `Saisonverwaltung`
+- MAUI angeschlossen:
+  - neue `KGV.Maui/Pages/SaisonverwaltungPage.cs` ergänzt
+  - in `MauiProgram` registriert
+  - in `ShellRouteRegistrar` registriert
+  - in `AdminShell` nur für Admin den Menüpunkt `Verwaltung` mit Unterpunkt `Saisonverwaltung` ergänzt
+- UI/Fachverhalten:
+  - vorhandene Saisons werden angezeigt
+  - neue Saison wird über `SaisonverwaltungHelper` aus dem Vorjahr vorgeschlagen
+  - `Jahr / ID`, `Pacht pro qm`, `Mitgliedsbeitrag`, `Pflichtstunden Soll`, `Euro pro Fehlstunde`, `Bemerkung`
+  - vergangene Jahre bleiben schreibgeschützt
+  - Speichern steht am Ende des Formulars
+- Den roten harten Sichtbarkeitstest in `KGV.Maui/Pages/MemberDetailPage.cs` wieder sauber zurückgebaut; die restliche Fachlogik dort blieb unverändert.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-11 – MAUI-Route `memberdetails` auf echte `MemberDetailPage` aufgelöst
 
 - Repo-Check auf `main`:

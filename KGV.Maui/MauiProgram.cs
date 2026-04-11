@@ -138,6 +138,7 @@ public static class MauiProgram
         services.AddTransient<MemberSearchViewModel>();
         services.AddTransient<MemberSearchPage>();
         services.AddTransient<MemberDetailPage>();
+        services.AddTransient<SaisonverwaltungPage>();
         services.AddTransient<WartungsvertraegePage>();
         services.AddTransient<MemberWartungsvertraegePage>();
         services.AddTransient<WartungsvertragDetailPage>();

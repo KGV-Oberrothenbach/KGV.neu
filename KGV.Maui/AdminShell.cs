@@ -178,6 +178,9 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Mitgliedersuche", "membersearch", () => _services.GetRequiredService<MemberSearchPage>()));
 
+        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin)
+            Items.Add(CreateManagementItem("Verwaltung", "Saisonverwaltung", "season_management", () => _services.GetRequiredService<SaisonverwaltungPage>()));
+
         _memberDetailsItem = CreateItem("↳ Stammdaten", "memberdetails", () => _services.GetRequiredService<MemberDetailPage>());
         _memberDocumentsItem = CreateItem("↳ Dokumente", "member_documents", () => _services.GetRequiredService<DokumentePage>());
         _memberWartungsvertraegeItem = CreateItem("↳ Wartungsverträge", "member_wartungsvertraege", () => _services.GetRequiredService<MemberWartungsvertraegePage>());
@@ -307,6 +310,23 @@ public sealed class AdminShell : Shell, IAppShellInitializer
                 new ShellContent
                 {
                     Title = title,
+                    Route = route,
+                    ContentTemplate = new DataTemplate(pageFactory)
+                }
+            }
+        };
+    }
+
+    private static FlyoutItem CreateManagementItem(string flyoutTitle, string contentTitle, string route, Func<Page> pageFactory)
+    {
+        return new FlyoutItem
+        {
+            Title = flyoutTitle,
+            Items =
+            {
+                new ShellContent
+                {
+                    Title = contentTitle,
                     Route = route,
                     ContentTemplate = new DataTemplate(pageFactory)
                 }
