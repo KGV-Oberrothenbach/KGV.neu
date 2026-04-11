@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
+using KGV.Core.Utilities;
 using KGV.Helpers;
 using KGV.Messages;
 using KGV.Views;
@@ -940,7 +941,11 @@ namespace KGV.ViewModels
             if (!CanCreateMitgliedsantrag)
                 return;
 
-            var result = await _supabaseService.CreateMitgliedsantragDokumentAsync(SelectedMember.Id, FormularDokumentStatus.Unsigniert);
+            var request = await PromptMitgliedsantragRequestAsync();
+            if (request == null)
+                return;
+
+            var result = await _supabaseService.CreateMitgliedsantragDokumentAsync(request);
             if (!result.Success)
             {
                 MessageBox.Show(result.Message, "Mitgliedsantrag", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -962,6 +967,45 @@ namespace KGV.ViewModels
             }
 
             Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+
+        private async Task<MitgliedsantragDokumentRequest?> PromptMitgliedsantragRequestAsync()
+        {
+            var member = await _supabaseService.GetMitgliedByIdAsync(SelectedMember.Id);
+            if (member == null)
+            {
+                MessageBox.Show("Mitglied konnte nicht geladen werden.", "Mitgliedsantrag", MessageBoxButton.OK, MessageBoxImage.Error);
+                return null;
+            }
+
+            MitgliedsantragBeitragVorschlag vorschlag;
+            try
+            {
+                var saisons = await _supabaseService.GetSaisonRecordsAsync();
+                vorschlag = MitgliedsantragBeitragHelper.CreateSuggestion(member, saisons);
+            }
+            catch (InvalidOperationException ex)
+            {
+                MessageBox.Show(ex.Message, "Mitgliedsantrag", MessageBoxButton.OK, MessageBoxImage.Error);
+                return null;
+            }
+
+            var dialog = new MitgliedsantragDialog
+            {
+                Owner = Application.Current?.MainWindow
+            };
+
+            dialog.SetInitialValues(SelectedMember.DisplayName, vorschlag);
+            if (dialog.ShowDialog() != true)
+                return null;
+
+            return new MitgliedsantragDokumentRequest
+            {
+                MitgliedId = SelectedMember.Id,
+                BeginnDatum = vorschlag.BeginnDatum,
+                Mitgliedsbeitrag = dialog.Mitgliedsbeitrag,
+                Status = FormularDokumentStatus.Unsigniert
+            };
         }
 
         private async Task ChangeEmailAsync()

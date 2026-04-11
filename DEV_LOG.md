@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-04-11 – Mitgliedsantrag mit saisonbasiertem Mitgliedsbeitrag build-validiert und abgeschlossen
+
+- Repo-Check vor dem Abschlusslauf auf `feature/formularverwaltung`:
+  - `git status --short --branch`
+- Den bereits umgesetzten Block `Mitgliedsantrag mit Mitgliedsbeitrag` nur technisch/fachlich abgeschlossen, ohne neuen Fachumfang zu starten.
+- Bestehender Pfad bestätigt:
+  - Mitgliedsantrag nutzt weiter den bestehenden Saisonpfad `SaisonRecord.Mitgliedsbeitrag`
+  - Vorschlagslogik bleibt zentral im gemeinsamen Helfer:
+    - vor `01.07.` voller Jahresbeitrag
+    - ab `01.07.` halber Jahresbeitrag
+  - WPF-Dialog und MAUI-Dialog lassen den vorgeschlagenen Betrag vor dem Erzeugen manuell bearbeiten
+  - der finale Beitrag wird bis in die bestehende PDF-Erzeugung durchgereicht und im Mitgliedsantrag sichtbar ausgegeben
+  - der Mitgliedsantrag bleibt rein mitgliedsbezogen; Parzelleninhalte werden dort nicht ausgegeben
+- Kleiner technischer Abschlussfix:
+  - `KGV.Maui/Pages/MitgliedsantragDialogPage.cs`
+    - numerische MAUI-Tastatur explizit auf `Microsoft.Maui.Keyboard.Numeric` gezogen, damit der MAUI-Build des bereits umgesetzten Blocks sauber durchläuft
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-11 – MAUI-Mitgliedskontext für Dokumente an echte Mitgliedsdokumente angebunden
 
 - Repo-Check vor dem Block auf `feature/formularverwaltung`:

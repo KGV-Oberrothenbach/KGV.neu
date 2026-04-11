@@ -7,10 +7,12 @@ namespace KGV.Core.Utilities
 {
     public static class MitgliedsantragDokumentFactory
     {
-        public static DokumentUploadRequest CreateUploadRequest(MitgliedRecord member, string? status = null)
+        public static DokumentUploadRequest CreateUploadRequest(MitgliedRecord member, decimal mitgliedsbeitrag, DateTime beginnDatum, string? status = null)
         {
             if (member == null)
                 throw new ArgumentNullException(nameof(member));
+            if (mitgliedsbeitrag < 0m)
+                throw new InvalidOperationException("Der Mitgliedsbeitrag darf nicht negativ sein.");
 
             var normalizedStatus = FormularDokumentStatus.Normalize(status);
             var dokumenttyp = FormularDokumentTyp.Mitgliedsantrag;
@@ -21,7 +23,7 @@ namespace KGV.Core.Utilities
                 "Mitgliedsantrag",
                 FormularDokumentStatus.ToDisplayName(normalizedStatus),
                 DateTime.Today,
-                BuildSections(member),
+                BuildSections(member, mitgliedsbeitrag, beginnDatum.Date),
                 ["Ort, Datum", "Unterschrift Antragsteller/in", "Unterschrift Verein"],
                 "Hiermit wird der Antrag auf Mitgliedschaft im Kleingartenverein in einer standardisierten Vereinsvorlage dokumentiert.");
 
@@ -35,7 +37,7 @@ namespace KGV.Core.Utilities
             };
         }
 
-        private static IReadOnlyCollection<VereinsdokumentAbschnitt> BuildSections(MitgliedRecord member)
+        private static IReadOnlyCollection<VereinsdokumentAbschnitt> BuildSections(MitgliedRecord member, decimal mitgliedsbeitrag, DateTime beginnDatum)
         {
             var antragsteller = new List<string>
             {
@@ -59,11 +61,11 @@ namespace KGV.Core.Utilities
 
             var kontext = new List<string>
             {
-                $"Mitgliedskontext: {BuildMitgliedskontext(member)}"
+                $"Mitgliedskontext: {BuildMitgliedskontext(member)}",
+                $"Mitglied seit: {FormatDate(beginnDatum)}",
+                $"Mitgliedsbeitrag: {FormatCurrency(mitgliedsbeitrag)}"
             };
 
-            if (member.MitgliedSeit.HasValue)
-                kontext.Add($"Mitglied seit: {FormatDate(member.MitgliedSeit)}");
             if (!string.IsNullOrWhiteSpace(member.ArbeitsstundenAltersregelTyp) && !string.Equals(member.ArbeitsstundenAltersregelTyp, "keine", StringComparison.OrdinalIgnoreCase))
                 kontext.Add($"Arbeitsstunden-Altersregel: {member.ArbeitsstundenAltersregelTyp.Trim()}");
 
@@ -104,6 +106,9 @@ namespace KGV.Core.Utilities
 
         private static string FormatDate(DateTime? value)
             => value.HasValue ? value.Value.ToString("dd.MM.yyyy") : "-";
+
+        private static string FormatCurrency(decimal value)
+            => MitgliedsantragBeitragHelper.NormalizeBeitrag(value).ToString("0.00 €");
 
         private static string Safe(string? value)
             => string.IsNullOrWhiteSpace(value) ? "-" : value.Trim();

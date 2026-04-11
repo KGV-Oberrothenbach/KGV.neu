@@ -1,6 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
+using KGV.Core.Utilities;
 using KGV.Maui.State;
 using Microsoft.Maui;
 using Microsoft.Maui.ApplicationModel;
@@ -485,7 +486,11 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
         try
         {
-            var result = await _supabaseService.CreateMitgliedsantragDokumentAsync(mitgliedId, FormularDokumentStatus.Unsigniert);
+            var request = await PromptMitgliedsantragRequestAsync(mitgliedId);
+            if (request == null)
+                return;
+
+            var result = await _supabaseService.CreateMitgliedsantragDokumentAsync(request);
             if (!result.Success)
             {
                 await DisplayAlert("Mitgliedsantrag", result.Message, "OK");
@@ -517,6 +522,44 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             if (manageBusyState)
                 _isBusy = false;
         }
+    }
+
+    private async Task<MitgliedsantragDokumentRequest?> PromptMitgliedsantragRequestAsync(int mitgliedId)
+    {
+        var member = _memberRecord?.Id == mitgliedId
+            ? _memberRecord
+            : await _supabaseService.GetMitgliedByIdAsync(mitgliedId);
+        if (member == null)
+        {
+            await DisplayAlert("Mitgliedsantrag", "Mitglied konnte nicht geladen werden.", "OK");
+            return null;
+        }
+
+        MitgliedsantragBeitragVorschlag vorschlag;
+        try
+        {
+            var saisons = await _supabaseService.GetSaisonRecordsAsync();
+            vorschlag = MitgliedsantragBeitragHelper.CreateSuggestion(member, saisons);
+        }
+        catch (InvalidOperationException ex)
+        {
+            await DisplayAlert("Mitgliedsantrag", ex.Message, "OK");
+            return null;
+        }
+
+        var dialogPage = new MitgliedsantragDialogPage(member, vorschlag);
+        await Navigation.PushModalAsync(new NavigationPage(dialogPage));
+        var mitgliedsbeitrag = await dialogPage.WaitForResultAsync();
+        if (!mitgliedsbeitrag.HasValue)
+            return null;
+
+        return new MitgliedsantragDokumentRequest
+        {
+            MitgliedId = mitgliedId,
+            BeginnDatum = vorschlag.BeginnDatum,
+            Mitgliedsbeitrag = mitgliedsbeitrag.Value,
+            Status = FormularDokumentStatus.Unsigniert
+        };
     }
 
     private async void OnSaveClicked(object? sender, EventArgs e)

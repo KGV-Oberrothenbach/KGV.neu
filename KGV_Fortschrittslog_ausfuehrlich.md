@@ -35,6 +35,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Den bereits umgesetzten Block `Mitgliedsantrag mit Mitgliedsbeitrag` auf dem echten Branch-Stand `feature/formularverwaltung` im Abschlusslauf fachlich und technisch sauber geschlossen, ohne neuen Fachblock zu starten.
+- Der Mitgliedsantrag nutzt dafür weiter den bestehenden Saisonpfad `SaisonRecord.Mitgliedsbeitrag`; die Vorschlagsregel bleibt wie begonnen konsistent in WPF und MAUI: Beginn vor `01.07.` voller Jahresbeitrag, Beginn ab `01.07.` halber Jahresbeitrag.
+- Der vorgeschlagene Beitrag bleibt in beiden Erzeugungsdialogen vor dem finalen Erzeugen manuell editierbar; der final verwendete Betrag wird sichtbar im PDF ausgegeben.
+- Der Mitgliedsantrag bleibt fachlich rein mitgliedsbezogen; parzellenbezogene Inhalte werden dort nicht ausgegeben und bleiben weiterhin dem Pachtvertrag vorbehalten.
+- Im Abschlusslauf wurde nur noch der kleine technische MAUI-Buildrest des bereits umgesetzten Dialogpfads geschlossen, indem die numerische Tastatur explizit auf `Microsoft.Maui.Keyboard.Numeric` gezogen wurde.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den kleinen MAUI-Block `Mitgliedsdokumente im Mitgliedskontext` auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
 - In der mobilen mitgliedsbezogenen Navigation gibt es jetzt den sichtbaren Menüpunkt `Dokumente` direkt zwischen `Stammdaten` und `Wartungsverträge`; er führt nicht auf eine globale Dokumente-Startseite, sondern direkt in die bestehende Dokumentansicht des aktuell ausgewählten Mitglieds.
 - Dafür wurden keine neuen Dokumentservices und kein neues MAUI-ViewModel eingeführt: die vorhandene `DokumentePage` bleibt führend und nutzt weiter die bestehenden Produktivpfade `GetMitgliedDokumenteAsync(...)`, `GetParzelleDokumenteAsync(...)` und `ResolveDokumentOpenUrlAsync(...)`.

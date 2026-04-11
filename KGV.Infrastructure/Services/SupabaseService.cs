@@ -2342,14 +2342,62 @@ namespace KGV.Infrastructure.Services
                 if (!OperationalDataFilter.IsOperationalMember(member))
                     return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell kein Antrag erzeugt werden.", "NOT_OPERATIONAL");
 
-                var uploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(member, status);
-                return await CreateDokumentAsync(uploadRequest);
+                var saisons = await GetSaisonRecordsAsync();
+                var vorschlag = MitgliedsantragBeitragHelper.CreateSuggestion(member, saisons);
+                return await CreateMitgliedsantragDokumentInternalAsync(
+                    member,
+                    MitgliedsantragBeitragHelper.NormalizeBeitrag(vorschlag.VorgeschlagenerBeitrag),
+                    vorschlag.BeginnDatum,
+                    status);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger?.LogWarning(ex, "CreateMitgliedsantragDokumentAsync validation failed for MitgliedId={MitgliedId}", mitgliedId);
+                return DokumentUploadResult.Fail(ex.Message, "VALIDATION");
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "CreateMitgliedsantragDokumentAsync failed for MitgliedId={MitgliedId}", mitgliedId);
                 return DokumentUploadResult.Fail("Mitgliedsantrag konnte aktuell nicht erzeugt werden.", "UNEXPECTED");
             }
+        }
+
+        public async Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(MitgliedsantragDokumentRequest request)
+        {
+            if (request == null || request.MitgliedId <= 0)
+                return DokumentUploadResult.Fail("Bitte zuerst ein gültiges Mitglied auswählen.", "VALIDATION");
+
+            try
+            {
+                var member = await GetMitgliedByIdAsync(request.MitgliedId);
+                if (member == null)
+                    return DokumentUploadResult.Fail("Mitglied konnte nicht geladen werden.", "NOT_FOUND");
+
+                if (!OperationalDataFilter.IsOperationalMember(member))
+                    return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell kein Antrag erzeugt werden.", "NOT_OPERATIONAL");
+
+                var beginnDatum = request.BeginnDatum == default
+                    ? (member.MitgliedSeit ?? DateTime.Today)
+                    : request.BeginnDatum;
+                var mitgliedsbeitrag = MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag);
+                return await CreateMitgliedsantragDokumentInternalAsync(member, mitgliedsbeitrag, beginnDatum, request.Status);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger?.LogWarning(ex, "CreateMitgliedsantragDokumentAsync(request) validation failed for MitgliedId={MitgliedId}", request?.MitgliedId);
+                return DokumentUploadResult.Fail(ex.Message, "VALIDATION");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "CreateMitgliedsantragDokumentAsync(request) failed for MitgliedId={MitgliedId}", request?.MitgliedId);
+                return DokumentUploadResult.Fail("Mitgliedsantrag konnte aktuell nicht erzeugt werden.", "UNEXPECTED");
+            }
+        }
+
+        private async Task<DokumentUploadResult> CreateMitgliedsantragDokumentInternalAsync(MitgliedRecord member, decimal mitgliedsbeitrag, DateTime beginnDatum, string? status)
+        {
+            var uploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(member, mitgliedsbeitrag, beginnDatum, status);
+            return await CreateDokumentAsync(uploadRequest);
         }
 
         public async Task<DokumentUploadResult> CreateMitgliedsvertragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert)
