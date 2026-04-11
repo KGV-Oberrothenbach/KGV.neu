@@ -35,6 +35,12 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-11
+- Den kleinen temporären MAUI-Diagnoseblock für den im Lauf weiterhin fehlenden sichtbaren Button `Mitgliedsantrag als PDF` auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
+- In `KGV.Maui/Pages/MemberDetailPage.cs` wurde direkt an der bestehenden Sichtbarkeitsberechnung ein leicht wieder entfernbarer Diagnosehinweis ergänzt.
+- Der Hinweis zeigt zur Laufzeit genau die drei relevanten Bedingungen des Buttons an: Page-Modus (`_isCreateMode`), geladene `member.Id` und Ergebnis von `PermissionChecks.CanCreateMitglied(...)`; zusätzlich wird die aktuelle Rolle und ein kurzer Begründungstext für einen unsichtbaren Button ausgegeben.
+- Die eigentliche Fachlogik wurde bewusst nicht geändert; der Block dient nur dazu, sichtbar zu machen, welche Bedingung im echten MAUI-Lauf greift.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den kleinen MAUI-Abschlussblock `CreateMitglied`/Mitgliedsantrag gegen den echten Branch-Stand `feature/formularverwaltung` geprüft, ohne neuen Fachblock zu starten.
 - Die fachliche Gegenprüfung zeigte, dass der sichtbare mobile Einstieg `Mitgliedsantrag als PDF` im bestehenden `MemberDetailPage`-Pfad bereits korrekt an `PermissionChecks.CanCreateMitglied(...)` hängt; der frühere Dokumentrechtepfad `CanManageDocuments(...)` ist dort nicht mehr aktiv.
 - Auch die direkt angrenzenden mobilen Onboarding-/Verpachtungspfade sind bereits konsistent: Parzellenzuweisung in `MemberGardensPage` und `Pachtvertrag als PDF` in `MemberParzellenDetailPage` nutzen ebenfalls `CanCreateMitglied(...)`.

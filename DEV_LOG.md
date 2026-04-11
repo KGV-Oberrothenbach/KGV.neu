@@ -2,6 +2,23 @@
 
 ---
 
+## 2026-04-11 – Temporäre MAUI-Diagnose für Mitgliedsantrag-Button ergänzt
+
+- Repo-Check auf `feature/formularverwaltung`:
+  - `git status --short --branch`
+- Den kleinen Diagnoseblock nur für den aktuell fehlenden sichtbaren MAUI-Button `Mitgliedsantrag als PDF` umgesetzt, ohne neuen Fachblock zu starten.
+- In `KGV.Maui/Pages/MemberDetailPage.cs` direkt an der bestehenden Sichtbarkeitsstelle einen leicht entfernbaren Diagnosehinweis ergänzt.
+- Der temporäre Hinweis zeigt zur Laufzeit kompakt an:
+  - aktuellen Page-Modus / `_isCreateMode`
+  - geladene `member.Id`
+  - Ergebnis von `PermissionChecks.CanCreateMitglied(...)`
+  - aktuelle Rolle
+  - kurzen Grundtext, warum der Button gerade unsichtbar ist
+- Die eigentliche Fachlogik für die Sichtbarkeit des Buttons wurde nicht geändert; der Diagnoseblock macht nur sichtbar, welche Bedingung zur Laufzeit greift.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-11 – MAUI-CreateMitglied-Verdrahtung für Mitgliedsantrag im echten Repo-Stand verifiziert
 
 - Repo-Check auf `feature/formularverwaltung`:

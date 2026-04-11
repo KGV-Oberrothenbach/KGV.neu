@@ -32,6 +32,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly Label _emailHintLabel;
     private readonly Label _rolleLabel;
     private readonly Label _appUserHintLabel;
+    private readonly Label _mitgliedsantragDiagnoseLabel;
     private readonly Picker _arbeitsstundenAltersregelTypPicker;
     private readonly Entry _vornameEntry;
     private readonly Entry _nachnameEntry;
@@ -78,6 +79,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _emailHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _rolleLabel = CreateReadOnlyLabel();
         _appUserHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
+        _mitgliedsantragDiagnoseLabel = new Label { TextColor = Colors.DarkOrange, LineBreakMode = LineBreakMode.WordWrap, FontSize = 12 };
         _arbeitsstundenAltersregelTypPicker = new Picker { Title = "Altersregel wählen" };
         foreach (var option in MemberDTO.HauptmitgliedArbeitsstundenAltersregelTypOptions)
             _arbeitsstundenAltersregelTypPicker.Items.Add(option);
@@ -171,6 +173,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                         _nutzerHinzufuegenButton,
                         _benutzerverwaltungButton),
                     _mitgliedsantragButton,
+                    _mitgliedsantragDiagnoseLabel,
                     _cancelMembershipButton,
                     new HorizontalStackLayout
                     {
@@ -320,6 +323,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _nutzerHinzufuegenButton.IsVisible = false;
         _benutzerverwaltungButton.IsVisible = false;
         _mitgliedsantragButton.IsVisible = false;
+        _mitgliedsantragDiagnoseLabel.Text = BuildMitgliedsantragDiagnoseText(null);
         _appUserHintLabel.Text = "Der App-User wird nicht direkt beim Anlegen erzeugt, sondern später über den bestehenden Invite-/Benutzerverwaltungsweg.";
         UpdateArbeitsstundenAltersregelVisibility(new MemberDTO { IstHauptmitglied = true });
         UpdateFormActions(null);
@@ -357,12 +361,37 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
     private void UpdateFormActions(MemberDTO? member)
     {
+        var canCreateMitglied = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
         var canCreateMemberApplication = !_isCreateMode
             && member?.Id is > 0
-            && PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
+            && canCreateMitglied;
 
         _mitgliedsantragButton.IsVisible = canCreateMemberApplication;
         _mitgliedsantragButton.IsEnabled = canCreateMemberApplication;
+        _mitgliedsantragDiagnoseLabel.Text = BuildMitgliedsantragDiagnoseText(member);
+    }
+
+    private string BuildMitgliedsantragDiagnoseText(MemberDTO? member)
+    {
+        var currentUserContext = _userContextState.CurrentUserContext;
+        var memberId = member?.Id ?? 0;
+        var canCreateMitglied = PermissionChecks.CanCreateMitglied(currentUserContext);
+        var reasons = new List<string>();
+
+        if (_isCreateMode)
+            reasons.Add("Create-Modus aktiv");
+
+        if (memberId <= 0)
+            reasons.Add("member.Id <= 0");
+
+        if (!canCreateMitglied)
+            reasons.Add("CanCreateMitglied = false");
+
+        var reasonText = reasons.Count == 0
+            ? "Button sollte sichtbar sein."
+            : $"Button unsichtbar wegen: {string.Join(", ", reasons)}";
+
+        return $"[TEMP Diagnose Mitgliedsantrag] Mode={(_isCreateMode ? "Create" : "Detail")}, member.Id={memberId}, CanCreateMitglied={canCreateMitglied}, Rolle={currentUserContext?.Role.ToString() ?? "-"}. {reasonText}";
     }
 
     private void UpdateCancelMembershipButton(MemberDTO? member)
