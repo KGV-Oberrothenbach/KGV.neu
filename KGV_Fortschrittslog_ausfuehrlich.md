@@ -35,6 +35,12 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-09
+- Den bereits begonnenen WPF-Updateprüfungsblock auf dem echten Branch-Stand `feature/formularverwaltung` fachlich sauber nachgeschärft, ohne neuen Fachblock zu starten.
+- Die Updateprüfung startet jetzt nicht mehr nur allgemein nach erfolgreichem Login, sondern erst nachdem das `MainWindow` bzw. die Startseite erstmals sauber gerendert wurde.
+- Dafür wurde der bestehende WPF-Startup-Pfad minimal von einem frühen Dispatcher-Start auf den vorhandenen Window-Lifecycle `ContentRendered` plus Dispatcher-Idle verschoben; die eigentliche Updateprüfungslogik bleibt unverändert.
+- Ergebnis: Die WPF-Updateabfrage läuft jetzt erst nach erfolgreichem Login und nach sauber geladenem Startfenster an, statt den frühen Hauptfenster-/Startseitenaufbau zu unterbrechen.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den bereits begonnenen Rechteblock `CreateMitglied` auf dem echten Branch-Stand `feature/formularverwaltung` fachlich sauber abgeschlossen, ohne neuen Fachblock zu starten.
 - Die Vererbungslogik wurde korrigiert: `CreateMitglied` wird nicht mehr automatisch an `Vorstand` vererbt.
 - `Admin` behält das Recht weiterhin automatisch über die Rollenbasis; `Vorstand` kann `CreateMitglied` jetzt nur noch per expliziter Zuweisung erhalten.

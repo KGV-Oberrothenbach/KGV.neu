@@ -214,12 +214,26 @@ namespace KGV.Wpf
             ShutdownMode = ShutdownMode.OnMainWindowClose;
             mainWindow.Show();
 
-            _ = Dispatcher.BeginInvoke(async () =>
+            StartUpdateCheckAfterMainWindowLoaded(mainWindow);
+        }
+
+        private void StartUpdateCheckAfterMainWindowLoaded(Window mainWindow)
+        {
+            void OnContentRendered(object? sender, EventArgs args)
             {
-                var continueStartup = await CheckForApplicationUpdateAsync();
-                if (!continueStartup)
-                    Shutdown();
-            }, DispatcherPriority.Background);
+                mainWindow.ContentRendered -= OnContentRendered;
+
+                _ = Dispatcher.BeginInvoke(async () =>
+                {
+                    AppLocalFileLog.Info(StartupLogCategory, "MainWindow wurde erstmals gerendert. Updateprüfung startet jetzt nach erfolgreichem Login und geladenem Startfenster.");
+
+                    var continueStartup = await CheckForApplicationUpdateAsync();
+                    if (!continueStartup)
+                        Shutdown();
+                }, DispatcherPriority.ApplicationIdle);
+            }
+
+            mainWindow.ContentRendered += OnContentRendered;
         }
 
         private async Task<bool> CheckForApplicationUpdateAsync()

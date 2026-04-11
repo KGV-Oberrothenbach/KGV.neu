@@ -11346,3 +11346,12 @@
 - Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
 
 
+## 2026-04-10 - WPF Updateprüfung erst nach geladener Startseite
+
+- Echten Repo-Stand geprüft und den Block nur auf den bestehenden WPF-Startup-Pfad in `KGV.Wpf\App.xaml.cs` begrenzt; blockfremde lokale Dateien sowie MAUI-Dateien bewusst nicht angerührt.
+- Die vorhandene Updateprüfung startet nicht mehr direkt kurz nach `mainWindow.Show()`, sondern jetzt erst nach erfolgreichem Login und nach dem ersten sauberen Rendern des `MainWindow` über den bestehenden Window-Pfad `ContentRendered`.
+- Die Prüfung wird zusätzlich erst im Dispatcher-Idle-Pfad angestoßen, sodass die Startseite bzw. das erste Hauptfenster erst sichtbar und sauber geladen werden kann, bevor die Updateabfrage eingreift.
+- Es wurde kein neuer Update-Mechanismus gebaut; die bestehende `CheckForApplicationUpdateAsync()`-Logik bleibt unverändert und wurde nur auf den fachlich gewünschten späteren Startzeitpunkt verschoben.
+- Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
+
+
