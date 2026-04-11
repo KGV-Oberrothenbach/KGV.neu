@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-04-11 – Harter temporärer MAUI-Sichtbarkeitstest in MemberDetailPage ergänzt
+
+- Repo-Check auf `main`:
+  - `git status --short --branch`
+- Den kleinen temporären Sichtbarkeitstest nur für die MAUI-Stammdatenseite umgesetzt, ohne neuen Fachblock zu starten.
+- In `KGV.Maui/Pages/MemberDetailPage.cs` den bestehenden Laufzeit-Hinweis bewusst zu einem sehr auffälligen roten Testblock ganz oben auf der Seite verschärft.
+- Der Testblock zeigt jetzt sofort sichtbar an:
+  - `TEST MemberDetailPage aktiv`
+  - `Build main`
+  - `Commit/Marker: main / temp-hard-visibility-test / 2026-04-11`
+  - zusätzlich `PageType`, `member.Id`, `_isCreateMode`, `CanCreateMitglied` und die App-Version
+- Die bestehende Fachlogik, Rechteverdrahtung und Buttonlogik wurden nicht geändert; der Block dient nur als harter Laufzeit-Sichtbarkeitstest.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-11 – Temporäre MAUI-Laufzeitidentität für MemberDetailPage ergänzt
 
 - Repo-Check auf `feature/formularverwaltung`:

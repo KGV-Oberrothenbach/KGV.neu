@@ -35,6 +35,12 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-11
+- Den kleinen temporären MAUI-Härte-/Sichtbarkeitstest auf dem echten Stand von `main` umgesetzt, ohne neuen Fachblock zu starten.
+- In `MemberDetailPage` wurde der vorhandene Laufzeit-Hinweis ganz oben zu einem bewusst auffälligen roten Testblock ausgebaut, damit auf einem Screenshot sofort erkennbar ist, ob wirklich dieser Seiten-Code läuft.
+- Der Block zeigt jetzt explizit `TEST MemberDetailPage aktiv`, `Build main`, einen klaren Marker sowie die wichtigsten Laufzeitwerte `PageType`, `member.Id`, `_isCreateMode` und `CanCreateMitglied` direkt auf der Seite an.
+- Die eigentliche Fachlogik für Rechte, Dokumente und die Sichtbarkeit des Mitgliedsantrag-Buttons blieb unverändert; der Block dient nur dem eindeutigen harten Laufzeittest.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den kleinen temporären MAUI-Diagnoseblock zur Laufzeitidentität auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt, ohne neuen Fachblock zu starten.
 - Im betroffenen Stammdatenpfad `MemberDetailPage` wird jetzt direkt sichtbar angezeigt, dass technisch wirklich `MemberDetailPage` geöffnet ist.
 - Zusätzlich zeigt der temporäre Hinweis App-Version und Buildnummer aus dem bestehenden MAUI-Versionspfad, einen Build-Marker mit Zeitstempel/Git-Kennung sowie den aktuellen Page-Typ und den aktuellen Shell-/Seitenpfad an.

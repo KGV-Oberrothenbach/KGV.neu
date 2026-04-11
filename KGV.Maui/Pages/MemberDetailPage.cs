@@ -16,7 +16,7 @@ namespace KGV.Maui.Pages;
 
 public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 {
-    private const string TemporaryRuntimeBuildMarker = "2026-04-11 19:44:54 UTC / git b1a571f";
+    private const string TemporaryRuntimeBuildMarker = "main / temp-hard-visibility-test / 2026-04-11";
 
     private readonly ISupabaseService _supabaseService;
     private readonly IAuthService _authService;
@@ -77,7 +77,16 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         Title = "Stammdaten";
 
         _headlineLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold };
-        _runtimeIdentityLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap, FontSize = 12 };
+        _runtimeIdentityLabel = new Label
+        {
+            BackgroundColor = Colors.Red,
+            TextColor = Colors.White,
+            LineBreakMode = LineBreakMode.WordWrap,
+            FontSize = 18,
+            FontAttributes = FontAttributes.Bold,
+            Padding = new Thickness(14, 12),
+            Margin = new Thickness(0, 0, 0, 8)
+        };
         _statusLabel = new Label { TextColor = Colors.DarkRed, LineBreakMode = LineBreakMode.WordWrap };
         _emailEntry = new Entry { Placeholder = "E-Mail", Keyboard = Keyboard.Email };
         _emailHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
@@ -387,9 +396,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         var build = AppInfo.Current.BuildString;
         var memberId = member?.Id ?? _memberRecord?.Id ?? 0;
         var pageType = GetType().FullName ?? nameof(MemberDetailPage);
-        var route = Shell.Current?.CurrentState?.Location?.ToString() ?? "-";
+        var canCreateMitglied = PermissionChecks.CanCreateMitglied(currentUserContext);
 
-        _runtimeIdentityLabel.Text = $"[TEMP Laufzeitidentität] Diagnose: MemberDetailPage aktiv | Version={version} ({build}) | BuildMarker={TemporaryRuntimeBuildMarker} | Page={pageType} | Route={route} | Mode={(_isCreateMode ? "Create" : "Detail")} | member.Id={memberId} | Rolle={currentUserContext?.Role.ToString() ?? "-"}";
+        _runtimeIdentityLabel.Text = $"TEST MemberDetailPage aktiv\nBuild main\nCommit/Marker: {TemporaryRuntimeBuildMarker}\nPageType: {pageType}\nmember.Id: {memberId}\nCreateMode: {_isCreateMode}\nCanCreateMitglied: {canCreateMitglied}\nVersion: {version} ({build})";
     }
 
     private string BuildMitgliedsantragDiagnoseText(MemberDTO? member)
