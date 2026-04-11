@@ -2,6 +2,24 @@
 
 ---
 
+## 2026-04-11 – Datumsfix im realen Supabase-Save-/Serializer-Pfad abgeschlossen
+
+- Repo-Check vor dem Abschlusslauf auf `feature/formularverwaltung`:
+  - `git status --short --branch`
+- Den bereits begonnenen Datumsfix nur im echten Save-/Serializer-Pfad abgeschlossen, ohne neuen Fachblock zu starten.
+- Reale Ursache bestätigt:
+  - der problematische Restfehler lag im bisherigen `.Set(...)`-Pfad mit rohen `DateTime`-Werten
+  - die bereits erweiterten Modell-Converter wurden im Update-Pfad damit umgangen
+- Zentraler Fix in `KGV.Infrastructure/Services/SupabaseService.cs`:
+  - Arbeitseinsatz und Termin nutzen jetzt denselben sicheren gemeinsamen Write-Pfad
+  - abgedeckt sind jeweils `Insert` und `Update`
+  - `date` wird explizit als `yyyy-MM-dd` geschrieben
+  - `timestamp without time zone` wird explizit ohne `Z`/Offset geschrieben
+  - der Fix bleibt auf den gemeinsamen Save-Pfad begrenzt; keine UI- oder Fachlogik wurde ergänzt
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-11 – Mitgliedsantrag mit saisonbasiertem Mitgliedsbeitrag build-validiert und abgeschlossen
 
 - Repo-Check vor dem Abschlusslauf auf `feature/formularverwaltung`:

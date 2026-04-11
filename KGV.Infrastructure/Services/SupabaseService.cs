@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -3578,7 +3579,6 @@ namespace KGV.Infrastructure.Services
                 if (request == null || string.IsNullOrWhiteSpace(request.Titel))
                     return null;
 
-                var client = await EnsureClientAsync();
                 var now = DateTime.UtcNow;
                 var insertRecord = new ArbeitseinsatzInsertRecord
                 {
@@ -3599,7 +3599,10 @@ namespace KGV.Infrastructure.Services
                     IsDemo = request.IsDemo
                 };
 
-                await client.From<ArbeitseinsatzInsertRecord>().Insert(insertRecord);
+                if (!await InsertArbeitseinsatzAsync(insertRecord))
+                    return null;
+
+                var client = await EnsureClientAsync();
                 var reloadCandidate = new ArbeitseinsatzRecord
                 {
                     Titel = insertRecord.Titel,
@@ -3653,25 +3656,8 @@ namespace KGV.Infrastructure.Services
                 if (record == null || record.Id <= 0 || string.IsNullOrWhiteSpace(record.Titel))
                     return false;
 
-                var client = await EnsureClientAsync();
-                await client
-                    .From<ArbeitseinsatzRecord>()
-                    .Where(x => x.Id == record.Id)
-                    .Set(x => x.Titel, CleanRequiredText(record.Titel))
-                    .Set(x => x.Beschreibung, CleanOptionalText(record.Beschreibung))
-                    .Set(x => x.Datum, NormalizeDateOnly(record.Datum))
-                    .Set(x => x.StartUhrzeit, NormalizeTerminTime(record.StartUhrzeit))
-                    .Set(x => x.EndUhrzeit, NormalizeTerminTime(record.EndUhrzeit))
-                    .Set(x => x.Treffpunkt, CleanOptionalText(record.Treffpunkt))
-                    .Set(x => x.MaxTeilnehmer, record.MaxTeilnehmer)
-                    .Set(x => x.StundenWert, record.StundenWert < 0 ? 0 : record.StundenWert)
-                    .Set(x => x.SichtbarAb, NormalizeTimestampWithoutTimeZone(record.SichtbarAb))
-                    .Set(x => x.SichtbarBis, NormalizeTimestampWithoutTimeZone(record.SichtbarBis))
-                    .Set(x => x.AnmeldungBis, NormalizeTimestampWithoutTimeZone(record.AnmeldungBis))
-                    .Set(x => x.Aktiv, record.Aktiv)
-                    .Set(x => x.UpdatedAt, DateTime.UtcNow)
-                    .Set(x => x.IsDemo, record.IsDemo)
-                    .Update();
+                if (!await UpdateArbeitseinsatzPostgrestAsync(record))
+                    return false;
 
                 _logger?.LogInformation("UpdateArbeitseinsatzAsync updated arbeitseinsatz {ArbeitseinsatzId}", record.Id);
                 return true;
@@ -3721,7 +3707,6 @@ namespace KGV.Infrastructure.Services
                 if (request == null || string.IsNullOrWhiteSpace(request.Titel))
                     return null;
 
-                var client = await EnsureClientAsync();
                 var now = DateTime.UtcNow;
                 var insertRecord = new TerminInsertRecord
                 {
@@ -3737,7 +3722,10 @@ namespace KGV.Infrastructure.Services
                     UpdatedAt = now
                 };
 
-                await client.From<TerminInsertRecord>().Insert(insertRecord);
+                if (!await InsertTerminAsync(insertRecord))
+                    return null;
+
+                var client = await EnsureClientAsync();
                 var reloadCandidate = new TerminRecord
                 {
                     Titel = insertRecord.Titel,
@@ -3786,20 +3774,8 @@ namespace KGV.Infrastructure.Services
                 if (record == null || record.Id <= 0 || string.IsNullOrWhiteSpace(record.Titel))
                     return false;
 
-                var client = await EnsureClientAsync();
-                await client
-                    .From<TerminRecord>()
-                    .Where(x => x.Id == record.Id)
-                    .Set(x => x.Titel, CleanRequiredText(record.Titel))
-                    .Set(x => x.Beschreibung, CleanOptionalText(record.Beschreibung))
-                    .Set(x => x.Datum, NormalizeDateOnly(record.Datum))
-                    .Set(x => x.StartUhrzeit, NormalizeTerminTime(record.StartUhrzeit))
-                    .Set(x => x.EndUhrzeit, NormalizeTerminTime(record.EndUhrzeit))
-                    .Set(x => x.SichtbarAb, NormalizeTimestampWithoutTimeZone(record.SichtbarAb))
-                    .Set(x => x.SichtbarBis, NormalizeTimestampWithoutTimeZone(record.SichtbarBis))
-                    .Set(x => x.Aktiv, record.Aktiv)
-                    .Set(x => x.UpdatedAt, DateTime.UtcNow)
-                    .Update();
+                if (!await UpdateTerminPostgrestAsync(record))
+                    return false;
 
                 _logger?.LogInformation("UpdateTerminAsync updated termin {TerminId}", record.Id);
                 return true;
@@ -4175,6 +4151,124 @@ namespace KGV.Infrastructure.Services
             var now = DateTime.Now;
             return new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0, DateTimeKind.Unspecified);
         }
+
+        private async Task<bool> InsertArbeitseinsatzAsync(ArbeitseinsatzInsertRecord record)
+        {
+            var payload = new Dictionary<string, object?>
+            {
+                ["titel"] = record.Titel,
+                ["beschreibung"] = record.Beschreibung,
+                ["datum"] = FormatPostgresDate(NormalizeDateOnly(record.Datum)),
+                ["start_uhrzeit"] = FormatPostgresTime(record.StartUhrzeit),
+                ["end_uhrzeit"] = FormatPostgresTime(record.EndUhrzeit),
+                ["treffpunkt"] = record.Treffpunkt,
+                ["max_teilnehmer"] = record.MaxTeilnehmer,
+                ["stunden_wert"] = record.StundenWert,
+                ["sichtbar_ab"] = FormatPostgresTimestampWithoutTimeZone(record.SichtbarAb),
+                ["sichtbar_bis"] = FormatPostgresTimestampWithoutTimeZone(record.SichtbarBis),
+                ["anmeldung_bis"] = FormatPostgresTimestampWithoutTimeZone(record.AnmeldungBis),
+                ["aktiv"] = record.Aktiv,
+                ["created_at"] = FormatPostgresTimestampWithoutTimeZone(record.CreatedAt),
+                ["updated_at"] = FormatPostgresTimestampWithoutTimeZone(record.UpdatedAt),
+                ["is_demo"] = record.IsDemo
+            };
+
+            return await SendPostgrestWriteAsync(HttpMethod.Post, "arbeitseinsatz", payload);
+        }
+
+        private async Task<bool> UpdateArbeitseinsatzPostgrestAsync(ArbeitseinsatzRecord record)
+        {
+            var payload = new Dictionary<string, object?>
+            {
+                ["titel"] = CleanRequiredText(record.Titel),
+                ["beschreibung"] = CleanOptionalText(record.Beschreibung),
+                ["datum"] = FormatPostgresDate(NormalizeDateOnly(record.Datum)),
+                ["start_uhrzeit"] = FormatPostgresTime(NormalizeTerminTime(record.StartUhrzeit)),
+                ["end_uhrzeit"] = FormatPostgresTime(NormalizeTerminTime(record.EndUhrzeit)),
+                ["treffpunkt"] = CleanOptionalText(record.Treffpunkt),
+                ["max_teilnehmer"] = record.MaxTeilnehmer,
+                ["stunden_wert"] = record.StundenWert < 0 ? 0 : record.StundenWert,
+                ["sichtbar_ab"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(record.SichtbarAb)),
+                ["sichtbar_bis"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(record.SichtbarBis)),
+                ["anmeldung_bis"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(record.AnmeldungBis)),
+                ["aktiv"] = record.Aktiv,
+                ["updated_at"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(DateTime.UtcNow)),
+                ["is_demo"] = record.IsDemo
+            };
+
+            return await SendPostgrestWriteAsync(HttpMethod.Patch, $"arbeitseinsatz?id=eq.{record.Id}", payload);
+        }
+
+        private async Task<bool> InsertTerminAsync(TerminInsertRecord record)
+        {
+            var payload = new Dictionary<string, object?>
+            {
+                ["titel"] = record.Titel,
+                ["beschreibung"] = record.Beschreibung,
+                ["datum"] = FormatPostgresDate(NormalizeDateOnly(record.Datum)),
+                ["start_uhrzeit"] = FormatPostgresTime(record.StartUhrzeit),
+                ["end_uhrzeit"] = FormatPostgresTime(record.EndUhrzeit),
+                ["sichtbar_ab"] = FormatPostgresTimestampWithoutTimeZone(record.SichtbarAb),
+                ["sichtbar_bis"] = FormatPostgresTimestampWithoutTimeZone(record.SichtbarBis),
+                ["aktiv"] = record.Aktiv,
+                ["created_at"] = FormatPostgresTimestampWithoutTimeZone(record.CreatedAt),
+                ["updated_at"] = FormatPostgresTimestampWithoutTimeZone(record.UpdatedAt)
+            };
+
+            return await SendPostgrestWriteAsync(HttpMethod.Post, "termin", payload);
+        }
+
+        private async Task<bool> UpdateTerminPostgrestAsync(TerminRecord record)
+        {
+            var payload = new Dictionary<string, object?>
+            {
+                ["titel"] = CleanRequiredText(record.Titel),
+                ["beschreibung"] = CleanOptionalText(record.Beschreibung),
+                ["datum"] = FormatPostgresDate(NormalizeDateOnly(record.Datum)),
+                ["start_uhrzeit"] = FormatPostgresTime(NormalizeTerminTime(record.StartUhrzeit)),
+                ["end_uhrzeit"] = FormatPostgresTime(NormalizeTerminTime(record.EndUhrzeit)),
+                ["sichtbar_ab"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(record.SichtbarAb)),
+                ["sichtbar_bis"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(record.SichtbarBis)),
+                ["aktiv"] = record.Aktiv,
+                ["updated_at"] = FormatPostgresTimestampWithoutTimeZone(NormalizeTimestampWithoutTimeZone(DateTime.UtcNow))
+            };
+
+            return await SendPostgrestWriteAsync(HttpMethod.Patch, $"termin?id=eq.{record.Id}", payload);
+        }
+
+        private async Task<bool> SendPostgrestWriteAsync(HttpMethod method, string relativePathAndQuery, IReadOnlyDictionary<string, object?> payload)
+        {
+            var accessToken = await _authService.GetAccessTokenAsync();
+            using var request = new HttpRequestMessage(method, BuildPostgrestUri(relativePathAndQuery));
+            request.Headers.Add("apikey", _publishableKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", string.IsNullOrWhiteSpace(accessToken) ? _publishableKey : accessToken);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            request.Headers.TryAddWithoutValidation("Prefer", "return=minimal");
+            request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+            using var response = await _documentUploadHttpClient.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+                return true;
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            _logger?.LogWarning("PostgREST write failed for {RelativePath}. Status={StatusCode} Content={Content}", relativePathAndQuery, (int)response.StatusCode, responseContent);
+            return false;
+        }
+
+        private Uri BuildPostgrestUri(string relativePathAndQuery)
+            => new($"{_supabaseUrl.TrimEnd('/')}/rest/v1/{relativePathAndQuery.TrimStart('/')}", UriKind.Absolute);
+
+        private static string FormatPostgresDate(DateTime value)
+            => NormalizeDateOnly(value).ToString("yyyy-MM-dd");
+
+        private static string? FormatPostgresTimestampWithoutTimeZone(DateTime? value)
+        {
+            var normalized = NormalizeTimestampWithoutTimeZone(value);
+            return normalized?.ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff");
+        }
+
+        private static string? FormatPostgresTime(TimeSpan? value)
+            => value.HasValue ? value.Value.ToString(@"hh\:mm\:ss") : null;
 
         private static DateTime CreateEndOfDayTimestamp(DateTime date)
         {

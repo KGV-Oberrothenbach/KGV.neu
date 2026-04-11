@@ -34,6 +34,14 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 
 ## Chronologischer Kurzverlauf
 
+## 2026-04-11
+- Den bereits begonnenen Datumsfix im realen Save-/Serializer-Pfad auf dem echten Branch-Stand `feature/formularverwaltung` sauber abgeschlossen, ohne neuen Fachblock zu starten.
+- Der reale Restfehler lag nicht mehr in den Modell-Convertern, sondern im bisherigen `.Set(...)`-Updatepfad des Services: Dort wurden rohe `DateTime`-Werte geschrieben und die erweiterten Modell-Converter damit umgangen.
+- Der zentrale Fix liegt jetzt ausschließlich in `KGV.Infrastructure/Services/SupabaseService.cs`: Arbeitseinsatz und Termin nutzen für `Insert` und `Update` denselben sicheren gemeinsamen Write-Pfad.
+- Dabei werden reine Datumswerte explizit als `yyyy-MM-dd` und `timestamp without time zone` explizit ohne `Z`/Offset an PostgREST geschrieben, damit keine ungewollte UTC-/Offset-Verschiebung mehr in den DB-Speicherpfad hineinläuft.
+- Es wurden bewusst keine UI-Workarounds, keine neue Fachlogik und keine weiteren Modell-Experimente ergänzt.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 ## 2026-04-09
 - Den bereits umgesetzten Block `Mitgliedsantrag mit Mitgliedsbeitrag` auf dem echten Branch-Stand `feature/formularverwaltung` im Abschlusslauf fachlich und technisch sauber geschlossen, ohne neuen Fachblock zu starten.
 - Der Mitgliedsantrag nutzt dafür weiter den bestehenden Saisonpfad `SaisonRecord.Mitgliedsbeitrag`; die Vorschlagsregel bleibt wie begonnen konsistent in WPF und MAUI: Beginn vor `01.07.` voller Jahresbeitrag, Beginn ab `01.07.` halber Jahresbeitrag.
