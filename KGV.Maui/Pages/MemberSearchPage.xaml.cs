@@ -306,7 +306,7 @@ public partial class MemberSearchPage : ContentPage
                     return;
             }
 
-            await Shell.Current.GoToAsync(nameof(MeineDatenPage));
+            await Shell.Current.GoToAsync(nameof(MemberDetailPage));
         }
         finally
         {

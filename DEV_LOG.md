@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-04-11 – MAUI-Route `memberdetails` auf echte `MemberDetailPage` aufgelöst
+
+- Repo-Check auf `main`:
+  - `git status --short --branch`
+- Den kleinen Routing-/Analyseblock nur für den MAUI-Pfad von der Mitgliedersuche zur Stammdatenseite umgesetzt, ohne neuen Fachblock zu starten.
+- Reale Pfadauflösung:
+  - `KGV.Maui/Pages/MemberSearchPage.xaml.cs`
+    - nach Auswahl eines Mitglieds wird der Mitgliedskontext korrekt über `_memberContextState.SetSelectedMember(member)` gesetzt
+    - danach wird bevorzugt die sichtbare Shell-Route `memberdetails` aktiviert
+    - nur wenn diese Route nicht aktiv wird, fällt der Pfad bisher direkt auf `GoToAsync(nameof(MeineDatenPage))` zurück
+  - `KGV.Maui/AdminShell.cs`
+    - die Shell-Route `memberdetails` war im echten Stand fälschlich auf `MeineDatenPage` verdrahtet statt auf `MemberDetailPage`
+  - `KGV.Maui/UserShell.cs`
+    - nutzt für den Eigenkontext weiterhin getrennt `mydetails`; dieser Block blieb unverändert
+- Echte Ursache des Befunds:
+  - fachlich wurde zwar `memberdetails` aktiviert, technisch landete der Admin-Mitgliedssuchpfad aber auf `MeineDatenPage`
+  - deshalb konnten weder der rote Testblock noch der Mitgliedsantragspfad aus `MemberDetailPage` auf der sichtbaren Stammdatenseite erscheinen
+- Minimaler Fix:
+  - `AdminShell` verdrahtet `memberdetails` jetzt auf `MemberDetailPage`
+  - der direkte Fallback aus `MemberSearchPage` wurde auf `GoToAsync(nameof(MemberDetailPage))` gezogen, damit auch der Ausweichpfad denselben Zieltyp nutzt
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-11 – Harter temporärer MAUI-Sichtbarkeitstest in MemberDetailPage ergänzt
 
 - Repo-Check auf `main`:

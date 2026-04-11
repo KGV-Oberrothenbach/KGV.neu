@@ -178,7 +178,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Mitgliedersuche", "membersearch", () => _services.GetRequiredService<MemberSearchPage>()));
 
-        _memberDetailsItem = CreateItem("↳ Stammdaten", "memberdetails", () => _services.GetRequiredService<MeineDatenPage>());
+        _memberDetailsItem = CreateItem("↳ Stammdaten", "memberdetails", () => _services.GetRequiredService<MemberDetailPage>());
         _memberDocumentsItem = CreateItem("↳ Dokumente", "member_documents", () => _services.GetRequiredService<DokumentePage>());
         _memberWartungsvertraegeItem = CreateItem("↳ Wartungsverträge", "member_wartungsvertraege", () => _services.GetRequiredService<MemberWartungsvertraegePage>());
         _memberNebenmitgliedItem = CreateItem("↳ Nebenmitglied", "member_nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>());

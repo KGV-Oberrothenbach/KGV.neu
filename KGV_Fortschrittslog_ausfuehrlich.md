@@ -35,6 +35,14 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-11
+- Den kleinen Analyse-/Routingblock `memberdetails` auf dem echten Stand von `main` sauber aufgelöst und minimal korrigiert, ohne neuen Fachblock zu starten.
+- Der Pfad aus der Mitgliedersuche schreibt das ausgewählte Mitglied korrekt in den `MemberContextState` und aktiviert danach bevorzugt die sichtbare Shell-Route `memberdetails`.
+- Die eigentliche Abweichung lag im `AdminShell`: Dort war `memberdetails` im echten Stand nicht auf `MemberDetailPage`, sondern auf `MeineDatenPage` verdrahtet.
+- Dadurch öffnete die sichtbare Stammdatenseite zwar fachlich korrekt den Stammdatenpfad, technisch aber nicht die erwartete `MemberDetailPage`; deshalb erschienen dort weder der harte rote Marker noch der Mitgliedsantragspfad dieser Seite.
+- Minimaler Fix: `AdminShell` zeigt `memberdetails` jetzt auf `MemberDetailPage`; zusätzlich wurde der direkte Fallback aus `MemberSearchPage` ebenfalls auf `MemberDetailPage` gezogen, damit bevorzugter Routepfad und Ausweichpfad denselben Zieltyp verwenden.
+- `UserShell` blieb bewusst unverändert, weil dort für den Eigenkontext weiterhin der getrennte Pfad `mydetails` gilt.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den kleinen temporären MAUI-Härte-/Sichtbarkeitstest auf dem echten Stand von `main` umgesetzt, ohne neuen Fachblock zu starten.
 - In `MemberDetailPage` wurde der vorhandene Laufzeit-Hinweis ganz oben zu einem bewusst auffälligen roten Testblock ausgebaut, damit auf einem Screenshot sofort erkennbar ist, ob wirklich dieser Seiten-Code läuft.
 - Der Block zeigt jetzt explizit `TEST MemberDetailPage aktiv`, `Build main`, einen klaren Marker sowie die wichtigsten Laufzeitwerte `PageType`, `member.Id`, `_isCreateMode` und `CanCreateMitglied` direkt auf der Seite an.
