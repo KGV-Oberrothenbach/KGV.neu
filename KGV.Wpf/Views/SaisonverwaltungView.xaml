@@ -1,0 +1,79 @@
+<UserControl x:Class="KGV.Views.SaisonverwaltungView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource KgvBackgroundBrush}">
+
+    <Grid Margin="30">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="340" />
+            <ColumnDefinition Width="20" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <GroupBox Header="Saisons" Grid.Column="0">
+            <DockPanel Margin="10">
+                <Button DockPanel.Dock="Bottom"
+                        Margin="0,12,0,0"
+                        Height="34"
+                        Content="Neue Saison vorschlagen"
+                        Command="{Binding SuggestNextSaisonCommand}" />
+                <ListView ItemsSource="{Binding Saisons}"
+                          SelectedItem="{Binding SelectedSaison, Mode=TwoWay}">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Jahr" Width="70" DisplayMemberBinding="{Binding Jahr}" />
+                            <GridViewColumn Header="Pacht / qm" Width="90" DisplayMemberBinding="{Binding PachtProQm}" />
+                            <GridViewColumn Header="Mitgliedsbeitrag" Width="120" DisplayMemberBinding="{Binding Mitgliedsbeitrag}" />
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </DockPanel>
+        </GroupBox>
+
+        <GroupBox Header="Saison bearbeiten" Grid.Column="2">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="12">
+                    <TextBlock Text="{Binding Titel}" FontSize="24" FontWeight="Bold" />
+                    <TextBlock Margin="0,6,0,0" Text="{Binding Untertitel}" FontSize="16" FontWeight="SemiBold" />
+                    <TextBlock Margin="0,8,0,0" Text="{Binding Beschreibung}" TextWrapping="Wrap" />
+                    <TextBlock Margin="0,6,0,12" Text="{Binding Hinweistext}" Foreground="Gray" TextWrapping="Wrap" />
+
+                    <TextBlock Text="Saisonjahr / ID" FontWeight="SemiBold" />
+                    <TextBox Margin="0,4,0,10" Text="{Binding Jahr, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" />
+
+                    <TextBlock Text="Pacht pro qm" FontWeight="SemiBold" />
+                    <TextBox Margin="0,4,0,10" Text="{Binding PachtProQm, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsEditable}" />
+
+                    <TextBlock Text="Mitgliedsbeitrag" FontWeight="SemiBold" />
+                    <TextBox Margin="0,4,0,10" Text="{Binding Mitgliedsbeitrag, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsEditable}" />
+
+                    <TextBlock Text="Pflichtstunden Soll" FontWeight="SemiBold" />
+                    <TextBox Margin="0,4,0,10" Text="{Binding PflichtstundenSoll, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsEditable}" />
+
+                    <TextBlock Text="Euro pro Fehlstunde" FontWeight="SemiBold" />
+                    <TextBox Margin="0,4,0,10" Text="{Binding EuroProFehlstunde, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsEditable}" />
+
+                    <TextBlock Text="Bemerkung" FontWeight="SemiBold" />
+                    <TextBox Margin="0,4,0,10"
+                             Height="100"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"
+                             Text="{Binding Bemerkung, UpdateSourceTrigger=PropertyChanged}"
+                             IsEnabled="{Binding IsEditable}" />
+
+                    <TextBlock Margin="0,0,0,10"
+                               Text="{Binding StatusMessage}"
+                               Foreground="DarkSlateBlue"
+                               TextWrapping="Wrap"
+                               Visibility="{Binding HasStatusMessage, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Width="160" Height="34" Margin="0,0,8,0" Content="Aktualisieren" Command="{Binding RefreshCommand}" />
+                        <Button Width="180" Height="34" Content="Saison speichern" Command="{Binding SaveCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </GroupBox>
+    </Grid>
+</UserControl>
