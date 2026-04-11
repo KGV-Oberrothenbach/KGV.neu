@@ -35,6 +35,12 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-11
+- Den kleinen MAUI-Abschlussblock `CreateMitglied`/Mitgliedsantrag gegen den echten Branch-Stand `feature/formularverwaltung` geprüft, ohne neuen Fachblock zu starten.
+- Die fachliche Gegenprüfung zeigte, dass der sichtbare mobile Einstieg `Mitgliedsantrag als PDF` im bestehenden `MemberDetailPage`-Pfad bereits korrekt an `PermissionChecks.CanCreateMitglied(...)` hängt; der frühere Dokumentrechtepfad `CanManageDocuments(...)` ist dort nicht mehr aktiv.
+- Auch die direkt angrenzenden mobilen Onboarding-/Verpachtungspfade sind bereits konsistent: Parzellenzuweisung in `MemberGardensPage` und `Pachtvertrag als PDF` in `MemberParzellenDetailPage` nutzen ebenfalls `CanCreateMitglied(...)`.
+- Ergebnis: Für diesen Abschlusslauf war kein weiterer Codeeingriff nötig; es wurden bewusst keine WPF-Änderungen, keine neue Dokumentlogik und keine neue Rechte-/Schattenlogik ergänzt.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den bereits begonnenen Datumsfix im realen Save-/Serializer-Pfad auf dem echten Branch-Stand `feature/formularverwaltung` sauber abgeschlossen, ohne neuen Fachblock zu starten.
 - Der reale Restfehler lag nicht mehr in den Modell-Convertern, sondern im bisherigen `.Set(...)`-Updatepfad des Services: Dort wurden rohe `DateTime`-Werte geschrieben und die erweiterten Modell-Converter damit umgangen.
 - Der zentrale Fix liegt jetzt ausschließlich in `KGV.Infrastructure/Services/SupabaseService.cs`: Arbeitseinsatz und Termin nutzen für `Insert` und `Update` denselben sicheren gemeinsamen Write-Pfad.

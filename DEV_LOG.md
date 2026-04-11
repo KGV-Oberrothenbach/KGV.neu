@@ -2,6 +2,25 @@
 
 ---
 
+## 2026-04-11 – MAUI-CreateMitglied-Verdrahtung für Mitgliedsantrag im echten Repo-Stand verifiziert
+
+- Repo-Check auf `feature/formularverwaltung`:
+  - `git status --short --branch`
+- Den kleinen MAUI-Abschlussblock zur Rechteverdrahtung nur gegen den echten Stand geprüft, ohne neuen Fachblock zu starten.
+- Ergebnis der Gegenprüfung:
+  - `KGV.Maui/Pages/MemberDetailPage.cs`
+    - der sichtbare Button `Mitgliedsantrag als PDF` hängt im Stammdatenkontext bereits an `PermissionChecks.CanCreateMitglied(...)`
+    - der frühere Dokumentrechtepfad `CanManageDocuments(...)` ist dort im echten Stand nicht mehr aktiv
+  - direkt angrenzende MAUI-Onboardingpfade ebenfalls geprüft:
+    - `KGV.Maui/Pages/MemberGardensPage.cs` nutzt für Parzellenzuweisung bereits `CanCreateMitglied(...)`
+    - `KGV.Maui/Pages/MemberParzellenDetailPage.cs` nutzt für `Pachtvertrag als PDF` bereits `CanCreateMitglied(...)`
+- Umsetzung:
+  - kein Codefix mehr nötig, weil der gewünschte fachliche Zuschnitt im echten Repo-Stand bereits vorhanden war
+  - keine WPF-Änderung, keine neue Dokumentlogik, keine neue Rechte- oder Schattenlogik
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-11 – Datumsfix im realen Supabase-Save-/Serializer-Pfad abgeschlossen
 
 - Repo-Check vor dem Abschlusslauf auf `feature/formularverwaltung`:
