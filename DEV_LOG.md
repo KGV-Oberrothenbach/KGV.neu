@@ -2,6 +2,32 @@
 
 ---
 
+## 2026-04-12 – Pachtvertrag auf Vertreter-, Snapshot- und Vereinskonfigurations-Standard gezogen
+
+- Repo-Check auf `main` ausgeführt.
+- Nur den bestehenden Pachtvertrag-Block ergänzt; kein neuer Dokumentpfad, keine neue Rechte- und keine neue Routing-Logik begonnen.
+- Gemeinsamen Request-Unterbau `PachtvertragDokumentRequest` ergänzt und dabei bewusst die bestehenden Snapshot-Typen für Vertreter- und Vereinsbankdaten wiederverwendet statt eine parallele Schattenstruktur aufzubauen.
+- `ISupabaseService` und `SupabaseService` um request-basierte Pachtvertrag-Methoden für Preview und finales Signieren erweitert.
+- Der Pachtvertrag nutzt jetzt denselben fachlichen Standard wie der Mitgliedsantrag:
+  - Minderjährigkeit am Vertragsbeginn prüfen
+  - aktiven gesetzlichen Vertreter vorbelegen, wenn vorhanden
+  - vorhandenes Mitglied oder manuelle Vertretererfassung unterstützen
+  - manuell erfassten Vertreter erst im final erfolgreichen Abschluss als Nebenmitglied anlegen
+  - Vertreter-Verknüpfung erst beim finalen erfolgreichen Abschluss speichern
+- Vereinsbankdaten werden produktiv aus `vereinskonfiguration` geladen, validiert und als Snapshot durch Vorschau und finales Dokument identisch weitergereicht.
+- Pflichtfelder `kontoinhaber`, `bankname`, `iban` und `bic` bleiben auch im Pachtvertrag hart validiert; ohne aktive und vollständige Konfiguration läuft der Flow nicht still weiter.
+- `PachtvertragDokumentFactory` wurde nur minimal geöffnet:
+  - offizielle Pachtvertrag-Vorlage bleibt führend
+  - zusätzlich wird eine kompakte Ergänzungsseite mit Bankdaten-Snapshot und – bei Minderjährigen – Vertreter-Snapshot angehängt
+- Der bestehende MAUI-Pachtvertragspfad wurde auf `Bearbeiten/Vorbelegung -> Vorschau -> Unterschrift -> finales Speichern` gezogen:
+  - neuer kleiner `PachtvertragDialogPage` für Vorbelegung/Vertreterwahl
+  - bestehende `PachtvertragPreviewPage`, `VertragsSignaturPage` und `PachtvertragFlowHelper` weiterverwendet
+  - zusätzliche Vertreter-Unterschrift nur bei Minderjährigen
+- Beide bestehenden mobilen Einstiege `MemberParzellenDetailPage` und `MemberGardenAssignPage` bleiben auf demselben gemeinsamen Flow.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-12 – Mitgliedsantrag lädt Bankdaten produktiv aus vereinskonfiguration
 
 - Repo-Check auf `main` ausgeführt.

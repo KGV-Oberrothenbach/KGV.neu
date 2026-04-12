@@ -12,7 +12,7 @@ namespace KGV.Maui.Pages;
 internal enum PachtvertragPreviewDecision
 {
     Cancel,
-    BackToContext,
+    BackToEditor,
     ContinueToSignature
 }
 
@@ -37,7 +37,7 @@ public sealed class PachtvertragPreviewPage : ContentPage
         openPreviewButton.Clicked += async (_, _) => await OpenPreviewAsync();
 
         var backButton = new Button { Text = "Zurück" };
-        backButton.Clicked += async (_, _) => await CloseAsync(PachtvertragPreviewDecision.BackToContext);
+        backButton.Clicked += async (_, _) => await CloseAsync(PachtvertragPreviewDecision.BackToEditor);
 
         var cancelButton = new Button { Text = "Abbrechen" };
         cancelButton.Clicked += async (_, _) => await CloseAsync(PachtvertragPreviewDecision.Cancel);

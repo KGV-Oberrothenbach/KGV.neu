@@ -2575,7 +2575,7 @@ namespace KGV.Infrastructure.Services
         private async Task<DokumentUploadResult> CreateMitgliedsantragDokumentInternalAsync(MitgliedRecord member, decimal mitgliedsbeitrag, DateTime beginnDatum, string? status)
         {
             var gesetzlicherVertreter = await ResolveGesetzlicherVertreterAsync(member.Id, beginnDatum);
-            var bankverbindungSnapshot = await ResolveMitgliedsantragBankverbindungSnapshotAsync();
+            var bankverbindungSnapshot = await ResolveVereinsBankverbindungSnapshotAsync();
             var uploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(member, mitgliedsbeitrag, beginnDatum, gesetzlicherVertreter.IstMinderjaehrig ? BuildMitgliedsantragVertreterSnapshot(gesetzlicherVertreter.Vorbelegung) : null, bankverbindungSnapshot, status);
             return await CreateDokumentAsync(uploadRequest);
         }
@@ -2596,8 +2596,8 @@ namespace KGV.Infrastructure.Services
                 ? (member.MitgliedSeit ?? DateTime.Today)
                 : request.BeginnDatum;
             var bankverbindungSnapshot = request.BankverbindungSnapshot != null
-                ? NormalizeMitgliedsantragBankverbindungSnapshot(request.BankverbindungSnapshot)
-                : await ResolveMitgliedsantragBankverbindungSnapshotAsync();
+                ? NormalizeVereinsBankverbindungSnapshot(request.BankverbindungSnapshot)
+                : await ResolveVereinsBankverbindungSnapshotAsync();
             request.BankverbindungSnapshot = bankverbindungSnapshot;
 
             var istMinderjaehrig = GesetzlicherVertreterResolver.IsMinderjaehrig(member, beginnDatum);
@@ -2647,22 +2647,39 @@ namespace KGV.Infrastructure.Services
             if (snapshot == null)
                 throw new InvalidOperationException("Gesetzlicher Vertreter konnte nicht vorbereitet werden.");
 
-            var parentMitgliedId = context.Member.HauptmitgliedId is > 0
-                ? context.Member.HauptmitgliedId.Value
-                : context.Member.Id;
+            return await EnsureGesetzlicherVertreterMitgliedInternalAsync(context.Member, context.BeginnDatum, snapshot, request.GesetzlicherVertreterAdresseAbweichend);
+        }
+
+        private async Task<int> EnsureGesetzlicherVertreterMitgliedAsync((MitgliedRecord Member, MitgliedRecord? SecondaryMember, ParzelleRecord Parzelle, SaisonRecord Saison, DateTime Vertragsbeginn, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, MitgliedsantragBankverbindungSnapshot BankverbindungSnapshot) context, PachtvertragDokumentRequest request)
+        {
+            if (context.GesetzlicherVertreterMitgliedId is > 0)
+                return context.GesetzlicherVertreterMitgliedId.Value;
+
+            var snapshot = context.GesetzlicherVertreterSnapshot;
+            if (snapshot == null)
+                throw new InvalidOperationException("Gesetzlicher Vertreter konnte nicht vorbereitet werden.");
+
+            return await EnsureGesetzlicherVertreterMitgliedInternalAsync(context.Member, context.Vertragsbeginn, snapshot, request.GesetzlicherVertreterAdresseAbweichend);
+        }
+
+        private async Task<int> EnsureGesetzlicherVertreterMitgliedInternalAsync(MitgliedRecord member, DateTime effectiveDate, MitgliedsantragVertreterSnapshot snapshot, bool adresseAbweichend)
+        {
+            var parentMitgliedId = member.HauptmitgliedId is > 0
+                ? member.HauptmitgliedId.Value
+                : member.Id;
             var created = await CreateNebenmitgliedAsync(new NebenmitgliedCreateDTO
             {
                 HauptmitgliedId = parentMitgliedId,
                 Vorname = snapshot.Vorname,
                 Nachname = snapshot.Nachname,
-                AdresseUebernehmen = !request.GesetzlicherVertreterAdresseAbweichend,
+                AdresseUebernehmen = !adresseAbweichend,
                 Telefon = string.IsNullOrWhiteSpace(snapshot.Telefon) ? null : snapshot.Telefon,
                 Handy = string.IsNullOrWhiteSpace(snapshot.Handy) ? null : snapshot.Handy,
                 Adresse = string.IsNullOrWhiteSpace(snapshot.Adresse) ? null : snapshot.Adresse,
                 Plz = string.IsNullOrWhiteSpace(snapshot.Plz) ? null : snapshot.Plz,
                 Ort = string.IsNullOrWhiteSpace(snapshot.Ort) ? null : snapshot.Ort,
                 Email = string.IsNullOrWhiteSpace(snapshot.Email) ? null : snapshot.Email,
-                MitgliedSeit = context.BeginnDatum,
+                MitgliedSeit = effectiveDate,
                 WhatsappEinwilligung = false
             });
 
@@ -2672,7 +2689,7 @@ namespace KGV.Infrastructure.Services
             return created.Id;
         }
 
-        private async Task<MitgliedsantragBankverbindungSnapshot> ResolveMitgliedsantragBankverbindungSnapshotAsync()
+        private async Task<MitgliedsantragBankverbindungSnapshot> ResolveVereinsBankverbindungSnapshotAsync()
         {
             var vereinskonfiguration = await GetAktiveVereinskonfigurationAsync();
             if (vereinskonfiguration == null)
@@ -2687,7 +2704,7 @@ namespace KGV.Infrastructure.Services
             };
         }
 
-        private static MitgliedsantragBankverbindungSnapshot NormalizeMitgliedsantragBankverbindungSnapshot(MitgliedsantragBankverbindungSnapshot snapshot)
+        private static MitgliedsantragBankverbindungSnapshot NormalizeVereinsBankverbindungSnapshot(MitgliedsantragBankverbindungSnapshot snapshot)
         {
             if (snapshot == null)
                 throw new InvalidOperationException("Es ist keine aktive Vereinskonfiguration mit Bankdaten hinterlegt.");
@@ -2828,8 +2845,14 @@ namespace KGV.Infrastructure.Services
                 if (!saison.Mitgliedsbeitrag.HasValue)
                     return DokumentUploadResult.Fail($"Für die Saison {saison.Jahr} fehlt mitgliedsbeitrag.", "MITGLIEDSBEITRAG_MISSING");
 
-                var secondaryMember = await GetNebenmitgliedByHauptmitgliedIdAsync(member.Id);
-                var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(member, secondaryMember, parzelle, saison, vertragsbeginnDatum, status);
+                var context = await ResolvePachtvertragRequestAsync(new PachtvertragDokumentRequest
+                {
+                    MitgliedId = mitgliedId,
+                    ParzelleId = parzelleId,
+                    Vertragsbeginn = vertragsbeginnDatum,
+                    Status = status
+                });
+                var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(context.Member, context.SecondaryMember, context.Parzelle, context.Saison, context.Vertragsbeginn, context.GesetzlicherVertreterSnapshot, context.BankverbindungSnapshot, status);
                 return await CreateDokumentAsync(uploadRequest);
             }
             catch (InvalidOperationException ex)
@@ -2848,13 +2871,38 @@ namespace KGV.Infrastructure.Services
             "BuildPachtvertragPreviewAsync",
             async () =>
             {
-                var context = await ResolvePachtvertragContextAsync(mitgliedId, parzelleId, vertragsbeginn);
+                var context = await ResolvePachtvertragRequestAsync(new PachtvertragDokumentRequest
+                {
+                    MitgliedId = mitgliedId,
+                    ParzelleId = parzelleId,
+                    Vertragsbeginn = vertragsbeginn,
+                    Status = FormularDokumentStatus.Unsigniert
+                });
                 return PachtvertragDokumentFactory.CreateUploadRequest(
                     context.Member,
                     context.SecondaryMember,
                     context.Parzelle,
                     context.Saison,
                     context.Vertragsbeginn,
+                    context.GesetzlicherVertreterSnapshot,
+                    context.BankverbindungSnapshot,
+                    FormularDokumentStatus.Unsigniert);
+            },
+            null);
+
+        public Task<DokumentUploadRequest?> BuildPachtvertragPreviewAsync(PachtvertragDokumentRequest request) => ExecuteAsync<DokumentUploadRequest?>(
+            "BuildPachtvertragPreviewAsync(request)",
+            async () =>
+            {
+                var context = await ResolvePachtvertragRequestAsync(request);
+                return PachtvertragDokumentFactory.CreateUploadRequest(
+                    context.Member,
+                    context.SecondaryMember,
+                    context.Parzelle,
+                    context.Saison,
+                    context.Vertragsbeginn,
+                    context.GesetzlicherVertreterSnapshot,
+                    context.BankverbindungSnapshot,
                     FormularDokumentStatus.Unsigniert);
             },
             null);
@@ -2866,13 +2914,24 @@ namespace KGV.Infrastructure.Services
                 if (signatureCapture == null || !signatureCapture.HasContent)
                     return DokumentUploadResult.Fail("Bitte zuerst eine digitale Signatur erfassen.", "VALIDATION");
 
-                var context = await ResolvePachtvertragContextAsync(mitgliedId, parzelleId, vertragsbeginn);
+                var context = await ResolvePachtvertragRequestAsync(new PachtvertragDokumentRequest
+                {
+                    MitgliedId = mitgliedId,
+                    ParzelleId = parzelleId,
+                    Vertragsbeginn = vertragsbeginn,
+                    Status = FormularDokumentStatus.Signiert
+                });
+                if (context.IstMinderjaehrig)
+                    return DokumentUploadResult.Fail("Für Minderjährige ist zusätzlich die digitale Unterschrift des gesetzlichen Vertreters erforderlich.", "VALIDATION");
+
                 var previewUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
                     context.Member,
                     context.SecondaryMember,
                     context.Parzelle,
                     context.Saison,
                     context.Vertragsbeginn,
+                    context.GesetzlicherVertreterSnapshot,
+                    context.BankverbindungSnapshot,
                     FormularDokumentStatus.Unsigniert);
                 var finalUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
                     context.Member,
@@ -2880,26 +2939,88 @@ namespace KGV.Infrastructure.Services
                     context.Parzelle,
                     context.Saison,
                     context.Vertragsbeginn,
+                    context.GesetzlicherVertreterSnapshot,
+                    context.BankverbindungSnapshot,
                     FormularDokumentStatus.Signiert);
                 var sourceDocument = CreatePreviewDocumentInfo(previewUploadRequest, FormularDokumentTyp.Pachtvertrag, FormularDokumentStatus.Unsigniert);
-                finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(context.Member, sourceDocument, previewUploadRequest.FileContent, signatureCapture);
+                finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(context.Member, sourceDocument, previewUploadRequest.FileContent, signatureCapture, null, "Unterschrift Pächter/in", null);
                 return await CreateDokumentAsync(finalUploadRequest);
             },
             DokumentUploadResult.Fail("Pachtvertrag konnte aktuell nicht signiert gespeichert werden.", "UNEXPECTED"));
 
-        private async Task<(MitgliedRecord Member, MitgliedRecord? SecondaryMember, ParzelleRecord Parzelle, SaisonRecord Saison, DateTime Vertragsbeginn)> ResolvePachtvertragContextAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn)
+        public Task<DokumentUploadResult> CreateSignedPachtvertragDokumentAsync(PachtvertragDokumentRequest request, DigitalSignatureCapture signatureCapture, DigitalSignatureCapture? gesetzlicherVertreterSignatureCapture = null) => ExecuteAsync(
+            "CreateSignedPachtvertragDokumentAsync(request)",
+            async () =>
+            {
+                if (signatureCapture == null || !signatureCapture.HasContent)
+                    return DokumentUploadResult.Fail("Bitte zuerst eine digitale Signatur erfassen.", "VALIDATION");
+
+                var context = await ResolvePachtvertragRequestAsync(request);
+                if (context.IstMinderjaehrig && (gesetzlicherVertreterSignatureCapture == null || !gesetzlicherVertreterSignatureCapture.HasContent))
+                    return DokumentUploadResult.Fail("Für Minderjährige ist zusätzlich die digitale Unterschrift des gesetzlichen Vertreters erforderlich.", "VALIDATION");
+
+                if (context.IstMinderjaehrig)
+                {
+                    var vertreterMitgliedId = await EnsureGesetzlicherVertreterMitgliedAsync(context, request);
+                    var savedRelation = await SaveGesetzlichenVertreterAsync(new GesetzlicherVertreterSaveRequest
+                    {
+                        MinderjaehrigesMitgliedId = context.Member.Id,
+                        VertreterMitgliedId = vertreterMitgliedId,
+                        GueltigAb = context.Vertragsbeginn,
+                        Bemerkung = "Automatisch aus Pachtvertrag übernommen."
+                    });
+
+                    if (savedRelation == null)
+                        return DokumentUploadResult.Fail("Gesetzlicher Vertreter konnte nicht gespeichert werden.", "VALIDATION");
+                }
+
+                var previewUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
+                    context.Member,
+                    context.SecondaryMember,
+                    context.Parzelle,
+                    context.Saison,
+                    context.Vertragsbeginn,
+                    context.GesetzlicherVertreterSnapshot,
+                    context.BankverbindungSnapshot,
+                    FormularDokumentStatus.Unsigniert);
+                var finalUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
+                    context.Member,
+                    context.SecondaryMember,
+                    context.Parzelle,
+                    context.Saison,
+                    context.Vertragsbeginn,
+                    context.GesetzlicherVertreterSnapshot,
+                    context.BankverbindungSnapshot,
+                    FormularDokumentStatus.Signiert);
+                var sourceDocument = CreatePreviewDocumentInfo(previewUploadRequest, FormularDokumentTyp.Pachtvertrag, FormularDokumentStatus.Unsigniert);
+                finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(
+                    context.Member,
+                    sourceDocument,
+                    previewUploadRequest.FileContent,
+                    signatureCapture,
+                    gesetzlicherVertreterSignatureCapture,
+                    "Unterschrift Pächter/in",
+                    context.IstMinderjaehrig ? "Unterschrift gesetzliche/r Vertreter/in" : null);
+                return await CreateDokumentAsync(finalUploadRequest);
+            },
+            DokumentUploadResult.Fail("Pachtvertrag konnte aktuell nicht signiert gespeichert werden.", "UNEXPECTED"));
+
+        private async Task<(MitgliedRecord Member, MitgliedRecord? SecondaryMember, ParzelleRecord Parzelle, SaisonRecord Saison, DateTime Vertragsbeginn, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, MitgliedsantragBankverbindungSnapshot BankverbindungSnapshot)> ResolvePachtvertragRequestAsync(PachtvertragDokumentRequest request)
         {
-            if (mitgliedId <= 0)
+            if (request == null)
+                throw new InvalidOperationException("Bitte zuerst einen gültigen Pachtvertrag vorbereiten.");
+
+            if (request.MitgliedId <= 0)
                 throw new InvalidOperationException("Bitte zuerst ein gültiges Mitglied auswählen.");
 
-            if (parzelleId <= 0)
+            if (request.ParzelleId <= 0)
                 throw new InvalidOperationException("Bitte zuerst eine gültige Parzelle auswählen.");
 
-            var vertragsbeginnDatum = vertragsbeginn.Date;
+            var vertragsbeginnDatum = request.Vertragsbeginn.Date;
             if (vertragsbeginnDatum == DateTime.MinValue)
                 throw new InvalidOperationException("Bitte ein gültiges Vertragsbeginn-Datum angeben.");
 
-            var member = await GetMitgliedByIdAsync(mitgliedId);
+            var member = await GetMitgliedByIdAsync(request.MitgliedId);
             if (member == null)
                 throw new InvalidOperationException("Mitglied konnte nicht geladen werden.");
 
@@ -2910,7 +3031,7 @@ namespace KGV.Infrastructure.Services
                 throw new InvalidOperationException("Pachtvertrag kann nur aus dem Hauptmitglied-Kontext erzeugt werden.");
 
             var client = await EnsureClientAsync();
-            var parzelle = await LoadParzelleByIdAsync(client, parzelleId);
+            var parzelle = await LoadParzelleByIdAsync(client, request.ParzelleId);
             if (parzelle == null)
                 throw new InvalidOperationException("Parzelle konnte nicht geladen werden.");
 
@@ -2925,8 +3046,48 @@ namespace KGV.Infrastructure.Services
             if (!saison.Mitgliedsbeitrag.HasValue)
                 throw new InvalidOperationException($"Für die Saison {saison.Jahr} fehlt mitgliedsbeitrag.");
 
+            var bankverbindungSnapshot = request.BankverbindungSnapshot != null
+                ? NormalizeVereinsBankverbindungSnapshot(request.BankverbindungSnapshot)
+                : await ResolveVereinsBankverbindungSnapshotAsync();
+            request.BankverbindungSnapshot = bankverbindungSnapshot;
+
             var secondaryMember = await GetNebenmitgliedByHauptmitgliedIdAsync(member.Id);
-            return (member, secondaryMember, parzelle, saison, vertragsbeginnDatum);
+            var istMinderjaehrig = GesetzlicherVertreterResolver.IsMinderjaehrig(member, vertragsbeginnDatum);
+            if (!istMinderjaehrig)
+                return (member, secondaryMember, parzelle, saison, vertragsbeginnDatum, false, null, null, bankverbindungSnapshot);
+
+            MitgliedsantragVertreterSnapshot? vertreterSnapshot = null;
+            int? vertreterMitgliedId = null;
+
+            if (request.GesetzlicherVertreterAusBestehendemMitglied && request.GesetzlicherVertreterMitgliedId is > 0)
+            {
+                var vertreterMitglied = await GetMitgliedByIdAsync(request.GesetzlicherVertreterMitgliedId.Value);
+                if (vertreterMitglied == null)
+                    throw new InvalidOperationException("Gesetzlicher Vertreter konnte nicht geladen werden.");
+                if (vertreterMitglied.Id == member.Id)
+                    throw new InvalidOperationException("Das aufzunehmende Mitglied kann nicht gleichzeitig eigener gesetzlicher Vertreter sein.");
+
+                vertreterSnapshot = BuildMitgliedsantragVertreterSnapshot(vertreterMitglied);
+                vertreterMitgliedId = vertreterMitglied.Id;
+            }
+            else if (request.GesetzlicherVertreterSnapshot != null)
+            {
+                vertreterSnapshot = NormalizeMitgliedsantragVertreterSnapshot(request.GesetzlicherVertreterSnapshot, member, request.GesetzlicherVertreterAdresseAbweichend);
+            }
+            else
+            {
+                var aufloesung = await ResolveGesetzlicherVertreterAsync(member.Id, vertragsbeginnDatum);
+                if (aufloesung.HatAktivenGesetzlichenVertreter)
+                {
+                    vertreterSnapshot = BuildMitgliedsantragVertreterSnapshot(aufloesung.Vorbelegung);
+                    vertreterMitgliedId = aufloesung.VertreterMitglied?.Id;
+                }
+            }
+
+            if (vertreterSnapshot == null || string.IsNullOrWhiteSpace(vertreterSnapshot.Vorname) || string.IsNullOrWhiteSpace(vertreterSnapshot.Nachname))
+                throw new InvalidOperationException("Für Minderjährige ist ein gesetzlicher Vertreter mit Vor- und Nachname erforderlich.");
+
+            return (member, secondaryMember, parzelle, saison, vertragsbeginnDatum, true, vertreterSnapshot, vertreterMitgliedId, bankverbindungSnapshot);
         }
 
         public async Task<DokumentUploadResult> UploadSignedVertragsdokumentAsync(int mitgliedId, DocumentInfo sourceDocument, byte[] fileContent, string originalFileName, string mimeType = "application/pdf")

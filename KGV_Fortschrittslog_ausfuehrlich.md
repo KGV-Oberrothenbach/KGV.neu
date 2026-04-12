@@ -35,6 +35,18 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-11
+- Den bestehenden MAUI-Pachtvertrag auf dem echten Stand von `main` auf denselben Vertreter-/Snapshot-/Vereinskonfigurations-Standard wie den Mitgliedsantrag gezogen, ohne neuen Fachblock zu starten.
+- Dafür wurde ein kleiner gemeinsamer `PachtvertragDokumentRequest` ergänzt; Vertreter- und Vereinsbankdaten laufen jetzt als Snapshot durch den bestehenden Preview-/Signatur-/Save-Pfad statt über verdeckte Nachlade- oder Altquellen.
+- Im gemeinsamen Servicepfad wurden request-basierte Pachtvertrag-Methoden ergänzt, die Minderjährigkeit zum Vertragsbeginn prüfen, einen aktiven gesetzlichen Vertreter vorbelegen, ein bestehendes Mitglied oder manuelle Vertretererfassung unterstützen und die Vereinsbankdaten produktiv aus `vereinskonfiguration` laden.
+- Fehlt eine aktive `vereinskonfiguration` oder fehlt eines der Pflichtfelder `kontoinhaber`, `bankname`, `iban` oder `bic`, bricht der Pachtvertrag jetzt mit klarer fachlicher Meldung ab und läuft nicht still weiter.
+- Für Minderjährige wird der gesetzliche Vertreter im finalen Erfolgsfall verarbeitet: eine manuell erfasste Person wird erst dann als Nebenmitglied angelegt, und erst dann wird auch die gesetzliche Vertreter-Verknüpfung gespeichert.
+- Die Vorschau und das finale Dokument verwenden dabei denselben Snapshot-Stand für Vertreter und Bankdaten; dadurch bleibt der historische Dokumentinhalt stabil.
+- Der bestehende gemeinsame Pachtvertrag-Builder bleibt führend und nutzt weiter die offizielle Vorlage; zusätzlich wird nur minimal eine kompakte Ergänzungsseite mit Bankdaten-Snapshot und – bei Minderjährigen – Vertreterblock angehängt.
+- Im MAUI-Flow wurde kein neuer Großpfad gebaut: `PachtvertragFlowHelper`, `PachtvertragPreviewPage` und `VertragsSignaturPage` bleiben führend, ergänzt um eine kleine `PachtvertragDialogPage` für Vorbelegung/Vertreterwahl.
+- Beide bestehenden mobilen Einstiege aus `MemberParzellenDetailPage` und `MemberGardenAssignPage` laufen weiter über denselben gemeinsamen erweiterten Pachtvertragspfad.
+- Für Minderjährige ist im finalen Signaturpfad jetzt zusätzlich die digitale Unterschrift des gesetzlichen Vertreters verpflichtend; ohne vollständige notwendige Signaturen erfolgt keine finale Speicherung.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den offenen Mitgliedsantrag-Bankdatenrest auf dem echten Stand von `main` minimal-invasiv produktiv geschlossen, ohne neuen Fachblock zu starten.
 - Dafür wurde ein kleines gemeinsames Modell `vereinskonfiguration` ergänzt und im bestehenden Servicepfad eine produktive Lade-Methode für den aktiven Datensatz aufgebaut.
 - Der Mitgliedsantrag lädt die Vereinsbankdaten jetzt nicht mehr aus Annahmen oder Altquellen, sondern produktiv aus `vereinskonfiguration`.
