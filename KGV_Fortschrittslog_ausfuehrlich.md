@@ -35,6 +35,23 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-11
+- Den offenen Mitgliedsantrag-Bankdatenrest auf dem echten Stand von `main` minimal-invasiv produktiv geschlossen, ohne neuen Fachblock zu starten.
+- Dafür wurde ein kleines gemeinsames Modell `vereinskonfiguration` ergänzt und im bestehenden Servicepfad eine produktive Lade-Methode für den aktiven Datensatz aufgebaut.
+- Der Mitgliedsantrag lädt die Vereinsbankdaten jetzt nicht mehr aus Annahmen oder Altquellen, sondern produktiv aus `vereinskonfiguration`.
+- Die Pflichtfelder `kontoinhaber`, `bankname`, `iban` und `bic` werden im gemeinsamen Resolve-Pfad validiert; fehlt eine aktive Konfiguration oder fehlt eines der Pflichtfelder, bricht der Flow mit klarer fachlicher Meldung ab und läuft nicht still weiter.
+- Die geladenen Bankdaten werden einmalig als `MitgliedsantragBankverbindungSnapshot` im bestehenden `MitgliedsantragDokumentRequest` festgehalten und danach für Vorschau und finales signiertes Dokument identisch weiterverwendet.
+- Dadurch bleibt der bestehende Ablauf `Bearbeiten -> Vorschau -> Unterschrift -> finales Speichern` unverändert, verwendet aber jetzt stabil denselben Bankdatenstand in Preview und Enddokument.
+- Im gemeinsamen PDF-Pfad `MitgliedsantragDokumentFactory` wird zusätzlich ein kompakter Bankdatenblock mit Kontoinhaber, Bankname, IBAN und BIC ausgegeben.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+- Den Shared-/Infrastructure-Unterbau für den nächsten Vertreter-/Dokumentblock auf dem echten Stand von `main` minimal-invasiv ergänzt, ohne in diesem Block bereits UI oder Dokumentlayouts umzubauen.
+- Im Saison-Unterbau wurde `mitgliedsbeitrag_nebenmitglied` im Modell und im bestehenden Lade-/Speicherpfad ergänzt, damit der neue DB-Wert produktiv bis in `SaisonRecord`, Saison-Normalisierung und `SaveSaisonAsync(...)` durchläuft.
+- Für `mitglied_gesetzlicher_vertreter` wurden neue gemeinsame PostgREST-Modelle angelegt, passend zur produktiven SQL-Struktur mit Minderjährigen-Mitglied, Vertreter-Mitglied, Gültigkeitszeitraum, Bemerkung sowie Meta-Zeitfeldern.
+- Im gemeinsamen Servicepfad wurden minimale Produktivmethoden ergänzt, um den aktuell aktiven gesetzlichen Vertreter eines Mitglieds zu laden, eine aktive Vertreter-Verknüpfung zu setzen/zu ändern und eine vorbereitete fachliche Auflösung für spätere Dokumentflows zu liefern.
+- Die Vertreter-Beziehung bleibt dabei fachlich sauber getrennt von Haupt-/Nebenmitglied. Beim Wechsel des aktiven Vertreters wird die bisher offene Verknüpfung geschlossen und eine neue aktive Verknüpfung angelegt.
+- Zusätzlich wurde ein kleiner gemeinsamer `GesetzlicherVertreterResolver` ergänzt, der Minderjährigkeit bestimmt und Vorbelegungsdaten des aktiven Vertreters direkt aus dem bestehenden `mitglied`-Datensatz ableitet; dadurch kann der spätere Mitgliedsantrag-/Pachtvertrag-Block darauf aufsetzen, ohne jetzt schon die Dokumenterzeugung anzufassen.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den weiterhin offenen Android-PdfSharpCore-Restfehler auf dem echten Stand von `main` im gemeinsamen Font-Initialisierungspfad geschlossen, ohne neuen Fachblock zu starten.
 - Die Restanalyse zeigte, dass der vorherige Fix zwar vor `new XFont(...)` in den gemeinsamen Buildern initialisierte, aber den gemeinsamen Resolver noch nicht garantiert vor dem echten allerersten PdfSharp-Fontzugriff setzte.
 - Zusätzlich lag in `PdfSharpFontResolverInitializer` noch ein zu später Zugriff über `GlobalFontSettings.FontResolver ??= ...`; dadurch wurde der Resolver vor dem Setzen zunächst lesend berührt, was auf Android den problematischen Erstpfad nicht sicher ausschloss.

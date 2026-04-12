@@ -73,6 +73,10 @@ namespace KGV.Core.Interfaces
         // =========================
         Task<MitgliedRecord?> GetNebenmitgliedByHauptmitgliedIdAsync(int hauptmitgliedId);
         Task<MitgliedRecord?> CreateNebenmitgliedAsync(NebenmitgliedCreateDTO request);
+        Task<MitgliedGesetzlicherVertreterRecord?> GetAktivenGesetzlichenVertreterAsync(int minderjaehrigesMitgliedId, DateTime? stichtag = null);
+        Task<MitgliedGesetzlicherVertreterRecord?> SaveGesetzlichenVertreterAsync(GesetzlicherVertreterSaveRequest request);
+        Task<GesetzlicherVertreterAufloesung> ResolveGesetzlicherVertreterAsync(int mitgliedId, DateTime? stichtag = null);
+        Task<VereinskonfigurationRecord?> GetAktiveVereinskonfigurationAsync();
 
         // =========================
         // Arbeitsstunden
@@ -113,7 +117,7 @@ namespace KGV.Core.Interfaces
         Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert);
         Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(MitgliedsantragDokumentRequest request);
         Task<DokumentUploadRequest?> BuildMitgliedsantragPreviewAsync(MitgliedsantragDokumentRequest request);
-        Task<DokumentUploadResult> CreateSignedMitgliedsantragDokumentAsync(MitgliedsantragDokumentRequest request, DigitalSignatureCapture signatureCapture);
+        Task<DokumentUploadResult> CreateSignedMitgliedsantragDokumentAsync(MitgliedsantragDokumentRequest request, DigitalSignatureCapture signatureCapture, DigitalSignatureCapture? gesetzlicherVertreterSignatureCapture = null);
         Task<DokumentUploadResult> CreateMitgliedsvertragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert);
         Task<DokumentUploadResult> CreatePachtvertragDokumentAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn, string status = FormularDokumentStatus.Unsigniert);
         Task<DokumentUploadRequest?> BuildPachtvertragPreviewAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn);

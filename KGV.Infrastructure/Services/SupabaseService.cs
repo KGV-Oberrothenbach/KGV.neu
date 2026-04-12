@@ -141,6 +141,127 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
+        public Task<MitgliedGesetzlicherVertreterRecord?> GetAktivenGesetzlichenVertreterAsync(int minderjaehrigesMitgliedId, DateTime? stichtag = null) => ExecuteAsync<MitgliedGesetzlicherVertreterRecord?>(
+            "GetAktivenGesetzlichenVertreterAsync",
+            async () =>
+            {
+                if (minderjaehrigesMitgliedId <= 0)
+                    return null;
+
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<MitgliedGesetzlicherVertreterRecord>()
+                    .Where(x => x.MinderjaehrigesMitgliedId == minderjaehrigesMitgliedId)
+                    .Get();
+
+                return ResolveAktivenGesetzlichenVertreter(response?.Models, stichtag);
+            },
+            null);
+
+        public Task<MitgliedGesetzlicherVertreterRecord?> SaveGesetzlichenVertreterAsync(GesetzlicherVertreterSaveRequest request) => ExecuteAsync<MitgliedGesetzlicherVertreterRecord?>(
+            "SaveGesetzlichenVertreterAsync",
+            async () =>
+            {
+                if (request == null)
+                    return null;
+
+                var minderjaehrigesMitgliedId = request.MinderjaehrigesMitgliedId;
+                var vertreterMitgliedId = request.VertreterMitgliedId;
+                if (minderjaehrigesMitgliedId <= 0 || vertreterMitgliedId <= 0 || minderjaehrigesMitgliedId == vertreterMitgliedId)
+                    return null;
+
+                var minderjaehrigesMitglied = await GetMitgliedByIdAsync(minderjaehrigesMitgliedId);
+                var vertreterMitglied = await GetMitgliedByIdAsync(vertreterMitgliedId);
+                if (minderjaehrigesMitglied == null || vertreterMitglied == null)
+                    return null;
+
+                var client = await EnsureClientAsync();
+                var normalizedGueltigAb = NormalizeDate(request.GueltigAb) ?? DateTime.Today;
+                var normalizedBemerkung = CleanOptionalText(request.Bemerkung);
+                var existingResponse = await client
+                    .From<MitgliedGesetzlicherVertreterRecord>()
+                    .Where(x => x.MinderjaehrigesMitgliedId == minderjaehrigesMitgliedId)
+                    .Get();
+                var current = ResolveAktivenGesetzlichenVertreter(existingResponse?.Models, normalizedGueltigAb);
+
+                if (current != null && current.VertreterMitgliedId == vertreterMitgliedId)
+                {
+                    await client
+                        .From<MitgliedGesetzlicherVertreterRecord>()
+                        .Where(x => x.Id == current.Id)
+                        .Set(x => x.GueltigAb, normalizedGueltigAb)
+                        .Set(x => x.Bemerkung, normalizedBemerkung)
+                        .Update();
+                }
+                else
+                {
+                    if (current != null)
+                    {
+                        var gueltigBis = normalizedGueltigAb > current.GueltigAb.Date
+                            ? normalizedGueltigAb.AddDays(-1)
+                            : current.GueltigAb.Date;
+
+                        await client
+                            .From<MitgliedGesetzlicherVertreterRecord>()
+                            .Where(x => x.Id == current.Id)
+                            .Set(x => x.GueltigBis, gueltigBis)
+                            .Update();
+                    }
+
+                    await client
+                        .From<MitgliedGesetzlicherVertreterInsertRecord>()
+                        .Insert(new MitgliedGesetzlicherVertreterInsertRecord
+                        {
+                            MinderjaehrigesMitgliedId = minderjaehrigesMitgliedId,
+                            VertreterMitgliedId = vertreterMitgliedId,
+                            GueltigAb = normalizedGueltigAb,
+                            GueltigBis = null,
+                            Bemerkung = normalizedBemerkung
+                        });
+                }
+
+                var reloadResponse = await client
+                    .From<MitgliedGesetzlicherVertreterRecord>()
+                    .Where(x => x.MinderjaehrigesMitgliedId == minderjaehrigesMitgliedId)
+                    .Get();
+                return ResolveAktivenGesetzlichenVertreter(reloadResponse?.Models, normalizedGueltigAb);
+            },
+            null);
+
+        public Task<GesetzlicherVertreterAufloesung> ResolveGesetzlicherVertreterAsync(int mitgliedId, DateTime? stichtag = null) => ExecuteAsync(
+            "ResolveGesetzlicherVertreterAsync",
+            async () =>
+            {
+                var member = await GetMitgliedByIdAsync(mitgliedId);
+                if (member == null)
+                    return GesetzlicherVertreterResolver.Resolve(null, null, null, stichtag);
+
+                var relation = await GetAktivenGesetzlichenVertreterAsync(mitgliedId, stichtag);
+                var vertreter = relation?.VertreterMitgliedId is > 0 and <= int.MaxValue
+                    ? await GetMitgliedByIdAsync((int)relation.VertreterMitgliedId)
+                    : null;
+
+                return GesetzlicherVertreterResolver.Resolve(member, relation, vertreter, stichtag);
+            },
+            GesetzlicherVertreterResolver.Resolve(null, null, null, stichtag));
+
+        public Task<VereinskonfigurationRecord?> GetAktiveVereinskonfigurationAsync() => ExecuteAsync<VereinskonfigurationRecord?>(
+            "GetAktiveVereinskonfigurationAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<VereinskonfigurationRecord>()
+                    .Where(x => x.Aktiv)
+                    .Get();
+
+                return response?.Models?
+                    .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt ?? DateTime.MinValue)
+                    .ThenByDescending(x => x.Id)
+                    .FirstOrDefault();
+            },
+            null);
+
         public Task<MitgliedRecord?> CreateMitgliedAsync(MemberDTO dto) => ExecuteAsync<MitgliedRecord?>(
             "CreateMitgliedAsync",
             async () =>
@@ -2405,34 +2526,61 @@ namespace KGV.Infrastructure.Services
             "BuildMitgliedsantragPreviewAsync",
             async () =>
             {
-                var (member, mitgliedsbeitrag, beginnDatum) = await ResolveMitgliedsantragRequestAsync(request);
-                return MitgliedsantragDokumentFactory.CreateUploadRequest(member, mitgliedsbeitrag, beginnDatum, FormularDokumentStatus.Unsigniert);
+                var context = await ResolveMitgliedsantragRequestAsync(request);
+                return MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.BankverbindungSnapshot, FormularDokumentStatus.Unsigniert);
             },
             null);
 
-        public Task<DokumentUploadResult> CreateSignedMitgliedsantragDokumentAsync(MitgliedsantragDokumentRequest request, DigitalSignatureCapture signatureCapture) => ExecuteAsync(
+        public Task<DokumentUploadResult> CreateSignedMitgliedsantragDokumentAsync(MitgliedsantragDokumentRequest request, DigitalSignatureCapture signatureCapture, DigitalSignatureCapture? gesetzlicherVertreterSignatureCapture = null) => ExecuteAsync(
             "CreateSignedMitgliedsantragDokumentAsync",
             async () =>
             {
                 if (signatureCapture == null || !signatureCapture.HasContent)
                     return DokumentUploadResult.Fail("Bitte zuerst eine digitale Signatur erfassen.", "VALIDATION");
 
-                var (member, mitgliedsbeitrag, beginnDatum) = await ResolveMitgliedsantragRequestAsync(request);
-                var previewUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(member, mitgliedsbeitrag, beginnDatum, FormularDokumentStatus.Unsigniert);
-                var finalUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(member, mitgliedsbeitrag, beginnDatum, FormularDokumentStatus.Signiert);
+                var context = await ResolveMitgliedsantragRequestAsync(request);
+                if (context.IstMinderjaehrig && (gesetzlicherVertreterSignatureCapture == null || !gesetzlicherVertreterSignatureCapture.HasContent))
+                    return DokumentUploadResult.Fail("Für Minderjährige ist zusätzlich die digitale Unterschrift des gesetzlichen Vertreters erforderlich.", "VALIDATION");
+
+                if (context.IstMinderjaehrig)
+                {
+                    var vertreterMitgliedId = await EnsureGesetzlicherVertreterMitgliedAsync(context, request);
+                    var savedRelation = await SaveGesetzlichenVertreterAsync(new GesetzlicherVertreterSaveRequest
+                    {
+                        MinderjaehrigesMitgliedId = context.Member.Id,
+                        VertreterMitgliedId = vertreterMitgliedId,
+                        GueltigAb = context.BeginnDatum,
+                        Bemerkung = "Automatisch aus Mitgliedsantrag übernommen."
+                    });
+
+                    if (savedRelation == null)
+                        return DokumentUploadResult.Fail("Gesetzlicher Vertreter konnte nicht gespeichert werden.", "VALIDATION");
+                }
+
+                var previewUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.BankverbindungSnapshot, FormularDokumentStatus.Unsigniert);
+                var finalUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.BankverbindungSnapshot, FormularDokumentStatus.Signiert);
                 var sourceDocument = CreatePreviewDocumentInfo(previewUploadRequest, FormularDokumentTyp.Mitgliedsantrag, FormularDokumentStatus.Unsigniert);
-                finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(member, sourceDocument, previewUploadRequest.FileContent, signatureCapture);
+                finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(
+                    context.Member,
+                    sourceDocument,
+                    previewUploadRequest.FileContent,
+                    signatureCapture,
+                    gesetzlicherVertreterSignatureCapture,
+                    "Unterschrift Antragsteller/in",
+                    context.IstMinderjaehrig ? "Unterschrift gesetzliche/r Vertreter/in" : null);
                 return await CreateDokumentAsync(finalUploadRequest);
             },
             DokumentUploadResult.Fail("Mitgliedsantrag konnte aktuell nicht signiert gespeichert werden.", "UNEXPECTED"));
 
         private async Task<DokumentUploadResult> CreateMitgliedsantragDokumentInternalAsync(MitgliedRecord member, decimal mitgliedsbeitrag, DateTime beginnDatum, string? status)
         {
-            var uploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(member, mitgliedsbeitrag, beginnDatum, status);
+            var gesetzlicherVertreter = await ResolveGesetzlicherVertreterAsync(member.Id, beginnDatum);
+            var bankverbindungSnapshot = await ResolveMitgliedsantragBankverbindungSnapshotAsync();
+            var uploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(member, mitgliedsbeitrag, beginnDatum, gesetzlicherVertreter.IstMinderjaehrig ? BuildMitgliedsantragVertreterSnapshot(gesetzlicherVertreter.Vorbelegung) : null, bankverbindungSnapshot, status);
             return await CreateDokumentAsync(uploadRequest);
         }
 
-        private async Task<(MitgliedRecord Member, decimal Mitgliedsbeitrag, DateTime BeginnDatum)> ResolveMitgliedsantragRequestAsync(MitgliedsantragDokumentRequest request)
+        private async Task<(MitgliedRecord Member, decimal Mitgliedsbeitrag, DateTime BeginnDatum, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, MitgliedsantragBankverbindungSnapshot BankverbindungSnapshot)> ResolveMitgliedsantragRequestAsync(MitgliedsantragDokumentRequest request)
         {
             if (request == null || request.MitgliedId <= 0)
                 throw new InvalidOperationException("Bitte zuerst ein gültiges Mitglied auswählen.");
@@ -2447,8 +2595,154 @@ namespace KGV.Infrastructure.Services
             var beginnDatum = request.BeginnDatum == default
                 ? (member.MitgliedSeit ?? DateTime.Today)
                 : request.BeginnDatum;
+            var bankverbindungSnapshot = request.BankverbindungSnapshot != null
+                ? NormalizeMitgliedsantragBankverbindungSnapshot(request.BankverbindungSnapshot)
+                : await ResolveMitgliedsantragBankverbindungSnapshotAsync();
+            request.BankverbindungSnapshot = bankverbindungSnapshot;
 
-            return (member, MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag), beginnDatum);
+            var istMinderjaehrig = GesetzlicherVertreterResolver.IsMinderjaehrig(member, beginnDatum);
+            if (!istMinderjaehrig)
+                return (member, MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag), beginnDatum, false, null, null, bankverbindungSnapshot);
+
+            MitgliedsantragVertreterSnapshot? vertreterSnapshot = null;
+            int? vertreterMitgliedId = null;
+
+            if (request.GesetzlicherVertreterAusBestehendemMitglied && request.GesetzlicherVertreterMitgliedId is > 0)
+            {
+                var vertreterMitglied = await GetMitgliedByIdAsync(request.GesetzlicherVertreterMitgliedId.Value);
+                if (vertreterMitglied == null)
+                    throw new InvalidOperationException("Gesetzlicher Vertreter konnte nicht geladen werden.");
+                if (vertreterMitglied.Id == member.Id)
+                    throw new InvalidOperationException("Das aufzunehmende Mitglied kann nicht gleichzeitig eigener gesetzlicher Vertreter sein.");
+
+                vertreterSnapshot = BuildMitgliedsantragVertreterSnapshot(vertreterMitglied);
+                vertreterMitgliedId = vertreterMitglied.Id;
+            }
+            else if (request.GesetzlicherVertreterSnapshot != null)
+            {
+                vertreterSnapshot = NormalizeMitgliedsantragVertreterSnapshot(request.GesetzlicherVertreterSnapshot, member, request.GesetzlicherVertreterAdresseAbweichend);
+            }
+            else
+            {
+                var aufloesung = await ResolveGesetzlicherVertreterAsync(member.Id, beginnDatum);
+                if (aufloesung.HatAktivenGesetzlichenVertreter)
+                {
+                    vertreterSnapshot = BuildMitgliedsantragVertreterSnapshot(aufloesung.Vorbelegung);
+                    vertreterMitgliedId = aufloesung.VertreterMitglied?.Id;
+                }
+            }
+
+            if (vertreterSnapshot == null || string.IsNullOrWhiteSpace(vertreterSnapshot.Vorname) || string.IsNullOrWhiteSpace(vertreterSnapshot.Nachname))
+                throw new InvalidOperationException("Für Minderjährige ist ein gesetzlicher Vertreter mit Vor- und Nachname erforderlich.");
+
+            return (member, MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag), beginnDatum, true, vertreterSnapshot, vertreterMitgliedId, bankverbindungSnapshot);
+        }
+
+        private async Task<int> EnsureGesetzlicherVertreterMitgliedAsync((MitgliedRecord Member, decimal Mitgliedsbeitrag, DateTime BeginnDatum, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, MitgliedsantragBankverbindungSnapshot BankverbindungSnapshot) context, MitgliedsantragDokumentRequest request)
+        {
+            if (context.GesetzlicherVertreterMitgliedId is > 0)
+                return context.GesetzlicherVertreterMitgliedId.Value;
+
+            var snapshot = context.GesetzlicherVertreterSnapshot;
+            if (snapshot == null)
+                throw new InvalidOperationException("Gesetzlicher Vertreter konnte nicht vorbereitet werden.");
+
+            var parentMitgliedId = context.Member.HauptmitgliedId is > 0
+                ? context.Member.HauptmitgliedId.Value
+                : context.Member.Id;
+            var created = await CreateNebenmitgliedAsync(new NebenmitgliedCreateDTO
+            {
+                HauptmitgliedId = parentMitgliedId,
+                Vorname = snapshot.Vorname,
+                Nachname = snapshot.Nachname,
+                AdresseUebernehmen = !request.GesetzlicherVertreterAdresseAbweichend,
+                Telefon = string.IsNullOrWhiteSpace(snapshot.Telefon) ? null : snapshot.Telefon,
+                Handy = string.IsNullOrWhiteSpace(snapshot.Handy) ? null : snapshot.Handy,
+                Adresse = string.IsNullOrWhiteSpace(snapshot.Adresse) ? null : snapshot.Adresse,
+                Plz = string.IsNullOrWhiteSpace(snapshot.Plz) ? null : snapshot.Plz,
+                Ort = string.IsNullOrWhiteSpace(snapshot.Ort) ? null : snapshot.Ort,
+                Email = string.IsNullOrWhiteSpace(snapshot.Email) ? null : snapshot.Email,
+                MitgliedSeit = context.BeginnDatum,
+                WhatsappEinwilligung = false
+            });
+
+            if (created == null)
+                throw new InvalidOperationException("Gesetzlicher Vertreter konnte nicht als Nebenmitglied angelegt werden.");
+
+            return created.Id;
+        }
+
+        private async Task<MitgliedsantragBankverbindungSnapshot> ResolveMitgliedsantragBankverbindungSnapshotAsync()
+        {
+            var vereinskonfiguration = await GetAktiveVereinskonfigurationAsync();
+            if (vereinskonfiguration == null)
+                throw new InvalidOperationException("Es ist keine aktive Vereinskonfiguration mit Bankdaten hinterlegt.");
+
+            return new MitgliedsantragBankverbindungSnapshot
+            {
+                Kontoinhaber = CleanRequiredText(vereinskonfiguration.Kontoinhaber),
+                Bankname = CleanRequiredText(vereinskonfiguration.Bankname),
+                Iban = CleanRequiredText(vereinskonfiguration.Iban),
+                Bic = CleanRequiredText(vereinskonfiguration.Bic)
+            };
+        }
+
+        private static MitgliedsantragBankverbindungSnapshot NormalizeMitgliedsantragBankverbindungSnapshot(MitgliedsantragBankverbindungSnapshot snapshot)
+        {
+            if (snapshot == null)
+                throw new InvalidOperationException("Es ist keine aktive Vereinskonfiguration mit Bankdaten hinterlegt.");
+
+            return new MitgliedsantragBankverbindungSnapshot
+            {
+                Kontoinhaber = CleanRequiredText(snapshot.Kontoinhaber),
+                Bankname = CleanRequiredText(snapshot.Bankname),
+                Iban = CleanRequiredText(snapshot.Iban),
+                Bic = CleanRequiredText(snapshot.Bic)
+            };
+        }
+
+        private static MitgliedsantragVertreterSnapshot? BuildMitgliedsantragVertreterSnapshot(MitgliedRecord? member)
+            => member == null ? null : new MitgliedsantragVertreterSnapshot
+            {
+                VertreterMitgliedId = member.Id,
+                Vorname = member.Vorname?.Trim() ?? string.Empty,
+                Nachname = member.Name?.Trim() ?? string.Empty,
+                Adresse = member.Adresse?.Trim() ?? string.Empty,
+                Plz = member.Plz?.Trim() ?? string.Empty,
+                Ort = member.Ort?.Trim() ?? string.Empty,
+                Telefon = member.Telefon?.Trim() ?? string.Empty,
+                Handy = member.Handy?.Trim() ?? string.Empty,
+                Email = member.Email?.Trim() ?? string.Empty
+            };
+
+        private static MitgliedsantragVertreterSnapshot? BuildMitgliedsantragVertreterSnapshot(GesetzlicherVertreterVorbelegung? vorbelegung)
+            => vorbelegung == null ? null : new MitgliedsantragVertreterSnapshot
+            {
+                VertreterMitgliedId = vorbelegung.VertreterMitgliedId > 0 ? vorbelegung.VertreterMitgliedId : null,
+                Vorname = vorbelegung.Vorname,
+                Nachname = vorbelegung.Nachname,
+                Adresse = vorbelegung.Adresse,
+                Plz = vorbelegung.Plz,
+                Ort = vorbelegung.Ort,
+                Telefon = vorbelegung.Telefon,
+                Handy = vorbelegung.Handy,
+                Email = vorbelegung.Email
+            };
+
+        private static MitgliedsantragVertreterSnapshot NormalizeMitgliedsantragVertreterSnapshot(MitgliedsantragVertreterSnapshot snapshot, MitgliedRecord member, bool adresseAbweichend)
+        {
+            return new MitgliedsantragVertreterSnapshot
+            {
+                VertreterMitgliedId = snapshot.VertreterMitgliedId,
+                Vorname = CleanRequiredText(snapshot.Vorname),
+                Nachname = CleanRequiredText(snapshot.Nachname),
+                Adresse = adresseAbweichend ? CleanOptionalText(snapshot.Adresse) ?? string.Empty : member.Adresse?.Trim() ?? string.Empty,
+                Plz = adresseAbweichend ? CleanOptionalText(snapshot.Plz) ?? string.Empty : member.Plz?.Trim() ?? string.Empty,
+                Ort = adresseAbweichend ? CleanOptionalText(snapshot.Ort) ?? string.Empty : member.Ort?.Trim() ?? string.Empty,
+                Telefon = CleanOptionalText(snapshot.Telefon) ?? string.Empty,
+                Handy = CleanOptionalText(snapshot.Handy) ?? string.Empty,
+                Email = CleanOptionalText(snapshot.Email) ?? string.Empty
+            };
         }
 
         private static DocumentInfo CreatePreviewDocumentInfo(DokumentUploadRequest uploadRequest, string dokumenttyp, string status)
@@ -4445,6 +4739,19 @@ namespace KGV.Infrastructure.Services
             return aktiv
                 && (!sichtbarAb.HasValue || sichtbarAb.Value <= referenceTime)
                 && (!sichtbarBis.HasValue || sichtbarBis.Value >= referenceTime);
+        }
+
+        private static MitgliedGesetzlicherVertreterRecord? ResolveAktivenGesetzlichenVertreter(IEnumerable<MitgliedGesetzlicherVertreterRecord>? records, DateTime? stichtag = null)
+        {
+            var referenceDate = (stichtag ?? DateTime.Today).Date;
+            return (records ?? Enumerable.Empty<MitgliedGesetzlicherVertreterRecord>())
+                .Where(x => x.MinderjaehrigesMitgliedId > 0 && x.VertreterMitgliedId > 0)
+                .Where(x => x.GueltigAb.Date <= referenceDate)
+                .Where(x => !x.GueltigBis.HasValue || x.GueltigBis.Value.Date >= referenceDate)
+                .OrderByDescending(x => !x.GueltigBis.HasValue)
+                .ThenByDescending(x => x.GueltigAb)
+                .ThenByDescending(x => x.Id)
+                .FirstOrDefault();
         }
 
         private static ArbeitseinsatzRecord NormalizeArbeitseinsatzRecord(ArbeitseinsatzRecord record)

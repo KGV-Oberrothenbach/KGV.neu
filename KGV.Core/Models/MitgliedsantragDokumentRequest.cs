@@ -8,5 +8,11 @@ namespace KGV.Core.Models
         public DateTime BeginnDatum { get; set; }
         public decimal Mitgliedsbeitrag { get; set; }
         public string? Status { get; set; }
+        public bool IstMinderjaehrig { get; set; }
+        public bool GesetzlicherVertreterAusBestehendemMitglied { get; set; }
+        public bool GesetzlicherVertreterAdresseAbweichend { get; set; }
+        public int? GesetzlicherVertreterMitgliedId { get; set; }
+        public MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot { get; set; }
+        public MitgliedsantragBankverbindungSnapshot? BankverbindungSnapshot { get; set; }
     }
 }

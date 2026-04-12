@@ -2,6 +2,48 @@
 
 ---
 
+## 2026-04-12 – Mitgliedsantrag lädt Bankdaten produktiv aus vereinskonfiguration
+
+- Repo-Check auf `main` ausgeführt.
+- Nur den offenen Rest des bestehenden Mitgliedsantrag-Blocks geschlossen; keine neue UI-, Routing- oder Rechte-Logik begonnen.
+- Neues Shared-Modell `VereinskonfigurationRecord` für den produktiven SQL-Pfad `vereinskonfiguration` ergänzt.
+- Kleinen Snapshot-Typ `MitgliedsantragBankverbindungSnapshot` bestätigt und den bestehenden `MitgliedsantragDokumentRequest` damit erweitert.
+- `ISupabaseService` und `SupabaseService` um `GetAktiveVereinskonfigurationAsync()` ergänzt; geladen wird der aktive Datensatz aus `vereinskonfiguration`.
+- Pflichtfelder `kontoinhaber`, `bankname`, `iban` und `bic` werden im gemeinsamen Mitgliedsantrag-Pfad jetzt validiert; bei fehlender aktiver Konfiguration oder leeren Pflichtfeldern bricht der Flow mit klarer fachlicher Fehlermeldung ab.
+- Der Mitgliedsantrag lädt die Bankdaten genau einmal in den Request-Snapshot und verwendet denselben Snapshot anschließend sowohl für die Vorschau als auch für das finale signierte Dokument; damit gibt es keinen verdeckten zweiten Nachladepfad mit potenziell abweichenden Werten.
+- `MitgliedsantragDokumentFactory` zeigt die Vereinsbankdaten jetzt kompakt im PDF an:
+  - Kontoinhaber
+  - Bankname
+  - IBAN
+  - BIC
+- Keine Bankdaten mehr aus Annahmen, Platzhaltern oder versteckten Altquellen im gemeinsamen Mitgliedsantrag-Pfad.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
+## 2026-04-11 – Shared-/Infrastructure-Unterbau für gesetzlichen Vertreter und Saison-Nebenmitgliedsbeitrag ergänzt
+
+- Repo-Check auf `main` ausgeführt.
+- Nur den gemeinsamen Unterbau für den nächsten Dokument-/UI-Block ergänzt, ohne neue UI oder Dokumentlayouts anzufassen.
+- `SaisonRecord` um `mitgliedsbeitrag_nebenmitglied` erweitert und den bestehenden Saison-Unterbau in Helper und Save-Pfad mitgezogen.
+- Neues Shared-Modell für `mitglied_gesetzlicher_vertreter` ergänzt:
+  - `MitgliedGesetzlicherVertreterRecord`
+  - `MitgliedGesetzlicherVertreterInsertRecord`
+  - dazu Save-Request und kleine Auflösungs-/Vorbelegungsmodelle
+- Im Serviceinterface und in `SupabaseService` minimale Produktivmethoden ergänzt:
+  - aktiven gesetzlichen Vertreter eines Mitglieds laden
+  - gesetzlichen Vertreter setzen/ändern
+  - vorbereitete Auflösung für spätere Dokumentvorbelegung liefern
+- Der aktive Datensatz wird im Servicepfad über offene Gültigkeit (`gueltig_bis` leer) bzw. gültigen Datumsbereich aufgelöst; beim Wechsel wird die bisher aktive Verknüpfung sauber geschlossen und eine neue aktive Verknüpfung angelegt.
+- Gemeinsamen Resolver `GesetzlicherVertreterResolver` ergänzt:
+  - Minderjährigkeit anhand des Geburtsdatums bestimmen
+  - vorhandene aktive Vertreter-Verknüpfung fachlich getrennt auswerten
+  - Vorbelegungsdaten des Vertreters aus dem bestehenden `mitglied`-Datensatz ableiten
+- Keine UI-Logik im Service versteckt, keine Dokumenterzeugung umgebaut.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-11 – PdfSharpCore-Fontresolver vor Erstzugriff erzwungen
 
 - Repo-Check auf `main`:
