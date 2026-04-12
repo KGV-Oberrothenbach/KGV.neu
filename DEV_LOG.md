@@ -2,6 +2,17 @@
 
 ---
 
+## 2026-04-12 – Vereinskconfigurations-Ladepfad für aktiv=true Filter minimal korrigiert
+
+- Repo-Check auf `main` ausgeführt.
+- Nur den kaputten gemeinsamen Ladepfad `GetAktiveVereinskonfigurationAsync()` geprüft und minimal korrigiert; keine UI-, Preview-, Signatur- oder Dialoglogik geändert.
+- Echte Fehlerursache war der bisherige Bool-Predicate-Ausdruck `.Where(x => x.Aktiv)`, der im verwendeten PostgREST-/Supabase-Client nicht parsebar lief und deshalb bereits vor dem eigentlichen Laden der aktiven Vereinskonfiguration mit `ArgumentException` abbrach.
+- Der Filter wurde im bestehenden Produktivpfad minimal auf einen expliziten Bool-Vergleich `.Where(x => x.Aktiv == true)` umgestellt.
+- Sortierung und Auswahl des neuesten aktiven Datensatzes bleiben unverändert; die bestehende fachliche Fehlermeldung bei tatsächlich fehlender Konfiguration bleibt ebenfalls unverändert erhalten.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-12 – Pachtvertrag auf Vertreter-, Snapshot- und Vereinskonfigurations-Standard gezogen
 
 - Repo-Check auf `main` ausgeführt.

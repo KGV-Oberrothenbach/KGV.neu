@@ -35,6 +35,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-11
+- Den kleinen gemeinsamen Restfehler im Ladepfad `vereinskonfiguration` auf dem echten Stand von `main` minimal korrigiert, ohne neuen Fachblock zu starten.
+- Die reale Ursache des Fehlers `GetAktiveVereinskonfigurationAsync failed` lag nicht in fehlenden SQL-Daten, sondern im bisher verwendeten Bool-Predicate `.Where(x => x.Aktiv)`, das im verwendeten PostgREST-/Supabase-Client nicht parsebar war.
+- Der gemeinsame Produktivpfad `GetAktiveVereinskonfigurationAsync()` nutzt deshalb jetzt statt des unären Bool-Predicates einen expliziten Vergleich `.Where(x => x.Aktiv == true)`.
+- Sortierung und Auswahl des neuesten aktiven Datensatzes bleiben unverändert; die bestehende fachliche Fehlermeldung bei wirklich fehlender Konfiguration wurde bewusst nicht geändert.
+- Wirkung: der Mitgliedsantrag-/Pachtvertrag-Unterbau kann die aktive `vereinskonfiguration` jetzt wieder über den bestehenden gemeinsamen Servicepfad laden, statt schon am Filterparser zu scheitern.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den bestehenden MAUI-Pachtvertrag auf dem echten Stand von `main` auf denselben Vertreter-/Snapshot-/Vereinskonfigurations-Standard wie den Mitgliedsantrag gezogen, ohne neuen Fachblock zu starten.
 - Dafür wurde ein kleiner gemeinsamer `PachtvertragDokumentRequest` ergänzt; Vertreter- und Vereinsbankdaten laufen jetzt als Snapshot durch den bestehenden Preview-/Signatur-/Save-Pfad statt über verdeckte Nachlade- oder Altquellen.
 - Im gemeinsamen Servicepfad wurden request-basierte Pachtvertrag-Methoden ergänzt, die Minderjährigkeit zum Vertragsbeginn prüfen, einen aktiven gesetzlichen Vertreter vorbelegen, ein bestehendes Mitglied oder manuelle Vertretererfassung unterstützen und die Vereinsbankdaten produktiv aus `vereinskonfiguration` laden.

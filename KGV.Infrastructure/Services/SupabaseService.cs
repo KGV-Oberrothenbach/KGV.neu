@@ -252,7 +252,7 @@ namespace KGV.Infrastructure.Services
                 var client = await EnsureClientAsync();
                 var response = await client
                     .From<VereinskonfigurationRecord>()
-                    .Where(x => x.Aktiv)
+                    .Where(x => x.Aktiv == true)
                     .Get();
 
                 return response?.Models?
