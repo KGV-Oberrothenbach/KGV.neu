@@ -37,7 +37,7 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## 2026-04-11
 - Die bestehende HTML-Vorlage des Mitgliedsantrags auf dem echten Stand von `main` minimal geglättet, ohne neuen Fachblock zu starten.
 - Im Template `KGV.Core/Templates/Mitgliedsantrag.html` wurden die bisherigen kombinierten Kontaktfelder `Telefon / Handy` sowohl für Antragsteller/in als auch für gesetzliche Vertretung in getrennte Felder `Telefon` und `Mobil` aufgeteilt.
-- Zusätzlich wurde die obere Unterschriftszeile im Minderjährigen-Fall rein layoutseitig so nachgeschärft, dass die Unterschriftslinien von Mitglied und gesetzlicher Vertretung auf gleicher Höhe stehen.
+- Zusätzlich wurde die obere Unterschriftszeile im Minderjährigen-Fall rein layoutseitig so nachgeschärft, dass die Unterschriftslinien von Mitglied und gesetzlicher Vertretung auf gleicher Höhe stehen; nach dem ersten Lauf wurde die Beschriftung dafür noch auf feste statt nur minimale Höhe gezogen, damit das zweizeilige Vertreter-Label die Linie nicht mehr nach oben verschiebt.
 - Es wurden bewusst keine Änderungen an Servicepfaden, Snapshot-Logik, Preview-/Signaturablauf oder Routing vorgenommen.
 - Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
 
