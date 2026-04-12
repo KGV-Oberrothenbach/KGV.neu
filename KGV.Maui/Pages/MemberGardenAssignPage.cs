@@ -224,33 +224,7 @@ public sealed class MemberGardenAssignPage : ContentPage
 
     private async Task CreatePachtvertragAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn)
     {
-        var result = await _supabaseService.CreatePachtvertragDokumentAsync(
-            mitgliedId,
-            parzelleId,
-            vertragsbeginn,
-            FormularDokumentStatus.Unsigniert);
-
-        if (!result.Success)
-        {
-            await DisplayAlert("Pachtvertrag", result.Message, "OK");
-            return;
-        }
-
-        var document = result.Document;
-        if (document?.CanOpen != true)
-        {
-            await DisplayAlert("Pachtvertrag", "Pachtvertrag wurde als Dokument abgelegt.", "OK");
-            return;
-        }
-
-        var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            await DisplayAlert("Pachtvertrag", "Pachtvertrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "OK");
-            return;
-        }
-
-        await Launcher.Default.OpenAsync(url);
+        await PachtvertragFlowHelper.RunAsync(Navigation, _supabaseService, mitgliedId, parzelleId, vertragsbeginn);
     }
 
     private void UpdateUiState()

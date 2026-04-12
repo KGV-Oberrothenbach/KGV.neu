@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-04-11 – MAUI-Pachtvertrag auf Preview vor Unterschrift/Speichern umgestellt
+
+- Repo-Check auf `main`:
+  - `git status --short --branch`
+- Den bestehenden MAUI-Pachtvertrags-Flow nur im bereits begonnenen Vertrags-/Signaturpfad nachgezogen, ohne neuen Fachblock zu starten.
+- Echte Ist-Einordnung:
+  - `KGV.Maui/Pages/MemberParzellenDetailPage.cs` und `KGV.Maui/Pages/MemberGardenAssignPage.cs` haben den Pachtvertrag bisher direkt über `_supabaseService.CreatePachtvertragDokumentAsync(...)` im offiziellen Dokumentpfad abgelegt
+  - damit lag die finale Persistierung zu früh im Flow, noch vor Dokumentprüfung und vor digitaler Unterschrift
+- Neuer Ablauf in MAUI:
+  - nach Start des Pachtvertrags wird zuerst nur eine temporäre vollständige PDF-Vorschau erzeugt
+  - neue `KGV.Maui/Pages/PachtvertragPreviewPage.cs` öffnet die komplette Vertragsvorschau aus dem Cache-/Temp-Pfad und bietet `Zurück`, `Abbrechen`, `Weiter zur Unterschrift`
+  - `KGV.Maui/Pages/PachtvertragFlowHelper.cs` kapselt den gemeinsamen mobilen Ablauf für beide bestehenden Einstiege `MemberParzellenDetailPage` und `MemberGardenAssignPage`
+  - erst nach erfolgreicher digitaler Unterschrift wird das finale signierte Vertragsdokument im offiziellen Dokumentpfad gespeichert
+  - bei Abbruch vor oder während der Unterschrift erfolgt keine endgültige Speicherung
+- Gemeinsamer Dokument-/Servicepfad bleibt führend:
+  - `BuildPachtvertragPreviewAsync(...)` erzeugt nur die temporäre Vorschau aus dem bestehenden gemeinsamen Pachtvertrags-Builder
+  - `CreateSignedPachtvertragDokumentAsync(...)` nutzt denselben gemeinsamen Pachtvertrags-Builder weiter und speichert erst nach erfolgreicher Signatur
+  - die bestehende MAUI-Signaturseite im Querformat bleibt unverändert führend
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-11 – MAUI-Mitgliedsantrag auf Preview vor Unterschrift/Speichern umgestellt
 
 - Repo-Check auf `main`:

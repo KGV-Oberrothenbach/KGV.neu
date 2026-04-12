@@ -35,6 +35,15 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-11
+- Den bestehenden MAUI-Pachtvertrags-Flow auf dem echten Stand von `main` fachlich korrekt auf `Preview -> Unterschrift -> finales Speichern` umgestellt, ohne neuen Fachblock zu starten.
+- Die Ist-Analyse zeigte, dass der mobile Pachtvertrag in `MemberParzellenDetailPage` und im Folgepfad nach Parzellenzuweisung bisher direkt über `CreatePachtvertragDokumentAsync(...)` im offiziellen Dokumentpfad gespeichert wurde; damit erfolgte die Persistierung zu früh, noch vor Dokumentprüfung und vor digitaler Unterschrift.
+- Der mobile Flow erzeugt den Pachtvertrag jetzt zunächst nur temporär als vollständige PDF-Vorschau. Dafür wurde eine kleine `PachtvertragPreviewPage` ergänzt, die das komplette generierte Dokument über einen lokalen Temp-/Cache-Pfad zur Prüfung öffnet und zugleich `Zurück`, `Abbrechen` und `Weiter zur Unterschrift` anbietet.
+- Der technische mobile Ablauf ist dabei in einem kleinen gemeinsamen `PachtvertragFlowHelper` gekapselt, damit sowohl der bestehende Einstieg im mitgliedsbezogenen Parzellen-Detail als auch der Folgepfad nach erfolgreicher Parzellenzuweisung denselben sauberen Preview-/Signatur-/Save-Pfad nutzen.
+- Erst nach erfolgreicher digitaler Unterschrift wird der finale signierte Pachtvertrag im offiziellen Dokumentpfad gespeichert; bei Abbruch vor oder während der Unterschrift erfolgt keine endgültige Ablage.
+- Der bestehende gemeinsame Pachtvertrags-Builder bleibt führend: die Vorschau wird aus demselben Produktivpfad erzeugt, und der finale Save nutzt weiter den vorhandenen gemeinsamen Dokumentpfad; temporäre Vorschau und finale Ablage bleiben sauber getrennt.
+- Die bestehende MAUI-Signaturseite mit Querformat auf mobilen Geräten blieb unverändert erhalten.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den bestehenden MAUI-Mitgliedsantrag-Flow auf dem echten Stand von `main` fachlich korrekt auf `Preview -> Unterschrift -> finales Speichern` umgestellt, ohne neuen Fachblock zu starten.
 - Die Ist-Analyse zeigte, dass `MemberDetailPage` den Antrag bisher direkt nach Beitragsbestätigung über den offiziellen Dokumentpfad gespeichert hat; damit erfolgte die Persistierung zu früh, noch vor Dokumentprüfung und vor der digitalen Unterschrift.
 - Der mobile Flow erzeugt den Mitgliedsantrag jetzt zunächst nur temporär als vollständige PDF-Vorschau. Dafür wurde eine kleine `MitgliedsantragPreviewPage` ergänzt, die das komplette generierte Dokument über einen lokalen Temp-/Cache-Pfad zur Prüfung öffnet und zugleich `Zurück`, `Abbrechen` und `Weiter zur Unterschrift` anbietet.

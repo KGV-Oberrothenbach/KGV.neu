@@ -9,27 +9,27 @@ using Microsoft.Maui.Storage;
 
 namespace KGV.Maui.Pages;
 
-internal enum MitgliedsantragPreviewDecision
+internal enum PachtvertragPreviewDecision
 {
     Cancel,
-    BackToEditor,
+    BackToContext,
     ContinueToSignature
 }
 
-public sealed class MitgliedsantragPreviewPage : ContentPage
+public sealed class PachtvertragPreviewPage : ContentPage
 {
-    private readonly TaskCompletionSource<MitgliedsantragPreviewDecision> _resultSource = new();
+    private readonly TaskCompletionSource<PachtvertragPreviewDecision> _resultSource = new();
     private readonly DokumentUploadRequest _previewUploadRequest;
     private readonly string _tempFilePath;
     private bool _previewOpenedOnce;
 
-    public MitgliedsantragPreviewPage(DokumentUploadRequest previewUploadRequest)
+    public PachtvertragPreviewPage(DokumentUploadRequest previewUploadRequest)
     {
         _previewUploadRequest = previewUploadRequest ?? throw new ArgumentNullException(nameof(previewUploadRequest));
         if ((_previewUploadRequest.FileContent?.Length ?? 0) <= 0)
             throw new InvalidOperationException("Für die Vorschau liegt kein PDF-Inhalt vor.");
 
-        Title = "Mitgliedsantrag prüfen";
+        Title = "Pachtvertrag prüfen";
         BackgroundColor = Colors.White;
         _tempFilePath = Path.Combine(FileSystem.CacheDirectory, _previewUploadRequest.FileName);
 
@@ -37,13 +37,13 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
         openPreviewButton.Clicked += async (_, _) => await OpenPreviewAsync();
 
         var backButton = new Button { Text = "Zurück" };
-        backButton.Clicked += async (_, _) => await CloseAsync(MitgliedsantragPreviewDecision.BackToEditor);
+        backButton.Clicked += async (_, _) => await CloseAsync(PachtvertragPreviewDecision.BackToContext);
 
         var cancelButton = new Button { Text = "Abbrechen" };
-        cancelButton.Clicked += async (_, _) => await CloseAsync(MitgliedsantragPreviewDecision.Cancel);
+        cancelButton.Clicked += async (_, _) => await CloseAsync(PachtvertragPreviewDecision.Cancel);
 
         var continueButton = new Button { Text = "Weiter zur Unterschrift" };
-        continueButton.Clicked += async (_, _) => await CloseAsync(MitgliedsantragPreviewDecision.ContinueToSignature);
+        continueButton.Clicked += async (_, _) => await CloseAsync(PachtvertragPreviewDecision.ContinueToSignature);
 
         Content = new ScrollView
         {
@@ -55,13 +55,13 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
                 {
                     new Label
                     {
-                        Text = "Mitgliedsantrag prüfen",
+                        Text = "Pachtvertrag prüfen",
                         FontSize = 24,
                         FontAttributes = FontAttributes.Bold
                     },
                     new Label
                     {
-                        Text = "Vor dem finalen Speichern wird der vollständige Mitgliedsantrag zuerst nur temporär als PDF-Vorschau geöffnet. Bitte das vollständige Dokument prüfen und danach zur Unterschrift zurückkehren.",
+                        Text = "Vor dem finalen Speichern wird der vollständige Pachtvertrag zuerst nur temporär als PDF-Vorschau geöffnet. Bitte das vollständige Dokument prüfen und danach zur Unterschrift zurückkehren.",
                         TextColor = Colors.Gray,
                         LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap
                     },
@@ -76,7 +76,7 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
                             {
                                 new Label { Text = _previewUploadRequest.Titel, FontAttributes = FontAttributes.Bold, FontSize = 18 },
                                 new Label { Text = $"Datei: {_previewUploadRequest.FileName}", TextColor = Colors.Gray, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap },
-                                new Label { Text = "Die vollständige PDF-Vorschau wird über den temporären lokalen Preview-Pfad geöffnet; der offizielle Mitgliedsdokumentpfad wird erst nach erfolgreicher Unterschrift verwendet.", TextColor = Colors.Gray, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap },
+                                new Label { Text = "Die vollständige PDF-Vorschau wird über den temporären lokalen Preview-Pfad geöffnet; der offizielle Dokumentpfad wird erst nach erfolgreicher Unterschrift verwendet.", TextColor = Colors.Gray, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap },
                                 openPreviewButton
                             }
                         }
@@ -97,7 +97,7 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
         };
     }
 
-    internal Task<MitgliedsantragPreviewDecision> WaitForResultAsync() => _resultSource.Task;
+    internal Task<PachtvertragPreviewDecision> WaitForResultAsync() => _resultSource.Task;
 
     protected override async void OnAppearing()
     {
@@ -112,7 +112,7 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
 
     protected override bool OnBackButtonPressed()
     {
-        _resultSource.TrySetResult(MitgliedsantragPreviewDecision.Cancel);
+        _resultSource.TrySetResult(PachtvertragPreviewDecision.Cancel);
         return base.OnBackButtonPressed();
     }
 
@@ -120,10 +120,10 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_tempFilePath)!);
         await File.WriteAllBytesAsync(_tempFilePath, _previewUploadRequest.FileContent);
-        await Launcher.Default.OpenAsync(new OpenFileRequest("Mitgliedsantrag Vorschau", new ReadOnlyFile(_tempFilePath)));
+        await Launcher.Default.OpenAsync(new OpenFileRequest("Pachtvertrag Vorschau", new ReadOnlyFile(_tempFilePath)));
     }
 
-    private async Task CloseAsync(MitgliedsantragPreviewDecision decision)
+    private async Task CloseAsync(PachtvertragPreviewDecision decision)
     {
         _resultSource.TrySetResult(decision);
         TryDeleteTempFile();

@@ -275,33 +275,12 @@ public sealed class MemberParzellenDetailPage : ContentPage
 
         try
         {
-            var result = await _supabaseService.CreatePachtvertragDokumentAsync(
+            await PachtvertragFlowHelper.RunAsync(
+                Navigation,
+                _supabaseService,
                 _parzellenContextState.ContextMitgliedId.Value,
                 detail.ParzelleId,
-                detail.VonDatum.Value.Date,
-                FormularDokumentStatus.Unsigniert);
-
-            if (!result.Success)
-            {
-                await DisplayAlert("Pachtvertrag", result.Message, "OK");
-                return;
-            }
-
-            var document = result.Document;
-            if (document?.CanOpen != true)
-            {
-                await DisplayAlert("Pachtvertrag", "Pachtvertrag wurde als Dokument abgelegt.", "OK");
-                return;
-            }
-
-            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
-            if (string.IsNullOrWhiteSpace(url))
-            {
-                await DisplayAlert("Pachtvertrag", "Pachtvertrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "OK");
-                return;
-            }
-
-            await Launcher.Default.OpenAsync(url);
+                detail.VonDatum.Value.Date);
         }
         catch (Exception ex)
         {

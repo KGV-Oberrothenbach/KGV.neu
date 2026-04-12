@@ -2550,6 +2550,91 @@ namespace KGV.Infrastructure.Services
             }
         }
 
+        public Task<DokumentUploadRequest?> BuildPachtvertragPreviewAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn) => ExecuteAsync<DokumentUploadRequest?>(
+            "BuildPachtvertragPreviewAsync",
+            async () =>
+            {
+                var context = await ResolvePachtvertragContextAsync(mitgliedId, parzelleId, vertragsbeginn);
+                return PachtvertragDokumentFactory.CreateUploadRequest(
+                    context.Member,
+                    context.SecondaryMember,
+                    context.Parzelle,
+                    context.Saison,
+                    context.Vertragsbeginn,
+                    FormularDokumentStatus.Unsigniert);
+            },
+            null);
+
+        public Task<DokumentUploadResult> CreateSignedPachtvertragDokumentAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn, DigitalSignatureCapture signatureCapture) => ExecuteAsync(
+            "CreateSignedPachtvertragDokumentAsync",
+            async () =>
+            {
+                if (signatureCapture == null || !signatureCapture.HasContent)
+                    return DokumentUploadResult.Fail("Bitte zuerst eine digitale Signatur erfassen.", "VALIDATION");
+
+                var context = await ResolvePachtvertragContextAsync(mitgliedId, parzelleId, vertragsbeginn);
+                var previewUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
+                    context.Member,
+                    context.SecondaryMember,
+                    context.Parzelle,
+                    context.Saison,
+                    context.Vertragsbeginn,
+                    FormularDokumentStatus.Unsigniert);
+                var finalUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
+                    context.Member,
+                    context.SecondaryMember,
+                    context.Parzelle,
+                    context.Saison,
+                    context.Vertragsbeginn,
+                    FormularDokumentStatus.Signiert);
+                var sourceDocument = CreatePreviewDocumentInfo(previewUploadRequest, FormularDokumentTyp.Pachtvertrag, FormularDokumentStatus.Unsigniert);
+                finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(context.Member, sourceDocument, previewUploadRequest.FileContent, signatureCapture);
+                return await CreateDokumentAsync(finalUploadRequest);
+            },
+            DokumentUploadResult.Fail("Pachtvertrag konnte aktuell nicht signiert gespeichert werden.", "UNEXPECTED"));
+
+        private async Task<(MitgliedRecord Member, MitgliedRecord? SecondaryMember, ParzelleRecord Parzelle, SaisonRecord Saison, DateTime Vertragsbeginn)> ResolvePachtvertragContextAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn)
+        {
+            if (mitgliedId <= 0)
+                throw new InvalidOperationException("Bitte zuerst ein gültiges Mitglied auswählen.");
+
+            if (parzelleId <= 0)
+                throw new InvalidOperationException("Bitte zuerst eine gültige Parzelle auswählen.");
+
+            var vertragsbeginnDatum = vertragsbeginn.Date;
+            if (vertragsbeginnDatum == DateTime.MinValue)
+                throw new InvalidOperationException("Bitte ein gültiges Vertragsbeginn-Datum angeben.");
+
+            var member = await GetMitgliedByIdAsync(mitgliedId);
+            if (member == null)
+                throw new InvalidOperationException("Mitglied konnte nicht geladen werden.");
+
+            if (!OperationalDataFilter.IsOperationalMember(member))
+                throw new InvalidOperationException("Für dieses Mitglied kann aktuell kein Pachtvertrag erzeugt werden.");
+
+            if (member.HauptmitgliedId.HasValue && member.HauptmitgliedId.Value > 0)
+                throw new InvalidOperationException("Pachtvertrag kann nur aus dem Hauptmitglied-Kontext erzeugt werden.");
+
+            var client = await EnsureClientAsync();
+            var parzelle = await LoadParzelleByIdAsync(client, parzelleId);
+            if (parzelle == null)
+                throw new InvalidOperationException("Parzelle konnte nicht geladen werden.");
+
+            var saison = (await GetSaisonRecordsAsync())
+                .FirstOrDefault(x => x.Jahr == vertragsbeginnDatum.Year);
+            if (saison == null)
+                throw new InvalidOperationException($"Für das Vertragsjahr {vertragsbeginnDatum.Year} ist keine Saison hinterlegt.");
+
+            if (!saison.PachtProQm.HasValue)
+                throw new InvalidOperationException($"Für die Saison {saison.Jahr} fehlt pacht_pro_qm.");
+
+            if (!saison.Mitgliedsbeitrag.HasValue)
+                throw new InvalidOperationException($"Für die Saison {saison.Jahr} fehlt mitgliedsbeitrag.");
+
+            var secondaryMember = await GetNebenmitgliedByHauptmitgliedIdAsync(member.Id);
+            return (member, secondaryMember, parzelle, saison, vertragsbeginnDatum);
+        }
+
         public async Task<DokumentUploadResult> UploadSignedVertragsdokumentAsync(int mitgliedId, DocumentInfo sourceDocument, byte[] fileContent, string originalFileName, string mimeType = "application/pdf")
         {
             if (mitgliedId <= 0)
