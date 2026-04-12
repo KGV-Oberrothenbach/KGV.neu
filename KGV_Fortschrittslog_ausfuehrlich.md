@@ -35,6 +35,12 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-11
+- Die bestehende HTML-Vorlage des Mitgliedsantrags auf dem echten Stand von `main` minimal geglättet, ohne neuen Fachblock zu starten.
+- Im Template `KGV.Core/Templates/Mitgliedsantrag.html` wurden die bisherigen kombinierten Kontaktfelder `Telefon / Handy` sowohl für Antragsteller/in als auch für gesetzliche Vertretung in getrennte Felder `Telefon` und `Mobil` aufgeteilt.
+- Zusätzlich wurde die obere Unterschriftszeile im Minderjährigen-Fall rein layoutseitig so nachgeschärft, dass die Unterschriftslinien von Mitglied und gesetzlicher Vertretung auf gleicher Höhe stehen.
+- Es wurden bewusst keine Änderungen an Servicepfaden, Snapshot-Logik, Preview-/Signaturablauf oder Routing vorgenommen.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den kleinen gemeinsamen Restfehler im Ladepfad `vereinskonfiguration` auf dem echten Stand von `main` minimal korrigiert, ohne neuen Fachblock zu starten.
 - Die reale Ursache des Fehlers `GetAktiveVereinskonfigurationAsync failed` lag nicht in fehlenden SQL-Daten, sondern im bisher verwendeten Bool-Predicate `.Where(x => x.Aktiv)`, das im verwendeten PostgREST-/Supabase-Client nicht parsebar war.
 - Der gemeinsame Produktivpfad `GetAktiveVereinskonfigurationAsync()` nutzt deshalb jetzt statt des unären Bool-Predicates einen expliziten Vergleich `.Where(x => x.Aktiv == true)`.

@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <title>Mitgliedsantrag – KGV Oberrothenbach</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #eceef1;
+            font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+            color: #1f2937;
+        }
+
+        body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .guardian-only {
+            display: none;
+        }
+
+        body.minor .guardian-only {
+            display: block;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: #fff;
+            padding: 14mm 15mm 14mm 15mm;
+        }
+
+        .header {
+            border-bottom: 2px solid #2f5d3a;
+            padding-bottom: 6mm;
+            margin-bottom: 7mm;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 12mm;
+        }
+
+        .club-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #163f21;
+            margin-bottom: 2mm;
+        }
+
+        .club-meta {
+            font-size: 11.5px;
+            line-height: 1.45;
+            color: #374151;
+        }
+
+        .doc-box {
+            min-width: 52mm;
+            border: 1px solid #cfd6dd;
+            border-radius: 8px;
+            padding: 4mm 4.5mm;
+            background: #f8faf8;
+        }
+
+            .doc-box .label {
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                color: #6b7280;
+                margin-bottom: 1mm;
+            }
+
+            .doc-box .value {
+                font-size: 12px;
+                font-weight: 600;
+                color: #111827;
+                margin-bottom: 3mm;
+            }
+
+        .title {
+            margin-top: 5mm;
+        }
+
+            .title h1 {
+                margin: 0;
+                font-size: 26px;
+                line-height: 1.05;
+                color: #163f21;
+            }
+
+        .title-sub {
+            font-size: 12px;
+            color: #4b5563;
+            margin-top: 2mm;
+        }
+
+        .lead {
+            margin-top: 5mm;
+            margin-bottom: 7mm;
+            font-size: 12.5px;
+            line-height: 1.55;
+        }
+
+        .section {
+            margin-bottom: 6mm;
+            border: 1px solid #d8dee5;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .section-title {
+            background: #f3f7f3;
+            border-bottom: 1px solid #d8dee5;
+            padding: 3mm 4mm;
+            font-size: 12px;
+            font-weight: 700;
+            color: #163f21;
+        }
+
+        .section-body {
+            padding: 4mm;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3mm 6mm;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 3mm 6mm;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 1mm;
+        }
+
+            .field.full {
+                grid-column: 1 / -1;
+            }
+
+        .field-label {
+            font-size: 10.5px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .field-value {
+            min-height: 7mm;
+            padding: 2mm 2.5mm;
+            background: #fafbfc;
+            border: 1px solid #e3e7eb;
+            border-radius: 6px;
+            font-size: 12.5px;
+            line-height: 1.35;
+            color: #111827;
+        }
+
+            .field-value.large {
+                min-height: 10mm;
+            }
+
+        .checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4mm;
+            margin-top: 1mm;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 2.5mm;
+            padding: 2mm 0;
+            font-size: 12px;
+            color: #1f2937;
+        }
+
+        .box {
+            width: 4.5mm;
+            height: 4.5mm;
+            border: 1.5px solid #4b5563;
+            border-radius: 2px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: #163f21;
+            flex: 0 0 auto;
+        }
+
+        .payment-box {
+            border: 1px solid #b9d0bd;
+            background: #f6fbf6;
+            border-radius: 10px;
+            padding: 4mm;
+        }
+
+        .payment-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4mm 8mm;
+            margin-bottom: 3mm;
+        }
+
+        .payment-card {
+            border: 1px solid #d9e7dc;
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 3mm;
+        }
+
+        .payment-label {
+            font-size: 10.5px;
+            text-transform: uppercase;
+            color: #6b7280;
+            margin-bottom: 1mm;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .payment-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #163f21;
+        }
+
+        .payment-text {
+            font-size: 12px;
+            line-height: 1.55;
+            color: #1f2937;
+            margin-top: 2mm;
+        }
+
+        .bank-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3mm 6mm;
+            margin-top: 3mm;
+        }
+
+        .declaration {
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .signature-section {
+            margin-top: 8mm;
+            border: 1px solid #d8dee5;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .signature-head {
+            background: #f3f7f3;
+            border-bottom: 1px solid #d8dee5;
+            padding: 3mm 4mm;
+            font-size: 12px;
+            font-weight: 700;
+            color: #163f21;
+        }
+
+        .signature-body {
+            padding: 5mm 4mm 4mm 4mm;
+        }
+
+        .signature-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6mm;
+            margin-bottom: 8mm;
+        }
+
+        .line-field {
+            font-size: 11px;
+            color: #374151;
+        }
+
+        .line {
+            display: block;
+            margin-top: 8mm;
+            border-bottom: 1px solid #4b5563;
+            height: 0;
+            width: 100%;
+        }
+
+        .signature-grid-top {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10mm;
+            margin-bottom: 9mm;
+            align-items: end;
+        }
+
+        body:not(.minor) .signature-grid-top {
+            grid-template-columns: 1fr;
+        }
+
+        .signature-box {
+            min-height: 28mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .signature-label {
+            margin-top: 2mm;
+            font-size: 11px;
+            color: #374151;
+            min-height: 8mm;
+        }
+
+        .signature-box-bottom {
+            width: 48%;
+            min-height: 26mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .footer-note {
+            margin-top: 5mm;
+            font-size: 10.5px;
+            line-height: 1.4;
+            color: #6b7280;
+            text-align: center;
+        }
+
+        @media print {
+            html, body {
+                background: #fff;
+            }
+
+            .page {
+                margin: 0;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body class="minor">
+    <div class="page">
+        <header class="header">
+            <div class="header-top">
+                <div>
+                    <div class="club-name">Kleingartenverein Oberrothenbach e.V.</div>
+                    <div class="club-meta">
+                        Amtsgericht Chemnitz VR 70502<br>
+                        E-Mail: kgvoberrothenbach@gmx.de
+                    </div>
+                </div>
+
+                <div class="doc-box">
+                    <div class="label">Ausstellungsdatum</div>
+                    <div class="value">12.04.2026</div>
+
+                    <div class="label">Dokument</div>
+                    <div class="value">Mitgliedsantrag</div>
+                </div>
+            </div>
+
+            <div class="title">
+                <h1>Mitgliedsantrag</h1>
+                <div class="title-sub">Antrag auf Aufnahme in den Kleingartenverein Oberrothenbach e.V.</div>
+            </div>
+        </header>
+
+        <div class="lead">
+            Hiermit beantrage ich die Aufnahme in den Kleingartenverein Oberrothenbach e.V.
+        </div>
+
+        <section class="section">
+            <div class="section-title">1. Angaben zur antragstellenden Person</div>
+            <div class="section-body">
+                <div class="grid-2">
+                    <div class="field">
+                        <div class="field-label">Name</div>
+                        <div class="field-value">Bräuer</div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">Vorname</div>
+                        <div class="field-value">Alexandra</div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">Geburtsdatum</div>
+                        <div class="field-value">31.07.2009</div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">Aufnahme ab</div>
+                        <div class="field-value">01.05.2026</div>
+                    </div>
+
+                    <div class="field full">
+                        <div class="field-label">Anschrift</div>
+                        <div class="field-value large">
+                            Altenburger Str. 50<br>
+                            08058 Zwickau
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">Telefon</div>
+                        <div class="field-value">&nbsp;</div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">Mobil</div>
+                        <div class="field-value">01520 9176419</div>
+                    </div>
+
+                    <div class="field full">
+                        <div class="field-label">E-Mail</div>
+                        <div class="field-value">alexbrau31@gmail.com</div>
+                    </div>
+
+                    <div class="field full">
+                        <div class="field-label">Kommunikation</div>
+                        <div class="checkbox-grid">
+                            <div class="checkbox-item">
+                                <span class="box">✓</span>
+                                <span>WhatsApp</span>
+                            </div>
+                            <div class="checkbox-item">
+                                <span class="box">✓</span>
+                                <span>Rechnung per Mail</span>
+                            </div>
+                            <div class="checkbox-item">
+                                <span class="box">✓</span>
+                                <span>Info per Mail</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section guardian-only">
+            <div class="section-title">2. Gesetzliche Vertretung</div>
+            <div class="section-body">
+                <div class="grid-2">
+                    <div class="field">
+                        <div class="field-label">Name</div>
+                        <div class="field-value">Bräuer</div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">Vorname</div>
+                        <div class="field-value">Andreas</div>
+                    </div>
+
+                    <div class="field full">
+                        <div class="field-label">Anschrift</div>
+                        <div class="field-value large">
+                            Altenburger Str. 50<br>
+                            08058 Zwickau
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">Telefon</div>
+                        <div class="field-value">03760 44445</div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">Mobil</div>
+                        <div class="field-value">01512 6116566</div>
+                    </div>
+
+                    <div class="field full">
+                        <div class="field-label">E-Mail</div>
+                        <div class="field-value">braeuer.family97@gmail.com</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">3. Beiträge und Zahlungen</div>
+            <div class="section-body">
+                <div class="payment-box">
+                    <div class="payment-grid">
+                        <div class="payment-card">
+                            <div class="payment-label">Mitgliedsbeitrag jährlich</div>
+                            <div class="payment-value">90,00 €</div>
+                        </div>
+
+                        <div class="payment-card">
+                            <div class="payment-label">Aufnahmegebühr</div>
+                            <div class="payment-value">10,00 €</div>
+                        </div>
+                    </div>
+
+                    <div class="payment-text">
+                        Der Mitgliedsbeitrag ist jährlich zu zahlen.
+                    </div>
+
+                    <div class="payment-text">
+                        Der im Aufnahmejahr zu zahlende Beitrag wird abhängig vom Beginn der Mitgliedschaft gesondert berechnet.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">4. Bankverbindung des Vereins</div>
+            <div class="section-body">
+                <div class="bank-grid">
+                    <div class="field">
+                        <div class="field-label">Kontoinhaber</div>
+                        <div class="field-value">Kleingartenverein Oberrothenbach e.V.</div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">Bank</div>
+                        <div class="field-value">Sparkasse Zwickau</div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">IBAN</div>
+                        <div class="field-value">DE14 8705 5000 2214 0005 53</div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">BIC</div>
+                        <div class="field-value">WELADED1ZWI</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">5. Erklärung</div>
+            <div class="section-body">
+                <div class="declaration">
+                    Ich beantrage die Mitgliedschaft im Kleingartenverein Oberrothenbach e.V.
+                    Die gemachten Angaben sind nach meinem Kenntnisstand vollständig und richtig.
+                </div>
+            </div>
+        </section>
+
+        <section class="signature-section">
+            <div class="signature-head">6. Unterschriften</div>
+            <div class="signature-body">
+                <div class="signature-meta">
+                    <div class="line-field">
+                        Ort
+                        <span class="line"></span>
+                    </div>
+                    <div class="line-field">
+                        Datum
+                        <span class="line"></span>
+                    </div>
+                </div>
+
+                <div class="signature-grid-top">
+                    <div class="signature-box">
+                        <span class="line"></span>
+                        <div class="signature-label">Unterschrift Antragsteller/in</div>
+                    </div>
+
+                    <div class="signature-box guardian-only">
+                        <span class="line"></span>
+                        <div class="signature-label">Unterschrift gesetzliche/r Vertreter/in</div>
+                    </div>
+                </div>
+
+                <div class="signature-box-bottom">
+                    <span class="line"></span>
+                    <div class="signature-label">Für den Verein</div>
+                </div>
+            </div>
+        </section>
+
+        <div class="footer-note">
+            Dieser Antrag wird nach vollständiger Prüfung und Unterschrift als PDF im Dokumentpfad gespeichert.
+        </div>
+    </div>
+</body>
+</html>

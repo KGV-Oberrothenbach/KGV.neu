@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-04-12 – Mitgliedsantrag-HTML bei Telefon/Mobil und Signaturausrichtung geglättet
+
+- Repo-Check auf `main` ausgeführt.
+- Nur die bestehende HTML-Vorlage `KGV.Core/Templates/Mitgliedsantrag.html` minimal angepasst; keine neue Dokumentlogik, kein Service- und kein UI-Umbau außerhalb der Vorlage.
+- In den Personenblöcken von Antragsteller/in und gesetzlicher Vertretung wurden die bisherigen kombinierten Felder `Telefon / Handy` in getrennte Felder `Telefon` und `Mobil` aufgeteilt.
+- Die obere Unterschriftszeile wurde im Layout so geglättet, dass Antragsteller/in und gesetzliche/r Vertreter/in bei Minderjährigen auf derselben Höhe abschließen.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-12 – Vereinskconfigurations-Ladepfad für aktiv=true Filter minimal korrigiert
 
 - Repo-Check auf `main` ausgeführt.
