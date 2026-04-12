@@ -21,6 +21,8 @@ namespace KGV.Core.Utilities
             if (signatureCapture == null || !signatureCapture.HasContent)
                 throw new InvalidOperationException("Es liegt keine digitale Signatur zum Übernehmen vor.");
 
+            PdfSharpFontResolverInitializer.EnsureInitialized();
+
             using var inputStream = new MemoryStream(originalPdfContent, writable: false);
             var inputDocument = PdfReader.Open(inputStream, PdfDocumentOpenMode.Import);
             var outputDocument = new PdfDocument();

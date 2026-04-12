@@ -2,6 +2,25 @@
 
 ---
 
+## 2026-04-11 – Gemeinsamen PdfSharpCore-Fontresolver für Android-Preview stabilisiert
+
+- Repo-Check auf `main`:
+  - `git status --short --branch`
+- Den kleinen technischen Fix nur im gemeinsamen PDF-/Font-Pfad umgesetzt, ohne neuen Fachblock zu starten.
+- Echte Fehlerursache:
+  - der neue MAUI-Mitgliedsantrag-Preview lief fachlich bereits über `Bearbeiten -> Vorschau -> Unterschrift -> finales Speichern`
+  - der Android-Lauf scheiterte aber schon beim PDF-Aufbau mit `BuildMitgliedsantragPreviewAsync failed`, `TypeInitializationException` und `PdfSharpCore.Utils.FontResolver`
+  - Ursache war kein Routing-, Rechte- oder Beitragsfehler, sondern der gemeinsame PdfSharpCore-Fontpfad: `VereinsdokumentPdfBuilder` und `SignedVertragsdokumentPdfBuilder` erzeugten `XFont("Arial", ...)`, ohne auf Android vorab einen gültigen FontResolver zu initialisieren
+- Gemeinsamer Fix:
+  - neue zentrale Initialisierung `KGV.Core/Utilities/PdfSharpFontResolverInitializer.cs`
+  - setzt den PdfSharpCore-Resolver genau einmal und vor dem ersten `XFont`-Zugriff
+  - löst plattformabhängig echte Schriftdateien auf, auf Android primär über `/system/fonts/Roboto-*.ttf` bzw. `NotoSans-*`
+  - keine harte Desktop-only-Pfadlogik und keine lokale UI-Kaschierung im Dialogpfad
+- Die gemeinsame Initialisierung wird jetzt direkt vor der Font-Nutzung in `VereinsdokumentPdfBuilder` und `SignedVertragsdokumentPdfBuilder` ausgeführt; damit ist der gemeinsame Android-PDF-Pfad für Vorschau und digitale Signatur stabilisiert.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-11 – MAUI-Pachtvertrag auf Preview vor Unterschrift/Speichern umgestellt
 
 - Repo-Check auf `main`:

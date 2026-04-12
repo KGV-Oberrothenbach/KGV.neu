@@ -35,6 +35,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-11
+- Den kleinen gemeinsamen Android-/PdfSharpCore-Fontfix auf dem echten Stand von `main` umgesetzt, ohne neuen Fachblock zu starten.
+- Die Ist-Analyse zeigte, dass der bereits umgestellte mobile Mitgliedsantrag-Preview nicht an Routing, Beitragslogik oder Rechten scheiterte, sondern schon beim PDF-Aufbau mit `TypeInitializationException` aus `PdfSharpCore.Utils.FontResolver` abbrach.
+- Ursache war der gemeinsame PDF-Pfad: `VereinsdokumentPdfBuilder` und `SignedVertragsdokumentPdfBuilder` erzeugten `XFont("Arial", ...)`, ohne auf Android vorab einen gültigen PdfSharpCore-FontResolver zu initialisieren.
+- Der Fix liegt jetzt zentral in `PdfSharpFontResolverInitializer`: Der Resolver wird nur einmalig gesetzt und löst plattformabhängig echte Schriftdateien auf; auf Android werden dafür echte Systemschriften wie `Roboto` bzw. `NotoSans` aus `/system/fonts/` genutzt, statt auf Desktop-Annahmen zu bauen.
+- Die gemeinsame Initialisierung wird vor jeder relevanten Font-Nutzung in den gemeinsamen PDF-Buildern ausgeführt; damit bleibt der bestehende fachliche Ablauf `Vorschau -> Unterschrift -> finales Speichern` unverändert, läuft aber auf Android jetzt über einen stabilen gemeinsamen Fontpfad.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den bestehenden MAUI-Pachtvertrags-Flow auf dem echten Stand von `main` fachlich korrekt auf `Preview -> Unterschrift -> finales Speichern` umgestellt, ohne neuen Fachblock zu starten.
 - Die Ist-Analyse zeigte, dass der mobile Pachtvertrag in `MemberParzellenDetailPage` und im Folgepfad nach Parzellenzuweisung bisher direkt über `CreatePachtvertragDokumentAsync(...)` im offiziellen Dokumentpfad gespeichert wurde; damit erfolgte die Persistierung zu früh, noch vor Dokumentprüfung und vor digitaler Unterschrift.
 - Der mobile Flow erzeugt den Pachtvertrag jetzt zunächst nur temporär als vollständige PDF-Vorschau. Dafür wurde eine kleine `PachtvertragPreviewPage` ergänzt, die das komplette generierte Dokument über einen lokalen Temp-/Cache-Pfad zur Prüfung öffnet und zugleich `Zurück`, `Abbrechen` und `Weiter zur Unterschrift` anbietet.

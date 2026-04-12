@@ -23,6 +23,8 @@ namespace KGV.Core.Utilities
             IReadOnlyCollection<string> unterschriftFelder,
             string? introText = null)
         {
+            PdfSharpFontResolverInitializer.EnsureInitialized();
+
             var document = new PdfDocument();
             var effectiveFormularTitel = formularTitel ?? string.Empty;
 
