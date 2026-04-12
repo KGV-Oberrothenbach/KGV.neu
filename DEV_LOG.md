@@ -2,6 +2,24 @@
 
 ---
 
+## 2026-04-11 – PdfSharpCore-Fontresolver vor Erstzugriff erzwungen
+
+- Repo-Check auf `main`:
+  - `git status --short --branch`
+- Den weiterhin offenen Android-PDF-Initialisierungsfehler nur im gemeinsamen PdfSharpCore-/Font-Pfad nachgezogen.
+- Echte Restursache:
+  - der vorherige Fix initialisierte den Resolver zwar vor `new XFont(...)` in den Builder-Methoden, aber noch nicht garantiert vor dem allerersten PdfSharp-Fontzugriff
+  - zusätzlich verwendete die Initialisierung `GlobalFontSettings.FontResolver ??= ...` und griff damit selbst zuerst lesend auf den Resolver zu
+  - damit konnte der echte Android-Erstzugriffspfad auf `PdfSharpCore.Utils.FontResolver` weiterhin vor der eigenen Setzung stattfinden
+- Gemeinsamer Fix:
+  - `PdfSharpFontResolverInitializer` initialisiert den Resolver jetzt per `ModuleInitializer` bereits beim Laden des Core-Moduls
+  - der Resolver wird dabei nicht mehr per `??=` lesend geprüft, sondern direkt einmalig gesetzt
+  - die bestehende Android-Schriftquellenlogik über `/system/fonts/` bleibt unverändert erhalten
+  - `VereinsdokumentPdfBuilder` und `SignedVertragsdokumentPdfBuilder` behalten die explizite Absicherung zusätzlich bei
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-11 – Gemeinsamen PdfSharpCore-Fontresolver für Android-Preview stabilisiert
 
 - Repo-Check auf `main`:

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using PdfSharpCore.Fonts;
 
@@ -11,6 +12,11 @@ namespace KGV.Core.Utilities
     {
         private static int _initialized;
         private static readonly object SyncRoot = new();
+        private static readonly IFontResolver Resolver = new PlatformFontResolver();
+
+        [ModuleInitializer]
+        internal static void InitializeModule()
+            => EnsureInitialized();
 
         public static void EnsureInitialized()
         {
@@ -22,7 +28,7 @@ namespace KGV.Core.Utilities
                 if (_initialized == 1)
                     return;
 
-                GlobalFontSettings.FontResolver ??= new PlatformFontResolver();
+                GlobalFontSettings.FontResolver = Resolver;
                 _initialized = 1;
             }
         }

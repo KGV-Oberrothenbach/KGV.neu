@@ -35,6 +35,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-11
+- Den weiterhin offenen Android-PdfSharpCore-Restfehler auf dem echten Stand von `main` im gemeinsamen Font-Initialisierungspfad geschlossen, ohne neuen Fachblock zu starten.
+- Die Restanalyse zeigte, dass der vorherige Fix zwar vor `new XFont(...)` in den gemeinsamen Buildern initialisierte, aber den gemeinsamen Resolver noch nicht garantiert vor dem echten allerersten PdfSharp-Fontzugriff setzte.
+- Zusätzlich lag in `PdfSharpFontResolverInitializer` noch ein zu später Zugriff über `GlobalFontSettings.FontResolver ??= ...`; dadurch wurde der Resolver vor dem Setzen zunächst lesend berührt, was auf Android den problematischen Erstpfad nicht sicher ausschloss.
+- Der gemeinsame Fix erzwingt die Resolver-Initialisierung jetzt per `ModuleInitializer` bereits beim Laden des `KGV.Core`-Moduls. Gleichzeitig wird der Resolver nicht mehr per `??=` geprüft, sondern direkt einmalig gesetzt.
+- Die Android-Schriftquellen über `/system/fonts/Roboto-*` bzw. Fallbacks bleiben unverändert; der fachliche Ablauf `Bearbeiten -> Vorschau -> Unterschrift -> finales Speichern` wurde nicht verändert.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den kleinen gemeinsamen Android-/PdfSharpCore-Fontfix auf dem echten Stand von `main` umgesetzt, ohne neuen Fachblock zu starten.
 - Die Ist-Analyse zeigte, dass der bereits umgestellte mobile Mitgliedsantrag-Preview nicht an Routing, Beitragslogik oder Rechten scheiterte, sondern schon beim PDF-Aufbau mit `TypeInitializationException` aus `PdfSharpCore.Utils.FontResolver` abbrach.
 - Ursache war der gemeinsame PDF-Pfad: `VereinsdokumentPdfBuilder` und `SignedVertragsdokumentPdfBuilder` erzeugten `XFont("Arial", ...)`, ohne auf Android vorab einen gültigen PdfSharpCore-FontResolver zu initialisieren.
