@@ -47,6 +47,15 @@
                     <TextBlock Text="Mitgliedsbeitrag" FontWeight="SemiBold" />
                     <TextBox Margin="0,4,0,10" Text="{Binding Mitgliedsbeitrag, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsEditable}" />
 
+                     <TextBlock Text="Nebenmitgliedsbeitrag" FontWeight="SemiBold" />
+                     <TextBox Margin="0,4,0,10" Text="{Binding MitgliedsbeitragNebenmitglied, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsEditable}" />
+
+                     <TextBlock Text="Aufnahmegebühr" FontWeight="SemiBold" />
+                     <TextBox Margin="0,4,0,10" Text="{Binding Aufnahmegebuehr, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsEditable}" />
+
+                     <TextBlock Text="Gebühr Bauantrag" FontWeight="SemiBold" />
+                     <TextBox Margin="0,4,0,10" Text="{Binding GebuehrBauantrag, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsEditable}" />
+
                     <TextBlock Text="Pflichtstunden Soll" FontWeight="SemiBold" />
                     <TextBox Margin="0,4,0,10" Text="{Binding PflichtstundenSoll, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsEditable}" />
 

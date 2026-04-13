@@ -135,6 +135,10 @@
                 <views:SaisonverwaltungView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type vm:VereinskonfigurationViewModel}">
+                <views:VereinskonfigurationView />
+            </DataTemplate>
+
             <DataTemplate DataType="{x:Type vm:WartungsvertragDetailViewModel}">
                 <views:WartungsvertragDetailView />
             </DataTemplate>

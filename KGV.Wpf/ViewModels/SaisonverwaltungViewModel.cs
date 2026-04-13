@@ -19,6 +19,9 @@ namespace KGV.ViewModels
         private string _jahr = string.Empty;
         private string _pachtProQm = string.Empty;
         private string _mitgliedsbeitrag = string.Empty;
+        private string _mitgliedsbeitragNebenmitglied = string.Empty;
+        private string _aufnahmegebuehr = string.Empty;
+        private string _gebuehrBauantrag = string.Empty;
         private string _pflichtstundenSoll = string.Empty;
         private string _euroProFehlstunde = string.Empty;
         private string _bemerkung = string.Empty;
@@ -66,6 +69,42 @@ namespace KGV.ViewModels
                 OnPropertyChanged(nameof(EditorTitel));
                 OnPropertyChanged(nameof(IsEditable));
                 OnPropertyChanged(nameof(CanSave));
+                SaveCommand.RaiseCanExecuteChanged();
+            }
+        }
+
+        public string MitgliedsbeitragNebenmitglied
+        {
+            get => _mitgliedsbeitragNebenmitglied;
+            set
+            {
+                if (!SetProperty(ref _mitgliedsbeitragNebenmitglied, value ?? string.Empty))
+                    return;
+
+                SaveCommand.RaiseCanExecuteChanged();
+            }
+        }
+
+        public string Aufnahmegebuehr
+        {
+            get => _aufnahmegebuehr;
+            set
+            {
+                if (!SetProperty(ref _aufnahmegebuehr, value ?? string.Empty))
+                    return;
+
+                SaveCommand.RaiseCanExecuteChanged();
+            }
+        }
+
+        public string GebuehrBauantrag
+        {
+            get => _gebuehrBauantrag;
+            set
+            {
+                if (!SetProperty(ref _gebuehrBauantrag, value ?? string.Empty))
+                    return;
+
                 SaveCommand.RaiseCanExecuteChanged();
             }
         }
@@ -235,6 +274,9 @@ namespace KGV.ViewModels
             Jahr = SaisonverwaltungHelper.GetSaisonJahr(saison).ToString(CultureInfo.InvariantCulture);
             PachtProQm = FormatDecimal(saison.PachtProQm);
             Mitgliedsbeitrag = FormatDecimal(saison.Mitgliedsbeitrag);
+            MitgliedsbeitragNebenmitglied = FormatDecimal(saison.MitgliedsbeitragNebenmitglied);
+            Aufnahmegebuehr = FormatDecimal(saison.Aufnahmegebuehr);
+            GebuehrBauantrag = FormatDecimal(saison.GebuehrBauantrag);
             PflichtstundenSoll = saison.PflichtstundenSoll.ToString("0.##", CultureInfo.CurrentCulture);
             EuroProFehlstunde = saison.EuroProFehlstunde.ToString("0.##", CultureInfo.CurrentCulture);
             Bemerkung = saison.Bemerkung ?? string.Empty;
@@ -313,6 +355,24 @@ namespace KGV.ViewModels
                 return false;
             }
 
+            if (!TryParseOptionalDecimal(MitgliedsbeitragNebenmitglied, out var mitgliedsbeitragNebenmitglied))
+            {
+                validationMessage = "Bitte einen gültigen Wert für Nebenmitgliedsbeitrag eingeben.";
+                return false;
+            }
+
+            if (!TryParseOptionalDecimal(Aufnahmegebuehr, out var aufnahmegebuehr))
+            {
+                validationMessage = "Bitte einen gültigen Wert für Aufnahmegebühr eingeben.";
+                return false;
+            }
+
+            if (!TryParseOptionalDecimal(GebuehrBauantrag, out var gebuehrBauantrag))
+            {
+                validationMessage = "Bitte einen gültigen Wert für Gebühr Bauantrag eingeben.";
+                return false;
+            }
+
             saison = new SaisonRecord
             {
                 Id = jahr,
@@ -321,6 +381,9 @@ namespace KGV.ViewModels
                 EuroProFehlstunde = euroProFehlstunde,
                 PachtProQm = pachtProQm,
                 Mitgliedsbeitrag = mitgliedsbeitrag,
+                MitgliedsbeitragNebenmitglied = mitgliedsbeitragNebenmitglied,
+                Aufnahmegebuehr = aufnahmegebuehr,
+                GebuehrBauantrag = gebuehrBauantrag,
                 Bemerkung = string.IsNullOrWhiteSpace(Bemerkung) ? null : Bemerkung.Trim()
             };
 

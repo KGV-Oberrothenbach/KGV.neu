@@ -43,6 +43,9 @@ namespace KGV.Core.Utilities
                 EuroProFehlstunde = previous?.EuroProFehlstunde ?? 25m,
                 PachtProQm = previous?.PachtProQm,
                 Mitgliedsbeitrag = previous?.Mitgliedsbeitrag,
+                MitgliedsbeitragNebenmitglied = previous?.MitgliedsbeitragNebenmitglied,
+                Aufnahmegebuehr = previous?.Aufnahmegebuehr,
+                GebuehrBauantrag = previous?.GebuehrBauantrag,
                 Bemerkung = previous?.Bemerkung
             };
         }
@@ -64,6 +67,9 @@ namespace KGV.Core.Utilities
                 EuroProFehlstunde = saison.EuroProFehlstunde,
                 PachtProQm = saison.PachtProQm,
                 Mitgliedsbeitrag = saison.Mitgliedsbeitrag,
+                MitgliedsbeitragNebenmitglied = saison.MitgliedsbeitragNebenmitglied,
+                Aufnahmegebuehr = saison.Aufnahmegebuehr,
+                GebuehrBauantrag = saison.GebuehrBauantrag,
                 Bemerkung = string.IsNullOrWhiteSpace(saison.Bemerkung) ? null : saison.Bemerkung.Trim()
             };
         }

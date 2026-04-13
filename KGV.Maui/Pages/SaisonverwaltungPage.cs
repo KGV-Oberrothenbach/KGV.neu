@@ -23,6 +23,9 @@ public sealed class SaisonverwaltungPage : ContentPage
     private readonly Entry _jahrEntry;
     private readonly Entry _pachtProQmEntry;
     private readonly Entry _mitgliedsbeitragEntry;
+    private readonly Entry _mitgliedsbeitragNebenmitgliedEntry;
+    private readonly Entry _aufnahmegebuehrEntry;
+    private readonly Entry _gebuehrBauantragEntry;
     private readonly Entry _pflichtstundenSollEntry;
     private readonly Entry _euroProFehlstundeEntry;
     private readonly Editor _bemerkungEditor;
@@ -79,6 +82,9 @@ public sealed class SaisonverwaltungPage : ContentPage
         _jahrEntry = CreateEntry(readOnly: true);
         _pachtProQmEntry = CreateEntry(keyboard: Keyboard.Numeric);
         _mitgliedsbeitragEntry = CreateEntry(keyboard: Keyboard.Numeric);
+        _mitgliedsbeitragNebenmitgliedEntry = CreateEntry(keyboard: Keyboard.Numeric);
+        _aufnahmegebuehrEntry = CreateEntry(keyboard: Keyboard.Numeric);
+        _gebuehrBauantragEntry = CreateEntry(keyboard: Keyboard.Numeric);
         _pflichtstundenSollEntry = CreateEntry(keyboard: Keyboard.Numeric);
         _euroProFehlstundeEntry = CreateEntry(keyboard: Keyboard.Numeric);
         _bemerkungEditor = new Editor
@@ -128,6 +134,9 @@ public sealed class SaisonverwaltungPage : ContentPage
                         CreateField("Jahr / ID", _jahrEntry),
                         CreateField("Pacht pro qm", _pachtProQmEntry),
                         CreateField("Mitgliedsbeitrag", _mitgliedsbeitragEntry),
+                        CreateField("Nebenmitgliedsbeitrag", _mitgliedsbeitragNebenmitgliedEntry),
+                        CreateField("Aufnahmegebühr", _aufnahmegebuehrEntry),
+                        CreateField("Gebühr Bauantrag", _gebuehrBauantragEntry),
                         CreateField("Pflichtstunden Soll", _pflichtstundenSollEntry),
                         CreateField("Euro pro Fehlstunde", _euroProFehlstundeEntry),
                         CreateField("Bemerkung", _bemerkungEditor),
@@ -266,6 +275,9 @@ public sealed class SaisonverwaltungPage : ContentPage
         _jahrEntry.Text = SaisonverwaltungHelper.GetSaisonJahr(saison).ToString(CultureInfo.InvariantCulture);
         _pachtProQmEntry.Text = FormatDecimal(saison.PachtProQm);
         _mitgliedsbeitragEntry.Text = FormatDecimal(saison.Mitgliedsbeitrag);
+        _mitgliedsbeitragNebenmitgliedEntry.Text = FormatDecimal(saison.MitgliedsbeitragNebenmitglied);
+        _aufnahmegebuehrEntry.Text = FormatDecimal(saison.Aufnahmegebuehr);
+        _gebuehrBauantragEntry.Text = FormatDecimal(saison.GebuehrBauantrag);
         _pflichtstundenSollEntry.Text = saison.PflichtstundenSoll.ToString("0.##", CultureInfo.CurrentCulture);
         _euroProFehlstundeEntry.Text = saison.EuroProFehlstunde.ToString("0.##", CultureInfo.CurrentCulture);
         _bemerkungEditor.Text = saison.Bemerkung ?? string.Empty;
@@ -276,6 +288,9 @@ public sealed class SaisonverwaltungPage : ContentPage
         var editable = IsEditable;
         _pachtProQmEntry.IsEnabled = editable;
         _mitgliedsbeitragEntry.IsEnabled = editable;
+        _mitgliedsbeitragNebenmitgliedEntry.IsEnabled = editable;
+        _aufnahmegebuehrEntry.IsEnabled = editable;
+        _gebuehrBauantragEntry.IsEnabled = editable;
         _pflichtstundenSollEntry.IsEnabled = editable;
         _euroProFehlstundeEntry.IsEnabled = editable;
         _bemerkungEditor.IsEnabled = editable;
@@ -324,6 +339,24 @@ public sealed class SaisonverwaltungPage : ContentPage
             return false;
         }
 
+        if (!TryParseOptionalDecimal(_mitgliedsbeitragNebenmitgliedEntry.Text, out var mitgliedsbeitragNebenmitglied))
+        {
+            validationMessage = "Bitte einen gültigen Wert für Nebenmitgliedsbeitrag eingeben.";
+            return false;
+        }
+
+        if (!TryParseOptionalDecimal(_aufnahmegebuehrEntry.Text, out var aufnahmegebuehr))
+        {
+            validationMessage = "Bitte einen gültigen Wert für Aufnahmegebühr eingeben.";
+            return false;
+        }
+
+        if (!TryParseOptionalDecimal(_gebuehrBauantragEntry.Text, out var gebuehrBauantrag))
+        {
+            validationMessage = "Bitte einen gültigen Wert für Gebühr Bauantrag eingeben.";
+            return false;
+        }
+
         saison = new SaisonRecord
         {
             Id = jahr,
@@ -332,6 +365,9 @@ public sealed class SaisonverwaltungPage : ContentPage
             EuroProFehlstunde = euroProFehlstunde,
             PachtProQm = pachtProQm,
             Mitgliedsbeitrag = mitgliedsbeitrag,
+            MitgliedsbeitragNebenmitglied = mitgliedsbeitragNebenmitglied,
+            Aufnahmegebuehr = aufnahmegebuehr,
+            GebuehrBauantrag = gebuehrBauantrag,
             Bemerkung = string.IsNullOrWhiteSpace(_bemerkungEditor.Text) ? null : _bemerkungEditor.Text.Trim()
         };
 
@@ -412,7 +448,7 @@ public sealed class SaisonverwaltungPage : ContentPage
             if (value is not SaisonRecord saison)
                 return string.Empty;
 
-            return $"Pacht/qm: {FormatDecimal(saison.PachtProQm)} · Beitrag: {FormatDecimal(saison.Mitgliedsbeitrag)} · Pflichtstunden: {saison.PflichtstundenSoll:0.##}";
+            return $"Pacht/qm: {FormatDecimal(saison.PachtProQm)} · Beitrag: {FormatDecimal(saison.Mitgliedsbeitrag)} · Nebenmitglied: {FormatDecimal(saison.MitgliedsbeitragNebenmitglied)}";
         }
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

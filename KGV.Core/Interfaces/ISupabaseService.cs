@@ -77,6 +77,7 @@ namespace KGV.Core.Interfaces
         Task<MitgliedGesetzlicherVertreterRecord?> SaveGesetzlichenVertreterAsync(GesetzlicherVertreterSaveRequest request);
         Task<GesetzlicherVertreterAufloesung> ResolveGesetzlicherVertreterAsync(int mitgliedId, DateTime? stichtag = null);
         Task<VereinskonfigurationRecord?> GetAktiveVereinskonfigurationAsync();
+        Task<VereinskonfigurationRecord?> SaveAktiveVereinskonfigurationAsync(VereinskonfigurationRecord vereinskonfiguration);
 
         // =========================
         // Arbeitsstunden

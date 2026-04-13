@@ -126,6 +126,11 @@ namespace KGV.Infrastructure.Services
                 return new SaisonverwaltungViewModel(_supabaseService, mainVm);
             }
 
+            if (viewModelType == typeof(VereinskonfigurationViewModel))
+            {
+                return new VereinskonfigurationViewModel(_supabaseService, mainVm);
+            }
+
             if (viewModelType == typeof(RfidEinrichtenViewModel))
             {
                 return new RfidEinrichtenViewModel(_supabaseService, mainVm);

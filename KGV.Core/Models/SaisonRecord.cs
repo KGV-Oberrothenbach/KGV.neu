@@ -27,5 +27,14 @@ namespace KGV.Core.Models
 
         [Column("mitgliedsbeitrag")]
         public decimal? Mitgliedsbeitrag { get; set; }
+
+        [Column("mitgliedsbeitrag_nebenmitglied")]
+        public decimal? MitgliedsbeitragNebenmitglied { get; set; }
+
+        [Column("aufnahmegebuehr")]
+        public decimal? Aufnahmegebuehr { get; set; }
+
+        [Column("gebuehr_bauantrag")]
+        public decimal? GebuehrBauantrag { get; set; }
     }
 }

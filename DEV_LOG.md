@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-04-13 – Verwaltungsblock für Vereinskonfiguration und Saisonverwaltung sauber abgeschlossen
+
+- Den bereits umgesetzten Verwaltungsblock auf dem echten `main`-Stand als reinen Abschlusslauf geprüft und nur die direkt betroffenen Verwaltungsdateien weiterverwendet.
+- WPF-Validierung für `KGV.Wpf/KGV.Wpf.csproj` erfolgreich durchgeführt; es traten keine neuen Blockfehler auf.
+- Im MAUI-Abschlusslauf trat genau ein echter Restfehler des Verwaltungsblocks in `KGV.Maui/Pages/VereinskonfigurationPage.cs` auf: der fehlende Namespace für `Keyboard` im neuen Formularpfad.
+- Dieser MAUI-Restfehler wurde minimal mit `using Microsoft.Maui;` geschlossen, ohne weiteren Fachumfang oder Layoutpfade umzubauen.
+- Danach wurde auch `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich abgeschlossen.
+- Ergebnis: `Vereinskonfiguration` und `Saisonverwaltung` sind im gemeinsamen Unterbau sowie in WPF und MAUI technisch build-validiert abgeschlossen.
+
 ## 2026-04-13 – Workspace vor Verwaltungsblock stabilisiert
 
 - Repo-Check auf `main` ausgeführt und den aktuellen Working-Tree vor dem nächsten Verwaltungsblock eingeordnet.

@@ -35,6 +35,14 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-13
+- Den bereits umgesetzten Verwaltungsblock `Vereinskonfiguration` / `Saisonverwaltung` auf dem echten Stand von `main` in einem reinen Abschlusslauf technisch sauber geschlossen, ohne neuen Fachumfang zu starten.
+- Der Working Tree wurde vorab eingeordnet; blockfremde lokale Änderungen aus dem laufenden Mitgliedsantrag-/Template-/Vertreter-Umfeld blieben bewusst unberührt.
+- Die geforderte Validierung wurde auf den echten Verwaltungsdateien durchgeführt: `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief direkt erfolgreich.
+- Im anschließenden MAUI-Build blieb nur ein echter technischer Restfehler des neuen Verwaltungsblocks offen: In `VereinskonfigurationPage` fehlte noch der Namespace für `Keyboard`.
+- Dieser Rest wurde minimal durch `using Microsoft.Maui;` geschlossen; danach baute auch `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+- Wirkung: Der Verwaltungsblock ist jetzt für WPF und MAUI technisch validiert, ohne Dokumentpfade, Mitgliedsantrag-/Template-Logik, Pachtvertragspfade oder Rechtearchitektur weiter anzufassen.
+- Offener Rest dieses Abschlusslaufs blieb nur noch der Git-Abschluss auf die direkt relevanten Verwaltungsdateien.
+
 - Den Workspace auf dem echten Stand von `main` vor dem nächsten Verwaltungsblock bewusst nur technisch stabilisiert, ohne bereits neue Verwaltungs-/Bearbeiten-Logik für Saison oder Vereinskonfiguration zu beginnen.
 - Der aktuelle Working-Tree wurde eingeordnet: der laufende Mitgliedsantrag-/Template-/Vertreter-Block war bereits zusammenhängend vorhanden, inklusive neuem HTML-Template als eingebetteter Ressource, Template-Datenmodell und Renderer.
 - Zur Plausibilisierung wurde der Dateitext von `MitgliedsantragTemplateData` gegen den Symbol-/Compilerzustand geprüft; dabei gab es keinen Widerspruch mehr zwischen Workspace-Datei und Buildsicht.

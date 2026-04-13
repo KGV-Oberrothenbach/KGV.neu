@@ -262,6 +262,94 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
+        public Task<VereinskonfigurationRecord?> SaveAktiveVereinskonfigurationAsync(VereinskonfigurationRecord vereinskonfiguration) => ExecuteAsync<VereinskonfigurationRecord?>(
+            "SaveAktiveVereinskonfigurationAsync",
+            async () =>
+            {
+                if (vereinskonfiguration == null)
+                    throw new ArgumentNullException(nameof(vereinskonfiguration));
+
+                var client = await EnsureClientAsync();
+                var normalized = new VereinskonfigurationRecord
+                {
+                    Id = vereinskonfiguration.Id,
+                    Vereinsname = CleanOptionalText(vereinskonfiguration.Vereinsname),
+                    Kurzname = CleanOptionalText(vereinskonfiguration.Kurzname),
+                    Registerangabe = CleanOptionalText(vereinskonfiguration.Registerangabe),
+                    Strasse = CleanOptionalText(vereinskonfiguration.Strasse),
+                    Plz = CleanOptionalText(vereinskonfiguration.Plz),
+                    Ort = CleanOptionalText(vereinskonfiguration.Ort),
+                    StandardEmail = CleanOptionalText(vereinskonfiguration.StandardEmail),
+                    StandardTelefon = CleanOptionalText(vereinskonfiguration.StandardTelefon),
+                    Website = CleanOptionalText(vereinskonfiguration.Website),
+                    Aktiv = true,
+                    Kontoinhaber = CleanOptionalText(vereinskonfiguration.Kontoinhaber),
+                    Bankname = CleanOptionalText(vereinskonfiguration.Bankname),
+                    Iban = CleanOptionalText(vereinskonfiguration.Iban),
+                    Bic = CleanOptionalText(vereinskonfiguration.Bic),
+                    VerwendungszweckMitgliedsantrag = CleanOptionalText(vereinskonfiguration.VerwendungszweckMitgliedsantrag),
+                    VerwendungszweckPachtvertrag = CleanOptionalText(vereinskonfiguration.VerwendungszweckPachtvertrag),
+                    DokumentOrt = CleanOptionalText(vereinskonfiguration.DokumentOrt),
+                    StandardHinweistext = CleanOptionalText(vereinskonfiguration.StandardHinweistext),
+                    DatenschutzText = CleanOptionalText(vereinskonfiguration.DatenschutzText),
+                    DatenschutzVersion = CleanOptionalText(vereinskonfiguration.DatenschutzVersion),
+                    DatenschutzStand = NormalizeDate(vereinskonfiguration.DatenschutzStand)
+                };
+
+                var response = await client
+                    .From<VereinskonfigurationRecord>()
+                    .Where(x => x.Aktiv == true)
+                    .Get();
+
+                var existing = response?.Models?
+                    .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt ?? DateTime.MinValue)
+                    .ThenByDescending(x => x.Id)
+                    .FirstOrDefault();
+
+                if (existing == null)
+                {
+                    var insertResponse = await client
+                        .From<VereinskonfigurationRecord>()
+                        .Insert(normalized);
+
+                    return insertResponse?.Models?.FirstOrDefault() ?? normalized;
+                }
+
+                await client
+                    .From<VereinskonfigurationRecord>()
+                    .Where(x => x.Id == existing.Id)
+                    .Set(x => x.Vereinsname, normalized.Vereinsname)
+                    .Set(x => x.Kurzname, normalized.Kurzname)
+                    .Set(x => x.Registerangabe, normalized.Registerangabe)
+                    .Set(x => x.Strasse, normalized.Strasse)
+                    .Set(x => x.Plz, normalized.Plz)
+                    .Set(x => x.Ort, normalized.Ort)
+                    .Set(x => x.StandardEmail, normalized.StandardEmail)
+                    .Set(x => x.StandardTelefon, normalized.StandardTelefon)
+                    .Set(x => x.Website, normalized.Website)
+                    .Set(x => x.Aktiv, true)
+                    .Set(x => x.Kontoinhaber, normalized.Kontoinhaber)
+                    .Set(x => x.Bankname, normalized.Bankname)
+                    .Set(x => x.Iban, normalized.Iban)
+                    .Set(x => x.Bic, normalized.Bic)
+                    .Set(x => x.VerwendungszweckMitgliedsantrag, normalized.VerwendungszweckMitgliedsantrag)
+                    .Set(x => x.VerwendungszweckPachtvertrag, normalized.VerwendungszweckPachtvertrag)
+                    .Set(x => x.DokumentOrt, normalized.DokumentOrt)
+                    .Set(x => x.StandardHinweistext, normalized.StandardHinweistext)
+                    .Set(x => x.DatenschutzText, normalized.DatenschutzText)
+                    .Set(x => x.DatenschutzVersion, normalized.DatenschutzVersion)
+                    .Set(x => x.DatenschutzStand, normalized.DatenschutzStand)
+                    .Update();
+
+                var reloadResponse = await client
+                    .From<VereinskonfigurationRecord>()
+                    .Where(x => x.Id == existing.Id)
+                    .Get();
+
+                return reloadResponse?.Models?.FirstOrDefault() ?? normalized;
+            },
+            null);
+
         public Task<MitgliedRecord?> CreateMitgliedAsync(MemberDTO dto) => ExecuteAsync<MitgliedRecord?>(
             "CreateMitgliedAsync",
             async () =>
@@ -1635,6 +1723,9 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.Bemerkung, normalized.Bemerkung)
                     .Set(x => x.PachtProQm, normalized.PachtProQm)
                     .Set(x => x.Mitgliedsbeitrag, normalized.Mitgliedsbeitrag)
+                    .Set(x => x.MitgliedsbeitragNebenmitglied, normalized.MitgliedsbeitragNebenmitglied)
+                    .Set(x => x.Aufnahmegebuehr, normalized.Aufnahmegebuehr)
+                    .Set(x => x.GebuehrBauantrag, normalized.GebuehrBauantrag)
                     .Update();
 
                 var reloadResponse = await client

@@ -351,6 +351,14 @@ namespace KGV.ViewModels
                     IsVisible = true,
                     ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
                 });
+
+                NavigationItems.Add(new NavigationItem
+                {
+                    Title = "↳ Vereinskonfiguration",
+                    ViewModelType = typeof(VereinskonfigurationViewModel),
+                    IsVisible = true,
+                    ButtonMargin = new System.Windows.Thickness(25, 5, 5, 5)
+                });
             }
         }
 

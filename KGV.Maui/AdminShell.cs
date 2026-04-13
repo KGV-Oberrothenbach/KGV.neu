@@ -179,7 +179,10 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             Items.Add(CreateItem("Mitgliedersuche", "membersearch", () => _services.GetRequiredService<MemberSearchPage>()));
 
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin)
-            Items.Add(CreateManagementItem("Verwaltung", "Saisonverwaltung", "season_management", () => _services.GetRequiredService<SaisonverwaltungPage>()));
+            Items.Add(CreateManagementItem(
+                "Verwaltung",
+                ("Saisonverwaltung", "season_management", () => _services.GetRequiredService<SaisonverwaltungPage>()),
+                ("Vereinskonfiguration", "club_configuration", () => _services.GetRequiredService<VereinskonfigurationPage>())));
 
         _memberDetailsItem = CreateItem("↳ Stammdaten", "memberdetails", () => _services.GetRequiredService<MemberDetailPage>());
         _memberDocumentsItem = CreateItem("↳ Dokumente", "member_documents", () => _services.GetRequiredService<DokumentePage>());
@@ -317,21 +320,24 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         };
     }
 
-    private static FlyoutItem CreateManagementItem(string flyoutTitle, string contentTitle, string route, Func<Page> pageFactory)
+    private static FlyoutItem CreateManagementItem(string flyoutTitle, params (string ContentTitle, string Route, Func<Page> PageFactory)[] entries)
     {
-        return new FlyoutItem
+        var item = new FlyoutItem
         {
-            Title = flyoutTitle,
-            Items =
-            {
-                new ShellContent
-                {
-                    Title = contentTitle,
-                    Route = route,
-                    ContentTemplate = new DataTemplate(pageFactory)
-                }
-            }
+            Title = flyoutTitle
         };
+
+        foreach (var entry in entries)
+        {
+            item.Items.Add(new ShellContent
+            {
+                Title = entry.ContentTitle,
+                Route = entry.Route,
+                ContentTemplate = new DataTemplate(entry.PageFactory)
+            });
+        }
+
+        return item;
     }
 
     public Task RefreshPendingPhotoUploadsMenu()
