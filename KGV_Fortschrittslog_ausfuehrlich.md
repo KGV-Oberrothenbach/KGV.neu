@@ -34,7 +34,24 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 
 ## Chronologischer Kurzverlauf
 
+## 2026-04-13
+- Den Workspace auf dem echten Stand von `main` vor dem nächsten Verwaltungsblock bewusst nur technisch stabilisiert, ohne bereits neue Verwaltungs-/Bearbeiten-Logik für Saison oder Vereinskonfiguration zu beginnen.
+- Der aktuelle Working-Tree wurde eingeordnet: der laufende Mitgliedsantrag-/Template-/Vertreter-Block war bereits zusammenhängend vorhanden, inklusive neuem HTML-Template als eingebetteter Ressource, Template-Datenmodell und Renderer.
+- Zur Plausibilisierung wurde der Dateitext von `MitgliedsantragTemplateData` gegen den Symbol-/Compilerzustand geprüft; dabei gab es keinen Widerspruch mehr zwischen Workspace-Datei und Buildsicht.
+- Weil WPF und MAUI mit diesem Zwischenstand bereits sauber buildeten, wurden an den begonnenen Mitgliedsantrag-/Template-/Snapshot-/Signaturdateien keine neuen fachlichen Umbauten mehr vorgenommen.
+- Als einziger echter Vorgriff auf den noch ausstehenden Admin-Bearbeiten-Block wurde die vorzeitig erweiterte Modellfläche in `VereinskonfigurationRecord` wieder auf den bestehenden produktiven Bank-/Aktiv-Unterbau zurückgenommen.
+- Wirkung: der Workspace ist vor dem Verwaltungsblock wieder konsistent, buildfähig und frei von halbfertig gestarteter Admin-Modelllogik; der bestehende Mitgliedsantrag-Unterbau bleibt unverändert als nächster fachlicher Ausgangspunkt erhalten.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 ## 2026-04-11
+- Den bestehenden Mitgliedsantrag auf dem echten Stand von `main` auf das bereits angelegte HTML-Template gezogen, ohne neuen Fachblock zu starten.
+- Dafür wurden die vorhandenen Dateien `KGV.Core/Templates/MitgliedsantragTemplate.html`, `KGV.Core/Models/MitgliedsantragTemplateData.cs` und `KGV.Core/Utilities/MitgliedsantragTemplateRenderer.cs` produktiv in den bestehenden Dokumentpfad eingebunden statt nur ungenutzt im Projekt zu liegen.
+- `KGV.Core` bindet die HTML-Vorlage jetzt als eingebettete Ressource ein, damit der gemeinsame Core-Pfad die Vorlage stabil laden kann.
+- Im gemeinsamen Mitgliedsantrag-Factorypfad werden jetzt die Template-Daten aus Mitglied, Vertreter-Snapshot, Bankdaten-Snapshot und Vereinsbranding aufgebaut, die HTML-Vorlage geladen, über den vorhandenen Renderer mit echten Werten befüllt und auf vollständige Platzhalterauflösung geprüft.
+- Der Mitgliedsantrag läuft damit nicht mehr nur über den bisherigen allgemeinen Vereinsdokument-Builder, sondern über einen templategetriebenen Produktivpfad; der bestehende Ablauf `Bearbeiten -> Vorschau -> Unterschrift -> finales Speichern` bleibt dabei unverändert erhalten.
+- Rechte, Routing, Dialoge und der Signatur-/Finalspeicherpfad wurden in diesem Block bewusst nicht neu gebaut und nicht erweitert.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Die bestehende HTML-Vorlage des Mitgliedsantrags auf dem echten Stand von `main` minimal geglättet, ohne neuen Fachblock zu starten.
 - Im Template `KGV.Core/Templates/Mitgliedsantrag.html` wurden die bisherigen kombinierten Kontaktfelder `Telefon / Handy` sowohl für Antragsteller/in als auch für gesetzliche Vertretung in getrennte Felder `Telefon` und `Mobil` aufgeteilt.
 - Zusätzlich wurde die obere Unterschriftszeile im Minderjährigen-Fall rein layoutseitig so nachgeschärft, dass die Unterschriftslinien von Mitglied und gesetzlicher Vertretung auf gleicher Höhe stehen; nach dem ersten Lauf wurde die Beschriftung dafür noch auf feste statt nur minimale Höhe gezogen, damit das zweizeilige Vertreter-Label die Linie nicht mehr nach oben verschiebt.

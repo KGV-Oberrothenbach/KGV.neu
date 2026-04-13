@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-04-13 – Workspace vor Verwaltungsblock stabilisiert
+
+- Repo-Check auf `main` ausgeführt und den aktuellen Working-Tree vor dem nächsten Verwaltungsblock eingeordnet.
+- Den begonnenen Mitgliedsantrag-/Template-Zwischenstand gegen den Compilerzustand geprüft; `MitgliedsantragTemplateData` war im Dateitext und im Symbol-/Buildzustand konsistent.
+- Die bereits angefangenen Mitgliedsantrag-/Vertreter-/Template-Dateien blieben unverändert, weil WPF und MAUI damit bereits wieder verlässlich builden und kein konkurrierender Dokumentpfad mehr offen war.
+- Vorzeitig begonnene Verwaltungs-Vorarbeit in `KGV.Core/Models/VereinskonfigurationRecord.cs` wurde zurückgenommen, damit der kommende Admin-Bearbeiten-Block nicht mit halbfertigen Modellfeldern startet.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
+## 2026-04-12 – Mitgliedsantrag-HTML-Template produktiv in den Dokumentpfad eingebunden
+
+- Repo-Check auf `main` ausgeführt und nur den bestehenden Mitgliedsantrag-Block minimal erweitert.
+- Die bereits vorhandenen Dateien `KGV.Core/Templates/MitgliedsantragTemplate.html`, `KGV.Core/Models/MitgliedsantragTemplateData.cs` und `KGV.Core/Utilities/MitgliedsantragTemplateRenderer.cs` wurden produktiv in den bestehenden Mitgliedsantrag-Flow eingebunden.
+- `KGV.Core` bindet die HTML-Vorlage jetzt als eingebettete Ressource ein, damit der gemeinsame Core-Pfad die Vorlage unabhängig von WPF/MAUI stabil laden kann.
+- `MitgliedsantragDokumentFactory` nutzt jetzt das neue Template-Modell produktiv:
+  - Template-Daten aus Mitglied, Vertreter-Snapshot, Bankdaten-Snapshot und Vereinsbranding aufbauen
+  - HTML-Vorlage laden
+  - Platzhalter über `MitgliedsantragTemplateRenderer` rendern
+  - aufgelöste HTML-Vorlage validieren
+  - daraus den Mitgliedsantrag im bestehenden PDF-/Preview-/Signatur-/Finalspeicherpfad erzeugen
+- Der bisherige allgemeine Vereinsdokument-Builder ist im Mitgliedsantrag damit nicht mehr der führende Layoutpfad; Vorschau, Unterschrift und finales Speichern bleiben aber unverändert im bestehenden Flow.
+- Keine Rechte-, Routing- oder Dialoglogik geändert.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-12 – Mitgliedsantrag-HTML bei Telefon/Mobil und Signaturausrichtung geglättet
 
 - Repo-Check auf `main` ausgeführt.
