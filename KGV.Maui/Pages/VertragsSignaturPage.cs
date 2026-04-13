@@ -15,18 +15,21 @@ public sealed class VertragsSignaturPage : ContentPage
     private readonly GraphicsView _graphicsView;
     private readonly Label _hintLabel;
 
-    public VertragsSignaturPage(DocumentInfo sourceDocument)
+    public VertragsSignaturPage(DocumentInfo sourceDocument, string? unterschriftTitel = null)
     {
         var dokumentName = sourceDocument.FormularDokumentTypAnzeige == "-"
             ? "Vertragsdokument"
             : sourceDocument.FormularDokumentTypAnzeige;
+        var captureTitle = string.IsNullOrWhiteSpace(unterschriftTitel)
+            ? "digitale Signatur"
+            : unterschriftTitel.Trim();
 
         Title = "Digital signieren";
         BackgroundColor = Colors.White;
 
         _hintLabel = new Label
         {
-            Text = $"Bitte unterschreiben Sie im Querformat. Die digitale Signatur wird als eigene signierte Fassung für {dokumentName} gespeichert.",
+            Text = $"Bitte unterschreiben Sie im Querformat. Erfasst wird die {captureTitle} für {dokumentName}.",
             TextColor = Colors.Gray
         };
 
@@ -67,7 +70,7 @@ public sealed class VertragsSignaturPage : ContentPage
         };
         layout.Children.Add(new Label
         {
-            Text = "Digitale Signatur",
+            Text = string.IsNullOrWhiteSpace(unterschriftTitel) ? "Digitale Signatur" : unterschriftTitel.Trim(),
             FontSize = 24,
             FontAttributes = FontAttributes.Bold
         });

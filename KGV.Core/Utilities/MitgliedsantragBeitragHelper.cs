@@ -10,7 +10,8 @@ namespace KGV.Core.Utilities
         DateTime BeginnDatum,
         decimal Jahresbeitrag,
         decimal VorgeschlagenerBeitrag,
-        bool IstHalberBeitrag);
+        bool IstHalberBeitrag,
+        bool IstNebenmitglied);
 
     public static class MitgliedsantragBeitragHelper
     {
@@ -26,13 +27,19 @@ namespace KGV.Core.Utilities
 
             if (saison == null)
                 throw new InvalidOperationException($"Für die Saison {saisonJahr} fehlt der Mitgliedsbeitrag.");
-            if (!saison.Mitgliedsbeitrag.HasValue)
-                throw new InvalidOperationException($"Für die Saison {saisonJahr} fehlt mitgliedsbeitrag.");
-            if (saison.Mitgliedsbeitrag.Value < 0m)
-                throw new InvalidOperationException($"Für die Saison {saisonJahr} ist mitgliedsbeitrag ungültig.");
+
+            var istNebenmitglied = member.HauptmitgliedId.HasValue && member.HauptmitgliedId.Value > 0;
+            var jahresbeitragRaw = istNebenmitglied
+                ? saison.MitgliedsbeitragNebenmitglied
+                : saison.Mitgliedsbeitrag;
+            var beitragColumnName = istNebenmitglied ? "mitgliedsbeitrag_nebenmitglied" : "mitgliedsbeitrag";
+            if (!jahresbeitragRaw.HasValue)
+                throw new InvalidOperationException($"Für die Saison {saisonJahr} fehlt {beitragColumnName}.");
+            if (jahresbeitragRaw.Value < 0m)
+                throw new InvalidOperationException($"Für die Saison {saisonJahr} ist {beitragColumnName} ungültig.");
 
             var beginnDatum = (member.MitgliedSeit ?? aktuellesDatum).Date;
-            var jahresbeitrag = NormalizeBeitrag(saison.Mitgliedsbeitrag.Value);
+            var jahresbeitrag = NormalizeBeitrag(jahresbeitragRaw.Value);
             var stichtag = new DateTime(saisonJahr, 7, 1);
             var istHalberBeitrag = beginnDatum.Year == saisonJahr && beginnDatum >= stichtag;
             var vorgeschlagenerBeitrag = istHalberBeitrag
@@ -44,7 +51,8 @@ namespace KGV.Core.Utilities
                 beginnDatum,
                 jahresbeitrag,
                 vorgeschlagenerBeitrag,
-                istHalberBeitrag);
+                istHalberBeitrag,
+                istNebenmitglied);
         }
 
         public static decimal NormalizeBeitrag(decimal value)

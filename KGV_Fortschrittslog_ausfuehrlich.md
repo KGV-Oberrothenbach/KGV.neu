@@ -35,6 +35,14 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-13
+- Den bereits begonnenen Mitgliedsantrag-HTML-Template-Block auf dem echten lokalen Stand von `main` als Abschlusslauf sauber geschlossen, ohne Pachtvertrag, Navigation, Rechtearchitektur oder neue Verwaltungslogik anzufassen.
+- Der Working Tree wurde vorab eingeordnet; behandelt wurden nur die direkt betroffenen Mitgliedsantrag-/Template-/PDF-/Service-Dateien samt den zugehörigen Snapshot-/Request-Modellen und Logdateien.
+- Die lokal bereits vorhandenen Dateien `MitgliedsantragTemplate.html`, `MitgliedsantragTemplateData`, `MitgliedsantragTemplateRenderer`, `MitgliedsantragDokumentFactory`, `MitgliedsantragHtmlPdfRenderer`, `MitgliedsantragDokumentRequest`, `MitgliedsantragBankverbindungSnapshot` und `SupabaseService` wurden bewusst weiterverwendet statt neu erfunden.
+- Als echter Restfehler im begonnenen HTML->PDF-Pfad blieb nur noch der Renderer übrig: ein unerreichbarer `XCData`-Fall verursachte Compilerprobleme, und die Abschnittsprüfung der gerenderten HTML-Struktur war vor den festen Section-Indizes noch nicht strikt genug.
+- Dieser Rest wurde minimal behoben; der produktive Pfad bleibt: Template laden, Template-Daten rendern, HTML prüfen, daraus PDF für Vorschau erzeugen und denselben Snapshot-/PDF-Pfad für die signierte Endfassung weiterverwenden.
+- Wirkung: Der Mitgliedsantrag läuft jetzt technisch sauber über den begonnenen HTML-Template-Pfad mit Daten aus Mitglied, Vertreter-Snapshot, aktiver `vereinskonfiguration` und Saisonwerten inkl. `aufnahmegebuehr`; technische Altinhalte werden dabei nicht neu in den Antrag eingeführt.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den bereits umgesetzten Verwaltungsblock `Vereinskonfiguration` / `Saisonverwaltung` auf dem echten Stand von `main` in einem reinen Abschlusslauf technisch sauber geschlossen, ohne neuen Fachumfang zu starten.
 - Der Working Tree wurde vorab eingeordnet; blockfremde lokale Änderungen aus dem laufenden Mitgliedsantrag-/Template-/Vertreter-Umfeld blieben bewusst unberührt.
 - Die geforderte Validierung wurde auf den echten Verwaltungsdateien durchgeführt: `dotnet build KGV.Wpf/KGV.Wpf.csproj` lief direkt erfolgreich.

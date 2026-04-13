@@ -11,6 +11,16 @@ namespace KGV.Core.Utilities
     public static class SignedVertragsdokumentPdfBuilder
     {
         public static byte[] Build(MitgliedRecord member, DocumentInfo sourceDocument, byte[] originalPdfContent, DigitalSignatureCapture signatureCapture)
+            => Build(member, sourceDocument, originalPdfContent, signatureCapture, null, null, null);
+
+        public static byte[] Build(
+            MitgliedRecord member,
+            DocumentInfo sourceDocument,
+            byte[] originalPdfContent,
+            DigitalSignatureCapture signatureCapture,
+            DigitalSignatureCapture? secondarySignatureCapture,
+            string? primarySignatureLabel,
+            string? secondarySignatureLabel)
         {
             if (member == null)
                 throw new ArgumentNullException(nameof(member));
@@ -20,6 +30,8 @@ namespace KGV.Core.Utilities
                 throw new InvalidOperationException("Die unsignierte Dokumentfassung konnte nicht geladen werden.");
             if (signatureCapture == null || !signatureCapture.HasContent)
                 throw new InvalidOperationException("Es liegt keine digitale Signatur zum Übernehmen vor.");
+            if (secondarySignatureCapture != null && !secondarySignatureCapture.HasContent)
+                throw new InvalidOperationException("Die zusätzliche digitale Signatur konnte nicht übernommen werden.");
 
             PdfSharpFontResolverInitializer.EnsureInitialized();
 
@@ -71,16 +83,29 @@ namespace KGV.Core.Utilities
             DrawMetaLine(graphics, labelFont, bodyFont, pageMargin, ref cursorY, signaturePage.Width, "Signiert am", signatureCapture.SignedAt.ToString("dd.MM.yyyy HH:mm"));
             cursorY += 12;
 
-            var signatureRect = new XRect(pageMargin, cursorY, signaturePage.Width - pageMargin * 2, 240);
-            graphics.DrawRectangle(XBrushes.WhiteSmoke, signatureRect);
-            graphics.DrawRectangle(borderPen, signatureRect);
-            graphics.DrawString("Erfasste Unterschrift", labelFont, XBrushes.Black,
-                new XRect(signatureRect.X + 12, signatureRect.Y + 10, signatureRect.Width - 24, 16), XStringFormats.TopLeft);
+            var signatures = new[]
+            {
+                (Label: string.IsNullOrWhiteSpace(primarySignatureLabel) ? "Unterschrift Antragsteller/in" : primarySignatureLabel.Trim(), Capture: signatureCapture),
+                (Label: string.IsNullOrWhiteSpace(secondarySignatureLabel) ? "" : secondarySignatureLabel.Trim(), Capture: secondarySignatureCapture)
+            }
+            .Where(x => x.Capture != null)
+            .ToList();
 
-            var drawingRect = new XRect(signatureRect.X + 12, signatureRect.Y + 34, signatureRect.Width - 24, signatureRect.Height - 46);
-            graphics.DrawRectangle(XBrushes.White, drawingRect);
-            graphics.DrawRectangle(borderPen, drawingRect);
-            DrawSignature(graphics, drawingRect, signatureCapture, signaturePen);
+            var signatureHeight = signatures.Count > 1 ? 170d : 240d;
+            foreach (var signature in signatures)
+            {
+                var signatureRect = new XRect(pageMargin, cursorY, signaturePage.Width - pageMargin * 2, signatureHeight);
+                graphics.DrawRectangle(XBrushes.WhiteSmoke, signatureRect);
+                graphics.DrawRectangle(borderPen, signatureRect);
+                graphics.DrawString(signature.Label, labelFont, XBrushes.Black,
+                    new XRect(signatureRect.X + 12, signatureRect.Y + 10, signatureRect.Width - 24, 16), XStringFormats.TopLeft);
+
+                var drawingRect = new XRect(signatureRect.X + 12, signatureRect.Y + 34, signatureRect.Width - 24, signatureRect.Height - 46);
+                graphics.DrawRectangle(XBrushes.White, drawingRect);
+                graphics.DrawRectangle(borderPen, drawingRect);
+                DrawSignature(graphics, drawingRect, signature.Capture!, signaturePen);
+                cursorY += signatureHeight + 18;
+            }
 
             using var outputStream = new MemoryStream();
             outputDocument.Save(outputStream, false);

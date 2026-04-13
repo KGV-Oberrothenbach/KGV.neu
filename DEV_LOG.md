@@ -2,6 +2,17 @@
 
 ---
 
+## 2026-04-13 – Mitgliedsantrag-HTML-Template sauber abgeschlossen
+
+- Den echten lokalen Working Tree auf `main` geprüft und nur den bereits begonnenen Mitgliedsantrag-HTML-Template-Block eingeordnet.
+- Die lokal bereits vorhandenen Dateien `MitgliedsantragTemplate.html`, `MitgliedsantragTemplateData`, `MitgliedsantragTemplateRenderer`, `MitgliedsantragDokumentFactory`, `MitgliedsantragHtmlPdfRenderer`, `SupabaseService` sowie die zugehörigen Snapshot-/Request-Modelle wurden weiterverwendet; es wurde kein paralleler Schattenpfad aufgebaut.
+- Im begonnenen HTML->PDF-Renderer blieb noch ein echter technischer Rest offen: ein unerreichbarer `XCData`-Zweig sowie eine zu schwache Abschnittsvalidierung vor dem Indexzugriff auf die Template-Sections.
+- Dieser Rest wurde minimal geschlossen, ohne den begonnenen Rendererpfad oder den bestehenden Vorschau-/Signatur-/Finalspeicherablauf neu zu entwerfen.
+- Der Mitgliedsantrag läuft weiter über denselben Template-/Snapshot-Pfad für Vorschau und finales Dokument, inkl. Mitglied, Vertreter-Snapshot, `vereinskonfiguration`, Saisonwerten und `aufnahmegebuehr`.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-13 – Verwaltungsblock für Vereinskonfiguration und Saisonverwaltung sauber abgeschlossen
 
 - Den bereits umgesetzten Verwaltungsblock auf dem echten `main`-Stand als reinen Abschlusslauf geprüft und nur die direkt betroffenen Verwaltungsdateien weiterverwendet.

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,11 +14,45 @@ namespace KGV.Maui.Pages;
 public sealed class MitgliedsantragDialogPage : ContentPage
 {
     private static readonly CultureInfo DeCulture = CultureInfo.GetCultureInfo("de-DE");
-    private readonly TaskCompletionSource<decimal?> _resultSource = new();
+    private readonly TaskCompletionSource<MitgliedsantragDokumentRequest?> _resultSource = new();
+    private readonly MitgliedRecord _member;
+    private readonly MitgliedsantragBeitragVorschlag _vorschlag;
+    private readonly bool _istMinderjaehrig;
     private readonly Entry _mitgliedsbeitragEntry;
+    private readonly Picker _vertreterModusPicker;
+    private readonly Picker _bestehendesMitgliedPicker;
+    private readonly VerticalStackLayout _vertreterRootSection;
+    private readonly VerticalStackLayout _bestehendesMitgliedSection;
+    private readonly VerticalStackLayout _manuelleVertreterSection;
+    private readonly Entry _vertreterVornameEntry;
+    private readonly Entry _vertreterNachnameEntry;
+    private readonly CheckBox _vertreterAdresseAbweichendCheckBox;
+    private readonly VerticalStackLayout _abweichendeAdresseSection;
+    private readonly Entry _vertreterAdresseEntry;
+    private readonly Entry _vertreterPlzEntry;
+    private readonly Entry _vertreterOrtEntry;
+    private readonly List<MitgliedOption> _mitgliedOptionen;
 
-    public MitgliedsantragDialogPage(MitgliedRecord member, MitgliedsantragBeitragVorschlag vorschlag, decimal? initialMitgliedsbeitrag = null)
+    public MitgliedsantragDialogPage(
+        MitgliedRecord member,
+        MitgliedsantragBeitragVorschlag vorschlag,
+        GesetzlicherVertreterAufloesung? gesetzlicherVertreterAufloesung,
+        IReadOnlyCollection<MitgliedRecord>? vertreterMitglieder,
+        MitgliedsantragDokumentRequest? initialRequest = null)
     {
+        _member = member ?? throw new ArgumentNullException(nameof(member));
+        _vorschlag = vorschlag ?? throw new ArgumentNullException(nameof(vorschlag));
+        _istMinderjaehrig = gesetzlicherVertreterAufloesung?.IstMinderjaehrig ?? GesetzlicherVertreterResolver.IsMinderjaehrig(member, vorschlag.BeginnDatum);
+        _mitgliedOptionen = (vertreterMitglieder ?? Array.Empty<MitgliedRecord>())
+            .Where(x => x != null && x.Id > 0 && x.Id != member.Id)
+            .Select(x => new MitgliedOption(x))
+            .OrderBy(x => x.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        var activeVertreter = gesetzlicherVertreterAufloesung?.VertreterMitglied;
+        if (activeVertreter != null && activeVertreter.Id > 0 && _mitgliedOptionen.All(x => x.MitgliedId != activeVertreter.Id))
+            _mitgliedOptionen.Insert(0, new MitgliedOption(activeVertreter));
+
         var displayName = string.Join(' ', new[] { member.Vorname, member.Name }
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x!.Trim()));
@@ -29,9 +64,104 @@ public sealed class MitgliedsantragDialogPage : ContentPage
 
         _mitgliedsbeitragEntry = new Entry
         {
-            Text = MitgliedsantragBeitragHelper.NormalizeBeitrag(initialMitgliedsbeitrag ?? vorschlag.VorgeschlagenerBeitrag).ToString("0.00", DeCulture),
+            Text = MitgliedsantragBeitragHelper.NormalizeBeitrag(initialRequest?.Mitgliedsbeitrag ?? vorschlag.VorgeschlagenerBeitrag).ToString("0.00", DeCulture),
             Keyboard = Microsoft.Maui.Keyboard.Numeric,
             Placeholder = "Mitgliedsbeitrag"
+        };
+
+        _vertreterModusPicker = new Picker { Title = "Vertreterdaten" };
+        _vertreterModusPicker.ItemsSource = new List<string>
+        {
+            "Vorhandenes Mitglied auswählen",
+            "Vertreter manuell erfassen"
+        };
+        _vertreterModusPicker.SelectedIndexChanged += (_, _) => UpdateVertreterMode();
+
+        _bestehendesMitgliedPicker = new Picker { Title = "Vorhandenes Mitglied" };
+        _bestehendesMitgliedPicker.ItemsSource = _mitgliedOptionen;
+        _bestehendesMitgliedPicker.ItemDisplayBinding = new Binding(nameof(MitgliedOption.DisplayName));
+
+        _bestehendesMitgliedSection = new VerticalStackLayout
+        {
+            Spacing = 8,
+            Children =
+            {
+                new Label
+                {
+                    Text = "Vorhandenes Mitglied als gesetzlichen Vertreter verwenden",
+                    TextColor = Colors.Gray,
+                    LineBreakMode = LineBreakMode.WordWrap
+                },
+                _bestehendesMitgliedPicker
+            }
+        };
+
+        _vertreterVornameEntry = new Entry { Placeholder = "Vorname Vertreter/in" };
+        _vertreterNachnameEntry = new Entry { Placeholder = "Nachname Vertreter/in" };
+        _vertreterAdresseAbweichendCheckBox = new CheckBox();
+        _vertreterAdresseAbweichendCheckBox.CheckedChanged += (_, _) => UpdateAdresseSection();
+        _vertreterAdresseEntry = new Entry { Placeholder = "Adresse" };
+        _vertreterPlzEntry = new Entry { Placeholder = "PLZ", Keyboard = Keyboard.Numeric };
+        _vertreterOrtEntry = new Entry { Placeholder = "Ort" };
+        _abweichendeAdresseSection = new VerticalStackLayout
+        {
+            Spacing = 8,
+            Children =
+            {
+                _vertreterAdresseEntry,
+                _vertreterPlzEntry,
+                _vertreterOrtEntry
+            }
+        };
+
+        _manuelleVertreterSection = new VerticalStackLayout
+        {
+            Spacing = 8,
+            Children =
+            {
+                new Label
+                {
+                    Text = "Wenn diese Person noch kein Mitglied ist, wird sie beim finalen Speichern als Nebenmitglied angelegt und anschließend als gesetzlicher Vertreter verknüpft.",
+                    TextColor = Colors.Gray,
+                    LineBreakMode = LineBreakMode.WordWrap
+                },
+                _vertreterVornameEntry,
+                _vertreterNachnameEntry,
+                new HorizontalStackLayout
+                {
+                    Spacing = 8,
+                    Children =
+                    {
+                        _vertreterAdresseAbweichendCheckBox,
+                        new Label { Text = "Adresse weicht von der Anschrift des Mitglieds ab", VerticalTextAlignment = TextAlignment.Center }
+                    }
+                },
+                _abweichendeAdresseSection
+            }
+        };
+
+        _vertreterRootSection = new VerticalStackLayout
+        {
+            Spacing = 10,
+            IsVisible = _istMinderjaehrig,
+            Children =
+            {
+                new Label
+                {
+                    Text = "Gesetzlicher Vertreter",
+                    FontAttributes = FontAttributes.Bold,
+                    FontSize = 18
+                },
+                new Label
+                {
+                    Text = "Das aufzunehmende Mitglied ist am Antragsbeginn minderjährig. Deshalb werden Vertreterdaten und eine zusätzliche Vertreter-Unterschrift benötigt.",
+                    TextColor = Colors.Gray,
+                    LineBreakMode = LineBreakMode.WordWrap
+                },
+                _vertreterModusPicker,
+                _bestehendesMitgliedSection,
+                _manuelleVertreterSection
+            }
         };
 
         var cancelButton = new Button { Text = "Abbrechen" };
@@ -69,6 +199,7 @@ public sealed class MitgliedsantragDialogPage : ContentPage
                         TextColor = Colors.Gray
                     },
                     CreateField("Mitgliedsbeitrag", _mitgliedsbeitragEntry),
+                    _vertreterRootSection,
                     new HorizontalStackLayout
                     {
                         Spacing = 12,
@@ -78,15 +209,74 @@ public sealed class MitgliedsantragDialogPage : ContentPage
                 }
             }
         };
+
+        ApplyInitialVertreterState(initialRequest, gesetzlicherVertreterAufloesung);
+        UpdateAdresseSection();
+        UpdateVertreterMode();
     }
 
-    public Task<decimal?> WaitForResultAsync() => _resultSource.Task;
+    public Task<MitgliedsantragDokumentRequest?> WaitForResultAsync() => _resultSource.Task;
 
     protected override bool OnBackButtonPressed()
     {
         _resultSource.TrySetResult(null);
         return base.OnBackButtonPressed();
     }
+
+    private void ApplyInitialVertreterState(MitgliedsantragDokumentRequest? initialRequest, GesetzlicherVertreterAufloesung? gesetzlicherVertreterAufloesung)
+    {
+        if (!_istMinderjaehrig)
+            return;
+
+        if (initialRequest?.GesetzlicherVertreterAusBestehendemMitglied == true && initialRequest.GesetzlicherVertreterMitgliedId is > 0)
+        {
+            _vertreterModusPicker.SelectedIndex = 0;
+            _bestehendesMitgliedPicker.SelectedItem = _mitgliedOptionen.FirstOrDefault(x => x.MitgliedId == initialRequest.GesetzlicherVertreterMitgliedId.Value);
+            return;
+        }
+
+        if (initialRequest?.GesetzlicherVertreterSnapshot != null)
+        {
+            _vertreterModusPicker.SelectedIndex = initialRequest.GesetzlicherVertreterAusBestehendemMitglied ? 0 : 1;
+            if (initialRequest.GesetzlicherVertreterAusBestehendemMitglied && initialRequest.GesetzlicherVertreterMitgliedId is > 0)
+            {
+                _bestehendesMitgliedPicker.SelectedItem = _mitgliedOptionen.FirstOrDefault(x => x.MitgliedId == initialRequest.GesetzlicherVertreterMitgliedId.Value);
+                return;
+            }
+
+            ApplyManualSnapshot(initialRequest.GesetzlicherVertreterSnapshot, initialRequest.GesetzlicherVertreterAdresseAbweichend);
+            return;
+        }
+
+        if (gesetzlicherVertreterAufloesung?.HatAktivenGesetzlichenVertreter == true && gesetzlicherVertreterAufloesung.VertreterMitglied != null)
+        {
+            _vertreterModusPicker.SelectedIndex = 0;
+            _bestehendesMitgliedPicker.SelectedItem = _mitgliedOptionen.FirstOrDefault(x => x.MitgliedId == gesetzlicherVertreterAufloesung.VertreterMitglied.Id);
+            return;
+        }
+
+        _vertreterModusPicker.SelectedIndex = _mitgliedOptionen.Count > 0 ? 0 : 1;
+    }
+
+    private void ApplyManualSnapshot(MitgliedsantragVertreterSnapshot snapshot, bool adresseAbweichend)
+    {
+        _vertreterVornameEntry.Text = snapshot.Vorname;
+        _vertreterNachnameEntry.Text = snapshot.Nachname;
+        _vertreterAdresseAbweichendCheckBox.IsChecked = adresseAbweichend;
+        _vertreterAdresseEntry.Text = snapshot.Adresse;
+        _vertreterPlzEntry.Text = snapshot.Plz;
+        _vertreterOrtEntry.Text = snapshot.Ort;
+    }
+
+    private void UpdateVertreterMode()
+    {
+        var existingMode = _vertreterModusPicker.SelectedIndex != 1;
+        _bestehendesMitgliedSection.IsVisible = _istMinderjaehrig && existingMode;
+        _manuelleVertreterSection.IsVisible = _istMinderjaehrig && !existingMode;
+    }
+
+    private void UpdateAdresseSection()
+        => _abweichendeAdresseSection.IsVisible = _vertreterAdresseAbweichendCheckBox.IsChecked;
 
     private async Task AcceptAsync()
     {
@@ -104,7 +294,67 @@ public sealed class MitgliedsantragDialogPage : ContentPage
             return;
         }
 
-        _resultSource.TrySetResult(MitgliedsantragBeitragHelper.NormalizeBeitrag(beitrag));
+        var request = new MitgliedsantragDokumentRequest
+        {
+            MitgliedId = _member.Id,
+            BeginnDatum = _vorschlag.BeginnDatum,
+            Mitgliedsbeitrag = MitgliedsantragBeitragHelper.NormalizeBeitrag(beitrag),
+            Status = FormularDokumentStatus.Unsigniert,
+            IstMinderjaehrig = _istMinderjaehrig
+        };
+
+        if (_istMinderjaehrig)
+        {
+            if (_vertreterModusPicker.SelectedIndex != 1)
+            {
+                if (_bestehendesMitgliedPicker.SelectedItem is not MitgliedOption option)
+                {
+                    await DisplayAlert("Mitgliedsantrag", "Bitte ein vorhandenes Mitglied als gesetzlichen Vertreter auswählen.", "OK");
+                    _bestehendesMitgliedPicker.Focus();
+                    return;
+                }
+
+                request.GesetzlicherVertreterAusBestehendemMitglied = true;
+                request.GesetzlicherVertreterMitgliedId = option.MitgliedId;
+                request.GesetzlicherVertreterSnapshot = option.ToSnapshot();
+            }
+            else
+            {
+                var vorname = (_vertreterVornameEntry.Text ?? string.Empty).Trim();
+                var nachname = (_vertreterNachnameEntry.Text ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(vorname) || string.IsNullOrWhiteSpace(nachname))
+                {
+                    await DisplayAlert("Mitgliedsantrag", "Bitte Vorname und Nachname des gesetzlichen Vertreters eingeben.", "OK");
+                    _vertreterVornameEntry.Focus();
+                    return;
+                }
+
+                request.GesetzlicherVertreterAusBestehendemMitglied = false;
+                request.GesetzlicherVertreterAdresseAbweichend = _vertreterAdresseAbweichendCheckBox.IsChecked;
+                request.GesetzlicherVertreterSnapshot = new MitgliedsantragVertreterSnapshot
+                {
+                    Vorname = vorname,
+                    Nachname = nachname,
+                    Adresse = (_vertreterAdresseEntry.Text ?? string.Empty).Trim(),
+                    Plz = (_vertreterPlzEntry.Text ?? string.Empty).Trim(),
+                    Ort = (_vertreterOrtEntry.Text ?? string.Empty).Trim()
+                };
+
+                if (request.GesetzlicherVertreterAdresseAbweichend)
+                {
+                    if (string.IsNullOrWhiteSpace(request.GesetzlicherVertreterSnapshot.Adresse)
+                        || string.IsNullOrWhiteSpace(request.GesetzlicherVertreterSnapshot.Plz)
+                        || string.IsNullOrWhiteSpace(request.GesetzlicherVertreterSnapshot.Ort))
+                    {
+                        await DisplayAlert("Mitgliedsantrag", "Bitte die abweichende Anschrift des gesetzlichen Vertreters vollständig eingeben.", "OK");
+                        _vertreterAdresseEntry.Focus();
+                        return;
+                    }
+                }
+            }
+        }
+
+        _resultSource.TrySetResult(request);
         await Navigation.PopModalAsync();
     }
 
@@ -135,4 +385,37 @@ public sealed class MitgliedsantragDialogPage : ContentPage
 
     private static string FormatCurrency(decimal value)
         => MitgliedsantragBeitragHelper.NormalizeBeitrag(value).ToString("0.00 €", DeCulture);
+
+    private sealed class MitgliedOption
+    {
+        private readonly MitgliedRecord _member;
+
+        public MitgliedOption(MitgliedRecord member)
+        {
+            _member = member;
+            var name = string.Join(" ", new[] { member.Vorname, member.Name }
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim()));
+            DisplayName = string.IsNullOrWhiteSpace(name) ? $"Mitglied #{member.Id}" : $"{name} · #{member.Id}";
+        }
+
+        public int MitgliedId => _member.Id;
+        public string DisplayName { get; }
+
+        public MitgliedsantragVertreterSnapshot ToSnapshot()
+        {
+            return new MitgliedsantragVertreterSnapshot
+            {
+                VertreterMitgliedId = _member.Id,
+                Vorname = _member.Vorname?.Trim() ?? string.Empty,
+                Nachname = _member.Name?.Trim() ?? string.Empty,
+                Adresse = _member.Adresse?.Trim() ?? string.Empty,
+                Plz = _member.Plz?.Trim() ?? string.Empty,
+                Ort = _member.Ort?.Trim() ?? string.Empty,
+                Telefon = _member.Telefon?.Trim() ?? string.Empty,
+                Handy = _member.Handy?.Trim() ?? string.Empty,
+                Email = _member.Email?.Trim() ?? string.Empty
+            };
+        }
+    }
 }

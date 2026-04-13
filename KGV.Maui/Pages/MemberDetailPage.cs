@@ -515,10 +515,10 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
         try
         {
-            decimal? initialMitgliedsbeitrag = null;
+            MitgliedsantragDokumentRequest? initialRequest = null;
             while (true)
             {
-                var request = await PromptMitgliedsantragRequestAsync(mitgliedId, initialMitgliedsbeitrag);
+                var request = await PromptMitgliedsantragRequestAsync(mitgliedId, initialRequest);
                 if (request == null)
                     return;
 
@@ -532,18 +532,26 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 var previewDecision = await ShowMitgliedsantragPreviewAsync(previewUploadRequest);
                 if (previewDecision == MitgliedsantragPreviewDecision.BackToEditor)
                 {
-                    initialMitgliedsbeitrag = request.Mitgliedsbeitrag;
+                    initialRequest = request;
                     continue;
                 }
 
                 if (previewDecision != MitgliedsantragPreviewDecision.ContinueToSignature)
                     return;
 
-                var signatureCapture = await CaptureMitgliedsantragSignatureAsync(previewUploadRequest);
+                var signatureCapture = await CaptureMitgliedsantragSignatureAsync(previewUploadRequest, "Unterschrift Antragsteller/in");
                 if (signatureCapture == null)
                     return;
 
-                var result = await _supabaseService.CreateSignedMitgliedsantragDokumentAsync(request, signatureCapture);
+                DigitalSignatureCapture? gesetzlicherVertreterSignatureCapture = null;
+                if (request.IstMinderjaehrig)
+                {
+                    gesetzlicherVertreterSignatureCapture = await CaptureMitgliedsantragSignatureAsync(previewUploadRequest, "Unterschrift gesetzliche/r Vertreter/in");
+                    if (gesetzlicherVertreterSignatureCapture == null)
+                        return;
+                }
+
+                var result = await _supabaseService.CreateSignedMitgliedsantragDokumentAsync(request, signatureCapture, gesetzlicherVertreterSignatureCapture);
                 if (!result.Success)
                 {
                     await DisplayAlert("Mitgliedsantrag", result.Message, "OK");
@@ -579,7 +587,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         }
     }
 
-    private async Task<MitgliedsantragDokumentRequest?> PromptMitgliedsantragRequestAsync(int mitgliedId, decimal? initialMitgliedsbeitrag = null)
+    private async Task<MitgliedsantragDokumentRequest?> PromptMitgliedsantragRequestAsync(int mitgliedId, MitgliedsantragDokumentRequest? initialRequest = null)
     {
         var member = _memberRecord?.Id == mitgliedId
             ? _memberRecord
@@ -602,19 +610,14 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             return null;
         }
 
-        var dialogPage = new MitgliedsantragDialogPage(member, vorschlag, initialMitgliedsbeitrag);
-        await Navigation.PushModalAsync(new NavigationPage(dialogPage));
-        var mitgliedsbeitrag = await dialogPage.WaitForResultAsync();
-        if (!mitgliedsbeitrag.HasValue)
-            return null;
+        var gesetzlicherVertreterAufloesung = await _supabaseService.ResolveGesetzlicherVertreterAsync(mitgliedId, vorschlag.BeginnDatum);
+        var vertreterMitglieder = gesetzlicherVertreterAufloesung.IstMinderjaehrig
+            ? await _supabaseService.GetMitgliederAsync()
+            : new List<MitgliedRecord>();
 
-        return new MitgliedsantragDokumentRequest
-        {
-            MitgliedId = mitgliedId,
-            BeginnDatum = vorschlag.BeginnDatum,
-            Mitgliedsbeitrag = mitgliedsbeitrag.Value,
-            Status = FormularDokumentStatus.Unsigniert
-        };
+        var dialogPage = new MitgliedsantragDialogPage(member, vorschlag, gesetzlicherVertreterAufloesung, vertreterMitglieder, initialRequest);
+        await Navigation.PushModalAsync(new NavigationPage(dialogPage));
+        return await dialogPage.WaitForResultAsync();
     }
 
     private async Task<MitgliedsantragPreviewDecision> ShowMitgliedsantragPreviewAsync(DokumentUploadRequest previewUploadRequest)
@@ -624,7 +627,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         return await previewPage.WaitForResultAsync();
     }
 
-    private async Task<DigitalSignatureCapture?> CaptureMitgliedsantragSignatureAsync(DokumentUploadRequest previewUploadRequest)
+    private async Task<DigitalSignatureCapture?> CaptureMitgliedsantragSignatureAsync(DokumentUploadRequest previewUploadRequest, string unterschriftTitel)
     {
         var sourceDocument = new DocumentInfo
         {
@@ -635,7 +638,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             StoragePath = previewUploadRequest.FileName
         };
 
-        var signaturPage = new VertragsSignaturPage(sourceDocument);
+        var signaturPage = new VertragsSignaturPage(sourceDocument, unterschriftTitel);
         await Navigation.PushModalAsync(new NavigationPage(signaturPage));
         return await signaturPage.WaitForResultAsync();
     }
