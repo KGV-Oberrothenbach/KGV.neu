@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-04-13 – Pachtvertrag produktiv auf HTML-Template umgestellt
+
+- Den echten lokalen Repo-/Working-Tree-Stand auf `main` geprüft und nur die direkt betroffenen Pachtvertrags-/Template-/Service-/MAUI-Dateien bearbeitet.
+- Der bestehende Pachtvertrag wurde vom alten AcroForm-/Zusatzseiten-Hauptpfad auf den begonnenen HTML-Template-Pfad umgestellt.
+- Die vorhandenen Dateien `PachtvertragTemplate.html`, `PachtvertragTemplateData`, `PachtvertragTemplateRenderer` und `PachtvertragTemplateFactory` wurden weiterverwendet; zusätzlich bindet `KGV.Core` das Template jetzt als Embedded Resource produktiv ein.
+- `PachtvertragDokumentFactory` lädt nun das HTML-Template, baut daraus mit den bestehenden Produktivdaten den Template-Kontext, rendert HTML und erzeugt daraus das PDF über den neuen gemeinsamen `PachtvertragHtmlPdfRenderer`.
+- Der Pachtvertrag bleibt im bestehenden Preview-/Signatur-/Finalspeicherpfad, nutzt dort aber denselben Template-/Snapshot-Stand für Vorschau und Enddokument.
+- Der Kostenblock enthält nur noch `Pacht für laufendes Jahr`; berechnet wird 1/12 des Jahresbetrags je angefangenem Restmonat des laufenden Jahres. `Mitgliedsbeitrag`, `Gesamt` und der alte AcroForm-Hauptpfad sind nicht mehr führend.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-13 – Pachtvertrag ohne separaten Mitgliedsbeitrag geglättet
 
 - Den echten lokalen Repo-Stand auf `main` geprüft und nur den bestehenden Pachtvertrag-PDF-Pfad eingeordnet.

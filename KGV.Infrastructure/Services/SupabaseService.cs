@@ -2971,9 +2971,6 @@ namespace KGV.Infrastructure.Services
                 if (!saison.PachtProQm.HasValue)
                     return DokumentUploadResult.Fail($"Für die Saison {saison.Jahr} fehlt pacht_pro_qm.", "Pacht_PRO_QM_MISSING");
 
-                if (!saison.Mitgliedsbeitrag.HasValue)
-                    return DokumentUploadResult.Fail($"Für die Saison {saison.Jahr} fehlt mitgliedsbeitrag.", "MITGLIEDSBEITRAG_MISSING");
-
                 var context = await ResolvePachtvertragRequestAsync(new PachtvertragDokumentRequest
                 {
                     MitgliedId = mitgliedId,
@@ -3171,9 +3168,6 @@ namespace KGV.Infrastructure.Services
 
             if (!saison.PachtProQm.HasValue)
                 throw new InvalidOperationException($"Für die Saison {saison.Jahr} fehlt pacht_pro_qm.");
-
-            if (!saison.Mitgliedsbeitrag.HasValue)
-                throw new InvalidOperationException($"Für die Saison {saison.Jahr} fehlt mitgliedsbeitrag.");
 
             var bankverbindungSnapshot = request.BankverbindungSnapshot != null
                 ? NormalizeVereinsBankverbindungSnapshot(request.BankverbindungSnapshot)

@@ -175,7 +175,7 @@ public sealed class PachtvertragDialogPage : ContentPage
                     },
                     new Label
                     {
-                        Text = "Der Pachtvertrag wird weiter über den bestehenden parzellenbezogenen Produktivpfad erzeugt.",
+                        Text = "Der Pachtvertrag wird über den bestehenden parzellenbezogenen Template-Pfad erzeugt.",
                         TextColor = Colors.Gray,
                         LineBreakMode = LineBreakMode.WordWrap
                     },

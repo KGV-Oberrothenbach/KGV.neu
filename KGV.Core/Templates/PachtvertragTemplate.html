@@ -1,0 +1,800 @@
+﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <title>Pachtvertrag – KGV Oberrothenbach</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #eceef1;
+            color: #1f2937;
+            font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+        }
+
+        body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .dual-only {
+            display: none;
+        }
+
+        body.dual .dual-only {
+            display: block;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 11mm 13mm 11mm 13mm;
+            page-break-after: always;
+        }
+
+            .page:last-child {
+                page-break-after: auto;
+            }
+
+        .title-block {
+            border-bottom: 2px solid #2f5d3a;
+            padding-bottom: 4mm;
+            margin-bottom: 5mm;
+        }
+
+        .logo-header {
+            display: flex;
+            align-items: center;
+            gap: 5mm;
+            margin-bottom: 4mm;
+        }
+
+        .logo-box {
+            width: 20mm;
+            height: 20mm;
+            flex: 0 0 20mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+            .logo-box img {
+                max-width: 100%;
+                max-height: 100%;
+                object-fit: contain;
+            }
+
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #163f21;
+            margin: 0 0 1mm 0;
+            line-height: 1.1;
+        }
+
+        .subtitle {
+            font-size: 11px;
+            color: #4b5563;
+            line-height: 1.4;
+        }
+
+        .contract-meta {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 6mm;
+            margin-top: 4mm;
+            align-items: start;
+        }
+
+        .meta-box {
+            border: 1px solid #d8dee5;
+            border-radius: 8px;
+            padding: 3mm 4mm;
+            background: #f8faf8;
+            min-width: 46mm;
+        }
+
+        .meta-label {
+            font-size: 9.5px;
+            text-transform: uppercase;
+            color: #6b7280;
+            letter-spacing: 0.05em;
+            margin-bottom: 1mm;
+        }
+
+        .meta-value {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 2mm;
+        }
+
+        .party-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5mm;
+            margin-bottom: 5mm;
+        }
+
+        body.single .party-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .box {
+            border: 1px solid #d8dee5;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .box-title {
+            background: #f3f7f3;
+            border-bottom: 1px solid #d8dee5;
+            padding: 2.8mm 4mm;
+            font-size: 11px;
+            font-weight: 700;
+            color: #163f21;
+        }
+
+        .box-body {
+            padding: 4mm;
+        }
+
+        .field-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3mm 5mm;
+        }
+
+        .field-grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 3mm 5mm;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 1mm;
+        }
+
+            .field.full {
+                grid-column: 1 / -1;
+            }
+
+        .label {
+            font-size: 9.5px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #6b7280;
+        }
+
+        .value {
+            min-height: 7mm;
+            padding: 2mm 2.5mm;
+            border: 1px solid #e3e7eb;
+            border-radius: 6px;
+            background: #fafbfc;
+            font-size: 11.5px;
+            line-height: 1.35;
+            color: #111827;
+            white-space: pre-line;
+        }
+
+            .value.large {
+                min-height: 10mm;
+            }
+
+        .section {
+            margin-bottom: 4mm;
+            border: 1px solid #d8dee5;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .section-title {
+            background: #f3f7f3;
+            border-bottom: 1px solid #d8dee5;
+            padding: 2.8mm 4mm;
+            font-size: 11px;
+            font-weight: 700;
+            color: #163f21;
+        }
+
+        .section-body {
+            padding: 4mm;
+            font-size: 10.5px;
+            line-height: 1.45;
+        }
+
+        .paragraph {
+            margin: 0 0 2.5mm 0;
+        }
+
+            .paragraph:last-child {
+                margin-bottom: 0;
+            }
+
+        .inline-strong {
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .list {
+            margin: 2mm 0 0 0;
+            padding-left: 5mm;
+        }
+
+            .list li {
+                margin-bottom: 1.3mm;
+            }
+
+        .small-note {
+            font-size: 9.5px;
+            color: #6b7280;
+            margin-top: 2mm;
+            line-height: 1.4;
+        }
+
+        .cost-box {
+            border: 1px solid #cfd6dd;
+            border-radius: 8px;
+            background: #fafbfc;
+            padding: 4mm;
+        }
+
+        .cost-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 1.5mm;
+        }
+
+        .cost-value {
+            font-size: 13px;
+            font-weight: 700;
+            color: #163f21;
+        }
+
+        .bank-box {
+            border: 1px solid #4b5563;
+            min-height: 30mm;
+            padding: 4mm;
+            font-size: 11px;
+            line-height: 1.45;
+            white-space: pre-line;
+        }
+
+        .two-col-last {
+            display: grid;
+            grid-template-columns: 1fr 95mm;
+            gap: 8mm;
+            align-items: start;
+        }
+
+        .signature-section {
+            margin-top: 6mm;
+            border: 1px solid #d8dee5;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .signature-head {
+            background: #f3f7f3;
+            border-bottom: 1px solid #d8dee5;
+            padding: 3mm 4mm;
+            font-size: 11px;
+            font-weight: 700;
+            color: #163f21;
+        }
+
+        .signature-body {
+            padding: 4mm;
+        }
+
+        .signature-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8mm;
+            margin-bottom: 7mm;
+        }
+
+        .line-field {
+            font-size: 10.5px;
+            color: #374151;
+        }
+
+        .line {
+            display: block;
+            margin-top: 5mm;
+            border-bottom: 1px solid #4b5563;
+            height: 0;
+            width: 100%;
+        }
+
+        .signature-grid-top {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8mm;
+            margin-bottom: 8mm;
+        }
+
+        body.dual .signature-grid-top {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .signature-box {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .signature-canvas-box {
+            width: 100%;
+            height: 28mm;
+            border: 1.4px solid #4b5563;
+            border-radius: 6px;
+            background: #ffffff;
+        }
+
+        .signature-label {
+            margin-top: 2mm;
+            font-size: 10.5px;
+            color: #374151;
+            min-height: 7mm;
+            line-height: 1.35;
+        }
+
+        .landlord-signature {
+            width: 48%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body.single .landlord-signature {
+            width: 100%;
+        }
+
+        body.dual .landlord-signature {
+            width: calc((100% - 8mm) / 2);
+        }
+
+        .final-note {
+            margin-top: 5mm;
+            font-size: 9.5px;
+            color: #6b7280;
+            line-height: 1.4;
+        }
+
+        @media print {
+            html, body {
+                background: #fff;
+            }
+
+            .page {
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body class="{{body_class}}">
+    <!--
+        body_class:
+        - single  => ein Pächter
+        - dual    => zwei Pächter
+    -->
+    <!-- SEITE 1 -->
+    <div class="page">
+        <div class="title-block">
+            <div class="logo-header">
+                <div class="logo-box">
+                    <img src="{{kgv_logo_data_uri}}" alt="Logo KGV Oberrothenbach">
+                </div>
+
+                <div class="logo-text">
+                    <div class="title">Unterpachtvertrag</div>
+                    <div class="subtitle">
+                        für Dauerkleingärten und sonstige Kleingärten (Einzelpachtvertrag)
+                    </div>
+                </div>
+            </div>
+
+            <div class="contract-meta">
+                <div class="subtitle">
+                    Zwischen dem <span class="inline-strong">{{verein_name}}</span><br>
+                    vertreten durch den Vorstand<br>
+                    – als Verpächter –
+                </div>
+
+                <div class="meta-box">
+                    <div class="meta-label">Dokument</div>
+                    <div class="meta-value">Pachtvertrag</div>
+
+                    <div class="meta-label">Ausstellungsdatum</div>
+                    <div class="meta-value">{{ausstellungsdatum}}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="party-grid">
+            <div class="box">
+                <div class="box-title">Pächter 1</div>
+                <div class="box-body">
+                    <div class="field-grid-2">
+                        <div class="field">
+                            <div class="label">Name</div>
+                            <div class="value">{{paechter1_name}}</div>
+                        </div>
+                        <div class="field">
+                            <div class="label">Vorname</div>
+                            <div class="value">{{paechter1_vorname}}</div>
+                        </div>
+                        <div class="field">
+                            <div class="label">Geburtsdatum</div>
+                            <div class="value">{{paechter1_geburtsdatum}}</div>
+                        </div>
+                        <div class="field">
+                            <div class="label">Telefon</div>
+                            <div class="value">{{paechter1_telefon}}</div>
+                        </div>
+                        <div class="field full">
+                            <div class="label">Anschrift</div>
+                            <div class="value large">{{paechter1_anschrift_mehrzeilig}}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="box dual-only">
+                <div class="box-title">Pächter 2</div>
+                <div class="box-body">
+                    <div class="field-grid-2">
+                        <div class="field">
+                            <div class="label">Name</div>
+                            <div class="value">{{paechter2_name}}</div>
+                        </div>
+                        <div class="field">
+                            <div class="label">Vorname</div>
+                            <div class="value">{{paechter2_vorname}}</div>
+                        </div>
+                        <div class="field">
+                            <div class="label">Geburtsdatum</div>
+                            <div class="value">{{paechter2_geburtsdatum}}</div>
+                        </div>
+                        <div class="field">
+                            <div class="label">Telefon</div>
+                            <div class="value">{{paechter2_telefon}}</div>
+                        </div>
+                        <div class="field full">
+                            <div class="label">Anschrift</div>
+                            <div class="value large">{{paechter2_anschrift_mehrzeilig}}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">§ 1 Gegenstand der Pachtung</div>
+            <div class="section-body">
+                <p class="paragraph">
+                    Der Verpächter verpachtet an den Pächter im Gebiet des
+                    <span class="inline-strong">{{verein_name}}</span> das Teilstück
+                    <span class="inline-strong">Parzelle {{parzelle_nummer}}</span>
+                    mit einer Größe von <span class="inline-strong">{{parzelle_flaeche_qm}} m²</span>
+                    zum Zweck der kleingärtnerischen Nutzung.
+                </p>
+                <p class="paragraph">
+                    Mit verpachtet ist der auf den Kleingarten entfallende aktuelle Anteil der Gemeinschaftsflächen.
+                    Der Garten wird in dem Zustand verpachtet, in dem er sich bei Vertragsabschluss befindet.
+                </p>
+                <p class="paragraph">
+                    Dem Pächter ist bekannt, dass dauerhaftes Wohnen im Kleingarten nicht gestattet ist.
+                </p>
+                <p class="paragraph dual-only">
+                    Haben zwei Pächter unterschrieben, gelten beide als Gesamtschuldner.
+                </p>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">§ 2 Pachtdauer und Kündigung</div>
+            <div class="section-body">
+                <p class="paragraph">
+                    Der Pachtvertrag beginnt mit Wirkung vom
+                    <span class="inline-strong">{{pachtbeginn}}</span>
+                    und ist {{vertragsart_text}}.
+                </p>
+                <p class="paragraph">
+                    Das Pachtjahr beginnt mit dem 1. Dezember und endet mit dem 30. November eines jeden Kalenderjahres.
+                </p>
+                <p class="paragraph">
+                    Die Kündigung durch den Pächter ist nur zum Ende des Pachtjahres möglich und muss fristgerecht schriftlich vorliegen.
+                </p>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">§ 3 Pachtzins</div>
+            <div class="section-body">
+                <div class="field-grid-3">
+                    <div class="field">
+                        <div class="label">Pacht pro m² / Jahr</div>
+                        <div class="value">{{pacht_pro_qm}}</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">Parzellenfläche</div>
+                        <div class="value">{{parzelle_flaeche_qm}} m²</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">Jahrespacht</div>
+                        <div class="value">{{jahrespacht}}</div>
+                    </div>
+                </div>
+
+                <p class="paragraph" style="margin-top:3mm;">
+                    Die Zahlung ist spätestens bis zum <span class="inline-strong">{{zahlungsziel_text}}</span>
+                    an den Bevollmächtigten des Verpächters zu leisten.
+                </p>
+
+                <p class="paragraph">
+                    Der Bankeinzug des Pachtzinses und der mit der Verpachtung verbundenen Nebenkosten
+                    {{bankeinzug_text}} vereinbart.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEITE 2 -->
+    <div class="page">
+        <div class="section">
+            <div class="section-title">§ 4 Zahlungsverzug</div>
+            <div class="section-body">
+                <p class="paragraph">
+                    Bleibt der Pächter mit der Zahlung des Pachtzinses, öffentlich-rechtlicher Lasten,
+                    Umlagen oder sonstiger entgeltlicher Gemeinschaftsleistungen im Rückstand und erfüllt
+                    trotz Mahnung seine Verpflichtungen nicht, kann der Verpächter nach Maßgabe der gesetzlichen
+                    und vereinsrechtlichen Bestimmungen kündigen.
+                </p>
+                <p class="paragraph">
+                    Entgelte für Strom- und Wasserverbrauch können bei Zahlungsverzug nach Mahnung ebenfalls
+                    zur Unterbrechung der Versorgung führen.
+                </p>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">§ 5 Verwaltungskosten</div>
+            <div class="section-body">
+                <p class="paragraph">
+                    Verwaltungskosten der Pachtsache werden durch Mitgliedschaft, Gemeinschaftsleistungen
+                    und sonstige vereinsbezogene Regelungen abgegolten, solange der Verein die Anlage verwaltet.
+                </p>
+                <p class="paragraph">
+                    Bei Nichtmitgliedschaft bzw. Wegfall der Verwaltungsvollmacht gelten die satzungs- und vertragsgemäßen Ersatzregelungen.
+                </p>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">§ 6 Verhältnis zum Zwischenpachtvertrag</div>
+            <div class="section-body">
+                <p class="paragraph">
+                    Auf das Vertragsverhältnis finden die Bestimmungen des zwischen Verpächter und Grundstückseigentümer
+                    bestehenden Zwischenpachtvertrages Anwendung.
+                </p>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">§ 7 Rechte und Pflichten des Verpächters</div>
+            <div class="section-body">
+                <p class="paragraph">
+                    Der Verpächter stellt dem Pächter die Pachtsache zur Verfügung und gibt im Rahmen der geltenden
+                    Regelungen Anleitung für die ordnungsgemäße kleingärtnerische Nutzung.
+                </p>
+                <p class="paragraph">
+                    Dem Verpächter bzw. dessen Bevollmächtigten ist nach vorheriger Ankündigung der Zutritt zum Kleingarten zu gestatten.
+                </p>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">§ 8 Rechte und Pflichten des Pächters</div>
+            <div class="section-body">
+                <p class="paragraph">
+                    Der Pächter ist verpflichtet, den gepachteten Kleingarten entsprechend den Bestimmungen des BKleingG,
+                    den Beschlüssen des Vereins und der Kleingartenordnung zu gestalten und zu bewirtschaften.
+                </p>
+                <ul class="list">
+                    <li>kleingärtnerische Nutzung gemäß BKleingG</li>
+                    <li>ausschließlich persönliche Nutzung, keine Übertragung an Dritte</li>
+                    <li>pflegliche Behandlung der Gemeinschaftseinrichtungen</li>
+                    <li>Teilnahme an Gemeinschaftsarbeiten oder finanzielle Abgeltung</li>
+                    <li>Unterlassen jeglicher dauerhaften Wohnnutzung</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">§ 9 Anliegerpflichten</div>
+            <div class="section-body">
+                <p class="paragraph">
+                    Der Pächter ist verpflichtet, die zugehörigen Wege, Gräben, Mauern und Nebenanlagen entsprechend
+                    den Vorgaben in ordnungsgemäßem Zustand zu erhalten.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEITE 3 -->
+    <div class="page">
+        <div class="section">
+            <div class="section-title">§ 10 Nutzungsbestimmungen</div>
+            <div class="section-body">
+                <p class="paragraph">
+                    Bestandteil dieses Vertrages sind die jeweils gültige Rahmenkleingartenordnung sowie ergänzende
+                    Vereinsregelungen, soweit sie nicht widersprechen.
+                </p>
+                <ul class="list">
+                    <li>dauerhaftes Wohnen im Garten ist unzulässig</li>
+                    <li>Baulichkeiten sind antragspflichtig</li>
+                    <li>keine Weiterverpachtung oder Überlassung an Dritte</li>
+                    <li>Parken nur auf ausgewiesenen Stellflächen</li>
+                    <li>keine gewerbliche Nutzung</li>
+                    <li>Parzellennummer ist sichtbar anzubringen</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">§ 11 Kündigung und Rückgabe des Kleingartens</div>
+            <div class="section-body">
+                <p class="paragraph">
+                    Bei Beendigung des Pachtverhältnisses gelten die Regelungen zur Wertermittlung,
+                    Rückgabe, Beräumung und möglichen Nachfolgeverpachtung gemäß den einschlägigen
+                    gesetzlichen und vereinsinternen Bestimmungen.
+                </p>
+                <p class="paragraph">
+                    Der abgebende Pächter ist verpflichtet, den Garten in ordnungsgemäßem Zustand zu übergeben.
+                </p>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">§ 12 Haftung</div>
+            <div class="section-body">
+                <p class="paragraph">
+                    Der Pächter verzichtet im gesetzlichen Rahmen auf Haftungsansprüche wegen Mängeln des Pachtgegenstandes.
+                    Veränderungen des Pachtgegenstandes bedürfen der Zustimmung des Verpächters.
+                </p>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">§ 13 Verstöße und missbräuchliche Nutzung</div>
+            <div class="section-body">
+                <p class="paragraph">
+                    Verstöße gegen Vertrag, Kleingartenordnung oder Vereinsregelungen können nach schriftlicher Abmahnung
+                    zur Kündigung und zur kostenpflichtigen Beseitigung von Mängeln führen.
+                </p>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">§ 14 Altverträge</div>
+            <div class="section-body">
+                <p class="paragraph">
+                    Mit diesem Unterpachtvertrag wird das bisherige Kleingartenpachtverhältnis gemäß
+                    <span class="inline-strong">{{altvertrag_text}}</span> für diese Parzelle fortgesetzt.
+                </p>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">§ 15 Vertragsänderungen</div>
+            <div class="section-body">
+                <p class="paragraph">
+                    Nebenabreden, Ergänzungen und Änderungen dieses Vertrages bedürfen der Schriftform.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEITE 4 -->
+    <div class="page">
+        <div class="section">
+            <div class="section-title">§ 16 Zusatzvereinbarungen</div>
+            <div class="section-body">
+                <p class="paragraph">Es wird nachstehend weiter vereinbart:</p>
+
+                <div class="field">
+                    <div class="value large">{{zusatzvereinbarungen}}</div>
+                </div>
+
+                <div class="small-note">
+                    Mit der Unterschrift bestätigt der Pächter, nachstehende Anlagen erhalten zu haben.
+                </div>
+
+                <div class="field" style="margin-top:3mm;">
+                    <div class="label">Anlagen</div>
+                    <div class="value large">{{anlagen_text}}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Bankverbindung und Pacht für laufendes Jahr</div>
+            <div class="section-body">
+                <div class="two-col-last">
+                    <div class="bank-box">{{bankblock_mehrzeilig}}</div>
+
+                    <div class="cost-box">
+                        <div class="cost-label">Pacht für laufendes Jahr</div>
+                        <div class="cost-value">{{pacht_laufendes_jahr}}</div>
+
+                        <div class="small-note" style="margin-top:3mm;">
+                            Berechnungsgrundlage: 1/12 des Jahresbetrags je angefangenem Restmonat des laufenden Jahres.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="signature-section">
+            <div class="signature-head">Unterschriften</div>
+            <div class="signature-body">
+                <div class="signature-meta">
+                    <div class="line-field">
+                        Ort
+                        <span class="line"></span>
+                    </div>
+                    <div class="line-field">
+                        Datum
+                        <span class="line"></span>
+                    </div>
+                </div>
+
+                <div class="signature-grid-top">
+                    <div class="signature-box">
+                        <div class="signature-canvas-box"></div>
+                        <div class="signature-label">Unterschrift Pächter 1</div>
+                    </div>
+
+                    <div class="signature-box dual-only">
+                        <div class="signature-canvas-box"></div>
+                        <div class="signature-label">Unterschrift Pächter 2</div>
+                    </div>
+                </div>
+
+                <div class="landlord-signature">
+                    <div class="signature-canvas-box"></div>
+                    <div class="signature-label">Verpächter / Verein</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="final-note">
+            Dieser Vertrag wird auf Basis der hinterlegten Vereins-, Saison- und Parzellendaten erzeugt.
+            Optionale zweite Pächterangaben werden nur bei Bedarf eingeblendet.
+        </div>
+    </div>
+</body>
+</html>

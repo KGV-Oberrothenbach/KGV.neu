@@ -35,6 +35,16 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-13
+- Den begonnenen Pachtvertrag auf dem echten Stand von `main` produktiv vom alten PDF-AcroForm-/Zusatzseiten-Pfad auf den neuen HTML-Template-Ansatz umgestellt, ohne Mitgliedsantrag, Rechtearchitektur, Verwaltungslogik oder Navigation breiter umzubauen.
+- Der Istzustand wurde zuerst gegen den realen Working Tree geprüft; gelesen und weiterverwendet wurden nur die direkt betroffenen Dateien des Pachtvertragsblocks in `KGV.Core`, `KGV.Infrastructure` und `KGV.Maui`.
+- Die lokal bereits vorhandenen Template-Dateien `PachtvertragTemplate.html`, `PachtvertragTemplateData`, `PachtvertragTemplateRenderer` und `PachtvertragTemplateFactory` wurden nicht neu erfunden, sondern in den bestehenden Produktivpfad eingebunden; `KGV.Core.csproj` bindet das HTML-Template jetzt zusätzlich als Embedded Resource ein.
+- `PachtvertragDokumentFactory` lädt nun die HTML-Vorlage, baut den Template-Kontext aus den bestehenden Produktivdaten `vereinskonfiguration`-Snapshot, Hauptpächter, optional zweitem Pächter, Parzelle, Saison und Vertragsbeginn, rendert das HTML vollständig aus und erzeugt daraus das PDF über den neuen `PachtvertragHtmlPdfRenderer`.
+- Der neue Renderer wertet die gerenderte HTML-Struktur produktiv aus und bildet daraus die Vertragsseiten, den Einzel-/Doppelpächtermodus (`single` / `dual`), den Bankblock, den Kostenblock und die sichtbaren Signaturbereiche nach; bei einem Pächter bleiben zweite Blöcke und zweite Signaturen unsichtbar.
+- Der Kostenblock des Vertrags enthält jetzt nur noch `Pacht für laufendes Jahr`; berechnet wird wie gefordert 1/12 des Jahresbetrags je angefangenem Restmonat des laufenden Jahres. `Mitgliedsbeitrag`, `Gesamt` und der alte AcroForm-Hauptpfad sind im führenden Erzeugungsweg entfernt.
+- Im Servicepfad wurde die veraltete Pflichtabhängigkeit des Pachtvertrags von `saison.mitgliedsbeitrag` entfernt; Vorschau und finales Dokument laufen weiter über denselben bestehenden Request-/Signatur-/Speicherpfad.
+- Der bestehende MAUI-Aufrufer blieb fachlich erhalten und wurde nur textlich auf den Template-Pfad geglättet; `Vorschau -> Unterschrift -> finales Speichern` bleibt unverändert bestehen.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den kleinen Pachtvertrag-Korrekturblock auf dem echten Stand von `main` minimal abgeschlossen, ohne neuen Formular- oder Verwaltungsblock zu starten.
 - Ursache war der bestehende Produktivpfad in `PachtvertragDokumentFactory`: dort wurde der Mitgliedsbeitrag weiterhin separat in die PDF-Vorlage geschrieben und zusätzlich in den Gesamtbetrag des Pachtvertrags eingerechnet, obwohl dieser fachlich bereits über den Mitgliedsantrag geführt wird.
 - Der bestehende Pachtvertragspfad wurde deshalb minimal geglättet: `member_fee_display` bleibt leer, der im Vertrag ausgewiesene Gesamtbetrag entspricht nur noch dem Pachtzins, und die unnötige harte Abhängigkeit des Pachtvertrags von `saison.mitgliedsbeitrag` entfällt.
