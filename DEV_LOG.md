@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-04-13 – Pachtvertrag ohne separaten Mitgliedsbeitrag geglättet
+
+- Den echten lokalen Repo-Stand auf `main` geprüft und nur den bestehenden Pachtvertrag-PDF-Pfad eingeordnet.
+- Im produktiven `PachtvertragDokumentFactory` wurde der separat im Mitgliedsantrag geführte Mitgliedsbeitrag aus dem Pachtvertrag entfernt.
+- Dafür wird das Feld `member_fee_display` in der PDF-Vorlage nicht mehr befüllt, der Gesamtbetrag im Pachtvertrag entspricht jetzt nur noch dem Pachtzins und der Pachtvertrag hängt nicht mehr unnötig an `saison.mitgliedsbeitrag`.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 ## 2026-04-13 – Mitgliedsantrag-HTML-Template sauber abgeschlossen
 
 - Den echten lokalen Working Tree auf `main` geprüft und nur den bereits begonnenen Mitgliedsantrag-HTML-Template-Block eingeordnet.

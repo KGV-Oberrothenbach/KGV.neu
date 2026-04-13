@@ -63,16 +63,13 @@ namespace KGV.Core.Utilities
                 throw new InvalidOperationException($"Für die Saison {saison.Jahr} fehlt pacht_pro_qm.");
             if (saison.PachtProQm.Value <= 0)
                 throw new InvalidOperationException($"Für die Saison {saison.Jahr} ist pacht_pro_qm ungültig.");
-            if (!saison.Mitgliedsbeitrag.HasValue)
-                throw new InvalidOperationException($"Für die Saison {saison.Jahr} fehlt mitgliedsbeitrag.");
             if (bankverbindungSnapshot == null)
                 throw new InvalidOperationException("Es ist keine aktive Vereinskonfiguration mit vollständigen Bankdaten hinterlegt.");
 
             var normalizedStatus = FormularDokumentStatus.Normalize(status);
             var dokumenttyp = FormularDokumentTyp.Pachtvertrag;
             var pachtzins = decimal.Round(parzelle.FlaecheQm.Value * saison.PachtProQm.Value, 2, MidpointRounding.AwayFromZero);
-            var mitgliedsbeitrag = decimal.Round(saison.Mitgliedsbeitrag.Value, 2, MidpointRounding.AwayFromZero);
-            var gesamtbetrag = decimal.Round(pachtzins + mitgliedsbeitrag, 2, MidpointRounding.AwayFromZero);
+            var gesamtbetrag = pachtzins;
             var fileName = FormularDokumentDateiname.BuildMitgliedDateiname(hauptmitglied, dokumenttyp, normalizedStatus, vertragsbeginn.Date);
             var title = FormularDokumentDateiname.BuildTitel(dokumenttyp, normalizedStatus);
 
@@ -82,11 +79,11 @@ namespace KGV.Core.Utilities
                 Titel = title,
                 FileName = fileName,
                 MimeType = "application/pdf",
-                FileContent = BuildPdf(hauptmitglied, nebenmitglied, parzelle, saison, vertragsbeginn.Date, pachtzins, mitgliedsbeitrag, gesamtbetrag, gesetzlicherVertreterSnapshot, bankverbindungSnapshot)
+                FileContent = BuildPdf(hauptmitglied, nebenmitglied, parzelle, saison, vertragsbeginn.Date, pachtzins, gesamtbetrag, gesetzlicherVertreterSnapshot, bankverbindungSnapshot)
             };
         }
 
-        private static byte[] BuildPdf(MitgliedRecord hauptmitglied, MitgliedRecord? nebenmitglied, ParzelleRecord parzelle, SaisonRecord saison, DateTime vertragsbeginn, decimal pachtzins, decimal mitgliedsbeitrag, decimal gesamtbetrag, MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot, MitgliedsantragBankverbindungSnapshot bankverbindungSnapshot)
+        private static byte[] BuildPdf(MitgliedRecord hauptmitglied, MitgliedRecord? nebenmitglied, ParzelleRecord parzelle, SaisonRecord saison, DateTime vertragsbeginn, decimal pachtzins, decimal gesamtbetrag, MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot, MitgliedsantragBankverbindungSnapshot bankverbindungSnapshot)
         {
             PdfSharpFontResolverInitializer.EnsureInitialized();
 
@@ -112,7 +109,7 @@ namespace KGV.Core.Utilities
             SetTextField(form, "contract_start_date", FormatDate(vertragsbeginn));
             SetTextField(form, "contract_end_date", string.Empty);
             SetTextField(form, "rent_per_qm", FormatCurrency(saison.PachtProQm.Value));
-            SetTextField(form, "member_fee_display", FormatCurrency(mitgliedsbeitrag));
+            SetTextField(form, "member_fee_display", string.Empty);
             SetTextField(form, "rent_display", FormatCurrency(pachtzins));
             SetTextField(form, "total_display", FormatCurrency(gesamtbetrag));
             SetTextField(form, "rent_due_date", string.Empty);

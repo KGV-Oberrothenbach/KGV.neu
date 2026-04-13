@@ -35,6 +35,12 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 ## Chronologischer Kurzverlauf
 
 ## 2026-04-13
+- Den kleinen Pachtvertrag-Korrekturblock auf dem echten Stand von `main` minimal abgeschlossen, ohne neuen Formular- oder Verwaltungsblock zu starten.
+- Ursache war der bestehende Produktivpfad in `PachtvertragDokumentFactory`: dort wurde der Mitgliedsbeitrag weiterhin separat in die PDF-Vorlage geschrieben und zusätzlich in den Gesamtbetrag des Pachtvertrags eingerechnet, obwohl dieser fachlich bereits über den Mitgliedsantrag geführt wird.
+- Der bestehende Pachtvertragspfad wurde deshalb minimal geglättet: `member_fee_display` bleibt leer, der im Vertrag ausgewiesene Gesamtbetrag entspricht nur noch dem Pachtzins, und die unnötige harte Abhängigkeit des Pachtvertrags von `saison.mitgliedsbeitrag` entfällt.
+- Wirkung: Der Pachtvertrag zeigt den separaten Mitgliedsbeitrag nicht mehr produktiv im PDF-Pfad an; der Block bleibt auf die bestehende Pachtvertragslogik begrenzt und baut keine Nebenarchitektur auf.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - Den bereits begonnenen Mitgliedsantrag-HTML-Template-Block auf dem echten lokalen Stand von `main` als Abschlusslauf sauber geschlossen, ohne Pachtvertrag, Navigation, Rechtearchitektur oder neue Verwaltungslogik anzufassen.
 - Der Working Tree wurde vorab eingeordnet; behandelt wurden nur die direkt betroffenen Mitgliedsantrag-/Template-/PDF-/Service-Dateien samt den zugehörigen Snapshot-/Request-Modellen und Logdateien.
 - Die lokal bereits vorhandenen Dateien `MitgliedsantragTemplate.html`, `MitgliedsantragTemplateData`, `MitgliedsantragTemplateRenderer`, `MitgliedsantragDokumentFactory`, `MitgliedsantragHtmlPdfRenderer`, `MitgliedsantragDokumentRequest`, `MitgliedsantragBankverbindungSnapshot` und `SupabaseService` wurden bewusst weiterverwendet statt neu erfunden.
