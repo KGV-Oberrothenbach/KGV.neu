@@ -25,6 +25,23 @@
 
 ## 2026-04-13 – Mitgliedsantrag-HTML-Template sauber abgeschlossen
 
+## 2026-04-14 – Mitgliedsantrag: DOCX-Vorlage als produktive Layoutquelle mit DOCX->PDF-Konversion
+
+- Ziel: Word-Vorlage `Mitgliedsantrag_Word_Vorlage.docx` produktiv nutzen (DOCX laden → Platzhalter ersetzen → PDF erzeugen) und bestehende PDF/Signatur/Speicherflows weiterhin mit PDF arbeiten.
+- Umsetzung in `KGV.Core/Utilities/MitgliedsantragDokumentFactory.cs`:
+  - DOCX wird als EmbeddedResource geladen, Platzhalter in `MainDocumentPart` per `DocumentFormat.OpenXml` ersetzt.
+  - Nach Füllen wird geprüft, ob noch `{{...}}`-Platzhalter vorhanden sind.
+  - Es erfolgt ein Versuch, lokal per LibreOffice (`soffice --headless --convert-to pdf`) das befüllte DOCX in PDF zu konvertieren.
+  - Falls die lokale Konversion nicht verfügbar/erfolgreich ist, bricht der Flow mit klarer Fehlermeldung ab: "PDF-Erzeugung aus Word-Vorlage ist auf diesem System nicht verfügbar." — keine Speicherung von DOCX als Enddokument, kein HTML-Fallback.
+- Validierungsschritte implementiert:
+  - `dotnet build` (Core) erfolgreich
+  - Integritätsprüfung: keine verbleibenden `{{...}}` im MainDocumentPart erlaubt
+  - Converter-Mechanik benutzt temporäre Dateien im OS-Temp-Ordner und wartet bis zu 30s auf `soffice`-Beendigung
+- Offene Punkte / Hinweise:
+  - Die Konversion erfordert eine im PATH verfügbare `soffice`-Binary (LibreOffice). Wenn nicht installiert oder nicht aufrufbar, bricht der Erzeugungsweg ab und muss serverseitig über eine stabile Konvertierungs-Komponente ergänzt werden (LibreOffice, unoconv, kommerzielle SDK oder ein Conversion-Service).
+  - Platzhalter in DOCX können in Runs fragmentiert sein; die derzeitige einfache XML-Replace-Strategie funktioniert für typische Vorlagen, aber bei Run-Fragmentierung ist eine robustere Run-Zusammenführung nötig.
+
+
 - Den echten lokalen Working Tree auf `main` geprüft und nur den bereits begonnenen Mitgliedsantrag-HTML-Template-Block eingeordnet.
 - Die lokal bereits vorhandenen Dateien `MitgliedsantragTemplate.html`, `MitgliedsantragTemplateData`, `MitgliedsantragTemplateRenderer`, `MitgliedsantragDokumentFactory`, `MitgliedsantragHtmlPdfRenderer`, `SupabaseService` sowie die zugehörigen Snapshot-/Request-Modelle wurden weiterverwendet; es wurde kein paralleler Schattenpfad aufgebaut.
 - Im begonnenen HTML->PDF-Renderer blieb noch ein echter technischer Rest offen: ein unerreichbarer `XCData`-Zweig sowie eine zu schwache Abschnittsvalidierung vor dem Indexzugriff auf die Template-Sections.

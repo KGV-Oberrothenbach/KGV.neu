@@ -7,15 +7,19 @@ using System.Reflection;
 using KGV.Core.Models;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
+using System.Xml.Linq;
+using System.Diagnostics;
+using DocumentFormat.OpenXml.Packaging;
 
 namespace KGV.Core.Utilities
 {
     public static class MitgliedsantragDokumentFactory
     {
-        private const string TemplateResourceName = "KGV.Core.Templates.MitgliedsantragTemplate.html";
-        private const double PageMargin = 34d;
-        private const double SectionSpacing = 10d;
-        private const double HeaderLogoSize = 62d;
+        private const string DocxTemplateResourceName = "KGV.Core.Templates.Mitgliedsantrag_Word_Vorlage.docx";
+        private const string HtmlTemplateResourceName = "KGV.Core.Templates.MitgliedsantragTemplate.html";
+        private const double PageMargin = 24d;
+        private const double SectionSpacing = 8d;
+        private const double HeaderLogoSize = 48d;
 
         public static DokumentUploadRequest CreateUploadRequest(MitgliedRecord member, decimal mitgliedsbeitrag, DateTime beginnDatum, string? status = null)
             => CreateUploadRequest(member, mitgliedsbeitrag, 0m, beginnDatum, null, null, status);
@@ -39,17 +43,32 @@ namespace KGV.Core.Utilities
             var fileName = FormularDokumentDateiname.BuildMitgliedDateiname(member, dokumenttyp, normalizedStatus, DateTime.Today);
             var title = FormularDokumentDateiname.BuildTitel(dokumenttyp, normalizedStatus);
             var templateData = BuildTemplateData(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum.Date, gesetzlicherVertreterSnapshot, bankverbindungSnapshot);
-            var renderedHtml = MitgliedsantragTemplateRenderer.Render(LoadTemplateHtml(), templateData);
-            EnsureTemplateFullyRendered(renderedHtml);
-            var content = BuildTemplatePdf(title, renderedHtml);
+
+            // Load DOCX template bytes and replace placeholders inside a copy.
+            var docxBytes = LoadTemplateDocxBytes();
+            if (docxBytes == null || docxBytes.Length == 0)
+                throw new InvalidOperationException("Die Mitgliedsantrag-DOCX-Vorlage ist nicht im Projekt eingebunden oder nicht auffindbar.");
+
+            var filledDocx = FillDocxTemplate(docxBytes, templateData);
+
+            // Verify no unresolved placeholders remain in the filled DOCX
+            if (ContainsUnreplacedPlaceholders(filledDocx))
+                throw new InvalidOperationException("Unresolved placeholders in the DOCX after template fill.");
+
+            // Try to convert the filled DOCX to PDF using local LibreOffice (soffice).
+            if (!TryConvertDocxToPdfUsingSoffice(filledDocx, out var pdfBytes))
+            {
+                // Per project rule: do not store DOCX as final document and do not use HTML fallback.
+                throw new InvalidOperationException("PDF-Erzeugung aus Word-Vorlage ist auf diesem System nicht verfügbar.");
+            }
 
             return new DokumentUploadRequest
             {
                 MitgliedId = member.Id,
                 Titel = title,
-                FileName = fileName,
+                FileName = fileName, // keep .pdf
                 MimeType = "application/pdf",
-                FileContent = content
+                FileContent = pdfBytes
             };
         }
 
@@ -107,9 +126,6 @@ namespace KGV.Core.Utilities
                 Fussnote = BuildFussnote(bankverbindungSnapshot)
             };
         }
-
-        private static byte[] BuildTemplatePdf(string dokumentTitel, string renderedHtml)
-            => MitgliedsantragHtmlPdfRenderer.Build(dokumentTitel, renderedHtml);
 
         private static void DrawHeader(PdfDocument document, PdfPage page, XGraphics graphics, XFont titleFont, XFont subtitleFont, XFont labelFont, XFont bodyFont, XPen borderPen, XPen accentPen, MitgliedsantragTemplateData data, ref double cursorY)
         {
@@ -421,21 +437,148 @@ namespace KGV.Core.Utilities
             return values.Count == 0 ? "Keine Einwilligungen hinterlegt." : string.Join("\n", values);
         }
 
-        private static string LoadTemplateHtml()
+
+
+        private static byte[] LoadTemplateDocxBytes()
         {
             var assembly = typeof(MitgliedsantragDokumentFactory).Assembly;
-            using var stream = assembly.GetManifestResourceStream(TemplateResourceName)
-                ?? throw new InvalidOperationException("Die Mitgliedsantrag-HTML-Vorlage ist nicht im Projekt eingebunden.");
-            using var reader = new StreamReader(stream);
-            return reader.ReadToEnd();
+            var stream = assembly.GetManifestResourceStream(DocxTemplateResourceName)
+                         ?? throw new InvalidOperationException("Die Mitgliedsantrag-DOCX-Vorlage ist nicht im Projekt eingebunden.");
+            using var ms = new MemoryStream();
+            stream.CopyTo(ms);
+            return ms.ToArray();
         }
 
-        private static void EnsureTemplateFullyRendered(string renderedHtml)
+        private static byte[] FillDocxTemplate(byte[] docxBytes, MitgliedsantragTemplateData data)
         {
-            if (string.IsNullOrWhiteSpace(renderedHtml))
-                throw new InvalidOperationException("Die Mitgliedsantrag-HTML-Vorlage konnte nicht gerendert werden.");
-            if (renderedHtml.Contains("{{", StringComparison.Ordinal) || renderedHtml.Contains("}}", StringComparison.Ordinal))
-                throw new InvalidOperationException("Die Mitgliedsantrag-HTML-Vorlage enthält noch nicht aufgelöste Platzhalter.");
+            // Very small placeholder replacement using OpenXml: replace simple text tokens like {{mitglied_name}} etc.
+            using var ms = new MemoryStream();
+            ms.Write(docxBytes, 0, docxBytes.Length);
+            ms.Position = 0;
+            using (var word = WordprocessingDocument.Open(ms, true))
+            {
+                var docText = string.Empty;
+                using (var sr = new StreamReader(word.MainDocumentPart.GetStream()))
+                {
+                    docText = sr.ReadToEnd();
+                }
+
+                // Build replacements
+                var replacements = new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.Ordinal)
+                {
+                    ["{{verein_name}}"] = data.VereinName,
+                    ["{{ausstellungsdatum}}"] = data.Ausstellungsdatum,
+                    ["{{mitglied_name}}"] = data.MitgliedName,
+                    ["{{mitglied_vorname}}"] = data.MitgliedVorname,
+                    ["{{mitglied_geburtsdatum}}"] = data.MitgliedGeburtsdatum,
+                    ["{{mitglied_aufnahme_ab}}"] = data.MitgliedAufnahmeAb,
+                    ["{{mitglied_anschrift_mehrzeilig}}"] = data.MitgliedAnschriftMehrzeilig?.Replace("\n", "\r\n"),
+                    ["{{mitglied_telefon}}"] = data.MitgliedTelefon,
+                    ["{{mitglied_mobil}}"] = data.MitgliedMobil,
+                    ["{{mitglied_email}}"] = data.MitgliedEmail,
+                    ["{{vertreter_name}}"] = data.VertreterName,
+                    ["{{vertreter_vorname}}"] = data.VertreterVorname,
+                    ["{{vertreter_anschrift_mehrzeilig}}"] = data.VertreterAnschriftMehrzeilig?.Replace("\n", "\r\n"),
+                    ["{{mitgliedsbeitrag_jaehrlich}}"] = data.MitgliedsbeitragJaehrlich,
+                    ["{{aufnahmegebuehr}}"] = data.Aufnahmegebuehr,
+                    ["{{beitrag_hinweis_1}}"] = data.BeitragHinweis1,
+                    ["{{beitrag_hinweis_2}}"] = data.BeitragHinweis2,
+                    ["{{bank_kontoinhaber}}"] = data.BankKontoinhaber,
+                    ["{{bank_name}}"] = data.BankName,
+                    ["{{bank_iban}}"] = data.BankIban,
+                    ["{{bank_bic}}"] = data.BankBic,
+                    ["{{erklaerungstext}}"] = data.Erklaerungstext?.Replace("\n", "\r\n"),
+                    ["{{datenschutztext}}"] = data.Datenschutztext?.Replace("\n", "\r\n"),
+                    ["{{fussnote}}"] = data.Fussnote
+                };
+
+                foreach (var pair in replacements)
+                {
+                    docText = docText.Replace(pair.Key, pair.Value ?? string.Empty);
+                }
+
+                using (var sw = new StreamWriter(word.MainDocumentPart.GetStream(FileMode.Create, FileAccess.Write)))
+                {
+                    sw.Write(docText);
+                }
+
+                word.MainDocumentPart.Document.Save();
+            }
+
+            ms.Position = 0;
+            return ms.ToArray();
+        }
+
+        private static bool ContainsUnreplacedPlaceholders(byte[] docxBytes)
+        {
+            using var ms = new MemoryStream();
+            ms.Write(docxBytes, 0, docxBytes.Length);
+            ms.Position = 0;
+            try
+            {
+                using var word = WordprocessingDocument.Open(ms, false);
+                using var sr = new StreamReader(word.MainDocumentPart.GetStream());
+                var docText = sr.ReadToEnd();
+                return docText.Contains("{{") || docText.Contains("}}");
+            }
+            catch
+            {
+                // If we cannot inspect, conservatively assume placeholders remain.
+                return true;
+            }
+        }
+
+        private static bool TryConvertDocxToPdfUsingSoffice(byte[] docxBytes, out byte[] pdfBytes)
+        {
+            pdfBytes = Array.Empty<byte>();
+            var tempDir = Path.Combine(Path.GetTempPath(), "KGVDocxConvert");
+            Directory.CreateDirectory(tempDir);
+            var docxPath = Path.Combine(tempDir, $"mitgliederantrag_{Guid.NewGuid():N}.docx");
+            try
+            {
+                File.WriteAllBytes(docxPath, docxBytes);
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "soffice",
+                    Arguments = $"--headless --convert-to pdf --outdir \"{tempDir}\" \"{docxPath}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var proc = Process.Start(psi);
+                if (proc == null)
+                    return false;
+
+                if (!proc.WaitForExit(30000))
+                {
+                    try { proc.Kill(true); } catch { }
+                    return false;
+                }
+
+                // The generated PDF normally has the same base name with .pdf
+                var generatedPdf = Path.ChangeExtension(docxPath, ".pdf");
+                if (!File.Exists(generatedPdf))
+                {
+                    var pdfFiles = Directory.GetFiles(tempDir, "*.pdf");
+                    generatedPdf = pdfFiles.OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
+                    if (generatedPdf == null)
+                        return false;
+                }
+
+                pdfBytes = File.ReadAllBytes(generatedPdf);
+                return pdfBytes != null && pdfBytes.Length > 0;
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                try { if (File.Exists(docxPath)) File.Delete(docxPath); } catch { }
+            }
         }
 
         private static string BuildAddressMultiline(string? adresse, string? plz, string? ort)
