@@ -96,7 +96,7 @@ namespace KGV.Core.Utilities
                 VertreterEmail = gesetzlicherVertreterSnapshot == null ? string.Empty : SafeContact(gesetzlicherVertreterSnapshot.Email),
                 MitgliedsbeitragJaehrlich = FormatCurrency(mitgliedsbeitrag),
                 Aufnahmegebuehr = FormatCurrency(aufnahmegebuehr),
-                BeitragHinweis1 = $"Der Mitgliedsbeitrag beträgt für das Beitragsjahr {beitragsjahr} {FormatCurrency(mitgliedsbeitrag)} und ist jährlich zu zahlen.",
+                BeitragHinweis1 = BuildBeitragsHinweis(beitragsjahr, mitgliedsbeitrag, beginnDatum),
                 BeitragHinweis2 = $"Die einmalige Aufnahmegebühr beträgt {FormatCurrency(aufnahmegebuehr)}.",
                 BankKontoinhaber = Safe(bankverbindungSnapshot.Kontoinhaber),
                 BankName = Safe(bankverbindungSnapshot.Bankname),
@@ -475,6 +475,17 @@ namespace KGV.Core.Utilities
             if (snapshot.DatenschutzStand.HasValue)
                 parts.Add($"Stand {FormatDate(snapshot.DatenschutzStand)}");
             return parts.Count == 0 ? string.Empty : string.Join(", ", parts);
+        }
+
+        private static string BuildBeitragsHinweis(int beitragsjahr, decimal jahresbeitrag, DateTime beginnDatum)
+        {
+            if (beginnDatum.Year != beitragsjahr)
+                return $"Der Mitgliedsbeitrag beträgt für das Beitragsjahr {beitragsjahr} {FormatCurrency(jahresbeitrag)} und ist jährlich zu zahlen.";
+
+            var monate = 12 - beginnDatum.Month + 1; // inkl. Eintrittsmonat
+            if (monate < 1) monate = 1;
+            var anteil = MitgliedsantragBeitragHelper.NormalizeBeitrag(jahresbeitrag * ((decimal)monate / 12m));
+            return $"Jahresbeitrag: {FormatCurrency(jahresbeitrag)} · Aufnahmejahr ({monate} Monate: {beginnDatum:dd.MM.yyyy}–31.12.{beitragsjahr}): anteiliger Beitrag {FormatCurrency(anteil)}.";
         }
 
         private static string BuildFussnote(MitgliedsantragBankverbindungSnapshot snapshot)

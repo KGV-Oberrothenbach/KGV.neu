@@ -34,14 +34,14 @@ public static class MitgliedsantragHtmlPdfRenderer
         page.Size = PdfSharpCore.PageSize.A4;
         var graphics = XGraphics.FromPdfPage(page);
 
-        var titleFont = new XFont("Arial", 19, XFontStyle.Bold);
-        var subtitleFont = new XFont("Arial", 11, XFontStyle.Regular);
-        var sectionTitleFont = new XFont("Arial", 11.5, XFontStyle.Bold);
-        var bodyFont = new XFont("Arial", 10.8, XFontStyle.Regular);
-        var labelFont = new XFont("Arial", 9.8, XFontStyle.Bold);
-        var boxFont = new XFont("Arial", 11.5, XFontStyle.Regular);
-        var cardValueFont = new XFont("Arial", 17, XFontStyle.Bold);
-        var footerFont = new XFont("Arial", 9.3, XFontStyle.Regular);
+        var titleFont = new XFont("Arial", 17, XFontStyle.Bold);
+        var subtitleFont = new XFont("Arial", 10, XFontStyle.Regular);
+        var sectionTitleFont = new XFont("Arial", 10, XFontStyle.Bold);
+        var bodyFont = new XFont("Arial", 9.5, XFontStyle.Regular);
+        var labelFont = new XFont("Arial", 9, XFontStyle.Bold);
+        var boxFont = new XFont("Arial", 10.5, XFontStyle.Regular);
+        var cardValueFont = new XFont("Arial", 15, XFontStyle.Bold);
+        var footerFont = new XFont("Arial", 8.5, XFontStyle.Regular);
         var borderPen = new XPen(XColor.FromArgb(216, 222, 229), 0.8);
         var accentPen = new XPen(XColor.FromArgb(47, 93, 58), 1.6);
 
