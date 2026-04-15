@@ -26,6 +26,17 @@
 
 - Validierung: `dotnet build` (Core) erfolgreich
 
+## 2026-04-15 – Mitgliedsantrag: Feld-Annotation-Resolution und Flatten-Draw Tests
+
+- Ergänzt: Robustere Annotation-/Parent-/T-Auflösung beim Flattening in `MitgliedsantragDokumentFactory`.
+- Wenn Annotation-/T fehlt, wird jetzt `/Parent`->`/T` geprüft; Feldnamen werden dekodiert und mapping-Werte direkt in die Seiten-Rects gezeichnet (Text oder Häkchen).
+- Fallback: einfache koordinatenbasierte Heuristik `TryFallbackNameForRect` für die Vorlage, falls keine /T-Informationen verfügbar sind.
+- Erzeugte Test-PDFs (tools/MitgliedsantragTest):
+  - `tools/MitgliedsantragTest\Mitgliedsantrag_Test_Minor.pdf` (Max Mustermann, Vertreter Erika Mustermann)
+  - `tools/MitgliedsantragTest\Mitgliedsantrag_Test_Adult.pdf` (Anna Beispiel, ohne Vertreter)
+- Flatten-Log: `Mitgliedsantrag_flatten_log.txt` enthält pro-Annotation-Diagnose; relevante Einträge zeigen `FinalName`, `MapValue` und `Drawn=True` für die geprüften Felder (Name, Vorname, Geburtsdatum, AufnahmeAb, Beitragsfelder, Bankdaten, Checkboxes).
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` wurden anschließend ausgeführt (siehe Commit/CI-Log).
+
 Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implementierung verwendet reflektive Zugriffe auf Formularfelder und setzt `/NeedAppearances` für Viewer-Aktualisierung. Falls Felddarstellung in manchen PDF-Viewern nicht sofort aktualisiert erscheint, muss ggf. eine zuverlässigere PDF-Bibliothek mit vollständiger AcroForm-Unterstützung (z. B. kommerzielles iText7) geprüft werden.
 
 ## 2026-04-13 – Pachtvertrag ohne separaten Mitgliedsbeitrag geglättet
