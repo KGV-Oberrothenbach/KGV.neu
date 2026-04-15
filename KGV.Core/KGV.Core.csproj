@@ -10,11 +10,17 @@
     <PackageReference Include="PdfSharpCore" Version="1.3.67" />
     <PackageReference Include="supabase" Version="1.1.1" />
     <PackageReference Include="Supabase.Postgrest" Version="4.1.0" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="2.21.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="DEV_LOG.txt">
+      <Comment>Removed unused DOCX and HTML template files from embedded resources.</Comment>
+    </Compile>
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="..\KGV.Maui\Resources\Images\kgv_logo.png" Link="Assets\kgv_logo.png" />
-    <EmbeddedResource Include="Templates\MitgliedsantragTemplate.html" />
+    <EmbeddedResource Include="Templates\Mitgliedsantrag_Vorlage_Formularfelder.pdf" />
     <EmbeddedResource Include="Templates\PachtvertragTemplate.html" />
   </ItemGroup>
 

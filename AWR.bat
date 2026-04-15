@@ -30,23 +30,21 @@ if not defined GIT if exist "C:\Program Files\Git\cmd\git.exe" set "GIT=C:\Progr
 if not defined GIT if exist "C:\Program Files\Git\bin\git.exe" set "GIT=C:\Program Files\Git\bin\git.exe"
 
 set "ISCC="
-if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" set "ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+if exist "C:\Progra~2\Inno Setup 6\ISCC.exe" set "ISCC=C:\Progra~2\Inno Setup 6\ISCC.exe"
 if not defined ISCC if exist "C:\Program Files\Inno Setup 6\ISCC.exe" set "ISCC=C:\Program Files\Inno Setup 6\ISCC.exe"
 if not defined ISCC if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
 if not defined ISCC if exist "C:\Users\%USERNAME%\AppData\Local\Programs\Inno Setup 6\ISCC.exe" set "ISCC=C:\Users\%USERNAME%\AppData\Local\Programs\Inno Setup 6\ISCC.exe"
+
+set "CERT_DIR=%REPO%\_secrets\Windows"
+set "PFX_FILE=%CERT_DIR%\kgv-codesign.pfx"
+set "CER_FILE=%CERT_DIR%\kgv-codesign.cer"
+set "SIGNTOOL=C:\Progra~2\Microsoft SDKs\ClickOnce\SignTool\signtool.exe"
+
 
 cd /d "%REPO%" || (
   echo FEHLER: Repo-Pfad nicht gefunden: %REPO%
   exit /b 1
 )
-
-echo.
-echo =========================================================
-echo KGV MAUI + WPF Release
-echo Repo: %REPO%
-echo WPF-Zielrepo: %WPF_RELEASE_REPO%
-echo =========================================================
-echo.
 
 if not exist "%MAUI_CSPROJ%" (
   echo FEHLER: MAUI csproj nicht gefunden: %MAUI_CSPROJ%
@@ -81,6 +79,30 @@ if not defined ISCC (
   echo   %LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe
   exit /b 1
 )
+
+if not exist "%SIGNTOOL%" (
+  echo FEHLER: signtool.exe wurde nicht gefunden: %SIGNTOOL%
+  exit /b 1
+)
+
+set "CURRENT_BRANCH="
+for /f "delims=" %%I in ('""%GIT%" -C "%REPO%" branch --show-current 2^>nul"') do set "CURRENT_BRANCH=%%I"
+if not defined CURRENT_BRANCH (
+  for /f "delims=" %%I in ('""%GIT%" -C "%REPO%" rev-parse --abbrev-ref HEAD 2^>nul"') do set "CURRENT_BRANCH=%%I"
+)
+if not defined CURRENT_BRANCH (
+  echo FEHLER: Aktueller Branch im Hauptrepo konnte nicht ermittelt werden.
+  exit /b 1
+)
+
+echo.
+echo =========================================================
+echo KGV MAUI + WPF Release
+echo Repo: %REPO%
+echo WPF-Zielrepo: %WPF_RELEASE_REPO%
+echo Quellrepo-Branch: %CURRENT_BRANCH%
+echo =========================================================
+echo.
 
 echo Loesche alte Build-Artefakte...
 if exist "%REPO%\KGV.Maui\bin" rmdir /s /q "%REPO%\KGV.Maui\bin"
@@ -236,18 +258,38 @@ if not defined KEYALIAS (
   exit /b 1
 )
 
-echo Bitte Signatur-Passwort eingeben...
+echo.
+echo =========================================================
+echo Passwortabfragen
+echo =========================================================
+echo Bitte Android-Keystore-Passwort eingeben...
 for /f "usebackq delims=" %%P in (`powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$p = Read-Host 'Signatur Passwort' -AsSecureString;" ^
+  "$p = Read-Host 'Android-Keystore-Passwort' -AsSecureString;" ^
   "$BSTR = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($p);" ^
-  "try { [Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR) }"`) do set "STOREPASS=%%P"
+  "try { [Runtime.InteropServices.Marshal]::PtrToStringBSTR($BSTR) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR) }"`) do set "STOREPASS=%%P"
 
 if not defined STOREPASS (
-  echo FEHLER: Kein Passwort eingegeben.
+  echo FEHLER: Kein Android-Keystore-Passwort eingegeben.
   exit /b 1
 )
 
 set "KEYPASS=%STOREPASS%"
+
+if not exist "%PFX_FILE%" (
+  echo FEHLER: Code-Signing-PFX nicht gefunden: %PFX_FILE%
+  exit /b 1
+)
+
+echo Bitte Windows-Code-Signing-Passwort eingeben...
+for /f "usebackq delims=" %%P in (`powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$p = Read-Host 'Windows-Code-Signing-Passwort' -AsSecureString;" ^
+  "$BSTR = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($p);" ^
+  "try { [Runtime.InteropServices.Marshal]::PtrToStringBSTR($BSTR) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR) }"`) do set "SIGN_PWD=%%P"
+
+if not defined SIGN_PWD (
+  echo FEHLER: Kein Windows-Code-Signing-Passwort eingegeben.
+  exit /b 1
+)
 
 echo.
 echo =========================================================
@@ -476,6 +518,27 @@ if %RC% GEQ 8 (
 
 echo.
 echo =========================================================
+echo Signiere WPF-Dateien...
+echo =========================================================
+"%SIGNTOOL%" sign /f "%PFX_FILE%" /p "%SIGN_PWD%" /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 "%WPF_BUILD_SOURCE_EXE%"
+if errorlevel 1 (
+  echo FEHLER: WPF Build-EXE konnte nicht signiert werden.
+  exit /b 1
+)
+
+if exist "%WPF_PUBLISH_OUT%\KGV.Wpf.exe" (
+  "%SIGNTOOL%" sign /f "%PFX_FILE%" /p "%SIGN_PWD%" /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 "%WPF_PUBLISH_OUT%\KGV.Wpf.exe"
+  if errorlevel 1 (
+    echo FEHLER: WPF Publish-EXE konnte nicht signiert werden.
+    exit /b 1
+  )
+) else (
+  echo FEHLER: KGV.Wpf.exe wurde im Publish-Ordner nicht gefunden.
+  exit /b 1
+)
+
+echo.
+echo =========================================================
 echo Erstelle Inno-Setup-Installer...
 echo =========================================================
 "%ISCC%" /DAppVersion="%TARGET_VERSION%" /O"%WPF_SETUP_OUT%" /F"KGV-Setup-%TARGET_VERSION%" "%WPF_ISS%"
@@ -488,6 +551,16 @@ if errorlevel 1 (
 if not exist "%INNO_OUTPUT_FILE%" (
   echo FEHLER: Erwarteter Setup-Installer wurde nicht gefunden:
   echo   %INNO_OUTPUT_FILE%
+  exit /b 1
+)
+
+echo.
+echo =========================================================
+echo Signiere Setup-Installer...
+echo =========================================================
+"%SIGNTOOL%" sign /f "%PFX_FILE%" /p "%SIGN_PWD%" /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 "%INNO_OUTPUT_FILE%"
+if errorlevel 1 (
+  echo FEHLER: Setup-Installer konnte nicht signiert werden.
   exit /b 1
 )
 
@@ -631,8 +704,9 @@ if errorlevel 1 (
     echo FEHLER: Git-Commit der csproj-Dateien im Hauptrepo fehlgeschlagen.
     exit /b 1
   )
-  "%GIT%" -C "%REPO%" push origin main || (
+  "%GIT%" -C "%REPO%" push origin "%CURRENT_BRANCH%" || (
     echo FEHLER: Git-Push der csproj-Dateien im Hauptrepo fehlgeschlagen.
+    echo Zielbranch im Hauptrepo: %CURRENT_BRANCH%
     echo HINWEIS: Wenn in der Zwischenzeit erneut remote gepusht wurde, Batch einfach erneut starten.
     exit /b 1
   )
@@ -679,5 +753,9 @@ echo   %WPF_RELEASE_REPO%\%LATEST_SETUP_NAME%
 echo   %WPF_RELEASE_REPO%\%VERSION_MANIFEST_NAME%
 echo.
 "%GIT%" -C "%WPF_RELEASE_REPO%" status -sb
+
+set "STOREPASS="
+set "KEYPASS="
+set "SIGN_PWD="
 
 exit /b 0
