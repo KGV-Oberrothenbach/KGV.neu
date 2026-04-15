@@ -9,14 +9,15 @@ using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using System.Xml.Linq;
 using System.Diagnostics;
-using DocumentFormat.OpenXml.Packaging;
+using PdfSharpCore.Pdf.IO;
+using PdfSharpCore.Pdf.AcroForms;
+using PdfSharpCore.Pdf.Annotations;
 
 namespace KGV.Core.Utilities
 {
     public static class MitgliedsantragDokumentFactory
     {
-        private const string DocxTemplateResourceName = "KGV.Core.Templates.Mitgliedsantrag_Word_Vorlage.docx";
-        private const string HtmlTemplateResourceName = "KGV.Core.Templates.MitgliedsantragTemplate.html";
+        private const string PdfTemplateResourceName = "KGV.Core.Templates.Mitgliedsantrag_Vorlage_Formularfelder.pdf";
         private const double PageMargin = 24d;
         private const double SectionSpacing = 8d;
         private const double HeaderLogoSize = 48d;
@@ -44,23 +45,12 @@ namespace KGV.Core.Utilities
             var title = FormularDokumentDateiname.BuildTitel(dokumenttyp, normalizedStatus);
             var templateData = BuildTemplateData(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum.Date, gesetzlicherVertreterSnapshot, bankverbindungSnapshot);
 
-            // Load DOCX template bytes and replace placeholders inside a copy.
-            var docxBytes = LoadTemplateDocxBytes();
-            if (docxBytes == null || docxBytes.Length == 0)
-                throw new InvalidOperationException("Die Mitgliedsantrag-DOCX-Vorlage ist nicht im Projekt eingebunden oder nicht auffindbar.");
+            // Load embedded PDF form template and fill AcroForm fields.
+            var pdfTemplate = LoadTemplatePdfBytes();
+            if (pdfTemplate == null || pdfTemplate.Length == 0)
+                throw new InvalidOperationException("Die Mitgliedsantrag-PDF-Vorlage ist nicht im Projekt eingebunden oder nicht auffindbar.");
 
-            var filledDocx = FillDocxTemplate(docxBytes, templateData);
-
-            // Verify no unresolved placeholders remain in the filled DOCX
-            if (ContainsUnreplacedPlaceholders(filledDocx))
-                throw new InvalidOperationException("Unresolved placeholders in the DOCX after template fill.");
-
-            // Try to convert the filled DOCX to PDF using local LibreOffice (soffice).
-            if (!TryConvertDocxToPdfUsingSoffice(filledDocx, out var pdfBytes))
-            {
-                // Per project rule: do not store DOCX as final document and do not use HTML fallback.
-                throw new InvalidOperationException("PDF-Erzeugung aus Word-Vorlage ist auf diesem System nicht verfügbar.");
-            }
+            var filledPdf = FillPdfForm(pdfTemplate, templateData);
 
             return new DokumentUploadRequest
             {
@@ -68,8 +58,56 @@ namespace KGV.Core.Utilities
                 Titel = title,
                 FileName = fileName, // keep .pdf
                 MimeType = "application/pdf",
-                FileContent = pdfBytes
+                FileContent = filledPdf
             };
+        }
+
+        private static string DecodePdfFieldName(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return raw ?? string.Empty;
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < raw.Length; i++)
+            {
+                if (raw[i] == '\\' && i + 1 < raw.Length)
+                {
+                    int j = i + 1;
+                    int end = Math.Min(j + 3, raw.Length);
+                    int val = 0;
+                    int digits = 0;
+                    while (j < end && raw[j] >= '0' && raw[j] <= '7')
+                    {
+                        val = val * 8 + (raw[j] - '0');
+                        j++; digits++;
+                    }
+                    if (digits > 0)
+                    {
+                        sb.Append((char)val);
+                        i = j - 1;
+                        continue;
+                    }
+                    sb.Append(raw[i + 1]);
+                    i++;
+                    continue;
+                }
+                sb.Append(raw[i]);
+            }
+            return sb.ToString();
+        }
+
+        private static (string onState, string offState) DetectOnOffStateFromElements(object? elements)
+        {
+            if (elements == null) return ("Yes", "Off");
+            try
+            {
+                var dump = elements.ToString() ?? string.Empty;
+                var rx = new System.Text.RegularExpressions.Regex(@"/([A-Za-z0-9_]+)");
+                var matches = rx.Matches(dump).Cast<System.Text.RegularExpressions.Match>().Select(m => m.Groups[1].Value).Distinct().ToList();
+                var preferred = new[] { "Yes", "On", "1" };
+                var on = matches.FirstOrDefault(t => preferred.Contains(t)) ?? matches.FirstOrDefault(t => !string.Equals(t, "Off", StringComparison.OrdinalIgnoreCase)) ?? "Yes";
+                var off = matches.FirstOrDefault(t => string.Equals(t, "Off", StringComparison.OrdinalIgnoreCase)) ?? "Off";
+                return (on, off);
+            }
+            catch { return ("Yes", "Off"); }
         }
 
         private static MitgliedsantragTemplateData BuildTemplateData(MitgliedRecord member, decimal mitgliedsbeitrag, decimal aufnahmegebuehr, DateTime beginnDatum, MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot, MitgliedsantragBankverbindungSnapshot bankverbindungSnapshot)
@@ -441,145 +479,531 @@ namespace KGV.Core.Utilities
 
         private static byte[] LoadTemplateDocxBytes()
         {
+            throw new NotSupportedException("LoadTemplateDocxBytes is no longer supported. The member application uses a PDF form template.");
+        }
+
+        private static byte[] LoadTemplatePdfBytes()
+        {
             var assembly = typeof(MitgliedsantragDokumentFactory).Assembly;
-            var stream = assembly.GetManifestResourceStream(DocxTemplateResourceName)
-                         ?? throw new InvalidOperationException("Die Mitgliedsantrag-DOCX-Vorlage ist nicht im Projekt eingebunden.");
+            var stream = assembly.GetManifestResourceStream(PdfTemplateResourceName)
+                         ?? throw new InvalidOperationException("Die Mitgliedsantrag-PDF-Vorlage ist nicht im Projekt eingebunden.");
             using var ms = new MemoryStream();
             stream.CopyTo(ms);
             return ms.ToArray();
         }
 
-        private static byte[] FillDocxTemplate(byte[] docxBytes, MitgliedsantragTemplateData data)
+        private static byte[] FillPdfForm(byte[] pdfBytes, MitgliedsantragTemplateData data)
         {
-            // Very small placeholder replacement using OpenXml: replace simple text tokens like {{mitglied_name}} etc.
-            using var ms = new MemoryStream();
-            ms.Write(docxBytes, 0, docxBytes.Length);
-            ms.Position = 0;
-            using (var word = WordprocessingDocument.Open(ms, true))
+            // Try to open PDF and set AcroForm fields by name. This relies on PdfSharpCore's AcroForm support.
+            using var inMs = new MemoryStream();
+            inMs.Write(pdfBytes, 0, pdfBytes.Length);
+            inMs.Position = 0;
+
+            using var document = PdfReader.Open(inMs, PdfDocumentOpenMode.Modify);
+
+            var form = document.AcroForm;
+            if (form == null)
+                throw new InvalidOperationException("Die PDF-Vorlage enthält kein AcroFormular (keine Formularfelder).");
+
+            // Map expected field names to values
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                var docText = string.Empty;
-                using (var sr = new StreamReader(word.MainDocumentPart.GetStream()))
+                ["verein_name"] = data.VereinName,
+                ["ausstellungsdatum"] = data.Ausstellungsdatum,
+                ["mitglied_name"] = data.MitgliedName,
+                ["mitglied_vorname"] = data.MitgliedVorname,
+                ["mitglied_geburtsdatum"] = data.MitgliedGeburtsdatum,
+                ["mitglied_aufnahme_ab"] = data.MitgliedAufnahmeAb,
+                ["mitglied_anschrift_mehrzeilig"] = data.MitgliedAnschriftMehrzeilig,
+                ["mitglied_telefon"] = data.MitgliedTelefon,
+                ["mitglied_mobil"] = data.MitgliedMobil,
+                ["mitglied_email"] = data.MitgliedEmail,
+                // use explicit true/false strings for internal mapping; actual PDF on-state name will be resolved per-field
+                ["check_whatsapp"] = string.Equals(data.CheckWhatsapp, "true", StringComparison.OrdinalIgnoreCase) ? "true" : "false",
+                ["check_rechnung_mail"] = string.Equals(data.CheckRechnungMail, "true", StringComparison.OrdinalIgnoreCase) ? "true" : "false",
+                ["check_info_mail"] = string.Equals(data.CheckInfoMail, "true", StringComparison.OrdinalIgnoreCase) ? "true" : "false",
+                ["vertreter_name"] = data.VertreterName,
+                ["vertreter_vorname"] = data.VertreterVorname,
+                ["vertreter_anschrift_mehrzeilig"] = data.VertreterAnschriftMehrzeilig,
+                ["vertreter_telefon"] = data.VertreterTelefon,
+                ["vertreter_mobil"] = data.VertreterMobil,
+                ["vertreter_email"] = data.VertreterEmail,
+                ["mitgliedsbeitrag_jaehrlich"] = data.MitgliedsbeitragJaehrlich,
+                ["aufnahmegebuehr"] = data.Aufnahmegebuehr,
+                ["beitrag_hinweis_1"] = data.BeitragHinweis1,
+                ["beitrag_hinweis_2"] = data.BeitragHinweis2,
+                ["bank_kontoinhaber"] = data.BankKontoinhaber,
+                ["bank_name"] = data.BankName,
+                ["bank_iban"] = data.BankIban,
+                ["bank_bic"] = data.BankBic,
+                ["erklaerungstext"] = data.Erklaerungstext,
+                ["datenschutztext"] = data.Datenschutztext,
+                ["fussnote"] = data.Fussnote
+            };
+
+            // Iterate fields and attempt to set values using reflection to remain compatible with PdfSharpCore internals.
+            var logLines = new List<string>();
+            var fieldNames = new List<string>();
+            foreach (var fieldObj in form.Fields)
+            {
+                // local helpers
+                static string DecodePdfFieldNameLocal(string raw)
                 {
-                    docText = sr.ReadToEnd();
+                    if (string.IsNullOrEmpty(raw)) return raw ?? string.Empty;
+                    var sb = new System.Text.StringBuilder();
+                    for (int i = 0; i < raw.Length; i++)
+                    {
+                        if (raw[i] == '\\' && i + 1 < raw.Length)
+                        {
+                            int j = i + 1;
+                            int end = Math.Min(j + 3, raw.Length);
+                            int val = 0;
+                            int digits = 0;
+                            while (j < end && raw[j] >= '0' && raw[j] <= '7')
+                            {
+                                val = val * 8 + (raw[j] - '0');
+                                j++; digits++;
+                            }
+                            if (digits > 0)
+                            {
+                                sb.Append((char)val);
+                                i = j - 1;
+                                continue;
+                            }
+                            sb.Append(raw[i + 1]);
+                            i++;
+                            continue;
+                        }
+                        sb.Append(raw[i]);
+                    }
+                    return sb.ToString();
                 }
 
-                // Build replacements
-                var replacements = new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.Ordinal)
+                static (string onState, string offState) DetectOnOffStateFromElementsLocal(object? elements)
                 {
-                    ["{{verein_name}}"] = data.VereinName,
-                    ["{{ausstellungsdatum}}"] = data.Ausstellungsdatum,
-                    ["{{mitglied_name}}"] = data.MitgliedName,
-                    ["{{mitglied_vorname}}"] = data.MitgliedVorname,
-                    ["{{mitglied_geburtsdatum}}"] = data.MitgliedGeburtsdatum,
-                    ["{{mitglied_aufnahme_ab}}"] = data.MitgliedAufnahmeAb,
-                    ["{{mitglied_anschrift_mehrzeilig}}"] = data.MitgliedAnschriftMehrzeilig?.Replace("\n", "\r\n"),
-                    ["{{mitglied_telefon}}"] = data.MitgliedTelefon,
-                    ["{{mitglied_mobil}}"] = data.MitgliedMobil,
-                    ["{{mitglied_email}}"] = data.MitgliedEmail,
-                    ["{{vertreter_name}}"] = data.VertreterName,
-                    ["{{vertreter_vorname}}"] = data.VertreterVorname,
-                    ["{{vertreter_anschrift_mehrzeilig}}"] = data.VertreterAnschriftMehrzeilig?.Replace("\n", "\r\n"),
-                    ["{{mitgliedsbeitrag_jaehrlich}}"] = data.MitgliedsbeitragJaehrlich,
-                    ["{{aufnahmegebuehr}}"] = data.Aufnahmegebuehr,
-                    ["{{beitrag_hinweis_1}}"] = data.BeitragHinweis1,
-                    ["{{beitrag_hinweis_2}}"] = data.BeitragHinweis2,
-                    ["{{bank_kontoinhaber}}"] = data.BankKontoinhaber,
-                    ["{{bank_name}}"] = data.BankName,
-                    ["{{bank_iban}}"] = data.BankIban,
-                    ["{{bank_bic}}"] = data.BankBic,
-                    ["{{erklaerungstext}}"] = data.Erklaerungstext?.Replace("\n", "\r\n"),
-                    ["{{datenschutztext}}"] = data.Datenschutztext?.Replace("\n", "\r\n"),
-                    ["{{fussnote}}"] = data.Fussnote
-                };
-
-                foreach (var pair in replacements)
-                {
-                    docText = docText.Replace(pair.Key, pair.Value ?? string.Empty);
+                    if (elements == null) return ("Yes", "Off");
+                    try
+                    {
+                        var dump = elements.ToString() ?? string.Empty;
+                        var rx = new System.Text.RegularExpressions.Regex(@"/([A-Za-z0-9_]+)");
+                        var matches = rx.Matches(dump).Cast<System.Text.RegularExpressions.Match>().Select(m => m.Groups[1].Value).Distinct().ToList();
+                        var preferred = new[] { "Yes", "On", "1" };
+                        var on = matches.FirstOrDefault(t => preferred.Contains(t)) ?? matches.FirstOrDefault(t => !string.Equals(t, "Off", StringComparison.OrdinalIgnoreCase)) ?? "Yes";
+                        var off = matches.FirstOrDefault(t => string.Equals(t, "Off", StringComparison.OrdinalIgnoreCase)) ?? "Off";
+                        return (on, off);
+                    }
+                    catch { return ("Yes", "Off"); }
                 }
-
-                using (var sw = new StreamWriter(word.MainDocumentPart.GetStream(FileMode.Create, FileAccess.Write)))
+                try
                 {
-                    sw.Write(docText);
-                }
+                    var fieldName = string.Empty;
+                    try
+                    {
+                        var nameProp = fieldObj.GetType().GetProperty("Name");
+                        if (nameProp != null)
+                        {
+                            fieldName = nameProp.GetValue(fieldObj)?.ToString() ?? string.Empty;
+                        }
+                    }
+                    catch { }
 
-                word.MainDocumentPart.Document.Save();
+                    if (string.IsNullOrWhiteSpace(fieldName))
+                    {
+                        try
+                        {
+                            var elementsProp = fieldObj.GetType().GetProperty("Elements");
+                            var elements = elementsProp?.GetValue(fieldObj);
+                            var getString = elements?.GetType().GetMethod("GetString", new[] { typeof(string) });
+                            var t = getString?.Invoke(elements, new object[] { "/T" })?.ToString();
+                            fieldName = t ?? string.Empty;
+                        }
+                        catch { }
+                    }
+
+                    if (string.IsNullOrWhiteSpace(fieldName))
+                        continue;
+
+                    // Resolve value: prefer exact field name, otherwise try decoded PDF name
+                    string value;
+                    if (!map.TryGetValue(fieldName, out var tmp))
+                    {
+                        var decoded = DecodePdfFieldNameLocal(fieldName);
+                        if (!string.IsNullOrWhiteSpace(decoded) && map.TryGetValue(decoded, out var tmp2))
+                            value = tmp2 ?? string.Empty;
+                        else
+                            value = string.Empty;
+                    }
+                    else
+                    {
+                        value = tmp ?? string.Empty;
+                    }
+
+                    fieldNames.Add(fieldName);
+                    var decodedForLog = DecodePdfFieldNameLocal(fieldName);
+                    logLines.Add($"TemplateFieldRaw='{fieldName}' Decoded='{decodedForLog}' MappingHasKey={map.ContainsKey(decodedForLog)}");
+
+                    // Try to set a Value property
+                    var type = fieldObj.GetType();
+                    var setSuccess = false;
+
+                    // Try to set Value property (text fields)
+                    try
+                    {
+                        var valueProp = type.GetProperty("Value");
+                        if (valueProp != null)
+                        {
+                            var pdfStringType = typeof(PdfSharpCore.Pdf.PdfString);
+                            var ctor = pdfStringType.GetConstructor(new[] { typeof(string) });
+                            var pdfStr = ctor?.Invoke(new object[] { value ?? string.Empty });
+                            valueProp.SetValue(fieldObj, pdfStr);
+                            setSuccess = true;
+                        }
+                    }
+                    catch { }
+
+                    // Try Checked property for checkboxes/radio
+                    try
+                    {
+                        var checkedProp = type.GetProperty("Checked");
+                        if (!setSuccess && checkedProp != null)
+                        {
+                            var isChecked = string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "1", StringComparison.OrdinalIgnoreCase);
+                            checkedProp.SetValue(fieldObj, isChecked);
+                            setSuccess = true;
+                        }
+                    }
+                    catch { }
+
+                    // Fallback: write into Elements /V and for buttons also set /AS
+                    try
+                    {
+                        var elementsProp = type.GetProperty("Elements");
+                        var elements = elementsProp?.GetValue(fieldObj);
+                        var setString = elements?.GetType().GetMethod("SetString", new[] { typeof(string), typeof(string) });
+                        // write raw value into /V for text fields
+                        setString?.Invoke(elements, new object[] { "/V", value ?? string.Empty });
+
+                        // also set appearance state for buttons: detect on/off state and use exact token
+                        try
+                        {
+                            var ft = (elements?.GetType().GetMethod("GetString", new[] { typeof(string) })?.Invoke(elements, new object[] { "/FT" }) ?? string.Empty)?.ToString();
+                            if (!string.IsNullOrWhiteSpace(ft) && ft.Contains("Btn"))
+                            {
+                                var (onState, offState) = DetectOnOffStateFromElements(elements);
+                                var isChecked = string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "1", StringComparison.OrdinalIgnoreCase);
+                                var useState = isChecked ? onState : offState;
+                                try { setString?.Invoke(elements, new object[] { "/AS", useState }); } catch { }
+                                try { setString?.Invoke(elements, new object[] { "/V", useState }); } catch { }
+                            }
+                        }
+                        catch { }
+                    }
+                    catch { }
+                }
+                catch
+                {
+                    // ignore individual field failures but continue
+                }
             }
 
-            ms.Position = 0;
-            return ms.ToArray();
-        }
-
-        private static bool ContainsUnreplacedPlaceholders(byte[] docxBytes)
-        {
-            using var ms = new MemoryStream();
-            ms.Write(docxBytes, 0, docxBytes.Length);
-            ms.Position = 0;
+            // write discovered template field names and mapping keys for diagnosis
             try
             {
-                using var word = WordprocessingDocument.Open(ms, false);
-                using var sr = new StreamReader(word.MainDocumentPart.GetStream());
-                var docText = sr.ReadToEnd();
-                return docText.Contains("{{") || docText.Contains("}}");
+                var basePath = Environment.CurrentDirectory;
+                var f1 = Path.Combine(basePath, "Mitgliedsantrag_fieldnames_log.txt");
+                File.AppendAllLines(f1, new[] { "--- Template field names: " + DateTime.UtcNow.ToString("o") }.Concat(fieldNames));
+                var f2 = Path.Combine(basePath, "Mitgliedsantrag_mapping_keys.txt");
+                File.AppendAllLines(f2, new[] { "--- Mapping keys: " + DateTime.UtcNow.ToString("o") }.Concat(map.Keys));
+            }
+            catch { }
+
+            // Ensure the form is marked as needing appearance updates
+            try
+            {
+                form.Elements.SetBoolean("/NeedAppearances", true);
             }
             catch
             {
-                // If we cannot inspect, conservatively assume placeholders remain.
-                return true;
+                // ignore
             }
-        }
 
-        private static bool TryConvertDocxToPdfUsingSoffice(byte[] docxBytes, out byte[] pdfBytes)
-        {
-            pdfBytes = Array.Empty<byte>();
-            var tempDir = Path.Combine(Path.GetTempPath(), "KGVDocxConvert");
-            Directory.CreateDirectory(tempDir);
-            var docxPath = Path.Combine(tempDir, $"mitgliederantrag_{Guid.NewGuid():N}.docx");
+            // Save intermediate PDF (after setting field dictionary values) so we can inspect written /V and /AS programmatically
             try
             {
-                File.WriteAllBytes(docxPath, docxBytes);
+                using var inspectMs = new MemoryStream();
+                document.Save(inspectMs);
+                var inspectBytes = inspectMs.ToArray();
+                var inspectPath = Path.Combine(Environment.CurrentDirectory, "Mitgliedsantrag_afterset.pdf");
+                File.WriteAllBytes(inspectPath, inspectBytes);
 
-                var psi = new ProcessStartInfo
+                // Re-open read-only to inspect field dictionaries
+                using var inspectDoc = PdfReader.Open(new MemoryStream(inspectBytes), PdfDocumentOpenMode.ReadOnly);
+                var inspectForm = inspectDoc.AcroForm;
+                var inspectLines = new List<string> { "--- AfterSet inspection: " + DateTime.UtcNow.ToString("o") };
+                if (inspectForm != null)
                 {
-                    FileName = "soffice",
-                    Arguments = $"--headless --convert-to pdf --outdir \"{tempDir}\" \"{docxPath}\"",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
-                using var proc = Process.Start(psi);
-                if (proc == null)
-                    return false;
-
-                if (!proc.WaitForExit(30000))
-                {
-                    try { proc.Kill(true); } catch { }
-                    return false;
+                    foreach (var f in inspectForm.Fields)
+                    {
+                        try
+                        {
+                            var name = string.Empty;
+                            try { name = f.GetType().GetProperty("Name")?.GetValue(f)?.ToString() ?? string.Empty; } catch { }
+                            if (string.IsNullOrWhiteSpace(name))
+                            {
+                                try { name = f.GetType().GetProperty("Elements")?.GetValue(f)?.ToString() ?? string.Empty; } catch { }
+                            }
+                            var elements = f.GetType().GetProperty("Elements")?.GetValue(f);
+                            string v = string.Empty;
+                            try { v = elements?.GetType().GetMethod("GetString", new[] { typeof(string) })?.Invoke(elements, new object[] { "/V" })?.ToString() ?? string.Empty; } catch { }
+                            string asv = string.Empty;
+                            try { asv = elements?.GetType().GetMethod("GetString", new[] { typeof(string) })?.Invoke(elements, new object[] { "/AS" })?.ToString() ?? string.Empty; } catch { }
+                            inspectLines.Add($"Field: {name} /V='{v}' /AS='{asv}'");
+                        }
+                        catch { }
+                    }
                 }
-
-                // The generated PDF normally has the same base name with .pdf
-                var generatedPdf = Path.ChangeExtension(docxPath, ".pdf");
-                if (!File.Exists(generatedPdf))
+                else
                 {
-                    var pdfFiles = Directory.GetFiles(tempDir, "*.pdf");
-                    generatedPdf = pdfFiles.OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
-                    if (generatedPdf == null)
-                        return false;
+                    inspectLines.Add("No AcroForm in intermediate PDF");
                 }
-
-                pdfBytes = File.ReadAllBytes(generatedPdf);
-                return pdfBytes != null && pdfBytes.Length > 0;
+                var inspectTxt = Path.Combine(Environment.CurrentDirectory, "Mitgliedsantrag_afterset_inspect.txt");
+                File.AppendAllLines(inspectTxt, inspectLines);
             }
             catch
             {
-                return false;
+                // ignore inspection failures
             }
-            finally
+
+            // Flatten fields into page content so values are visually present in all viewers.
+            try
             {
-                try { if (File.Exists(docxPath)) File.Delete(docxPath); } catch { }
+                FlattenFormFieldsToPageContent(document, map);
+            }
+            catch
+            {
+                // if flattening fails, proceed with saved PDF (viewers may still render via NeedAppearances)
+            }
+
+            using var outMs = new MemoryStream();
+            document.Save(outMs);
+            return outMs.ToArray();
+        }
+
+        private static void FlattenFormFieldsToPageContent(PdfDocument document, Dictionary<string, string> map)
+        {
+            if (document == null) return;
+            var logLines = new List<string>();
+            // Iterate all form fields and draw their current values directly onto the associated page.
+            var form = document.AcroForm;
+            if (form == null) return;
+
+            // Use a default font available in PdfSharpCore (Helvetica/Arial via resolver)
+            var baseFont = new XFont("Arial", 10, XFontStyle.Regular);
+            var checkFont = new XFont("Arial", 12, XFontStyle.Regular);
+
+            // Collect widgets to remove after drawing
+            var widgetsToRemove = new List<(PdfPage page, PdfAnnotation annot)>();
+
+            foreach (var fieldObj in form.Fields)
+            {
+                string fieldName = string.Empty;
+                try
+                {
+                    var nameProp = fieldObj.GetType().GetProperty("Name");
+                    if (nameProp != null)
+                        fieldName = nameProp.GetValue(fieldObj)?.ToString() ?? string.Empty;
+                }
+                catch { }
+
+                if (string.IsNullOrWhiteSpace(fieldName))
+                {
+                    try
+                    {
+                        var elementsProp = fieldObj.GetType().GetProperty("Elements");
+                        var elements = elementsProp?.GetValue(fieldObj);
+                        var getString = elements?.GetType().GetMethod("GetString", new[] { typeof(string) });
+                        var t = getString?.Invoke(elements, new object[] { "/T" })?.ToString();
+                        fieldName = t ?? string.Empty;
+                    }
+                    catch { }
+                }
+
+                if (string.IsNullOrWhiteSpace(fieldName))
+                    continue;
+
+                // Try to get value from map
+                map.TryGetValue(fieldName, out var value);
+
+                // Determine widget annotations and rects
+                try
+                {
+                    var widgetsProp = fieldObj.GetType().GetProperty("Widgets");
+                    var widgets = widgetsProp?.GetValue(fieldObj) as System.Collections.IEnumerable;
+                    if (widgets == null)
+                        continue;
+
+                    foreach (var widget in widgets)
+                    {
+                        try
+                        {
+                            // Each widget is an Annotation — get its page and rectangle
+                            var pageProp = widget.GetType().GetProperty("Page");
+                            var page = pageProp?.GetValue(widget) as PdfPage;
+                            var elementsProp = widget.GetType().GetProperty("Elements");
+                            var elements = elementsProp?.GetValue(widget);
+                            string rectString = null;
+                            try
+                            {
+                                var getArray = elements?.GetType().GetMethod("GetArray", new[] { typeof(string) });
+                                var rectArray = getArray?.Invoke(elements, new object[] { "/Rect" });
+                                if (rectArray != null)
+                                {
+                                    // rectArray.ToString gives something like [ llx lly urx ury ]
+                                    rectString = rectArray.ToString();
+                                }
+                            }
+                            catch { }
+
+                            if (page == null || rectString == null)
+                                continue;
+
+                            // Parse rect numbers
+                            var nums = rectString.Replace("[", "").Replace("]", "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                            if (nums.Length < 4) continue;
+                            if (!double.TryParse(nums[0], NumberStyles.Any, CultureInfo.InvariantCulture, out var llx)) continue;
+                            if (!double.TryParse(nums[1], NumberStyles.Any, CultureInfo.InvariantCulture, out var lly)) continue;
+                            if (!double.TryParse(nums[2], NumberStyles.Any, CultureInfo.InvariantCulture, out var urx)) continue;
+                            if (!double.TryParse(nums[3], NumberStyles.Any, CultureInfo.InvariantCulture, out var ury)) continue;
+
+                            var rect = new XRect(llx, page.Height.Point - ury, urx - llx, ury - lly);
+
+                            // Draw onto the page
+                            using var gfx = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
+
+                            // Decide drawing based on field type heuristics: checkbox fields often have small rects
+                            // Use decoded mapping value if available
+                            var decodedForDraw = value;
+                            if (string.IsNullOrWhiteSpace(decodedForDraw))
+                            {
+                                // try to decode the template field name and use mapping
+                                try
+                                {
+                                    var decodedName = DecodePdfFieldName(fieldName);
+                                    if (!string.IsNullOrWhiteSpace(decodedName) && map.TryGetValue(decodedName, out var mv))
+                                        decodedForDraw = mv;
+                                }
+                                catch { }
+                            }
+
+                            if (string.IsNullOrWhiteSpace(decodedForDraw))
+                            {
+                                // nothing to draw for empty value
+                                logLines.Add($"{fieldName}: (empty) rect={rect.X:F0},{rect.Y:F0},{rect.Width:F0},{rect.Height:F0} page={GetPageIndex(document, page)}");
+                            }
+                            else if (rect.Width < 24 && rect.Height < 24 && (decodedForDraw.Equals("Yes", StringComparison.OrdinalIgnoreCase) || decodedForDraw.Equals("On", StringComparison.OrdinalIgnoreCase) || decodedForDraw.Equals("true", StringComparison.OrdinalIgnoreCase) || decodedForDraw.Equals("1", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                // Draw a checkmark centered
+                                var centerX = rect.X + rect.Width / 2.0;
+                                var centerY = rect.Y + rect.Height / 2.0 - 2;
+                                gfx.DrawString("✓", checkFont, XBrushes.Black, new XPoint(centerX - 6, centerY + 6));
+                                logLines.Add($"{fieldName}: CHECK at {rect.X:F0},{rect.Y:F0} size={rect.Width:F0}x{rect.Height:F0} page={GetPageIndex(document, page)}");
+                            }
+                            else
+                            {
+                                // Multi-line support: split into lines and draw within rect with small padding
+                                var lines = SplitLines(decodedForDraw);
+                                var font = baseFont;
+                                var y = rect.Y + 3;
+                                foreach (var line in lines)
+                                {
+                                    gfx.DrawString(line, font, XBrushes.Black, new XRect(rect.X + 3, y, rect.Width - 6, rect.Height - 6), XStringFormats.TopLeft);
+                                    y += font.GetHeight();
+                                    if (y > rect.Y + rect.Height) break;
+                                }
+                                logLines.Add($"{fieldName}: TEXT='{decodedForDraw.Replace('\n',' ')}' rect={rect.X:F0},{rect.Y:F0},{rect.Width:F0},{rect.Height:F0} page={GetPageIndex(document, page)}");
+                            }
+
+                            // Mark widget for removal: we will remove the annotation object so the form widget is no longer interactive
+                            try
+                            {
+                                var annotProp = widget.GetType().GetProperty("Annotation");
+                                var annot = annotProp?.GetValue(widget) as PdfAnnotation;
+                                if (annot != null)
+                                    widgetsToRemove.Add((page, annot));
+                            }
+                            catch
+                            {
+                                // fallback: try to get the widget itself as PdfAnnotation
+                                if (widget is PdfAnnotation pa)
+                                    widgetsToRemove.Add((page, pa));
+                            }
+                        }
+                        catch
+                        {
+                            // ignore widget-level failures
+                        }
+                    }
+                }
+                catch
+                {
+                    // ignore field-level failures
+                }
+            }
+
+            // Write flatten log if any
+            try
+            {
+                if (logLines.Count > 0)
+                {
+                    var outPath = Path.Combine(Environment.CurrentDirectory, "Mitgliedsantrag_flatten_log.txt");
+                    File.AppendAllLines(outPath, new[] { "--- Flatten run: " + DateTime.UtcNow.ToString("o") }.Concat(logLines));
+                }
+            }
+            catch { }
+
+            // Remove collected annotations from pages' Annotations collection
+            foreach (var (page, annot) in widgetsToRemove)
+            {
+                try
+                {
+                    if (page.Annotations.Contains(annot))
+                        page.Annotations.Remove(annot);
+                }
+                catch { }
+            }
+
+            // Finally, remove AcroForm fields dictionary so the PDF is no longer an interactive form
+            try
+            {
+                var acro = document.AcroForm;
+                if (acro != null)
+                {
+                    // Clear fields
+                    var fieldsProp = acro.GetType().GetProperty("Fields");
+                    if (fieldsProp != null)
+                    {
+                        var fields = fieldsProp.GetValue(acro) as System.Collections.IList;
+                        fields?.Clear();
+                    }
+
+                    // Remove AcroForm dictionary entry
+                    document.Internals.Catalog.Elements.Remove("/AcroForm");
+                }
+            }
+            catch
+            {
+                // ignore
             }
         }
+
+        private static int GetPageIndex(PdfDocument document, PdfPage page)
+        {
+            for (int i = 0; i < document.Pages.Count; i++)
+                if (document.Pages[i] == page) return i;
+            return -1;
+        }
+
+
 
         private static string BuildAddressMultiline(string? adresse, string? plz, string? ort)
         {

@@ -14,6 +14,20 @@
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
 
+## 2026-04-14 – Mitgliedsantrag: Umstellung auf PDF-Formularvorlage (AcroForm)
+
+- Ziel: Die neue PDF-Formularvorlage `Mitgliedsantrag_Vorlage_Formularfelder.pdf` ist jetzt die produktive Quelle. Die DOCX- und HTML-Renderpfade sowie lokale `soffice`-Konversion wurden aus dem produktiven Erzeugungspfad entfernt.
+- Umsetzung in `KGV.Core/Utilities/MitgliedsantragDokumentFactory.cs`:
+  - Neue eingebettete Ressource `Templates/Mitgliedsantrag_Vorlage_Formularfelder.pdf` hinzugefügt.
+  - `CreateUploadRequest(...)` lädt die PDF-Vorlage und befüllt AcroForm-Felder anhand ihrer Feldnamen (Textfelder und Checkboxen).
+  - Vertreterfelder werden leer gelassen, wenn keine gesetzliche Vertretung vorliegt; der Vertreterblock bleibt sichtbar in der Vorlage.
+  - Beitrags-/Aufnahmegebühr-Logik wurde beibehalten; Felder `mitgliedsbeitrag_jaehrlich`, anteiliger Beitrag und `aufnahmegebuehr` werden gesetzt.
+  - Entfernt: DOCX-Template-Fill, HTML-Template-Renderer-Pfad und `soffice`-basierte DOCX->PDF-Konversion aus dem produktiven Pfad.
+
+- Validierung: `dotnet build` (Core) erfolgreich
+
+Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implementierung verwendet reflektive Zugriffe auf Formularfelder und setzt `/NeedAppearances` für Viewer-Aktualisierung. Falls Felddarstellung in manchen PDF-Viewern nicht sofort aktualisiert erscheint, muss ggf. eine zuverlässigere PDF-Bibliothek mit vollständiger AcroForm-Unterstützung (z. B. kommerzielles iText7) geprüft werden.
+
 ## 2026-04-13 – Pachtvertrag ohne separaten Mitgliedsbeitrag geglättet
 
 - Den echten lokalen Repo-Stand auf `main` geprüft und nur den bestehenden Pachtvertrag-PDF-Pfad eingeordnet.

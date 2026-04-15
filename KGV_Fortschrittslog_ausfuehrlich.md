@@ -45,6 +45,8 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 - Der bestehende MAUI-Aufrufer blieb fachlich erhalten und wurde nur textlich auf den Template-Pfad geglättet; `Vorschau -> Unterschrift -> finales Speichern` bleibt unverändert bestehen.
 - Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
 
+- 2026-04-14: Mitgliedsantrag produktiv auf PDF-Formularvorlage umgestellt (`Mitgliedsantrag_Vorlage_Formularfelder.pdf`). Alte HTML- und DOCX-Erzeugungspfade sowie die lokale `soffice`-Konversion wurden aus dem produktiven Erzeugungspfad entfernt. `KGV.Core` bindet die neue PDF-Vorlage als EmbeddedResource ein und füllt die AcroForm-Felder programmgesteuert im `MitgliedsantragDokumentFactory`. Build-Validierung (Core) erfolgreich.
+
 - Den kleinen Pachtvertrag-Korrekturblock auf dem echten Stand von `main` minimal abgeschlossen, ohne neuen Formular- oder Verwaltungsblock zu starten.
 - Ursache war der bestehende Produktivpfad in `PachtvertragDokumentFactory`: dort wurde der Mitgliedsbeitrag weiterhin separat in die PDF-Vorlage geschrieben und zusätzlich in den Gesamtbetrag des Pachtvertrags eingerechnet, obwohl dieser fachlich bereits über den Mitgliedsantrag geführt wird.
 - Der bestehende Pachtvertragspfad wurde deshalb minimal geglättet: `member_fee_display` bleibt leer, der im Vertrag ausgewiesene Gesamtbetrag entspricht nur noch dem Pachtzins, und die unnötige harte Abhängigkeit des Pachtvertrags von `saison.mitgliedsbeitrag` entfällt.
