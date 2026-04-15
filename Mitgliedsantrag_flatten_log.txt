@@ -1,0 +1,52 @@
+--- Flatten run: 2026-04-15T19:42:24.3556872Z
+ANNOT TEXT: unterschrift_datum='15.04.2026' page=0 rect=300,540,269x17
+ANNOT TEXT: bank_bic='MUSTERBIC' page=0 rect=436,443,133x17
+ANNOT TEXT: bank_iban='DE00123456781234567890' page=0 rect=300,443,132x17
+ANNOT TEXT: bank_name='Musterbank' page=0 rect=164,443,132x17
+ANNOT TEXT: bank_kontoinhaber='KGV Oberrothenbach' page=0 rect=28,443,132x17
+ANNOT TEXT: aufnahmegebuehr='10,00 €' page=0 rect=436,394,133x17
+ANNOT TEXT: beitragsmonate='8' page=0 rect=300,394,132x17
+ANNOT TEXT: mitgliedsbeitrag_anteilig='60,00 €' page=0 rect=164,394,132x17
+ANNOT TEXT: mitgliedsbeitrag_jaehrlich='90,00 €' page=0 rect=28,394,132x17
+ANNOT TEXT: vertreter_anschrift_mehrzeilig='Vertreterweg 2
+12345 Musterstadt' page=0 rect=28,325,541x38
+ANNOT TEXT: vertreter_email='erika@example.org' page=0 rect=164,302,405x17
+ANNOT TEXT: vertreter_mobil='01707654321' page=0 rect=28,302,132x17
+ANNOT TEXT: vertreter_telefon='0987654321' page=0 rect=436,281,133x17
+ANNOT TEXT: vertreter_vorname='Erika' page=0 rect=164,281,132x17
+ANNOT TEXT: vertreter_name='Mustermann' page=0 rect=28,281,132x17
+ANNOT CHECK: check_info_mail at page=0 rect=469,247,8x8
+ANNOT CHECK: check_rechnung_mail at page=0 rect=286,247,8x8
+ANNOT CHECK: check_whatsapp at page=0 rect=105,247,8x8
+ANNOT TEXT: mitglied_anschrift_mehrzeilig='Musterstraße 1
+12345 Musterstadt' page=0 rect=28,184,541x39
+ANNOT TEXT: mitglied_email='max@example.org' page=0 rect=301,162,268x17
+ANNOT TEXT: mitglied_mobil='01701234567' page=0 rect=167,162,130x17
+ANNOT TEXT: mitglied_telefon='0123456789' page=0 rect=28,162,134x17
+ANNOT TEXT: mitglied_aufnahme_ab='01.05.2026' page=0 rect=436,141,133x17
+ANNOT TEXT: mitglied_geburtsdatum='01.06.2008' page=0 rect=301,141,130x17
+ANNOT TEXT: mitglied_vorname='Max' page=0 rect=167,141,130x17
+ANNOT TEXT: mitglied_name='Mustermann' page=0 rect=28,141,134x17
+ANNOT TEXT: dokument_ort='Verwendungszweck: Mitgliedsantrag' page=0 rect=442,76,126x14
+ANNOT TEXT: ausstellungsdatum='15.04.2026' page=0 rect=442,54,126x14
+--- Flatten run: 2026-04-15T19:42:24.3884927Z
+ANNOT TEXT: unterschrift_datum='15.04.2026' page=0 rect=300,540,269x17
+ANNOT TEXT: bank_bic='MUSTERBIC' page=0 rect=436,443,133x17
+ANNOT TEXT: bank_iban='DE00123456781234567890' page=0 rect=300,443,132x17
+ANNOT TEXT: bank_name='Musterbank' page=0 rect=164,443,132x17
+ANNOT TEXT: bank_kontoinhaber='KGV Oberrothenbach' page=0 rect=28,443,132x17
+ANNOT TEXT: aufnahmegebuehr='10,00 €' page=0 rect=436,394,133x17
+ANNOT TEXT: beitragsmonate='8' page=0 rect=300,394,132x17
+ANNOT TEXT: mitgliedsbeitrag_anteilig='60,00 €' page=0 rect=164,394,132x17
+ANNOT TEXT: mitgliedsbeitrag_jaehrlich='90,00 €' page=0 rect=28,394,132x17
+ANNOT TEXT: mitglied_anschrift_mehrzeilig='Beispielweg 3
+54321 Beispielstadt' page=0 rect=28,184,541x39
+ANNOT TEXT: mitglied_email='anna@example.org' page=0 rect=301,162,268x17
+ANNOT TEXT: mitglied_mobil='01709876543' page=0 rect=167,162,130x17
+ANNOT TEXT: mitglied_telefon='030123456' page=0 rect=28,162,134x17
+ANNOT TEXT: mitglied_aufnahme_ab='01.05.2026' page=0 rect=436,141,133x17
+ANNOT TEXT: mitglied_geburtsdatum='12.04.1990' page=0 rect=301,141,130x17
+ANNOT TEXT: mitglied_vorname='Anna' page=0 rect=167,141,130x17
+ANNOT TEXT: mitglied_name='Beispiel' page=0 rect=28,141,134x17
+ANNOT TEXT: dokument_ort='Verwendungszweck: Mitgliedsantrag' page=0 rect=442,76,126x14
+ANNOT TEXT: ausstellungsdatum='15.04.2026' page=0 rect=442,54,126x14

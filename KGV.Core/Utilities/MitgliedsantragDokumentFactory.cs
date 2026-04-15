@@ -837,11 +837,34 @@ namespace KGV.Core.Utilities
                         if (annot == null) continue;
                         var elements = annot.GetType().GetProperty("Elements")?.GetValue(annot);
                         if (elements == null) continue;
-                        // read /T
+
+                        // read /T from annotation
                         string rawName = string.Empty;
                         try { rawName = elements.GetType().GetMethod("GetString", new[] { typeof(string) })?.Invoke(elements, new object[] { "/T" })?.ToString() ?? string.Empty; } catch { }
-                        if (string.IsNullOrWhiteSpace(rawName)) continue;
-                        var name = DecodePdfFieldName(rawName);
+
+                        // if annotation /T empty, try Parent field's /T
+                        string parentName = string.Empty;
+                        try
+                        {
+                            if (string.IsNullOrWhiteSpace(rawName))
+                            {
+                                var parentProp = annot.GetType().GetProperty("Parent");
+                                var parent = parentProp?.GetValue(annot);
+                                if (parent != null)
+                                {
+                                    var parentElements = parent.GetType().GetProperty("Elements")?.GetValue(parent);
+                                    if (parentElements != null)
+                                    {
+                                        parentName = parentElements.GetType().GetMethod("GetString", new[] { typeof(string) })?.Invoke(parentElements, new object[] { "/T" })?.ToString() ?? string.Empty;
+                                    }
+                                }
+                            }
+                        }
+                        catch { }
+
+                        // choose final name (annotation /T if present, otherwise parent /T)
+                        var finalRawName = !string.IsNullOrWhiteSpace(rawName) ? rawName : parentName;
+                        var name = DecodePdfFieldName(finalRawName ?? string.Empty);
                         // get value from mapping
                         map.TryGetValue(name, out var value);
 
@@ -863,32 +886,72 @@ namespace KGV.Core.Utilities
                         if (!double.TryParse(nums[3], NumberStyles.Any, CultureInfo.InvariantCulture, out var ury)) continue;
                         var rect = new XRect(llx, page.Height.Point - ury, urx - llx, ury - lly);
 
-                        // draw
-                        if (!string.IsNullOrWhiteSpace(value))
+                        // diagnostic info for this annotation
+                        try
                         {
-                            if (rect.Width < 24 && rect.Height < 24 && (value.Equals("true", StringComparison.OrdinalIgnoreCase) || value.Equals("1", StringComparison.OrdinalIgnoreCase) || value.Equals("Yes", StringComparison.OrdinalIgnoreCase) || value.Equals("On", StringComparison.OrdinalIgnoreCase)))
+                            logLines.Add($"AnnotIndex={ai} Rect={rect.X:F0},{rect.Y:F0},{rect.Width:F0}x{rect.Height:F0} AnnotT='{rawName}' ParentT='{parentName}' FinalName='{name}' MapValue='{(value ?? "")}'");
+                        }
+                        catch { }
+                        // draw
+                        var drawn = false;
+
+                        // Explicit checkbox drawing for known checkbox field names
+                        var checkboxFields = new[] { "check_whatsapp", "check_rechnung_mail", "check_info_mail" };
+                        if (!string.IsNullOrWhiteSpace(name) && checkboxFields.Contains(name, StringComparer.OrdinalIgnoreCase))
+                        {
+                            var mappingVal = value ?? string.Empty;
+                            var isChecked = mappingVal.Equals("true", StringComparison.OrdinalIgnoreCase) || mappingVal.Equals("1", StringComparison.OrdinalIgnoreCase) || mappingVal.Equals("Yes", StringComparison.OrdinalIgnoreCase) || mappingVal.Equals("On", StringComparison.OrdinalIgnoreCase);
+                            if (isChecked)
                             {
                                 var centerX = rect.X + rect.Width / 2.0;
                                 var centerY = rect.Y + rect.Height / 2.0 - 2;
                                 gfx.DrawString("✓", checkFont, XBrushes.Black, new XPoint(centerX - 6, centerY + 6));
-                                logLines.Add($"ANNOT CHECK: {name} at page={pi} rect={rect.X:F0},{rect.Y:F0},{rect.Width:F0}x{rect.Height:F0}");
+                                logLines.Add($"ANNOT CHECK (by-name): {name} mapping='{mappingVal}' page={pi} rect={rect.X:F0},{rect.Y:F0},{rect.Width:F0}x{rect.Height:F0}");
+                                drawn = true;
                             }
-                            else
+                        }
+
+                        // If not already drawn, draw text mapping value directly
+                        if (!drawn && !string.IsNullOrWhiteSpace(value))
+                        {
+                            var lines = SplitLines(value);
+                            var y = rect.Y + 3;
+                            foreach (var line in lines)
                             {
-                                var lines = SplitLines(value);
-                                var y = rect.Y + 3;
-                                foreach (var line in lines)
-                                {
-                                    gfx.DrawString(line, baseFont, XBrushes.Black, new XRect(rect.X + 3, y, rect.Width - 6, rect.Height - 6), XStringFormats.TopLeft);
-                                    y += baseFont.GetHeight();
-                                    if (y > rect.Y + rect.Height) break;
-                                }
-                                logLines.Add($"ANNOT TEXT: {name}='{value}' page={pi} rect={rect.X:F0},{rect.Y:F0},{rect.Width:F0}x{rect.Height:F0}");
+                                gfx.DrawString(line, baseFont, XBrushes.Black, new XRect(rect.X + 3, y, rect.Width - 6, rect.Height - 6), XStringFormats.TopLeft);
+                                y += baseFont.GetHeight();
+                                if (y > rect.Y + rect.Height) break;
                             }
+                            logLines.Add($"ANNOT TEXT: {name}='{value}' page={pi} rect={rect.X:F0},{rect.Y:F0},{rect.Width:F0}x{rect.Height:F0}");
+                            drawn = true;
+                        }
+
+                        // If still not drawn, attempt fallback mapping by rect
+                        if (!drawn)
+                        {
+                            try
+                            {
+                                if (TryFallbackNameForRect(page, rect, out var fallbackName) && map.TryGetValue(fallbackName, out var fallbackValue) && !string.IsNullOrWhiteSpace(fallbackValue))
+                                {
+                                    var lines = SplitLines(fallbackValue);
+                                    var y = rect.Y + 3;
+                                    foreach (var line in lines)
+                                    {
+                                        gfx.DrawString(line, baseFont, XBrushes.Black, new XRect(rect.X + 3, y, rect.Width - 6, rect.Height - 6), XStringFormats.TopLeft);
+                                        y += baseFont.GetHeight();
+                                        if (y > rect.Y + rect.Height) break;
+                                    }
+                                    logLines.Add($"ANNOT FALLBACK TEXT: {fallbackName}='{fallbackValue}' page={pi} rect={rect.X:F0},{rect.Y:F0}");
+                                    drawn = true;
+                                }
+                            }
+                            catch { }
                         }
 
                         // schedule removal
                         toRemove.Add(annot);
+                        // final log whether drawn
+                        try { logLines.Add($"AnnotIndex={ai} FinalName='{name}' Drawn={drawn}"); } catch { }
                     }
                     catch { }
                 }
@@ -942,6 +1005,69 @@ namespace KGV.Core.Utilities
             for (int i = 0; i < document.Pages.Count; i++)
                 if (document.Pages[i] == page) return i;
             return -1;
+        }
+
+        // Fallback heuristic: map an annotation rect to a likely field name for this specific template.
+        // This uses relative page coordinates and is intentionally permissive; it only returns true
+        // when a reasonable guess can be made. The mapping can be refined if precise coordinates
+        // for the template are measured.
+        private static bool TryFallbackNameForRect(PdfPage page, XRect rect, out string name)
+        {
+            name = string.Empty;
+            try
+            {
+                var pw = page.Width.Point;
+                var ph = page.Height.Point;
+                if (pw <= 0 || ph <= 0) return false;
+                var cx = rect.X + rect.Width / 2.0;
+                var cy = rect.Y + rect.Height / 2.0;
+                var rx = cx / pw;
+                var ry = cy / ph;
+
+                // Header / document box area (right side)
+                if (ry < 0.15 && rx > 0.65)
+                {
+                    name = "ausstellungsdatum";
+                    return true;
+                }
+
+                // Member name / vorname area (upper left form area)
+                if (ry >= 0.18 && ry < 0.30 && rx < 0.6)
+                {
+                    // narrow rects likely first name/last name
+                    if (rect.Width < pw * 0.4)
+                    {
+                        name = rect.Width > pw * 0.25 ? "mitglied_name" : "mitglied_vorname";
+                    }
+                    else
+                        name = "mitglied_name";
+                    return true;
+                }
+
+                // Address area (middle left)
+                if (ry >= 0.30 && ry < 0.52 && rx < 0.6)
+                {
+                    name = "mitglied_anschrift_mehrzeilig";
+                    return true;
+                }
+
+                // Communication / checkboxes area (right side of personal section)
+                if (ry >= 0.30 && ry < 0.60 && rx >= 0.55)
+                {
+                    // map some known checkbox names; this is a best-effort guess
+                    name = "check_whatsapp";
+                    return true;
+                }
+
+                // Bank/account area lower on page
+                if (ry >= 0.60 && ry < 0.78 && rx < 0.6)
+                {
+                    name = "bank_kontoinhaber";
+                    return true;
+                }
+            }
+            catch { }
+            return false;
         }
 
 
