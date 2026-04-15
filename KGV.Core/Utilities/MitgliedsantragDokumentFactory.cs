@@ -505,40 +505,63 @@ namespace KGV.Core.Utilities
             if (form == null)
                 throw new InvalidOperationException("Die PDF-Vorlage enthält kein AcroFormular (keine Formularfelder).");
 
-            // Map expected field names to values
+            // Map expected field names to values (match the corrected PDF template field list)
+            // Compute beitragsmonate and mitgliedsbeitrag_anteilig from the formatted strings
+            int beitragsmonate = 0;
+            decimal jahresbeitrag = 0m;
+            decimal mitgliedsbeitragAnteilig = 0m;
+            try
+            {
+                // parse AufnahmeAb date (expected format dd.MM.yyyy)
+                if (DateTime.TryParseExact(data.MitgliedAufnahmeAb, "dd.MM.yyyy", CultureInfo.GetCultureInfo("de-DE"), DateTimeStyles.None, out var beginnDate))
+                {
+                    beitragsmonate = 12 - beginnDate.Month + 1;
+                    if (beitragsmonate < 1) beitragsmonate = 1;
+                }
+                // parse yearly contribution like "90,00 €"
+                var style = NumberStyles.Currency | NumberStyles.AllowThousands;
+                decimal.TryParse(data.MitgliedsbeitragJaehrlich, style, CultureInfo.GetCultureInfo("de-DE"), out jahresbeitrag);
+                mitgliedsbeitragAnteilig = Math.Round(jahresbeitrag * ((decimal)beitragsmonate / 12m), 2);
+            }
+            catch { beitragsmonate = 0; jahresbeitrag = 0m; mitgliedsbeitragAnteilig = 0m; }
+
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                ["verein_name"] = data.VereinName,
                 ["ausstellungsdatum"] = data.Ausstellungsdatum,
+                ["dokument_ort"] = (data.Fussnote ?? string.Empty),
                 ["mitglied_name"] = data.MitgliedName,
                 ["mitglied_vorname"] = data.MitgliedVorname,
                 ["mitglied_geburtsdatum"] = data.MitgliedGeburtsdatum,
                 ["mitglied_aufnahme_ab"] = data.MitgliedAufnahmeAb,
-                ["mitglied_anschrift_mehrzeilig"] = data.MitgliedAnschriftMehrzeilig,
                 ["mitglied_telefon"] = data.MitgliedTelefon,
                 ["mitglied_mobil"] = data.MitgliedMobil,
                 ["mitglied_email"] = data.MitgliedEmail,
-                // use explicit true/false strings for internal mapping; actual PDF on-state name will be resolved per-field
-                ["check_whatsapp"] = string.Equals(data.CheckWhatsapp, "true", StringComparison.OrdinalIgnoreCase) ? "true" : "false",
-                ["check_rechnung_mail"] = string.Equals(data.CheckRechnungMail, "true", StringComparison.OrdinalIgnoreCase) ? "true" : "false",
-                ["check_info_mail"] = string.Equals(data.CheckInfoMail, "true", StringComparison.OrdinalIgnoreCase) ? "true" : "false",
+                ["mitglied_anschrift_mehrzeilig"] = data.MitgliedAnschriftMehrzeilig,
+                ["check_whatsapp"] = string.Equals(data.CheckWhatsapp, "true", StringComparison.OrdinalIgnoreCase) ? "true" : string.Empty,
+                ["check_rechnung_mail"] = string.Equals(data.CheckRechnungMail, "true", StringComparison.OrdinalIgnoreCase) ? "true" : string.Empty,
+                ["check_info_mail"] = string.Equals(data.CheckInfoMail, "true", StringComparison.OrdinalIgnoreCase) ? "true" : string.Empty,
                 ["vertreter_name"] = data.VertreterName,
                 ["vertreter_vorname"] = data.VertreterVorname,
-                ["vertreter_anschrift_mehrzeilig"] = data.VertreterAnschriftMehrzeilig,
+                ["vertreter_geburtsdatum"] = string.Empty,
                 ["vertreter_telefon"] = data.VertreterTelefon,
                 ["vertreter_mobil"] = data.VertreterMobil,
                 ["vertreter_email"] = data.VertreterEmail,
+                ["vertreter_anschrift_mehrzeilig"] = data.VertreterAnschriftMehrzeilig,
                 ["mitgliedsbeitrag_jaehrlich"] = data.MitgliedsbeitragJaehrlich,
+                ["mitgliedsbeitrag_anteilig"] = mitgliedsbeitragAnteilig.ToString("0.00 €", CultureInfo.GetCultureInfo("de-DE")),
+                ["beitragsmonate"] = beitragsmonate.ToString(),
                 ["aufnahmegebuehr"] = data.Aufnahmegebuehr,
-                ["beitrag_hinweis_1"] = data.BeitragHinweis1,
-                ["beitrag_hinweis_2"] = data.BeitragHinweis2,
                 ["bank_kontoinhaber"] = data.BankKontoinhaber,
                 ["bank_name"] = data.BankName,
                 ["bank_iban"] = data.BankIban,
                 ["bank_bic"] = data.BankBic,
-                ["erklaerungstext"] = data.Erklaerungstext,
-                ["datenschutztext"] = data.Datenschutztext,
-                ["fussnote"] = data.Fussnote
+                ["unterschrift_ort"] = string.Empty,
+                ["unterschrift_datum"] = data.Ausstellungsdatum,
+                ["unterschrift_antragsteller"] = string.Empty,
+                ["unterschrift_vertreter"] = string.Empty,
+                ["unterschrift_verein"] = string.Empty,
+                ["datenschutz_unterschrift_antragsteller"] = string.Empty,
+                ["datenschutz_unterschrift_vertreter"] = string.Empty
             };
 
             // Iterate fields and attempt to set values using reflection to remain compatible with PdfSharpCore internals.
@@ -793,160 +816,87 @@ namespace KGV.Core.Utilities
         {
             if (document == null) return;
             var logLines = new List<string>();
-            // Iterate all form fields and draw their current values directly onto the associated page.
-            var form = document.AcroForm;
-            if (form == null) return;
-
-            // Use a default font available in PdfSharpCore (Helvetica/Arial via resolver)
+            // New flattening strategy: iterate pages and page.Annotations directly and draw values from mapping
             var baseFont = new XFont("Arial", 10, XFontStyle.Regular);
             var checkFont = new XFont("Arial", 12, XFontStyle.Regular);
-
-            // Collect widgets to remove after drawing
-            var widgetsToRemove = new List<(PdfPage page, PdfAnnotation annot)>();
-
-            foreach (var fieldObj in form.Fields)
+            var pages = document.Pages;
+            for (int pi = 0; pi < pages.Count; pi++)
             {
-                string fieldName = string.Empty;
-                try
-                {
-                    var nameProp = fieldObj.GetType().GetProperty("Name");
-                    if (nameProp != null)
-                        fieldName = nameProp.GetValue(fieldObj)?.ToString() ?? string.Empty;
-                }
-                catch { }
-
-                if (string.IsNullOrWhiteSpace(fieldName))
+                var page = pages[pi];
+                var annots = page.Annotations;
+                if (annots == null || annots.Count == 0) continue;
+                // collect annotations to remove after drawing
+                var toRemove = new List<PdfAnnotation>();
+                using var gfx = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
+                for (int ai = annots.Count - 1; ai >= 0; ai--)
                 {
                     try
                     {
-                        var elementsProp = fieldObj.GetType().GetProperty("Elements");
-                        var elements = elementsProp?.GetValue(fieldObj);
-                        var getString = elements?.GetType().GetMethod("GetString", new[] { typeof(string) });
-                        var t = getString?.Invoke(elements, new object[] { "/T" })?.ToString();
-                        fieldName = t ?? string.Empty;
+                        var annotItem = annots[ai];
+                        var annot = annotItem as PdfAnnotation;
+                        if (annot == null) continue;
+                        var elements = annot.GetType().GetProperty("Elements")?.GetValue(annot);
+                        if (elements == null) continue;
+                        // read /T
+                        string rawName = string.Empty;
+                        try { rawName = elements.GetType().GetMethod("GetString", new[] { typeof(string) })?.Invoke(elements, new object[] { "/T" })?.ToString() ?? string.Empty; } catch { }
+                        if (string.IsNullOrWhiteSpace(rawName)) continue;
+                        var name = DecodePdfFieldName(rawName);
+                        // get value from mapping
+                        map.TryGetValue(name, out var value);
+
+                        // read rect
+                        string rectString = null;
+                        try
+                        {
+                            var getArray = elements.GetType().GetMethod("GetArray", new[] { typeof(string) });
+                            var rectArray = getArray?.Invoke(elements, new object[] { "/Rect" });
+                            if (rectArray != null) rectString = rectArray.ToString();
+                        }
+                        catch { }
+                        if (rectString == null) continue;
+                        var nums = rectString.Replace("[", "").Replace("]", "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (nums.Length < 4) continue;
+                        if (!double.TryParse(nums[0], NumberStyles.Any, CultureInfo.InvariantCulture, out var llx)) continue;
+                        if (!double.TryParse(nums[1], NumberStyles.Any, CultureInfo.InvariantCulture, out var lly)) continue;
+                        if (!double.TryParse(nums[2], NumberStyles.Any, CultureInfo.InvariantCulture, out var urx)) continue;
+                        if (!double.TryParse(nums[3], NumberStyles.Any, CultureInfo.InvariantCulture, out var ury)) continue;
+                        var rect = new XRect(llx, page.Height.Point - ury, urx - llx, ury - lly);
+
+                        // draw
+                        if (!string.IsNullOrWhiteSpace(value))
+                        {
+                            if (rect.Width < 24 && rect.Height < 24 && (value.Equals("true", StringComparison.OrdinalIgnoreCase) || value.Equals("1", StringComparison.OrdinalIgnoreCase) || value.Equals("Yes", StringComparison.OrdinalIgnoreCase) || value.Equals("On", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                var centerX = rect.X + rect.Width / 2.0;
+                                var centerY = rect.Y + rect.Height / 2.0 - 2;
+                                gfx.DrawString("✓", checkFont, XBrushes.Black, new XPoint(centerX - 6, centerY + 6));
+                                logLines.Add($"ANNOT CHECK: {name} at page={pi} rect={rect.X:F0},{rect.Y:F0},{rect.Width:F0}x{rect.Height:F0}");
+                            }
+                            else
+                            {
+                                var lines = SplitLines(value);
+                                var y = rect.Y + 3;
+                                foreach (var line in lines)
+                                {
+                                    gfx.DrawString(line, baseFont, XBrushes.Black, new XRect(rect.X + 3, y, rect.Width - 6, rect.Height - 6), XStringFormats.TopLeft);
+                                    y += baseFont.GetHeight();
+                                    if (y > rect.Y + rect.Height) break;
+                                }
+                                logLines.Add($"ANNOT TEXT: {name}='{value}' page={pi} rect={rect.X:F0},{rect.Y:F0},{rect.Width:F0}x{rect.Height:F0}");
+                            }
+                        }
+
+                        // schedule removal
+                        toRemove.Add(annot);
                     }
                     catch { }
                 }
 
-                if (string.IsNullOrWhiteSpace(fieldName))
-                    continue;
-
-                // Try to get value from map
-                map.TryGetValue(fieldName, out var value);
-
-                // Determine widget annotations and rects
-                try
+                // remove annotations
+                foreach (var a in toRemove)
                 {
-                    var widgetsProp = fieldObj.GetType().GetProperty("Widgets");
-                    var widgets = widgetsProp?.GetValue(fieldObj) as System.Collections.IEnumerable;
-                    if (widgets == null)
-                        continue;
-
-                    foreach (var widget in widgets)
-                    {
-                        try
-                        {
-                            // Each widget is an Annotation — get its page and rectangle
-                            var pageProp = widget.GetType().GetProperty("Page");
-                            var page = pageProp?.GetValue(widget) as PdfPage;
-                            var elementsProp = widget.GetType().GetProperty("Elements");
-                            var elements = elementsProp?.GetValue(widget);
-                            string rectString = null;
-                            try
-                            {
-                                var getArray = elements?.GetType().GetMethod("GetArray", new[] { typeof(string) });
-                                var rectArray = getArray?.Invoke(elements, new object[] { "/Rect" });
-                                if (rectArray != null)
-                                {
-                                    // rectArray.ToString gives something like [ llx lly urx ury ]
-                                    rectString = rectArray.ToString();
-                                }
-                            }
-                            catch { }
-
-                            if (page == null || rectString == null)
-                                continue;
-
-                            // Parse rect numbers
-                            var nums = rectString.Replace("[", "").Replace("]", "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                            if (nums.Length < 4) continue;
-                            if (!double.TryParse(nums[0], NumberStyles.Any, CultureInfo.InvariantCulture, out var llx)) continue;
-                            if (!double.TryParse(nums[1], NumberStyles.Any, CultureInfo.InvariantCulture, out var lly)) continue;
-                            if (!double.TryParse(nums[2], NumberStyles.Any, CultureInfo.InvariantCulture, out var urx)) continue;
-                            if (!double.TryParse(nums[3], NumberStyles.Any, CultureInfo.InvariantCulture, out var ury)) continue;
-
-                            var rect = new XRect(llx, page.Height.Point - ury, urx - llx, ury - lly);
-
-                            // Draw onto the page
-                            using var gfx = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
-
-                            // Decide drawing based on field type heuristics: checkbox fields often have small rects
-                            // Use decoded mapping value if available
-                            var decodedForDraw = value;
-                            if (string.IsNullOrWhiteSpace(decodedForDraw))
-                            {
-                                // try to decode the template field name and use mapping
-                                try
-                                {
-                                    var decodedName = DecodePdfFieldName(fieldName);
-                                    if (!string.IsNullOrWhiteSpace(decodedName) && map.TryGetValue(decodedName, out var mv))
-                                        decodedForDraw = mv;
-                                }
-                                catch { }
-                            }
-
-                            if (string.IsNullOrWhiteSpace(decodedForDraw))
-                            {
-                                // nothing to draw for empty value
-                                logLines.Add($"{fieldName}: (empty) rect={rect.X:F0},{rect.Y:F0},{rect.Width:F0},{rect.Height:F0} page={GetPageIndex(document, page)}");
-                            }
-                            else if (rect.Width < 24 && rect.Height < 24 && (decodedForDraw.Equals("Yes", StringComparison.OrdinalIgnoreCase) || decodedForDraw.Equals("On", StringComparison.OrdinalIgnoreCase) || decodedForDraw.Equals("true", StringComparison.OrdinalIgnoreCase) || decodedForDraw.Equals("1", StringComparison.OrdinalIgnoreCase)))
-                            {
-                                // Draw a checkmark centered
-                                var centerX = rect.X + rect.Width / 2.0;
-                                var centerY = rect.Y + rect.Height / 2.0 - 2;
-                                gfx.DrawString("✓", checkFont, XBrushes.Black, new XPoint(centerX - 6, centerY + 6));
-                                logLines.Add($"{fieldName}: CHECK at {rect.X:F0},{rect.Y:F0} size={rect.Width:F0}x{rect.Height:F0} page={GetPageIndex(document, page)}");
-                            }
-                            else
-                            {
-                                // Multi-line support: split into lines and draw within rect with small padding
-                                var lines = SplitLines(decodedForDraw);
-                                var font = baseFont;
-                                var y = rect.Y + 3;
-                                foreach (var line in lines)
-                                {
-                                    gfx.DrawString(line, font, XBrushes.Black, new XRect(rect.X + 3, y, rect.Width - 6, rect.Height - 6), XStringFormats.TopLeft);
-                                    y += font.GetHeight();
-                                    if (y > rect.Y + rect.Height) break;
-                                }
-                                logLines.Add($"{fieldName}: TEXT='{decodedForDraw.Replace('\n',' ')}' rect={rect.X:F0},{rect.Y:F0},{rect.Width:F0},{rect.Height:F0} page={GetPageIndex(document, page)}");
-                            }
-
-                            // Mark widget for removal: we will remove the annotation object so the form widget is no longer interactive
-                            try
-                            {
-                                var annotProp = widget.GetType().GetProperty("Annotation");
-                                var annot = annotProp?.GetValue(widget) as PdfAnnotation;
-                                if (annot != null)
-                                    widgetsToRemove.Add((page, annot));
-                            }
-                            catch
-                            {
-                                // fallback: try to get the widget itself as PdfAnnotation
-                                if (widget is PdfAnnotation pa)
-                                    widgetsToRemove.Add((page, pa));
-                            }
-                        }
-                        catch
-                        {
-                            // ignore widget-level failures
-                        }
-                    }
-                }
-                catch
-                {
-                    // ignore field-level failures
+                    try { if (page.Annotations.Contains(a)) page.Annotations.Remove(a); } catch { }
                 }
             }
 
@@ -961,16 +911,7 @@ namespace KGV.Core.Utilities
             }
             catch { }
 
-            // Remove collected annotations from pages' Annotations collection
-            foreach (var (page, annot) in widgetsToRemove)
-            {
-                try
-                {
-                    if (page.Annotations.Contains(annot))
-                        page.Annotations.Remove(annot);
-                }
-                catch { }
-            }
+            // (old widget-level removal logic removed; annotations already removed per-page)
 
             // Finally, remove AcroForm fields dictionary so the PDF is no longer an interactive form
             try
