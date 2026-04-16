@@ -37,6 +37,16 @@
 - Flatten-Log: `Mitgliedsantrag_flatten_log.txt` enthält pro-Annotation-Diagnose; relevante Einträge zeigen `FinalName`, `MapValue` und `Drawn=True` für die geprüften Felder (Name, Vorname, Geburtsdatum, AufnahmeAb, Beitragsfelder, Bankdaten, Checkboxes).
 - Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` wurden anschließend ausgeführt (siehe Commit/CI-Log).
 
+## 2026-04-16 – Mitgliedsantrag: Ortfelder, Signatur- und Vertreter-Mapping verschärft; Layoutanpassungen
+
+- Ziel: Vermeiden falscher Füllungen in Orts- und Signaturfeldern; Vertreterfelder dürfen nur bei echten gesetzlichen Vertretern gefüllt werden. Zeichnen von Feldwerten wurde tiefer positioniert, Checkboxen zentriert.
+- Änderungen in `KGV.Core`:
+  - `KGV.Core/Models/MitgliedsantragTemplateData.cs`: `DokumentOrt` und `UnterschriftOrt` hinzugefügt.
+  - `KGV.Core/Utilities/MitgliedsantragDokumentFactory.cs`: Mapping `dokument_ort` jetzt aus `DokumentOrt`, `unterschrift_ort` nur bei echtem Ort. Signaturfelder (`unterschrift_*`, `datenschutz_unterschrift_*`) werden nicht automatisch befüllt. Vertreterfelder bleiben leer, wenn kein Vertreter-Snapshot vorliegt. Fallback nach Rechteck wurde restriktiver und nutzt keine Ort-/Signatur-/Vertreter-Fallbacks mehr.
+  - Textposition: Einzeilige Werte werden untenbündig innerhalb des Feldes gezeichnet; mehrzeilige Felder beginnen unterhalb des Label-Bereichs. Checkboxen werden grafisch zentriert gezeichnet.
+- Test: `tools/MitgliedsantragTest` ausgeführt; `Mitgliedsantrag_Test_Minor.pdf` und `Mitgliedsantrag_Test_Adult.pdf` neu erzeugt.
+- Build: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implementierung verwendet reflektive Zugriffe auf Formularfelder und setzt `/NeedAppearances` für Viewer-Aktualisierung. Falls Felddarstellung in manchen PDF-Viewern nicht sofort aktualisiert erscheint, muss ggf. eine zuverlässigere PDF-Bibliothek mit vollständiger AcroForm-Unterstützung (z. B. kommerzielles iText7) geprüft werden.
 
 ## 2026-04-13 – Pachtvertrag ohne separaten Mitgliedsbeitrag geglättet

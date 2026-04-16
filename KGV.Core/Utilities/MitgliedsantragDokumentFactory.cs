@@ -161,7 +161,9 @@ namespace KGV.Core.Utilities
                 BankBic = Safe(bankverbindungSnapshot.Bic),
                 Erklaerungstext = JoinParagraphs(erklaerungsteile),
                 Datenschutztext = JoinParagraphs(datenschutzteile),
-                Fussnote = BuildFussnote(bankverbindungSnapshot)
+                Fussnote = BuildFussnote(bankverbindungSnapshot),
+                DokumentOrt = Safe(bankverbindungSnapshot.DokumentOrt),
+                UnterschriftOrt = Safe(bankverbindungSnapshot.DokumentOrt)
             };
         }
 
@@ -528,7 +530,7 @@ namespace KGV.Core.Utilities
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["ausstellungsdatum"] = data.Ausstellungsdatum,
-                ["dokument_ort"] = (data.Fussnote ?? string.Empty),
+                ["dokument_ort"] = (data.DokumentOrt ?? string.Empty),
                 ["mitglied_name"] = data.MitgliedName,
                 ["mitglied_vorname"] = data.MitgliedVorname,
                 ["mitglied_geburtsdatum"] = data.MitgliedGeburtsdatum,
@@ -555,7 +557,7 @@ namespace KGV.Core.Utilities
                 ["bank_name"] = data.BankName,
                 ["bank_iban"] = data.BankIban,
                 ["bank_bic"] = data.BankBic,
-                ["unterschrift_ort"] = string.Empty,
+                ["unterschrift_ort"] = string.IsNullOrWhiteSpace(data.UnterschriftOrt) ? string.Empty : data.UnterschriftOrt,
                 ["unterschrift_datum"] = data.Ausstellungsdatum,
                 ["unterschrift_antragsteller"] = string.Empty,
                 ["unterschrift_vertreter"] = string.Empty,
@@ -838,35 +840,49 @@ namespace KGV.Core.Utilities
                         var elements = annot.GetType().GetProperty("Elements")?.GetValue(annot);
                         if (elements == null) continue;
 
-                        // read /T from annotation
+                        // read /T from annotation or parent
                         string rawName = string.Empty;
-                        try { rawName = elements.GetType().GetMethod("GetString", new[] { typeof(string) })?.Invoke(elements, new object[] { "/T" })?.ToString() ?? string.Empty; } catch { }
-
-                        // if annotation /T empty, try Parent field's /T
                         string parentName = string.Empty;
+                        try { rawName = elements.GetType().GetMethod("GetString", new[] { typeof(string) })?.Invoke(elements, new object[] { "/T" })?.ToString() ?? string.Empty; } catch { }
                         try
                         {
-                            if (string.IsNullOrWhiteSpace(rawName))
+                            var parentProp = annot.GetType().GetProperty("Parent");
+                            var parent = parentProp?.GetValue(annot);
+                            if (parent != null)
                             {
-                                var parentProp = annot.GetType().GetProperty("Parent");
-                                var parent = parentProp?.GetValue(annot);
-                                if (parent != null)
+                                var parentElements = parent.GetType().GetProperty("Elements")?.GetValue(parent);
+                                if (parentElements != null)
                                 {
-                                    var parentElements = parent.GetType().GetProperty("Elements")?.GetValue(parent);
-                                    if (parentElements != null)
-                                    {
-                                        parentName = parentElements.GetType().GetMethod("GetString", new[] { typeof(string) })?.Invoke(parentElements, new object[] { "/T" })?.ToString() ?? string.Empty;
-                                    }
+                                    parentName = parentElements.GetType().GetMethod("GetString", new[] { typeof(string) })?.Invoke(parentElements, new object[] { "/T" })?.ToString() ?? string.Empty;
                                 }
                             }
                         }
                         catch { }
 
-                        // choose final name (annotation /T if present, otherwise parent /T)
-                        var finalRawName = !string.IsNullOrWhiteSpace(rawName) ? rawName : parentName;
-                        var name = DecodePdfFieldName(finalRawName ?? string.Empty);
-                        // get value from mapping
+                        // choose final name: prefer explicit annotation /T, otherwise parent /T. If both empty, leave name empty.
+                        var finalRawName = !string.IsNullOrWhiteSpace(rawName) ? rawName : (!string.IsNullOrWhiteSpace(parentName) ? parentName : string.Empty);
+                        var name = string.IsNullOrWhiteSpace(finalRawName) ? string.Empty : DecodePdfFieldName(finalRawName);
+
+                        // If name still empty, do not use any fallback for sensitive areas (ort, unterschrift, vertreter)
+                        // Fallback by rect will be handled later but only allowed for non-sensitive fields.
+                        // get value from mapping (do not fallback to other map keys here)
                         map.TryGetValue(name, out var value);
+
+                        // Enforce: signature and unterschrift fields must remain empty unless explicit signature exists
+                        if (!string.IsNullOrWhiteSpace(name) && (name.StartsWith("unterschrift", StringComparison.OrdinalIgnoreCase) || name.StartsWith("datenschutz_unterschrift", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            value = string.Empty;
+                        }
+
+                        // Enforce: Vertreter fields must be empty if no representative data provided in map
+                        if (!string.IsNullOrWhiteSpace(name) && name.StartsWith("vertreter", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // check whether any Vertreter mapping key contains data
+                            if (string.IsNullOrWhiteSpace(map.GetValueOrDefault("vertreter_name")) && string.IsNullOrWhiteSpace(map.GetValueOrDefault("vertreter_anschrift_mehrzeilig")))
+                            {
+                                value = string.Empty;
+                            }
+                        }
 
                         // read rect
                         string rectString = null;
@@ -886,6 +902,11 @@ namespace KGV.Core.Utilities
                         if (!double.TryParse(nums[3], NumberStyles.Any, CultureInfo.InvariantCulture, out var ury)) continue;
                         var rect = new XRect(llx, page.Height.Point - ury, urx - llx, ury - lly);
 
+                        // If this annotation likely corresponds to a signature box, ensure we never fill it
+                        // Signature widget names often contain 'unterschrift' or 'signature' or are located in lower sections.
+                        var loweredName = (name ?? string.Empty).ToLowerInvariant();
+                        var likelySignature = loweredName.Contains("unterschrift") || loweredName.Contains("signature") || rect.Height > 50 && rect.Width > 100 && rect.Y > page.Height.Point * 0.5;
+
                         // diagnostic info for this annotation
                         try
                         {
@@ -895,7 +916,7 @@ namespace KGV.Core.Utilities
                         // draw
                         var drawn = false;
 
-                        // Explicit checkbox drawing for known checkbox field names
+                        // Explicit checkbox drawing for known checkbox field names: draw centered checkmark; never draw as text
                         var checkboxFields = new[] { "check_whatsapp", "check_rechnung_mail", "check_info_mail" };
                         if (!string.IsNullOrWhiteSpace(name) && checkboxFields.Contains(name, StringComparer.OrdinalIgnoreCase))
                         {
@@ -904,45 +925,70 @@ namespace KGV.Core.Utilities
                             if (isChecked)
                             {
                                 var centerX = rect.X + rect.Width / 2.0;
-                                var centerY = rect.Y + rect.Height / 2.0 - 2;
-                                gfx.DrawString("✓", checkFont, XBrushes.Black, new XPoint(centerX - 6, centerY + 6));
+                                var centerY = rect.Y + rect.Height / 2.0;
+                                // center the check glyph vertically and horizontally
+                                gfx.DrawString("✓", checkFont, XBrushes.Black, new XPoint(centerX - (checkFont.Size / 2), centerY + (checkFont.Size / 2)));
                                 logLines.Add($"ANNOT CHECK (by-name): {name} mapping='{mappingVal}' page={pi} rect={rect.X:F0},{rect.Y:F0},{rect.Width:F0}x{rect.Height:F0}");
                                 drawn = true;
                             }
+                            else
+                            {
+                                // do not draw an unchecked symbol
+                                drawn = true; // mark drawn so fallback won't fill anything
+                            }
                         }
 
-                        // If not already drawn, draw text mapping value directly
+                        // If not already drawn, draw text mapping value directly with improved vertical placement rules
                         if (!drawn && !string.IsNullOrWhiteSpace(value))
                         {
                             var lines = SplitLines(value);
-                            var y = rect.Y + 3;
-                            foreach (var line in lines)
+                            // single-line fields: bottom-align within box to avoid overlapping label
+                            if (lines.Count == 1)
                             {
-                                gfx.DrawString(line, baseFont, XBrushes.Black, new XRect(rect.X + 3, y, rect.Width - 6, rect.Height - 6), XStringFormats.TopLeft);
-                                y += baseFont.GetHeight();
-                                if (y > rect.Y + rect.Height) break;
+                                var fontHeight = baseFont.GetHeight();
+                                var textY = rect.Bottom - fontHeight - 3; // 3pt padding from bottom
+                                gfx.DrawString(lines[0], baseFont, XBrushes.Black, new XRect(rect.X + 4, textY, rect.Width - 8, fontHeight + 2), XStringFormats.TopLeft);
+                            }
+                            else
+                            {
+                                // multi-line: start below label area (approx 14-18pt)
+                                var y = rect.Y + 16;
+                                foreach (var line in lines)
+                                {
+                                    gfx.DrawString(line, baseFont, XBrushes.Black, new XRect(rect.X + 4, y, rect.Width - 8, rect.Height - 6), XStringFormats.TopLeft);
+                                    y += baseFont.GetHeight();
+                                    if (y > rect.Y + rect.Height) break;
+                                }
                             }
                             logLines.Add($"ANNOT TEXT: {name}='{value}' page={pi} rect={rect.X:F0},{rect.Y:F0},{rect.Width:F0}x{rect.Height:F0}");
                             drawn = true;
                         }
 
-                        // If still not drawn, attempt fallback mapping by rect
+                        // If still not drawn, attempt fallback mapping by rect but with stricter rules
                         if (!drawn)
                         {
                             try
                             {
-                                if (TryFallbackNameForRect(page, rect, out var fallbackName) && map.TryGetValue(fallbackName, out var fallbackValue) && !string.IsNullOrWhiteSpace(fallbackValue))
+                                if (TryFallbackNameForRect(page, rect, out var fallbackName) && !string.IsNullOrWhiteSpace(fallbackName))
                                 {
-                                    var lines = SplitLines(fallbackValue);
-                                    var y = rect.Y + 3;
-                                    foreach (var line in lines)
+                                    // Do not fallback for sensitive fields: ort, unterschrift, vertreter
+                                    var lower = fallbackName.ToLowerInvariant();
+                                    if (!lower.Contains("ort") && !lower.StartsWith("unterschrift") && !lower.StartsWith("vertreter"))
                                     {
-                                        gfx.DrawString(line, baseFont, XBrushes.Black, new XRect(rect.X + 3, y, rect.Width - 6, rect.Height - 6), XStringFormats.TopLeft);
-                                        y += baseFont.GetHeight();
-                                        if (y > rect.Y + rect.Height) break;
+                                        if (map.TryGetValue(fallbackName, out var fallbackValue) && !string.IsNullOrWhiteSpace(fallbackValue))
+                                        {
+                                            var lines = SplitLines(fallbackValue);
+                                            var y = rect.Y + 16;
+                                            foreach (var line in lines)
+                                            {
+                                                gfx.DrawString(line, baseFont, XBrushes.Black, new XRect(rect.X + 4, y, rect.Width - 8, rect.Height - 6), XStringFormats.TopLeft);
+                                                y += baseFont.GetHeight();
+                                                if (y > rect.Y + rect.Height) break;
+                                            }
+                                            logLines.Add($"ANNOT FALLBACK TEXT: {fallbackName}='{fallbackValue}' page={pi} rect={rect.X:F0},{rect.Y:F0}");
+                                            drawn = true;
+                                        }
                                     }
-                                    logLines.Add($"ANNOT FALLBACK TEXT: {fallbackName}='{fallbackValue}' page={pi} rect={rect.X:F0},{rect.Y:F0}");
-                                    drawn = true;
                                 }
                             }
                             catch { }

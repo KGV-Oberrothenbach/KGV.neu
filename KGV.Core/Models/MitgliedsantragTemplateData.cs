@@ -43,4 +43,9 @@ public sealed class MitgliedsantragTemplateData
     public string Erklaerungstext { get; set; } = string.Empty;
     public string Datenschutztext { get; set; } = string.Empty;
     public string Fussnote { get; set; } = string.Empty;
+    // Optional explicit document place (Ort) to be used for PDF "dokument_ort" and
+    // signature place "unterschrift_ort". Keep empty when not provided so the
+    // generator does not accidentally write other fields (Verwendungszweck/Vereinsname).
+    public string DokumentOrt { get; set; } = string.Empty;
+    public string UnterschriftOrt { get; set; } = string.Empty;
 }
