@@ -42,6 +42,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly Entry _telefonEntry;
     private readonly Entry _mobilEntry;
     private readonly Switch _whatsappSwitch;
+    private readonly Switch _rechnungMailSwitch;
+    private readonly Switch _infoMailSwitch;
     private readonly Entry _strasseEntry;
     private readonly Entry _plzEntry;
     private readonly Entry _ortEntry;
@@ -94,6 +96,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _telefonEntry = new Entry { Placeholder = "Telefon" };
         _mobilEntry = new Entry { Placeholder = "Mobilnummer" };
         _whatsappSwitch = new Switch();
+        _rechnungMailSwitch = new Switch();
+        _infoMailSwitch = new Switch();
 
         _strasseEntry = new Entry { Placeholder = "Straße / Hausnummer" };
         _plzEntry = new Entry { Placeholder = "PLZ", Keyboard = Keyboard.Numeric };
@@ -159,7 +163,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     CreateSection("Kontakt",
                         CreateEditorField("Telefon", _telefonEntry),
                         CreateEditorField("Mobilnummer", _mobilEntry),
-                        CreateSwitchField("WhatsApp", _whatsappSwitch)),
+                        CreateSwitchField("WhatsApp", _whatsappSwitch),
+                        CreateSwitchField("Rechnung per Mail", _rechnungMailSwitch),
+                        CreateSwitchField("Info per Mail", _infoMailSwitch)),
                     CreateSection("Adresse",
                         CreateEditorField("Straße / Hausnummer", _strasseEntry),
                         CreateEditorField("PLZ", _plzEntry),
@@ -248,6 +254,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             _telefonEntry.Text = memberDto.Telefon;
             _mobilEntry.Text = memberDto.Mobilnummer;
             _whatsappSwitch.IsToggled = memberDto.WhatsappEinwilligung;
+            _rechnungMailSwitch.IsToggled = memberDto.EmailRechnungEinwilligung;
+            _infoMailSwitch.IsToggled = memberDto.EmailInfoEinwilligung;
             _strasseEntry.Text = memberDto.Strasse;
             _plzEntry.Text = memberDto.PLZ;
             _ortEntry.Text = memberDto.Ort;
@@ -284,6 +292,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _telefonEntry.Text = string.Empty;
         _mobilEntry.Text = string.Empty;
         _whatsappSwitch.IsToggled = false;
+        _rechnungMailSwitch.IsToggled = false;
+        _infoMailSwitch.IsToggled = false;
         _strasseEntry.Text = string.Empty;
         _plzEntry.Text = string.Empty;
         _ortEntry.Text = string.Empty;
@@ -312,6 +322,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _telefonEntry.Text = string.Empty;
         _mobilEntry.Text = string.Empty;
         _whatsappSwitch.IsToggled = false;
+        _rechnungMailSwitch.IsToggled = false;
+        _infoMailSwitch.IsToggled = false;
         _strasseEntry.Text = string.Empty;
         _plzEntry.Text = string.Empty;
         _ortEntry.Text = string.Empty;
@@ -698,6 +710,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     Ort = (_ortEntry.Text ?? string.Empty).Trim(),
                     Bemerkungen = (_bemerkungenEditor.Text ?? string.Empty).Trim(),
                     WhatsappEinwilligung = _whatsappSwitch.IsToggled,
+                    EmailRechnungEinwilligung = _rechnungMailSwitch.IsToggled,
+                    EmailInfoEinwilligung = _infoMailSwitch.IsToggled,
                     ArbeitsstundenAltersregelTyp = selectedArbeitsstundenAltersregelTyp ?? string.Empty,
                     Geburtsdatum = _geburtsdatumEnabledSwitch.IsToggled ? _geburtsdatumPicker.Date : null,
                     MitgliedSeit = _mitgliedSeitEnabledSwitch.IsToggled ? _mitgliedSeitPicker.Date : null,
@@ -786,6 +800,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             dto.Telefon = (_telefonEntry.Text ?? string.Empty).Trim();
             dto.Mobilnummer = (_mobilEntry.Text ?? string.Empty).Trim();
             dto.WhatsappEinwilligung = _whatsappSwitch.IsToggled;
+            dto.EmailRechnungEinwilligung = _rechnungMailSwitch.IsToggled;
+            dto.EmailInfoEinwilligung = _infoMailSwitch.IsToggled;
             dto.Strasse = (_strasseEntry.Text ?? string.Empty).Trim();
             dto.PLZ = (_plzEntry.Text ?? string.Empty).Trim();
             dto.Ort = (_ortEntry.Text ?? string.Empty).Trim();
@@ -900,6 +916,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             Email = rec.Email ?? string.Empty,
             Bemerkungen = rec.Bemerkung ?? string.Empty,
             WhatsappEinwilligung = rec.WhatsappEinwilligung,
+            EmailRechnungEinwilligung = rec.EmailRechnungEinwilligung,
+            EmailInfoEinwilligung = rec.EmailInfoEinwilligung,
             ArbeitsstundenAltersregelTyp = rec.ArbeitsstundenAltersregelTyp,
             MitgliedSeit = rec.MitgliedSeit,
             MitgliedEnde = rec.MitgliedEnde,

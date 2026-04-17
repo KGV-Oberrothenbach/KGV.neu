@@ -57,6 +57,14 @@
 - Test: `tools/MitgliedsantragTest` ausgeführt; Test-PDFs neu erzeugt.
 - Build: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
 
+## 2026-04-18 – MAUI: Kontakt-Einwilligungen ergänzt (Email Rechnung / Info)
+
+- Ziel: Auf der MAUI-Stammdatenseite fehlende Schalter für "Rechnung per Mail" und "Info per Mail" ergänzen und in Save/Create/Load/Mapping berücksichtigen.
+- Änderungen:
+  - `KGV.Core/Models/MemberDTO.cs`: Properties `EmailRechnungEinwilligung` und `EmailInfoEinwilligung` (mit PropertyChanged/Clone/CopyFrom/ValueEquals-Support) vorhanden.
+  - `KGV.Maui/Pages/MemberDetailPage.cs`: Zwei neue Switch-Felder `_rechnungMailSwitch` und `_infoMailSwitch` hinzugefügt; Anzeige im Kontaktbereich, Laden, Leeren, Create-Mode und Speichern entsprechend umgesetzt; Mapping `MapMember(...)` ergänzt.
+- Validierung: Lokaler Build durchgeführt: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implementierung verwendet reflektive Zugriffe auf Formularfelder und setzt `/NeedAppearances` für Viewer-Aktualisierung. Falls Felddarstellung in manchen PDF-Viewern nicht sofort aktualisiert erscheint, muss ggf. eine zuverlässigere PDF-Bibliothek mit vollständiger AcroForm-Unterstützung (z. B. kommerzielles iText7) geprüft werden.
 
 ## 2026-04-13 – Pachtvertrag ohne separaten Mitgliedsbeitrag geglättet
