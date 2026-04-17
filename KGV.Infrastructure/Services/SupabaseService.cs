@@ -55,6 +55,40 @@ namespace KGV.Infrastructure.Services
             };
         }
 
+        public async Task<DokumentUploadResult> CreatePachtvertragDokumentAsync(PachtvertragDokumentRequest request)
+        {
+            if (request == null)
+                return DokumentUploadResult.Fail("Bitte zuerst einen gültigen Pachtvertrag vorbereiten.", "VALIDATION");
+
+            try
+            {
+                var context = await ResolvePachtvertragRequestAsync(request);
+
+                var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
+                    context.Member,
+                    context.SecondaryMember,
+                    context.Parzelle,
+                    context.Saison,
+                    context.Vertragsbeginn,
+                    altvertragDatum: request.AltvertragDatum,
+                    context.GesetzlicherVertreterSnapshot,
+                    context.BankverbindungSnapshot,
+                    request.Status);
+
+                return await CreateDokumentAsync(uploadRequest);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger?.LogWarning(ex, "CreatePachtvertragDokumentAsync(request) validation failed");
+                return DokumentUploadResult.Fail(ex.Message, "VALIDATION");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "CreatePachtvertragDokumentAsync(request) failed");
+                return DokumentUploadResult.Fail("Pachtvertrag konnte aktuell nicht erzeugt werden.", "UNEXPECTED");
+            }
+        }
+
         public Client Client => _client ?? throw CreateUnavailableException();
 
         public async Task InitializeAsync()
@@ -2978,7 +3012,7 @@ namespace KGV.Infrastructure.Services
                     Vertragsbeginn = vertragsbeginnDatum,
                     Status = status
                 });
-                var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(context.Member, context.SecondaryMember, context.Parzelle, context.Saison, context.Vertragsbeginn, context.GesetzlicherVertreterSnapshot, context.BankverbindungSnapshot, status);
+                var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(context.Member, context.SecondaryMember, context.Parzelle, context.Saison, context.Vertragsbeginn, altvertragDatum: null, context.GesetzlicherVertreterSnapshot, context.BankverbindungSnapshot, status);
                 return await CreateDokumentAsync(uploadRequest);
             }
             catch (InvalidOperationException ex)
@@ -3010,6 +3044,7 @@ namespace KGV.Infrastructure.Services
                     context.Parzelle,
                     context.Saison,
                     context.Vertragsbeginn,
+                    altvertragDatum: null,
                     context.GesetzlicherVertreterSnapshot,
                     context.BankverbindungSnapshot,
                     FormularDokumentStatus.Unsigniert);
@@ -3027,6 +3062,7 @@ namespace KGV.Infrastructure.Services
                     context.Parzelle,
                     context.Saison,
                     context.Vertragsbeginn,
+                    altvertragDatum: request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.BankverbindungSnapshot,
                     FormularDokumentStatus.Unsigniert);
@@ -3056,6 +3092,7 @@ namespace KGV.Infrastructure.Services
                     context.Parzelle,
                     context.Saison,
                     context.Vertragsbeginn,
+                    altvertragDatum: null,
                     context.GesetzlicherVertreterSnapshot,
                     context.BankverbindungSnapshot,
                     FormularDokumentStatus.Unsigniert);
@@ -3065,6 +3102,7 @@ namespace KGV.Infrastructure.Services
                     context.Parzelle,
                     context.Saison,
                     context.Vertragsbeginn,
+                    altvertragDatum: null,
                     context.GesetzlicherVertreterSnapshot,
                     context.BankverbindungSnapshot,
                     FormularDokumentStatus.Signiert);
@@ -3106,6 +3144,7 @@ namespace KGV.Infrastructure.Services
                     context.Parzelle,
                     context.Saison,
                     context.Vertragsbeginn,
+                    request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.BankverbindungSnapshot,
                     FormularDokumentStatus.Unsigniert);
@@ -3115,6 +3154,7 @@ namespace KGV.Infrastructure.Services
                     context.Parzelle,
                     context.Saison,
                     context.Vertragsbeginn,
+                    request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.BankverbindungSnapshot,
                     FormularDokumentStatus.Signiert);

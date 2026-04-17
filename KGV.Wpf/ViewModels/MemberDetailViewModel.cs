@@ -886,7 +886,38 @@ namespace KGV.ViewModels
 
         private async Task CreatePachtvertragAsync(int parzelleId, DateTime vertragsbeginn)
         {
-            var result = await _supabaseService.CreatePachtvertragDokumentAsync(SelectedMember.Id, parzelleId, vertragsbeginn, FormularDokumentStatus.Unsigniert);
+            // Ask whether an existing previous contract (Altvertrag) exists
+            var altvertragAnswer = MessageBox.Show("Liegt ein Altvertrag vor?", "Altvertrag", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            DateTime? altvertragDatum = null;
+            if (altvertragAnswer == MessageBoxResult.Yes)
+            {
+                // show a minimal date input dialog
+                var dateDialog = new ArbeitsstundeDialog();
+                dateDialog.Title = "Altvertrag-Datum";
+                dateDialog.SetInitialValues(null, null, DateTime.Today, null, null);
+                var ok = dateDialog.ShowDialog();
+                if (ok != true)
+                    return; // cancelled
+
+                if (!dateDialog.Datum.HasValue)
+                {
+                    MessageBox.Show("Bitte ein gültiges Datum eingeben.", "Pachtvertrag", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                altvertragDatum = dateDialog.Datum.Value.Date;
+            }
+
+            var request = new KGV.Core.Models.PachtvertragDokumentRequest
+            {
+                MitgliedId = SelectedMember.Id,
+                ParzelleId = parzelleId,
+                Vertragsbeginn = vertragsbeginn,
+                Status = FormularDokumentStatus.Unsigniert,
+                AltvertragDatum = altvertragDatum
+            };
+
+            var result = await _supabaseService.CreatePachtvertragDokumentAsync(request);
             if (!result.Success)
             {
                 MessageBox.Show(result.Message, "Pachtvertrag", MessageBoxButton.OK, MessageBoxImage.Error);

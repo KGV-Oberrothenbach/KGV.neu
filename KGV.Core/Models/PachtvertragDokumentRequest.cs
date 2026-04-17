@@ -14,4 +14,5 @@ public sealed class PachtvertragDokumentRequest
     public int? GesetzlicherVertreterMitgliedId { get; set; }
     public MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot { get; set; }
     public MitgliedsantragBankverbindungSnapshot? BankverbindungSnapshot { get; set; }
+    public DateTime? AltvertragDatum { get; set; }
 }

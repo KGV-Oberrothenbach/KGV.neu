@@ -159,6 +159,8 @@ public sealed class PachtvertragDialogPage : ContentPage
         var previewButton = new Button { Text = "Vorschau" };
         previewButton.Clicked += async (_, _) => await AcceptAsync();
 
+        // Altvertrag-Abfrage: ask before accepting
+
         Content = new ScrollView
         {
             Content = new VerticalStackLayout
@@ -271,6 +273,51 @@ public sealed class PachtvertragDialogPage : ContentPage
             Status = FormularDokumentStatus.Unsigniert,
             IstMinderjaehrig = _istMinderjaehrig
         };
+
+        // Ask whether an existing previous contract (Altvertrag) exists
+        var altvertragAnswer = await DisplayAlert("Altvertrag", "Liegt ein Altvertrag vor?", "Ja", "Nein");
+        if (altvertragAnswer)
+        {
+            // prompt for date
+            var datePicker = new DatePicker { Date = DateTime.Today };
+            var ok = false;
+            var tcs = new TaskCompletionSource<bool?>();
+
+            var promptPage = new ContentPage
+            {
+                Title = "Altvertrag-Datum",
+                Content = new VerticalStackLayout
+                {
+                    Padding = 24,
+                    Spacing = 12,
+                    Children =
+                    {
+                        new Label { Text = "Bitte Datum des Altvertrags eingeben.", LineBreakMode = LineBreakMode.WordWrap },
+                        datePicker,
+                        new HorizontalStackLayout
+                        {
+                            Spacing = 12,
+                            HorizontalOptions = LayoutOptions.End,
+                            Children =
+                            {
+                                new Button { Text = "Abbrechen", Command = new Command(async () => { tcs.TrySetResult(null); await Navigation.PopModalAsync(); }) },
+                                new Button { Text = "OK", Command = new Command(async () => { tcs.TrySetResult(true); await Navigation.PopModalAsync(); }) }
+                            }
+                        }
+                    }
+                }
+            };
+
+            await Navigation.PushModalAsync(new NavigationPage(promptPage));
+            var res = await tcs.Task;
+            if (res != true)
+            {
+                // cancelled
+                return;
+            }
+
+            request.AltvertragDatum = datePicker.Date.Date;
+        }
 
         if (_istMinderjaehrig)
         {
