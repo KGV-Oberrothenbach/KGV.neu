@@ -46,6 +46,16 @@
   - Textposition: Einzeilige Werte werden untenbündig innerhalb des Feldes gezeichnet; mehrzeilige Felder beginnen unterhalb des Label-Bereichs. Checkboxen werden grafisch zentriert gezeichnet.
 - Test: `tools/MitgliedsantragTest` ausgeführt; `Mitgliedsantrag_Test_Minor.pdf` und `Mitgliedsantrag_Test_Adult.pdf` neu erzeugt.
 - Build: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+- 2026-04-17 – Feinschliff: Standard-Ort und text-baseline Korrekturen
+
+- Ziel: Sicherstellen, dass beide Ort-Felder (`dokument_ort` und `unterschrift_ort`) standardmäßig "Zwickau" enthalten (falls keine Konfigurations-Angabe vorliegt) und dass einzeilige Feldwerte untenbündig in ihren Formularzellen gezeichnet werden.
+- Änderungen:
+  - `MitgliedsantragTemplateData.DokumentOrt` / `UnterschriftOrt` werden nun in `BuildTemplateData` mit Default "Zwickau" belegt, wenn in der Vereinskonfiguration kein Ort vorliegt.
+  - Mapping: `dokument_ort` und `unterschrift_ort` verwenden nun diese Werte; `dokument_ort` wird nicht mehr aus `Fussnote` befüllt.
+  - Flatten/Draw: Einzeilige Feldwerte werden jetzt tatsächlich untenbündig gezeichnet (Baseline knapp oberhalb der unteren Zellkante, ca. 3pt Innenabstand). Mehrzeilige Felder starten weiterhin unterhalb des Labels.
+  - Checkbox-Häkchen werden zentriert gemalt; Signaturfelder bleiben leer.
+- Test: `tools/MitgliedsantragTest` ausgeführt; Test-PDFs neu erzeugt.
+- Build: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
 
 Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implementierung verwendet reflektive Zugriffe auf Formularfelder und setzt `/NeedAppearances` für Viewer-Aktualisierung. Falls Felddarstellung in manchen PDF-Viewern nicht sofort aktualisiert erscheint, muss ggf. eine zuverlässigere PDF-Bibliothek mit vollständiger AcroForm-Unterstützung (z. B. kommerzielles iText7) geprüft werden.
 

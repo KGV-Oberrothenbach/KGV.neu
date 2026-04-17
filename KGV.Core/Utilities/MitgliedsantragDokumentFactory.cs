@@ -162,8 +162,8 @@ namespace KGV.Core.Utilities
                 Erklaerungstext = JoinParagraphs(erklaerungsteile),
                 Datenschutztext = JoinParagraphs(datenschutzteile),
                 Fussnote = BuildFussnote(bankverbindungSnapshot),
-                DokumentOrt = Safe(bankverbindungSnapshot.DokumentOrt),
-                UnterschriftOrt = Safe(bankverbindungSnapshot.DokumentOrt)
+                DokumentOrt = string.IsNullOrWhiteSpace(Safe(bankverbindungSnapshot.DokumentOrt)) ? "Zwickau" : Safe(bankverbindungSnapshot.DokumentOrt),
+                UnterschriftOrt = string.IsNullOrWhiteSpace(Safe(bankverbindungSnapshot.DokumentOrt)) ? "Zwickau" : Safe(bankverbindungSnapshot.DokumentOrt)
             };
         }
 
@@ -530,7 +530,7 @@ namespace KGV.Core.Utilities
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["ausstellungsdatum"] = data.Ausstellungsdatum,
-                ["dokument_ort"] = (data.DokumentOrt ?? string.Empty),
+                ["dokument_ort"] = string.IsNullOrWhiteSpace(data.DokumentOrt) ? "Zwickau" : data.DokumentOrt,
                 ["mitglied_name"] = data.MitgliedName,
                 ["mitglied_vorname"] = data.MitgliedVorname,
                 ["mitglied_geburtsdatum"] = data.MitgliedGeburtsdatum,
@@ -557,7 +557,7 @@ namespace KGV.Core.Utilities
                 ["bank_name"] = data.BankName,
                 ["bank_iban"] = data.BankIban,
                 ["bank_bic"] = data.BankBic,
-                ["unterschrift_ort"] = string.IsNullOrWhiteSpace(data.UnterschriftOrt) ? string.Empty : data.UnterschriftOrt,
+                ["unterschrift_ort"] = string.IsNullOrWhiteSpace(data.UnterschriftOrt) ? "Zwickau" : data.UnterschriftOrt,
                 ["unterschrift_datum"] = data.Ausstellungsdatum,
                 ["unterschrift_antragsteller"] = string.Empty,
                 ["unterschrift_vertreter"] = string.Empty,
@@ -926,8 +926,10 @@ namespace KGV.Core.Utilities
                             {
                                 var centerX = rect.X + rect.Width / 2.0;
                                 var centerY = rect.Y + rect.Height / 2.0;
-                                // center the check glyph vertically and horizontally
-                                gfx.DrawString("✓", checkFont, XBrushes.Black, new XPoint(centerX - (checkFont.Size / 2), centerY + (checkFont.Size / 2)));
+                                // center the check glyph vertically and horizontally; adjust for font metrics
+                                var glyphX = centerX - (checkFont.Size / 2);
+                                var glyphY = centerY - (checkFont.Size / 2);
+                                gfx.DrawString("✓", checkFont, XBrushes.Black, new XPoint(glyphX, glyphY));
                                 logLines.Add($"ANNOT CHECK (by-name): {name} mapping='{mappingVal}' page={pi} rect={rect.X:F0},{rect.Y:F0},{rect.Width:F0}x{rect.Height:F0}");
                                 drawn = true;
                             }
@@ -946,18 +948,21 @@ namespace KGV.Core.Utilities
                             if (lines.Count == 1)
                             {
                                 var fontHeight = baseFont.GetHeight();
+                                // compute baseline so text is drawn just above bottom padding (3pt)
                                 var textY = rect.Bottom - fontHeight - 3; // 3pt padding from bottom
-                                gfx.DrawString(lines[0], baseFont, XBrushes.Black, new XRect(rect.X + 4, textY, rect.Width - 8, fontHeight + 2), XStringFormats.TopLeft);
+                                // use DrawString with explicit layout rect height equal to fontHeight to avoid clipping
+                                gfx.DrawString(lines[0], baseFont, XBrushes.Black, new XRect(rect.X + 4, textY, rect.Width - 8, fontHeight), XStringFormats.TopLeft);
                             }
                             else
                             {
-                                // multi-line: start below label area (approx 14-18pt)
+                                // multi-line: start below label area (approx 14-18pt) and ensure lines fit
                                 var y = rect.Y + 16;
+                                var fh = baseFont.GetHeight();
                                 foreach (var line in lines)
                                 {
-                                    gfx.DrawString(line, baseFont, XBrushes.Black, new XRect(rect.X + 4, y, rect.Width - 8, rect.Height - 6), XStringFormats.TopLeft);
-                                    y += baseFont.GetHeight();
-                                    if (y > rect.Y + rect.Height) break;
+                                    if (y + fh > rect.Bottom - 3) break; // avoid drawing into bottom padding
+                                    gfx.DrawString(line, baseFont, XBrushes.Black, new XRect(rect.X + 4, y, rect.Width - 8, fh), XStringFormats.TopLeft);
+                                    y += fh;
                                 }
                             }
                             logLines.Add($"ANNOT TEXT: {name}='{value}' page={pi} rect={rect.X:F0},{rect.Y:F0},{rect.Width:F0}x{rect.Height:F0}");
