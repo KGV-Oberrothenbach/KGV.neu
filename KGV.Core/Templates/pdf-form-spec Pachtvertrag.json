@@ -1,0 +1,1077 @@
+{
+  "settings": {
+    "coordinateOrigin": "topLeft"
+  },
+  "fields": [
+    {
+      "id": "pdfFormField-0",
+      "page": 1,
+      "pageAnnotIndex": 0,
+      "type": "text",
+      "name": "ausstellungsdatum",
+      "value": "",
+      "rect": {
+        "x": 427.8666178385417,
+        "y": 119.53333536783855,
+        "w": 127.46671549479167,
+        "h": 16
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect",
+        "updateTextAlign"
+      ],
+      "refId": "49R",
+      "defaultValue": "",
+      "maxLength": 120,
+      "textAlign": "center"
+    },
+    {
+      "id": "pdfFormField-1",
+      "page": 1,
+      "pageAnnotIndex": 1,
+      "type": "text",
+      "name": "paechter1_name",
+      "value": "",
+      "rect": {
+        "x": 63.86665852864583,
+        "y": 212,
+        "w": 205,
+        "h": 13
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "50R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-2",
+      "page": 1,
+      "pageAnnotIndex": 2,
+      "type": "text",
+      "name": "paechter1_vorname",
+      "value": "",
+      "rect": {
+        "x": 79.33333333333333,
+        "y": 226,
+        "w": 189,
+        "h": 13
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "51R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-3",
+      "page": 1,
+      "pageAnnotIndex": 3,
+      "type": "text",
+      "name": "paechter1_geburtsdatum",
+      "value": "",
+      "rect": {
+        "x": 94.6666259765625,
+        "y": 240,
+        "w": 173.4000244140625,
+        "h": 13
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "52R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-4",
+      "page": 1,
+      "pageAnnotIndex": 4,
+      "type": "text",
+      "name": "paechter1_mitgliedsnummer",
+      "value": "",
+      "rect": {
+        "x": 104.5333251953125,
+        "y": 254,
+        "w": 163,
+        "h": 13
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "53R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-5",
+      "page": 1,
+      "pageAnnotIndex": 5,
+      "type": "text",
+      "name": "paechter2_name",
+      "value": "",
+      "rect": {
+        "x": 328.3333333333333,
+        "y": 212,
+        "w": 180,
+        "h": 13
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "54R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-6",
+      "page": 1,
+      "pageAnnotIndex": 6,
+      "type": "text",
+      "name": "paechter2_vorname",
+      "value": "",
+      "rect": {
+        "x": 341.6666666666667,
+        "y": 226,
+        "w": 180,
+        "h": 13
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "55R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-7",
+      "page": 1,
+      "pageAnnotIndex": 7,
+      "type": "text",
+      "name": "paechter2_geburtsdatum",
+      "value": "",
+      "rect": {
+        "x": 357.4666341145833,
+        "y": 240,
+        "w": 150,
+        "h": 13
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "56R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-8",
+      "page": 1,
+      "pageAnnotIndex": 8,
+      "type": "text",
+      "name": "paechter2_mitgliedsnummer",
+      "value": "",
+      "rect": {
+        "x": 364.9332682291667,
+        "y": 254,
+        "w": 138,
+        "h": 13
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "57R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-9",
+      "page": 1,
+      "pageAnnotIndex": 9,
+      "type": "text",
+      "name": "parzelle_nummer",
+      "value": "",
+      "rect": {
+        "x": 504.46671549479163,
+        "y": 318.33333333333337,
+        "w": 19.333333333333332,
+        "h": 10.999999999999943
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect",
+        "updateTextAlign"
+      ],
+      "refId": "58R",
+      "defaultValue": "",
+      "maxLength": 120,
+      "textAlign": "center"
+    },
+    {
+      "id": "pdfFormField-10",
+      "page": 1,
+      "pageAnnotIndex": 10,
+      "type": "text",
+      "name": "parzelle_flaeche_qm",
+      "value": "",
+      "rect": {
+        "x": 108.26668294270833,
+        "y": 329.33333333333326,
+        "w": 33.5999755859375,
+        "h": 11
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect",
+        "updateTextAlign"
+      ],
+      "refId": "59R",
+      "defaultValue": "",
+      "maxLength": 120,
+      "textAlign": "center"
+    },
+    {
+      "id": "pdfFormField-11",
+      "page": 1,
+      "pageAnnotIndex": 11,
+      "type": "text",
+      "name": "pachtbeginn",
+      "value": "",
+      "rect": {
+        "x": 225.86661783854166,
+        "y": 522.4666646321615,
+        "w": 46.80000813802083,
+        "h": 11
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect",
+        "updateTextAlign"
+      ],
+      "refId": "60R",
+      "defaultValue": "",
+      "maxLength": 120,
+      "textAlign": "center"
+    },
+    {
+      "id": "pdfFormField-12",
+      "page": 1,
+      "pageAnnotIndex": 12,
+      "type": "text",
+      "name": "pachtende",
+      "value": "",
+      "rect": {
+        "x": 429.6666666666667,
+        "y": 522.1999918619791,
+        "w": 49.79996744791667,
+        "h": 11
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect",
+        "updateTextAlign"
+      ],
+      "refId": "61R",
+      "defaultValue": "",
+      "maxLength": 120,
+      "textAlign": "center"
+    },
+    {
+      "id": "pdfFormField-13",
+      "page": 2,
+      "pageAnnotIndex": 0,
+      "type": "text",
+      "name": "pacht_pro_qm",
+      "value": "",
+      "rect": {
+        "x": 32.933329264322914,
+        "y": 78,
+        "w": 150,
+        "h": 14
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "62R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-14",
+      "page": 2,
+      "pageAnnotIndex": 1,
+      "type": "text",
+      "name": "parzelle_flaeche_qm_wiederholung",
+      "value": "",
+      "rect": {
+        "x": 207.60001627604166,
+        "y": 78,
+        "w": 150,
+        "h": 14
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "63R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-15",
+      "page": 2,
+      "pageAnnotIndex": 2,
+      "type": "text",
+      "name": "jahrespacht",
+      "value": "",
+      "rect": {
+        "x": 390,
+        "y": 82,
+        "w": 150,
+        "h": 14
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "64R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-16",
+      "page": 2,
+      "pageAnnotIndex": 3,
+      "type": "text",
+      "name": "pachtzahlung_faellig_bis",
+      "value": "",
+      "rect": {
+        "x": 193.73331705729166,
+        "y": 100.2000020345052,
+        "w": 47.73331705729167,
+        "h": 10
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "65R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-17",
+      "page": 4,
+      "pageAnnotIndex": 0,
+      "type": "text",
+      "name": "altvertrag_datum",
+      "value": "",
+      "rect": {
+        "x": 437,
+        "y": 688.1333414713541,
+        "w": 43.4666748046875,
+        "h": 10.999999999999986
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "66R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-18",
+      "page": 5,
+      "pageAnnotIndex": 0,
+      "type": "text",
+      "name": "bankblock_mehrzeilig",
+      "value": "",
+      "rect": {
+        "x": 28.933329264322918,
+        "y": 112.80000813802083,
+        "w": 260,
+        "h": 50
+      },
+      "index": 0,
+      "flags": {
+        "multiLine": true,
+        "print": true,
+        "multiline": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "67R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-19",
+      "page": 5,
+      "pageAnnotIndex": 1,
+      "type": "text",
+      "name": "pacht_laufendes_jahr",
+      "value": "",
+      "rect": {
+        "x": 295.1999918619792,
+        "y": 113.59999593098958,
+        "w": 165,
+        "h": 12
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "68R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-20",
+      "page": 5,
+      "pageAnnotIndex": 2,
+      "type": "text",
+      "name": "unterschrift_ort",
+      "value": "",
+      "rect": {
+        "x": 34,
+        "y": 351.99999999999994,
+        "w": 190,
+        "h": 14
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "delete"
+      ],
+      "refId": "69R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-21",
+      "page": 5,
+      "pageAnnotIndex": 3,
+      "type": "text",
+      "name": "unterschrift_datum",
+      "value": "",
+      "rect": {
+        "x": 293.066650390625,
+        "y": 374.9333292643229,
+        "w": 190,
+        "h": 14
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "70R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-22",
+      "page": 5,
+      "pageAnnotIndex": 4,
+      "type": "text",
+      "name": "unterschrift_paechter1",
+      "value": "",
+      "rect": {
+        "x": 34.666666666666664,
+        "y": 396,
+        "w": 160,
+        "h": 56
+      },
+      "index": 0,
+      "flags": {
+        "multiLine": true,
+        "print": true,
+        "multiline": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "71R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-23",
+      "page": 5,
+      "pageAnnotIndex": 5,
+      "type": "text",
+      "name": "unterschrift_paechter2",
+      "value": "",
+      "rect": {
+        "x": 213.73331705729166,
+        "y": 396,
+        "w": 160,
+        "h": 56
+      },
+      "index": 0,
+      "flags": {
+        "multiLine": true,
+        "print": true,
+        "multiline": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "72R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-24",
+      "page": 5,
+      "pageAnnotIndex": 6,
+      "type": "text",
+      "name": "unterschrift_verpaechter",
+      "value": "",
+      "rect": {
+        "x": 391.1333414713542,
+        "y": 396,
+        "w": 160,
+        "h": 56
+      },
+      "index": 0,
+      "flags": {
+        "multiLine": true,
+        "print": true,
+        "multiline": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "73R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-25",
+      "page": 5,
+      "pageAnnotIndex": 7,
+      "type": "text",
+      "name": "anlagen_unterschrift_paechter1",
+      "value": "",
+      "rect": {
+        "x": 35.733317057291664,
+        "y": 546,
+        "w": 160,
+        "h": 56
+      },
+      "index": 0,
+      "flags": {
+        "multiLine": true,
+        "print": true,
+        "multiline": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "74R",
+      "defaultValue": "",
+      "maxLength": 120
+    },
+    {
+      "id": "pdfFormField-26",
+      "page": 5,
+      "pageAnnotIndex": 8,
+      "type": "text",
+      "name": "anlagen_unterschrift_paechter2",
+      "value": "",
+      "rect": {
+        "x": 214,
+        "y": 546,
+        "w": 160,
+        "h": 56
+      },
+      "index": 0,
+      "flags": {
+        "multiLine": true,
+        "print": true,
+        "multiline": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#D6E6FF",
+        "borderColor": "#337ACC",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "75R",
+      "defaultValue": "",
+      "maxLength": 120
+    }
+  ],
+  "resources": {
+    "fonts": {
+      "Helvetica": {
+        "type": "standard",
+        "name": "Helvetica"
+      },
+      "Courier": {
+        "type": "standard",
+        "name": "Courier"
+      },
+      "Times": {
+        "type": "standard",
+        "name": "Times"
+      },
+      "ZapfDingbats": {
+        "type": "standard",
+        "name": "ZapfDingbats"
+      },
+      "Helv": {
+        "name": "Helv",
+        "type": "provided"
+      }
+    }
+  }
+}
