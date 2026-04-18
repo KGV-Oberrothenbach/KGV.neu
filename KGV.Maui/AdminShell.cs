@@ -175,15 +175,16 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Export", "export", () => _services.GetRequiredService<ExportPage>()));
 
-        if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
-            Items.Add(CreateItem("Mitgliedersuche", "membersearch", () => _services.GetRequiredService<MemberSearchPage>()));
-
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin)
             Items.Add(CreateManagementItem(
                 "Verwaltung",
                 ("Saisonverwaltung", "season_management", () => _services.GetRequiredService<SaisonverwaltungPage>()),
                 ("Vereinskonfiguration", "club_configuration", () => _services.GetRequiredService<VereinskonfigurationPage>())));
 
+        if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
+            Items.Add(CreateItem("Mitgliedersuche", "membersearch", () => _services.GetRequiredService<MemberSearchPage>()));
+
+       
         _memberDetailsItem = CreateItem("↳ Stammdaten", "memberdetails", () => _services.GetRequiredService<MemberDetailPage>());
         _memberDocumentsItem = CreateItem("↳ Dokumente", "member_documents", () => _services.GetRequiredService<DokumentePage>());
         _memberWartungsvertraegeItem = CreateItem("↳ Wartungsverträge", "member_wartungsvertraege", () => _services.GetRequiredService<MemberWartungsvertraegePage>());

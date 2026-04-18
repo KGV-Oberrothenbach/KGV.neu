@@ -8,11 +8,9 @@ namespace KGV.Core.Models
         {
             if (member == null)
                 return false;
-
-            return !member.IsDemo
-                && !ContainsMarker(member.Vorname)
-                && !ContainsMarker(member.Name)
-                && !ContainsMarker(member.Email);
+        // New behavior: rely solely on explicit DB flag is_demo.
+        // Treat nullable/absent as NOT demo (i.e., visible) - property is non-nullable bool in models.
+        return !member.IsDemo;
         }
 
         public static bool IsOperationalAppUser(MitgliedRecord? member, string? displayName, string? email)
@@ -40,31 +38,24 @@ namespace KGV.Core.Models
         {
             if (item == null)
                 return false;
-
-            return !item.IsDemo
-                && !ContainsMarker(item.Titel)
-                && !ContainsMarker(item.Beschreibung)
-                && !ContainsMarker(item.Treffpunkt);
+        // Rely on explicit is_demo flag only
+        return !item.IsDemo;
         }
 
         public static bool IsOperationalTermin(TerminRecord? item)
         {
             if (item == null)
                 return false;
-
-            return !item.IsDemo
-                && !ContainsMarker(item.Titel)
-                && !ContainsMarker(item.Beschreibung);
+        // Rely on explicit is_demo flag only
+        return !item.IsDemo;
         }
 
         public static bool IsOperationalBekanntmachung(BekanntmachungRecord? item)
         {
             if (item == null)
                 return false;
-
-            return !item.IsDemo
-                && !ContainsMarker(item.Titel)
-                && !ContainsMarker(item.InhaltHtml);
+        // Rely on explicit is_demo flag only
+        return !item.IsDemo;
         }
 
         public static bool IsOperationalText(string? value)
