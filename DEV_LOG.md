@@ -65,6 +65,16 @@
   - `KGV.Maui/Pages/MemberDetailPage.cs`: Zwei neue Switch-Felder `_rechnungMailSwitch` und `_infoMailSwitch` hinzugefügt; Anzeige im Kontaktbereich, Laden, Leeren, Create-Mode und Speichern entsprechend umgesetzt; Mapping `MapMember(...)` ergänzt.
 - Validierung: Lokaler Build durchgeführt: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
 
+## 2026-04-18 – Mitgliedsantrag: Signaturflow mobil fertiggestellt
+
+- Ziel: Den bestehenden mobilen Signaturfluss für den Mitgliedsantrag produktiv abschließen. Nutzung des vorhandenen `VertragsSignaturPage` und des gemeinsamen `SignedVertragsdokumentPdfBuilder` sowie des Servicepfads `CreateSignedMitgliedsantragDokumentAsync`.
+- Änderungen:
+  - `KGV.Maui/Pages/VertragsSignaturPage.cs`: UI-Buttons geordnet, finaler Save-Button `Speichern` am Ende platziert und `Leeren`/`Abbrechen` beibehalten. Anzeige des Signaturtitels oben erfolgte bereits per Übergabe-Parameter.
+  - Flow-Überprüfung: `KGV.Maui/Pages/MemberDetailPage.cs` nutzt bereits sequentiellen Mehrstufen-Flow (Antragsteller → ggf. gesetzlicher Vertreter) und ruft `CreateSignedMitgliedsantragDokumentAsync` im Service auf.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
+
 Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implementierung verwendet reflektive Zugriffe auf Formularfelder und setzt `/NeedAppearances` für Viewer-Aktualisierung. Falls Felddarstellung in manchen PDF-Viewern nicht sofort aktualisiert erscheint, muss ggf. eine zuverlässigere PDF-Bibliothek mit vollständiger AcroForm-Unterstützung (z. B. kommerzielles iText7) geprüft werden.
 
 ## 2026-04-13 – Pachtvertrag ohne separaten Mitgliedsbeitrag geglättet

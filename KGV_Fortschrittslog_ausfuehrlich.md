@@ -40,6 +40,16 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
   - Layout: Einzeilige Werte untenbündig, mehrzeilige Werte beginnen unterhalb des Labels; Checkbox-Häkchen grafisch zentriert.
 - Test: `tools/MitgliedsantragTest` ausgeführt, Minor/Adult Test-PDFs neu erzeugt.
 - Build: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+## 2026-04-18 – Mitgliedsantrag: Signaturflow mobil fertiggestellt
+
+- Ziel: Den bestehenden mobilen Signaturfluss für den Mitgliedsantrag produktiv abschließen. Nutzung des vorhandenen `VertragsSignaturPage` und des gemeinsamen `SignedVertragsdokumentPdfBuilder` sowie des Servicepfads `CreateSignedMitgliedsantragDokumentAsync`.
+- Änderungen:
+  - `KGV.Maui/Pages/VertragsSignaturPage.cs`: UI-Buttons geordnet, finaler Save-Button `Speichern` am Ende platziert und `Leeren`/`Abbrechen` beibehalten. Anzeige des Signaturtitels oben erfolgt per Übergabe-Parameter.
+  - `KGV.Maui/Pages/MemberDetailPage.cs`: Flow nutzt bereits die sequentielle Signaturabfolge (Antragsteller -> ggf. gesetzlicher Vertreter) und ruft `CreateSignedMitgliedsantragDokumentAsync` zur finalen Speicherung auf.
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
 - **ReleaseManager / AWR** wurden für reale WPF-/Android-Releases deutlich ausgebaut.
 
 ## Chronologischer Kurzverlauf
