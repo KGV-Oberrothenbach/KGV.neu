@@ -13,7 +13,7 @@ namespace KGV.Core.Utilities
 {
     public static class MitgliedsantragDokumentFactory
     {
-        private const string PdfTemplateResourceName = "KGV.Core.Templates.Mitgliedsantrag_Vorlage_Formularfelder.pdf";
+        private const string PdfTemplateResourceName = "KGV.Core.Templates.Mitgliedsantrag_Vorlage.pdf";
         private const string DefaultOrt = "Zwickau";
 
         private static readonly IReadOnlyList<PdfFormFieldSpec> FieldSpecs = new[]

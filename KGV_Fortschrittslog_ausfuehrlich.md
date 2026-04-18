@@ -338,6 +338,14 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 - Noch bewusst offen bleibt die spätere echte digitale Signatur-/Canvas-Logik; der aktuelle Block schafft nur den anschlussfähigen Status- und Upload-Unterbau.
 
 - Den nächsten kleinen Formularblock auf dem echten Branch-Stand `feature/formularverwaltung` umgesetzt und den Mitgliedsvertrag auf den bestehenden Formular-/Dokumentpfad gezogen.
+
+- 2026-04-18 – Mitgliedsantrag: PDF-Ressource korrekt eingebunden
+
+- Ursache: Laufzeitfehler beim Erzeugen der Mitgliedsantrag-Vorschau wegen falschem EmbeddedResource-Namen in `MitgliedsantragDokumentFactory`.
+- Fix: `PdfTemplateResourceName` auf `KGV.Core.Templates.Mitgliedsantrag_Vorlage.pdf` gesetzt und Projekt-Resources geprüft (`KGV.Core.csproj` enthält `Templates\\Mitgliedsantrag_Vorlage.pdf`).
+- Validierung:
+  - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
+  - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
 - Dafür wurde ein gemeinsamer Produktivpfad `Mitgliedsvertrag (unsigniert)` ergänzt: `ISupabaseService` und `SupabaseService` besitzen jetzt `CreateMitgliedsvertragDokumentAsync(...)`, das wie die vorhandenen Formularfälle direkt über den bestehenden Dokument-Upload und die Mitgliedsablage läuft.
 - Da für den Mitgliedsvertrag noch keine eigene offizielle PDF-Vorlage im Repo geführt wird, wird der Vertrag zunächst als saubere wiederverwendbare Vereins-PDF über den vorhandenen Branding-/Vorlagenpfad erzeugt; die Kapselung liegt in `MitgliedsvertragDokumentFactory`, sodass später leicht auf eine echte Vorlage gewechselt werden kann.
 - Der Mitgliedsvertrag gibt jetzt mindestens Name, Vorname, Geburtsdatum soweit vorhanden, Adresse, Kontaktangaben, Mitgliedskontext, Eintritts-/Vertragsdatum sowie einen Unterschriftsbereich aus und bleibt beim bestehenden Dateinamenschema `<Name_Vorname>-<ID>-<yyyy-MM-dd>-mitgliedsvertrag-unsigniert.pdf`.
