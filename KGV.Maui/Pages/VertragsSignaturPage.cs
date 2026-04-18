@@ -57,8 +57,8 @@ public sealed class VertragsSignaturPage : ContentPage
             _graphicsView.Invalidate();
         };
 
-        var acceptButton = new Button { Text = "Übernehmen" };
-        acceptButton.Clicked += async (_, _) => await AcceptAsync();
+        var saveButton = new Button { Text = "Speichern" };
+        saveButton.Clicked += async (_, _) => await AcceptAsync();
 
         var cancelButton = new Button { Text = "Abbrechen" };
         cancelButton.Clicked += async (_, _) => await CancelAsync();
@@ -88,9 +88,10 @@ public sealed class VertragsSignaturPage : ContentPage
             Spacing = 12,
             HorizontalOptions = LayoutOptions.End
         };
+        // Keep clear and cancel left of the final Save button; Save always at the end
         buttonBar.Children.Add(clearButton);
         buttonBar.Children.Add(cancelButton);
-        buttonBar.Children.Add(acceptButton);
+        buttonBar.Children.Add(saveButton);
         layout.Children.Add(buttonBar);
 
         Content = layout;
