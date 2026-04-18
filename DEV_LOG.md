@@ -75,6 +75,12 @@
   - `dotnet build KGV.Wpf/KGV.Wpf.csproj` erfolgreich
   - `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich
 
+## 2026-04-18 – Arbeitsstunden: Fix "Offene Arbeitsstunden zur Freigabe" anzeigen
+
+- Problem: In der Prüfübersicht wurden fachlich offene Arbeitsstunden (z.B. `freigegeben = FALSE` und `status = 'offen'`) nicht angezeigt, weil der Service Ergebnisse nach dem fachlichen Offen-Filter hart anhand der geladenen Mitgliederliste aussortierte. Wenn ein Mitglied nicht aufgelöst werden konnte, fiel der Datensatz weg.
+- Fix: `KGV.Infrastructure/Services/SupabaseService.cs` angepasst: `GetOffeneArbeitsstundenZurFreigabeAsync()` lädt nun die rohe Mitgliedstabelle und unterscheidet zwischen Demo-/Testmitgliedern (werden ausgeschlossen) und unbekannten Mitglieds-IDs (diese führen nicht mehr zum Ausschluss der Arbeitsstunde). Beim Mapping werden Namen nach Möglichkeit aus `operativeMitglieder` aufgelöst, ansonsten ein neutraler Fallback `Mitglied {id}` verwendet.
+- Validierung: Fachliche Offens-Definition wurde beibehalten (`ArbeitsstundenPruefprozess.IsOffenerPrueffall`). WPF und MAUI konsumieren denselben Servicepfad und zeigen offene Einträge nun korrekt an.
+
 Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implementierung verwendet reflektive Zugriffe auf Formularfelder und setzt `/NeedAppearances` für Viewer-Aktualisierung. Falls Felddarstellung in manchen PDF-Viewern nicht sofort aktualisiert erscheint, muss ggf. eine zuverlässigere PDF-Bibliothek mit vollständiger AcroForm-Unterstützung (z. B. kommerzielles iText7) geprüft werden.
 
 ## 2026-04-13 – Pachtvertrag ohne separaten Mitgliedsbeitrag geglättet

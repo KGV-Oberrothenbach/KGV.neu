@@ -1914,13 +1914,32 @@ namespace KGV.Infrastructure.Services
                 if (records.Count == 0)
                     return new List<ArbeitsstundeDTO>();
 
-                var mitglieder = await GetMitgliederAsync();
-                var operativeMitglieder = mitglieder
+                // Load raw member table so we can distinguish between
+                // - operational members (should be used for name resolution)
+                // - demo/test members (should be excluded)
+                // - missing members (no member row found) -> keep the Arbeitsstunde but fall back to neutral display
+                var membersResponse = await client.From<MitgliedRecord>().Get();
+                var allMembers = membersResponse?.Models?
+                    .ToDictionary(x => x.Id, x => x)
+                    ?? new Dictionary<int, MitgliedRecord>();
+
+                var operativeMitglieder = allMembers.Values
                     .Where(OperationalDataFilter.IsOperationalMember)
                     .ToDictionary(x => x.Id, x => x);
 
+                // Keep fachlich offene Arbeitsstunden. Exclude rows that belong to a known demo/test member.
                 records = records
-                    .Where(x => operativeMitglieder.ContainsKey(x.MitgliedId))
+                    .Where(x =>
+                    {
+                        if (allMembers.TryGetValue(x.MitgliedId, out var member))
+                        {
+                            // Member is known: include only when operational
+                            return OperationalDataFilter.IsOperationalMember(member);
+                        }
+
+                        // Member not found in member table: do not exclude the Arbeitsstunde — show it and fall back to a neutral name
+                        return true;
+                    })
                     .ToList();
 
                 if (records.Count == 0)
