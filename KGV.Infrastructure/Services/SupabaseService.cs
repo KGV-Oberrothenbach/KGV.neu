@@ -1904,12 +1904,13 @@ namespace KGV.Infrastructure.Services
             {
                 var client = await EnsureClientAsync();
                 var response = await client.From<ArbeitsstundeRecord>().Get();
-                var records = response?.Models?
-                    .Where(IsArbeitsstundeOffen)
-                    .OrderBy(x => x.Datum)
-                    .ThenBy(x => x.Id)
-                    .ToList()
-                    ?? new List<ArbeitsstundeRecord>();
+                var records = response?.Models?.ToList() ?? new List<ArbeitsstundeRecord>();
+                System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: raw arbeitsstunden count = {records.Count}");
+                Console.WriteLine($"KGV: SupabaseService: raw arbeitsstunden count = {records.Count}");
+
+                var afterOffen = records.Where(x => IsArbeitsstundeOffen(x)).ToList();
+                System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: count after IsOffenerPrueffall = {afterOffen.Count}");
+                Console.WriteLine($"KGV: SupabaseService: count after IsOffenerPrueffall = {afterOffen.Count}");
 
                 if (records.Count == 0)
                     return new List<ArbeitsstundeDTO>();
@@ -1923,12 +1924,18 @@ namespace KGV.Infrastructure.Services
                     .ToDictionary(x => x.Id, x => x)
                     ?? new Dictionary<int, MitgliedRecord>();
 
+                System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: allMembers count = {allMembers.Count}");
+                Console.WriteLine($"KGV: SupabaseService: allMembers count = {allMembers.Count}");
+
                 var operativeMitglieder = allMembers.Values
                     .Where(OperationalDataFilter.IsOperationalMember)
                     .ToDictionary(x => x.Id, x => x);
 
+                System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: operativeMitglieder count = {operativeMitglieder.Count}");
+                Console.WriteLine($"KGV: SupabaseService: operativeMitglieder count = {operativeMitglieder.Count}");
+
                 // Keep fachlich offene Arbeitsstunden. Exclude rows that belong to a known demo/test member.
-                records = records
+                var filtered = afterOffen
                     .Where(x =>
                     {
                         if (allMembers.TryGetValue(x.MitgliedId, out var member))
@@ -1941,6 +1948,19 @@ namespace KGV.Infrastructure.Services
                         return true;
                     })
                     .ToList();
+
+                System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: count after demo/test filter = {filtered.Count}");
+                Console.WriteLine($"KGV: SupabaseService: count after demo/test filter = {filtered.Count}");
+
+                // Show a few example ids/status for debugging
+                var example = filtered.Take(5).Select(r => (Id: r.Id, Status: r.Status ?? "<null>", Freigegeben: r.Freigegeben)).ToList();
+                foreach (var ex in example)
+                {
+                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: example open record Id={ex.Id}, Status={ex.Status}, Freigegeben={ex.Freigegeben}");
+                    Console.WriteLine($"KGV: SupabaseService: example open record Id={ex.Id}, Status={ex.Status}, Freigegeben={ex.Freigegeben}");
+                }
+
+                records = filtered;
 
                 if (records.Count == 0)
                     return new List<ArbeitsstundeDTO>();

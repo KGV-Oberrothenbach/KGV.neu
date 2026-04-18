@@ -96,15 +96,29 @@ public sealed class ArbeitsstundenReviewPage : ContentPage
         await LoadAsync();
     }
 
-    private async Task LoadAsync()
+    private async Task LoadAsync(string source = "unknown")
     {
+        // Debug: indicate load source
+        System.Diagnostics.Debug.WriteLine($"KGV: ArbeitsstundenReviewPage.LoadAsync started (source={source})");
+        Console.WriteLine($"KGV: ArbeitsstundenReviewPage.LoadAsync started (source={source})");
+
         _status.Text = string.Empty;
         _items.Clear();
 
         try
         {
+            System.Diagnostics.Debug.WriteLine("KGV: Calling GetOffeneArbeitsstundenZurFreigabeAsync()");
+            Console.WriteLine("KGV: Calling GetOffeneArbeitsstundenZurFreigabeAsync()");
+
             var entries = await _supabaseService.GetOffeneArbeitsstundenZurFreigabeAsync();
+            System.Diagnostics.Debug.WriteLine($"KGV: Service returned {entries?.Count ?? 0} entries");
+            Console.WriteLine($"KGV: Service returned {entries?.Count ?? 0} entries");
             _reviewState.SetEntries(entries);
+
+            // Client-side filtering check (should be none)
+            var beforeClientFilter = _reviewState.Entries?.Count ?? 0;
+            System.Diagnostics.Debug.WriteLine($"KGV: Entries before client-side handling = {beforeClientFilter}");
+            Console.WriteLine($"KGV: Entries before client-side handling = {beforeClientFilter}");
 
             foreach (var entry in _reviewState.Entries)
                 _items.Add(entry);
@@ -115,8 +129,20 @@ public sealed class ArbeitsstundenReviewPage : ContentPage
                 ? $"{_items.Count} offener Prüffall/Fälle"
                 : "Keine offenen Prüffälle";
 
+            System.Diagnostics.Debug.WriteLine($"KGV: Final items.Count = {_items.Count}");
+            Console.WriteLine($"KGV: Final items.Count = {_items.Count}");
+
             if (_items.Count == 0)
+            {
                 _status.Text = "Aktuell liegen keine offenen Arbeitsstunden vor.";
+                System.Diagnostics.Debug.WriteLine("KGV: Empty state set: Aktuell liegen keine offenen Arbeitsstunden vor.");
+                Console.WriteLine("KGV: Empty state set: Aktuell liegen keine offenen Arbeitsstunden vor.");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("KGV: Empty state cleared - items present.");
+                Console.WriteLine("KGV: Empty state cleared - items present.");
+            }
 
             if (Shell.Current is AdminShell shell)
                 await shell.RefreshWorkhoursReviewMenuAsync();
