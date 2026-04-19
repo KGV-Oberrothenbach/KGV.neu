@@ -211,6 +211,21 @@ namespace KGV.Maui.ViewModels
             return filePath;
         }
 
+        public async Task<string> ExportToPdfAsync()
+        {
+            if (ProcessedResults.Count == 0 || ColumnsVisibleOrdered.Count == 0)
+                throw new InvalidOperationException("Keine Daten zum Exportieren.");
+
+            var exportKey = SelectedDefinition?.Name ?? "export";
+            // use ExportPdfBuilder from Core.Utilities
+            var pdf = KGV.Core.Utilities.ExportPdfBuilder.BuildExportPdf(exportKey, ColumnsVisibleOrdered, ProcessedResults.ToList());
+
+            var fileName = $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{exportKey}.pdf";
+            var filePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, fileName);
+            await System.IO.File.WriteAllBytesAsync(filePath, pdf);
+            return filePath;
+        }
+
         private static string EscapeCsv(string input)
         {
             if (input == null)

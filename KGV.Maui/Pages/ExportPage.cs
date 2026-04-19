@@ -49,6 +49,8 @@ public sealed class ExportPage : ContentPage
 
         _exportCsvButton = new Button { Text = "Als CSV exportieren" };
         _exportCsvButton.Clicked += async (_, _) => await OnExportCsvClicked();
+        var _exportPdfButton = new Button { Text = "Als PDF exportieren" };
+        _exportPdfButton.Clicked += async (_, _) => await OnExportPdfClicked();
 
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue };
 
@@ -81,7 +83,7 @@ public sealed class ExportPage : ContentPage
                     new Label { Text = "Export", FontSize = 24, FontAttributes = FontAttributes.Bold },
                     _definitionPicker,
                     _filtersStack,
-                    new HorizontalStackLayout { Children = { _runButton, _exportCsvButton } },
+                    new HorizontalStackLayout { Children = { _runButton, _exportCsvButton, _exportPdfButton } },
                     _statusLabel,
                     new HorizontalStackLayout { Children = { _prevButton, _nextButton } },
                     _recordView,
@@ -89,6 +91,26 @@ public sealed class ExportPage : ContentPage
                 }
             }
         };
+    }
+
+    private async Task OnExportPdfClicked()
+    {
+        try
+        {
+            if (_vm.ProcessedResults.Count == 0)
+            {
+                _statusLabel.Text = "Keine Daten zum Exportieren.";
+                return;
+            }
+
+            var filePath = await _vm.ExportToPdfAsync();
+            _statusLabel.Text = $"PDF erzeugt: {filePath}";
+            await Share.Default.RequestAsync(new ShareFileRequest { Title = "Export (PDF) teilen", File = new ShareFile(filePath) });
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = $"PDF-Export fehlgeschlagen: {ex.Message}";
+        }
     }
 
     protected override async void OnAppearing()
