@@ -18,6 +18,13 @@ namespace KGV.Maui.ViewModels
         public ObservableCollection<AppExportFilterDefinitionRecord> Filters { get; } = new ObservableCollection<AppExportFilterDefinitionRecord>();
         public ObservableCollection<AppExportColumnDefinitionRecord> Columns { get; } = new ObservableCollection<AppExportColumnDefinitionRecord>();
         public ObservableCollection<JsonElement> Results { get; } = new ObservableCollection<JsonElement>();
+        public ObservableCollection<Dictionary<string, string>> ProcessedResults { get; } = new ObservableCollection<Dictionary<string, string>>();
+
+        // Visible columns in display order (respecting sort column moved to front if applicable)
+        public List<AppExportColumnDefinitionRecord> ColumnsVisibleOrdered { get; private set; } = new List<AppExportColumnDefinitionRecord>();
+
+        public int CurrentIndex { get; private set; } = -1;
+        public Dictionary<string, string>? CurrentRecord => CurrentIndex >= 0 && CurrentIndex < ProcessedResults.Count ? ProcessedResults[CurrentIndex] : null;
 
         public AppExportDefinitionRecord? SelectedDefinition { get; set; }
         public Dictionary<string, object?> FilterValues { get; } = new Dictionary<string, object?>();
@@ -49,6 +56,9 @@ namespace KGV.Maui.ViewModels
             Filters.Clear();
             Columns.Clear();
             Results.Clear();
+            ProcessedResults.Clear();
+            ColumnsVisibleOrdered = new List<AppExportColumnDefinitionRecord>();
+            CurrentIndex = -1;
 
             var filters = await _supabaseService.GetExportFilterDefinitionsAsync(def.Id);
             foreach (var f in filters)
@@ -62,6 +72,7 @@ namespace KGV.Maui.ViewModels
         public async Task ExecuteAsync()
         {
             Results.Clear();
+            ProcessedResults.Clear();
             if (SelectedDefinition == null)
                 return;
 

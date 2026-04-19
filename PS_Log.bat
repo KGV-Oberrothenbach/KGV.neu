@@ -1,4 +1,5 @@
 @echo off
+cls
 setlocal
 
 set "REPO=C:\Programmieren\KGV\KGV.neu"
