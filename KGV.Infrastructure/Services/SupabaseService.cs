@@ -1962,6 +1962,18 @@ namespace KGV.Infrastructure.Services
 
                 records = filtered;
 
+                // If a specific processed id is supplied by the caller, log whether it is still present after reload
+                // (This is useful to correlate post-action state in the review-detail flow.)
+                // Note: this is cheap and temporary.
+                // We only log presence for the first 20 ids to avoid excessive logs.
+                var processedIdCandidates = filtered.Take(20).Select(r => r.Id).ToList();
+                foreach (var pid in processedIdCandidates)
+                {
+                    var present = filtered.Any(r => r.Id == pid);
+                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: post-filter presence check Id={pid}, Present={present}");
+                    Console.WriteLine($"KGV: SupabaseService: post-filter presence check Id={pid}, Present={present}");
+                }
+
                 if (records.Count == 0)
                     return new List<ArbeitsstundeDTO>();
 
@@ -2152,6 +2164,8 @@ namespace KGV.Infrastructure.Services
             "ApproveArbeitsstundeImPruefprozessAsync",
             async () =>
             {
+                System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: ApproveArbeitsstundeImPruefprozessAsync START Id={arbeitsstundeId}");
+                Console.WriteLine($"KGV: SupabaseService: ApproveArbeitsstundeImPruefprozessAsync START Id={arbeitsstundeId}");
                 var action = CreateArbeitsstundenPruefaktionRequest(arbeitsstundeId, ArbeitsstundenPruefprozess.AktionFreigegeben, begruendung, geprueftVon, geprueftAm);
                 if (!IsValidArbeitsstundenPruefaktion(action))
                     return false;
@@ -2170,16 +2184,27 @@ namespace KGV.Infrastructure.Services
                 updatedRecord.LockedByUserId = null;
                 updatedRecord.LockedAt = null;
 
-                await client
-                    .From<ArbeitsstundeRecord>()
-                    .Where(x => x.Id == arbeitsstundeId)
-                    .Set(x => x.Status, updatedRecord.Status)
-                    .Set(x => x.Freigegeben, updatedRecord.Freigegeben)
-                    .Set(x => x.GenehmigtVon, updatedRecord.GenehmigtVon)
-                    .Set(x => x.GenehmigtAm, updatedRecord.GenehmigtAm)
-                    .Set(x => x.LockedByUserId, (string?)null)
-                    .Set(x => x.LockedAt, (DateTime?)null)
-                    .Update();
+                try
+                {
+                    await client
+                        .From<ArbeitsstundeRecord>()
+                        .Where(x => x.Id == arbeitsstundeId)
+                        .Set(x => x.Status, updatedRecord.Status)
+                        .Set(x => x.Freigegeben, updatedRecord.Freigegeben)
+                        .Set(x => x.GenehmigtVon, updatedRecord.GenehmigtVon)
+                        .Set(x => x.GenehmigtAm, updatedRecord.GenehmigtAm)
+                        .Set(x => x.LockedByUserId, (string?)null)
+                        .Set(x => x.LockedAt, (DateTime?)null)
+                        .Update();
+                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: ApproveArbeitsstundeImPruefprozessAsync DB update succeeded Id={arbeitsstundeId}, Status={updatedRecord.Status}, Freigegeben={updatedRecord.Freigegeben}");
+                    Console.WriteLine($"KGV: SupabaseService: ApproveArbeitsstundeImPruefprozessAsync DB update succeeded Id={arbeitsstundeId}, Status={updatedRecord.Status}, Freigegeben={updatedRecord.Freigegeben}");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: ApproveArbeitsstundeImPruefprozessAsync DB update FAILED Id={arbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
+                    Console.WriteLine($"KGV: SupabaseService: ApproveArbeitsstundeImPruefprozessAsync DB update FAILED Id={arbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
+                    throw;
+                }
 
                 await AppendArbeitsstundenPruefverlaufAsync(client, action, existing, updatedRecord, normalizedGeprueftAm);
                 return true;
@@ -2190,6 +2215,8 @@ namespace KGV.Infrastructure.Services
             "RejectArbeitsstundeImPruefprozessAsync",
             async () =>
             {
+                System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: RejectArbeitsstundeImPruefprozessAsync START Id={arbeitsstundeId}");
+                Console.WriteLine($"KGV: SupabaseService: RejectArbeitsstundeImPruefprozessAsync START Id={arbeitsstundeId}");
                 var action = CreateArbeitsstundenPruefaktionRequest(arbeitsstundeId, ArbeitsstundenPruefprozess.AktionAbgelehnt, begruendung, geprueftVon, geprueftAm);
                 if (!IsValidArbeitsstundenPruefaktion(action))
                     return false;
@@ -2208,16 +2235,27 @@ namespace KGV.Infrastructure.Services
                 updatedRecord.LockedByUserId = null;
                 updatedRecord.LockedAt = null;
 
-                await client
-                    .From<ArbeitsstundeRecord>()
-                    .Where(x => x.Id == arbeitsstundeId)
-                    .Set(x => x.Status, updatedRecord.Status)
-                    .Set(x => x.Freigegeben, updatedRecord.Freigegeben)
-                    .Set(x => x.GenehmigtVon, (int?)null)
-                    .Set(x => x.GenehmigtAm, (DateTime?)null)
-                    .Set(x => x.LockedByUserId, (string?)null)
-                    .Set(x => x.LockedAt, (DateTime?)null)
-                    .Update();
+                try
+                {
+                    await client
+                        .From<ArbeitsstundeRecord>()
+                        .Where(x => x.Id == arbeitsstundeId)
+                        .Set(x => x.Status, updatedRecord.Status)
+                        .Set(x => x.Freigegeben, updatedRecord.Freigegeben)
+                        .Set(x => x.GenehmigtVon, (int?)null)
+                        .Set(x => x.GenehmigtAm, (DateTime?)null)
+                        .Set(x => x.LockedByUserId, (string?)null)
+                        .Set(x => x.LockedAt, (DateTime?)null)
+                        .Update();
+                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: RejectArbeitsstundeImPruefprozessAsync DB update succeeded Id={arbeitsstundeId}, Status={updatedRecord.Status}, Freigegeben={updatedRecord.Freigegeben}");
+                    Console.WriteLine($"KGV: SupabaseService: RejectArbeitsstundeImPruefprozessAsync DB update succeeded Id={arbeitsstundeId}, Status={updatedRecord.Status}, Freigegeben={updatedRecord.Freigegeben}");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: RejectArbeitsstundeImPruefprozessAsync DB update FAILED Id={arbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
+                    Console.WriteLine($"KGV: SupabaseService: RejectArbeitsstundeImPruefprozessAsync DB update FAILED Id={arbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
+                    throw;
+                }
 
                 await AppendArbeitsstundenPruefverlaufAsync(client, action, existing, updatedRecord, normalizedGeprueftAm);
                 return true;
@@ -2228,6 +2266,10 @@ namespace KGV.Infrastructure.Services
             "CorrectArbeitsstundeImPruefprozessAsync",
             async () =>
             {
+                if (request == null)
+                    return false;
+                System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: CorrectArbeitsstundeImPruefprozessAsync START Id={request.ArbeitsstundeId}");
+                Console.WriteLine($"KGV: SupabaseService: CorrectArbeitsstundeImPruefprozessAsync START Id={request.ArbeitsstundeId}");
                 if (request == null || request.ArbeitsstundeId <= 0 || request.GeprueftVon <= 0 || request.Stunden <= 0 || string.IsNullOrWhiteSpace(request.ArtDerArbeit))
                     return false;
 
@@ -2258,19 +2300,30 @@ namespace KGV.Infrastructure.Services
                 updatedRecord.LockedByUserId = null;
                 updatedRecord.LockedAt = null;
 
-                await client
-                    .From<ArbeitsstundeRecord>()
-                    .Where(x => x.Id == request.ArbeitsstundeId)
-                    .Set(x => x.Datum, updatedRecord.Datum)
-                    .Set(x => x.Stunden, updatedRecord.Stunden)
-                    .Set(x => x.ArtDerArbeit, updatedRecord.ArtDerArbeit)
-                    .Set(x => x.Status, updatedRecord.Status)
-                    .Set(x => x.Freigegeben, updatedRecord.Freigegeben)
-                    .Set(x => x.GenehmigtVon, updatedRecord.GenehmigtVon)
-                    .Set(x => x.GenehmigtAm, updatedRecord.GenehmigtAm)
-                    .Set(x => x.LockedByUserId, (string?)null)
-                    .Set(x => x.LockedAt, (DateTime?)null)
-                    .Update();
+                try
+                {
+                    await client
+                        .From<ArbeitsstundeRecord>()
+                        .Where(x => x.Id == request.ArbeitsstundeId)
+                        .Set(x => x.Datum, updatedRecord.Datum)
+                        .Set(x => x.Stunden, updatedRecord.Stunden)
+                        .Set(x => x.ArtDerArbeit, updatedRecord.ArtDerArbeit)
+                        .Set(x => x.Status, updatedRecord.Status)
+                        .Set(x => x.Freigegeben, updatedRecord.Freigegeben)
+                        .Set(x => x.GenehmigtVon, updatedRecord.GenehmigtVon)
+                        .Set(x => x.GenehmigtAm, updatedRecord.GenehmigtAm)
+                        .Set(x => x.LockedByUserId, (string?)null)
+                        .Set(x => x.LockedAt, (DateTime?)null)
+                        .Update();
+                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: CorrectArbeitsstundeImPruefprozessAsync DB update succeeded Id={request.ArbeitsstundeId}, Status={updatedRecord.Status}, Freigegeben={updatedRecord.Freigegeben}, Datum={updatedRecord.Datum}, Stunden={updatedRecord.Stunden}");
+                    Console.WriteLine($"KGV: SupabaseService: CorrectArbeitsstundeImPruefprozessAsync DB update succeeded Id={request.ArbeitsstundeId}, Status={updatedRecord.Status}, Freigegeben={updatedRecord.Freigegeben}, Datum={updatedRecord.Datum}, Stunden={updatedRecord.Stunden}");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: CorrectArbeitsstundeImPruefprozessAsync DB update FAILED Id={request.ArbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
+                    Console.WriteLine($"KGV: SupabaseService: CorrectArbeitsstundeImPruefprozessAsync DB update FAILED Id={request.ArbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
+                    throw;
+                }
 
                 await AppendArbeitsstundenPruefverlaufAsync(client, action, existing, updatedRecord, normalizedGeprueftAm);
                 return true;
@@ -2281,6 +2334,8 @@ namespace KGV.Infrastructure.Services
             "DeleteArbeitsstundeImPruefprozessAsync",
             async () =>
             {
+                System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: DeleteArbeitsstundeImPruefprozessAsync START Id={arbeitsstundeId}");
+                Console.WriteLine($"KGV: SupabaseService: DeleteArbeitsstundeImPruefprozessAsync START Id={arbeitsstundeId}");
                 var action = CreateArbeitsstundenPruefaktionRequest(arbeitsstundeId, ArbeitsstundenPruefprozess.AktionGeloescht, begruendung, geprueftVon, geprueftAm);
                 if (!IsValidArbeitsstundenPruefaktion(action))
                     return false;
@@ -2292,10 +2347,21 @@ namespace KGV.Infrastructure.Services
 
                 var normalizedGeprueftAm = NormalizeArbeitsstundenPruefzeitpunkt(action.GeprueftAm);
 
-                await client
-                    .From<ArbeitsstundeRecord>()
-                    .Where(x => x.Id == arbeitsstundeId)
-                    .Delete();
+                try
+                {
+                    await client
+                        .From<ArbeitsstundeRecord>()
+                        .Where(x => x.Id == arbeitsstundeId)
+                        .Delete();
+                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: DeleteArbeitsstundeImPruefprozessAsync DB delete succeeded Id={arbeitsstundeId}");
+                    Console.WriteLine($"KGV: SupabaseService: DeleteArbeitsstundeImPruefprozessAsync DB delete succeeded Id={arbeitsstundeId}");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: DeleteArbeitsstundeImPruefprozessAsync DB delete FAILED Id={arbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
+                    Console.WriteLine($"KGV: SupabaseService: DeleteArbeitsstundeImPruefprozessAsync DB delete FAILED Id={arbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
+                    throw;
+                }
 
                 await AppendArbeitsstundenPruefverlaufAsync(client, action, existing, null, normalizedGeprueftAm);
                 return true;

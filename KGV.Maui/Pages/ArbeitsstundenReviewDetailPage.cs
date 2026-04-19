@@ -468,28 +468,55 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
 
         try
         {
+            // Debug: log start of review action
+            System.Diagnostics.Debug.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: ExecuteReviewActionAsync START. Message='{successMessage}', CurrentId={entry.Id}, CurrentIndex={_reviewState.CurrentIndex}, TotalCount={_reviewState.TotalCount}");
+            Console.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: ExecuteReviewActionAsync START. Message='{successMessage}', CurrentId={entry.Id}, CurrentIndex={_reviewState.CurrentIndex}, TotalCount={_reviewState.TotalCount}");
+
             var success = await action();
             if (!success)
             {
                 _statusLabel.Text = "Die Prüfaktion konnte nicht ausgeführt werden. Details stehen im Anwendungslog oder der Datensatz ist nicht mehr offen.";
+                System.Diagnostics.Debug.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: ExecuteReviewActionAsync ACTION FAILED for Id={entry.Id}");
+                Console.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: ExecuteReviewActionAsync ACTION FAILED for Id={entry.Id}");
                 return;
             }
 
             _statusLabel.Text = successMessage;
             var currentId = entry.Id;
-            await RefreshEntriesAsync(currentId);
+            System.Diagnostics.Debug.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: ExecuteReviewActionAsync ACTION SUCCESS for Id={currentId}");
+            Console.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: ExecuteReviewActionAsync ACTION SUCCESS for Id={currentId}");
 
+            // reload entries and log state after reload
+            await RefreshEntriesAsync(currentId);
+            var afterCount = _reviewState.TotalCount;
+            var afterIndex = _reviewState.CurrentIndex;
+            var afterCurrentId = _reviewState.CurrentEntry?.Id;
+            var currentEntryNull = _reviewState.CurrentEntry == null;
+            System.Diagnostics.Debug.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: After RefreshEntriesAsync: Count={afterCount}, CurrentIndex={afterIndex}, CurrentId={afterCurrentId}, CurrentEntryNull={currentEntryNull}");
+            Console.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: After RefreshEntriesAsync: Count={afterCount}, CurrentIndex={afterIndex}, CurrentId={afterCurrentId}, CurrentEntryNull={currentEntryNull}");
+
+            // Decide navigation or loading next
             if (_reviewState.CurrentEntry == null)
             {
+                System.Diagnostics.Debug.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: No current entry after refresh -> navigating back. ProcessedId={currentId}");
+                Console.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: No current entry after refresh -> navigating back. ProcessedId={currentId}");
                 await Shell.Current.GoToAsync("..");
                 return;
             }
 
+            System.Diagnostics.Debug.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: Loading current entry after refresh. ProcessedId={currentId}, NewCurrentId={_reviewState.CurrentEntry.Id}");
+            Console.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: Loading current entry after refresh. ProcessedId={currentId}, NewCurrentId={_reviewState.CurrentEntry.Id}");
+
             await LoadCurrentEntryAsync(refreshEntries: false);
+
+            System.Diagnostics.Debug.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: After LoadCurrentEntryAsync final displayed Id={_reviewState.CurrentEntry?.Id}");
+            Console.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: After LoadCurrentEntryAsync final displayed Id={_reviewState.CurrentEntry?.Id}");
         }
         catch (Exception ex)
         {
             _statusLabel.Text = ex.Message;
+            System.Diagnostics.Debug.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: ExecuteReviewActionAsync EXCEPTION: {ex.GetType().Name}: {ex.Message}");
+            Console.WriteLine($"KGV: ArbeitsstundenReviewDetailPage: ExecuteReviewActionAsync EXCEPTION: {ex.GetType().Name}: {ex.Message}");
         }
         finally
         {

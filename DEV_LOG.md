@@ -81,6 +81,15 @@
 - Fix: `KGV.Infrastructure/Services/SupabaseService.cs` angepasst: `GetOffeneArbeitsstundenZurFreigabeAsync()` lädt nun die rohe Mitgliedstabelle und unterscheidet zwischen Demo-/Testmitgliedern (werden ausgeschlossen) und unbekannten Mitglieds-IDs (diese führen nicht mehr zum Ausschluss der Arbeitsstunde). Beim Mapping werden Namen nach Möglichkeit aus `operativeMitglieder` aufgelöst, ansonsten ein neutraler Fallback `Mitglied {id}` verwendet.
 - Validierung: Fachliche Offens-Definition wurde beibehalten (`ArbeitsstundenPruefprozess.IsOffenerPrueffall`). WPF und MAUI konsumieren denselben Servicepfad und zeigen offene Einträge nun korrekt an.
 
+## 2026-04-19 – Arbeitsstunden: temporäres Flow-Debugging für Review-Detailseite ergänzt
+
+- Ziel: Temporäres, gezieltes Logging ergänzt, um nach Prüfaktionen (Freigeben/Ablehnen/Korrigieren/Löschen) nachvollziehen zu können, wie der Detail-Flow die nächste Stellung auswählt oder zur Übersicht zurückkehrt.
+- Änderungen:
+  - `KGV.Maui/Pages/ArbeitsstundenReviewDetailPage.cs`: Detaillierte Debug-Ausgaben in ExecuteReviewActionAsync ergänzt (Start, Aktionsergebnis, Zustand nach RefreshEntriesAsync, Entscheidung Navigation vs. Laden, final angezeigte ID).
+  - `KGV.Infrastructure/Services/SupabaseService.cs`: Temporäre Debug-Logs in den Prüfmethoden `ApproveArbeitsstundeImPruefprozessAsync`, `RejectArbeitsstundeImPruefprozessAsync`, `CorrectArbeitsstundeImPruefprozessAsync`, `DeleteArbeitsstundeImPruefprozessAsync` ergänzt (Start, DB-Update/Insert/Delete Erfolg, geänderte Felder). Zusätzlich Post-Filter-Presence-Checks in `GetOffeneArbeitsstundenZurFreigabeAsync()`.
+- Hinweise: Logs sind bewusst kurzlebig und sollen nach Analyse entfernt werden. Keine fachliche Logik geändert.
+- Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implementierung verwendet reflektive Zugriffe auf Formularfelder und setzt `/NeedAppearances` für Viewer-Aktualisierung. Falls Felddarstellung in manchen PDF-Viewern nicht sofort aktualisiert erscheint, muss ggf. eine zuverlässigere PDF-Bibliothek mit vollständiger AcroForm-Unterstützung (z. B. kommerzielles iText7) geprüft werden.
 
 ## 2026-04-13 – Pachtvertrag ohne separaten Mitgliedsbeitrag geglättet
