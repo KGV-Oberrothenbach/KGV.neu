@@ -146,6 +146,14 @@ namespace KGV.Core.Interfaces
         Task<bool> EndWartungsvertragZuordnungAsync(long wartungsvertragZuordnungId, DateTime gueltigBis);
 
         Task<HomeOverviewDTO> GetHomeOverviewAsync(KGV.Core.Security.UserRole role, int? mitgliedId);
+
+        // =========================
+        // Export definitions & execution
+        // =========================
+        Task<List<AppExportDefinitionRecord>> GetExportDefinitionsAsync();
+        Task<List<AppExportFilterDefinitionRecord>> GetExportFilterDefinitionsAsync(int exportDefinitionId);
+        Task<List<AppExportColumnDefinitionRecord>> GetExportColumnDefinitionsAsync(int exportDefinitionId);
+        Task<List<System.Text.Json.JsonElement>> RunExportRpcAsync(string rpcName, object? parameters = null);
         Task<List<HomeWorkAssignmentItem>> GetStartseiteArbeitseinsaetzeAsync();
         Task<HomeWorkAssignmentItem?> GetStartseiteArbeitseinsatzByIdAsync(int arbeitseinsatzId);
         Task<List<WorkAssignmentParticipantItem>> GetArbeitseinsatzParticipantsAsync(int arbeitseinsatzId);

@@ -48,6 +48,10 @@ public sealed class ExportPage : ContentPage
         _exportButton = new Button { Text = "Mitglieder (CSV) exportieren" };
         _exportButton.Clicked += async (_, _) => await ExportMitgliederCsvAsync();
 
+        // keep old export button; new Export page will be navigated via shell menu
+        var openNewExportPage = new Button { Text = "Neuer Exportbereich (Test) öffnen" };
+        openNewExportPage.Clicked += async (_, _) => await Shell.Current.GoToAsync("export2");
+
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
 
         Content = new ScrollView
@@ -62,6 +66,7 @@ public sealed class ExportPage : ContentPage
                     descriptionLabel,
                     hintLabel,
                     _exportButton,
+                    openNewExportPage,
                     _statusLabel
                 }
             }

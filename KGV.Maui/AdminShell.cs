@@ -174,6 +174,9 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
         if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Export", "export", () => _services.GetRequiredService<ExportPage>()));
+        // Add route for experimental export2 page
+        if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
+            Items.Add(CreateItem("Export (Test)", "export2", () => _services.GetRequiredService<ExportPage2>()));
 
         if (_userContextState.CurrentUserContext?.Role is UserRole.Admin)
             Items.Add(CreateManagementItem(

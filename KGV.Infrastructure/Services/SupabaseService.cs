@@ -105,6 +105,66 @@ namespace KGV.Infrastructure.Services
                 .ToList();
         }
 
+        // Export definitions & execution
+        public Task<List<AppExportDefinitionRecord>> GetExportDefinitionsAsync() => ExecuteAsync(
+            "GetExportDefinitionsAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var resp = await client.From<AppExportDefinitionRecord>().Where(x => x.Aktiv == true).Get();
+                return resp?.Models?.OrderBy(x => x.Title).ToList() ?? new List<AppExportDefinitionRecord>();
+            },
+            new List<AppExportDefinitionRecord>());
+
+        public Task<List<AppExportFilterDefinitionRecord>> GetExportFilterDefinitionsAsync(int exportDefinitionId) => ExecuteAsync(
+            "GetExportFilterDefinitionsAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var resp = await client.From<AppExportFilterDefinitionRecord>().Where(x => x.ExportDefinitionId == exportDefinitionId).Get();
+                return resp?.Models?.OrderBy(x => x.Id).ToList() ?? new List<AppExportFilterDefinitionRecord>();
+            },
+            new List<AppExportFilterDefinitionRecord>());
+
+        public Task<List<AppExportColumnDefinitionRecord>> GetExportColumnDefinitionsAsync(int exportDefinitionId) => ExecuteAsync(
+            "GetExportColumnDefinitionsAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var resp = await client.From<AppExportColumnDefinitionRecord>().Where(x => x.ExportDefinitionId == exportDefinitionId).Get();
+                return resp?.Models?.OrderBy(x => x.SortOrder).ToList() ?? new List<AppExportColumnDefinitionRecord>();
+            },
+            new List<AppExportColumnDefinitionRecord>());
+
+        public Task<List<System.Text.Json.JsonElement>> RunExportRpcAsync(string rpcName, object? parameters = null) => ExecuteAsync(
+            "RunExportRpcAsync",
+            async () =>
+            {
+                if (string.IsNullOrWhiteSpace(rpcName))
+                    return new List<System.Text.Json.JsonElement>();
+
+                var client = await EnsureClientAsync();
+                try
+                {
+                    var respElement = await client.Rpc<System.Text.Json.JsonElement>(rpcName, parameters);
+                    // If the RPC returns an array, enumerate it; otherwise return single element as list
+                    if (respElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        var list = new List<System.Text.Json.JsonElement>();
+                        foreach (var item in respElement.EnumerateArray())
+                            list.Add(item);
+                        return list;
+                    }
+
+                    return new List<System.Text.Json.JsonElement> { respElement };
+                }
+                catch
+                {
+                    return new List<System.Text.Json.JsonElement>();
+                }
+            },
+            new List<System.Text.Json.JsonElement>());
+
         public Task<List<MitgliedRecord>> GetMitgliederAsync() => ExecuteAsync(
             "GetMitgliederAsync",
             async () =>
