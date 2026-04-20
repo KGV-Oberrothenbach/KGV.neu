@@ -120,6 +120,7 @@ public sealed class ExportPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        try { Console.WriteLine("EXPORTDBG: ExportPage appearing"); System.Diagnostics.Debug.WriteLine("EXPORTDBG: ExportPage appearing"); } catch {}
         if (_userContextState.CurrentUserContext?.Role is not (UserRole.Admin or UserRole.Vorstand))
         {
             _statusLabel.Text = "Export ist mobil nur für Admin/Vorstand verfügbar.";
@@ -130,6 +131,7 @@ public sealed class ExportPage : ContentPage
         }
 
         await _vm.LoadDefinitionsAsync();
+        try { Console.WriteLine($"EXPORTDBG: Definitions loaded count={_vm.Definitions.Count}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: Definitions loaded count={_vm.Definitions.Count}"); } catch {}
         // Use the real definition objects as ItemsSource so SelectedItem is the object
         _definitionPicker.ItemsSource = _vm.Definitions;
         // ensure buttons only active if a valid definition selected
@@ -139,6 +141,9 @@ public sealed class ExportPage : ContentPage
         if (_vm.Definitions.Count > 0)
         {
             _definitionPicker.SelectedItem = _vm.Definitions.First();
+            // log initial selected
+            var first = _vm.Definitions.First();
+            try { Console.WriteLine($"EXPORTDBG: Initial selected definition Titel={first.Titel ?? ""}, ExportKey={first.ExportKey ?? ""}, QuelleName={first.QuelleName ?? ""}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: Initial selected definition Titel={first.Titel ?? ""}, ExportKey={first.ExportKey ?? ""}, QuelleName={first.QuelleName ?? ""}"); } catch {}
             // Ensure selection logic runs (SelectedIndexChanged may not fire for programmatic set)
             await OnDefinitionChanged();
         }
@@ -169,6 +174,8 @@ public sealed class ExportPage : ContentPage
                 def = _vm.Definitions[idx];
         }
 
+        try { Console.WriteLine($"EXPORTDBG: OnDefinitionChanged SelectedIndex={_definitionPicker.SelectedIndex}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: OnDefinitionChanged SelectedIndex={_definitionPicker.SelectedIndex}"); } catch {}
+
         if (def == null)
         {
             _statusLabel.Text = "Keine gültige Exportdefinition ausgewählt.";
@@ -178,9 +185,14 @@ public sealed class ExportPage : ContentPage
             _filtersStack.Children.Clear();
             return;
         }
+        try { Console.WriteLine($"EXPORTDBG: OnDefinitionChanged SelectedItem titel={def.Titel ?? ""}, export_key={def.ExportKey ?? ""}, quelle={def.QuelleName ?? ""}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: OnDefinitionChanged SelectedItem titel={def.Titel ?? ""}, export_key={def.ExportKey ?? ""}, quelle={def.QuelleName ?? ""}"); } catch {}
 
         await _vm.SelectDefinitionAsync(def);
+        try { Console.WriteLine($"EXPORTDBG: After SelectDefinitionAsync filters={_vm.Filters.Count}, columns={_vm.Columns.Count}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: After SelectDefinitionAsync filters={_vm.Filters.Count}, columns={_vm.Columns.Count}"); } catch {}
+
         RenderFilters();
+
+        try { Console.WriteLine($"EXPORTDBG: After RenderFilters visibleColumns={_vm.ColumnsVisibleOrdered.Count}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: After RenderFilters visibleColumns={_vm.ColumnsVisibleOrdered.Count}"); } catch {}
 
         // enable buttons only when a real definition has been loaded
         var hasDef = _vm.SelectedDefinition != null;

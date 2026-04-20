@@ -1,6 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Maui.State;
+// using System.Diagnostics removed to avoid Switch type ambiguity in MAUI pages; use fully qualified calls where needed
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -53,6 +54,7 @@ namespace KGV.Maui.ViewModels
             var defs = await _supabaseService.GetExportDefinitionsAsync();
             foreach (var d in defs)
                 Definitions.Add(d);
+            try { Console.WriteLine($"EXPORTDBG: LoadDefinitionsAsync loaded {Definitions.Count} definitions"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: LoadDefinitionsAsync loaded {Definitions.Count} definitions"); } catch {}
         }
 
         public async Task SelectDefinitionAsync(AppExportDefinitionRecord def)
@@ -66,13 +68,17 @@ namespace KGV.Maui.ViewModels
             CurrentIndex = -1;
 
             var exportKey = def.ExportKey ?? def.DisplayText ?? string.Empty;
+            try { Console.WriteLine($"EXPORTDBG: SelectDefinitionAsync start exportKey={exportKey}, Titel={def.Titel ?? ""}, QuelleName={def.QuelleName ?? ""}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: SelectDefinitionAsync start exportKey={exportKey}, Titel={def.Titel ?? ""}, QuelleName={def.QuelleName ?? ""}"); } catch {}
+
             var filters = await _supabaseService.GetExportFilterDefinitionsAsync(exportKey);
             foreach (var f in filters)
                 Filters.Add(f);
+            try { Console.WriteLine($"EXPORTDBG: SelectDefinitionAsync loaded filters count={Filters.Count}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: SelectDefinitionAsync loaded filters count={Filters.Count}"); } catch {}
 
             var cols = await _supabaseService.GetExportColumnDefinitionsAsync(exportKey);
             foreach (var c in cols)
                 Columns.Add(c);
+            try { Console.WriteLine($"EXPORTDBG: SelectDefinitionAsync loaded columns count={Columns.Count}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: SelectDefinitionAsync loaded columns count={Columns.Count}"); } catch {}
         }
 
         public async Task ExecuteAsync()
@@ -153,7 +159,9 @@ namespace KGV.Maui.ViewModels
             List<System.Text.Json.JsonElement> rows;
             try
             {
+            try { Console.WriteLine($"EXPORTDBG: ExecuteAsync calling RPC={rpcName} with params={LastRpcParameterSummary}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync calling RPC={rpcName} with params={LastRpcParameterSummary}"); } catch {}
                 rows = await _supabaseService.RunExportRpcAsync(rpcName ?? string.Empty, mapped);
+            try { Console.WriteLine($"EXPORTDBG: ExecuteAsync raw rows returned={rows.Count}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync raw rows returned={rows.Count}"); } catch {}
             }
             catch (Exception ex)
             {
@@ -164,6 +172,8 @@ namespace KGV.Maui.ViewModels
             }
             foreach (var r in rows)
                 Results.Add(r);
+
+            try { Console.WriteLine($"EXPORTDBG: ExecuteAsync Results count (raw)={Results.Count}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync Results count (raw)={Results.Count}"); } catch {}
 
             // Prepare visible columns in order (use new model helpers)
             var visible = Columns.Where(c => c.Visible).OrderBy(c => c.SortOrder).ToList();
@@ -255,6 +265,12 @@ namespace KGV.Maui.ViewModels
                 }
 
                 ProcessedResults.Add(dict);
+            }
+            try { Console.WriteLine($"EXPORTDBG: ExecuteAsync ProcessedResults count={ProcessedResults.Count}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync ProcessedResults count={ProcessedResults.Count}"); } catch {}
+
+            if (Results.Count > 0 && ProcessedResults.Count == 0)
+            {
+            try { Console.WriteLine($"EXPORTDBG: ExecuteAsync WARNING: raw rows present={Results.Count} but no processed rows were added"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync WARNING: raw rows present={Results.Count} but no processed rows were added"); } catch {}
             }
 
             CurrentIndex = ProcessedResults.Count > 0 ? 0 : -1;
