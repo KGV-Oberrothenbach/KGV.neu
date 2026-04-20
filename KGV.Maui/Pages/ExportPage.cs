@@ -137,7 +137,11 @@ public sealed class ExportPage : ContentPage
         _exportCsvButton.IsEnabled = _vm.Definitions.Count > 0 && _definitionPicker.SelectedItem != null;
         _exportPdfButton.IsEnabled = _vm.Definitions.Count > 0 && _definitionPicker.SelectedItem != null;
         if (_vm.Definitions.Count > 0)
+        {
             _definitionPicker.SelectedItem = _vm.Definitions.First();
+            // Ensure selection logic runs (SelectedIndexChanged may not fire for programmatic set)
+            await OnDefinitionChanged();
+        }
 
         UpdateLayoutForDevice();
     }
