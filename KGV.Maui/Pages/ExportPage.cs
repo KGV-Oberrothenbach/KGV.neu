@@ -237,7 +237,19 @@ public sealed class ExportPage : ContentPage
                 return;
             }
 
-            _statusLabel.Text = $"Ergebnisse: {_vm.ProcessedResults.Count}";
+            // show concise result summary including RPC diagnostics if useful
+            if (!string.IsNullOrWhiteSpace(_vm.LastRpcError))
+            {
+                _statusLabel.Text = $"Export-Fehler: {_vm.LastRpcError}";
+            }
+            else if (_vm.ProcessedResults.Count == 0)
+            {
+                _statusLabel.Text = $"Keine Ergebnisse. RPC={_vm.LastRpcName ?? "?"}, params={_vm.LastRpcParameterSummary ?? "(none)"}";
+            }
+            else
+            {
+                _statusLabel.Text = $"Ergebnisse: {_vm.ProcessedResults.Count} (RPC={_vm.LastRpcName ?? "?"})";
+            }
 
             UpdateLayoutForDevice();
 

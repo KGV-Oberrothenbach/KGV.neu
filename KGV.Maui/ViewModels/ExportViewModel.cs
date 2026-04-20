@@ -28,6 +28,11 @@ namespace KGV.Maui.ViewModels
 
         public AppExportDefinitionRecord? SelectedDefinition { get; set; }
         public Dictionary<string, object?> FilterValues { get; } = new Dictionary<string, object?>();
+        // Diagnostics
+        public string? LastRpcName { get; private set; }
+        public string? LastRpcParameterSummary { get; private set; }
+        public int LastRpcRowCount { get; private set; }
+        public string? LastRpcError { get; private set; }
 
         public ExportViewModel(ISupabaseService supabaseService)
         {
@@ -79,10 +84,60 @@ namespace KGV.Maui.ViewModels
             if (SelectedDefinition == null)
                 return;
 
-            // build parameters from FilterValues
-            var parameters = new Dictionary<string, object?>();
+            // build parameters from FilterValues with mapping to RPC parameter names and type conversion
+            var mapped = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
             foreach (var kv in FilterValues)
-                parameters[kv.Key] = kv.Value;
+            {
+                if (kv.Key == null)
+                    continue;
+                var key = kv.Key;
+                object? val = kv.Value;
+
+                // normalize string inputs
+                if (val is string s)
+                {
+                    var ts = s.Trim();
+                    if (string.Equals(ts, "null", StringComparison.OrdinalIgnoreCase) || ts == string.Empty)
+                        val = null;
+                    else if (string.Equals(ts, "true", StringComparison.OrdinalIgnoreCase))
+                        val = true;
+                    else if (string.Equals(ts, "false", StringComparison.OrdinalIgnoreCase))
+                        val = false;
+                    else
+                        val = ts;
+                }
+
+                // map UI filter keys to RPC parameter names
+                string paramName;
+                switch (key.ToLowerInvariant())
+                {
+                    case "sortierung":
+                        paramName = "p_sortierung";
+                        break;
+                    case "aktiv_filter":
+                        paramName = "p_aktiv_filter";
+                        break;
+                    case "anlage_filter":
+                        paramName = "p_anlage_filter";
+                        break;
+                    case "status_filter":
+                        paramName = "p_status_filter";
+                        break;
+                    default:
+                        // generic fallback: prefix with p_ if ends with _filter
+                        if (key.EndsWith("_filter", StringComparison.OrdinalIgnoreCase))
+                            paramName = "p_" + key;
+                        else
+                            paramName = key;
+                        break;
+                }
+
+                mapped[paramName] = val;
+            }
+
+            // summary for diagnostics
+            LastRpcParameterSummary = string.Join(", ", mapped.Select(kv => kv.Key + "=" + (kv.Value == null ? "null" : kv.Value.ToString())));
+            LastRpcError = null;
             // Determine RPC name: prefer explicit quelle_name, fallback to standard_ausgabe or export_key
             var rpcName = SelectedDefinition.QuelleName;
             if (string.IsNullOrWhiteSpace(rpcName))
@@ -94,7 +149,19 @@ namespace KGV.Maui.ViewModels
                 rpcName = SelectedDefinition.ExportKey;
             }
 
-            var rows = await _supabaseService.RunExportRpcAsync(rpcName ?? string.Empty, parameters);
+            LastRpcName = rpcName;
+            List<System.Text.Json.JsonElement> rows;
+            try
+            {
+                rows = await _supabaseService.RunExportRpcAsync(rpcName ?? string.Empty, mapped);
+            }
+            catch (Exception ex)
+            {
+                // capture error for UI
+                LastRpcError = ex.Message;
+                LastRpcRowCount = 0;
+                return;
+            }
             foreach (var r in rows)
                 Results.Add(r);
 
@@ -191,6 +258,7 @@ namespace KGV.Maui.ViewModels
             }
 
             CurrentIndex = ProcessedResults.Count > 0 ? 0 : -1;
+            LastRpcRowCount = Results.Count;
         }
 
         public async Task<string> ExportToCsvAsync()

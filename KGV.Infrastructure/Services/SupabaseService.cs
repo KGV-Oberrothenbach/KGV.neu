@@ -145,23 +145,50 @@ namespace KGV.Infrastructure.Services
                     return new List<System.Text.Json.JsonElement>();
 
                 var client = await EnsureClientAsync();
+                // Log RPC call with parameter summary for diagnostics
                 try
                 {
+                    var paramSummary = "";
+                    try
+                    {
+                        if (parameters is System.Collections.IDictionary dict)
+                        {
+                            var parts = new List<string>();
+                            foreach (var key in dict.Keys)
+                            {
+                                var v = dict[key];
+                                parts.Add($"{key}={(v==null?"null":v.ToString())}");
+                            }
+                            paramSummary = string.Join(", ", parts);
+                        }
+                        else if (parameters != null)
+                        {
+                            paramSummary = parameters.ToString() ?? string.Empty;
+                        }
+                    }
+                    catch { }
+
+                    _logger?.LogInformation("Calling RPC {Rpc} with params: {Params}", rpcName, paramSummary);
+
                     var respElement = await client.Rpc<System.Text.Json.JsonElement>(rpcName, parameters);
+
                     // If the RPC returns an array, enumerate it; otherwise return single element as list
                     if (respElement.ValueKind == System.Text.Json.JsonValueKind.Array)
                     {
                         var list = new List<System.Text.Json.JsonElement>();
                         foreach (var item in respElement.EnumerateArray())
                             list.Add(item);
+                        _logger?.LogInformation("RPC {Rpc} returned {Count} rows", rpcName, list.Count);
                         return list;
                     }
 
+                    _logger?.LogInformation("RPC {Rpc} returned 1 row (single element)", rpcName);
                     return new List<System.Text.Json.JsonElement> { respElement };
                 }
-                catch
+                catch (Exception ex)
                 {
-                    return new List<System.Text.Json.JsonElement>();
+                    _logger?.LogError(ex, "RunExportRpcAsync {Rpc} failed", rpcName);
+                    throw;
                 }
             },
             new List<System.Text.Json.JsonElement>());
