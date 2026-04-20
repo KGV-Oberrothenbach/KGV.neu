@@ -170,15 +170,31 @@ namespace KGV.Infrastructure.Services
 
                     _logger?.LogInformation("Calling RPC {Rpc} with params: {Params}", rpcName, paramSummary);
 
-                    var respElement = await client.Rpc<System.Text.Json.JsonElement>(rpcName, parameters);
+                    // Try to deserialize RPC response as an array of JsonElement first (robust for array responses)
+                    try
+                    {
+                        var respArray = await client.Rpc<System.Text.Json.JsonElement[]>(rpcName, parameters);
+                        if (respArray != null)
+                        {
+                            var list = respArray.ToList();
+                            _logger?.LogInformation("RPC {Rpc} returned {Count} rows (array)", rpcName, list.Count);
+                            return list;
+                        }
+                    }
+                    catch (Exception exArray)
+                    {
+                        // log and fall back to single element attempt
+                        _logger?.LogDebug(exArray, "RPC {Rpc} array-deserialize attempt failed, falling back to single element", rpcName);
+                    }
 
-                    // If the RPC returns an array, enumerate it; otherwise return single element as list
+                    // Fallback: try single JsonElement
+                    var respElement = await client.Rpc<System.Text.Json.JsonElement>(rpcName, parameters);
                     if (respElement.ValueKind == System.Text.Json.JsonValueKind.Array)
                     {
                         var list = new List<System.Text.Json.JsonElement>();
                         foreach (var item in respElement.EnumerateArray())
                             list.Add(item);
-                        _logger?.LogInformation("RPC {Rpc} returned {Count} rows", rpcName, list.Count);
+                        _logger?.LogInformation("RPC {Rpc} returned {Count} rows (array via element)", rpcName, list.Count);
                         return list;
                     }
 

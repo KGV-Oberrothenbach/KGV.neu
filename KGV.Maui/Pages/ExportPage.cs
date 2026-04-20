@@ -209,24 +209,51 @@ public sealed class ExportPage : ContentPage
             if (string.Equals(f.Typ, "select", StringComparison.OrdinalIgnoreCase))
             {
                 var picker = new Picker { Title = f.Label ?? f.FilterKey };
-                if (!string.IsNullOrWhiteSpace(f.OptionenJson))
+                if (f.OptionenJson.HasValue && f.OptionenJson.Value.ValueKind != System.Text.Json.JsonValueKind.Null && f.OptionenJson.Value.ValueKind != System.Text.Json.JsonValueKind.Undefined)
                 {
                     Task.Run(async () =>
                     {
-                        // OptionenJson may be a JSON array of options or an RPC name in legacy setups
                         try
                         {
                             var opts = new List<string>();
-                            if (f.OptionenJson.TrimStart().StartsWith("["))
+                            var je = f.OptionenJson.Value;
+                            if (je.ValueKind == System.Text.Json.JsonValueKind.Array)
                             {
-                                var parsed = System.Text.Json.JsonSerializer.Deserialize<List<string>>(f.OptionenJson);
-                                if (parsed != null) opts.AddRange(parsed);
+                                foreach (var item in je.EnumerateArray())
+                                {
+                                    if (item.ValueKind == System.Text.Json.JsonValueKind.String)
+                                        opts.Add(item.GetString() ?? string.Empty);
+                                    else
+                                        opts.Add(item.ToString());
+                                }
                             }
-                            else
+                            else if (je.ValueKind == System.Text.Json.JsonValueKind.String)
                             {
-                                // fallback: treat as RPC name
-                                var rows = await _vm.ExecuteOptionsRpcAsync(f.OptionenJson);
-                                opts.AddRange(rows.Select(r => r.ToString()));
+                                var s = je.GetString() ?? string.Empty;
+                                if (s.TrimStart().StartsWith("["))
+                                {
+                                    try
+                                    {
+                                        var parsed = System.Text.Json.JsonSerializer.Deserialize<List<string>>(s);
+                                        if (parsed != null) opts.AddRange(parsed);
+                                    }
+                                    catch
+                                    {
+                                        // treat as single string option
+                                        opts.Add(s);
+                                    }
+                                }
+                                else
+                                {
+                                    // fallback: treat as RPC name
+                                    var rows = await _vm.ExecuteOptionsRpcAsync(s);
+                                    opts.AddRange(rows.Select(r => r.ToString()));
+                                }
+                            }
+                            else if (je.ValueKind == System.Text.Json.JsonValueKind.Object)
+                            {
+                                // object: add its string representation
+                                opts.Add(je.ToString());
                             }
 
                             await MainThread.InvokeOnMainThreadAsync(() =>
@@ -235,7 +262,10 @@ public sealed class ExportPage : ContentPage
                                 if (opts.Count > 0) picker.SelectedIndex = 0;
                             });
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            try { Console.WriteLine($"EXPORTDBG: RenderFilters optionen_json parse failed: {ex.Message}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: RenderFilters optionen_json parse failed: {ex.Message}"); } catch {}
+                        }
                     });
                 }
 

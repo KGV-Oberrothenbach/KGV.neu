@@ -75,7 +75,7 @@ namespace KGV.Core.Models
 
         [Column("optionen_json")]
         [JsonPropertyName("optionen_json")]
-        public string? OptionenJson { get; set; }
+        public System.Text.Json.JsonElement? OptionenJson { get; set; }
 
         [Column("pflicht")]
         [JsonPropertyName("pflicht")]
