@@ -83,14 +83,28 @@ namespace KGV.Maui.ViewModels
             var parameters = new Dictionary<string, object?>();
             foreach (var kv in FilterValues)
                 parameters[kv.Key] = kv.Value;
+            // Determine RPC name: prefer explicit quelle_name, fallback to standard_ausgabe or export_key
+            var rpcName = SelectedDefinition.QuelleName;
+            if (string.IsNullOrWhiteSpace(rpcName))
+            {
+                rpcName = SelectedDefinition.StandardAusgabe;
+            }
+            if (string.IsNullOrWhiteSpace(rpcName))
+            {
+                rpcName = SelectedDefinition.ExportKey;
+            }
 
-            var rpcName = SelectedDefinition.QuelleName ?? string.Empty;
-            var rows = await _supabaseService.RunExportRpcAsync(rpcName, parameters);
+            var rows = await _supabaseService.RunExportRpcAsync(rpcName ?? string.Empty, parameters);
             foreach (var r in rows)
                 Results.Add(r);
 
             // Prepare visible columns in order (use new model helpers)
             var visible = Columns.Where(c => c.Visible).OrderBy(c => c.SortOrder).ToList();
+            // If no columns marked visible in the DB, fall back to all columns in defined sort order
+            if (visible.Count == 0)
+            {
+                visible = Columns.OrderBy(c => c.SortOrder).ToList();
+            }
 
             // determine sort column from filter definitions and filter values
             string? sortKey = null;
