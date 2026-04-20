@@ -151,8 +151,8 @@ namespace KGV.Core.Interfaces
         // Export definitions & execution
         // =========================
         Task<List<AppExportDefinitionRecord>> GetExportDefinitionsAsync();
-        Task<List<AppExportFilterDefinitionRecord>> GetExportFilterDefinitionsAsync(int exportDefinitionId);
-        Task<List<AppExportColumnDefinitionRecord>> GetExportColumnDefinitionsAsync(int exportDefinitionId);
+        Task<List<AppExportFilterDefinitionRecord>> GetExportFilterDefinitionsAsync(string exportKey);
+        Task<List<AppExportColumnDefinitionRecord>> GetExportColumnDefinitionsAsync(string exportKey);
         Task<List<System.Text.Json.JsonElement>> RunExportRpcAsync(string rpcName, object? parameters = null);
         Task<List<HomeWorkAssignmentItem>> GetStartseiteArbeitseinsaetzeAsync();
         Task<HomeWorkAssignmentItem?> GetStartseiteArbeitseinsatzByIdAsync(int arbeitseinsatzId);

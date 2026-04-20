@@ -65,6 +65,15 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 - Der bestehende MAUI-Aufrufer blieb fachlich erhalten und wurde nur textlich auf den Template-Pfad geglättet; `Vorschau -> Unterschrift -> finales Speichern` bleibt unverändert bestehen.
 - Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
 
+## 2026-04-20
+- Export: Export-Schema und PDF-Konsolidierung abgeschlossen.
+  - Repo-Check auf `main` durchgeführt; nur die Export-bezogenen Dateien wurden betrachtet.
+  - Export-Definitions-/Column-/Filter-Modelle an reales Supabase-Schema (`app_export_*`) angepasst und im Servicepfad integriert.
+  - `ExportPdfBuilder` (KGV.Core) konsolidiert: kompakter Header, Adresse/Kontakt-Gruppierung, verbesserte Spaltengewichtung für A4-Landscape, Trunkierung und Zeilenhöhen-Berechnung stabilisiert.
+  - MAUI-Exportseite (`KGV.Maui/Pages/ExportPage.cs`) und `ExportViewModel` bereinigt: Picker zeigt nun sinnvolle Titel/Fallbacks, Buttons werden korrekt aktiviert, CSV/PDF-Exporter testweise angestoßen.
+  - Smoke-Test (lokal): Picker lädt Einträge; `mitgliederliste` und `rfid_status` auswählbar; CSV/PDF-Export generieren Cache-Dateipfade ohne sofortigen Fehler.
+  - Validierung: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
 - 2026-04-14: Mitgliedsantrag produktiv auf PDF-Formularvorlage umgestellt (`Mitgliedsantrag_Vorlage_Formularfelder.pdf`). Alte HTML- und DOCX-Erzeugungspfade sowie die lokale `soffice`-Konversion wurden aus dem produktiven Erzeugungspfad entfernt. `KGV.Core` bindet die neue PDF-Vorlage als EmbeddedResource ein und füllt die AcroForm-Felder programmgesteuert im `MitgliedsantragDokumentFactory`. Build-Validierung (Core) erfolgreich.
 
 - Den kleinen Pachtvertrag-Korrekturblock auf dem echten Stand von `main` minimal abgeschlossen, ohne neuen Formular- oder Verwaltungsblock zu starten.

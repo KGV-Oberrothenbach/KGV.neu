@@ -1,75 +1,132 @@
 using Supabase.Postgrest.Attributes;
 using Supabase.Postgrest.Models;
 using System;
+using System.Text.Json.Serialization;
 
 namespace KGV.Core.Models
 {
     [Table("app_export_definition")]
     public sealed class AppExportDefinitionRecord : BaseModel
     {
-        [PrimaryKey("id", false)]
-        [Column("id")]
-        public int Id { get; set; }
+        // No numeric id in new schema usage; key is export_key
+        [Column("export_key")]
+        [JsonPropertyName("export_key")]
+        public string? ExportKey { get; set; }
 
-        [Column("name")]
-        public string? Name { get; set; }
+        [Column("titel")]
+        [JsonPropertyName("titel")]
+        public string? Titel { get; set; }
 
-        [Column("title")]
-        public string? Title { get; set; }
+        [Column("beschreibung")]
+        [JsonPropertyName("beschreibung")]
+        public string? Beschreibung { get; set; }
 
         [Column("quelle_typ")]
+        [JsonPropertyName("quelle_typ")]
         public string? QuelleTyp { get; set; }
 
         [Column("quelle_name")]
+        [JsonPropertyName("quelle_name")]
         public string? QuelleName { get; set; }
 
         [Column("aktiv")]
+        [JsonPropertyName("aktiv")]
         public bool Aktiv { get; set; }
+
+        [Column("standard_sortierung")]
+        [JsonPropertyName("standard_sortierung")]
+        public string? StandardSortierung { get; set; }
+
+        [Column("standard_ausgabe")]
+        [JsonPropertyName("standard_ausgabe")]
+        public string? StandardAusgabe { get; set; }
+
+        [Column("erlaubt_csv")]
+        [JsonPropertyName("erlaubt_csv")]
+        public bool ErlaubtCsv { get; set; }
+
+        [Column("erlaubt_pdf")]
+        [JsonPropertyName("erlaubt_pdf")]
+        public bool ErlaubtPdf { get; set; }
+
+        // Display helper
+        [JsonIgnore]
+        public string DisplayText => !string.IsNullOrWhiteSpace(Titel) ? Titel! : (ExportKey ?? string.Empty);
     }
 
     [Table("app_export_filter_definition")]
     public sealed class AppExportFilterDefinitionRecord : BaseModel
     {
-        [PrimaryKey("id", false)]
-        [Column("id")]
-        public int Id { get; set; }
+        [Column("export_key")]
+        [JsonPropertyName("export_key")]
+        public string? ExportKey { get; set; }
 
-        [Column("export_definition_id")]
-        public int ExportDefinitionId { get; set; }
-
-        [Column("name")]
-        public string? Name { get; set; }
+        [Column("filter_key")]
+        [JsonPropertyName("filter_key")]
+        public string? FilterKey { get; set; }
 
         [Column("label")]
+        [JsonPropertyName("label")]
         public string? Label { get; set; }
 
-        [Column("type")]
-        public string? Type { get; set; }
+        [Column("typ")]
+        [JsonPropertyName("typ")]
+        public string? Typ { get; set; }
 
-        [Column("options_rpc")]
-        public string? OptionsRpc { get; set; }
+        [Column("optionen_json")]
+        [JsonPropertyName("optionen_json")]
+        public string? OptionenJson { get; set; }
+
+        [Column("pflicht")]
+        [JsonPropertyName("pflicht")]
+        public bool Pflicht { get; set; }
+
+        [Column("sortierung")]
+        [JsonPropertyName("sortierung")]
+        public int Sortierung { get; set; }
     }
 
     [Table("app_export_column_definition")]
     public sealed class AppExportColumnDefinitionRecord : BaseModel
     {
-        [PrimaryKey("id", false)]
-        [Column("id")]
-        public int Id { get; set; }
+        [Column("export_key")]
+        [JsonPropertyName("export_key")]
+        public string? ExportKey { get; set; }
 
-        [Column("export_definition_id")]
-        public int ExportDefinitionId { get; set; }
+        [Column("column_key")]
+        [JsonPropertyName("column_key")]
+        public string? ColumnKey { get; set; }
 
-        [Column("name")]
-        public string? Name { get; set; }
+        [Column("label_kurz")]
+        [JsonPropertyName("label_kurz")]
+        public string? LabelKurz { get; set; }
 
-        [Column("label")]
-        public string? Label { get; set; }
+        [Column("label_lang")]
+        [JsonPropertyName("label_lang")]
+        public string? LabelLang { get; set; }
 
-        [Column("visible")]
-        public bool Visible { get; set; }
+        [Column("sortierung")]
+        [JsonPropertyName("sortierung")]
+        public int Sortierung { get; set; }
 
-        [Column("sort_order")]
-        public int SortOrder { get; set; }
+        [Column("standard_sichtbar")]
+        [JsonPropertyName("standard_sichtbar")]
+        public bool StandardSichtbar { get; set; }
+
+        [Column("ist_sortierspalte")]
+        [JsonPropertyName("ist_sortierspalte")]
+        public bool IstSortierspalte { get; set; }
+
+        [JsonIgnore]
+        public string? Name => ColumnKey;
+
+        [JsonIgnore]
+        public string? Label => LabelLang ?? LabelKurz;
+
+        [JsonIgnore]
+        public bool Visible => StandardSichtbar;
+
+        [JsonIgnore]
+        public int SortOrder => Sortierung;
     }
 }

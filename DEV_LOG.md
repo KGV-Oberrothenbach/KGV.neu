@@ -90,6 +90,20 @@
 - Hinweise: Logs sind bewusst kurzlebig und sollen nach Analyse entfernt werden. Keine fachliche Logik geändert.
 - Validierung: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
 
+## 2026-04-20 – Export: Export-Schema/Mappings und PDF-Konsolidierung abgeschlossen
+
+- Kurzer Repo-Check auf `main` durchgeführt; nur die Export-bezogenen Dateien wurden betrachtet und konsolidiert.
+- Export-Schema auf das reale Supabase-Schema umgestellt (neue Modelle `AppExport*` verwendet), Picker-/Mapping-Problem bereinigt.
+- `ExportPdfBuilder` in `KGV.Core/Utilities` konsolidiert: Spalten-Grouping (Adresse/Kontakt), kompakter Header und bessere Spaltengewichtung für A4-Landscape.
+- MAUI-Exportseite (`KGV.Maui/Pages/ExportPage.cs`) und `ExportViewModel` angepasst, um Definitions/Fallback-Titel korrekt anzuzeigen und Export-Buttons robust zu aktivieren.
+- Smoke-Test (funktional, lokal): Picker lädt Einträge, `mitgliederliste` und `rfid_status` auswählbar; CSV- und PDF-Exportpfade short-circuited zum Cache-Verzeichnis und erzeugen keine sofortigen Fehler beim Anstoss.
+- Build: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
+
+Validierungsschritte:
+- Nur Export-Blockdateien gestaged/committed.
+- Commit-Message: `Fix export schema mapping and consolidate PDF builder`.
+- Push zu `origin/main` ausgeführt.
+
 Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implementierung verwendet reflektive Zugriffe auf Formularfelder und setzt `/NeedAppearances` für Viewer-Aktualisierung. Falls Felddarstellung in manchen PDF-Viewern nicht sofort aktualisiert erscheint, muss ggf. eine zuverlässigere PDF-Bibliothek mit vollständiger AcroForm-Unterstützung (z. B. kommerzielles iText7) geprüft werden.
 
 ## 2026-04-13 – Pachtvertrag ohne separaten Mitgliedsbeitrag geglättet

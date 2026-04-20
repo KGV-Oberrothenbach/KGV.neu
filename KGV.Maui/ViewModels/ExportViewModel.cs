@@ -60,11 +60,12 @@ namespace KGV.Maui.ViewModels
             ColumnsVisibleOrdered = new List<AppExportColumnDefinitionRecord>();
             CurrentIndex = -1;
 
-            var filters = await _supabaseService.GetExportFilterDefinitionsAsync(def.Id);
+            var exportKey = def.ExportKey ?? def.DisplayText ?? string.Empty;
+            var filters = await _supabaseService.GetExportFilterDefinitionsAsync(exportKey);
             foreach (var f in filters)
                 Filters.Add(f);
 
-            var cols = await _supabaseService.GetExportColumnDefinitionsAsync(def.Id);
+            var cols = await _supabaseService.GetExportColumnDefinitionsAsync(exportKey);
             foreach (var c in cols)
                 Columns.Add(c);
         }
@@ -88,20 +89,21 @@ namespace KGV.Maui.ViewModels
             foreach (var r in rows)
                 Results.Add(r);
 
-            // Prepare visible columns in order
+            // Prepare visible columns in order (use new model helpers)
             var visible = Columns.Where(c => c.Visible).OrderBy(c => c.SortOrder).ToList();
 
             // determine sort column from filter definitions and filter values
             string? sortKey = null;
-            // 1) explicit filter keys
+            // 1) explicit filter keys - new model uses FilterKey and Typ
             foreach (var f in Filters)
             {
                 if (f == null)
                     continue;
-                var name = (f.Name ?? string.Empty).ToLowerInvariant();
-                if (name.Contains("sort") || string.Equals(f.Type, "sort", StringComparison.OrdinalIgnoreCase))
+                var fk = (f.FilterKey ?? string.Empty).ToLowerInvariant();
+                var t = (f.Typ ?? string.Empty).ToLowerInvariant();
+                if (fk.Contains("sort") || t.Contains("sort"))
                 {
-                    if (FilterValues.TryGetValue(f.Name ?? string.Empty, out var val) && val is string sval && !string.IsNullOrWhiteSpace(sval))
+                    if (FilterValues.TryGetValue(f.FilterKey ?? string.Empty, out var val) && val is string sval && !string.IsNullOrWhiteSpace(sval))
                     {
                         sortKey = sval;
                         break;
@@ -120,7 +122,7 @@ namespace KGV.Maui.ViewModels
 
             if (!string.IsNullOrWhiteSpace(sortKey))
             {
-                var sortCol = visible.FirstOrDefault(c => string.Equals(c.Name, sortKey, StringComparison.OrdinalIgnoreCase));
+                var sortCol = visible.FirstOrDefault(c => string.Equals(c.Name, sortKey, StringComparison.OrdinalIgnoreCase) || string.Equals(c.ColumnKey, sortKey, StringComparison.OrdinalIgnoreCase));
                 if (sortCol != null)
                 {
                     visible.Remove(sortCol);
@@ -203,7 +205,7 @@ namespace KGV.Maui.ViewModels
                 sb.AppendLine(string.Join(";", values));
             }
 
-            var fileName = $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{(SelectedDefinition?.Name ?? "export")}.csv";
+            var fileName = $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{(SelectedDefinition?.ExportKey ?? "export")}.csv";
             var filePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, fileName);
             var content = sb.ToString();
             // write with UTF8 BOM
@@ -216,7 +218,7 @@ namespace KGV.Maui.ViewModels
             if (ProcessedResults.Count == 0 || ColumnsVisibleOrdered.Count == 0)
                 throw new InvalidOperationException("Keine Daten zum Exportieren.");
 
-            var exportKey = SelectedDefinition?.Name ?? "export";
+            var exportKey = SelectedDefinition?.ExportKey ?? "export";
             // use ExportPdfBuilder from Core.Utilities
             var pdf = KGV.Core.Utilities.ExportPdfBuilder.BuildExportPdf(exportKey, ColumnsVisibleOrdered, ProcessedResults.ToList());
 

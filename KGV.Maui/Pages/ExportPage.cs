@@ -6,6 +6,7 @@ using KGV.Maui.State;
 using KGV.Maui.ViewModels;
 using Microsoft.Maui;
 using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Devices;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
@@ -27,6 +28,7 @@ public sealed class ExportPage : ContentPage
     private readonly StackLayout _filtersStack;
     private readonly Button _runButton;
     private readonly Button _exportCsvButton;
+    private readonly Button _exportPdfButton;
     private readonly Label _statusLabel;
     private readonly Button _prevButton;
     private readonly Button _nextButton;
@@ -49,7 +51,7 @@ public sealed class ExportPage : ContentPage
 
         _exportCsvButton = new Button { Text = "Als CSV exportieren" };
         _exportCsvButton.Clicked += async (_, _) => await OnExportCsvClicked();
-        var _exportPdfButton = new Button { Text = "Als PDF exportieren" };
+        _exportPdfButton = new Button { Text = "Als PDF exportieren" };
         _exportPdfButton.Clicked += async (_, _) => await OnExportPdfClicked();
 
         _statusLabel = new Label { TextColor = Colors.DarkSlateBlue };
@@ -126,7 +128,12 @@ public sealed class ExportPage : ContentPage
         }
 
         await _vm.LoadDefinitionsAsync();
-        _definitionPicker.ItemsSource = _vm.Definitions.Select(d => d.Title ?? d.Name ?? d.Id.ToString()).ToList();
+        // Definitions expose DisplayText via model helper; fall back to ExportKey if missing
+        _definitionPicker.ItemsSource = _vm.Definitions.Select(d => (d.Titel ?? d.ExportKey ?? string.Empty)).ToList();
+        // ensure buttons only active if a valid definition selected
+        _runButton.IsEnabled = _vm.Definitions.Count > 0;
+        _exportCsvButton.IsEnabled = _vm.Definitions.Count > 0;
+        _exportPdfButton.IsEnabled = _vm.Definitions.Count > 0;
         if (_vm.Definitions.Count > 0)
             _definitionPicker.SelectedIndex = 0;
 
@@ -159,50 +166,56 @@ public sealed class ExportPage : ContentPage
         _filtersStack.Children.Clear();
         foreach (var f in _vm.Filters)
         {
-            if (string.Equals(f.Type, "select", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(f.Typ, "select", StringComparison.OrdinalIgnoreCase))
             {
-                var picker = new Picker { Title = f.Label ?? f.Name };
-                if (!string.IsNullOrWhiteSpace(f.OptionsRpc))
+                var picker = new Picker { Title = f.Label ?? f.FilterKey };
+                if (!string.IsNullOrWhiteSpace(f.OptionenJson))
                 {
                     Task.Run(async () =>
                     {
-                        var rows = await _vm.ExecuteOptionsRpcAsync(f.OptionsRpc);
-                        var opts = rows.Select(r =>
+                        // OptionenJson may be a JSON array of options or an RPC name in legacy setups
+                        try
                         {
-                            try
+                            var opts = new List<string>();
+                            if (f.OptionenJson.TrimStart().StartsWith("["))
                             {
-                                if (r.ValueKind == System.Text.Json.JsonValueKind.Object && r.TryGetProperty("label", out var lab))
-                                    return lab.GetString() ?? r.ToString();
+                                var parsed = System.Text.Json.JsonSerializer.Deserialize<List<string>>(f.OptionenJson);
+                                if (parsed != null) opts.AddRange(parsed);
                             }
-                            catch { }
-                            return r.ToString();
-                        }).ToList();
+                            else
+                            {
+                                // fallback: treat as RPC name
+                                var rows = await _vm.ExecuteOptionsRpcAsync(f.OptionenJson);
+                                opts.AddRange(rows.Select(r => r.ToString()));
+                            }
 
-                        await MainThread.InvokeOnMainThreadAsync(() =>
-                        {
-                            picker.ItemsSource = opts;
-                            if (opts.Count > 0) picker.SelectedIndex = 0;
-                        });
+                            await MainThread.InvokeOnMainThreadAsync(() =>
+                            {
+                                picker.ItemsSource = opts;
+                                if (opts.Count > 0) picker.SelectedIndex = 0;
+                            });
+                        }
+                        catch { }
                     });
                 }
 
                 picker.SelectedIndexChanged += (_, _) =>
                 {
                     var sel = picker.SelectedIndex >= 0 ? picker.Items[picker.SelectedIndex] : null;
-                    _vm.FilterValues[f.Name ?? string.Empty] = sel;
+                    _vm.FilterValues[f.FilterKey ?? string.Empty] = sel;
                 };
 
                 _filtersStack.Children.Add(picker);
             }
-            else if (string.Equals(f.Type, "boolean", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(f.Typ, "boolean", StringComparison.OrdinalIgnoreCase))
             {
                 var sw = new Switch();
-                sw.Toggled += (_, e) => _vm.FilterValues[f.Name ?? string.Empty] = e.Value;
-                _filtersStack.Children.Add(new StackLayout { Orientation = StackOrientation.Horizontal, Children = { new Label { Text = f.Label ?? f.Name }, sw } });
+                sw.Toggled += (_, e) => _vm.FilterValues[f.FilterKey ?? string.Empty] = e.Value;
+                _filtersStack.Children.Add(new StackLayout { Orientation = StackOrientation.Horizontal, Children = { new Label { Text = f.Label ?? f.FilterKey }, sw } });
             }
             else
             {
-                _filtersStack.Children.Add(new Label { Text = $"Unbekannter Filtertyp: {f.Type}" });
+                _filtersStack.Children.Add(new Label { Text = $"Unbekannter Filtertyp: {f.Typ}" });
             }
         }
     }

@@ -14,6 +14,8 @@ namespace KGV.Core.Utilities
         private const double PageMargin = 28;
         private const double HeaderHeight = 28;
 
+        private record PdfColumn(string ColumnKey, string Label, bool Visible, int SortOrder);
+
         public static byte[] BuildExportPdf(string exportKey, IReadOnlyList<AppExportColumnDefinitionRecord> columns, IReadOnlyList<Dictionary<string, string>> rows)
         {
             PdfSharpFontResolverInitializer.EnsureInitialized();
@@ -34,77 +36,33 @@ namespace KGV.Core.Utilities
             double x = PageMargin;
             double y = PageMargin;
 
-            // Build effective columns for PDF (collapse address/contact groups for mitgliederliste)
-            var effectiveCols = new List<AppExportColumnDefinitionRecord>();
-            var skipNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // prepare effective columns
+            var effectiveCols = BuildEffectiveColumns(exportKey, columns);
 
-            var addressKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "adresse", "plz", "ort", "strasse", "hausnummer" };
-            var contactKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "telefon", "handy", "mobil" };
-
-            for (int i = 0; i < columns.Count; i++)
-            {
-                var c = columns[i];
-                var n = (c.Name ?? string.Empty).ToLowerInvariant();
-                if (string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase) && addressKeys.Contains(n))
-                {
-                    if (!effectiveCols.Any(ec => addressKeys.Contains((ec.Name ?? string.Empty).ToLowerInvariant())))
-                        effectiveCols.Add(new AppExportColumnDefinitionRecord { Name = "__pdf_address__", Label = "Adresse", Visible = true, SortOrder = c.SortOrder });
-                    continue;
-                }
-
-                if (string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase) && contactKeys.Contains(n))
-                {
-                    if (!effectiveCols.Any(ec => contactKeys.Contains((ec.Name ?? string.Empty).ToLowerInvariant()) || (ec.Name ?? string.Empty) == "__pdf_contact__"))
-                        effectiveCols.Add(new AppExportColumnDefinitionRecord { Name = "__pdf_contact__", Label = "Kontakt", Visible = true, SortOrder = c.SortOrder });
-                    continue;
-                }
-
-                // otherwise include as-is
-                effectiveCols.Add(c);
-            }
-
-            // compute column widths with weights: small for checkbox-like, medium for short, large for text
-            var weights = new double[effectiveCols.Count];
-            for (int i = 0; i < effectiveCols.Count; i++)
-            {
-                var cn = (effectiveCols[i].Name ?? string.Empty).ToLowerInvariant();
-                if (cn.StartsWith("nr") || cn == "__pdf_address__" || cn == "__pdf_contact__")
-                    weights[i] = 2; // mid
-                else if (IsShortFieldName(cn) || cn == "aktiv" || cn == "wa" || cn == "re" || cn == "info" || cn == "app")
-                    weights[i] = 1; // small
-                else
-                    weights[i] = 3; // larger
-            }
-
+            // compute column widths
+            var weights = effectiveCols.Select(c => ColumnWeight(c)).ToArray();
             var totalWeight = weights.Sum();
+            if (totalWeight <= 0) totalWeight = 1;
             var colWidths = weights.Select(w => usableWidth * (w / totalWeight)).ToArray();
 
-            Func<AppExportColumnDefinitionRecord, string> headerText = col => GetShortHeader(exportKey, col);
-
-            // draw header on first page
-            DrawHeaderRow(gfx, headerFont, effectiveCols, colWidths, x, y);
+            // draw header
+            DrawHeaderRow(gfx, headerFont, effectiveCols, colWidths, x, y, exportKey);
             y += HeaderHeight + 6;
 
             var textFormatter = new XTextFormatter(gfx);
 
-            int currentRowOnPage = 0;
-
             for (int r = 0; r < rows.Count; r++)
             {
-                // estimate per-row height based on wrapped text in each cell
                 double rowH = 0;
                 var row = rows[r];
                 for (int c = 0; c < effectiveCols.Count; c++)
                 {
                     var col = effectiveCols[c];
-                    var key = col.Name ?? string.Empty;
-                    string value = GetPdfCellValue(exportKey, col, row);
-
+                    var value = GetPdfCellValue(exportKey, col, row);
                     if (IsBooleanLike(value))
                         value = value.Equals("Ja", StringComparison.OrdinalIgnoreCase) || value.Equals("true", StringComparison.OrdinalIgnoreCase) ? "☑" : "☐";
 
                     var cellWidth = colWidths[c] - 8;
-                    // approximate lines required
                     var lines = EstimateLines(gfx, value, cellFont, cellWidth);
                     var lineHeight = gfx.MeasureString("Ag", cellFont).Height + 2;
                     rowH = Math.Max(rowH, lines * lineHeight);
@@ -112,10 +70,8 @@ namespace KGV.Core.Utilities
 
                 if (rowH < 14) rowH = 14;
 
-                // check for page break
                 if (y + rowH > page.Height - PageMargin)
                 {
-                    // new page
                     page = doc.AddPage();
                     page.Size = PdfSharpCore.PageSize.A4;
                     page.Orientation = PdfSharpCore.PageOrientation.Landscape;
@@ -123,17 +79,14 @@ namespace KGV.Core.Utilities
                     textFormatter = new XTextFormatter(gfx);
                     x = PageMargin;
                     y = PageMargin;
-                    DrawHeaderRow(gfx, headerFont, effectiveCols, colWidths, x, y);
+                    DrawHeaderRow(gfx, headerFont, effectiveCols, colWidths, x, y, exportKey);
                     y += HeaderHeight + 6;
                 }
 
-                // render cells
                 for (int c = 0; c < effectiveCols.Count; c++)
                 {
                     var col = effectiveCols[c];
-                    var key = col.Name ?? string.Empty;
-                    string value = GetPdfCellValue(exportKey, col, row);
-
+                    var value = GetPdfCellValue(exportKey, col, row);
                     if (IsBooleanLike(value))
                         value = value.Equals("Ja", StringComparison.OrdinalIgnoreCase) || value.Equals("true", StringComparison.OrdinalIgnoreCase) ? "☑" : "☐";
 
@@ -150,6 +103,45 @@ namespace KGV.Core.Utilities
             return ms.ToArray();
         }
 
+        private static List<PdfColumn> BuildEffectiveColumns(string exportKey, IReadOnlyList<AppExportColumnDefinitionRecord> columns)
+        {
+            var result = new List<PdfColumn>();
+            var addressKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "adresse", "plz", "ort", "strasse", "hausnummer" };
+            var contactKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "telefon", "handy", "mobil" };
+
+            foreach (var c in columns)
+            {
+                var key = (c.ColumnKey ?? c.Name ?? string.Empty).ToLowerInvariant();
+                if (string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase) && addressKeys.Contains(key))
+                {
+                    if (!result.Any(rc => addressKeys.Contains((rc.ColumnKey ?? string.Empty).ToLowerInvariant())))
+                        result.Add(new PdfColumn("__pdf_address__", "Adresse", true, c.Sortierung));
+                    continue;
+                }
+
+                if (string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase) && contactKeys.Contains(key))
+                {
+                    if (!result.Any(rc => contactKeys.Contains((rc.ColumnKey ?? string.Empty).ToLowerInvariant()) || (rc.ColumnKey ?? string.Empty) == "__pdf_contact__"))
+                        result.Add(new PdfColumn("__pdf_contact__", "Kontakt", true, c.Sortierung));
+                    continue;
+                }
+
+                result.Add(new PdfColumn(c.ColumnKey ?? c.Name ?? string.Empty, c.LabelLang ?? c.LabelKurz ?? c.ColumnKey ?? string.Empty, c.StandardSichtbar, c.Sortierung));
+            }
+
+            return result.OrderBy(c => c.SortOrder).ToList();
+        }
+
+        private static double ColumnWeight(PdfColumn col)
+        {
+            var cn = (col.ColumnKey ?? col.Label ?? string.Empty).ToLowerInvariant();
+            if (cn.StartsWith("nr", StringComparison.OrdinalIgnoreCase) || cn == "__pdf_address__" || cn == "__pdf_contact__")
+                return 2;
+            if (IsShortFieldName(cn) || cn == "aktiv" || cn == "wa" || cn == "re" || cn == "info" || cn == "app")
+                return 1;
+            return 3;
+        }
+
         private static string TruncateForCell(string value, int max = 200)
         {
             if (string.IsNullOrEmpty(value)) return string.Empty;
@@ -157,12 +149,11 @@ namespace KGV.Core.Utilities
             return value.Substring(0, max - 3) + "...";
         }
 
-        private static string GetPdfCellValue(string exportKey, AppExportColumnDefinitionRecord col, Dictionary<string, string> row)
+        private static string GetPdfCellValue(string exportKey, PdfColumn col, Dictionary<string, string> row)
         {
-            var key = (col.Name ?? string.Empty).ToLowerInvariant();
+            var key = (col.ColumnKey ?? string.Empty).ToLowerInvariant();
             if (key == "__pdf_address__")
             {
-                // build address: Line1: Adresse (Straße Hsnr), Line2: PLZ Ort
                 row.TryGetValue("adresse", out var adr);
                 row.TryGetValue("plz", out var plz);
                 row.TryGetValue("ort", out var ort);
@@ -180,7 +171,7 @@ namespace KGV.Core.Utilities
                 return string.IsNullOrWhiteSpace(line2) ? line1 : line1 + "\n" + line2;
             }
 
-            row.TryGetValue(col.Name ?? string.Empty, out var val);
+            row.TryGetValue(col.ColumnKey ?? string.Empty, out var val);
             return val ?? string.Empty;
         }
 
@@ -195,7 +186,6 @@ namespace KGV.Core.Utilities
         {
             if (string.IsNullOrEmpty(text)) return 1;
             var measurement = gfx.MeasureString(text, font);
-            // naive estimate: measure average char width
             var avgCharWidth = measurement.Width / Math.Max(1, text.Length);
             var charsPerLine = Math.Max(1, (int)(width / avgCharWidth));
             return (int)Math.Ceiling((double)text.Length / charsPerLine);
@@ -215,9 +205,8 @@ namespace KGV.Core.Utilities
             return v.Equals("Ja", StringComparison.OrdinalIgnoreCase) || v.Equals("Nein", StringComparison.OrdinalIgnoreCase) || v.Equals("true", StringComparison.OrdinalIgnoreCase) || v.Equals("false", StringComparison.OrdinalIgnoreCase) || v.Equals("0") || v.Equals("1");
         }
 
-        private static string GetShortHeader(string exportKey, AppExportColumnDefinitionRecord col)
+        private static string GetShortHeader(string exportKey, PdfColumn col)
         {
-            // prefer explicitly mapped short names for mitgliederliste
             if (string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase))
             {
                 var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -237,9 +226,8 @@ namespace KGV.Core.Utilities
                     { "aktiv", "Aktiv" }
                 };
 
-                if (!string.IsNullOrWhiteSpace(col.Name) && map.TryGetValue(col.Name, out var s))
+                if (!string.IsNullOrWhiteSpace(col.ColumnKey) && map.TryGetValue(col.ColumnKey, out var s))
                     return s;
-
                 if (!string.IsNullOrWhiteSpace(col.Label) && map.TryGetValue(col.Label, out var s2))
                     return s2;
             }
@@ -256,23 +244,22 @@ namespace KGV.Core.Utilities
                     { "status", "Status" }
                 };
 
-                if (!string.IsNullOrWhiteSpace(col.Name) && map.TryGetValue(col.Name, out var s))
+                if (!string.IsNullOrWhiteSpace(col.ColumnKey) && map.TryGetValue(col.ColumnKey, out var s))
                     return s;
-
                 if (!string.IsNullOrWhiteSpace(col.Label) && map.TryGetValue(col.Label, out var s2))
                     return s2;
             }
 
-            return col.Label ?? col.Name ?? string.Empty;
+            return col.Label ?? col.ColumnKey ?? string.Empty;
         }
 
-        private static void DrawHeaderRow(XGraphics gfx, XFont headerFont, List<AppExportColumnDefinitionRecord> cols, double[] colWidths, double x, double y)
+        private static void DrawHeaderRow(XGraphics gfx, XFont headerFont, List<PdfColumn> cols, double[] colWidths, double x, double y, string exportKey)
         {
             for (int i = 0; i < cols.Count; i++)
             {
                 var rect = new XRect(x + GetOffset(colWidths, i), y, colWidths[i], HeaderHeight);
                 gfx.DrawRectangle(XBrushes.LightGray, rect);
-                gfx.DrawString(GetShortHeader("", cols[i]) ?? cols[i].Label ?? cols[i].Name ?? string.Empty, headerFont, XBrushes.Black, rect, XStringFormats.Center);
+                gfx.DrawString(GetShortHeader(exportKey, cols[i]) ?? cols[i].Label ?? cols[i].ColumnKey ?? string.Empty, headerFont, XBrushes.Black, rect, XStringFormats.Center);
             }
         }
     }

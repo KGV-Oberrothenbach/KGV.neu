@@ -111,28 +111,29 @@ namespace KGV.Infrastructure.Services
             async () =>
             {
                 var client = await EnsureClientAsync();
+                // new schema: export_key and titel
                 var resp = await client.From<AppExportDefinitionRecord>().Where(x => x.Aktiv == true).Get();
-                return resp?.Models?.OrderBy(x => x.Title).ToList() ?? new List<AppExportDefinitionRecord>();
+                return resp?.Models?.OrderBy(x => x.Titel).ToList() ?? new List<AppExportDefinitionRecord>();
             },
             new List<AppExportDefinitionRecord>());
 
-        public Task<List<AppExportFilterDefinitionRecord>> GetExportFilterDefinitionsAsync(int exportDefinitionId) => ExecuteAsync(
+        public Task<List<AppExportFilterDefinitionRecord>> GetExportFilterDefinitionsAsync(string exportKey) => ExecuteAsync(
             "GetExportFilterDefinitionsAsync",
             async () =>
             {
                 var client = await EnsureClientAsync();
-                var resp = await client.From<AppExportFilterDefinitionRecord>().Where(x => x.ExportDefinitionId == exportDefinitionId).Get();
-                return resp?.Models?.OrderBy(x => x.Id).ToList() ?? new List<AppExportFilterDefinitionRecord>();
+                var resp = await client.From<AppExportFilterDefinitionRecord>().Where(x => x.ExportKey == exportKey).Get();
+                return resp?.Models?.OrderBy(x => x.Sortierung).ToList() ?? new List<AppExportFilterDefinitionRecord>();
             },
             new List<AppExportFilterDefinitionRecord>());
 
-        public Task<List<AppExportColumnDefinitionRecord>> GetExportColumnDefinitionsAsync(int exportDefinitionId) => ExecuteAsync(
+        public Task<List<AppExportColumnDefinitionRecord>> GetExportColumnDefinitionsAsync(string exportKey) => ExecuteAsync(
             "GetExportColumnDefinitionsAsync",
             async () =>
             {
                 var client = await EnsureClientAsync();
-                var resp = await client.From<AppExportColumnDefinitionRecord>().Where(x => x.ExportDefinitionId == exportDefinitionId).Get();
-                return resp?.Models?.OrderBy(x => x.SortOrder).ToList() ?? new List<AppExportColumnDefinitionRecord>();
+                var resp = await client.From<AppExportColumnDefinitionRecord>().Where(x => x.ExportKey == exportKey).Get();
+                return resp?.Models?.OrderBy(x => x.Sortierung).ToList() ?? new List<AppExportColumnDefinitionRecord>();
             },
             new List<AppExportColumnDefinitionRecord>());
 
