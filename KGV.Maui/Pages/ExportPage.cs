@@ -42,6 +42,8 @@ public sealed class ExportPage : ContentPage
         Title = "Export";
 
         _definitionPicker = new Picker { Title = "Wähle Exportdefinition" };
+        // display the actual definition objects and show their DisplayText
+        _definitionPicker.ItemDisplayBinding = new Binding("DisplayText");
         _definitionPicker.SelectedIndexChanged += async (_, _) => await OnDefinitionChanged();
 
         _filtersStack = new StackLayout { Spacing = 8 };
@@ -128,14 +130,14 @@ public sealed class ExportPage : ContentPage
         }
 
         await _vm.LoadDefinitionsAsync();
-        // Definitions expose DisplayText via model helper; fall back to ExportKey if missing
-        _definitionPicker.ItemsSource = _vm.Definitions.Select(d => (d.Titel ?? d.ExportKey ?? string.Empty)).ToList();
+        // Use the real definition objects as ItemsSource so SelectedItem is the object
+        _definitionPicker.ItemsSource = _vm.Definitions;
         // ensure buttons only active if a valid definition selected
-        _runButton.IsEnabled = _vm.Definitions.Count > 0;
-        _exportCsvButton.IsEnabled = _vm.Definitions.Count > 0;
-        _exportPdfButton.IsEnabled = _vm.Definitions.Count > 0;
+        _runButton.IsEnabled = _vm.Definitions.Count > 0 && _definitionPicker.SelectedItem != null;
+        _exportCsvButton.IsEnabled = _vm.Definitions.Count > 0 && _definitionPicker.SelectedItem != null;
+        _exportPdfButton.IsEnabled = _vm.Definitions.Count > 0 && _definitionPicker.SelectedItem != null;
         if (_vm.Definitions.Count > 0)
-            _definitionPicker.SelectedIndex = 0;
+            _definitionPicker.SelectedItem = _vm.Definitions.First();
 
         UpdateLayoutForDevice();
     }
@@ -152,13 +154,35 @@ public sealed class ExportPage : ContentPage
 
     private async Task OnDefinitionChanged()
     {
-        var idx = _definitionPicker.SelectedIndex;
-        if (idx < 0)
-            return;
+        // prefer SelectedItem as the real model object; fall back to index if needed
+        AppExportDefinitionRecord? def = null;
+        if (_definitionPicker.SelectedItem is AppExportDefinitionRecord selDef)
+            def = selDef;
+        else
+        {
+            var idx = _definitionPicker.SelectedIndex;
+            if (idx >= 0 && idx < _vm.Definitions.Count)
+                def = _vm.Definitions[idx];
+        }
 
-        var def = _vm.Definitions[idx];
+        if (def == null)
+        {
+            _statusLabel.Text = "Keine gültige Exportdefinition ausgewählt.";
+            _runButton.IsEnabled = false;
+            _exportCsvButton.IsEnabled = false;
+            _exportPdfButton.IsEnabled = false;
+            _filtersStack.Children.Clear();
+            return;
+        }
+
         await _vm.SelectDefinitionAsync(def);
         RenderFilters();
+
+        // enable buttons only when a real definition has been loaded
+        var hasDef = _vm.SelectedDefinition != null;
+        _runButton.IsEnabled = hasDef;
+        _exportCsvButton.IsEnabled = hasDef && (_vm.ColumnsVisibleOrdered?.Count > 0);
+        _exportPdfButton.IsEnabled = hasDef && (_vm.ColumnsVisibleOrdered?.Count > 0);
     }
 
     private void RenderFilters()
