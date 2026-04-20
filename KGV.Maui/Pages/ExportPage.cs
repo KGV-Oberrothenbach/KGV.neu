@@ -209,51 +209,46 @@ public sealed class ExportPage : ContentPage
             if (string.Equals(f.Typ, "select", StringComparison.OrdinalIgnoreCase))
             {
                 var picker = new Picker { Title = f.Label ?? f.FilterKey };
-                if (f.OptionenJson.HasValue && f.OptionenJson.Value.ValueKind != System.Text.Json.JsonValueKind.Null && f.OptionenJson.Value.ValueKind != System.Text.Json.JsonValueKind.Undefined)
+                if (!string.IsNullOrWhiteSpace(f.OptionenJson))
                 {
                     Task.Run(async () =>
                     {
                         try
                         {
                             var opts = new List<string>();
-                            var je = f.OptionenJson.Value;
-                            if (je.ValueKind == System.Text.Json.JsonValueKind.Array)
+                            var raw = f.OptionenJson.Trim();
+                            if (raw.StartsWith("["))
                             {
-                                foreach (var item in je.EnumerateArray())
+                                try
                                 {
-                                    if (item.ValueKind == System.Text.Json.JsonValueKind.String)
-                                        opts.Add(item.GetString() ?? string.Empty);
-                                    else
-                                        opts.Add(item.ToString());
-                                }
-                            }
-                            else if (je.ValueKind == System.Text.Json.JsonValueKind.String)
-                            {
-                                var s = je.GetString() ?? string.Empty;
-                                if (s.TrimStart().StartsWith("["))
-                                {
-                                    try
+                                    var parsed = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement[]>(raw);
+                                    if (parsed != null)
                                     {
-                                        var parsed = System.Text.Json.JsonSerializer.Deserialize<List<string>>(s);
-                                        if (parsed != null) opts.AddRange(parsed);
-                                    }
-                                    catch
-                                    {
-                                        // treat as single string option
-                                        opts.Add(s);
+                                        foreach (var item in parsed)
+                                        {
+                                            if (item.ValueKind == System.Text.Json.JsonValueKind.String)
+                                                opts.Add(item.GetString() ?? string.Empty);
+                                            else
+                                                opts.Add(item.ToString());
+                                        }
                                     }
                                 }
-                                else
+                                catch
                                 {
-                                    // fallback: treat as RPC name
-                                    var rows = await _vm.ExecuteOptionsRpcAsync(s);
-                                    opts.AddRange(rows.Select(r => r.ToString()));
+                                    // if parsing fails, add raw
+                                    opts.Add(raw);
                                 }
                             }
-                            else if (je.ValueKind == System.Text.Json.JsonValueKind.Object)
+                            else if (raw.StartsWith("{"))
                             {
-                                // object: add its string representation
-                                opts.Add(je.ToString());
+                                opts.Add(raw);
+                            }
+                            else
+                            {
+                                // treat as RPC name or plain string
+                                var s = raw;
+                                var rows = await _vm.ExecuteOptionsRpcAsync(s);
+                                opts.AddRange(rows.Select(r => r.ToString()));
                             }
 
                             await MainThread.InvokeOnMainThreadAsync(() =>

@@ -54,6 +54,39 @@ namespace KGV.Core.Models
         public string DisplayText => !string.IsNullOrWhiteSpace(Titel) ? Titel! : (ExportKey ?? string.Empty);
     }
 
+    // Converter to read the raw JSON text for a property so that arrays/objects are preserved as strings
+    public class RawJsonStringConverter : System.Text.Json.Serialization.JsonConverter<string?>
+    {
+        public override string? Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+        {
+            if (reader.TokenType == System.Text.Json.JsonTokenType.Null)
+                return null;
+            using var doc = System.Text.Json.JsonDocument.ParseValue(ref reader);
+            return doc.RootElement.GetRawText();
+        }
+
+        public override void Write(System.Text.Json.Utf8JsonWriter writer, string? value, System.Text.Json.JsonSerializerOptions options)
+        {
+            if (value == null)
+            {
+                writer.WriteNullValue();
+                return;
+            }
+
+            try
+            {
+                // try to parse the raw json and write it as JSON
+                using var doc = System.Text.Json.JsonDocument.Parse(value);
+                doc.RootElement.WriteTo(writer);
+            }
+            catch
+            {
+                // fallback: write as string
+                writer.WriteStringValue(value);
+            }
+        }
+    }
+
     [Table("app_export_filter_definition")]
     public sealed class AppExportFilterDefinitionRecord : BaseModel
     {
@@ -75,7 +108,8 @@ namespace KGV.Core.Models
 
         [Column("optionen_json")]
         [JsonPropertyName("optionen_json")]
-        public System.Text.Json.JsonElement? OptionenJson { get; set; }
+        [System.Text.Json.Serialization.JsonConverter(typeof(RawJsonStringConverter))]
+        public string? OptionenJson { get; set; }
 
         [Column("pflicht")]
         [JsonPropertyName("pflicht")]
