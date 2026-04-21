@@ -64,6 +64,8 @@ namespace KGV.Maui.ViewModels
             Columns.Clear();
             Results.Clear();
             ProcessedResults.Clear();
+            // clear previous filter values to avoid sending export-foreign parameters
+            FilterValues.Clear();
             ColumnsVisibleOrdered = new List<AppExportColumnDefinitionRecord>();
             CurrentIndex = -1;
 
@@ -90,14 +92,17 @@ namespace KGV.Maui.ViewModels
             if (SelectedDefinition == null)
                 return;
 
-            // build parameters from FilterValues with mapping to RPC parameter names and type conversion
+            // build parameters only from Filters belonging to the selected definition
             var mapped = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-            foreach (var kv in FilterValues)
+            foreach (var f in Filters)
             {
-                if (kv.Key == null)
-                    continue;
-                var key = kv.Key;
-                object? val = kv.Value;
+                if (f == null) continue;
+                var key = (f.FilterKey ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(key)) continue;
+
+                // obtain raw value from FilterValues if present
+                FilterValues.TryGetValue(key, out var rawVal);
+                object? val = rawVal;
 
                 // normalize string inputs
                 if (val is string s)
@@ -113,7 +118,7 @@ namespace KGV.Maui.ViewModels
                         val = ts;
                 }
 
-                // map UI filter keys to RPC parameter names
+                // map UI filter keys to RPC parameter names (specific mapping)
                 string paramName;
                 switch (key.ToLowerInvariant())
                 {
@@ -130,7 +135,6 @@ namespace KGV.Maui.ViewModels
                         paramName = "p_status_filter";
                         break;
                     default:
-                        // generic fallback: prefix with p_ if ends with _filter
                         if (key.EndsWith("_filter", StringComparison.OrdinalIgnoreCase))
                             paramName = "p_" + key;
                         else
@@ -143,6 +147,7 @@ namespace KGV.Maui.ViewModels
 
             // summary for diagnostics
             LastRpcParameterSummary = string.Join(", ", mapped.Select(kv => kv.Key + "=" + (kv.Value == null ? "null" : kv.Value.ToString())));
+            try { Console.WriteLine($"EXPORTDBG: ExecuteAsync export_key={(SelectedDefinition?.ExportKey ?? "?")}, final params={LastRpcParameterSummary}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync export_key={(SelectedDefinition?.ExportKey ?? "?")}, final params={LastRpcParameterSummary}"); } catch {}
             LastRpcError = null;
             // Determine RPC name: prefer explicit quelle_name, fallback to standard_ausgabe or export_key
             var rpcName = SelectedDefinition.QuelleName;
