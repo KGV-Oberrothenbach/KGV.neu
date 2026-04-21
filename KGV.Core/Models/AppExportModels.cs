@@ -2,6 +2,8 @@ using Supabase.Postgrest.Attributes;
 using Supabase.Postgrest.Models;
 using System;
 using System.Text.Json.Serialization;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace KGV.Core.Models
 {
@@ -50,7 +52,7 @@ namespace KGV.Core.Models
         public bool ErlaubtPdf { get; set; }
 
         // Display helper
-        [JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public string DisplayText => !string.IsNullOrWhiteSpace(Titel) ? Titel! : (ExportKey ?? string.Empty);
     }
 
@@ -107,9 +109,8 @@ namespace KGV.Core.Models
         public string? Typ { get; set; }
 
         [Column("optionen_json")]
-        [JsonPropertyName("optionen_json")]
-        [System.Text.Json.Serialization.JsonConverter(typeof(RawJsonStringConverter))]
-        public string? OptionenJson { get; set; }
+        [JsonProperty("optionen_json")]
+        public JToken? OptionenJson { get; set; }
 
         [Column("pflicht")]
         [JsonPropertyName("pflicht")]
@@ -151,16 +152,16 @@ namespace KGV.Core.Models
         [JsonPropertyName("ist_sortierspalte")]
         public bool IstSortierspalte { get; set; }
 
-        [JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public string? Name => ColumnKey;
 
-        [JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public string? Label => LabelLang ?? LabelKurz;
 
-        [JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool Visible => StandardSichtbar;
 
-        [JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public int SortOrder => Sortierung;
     }
 }

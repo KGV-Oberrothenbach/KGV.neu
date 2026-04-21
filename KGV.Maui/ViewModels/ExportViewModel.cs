@@ -178,9 +178,16 @@ namespace KGV.Maui.ViewModels
             // Prepare visible columns in order (use new model helpers)
             var visible = Columns.Where(c => c.Visible).OrderBy(c => c.SortOrder).ToList();
             // If no columns marked visible in the DB, fall back to all columns in defined sort order
+            var usedVisibleFallback = false;
             if (visible.Count == 0)
             {
                 visible = Columns.OrderBy(c => c.SortOrder).ToList();
+                usedVisibleFallback = true;
+                try { Console.WriteLine($"EXPORTDBG: Visible-column fallback used (no standard_sichtbar); visibleColumns={visible.Count}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: Visible-column fallback used (no standard_sichtbar); visibleColumns={visible.Count}"); } catch {}
+            }
+            else
+            {
+                try { Console.WriteLine($"EXPORTDBG: Visible columns determined from standard_sichtbar; visibleColumns={visible.Count}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: Visible columns determined from standard_sichtbar; visibleColumns={visible.Count}"); } catch {}
             }
 
             // determine sort column from filter definitions and filter values

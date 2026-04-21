@@ -11,6 +11,7 @@ using Microsoft.Maui.ApplicationModel.DataTransfer;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Storage;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -209,46 +210,57 @@ public sealed class ExportPage : ContentPage
             if (string.Equals(f.Typ, "select", StringComparison.OrdinalIgnoreCase))
             {
                 var picker = new Picker { Title = f.Label ?? f.FilterKey };
-                if (!string.IsNullOrWhiteSpace(f.OptionenJson))
+                if (f.OptionenJson != null && f.OptionenJson.Type != Newtonsoft.Json.Linq.JTokenType.Null)
                 {
                     Task.Run(async () =>
                     {
                         try
                         {
                             var opts = new List<string>();
-                            var raw = f.OptionenJson.Trim();
-                            if (raw.StartsWith("["))
+                            var jt = f.OptionenJson;
+                            if (jt.Type == Newtonsoft.Json.Linq.JTokenType.Array)
                             {
-                                try
+                                foreach (var item in jt.Children())
                                 {
-                                    var parsed = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement[]>(raw);
-                                    if (parsed != null)
+                                    if (item.Type == Newtonsoft.Json.Linq.JTokenType.String)
+                                        opts.Add(item.ToString());
+                                    else
+                                        opts.Add(item.ToString());
+                                }
+                            }
+                            else if (jt.Type == Newtonsoft.Json.Linq.JTokenType.Object)
+                            {
+                                opts.Add(jt.ToString());
+                            }
+                            else if (jt.Type == Newtonsoft.Json.Linq.JTokenType.String)
+                            {
+                                var s = jt.ToString() ?? string.Empty;
+                                if (s.TrimStart().StartsWith("["))
+                                {
+                                    try
                                     {
-                                        foreach (var item in parsed)
+                                        var parsed = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement[]>(s);
+                                        if (parsed != null)
                                         {
-                                            if (item.ValueKind == System.Text.Json.JsonValueKind.String)
-                                                opts.Add(item.GetString() ?? string.Empty);
-                                            else
-                                                opts.Add(item.ToString());
+                                            foreach (var item in parsed)
+                                            {
+                                                if (item.ValueKind == System.Text.Json.JsonValueKind.String)
+                                                    opts.Add(item.GetString() ?? string.Empty);
+                                                else
+                                                    opts.Add(item.ToString());
+                                            }
                                         }
                                     }
+                                    catch
+                                    {
+                                        opts.Add(s);
+                                    }
                                 }
-                                catch
+                                else
                                 {
-                                    // if parsing fails, add raw
-                                    opts.Add(raw);
+                                    var rows = await _vm.ExecuteOptionsRpcAsync(s);
+                                    opts.AddRange(rows.Select(r => r.ToString()));
                                 }
-                            }
-                            else if (raw.StartsWith("{"))
-                            {
-                                opts.Add(raw);
-                            }
-                            else
-                            {
-                                // treat as RPC name or plain string
-                                var s = raw;
-                                var rows = await _vm.ExecuteOptionsRpcAsync(s);
-                                opts.AddRange(rows.Select(r => r.ToString()));
                             }
 
                             await MainThread.InvokeOnMainThreadAsync(() =>
@@ -353,6 +365,8 @@ public sealed class ExportPage : ContentPage
             {
                 // phone: show first record and enable navigation
                 RenderCurrentRecord();
+                // enable CSV/PDF when results present
+                try { _exportCsvButton.IsEnabled = _vm.ProcessedResults.Count > 0; _exportPdfButton.IsEnabled = _vm.ProcessedResults.Count > 0; Console.WriteLine($"EXPORTDBG: CSV/PDF enabled state: CSV={_exportCsvButton.IsEnabled}, PDF={_exportPdfButton.IsEnabled}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: CSV/PDF enabled state: CSV={_exportCsvButton.IsEnabled}, PDF={_exportPdfButton.IsEnabled}"); } catch {}
                 // add swipe gestures
                 var left = new SwipeGestureRecognizer { Direction = SwipeDirection.Left };
                 left.Swiped += (_, __) => { if (_vm.MoveNext()) RenderCurrentRecord(); };
@@ -382,8 +396,27 @@ public sealed class ExportPage : ContentPage
         foreach (var col in _vm.ColumnsVisibleOrdered)
         {
             var key = col.Name ?? string.Empty;
-            var label = new Label { Text = col.Label ?? key, FontAttributes = FontAttributes.Bold };
-            var value = new Label { Text = rec.ContainsKey(key) ? rec[key] : string.Empty };
+            var labelText = col.Label ?? key;
+
+            // determine value using several fallbacks to account for differing column keys
+            string valueText = string.Empty;
+            var tryKeys = new[] { key, col.ColumnKey, col.LabelLang, col.LabelKurz, col.Label };
+            foreach (var k in tryKeys)
+            {
+                if (string.IsNullOrWhiteSpace(k)) continue;
+                if (rec.TryGetValue(k, out var v) && !string.IsNullOrWhiteSpace(v))
+                {
+                    valueText = v;
+                    break;
+                }
+            }
+
+            // avoid duplicate label/value if they are identical
+            if (!string.IsNullOrEmpty(valueText) && valueText == labelText)
+                valueText = string.Empty;
+
+            var label = new Label { Text = labelText, FontAttributes = FontAttributes.Bold };
+            var value = new Label { Text = valueText };
             _recordView.Children.Add(label);
             _recordView.Children.Add(value);
         }
