@@ -218,21 +218,39 @@ public sealed class ExportPage : ContentPage
                     {
                         try
                         {
-                            var opts = new List<string>();
+                            var optionItems = new List<OptionItem>();
                             var jt = f.OptionenJson;
                             if (jt.Type == Newtonsoft.Json.Linq.JTokenType.Array)
                             {
                                 foreach (var item in jt.Children())
                                 {
-                                    if (item.Type == Newtonsoft.Json.Linq.JTokenType.String)
-                                        opts.Add(item.ToString());
+                                    var raw = item.ToString();
+                                    if (item.Type == Newtonsoft.Json.Linq.JTokenType.Object || raw.TrimStart().StartsWith("{"))
+                                    {
+                                        try
+                                        {
+                                            var jo = item.Type == Newtonsoft.Json.Linq.JTokenType.Object ? (Newtonsoft.Json.Linq.JObject)item : Newtonsoft.Json.Linq.JObject.Parse(raw);
+                                            var label = jo["label"]?.ToString() ?? jo["text"]?.ToString() ?? jo.ToString();
+                                            var value = jo["value"]?.ToString() ?? jo["val"]?.ToString() ?? jo["id"]?.ToString() ?? label;
+                                            optionItems.Add(new OptionItem(label, value));
+                                        }
+                                        catch
+                                        {
+                                            optionItems.Add(new OptionItem(raw, raw));
+                                        }
+                                    }
                                     else
-                                        opts.Add(item.ToString());
+                                    {
+                                        var s = raw;
+                                        optionItems.Add(new OptionItem(s, s));
+                                    }
                                 }
                             }
                             else if (jt.Type == Newtonsoft.Json.Linq.JTokenType.Object)
                             {
-                                opts.Add(jt.ToString());
+                                var label = jt["label"]?.ToString() ?? jt.ToString();
+                                var value = jt["value"]?.ToString() ?? jt["val"]?.ToString() ?? jt.ToString();
+                                optionItems.Add(new OptionItem(label, value));
                             }
                             else if (jt.Type == Newtonsoft.Json.Linq.JTokenType.String)
                             {
@@ -246,29 +264,77 @@ public sealed class ExportPage : ContentPage
                                         {
                                             foreach (var item in parsed)
                                             {
-                                                if (item.ValueKind == System.Text.Json.JsonValueKind.String)
-                                                    opts.Add(item.GetString() ?? string.Empty);
+                                                var rawItem = item.ToString();
+                                                if (item.ValueKind == System.Text.Json.JsonValueKind.Object || rawItem.TrimStart().StartsWith("{"))
+                                                {
+                                                    try
+                                                    {
+                                                        var jo = Newtonsoft.Json.Linq.JObject.Parse(rawItem);
+                                                        var label = jo["label"]?.ToString() ?? jo["text"]?.ToString() ?? rawItem;
+                                                        var value = jo["value"]?.ToString() ?? jo["val"]?.ToString() ?? jo["id"]?.ToString() ?? label;
+                                                        optionItems.Add(new OptionItem(label, value));
+                                                    }
+                                                    catch
+                                                    {
+                                                        optionItems.Add(new OptionItem(rawItem, rawItem));
+                                                    }
+                                                }
+                                                else if (item.ValueKind == System.Text.Json.JsonValueKind.String)
+                                                {
+                                                    var vs = item.GetString() ?? string.Empty;
+                                                    optionItems.Add(new OptionItem(vs, vs));
+                                                }
                                                 else
-                                                    opts.Add(item.ToString());
+                                                {
+                                                    optionItems.Add(new OptionItem(rawItem, rawItem));
+                                                }
                                             }
                                         }
                                     }
                                     catch
                                     {
-                                        opts.Add(s);
+                                        optionItems.Add(new OptionItem(s, s));
                                     }
                                 }
                                 else
                                 {
+                                    // treat as RPC name
                                     var rows = await _vm.ExecuteOptionsRpcAsync(s);
-                                    opts.AddRange(rows.Select(r => r.ToString()));
+                                    foreach (var r in rows)
+                                    {
+                                        var rawR = r.ToString();
+                                        if (r.ValueKind == System.Text.Json.JsonValueKind.Object || rawR.TrimStart().StartsWith("{"))
+                                        {
+                                            try
+                                            {
+                                                var jo = Newtonsoft.Json.Linq.JObject.Parse(rawR);
+                                                var label = jo["label"]?.ToString() ?? jo["text"]?.ToString() ?? rawR;
+                                                var value = jo["value"]?.ToString() ?? jo["val"]?.ToString() ?? jo["id"]?.ToString() ?? label;
+                                                optionItems.Add(new OptionItem(label, value));
+                                            }
+                                            catch
+                                            {
+                                                optionItems.Add(new OptionItem(rawR, rawR));
+                                            }
+                                        }
+                                        else if (r.ValueKind == System.Text.Json.JsonValueKind.String)
+                                        {
+                                            var vs = r.GetString() ?? string.Empty;
+                                            optionItems.Add(new OptionItem(vs, vs));
+                                        }
+                                        else
+                                        {
+                                            optionItems.Add(new OptionItem(rawR, rawR));
+                                        }
+                                    }
                                 }
                             }
 
                             await MainThread.InvokeOnMainThreadAsync(() =>
                             {
-                                picker.ItemsSource = opts;
-                                if (opts.Count > 0) picker.SelectedIndex = 0;
+                                picker.ItemDisplayBinding = new Binding("Label");
+                                picker.ItemsSource = optionItems;
+                                if (optionItems.Count > 0) picker.SelectedIndex = 0;
                             });
                         }
                         catch (Exception ex)
@@ -414,23 +480,41 @@ public sealed class ExportPage : ContentPage
         {
             var key = col.Name ?? string.Empty;
             var labelText = col.Label ?? key;
-
             // determine value using several fallbacks to account for differing column keys
             string valueText = string.Empty;
-            var tryKeys = new[] { key, col.ColumnKey, col.LabelLang, col.LabelKurz, col.Label };
+            var tryKeys = new[] { key, col.ColumnKey, col.LabelLang, col.LabelKurz };
             foreach (var k in tryKeys)
             {
                 if (string.IsNullOrWhiteSpace(k)) continue;
+                // the processed results typically use column_key or export field names; try exact match and lower-case match
                 if (rec.TryGetValue(k, out var v) && !string.IsNullOrWhiteSpace(v))
                 {
                     valueText = v;
                     break;
                 }
+                var lower = k.ToLowerInvariant();
+                if (rec.TryGetValue(lower, out var v2) && !string.IsNullOrWhiteSpace(v2))
+                {
+                    valueText = v2;
+                    break;
+                }
             }
 
-            // avoid duplicate label/value if they are identical
-            if (!string.IsNullOrEmpty(valueText) && valueText == labelText)
-                valueText = string.Empty;
+            // as last resort, if there is any key in the record that matches ignoring punctuation/space, try fuzzy match
+            if (string.IsNullOrEmpty(valueText))
+            {
+                foreach (var kv in rec)
+                {
+                    if (string.IsNullOrWhiteSpace(kv.Key) || string.IsNullOrWhiteSpace(kv.Value)) continue;
+                    var normKey = new string(kv.Key.Where(c => !char.IsWhiteSpace(c) && !char.IsPunctuation(c)).ToArray()).ToLowerInvariant();
+                    var normLabel = new string((col.ColumnKey ?? col.Label ?? string.Empty).Where(c => !char.IsWhiteSpace(c) && !char.IsPunctuation(c)).ToArray()).ToLowerInvariant();
+                    if (!string.IsNullOrEmpty(normKey) && !string.IsNullOrEmpty(normLabel) && normKey == normLabel)
+                    {
+                        valueText = kv.Value;
+                        break;
+                    }
+                }
+            }
 
             var label = new Label { Text = labelText, FontAttributes = FontAttributes.Bold };
             var value = new Label { Text = valueText };
