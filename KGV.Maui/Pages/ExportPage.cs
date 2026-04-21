@@ -23,6 +23,8 @@ namespace KGV.Maui.Pages;
 
 public sealed class ExportPage : ContentPage
 {
+    private record OptionItem(string Label, string? Value);
+
     private readonly ExportViewModel _vm;
     private readonly UserContextState _userContextState;
     private readonly Picker _definitionPicker;
@@ -278,8 +280,23 @@ public sealed class ExportPage : ContentPage
 
                 picker.SelectedIndexChanged += (_, _) =>
                 {
-                    var sel = picker.SelectedIndex >= 0 ? picker.Items[picker.SelectedIndex] : null;
-                    _vm.FilterValues[f.FilterKey ?? string.Empty] = sel;
+                    var sel = picker.SelectedItem as OptionItem;
+                    string? rawVal = sel?.Value;
+                    object? finalVal = rawVal;
+                    if (rawVal != null)
+                    {
+                        var ts = rawVal.Trim();
+                        if (string.Equals(ts, "null", StringComparison.OrdinalIgnoreCase) || ts == string.Empty)
+                            finalVal = null;
+                        else if (string.Equals(ts, "true", StringComparison.OrdinalIgnoreCase))
+                            finalVal = true;
+                        else if (string.Equals(ts, "false", StringComparison.OrdinalIgnoreCase))
+                            finalVal = false;
+                        else
+                            finalVal = ts;
+                    }
+
+                    _vm.FilterValues[f.FilterKey ?? string.Empty] = finalVal;
                 };
 
                 _filtersStack.Children.Add(picker);
