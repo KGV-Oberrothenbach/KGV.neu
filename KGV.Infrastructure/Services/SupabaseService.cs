@@ -137,12 +137,12 @@ namespace KGV.Infrastructure.Services
             },
             new List<AppExportColumnDefinitionRecord>());
 
-        public Task<List<System.Text.Json.JsonElement>> RunExportRpcAsync(string rpcName, object? parameters = null) => ExecuteAsync(
+        public Task<List<System.Collections.Generic.Dictionary<string, string>>> RunExportRpcAsync(string rpcName, object? parameters = null) => ExecuteAsync(
             "RunExportRpcAsync",
             async () =>
             {
                 if (string.IsNullOrWhiteSpace(rpcName))
-                    return new List<System.Text.Json.JsonElement>();
+                    return new List<System.Collections.Generic.Dictionary<string, string>>();
 
                 var client = await EnsureClientAsync();
                 // Log RPC call with parameter summary for diagnostics
@@ -176,23 +176,51 @@ namespace KGV.Infrastructure.Services
                         var respArray = await client.Rpc<System.Text.Json.JsonElement[]>(rpcName, parameters);
                         if (respArray != null)
                         {
-                            // Materialize and clone each JsonElement to avoid lifetime issues of underlying JsonDocument
-                            var list = new List<System.Text.Json.JsonElement>(respArray.Length);
+                            var rawList = new List<System.Text.Json.JsonElement>(respArray.Length);
                             foreach (var e in respArray)
                             {
-                                try { list.Add(e.Clone()); } catch { list.Add(e); }
+                                try { rawList.Add(e.Clone()); } catch { rawList.Add(e); }
                             }
-                            _logger?.LogInformation("RPC {Rpc} returned {Count} rows (array)", rpcName, list.Count);
-                            // diagnostic: log ValueKind of first elements
-                            try
+                            _logger?.LogInformation("RPC {Rpc} returned {Count} rows (array)", rpcName, rawList.Count);
+                            try { _logger?.LogDebug("RunExportRpcAsync {Rpc} respKinds={Kinds} respSample={Sample}", rpcName, string.Join(',', rawList.Take(2).Select(x => x.ValueKind.ToString())), rawList.Count>0?TruncateSafe(rawList[0].ToString(),300):"(none)"); } catch {}
+
+                            // Convert JsonElements into stable dictionaries<string,string>
+                            var mapped = new List<System.Collections.Generic.Dictionary<string, string>>();
+                            foreach (var je in rawList)
                             {
-                                if (list.Count > 0)
+                                if (je.ValueKind == System.Text.Json.JsonValueKind.Object)
                                 {
-                                    _logger?.LogDebug("RunExportRpcAsync {Rpc} firstKinds={Kinds}", rpcName, string.Join(',', list.Take(2).Select(x => x.ValueKind.ToString())));
+                                    var dict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                                    foreach (var p in je.EnumerateObject())
+                                    {
+                                        try
+                                        {
+                                            if (p.Value.ValueKind == System.Text.Json.JsonValueKind.String)
+                                                dict[p.Name] = p.Value.GetString() ?? string.Empty;
+                                            else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.Number)
+                                                dict[p.Name] = p.Value.ToString();
+                                            else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.True)
+                                                dict[p.Name] = "Ja";
+                                            else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.False)
+                                                dict[p.Name] = "Nein";
+                                            else
+                                                dict[p.Name] = p.Value.ToString();
+                                        }
+                                        catch
+                                        {
+                                            dict[p.Name] = p.Value.ToString();
+                                        }
+                                    }
+                                    mapped.Add(dict);
+                                }
+                                else
+                                {
+                                    mapped.Add(new System.Collections.Generic.Dictionary<string, string> { ["value"] = je.ToString() });
                                 }
                             }
-                            catch { }
-                            return list;
+
+                            try { _logger?.LogDebug("RunExportRpcAsync {Rpc} mappedSample={Sample}", rpcName, mapped.Count>0?FormatDictSample(mapped[0]):"(none)"); } catch {}
+                            return mapped;
                         }
                     }
                     catch (Exception exArray)
@@ -205,27 +233,85 @@ namespace KGV.Infrastructure.Services
                     var respElement = await client.Rpc<System.Text.Json.JsonElement>(rpcName, parameters);
                     if (respElement.ValueKind == System.Text.Json.JsonValueKind.Array)
                     {
-                        var list = new List<System.Text.Json.JsonElement>();
+                        var raw = new List<System.Text.Json.JsonElement>();
                         foreach (var item in respElement.EnumerateArray())
                         {
-                            try { list.Add(item.Clone()); } catch { list.Add(item); }
+                            try { raw.Add(item.Clone()); } catch { raw.Add(item); }
                         }
-                        _logger?.LogInformation("RPC {Rpc} returned {Count} rows (array via element)", rpcName, list.Count);
-                        try
+                        _logger?.LogInformation("RPC {Rpc} returned {Count} rows (array via element)", rpcName, raw.Count);
+                        try { _logger?.LogDebug("RunExportRpcAsync {Rpc} respKinds={Kinds} respSample={Sample}", rpcName, string.Join(',', raw.Take(2).Select(x => x.ValueKind.ToString())), raw.Count>0?TruncateSafe(raw[0].ToString(),300):"(none)"); } catch {}
+
+                        var mapped = new List<System.Collections.Generic.Dictionary<string, string>>();
+                        foreach (var je in raw)
                         {
-                            if (list.Count > 0)
-                                _logger?.LogDebug("RunExportRpcAsync {Rpc} firstKinds={Kinds}", rpcName, string.Join(',', list.Take(2).Select(x => x.ValueKind.ToString())));
+                            if (je.ValueKind == System.Text.Json.JsonValueKind.Object)
+                            {
+                                var dict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                                foreach (var p in je.EnumerateObject())
+                                {
+                                    try
+                                    {
+                                        if (p.Value.ValueKind == System.Text.Json.JsonValueKind.String)
+                                            dict[p.Name] = p.Value.GetString() ?? string.Empty;
+                                        else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.Number)
+                                            dict[p.Name] = p.Value.ToString();
+                                        else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.True)
+                                            dict[p.Name] = "Ja";
+                                        else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.False)
+                                            dict[p.Name] = "Nein";
+                                        else
+                                            dict[p.Name] = p.Value.ToString();
+                                    }
+                                    catch
+                                    {
+                                        dict[p.Name] = p.Value.ToString();
+                                    }
+                                }
+                                mapped.Add(dict);
+                            }
+                            else
+                            {
+                                mapped.Add(new System.Collections.Generic.Dictionary<string, string> { ["value"] = je.ToString() });
+                            }
                         }
-                        catch { }
-                        return list;
+                        try { _logger?.LogDebug("RunExportRpcAsync {Rpc} mappedSample={Sample}", rpcName, mapped.Count>0?FormatDictSample(mapped[0]):"(none)"); } catch {}
+                        return mapped;
                     }
 
-                    // single element - clone for stable lifetime
+                    // single element - clone for stable lifetime and map to dictionary
                     System.Text.Json.JsonElement elem;
                     try { elem = respElement.Clone(); } catch { elem = respElement; }
                     _logger?.LogInformation("RPC {Rpc} returned 1 row (single element)", rpcName);
-                    try { _logger?.LogDebug("RunExportRpcAsync {Rpc} singleKind={Kind}", rpcName, elem.ValueKind.ToString()); } catch { }
-                    return new List<System.Text.Json.JsonElement> { elem };
+                    try { _logger?.LogDebug("RunExportRpcAsync {Rpc} singleKind={Kind} sample={Sample}", rpcName, elem.ValueKind.ToString(), TruncateSafe(elem.ToString(),300)); } catch { }
+
+                    if (elem.ValueKind == System.Text.Json.JsonValueKind.Object)
+                    {
+                        var dict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var p in elem.EnumerateObject())
+                        {
+                            try
+                            {
+                                if (p.Value.ValueKind == System.Text.Json.JsonValueKind.String)
+                                    dict[p.Name] = p.Value.GetString() ?? string.Empty;
+                                else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.Number)
+                                    dict[p.Name] = p.Value.ToString();
+                                else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.True)
+                                    dict[p.Name] = "Ja";
+                                else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.False)
+                                    dict[p.Name] = "Nein";
+                                else
+                                    dict[p.Name] = p.Value.ToString();
+                            }
+                            catch
+                            {
+                                dict[p.Name] = p.Value.ToString();
+                            }
+                        }
+                        try { _logger?.LogDebug("RunExportRpcAsync {Rpc} mappedSample={Sample}", rpcName, FormatDictSample(dict)); } catch {}
+                        return new List<System.Collections.Generic.Dictionary<string, string>> { dict };
+                    }
+
+                    return new List<System.Collections.Generic.Dictionary<string, string>> { new System.Collections.Generic.Dictionary<string, string> { ["value"] = elem.ToString() } };
                 }
                 catch (Exception ex)
                 {
@@ -233,7 +319,30 @@ namespace KGV.Infrastructure.Services
                     throw;
                 }
             },
-            new List<System.Text.Json.JsonElement>());
+            new List<System.Collections.Generic.Dictionary<string, string>>());
+
+        // Local small helpers to avoid depending on ViewModel helpers
+        private static string TruncateSafe(string? s, int max = 120)
+        {
+            if (s == null) return "null";
+            var single = s.Replace('\n', ' ').Replace('\r', ' ');
+            if (single.Length <= max) return single;
+            return single.Substring(0, max) + "...";
+        }
+
+        private static string FormatDictSample(System.Collections.Generic.IDictionary<string, string> dict)
+        {
+            if (dict == null) return "{}";
+            try
+            {
+                var parts = dict.Take(12).Select(kv => kv.Key + "=" + TruncateSafe(kv.Value, 120));
+                return "{" + string.Join(", ", parts) + (dict.Count > 12 ? ", ..." : string.Empty) + "}";
+            }
+            catch
+            {
+                return "{}";
+            }
+        }
 
         public Task<List<MitgliedRecord>> GetMitgliederAsync() => ExecuteAsync(
             "GetMitgliederAsync",

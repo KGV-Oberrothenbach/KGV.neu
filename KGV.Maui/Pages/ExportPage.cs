@@ -435,30 +435,25 @@ public sealed class ExportPage : ContentPage
                                     var rows = await _vm.ExecuteOptionsRpcAsync(s);
                                     foreach (var r in rows)
                                     {
-                                        var rawR = r.ToString();
+                                        if (r != null && r.Count > 0)
+                                        {
+                                            // prefer explicit label/value keys
+                                            string label = null;
+                                            string value = null;
+                                            if (!string.IsNullOrWhiteSpace(r.TryGetValue("label", out var l) ? l : null)) label = r["label"];
+                                            else if (!string.IsNullOrWhiteSpace(r.TryGetValue("text", out var t) ? t : null)) label = r["text"];
+                                            else label = r.Values.FirstOrDefault() ?? r.Keys.FirstOrDefault() ?? string.Empty;
 
-                                        if (r.ValueKind == System.Text.Json.JsonValueKind.Object ||
-                                            rawR.TrimStart().StartsWith("{", StringComparison.Ordinal))
-                                        {
-                                            try
-                                            {
-                                                var jo = JObject.Parse(rawR);
-                                                var label = jo["label"]?.ToString() ?? jo["text"]?.ToString() ?? rawR;
-                                                var value = jo["value"]?.ToString() ?? jo["val"]?.ToString() ?? jo["id"]?.ToString() ?? label;
-                                                optionItems.Add(new OptionItem(label, value));
-                                            }
-                                            catch
-                                            {
-                                                optionItems.Add(new OptionItem(rawR, rawR));
-                                            }
-                                        }
-                                        else if (r.ValueKind == System.Text.Json.JsonValueKind.String)
-                                        {
-                                            var vs = r.GetString() ?? string.Empty;
-                                            optionItems.Add(new OptionItem(vs, vs));
+                                            if (!string.IsNullOrWhiteSpace(r.TryGetValue("value", out var v) ? v : null)) value = r["value"];
+                                            else if (!string.IsNullOrWhiteSpace(r.TryGetValue("val", out var v2) ? v2 : null)) value = r["val"];
+                                            else if (!string.IsNullOrWhiteSpace(r.TryGetValue("id", out var id) ? id : null)) value = r["id"];
+                                            else value = label;
+
+                                            optionItems.Add(new OptionItem(label, value));
                                         }
                                         else
                                         {
+                                            var rawR = r?.ToString() ?? string.Empty;
                                             optionItems.Add(new OptionItem(rawR, rawR));
                                         }
                                     }

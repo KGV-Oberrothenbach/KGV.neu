@@ -35,7 +35,7 @@ namespace KGV.Maui.ViewModels
         public ObservableCollection<AppExportDefinitionRecord> Definitions { get; } = new();
         public ObservableCollection<AppExportFilterDefinitionRecord> Filters { get; } = new();
         public ObservableCollection<AppExportColumnDefinitionRecord> Columns { get; } = new();
-        public ObservableCollection<JsonElement> Results { get; } = new();
+        public ObservableCollection<System.Collections.Generic.Dictionary<string, string>> Results { get; } = new();
         public ObservableCollection<Dictionary<string, string>> ProcessedResults { get; } = new();
 
         // Visible columns in display order (respecting sort column moved to front if applicable)
@@ -64,10 +64,10 @@ namespace KGV.Maui.ViewModels
             _supabaseService = supabaseService;
         }
 
-        public async Task<List<JsonElement>> ExecuteOptionsRpcAsync(string rpcName)
+        public async Task<List<System.Collections.Generic.Dictionary<string, string>>> ExecuteOptionsRpcAsync(string rpcName)
         {
             if (string.IsNullOrWhiteSpace(rpcName))
-                return new List<JsonElement>();
+                return new List<System.Collections.Generic.Dictionary<string, string>>();
 
             return await _supabaseService.RunExportRpcAsync(rpcName, null);
         }
@@ -212,7 +212,7 @@ namespace KGV.Maui.ViewModels
 
             LastRpcName = rpcName;
 
-            List<JsonElement> rows;
+            List<System.Collections.Generic.Dictionary<string, string>> rows;
             try
             {
                 try
@@ -237,17 +237,18 @@ namespace KGV.Maui.ViewModels
 
                 if (EXPORT_DIAG)
                 {
-                    try
-                    {
-                        Console.WriteLine("EXPORTDBG: ----- EXPORTDBG RAW -----");
-                        Console.WriteLine($"EXPORTDBG: RAW count={rows.Count}");
-                        if (rows.Count > 0)
-                        {
-                            Console.WriteLine($"EXPORTDBG: RAW_ROW[0] kind={rows[0].ValueKind}");
-                            Console.WriteLine($"EXPORTDBG: RAW sample keys/values={FormatDebugJsonElementSample(rows[0])}");
-                        }
-                        Console.WriteLine("EXPORTDBG: ----- END RAW -----");
-                    }
+            try
+            {
+                Console.WriteLine("EXPORTDBG: ----- EXPORTDBG RAW -----");
+                Console.WriteLine($"EXPORTDBG: RAW count={rows.Count}");
+                if (rows.Count > 0)
+                {
+                    var firstKeys = rows[0].Count > 0 ? string.Join(',', rows[0].Keys) : "(none)";
+                    Console.WriteLine($"EXPORTDBG: RAW_ROW[0] materializedKeys={SafeDebugValue(firstKeys,400)}");
+                    Console.WriteLine($"EXPORTDBG: RAW sample values={FormatDebugDictionarySample(rows[0])}");
+                }
+                Console.WriteLine("EXPORTDBG: ----- END RAW -----");
+            }
                     catch
                     {
                     }
@@ -368,6 +369,7 @@ namespace KGV.Maui.ViewModels
                 VisibleColumnsMapped.Add((col, tech));
             }
 
+            // Results already materialized as dictionaries by the service; MapRpcRowsToCanonical overloads accept dictionaries now
             var mappedRows = MapRpcRowsToCanonical(Results.ToList(), VisibleColumnsMapped);
             foreach (var mr in mappedRows)
                 ProcessedResults.Add(mr);
@@ -381,7 +383,7 @@ namespace KGV.Maui.ViewModels
 
                     for (int i = 0; i < Math.Min(2, Results.Count); i++)
                     {
-                        var rawProps = TryMaterializeRowProperties(Results[i]);
+                        var rawProps = Results[i] ?? new Dictionary<string, string>();
                         var keys = rawProps.Count > 0
                             ? string.Join(",", rawProps.Keys)
                             : "(none)";
@@ -596,7 +598,7 @@ namespace KGV.Maui.ViewModels
 
         // Central mapper: converts RPC JsonElement rows into canonical export rows keyed by technical column keys
         private static List<Dictionary<string, string>> MapRpcRowsToCanonical(
-            List<JsonElement> rows,
+            List<Dictionary<string, string>> rows,
             List<(AppExportColumnDefinitionRecord Column, string CanonicalKey)> visibleColumns)
         {
             var result = new List<Dictionary<string, string>>();
@@ -605,12 +607,13 @@ namespace KGV.Maui.ViewModels
 
             foreach (var row in rows)
             {
+                // row is already a materialized dictionary from the service
                 var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                var propMap = TryMaterializeRowProperties(row);
+                var propMap = row ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
                 if (propMap.Count == 0)
                 {
-                    dict["value"] = ExtractSimpleValue(row);
+                    dict["value"] = string.Empty;
                     result.Add(dict);
                     continue;
                 }
