@@ -14,6 +14,8 @@ namespace KGV.Maui.ViewModels
     public class ExportViewModel
     {
         private readonly ISupabaseService _supabaseService;
+        // Enable extended export diagnostics
+        private const bool EXPORT_DIAG = true;
 
         public ObservableCollection<AppExportDefinitionRecord> Definitions { get; } = new ObservableCollection<AppExportDefinitionRecord>();
         public ObservableCollection<AppExportFilterDefinitionRecord> Filters { get; } = new ObservableCollection<AppExportFilterDefinitionRecord>();
@@ -40,6 +42,53 @@ namespace KGV.Maui.ViewModels
         public ExportViewModel(ISupabaseService supabaseService)
         {
             _supabaseService = supabaseService;
+        }
+
+        // Helper debug formatters
+        private static string FormatDebugDictionary(IDictionary<string, object?> dict)
+        {
+            if (dict == null) return "{}";
+            try
+            {
+                var parts = dict.Select(kv => kv.Key + "=" + SafeDebugValue(kv.Value?.ToString()));
+                return "{" + string.Join(", ", parts) + "}";
+            }
+            catch { return "{}"; }
+        }
+
+        private static string FormatDebugDictionarySample(IDictionary<string, string> dict)
+        {
+            if (dict == null) return "{}";
+            try
+            {
+                var parts = dict.Take(12).Select(kv => kv.Key + "=" + SafeDebugValue(kv.Value));
+                return "{" + string.Join(", ", parts) + (dict.Count > 12 ? ", ..." : string.Empty) + "}";
+            }
+            catch { return "{}"; }
+        }
+
+        private static string FormatDebugJsonElementSample(System.Text.Json.JsonElement el)
+        {
+            try
+            {
+                if (el.ValueKind != System.Text.Json.JsonValueKind.Object)
+                    return SafeDebugValue(el.ToString());
+                var parts = new List<string>();
+                foreach (var p in el.EnumerateObject().Take(12))
+                {
+                    parts.Add(p.Name + "=" + SafeDebugValue(p.Value.ToString()));
+                }
+                return "{" + string.Join(", ", parts) + (el.EnumerateObject().Count() > 12 ? ", ..." : string.Empty) + "}";
+            }
+            catch { return SafeDebugValue(el.ToString()); }
+        }
+
+        private static string SafeDebugValue(string? s, int max = 120)
+        {
+            if (s == null) return "null";
+            var single = s.Replace('\n', ' ').Replace('\r', ' ');
+            if (single.Length <= max) return single;
+            return single.Substring(0, max) + "...";
         }
 
         // Compute a canonical key for a column to be used across views/exports
@@ -194,6 +243,21 @@ namespace KGV.Maui.ViewModels
             try { Console.WriteLine($"EXPORTDBG: ExecuteAsync calling RPC={rpcName} with params={LastRpcParameterSummary}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync calling RPC={rpcName} with params={LastRpcParameterSummary}"); } catch {}
                 rows = await _supabaseService.RunExportRpcAsync(rpcName ?? string.Empty, mapped);
             try { Console.WriteLine($"EXPORTDBG: ExecuteAsync raw rows returned={rows.Count}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync raw rows returned={rows.Count}"); } catch {}
+
+            if (EXPORT_DIAG)
+            {
+                try
+                {
+                    Console.WriteLine("EXPORTDBG: ----- EXPORTDBG RAW -----");
+                    Console.WriteLine($"EXPORTDBG: RAW count={rows.Count}");
+                    if (rows.Count > 0)
+                    {
+                        Console.WriteLine($"EXPORTDBG: RAW sample keys/values={FormatDebugJsonElementSample(rows[0])}");
+                    }
+                    Console.WriteLine("EXPORTDBG: ----- END RAW -----");
+                }
+                catch { }
+            }
             }
             catch (Exception ex)
             {
@@ -331,6 +395,21 @@ namespace KGV.Maui.ViewModels
             }
             try { Console.WriteLine($"EXPORTDBG: ExecuteAsync ProcessedResults count={ProcessedResults.Count}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync ProcessedResults count={ProcessedResults.Count}"); } catch {}
 
+            if (EXPORT_DIAG)
+            {
+                try
+                {
+                    Console.WriteLine("EXPORTDBG: ----- EXPORTDBG PROCESSED -----");
+                    Console.WriteLine($"EXPORTDBG: PROCESSED count={ProcessedResults.Count}");
+                    if (ProcessedResults.Count > 0)
+                    {
+                        Console.WriteLine($"EXPORTDBG: PROCESSED sample keys/values={FormatDebugDictionarySample(ProcessedResults[0])}");
+                    }
+                    Console.WriteLine("EXPORTDBG: ----- END PROCESSED -----");
+                }
+                catch { }
+            }
+
             if (Results.Count > 0 && ProcessedResults.Count == 0)
             {
             try { Console.WriteLine($"EXPORTDBG: ExecuteAsync WARNING: raw rows present={Results.Count} but no processed rows were added"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync WARNING: raw rows present={Results.Count} but no processed rows were added"); } catch {}
@@ -395,6 +474,19 @@ namespace KGV.Maui.ViewModels
                 remappedRows.Add(rem);
             }
             try { Console.WriteLine($"EXPORTDBG: ExportToPdfAsync remapped rows for PDF count={remappedRows.Count}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExportToPdfAsync remapped rows for PDF count={remappedRows.Count}"); } catch {}
+
+            if (EXPORT_DIAG)
+            {
+                try
+                {
+                    Console.WriteLine("EXPORTDBG: ----- EXPORTDBG PDF -----");
+                    Console.WriteLine($"EXPORTDBG: PDF rows passed={remappedRows.Count}");
+                    if (remappedRows.Count > 0)
+                        Console.WriteLine($"EXPORTDBG: PDF sample keys/values={FormatDebugDictionarySample(remappedRows[0])}");
+                    Console.WriteLine("EXPORTDBG: ----- END PDF -----");
+                }
+                catch { }
+            }
 
             // use ExportPdfBuilder from Core.Utilities
             var pdf = KGV.Core.Utilities.ExportPdfBuilder.BuildExportPdf(exportKey, ColumnsVisibleOrdered, remappedRows);

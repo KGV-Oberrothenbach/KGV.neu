@@ -363,6 +363,8 @@ public sealed class ExportPage : ContentPage
                     }
 
                     _vm.FilterValues[f.FilterKey ?? string.Empty] = finalVal;
+                    // small diagnostic output for filter selection
+                    try { Console.WriteLine($"EXPORTDBG: FILTER selected filterKey={f.FilterKey ?? "?"} value={finalVal}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: FILTER selected filterKey={f.FilterKey ?? "?"} value={finalVal}"); } catch {}
                 };
 
                 _filtersStack.Children.Add(picker);
