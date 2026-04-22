@@ -436,12 +436,12 @@ public sealed class ExportPage : ContentPage
                 foreach (var row in _vm.ProcessedResults)
                 {
                     var rowLayout = new HorizontalStackLayout { Spacing = 8 };
-                    foreach (var vmcol in _vm.VisibleColumnsMapped)
-                    {
-                        var canonical = vmcol.CanonicalKey;
-                        row.TryGetValue(canonical, out var val);
-                        rowLayout.Children.Add(new Label { Text = val ?? string.Empty });
-                    }
+                foreach (var vmcol in _vm.VisibleColumnsMapped)
+                {
+                    var col = vmcol.Column;
+                    var value = _vm.ResolveColumnValue(row, col);
+                    rowLayout.Children.Add(new Label { Text = value ?? string.Empty });
+                }
 
                     stack.Children.Add(rowLayout);
                 }
@@ -486,41 +486,7 @@ public sealed class ExportPage : ContentPage
         {
             var key = col.Name ?? string.Empty;
             var labelText = col.Label ?? key;
-            // determine value using several fallbacks to account for differing column keys
-            string valueText = string.Empty;
-            var tryKeys = new[] { key, col.ColumnKey, col.LabelLang, col.LabelKurz };
-            foreach (var k in tryKeys)
-            {
-                if (string.IsNullOrWhiteSpace(k)) continue;
-                // the processed results typically use column_key or export field names; try exact match and lower-case match
-                if (rec.TryGetValue(k, out var v) && !string.IsNullOrWhiteSpace(v))
-                {
-                    valueText = v;
-                    break;
-                }
-                var lower = k.ToLowerInvariant();
-                if (rec.TryGetValue(lower, out var v2) && !string.IsNullOrWhiteSpace(v2))
-                {
-                    valueText = v2;
-                    break;
-                }
-            }
-
-            // as last resort, if there is any key in the record that matches ignoring punctuation/space, try fuzzy match
-            if (string.IsNullOrEmpty(valueText))
-            {
-                foreach (var kv in rec)
-                {
-                    if (string.IsNullOrWhiteSpace(kv.Key) || string.IsNullOrWhiteSpace(kv.Value)) continue;
-                    var normKey = new string(kv.Key.Where(c => !char.IsWhiteSpace(c) && !char.IsPunctuation(c)).ToArray()).ToLowerInvariant();
-                    var normLabel = new string((col.ColumnKey ?? col.Label ?? string.Empty).Where(c => !char.IsWhiteSpace(c) && !char.IsPunctuation(c)).ToArray()).ToLowerInvariant();
-                    if (!string.IsNullOrEmpty(normKey) && !string.IsNullOrEmpty(normLabel) && normKey == normLabel)
-                    {
-                        valueText = kv.Value;
-                        break;
-                    }
-                }
-            }
+            var valueText = _vm.ResolveColumnValue(rec, col);
 
             var label = new Label { Text = labelText, FontAttributes = FontAttributes.Bold };
             var value = new Label { Text = valueText };

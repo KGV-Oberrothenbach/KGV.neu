@@ -44,6 +44,64 @@ namespace KGV.Maui.ViewModels
             _supabaseService = supabaseService;
         }
 
+        // Central mapper: converts RPC JsonElement rows into canonical export rows keyed by technical column keys
+        private static List<Dictionary<string, string>> MapRpcRowsToCanonical(List<System.Text.Json.JsonElement> rows, List<(AppExportColumnDefinitionRecord Column, string CanonicalKey)> visibleColumns)
+        {
+            var result = new List<Dictionary<string, string>>();
+            if (rows == null || visibleColumns == null) return result;
+
+            foreach (var row in rows)
+            {
+                var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                if (row.ValueKind == JsonValueKind.Object)
+                {
+                    // build direct property map
+                    var propMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var prop in row.EnumerateObject())
+                    {
+                        try
+                        {
+                            if (prop.Value.ValueKind == JsonValueKind.String)
+                                propMap[prop.Name] = prop.Value.GetString() ?? string.Empty;
+                            else if (prop.Value.ValueKind == JsonValueKind.Number)
+                                propMap[prop.Name] = prop.Value.ToString();
+                            else if (prop.Value.ValueKind == JsonValueKind.True)
+                                propMap[prop.Name] = "Ja";
+                            else if (prop.Value.ValueKind == JsonValueKind.False)
+                                propMap[prop.Name] = "Nein";
+                            else
+                                propMap[prop.Name] = prop.Value.ToString();
+                        }
+                        catch
+                        {
+                            propMap[prop.Name] = prop.Value.ToString();
+                        }
+                    }
+
+                    // for each visible column, pick value by technical key only (strict)
+                    foreach (var (col, tech) in visibleColumns)
+                    {
+                        var val = string.Empty;
+                        if (!string.IsNullOrWhiteSpace(tech))
+                        {
+                            if (propMap.TryGetValue(tech, out var v)) val = v ?? string.Empty;
+                            else if (propMap.TryGetValue(tech.ToLowerInvariant(), out var v2)) val = v2 ?? string.Empty;
+                        }
+                        dict[tech] = val ?? string.Empty;
+                    }
+                }
+                else
+                {
+                    // non-object row, store as single value under a generic key
+                    dict["value"] = row.ToString();
+                }
+
+                result.Add(dict);
+            }
+
+            return result;
+        }
+
         // Helper debug formatters
         private static string FormatDebugDictionary(IDictionary<string, object?> dict)
         {
@@ -326,72 +384,50 @@ namespace KGV.Maui.ViewModels
 
             ColumnsVisibleOrdered = visible;
 
-            // compute canonical keys for visible columns
+            // compute technical keys for visible columns (use ColumnKey/Name as technical key)
             VisibleColumnsMapped = new List<(AppExportColumnDefinitionRecord, string)>();
             foreach (var col in ColumnsVisibleOrdered)
             {
-                var canonical = ComputeCanonicalKey(col);
-                VisibleColumnsMapped.Add((col, canonical));
+                var tech = col.ColumnKey ?? col.Name;
+                if (string.IsNullOrWhiteSpace(tech))
+                {
+                    // skip columns without a technical key
+                    try { Console.WriteLine($"EXPORTDBG: ExecuteAsync skipping column without technical key label={col.LabelLang ?? col.LabelKurz ?? "?"}"); } catch { }
+                    continue;
+                }
+                VisibleColumnsMapped.Add((col, tech));
             }
 
-            // map rows to dictionaries using canonical keys for visible columns
-            foreach (var row in Results)
+            // Map RPC raw rows into canonical export rows using technical column keys (ColumnKey)
+            var mappedRows = MapRpcRowsToCanonical(Results.ToList(), VisibleColumnsMapped);
+            foreach (var mr in mappedRows)
+                ProcessedResults.Add(mr);
+
+            if (EXPORT_DIAG)
             {
-                var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                if (row.ValueKind == JsonValueKind.Object)
+                try
                 {
-                    // build property map for fuzzy lookup
-                    var propMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var prop in row.EnumerateObject())
+                    Console.WriteLine("EXPORTDBG: ----- EXPORTDBG MAPPINGS -----");
+                    Console.WriteLine($"EXPORTDBG: Visible columns count={VisibleColumnsMapped.Count}");
+                    // log raw keys for first 2 rows
+                    for (int i = 0; i < Math.Min(2, Results.Count); i++)
                     {
-                        try
+                        var r = Results[i];
+                        if (r.ValueKind == JsonValueKind.Object)
                         {
-                            if (prop.Value.ValueKind == JsonValueKind.String)
-                                propMap[prop.Name] = prop.Value.GetString() ?? string.Empty;
-                            else if (prop.Value.ValueKind == JsonValueKind.Number)
-                                propMap[prop.Name] = prop.Value.ToString();
-                            else if (prop.Value.ValueKind == JsonValueKind.True)
-                                propMap[prop.Name] = "Ja";
-                            else if (prop.Value.ValueKind == JsonValueKind.False)
-                                propMap[prop.Name] = "Nein";
-                            else
-                                propMap[prop.Name] = prop.Value.ToString();
-                        }
-                        catch
-                        {
-                            propMap[prop.Name] = prop.Value.ToString();
+                            var keys = string.Join(",", r.EnumerateObject().Select(p => p.Name));
+                            Console.WriteLine($"EXPORTDBG: RAW_ROW[{i}] keys={SafeDebugValue(keys, 400)}");
                         }
                     }
-
-                    // normalized name map
-                    var normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var k in propMap.Keys)
-                        normalized[NormalizeKey(k)] = k;
-
-                    // for each visible column, find best matching property and store under canonical key
-                    foreach (var (col, canonical) in VisibleColumnsMapped)
+                    // log mapping sample: columnKey -> matched raw key for first mapped row
+                    if (mappedRows.Count > 0)
                     {
-                        string value = string.Empty;
-                        var candidates = new List<string?> { col.ColumnKey, col.Name, col.LabelLang, col.LabelKurz };
-                        foreach (var c in candidates)
-                        {
-                            if (string.IsNullOrWhiteSpace(c)) continue;
-                            // direct match
-                            if (propMap.TryGetValue(c, out var v)) { value = v; break; }
-                            // normalized match
-                            var n = NormalizeKey(c);
-                            if (normalized.TryGetValue(n, out var orig) && propMap.TryGetValue(orig, out var v2)) { value = v2; break; }
-                        }
-
-                        dict[canonical] = value ?? string.Empty;
+                        var first = mappedRows[0];
+                        Console.WriteLine($"EXPORTDBG: FIRST_MAPPED_ROW sample={FormatDebugDictionarySample(first)}");
                     }
+                    Console.WriteLine("EXPORTDBG: ----- END MAPPINGS -----");
                 }
-                else
-                {
-                    dict["value"] = row.ToString();
-                }
-
-                ProcessedResults.Add(dict);
+                catch { }
             }
             try { Console.WriteLine($"EXPORTDBG: ExecuteAsync ProcessedResults count={ProcessedResults.Count}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync ProcessedResults count={ProcessedResults.Count}"); } catch {}
 
@@ -458,7 +494,7 @@ namespace KGV.Maui.ViewModels
             if (ProcessedResults.Count == 0 || ColumnsVisibleOrdered.Count == 0)
                 throw new InvalidOperationException("Keine Daten zum Exportieren.");
 
-            var exportKey = SelectedDefinition?.ExportKey ?? "export";
+            var exportKey = SelectedDefinition?.ExportKey ?? "export"; 
             // ExportPdfBuilder expects rows keyed by ColumnKey (or Name). Our ProcessedResults are keyed by canonical keys.
             // Remap rows to use ColumnKey (fallback to canonical) so PDF builder keeps working unchanged.
             var remappedRows = new List<Dictionary<string, string>>();
@@ -520,6 +556,47 @@ namespace KGV.Maui.ViewModels
                 return false;
             CurrentIndex--;
             return true;
+        }
+
+        // Resolve a value for a visible column from a processed row using the canonical mapping.
+        // Returns empty string when no value found. Does NOT fall back to label text.
+        public string ResolveColumnValue(Dictionary<string, string> row, AppExportColumnDefinitionRecord col)
+        {
+            if (row == null || col == null) return string.Empty;
+
+            // find canonical for this column
+            var vmcol = VisibleColumnsMapped.FirstOrDefault(x => ReferenceEquals(x.Column, col) || string.Equals(x.Column.ColumnKey, col.ColumnKey, StringComparison.OrdinalIgnoreCase));
+            var canonical = vmcol.CanonicalKey ?? ComputeCanonicalKey(col);
+
+            // direct canonical lookup
+            if (row.TryGetValue(canonical, out var v) && !string.IsNullOrWhiteSpace(v))
+                return v;
+
+            // try common alternatives: ColumnKey, Name
+            var tryKeys = new[] { col.ColumnKey, col.Name };
+            foreach (var k in tryKeys)
+            {
+                if (string.IsNullOrWhiteSpace(k)) continue;
+                if (row.TryGetValue(k, out var v2) && !string.IsNullOrWhiteSpace(v2)) return v2;
+                var lower = k.ToLowerInvariant();
+                if (row.TryGetValue(lower, out var v3) && !string.IsNullOrWhiteSpace(v3)) return v3;
+                var norm = NormalizeKey(k);
+                if (row.TryGetValue(norm, out var v4) && !string.IsNullOrWhiteSpace(v4)) return v4;
+            }
+
+            // last resort: try fuzzy normalized keys in the row matching the normalized column key
+            var targetNorm = NormalizeKey(col.ColumnKey ?? col.Name ?? col.LabelLang ?? col.LabelKurz ?? string.Empty);
+            if (!string.IsNullOrEmpty(targetNorm))
+            {
+                foreach (var kv in row)
+                {
+                    var normKey = NormalizeKey(kv.Key);
+                    if (!string.IsNullOrEmpty(normKey) && normKey == targetNorm && !string.IsNullOrWhiteSpace(kv.Value))
+                        return kv.Value;
+                }
+            }
+
+            return string.Empty;
         }
     }
 }
