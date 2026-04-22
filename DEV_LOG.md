@@ -99,6 +99,14 @@
 - Smoke-Test (funktional, lokal): Picker lädt Einträge, `mitgliederliste` und `rfid_status` auswählbar; CSV- und PDF-Exportpfade short-circuited zum Cache-Verzeichnis und erzeugen keine sofortigen Fehler beim Anstoss.
 - Build: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich.
 
+### 2026-04-22 – Export: unify key resolution for views/exports
+
+- Implemented canonical key resolution in ExportViewModel (ComputeCanonicalKey / NormalizeKey) and VisibleColumnsMapped to provide stable lookup keys per visible column.
+- ProcessedResults now stores values under canonical keys; table view, phone detail view, CSV and PDF now use the same canonical keys for lookup.
+- Select-filter option handling (JToken -> OptionItem(Label,Value)) retained; pickers show only label and selected values are type-normalized.
+- Added EXPORTDBG diagnostic line showing final RPC params and processed counts where relevant.
+- Validation: `dotnet build KGV.Maui/KGV.Maui.csproj` successful locally; further runtime smoke-tests for RFID/mitgliederliste recommended.
+
 Validierungsschritte:
 - Nur Export-Blockdateien gestaged/committed.
 - Commit-Message: `Fix export schema mapping and consolidate PDF builder`.

@@ -422,8 +422,11 @@ public sealed class ExportPage : ContentPage
                     header.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
 
                 var headerRow = new HorizontalStackLayout { Spacing = 8 };
-                foreach (var col in _vm.ColumnsVisibleOrdered)
+                foreach (var vmcol in _vm.VisibleColumnsMapped)
+                {
+                    var col = vmcol.Column;
                     headerRow.Children.Add(new Label { Text = col.Label ?? col.Name, FontAttributes = FontAttributes.Bold });
+                }
 
                 var stack = new VerticalStackLayout { Spacing = 6 };
                 stack.Children.Add(headerRow);
@@ -431,10 +434,11 @@ public sealed class ExportPage : ContentPage
                 foreach (var row in _vm.ProcessedResults)
                 {
                     var rowLayout = new HorizontalStackLayout { Spacing = 8 };
-                    foreach (var col in _vm.ColumnsVisibleOrdered)
+                    foreach (var vmcol in _vm.VisibleColumnsMapped)
                     {
-                        var key = col.Name ?? string.Empty;
-                        rowLayout.Children.Add(new Label { Text = row.ContainsKey(key) ? row[key] : string.Empty });
+                        var canonical = vmcol.CanonicalKey;
+                        row.TryGetValue(canonical, out var val);
+                        rowLayout.Children.Add(new Label { Text = val ?? string.Empty });
                     }
 
                     stack.Children.Add(rowLayout);

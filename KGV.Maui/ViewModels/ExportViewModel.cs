@@ -23,6 +23,8 @@ namespace KGV.Maui.ViewModels
 
         // Visible columns in display order (respecting sort column moved to front if applicable)
         public List<AppExportColumnDefinitionRecord> ColumnsVisibleOrdered { get; private set; } = new List<AppExportColumnDefinitionRecord>();
+        // Visible columns with their canonical lookup key used for ProcessedResults and all views/exports
+        public List<(AppExportColumnDefinitionRecord Column, string CanonicalKey)> VisibleColumnsMapped { get; private set; } = new List<(AppExportColumnDefinitionRecord, string)>();
 
         public int CurrentIndex { get; private set; } = -1;
         public Dictionary<string, string>? CurrentRecord => CurrentIndex >= 0 && CurrentIndex < ProcessedResults.Count ? ProcessedResults[CurrentIndex] : null;
@@ -38,6 +40,31 @@ namespace KGV.Maui.ViewModels
         public ExportViewModel(ISupabaseService supabaseService)
         {
             _supabaseService = supabaseService;
+        }
+
+        // Compute a canonical key for a column to be used across views/exports
+        private static string ComputeCanonicalKey(AppExportColumnDefinitionRecord col)
+        {
+            // prefer Name (ColumnKey), then LabelLang, then LabelKurz, fallback to a normalized ColumnKey
+            var candidates = new[] { col.Name, col.ColumnKey, col.LabelLang, col.LabelKurz };
+            foreach (var c in candidates)
+            {
+                if (!string.IsNullOrWhiteSpace(c))
+                    return NormalizeKey(c!);
+            }
+            return NormalizeKey(col.ColumnKey ?? col.LabelLang ?? col.LabelKurz ?? "col");
+        }
+
+        private static string NormalizeKey(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+            var lowered = input.Trim().ToLowerInvariant();
+            var sb = new System.Text.StringBuilder();
+            foreach (var ch in lowered)
+            {
+                if (char.IsLetterOrDigit(ch) || ch == '_') sb.Append(ch);
+            }
+            return sb.ToString();
         }
 
         public async Task<List<System.Text.Json.JsonElement>> ExecuteOptionsRpcAsync(string rpcName)
@@ -235,40 +262,64 @@ namespace KGV.Maui.ViewModels
 
             ColumnsVisibleOrdered = visible;
 
-            // map rows to dictionaries
+            // compute canonical keys for visible columns
+            VisibleColumnsMapped = new List<(AppExportColumnDefinitionRecord, string)>();
+            foreach (var col in ColumnsVisibleOrdered)
+            {
+                var canonical = ComputeCanonicalKey(col);
+                VisibleColumnsMapped.Add((col, canonical));
+            }
+
+            // map rows to dictionaries using canonical keys for visible columns
             foreach (var row in Results)
             {
                 var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 if (row.ValueKind == JsonValueKind.Object)
                 {
-                    foreach (var col in ColumnsVisibleOrdered)
+                    // build property map for fuzzy lookup
+                    var propMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var prop in row.EnumerateObject())
                     {
-                        var key = col.Name ?? string.Empty;
-                        string val = string.Empty;
                         try
                         {
-                            if (!string.IsNullOrWhiteSpace(key) && row.TryGetProperty(key, out var prop) && prop.ValueKind != JsonValueKind.Null)
-                            {
-                                if (prop.ValueKind == JsonValueKind.True)
-                                    val = "Ja";
-                                else if (prop.ValueKind == JsonValueKind.False)
-                                    val = "Nein";
-                                else if (prop.ValueKind == JsonValueKind.String)
-                                    val = prop.GetString() ?? string.Empty;
-                                else if (prop.ValueKind == JsonValueKind.Number)
-                                    val = prop.ToString();
-                                else if (prop.ValueKind == JsonValueKind.Array || prop.ValueKind == JsonValueKind.Object)
-                                    val = prop.ToString();
-                                else
-                                    val = prop.ToString();
-                            }
+                            if (prop.Value.ValueKind == JsonValueKind.String)
+                                propMap[prop.Name] = prop.Value.GetString() ?? string.Empty;
+                            else if (prop.Value.ValueKind == JsonValueKind.Number)
+                                propMap[prop.Name] = prop.Value.ToString();
+                            else if (prop.Value.ValueKind == JsonValueKind.True)
+                                propMap[prop.Name] = "Ja";
+                            else if (prop.Value.ValueKind == JsonValueKind.False)
+                                propMap[prop.Name] = "Nein";
+                            else
+                                propMap[prop.Name] = prop.Value.ToString();
                         }
                         catch
                         {
-                            val = string.Empty;
+                            propMap[prop.Name] = prop.Value.ToString();
+                        }
+                    }
+
+                    // normalized name map
+                    var normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var k in propMap.Keys)
+                        normalized[NormalizeKey(k)] = k;
+
+                    // for each visible column, find best matching property and store under canonical key
+                    foreach (var (col, canonical) in VisibleColumnsMapped)
+                    {
+                        string value = string.Empty;
+                        var candidates = new List<string?> { col.ColumnKey, col.Name, col.LabelLang, col.LabelKurz };
+                        foreach (var c in candidates)
+                        {
+                            if (string.IsNullOrWhiteSpace(c)) continue;
+                            // direct match
+                            if (propMap.TryGetValue(c, out var v)) { value = v; break; }
+                            // normalized match
+                            var n = NormalizeKey(c);
+                            if (normalized.TryGetValue(n, out var orig) && propMap.TryGetValue(orig, out var v2)) { value = v2; break; }
                         }
 
-                        dict[key] = val ?? string.Empty;
+                        dict[canonical] = value ?? string.Empty;
                     }
                 }
                 else
@@ -305,10 +356,10 @@ namespace KGV.Maui.ViewModels
             foreach (var row in ProcessedResults)
             {
                 var values = new List<string>();
-                foreach (var col in ColumnsVisibleOrdered)
+                // use canonical mapping to fetch values
+                foreach (var (col, canonical) in VisibleColumnsMapped)
                 {
-                    var key = col.Name ?? string.Empty;
-                    row.TryGetValue(key, out var val);
+                    row.TryGetValue(canonical, out var val);
                     values.Add(EscapeCsv(val ?? string.Empty));
                 }
 
@@ -329,8 +380,24 @@ namespace KGV.Maui.ViewModels
                 throw new InvalidOperationException("Keine Daten zum Exportieren.");
 
             var exportKey = SelectedDefinition?.ExportKey ?? "export";
+            // ExportPdfBuilder expects rows keyed by ColumnKey (or Name). Our ProcessedResults are keyed by canonical keys.
+            // Remap rows to use ColumnKey (fallback to canonical) so PDF builder keeps working unchanged.
+            var remappedRows = new List<Dictionary<string, string>>();
+            foreach (var row in ProcessedResults)
+            {
+                var rem = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var (col, canonical) in VisibleColumnsMapped)
+                {
+                    row.TryGetValue(canonical, out var val);
+                    var targetKey = col.ColumnKey ?? col.Name ?? canonical;
+                    rem[targetKey] = val ?? string.Empty;
+                }
+                remappedRows.Add(rem);
+            }
+            try { Console.WriteLine($"EXPORTDBG: ExportToPdfAsync remapped rows for PDF count={remappedRows.Count}"); System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExportToPdfAsync remapped rows for PDF count={remappedRows.Count}"); } catch {}
+
             // use ExportPdfBuilder from Core.Utilities
-            var pdf = KGV.Core.Utilities.ExportPdfBuilder.BuildExportPdf(exportKey, ColumnsVisibleOrdered, ProcessedResults.ToList());
+            var pdf = KGV.Core.Utilities.ExportPdfBuilder.BuildExportPdf(exportKey, ColumnsVisibleOrdered, remappedRows);
 
             var fileName = $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{exportKey}.pdf";
             var filePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, fileName);
