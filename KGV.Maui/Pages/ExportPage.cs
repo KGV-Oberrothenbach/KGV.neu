@@ -1,7 +1,5 @@
-using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
-using KGV.Core.Utilities;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
 using Microsoft.Maui;
@@ -301,8 +299,8 @@ public sealed class ExportPage : ContentPage
 
             var hasDef = _vm.SelectedDefinition != null;
             _runButton.IsEnabled = hasDef;
-            _exportCsvButton.IsEnabled = hasDef && (_vm.ColumnsVisibleOrdered?.Count > 0);
-            _exportPdfButton.IsEnabled = hasDef && (_vm.ColumnsVisibleOrdered?.Count > 0);
+            _exportCsvButton.IsEnabled = hasDef && (_vm.Columns.Count > 0);
+            _exportPdfButton.IsEnabled = hasDef && (_vm.Columns.Count > 0);
         }
         finally
         {
@@ -577,10 +575,6 @@ public sealed class ExportPage : ContentPage
             {
                 _statusLabel.Text = $"Export-Fehler: {_vm.LastRpcError}";
             }
-            else if (_vm.ProcessedResults.Count == 0)
-            {
-                _statusLabel.Text = $"Keine Ergebnisse. RPC={_vm.LastRpcName ?? "?"}, params={_vm.LastRpcParameterSummary ?? "(none)"}";
-            }
             else
             {
                 _statusLabel.Text = $"Ergebnisse: {_vm.ProcessedResults.Count} (RPC={_vm.LastRpcName ?? "?"})";
@@ -597,7 +591,11 @@ public sealed class ExportPage : ContentPage
                 foreach (var vmcol in visibleColumns)
                 {
                     var col = vmcol.Column;
-                    headerRow.Children.Add(new Label { Text = col.Label ?? col.Name, FontAttributes = FontAttributes.Bold });
+                    headerRow.Children.Add(new Label
+                    {
+                        Text = col.Label ?? col.Name,
+                        FontAttributes = FontAttributes.Bold
+                    });
                 }
 
                 stack.Children.Add(headerRow);
@@ -680,11 +678,16 @@ public sealed class ExportPage : ContentPage
             var labelText = col.Label ?? col.Name ?? string.Empty;
             var valueText = _vm.ResolveColumnValue(rec, col) ?? string.Empty;
 
-            var label = new Label { Text = labelText, FontAttributes = FontAttributes.Bold };
-            var value = new Label { Text = valueText };
+            _recordView.Children.Add(new Label
+            {
+                Text = labelText,
+                FontAttributes = FontAttributes.Bold
+            });
 
-            _recordView.Children.Add(label);
-            _recordView.Children.Add(value);
+            _recordView.Children.Add(new Label
+            {
+                Text = valueText
+            });
 
             if (!firstLogged)
             {
@@ -710,15 +713,15 @@ public sealed class ExportPage : ContentPage
         }
     }
 
-    private List<dynamic> GetDistinctVisibleColumns()
+    private List<(AppExportColumnDefinitionRecord Column, string CanonicalKey)> GetDistinctVisibleColumns()
     {
-        var result = new List<dynamic>();
+        var result = new List<(AppExportColumnDefinitionRecord Column, string CanonicalKey)>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var vmcol in _vm.VisibleColumnsMapped)
         {
             var col = vmcol.Column;
-            var key = col?.ColumnKey ?? col?.Name ?? string.Empty;
+            var key = vmcol.CanonicalKey ?? col?.ColumnKey ?? col?.Name ?? string.Empty;
 
             if (string.IsNullOrWhiteSpace(key))
                 continue;
