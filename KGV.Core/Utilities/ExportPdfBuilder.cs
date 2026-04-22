@@ -20,6 +20,12 @@ namespace KGV.Core.Utilities
         {
             PdfSharpFontResolverInitializer.EnsureInitialized();
 
+            try { Console.WriteLine($"EXPORTDBG: PDF_BUILD start exportKey={exportKey} rows_passed={rows?.Count ?? 0}"); } catch {}
+            if (rows != null && rows.Count > 0)
+            {
+                try { Console.WriteLine($"EXPORTDBG: PDF_BUILD sample_raw_keys={string.Join(",", rows[0].Keys)}"); } catch {}
+            }
+
             var doc = new PdfDocument();
             doc.Info.Title = exportKey ?? "export";
 
@@ -53,6 +59,8 @@ namespace KGV.Core.Utilities
 
             for (int r = 0; r < rows.Count; r++)
             {
+                // track if this will cause a page break (for diagnostics)
+                var willPageBreak = false;
                 double rowH = 0;
                 var row = rows[r];
                 for (int c = 0; c < effectiveCols.Count; c++)
@@ -72,6 +80,7 @@ namespace KGV.Core.Utilities
 
                 if (y + rowH > page.Height - PageMargin)
                 {
+                    willPageBreak = true;
                     page = doc.AddPage();
                     page.Size = PdfSharpCore.PageSize.A4;
                     page.Orientation = PdfSharpCore.PageOrientation.Landscape;
@@ -94,9 +103,36 @@ namespace KGV.Core.Utilities
                     textFormatter.Alignment = XParagraphAlignment.Left;
                     textFormatter.DrawString(TruncateForCell(value, 1000), cellFont, XBrushes.Black, rect);
                 }
+                // diagnostics: count non-empty rendered rows and first-rendered row
+                // (use Console.WriteLine guarded to avoid throwing in production)
+                try
+                {
+                    var hasNonEmpty = row.Values.Any(v => !string.IsNullOrWhiteSpace(v));
+                    if (hasNonEmpty)
+                    {
+                        // increment a simple counter stored in the document info (unsafe to store global) - instead log per-row sample for first few
+                        if (r < 3)
+                        {
+                            try { Console.WriteLine($"EXPORTDBG: PDF_RENDER rowIndex={r} hasValues=true sample={string.Join(",", row.Where(kv => !string.IsNullOrWhiteSpace(kv.Value)).Take(6).Select(kv => kv.Key + "=" + (kv.Value.Length > 80 ? kv.Value.Substring(0, 80) + "..." : kv.Value)))}"); } catch {}
+                        }
+                    }
+                    else
+                    {
+                        if (r < 3)
+                        {
+                            try { Console.WriteLine($"EXPORTDBG: PDF_RENDER rowIndex={r} hasValues=false"); } catch {}
+                        }
+                    }
+                    if (willPageBreak)
+                    {
+                        try { Console.WriteLine($"EXPORTDBG: PDF_RENDER pageBreakAtRow={r}"); } catch {}
+                    }
+                }
+                catch { }
 
                 y += rowH + 4;
             }
+            try { Console.WriteLine($"EXPORTDBG: PDF_BUILD complete rows_passed={rows?.Count ?? 0}"); } catch {}
 
             using var ms = new MemoryStream();
             doc.Save(ms, false);

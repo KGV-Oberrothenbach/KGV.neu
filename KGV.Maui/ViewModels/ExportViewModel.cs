@@ -16,6 +16,20 @@ namespace KGV.Maui.ViewModels
         private readonly ISupabaseService _supabaseService;
         // Enable extended export diagnostics
         private const bool EXPORT_DIAG = true;
+        // Controlled alias rules for known RPC key deviations (technicalKey -> possible raw keys)
+        private static readonly Dictionary<string, string[]> TECH_ALIASES = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "nr", new[] { "nummer", "id" } },
+            { "nummer", new[] { "nr", "id" } },
+            { "telefon", new[] { "handy", "mobil", "telefonnummer" } },
+            { "handy", new[] { "telefon", "mobil" } },
+            { "mobil", new[] { "handy", "telefon" } },
+            { "adresse", new[] { "strasse", "street", "adresse1" } },
+            { "plz", new[] { "postcode", "postalcode" } },
+            { "ort", new[] { "stadt", "city" } },
+            { "aktiv", new[] { "is_active", "active" } },
+            { "status", new[] { "zustand" } }
+        };
 
         public ObservableCollection<AppExportDefinitionRecord> Definitions { get; } = new ObservableCollection<AppExportDefinitionRecord>();
         public ObservableCollection<AppExportFilterDefinitionRecord> Filters { get; } = new ObservableCollection<AppExportFilterDefinitionRecord>();
@@ -53,43 +67,76 @@ namespace KGV.Maui.ViewModels
             foreach (var row in rows)
             {
                 var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                if (row.ValueKind == JsonValueKind.Object)
-                {
-                    // build direct property map
-                    var propMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var prop in row.EnumerateObject())
+                    if (row.ValueKind == JsonValueKind.Object)
                     {
-                        try
+                        // build direct property map and normalized lookup
+                        var propMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        var normalizedMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var prop in row.EnumerateObject())
                         {
-                            if (prop.Value.ValueKind == JsonValueKind.String)
-                                propMap[prop.Name] = prop.Value.GetString() ?? string.Empty;
-                            else if (prop.Value.ValueKind == JsonValueKind.Number)
-                                propMap[prop.Name] = prop.Value.ToString();
-                            else if (prop.Value.ValueKind == JsonValueKind.True)
-                                propMap[prop.Name] = "Ja";
-                            else if (prop.Value.ValueKind == JsonValueKind.False)
-                                propMap[prop.Name] = "Nein";
-                            else
-                                propMap[prop.Name] = prop.Value.ToString();
-                        }
-                        catch
-                        {
-                            propMap[prop.Name] = prop.Value.ToString();
-                        }
-                    }
+                            try
+                            {
+                                string value;
+                                if (prop.Value.ValueKind == JsonValueKind.String)
+                                    value = prop.Value.GetString() ?? string.Empty;
+                                else if (prop.Value.ValueKind == JsonValueKind.Number)
+                                    value = prop.Value.ToString();
+                                else if (prop.Value.ValueKind == JsonValueKind.True)
+                                    value = "Ja";
+                                else if (prop.Value.ValueKind == JsonValueKind.False)
+                                    value = "Nein";
+                                else
+                                    value = prop.Value.ToString();
 
-                    // for each visible column, pick value by technical key only (strict)
-                    foreach (var (col, tech) in visibleColumns)
-                    {
-                        var val = string.Empty;
-                        if (!string.IsNullOrWhiteSpace(tech))
-                        {
-                            if (propMap.TryGetValue(tech, out var v)) val = v ?? string.Empty;
-                            else if (propMap.TryGetValue(tech.ToLowerInvariant(), out var v2)) val = v2 ?? string.Empty;
+                                propMap[prop.Name] = value;
+                                var norm = NormalizeKey(prop.Name);
+                                if (!string.IsNullOrWhiteSpace(norm) && !normalizedMap.ContainsKey(norm))
+                                    normalizedMap[norm] = prop.Name;
+                            }
+                            catch
+                            {
+                                propMap[prop.Name] = prop.Value.ToString();
+                                var norm = NormalizeKey(prop.Name);
+                                if (!string.IsNullOrWhiteSpace(norm) && !normalizedMap.ContainsKey(norm))
+                                    normalizedMap[norm] = prop.Name;
+                            }
                         }
-                        dict[tech] = val ?? string.Empty;
+
+                        // for each visible column, pick value by technical key, lower-case, then normalized key or alias
+                        foreach (var (col, tech) in visibleColumns)
+                        {
+                            var val = string.Empty;
+                            if (!string.IsNullOrWhiteSpace(tech))
+                            {
+                                // exact
+                                if (propMap.TryGetValue(tech, out var v)) val = v ?? string.Empty;
+                                // lower-case
+                                else if (propMap.TryGetValue(tech.ToLowerInvariant(), out var v2)) val = v2 ?? string.Empty;
+                                else
+                                {
+                                    // normalized match
+                                    var tnorm = NormalizeKey(tech);
+                                    if (!string.IsNullOrWhiteSpace(tnorm) && normalizedMap.TryGetValue(tnorm, out var orig) && propMap.TryGetValue(orig, out var v3))
+                                        val = v3 ?? string.Empty;
+                                    else
+                                    {
+                                        // check controlled aliases
+                                        if (TECH_ALIASES.TryGetValue(tech, out var aliases))
+                                        {
+                                            foreach (var a in aliases)
+                                            {
+                                                if (propMap.TryGetValue(a, out var va)) { val = va ?? string.Empty; break; }
+                                                if (propMap.TryGetValue(a.ToLowerInvariant(), out var va2)) { val = va2 ?? string.Empty; break; }
+                                                var an = NormalizeKey(a);
+                                                if (!string.IsNullOrWhiteSpace(an) && normalizedMap.TryGetValue(an, out var aorig) && propMap.TryGetValue(aorig, out var va3)) { val = va3 ?? string.Empty; break; }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            dict[tech] = val ?? string.Empty;
+                        }
                     }
-                }
                 else
                 {
                     // non-object row, store as single value under a generic key
