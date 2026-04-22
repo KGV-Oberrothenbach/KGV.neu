@@ -107,6 +107,14 @@
 - Added EXPORTDBG diagnostic line showing final RPC params and processed counts where relevant.
 - Validation: `dotnet build KGV.Maui/KGV.Maui.csproj` successful locally; further runtime smoke-tests for RFID/mitgliederliste recommended.
 
+### 2026-04-23 – Export: fix JsonElement lifetime in SupabaseService.RunExportRpcAsync
+
+- Problem: RPC `rpc_export_mitgliederliste` lieferte 86 Zeilen, im ViewModel kamen die JsonElement-Items jedoch mit ValueKind=Undefined. Ursache: JsonElement/JsonDocument lifetime/materialization issue in the Supabase client path.
+- Fix: In `KGV.Infrastructure/Services/SupabaseService.cs` `RunExportRpcAsync(...)` wird nun jedes zurückgegebene JsonElement geklont (JsonElement.Clone()) bevor es in die Rückgabeliste kommt. Gleiches gilt für Fallback-Pfade (single JsonElement mit EnumerateArray sowie einzelnes Element).
+- Ergänzt: kurze Diagnostics direkt im Service: ValueKind der ersten zwei Items nach RPC und vor Rückgabe werden geloggt (DEBUG). Dadurch lässt sich jetzt klar erkennen, ob Elemente materialisiert sind.
+- Wirkung: MAUI-ExportViewModel erhält stabile JsonElement-Items (ValueKind=Object/Array) statt Undefined; Mapping/ProcessedResults können nun Werte materialisieren.
+- Validierung: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich. Laufzeit-Check empfohlen: RPC-Aufruf aus MAUI-Exportseite ausführen und EXPORTDBG-Logs prüfen (RAW_ROW keys / FIRST_MAPPED_ROW / PROCESSED sample / PDF logs).
+
 Validierungsschritte:
 - Nur Export-Blockdateien gestaged/committed.
 - Commit-Message: `Fix export schema mapping and consolidate PDF builder`.

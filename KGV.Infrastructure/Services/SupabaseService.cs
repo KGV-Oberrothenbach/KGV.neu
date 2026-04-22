@@ -176,8 +176,22 @@ namespace KGV.Infrastructure.Services
                         var respArray = await client.Rpc<System.Text.Json.JsonElement[]>(rpcName, parameters);
                         if (respArray != null)
                         {
-                            var list = respArray.ToList();
+                            // Materialize and clone each JsonElement to avoid lifetime issues of underlying JsonDocument
+                            var list = new List<System.Text.Json.JsonElement>(respArray.Length);
+                            foreach (var e in respArray)
+                            {
+                                try { list.Add(e.Clone()); } catch { list.Add(e); }
+                            }
                             _logger?.LogInformation("RPC {Rpc} returned {Count} rows (array)", rpcName, list.Count);
+                            // diagnostic: log ValueKind of first elements
+                            try
+                            {
+                                if (list.Count > 0)
+                                {
+                                    _logger?.LogDebug("RunExportRpcAsync {Rpc} firstKinds={Kinds}", rpcName, string.Join(',', list.Take(2).Select(x => x.ValueKind.ToString())));
+                                }
+                            }
+                            catch { }
                             return list;
                         }
                     }
@@ -193,13 +207,25 @@ namespace KGV.Infrastructure.Services
                     {
                         var list = new List<System.Text.Json.JsonElement>();
                         foreach (var item in respElement.EnumerateArray())
-                            list.Add(item);
+                        {
+                            try { list.Add(item.Clone()); } catch { list.Add(item); }
+                        }
                         _logger?.LogInformation("RPC {Rpc} returned {Count} rows (array via element)", rpcName, list.Count);
+                        try
+                        {
+                            if (list.Count > 0)
+                                _logger?.LogDebug("RunExportRpcAsync {Rpc} firstKinds={Kinds}", rpcName, string.Join(',', list.Take(2).Select(x => x.ValueKind.ToString())));
+                        }
+                        catch { }
                         return list;
                     }
 
+                    // single element - clone for stable lifetime
+                    System.Text.Json.JsonElement elem;
+                    try { elem = respElement.Clone(); } catch { elem = respElement; }
                     _logger?.LogInformation("RPC {Rpc} returned 1 row (single element)", rpcName);
-                    return new List<System.Text.Json.JsonElement> { respElement };
+                    try { _logger?.LogDebug("RunExportRpcAsync {Rpc} singleKind={Kind}", rpcName, elem.ValueKind.ToString()); } catch { }
+                    return new List<System.Text.Json.JsonElement> { elem };
                 }
                 catch (Exception ex)
                 {
