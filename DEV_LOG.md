@@ -115,6 +115,20 @@
 - Wirkung: MAUI-ExportViewModel erhält stabile JsonElement-Items (ValueKind=Object/Array) statt Undefined; Mapping/ProcessedResults können nun Werte materialisieren.
 - Validierung: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich. Laufzeit-Check empfohlen: RPC-Aufruf aus MAUI-Exportseite ausführen und EXPORTDBG-Logs prüfen (RAW_ROW keys / FIRST_MAPPED_ROW / PROCESSED sample / PDF logs).
 
+### 2026-04-26 – Export: Diagnose & key-matching sharpening in ExportViewModel
+
+- Problem: Service liefert jetzt materialisierte Dictionary<string,string> rows, aber ViewModel zeigte weiterhin leere mappings for members export. Ursache: technische Key-Matching-Regeln waren nicht vollständig gegenüber real gelieferten RPC-Key-Namen.
+- Änderungen:
+  - KGV.Maui/ViewModels/ExportViewModel.cs: Ergänzte Diagnostics
+    - logs der vollständigen materialisierten Keys der ersten 1–2 RAW-Zeilen
+    - für die ersten sichtbaren Spalten Ausgabe von (technicalKey, matchKind, sampleValue)
+    - Ausgabe nicht verwendeter/raw Keys
+  - Kleine Nachschärfung: ResolveMaterializedValueWithMatch + DetectUsedKeyForTech für präzise Diagnose (keine fuzzy/label-fallbacks)
+  - MapRpcRowsToCanonical arbeitet weiterhin auf service-materialisierten Dictionaries
+- Begründung: Ziel ist reproduzierbares Logging und sichere Erweiterung der Alias-Tabelle nur bei Bedarf.
+- Buildstatus: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich lokal.
+- Nächster Schritt: Laufzeit-Export starten, die neuen EXPORTDBG-Logs prüfen und anhand tatsächlicher unmatchedKeys gezielt TECH_ALIASES erweitern.
+
 Validierungsschritte:
 - Nur Export-Blockdateien gestaged/committed.
 - Commit-Message: `Fix export schema mapping and consolidate PDF builder`.

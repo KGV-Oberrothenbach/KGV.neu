@@ -64,6 +64,88 @@ namespace KGV.Maui.ViewModels
             _supabaseService = supabaseService;
         }
 
+        // Returns value and match type for diagnostics
+        private static (string value, string match) ResolveMaterializedValueWithMatch(
+            Dictionary<string, string> propMap,
+            Dictionary<string, string> normalizedMap,
+            string technicalKey)
+        {
+            if (string.IsNullOrWhiteSpace(technicalKey))
+                return (string.Empty, "none");
+
+            if (propMap.TryGetValue(technicalKey, out var exact) && !string.IsNullOrWhiteSpace(exact))
+                return (exact ?? string.Empty, "exact");
+
+            var lower = technicalKey.ToLowerInvariant();
+            if (propMap.TryGetValue(lower, out var lowerVal) && !string.IsNullOrWhiteSpace(lowerVal))
+                return (lowerVal ?? string.Empty, "lower");
+
+            var norm = NormalizeKey(technicalKey);
+            if (!string.IsNullOrWhiteSpace(norm) &&
+                normalizedMap.TryGetValue(norm, out var originalKey) &&
+                propMap.TryGetValue(originalKey, out var normVal) && !string.IsNullOrWhiteSpace(normVal))
+            {
+                return (normVal ?? string.Empty, "normalized");
+            }
+
+            if (TECH_ALIASES.TryGetValue(technicalKey, out var aliases))
+            {
+                foreach (var alias in aliases)
+                {
+                    if (propMap.TryGetValue(alias, out var aliasVal) && !string.IsNullOrWhiteSpace(aliasVal))
+                        return (aliasVal ?? string.Empty, "alias");
+
+                    var aliasLower = alias.ToLowerInvariant();
+                    if (propMap.TryGetValue(aliasLower, out var aliasLowerVal) && !string.IsNullOrWhiteSpace(aliasLowerVal))
+                        return (aliasLowerVal ?? string.Empty, "alias_lower");
+
+                    var aliasNorm = NormalizeKey(alias);
+                    if (!string.IsNullOrWhiteSpace(aliasNorm) &&
+                        normalizedMap.TryGetValue(aliasNorm, out var aliasOriginal) &&
+                        propMap.TryGetValue(aliasOriginal, out var aliasNormVal) && !string.IsNullOrWhiteSpace(aliasNormVal))
+                    {
+                        return (aliasNormVal ?? string.Empty, "alias_normalized");
+                    }
+                }
+            }
+
+            return (string.Empty, "none");
+        }
+
+        private static string DetectUsedKeyForTech(Dictionary<string, string> propMap, Dictionary<string, string> normalizedMap, string technicalKey)
+        {
+            if (string.IsNullOrWhiteSpace(technicalKey))
+                return string.Empty;
+
+            if (propMap.ContainsKey(technicalKey))
+                return technicalKey;
+
+            var lower = technicalKey.ToLowerInvariant();
+            if (propMap.ContainsKey(lower))
+                return lower;
+
+            var norm = NormalizeKey(technicalKey);
+            if (!string.IsNullOrWhiteSpace(norm) && normalizedMap.TryGetValue(norm, out var originalKey) && propMap.ContainsKey(originalKey))
+                return originalKey;
+
+            if (TECH_ALIASES.TryGetValue(technicalKey, out var aliases))
+            {
+                foreach (var alias in aliases)
+                {
+                    if (propMap.ContainsKey(alias))
+                        return alias;
+                    var aliasLower = alias.ToLowerInvariant();
+                    if (propMap.ContainsKey(aliasLower))
+                        return aliasLower;
+                    var aliasNorm = NormalizeKey(alias);
+                    if (!string.IsNullOrWhiteSpace(aliasNorm) && normalizedMap.TryGetValue(aliasNorm, out var aliasOriginal) && propMap.ContainsKey(aliasOriginal))
+                        return aliasOriginal;
+                }
+            }
+
+            return string.Empty;
+        }
+
         public async Task<List<System.Collections.Generic.Dictionary<string, string>>> ExecuteOptionsRpcAsync(string rpcName)
         {
             if (string.IsNullOrWhiteSpace(rpcName))
@@ -392,6 +474,41 @@ namespace KGV.Maui.ViewModels
 
                     if (mappedRows.Count > 0)
                         Console.WriteLine($"EXPORTDBG: FIRST_MAPPED_ROW sample={FormatDebugDictionarySample(mappedRows[0])}");
+
+                    // Per-column matching diagnostics for first raw row
+                    if (Results.Count > 0 && VisibleColumnsMapped.Count > 0)
+                    {
+                        try
+                        {
+                            var first = Results[0] ?? new Dictionary<string, string>();
+                            var normalizedMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                            foreach (var key in first.Keys)
+                            {
+                                var norm = NormalizeKey(key);
+                                if (!string.IsNullOrWhiteSpace(norm) && !normalizedMap.ContainsKey(norm))
+                                    normalizedMap[norm] = key;
+                            }
+
+                            var usedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            var colsToShow = Math.Min(8, VisibleColumnsMapped.Count);
+                            for (int ci = 0; ci < colsToShow; ci++)
+                            {
+                                var tech = VisibleColumnsMapped[ci].CanonicalKey ?? VisibleColumnsMapped[ci].Column.ColumnKey ?? VisibleColumnsMapped[ci].Column.Name ?? string.Empty;
+                                var (val, match) = ResolveMaterializedValueWithMatch(first, normalizedMap, tech);
+                                if (!string.IsNullOrWhiteSpace(val))
+                                {
+                                    // try to detect which original key was used
+                                    var detectedKey = DetectUsedKeyForTech(first, normalizedMap, tech);
+                                    if (!string.IsNullOrWhiteSpace(detectedKey)) usedKeys.Add(detectedKey);
+                                }
+                                Console.WriteLine($"EXPORTDBG: COL_MATCH col={tech} match={match} sample={SafeDebugValue(val)}");
+                            }
+
+                            var unmatched = first.Keys.Where(k => !usedKeys.Contains(k)).ToList();
+                            Console.WriteLine($"EXPORTDBG: RAW_ROW[0] unmatchedKeys={SafeDebugValue(string.Join(',', unmatched),400)}");
+                        }
+                        catch { }
+                    }
 
                     Console.WriteLine("EXPORTDBG: ----- END MAPPINGS -----");
                 }
