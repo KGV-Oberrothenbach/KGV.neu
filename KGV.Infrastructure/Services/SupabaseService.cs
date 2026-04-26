@@ -183,38 +183,87 @@ namespace KGV.Infrastructure.Services
                                 }
 
                                 _logger?.LogInformation("RPC {Rpc} returned {Count} rows (array). RespArrayType={Type}", rpcName, rawList.Count, respArray?.GetType().FullName);
-                                try
-                                {
-                                    // Diagnostic: detailed info about first 1-2 items
-                                    for (int ii = 0; ii < Math.Min(2, rawList.Count); ii++)
-                                    {
-                                        var item = rawList[ii];
-                                        var kind = item.ValueKind.ToString();
-                                        var raw = string.Empty;
-                                        try { raw = item.GetRawText(); } catch { raw = TruncateSafe(item.ToString(), 500); }
-                                        _logger?.LogDebug("RunExportRpcAsync {Rpc} item[{Idx}] Type={Type} ValueKind={Kind} RawLen={Len} RawSample={Sample}", rpcName, ii, item.GetType().FullName, kind, raw?.Length ?? 0, TruncateSafe(raw, 800));
 
-                                        if (item.ValueKind == System.Text.Json.JsonValueKind.Object)
+                                // If any item is not an object (or undefined), attempt an early raw-string fallback to avoid producing empty value wrappers
+                                bool hasNonObject = rawList.Any(it => it.ValueKind != System.Text.Json.JsonValueKind.Object);
+                                if (hasNonObject)
+                                {
+                                    try
+                                    {
+                                        _logger?.LogDebug("RunExportRpcAsync {Rpc} detected non-object items in array; attempting early raw-string fallback", rpcName);
+                                        var rawStringEarly = await client.Rpc<string>(rpcName, parameters);
+                                        if (!string.IsNullOrWhiteSpace(rawStringEarly))
                                         {
+                                            _logger?.LogDebug("RunExportRpcAsync {Rpc} earlyRawLen={Len}", rpcName, rawStringEarly.Length);
                                             try
                                             {
-                                                var keys = item.EnumerateObject().Select(p => p.Name).ToArray();
-                                                    _logger?.LogDebug("RunExportRpcAsync {Rpc} item[{Idx}] objectKeys={Keys}", rpcName, ii, string.Join(',', keys));
-                                                    foreach (var p in item.EnumerateObject())
+                                                using var docEarly = System.Text.Json.JsonDocument.Parse(rawStringEarly);
+                                                var rt = docEarly.RootElement;
+                                                if (rt.ValueKind == System.Text.Json.JsonValueKind.Array)
                                                 {
-                                                    try
+                                                    var earlyMapped = new List<System.Collections.Generic.Dictionary<string, string>>();
+                                                    foreach (var a in rt.EnumerateArray())
                                                     {
-                                                        var pv = p.Value.GetRawText();
-                                                            _logger?.LogDebug("RunExportRpcAsync {Rpc} item[{Idx}] prop={Prop} kind={Kind} raw={Raw}", rpcName, ii, p.Name, p.Value.ValueKind.ToString(), TruncateSafe(pv, 400));
+                                                        try { earlyMapped.Add(UnwrapJsonElementToDictionary(a)); } catch { earlyMapped.Add(new System.Collections.Generic.Dictionary<string, string> { ["value"] = a.ToString() }); }
                                                     }
-                                                    catch { }
+                                                    if (earlyMapped.Count > 0)
+                                                    {
+                                                        try { _logger?.LogInformation("RunExportRpcAsync {Rpc} early raw-string fallback produced {Count} rows", rpcName, earlyMapped.Count); } catch {}
+                                                        return earlyMapped;
+                                                    }
+                                                }
+                                                else if (rt.ValueKind == System.Text.Json.JsonValueKind.Object)
+                                                {
+                                                    try { return new List<System.Collections.Generic.Dictionary<string, string>> { UnwrapJsonElementToDictionary(rt) }; } catch { }
                                                 }
                                             }
-                                            catch { }
+                                            catch (Exception exEarlyParse)
+                                            {
+                                                _logger?.LogDebug(exEarlyParse, "RunExportRpcAsync {Rpc} early raw-string parse failed", rpcName);
+                                            }
                                         }
                                     }
+                                    catch (Exception exEarlyRpc)
+                                    {
+                                        _logger?.LogDebug(exEarlyRpc, "RunExportRpcAsync {Rpc} early raw-string RPC failed", rpcName);
+                                    }
                                 }
-                                catch { }
+
+                                // Diagnostic: detailed info about first 1-2 items (only when debug enabled)
+                                if (_logger?.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug) == true)
+                                {
+                                    try
+                                    {
+                                        for (int ii = 0; ii < Math.Min(2, rawList.Count); ii++)
+                                        {
+                                            var item = rawList[ii];
+                                            var kind = item.ValueKind.ToString();
+                                            var raw = string.Empty;
+                                            try { raw = item.GetRawText(); } catch { raw = TruncateSafe(item.ToString(), 500); }
+                                            _logger?.LogDebug("RunExportRpcAsync {Rpc} item[{Idx}] Type={Type} ValueKind={Kind} RawLen={Len} RawSample={Sample}", rpcName, ii, item.GetType().FullName, kind, raw?.Length ?? 0, TruncateSafe(raw, 800));
+
+                                            if (item.ValueKind == System.Text.Json.JsonValueKind.Object)
+                                            {
+                                                try
+                                                {
+                                                    var keys = item.EnumerateObject().Select(p => p.Name).ToArray();
+                                                    _logger?.LogDebug("RunExportRpcAsync {Rpc} item[{Idx}] objectKeys={Keys}", rpcName, ii, string.Join(',', keys));
+                                                    foreach (var p in item.EnumerateObject())
+                                                    {
+                                                        try
+                                                        {
+                                                            var pv = p.Value.GetRawText();
+                                                            _logger?.LogDebug("RunExportRpcAsync {Rpc} item[{Idx}] prop={Prop} kind={Kind} raw={Raw}", rpcName, ii, p.Name, p.Value.ValueKind.ToString(), TruncateSafe(pv, 400));
+                                                        }
+                                                        catch { }
+                                                    }
+                                                }
+                                                catch { }
+                                            }
+                                        }
+                                    }
+                                    catch { }
+                                }
 
                             // Convert JsonElements into stable dictionaries<string,string>
                                 var mapped = new List<System.Collections.Generic.Dictionary<string, string>>();

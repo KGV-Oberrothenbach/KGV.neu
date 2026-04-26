@@ -162,6 +162,25 @@
 - Validierung: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich lokal.
 - Nächster Schritt: Laufzeit-Export erneut starten, LOG-Auszug hier posten (die neuen debug logs aus dem Service). Ich analysiere anschließend das echte Item-Format und passe das Unwrap minimal an.
 
+### 2026-04-29 – Export: ANR und empty-'value' Handling
+
+- Symptom: Auf Android ließ der Exportlauf die MainActivity hängen (ANR "MotionEvent"), hohe CPU-Last beobachtet; gleichzeitig kamen Nicht-Objekt-Rows weiterhin als { value = "" } an.
+- Änderungen:
+  - KGV.Infrastructure/Services/SupabaseService.cs:
+    - Wenn das RPC-Array Nicht-Objekt-Items enthält, wird jetzt ein frühzeitiger raw-string-Fallback versucht (client.Rpc<string>(...)) und geparst, bevor teure Map-/Debug-Schleifen laufen.
+    - Die ausführlichen per-Property Diagnostics werden nur noch im LogLevel Debug ausgegeben, um UI-/CPU-Last zu reduzieren.
+    - Falls initiales Mapping nur leere value-Wrappers produziert, wird ein späterer raw-string-Fallback versucht und geparst.
+    - Ziel: echte fachliche Keys vor der Rückgabe an MAUI bereitstellen, ohne die UI-Thread stark zu belasten.
+  - KGV.Maui/ViewModels/ExportViewModel.cs:
+    - MapRpcRowsToCanonical wird jetzt auf einem Background-Thread ausgeführt, um MainActivity-ANRs zu vermeiden.
+    - Diagnostics begrenzt: nur erste 2 Rows und maximal 8 visible columns für per-column diagnostics.
+- Build: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich lokal.
+- Nächster Schritt: MAUI-Exportlauf erneut ausführen und Logs (Information + Debug falls aktiviert) prüfen. Poste hier die Service-Logs, insbesondere:
+  - Ob der early raw-string fallback getriggert wurde
+  - rawStringLen / sample
+  - Falls fallback parsebar: Keys of first parsed item
+
+
 
 Validierungsschritte:
 - Nur Export-Blockdateien gestaged/committed.

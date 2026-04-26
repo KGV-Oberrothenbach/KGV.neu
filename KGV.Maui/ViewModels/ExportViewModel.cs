@@ -452,7 +452,21 @@ namespace KGV.Maui.ViewModels
             }
 
             // Results already materialized as dictionaries by the service; MapRpcRowsToCanonical overloads accept dictionaries now
-            var mappedRows = MapRpcRowsToCanonical(Results.ToList(), VisibleColumnsMapped);
+            // Offload CPU-heavy mapping to background thread to avoid UI-thread ANR
+            List<System.Collections.Generic.Dictionary<string, string>> mappedRows;
+            try
+            {
+                var rowsCopy = Results.ToList();
+                mappedRows = await System.Threading.Tasks.Task.Run(() => MapRpcRowsToCanonical(rowsCopy, VisibleColumnsMapped));
+            }
+            catch (Exception exMap)
+            {
+                try { Console.WriteLine($"EXPORTDBG: mapping failed: {exMap.Message}"); } catch { }
+                mappedRows = new List<System.Collections.Generic.Dictionary<string, string>>();
+            }
+
+            // Apply mapped rows to ProcessedResults on UI thread; small count (e.g. 86) expected — keep simple adds
+            ProcessedResults.Clear();
             foreach (var mr in mappedRows)
                 ProcessedResults.Add(mr);
 
