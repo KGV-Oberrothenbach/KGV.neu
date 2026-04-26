@@ -129,6 +129,25 @@
 - Buildstatus: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich lokal.
 - Nächster Schritt: Laufzeit-Export starten, die neuen EXPORTDBG-Logs prüfen und anhand tatsächlicher unmatchedKeys gezielt TECH_ALIASES erweitern.
 
+### 2026-04-27 – Export: Unwrap 'value' wrapper in RunExportRpcAsync
+
+- Problem: Bei Lauf zeigte sich, dass RPC `rpc_export_mitgliederliste` zwar materialisierte Dictionaries liefert, diese aber oft nur als Wrapper unter dem Key `value` eingehüllt waren (RAW_ROW[0] materializedKeys=value, RAW sample values={value=}). Dadurch konnten die fachlichen Keys nicht gemappt werden.
+- Änderung (minimal-invasiv):
+  - KGV.Infrastructure/Services/SupabaseService.cs: Neue Helper-Funktion `UnwrapJsonElementToDictionary(JsonElement)` hinzugefügt. Diese:
+    - entpackt Objekt-JsonElemente in Dictionary<string,string> mit flacher Key->String-Mapping,
+    - erkennt special-case Wrapper `{ "value": "{...}" }` oder stringifizierte JSON-Objekte und parsed diese inneren JSON-Objekte in echte Keys,
+    - fallback: wenn nicht parsebar, liefert sie `{ "value" : original }`.
+  - RunExportRpcAsync verwendet diese Helper, um service-seitig bereits vor Rückgabe echte fachliche Keys in den Rows bereitzustellen.
+  - KGV.Maui/ViewModels/ExportViewModel.cs: diagnostics erweitert (raw value sample logging, per-column match reporting) — dient Verifikation des Unwraps.
+- Wirkung: Wenn `value` ein JSON-String oder ein verschachteltes Objekt enthält, wird dieses jetzt im Service zu echten Key-Value-Paaren entpackt; ViewModel erhält fachliche Keys anstelle eines singulären `value`-Wrappers.
+- Keine UI-Änderungen, kein fuzzy/label-Fallback.
+- Validierung: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich lokal nach Änderungen.
+- Nächster Schritt: Laufzeit-Export erneut aus MAUI starten und EXPORTDBG prüfen:
+  - EXPORTDBG: RAW_ROW[0] valueWrapperSample=... (zeigt inneres JSON)
+  - EXPORTDBG: RAW_ROW[0] materializedKeys=... (soll jetzt fachliche Keys enthalten)
+  - EXPORTDBG: COL_MATCH ... (zeigt Match-Art für sichtbare Spalten)
+
+
 Validierungsschritte:
 - Nur Export-Blockdateien gestaged/committed.
 - Commit-Message: `Fix export schema mapping and consolidate PDF builder`.

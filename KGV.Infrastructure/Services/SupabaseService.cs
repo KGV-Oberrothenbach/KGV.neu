@@ -188,32 +188,12 @@ namespace KGV.Infrastructure.Services
                             var mapped = new List<System.Collections.Generic.Dictionary<string, string>>();
                             foreach (var je in rawList)
                             {
-                                if (je.ValueKind == System.Text.Json.JsonValueKind.Object)
+                                try
                                 {
-                                    var dict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                                    foreach (var p in je.EnumerateObject())
-                                    {
-                                        try
-                                        {
-                                            if (p.Value.ValueKind == System.Text.Json.JsonValueKind.String)
-                                                dict[p.Name] = p.Value.GetString() ?? string.Empty;
-                                            else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.Number)
-                                                dict[p.Name] = p.Value.ToString();
-                                            else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.True)
-                                                dict[p.Name] = "Ja";
-                                            else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.False)
-                                                dict[p.Name] = "Nein";
-                                            else
-                                                dict[p.Name] = p.Value.ToString();
-                                        }
-                                        catch
-                                        {
-                                            dict[p.Name] = p.Value.ToString();
-                                        }
-                                    }
+                                    var dict = UnwrapJsonElementToDictionary(je);
                                     mapped.Add(dict);
                                 }
-                                else
+                                catch
                                 {
                                     mapped.Add(new System.Collections.Generic.Dictionary<string, string> { ["value"] = je.ToString() });
                                 }
@@ -244,32 +224,11 @@ namespace KGV.Infrastructure.Services
                         var mapped = new List<System.Collections.Generic.Dictionary<string, string>>();
                         foreach (var je in raw)
                         {
-                            if (je.ValueKind == System.Text.Json.JsonValueKind.Object)
+                            try
                             {
-                                var dict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                                foreach (var p in je.EnumerateObject())
-                                {
-                                    try
-                                    {
-                                        if (p.Value.ValueKind == System.Text.Json.JsonValueKind.String)
-                                            dict[p.Name] = p.Value.GetString() ?? string.Empty;
-                                        else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.Number)
-                                            dict[p.Name] = p.Value.ToString();
-                                        else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.True)
-                                            dict[p.Name] = "Ja";
-                                        else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.False)
-                                            dict[p.Name] = "Nein";
-                                        else
-                                            dict[p.Name] = p.Value.ToString();
-                                    }
-                                    catch
-                                    {
-                                        dict[p.Name] = p.Value.ToString();
-                                    }
-                                }
-                                mapped.Add(dict);
+                                mapped.Add(UnwrapJsonElementToDictionary(je));
                             }
-                            else
+                            catch
                             {
                                 mapped.Add(new System.Collections.Generic.Dictionary<string, string> { ["value"] = je.ToString() });
                             }
@@ -342,6 +301,133 @@ namespace KGV.Infrastructure.Services
             {
                 return "{}";
             }
+        }
+
+        // Try to unwrap JsonElement into a stable Dictionary<string,string>
+        private static System.Collections.Generic.Dictionary<string, string> UnwrapJsonElementToDictionary(System.Text.Json.JsonElement je)
+        {
+            var dict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            if (je.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
+                foreach (var p in je.EnumerateObject())
+                {
+                    try
+                    {
+                        if (p.Value.ValueKind == System.Text.Json.JsonValueKind.String)
+                            dict[p.Name] = p.Value.GetString() ?? string.Empty;
+                        else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.Number)
+                            dict[p.Name] = p.Value.ToString();
+                        else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.True)
+                            dict[p.Name] = "Ja";
+                        else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.False)
+                            dict[p.Name] = "Nein";
+                        else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.Object)
+                        {
+                            // nested object: flatten by json-stringifying
+                            dict[p.Name] = p.Value.ToString();
+                        }
+                        else if (p.Value.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        {
+                            // arrays: stringify
+                            dict[p.Name] = p.Value.ToString();
+                        }
+                        else
+                            dict[p.Name] = p.Value.ToString();
+                    }
+                    catch
+                    {
+                        dict[p.Name] = p.Value.ToString();
+                    }
+                }
+
+                // Special-case: single-wrapper keys like { "value": "{...}" }
+                if (dict.Count == 1 && dict.ContainsKey("value"))
+                {
+                    var inner = dict["value"] ?? string.Empty;
+                    var trimmed = inner.Trim();
+                    if ((trimmed.StartsWith("{") && trimmed.EndsWith("}")) || (trimmed.StartsWith("[") && trimmed.EndsWith("]")))
+                    {
+                        // try parse inner JSON
+                        try
+                        {
+                            using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
+                            var root = doc.RootElement;
+                            if (root.ValueKind == System.Text.Json.JsonValueKind.Object)
+                            {
+                                var innerDict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                                foreach (var ip in root.EnumerateObject())
+                                {
+                                    try
+                                    {
+                                        if (ip.Value.ValueKind == System.Text.Json.JsonValueKind.String)
+                                            innerDict[ip.Name] = ip.Value.GetString() ?? string.Empty;
+                                        else
+                                            innerDict[ip.Name] = ip.Value.ToString();
+                                    }
+                                    catch
+                                    {
+                                        innerDict[ip.Name] = ip.Value.ToString();
+                                    }
+                                }
+
+                                // replace wrapper with inner properties
+                                return innerDict;
+                            }
+                        }
+                        catch
+                        {
+                            // ignore parse errors and keep original
+                        }
+                    }
+                }
+
+                return dict;
+            }
+
+            if (je.ValueKind == System.Text.Json.JsonValueKind.String)
+            {
+                var raw = je.GetString() ?? string.Empty;
+                var trimmed = raw.Trim();
+                if ((trimmed.StartsWith("{") && trimmed.EndsWith("}")) || (trimmed.StartsWith("[") && trimmed.EndsWith("]")))
+                {
+                    try
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
+                        var root = doc.RootElement;
+                        if (root.ValueKind == System.Text.Json.JsonValueKind.Object)
+                        {
+                            var innerDict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                            foreach (var ip in root.EnumerateObject())
+                            {
+                                try
+                                {
+                                    if (ip.Value.ValueKind == System.Text.Json.JsonValueKind.String)
+                                        innerDict[ip.Name] = ip.Value.GetString() ?? string.Empty;
+                                    else
+                                        innerDict[ip.Name] = ip.Value.ToString();
+                                }
+                                catch
+                                {
+                                    innerDict[ip.Name] = ip.Value.ToString();
+                                }
+                            }
+
+                            return innerDict;
+                        }
+                    }
+                    catch
+                    {
+                        // fall through
+                    }
+                }
+
+                // fallback: single value
+                return new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["value"] = raw };
+            }
+
+            // arrays or other kinds: return as single 'value'
+            return new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["value"] = je.ToString() };
         }
 
         public Task<List<MitgliedRecord>> GetMitgliederAsync() => ExecuteAsync(

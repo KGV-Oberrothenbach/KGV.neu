@@ -470,6 +470,11 @@ namespace KGV.Maui.ViewModels
                             ? string.Join(",", rawProps.Keys)
                             : "(none)";
                         Console.WriteLine($"EXPORTDBG: RAW_ROW[{i}] materializedKeys={SafeDebugValue(keys, 400)}");
+                        // also dump value-wrapper sample
+                        if (rawProps.TryGetValue("value", out var v))
+                        {
+                            Console.WriteLine($"EXPORTDBG: RAW_ROW[{i}] valueWrapperSample={SafeDebugValue(v,800)}");
+                        }
                     }
 
                     if (mappedRows.Count > 0)
