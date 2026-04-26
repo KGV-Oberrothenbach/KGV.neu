@@ -199,13 +199,13 @@ namespace KGV.Infrastructure.Services
                                             try
                                             {
                                                 var keys = item.EnumerateObject().Select(p => p.Name).ToArray();
-                                                _logger?.LogDebug("RunExportRpcAsync {Rpc} item[{Idx}] objectKeys={Keys}", rpcName, ii, string.Join(',', keys));
-                                                foreach (var p in item.EnumerateObject())
+                                                    _logger?.LogDebug("RunExportRpcAsync {Rpc} item[{Idx}] objectKeys={Keys}", rpcName, ii, string.Join(',', keys));
+                                                    foreach (var p in item.EnumerateObject())
                                                 {
                                                     try
                                                     {
                                                         var pv = p.Value.GetRawText();
-                                                        _logger?.LogDebug("RunExportRpcAsync {Rpc} item[{Idx}] prop={Prop} kind={Kind} raw={Raw}", rpcName, ii, p.Name, p.Value.ValueKind.ToString(), TruncateSafe(pv, 400));
+                                                            _logger?.LogDebug("RunExportRpcAsync {Rpc} item[{Idx}] prop={Prop} kind={Kind} raw={Raw}", rpcName, ii, p.Name, p.Value.ValueKind.ToString(), TruncateSafe(pv, 400));
                                                     }
                                                     catch { }
                                                 }
@@ -232,6 +232,53 @@ namespace KGV.Infrastructure.Services
                             }
 
                             try { _logger?.LogDebug("RunExportRpcAsync {Rpc} mappedSample={Sample}", rpcName, mapped.Count>0?FormatDictSample(mapped[0]):"(none)"); } catch {}
+
+                            // If mapping produced only empty 'value' wrappers, try a raw-string fallback to get the real payload
+                            if (mapped.Count > 0 && mapped.All(d => d.Count == 1 && d.ContainsKey("value") && string.IsNullOrWhiteSpace(d["value"])))
+                            {
+                                try
+                                {
+                                    _logger?.LogWarning("RunExportRpcAsync {Rpc} detected only empty 'value' wrappers; attempting raw-string fallback", rpcName);
+                                    var rawString = await client.Rpc<string>(rpcName, parameters);
+                                    if (!string.IsNullOrWhiteSpace(rawString))
+                                    {
+                                        _logger?.LogDebug("RunExportRpcAsync {Rpc} rawStringLen={Len} rawSample={Sample}", rpcName, rawString.Length, TruncateSafe(rawString, 1000));
+                                        try
+                                        {
+                                            using var doc = System.Text.Json.JsonDocument.Parse(rawString);
+                                            var root = doc.RootElement;
+                                            var fallback = new List<System.Collections.Generic.Dictionary<string, string>>();
+                                            if (root.ValueKind == System.Text.Json.JsonValueKind.Array)
+                                            {
+                                                foreach (var arrItem in root.EnumerateArray())
+                                                {
+                                                    try { fallback.Add(UnwrapJsonElementToDictionary(arrItem)); } catch { fallback.Add(new System.Collections.Generic.Dictionary<string, string> { ["value"] = arrItem.ToString() }); }
+                                                }
+                                            }
+                                            else if (root.ValueKind == System.Text.Json.JsonValueKind.Object)
+                                            {
+                                                try { fallback.Add(UnwrapJsonElementToDictionary(root)); } catch { fallback.Add(new System.Collections.Generic.Dictionary<string, string> { ["value"] = root.ToString() }); }
+                                            }
+
+                                            if (fallback.Count > 0 && !(fallback.Count == mapped.Count && fallback.All(d => d.Count == 1 && d.ContainsKey("value") && string.IsNullOrWhiteSpace(d["value"]))))
+                                            {
+                                                try { _logger?.LogInformation("RunExportRpcAsync {Rpc} raw-string fallback produced {Count} rows", rpcName, fallback.Count); } catch {}
+                                                try { _logger?.LogDebug("RunExportRpcAsync {Rpc} fallbackSample={Sample}", rpcName, FormatDictSample(fallback[0])); } catch {}
+                                                return fallback;
+                                            }
+                                        }
+                                        catch (Exception exParse)
+                                        {
+                                            _logger?.LogDebug(exParse, "RunExportRpcAsync {Rpc} raw-string parse failed", rpcName);
+                                        }
+                                    }
+                                }
+                                catch (Exception exFallback)
+                                {
+                                    _logger?.LogDebug(exFallback, "RunExportRpcAsync {Rpc} raw-string fallback attempt failed", rpcName);
+                                }
+                            }
+
                             return mapped;
                         }
                     }
