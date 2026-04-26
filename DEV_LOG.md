@@ -147,6 +147,21 @@
   - EXPORTDBG: RAW_ROW[0] materializedKeys=... (soll jetzt fachliche Keys enthalten)
   - EXPORTDBG: COL_MATCH ... (zeigt Match-Art für sichtbare Spalten)
 
+### 2026-04-28 – Export: Diagnose erweitert zur Bestimmung des echten RPC-Response-Objekts
+
+- Problem: Trotz Unwrap-Logik lieferten wir weiterhin nur leere `value`-Wrapper. Ursache unklar: RPC-Client liefert komplexe Objekte, deren innerer Nutzwert nicht korrekt ausgelesen wurde.
+- Änderungen:
+  - KGV.Infrastructure/Services/SupabaseService.cs:
+    - Vor der Materialisierung jetzt ausführliche Diagnostics für erste 1–2 Items:
+      - respArray.GetType().FullName
+      - item.GetType().FullName, item.ValueKind, item.GetRawText() (gekürzt), Länge
+      - wenn item Objekt: Liste der Property-Namen und kurze Raw-Samples pro Property
+    - Die Diagnostics sollen klar zeigen, ob das Item an sich leer ist oder nur stringifizierte inner JSON enthält.
+    - Mappingsschritt nutzt weiterhin UnwrapJsonElementToDictionary, aber mit zusätzlicher Vorabdiagnose.
+- Ziel: Sichtbar machen, ob `value` tatsächlich leer ist oder ob der wirkliche Nutzwert in einem tieferen Feld steckt.
+- Validierung: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich lokal.
+- Nächster Schritt: Laufzeit-Export erneut starten, LOG-Auszug hier posten (die neuen debug logs aus dem Service). Ich analysiere anschließend das echte Item-Format und passe das Unwrap minimal an.
+
 
 Validierungsschritte:
 - Nur Export-Blockdateien gestaged/committed.

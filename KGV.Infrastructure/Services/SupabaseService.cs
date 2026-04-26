@@ -176,16 +176,48 @@ namespace KGV.Infrastructure.Services
                         var respArray = await client.Rpc<System.Text.Json.JsonElement[]>(rpcName, parameters);
                         if (respArray != null)
                         {
-                            var rawList = new List<System.Text.Json.JsonElement>(respArray.Length);
-                            foreach (var e in respArray)
-                            {
-                                try { rawList.Add(e.Clone()); } catch { rawList.Add(e); }
-                            }
-                            _logger?.LogInformation("RPC {Rpc} returned {Count} rows (array)", rpcName, rawList.Count);
-                            try { _logger?.LogDebug("RunExportRpcAsync {Rpc} respKinds={Kinds} respSample={Sample}", rpcName, string.Join(',', rawList.Take(2).Select(x => x.ValueKind.ToString())), rawList.Count>0?TruncateSafe(rawList[0].ToString(),300):"(none)"); } catch {}
+                                var rawList = new List<System.Text.Json.JsonElement>(respArray.Length);
+                                foreach (var e in respArray)
+                                {
+                                    try { rawList.Add(e.Clone()); } catch { rawList.Add(e); }
+                                }
+
+                                _logger?.LogInformation("RPC {Rpc} returned {Count} rows (array). RespArrayType={Type}", rpcName, rawList.Count, respArray?.GetType().FullName);
+                                try
+                                {
+                                    // Diagnostic: detailed info about first 1-2 items
+                                    for (int ii = 0; ii < Math.Min(2, rawList.Count); ii++)
+                                    {
+                                        var item = rawList[ii];
+                                        var kind = item.ValueKind.ToString();
+                                        var raw = string.Empty;
+                                        try { raw = item.GetRawText(); } catch { raw = TruncateSafe(item.ToString(), 500); }
+                                        _logger?.LogDebug("RunExportRpcAsync {Rpc} item[{Idx}] Type={Type} ValueKind={Kind} RawLen={Len} RawSample={Sample}", rpcName, ii, item.GetType().FullName, kind, raw?.Length ?? 0, TruncateSafe(raw, 800));
+
+                                        if (item.ValueKind == System.Text.Json.JsonValueKind.Object)
+                                        {
+                                            try
+                                            {
+                                                var keys = item.EnumerateObject().Select(p => p.Name).ToArray();
+                                                _logger?.LogDebug("RunExportRpcAsync {Rpc} item[{Idx}] objectKeys={Keys}", rpcName, ii, string.Join(',', keys));
+                                                foreach (var p in item.EnumerateObject())
+                                                {
+                                                    try
+                                                    {
+                                                        var pv = p.Value.GetRawText();
+                                                        _logger?.LogDebug("RunExportRpcAsync {Rpc} item[{Idx}] prop={Prop} kind={Kind} raw={Raw}", rpcName, ii, p.Name, p.Value.ValueKind.ToString(), TruncateSafe(pv, 400));
+                                                    }
+                                                    catch { }
+                                                }
+                                            }
+                                            catch { }
+                                        }
+                                    }
+                                }
+                                catch { }
 
                             // Convert JsonElements into stable dictionaries<string,string>
-                            var mapped = new List<System.Collections.Generic.Dictionary<string, string>>();
+                                var mapped = new List<System.Collections.Generic.Dictionary<string, string>>();
                             foreach (var je in rawList)
                             {
                                 try
@@ -226,6 +258,13 @@ namespace KGV.Infrastructure.Services
                         {
                             try
                             {
+                                // Diagnostic: log type and raw sample
+                                try
+                                {
+                                    _logger?.LogDebug("RunExportRpcAsync {Rpc} arrayItemType={Type} ValueKind={Kind} RawSample={Sample}", rpcName, je.GetType().FullName, je.ValueKind.ToString(), TruncateSafe(je.GetRawText(), 800));
+                                }
+                                catch { }
+
                                 mapped.Add(UnwrapJsonElementToDictionary(je));
                             }
                             catch
