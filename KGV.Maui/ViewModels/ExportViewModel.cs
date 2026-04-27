@@ -402,6 +402,7 @@ namespace KGV.Maui.ViewModels
                     }
                     catch { }
                 }
+
                 else
                 {
                     rows = await _supabaseService.RunExportRpcAsync(rpcName ?? string.Empty, minimalParams.Count == 0 ? null : (object)minimalParams);
@@ -557,6 +558,49 @@ namespace KGV.Maui.ViewModels
 
                 VisibleColumnsMapped.Add((col, tech));
             }
+
+            // Special-case: for mitgliederliste use explicit field aliases to map export column keys to local raw fields
+            try
+            {
+                var exportKey = SelectedDefinition?.ExportKey ?? string.Empty;
+                if (string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase))
+                {
+                    var memberFieldAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "mitgliedsnr", "mitgliedsnummer" },
+                        { "mitgliedsnummer", "mitgliedsnummer" },
+                        { "strasse_hsnr", "adresse" },
+                        { "adresse", "adresse" },
+                        { "email_rechnung", "email_rechnung_einwilligung" },
+                        { "email_rechnung_einwilligung", "email_rechnung_einwilligung" },
+                        { "email_info", "email_info_einwilligung" },
+                        { "email_info_einwilligung", "email_info_einwilligung" },
+                        { "whatsapp", "whatsapp" },
+                        { "auth_user", "auth_user_id" },
+                        { "auth_user_id", "auth_user_id" },
+                        { "gaerten", "gaerten" },
+                        { "gartennummern", "gartennummern" }
+                    };
+
+                    var remapped = new List<(AppExportColumnDefinitionRecord Column, string CanonicalKey)>();
+                    foreach (var (col, canonical) in VisibleColumnsMapped)
+                    {
+                        var search = canonical ?? col.ColumnKey ?? col.Name ?? string.Empty;
+                        if (memberFieldAliases.TryGetValue(search, out var target))
+                        {
+                            remapped.Add((col, target));
+                        }
+                        else
+                        {
+                            remapped.Add((col, canonical));
+                        }
+                    }
+
+                    VisibleColumnsMapped = remapped;
+                    Console.WriteLine($"EXPORTDBG: mitgliederliste applied {VisibleColumnsMapped.Count} member-field aliases");
+                }
+            }
+            catch { }
 
             // Results already materialized as dictionaries by the service; MapRpcRowsToCanonical overloads accept dictionaries now
             // Offload CPU-heavy mapping to background thread to avoid UI-thread ANR
