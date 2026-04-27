@@ -635,6 +635,13 @@ namespace KGV.Maui.ViewModels
                         { "gartennummern", "gartennummern" }
                     };
 
+                    // additional short/legacy aliases often used in column definitions
+                    memberFieldAliases.TryAdd("re", "email_rechnung_einwilligung");
+                    memberFieldAliases.TryAdd("info", "email_info_einwilligung");
+                    memberFieldAliases.TryAdd("rechnung_per_mail", "email_rechnung_einwilligung");
+                    memberFieldAliases.TryAdd("info_per_mail", "email_info_einwilligung");
+                    memberFieldAliases.TryAdd("wa", "whatsapp");
+
                     var remapped = new List<(AppExportColumnDefinitionRecord Column, string CanonicalKey)>();
                     foreach (var (col, canonical) in VisibleColumnsMapped)
                     {
