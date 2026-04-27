@@ -207,6 +207,14 @@
 - Buildstatus: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich lokal.
 - Nächster Schritt: Laufzeit-Export (mitgliederliste) prüfen, CSV/PDF exportieren und Umlaute kontrollieren.
 
+### 2026-05-04 – Encoding heuristics improved
+
+- Problem: Einige Namen zeigten Mojibake (z. B. "B├ñnsch").
+- Änderung: FixEncoding erweitert:
+  - Versucht jetzt Latin1->UTF8 und Windows-1252->UTF8 Rekodierung und wählt die beste Kandidaten per einfacher Heuristik (Buchstabenanzahl).
+  - Anwendung beim Aufbau der lokalen Rohzeilen für alle text-Felder.
+- Wirkung: Bessere Abdeckung realer Mojibake-Fälle, reduziert falsch dargestellte Umlaute in Vorschau/CSV/PDF.
+
 
 
 Validierungsschritte:

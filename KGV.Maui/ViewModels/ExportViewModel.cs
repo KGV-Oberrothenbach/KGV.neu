@@ -77,14 +77,32 @@ namespace KGV.Maui.ViewModels
 
             try
             {
-                // Interpret the current .NET string as Latin1 bytes and decode as UTF8
+                // Try Latin1 -> UTF8
                 var latin1 = System.Text.Encoding.Latin1.GetBytes(input);
-                var candidate = System.Text.Encoding.UTF8.GetString(latin1);
-                // Prefer candidate if it contains fewer replacement characters and more letters
+                var candidateLatin1 = System.Text.Encoding.UTF8.GetString(latin1);
+
+                // Try Windows-1252 -> UTF8 (covers many Windows mojibake cases)
+                string candidate1252 = candidateLatin1;
+                try
+                {
+                    var cp1252 = System.Text.Encoding.GetEncoding(1252);
+                    var bytes1252 = cp1252.GetBytes(input);
+                    candidate1252 = System.Text.Encoding.UTF8.GetString(bytes1252);
+                }
+                catch { }
+
+                // Choose best candidate by letter-count heuristic
                 var scoreOriginal = input.Count(c => char.IsLetter(c));
-                var scoreCandidate = candidate.Count(c => char.IsLetter(c));
-                if (scoreCandidate >= scoreOriginal)
-                    return candidate.Normalize(System.Text.NormalizationForm.FormC);
+                var scoreLatin1 = candidateLatin1.Count(c => char.IsLetter(c));
+                var score1252 = candidate1252.Count(c => char.IsLetter(c));
+
+                var best = input;
+                var bestScore = scoreOriginal;
+                if (scoreLatin1 > bestScore) { best = candidateLatin1; bestScore = scoreLatin1; }
+                if (score1252 > bestScore) { best = candidate1252; bestScore = score1252; }
+
+                if (!string.ReferenceEquals(best, input))
+                    return best.Normalize(System.Text.NormalizationForm.FormC);
             }
             catch
             {
