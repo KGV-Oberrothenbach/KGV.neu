@@ -64,6 +64,36 @@ namespace KGV.Maui.ViewModels
             _supabaseService = supabaseService;
         }
 
+        // Try to recover common mojibake where UTF-8 bytes were interpreted as Latin1/Windows-1252
+        private static string FixEncoding(string? s)
+        {
+            if (string.IsNullOrEmpty(s))
+                return string.Empty;
+
+            var input = s;
+            // quick check for common mojibake markers
+            if (!input.Contains('Ã') && !input.Contains('Â') && !input.Contains('┼') && !input.Contains('├') && !input.Contains('\uFFFD'))
+                return input.Normalize(System.Text.NormalizationForm.FormC);
+
+            try
+            {
+                // Interpret the current .NET string as Latin1 bytes and decode as UTF8
+                var latin1 = System.Text.Encoding.Latin1.GetBytes(input);
+                var candidate = System.Text.Encoding.UTF8.GetString(latin1);
+                // Prefer candidate if it contains fewer replacement characters and more letters
+                var scoreOriginal = input.Count(c => char.IsLetter(c));
+                var scoreCandidate = candidate.Count(c => char.IsLetter(c));
+                if (scoreCandidate >= scoreOriginal)
+                    return candidate.Normalize(System.Text.NormalizationForm.FormC);
+            }
+            catch
+            {
+                // ignore
+            }
+
+            return input.Normalize(System.Text.NormalizationForm.FormC);
+        }
+
         // Returns value and match type for diagnostics
         private static (string value, string match) ResolveMaterializedValueWithMatch(
             Dictionary<string, string> propMap,
@@ -571,13 +601,18 @@ namespace KGV.Maui.ViewModels
                         { "mitgliedsnummer", "mitgliedsnummer" },
                         { "strasse_hsnr", "adresse" },
                         { "adresse", "adresse" },
+                        { "email", "email" },
+                        { "geburtsdatum", "geburtsdatum" },
+                        { "bemerkung", "bemerkung" },
+                        { "whatsapp", "whatsapp" },
                         { "email_rechnung", "email_rechnung_einwilligung" },
                         { "email_rechnung_einwilligung", "email_rechnung_einwilligung" },
                         { "email_info", "email_info_einwilligung" },
                         { "email_info_einwilligung", "email_info_einwilligung" },
-                        { "whatsapp", "whatsapp" },
                         { "auth_user", "auth_user_id" },
                         { "auth_user_id", "auth_user_id" },
+                        { "aktiv", "aktiv" },
+                        { "mitglied_seit", "mitglied_seit" },
                         { "gaerten", "gaerten" },
                         { "gartennummern", "gartennummern" }
                     };

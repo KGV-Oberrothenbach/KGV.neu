@@ -194,6 +194,19 @@
 - Buildstatus: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich lokal.
 - Nächster Schritt: Laufzeit-Export für `mitgliederliste` prüfen; CSV/PDF-Export testen.
 
+### 2026-05-03 – Export: Encoding + remaining member fields mapped
+
+- Problem: Einige Zeichen erschienen als Mojibake (z. B. "B├ñnsch" statt "Bänsch") und mehrere sichtbare Felder waren noch unmatched after aliasing.
+- Änderungen:
+  - KGV.Maui/ViewModels/ExportViewModel.cs:
+    - FixEncoding(...) helper ergänzt: versucht gängige Mojibake-Fälle zu beheben (Latin1 bytes interpreted as UTF8) und normalisiert Strings.
+    - Für mitgliederliste werden alle text-Felder beim Aufbau der lokalen Rohzeilen durch FixEncoding geleitet (Name, Vorname, Adresse, PLZ, Ort, Telefon, Mobil, Email, Bemerkung).
+    - Alias-Tabelle erweitert, um sichtbare Spalten wie email, geburtsdatum, bemerkung, whatsapp, email_rechnung_einwilligung, email_info_einwilligung, auth_user_id, aktiv, mitglied_seit, gaerten/gartennummern abzudecken.
+    - Diagnostics: Erste finale Zeile nach Mapping und verbleibende unmatchedColumnsAfterMapping werden geloggt.
+- Wirkung: Vorschau, CSV und PDF beziehen jetzt UTF-8-korrigierte Strings; sichtbare Felder sind fachlich gemappt.
+- Buildstatus: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich lokal.
+- Nächster Schritt: Laufzeit-Export (mitgliederliste) prüfen, CSV/PDF exportieren und Umlaute kontrollieren.
+
 
 
 Validierungsschritte:
