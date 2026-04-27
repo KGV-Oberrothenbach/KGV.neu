@@ -180,6 +180,20 @@
   - rawStringLen / sample
   - Falls fallback parsebar: Keys of first parsed item
 
+### 2026-05-02 – Export: Mitgliederliste via typed local assembly (no RPC)
+
+- Ziel: Für die problematische `mitgliederliste` den instabilen RPC-Pfad nicht mehr verwenden. Stattdessen wird die Mitgliederliste clientseitig aus typisierten Servicepfaden aufgebaut, analog zur Mitgliedersuche.
+- Änderungen:
+  - KGV.Maui/ViewModels/ExportViewModel.cs: Sonderfall `mitgliederliste` implementiert:
+    - Lädt GetMitgliederAsync(), GetAllParzellenAsync(), GetAllParzellenBelegungenAsync() parallel.
+    - Baut lokale Lookup-Tabellen und erstellt pro Mitglied ein Dictionary mit fachlichen Feldern (Name, Vorname, Id, Adresse, PLZ, Ort, Telefon, Mobil, Email, Geburtsdatum, Bemerkung, WhatsApp, Rechnung per Mail, Info per Mail, AuthUserId, Aktiv, MitgliedSeit, Gartennummern).
+    - Wendet lokale Filter (z. B. Nur Aktive) und lokale Sortierung an.
+    - Nutzt dieselbe final gefilterte/sortierte Datenbasis für Vorschau, CSV und PDF.
+  - KGV.Infrastructure/Services/SupabaseService.cs: keine Änderungen für diesen Schritt (ständig als typed service provider erhalten).
+- Diagnostics ergänzt: Anzahl geladener Mitglieder/Parzellen/Belegungen und erste finale Zeile.
+- Buildstatus: `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich lokal.
+- Nächster Schritt: Laufzeit-Export für `mitgliederliste` prüfen; CSV/PDF-Export testen.
+
 
 
 Validierungsschritte:

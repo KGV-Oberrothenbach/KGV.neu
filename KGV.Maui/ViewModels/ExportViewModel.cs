@@ -321,15 +321,99 @@ namespace KGV.Maui.ViewModels
                     minimalParams.Remove(k);
 
                 // Call RPC with minimal parameters to retrieve the full raw dataset, then apply filters/sorts locally
-                rows = await _supabaseService.RunExportRpcAsync(rpcName ?? string.Empty, minimalParams.Count == 0 ? null : (object)minimalParams);
+                // Special-case: Mitgliedersliste should be assembled locally from typed service calls
+                if (string.Equals(SelectedDefinition?.ExportKey ?? string.Empty, "mitgliederliste", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(rpcName ?? string.Empty, "rpc_export_mitgliederliste", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Load typed data like MemberSearchViewModel
+                    var membersTask = _supabaseService.GetMitgliederAsync();
+                    var parzellenTask = _supabaseService.GetAllParzellenAsync();
+                    var belegungenTask = _supabaseService.GetAllParzellenBelegungenAsync();
 
-                try
-                {
-                    Console.WriteLine($"EXPORTDBG: ExecuteAsync raw rows returned={rows.Count}");
-                    System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync raw rows returned={rows.Count}");
+                    await Task.WhenAll(membersTask, parzellenTask, belegungenTask);
+
+                    var members = membersTask.Result ?? new List<MitgliedRecord>();
+                    var parzellen = parzellenTask.Result ?? new List<ParzelleRecord>();
+                    var belegungen = belegungenTask.Result ?? new List<ParzellenBelegungRecord>();
+
+                    // Build lookup of active belegungen -> garden numbers per member
+                    var parzellenById = parzellen.Where(p => p.Id > 0).ToDictionary(p => p.Id);
+                    var today = DateTime.Today;
+                    var activeBelegungen = belegungen
+                        .Where(b => b.MitgliedId > 0 && b.ParzelleId > 0 &&
+                            (!b.VonDatum.HasValue || b.VonDatum.Value.Date <= today) &&
+                            (!b.BisDatum.HasValue || b.BisDatum.Value.Date >= today))
+                        .ToList();
+
+                    var gaertenByMitglied = activeBelegungen
+                        .GroupBy(b => b.MitgliedId)
+                        .ToDictionary(g => g.Key, g => g
+                            .Select(b => parzellenById.TryGetValue(b.ParzelleId, out var p) ? (p.GartenNr ?? string.Empty) : string.Empty)
+                            .Where(s => !string.IsNullOrWhiteSpace(s))
+                            .Distinct(StringComparer.CurrentCultureIgnoreCase)
+                            .OrderBy(s => s, StringComparer.CurrentCultureIgnoreCase)
+                            .ToList());
+
+                    var built = new List<System.Collections.Generic.Dictionary<string, string>>();
+                    foreach (var m in members)
+                    {
+                        var dict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["id"] = m.Id.ToString(),
+                            ["mitgliedsnummer"] = m.Id.ToString(),
+                            ["name"] = m.Name ?? string.Empty,
+                            ["vorname"] = m.Vorname ?? string.Empty,
+                            ["adresse"] = m.Adresse ?? string.Empty,
+                            ["plz"] = m.Plz ?? string.Empty,
+                            ["ort"] = m.Ort ?? string.Empty,
+                            ["telefon"] = m.Telefon ?? string.Empty,
+                            ["mobil"] = m.Handy ?? string.Empty,
+                            ["email"] = m.Email ?? string.Empty,
+                            ["geburtsdatum"] = m.Geburtsdatum?.ToString("yyyy-MM-dd") ?? string.Empty,
+                            ["bemerkung"] = m.Bemerkung ?? string.Empty,
+                            ["whatsapp"] = m.WhatsappEinwilligung ? "Ja" : "Nein",
+                            ["email_rechnung_einwilligung"] = m.EmailRechnungEinwilligung ? "Ja" : "Nein",
+                            ["email_info_einwilligung"] = m.EmailInfoEinwilligung ? "Ja" : "Nein",
+                            ["auth_user_id"] = m.AuthUserId?.ToString() ?? string.Empty,
+                            ["aktiv"] = m.Aktiv ? "Ja" : "Nein",
+                            ["mitglied_seit"] = m.MitgliedSeit?.ToString("yyyy-MM-dd") ?? string.Empty
+                        };
+
+                        if (gaertenByMitglied.TryGetValue(m.Id, out var gList) && gList.Count > 0)
+                        {
+                            dict["gaerten"] = string.Join(", ", gList);
+                            dict["gartennummern"] = string.Join(", ", gList);
+                        }
+                        else
+                        {
+                            dict["gaerten"] = string.Empty;
+                            dict["gartennummern"] = string.Empty;
+                        }
+
+                        built.Add(dict);
+                    }
+
+                    rows = built;
+
+                    try
+                    {
+                        Console.WriteLine($"EXPORTDBG: mitgliederliste loaded members={members.Count} parzellen={parzellen.Count} belegungen={belegungen.Count}");
+                        System.Diagnostics.Debug.WriteLine($"EXPORTDBG: mitgliederliste loaded members={members.Count} parzellen={parzellen.Count} belegungen={belegungen.Count}");
+                    }
+                    catch { }
                 }
-                catch
+                else
                 {
+                    rows = await _supabaseService.RunExportRpcAsync(rpcName ?? string.Empty, minimalParams.Count == 0 ? null : (object)minimalParams);
+
+                    try
+                    {
+                        Console.WriteLine($"EXPORTDBG: ExecuteAsync raw rows returned={rows.Count}");
+                        System.Diagnostics.Debug.WriteLine($"EXPORTDBG: ExecuteAsync raw rows returned={rows.Count}");
+                    }
+                    catch
+                    {
+                    }
                 }
 
                 if (EXPORT_DIAG)
