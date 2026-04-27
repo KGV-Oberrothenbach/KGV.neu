@@ -306,7 +306,22 @@ namespace KGV.Maui.ViewModels
                 {
                 }
 
-                rows = await _supabaseService.RunExportRpcAsync(rpcName ?? string.Empty, mapped);
+                // For mobile robustness: avoid applying problematic server-side filters/sorting.
+                // Build minimal params: drop any filter/sort params that historically caused issues on server.
+                var minimalParams = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+                if (mapped != null)
+                {
+                    foreach (var kv in mapped)
+                    {
+                        minimalParams[kv.Key] = kv.Value;
+                    }
+                }
+                var keysToRemove = minimalParams.Keys.Where(k => k != null && (k.ToString()!.Contains("filter", StringComparison.OrdinalIgnoreCase) || string.Equals(k.ToString(), "p_sortierung", StringComparison.OrdinalIgnoreCase) || string.Equals(k.ToString(), "sortierung", StringComparison.OrdinalIgnoreCase))).ToList();
+                foreach (var k in keysToRemove)
+                    minimalParams.Remove(k);
+
+                // Call RPC with minimal parameters to retrieve the full raw dataset, then apply filters/sorts locally
+                rows = await _supabaseService.RunExportRpcAsync(rpcName ?? string.Empty, minimalParams.Count == 0 ? null : (object)minimalParams);
 
                 try
                 {
@@ -343,8 +358,16 @@ namespace KGV.Maui.ViewModels
                 return;
             }
 
+            // Store raw rows
+            Results.Clear();
             foreach (var r in rows)
                 Results.Add(r);
+
+            try
+            {
+                Console.WriteLine($"EXPORTDBG: ExecuteAsync loaded raw rows={Results.Count}");
+            }
+            catch { }
 
             try
             {
