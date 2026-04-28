@@ -647,7 +647,20 @@ namespace KGV.Infrastructure.Authentication
             try
             {
                 var emailTrim = email.Trim();
-                var preparation = await EnsureOtpPreparationAsync(emailTrim, "password-reset");
+                OtpPreparationResult preparation;
+                try
+                {
+                    preparation = await EnsureOtpPreparationAsync(emailTrim, "password-reset");
+                }
+                catch (PostgrestException pex) when (pex.Message != null && pex.Message.Contains("permission denied for table mitglied", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Permission denied when trying to read `mitglied` (client role not allowed).
+                    // Fallback: log and try to request recovery OTP directly. This is a pragmatic fallback for mobile clients
+                    // where DB read permissions are restricted. Server-side permission fix is recommended.
+                    _logger?.LogWarning(pex, "SendPasswordResetEmailAsync: permission denied reading mitglied for {EmailMasked}, falling back to direct recovery request", MaskEmail(emailTrim));
+                    return await RequestRecoveryOtpAsync(emailTrim, "password-reset");
+                }
+
                 if (!preparation.Success)
                 {
                     _logger?.LogWarning("SendPasswordResetEmailAsync blocked for {EmailMasked}: {Reason}", MaskEmail(emailTrim), preparation.Message);
