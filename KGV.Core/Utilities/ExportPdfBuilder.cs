@@ -207,8 +207,65 @@ namespace KGV.Core.Utilities
                 return string.IsNullOrWhiteSpace(line2) ? line1 : line1 + "\n" + line2;
             }
 
-            row.TryGetValue(col.ColumnKey ?? string.Empty, out var val);
-            return val ?? string.Empty;
+            // Try multiple lookup strategies to be robust against differing keys used in remapped rows:
+            // 1. direct ColumnKey
+            if (!string.IsNullOrWhiteSpace(col.ColumnKey) && row.TryGetValue(col.ColumnKey, out var val1) && !string.IsNullOrWhiteSpace(val1))
+                return val1;
+
+            // 2. direct label
+            if (!string.IsNullOrWhiteSpace(col.Label) && row.TryGetValue(col.Label, out var val2) && !string.IsNullOrWhiteSpace(val2))
+                return val2;
+
+            // 3. try normalized key match against any row key
+            var targets = new List<string>();
+            if (!string.IsNullOrWhiteSpace(col.ColumnKey)) targets.Add(col.ColumnKey);
+            if (!string.IsNullOrWhiteSpace(col.Label)) targets.Add(col.Label);
+
+            var normTargets = targets
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Select(t => NormalizeKey(t!))
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (normTargets.Count > 0)
+            {
+                foreach (var kv in row)
+                {
+                    var k = kv.Key ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(k)) continue;
+                    var nk = NormalizeKey(k);
+                    if (normTargets.Contains(nk) && !string.IsNullOrWhiteSpace(kv.Value))
+                        return kv.Value;
+                }
+            }
+
+            // 4. fallback to any canonical/common keys used in member export (helpful for mitgliederliste)
+            var commonAliases = new[] { "mitgliedsnummer", "mitgliedsnr", "id", "name", "vorname", "email", "adresse" };
+            foreach (var alias in commonAliases)
+            {
+                if (row.TryGetValue(alias, out var av) && !string.IsNullOrWhiteSpace(av))
+                    return av;
+            }
+
+            // nothing found -> return empty string
+            return string.Empty;
+        }
+
+        private static string NormalizeKey(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return string.Empty;
+
+            var lowered = input.Trim().ToLowerInvariant();
+            var sb = new System.Text.StringBuilder();
+
+            foreach (var ch in lowered)
+            {
+                if (char.IsLetterOrDigit(ch) || ch == '_')
+                    sb.Append(ch);
+            }
+
+            return sb.ToString();
         }
 
         private static double GetOffset(double[] colWidths, int index)
