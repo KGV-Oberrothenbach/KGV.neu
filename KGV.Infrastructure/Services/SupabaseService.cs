@@ -635,6 +635,16 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
+        public Task<List<RfidScanContextRecord>> GetRfidScanContextRecordsAsync() => ExecuteAsync(
+            "GetRfidScanContextRecordsAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var resp = await client.From<RfidScanContextRecord>().Get();
+                return resp?.Models?.ToList() ?? new List<RfidScanContextRecord>();
+            },
+            new List<RfidScanContextRecord>());
+
         public Task<MitgliedGesetzlicherVertreterRecord?> GetAktivenGesetzlichenVertreterAsync(int minderjaehrigesMitgliedId, DateTime? stichtag = null) => ExecuteAsync<MitgliedGesetzlicherVertreterRecord?>(
             "GetAktivenGesetzlichenVertreterAsync",
             async () =>

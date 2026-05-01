@@ -161,6 +161,9 @@ namespace KGV.Core.Interfaces
         Task<WorkAssignmentRegistrationResult> SignOffFromArbeitseinsatzAsync(int arbeitseinsatzId, int mitgliedId);
         Task<List<HomeAppointmentItem>> GetStartseiteTermineAsync();
         Task<List<HomeAnnouncementItem>> GetStartseiteBekanntmachungenAsync();
+
+        // RFID
+        Task<List<RfidScanContextRecord>> GetRfidScanContextRecordsAsync();
         Task<List<ArbeitseinsatzRecord>> GetArbeitseinsaetzeVerwaltungAsync();
         Task<ArbeitseinsatzRecord?> CreateArbeitseinsatzAsync(ArbeitseinsatzInsertRecord request);
         Task<bool> UpdateArbeitseinsatzAsync(ArbeitseinsatzRecord record);

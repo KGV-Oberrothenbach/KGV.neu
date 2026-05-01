@@ -451,6 +451,44 @@ namespace KGV.Maui.ViewModels
                     catch { }
                 }
 
+                else if (string.Equals(SelectedDefinition?.ExportKey ?? string.Empty, "rfid_status", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(rpcName ?? string.Empty, "rpc_export_rfid_status", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(rpcName ?? string.Empty, "rfid_status", StringComparison.OrdinalIgnoreCase))
+                {
+                    var rfidRecords = await _supabaseService.GetRfidScanContextRecordsAsync();
+                    var builtRfid = new List<System.Collections.Generic.Dictionary<string, string>>();
+                    foreach (var r in rfidRecords)
+                    {
+                        var dict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["parzelle_id"] = r.ParzelleId.ToString(),
+                            ["garten_nr"] = r.GartenNr ?? string.Empty,
+                            ["anlage"] = r.Anlage ?? string.Empty,
+                            ["medium"] = r.Medium ?? string.Empty,
+                            ["rfid_tag_uid"] = r.RfidTagUid ?? string.Empty,
+                            ["aktiver_zaehler_id"] = r.AktiverZaehlerId?.ToString() ?? string.Empty,
+                            ["zaehlernummer"] = r.Zaehlernummer ?? string.Empty,
+                            ["eichdatum"] = r.Eichdatum?.ToString("yyyy-MM-dd") ?? string.Empty,
+                            ["eichfaellig_am"] = r.EichfaelligAm?.ToString("yyyy-MM-dd") ?? string.Empty,
+                            ["eingebaut_am"] = r.EingebautAm?.ToString("yyyy-MM-dd") ?? string.Empty,
+                            ["ausgebaut_am"] = r.AusgebautAm?.ToString("yyyy-MM-dd") ?? string.Empty,
+                            ["status"] = r.Status ?? string.Empty,
+                            ["parzelle_display"] = r.ParzelleDisplayName,
+                            ["medium_display"] = r.MediumDisplay,
+                            ["rfid_display"] = r.RfidDisplay,
+                            ["zaehlernummer_display"] = r.ZaehlernummerDisplay,
+                            ["status_display"] = r.StatusDisplay,
+                            ["eichdatum_display"] = r.EichdatumDisplay,
+                            ["eichfaellig_display"] = r.EichfaelligDisplay,
+                            ["active_meter_display"] = r.ActiveMeterDisplay
+                        };
+
+                        builtRfid.Add(dict);
+                    }
+
+                    rows = builtRfid;
+                }
+
                 else
                 {
                     rows = await _supabaseService.RunExportRpcAsync(rpcName ?? string.Empty, minimalParams.Count == 0 ? null : (object)minimalParams);
