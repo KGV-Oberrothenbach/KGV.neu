@@ -2,6 +2,7 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Maui.State;
+using KGV.Maui.Services.Diagnostics;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
@@ -11,6 +12,7 @@ namespace KGV.Maui.Pages;
 public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
 {
     private readonly ISupabaseService _supabaseService;
+    private readonly IAuthService _authService;
     private readonly UserContextState _state;
     private readonly MemberContextState _memberContextState;
 
@@ -44,9 +46,10 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
     private bool _forceOwnContext;
     private bool _isReadOnly;
 
-    public ArbeitsstundenEditorPage(ISupabaseService supabaseService, UserContextState state, MemberContextState memberContextState)
+    public ArbeitsstundenEditorPage(ISupabaseService supabaseService, IAuthService authService, UserContextState state, MemberContextState memberContextState)
     {
         _supabaseService = supabaseService;
+        _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _state = state;
         _memberContextState = memberContextState;
 
@@ -360,6 +363,17 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
         {
             await Task.Yield();
 
+            // Determine whether current user is privileged (Vorstand/Admin)
+            var isPrivileged = false;
+            try
+            {
+                isPrivileged = _authService.IsAdmin || _authService.IsVorstand;
+            }
+            catch
+            {
+                isPrivileged = false;
+            }
+
             var record = new ArbeitsstundeRecord
             {
                 MitgliedId = member.MitgliedId,
@@ -368,6 +382,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
                 Stunden = hours,
                 ArtDerArbeit = description,
                 Status = _existingEntry?.Status,
+                // Default freigabe values will be set below depending on role
                 Freigegeben = _existingEntry?.Freigegeben ?? false,
                 GenehmigtAm = _existingEntry?.FreigegebenAm,
                 GenehmigtVon = _existingEntry?.FreigegebenVonId
@@ -375,6 +390,27 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
 
             if (_existingEntry != null)
                 record.Id = _existingEntry.Id;
+
+            // If this is a new entry and the current user is privileged, auto-approve
+            if (_existingEntry == null && isPrivileged)
+            {
+                // Ensure we have a current member id for the approving user
+                if (!_state.CurrentMitgliedId.HasValue)
+                {
+                    // Log and abort - we require CurrentMitgliedId for audit
+                    try { AppFileLog.Warning("ArbeitsstundenEditorPage", "Arbeitsstunde Save aborted: CurrentMitgliedId missing for privileged user."); } catch { }
+                    throw new InvalidOperationException("Aktueller Benutzer ist keinem Mitglied zugeordnet. Freigabe nicht möglich.");
+                }
+
+                record.Freigegeben = true;
+                record.GenehmigtAm = DateTime.UtcNow;
+                record.GenehmigtVon = (int?)_state.CurrentMitgliedId.Value;
+                try { AppFileLog.Info("ArbeitsstundenEditorPage", $"Arbeitsstunde gespeichert – Role={(_authService.IsAdmin?"Admin":(_authService.IsVorstand?"Vorstand":"User"))} – AutoFreigabe=true"); } catch { }
+            }
+            else
+            {
+                try { AppFileLog.Info("ArbeitsstundenEditorPage", $"Arbeitsstunde gespeichert – Role={( isPrivileged? ( _authService.IsAdmin?"Admin":(_authService.IsVorstand?"Vorstand":"User")) : "Member" )} – Status={(record.Freigegeben?"Freigegeben":"in Prüfung")} "); } catch { }
+            }
 
             var success = _existingEntry == null
                 ? await _supabaseService.AddArbeitsstundeAsync(record.ToInsertRecord())
