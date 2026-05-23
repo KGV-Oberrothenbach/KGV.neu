@@ -14,6 +14,7 @@ namespace KGV.Core.Models
         public bool HasContent
             => CanvasWidth > 0
                 && CanvasHeight > 0
+                && Strokes != null
                 && Strokes.Any(stroke => stroke?.Points?.Count > 0);
     }
 

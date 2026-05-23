@@ -36,10 +36,12 @@ public sealed class VertragsSignaturPage : ContentPage
         _graphicsView = new GraphicsView
         {
             Drawable = _drawable,
-            HeightRequest = 320,
             BackgroundColor = Colors.White,
             HorizontalOptions = LayoutOptions.Fill,
-            VerticalOptions = LayoutOptions.Fill
+            VerticalOptions = LayoutOptions.FillAndExpand,
+            InputTransparent = false,
+            IsEnabled = true,
+            HeightRequest = 320
         };
         _graphicsView.StartInteraction += OnStartInteraction;
         _graphicsView.DragInteraction += OnDragInteraction;
@@ -103,6 +105,22 @@ public sealed class VertragsSignaturPage : ContentPage
     {
         base.OnAppearing();
         MainActivity.SetLandscapeOrientationEnabled(true);
+
+        // After orientation change the view may need a short delay to be measured and receive touches.
+        // Dispatch a short invalidate to ensure the GraphicsView is ready for interaction.
+        try
+        {
+            Microsoft.Maui.Controls.Application.Current?.Dispatcher.Dispatch(async () =>
+            {
+                try
+                {
+                    await Task.Delay(120);
+                    _graphicsView.Invalidate();
+                }
+                catch { }
+            });
+        }
+        catch { }
     }
 
     protected override void OnDisappearing()
@@ -119,6 +137,7 @@ public sealed class VertragsSignaturPage : ContentPage
 
     private void OnStartInteraction(object? sender, TouchEventArgs e)
     {
+        System.Diagnostics.Debug.WriteLine("OnStartInteraction: touches=" + (e?.Touches?.Length ?? 0));
         var point = TryGetTouchPoint(e);
         if (point == null)
             return;
@@ -129,6 +148,7 @@ public sealed class VertragsSignaturPage : ContentPage
 
     private void OnDragInteraction(object? sender, TouchEventArgs e)
     {
+        System.Diagnostics.Debug.WriteLine("OnDragInteraction: touches=" + (e?.Touches?.Length ?? 0));
         var point = TryGetTouchPoint(e);
         if (point == null)
             return;
@@ -139,6 +159,7 @@ public sealed class VertragsSignaturPage : ContentPage
 
     private void OnEndInteraction(object? sender, TouchEventArgs e)
     {
+        System.Diagnostics.Debug.WriteLine("OnEndInteraction: touches=" + (e?.Touches?.Length ?? 0));
         var point = TryGetTouchPoint(e);
         if (point != null)
             _drawable.AddPoint(point.Value);
@@ -149,7 +170,17 @@ public sealed class VertragsSignaturPage : ContentPage
 
     private async Task AcceptAsync()
     {
-        var signature = _drawable.Export(_graphicsView.Width, _graphicsView.Height);
+        // ensure view has been measured
+        if (_graphicsView.Width <= 0 || _graphicsView.Height <= 0)
+        {
+            await Task.Delay(120);
+            _graphicsView.Invalidate();
+        }
+
+        var width = _graphicsView.Width > 0 ? _graphicsView.Width : 1;
+        var height = _graphicsView.Height > 0 ? _graphicsView.Height : 1;
+
+        var signature = _drawable.Export(width, height);
         if (!signature.HasContent)
         {
             await DisplayAlert("Signatur", "Bitte zuerst unterschreiben.", "OK");
