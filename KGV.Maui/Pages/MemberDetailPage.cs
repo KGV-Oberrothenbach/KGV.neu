@@ -193,6 +193,33 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         Appearing += async (_, _) => await LoadAsync();
     }
 
+    // Run signature capture sequence for the given placeholders and apply them into the provided PDF bytes.
+    private async Task<byte[]> CreateAndApplySignaturesAsync(byte[] pdfBytes, IReadOnlyList<KGV.Core.Models.SignaturePlaceholder> placeholders, Func<KGV.Core.Models.SignaturePlaceholder, string> titleForPlaceholder)
+    {
+        var captures = new List<(KGV.Core.Models.SignaturePlaceholder placeholder, KGV.Core.Models.DigitalSignatureCapture capture)>();
+
+        foreach (var placeholder in placeholders)
+        {
+            var title = titleForPlaceholder(placeholder);
+            var request = new DokumentUploadRequest
+            {
+                Titel = title,
+                FileName = "temp.pdf",
+                MimeType = "application/pdf",
+                FileContent = pdfBytes
+            };
+
+            var capture = await CaptureMitgliedsantragSignatureAsync(request, title);
+            if (capture == null)
+                throw new OperationCanceledException("Signaturvorgang abgebrochen.");
+
+            captures.Add((placeholder, capture));
+        }
+
+        var updated = KGV.Core.Utilities.SignedVertragsdokumentPdfBuilder.InsertSignaturesIntoPdf(pdfBytes, captures);
+        return updated;
+    }
+
     public void ApplyQueryAttributes(IDictionary<string, object> query)
     {
         _isCreateMode = query.TryGetValue("mode", out var mode)

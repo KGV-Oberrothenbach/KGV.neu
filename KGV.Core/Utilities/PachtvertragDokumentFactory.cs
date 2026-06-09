@@ -406,5 +406,21 @@ namespace KGV.Core.Utilities
         {
             public XRect Rect => new(X, Y, Width, Height);
         }
+
+        public static IReadOnlyList<Models.SignaturePlaceholder> GetSignaturePlaceholders()
+        {
+            return FieldSpecs
+                .Where(f => f.Kind == PdfFormFieldKind.SignaturePlaceholder)
+                .Select(f => new Models.SignaturePlaceholder
+                {
+                    Name = f.Name,
+                    Page = f.Page,
+                    X = f.X,
+                    Y = f.Y,
+                    Width = f.Width,
+                    Height = f.Height
+                })
+                .ToArray();
+        }
     }
 }
