@@ -674,7 +674,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             Dateiname = previewUploadRequest.FileName,
             Name = previewUploadRequest.FileName,
             MimeType = previewUploadRequest.MimeType,
-            StoragePath = previewUploadRequest.FileName
+            // For local signing flows we provide the persistent local preview path so the file can be reopened if needed
+            StoragePath = KGV.Maui.Services.Documents.DocumentStorage.GetPersistentFilePath(previewUploadRequest.FileName)
         };
 
         var signaturPage = new VertragsSignaturPage(sourceDocument, unterschriftTitel);

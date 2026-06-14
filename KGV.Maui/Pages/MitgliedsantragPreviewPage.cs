@@ -20,7 +20,8 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
 {
     private readonly TaskCompletionSource<MitgliedsantragPreviewDecision> _resultSource = new();
     private readonly DokumentUploadRequest _previewUploadRequest;
-    private readonly string _tempFilePath;
+        private readonly string _tempFilePath;
+        private readonly string _persistentFilePath;
     private bool _previewOpenedOnce;
 
     public MitgliedsantragPreviewPage(DokumentUploadRequest previewUploadRequest)
@@ -32,6 +33,7 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
         Title = "Mitgliedsantrag prüfen";
         BackgroundColor = Colors.White;
         _tempFilePath = Path.Combine(FileSystem.CacheDirectory, _previewUploadRequest.FileName);
+        _persistentFilePath = KGV.Maui.Services.Documents.DocumentStorage.GetPersistentFilePath(_previewUploadRequest.FileName);
 
         var openPreviewButton = new Button { Text = "Dokumentvorschau öffnen" };
         openPreviewButton.Clicked += async (_, _) => await OpenPreviewAsync();
@@ -120,6 +122,19 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_tempFilePath)!);
         await File.WriteAllBytesAsync(_tempFilePath, _previewUploadRequest.FileContent);
+
+        // Also write a persistent copy so the file remains available for signing later
+        try
+        {
+            var persistentDir = Path.GetDirectoryName(_persistentFilePath)!;
+            Directory.CreateDirectory(persistentDir);
+            await File.WriteAllBytesAsync(_persistentFilePath, _previewUploadRequest.FileContent);
+        }
+        catch
+        {
+            // Ignore persistent write failures; preview still works
+        }
+
         await Launcher.Default.OpenAsync(new OpenFileRequest("Mitgliedsantrag Vorschau", new ReadOnlyFile(_tempFilePath)));
     }
 
@@ -127,6 +142,7 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
     {
         _resultSource.TrySetResult(decision);
         TryDeleteTempFile();
+        // Do not delete persistent file; it is kept for signing.
         await Navigation.PopModalAsync();
     }
 

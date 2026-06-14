@@ -45,7 +45,8 @@ internal static class PachtvertragFlowHelper
                 Dateiname = previewUploadRequest.FileName,
                 Name = previewUploadRequest.FileName,
                 MimeType = previewUploadRequest.MimeType,
-                StoragePath = previewUploadRequest.FileName
+                // provide persistent local preview path for signing
+                StoragePath = KGV.Maui.Services.Documents.DocumentStorage.GetPersistentFilePath(previewUploadRequest.FileName)
             };
 
             var signaturPage = new VertragsSignaturPage(sourceDocument, "Unterschrift Pächter/in");

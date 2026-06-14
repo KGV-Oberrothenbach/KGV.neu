@@ -21,6 +21,7 @@ public sealed class PachtvertragPreviewPage : ContentPage
     private readonly TaskCompletionSource<PachtvertragPreviewDecision> _resultSource = new();
     private readonly DokumentUploadRequest _previewUploadRequest;
     private readonly string _tempFilePath;
+    private readonly string _persistentFilePath;
     private bool _previewOpenedOnce;
 
     public PachtvertragPreviewPage(DokumentUploadRequest previewUploadRequest)
@@ -32,6 +33,7 @@ public sealed class PachtvertragPreviewPage : ContentPage
         Title = "Pachtvertrag prüfen";
         BackgroundColor = Colors.White;
         _tempFilePath = Path.Combine(FileSystem.CacheDirectory, _previewUploadRequest.FileName);
+        _persistentFilePath = KGV.Maui.Services.Documents.DocumentStorage.GetPersistentFilePath(_previewUploadRequest.FileName);
 
         var openPreviewButton = new Button { Text = "Dokumentvorschau öffnen" };
         openPreviewButton.Clicked += async (_, _) => await OpenPreviewAsync();
@@ -120,6 +122,19 @@ public sealed class PachtvertragPreviewPage : ContentPage
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_tempFilePath)!);
         await File.WriteAllBytesAsync(_tempFilePath, _previewUploadRequest.FileContent);
+
+        // Also write a persistent copy so the file remains available for signing later
+        try
+        {
+            var persistentDir = Path.GetDirectoryName(_persistentFilePath)!;
+            Directory.CreateDirectory(persistentDir);
+            await File.WriteAllBytesAsync(_persistentFilePath, _previewUploadRequest.FileContent);
+        }
+        catch
+        {
+            // Ignore persistent write failures; preview still works
+        }
+
         await Launcher.Default.OpenAsync(new OpenFileRequest("Pachtvertrag Vorschau", new ReadOnlyFile(_tempFilePath)));
     }
 
@@ -127,6 +142,7 @@ public sealed class PachtvertragPreviewPage : ContentPage
     {
         _resultSource.TrySetResult(decision);
         TryDeleteTempFile();
+        // persistent file kept for signing
         await Navigation.PopModalAsync();
     }
 
