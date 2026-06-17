@@ -118,25 +118,28 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _benutzerverwaltungButton = new Button { Text = "Benutzerverwaltung", IsVisible = false };
         _benutzerverwaltungButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(UserManagementPage));
 
-        _mitgliedsantragButton = new Button { Text = "Mitgliedsantrag als PDF", IsVisible = false };
-        _mitgliedsantragButton.Clicked += async (_, _) =>
+        // Zwei Buttons: falls lokale persistente Kopie vorhanden ist, zeige "Öffnen" und "NEU"
+        var openMitgliedsantragButton = new Button { Text = "Mitgliedsantrag öffnen", IsVisible = false };
+        openMitgliedsantragButton.Clicked += async (_, _) =>
         {
             if (_memberRecord?.Id is not > 0)
                 return;
 
-            // Prüfe lokale persistente Kopie
-            var fileName = $"Mitgliedsantrag_{_memberRecord.Id}.pdf"; // konsistenter lokaler Dateiname
-            var localPath = KGV.Maui.Services.Documents.LocalDocumentService.GetLocalPath(fileName);
+            var fileName = $"Mitgliedsantrag_{_memberRecord.Id}.pdf";
             var status = KGV.Maui.Services.Documents.LocalDocumentService.GetStatus(new KGV.Core.Models.DocumentInfo { Dateiname = fileName, Name = fileName });
             if (status.Exists)
             {
-                // Öffne In-App Viewer
                 var viewer = new PdfViewerPage(status.LocalPath, _supabaseService, _memberRecord?.Id);
                 await Navigation.PushModalAsync(new NavigationPage(viewer));
-                return;
             }
+        };
 
-            // keine lokale Kopie -> erzeugen
+        var newMitgliedsantragButton = new Button { Text = "Mitgliedsantrag NEU", IsVisible = false };
+        newMitgliedsantragButton.Clicked += async (_, _) =>
+        {
+            if (_memberRecord?.Id is not > 0)
+                return;
+
             await CreateMitgliedsantragAsync(_memberRecord.Id);
         };
 
@@ -193,7 +196,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                         _appUserHintLabel,
                         _nutzerHinzufuegenButton,
                         _benutzerverwaltungButton),
-                    _mitgliedsantragButton,
+                    new HorizontalStackLayout { Spacing = 8, Children = { openMitgliedsantragButton, newMitgliedsantragButton } },
                     _mitgliedsantragDiagnoseLabel,
                     _cancelMembershipButton,
                     new HorizontalStackLayout

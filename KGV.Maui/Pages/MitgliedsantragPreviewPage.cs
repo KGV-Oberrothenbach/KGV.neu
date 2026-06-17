@@ -135,7 +135,9 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
             // Ignore persistent write failures; preview still works
         }
 
-        await Launcher.Default.OpenAsync(new OpenFileRequest("Mitgliedsantrag Vorschau", new ReadOnlyFile(_tempFilePath)));
+        // Open preview in-app to keep the signing flow within the application
+        var viewer = new PdfViewerPage(_tempFilePath);
+        await Navigation.PushModalAsync(new NavigationPage(viewer));
     }
 
     private async Task CloseAsync(MitgliedsantragPreviewDecision decision)

@@ -13,13 +13,13 @@ namespace KGV.Maui.Pages
     {
         private readonly string _filePath;
         private readonly WebView _webView;
-        private readonly KGV.Core.Interfaces.ISupabaseService _supabaseService;
+        private readonly KGV.Core.Interfaces.ISupabaseService? _supabaseService;
         private readonly int? _mitgliedId;
 
-        public PdfViewerPage(string filePath, KGV.Core.Interfaces.ISupabaseService supabaseService, int? mitgliedId = null)
+        public PdfViewerPage(string filePath, KGV.Core.Interfaces.ISupabaseService? supabaseService = null, int? mitgliedId = null)
         {
             _filePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
-            _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
+            _supabaseService = supabaseService;
             _mitgliedId = mitgliedId;
             Title = Path.GetFileName(filePath);
             BackgroundColor = Colors.White;
@@ -237,6 +237,13 @@ namespace KGV.Maui.Pages
 
                 var fileName = Path.GetFileName(_filePath) ?? string.Empty;
                 var bytes = await File.ReadAllBytesAsync(_filePath);
+
+                // Require service for upload
+                if (_supabaseService == null)
+                {
+                    await DisplayAlert("Upload", "Upload nicht verfügbar: Supabase-Service nicht initialisiert.", "OK");
+                    return;
+                }
 
                 // Simple heuristic: Mitgliedsantrag -> upload as member document
                 if (fileName.Contains("Mitgliedsantrag", StringComparison.OrdinalIgnoreCase))
