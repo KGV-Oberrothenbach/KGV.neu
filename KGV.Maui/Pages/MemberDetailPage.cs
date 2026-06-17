@@ -583,6 +583,24 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     return;
                 }
 
+                // Schreibe persistente Kopie(en) der Preview, damit das Dokument später lokal geöffnet/unterzeichnet werden kann
+                try
+                {
+                    var persistentFileName = previewUploadRequest.FileName ?? $"Mitgliedsantrag_{mitgliedId}.pdf";
+                    await KGV.Maui.Services.Documents.LocalDocumentService.SavePersistentCopyAsync(previewUploadRequest.FileContent!, persistentFileName);
+
+                    // zusätzlich eine konsistente Standard-Dateiname-Kopie ablegen, damit MemberDetailPage Lookup unabhängig vom Server-Dateinamen funktioniert
+                    var fallbackName = $"Mitgliedsantrag_{mitgliedId}.pdf";
+                    if (!string.Equals(fallbackName, persistentFileName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        await KGV.Maui.Services.Documents.LocalDocumentService.SavePersistentCopyAsync(previewUploadRequest.FileContent!, fallbackName);
+                    }
+                }
+                catch
+                {
+                    // persistent write failures dürfen den Flow nicht blockieren; Preview/Signatur kann trotzdem extern geöffnet werden
+                }
+
                 var previewDecision = await ShowMitgliedsantragPreviewAsync(previewUploadRequest);
                 if (previewDecision == MitgliedsantragPreviewDecision.BackToEditor)
                 {
