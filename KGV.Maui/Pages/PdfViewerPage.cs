@@ -74,9 +74,66 @@ namespace KGV.Maui.Pages
                 var bytes = await File.ReadAllBytesAsync(_filePath);
                 var base64 = Convert.ToBase64String(bytes);
 
-                var html = $"<!doctype html><html><head><meta charset=\"utf-8\"></head><body style=\"margin:0; padding:0; height:100vh\">" +
-                           $"<embed width=\"100%\" height=\"100%\" src=\"data:application/pdf;base64,{base64}\" type=\"application/pdf\"></embed>" +
-                           "</body></html>";
+                // PDF.js via CDN - minimal viewer HTML
+                var template = @"<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <title>PDF Viewer (POC)</title>
+  <style>body,html{{height:100%;margin:0}}#toolbar{{background:#f3f3f3;padding:6px;display:flex;gap:8px;align-items:center}}#viewerContainer{{height:calc(100% - 44px);overflow:auto;background:#666}}</style>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.110/pdf.min.js'></script>
+</head>
+<body>
+  <div id='toolbar'>
+    <button id='prev'>Prev</button>
+    <button id='next'>Next</button>
+    <span>Page: <span id='page_num'>1</span> / <span id='page_count'>--</span></span>
+    <label>Zoom: <select id='zoom'><option value='0.5'>50%</option><option value='1' selected>100%</option><option value='1.5'>150%</option><option value='2'>200%</option></select></label>
+  </div>
+  <div id='viewerContainer'><canvas id='pdf-canvas' style='display:block;margin:0 auto;'></canvas></div>
+
+  <script>
+    (function(){{
+      const base64 = '__BASE64__';
+      const pdfData = atob(base64);
+      const len = pdfData.length;
+      const uint8 = new Uint8Array(len);
+      for (let i = 0; i < len; i++) uint8[i] = pdfData.charCodeAt(i);
+
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.110/pdf.worker.min.js';
+      let pdfDoc = null, pageNum = 1, scale = 1.0; 
+      const canvas = document.getElementById('pdf-canvas');
+      const ctx = canvas.getContext('2d');
+
+      function renderPage(num){{
+        pdfDoc.getPage(num).then(function(page){{
+          const viewport = page.getViewport({{ scale: scale }});
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          const renderContext = {{ canvasContext: ctx, viewport: viewport }};
+          page.render(renderContext);
+          document.getElementById('page_num').textContent = pageNum;
+        }});
+      }}
+
+      pdfjsLib.getDocument({{data: uint8}}).promise.then(function(pdf){{
+        pdfDoc = pdf;
+        document.getElementById('page_count').textContent = pdf.numPages;
+        renderPage(pageNum);
+      }}).catch(function(err){{
+        document.body.innerHTML = '<p style=\'color:red;padding:12px\'>' + err.message + '</p>';
+      }});
+
+      document.getElementById('prev').addEventListener('click', function(){{ if(pageNum <=1) return; pageNum--; renderPage(pageNum);}});
+      document.getElementById('next').addEventListener('click', function(){{ if(pageNum >= pdfDoc.numPages) return; pageNum++; renderPage(pageNum);}});
+      document.getElementById('zoom').addEventListener('change', function(e){{ scale = parseFloat(e.target.value); renderPage(pageNum); }});
+    }})();
+  </script>
+</body>
+</html>";
+
+                var html = template.Replace("__BASE64__", base64);
 
                 _webView.Source = new HtmlWebViewSource { Html = html };
             }
