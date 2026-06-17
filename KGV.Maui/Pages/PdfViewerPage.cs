@@ -147,26 +147,73 @@ namespace KGV.Maui.Pages
         {
             try
             {
-                var document = new DocumentInfo
+                if (!File.Exists(_filePath))
                 {
-                    Title = Title ?? string.Empty,
-                    Dateiname = Path.GetFileName(_filePath),
-                    Name = Path.GetFileName(_filePath),
-                    MimeType = "application/pdf",
-                    StoragePath = _filePath
-                };
-
-                var signPage = new VertragsSignaturPage(document, "Unterschrift (POC)");
-                await Navigation.PushModalAsync(new NavigationPage(signPage));
-                var capture = await signPage.WaitForResultAsync();
-                if (capture == null)
-                {
-                    await DisplayAlert("Signatur", "Signatur abgebrochen.", "OK");
+                    await DisplayAlert("Fehler", "Die Datei wurde nicht gefunden.", "OK");
                     return;
                 }
 
-                // POC: wir erfassen die Signatur, aber integrieren sie noch nicht in das PDF.
-                await DisplayAlert("Signatur", "Signatur erfasst (POC). Integration in PDF folgt in späteren Schritten.", "OK");
+                var fileName = Path.GetFileName(_filePath) ?? string.Empty;
+                // Bestimme Platzhalter je nach Dokumenttyp (vereinfachte Heuristik)
+                IReadOnlyList<KGV.Core.Models.SignaturePlaceholder> placeholders = Array.Empty<KGV.Core.Models.SignaturePlaceholder>();
+                if (fileName.Contains("Mitgliedsantrag", StringComparison.OrdinalIgnoreCase))
+                {
+                    placeholders = KGV.Core.Utilities.MitgliedsantragDokumentFactory.GetSignaturePlaceholders();
+                }
+                else if (fileName.Contains("Pachtvertrag", StringComparison.OrdinalIgnoreCase))
+                {
+                    placeholders = KGV.Core.Utilities.PachtvertragDokumentFactory.GetSignaturePlaceholders();
+                }
+
+                if (placeholders == null || placeholders.Count == 0)
+                {
+                    await DisplayAlert("Signatur", "Keine Signaturplätze für dieses Dokument erkannt (POC).", "OK");
+                    return;
+                }
+
+                var originalBytes = await File.ReadAllBytesAsync(_filePath);
+                var captures = new List<(KGV.Core.Models.SignaturePlaceholder placeholder, KGV.Core.Models.DigitalSignatureCapture capture)>();
+
+                foreach (var placeholder in placeholders)
+                {
+                    var docInfo = new KGV.Core.Models.DocumentInfo
+                    {
+                        Title = Title ?? string.Empty,
+                        Dateiname = fileName,
+                        Name = fileName,
+                        MimeType = "application/pdf",
+                        StoragePath = _filePath
+                    };
+
+                    var signPage = new VertragsSignaturPage(docInfo, placeholder.Name);
+                    await Navigation.PushModalAsync(new NavigationPage(signPage));
+                    var capture = await signPage.WaitForResultAsync();
+                    if (capture == null)
+                    {
+                        await DisplayAlert("Signatur", "Signaturvorgang abgebrochen.", "OK");
+                        return;
+                    }
+
+                    captures.Add((placeholder, capture));
+                }
+
+                // Insert signatures into PDF
+                var updated = KGV.Core.Utilities.SignedVertragsdokumentPdfBuilder.InsertSignaturesIntoPdf(originalBytes, captures);
+
+                // Save updated PDF locally (overwrite)
+                try
+                {
+                    await KGV.Maui.Services.Documents.LocalDocumentService.SavePersistentCopyAsync(updated, fileName);
+                }
+                catch
+                {
+                    // ignore write failures
+                }
+
+                await DisplayAlert("Signatur", "Signaturen in PDF übernommen und lokal gespeichert.", "OK");
+
+                // Reload viewer
+                await LoadPdfIntoWebViewAsync();
             }
             catch (Exception ex)
             {
