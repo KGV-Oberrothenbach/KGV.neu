@@ -13,10 +13,14 @@ namespace KGV.Maui.Pages
     {
         private readonly string _filePath;
         private readonly WebView _webView;
+        private readonly KGV.Core.Interfaces.ISupabaseService _supabaseService;
+        private readonly int? _mitgliedId;
 
-        public PdfViewerPage(string filePath)
+        public PdfViewerPage(string filePath, KGV.Core.Interfaces.ISupabaseService supabaseService, int? mitgliedId = null)
         {
             _filePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
+            _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
+            _mitgliedId = mitgliedId;
             Title = Path.GetFileName(filePath);
             BackgroundColor = Colors.White;
 
@@ -223,7 +227,85 @@ namespace KGV.Maui.Pages
 
         private async Task OnUploadClicked()
         {
-            await DisplayAlert("Upload", "Upload-Flow ist noch nicht implementiert. Dies ist ein POC-Button.", "OK");
+            try
+            {
+                if (!File.Exists(_filePath))
+                {
+                    await DisplayAlert("Fehler", "Die Datei wurde nicht gefunden.", "OK");
+                    return;
+                }
+
+                var fileName = Path.GetFileName(_filePath) ?? string.Empty;
+                var bytes = await File.ReadAllBytesAsync(_filePath);
+
+                // Simple heuristic: Mitgliedsantrag -> upload as member document
+                if (fileName.Contains("Mitgliedsantrag", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!_mitgliedId.HasValue || _mitgliedId.Value <= 0)
+                    {
+                        await DisplayAlert("Upload", "Mitglieds-ID unbekannt. Bitte Dokument aus der Mitgliedsansicht hochladen.", "OK");
+                        return;
+                    }
+
+                    var request = new KGV.Core.Models.DokumentUploadRequest
+                    {
+                        MitgliedId = _mitgliedId.Value,
+                        Titel = "Mitgliedsantrag (signiert)",
+                        FileName = fileName,
+                        MimeType = "application/pdf",
+                        FileContent = bytes
+                    };
+
+                    var result = await _supabaseService.CreateDokumentAsync(request);
+                    if (!result.Success)
+                    {
+                        await DisplayAlert("Upload fehlgeschlagen", result.Message, "OK");
+                        return;
+                    }
+
+                    await DisplayAlert("Upload", "Dokument erfolgreich hochgeladen.", "OK");
+
+                    if (result.Document != null && result.Document.CanOpen)
+                    {
+                        var url = await _supabaseService.ResolveDokumentOpenUrlAsync(result.Document, 3600);
+                        if (!string.IsNullOrWhiteSpace(url))
+                        {
+                            try { await Launcher.Default.OpenAsync(url); } catch { /* ignore */ }
+                        }
+                    }
+
+                    return;
+                }
+
+                // Fallback: upload generic document if MitgliedId available
+                if (_mitgliedId.HasValue && _mitgliedId.Value > 0)
+                {
+                    var request = new KGV.Core.Models.DokumentUploadRequest
+                    {
+                        MitgliedId = _mitgliedId.Value,
+                        Titel = fileName,
+                        FileName = fileName,
+                        MimeType = "application/pdf",
+                        FileContent = bytes
+                    };
+
+                    var result = await _supabaseService.CreateDokumentAsync(request);
+                    if (!result.Success)
+                    {
+                        await DisplayAlert("Upload fehlgeschlagen", result.Message, "OK");
+                        return;
+                    }
+
+                    await DisplayAlert("Upload", "Dokument erfolgreich hochgeladen.", "OK");
+                    return;
+                }
+
+                await DisplayAlert("Upload", "Dieses Dokument kann nicht automatisch hochgeladen werden. Bitte verwenden Sie die Dokumente-Ansicht.", "OK");
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlert("Fehler beim Upload", ex.Message, "OK");
+            }
         }
     }
 }

@@ -131,7 +131,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             if (status.Exists)
             {
                 // Öffne In-App Viewer
-                var viewer = new PdfViewerPage(status.LocalPath);
+                var viewer = new PdfViewerPage(status.LocalPath, _supabaseService, _memberRecord?.Id);
                 await Navigation.PushModalAsync(new NavigationPage(viewer));
                 return;
             }
