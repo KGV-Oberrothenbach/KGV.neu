@@ -121,8 +121,23 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _mitgliedsantragButton = new Button { Text = "Mitgliedsantrag als PDF", IsVisible = false };
         _mitgliedsantragButton.Clicked += async (_, _) =>
         {
-            if (_memberRecord?.Id is > 0)
-                await CreateMitgliedsantragAsync(_memberRecord.Id);
+            if (_memberRecord?.Id is not > 0)
+                return;
+
+            // Prüfe lokale persistente Kopie
+            var fileName = $"Mitgliedsantrag_{_memberRecord.Id}.pdf"; // konsistenter lokaler Dateiname
+            var localPath = KGV.Maui.Services.Documents.LocalDocumentService.GetLocalPath(fileName);
+            var status = KGV.Maui.Services.Documents.LocalDocumentService.GetStatus(new KGV.Core.Models.DocumentInfo { Dateiname = fileName, Name = fileName });
+            if (status.Exists)
+            {
+                // Öffne In-App Viewer
+                var viewer = new PdfViewerPage(status.LocalPath);
+                await Navigation.PushModalAsync(new NavigationPage(viewer));
+                return;
+            }
+
+            // keine lokale Kopie -> erzeugen
+            await CreateMitgliedsantragAsync(_memberRecord.Id);
         };
 
         _cancelMembershipButton = new Button { Text = "Mitgliedschaft beenden", IsVisible = false, BackgroundColor = Colors.IndianRed, TextColor = Colors.White };
