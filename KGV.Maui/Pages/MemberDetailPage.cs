@@ -55,6 +55,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly Button _nutzerHinzufuegenButton;
     private readonly Button _benutzerverwaltungButton;
     private readonly Button _mitgliedsantragButton;
+    private readonly Button _openMitgliedsantragButton;
+    private readonly Button _mitgliedsantragSignaturButton;
     private readonly Button _cancelMembershipButton;
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
@@ -119,8 +121,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _benutzerverwaltungButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(UserManagementPage));
 
         // Zwei Buttons: falls lokale persistente Kopie vorhanden ist, zeige "Öffnen" und "NEU"
-        var openMitgliedsantragButton = new Button { Text = "Mitgliedsantrag öffnen", IsVisible = false };
-        openMitgliedsantragButton.Clicked += async (_, _) =>
+        _openMitgliedsantragButton = new Button { Text = "Mitgliedsantrag öffnen", IsVisible = false };
+        _openMitgliedsantragButton.Clicked += async (_, _) =>
         {
             if (_memberRecord?.Id is not > 0)
                 return;
@@ -134,13 +136,29 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             }
         };
 
-        var newMitgliedsantragButton = new Button { Text = "Mitgliedsantrag NEU", IsVisible = false };
-        newMitgliedsantragButton.Clicked += async (_, _) =>
+        _mitgliedsantragButton = new Button { Text = "Mitgliedsantrag NEU", IsVisible = false };
+        _mitgliedsantragButton.Clicked += async (_, _) =>
         {
             if (_memberRecord?.Id is not > 0)
                 return;
 
             await CreateMitgliedsantragAsync(_memberRecord.Id);
+        };
+
+        _mitgliedsantragSignaturButton = new Button { Text = "Mitgliedsantrag Signatur", IsVisible = false };
+        _mitgliedsantragSignaturButton.Clicked += async (_, _) =>
+        {
+            if (_memberRecord?.Id is not > 0)
+                return;
+
+            var fileName = $"Mitgliedsantrag_{_memberRecord.Id}.pdf";
+            var status = KGV.Maui.Services.Documents.LocalDocumentService.GetStatus(new KGV.Core.Models.DocumentInfo { Dateiname = fileName, Name = fileName });
+            if (!status.Exists)
+                return;
+
+            // Öffne Viewer; Viewer kann dort Signatur-Optionen anbieten.
+            var viewer = new PdfViewerPage(status.LocalPath, _supabaseService, _memberRecord?.Id);
+            await Navigation.PushModalAsync(new NavigationPage(viewer));
         };
 
         _cancelMembershipButton = new Button { Text = "Mitgliedschaft beenden", IsVisible = false, BackgroundColor = Colors.IndianRed, TextColor = Colors.White };
@@ -196,7 +214,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                         _appUserHintLabel,
                         _nutzerHinzufuegenButton,
                         _benutzerverwaltungButton),
-                    new HorizontalStackLayout { Spacing = 8, Children = { openMitgliedsantragButton, newMitgliedsantragButton } },
+                    new HorizontalStackLayout { Spacing = 8, Children = { _openMitgliedsantragButton, _mitgliedsantragButton, _mitgliedsantragSignaturButton } },
                     _mitgliedsantragDiagnoseLabel,
                     _cancelMembershipButton,
                     new HorizontalStackLayout
@@ -423,8 +441,33 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             && member?.Id is > 0
             && canCreateMitglied;
 
-        _mitgliedsantragButton.IsVisible = canCreateMemberApplication;
-        _mitgliedsantragButton.IsEnabled = canCreateMemberApplication;
+        // Prüfe, ob eine lokale persistente Kopie des Mitgliedsantrags existiert
+        var hasLocalCopy = false;
+        if (member?.Id is > 0)
+        {
+            var fileName = $"Mitgliedsantrag_{member.Id}.pdf";
+            var status = KGV.Maui.Services.Documents.LocalDocumentService.GetStatus(new KGV.Core.Models.DocumentInfo { Dateiname = fileName, Name = fileName });
+            hasLocalCopy = status.Exists;
+        }
+
+        if (_mitgliedsantragButton != null)
+        {
+            _mitgliedsantragButton.IsVisible = canCreateMemberApplication && !hasLocalCopy;
+            _mitgliedsantragButton.IsEnabled = canCreateMemberApplication && !hasLocalCopy;
+        }
+
+        if (_openMitgliedsantragButton != null)
+        {
+            _openMitgliedsantragButton.IsVisible = hasLocalCopy;
+            _openMitgliedsantragButton.IsEnabled = hasLocalCopy;
+        }
+
+        if (_mitgliedsantragSignaturButton != null)
+        {
+            _mitgliedsantragSignaturButton.IsVisible = hasLocalCopy;
+            _mitgliedsantragSignaturButton.IsEnabled = hasLocalCopy;
+        }
+
         _mitgliedsantragDiagnoseLabel.Text = BuildMitgliedsantragDiagnoseText(member);
     }
 
