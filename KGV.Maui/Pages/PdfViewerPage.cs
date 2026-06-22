@@ -4,6 +4,9 @@ using System.Threading.Tasks;
 using KGV.Core.Models;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Dispatching;
+using Microsoft.Maui.Storage;
 
 namespace KGV.Maui.Pages
 {
@@ -11,15 +14,16 @@ namespace KGV.Maui.Pages
     // This is intentionally minimal and meant as a proof-of-concept before integrating PDF.js or a native viewer.
     public sealed class PdfViewerPage : ContentPage
     {
+        private readonly Button _deleteButton;
         private readonly string _filePath;
         private readonly WebView _webView;
-        private readonly KGV.Core.Interfaces.ISupabaseService? _supabaseService;
+        private readonly KGV.Core.Interfaces.ISupabaseService _supabaseService;
         private readonly int? _mitgliedId;
 
-        public PdfViewerPage(string filePath, KGV.Core.Interfaces.ISupabaseService? supabaseService = null, int? mitgliedId = null)
+        public PdfViewerPage(string filePath, KGV.Core.Interfaces.ISupabaseService supabaseService, int? mitgliedId = null)
         {
             _filePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
-            _supabaseService = supabaseService;
+            _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
             _mitgliedId = mitgliedId;
             Title = Path.GetFileName(filePath);
             BackgroundColor = Colors.White;
@@ -36,6 +40,9 @@ namespace KGV.Maui.Pages
             var uploadButton = new Button { Text = "Speichern & Hochladen" };
             uploadButton.Clicked += async (_, _) => await OnUploadClicked();
 
+            _deleteButton = new Button { Text = "Antrag löschen", IsVisible = false, BackgroundColor = Colors.LightCoral, TextColor = Colors.White };
+            _deleteButton.Clicked += async (_, _) => await OnDeleteClicked();
+
             Content = new VerticalStackLayout
             {
                 Padding = 0,
@@ -46,7 +53,7 @@ namespace KGV.Maui.Pages
                     {
                         Padding = 8,
                         Spacing = 8,
-                        Children = { signButton, uploadButton }
+                        Children = { signButton, _deleteButton, uploadButton }
                     },
                     new Border
                     {
@@ -63,6 +70,36 @@ namespace KGV.Maui.Pages
         {
             base.OnAppearing();
             _ = LoadPdfIntoWebViewAsync();
+        }
+
+        private async Task UpdateDeleteButtonVisibilityAsync(byte[] fileBytes)
+        {
+            try
+            {
+                var fileName = Path.GetFileName(_filePath) ?? string.Empty;
+                // Only show for Mitgliedsantrag documents
+                if (!fileName.Contains("Mitgliedsantrag", StringComparison.OrdinalIgnoreCase))
+                {
+                    _deleteButton.IsVisible = false;
+                    return;
+                }
+
+                // Do not show delete for uploaded documents; signed detection via metadata is not available here.
+
+                // Also hide if already uploaded / not purely local
+                var status = KGV.Maui.Services.Documents.LocalDocumentService.GetStatus(new KGV.Core.Models.DocumentInfo { Dateiname = fileName, Name = fileName });
+                if (status.IsUploaded)
+                {
+                    _deleteButton.IsVisible = false;
+                    return;
+                }
+
+                _deleteButton.IsVisible = true;
+            }
+            catch
+            {
+                _deleteButton.IsVisible = false;
+            }
         }
 
         private async Task LoadPdfIntoWebViewAsync()
@@ -138,8 +175,53 @@ namespace KGV.Maui.Pages
 </html>";
 
                 var html = template.Replace("__BASE64__", base64);
-
                 _webView.Source = new HtmlWebViewSource { Html = html };
+
+                // Determine delete button visibility based on file content and status
+                _ = UpdateDeleteButtonVisibilityAsync(bytes);
+
+                // Kurze Prüfung, ob der eingebettete pdf.js-Viewer erfolgreich geladen hat.
+                // Manche Android-WebViews blockieren das Laden des pdf.worker oder CDN-Assets;
+                // dann bleibt die Anzeige weiß. Wir prüfen nach kurzer Wartezeit und bieten
+                // als Fallback an, das PDF extern mit dem System-Viewer zu öffnen.
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await Task.Delay(1200);
+                        string? pageCount = null;
+                        try
+                        {
+                            pageCount = await _webView.EvaluateJavaScriptAsync("(function(){var el=document.getElementById('page_count'); return el ? el.textContent : ''; })();");
+                        }
+                        catch { pageCount = null; }
+
+                        if (string.IsNullOrWhiteSpace(pageCount) || pageCount.Contains("--") || pageCount.Contains("undefined"))
+                        {
+                            // Wechsel in den UI-Thread
+                            await MainThread.InvokeOnMainThreadAsync(async () =>
+                            {
+                                try
+                                {
+                                    var open = await DisplayAlert("Vorschau nicht verfügbar", "Die integrierte PDF-Vorschau kann dieses Dokument nicht darstellen. Soll das Dokument extern geöffnet werden?", "Ja", "Nein");
+                                    if (open)
+                                    {
+                                        try
+                                        {
+                                            await Launcher.Default.OpenAsync(new OpenFileRequest(Title ?? "Dokument", new ReadOnlyFile(_filePath)));
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            await DisplayAlert("Fehler beim Öffnen", ex.Message, "OK");
+                                        }
+                                    }
+                                }
+                                catch { }
+                            });
+                        }
+                    }
+                    catch { }
+                });
             }
             catch (Exception ex)
             {
@@ -218,6 +300,13 @@ namespace KGV.Maui.Pages
 
                 // Reload viewer
                 await LoadPdfIntoWebViewAsync();
+                try
+                {
+                    var bytes = await File.ReadAllBytesAsync(_filePath);
+                    _deleteButton.IsVisible = false; // signed -> do not allow delete
+                    _ = UpdateDeleteButtonVisibilityAsync(bytes);
+                }
+                catch { }
             }
             catch (Exception ex)
             {
@@ -237,13 +326,6 @@ namespace KGV.Maui.Pages
 
                 var fileName = Path.GetFileName(_filePath) ?? string.Empty;
                 var bytes = await File.ReadAllBytesAsync(_filePath);
-
-                // Require service for upload
-                if (_supabaseService == null)
-                {
-                    await DisplayAlert("Upload", "Upload nicht verfügbar: Supabase-Service nicht initialisiert.", "OK");
-                    return;
-                }
 
                 // Simple heuristic: Mitgliedsantrag -> upload as member document
                 if (fileName.Contains("Mitgliedsantrag", StringComparison.OrdinalIgnoreCase))
@@ -312,6 +394,38 @@ namespace KGV.Maui.Pages
             catch (Exception ex)
             {
                 await DisplayAlert("Fehler beim Upload", ex.Message, "OK");
+            }
+        }
+
+        // Note: removed Pdf metadata inspection to avoid additional package dependency in MAUI project.
+
+        private async Task OnDeleteClicked()
+        {
+            try
+            {
+                var fileName = Path.GetFileName(_filePath) ?? string.Empty;
+                var confirm = await DisplayAlert("Antrag löschen?", "Soll der lokale Antrag unwiderruflich gelöscht werden? Nur löschen, wenn er noch nicht signiert oder hochgeladen wurde.", "Löschen", "Abbrechen");
+                if (!confirm) return;
+
+                var status = KGV.Maui.Services.Documents.LocalDocumentService.GetStatus(new KGV.Core.Models.DocumentInfo { Dateiname = fileName, Name = fileName });
+                if (status.IsUploaded)
+                {
+                    await DisplayAlert("Löschen nicht möglich", "Dieses Dokument wurde bereits hochgeladen und kann nicht lokal gelöscht werden.", "OK");
+                    return;
+                }
+
+                if (status.Exists)
+                {
+                    try { File.Delete(status.LocalPath); } catch (Exception ex) { await DisplayAlert("Fehler", ex.Message, "OK"); return; }
+                }
+
+                await DisplayAlert("Antrag gelöscht", "Der lokale Antrag wurde entfernt.", "OK");
+                // Close viewer
+                try { await Navigation.PopAsync(); } catch { try { await Navigation.PopModalAsync(); } catch { } }
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlert("Fehler beim Löschen", ex.Message, "OK");
             }
         }
     }

@@ -7,6 +7,7 @@ using AndroidX.Activity;
 using KGV.Maui.Services.Diagnostics;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
+using Android.Webkit;
 
 namespace KGV.Maui;
 
@@ -28,6 +29,16 @@ public class MainActivity : MauiAppCompatActivity
     {
         AppFileLog.Info("KGV.Navigation", "MainActivity.OnCreate registriert Android-BackCallback.");
         base.OnCreate(savedInstanceState);
+
+            try
+            {
+                // Aktivieren von WebView-Debugging zur Untersuchung von pdf.js / WebView-Problemen während der Entwicklung
+                Android.Webkit.WebView.SetWebContentsDebuggingEnabled(true);
+            }
+        catch
+        {
+            // kein Block, nur Debug-Hilfe
+        }
 
         if (_backPressedCallback == null)
             _backPressedCallback = new ActivityBackPressedCallback(this);
