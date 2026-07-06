@@ -199,10 +199,14 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 catch (Exception ex) { await DisplayAlert("Fehler", ex.Message, "OK"); return; }
             }
 
-            // Starte den Erstellungs-Flow neu
+            // Nach Löschung: optionalen Neustart bestätigen
             try
             {
-                await CreateMitgliedsantragAsync(_memberRecord.Id);
+                var restart = await DisplayAlert("Neuen Antrag erstellen?", "Möchten Sie jetzt einen neuen Mitgliedsantrag erstellen?", "Ja", "Nein");
+                if (restart)
+                {
+                    await CreateMitgliedsantragAsync(_memberRecord.Id);
+                }
             }
             catch (Exception ex)
             {
