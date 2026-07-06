@@ -5,6 +5,7 @@ using KGV.Core.Utilities;
 using KGV.Maui.State;
 using Microsoft.Maui;
 using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.ApplicationModel.DataTransfer;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
@@ -56,7 +57,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly Button _benutzerverwaltungButton;
     private readonly Button _mitgliedsantragButton;
     private readonly Button _openMitgliedsantragButton;
-    private readonly Button _mitgliedsantragSignaturButton;
+    private readonly Button _mitgliedsantragDownloadButton;
+    private readonly Button _mitgliedsantragDeleteAndNewButton;
     private readonly Button _cancelMembershipButton;
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
@@ -145,8 +147,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             await CreateMitgliedsantragAsync(_memberRecord.Id);
         };
 
-        _mitgliedsantragSignaturButton = new Button { Text = "Mitgliedsantrag Signatur", IsVisible = false };
-        _mitgliedsantragSignaturButton.Clicked += async (_, _) =>
+        _mitgliedsantragDownloadButton = new Button { Text = "Mitgliedsantrag Download", IsVisible = false };
+        _mitgliedsantragDownloadButton.Clicked += async (_, _) =>
         {
             if (_memberRecord?.Id is not > 0)
                 return;
@@ -154,11 +156,58 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             var fileName = $"Mitgliedsantrag_{_memberRecord.Id}.pdf";
             var status = KGV.Maui.Services.Documents.LocalDocumentService.GetStatus(new KGV.Core.Models.DocumentInfo { Dateiname = fileName, Name = fileName });
             if (!status.Exists)
+            {
+                await DisplayAlert("Fehler", "Keine lokale Datei vorhanden.", "OK");
+                return;
+            }
+
+                try
+                {
+                    // Versuche Share-Chooser (robuster für WhatsApp / Druck-Apps etc.)
+                    var shareFile = new ShareFile(status.LocalPath);
+                    var request = new ShareFileRequest(Title ?? "Mitgliedsantrag", shareFile);
+                    await Share.RequestAsync(request);
+                }
+            catch
+            {
+                try
+                {
+                    // Fallback: direkt mit System-Viewer öffnen
+                    await Launcher.Default.OpenAsync(new OpenFileRequest(Title ?? "Mitgliedsantrag", new ReadOnlyFile(status.LocalPath)));
+                }
+                catch (Exception ex)
+                {
+                    await DisplayAlert("Fehler beim Öffnen", ex.Message, "OK");
+                }
+            }
+        };
+
+        _mitgliedsantragDeleteAndNewButton = new Button { Text = "Mitgliedsantrag Löschen und Neu", IsVisible = false, BackgroundColor = Colors.LightCoral, TextColor = Colors.White };
+        _mitgliedsantragDeleteAndNewButton.Clicked += async (_, _) =>
+        {
+            if (_memberRecord?.Id is not > 0)
                 return;
 
-            // Öffne Viewer; Viewer kann dort Signatur-Optionen anbieten.
-            var viewer = new PdfViewerPage(status.LocalPath, _supabaseService, _memberRecord?.Id);
-            await Navigation.PushModalAsync(new NavigationPage(viewer));
+            var confirm = await DisplayAlert("Antrag löschen?", "Soll die lokale Mitgliedsantrag-Datei gelöscht werden und anschließend ein neuer Antrag erstellt werden?", "Ja", "Nein");
+            if (!confirm) return;
+
+            var fileName = $"Mitgliedsantrag_{_memberRecord.Id}.pdf";
+            var status = KGV.Maui.Services.Documents.LocalDocumentService.GetStatus(new KGV.Core.Models.DocumentInfo { Dateiname = fileName, Name = fileName });
+            if (status.Exists)
+            {
+                try { System.IO.File.Delete(status.LocalPath); }
+                catch (Exception ex) { await DisplayAlert("Fehler", ex.Message, "OK"); return; }
+            }
+
+            // Starte den Erstellungs-Flow neu
+            try
+            {
+                await CreateMitgliedsantragAsync(_memberRecord.Id);
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlert("Fehler", ex.Message, "OK");
+            }
         };
 
         _cancelMembershipButton = new Button { Text = "Mitgliedschaft beenden", IsVisible = false, BackgroundColor = Colors.IndianRed, TextColor = Colors.White };
@@ -214,7 +263,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                         _appUserHintLabel,
                         _nutzerHinzufuegenButton,
                         _benutzerverwaltungButton),
-                    new HorizontalStackLayout { Spacing = 8, Children = { _openMitgliedsantragButton, _mitgliedsantragButton, _mitgliedsantragSignaturButton } },
+                    new HorizontalStackLayout { Spacing = 8, Children = { _openMitgliedsantragButton, _mitgliedsantragButton, _mitgliedsantragDownloadButton, _mitgliedsantragDeleteAndNewButton } },
                     _mitgliedsantragDiagnoseLabel,
                     _cancelMembershipButton,
                     new HorizontalStackLayout
@@ -462,10 +511,16 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             _openMitgliedsantragButton.IsEnabled = hasLocalCopy;
         }
 
-        if (_mitgliedsantragSignaturButton != null)
+        if (_mitgliedsantragDownloadButton != null)
         {
-            _mitgliedsantragSignaturButton.IsVisible = hasLocalCopy;
-            _mitgliedsantragSignaturButton.IsEnabled = hasLocalCopy;
+            _mitgliedsantragDownloadButton.IsVisible = hasLocalCopy;
+            _mitgliedsantragDownloadButton.IsEnabled = hasLocalCopy;
+        }
+
+        if (_mitgliedsantragDeleteAndNewButton != null)
+        {
+            _mitgliedsantragDeleteAndNewButton.IsVisible = hasLocalCopy;
+            _mitgliedsantragDeleteAndNewButton.IsEnabled = hasLocalCopy;
         }
 
         _mitgliedsantragDiagnoseLabel.Text = BuildMitgliedsantragDiagnoseText(member);
