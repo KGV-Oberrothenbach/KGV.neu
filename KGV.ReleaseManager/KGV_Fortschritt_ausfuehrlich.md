@@ -1094,3 +1094,13 @@ Die bisherigen vier Threads zum KGV Release Manager wurden konsolidiert. Das Zie
 - Settings-Datei und UI vollständig verdrahten
 - echte Versionsquellen im KGV.neu-Repo anbinden
 - Release-Ordner und Exporttexte testbar machen
+
+## 2026-07-06 – MAUI: Mitgliedsantrag – UI-Buttons angepasst (Download / Löschen & Neu)
+
+- Kurz: In `KGV.Maui/Pages/MemberDetailPage.cs` wurde der bisherige Signatur-Button entfernt und durch zwei robustere Aktionen ersetzt:
+  - "Mitgliedsantrag Download": öffnet den Share-Chooser (WhatsApp/Druck-App/andere) mit Fallback auf System-Viewer (Launcher).
+  - "Mitgliedsantrag Löschen und Neu": Bestätigung, Löschen der lokalen Datei und anschließender Start des Erstellungs-Flows (`CreateMitgliedsantragAsync`).
+
+- Build/Commit: Lokaler Build `dotnet build KGV.Maui/KGV.Maui.csproj` erfolgreich. Änderungen committed und gepusht auf branch `feature/persistent-pdf-viewer`.
+
+- Hinweis: Bitte auf einem echten Tablet prüfen (Share / Launcher / FileProvider-Verhalten). Falls gewünscht, ergänze ich ein zusätzliches Bestätigungsdialog vor dem direkten Restart nach Löschen.
