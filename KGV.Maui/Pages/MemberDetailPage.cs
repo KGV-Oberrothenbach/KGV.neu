@@ -177,6 +177,17 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 }
                 catch (Exception ex)
                 {
+                    // Wenn Launcher/OpenAsync nicht alle Viewer anzeigt, versuchen wir platform-spezifisch
+                    try
+                    {
+                        if (DeviceInfo.Platform == DevicePlatform.Android)
+                        {
+                            _ = KGV.Maui.Platforms.Android.FileOpener.TryOpenPdfExternally(status.LocalPath);
+                            return;
+                        }
+                    }
+                    catch { }
+
                     await DisplayAlert("Fehler beim Öffnen", ex.Message, "OK");
                 }
             }
