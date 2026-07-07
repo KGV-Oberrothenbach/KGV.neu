@@ -14,6 +14,7 @@ public sealed class VertragsSignaturPage : ContentPage
     private readonly SignaturePadDrawable _drawable = new();
     private readonly GraphicsView _graphicsView;
     private bool _landscapeForced;
+    private ScrollView? _parentScrollView;
     private readonly Label _hintLabel;
 
     public VertragsSignaturPage(DocumentInfo sourceDocument, string? unterschriftTitel = null, bool isLastSignature = true)
@@ -50,6 +51,7 @@ public sealed class VertragsSignaturPage : ContentPage
         {
             _drawable.EndStroke();
             _graphicsView.Invalidate();
+            try { _parentScrollView.IsEnabled = true; } catch { }
         };
 
         var clearButton = new Button { Text = "Leeren" };
@@ -111,7 +113,9 @@ public sealed class VertragsSignaturPage : ContentPage
         grid.Add(buttonBar, 0, 3);
 
         // Wrap grid in ScrollView to ensure on very small screens buttons remain reachable
-        Content = new ScrollView { Content = grid };
+        var scroll = new ScrollView { Content = grid };
+        _parentScrollView = scroll;
+        Content = scroll;
     }
 
     public Task<DigitalSignatureCapture?> WaitForResultAsync() => _resultSource.Task;
@@ -179,6 +183,9 @@ public sealed class VertragsSignaturPage : ContentPage
         if (point == null)
             return;
 
+        // Disable parent scrolling while drawing so touch moves are delivered continuously
+        try { if (_parentScrollView != null) _parentScrollView.IsEnabled = false; } catch { }
+
         _drawable.BeginStroke(point.Value);
         _graphicsView.Invalidate();
     }
@@ -200,9 +207,11 @@ public sealed class VertragsSignaturPage : ContentPage
         var point = TryGetTouchPoint(e);
         if (point != null)
             _drawable.AddPoint(point.Value);
-
         _drawable.EndStroke();
         _graphicsView.Invalidate();
+
+        // Re-enable parent scrolling after finishing the stroke
+        try { if (_parentScrollView != null) _parentScrollView.IsEnabled = true; } catch { }
     }
 
     private async Task AcceptAsync(bool isLastSignature = true)
