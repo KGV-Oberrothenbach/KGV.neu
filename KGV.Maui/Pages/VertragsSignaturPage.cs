@@ -13,6 +13,7 @@ public sealed class VertragsSignaturPage : ContentPage
     private readonly TaskCompletionSource<DigitalSignatureCapture?> _resultSource = new();
     private readonly SignaturePadDrawable _drawable = new();
     private readonly GraphicsView _graphicsView;
+    private bool _landscapeForced;
     private readonly Label _hintLabel;
 
     public VertragsSignaturPage(DocumentInfo sourceDocument, string? unterschriftTitel = null, bool isLastSignature = true)
@@ -40,8 +41,7 @@ public sealed class VertragsSignaturPage : ContentPage
             HorizontalOptions = LayoutOptions.Fill,
             VerticalOptions = LayoutOptions.FillAndExpand,
             InputTransparent = false,
-            IsEnabled = true,
-            HeightRequest = 320
+            IsEnabled = true
         };
         _graphicsView.StartInteraction += OnStartInteraction;
         _graphicsView.DragInteraction += OnDragInteraction;
@@ -66,38 +66,52 @@ public sealed class VertragsSignaturPage : ContentPage
         var cancelButton = new Button { Text = "Abbrechen" };
         cancelButton.Clicked += async (_, _) => await CancelAsync();
 
-        var layout = new VerticalStackLayout
+        // Use a Grid so the GraphicsView fills available space and the button bar stays reachable
+        var grid = new Grid
         {
-            Padding = new Microsoft.Maui.Thickness(24),
-            Spacing = 16
+            RowDefinitions =
+            {
+                new RowDefinition(GridLength.Auto), // title
+                new RowDefinition(GridLength.Auto), // hint
+                new RowDefinition(new GridLength(1, GridUnitType.Star)), // graphics
+                new RowDefinition(GridLength.Auto) // buttons
+            },
+            Padding = new Microsoft.Maui.Thickness(12)
         };
-        layout.Children.Add(new Label
+
+        var titleLabel = new Label
         {
             Text = string.IsNullOrWhiteSpace(unterschriftTitel) ? "Digitale Signatur" : unterschriftTitel.Trim(),
             FontSize = 24,
             FontAttributes = FontAttributes.Bold
-        });
-        layout.Children.Add(_hintLabel);
-        layout.Children.Add(new Border
+        };
+
+        grid.Add(titleLabel, 0, 0);
+        grid.Add(_hintLabel, 0, 1);
+
+        var border = new Border
         {
             Stroke = Colors.LightGray,
             StrokeThickness = 1,
-            Padding = 12,
+            Padding = 6,
             Content = _graphicsView
-        });
+        };
+
+        grid.Add(border, 0, 2);
 
         var buttonBar = new HorizontalStackLayout
         {
             Spacing = 12,
             HorizontalOptions = LayoutOptions.End
         };
-        // Keep clear and cancel left of the final Save button; Save always at the end
         buttonBar.Children.Add(clearButton);
         buttonBar.Children.Add(cancelButton);
         buttonBar.Children.Add(saveButton);
-        layout.Children.Add(buttonBar);
 
-        Content = layout;
+        grid.Add(buttonBar, 0, 3);
+
+        // Wrap grid in ScrollView to ensure on very small screens buttons remain reachable
+        Content = new ScrollView { Content = grid };
     }
 
     public Task<DigitalSignatureCapture?> WaitForResultAsync() => _resultSource.Task;
@@ -105,7 +119,25 @@ public sealed class VertragsSignaturPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-        MainActivity.SetLandscapeOrientationEnabled(true);
+        // Only force landscape on larger devices (tablets). On phones keep default orientation so the UI fits.
+        try
+        {
+            var display = Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo;
+            var widthDp = display.Width / display.Density;
+            var heightDp = display.Height / display.Density;
+            var smallestDp = Math.Min(widthDp, heightDp);
+            // Consider devices with smallest dimension >= 600dp as tablets
+            if (smallestDp >= 600)
+            {
+                MainActivity.SetLandscapeOrientationEnabled(true);
+                _landscapeForced = true;
+            }
+            else
+            {
+                _landscapeForced = false;
+            }
+        }
+        catch { _landscapeForced = false; }
 
         // After orientation change the view may need a short delay to be measured and receive touches.
         // Dispatch a short invalidate to ensure the GraphicsView is ready for interaction.
@@ -126,7 +158,11 @@ public sealed class VertragsSignaturPage : ContentPage
 
     protected override void OnDisappearing()
     {
-        MainActivity.SetLandscapeOrientationEnabled(false);
+        if (_landscapeForced)
+        {
+            try { MainActivity.SetLandscapeOrientationEnabled(false); } catch { }
+            _landscapeForced = false;
+        }
         base.OnDisappearing();
     }
 
