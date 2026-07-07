@@ -859,7 +859,25 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             // If caller already passed isLastSignature use it; otherwise infer from template placeholders
             var finalFlag = isLastSignature && (placeholders == null || placeholders.Count <= 1);
 
-            var signaturPage = new VertragsSignaturPage(sourceDocument, unterschriftTitel, isLastSignature: finalFlag);
+            // If this is the applicant signature, append member name (unless role is Vorstand)
+            string? signerName = null;
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(unterschriftTitel) && unterschriftTitel.Contains("Antragsteller", StringComparison.OrdinalIgnoreCase) && _memberRecord != null)
+                {
+                    if (!string.Equals(_memberRecord.Role, "Vorstand", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var fn = (_memberRecord.Vorname ?? string.Empty).Trim();
+                        var ln = (_memberRecord.Name ?? string.Empty).Trim();
+                        var combined = string.Join(' ', new[] { fn, ln }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+                        if (!string.IsNullOrWhiteSpace(combined))
+                            signerName = combined;
+                    }
+                }
+            }
+            catch { signerName = null; }
+
+            var signaturPage = new VertragsSignaturPage(sourceDocument, unterschriftTitel, isLastSignature: finalFlag, signerName: signerName);
             await Navigation.PushModalAsync(new NavigationPage(signaturPage));
             var result = await signaturPage.WaitForResultAsync();
             return result;

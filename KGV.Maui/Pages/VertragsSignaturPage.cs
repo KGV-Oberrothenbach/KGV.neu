@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using KGV.Core.Models;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.ApplicationModel;
 
 namespace KGV.Maui.Pages;
 
@@ -17,7 +18,8 @@ public sealed class VertragsSignaturPage : ContentPage
     private ScrollView? _parentScrollView;
     private readonly Label _hintLabel;
 
-    public VertragsSignaturPage(DocumentInfo sourceDocument, string? unterschriftTitel = null, bool isLastSignature = true)
+    // signerName: optional display name to append to title (e.g. "Vorname Nachname"). If signerName == "Vorstand" we skip appending.
+    public VertragsSignaturPage(DocumentInfo sourceDocument, string? unterschriftTitel = null, bool isLastSignature = true, string? signerName = null)
     {
         var dokumentName = sourceDocument.FormularDokumentTypAnzeige == "-"
             ? "Vertragsdokument"
@@ -87,6 +89,16 @@ public sealed class VertragsSignaturPage : ContentPage
             FontSize = 24,
             FontAttributes = FontAttributes.Bold
         };
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(signerName) && !string.Equals(signerName, "Vorstand", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(unterschriftTitel) && unterschriftTitel.Contains("Antragsteller", StringComparison.OrdinalIgnoreCase))
+            {
+                titleLabel.Text = titleLabel.Text + " — " + signerName.Trim();
+            }
+        }
+        catch { }
 
         grid.Add(titleLabel, 0, 0);
         grid.Add(_hintLabel, 0, 1);
@@ -185,6 +197,9 @@ public sealed class VertragsSignaturPage : ContentPage
 
         // Disable parent scrolling while drawing so touch moves are delivered continuously
         try { if (_parentScrollView != null) _parentScrollView.IsEnabled = false; } catch { }
+
+        // Light haptic feedback on start
+        try { HapticFeedback.Default.Perform(HapticFeedbackType.Click); } catch { }
 
         _drawable.BeginStroke(point.Value);
         _graphicsView.Invalidate();
@@ -345,8 +360,29 @@ public sealed class VertragsSignaturPage : ContentPage
                 return;
             }
 
-            for (var i = 1; i < stroke.Count; i++)
-                canvas.DrawLine((float)stroke[i - 1].X, (float)stroke[i - 1].Y, (float)stroke[i].X, (float)stroke[i].Y);
+            // Simple smoothing: moving-average over triplets to reduce jitter and produce smoother lines.
+            var smoothed = new List<Point>(stroke.Count);
+            // keep first point
+            smoothed.Add(stroke[0]);
+
+            // average each triplet for intermediate points
+            for (var i = 1; i < stroke.Count - 1; i++)
+            {
+                var p0 = stroke[i - 1];
+                var p1 = stroke[i];
+                var p2 = stroke[i + 1];
+                var sx = (p0.X + p1.X + p2.X) / 3.0;
+                var sy = (p0.Y + p1.Y + p2.Y) / 3.0;
+                smoothed.Add(new Point(sx, sy));
+            }
+
+            // keep last point
+            smoothed.Add(stroke[stroke.Count - 1]);
+
+            for (var i = 1; i < smoothed.Count; i++)
+            {
+                canvas.DrawLine((float)smoothed[i - 1].X, (float)smoothed[i - 1].Y, (float)smoothed[i].X, (float)smoothed[i].Y);
+            }
         }
     }
 }
