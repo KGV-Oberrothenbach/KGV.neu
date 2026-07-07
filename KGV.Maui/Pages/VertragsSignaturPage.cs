@@ -15,7 +15,7 @@ public sealed class VertragsSignaturPage : ContentPage
     private readonly GraphicsView _graphicsView;
     private readonly Label _hintLabel;
 
-    public VertragsSignaturPage(DocumentInfo sourceDocument, string? unterschriftTitel = null)
+    public VertragsSignaturPage(DocumentInfo sourceDocument, string? unterschriftTitel = null, bool isLastSignature = true)
     {
         var dokumentName = sourceDocument.FormularDokumentTypAnzeige == "-"
             ? "Vertragsdokument"
@@ -59,8 +59,9 @@ public sealed class VertragsSignaturPage : ContentPage
             _graphicsView.Invalidate();
         };
 
-        var saveButton = new Button { Text = "Speichern" };
-        saveButton.Clicked += async (_, _) => await AcceptAsync();
+        var saveText = isLastSignature ? "Speichern" : "Speichern und Weiter";
+        var saveButton = new Button { Text = saveText };
+        saveButton.Clicked += async (_, _) => await AcceptAsync(isLastSignature);
 
         var cancelButton = new Button { Text = "Abbrechen" };
         cancelButton.Clicked += async (_, _) => await CancelAsync();
@@ -168,7 +169,7 @@ public sealed class VertragsSignaturPage : ContentPage
         _graphicsView.Invalidate();
     }
 
-    private async Task AcceptAsync()
+    private async Task AcceptAsync(bool isLastSignature = true)
     {
         // ensure view has been measured
         if (_graphicsView.Width <= 0 || _graphicsView.Height <= 0)
@@ -193,6 +194,14 @@ public sealed class VertragsSignaturPage : ContentPage
         try
         {
             await Navigation.PopModalAsync();
+        }
+        catch { }
+
+        // Debug: inform the user that the signature was captured
+        try
+        {
+            var msg = isLastSignature ? "Signatur gespeichert." : "Signatur gespeichert. Weiter zur nächsten Unterschrift...";
+            await MainThread.InvokeOnMainThreadAsync(async () => await DisplayAlert("Signatur", msg, "OK"));
         }
         catch { }
 
