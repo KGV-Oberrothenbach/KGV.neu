@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:orientation="vertical"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent">
+
+	<!-- Simple top bar with close button, title and page indicator -->
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="48dp"
+		android:orientation="horizontal"
+		android:paddingStart="8dp"
+		android:paddingEnd="8dp"
+		android:gravity="center_vertical"
+		android:background="?android:attr/colorBackground">
+
+		<ImageButton
+			android:id="@+id/btnClose"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:src="@android:drawable/ic_menu_close_clear_cancel"
+			android:contentDescription="Schließen"
+			android:background="?attr/selectableItemBackgroundBorderless" />
+
+		<TextView
+			android:id="@+id/txtTitle"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:text="PDF Viewer"
+			android:textAppearance="?android:attr/textAppearanceMedium"
+			android:ellipsize="end"
+			android:maxLines="1"
+			android:paddingStart="8dp" />
+
+		<TextView
+			android:id="@+id/txtPageIndicator"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="1/1"
+			android:paddingStart="8dp"
+			android:paddingEnd="4dp"
+			android:textAppearance="?android:attr/textAppearanceSmall" />
+	</LinearLayout>
+
+	<!-- ViewPager2 for page swiping -->
+	<androidx.viewpager2.widget.ViewPager2
+		android:id="@+id/viewPager"
+		android:layout_width="match_parent"
+		android:layout_height="0dp"
+		android:layout_weight="1" />
+
+	<!-- Optional progress indicator for initial load -->
+	<ProgressBar
+		android:id="@+id/progressLoading"
+		style="?android:attr/progressBarStyleLarge"
+		android:layout_width="48dp"
+		android:layout_height="48dp"
+		android:layout_gravity="center"
+		android:visibility="gone"
+		android:layout_margin="12dp" />
+
+</LinearLayout>

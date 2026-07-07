@@ -123,7 +123,16 @@ namespace KGV.Maui.Pages
   <meta name='viewport' content='width=device-width, initial-scale=1.0'>
   <title>PDF Viewer (POC)</title>
   <style>body,html{{height:100%;margin:0}}#toolbar{{background:#f3f3f3;padding:6px;display:flex;gap:8px;align-items:center}}#viewerContainer{{height:calc(100% - 44px);overflow:auto;background:#666}}</style>
-  <script src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.110/pdf.min.js'></script>
+      <script>
+        // Capture console.error and window.onerror for diagnostics when running inside WebView
+        window._kgv_consoleErrors = [];
+        (function(){
+          var origConsoleError = console.error.bind(console);
+          console.error = function(){ window._kgv_consoleErrors.push(Array.from(arguments).join(' ')); origConsoleError.apply(console, arguments); };
+          window.onerror = function(msg, src, line, col, err){ try{ window._kgv_consoleErrors.push(msg + ' @' + src + ':' + line + ':' + col); }catch(e){} };
+        })();
+      </script>
+      <script src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.110/pdf.min.js'></script>
 </head>
 <body>
   <div id='toolbar'>
@@ -188,7 +197,8 @@ namespace KGV.Maui.Pages
                 {
                     try
                     {
-                        await Task.Delay(1200);
+                        // initial wait longer to allow pdf.js and worker to load on slow devices/net
+                        await Task.Delay(3000);
                         string? pageCount = null;
                         try
                         {
@@ -196,8 +206,22 @@ namespace KGV.Maui.Pages
                         }
                         catch { pageCount = null; }
 
+                        // Retry once after extra wait if initial check failed
                         if (string.IsNullOrWhiteSpace(pageCount) || pageCount.Contains("--") || pageCount.Contains("undefined"))
                         {
+                            await Task.Delay(1500);
+                            try { pageCount = await _webView.EvaluateJavaScriptAsync("(function(){var el=document.getElementById('page_count'); return el ? el.textContent : ''; })();"); } catch { pageCount = null; }
+                        }
+
+                        if (string.IsNullOrWhiteSpace(pageCount) || pageCount.Contains("--") || pageCount.Contains("undefined"))
+                        {
+                            // Collect console errors from the WebView for diagnostics
+                            string? consoleErrors = null;
+                            try { consoleErrors = await _webView.EvaluateJavaScriptAsync("(function(){ return window._kgv_consoleErrors ? window._kgv_consoleErrors.join('\n') : ''; })();"); } catch { consoleErrors = null; }
+
+                            // Log diagnostics
+                            try { System.Diagnostics.Debug.WriteLine($"PdfViewer: embedded viewer failed to initialize. pageCount=<{pageCount}>. consoleErrors=<{consoleErrors}>"); } catch { }
+
                             // Wechsel in den UI-Thread
                             await MainThread.InvokeOnMainThreadAsync(async () =>
                             {
@@ -220,7 +244,10 @@ namespace KGV.Maui.Pages
                             });
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        try { System.Diagnostics.Debug.WriteLine($"PdfViewer: diagnostic task failed: {ex.Message}"); } catch { }
+                    }
                 });
             }
             catch (Exception ex)

@@ -133,6 +133,29 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             var status = KGV.Maui.Services.Documents.LocalDocumentService.GetStatus(new KGV.Core.Models.DocumentInfo { Dateiname = fileName, Name = fileName });
             if (status.Exists)
             {
+                // On Android prefer the native in-app PDF viewer activity for reliability
+#if ANDROID
+                try
+                {
+                    var context = global::Android.App.Application.Context;
+                    var file = new Java.IO.File(status.LocalPath);
+                    if (file.Exists())
+                    {
+                        var authority = "de.kgv.oberrothenbach.fileProvider";
+                        var uri = global::AndroidX.Core.Content.FileProvider.GetUriForFile(context, authority, file);
+                        var intent = new global::Android.Content.Intent(context, typeof(KGV.Maui.Platforms.Android.NativePdfViewerActivity));
+                        intent.SetData(uri);
+                        intent.AddFlags(global::Android.Content.ActivityFlags.GrantReadUriPermission | global::Android.Content.ActivityFlags.NewTask);
+                        context.StartActivity(intent);
+                        return;
+                    }
+                }
+                catch
+                {
+                    // fall through to embedded viewer if native start fails
+                }
+#endif
+
                 var viewer = new PdfViewerPage(status.LocalPath, _supabaseService, _memberRecord?.Id);
                 await Navigation.PushModalAsync(new NavigationPage(viewer));
             }

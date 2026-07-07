@@ -135,9 +135,15 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
             // Ignore persistent write failures; preview still works
         }
 
-        // Open preview in-app to keep the signing flow within the application
-        var viewer = new PdfViewerPage(_tempFilePath);
-        await Navigation.PushModalAsync(new NavigationPage(viewer));
+        try
+        {
+            await Launcher.Default.OpenAsync(new OpenFileRequest("Mitgliedsantrag Vorschau", new ReadOnlyFile(_tempFilePath)));
+        }
+        catch (Exception ex)
+        {
+            // Zeige Fehler dem Benutzer an, damit das Verhalten nicht stillschweigend fehlschlägt
+            try { await Application.Current.MainPage.DisplayAlert("Vorschau konnte nicht geöffnet werden", ex.Message, "OK"); } catch { }
+        }
     }
 
     private async Task CloseAsync(MitgliedsantragPreviewDecision decision)
