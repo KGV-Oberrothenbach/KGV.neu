@@ -187,14 +187,27 @@ public sealed class VertragsSignaturPage : ContentPage
             return;
         }
 
+        // Close modal first, then complete the waiting task so the caller will only continue
+        // after the UI has dismissed this page. This avoids the caller pushing another modal
+        // while this one is still open which caused the observed race/abort behavior.
+        try
+        {
+            await Navigation.PopModalAsync();
+        }
+        catch { }
+
         _resultSource.TrySetResult(signature);
-        await Navigation.PopModalAsync();
     }
 
     private async Task CancelAsync()
     {
+        try
+        {
+            await Navigation.PopModalAsync();
+        }
+        catch { }
+
         _resultSource.TrySetResult(null);
-        await Navigation.PopModalAsync();
     }
 
     private static Point? TryGetTouchPoint(TouchEventArgs e)
