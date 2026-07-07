@@ -112,6 +112,36 @@ namespace KGV.Maui.Pages
                     return;
                 }
 
+#if ANDROID
+                // On Android prefer the native PdfRenderer-based activity to avoid WebView/pdf.js instability.
+                try
+                {
+                    var context = global::Android.App.Application.Context;
+                    var file = new Java.IO.File(_filePath);
+                    if (file.Exists())
+                    {
+                        var authority = "de.kgv.oberrothenbach.fileProvider";
+                        var uri = global::AndroidX.Core.Content.FileProvider.GetUriForFile(context, authority, file);
+                        var intent = new global::Android.Content.Intent(context, typeof(KGV.Maui.Platforms.Android.NativePdfViewerActivity));
+                        intent.SetData(uri);
+                        intent.AddFlags(global::Android.Content.ActivityFlags.GrantReadUriPermission | global::Android.Content.ActivityFlags.NewTask);
+                        context.StartActivity(intent);
+
+                        // Close this page (it was likely pushed modally) since native viewer handles preview.
+                        await MainThread.InvokeOnMainThreadAsync(async () =>
+                        {
+                            try { await Navigation.PopModalAsync(); } catch { }
+                        });
+
+                        return;
+                    }
+                }
+                catch
+                {
+                    // fall back to embedded WebView if native activity cannot be started
+                }
+#endif
+
                 var bytes = await File.ReadAllBytesAsync(_filePath);
                 var base64 = Convert.ToBase64String(bytes);
 
@@ -222,26 +252,68 @@ namespace KGV.Maui.Pages
                             // Log diagnostics
                             try { System.Diagnostics.Debug.WriteLine($"PdfViewer: embedded viewer failed to initialize. pageCount=<{pageCount}>. consoleErrors=<{consoleErrors}>"); } catch { }
 
-                            // Wechsel in den UI-Thread
-                            await MainThread.InvokeOnMainThreadAsync(async () =>
+                            // On Android prefer the native PdfRenderer activity as fallback without showing the generic dialog.
+                            if (DeviceInfo.Platform == DevicePlatform.Android)
                             {
-                                try
+                                await MainThread.InvokeOnMainThreadAsync(async () =>
                                 {
-                                    var open = await DisplayAlert("Vorschau nicht verfügbar", "Die integrierte PDF-Vorschau kann dieses Dokument nicht darstellen. Soll das Dokument extern geöffnet werden?", "Ja", "Nein");
-                                    if (open)
+                                    try
                                     {
+#if ANDROID
+                                        try
+                                        {
+                                            var context = global::Android.App.Application.Context;
+                                            var file = new Java.IO.File(_filePath);
+                                            if (file.Exists())
+                                            {
+                                                var authority = "de.kgv.oberrothenbach.fileProvider";
+                                                var uri = global::AndroidX.Core.Content.FileProvider.GetUriForFile(context, authority, file);
+                                                var intent = new global::Android.Content.Intent(context, typeof(KGV.Maui.Platforms.Android.NativePdfViewerActivity));
+                                                intent.SetData(uri);
+                                                intent.AddFlags(global::Android.Content.ActivityFlags.GrantReadUriPermission | global::Android.Content.ActivityFlags.NewTask);
+                                                context.StartActivity(intent);
+                                                try { await Navigation.PopModalAsync(); } catch { }
+                                                return;
+                                            }
+                                        }
+                                        catch { }
+#endif
+                                        // Fallback to external system viewer if native activity cannot be started
                                         try
                                         {
                                             await Launcher.Default.OpenAsync(new OpenFileRequest(Title ?? "Dokument", new ReadOnlyFile(_filePath)));
                                         }
                                         catch (Exception ex)
                                         {
-                                            await DisplayAlert("Fehler beim Öffnen", ex.Message, "OK");
+                                            try { await DisplayAlert("Fehler beim Öffnen", ex.Message, "OK"); } catch { }
                                         }
                                     }
-                                }
-                                catch { }
-                            });
+                                    catch { }
+                                });
+                            }
+                            else
+                            {
+                                // Non-Android: ask the user whether to open externally
+                                await MainThread.InvokeOnMainThreadAsync(async () =>
+                                {
+                                    try
+                                    {
+                                        var open = await DisplayAlert("Vorschau nicht verfügbar", "Die integrierte PDF-Vorschau kann dieses Dokument nicht darstellen. Soll das Dokument extern geöffnet werden?", "Ja", "Nein");
+                                        if (open)
+                                        {
+                                            try
+                                            {
+                                                await Launcher.Default.OpenAsync(new OpenFileRequest(Title ?? "Dokument", new ReadOnlyFile(_filePath)));
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                await DisplayAlert("Fehler beim Öffnen", ex.Message, "OK");
+                                            }
+                                        }
+                                    }
+                                    catch { }
+                                });
+                            }
                         }
                     }
                     catch (Exception ex)
