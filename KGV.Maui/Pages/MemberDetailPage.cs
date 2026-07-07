@@ -320,9 +320,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private async Task<byte[]> CreateAndApplySignaturesAsync(byte[] pdfBytes, IReadOnlyList<KGV.Core.Models.SignaturePlaceholder> placeholders, Func<KGV.Core.Models.SignaturePlaceholder, string> titleForPlaceholder)
     {
         var captures = new List<(KGV.Core.Models.SignaturePlaceholder placeholder, KGV.Core.Models.DigitalSignatureCapture capture)>();
-
-        foreach (var placeholder in placeholders)
+        for (int i = 0; i < placeholders.Count; i++)
         {
+            var placeholder = placeholders[i];
             var title = titleForPlaceholder(placeholder);
             var request = new DokumentUploadRequest
             {
@@ -332,7 +332,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 FileContent = pdfBytes
             };
 
-            var capture = await CaptureMitgliedsantragSignatureAsync(request, title);
+            var isLast = i == placeholders.Count - 1;
+            var capture = await CaptureMitgliedsantragSignatureAsync(request, title, isLast);
             if (capture == null)
                 throw new OperationCanceledException("Signaturvorgang abgebrochen.");
 
@@ -838,7 +839,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         return await previewPage.WaitForResultAsync();
     }
 
-    private async Task<DigitalSignatureCapture?> CaptureMitgliedsantragSignatureAsync(DokumentUploadRequest previewUploadRequest, string unterschriftTitel)
+    private async Task<DigitalSignatureCapture?> CaptureMitgliedsantragSignatureAsync(DokumentUploadRequest previewUploadRequest, string unterschriftTitel, bool isLastSignature = true)
     {
         var sourceDocument = new DocumentInfo
         {
@@ -850,9 +851,18 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             StoragePath = KGV.Maui.Services.Documents.DocumentStorage.GetPersistentFilePath(previewUploadRequest.FileName)
         };
 
-        var signaturPage = new VertragsSignaturPage(sourceDocument, unterschriftTitel);
-        await Navigation.PushModalAsync(new NavigationPage(signaturPage));
-        return await signaturPage.WaitForResultAsync();
+            // Determine whether more signatures are expected by checking placeholders in the document.
+            // For Mitgliedsantrag POC we infer: if document contains multiple placeholders, only the last should be marked as final.
+            var placeholders = KGV.Core.Utilities.MitgliedsantragDokumentFactory.GetSignaturePlaceholders();
+            var expectsMultiple = placeholders != null && placeholders.Count > 1;
+
+            // If caller already passed isLastSignature use it; otherwise infer from template placeholders
+            var finalFlag = isLastSignature && (placeholders == null || placeholders.Count <= 1);
+
+            var signaturPage = new VertragsSignaturPage(sourceDocument, unterschriftTitel, isLastSignature: finalFlag);
+            await Navigation.PushModalAsync(new NavigationPage(signaturPage));
+            var result = await signaturPage.WaitForResultAsync();
+            return result;
     }
 
     private async void OnSaveClicked(object? sender, EventArgs e)
