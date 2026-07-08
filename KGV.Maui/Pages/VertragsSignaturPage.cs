@@ -15,7 +15,6 @@ public sealed class VertragsSignaturPage : ContentPage
     private readonly SignaturePadDrawable _drawable = new();
     private readonly GraphicsView _graphicsView;
     private bool _landscapeForced;
-    private ScrollView? _parentScrollView;
     private readonly Label _hintLabel;
 
     // signerName: optional display name to append to title (e.g. "Vorname Nachname"). If signerName == "Vorstand" we skip appending.
@@ -53,7 +52,6 @@ public sealed class VertragsSignaturPage : ContentPage
         {
             _drawable.EndStroke();
             _graphicsView.Invalidate();
-            try { _parentScrollView.IsEnabled = true; } catch { }
         };
 
         var clearButton = new Button { Text = "Leeren" };
@@ -124,10 +122,8 @@ public sealed class VertragsSignaturPage : ContentPage
 
         grid.Add(buttonBar, 0, 3);
 
-        // Wrap grid in ScrollView to ensure on very small screens buttons remain reachable
-        var scroll = new ScrollView { Content = grid };
-        _parentScrollView = scroll;
-        Content = scroll;
+        // Do not wrap in ScrollView to ensure GraphicsView receives continuous touch events reliably.
+        Content = grid;
     }
 
     public Task<DigitalSignatureCapture?> WaitForResultAsync() => _resultSource.Task;
@@ -164,6 +160,7 @@ public sealed class VertragsSignaturPage : ContentPage
                 try
                 {
                     await Task.Delay(120);
+                    // no-op formatting retention
                     _graphicsView.Invalidate();
                 }
                 catch { }
@@ -195,8 +192,7 @@ public sealed class VertragsSignaturPage : ContentPage
         if (point == null)
             return;
 
-        // Disable parent scrolling while drawing so touch moves are delivered continuously
-        try { if (_parentScrollView != null) _parentScrollView.IsEnabled = false; } catch { }
+        // Ensure continuous touch delivery while drawing (no parent ScrollView in this layout)
 
         // Light haptic feedback on start
         try { HapticFeedback.Default.Perform(HapticFeedbackType.Click); } catch { }
@@ -225,8 +221,7 @@ public sealed class VertragsSignaturPage : ContentPage
         _drawable.EndStroke();
         _graphicsView.Invalidate();
 
-        // Re-enable parent scrolling after finishing the stroke
-        try { if (_parentScrollView != null) _parentScrollView.IsEnabled = true; } catch { }
+        // No parent ScrollView to re-enable in this layout
     }
 
     private async Task AcceptAsync(bool isLastSignature = true)
