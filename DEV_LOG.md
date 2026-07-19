@@ -2,6 +2,14 @@
 
 ---
 
+## 2026-07-19 – Pachtvertrag-Flow an Mitgliedsantrag-Flow angeglichen
+
+- Ziel: Den mobilen Pachtvertrags-Flow an den bereits bestehenden Mitgliedsantrag-Flow angleichen (Preview -> Unterschrift -> finales Speichern) und an den bestehenden UI‑Einstiegen anschließen, ohne den Mitgliedsantrag-Flow zu ändern.
+- Befunde: Die MAUI‑Komponenten sind bereits vorhanden: `PachtvertragFlowHelper`, `PachtvertragPreviewPage`, `PachtvertragDialogPage` sowie `PachtvertragDokumentRequest` und die zugehörigen Service‑Methoden in `SupabaseService`.
+- Maßnahmen: Integrationspunkte identifiziert (MemberGardenAssignPage, MemberParzellenDetailPage). Build lokal geprüft: `dotnet build` erfolgreich.
+- Nächste Schritte: Logs aktualisieren, optionaler Commit/Push der lokalen Änderungen.
+
+
 ## 2026-04-13 – Pachtvertrag produktiv auf HTML-Template umgestellt
 
 - Den echten lokalen Repo-/Working-Tree-Stand auf `main` geprüft und nur die direkt betroffenen Pachtvertrags-/Template-/Service-/MAUI-Dateien bearbeitet.

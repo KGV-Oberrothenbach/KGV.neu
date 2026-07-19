@@ -31,6 +31,13 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 - **Rechte-/Rollenmodell** wurde auf `app_user.role` als führende Quelle gezogen; benutzerspezifische Fachrechte inkl. Ablese-Freigaben sind aufgebaut.
 - **Android/MAUI** wurde in mehreren Blöcken für Release, Logging, Timeout/Resume, Foto-Uploads und Startstabilität gehärtet.
 
+## 2026-07-19 – Pachtvertrag-Flow: Integration und Validierung
+
+- Ziel: Den bestehenden mobilen Pachtvertragspfad vollständig an den Mitgliedsantrag-Flow (Preview -> Signatur -> Final speichern) anpassen und an den vorhandenen UI-Einstiegen anschließen, ohne am Mitgliedsantrag-Flow Änderungen vorzunehmen.
+- Status: Integrationspunkte wurden validiert: `MemberGardenAssignPage` (nach Parzellenzuweisung) und `MemberParzellenDetailPage` (Button "Pachtvertrag als PDF") rufen `PachtvertragFlowHelper.RunAsync`. Die MAUI-Seiten `PachtvertragPreviewPage` und `PachtvertragDialogPage` sowie das gemeinsame `PachtvertragDokumentRequest` und die Service-Methoden (`BuildPachtvertragPreviewAsync`, `CreateSignedPachtvertragDokumentAsync`) sind vorhanden und verwenden denselben Preview/Signatur/Save-Pfad wie der Mitgliedsantrag.
+- Validierung: Lokaler Build (dotnet build) erfolgreich. Kein Änderungsbedarf am Mitgliedsantrag-Flow.
+
+
 ## 2026-04-16 – Mitgliedsantrag: Ortfelder, Signatur- und Vertreter-Mapping verschärft; Layoutanpassungen
 
 - Ziel: Vermeiden falscher Füllungen in Orts- und Signaturfeldern; Vertreterfelder nur bei echten gesetzlichen Vertretern füllen. Werte etwas tiefer in den Feldzellen platzieren, Checkboxen zentrieren.
