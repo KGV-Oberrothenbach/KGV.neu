@@ -578,7 +578,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 if (previewDecision != MitgliedsantragPreviewDecision.ContinueToSignature)
                     return;
 
-                var signatureCapture = await CaptureMitgliedsantragSignatureAsync(previewUploadRequest, "Unterschrift Antragsteller/in");
+                var signatureCapture = await CaptureMitgliedsantragSignatureAsync(previewUploadRequest, "Unterschrift Antragsteller/in", isLastSignature: !request.IstMinderjaehrig);
                 if (signatureCapture == null)
                     return;
 
@@ -666,7 +666,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         return await previewPage.WaitForResultAsync();
     }
 
-    private async Task<DigitalSignatureCapture?> CaptureMitgliedsantragSignatureAsync(DokumentUploadRequest previewUploadRequest, string unterschriftTitel)
+    private async Task<DigitalSignatureCapture?> CaptureMitgliedsantragSignatureAsync(DokumentUploadRequest previewUploadRequest, string unterschriftTitel, bool isLastSignature = true)
     {
         var sourceDocument = new DocumentInfo
         {
@@ -678,7 +678,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             StoragePath = KGV.Maui.Services.Documents.DocumentStorage.GetPersistentFilePath(previewUploadRequest.FileName)
         };
 
-        var signaturPage = new VertragsSignaturPage(sourceDocument, unterschriftTitel);
+        var signaturPage = new VertragsSignaturPage(sourceDocument, unterschriftTitel, isLastSignature: isLastSignature);
         await Navigation.PushModalAsync(new NavigationPage(signaturPage));
         return await signaturPage.WaitForResultAsync();
     }

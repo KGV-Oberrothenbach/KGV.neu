@@ -49,7 +49,7 @@ internal static class PachtvertragFlowHelper
                 StoragePath = KGV.Maui.Services.Documents.DocumentStorage.GetPersistentFilePath(previewUploadRequest.FileName)
             };
 
-            var signaturPage = new VertragsSignaturPage(sourceDocument, "Unterschrift Pächter/in");
+            var signaturPage = new VertragsSignaturPage(sourceDocument, "Unterschrift Pächter/in", isLastSignature: !request.IstMinderjaehrig);
             await navigation.PushModalAsync(new NavigationPage(signaturPage));
             var signatureCapture = await signaturPage.WaitForResultAsync();
             if (signatureCapture == null)
@@ -58,7 +58,7 @@ internal static class PachtvertragFlowHelper
             DigitalSignatureCapture? gesetzlicherVertreterSignatureCapture = null;
             if (request.IstMinderjaehrig)
             {
-                var vertreterSignaturPage = new VertragsSignaturPage(sourceDocument, "Unterschrift gesetzliche/r Vertreter/in");
+                var vertreterSignaturPage = new VertragsSignaturPage(sourceDocument, "Unterschrift gesetzliche/r Vertreter/in", isLastSignature: true);
                 await navigation.PushModalAsync(new NavigationPage(vertreterSignaturPage));
                 gesetzlicherVertreterSignatureCapture = await vertreterSignaturPage.WaitForResultAsync();
                 if (gesetzlicherVertreterSignatureCapture == null)

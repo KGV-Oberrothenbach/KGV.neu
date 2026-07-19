@@ -13,10 +13,12 @@ public sealed class VertragsSignaturPage : ContentPage
     private readonly TaskCompletionSource<DigitalSignatureCapture?> _resultSource = new();
     private readonly SignaturePadDrawable _drawable = new();
     private readonly GraphicsView _graphicsView;
+    private readonly bool _isLastSignature;
     private readonly Label _hintLabel;
 
-    public VertragsSignaturPage(DocumentInfo sourceDocument, string? unterschriftTitel = null)
+        public VertragsSignaturPage(DocumentInfo sourceDocument, string? unterschriftTitel = null, bool isLastSignature = true, string? signerName = null)
     {
+            _isLastSignature = isLastSignature;
         var dokumentName = sourceDocument.FormularDokumentTypAnzeige == "-"
             ? "Vertragsdokument"
             : sourceDocument.FormularDokumentTypAnzeige;
@@ -59,7 +61,8 @@ public sealed class VertragsSignaturPage : ContentPage
             _graphicsView.Invalidate();
         };
 
-        var saveButton = new Button { Text = "Speichern" };
+        var saveText = isLastSignature ? "Speichern" : "Speichern und Weiter";
+        var saveButton = new Button { Text = saveText };
         saveButton.Clicked += async (_, _) => await AcceptAsync();
 
         var cancelButton = new Button { Text = "Abbrechen" };
@@ -188,6 +191,17 @@ public sealed class VertragsSignaturPage : ContentPage
         }
 
         _resultSource.TrySetResult(signature);
+
+        // Show a short confirmation so the user notices the save action.
+        try
+        {
+            var message = _isLastSignature
+                ? "Unterschrift gespeichert."
+                : "Unterschrift gespeichert. Bitte die nächste Unterschrift erfassen.";
+            await DisplayAlert("Signatur", message, "OK");
+        }
+        catch { }
+
         await Navigation.PopModalAsync();
     }
 
