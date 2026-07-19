@@ -359,8 +359,28 @@ namespace KGV.Maui.Pages
                 var originalBytes = await File.ReadAllBytesAsync(_filePath);
                 var captures = new List<(KGV.Core.Models.SignaturePlaceholder placeholder, KGV.Core.Models.DigitalSignatureCapture capture)>();
 
-                foreach (var placeholder in placeholders)
+                // Try to resolve signer name when possible (if viewer was opened from a member context)
+                string? signerName = null;
+                try
                 {
+                    if (_mitgliedId.HasValue && _mitgliedId.Value > 0)
+                    {
+                        var member = await _supabaseService.GetMitgliedByIdAsync(_mitgliedId.Value);
+                        if (member != null && !string.Equals(member.Role, "Vorstand", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var fn = (member.Vorname ?? string.Empty).Trim();
+                            var ln = (member.Name ?? string.Empty).Trim();
+                            var combined = string.Join(' ', new[] { fn, ln }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+                            if (!string.IsNullOrWhiteSpace(combined))
+                                signerName = combined;
+                        }
+                    }
+                }
+                catch { signerName = null; }
+
+                for (int i = 0; i < placeholders.Count; i++)
+                {
+                    var placeholder = placeholders[i];
                     var docInfo = new KGV.Core.Models.DocumentInfo
                     {
                         Title = Title ?? string.Empty,
@@ -370,7 +390,8 @@ namespace KGV.Maui.Pages
                         StoragePath = _filePath
                     };
 
-                    var signPage = new VertragsSignaturPage(docInfo, placeholder.Name);
+                    var isLast = i == placeholders.Count - 1;
+                    var signPage = new VertragsSignaturPage(docInfo, placeholder.Name, isLastSignature: isLast, signerName: signerName);
                     await Navigation.PushModalAsync(new NavigationPage(signPage));
                     var capture = await signPage.WaitForResultAsync();
                     if (capture == null)
