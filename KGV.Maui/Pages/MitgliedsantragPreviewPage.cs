@@ -109,6 +109,7 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
             return;
 
         _previewOpenedOnce = true;
+        try { System.Diagnostics.Debug.WriteLine("[MitgliedsantragPreview] OnAppearing: opening preview"); } catch { }
         await OpenPreviewAsync();
     }
 
@@ -140,10 +141,10 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
 
     private async Task CloseAsync(MitgliedsantragPreviewDecision decision)
     {
-        _resultSource.TrySetResult(decision);
         TryDeleteTempFile();
         // Do not delete persistent file; it is kept for signing.
         await Navigation.PopModalAsync();
+        _resultSource.TrySetResult(decision);
     }
 
     private void TryDeleteTempFile()

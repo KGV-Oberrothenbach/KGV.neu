@@ -64,6 +64,33 @@ namespace KGV.Infrastructure.Services
             {
                 var context = await ResolvePachtvertragRequestAsync(request);
 
+                // Determine Paechter2 override: prefer explicit include flag, otherwise if a gesetzlicher Vertreter snapshot is present use it
+                MitgliedRecord? paechter2Override = null;
+                try
+                {
+                    if (request.IncludeSecondaryMember == true)
+                    {
+                        paechter2Override = context.SecondaryMember;
+                    }
+                    else if (request.GesetzlicherVertreterSnapshot != null)
+                    {
+                        var snap = request.GesetzlicherVertreterSnapshot;
+                        paechter2Override = new MitgliedRecord
+                        {
+                            Id = 0,
+                            Vorname = snap.Vorname?.Trim() ?? string.Empty,
+                            Name = snap.Nachname?.Trim() ?? string.Empty,
+                            Adresse = snap.Adresse?.Trim() ?? string.Empty,
+                            Plz = snap.Plz?.Trim() ?? string.Empty,
+                            Ort = snap.Ort?.Trim() ?? string.Empty,
+                            Telefon = snap.Telefon?.Trim() ?? string.Empty,
+                            Handy = snap.Handy?.Trim() ?? string.Empty,
+                            Email = snap.Email?.Trim() ?? string.Empty
+                        };
+                    }
+                }
+                catch { }
+
                 var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
                     context.Member,
                     context.SecondaryMember,
@@ -73,7 +100,8 @@ namespace KGV.Infrastructure.Services
                     altvertragDatum: request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.BankverbindungSnapshot,
-                    request.Status);
+                    request.Status,
+                    paechter2Override: paechter2Override);
 
                 return await CreateDokumentAsync(uploadRequest);
             }
@@ -3155,6 +3183,35 @@ namespace KGV.Infrastructure.Services
                     ?? new List<DocumentInfo>();
             },
             new List<DocumentInfo>());
+
+        public Task<bool> HasSignedPachtvertragAsync(int parzelleId) => ExecuteAsync(
+            "HasSignedPachtvertragAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<DokumentRecord>()
+                    .Where(x => x.ParzelleId == parzelleId)
+                    .Get();
+
+                var models = response?.Models;
+                if (models == null || models.Count == 0)
+                    return false;
+
+                // Prüfe Dateiname/StoragePath auf FormularMetadaten und Status == signiert
+                foreach (var doc in models)
+                {
+                    var info = MapDocumentInfo(doc);
+                    if (string.Equals(info.FormularDokumentTypKey, FormularDokumentTyp.Pachtvertrag, StringComparison.Ordinal)
+                        && string.Equals(info.FormularDokumentStatusKey, FormularDokumentStatus.Signiert, StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            },
+            false);
 
         public async Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert)
         {

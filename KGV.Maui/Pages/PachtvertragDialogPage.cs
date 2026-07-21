@@ -32,6 +32,7 @@ public sealed class PachtvertragDialogPage : ContentPage
     private readonly Entry _vertreterPlzEntry;
     private readonly Entry _vertreterOrtEntry;
     private readonly List<MitgliedOption> _mitgliedOptionen;
+    private bool? _includeSecondaryForPreview;
 
     public PachtvertragDialogPage(
         MitgliedRecord member,
@@ -157,7 +158,7 @@ public sealed class PachtvertragDialogPage : ContentPage
         cancelButton.Clicked += async (_, _) => await CancelAsync();
 
         var previewButton = new Button { Text = "Vorschau" };
-        previewButton.Clicked += async (_, _) => await AcceptAsync();
+        previewButton.Clicked += async (_, _) => await PreviewOrAcceptAsync();
 
         // Altvertrag-Abfrage: ask before accepting
 
@@ -370,8 +371,44 @@ public sealed class PachtvertragDialogPage : ContentPage
             }
         }
 
+        // propagate the temporary include-secondary choice (null = server default)
+        request.IncludeSecondaryMember = _includeSecondaryForPreview;
+        _includeSecondaryForPreview = null;
         _resultSource.TrySetResult(request);
         await Navigation.PopModalAsync();
+    }
+
+    private async Task PreviewOrAcceptAsync()
+    {
+        // Before calling AcceptAsync, check whether a secondary member exists and offer to include them as Pächter2
+        try
+        {
+            // Try to resolve ISupabaseService via the MAUI application context if available.
+            var services = App.Current?.Handler?.MauiContext?.Services;
+            var supabase = services is null ? null : (KGV.Core.Interfaces.ISupabaseService?)services.GetService(typeof(KGV.Core.Interfaces.ISupabaseService));
+            var secondary = supabase is null ? null : await supabase.GetNebenmitgliedByHauptmitgliedIdAsync(_member.Id);
+            if (secondary != null)
+            {
+                var include = await DisplayAlert("Nebenmitglied", $"Für dieses Mitglied existiert ein Nebenmitglied ({secondary.Vorname} {secondary.Name}). Soll dieses als Pächter 2 in den Pachtvertrag aufgenommen werden?", "Ja", "Nein");
+                if (include)
+                {
+                    // set request preference via temporary state on page and then call AcceptAsync
+                    // We'll create a small wrapper: temporarily set a field and call AcceptAsync
+                    _includeSecondaryForPreview = true;
+                }
+                else
+                {
+                    _includeSecondaryForPreview = false;
+                }
+            }
+        }
+        catch
+        {
+            // ignore lookup errors and proceed
+            _includeSecondaryForPreview = null;
+        }
+
+        await AcceptAsync();
     }
 
     private async Task CancelAsync()

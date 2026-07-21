@@ -678,9 +678,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             StoragePath = KGV.Maui.Services.Documents.DocumentStorage.GetPersistentFilePath(previewUploadRequest.FileName)
         };
 
-        var signaturPage = new VertragsSignaturPage(sourceDocument, unterschriftTitel, isLastSignature: isLastSignature);
-        await Navigation.PushModalAsync(new NavigationPage(signaturPage));
-        return await signaturPage.WaitForResultAsync();
+        // Use shared signature helper so MA and PV use identical push/wait logic
+        return await SignatureFlowHelper.CaptureSignatureAsync(Navigation, sourceDocument, unterschriftTitel, isLastSignature: isLastSignature, forceLandscape: false);
     }
 
     private async void OnSaveClicked(object? sender, EventArgs e)

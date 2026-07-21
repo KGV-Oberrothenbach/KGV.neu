@@ -14,10 +14,11 @@ public sealed class VertragsSignaturPage : ContentPage
     private readonly SignaturePadDrawable _drawable = new();
     private readonly GraphicsView _graphicsView;
     private readonly bool _isLastSignature;
+    private readonly bool _forceLandscape;
     private readonly Label _hintLabel;
-
-        public VertragsSignaturPage(DocumentInfo sourceDocument, string? unterschriftTitel = null, bool isLastSignature = true, string? signerName = null)
+        public VertragsSignaturPage(DocumentInfo sourceDocument, string? unterschriftTitel = null, bool isLastSignature = true, string? signerName = null, bool forceLandscape = true)
     {
+            _forceLandscape = forceLandscape;
             _isLastSignature = isLastSignature;
         var dokumentName = sourceDocument.FormularDokumentTypAnzeige == "-"
             ? "Vertragsdokument"
@@ -107,12 +108,14 @@ public sealed class VertragsSignaturPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-        MainActivity.SetLandscapeOrientationEnabled(true);
+        if (_forceLandscape)
+            MainActivity.SetLandscapeOrientationEnabled(true);
 
         // After orientation change the view may need a short delay to be measured and receive touches.
         // Dispatch a short invalidate to ensure the GraphicsView is ready for interaction.
         try
         {
+            System.Diagnostics.Debug.WriteLine("[VertragsSignaturPage] OnAppearing: set landscape, schedule invalidate");
             Microsoft.Maui.Controls.Application.Current?.Dispatcher.Dispatch(async () =>
             {
                 try
@@ -128,7 +131,8 @@ public sealed class VertragsSignaturPage : ContentPage
 
     protected override void OnDisappearing()
     {
-        MainActivity.SetLandscapeOrientationEnabled(false);
+        if (_forceLandscape)
+            MainActivity.SetLandscapeOrientationEnabled(false);
         base.OnDisappearing();
     }
 
@@ -190,8 +194,6 @@ public sealed class VertragsSignaturPage : ContentPage
             return;
         }
 
-        _resultSource.TrySetResult(signature);
-
         // Show a short confirmation so the user notices the save action.
         try
         {
@@ -202,7 +204,9 @@ public sealed class VertragsSignaturPage : ContentPage
         }
         catch { }
 
+        // Ensure modal is fully popped before completing the Task so callers don't race to push the next modal.
         await Navigation.PopModalAsync();
+        _resultSource.TrySetResult(signature);
     }
 
     private async Task CancelAsync()

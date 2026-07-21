@@ -45,6 +45,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
     private bool _isBusy;
     private DokumentOwnerScope _requestedScope = DokumentOwnerScope.Mitglied;
     private int? _requestedParzelleId;
+    private int? _currentParzelleId;
     private byte[]? _selectedFileContent;
     private string _selectedFileName = string.Empty;
     private string _selectedFileContentType = "application/octet-stream";
@@ -122,7 +123,34 @@ public class DokumentePage : ContentPage, IQueryAttributable
                 uploadSignedButton.BindingContextChanged += (_, _) =>
                 {
                     var document = uploadSignedButton.BindingContext as DocumentInfo;
-                    uploadSignedButton.IsVisible = CanShowMauiPachtvertragFollowActions(document);
+                    // Default visibility based on existing logic
+                    var visible = CanShowMauiPachtvertragFollowActions(document);
+                    // Wenn ein bereits signierter Pachtvertrag vorliegt, dann nur OnlyShow (unsignierte Folgeaktionen nicht anzeigen)
+                    if (visible && document != null && string.Equals(document.FormularDokumentTypKey, FormularDokumentTyp.Pachtvertrag, StringComparison.Ordinal))
+                    {
+                        // Asynchron prüfen, ob bereits ein signiertes Enddokument existiert; falls ja: verberge Folgeaktionen
+                        _ = Task.Run(async () =>
+                                {
+                                try
+                                {
+                                    if (_currentParzelleId is > 0)
+                                    {
+                                        var hasSigned = await _supabaseService.HasSignedPachtvertragAsync(_currentParzelleId.Value);
+                                        // If the API returns true -> hide follow actions (OnlyShow)
+                                        Device.BeginInvokeOnMainThread(() => uploadSignedButton.IsVisible = hasSigned ? false : visible);
+                                        return;
+                                    }
+                                    Device.BeginInvokeOnMainThread(() => uploadSignedButton.IsVisible = visible);
+                                }
+                                catch
+                                {
+                                    Device.BeginInvokeOnMainThread(() => uploadSignedButton.IsVisible = visible);
+                                }
+                        });
+                        return;
+                    }
+
+                    uploadSignedButton.IsVisible = visible;
                 };
                 uploadSignedButton.Clicked += async (_, _) =>
                 {
@@ -137,7 +165,31 @@ public class DokumentePage : ContentPage, IQueryAttributable
                 digitalSignButton.BindingContextChanged += (_, _) =>
                 {
                     var document = digitalSignButton.BindingContext as DocumentInfo;
-                    digitalSignButton.IsVisible = CanShowMauiPachtvertragFollowActions(document);
+                    var visible = CanShowMauiPachtvertragFollowActions(document);
+                    if (visible && document != null && string.Equals(document.FormularDokumentTypKey, FormularDokumentTyp.Pachtvertrag, StringComparison.Ordinal))
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                if (_currentParzelleId is > 0)
+                                {
+                                    var hasSigned = await _supabaseService.HasSignedPachtvertragAsync(_currentParzelleId.Value);
+                                    Device.BeginInvokeOnMainThread(() => digitalSignButton.IsVisible = hasSigned ? false : visible);
+                                    return;
+                                }
+
+                                Device.BeginInvokeOnMainThread(() => digitalSignButton.IsVisible = visible);
+                            }
+                            catch
+                            {
+                                Device.BeginInvokeOnMainThread(() => digitalSignButton.IsVisible = visible);
+                            }
+                        });
+                        return;
+                    }
+
+                    digitalSignButton.IsVisible = visible;
                 };
                 digitalSignButton.Clicked += async (_, _) =>
                 {
@@ -685,6 +737,9 @@ public class DokumentePage : ContentPage, IQueryAttributable
         _uploadSectionTitleLabel.Text = context.Scope == DokumentOwnerScope.Parzelle
             ? "Parzellendokument hochladen"
             : "Mitgliedsdokument hochladen";
+
+        // Merke aktuellen Parzellen-Kontext für Folgeaktionen (OnlyShow-Entscheidungen)
+        _currentParzelleId = context.Scope == DokumentOwnerScope.Parzelle ? context.OwnerId : null;
     }
 
     private void ResetUploadInputs(bool clearTitle)

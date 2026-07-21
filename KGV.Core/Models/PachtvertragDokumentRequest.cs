@@ -15,4 +15,7 @@ public sealed class PachtvertragDokumentRequest
     public MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot { get; set; }
     public MitgliedsantragBankverbindungSnapshot? BankverbindungSnapshot { get; set; }
     public DateTime? AltvertragDatum { get; set; }
+        // If set, controls whether an existing Nebenmitglied should be included as second tenant (Pächter2).
+        // null = keep existing default behavior on server (no explicit preference)
+        public bool? IncludeSecondaryMember { get; set; }
 }

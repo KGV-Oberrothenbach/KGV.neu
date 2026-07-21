@@ -6,6 +6,7 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
+using System.IO;
 
 namespace KGV.Maui.Pages;
 
@@ -23,7 +24,17 @@ internal static class PachtvertragFlowHelper
             if (request == null)
                 return;
 
-            var previewUploadRequest = await supabaseService.BuildPachtvertragPreviewAsync(request);
+            DokumentUploadRequest? previewUploadRequest;
+            try
+            {
+                previewUploadRequest = await supabaseService.BuildPachtvertragPreviewAsync(request);
+            }
+            catch (Exception ex)
+            {
+                // provide more context for UI error messages
+                throw new InvalidOperationException($"Pachtvertrag-Vorschau konnte nicht erzeugt werden: {ex.Message}", ex);
+            }
+
             if (previewUploadRequest == null || (previewUploadRequest.FileContent?.Length ?? 0) <= 0)
                 throw new InvalidOperationException("Pachtvertrag-Vorschau konnte nicht erzeugt werden.");
 
@@ -49,25 +60,55 @@ internal static class PachtvertragFlowHelper
                 StoragePath = KGV.Maui.Services.Documents.DocumentStorage.GetPersistentFilePath(previewUploadRequest.FileName)
             };
 
-            var signaturPage = new VertragsSignaturPage(sourceDocument, "Unterschrift Pächter/in", isLastSignature: !request.IstMinderjaehrig);
-            await navigation.PushModalAsync(new NavigationPage(signaturPage));
-            var signatureCapture = await signaturPage.WaitForResultAsync();
+            // Ensure the persistent preview file exists (Mitgliedsantrag flow schreibt eine persistente Kopie in der Preview-Seite).
+            // Wenn das Schreiben beim Öffnen der Vorschau fehlgeschlagen ist, versuchen wir es hier erneut, damit die Signaturseite die Datei öffnen/verwenden kann.
+            try
+            {
+                var persistentPath = sourceDocument.StoragePath;
+                if (!string.IsNullOrWhiteSpace(persistentPath) && (previewUploadRequest.FileContent?.Length ?? 0) > 0)
+                {
+                    var dir = Path.GetDirectoryName(persistentPath)!;
+                    if (!Directory.Exists(dir))
+                        Directory.CreateDirectory(dir);
+
+                    if (!File.Exists(persistentPath))
+                        File.WriteAllBytes(persistentPath, previewUploadRequest.FileContent);
+                }
+            }
+            catch
+            {
+                // Ignoriere Schreibfehler hier; Preview funktioniert weiterhin. Fehler werden ggf. beim finalen Upload sichtbar.
+            }
+
+            var signatureCapture = await SignatureFlowHelper.CaptureSignatureAsync(navigation, sourceDocument, "Unterschrift Pächter/in", isLastSignature: !request.IstMinderjaehrig, forceLandscape: false);
             if (signatureCapture == null)
                 return;
 
             DigitalSignatureCapture? gesetzlicherVertreterSignatureCapture = null;
             if (request.IstMinderjaehrig)
             {
-                var vertreterSignaturPage = new VertragsSignaturPage(sourceDocument, "Unterschrift gesetzliche/r Vertreter/in", isLastSignature: true);
-                await navigation.PushModalAsync(new NavigationPage(vertreterSignaturPage));
-                gesetzlicherVertreterSignatureCapture = await vertreterSignaturPage.WaitForResultAsync();
+                gesetzlicherVertreterSignatureCapture = await SignatureFlowHelper.CaptureSignatureAsync(navigation, sourceDocument, "Unterschrift gesetzliche/r Vertreter/in", isLastSignature: true, forceLandscape: false);
                 if (gesetzlicherVertreterSignatureCapture == null)
                     return;
             }
 
-            var result = await supabaseService.CreateSignedPachtvertragDokumentAsync(request, signatureCapture, gesetzlicherVertreterSignatureCapture);
-            if (!result.Success)
-                throw new InvalidOperationException(result.Message);
+            DokumentUploadResult? result = null;
+            try
+            {
+                try { System.Diagnostics.Debug.WriteLine($"[PachtvertragFlow] signatureCapture present={signatureCapture != null}, hasContent={signatureCapture?.HasContent}, strokes={(signatureCapture?.Strokes?.Count ?? 0)}"); } catch { }
+                try { System.Diagnostics.Debug.WriteLine($"[PachtvertragFlow] gesetzlicherVertreter present={gesetzlicherVertreterSignatureCapture != null}, hasContent={gesetzlicherVertreterSignatureCapture?.HasContent}, strokes={(gesetzlicherVertreterSignatureCapture?.Strokes?.Count ?? 0)}"); } catch { }
+
+                result = await supabaseService.CreateSignedPachtvertragDokumentAsync(request, signatureCapture, gesetzlicherVertreterSignatureCapture);
+                try { System.Diagnostics.Debug.WriteLine($"[PachtvertragFlow] CreateSignedPachtvertragDokumentAsync result: Success={result?.Success}, Message={result?.Message}"); } catch { }
+
+                if (result == null || !result.Success)
+                    throw new InvalidOperationException(result?.Message ?? "Unbekannter Fehler beim Speichern des signierten Pachtvertrags.");
+            }
+            catch (Exception ex)
+            {
+                try { System.Diagnostics.Debug.WriteLine($"[PachtvertragFlow] Create signed failed: {ex}"); } catch { }
+                throw;
+            }
 
             var document = result.Document;
             if (document?.CanOpen != true)

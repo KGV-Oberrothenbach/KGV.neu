@@ -21,6 +21,8 @@ public sealed class MemberParzellenDetailPage : ContentPage
     private readonly UserContextState _userContextState;
     private readonly Label _contextErrorLabel;
     private readonly Button _pachtvertragButton;
+    private readonly Button _openPachtvertragButton;
+    private readonly Button _discardPachtvertragButton;
     private bool _initialized;
     private bool _appearingInProgress;
     private bool _contractCreationInProgress;
@@ -54,16 +56,17 @@ public sealed class MemberParzellenDetailPage : ContentPage
         var stromButton = new Button();
         stromButton.SetBinding(Button.TextProperty, nameof(ParzellenViewModel.StromButtonText));
         stromButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanOpenStromAction));
-        stromButton.Clicked += async (_, _) => await OpenAblesungAsync("strom");
 
         var wasserButton = new Button();
         wasserButton.SetBinding(Button.TextProperty, nameof(ParzellenViewModel.WasserButtonText));
         wasserButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanOpenWasserAction));
-        wasserButton.Clicked += async (_, _) => await OpenAblesungAsync("wasser");
 
         var dokumenteButton = new Button();
         dokumenteButton.SetBinding(Button.TextProperty, nameof(ParzellenViewModel.DokumenteButtonText));
         dokumenteButton.SetBinding(IsEnabledProperty, nameof(ParzellenViewModel.CanOpenDokumenteAction));
+
+        stromButton.Clicked += async (_, _) => await OpenAblesungAsync("strom");
+        wasserButton.Clicked += async (_, _) => await OpenAblesungAsync("wasser");
         dokumenteButton.Clicked += async (_, _) => await OpenDokumenteAsync();
 
         _pachtvertragButton = new Button
@@ -73,8 +76,42 @@ public sealed class MemberParzellenDetailPage : ContentPage
         };
         _pachtvertragButton.Clicked += async (_, _) => await CreatePachtvertragAsync();
 
+        _openPachtvertragButton = new Button
+        {
+            Text = "Pachtvertrag öffnen",
+            IsVisible = false
+        };
+        _openPachtvertragButton.Clicked += async (_, _) => await OpenSignedPachtvertragAsync();
+
+        _discardPachtvertragButton = new Button
+        {
+            Text = "Unsignierten Pachtvertrag verwerfen",
+            TextColor = Colors.Red,
+            IsVisible = false
+        };
+        _discardPachtvertragButton.Clicked += async (_, _) => await DiscardUnsigniertesPachtvertragAsync();
+
+        _viewModel.PropertyChanged += (_, _) => UpdatePachtvertragButtons();
+
         var detailContainer = new VerticalStackLayout { Spacing = 12 };
         detailContainer.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowMemberContextDetail));
+
+        var actionsLayout = new HorizontalStackLayout
+        {
+            Spacing = 8,
+            Children = { stromButton, wasserButton, dokumenteButton }
+        };
+
+        var pachtButtonsLayout = new HorizontalStackLayout
+        {
+            Spacing = 8,
+            Children =
+            {
+                _pachtvertragButton,
+                _openPachtvertragButton,
+                _discardPachtvertragButton
+            }
+        };
 
         detailContainer.Children.Add(new Border
         {
@@ -102,12 +139,8 @@ public sealed class MemberParzellenDetailPage : ContentPage
                             TextColor = Colors.Gray,
                             LineBreakMode = LineBreakMode.WordWrap
                         },
-                        new HorizontalStackLayout
-                        {
-                            Spacing = 8,
-                            Children = { stromButton, wasserButton, dokumenteButton }
-                        },
-                        _pachtvertragButton)
+                        actionsLayout,
+                        pachtButtonsLayout)
                 }
             }
         });
@@ -174,6 +207,47 @@ public sealed class MemberParzellenDetailPage : ContentPage
                 }
             }
         };
+    }
+
+    private void UpdatePachtvertragButtons()
+    {
+        try
+        {
+            if (!_viewModel.HasSelectedDetail)
+            {
+                _pachtvertragButton.IsVisible = false;
+                _openPachtvertragButton.IsVisible = false;
+                return;
+            }
+
+            if (_viewModel.HasSignedPachtvertrag)
+            {
+                _pachtvertragButton.IsVisible = false;
+                _openPachtvertragButton.IsVisible = true;
+                _discardPachtvertragButton.IsVisible = false;
+                return;
+            }
+
+            // If there is an existing unsigniertes Pachtvertrag, offer open and discard actions
+            var hasUnsigniertes = _viewModel.Dokumente?.Any(d => string.Equals(d.FormularDokumentTypKey, "Pachtvertrag", StringComparison.Ordinal) && string.Equals(d.FormularDokumentStatusKey, "Unsigniert", StringComparison.Ordinal)) == true;
+            if (hasUnsigniertes)
+            {
+                _pachtvertragButton.IsVisible = false;
+                _openPachtvertragButton.IsVisible = true; // open unsigniertes
+                _discardPachtvertragButton.IsVisible = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
+                return;
+            }
+
+            _pachtvertragButton.IsVisible = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
+            _openPachtvertragButton.IsVisible = false;
+            _discardPachtvertragButton.IsVisible = false;
+        }
+        catch
+        {
+            _pachtvertragButton.IsVisible = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
+            _openPachtvertragButton.IsVisible = false;
+            _discardPachtvertragButton.IsVisible = false;
+        }
     }
 
     protected override async void OnAppearing()
@@ -249,6 +323,34 @@ public sealed class MemberParzellenDetailPage : ContentPage
         await Shell.Current.GoToAsync($"{nameof(DokumentePage)}?scope=parzelle&parzelleId={detail.ParzelleId}");
     }
 
+    private async Task OpenSignedPachtvertragAsync()
+    {
+        var detail = _viewModel.SelectedDetail;
+        if (detail == null)
+            return;
+
+        try
+        {
+            // Try to find a signiertes Pachtvertrags-Dokument in den bereits geladenen Dokumenten
+            var doc = _viewModel.Dokumente
+                .FirstOrDefault(d => string.Equals(d.FormularDokumentTypKey, FormularDokumentTyp.Pachtvertrag, StringComparison.Ordinal)
+                                     && string.Equals(d.FormularDokumentStatusKey, FormularDokumentStatus.Signiert, StringComparison.Ordinal));
+
+            if (doc != null)
+            {
+                await _viewModel.OpenDocumentAsync(doc);
+                return;
+            }
+        }
+        catch
+        {
+            // Fallthrough to DokumentePage
+        }
+
+        // Fallback: open Dokumente page for the parcel
+        await Shell.Current.GoToAsync($"{nameof(DokumentePage)}?scope=parzelle&parzelleId={detail.ParzelleId}");
+    }
+
     private async Task CreatePachtvertragAsync()
     {
         if (_contractCreationInProgress)
@@ -281,6 +383,11 @@ public sealed class MemberParzellenDetailPage : ContentPage
                 _parzellenContextState.ContextMitgliedId.Value,
                 detail.ParzelleId,
                 detail.VonDatum.Value.Date);
+
+            // Nach erfolgreichem Erstellen/Signieren neu laden, damit HasSignedPachtvertrag aktualisiert wird
+            // ReloadSelectedDetailAsync ist internal; nutze öffentliche RefreshSelectedDetailAsync
+            await _viewModel.RefreshSelectedDetailAsync();
+            UpdatePachtvertragButtons();
         }
         catch (Exception ex)
         {
@@ -326,5 +433,43 @@ public sealed class MemberParzellenDetailPage : ContentPage
         var label = new Label { LineBreakMode = LineBreakMode.WordWrap };
         label.SetBinding(Label.TextProperty, path);
         return label;
+    }
+    private async Task DiscardUnsigniertesPachtvertragAsync()
+    {
+        var detail = _viewModel.SelectedDetail;
+        if (detail == null)
+            return;
+
+        try
+        {
+            // Find unsigniertes Pachtvertrag document
+            var doc = _viewModel.Dokumente
+                .FirstOrDefault(d => string.Equals(d.FormularDokumentTypKey, "Pachtvertrag", StringComparison.Ordinal) && string.Equals(d.FormularDokumentStatusKey, "Unsigniert", StringComparison.Ordinal));
+
+            if (doc == null)
+            {
+                await DisplayAlert("Pachtvertrag", "Kein unsignierter Pachtvertrag gefunden.", "OK");
+                return;
+            }
+
+            var confirm = await DisplayAlert("Pachtvertrag verwerfen", "Soll die vorhandene unsignierte Pachtvertragsfassung verworfen werden? Diese Aktion kann nicht rückgängig gemacht werden.", "Ja", "Nein");
+            if (!confirm)
+                return;
+
+            var result = await _supabaseService.DeleteDokumentAsync(doc);
+            if (!result.Success)
+            {
+                await DisplayAlert("Pachtvertrag", "Das Dokument konnte nicht gelöscht werden: " + result.Message, "OK");
+                return;
+            }
+
+            await _viewModel.RefreshSelectedDetailAsync();
+            UpdatePachtvertragButtons();
+            await DisplayAlert("Pachtvertrag", "Unsignierte Pachtvertragsfassung verworfen.", "OK");
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Pachtvertrag", ex.Message, "OK");
+        }
     }
 }

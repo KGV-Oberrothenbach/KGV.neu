@@ -109,6 +109,7 @@ public sealed class PachtvertragPreviewPage : ContentPage
             return;
 
         _previewOpenedOnce = true;
+        try { System.Diagnostics.Debug.WriteLine("[PachtvertragPreview] OnAppearing: opening preview"); } catch { }
         await OpenPreviewAsync();
     }
 
@@ -140,10 +141,10 @@ public sealed class PachtvertragPreviewPage : ContentPage
 
     private async Task CloseAsync(PachtvertragPreviewDecision decision)
     {
-        _resultSource.TrySetResult(decision);
         TryDeleteTempFile();
         // persistent file kept for signing
         await Navigation.PopModalAsync();
+        _resultSource.TrySetResult(decision);
     }
 
     private void TryDeleteTempFile()

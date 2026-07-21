@@ -29,6 +29,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     private bool _isBusy;
     private bool _isAssignMode;
     private bool _isEditMode;
+    private bool _hasSignedPachtvertrag;
     private string _editGartenNr = string.Empty;
     private string _editAnlage = string.Empty;
     private string _editFlaeche = string.Empty;
@@ -148,6 +149,19 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
     public bool ShowReadOnlyStammdaten => HasSelectedDetail && !IsEditMode;
     public bool ShowSelectionHint => !HasSelectedDetail && HasFilteredItems && ShowListSection;
     public bool CanEditStammdaten => PermissionChecks.CanWriteParzellen(_userContextState.CurrentUserContext) && HasSelectedDetail && !IsBusy && !IsEditMode;
+    public bool HasSignedPachtvertrag
+    {
+        get => _hasSignedPachtvertrag;
+        private set
+        {
+            if (_hasSignedPachtvertrag == value)
+                return;
+
+            _hasSignedPachtvertrag = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanEditStammdaten));
+        }
+    }
     public bool CanManageAssignment => PermissionChecks.CanWriteParzellen(_userContextState.CurrentUserContext) && HasSelectedDetail && !IsBusy;
     public bool CanAssign => CanManageAssignment && IsAssignMode && SelectedAssignMember != null;
     public bool CanStartAssign => CanManageAssignment && SelectedDetail?.IstVergeben == false && !IsAssignMode;
@@ -857,6 +871,16 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
                 return;
 
             SelectedDetail = detail;
+            // Prüfe, ob bereits ein signierter Pachtvertrag für diese Parzelle existiert und setze Flag
+            try
+            {
+                var hasSigned = await _supabaseService.HasSignedPachtvertragAsync(selected.ParzelleId);
+                HasSignedPachtvertrag = hasSigned;
+            }
+            catch
+            {
+                HasSignedPachtvertrag = false;
+            }
             await LoadDetailCollectionsAsync(selected.ParzelleId);
         }
         catch (Exception ex)

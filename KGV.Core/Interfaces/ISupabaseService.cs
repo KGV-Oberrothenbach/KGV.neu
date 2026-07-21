@@ -115,6 +115,10 @@ namespace KGV.Core.Interfaces
         // =========================
         Task<List<DocumentInfo>> GetMitgliedDokumenteAsync(int mitgliedId);
         Task<List<DocumentInfo>> GetParzelleDokumenteAsync(int parzelleId);
+        /// <summary>
+        /// Prüft, ob für die angegebene Parzelle bereits eine signierte Pachtvertragsfassung vorliegt.
+        /// </summary>
+        Task<bool> HasSignedPachtvertragAsync(int parzelleId);
         Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert);
         Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(MitgliedsantragDokumentRequest request);
         Task<DokumentUploadRequest?> BuildMitgliedsantragPreviewAsync(MitgliedsantragDokumentRequest request);

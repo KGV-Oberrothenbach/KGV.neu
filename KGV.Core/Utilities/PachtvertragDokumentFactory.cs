@@ -59,7 +59,8 @@ namespace KGV.Core.Utilities
             ParzelleRecord parzelle,
             SaisonRecord saison,
             DateTime vertragsbeginn,
-            string? status = null)
+            string? status = null,
+            MitgliedRecord? paechter2Override = null)
             => CreateUploadRequest(
                 hauptmitglied,
                 nebenmitglied,
@@ -69,7 +70,8 @@ namespace KGV.Core.Utilities
                 altvertragDatum: null,
                 gesetzlicherVertreterSnapshot: null,
                 bankverbindungSnapshot: null,
-                status: status);
+                status: status,
+                paechter2Override: paechter2Override);
 
         public static DokumentUploadRequest CreateUploadRequest(
             MitgliedRecord hauptmitglied,
@@ -79,7 +81,8 @@ namespace KGV.Core.Utilities
             DateTime vertragsbeginn,
             MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
             MitgliedsantragBankverbindungSnapshot? bankverbindungSnapshot,
-            string? status = null)
+            string? status = null,
+            MitgliedRecord? paechter2Override = null)
             => CreateUploadRequest(
                 hauptmitglied,
                 nebenmitglied,
@@ -89,7 +92,8 @@ namespace KGV.Core.Utilities
                 altvertragDatum: null,
                 gesetzlicherVertreterSnapshot,
                 bankverbindungSnapshot,
-                status);
+                status,
+                paechter2Override: paechter2Override);
 
         public static DokumentUploadRequest CreateUploadRequest(
             MitgliedRecord hauptmitglied,
@@ -100,7 +104,8 @@ namespace KGV.Core.Utilities
             DateTime? altvertragDatum,
             MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
             MitgliedsantragBankverbindungSnapshot? bankverbindungSnapshot,
-            string? status = null)
+            string? status = null,
+            MitgliedRecord? paechter2Override = null)
         {
             ArgumentNullException.ThrowIfNull(hauptmitglied);
             ArgumentNullException.ThrowIfNull(parzelle);
@@ -136,7 +141,8 @@ namespace KGV.Core.Utilities
                 saison,
                 vertragsbeginn.Date,
                 altvertragDatum,
-                bankverbindungSnapshot);
+                bankverbindungSnapshot,
+                paechter2Override);
 
             var data = PachtvertragTemplateFactory.BuildData(templateContext);
             var content = FillAndFlattenPdfForm(LoadTemplatePdfBytes(), data);
@@ -158,13 +164,16 @@ namespace KGV.Core.Utilities
             SaisonRecord saison,
             DateTime vertragsbeginn,
             DateTime? altvertragDatum,
-            MitgliedsantragBankverbindungSnapshot bankverbindungSnapshot)
+            MitgliedsantragBankverbindungSnapshot bankverbindungSnapshot,
+            MitgliedRecord? paechter2Override = null)
         {
+            var paechter2 = paechter2Override ?? nebenmitglied;
+
             return new PachtvertragTemplateContext
             {
                 VereinskonfigurationSnapshot = bankverbindungSnapshot,
                 Paechter1 = hauptmitglied,
-                Paechter2 = nebenmitglied,
+                Paechter2 = paechter2,
                 ParzelleNummer = string.IsNullOrWhiteSpace(parzelle.GartenNr) ? $"#{parzelle.Id}" : parzelle.GartenNr.Trim(),
                 ParzelleFlaecheQm = parzelle.FlaecheQm!.Value,
                 Pachtbeginn = vertragsbeginn,
