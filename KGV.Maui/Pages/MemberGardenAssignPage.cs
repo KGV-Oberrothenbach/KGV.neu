@@ -206,7 +206,7 @@ public sealed class MemberGardenAssignPage : ContentPage
                 "Nein");
 
             if (createContract)
-                await CreatePachtvertragAsync(_memberRecord.Id, selectedParzelle.Id, assignDate);
+                await CreatePachtvertragAsync(_memberRecord.Id, selectedParzelle.Id, assignDate, manageBusyState: false);
 
             await DisplayAlert("OK", "Parzelle wurde zugewiesen.", "OK");
             await Navigation.PopAsync();
@@ -222,9 +222,28 @@ public sealed class MemberGardenAssignPage : ContentPage
         }
     }
 
-    private async Task CreatePachtvertragAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn)
+    private async Task CreatePachtvertragAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn, bool manageBusyState = true)
     {
-        await PachtvertragFlowHelper.RunAsync(Navigation, _supabaseService, mitgliedId, parzelleId, vertragsbeginn);
+        if (manageBusyState)
+        {
+            if (_isBusy)
+                return;
+
+            _isBusy = true;
+            try
+            {
+                await PachtvertragFlowHelper.RunAsync(Navigation, _supabaseService, mitgliedId, parzelleId, vertragsbeginn);
+            }
+            finally
+            {
+                _isBusy = false;
+                UpdateUiState();
+            }
+        }
+        else
+        {
+            await PachtvertragFlowHelper.RunAsync(Navigation, _supabaseService, mitgliedId, parzelleId, vertragsbeginn);
+        }
     }
 
     private void UpdateUiState()
