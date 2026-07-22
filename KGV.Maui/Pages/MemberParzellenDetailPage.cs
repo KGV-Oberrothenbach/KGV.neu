@@ -405,9 +405,9 @@ public sealed class MemberParzellenDetailPage : ContentPage
         await Shell.Current.GoToAsync($"{nameof(DokumentePage)}?scope=parzelle&parzelleId={detail.ParzelleId}");
     }
 
-    private async Task CreatePachtvertragAsync()
+    private async Task CreatePachtvertragAsync(bool manageBusyState = true)
     {
-        if (_contractCreationInProgress)
+        if (manageBusyState && _contractCreationInProgress)
             return;
 
         var detail = _viewModel.SelectedDetail;
@@ -426,8 +426,11 @@ public sealed class MemberParzellenDetailPage : ContentPage
             return;
         }
 
-        _contractCreationInProgress = true;
-        _pachtvertragButton.IsEnabled = false;
+        if (manageBusyState)
+        {
+            _contractCreationInProgress = true;
+            _pachtvertragButton.IsEnabled = false;
+        }
 
         try
         {
@@ -470,8 +473,11 @@ public sealed class MemberParzellenDetailPage : ContentPage
         }
         finally
         {
-            _contractCreationInProgress = false;
-            _pachtvertragButton.IsEnabled = _pachtvertragButton.IsVisible;
+            if (manageBusyState)
+            {
+                _contractCreationInProgress = false;
+                _pachtvertragButton.IsEnabled = _pachtvertragButton.IsVisible;
+            }
         }
     }
 
