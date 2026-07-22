@@ -20,6 +20,7 @@ public sealed class MemberParzellenDetailPage : ContentPage
     private readonly ParzellenContextState _parzellenContextState;
     private readonly UserContextState _userContextState;
     private readonly Label _contextErrorLabel;
+    private readonly Label _pachtvertragDiagnoseLabel;
     private readonly Button _pachtvertragButton;
     private readonly Button _openPachtvertragButton;
     private readonly Button _discardPachtvertragButton;
@@ -91,6 +92,8 @@ public sealed class MemberParzellenDetailPage : ContentPage
         };
         _discardPachtvertragButton.Clicked += async (_, _) => await DiscardUnsigniertesPachtvertragAsync();
 
+        _pachtvertragDiagnoseLabel = new Label { TextColor = Colors.DarkOrange, LineBreakMode = LineBreakMode.WordWrap, FontSize = 12 };
+
         _viewModel.PropertyChanged += (_, _) => UpdatePachtvertragButtons();
 
         var detailContainer = new VerticalStackLayout { Spacing = 12 };
@@ -113,6 +116,11 @@ public sealed class MemberParzellenDetailPage : ContentPage
             }
         };
 
+        // Diagnose-Label direkt unter den Pachtvertrag-Buttons (analog Mitgliedsantrag-Diagnose)
+        var pachtDiagnoseContainer = new VerticalStackLayout { Spacing = 2 };
+        pachtDiagnoseContainer.Children.Add(pachtButtonsLayout);
+        pachtDiagnoseContainer.Children.Add(_pachtvertragDiagnoseLabel);
+
         detailContainer.Children.Add(new Border
         {
             Stroke = Colors.LightGray,
@@ -132,7 +140,7 @@ public sealed class MemberParzellenDetailPage : ContentPage
                         CreateValueLabel("rfid Wasser", "SelectedDetail.RfidWasserText"),
                         CreateValueLabel("rfid Strom", "SelectedDetail.RfidStromText"),
                         CreateValueLabel("Anlage", "SelectedDetail.Anlage")),
-                    CreateSection("Aktionen",
+                        CreateSection("Aktionen",
                         new Label
                         {
                             Text = "Die Aktionen beziehen sich nur auf die aktuell ausgewählte Parzelle dieses Mitglieds.",
@@ -140,7 +148,7 @@ public sealed class MemberParzellenDetailPage : ContentPage
                             LineBreakMode = LineBreakMode.WordWrap
                         },
                         actionsLayout,
-                        pachtButtonsLayout)
+                        pachtDiagnoseContainer)
                 }
             }
         });
@@ -213,18 +221,27 @@ public sealed class MemberParzellenDetailPage : ContentPage
     {
         try
         {
+            // Default: determine basic visibility based on selection
             if (!_viewModel.HasSelectedDetail)
             {
                 _pachtvertragButton.IsVisible = false;
                 _openPachtvertragButton.IsVisible = false;
+                _discardPachtvertragButton.IsVisible = false;
+                _pachtvertragDiagnoseLabel.Text = BuildPachtvertragDiagnoseText();
                 return;
             }
 
+            // If there is a signed contract -> only open
             if (_viewModel.HasSignedPachtvertrag)
             {
                 _pachtvertragButton.IsVisible = false;
                 _openPachtvertragButton.IsVisible = true;
                 _discardPachtvertragButton.IsVisible = false;
+                _pachtvertragDiagnoseLabel.Text = BuildPachtvertragDiagnoseText();
+                // enable state
+                _openPachtvertragButton.IsEnabled = _openPachtvertragButton.IsVisible;
+                _pachtvertragButton.IsEnabled = false;
+                _discardPachtvertragButton.IsEnabled = false;
                 return;
             }
 
@@ -235,18 +252,55 @@ public sealed class MemberParzellenDetailPage : ContentPage
                 _pachtvertragButton.IsVisible = false;
                 _openPachtvertragButton.IsVisible = true; // open unsigniertes
                 _discardPachtvertragButton.IsVisible = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
+                _pachtvertragDiagnoseLabel.Text = BuildPachtvertragDiagnoseText();
+                // enable state
+                _openPachtvertragButton.IsEnabled = _openPachtvertragButton.IsVisible && !_contractCreationInProgress;
+                _discardPachtvertragButton.IsEnabled = _discardPachtvertragButton.IsVisible && !_contractCreationInProgress;
+                _pachtvertragButton.IsEnabled = false;
                 return;
             }
 
-            _pachtvertragButton.IsVisible = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
+            // Default creation state
+            var canCreate = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
+            _pachtvertragButton.IsVisible = canCreate;
             _openPachtvertragButton.IsVisible = false;
             _discardPachtvertragButton.IsVisible = false;
+            _pachtvertragButton.IsEnabled = _pachtvertragButton.IsVisible && !_contractCreationInProgress;
+            _pachtvertragDiagnoseLabel.Text = BuildPachtvertragDiagnoseText();
         }
         catch
         {
-            _pachtvertragButton.IsVisible = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
+            var canCreate = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
+            _pachtvertragButton.IsVisible = canCreate;
             _openPachtvertragButton.IsVisible = false;
             _discardPachtvertragButton.IsVisible = false;
+            _pachtvertragButton.IsEnabled = _pachtvertragButton.IsVisible && !_contractCreationInProgress;
+            _pachtvertragDiagnoseLabel.Text = BuildPachtvertragDiagnoseText();
+        }
+    }
+
+    private string BuildPachtvertragDiagnoseText()
+    {
+        try
+        {
+            var reasons = new System.Collections.Generic.List<string>();
+            if (!_viewModel.HasSelectedDetail)
+                reasons.Add("Keine Parzelle ausgewählt");
+
+            if (_parzellenContextState.ContextMitgliedId is not > 0)
+                reasons.Add("Mitgliedskontext fehlt");
+
+            var canCreate = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
+            if (!canCreate)
+                reasons.Add("CanCreateMitglied = false");
+
+            var detailId = _viewModel.SelectedDetail?.ParzelleId ?? 0;
+            var reasonText = reasons.Count == 0 ? "Button sollte sichtbar sein." : $"Button unsichtbar wegen: {string.Join(", ", reasons)}";
+            return $"[TEMP Diagnose Pachtvertrag] Parzelle={detailId}, Mitglied={_parzellenContextState.ContextMitgliedId ?? 0}. {reasonText}";
+        }
+        catch
+        {
+            return string.Empty;
         }
     }
 
@@ -388,6 +442,27 @@ public sealed class MemberParzellenDetailPage : ContentPage
             // ReloadSelectedDetailAsync ist internal; nutze öffentliche RefreshSelectedDetailAsync
             await _viewModel.RefreshSelectedDetailAsync();
             UpdatePachtvertragButtons();
+
+            // Inform the user whether the created Pachtvertrag was persistently stored
+            try
+            {
+                var savedSigned = _viewModel.Dokumente?.FirstOrDefault(d => string.Equals(d.FormularDokumentTypKey, FormularDokumentTyp.Pachtvertrag, StringComparison.Ordinal)
+                                                                              && string.Equals(d.FormularDokumentStatusKey, FormularDokumentStatus.Signiert, StringComparison.Ordinal));
+                if (savedSigned != null)
+                {
+                    await DisplayAlert("Pachtvertrag", "Pachtvertrag persistent gespeichert.", "OK");
+                }
+                else
+                {
+                    var savedUnsign = _viewModel.Dokumente?.FirstOrDefault(d => string.Equals(d.FormularDokumentTypKey, FormularDokumentTyp.Pachtvertrag, StringComparison.Ordinal)
+                                                                                     && string.Equals(d.FormularDokumentStatusKey, FormularDokumentStatus.Unsigniert, StringComparison.Ordinal));
+                    if (savedUnsign != null)
+                        await DisplayAlert("Pachtvertrag", "Unsignierte Pachtvertragsfassung persistent gespeichert.", "OK");
+                    else
+                        await DisplayAlert("Pachtvertrag", "Pachtvertrag wurde erzeugt, aber kein Dokumenteintrag gefunden.", "OK");
+                }
+            }
+            catch { }
         }
         catch (Exception ex)
         {
