@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <!-- Android-only MAUI app -->
-    <TargetFramework>net9.0-android</TargetFramework>
+    <TargetFramework>net10.0-android</TargetFramework>
     <OutputType>Exe</OutputType>
     <UseMaui>true</UseMaui>
     <SingleProject>true</SingleProject>
@@ -15,9 +15,9 @@
     <AndroidMinSdkVersion>21</AndroidMinSdkVersion>
     <AndroidTargetSdkVersion>36</AndroidTargetSdkVersion>
     <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
-    <ApplicationDisplayVersion>0.6.13</ApplicationDisplayVersion>
-    <ApplicationVersion>146</ApplicationVersion>
-    <TargetFrameworks>net9.0-android</TargetFrameworks>
+    <ApplicationDisplayVersion>0.6.16</ApplicationDisplayVersion>
+    <ApplicationVersion>149</ApplicationVersion>
+    <TargetFrameworks>net10.0-android</TargetFrameworks>
   </PropertyGroup>
   <!-- Debug stability settings -->
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
@@ -54,7 +54,7 @@
     <AndroidCreatePackagePerAbi>False</AndroidCreatePackagePerAbi>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-android|AnyCPU'">
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net10.0-android|AnyCPU'">
     <AndroidPackageFormat>aab</AndroidPackageFormat>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
@@ -63,7 +63,7 @@
     <AndroidSigningKeyPass Condition="'$(AndroidSigningKeyPass)'=='' and '$(AndroidSigningStorePass)'!=''">$(AndroidSigningStorePass)</AndroidSigningKeyPass>
     <AndroidKeyStore Condition="'$(AndroidSigningKeyStore)'!='' and '$(AndroidSigningStorePass)'!='' and '$(AndroidSigningKeyAlias)'!='' and '$(AndroidSigningKeyPass)'!=''">true</AndroidKeyStore>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-android|AnyCPU'">
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net10.0-android|AnyCPU'">
     <AndroidCreatePackagePerAbi>False</AndroidCreatePackagePerAbi>
     <AndroidUseAapt2>True</AndroidUseAapt2>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
