@@ -56,7 +56,9 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         _datePicker = new DatePicker { Date = DateTime.Today };
         var defaultStartTime = CreateTerminStartDefault();
         var defaultVisibleFrom = CreateCurrentTimestampDefault();
-        var defaultVisibleTo = CreateVisibleUntilEndOfDay(_datePicker.Date);
+        // DatePicker.Date is nullable (DateTime?) under .NET 10 MAUI; date picker is initialized to Today
+        // and therefore _datePicker.Date is non-null here.
+        var defaultVisibleTo = CreateVisibleUntilEndOfDay(_datePicker.Date!.Value);
 
         _startTimePicker = new TimePicker { Time = defaultStartTime };
 
@@ -184,11 +186,13 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         _descriptionEditor.Text = _existingRecord.Beschreibung ?? string.Empty;
         _datePicker.Date = _existingRecord.Datum == default ? DateTime.Today : _existingRecord.Datum.Date;
         _startTimePicker.Time = _existingRecord.StartUhrzeit ?? CreateTerminStartDefault();
-        _endTimePicker.Time = _existingRecord.EndUhrzeit ?? CreateTerminEndDefault(_startTimePicker.Time);
+
+        // _startTimePicker.Time can be nullable under some MAUI/.NET versions; ensure a non-null TimeSpan is passed
+        _endTimePicker.Time = _existingRecord.EndUhrzeit ?? CreateTerminEndDefault(_startTimePicker.Time!.Value);
         var visibleFrom = _existingRecord.SichtbarAb ?? CreateCurrentTimestampDefault();
         _visibleFromDatePicker.Date = visibleFrom.Date;
         _visibleFromTimePicker.Time = visibleFrom.TimeOfDay;
-        var visibleTo = _existingRecord.SichtbarBis ?? CreateVisibleUntilEndOfDay(_datePicker.Date);
+        var visibleTo = _existingRecord.SichtbarBis ?? CreateVisibleUntilEndOfDay(_datePicker.Date!.Value);
         _visibleToDatePicker.Date = visibleTo.Date;
         _visibleToTimePicker.Time = visibleTo.TimeOfDay;
         _activeSwitch.IsToggled = _existingRecord.Aktiv;
@@ -211,7 +215,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         var visibleFrom = CreateCurrentTimestampDefault();
         _visibleFromDatePicker.Date = visibleFrom.Date;
         _visibleFromTimePicker.Time = visibleFrom.TimeOfDay;
-        var visibleTo = CreateVisibleUntilEndOfDay(_datePicker.Date);
+        var visibleTo = CreateVisibleUntilEndOfDay(_datePicker.Date!.Value);
         _visibleToDatePicker.Date = visibleTo.Date;
         _visibleToTimePicker.Time = visibleTo.TimeOfDay;
         _activeSwitch.IsToggled = true;
@@ -281,8 +285,9 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
             return false;
         }
 
-        var startTime = _startTimePicker.Time;
-        var endTime = _endTimePicker.Time;
+        // TimePicker.Time is nullable under some MAUI/.NET versions; pickers are initialized earlier so these values are expected.
+        var startTime = _startTimePicker.Time!.Value;
+        var endTime = _endTimePicker.Time!.Value;
         if (endTime < startTime)
         {
             _statusLabel.Text = "Die Endzeit darf nicht vor der Startzeit liegen.";
@@ -290,8 +295,9 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
             return false;
         }
 
-        var visibleFrom = _visibleFromDatePicker.Date.Date.Add(_visibleFromTimePicker.Time);
-        var visibleTo = _visibleToDatePicker.Date.Date.Add(_visibleToTimePicker.Time);
+        // DatePicker.Date and TimePicker.Time may be nullable; use .Value as earlier initialization guarantees presence.
+        var visibleFrom = _visibleFromDatePicker.Date!.Value.Date.Add(_visibleFromTimePicker.Time!.Value);
+        var visibleTo = _visibleToDatePicker.Date!.Value.Date.Add(_visibleToTimePicker.Time!.Value);
 
         if (visibleTo < visibleFrom)
         {
@@ -304,7 +310,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         {
             Titel = _titleEntry.Text.Trim(),
             Beschreibung = string.IsNullOrWhiteSpace(_descriptionEditor.Text) ? null : _descriptionEditor.Text.Trim(),
-            Datum = _datePicker.Date.Date,
+            Datum = _datePicker.Date!.Value.Date,
             StartUhrzeit = startTime,
             EndUhrzeit = endTime,
             SichtbarAb = visibleFrom,

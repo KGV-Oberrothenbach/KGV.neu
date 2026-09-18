@@ -360,7 +360,7 @@ public sealed class AblesungenFreigabePage : ContentPage
 
         try
         {
-            var ok = await _supabaseService.CorrectAblesungImPruefprozessAsync(selected.AblesungId, _ablesedatumPicker.Date.Date, stand, kommentar, approverId.Value, DateTime.UtcNow);
+                var ok = await _supabaseService.CorrectAblesungImPruefprozessAsync(selected.AblesungId, _ablesedatumPicker.Date!.Value.Date, stand, kommentar, approverId.Value, DateTime.UtcNow);
             SetStatus(ok ? "Ablesung wurde korrigiert und direkt freigegeben." : "Die Korrektur konnte nicht gespeichert werden.");
             await LoadAsync();
         }

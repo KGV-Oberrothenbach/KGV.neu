@@ -461,7 +461,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
                 Anlage = context.Anlage?.Trim() ?? string.Empty,
                 Garten = context.GartenNr?.Trim() ?? string.Empty,
                 Zaehlernummer = string.IsNullOrWhiteSpace(context.Zaehlernummer) ? null : context.Zaehlernummer.Trim(),
-                Datum = _ablesedatumPicker.Date
+                Datum = _ablesedatumPicker.Date!.Value
             });
 
             if (!photoResult.Success || string.IsNullOrWhiteSpace(photoResult.RelativePath))
@@ -485,7 +485,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
             var readingSaved = await _supabaseService.AddAblesungAsync(new AblesungInsertRecord
             {
                 ZaehlerId = context.AktiverZaehlerId.Value,
-                Ablesedatum = _ablesedatumPicker.Date,
+                Ablesedatum = _ablesedatumPicker.Date!.Value,
                 Stand = stand,
                 Art = _currentArt,
                 FotoPfad = photoResult.RelativePath,

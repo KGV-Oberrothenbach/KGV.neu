@@ -116,7 +116,14 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
 
         var context = _context.Context;
         var medium = context.Medium;
-        var einbauDatum = _einbauDatumPicker.Date;
+        if (!_einbauDatumPicker.Date.HasValue)
+        {
+            await DisplayAlert("Validierung", "Bitte ein Einbau-Datum auswählen.", "OK");
+            _einbauDatumPicker.Focus();
+            return;
+        }
+
+        var einbauDatum = _einbauDatumPicker.Date.Value;
         var zaehlernummer = _zaehlernummerEntry.Text.Trim();
         var eichdatum = new DateTime(eichjahr, 1, 1);
 

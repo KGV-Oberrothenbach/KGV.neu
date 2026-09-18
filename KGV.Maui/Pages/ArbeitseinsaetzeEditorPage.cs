@@ -85,7 +85,8 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _sichtbarAbDatePicker = new DatePicker { Date = defaultVisibleFrom.Date };
         _sichtbarAbTimePicker = new TimePicker { Time = defaultVisibleFrom.TimeOfDay };
 
-        var defaultVisibleTo = CreateWorkAssignmentVisibleToDefault(_datePicker.Date);
+        // DatePicker.Date is nullable under .NET 10 MAUI; date picker initialized to Today so assert non-null
+        var defaultVisibleTo = CreateWorkAssignmentVisibleToDefault(_datePicker.Date!.Value);
         _sichtbarBisDatePicker = new DatePicker { Date = defaultVisibleTo.Date };
         _sichtbarBisTimePicker = new TimePicker { Time = defaultVisibleTo.TimeOfDay };
 
@@ -291,7 +292,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _sichtbarAbDatePicker.Date = sichtbarAb.Date;
         _sichtbarAbTimePicker.Time = sichtbarAb.TimeOfDay;
 
-        var sichtbarBis = record.SichtbarBis ?? CreateWorkAssignmentVisibleToDefault(_datePicker.Date);
+        var sichtbarBis = record.SichtbarBis ?? CreateWorkAssignmentVisibleToDefault(_datePicker.Date!.Value);
         _sichtbarBisDatePicker.Date = sichtbarBis.Date;
         _sichtbarBisTimePicker.Time = sichtbarBis.TimeOfDay;
 
@@ -320,7 +321,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         var sichtbarAb = CreateCurrentTimestampDefault();
         _sichtbarAbDatePicker.Date = sichtbarAb.Date;
         _sichtbarAbTimePicker.Time = sichtbarAb.TimeOfDay;
-        var sichtbarBis = CreateWorkAssignmentVisibleToDefault(_datePicker.Date);
+        var sichtbarBis = CreateWorkAssignmentVisibleToDefault(_datePicker.Date!.Value);
         _sichtbarBisDatePicker.Date = sichtbarBis.Date;
         _sichtbarBisTimePicker.Time = sichtbarBis.TimeOfDay;
         _hasAnmeldungBisCheckBox.IsChecked = false;
@@ -489,10 +490,10 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
             stundenWert = parsedStundenWert;
         }
 
-        var sichtbarAb = _sichtbarAbDatePicker.Date.Date.Add(_sichtbarAbTimePicker.Time);
-        var sichtbarBis = _sichtbarBisDatePicker.Date.Date.Add(_sichtbarBisTimePicker.Time);
+        var sichtbarAb = _sichtbarAbDatePicker.Date!.Value.Date.Add(_sichtbarAbTimePicker.Time!.Value);
+        var sichtbarBis = _sichtbarBisDatePicker.Date!.Value.Date.Add(_sichtbarBisTimePicker.Time!.Value);
         DateTime? anmeldungBis = _hasAnmeldungBisCheckBox.IsChecked
-            ? _anmeldungBisDatePicker.Date.Date.Add(_anmeldungBisTimePicker.Time)
+            ? _anmeldungBisDatePicker.Date!.Value.Date.Add(_anmeldungBisTimePicker.Time!.Value)
             : null;
 
         if (sichtbarBis < sichtbarAb)
@@ -505,7 +506,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         {
             Titel = _titleEntry.Text?.Trim(),
             Beschreibung = string.IsNullOrWhiteSpace(_descriptionEditor.Text) ? null : _descriptionEditor.Text.Trim(),
-            Datum = _datePicker.Date.Date,
+            Datum = _datePicker.Date!.Value.Date,
             StartUhrzeit = startTime,
             EndUhrzeit = endTime,
             Treffpunkt = string.IsNullOrWhiteSpace(_treffpunktEntry.Text) ? null : _treffpunktEntry.Text.Trim(),
@@ -601,7 +602,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         var sichtbarAb = source.SichtbarAb ?? CreateCurrentTimestampDefault();
         _sichtbarAbDatePicker.Date = sichtbarAb.Date;
         _sichtbarAbTimePicker.Time = sichtbarAb.TimeOfDay;
-        var sichtbarBis = source.SichtbarBis ?? CreateWorkAssignmentVisibleToDefault(_datePicker.Date);
+        var sichtbarBis = source.SichtbarBis ?? CreateWorkAssignmentVisibleToDefault(_datePicker.Date!.Value);
         _sichtbarBisDatePicker.Date = sichtbarBis.Date;
         _sichtbarBisTimePicker.Time = sichtbarBis.TimeOfDay;
         _hasAnmeldungBisCheckBox.IsChecked = source.AnmeldungBis.HasValue;
@@ -625,17 +626,17 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         return new EditorSnapshot(
             _titleEntry.Text ?? string.Empty,
             _descriptionEditor.Text ?? string.Empty,
-            DateOnly.FromDateTime(_datePicker.Date),
-            _startTimePicker.Time,
-            _endTimePicker.Time,
+            DateOnly.FromDateTime(_datePicker.Date!.Value),
+            _startTimePicker.Time!.Value,
+            _endTimePicker.Time!.Value,
             _treffpunktEntry.Text ?? string.Empty,
             _hasTeilnehmerbegrenzungCheckBox.IsChecked,
             _maxTeilnehmerEntry.Text ?? string.Empty,
             _stundenWertEntry.Text ?? string.Empty,
-            _sichtbarAbDatePicker.Date.Date.Add(_sichtbarAbTimePicker.Time),
-            _sichtbarBisDatePicker.Date.Date.Add(_sichtbarBisTimePicker.Time),
+            _sichtbarAbDatePicker.Date!.Value.Date.Add(_sichtbarAbTimePicker.Time!.Value),
+            _sichtbarBisDatePicker.Date!.Value.Date.Add(_sichtbarBisTimePicker.Time!.Value),
             _hasAnmeldungBisCheckBox.IsChecked,
-            _hasAnmeldungBisCheckBox.IsChecked ? _anmeldungBisDatePicker.Date.Date.Add(_anmeldungBisTimePicker.Time) : null,
+            _hasAnmeldungBisCheckBox.IsChecked ? _anmeldungBisDatePicker.Date!.Value.Date.Add(_anmeldungBisTimePicker.Time!.Value) : null,
             _aktivSwitch.IsToggled);
     }
 

@@ -331,7 +331,8 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
             return false;
         }
 
-        if (!TryBuildOptionalTimestamp(_visibleFromDatePicker.Date, _visibleFromTimeEntry.Text, out var visibleFrom, out var normalizedVisibleFrom, out var visibleFromError))
+        // DatePicker.Date is nullable in .NET 10; the timestamp builder expects a DateTime - use the value.
+        if (!TryBuildOptionalTimestamp(_visibleFromDatePicker.Date!.Value, _visibleFromTimeEntry.Text, out var visibleFrom, out var normalizedVisibleFrom, out var visibleFromError))
         {
             _statusLabel.Text = visibleFromError;
             _visibleFromTimeEntry.Text = normalizedVisibleFrom;
@@ -339,7 +340,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
             return false;
         }
 
-        if (!TryBuildOptionalTimestamp(_visibleToDatePicker.Date, _visibleToTimeEntry.Text, out var visibleTo, out var normalizedVisibleTo, out var visibleToError))
+        if (!TryBuildOptionalTimestamp(_visibleToDatePicker.Date!.Value, _visibleToTimeEntry.Text, out var visibleTo, out var normalizedVisibleTo, out var visibleToError))
         {
             _statusLabel.Text = visibleToError;
             _visibleToTimeEntry.Text = normalizedVisibleTo;

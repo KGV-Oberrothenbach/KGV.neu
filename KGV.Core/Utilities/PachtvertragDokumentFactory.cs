@@ -149,7 +149,9 @@ namespace KGV.Core.Utilities
 
             return new DokumentUploadRequest
             {
-                MitgliedId = hauptmitglied.Id,
+                // Der Pachtvertrag gehört fachlich zur Parzelle. Der Pächter steht im PDF
+                // und wird über die zeitlich passende Parzellenbelegung bestimmt.
+                ParzelleId = parzelle.Id,
                 Titel = title,
                 FileName = fileName,
                 MimeType = "application/pdf",

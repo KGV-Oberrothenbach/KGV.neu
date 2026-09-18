@@ -378,7 +378,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
             {
                 MitgliedId = member.MitgliedId,
                 SaisonId = _currentSaisonId.Value,
-                Datum = _datePicker.Date.Date,
+                Datum = _datePicker.Date!.Value.Date,
                 Stunden = hours,
                 ArtDerArbeit = description,
                 Status = _existingEntry?.Status,

@@ -198,7 +198,7 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
                 Anlage = context.Anlage?.Trim() ?? string.Empty,
                 Garten = context.GartenNr?.Trim() ?? string.Empty,
                 Zaehlernummer = string.IsNullOrWhiteSpace(context.Zaehlernummer) ? null : context.Zaehlernummer.Trim(),
-                Datum = _ausbauDatumPicker.Date
+                Datum = _ausbauDatumPicker.Date!.Value
             });
 
             if (!photoResult.Success || string.IsNullOrWhiteSpace(photoResult.RelativePath))
@@ -217,7 +217,7 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
             var ablesung = new AblesungInsertRecord
             {
                 ZaehlerId = context.AktiverZaehlerId!.Value,
-                Ablesedatum = _ausbauDatumPicker.Date,
+                Ablesedatum = _ausbauDatumPicker.Date!.Value,
                 Stand = stand,
                 Art = AblesungArt.Ausbau,
                 FotoPfad = photoResult.RelativePath,
@@ -234,8 +234,8 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
             }
 
             var meterStopped = string.Equals(context.Medium, "wasser", StringComparison.OrdinalIgnoreCase)
-                ? await _supabaseService.SetWasserzaehlerAusgebautAmAsync(context.AktiverZaehlerId.Value, _ausbauDatumPicker.Date)
-                : await _supabaseService.SetStromzaehlerAusgebautAmAsync(context.AktiverZaehlerId.Value, _ausbauDatumPicker.Date);
+                ? await _supabaseService.SetWasserzaehlerAusgebautAmAsync(context.AktiverZaehlerId.Value, _ausbauDatumPicker.Date!.Value)
+                : await _supabaseService.SetStromzaehlerAusgebautAmAsync(context.AktiverZaehlerId.Value, _ausbauDatumPicker.Date!.Value);
 
             if (!meterStopped)
             {

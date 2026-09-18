@@ -63,45 +63,18 @@ namespace KGV.Infrastructure.Services
             try
             {
                 var context = await ResolvePachtvertragRequestAsync(request);
-
-                // Determine Paechter2 override: prefer explicit include flag, otherwise if a gesetzlicher Vertreter snapshot is present use it
-                MitgliedRecord? paechter2Override = null;
-                try
-                {
-                    if (request.IncludeSecondaryMember == true)
-                    {
-                        paechter2Override = context.SecondaryMember;
-                    }
-                    else if (request.GesetzlicherVertreterSnapshot != null)
-                    {
-                        var snap = request.GesetzlicherVertreterSnapshot;
-                        paechter2Override = new MitgliedRecord
-                        {
-                            Id = 0,
-                            Vorname = snap.Vorname?.Trim() ?? string.Empty,
-                            Name = snap.Nachname?.Trim() ?? string.Empty,
-                            Adresse = snap.Adresse?.Trim() ?? string.Empty,
-                            Plz = snap.Plz?.Trim() ?? string.Empty,
-                            Ort = snap.Ort?.Trim() ?? string.Empty,
-                            Telefon = snap.Telefon?.Trim() ?? string.Empty,
-                            Handy = snap.Handy?.Trim() ?? string.Empty,
-                            Email = snap.Email?.Trim() ?? string.Empty
-                        };
-                    }
-                }
-                catch { }
+                var paechter2 = ResolvePachtvertragPaechter2(request, context.SecondaryMember, context.IstMinderjaehrig, context.GesetzlicherVertreterSnapshot);
 
                 var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
                     context.Member,
-                    context.SecondaryMember,
+                    paechter2,
                     context.Parzelle,
                     context.Saison,
                     context.Vertragsbeginn,
                     altvertragDatum: request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.BankverbindungSnapshot,
-                    request.Status,
-                    paechter2Override: paechter2Override);
+                    request.Status);
 
                 return await CreateDokumentAsync(uploadRequest);
             }
@@ -3688,9 +3661,10 @@ namespace KGV.Infrastructure.Services
             async () =>
             {
                 var context = await ResolvePachtvertragRequestAsync(request);
+                var paechter2 = ResolvePachtvertragPaechter2(request, context.SecondaryMember, context.IstMinderjaehrig, context.GesetzlicherVertreterSnapshot);
                 return PachtvertragDokumentFactory.CreateUploadRequest(
                     context.Member,
-                    context.SecondaryMember,
+                    paechter2,
                     context.Parzelle,
                     context.Saison,
                     context.Vertragsbeginn,
@@ -3752,6 +3726,7 @@ namespace KGV.Infrastructure.Services
                     return DokumentUploadResult.Fail("Bitte zuerst eine digitale Signatur erfassen.", "VALIDATION");
 
                 var context = await ResolvePachtvertragRequestAsync(request);
+                var paechter2 = ResolvePachtvertragPaechter2(request, context.SecondaryMember, context.IstMinderjaehrig, context.GesetzlicherVertreterSnapshot);
                 if (context.IstMinderjaehrig && (gesetzlicherVertreterSignatureCapture == null || !gesetzlicherVertreterSignatureCapture.HasContent))
                     return DokumentUploadResult.Fail("Für Minderjährige ist zusätzlich die digitale Unterschrift des gesetzlichen Vertreters erforderlich.", "VALIDATION");
 
@@ -3772,7 +3747,7 @@ namespace KGV.Infrastructure.Services
 
                 var previewUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
                     context.Member,
-                    context.SecondaryMember,
+                    paechter2,
                     context.Parzelle,
                     context.Saison,
                     context.Vertragsbeginn,
@@ -3782,7 +3757,7 @@ namespace KGV.Infrastructure.Services
                     FormularDokumentStatus.Unsigniert);
                 var finalUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
                     context.Member,
-                    context.SecondaryMember,
+                    paechter2,
                     context.Parzelle,
                     context.Saison,
                     context.Vertragsbeginn,
@@ -3802,6 +3777,44 @@ namespace KGV.Infrastructure.Services
                 return await CreateDokumentAsync(finalUploadRequest);
             },
             DokumentUploadResult.Fail("Pachtvertrag konnte aktuell nicht signiert gespeichert werden.", "UNEXPECTED"));
+
+        private static MitgliedRecord? ResolvePachtvertragPaechter2(
+            PachtvertragDokumentRequest request,
+            MitgliedRecord? nebenmitglied,
+            bool istMinderjaehrig,
+            MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot)
+        {
+            if (request.IncludeSecondaryMember == true)
+                return nebenmitglied;
+
+            // Bei Minderjährigen bleibt der gesetzliche Vertreter – wie bisher im
+            // direkten Erzeugungspfad – die zweite Vertragspartei, sofern kein
+            // Nebenmitglied ausdrücklich ausgewählt wurde.
+            if (istMinderjaehrig && gesetzlicherVertreterSnapshot != null)
+            {
+                return new MitgliedRecord
+                {
+                    Id = 0,
+                    Vorname = gesetzlicherVertreterSnapshot.Vorname?.Trim() ?? string.Empty,
+                    Name = gesetzlicherVertreterSnapshot.Nachname?.Trim() ?? string.Empty,
+                    Adresse = gesetzlicherVertreterSnapshot.Adresse?.Trim() ?? string.Empty,
+                    Plz = gesetzlicherVertreterSnapshot.Plz?.Trim() ?? string.Empty,
+                    Ort = gesetzlicherVertreterSnapshot.Ort?.Trim() ?? string.Empty,
+                    Telefon = gesetzlicherVertreterSnapshot.Telefon?.Trim() ?? string.Empty,
+                    Handy = gesetzlicherVertreterSnapshot.Handy?.Trim() ?? string.Empty,
+                    Email = gesetzlicherVertreterSnapshot.Email?.Trim() ?? string.Empty
+                };
+            }
+
+            // Eine explizite Nein-Entscheidung darf nicht wieder auf das
+            // vorhandene Nebenmitglied zurückfallen.
+            if (request.IncludeSecondaryMember == false)
+                return null;
+
+            // Bestehende direkte Aufrufer ohne Auswahl behalten ihr bisheriges
+            // Verhalten und übernehmen das Nebenmitglied.
+            return nebenmitglied;
+        }
 
         private async Task<(MitgliedRecord Member, MitgliedRecord? SecondaryMember, ParzelleRecord Parzelle, SaisonRecord Saison, DateTime Vertragsbeginn, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, MitgliedsantragBankverbindungSnapshot BankverbindungSnapshot)> ResolvePachtvertragRequestAsync(PachtvertragDokumentRequest request)
         {

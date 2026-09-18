@@ -32,7 +32,10 @@ public sealed class PachtvertragDialogPage : ContentPage
     private readonly Entry _vertreterPlzEntry;
     private readonly Entry _vertreterOrtEntry;
     private readonly List<MitgliedOption> _mitgliedOptionen;
-    private bool? _includeSecondaryForPreview;
+    private readonly MitgliedRecord? _nebenmitglied;
+    private bool? _includeSecondaryMember;
+    private DateTime? _altvertragDatum;
+    private bool _altvertragEntscheidungErfasst;
 
     public PachtvertragDialogPage(
         MitgliedRecord member,
@@ -40,11 +43,16 @@ public sealed class PachtvertragDialogPage : ContentPage
         DateTime vertragsbeginn,
         GesetzlicherVertreterAufloesung? gesetzlicherVertreterAufloesung,
         IReadOnlyCollection<MitgliedRecord>? vertreterMitglieder,
+        MitgliedRecord? nebenmitglied,
         PachtvertragDokumentRequest? initialRequest = null)
     {
         _member = member ?? throw new ArgumentNullException(nameof(member));
         _parzelle = parzelle ?? throw new ArgumentNullException(nameof(parzelle));
         _vertragsbeginn = vertragsbeginn.Date;
+        _nebenmitglied = nebenmitglied;
+        _includeSecondaryMember = initialRequest?.IncludeSecondaryMember;
+        _altvertragDatum = initialRequest?.AltvertragDatum;
+        _altvertragEntscheidungErfasst = initialRequest != null;
         _istMinderjaehrig = gesetzlicherVertreterAufloesung?.IstMinderjaehrig ?? GesetzlicherVertreterResolver.IsMinderjaehrig(member, _vertragsbeginn);
         _mitgliedOptionen = (vertreterMitglieder ?? Array.Empty<MitgliedRecord>())
             .Where(x => x != null && x.Id > 0 && x.Id != member.Id)
@@ -272,52 +280,52 @@ public sealed class PachtvertragDialogPage : ContentPage
             ParzelleId = _parzelle.Id,
             Vertragsbeginn = _vertragsbeginn,
             Status = FormularDokumentStatus.Unsigniert,
-            IstMinderjaehrig = _istMinderjaehrig
+            IstMinderjaehrig = _istMinderjaehrig,
+            AltvertragDatum = _altvertragDatum
         };
 
-        // Ask whether an existing previous contract (Altvertrag) exists
-        var altvertragAnswer = await DisplayAlert("Altvertrag", "Liegt ein Altvertrag vor?", "Ja", "Nein");
-        if (altvertragAnswer)
+        if (!_altvertragEntscheidungErfasst)
         {
-            // prompt for date
-            var datePicker = new DatePicker { Date = DateTime.Today };
-            var ok = false;
-            var tcs = new TaskCompletionSource<bool?>();
-
-            var promptPage = new ContentPage
+            var altvertragVorhanden = await DisplayAlert("Altvertrag", "Liegt ein Altvertrag vor?", "Ja", "Nein");
+            if (altvertragVorhanden)
             {
-                Title = "Altvertrag-Datum",
-                Content = new VerticalStackLayout
+                var datePicker = new DatePicker { Date = DateTime.Today };
+                var resultSource = new TaskCompletionSource<bool?>();
+
+                var promptPage = new ContentPage
                 {
-                    Padding = 24,
-                    Spacing = 12,
-                    Children =
+                    Title = "Altvertrag-Datum",
+                    Content = new VerticalStackLayout
                     {
-                        new Label { Text = "Bitte Datum des Altvertrags eingeben.", LineBreakMode = LineBreakMode.WordWrap },
-                        datePicker,
-                        new HorizontalStackLayout
+                        Padding = 24,
+                        Spacing = 12,
+                        Children =
                         {
-                            Spacing = 12,
-                            HorizontalOptions = LayoutOptions.End,
-                            Children =
+                            new Label { Text = "Bitte Datum des Altvertrags eingeben.", LineBreakMode = LineBreakMode.WordWrap },
+                            datePicker,
+                            new HorizontalStackLayout
                             {
-                                new Button { Text = "Abbrechen", Command = new Command(async () => { tcs.TrySetResult(null); await Navigation.PopModalAsync(); }) },
-                                new Button { Text = "OK", Command = new Command(async () => { tcs.TrySetResult(true); await Navigation.PopModalAsync(); }) }
+                                Spacing = 12,
+                                HorizontalOptions = LayoutOptions.End,
+                                Children =
+                                {
+                                    new Button { Text = "Abbrechen", Command = new Command(async () => { resultSource.TrySetResult(null); await Navigation.PopModalAsync(); }) },
+                                    new Button { Text = "OK", Command = new Command(async () => { resultSource.TrySetResult(true); await Navigation.PopModalAsync(); }) }
+                                }
                             }
                         }
                     }
-                }
-            };
+                };
 
-            await Navigation.PushModalAsync(new NavigationPage(promptPage));
-            var res = await tcs.Task;
-            if (res != true)
-            {
-                // cancelled
-                return;
+                await Navigation.PushModalAsync(new NavigationPage(promptPage));
+                if (await resultSource.Task != true)
+                    return;
+
+                _altvertragDatum = datePicker.Date!.Value.Date;
             }
 
-            request.AltvertragDatum = datePicker.Date.Date;
+            _altvertragEntscheidungErfasst = true;
+            request.AltvertragDatum = _altvertragDatum;
         }
 
         if (_istMinderjaehrig)
@@ -371,41 +379,20 @@ public sealed class PachtvertragDialogPage : ContentPage
             }
         }
 
-        // propagate the temporary include-secondary choice (null = server default)
-        request.IncludeSecondaryMember = _includeSecondaryForPreview;
-        _includeSecondaryForPreview = null;
+        request.IncludeSecondaryMember = _includeSecondaryMember;
         _resultSource.TrySetResult(request);
         await Navigation.PopModalAsync();
     }
 
     private async Task PreviewOrAcceptAsync()
     {
-        // Before calling AcceptAsync, check whether a secondary member exists and offer to include them as Pächter2
-        try
+        if (_nebenmitglied != null && !_includeSecondaryMember.HasValue)
         {
-            // Try to resolve ISupabaseService via the MAUI application context if available.
-            var services = App.Current?.Handler?.MauiContext?.Services;
-            var supabase = services is null ? null : (KGV.Core.Interfaces.ISupabaseService?)services.GetService(typeof(KGV.Core.Interfaces.ISupabaseService));
-            var secondary = supabase is null ? null : await supabase.GetNebenmitgliedByHauptmitgliedIdAsync(_member.Id);
-            if (secondary != null)
-            {
-                var include = await DisplayAlert("Nebenmitglied", $"Für dieses Mitglied existiert ein Nebenmitglied ({secondary.Vorname} {secondary.Name}). Soll dieses als Pächter 2 in den Pachtvertrag aufgenommen werden?", "Ja", "Nein");
-                if (include)
-                {
-                    // set request preference via temporary state on page and then call AcceptAsync
-                    // We'll create a small wrapper: temporarily set a field and call AcceptAsync
-                    _includeSecondaryForPreview = true;
-                }
-                else
-                {
-                    _includeSecondaryForPreview = false;
-                }
-            }
-        }
-        catch
-        {
-            // ignore lookup errors and proceed
-            _includeSecondaryForPreview = null;
+            _includeSecondaryMember = await DisplayAlert(
+                "Nebenmitglied",
+                $"Für dieses Mitglied existiert ein Nebenmitglied ({_nebenmitglied.Vorname} {_nebenmitglied.Name}). Soll dieses als Pächter 2 in den Pachtvertrag aufgenommen werden?",
+                "Ja",
+                "Nein");
         }
 
         await AcceptAsync();

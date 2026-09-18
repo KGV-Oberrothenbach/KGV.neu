@@ -113,29 +113,40 @@ if exist "%REPO%\KGV.Wpf\obj"  rmdir /s /q "%REPO%\KGV.Wpf\obj"
 if exist "%REPO%\KGV.Wpf\Installer\Output" rmdir /s /q "%REPO%\KGV.Wpf\Installer\Output"
 
 echo.
-echo Lese aktuelle Versionen...
+echo Lese aktuelle Versionen und Android Target SDK...
 
 for /f "usebackq delims=" %%I in (`powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$mauiXml = [xml](Get-Content '%MAUI_CSPROJ%');" ^
-  "$mauiGroups = @($mauiXml.Project.PropertyGroup | Where-Object { $_.ApplicationDisplayVersion -or $_.ApplicationVersion });" ^
-  "if ($mauiGroups.Count -eq 0) { throw 'Keine ApplicationDisplayVersion/ApplicationVersion in KGV.Maui.csproj gefunden' }" ^
+  "$mauiGroups = @($mauiXml.Project.PropertyGroup | Where-Object { $_.ApplicationDisplayVersion -or $_.ApplicationVersion -or $_.AndroidTargetSdkVersion });" ^
+  "if ($mauiGroups.Count -eq 0) { throw 'Keine relevanten MAUI-Versionseinstellungen in KGV.Maui.csproj gefunden' }" ^
   "$mauiDisplay = ($mauiGroups | ForEach-Object { if ($_.ApplicationDisplayVersion) { [string]$_.ApplicationDisplayVersion } } | Select-Object -First 1);" ^
   "$mauiCodes = @($mauiGroups | ForEach-Object { if ($_.ApplicationVersion) { [int]$_.ApplicationVersion } });" ^
+  "$androidTargetSdk = ($mauiGroups | ForEach-Object { if ($_.AndroidTargetSdkVersion) { [string]$_.AndroidTargetSdkVersion } } | Select-Object -First 1);" ^
   "if (-not $mauiDisplay) { throw 'ApplicationDisplayVersion konnte nicht gelesen werden' }" ^
   "if ($mauiCodes.Count -eq 0) { throw 'ApplicationVersion konnte nicht gelesen werden' }" ^
+  "if (-not $androidTargetSdk) { throw 'AndroidTargetSdkVersion konnte nicht gelesen werden' }" ^
   "$mauiCode = ($mauiCodes | Measure-Object -Maximum).Maximum;" ^
   "$wpfXml = [xml](Get-Content '%WPF_CSPROJ%');" ^
   "$wpfGroups = @($wpfXml.Project.PropertyGroup);" ^
   "$wpfVersion = ($wpfGroups | ForEach-Object { if ($_.Version) { [string]$_.Version } } | Select-Object -First 1);" ^
   "$wpfFileVersion = ($wpfGroups | ForEach-Object { if ($_.FileVersion) { [string]$_.FileVersion } } | Select-Object -First 1);" ^
+  "$wpfAssemblyVersion = ($wpfGroups | ForEach-Object { if ($_.AssemblyVersion) { [string]$_.AssemblyVersion } } | Select-Object -First 1);" ^
   "if (-not $wpfVersion) { $wpfVersion = $wpfFileVersion }" ^
   "if (-not $wpfVersion) { $wpfVersion = '<nicht gesetzt>' }" ^
-  "Write-Output ($mauiDisplay + '|' + $mauiCode + '|' + $wpfVersion)"`) do set "VERLINE=%%I"
+  "if (-not $wpfAssemblyVersion) { $wpfAssemblyVersion = '<nicht gesetzt>' }" ^
+  "Write-Output ($mauiDisplay + '|' + $mauiCode + '|' + $wpfVersion + '|' + $androidTargetSdk + '|' + $wpfAssemblyVersion)"`) do set "VERLINE=%%I"
 
-for /f "tokens=1,2,3 delims=|" %%A in ("%VERLINE%") do (
+if errorlevel 1 (
+  echo FEHLER: Versionen konnten nicht gelesen werden.
+  exit /b 1
+)
+
+for /f "tokens=1,2,3,4,5 delims=|" %%A in ("%VERLINE%") do (
   set "CUR_MAUI_DISPLAY=%%A"
   set "CUR_MAUI_CODE=%%B"
   set "CUR_WPF_VERSION=%%C"
+  set "ANDROID_TARGET_SDK=%%D"
+  set "CUR_WPF_ASSEMBLY_VERSION=%%E"
 )
 
 if not defined CUR_MAUI_DISPLAY (
@@ -148,9 +159,16 @@ if not defined CUR_MAUI_CODE (
   exit /b 1
 )
 
+if not defined ANDROID_TARGET_SDK (
+  echo FEHLER: AndroidTargetSdkVersion konnte nicht aus KGV.Maui.csproj gelesen werden.
+  exit /b 1
+)
+
 echo Aktuelle MAUI sichtbare Version: %CUR_MAUI_DISPLAY%
 echo Aktueller Android Versionscode: %CUR_MAUI_CODE%
 echo Aktuelle WPF Version: %CUR_WPF_VERSION%
+echo Aktuelle WPF AssemblyVersion: %CUR_WPF_ASSEMBLY_VERSION%
+echo Aktuelles Android Target SDK: %ANDROID_TARGET_SDK%
 echo.
 
 set /p TARGET_VERSION=Gemeinsame Zielversion fuer MAUI und WPF eingeben (z. B. 0.2.10): 
@@ -201,6 +219,15 @@ if not exist "%WPF_OUT%" mkdir "%WPF_OUT%"
 if not exist "%WPF_PUBLISH_OUT%" mkdir "%WPF_PUBLISH_OUT%"
 if not exist "%WPF_SETUP_OUT%" mkdir "%WPF_SETUP_OUT%"
 
+REM =========================================================
+REM Ursprungswerte fuer moeglichen Abbruch sichern
+REM =========================================================
+
+set "ORIGINAL_MAUI_DISPLAY=%CUR_MAUI_DISPLAY%"
+set "ORIGINAL_MAUI_CODE=%CUR_MAUI_CODE%"
+set "ORIGINAL_WPF_VERSION=%CUR_WPF_VERSION%"
+set "ORIGINAL_WPF_ASSEMBLY_VERSION=%CUR_WPF_ASSEMBLY_VERSION%"
+
 echo.
 echo Setze gemeinsame Zielversion...
 echo   MAUI ApplicationDisplayVersion = %TARGET_VERSION%
@@ -241,6 +268,40 @@ if errorlevel 1 (
   echo FEHLER: Versionen konnten nicht geschrieben werden.
   exit /b 1
 )
+
+echo.
+echo =========================================================
+echo VERSION UND ANDROID TARGET SDK PRUEFEN
+echo =========================================================
+echo.
+echo Die neuen Versionen wurden in die csproj-Dateien geschrieben.
+echo.
+echo   MAUI Version:             %TARGET_VERSION%
+echo   Android Version Code:     %NEW_ANDROID_CODE%
+echo   Android Target SDK:       %ANDROID_TARGET_SDK%
+echo   WPF Version:              %TARGET_VERSION%
+echo   WPF AssemblyVersion:      %TARGET_VERSION_4%
+echo.
+echo Ursprungswerte:
+echo   MAUI Version:             %ORIGINAL_MAUI_DISPLAY%
+echo   Android Version Code:     %ORIGINAL_MAUI_CODE%
+echo   WPF Version:              %ORIGINAL_WPF_VERSION%
+echo   WPF AssemblyVersion:      %ORIGINAL_WPF_ASSEMBLY_VERSION%
+echo.
+echo =========================================================
+echo.
+choice /C JN /N /M "Release mit diesen Einstellungen starten? [J/N]: "
+
+if errorlevel 2 goto CANCEL_RELEASE
+if errorlevel 1 goto CONTINUE_RELEASE
+
+:CONTINUE_RELEASE
+
+echo.
+echo =========================================================
+echo RELEASE WIRD FORTGESETZT
+echo =========================================================
+echo.
 
 echo.
 set "KEYSTORE=C:\Programmieren\KGV\KGV.neu\_secrets\Android\kgv-upload.keystore"
@@ -297,8 +358,9 @@ echo =========================================================
 echo Baue signierte APK...
 echo =========================================================
 dotnet publish ".\KGV.Maui\KGV.Maui.csproj" ^
-  -f net9.0-android ^
+  -f net10.0-android ^
   -c Release ^
+  -p:AndroidTargetSdkVersion=%ANDROID_TARGET_SDK% ^
   -p:AndroidPackageFormat=apk ^
   -p:AndroidKeyStore=true ^
   -p:AndroidSigningKeyStore="%KEYSTORE%" ^
@@ -316,8 +378,9 @@ echo =========================================================
 echo Baue signierte AAB...
 echo =========================================================
 dotnet publish ".\KGV.Maui\KGV.Maui.csproj" ^
-  -f net9.0-android ^
+  -f net10.0-android ^
   -c Release ^
+  -p:AndroidTargetSdkVersion=%ANDROID_TARGET_SDK% ^
   -p:AndroidPackageFormat=aab ^
   -p:AndroidKeyStore=true ^
   -p:AndroidSigningKeyStore="%KEYSTORE%" ^
@@ -331,13 +394,13 @@ if errorlevel 1 (
 )
 
 for /f "usebackq delims=" %%I in (`powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$publish = Join-Path '%REPO%' 'KGV.Maui\bin\Release\net9.0-android\publish';" ^
+  "$publish = Join-Path '%REPO%' 'KGV.Maui\bin\Release\net10.0-android\publish';" ^
   "$apk = Get-ChildItem $publish -Filter '*-Signed.apk' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1;" ^
   "if (-not $apk) { $apk = Get-ChildItem $publish -Filter '*.apk' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 }" ^
   "if ($apk) { Write-Output $apk.FullName }"`) do set "APK_FILE=%%I"
 
 for /f "usebackq delims=" %%I in (`powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$publish = Join-Path '%REPO%' 'KGV.Maui\bin\Release\net9.0-android\publish';" ^
+  "$publish = Join-Path '%REPO%' 'KGV.Maui\bin\Release\net10.0-android\publish';" ^
   "$aab = Get-ChildItem $publish -Filter '*-Signed.aab' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1;" ^
   "if (-not $aab) { $aab = Get-ChildItem $publish -Filter '*.aab' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 }" ^
   "if ($aab) { Write-Output $aab.FullName }"`) do set "AAB_FILE=%%I"
@@ -383,7 +446,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "New-Item -ItemType Directory -Force -Path $diagOut, $mappingOut, $nativeOut | Out-Null;" ^
   "$mappingPattern = Join-Path $mappingOut '*'; if (Test-Path $mappingPattern) { Remove-Item $mappingPattern -Recurse -Force -ErrorAction SilentlyContinue }" ^
   "$nativePattern = Join-Path $nativeOut '*'; if (Test-Path $nativePattern) { Remove-Item $nativePattern -Recurse -Force -ErrorAction SilentlyContinue }" ^
-  "$searchRoots = @((Join-Path $repo 'KGV.Maui\bin\Release\net9.0-android'), (Join-Path $repo 'KGV.Maui\obj\Release\net9.0-android')) | Where-Object { Test-Path $_ };" ^
+  "$searchRoots = @((Join-Path $repo 'KGV.Maui\bin\Release\net10.0-android'), (Join-Path $repo 'KGV.Maui\obj\Release\net10.0-android')) | Where-Object { Test-Path $_ };" ^
   "$mappingCandidates = foreach ($root in $searchRoots) { Get-ChildItem $root -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\lp\\' -and @('mapping.txt','proguard.map','proguard_mapping.txt') -contains $_.Name.ToLowerInvariant() } };" ^
   "$mappingFile = $mappingCandidates | Sort-Object LastWriteTime -Descending | Select-Object -First 1;" ^
   "if ($mappingFile) { Copy-Item $mappingFile.FullName (Join-Path $mappingOut $mappingFile.Name) -Force }" ^
@@ -758,5 +821,81 @@ echo.
 set "STOREPASS="
 set "KEYPASS="
 set "SIGN_PWD="
+
+set "STOREPASS="
+set "KEYPASS="
+set "SIGN_PWD="
+
+goto RELEASE_END
+
+:CANCEL_RELEASE
+
+echo.
+echo =========================================================
+echo RELEASE ABGEBROCHEN
+echo =========================================================
+echo.
+echo Setze alle Versionsnummern auf die Ursprungswerte zurueck...
+echo.
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ErrorActionPreference = 'Stop';" ^
+  "$mauiXml = [xml](Get-Content '%MAUI_CSPROJ%');" ^
+  "$mauiGroups = @($mauiXml.Project.PropertyGroup | Where-Object { $_.ApplicationDisplayVersion -or $_.ApplicationVersion });" ^
+  "foreach ($pg in $mauiGroups) {" ^
+  "  if ($pg.ApplicationDisplayVersion -or $pg.ApplicationVersion) {" ^
+  "    $pg.ApplicationDisplayVersion = '%ORIGINAL_MAUI_DISPLAY%';" ^
+  "    $pg.ApplicationVersion = '%ORIGINAL_MAUI_CODE%';" ^
+  "  }" ^
+  "}" ^
+  "$mauiXml.Save('%MAUI_CSPROJ%');" ^
+  "$wpfXml = [xml](Get-Content '%WPF_CSPROJ%');" ^
+  "$wpfGroups = @($wpfXml.Project.PropertyGroup);" ^
+  "$versionGroup = $wpfGroups | Where-Object { $_.Version -or $_.FileVersion -or $_.AssemblyVersion -or $_.InformationalVersion } | Select-Object -First 1;" ^
+  "if ($versionGroup) {" ^
+  "  if ($versionGroup.Version) { $versionGroup.Version = '%ORIGINAL_WPF_VERSION%' }" ^
+  "  if ($versionGroup.FileVersion) { $versionGroup.FileVersion = '%ORIGINAL_WPF_VERSION%' }" ^
+  "  if ($versionGroup.InformationalVersion) { $versionGroup.InformationalVersion = '%ORIGINAL_WPF_VERSION%' }" ^
+  "  if ($versionGroup.AssemblyVersion -and '%ORIGINAL_WPF_ASSEMBLY_VERSION%' -ne '<nicht gesetzt>') { $versionGroup.AssemblyVersion = '%ORIGINAL_WPF_ASSEMBLY_VERSION%' }" ^
+  "}" ^
+  "$wpfXml.Save('%WPF_CSPROJ%');"
+
+if errorlevel 1 (
+  echo.
+  echo =========================================================
+  echo FEHLER BEIM ZURUECKSETZEN
+  echo =========================================================
+  echo.
+  echo Die Versionsnummern konnten NICHT vollstaendig zurueckgesetzt werden.
+  echo Bitte folgende Dateien manuell pruefen:
+  echo.
+  echo   %MAUI_CSPROJ%
+  echo   %WPF_CSPROJ%
+  echo.
+  exit /b 1
+)
+
+echo.
+echo =========================================================
+echo VERSIONEN ERFOLGREICH ZURUECKGESETZT
+echo =========================================================
+echo.
+echo MAUI ApplicationDisplayVersion: %ORIGINAL_MAUI_DISPLAY%
+echo MAUI ApplicationVersion:        %ORIGINAL_MAUI_CODE%
+echo WPF Version:                    %ORIGINAL_WPF_VERSION%
+echo WPF AssemblyVersion:            %ORIGINAL_WPF_ASSEMBLY_VERSION%
+echo.
+echo Die csproj-Dateien wurden wieder auf den Ursprungsstand gesetzt.
+echo Es wurde kein Build gestartet.
+echo Es wurden keine Git-Aenderungen committed oder gepusht.
+echo.
+echo Release wurde abgebrochen.
+echo.
+
+set "STOREPASS="
+set "KEYPASS="
+set "SIGN_PWD="
+
+:RELEASE_END
 
 exit /b 0

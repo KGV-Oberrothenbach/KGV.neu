@@ -434,12 +434,15 @@ public sealed class MemberParzellenDetailPage : ContentPage
 
         try
         {
-            await PachtvertragFlowHelper.RunAsync(
+            var flowResult = await PachtvertragFlowHelper.RunAsync(
                 Navigation,
                 _supabaseService,
                 _parzellenContextState.ContextMitgliedId.Value,
                 detail.ParzelleId,
                 detail.VonDatum.Value.Date);
+
+            if (flowResult != PachtvertragFlowResult.Gespeichert)
+                return;
 
             // Nach erfolgreichem Erstellen/Signieren neu laden, damit HasSignedPachtvertrag aktualisiert wird
             // ReloadSelectedDetailAsync ist internal; nutze öffentliche RefreshSelectedDetailAsync

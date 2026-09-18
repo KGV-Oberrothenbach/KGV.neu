@@ -969,7 +969,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     }
 
     private static DateTime? GetOptionalDate(Switch toggle, DatePicker picker)
-        => toggle.IsToggled ? picker.Date.Date : null;
+        => toggle.IsToggled ? picker.Date!.Value.Date : null;
 
     private static Label CreateReadOnlyLabel()
         => new() { LineBreakMode = LineBreakMode.WordWrap };

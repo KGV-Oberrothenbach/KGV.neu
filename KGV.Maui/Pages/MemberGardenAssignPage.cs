@@ -186,7 +186,7 @@ public sealed class MemberGardenAssignPage : ContentPage
         }
 
         var selectedParzelle = _availableParzellen[_parzellePicker.SelectedIndex];
-        var assignDate = _assignDatePicker.Date.Date;
+        var assignDate = _assignDatePicker.Date!.Value.Date;
 
         _isBusy = true;
         UpdateUiState();
@@ -206,6 +206,8 @@ public sealed class MemberGardenAssignPage : ContentPage
                 "Nein");
 
             if (createContract)
+                // CreatePachtvertragAsync has manageBusyState param; when called from SaveAsync the Save flow manages _isBusy,
+                // so call with manageBusyState:false to avoid double-busy handling.
                 await CreatePachtvertragAsync(_memberRecord.Id, selectedParzelle.Id, assignDate, manageBusyState: false);
 
             await DisplayAlert("OK", "Parzelle wurde zugewiesen.", "OK");

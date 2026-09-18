@@ -978,8 +978,9 @@ public class MeineDatenPage : ContentPage
         var picker = new DatePicker { Format = "'Nicht gesetzt'" };
         picker.DateSelected += (_, e) =>
         {
-            onChanged(e.NewDate.Date);
-            ApplyNullableDate(picker, e.NewDate.Date);
+            // e.NewDate is DateTime? in .NET 10 MAUI; selection implies non-null, assert with '!'
+            onChanged(e.NewDate!.Value.Date);
+            ApplyNullableDate(picker, e.NewDate);
         };
         return picker;
     }

@@ -6,13 +6,12 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
-using System.IO;
 
 namespace KGV.Maui.Pages;
 
 internal static class PachtvertragFlowHelper
 {
-    public static async Task RunAsync(INavigation navigation, ISupabaseService supabaseService, int mitgliedId, int parzelleId, DateTime vertragsbeginn)
+    public static async Task<PachtvertragFlowResult> RunAsync(INavigation navigation, ISupabaseService supabaseService, int mitgliedId, int parzelleId, DateTime vertragsbeginn)
     {
         ArgumentNullException.ThrowIfNull(navigation);
         ArgumentNullException.ThrowIfNull(supabaseService);
@@ -22,7 +21,7 @@ internal static class PachtvertragFlowHelper
         {
             var request = await PromptPachtvertragRequestAsync(navigation, supabaseService, mitgliedId, parzelleId, vertragsbeginn, initialRequest);
             if (request == null)
-                return;
+                return PachtvertragFlowResult.Abgebrochen;
 
             DokumentUploadRequest? previewUploadRequest;
             try
@@ -48,7 +47,7 @@ internal static class PachtvertragFlowHelper
             }
 
             if (previewDecision != PachtvertragPreviewDecision.ContinueToSignature)
-                return;
+                return PachtvertragFlowResult.Abgebrochen;
 
             var sourceDocument = new DocumentInfo
             {
@@ -60,36 +59,16 @@ internal static class PachtvertragFlowHelper
                 StoragePath = KGV.Maui.Services.Documents.DocumentStorage.GetPersistentFilePath(previewUploadRequest.FileName)
             };
 
-            // Ensure the persistent preview file exists (Mitgliedsantrag flow schreibt eine persistente Kopie in der Preview-Seite).
-            // Wenn das Schreiben beim Öffnen der Vorschau fehlgeschlagen ist, versuchen wir es hier erneut, damit die Signaturseite die Datei öffnen/verwenden kann.
-            try
-            {
-                var persistentPath = sourceDocument.StoragePath;
-                if (!string.IsNullOrWhiteSpace(persistentPath) && (previewUploadRequest.FileContent?.Length ?? 0) > 0)
-                {
-                    var dir = Path.GetDirectoryName(persistentPath)!;
-                    if (!Directory.Exists(dir))
-                        Directory.CreateDirectory(dir);
-
-                    if (!File.Exists(persistentPath))
-                        File.WriteAllBytes(persistentPath, previewUploadRequest.FileContent);
-                }
-            }
-            catch
-            {
-                // Ignoriere Schreibfehler hier; Preview funktioniert weiterhin. Fehler werden ggf. beim finalen Upload sichtbar.
-            }
-
             var signatureCapture = await SignatureFlowHelper.CaptureSignatureAsync(navigation, sourceDocument, "Unterschrift Pächter/in", isLastSignature: !request.IstMinderjaehrig, forceLandscape: false);
             if (signatureCapture == null)
-                return;
+                return PachtvertragFlowResult.Abgebrochen;
 
             DigitalSignatureCapture? gesetzlicherVertreterSignatureCapture = null;
             if (request.IstMinderjaehrig)
             {
                 gesetzlicherVertreterSignatureCapture = await SignatureFlowHelper.CaptureSignatureAsync(navigation, sourceDocument, "Unterschrift gesetzliche/r Vertreter/in", isLastSignature: true, forceLandscape: false);
                 if (gesetzlicherVertreterSignatureCapture == null)
-                    return;
+                    return PachtvertragFlowResult.Abgebrochen;
             }
 
             DokumentUploadResult? result = null;
@@ -112,14 +91,14 @@ internal static class PachtvertragFlowHelper
 
             var document = result.Document;
             if (document?.CanOpen != true)
-                return;
+                return PachtvertragFlowResult.Gespeichert;
 
             var url = await supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
             if (string.IsNullOrWhiteSpace(url))
-                throw new InvalidOperationException("Pachtvertrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.");
+                return PachtvertragFlowResult.Gespeichert;
 
             await Launcher.Default.OpenAsync(url);
-            return;
+            return PachtvertragFlowResult.Gespeichert;
         }
     }
 
@@ -137,9 +116,16 @@ internal static class PachtvertragFlowHelper
         IReadOnlyCollection<MitgliedRecord> vertreterMitglieder = gesetzlicherVertreterAufloesung.IstMinderjaehrig
             ? (await supabaseService.GetMitgliederAsync()).ToList()
             : Array.Empty<MitgliedRecord>();
+        var nebenmitglied = await supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(mitgliedId);
 
-        var dialogPage = new PachtvertragDialogPage(member, parzelle, vertragsbeginn, gesetzlicherVertreterAufloesung, vertreterMitglieder, initialRequest);
+        var dialogPage = new PachtvertragDialogPage(member, parzelle, vertragsbeginn, gesetzlicherVertreterAufloesung, vertreterMitglieder, nebenmitglied, initialRequest);
         await navigation.PushModalAsync(new NavigationPage(dialogPage));
         return await dialogPage.WaitForResultAsync();
     }
+}
+
+internal enum PachtvertragFlowResult
+{
+    Abgebrochen,
+    Gespeichert
 }

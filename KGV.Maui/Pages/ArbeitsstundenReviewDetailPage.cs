@@ -422,7 +422,7 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
         var request = new ArbeitsstundenPruefkorrekturRequest
         {
             ArbeitsstundeId = entry.Id,
-            Datum = _correctionDatePicker.Date,
+            Datum = _correctionDatePicker.Date!.Value,
             Stunden = stunden,
             ArtDerArbeit = _correctionWorkTypeEditor.Text.Trim(),
             Begruendung = kommentar,

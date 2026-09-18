@@ -274,7 +274,14 @@ public sealed class WartungsvertragAssignMembersPage : ContentPage, IQueryAttrib
 
         try
         {
-            var result = await _supabaseService.AssignMitgliederToWartungsvertragAsync(_wartungsvertragId, _gueltigAbDatePicker.Date, selectedIds);
+            if (!_gueltigAbDatePicker.Date.HasValue)
+            {
+                await DisplayAlert("Validierung", "Bitte ein Gültig-ab-Datum auswählen.", "OK");
+                _gueltigAbDatePicker.Focus();
+                return;
+            }
+
+            var result = await _supabaseService.AssignMitgliederToWartungsvertragAsync(_wartungsvertragId, _gueltigAbDatePicker.Date.Value, selectedIds);
             if (!result.Success)
             {
                 _statusLabel.Text = result.Message;

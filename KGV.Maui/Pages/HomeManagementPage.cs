@@ -608,7 +608,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
 
         record.Titel = _titleEntry.Text.Trim();
         record.Beschreibung = CleanOptionalText(_descriptionEditor.Text);
-        record.Datum = _datePicker.Date;
+        record.Datum = _datePicker.Date!.Value;
         record.StartUhrzeit = _hasStartTimeCheckBox.IsChecked ? _startTimePicker.Time : null;
         record.EndUhrzeit = _hasEndTimeCheckBox.IsChecked ? _endTimePicker.Time : null;
         record.Treffpunkt = CleanOptionalText(_treffpunktEntry.Text);
@@ -652,7 +652,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
 
         record.Titel = _titleEntry.Text.Trim();
         record.Beschreibung = CleanOptionalText(_descriptionEditor.Text);
-        record.Datum = _datePicker.Date;
+        record.Datum = _datePicker.Date!.Value;
         record.StartUhrzeit = _hasStartTimeCheckBox.IsChecked ? _startTimePicker.Time : null;
         record.EndUhrzeit = _hasEndTimeCheckBox.IsChecked ? _endTimePicker.Time : null;
         record.Aktiv = _activeSwitch.IsToggled;
