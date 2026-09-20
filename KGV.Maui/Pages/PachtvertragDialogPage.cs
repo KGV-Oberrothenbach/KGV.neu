@@ -35,11 +35,13 @@ public sealed class PachtvertragDialogPage : ContentPage
         _parzelle = parzelle ?? throw new ArgumentNullException(nameof(parzelle));
         _vertragsbeginn = vertragsbeginn.Date;
         _nebenmitglied = nebenmitglied;
-        _includeSecondaryMember = initialRequest?.IncludeSecondaryMember;
         _altvertragDatum = initialRequest?.AltvertragDatum;
         _altvertragEntscheidungErfasst = initialRequest != null;
         _istMinderjaehrig = gesetzlicherVertreterAufloesung?.IstMinderjaehrig ?? false;
         _gesetzlicherVertreter = gesetzlicherVertreterAufloesung?.VertreterMitglied;
+        _includeSecondaryMember = !_istMinderjaehrig && _nebenmitglied != null
+            ? initialRequest?.IncludeSecondaryMember ?? true
+            : false;
 
         if (_istMinderjaehrig && (_gesetzlicherVertreter == null || _gesetzlicherVertreter.Id <= 0))
         {
@@ -94,6 +96,33 @@ public sealed class PachtvertragDialogPage : ContentPage
                         {
                             Text = "Aus dem signierten Mitgliedsantrag übernommen. Änderungen erfolgen in den Mitgliedsdaten, nicht im Pachtvertrag.",
                             TextColor = Colors.Gray,
+                            LineBreakMode = LineBreakMode.WordWrap
+                        }
+                    }
+                }));
+        }
+
+        if (!_istMinderjaehrig && _nebenmitglied != null)
+        {
+            var includeSecondaryMemberCheckBox = new CheckBox
+            {
+                IsChecked = _includeSecondaryMember == true,
+                VerticalOptions = LayoutOptions.Center
+            };
+            includeSecondaryMemberCheckBox.CheckedChanged += (_, args) => _includeSecondaryMember = args.Value;
+
+            content.Children.Add(CreateField(
+                "Pächter/in 2",
+                new HorizontalStackLayout
+                {
+                    Spacing = 10,
+                    Children =
+                    {
+                        includeSecondaryMemberCheckBox,
+                        new Label
+                        {
+                            Text = $"{BuildMemberDisplayName(_nebenmitglied)} als Pächter/in 2 aufnehmen und unterschreiben lassen.",
+                            VerticalOptions = LayoutOptions.Center,
                             LineBreakMode = LineBreakMode.WordWrap
                         }
                     }
@@ -181,15 +210,6 @@ public sealed class PachtvertragDialogPage : ContentPage
 
     private async Task PreviewOrAcceptAsync()
     {
-        if (_nebenmitglied != null && !_includeSecondaryMember.HasValue)
-        {
-            _includeSecondaryMember = await DisplayAlert(
-                "Nebenmitglied",
-                $"Für dieses Mitglied existiert ein Nebenmitglied ({_nebenmitglied.Vorname} {_nebenmitglied.Name}). Soll dieses als Pächter 2 in den Pachtvertrag aufgenommen werden?",
-                "Ja",
-                "Nein");
-        }
-
         await AcceptAsync();
     }
 

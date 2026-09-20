@@ -133,8 +133,8 @@ namespace KGV.Core.Interfaces
         Task<DokumentUploadRequest?> BuildPachtvertragPreviewAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn);
         Task<DokumentUploadRequest?> BuildPachtvertragPreviewAsync(PachtvertragDokumentRequest request);
         Task<DokumentUploadResult> CreatePachtvertragDokumentAsync(PachtvertragDokumentRequest request);
-        Task<DokumentUploadResult> CreateSignedPachtvertragDokumentAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn, DigitalSignatureCapture signatureCapture);
-        Task<DokumentUploadResult> CreateSignedPachtvertragDokumentAsync(PachtvertragDokumentRequest request, DigitalSignatureCapture signatureCapture, DigitalSignatureCapture? gesetzlicherVertreterSignatureCapture = null);
+        Task<DokumentUploadResult> CreateSignedPachtvertragDokumentAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn, DigitalSignatureCapture paechterSignatureCapture, DigitalSignatureCapture vorstandSignatureCapture, DigitalSignatureCapture? paechter2SignatureCapture = null);
+        Task<DokumentUploadResult> CreateSignedPachtvertragDokumentAsync(PachtvertragDokumentRequest request, DigitalSignatureCapture paechterSignatureCapture, DigitalSignatureCapture vorstandSignatureCapture, DigitalSignatureCapture? zweiteParteiSignatureCapture = null);
         Task<DokumentUploadResult> CreateSignedVertragsdokumentAsync(int mitgliedId, DocumentInfo sourceDocument, DigitalSignatureCapture signatureCapture);
         Task<DokumentUploadResult> UploadSignedVertragsdokumentAsync(int mitgliedId, DocumentInfo sourceDocument, byte[] fileContent, string originalFileName, string mimeType = "application/pdf");
         Task<DokumentUploadResult> CreateDokumentAsync(DokumentUploadRequest request);

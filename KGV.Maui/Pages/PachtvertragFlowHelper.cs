@@ -62,25 +62,41 @@ internal static class PachtvertragFlowHelper
                 StoragePath = KGV.Maui.Services.Documents.DocumentStorage.GetPersistentFilePath(previewUploadRequest.FileName)
             };
 
-            var signatureCapture = await SignatureFlowHelper.CaptureSignatureAsync(navigation, sourceDocument, "Unterschrift Pächter/in", isLastSignature: !request.IstMinderjaehrig, forceLandscape: false);
+            var signatureCapture = await SignatureFlowHelper.CaptureSignatureAsync(navigation, sourceDocument, "Unterschrift Pächter/in", isLastSignature: false, forceLandscape: false);
             if (signatureCapture == null)
                 return PachtvertragFlowResult.Abgebrochen;
 
-            DigitalSignatureCapture? gesetzlicherVertreterSignatureCapture = null;
+            DigitalSignatureCapture? zweiteParteiSignatureCapture = null;
             if (request.IstMinderjaehrig)
             {
-                gesetzlicherVertreterSignatureCapture = await SignatureFlowHelper.CaptureSignatureAsync(navigation, sourceDocument, "Unterschrift gesetzliche/r Vertreter/in", isLastSignature: true, forceLandscape: false);
-                if (gesetzlicherVertreterSignatureCapture == null)
+                zweiteParteiSignatureCapture = await SignatureFlowHelper.CaptureSignatureAsync(navigation, sourceDocument, "Unterschrift gesetzliche/r Vertreter/in", isLastSignature: false, forceLandscape: false);
+                if (zweiteParteiSignatureCapture == null)
                     return PachtvertragFlowResult.Abgebrochen;
             }
+            else if (request.IncludeSecondaryMember == true)
+            {
+                zweiteParteiSignatureCapture = await SignatureFlowHelper.CaptureSignatureAsync(navigation, sourceDocument, "Unterschrift Pächter/in 2", isLastSignature: false, forceLandscape: false);
+                if (zweiteParteiSignatureCapture == null)
+                    return PachtvertragFlowResult.Abgebrochen;
+            }
+
+            var vorstandSignatureCapture = await SignatureFlowHelper.CaptureSignatureAsync(
+                navigation,
+                sourceDocument,
+                "Unterschrift Vorstand / Verpächter",
+                isLastSignature: true,
+                forceLandscape: false);
+            if (vorstandSignatureCapture == null)
+                return PachtvertragFlowResult.Abgebrochen;
 
             DokumentUploadResult? result = null;
             try
             {
                 try { System.Diagnostics.Debug.WriteLine($"[PachtvertragFlow] signatureCapture present={signatureCapture != null}, hasContent={signatureCapture?.HasContent}, strokes={(signatureCapture?.Strokes?.Count ?? 0)}"); } catch { }
-                try { System.Diagnostics.Debug.WriteLine($"[PachtvertragFlow] gesetzlicherVertreter present={gesetzlicherVertreterSignatureCapture != null}, hasContent={gesetzlicherVertreterSignatureCapture?.HasContent}, strokes={(gesetzlicherVertreterSignatureCapture?.Strokes?.Count ?? 0)}"); } catch { }
+                try { System.Diagnostics.Debug.WriteLine($"[PachtvertragFlow] zweitePartei present={zweiteParteiSignatureCapture != null}, hasContent={zweiteParteiSignatureCapture?.HasContent}, strokes={(zweiteParteiSignatureCapture?.Strokes?.Count ?? 0)}"); } catch { }
+                try { System.Diagnostics.Debug.WriteLine($"[PachtvertragFlow] vorstand present={vorstandSignatureCapture != null}, hasContent={vorstandSignatureCapture?.HasContent}, strokes={(vorstandSignatureCapture?.Strokes?.Count ?? 0)}"); } catch { }
 
-                result = await supabaseService.CreateSignedPachtvertragDokumentAsync(request, signatureCapture, gesetzlicherVertreterSignatureCapture);
+                result = await supabaseService.CreateSignedPachtvertragDokumentAsync(request, signatureCapture!, vorstandSignatureCapture!, zweiteParteiSignatureCapture);
                 try { System.Diagnostics.Debug.WriteLine($"[PachtvertragFlow] CreateSignedPachtvertragDokumentAsync result: Success={result?.Success}, Message={result?.Message}"); } catch { }
 
                 if (result == null || !result.Success)

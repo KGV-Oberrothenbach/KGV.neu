@@ -22,6 +22,27 @@ namespace KGV.Core.Utilities
             DigitalSignatureCapture? secondarySignatureCapture,
             string? primarySignatureLabel,
             string? secondarySignatureLabel)
+            => Build(
+                member,
+                sourceDocument,
+                originalPdfContent,
+                signatureCapture,
+                secondarySignatureCapture,
+                null,
+                primarySignatureLabel,
+                secondarySignatureLabel,
+                null);
+
+        public static byte[] Build(
+            MitgliedRecord member,
+            DocumentInfo sourceDocument,
+            byte[] originalPdfContent,
+            DigitalSignatureCapture signatureCapture,
+            DigitalSignatureCapture? secondarySignatureCapture,
+            DigitalSignatureCapture? tertiarySignatureCapture,
+            string? primarySignatureLabel,
+            string? secondarySignatureLabel,
+            string? tertiarySignatureLabel)
         {
             if (member == null)
                 throw new ArgumentNullException(nameof(member));
@@ -33,6 +54,8 @@ namespace KGV.Core.Utilities
                 throw new InvalidOperationException("Es liegt keine digitale Signatur zum Übernehmen vor.");
             if (secondarySignatureCapture != null && !secondarySignatureCapture.HasContent)
                 throw new InvalidOperationException("Die zusätzliche digitale Signatur konnte nicht übernommen werden.");
+            if (tertiarySignatureCapture != null && !tertiarySignatureCapture.HasContent)
+                throw new InvalidOperationException("Die weitere digitale Signatur konnte nicht übernommen werden.");
 
             PdfSharpFontResolverInitializer.EnsureInitialized();
 
@@ -87,7 +110,8 @@ namespace KGV.Core.Utilities
             var signatures = new[]
             {
                 (Label: string.IsNullOrWhiteSpace(primarySignatureLabel) ? "Unterschrift Antragsteller/in" : primarySignatureLabel.Trim(), Capture: signatureCapture),
-                (Label: string.IsNullOrWhiteSpace(secondarySignatureLabel) ? "" : secondarySignatureLabel.Trim(), Capture: secondarySignatureCapture)
+                (Label: string.IsNullOrWhiteSpace(secondarySignatureLabel) ? "" : secondarySignatureLabel.Trim(), Capture: secondarySignatureCapture),
+                (Label: string.IsNullOrWhiteSpace(tertiarySignatureLabel) ? "" : tertiarySignatureLabel.Trim(), Capture: tertiarySignatureCapture)
             }
             .Where(x => x.Capture != null)
             .ToList();

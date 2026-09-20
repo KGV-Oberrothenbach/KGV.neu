@@ -3673,12 +3673,15 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
-        public Task<DokumentUploadResult> CreateSignedPachtvertragDokumentAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn, DigitalSignatureCapture signatureCapture) => ExecuteAsync(
+        public Task<DokumentUploadResult> CreateSignedPachtvertragDokumentAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn, DigitalSignatureCapture paechterSignatureCapture, DigitalSignatureCapture vorstandSignatureCapture, DigitalSignatureCapture? paechter2SignatureCapture = null) => ExecuteAsync(
             "CreateSignedPachtvertragDokumentAsync",
             async () =>
             {
-                if (signatureCapture == null || !signatureCapture.HasContent)
-                    return DokumentUploadResult.Fail("Bitte zuerst eine digitale Signatur erfassen.", "VALIDATION");
+                if (paechterSignatureCapture == null || !paechterSignatureCapture.HasContent)
+                    return DokumentUploadResult.Fail("Bitte zuerst die digitale Unterschrift des Pächters erfassen.", "VALIDATION");
+
+                if (vorstandSignatureCapture == null || !vorstandSignatureCapture.HasContent)
+                    return DokumentUploadResult.Fail("Bitte zusätzlich die digitale Unterschrift des Vorstands erfassen.", "VALIDATION");
 
                 var context = await ResolvePachtvertragRequestAsync(new PachtvertragDokumentRequest
                 {
@@ -3689,6 +3692,9 @@ namespace KGV.Infrastructure.Services
                 });
                 if (context.IstMinderjaehrig)
                     return DokumentUploadResult.Fail("Für Minderjährige ist zusätzlich die digitale Unterschrift des gesetzlichen Vertreters erforderlich.", "VALIDATION");
+
+                if (context.SecondaryMember != null && (paechter2SignatureCapture == null || !paechter2SignatureCapture.HasContent))
+                    return DokumentUploadResult.Fail("Bitte zusätzlich die digitale Unterschrift von Pächter/in 2 erfassen.", "VALIDATION");
 
                 var previewUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
                     context.Member,
@@ -3711,22 +3717,37 @@ namespace KGV.Infrastructure.Services
                     context.BankverbindungSnapshot,
                     FormularDokumentStatus.Signiert);
                 var sourceDocument = CreatePreviewDocumentInfo(previewUploadRequest, FormularDokumentTyp.Pachtvertrag, FormularDokumentStatus.Unsigniert);
-                finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(context.Member, sourceDocument, previewUploadRequest.FileContent, signatureCapture, null, "Unterschrift Pächter/in", null);
+                finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(
+                    context.Member,
+                    sourceDocument,
+                    previewUploadRequest.FileContent,
+                    paechterSignatureCapture,
+                    paechter2SignatureCapture,
+                    vorstandSignatureCapture,
+                    "Unterschrift Pächter/in",
+                    context.SecondaryMember != null ? "Unterschrift Pächter/in 2" : null,
+                    "Unterschrift Vorstand / Verpächter");
                 return await CreateDokumentAsync(finalUploadRequest);
             },
             DokumentUploadResult.Fail("Pachtvertrag konnte aktuell nicht signiert gespeichert werden.", "UNEXPECTED"));
 
-        public Task<DokumentUploadResult> CreateSignedPachtvertragDokumentAsync(PachtvertragDokumentRequest request, DigitalSignatureCapture signatureCapture, DigitalSignatureCapture? gesetzlicherVertreterSignatureCapture = null) => ExecuteAsync(
+        public Task<DokumentUploadResult> CreateSignedPachtvertragDokumentAsync(PachtvertragDokumentRequest request, DigitalSignatureCapture paechterSignatureCapture, DigitalSignatureCapture vorstandSignatureCapture, DigitalSignatureCapture? zweiteParteiSignatureCapture = null) => ExecuteAsync(
             "CreateSignedPachtvertragDokumentAsync(request)",
             async () =>
             {
-                if (signatureCapture == null || !signatureCapture.HasContent)
-                    return DokumentUploadResult.Fail("Bitte zuerst eine digitale Signatur erfassen.", "VALIDATION");
+                if (paechterSignatureCapture == null || !paechterSignatureCapture.HasContent)
+                    return DokumentUploadResult.Fail("Bitte zuerst die digitale Unterschrift des Pächters erfassen.", "VALIDATION");
+
+                if (vorstandSignatureCapture == null || !vorstandSignatureCapture.HasContent)
+                    return DokumentUploadResult.Fail("Bitte zusätzlich die digitale Unterschrift des Vorstands erfassen.", "VALIDATION");
 
                 var context = await ResolvePachtvertragRequestAsync(request);
                 var paechter2 = ResolvePachtvertragPaechter2(request, context.SecondaryMember, context.IstMinderjaehrig, context.GesetzlicherVertreterSnapshot);
-                if (context.IstMinderjaehrig && (gesetzlicherVertreterSignatureCapture == null || !gesetzlicherVertreterSignatureCapture.HasContent))
+                if (context.IstMinderjaehrig && (zweiteParteiSignatureCapture == null || !zweiteParteiSignatureCapture.HasContent))
                     return DokumentUploadResult.Fail("Für Minderjährige ist zusätzlich die digitale Unterschrift des gesetzlichen Vertreters erforderlich.", "VALIDATION");
+
+                if (!context.IstMinderjaehrig && paechter2 != null && (zweiteParteiSignatureCapture == null || !zweiteParteiSignatureCapture.HasContent))
+                    return DokumentUploadResult.Fail("Bitte zusätzlich die digitale Unterschrift von Pächter/in 2 erfassen.", "VALIDATION");
 
                 var previewUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
                     context.Member,
@@ -3753,10 +3774,14 @@ namespace KGV.Infrastructure.Services
                     context.Member,
                     sourceDocument,
                     previewUploadRequest.FileContent,
-                    signatureCapture,
-                    gesetzlicherVertreterSignatureCapture,
+                    paechterSignatureCapture,
+                    zweiteParteiSignatureCapture,
+                    vorstandSignatureCapture,
                     "Unterschrift Pächter/in",
-                    context.IstMinderjaehrig ? "Unterschrift gesetzliche/r Vertreter/in" : null);
+                    context.IstMinderjaehrig
+                        ? "Unterschrift gesetzliche/r Vertreter/in"
+                        : paechter2 != null ? "Unterschrift Pächter/in 2" : null,
+                    "Unterschrift Vorstand / Verpächter");
                 return await CreateDokumentAsync(finalUploadRequest);
             },
             DokumentUploadResult.Fail("Pachtvertrag konnte aktuell nicht signiert gespeichert werden.", "UNEXPECTED"));
@@ -3767,9 +3792,6 @@ namespace KGV.Infrastructure.Services
             bool istMinderjaehrig,
             MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot)
         {
-            if (request.IncludeSecondaryMember == true)
-                return nebenmitglied;
-
             // Bei Minderjährigen bleibt der gesetzliche Vertreter – wie bisher im
             // direkten Erzeugungspfad – die zweite Vertragspartei, sofern kein
             // Nebenmitglied ausdrücklich ausgewählt wurde.
@@ -3788,6 +3810,9 @@ namespace KGV.Infrastructure.Services
                     Email = gesetzlicherVertreterSnapshot.Email?.Trim() ?? string.Empty
                 };
             }
+
+            if (request.IncludeSecondaryMember == true)
+                return nebenmitglied;
 
             // Eine explizite Nein-Entscheidung darf nicht wieder auf das
             // vorhandene Nebenmitglied zurückfallen.
