@@ -199,16 +199,26 @@ public sealed class MemberGardenAssignPage : ContentPage
                 return;
             }
 
-            var createContract = await DisplayAlert(
-                "Pachtvertrag",
-                "Parzelle zugewiesen. Pachtvertrag erstellen?",
-                "Ja",
-                "Nein");
+            if (await _supabaseService.HasSignedMitgliedsantragAsync(_memberRecord.Id))
+            {
+                var createContract = await DisplayAlert(
+                    "Pachtvertrag",
+                    "Parzelle zugewiesen. Pachtvertrag erstellen?",
+                    "Ja",
+                    "Nein");
 
-            if (createContract)
-                // CreatePachtvertragAsync has manageBusyState param; when called from SaveAsync the Save flow manages _isBusy,
-                // so call with manageBusyState:false to avoid double-busy handling.
-                await CreatePachtvertragAsync(_memberRecord.Id, selectedParzelle.Id, assignDate, manageBusyState: false);
+                if (createContract)
+                    // CreatePachtvertragAsync has manageBusyState param; when called from SaveAsync the Save flow manages _isBusy,
+                    // so call with manageBusyState:false to avoid double-busy handling.
+                    await CreatePachtvertragAsync(_memberRecord.Id, selectedParzelle.Id, assignDate, manageBusyState: false);
+            }
+            else
+            {
+                await DisplayAlert(
+                    "Pachtvertrag",
+                    "Die Parzelle wurde zugewiesen. Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.",
+                    "OK");
+            }
 
             await DisplayAlert("OK", "Parzelle wurde zugewiesen.", "OK");
             await Navigation.PopAsync();

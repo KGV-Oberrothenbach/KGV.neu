@@ -16,6 +16,9 @@ internal static class PachtvertragFlowHelper
         ArgumentNullException.ThrowIfNull(navigation);
         ArgumentNullException.ThrowIfNull(supabaseService);
 
+        if (!await supabaseService.HasSignedMitgliedsantragAsync(mitgliedId))
+            throw new InvalidOperationException("Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.");
+
         PachtvertragDokumentRequest? initialRequest = null;
         while (true)
         {
@@ -113,12 +116,15 @@ internal static class PachtvertragFlowHelper
             throw new InvalidOperationException("Parzelle konnte nicht geladen werden.");
 
         var gesetzlicherVertreterAufloesung = await supabaseService.ResolveGesetzlicherVertreterAsync(mitgliedId, vertragsbeginn);
-        IReadOnlyCollection<MitgliedRecord> vertreterMitglieder = gesetzlicherVertreterAufloesung.IstMinderjaehrig
-            ? (await supabaseService.GetMitgliederAsync()).ToList()
-            : Array.Empty<MitgliedRecord>();
+        if (gesetzlicherVertreterAufloesung.IstMinderjaehrig && !gesetzlicherVertreterAufloesung.HatAktivenGesetzlichenVertreter)
+        {
+            throw new InvalidOperationException(
+                "Für dieses minderjährige Mitglied ist im signierten Mitgliedsantrag kein gesetzlicher Vertreter hinterlegt.");
+        }
+
         var nebenmitglied = await supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(mitgliedId);
 
-        var dialogPage = new PachtvertragDialogPage(member, parzelle, vertragsbeginn, gesetzlicherVertreterAufloesung, vertreterMitglieder, nebenmitglied, initialRequest);
+        var dialogPage = new PachtvertragDialogPage(member, parzelle, vertragsbeginn, gesetzlicherVertreterAufloesung, nebenmitglied, initialRequest);
         await navigation.PushModalAsync(new NavigationPage(dialogPage));
         return await dialogPage.WaitForResultAsync();
     }

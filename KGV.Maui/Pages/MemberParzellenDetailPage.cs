@@ -27,6 +27,8 @@ public sealed class MemberParzellenDetailPage : ContentPage
     private bool _initialized;
     private bool _appearingInProgress;
     private bool _contractCreationInProgress;
+    private bool _mitgliedsantragStatusGeprueft;
+    private bool _hasSignedMitgliedsantrag;
 
     public MemberParzellenDetailPage(ISupabaseService supabaseService, ParzellenViewModel viewModel, ParzellenContextState parzellenContextState, UserContextState userContextState)
     {
@@ -237,7 +239,7 @@ public sealed class MemberParzellenDetailPage : ContentPage
                 _pachtvertragButton.IsVisible = false;
                 _openPachtvertragButton.IsVisible = true;
                 _discardPachtvertragButton.IsVisible = false;
-                _pachtvertragDiagnoseLabel.Text = BuildPachtvertragDiagnoseText();
+                _pachtvertragDiagnoseLabel.Text = string.Empty;
                 // enable state
                 _openPachtvertragButton.IsEnabled = _openPachtvertragButton.IsVisible;
                 _pachtvertragButton.IsEnabled = false;
@@ -265,7 +267,10 @@ public sealed class MemberParzellenDetailPage : ContentPage
             _pachtvertragButton.IsVisible = canCreate;
             _openPachtvertragButton.IsVisible = false;
             _discardPachtvertragButton.IsVisible = false;
-            _pachtvertragButton.IsEnabled = _pachtvertragButton.IsVisible && !_contractCreationInProgress;
+            _pachtvertragButton.IsEnabled = _pachtvertragButton.IsVisible
+                && !_contractCreationInProgress
+                && _mitgliedsantragStatusGeprueft
+                && _hasSignedMitgliedsantrag;
             _pachtvertragDiagnoseLabel.Text = BuildPachtvertragDiagnoseText();
         }
         catch
@@ -274,34 +279,46 @@ public sealed class MemberParzellenDetailPage : ContentPage
             _pachtvertragButton.IsVisible = canCreate;
             _openPachtvertragButton.IsVisible = false;
             _discardPachtvertragButton.IsVisible = false;
-            _pachtvertragButton.IsEnabled = _pachtvertragButton.IsVisible && !_contractCreationInProgress;
+            _pachtvertragButton.IsEnabled = _pachtvertragButton.IsVisible
+                && !_contractCreationInProgress
+                && _mitgliedsantragStatusGeprueft
+                && _hasSignedMitgliedsantrag;
             _pachtvertragDiagnoseLabel.Text = BuildPachtvertragDiagnoseText();
         }
     }
 
+    private async Task RefreshMitgliedsantragStatusAsync()
+    {
+        _mitgliedsantragStatusGeprueft = false;
+        _hasSignedMitgliedsantrag = false;
+
+        if (_parzellenContextState.ContextMitgliedId is > 0)
+        {
+            _hasSignedMitgliedsantrag = await _supabaseService.HasSignedMitgliedsantragAsync(
+                _parzellenContextState.ContextMitgliedId.Value);
+            _mitgliedsantragStatusGeprueft = true;
+        }
+
+        UpdatePachtvertragButtons();
+    }
+
     private string BuildPachtvertragDiagnoseText()
     {
-        try
-        {
-            var reasons = new System.Collections.Generic.List<string>();
-            if (!_viewModel.HasSelectedDetail)
-                reasons.Add("Keine Parzelle ausgewählt");
+        if (!_viewModel.HasSelectedDetail)
+            return "Keine Parzelle ausgewählt.";
 
-            if (_parzellenContextState.ContextMitgliedId is not > 0)
-                reasons.Add("Mitgliedskontext fehlt");
+        if (_parzellenContextState.ContextMitgliedId is not > 0)
+            return "Der Mitgliedskontext fehlt.";
 
-            var canCreate = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
-            if (!canCreate)
-                reasons.Add("CanCreateMitglied = false");
+        if (!PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext))
+            return "Keine Berechtigung zum Erstellen eines Pachtvertrags.";
 
-            var detailId = _viewModel.SelectedDetail?.ParzelleId ?? 0;
-            var reasonText = reasons.Count == 0 ? "Button sollte sichtbar sein." : $"Button unsichtbar wegen: {string.Join(", ", reasons)}";
-            return $"[TEMP Diagnose Pachtvertrag] Parzelle={detailId}, Mitglied={_parzellenContextState.ContextMitgliedId ?? 0}. {reasonText}";
-        }
-        catch
-        {
-            return string.Empty;
-        }
+        if (!_mitgliedsantragStatusGeprueft)
+            return "Voraussetzung für den Pachtvertrag wird geprüft.";
+
+        return _hasSignedMitgliedsantrag
+            ? string.Empty
+            : "Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.";
     }
 
     protected override async void OnAppearing()
@@ -332,11 +349,13 @@ public sealed class MemberParzellenDetailPage : ContentPage
             {
                 await _viewModel.InitializeAsync();
                 _initialized = true;
+                await RefreshMitgliedsantragStatusAsync();
                 return;
             }
 
             await _viewModel.ApplyRequestedContextAsync();
             await _viewModel.RefreshSelectedDetailAsync();
+            await RefreshMitgliedsantragStatusAsync();
         }
         catch (Exception ex)
         {
@@ -420,6 +439,15 @@ public sealed class MemberParzellenDetailPage : ContentPage
             return;
         }
 
+        if (!await _supabaseService.HasSignedMitgliedsantragAsync(_parzellenContextState.ContextMitgliedId.Value))
+        {
+            _mitgliedsantragStatusGeprueft = true;
+            _hasSignedMitgliedsantrag = false;
+            UpdatePachtvertragButtons();
+            await DisplayAlert("Pachtvertrag", "Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.", "OK");
+            return;
+        }
+
         if (!detail.VonDatum.HasValue)
         {
             await DisplayAlert("Pachtvertrag", "Für diese Parzellenzuordnung fehlt das Startdatum. Pachtvertrag kann hier nicht erzeugt werden.", "OK");
@@ -479,7 +507,7 @@ public sealed class MemberParzellenDetailPage : ContentPage
             if (manageBusyState)
             {
                 _contractCreationInProgress = false;
-                _pachtvertragButton.IsEnabled = _pachtvertragButton.IsVisible;
+                UpdatePachtvertragButtons();
             }
         }
     }

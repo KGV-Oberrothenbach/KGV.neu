@@ -13,6 +13,18 @@ namespace KGV.Core.Utilities
             @"^.+-\d+-\d{4}-\d{2}-\d{2}-(?<typ>[a-z0-9]+)-(?<status>[a-z0-9]+)\.pdf$",
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
+        // Bis zur Umstellung auf das aktuelle Dateinamensschema wurden Formulare
+        // beispielsweise als "Mitgliedsantrag-(signiert)_2026-07-17_16-42-30.pdf"
+        // gespeichert. Diese Dokumente bleiben fachlich gültig und müssen deshalb
+        // bei der Ermittlung des Formularstatus weiterhin berücksichtigt werden.
+        private static readonly Regex LegacyDateinameRegex = new(
+            @"^(?<typ>mitgliedsantrag|mitgliedsvertrag|pachtvertrag)-\((?<status>signiert|unsigniert)\)_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.pdf$",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
+        private static readonly Regex TitelRegex = new(
+            @"^(?<typ>mitgliedsantrag|mitgliedsvertrag|pachtvertrag)\s*\((?<status>signiert|unsigniert)\)$",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
         public static string BuildMitgliedDateiname(MitgliedRecord member, string dokumenttyp, string status, DateTime? referenceDate = null)
         {
             if (member == null)
@@ -43,6 +55,12 @@ namespace KGV.Core.Utilities
                 return false;
 
             var match = DateinameRegex.Match(candidate);
+            if (!match.Success)
+                match = LegacyDateinameRegex.Match(candidate);
+
+            if (!match.Success)
+                match = TitelRegex.Match(candidate);
+
             if (!match.Success)
                 return false;
 

@@ -119,6 +119,11 @@ namespace KGV.Core.Interfaces
         /// Prüft, ob für die angegebene Parzelle bereits eine signierte Pachtvertragsfassung vorliegt.
         /// </summary>
         Task<bool> HasSignedPachtvertragAsync(int parzelleId);
+        /// <summary>
+        /// Prüft, ob für das Mitglied ein signierter Mitgliedsantrag vorliegt.
+        /// Ein Pachtvertrag darf erst danach erstellt oder signiert werden.
+        /// </summary>
+        Task<bool> HasSignedMitgliedsantragAsync(int mitgliedId);
         Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert);
         Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(MitgliedsantragDokumentRequest request);
         Task<DokumentUploadRequest?> BuildMitgliedsantragPreviewAsync(MitgliedsantragDokumentRequest request);

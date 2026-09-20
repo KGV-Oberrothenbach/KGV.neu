@@ -721,7 +721,12 @@ namespace KGV.Infrastructure.Services
                             VertreterMitgliedId = vertreterMitgliedId,
                             GueltigAb = normalizedGueltigAb,
                             GueltigBis = null,
-                            Bemerkung = normalizedBemerkung
+                            Bemerkung = normalizedBemerkung,
+                            // Die produktive Tabelle verlangt explizite Meta-Zeitstempel.
+                            // Ein null-Wert würde den Datenbank-Default beim PostgREST-Insert
+                            // überschreiben und den gesamten Dokument-Flow abbrechen.
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
                         });
                 }
 
@@ -3161,28 +3166,33 @@ namespace KGV.Infrastructure.Services
             "HasSignedPachtvertragAsync",
             async () =>
             {
+                if (parzelleId <= 0)
+                    return false;
+
                 var client = await EnsureClientAsync();
                 var response = await client
                     .From<DokumentRecord>()
                     .Where(x => x.ParzelleId == parzelleId)
                     .Get();
 
-                var models = response?.Models;
-                if (models == null || models.Count == 0)
+                return HasSignedFormularDokument(response?.Models, FormularDokumentTyp.Pachtvertrag);
+            },
+            false);
+
+        public Task<bool> HasSignedMitgliedsantragAsync(int mitgliedId) => ExecuteAsync(
+            "HasSignedMitgliedsantragAsync",
+            async () =>
+            {
+                if (mitgliedId <= 0)
                     return false;
 
-                // Prüfe Dateiname/StoragePath auf FormularMetadaten und Status == signiert
-                foreach (var doc in models)
-                {
-                    var info = MapDocumentInfo(doc);
-                    if (string.Equals(info.FormularDokumentTypKey, FormularDokumentTyp.Pachtvertrag, StringComparison.Ordinal)
-                        && string.Equals(info.FormularDokumentStatusKey, FormularDokumentStatus.Signiert, StringComparison.Ordinal))
-                    {
-                        return true;
-                    }
-                }
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<DokumentRecord>()
+                    .Where(x => x.MitgliedId == mitgliedId)
+                    .Get();
 
-                return false;
+                return HasSignedFormularDokument(response?.Models, FormularDokumentTyp.Mitgliedsantrag);
             },
             false);
 
@@ -3383,18 +3393,6 @@ namespace KGV.Infrastructure.Services
                 throw new InvalidOperationException("Gesetzlicher Vertreter konnte nicht vorbereitet werden.");
 
             return await EnsureGesetzlicherVertreterMitgliedInternalAsync(context.Member, context.BeginnDatum, snapshot, request.GesetzlicherVertreterAdresseAbweichend);
-        }
-
-        private async Task<int> EnsureGesetzlicherVertreterMitgliedAsync((MitgliedRecord Member, MitgliedRecord? SecondaryMember, ParzelleRecord Parzelle, SaisonRecord Saison, DateTime Vertragsbeginn, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, MitgliedsantragBankverbindungSnapshot BankverbindungSnapshot) context, PachtvertragDokumentRequest request)
-        {
-            if (context.GesetzlicherVertreterMitgliedId is > 0)
-                return context.GesetzlicherVertreterMitgliedId.Value;
-
-            var snapshot = context.GesetzlicherVertreterSnapshot;
-            if (snapshot == null)
-                throw new InvalidOperationException("Gesetzlicher Vertreter konnte nicht vorbereitet werden.");
-
-            return await EnsureGesetzlicherVertreterMitgliedInternalAsync(context.Member, context.Vertragsbeginn, snapshot, request.GesetzlicherVertreterAdresseAbweichend);
         }
 
         private async Task<int> EnsureGesetzlicherVertreterMitgliedInternalAsync(MitgliedRecord member, DateTime effectiveDate, MitgliedsantragVertreterSnapshot snapshot, bool adresseAbweichend)
@@ -3730,21 +3728,6 @@ namespace KGV.Infrastructure.Services
                 if (context.IstMinderjaehrig && (gesetzlicherVertreterSignatureCapture == null || !gesetzlicherVertreterSignatureCapture.HasContent))
                     return DokumentUploadResult.Fail("Für Minderjährige ist zusätzlich die digitale Unterschrift des gesetzlichen Vertreters erforderlich.", "VALIDATION");
 
-                if (context.IstMinderjaehrig)
-                {
-                    var vertreterMitgliedId = await EnsureGesetzlicherVertreterMitgliedAsync(context, request);
-                    var savedRelation = await SaveGesetzlichenVertreterAsync(new GesetzlicherVertreterSaveRequest
-                    {
-                        MinderjaehrigesMitgliedId = context.Member.Id,
-                        VertreterMitgliedId = vertreterMitgliedId,
-                        GueltigAb = context.Vertragsbeginn,
-                        Bemerkung = "Automatisch aus Pachtvertrag übernommen."
-                    });
-
-                    if (savedRelation == null)
-                        return DokumentUploadResult.Fail("Gesetzlicher Vertreter konnte nicht gespeichert werden.", "VALIDATION");
-                }
-
                 var previewUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
                     context.Member,
                     paechter2,
@@ -3841,6 +3824,9 @@ namespace KGV.Infrastructure.Services
             if (member.HauptmitgliedId.HasValue && member.HauptmitgliedId.Value > 0)
                 throw new InvalidOperationException("Pachtvertrag kann nur aus dem Hauptmitglied-Kontext erzeugt werden.");
 
+            if (!await HasSignedMitgliedsantragAsync(member.Id))
+                throw new InvalidOperationException("Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.");
+
             var client = await EnsureClientAsync();
             var parzelle = await LoadParzelleByIdAsync(client, request.ParzelleId);
             if (parzelle == null)
@@ -3864,36 +3850,14 @@ namespace KGV.Infrastructure.Services
             if (!istMinderjaehrig)
                 return (member, secondaryMember, parzelle, saison, vertragsbeginnDatum, false, null, null, bankverbindungSnapshot);
 
-            MitgliedsantragVertreterSnapshot? vertreterSnapshot = null;
-            int? vertreterMitgliedId = null;
-
-            if (request.GesetzlicherVertreterAusBestehendemMitglied && request.GesetzlicherVertreterMitgliedId is > 0)
-            {
-                var vertreterMitglied = await GetMitgliedByIdAsync(request.GesetzlicherVertreterMitgliedId.Value);
-                if (vertreterMitglied == null)
-                    throw new InvalidOperationException("Gesetzlicher Vertreter konnte nicht geladen werden.");
-                if (vertreterMitglied.Id == member.Id)
-                    throw new InvalidOperationException("Das aufzunehmende Mitglied kann nicht gleichzeitig eigener gesetzlicher Vertreter sein.");
-
-                vertreterSnapshot = BuildMitgliedsantragVertreterSnapshot(vertreterMitglied);
-                vertreterMitgliedId = vertreterMitglied.Id;
-            }
-            else if (request.GesetzlicherVertreterSnapshot != null)
-            {
-                vertreterSnapshot = NormalizeMitgliedsantragVertreterSnapshot(request.GesetzlicherVertreterSnapshot, member, request.GesetzlicherVertreterAdresseAbweichend);
-            }
-            else
-            {
-                var aufloesung = await ResolveGesetzlicherVertreterAsync(member.Id, vertragsbeginnDatum);
-                if (aufloesung.HatAktivenGesetzlichenVertreter)
-                {
-                    vertreterSnapshot = BuildMitgliedsantragVertreterSnapshot(aufloesung.Vorbelegung);
-                    vertreterMitgliedId = aufloesung.VertreterMitglied?.Id;
-                }
-            }
+            var aufloesung = await ResolveGesetzlicherVertreterAsync(member.Id, vertragsbeginnDatum);
+            var vertreterSnapshot = aufloesung.HatAktivenGesetzlichenVertreter
+                ? BuildMitgliedsantragVertreterSnapshot(aufloesung.Vorbelegung)
+                : null;
+            var vertreterMitgliedId = aufloesung.VertreterMitglied?.Id;
 
             if (vertreterSnapshot == null || string.IsNullOrWhiteSpace(vertreterSnapshot.Vorname) || string.IsNullOrWhiteSpace(vertreterSnapshot.Nachname))
-                throw new InvalidOperationException("Für Minderjährige ist ein gesetzlicher Vertreter mit Vor- und Nachname erforderlich.");
+                throw new InvalidOperationException("Für dieses minderjährige Mitglied ist im signierten Mitgliedsantrag kein gesetzlicher Vertreter hinterlegt.");
 
             return (member, secondaryMember, parzelle, saison, vertragsbeginnDatum, true, vertreterSnapshot, vertreterMitgliedId, bankverbindungSnapshot);
         }
@@ -3932,6 +3896,9 @@ namespace KGV.Infrastructure.Services
                 if (!OperationalDataFilter.IsOperationalMember(member))
                     return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell keine signierte Vertragsfassung abgelegt werden.", "NOT_OPERATIONAL");
 
+                if (dokumenttyp == FormularDokumentTyp.Pachtvertrag && !await HasSignedMitgliedsantragAsync(member.Id))
+                    return DokumentUploadResult.Fail("Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.", "MITGLIEDSANTRAG_REQUIRED");
+
                 var uploadRequest = BuildSignedVertragsdokumentUploadRequest(member, dokumenttyp, fileContent);
                 return await CreateDokumentAsync(uploadRequest);
             }
@@ -3967,6 +3934,9 @@ namespace KGV.Infrastructure.Services
 
                 if (!OperationalDataFilter.IsOperationalMember(member))
                     return DokumentUploadResult.Fail("Für dieses Mitglied kann aktuell keine digitale Signatur abgelegt werden.", "NOT_OPERATIONAL");
+
+                if (dokumenttyp == FormularDokumentTyp.Pachtvertrag && !await HasSignedMitgliedsantragAsync(member.Id))
+                    return DokumentUploadResult.Fail("Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.", "MITGLIEDSANTRAG_REQUIRED");
 
                 var originalPdf = await DownloadDokumentContentAsync(sourceDocument);
                 if ((originalPdf?.Length ?? 0) <= 0)
@@ -7109,6 +7079,21 @@ namespace KGV.Infrastructure.Services
         private static string FormatHours(decimal value)
         {
             return $"{value:0.##} h";
+        }
+
+        private static bool HasSignedFormularDokument(IEnumerable<DokumentRecord>? records, string formularDokumentTyp)
+        {
+            foreach (var record in records ?? Enumerable.Empty<DokumentRecord>())
+            {
+                var info = MapDocumentInfo(record);
+                if (string.Equals(info.FormularDokumentTypKey, formularDokumentTyp, StringComparison.Ordinal)
+                    && string.Equals(info.FormularDokumentStatusKey, FormularDokumentStatus.Signiert, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static DocumentInfo MapDocumentInfo(DokumentRecord record)

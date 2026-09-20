@@ -27,6 +27,7 @@ namespace KGV.ViewModels
         private string? _lockUserId;
         private int? _currentUserMemberId;
         private bool _hasSelectedMemberAppUser;
+        private bool _hasSignedMitgliedsantrag;
 
         public MemberDTO SelectedMember { get; }
         public bool IsNewMode => _isNewMode;
@@ -237,6 +238,7 @@ namespace KGV.ViewModels
             await LoadMemberAsync();
             await LoadParzellenAsync();
             await RefreshNebenmitgliedAsync();
+            await RefreshMitgliedsantragStatusAsync();
 
             IsEditMode = false;
             IsDirty = false;
@@ -270,6 +272,14 @@ namespace KGV.ViewModels
             _nebenmitgliedRecord = await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(SelectedMember.Id);
             HasNebenmitglied = _nebenmitgliedRecord != null;
             NebenmitgliedCommand.RaiseCanExecuteChanged();
+        }
+
+        private async Task RefreshMitgliedsantragStatusAsync()
+        {
+            _hasSignedMitgliedsantrag = !_isNewMode
+                && SelectedMember.Id > 0
+                && await _supabaseService.HasSignedMitgliedsantragAsync(SelectedMember.Id);
+            NewContractCommand.RaiseCanExecuteChanged();
         }
 
         private static MemberDTO ToMemberDto(MitgliedRecord rec)
@@ -845,7 +855,7 @@ namespace KGV.ViewModels
         }
 
         private bool CanCreatePachtvertragFromCurrentContext()
-            => ShowNewContractButton && GetBelegungForPachtvertrag() != null;
+            => ShowNewContractButton && _hasSignedMitgliedsantrag && GetBelegungForPachtvertrag() != null;
 
         private async Task CreatePachtvertragFromCurrentContextAsync()
         {
@@ -872,6 +882,17 @@ namespace KGV.ViewModels
 
         private async Task PromptCreatePachtvertragAfterAssignAsync(int parzelleId, DateTime vertragsbeginn)
         {
+            await RefreshMitgliedsantragStatusAsync();
+            if (!_hasSignedMitgliedsantrag)
+            {
+                MessageBox.Show(
+                    "Die Parzelle wurde zugewiesen. Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.",
+                    "Pachtvertrag",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
             var createContract = MessageBox.Show(
                 "Parzelle zugewiesen. Pachtvertrag erstellen?",
                 "Pachtvertrag",
@@ -886,6 +907,17 @@ namespace KGV.ViewModels
 
         private async Task CreatePachtvertragAsync(int parzelleId, DateTime vertragsbeginn)
         {
+            await RefreshMitgliedsantragStatusAsync();
+            if (!_hasSignedMitgliedsantrag)
+            {
+                MessageBox.Show(
+                    "Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.",
+                    "Pachtvertrag",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
             // Ask whether an existing previous contract (Altvertrag) exists
             var altvertragAnswer = MessageBox.Show("Liegt ein Altvertrag vor?", "Altvertrag", MessageBoxButton.YesNo, MessageBoxImage.Question);
             DateTime? altvertragDatum = null;
