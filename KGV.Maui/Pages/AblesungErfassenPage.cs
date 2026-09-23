@@ -52,6 +52,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
     private bool _hasRequestedFallbackContext;
     private bool _allowUserMeterReadingSubmissions;
     private string _currentArt = AblesungArt.Normal;
+    private string _requestedArt = AblesungArt.Normal;
     private int? _requestedParzelleId;
     private string _requestedMedium = "strom";
     private RfidScanContextResult? _activeResolution;
@@ -82,7 +83,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
 
         _introLabel = new Label
         {
-            Text = "RFID-Tag scannen oder den fachlichen Ersatzweg über Parzelle und Medium nutzen. Normale Ablesungen speichern mit `Art = normal`, Anfangsablesungen nach Einbau mit `Art = einbau`.",
+            Text = "RFID-Tag scannen oder den fachlichen Ersatzweg über Parzelle und Medium nutzen. Die Jahresendablesung wird eindeutig mit `Art = jea` gespeichert.",
             LineBreakMode = LineBreakMode.WordWrap
         };
         _flowHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
@@ -232,7 +233,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
             _hasRequestedFallbackContext = false;
             _workflowState.Clear();
             _isPendingInitialFlow = false;
-            _currentArt = AblesungArt.Normal;
+            _currentArt = _requestedArt;
             _ablesedatumPicker.Date = DateTime.Today;
             ClearPhotoSelection();
             await _scanContext.LoadFallbackContextAsync(_requestedParzelleId.Value, _requestedMedium);
@@ -241,7 +242,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         }
 
         _isPendingInitialFlow = false;
-        _currentArt = AblesungArt.Normal;
+        _currentArt = _requestedArt;
 
         if (IsOwnSubmissionMode)
         {
@@ -258,6 +259,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
     {
         _requestedParzelleId = TryGetQueryInt(query, "parzelleId");
         _requestedMedium = TryGetQueryString(query, "medium") ?? "strom";
+        _requestedArt = AblesungArt.Normalize(TryGetQueryString(query, "art"));
         _hasRequestedFallbackContext = _requestedParzelleId is > 0;
     }
 
@@ -306,11 +308,16 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
 
         if (resolution.State == RfidScanContextState.KnownWithActiveMeter && context.AktiverZaehlerId is > 0)
         {
-            _flowHintLabel.Text = _currentArt == AblesungArt.Einbau
-                ? "Bitte Anfangsstand und Foto erfassen. Der Zähler selbst wurde bereits angelegt; jetzt folgt separat die Anfangsablesung."
-                : IsOwnSubmissionMode
+            _flowHintLabel.Text = _currentArt switch
+            {
+                AblesungArt.Einbau => "Bitte Anfangsstand und Foto erfassen. Der Zähler selbst wurde bereits angelegt; jetzt folgt separat die Anfangsablesung.",
+                AblesungArt.JahresEnde => IsOwnSubmissionMode
+                    ? "Bitte Jahresendstand und Foto erfassen. Die JEA wird als Einreichung gespeichert und zunächst geprüft."
+                    : "Bitte Jahresendstand und Foto erfassen. Die Ablesung wird eindeutig mit `Art = jea` gespeichert.",
+                _ => IsOwnSubmissionMode
                     ? "Bitte aktuelle Ablesung und Foto erfassen. Eigene Nutzer-Ablesungen werden als Einreichung gespeichert und zunächst nicht direkt freigegeben."
-                    : "Bitte aktuelle Ablesung und Foto erfassen. Berechtigte Rollen speichern normale Ablesungen weiterhin direkt freigegeben mit `Art = normal`.";
+                    : "Bitte aktuelle Ablesung und Foto erfassen. Berechtigte Rollen speichern normale Ablesungen weiterhin direkt freigegeben mit `Art = normal`."
+            };
             _decisionSection.IsVisible = false;
             _formSection.IsVisible = true;
             return;
@@ -503,9 +510,13 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
 
             var successMessage = _currentArt == AblesungArt.Einbau
                 ? "Anfangsablesung gespeichert."
-                : savesAsSubmission
-                    ? "Ablesung eingereicht. Sie ist noch nicht direkt freigegeben."
-                    : "Ablesung gespeichert.";
+                : _currentArt == AblesungArt.JahresEnde && savesAsSubmission
+                    ? "Jahresendablesung eingereicht. Sie ist noch nicht direkt freigegeben."
+                    : _currentArt == AblesungArt.JahresEnde
+                        ? "Jahresendablesung gespeichert."
+                        : savesAsSubmission
+                            ? "Ablesung eingereicht. Sie ist noch nicht direkt freigegeben."
+                            : "Ablesung gespeichert.";
 
             await DisplayAlert("OK", successMessage, "OK");
 
@@ -543,7 +554,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
             _workflowState.Clear();
 
         _isPendingInitialFlow = false;
-        _currentArt = AblesungArt.Normal;
+        _currentArt = _requestedArt;
         _activeResolution = null;
         _ablesedatumPicker.Date = DateTime.Today;
         _standEntry.Text = string.Empty;
@@ -630,6 +641,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         {
             AblesungArt.Einbau => "einbau",
             AblesungArt.Ausbau => "ausbau",
+            AblesungArt.JahresEnde => "jahresendablesung",
             _ => "ablesung"
         };
     }

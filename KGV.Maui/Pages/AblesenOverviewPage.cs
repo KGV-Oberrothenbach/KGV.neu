@@ -20,6 +20,7 @@ public sealed class AblesenOverviewPage : ContentPage
     private readonly Switch _wifiOnlySwitch;
     private readonly Label _wifiOnlyHelpLabel;
     private readonly View _ablesungTile;
+    private readonly View _jahresablesungTile;
     private readonly View _zaehlerwechselTile;
     private readonly View _rfidTile;
     private readonly View _faelligeZaehlerTile;
@@ -46,6 +47,11 @@ public sealed class AblesenOverviewPage : ContentPage
         };
 
         _ablesungTile = CreateTile("Ablesung erfassen", "RFID-Tag am Gerät scannen; wenn NFC nicht nutzbar ist, steht ein fachlicher Ersatzweg über Parzelle und Medium bereit.", () => Shell.Current.GoToAsync(nameof(AblesungErfassenPage)));
+
+        _jahresablesungTile = CreateTile(
+            "Jahresendablesung erfassen",
+            "Erfasst eine Ablesung eindeutig als Jahresendablesung (JEA). RFID oder der Ersatzweg über Parzelle und Medium stehen ebenfalls bereit.",
+            () => Shell.Current.GoToAsync($"{nameof(AblesungErfassenPage)}?art={AblesungArt.JahresEnde}"));
 
         _zaehlerwechselTile = CreateTile("Zählerwechsel", "RFID-Tag am Gerät scannen; wenn NFC nicht nutzbar ist, steht ein fachlicher Ersatzweg über Parzelle und Medium bereit.", () => Shell.Current.GoToAsync(nameof(ZaehlerwechselPage)));
 
@@ -98,6 +104,7 @@ public sealed class AblesenOverviewPage : ContentPage
                     new Label { Text = "Bitte wähle eine Funktion.", LineBreakMode = LineBreakMode.WordWrap },
                     _accessHintLabel,
                     _ablesungTile,
+                    _jahresablesungTile,
                     _zaehlerwechselTile,
                     _rfidTile,
                     _faelligeZaehlerTile,
@@ -131,6 +138,7 @@ public sealed class AblesenOverviewPage : ContentPage
     private void UpdateAccessUi()
     {
         _ablesungTile.IsVisible = CanReadMeters || EffectiveCanSubmitOwnMeterReadings;
+        _jahresablesungTile.IsVisible = CanReadMeters || EffectiveCanSubmitOwnMeterReadings;
         _zaehlerwechselTile.IsVisible = CanManageMeterChanges;
         _rfidTile.IsVisible = CanManageMeterChanges;
         _faelligeZaehlerTile.IsVisible = CanReadMeters;
