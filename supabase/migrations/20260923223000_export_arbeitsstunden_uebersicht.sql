@@ -74,7 +74,7 @@ insert into public.app_export_definition
 values
   ('arbeitsstunden_uebersicht', 'Arbeitsstundenübersicht',
    'Pflicht-, geleistete und offene Stunden einschließlich Wartungsverträgen.',
-   'rpc', 'rpc_export_arbeitsstunden_uebersicht', true, 'nachname', 'rpc_export_arbeitsstunden_uebersicht', true, true)
+   'rpc', 'rpc_export_arbeitsstunden_uebersicht', true, 'nachname', 'csv', true, true)
 on conflict (export_key) do update set
   titel = excluded.titel, beschreibung = excluded.beschreibung, quelle_typ = excluded.quelle_typ,
   quelle_name = excluded.quelle_name, aktiv = excluded.aktiv, standard_sortierung = excluded.standard_sortierung,
