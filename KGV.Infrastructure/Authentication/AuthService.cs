@@ -44,31 +44,7 @@ namespace KGV.Infrastructure.Authentication
                 return false;
 
             LastOtpFailureInfo = null;
-
-            try
-            {
-                var emailTrim = email.Trim();
-                LogDiagnosticInformation($"OTP_REQUEST_START flowKind=first-login email={MaskEmail(emailTrim)} endpoint={GetSupabaseEndpointContext()}");
-                var result = await InvokeFirstLoginOtpFunctionAsync(emailTrim);
-                LogDiagnosticInformation($"OTP_REQUEST_RESULT flowKind=first-login email={MaskEmail(emailTrim)} success={result.Success} diagnosticCode={result.DiagnosticCode}");
-
-                if (result.Success)
-                {
-                    LastOtpFailureInfo = null;
-                    return true;
-                }
-
-                SetOtpFailureInfo(result.DiagnosticCode, result.Message);
-                LogDiagnosticWarning($"OTP_REQUEST_BLOCK flowKind=first-login email={MaskEmail(emailTrim)} reason={result.DiagnosticCode}");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                SetOtpFailureInfo("OTP_FIRST_LOGIN_EDGE_EXCEPTION", "OTP-Anforderung fehlgeschlagen. Bitte prüfe die E-Mail-Adresse oder kontaktiere den Vorstand.");
-                LogDiagnosticError($"OTP_REQUEST_EXCEPTION flowKind=first-login email={MaskEmail(email.Trim())} endpoint={GetSupabaseEndpointContext()}", ex);
-                _logger?.LogError(ex, "RequestOtpAsync failed for {EmailMasked}", MaskEmail(email));
-                return false;
-            }
+            return await RequestRecoveryOtpAsync(email.Trim(), "first-login");
         }
 
         public async Task<bool> VerifyOtpAsync(string email, string code)

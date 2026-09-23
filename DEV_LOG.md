@@ -12023,3 +12023,9 @@ Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implement
 
 - Vereinswechsel ist im Login und im Profil erreichbar. Er meldet die aktuelle Sitzung ab, leert Rollen-/Mitgliedskontext sowie gespeicherte Vereins- und E-Mail-Daten und beendet anschließend die App.
 - Der Neustart ist absichtlich Teil des Wechsels: Auth- und Supabase-Dienste halten ihre Clients im aktuellen App-Lauf. So kann kein bestehender Client, Token oder Kontext in den neu gewählten Verein übergehen.
+
+## 2026-09-23 - MAUI Erstlogin wieder direkt über Supabase Recovery-OTP
+
+- Der Erstlogin fordert den Code wieder direkt über `ResetPasswordForEmail` beim jeweils ausgewählten Verein an, statt über eine Edge Function.
+- Das entspricht dem bewährten Ablauf: Die Recovery-Mail verwendet den Supabase-Token, die App prüft ihn und zeigt anschließend den Dialog zum Setzen des Passworts.
+- Die bereitgestellte Edge Function kann zunächst bestehen bleiben, wird von der App aber nicht mehr aufgerufen.

@@ -702,3 +702,9 @@ Für die tägliche Arbeit reicht diese Fassung in der Regel aus, weil sie die fo
 
 - Der Wechsel wird nicht innerhalb eines weiterlaufenden Client-Graphen erzwungen. Stattdessen erfolgt Abmeldung, vollständige Bereinigung lokaler Benutzer- und Vereinsdaten und ein kontrolliertes Beenden der App.
 - Nach dem Öffnen startet die App ohne Vereinskontext wieder bei der Vereins-ID-Eingabe. Damit werden pro Verein getrennte Auth- und Supabase-Clients garantiert.
+
+## 2026-09-23 - Erstlogin ohne Edge Function
+
+- Der Aufruf `RequestOtpAsync` verwendet wieder den vorhandenen direkten Supabase-Recovery-Pfad `RequestRecoveryOtpAsync`.
+- Dadurch greift der bereits etablierte Auth-E-Mail-Template-Ablauf mit `{{ .Token }}` wieder unmittelbar: Code anfordern, Code in der App bestätigen, Passwort vergeben.
+- Die App ist für den Erstlogin damit nicht mehr von Deployment, JWT-Konfiguration oder Secrets einer Edge Function abhängig. Die Funktion wird nicht gelöscht, damit ein erfolgreicher Gerätecheck zuerst ohne riskante Datenbankänderung erfolgen kann.
