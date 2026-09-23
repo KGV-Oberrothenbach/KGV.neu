@@ -582,6 +582,14 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         _statusLabel.TextColor = Colors.Green;
 
         _homeViewModel.Invalidate();
+        try
+        {
+            await _homeViewModel.ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[BekanntmachungEditorPage] Startseiten-Aktualisierung fehlgeschlagen: {ex}");
+        }
 
         try
         {

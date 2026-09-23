@@ -395,6 +395,14 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         _statusLabel.TextColor = Colors.Green;
 
         _homeViewModel.Invalidate();
+        try
+        {
+            await _homeViewModel.ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TermineEditorPage] Startseiten-Aktualisierung fehlgeschlagen: {ex}");
+        }
 
         try
         {

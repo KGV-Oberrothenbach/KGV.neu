@@ -129,7 +129,9 @@ public static class MauiProgram
     {
         services.AddTransient<VereinsauswahlPage>();
         services.AddTransient<LoginPage>();
-        services.AddTransient<HomeViewModel>();
+        // Editors and the visible start page must share this state so a successful
+        // create/update invalidates the page that the user returns to.
+        services.AddSingleton<HomeViewModel>();
         services.AddTransient<HomePage>();
         services.AddTransient<AblesenOverviewPage>();
         services.AddTransient<PendingPhotoUploadsPage>();

@@ -407,6 +407,14 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _statusLabel.IsVisible = true;
 
         _homeViewModel.Invalidate();
+        try
+        {
+            await _homeViewModel.ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ArbeitseinsaetzeEditorPage] Startseiten-Aktualisierung fehlgeschlagen: {ex}");
+        }
 
         try
         {

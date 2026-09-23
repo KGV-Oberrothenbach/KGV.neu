@@ -48,7 +48,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
     private readonly Button _resetButton;
     private bool _initialized;
     private bool _isBusy;
-    private bool _isPendingInitialFlow;
     private bool _hasRequestedFallbackContext;
     private bool _allowUserMeterReadingSubmissions;
     private bool _meterReadingPhotoRequired = true;
@@ -223,7 +222,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         var pendingFlow = _workflowState.ConsumePendingAblesungFlow();
         if (pendingFlow?.Context?.Context?.AktiverZaehlerId is > 0)
         {
-            _isPendingInitialFlow = true;
             _currentArt = AblesungArt.Normalize(pendingFlow.Art);
             _ablesedatumPicker.Date = pendingFlow.DefaultDate.Date;
             _scanContext.ApplyResolvedContext(pendingFlow.Context, pendingFlow.Hint);
@@ -235,7 +233,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         {
             _hasRequestedFallbackContext = false;
             _workflowState.Clear();
-            _isPendingInitialFlow = false;
             _currentArt = _requestedArt;
             _ablesedatumPicker.Date = DateTime.Today;
             ClearPhotoSelection();
@@ -244,7 +241,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
             return;
         }
 
-        _isPendingInitialFlow = false;
         _currentArt = _requestedArt;
 
         if (IsOwnSubmissionMode)
@@ -514,22 +510,8 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
                             : "Ablesung gespeichert.";
 
             await DisplayAlert("OK", successMessage, "OK");
-
-            if (_isPendingInitialFlow)
-            {
-                _workflowState.Clear();
-                await Shell.Current.GoToAsync("//ablesen");
-                return;
-            }
-
-            if (savesAsSubmission)
-            {
-                await Shell.Current.GoToAsync("..");
-                return;
-            }
-
-            await ResetAndRestartScanAsync(clearWorkflow: false);
-            _statusLabel.Text = "Ablesung gespeichert. Der nächste RFID-Scan kann beginnen.";
+            _workflowState.Clear();
+            await Shell.Current.GoToAsync("//ablesen");
         }
         catch (Exception ex)
         {
@@ -548,7 +530,6 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         if (clearWorkflow)
             _workflowState.Clear();
 
-        _isPendingInitialFlow = false;
         _currentArt = _requestedArt;
         _activeResolution = null;
         _ablesedatumPicker.Date = DateTime.Today;

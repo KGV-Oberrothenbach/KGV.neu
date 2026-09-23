@@ -242,7 +242,10 @@ public sealed class RfidEinrichtenPage : ContentPage, IQueryAttributable
 
         var result = await _viewModel.SaveAsync(overwriteExisting);
         if (result.Success)
+        {
             await DisplayAlert("OK", result.Message, "OK");
+            await Shell.Current.GoToAsync("//ablesen");
+        }
     }
 
     private async Task StartNfcAsync()
