@@ -93,10 +93,20 @@ dotnet publish ".\KGV.Maui\KGV.Maui.csproj" -f net10.0-android -c Release -p:And
 
 set "APK_FILE="
 set "AAB_FILE="
-for %%F in ("%REPO%\KGV.Maui\bin\Release\net10.0-android\publish\*-Signed.apk") do set "APK_FILE=%%~fF"
-for %%F in ("%REPO%\KGV.Maui\bin\Release\net10.0-android\publish\*-Signed.aab") do set "AAB_FILE=%%~fF"
-if not defined APK_FILE goto BUILD_FAILED
-if not defined AAB_FILE goto BUILD_FAILED
+for /f "usebackq delims=" %%I in (`powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$publish = Join-Path '%REPO%' 'KGV.Maui\bin\Release\net10.0-android\publish';" ^
+  "$apk = Get-ChildItem $publish -Filter '*-Signed.apk' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1;" ^
+  "if (-not $apk) { $apk = Get-ChildItem $publish -Filter '*.apk' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 }" ^
+  "if ($apk) { Write-Output $apk.FullName }"`) do set "APK_FILE=%%I"
+for /f "usebackq delims=" %%I in (`powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$publish = Join-Path '%REPO%' 'KGV.Maui\bin\Release\net10.0-android\publish';" ^
+  "$aab = Get-ChildItem $publish -Filter '*-Signed.aab' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1;" ^
+  "if (-not $aab) { $aab = Get-ChildItem $publish -Filter '*.aab' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 }" ^
+  "if ($aab) { Write-Output $aab.FullName }"`) do set "AAB_FILE=%%I"
+if not defined APK_FILE (echo FEHLER: Keine APK-Datei im Publish-Ordner gefunden.& goto BUILD_FAILED)
+if not defined AAB_FILE (echo FEHLER: Keine AAB-Datei im Publish-Ordner gefunden.& goto BUILD_FAILED)
+echo APK-Quelle: %APK_FILE%
+echo AAB-Quelle: %AAB_FILE%
 copy /Y "%APK_FILE%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.apk" >nul || goto BUILD_FAILED
 copy /Y "%APK_FILE%" "%VERSION_ROOT%\KGV-Android-%TARGET_VERSION%.apk" >nul || goto BUILD_FAILED
 copy /Y "%AAB_FILE%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
