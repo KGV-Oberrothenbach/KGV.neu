@@ -12,6 +12,12 @@ public static class AppSettings
         public string? LastEmail { get; set; }
         public string? AppMode { get; set; }
         public DateTime? LastBackgroundedAtUtc { get; set; }
+        public string? VereinId { get; set; }
+        public string? VereinsCode { get; set; }
+        public string? Vereinsname { get; set; }
+        public string? VereinsKurzname { get; set; }
+        public string? VereinsSupabaseUrl { get; set; }
+        public string? VereinsSupabasePublishableKey { get; set; }
     }
 
     private static UserSettings _settings = new();
@@ -32,6 +38,31 @@ public static class AppSettings
     {
         get => _settings.LastBackgroundedAtUtc;
         private set => _settings.LastBackgroundedAtUtc = value;
+    }
+
+    public static KGV.Core.Models.Vereinskontext? Vereinskontext
+    {
+        get
+        {
+            if (!Guid.TryParse(_settings.VereinId, out var id)
+                || string.IsNullOrWhiteSpace(_settings.VereinsCode)
+                || string.IsNullOrWhiteSpace(_settings.Vereinsname)
+                || string.IsNullOrWhiteSpace(_settings.VereinsSupabaseUrl)
+                || string.IsNullOrWhiteSpace(_settings.VereinsSupabasePublishableKey))
+                return null;
+
+            return new KGV.Core.Models.Vereinskontext(id, _settings.VereinsCode, _settings.Vereinsname,
+                _settings.VereinsKurzname, _settings.VereinsSupabaseUrl, _settings.VereinsSupabasePublishableKey);
+        }
+        set
+        {
+            _settings.VereinId = value?.VereinId.ToString();
+            _settings.VereinsCode = value?.VereinsCode;
+            _settings.Vereinsname = value?.Vereinsname;
+            _settings.VereinsKurzname = value?.Kurzname;
+            _settings.VereinsSupabaseUrl = value?.SupabaseUrl;
+            _settings.VereinsSupabasePublishableKey = value?.SupabasePublishableKey;
+        }
     }
 
     public static void MarkBackgroundedNowUtc()

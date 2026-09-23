@@ -12008,3 +12008,24 @@ Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implement
 - Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
 
 
+## 2026-09-23 - MAUI Vereinsauswahl vor dem Login
+
+- Neuer Branch `feature/anmeldung-umbau`: Die MAUI-App fordert vor jedem ersten Login eine Vereins-ID an; ohne erfolgreichen Registry-Treffer wird keine Login-Seite erzeugt.
+- Die Registry wird ausschließlich über die RPC `resolve_vereinscode` angesprochen. Der aufgelöste aktive Vereinskontext (Verein, URL, Publishable Key) wird lokal gespeichert und beim App-Neustart wiederhergestellt.
+- Der Supabase-Client und der Uploadpfad erhalten URL und Publishable Key aus dem gewählten Vereinskontext. WPF-Dateien wurden ausdrücklich nicht verändert.
+- Offener Folgeschritt: koordinierter Vereinswechsel nach einer bestehenden Sitzung sowie biometrisches Entsperren werden erst in separaten, getesteten Blöcken ergänzt.
+## 2026-09-23 - Neutrales MAUI-Branding und Demo-Kennzeichnung
+
+- Neutrales Garten-/Parzellen-Logo als neue App-Ressource ergänzt; die Vereinsauswahl zeigt immer dieses neutrale Motiv.
+- Der Demo-Verein erhält im Login automatisch die Stempelvariante `DEMO`. Für KGV Oberrothenbach bleibt das vorhandene Wappen sichtbar; unbekannte künftige Vereine fallen sicher auf das neutrale Motiv zurück.
+- Eine vollständige dynamische Wappenversorgung weiterer Vereine benötigt als nächsten Schritt eine freigegebene Wappen-URL im Vereinsregister.
+## 2026-09-23 - Sicherer MAUI-Vereinswechsel
+
+- Vereinswechsel ist im Login und im Profil erreichbar. Er meldet die aktuelle Sitzung ab, leert Rollen-/Mitgliedskontext sowie gespeicherte Vereins- und E-Mail-Daten und beendet anschließend die App.
+- Der Neustart ist absichtlich Teil des Wechsels: Auth- und Supabase-Dienste halten ihre Clients im aktuellen App-Lauf. So kann kein bestehender Client, Token oder Kontext in den neu gewählten Verein übergehen.
+
+## 2026-09-23 - MAUI Erstlogin wieder direkt über Supabase Recovery-OTP
+
+- Der Erstlogin fordert den Code wieder direkt über `ResetPasswordForEmail` beim jeweils ausgewählten Verein an, statt über eine Edge Function.
+- Das entspricht dem bewährten Ablauf: Die Recovery-Mail verwendet den Supabase-Token, die App prüft ihn und zeigt anschließend den Dialog zum Setzen des Passworts.
+- Die bereitgestellte Edge Function kann zunächst bestehen bleiben, wird von der App aber nicht mehr aufgerufen.

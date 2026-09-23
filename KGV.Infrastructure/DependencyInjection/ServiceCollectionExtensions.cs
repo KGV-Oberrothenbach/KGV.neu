@@ -17,7 +17,9 @@ namespace KGV.Infrastructure.DependencyInjection
             if (services == null) throw new ArgumentNullException(nameof(services));
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 
-            services.AddSingleton<ISupabaseClientFactory>(_ => new SupabaseClientFactory(configuration));
+            services.AddSingleton<ISupabaseClientFactory>(sp => new SupabaseClientFactory(
+                configuration,
+                sp.GetRequiredService<IVereinskontext>()));
 
             services.AddSingleton<IPermissionService, PermissionService>();
 
@@ -38,8 +40,8 @@ namespace KGV.Infrastructure.DependencyInjection
                     sp.GetService<ILogger<SupabaseService>>(),
                     () => sp.GetService<IUserContextAccessor>()?.CurrentUserContext,
                     sp.GetRequiredService<IAuthService>(),
-                    (configuration["Supabase:Url"] ?? string.Empty).Trim(),
-                    (configuration["Supabase:PublishableKey"] ?? configuration["Supabase:Key"] ?? string.Empty).Trim()));
+                    sp.GetRequiredService<ISupabaseClientFactory>().Url,
+                    sp.GetRequiredService<ISupabaseClientFactory>().Key));
 
             services.AddSingleton<IPhotoUploadTestService>(sp =>
                 new PhotoUploadTestService(

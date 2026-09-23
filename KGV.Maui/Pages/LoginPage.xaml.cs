@@ -19,12 +19,15 @@ namespace KGV.Maui.Pages;
 
 public class LoginPage : ContentPage
 {
-    private const string LogoImageSource = "kgv_logo.png";
+    private const string NeutralLogoImageSource = "kgv_neutral_logo.png";
+    private const string DemoLogoImageSource = "kgv_neutral_demo_logo.png";
+    private const string OberrothenbachWappenImageSource = "kgv_logo.png";
 
     private readonly IAuthService _authService;
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _userContextState;
     private readonly IUserContextService _userContextService;
+    private readonly IVereinskontext _vereinskontext;
 
     private readonly Entry _emailEntry;
     private readonly Entry _passwordEntry;
@@ -37,12 +40,14 @@ public class LoginPage : ContentPage
         IAuthService authService,
         ISupabaseService supabaseService,
         UserContextState userContextState,
-        IUserContextService userContextService)
+        IUserContextService userContextService,
+        IVereinskontext vereinskontext)
     {
         _authService = authService;
         _supabaseService = supabaseService;
         _userContextState = userContextState;
         _userContextService = userContextService;
+        _vereinskontext = vereinskontext;
 
         Title = "Login";
 
@@ -54,7 +59,7 @@ public class LoginPage : ContentPage
         _copyOtpDiagnosticButton.Clicked += async (_, _) => await CopyOtpDiagnosticCodeAsync();
         var logoImage = new Image
         {
-            Source = LogoImageSource,
+            Source = ResolveLogoImageSource(),
             HeightRequest = 120,
             Aspect = Aspect.AspectFit,
             HorizontalOptions = LayoutOptions.Center,
@@ -111,6 +116,8 @@ public class LoginPage : ContentPage
         var backToLoginButton = new Button { Text = "Zurück zum Login", IsVisible = false };
         var requestOtpButton = new Button { Text = "Einladung / Erstlogin-Code anfordern" };
         var forgotPasswordButton = new Button { Text = "Passwort vergessen" };
+        var changeClubButton = new Button { Text = "Anderen Verein auswählen" };
+        changeClubButton.Clicked += async (_, _) => await ChangeClubAsync();
 
         void UpdatePasswordHintState()
         {
@@ -335,11 +342,13 @@ public class LoginPage : ContentPage
             {
                 logoImage,
                 new Label { Text = "Login", FontSize = 24, FontAttributes = FontAttributes.Bold },
+                new Label { Text = $"Verein: {_vereinskontext.Aktuell?.Vereinsname}", TextColor = Colors.Gray },
                 _emailEntry,
                 passwordField,
                 loginButton,
                 requestOtpButton,
                 forgotPasswordButton,
+                changeClubButton,
                 otpEntry,
                 verifyOtpButton,
                 newPasswordField,
@@ -365,6 +374,31 @@ public class LoginPage : ContentPage
         return string.IsNullOrWhiteSpace(build)
             ? $"Version {version}"
             : $"Version {version} (Build {build})";
+    }
+
+    private async Task ChangeClubAsync()
+    {
+        var confirmed = await DisplayAlert(
+            "Verein wechseln",
+            "Du wirst abgemeldet. Die Vereinszuordnung und lokale Anmeldedaten werden auf diesem Gerät gelöscht. Danach die App erneut öffnen und die neue Vereins-ID eingeben.",
+            "Abmelden und wechseln",
+            "Abbrechen");
+        if (confirmed && Application.Current is App app)
+            await app.WechselVereinAsync();
+    }
+
+    private string ResolveLogoImageSource()
+    {
+        var code = _vereinskontext.Aktuell?.VereinsCode;
+        if (string.Equals(code, "KGV-DEMO", StringComparison.OrdinalIgnoreCase))
+            return DemoLogoImageSource;
+
+        // Das vorhandene Wappen bleibt nur für den derzeit bekannten Produktionsverein.
+        // Weitere Vereinswappen werden im nächsten Block über eine Registry-URL eingebunden.
+        if (string.Equals(code, "KGV-OBERROTHENBACH", StringComparison.OrdinalIgnoreCase))
+            return OberrothenbachWappenImageSource;
+
+        return NeutralLogoImageSource;
     }
 
     private async void OnLoginClicked(object? sender, EventArgs e)

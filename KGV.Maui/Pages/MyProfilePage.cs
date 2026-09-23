@@ -42,6 +42,7 @@ public sealed class MyProfilePage : ContentPage
     private readonly Button _resetPasswordButton;
     private readonly Button _saveButton;
     private readonly Button _checkAddressButton;
+    private readonly Button _changeClubButton;
 
     private bool _isAuthBusy;
     private bool _isEmailOtpRequested;
@@ -80,6 +81,9 @@ public sealed class MyProfilePage : ContentPage
 
         _checkAddressButton = new Button { Text = "Adresse prüfen" };
         _checkAddressButton.Clicked += OnCheckAddressClicked;
+
+        _changeClubButton = new Button { Text = "Verein wechseln", TextColor = Colors.DarkRed };
+        _changeClubButton.Clicked += async (_, _) => await ChangeClubAsync();
 
         if (Application.Current?.Resources != null && Application.Current.Resources.TryGetValue("AccentButton", out var accentStyle) && accentStyle is Style s1)
             _checkAddressButton.Style = s1;
@@ -210,8 +214,9 @@ public sealed class MyProfilePage : ContentPage
                     WrapCard(header),
                     WrapCard(kontakt),
                     WrapCard(adresse),
-                    WrapCard(auth),
-                    actions
+                WrapCard(auth),
+                    actions,
+                    _changeClubButton
                 }
             }
         };
@@ -424,6 +429,17 @@ public sealed class MyProfilePage : ContentPage
 
         var okPlz = PlzRegex.IsMatch(plz);
         await DisplayAlert("Adresse prüfen", okPlz ? "Format wirkt plausibel." : "PLZ ist ungültig.", "OK");
+    }
+
+    private async Task ChangeClubAsync()
+    {
+        var confirmed = await DisplayAlert(
+            "Verein wechseln",
+            "Du wirst abgemeldet. Die Vereinszuordnung und lokale Anmeldedaten werden auf diesem Gerät gelöscht. Danach die App erneut öffnen und die neue Vereins-ID eingeben.",
+            "Abmelden und wechseln",
+            "Abbrechen");
+        if (confirmed && Application.Current is App app)
+            await app.WechselVereinAsync();
     }
 
     private static string? Validate(string adresse, string plz, string ort, string telefon, string handy)

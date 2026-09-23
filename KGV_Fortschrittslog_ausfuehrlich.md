@@ -689,3 +689,22 @@ Für die tägliche Arbeit reicht diese Fassung in der Regel aus, weil sie die fo
 - welche Architekturentscheidungen getroffen wurden
 - welche Fachpfade produktiv sind
 - welche wichtigen Resttests oder Grenzen noch existieren
+## 2026-09-23 - MAUI: Vereins-ID als Zugangsvoraussetzung
+
+- Die Anmeldung wurde auf einen vorgeschalteten Vereinskontext vorbereitet: Vereins-ID wird über das zentrale Register per eingeschränkter RPC aufgelöst; erst dann wird der normale Login aufgebaut.
+- Der gespeicherte Kontext enthält nur Vereinskennung, Anzeigeinformationen und die für den jeweiligen Supabase-Client erforderliche URL samt Publishable Key. Rollen, Tokens und Mitgliedsdaten bleiben weiterhin ausschließlich im Zielverein.
+- WPF bleibt auf ausdrückliche Vorgabe unverändert. Der nächste technische Block umfasst Wechsel/Abmeldung und Biometrie, bevor ein produktiver Rollout erfolgen kann.
+## 2026-09-23 - Neutrales App-Logo und Demo-Stempel
+
+- Für die vereinsneutrale App-Identität wurden ein neutrales Garten-/Parzellen-Logo und eine dazugehörige, diagonal gestempelte Demo-Variante erzeugt und als MAUI-Bildressourcen aufgenommen.
+- Vor der Vereinsauflösung bleibt die App neutral. Nach erfolgreicher Zuordnung wird für KGV-DEMO sichtbar die DEMO-Variante verwendet; der bekannte Produktionsverein verwendet weiterhin sein vorhandenes Wappen.
+## 2026-09-23 - Sicherer Vereinswechsel in MAUI
+
+- Der Wechsel wird nicht innerhalb eines weiterlaufenden Client-Graphen erzwungen. Stattdessen erfolgt Abmeldung, vollständige Bereinigung lokaler Benutzer- und Vereinsdaten und ein kontrolliertes Beenden der App.
+- Nach dem Öffnen startet die App ohne Vereinskontext wieder bei der Vereins-ID-Eingabe. Damit werden pro Verein getrennte Auth- und Supabase-Clients garantiert.
+
+## 2026-09-23 - Erstlogin ohne Edge Function
+
+- Der Aufruf `RequestOtpAsync` verwendet wieder den vorhandenen direkten Supabase-Recovery-Pfad `RequestRecoveryOtpAsync`.
+- Dadurch greift der bereits etablierte Auth-E-Mail-Template-Ablauf mit `{{ .Token }}` wieder unmittelbar: Code anfordern, Code in der App bestätigen, Passwort vergeben.
+- Die App ist für den Erstlogin damit nicht mehr von Deployment, JWT-Konfiguration oder Secrets einer Edge Function abhängig. Die Funktion wird nicht gelöscht, damit ein erfolgreicher Gerätecheck zuerst ohne riskante Datenbankänderung erfolgen kann.
