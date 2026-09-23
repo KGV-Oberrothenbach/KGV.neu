@@ -76,7 +76,7 @@ security invoker
 as $$
   select distinct s.jahr::text as label, s.jahr::text as value
   from public.saison s
-  order by s.jahr desc;
+  order by 1 desc;
 $$;
 
 grant execute on function public.rpc_export_arbeitsstunden_jahre() to authenticated;
