@@ -698,3 +698,7 @@ Für die tägliche Arbeit reicht diese Fassung in der Regel aus, weil sie die fo
 
 - Für die vereinsneutrale App-Identität wurden ein neutrales Garten-/Parzellen-Logo und eine dazugehörige, diagonal gestempelte Demo-Variante erzeugt und als MAUI-Bildressourcen aufgenommen.
 - Vor der Vereinsauflösung bleibt die App neutral. Nach erfolgreicher Zuordnung wird für KGV-DEMO sichtbar die DEMO-Variante verwendet; der bekannte Produktionsverein verwendet weiterhin sein vorhandenes Wappen.
+## 2026-09-23 - Sicherer Vereinswechsel in MAUI
+
+- Der Wechsel wird nicht innerhalb eines weiterlaufenden Client-Graphen erzwungen. Stattdessen erfolgt Abmeldung, vollständige Bereinigung lokaler Benutzer- und Vereinsdaten und ein kontrolliertes Beenden der App.
+- Nach dem Öffnen startet die App ohne Vereinskontext wieder bei der Vereins-ID-Eingabe. Damit werden pro Verein getrennte Auth- und Supabase-Clients garantiert.

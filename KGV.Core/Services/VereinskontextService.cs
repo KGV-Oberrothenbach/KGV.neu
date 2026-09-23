@@ -13,4 +13,6 @@ public sealed class VereinskontextService : IVereinskontext
         ArgumentNullException.ThrowIfNull(kontext);
         Aktuell = kontext;
     }
+
+    public void Loeschen() => Aktuell = null;
 }

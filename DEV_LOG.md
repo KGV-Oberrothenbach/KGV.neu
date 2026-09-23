@@ -12019,3 +12019,7 @@ Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implement
 - Neutrales Garten-/Parzellen-Logo als neue App-Ressource ergänzt; die Vereinsauswahl zeigt immer dieses neutrale Motiv.
 - Der Demo-Verein erhält im Login automatisch die Stempelvariante `DEMO`. Für KGV Oberrothenbach bleibt das vorhandene Wappen sichtbar; unbekannte künftige Vereine fallen sicher auf das neutrale Motiv zurück.
 - Eine vollständige dynamische Wappenversorgung weiterer Vereine benötigt als nächsten Schritt eine freigegebene Wappen-URL im Vereinsregister.
+## 2026-09-23 - Sicherer MAUI-Vereinswechsel
+
+- Vereinswechsel ist im Login und im Profil erreichbar. Er meldet die aktuelle Sitzung ab, leert Rollen-/Mitgliedskontext sowie gespeicherte Vereins- und E-Mail-Daten und beendet anschließend die App.
+- Der Neustart ist absichtlich Teil des Wechsels: Auth- und Supabase-Dienste halten ihre Clients im aktuellen App-Lauf. So kann kein bestehender Client, Token oder Kontext in den neu gewählten Verein übergehen.

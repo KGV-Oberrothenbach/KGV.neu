@@ -116,6 +116,8 @@ public class LoginPage : ContentPage
         var backToLoginButton = new Button { Text = "Zurück zum Login", IsVisible = false };
         var requestOtpButton = new Button { Text = "Einladung / Erstlogin-Code anfordern" };
         var forgotPasswordButton = new Button { Text = "Passwort vergessen" };
+        var changeClubButton = new Button { Text = "Anderen Verein auswählen" };
+        changeClubButton.Clicked += async (_, _) => await ChangeClubAsync();
 
         void UpdatePasswordHintState()
         {
@@ -346,6 +348,7 @@ public class LoginPage : ContentPage
                 loginButton,
                 requestOtpButton,
                 forgotPasswordButton,
+                changeClubButton,
                 otpEntry,
                 verifyOtpButton,
                 newPasswordField,
@@ -371,6 +374,17 @@ public class LoginPage : ContentPage
         return string.IsNullOrWhiteSpace(build)
             ? $"Version {version}"
             : $"Version {version} (Build {build})";
+    }
+
+    private async Task ChangeClubAsync()
+    {
+        var confirmed = await DisplayAlert(
+            "Verein wechseln",
+            "Du wirst abgemeldet. Die Vereinszuordnung und lokale Anmeldedaten werden auf diesem Gerät gelöscht. Danach die App erneut öffnen und die neue Vereins-ID eingeben.",
+            "Abmelden und wechseln",
+            "Abbrechen");
+        if (confirmed && Application.Current is App app)
+            await app.WechselVereinAsync();
     }
 
     private string ResolveLogoImageSource()

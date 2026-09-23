@@ -47,6 +47,32 @@ public partial class App : Application
     public Task SwitchToCurrentRootAsync()
         => SwitchToCurrentRootAsync(null);
 
+    public async Task WechselVereinAsync()
+    {
+        try
+        {
+            var authService = _services.GetService<IAuthService>();
+            if (authService != null)
+                await authService.LogoutAsync();
+        }
+        catch (Exception ex)
+        {
+            Services.Diagnostics.AppFileLog.Warning("KGV.Vereinswechsel", $"Logout vor Vereinswechsel fehlgeschlagen: {ex.GetType().Name}: {ex.Message}");
+        }
+
+        ClearTransientState();
+        _vereinskontext.Loeschen();
+        Settings.AppSettings.Vereinskontext = null;
+        Settings.AppSettings.AppMode = null;
+        Settings.AppSettings.LastEmail = null;
+        Settings.AppSettings.Save();
+        Services.Diagnostics.AppFileLog.Info("KGV.Vereinswechsel", "Vereinskontext und lokale Anmeldedaten wurden gelöscht. App wird für einen sauberen Neustart beendet.");
+
+        // Auth- und Supabase-Dienste halten Clients pro App-Lauf fest. Ein Prozessneustart
+        // verhindert, dass eine bereits aufgebaute Verbindung in einen anderen Verein gelangt.
+        Quit();
+    }
+
     public async Task SwitchToCurrentRootAsync(string? preferredContentRoute)
     {
         using var navigationScope = NavigationCoordinator.TryBegin(
