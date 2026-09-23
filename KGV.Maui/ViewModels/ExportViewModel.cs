@@ -364,7 +364,16 @@ namespace KGV.Maui.ViewModels
                         minimalParams[kv.Key] = kv.Value;
                     }
                 }
-                var keysToRemove = minimalParams.Keys.Where(k => k != null && (k.ToString()!.Contains("filter", StringComparison.OrdinalIgnoreCase) || string.Equals(k.ToString(), "p_sortierung", StringComparison.OrdinalIgnoreCase) || string.Equals(k.ToString(), "sortierung", StringComparison.OrdinalIgnoreCase))).ToList();
+                var isArbeitsstundenUebersicht = string.Equals(
+                    SelectedDefinition?.ExportKey,
+                    "arbeitsstunden_uebersicht",
+                    StringComparison.OrdinalIgnoreCase);
+                var keysToRemove = minimalParams.Keys.Where(k =>
+                    !isArbeitsstundenUebersicht &&
+                    k != null &&
+                    (k.ToString()!.Contains("filter", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(k.ToString(), "p_sortierung", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(k.ToString(), "sortierung", StringComparison.OrdinalIgnoreCase))).ToList();
                 foreach (var k in keysToRemove)
                     minimalParams.Remove(k);
 
