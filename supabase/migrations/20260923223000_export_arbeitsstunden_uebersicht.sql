@@ -68,6 +68,19 @@ $$;
 
 grant execute on function public.rpc_export_arbeitsstunden_uebersicht(integer, boolean, boolean, boolean) to authenticated;
 
+create or replace function public.rpc_export_arbeitsstunden_jahre()
+returns table (label text, value text)
+language sql
+stable
+security invoker
+as $$
+  select distinct s.jahr::text as label, s.jahr::text as value
+  from public.saison s
+  order by s.jahr desc;
+$$;
+
+grant execute on function public.rpc_export_arbeitsstunden_jahre() to authenticated;
+
 -- Die mobile Exportseite liest diese Definitionen dynamisch aus der Datenbank.
 insert into public.app_export_definition
   (export_key, titel, beschreibung, quelle_typ, quelle_name, aktiv, standard_sortierung, standard_ausgabe, erlaubt_csv, erlaubt_pdf)
@@ -81,11 +94,11 @@ on conflict (export_key) do update set
   standard_ausgabe = excluded.standard_ausgabe, erlaubt_csv = excluded.erlaubt_csv, erlaubt_pdf = excluded.erlaubt_pdf;
 
 delete from public.app_export_filter_definition where export_key = 'arbeitsstunden_uebersicht';
-insert into public.app_export_filter_definition (export_key, filter_key, label, typ, pflicht, sortierung) values
-  ('arbeitsstunden_uebersicht', 'jahr', 'Jahr', 'zahl', false, 10),
-  ('arbeitsstunden_uebersicht', 'stunden_offen', 'Stunden offen', 'boolean', false, 20),
-  ('arbeitsstunden_uebersicht', 'stunden_fertig', 'Stunden fertig', 'boolean', false, 30),
-  ('arbeitsstunden_uebersicht', 'wartungsvertraege', 'Wartungsverträge', 'boolean', false, 40);
+insert into public.app_export_filter_definition (export_key, filter_key, label, typ, optionen_json, pflicht, sortierung) values
+  ('arbeitsstunden_uebersicht', 'jahr', 'Jahr', 'select', to_jsonb('rpc_export_arbeitsstunden_jahre'::text), false, 10),
+  ('arbeitsstunden_uebersicht', 'stunden_offen', 'Stunden offen', 'boolean', null, false, 20),
+  ('arbeitsstunden_uebersicht', 'stunden_fertig', 'Stunden fertig', 'boolean', null, false, 30),
+  ('arbeitsstunden_uebersicht', 'wartungsvertraege', 'Wartungsverträge', 'boolean', null, false, 40);
 
 delete from public.app_export_column_definition where export_key = 'arbeitsstunden_uebersicht';
 insert into public.app_export_column_definition
