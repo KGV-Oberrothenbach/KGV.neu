@@ -28,7 +28,7 @@ as $$
       v.hauptmitglied_id as mitglied_id,
       m.name as nachname,
       m.vorname,
-      v.jahr,
+      v.saison_jahr as jahr,
       coalesce(v.pflichtstunden_soll, 0) as pflichtstunden_soll,
       coalesce(v.geleistete_stunden, 0) as geleistete_stunden,
       coalesce(v.offene_stunden, 0) as offene_stunden,
@@ -38,7 +38,7 @@ as $$
     join public.mitglied m on m.id = v.hauptmitglied_id
     where m.aktiv = true
       and m.is_demo = false
-      and (p_jahr is null or v.jahr = p_jahr)
+      and (p_jahr is null or v.saison_jahr = p_jahr)
     order by v.hauptmitglied_id, v.saison_id desc
   ), liste as (
     select b.*, coalesce(string_agg(w.titel, ', ' order by w.titel), '') as wartungsvertraege
