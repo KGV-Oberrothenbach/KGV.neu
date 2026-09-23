@@ -8,6 +8,8 @@ using KGV.Maui.Services.PendingPhotos;
 using KGV.Maui.Settings;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
+using KGV.Core.Interfaces;
+using KGV.Core.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -99,6 +101,10 @@ public static class MauiProgram
 
     private static void RegisterStateServices(IServiceCollection services)
     {
+        var vereinskontext = new VereinskontextService();
+        if (AppSettings.Vereinskontext is { } gespeicherterKontext)
+            vereinskontext.Setzen(gespeicherterKontext);
+        services.AddSingleton<IVereinskontext>(vereinskontext);
         services.AddSingleton<UserContextState>();
         services.AddSingleton<IUserContextAccessor>(sp => sp.GetRequiredService<UserContextState>());
         services.AddSingleton<MemberContextState>();
@@ -119,6 +125,7 @@ public static class MauiProgram
 
     private static void RegisterPageServices(IServiceCollection services)
     {
+        services.AddTransient<VereinsauswahlPage>();
         services.AddTransient<LoginPage>();
         services.AddTransient<HomeViewModel>();
         services.AddTransient<HomePage>();
@@ -218,7 +225,7 @@ public static class MauiProgram
             missingParts.Add("Supabase:PublishableKey");
         }
 
-        var message = $"Supabase-Konfiguration fehlt in `appsettings.json`: {string.Join(", ", missingParts)}";
+        var message = $"Supabase-Fallback-Konfiguration fehlt in `appsettings.json`: {string.Join(", ", missingParts)}";
         AppFileLog.Marker("SUPABASE_CONFIG_PRESENT_NO");
         AppFileLog.Warning(StartupLogTag, message);
         LogStartupError(message);

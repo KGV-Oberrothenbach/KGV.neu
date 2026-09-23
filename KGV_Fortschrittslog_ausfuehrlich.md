@@ -689,3 +689,8 @@ Für die tägliche Arbeit reicht diese Fassung in der Regel aus, weil sie die fo
 - welche Architekturentscheidungen getroffen wurden
 - welche Fachpfade produktiv sind
 - welche wichtigen Resttests oder Grenzen noch existieren
+## 2026-09-23 - MAUI: Vereins-ID als Zugangsvoraussetzung
+
+- Die Anmeldung wurde auf einen vorgeschalteten Vereinskontext vorbereitet: Vereins-ID wird über das zentrale Register per eingeschränkter RPC aufgelöst; erst dann wird der normale Login aufgebaut.
+- Der gespeicherte Kontext enthält nur Vereinskennung, Anzeigeinformationen und die für den jeweiligen Supabase-Client erforderliche URL samt Publishable Key. Rollen, Tokens und Mitgliedsdaten bleiben weiterhin ausschließlich im Zielverein.
+- WPF bleibt auf ausdrückliche Vorgabe unverändert. Der nächste technische Block umfasst Wechsel/Abmeldung und Biometrie, bevor ein produktiver Rollout erfolgen kann.

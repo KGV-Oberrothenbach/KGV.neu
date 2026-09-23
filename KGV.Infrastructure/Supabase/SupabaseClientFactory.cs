@@ -12,18 +12,22 @@ namespace KGV.Infrastructure.Supabase
     public class SupabaseClientFactory : ISupabaseClientFactory
     {
         private readonly IConfiguration _config;
+        private readonly IVereinskontext _vereinskontext;
         private SupabaseClient? _client;
 
         public string Url { get; }
         public string Key { get; }
 
-        public SupabaseClientFactory(IConfiguration config)
+        public SupabaseClientFactory(IConfiguration config, IVereinskontext vereinskontext)
         {
             _config = config;
+            _vereinskontext = vereinskontext;
 
-            Url = _config["Supabase:Url"]
+            Url = _vereinskontext.Aktuell?.SupabaseUrl
+                  ?? _config["Supabase:Url"]
                   ?? throw new InvalidOperationException("Supabase URL fehlt in appsettings.json");
-            Key = _config["Supabase:PublishableKey"]
+            Key = _vereinskontext.Aktuell?.SupabasePublishableKey
+                  ?? _config["Supabase:PublishableKey"]
                   ?? _config["Supabase:Key"]
                   ?? throw new InvalidOperationException("Supabase Publishable Key fehlt in appsettings.json");
         }

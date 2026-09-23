@@ -12008,3 +12008,9 @@ Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implement
 - Abschlussvalidierung erfolgreich: `dotnet build KGV.Wpf/KGV.Wpf.csproj` und `dotnet build KGV.Maui/KGV.Maui.csproj`.
 
 
+## 2026-09-23 - MAUI Vereinsauswahl vor dem Login
+
+- Neuer Branch `feature/anmeldung-umbau`: Die MAUI-App fordert vor jedem ersten Login eine Vereins-ID an; ohne erfolgreichen Registry-Treffer wird keine Login-Seite erzeugt.
+- Die Registry wird ausschließlich über die RPC `resolve_vereinscode` angesprochen. Der aufgelöste aktive Vereinskontext (Verein, URL, Publishable Key) wird lokal gespeichert und beim App-Neustart wiederhergestellt.
+- Der Supabase-Client und der Uploadpfad erhalten URL und Publishable Key aus dem gewählten Vereinskontext. WPF-Dateien wurden ausdrücklich nicht verändert.
+- Offener Folgeschritt: koordinierter Vereinswechsel nach einer bestehenden Sitzung sowie biometrisches Entsperren werden erst in separaten, getesteten Blöcken ergänzt.

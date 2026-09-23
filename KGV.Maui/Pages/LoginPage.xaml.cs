@@ -25,6 +25,7 @@ public class LoginPage : ContentPage
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _userContextState;
     private readonly IUserContextService _userContextService;
+    private readonly IVereinskontext _vereinskontext;
 
     private readonly Entry _emailEntry;
     private readonly Entry _passwordEntry;
@@ -37,12 +38,14 @@ public class LoginPage : ContentPage
         IAuthService authService,
         ISupabaseService supabaseService,
         UserContextState userContextState,
-        IUserContextService userContextService)
+        IUserContextService userContextService,
+        IVereinskontext vereinskontext)
     {
         _authService = authService;
         _supabaseService = supabaseService;
         _userContextState = userContextState;
         _userContextService = userContextService;
+        _vereinskontext = vereinskontext;
 
         Title = "Login";
 
@@ -335,6 +338,7 @@ public class LoginPage : ContentPage
             {
                 logoImage,
                 new Label { Text = "Login", FontSize = 24, FontAttributes = FontAttributes.Bold },
+                new Label { Text = $"Verein: {_vereinskontext.Aktuell?.Vereinsname}", TextColor = Colors.Gray },
                 _emailEntry,
                 passwordField,
                 loginButton,

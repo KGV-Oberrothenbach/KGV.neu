@@ -17,14 +17,16 @@ public partial class App : Application
 
     private readonly IServiceProvider _services;
     private readonly UserContextState _userContextState;
+    private readonly IVereinskontext _vereinskontext;
     private Window? _mainWindow;
     private string? _pendingLoginMessage;
     private bool _resumeTimeoutResetInProgress;
 
-    public App(IServiceProvider services, UserContextState userContextState)
+    public App(IServiceProvider services, UserContextState userContextState, IVereinskontext vereinskontext)
     {
         _services = services;
         _userContextState = userContextState;
+        _vereinskontext = vereinskontext;
     }
 
     protected override Window CreateWindow(IActivationState? activationState)
@@ -86,6 +88,9 @@ public partial class App : Application
 
     private Page CreateRootPage(string? preferredContentRoute = null)
     {
+        if (!_vereinskontext.IstAusgewaehlt)
+            return _services.GetRequiredService<VereinsauswahlPage>();
+
         if (_userContextState.CurrentUserId == null || _userContextState.CurrentUserContext == null)
         {
             var loginPage = _services.GetRequiredService<LoginPage>();
