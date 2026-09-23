@@ -91,8 +91,10 @@ dotnet publish ".\KGV.Maui\KGV.Maui.csproj" -f net10.0-android -c Release -p:And
 echo Baue signierte AAB...
 dotnet publish ".\KGV.Maui\KGV.Maui.csproj" -f net10.0-android -c Release -p:AndroidTargetSdkVersion=%ANDROID_TARGET_SDK% -p:AndroidPackageFormat=aab -p:AndroidKeyStore=true -p:AndroidSigningKeyStore="%KEYSTORE%" -p:AndroidSigningStorePass="%STOREPASS%" -p:AndroidSigningKeyAlias="%KEYALIAS%" -p:AndroidSigningKeyPass="%STOREPASS%" || goto BUILD_FAILED
 
-for /f "delims=" %%I in ('powershell -NoProfile -Command "$p='%REPO%\KGV.Maui\bin\Release\net10.0-android\publish';(Get-ChildItem $p -Filter '*.apk'^|sort LastWriteTime -desc^|select -First 1).FullName"') do set "APK_FILE=%%I"
-for /f "delims=" %%I in ('powershell -NoProfile -Command "$p='%REPO%\KGV.Maui\bin\Release\net10.0-android\publish';(Get-ChildItem $p -Filter '*.aab'^|sort LastWriteTime -desc^|select -First 1).FullName"') do set "AAB_FILE=%%I"
+set "APK_FILE="
+set "AAB_FILE="
+for %%F in ("%REPO%\KGV.Maui\bin\Release\net10.0-android\publish\*-Signed.apk") do set "APK_FILE=%%~fF"
+for %%F in ("%REPO%\KGV.Maui\bin\Release\net10.0-android\publish\*-Signed.aab") do set "AAB_FILE=%%~fF"
 if not defined APK_FILE goto BUILD_FAILED
 if not defined AAB_FILE goto BUILD_FAILED
 copy /Y "%APK_FILE%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.apk" >nul || goto BUILD_FAILED
