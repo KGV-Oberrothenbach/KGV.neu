@@ -34,6 +34,13 @@ public sealed class VereinsauswahlPage : ContentPage
             VerticalOptions = LayoutOptions.Center,
             Children =
             {
+                new Image
+                {
+                    Source = "kgv_neutral_logo.png",
+                    HeightRequest = 132,
+                    Aspect = Aspect.AspectFit,
+                    HorizontalOptions = LayoutOptions.Center
+                },
                 new Label { Text = "Verein auswählen", FontSize = 24, FontAttributes = FontAttributes.Bold },
                 new Label { Text = "Gib zuerst die Vereins-ID ein. Erst danach ist eine Anmeldung möglich." },
                 _codeEntry,

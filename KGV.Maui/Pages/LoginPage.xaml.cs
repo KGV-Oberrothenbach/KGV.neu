@@ -19,7 +19,9 @@ namespace KGV.Maui.Pages;
 
 public class LoginPage : ContentPage
 {
-    private const string LogoImageSource = "kgv_logo.png";
+    private const string NeutralLogoImageSource = "kgv_neutral_logo.png";
+    private const string DemoLogoImageSource = "kgv_neutral_demo_logo.png";
+    private const string OberrothenbachWappenImageSource = "kgv_logo.png";
 
     private readonly IAuthService _authService;
     private readonly ISupabaseService _supabaseService;
@@ -57,7 +59,7 @@ public class LoginPage : ContentPage
         _copyOtpDiagnosticButton.Clicked += async (_, _) => await CopyOtpDiagnosticCodeAsync();
         var logoImage = new Image
         {
-            Source = LogoImageSource,
+            Source = ResolveLogoImageSource(),
             HeightRequest = 120,
             Aspect = Aspect.AspectFit,
             HorizontalOptions = LayoutOptions.Center,
@@ -369,6 +371,20 @@ public class LoginPage : ContentPage
         return string.IsNullOrWhiteSpace(build)
             ? $"Version {version}"
             : $"Version {version} (Build {build})";
+    }
+
+    private string ResolveLogoImageSource()
+    {
+        var code = _vereinskontext.Aktuell?.VereinsCode;
+        if (string.Equals(code, "KGV-DEMO", StringComparison.OrdinalIgnoreCase))
+            return DemoLogoImageSource;
+
+        // Das vorhandene Wappen bleibt nur für den derzeit bekannten Produktionsverein.
+        // Weitere Vereinswappen werden im nächsten Block über eine Registry-URL eingebunden.
+        if (string.Equals(code, "KGV-OBERROTHENBACH", StringComparison.OrdinalIgnoreCase))
+            return OberrothenbachWappenImageSource;
+
+        return NeutralLogoImageSource;
     }
 
     private async void OnLoginClicked(object? sender, EventArgs e)

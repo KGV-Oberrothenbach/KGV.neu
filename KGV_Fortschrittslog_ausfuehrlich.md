@@ -694,3 +694,7 @@ Für die tägliche Arbeit reicht diese Fassung in der Regel aus, weil sie die fo
 - Die Anmeldung wurde auf einen vorgeschalteten Vereinskontext vorbereitet: Vereins-ID wird über das zentrale Register per eingeschränkter RPC aufgelöst; erst dann wird der normale Login aufgebaut.
 - Der gespeicherte Kontext enthält nur Vereinskennung, Anzeigeinformationen und die für den jeweiligen Supabase-Client erforderliche URL samt Publishable Key. Rollen, Tokens und Mitgliedsdaten bleiben weiterhin ausschließlich im Zielverein.
 - WPF bleibt auf ausdrückliche Vorgabe unverändert. Der nächste technische Block umfasst Wechsel/Abmeldung und Biometrie, bevor ein produktiver Rollout erfolgen kann.
+## 2026-09-23 - Neutrales App-Logo und Demo-Stempel
+
+- Für die vereinsneutrale App-Identität wurden ein neutrales Garten-/Parzellen-Logo und eine dazugehörige, diagonal gestempelte Demo-Variante erzeugt und als MAUI-Bildressourcen aufgenommen.
+- Vor der Vereinsauflösung bleibt die App neutral. Nach erfolgreicher Zuordnung wird für KGV-DEMO sichtbar die DEMO-Variante verwendet; der bekannte Produktionsverein verwendet weiterhin sein vorhandenes Wappen.

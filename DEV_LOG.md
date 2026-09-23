@@ -12014,3 +12014,8 @@ Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implement
 - Die Registry wird ausschließlich über die RPC `resolve_vereinscode` angesprochen. Der aufgelöste aktive Vereinskontext (Verein, URL, Publishable Key) wird lokal gespeichert und beim App-Neustart wiederhergestellt.
 - Der Supabase-Client und der Uploadpfad erhalten URL und Publishable Key aus dem gewählten Vereinskontext. WPF-Dateien wurden ausdrücklich nicht verändert.
 - Offener Folgeschritt: koordinierter Vereinswechsel nach einer bestehenden Sitzung sowie biometrisches Entsperren werden erst in separaten, getesteten Blöcken ergänzt.
+## 2026-09-23 - Neutrales MAUI-Branding und Demo-Kennzeichnung
+
+- Neutrales Garten-/Parzellen-Logo als neue App-Ressource ergänzt; die Vereinsauswahl zeigt immer dieses neutrale Motiv.
+- Der Demo-Verein erhält im Login automatisch die Stempelvariante `DEMO`. Für KGV Oberrothenbach bleibt das vorhandene Wappen sichtbar; unbekannte künftige Vereine fallen sicher auf das neutrale Motiv zurück.
+- Eine vollständige dynamische Wappenversorgung weiterer Vereine benötigt als nächsten Schritt eine freigegebene Wappen-URL im Vereinsregister.
