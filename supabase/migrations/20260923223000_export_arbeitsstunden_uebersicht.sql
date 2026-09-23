@@ -47,7 +47,7 @@ as $$
       on z.hauptmitglied_id = b.mitglied_id
       and z.gueltig_ab <= make_date(b.jahr, 12, 31)
       and (z.gueltig_bis is null or z.gueltig_bis >= make_date(b.jahr, 1, 1))
-    left join public.wartungsvertrag w on w.id = z.wartungsvertrag_id
+    left join public.wartungsvertraege w on w.id = z.wartungsvertrag_id
     group by b.mitglied_id, b.nachname, b.vorname, b.jahr, b.pflichtstunden_soll,
       b.geleistete_stunden, b.offene_stunden, b.hat_wartungsvertrag, b.regelgrund
   )
