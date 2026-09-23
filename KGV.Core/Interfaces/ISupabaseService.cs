@@ -64,6 +64,7 @@ namespace KGV.Core.Interfaces
         Task<bool> RemoveAblesungImPruefprozessAsync(long ablesungId, string begruendung, int geprueftVon, DateTime? geprueftAm = null);
         Task<bool> GetAllowUserMeterReadingSubmissionsAsync();
         Task<bool> SetAllowUserMeterReadingSubmissionsAsync(bool allowed);
+        Task<bool> GetMeterReadingPhotoRequiredAsync();
         Task<UserPermissionSettings?> GetUserPermissionSettingsAsync(int mitgliedId);
         Task<bool> SetAppUserRoleAsync(int mitgliedId, string role);
         Task<bool> SetUserPermissionSettingsAsync(int mitgliedId, string role, long grantedPermissions, long revokedPermissions);

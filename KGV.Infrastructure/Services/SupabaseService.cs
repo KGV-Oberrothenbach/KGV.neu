@@ -26,6 +26,7 @@ namespace KGV.Infrastructure.Services
     {
         private const string DokumentUploadFunctionName = "kgv-upload-document";
         private const string AllowUserMeterReadingSubmissionsSettingKey = "allow_user_meter_reading_submissions";
+        private const string MeterReadingPhotoRequiredSettingKey = "meter_reading_photo_required";
         private readonly ISupabaseClientFactory _clientFactory;
         private readonly ILogger<SupabaseService>? _logger;
         private readonly Func<UserContext?>? _currentUserContextAccessor;
@@ -1081,6 +1082,21 @@ namespace KGV.Infrastructure.Services
                 return true;
             },
             false);
+
+        public Task<bool> GetMeterReadingPhotoRequiredAsync() => ExecuteAsync(
+            "GetMeterReadingPhotoRequiredAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<AppSettingRecord>()
+                    .Where(x => x.SettingKey == MeterReadingPhotoRequiredSettingKey)
+                    .Get();
+
+                // A missing or unavailable configuration must never weaken the production rule.
+                return response?.Models?.FirstOrDefault()?.BoolValue ?? true;
+            },
+            true);
 
         public Task<UserPermissionSettings?> GetUserPermissionSettingsAsync(int mitgliedId) => ExecuteAsync<UserPermissionSettings?>(
             "GetUserPermissionSettingsAsync",

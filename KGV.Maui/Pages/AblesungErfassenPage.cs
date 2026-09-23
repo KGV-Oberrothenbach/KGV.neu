@@ -51,6 +51,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
     private bool _isPendingInitialFlow;
     private bool _hasRequestedFallbackContext;
     private bool _allowUserMeterReadingSubmissions;
+    private bool _meterReadingPhotoRequired = true;
     private string _currentArt = AblesungArt.Normal;
     private string _requestedArt = AblesungArt.Normal;
     private int? _requestedParzelleId;
@@ -201,6 +202,8 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         }
 
         _allowUserMeterReadingSubmissions = await TryLoadAllowUserMeterReadingSubmissionsAsync();
+        _meterReadingPhotoRequired = await TryLoadMeterReadingPhotoRequiredAsync();
+        UpdatePhotoHint();
 
         if (IsOwnSubmissionMode && !_allowUserMeterReadingSubmissions)
         {
@@ -310,13 +313,13 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         {
             _flowHintLabel.Text = _currentArt switch
             {
-                AblesungArt.Einbau => "Bitte Anfangsstand und Foto erfassen. Der Zähler selbst wurde bereits angelegt; jetzt folgt separat die Anfangsablesung.",
+                AblesungArt.Einbau => $"Bitte Anfangsstand und {PhotoRequirementText} erfassen. Der Zähler selbst wurde bereits angelegt; jetzt folgt separat die Anfangsablesung.",
                 AblesungArt.JahresEnde => IsOwnSubmissionMode
-                    ? "Bitte Jahresendstand und Foto erfassen. Die JEA wird als Einreichung gespeichert und zunächst geprüft."
-                    : "Bitte Jahresendstand und Foto erfassen. Die Ablesung wird eindeutig mit `Art = jea` gespeichert.",
+                    ? $"Bitte Jahresendstand und {PhotoRequirementText} erfassen. Die JEA wird als Einreichung gespeichert und zunächst geprüft."
+                    : $"Bitte Jahresendstand und {PhotoRequirementText} erfassen. Die Ablesung wird eindeutig mit `Art = jea` gespeichert.",
                 _ => IsOwnSubmissionMode
-                    ? "Bitte aktuelle Ablesung und Foto erfassen. Eigene Nutzer-Ablesungen werden als Einreichung gespeichert und zunächst nicht direkt freigegeben."
-                    : "Bitte aktuelle Ablesung und Foto erfassen. Berechtigte Rollen speichern normale Ablesungen weiterhin direkt freigegeben mit `Art = normal`."
+                    ? $"Bitte aktuelle Ablesung und {PhotoRequirementText} erfassen. Eigene Nutzer-Ablesungen werden als Einreichung gespeichert und zunächst nicht direkt freigegeben."
+                    : $"Bitte aktuelle Ablesung und {PhotoRequirementText} erfassen. Berechtigte Rollen speichern normale Ablesungen weiterhin direkt freigegeben mit `Art = normal`."
             };
             _decisionSection.IsVisible = false;
             _formSection.IsVisible = true;
@@ -394,7 +397,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         _selectedPhotoContent = null;
         _selectedPhotoFileName = string.Empty;
         _selectedPhotoContentType = "application/octet-stream";
-        _photoLabel.Text = "Noch kein Foto gewählt.";
+        UpdatePhotoHint();
     }
 
     private async void OnSaveClicked(object? sender, EventArgs e)
@@ -421,7 +424,8 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
             return;
         }
 
-        if (_selectedPhotoContent == null || _selectedPhotoContent.Length == 0)
+        var hasPhoto = _selectedPhotoContent is { Length: > 0 };
+        if (_meterReadingPhotoRequired && !hasPhoto)
         {
             await DisplayAlert("Validierung", "Bitte zuerst ein Foto aufnehmen oder übernehmen.", "OK");
             return;
@@ -434,58 +438,49 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         {
             var context = _activeResolution.Context;
 
-            var operationType = MapPhotoKind(_currentArt);
-            var pending = _pendingPhotoService.SaveAndEnqueue(
-                _selectedPhotoContent ?? Array.Empty<byte>(),
-                operationType,
-                context.ParzelleDisplayName,
-                NormalizeMedium(context.Medium),
-                _selectedPhotoContentType);
-
-            byte[]? pendingContent = null;
-            if (!_pendingPhotoService.TryLoadContent(pending, out pendingContent) || pendingContent is not { Length: > 0 })
+            PhotoUploadTestResult? photoResult = null;
+            if (hasPhoto)
             {
-                _pendingPhotoService.MarkFailed(pending, "PENDING_FILE_READ_FAIL");
-                _statusLabel.Text = "Das Foto konnte lokal nicht vorbereitet werden.";
-                return;
+                var operationType = MapPhotoKind(_currentArt);
+                var pending = _pendingPhotoService.SaveAndEnqueue(
+                    _selectedPhotoContent!, operationType, context.ParzelleDisplayName,
+                    NormalizeMedium(context.Medium), _selectedPhotoContentType);
+
+                if (!_pendingPhotoService.TryLoadContent(pending, out var pendingContent) || pendingContent is not { Length: > 0 })
+                {
+                    _pendingPhotoService.MarkFailed(pending, "PENDING_FILE_READ_FAIL");
+                    _statusLabel.Text = "Das Foto konnte lokal nicht vorbereitet werden.";
+                    return;
+                }
+
+                if (!PendingPhotoUploadDecision.CanUploadNow(out _))
+                {
+                    _statusLabel.Text = PhotoUploadPreferences.WifiOnly
+                        ? "Foto wurde lokal gespeichert und wird automatisch bei WLAN hochgeladen."
+                        : "Foto wurde lokal gespeichert und wird automatisch hochgeladen, sobald wieder Internet verfügbar ist.";
+                    return;
+                }
+
+                photoResult = await _photoUploadService.UploadAsync(new PhotoUploadTestRequest
+                {
+                    FileName = pending.FileName, ContentType = pending.ContentType, FileContent = pendingContent,
+                    Kind = operationType, Medium = NormalizeMedium(context.Medium),
+                    Anlage = context.Anlage?.Trim() ?? string.Empty, Garten = context.GartenNr?.Trim() ?? string.Empty,
+                    Zaehlernummer = string.IsNullOrWhiteSpace(context.Zaehlernummer) ? null : context.Zaehlernummer.Trim(),
+                    Datum = _ablesedatumPicker.Date!.Value
+                });
+
+                if (!photoResult.Success || string.IsNullOrWhiteSpace(photoResult.RelativePath))
+                {
+                    _pendingPhotoService.MarkFailed(pending, photoResult.DiagnosticCode ?? "UPLOAD_FAILED");
+                    var message = string.IsNullOrWhiteSpace(photoResult.ErrorSummary) ? "Das Foto konnte nicht hochgeladen werden." : photoResult.ErrorSummary;
+                    if (!string.IsNullOrWhiteSpace(photoResult.RequestId)) message = $"{message}{Environment.NewLine}Support-ID: {photoResult.RequestId}";
+                    _statusLabel.Text = message;
+                    return;
+                }
+
+                _pendingPhotoService.MarkUploadedAndDeleteLocal(pending);
             }
-
-            if (!PendingPhotoUploadDecision.CanUploadNow(out _))
-            {
-                _statusLabel.Text = PhotoUploadPreferences.WifiOnly
-                    ? "Foto wurde lokal gespeichert und wird automatisch bei WLAN hochgeladen."
-                    : "Foto wurde lokal gespeichert und wird automatisch hochgeladen, sobald wieder Internet verfügbar ist.";
-                return;
-            }
-
-            var photoResult = await _photoUploadService.UploadAsync(new PhotoUploadTestRequest
-            {
-                FileName = pending.FileName,
-                ContentType = pending.ContentType,
-                FileContent = pendingContent,
-                Kind = operationType,
-                Medium = NormalizeMedium(context.Medium),
-                Anlage = context.Anlage?.Trim() ?? string.Empty,
-                Garten = context.GartenNr?.Trim() ?? string.Empty,
-                Zaehlernummer = string.IsNullOrWhiteSpace(context.Zaehlernummer) ? null : context.Zaehlernummer.Trim(),
-                Datum = _ablesedatumPicker.Date!.Value
-            });
-
-            if (!photoResult.Success || string.IsNullOrWhiteSpace(photoResult.RelativePath))
-            {
-                _pendingPhotoService.MarkFailed(pending, photoResult.DiagnosticCode ?? "UPLOAD_FAILED");
-                var message = string.IsNullOrWhiteSpace(photoResult.ErrorSummary)
-                    ? "Das Foto konnte nicht hochgeladen werden."
-                    : photoResult.ErrorSummary;
-
-                if (!string.IsNullOrWhiteSpace(photoResult.RequestId))
-                    message = $"{message}{Environment.NewLine}Support-ID: {photoResult.RequestId}";
-
-                _statusLabel.Text = message;
-                return;
-            }
-
-            _pendingPhotoService.MarkUploadedAndDeleteLocal(pending);
 
             var savesAsSubmission = IsOwnSubmissionMode && !IsDirectApprovalMode;
 
@@ -495,9 +490,9 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
                 Ablesedatum = _ablesedatumPicker.Date!.Value,
                 Stand = stand,
                 Art = _currentArt,
-                FotoPfad = photoResult.RelativePath,
-                FotoDateiname = string.IsNullOrWhiteSpace(photoResult.FileName) ? null : photoResult.FileName,
-                FotoDriveFileId = string.IsNullOrWhiteSpace(photoResult.FileId) ? null : photoResult.FileId,
+                FotoPfad = photoResult?.RelativePath,
+                FotoDateiname = string.IsNullOrWhiteSpace(photoResult?.FileName) ? null : photoResult.FileName,
+                FotoDriveFileId = string.IsNullOrWhiteSpace(photoResult?.FileId) ? null : photoResult.FileId,
                 Freigegeben = !savesAsSubmission,
                 Pruefstatus = savesAsSubmission ? AblesungPruefstatus.Eingereicht : AblesungPruefstatus.Freigegeben
             });
@@ -588,6 +583,20 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         {
             return false;
         }
+    }
+
+    private async Task<bool> TryLoadMeterReadingPhotoRequiredAsync()
+    {
+        try { return await _supabaseService.GetMeterReadingPhotoRequiredAsync(); }
+        catch { return true; }
+    }
+
+    private string PhotoRequirementText => _meterReadingPhotoRequired ? "ein Foto" : "optional ein Foto";
+
+    private void UpdatePhotoHint()
+    {
+        if (_selectedPhotoContent is not { Length: > 0 })
+            _photoLabel.Text = _meterReadingPhotoRequired ? "Noch kein Foto gewählt." : "Kein Foto gewählt (in dieser Demo optional).";
     }
 
     private View CreateFallbackSection()
