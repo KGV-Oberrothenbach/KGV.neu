@@ -26,6 +26,8 @@ public sealed class VereinsauswahlPage : ContentPage
 
         var continueButton = new Button { Text = "Verein bestätigen", FontAttributes = FontAttributes.Bold, Padding = new Thickness(16, 12) };
         continueButton.Clicked += async (_, _) => await ResolveAndContinueAsync(continueButton);
+        var scanButton = new Button { Text = "QR-Code scannen" };
+        scanButton.Clicked += async (_, _) => await ScanQrCodeAsync(continueButton);
 
         Content = new VerticalStackLayout
         {
@@ -45,9 +47,19 @@ public sealed class VereinsauswahlPage : ContentPage
                 new Label { Text = "Gib zuerst die Vereins-ID ein. Erst danach ist eine Anmeldung möglich." },
                 _codeEntry,
                 continueButton,
+                scanButton,
                 _status
             }
         };
+    }
+
+    private async Task ScanQrCodeAsync(Button continueButton)
+    {
+        await Navigation.PushModalAsync(new VereinsQrScannerPage(async code =>
+        {
+            _codeEntry.Text = code;
+            await ResolveAndContinueAsync(continueButton);
+        }));
     }
 
     private async Task ResolveAndContinueAsync(Button continueButton)

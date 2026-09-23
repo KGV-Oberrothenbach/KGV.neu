@@ -20,6 +20,7 @@ using Microsoft.Maui.Storage;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+using ZXing.Net.Maui.Controls;
 
 namespace KGV.Maui;
 
@@ -47,6 +48,7 @@ public static class MauiProgram
             RunStartupStep("USE_MAUI_APP_MINIMAL", () =>
             {
                 builder.UseMauiApp<App>();
+                builder.UseBarcodeReader();
             });
             useMauiAppCompleted = true;
 
