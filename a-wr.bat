@@ -28,7 +28,7 @@ if exist "%REPO%\KGV.Maui\obj" rmdir /s /q "%REPO%\KGV.Maui\obj"
 
 echo.
 echo Lese aktuelle Version und Android Target SDK...
-for /f "tokens=1,2,3 delims=|" %%A in ('powershell -NoProfile -Command "$x=[xml](Get-Content '%MAUI_CSPROJ%');$g=@($x.Project.PropertyGroup^|?{$_.ApplicationDisplayVersion -or $_.ApplicationVersion -or $_.AndroidTargetSdkVersion});$d=($g^|%%{if($_.ApplicationDisplayVersion){$_.ApplicationDisplayVersion}}^|select -First 1);$c=($g^|%%{if($_.ApplicationVersion){[int]$_.ApplicationVersion}}^|measure -Maximum).Maximum;$s=($g^|%%{if($_.AndroidTargetSdkVersion){$_.AndroidTargetSdkVersion}}^|select -First 1);Write-Output ($d+'|'+$c+'|'+$s)"') do (
+for /f "tokens=1,2,3 delims=|" %%A in ('powershell -NoProfile -Command "$x=[xml](Get-Content '%MAUI_CSPROJ%');$d='';$c=0;$s='';foreach($p in $x.Project.PropertyGroup){if($p.ApplicationDisplayVersion -and -not $d){$d=[string]$p.ApplicationDisplayVersion};if($p.ApplicationVersion -and [int]$p.ApplicationVersion -gt $c){$c=[int]$p.ApplicationVersion};if($p.AndroidTargetSdkVersion -and -not $s){$s=[string]$p.AndroidTargetSdkVersion}};Write-Output ($d+'|'+$c+'|'+$s)"') do (
   set "CUR_MAUI_DISPLAY=%%A"
   set "CUR_MAUI_CODE=%%B"
   set "ANDROID_TARGET_SDK=%%C"
@@ -43,8 +43,14 @@ echo Aktuelles Android Target SDK: %ANDROID_TARGET_SDK%
 echo.
 set /p TARGET_VERSION=MAUI Zielversion eingeben (z. B. 0.2.10):
 if "%TARGET_VERSION%"=="" (echo FEHLER: Keine Zielversion eingegeben.& exit /b 1)
-powershell -NoProfile -Command "$v='%TARGET_VERSION%';if($v -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$'){exit 1}"
-if errorlevel 1 (echo FEHLER: Zielversion muss 3 oder 4 numerische Teile haben.& exit /b 1)
+for /f "tokens=1-4 delims=." %%A in ("%TARGET_VERSION%") do (
+  set "VERSION_PART_1=%%A"
+  set "VERSION_PART_2=%%B"
+  set "VERSION_PART_3=%%C"
+)
+if not defined VERSION_PART_1 (echo FEHLER: Zielversion muss mindestens 3 Teile haben, z. B. 0.7.2.& exit /b 1)
+if not defined VERSION_PART_2 (echo FEHLER: Zielversion muss mindestens 3 Teile haben, z. B. 0.7.2.& exit /b 1)
+if not defined VERSION_PART_3 (echo FEHLER: Zielversion muss mindestens 3 Teile haben, z. B. 0.7.2.& exit /b 1)
 
 set /a NEW_ANDROID_CODE=%CUR_MAUI_CODE%+1
 set "VERSION_ROOT=%PUBLISH_ROOT%\%TARGET_VERSION%"
@@ -69,7 +75,7 @@ echo.
 choice /C JN /N /M "Release mit diesen Einstellungen starten? [J/N]: "
 if errorlevel 2 goto CANCEL_RELEASE
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$x=[xml](Get-Content '%MAUI_CSPROJ%');@($x.Project.PropertyGroup^|?{$_.ApplicationDisplayVersion -or $_.ApplicationVersion})^|%%{$_.ApplicationDisplayVersion='%TARGET_VERSION%';$_.ApplicationVersion='%NEW_ANDROID_CODE%'};$x.Save('%MAUI_CSPROJ%')"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$x=[xml](Get-Content '%MAUI_CSPROJ%');foreach($p in $x.Project.PropertyGroup){if($p.ApplicationDisplayVersion -or $p.ApplicationVersion){$p.ApplicationDisplayVersion='%TARGET_VERSION%';$p.ApplicationVersion='%NEW_ANDROID_CODE%'}};$x.Save('%MAUI_CSPROJ%')"
 if errorlevel 1 goto BUILD_FAILED
 set "KEYSTORE=%REPO%\_secrets\Android\kgv-upload.keystore"
 set "KEYALIAS=kgvupload"
@@ -118,6 +124,6 @@ exit /b 0
 
 :BUILD_FAILED
 echo FEHLER: Release fehlgeschlagen. Setze MAUI-Version zurueck...
-powershell -NoProfile -Command "$x=[xml](Get-Content '%MAUI_CSPROJ%');@($x.Project.PropertyGroup^|?{$_.ApplicationDisplayVersion -or $_.ApplicationVersion})^|%%{$_.ApplicationDisplayVersion='%ORIGINAL_MAUI_DISPLAY%';$_.ApplicationVersion='%ORIGINAL_MAUI_CODE%'};$x.Save('%MAUI_CSPROJ%')"
+powershell -NoProfile -Command "$x=[xml](Get-Content '%MAUI_CSPROJ%');foreach($p in $x.Project.PropertyGroup){if($p.ApplicationDisplayVersion -or $p.ApplicationVersion){$p.ApplicationDisplayVersion='%ORIGINAL_MAUI_DISPLAY%';$p.ApplicationVersion='%ORIGINAL_MAUI_CODE%'}};$x.Save('%MAUI_CSPROJ%')"
 set "STOREPASS="
 exit /b 1
