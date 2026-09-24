@@ -285,6 +285,10 @@ namespace KGV.Maui.ViewModels
                 return;
 
             var mapped = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            var isArbeitsstundenUebersicht = string.Equals(
+                SelectedDefinition.ExportKey,
+                "arbeitsstunden_uebersicht",
+                StringComparison.OrdinalIgnoreCase);
 
             foreach (var f in Filters)
             {
@@ -311,14 +315,29 @@ namespace KGV.Maui.ViewModels
                         val = ts;
                 }
 
-                string paramName = key.ToLowerInvariant() switch
-                {
-                    "sortierung" => "p_sortierung",
-                    "aktiv_filter" => "p_aktiv_filter",
-                    "anlage_filter" => "p_anlage_filter",
-                    "status_filter" => "p_status_filter",
-                    _ => key.EndsWith("_filter", StringComparison.OrdinalIgnoreCase) ? "p_" + key : key
-                };
+                string paramName = isArbeitsstundenUebersicht
+                    ? key.ToLowerInvariant() switch
+                    {
+                        "jahr" => "p_jahr",
+                        "stunden_offen" => "p_stunden_offen",
+                        "stunden_fertig" => "p_stunden_fertig",
+                        "wartungsvertraege" => "p_wartungsvertraege",
+                        _ => key
+                    }
+                    : key.ToLowerInvariant() switch
+                    {
+                        "sortierung" => "p_sortierung",
+                        "aktiv_filter" => "p_aktiv_filter",
+                        "anlage_filter" => "p_anlage_filter",
+                        "status_filter" => "p_status_filter",
+                        _ => key.EndsWith("_filter", StringComparison.OrdinalIgnoreCase) ? "p_" + key : key
+                    };
+
+                if (paramName == "p_jahr" && val is string jahrText && int.TryParse(jahrText, out var jahr))
+                    val = jahr;
+
+                if (paramName is "p_stunden_offen" or "p_stunden_fertig" or "p_wartungsvertraege" && val == null)
+                    val = false;
 
                 mapped[paramName] = val;
             }
@@ -364,10 +383,6 @@ namespace KGV.Maui.ViewModels
                         minimalParams[kv.Key] = kv.Value;
                     }
                 }
-                var isArbeitsstundenUebersicht = string.Equals(
-                    SelectedDefinition?.ExportKey,
-                    "arbeitsstunden_uebersicht",
-                    StringComparison.OrdinalIgnoreCase);
                 var keysToRemove = minimalParams.Keys.Where(k =>
                     !isArbeitsstundenUebersicht &&
                     k != null &&
