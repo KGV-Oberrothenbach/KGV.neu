@@ -464,6 +464,28 @@ namespace KGV.Core.Utilities
                     return s2;
             }
 
+            if (string.Equals(exportKey, "jahresablesung_status", StringComparison.OrdinalIgnoreCase))
+            {
+                var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    { "jahr", "Saison" },
+                    { "parzelle", "Garten Nr." },
+                    { "medium", "Medium" },
+                    { "zaehlernummer", "Zähler" },
+                    { "status", "JEA-Status" },
+                    { "jae_ablesedatum", "JEA-Datum" },
+                    { "jae_stand", "JEA-Stand" },
+                    { "pruefstatus", "Prüfung" },
+                    { "pachtbezug", "Pächter" },
+                    { "pachtwechsel_im_jahr", "Wechsel" }
+                };
+
+                if (!string.IsNullOrWhiteSpace(col.ColumnKey) && map.TryGetValue(col.ColumnKey, out var s))
+                    return s;
+                if (!string.IsNullOrWhiteSpace(col.Label) && map.TryGetValue(col.Label, out var s2))
+                    return s2;
+            }
+
             return col.Label ?? col.ColumnKey ?? string.Empty;
         }
 
