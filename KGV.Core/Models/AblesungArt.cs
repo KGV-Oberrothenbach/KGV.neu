@@ -22,4 +22,15 @@ public static class AblesungArt
             _ => Normal
         };
     }
+
+    public static string ToDatabaseValue(string? value)
+    {
+        return Normalize(value) switch
+        {
+            JahresEnde => "JEA",
+            PachtAnfang => "PA",
+            PachtEnde => "PE",
+            var normalized => normalized
+        };
+    }
 }

@@ -127,9 +127,11 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
             "RFID-Scan",
             nfcStatusTitleLabel,
             nfcStatusMessageLabel,
-            new HorizontalStackLayout
+            new FlexLayout
             {
-                Spacing = 8,
+                Direction = FlexDirection.Row,
+                Wrap = FlexWrap.Wrap,
+                AlignItems = FlexAlignItems.Center,
                 Children = { startScanButton, openNfcSettingsButton, _resetButton }
             });
 
@@ -153,9 +155,11 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
                     Spacing = 8,
                     Children =
                     {
-                        new HorizontalStackLayout
+                        new FlexLayout
                         {
-                            Spacing = 8,
+                            Direction = FlexDirection.Row,
+                            Wrap = FlexWrap.Wrap,
+                            AlignItems = FlexAlignItems.Center,
                             Children = { _capturePhotoButton, _pickPhotoButton, _clearPhotoButton }
                         },
                         _photoLabel

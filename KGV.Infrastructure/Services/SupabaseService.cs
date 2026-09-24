@@ -1825,7 +1825,8 @@ namespace KGV.Infrastructure.Services
                     ZaehlerId = request.ZaehlerId,
                     Ablesedatum = NormalizeDateTime(request.Ablesedatum),
                     Stand = request.Stand,
-                    Art = AblesungArt.Normalize(request.Art),
+                    // The PostgreSQL enum has legacy uppercase values for these reading types.
+                    Art = AblesungArt.ToDatabaseValue(request.Art),
                     Freigegeben = AblesungPruefstatus.IsFreigegeben(normalizedPruefstatus),
                     Pruefstatus = normalizedPruefstatus,
                     Pruefkommentar = CleanOptionalText(request.Pruefkommentar),
