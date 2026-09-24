@@ -338,6 +338,10 @@ public sealed class ExportPage : ContentPage
             if (string.Equals(f.Typ, "select", StringComparison.OrdinalIgnoreCase))
             {
                 var picker = new Picker { Title = f.Label ?? filterKey };
+                // Android's native Picker can omit labels when they are obtained through a
+                // reflected ItemDisplayBinding on a generated record. Keep the values in
+                // OptionItem, but provide the native control an explicit string list.
+                var optionItems = new List<OptionItem>();
 
                 if (f.OptionenJson != null && f.OptionenJson.Type != JTokenType.Null)
                 {
@@ -345,7 +349,6 @@ public sealed class ExportPage : ContentPage
                     {
                         try
                         {
-                            var optionItems = new List<OptionItem>();
                             var jt = f.OptionenJson;
 
                             if (jt.Type == JTokenType.Array)
@@ -462,8 +465,7 @@ public sealed class ExportPage : ContentPage
 
                             await MainThread.InvokeOnMainThreadAsync(() =>
                             {
-                                picker.ItemDisplayBinding = new Binding("Label");
-                                picker.ItemsSource = optionItems;
+                                picker.ItemsSource = optionItems.Select(item => item.Label).ToList();
 
                                 if (optionItems.Count > 0)
                                     picker.SelectedIndex = 0;
@@ -485,7 +487,9 @@ public sealed class ExportPage : ContentPage
 
                 picker.SelectedIndexChanged += (_, _) =>
                 {
-                    var sel = picker.SelectedItem as OptionItem;
+                    var sel = picker.SelectedIndex >= 0 && picker.SelectedIndex < optionItems.Count
+                        ? optionItems[picker.SelectedIndex]
+                        : null;
                     string? rawVal = sel?.Value;
                     object? finalVal = rawVal;
 
