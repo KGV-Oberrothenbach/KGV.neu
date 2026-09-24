@@ -440,7 +440,23 @@ public class LoginPage : ContentPage
             AppSettings.Save();
             var biometricTokens = await _authService.GetSessionTokensAsync();
             if (biometricTokens != null && _vereinskontext.Aktuell?.VereinId is { } clubId)
-                await _biometricSessionStore.SaveAsync(clubId.ToString(), biometricTokens);
+            {
+                var clubIdText = clubId.ToString();
+                var alreadyEnabled = await _biometricSessionStore.GetAsync(clubIdText) != null;
+                if (!alreadyEnabled && await _biometricAuthenticationService.IsAvailableAsync())
+                {
+                    var enableBiometrics = await DisplayAlert(
+                        "Fingerabdruck-Anmeldung aktivieren?",
+                        "Beim nächsten Start kannst du dich auf diesem Gerät mit deinem Fingerabdruck anmelden. Die Anmeldedaten werden geschützt auf dem Gerät gespeichert.",
+                        "Aktivieren",
+                        "Nicht jetzt");
+
+                    if (enableBiometrics)
+                        await _biometricSessionStore.SaveAsync(clubIdText, biometricTokens);
+                    else
+                        _biometricSessionStore.Clear();
+                }
+            }
 
             if (string.IsNullOrWhiteSpace(_authService.CurrentUserId) || !Guid.TryParse(_authService.CurrentUserId, out var userId))
             {
