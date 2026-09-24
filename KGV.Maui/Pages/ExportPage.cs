@@ -18,7 +18,7 @@ namespace KGV.Maui.Pages;
 
 public sealed class ExportPage : ContentPage
 {
-    private record OptionItem(string Label, string? Value);
+    public sealed record OptionItem(string Label, string? Value);
 
     private readonly ExportViewModel _vm;
     private readonly UserContextState _userContextState;
