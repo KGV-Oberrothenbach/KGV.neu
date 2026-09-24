@@ -769,12 +769,11 @@ public sealed class ExportPage : ContentPage
             }
 
             var filePath = await _vm.ExportToPdfAsync();
-            _statusLabel.Text = $"PDF erzeugt: {filePath}";
-            await Share.Default.RequestAsync(new ShareFileRequest
-            {
-                Title = "Export (PDF) teilen",
-                File = new ShareFile(filePath)
-            });
+            var opened = await Launcher.Default.OpenAsync(
+                new OpenFileRequest("Arbeitsstundenübersicht", new ReadOnlyFile(filePath)));
+            _statusLabel.Text = opened
+                ? "PDF wurde geöffnet."
+                : $"PDF erzeugt, konnte aber nicht geöffnet werden: {filePath}";
         }
         catch (Exception ex)
         {
