@@ -514,8 +514,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
                             : "Ablesung gespeichert.";
 
             await DisplayAlert("OK", successMessage, "OK");
-            _workflowState.Clear();
-            await Shell.Current.GoToAsync("//ablesen");
+            await ResetAndRestartScanAsync(clearWorkflow: true);
         }
         catch (Exception ex)
         {
