@@ -38,6 +38,7 @@ public class LoginPage : ContentPage
     private readonly Label _otpDiagnosticLabel;
     private readonly Button _copyOtpDiagnosticButton;
     private string? _lastOtpDiagnosticCode;
+    private bool _biometricPromptStarted;
 
     public LoginPage(
         IAuthService authService,
@@ -108,7 +109,6 @@ public class LoginPage : ContentPage
             Padding = new Thickness(16, 12),
             FontAttributes = FontAttributes.Bold
         };
-        var biometricLoginButton = new Button { Text = "Mit Fingerabdruck anmelden", IsVisible = false };
         var versionLabel = new Label
         {
             Text = BuildVersionText(),
@@ -124,8 +124,7 @@ public class LoginPage : ContentPage
         var forgotPasswordButton = new Button { Text = "Passwort vergessen" };
         var changeClubButton = new Button { Text = "Anderen Verein auswählen" };
         changeClubButton.Clicked += async (_, _) => await ChangeClubAsync();
-        Loaded += async (_, _) => biometricLoginButton.IsVisible = await CanUseBiometricLoginAsync();
-        biometricLoginButton.Clicked += async (_, _) => await LoginWithBiometricsAsync();
+        Loaded += async (_, _) => await StartBiometricLoginIfAvailableAsync();
 
         void UpdatePasswordHintState()
         {
@@ -354,7 +353,6 @@ public class LoginPage : ContentPage
                 _emailEntry,
                 passwordField,
                 loginButton,
-                biometricLoginButton,
                 requestOtpButton,
                 forgotPasswordButton,
                 changeClubButton,
@@ -518,6 +516,15 @@ public class LoginPage : ContentPage
         => _vereinskontext.Aktuell?.VereinId is { } clubId
            && await _biometricSessionStore.GetAsync(clubId.ToString()) != null
            && await _biometricAuthenticationService.IsAvailableAsync();
+
+    private async Task StartBiometricLoginIfAvailableAsync()
+    {
+        if (_biometricPromptStarted || !await CanUseBiometricLoginAsync())
+            return;
+
+        _biometricPromptStarted = true;
+        await LoginWithBiometricsAsync();
+    }
 
     private async Task LoginWithBiometricsAsync()
     {
