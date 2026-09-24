@@ -146,6 +146,19 @@ namespace KGV.Infrastructure.Services
                 if (string.IsNullOrWhiteSpace(rpcName))
                     return new List<System.Collections.Generic.Dictionary<string, string>>();
 
+                // The Supabase client can expose PostgREST RPC array items as JsonElement
+                // instances whose backing document has already been disposed on Android.
+                // Read export RPCs directly so their JSON payload is materialized while the
+                // HTTP response is still alive.
+                try
+                {
+                    return await RunExportRpcViaHttpAsync(rpcName, parameters);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogDebug(ex, "Direct HTTP export RPC {Rpc} failed; falling back to the Supabase client", rpcName);
+                }
+
                 var client = await EnsureClientAsync();
                 // Log RPC call with parameter summary for diagnostics
                 try
@@ -5677,6 +5690,45 @@ namespace KGV.Infrastructure.Services
             var responseContent = await response.Content.ReadAsStringAsync();
             _logger?.LogWarning("PostgREST write failed for {RelativePath}. Status={StatusCode} Content={Content}", relativePathAndQuery, (int)response.StatusCode, responseContent);
             return false;
+        }
+
+        private async Task<List<Dictionary<string, string>>> RunExportRpcViaHttpAsync(string rpcName, object? parameters)
+        {
+            var accessToken = await _authService.GetAccessTokenAsync();
+            using var request = new HttpRequestMessage(HttpMethod.Post, BuildPostgrestUri($"rpc/{Uri.EscapeDataString(rpcName)}"));
+            request.Headers.Add("apikey", _publishableKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", string.IsNullOrWhiteSpace(accessToken) ? _publishableKey : accessToken);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            request.Content = new StringContent(JsonSerializer.Serialize(parameters ?? new { }), Encoding.UTF8, "application/json");
+
+            using var response = await _documentUploadHttpClient.SendAsync(request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException($"Export-RPC {rpcName} fehlgeschlagen ({(int)response.StatusCode}): {responseBody}");
+
+            using var document = JsonDocument.Parse(responseBody);
+            var result = new List<Dictionary<string, string>>();
+            var root = document.RootElement;
+
+            if (root.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in root.EnumerateArray())
+                    result.Add(UnwrapJsonElementToDictionary(item));
+            }
+            else if (root.ValueKind == JsonValueKind.Object)
+            {
+                result.Add(UnwrapJsonElementToDictionary(root));
+            }
+            else if (root.ValueKind != JsonValueKind.Null)
+            {
+                result.Add(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["value"] = root.ToString()
+                });
+            }
+
+            _logger?.LogInformation("Export-RPC {Rpc} returned {Count} materialized rows via HTTP", rpcName, result.Count);
+            return result;
         }
 
         private Uri BuildPostgrestUri(string relativePathAndQuery)
