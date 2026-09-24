@@ -241,6 +241,31 @@ namespace KGV.Infrastructure.Authentication
             return ExtractAccessToken(currentSession);
         }
 
+        public async Task<BiometricSessionTokens?> GetSessionTokensAsync()
+        {
+            var auth = (await GetClientAsync()).Auth;
+            var session = auth.GetType().GetProperty("CurrentSession")?.GetValue(auth);
+            var access = ExtractAccessToken(session);
+            var refresh = session?.GetType().GetProperty("RefreshToken")?.GetValue(session)?.ToString();
+            return string.IsNullOrWhiteSpace(access) || string.IsNullOrWhiteSpace(refresh) ? null : new BiometricSessionTokens(access, refresh);
+        }
+
+        public async Task<bool> RestoreSessionAsync(BiometricSessionTokens tokens)
+        {
+            if (string.IsNullOrWhiteSpace(tokens.AccessToken) || string.IsNullOrWhiteSpace(tokens.RefreshToken)) return false;
+            try
+            {
+                var auth = (await GetClientAsync()).Auth;
+                var method = auth.GetType().GetMethod("SetSession", new[] { typeof(string), typeof(string), typeof(bool) });
+                if (method == null) return false;
+                await AwaitMethodResultAsync(method.Invoke(auth, new object[] { tokens.AccessToken, tokens.RefreshToken, true }));
+                var user = auth.GetType().GetProperty("CurrentUser")?.GetValue(auth);
+                CurrentUserId = user?.GetType().GetProperty("Id")?.GetValue(user)?.ToString();
+                return !string.IsNullOrWhiteSpace(CurrentUserId);
+            }
+            catch { return false; }
+        }
+
         public async Task LogoutAsync()
         {
             try

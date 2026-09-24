@@ -46,6 +46,8 @@ namespace KGV.Core.Interfaces
         /// </summary>
         Task<Client> GetClientAsync();
         Task<string?> GetAccessTokenAsync();
+        Task<BiometricSessionTokens?> GetSessionTokensAsync();
+        Task<bool> RestoreSessionAsync(BiometricSessionTokens tokens);
         Task LogoutAsync();
 
         /// <summary>

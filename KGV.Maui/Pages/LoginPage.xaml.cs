@@ -7,6 +7,7 @@ using KGV.Maui;
 using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.State;
 using KGV.Maui.Settings;
+using KGV.Maui.Services;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
 using Microsoft.Maui;
@@ -28,6 +29,8 @@ public class LoginPage : ContentPage
     private readonly UserContextState _userContextState;
     private readonly IUserContextService _userContextService;
     private readonly IVereinskontext _vereinskontext;
+    private readonly BiometricSessionStore _biometricSessionStore;
+    private readonly IBiometricAuthenticationService _biometricAuthenticationService;
 
     private readonly Entry _emailEntry;
     private readonly Entry _passwordEntry;
@@ -41,13 +44,15 @@ public class LoginPage : ContentPage
         ISupabaseService supabaseService,
         UserContextState userContextState,
         IUserContextService userContextService,
-        IVereinskontext vereinskontext)
+        IVereinskontext vereinskontext, BiometricSessionStore biometricSessionStore, IBiometricAuthenticationService biometricAuthenticationService)
     {
         _authService = authService;
         _supabaseService = supabaseService;
         _userContextState = userContextState;
         _userContextService = userContextService;
         _vereinskontext = vereinskontext;
+        _biometricSessionStore = biometricSessionStore;
+        _biometricAuthenticationService = biometricAuthenticationService;
 
         Title = "Login";
 
@@ -103,6 +108,7 @@ public class LoginPage : ContentPage
             Padding = new Thickness(16, 12),
             FontAttributes = FontAttributes.Bold
         };
+        var biometricLoginButton = new Button { Text = "Mit Fingerabdruck anmelden", IsVisible = false };
         var versionLabel = new Label
         {
             Text = BuildVersionText(),
@@ -118,6 +124,8 @@ public class LoginPage : ContentPage
         var forgotPasswordButton = new Button { Text = "Passwort vergessen" };
         var changeClubButton = new Button { Text = "Anderen Verein auswählen" };
         changeClubButton.Clicked += async (_, _) => await ChangeClubAsync();
+        Loaded += async (_, _) => biometricLoginButton.IsVisible = await CanUseBiometricLoginAsync();
+        biometricLoginButton.Clicked += async (_, _) => await LoginWithBiometricsAsync();
 
         void UpdatePasswordHintState()
         {
@@ -346,6 +354,7 @@ public class LoginPage : ContentPage
                 _emailEntry,
                 passwordField,
                 loginButton,
+                biometricLoginButton,
                 requestOtpButton,
                 forgotPasswordButton,
                 changeClubButton,
@@ -429,6 +438,9 @@ public class LoginPage : ContentPage
 
             AppSettings.LastEmail = email;
             AppSettings.Save();
+            var biometricTokens = await _authService.GetSessionTokensAsync();
+            if (biometricTokens != null && _vereinskontext.Aktuell?.VereinId is { } clubId)
+                await _biometricSessionStore.SaveAsync(clubId.ToString(), biometricTokens);
 
             if (string.IsNullOrWhiteSpace(_authService.CurrentUserId) || !Guid.TryParse(_authService.CurrentUserId, out var userId))
             {
@@ -484,6 +496,40 @@ public class LoginPage : ContentPage
             AppFileLog.Marker("LOGIN_RESULT_FAIL");
             _statusLabel.Text = "Login fehlgeschlagen. Details im Diagnose-Log.";
         }
+    }
+
+    private async Task<bool> CanUseBiometricLoginAsync()
+        => _vereinskontext.Aktuell?.VereinId is { } clubId
+           && await _biometricSessionStore.GetAsync(clubId.ToString()) != null
+           && await _biometricAuthenticationService.IsAvailableAsync();
+
+    private async Task LoginWithBiometricsAsync()
+    {
+        _statusLabel.Text = string.Empty;
+        var clubId = _vereinskontext.Aktuell?.VereinId.ToString();
+        var tokens = await _biometricSessionStore.GetAsync(clubId);
+        if (tokens == null || !await _biometricAuthenticationService.AuthenticateAsync("Mit Fingerabdruck anmelden")) return;
+        if (!await _authService.RestoreSessionAsync(tokens))
+        {
+            _biometricSessionStore.Clear();
+            _statusLabel.Text = "Die gespeicherte Anmeldung ist nicht mehr gültig. Bitte mit Passwort anmelden.";
+            return;
+        }
+        if (!Guid.TryParse(_authService.CurrentUserId, out var userId))
+        {
+            _biometricSessionStore.Clear();
+            _statusLabel.Text = "Die gespeicherte Anmeldung ist nicht mehr gültig. Bitte mit Passwort anmelden.";
+            return;
+        }
+        var userContext = await _userContextService.GetUserContextAsync(userId);
+        if (userContext.Role == UserRole.User && userContext.MitgliedId == null) { _statusLabel.Text = "Account ist keinem Mitglied zugeordnet."; return; }
+        _userContextState.CurrentUserId = userId;
+        _userContextState.CurrentUserContext = userContext;
+        _userContextState.CurrentMitgliedId = userContext.MitgliedId;
+        _userContextState.CurrentAppMode = userContext.Role is UserRole.Admin or UserRole.Vorstand ? AppMode.Admin : AppMode.User;
+        if (userContext.MitgliedId is > 0 and <= int.MaxValue)
+            _userContextState.CurrentNebenMitgliedId = (await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync((int)userContext.MitgliedId.Value))?.Id;
+        await SwitchToUserContextAsync(userContext);
     }
 
     private static string MaskEmail(string email)
