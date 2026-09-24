@@ -64,9 +64,10 @@ public sealed class WartungsvertragEditorPage : ContentPage, IQueryAttributable
                     CreateField("Beschreibung", _descriptionEditor),
                     CreateField("Max. Kontingent *", _maxKontingentEntry),
                     CreateField("Aktiv", _activeSwitch),
-                    new HorizontalStackLayout
+                    new FlexLayout
                     {
-                        Spacing = 8,
+                        Direction = FlexDirection.Row,
+                        Wrap = FlexWrap.Wrap,
                         Children = { _cancelButton, _saveButton }
                     }
                 }

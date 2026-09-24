@@ -197,9 +197,10 @@ public sealed class MyProfilePage : ContentPage
             }
         };
 
-        var actions = new HorizontalStackLayout
+        var actions = new FlexLayout
         {
-            Spacing = 12,
+            Direction = FlexDirection.Row,
+            Wrap = FlexWrap.Wrap,
             Children = { _checkAddressButton, _saveButton }
         };
 

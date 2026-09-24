@@ -90,9 +90,10 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
                 {
                     _titleLabel,
                     _descriptionLabel,
-                    new HorizontalStackLayout
+                    new FlexLayout
                     {
-                        Spacing = 8,
+                        Direction = FlexDirection.Row,
+                        Wrap = FlexWrap.Wrap,
                         Children = { _refreshButton, _editButton, _assignButton }
                     },
                     CreateInfoSection("Max. Kontingent", _maxKontingentLabel),

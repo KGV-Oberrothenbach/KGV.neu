@@ -156,9 +156,10 @@ public sealed class ParzellenPage : ContentPage
                             TextColor = Colors.Gray,
                             LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap
                         },
-                        new HorizontalStackLayout
+                        new FlexLayout
                         {
-                            Spacing = 8,
+                            Direction = FlexDirection.Row,
+                            Wrap = FlexWrap.Wrap,
                             Children = { stromButton, wasserButton, dokumenteButton }
                         })
                 }
@@ -208,9 +209,10 @@ public sealed class ParzellenPage : ContentPage
 
         if (editSection.Content is VerticalStackLayout editSectionLayout)
         {
-            editSectionLayout.Children.Add(new HorizontalStackLayout
+            editSectionLayout.Children.Add(new FlexLayout
             {
-                Spacing = 8,
+                Direction = FlexDirection.Row,
+                Wrap = FlexWrap.Wrap,
                 Children = { cancelEditButton, saveStammdatenButton }
             });
         }

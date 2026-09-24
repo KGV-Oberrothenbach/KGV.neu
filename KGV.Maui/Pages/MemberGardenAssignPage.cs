@@ -66,9 +66,10 @@ public sealed class MemberGardenAssignPage : ContentPage
                         "Parzellenzuweisung",
                         CreateEditorField("Parzelle", _parzellePicker),
                         CreateEditorField("Zuweisung ab", _assignDatePicker),
-                        new HorizontalStackLayout
+                        new FlexLayout
                         {
-                            Spacing = 12,
+                            Direction = FlexDirection.Row,
+                            Wrap = FlexWrap.Wrap,
                             Children = { _cancelButton, _saveButton }
                         })
                 }

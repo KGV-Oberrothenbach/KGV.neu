@@ -181,9 +181,10 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     _mitgliedsantragButton,
                     _mitgliedsantragDiagnoseLabel,
                     _cancelMembershipButton,
-                    new HorizontalStackLayout
+                    new FlexLayout
                     {
-                        Spacing = 12,
+                        Direction = FlexDirection.Row,
+                        Wrap = FlexWrap.Wrap,
                         Children = { _cancelButton, _saveButton }
                     }
                 }

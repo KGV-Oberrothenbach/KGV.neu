@@ -89,9 +89,10 @@ public sealed class VertragsSignaturPage : ContentPage
             Content = _graphicsView
         });
 
-        var buttonBar = new HorizontalStackLayout
+        var buttonBar = new FlexLayout
         {
-            Spacing = 12,
+            Direction = FlexDirection.Row,
+            Wrap = FlexWrap.Wrap,
             HorizontalOptions = LayoutOptions.End
         };
         // Keep clear and cancel left of the final Save button; Save always at the end

@@ -76,9 +76,11 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
                         CreateField("Ausbau-Datum", _ausbauDatumPicker),
                         CreateField("Ausbau-Zählerstand", _standEntry),
                         CreateField("Foto", _photoLabel),
-                        new HorizontalStackLayout
+                        new FlexLayout
                         {
-                            Spacing = 8,
+                            Direction = FlexDirection.Row,
+                            Wrap = FlexWrap.Wrap,
+                            AlignItems = FlexAlignItems.Center,
                             Children = { _capturePhotoButton, _pickPhotoButton, _clearPhotoButton }
                         },
                         _statusLabel),

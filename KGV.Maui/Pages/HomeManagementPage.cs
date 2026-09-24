@@ -218,9 +218,10 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
                     new Label { Text = "Verwaltungsoberflächen", FontSize = 24, FontAttributes = FontAttributes.Bold },
                     _descriptionLabel,
                     _sectionPicker,
-                    new HorizontalStackLayout
+                    new FlexLayout
                     {
-                        Spacing = 8,
+                        Direction = FlexDirection.Row,
+                        Wrap = FlexWrap.Wrap,
                         Children = { _refreshButton, _newButton }
                     },
                     _entriesView,

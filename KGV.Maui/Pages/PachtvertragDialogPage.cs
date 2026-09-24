@@ -129,9 +129,10 @@ public sealed class PachtvertragDialogPage : ContentPage
                 }));
         }
 
-        content.Children.Add(new HorizontalStackLayout
+        content.Children.Add(new FlexLayout
         {
-            Spacing = 12,
+            Direction = FlexDirection.Row,
+            Wrap = FlexWrap.Wrap,
             HorizontalOptions = LayoutOptions.End,
             Children = { cancelButton, previewButton }
         });
@@ -178,9 +179,10 @@ public sealed class PachtvertragDialogPage : ContentPage
                         {
                             new Label { Text = "Bitte Datum des Altvertrags eingeben.", LineBreakMode = LineBreakMode.WordWrap },
                             datePicker,
-                            new HorizontalStackLayout
+                            new FlexLayout
                             {
-                                Spacing = 12,
+                                Direction = FlexDirection.Row,
+                                Wrap = FlexWrap.Wrap,
                                 HorizontalOptions = LayoutOptions.End,
                                 Children =
                                 {

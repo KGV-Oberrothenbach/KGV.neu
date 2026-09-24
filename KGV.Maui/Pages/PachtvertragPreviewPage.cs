@@ -83,9 +83,10 @@ public sealed class PachtvertragPreviewPage : ContentPage
                             }
                         }
                     },
-                    new HorizontalStackLayout
+                    new FlexLayout
                     {
-                        Spacing = 12,
+                        Direction = FlexDirection.Row,
+                        Wrap = FlexWrap.Wrap,
                         HorizontalOptions = LayoutOptions.End,
                         Children =
                         {

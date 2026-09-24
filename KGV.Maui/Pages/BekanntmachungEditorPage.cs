@@ -141,9 +141,10 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
                     CreateTimestampField("Sichtbar bis", _visibleToDatePicker, _visibleToTimeEntry),
                     CreateField("Sortierreihenfolge", _sortOrderEntry),
                     CreateField("Aktiv", _activeSwitch),
-                    new HorizontalStackLayout
+                    new FlexLayout
                     {
-                        Spacing = 8,
+                        Direction = FlexDirection.Row,
+                        Wrap = FlexWrap.Wrap,
                         Children = { _cancelButton, _deleteButton, _saveButton }
                     }
                 }

@@ -86,9 +86,10 @@ public abstract class ManagementOverviewPageBase : ContentPage
                 {
                     new Label { Text = PageTitle, FontSize = 24, FontAttributes = FontAttributes.Bold },
                     new Label { Text = PageDescription, TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap },
-                    new HorizontalStackLayout
+                    new FlexLayout
                     {
-                        Spacing = 8,
+                        Direction = FlexDirection.Row,
+                        Wrap = FlexWrap.Wrap,
                         Children = { _refreshButton, _newButton }
                     },
                     _countLabel,

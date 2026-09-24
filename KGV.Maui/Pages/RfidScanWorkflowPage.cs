@@ -121,9 +121,10 @@ public abstract class RfidScanWorkflowPage : ContentPage
                             {
                                 CreateBoundValueLabel(nameof(RfidScanContextViewModel.NfcStatusTitle), true),
                                 CreateBoundValueLabel(nameof(RfidScanContextViewModel.NfcStatusMessage)),
-                                new HorizontalStackLayout
+                                new FlexLayout
                                 {
-                                    Spacing = 8,
+                                    Direction = FlexDirection.Row,
+                                    Wrap = FlexWrap.Wrap,
                                     Children = { startScanButton, openNfcSettingsButton, resetButton }
                                 }
                             }

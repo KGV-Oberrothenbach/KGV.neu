@@ -185,9 +185,10 @@ public sealed class MemberWartungsvertraegePage : ContentPage
                     CreateField("Gültig ab", _assignDatePicker),
                     _assignEmptyLabel,
                     _assignView,
-                    new HorizontalStackLayout
+                    new FlexLayout
                     {
-                        Spacing = 8,
+                        Direction = FlexDirection.Row,
+                        Wrap = FlexWrap.Wrap,
                         Children = { _cancelAssignButton, _saveAssignButton }
                     }
                 }
@@ -209,9 +210,10 @@ public sealed class MemberWartungsvertraegePage : ContentPage
                         TextColor = Colors.Gray,
                         LineBreakMode = LineBreakMode.WordWrap
                     },
-                    new HorizontalStackLayout
+                    new FlexLayout
                     {
-                        Spacing = 8,
+                        Direction = FlexDirection.Row,
+                        Wrap = FlexWrap.Wrap,
                         Children = { _refreshButton, _assignButton }
                     },
                     _countLabel,

@@ -167,9 +167,10 @@ public sealed class HomeSectionDetailPage : ContentPage
                     _htmlContentView,
                     _additionalInfoLabel,
                     _registrationInfoLabel,
-                    new HorizontalStackLayout
+                    new FlexLayout
                     {
-                        Spacing = 8,
+                        Direction = FlexDirection.Row,
+                        Wrap = FlexWrap.Wrap,
                         Children = { _registerButton, _signOffButton, _newButton, _editButton, _deleteButton }
                     },
                     _participantsSection,

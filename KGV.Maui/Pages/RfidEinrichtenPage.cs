@@ -168,9 +168,10 @@ public sealed class RfidEinrichtenPage : ContentPage, IQueryAttributable
                             {
                                 new Label { Text = "RFID-Tag scannen", FontAttributes = FontAttributes.Bold },
                                 _nfcStatusLabel,
-                                new HorizontalStackLayout
+                                new FlexLayout
                                 {
-                                    Spacing = 8,
+                                    Direction = FlexDirection.Row,
+                                    Wrap = FlexWrap.Wrap,
                                     Children = { _restartScanButton, _openNfcSettingsButton }
                                 }
                             }

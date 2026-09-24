@@ -101,15 +101,17 @@ public sealed class MemberParzellenDetailPage : ContentPage
         var detailContainer = new VerticalStackLayout { Spacing = 12 };
         detailContainer.SetBinding(IsVisibleProperty, nameof(ParzellenViewModel.ShowMemberContextDetail));
 
-        var actionsLayout = new HorizontalStackLayout
+        var actionsLayout = new FlexLayout
         {
-            Spacing = 8,
+            Direction = FlexDirection.Row,
+            Wrap = FlexWrap.Wrap,
             Children = { stromButton, wasserButton, dokumenteButton }
         };
 
-        var pachtButtonsLayout = new HorizontalStackLayout
+        var pachtButtonsLayout = new FlexLayout
         {
-            Spacing = 8,
+            Direction = FlexDirection.Row,
+            Wrap = FlexWrap.Wrap,
             Children =
             {
                 _pachtvertragButton,

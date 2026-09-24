@@ -213,9 +213,10 @@ public class DokumentePage : ContentPage, IQueryAttributable
                             title,
                             fileName,
                             subtitle,
-                            new HorizontalStackLayout
+                            new FlexLayout
                             {
-                                Spacing = 8,
+                                Direction = FlexDirection.Row,
+                                Wrap = FlexWrap.Wrap,
                                 Children = { actionButton, deleteButton, uploadSignedButton, digitalSignButton }
                             }
                         }

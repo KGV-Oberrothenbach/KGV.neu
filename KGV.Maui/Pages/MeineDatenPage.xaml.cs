@@ -88,7 +88,7 @@ public class MeineDatenPage : ContentPage
     private readonly Button _userManagementButton;
     private readonly Button _nebenmitgliedButton;
     private readonly HorizontalStackLayout _topActionSection;
-    private readonly HorizontalStackLayout _editActionSection;
+    private readonly FlexLayout _editActionSection;
     private readonly View _arbeitsstundenAltersregelTypField;
 
     private readonly List<View> _displayModeViews = new();
@@ -229,9 +229,10 @@ public class MeineDatenPage : ContentPage
             Children = { _editButton }
         };
 
-        _editActionSection = new HorizontalStackLayout
+        _editActionSection = new FlexLayout
         {
-            Spacing = 12,
+            Direction = FlexDirection.Row,
+            Wrap = FlexWrap.Wrap,
             IsVisible = false,
             Children = { _cancelButton, _saveButton }
         };

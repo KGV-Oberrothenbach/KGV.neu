@@ -120,9 +120,10 @@ public sealed class WartungsvertragAssignMembersPage : ContentPage, IQueryAttrib
                     CreateField("Sortierung", _sortPicker),
                     CreateField("Gültig ab", _gueltigAbDatePicker),
                     _itemsView,
-                    new HorizontalStackLayout
+                    new FlexLayout
                     {
-                        Spacing = 8,
+                        Direction = FlexDirection.Row,
+                        Wrap = FlexWrap.Wrap,
                         Children = { _cancelButton, _saveButton }
                     }
                 }

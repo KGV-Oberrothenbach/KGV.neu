@@ -96,9 +96,10 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
                 _hoursEntry,
                 new Label { Text = "Art der Arbeit", FontAttributes = FontAttributes.Bold },
                 _descEditor,
-                new HorizontalStackLayout
+                new FlexLayout
                 {
-                    Spacing = 8,
+                    Direction = FlexDirection.Row,
+                    Wrap = FlexWrap.Wrap,
                     Children = { _cancelButton, _saveButton }
                 }
             }

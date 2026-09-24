@@ -125,10 +125,11 @@ public sealed class VereinskonfigurationPage : ContentPage
                         CreateField("Datenschutz-Version", _datenschutzVersionEntry),
                         CreateField("Datenschutz-Stand", _datenschutzStandEntry)),
                     _statusLabel,
-                    new HorizontalStackLayout
+                    new FlexLayout
                     {
                         HorizontalOptions = LayoutOptions.End,
-                        Spacing = 10,
+                        Direction = FlexDirection.Row,
+                        Wrap = FlexWrap.Wrap,
                         Children = { _refreshButton, _saveButton }
                     }
                 }

@@ -103,7 +103,7 @@ public sealed class ExportPage : ContentPage
                     new Label { Text = "Export", FontSize = 24, FontAttributes = FontAttributes.Bold },
                     _definitionPicker,
                     _filtersStack,
-                    new HorizontalStackLayout { Children = { _runButton, _exportCsvButton, _exportPdfButton } },
+                    new FlexLayout { Direction = FlexDirection.Row, Wrap = FlexWrap.Wrap, Children = { _runButton, _exportCsvButton, _exportPdfButton } },
                     _statusLabel,
                     new HorizontalStackLayout { Children = { _prevButton, _nextButton } },
                     _recordView,

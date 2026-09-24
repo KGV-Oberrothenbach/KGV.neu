@@ -162,14 +162,16 @@ public sealed class AblesungenFreigabePage : ContentPage
                 CreateField("Korrekturdatum", _ablesedatumPicker),
                 CreateField("Korrigierter Stand", _standEntry),
                 CreateField("Prüfkommentar", _commentEditor),
-                new HorizontalStackLayout
+                new FlexLayout
                 {
-                    Spacing = 8,
+                    Direction = FlexDirection.Row,
+                    Wrap = FlexWrap.Wrap,
                     Children = { _approveButton, _rejectButton }
                 },
-                new HorizontalStackLayout
+                new FlexLayout
                 {
-                    Spacing = 8,
+                    Direction = FlexDirection.Row,
+                    Wrap = FlexWrap.Wrap,
                     Children = { _correctButton, _removeButton }
                 }
             }
