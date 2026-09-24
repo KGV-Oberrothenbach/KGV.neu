@@ -20,6 +20,9 @@ namespace KGV.Core.Utilities
         {
             PdfSharpFontResolverInitializer.EnsureInitialized();
 
+            if (string.Equals(exportKey, "arbeitsstunden_uebersicht", StringComparison.OrdinalIgnoreCase))
+                return BuildArbeitsstundenPdf(rows);
+
             try { Console.WriteLine($"EXPORTDBG: PDF_BUILD start exportKey={exportKey} rows_passed={rows?.Count ?? 0}"); } catch {}
             if (rows != null && rows.Count > 0)
             {
@@ -137,6 +140,124 @@ namespace KGV.Core.Utilities
             using var ms = new MemoryStream();
             doc.Save(ms, false);
             return ms.ToArray();
+        }
+
+        private static byte[] BuildArbeitsstundenPdf(IReadOnlyList<Dictionary<string, string>> rows)
+        {
+            var doc = new PdfDocument();
+            doc.Info.Title = "Arbeitsstundenübersicht";
+
+            var titleFont = new XFont("Arial", 16, XFontStyle.Bold);
+            var subtitleFont = new XFont("Arial", 9, XFontStyle.Regular);
+            var groupFont = new XFont("Arial", 12, XFontStyle.Bold);
+            var headerFont = new XFont("Arial", 8, XFontStyle.Bold);
+            var cellFont = new XFont("Arial", 8, XFontStyle.Regular);
+            const double margin = 32;
+            const double rowHeight = 17;
+            var columnWidths = new[] { 52d, 145d, 42d, 55d, 42d, 178d };
+            var season = rows.Select(r => GetRowValue(r, "jahr")).FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? "-";
+            var pageNumber = 0;
+            PdfPage page = null!;
+            XGraphics gfx = null!;
+            double y = 0;
+
+            void StartPage()
+            {
+                pageNumber++;
+                page = doc.AddPage();
+                page.Size = PdfSharpCore.PageSize.A4;
+                page.Orientation = PdfSharpCore.PageOrientation.Portrait;
+                gfx = XGraphics.FromPdfPage(page);
+                y = margin;
+                gfx.DrawString("Arbeitsstundenübersicht", titleFont, XBrushes.DarkSlateGray, new XRect(margin, y, page.Width - margin * 2, 22), XStringFormats.TopLeft);
+                y += 24;
+                gfx.DrawString($"Saison {season}   |   Erstellt am {DateTime.Now:dd.MM.yyyy HH:mm}   |   Seite {pageNumber}", subtitleFont, XBrushes.DimGray, new XRect(margin, y, page.Width - margin * 2, 14), XStringFormats.TopLeft);
+                y += 24;
+            }
+
+            void DrawTableHeader()
+            {
+                var headers = new[] { "Garten", "Mitglied", "Soll", "Geleistet", "Offen", "Wartungsvertrag" };
+                var x = margin;
+                for (var index = 0; index < headers.Length; index++)
+                {
+                    var rect = new XRect(x, y, columnWidths[index], rowHeight);
+                    gfx.DrawRectangle(XBrushes.LightGray, rect);
+                    gfx.DrawString(headers[index], headerFont, XBrushes.Black, rect, XStringFormats.Center);
+                    x += columnWidths[index];
+                }
+                y += rowHeight;
+            }
+
+            void DrawGroup(string title, IEnumerable<Dictionary<string, string>> groupRows)
+            {
+                var orderedRows = groupRows
+                    .OrderBy(r => GetRowValue(r, "garten_nr"), StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(r => GetRowValue(r, "nachname"), StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(r => GetRowValue(r, "vorname"), StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (y + 44 > page.Height - margin)
+                    StartPage();
+
+                gfx.DrawString($"{title} ({orderedRows.Count})", groupFont, XBrushes.DarkSlateGray, new XRect(margin, y, page.Width - margin * 2, 18), XStringFormats.TopLeft);
+                y += 20;
+                DrawTableHeader();
+
+                if (orderedRows.Count == 0)
+                {
+                    gfx.DrawString("Keine Einträge", cellFont, XBrushes.Gray, new XRect(margin + 4, y, page.Width - margin * 2, rowHeight), XStringFormats.TopLeft);
+                    y += rowHeight + 10;
+                    return;
+                }
+
+                foreach (var row in orderedRows)
+                {
+                    if (y + rowHeight > page.Height - margin)
+                    {
+                        StartPage();
+                        gfx.DrawString(title, groupFont, XBrushes.DarkSlateGray, new XRect(margin, y, page.Width - margin * 2, 18), XStringFormats.TopLeft);
+                        y += 20;
+                        DrawTableHeader();
+                    }
+
+                    var values = new[]
+                    {
+                        GetRowValue(row, "garten_nr"),
+                        string.Join(" ", new[] { GetRowValue(row, "nachname"), GetRowValue(row, "vorname") }.Where(value => !string.IsNullOrWhiteSpace(value))),
+                        GetRowValue(row, "pflichtstunden_soll"),
+                        GetRowValue(row, "geleistete_stunden"),
+                        GetRowValue(row, "offene_stunden"),
+                        GetRowValue(row, "wartungsvertraege")
+                    };
+
+                    var x = margin;
+                    for (var index = 0; index < values.Length; index++)
+                    {
+                        var rect = new XRect(x, y, columnWidths[index], rowHeight);
+                        gfx.DrawRectangle(XPens.LightGray, rect);
+                        gfx.DrawString(TruncateForCell(values[index], 60), cellFont, XBrushes.Black, new XRect(x + 3, y + 2, columnWidths[index] - 6, rowHeight - 3), XStringFormats.TopLeft);
+                        x += columnWidths[index];
+                    }
+                    y += rowHeight;
+                }
+
+                y += 12;
+            }
+
+            StartPage();
+            DrawGroup("Stunden offen", rows.Where(r => string.Equals(GetRowValue(r, "status"), "Stunden offen", StringComparison.OrdinalIgnoreCase)));
+            DrawGroup("Stunden fertig", rows.Where(r => string.Equals(GetRowValue(r, "status"), "Stunden fertig", StringComparison.OrdinalIgnoreCase)));
+            DrawGroup("Wartungsverträge", rows.Where(r => GetRowValue(r, "status").StartsWith("Wartungsvertrag", StringComparison.OrdinalIgnoreCase)));
+
+            using var ms = new MemoryStream();
+            doc.Save(ms, false);
+            return ms.ToArray();
+        }
+
+        private static string GetRowValue(Dictionary<string, string> row, string key)
+        {
+            return row.TryGetValue(key, out var value) ? value ?? string.Empty : string.Empty;
         }
 
         private static List<PdfColumn> BuildEffectiveColumns(string exportKey, IReadOnlyList<AppExportColumnDefinitionRecord> columns)
