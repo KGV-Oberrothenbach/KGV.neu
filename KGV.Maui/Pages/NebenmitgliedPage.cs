@@ -181,7 +181,7 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
             var selectedMember = _memberContextState.SelectedMember;
             if (selectedMember != null && !selectedMember.IstHauptmitglied)
             {
-                await DisplayAlert("Hinweis", "Das ausgewählte Mitglied ist einem Hauptmitglied zugeordnet. Ein eigener Nebenmitgliedspfad ist hier nicht verfügbar.", "OK");
+                await DisplayAlertAsync("Hinweis", "Das ausgewählte Mitglied ist einem Hauptmitglied zugeordnet. Ein eigener Nebenmitgliedspfad ist hier nicht verfügbar.", "OK");
                 _state.CurrentNebenMitgliedId = null;
                 return;
             }
@@ -194,14 +194,14 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
 
             if (!mainId.HasValue)
             {
-                await DisplayAlert("Fehler", "Hauptmitglied nicht gesetzt.", "OK");
+                await DisplayAlertAsync("Fehler", "Hauptmitglied nicht gesetzt.", "OK");
                 return;
             }
 
             _hauptmitglied = await _supabaseService.GetMitgliedByIdAsync(mainId.Value);
             if (_hauptmitglied == null)
             {
-                await DisplayAlert("Fehler", "Hauptmitglied konnte nicht geladen werden.", "OK");
+                await DisplayAlertAsync("Fehler", "Hauptmitglied konnte nicht geladen werden.", "OK");
                 return;
             }
 
@@ -274,7 +274,7 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
 
         if (_neben == null)
         {
-            await DisplayAlert("Fehler", "Nebenmitglied ist nicht geladen.", "OK");
+            await DisplayAlertAsync("Fehler", "Nebenmitglied ist nicht geladen.", "OK");
             return;
         }
 
@@ -291,7 +291,7 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
         var error = Validate(adresse, plz, ort, telefon, handy, email, mitgliedSeit, geburtsdatum);
         if (!string.IsNullOrEmpty(error))
         {
-            await DisplayAlert("Ungültige Eingabe", error, "OK");
+            await DisplayAlertAsync("Ungültige Eingabe", error, "OK");
             return;
         }
 
@@ -301,16 +301,16 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
             var ok = await _supabaseService.UpdateOwnContactAsync(_neben.Id, EmptyToNull(telefon), EmptyToNull(handy), adresse, plz, ort, EmptyToNull(email), geburtsdatum, mitgliedSeit, whatsappEinwilligung);
             if (!ok)
             {
-                await DisplayAlert("Fehler", "Speichern fehlgeschlagen.", "OK");
+                await DisplayAlertAsync("Fehler", "Speichern fehlgeschlagen.", "OK");
                 return;
             }
 
-            await DisplayAlert("OK", "Gespeichert.", "OK");
+            await DisplayAlertAsync("OK", "Gespeichert.", "OK");
             await LoadAsync();
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Fehler", ex.Message, "OK");
+            await DisplayAlertAsync("Fehler", ex.Message, "OK");
         }
         finally
         {
@@ -346,7 +346,7 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
     {
         if (_hauptmitglied == null)
         {
-            await DisplayAlert("Fehler", "Hauptmitglied ist nicht geladen.", "OK");
+            await DisplayAlertAsync("Fehler", "Hauptmitglied ist nicht geladen.", "OK");
             return;
         }
 
@@ -354,7 +354,7 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
         var nachname = (_nachnameEntry.Text ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(vorname) || string.IsNullOrWhiteSpace(nachname))
         {
-            await DisplayAlert("Ungültige Eingabe", "Bitte Vorname und Nachname angeben.", "OK");
+            await DisplayAlertAsync("Ungültige Eingabe", "Bitte Vorname und Nachname angeben.", "OK");
             return;
         }
 
@@ -367,7 +367,7 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
         var error = Validate(adresse, plz, ort, telefon, handy, email, _mitgliedSeitPicker.Date, _geburtsdatumCheckBox.IsChecked ? (DateTime?)_geburtsdatumPicker.Date : null);
         if (!string.IsNullOrEmpty(error))
         {
-            await DisplayAlert("Ungültige Eingabe", error, "OK");
+            await DisplayAlertAsync("Ungültige Eingabe", error, "OK");
             return;
         }
 
@@ -393,19 +393,19 @@ public sealed class NebenmitgliedPage : ContentPage, IQueryAttributable
 
             if (created == null)
             {
-                await DisplayAlert("Fehler", "Nebenmitglied konnte nicht angelegt werden.", "OK");
+                await DisplayAlertAsync("Fehler", "Nebenmitglied konnte nicht angelegt werden.", "OK");
                 return;
             }
 
             _isCreateMode = false;
             _neben = created;
             _state.CurrentNebenMitgliedId = created.Id;
-            await DisplayAlert("OK", "Nebenmitglied angelegt.", "OK");
+            await DisplayAlertAsync("OK", "Nebenmitglied angelegt.", "OK");
             await LoadAsync();
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Fehler", ex.Message, "OK");
+            await DisplayAlertAsync("Fehler", ex.Message, "OK");
         }
         finally
         {

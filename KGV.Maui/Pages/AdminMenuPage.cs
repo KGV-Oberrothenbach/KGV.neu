@@ -409,7 +409,7 @@ public sealed class AdminMenuPage : ContentPage
             return;
 
         var ok = await _supabaseService.SetAllowUserMeterReadingSubmissionsAsync(_allowUserMeterReadingSubmissions);
-        await DisplayAlert(ok ? "Gespeichert" : "Fehler",
+        await DisplayAlertAsync(ok ? "Gespeichert" : "Fehler",
             ok
                 ? "Die globale Ablesungs-Einstellung wurde gespeichert."
                 : "Die globale Ablesungs-Einstellung konnte nicht gespeichert werden.",
@@ -424,25 +424,25 @@ public sealed class AdminMenuPage : ContentPage
 
         if (!CanReadRoleManagement())
         {
-            await DisplayAlert("Hinweis", "Rollen-/Rechteverwaltung ist für den aktuellen Kontext nicht freigegeben.", "OK");
+            await DisplayAlertAsync("Hinweis", "Rollen-/Rechteverwaltung ist für den aktuellen Kontext nicht freigegeben.", "OK");
             return;
         }
 
         if (IsRoleDirty())
         {
-            await DisplayAlert("Hinweis", "Bitte zuerst die geänderte Rollenbasis speichern und danach die benutzerspezifischen Fachrechte sichern.", "OK");
+            await DisplayAlertAsync("Hinweis", "Bitte zuerst die geänderte Rollenbasis speichern und danach die benutzerspezifischen Fachrechte sichern.", "OK");
             return;
         }
 
         if (!CanManageRoleManagement())
         {
-            await DisplayAlert("Hinweis", "Rollen-/Rechteverwaltung ist in diesem Kontext nur lesend freigegeben.", "OK");
+            await DisplayAlertAsync("Hinweis", "Rollen-/Rechteverwaltung ist in diesem Kontext nur lesend freigegeben.", "OK");
             return;
         }
 
         if (!CanEditPermissionOverrides())
         {
-            await DisplayAlert("Hinweis", "Für dieses Mitglied existiert aktuell kein verknüpfter App-User. Fachrechte können deshalb noch nicht gespeichert werden.", "OK");
+            await DisplayAlertAsync("Hinweis", "Für dieses Mitglied existiert aktuell kein verknüpfter App-User. Fachrechte können deshalb noch nicht gespeichert werden.", "OK");
             return;
         }
 
@@ -454,12 +454,12 @@ public sealed class AdminMenuPage : ContentPage
 
         if (!ok)
         {
-            await DisplayAlert("Fehler", "Die benutzerspezifischen Fachrechte konnten nicht gespeichert werden. Details stehen im Anwendungslog.", "OK");
+            await DisplayAlertAsync("Fehler", "Die benutzerspezifischen Fachrechte konnten nicht gespeichert werden. Details stehen im Anwendungslog.", "OK");
             return;
         }
 
         await LoadPermissionSettingsAsync(selectedMember, true);
-        await DisplayAlert("Gespeichert", "Die benutzerspezifischen Fachrechte wurden gespeichert.", "OK");
+        await DisplayAlertAsync("Gespeichert", "Die benutzerspezifischen Fachrechte wurden gespeichert.", "OK");
     }
 
     private void OnRoleChanged()
@@ -530,25 +530,25 @@ public sealed class AdminMenuPage : ContentPage
 
         if (!CanReadRoleManagement())
         {
-            await DisplayAlert("Hinweis", "Rollen-/Rechteverwaltung ist für den aktuellen Kontext nicht freigegeben.", "OK");
+            await DisplayAlertAsync("Hinweis", "Rollen-/Rechteverwaltung ist für den aktuellen Kontext nicht freigegeben.", "OK");
             return;
         }
 
         if (!CanManageRoleManagement())
         {
-            await DisplayAlert("Hinweis", "Rollen-/Rechteverwaltung ist in diesem Kontext nur lesend freigegeben.", "OK");
+            await DisplayAlertAsync("Hinweis", "Rollen-/Rechteverwaltung ist in diesem Kontext nur lesend freigegeben.", "OK");
             return;
         }
 
         if (selectedMember.Id == 7)
         {
-            await DisplayAlert("Gesperrt", "Für dieses Mitglied ist die Rollenbearbeitung gesperrt.", "OK");
+            await DisplayAlertAsync("Gesperrt", "Für dieses Mitglied ist die Rollenbearbeitung gesperrt.", "OK");
             return;
         }
 
         if (!IsRoleDirty())
         {
-            await DisplayAlert("Hinweis", "Es gibt keine Rollenänderung zu speichern.", "OK");
+            await DisplayAlertAsync("Hinweis", "Es gibt keine Rollenänderung zu speichern.", "OK");
             return;
         }
 
@@ -556,14 +556,14 @@ public sealed class AdminMenuPage : ContentPage
         {
             if (!(_permissionSettings?.HasLinkedUser ?? false))
             {
-                await DisplayAlert("Hinweis", "Für dieses Mitglied existiert aktuell kein verknüpfter App-User. Die Rolle kann deshalb noch nicht über app_user.role gespeichert werden.", "OK");
+                await DisplayAlertAsync("Hinweis", "Für dieses Mitglied existiert aktuell kein verknüpfter App-User. Die Rolle kann deshalb noch nicht über app_user.role gespeichert werden.", "OK");
                 return;
             }
 
             var ok = await _supabaseService.SetAppUserRoleAsync(selectedMember.Id, _selectedRole);
             if (!ok)
             {
-                await DisplayAlert("Fehler", "Die Rolle konnte aktuell nicht über app_user.role gespeichert werden.", "OK");
+                await DisplayAlertAsync("Fehler", "Die Rolle konnte aktuell nicht über app_user.role gespeichert werden.", "OK");
                 return;
             }
 
@@ -576,11 +576,11 @@ public sealed class AdminMenuPage : ContentPage
 
             RefreshPermissionOverrideState();
             UpdateRoleManagementState(updatedMember, true, CanReadRoleManagement());
-            await DisplayAlert("Gespeichert", "Rolle wurde gespeichert.", "OK");
+            await DisplayAlertAsync("Gespeichert", "Rolle wurde gespeichert.", "OK");
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Fehler", $"Die Rolle konnte aktuell nicht gespeichert werden: {ex.Message}", "OK");
+            await DisplayAlertAsync("Fehler", $"Die Rolle konnte aktuell nicht gespeichert werden: {ex.Message}", "OK");
         }
     }
 

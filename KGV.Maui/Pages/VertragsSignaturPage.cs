@@ -191,7 +191,7 @@ public sealed class VertragsSignaturPage : ContentPage
         var signature = _drawable.Export(width, height);
         if (!signature.HasContent)
         {
-            await DisplayAlert("Signatur", "Bitte zuerst unterschreiben.", "OK");
+            await DisplayAlertAsync("Signatur", "Bitte zuerst unterschreiben.", "OK");
             return;
         }
 
@@ -201,7 +201,7 @@ public sealed class VertragsSignaturPage : ContentPage
             var message = _isLastSignature
                 ? "Unterschrift gespeichert."
                 : "Unterschrift gespeichert. Bitte die nächste Unterschrift erfassen.";
-            await DisplayAlert("Signatur", message, "OK");
+            await DisplayAlertAsync("Signatur", message, "OK");
         }
         catch { }
 

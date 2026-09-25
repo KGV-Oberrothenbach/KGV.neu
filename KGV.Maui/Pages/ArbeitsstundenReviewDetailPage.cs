@@ -443,7 +443,7 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
         if (entry == null)
             return;
 
-        var confirm = await DisplayAlert(
+        var confirm = await DisplayAlertAsync(
             "Arbeitsstunde löschen",
             $"Soll die Arbeitsstunde von {BuildMemberDisplay(entry)} wirklich im Prüfprozess gelöscht werden?",
             "Ja",

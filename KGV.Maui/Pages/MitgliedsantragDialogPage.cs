@@ -282,14 +282,14 @@ public sealed class MitgliedsantragDialogPage : ContentPage
     {
         if (!TryParseBeitrag(_mitgliedsbeitragEntry.Text, out var beitrag))
         {
-            await DisplayAlert("Mitgliedsantrag", "Bitte einen gültigen Mitgliedsbeitrag eingeben.", "OK");
+            await DisplayAlertAsync("Mitgliedsantrag", "Bitte einen gültigen Mitgliedsbeitrag eingeben.", "OK");
             _mitgliedsbeitragEntry.Focus();
             return;
         }
 
         if (beitrag < 0m)
         {
-            await DisplayAlert("Mitgliedsantrag", "Der Mitgliedsbeitrag darf nicht negativ sein.", "OK");
+            await DisplayAlertAsync("Mitgliedsantrag", "Der Mitgliedsbeitrag darf nicht negativ sein.", "OK");
             _mitgliedsbeitragEntry.Focus();
             return;
         }
@@ -309,7 +309,7 @@ public sealed class MitgliedsantragDialogPage : ContentPage
             {
                 if (_bestehendesMitgliedPicker.SelectedItem is not MitgliedOption option)
                 {
-                    await DisplayAlert("Mitgliedsantrag", "Bitte ein vorhandenes Mitglied als gesetzlichen Vertreter auswählen.", "OK");
+                    await DisplayAlertAsync("Mitgliedsantrag", "Bitte ein vorhandenes Mitglied als gesetzlichen Vertreter auswählen.", "OK");
                     _bestehendesMitgliedPicker.Focus();
                     return;
                 }
@@ -324,7 +324,7 @@ public sealed class MitgliedsantragDialogPage : ContentPage
                 var nachname = (_vertreterNachnameEntry.Text ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(vorname) || string.IsNullOrWhiteSpace(nachname))
                 {
-                    await DisplayAlert("Mitgliedsantrag", "Bitte Vorname und Nachname des gesetzlichen Vertreters eingeben.", "OK");
+                    await DisplayAlertAsync("Mitgliedsantrag", "Bitte Vorname und Nachname des gesetzlichen Vertreters eingeben.", "OK");
                     _vertreterVornameEntry.Focus();
                     return;
                 }
@@ -346,7 +346,7 @@ public sealed class MitgliedsantragDialogPage : ContentPage
                         || string.IsNullOrWhiteSpace(request.GesetzlicherVertreterSnapshot.Plz)
                         || string.IsNullOrWhiteSpace(request.GesetzlicherVertreterSnapshot.Ort))
                     {
-                        await DisplayAlert("Mitgliedsantrag", "Bitte die abweichende Anschrift des gesetzlichen Vertreters vollständig eingeben.", "OK");
+                        await DisplayAlertAsync("Mitgliedsantrag", "Bitte die abweichende Anschrift des gesetzlichen Vertreters vollständig eingeben.", "OK");
                         _vertreterAdresseEntry.Focus();
                         return;
                     }

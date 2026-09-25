@@ -354,7 +354,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
             ? "diesen Termin"
             : $"den Termin \"{existingRecord.Titel.Trim()}\"";
 
-        var confirmed = await DisplayAlert("Termin löschen", $"Soll {titel} wirklich gelöscht werden?", "Löschen", "Abbrechen");
+        var confirmed = await DisplayAlertAsync("Termin löschen", $"Soll {titel} wirklich gelöscht werden?", "Löschen", "Abbrechen");
         if (!confirmed)
             return;
 
@@ -375,7 +375,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
             }
 
             _homeViewModel.Invalidate();
-            await DisplayAlert("Termin löschen", "Der Termin wurde gelöscht.", "OK");
+            await DisplayAlertAsync("Termin löschen", "Der Termin wurde gelöscht.", "OK");
             await NavigateToOverviewAsync();
         }
         catch (Exception ex)

@@ -94,7 +94,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             {
                 try
                 {
-                    var confirmExit = await DisplayAlert("App beenden", "Soll die App wirklich beendet werden?", "Beenden", "Abbrechen");
+                    var confirmExit = await DisplayAlertAsync("App beenden", "Soll die App wirklich beendet werden?", "Beenden", "Abbrechen");
                     if (!confirmExit)
                         return;
 

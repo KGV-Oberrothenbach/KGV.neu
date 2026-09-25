@@ -613,7 +613,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
             return;
         }
 
-        var confirmed = await DisplayAlert(
+        var confirmed = await DisplayAlertAsync(
             "Dokument löschen",
             $"Dokument '{GetDocumentDisplayName(document)}' wirklich löschen?",
             "Löschen",

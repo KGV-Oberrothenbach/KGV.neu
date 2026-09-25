@@ -83,7 +83,7 @@ public sealed class ZaehlerwechselPage : RfidScanWorkflowPage
                     break;
 
                 case RfidScanContextState.KnownWithActiveMeter:
-                    var confirmRemoval = await DisplayAlert(
+                    var confirmRemoval = await DisplayAlertAsync(
                         "Bestätigung",
                         "Wollen Sie den Zähler ausbauen?",
                         "Ja",

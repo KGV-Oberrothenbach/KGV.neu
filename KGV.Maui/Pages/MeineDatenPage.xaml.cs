@@ -600,20 +600,20 @@ public class MeineDatenPage : ContentPage
 
         if (!CanEditCurrentMember(_currentMember))
         {
-            await DisplayAlert("Hinweis", "Für dieses Mitglied sind mobil aktuell keine Bearbeitungsrechte vorhanden.", "OK");
+            await DisplayAlertAsync("Hinweis", "Für dieses Mitglied sind mobil aktuell keine Bearbeitungsrechte vorhanden.", "OK");
             return;
         }
 
         if (string.IsNullOrWhiteSpace(_vornameEntry.Text))
         {
-            await DisplayAlert("Validierung", "Vorname ist erforderlich.", "OK");
+            await DisplayAlertAsync("Validierung", "Vorname ist erforderlich.", "OK");
             _vornameEntry.Focus();
             return;
         }
 
         if (string.IsNullOrWhiteSpace(_nachnameEntry.Text))
         {
-            await DisplayAlert("Validierung", "Nachname ist erforderlich.", "OK");
+            await DisplayAlertAsync("Validierung", "Nachname ist erforderlich.", "OK");
             _nachnameEntry.Focus();
             return;
         }
@@ -621,7 +621,7 @@ public class MeineDatenPage : ContentPage
         var selectedArbeitsstundenAltersregelTyp = _arbeitsstundenAltersregelTypPicker.SelectedItem as string;
         if (_currentMember.IstHauptmitglied && string.IsNullOrWhiteSpace(selectedArbeitsstundenAltersregelTyp))
         {
-            await DisplayAlert("Validierung", "Für Hauptmitglieder ist die Arbeitsstunden-Altersregel erforderlich.", "OK");
+            await DisplayAlertAsync("Validierung", "Für Hauptmitglieder ist die Arbeitsstunden-Altersregel erforderlich.", "OK");
             _arbeitsstundenAltersregelTypPicker.Focus();
             return;
         }
@@ -629,7 +629,7 @@ public class MeineDatenPage : ContentPage
         var userId = _authService.CurrentUserId;
         if (string.IsNullOrWhiteSpace(userId))
         {
-            await DisplayAlert("Fehler", "Nicht angemeldet. Bitte erneut einloggen.", "OK");
+            await DisplayAlertAsync("Fehler", "Nicht angemeldet. Bitte erneut einloggen.", "OK");
             return;
         }
 
@@ -642,14 +642,14 @@ public class MeineDatenPage : ContentPage
             lockAcquired = await _supabaseService.TryLockMitgliedAsync(selectedMember.Id, userId);
             if (!lockAcquired)
             {
-                await DisplayAlert("Gesperrt", "Datensatz ist aktuell gesperrt. Bitte später erneut versuchen.", "OK");
+                await DisplayAlertAsync("Gesperrt", "Datensatz ist aktuell gesperrt. Bitte später erneut versuchen.", "OK");
                 return;
             }
 
             var current = await _supabaseService.GetMitgliedByIdAsync(selectedMember.Id);
             if (current == null)
             {
-                await DisplayAlert("Fehler", "Mitglied konnte nicht geladen werden.", "OK");
+                await DisplayAlertAsync("Fehler", "Mitglied konnte nicht geladen werden.", "OK");
                 return;
             }
 
@@ -680,14 +680,14 @@ public class MeineDatenPage : ContentPage
                 {
                     if (string.IsNullOrWhiteSpace(editedEmail))
                     {
-                        await DisplayAlert("Validierung", "Die E-Mail-Adresse darf nicht leer sein.", "OK");
+                        await DisplayAlertAsync("Validierung", "Die E-Mail-Adresse darf nicht leer sein.", "OK");
                         _emailEntry.Focus();
                         return;
                     }
 
                     if (!EmailRegex.IsMatch(editedEmail))
                     {
-                        await DisplayAlert("Validierung", "Bitte eine gültige E-Mail-Adresse eingeben.", "OK");
+                        await DisplayAlertAsync("Validierung", "Bitte eine gültige E-Mail-Adresse eingeben.", "OK");
                         _emailEntry.Focus();
                         return;
                     }
@@ -709,7 +709,7 @@ public class MeineDatenPage : ContentPage
             var ok = await _supabaseService.UpdateMitgliedAsync(dto, userId);
             if (!ok)
             {
-                await DisplayAlert("Fehler", "Stammdaten konnten nicht gespeichert werden.", "OK");
+                await DisplayAlertAsync("Fehler", "Stammdaten konnten nicht gespeichert werden.", "OK");
                 return;
             }
 
@@ -719,7 +719,7 @@ public class MeineDatenPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Fehler", ex.Message, "OK");
+            await DisplayAlertAsync("Fehler", ex.Message, "OK");
         }
         finally
         {
@@ -843,14 +843,14 @@ public class MeineDatenPage : ContentPage
 
         if (!PermissionChecks.CanManageRoleManagement(_userContextState.CurrentUserContext))
         {
-            await DisplayAlert("Hinweis", "Rollen können mobil in diesem Kontext nicht gespeichert werden.", "OK");
+            await DisplayAlertAsync("Hinweis", "Rollen können mobil in diesem Kontext nicht gespeichert werden.", "OK");
             return;
         }
 
         var selectedRole = NormalizeRole(_rolePicker.SelectedItem as string);
         if (string.Equals(selectedRole, NormalizeRole(selectedMember.Role), StringComparison.OrdinalIgnoreCase))
         {
-            await DisplayAlert("Hinweis", "Es gibt keine Rollenänderung zu speichern.", "OK");
+            await DisplayAlertAsync("Hinweis", "Es gibt keine Rollenänderung zu speichern.", "OK");
             return;
         }
 
@@ -859,19 +859,19 @@ public class MeineDatenPage : ContentPage
             var ok = await _supabaseService.SetAppUserRoleAsync(selectedMember.Id, selectedRole);
             if (!ok)
             {
-                await DisplayAlert("Fehler", "Die Rolle konnte aktuell nicht über app_user.role gespeichert werden. Prüfen Sie, ob für dieses Mitglied bereits ein verknüpfter App-User existiert.", "OK");
+                await DisplayAlertAsync("Fehler", "Die Rolle konnte aktuell nicht über app_user.role gespeichert werden. Prüfen Sie, ob für dieses Mitglied bereits ein verknüpfter App-User existiert.", "OK");
                 return;
             }
 
             var updatedMember = selectedMember.Clone();
             updatedMember.Role = selectedRole;
             _memberContextState.SetSelectedMember(updatedMember);
-            await DisplayAlert("OK", "Rolle gespeichert.", "OK");
+            await DisplayAlertAsync("OK", "Rolle gespeichert.", "OK");
             await LoadAsync();
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Fehler", ex.Message, "OK");
+            await DisplayAlertAsync("Fehler", ex.Message, "OK");
         }
     }
 

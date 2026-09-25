@@ -352,7 +352,7 @@ public sealed class AblesungenFreigabePage : ContentPage
             return;
         }
 
-        var confirmed = await DisplayAlert("Ablesung korrigieren", "Die eingereichte Ablesung wird mit den geänderten Werten korrigiert und direkt freigegeben. Fortfahren?", "Ja", "Nein");
+        var confirmed = await DisplayAlertAsync("Ablesung korrigieren", "Die eingereichte Ablesung wird mit den geänderten Werten korrigiert und direkt freigegeben. Fortfahren?", "Ja", "Nein");
         if (!confirmed)
             return;
 
@@ -397,7 +397,7 @@ public sealed class AblesungenFreigabePage : ContentPage
             return;
         }
 
-        var confirmed = await DisplayAlert("Ablesung entfernen", "Die Ablesung wird mit Begründung aus dem aktiven Prüfprozess entfernt. Fortfahren?", "Ja", "Nein");
+        var confirmed = await DisplayAlertAsync("Ablesung entfernen", "Die Ablesung wird mit Begründung aus dem aktiven Prüfprozess entfernt. Fortfahren?", "Ja", "Nein");
         if (!confirmed)
             return;
 

@@ -532,7 +532,7 @@ public sealed class HomeSectionDetailPage : ContentPage
             _ => "Datensatz"
         };
 
-        var confirmed = await DisplayAlert("Löschen bestätigen", $"{entityName} wirklich löschen?", "Löschen", "Abbrechen");
+        var confirmed = await DisplayAlertAsync("Löschen bestätigen", $"{entityName} wirklich löschen?", "Löschen", "Abbrechen");
         if (!confirmed)
             return;
 

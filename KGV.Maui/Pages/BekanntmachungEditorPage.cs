@@ -444,7 +444,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
             ? "diese Bekanntmachung"
             : $"die Bekanntmachung \"{existingRecord.Titel.Trim()}\"";
 
-        var confirmed = await DisplayAlert("Bekanntmachung löschen", $"Soll {titel} wirklich gelöscht werden?", "Löschen", "Abbrechen");
+        var confirmed = await DisplayAlertAsync("Bekanntmachung löschen", $"Soll {titel} wirklich gelöscht werden?", "Löschen", "Abbrechen");
         if (!confirmed)
             return;
 
@@ -465,7 +465,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
             }
 
             _homeViewModel.Invalidate();
-            await DisplayAlert("Bekanntmachung löschen", "Die Bekanntmachung wurde gelöscht.", "OK");
+            await DisplayAlertAsync("Bekanntmachung löschen", "Die Bekanntmachung wurde gelöscht.", "OK");
             await NavigateToOverviewAsync();
         }
         catch (Exception ex)

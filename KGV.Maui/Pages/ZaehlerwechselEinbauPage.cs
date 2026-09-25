@@ -96,20 +96,20 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
 
         if (_context?.Context == null)
         {
-            await DisplayAlert("Hinweis", "Es liegt kein Einbau-Kontext vor.", "OK");
+            await DisplayAlertAsync("Hinweis", "Es liegt kein Einbau-Kontext vor.", "OK");
             return;
         }
 
         if (string.IsNullOrWhiteSpace(_zaehlernummerEntry.Text))
         {
-            await DisplayAlert("Validierung", "Bitte eine Zählernummer eingeben.", "OK");
+            await DisplayAlertAsync("Validierung", "Bitte eine Zählernummer eingeben.", "OK");
             _zaehlernummerEntry.Focus();
             return;
         }
 
         if (!TryParseYear(_eichjahrEntry.Text, out var eichjahr))
         {
-            await DisplayAlert("Validierung", "Bitte ein gültiges Eichjahr eingeben.", "OK");
+            await DisplayAlertAsync("Validierung", "Bitte ein gültiges Eichjahr eingeben.", "OK");
             _eichjahrEntry.Focus();
             return;
         }
@@ -118,7 +118,7 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
         var medium = context.Medium;
         if (!_einbauDatumPicker.Date.HasValue)
         {
-            await DisplayAlert("Validierung", "Bitte ein Einbau-Datum auswählen.", "OK");
+            await DisplayAlertAsync("Validierung", "Bitte ein Einbau-Datum auswählen.", "OK");
             _einbauDatumPicker.Focus();
             return;
         }
@@ -167,7 +167,7 @@ public sealed class ZaehlerwechselEinbauPage : ContentPage
             einbauDatum,
             "Neuer Zähler angelegt. Jetzt folgt direkt die Anfangsablesung mit `Art = einbau` und genau einem Foto in diesem Schritt.");
 
-        await DisplayAlert("OK", "Zählereinbau erfolgreich gespeichert. Die Anfangsablesung folgt jetzt im bestehenden Ablese-Flow.", "OK");
+        await DisplayAlertAsync("OK", "Zählereinbau erfolgreich gespeichert. Die Anfangsablesung folgt jetzt im bestehenden Ablese-Flow.", "OK");
         await Shell.Current.GoToAsync(nameof(AblesungErfassenPage));
         }
         catch (Exception ex)

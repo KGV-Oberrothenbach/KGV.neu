@@ -231,7 +231,7 @@ public sealed class RfidEinrichtenPage : ContentPage, IQueryAttributable
         var overwriteExisting = false;
         if (check.RequiresOverwriteConfirmation)
         {
-            overwriteExisting = await DisplayAlert(
+            overwriteExisting = await DisplayAlertAsync(
                 "RFID überschreiben",
                 check.Message + "\n\nSoll die bestehende RFID ersetzt werden?",
                 "Überschreiben",
@@ -244,7 +244,7 @@ public sealed class RfidEinrichtenPage : ContentPage, IQueryAttributable
         var result = await _viewModel.SaveAsync(overwriteExisting);
         if (result.Success)
         {
-            await DisplayAlert("OK", result.Message, "OK");
+            await DisplayAlertAsync("OK", result.Message, "OK");
             await Shell.Current.GoToAsync("//ablesen");
         }
     }

@@ -385,7 +385,7 @@ public class LoginPage : ContentPage
 
     private async Task ChangeClubAsync()
     {
-        var confirmed = await DisplayAlert(
+        var confirmed = await DisplayAlertAsync(
             "Verein wechseln",
             "Du wirst abgemeldet. Die Vereinszuordnung und lokale Anmeldedaten werden auf diesem Gerät gelöscht. Danach die App erneut öffnen und die neue Vereins-ID eingeben.",
             "Abmelden und wechseln",
@@ -443,7 +443,7 @@ public class LoginPage : ContentPage
                 var alreadyEnabled = await _biometricSessionStore.GetAsync(clubIdText) != null;
                 if (!alreadyEnabled && await _biometricAuthenticationService.IsAvailableAsync())
                 {
-                    var enableBiometrics = await DisplayAlert(
+                    var enableBiometrics = await DisplayAlertAsync(
                         "Fingerabdruck-Anmeldung aktivieren?",
                         "Beim nächsten Start kannst du dich auf diesem Gerät mit deinem Fingerabdruck anmelden. Die Anmeldedaten werden geschützt auf dem Gerät gespeichert.",
                         "Aktivieren",
@@ -615,7 +615,7 @@ public class LoginPage : ContentPage
             return;
 
         await Clipboard.Default.SetTextAsync(_lastOtpDiagnosticCode);
-        await DisplayAlert("Diagnosecode", "Diagnosecode wurde kopiert.", "OK");
+        await DisplayAlertAsync("Diagnosecode", "Diagnosecode wurde kopiert.", "OK");
     }
 
     private async Task<bool> SwitchToUserContextAsync(UserContext userContext)

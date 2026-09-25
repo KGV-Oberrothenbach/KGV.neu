@@ -55,7 +55,7 @@ public sealed class VereinsQrScannerPage : ContentPage
         var status = await Permissions.RequestAsync<Permissions.Camera>();
         if (status != PermissionStatus.Granted)
         {
-            await DisplayAlert("Kamera", "Für das Scannen des Vereins-QR-Codes wird der Kamerazugriff benötigt.", "OK");
+            await DisplayAlertAsync("Kamera", "Für das Scannen des Vereins-QR-Codes wird der Kamerazugriff benötigt.", "OK");
             await Navigation.PopModalAsync();
         }
     }

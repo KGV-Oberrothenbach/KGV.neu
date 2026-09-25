@@ -407,19 +407,19 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
 
         if (_activeResolution?.Context?.AktiverZaehlerId is not > 0)
         {
-            await DisplayAlert("Hinweis", "Es liegt kein aktiver Ablese-Kontext vor.", "OK");
+            await DisplayAlertAsync("Hinweis", "Es liegt kein aktiver Ablese-Kontext vor.", "OK");
             return;
         }
 
         if (IsOwnSubmissionMode && !_allowUserMeterReadingSubmissions)
         {
-            await DisplayAlert("Hinweis", "Eigene Zählerablesungen sind aktuell nicht freigeschaltet.", "OK");
+            await DisplayAlertAsync("Hinweis", "Eigene Zählerablesungen sind aktuell nicht freigeschaltet.", "OK");
             return;
         }
 
         if (!TryParseDecimal(_standEntry.Text, out var stand) || stand < 0)
         {
-            await DisplayAlert("Validierung", "Bitte einen gültigen Zählerstand eingeben.", "OK");
+            await DisplayAlertAsync("Validierung", "Bitte einen gültigen Zählerstand eingeben.", "OK");
             _standEntry.Focus();
             return;
         }
@@ -427,7 +427,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         var hasPhoto = _selectedPhotoContent is { Length: > 0 };
         if (_meterReadingPhotoRequired && !hasPhoto)
         {
-            await DisplayAlert("Validierung", "Bitte zuerst ein Foto aufnehmen oder übernehmen.", "OK");
+            await DisplayAlertAsync("Validierung", "Bitte zuerst ein Foto aufnehmen oder übernehmen.", "OK");
             return;
         }
 
@@ -513,7 +513,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
                             ? "Ablesung eingereicht. Sie ist noch nicht direkt freigegeben."
                             : "Ablesung gespeichert.";
 
-            await DisplayAlert("OK", successMessage, "OK");
+            await DisplayAlertAsync("OK", successMessage, "OK");
             await ResetAndRestartScanAsync(clearWorkflow: true);
         }
         catch (Exception ex)

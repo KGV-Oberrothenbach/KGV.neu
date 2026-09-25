@@ -169,19 +169,19 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
 
         if (_context?.Context?.AktiverZaehlerId is not > 0)
         {
-            await DisplayAlert("Hinweis", "Es liegt kein aktiver Zähler für den Ausbau vor.", "OK");
+            await DisplayAlertAsync("Hinweis", "Es liegt kein aktiver Zähler für den Ausbau vor.", "OK");
             return;
         }
 
         if (_selectedPhotoContent == null || _selectedPhotoContent.Length == 0)
         {
-            await DisplayAlert("Validierung", "Bitte zuerst ein Foto aufnehmen oder übernehmen.", "OK");
+            await DisplayAlertAsync("Validierung", "Bitte zuerst ein Foto aufnehmen oder übernehmen.", "OK");
             return;
         }
 
         if (!TryParseDecimal(_standEntry.Text, out var stand) || stand < 0)
         {
-            await DisplayAlert("Validierung", "Bitte einen gültigen Ausbau-Zählerstand eingeben.", "OK");
+            await DisplayAlertAsync("Validierung", "Bitte einen gültigen Ausbau-Zählerstand eingeben.", "OK");
             _standEntry.Focus();
             return;
         }
@@ -246,7 +246,7 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
             }
 
             _workflowState.Clear();
-            await DisplayAlert("OK", "Zählerausbau erfolgreich gespeichert.", "OK");
+            await DisplayAlertAsync("OK", "Zählerausbau erfolgreich gespeichert.", "OK");
             await NavigateToFreshScanAsync();
         }
         catch (Exception ex)

@@ -170,19 +170,19 @@ public sealed class MemberGardenAssignPage : ContentPage
 
         if (_memberRecord?.Id is not > 0)
         {
-            await DisplayAlert("Parzellenzuweisung", "Bitte zuerst ein gültiges Mitglied auswählen.", "OK");
+            await DisplayAlertAsync("Parzellenzuweisung", "Bitte zuerst ein gültiges Mitglied auswählen.", "OK");
             return;
         }
 
         if (!PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext))
         {
-            await DisplayAlert("Parzellenzuweisung", "Parzellenzuweisungen sind mobil nur mit dem Fachrecht 'CreateMitglied' oder als Admin/Vorstand freigegeben.", "OK");
+            await DisplayAlertAsync("Parzellenzuweisung", "Parzellenzuweisungen sind mobil nur mit dem Fachrecht 'CreateMitglied' oder als Admin/Vorstand freigegeben.", "OK");
             return;
         }
 
         if (_parzellePicker.SelectedIndex < 0 || _parzellePicker.SelectedIndex >= _availableParzellen.Count)
         {
-            await DisplayAlert("Parzellenzuweisung", "Bitte zuerst eine Parzelle auswählen.", "OK");
+            await DisplayAlertAsync("Parzellenzuweisung", "Bitte zuerst eine Parzelle auswählen.", "OK");
             return;
         }
 
@@ -196,13 +196,13 @@ public sealed class MemberGardenAssignPage : ContentPage
             var ok = await _supabaseService.AssignParzelleToMitgliedAsync(_memberRecord.Id, selectedParzelle.Id, assignDate);
             if (!ok)
             {
-                await DisplayAlert("Parzellenzuweisung", "Zuweisung fehlgeschlagen. Der Datensatz konnte nicht gespeichert werden.", "OK");
+                await DisplayAlertAsync("Parzellenzuweisung", "Zuweisung fehlgeschlagen. Der Datensatz konnte nicht gespeichert werden.", "OK");
                 return;
             }
 
             if (await _supabaseService.HasSignedMitgliedsantragAsync(_memberRecord.Id))
             {
-                var createContract = await DisplayAlert(
+                var createContract = await DisplayAlertAsync(
                     "Pachtvertrag",
                     "Parzelle zugewiesen. Pachtvertrag erstellen?",
                     "Ja",
@@ -215,18 +215,18 @@ public sealed class MemberGardenAssignPage : ContentPage
             }
             else
             {
-                await DisplayAlert(
+                await DisplayAlertAsync(
                     "Pachtvertrag",
                     "Die Parzelle wurde zugewiesen. Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.",
                     "OK");
             }
 
-            await DisplayAlert("OK", "Parzelle wurde zugewiesen.", "OK");
+            await DisplayAlertAsync("OK", "Parzelle wurde zugewiesen.", "OK");
             await Navigation.PopAsync();
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Parzellenzuweisung", ex.Message, "OK");
+            await DisplayAlertAsync("Parzellenzuweisung", ex.Message, "OK");
         }
         finally
         {

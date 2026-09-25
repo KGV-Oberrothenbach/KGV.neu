@@ -235,13 +235,13 @@ public sealed class MemberGardensPage : ContentPage
         var selectedMember = _memberContextState.SelectedMember;
         if (selectedMember?.Id is not > 0)
         {
-            await DisplayAlert("Hinweis", "Bitte zuerst ein Mitglied auswählen.", "OK");
+            await DisplayAlertAsync("Hinweis", "Bitte zuerst ein Mitglied auswählen.", "OK");
             return;
         }
 
         if (!PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext))
         {
-            await DisplayAlert("Hinweis", "Parzellenzuweisung ist mobil nur mit dem Fachrecht 'CreateMitglied' oder als Admin/Vorstand freigegeben.", "OK");
+            await DisplayAlertAsync("Hinweis", "Parzellenzuweisung ist mobil nur mit dem Fachrecht 'CreateMitglied' oder als Admin/Vorstand freigegeben.", "OK");
             return;
         }
 

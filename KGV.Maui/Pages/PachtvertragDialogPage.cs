@@ -162,7 +162,7 @@ public sealed class PachtvertragDialogPage : ContentPage
 
         if (!_altvertragEntscheidungErfasst)
         {
-            var altvertragVorhanden = await DisplayAlert("Altvertrag", "Liegt ein Altvertrag vor?", "Ja", "Nein");
+            var altvertragVorhanden = await DisplayAlertAsync("Altvertrag", "Liegt ein Altvertrag vor?", "Ja", "Nein");
             if (altvertragVorhanden)
             {
                 var datePicker = new DatePicker { Date = DateTime.Today };

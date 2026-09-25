@@ -453,7 +453,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         var userId = _authService.CurrentUserId;
         if (string.IsNullOrWhiteSpace(userId))
         {
-            await DisplayAlert("Fehler", "Nicht angemeldet. Bitte erneut einloggen.", "OK");
+            await DisplayAlertAsync("Fehler", "Nicht angemeldet. Bitte erneut einloggen.", "OK");
             return;
         }
 
@@ -476,14 +476,14 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 : MembershipEndDecision.PromoteSecondaryMember;
         }
 
-        var confirmed = await DisplayAlert("Mitgliedschaft beenden", $"Soll die Mitgliedschaft zum {DateTime.Today:dd.MM.yyyy} beendet werden?", "Beenden", "Abbrechen");
+        var confirmed = await DisplayAlertAsync("Mitgliedschaft beenden", $"Soll die Mitgliedschaft zum {DateTime.Today:dd.MM.yyyy} beendet werden?", "Beenden", "Abbrechen");
         if (!confirmed)
             return;
 
         var lockAcquired = await _supabaseService.TryLockMitgliedAsync(_memberRecord.Id, userId);
         if (!lockAcquired)
         {
-            await DisplayAlert("Gesperrt", "Datensatz ist aktuell gesperrt. Bitte später erneut versuchen.", "OK");
+            await DisplayAlertAsync("Gesperrt", "Datensatz ist aktuell gesperrt. Bitte später erneut versuchen.", "OK");
             return;
         }
 
@@ -492,14 +492,14 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             var result = await _supabaseService.EndMembershipAsync(_memberRecord.Id, DateTime.Today, decision, userId);
             if (!result.Success || result.UpdatedMainMember == null)
             {
-                await DisplayAlert("Fehler", string.IsNullOrWhiteSpace(result.Message) ? "Mitgliedschaft konnte nicht beendet werden." : result.Message, "OK");
+                await DisplayAlertAsync("Fehler", string.IsNullOrWhiteSpace(result.Message) ? "Mitgliedschaft konnte nicht beendet werden." : result.Message, "OK");
                 return;
             }
 
             _memberRecord = result.UpdatedMainMember;
             _memberContextState.SetSelectedMember(MapMember(result.UpdatedMainMember));
             _memberSearchRefreshState.RequestReload();
-            await DisplayAlert("OK", result.Message, "OK");
+            await DisplayAlertAsync("OK", result.Message, "OK");
             await LoadAsync();
         }
         finally
@@ -516,14 +516,14 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         var currentRole = _userContextState.CurrentUserContext?.Role;
         if (currentRole is not UserRole.Admin and not UserRole.Vorstand)
         {
-            await DisplayAlert("Hinweis", "Nutzer hinzufügen ist mobil nur für Admin oder Vorstand freigegeben.", "OK");
+            await DisplayAlertAsync("Hinweis", "Nutzer hinzufügen ist mobil nur für Admin oder Vorstand freigegeben.", "OK");
             return;
         }
 
         var targetUser = CreateInviteUser(_memberRecord);
         if (string.IsNullOrWhiteSpace(targetUser.Email))
         {
-            await DisplayAlert("Hinweis", "Für 'Nutzer hinzufügen' wird eine E-Mail-Adresse im ausgewählten Mitglied benötigt.", "OK");
+            await DisplayAlertAsync("Hinweis", "Für 'Nutzer hinzufügen' wird eine E-Mail-Adresse im ausgewählten Mitglied benötigt.", "OK");
             return;
         }
 
@@ -565,7 +565,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 var previewUploadRequest = await _supabaseService.BuildMitgliedsantragPreviewAsync(request);
                 if (previewUploadRequest == null || (previewUploadRequest.FileContent?.Length ?? 0) <= 0)
                 {
-                    await DisplayAlert("Mitgliedsantrag", "Mitgliedsantrag-Vorschau konnte nicht erzeugt werden.", "OK");
+                    await DisplayAlertAsync("Mitgliedsantrag", "Mitgliedsantrag-Vorschau konnte nicht erzeugt werden.", "OK");
                     return;
                 }
 
@@ -594,21 +594,21 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 var result = await _supabaseService.CreateSignedMitgliedsantragDokumentAsync(request, signatureCapture, gesetzlicherVertreterSignatureCapture);
                 if (!result.Success)
                 {
-                    await DisplayAlert("Mitgliedsantrag", result.Message, "OK");
+                    await DisplayAlertAsync("Mitgliedsantrag", result.Message, "OK");
                     return;
                 }
 
                 var document = result.Document;
                 if (document?.CanOpen != true)
                 {
-                    await DisplayAlert("Mitgliedsantrag", "Mitgliedsantrag wurde nach der Unterschrift als Dokument abgelegt.", "OK");
+                    await DisplayAlertAsync("Mitgliedsantrag", "Mitgliedsantrag wurde nach der Unterschrift als Dokument abgelegt.", "OK");
                     return;
                 }
 
                 var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
                 if (string.IsNullOrWhiteSpace(url))
                 {
-                    await DisplayAlert("Mitgliedsantrag", "Mitgliedsantrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "OK");
+                    await DisplayAlertAsync("Mitgliedsantrag", "Mitgliedsantrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "OK");
                     return;
                 }
 
@@ -618,7 +618,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Mitgliedsantrag", ex.Message, "OK");
+            await DisplayAlertAsync("Mitgliedsantrag", ex.Message, "OK");
         }
         finally
         {
@@ -634,7 +634,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             : await _supabaseService.GetMitgliedByIdAsync(mitgliedId);
         if (member == null)
         {
-            await DisplayAlert("Mitgliedsantrag", "Mitglied konnte nicht geladen werden.", "OK");
+            await DisplayAlertAsync("Mitgliedsantrag", "Mitglied konnte nicht geladen werden.", "OK");
             return null;
         }
 
@@ -646,7 +646,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         }
         catch (InvalidOperationException ex)
         {
-            await DisplayAlert("Mitgliedsantrag", ex.Message, "OK");
+            await DisplayAlertAsync("Mitgliedsantrag", ex.Message, "OK");
             return null;
         }
 
@@ -692,7 +692,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
         if (!canSave)
         {
-            await DisplayAlert("Hinweis", _isCreateMode
+            await DisplayAlertAsync("Hinweis", _isCreateMode
                 ? "Mitglieder anlegen ist mobil nur mit dem Fachrecht 'CreateMitglied' oder als Admin/Vorstand freigegeben."
                 : "Stammdaten können mobil nur von Admin oder Vorstand gespeichert werden.", "OK");
             return;
@@ -700,14 +700,14 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
         if (string.IsNullOrWhiteSpace(_vornameEntry.Text))
         {
-            await DisplayAlert("Validierung", "Vorname ist erforderlich.", "OK");
+            await DisplayAlertAsync("Validierung", "Vorname ist erforderlich.", "OK");
             _vornameEntry.Focus();
             return;
         }
 
         if (string.IsNullOrWhiteSpace(_nachnameEntry.Text))
         {
-            await DisplayAlert("Validierung", "Nachname ist erforderlich.", "OK");
+            await DisplayAlertAsync("Validierung", "Nachname ist erforderlich.", "OK");
             _nachnameEntry.Focus();
             return;
         }
@@ -716,7 +716,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         var selectedArbeitsstundenAltersregelTyp = _arbeitsstundenAltersregelTypPicker.SelectedItem as string;
         if (requiresArbeitsstundenAltersregel && string.IsNullOrWhiteSpace(selectedArbeitsstundenAltersregelTyp))
         {
-            await DisplayAlert("Validierung", "Für Hauptmitglieder ist die Arbeitsstunden-Altersregel erforderlich.", "OK");
+            await DisplayAlertAsync("Validierung", "Für Hauptmitglieder ist die Arbeitsstunden-Altersregel erforderlich.", "OK");
             _arbeitsstundenAltersregelTypPicker.Focus();
             return;
         }
@@ -758,7 +758,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 _memberSearchRefreshState.RequestReload();
                 ApplyCreatedMemberContext(created);
 
-                var createMitgliedsantrag = await DisplayAlert(
+                var createMitgliedsantrag = await DisplayAlertAsync(
                     "Mitgliedsantrag",
                     "Mitglied angelegt. Mitgliedsantrag erstellen?",
                     "Ja",
@@ -767,7 +767,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 if (createMitgliedsantrag)
                     await CreateMitgliedsantragAsync(created.Id, manageBusyState: false);
 
-                var createNebenmitglied = await DisplayAlert(
+                var createNebenmitglied = await DisplayAlertAsync(
                     "Nebenmitglied anlegen",
                     "Mitglied angelegt. Soll jetzt ein Nebenmitglied angelegt werden?",
                     "Ja",
@@ -799,7 +799,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         var userId = _authService.CurrentUserId;
         if (string.IsNullOrWhiteSpace(userId))
         {
-            await DisplayAlert("Fehler", "Nicht angemeldet. Bitte erneut einloggen.", "OK");
+            await DisplayAlertAsync("Fehler", "Nicht angemeldet. Bitte erneut einloggen.", "OK");
             return;
         }
 
@@ -810,14 +810,14 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             lockAcquired = await _supabaseService.TryLockMitgliedAsync(_memberRecord.Id, userId);
             if (!lockAcquired)
             {
-                await DisplayAlert("Gesperrt", "Datensatz ist aktuell gesperrt. Bitte später erneut versuchen.", "OK");
+                await DisplayAlertAsync("Gesperrt", "Datensatz ist aktuell gesperrt. Bitte später erneut versuchen.", "OK");
                 return;
             }
 
             var current = await _supabaseService.GetMitgliedByIdAsync(_memberRecord.Id);
             if (current == null)
             {
-                await DisplayAlert("Fehler", "Mitglied konnte nicht geladen werden.", "OK");
+                await DisplayAlertAsync("Fehler", "Mitglied konnte nicht geladen werden.", "OK");
                 return;
             }
 
@@ -847,18 +847,18 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             var ok = await _supabaseService.UpdateMitgliedAsync(dto, userId);
             if (!ok)
             {
-                await DisplayAlert("Fehler", "Stammdaten konnten nicht gespeichert werden.", "OK");
+                await DisplayAlertAsync("Fehler", "Stammdaten konnten nicht gespeichert werden.", "OK");
                 return;
             }
 
             _memberContextState.SetSelectedMember(dto);
             _statusLabel.Text = "Stammdaten gespeichert.";
-            await DisplayAlert("OK", "Stammdaten gespeichert.", "OK");
+            await DisplayAlertAsync("OK", "Stammdaten gespeichert.", "OK");
             await LoadAsync();
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Fehler", ex.Message, "OK");
+            await DisplayAlertAsync("Fehler", ex.Message, "OK");
         }
         finally
         {

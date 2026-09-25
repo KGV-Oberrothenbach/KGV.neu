@@ -90,7 +90,7 @@ public sealed class UserManagementPage : ContentPage
         {
             var ok = await _viewModel.SaveRoleAsync();
             if (ok)
-                await DisplayAlert("OK", "Rolle gespeichert.", "OK");
+                await DisplayAlertAsync("OK", "Rolle gespeichert.", "OK");
         };
 
         var roleSection = new VerticalStackLayout { Spacing = 8 };
@@ -108,7 +108,7 @@ public sealed class UserManagementPage : ContentPage
         {
             var ok = await _viewModel.InviteAsync();
             if (ok)
-                await DisplayAlert("OK", "Der produktive Invite-/Erstlogin-Flow wurde angestoßen.", "OK");
+                await DisplayAlertAsync("OK", "Der produktive Invite-/Erstlogin-Flow wurde angestoßen.", "OK");
         };
 
         var resetButton = new Button { Text = "Passwort-Reset senden" };
@@ -117,7 +117,7 @@ public sealed class UserManagementPage : ContentPage
         {
             var ok = await _viewModel.SendPasswordResetAsync();
             if (ok)
-                await DisplayAlert("OK", "Passwort-Reset wurde angestoßen.", "OK");
+                await DisplayAlertAsync("OK", "Passwort-Reset wurde angestoßen.", "OK");
         };
 
         var removeButton = new Button { Text = "Nutzer entfernen" };
@@ -125,13 +125,13 @@ public sealed class UserManagementPage : ContentPage
         removeButton.SetBinding(IsVisibleProperty, nameof(UserManagementViewModel.IsBoundToMember));
         removeButton.Clicked += async (_, _) =>
         {
-            var confirmed = await DisplayAlert("Nutzer entfernen", "Soll der Appuser des ausgewählten Mitglieds entfernt werden?", "Ja", "Nein");
+            var confirmed = await DisplayAlertAsync("Nutzer entfernen", "Soll der Appuser des ausgewählten Mitglieds entfernt werden?", "Ja", "Nein");
             if (!confirmed)
                 return;
 
             var ok = await _viewModel.RemoveUserAsync();
             if (ok)
-                await DisplayAlert("OK", "Appuser wurde entfernt.", "OK");
+                await DisplayAlertAsync("OK", "Appuser wurde entfernt.", "OK");
         };
 
         var changeEmailButton = new Button { Text = "Eigene E-Mail ändern" };
@@ -154,7 +154,7 @@ public sealed class UserManagementPage : ContentPage
 
             var verified = await _viewModel.VerifyEmailChangeAsync(newEmail, otpCode);
             if (verified)
-                await DisplayAlert("OK", "Mailadresse erfolgreich geändert.", "OK");
+                await DisplayAlertAsync("OK", "Mailadresse erfolgreich geändert.", "OK");
         };
 
         var emailHintLabel = new Label

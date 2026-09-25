@@ -277,7 +277,7 @@ public sealed class WartungsvertragAssignMembersPage : ContentPage, IQueryAttrib
         {
             if (!_gueltigAbDatePicker.Date.HasValue)
             {
-                await DisplayAlert("Validierung", "Bitte ein Gültig-ab-Datum auswählen.", "OK");
+                await DisplayAlertAsync("Validierung", "Bitte ein Gültig-ab-Datum auswählen.", "OK");
                 _gueltigAbDatePicker.Focus();
                 return;
             }

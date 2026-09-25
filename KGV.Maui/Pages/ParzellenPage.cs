@@ -340,7 +340,7 @@ public sealed class ParzellenPage : ContentPage
     {
         if (_viewModel.HasFlaecheChanged())
         {
-            var confirm = await DisplayAlert(
+            var confirm = await DisplayAlertAsync(
                 "Bestätigung",
                 "Bist du dir sicher, dass du die Fläche der Parzelle ändern möchtest?",
                 "Ja",
@@ -352,7 +352,7 @@ public sealed class ParzellenPage : ContentPage
 
         var ok = await _viewModel.SaveStammdatenAsync();
         if (ok)
-            await DisplayAlert("OK", "Parzellen-Stammdaten gespeichert.", "OK");
+            await DisplayAlertAsync("OK", "Parzellen-Stammdaten gespeichert.", "OK");
     }
 
     private async Task OpenAblesungAsync(string medium)
@@ -366,7 +366,7 @@ public sealed class ParzellenPage : ContentPage
             : detail.HatStrom;
         if (!hasMedium)
         {
-            await DisplayAlert("Hinweis", string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase)
+            await DisplayAlertAsync("Hinweis", string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase)
                 ? "Für diese Parzelle ist kein Wasseranschluss hinterlegt."
                 : "Für diese Parzelle ist kein Stromanschluss hinterlegt.", "OK");
             return;

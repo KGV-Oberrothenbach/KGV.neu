@@ -380,7 +380,7 @@ public sealed class MemberParzellenDetailPage : ContentPage
             : detail.HatStrom;
         if (!hasMedium)
         {
-            await DisplayAlert("Hinweis", string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase)
+            await DisplayAlertAsync("Hinweis", string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase)
                 ? "Für diese Parzelle ist kein Wasseranschluss hinterlegt."
                 : "Für diese Parzelle ist kein Stromanschluss hinterlegt.", "OK");
             return;
@@ -437,7 +437,7 @@ public sealed class MemberParzellenDetailPage : ContentPage
 
         if (_parzellenContextState.ContextMitgliedId is not > 0)
         {
-            await DisplayAlert("Pachtvertrag", "Für den aktuellen Mitgliedskontext fehlt die Mitglieds-ID.", "OK");
+            await DisplayAlertAsync("Pachtvertrag", "Für den aktuellen Mitgliedskontext fehlt die Mitglieds-ID.", "OK");
             return;
         }
 
@@ -446,13 +446,13 @@ public sealed class MemberParzellenDetailPage : ContentPage
             _mitgliedsantragStatusGeprueft = true;
             _hasSignedMitgliedsantrag = false;
             UpdatePachtvertragButtons();
-            await DisplayAlert("Pachtvertrag", "Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.", "OK");
+            await DisplayAlertAsync("Pachtvertrag", "Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.", "OK");
             return;
         }
 
         if (!detail.VonDatum.HasValue)
         {
-            await DisplayAlert("Pachtvertrag", "Für diese Parzellenzuordnung fehlt das Startdatum. Pachtvertrag kann hier nicht erzeugt werden.", "OK");
+            await DisplayAlertAsync("Pachtvertrag", "Für diese Parzellenzuordnung fehlt das Startdatum. Pachtvertrag kann hier nicht erzeugt werden.", "OK");
             return;
         }
 
@@ -486,23 +486,23 @@ public sealed class MemberParzellenDetailPage : ContentPage
                                                                               && string.Equals(d.FormularDokumentStatusKey, FormularDokumentStatus.Signiert, StringComparison.Ordinal));
                 if (savedSigned != null)
                 {
-                    await DisplayAlert("Pachtvertrag", "Pachtvertrag persistent gespeichert.", "OK");
+                    await DisplayAlertAsync("Pachtvertrag", "Pachtvertrag persistent gespeichert.", "OK");
                 }
                 else
                 {
                     var savedUnsign = _viewModel.Dokumente?.FirstOrDefault(d => string.Equals(d.FormularDokumentTypKey, FormularDokumentTyp.Pachtvertrag, StringComparison.Ordinal)
                                                                                      && string.Equals(d.FormularDokumentStatusKey, FormularDokumentStatus.Unsigniert, StringComparison.Ordinal));
                     if (savedUnsign != null)
-                        await DisplayAlert("Pachtvertrag", "Unsignierte Pachtvertragsfassung persistent gespeichert.", "OK");
+                        await DisplayAlertAsync("Pachtvertrag", "Unsignierte Pachtvertragsfassung persistent gespeichert.", "OK");
                     else
-                        await DisplayAlert("Pachtvertrag", "Pachtvertrag wurde erzeugt, aber kein Dokumenteintrag gefunden.", "OK");
+                        await DisplayAlertAsync("Pachtvertrag", "Pachtvertrag wurde erzeugt, aber kein Dokumenteintrag gefunden.", "OK");
                 }
             }
             catch { }
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Pachtvertrag", ex.Message, "OK");
+            await DisplayAlertAsync("Pachtvertrag", ex.Message, "OK");
         }
         finally
         {
@@ -562,28 +562,28 @@ public sealed class MemberParzellenDetailPage : ContentPage
 
             if (doc == null)
             {
-                await DisplayAlert("Pachtvertrag", "Kein unsignierter Pachtvertrag gefunden.", "OK");
+                await DisplayAlertAsync("Pachtvertrag", "Kein unsignierter Pachtvertrag gefunden.", "OK");
                 return;
             }
 
-            var confirm = await DisplayAlert("Pachtvertrag verwerfen", "Soll die vorhandene unsignierte Pachtvertragsfassung verworfen werden? Diese Aktion kann nicht rückgängig gemacht werden.", "Ja", "Nein");
+            var confirm = await DisplayAlertAsync("Pachtvertrag verwerfen", "Soll die vorhandene unsignierte Pachtvertragsfassung verworfen werden? Diese Aktion kann nicht rückgängig gemacht werden.", "Ja", "Nein");
             if (!confirm)
                 return;
 
             var result = await _supabaseService.DeleteDokumentAsync(doc);
             if (!result.Success)
             {
-                await DisplayAlert("Pachtvertrag", "Das Dokument konnte nicht gelöscht werden: " + result.Message, "OK");
+                await DisplayAlertAsync("Pachtvertrag", "Das Dokument konnte nicht gelöscht werden: " + result.Message, "OK");
                 return;
             }
 
             await _viewModel.RefreshSelectedDetailAsync();
             UpdatePachtvertragButtons();
-            await DisplayAlert("Pachtvertrag", "Unsignierte Pachtvertragsfassung verworfen.", "OK");
+            await DisplayAlertAsync("Pachtvertrag", "Unsignierte Pachtvertragsfassung verworfen.", "OK");
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Pachtvertrag", ex.Message, "OK");
+            await DisplayAlertAsync("Pachtvertrag", ex.Message, "OK");
         }
     }
 }

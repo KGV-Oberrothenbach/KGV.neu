@@ -375,7 +375,7 @@ public sealed class MyProfilePage : ContentPage
     {
         if (_member == null)
         {
-            await DisplayAlert("Fehler", "Mitglied ist nicht geladen.", "OK");
+            await DisplayAlertAsync("Fehler", "Mitglied ist nicht geladen.", "OK");
             return;
         }
 
@@ -388,7 +388,7 @@ public sealed class MyProfilePage : ContentPage
         var error = Validate(adresse, plz, ort, telefon, handy);
         if (!string.IsNullOrEmpty(error))
         {
-            await DisplayAlert("Ungültige Eingabe", error, "OK");
+            await DisplayAlertAsync("Ungültige Eingabe", error, "OK");
             return;
         }
 
@@ -398,16 +398,16 @@ public sealed class MyProfilePage : ContentPage
             var ok = await _supabaseService.UpdateOwnContactAsync(_member.Id, EmptyToNull(telefon), EmptyToNull(handy), adresse, plz, ort);
             if (!ok)
             {
-                await DisplayAlert("Fehler", "Speichern fehlgeschlagen.", "OK");
+                await DisplayAlertAsync("Fehler", "Speichern fehlgeschlagen.", "OK");
                 return;
             }
 
-            await DisplayAlert("OK", "Gespeichert.", "OK");
+            await DisplayAlertAsync("OK", "Gespeichert.", "OK");
             await LoadAsync();
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Fehler", ex.Message, "OK");
+            await DisplayAlertAsync("Fehler", ex.Message, "OK");
         }
         finally
         {
@@ -424,17 +424,17 @@ public sealed class MyProfilePage : ContentPage
 
         if (string.IsNullOrWhiteSpace(adresse) || string.IsNullOrWhiteSpace(plz) || string.IsNullOrWhiteSpace(ort))
         {
-            await DisplayAlert("Hinweis", "Bitte Adresse, PLZ und Ort ausfüllen.", "OK");
+            await DisplayAlertAsync("Hinweis", "Bitte Adresse, PLZ und Ort ausfüllen.", "OK");
             return;
         }
 
         var okPlz = PlzRegex.IsMatch(plz);
-        await DisplayAlert("Adresse prüfen", okPlz ? "Format wirkt plausibel." : "PLZ ist ungültig.", "OK");
+        await DisplayAlertAsync("Adresse prüfen", okPlz ? "Format wirkt plausibel." : "PLZ ist ungültig.", "OK");
     }
 
     private async Task ChangeClubAsync()
     {
-        var confirmed = await DisplayAlert(
+        var confirmed = await DisplayAlertAsync(
             "Verein wechseln",
             "Du wirst abgemeldet. Die Vereinszuordnung und lokale Anmeldedaten werden auf diesem Gerät gelöscht. Danach die App erneut öffnen und die neue Vereins-ID eingeben.",
             "Abmelden und wechseln",

@@ -378,7 +378,7 @@ public sealed class MemberWartungsvertraegePage : ContentPage
         if (!_canManage || _isBusy || item.ZuordnungId <= 0)
             return;
 
-        var confirmed = await DisplayAlert("Wartungsvertrag beenden", $"Die aktive Zuordnung von '{item.Titel}' wird beendet. Fortfahren?", "Ja", "Nein");
+        var confirmed = await DisplayAlertAsync("Wartungsvertrag beenden", $"Die aktive Zuordnung von '{item.Titel}' wird beendet. Fortfahren?", "Ja", "Nein");
         if (!confirmed)
             return;
 
