@@ -242,10 +242,12 @@ namespace KGV.Infrastructure.Services
                 using var response = await _httpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead);
                 if (!response.IsSuccessStatusCode)
                 {
+                    var errorBody = await response.Content.ReadAsStringAsync();
                     _logger?.LogWarning(
-                        "Ablesungsfoto-Download wurde abgelehnt. AblesungId={AblesungId}, Status={Status}",
+                        "Ablesungsfoto-Download wurde abgelehnt. AblesungId={AblesungId}, Status={Status}, Antwort={Response}",
                         ablesungId,
-                        (int)response.StatusCode);
+                        (int)response.StatusCode,
+                        errorBody);
                     return null;
                 }
 

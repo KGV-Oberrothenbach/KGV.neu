@@ -579,18 +579,21 @@ public class DokumentePage : ContentPage, IQueryAttributable
                 return;
             }
 
-            if (IsPdfDocument(document))
+            if (IsPdfDocument(document) || IsImageDocument(document))
             {
                 _isBusy = true;
                 UpdateUiState();
                 var content = await _supabaseService.DownloadDokumentContentAsync(document);
                 if (content is not { Length: > 0 })
                 {
-                    SetStatus("PDF konnte nicht geladen werden. Prüfe die Dokumentberechtigung oder den Google-Drive-Zugang.", success: false);
+                    SetStatus("Dokument konnte nicht geladen werden. Prüfe die Dokumentberechtigung oder den Google-Drive-Zugang.", success: false);
                     return;
                 }
 
-                await Navigation.PushAsync(new PdfViewerPage(GetDocumentDisplayName(document), content));
+                if (IsPdfDocument(document))
+                    await Navigation.PushAsync(new PdfViewerPage(GetDocumentDisplayName(document), content));
+                else
+                    await Navigation.PushAsync(new ImageViewerPage(GetDocumentDisplayName(document), content));
                 return;
             }
 
@@ -618,6 +621,13 @@ public class DokumentePage : ContentPage, IQueryAttributable
     private static bool IsPdfDocument(DocumentInfo document)
         => string.Equals(document.MimeType, "application/pdf", StringComparison.OrdinalIgnoreCase)
            || document.Dateiname.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsImageDocument(DocumentInfo document)
+        => document.MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
+           || document.Dateiname.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
+           || document.Dateiname.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
+           || document.Dateiname.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+           || document.Dateiname.EndsWith(".webp", StringComparison.OrdinalIgnoreCase);
 
     private async Task DeleteDocumentAsync(DocumentInfo document)
     {
