@@ -31,6 +31,7 @@ namespace KGV.Core.Utilities
 
             var doc = new PdfDocument();
             doc.Info.Title = exportKey ?? "export";
+            var isMitgliederliste = string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase);
 
             var page = doc.AddPage();
             page.Size = PdfSharpCore.PageSize.A4;
@@ -38,12 +39,27 @@ namespace KGV.Core.Utilities
 
             var gfx = XGraphics.FromPdfPage(page);
 
-            var headerFont = new XFont("Arial", 12, XFontStyle.Bold);
-            var cellFont = new XFont("Arial", 9, XFontStyle.Regular);
+            var titleFont = new XFont("Arial", 15, XFontStyle.Bold);
+            var subtitleFont = new XFont("Arial", 8, XFontStyle.Regular);
+            var headerFont = new XFont("Arial", isMitgliederliste ? 8 : 12, XFontStyle.Bold);
+            var cellFont = new XFont("Arial", isMitgliederliste ? 7.5 : 9, XFontStyle.Regular);
 
             double usableWidth = page.Width - PageMargin * 2;
             double x = PageMargin;
             double y = PageMargin;
+
+            void DrawMitgliederlistenKopf()
+            {
+                if (!isMitgliederliste)
+                    return;
+
+                gfx.DrawString("Mitgliederliste", titleFont, XBrushes.DarkSlateGray,
+                    new XRect(PageMargin, y, usableWidth, 20), XStringFormats.TopLeft);
+                y += 20;
+                gfx.DrawString($"Erstellt am {DateTime.Now:dd.MM.yyyy HH:mm}", subtitleFont, XBrushes.DimGray,
+                    new XRect(PageMargin, y, usableWidth, 12), XStringFormats.TopLeft);
+                y += 18;
+            }
 
             // prepare effective columns
             var effectiveCols = BuildEffectiveColumns(exportKey, columns);
@@ -54,6 +70,7 @@ namespace KGV.Core.Utilities
             if (totalWeight <= 0) totalWeight = 1;
             var colWidths = weights.Select(w => usableWidth * (w / totalWeight)).ToArray();
 
+            DrawMitgliederlistenKopf();
             // draw header
             DrawHeaderRow(gfx, headerFont, effectiveCols, colWidths, x, y, exportKey);
             y += HeaderHeight + 6;
@@ -91,6 +108,7 @@ namespace KGV.Core.Utilities
                     textFormatter = new XTextFormatter(gfx);
                     x = PageMargin;
                     y = PageMargin;
+                    DrawMitgliederlistenKopf();
                     DrawHeaderRow(gfx, headerFont, effectiveCols, colWidths, x, y, exportKey);
                     y += HeaderHeight + 6;
                 }
@@ -263,7 +281,7 @@ namespace KGV.Core.Utilities
         private static List<PdfColumn> BuildEffectiveColumns(string exportKey, IReadOnlyList<AppExportColumnDefinitionRecord> columns)
         {
             var result = new List<PdfColumn>();
-            var addressKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "adresse", "plz", "ort", "strasse", "hausnummer" };
+            var addressKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "adresse", "strasse_hsnr", "plz", "ort", "strasse", "hausnummer" };
             var contactKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "telefon", "handy", "mobil" };
 
             foreach (var c in columns)
@@ -311,7 +329,9 @@ namespace KGV.Core.Utilities
             var key = (col.ColumnKey ?? string.Empty).ToLowerInvariant();
             if (key == "__pdf_address__")
             {
-                row.TryGetValue("adresse", out var adr);
+                row.TryGetValue("strasse_hsnr", out var adr);
+                if (string.IsNullOrWhiteSpace(adr))
+                    row.TryGetValue("adresse", out adr);
                 row.TryGetValue("plz", out var plz);
                 row.TryGetValue("ort", out var ort);
                 var line1 = adr ?? string.Empty;
@@ -322,7 +342,9 @@ namespace KGV.Core.Utilities
             if (key == "__pdf_contact__")
             {
                 row.TryGetValue("telefon", out var tel);
-                row.TryGetValue("handy", out var mob);
+                row.TryGetValue("mobil", out var mob);
+                if (string.IsNullOrWhiteSpace(mob))
+                    row.TryGetValue("handy", out mob);
                 var line1 = tel ?? string.Empty;
                 var line2 = mob ?? string.Empty;
                 return string.IsNullOrWhiteSpace(line2) ? line1 : line1 + "\n" + line2;
