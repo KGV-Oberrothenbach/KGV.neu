@@ -29,14 +29,14 @@ if errorlevel 2 (
 
 set "PROJECT_REF=%PROJECT_REF%"
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$projectRef = $env:PROJECT_REF;" ^
+  "$ErrorActionPreference = 'Stop'; $projectRef = $env:PROJECT_REF;" ^
   "$securePassword = Read-Host 'Neues Archivpasswort eingeben' -AsSecureString;" ^
   "$confirmPassword = Read-Host 'Archivpasswort wiederholen' -AsSecureString;" ^
   "$toPlainText = { param($value) $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($value); try { [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) } };" ^
   "$password = & $toPlainText $securePassword; $confirmation = & $toPlainText $confirmPassword;" ^
   "if ([string]::IsNullOrWhiteSpace($password) -or $password -ne $confirmation) { Write-Error 'Passwoerter sind leer oder stimmen nicht ueberein.'; exit 1 };" ^
-  "$hashBytes = [Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($password));" ^
-  "$hash = [Convert]::ToHexString($hashBytes).ToLowerInvariant();" ^
+  "$sha256 = [Security.Cryptography.SHA256]::Create(); try { $hashBytes = $sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($password)) } finally { $sha256.Dispose() };" ^
+  "$hash = -join ($hashBytes | ForEach-Object { $_.ToString('x2') });" ^
   "$password = $null; $confirmation = $null;" ^
   "& npx supabase secrets set ('KGV_DOCUMENT_ARCHIVE_PASSWORD_SHA256=' + $hash) --project-ref $projectRef;" ^
   "exit $LASTEXITCODE"
