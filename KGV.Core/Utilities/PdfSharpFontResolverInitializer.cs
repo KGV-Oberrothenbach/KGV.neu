@@ -2,21 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using PdfSharpCore.Fonts;
 
 namespace KGV.Core.Utilities
 {
-    internal static class PdfSharpFontResolverInitializer
+    public static class PdfSharpFontResolverInitializer
     {
         private static int _initialized;
         private static readonly object SyncRoot = new();
         private static readonly IFontResolver Resolver = new PlatformFontResolver();
-
-        [ModuleInitializer]
-        internal static void InitializeModule()
-            => EnsureInitialized();
 
         public static void EnsureInitialized()
         {

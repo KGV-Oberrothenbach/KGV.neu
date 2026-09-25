@@ -10,6 +10,7 @@ using KGV.Maui.State;
 using KGV.Maui.ViewModels;
 using KGV.Core.Interfaces;
 using KGV.Core.Services;
+using KGV.Core.Utilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -32,6 +33,7 @@ public static class MauiProgram
     {
         AppFileLog.Marker("APP_START");
         AppFileLog.Info(StartupLogTag, "Appstart initialisiert.");
+        PdfSharpFontResolverInitializer.EnsureInitialized();
         RegisterUnhandledExceptionLogging();
         var useMauiAppCompleted = false;
 

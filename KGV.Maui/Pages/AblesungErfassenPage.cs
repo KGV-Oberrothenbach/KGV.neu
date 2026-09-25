@@ -360,7 +360,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
 
             var fileResult = capture
                 ? await MediaPicker.Default.CapturePhotoAsync()
-                : await MediaPicker.Default.PickPhotoAsync();
+                : (await MediaPicker.Default.PickPhotosAsync()).FirstOrDefault();
 
             if (fileResult == null)
             {

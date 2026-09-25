@@ -88,7 +88,7 @@ public sealed class ExportPage : ContentPage
                     new Binding(
                         ".",
                         converter: new KGV.Maui.Converters.FuncConverter<object, string>(o => o?.ToString() ?? string.Empty)));
-                return new Frame { Content = label, Padding = 6, Margin = 2 };
+                return new Border { Content = label, Padding = 6, Margin = 2, StrokeThickness = 0 };
             })
         };
 

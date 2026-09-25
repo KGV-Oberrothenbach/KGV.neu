@@ -35,16 +35,6 @@ public class MainActivity : MauiAppCompatActivity
         OnBackPressedDispatcher.AddCallback(this, _backPressedCallback);
     }
 
-    public override void OnBackPressed()
-    {
-        AppFileLog.Info("KGV.Navigation", "MainActivity.OnBackPressed erreicht.");
-
-        if (TryHandleMauiBackNavigation())
-            return;
-
-        base.OnBackPressed();
-    }
-
     public static void SetLandscapeOrientationEnabled(bool enabled)
     {
         try
@@ -104,7 +94,7 @@ public class MainActivity : MauiAppCompatActivity
 
         try
         {
-            base.OnBackPressed();
+            OnBackPressedDispatcher.OnBackPressed();
         }
         finally
         {

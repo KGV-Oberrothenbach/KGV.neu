@@ -137,14 +137,14 @@ public class DokumentePage : ContentPage, IQueryAttributable
                                     {
                                         var hasSigned = await _supabaseService.HasSignedPachtvertragAsync(_currentParzelleId.Value);
                                         // If the API returns true -> hide follow actions (OnlyShow)
-                                        Device.BeginInvokeOnMainThread(() => uploadSignedButton.IsVisible = hasSigned ? false : visible);
+                                        Dispatcher.Dispatch(() => uploadSignedButton.IsVisible = hasSigned ? false : visible);
                                         return;
                                     }
-                                    Device.BeginInvokeOnMainThread(() => uploadSignedButton.IsVisible = visible);
+                                    Dispatcher.Dispatch(() => uploadSignedButton.IsVisible = visible);
                                 }
                                 catch
                                 {
-                                    Device.BeginInvokeOnMainThread(() => uploadSignedButton.IsVisible = visible);
+                                    Dispatcher.Dispatch(() => uploadSignedButton.IsVisible = visible);
                                 }
                         });
                         return;
@@ -175,15 +175,15 @@ public class DokumentePage : ContentPage, IQueryAttributable
                                 if (_currentParzelleId is > 0)
                                 {
                                     var hasSigned = await _supabaseService.HasSignedPachtvertragAsync(_currentParzelleId.Value);
-                                    Device.BeginInvokeOnMainThread(() => digitalSignButton.IsVisible = hasSigned ? false : visible);
+                                    Dispatcher.Dispatch(() => digitalSignButton.IsVisible = hasSigned ? false : visible);
                                     return;
                                 }
 
-                                Device.BeginInvokeOnMainThread(() => digitalSignButton.IsVisible = visible);
+                                Dispatcher.Dispatch(() => digitalSignButton.IsVisible = visible);
                             }
                             catch
                             {
-                                Device.BeginInvokeOnMainThread(() => digitalSignButton.IsVisible = visible);
+                                Dispatcher.Dispatch(() => digitalSignButton.IsVisible = visible);
                             }
                         });
                         return;

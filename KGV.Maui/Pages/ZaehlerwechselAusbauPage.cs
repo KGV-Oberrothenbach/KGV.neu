@@ -7,6 +7,7 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Media;
 using System.IO;
 using System.Globalization;
+using System.Linq;
 
 namespace KGV.Maui.Pages;
 
@@ -129,7 +130,7 @@ public sealed class ZaehlerwechselAusbauPage : ContentPage
 
             var fileResult = capture
                 ? await MediaPicker.Default.CapturePhotoAsync()
-                : await MediaPicker.Default.PickPhotoAsync();
+                : (await MediaPicker.Default.PickPhotosAsync()).FirstOrDefault();
 
             if (fileResult == null)
                 return;
