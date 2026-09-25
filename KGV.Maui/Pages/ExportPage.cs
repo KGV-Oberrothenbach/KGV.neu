@@ -441,8 +441,8 @@ public sealed class ExportPage : ContentPage
                                         if (r != null && r.Count > 0)
                                         {
                                             // prefer explicit label/value keys
-                                            string label = null;
-                                            string value = null;
+                                            string? label = null;
+                                            string? value = null;
                                             if (!string.IsNullOrWhiteSpace(r.TryGetValue("label", out var l) ? l : null)) label = r["label"];
                                             else if (!string.IsNullOrWhiteSpace(r.TryGetValue("text", out var t) ? t : null)) label = r["text"];
                                             else label = r.Values.FirstOrDefault() ?? r.Keys.FirstOrDefault() ?? string.Empty;

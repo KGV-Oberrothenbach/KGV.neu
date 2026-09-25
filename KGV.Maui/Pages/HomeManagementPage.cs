@@ -89,11 +89,6 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         _refreshButton.Clicked += async (_, _) => await LoadCurrentSectionAsync(resetSelection: false);
 
         _newButton = new Button { Text = "Neu" };
-        _newButton.Clicked += (_, _) =>
-        {
-            _entriesView.SelectedItem = null;
-            ResetEditorForNew();
-        };
 
         _entriesView = new CollectionView
         {
@@ -115,6 +110,11 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
                 };
             })
         };
+        _newButton.Clicked += (_, _) =>
+        {
+            _entriesView.SelectedItem = null;
+            ResetEditorForNew();
+        };
         _entriesView.SelectionChanged += (_, e) =>
         {
             var selected = e.CurrentSelection?.FirstOrDefault() as ManagementEntry;
@@ -125,19 +125,19 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
         _titleEntry = new Entry { Placeholder = "Titel" };
         _descriptionEditor = new Editor { AutoSize = EditorAutoSizeOption.TextChanges, Placeholder = "Beschreibung" };
         _datePicker = new DatePicker { Date = DateTime.Today };
-        _hasStartTimeCheckBox = new CheckBox();
-        _hasStartTimeCheckBox.CheckedChanged += (_, e) => _startTimePicker.IsEnabled = e.Value;
         _startTimePicker = new TimePicker { Time = new TimeSpan(8, 0, 0) };
         _startTimePicker.IsEnabled = false;
-        _hasEndTimeCheckBox = new CheckBox();
-        _hasEndTimeCheckBox.CheckedChanged += (_, e) => _endTimePicker.IsEnabled = e.Value;
+        _hasStartTimeCheckBox = new CheckBox();
+        _hasStartTimeCheckBox.CheckedChanged += (_, e) => _startTimePicker.IsEnabled = e.Value;
         _endTimePicker = new TimePicker { Time = new TimeSpan(12, 0, 0) };
         _endTimePicker.IsEnabled = false;
-        _treffpunktEntry = new Entry { Placeholder = "Treffpunkt" };
         _hasMaxParticipantsCheckBox = new CheckBox();
-        _hasMaxParticipantsCheckBox.CheckedChanged += (_, e) => _maxParticipantsEntry.IsEnabled = e.Value;
+        _hasEndTimeCheckBox = new CheckBox();
+        _hasEndTimeCheckBox.CheckedChanged += (_, e) => _endTimePicker.IsEnabled = e.Value;
         _maxParticipantsEntry = new Entry { Placeholder = "Max. Teilnehmer", Keyboard = Keyboard.Numeric };
         _maxParticipantsEntry.IsEnabled = false;
+        _hasMaxParticipantsCheckBox.CheckedChanged += (_, e) => _maxParticipantsEntry.IsEnabled = e.Value;
+        _treffpunktEntry = new Entry { Placeholder = "Treffpunkt" };
         _hoursEntry = new Entry { Placeholder = "Stundenwert", Keyboard = Keyboard.Numeric };
         _htmlEditor = new Editor { AutoSize = EditorAutoSizeOption.TextChanges, Placeholder = "HTML-Inhalt" };
         _sortOrderEntry = new Entry { Placeholder = "Sortierreihenfolge", Keyboard = Keyboard.Numeric };

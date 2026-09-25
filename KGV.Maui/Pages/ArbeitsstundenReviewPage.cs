@@ -113,14 +113,14 @@ public sealed class ArbeitsstundenReviewPage : ContentPage
             var entries = await _supabaseService.GetOffeneArbeitsstundenZurFreigabeAsync();
             System.Diagnostics.Debug.WriteLine($"KGV: Service returned {entries?.Count ?? 0} entries");
             Console.WriteLine($"KGV: Service returned {entries?.Count ?? 0} entries");
-            _reviewState.SetEntries(entries);
+            _reviewState.SetEntries(entries ?? Enumerable.Empty<ArbeitsstundeDTO>());
 
             // Client-side filtering check (should be none)
             var beforeClientFilter = _reviewState.Entries?.Count ?? 0;
             System.Diagnostics.Debug.WriteLine($"KGV: Entries before client-side handling = {beforeClientFilter}");
             Console.WriteLine($"KGV: Entries before client-side handling = {beforeClientFilter}");
 
-            foreach (var entry in _reviewState.Entries)
+            foreach (var entry in _reviewState.Entries ?? Enumerable.Empty<ArbeitsstundeDTO>())
                 _items.Add(entry);
 
             _list.ItemsSource = null;

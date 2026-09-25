@@ -281,12 +281,13 @@ namespace KGV.Maui.ViewModels
             LastRpcError = null;
             LastRpcRowCount = 0;
 
-            if (SelectedDefinition == null)
+            var definition = SelectedDefinition;
+            if (definition == null)
                 return;
 
             var mapped = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
             var isArbeitsstundenUebersicht = string.Equals(
-                SelectedDefinition.ExportKey,
+                definition.ExportKey,
                 "arbeitsstunden_uebersicht",
                 StringComparison.OrdinalIgnoreCase);
 
@@ -353,11 +354,11 @@ namespace KGV.Maui.ViewModels
             {
             }
 
-            var rpcName = SelectedDefinition.QuelleName;
+            var rpcName = definition.QuelleName;
             if (string.IsNullOrWhiteSpace(rpcName))
-                rpcName = SelectedDefinition.StandardAusgabe;
+                rpcName = definition.StandardAusgabe;
             if (string.IsNullOrWhiteSpace(rpcName))
-                rpcName = SelectedDefinition.ExportKey;
+                rpcName = definition.ExportKey;
 
             LastRpcName = rpcName;
 
@@ -714,7 +715,7 @@ namespace KGV.Maui.ViewModels
                         }
                         else
                         {
-                            remapped.Add((col, canonical));
+                            remapped.Add((col, canonical ?? string.Empty));
                         }
                     }
 

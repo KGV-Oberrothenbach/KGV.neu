@@ -461,7 +461,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         MembershipEndDecision? decision = null;
         if (secondaryMember != null)
         {
-            var action = await DisplayActionSheet(
+            var action = await DisplayActionSheetAsync(
                 "Folgeentscheid für Nebenmitglied",
                 "Abbrechen",
                 null,

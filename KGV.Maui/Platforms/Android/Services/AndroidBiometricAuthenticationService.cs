@@ -16,7 +16,7 @@ public sealed class AndroidBiometricAuthenticationService : IBiometricAuthentica
     public Task<bool> AuthenticateAsync(string reason)
     {
         var activity = Platform.CurrentActivity;
-        if (activity == null || Build.VERSION.SdkInt < BuildVersionCodes.P) return Task.FromResult(false);
+        if (activity == null || !OperatingSystem.IsAndroidVersionAtLeast(28)) return Task.FromResult(false);
         return AuthenticateWithPromptAsync(activity, reason);
     }
 

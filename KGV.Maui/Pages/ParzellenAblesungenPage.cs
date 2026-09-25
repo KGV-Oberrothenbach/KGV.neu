@@ -44,8 +44,8 @@ public sealed class ParzellenAblesungenPage : ContentPage, IQueryAttributable
         hintLabel.SetBinding(Label.TextProperty, nameof(HintText));
 
         var loadingIndicator = new ActivityIndicator { Color = Colors.DarkSlateBlue };
-        loadingIndicator.SetBinding(ActivityIndicator.IsRunningProperty, nameof(IsBusy));
-        loadingIndicator.SetBinding(IsVisibleProperty, nameof(IsBusy));
+        loadingIndicator.SetBinding(ActivityIndicator.IsRunningProperty, nameof(IsLoading));
+        loadingIndicator.SetBinding(IsVisibleProperty, nameof(IsLoading));
 
         var emptyLabel = new Label
         {

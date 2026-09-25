@@ -41,7 +41,7 @@ public sealed class VertragsSignaturPage : ContentPage
             Drawable = _drawable,
             BackgroundColor = Colors.White,
             HorizontalOptions = LayoutOptions.Fill,
-            VerticalOptions = LayoutOptions.FillAndExpand,
+            VerticalOptions = LayoutOptions.Fill,
             InputTransparent = false,
             IsEnabled = true,
             HeightRequest = 320
@@ -143,7 +143,7 @@ public sealed class VertragsSignaturPage : ContentPage
         return base.OnBackButtonPressed();
     }
 
-    private void OnStartInteraction(object? sender, TouchEventArgs e)
+    private void OnStartInteraction(object? sender, TouchEventArgs? e)
     {
         System.Diagnostics.Debug.WriteLine("OnStartInteraction: touches=" + (e?.Touches?.Length ?? 0));
         var point = TryGetTouchPoint(e);
@@ -154,7 +154,7 @@ public sealed class VertragsSignaturPage : ContentPage
         _graphicsView.Invalidate();
     }
 
-    private void OnDragInteraction(object? sender, TouchEventArgs e)
+    private void OnDragInteraction(object? sender, TouchEventArgs? e)
     {
         System.Diagnostics.Debug.WriteLine("OnDragInteraction: touches=" + (e?.Touches?.Length ?? 0));
         var point = TryGetTouchPoint(e);
@@ -165,7 +165,7 @@ public sealed class VertragsSignaturPage : ContentPage
         _graphicsView.Invalidate();
     }
 
-    private void OnEndInteraction(object? sender, TouchEventArgs e)
+    private void OnEndInteraction(object? sender, TouchEventArgs? e)
     {
         System.Diagnostics.Debug.WriteLine("OnEndInteraction: touches=" + (e?.Touches?.Length ?? 0));
         var point = TryGetTouchPoint(e);
@@ -216,7 +216,7 @@ public sealed class VertragsSignaturPage : ContentPage
         await Navigation.PopModalAsync();
     }
 
-    private static Point? TryGetTouchPoint(TouchEventArgs e)
+    private static Point? TryGetTouchPoint(TouchEventArgs? e)
     {
         var touches = e?.Touches;
         if (touches == null || touches.Length == 0)
