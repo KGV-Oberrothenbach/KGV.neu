@@ -255,7 +255,9 @@ public sealed class MemberParzellenDetailPage : ContentPage
             {
                 _pachtvertragButton.IsVisible = false;
                 _openPachtvertragButton.IsVisible = true; // open unsigniertes
-                _discardPachtvertragButton.IsVisible = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
+                // Verträge werden ausschließlich über die Dokumentseite archiviert.
+                // Dort gilt Admin-Rolle, Archivpasswort und Pflichtbegründung.
+                _discardPachtvertragButton.IsVisible = false;
                 _pachtvertragDiagnoseLabel.Text = BuildPachtvertragDiagnoseText();
                 // enable state
                 _openPachtvertragButton.IsEnabled = _openPachtvertragButton.IsVisible && !_contractCreationInProgress;
