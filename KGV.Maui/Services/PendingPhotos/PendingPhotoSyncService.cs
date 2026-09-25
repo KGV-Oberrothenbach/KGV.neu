@@ -12,20 +12,30 @@ public sealed class PendingPhotoSyncService
     private readonly PendingPhotoQueue _queue;
     private readonly PendingPhotoService _pendingPhotoService;
     private readonly IPhotoUploadTestService _uploadService;
+    private readonly IVereinskontext _vereinskontext;
 
     public PendingPhotoSyncService(
         PendingPhotoQueue queue,
         PendingPhotoService pendingPhotoService,
-        IPhotoUploadTestService uploadService)
+        IPhotoUploadTestService uploadService,
+        IVereinskontext vereinskontext)
     {
         _queue = queue;
         _pendingPhotoService = pendingPhotoService;
         _uploadService = uploadService;
+        _vereinskontext = vereinskontext;
     }
 
     public async Task<PendingPhotoSyncResult> TrySyncOnceAsync(CancellationToken cancellationToken = default)
     {
         var result = new PendingPhotoSyncResult();
+
+        var vereinId = _vereinskontext.Aktuell?.VereinId;
+        if (!vereinId.HasValue)
+        {
+            result.SkippedReason = "Kein Verein ausgewählt.";
+            return result;
+        }
 
         if (!PendingPhotoUploadDecision.CanUploadNow(out var reason))
         {
@@ -35,6 +45,9 @@ public sealed class PendingPhotoSyncService
 
         var items = _queue
             .GetAll()
+            // Alt-Einträge ohne Vereins-ID und Einträge anderer Vereine dürfen niemals
+            // in das aktuell angemeldete Vereins-Backend hochgeladen werden.
+            .Where(x => x.VereinId == vereinId.Value)
             .Where(x => x.Status is PendingPhotoUploadStatus.Pending or PendingPhotoUploadStatus.Failed)
             .OrderBy(x => x.CreatedAtUtc)
             .ToList();

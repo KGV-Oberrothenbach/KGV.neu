@@ -13,6 +13,12 @@ public sealed class PendingPhotoUpload
 {
     public Guid Id { get; init; } = Guid.NewGuid();
 
+    /// <summary>
+    /// Verein, in dessen Backend dieses Foto gespeichert werden darf. Ein leerer
+    /// Wert kennzeichnet ausschließlich Alt-Daten aus App-Versionen ohne Mandantentrennung.
+    /// </summary>
+    public Guid VereinId { get; init; }
+
     public string OperationType { get; init; } = string.Empty;
     public string Parzelle { get; init; } = string.Empty;
     public string Medium { get; init; } = string.Empty;

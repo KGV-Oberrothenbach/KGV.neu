@@ -1,14 +1,17 @@
 using KGV.Maui.Models;
+using KGV.Core.Interfaces;
 
 namespace KGV.Maui.Services.PendingPhotos;
 
 public sealed class PendingPhotoService
 {
     private readonly PendingPhotoQueue _queue;
+    private readonly IVereinskontext _vereinskontext;
 
-    public PendingPhotoService(PendingPhotoQueue queue)
+    public PendingPhotoService(PendingPhotoQueue queue, IVereinskontext vereinskontext)
     {
         _queue = queue;
+        _vereinskontext = vereinskontext;
     }
 
     public PendingPhotoUpload SaveAndEnqueue(
@@ -22,6 +25,9 @@ public sealed class PendingPhotoService
         if (content is not { Length: > 0 })
             throw new ArgumentException("Foto-Inhalt fehlt.", nameof(content));
 
+        var vereinId = _vereinskontext.Aktuell?.VereinId
+            ?? throw new InvalidOperationException("Foto kann ohne ausgewählten Verein nicht vorgemerkt werden.");
+
         var id = Guid.NewGuid();
         var fileName = PendingPhotoFileNameFactory.Create(operationType, parzelle, medium, now);
         var filePath = PendingPhotoStorage.GetPendingFilePath($"{id:N}_{fileName}");
@@ -31,6 +37,7 @@ public sealed class PendingPhotoService
         var item = new PendingPhotoUpload
         {
             Id = id,
+            VereinId = vereinId,
             OperationType = operationType,
             Parzelle = parzelle,
             Medium = medium,
@@ -90,4 +97,26 @@ public sealed class PendingPhotoService
 
         _queue.Remove(item.Id);
     }
+
+    public int RemoveForeignOrLegacyItems(Guid vereinId)
+    {
+        var removed = _queue.RemoveNotForVerein(vereinId);
+        foreach (var item in removed)
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(item.LocalFilePath) && File.Exists(item.LocalFilePath))
+                    File.Delete(item.LocalFilePath);
+            }
+            catch
+            {
+                // Der Queue-Eintrag ist entfernt; verwaiste Dateien werden vom Betriebssystem bereinigt.
+            }
+        }
+
+        return removed.Count;
+    }
+
+    public int CountForeignOrLegacyItems(Guid vereinId)
+        => _queue.CountNotForVerein(vereinId);
 }

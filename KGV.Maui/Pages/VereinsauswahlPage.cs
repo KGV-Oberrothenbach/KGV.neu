@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Maui.Settings;
+using KGV.Maui.Services.PendingPhotos;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
@@ -15,13 +16,15 @@ public sealed class VereinsauswahlPage : ContentPage
 {
     private readonly IConfiguration _configuration;
     private readonly IVereinskontext _vereinskontext;
+    private readonly PendingPhotoService _pendingPhotoService;
     private readonly Entry _codeEntry = new() { Placeholder = "Vereins-ID, z. B. KGV-DEMO" };
     private readonly Label _status = new() { TextColor = Colors.Red, LineBreakMode = LineBreakMode.WordWrap };
 
-    public VereinsauswahlPage(IConfiguration configuration, IVereinskontext vereinskontext)
+    public VereinsauswahlPage(IConfiguration configuration, IVereinskontext vereinskontext, PendingPhotoService pendingPhotoService)
     {
         _configuration = configuration;
         _vereinskontext = vereinskontext;
+        _pendingPhotoService = pendingPhotoService;
         Title = "Verein auswählen";
 
         var continueButton = new Button { Text = "Verein bestätigen", FontAttributes = FontAttributes.Bold, Padding = new Thickness(16, 12) };
@@ -113,6 +116,25 @@ public sealed class VereinsauswahlPage : ContentPage
             _vereinskontext.Setzen(kontext);
             AppSettings.Vereinskontext = kontext;
             AppSettings.Save();
+
+            // Warteschlangen anderer Vereine werden niemals synchronisiert. Alte
+            // Einträge ohne VereinId bleiben erhalten, bis die Person das Löschen
+            // ausdrücklich bestätigt.
+            var foreignPendingPhotos = _pendingPhotoService.CountForeignOrLegacyItems(vereinId);
+            if (foreignPendingPhotos > 0)
+            {
+                var deleteConfirmed = await DisplayAlertAsync(
+                    "Foto-Warteschlange eines anderen Vereins",
+                    $"Es gibt noch {foreignPendingPhotos} lokale Foto-Uploads aus einem anderen oder nicht mehr zuordenbaren Verein. Sie werden in diesem Verein nicht hochgeladen. Sollen sie jetzt endgültig vom Gerät gelöscht werden?",
+                    "Endgültig löschen",
+                    "Behalten");
+
+                if (deleteConfirmed)
+                {
+                    var removedPendingPhotos = _pendingPhotoService.RemoveForeignOrLegacyItems(vereinId);
+                    Services.Diagnostics.AppFileLog.Warning("KGV.Vereinswechsel", $"{removedPendingPhotos} fremde oder nicht zuordenbare Foto-Uploads wurden nach Bestätigung lokal entfernt.");
+                }
+            }
 
             if (Application.Current is App app)
                 await app.SwitchToCurrentRootAsync();

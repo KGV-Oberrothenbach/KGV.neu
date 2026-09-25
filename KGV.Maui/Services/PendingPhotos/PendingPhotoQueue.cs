@@ -82,6 +82,33 @@ public sealed class PendingPhotoQueue
         }
     }
 
+    public IReadOnlyList<PendingPhotoUpload> RemoveNotForVerein(Guid vereinId)
+    {
+        lock (_sync)
+        {
+            var items = LoadInternal();
+            var removed = items
+                .Where(x => x.VereinId != vereinId)
+                .ToList();
+
+            if (removed.Count > 0)
+            {
+                items.RemoveAll(x => x.VereinId != vereinId);
+                SaveInternal(items);
+            }
+
+            return removed;
+        }
+    }
+
+    public int CountNotForVerein(Guid vereinId)
+    {
+        lock (_sync)
+        {
+            return LoadInternal().Count(x => x.VereinId != vereinId);
+        }
+    }
+
     private List<PendingPhotoUpload> LoadInternal()
     {
         try
