@@ -123,7 +123,8 @@ public sealed class PdfViewerPage : ContentPage
 #if ANDROID
         if (_renderer == null)
         {
-            var fileDescriptor = ParcelFileDescriptor.Open(new Java.IO.File(_cachePath), ParcelFileMode.ReadOnly);
+            var fileDescriptor = ParcelFileDescriptor.Open(new Java.IO.File(_cachePath), ParcelFileMode.ReadOnly)
+                ?? throw new InvalidOperationException("Die temporäre PDF-Datei konnte nicht geöffnet werden.");
             _fileDescriptor = fileDescriptor;
             _renderer = new PdfRenderer(fileDescriptor);
             _pageCount = _renderer.PageCount;
