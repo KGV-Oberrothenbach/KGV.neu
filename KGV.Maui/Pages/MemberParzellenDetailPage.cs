@@ -413,7 +413,14 @@ public sealed class MemberParzellenDetailPage : ContentPage
 
             if (doc != null)
             {
-                await _viewModel.OpenDocumentAsync(doc);
+                var content = await _supabaseService.DownloadDokumentContentAsync(doc);
+                if (content is not { Length: > 0 })
+                {
+                    await DisplayAlertAsync("Pachtvertrag", "Der Pachtvertrag konnte nicht geladen werden.", "OK");
+                    return;
+                }
+
+                await Navigation.PushAsync(new PdfViewerPage(doc.Title, content));
                 return;
             }
         }

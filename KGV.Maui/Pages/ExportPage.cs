@@ -769,11 +769,9 @@ public sealed class ExportPage : ContentPage
             }
 
             var filePath = await _vm.ExportToPdfAsync();
-            var opened = await Launcher.Default.OpenAsync(
-                new OpenFileRequest("Arbeitsstundenübersicht", new ReadOnlyFile(filePath)));
-            _statusLabel.Text = opened
-                ? "PDF wurde geöffnet."
-                : $"PDF erzeugt, konnte aber nicht geöffnet werden: {filePath}";
+            var pdfContent = await File.ReadAllBytesAsync(filePath);
+            await Navigation.PushAsync(new PdfViewerPage("Arbeitsstundenübersicht", pdfContent));
+            _statusLabel.Text = "PDF wird in der App angezeigt.";
         }
         catch (Exception ex)
         {

@@ -37,6 +37,16 @@ public sealed class PdfViewerPage : ContentPage
         if (pdfContent is not { Length: > 0 })
             throw new ArgumentException("Für die PDF-Ansicht fehlt ein Dokumentinhalt.", nameof(pdfContent));
 
+        if (pdfContent.Length < 5
+            || pdfContent[0] != (byte)'%'
+            || pdfContent[1] != (byte)'P'
+            || pdfContent[2] != (byte)'D'
+            || pdfContent[3] != (byte)'F'
+            || pdfContent[4] != (byte)'-')
+        {
+            throw new ArgumentException("Der Server hat keine gültige PDF-Datei geliefert.", nameof(pdfContent));
+        }
+
         Title = string.IsNullOrWhiteSpace(title) ? "Dokument" : title.Trim();
         _cachePath = System.IO.Path.Combine(FileSystem.CacheDirectory, $"kgv-pdf-{Guid.NewGuid():N}.pdf");
         File.WriteAllBytes(_cachePath, pdfContent);
@@ -56,12 +66,23 @@ public sealed class PdfViewerPage : ContentPage
         _previousButton.Clicked += async (_, _) => await ShowPageAsync(_currentPageIndex - 1);
         _nextButton.Clicked += async (_, _) => await ShowPageAsync(_currentPageIndex + 1);
 
-        var navigationBar = new HorizontalStackLayout
+        var navigationBar = new Grid
         {
-            Spacing = 12,
-            HorizontalOptions = LayoutOptions.Center,
-            Children = { _previousButton, _pageLabel, _nextButton },
+            ColumnSpacing = 12,
+            ColumnDefinitions =
+            {
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Star),
+            },
+            HorizontalOptions = LayoutOptions.Fill,
         };
+        _previousButton.HorizontalOptions = LayoutOptions.Start;
+        _nextButton.HorizontalOptions = LayoutOptions.End;
+        _pageLabel.VerticalTextAlignment = TextAlignment.Center;
+        navigationBar.Add(_previousButton, 0, 0);
+        navigationBar.Add(_pageLabel, 1, 0);
+        navigationBar.Add(_nextButton, 2, 0);
         Grid.SetRow(navigationBar, 1);
 
         Content = new Grid
@@ -89,6 +110,7 @@ public sealed class PdfViewerPage : ContentPage
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[PdfViewerPage] PDF render failed: {ex}");
             _pageLabel.Text = "PDF konnte nicht angezeigt werden.";
             await DisplayAlertAsync("PDF-Ansicht", ex.Message, "OK");
         }
