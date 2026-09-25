@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using KGV.Core.Models;
-using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Storage;
@@ -78,7 +77,7 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
                             {
                                 new Label { Text = _previewUploadRequest.Titel, FontAttributes = FontAttributes.Bold, FontSize = 18 },
                                 new Label { Text = $"Datei: {_previewUploadRequest.FileName}", TextColor = Colors.Gray, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap },
-                                new Label { Text = "Die vollständige PDF-Vorschau wird über den temporären lokalen Preview-Pfad geöffnet; der offizielle Mitgliedsdokumentpfad wird erst nach erfolgreicher Unterschrift verwendet.", TextColor = Colors.Gray, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap },
+                                new Label { Text = "Die vollständige PDF-Vorschau wird direkt in der App angezeigt. Der offizielle Mitgliedsdokumentpfad wird erst nach erfolgreicher Unterschrift verwendet.", TextColor = Colors.Gray, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap },
                                 openPreviewButton
                             }
                         }
@@ -122,10 +121,7 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
 
     private async Task OpenPreviewAsync()
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(_tempFilePath)!);
-        await File.WriteAllBytesAsync(_tempFilePath, _previewUploadRequest.FileContent);
-
-        // Also write a persistent copy so the file remains available for signing later
+        // Die Kopie bleibt für den nachfolgenden Signaturvorgang erhalten.
         try
         {
             var persistentDir = Path.GetDirectoryName(_persistentFilePath)!;
@@ -137,7 +133,7 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
             // Ignore persistent write failures; preview still works
         }
 
-        await Launcher.Default.OpenAsync(new OpenFileRequest("Mitgliedsantrag Vorschau", new ReadOnlyFile(_tempFilePath)));
+        await Navigation.PushAsync(new PdfViewerPage(_previewUploadRequest.Titel, _previewUploadRequest.FileContent));
     }
 
     private async Task CloseAsync(MitgliedsantragPreviewDecision decision)
