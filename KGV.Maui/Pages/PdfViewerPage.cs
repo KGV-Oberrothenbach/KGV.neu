@@ -100,6 +100,13 @@ public sealed class PdfViewerPage : ContentPage
         navigationBar.Add(_nextButton, 2, 0);
         Grid.SetRow(navigationBar, 1);
 
+        var documentViewport = new Grid
+        {
+            IsClippedToBounds = true,
+            BackgroundColor = Colors.White,
+            Children = { _pageImage },
+        };
+
         Content = new Grid
         {
             Padding = 12,
@@ -111,7 +118,7 @@ public sealed class PdfViewerPage : ContentPage
             },
             Children =
             {
-                new ScrollView { Content = _pageImage },
+                documentViewport,
                 navigationBar,
                 _resetZoomButton,
             },
@@ -214,7 +221,9 @@ public sealed class PdfViewerPage : ContentPage
                 _zoomStartScale = _zoomScale;
                 break;
             case GestureStatus.Running:
-                _zoomScale = Math.Clamp(_zoomStartScale * e.Scale, 1d, 4d);
+                // Der ScrollView wurde bewusst entfernt: Er fängt auf Android die
+                // Mehrfingerbewegung teilweise ab und der Zoom wirkt dadurch kaum.
+                _zoomScale = Math.Clamp(_zoomStartScale * e.Scale, 1d, 6d);
                 _pageImage.Scale = _zoomScale;
                 _resetZoomButton.IsVisible = _zoomScale > 1.01d;
                 break;
@@ -255,7 +264,8 @@ public sealed class PdfViewerPage : ContentPage
     private static byte[] RenderPage(PdfRenderer renderer, int pageIndex)
     {
         using var page = renderer.OpenPage(pageIndex);
-        const int targetWidth = 1440;
+        // Genügend Reserve für einen lesbaren Zoom auf aktuellen Handy-Displays.
+        const int targetWidth = 2160;
         var scale = targetWidth / (double)Math.Max(page.Width, 1);
         var targetHeight = Math.Max(1, (int)Math.Ceiling(page.Height * scale));
         using var bitmap = Bitmap.CreateBitmap(targetWidth, targetHeight, Bitmap.Config.Argb8888!);
