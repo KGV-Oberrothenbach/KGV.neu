@@ -2,7 +2,6 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Maui.State;
-using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
@@ -17,6 +16,7 @@ namespace KGV.Maui.Pages;
 public sealed class ParzellenAblesungenPage : ContentPage, IQueryAttributable
 {
     private readonly ISupabaseService _supabaseService;
+    private readonly IPhotoUploadTestService _photoUploadService;
     private readonly ParzellenContextState _parzellenContextState;
     private readonly UserContextState _userContextState;
     private readonly Button _submitReadingButton;
@@ -25,9 +25,10 @@ public sealed class ParzellenAblesungenPage : ContentPage, IQueryAttributable
     private string _medium = "strom";
     private bool _pendingLoad;
 
-    public ParzellenAblesungenPage(ISupabaseService supabaseService, ParzellenContextState parzellenContextState, UserContextState userContextState)
+    public ParzellenAblesungenPage(ISupabaseService supabaseService, IPhotoUploadTestService photoUploadService, ParzellenContextState parzellenContextState, UserContextState userContextState)
     {
         _supabaseService = supabaseService ?? throw new ArgumentNullException(nameof(supabaseService));
+        _photoUploadService = photoUploadService ?? throw new ArgumentNullException(nameof(photoUploadService));
         _parzellenContextState = parzellenContextState ?? throw new ArgumentNullException(nameof(parzellenContextState));
         _userContextState = userContextState ?? throw new ArgumentNullException(nameof(userContextState));
 
@@ -250,14 +251,14 @@ public sealed class ParzellenAblesungenPage : ContentPage, IQueryAttributable
 
         try
         {
-            var openUrl = await _supabaseService.ResolveAblesungFotoOpenUrlAsync(item.FotoPfad, item.FotoDriveFileId);
-            if (string.IsNullOrWhiteSpace(openUrl))
+            var content = await _photoUploadService.DownloadAblesungPhotoAsync(item.AblesungId);
+            if (content is not { Length: > 0 })
             {
-                SetStatus("Foto konnte nicht geöffnet werden. Für den gespeicherten Fotopfad konnte kein öffnungsfähiger Link erzeugt werden.");
+                SetStatus("Foto konnte nicht geladen werden. Prüfe die Dokumentberechtigung oder den Google-Drive-Zugang.");
                 return;
             }
 
-            await Launcher.Default.OpenAsync(openUrl);
+            await Navigation.PushAsync(new ImageViewerPage("Ablesungsfoto", content));
         }
         catch
         {

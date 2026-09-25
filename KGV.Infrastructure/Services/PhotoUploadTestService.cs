@@ -7,6 +7,7 @@ using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Sockets;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -212,6 +213,50 @@ namespace KGV.Infrastructure.Services
                 FailureStage = "send",
                 ExceptionMessage = BuildUserMessage("UPLOAD_SEND_FAIL")
             };
+        }
+
+        public async Task<byte[]?> DownloadAblesungPhotoAsync(long ablesungId)
+        {
+            if (ablesungId <= 0)
+                return null;
+
+            var token = await _authService.GetAccessTokenAsync();
+            if (string.IsNullOrWhiteSpace(token)
+                || string.IsNullOrWhiteSpace(_supabaseUrl)
+                || string.IsNullOrWhiteSpace(_publishableKey))
+            {
+                return null;
+            }
+
+            try
+            {
+                var endpoint = new Uri(new Uri(_supabaseUrl.TrimEnd('/') + "/"), $"functions/v1/{FunctionName}");
+                var payload = JsonSerializer.Serialize(new { action = "download", ablesung_id = ablesungId });
+                using var message = new HttpRequestMessage(HttpMethod.Post, endpoint)
+                {
+                    Content = new StringContent(payload, Encoding.UTF8, "application/json")
+                };
+                message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                message.Headers.Add("apikey", _publishableKey);
+
+                using var response = await _httpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead);
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger?.LogWarning(
+                        "Ablesungsfoto-Download wurde abgelehnt. AblesungId={AblesungId}, Status={Status}",
+                        ablesungId,
+                        (int)response.StatusCode);
+                    return null;
+                }
+
+                var content = await response.Content.ReadAsByteArrayAsync();
+                return content.Length > 0 ? content : null;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Ablesungsfoto-Download fehlgeschlagen. AblesungId={AblesungId}", ablesungId);
+                return null;
+            }
         }
 
         private static MultipartFormDataContent CreateMultipartContent(PhotoUploadTestRequest request, byte[] fileBytes, string fileName, string contentType)

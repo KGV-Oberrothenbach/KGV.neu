@@ -3329,16 +3329,35 @@ namespace KGV.Infrastructure.Services
 
                 var previewUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.BankverbindungSnapshot, FormularDokumentStatus.Unsigniert);
                 var finalUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.BankverbindungSnapshot, FormularDokumentStatus.Signiert);
-                var sourceDocument = CreatePreviewDocumentInfo(previewUploadRequest, FormularDokumentTyp.Mitgliedsantrag, FormularDokumentStatus.Unsigniert);
-                finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(
-                    context.Member,
-                    sourceDocument,
+                var placeholders = MitgliedsantragDokumentFactory.GetSignaturePlaceholders()
+                    .ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
+                var signatures = new List<(SignaturePlaceholder placeholder, DigitalSignatureCapture capture)>();
+
+                // Mit der einmal erfassten Unterschrift bestätigt die antragstellende
+                // Person sowohl den Antrag als auch die Datenschutzerklärung.
+                AddSignature("unterschrift_antragsteller", signatureCapture);
+                AddSignature("datenschutz_unterschrift_antragsteller", signatureCapture);
+
+                // Bei Minderjährigen bestätigt die gesetzliche Vertretung beide
+                // Erklärungen ebenfalls jeweils an der vorgesehenen Stelle.
+                if (gesetzlicherVertreterSignatureCapture != null)
+                {
+                    AddSignature("unterschrift_vertreter", gesetzlicherVertreterSignatureCapture);
+                    AddSignature("datenschutz_unterschrift_vertreter", gesetzlicherVertreterSignatureCapture);
+                }
+
+                finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.InsertSignaturesIntoPdf(
                     previewUploadRequest.FileContent,
-                    signatureCapture,
-                    gesetzlicherVertreterSignatureCapture,
-                    "Unterschrift Antragsteller/in",
-                    context.IstMinderjaehrig ? "Unterschrift gesetzliche/r Vertreter/in" : null);
+                    signatures);
                 return await CreateDokumentAsync(finalUploadRequest);
+
+                void AddSignature(string placeholderName, DigitalSignatureCapture capture)
+                {
+                    if (!placeholders.TryGetValue(placeholderName, out var placeholder))
+                        throw new InvalidOperationException($"Die Signaturfläche '{placeholderName}' fehlt in der Mitgliedsantragvorlage.");
+
+                    signatures.Add((placeholder, capture));
+                }
             },
             DokumentUploadResult.Fail("Mitgliedsantrag konnte aktuell nicht signiert gespeichert werden.", "UNEXPECTED"));
 

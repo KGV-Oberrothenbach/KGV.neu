@@ -24,8 +24,13 @@ public sealed class PdfViewerPage : ContentPage
     private readonly Label _pageLabel;
     private readonly Button _previousButton;
     private readonly Button _nextButton;
+    private readonly Button _resetZoomButton;
     private int _currentPageIndex;
     private int _pageCount;
+    private double _zoomStartScale = 1d;
+    private double _zoomScale = 1d;
+    private double _panStartX;
+    private double _panStartY;
 
 #if ANDROID
     private PdfRenderer? _renderer;
@@ -63,8 +68,18 @@ public sealed class PdfViewerPage : ContentPage
         };
         _previousButton = new Button { Text = "‹ Zurück" };
         _nextButton = new Button { Text = "Weiter ›" };
+        _resetZoomButton = new Button { Text = "Ansicht zurücksetzen", IsVisible = false };
         _previousButton.Clicked += async (_, _) => await ShowPageAsync(_currentPageIndex - 1);
         _nextButton.Clicked += async (_, _) => await ShowPageAsync(_currentPageIndex + 1);
+        _resetZoomButton.Clicked += (_, _) => ResetZoom();
+
+        var pinch = new PinchGestureRecognizer();
+        pinch.PinchUpdated += OnPinchUpdated;
+        _pageImage.GestureRecognizers.Add(pinch);
+
+        var pan = new PanGestureRecognizer();
+        pan.PanUpdated += OnPanUpdated;
+        _pageImage.GestureRecognizers.Add(pan);
 
         var navigationBar = new Grid
         {
@@ -92,13 +107,17 @@ public sealed class PdfViewerPage : ContentPage
             {
                 new RowDefinition(GridLength.Star),
                 new RowDefinition(GridLength.Auto),
+                new RowDefinition(GridLength.Auto),
             },
             Children =
             {
                 new ScrollView { Content = _pageImage },
                 navigationBar,
+                _resetZoomButton,
             },
         };
+        Grid.SetRow(_resetZoomButton, 2);
+        _resetZoomButton.HorizontalOptions = LayoutOptions.Center;
     }
 
     protected override async void OnAppearing()
@@ -175,6 +194,7 @@ public sealed class PdfViewerPage : ContentPage
             _pageImage.Source = ImageSource.FromStream(() => new MemoryStream(renderedPage));
             _currentPageIndex = pageIndex;
             _pageLabel.Text = $"Seite {_currentPageIndex + 1} von {_pageCount}";
+            ResetZoom();
         }
         finally
         {
@@ -184,6 +204,51 @@ public sealed class PdfViewerPage : ContentPage
 #else
         await Task.CompletedTask;
 #endif
+    }
+
+    private void OnPinchUpdated(object? sender, PinchGestureUpdatedEventArgs e)
+    {
+        switch (e.Status)
+        {
+            case GestureStatus.Started:
+                _zoomStartScale = _zoomScale;
+                break;
+            case GestureStatus.Running:
+                _zoomScale = Math.Clamp(_zoomStartScale * e.Scale, 1d, 4d);
+                _pageImage.Scale = _zoomScale;
+                _resetZoomButton.IsVisible = _zoomScale > 1.01d;
+                break;
+        }
+    }
+
+    private void OnPanUpdated(object? sender, PanUpdatedEventArgs e)
+    {
+        if (_zoomScale <= 1.01d)
+            return;
+
+        switch (e.StatusType)
+        {
+            case GestureStatus.Started:
+                _panStartX = _pageImage.TranslationX;
+                _panStartY = _pageImage.TranslationY;
+                break;
+            case GestureStatus.Running:
+                var maxX = Math.Max(0d, _pageImage.Width * (_zoomScale - 1d) / 2d);
+                var maxY = Math.Max(0d, _pageImage.Height * (_zoomScale - 1d) / 2d);
+                _pageImage.TranslationX = Math.Clamp(_panStartX + e.TotalX, -maxX, maxX);
+                _pageImage.TranslationY = Math.Clamp(_panStartY + e.TotalY, -maxY, maxY);
+                break;
+        }
+    }
+
+    private void ResetZoom()
+    {
+        _zoomScale = 1d;
+        _zoomStartScale = 1d;
+        _pageImage.Scale = 1d;
+        _pageImage.TranslationX = 0d;
+        _pageImage.TranslationY = 0d;
+        _resetZoomButton.IsVisible = false;
     }
 
 #if ANDROID

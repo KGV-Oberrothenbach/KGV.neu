@@ -15,6 +15,19 @@ type DriveUploadResult = {
   webViewLink?: string | null;
 };
 
+type AuthenticatedPhotoUser = {
+  userId: string;
+  role: string;
+  mitgliedId: number | null;
+};
+
+type MeterReadingPhotoRecord = {
+  id: number;
+  foto_drive_file_id: string | null;
+  foto_dateiname: string | null;
+  zaehler: { parzelle_id: number | null } | null;
+};
+
 const GOOGLE_TOKEN_REFRESH_TIMEOUT_MS = 15_000;
 const DRIVE_FILES_LIST_TIMEOUT_MS = 15_000;
 const DRIVE_CREATE_FOLDER_TIMEOUT_MS = 15_000;
@@ -460,6 +473,91 @@ async function uploadFileToDrive(params: {
   }
 }
 
+async function downloadDriveFile(accessToken: string, driveFileId: string): Promise<Response> {
+  const url = new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(driveFileId)}`);
+  url.searchParams.set("alt", "media");
+  url.searchParams.set("supportsAllDrives", "true");
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(DRIVE_UPLOAD_TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Drive photo download failed: ${await response.text()}`);
+  }
+
+  return response;
+}
+
+async function authenticatePhotoUser(authHeader: string) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("SUPABASE_URL oder SUPABASE_SERVICE_ROLE_KEY fehlt.");
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+  const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!jwt) {
+    return { ok: false as const, status: 401, message: "Kein Bearer-Token vorhanden." };
+  }
+
+  const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(jwt);
+  if (userError || !userData.user) {
+    return { ok: false as const, status: 401, message: "Ungültiger oder abgelaufener Benutzer-Token." };
+  }
+
+  const { data: appUser, error: appUserError } = await supabaseAdmin
+    .from("app_user")
+    .select("role,mitglied_id")
+    .eq("user_id", userData.user.id)
+    .maybeSingle();
+  if (appUserError) {
+    return { ok: false as const, status: 500, message: "Benutzerrolle konnte nicht geladen werden." };
+  }
+
+  const rawMitgliedId = appUser?.mitglied_id;
+  return {
+    ok: true as const,
+    userId: userData.user.id,
+    role: (appUser?.role ?? "").trim().toLowerCase(),
+    mitgliedId: typeof rawMitgliedId === "number" && Number.isSafeInteger(rawMitgliedId) && rawMitgliedId > 0 ? rawMitgliedId : null,
+    supabaseAdmin,
+  };
+}
+
+async function mayReadMeterReadingPhoto(auth: AuthenticatedPhotoUser & { supabaseAdmin: ReturnType<typeof createClient> }, ablesungId: number): Promise<MeterReadingPhotoRecord | null> {
+  const { data: reading, error: readingError } = await auth.supabaseAdmin
+    .from("zaehler_ablesung")
+    .select("id,foto_drive_file_id,foto_dateiname,zaehler:zaehler_id(parzelle_id)")
+    .eq("id", ablesungId)
+    .maybeSingle();
+  if (readingError) {
+    throw new Error(`Ablesungsfoto-Rechte konnten nicht geprüft werden: ${readingError.message}`);
+  }
+  if (!reading) return null;
+
+  if (auth.role === "admin" || auth.role === "vorstand") return reading as MeterReadingPhotoRecord;
+  const parzelleId = reading.zaehler?.parzelle_id;
+  if (!auth.mitgliedId || !parzelleId) return null;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: occupancy, error: occupancyError } = await auth.supabaseAdmin
+    .from("parzellen_belegung")
+    .select("id")
+    .eq("parzelle_id", parzelleId)
+    .eq("mitglied_id", auth.mitgliedId)
+    .lte("von_datum", today)
+    .or(`bis_datum.is.null,bis_datum.gte.${today}`)
+    .limit(1)
+    .maybeSingle();
+  if (occupancyError) {
+    throw new Error(`Parzellenrechte konnten nicht geprüft werden: ${occupancyError.message}`);
+  }
+
+  return occupancy ? reading as MeterReadingPhotoRecord : null;
+}
+
 async function requireAdminOrVorstand(authHeader: string) {
   logStep("auth start");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -516,6 +614,39 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization") ?? "";
     logStep("auth header received", { requestId, hasAuthorizationHeader: !authHeader ? false : true });
+
+    if ((req.headers.get("content-type") ?? "").toLowerCase().includes("application/json")) {
+      const payload = await req.json() as { action?: string; ablesung_id?: number | string };
+      if ((payload.action ?? "").trim().toLowerCase() !== "download") {
+        return errorResponse(400, "BAD_REQUEST", "Unbekannte Fotoaktion.", requestId);
+      }
+      const ablesungId = Number(payload.ablesung_id);
+      if (!Number.isSafeInteger(ablesungId) || ablesungId <= 0) {
+        return errorResponse(400, "BAD_REQUEST", "ablesung_id fehlt oder ist ungültig.", requestId);
+      }
+
+      const auth = await authenticatePhotoUser(authHeader);
+      if (!auth.ok) return errorResponse(auth.status, "UNAUTHORIZED", auth.message, requestId);
+      const reading = await mayReadMeterReadingPhoto(auth, ablesungId);
+      if (!reading) return errorResponse(403, "UNAUTHORIZED", "Dieses Ablesungsfoto ist nicht freigegeben.", requestId);
+      const driveFileId = (reading.foto_drive_file_id ?? "").trim();
+      if (!driveFileId) return errorResponse(409, "GOOGLE_DRIVE_ERROR", "Das Ablesungsfoto besitzt keine Google-Drive-Dateireferenz.", requestId);
+
+      const driveResponse = await downloadDriveFile(await getGoogleAccessToken(), driveFileId);
+      const contentType = driveResponse.headers.get("content-type") || "image/jpeg";
+      const safeFileName = (reading.foto_dateiname ?? "ablesungsfoto.jpg").replace(/[\r\n"]/g, "_");
+      logStep("drive photo download success", { requestId, ablesungId, role: auth.role });
+      return new Response(driveResponse.body, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": contentType,
+          "Content-Disposition": `inline; filename="${safeFileName}"`,
+          "Cache-Control": "private, no-store",
+        },
+      });
+    }
+
     const auth = await requireAdminOrVorstand(authHeader);
     if (!auth.ok) {
       logStep("return error", { step: "auth failed", status: auth.status, requestId });
