@@ -695,7 +695,8 @@ namespace KGV.Maui.ViewModels
                         { "aktiv", "aktiv" },
                         { "mitglied_seit", "mitglied_seit" },
                         { "gaerten", "gaerten" },
-                        { "gartennummern", "gartennummern" }
+                        { "gartennummern", "gartennummern" },
+                        { "pachtgaerten", "gaerten" }
                     };
 
                     // additional short/legacy aliases often used in column definitions
