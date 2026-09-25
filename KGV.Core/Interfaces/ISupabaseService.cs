@@ -128,7 +128,12 @@ namespace KGV.Core.Interfaces
         Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert);
         Task<DokumentUploadResult> CreateMitgliedsantragDokumentAsync(MitgliedsantragDokumentRequest request);
         Task<DokumentUploadRequest?> BuildMitgliedsantragPreviewAsync(MitgliedsantragDokumentRequest request);
-        Task<DokumentUploadResult> CreateSignedMitgliedsantragDokumentAsync(MitgliedsantragDokumentRequest request, DigitalSignatureCapture signatureCapture, DigitalSignatureCapture? gesetzlicherVertreterSignatureCapture = null);
+        Task<DokumentUploadResult> CreateSignedMitgliedsantragDokumentAsync(
+            MitgliedsantragDokumentRequest request,
+            DigitalSignatureCapture antragSignatureCapture,
+            DigitalSignatureCapture datenschutzSignatureCapture,
+            DigitalSignatureCapture? gesetzlicherVertreterAntragSignatureCapture = null,
+            DigitalSignatureCapture? gesetzlicherVertreterDatenschutzSignatureCapture = null);
         Task<DokumentUploadResult> CreateMitgliedsvertragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert);
         Task<DokumentUploadResult> CreatePachtvertragDokumentAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn, string status = FormularDokumentStatus.Unsigniert);
         Task<DokumentUploadRequest?> BuildPachtvertragPreviewAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn);

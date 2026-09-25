@@ -579,19 +579,41 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 if (previewDecision != MitgliedsantragPreviewDecision.ContinueToSignature)
                     return;
 
-                var signatureCapture = await CaptureMitgliedsantragSignatureAsync(previewUploadRequest, "Unterschrift Antragsteller/in", isLastSignature: !request.IstMinderjaehrig);
-                if (signatureCapture == null)
+                var antragSignatureCapture = await CaptureMitgliedsantragSignatureAsync(previewUploadRequest, "Unterschrift Mitgliedsantrag", isLastSignature: false);
+                if (antragSignatureCapture == null)
                     return;
 
-                DigitalSignatureCapture? gesetzlicherVertreterSignatureCapture = null;
+                var datenschutzSignatureCapture = await CaptureMitgliedsantragSignatureAsync(
+                    previewUploadRequest,
+                    "Unterschrift Datenschutzerklärung",
+                    isLastSignature: !request.IstMinderjaehrig);
+                if (datenschutzSignatureCapture == null)
+                    return;
+
+                DigitalSignatureCapture? gesetzlicherVertreterAntragSignatureCapture = null;
+                DigitalSignatureCapture? gesetzlicherVertreterDatenschutzSignatureCapture = null;
                 if (request.IstMinderjaehrig)
                 {
-                    gesetzlicherVertreterSignatureCapture = await CaptureMitgliedsantragSignatureAsync(previewUploadRequest, "Unterschrift gesetzliche/r Vertreter/in");
-                    if (gesetzlicherVertreterSignatureCapture == null)
+                    gesetzlicherVertreterAntragSignatureCapture = await CaptureMitgliedsantragSignatureAsync(
+                        previewUploadRequest,
+                        "Unterschrift gesetzliche/r Vertreter/in zum Mitgliedsantrag",
+                        isLastSignature: false);
+                    if (gesetzlicherVertreterAntragSignatureCapture == null)
+                        return;
+
+                    gesetzlicherVertreterDatenschutzSignatureCapture = await CaptureMitgliedsantragSignatureAsync(
+                        previewUploadRequest,
+                        "Unterschrift gesetzliche/r Vertreter/in zur Datenschutzerklärung");
+                    if (gesetzlicherVertreterDatenschutzSignatureCapture == null)
                         return;
                 }
 
-                var result = await _supabaseService.CreateSignedMitgliedsantragDokumentAsync(request, signatureCapture, gesetzlicherVertreterSignatureCapture);
+                var result = await _supabaseService.CreateSignedMitgliedsantragDokumentAsync(
+                    request,
+                    antragSignatureCapture,
+                    datenschutzSignatureCapture,
+                    gesetzlicherVertreterAntragSignatureCapture,
+                    gesetzlicherVertreterDatenschutzSignatureCapture);
                 if (!result.Success)
                 {
                     await DisplayAlertAsync("Mitgliedsantrag", result.Message, "OK");

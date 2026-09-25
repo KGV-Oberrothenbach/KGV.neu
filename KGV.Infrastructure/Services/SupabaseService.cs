@@ -3301,16 +3301,27 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
-        public Task<DokumentUploadResult> CreateSignedMitgliedsantragDokumentAsync(MitgliedsantragDokumentRequest request, DigitalSignatureCapture signatureCapture, DigitalSignatureCapture? gesetzlicherVertreterSignatureCapture = null) => ExecuteAsync(
+        public Task<DokumentUploadResult> CreateSignedMitgliedsantragDokumentAsync(
+            MitgliedsantragDokumentRequest request,
+            DigitalSignatureCapture antragSignatureCapture,
+            DigitalSignatureCapture datenschutzSignatureCapture,
+            DigitalSignatureCapture? gesetzlicherVertreterAntragSignatureCapture = null,
+            DigitalSignatureCapture? gesetzlicherVertreterDatenschutzSignatureCapture = null) => ExecuteAsync(
             "CreateSignedMitgliedsantragDokumentAsync",
             async () =>
             {
-                if (signatureCapture == null || !signatureCapture.HasContent)
-                    return DokumentUploadResult.Fail("Bitte zuerst eine digitale Signatur erfassen.", "VALIDATION");
+                if (antragSignatureCapture == null || !antragSignatureCapture.HasContent)
+                    return DokumentUploadResult.Fail("Bitte zuerst die Unterschrift zum Mitgliedsantrag erfassen.", "VALIDATION");
+                if (datenschutzSignatureCapture == null || !datenschutzSignatureCapture.HasContent)
+                    return DokumentUploadResult.Fail("Bitte zusätzlich die Unterschrift zur Datenschutzerklärung erfassen.", "VALIDATION");
 
                 var context = await ResolveMitgliedsantragRequestAsync(request);
-                if (context.IstMinderjaehrig && (gesetzlicherVertreterSignatureCapture == null || !gesetzlicherVertreterSignatureCapture.HasContent))
-                    return DokumentUploadResult.Fail("Für Minderjährige ist zusätzlich die digitale Unterschrift des gesetzlichen Vertreters erforderlich.", "VALIDATION");
+                if (context.IstMinderjaehrig
+                    && (gesetzlicherVertreterAntragSignatureCapture == null || !gesetzlicherVertreterAntragSignatureCapture.HasContent
+                        || gesetzlicherVertreterDatenschutzSignatureCapture == null || !gesetzlicherVertreterDatenschutzSignatureCapture.HasContent))
+                {
+                    return DokumentUploadResult.Fail("Für Minderjährige sind die Unterschriften der gesetzlichen Vertretung für Antrag und Datenschutzerklärung erforderlich.", "VALIDATION");
+                }
 
                 if (context.IstMinderjaehrig)
                 {
@@ -3333,17 +3344,13 @@ namespace KGV.Infrastructure.Services
                     .ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
                 var signatures = new List<(SignaturePlaceholder placeholder, DigitalSignatureCapture capture)>();
 
-                // Mit der einmal erfassten Unterschrift bestätigt die antragstellende
-                // Person sowohl den Antrag als auch die Datenschutzerklärung.
-                AddSignature("unterschrift_antragsteller", signatureCapture);
-                AddSignature("datenschutz_unterschrift_antragsteller", signatureCapture);
+                AddSignature("unterschrift_antragsteller", antragSignatureCapture);
+                AddSignature("datenschutz_unterschrift_antragsteller", datenschutzSignatureCapture);
 
-                // Bei Minderjährigen bestätigt die gesetzliche Vertretung beide
-                // Erklärungen ebenfalls jeweils an der vorgesehenen Stelle.
-                if (gesetzlicherVertreterSignatureCapture != null)
+                if (gesetzlicherVertreterAntragSignatureCapture != null && gesetzlicherVertreterDatenschutzSignatureCapture != null)
                 {
-                    AddSignature("unterschrift_vertreter", gesetzlicherVertreterSignatureCapture);
-                    AddSignature("datenschutz_unterschrift_vertreter", gesetzlicherVertreterSignatureCapture);
+                    AddSignature("unterschrift_vertreter", gesetzlicherVertreterAntragSignatureCapture);
+                    AddSignature("datenschutz_unterschrift_vertreter", gesetzlicherVertreterDatenschutzSignatureCapture);
                 }
 
                 finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.InsertSignaturesIntoPdf(
