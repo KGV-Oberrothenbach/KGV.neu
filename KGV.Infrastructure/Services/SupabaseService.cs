@@ -3181,6 +3181,7 @@ namespace KGV.Infrastructure.Services
                 var response = await client
                     .From<DokumentRecord>()
                     .Where(x => x.MitgliedId == mitgliedId)
+                    .Where(x => x.ArchiviertAt == null)
                     .Get();
 
                 return response?.Models?
@@ -3203,6 +3204,7 @@ namespace KGV.Infrastructure.Services
                 var response = await client
                     .From<DokumentRecord>()
                     .Where(x => x.ParzelleId == parzelleId)
+                    .Where(x => x.ArchiviertAt == null)
                     .Get();
 
                 return HasSignedFormularDokument(response?.Models, FormularDokumentTyp.Pachtvertrag);
@@ -4148,6 +4150,49 @@ namespace KGV.Infrastructure.Services
             {
                 _logger?.LogError(ex, "DeleteDokumentAsync failed.");
                 return DokumentDeleteResult.Fail("Dokument konnte aktuell nicht gelöscht werden.", "UNEXPECTED");
+            }
+        }
+
+        public async Task<DokumentDeleteResult> ArchiveDokumentAsync(DocumentInfo? document, string? archivePassword, string? reason)
+        {
+            if (document == null || document.Id <= 0 || string.IsNullOrWhiteSpace(archivePassword) || string.IsNullOrWhiteSpace(reason))
+                return DokumentDeleteResult.Fail("Dokument, Archivpasswort und Begründung sind erforderlich.", "VALIDATION");
+
+            var token = await _authService.GetAccessTokenAsync();
+            if (string.IsNullOrWhiteSpace(token))
+                return DokumentDeleteResult.Fail("Die aktuelle Anmeldung ist abgelaufen. Bitte erneut anmelden.", "ARCHIVE_AUTH_TOKEN_MISSING");
+
+            if (string.IsNullOrWhiteSpace(_supabaseUrl) || string.IsNullOrWhiteSpace(_publishableKey))
+                return DokumentDeleteResult.Fail("Supabase-URL oder Publishable Key ist nicht konfiguriert.", "ARCHIVE_CONFIG_MISSING");
+
+            try
+            {
+                var endpoint = new Uri(new Uri(_supabaseUrl.TrimEnd('/') + "/"), $"functions/v1/{DokumentUploadFunctionName}");
+                using var message = new HttpRequestMessage(HttpMethod.Post, endpoint)
+                {
+                    Content = new StringContent(
+                        JsonSerializer.Serialize(new { action = "archive", document_id = document.Id, archive_password = archivePassword.Trim(), reason = reason.Trim() }),
+                        Encoding.UTF8,
+                        "application/json")
+                };
+                message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                message.Headers.Add("apikey", _publishableKey);
+
+                using var response = await _documentUploadHttpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead);
+                var body = await response.Content.ReadAsStringAsync();
+                var archiveResponse = DeserializeDokumentUploadResponse(body);
+                if (!response.IsSuccessStatusCode)
+                    return DokumentDeleteResult.Fail(
+                        archiveResponse?.Message ?? "Dokument konnte nicht archiviert werden.",
+                        archiveResponse?.ErrorCode ?? $"ARCHIVE_HTTP_{(int)response.StatusCode}",
+                        archiveResponse?.RequestId);
+
+                return DokumentDeleteResult.Ok(archiveResponse?.RequestId, "Dokument wurde archiviert. Die Originaldatei bleibt erhalten.");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "ArchiveDokumentAsync failed. DokumentId={DokumentId}", document.Id);
+                return DokumentDeleteResult.Fail("Dokument konnte aktuell nicht archiviert werden.", "ARCHIVE_SEND_FAIL");
             }
         }
 
@@ -7205,6 +7250,9 @@ namespace KGV.Infrastructure.Services
         {
             foreach (var record in records ?? Enumerable.Empty<DokumentRecord>())
             {
+                if (record.ArchiviertAt.HasValue)
+                    continue;
+
                 var info = MapDocumentInfo(record);
                 if (string.Equals(info.FormularDokumentTypKey, formularDokumentTyp, StringComparison.Ordinal)
                     && string.Equals(info.FormularDokumentStatusKey, FormularDokumentStatus.Signiert, StringComparison.Ordinal))

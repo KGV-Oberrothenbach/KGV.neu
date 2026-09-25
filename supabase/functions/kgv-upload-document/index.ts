@@ -40,6 +40,13 @@ type DownloadDocumentRequest = {
   document_id?: number | string | null;
 };
 
+type ArchiveDocumentRequest = {
+  action?: string | null;
+  document_id?: number | string | null;
+  archive_password?: string | null;
+  reason?: string | null;
+};
+
 type AuthenticatedDocumentUser = {
   userId: string;
   role: string;
@@ -529,6 +536,31 @@ async function requireAdminOrVorstand(authHeader: string) {
   return auth;
 }
 
+async function requireAdmin(authHeader: string) {
+  const auth = await authenticateDocumentUser(authHeader);
+  if (!auth.ok)
+    return auth;
+
+  if (auth.role !== "admin")
+    return { ok: false as const, status: 403, message: "Nur Admin dürfen Dokumente archivieren." };
+
+  return auth;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const hash = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(hash)).map((value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+async function verifyArchivePassword(value: string): Promise<boolean> {
+  const configuredHash = (Deno.env.get("KGV_DOCUMENT_ARCHIVE_PASSWORD_SHA256") ?? "").trim().toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(configuredHash))
+    throw new Error("KGV_DOCUMENT_ARCHIVE_PASSWORD_SHA256 ist nicht konfiguriert.");
+
+  return (await sha256Hex(value)).toLowerCase() === configuredHash;
+}
+
 async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin: ReturnType<typeof createClient> }, documentId: number): Promise<DriveDocumentRecord | null> {
   const { data: document, error: documentError } = await auth.supabaseAdmin
     .from("dokument")
@@ -607,8 +639,40 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization") ?? "";
 
     if (req.method === "POST" && (req.headers.get("content-type") ?? "").toLowerCase().includes("application/json")) {
-      const payload = await req.json() as DownloadDocumentRequest;
-      if ((payload.action ?? "").trim().toLowerCase() !== "download") {
+      const payload = await req.json() as DownloadDocumentRequest & ArchiveDocumentRequest;
+      const action = (payload.action ?? "").trim().toLowerCase();
+      if (action === "archive") {
+        const documentId = Number(payload.document_id);
+        const password = (payload.archive_password ?? "").trim();
+        const reason = (payload.reason ?? "").trim();
+        if (!Number.isSafeInteger(documentId) || documentId <= 0 || password.length === 0 || reason.length < 3)
+          return errorResponse(400, "BAD_REQUEST", "Dokument, Archivpasswort und Begründung sind erforderlich.", requestId);
+
+        const auth = await requireAdmin(authHeader);
+        if (!auth.ok)
+          return errorResponse(auth.status, "FORBIDDEN", auth.message, requestId);
+
+        if (!await verifyArchivePassword(password))
+          return errorResponse(403, "FORBIDDEN", "Das Archivpasswort ist nicht korrekt.", requestId);
+
+        const { data: archived, error: archiveError } = await auth.supabaseAdmin
+          .from("dokument")
+          .update({ archiviert_at: new Date().toISOString(), archiviert_by: auth.userId, archiviert_begruendung: reason })
+          .eq("id", documentId)
+          .is("archiviert_at", null)
+          .select("id")
+          .maybeSingle();
+
+        if (archiveError)
+          throw new Error(`Dokumentarchivierung fehlgeschlagen: ${archiveError.message}`);
+        if (!archived)
+          return errorResponse(409, "BAD_REQUEST", "Dokument wurde nicht gefunden oder ist bereits archiviert.", requestId);
+
+        logStep("document archived", { documentId, userId: auth.userId });
+        return json(200, { success: true, message: "Dokument wurde archiviert.", request_id: requestId });
+      }
+
+      if (action !== "download") {
         return errorResponse(400, "BAD_REQUEST", "Unbekannte Dokumentaktion.", requestId);
       }
 

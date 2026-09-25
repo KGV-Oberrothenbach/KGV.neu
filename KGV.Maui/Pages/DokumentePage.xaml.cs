@@ -106,16 +106,16 @@ public class DokumentePage : ContentPage, IQueryAttributable
                         await OpenDocumentAsync(document);
                 };
 
-                var deleteButton = new Button { Text = "Löschen" };
+                var deleteButton = new Button { Text = "Archivieren" };
                 deleteButton.SetBinding(IsEnabledProperty, nameof(DocumentInfo.CanDelete));
-                deleteButton.SetBinding(IsVisibleProperty, new Binding(nameof(CanManageDocuments), source: this));
+                deleteButton.SetBinding(IsVisibleProperty, new Binding(nameof(CanArchiveDocuments), source: this));
                 deleteButton.Clicked += async (_, _) =>
                 {
                     if (_isBusy)
                         return;
 
                     if (deleteButton.BindingContext is DocumentInfo document)
-                        await DeleteDocumentAsync(document);
+                        await ArchiveDocumentAsync(document);
                 };
 
                 var uploadSignedButton = new Button { IsVisible = false };
@@ -629,30 +629,41 @@ public class DokumentePage : ContentPage, IQueryAttributable
            || document.Dateiname.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
            || document.Dateiname.EndsWith(".webp", StringComparison.OrdinalIgnoreCase);
 
-    private async Task DeleteDocumentAsync(DocumentInfo document)
+    private async Task ArchiveDocumentAsync(DocumentInfo document)
     {
         if (_isBusy)
             return;
 
-        if (!CanManageDocuments)
+        if (!CanArchiveDocuments)
         {
-            SetStatus("Löschen ist nur für Admin/Vorstand erlaubt.", success: false);
+            SetStatus("Archivieren ist nur für Admin erlaubt.", success: false);
             UpdateUiState();
             return;
         }
 
         if (!document.CanDelete)
         {
-            SetStatus("Dokument kann aktuell nicht gelöscht werden.", success: false);
+            SetStatus("Dokument kann aktuell nicht archiviert werden.", success: false);
             return;
         }
 
         var confirmed = await DisplayAlertAsync(
-            "Dokument löschen",
-            $"Dokument '{GetDocumentDisplayName(document)}' wirklich löschen?",
-            "Löschen",
+            "Dokument archivieren",
+            $"Dokument '{GetDocumentDisplayName(document)}' wird nur aus der App ausgeblendet. Die Originaldatei bleibt erhalten. Fortfahren?",
+            "Archivieren",
             "Abbrechen");
         if (!confirmed)
+            return;
+
+        var reason = await DisplayPromptAsync("Archivierung begründen", "Warum soll dieses Dokument ausgeblendet werden?", "Weiter", "Abbrechen", keyboard: Keyboard.Text);
+        if (string.IsNullOrWhiteSpace(reason) || reason.Trim().Length < 3)
+        {
+            SetStatus("Für die Archivierung ist eine Begründung mit mindestens drei Zeichen erforderlich.", success: false);
+            return;
+        }
+
+        var archivePassword = await PromptArchivePasswordAsync();
+        if (string.IsNullOrWhiteSpace(archivePassword))
             return;
 
         var context = await ResolveContextAsync();
@@ -668,7 +679,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
         UpdateUiState();
         try
         {
-            var result = await _supabaseService.DeleteDokumentAsync(document);
+            var result = await _supabaseService.ArchiveDokumentAsync(document, archivePassword, reason);
             if (!result.Success)
             {
                 SetStatus(result.Message, success: false);
@@ -677,13 +688,13 @@ public class DokumentePage : ContentPage, IQueryAttributable
 
             var reloaded = await TryReloadDocumentsAsync(context);
             SetStatus(reloaded
-                ? "Dokument gelöscht."
-                : "Dokument gelöscht. Bitte Liste aktualisieren.", success: true);
+                ? result.Message
+                : $"{result.Message} Bitte Liste aktualisieren.", success: true);
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[DokumentePage] DeleteDocumentAsync failed: {ex}");
-            SetStatus("Dokument konnte aktuell nicht gelöscht werden.", success: false);
+            System.Diagnostics.Debug.WriteLine($"[DokumentePage] ArchiveDocumentAsync failed: {ex}");
+            SetStatus("Dokument konnte aktuell nicht archiviert werden.", success: false);
         }
         finally
         {
@@ -704,6 +715,41 @@ public class DokumentePage : ContentPage, IQueryAttributable
             System.Diagnostics.Debug.WriteLine($"[DokumentePage] TryReloadDocumentsAsync failed: {ex}");
             return false;
         }
+    }
+
+    private async Task<string?> PromptArchivePasswordAsync()
+    {
+        var result = new TaskCompletionSource<string?>();
+        var passwordEntry = new Entry { Placeholder = "Archivpasswort", IsPassword = true };
+        var confirmButton = new Button { Text = "Archivieren" };
+        var cancelButton = new Button { Text = "Abbrechen" };
+        var promptPage = new ContentPage
+        {
+            Title = "Archivpasswort",
+            Content = new VerticalStackLayout
+            {
+                Padding = 24,
+                Spacing = 14,
+                Children =
+                {
+                    new Label { Text = "Zusätzliches Archivpasswort eingeben.", LineBreakMode = LineBreakMode.WordWrap },
+                    passwordEntry,
+                    new FlexLayout { Direction = FlexDirection.Row, Wrap = FlexWrap.Wrap, Children = { cancelButton, confirmButton } }
+                }
+            }
+        };
+
+        async Task CloseAsync(string? value)
+        {
+            result.TrySetResult(value);
+            await Navigation.PopModalAsync();
+        }
+
+        confirmButton.Clicked += async (_, _) => await CloseAsync(passwordEntry.Text?.Trim());
+        cancelButton.Clicked += async (_, _) => await CloseAsync(null);
+        await Navigation.PushModalAsync(new NavigationPage(promptPage));
+        Dispatcher.Dispatch(() => passwordEntry.Focus());
+        return await result.Task;
     }
 
     private async Task ReloadDocumentsAsync(DokumentPageContext context)
@@ -822,6 +868,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
     }
 
     public bool CanManageDocuments => _userContextState.CurrentUserContext?.Has(PermissionFlags.CanManageDocuments) == true;
+    public bool CanArchiveDocuments => _userContextState.CurrentUserContext?.Role == UserRole.Admin;
 
     private bool CanReadMemberDocuments(int? memberId)
     {

@@ -7,12 +7,12 @@ namespace KGV.Core.Models
         public string DiagnosticCode { get; private init; } = string.Empty;
         public string RequestId { get; private init; } = string.Empty;
 
-        public static DokumentDeleteResult Ok(string? requestId = null)
+        public static DokumentDeleteResult Ok(string? requestId = null, string? message = null)
             => new()
             {
                 Success = true,
                 RequestId = requestId?.Trim() ?? string.Empty,
-                Message = "Dokument wurde entfernt."
+                Message = message?.Trim() ?? "Dokument wurde entfernt."
             };
 
         public static DokumentDeleteResult Fail(string message, string diagnosticCode, string? requestId = null)

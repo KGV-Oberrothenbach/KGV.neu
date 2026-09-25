@@ -46,5 +46,8 @@ namespace KGV.Core.Models
 
         [Column("drive_file_id")]
         public string? DriveFileId { get; set; }
+
+        [Column("archiviert_at")]
+        public DateTime? ArchiviertAt { get; set; }
     }
 }
