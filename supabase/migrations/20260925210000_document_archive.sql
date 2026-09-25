@@ -4,12 +4,16 @@ alter table public.dokument
   add column if not exists archiviert_by uuid references auth.users(id),
   add column if not exists archiviert_begruendung text;
 
-alter table public.dokument
-  add constraint dokument_archivierung_chk check (
-    (archiviert_at is null and archiviert_by is null and archiviert_begruendung is null)
-    or
-    (archiviert_at is not null and archiviert_by is not null and length(trim(coalesce(archiviert_begruendung, ''))) >= 3)
-  ) not valid;
+do $$
+begin
+  alter table public.dokument
+    add constraint dokument_archivierung_chk check (
+      (archiviert_at is null and archiviert_by is null and archiviert_begruendung is null)
+      or
+      (archiviert_at is not null and archiviert_by is not null and length(trim(coalesce(archiviert_begruendung, ''))) >= 3)
+    ) not valid;
+exception when duplicate_object then null;
+end $$;
 
 alter table public.dokument validate constraint dokument_archivierung_chk;
 
