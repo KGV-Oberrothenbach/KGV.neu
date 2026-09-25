@@ -7267,19 +7267,54 @@ namespace KGV.Infrastructure.Services
             return !string.IsNullOrWhiteSpace(bucket) && !string.IsNullOrWhiteSpace(path);
         }
 
-        private async Task<byte[]?> DownloadDokumentContentAsync(DocumentInfo document)
+        public async Task<byte[]?> DownloadDokumentContentAsync(DocumentInfo document)
         {
             if (document == null)
                 return null;
 
             if (!string.IsNullOrWhiteSpace(document.DriveFileId))
-                return await _documentUploadHttpClient.GetByteArrayAsync(BuildGoogleDriveFileDownloadUrl(document.DriveFileId));
+                return await DownloadDokumentFromDriveProxyAsync(document.Id);
 
             var url = await ResolveDokumentOpenUrlAsync(document, 600);
             if (string.IsNullOrWhiteSpace(url))
                 return null;
 
             return await _documentUploadHttpClient.GetByteArrayAsync(url);
+        }
+
+        private async Task<byte[]?> DownloadDokumentFromDriveProxyAsync(long documentId)
+        {
+            if (documentId <= 0 || string.IsNullOrWhiteSpace(_supabaseUrl) || string.IsNullOrWhiteSpace(_publishableKey))
+                return null;
+
+            var token = await _authService.GetAccessTokenAsync();
+            if (string.IsNullOrWhiteSpace(token))
+                return null;
+
+            var endpoint = new Uri(new Uri(_supabaseUrl.TrimEnd('/') + "/"), $"functions/v1/{DokumentUploadFunctionName}");
+            using var message = new HttpRequestMessage(HttpMethod.Post, endpoint)
+            {
+                Content = new StringContent(
+                    JsonSerializer.Serialize(new { action = "download", document_id = documentId }),
+                    Encoding.UTF8,
+                    "application/json")
+            };
+            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            message.Headers.Add("apikey", _publishableKey);
+
+            using var response = await _documentUploadHttpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead);
+            if (!response.IsSuccessStatusCode)
+            {
+                var responseBody = await response.Content.ReadAsStringAsync();
+                _logger?.LogWarning(
+                    "Geschützter Dokument-Download abgelehnt. DokumentId={DokumentId}, Status={StatusCode}, Antwort={Antwort}",
+                    documentId,
+                    (int)response.StatusCode,
+                    responseBody);
+                return null;
+            }
+
+            return await response.Content.ReadAsByteArrayAsync();
         }
 
         private static DokumentUploadRequest BuildSignedVertragsdokumentUploadRequest(MitgliedRecord member, string dokumenttyp, byte[] fileContent)

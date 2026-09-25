@@ -579,6 +579,21 @@ public class DokumentePage : ContentPage, IQueryAttributable
                 return;
             }
 
+            if (IsPdfDocument(document))
+            {
+                _isBusy = true;
+                UpdateUiState();
+                var content = await _supabaseService.DownloadDokumentContentAsync(document);
+                if (content is not { Length: > 0 })
+                {
+                    SetStatus("PDF konnte nicht geladen werden. Prüfe die Dokumentberechtigung oder den Google-Drive-Zugang.", success: false);
+                    return;
+                }
+
+                await Navigation.PushAsync(new PdfViewerPage(GetDocumentDisplayName(document), content));
+                return;
+            }
+
             var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
             if (string.IsNullOrWhiteSpace(url))
             {
@@ -593,7 +608,16 @@ public class DokumentePage : ContentPage, IQueryAttributable
             System.Diagnostics.Debug.WriteLine($"[DokumentePage] OpenDocumentAsync failed: {ex}");
             SetStatus("Dokument konnte aktuell nicht geöffnet werden.", success: false);
         }
+        finally
+        {
+            _isBusy = false;
+            UpdateUiState();
+        }
     }
+
+    private static bool IsPdfDocument(DocumentInfo document)
+        => string.Equals(document.MimeType, "application/pdf", StringComparison.OrdinalIgnoreCase)
+           || document.Dateiname.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
 
     private async Task DeleteDocumentAsync(DocumentInfo document)
     {

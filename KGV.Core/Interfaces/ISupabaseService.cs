@@ -140,6 +140,11 @@ namespace KGV.Core.Interfaces
         Task<DokumentUploadResult> UploadSignedVertragsdokumentAsync(int mitgliedId, DocumentInfo sourceDocument, byte[] fileContent, string originalFileName, string mimeType = "application/pdf");
         Task<DokumentUploadResult> CreateDokumentAsync(DokumentUploadRequest request);
         Task<DokumentDeleteResult> DeleteDokumentAsync(DocumentInfo? document);
+        /// <summary>
+        /// Lädt ein Dokument über den geschützten KGV-Drive-Proxy. Die Edge Function
+        /// erzwingt dabei dieselben Dokumentrechte wie die Datenbank.
+        /// </summary>
+        Task<byte[]?> DownloadDokumentContentAsync(DocumentInfo document);
         Task<string?> CreateDokumentSignedUrlAsync(string storagePath, int expiresInSeconds = 3600);
         Task<string?> ResolveDokumentOpenUrlAsync(DocumentInfo? document, int expiresInSeconds = 3600);
         Task<string?> ResolveAblesungFotoOpenUrlAsync(string? fotoPfad, string? fotoDriveFileId, int expiresInSeconds = 3600);

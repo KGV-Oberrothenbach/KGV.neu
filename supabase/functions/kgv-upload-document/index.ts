@@ -24,6 +24,7 @@ type DriveUploadResult = {
 type ApiErrorCode =
   | "BAD_REQUEST"
   | "UNAUTHORIZED"
+  | "FORBIDDEN"
   | "CONFIG_MISSING"
   | "GOOGLE_AUTH_ERROR"
   | "GOOGLE_DRIVE_ERROR"
@@ -32,6 +33,26 @@ type ApiErrorCode =
 type DeleteDocumentRequest = {
   drive_file_id?: string | null;
   fileId?: string | null;
+};
+
+type DownloadDocumentRequest = {
+  action?: string | null;
+  document_id?: number | string | null;
+};
+
+type AuthenticatedDocumentUser = {
+  userId: string;
+  role: string;
+  mitgliedId: number | null;
+};
+
+type DriveDocumentRecord = {
+  id: number;
+  mitglied_id: number | null;
+  parzelle_id: number | null;
+  drive_file_id: string | null;
+  dateiname: string | null;
+  mime_type: string | null;
 };
 
 function logStep(step: string, details?: Record<string, unknown>) {
@@ -455,7 +476,7 @@ async function uploadFileToDrive(params: { accessToken: string; parentId: string
   }
 }
 
-async function requireAdminOrVorstand(authHeader: string) {
+async function authenticateDocumentUser(authHeader: string) {
   logStep("auth start");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -477,7 +498,7 @@ async function requireAdminOrVorstand(authHeader: string) {
 
   const { data: appUser, error: appUserError } = await supabaseAdmin
     .from("app_user")
-    .select("role")
+    .select("role,mitglied_id")
     .eq("user_id", userData.user.id)
     .maybeSingle();
 
@@ -486,12 +507,88 @@ async function requireAdminOrVorstand(authHeader: string) {
   }
 
   const role = (appUser?.role ?? "").trim().toLowerCase();
+  const rawMitgliedId = appUser?.mitglied_id;
+  const mitgliedId = typeof rawMitgliedId === "number" && Number.isSafeInteger(rawMitgliedId) && rawMitgliedId > 0
+    ? rawMitgliedId
+    : null;
+
+  return { ok: true as const, userId: userData.user.id, role, mitgliedId, supabaseAdmin };
+}
+
+async function requireAdminOrVorstand(authHeader: string) {
+  const auth = await authenticateDocumentUser(authHeader);
+  if (!auth.ok)
+    return auth;
+
+  const { role } = auth;
   if (role !== "admin" && role !== "vorstand") {
     return { ok: false as const, status: 403, message: "Nur Admin oder Vorstand dürfen Dokumente verwalten." };
   }
 
   logStep("auth passed", { role });
-  return { ok: true as const, userId: userData.user.id, role };
+  return auth;
+}
+
+async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin: ReturnType<typeof createClient> }, documentId: number): Promise<DriveDocumentRecord | null> {
+  const { data: document, error: documentError } = await auth.supabaseAdmin
+    .from("dokument")
+    .select("id,mitglied_id,parzelle_id,drive_file_id,dateiname,mime_type")
+    .eq("id", documentId)
+    .maybeSingle();
+
+  if (documentError) {
+    throw new Error(`Dokumentrechte konnten nicht geprüft werden: ${documentError.message}`);
+  }
+
+  if (!document)
+    return null;
+
+  const isManager = auth.role === "admin" || auth.role === "vorstand";
+  if (isManager)
+    return document as DriveDocumentRecord;
+
+  if (!auth.mitgliedId)
+    return null;
+
+  if (document.mitglied_id === auth.mitgliedId)
+    return document as DriveDocumentRecord;
+
+  if (!document.parzelle_id)
+    return null;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: activeOccupancy, error: occupancyError } = await auth.supabaseAdmin
+    .from("parzellen_belegung")
+    .select("id")
+    .eq("parzelle_id", document.parzelle_id)
+    .eq("mitglied_id", auth.mitgliedId)
+    .lte("von_datum", today)
+    .or(`bis_datum.is.null,bis_datum.gte.${today}`)
+    .limit(1)
+    .maybeSingle();
+
+  if (occupancyError) {
+    throw new Error(`Parzellenrechte konnten nicht geprüft werden: ${occupancyError.message}`);
+  }
+
+  return activeOccupancy ? document as DriveDocumentRecord : null;
+}
+
+async function downloadDriveDocument(accessToken: string, driveFileId: string): Promise<Response> {
+  const url = new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(driveFileId)}`);
+  url.searchParams.set("alt", "media");
+  url.searchParams.set("supportsAllDrives", "true");
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(DRIVE_DELETE_TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    const responseText = await response.text();
+    throw new Error(`Drive download failed: ${responseText}`);
+  }
+
+  return response;
 }
 
 Deno.serve(async (req) => {
@@ -508,6 +605,50 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization") ?? "";
+
+    if (req.method === "POST" && (req.headers.get("content-type") ?? "").toLowerCase().includes("application/json")) {
+      const payload = await req.json() as DownloadDocumentRequest;
+      if ((payload.action ?? "").trim().toLowerCase() !== "download") {
+        return errorResponse(400, "BAD_REQUEST", "Unbekannte Dokumentaktion.", requestId);
+      }
+
+      const documentId = Number(payload.document_id);
+      if (!Number.isSafeInteger(documentId) || documentId <= 0) {
+        return errorResponse(400, "BAD_REQUEST", "document_id fehlt oder ist ungültig.", requestId);
+      }
+
+      const auth = await authenticateDocumentUser(authHeader);
+      if (!auth.ok) {
+        return errorResponse(auth.status, "UNAUTHORIZED", auth.message, requestId);
+      }
+
+      const document = await mayReadDocument(auth, documentId);
+      if (!document) {
+        return errorResponse(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId);
+      }
+
+      const driveFileId = (document.drive_file_id ?? "").trim();
+      if (!driveFileId) {
+        return errorResponse(409, "GOOGLE_DRIVE_ERROR", "Das Dokument besitzt keine Google-Drive-Dateireferenz.", requestId);
+      }
+
+      const accessToken = await getGoogleAccessToken();
+      const driveResponse = await downloadDriveDocument(accessToken, driveFileId);
+      const contentType = driveResponse.headers.get("content-type") || document.mime_type || "application/octet-stream";
+      const safeFileName = (document.dateiname ?? "dokument.pdf").replace(/[\r\n"]/g, "_");
+      logStep("drive download success", { documentId, role: auth.role });
+
+      return new Response(driveResponse.body, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": contentType,
+          "Content-Disposition": `inline; filename="${safeFileName}"`,
+          "Cache-Control": "private, no-store",
+        },
+      });
+    }
+
     const auth = await requireAdminOrVorstand(authHeader);
     if (!auth.ok) {
       return errorResponse(auth.status, "UNAUTHORIZED", auth.message, requestId);
