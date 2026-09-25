@@ -24,6 +24,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
     private MitgliedRecord? _memberRecord;
     private bool _hasLinkedAppUser;
+    private bool _hasSignedMitgliedsantrag;
     private bool _isBusy;
     private bool _isCreateMode;
 
@@ -262,6 +263,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             }
 
             _memberRecord = member;
+            _hasSignedMitgliedsantrag = await _supabaseService.HasSignedMitgliedsantragAsync(member.Id);
             var memberDto = MapMember(member);
             var permissionSettings = await _supabaseService.GetUserPermissionSettingsAsync(member.Id);
             memberDto.Role = NormalizeRole(permissionSettings?.Role ?? UserRoles.User);
@@ -310,6 +312,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     {
         _memberRecord = null;
         _hasLinkedAppUser = false;
+        _hasSignedMitgliedsantrag = false;
         _nachnameEntry.Text = string.Empty;
         _vornameEntry.Text = string.Empty;
         _emailEntry.Text = string.Empty;
@@ -338,6 +341,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     {
         _memberRecord = null;
         _hasLinkedAppUser = false;
+        _hasSignedMitgliedsantrag = false;
         _headlineLabel.Text = "Neues Mitglied";
         _statusLabel.Text = "Neues Mitglied anlegen.";
         _nachnameEntry.Text = string.Empty;
@@ -404,11 +408,14 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         var canCreateMitglied = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
         var canCreateMemberApplication = !_isCreateMode
             && member?.Id is > 0
-            && canCreateMitglied;
+            && canCreateMitglied
+            && !_hasSignedMitgliedsantrag;
 
         _mitgliedsantragButton.IsVisible = canCreateMemberApplication;
         _mitgliedsantragButton.IsEnabled = canCreateMemberApplication;
-        _mitgliedsantragDiagnoseLabel.Text = BuildMitgliedsantragDiagnoseText(member);
+        _mitgliedsantragDiagnoseLabel.Text = _hasSignedMitgliedsantrag
+            ? "Signierter Mitgliedsantrag liegt vor."
+            : string.Empty;
     }
 
     private string BuildMitgliedsantragDiagnoseText(MemberDTO? member)
@@ -619,6 +626,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     await DisplayAlertAsync("Mitgliedsantrag", result.Message, "OK");
                     return;
                 }
+
+                _hasSignedMitgliedsantrag = true;
+                UpdateFormActions(_memberContextState.SelectedMember);
 
                 var document = result.Document;
                 if (document?.CanOpen != true)
