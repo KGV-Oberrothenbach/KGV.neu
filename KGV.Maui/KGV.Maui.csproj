@@ -15,8 +15,8 @@
     <AndroidMinSdkVersion>21</AndroidMinSdkVersion>
     <AndroidTargetSdkVersion>36</AndroidTargetSdkVersion>
     <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
-    <ApplicationDisplayVersion>0.7.10.4</ApplicationDisplayVersion>
-    <ApplicationVersion>164</ApplicationVersion>
+    <ApplicationDisplayVersion>0.7.10.5</ApplicationDisplayVersion>
+    <ApplicationVersion>165</ApplicationVersion>
     <TargetFrameworks>net10.0-android</TargetFrameworks>
   </PropertyGroup>
   <!-- Debug stability settings -->
@@ -26,7 +26,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <!-- Play Store Distribution: AAB als Release-Artefakt -->
-    <AndroidPackageFormat>aab</AndroidPackageFormat>
+    <AndroidPackageFormat Condition="'$(AndroidPackageFormat)'==''">aab</AndroidPackageFormat>
     <AndroidLinkMode>None</AndroidLinkMode>
     <AndroidIncludeDebugSymbols>true</AndroidIncludeDebugSymbols>
     <PublishTrimmed>false</PublishTrimmed>
@@ -55,7 +55,7 @@
     <AndroidPackageFormat>apk</AndroidPackageFormat>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net10.0-android|AnyCPU'">
-    <AndroidPackageFormat>aab</AndroidPackageFormat>
+    <AndroidPackageFormat Condition="'$(AndroidPackageFormat)'==''">aab</AndroidPackageFormat>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <AndroidSigningKeyStore Condition="'$(AndroidSigningKeyStore)'=='' and Exists('$(MSBuildProjectDirectory)\..\_secrets\Android\kgv-upload.keystore')">$(MSBuildProjectDirectory)\..\_secrets\Android\kgv-upload.keystore</AndroidSigningKeyStore>

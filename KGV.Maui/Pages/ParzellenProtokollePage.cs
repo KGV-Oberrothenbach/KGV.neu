@@ -160,8 +160,26 @@ public sealed class ParzellenProtokollePage : ContentPage
                 : $"{_selectedMember.Vorname} {_selectedMember.Name}".Trim();
             _begleitmitgliedPicker.ItemsSource = members;
             _begleitmitgliedPicker.ItemDisplayBinding = new Binding("Name");
-            _parzellePicker.ItemsSource = (await _supabase.GetAllParzellenAsync()).Where(p => p.Aktiv).OrderBy(p => p.GartenNrSortKey).ToList();
+            var parzellen = await _supabase.GetAllParzellenAsync();
+            var belegungen = await _supabase.GetAllParzellenBelegungenAsync();
+            var today = DateTime.Today;
+            var memberParzelleIds = (belegungen ?? new List<ParzellenBelegungRecord>())
+                .Where(b => b.MitgliedId == selectedMemberId
+                    && (b.VonDatum ?? DateTime.MinValue).Date <= today
+                    && (b.BisDatum == null || b.BisDatum.Value.Date >= today))
+                .Select(b => b.ParzelleId)
+                .ToHashSet();
+
+            var memberParzellen = (parzellen ?? new List<ParzelleRecord>())
+                .Where(p => p.Aktiv && memberParzelleIds.Contains(p.Id))
+                .OrderBy(p => p.GartenNrSortKey)
+                .ToList();
+            _parzellePicker.ItemsSource = memberParzellen;
             _parzellePicker.ItemDisplayBinding = new Binding("DisplayName");
+            _parzellePicker.IsEnabled = memberParzellen.Count > 0;
+            _parzellePicker.Title = memberParzellen.Count > 0
+                ? "Parzelle auswählen"
+                : "Keine aktive Parzelle für dieses Mitglied";
             _vorstand2Picker.ItemsSource = members.Where(m => string.Equals(m.Role, "admin", StringComparison.OrdinalIgnoreCase) || string.Equals(m.Role, "vorstand", StringComparison.OrdinalIgnoreCase)).ToList();
             _vorstand2Picker.ItemDisplayBinding = new Binding("Name");
             _vorstand1Label.Text = _userContext.CurrentMitgliedId is long id
