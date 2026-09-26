@@ -63,5 +63,5 @@ language sql stable security invoker as $$
     hat_wartungsvertrag,wartungsvertraege,
     case when hat_wartungsvertrag then 'Wartungsvertrag - befreit' when pflichtstunden_soll>0 and offene_stunden>0 then 'Stunden offen' when pflichtstunden_soll>0 then 'Stunden fertig' else 'Befreit' end,
     regelgrund,zeilentyp,leistendes_mitglied,stunden_dieses_mitglieds,datum,taetigkeit,sortierung
-  from rows order by nullif(garten_nr, '') nulls last, garten_nr, nachname, vorname, sortierung, leistendes_mitglied, datum;
+  from rows order by case when nullif(garten_nr, '') is null then 1 else 0 end, substring(garten_nr from '^[[:space:]]*([0-9]+)')::integer nulls last, garten_nr, nachname, vorname, sortierung, leistendes_mitglied, datum;
 $$;

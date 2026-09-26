@@ -210,7 +210,8 @@ namespace KGV.Core.Utilities
             void DrawGroup(string title, IEnumerable<Dictionary<string, string>> groupRows)
             {
                 var orderedRows = groupRows
-                    .OrderBy(r => GetRowValue(r, "garten_nr"), StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(r => GetGartenSortNumber(GetRowValue(r, "garten_nr")))
+                    .ThenBy(r => GetRowValue(r, "garten_nr"), StringComparer.OrdinalIgnoreCase)
                     .ThenBy(r => GetRowValue(r, "nachname"), StringComparer.OrdinalIgnoreCase)
                     .ThenBy(r => GetRowValue(r, "vorname"), StringComparer.OrdinalIgnoreCase)
                     .ToList();
@@ -263,10 +264,18 @@ namespace KGV.Core.Utilities
                 y += 12;
             }
 
+            // Detailzeilen werden nur für die tabellarische Ansicht angefordert. Im
+            // Übersichts-PDF steht jedes Hauptmitglied dagegen genau einmal.
+            var summaryRows = rows.Where(r =>
+                string.IsNullOrWhiteSpace(GetRowValue(r, "zeilentyp"))
+                || string.Equals(GetRowValue(r, "zeilentyp"), "Zusammenfassung", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
             StartPage();
-            DrawGroup("Stunden offen", rows.Where(r => string.Equals(GetRowValue(r, "status"), "Stunden offen", StringComparison.OrdinalIgnoreCase)));
-            DrawGroup("Stunden fertig", rows.Where(r => string.Equals(GetRowValue(r, "status"), "Stunden fertig", StringComparison.OrdinalIgnoreCase)));
-            DrawGroup("Wartungsverträge", rows.Where(r => GetRowValue(r, "status").StartsWith("Wartungsvertrag", StringComparison.OrdinalIgnoreCase)));
+            DrawGroup("Stunden offen", summaryRows.Where(r => string.Equals(GetRowValue(r, "status"), "Stunden offen", StringComparison.OrdinalIgnoreCase)));
+            DrawGroup("Stunden fertig", summaryRows.Where(r => string.Equals(GetRowValue(r, "status"), "Stunden fertig", StringComparison.OrdinalIgnoreCase)));
+            DrawGroup("Wartungsverträge", summaryRows.Where(r => GetRowValue(r, "status").StartsWith("Wartungsvertrag", StringComparison.OrdinalIgnoreCase)));
+            DrawGroup("Aufgrund Altersregelung befreit", summaryRows.Where(r => string.Equals(GetRowValue(r, "regelgrund"), "altersbefreiung", StringComparison.OrdinalIgnoreCase)));
 
             using var ms = new MemoryStream();
             doc.Save(ms, false);
@@ -276,6 +285,15 @@ namespace KGV.Core.Utilities
         private static string GetRowValue(Dictionary<string, string> row, string key)
         {
             return row.TryGetValue(key, out var value) ? value ?? string.Empty : string.Empty;
+        }
+
+        private static int GetGartenSortNumber(string gartenNr)
+        {
+            if (string.IsNullOrWhiteSpace(gartenNr))
+                return int.MaxValue;
+
+            var digits = new string(gartenNr.Trim().TakeWhile(char.IsDigit).ToArray());
+            return int.TryParse(digits, out var value) ? value : int.MaxValue;
         }
 
         private static List<PdfColumn> BuildEffectiveColumns(string exportKey, IReadOnlyList<AppExportColumnDefinitionRecord> columns)
