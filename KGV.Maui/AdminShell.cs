@@ -24,6 +24,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
     private FlyoutItem? _workhoursReviewItem;
     private FlyoutItem? _memberDetailsItem;
     private FlyoutItem? _memberDocumentsItem;
+    private FlyoutItem? _memberProtokolleItem;
     private FlyoutItem? _memberWartungsvertraegeItem;
     private FlyoutItem? _memberNebenmitgliedItem;
     private FlyoutItem? _memberGardensItem;
@@ -164,9 +165,6 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             Items.Add(CreateItem("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
 
         if (PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext))
-            Items.Add(CreateItem("Protokolle", "parzellen_protokolle", () => _services.GetRequiredService<ParzellenProtokollePage>()));
-
-        if (PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Wartungsverträge", "wartungsvertraege", () => _services.GetRequiredService<WartungsvertraegePage>()));
 
         if (PermissionChecks.CanManageWorkHours(_userContextState.CurrentUserContext))
@@ -190,6 +188,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
        
         _memberDetailsItem = CreateItem("↳ Stammdaten", "memberdetails", () => _services.GetRequiredService<MemberDetailPage>());
         _memberDocumentsItem = CreateItem("↳ Dokumente", "member_documents", () => _services.GetRequiredService<DokumentePage>());
+        _memberProtokolleItem = CreateItem("↳ Protokolle", "member_protocols", () => _services.GetRequiredService<ParzellenProtokollePage>());
         _memberWartungsvertraegeItem = CreateItem("↳ Wartungsverträge", "member_wartungsvertraege", () => _services.GetRequiredService<MemberWartungsvertraegePage>());
         _memberNebenmitgliedItem = CreateItem("↳ Nebenmitglied", "member_nebenmitglied", () => _services.GetRequiredService<NebenmitgliedPage>());
         _memberGardensItem = CreateItem("↳ Gärten des Mitglieds", "member_gardens", () => _services.GetRequiredService<MemberGardensPage>());
@@ -198,6 +197,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
 
         Items.Add(_memberDetailsItem);
         Items.Add(_memberDocumentsItem);
+        Items.Add(_memberProtokolleItem);
         Items.Add(_memberWartungsvertraegeItem);
         Items.Add(_memberNebenmitgliedItem);
         Items.Add(_memberGardensItem);
@@ -215,6 +215,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         var hasMember = selectedMemberId is > 0;
         if (_memberDetailsItem != null) _memberDetailsItem.IsVisible = hasMember && PermissionChecks.CanShowStammdaten(_userContextState.CurrentUserContext);
         if (_memberDocumentsItem != null) _memberDocumentsItem.IsVisible = hasMember && CanOpenMemberDocuments(selectedMemberId);
+        if (_memberProtokolleItem != null) _memberProtokolleItem.IsVisible = hasMember && PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext);
         if (_memberWartungsvertraegeItem != null) _memberWartungsvertraegeItem.IsVisible = hasMember;
         if (_memberNebenmitgliedItem != null) _memberNebenmitgliedItem.IsVisible = hasMember && PermissionChecks.CanReadStammdaten(_userContextState.CurrentUserContext);
         if (_memberGardensItem != null) _memberGardensItem.IsVisible = hasMember && PermissionChecks.CanShowParzellen(_userContextState.CurrentUserContext);
@@ -222,7 +223,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (_memberWorkhoursItem != null) _memberWorkhoursItem.IsVisible = hasMember && PermissionChecks.CanReadWorkHours(_userContextState.CurrentUserContext);
 
         var currentRoute = ShellNavigationHelper.GetActiveShellContentRoute(this);
-        if (currentRoute is "memberdetails" or "member_documents" or "member_wartungsvertraege" or "member_nebenmitglied" or "member_gardens" or "member_adminmenu" or "member_workhours")
+        if (currentRoute is "memberdetails" or "member_documents" or "member_protocols" or "member_wartungsvertraege" or "member_nebenmitglied" or "member_gardens" or "member_adminmenu" or "member_workhours")
         {
             if (!hasMember)
                 ShellNavigationHelper.EnsureActiveShellItem(this, "home");

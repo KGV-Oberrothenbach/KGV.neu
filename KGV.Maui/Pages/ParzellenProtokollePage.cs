@@ -15,8 +15,9 @@ public sealed class ParzellenProtokollePage : ContentPage
 {
     private readonly ISupabaseService _supabase;
     private readonly UserContextState _userContext;
+    private readonly MemberContextState _memberContext;
     private readonly Picker _typPicker = new() { Title = "Protokollart" };
-    private readonly Picker _mitgliedPicker = new() { Title = "Mitglied auswählen" };
+    private readonly Label _mitgliedLabel = new() { TextColor = Colors.DimGray, LineBreakMode = LineBreakMode.WordWrap };
     private readonly Picker _parzellePicker = new() { Title = "Parzelle auswählen" };
     private readonly Picker _vorstand2Picker = new() { Title = "Zweiten Vorstand auswählen" };
     private readonly Switch _begleitpersonSwitch = new();
@@ -43,6 +44,8 @@ public sealed class ParzellenProtokollePage : ContentPage
     private readonly VerticalStackLayout _readingSection = new() { Spacing = 10 };
     private ZaehlerAblesungDTO? _lastWasserReading;
     private ZaehlerAblesungDTO? _lastStromReading;
+    private MitgliedRecord? _selectedMember;
+    private int _loadedMemberId;
     private bool _loaded;
     private long _draftProtocolId;
 
@@ -52,6 +55,7 @@ public sealed class ParzellenProtokollePage : ContentPage
             ?? throw new InvalidOperationException("MAUI-Services sind aktuell nicht verfügbar.");
         _supabase = services.GetRequiredService<ISupabaseService>();
         _userContext = services.GetRequiredService<UserContextState>();
+        _memberContext = services.GetRequiredService<MemberContextState>();
         Title = "Protokolle";
         BackgroundColor = Colors.White;
 
@@ -72,7 +76,7 @@ public sealed class ParzellenProtokollePage : ContentPage
         _wasserQuellePicker.SelectedIndexChanged += async (_, _) => await HandleReadingChoiceAsync("wasser", _wasserQuellePicker);
         _stromQuellePicker.SelectedIndexChanged += async (_, _) => await HandleReadingChoiceAsync("strom", _stromQuellePicker);
 
-        _form.Children.Add(CreateField("Mitglied", _mitgliedPicker));
+        _form.Children.Add(CreateField("Mitglied", _mitgliedLabel));
         _form.Children.Add(CreateField("Parzelle", _parzellePicker));
         _form.Children.Add(CreateField("Vorstand 1", _vorstand1Label));
         _form.Children.Add(CreateField("Vorstand 2", _vorstand2Picker));
@@ -139,17 +143,21 @@ public sealed class ParzellenProtokollePage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        if (_loaded)
+        var selectedMemberId = _memberContext.SelectedMember?.Id ?? 0;
+        if (_loaded && _loadedMemberId == selectedMemberId)
         {
             await LoadLastReadingsAsync();
             return;
         }
         _loaded = true;
+        _loadedMemberId = selectedMemberId;
         try
         {
             var members = (await _supabase.GetMitgliederAsync()).Where(m => m.Aktiv).OrderBy(m => m.Name).ToList();
-            _mitgliedPicker.ItemsSource = members;
-            _mitgliedPicker.ItemDisplayBinding = new Binding("Name");
+            _selectedMember = selectedMemberId > 0 ? members.FirstOrDefault(m => m.Id == selectedMemberId) : null;
+            _mitgliedLabel.Text = _selectedMember == null
+                ? "Bitte zuerst in der Mitgliedersuche ein Mitglied auswählen."
+                : $"{_selectedMember.Vorname} {_selectedMember.Name}".Trim();
             _begleitmitgliedPicker.ItemsSource = members;
             _begleitmitgliedPicker.ItemDisplayBinding = new Binding("Name");
             _parzellePicker.ItemsSource = (await _supabase.GetAllParzellenAsync()).Where(p => p.Aktiv).OrderBy(p => p.GartenNrSortKey).ToList();
@@ -168,7 +176,7 @@ public sealed class ParzellenProtokollePage : ContentPage
 
     private async Task<bool> SaveDraftAsync()
     {
-        if (_mitgliedPicker.SelectedItem is not MitgliedRecord || _parzellePicker.SelectedItem is not ParzelleRecord || _vorstand2Picker.SelectedItem is not MitgliedRecord)
+        if (_selectedMember == null || _parzellePicker.SelectedItem is not ParzelleRecord || _vorstand2Picker.SelectedItem is not MitgliedRecord)
         {
             await DisplayAlertAsync("Validierung", "Bitte Mitglied, Parzelle und das zweite Vorstandsmitglied auswählen.", "OK");
             return false;
@@ -178,7 +186,7 @@ public sealed class ParzellenProtokollePage : ContentPage
             await DisplayAlertAsync("Validierung", "Bitte ein Nebenmitglied auswählen oder den Namen der Begleitperson eintragen.", "OK");
             return false;
         }
-        if (_mitgliedPicker.SelectedItem is not MitgliedRecord member || _parzellePicker.SelectedItem is not ParzelleRecord parcel || _vorstand2Picker.SelectedItem is not MitgliedRecord board2 || _userContext.CurrentMitgliedId is not long board1Id)
+        if (_selectedMember is not MitgliedRecord member || _parzellePicker.SelectedItem is not ParzelleRecord parcel || _vorstand2Picker.SelectedItem is not MitgliedRecord board2 || _userContext.CurrentMitgliedId is not long board1Id)
             return false;
 
         var protocolType = _typPicker.SelectedIndex switch { 0 => "uebernahme", 1 => "rueckgabe", _ => "begehung" };
@@ -215,7 +223,7 @@ public sealed class ParzellenProtokollePage : ContentPage
 
     private async Task CreatePdfAsync()
     {
-        if (_mitgliedPicker.SelectedItem is not MitgliedRecord member || _parzellePicker.SelectedItem is not ParzelleRecord parcel || _vorstand2Picker.SelectedItem is not MitgliedRecord board2 || _userContext.CurrentMitgliedId is not long board1Id)
+        if (_selectedMember is not MitgliedRecord member || _parzellePicker.SelectedItem is not ParzelleRecord parcel || _vorstand2Picker.SelectedItem is not MitgliedRecord board2 || _userContext.CurrentMitgliedId is not long board1Id)
         {
             await DisplayAlertAsync("PDF", "Bitte zuerst Mitglied, Parzelle und beide Vorstandsmitglieder festlegen.", "OK");
             return;
@@ -372,7 +380,7 @@ public sealed class ParzellenProtokollePage : ContentPage
 
     private async Task CaptureSignaturesAsync()
     {
-        if (_mitgliedPicker.SelectedItem is not MitgliedRecord member || _vorstand2Picker.SelectedItem is not MitgliedRecord board2)
+        if (_selectedMember is not MitgliedRecord member || _vorstand2Picker.SelectedItem is not MitgliedRecord board2)
         {
             await DisplayAlertAsync("Unterschriften", "Bitte zuerst Mitglied und zweiten Vorstand auswählen.", "OK");
             return;
