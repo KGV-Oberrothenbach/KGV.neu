@@ -20,6 +20,10 @@ public sealed class ParzellenProtokollePage : ContentPage
     private readonly Picker _begleitmitgliedPicker = new() { Title = "Nebenmitglied auswählen" };
     private readonly Entry _begleitpersonName = new() { Placeholder = "Name der Begleitperson" };
     private readonly Label _vorstand1Label = new() { TextColor = Colors.DimGray };
+    private readonly Picker _wasserQuellePicker = new() { Title = "Wasserstand auswählen" };
+    private readonly Picker _stromQuellePicker = new() { Title = "Stromstand auswählen" };
+    private readonly Label _wasserStandLabel = new() { TextColor = Colors.DimGray, LineBreakMode = LineBreakMode.WordWrap };
+    private readonly Label _stromStandLabel = new() { TextColor = Colors.DimGray, LineBreakMode = LineBreakMode.WordWrap };
     private readonly VerticalStackLayout _form = new() { Spacing = 10, IsVisible = false };
     private bool _loaded;
 
@@ -39,6 +43,11 @@ public sealed class ParzellenProtokollePage : ContentPage
             _begleitmitgliedPicker.IsVisible = e.Value;
             _begleitpersonName.IsVisible = e.Value;
         };
+        _parzellePicker.SelectedIndexChanged += async (_, _) => await LoadLastReadingsAsync();
+        _wasserQuellePicker.ItemsSource = new[] { "Letzte Ablesung übernehmen", "Neu ablesen" };
+        _stromQuellePicker.ItemsSource = new[] { "Letzte Ablesung übernehmen", "Neu ablesen" };
+        _wasserQuellePicker.SelectedIndexChanged += async (_, _) => await HandleReadingChoiceAsync("wasser", _wasserQuellePicker);
+        _stromQuellePicker.SelectedIndexChanged += async (_, _) => await HandleReadingChoiceAsync("strom", _stromQuellePicker);
 
         _form.Children.Add(CreateField("Mitglied", _mitgliedPicker));
         _form.Children.Add(CreateField("Parzelle", _parzellePicker));
@@ -49,6 +58,8 @@ public sealed class ParzellenProtokollePage : ContentPage
         _begleitpersonName.IsVisible = false;
         _form.Children.Add(_begleitmitgliedPicker);
         _form.Children.Add(_begleitpersonName);
+        _form.Children.Add(CreateField("Wasser", new VerticalStackLayout { Spacing = 4, Children = { _wasserQuellePicker, _wasserStandLabel } }));
+        _form.Children.Add(CreateField("Strom", new VerticalStackLayout { Spacing = 4, Children = { _stromQuellePicker, _stromStandLabel } }));
         var continueButton = new Button { Text = "Weiter zur Protokollerfassung" };
         continueButton.Clicked += async (_, _) => await ValidateSelectionAsync();
         _form.Children.Add(continueButton);
@@ -115,6 +126,35 @@ public sealed class ParzellenProtokollePage : ContentPage
         }
         await DisplayAlertAsync("Protokolle", "Auswahl übernommen. Im nächsten Schritt folgen Ablesungen, Fotos und Unterschriften.", "OK");
     }
+
+    private async Task LoadLastReadingsAsync()
+    {
+        if (_parzellePicker.SelectedItem is not ParzelleRecord parzelle) return;
+        try
+        {
+            var wasser = (await _supabase.GetWasserAblesungenAsync(parzelle.Id)).OrderByDescending(x => x.Ablesedatum).FirstOrDefault();
+            var strom = (await _supabase.GetStromAblesungenAsync(parzelle.Id)).OrderByDescending(x => x.Ablesedatum).FirstOrDefault();
+            _wasserStandLabel.Text = FormatLastReading(wasser, "Wasser");
+            _stromStandLabel.Text = FormatLastReading(strom, "Strom");
+        }
+        catch
+        {
+            _wasserStandLabel.Text = "Letzte Wasserablesung konnte nicht geladen werden.";
+            _stromStandLabel.Text = "Letzte Stromablesung konnte nicht geladen werden.";
+        }
+    }
+
+    private async Task HandleReadingChoiceAsync(string medium, Picker picker)
+    {
+        if (picker.SelectedIndex != 1 || _parzellePicker.SelectedItem is not ParzelleRecord parzelle) return;
+        var art = _typPicker.SelectedIndex == 0 ? AblesungArt.PachtAnfang : AblesungArt.PachtEnde;
+        await Shell.Current.GoToAsync($"{nameof(AblesungErfassenPage)}?parzelleId={parzelle.Id}&medium={medium}&art={art}");
+        picker.SelectedIndex = -1;
+    }
+
+    private static string FormatLastReading(ZaehlerAblesungDTO? value, string medium) => value == null
+        ? $"Keine frühere {medium}ablesung vorhanden."
+        : $"Letzte Ablesung: {value.Stand:0.##} ({value.Zaehlernummer}), {value.Ablesedatum:dd.MM.yyyy}";
 
     private static View CreateField(string label, View field) => new VerticalStackLayout { Spacing = 3, Children = { new Label { Text = label, FontAttributes = FontAttributes.Bold }, field } };
 
