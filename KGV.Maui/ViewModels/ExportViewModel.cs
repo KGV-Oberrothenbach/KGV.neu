@@ -323,6 +323,7 @@ namespace KGV.Maui.ViewModels
                         "stunden_offen" => "p_stunden_offen",
                         "stunden_fertig" => "p_stunden_fertig",
                         "wartungsvertraege" => "p_wartungsvertraege",
+                        "ansicht" => "p_ansicht",
                         _ => key
                     }
                     : key.ToLowerInvariant() switch
