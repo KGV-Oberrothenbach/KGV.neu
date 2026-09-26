@@ -53,6 +53,7 @@ internal static class ShellRouteRegistrar
         Routing.RegisterRoute(nameof(RfidEinrichtenPage), typeof(RfidEinrichtenPage));
         Routing.RegisterRoute(nameof(FaelligeZaehlerPage), typeof(FaelligeZaehlerPage));
         Routing.RegisterRoute(nameof(AblesungenFreigabePage), typeof(AblesungenFreigabePage));
+        Routing.RegisterRoute(nameof(ParzellenProtokollePage), typeof(ParzellenProtokollePage));
 
         _routesRegistered = true;
     }

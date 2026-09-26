@@ -164,6 +164,9 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             Items.Add(CreateItem("Parzellenverwaltung", "parzellen", () => _services.GetRequiredService<ParzellenPage>()));
 
         if (PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext))
+            Items.Add(CreateItem("Protokolle", "parzellen_protokolle", () => _services.GetRequiredService<ParzellenProtokollePage>()));
+
+        if (PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Wartungsverträge", "wartungsvertraege", () => _services.GetRequiredService<WartungsvertraegePage>()));
 
         if (PermissionChecks.CanManageWorkHours(_userContextState.CurrentUserContext))
