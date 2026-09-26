@@ -1652,14 +1652,14 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
-        public Task<bool> CreateParzellenProtokollAsync(ParzellenProtokollCreateRequest request) => ExecuteAsync(
+        public Task<ParzellenProtokollSaveResult> CreateParzellenProtokollAsync(ParzellenProtokollCreateRequest request) => ExecuteAsync(
             "CreateParzellenProtokollAsync",
             async () =>
             {
                 if (request?.Protokoll == null || request.Protokoll.ParzelleId <= 0 || request.Protokoll.MitgliedId <= 0 ||
                     request.Protokoll.VorstandMitgliedId <= 0 || request.Protokoll.Vorstand2MitgliedId <= 0 ||
                     !new[] { "uebernahme", "rueckgabe", "begehung" }.Contains(request.Protokoll.ProtokollTyp))
-                    return false;
+                    return ParzellenProtokollSaveResult.Fail("Pflichtangaben für das Protokoll fehlen.");
 
                 var client = await EnsureClientAsync();
                 var payload = request.Protokoll;
@@ -1678,7 +1678,7 @@ namespace KGV.Infrastructure.Services
                     .OrderByDescending(x => x.Id)
                     .FirstOrDefault();
                 if (created == null || created.Id <= 0)
-                    return false;
+                    return ParzellenProtokollSaveResult.Fail("Der gespeicherte Protokoll-Entwurf konnte nicht wieder geladen werden.");
 
                 var readings = request.Ablesungen?
                     .Where(x => x != null && (x.Medium == "wasser" || x.Medium == "strom") && x.Stand >= 0)
@@ -1703,6 +1703,23 @@ namespace KGV.Infrastructure.Services
                     await client.From<ParzellenProtokollAblesungInsertRecord>().Insert(readings);
 
                 _logger?.LogInformation("CreateParzellenProtokollAsync created protocol {ProtokollId} with {ReadingCount} meter snapshots.", created.Id, readings.Count);
+                return ParzellenProtokollSaveResult.Ok(created.Id);
+            },
+            ParzellenProtokollSaveResult.Fail("Der Protokoll-Entwurf konnte nicht gespeichert werden."));
+
+        public Task<bool> CompleteParzellenProtokollAsync(long protokollId, long dokumentId) => ExecuteAsync(
+            "CompleteParzellenProtokollAsync",
+            async () =>
+            {
+                if (protokollId <= 0 || dokumentId <= 0)
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client.From<ParzellenProtokollRecord>()
+                    .Where(x => x.Id == protokollId)
+                    .Set(x => x.DokumentId, dokumentId)
+                    .Set(x => x.Status, "abgeschlossen")
+                    .Update();
                 return true;
             },
             false);

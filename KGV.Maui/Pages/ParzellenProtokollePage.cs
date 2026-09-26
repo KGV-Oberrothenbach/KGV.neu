@@ -3,6 +3,7 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Extensions.DependencyInjection;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Utilities;
 using KGV.Maui.State;
 using Microsoft.Maui.Media;
 using System.Collections.ObjectModel;
@@ -43,6 +44,7 @@ public sealed class ParzellenProtokollePage : ContentPage
     private ZaehlerAblesungDTO? _lastWasserReading;
     private ZaehlerAblesungDTO? _lastStromReading;
     private bool _loaded;
+    private long _draftProtocolId;
 
     public ParzellenProtokollePage()
     {
@@ -108,6 +110,9 @@ public sealed class ParzellenProtokollePage : ContentPage
         var saveDraftButton = new Button { Text = "Entwurf speichern" };
         saveDraftButton.Clicked += async (_, _) => await SaveDraftAsync();
         _form.Children.Add(saveDraftButton);
+        var createPdfButton = new Button { Text = "PDF erstellen und beim Mitglied ablegen" };
+        createPdfButton.Clicked += async (_, _) => await CreatePdfAsync();
+        _form.Children.Add(createPdfButton);
 
         Content = new ScrollView
         {
@@ -161,20 +166,20 @@ public sealed class ParzellenProtokollePage : ContentPage
         }
     }
 
-    private async Task SaveDraftAsync()
+    private async Task<bool> SaveDraftAsync()
     {
         if (_mitgliedPicker.SelectedItem is not MitgliedRecord || _parzellePicker.SelectedItem is not ParzelleRecord || _vorstand2Picker.SelectedItem is not MitgliedRecord)
         {
             await DisplayAlertAsync("Validierung", "Bitte Mitglied, Parzelle und das zweite Vorstandsmitglied auswählen.", "OK");
-            return;
+            return false;
         }
         if (_begleitpersonSwitch.IsToggled && _begleitmitgliedPicker.SelectedItem is not MitgliedRecord && string.IsNullOrWhiteSpace(_begleitpersonName.Text))
         {
             await DisplayAlertAsync("Validierung", "Bitte ein Nebenmitglied auswählen oder den Namen der Begleitperson eintragen.", "OK");
-            return;
+            return false;
         }
         if (_mitgliedPicker.SelectedItem is not MitgliedRecord member || _parzellePicker.SelectedItem is not ParzelleRecord parcel || _vorstand2Picker.SelectedItem is not MitgliedRecord board2 || _userContext.CurrentMitgliedId is not long board1Id)
-            return;
+            return false;
 
         var protocolType = _typPicker.SelectedIndex switch { 0 => "uebernahme", 1 => "rueckgabe", _ => "begehung" };
         var request = new ParzellenProtokollCreateRequest
@@ -201,9 +206,72 @@ public sealed class ParzellenProtokollePage : ContentPage
         };
 
         var saved = await _supabase.CreateParzellenProtokollAsync(request);
-        await DisplayAlertAsync("Protokolle", saved
+        if (saved.Success) _draftProtocolId = saved.ProtokollId;
+        await DisplayAlertAsync("Protokolle", saved.Success
             ? "Der Protokoll-Entwurf wurde gespeichert. Die verbindliche PDF wird im nächsten Schritt erzeugt und dem Mitglied zugeordnet."
-            : "Der Protokoll-Entwurf konnte nicht gespeichert werden.", "OK");
+            : saved.Message, "OK");
+        return saved.Success;
+    }
+
+    private async Task CreatePdfAsync()
+    {
+        if (_mitgliedPicker.SelectedItem is not MitgliedRecord member || _parzellePicker.SelectedItem is not ParzelleRecord parcel || _vorstand2Picker.SelectedItem is not MitgliedRecord board2 || _userContext.CurrentMitgliedId is not long board1Id)
+        {
+            await DisplayAlertAsync("PDF", "Bitte zuerst Mitglied, Parzelle und beide Vorstandsmitglieder festlegen.", "OK");
+            return;
+        }
+        if (_paechterSignature?.HasContent != true || _vorstand1Signature?.HasContent != true || _vorstand2Signature?.HasContent != true || (_begleitpersonSwitch.IsToggled && _begleitpersonSignature?.HasContent != true))
+        {
+            await DisplayAlertAsync("PDF", "Bitte zuerst alle erforderlichen Unterschriften erfassen.", "OK");
+            return;
+        }
+        if (_draftProtocolId <= 0 && !await SaveDraftAsync()) return;
+
+        var board1 = await _supabase.GetMitgliedByIdAsync((int)board1Id);
+        if (board1 == null)
+        {
+            await DisplayAlertAsync("PDF", "Das angemeldete Vorstandsmitglied konnte nicht geladen werden.", "OK");
+            return;
+        }
+        var typeTitle = _typPicker.SelectedItem as string ?? "Parzellenprotokoll";
+        var pdf = ParzellenProtokollPdfBuilder.Build(new ParzellenProtokollPdfRequest
+        {
+            FormularTitel = typeTitle,
+            ProtokollDatum = _protokollDatumPicker.Date ?? DateTime.Today,
+            Mitglied = member,
+            Parzelle = parcel,
+            Vorstand1 = board1,
+            Vorstand2 = board2,
+            Begleitperson = _begleitpersonSwitch.IsToggled ? ((_begleitmitgliedPicker.SelectedItem as MitgliedRecord) is { } companion ? $"{companion.Vorname} {companion.Name}" : _begleitpersonName.Text) : null,
+            Anlass = _anlassEntry.Text,
+            ZustandBemerkung = _zustandEditor.Text,
+            Vereinbarung = _vereinbarungEditor.Text,
+            Ablesungen = BuildReadingSnapshots(),
+            Fotos = _photos.Select(x => new ParzellenProtokollFoto { Dateiname = x.FileName, Inhalt = x.Content }).ToList(),
+            PaechterSignatur = _paechterSignature,
+            BegleitpersonSignatur = _begleitpersonSignature,
+            Vorstand1Signatur = _vorstand1Signature,
+            Vorstand2Signatur = _vorstand2Signature
+        });
+        var fileStem = _typPicker.SelectedIndex switch { 0 => "uebernahmeprotokoll", 1 => "rueckgabeprotokoll", _ => "begehungsprotokoll" };
+        var upload = await _supabase.CreateDokumentAsync(new DokumentUploadRequest
+        {
+            MitgliedId = member.Id,
+            Titel = $"{typeTitle} – Garten {parcel.GartenNr}",
+            FileName = $"{fileStem}_{parcel.GartenNr}_{DateTime.Today:yyyyMMdd}.pdf",
+            MimeType = "application/pdf",
+            FileContent = pdf
+        });
+        var storedDocument = upload.Document;
+        if (!upload.Success || storedDocument?.Id <= 0)
+        {
+            await DisplayAlertAsync("PDF", upload.Message, "OK");
+            return;
+        }
+        var completed = await _supabase.CompleteParzellenProtokollAsync(_draftProtocolId, storedDocument!.Id);
+        await DisplayAlertAsync("PDF", completed
+            ? "Das signierte Protokoll wurde als Mitgliedsdokument abgelegt."
+            : "Die PDF wurde abgelegt, konnte aber noch nicht mit dem Protokoll-Entwurf verknüpft werden.", "OK");
     }
 
     private async Task LoadLastReadingsAsync()

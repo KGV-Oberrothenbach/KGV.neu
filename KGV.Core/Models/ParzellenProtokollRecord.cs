@@ -17,6 +17,8 @@ public sealed class ParzellenProtokollRecord : BaseModel
     [Column("begleitperson_name")] public string? BegleitpersonName { get; set; }
     [Column("zustand_bemerkung")] public string? ZustandBemerkung { get; set; }
     [Column("vereinbarung")] public string? Vereinbarung { get; set; }
+    [Column("dokument_id")] public long? DokumentId { get; set; }
+    [Column("status")] public string Status { get; set; } = "entwurf";
 }
 
 [Table("parzellen_protokoll")]
@@ -62,4 +64,43 @@ public sealed class ParzellenProtokollCreateRequest
 {
     public ParzellenProtokollInsertRecord Protokoll { get; set; } = new();
     public IReadOnlyList<ParzellenProtokollAblesungInsertRecord> Ablesungen { get; set; } = Array.Empty<ParzellenProtokollAblesungInsertRecord>();
+}
+
+public sealed class ParzellenProtokollSaveResult
+{
+    public bool Success { get; init; }
+    public long ProtokollId { get; init; }
+    public string Message { get; init; } = string.Empty;
+
+    public static ParzellenProtokollSaveResult Ok(long protokollId)
+        => new() { Success = true, ProtokollId = protokollId, Message = "Protokoll-Entwurf wurde gespeichert." };
+
+    public static ParzellenProtokollSaveResult Fail(string message)
+        => new() { Success = false, Message = message };
+}
+
+public sealed class ParzellenProtokollPdfRequest
+{
+    public string FormularTitel { get; set; } = string.Empty;
+    public DateTime ProtokollDatum { get; set; }
+    public MitgliedRecord Mitglied { get; set; } = new();
+    public ParzelleRecord Parzelle { get; set; } = new();
+    public MitgliedRecord Vorstand1 { get; set; } = new();
+    public MitgliedRecord Vorstand2 { get; set; } = new();
+    public string? Begleitperson { get; set; }
+    public string? Anlass { get; set; }
+    public string? ZustandBemerkung { get; set; }
+    public string? Vereinbarung { get; set; }
+    public IReadOnlyList<ParzellenProtokollAblesungInsertRecord> Ablesungen { get; set; } = Array.Empty<ParzellenProtokollAblesungInsertRecord>();
+    public IReadOnlyList<ParzellenProtokollFoto> Fotos { get; set; } = Array.Empty<ParzellenProtokollFoto>();
+    public DigitalSignatureCapture? PaechterSignatur { get; set; }
+    public DigitalSignatureCapture? BegleitpersonSignatur { get; set; }
+    public DigitalSignatureCapture? Vorstand1Signatur { get; set; }
+    public DigitalSignatureCapture? Vorstand2Signatur { get; set; }
+}
+
+public sealed class ParzellenProtokollFoto
+{
+    public string Dateiname { get; set; } = string.Empty;
+    public byte[] Inhalt { get; set; } = Array.Empty<byte>();
 }
