@@ -33,7 +33,9 @@ public sealed class VertragsSignaturPage : ContentPage
         _hintLabel = new Label
         {
             Text = $"Bitte unterschreiben Sie im Querformat. Erfasst wird die {captureTitle} für {dokumentName}.",
-            TextColor = Colors.Gray
+            TextColor = Colors.Gray,
+            FontSize = 13,
+            LineBreakMode = LineBreakMode.WordWrap
         };
 
         _graphicsView = new GraphicsView
@@ -44,7 +46,7 @@ public sealed class VertragsSignaturPage : ContentPage
             VerticalOptions = LayoutOptions.Fill,
             InputTransparent = false,
             IsEnabled = true,
-            HeightRequest = 320
+            MinimumHeightRequest = 120
         };
         _graphicsView.StartInteraction += OnStartInteraction;
         _graphicsView.DragInteraction += OnDragInteraction;
@@ -69,36 +71,52 @@ public sealed class VertragsSignaturPage : ContentPage
         var cancelButton = new Button { Text = "Abbrechen" };
         cancelButton.Clicked += async (_, _) => await CancelAsync();
 
-        var layout = new VerticalStackLayout
+        var layout = new Grid
         {
-            Padding = new Microsoft.Maui.Thickness(24),
-            Spacing = 16
+            Padding = new Microsoft.Maui.Thickness(14),
+            RowSpacing = 8,
+            RowDefinitions =
+            {
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Star },
+                new RowDefinition { Height = GridLength.Auto }
+            }
         };
-        layout.Children.Add(new Label
+        var titleLabel = new Label
         {
             Text = string.IsNullOrWhiteSpace(unterschriftTitel) ? "Digitale Signatur" : unterschriftTitel.Trim(),
-            FontSize = 24,
+            FontSize = 20,
             FontAttributes = FontAttributes.Bold
-        });
-        layout.Children.Add(_hintLabel);
-        layout.Children.Add(new Border
+        };
+        var signatureBorder = new Border
         {
             Stroke = Colors.LightGray,
             StrokeThickness = 1,
-            Padding = 12,
+            Padding = 6,
+            VerticalOptions = LayoutOptions.Fill,
             Content = _graphicsView
-        });
+        };
 
         var buttonBar = new FlexLayout
         {
             Direction = FlexDirection.Row,
             Wrap = FlexWrap.Wrap,
-            HorizontalOptions = LayoutOptions.End
+            HorizontalOptions = LayoutOptions.Fill,
+            JustifyContent = FlexJustify.SpaceBetween,
+            AlignItems = FlexAlignItems.Center
         };
         // Keep clear and cancel left of the final Save button; Save always at the end
         buttonBar.Children.Add(clearButton);
         buttonBar.Children.Add(cancelButton);
         buttonBar.Children.Add(saveButton);
+        Grid.SetRow(titleLabel, 0);
+        Grid.SetRow(_hintLabel, 1);
+        Grid.SetRow(signatureBorder, 2);
+        Grid.SetRow(buttonBar, 3);
+        layout.Children.Add(titleLabel);
+        layout.Children.Add(_hintLabel);
+        layout.Children.Add(signatureBorder);
         layout.Children.Add(buttonBar);
 
         Content = layout;
