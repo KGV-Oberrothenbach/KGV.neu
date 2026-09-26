@@ -1672,7 +1672,6 @@ namespace KGV.Infrastructure.Services
                     .Where(x => x.ParzelleId == payload.ParzelleId)
                     .Where(x => x.MitgliedId == payload.MitgliedId)
                     .Where(x => x.ProtokollTyp == payload.ProtokollTyp)
-                    .Where(x => x.ProtokollDatum == payload.ProtokollDatum)
                     .Get();
                 var created = response?.Models?
                     .OrderByDescending(x => x.Id)

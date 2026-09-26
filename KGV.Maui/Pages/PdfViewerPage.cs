@@ -24,6 +24,8 @@ public sealed class PdfViewerPage : ContentPage
     private readonly Label _pageLabel;
     private readonly Button _previousButton;
     private readonly Button _nextButton;
+    private readonly Button _zoomOutButton;
+    private readonly Button _zoomInButton;
     private readonly Button _resetZoomButton;
     private int _currentPageIndex;
     private int _pageCount;
@@ -68,18 +70,19 @@ public sealed class PdfViewerPage : ContentPage
         };
         _previousButton = new Button { Text = "‹ Zurück" };
         _nextButton = new Button { Text = "Weiter ›" };
+        _zoomOutButton = new Button { Text = "−", WidthRequest = 48 };
+        _zoomInButton = new Button { Text = "+", WidthRequest = 48 };
         _resetZoomButton = new Button { Text = "Ansicht zurücksetzen", IsVisible = false };
         _previousButton.Clicked += async (_, _) => await ShowPageAsync(_currentPageIndex - 1);
         _nextButton.Clicked += async (_, _) => await ShowPageAsync(_currentPageIndex + 1);
+        _zoomOutButton.Clicked += (_, _) => ChangeZoom(-0.5d);
+        _zoomInButton.Clicked += (_, _) => ChangeZoom(0.5d);
         _resetZoomButton.Clicked += (_, _) => ResetZoom();
 
         var pinch = new PinchGestureRecognizer();
         pinch.PinchUpdated += OnPinchUpdated;
-        _pageImage.GestureRecognizers.Add(pinch);
-
         var pan = new PanGestureRecognizer();
         pan.PanUpdated += OnPanUpdated;
-        _pageImage.GestureRecognizers.Add(pan);
 
         var navigationBar = new Grid
         {
@@ -87,6 +90,8 @@ public sealed class PdfViewerPage : ContentPage
             ColumnDefinitions =
             {
                 new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Star),
             },
@@ -97,7 +102,9 @@ public sealed class PdfViewerPage : ContentPage
         _pageLabel.VerticalTextAlignment = TextAlignment.Center;
         navigationBar.Add(_previousButton, 0, 0);
         navigationBar.Add(_pageLabel, 1, 0);
-        navigationBar.Add(_nextButton, 2, 0);
+        navigationBar.Add(_zoomOutButton, 2, 0);
+        navigationBar.Add(_zoomInButton, 3, 0);
+        navigationBar.Add(_nextButton, 4, 0);
         Grid.SetRow(navigationBar, 1);
 
         var documentViewport = new Grid
@@ -106,6 +113,8 @@ public sealed class PdfViewerPage : ContentPage
             BackgroundColor = Colors.White,
             Children = { _pageImage },
         };
+        documentViewport.GestureRecognizers.Add(pinch);
+        documentViewport.GestureRecognizers.Add(pan);
 
         Content = new Grid
         {
@@ -203,6 +212,11 @@ public sealed class PdfViewerPage : ContentPage
             _pageLabel.Text = $"Seite {_currentPageIndex + 1} von {_pageCount}";
             ResetZoom();
         }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PdfViewerPage] Page {pageIndex + 1} render failed: {ex}");
+            await DisplayAlertAsync("PDF-Ansicht", "Die nächste Seite konnte nicht angezeigt werden. Die App bleibt geöffnet; bitte versuche es erneut.", "OK");
+        }
         finally
         {
             _previousButton.IsEnabled = _currentPageIndex > 0;
@@ -223,11 +237,20 @@ public sealed class PdfViewerPage : ContentPage
             case GestureStatus.Running:
                 // Der ScrollView wurde bewusst entfernt: Er fängt auf Android die
                 // Mehrfingerbewegung teilweise ab und der Zoom wirkt dadurch kaum.
-                _zoomScale = Math.Clamp(_zoomStartScale * e.Scale, 1d, 6d);
-                _pageImage.Scale = _zoomScale;
-                _resetZoomButton.IsVisible = _zoomScale > 1.01d;
+                SetZoom(Math.Clamp(_zoomStartScale * e.Scale, 1d, 8d));
                 break;
         }
+    }
+
+    private void ChangeZoom(double difference) => SetZoom(Math.Clamp(_zoomScale + difference, 1d, 8d));
+
+    private void SetZoom(double zoom)
+    {
+        _zoomScale = zoom;
+        _pageImage.Scale = zoom;
+        _resetZoomButton.IsVisible = zoom > 1.01d;
+        _zoomOutButton.IsEnabled = zoom > 1.01d;
+        _zoomInButton.IsEnabled = zoom < 7.99d;
     }
 
     private void OnPanUpdated(object? sender, PanUpdatedEventArgs e)
@@ -252,12 +275,10 @@ public sealed class PdfViewerPage : ContentPage
 
     private void ResetZoom()
     {
-        _zoomScale = 1d;
         _zoomStartScale = 1d;
-        _pageImage.Scale = 1d;
+        SetZoom(1d);
         _pageImage.TranslationX = 0d;
         _pageImage.TranslationY = 0d;
-        _resetZoomButton.IsVisible = false;
     }
 
 #if ANDROID
