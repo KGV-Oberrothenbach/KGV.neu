@@ -24,6 +24,10 @@ public sealed class ParzellenProtokollePage : ContentPage
     private readonly Label _vorstand1Label = new() { TextColor = Colors.DimGray };
     private readonly Picker _wasserQuellePicker = new() { Title = "Wasserstand auswählen" };
     private readonly Picker _stromQuellePicker = new() { Title = "Stromstand auswählen" };
+    private readonly DatePicker _protokollDatumPicker = new() { Date = DateTime.Today };
+    private readonly Entry _anlassEntry = new() { Placeholder = "z. B. Pächterwechsel, Rückgabe oder turnusmäßige Begehung" };
+    private readonly Editor _zustandEditor = new() { Placeholder = "Zustand, Hinweise und Auffälligkeiten", AutoSize = EditorAutoSizeOption.TextChanges, MinimumHeightRequest = 90 };
+    private readonly Editor _vereinbarungEditor = new() { Placeholder = "Vereinbarungen, Fristen und nächste Schritte", AutoSize = EditorAutoSizeOption.TextChanges, MinimumHeightRequest = 80 };
     private readonly Label _wasserStandLabel = new() { TextColor = Colors.DimGray, LineBreakMode = LineBreakMode.WordWrap };
     private readonly Label _stromStandLabel = new() { TextColor = Colors.DimGray, LineBreakMode = LineBreakMode.WordWrap };
     private readonly ObservableCollection<ProtocolPhotoItem> _photos = new();
@@ -35,6 +39,9 @@ public sealed class ParzellenProtokollePage : ContentPage
     private DigitalSignatureCapture? _vorstand1Signature;
     private DigitalSignatureCapture? _vorstand2Signature;
     private readonly VerticalStackLayout _form = new() { Spacing = 10, IsVisible = false };
+    private readonly VerticalStackLayout _readingSection = new() { Spacing = 10 };
+    private ZaehlerAblesungDTO? _lastWasserReading;
+    private ZaehlerAblesungDTO? _lastStromReading;
     private bool _loaded;
 
     public ParzellenProtokollePage()
@@ -47,7 +54,11 @@ public sealed class ParzellenProtokollePage : ContentPage
         BackgroundColor = Colors.White;
 
         _typPicker.ItemsSource = new[] { "Übernahmeprotokoll", "Rückgabeprotokoll", "Begehungsprotokoll" };
-        _typPicker.SelectedIndexChanged += (_, _) => _form.IsVisible = _typPicker.SelectedIndex >= 0;
+        _typPicker.SelectedIndexChanged += (_, _) =>
+        {
+            _form.IsVisible = _typPicker.SelectedIndex >= 0;
+            _readingSection.IsVisible = _typPicker.SelectedIndex is 0 or 1;
+        };
         _begleitpersonSwitch.Toggled += (_, e) =>
         {
             _begleitmitgliedPicker.IsVisible = e.Value;
@@ -68,8 +79,13 @@ public sealed class ParzellenProtokollePage : ContentPage
         _begleitpersonName.IsVisible = false;
         _form.Children.Add(_begleitmitgliedPicker);
         _form.Children.Add(_begleitpersonName);
-        _form.Children.Add(CreateField("Wasser", new VerticalStackLayout { Spacing = 4, Children = { _wasserQuellePicker, _wasserStandLabel } }));
-        _form.Children.Add(CreateField("Strom", new VerticalStackLayout { Spacing = 4, Children = { _stromQuellePicker, _stromStandLabel } }));
+        _readingSection.Children.Add(CreateField("Wasser", new VerticalStackLayout { Spacing = 4, Children = { _wasserQuellePicker, _wasserStandLabel } }));
+        _readingSection.Children.Add(CreateField("Strom", new VerticalStackLayout { Spacing = 4, Children = { _stromQuellePicker, _stromStandLabel } }));
+        _form.Children.Add(_readingSection);
+        _form.Children.Add(CreateField("Protokolldatum", _protokollDatumPicker));
+        _form.Children.Add(CreateField("Anlass", _anlassEntry));
+        _form.Children.Add(CreateField("Zustand / Feststellungen", _zustandEditor));
+        _form.Children.Add(CreateField("Vereinbarungen", _vereinbarungEditor));
         var capturePhotoButton = new Button { Text = "Foto aufnehmen" };
         capturePhotoButton.Clicked += async (_, _) => await AddPhotoAsync(true);
         var pickPhotoButton = new Button { Text = "Foto auswählen" };
@@ -89,9 +105,9 @@ public sealed class ParzellenProtokollePage : ContentPage
         signaturesButton.Clicked += async (_, _) => await CaptureSignaturesAsync();
         _signatureHint.Text = "Unterschriften noch nicht erfasst.";
         _form.Children.Add(CreateField("Unterschriften", new VerticalStackLayout { Spacing = 5, Children = { signaturesButton, _signatureHint } }));
-        var continueButton = new Button { Text = "Weiter zur Protokollerfassung" };
-        continueButton.Clicked += async (_, _) => await ValidateSelectionAsync();
-        _form.Children.Add(continueButton);
+        var saveDraftButton = new Button { Text = "Entwurf speichern" };
+        saveDraftButton.Clicked += async (_, _) => await SaveDraftAsync();
+        _form.Children.Add(saveDraftButton);
 
         Content = new ScrollView
         {
@@ -118,7 +134,11 @@ public sealed class ParzellenProtokollePage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        if (_loaded) return;
+        if (_loaded)
+        {
+            await LoadLastReadingsAsync();
+            return;
+        }
         _loaded = true;
         try
         {
@@ -141,7 +161,7 @@ public sealed class ParzellenProtokollePage : ContentPage
         }
     }
 
-    private async Task ValidateSelectionAsync()
+    private async Task SaveDraftAsync()
     {
         if (_mitgliedPicker.SelectedItem is not MitgliedRecord || _parzellePicker.SelectedItem is not ParzelleRecord || _vorstand2Picker.SelectedItem is not MitgliedRecord)
         {
@@ -153,7 +173,37 @@ public sealed class ParzellenProtokollePage : ContentPage
             await DisplayAlertAsync("Validierung", "Bitte ein Nebenmitglied auswählen oder den Namen der Begleitperson eintragen.", "OK");
             return;
         }
-        await DisplayAlertAsync("Protokolle", "Auswahl übernommen. Im nächsten Schritt folgen Ablesungen, Fotos und Unterschriften.", "OK");
+        if (_mitgliedPicker.SelectedItem is not MitgliedRecord member || _parzellePicker.SelectedItem is not ParzelleRecord parcel || _vorstand2Picker.SelectedItem is not MitgliedRecord board2 || _userContext.CurrentMitgliedId is not long board1Id)
+            return;
+
+        var protocolType = _typPicker.SelectedIndex switch { 0 => "uebernahme", 1 => "rueckgabe", _ => "begehung" };
+        var request = new ParzellenProtokollCreateRequest
+        {
+            Protokoll = new ParzellenProtokollInsertRecord
+            {
+                ParzelleId = parcel.Id,
+                MitgliedId = member.Id,
+                ProtokollTyp = protocolType,
+                ProtokollDatum = _protokollDatumPicker.Date ?? DateTime.Today,
+                VorstandMitgliedId = board1Id,
+                Vorstand2MitgliedId = board2.Id,
+                BegleitpersonMitgliedId = (_begleitpersonSwitch.IsToggled ? (_begleitmitgliedPicker.SelectedItem as MitgliedRecord)?.Id : null),
+                BegleitpersonName = _begleitpersonSwitch.IsToggled ? _begleitpersonName.Text?.Trim() : null,
+                Anlass = _anlassEntry.Text?.Trim(),
+                ZustandBemerkung = _zustandEditor.Text?.Trim(),
+                Vereinbarung = _vereinbarungEditor.Text?.Trim(),
+                PaechterSigniertAm = _paechterSignature?.HasContent == true ? DateTime.UtcNow : null,
+                BegleitpersonSigniertAm = _begleitpersonSignature?.HasContent == true ? DateTime.UtcNow : null,
+                Vorstand1SigniertAm = _vorstand1Signature?.HasContent == true ? DateTime.UtcNow : null,
+                Vorstand2SigniertAm = _vorstand2Signature?.HasContent == true ? DateTime.UtcNow : null
+            },
+            Ablesungen = BuildReadingSnapshots()
+        };
+
+        var saved = await _supabase.CreateParzellenProtokollAsync(request);
+        await DisplayAlertAsync("Protokolle", saved
+            ? "Der Protokoll-Entwurf wurde gespeichert. Die verbindliche PDF wird im nächsten Schritt erzeugt und dem Mitglied zugeordnet."
+            : "Der Protokoll-Entwurf konnte nicht gespeichert werden.", "OK");
     }
 
     private async Task LoadLastReadingsAsync()
@@ -161,10 +211,10 @@ public sealed class ParzellenProtokollePage : ContentPage
         if (_parzellePicker.SelectedItem is not ParzelleRecord parzelle) return;
         try
         {
-            var wasser = (await _supabase.GetWasserAblesungenAsync(parzelle.Id)).OrderByDescending(x => x.Ablesedatum).FirstOrDefault();
-            var strom = (await _supabase.GetStromAblesungenAsync(parzelle.Id)).OrderByDescending(x => x.Ablesedatum).FirstOrDefault();
-            _wasserStandLabel.Text = FormatLastReading(wasser, "Wasser");
-            _stromStandLabel.Text = FormatLastReading(strom, "Strom");
+            _lastWasserReading = (await _supabase.GetWasserAblesungenAsync(parzelle.Id)).OrderByDescending(x => x.Ablesedatum).FirstOrDefault();
+            _lastStromReading = (await _supabase.GetStromAblesungenAsync(parzelle.Id)).OrderByDescending(x => x.Ablesedatum).FirstOrDefault();
+            _wasserStandLabel.Text = FormatLastReading(_lastWasserReading, "Wasser");
+            _stromStandLabel.Text = FormatLastReading(_lastStromReading, "Strom");
         }
         catch
         {
@@ -184,6 +234,34 @@ public sealed class ParzellenProtokollePage : ContentPage
     private static string FormatLastReading(ZaehlerAblesungDTO? value, string medium) => value == null
         ? $"Keine frühere {medium}ablesung vorhanden."
         : $"Letzte Ablesung: {value.Stand:0.##} ({value.Zaehlernummer}), {value.Ablesedatum:dd.MM.yyyy}";
+
+    private IReadOnlyList<ParzellenProtokollAblesungInsertRecord> BuildReadingSnapshots()
+    {
+        if (_typPicker.SelectedIndex is not (0 or 1)) return Array.Empty<ParzellenProtokollAblesungInsertRecord>();
+        return new[]
+        {
+            CreateReadingSnapshot("wasser", _wasserQuellePicker, _lastWasserReading),
+            CreateReadingSnapshot("strom", _stromQuellePicker, _lastStromReading)
+        }.Where(x => x != null).Cast<ParzellenProtokollAblesungInsertRecord>().ToList();
+    }
+
+    private static ParzellenProtokollAblesungInsertRecord? CreateReadingSnapshot(string medium, Picker sourcePicker, ZaehlerAblesungDTO? reading)
+    {
+        if (sourcePicker.SelectedIndex < 0 || reading == null) return null;
+        return new ParzellenProtokollAblesungInsertRecord
+        {
+            Medium = medium,
+            ZaehlerId = reading.ZaehlerId,
+            AblesungId = reading.AblesungId,
+            Quelle = sourcePicker.SelectedIndex == 1 ? "neu_abgelesen" : "letzte_uebernommen",
+            Ablesedatum = reading.Ablesedatum,
+            Zaehlernummer = reading.Zaehlernummer,
+            Stand = reading.Stand,
+            FotoPfad = reading.FotoPfad,
+            FotoDateiname = reading.FotoDateiname,
+            FotoDriveFileId = reading.FotoDriveFileId
+        };
+    }
 
     private async Task AddPhotoAsync(bool capture)
     {

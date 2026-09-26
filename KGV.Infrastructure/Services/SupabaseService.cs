@@ -1652,6 +1652,61 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
+        public Task<bool> CreateParzellenProtokollAsync(ParzellenProtokollCreateRequest request) => ExecuteAsync(
+            "CreateParzellenProtokollAsync",
+            async () =>
+            {
+                if (request?.Protokoll == null || request.Protokoll.ParzelleId <= 0 || request.Protokoll.MitgliedId <= 0 ||
+                    request.Protokoll.VorstandMitgliedId <= 0 || request.Protokoll.Vorstand2MitgliedId <= 0 ||
+                    !new[] { "uebernahme", "rueckgabe", "begehung" }.Contains(request.Protokoll.ProtokollTyp))
+                    return false;
+
+                var client = await EnsureClientAsync();
+                var payload = request.Protokoll;
+                payload.ProtokollDatum = payload.ProtokollDatum.Date;
+                payload.Status = "entwurf";
+                payload.UpdatedAt = DateTime.UtcNow;
+                await client.From<ParzellenProtokollInsertRecord>().Insert(payload);
+
+                var response = await client.From<ParzellenProtokollRecord>()
+                    .Where(x => x.ParzelleId == payload.ParzelleId)
+                    .Where(x => x.MitgliedId == payload.MitgliedId)
+                    .Where(x => x.ProtokollTyp == payload.ProtokollTyp)
+                    .Where(x => x.ProtokollDatum == payload.ProtokollDatum)
+                    .Get();
+                var created = response?.Models?
+                    .OrderByDescending(x => x.Id)
+                    .FirstOrDefault();
+                if (created == null || created.Id <= 0)
+                    return false;
+
+                var readings = request.Ablesungen?
+                    .Where(x => x != null && (x.Medium == "wasser" || x.Medium == "strom") && x.Stand >= 0)
+                    .GroupBy(x => x.Medium, StringComparer.OrdinalIgnoreCase)
+                    .Select(x => x.Last())
+                    .Select(x => new ParzellenProtokollAblesungInsertRecord
+                    {
+                        ProtokollId = created.Id,
+                        Medium = x.Medium.ToLowerInvariant(),
+                        ZaehlerId = x.ZaehlerId,
+                        AblesungId = x.AblesungId,
+                        Quelle = x.Quelle == "neu_abgelesen" ? "neu_abgelesen" : "letzte_uebernommen",
+                        Ablesedatum = x.Ablesedatum,
+                        Zaehlernummer = CleanOptionalText(x.Zaehlernummer),
+                        Stand = x.Stand,
+                        FotoPfad = CleanOptionalText(x.FotoPfad),
+                        FotoDateiname = CleanOptionalText(x.FotoDateiname),
+                        FotoDriveFileId = CleanOptionalText(x.FotoDriveFileId)
+                    })
+                    .ToList() ?? new List<ParzellenProtokollAblesungInsertRecord>();
+                if (readings.Count > 0)
+                    await client.From<ParzellenProtokollAblesungInsertRecord>().Insert(readings);
+
+                _logger?.LogInformation("CreateParzellenProtokollAsync created protocol {ProtokollId} with {ReadingCount} meter snapshots.", created.Id, readings.Count);
+                return true;
+            },
+            false);
+
         public Task<List<ParzellenBelegungRecord>> GetBelegungenForMitgliedAsync(int mitgliedId) => ExecuteAsync(
             "GetBelegungenForMitgliedAsync",
             async () =>

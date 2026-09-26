@@ -34,6 +34,7 @@ namespace KGV.Core.Interfaces
         Task<RfidScanContextResult> ResolveRfidScanContextAsync(string uid);
 
         Task<ParzellenBelegungRecord?> GetCurrentBelegungForParzelleAsync(int parzelleId);
+        Task<bool> CreateParzellenProtokollAsync(ParzellenProtokollCreateRequest request);
 
         // ✅ Belegungen für Parzellen-Zuweisung
         Task<List<ParzellenBelegungRecord>> GetBelegungenForMitgliedAsync(int mitgliedId);
