@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Maui.State;
+using Microsoft.Maui.Media;
+using System.Collections.ObjectModel;
 
 namespace KGV.Maui.Pages;
 
@@ -24,6 +26,9 @@ public sealed class ParzellenProtokollePage : ContentPage
     private readonly Picker _stromQuellePicker = new() { Title = "Stromstand auswählen" };
     private readonly Label _wasserStandLabel = new() { TextColor = Colors.DimGray, LineBreakMode = LineBreakMode.WordWrap };
     private readonly Label _stromStandLabel = new() { TextColor = Colors.DimGray, LineBreakMode = LineBreakMode.WordWrap };
+    private readonly ObservableCollection<ProtocolPhotoItem> _photos = new();
+    private readonly VerticalStackLayout _photoList = new() { Spacing = 5 };
+    private readonly Label _photoHint = new() { TextColor = Colors.DimGray };
     private readonly VerticalStackLayout _form = new() { Spacing = 10, IsVisible = false };
     private bool _loaded;
 
@@ -60,6 +65,21 @@ public sealed class ParzellenProtokollePage : ContentPage
         _form.Children.Add(_begleitpersonName);
         _form.Children.Add(CreateField("Wasser", new VerticalStackLayout { Spacing = 4, Children = { _wasserQuellePicker, _wasserStandLabel } }));
         _form.Children.Add(CreateField("Strom", new VerticalStackLayout { Spacing = 4, Children = { _stromQuellePicker, _stromStandLabel } }));
+        var capturePhotoButton = new Button { Text = "Foto aufnehmen" };
+        capturePhotoButton.Clicked += async (_, _) => await AddPhotoAsync(true);
+        var pickPhotoButton = new Button { Text = "Foto auswählen" };
+        pickPhotoButton.Clicked += async (_, _) => await AddPhotoAsync(false);
+        _photoHint.Text = "Noch keine Fotos ausgewählt (maximal 10).";
+        _form.Children.Add(CreateField("Fotoanlagen", new VerticalStackLayout
+        {
+            Spacing = 6,
+            Children =
+            {
+                new FlexLayout { Direction = FlexDirection.Row, Wrap = FlexWrap.Wrap, Children = { capturePhotoButton, pickPhotoButton } },
+                _photoHint,
+                _photoList
+            }
+        }));
         var continueButton = new Button { Text = "Weiter zur Protokollerfassung" };
         continueButton.Clicked += async (_, _) => await ValidateSelectionAsync();
         _form.Children.Add(continueButton);
@@ -155,6 +175,45 @@ public sealed class ParzellenProtokollePage : ContentPage
     private static string FormatLastReading(ZaehlerAblesungDTO? value, string medium) => value == null
         ? $"Keine frühere {medium}ablesung vorhanden."
         : $"Letzte Ablesung: {value.Stand:0.##} ({value.Zaehlernummer}), {value.Ablesedatum:dd.MM.yyyy}";
+
+    private async Task AddPhotoAsync(bool capture)
+    {
+        if (_photos.Count >= 10)
+        {
+            await DisplayAlertAsync("Fotos", "Es können maximal 10 Fotos zum Protokoll hinzugefügt werden.", "OK");
+            return;
+        }
+        try
+        {
+            var result = capture
+                ? await MediaPicker.Default.CapturePhotoAsync()
+                : (await MediaPicker.Default.PickPhotosAsync()).FirstOrDefault();
+            if (result == null) return;
+            await using var source = await result.OpenReadAsync();
+            using var memory = new MemoryStream();
+            await source.CopyToAsync(memory);
+            _photos.Add(new ProtocolPhotoItem(result.FileName ?? $"protokollfoto-{_photos.Count + 1}.jpg", memory.ToArray()));
+            RefreshPhotoList();
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlertAsync("Fotos", $"Foto konnte nicht hinzugefügt werden: {ex.Message}", "OK");
+        }
+    }
+
+    private void RefreshPhotoList()
+    {
+        _photoList.Children.Clear();
+        foreach (var photo in _photos)
+        {
+            var remove = new Button { Text = "Entfernen", FontSize = 12 };
+            remove.Clicked += (_, _) => { _photos.Remove(photo); RefreshPhotoList(); };
+            _photoList.Children.Add(new HorizontalStackLayout { Spacing = 8, Children = { new Label { Text = $"Foto {_photos.IndexOf(photo) + 1}: {photo.FileName}", VerticalOptions = LayoutOptions.Center }, remove } });
+        }
+        _photoHint.Text = _photos.Count == 0 ? "Noch keine Fotos ausgewählt (maximal 10)." : $"{_photos.Count} von 10 Fotos ausgewählt.";
+    }
+
+    private sealed record ProtocolPhotoItem(string FileName, byte[] Content);
 
     private static View CreateField(string label, View field) => new VerticalStackLayout { Spacing = 3, Children = { new Label { Text = label, FontAttributes = FontAttributes.Bold }, field } };
 
