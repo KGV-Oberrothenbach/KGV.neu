@@ -29,6 +29,11 @@ public sealed class ParzellenProtokollePage : ContentPage
     private readonly ObservableCollection<ProtocolPhotoItem> _photos = new();
     private readonly VerticalStackLayout _photoList = new() { Spacing = 5 };
     private readonly Label _photoHint = new() { TextColor = Colors.DimGray };
+    private readonly Label _signatureHint = new() { TextColor = Colors.DimGray, LineBreakMode = LineBreakMode.WordWrap };
+    private DigitalSignatureCapture? _paechterSignature;
+    private DigitalSignatureCapture? _begleitpersonSignature;
+    private DigitalSignatureCapture? _vorstand1Signature;
+    private DigitalSignatureCapture? _vorstand2Signature;
     private readonly VerticalStackLayout _form = new() { Spacing = 10, IsVisible = false };
     private bool _loaded;
 
@@ -80,6 +85,10 @@ public sealed class ParzellenProtokollePage : ContentPage
                 _photoList
             }
         }));
+        var signaturesButton = new Button { Text = "Unterschriften erfassen" };
+        signaturesButton.Clicked += async (_, _) => await CaptureSignaturesAsync();
+        _signatureHint.Text = "Unterschriften noch nicht erfasst.";
+        _form.Children.Add(CreateField("Unterschriften", new VerticalStackLayout { Spacing = 5, Children = { signaturesButton, _signatureHint } }));
         var continueButton = new Button { Text = "Weiter zur Protokollerfassung" };
         continueButton.Clicked += async (_, _) => await ValidateSelectionAsync();
         _form.Children.Add(continueButton);
@@ -214,6 +223,44 @@ public sealed class ParzellenProtokollePage : ContentPage
     }
 
     private sealed record ProtocolPhotoItem(string FileName, byte[] Content);
+
+    private async Task CaptureSignaturesAsync()
+    {
+        if (_mitgliedPicker.SelectedItem is not MitgliedRecord member || _vorstand2Picker.SelectedItem is not MitgliedRecord board2)
+        {
+            await DisplayAlertAsync("Unterschriften", "Bitte zuerst Mitglied und zweiten Vorstand auswählen.", "OK");
+            return;
+        }
+
+        var document = new DocumentInfo { Title = _typPicker.SelectedItem as string ?? "Parzellenprotokoll", Name = "Parzellenprotokoll" };
+        _paechterSignature = await SignatureFlowHelper.CaptureSignatureAsync(Navigation, document,
+            _typPicker.SelectedIndex == 2 ? "Kenntnisnahme Pächter/in" : "Unterschrift Pächter/in", false);
+        if (_paechterSignature == null) { UpdateSignatureHint(member, board2); return; }
+
+        if (_begleitpersonSwitch.IsToggled)
+        {
+            _begleitpersonSignature = await SignatureFlowHelper.CaptureSignatureAsync(Navigation, document, "Unterschrift Begleitperson", false);
+            if (_begleitpersonSignature == null) { UpdateSignatureHint(member, board2); return; }
+        }
+
+        _vorstand1Signature = await SignatureFlowHelper.CaptureSignatureAsync(Navigation, document, "Unterschrift Vorstand 1", false);
+        if (_vorstand1Signature == null) { UpdateSignatureHint(member, board2); return; }
+        _vorstand2Signature = await SignatureFlowHelper.CaptureSignatureAsync(Navigation, document, "Unterschrift Vorstand 2", true);
+        UpdateSignatureHint(member, board2);
+    }
+
+    private void UpdateSignatureHint(MitgliedRecord member, MitgliedRecord board2)
+    {
+        var lines = new List<string>
+        {
+            $"Pächter {member.Vorname} {member.Name}: {(_paechterSignature?.HasContent == true ? "erfasst" : "offen")}",
+            $"Vorstand 1: {(_vorstand1Signature?.HasContent == true ? "erfasst" : "offen")}",
+            $"Vorstand 2 {board2.Vorname} {board2.Name}: {(_vorstand2Signature?.HasContent == true ? "erfasst" : "offen")}" 
+        };
+        if (_begleitpersonSwitch.IsToggled)
+            lines.Insert(1, $"Begleitperson: {(_begleitpersonSignature?.HasContent == true ? "erfasst" : "offen")}");
+        _signatureHint.Text = string.Join(Environment.NewLine, lines);
+    }
 
     private static View CreateField(string label, View field) => new VerticalStackLayout { Spacing = 3, Children = { new Label { Text = label, FontAttributes = FontAttributes.Bold }, field } };
 
