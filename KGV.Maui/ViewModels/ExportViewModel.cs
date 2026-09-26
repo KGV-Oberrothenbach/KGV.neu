@@ -896,14 +896,28 @@ namespace KGV.Maui.ViewModels
             var exportKey = SelectedDefinition?.ExportKey ?? "export";
 
             var remappedRows = new List<Dictionary<string, string>>();
-            foreach (var row in ProcessedResults)
+            for (var rowIndex = 0; rowIndex < ProcessedResults.Count; rowIndex++)
             {
+                var row = ProcessedResults[rowIndex];
                 var rem = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var (col, canonical) in VisibleColumnsMapped)
                 {
                     row.TryGetValue(canonical, out var val);
                     var targetKey = col.ColumnKey ?? col.Name ?? canonical;
                     rem[targetKey] = val ?? string.Empty;
+                }
+
+                // Der Regelgrund ist in der Bildschirmtabelle bewusst ausgeblendet,
+                // wird aber für die fachliche Gruppierung des Arbeitsstunden-PDFs benötigt.
+                if (string.Equals(exportKey, "arbeitsstunden_uebersicht", StringComparison.OrdinalIgnoreCase)
+                    && rowIndex < Results.Count)
+                {
+                    var rawRow = Results[rowIndex];
+                    var normalizedRaw = rawRow.Keys
+                        .Where(key => !string.IsNullOrWhiteSpace(key))
+                        .ToDictionary(NormalizeKey, key => key, StringComparer.OrdinalIgnoreCase);
+                    rem["regelgrund"] = ResolveMaterializedValue(rawRow, normalizedRaw, "regelgrund");
+                    rem["zeilentyp"] = ResolveMaterializedValue(rawRow, normalizedRaw, "zeilentyp");
                 }
                 remappedRows.Add(rem);
             }
