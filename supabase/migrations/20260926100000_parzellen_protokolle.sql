@@ -68,4 +68,6 @@ grant select, insert, update, delete on table public.parzellen_protokoll to auth
 grant select, insert, update, delete on table public.parzellen_protokoll_ablesung to authenticated;
 grant select, insert, update, delete on table public.parzellen_begehung_feststellung to authenticated;
 
-grant usage, select on all sequences in schema public to authenticated;
+grant usage, select on sequence public.parzellen_protokoll_id_seq to authenticated;
+grant usage, select on sequence public.parzellen_protokoll_ablesung_id_seq to authenticated;
+grant usage, select on sequence public.parzellen_begehung_feststellung_id_seq to authenticated;
