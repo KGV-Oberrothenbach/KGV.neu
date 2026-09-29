@@ -370,3 +370,12 @@ FodyWeavers.xsd
 _secrets/
 
 _secrets/
+
+# Lokale Analyse-/Vergleichsdateien
+.schema-compare/
+
+# Lokale Logs / Screenshots
+_logs/
+
+# Generierte Ausgabedateien
+output/

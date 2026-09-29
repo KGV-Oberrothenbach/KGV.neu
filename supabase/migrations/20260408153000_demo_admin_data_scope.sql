@@ -141,28 +141,9 @@ create or replace function public.is_demo_impressum_slot_scope(p_mitglied_id big
         or public.is_demo_mitglied_id(p_mitglied_id);
 $$;
 
-create or replace view public.v_pflichtstunden_uebersicht
-with ("security_invoker" = 'true') as
- select s.id as saison_id,
-    s.jahr as saison_jahr,
-    m.id as hauptmitglied_id,
-    m.name,
-    m.vorname,
-    x.regelgrund,
-    x.ist_befreit,
-    x.hat_wartungsvertrag,
-    x.altersbefreit,
-    x.eintritt_im_saisonjahr,
-    x.eintritt_zweites_halbjahr,
-    x.pflichtstunden_soll,
-    x.geleistete_stunden,
-    x.offene_stunden,
-    x.euro_pro_fehlstunde,
-    x.fehlbetrag
-   from public.saison s
-     cross join public.mitglied m
-     cross join lateral public.fn_berechne_pflichtstunden_status(m.id, s.id::bigint) x(hauptmitglied_id, saison_id, saison_jahr, regelgrund, ist_befreit, hat_wartungsvertrag, altersbefreit, eintritt_im_saisonjahr, eintritt_zweites_halbjahr, pflichtstunden_soll, geleistete_stunden, offene_stunden, euro_pro_fehlstunde, fehlbetrag)
-  where m.hauptmitglied_id is null;
+-- `v_pflichtstunden_uebersicht` wird bewusst nicht definiert. Die bereits
+-- vorhandene Fassung enthält zusätzliche Spalten für Export und Prüfung;
+-- diese ältere Demo-Migration darf sie nicht zurückbauen.
 
 create or replace view public.v_startseite_arbeitseinsatz
 with ("security_invoker" = 'true') as

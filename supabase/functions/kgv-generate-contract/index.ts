@@ -1,0 +1,124 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { PDFDocument, PDFName, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
+
+const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
+const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+type ContractType = "mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag" | "parzellenprotokoll";
+type RequestBody = { action?: "preview" | "finalize"; type?: ContractType; member_id?: number; parcel_id?: number; start_date?: string; member_fee?: number; admission_fee?: number; signature_member?: string; signature_secondary?: string; signature_board?: string; signature_board2?: string; protocol_id?: number; protocol_type?: string; protocol_reason?: string; protocol_condition?: string; protocol_agreement?: string; board2_id?: number; companion_name?: string; photos?: string[] };
+type FieldSpec = { page: number; type: string; name: string; rect: { x: number; y: number; w: number; h: number } };
+
+function formatDate(value?: string | null) { if (!value) return ""; const date = new Date(`${value.slice(0, 10)}T12:00:00Z`); return Number.isNaN(date.valueOf()) ? "" : new Intl.DateTimeFormat("de-DE", { timeZone: "UTC" }).format(date); }
+function money(value: number) { return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(value); }
+function safe(value: unknown) { return typeof value === "string" ? value.trim() : ""; }
+function filenamePart(value: string) { return value.normalize("NFKD").replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "dokument"; }
+function fromDataUrl(value?: string) { if (!value?.startsWith("data:image/png;base64,")) return null; return Uint8Array.from(atob(value.split(",", 2)[1]), (char) => char.charCodeAt(0)); }
+function imageFromDataUrl(value?: string) { const match = value?.match(/^data:image\/(png|jpe?g);base64,(.+)$/i); if (!match) return null; return { kind: match[1].toLowerCase() === "png" ? "png" : "jpg", bytes: Uint8Array.from(atob(match[2]), (char) => char.charCodeAt(0)) }; }
+
+async function authenticate(req: Request) {
+  const url = Deno.env.get("SUPABASE_URL") ?? ""; const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+  const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  const { data: authData, error } = await admin.auth.getUser(jwt);
+  if (error || !authData.user) throw new Error("AUTH:Anmeldung ist abgelaufen.");
+  const { data: appUser } = await admin.from("app_user").select("role").eq("user_id", authData.user.id).maybeSingle();
+  const role = safe(appUser?.role).toLowerCase();
+  if (role !== "admin" && role !== "vorstand") throw new Error("AUTH:Nur Admin oder Vorstand dürfen Vertragsdokumente erzeugen.");
+  return { admin, userId: authData.user.id, authorization: req.headers.get("Authorization") ?? "" };
+}
+
+async function loadStatic(name: string) { return await Deno.readFile(`./${name}`); }
+async function loadSpecs(name: string): Promise<FieldSpec[]> { const text = await Deno.readTextFile(`./${name}`); return (JSON.parse(text) as { fields: FieldSpec[] }).fields; }
+
+async function drawTemplate(template: string, specFile: string, values: Record<string, string>, signatures: Record<string, string | undefined>) {
+  const pdf = await PDFDocument.load(await loadStatic(template)); const font = await pdf.embedFont(StandardFonts.Helvetica); const specs = await loadSpecs(specFile);
+  // Die WPF-/MAUI-Erzeugung entfernt die Formular-Widgets und zeichnet anschließend
+  // die endgültigen Werte ein. Dadurch bleiben keine veränderbaren PDF-Felder zurück.
+  pdf.getPages().forEach((page) => page.node.delete(PDFName.of("Annots")));
+  for (const field of specs) {
+    const page = pdf.getPages()[field.page - 1]; if (!page) continue;
+    const { x, y, w, h } = field.rect; const pdfY = page.getHeight() - y - h;
+    const signature = signatures[field.name];
+    if (signature) { const png = fromDataUrl(signature); if (png) { const image = await pdf.embedPng(png); const scale = Math.min(w / image.width, h / image.height); page.drawImage(image, { x, y: pdfY, width: image.width * scale, height: image.height * scale }); } continue; }
+    if (field.type === "signature") continue;
+    const value = values[field.name] ?? "";
+    if (field.type === "checkbox") { page.drawRectangle({ x, y: pdfY, width: w, height: h, borderWidth: 0.6, borderColor: rgb(0, 0, 0) }); if (value === "true") page.drawText("X", { x: x + 1, y: pdfY + 0.5, size: Math.max(6, h - 1), font }); continue; }
+    if (!value) continue;
+    const lines = value.split(/\r?\n/); const size = value.length > 55 ? 6.2 : 7.2;
+    lines.slice(0, Math.max(1, Math.floor(h / (size + 1)))).forEach((line, index) => page.drawText(line.slice(0, 120), { x: x + 1.8, y: pdfY + h - size - index * (size + 1), size, font, color: rgb(0, 0, 0), maxWidth: Math.max(1, w - 3.6) }));
+  }
+  return await pdf.save();
+}
+
+async function buildSimpleContract(member: Record<string, unknown>, startDate: string, signatures: Record<string, string | undefined>) {
+  const pdf = await PDFDocument.create(); const page = pdf.addPage([595.28, 841.89]); const font = await pdf.embedFont(StandardFonts.Helvetica); const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  page.drawText("Mitgliedsvertrag", { x: 55, y: 780, size: 20, font: bold });
+  const lines = [`Mitglied-ID: ${member.id}`, `Name: ${safe(member.vorname)} ${safe(member.name)}`, `Geburtsdatum: ${formatDate(member.geburtsdatum as string) || "-"}`, `Anschrift: ${safe(member.adresse)}, ${safe(member.plz)} ${safe(member.ort)}`, `E-Mail: ${safe(member.email) || "-"}`, `Telefon: ${safe(member.telefon) || safe(member.handy) || "-"}`, `Vertrags-/Eintrittsdatum: ${formatDate(startDate)}`];
+  lines.forEach((line, index) => page.drawText(line, { x: 55, y: 730 - index * 28, size: 11, font }));
+  page.drawText("Der Vertrag dokumentiert die aktuell im Vereinssystem hinterlegten Stammdaten.", { x: 55, y: 500, size: 10, font });
+  const placeSignature = async (data: string | undefined, x: number, label: string) => { page.drawText(label, { x, y: 155, size: 9, font }); const png = fromDataUrl(data); if (png) { const image = await pdf.embedPng(png); const scale = Math.min(190 / image.width, 65 / image.height); page.drawImage(image, { x, y: 175, width: image.width * scale, height: image.height * scale }); } page.drawLine({ start: { x, y: 170 }, end: { x: x + 190, y: 170 }, thickness: 0.6 }); };
+  await placeSignature(signatures.member, 55, "Unterschrift Mitglied"); await placeSignature(signatures.board, 330, "Unterschrift Verein");
+  return await pdf.save();
+}
+
+async function buildParcelProtocol(member: Record<string, unknown>, parcel: Record<string, unknown>, board1: Record<string, unknown>, board2: Record<string, unknown>, body: RequestBody, signatures: Record<string, string | undefined>) {
+  const pdf = await PDFDocument.create(); const font = await pdf.embedFont(StandardFonts.Helvetica); const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const typeTitle = body.protocol_type === "rueckgabe" ? "Rückgabeprotokoll" : body.protocol_type === "begehung" ? "Begehungsprotokoll" : "Übernahmeprotokoll";
+  let page = pdf.addPage([595.28, 841.89]); let y = 785;
+  const line = (label: string, value: unknown) => { page.drawText(`${label}:`, { x: 48, y, size: 9, font: bold }); page.drawText(safe(value) || "-", { x: 165, y, size: 9, font, maxWidth: 380 }); y -= 20; };
+  const paragraph = (title: string, value: unknown) => { const text = safe(value) || "-"; page.drawText(title, { x: 48, y, size: 10, font: bold }); y -= 16; const words = text.split(/\s+/); let current = ""; const lines: string[] = []; for (const word of words) { const candidate = current ? `${current} ${word}` : word; if (font.widthOfTextAtSize(candidate, 9) > 495) { if (current) lines.push(current); current = word; } else current = candidate; } if (current) lines.push(current); for (const textLine of lines) { if (y < 70) { page = pdf.addPage([595.28, 841.89]); y = 785; } page.drawText(textLine, { x: 48, y, size: 9, font }); y -= 13; } y -= 10; };
+  page.drawText(typeTitle, { x: 48, y, size: 20, font: bold }); y -= 40;
+  line("Protokolldatum", formatDate(body.start_date)); line("Mitglied", `${safe(member.vorname)} ${safe(member.name)}`); line("Parzelle", `${safe(parcel.garten_nr)} - ${safe(parcel.Anlage)}`); line("Vorstand 1", `${safe(board1.vorname)} ${safe(board1.name)}`); line("Vorstand 2", `${safe(board2.vorname)} ${safe(board2.name)}`); if (body.companion_name) line("Begleitperson", body.companion_name);
+  y -= 8; paragraph("Anlass", body.protocol_reason); paragraph("Zustand / Feststellungen", body.protocol_condition); paragraph("Vereinbarungen / Fristen", body.protocol_agreement);
+  const placeSignature = async (data: string | undefined, label: string) => { if (y < 160) { page = pdf.addPage([595.28, 841.89]); y = 785; } page.drawText(label, { x: 48, y, size: 9, font: bold }); const png = fromDataUrl(data); if (png) { const image = await pdf.embedPng(png); const scale = Math.min(220 / image.width, 60 / image.height); page.drawImage(image, { x: 48, y: y - 70, width: image.width * scale, height: image.height * scale }); } page.drawLine({ start: { x: 48, y: y - 75 }, end: { x: 268, y: y - 75 }, thickness: 0.6 }); y -= 105; };
+  await placeSignature(signatures.member, "Unterschrift Pächter/in"); if (signatures.secondary) await placeSignature(signatures.secondary, "Unterschrift Begleitperson"); await placeSignature(signatures.board, "Unterschrift Vorstand 1"); await placeSignature(signatures.board2, "Unterschrift Vorstand 2");
+  for (const [index, source] of (body.photos ?? []).slice(0, 10).entries()) { const imageData = imageFromDataUrl(source); if (!imageData) continue; const photoPage = pdf.addPage([595.28, 841.89]); photoPage.drawText(`Fotoanlage ${index + 1}`, { x: 48, y: 795, size: 14, font: bold }); const image = imageData.kind === "png" ? await pdf.embedPng(imageData.bytes) : await pdf.embedJpg(imageData.bytes); const scale = Math.min(499 / image.width, 700 / image.height); photoPage.drawImage(image, { x: (595.28 - image.width * scale) / 2, y: 60 + (700 - image.height * scale) / 2, width: image.width * scale, height: image.height * scale }); }
+  return await pdf.save();
+}
+
+async function uploadAndRecord(auth: Awaited<ReturnType<typeof authenticate>>, pdf: Uint8Array, owner: { kind: "mitglied" | "parzelle"; id: number }, title: string, fileName: string) {
+  const form = new FormData(); form.set("file", new File([pdf], fileName, { type: "application/pdf" })); form.set("owner_kind", owner.kind); form.set("owner_id", String(owner.id)); form.set("titel", title);
+  const uploadResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/kgv-upload-document`, { method: "POST", headers: { Authorization: auth.authorization, apikey: Deno.env.get("SUPABASE_ANON_KEY") ?? "" }, body: form });
+  const upload = await uploadResponse.json(); if (!uploadResponse.ok || !upload.drive_file_id) throw new Error(upload.message ?? "Drive-Upload fehlgeschlagen.");
+  const record = { mitglied_id: owner.kind === "mitglied" ? owner.id : null, parzelle_id: owner.kind === "parzelle" ? owner.id : null, bucket: "dokumente", storage_path: upload.storage_path, drive_file_id: upload.drive_file_id, titel: title, dateiname: upload.dateiname ?? fileName, mime_type: "application/pdf", size_bytes: pdf.byteLength, created_by: auth.userId };
+  const { data, error } = await auth.admin.from("dokument").insert(record).select("id").single(); if (error) throw error;
+  return data.id as number;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method !== "POST") return json(405, { message: "Methode nicht erlaubt." });
+  try {
+    const auth = await authenticate(req); const body = await req.json() as RequestBody; const type = body.type; const memberId = Number(body.member_id); const action = body.action ?? "preview";
+    if (!type || !Number.isSafeInteger(memberId) || memberId <= 0) return json(400, { message: "Dokumenttyp und Mitglied sind erforderlich." });
+    const { data: member, error: memberError } = await auth.admin.from("mitglied").select("*").eq("id", memberId).single(); if (memberError || !member) throw new Error("Mitglied wurde nicht gefunden.");
+    const { data: config } = await auth.admin.from("vereinskonfiguration").select("*").eq("aktiv", true).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+    const startDate = body.start_date?.slice(0, 10) || (member.mitglied_seit as string | null)?.slice(0, 10) || new Date().toISOString().slice(0, 10);
+    const signatures = { member: body.signature_member, secondary: body.signature_secondary, board: body.signature_board, board2: body.signature_board2 };
+    if (action === "finalize" && (!signatures.member || !signatures.board)) return json(400, { message: "Unterschrift des Mitglieds und des Vereins sind erforderlich." });
+    let pdf: Uint8Array; let title: string; let owner: { kind: "mitglied" | "parzelle"; id: number }; let protocolIdToComplete: number | null = null;
+    if (type === "mitgliedsantrag") {
+      const fee = Number(body.member_fee ?? 0); const admission = Number(body.admission_fee ?? 0); const month = new Date(`${startDate}T12:00:00Z`).getUTCMonth() + 1; const months = Math.max(1, 13 - month);
+      const values: Record<string, string> = { ausstellungsdatum: formatDate(new Date().toISOString()), dokument_ort: safe(config?.dokument_ort) || safe(config?.ort) || "Zwickau", mitglied_name: safe(member.name), mitglied_vorname: safe(member.vorname), mitglied_geburtsdatum: formatDate(member.geburtsdatum), mitglied_aufnahme_ab: formatDate(startDate), mitglied_telefon: safe(member.telefon), mitglied_mobil: safe(member.handy), mitglied_email: safe(member.email), mitglied_anschrift_mehrzeilig: `${safe(member.adresse)}\n${safe(member.plz)} ${safe(member.ort)}`.trim(), check_whatsapp: member.whatsapp_einwilligung ? "true" : "", check_rechnung_mail: member.email_rechnung_einwilligung ? "true" : "", check_info_mail: member.email_info_einwilligung ? "true" : "", mitgliedsbeitrag_jaehrlich: money(fee), mitgliedsbeitrag_anteilig: money(Math.round(fee * months / 12 * 100) / 100), beitragsmonate: String(months), aufnahmegebuehr: money(admission), bank_kontoinhaber: safe(config?.kontoinhaber), bank_name: safe(config?.bankname), bank_iban: safe(config?.iban), bank_bic: safe(config?.bic), unterschrift_ort: safe(config?.dokument_ort) || "Zwickau", unterschrift_datum: formatDate(new Date().toISOString()) };
+      pdf = await drawTemplate("Mitgliedsantrag_Vorlage.pdf", "mitgliedsantrag-fields.json", values, { unterschrift_antragsteller: signatures.member, datenschutz_unterschrift_antragsteller: signatures.member, unterschrift_vertreter: signatures.secondary, datenschutz_unterschrift_vertreter: signatures.secondary, unterschrift_verein: signatures.board }); title = `Mitgliedsantrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "mitglied", id: memberId };
+    } else if (type === "parzellenprotokoll") {
+      const parcelId = Number(body.parcel_id); const protocolId = Number(body.protocol_id); const board2Id = Number(body.board2_id);
+      if (![parcelId, protocolId, board2Id].every((value) => Number.isSafeInteger(value) && value > 0)) return json(400, { message: "Parzelle, Protokollentwurf und zweiter Vorstand sind erforderlich." });
+      if (action === "finalize" && (!signatures.member || !signatures.board || !signatures.board2)) return json(400, { message: "Die erforderlichen Unterschriften fehlen." });
+      const [{ data: parcel, error: parcelError }, { data: protocol, error: protocolError }, { data: board2, error: board2Error }] = await Promise.all([auth.admin.from("parzelle").select("*").eq("id", parcelId).single(), auth.admin.from("parzellen_protokoll").select("*").eq("id", protocolId).eq("mitglied_id", memberId).single(), auth.admin.from("mitglied").select("*").eq("id", board2Id).single()]);
+      if (parcelError || protocolError || board2Error || !parcel || !protocol || !board2) throw new Error("Protokollkontext konnte nicht vollständig geladen werden.");
+      const { data: board1 } = await auth.admin.from("mitglied").select("*").eq("id", protocol.vorstand_mitglied_id).single(); if (!board1) throw new Error("Erstes Vorstandsmitglied wurde nicht gefunden.");
+      pdf = await buildParcelProtocol(member, parcel, board1, board2, body, signatures); title = `${body.protocol_type === "rueckgabe" ? "Rückgabe" : body.protocol_type === "begehung" ? "Begehung" : "Übernahme"}protokoll Garten ${safe(parcel.garten_nr)}`; owner = { kind: "mitglied", id: memberId }; protocolIdToComplete = protocolId;
+    } else if (type === "pachtvertrag") {
+      const parcelId = Number(body.parcel_id); if (!Number.isSafeInteger(parcelId) || parcelId <= 0) return json(400, { message: "Für den Pachtvertrag ist eine Parzelle erforderlich." });
+      const { data: parcel, error: parcelError } = await auth.admin.from("parzelle").select("*").eq("id", parcelId).single(); if (parcelError || !parcel?.flaeche_qm) throw new Error("Parzelle oder Fläche fehlt.");
+      const { data: season } = await auth.admin.from("saison").select("*").eq("jahr", new Date(`${startDate}T12:00:00Z`).getUTCFullYear()).maybeSingle(); const rate = Number(season?.pacht_pro_qm ?? 0); if (rate <= 0) throw new Error("Pacht pro Quadratmeter fehlt für die Saison.");
+      const { data: secondary } = await auth.admin.from("mitglied").select("*").eq("hauptmitglied_id", memberId).eq("aktiv", true).limit(1).maybeSingle(); const area = Number(parcel.flaeche_qm); const annual = Math.round(area * rate * 100) / 100; const months = Math.max(1, 13 - (new Date(`${startDate}T12:00:00Z`).getUTCMonth() + 1));
+      const values: Record<string, string> = { ausstellungsdatum: formatDate(new Date().toISOString()), paechter1_name: safe(member.name), paechter1_vorname: safe(member.vorname), paechter1_geburtsdatum: formatDate(member.geburtsdatum), paechter1_mitgliedsnummer: String(member.id), paechter2_name: safe(secondary?.name), paechter2_vorname: safe(secondary?.vorname), paechter2_geburtsdatum: formatDate(secondary?.geburtsdatum), paechter2_mitgliedsnummer: secondary?.id ? String(secondary.id) : "", parzelle_nummer: safe(parcel.garten_nr) || `#${parcel.id}`, parzelle_flaeche_qm: String(area).replace(".", ","), parzelle_flaeche_qm_wiederholung: String(area).replace(".", ","), pachtbeginn: formatDate(startDate), pacht_pro_qm: money(rate), jahrespacht: money(annual), pachtzahlung_faellig_bis: `30.11.${startDate.slice(0, 4)}`, bankblock_mehrzeilig: [safe(config?.kontoinhaber), safe(config?.bankname), safe(config?.iban), safe(config?.bic)].filter(Boolean).join("\n"), pacht_laufendes_jahr: money(Math.round(annual * months / 12 * 100) / 100), unterschrift_ort: safe(config?.dokument_ort) || "Zwickau", unterschrift_datum: formatDate(new Date().toISOString()) };
+      pdf = await drawTemplate("Pachtvertrag_Vorlage.pdf", "pachtvertrag-fields.json", values, { unterschrift_paechter1: signatures.member, anlagen_unterschrift_paechter1: signatures.member, unterschrift_paechter2: signatures.secondary, anlagen_unterschrift_paechter2: signatures.secondary, unterschrift_verpaechter: signatures.board }); title = `Pachtvertrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "parzelle", id: parcelId };
+    } else { pdf = await buildSimpleContract(member, startDate, signatures); title = `Mitgliedsvertrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "mitglied", id: memberId }; }
+    const memberSegment = `${filenamePart(safe(member.name) || "Mitglied")}_${filenamePart(safe(member.vorname) || "OhneVorname")}`;
+    const fileName = `${memberSegment}-${memberId}-${startDate}-${type}-${action === "finalize" ? "signiert" : "unsigniert"}.pdf`;
+    if (action === "preview") return new Response(pdf, { headers: { ...cors, "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="${fileName}"`, "Cache-Control": "private, no-store" } });
+    const documentId = await uploadAndRecord(auth, pdf, owner, title, fileName); if (protocolIdToComplete) { const { error } = await auth.admin.from("parzellen_protokoll").update({ status: "abgeschlossen", dokument_id: documentId, abgeschlossen_am: new Date().toISOString(), abgeschlossen_von: auth.userId, updated_at: new Date().toISOString() }).eq("id", protocolIdToComplete); if (error) throw error; } return json(200, { success: true, document_id: documentId, message: protocolIdToComplete ? "Das signierte Protokoll wurde als Mitgliedsdokument abgelegt." : "Signiertes Vertragsdokument wurde sicher abgelegt." });
+  } catch (error) { const message = error instanceof Error ? error.message.replace(/^AUTH:/, "") : "Vertragsdokument konnte nicht erzeugt werden."; return json(message.startsWith("Anmeldung") || message.startsWith("Nur Admin") ? 403 : 500, { message }); }
+});

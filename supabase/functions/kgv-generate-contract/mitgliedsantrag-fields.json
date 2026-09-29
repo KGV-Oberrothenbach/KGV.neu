@@ -1,0 +1,1294 @@
+{
+  "settings": {
+    "coordinateOrigin": "topLeft"
+  },
+  "fields": [
+    {
+      "id": "pdfFormField-0",
+      "page": 1,
+      "pageAnnotIndex": 0,
+      "type": "text",
+      "name": "ausstellungsdatum",
+      "value": "",
+      "rect": {
+        "x": 442.8,
+        "y": 56.59999999999991,
+        "w": 120.99999999999994,
+        "h": 9.400000000000091
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "20R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-1",
+      "page": 1,
+      "pageAnnotIndex": 1,
+      "type": "text",
+      "name": "dokument_ort",
+      "value": "",
+      "rect": {
+        "x": 442.8,
+        "y": 77.89999999999998,
+        "w": 120.99999999999994,
+        "h": 9.399999999999977
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "25R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-2",
+      "page": 1,
+      "pageAnnotIndex": 2,
+      "type": "text",
+      "name": "mitglied_name",
+      "value": "",
+      "rect": {
+        "x": 28.3,
+        "y": 154,
+        "w": 134.29999999999998,
+        "h": 9.5
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "28R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-3",
+      "page": 1,
+      "pageAnnotIndex": 3,
+      "type": "text",
+      "name": "mitglied_vorname",
+      "value": "",
+      "rect": {
+        "x": 168.1,
+        "y": 154,
+        "w": 128.20000000000002,
+        "h": 9.5
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "31R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-4",
+      "page": 1,
+      "pageAnnotIndex": 4,
+      "type": "text",
+      "name": "mitglied_geburtsdatum",
+      "value": "",
+      "rect": {
+        "x": 301.9,
+        "y": 154,
+        "w": 129.5,
+        "h": 9.5
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "34R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-5",
+      "page": 1,
+      "pageAnnotIndex": 5,
+      "type": "text",
+      "name": "mitglied_aufnahme_ab",
+      "value": "",
+      "rect": {
+        "x": 436.9,
+        "y": 154,
+        "w": 130.20000000000005,
+        "h": 9.5
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "37R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-6",
+      "page": 1,
+      "pageAnnotIndex": 6,
+      "type": "text",
+      "name": "mitglied_telefon",
+      "value": "",
+      "rect": {
+        "x": 28.3,
+        "y": 175.19999999999993,
+        "w": 134.29999999999998,
+        "h": 9.5
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "40R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-7",
+      "page": 1,
+      "pageAnnotIndex": 7,
+      "type": "text",
+      "name": "mitglied_mobil",
+      "value": "",
+      "rect": {
+        "x": 168.1,
+        "y": 175.19999999999993,
+        "w": 128.20000000000002,
+        "h": 9.5
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "43R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-8",
+      "page": 1,
+      "pageAnnotIndex": 8,
+      "type": "text",
+      "name": "mitglied_email",
+      "value": "",
+      "rect": {
+        "x": 301.9,
+        "y": 175.19999999999993,
+        "w": 265.20000000000005,
+        "h": 9.5
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "46R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-9",
+      "page": 1,
+      "pageAnnotIndex": 9,
+      "type": "text",
+      "name": "mitglied_anschrift_mehrzeilig",
+      "value": "",
+      "rect": {
+        "x": 29.2,
+        "y": 197.19999999999993,
+        "w": 536.4,
+        "h": 28.399999999999977
+      },
+      "index": 0,
+      "flags": {
+        "multiLine": true,
+        "print": true,
+        "multiline": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "49R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-10",
+      "page": 1,
+      "pageAnnotIndex": 10,
+      "type": "checkbox",
+      "name": "check_whatsapp",
+      "value": "Off",
+      "rect": {
+        "x": 107,
+        "y": 247.19999999999993,
+        "w": 7,
+        "h": 7
+      },
+      "index": 0,
+      "flags": {
+        "print": true,
+        "required": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 0,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderColor": "#000000",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "52R",
+      "defaultValue": "Off",
+      "exportValue": "Yes",
+      "captions": {
+        "normal": "4"
+      },
+      "required": true
+    },
+    {
+      "id": "pdfFormField-11",
+      "page": 1,
+      "pageAnnotIndex": 11,
+      "type": "checkbox",
+      "name": "check_rechnung_mail",
+      "value": "Off",
+      "rect": {
+        "x": 287.5,
+        "y": 247.19999999999993,
+        "w": 7,
+        "h": 7
+      },
+      "index": 0,
+      "flags": {
+        "print": true,
+        "required": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 0,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderColor": "#000000",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "59R",
+      "defaultValue": "Off",
+      "exportValue": "Yes",
+      "captions": {
+        "normal": "4"
+      },
+      "required": true
+    },
+    {
+      "id": "pdfFormField-12",
+      "page": 1,
+      "pageAnnotIndex": 12,
+      "type": "checkbox",
+      "name": "check_info_mail",
+      "value": "Off",
+      "rect": {
+        "x": 467.5,
+        "y": 247.19999999999993,
+        "w": 7,
+        "h": 7
+      },
+      "index": 0,
+      "flags": {
+        "print": true,
+        "required": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 0,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderColor": "#000000",
+        "borderWidth": 0.5,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "60R",
+      "defaultValue": "Off",
+      "exportValue": "Yes",
+      "captions": {
+        "normal": "4"
+      },
+      "required": true
+    },
+    {
+      "id": "pdfFormField-13",
+      "page": 1,
+      "pageAnnotIndex": 13,
+      "type": "text",
+      "name": "vertreter_name",
+      "value": "",
+      "rect": {
+        "x": 28.3,
+        "y": 294.69999999999993,
+        "w": 130.6,
+        "h": 9.300000000000068
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "61R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-14",
+      "page": 1,
+      "pageAnnotIndex": 14,
+      "type": "text",
+      "name": "vertreter_vorname",
+      "value": "",
+      "rect": {
+        "x": 164.4,
+        "y": 294.69999999999993,
+        "w": 130.49999999999997,
+        "h": 9.300000000000068
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "64R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-15",
+      "page": 1,
+      "pageAnnotIndex": 15,
+      "type": "text",
+      "name": "vertreter_geburtsdatum",
+      "value": "",
+      "rect": {
+        "x": 300.4,
+        "y": 294.69999999999993,
+        "w": 130.60000000000002,
+        "h": 9.300000000000068
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "67R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-16",
+      "page": 1,
+      "pageAnnotIndex": 16,
+      "type": "text",
+      "name": "vertreter_telefon",
+      "value": "",
+      "rect": {
+        "x": 28.3,
+        "y": 316,
+        "w": 130.6,
+        "h": 9.299999999999955
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "70R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-17",
+      "page": 1,
+      "pageAnnotIndex": 17,
+      "type": "text",
+      "name": "vertreter_mobil",
+      "value": "",
+      "rect": {
+        "x": 167.1,
+        "y": 316,
+        "w": 125.20000000000002,
+        "h": 9.299999999999955
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "73R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-18",
+      "page": 1,
+      "pageAnnotIndex": 18,
+      "type": "text",
+      "name": "vertreter_email",
+      "value": "",
+      "rect": {
+        "x": 300.4,
+        "y": 316.19999999999993,
+        "w": 266.70000000000005,
+        "h": 9
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "76R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-19",
+      "page": 1,
+      "pageAnnotIndex": 19,
+      "type": "text",
+      "name": "vertreter_anschrift_mehrzeilig",
+      "value": "",
+      "rect": {
+        "x": 28.3,
+        "y": 337.19999999999993,
+        "w": 538.8000000000001,
+        "h": 25.5
+      },
+      "index": 0,
+      "flags": {
+        "multiLine": true,
+        "print": true,
+        "multiline": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "79R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-20",
+      "page": 1,
+      "pageAnnotIndex": 20,
+      "type": "text",
+      "name": "mitgliedsbeitrag_jaehrlich",
+      "value": "",
+      "rect": {
+        "x": 28.3,
+        "y": 401.59999999999997,
+        "w": 130.6,
+        "h": 9.300000000000011
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "82R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-21",
+      "page": 1,
+      "pageAnnotIndex": 21,
+      "type": "text",
+      "name": "mitgliedsbeitrag_anteilig",
+      "value": "",
+      "rect": {
+        "x": 164.4,
+        "y": 401.59999999999997,
+        "w": 130.49999999999997,
+        "h": 9.300000000000011
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "85R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-22",
+      "page": 1,
+      "pageAnnotIndex": 22,
+      "type": "text",
+      "name": "beitragsmonate",
+      "value": "",
+      "rect": {
+        "x": 300.4,
+        "y": 401.59999999999997,
+        "w": 130.60000000000002,
+        "h": 9.300000000000011
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "88R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-23",
+      "page": 1,
+      "pageAnnotIndex": 23,
+      "type": "text",
+      "name": "aufnahmegebuehr",
+      "value": "",
+      "rect": {
+        "x": 436.5,
+        "y": 401.59999999999997,
+        "w": 130.60000000000002,
+        "h": 9.300000000000011
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "91R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-24",
+      "page": 1,
+      "pageAnnotIndex": 24,
+      "type": "text",
+      "name": "bank_kontoinhaber",
+      "value": "",
+      "rect": {
+        "x": 28.3,
+        "y": 459.69999999999993,
+        "w": 130.6,
+        "h": 9.300000000000011
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "94R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-25",
+      "page": 1,
+      "pageAnnotIndex": 25,
+      "type": "text",
+      "name": "bank_name",
+      "value": "",
+      "rect": {
+        "x": 164.4,
+        "y": 459.69999999999993,
+        "w": 130.49999999999997,
+        "h": 9.300000000000011
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "97R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-26",
+      "page": 1,
+      "pageAnnotIndex": 26,
+      "type": "text",
+      "name": "bank_iban",
+      "value": "",
+      "rect": {
+        "x": 300.4,
+        "y": 459.69999999999993,
+        "w": 130.60000000000002,
+        "h": 9.300000000000011
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "100R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-27",
+      "page": 1,
+      "pageAnnotIndex": 27,
+      "type": "text",
+      "name": "bank_bic",
+      "value": "",
+      "rect": {
+        "x": 436.5,
+        "y": 459.69999999999993,
+        "w": 130.60000000000002,
+        "h": 9.300000000000011
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "103R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-28",
+      "page": 1,
+      "pageAnnotIndex": 28,
+      "type": "text",
+      "name": "unterschrift_ort",
+      "value": "",
+      "rect": {
+        "x": 28.3,
+        "y": 549.6999999999999,
+        "w": 266,
+        "h": 8.800000000000011
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "106R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-29",
+      "page": 1,
+      "pageAnnotIndex": 29,
+      "type": "text",
+      "name": "unterschrift_datum",
+      "value": "",
+      "rect": {
+        "x": 299.8,
+        "y": 549.6999999999999,
+        "w": 267.3,
+        "h": 8.800000000000011
+      },
+      "index": 0,
+      "flags": {
+        "print": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "109R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-30",
+      "page": 1,
+      "pageAnnotIndex": 30,
+      "type": "text",
+      "name": "unterschrift_antragsteller",
+      "value": "",
+      "rect": {
+        "x": 28.3,
+        "y": 562,
+        "w": 176,
+        "h": 42.00000000000003
+      },
+      "index": 0,
+      "flags": {
+        "multiLine": true,
+        "print": true,
+        "multiline": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "112R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-31",
+      "page": 1,
+      "pageAnnotIndex": 31,
+      "type": "text",
+      "name": "unterschrift_vertreter",
+      "value": "",
+      "rect": {
+        "x": 209,
+        "y": 562,
+        "w": 176,
+        "h": 42.00000000000003
+      },
+      "index": 0,
+      "flags": {
+        "multiLine": true,
+        "print": true,
+        "multiline": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "115R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-32",
+      "page": 1,
+      "pageAnnotIndex": 32,
+      "type": "text",
+      "name": "unterschrift_verein",
+      "value": "",
+      "rect": {
+        "x": 389,
+        "y": 562,
+        "w": 176,
+        "h": 42.00000000000003
+      },
+      "index": 0,
+      "flags": {
+        "multiLine": true,
+        "print": true,
+        "multiline": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [],
+      "refId": "118R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-33",
+      "page": 1,
+      "pageAnnotIndex": 33,
+      "type": "text",
+      "name": "datenschutz_unterschrift_antragsteller",
+      "value": "",
+      "rect": {
+        "x": 28.3,
+        "y": 733.8240729483283,
+        "w": 260,
+        "h": 47.175927051671735
+      },
+      "index": 0,
+      "flags": {
+        "multiLine": true,
+        "print": true,
+        "multiline": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect"
+      ],
+      "refId": "121R",
+      "defaultValue": "",
+      "maxLength": 100
+    },
+    {
+      "id": "pdfFormField-34",
+      "page": 1,
+      "pageAnnotIndex": 34,
+      "type": "text",
+      "name": "datenschutz_unterschrift_vertreter",
+      "value": "",
+      "rect": {
+        "x": 307.6824489456687,
+        "y": 733.8240729483283,
+        "w": 260,
+        "h": 47.175927051671735
+      },
+      "index": 0,
+      "flags": {
+        "multiLine": true,
+        "print": true,
+        "multiline": true
+      },
+      "style": {
+        "fontColor": "#000000",
+        "fontName": "Helv",
+        "fontSize": 7,
+        "color": "#000000",
+        "backgroundColor": "#CCD7FF",
+        "borderWidth": 0,
+        "dashArray": [
+          3
+        ],
+        "borderStyle": "solid"
+      },
+      "additionalActions": {},
+      "operations": [
+        "updateRect",
+        "updateTextAlign"
+      ],
+      "refId": "124R",
+      "defaultValue": "",
+      "maxLength": 100,
+      "textAlign": "left"
+    }
+  ],
+  "resources": {
+    "fonts": {
+      "Helvetica": {
+        "type": "standard",
+        "name": "Helvetica"
+      },
+      "Courier": {
+        "type": "standard",
+        "name": "Courier"
+      },
+      "Times": {
+        "type": "standard",
+        "name": "Times"
+      },
+      "ZapfDingbats": {
+        "type": "standard",
+        "name": "ZapfDingbats"
+      },
+      "Helv": {
+        "name": "Helv",
+        "type": "provided"
+      }
+    }
+  }
+}

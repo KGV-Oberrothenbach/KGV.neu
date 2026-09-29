@@ -3,6 +3,7 @@ using System.Linq;
 using Android.App;
 using Android.Content.PM;
 using Android.OS;
+using Android.Views;
 using AndroidX.Activity;
 using KGV.Maui.Services.Diagnostics;
 using Microsoft.Maui;
@@ -33,6 +34,24 @@ public class MainActivity : MauiAppCompatActivity
             _backPressedCallback = new ActivityBackPressedCallback(this);
 
         OnBackPressedDispatcher.AddCallback(this, _backPressedCallback);
+    }
+
+    public override bool DispatchTouchEvent(MotionEvent? ev)
+    {
+        RegisterUserActivity();
+        return base.DispatchTouchEvent(ev);
+    }
+
+    public override bool DispatchKeyEvent(KeyEvent? e)
+    {
+        RegisterUserActivity();
+        return base.DispatchKeyEvent(e);
+    }
+
+    private static void RegisterUserActivity()
+    {
+        if (Microsoft.Maui.Controls.Application.Current is App app)
+            app.RegisterUserActivity();
     }
 
     public static void SetLandscapeOrientationEnabled(bool enabled)

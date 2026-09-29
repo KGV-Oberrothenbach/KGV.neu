@@ -235,12 +235,12 @@ Nur anfassen, wenn funktional relevant oder im jeweiligen Block direkt betroffen
 ## 4. Nächster sinnvoller Umsetzungsblock
 
 Aktueller Block:
-- **22. Wartungsverträge dürfen auch Nebenmitglieder haben**
+- **Jahresabschluss in MAUI**
 
-Ziel dieses begonnenen Folgeblocks:
-- Nebenmitglieder sollen nicht nur im UI erscheinen, sondern fachlich belastbar eigene Wartungsvertragszuordnungen tragen können
-- WPF und MAUI sollen dabei auf denselben Servicepfaden laufen
-- Pflichtstunden-/Mitgliedskontext darf dadurch nicht unbeabsichtigt beschädigt werden
+Die verbindliche, detaillierte Planung liegt in
+[`Documentation/MAUI_JAHRESABSCHLUSS_UMSETZUNGSPLAN.md`](Documentation/MAUI_JAHRESABSCHLUSS_UMSETZUNGSPLAN.md).
+
+Begonnen wird mit der verbindlichen Festlegung der dort genannten Geschäftsregeln, danach folgen Datenmodell, gemeinsamer Servicepfad und MAUI-Oberflächen. Die alte Browser-Umsetzungsplanung wurde entfernt; eine Browser-Umsetzung ist erst nach dem stabilen MAUI-Fachablauf wieder abzuleiten.
 
 ---
 

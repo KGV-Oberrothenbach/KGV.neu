@@ -26,5 +26,12 @@ namespace KGV.Core.Models
 
         [Column("bis_datum")]
         public DateTime? BisDatum { get; set; }
+
+        /// <summary>
+        /// Fachlicher Grund für das Ende der Belegung, etwa <c>tod</c> oder
+        /// <c>kuendigung</c>. Der Wert ist für die Abschlussberechnung relevant.
+        /// </summary>
+        [Column("beendigungsgrund")]
+        public string? Beendigungsgrund { get; set; }
     }
 }

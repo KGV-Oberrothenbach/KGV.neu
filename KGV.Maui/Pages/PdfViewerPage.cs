@@ -60,12 +60,12 @@ public sealed class PdfViewerPage : ContentPage
 
         _pageImage = new Image
         {
-            Aspect = Aspect.AspectFit,
+            Aspect = Microsoft.Maui.Aspect.AspectFit,
             BackgroundColor = Colors.White,
         };
         _pageLabel = new Label
         {
-            HorizontalTextAlignment = TextAlignment.Center,
+            HorizontalTextAlignment = Microsoft.Maui.TextAlignment.Center,
             TextColor = Colors.Gray,
         };
         _previousButton = new Button { Text = "‹ Zurück" };
@@ -89,17 +89,17 @@ public sealed class PdfViewerPage : ContentPage
             ColumnSpacing = 12,
             ColumnDefinitions =
             {
-                new ColumnDefinition(GridLength.Star),
-                new ColumnDefinition(GridLength.Auto),
-                new ColumnDefinition(GridLength.Auto),
-                new ColumnDefinition(GridLength.Auto),
-                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(Microsoft.Maui.GridLength.Star),
+                new ColumnDefinition(Microsoft.Maui.GridLength.Auto),
+                new ColumnDefinition(Microsoft.Maui.GridLength.Auto),
+                new ColumnDefinition(Microsoft.Maui.GridLength.Auto),
+                new ColumnDefinition(Microsoft.Maui.GridLength.Star),
             },
             HorizontalOptions = LayoutOptions.Fill,
         };
         _previousButton.HorizontalOptions = LayoutOptions.Start;
         _nextButton.HorizontalOptions = LayoutOptions.End;
-        _pageLabel.VerticalTextAlignment = TextAlignment.Center;
+        _pageLabel.VerticalTextAlignment = Microsoft.Maui.TextAlignment.Center;
         navigationBar.Add(_previousButton, 0, 0);
         navigationBar.Add(_pageLabel, 1, 0);
         navigationBar.Add(_zoomOutButton, 2, 0);
@@ -121,9 +121,9 @@ public sealed class PdfViewerPage : ContentPage
             Padding = 12,
             RowDefinitions =
             {
-                new RowDefinition(GridLength.Star),
-                new RowDefinition(GridLength.Auto),
-                new RowDefinition(GridLength.Auto),
+                new RowDefinition(Microsoft.Maui.GridLength.Star),
+                new RowDefinition(Microsoft.Maui.GridLength.Auto),
+                new RowDefinition(Microsoft.Maui.GridLength.Auto),
             },
             Children =
             {
@@ -231,10 +231,10 @@ public sealed class PdfViewerPage : ContentPage
     {
         switch (e.Status)
         {
-            case GestureStatus.Started:
+            case Microsoft.Maui.GestureStatus.Started:
                 _zoomStartScale = _zoomScale;
                 break;
-            case GestureStatus.Running:
+            case Microsoft.Maui.GestureStatus.Running:
                 // Der ScrollView wurde bewusst entfernt: Er fängt auf Android die
                 // Mehrfingerbewegung teilweise ab und der Zoom wirkt dadurch kaum.
                 SetZoom(Math.Clamp(_zoomStartScale * e.Scale, 1d, 8d));
@@ -260,11 +260,11 @@ public sealed class PdfViewerPage : ContentPage
 
         switch (e.StatusType)
         {
-            case GestureStatus.Started:
+            case Microsoft.Maui.GestureStatus.Started:
                 _panStartX = _pageImage.TranslationX;
                 _panStartY = _pageImage.TranslationY;
                 break;
-            case GestureStatus.Running:
+            case Microsoft.Maui.GestureStatus.Running:
                 var maxX = Math.Max(0d, _pageImage.Width * (_zoomScale - 1d) / 2d);
                 var maxY = Math.Max(0d, _pageImage.Height * (_zoomScale - 1d) / 2d);
                 _pageImage.TranslationX = Math.Clamp(_panStartX + e.TotalX, -maxX, maxX);

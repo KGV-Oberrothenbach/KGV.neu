@@ -20,5 +20,6 @@
     <EmbeddedResource Include="..\KGV.Maui\Resources\Images\kgv_logo.png" Link="Assets\kgv_logo.png" />
     <EmbeddedResource Include="Templates\Mitgliedsantrag_Vorlage.pdf" />
     <EmbeddedResource Include="Templates\Pachtvertrag_Vorlage.pdf" />
+    <EmbeddedResource Include="Templates\Pachtvertrag_KGV_Oberrothenbach_neu.pdf" />
   </ItemGroup>
 </Project>

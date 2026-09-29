@@ -180,6 +180,7 @@ public sealed class AdminShell : Shell, IAppShellInitializer
             Items.Add(CreateManagementItem(
                 "Verwaltung",
                 ("Saisonverwaltung", "season_management", () => _services.GetRequiredService<SaisonverwaltungPage>()),
+                ("Jahresabschluss", "annual_closing", () => _services.GetRequiredService<JahresabschlussPage>()),
                 ("Vereinskonfiguration", "club_configuration", () => _services.GetRequiredService<VereinskonfigurationPage>())));
 
         if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))

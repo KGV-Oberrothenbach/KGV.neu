@@ -20,7 +20,7 @@ public sealed class ImageViewerPage : ContentPage
         var image = new Image
         {
             Source = ImageSource.FromStream(() => new MemoryStream(imageContent, writable: false)),
-            Aspect = Aspect.AspectFit,
+            Aspect = Microsoft.Maui.Aspect.AspectFit,
             BackgroundColor = Colors.Black,
         };
 

@@ -35,7 +35,7 @@ public sealed class VertragsSignaturPage : ContentPage
             Text = $"Bitte unterschreiben Sie im Querformat. Erfasst wird die {captureTitle} für {dokumentName}.",
             TextColor = Colors.Gray,
             FontSize = 13,
-            LineBreakMode = LineBreakMode.WordWrap
+            LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap
         };
 
         _graphicsView = new GraphicsView
@@ -77,10 +77,10 @@ public sealed class VertragsSignaturPage : ContentPage
             RowSpacing = 8,
             RowDefinitions =
             {
-                new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = GridLength.Star },
-                new RowDefinition { Height = GridLength.Auto }
+                new RowDefinition { Height = Microsoft.Maui.GridLength.Auto },
+                new RowDefinition { Height = Microsoft.Maui.GridLength.Auto },
+                new RowDefinition { Height = Microsoft.Maui.GridLength.Star },
+                new RowDefinition { Height = Microsoft.Maui.GridLength.Auto }
             }
         };
         var titleLabel = new Label

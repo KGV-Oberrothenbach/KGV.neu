@@ -148,6 +148,13 @@ namespace KGV.Core.Models
             set => SetField(ref _emailInfoEinwilligung, value, nameof(EmailInfoEinwilligung));
         }
 
+        private DateTime? _regelwerkeVersandtAm;
+        public DateTime? RegelwerkeVersandtAm
+        {
+            get => _regelwerkeVersandtAm;
+            set => SetField(ref _regelwerkeVersandtAm, value, nameof(RegelwerkeVersandtAm));
+        }
+
         private string _arbeitsstundenAltersregelTyp = "";
         public string ArbeitsstundenAltersregelTyp
         {
@@ -251,6 +258,7 @@ namespace KGV.Core.Models
                 WhatsappEinwilligung = other.WhatsappEinwilligung;
                 EmailRechnungEinwilligung = other.EmailRechnungEinwilligung;
                 EmailInfoEinwilligung = other.EmailInfoEinwilligung;
+                RegelwerkeVersandtAm = other.RegelwerkeVersandtAm;
                 ArbeitsstundenAltersregelTyp = other.ArbeitsstundenAltersregelTyp;
 
                 MitgliedSeit = other.MitgliedSeit;
@@ -286,6 +294,7 @@ namespace KGV.Core.Models
                 WhatsappEinwilligung == other.WhatsappEinwilligung &&
                 EmailRechnungEinwilligung == other.EmailRechnungEinwilligung &&
                 EmailInfoEinwilligung == other.EmailInfoEinwilligung &&
+                RegelwerkeVersandtAm == other.RegelwerkeVersandtAm &&
                 string.Equals(ArbeitsstundenAltersregelTyp ?? "", other.ArbeitsstundenAltersregelTyp ?? "", StringComparison.Ordinal) &&
                 MitgliedSeit == other.MitgliedSeit &&
                 MitgliedEnde == other.MitgliedEnde &&

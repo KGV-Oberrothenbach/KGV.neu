@@ -42,18 +42,26 @@ public static class PachtvertragTemplateFactory
             Paechter1Vorname = Clean(paechter1.Vorname),
             Paechter1Geburtsdatum = FormatNullableDate(paechter1.Geburtsdatum),
             Paechter1Mitgliedsnummer = FormatMitgliedsnummer(paechter1),
+            Paechter1Vollname = BuildFullName(paechter1),
+            Paechter1Anschrift = BuildAddress(paechter1),
+            Paechter1Kontakt = BuildContact(paechter1),
 
             Paechter2Name = paechter2 == null ? string.Empty : Clean(paechter2.Name),
             Paechter2Vorname = paechter2 == null ? string.Empty : Clean(paechter2.Vorname),
             Paechter2Geburtsdatum = paechter2 == null ? string.Empty : FormatNullableDate(paechter2.Geburtsdatum),
             Paechter2Mitgliedsnummer = paechter2 == null ? string.Empty : FormatMitgliedsnummer(paechter2),
+            Paechter2Vollname = paechter2 == null ? string.Empty : BuildFullName(paechter2),
+            Paechter2Anschrift = paechter2 == null ? string.Empty : BuildAddress(paechter2),
+            Paechter2Kontakt = paechter2 == null ? string.Empty : BuildContact(paechter2),
 
             ParzelleNummer = Clean(context.ParzelleNummer),
             ParzelleFlaecheQm = FormatArea(context.ParzelleFlaecheQm),
             ParzelleFlaecheQmWiederholung = FormatArea(context.ParzelleFlaecheQm),
+            ParzelleAnlage = Clean(context.ParzelleAnlage),
 
             Pachtbeginn = FormatDate(context.Pachtbeginn),
             Pachtende = context.BefristetBis.HasValue ? FormatDate(context.BefristetBis.Value) : string.Empty,
+            UebergabeDatum = FormatDate(context.Pachtbeginn),
 
             PachtProQm = FormatMoney(context.PachtProQm),
             Jahrespacht = FormatMoney(jahrespacht),
@@ -106,6 +114,31 @@ public static class PachtvertragTemplateFactory
     private static string FormatMitgliedsnummer(MitgliedRecord member)
         => member.Id > 0 ? member.Id.ToString(CultureInfo.InvariantCulture) : string.Empty;
 
+    private static string BuildFullName(MitgliedRecord member)
+        => string.Join(" ", new[] { member.Vorname, member.Name }
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!.Trim()));
+
+    private static string BuildAddress(MitgliedRecord member)
+    {
+        var street = Clean(member.Adresse);
+        var location = string.Join(" ", new[] { Clean(member.Plz), Clean(member.Ort) }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+
+        return string.Join(", ", new[] { street, location }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
+    private static string BuildContact(MitgliedRecord member)
+    {
+        var phone = string.Join(" / ", new[] { Clean(member.Telefon), Clean(member.Handy) }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+        var email = Clean(member.Email);
+
+        return string.Join(" | ", new[] { phone, email }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
     private static string FormatDate(DateTime value)
         => value.ToString("dd.MM.yyyy", DeCulture);
 
@@ -145,6 +178,7 @@ public sealed class PachtvertragTemplateContext
 
     public string? ParzelleNummer { get; set; }
     public decimal ParzelleFlaecheQm { get; set; }
+    public string? ParzelleAnlage { get; set; }
 
     public DateTime Pachtbeginn { get; set; }
     public DateTime? BefristetBis { get; set; }

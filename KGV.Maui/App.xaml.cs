@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Dispatching;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,6 +20,8 @@ public partial class App : Application
     private readonly UserContextState _userContextState;
     private readonly IVereinskontext _vereinskontext;
     private Window? _mainWindow;
+    private IDispatcherTimer? _inactivityTimer;
+    private DateTime _lastUserActivityUtc = DateTime.UtcNow;
     private string? _pendingLoginMessage;
     private bool _resumeTimeoutResetInProgress;
 
@@ -35,13 +38,53 @@ public partial class App : Application
 
         _mainWindow.Stopped += (_, _) =>
         {
+            _inactivityTimer?.Stop();
             Settings.AppSettings.MarkBackgroundedNowUtc();
             Services.Diagnostics.AppFileLog.Marker("APP_STOPPED");
         };
 
-        _mainWindow.Resumed += async (_, _) => await HandleWindowResumedAsync();
+        _mainWindow.Resumed += async (_, _) =>
+        {
+            await HandleWindowResumedAsync();
+            _lastUserActivityUtc = DateTime.UtcNow;
+            _inactivityTimer?.Start();
+        };
+
+        StartInactivityTimer();
 
         return _mainWindow;
+    }
+
+    /// <summary>
+    /// Wird von der Android-Aktivität für jede Benutzerinteraktion aufgerufen.
+    /// Damit ist die Frist echte Inaktivität und nicht nur die Zeit im Hintergrund.
+    /// </summary>
+    public void RegisterUserActivity()
+    {
+        if (!_resumeTimeoutResetInProgress)
+            _lastUserActivityUtc = DateTime.UtcNow;
+    }
+
+    private void StartInactivityTimer()
+    {
+        _inactivityTimer ??= Dispatcher.CreateTimer();
+        _inactivityTimer.Interval = TimeSpan.FromSeconds(15);
+        _inactivityTimer.Tick += async (_, _) => await HandleInactivityTimerTickAsync();
+        _inactivityTimer.Start();
+    }
+
+    private async Task HandleInactivityTimerTickAsync()
+    {
+        if (_resumeTimeoutResetInProgress
+            || _userContextState.CurrentUserId == null
+            || _userContextState.CurrentUserContext == null)
+            return;
+
+        var inactiveFor = DateTime.UtcNow - _lastUserActivityUtc;
+        if (inactiveFor <= ResumeTimeoutThreshold)
+            return;
+
+        await ResetToLoginAfterInactivityAsync(inactiveFor);
     }
 
     public Task SwitchToCurrentRootAsync()
@@ -181,7 +224,10 @@ public partial class App : Application
                 return;
             }
 
-            await ResetToLoginAfterResumeTimeoutAsync(delta.Value);
+            await ResetToLoginAsync(
+                "APP_RESUME_TIMEOUT_TRIGGERED",
+                $"Resume-Timeout überschritten ({delta.Value.TotalMinutes:0.0} Minuten im Hintergrund). Sitzung wird auf Login zurückgesetzt.",
+                "Die App war zu lange im Hintergrund. Bitte erneut anmelden.");
         }
         catch (Exception ex)
         {
@@ -189,7 +235,13 @@ public partial class App : Application
         }
     }
 
-    private async Task ResetToLoginAfterResumeTimeoutAsync(TimeSpan backgroundDuration)
+    private Task ResetToLoginAfterInactivityAsync(TimeSpan inactiveFor)
+        => ResetToLoginAsync(
+            "APP_IDLE_TIMEOUT_TRIGGERED",
+            $"Inaktivitäts-Timeout überschritten ({inactiveFor.TotalMinutes:0.0} Minuten ohne Eingabe). Sitzung wird auf Login zurückgesetzt.",
+            "Die App war 15 Minuten nicht aktiv. Bitte erneut anmelden.");
+
+    private async Task ResetToLoginAsync(string marker, string logMessage, string loginMessage)
     {
         if (_resumeTimeoutResetInProgress)
         {
@@ -197,24 +249,11 @@ public partial class App : Application
             return;
         }
 
-        using var navigationScope = NavigationCoordinator.TryBegin(
-            NavigationCoordinator.RootSwitchScope,
-            "resume-timeout -> login",
-            NavigationCoordinator.MemberSwitchScope);
-
-        if (navigationScope == null)
-        {
-            Services.Diagnostics.AppFileLog.Marker("APP_RESUME_TIMEOUT_SUPPRESSED_NAVIGATION_ACTIVE");
-            return;
-        }
-
         _resumeTimeoutResetInProgress = true;
         try
         {
-            Services.Diagnostics.AppFileLog.Marker("APP_RESUME_TIMEOUT_TRIGGERED");
-            Services.Diagnostics.AppFileLog.Warning(
-                "KGV.Lifecycle",
-                $"Resume-Timeout überschritten ({backgroundDuration.TotalMinutes:0.0} Minuten im Hintergrund). Sitzung wird auf Login zurückgesetzt.");
+            Services.Diagnostics.AppFileLog.Marker(marker);
+            Services.Diagnostics.AppFileLog.Warning("KGV.Lifecycle", logMessage);
 
             await ClearActiveSessionAsync();
             ClearTransientState();
@@ -222,9 +261,9 @@ public partial class App : Application
             Settings.AppSettings.AppMode = null;
             Settings.AppSettings.Save();
 
-            _pendingLoginMessage = "Die App war zu lange im Hintergrund. Bitte erneut anmelden.";
+            _pendingLoginMessage = loginMessage;
             await SwitchToCurrentRootCoreAsync(null);
-            Services.Diagnostics.AppFileLog.Marker("APP_RESUME_TIMEOUT_COMPLETED");
+            Services.Diagnostics.AppFileLog.Marker("APP_TIMEOUT_RESET_COMPLETED");
         }
         finally
         {

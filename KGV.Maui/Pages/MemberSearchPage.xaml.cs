@@ -80,6 +80,21 @@ public partial class MemberSearchPage : ContentPage
             Children = { searchByParzelleCheckBox, searchByParzelleLabel }
         };
 
+        var showInactiveCheckBox = new CheckBox();
+        showInactiveCheckBox.SetBinding(CheckBox.IsCheckedProperty, nameof(MemberSearchViewModel.ShowInactiveMembers));
+
+        var showInactiveLabel = new Label
+        {
+            Text = "Inaktive Mitglieder anzeigen",
+            VerticalTextAlignment = TextAlignment.Center
+        };
+
+        var showInactiveLayout = new HorizontalStackLayout
+        {
+            Spacing = 8,
+            Children = { showInactiveCheckBox, showInactiveLabel }
+        };
+
         var activityIndicator = new ActivityIndicator();
         activityIndicator.SetBinding(ActivityIndicator.IsRunningProperty, nameof(MemberSearchViewModel.IsBusy));
         activityIndicator.SetBinding(ActivityIndicator.IsVisibleProperty, nameof(MemberSearchViewModel.IsBusy));
@@ -97,6 +112,7 @@ public partial class MemberSearchPage : ContentPage
                     Command = new Command(async () => await Shell.Current.GoToAsync($"{nameof(MemberDetailPage)}?mode=new"))
                 },
                 optionsLayout,
+                showInactiveLayout,
                 activityIndicator
             }
         };

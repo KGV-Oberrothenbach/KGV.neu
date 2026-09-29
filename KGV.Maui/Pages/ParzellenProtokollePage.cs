@@ -17,7 +17,7 @@ public sealed class ParzellenProtokollePage : ContentPage
     private readonly UserContextState _userContext;
     private readonly MemberContextState _memberContext;
     private readonly Picker _typPicker = new() { Title = "Protokollart" };
-    private readonly Label _mitgliedLabel = new() { TextColor = Colors.DimGray, LineBreakMode = LineBreakMode.WordWrap };
+    private readonly Label _mitgliedLabel = new() { TextColor = Colors.DimGray, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap };
     private readonly Picker _parzellePicker = new() { Title = "Parzelle auswählen" };
     private readonly Picker _vorstand2Picker = new() { Title = "Zweiten Vorstand auswählen" };
     private readonly Switch _begleitpersonSwitch = new();
@@ -30,12 +30,12 @@ public sealed class ParzellenProtokollePage : ContentPage
     private readonly Entry _anlassEntry = new() { Placeholder = "z. B. Pächterwechsel, Rückgabe oder turnusmäßige Begehung" };
     private readonly Editor _zustandEditor = new() { Placeholder = "Zustand, Hinweise und Auffälligkeiten", AutoSize = EditorAutoSizeOption.TextChanges, MinimumHeightRequest = 90 };
     private readonly Editor _vereinbarungEditor = new() { Placeholder = "Vereinbarungen, Fristen und nächste Schritte", AutoSize = EditorAutoSizeOption.TextChanges, MinimumHeightRequest = 80 };
-    private readonly Label _wasserStandLabel = new() { TextColor = Colors.DimGray, LineBreakMode = LineBreakMode.WordWrap };
-    private readonly Label _stromStandLabel = new() { TextColor = Colors.DimGray, LineBreakMode = LineBreakMode.WordWrap };
+    private readonly Label _wasserStandLabel = new() { TextColor = Colors.DimGray, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap };
+    private readonly Label _stromStandLabel = new() { TextColor = Colors.DimGray, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap };
     private readonly ObservableCollection<ProtocolPhotoItem> _photos = new();
     private readonly VerticalStackLayout _photoList = new() { Spacing = 5 };
     private readonly Label _photoHint = new() { TextColor = Colors.DimGray };
-    private readonly Label _signatureHint = new() { TextColor = Colors.DimGray, LineBreakMode = LineBreakMode.WordWrap };
+    private readonly Label _signatureHint = new() { TextColor = Colors.DimGray, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap };
     private DigitalSignatureCapture? _paechterSignature;
     private DigitalSignatureCapture? _begleitpersonSignature;
     private DigitalSignatureCapture? _vorstand1Signature;
@@ -130,7 +130,7 @@ public sealed class ParzellenProtokollePage : ContentPage
                     new Label
                     {
                         Text = "Protokolle werden dem Mitglied zugeordnet. Die Parzelle, Ablesungen, Fotos und Unterschriften bilden den nachvollziehbaren fachlichen Bezug.",
-                        LineBreakMode = LineBreakMode.WordWrap,
+                        LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap,
                         TextColor = Colors.DimGray
                     },
                     CreateField("Protokollart", _typPicker),

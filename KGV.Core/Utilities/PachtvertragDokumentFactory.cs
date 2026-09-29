@@ -12,45 +12,31 @@ namespace KGV.Core.Utilities
 {
     public static class PachtvertragDokumentFactory
     {
-        private const string PdfTemplateResourceName = "KGV.Core.Templates.Pachtvertrag_Vorlage.pdf";
+        private const string PdfTemplateResourceName = "KGV.Core.Templates.Pachtvertrag_KGV_Oberrothenbach_neu.pdf";
 
         private static readonly IReadOnlyList<PdfFormFieldSpec> FieldSpecs = new[]
         {
-            new PdfFormFieldSpec("ausstellungsdatum", PdfFormFieldKind.Text, 1, 427.8666, 119.5333, 127.4667, 16),
+            new PdfFormFieldSpec("paechter_name", PdfFormFieldKind.Text, 1, 42, 229, 250.64, 17),
+            new PdfFormFieldSpec("mitgliedsnummer", PdfFormFieldKind.Text, 1, 302.64, 229, 250.64, 17),
+            new PdfFormFieldSpec("paechter_anschrift", PdfFormFieldKind.Text, 1, 42, 257, 250.64, 17),
+            new PdfFormFieldSpec("paechter_kontakt", PdfFormFieldKind.Text, 1, 302.64, 257, 250.64, 17),
 
-            new PdfFormFieldSpec("paechter1_name", PdfFormFieldKind.Text, 1, 63.8667, 212, 205, 13),
-            new PdfFormFieldSpec("paechter1_vorname", PdfFormFieldKind.Text, 1, 79.3333, 226, 189, 13),
-            new PdfFormFieldSpec("paechter1_geburtsdatum", PdfFormFieldKind.Text, 1, 94.6666, 240, 173.4, 13),
-            new PdfFormFieldSpec("paechter1_mitgliedsnummer", PdfFormFieldKind.Text, 1, 104.5333, 254, 163, 13),
+            new PdfFormFieldSpec("paechter2_name", PdfFormFieldKind.Text, 1, 42, 312, 250.64, 17),
+            new PdfFormFieldSpec("paechter2_mitgliedsnummer", PdfFormFieldKind.Text, 1, 302.64, 312, 250.64, 17),
+            new PdfFormFieldSpec("paechter2_anschrift", PdfFormFieldKind.Text, 1, 42, 340, 250.64, 17),
+            new PdfFormFieldSpec("paechter2_kontakt", PdfFormFieldKind.Text, 1, 302.64, 340, 250.64, 17),
 
-            new PdfFormFieldSpec("paechter2_name", PdfFormFieldKind.Text, 1, 328.3333, 212, 180, 13),
-            new PdfFormFieldSpec("paechter2_vorname", PdfFormFieldKind.Text, 1, 341.6667, 226, 180, 13),
-            new PdfFormFieldSpec("paechter2_geburtsdatum", PdfFormFieldKind.Text, 1, 357.4666, 240, 150, 13),
-            new PdfFormFieldSpec("paechter2_mitgliedsnummer", PdfFormFieldKind.Text, 1, 364.9333, 254, 138, 13),
+            new PdfFormFieldSpec("parzelle_nr", PdfFormFieldKind.Text, 1, 42, 399, 83, 17),
+            new PdfFormFieldSpec("lage_anlage", PdfFormFieldKind.Text, 1, 136, 399, 230, 17),
+            new PdfFormFieldSpec("flaeche_qm", PdfFormFieldKind.Text, 1, 377, 399, 114, 17),
+            new PdfFormFieldSpec("vertragsbeginn", PdfFormFieldKind.Text, 1, 42, 496, 138, 17),
+            new PdfFormFieldSpec("uebergabe_datum", PdfFormFieldKind.Text, 1, 192, 496, 138, 17),
+            new PdfFormFieldSpec("befristung", PdfFormFieldKind.Text, 1, 342, 496, 149, 17),
+            new PdfFormFieldSpec("pachtzins_jahr", PdfFormFieldKind.Text, 1, 42, 583, 165.1, 17),
+            new PdfFormFieldSpec("faelligkeit", PdfFormFieldKind.Text, 1, 388.18, 583, 165.1, 17),
 
-            new PdfFormFieldSpec("parzelle_nummer", PdfFormFieldKind.Text, 1, 504.4667, 318.3333, 19.3333, 11),
-            new PdfFormFieldSpec("parzelle_flaeche_qm", PdfFormFieldKind.Text, 1, 108.2667, 329.3333, 33.6, 11),
-            new PdfFormFieldSpec("pachtbeginn", PdfFormFieldKind.Text, 1, 225.8666, 522.4667, 46.8, 11),
-            new PdfFormFieldSpec("pachtende", PdfFormFieldKind.Text, 1, 429.6667, 522.2, 49.8, 11),
-
-            new PdfFormFieldSpec("pacht_pro_qm", PdfFormFieldKind.Text, 2, 32.9333, 78, 150, 14),
-            new PdfFormFieldSpec("parzelle_flaeche_qm_wiederholung", PdfFormFieldKind.Text, 2, 207.6, 78, 150, 14),
-            new PdfFormFieldSpec("jahrespacht", PdfFormFieldKind.Text, 2, 390, 82, 150, 14),
-            new PdfFormFieldSpec("pachtzahlung_faellig_bis", PdfFormFieldKind.Text, 2, 193.7333, 100.2, 47.7333, 10),
-
-            new PdfFormFieldSpec("altvertrag_datum", PdfFormFieldKind.Text, 4, 437, 688.1333, 43.4667, 11),
-
-            new PdfFormFieldSpec("bankblock_mehrzeilig", PdfFormFieldKind.MultilineText, 5, 28.9333, 112.8, 260, 50),
-            new PdfFormFieldSpec("pacht_laufendes_jahr", PdfFormFieldKind.Text, 5, 295.2, 113.6, 165, 12),
-
-            new PdfFormFieldSpec("unterschrift_ort", PdfFormFieldKind.Text, 5, 34, 352, 190, 14),
-            new PdfFormFieldSpec("unterschrift_datum", PdfFormFieldKind.Text, 5, 293.0667, 374.9333, 190, 14),
-
-            new PdfFormFieldSpec("unterschrift_paechter1", PdfFormFieldKind.SignaturePlaceholder, 5, 34.6667, 396, 160, 56),
-            new PdfFormFieldSpec("unterschrift_paechter2", PdfFormFieldKind.SignaturePlaceholder, 5, 213.7333, 396, 160, 56),
-            new PdfFormFieldSpec("unterschrift_verpaechter", PdfFormFieldKind.SignaturePlaceholder, 5, 391.1333, 396, 160, 56),
-            new PdfFormFieldSpec("anlagen_unterschrift_paechter1", PdfFormFieldKind.SignaturePlaceholder, 5, 35.7333, 546, 160, 56),
-            new PdfFormFieldSpec("anlagen_unterschrift_paechter2", PdfFormFieldKind.SignaturePlaceholder, 5, 214, 546, 160, 56)
+            new PdfFormFieldSpec("ort_datum", PdfFormFieldKind.Text, 3, 42, 468, 190, 17),
+            new PdfFormFieldSpec("paechter_druckname", PdfFormFieldKind.Text, 3, 252, 468, 239, 17)
         };
 
         public static DokumentUploadRequest CreateUploadRequest(
@@ -178,6 +164,7 @@ namespace KGV.Core.Utilities
                 Paechter2 = paechter2,
                 ParzelleNummer = string.IsNullOrWhiteSpace(parzelle.GartenNr) ? $"#{parzelle.Id}" : parzelle.GartenNr.Trim(),
                 ParzelleFlaecheQm = parzelle.FlaecheQm!.Value,
+                ParzelleAnlage = parzelle.Anlage,
                 Pachtbeginn = vertragsbeginn,
                 PachtProQm = saison.PachtProQm!.Value,
                 Ausstellungsdatum = DateTime.Today,
@@ -218,41 +205,28 @@ namespace KGV.Core.Utilities
         {
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                ["ausstellungsdatum"] = data.Ausstellungsdatum,
+                ["paechter_name"] = data.Paechter1Vollname,
+                ["mitgliedsnummer"] = data.Paechter1Mitgliedsnummer,
+                ["paechter_anschrift"] = data.Paechter1Anschrift,
+                ["paechter_kontakt"] = data.Paechter1Kontakt,
 
-                ["paechter1_name"] = data.Paechter1Name,
-                ["paechter1_vorname"] = data.Paechter1Vorname,
-                ["paechter1_geburtsdatum"] = data.Paechter1Geburtsdatum,
-                ["paechter1_mitgliedsnummer"] = data.Paechter1Mitgliedsnummer,
-
-                ["paechter2_name"] = data.Paechter2Name,
-                ["paechter2_vorname"] = data.Paechter2Vorname,
-                ["paechter2_geburtsdatum"] = data.Paechter2Geburtsdatum,
+                ["paechter2_name"] = data.Paechter2Vollname,
                 ["paechter2_mitgliedsnummer"] = data.Paechter2Mitgliedsnummer,
+                ["paechter2_anschrift"] = data.Paechter2Anschrift,
+                ["paechter2_kontakt"] = data.Paechter2Kontakt,
 
-                ["parzelle_nummer"] = data.ParzelleNummer,
-                ["parzelle_flaeche_qm"] = data.ParzelleFlaecheQm,
-                ["pachtbeginn"] = data.Pachtbeginn,
-                ["pachtende"] = data.Pachtende,
+                ["parzelle_nr"] = data.ParzelleNummer,
+                ["lage_anlage"] = data.ParzelleAnlage,
+                ["flaeche_qm"] = data.ParzelleFlaecheQm,
+                ["vertragsbeginn"] = data.Pachtbeginn,
+                ["uebergabe_datum"] = data.UebergabeDatum,
+                ["befristung"] = data.Pachtende,
+                ["pachtzins_jahr"] = data.Jahrespacht,
+                ["faelligkeit"] = data.PachtzahlungFaelligBis,
 
-                ["pacht_pro_qm"] = data.PachtProQm,
-                ["parzelle_flaeche_qm_wiederholung"] = data.ParzelleFlaecheQmWiederholung,
-                ["jahrespacht"] = data.Jahrespacht,
-                ["pachtzahlung_faellig_bis"] = data.PachtzahlungFaelligBis,
-
-                ["altvertrag_datum"] = data.AltvertragDatum,
-
-                ["bankblock_mehrzeilig"] = data.BankblockMehrzeilig,
-                ["pacht_laufendes_jahr"] = data.PachtLaufendesJahr,
-
-                ["unterschrift_ort"] = data.UnterschriftOrt,
-                ["unterschrift_datum"] = data.UnterschriftDatum,
-
-                ["unterschrift_paechter1"] = string.Empty,
-                ["unterschrift_paechter2"] = string.Empty,
-                ["unterschrift_verpaechter"] = string.Empty,
-                ["anlagen_unterschrift_paechter1"] = string.Empty,
-                ["anlagen_unterschrift_paechter2"] = string.Empty
+                ["ort_datum"] = string.Join(", ", new[] { data.UnterschriftOrt, data.UnterschriftDatum }
+                    .Where(value => !string.IsNullOrWhiteSpace(value))),
+                ["paechter_druckname"] = data.Paechter1Vollname
             };
         }
 

@@ -43,6 +43,8 @@ namespace KGV.Infrastructure.DependencyInjection
                     sp.GetRequiredService<ISupabaseClientFactory>().Url,
                     sp.GetRequiredService<ISupabaseClientFactory>().Key));
 
+            services.AddSingleton<IJahresabschlussService, JahresabschlussService>();
+
             services.AddSingleton<IPhotoUploadTestService>(sp =>
                 new PhotoUploadTestService(
                     sp.GetRequiredService<IAuthService>(),

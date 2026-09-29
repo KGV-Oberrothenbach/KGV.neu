@@ -412,6 +412,12 @@ verify_jwt = false
 import_map = "./functions/kgv-upload-document/deno.json"
 entrypoint = "./functions/kgv-upload-document/index.ts"
 
+[functions.kgv-generate-contract]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/kgv-generate-contract/index.ts"
+static_files = [ "./functions/kgv-generate-contract/*.pdf", "./functions/kgv-generate-contract/*.json" ]
+
 [functions.kgv-request-first-login-otp]
 enabled = true
 verify_jwt = false

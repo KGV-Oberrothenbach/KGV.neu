@@ -26,6 +26,7 @@ public class MemberSearchViewModel : INotifyPropertyChanged
     private bool _isRefreshing;
     private bool _hasLoaded;
     private bool _searchByParzelle;
+    private bool _showInactiveMembers;
 
     public MemberSearchViewModel(ISupabaseService supabaseService)
     {
@@ -106,6 +107,20 @@ public class MemberSearchViewModel : INotifyPropertyChanged
                 return;
 
             _searchByParzelle = value;
+            OnPropertyChanged();
+            ApplyFilter();
+        }
+    }
+
+    public bool ShowInactiveMembers
+    {
+        get => _showInactiveMembers;
+        set
+        {
+            if (_showInactiveMembers == value)
+                return;
+
+            _showInactiveMembers = value;
             OnPropertyChanged();
             ApplyFilter();
         }
@@ -203,9 +218,13 @@ public class MemberSearchViewModel : INotifyPropertyChanged
         }
         else
         {
-            filtered = string.IsNullOrWhiteSpace(term)
+            var selectableMembers = ShowInactiveMembers
                 ? _allMembers
-                : _allMembers.Where(m =>
+                : _allMembers.Where(m => m.IsActive);
+
+            filtered = string.IsNullOrWhiteSpace(term)
+                ? selectableMembers
+                : selectableMembers.Where(m =>
                     (!string.IsNullOrWhiteSpace(m.DisplayName) && m.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
                     (!string.IsNullOrWhiteSpace(m.Email) && m.Email.Contains(term, StringComparison.OrdinalIgnoreCase)));
         }
@@ -273,7 +292,8 @@ public class MemberSearchViewModel : INotifyPropertyChanged
             gartenNummernText,
             !member.HauptmitgliedId.HasValue || member.HauptmitgliedId.Value <= 0,
             true,
-            false);
+            false,
+            member.Aktiv && (!member.MitgliedEnde.HasValue || member.MitgliedEnde.Value.Date >= DateTime.Today));
     }
 
     private MemberSearchResultItem MapToMemberResultWithDetails(MitgliedRecord member)
@@ -323,7 +343,8 @@ public class MemberSearchViewModel : INotifyPropertyChanged
             string.Empty,
             false,
             false,
-            false);
+            false,
+            true);
     }
 
     private static Dictionary<int, List<GartenDTO>> BuildGartenLookup(IReadOnlyCollection<ParzelleRecord> parzellen, IReadOnlyCollection<ParzellenBelegungRecord> belegungen)
@@ -364,7 +385,7 @@ public class MemberSearchViewModel : INotifyPropertyChanged
     }
 }
 
-public sealed record MemberSearchResultItem(int? MemberId, int? ParzelleId, string DisplayName, string Email, string Title, string Subtitle, string GartenNummernText, bool IstHauptmitglied, bool IsMemberResult, bool HasGartenNummern)
+public sealed record MemberSearchResultItem(int? MemberId, int? ParzelleId, string DisplayName, string Email, string Title, string Subtitle, string GartenNummernText, bool IstHauptmitglied, bool IsMemberResult, bool HasGartenNummern, bool IsActive)
 {
     public bool HasSubtitle => !string.IsNullOrWhiteSpace(Subtitle);
 };

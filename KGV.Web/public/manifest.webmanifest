@@ -1,0 +1,19 @@
+{
+  "name": "KGV Verwaltung",
+  "short_name": "KGV",
+  "description": "Browser-App für die KGV-Verwaltung.",
+  "lang": "de",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f1",
+  "theme_color": "#b7ba5a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

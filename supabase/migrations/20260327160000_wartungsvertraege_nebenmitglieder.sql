@@ -238,7 +238,12 @@ begin
 end;
 $$;
 
-CREATE OR REPLACE VIEW public.v_pflichtstunden_uebersicht AS
+-- Die Remote-View kann aus einer älteren Fassung eine abweichende
+-- Spaltenbezeichnung enthalten. DROP ist hier erforderlich, damit die
+-- definierte Spaltenreihenfolge und -namen atomar neu angelegt werden.
+DROP VIEW IF EXISTS public.v_pflichtstunden_uebersicht;
+
+CREATE VIEW public.v_pflichtstunden_uebersicht AS
  SELECT s.id AS saison_id,
     s.jahr AS jahr,
     s.jahr AS saison_jahr,

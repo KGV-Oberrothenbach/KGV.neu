@@ -25,6 +25,7 @@ namespace KGV.Infrastructure.Services
     public class SupabaseService : ISupabaseService
     {
         private const string DokumentUploadFunctionName = "kgv-upload-document";
+        private const string MitgliedRegelwerkeVersandFunctionName = "kgv-send-membership-documents";
         private const string AllowUserMeterReadingSubmissionsSettingKey = "allow_user_meter_reading_submissions";
         private const string MeterReadingPhotoRequiredSettingKey = "meter_reading_photo_required";
         private readonly ISupabaseClientFactory _clientFactory;
@@ -925,6 +926,54 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
+        public Task<MitgliedRegelwerkeVersandResult> SendMitgliedRegelwerkeAsync(int mitgliedId) => ExecuteAsync(
+            "SendMitgliedRegelwerkeAsync",
+            async () =>
+            {
+                if (mitgliedId <= 0)
+                    return MitgliedRegelwerkeVersandResult.Fail("Bitte zuerst ein gültiges Mitglied auswählen.", "REGELWERKE_VERSAND_MEMBER_INVALID");
+
+                if (string.IsNullOrWhiteSpace(_supabaseUrl) || string.IsNullOrWhiteSpace(_publishableKey))
+                    return MitgliedRegelwerkeVersandResult.Fail("Der Dokumentenversand ist noch nicht konfiguriert.", "REGELWERKE_VERSAND_CONFIG_MISSING");
+
+                var accessToken = await _authService.GetAccessTokenAsync();
+                if (string.IsNullOrWhiteSpace(accessToken))
+                    return MitgliedRegelwerkeVersandResult.Fail("Die aktuelle Anmeldung ist abgelaufen. Bitte erneut anmelden.", "REGELWERKE_VERSAND_AUTH_MISSING");
+
+                var endpoint = new Uri(
+                    new Uri(_supabaseUrl.TrimEnd('/') + "/"),
+                    $"functions/v1/{MitgliedRegelwerkeVersandFunctionName}");
+                using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+                {
+                    Content = new StringContent(
+                        JsonSerializer.Serialize(new { mitglied_id = mitgliedId }),
+                        Encoding.UTF8,
+                        "application/json")
+                };
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                request.Headers.Add("apikey", _publishableKey);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                using var response = await _documentUploadHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                var rawBody = await response.Content.ReadAsStringAsync();
+                var edgeResponse = DeserializeMitgliedRegelwerkeVersandResponse(rawBody);
+
+                if (!response.IsSuccessStatusCode || edgeResponse?.Success != true || !edgeResponse.VersandtAm.HasValue)
+                {
+                    _logger?.LogWarning(
+                        "SendMitgliedRegelwerkeAsync rejected. MitgliedId={MitgliedId}, Status={StatusCode}, DiagnosticCode={DiagnosticCode}",
+                        mitgliedId,
+                        (int)response.StatusCode,
+                        edgeResponse?.DiagnosticCode);
+                    return MitgliedRegelwerkeVersandResult.Fail(
+                        edgeResponse?.Message ?? "Der Versand der Vereinsregelwerke konnte nicht bestätigt werden.",
+                        edgeResponse?.DiagnosticCode ?? $"REGELWERKE_VERSAND_HTTP_{(int)response.StatusCode}");
+                }
+
+                return MitgliedRegelwerkeVersandResult.Ok(edgeResponse.VersandtAm.Value, edgeResponse.Message);
+            },
+            MitgliedRegelwerkeVersandResult.Fail("Der Versand der Vereinsregelwerke konnte nicht bestätigt werden.", "REGELWERKE_VERSAND_EXCEPTION"));
+
         public Task<bool> UpdateMitgliedAsync(MemberDTO dto, string userId) => ExecuteAsync(
             "UpdateMitgliedAsync",
             async () =>
@@ -1783,7 +1832,7 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
-        public Task<bool> EndParzellenBelegungAsync(int belegungId, DateTime bisDatum) => ExecuteAsync(
+        public Task<bool> EndParzellenBelegungAsync(int belegungId, DateTime bisDatum, string? beendigungsgrund = null) => ExecuteAsync(
             "EndParzellenBelegungAsync",
             async () =>
             {
@@ -1802,10 +1851,15 @@ namespace KGV.Infrastructure.Services
                 if (normalizedEnd.Date < normalizedStart)
                     return false;
 
+                var normalizedReason = CleanOptionalText(beendigungsgrund);
+                if (normalizedReason is not null && normalizedReason is not ("kuendigung" or "tod" or "wechsel" or "sonstiges"))
+                    return false;
+
                 await client
                     .From<ParzellenBelegungRecord>()
                     .Where(x => x.Id == belegungId)
                     .Set(x => x.BisDatum, normalizedEnd)
+                    .Set(x => x.Beendigungsgrund, normalizedReason)
                     .Update();
 
                 return true;
@@ -2301,6 +2355,188 @@ namespace KGV.Infrastructure.Services
                     ?? new List<SaisonRecord>();
             },
             new List<SaisonRecord>());
+
+        public Task<JahresabschlussRecord?> GetJahresabschlussBySaisonAsync(int saisonId) => ExecuteAsync<JahresabschlussRecord?>(
+            "GetJahresabschlussBySaisonAsync",
+            async () =>
+            {
+                if (saisonId <= 0)
+                    return null;
+
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<JahresabschlussRecord>()
+                    .Where(x => x.SaisonId == saisonId)
+                    .Get();
+
+                return response?.Models?.SingleOrDefault();
+            },
+            null);
+
+        public Task<List<JahresabschlussRechnungRecord>> GetJahresabschlussRechnungenAsync(int saisonId) => ExecuteAsync(
+            "GetJahresabschlussRechnungenAsync",
+            async () =>
+            {
+                if (saisonId <= 0)
+                    return new List<JahresabschlussRechnungRecord>();
+
+                var client = await EnsureClientAsync();
+                var response = await client
+                    .From<JahresabschlussRechnungRecord>()
+                    .Where(x => x.SaisonId == saisonId)
+                    .Get();
+
+                return response?.Models?
+                    .OrderByDescending(x => x.Rechnungsdatum)
+                    .ThenByDescending(x => x.Id)
+                    .ToList()
+                    ?? new List<JahresabschlussRechnungRecord>();
+            },
+            new List<JahresabschlussRechnungRecord>());
+
+        public Task<JahresabschlussRecord?> SaveJahresabschlussAsync(JahresabschlussRecord jahresabschluss) => ExecuteAsync<JahresabschlussRecord?>(
+            "SaveJahresabschlussAsync", async () =>
+            {
+                if (jahresabschluss.SaisonId <= 0) throw new InvalidOperationException("Eine Saison ist für den Jahresabschluss erforderlich.");
+                var client = await EnsureClientAsync();
+                var existing = await GetJahresabschlussBySaisonAsync(jahresabschluss.SaisonId);
+                if (existing == null)
+                    return (await client.From<JahresabschlussRecord>().Insert(jahresabschluss))?.Models?.FirstOrDefault();
+                if (existing.Status == JahresabschlussStatus.Abgeschlossen) throw new InvalidOperationException("Ein abgeschlossener Jahresabschluss darf nicht neu berechnet werden.");
+                return (await client.From<JahresabschlussRecord>().Where(x => x.Id == existing.Id)
+                    .Set(x => x.Status, jahresabschluss.Status).Set(x => x.BerechnungVersion, jahresabschluss.BerechnungVersion)
+                    .Set(x => x.Bemerkung, jahresabschluss.Bemerkung).Update())?.Models?.FirstOrDefault() ?? existing;
+            }, null);
+
+        public Task<List<JahresabschlussPositionRecord>> GetJahresabschlussPositionenAsync(long jahresabschlussId) => ExecuteAsync(
+            "GetJahresabschlussPositionenAsync", async () =>
+            {
+                if (jahresabschlussId <= 0) return new List<JahresabschlussPositionRecord>();
+                var client = await EnsureClientAsync();
+                var response = await client.From<JahresabschlussPositionRecord>().Where(x => x.JahresabschlussId == jahresabschlussId).Get();
+                return response?.Models?.OrderBy(x => x.MitgliedId).ThenBy(x => x.ParzelleId).ThenBy(x => x.Id).ToList() ?? new List<JahresabschlussPositionRecord>();
+            }, new List<JahresabschlussPositionRecord>());
+
+        public Task<bool> ReplaceJahresabschlussPositionenAsync(long jahresabschlussId, IReadOnlyList<JahresabschlussPositionRecord> positionen) => ExecuteAsync(
+            "ReplaceJahresabschlussPositionenAsync", async () =>
+            {
+                if (jahresabschlussId <= 0) throw new InvalidOperationException("Ungültiger Jahresabschluss.");
+                var client = await EnsureClientAsync();
+                await client.From<JahresabschlussPositionRecord>().Where(x => x.JahresabschlussId == jahresabschlussId).Delete();
+                if (positionen.Count > 0) await client.From<JahresabschlussPositionRecord>().Insert(positionen.ToList());
+                return true;
+            }, false);
+
+        public Task<JahresabschlussRecord?> FinalizeJahresabschlussAsync(long jahresabschlussId, long abgeschlossenVon) => ExecuteAsync<JahresabschlussRecord?>(
+            "FinalizeJahresabschlussAsync", async () =>
+            {
+                if (jahresabschlussId <= 0 || abgeschlossenVon <= 0) throw new InvalidOperationException("Abschluss und abschließendes Mitglied sind erforderlich.");
+                var client = await EnsureClientAsync();
+                return (await client.From<JahresabschlussRecord>().Where(x => x.Id == jahresabschlussId)
+                    .Set(x => x.Status, JahresabschlussStatus.Abgeschlossen)
+                    .Set(x => x.AbgeschlossenAm, DateTime.UtcNow)
+                    .Set(x => x.AbgeschlossenVon, abgeschlossenVon).Update())?.Models?.FirstOrDefault();
+            }, null);
+
+        public Task<List<JahresabschlussRechnungZuordnungRecord>> GetJahresabschlussRechnungZuordnungenAsync(long rechnungId) => ExecuteAsync(
+            "GetJahresabschlussRechnungZuordnungenAsync",
+            async () =>
+            {
+                if (rechnungId <= 0) return new List<JahresabschlussRechnungZuordnungRecord>();
+                var client = await EnsureClientAsync();
+                var response = await client.From<JahresabschlussRechnungZuordnungRecord>()
+                    .Where(x => x.RechnungId == rechnungId).Get();
+                return response?.Models?.OrderBy(x => x.Id).ToList() ?? new List<JahresabschlussRechnungZuordnungRecord>();
+            }, new List<JahresabschlussRechnungZuordnungRecord>());
+
+        public Task<List<KostenartRecord>> GetKostenartenAsync(bool includeInactive = false) => ExecuteAsync(
+            "GetKostenartenAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client.From<KostenartRecord>().Get();
+                return response?.Models?
+                    .Where(x => includeInactive || x.Aktiv)
+                    .OrderBy(x => x.Bezeichnung)
+                    .ToList() ?? new List<KostenartRecord>();
+            },
+            new List<KostenartRecord>());
+
+        public Task<List<UmlageartRecord>> GetUmlageartenAsync(bool includeInactive = false) => ExecuteAsync(
+            "GetUmlageartenAsync",
+            async () =>
+            {
+                var client = await EnsureClientAsync();
+                var response = await client.From<UmlageartRecord>().Get();
+                return response?.Models?
+                    .Where(x => includeInactive || x.Aktiv)
+                    .OrderBy(x => x.Kuerzel)
+                    .ToList() ?? new List<UmlageartRecord>();
+            },
+            new List<UmlageartRecord>());
+
+        public Task<KostenartRecord?> SaveKostenartAsync(KostenartRecord kostenart) => ExecuteAsync<KostenartRecord?>(
+            "SaveKostenartAsync", async () =>
+            {
+                if (string.IsNullOrWhiteSpace(kostenart.Bezeichnung)) throw new InvalidOperationException("Die Bezeichnung der Kostenart ist erforderlich.");
+                var client = await EnsureClientAsync();
+                if (kostenart.Id <= 0)
+                    return (await client.From<KostenartRecord>().Insert(kostenart))?.Models?.FirstOrDefault();
+                return (await client.From<KostenartRecord>().Where(x => x.Id == kostenart.Id)
+                    .Set(x => x.Bezeichnung, kostenart.Bezeichnung.Trim()).Set(x => x.Beschreibung, kostenart.Beschreibung)
+                    .Set(x => x.Aktiv, kostenart.Aktiv).Update())?.Models?.FirstOrDefault() ?? kostenart;
+            }, null);
+
+        public Task<UmlageartRecord?> SaveUmlageartAsync(UmlageartRecord umlageart) => ExecuteAsync<UmlageartRecord?>(
+            "SaveUmlageartAsync", async () =>
+            {
+                if (string.IsNullOrWhiteSpace(umlageart.Kuerzel) || string.IsNullOrWhiteSpace(umlageart.Bezeichnung) || string.IsNullOrWhiteSpace(umlageart.Verteilung))
+                    throw new InvalidOperationException("Kürzel, Bezeichnung und Verteilung sind erforderlich.");
+                var client = await EnsureClientAsync();
+                if (umlageart.Id <= 0)
+                    return (await client.From<UmlageartRecord>().Insert(umlageart))?.Models?.FirstOrDefault();
+                return (await client.From<UmlageartRecord>().Where(x => x.Id == umlageart.Id)
+                    .Set(x => x.Kuerzel, umlageart.Kuerzel.Trim().ToUpperInvariant()).Set(x => x.Bezeichnung, umlageart.Bezeichnung.Trim())
+                    .Set(x => x.Verteilung, umlageart.Verteilung).Set(x => x.Aktiv, umlageart.Aktiv).Update())?.Models?.FirstOrDefault() ?? umlageart;
+            }, null);
+
+        public Task<JahresabschlussRechnungRecord?> SaveJahresabschlussRechnungAsync(JahresabschlussRechnungRecord rechnung) => ExecuteAsync<JahresabschlussRechnungRecord?>(
+            "SaveJahresabschlussRechnungAsync", async () =>
+            {
+                if (rechnung.SaisonId <= 0 || string.IsNullOrWhiteSpace(rechnung.Lieferant) || rechnung.Gesamtbetrag < 0)
+                    throw new InvalidOperationException("Saison, Lieferant und ein gültiger Gesamtbetrag sind erforderlich.");
+                var client = await EnsureClientAsync();
+                if (rechnung.Id <= 0)
+                    return (await client.From<JahresabschlussRechnungRecord>().Insert(rechnung))?.Models?.FirstOrDefault();
+                return (await client.From<JahresabschlussRechnungRecord>().Where(x => x.Id == rechnung.Id)
+                    .Set(x => x.Lieferant, rechnung.Lieferant.Trim()).Set(x => x.Rechnungsnummer, rechnung.Rechnungsnummer)
+                    .Set(x => x.Rechnungsdatum, rechnung.Rechnungsdatum).Set(x => x.LeistungsVon, rechnung.LeistungsVon)
+                    .Set(x => x.LeistungsBis, rechnung.LeistungsBis).Set(x => x.Gesamtbetrag, rechnung.Gesamtbetrag)
+                    .Set(x => x.Bemerkung, rechnung.Bemerkung).Update())?.Models?.FirstOrDefault() ?? rechnung;
+            }, null);
+
+        public Task<JahresabschlussRechnungZuordnungRecord?> SaveJahresabschlussRechnungZuordnungAsync(JahresabschlussRechnungZuordnungRecord zuordnung) => ExecuteAsync<JahresabschlussRechnungZuordnungRecord?>(
+            "SaveJahresabschlussRechnungZuordnungAsync", async () =>
+            {
+                if (zuordnung.RechnungId <= 0 || zuordnung.KostenartId <= 0 || zuordnung.UmlageartId <= 0 || zuordnung.Betrag <= 0)
+                    throw new InvalidOperationException("Kostenart, Umlageart und ein Betrag größer null sind erforderlich.");
+                var client = await EnsureClientAsync();
+                if (zuordnung.Id <= 0)
+                    return (await client.From<JahresabschlussRechnungZuordnungRecord>().Insert(zuordnung))?.Models?.FirstOrDefault();
+                return (await client.From<JahresabschlussRechnungZuordnungRecord>().Where(x => x.Id == zuordnung.Id)
+                    .Set(x => x.KostenartId, zuordnung.KostenartId).Set(x => x.UmlageartId, zuordnung.UmlageartId)
+                    .Set(x => x.Betrag, zuordnung.Betrag).Set(x => x.ParzelleId, zuordnung.ParzelleId)
+                    .Set(x => x.MitgliedId, zuordnung.MitgliedId).Set(x => x.Bemerkung, zuordnung.Bemerkung).Update())?.Models?.FirstOrDefault() ?? zuordnung;
+            }, null);
+
+        public Task<bool> DeleteJahresabschlussRechnungZuordnungAsync(long zuordnungId) => ExecuteAsync(
+            "DeleteJahresabschlussRechnungZuordnungAsync", async () =>
+            {
+                if (zuordnungId <= 0) return false;
+                var client = await EnsureClientAsync();
+                await client.From<JahresabschlussRechnungZuordnungRecord>().Where(x => x.Id == zuordnungId).Delete();
+                return true;
+            }, false);
 
         public Task<SaisonRecord?> SaveSaisonAsync(SaisonRecord saison) => ExecuteAsync<SaisonRecord?>(
             "SaveSaisonAsync",
@@ -7708,6 +7944,36 @@ namespace KGV.Infrastructure.Services
             {
                 return null;
             }
+        }
+
+        private static MitgliedRegelwerkeVersandFunctionResponse? DeserializeMitgliedRegelwerkeVersandResponse(string? rawBody)
+        {
+            if (string.IsNullOrWhiteSpace(rawBody))
+                return null;
+
+            try
+            {
+                return JsonSerializer.Deserialize<MitgliedRegelwerkeVersandFunctionResponse>(rawBody);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private sealed class MitgliedRegelwerkeVersandFunctionResponse
+        {
+            [JsonPropertyName("success")]
+            public bool Success { get; set; }
+
+            [JsonPropertyName("message")]
+            public string? Message { get; set; }
+
+            [JsonPropertyName("diagnostic_code")]
+            public string? DiagnosticCode { get; set; }
+
+            [JsonPropertyName("versandt_am")]
+            public DateTime? VersandtAm { get; set; }
         }
 
         private sealed class DokumentUploadFunctionResponse

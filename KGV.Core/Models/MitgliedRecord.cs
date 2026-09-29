@@ -67,6 +67,13 @@ namespace KGV.Core.Models
         [Column("email_info_einwilligung")]
         public bool EmailInfoEinwilligung { get; set; }
 
+        /// <summary>
+        /// Wird ausschließlich serverseitig gesetzt, nachdem die aktuelle Regelwerks-E-Mail
+        /// vom Maildienst angenommen wurde. Solange der Wert fehlt, bleibt der Nachsende-Flow offen.
+        /// </summary>
+        [Column("regelwerke_versandt_am")]
+        public DateTime? RegelwerkeVersandtAm { get; set; }
+
         [Column("arbeitsstunden_altersregel_typ")]
         public string ArbeitsstundenAltersregelTyp { get; set; } = "keine";
 

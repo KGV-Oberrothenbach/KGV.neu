@@ -21,6 +21,11 @@
                 <Label Text="nach Gartennummer suchen" VerticalTextAlignment="Center" />
             </HorizontalStackLayout>
 
+            <HorizontalStackLayout Spacing="8">
+                <CheckBox IsChecked="{Binding ShowInactiveMembers}" />
+                <Label Text="Inaktive Mitglieder anzeigen" VerticalTextAlignment="Center" />
+            </HorizontalStackLayout>
+
             <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
         </VerticalStackLayout>
 

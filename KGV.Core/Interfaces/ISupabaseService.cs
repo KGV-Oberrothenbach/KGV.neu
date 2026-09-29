@@ -20,6 +20,11 @@ namespace KGV.Core.Interfaces
         // ✅ Vollständige Stammdaten
         Task<MitgliedRecord?> GetMitgliedByIdAsync(int mitgliedId);
         Task<MitgliedRecord?> CreateMitgliedAsync(MemberDTO dto);
+        /// <summary>
+        /// Versendet Satzung, Kleingartenordnung und Beitragsordnung und dokumentiert
+        /// den erfolgreichen Versand serverseitig beim Mitglied.
+        /// </summary>
+        Task<MitgliedRegelwerkeVersandResult> SendMitgliedRegelwerkeAsync(int mitgliedId);
         Task<bool> UpdateMitgliedAsync(MemberDTO dto, string userId);
         Task<MembershipEndResult> EndMembershipAsync(int mainMemberId, DateTime endDate, MembershipEndDecision? secondaryDecision, string userId, int timeoutMinutes = 10);
 
@@ -41,7 +46,7 @@ namespace KGV.Core.Interfaces
         Task<List<ParzellenBelegungRecord>> GetBelegungenForMitgliedAsync(int mitgliedId);
         Task<List<ParzellenBelegungRecord>> GetAllParzellenBelegungenAsync();
         Task<bool> AssignParzelleToMitgliedAsync(int mitgliedId, int parzelleId, DateTime startDatum);
-        Task<bool> EndParzellenBelegungAsync(int belegungId, DateTime bisDatum);
+        Task<bool> EndParzellenBelegungAsync(int belegungId, DateTime bisDatum, string? beendigungsgrund = null);
 
         Task<List<ZaehlerAblesungDTO>> GetStromAblesungenAsync(int parzelleId);
         Task<List<ZaehlerAblesungDTO>> GetWasserAblesungenAsync(int parzelleId);
@@ -87,6 +92,20 @@ namespace KGV.Core.Interfaces
         // =========================
         Task<List<SaisonRecord>> GetSaisonRecordsAsync();
         Task<SaisonRecord?> SaveSaisonAsync(SaisonRecord saison);
+        Task<JahresabschlussRecord?> GetJahresabschlussBySaisonAsync(int saisonId);
+        Task<JahresabschlussRecord?> SaveJahresabschlussAsync(JahresabschlussRecord jahresabschluss);
+        Task<List<JahresabschlussPositionRecord>> GetJahresabschlussPositionenAsync(long jahresabschlussId);
+        Task<bool> ReplaceJahresabschlussPositionenAsync(long jahresabschlussId, IReadOnlyList<JahresabschlussPositionRecord> positionen);
+        Task<JahresabschlussRecord?> FinalizeJahresabschlussAsync(long jahresabschlussId, long abgeschlossenVon);
+        Task<List<JahresabschlussRechnungRecord>> GetJahresabschlussRechnungenAsync(int saisonId);
+        Task<List<JahresabschlussRechnungZuordnungRecord>> GetJahresabschlussRechnungZuordnungenAsync(long rechnungId);
+        Task<List<KostenartRecord>> GetKostenartenAsync(bool includeInactive = false);
+        Task<List<UmlageartRecord>> GetUmlageartenAsync(bool includeInactive = false);
+        Task<KostenartRecord?> SaveKostenartAsync(KostenartRecord kostenart);
+        Task<UmlageartRecord?> SaveUmlageartAsync(UmlageartRecord umlageart);
+        Task<JahresabschlussRechnungRecord?> SaveJahresabschlussRechnungAsync(JahresabschlussRechnungRecord rechnung);
+        Task<JahresabschlussRechnungZuordnungRecord?> SaveJahresabschlussRechnungZuordnungAsync(JahresabschlussRechnungZuordnungRecord zuordnung);
+        Task<bool> DeleteJahresabschlussRechnungZuordnungAsync(long zuordnungId);
         Task<MitgliedRecord?> GetMitgliedByAuthUserIdAsync(Guid authUserId);
         Task<MitgliedRecord?> GetMitgliedByAuthUserIdAsync(string authUserId);
 
