@@ -26,6 +26,24 @@ public sealed class PendingPhotoSyncService
         _vereinskontext = vereinskontext;
     }
 
+    private static string MapUploadKind(string operationType)
+    {
+        if (string.IsNullOrWhiteSpace(operationType))
+            return "ablesung";
+
+        var op = operationType.Trim().ToLowerInvariant();
+        return op switch
+        {
+            "einbau" => "einbau",
+            "ausbau" => "ausbau",
+            // treat legacy or incorrect values like "normal" or "jahresendablesung" as "ablesung"
+            _ => "ablesung",
+        };
+    }
+
+    private static string NormalizeMediumForUpload(string? medium)
+        => string.Equals(medium, "wasser", StringComparison.OrdinalIgnoreCase) ? "wasser" : "strom";
+
     public async Task<PendingPhotoSyncResult> TrySyncOnceAsync(CancellationToken cancellationToken = default)
     {
         var result = new PendingPhotoSyncResult();
@@ -96,8 +114,8 @@ public sealed class PendingPhotoSyncService
                         FileName = latest.FileName,
                         ContentType = latest.ContentType,
                         FileContent = content,
-                        Kind = latest.OperationType,
-                        Medium = latest.Medium,
+                        Kind = MapUploadKind(latest.OperationType),
+                        Medium = NormalizeMediumForUpload(latest.Medium),
                         Anlage = string.Empty,
                         Garten = latest.Parzelle,
                         Datum = DateTime.Today

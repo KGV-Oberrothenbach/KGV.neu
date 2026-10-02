@@ -630,11 +630,12 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
 
     private static string MapPhotoKind(string art)
     {
+        // Edge function akzeptiert nur: "ablesung", "einbau", "ausbau"
+        // Normale Ablesungen sowie Jahresendablesungen müssen als "ablesung" hochgeladen werden.
         return AblesungArt.Normalize(art) switch
         {
             AblesungArt.Einbau => "einbau",
             AblesungArt.Ausbau => "ausbau",
-            AblesungArt.JahresEnde => "jahresendablesung",
             _ => "ablesung"
         };
     }
