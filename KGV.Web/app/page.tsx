@@ -31,6 +31,7 @@ import {
 import { type ClubContext } from "../models/auth/club";
 import { ClubSelection } from "../features/auth/ClubSelection";
 import { LoginForm } from "../features/auth/LoginForm";
+import { OtpFlow } from "../features/auth/OtpFlow";
 import { resolveClub } from "../services/auth/club-service";
 import { signIn } from "../services/auth/auth-service";
 import { enqueueMeterPhoto, listPendingMeterPhotos, ndefReaderConstructor, pendingPhotoFile, putPendingMeterPhoto, removePendingMeterPhoto, type PendingMeterPhoto } from "../lib/browser-media";
@@ -162,7 +163,10 @@ export default function Home() {
         {configError ? (
           <p className="notice" role="alert">Die Verbindung zu Supabase ist noch nicht eingerichtet.</p>
         ) : (
-          <LoginForm onSignIn={handleLogin} disabled={status === "checking"} message={message} />
+          <>
+            <LoginForm onSignIn={handleLogin} disabled={status === "checking"} message={message} />
+            <OtpFlow club={club!} disabled={status === "checking"} />
+          </>
         )}
         <p className="fine-print">Der Zugriff wird nach der Anmeldung anhand deiner hinterlegten Vereinsrolle geprüft.</p>
         <button className="change-club" type="button" onClick={changeClub}>Anderen Verein auswählen</button>

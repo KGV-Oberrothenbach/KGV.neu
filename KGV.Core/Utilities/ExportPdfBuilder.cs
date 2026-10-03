@@ -292,12 +292,7 @@ namespace KGV.Core.Utilities
             const double headerRowHeight = 24;
             var columnWidths = new[] { 48d, 100d, 166d, 70d, 82d, 70d };
             var headers = new[] { "Garten Nr.", "Name", "E-Mail", "E-Mail-Info", "E-Mail-Rechnung", "WhatsApp" };
-            var orderedRows = rows
-                .OrderBy(row => GetGartenSortNumber(GetRowValue(row, "garten_nr")))
-                .ThenBy(row => GetRowValue(row, "garten_nr"), StringComparer.CurrentCultureIgnoreCase)
-                .ThenBy(row => GetRowValue(row, "name"), StringComparer.CurrentCultureIgnoreCase)
-                .ThenBy(row => GetRowValue(row, "email"), StringComparer.CurrentCultureIgnoreCase)
-                .ToList();
+            var orderedRows = rows.ToList();
 
             var doc = new PdfDocument();
             doc.Info.Title = "Datenschutz - aktive Mitglieder";

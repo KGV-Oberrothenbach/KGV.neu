@@ -7817,6 +7817,11 @@ Gartenlogik:
 - Gartennummer über `parzelle.garten_nr`
 - leere Gartennummern ausschließen, deduplizieren und sortieren
 - mehrere Gartennummern mit `, ` verbinden
+- Haupt- und Nebenmitglieder werden als fachliche Gruppe ausgegeben
+- Gruppenschlüssel ist der Hauptmitgliedskontext
+- die Gartensortierung richtet sich nach dem Hauptmitglied
+- das Hauptmitglied erscheint vor seinen Nebenmitgliedern
+- das PDF übernimmt die RPC-Reihenfolge und sortiert nicht eigenständig nach der sichtbaren Gartennummer
 
 Architektur:
 
