@@ -7780,6 +7780,68 @@ Filter und Spalten werden separat konfiguriert.
 ### Ziel
 Neue Exporte sollen möglichst ohne neue React-Sonderlogik angelegt werden können.
 
+## 14.5.1 Datenschutz – aktive Mitglieder
+
+Der Datenschutz-Export gehört fachlich zu G14. G3 und G5 liefern dabei lediglich
+Mitglieds- und Parzellendaten.
+
+Export-Key:
+
+```text
+datenschutz_aktive_mitglieder
+```
+
+Spalten in dieser Reihenfolge:
+
+1. Garten Nr.
+2. Name
+3. E-Mail
+4. E-Mail-Info
+5. E-Mail-Rechnung
+6. WhatsApp
+
+Datenlogik:
+
+- nur aktive Mitglieder (`mitglied.aktiv = true`)
+- `mitglied_ende` ist `NULL` oder mindestens `current_date`
+- Demodaten sind ausgeschlossen
+- E-Mail = `mitglied.email`
+- E-Mail-Info = `email_info_einwilligung`
+- E-Mail-Rechnung = `email_rechnung_einwilligung`
+- WhatsApp = `whatsapp_einwilligung`
+
+Gartenlogik:
+
+- nur aktuell gültige `parzellen_belegung` (`von_datum` ist `NULL` oder höchstens
+  `current_date`; `bis_datum` ist `NULL` oder mindestens `current_date`)
+- Gartennummer über `parzelle.garten_nr`
+- leere Gartennummern ausschließen, deduplizieren und sortieren
+- mehrere Gartennummern mit `, ` verbinden
+
+Architektur:
+
+- Exportdefinition und Spalten kommen über `app_export_*`
+- Datenquelle ist `rpc_export_datenschutz_aktive_mitglieder`
+- der Export bleibt damit metadata-driven
+- Web benötigt für Anzeige und CSV keinen neuen `export_key`-Sonderfall
+
+Aktueller Plattformstand:
+
+- MAUI verwendet Anzeige und CSV über die bestehende Exportinfrastruktur und
+  besitzt zusätzlich ein spezielles Vereins-PDF im A4-Hochformat. Das
+  Vereinsdokumentbranding liefert Logo, Vereinsname, Register, Vereins-E-Mail
+  und grüne Linie; Tabellenköpfe werden auf Folgeseiten wiederholt, Ja/Nein-
+  Spalten sind kompakt.
+- Web kann Definition, RPC und Spalten bereits über das metadata-driven
+  `ExportCenter` für Anzeige und CSV verwenden. PDF läuft weiterhin über
+  `window.print()`; der spezielle .NET-PDF-Builder wird im Browser nicht
+  verwendet.
+
+Offener G14-Punkt: Soll Web später dieselbe deterministische Vereins-PDF
+erzeugen, ist ein sauberer gemeinsamer oder serverseitiger PDF-Weg erforderlich.
+Es wird keine zweite spezielle PDF-Implementierung in React oder `page.tsx`
+gebaut.
+
 ---
 
 ## 14.6 Dynamische Filter

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AppUserContext,
   BrowserSession,
@@ -23,7 +23,6 @@ import {
   releaseAllBrowserEditLocks,
   saveWorkspaceContext,
   sendPasswordReset,
-  signIn,
   signOut,
   uploadDocument,
   uploadMeterPhoto,
@@ -31,7 +30,9 @@ import {
 } from "../lib/supabase-auth";
 import { type ClubContext } from "../models/auth/club";
 import { ClubSelection } from "../features/auth/ClubSelection";
+import { LoginForm } from "../features/auth/LoginForm";
 import { resolveClub } from "../services/auth/club-service";
+import { signIn } from "../services/auth/auth-service";
 import { enqueueMeterPhoto, listPendingMeterPhotos, ndefReaderConstructor, pendingPhotoFile, putPendingMeterPhoto, removePendingMeterPhoto, type PendingMeterPhoto } from "../lib/browser-media";
 import { useEditLock } from "../lib/use-edit-lock";
 import { MemberGardensWorkspace, ParcelProtocolsWorkspace, ParcelWorkspace } from "./parcel-workspaces";
@@ -43,10 +44,7 @@ export default function Home() {
   const [session, setSession] = useState<BrowserSession | null>(null);
   const [context, setContext] = useState<AppUserContext | null>(null);
   const [club, setClub] = useState<ClubContext | null>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   async function establishSession(candidate: BrowserSession) {
     const userContext = await loadAppUserContext(candidate);
@@ -137,19 +135,14 @@ export default function Home() {
     setSession(null); setContext(null); setClub(null); setMessage(""); setStatus("club-selection");
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitting(true);
+  async function handleLogin(email: string, password: string) {
     setMessage("");
     try {
-      await establishSession(await signIn(email.trim(), password));
-      setPassword("");
+      await establishSession(await signIn(club!, email, password));
     } catch (error) {
       clearSession();
       setStatus("access-error");
-      setMessage(error instanceof Error ? error.message : "Anmeldung nicht möglich.");
-    } finally {
-      setSubmitting(false);
+      throw error;
     }
   }
 
@@ -169,14 +162,7 @@ export default function Home() {
         {configError ? (
           <p className="notice" role="alert">Die Verbindung zu Supabase ist noch nicht eingerichtet.</p>
         ) : (
-          <form onSubmit={handleSubmit} className="login-form" autoComplete="on">
-            <label htmlFor="email">E-Mail-Adresse</label>
-            <input id="email" name="username" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required />
-            <label htmlFor="password">Passwort</label>
-            <input id="password" name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
-            {message && <p className="notice" role="alert">{message}</p>}
-            <button type="submit" disabled={submitting || status === "checking"}>{submitting ? "Anmeldung wird geprüft …" : "Anmelden"}</button>
-          </form>
+          <LoginForm onSignIn={handleLogin} disabled={status === "checking"} message={message} />
         )}
         <p className="fine-print">Der Zugriff wird nach der Anmeldung anhand deiner hinterlegten Vereinsrolle geprüft.</p>
         <button className="change-club" type="button" onClick={changeClub}>Anderen Verein auswählen</button>

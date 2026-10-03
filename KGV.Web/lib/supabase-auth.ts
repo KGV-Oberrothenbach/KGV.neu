@@ -154,34 +154,6 @@ export async function signOut(session: BrowserSession) {
   }).catch(() => undefined);
 }
 
-export async function signIn(email: string, password: string): Promise<BrowserSession> {
-  const { url, publishableKey } = config();
-  const response = await fetch(`${url}/auth/v1/token?grant_type=password`, {
-    method: "POST",
-    headers: { apikey: publishableKey, "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-  const result = (await response.json()) as {
-    access_token?: string;
-    refresh_token?: string;
-    expires_in?: number;
-    user?: { id?: string; email?: string };
-    error_description?: string;
-    msg?: string;
-  };
-  if (!response.ok || !result.access_token || !result.refresh_token || !result.user?.id) {
-    throw new Error(result.error_description ?? result.msg ?? "Anmeldung nicht möglich.");
-  }
-  const session: BrowserSession = {
-    accessToken: result.access_token,
-    refreshToken: result.refresh_token,
-    expiresAt: Date.now() + (result.expires_in ?? 3600) * 1000,
-    user: { id: result.user.id, email: result.user.email },
-  };
-  window.localStorage.setItem(storageKey, JSON.stringify(session));
-  return session;
-}
-
 export async function loadAppUserContext(session: BrowserSession): Promise<AppUserContext> {
   const { url, publishableKey } = config();
   const parameters = new URLSearchParams({
