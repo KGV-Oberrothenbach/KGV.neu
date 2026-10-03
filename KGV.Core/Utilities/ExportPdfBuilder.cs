@@ -23,6 +23,9 @@ namespace KGV.Core.Utilities
             if (string.Equals(exportKey, "arbeitsstunden_uebersicht", StringComparison.OrdinalIgnoreCase))
                 return BuildArbeitsstundenPdf(rows);
 
+            if (string.Equals(exportKey, "datenschutz_aktive_mitglieder", StringComparison.OrdinalIgnoreCase))
+                return BuildDatenschutzAktiveMitgliederPdf(rows);
+
             try { Console.WriteLine($"EXPORTDBG: PDF_BUILD start exportKey={exportKey} rows_passed={rows?.Count ?? 0}"); } catch {}
             if (rows != null && rows.Count > 0)
             {
@@ -280,6 +283,161 @@ namespace KGV.Core.Utilities
             using var ms = new MemoryStream();
             doc.Save(ms, false);
             return ms.ToArray();
+        }
+
+        private static byte[] BuildDatenschutzAktiveMitgliederPdf(IReadOnlyList<Dictionary<string, string>> rows)
+        {
+            const double margin = 28;
+            const double logoSize = 52;
+            const double headerRowHeight = 24;
+            var columnWidths = new[] { 48d, 100d, 166d, 70d, 82d, 70d };
+            var headers = new[] { "Garten Nr.", "Name", "E-Mail", "E-Mail-Info", "E-Mail-Rechnung", "WhatsApp" };
+            var orderedRows = rows
+                .OrderBy(row => GetGartenSortNumber(GetRowValue(row, "garten_nr")))
+                .ThenBy(row => GetRowValue(row, "garten_nr"), StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(row => GetRowValue(row, "name"), StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(row => GetRowValue(row, "email"), StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+
+            var doc = new PdfDocument();
+            doc.Info.Title = "Datenschutz - aktive Mitglieder";
+            doc.Info.Author = VereinsdokumentBranding.VereinsName;
+            doc.Info.Creator = VereinsdokumentBranding.VereinsName;
+
+            var titleFont = new XFont("Arial", 14, XFontStyle.Bold);
+            var clubFont = new XFont("Arial", 12, XFontStyle.Bold);
+            var metaFont = new XFont("Arial", 8, XFontStyle.Regular);
+            var headerFont = new XFont("Arial", 6.8, XFontStyle.Bold);
+            var cellFont = new XFont("Arial", 7.2, XFontStyle.Regular);
+            var checkboxFont = new XFont("Arial", 9, XFontStyle.Regular);
+            var accentPen = new XPen(XColor.FromArgb(46, 125, 50), 1.6);
+            var borderPen = new XPen(XColor.FromArgb(208, 214, 224), 0.6);
+            var pageNumber = 0;
+            PdfPage page = null!;
+            XGraphics gfx = null!;
+            XTextFormatter textFormatter = null!;
+            double y = 0;
+
+            void DrawTableHeader()
+            {
+                var x = margin;
+                for (var index = 0; index < headers.Length; index++)
+                {
+                    var rect = new XRect(x, y, columnWidths[index], headerRowHeight);
+                    gfx.DrawRectangle(XBrushes.LightGray, rect);
+                    textFormatter.Alignment = XParagraphAlignment.Center;
+                    textFormatter.DrawString(headers[index], headerFont, XBrushes.Black, new XRect(x + 2, y + 3, columnWidths[index] - 4, headerRowHeight - 4));
+                    x += columnWidths[index];
+                }
+
+                y += headerRowHeight;
+            }
+
+            void StartPage()
+            {
+                gfx?.Dispose();
+                pageNumber++;
+                page = doc.AddPage();
+                page.Size = PdfSharpCore.PageSize.A4;
+                page.Orientation = PdfSharpCore.PageOrientation.Portrait;
+                gfx = XGraphics.FromPdfPage(page);
+                textFormatter = new XTextFormatter(gfx);
+                y = margin;
+
+                using var logo = XImage.FromStream(() => new MemoryStream(VereinsdokumentBranding.GetLogoBytes(), writable: false));
+                gfx.DrawImage(logo, margin, y, logoSize, logoSize);
+                var textX = margin + logoSize + 12;
+                var textWidth = page.Width - textX - margin;
+                gfx.DrawString(VereinsdokumentBranding.VereinsName, clubFont, XBrushes.Black,
+                    new XRect(textX, y + 2, textWidth, 16), XStringFormats.TopLeft);
+                gfx.DrawString(VereinsdokumentBranding.VereinsRegister, metaFont, XBrushes.DimGray,
+                    new XRect(textX, y + 21, textWidth, 12), XStringFormats.TopLeft);
+                gfx.DrawString($"E-Mail: {VereinsdokumentBranding.VereinsEmail}", metaFont, XBrushes.DimGray,
+                    new XRect(textX, y + 36, textWidth, 12), XStringFormats.TopLeft);
+                y += logoSize + 8;
+                gfx.DrawLine(accentPen, margin, y, page.Width - margin, y);
+                y += 14;
+                gfx.DrawString("Datenschutz – aktive Mitglieder", titleFont, XBrushes.Black,
+                    new XRect(margin, y, page.Width - margin * 2, 20), XStringFormats.TopLeft);
+                y += 21;
+                gfx.DrawString($"Stand: {DateTime.Today:dd.MM.yyyy}    Seite {pageNumber}", metaFont, XBrushes.DimGray,
+                    new XRect(margin, y, page.Width - margin * 2, 12), XStringFormats.TopLeft);
+                y += 18;
+                DrawTableHeader();
+            }
+
+            double GetRowHeight(Dictionary<string, string> row)
+            {
+                var values = new[] { GetRowValue(row, "garten_nr"), GetRowValue(row, "name"), GetRowValue(row, "email") };
+                var widestLineCount = 1;
+                for (var index = 0; index < values.Length; index++)
+                {
+                    var widthIndex = index == 0 ? 0 : index == 1 ? 1 : 2;
+                    widestLineCount = Math.Max(widestLineCount, EstimateLines(gfx, values[index], cellFont, columnWidths[widthIndex] - 6));
+                }
+
+                return Math.Max(18, widestLineCount * (gfx.MeasureString("Ag", cellFont).Height + 2) + 5);
+            }
+
+            StartPage();
+            foreach (var row in orderedRows)
+            {
+                var rowHeight = GetRowHeight(row);
+                if (y + rowHeight > page.Height - margin)
+                    StartPage();
+
+                var values = new[]
+                {
+                    GetRowValue(row, "garten_nr"),
+                    GetRowValue(row, "name"),
+                    GetRowValue(row, "email"),
+                    GetConsentLabel(GetRowValue(row, "email_info")),
+                    GetConsentLabel(GetRowValue(row, "email_rechnung")),
+                    GetConsentLabel(GetRowValue(row, "whatsapp"))
+                };
+
+                var x = margin;
+                for (var index = 0; index < values.Length; index++)
+                {
+                    var rect = new XRect(x, y, columnWidths[index], rowHeight);
+                    gfx.DrawRectangle(borderPen, rect);
+                    if (index >= 3)
+                    {
+                        gfx.DrawString(values[index], checkboxFont, XBrushes.Black, rect, XStringFormats.Center);
+                    }
+                    else
+                    {
+                        gfx.DrawString(TruncateToWidth(gfx, values[index], cellFont, columnWidths[index] - 6), cellFont, XBrushes.Black,
+                            new XRect(x + 3, y + 3, columnWidths[index] - 6, rowHeight - 4), XStringFormats.TopLeft);
+                    }
+
+                    x += columnWidths[index];
+                }
+
+                y += rowHeight;
+            }
+
+            using var ms = new MemoryStream();
+            doc.Save(ms, false);
+            return ms.ToArray();
+        }
+
+        private static string GetConsentLabel(string value)
+            => value.Equals("Ja", StringComparison.OrdinalIgnoreCase) || value.Equals("true", StringComparison.OrdinalIgnoreCase) || value.Equals("1")
+                ? "Ja"
+                : "Nein";
+
+        private static string TruncateToWidth(XGraphics graphics, string value, XFont font, double maximumWidth)
+        {
+            var text = value ?? string.Empty;
+            if (graphics.MeasureString(text, font).Width <= maximumWidth)
+                return text;
+
+            const string ellipsis = "...";
+            while (text.Length > 0 && graphics.MeasureString(text + ellipsis, font).Width > maximumWidth)
+                text = text[..^1];
+
+            return text + ellipsis;
         }
 
         private static string GetRowValue(Dictionary<string, string> row, string key)
