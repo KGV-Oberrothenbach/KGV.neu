@@ -1,3 +1,5 @@
+import type { ClubContext } from "../models/auth/club";
+
 export type BrowserSession = {
   accessToken: string;
   refreshToken: string;
@@ -13,15 +15,6 @@ export type AppUserContext = {
   permissionGrants: number;
   permissionRevocations: number;
   isDemoAccount: boolean;
-};
-
-export type ClubContext = {
-  vereinId: string;
-  vereinsCode: string;
-  vereinsname: string;
-  kurzname?: string;
-  supabaseUrl: string;
-  supabasePublishableKey: string;
 };
 
 export type WorkspaceContext = {
@@ -135,26 +128,6 @@ export function loadWorkspaceContext(): WorkspaceContext {
 
 export function saveWorkspaceContext(context: WorkspaceContext) {
   if (typeof window !== "undefined") window.localStorage.setItem(workspaceStorageKey(), JSON.stringify({ ...context, mitgliedId: null, parzelleId: null }));
-}
-
-export async function resolveClub(code: string): Promise<ClubContext> {
-  const url = process.env.NEXT_PUBLIC_VEREINSREGISTER_URL?.trim().replace(/\/$/, "");
-  const key = process.env.NEXT_PUBLIC_VEREINSREGISTER_PUBLISHABLE_KEY?.trim();
-  if (!url || !key) throw new Error("Das Vereinsregister ist in dieser Browser-App nicht konfiguriert.");
-  const response = await fetch(`${url}/rest/v1/rpc/resolve_vereinscode`, {
-    method: "POST",
-    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ p_code: code.trim() }),
-  });
-  if (!response.ok) throw new Error("Die Vereins-ID konnte nicht geprüft werden.");
-  const entries = (await response.json()) as Array<{ verein_id?: string; vereins_code?: string; vereinsname?: string; kurzname?: string; supabase_url?: string; supabase_publishable_key?: string }>;
-  const entry = entries.length === 1 ? entries[0] : null;
-  if (!entry?.verein_id || !entry.vereins_code || !entry.vereinsname || !entry.supabase_url || !entry.supabase_publishable_key) {
-    throw new Error("Die Vereins-ID ist ungültig, inaktiv oder unvollständig eingerichtet.");
-  }
-  const club: ClubContext = { vereinId: entry.verein_id, vereinsCode: entry.vereins_code, vereinsname: entry.vereinsname, kurzname: entry.kurzname, supabaseUrl: entry.supabase_url, supabasePublishableKey: entry.supabase_publishable_key };
-  window.localStorage.setItem(clubStorageKey, JSON.stringify(club));
-  return club;
 }
 
 export function loadSession(): BrowserSession | null {
