@@ -348,8 +348,9 @@ OTP → prüfen → neues Passwort setzen.
 ### Web aktuell
 ✅ Der Login bietet einen getrennten „Passwort vergessen“-Einstieg.
 Dieser fordert den Recovery-Code über `OtpFlow.tsx` → `auth-service.ts` →
-`auth-repository.ts` an und verwendet anschließend dieselben OTP-,
-SetPassword- und Passwortregel-Komponenten wie der Erstlogin.
+`auth-repository.ts` mit der serverseitigen KGV-Zugangsprüfung von
+`kgv-request-first-login-otp` an und verwendet anschließend dieselben
+Recovery-OTP-, SetPassword- und Passwortregel-Komponenten wie der Erstlogin.
 
 - der Recovery-Kontext bleibt ausschließlich kurzlebig im OTP-Flow
 - nach erfolgreichem Passwortsetzen kehrt der Flow zum normalen Login zurück
