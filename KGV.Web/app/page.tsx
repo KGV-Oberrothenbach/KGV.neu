@@ -35,6 +35,7 @@ import { LoginForm } from "../features/auth/LoginForm";
 import { OtpFlow } from "../features/auth/OtpFlow";
 import { resolveClub } from "../services/auth/club-service";
 import { signIn } from "../services/auth/auth-service";
+import { startInactivityMonitor } from "../services/auth/session-service";
 import { enqueueMeterPhoto, listPendingMeterPhotos, ndefReaderConstructor, pendingPhotoFile, putPendingMeterPhoto, removePendingMeterPhoto, type PendingMeterPhoto } from "../lib/browser-media";
 import { useEditLock } from "../lib/use-edit-lock";
 import { MemberGardensWorkspace, ParcelProtocolsWorkspace, ParcelWorkspace } from "./parcel-workspaces";
@@ -89,40 +90,11 @@ export default function Home() {
 
   useEffect(() => {
     if (status !== "signed-in" || !session) return;
-    const inactivityMs = 15 * 60 * 1000;
-    const activityKey = `kgv.browser.lastActivity.v1.${club?.vereinId ?? "unknown"}.${session.user.id}`;
-    let lastActivity = Date.now();
-    let lastStored = 0;
-    let timer = 0;
-
-    const schedule = () => {
-      window.clearTimeout(timer);
-      const remaining = Math.max(0, inactivityMs - (Date.now() - lastActivity));
-      timer = window.setTimeout(() => logout("Du wurdest nach 15 Minuten Inaktivität automatisch abgemeldet."), remaining);
-    };
-    const activity = () => {
-      const now = Date.now();
-      lastActivity = now;
-      if (now - lastStored >= 1000) {
-        lastStored = now;
-        window.localStorage.setItem(activityKey, String(now));
-      }
-      schedule();
-    };
-    const sharedActivity = (event: StorageEvent) => {
-      if (event.key !== activityKey || !event.newValue) return;
-      const value = Number(event.newValue);
-      if (Number.isFinite(value) && value > lastActivity) { lastActivity = value; schedule(); }
-    };
-    const events: Array<keyof WindowEventMap> = ["pointerdown", "pointermove", "keydown", "touchstart", "scroll"];
-    events.forEach((name) => window.addEventListener(name, activity, { passive: true }));
-    window.addEventListener("storage", sharedActivity);
-    activity();
-    return () => {
-      window.clearTimeout(timer);
-      events.forEach((name) => window.removeEventListener(name, activity));
-      window.removeEventListener("storage", sharedActivity);
-    };
+    return startInactivityMonitor({
+      vereinId: club?.vereinId,
+      userId: session.user.id,
+      onTimeout: () => logout("Du wurdest nach 15 Minuten Inaktivität automatisch abgemeldet."),
+    });
   }, [status, session, club?.vereinId, logout]);
 
   async function selectClub(code: string) {

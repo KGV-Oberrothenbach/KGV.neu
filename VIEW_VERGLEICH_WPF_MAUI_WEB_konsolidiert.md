@@ -405,12 +405,20 @@ services/auth/
 - Aktivität über mehrere Browser-Tabs synchronisiert
 - Edit-Locks werden beim Logout freigegeben
 
+### Erledigt in G1.9a
+- Der 15-Minuten-Inaktivitätsmonitor wurde aus `page.tsx` nach
+  `services/auth/session-service.ts` ausgelagert.
+- Cross-Tab-Aktivität, Activity-Key je Verein und Benutzer sowie die gedrosselte
+  LocalStorage-Aktualisierung bleiben erhalten.
+- Das bestehende Logout- und Edit-Lock-Verhalten bleibt unverändert.
+
 ### Bewertung
 ✅ Diese Browser-Erweiterungen sollen erhalten bleiben.
 
-### Ergebnis aus G15
-- Session-Code aus `page.tsx` lösen.
-- Der Refresh-Token wird aktuell gespeichert, aber noch nicht verwendet. Der zentrale `session-service.ts` muss Access-Tokens rechtzeitig erneuern; das 15-Minuten-Inaktivitätslogout bleibt davon unabhängig.
+### Offen
+- Refresh-Token verwenden
+- ablaufenden Access-Token rechtzeitig erneuern
+- weiterer zentraler Session-/AuthProvider-Umbau
 
 ### Ziel
 ```text
