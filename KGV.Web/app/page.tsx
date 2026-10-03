@@ -30,6 +30,7 @@ import {
 } from "../lib/supabase-auth";
 import { type ClubContext } from "../models/auth/club";
 import { ClubSelection } from "../features/auth/ClubSelection";
+import { ChangeClubAction } from "../features/auth/ChangeClubAction";
 import { LoginForm } from "../features/auth/LoginForm";
 import { OtpFlow } from "../features/auth/OtpFlow";
 import { resolveClub } from "../services/auth/club-service";
@@ -130,8 +131,11 @@ export default function Home() {
     setStatus("signed-out");
   }
 
-  function changeClub() {
-    if (session) void releaseAllBrowserEditLocks(session).catch(() => undefined).finally(() => signOut(session));
+  async function changeClub() {
+    if (session) {
+      try { await releaseAllBrowserEditLocks(session); } catch { /* Der lokale Vereinswechsel darf nicht blockiert werden. */ }
+      try { await signOut(session); } catch { /* Der lokale Vereinswechsel darf nicht blockiert werden. */ }
+    }
     clearClub();
     setSession(null); setContext(null); setClub(null); setMessage(""); setStatus("club-selection");
   }
@@ -169,7 +173,7 @@ export default function Home() {
           </>
         )}
         <p className="fine-print">Der Zugriff wird nach der Anmeldung anhand deiner hinterlegten Vereinsrolle geprüft.</p>
-        <button className="change-club" type="button" onClick={changeClub}>Anderen Verein auswählen</button>
+        <ChangeClubAction className="change-club" label="Anderen Verein auswählen" onConfirm={changeClub} />
       </section>
     </main>
   );
@@ -237,7 +241,7 @@ function permissionsFor(context: AppUserContext) {
   return (base | context.permissionGrants) & ~context.permissionRevocations;
 }
 
-function Workspace({ session, email, club, context, onLogout, onChangeClub }: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; onLogout: () => void; onChangeClub: () => void }) {
+function Workspace({ session, email, club, context, onLogout, onChangeClub }: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; onLogout: () => void; onChangeClub: () => Promise<void> }) {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [selectedMember, setSelectedMember] = useState<Pick<Member, "id" | "vorname" | "name"> | null>(null);
   const [workspaceContext, setWorkspaceContext] = useState(() => loadWorkspaceContext());
@@ -351,7 +355,7 @@ function Workspace({ session, email, club, context, onLogout, onChangeClub }: { 
 
   return (
     <main className="workspace">
-      <header className="workspace-header"><div className="brand"><span className="brand-mark">K</span><span>{club.kurzname || club.vereinsname}</span></div><div className="account"><span>{email}</span><span className="role-pill">{context.role}</span><button className="text-button" onClick={onChangeClub}>Verein wechseln</button><button className="text-button" onClick={onLogout}>Abmelden</button></div></header>
+      <header className="workspace-header"><div className="brand"><span className="brand-mark">K</span><span>{club.kurzname || club.vereinsname}</span></div><div className="account"><span>{email}</span><span className="role-pill">{context.role}</span><ChangeClubAction className="text-button" label="Verein wechseln" onConfirm={onChangeClub} /><button className="text-button" onClick={onLogout}>Abmelden</button></div></header>
       <section className="workspace-body">
         <aside className="sidebar" aria-label="Hauptnavigation">
           <label className="season-picker" htmlFor="season"><span>Saison</span><select id="season" value={workspaceContext.saisonId ?? ""} onChange={(event) => selectSeason(Number(event.target.value))} disabled={seasons.length === 0}><option value="">{seasonError || "Saison wählen"}</option>{seasons.map((item) => <option key={item.id} value={item.id}>{item.jahr}</option>)}</select></label>

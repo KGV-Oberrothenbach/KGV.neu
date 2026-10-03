@@ -360,7 +360,8 @@ Recovery-OTP-, SetPassword- und Passwortregel-Komponenten wie der Erstlogin.
 ### Ziel
 ```text
 features/auth/
-  ForgotPasswordForm.tsx
+  OtpFlow.tsx
+  OtpRequestForm.tsx
 
 services/auth/
   auth-service.ts
@@ -380,14 +381,12 @@ repositories/auth/
 
 ### Web aktuell
 ✅ vorhanden:
-- Logout
-- Edit-Locks freigeben
-- Session löschen
-- Vereinskontext löschen
-- Vereinsauswahl anzeigen
-
-### Offen
-Bestätigungsabfrage ergänzen.
+- Bestätigungsabfrage über `ChangeClubAction.tsx`
+- Edit-Locks werden vor dem Wechsel freigegeben
+- vorhandene Session wird vor dem lokalen Löschen abgemeldet
+- lokaler Vereins-, Session- und Workspace-Kontext wird über `clearClub()` gelöscht
+- danach erscheint die Vereinsauswahl
+- Fehler bei serverseitigem Lock-Release oder Abmelden blockieren den lokalen Wechsel nicht
 
 ### Ziel
 ```text
