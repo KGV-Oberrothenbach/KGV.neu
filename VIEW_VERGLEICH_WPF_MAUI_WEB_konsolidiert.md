@@ -253,9 +253,8 @@ Button: `Einladung / Erstlogin-Code anfordern`
 Danach OTP-Eingabe.
 
 ### Web aktuell
-❌ Im Login nicht vollständig vorhanden.
-
-Adminfunktionen können bereits Einladungen auslösen, aber der Self-Service-Loginflow fehlt.
+✅ `OtpRequestForm.tsx` fordert den Einladungs-/Erstlogin-Code über
+`OtpFlow.tsx` → `auth-service.ts` → `auth-repository.ts` an.
 
 ### Ziel
 ```text
@@ -263,7 +262,7 @@ features/auth/
   OtpRequestForm.tsx
 
 services/auth/
-  password-service.ts
+  auth-service.ts
 
 repositories/auth/
   auth-repository.ts
@@ -283,7 +282,8 @@ Eigener Loginabschnitt mit:
 Bei Erfolg Wechsel in den Passwort-setzen-Modus.
 
 ### Web aktuell
-❌ fehlt.
+✅ `OtpVerifyForm.tsx` prüft den OTP-Code über den bestehenden Auth-Service
+und wechselt bei Erfolg in den Passwort-setzen-Modus.
 
 ### Ziel
 ```text
@@ -314,7 +314,13 @@ Passwort muss erfüllen:
 - Wiederholung stimmt überein
 
 ### Web aktuell
-❌ fehlt im Login.
+✅ `SetPasswordForm.tsx` setzt das Passwort über
+`OtpFlow.tsx` → `auth-service.ts` → `auth-repository.ts`.
+
+- die OTP-Prüfung liefert einen kurzlebigen Recovery-Kontext
+- dieser wird nur im OTP-Flow gehalten und nicht als normale App-Session gespeichert
+- Passwortregeln entsprechen dem MAUI-Fachstand
+- nach erfolgreichem Passwortsetzen kehrt der Flow zum normalen Login zurück
 
 ### Ziel
 ```text
@@ -322,7 +328,7 @@ features/auth/
   SetPasswordForm.tsx
 
 services/auth/
-  password-service.ts
+  auth-service.ts
 
 lib/auth/
   password-policy.ts

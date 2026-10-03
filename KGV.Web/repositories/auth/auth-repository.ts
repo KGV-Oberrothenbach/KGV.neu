@@ -71,3 +71,14 @@ export async function verifyRecoveryOtp(club: ClubContext, email: string, code: 
   }
   return result;
 }
+
+export async function updatePasswordWithRecoveryToken(club: ClubContext, recoveryAccessToken: string, password: string) {
+  const { url, publishableKey } = clubConfig(club);
+  const response = await fetch(`${url}/auth/v1/user`, {
+    method: "PUT",
+    headers: { apikey: publishableKey, Authorization: `Bearer ${recoveryAccessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  const result = await response.json().catch(() => null) as { error_description?: string; message?: string; msg?: string } | null;
+  if (!response.ok) throw new Error(result?.error_description ?? result?.message ?? result?.msg ?? "Neues Passwort konnte nicht gesetzt werden.");
+}

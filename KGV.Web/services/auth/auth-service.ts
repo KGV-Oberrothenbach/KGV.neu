@@ -1,6 +1,7 @@
 import type { ClubContext } from "../../models/auth/club";
 import type { BrowserSession } from "../../lib/supabase-auth";
-import { requestFirstLoginOtp as requestFirstLoginOtpFromRepository, signInWithPassword, verifyRecoveryOtp } from "../../repositories/auth/auth-repository";
+import { validateNewPassword } from "../../lib/auth/password-policy";
+import { requestFirstLoginOtp as requestFirstLoginOtpFromRepository, signInWithPassword, updatePasswordWithRecoveryToken, verifyRecoveryOtp } from "../../repositories/auth/auth-repository";
 
 const storageKey = "kgv.browser.session.v1";
 
@@ -27,5 +28,13 @@ export async function verifyFirstLoginOtp(club: ClubContext, email: string, code
   const emailTrim = email.trim();
   const codeTrim = code.trim();
   if (!emailTrim || !codeTrim) throw new Error("Code ungültig.");
-  await verifyRecoveryOtp(club, emailTrim, codeTrim);
+  const result = await verifyRecoveryOtp(club, emailTrim, codeTrim);
+  return { recoveryAccessToken: result.access_token! };
+}
+
+export async function setPasswordAfterOtp(club: ClubContext, recoveryAccessToken: string, password: string, confirmation: string) {
+  const validationError = validateNewPassword(password, confirmation);
+  if (validationError) throw new Error(validationError);
+  if (!recoveryAccessToken) throw new Error("Der Bestätigungscode ist nicht mehr gültig. Bitte erneut anfordern.");
+  await updatePasswordWithRecoveryToken(club, recoveryAccessToken, password);
 }
