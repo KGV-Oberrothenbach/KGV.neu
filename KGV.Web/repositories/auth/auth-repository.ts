@@ -58,6 +58,17 @@ export async function requestFirstLoginOtp(club: ClubContext, email: string): Pr
   return result;
 }
 
+export async function requestPasswordRecoveryOtp(club: ClubContext, email: string) {
+  const { url, publishableKey } = clubConfig(club);
+  const response = await fetch(`${url}/auth/v1/recover`, {
+    method: "POST",
+    headers: { apikey: publishableKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const result = await response.json().catch(() => null) as { error_description?: string; message?: string; msg?: string } | null;
+  if (!response.ok) throw new Error(result?.error_description ?? result?.message ?? result?.msg ?? "Passwort-Reset konnte nicht versendet werden.");
+}
+
 export async function verifyRecoveryOtp(club: ClubContext, email: string, code: string): Promise<OtpVerificationResponse> {
   const { url, publishableKey } = clubConfig(club);
   const response = await fetch(`${url}/auth/v1/verify`, {

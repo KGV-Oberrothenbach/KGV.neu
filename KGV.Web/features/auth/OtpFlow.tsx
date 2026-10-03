@@ -2,21 +2,25 @@
 
 import { useState } from "react";
 import type { ClubContext } from "../../models/auth/club";
-import { requestFirstLoginOtp, setPasswordAfterOtp, verifyFirstLoginOtp } from "../../services/auth/auth-service";
+import { requestFirstLoginOtp, requestPasswordRecoveryOtp, setPasswordAfterOtp, verifyFirstLoginOtp } from "../../services/auth/auth-service";
 import { OtpRequestForm } from "./OtpRequestForm";
 import { OtpVerifyForm } from "./OtpVerifyForm";
 import { SetPasswordForm } from "./SetPasswordForm";
 
 type OtpMode = "login" | "request" | "verify" | "set-password" | "completed";
+type OtpPurpose = "first-login" | "password-reset";
 
 export function OtpFlow({ club, disabled }: { club: ClubContext; disabled: boolean }) {
   const [mode, setMode] = useState<OtpMode>("login");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [recoveryAccessToken, setRecoveryAccessToken] = useState("");
+  const [purpose, setPurpose] = useState<OtpPurpose>("first-login");
 
   async function request(emailAddress: string) {
-    const result = await requestFirstLoginOtp(club, emailAddress);
+    const result = purpose === "first-login"
+      ? await requestFirstLoginOtp(club, emailAddress)
+      : await requestPasswordRecoveryOtp(club, emailAddress);
     setEmail(emailAddress);
     setMessage(result.message);
     setMode("verify");
@@ -44,8 +48,13 @@ export function OtpFlow({ club, disabled }: { club: ClubContext; disabled: boole
     setMode("login");
   }
 
-  if (mode === "login") return <button className="secondary-action" type="button" disabled={disabled} onClick={() => setMode("request")}>Einladung / Erstlogin-Code anfordern</button>;
-  if (mode === "request") return <OtpRequestForm onRequest={request} onCancel={returnToLogin} disabled={disabled} />;
+  function startRequest(nextPurpose: OtpPurpose) {
+    setPurpose(nextPurpose);
+    setMode("request");
+  }
+
+  if (mode === "login") return <div className="login-form"><button className="secondary-action" type="button" disabled={disabled} onClick={() => startRequest("first-login")}>Einladung / Erstlogin-Code anfordern</button><button className="secondary-action" type="button" disabled={disabled} onClick={() => startRequest("password-reset")}>Passwort vergessen</button></div>;
+  if (mode === "request") return <OtpRequestForm onRequest={request} onCancel={returnToLogin} disabled={disabled} submitLabel={purpose === "first-login" ? "Einladung / Erstlogin-Code anfordern" : "Passwort-Reset anfordern"} />;
   if (mode === "verify") return <><p className="notice" role="status">{message}</p><OtpVerifyForm email={email} onVerify={verify} onCancel={returnToLogin} disabled={disabled} /></>;
   if (mode === "set-password") return <><p className="notice" role="status">{message}</p><SetPasswordForm onSetPassword={setPassword} onCancel={returnToLogin} disabled={disabled} /></>;
   return <><p className="notice" role="status">{message}</p><button type="button" className="secondary-action" onClick={returnToLogin}>Zurück zum Login</button></>;

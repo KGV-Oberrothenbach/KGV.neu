@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 
-export function OtpRequestForm({ onRequest, onCancel, disabled }: { onRequest: (email: string) => Promise<void>; onCancel: () => void; disabled: boolean }) {
+export function OtpRequestForm({ onRequest, onCancel, disabled, submitLabel }: { onRequest: (email: string) => Promise<void>; onCancel: () => void; disabled: boolean; submitLabel: string }) {
   const [email, setEmail] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -20,5 +20,5 @@ export function OtpRequestForm({ onRequest, onCancel, disabled }: { onRequest: (
     }
   }
 
-  return <form onSubmit={submit} className="login-form"><label htmlFor="otp-request-email">E-Mail-Adresse</label><input id="otp-request-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />{errorMessage && <p className="notice" role="alert">{errorMessage}</p>}<button disabled={disabled || submitting}>{submitting ? "Code wird angefordert …" : "Einladung / Erstlogin-Code anfordern"}</button><button type="button" className="secondary-action" disabled={submitting} onClick={onCancel}>Zurück zum Login</button></form>;
+  return <form onSubmit={submit} className="login-form"><label htmlFor="otp-request-email">E-Mail-Adresse</label><input id="otp-request-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />{errorMessage && <p className="notice" role="alert">{errorMessage}</p>}<button disabled={disabled || submitting}>{submitting ? "Code wird angefordert …" : submitLabel}</button><button type="button" className="secondary-action" disabled={submitting} onClick={onCancel}>Zurück zum Login</button></form>;
 }

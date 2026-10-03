@@ -346,9 +346,15 @@ Danach:
 OTP → prüfen → neues Passwort setzen.
 
 ### Web aktuell
-🟡 `sendPasswordReset` existiert technisch bereits.
+✅ Der Login bietet einen getrennten „Passwort vergessen“-Einstieg.
+Dieser fordert den Recovery-Code über `OtpFlow.tsx` → `auth-service.ts` →
+`auth-repository.ts` an und verwendet anschließend dieselben OTP-,
+SetPassword- und Passwortregel-Komponenten wie der Erstlogin.
 
-Im normalen Login fehlt jedoch die Oberfläche und der komplette Ablauf.
+- der Recovery-Kontext bleibt ausschließlich kurzlebig im OTP-Flow
+- nach erfolgreichem Passwortsetzen kehrt der Flow zum normalen Login zurück
+- `sendPasswordReset` in `lib/supabase-auth.ts` bleibt für bestehende
+  eingeloggte Verwaltungsbereiche unverändert
 
 ### Ziel
 ```text
@@ -356,7 +362,7 @@ features/auth/
   ForgotPasswordForm.tsx
 
 services/auth/
-  password-service.ts
+  auth-service.ts
 
 repositories/auth/
   auth-repository.ts
