@@ -7856,6 +7856,23 @@ Datenlogik:
 - E-Mail-Rechnung = `email_rechnung_einwilligung`
 - WhatsApp = `whatsapp_einwilligung`
 
+## 14.5.2 Zähler – Eichfälligkeit
+
+Der Export gehört fachlich zu **G14 – Vereinskonfiguration & Exporte**. Die
+fachliche Quelle bleibt Zähler / Ablesung: `v_zaehler_eichstatus` bestimmt
+weiterhin den Aktiv- und Ausbauzustand sowie die Fälligkeitsklassifikation.
+
+- Zielposition Web: **Export / Auswertungen**
+- Export-Key: `zaehler_eichfaelligkeit`
+- Quelle: `rpc_export_zaehler_eichfaelligkeit`
+- Relevante Zähler: `ueberfaellig` und `bald_faellig` aus der zentralen View
+- Filter Zählerart: Alle / Strom / Wasser
+- Ausgabe: Anzeige / CSV / PDF (bestehender Browser-Druckweg)
+
+Die RPC ergänzt nur Parzellen-RFID und ausgabefertige Bezeichnungen; sie
+berechnet die Eichfälligkeit nicht erneut. Damit verwenden Anzeige, CSV und PDF
+dieselbe Datenbasis.
+
 Gartenlogik:
 
 - nur aktuell gültige `parzellen_belegung` (`von_datum` ist `NULL` oder höchstens
