@@ -36,6 +36,7 @@ import { useWorkspaceContext, WorkspaceContextProvider } from "../contexts/Works
 import { listSeasons } from "../repositories/seasons/season-repository";
 import { selectInitialSeasonFromList } from "../services/workspace/workspace-service";
 import HomeDashboard from "../features/home/HomeDashboard";
+import ImprintPage from "../features/imprint/ImprintPage";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
