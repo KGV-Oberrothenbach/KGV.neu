@@ -30,6 +30,7 @@ import { enqueueMeterPhoto, listPendingMeterPhotos, ndefReaderConstructor, pendi
 import { useEditLock } from "../lib/use-edit-lock";
 import { MemberGardensWorkspace, ParcelProtocolsWorkspace, ParcelWorkspace } from "./parcel-workspaces";
 import Navigation, { type NavigationGroup, type NavigationItem } from "../features/navigation/Navigation";
+import { navigationConfig } from "../features/navigation/NavigationConfig";
 import SeasonPicker from "../features/navigation/SeasonPicker";
 import MobileNavigation from "../features/navigation/MobileNavigation";
 import WorkspaceHeader from "../features/navigation/WorkspaceHeader";
@@ -211,34 +212,34 @@ function Workspace({ session, email, club, context, onLogout, onChangeClub }: { 
     setActiveId("mitglied-arbeitsstunden");
   }
   const hasMemberContext = creatingMember || (selectedMemberId !== null && (ownContext || has(Permission.viewMembers) || has(Permission.searchMembers)));
-  const memberItems: NavigationItem[] = creatingMember ? (canReadStammdaten ? [{ id: "mitglied-stammdaten", label: "Stammdaten", detail: "Neues Mitglied anlegen", depth: 2 as const }] : []) : hasMemberContext ? [
-    ...(canReadStammdaten ? [{ id: "mitglied-stammdaten", label: "Stammdaten", detail: "Mitgliedsdaten bearbeiten", depth: 2 as const }] : []),
-    ...((has(Permission.readDocuments) || has(Permission.manageDocuments) || ownContext) ? [{ id: "mitglied-dokumente", label: "Dokumente", detail: "Dokumente dieses Mitglieds", depth: 2 as const }] : []),
-    ...(has(Permission.editAllMembers) ? [{ id: "mitglied-protokolle", label: "Protokolle", detail: "Protokolle dieses Mitglieds", depth: 2 as const }] : []),
-    { id: "mitglied-wartung", label: "Wartungsverträge", detail: "Zugeordnete Verträge", depth: 2 },
-    ...(canReadStammdaten ? [{ id: "mitglied-nebenmitglied", label: "Nebenmitglied", detail: "Nebenmitglied verwalten", depth: 2 as const }] : []),
-    ...(has(Permission.showParzellen) || has(Permission.readParzellen) ? [{ id: "mitglied-gaerten", label: "Gärten des Mitglieds", detail: "Zugeordnete Gärten", depth: 2 as const }] : []),
-    ...((has(Permission.readRoles) || has(Permission.manageRoles)) ? [{ id: "mitglied-admin", label: "Admin-Menü", detail: "Rollen und Rechte", depth: 2 as const }] : []),
-    ...((has(Permission.readWorkHours) || has(Permission.manageWorkHours) || ownContext) ? [{ id: "mitglied-arbeitsstunden", label: "Arbeitsstunden", detail: "Arbeitsstunden dieses Mitglieds", depth: 2 as const }] : []),
+  const memberItems: NavigationItem[] = creatingMember ? (canReadStammdaten ? [navigationConfig.memberItems.newMasterData] : []) : hasMemberContext ? [
+    ...(canReadStammdaten ? [navigationConfig.memberItems.masterData] : []),
+    ...((has(Permission.readDocuments) || has(Permission.manageDocuments) || ownContext) ? [navigationConfig.memberItems.documents] : []),
+    ...(has(Permission.editAllMembers) ? [navigationConfig.memberItems.protocols] : []),
+    navigationConfig.memberItems.maintenance,
+    ...(canReadStammdaten ? [navigationConfig.memberItems.secondaryMember] : []),
+    ...(has(Permission.showParzellen) || has(Permission.readParzellen) ? [navigationConfig.memberItems.gardens] : []),
+    ...((has(Permission.readRoles) || has(Permission.manageRoles)) ? [navigationConfig.memberItems.administration] : []),
+    ...((has(Permission.readWorkHours) || has(Permission.manageWorkHours) || ownContext) ? [navigationConfig.memberItems.workHours] : []),
   ] : [];
-  const navigationGroups: NavigationGroup[] = [
-    { id: "home", label: "Startseite", items: [], standalone: true, target: { id: "start", label: "Startseite", detail: "Deine Vereinsübersicht für die Saison " + season } },
-    { id: "imprint", label: "Impressum", items: [], standalone: true, target: { id: "impressum", label: "Impressum", detail: "Vereinsangaben und Kontakt" } },
-    { id: "meters", label: "Ablesen", target: (has(Permission.readMeters) || has(Permission.manageMeterChanges) || has(Permission.approveMeterReadings) || ownContext) ? { id: "ablesen", label: "Ablesen", detail: "Zählerstände und Freigaben" } : undefined, items: [
-      ...((has(Permission.readMeters) || ownContext) ? [{ id: "foto-uploads", label: "Foto-Uploads", detail: "Lokal vorgemerkte Ablesefotos prüfen", depth: 1 as const }] : []),
-      ...(context.role !== "user" ? [{ id: "zaehlerwechsel", label: "Zählerwechsel", detail: "Ausbau, Einbau und Historie", depth: 1 as const }] : []),
+  const navigationGroups = ([
+    { ...navigationConfig.groups.home, items: [], target: { ...navigationConfig.groups.home.target, detail: `${navigationConfig.groups.home.target.detail} ${season}` } },
+    { ...navigationConfig.groups.imprint, items: [] },
+    { ...navigationConfig.groups.meters, target: (has(Permission.readMeters) || has(Permission.manageMeterChanges) || has(Permission.approveMeterReadings) || ownContext) ? navigationConfig.groups.meters.target : undefined, items: [
+      ...((has(Permission.readMeters) || ownContext) ? [navigationConfig.groups.meters.items.photoUploads] : []),
+      ...(context.role !== "user" ? [navigationConfig.groups.meters.items.meterChanges] : []),
     ] },
-    { id: "parcels", label: "Parzellenverwaltung", items: [], standalone: true, target: has(Permission.searchMembers) && has(Permission.readParzellen) ? { id: "parzellen", label: "Parzellenverwaltung", detail: "Parzellen, Belegungen und Zuordnungen" } : undefined },
-    { id: "maintenance", label: "Wartungsverträge", items: [], standalone: true, target: has(Permission.editAllMembers) ? { id: "wartung", label: "Wartungsverträge", detail: "Verträge verwalten und zuordnen" } : undefined },
-    { id: "workhours", label: "Arbeitsstunden freigeben", items: [], standalone: true, target: has(Permission.manageWorkHours) ? { id: "arbeitsstunden-pruefen", label: "Arbeitsstunden freigeben", detail: "Offene Arbeitsstunden prüfen" } : undefined },
-    { id: "export", label: "Export", items: [], standalone: true, target: has(Permission.searchMembers) ? { id: "export", label: "Export", detail: "Listen und Auswertungen exportieren" } : undefined },
-    { id: "administration", label: "Verwaltung", items: context.role === "admin" ? [
-      { id: "saisons", label: "Saisonverwaltung", detail: "Saisons anlegen und verwalten", depth: 1 },
-      { id: "jahresabschluss", label: "Jahresabschluss", detail: "Jahresabschluss vorbereiten und bearbeiten", depth: 1 },
-      { id: "verein", label: "Vereinskonfiguration", detail: "Vereinsdaten und Grundeinstellungen", depth: 1 },
+    { ...navigationConfig.groups.parcels, items: [], target: has(Permission.searchMembers) && has(Permission.readParzellen) ? navigationConfig.groups.parcels.target : undefined },
+    { ...navigationConfig.groups.maintenance, items: [], target: has(Permission.editAllMembers) ? navigationConfig.groups.maintenance.target : undefined },
+    { ...navigationConfig.groups.workhours, items: [], target: has(Permission.manageWorkHours) ? navigationConfig.groups.workhours.target : undefined },
+    { ...navigationConfig.groups.export, items: [], target: has(Permission.searchMembers) ? navigationConfig.groups.export.target : undefined },
+    { ...navigationConfig.groups.administration, items: context.role === "admin" ? [
+      navigationConfig.groups.administration.items.seasons,
+      navigationConfig.groups.administration.items.annualClosing,
+      navigationConfig.groups.administration.items.club,
     ] : [] },
-    { id: "members", label: "Mitglieder suchen", target: has(Permission.searchMembers) ? { id: "mitglieder", label: "Mitglieder suchen", detail: "Mitglieder finden und bearbeiten" } : undefined, items: memberItems },
-  ].filter((group) => Boolean(group.target) || group.items.length > 0);
+    { ...navigationConfig.groups.members, target: has(Permission.searchMembers) ? navigationConfig.groups.members.target : undefined, items: memberItems },
+  ] as NavigationGroup[]).filter((group) => Boolean(group.target) || group.items.length > 0);
   const allNavigationItems = navigationGroups.flatMap((group) => [...(group.target ? [group.target] : []), ...group.items]);
   const active = allNavigationItems.find((item) => item.id === activeId) ?? allNavigationItems[0];
 
