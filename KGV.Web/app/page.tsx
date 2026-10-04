@@ -148,19 +148,21 @@ function Workspace({ session, email, club, context, onLogout, onChangeClub }: { 
 
   useEffect(() => {
     let active = true;
-    readSupabase<Season>(session, "saison", { select: "id,jahr", order: "jahr.desc" })
-      .then((items) => {
-        if (!active) return;
-        setSeasons(items);
-        setWorkspaceContext((current) => {
-          const restored = items.find((item) => item.id === current.saisonId);
-          const fallback = items.find((item) => item.jahr === new Date().getFullYear()) ?? items[0] ?? null;
-          const next = restored ? { ...current, saisonId: restored.id, saisonJahr: restored.jahr } : fallback ? { ...current, saisonId: fallback.id, saisonJahr: fallback.jahr } : current;
-          saveWorkspaceContext(next);
-          return next;
-        });
-      })
-      .catch(() => { if (active) setSeasonError("Saisons konnten nicht geladen werden."); });
+    setSeasonError("");
+    import("../repositories/seasons/season-repository").then(({ listSeasons }) => {
+      return listSeasons(session);
+    }).then((items: Season[]) => {
+      if (!active) return;
+      setSeasons(items);
+      // Auswahlentscheidung an WorkspaceContext delegieren, Behavour wie vorher
+      setWorkspaceContext((current) => {
+        const restored = items.find((item) => item.id === current.saisonId);
+        const fallback = items.find((item) => item.jahr === new Date().getFullYear()) ?? items[0] ?? null;
+        const next = restored ? { ...current, saisonId: restored.id, saisonJahr: restored.jahr } : fallback ? { ...current, saisonId: fallback.id, saisonJahr: fallback.jahr } : current;
+        saveWorkspaceContext(next);
+        return next;
+      });
+    }).catch(() => { if (active) setSeasonError("Saisons konnten nicht geladen werden."); });
     return () => { active = false; };
   }, [session]);
 
