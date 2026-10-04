@@ -772,6 +772,8 @@ KGV.Web/
 
 **Erledigt in G3.2:** Die Stammdaten-UI ist aus `page.tsx` gelöst; Laden und Speichern bestehender Mitglieder laufen über Member-Service und Repository. Die Own-vs-Foreign-Prüfung erfolgt auch im Service, MAUI-Felder einschließlich Arbeitsstunden-Altersregel und E-Mail-Einwilligungen sind ergänzt, und Auth-verknüpfte E-Mails sind geschützt. **G3.3 Create sowie G3.4 Nebenmitglied und G3.5 Mitgliedschaft beenden bleiben offen.**
 
+**Erledigt in G3.3:** Die Hauptmitglied-Neuanlage läuft über Member-Service und Repository; das Create-Recht wird auch im Service geprüft. Der Create-Editor umfasst die MAUI-Felder, validiert Vorname, Nachname und Altersregel und setzt das neue Mitglied direkt als Workspace-Kontext. Mitgliedsantrag bleibt G4, Nebenmitglied G3.4 und Mitgliedschaft beenden G3.5.
+
 ### WPF
 `MemberSearchView.xaml`
 

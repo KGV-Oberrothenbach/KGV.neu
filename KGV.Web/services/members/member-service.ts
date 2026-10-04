@@ -1,6 +1,6 @@
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type Member, type MemberSearchResult } from "../../models/members/member";
-import { getMemberById, getMemberWorkspaceInfo, listMembersForSearch, updateMemberStammdaten } from "../../repositories/members/member-repository";
+import { createMember, getMemberById, getMemberWorkspaceInfo, listMembersForSearch, updateMemberStammdaten } from "../../repositories/members/member-repository";
 import { listCurrentGardenNumbersByMemberId } from "../parcels/parcel-service";
 
 export async function loadMemberSearchResults(session: BrowserSession): Promise<MemberSearchResult[]> {
@@ -32,6 +32,8 @@ export type MemberEditPermissions = {
 
 export type MemberStammdatenInput = Pick<Member, "vorname" | "name" | "email" | "geburtsdatum" | "arbeitsstunden_altersregel_typ" | "adresse" | "plz" | "ort" | "telefon" | "handy" | "whatsapp_einwilligung" | "email_rechnung_einwilligung" | "email_info_einwilligung" | "mitglied_seit" | "mitglied_ende" | "bemerkung">;
 
+export type MemberCreatePermissions = { canCreateMember: boolean };
+
 const validArbeitsstundenAltersregelTypen = new Set(["mann80", "frau75"]);
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -40,6 +42,40 @@ export function canEditMember(memberId: number, permissions: MemberEditPermissio
 }
 
 export const getMember = getMemberById;
+
+export async function createMainMember(session: BrowserSession, input: MemberStammdatenInput, permissions: MemberCreatePermissions) {
+  if (!permissions.canCreateMember) throw new Error("Für neue Mitglieder besteht keine Berechtigung.");
+  const vorname = input.vorname?.trim() ?? "";
+  const name = input.name?.trim() ?? "";
+  if (!vorname) throw new Error("Vorname ist erforderlich.");
+  if (!name) throw new Error("Nachname ist erforderlich.");
+  if (!validArbeitsstundenAltersregelTypen.has(input.arbeitsstunden_altersregel_typ ?? "")) {
+    throw new Error("Für Hauptmitglieder ist eine gültige Arbeitsstunden-Altersregel erforderlich.");
+  }
+
+  const created = await createMember(session, {
+    hauptmitglied_id: null,
+    vorname,
+    name,
+    email: input.email?.trim() || null,
+    geburtsdatum: input.geburtsdatum || null,
+    arbeitsstunden_altersregel_typ: input.arbeitsstunden_altersregel_typ,
+    adresse: input.adresse?.trim() || null,
+    plz: input.plz?.trim() || null,
+    ort: input.ort?.trim() || null,
+    telefon: input.telefon?.trim() || null,
+    handy: input.handy?.trim() || null,
+    whatsapp_einwilligung: Boolean(input.whatsapp_einwilligung),
+    email_rechnung_einwilligung: Boolean(input.email_rechnung_einwilligung),
+    email_info_einwilligung: Boolean(input.email_info_einwilligung),
+    mitglied_seit: input.mitglied_seit || null,
+    mitglied_ende: input.mitglied_ende || null,
+    bemerkung: input.bemerkung?.trim() || null,
+    aktiv: true,
+  });
+  if (!created[0]) throw new Error("Mitglied konnte nicht angelegt werden.");
+  return created[0];
+}
 
 export async function updateExistingMember(session: BrowserSession, memberId: number, input: MemberStammdatenInput, permissions: MemberEditPermissions) {
   const current = await getMemberById(session, memberId);
