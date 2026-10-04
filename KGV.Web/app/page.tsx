@@ -30,6 +30,7 @@ import { enqueueMeterPhoto, listPendingMeterPhotos, ndefReaderConstructor, pendi
 import { useEditLock } from "../lib/use-edit-lock";
 import { MemberGardensWorkspace, ParcelProtocolsWorkspace, ParcelWorkspace } from "./parcel-workspaces";
 import Navigation, { type NavigationGroup, type NavigationItem } from "../features/navigation/Navigation";
+import SeasonPicker from "../features/navigation/SeasonPicker";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -244,7 +245,7 @@ function Workspace({ session, email, club, context, onLogout, onChangeClub }: { 
       <header className="workspace-header"><div className="brand"><span className="brand-mark">K</span><span>{club.kurzname || club.vereinsname}</span></div><div className="account"><span>{email}</span><span className="role-pill">{context.role}</span><ChangeClubAction className="text-button" label="Verein wechseln" onConfirm={onChangeClub} /><button className="text-button" onClick={onLogout}>Abmelden</button></div></header>
       <section className="workspace-body">
         <aside className="sidebar" aria-label="Hauptnavigation">
-          <label className="season-picker" htmlFor="season"><span>Saison</span><select id="season" value={workspaceContext.saisonId ?? ""} onChange={(event) => selectSeason(Number(event.target.value))} disabled={seasons.length === 0}><option value="">{seasonError || "Saison wählen"}</option>{seasons.map((item) => <option key={item.id} value={item.id}>{item.jahr}</option>)}</select></label>
+          <SeasonPicker seasons={seasons} selectedSeasonId={workspaceContext.saisonId} seasonError={seasonError} onChange={selectSeason} />
           <Navigation groups={navigationGroups} activeId={activeId} onNavigate={setActiveId} memberLabel={creatingMember ? "Neues Mitglied" : selectedMemberId ? selectedMemberLabel : null} />
         </aside>
         <article className="content-area">
