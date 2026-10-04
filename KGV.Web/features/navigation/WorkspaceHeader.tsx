@@ -2,7 +2,7 @@
 
 import { ChangeClubAction } from "../auth/ChangeClubAction";
 
-export default function WorkspaceHeader({ clubName, email, role, onLogout, onChangeClub }: { clubName: string; email: string; role: string; onLogout: () => void; onChangeClub: () => void }) {
+export default function WorkspaceHeader({ clubName, email, role, onLogout, onChangeClub }: { clubName: string; email: string; role: string; onLogout: () => void; onChangeClub: () => Promise<void> }) {
   return (
     <header className="workspace-header">
       <div className="brand"><span className="brand-mark">K</span><span>{clubName}</span></div>
