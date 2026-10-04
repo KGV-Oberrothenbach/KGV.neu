@@ -29,11 +29,11 @@ import { OtpFlow } from "../features/auth/OtpFlow";
 import { enqueueMeterPhoto, listPendingMeterPhotos, ndefReaderConstructor, pendingPhotoFile, putPendingMeterPhoto, removePendingMeterPhoto, type PendingMeterPhoto } from "../lib/browser-media";
 import { useEditLock } from "../lib/use-edit-lock";
 import { MemberGardensWorkspace, ParcelProtocolsWorkspace, ParcelWorkspace } from "./parcel-workspaces";
-import Navigation, { type NavigationGroup, type NavigationItem } from "../features/navigation/Navigation";
-import { navigationConfig } from "../features/navigation/NavigationConfig";
+import Navigation from "../features/navigation/Navigation";
 import SeasonPicker from "../features/navigation/SeasonPicker";
 import MobileNavigation from "../features/navigation/MobileNavigation";
 import WorkspaceHeader from "../features/navigation/WorkspaceHeader";
+import { buildNavigation } from "../services/workspace/navigation-service";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -212,34 +212,26 @@ function Workspace({ session, email, club, context, onLogout, onChangeClub }: { 
     setActiveId("mitglied-arbeitsstunden");
   }
   const hasMemberContext = creatingMember || (selectedMemberId !== null && (ownContext || has(Permission.viewMembers) || has(Permission.searchMembers)));
-  const memberItems: NavigationItem[] = creatingMember ? (canReadStammdaten ? [navigationConfig.memberItems.newMasterData] : []) : hasMemberContext ? [
-    ...(canReadStammdaten ? [navigationConfig.memberItems.masterData] : []),
-    ...((has(Permission.readDocuments) || has(Permission.manageDocuments) || ownContext) ? [navigationConfig.memberItems.documents] : []),
-    ...(has(Permission.editAllMembers) ? [navigationConfig.memberItems.protocols] : []),
-    navigationConfig.memberItems.maintenance,
-    ...(canReadStammdaten ? [navigationConfig.memberItems.secondaryMember] : []),
-    ...(has(Permission.showParzellen) || has(Permission.readParzellen) ? [navigationConfig.memberItems.gardens] : []),
-    ...((has(Permission.readRoles) || has(Permission.manageRoles)) ? [navigationConfig.memberItems.administration] : []),
-    ...((has(Permission.readWorkHours) || has(Permission.manageWorkHours) || ownContext) ? [navigationConfig.memberItems.workHours] : []),
-  ] : [];
-  const navigationGroups = ([
-    { ...navigationConfig.groups.home, items: [], target: { ...navigationConfig.groups.home.target, detail: `${navigationConfig.groups.home.target.detail} ${season}` } },
-    { ...navigationConfig.groups.imprint, items: [] },
-    { ...navigationConfig.groups.meters, target: (has(Permission.readMeters) || has(Permission.manageMeterChanges) || has(Permission.approveMeterReadings) || ownContext) ? navigationConfig.groups.meters.target : undefined, items: [
-      ...((has(Permission.readMeters) || ownContext) ? [navigationConfig.groups.meters.items.photoUploads] : []),
-      ...(context.role !== "user" ? [navigationConfig.groups.meters.items.meterChanges] : []),
-    ] },
-    { ...navigationConfig.groups.parcels, items: [], target: has(Permission.searchMembers) && has(Permission.readParzellen) ? navigationConfig.groups.parcels.target : undefined },
-    { ...navigationConfig.groups.maintenance, items: [], target: has(Permission.editAllMembers) ? navigationConfig.groups.maintenance.target : undefined },
-    { ...navigationConfig.groups.workhours, items: [], target: has(Permission.manageWorkHours) ? navigationConfig.groups.workhours.target : undefined },
-    { ...navigationConfig.groups.export, items: [], target: has(Permission.searchMembers) ? navigationConfig.groups.export.target : undefined },
-    { ...navigationConfig.groups.administration, items: context.role === "admin" ? [
-      navigationConfig.groups.administration.items.seasons,
-      navigationConfig.groups.administration.items.annualClosing,
-      navigationConfig.groups.administration.items.club,
-    ] : [] },
-    { ...navigationConfig.groups.members, target: has(Permission.searchMembers) ? navigationConfig.groups.members.target : undefined, items: memberItems },
-  ] as NavigationGroup[]).filter((group) => Boolean(group.target) || group.items.length > 0);
+  const { navigationGroups } = buildNavigation({
+    season,
+    creatingMember,
+    hasMemberContext,
+    canReadStammdaten,
+    canReadMemberDocuments: has(Permission.readDocuments) || has(Permission.manageDocuments) || ownContext,
+    canEditMemberProtocols: has(Permission.editAllMembers),
+    canReadMemberGardens: has(Permission.showParzellen) || has(Permission.readParzellen),
+    canManageMemberRoles: has(Permission.readRoles) || has(Permission.manageRoles),
+    canReadMemberWorkHours: has(Permission.readWorkHours) || has(Permission.manageWorkHours) || ownContext,
+    canAccessMeters: has(Permission.readMeters) || has(Permission.manageMeterChanges) || has(Permission.approveMeterReadings) || ownContext,
+    canReadMeterPhotos: has(Permission.readMeters) || ownContext,
+    canAccessMeterChanges: context.role !== "user",
+    canAccessParcels: has(Permission.searchMembers) && has(Permission.readParzellen),
+    canManageMaintenance: has(Permission.editAllMembers),
+    canApproveWorkHours: has(Permission.manageWorkHours),
+    canExport: has(Permission.searchMembers),
+    canManageAdministration: context.role === "admin",
+    canSearchMembers: has(Permission.searchMembers),
+  });
   const allNavigationItems = navigationGroups.flatMap((group) => [...(group.target ? [group.target] : []), ...group.items]);
   const active = allNavigationItems.find((item) => item.id === activeId) ?? allNavigationItems[0];
 
