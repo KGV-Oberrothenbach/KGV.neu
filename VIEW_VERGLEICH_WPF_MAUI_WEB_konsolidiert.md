@@ -425,11 +425,19 @@ services/auth/
 - Ungültige Refresh-Tokens führen kontrolliert zu signed-out; transiente
   Netzwerkfehler löschen die gespeicherte Session nicht sofort.
 
+### Erledigt in G1.9d
+- Der Auth-/Session-State und sein Lifecycle liegen zentral in
+  `features/auth/AuthProvider.tsx`.
+- `page.tsx` konsumiert den Auth-Context und enthält keinen Auth-Lifecycle mehr.
+- Startup-Restore, Login, Logout, Vereinswechsel, Inaktivitätsmonitor,
+  Live-Refresh und Cross-Tab-Session-Synchronisation bleiben dort gebündelt.
+
 ### Bewertung
 ✅ Diese Browser-Erweiterungen sollen erhalten bleiben.
 
-### Offen
-- weiterer zentraler Session-/AuthProvider-Umbau
+### Abschluss
+✅ G1.9 ist abgeschlossen. Token-Refresh verlängert die 15-Minuten-
+Inaktivitätsfrist nicht.
 
 ### Ziel
 ```text
@@ -448,19 +456,16 @@ repositories/auth/
 ```text
 KGV.Web/
   app/
-    auth/
-      page.tsx
+    page.tsx
 
   features/
     auth/
-      AuthFlow.tsx
       AuthProvider.tsx
       ClubSelection.tsx
       LoginForm.tsx
       OtpRequestForm.tsx
       OtpVerifyForm.tsx
       SetPasswordForm.tsx
-      ForgotPasswordForm.tsx
       ChangeClubAction.tsx
 
   components/
@@ -472,17 +477,27 @@ KGV.Web/
       auth-service.ts
       club-service.ts
       session-service.ts
-      password-service.ts
 
   repositories/
     auth/
       auth-repository.ts
       club-repository.ts
 
+  models/
+    auth/
+      club.ts
+
   lib/
     auth/
       password-policy.ts
 ```
+
+### Abschluss G1
+✅ G1 – Anmeldung & Vereinsauswahl ist abgeschlossen. Die vorhandenen
+Auth-Komponenten decken Vereinsauswahl, Login, Erstlogin-/Recovery-OTP,
+Passwortsetzen, Vereinswechsel sowie Session- und Refresh-Lifecycle ab.
+`AuthFlow.tsx`, `ForgotPasswordForm.tsx` und `password-service.ts` werden in
+der gewählten Architektur nicht benötigt und sind keine offenen Pflichtdateien.
 
 ---
 
@@ -8847,6 +8862,6 @@ gemeinsame Modell `ClubContext` liegt unter `models/auth/club.ts`.
 Aus `page.tsx` wurden die ClubSelection- und QR-Scanner-UI entfernt. Aus
 `lib/supabase-auth.ts` wurde ausschließlich `resolveClub` entfernt; Login,
 Session, gespeicherter Vereinskontext und Vereinswechsel verbleiben zunächst
-unverändert. Weitere G1-Bereiche, insbesondere Login, OTP, Passwort-Flow,
-Session-Refresh und AuthProvider, stehen weiterhin aus. G12 bleibt ausdrücklich
-ausgeklammert.
+unverändert. Die weiteren G1-Bereiche Login, OTP, Passwort-Flow,
+Session-Refresh und AuthProvider wurden anschließend in kontrollierten
+Folgeschnitten abgeschlossen. G12 bleibt ausdrücklich ausgeklammert.

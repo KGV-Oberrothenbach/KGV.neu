@@ -6,141 +6,40 @@ import {
   BrowserSession,
   archiveDocument,
   callSupabaseRpc,
-  clearClub,
-  clearSession,
   createDocumentOpenUrl,
   deleteSupabase,
   generateContract,
-  isConfigured,
   inviteAppUser,
-  loadClub,
-  loadAppUserContext,
   loadWorkspaceContext,
   openDriveDocument,
   openMeterPhoto,
   readSupabase,
-  releaseAllBrowserEditLocks,
   saveWorkspaceContext,
   sendPasswordReset,
-  signOut,
   uploadDocument,
   uploadMeterPhoto,
   writeSupabase,
 } from "../lib/supabase-auth";
 import { type ClubContext } from "../models/auth/club";
-import { ClubSelection } from "../features/auth/ClubSelection";
+import { AuthProvider, useAuth } from "../features/auth/AuthProvider";
 import { ChangeClubAction } from "../features/auth/ChangeClubAction";
+import { ClubSelection } from "../features/auth/ClubSelection";
 import { LoginForm } from "../features/auth/LoginForm";
 import { OtpFlow } from "../features/auth/OtpFlow";
-import { resolveClub } from "../services/auth/club-service";
-import { signIn } from "../services/auth/auth-service";
-import { restoreBrowserSession, startInactivityMonitor, startSessionRefreshMonitor } from "../services/auth/session-service";
 import { enqueueMeterPhoto, listPendingMeterPhotos, ndefReaderConstructor, pendingPhotoFile, putPendingMeterPhoto, removePendingMeterPhoto, type PendingMeterPhoto } from "../lib/browser-media";
 import { useEditLock } from "../lib/use-edit-lock";
 import { MemberGardensWorkspace, ParcelProtocolsWorkspace, ParcelWorkspace } from "./parcel-workspaces";
 
-type Status = "checking" | "club-selection" | "signed-out" | "signed-in" | "configuration-error" | "access-error";
-
 export default function Home() {
-  const [status, setStatus] = useState<Status>("checking");
-  const [session, setSession] = useState<BrowserSession | null>(null);
-  const [context, setContext] = useState<AppUserContext | null>(null);
-  const [club, setClub] = useState<ClubContext | null>(null);
-  const [message, setMessage] = useState("");
-  const sessionRef = useRef<BrowserSession | null>(null);
+  return <AuthProvider><HomeContent /></AuthProvider>;
+}
 
-  useEffect(() => {
-    sessionRef.current = session;
-  }, [session]);
-
-  async function establishSession(candidate: BrowserSession) {
-    const userContext = await loadAppUserContext(candidate);
-    setSession(candidate);
-    setContext(userContext);
-    setStatus("signed-in");
-  }
-
-  useEffect(() => {
-    const selectedClub = loadClub();
-    if (!selectedClub) {
-      setStatus("club-selection");
-      return;
-    }
-    setClub(selectedClub);
-    if (!isConfigured()) {
-      setStatus("configuration-error");
-      return;
-    }
-    void restoreBrowserSession(selectedClub).then((existing) => {
-      if (!existing) { setStatus("signed-out"); return; }
-      return establishSession(existing);
-    }).catch((error: Error) => {
-      clearSession();
-      setMessage(error.message);
-      setStatus("access-error");
-    });
-  }, []);
-
-  const logout = useCallback((reason = "") => {
-    const currentSession = sessionRef.current;
-    if (currentSession) void releaseAllBrowserEditLocks(currentSession).catch(() => undefined).finally(() => signOut(currentSession));
-    clearSession();
-    sessionRef.current = null;
-    setSession(null);
-    setContext(null);
-    setMessage(reason);
-    setStatus("signed-out");
-  }, []);
-
-  const userId = session?.user.id;
-  useEffect(() => {
-    if (status !== "signed-in" || !userId) return;
-    return startInactivityMonitor({
-      vereinId: club?.vereinId,
-      userId,
-      onTimeout: () => logout("Du wurdest nach 15 Minuten Inaktivität automatisch abgemeldet."),
-    });
-  }, [status, userId, club?.vereinId, logout]);
-
-  useEffect(() => {
-    if (status !== "signed-in" || !session || !club) return;
-    return startSessionRefreshMonitor({
-      club,
-      session,
-      onSessionRefreshed: setSession,
-      onSessionExpired: () => logout(),
-    });
-  }, [status, session, club, logout]);
-
-  async function selectClub(code: string) {
-    const selectedClub = await resolveClub(code);
-    setClub(selectedClub);
-    setStatus("signed-out");
-  }
-
-  async function changeClub() {
-    if (session) {
-      try { await releaseAllBrowserEditLocks(session); } catch { /* Der lokale Vereinswechsel darf nicht blockiert werden. */ }
-      try { await signOut(session); } catch { /* Der lokale Vereinswechsel darf nicht blockiert werden. */ }
-    }
-    clearClub();
-    setSession(null); setContext(null); setClub(null); setMessage(""); setStatus("club-selection");
-  }
-
-  async function handleLogin(email: string, password: string) {
-    setMessage("");
-    try {
-      await establishSession(await signIn(club!, email, password));
-    } catch (error) {
-      clearSession();
-      setStatus("access-error");
-      throw error;
-    }
-  }
+function HomeContent() {
+  const { status, session, appUserContext, club, message, selectClub, login, logout, changeClub } = useAuth();
 
   if (status === "club-selection") return <ClubSelection onSelect={selectClub} />;
-  if (status === "signed-in" && session && context && club) {
-    return <Workspace session={session} email={session.user.email ?? "KGV-Konto"} club={club} context={context} onLogout={() => logout()} onChangeClub={changeClub} />;
+  if (status === "signed-in" && session && appUserContext && club) {
+    return <Workspace session={session} email={session.user.email ?? "KGV-Konto"} club={club} context={appUserContext} onLogout={() => logout()} onChangeClub={changeClub} />;
   }
 
   const configError = status === "configuration-error";
@@ -155,7 +54,7 @@ export default function Home() {
           <p className="notice" role="alert">Die Verbindung zu Supabase ist noch nicht eingerichtet.</p>
         ) : (
           <>
-            <LoginForm onSignIn={handleLogin} disabled={status === "checking"} message={message} />
+            <LoginForm onSignIn={login} disabled={status === "checking"} message={message} />
             <OtpFlow club={club!} disabled={status === "checking"} />
           </>
         )}
