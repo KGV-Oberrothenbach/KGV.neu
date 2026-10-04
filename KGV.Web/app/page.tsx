@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AppUserContext,
   BrowserSession,
@@ -35,6 +35,8 @@ import { buildNavigation } from "../services/workspace/navigation-service";
 import { useWorkspaceContext, WorkspaceContextProvider } from "../contexts/WorkspaceContext";
 import { listSeasons } from "../repositories/seasons/season-repository";
 import { selectInitialSeasonFromList } from "../services/workspace/workspace-service";
+import HomeDashboard from "../features/home/HomeDashboard";
+import { type HomeAnnouncement, type HomeAppointment, type HomeDetailSelection, type HomeWorkAssignment, type WorkAssignmentRegistration } from "../services/home/home-service";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -83,14 +85,8 @@ type RfidScanContext = { parzelle_id: number; anlage: string | null; garten_nr: 
 type WorkHour = { id: number; mitglied_id: number; saison_id: number; datum: string; stunden: number; art_der_arbeit: string; status: string | null; freigegeben: boolean; genehmigt_von: number | null; genehmigt_am: string | null };
 type WorkHourHistory = { id: number; arbeitsstunde_id: number; aktion: string; begruendung: string; geprueft_von: number; geprueft_am: string; vorher_snapshot: WorkHour; nachher_snapshot: WorkHour | null };
 type WorkAssignment = { id: number; titel: string | null; beschreibung: string | null; datum: string; start_uhrzeit: string | null; end_uhrzeit?: string | null; treffpunkt: string | null; max_teilnehmer?: number | string | null; stunden_wert: number; sichtbar_ab?: string | null; sichtbar_bis?: string | null; anmeldung_bis?: string | null; aktiv: boolean };
-type WorkAssignmentRegistration = { id: number; arbeitseinsatz_id: number; mitglied_id: number; status: "angemeldet" | "abgesagt" | "teilgenommen" | "nicht_erschienen"; bemerkung: string | null; angemeldet_am: string; updated_at: string };
 type Appointment = { id: number; titel: string | null; beschreibung: string | null; datum: string; start_uhrzeit: string | null; end_uhrzeit?: string | null; sichtbar_ab?: string | null; sichtbar_bis?: string | null; aktiv: boolean };
 type Announcement = { id: number; titel: string | null; inhalt_html: string | null; sichtbar_ab: string | null; sichtbar_bis: string | null; sort_order?: number | null; aktiv: boolean };
-type HomeWorkAssignment = { id: number; titel: string | null; beschreibung: string | null; datum: string; start_uhrzeit: string | null; end_uhrzeit: string | null; treffpunkt: string | null; max_teilnehmer: number | null; stunden_wert: number; sichtbar_ab: string | null; sichtbar_bis: string | null; anmeldung_bis: string | null; angemeldet_count: number; freie_plaetze: number | null };
-type HomeAppointment = { id: number; titel: string | null; beschreibung: string | null; datum: string; start_uhrzeit: string | null; end_uhrzeit: string | null; sichtbar_ab: string | null; sichtbar_bis: string | null };
-type HomeAnnouncement = { id: number; titel: string | null; inhalt_html: string | null; sichtbar_ab: string | null; sichtbar_bis: string | null; created_at: string | null };
-type HomeWorkHoursSummary = { hauptmitglied_id: number; saison_id: number; saison_jahr: number; pflichtstunden_soll: number | null; geleistete_stunden: number | null; offene_stunden: number | null; hat_wartungsvertrag: boolean; altersbefreit: boolean; ist_befreit: boolean; regelgrund: string | null };
-type HomeDetailSelection = { kind: "assignment" | "appointment" | "announcement"; id: number };
 type DocumentRecord = { id: number; mitglied_id: number | null; parzelle_id: number | null; bucket: string | null; storage_path: string | null; drive_file_id: string | null; titel: string | null; dateiname: string | null; mime_type: string | null; size_bytes: number | null; updated_at: string; archiviert_at: string | null };
 type MaintenanceContract = { id: number; titel: string; beschreibung: string | null; bereich: string | null; max_aktive_zuordnungen: number; befreit_von_pflichtstunden: boolean; aktiv: boolean; bemerkung: string | null; is_demo: boolean };
 type MaintenanceAssignment = { id: number; wartungsvertrag_id: number; hauptmitglied_id: number; gueltig_ab: string; gueltig_bis: string | null; bemerkung: string | null };
@@ -233,7 +229,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           <MobileNavigation groups={navigationGroups} activeId={activeId} onNavigate={setActiveId} selectedMemberLabel={selectedMemberId ? selectedMemberLabel : null} />
           <p className="eyebrow">Saison {season}</p><h1>{active.label}</h1><p className="content-intro">{active.detail}</p>
           {!new Set(["start", "impressum", "mitglieder", "parzellen", "ablesen", "foto-uploads", "zaehlerwechsel", "arbeitsstunden-pruefen", "arbeitseinsaetze", "wartung", "termine", "bekanntmachungen", "export", "benutzer", "saisons", "verein", "mitglied-arbeitsstunden", "mitglied-wartung", "mitglied-dokumente", "mitglied-admin", "mitglied-gaerten", "mitglied-protokolle", "mitglied-stammdaten"]).has(activeId) && <section className="coming-soon"><span aria-hidden="true">◌</span><div><strong>Bereich vorbereitet</strong><p>Die Navigation und Zugriffsrechte stehen. Die fachliche Oberfläche wird in den nächsten Umsetzungsschritten ergänzt.</p></div></section>}
-          {activeId === "start" && <HomeDashboard session={session} isManager={context.role !== "user"} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
+          {activeId === "start" && <HomeDashboard session={session} isManager={context.role !== "user"} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} renderDetail={(detailProps) => <HomeSectionDetail session={session} {...detailProps} />} />}
           {activeId === "mitglieder" && <MemberSearch session={session} selectedMemberId={selectedMemberId} onSelect={selectMember} canCreate={has(Permission.createMember) || has(Permission.editAllMembers)} onCreate={() => { setCreatingMember(true); setActiveId("mitglied-stammdaten"); }} />}
           {activeId === "parzellen" && <ParcelWorkspace session={session} selectedParcelId={selectedParcelId} onSelect={selectParcel} canEdit={has(Permission.writeParzellen) || context.role === "admin"} onOpenMember={(memberId) => { selectMember(memberId); setActiveId("mitglied-gaerten"); }} />}
           {activeId === "ablesen" && <MeterOverview session={session} clubId={club.vereinId} reviewerMemberId={context.mitgliedId} selectedParcelId={selectedParcelId} seasonYear={season} canApprove={has(Permission.approveMeterReadings)} canManageMeterChanges={has(Permission.manageMeterChanges)} onNavigate={setActiveId} />}
@@ -260,118 +256,6 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
       </section>
     </main>
   );
-}
-
-function HomeDashboard({ session, isManager, memberId, saisonId, season, onNavigate, onOpenWorkHours }: { session: BrowserSession; isManager: boolean; memberId: number | null; saisonId: number | null; season: number; onNavigate: (id: string) => void; onOpenWorkHours: () => void }) {
-  const [appointments, setAppointments] = useState<HomeAppointment[]>([]);
-  const [announcements, setAnnouncements] = useState<HomeAnnouncement[]>([]);
-  const [assignments, setAssignments] = useState<HomeWorkAssignment[]>([]);
-  const [registrations, setRegistrations] = useState<WorkAssignmentRegistration[]>([]);
-  const [workHours, setWorkHours] = useState<HomeWorkHoursSummary | null>(null);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [registeringId, setRegisteringId] = useState<number | null>(null);
-  const [detail, setDetail] = useState<HomeDetailSelection | null>(null);
-  const today = new Date().toISOString().slice(0, 10);
-
-  const load = useCallback(async () => {
-    const summaryQuery = memberId === null
-      ? Promise.resolve([] as HomeWorkHoursSummary[])
-      : readSupabase<HomeWorkHoursSummary>(session, "v_pflichtstunden_uebersicht", {
-          select: "hauptmitglied_id,saison_id,saison_jahr,pflichtstunden_soll,geleistete_stunden,offene_stunden,hat_wartungsvertrag,altersbefreit,ist_befreit,regelgrund",
-          hauptmitglied_id: `eq.${memberId}`,
-          ...(saisonId ? { saison_id: `eq.${saisonId}` } : { saison_jahr: `eq.${season}` }),
-          limit: "1",
-        });
-    const registrationQuery = memberId === null
-      ? Promise.resolve([] as WorkAssignmentRegistration[])
-      : readSupabase<WorkAssignmentRegistration>(session, "arbeitseinsatz_anmeldung", {
-          select: "id,arbeitseinsatz_id,mitglied_id,status,bemerkung,angemeldet_am,updated_at",
-          mitglied_id: `eq.${memberId}`,
-          order: "angemeldet_am.desc",
-          limit: "200",
-        });
-    const [nextAssignments, nextAppointments, nextAnnouncements, nextWorkHours, nextRegistrations] = await Promise.all([
-      readSupabase<HomeWorkAssignment>(session, "v_startseite_arbeitseinsatz", { select: "id,titel,beschreibung,datum,start_uhrzeit,end_uhrzeit,treffpunkt,max_teilnehmer,stunden_wert,sichtbar_ab,sichtbar_bis,anmeldung_bis,angemeldet_count,freie_plaetze", datum: `gte.${today}`, order: "datum.asc,start_uhrzeit.asc", limit: "30" }),
-      readSupabase<HomeAppointment>(session, "v_startseite_termine", { select: "id,titel,beschreibung,datum,start_uhrzeit,end_uhrzeit,sichtbar_ab,sichtbar_bis", datum: `gte.${today}`, order: "datum.asc,start_uhrzeit.asc", limit: "30" }),
-      readSupabase<HomeAnnouncement>(session, "v_startseite_bekanntmachungen", { select: "id,titel,inhalt_html,sichtbar_ab,sichtbar_bis,created_at", order: "created_at.desc", limit: "30" }),
-      summaryQuery,
-      registrationQuery,
-    ]);
-    setAssignments(nextAssignments);
-    setAppointments(nextAppointments);
-    setAnnouncements(nextAnnouncements);
-    setWorkHours(nextWorkHours[0] ?? null);
-    setRegistrations(nextRegistrations);
-  }, [memberId, saisonId, season, session, today]);
-
-  useEffect(() => {
-    let active = true;
-    setError("");
-    load().catch((cause: Error) => { if (active) setError(cause.message); });
-    return () => { active = false; };
-  }, [load]);
-
-  async function registerForAssignment(assignmentId: number) {
-    if (memberId === null) return;
-    setRegisteringId(assignmentId);
-    setMessage("");
-    try {
-      await callSupabaseRpc(session, "sign_up_for_arbeitseinsatz", { p_arbeitseinsatz_id: assignmentId, p_mitglied_id: memberId });
-      await load();
-      setMessage("Du bist für den Arbeitseinsatz angemeldet.");
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : "Die Anmeldung konnte nicht gespeichert werden.");
-    } finally {
-      setRegisteringId(null);
-    }
-  }
-
-  async function signOffFromAssignment(assignmentId: number) {
-    if (memberId === null) return;
-    setRegisteringId(assignmentId);
-    setMessage("");
-    try {
-      await callSupabaseRpc(session, "sign_off_from_arbeitseinsatz", { p_arbeitseinsatz_id: assignmentId, p_mitglied_id: memberId });
-      await load();
-      setMessage("Du wurdest vom Arbeitseinsatz abgemeldet.");
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : "Die Abmeldung konnte nicht gespeichert werden.");
-    } finally {
-      setRegisteringId(null);
-    }
-  }
-
-  const formatHours = (value: number | null | undefined) => value === null || value === undefined ? "–" : `${Number(value).toLocaleString("de-DE", { maximumFractionDigits: 2 })} h`;
-  const workHoursInfo = workHours
-    ? [workHours.ist_befreit ? "Dieser Mitgliedskontext ist von Pflichtstunden befreit." : "", workHours.hat_wartungsvertrag ? "Ein Wartungsvertrag ist berücksichtigt." : "", workHours.regelgrund ?? ""].filter(Boolean).join(" ") || "Die Werte stammen aus der zentralen Pflichtstunden-Übersicht."
-    : memberId === null ? "Das angemeldete Konto ist keinem Mitglied zugeordnet." : "Für diese Saison ist keine Pflichtstunden-Übersicht verfügbar.";
-
-  return <section className="home-dashboard" aria-label="Vereinsübersicht">
-    {error && <p className="notice" role="alert">Startseiten-Inhalte konnten nicht geladen werden: {error}</p>}
-    {message && <p className="notice" role="status">{message}</p>}
-    {isManager && <section className="home-management"><div><strong>Verwaltung</strong><p>Bearbeitung wird über separate Verwaltungsbereiche geöffnet; die Startseite bleibt eine reine Übersicht.</p></div><div><button className="secondary-action" onClick={() => onNavigate("arbeitseinsaetze")}>Arbeitseinsätze bearbeiten</button><button className="secondary-action" onClick={() => onNavigate("termine")}>Termine bearbeiten</button><button className="secondary-action" onClick={() => onNavigate("bekanntmachungen")}>Bekanntmachungen bearbeiten</button></div></section>}
-    <section className="home-work-hours" aria-labelledby="home-work-hours-title">
-      <h2 id="home-work-hours-title">Meine Arbeitsstunden {workHours?.saison_jahr ?? season}</h2>
-      <div className="home-work-hours-grid">
-        <div><span>Sollstunden</span><strong>{formatHours(workHours?.pflichtstunden_soll)}</strong><small>{workHours?.regelgrund || "Sollstunden laut zentraler Pflichtstunden-Übersicht."}</small></div>
-        <div><span>Geleistete Stunden</span><strong>{formatHours(workHours?.geleistete_stunden)}</strong><small>Bereits freigegebene Arbeitsstunden.</small></div>
-        <div><span>Offene Stunden</span><strong>{formatHours(workHours?.offene_stunden)}</strong><small>Noch zu leistende Pflichtstunden.</small></div>
-      </div>
-      <p>{workHoursInfo}</p>
-      {memberId !== null && <button onClick={onOpenWorkHours}>Arbeitsstunden erfassen</button>}
-    </section>
-    {detail && <HomeSectionDetail session={session} selection={detail} assignments={assignments} appointments={appointments} announcements={announcements} registrations={registrations} memberId={memberId} isManager={isManager} busy={registeringId !== null} onClose={() => setDetail(null)} onSelect={setDetail} onRegister={registerForAssignment} onSignOff={signOffFromAssignment} onNavigate={(target) => { setDetail(null); onNavigate(target); }} />}
-    <div className="home-content-grid">
-      <HomeContentSection title="Arbeitseinsätze" empty="Aktuell liegen keine veröffentlichten Arbeitseinsätze vor.">{assignments.map((item) => {
-        const registered = registrations.some((entry) => entry.arbeitseinsatz_id === item.id && entry.status === "angemeldet");
-        const registrationOpen = memberId !== null && !registered && item.freie_plaetze !== 0 && (!item.anmeldung_bis || item.anmeldung_bis >= new Date().toISOString());
-        return <article key={item.id} className="home-item"><h2>{item.titel ?? "Arbeitseinsatz"}</h2><p>{item.beschreibung || "Keine Beschreibung hinterlegt."}</p><span>Einsatzdatum: {formatDate(item.datum)}</span>{(item.start_uhrzeit || item.end_uhrzeit) && <span>Uhrzeit: {formatTimeRange(item.start_uhrzeit, item.end_uhrzeit)}</span>}{item.treffpunkt && <span>Treffpunkt: {item.treffpunkt}</span>}<strong className="home-registration-state">{registered ? "Du bist angemeldet" : item.freie_plaetze === null ? "Anmeldung möglich" : `${item.freie_plaetze} freie Plätze`}</strong><div className="home-item-actions"><button className="secondary-action" onClick={() => setDetail({ kind: "assignment", id: item.id })}>Details</button>{registrationOpen && <button disabled={registeringId === item.id} onClick={() => registerForAssignment(item.id)}>{registeringId === item.id ? "Wird angemeldet …" : "Anmelden"}</button>}</div></article>;
-      })}</HomeContentSection>
-      <HomeContentSection title="Termine" empty="Aktuell liegen keine veröffentlichten Termine vor.">{appointments.map((item) => <article key={item.id} className="home-item"><h2>{item.titel ?? "Termin"}</h2><p>{item.beschreibung || "Keine Beschreibung hinterlegt."}</p><span>{formatDate(item.datum)}</span>{(item.start_uhrzeit || item.end_uhrzeit) && <span>Uhrzeit: {formatTimeRange(item.start_uhrzeit, item.end_uhrzeit)}</span>}<button className="secondary-action" onClick={() => setDetail({ kind: "appointment", id: item.id })}>Details</button></article>)}</HomeContentSection>
-      <HomeContentSection title="Bekanntmachungen" empty="Aktuell liegen keine veröffentlichten Bekanntmachungen vor.">{announcements.map((item) => <article key={item.id} className="home-item"><h2>{item.titel ?? "Bekanntmachung"}</h2><p>{plainText(item.inhalt_html) || "Kein Inhalt hinterlegt."}</p><span>{item.sichtbar_ab || item.created_at ? formatDate(item.sichtbar_ab ?? item.created_at ?? "") : ""}</span><button className="secondary-action" onClick={() => setDetail({ kind: "announcement", id: item.id })}>Details</button></article>)}</HomeContentSection>
-    </div>
-  </section>;
 }
 
 function HomeSectionDetail({ session, selection, assignments, appointments, announcements, registrations, memberId, isManager, busy, onClose, onSelect, onRegister, onSignOff, onNavigate }: { session: BrowserSession; selection: HomeDetailSelection; assignments: HomeWorkAssignment[]; appointments: HomeAppointment[]; announcements: HomeAnnouncement[]; registrations: WorkAssignmentRegistration[]; memberId: number | null; isManager: boolean; busy: boolean; onClose: () => void; onSelect: (selection: HomeDetailSelection) => void; onRegister: (assignmentId: number) => Promise<void>; onSignOff: (assignmentId: number) => Promise<void>; onNavigate: (target: string) => void }) {
@@ -436,11 +320,6 @@ function HomeSectionDetail({ session, selection, assignments, appointments, anno
       <footer><button className="secondary-action" disabled={index <= 0} onClick={() => move(-1)}>← Vorheriger Eintrag</button><span>{index >= 0 ? `${index + 1} von ${items.length}` : ""}</span><button className="secondary-action" disabled={index < 0 || index >= items.length - 1} onClick={() => move(1)}>Nächster Eintrag →</button>{isManager && <button onClick={() => onNavigate(managementTarget)}>In Verwaltung öffnen</button>}</footer>
     </section>
   </div>;
-}
-
-function HomeContentSection({ title, empty, children }: { title: string; empty: string; children: ReactNode }) {
-  const entries = Array.isArray(children) ? children : [children];
-  return <section className="home-content-section"><h2>{title}</h2><div className="home-item-list">{entries.length > 0 ? entries : <p className="empty-state">{empty}</p>}</div></section>;
 }
 
 function MemberSearch({ session, selectedMemberId, onSelect, canCreate, onCreate }: { session: BrowserSession; selectedMemberId: number | null; onSelect: (mitgliedId: number) => void; canCreate: boolean; onCreate: () => void }) {

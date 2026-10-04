@@ -617,7 +617,17 @@ Bei kleinen Displays wird die Sidebar durch eine mobile Navigation ersetzt.
 `HomeViewModel.cs`
 
 ### Web aktuell
-`HomeDashboard` lädt aktuell direkt:
+`HomeDashboard` wurde aus `KGV.Web/app/page.tsx` ausgelagert nach:
+
+```text
+features/home/HomeDashboard.tsx
+services/home/home-service.ts
+repositories/home/home-repository.ts
+```
+
+Die Schichtung ist jetzt `HomeDashboard → home-service → home-repository → Supabase`.
+Die UI lädt und schreibt nicht mehr direkt, sondern verwendet den Fachservice für:
+
 - Arbeitseinsätze
 - Termine
 - Bekanntmachungen
@@ -625,10 +635,10 @@ Bei kleinen Displays wird die Sidebar durch eine mobile Navigation ersetzt.
 - Arbeitseinsatz-Anmeldungen
 
 ### Bewertung
-✅ fachlich bereits weit fortgeschritten.
+✅ Dashboard-UI und Datenzugriff sind getrennt; `page.tsx` behält nur die minimale Detail-Schnittstelle. Die weitere Auslagerung von `HomeDetail` bleibt innerhalb G2 offen.
 
-### Problem
-Die React-Komponente kennt direkt:
+### Datenzugriff
+Das Repository kapselt die Abfragen und RPCs für:
 ```text
 v_startseite_arbeitseinsatz
 v_startseite_termine
@@ -637,28 +647,7 @@ v_pflichtstunden_uebersicht
 arbeitseinsatz_anmeldung
 ```
 
-### Ziel
-UI:
-```ts
-const dashboard = await homeService.loadDashboard(...)
-```
-
-Service:
-```text
-services/home/
-  home-service.ts
-```
-
-`home-service.ts` ist eine **Aggregationsschicht** und baut keine zweite Datenzugriffsschicht für dieselben Fachbereiche auf. Er verwendet:
-
-```text
-G8 → work-assignment-public-repository / Registrierungsservice
-G9 → appointment-repository
-G9 → announcement-repository
-G7 → duty-hours-repository
-```
-
-Damit existiert für `v_startseite_arbeitseinsatz`, `v_startseite_termine`, `v_startseite_bekanntmachungen` und `v_pflichtstunden_uebersicht` jeweils nur eine fachlich zuständige Datenzugriffsstelle.
+Das ist bis zur späteren fachbereichsübergreifenden Konsolidierung die zuständige Home-Aggregationsstelle. G2 offen: `HomeDetail`, Impressum und Workspace-Layout bleiben unverändert ausgelagert bzw. zu strukturieren.
 
 ## 2.6 Startseiten-Detail
 
