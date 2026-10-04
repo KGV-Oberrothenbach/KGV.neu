@@ -35,6 +35,7 @@ import { buildNavigation } from "../services/workspace/navigation-service";
 import { useWorkspaceContext, WorkspaceContextProvider } from "../contexts/WorkspaceContext";
 import { listSeasons } from "../repositories/seasons/season-repository";
 import { selectInitialSeasonFromList } from "../services/workspace/workspace-service";
+import HomeDashboard from "../features/home/HomeDashboard";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
