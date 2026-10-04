@@ -28,3 +28,15 @@ export const updateMemberStammdaten = (session: BrowserSession, memberId: number
 });
 
 export const createMember = (session: BrowserSession, values: Record<string, unknown>) => writeSupabase<Member>(session, "mitglied", "POST", values);
+
+export const getSecondaryMemberByMainMemberId = (session: BrowserSession, mainMemberId: number) => readSupabase<Member>(session, "mitglied", {
+  select: memberStammdatenSelect,
+  hauptmitglied_id: `eq.${mainMemberId}`,
+  limit: "1",
+}).then((members) => members[0] ?? null);
+
+export const createSecondaryMember = createMember;
+
+export const updateSecondaryMember = (session: BrowserSession, memberId: number, values: Record<string, unknown>) => writeSupabase<Member>(session, "mitglied", "PATCH", values, {
+  id: `eq.${memberId}`,
+});
