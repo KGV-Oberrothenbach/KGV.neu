@@ -10,11 +10,9 @@ import {
   deleteSupabase,
   generateContract,
   inviteAppUser,
-  loadWorkspaceContext,
   openDriveDocument,
   openMeterPhoto,
   readSupabase,
-  saveWorkspaceContext,
   sendPasswordReset,
   uploadDocument,
   uploadMeterPhoto,
@@ -34,6 +32,7 @@ import SeasonPicker from "../features/navigation/SeasonPicker";
 import MobileNavigation from "../features/navigation/MobileNavigation";
 import WorkspaceHeader from "../features/navigation/WorkspaceHeader";
 import { buildNavigation } from "../services/workspace/navigation-service";
+import { useWorkspaceContext, WorkspaceContextProvider } from "../contexts/WorkspaceContext";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -131,13 +130,15 @@ function permissionsFor(context: AppUserContext) {
   return (base | context.permissionGrants) & ~context.permissionRevocations;
 }
 
-function Workspace({ session, email, club, context, onLogout, onChangeClub }: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; onLogout: () => void; onChangeClub: () => Promise<void> }) {
+function Workspace(props: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; onLogout: () => void; onChangeClub: () => Promise<void> }) {
+  return <WorkspaceContextProvider><WorkspaceContent {...props} /></WorkspaceContextProvider>;
+}
+
+function WorkspaceContent({ session, email, club, context, onLogout, onChangeClub }: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; onLogout: () => void; onChangeClub: () => Promise<void> }) {
   const [seasons, setSeasons] = useState<Season[]>([]);
-  const [selectedMember, setSelectedMember] = useState<Pick<Member, "id" | "vorname" | "name"> | null>(null);
-  const [workspaceContext, setWorkspaceContext] = useState(() => loadWorkspaceContext());
   const [activeId, setActiveId] = useState("start");
-  const [creatingMember, setCreatingMember] = useState(false);
   const [seasonError, setSeasonError] = useState("");
+  const { workspaceContext, selectedMember, creatingMember, setSelectedMember, setCreatingMember, updateWorkspaceContext, selectMember, selectParcel, selectSeason: selectWorkspaceSeason } = useWorkspaceContext();
   const permissions = useMemo(() => permissionsFor(context), [context]);
   const has = (permission: number) => (permissions & permission) === permission;
   const canReadStammdaten = has(Permission.showStammdaten) || has(Permission.readStammdaten) || has(Permission.writeStammdaten);
@@ -156,17 +157,16 @@ function Workspace({ session, email, club, context, onLogout, onChangeClub }: { 
       .then((items) => {
         if (!active) return;
         setSeasons(items);
-        setWorkspaceContext((current) => {
+        updateWorkspaceContext((current) => {
           const restored = items.find((item) => item.id === current.saisonId);
           const fallback = items.find((item) => item.jahr === new Date().getFullYear()) ?? items[0] ?? null;
           const next = restored ? { ...current, saisonId: restored.id, saisonJahr: restored.jahr } : fallback ? { ...current, saisonId: fallback.id, saisonJahr: fallback.jahr } : current;
-          saveWorkspaceContext(next);
           return next;
         });
       })
       .catch(() => { if (active) setSeasonError("Saisons konnten nicht geladen werden."); });
     return () => { active = false; };
-  }, [session]);
+  }, [session, updateWorkspaceContext]);
 
   useEffect(() => {
     let active = true;
@@ -185,30 +185,16 @@ function Workspace({ session, email, club, context, onLogout, onChangeClub }: { 
       if (active) setSelectedMember(null);
     });
     return () => { active = false; };
-  }, [session, selectedMemberId]);
-
-  function updateWorkspace(next: typeof workspaceContext) {
-    setWorkspaceContext(next);
-    saveWorkspaceContext(next);
-  }
-
-  function selectMember(mitgliedId: number) {
-    setCreatingMember(false);
-    updateWorkspace({ ...workspaceContext, mitgliedId, parzelleId: null });
-  }
-
-  function selectParcel(parzelleId: number) {
-    updateWorkspace({ ...workspaceContext, parzelleId });
-  }
+  }, [session, selectedMemberId, setSelectedMember]);
 
   function selectSeason(saisonId: number) {
     const nextSeason = seasons.find((item) => item.id === saisonId);
-    if (nextSeason) updateWorkspace({ ...workspaceContext, saisonId: nextSeason.id, saisonJahr: nextSeason.jahr });
+    if (nextSeason) selectWorkspaceSeason(nextSeason);
   }
 
   function openOwnWorkHours() {
     if (context.mitgliedId === null) return;
-    updateWorkspace({ ...workspaceContext, mitgliedId: context.mitgliedId, parzelleId: null });
+    updateWorkspaceContext((current) => ({ ...current, mitgliedId: context.mitgliedId, parzelleId: null }));
     setActiveId("mitglied-arbeitsstunden");
   }
   const hasMemberContext = creatingMember || (selectedMemberId !== null && (ownContext || has(Permission.viewMembers) || has(Permission.searchMembers)));
@@ -261,7 +247,7 @@ function Workspace({ session, email, club, context, onLogout, onChangeClub }: { 
           {activeId === "impressum" && <ImprintPage session={session} />}
           {activeId === "export" && <ExportCenter session={session} canExport={context.role !== "user"} />}
           {activeId === "benutzer" && <UserRightsAdministration session={session} />}
-          {activeId === "saisons" && <SeasonAdministration session={session} onSeasonSaved={(saved) => { setSeasons((current) => [...current.filter((item) => item.id !== saved.id), saved].sort((a, b) => b.jahr - a.jahr)); updateWorkspace({ ...workspaceContext, saisonId: saved.id, saisonJahr: saved.jahr }); }} />}
+          {activeId === "saisons" && <SeasonAdministration session={session} onSeasonSaved={(saved) => { setSeasons((current) => [...current.filter((item) => item.id !== saved.id), saved].sort((a, b) => b.jahr - a.jahr)); selectWorkspaceSeason(saved); }} />}
           {activeId === "verein" && <ClubConfigurationAdministration session={session} />}
           {activeId === "mitglied-arbeitsstunden" && selectedMemberId && <OwnWorkHours session={session} memberId={selectedMemberId} saisonId={workspaceContext.saisonId} canEdit={selectedMemberId === context.mitgliedId || has(Permission.editAllMembers)} />}
           {activeId === "mitglied-wartung" && selectedMemberId && <MaintenanceContracts session={session} memberId={selectedMemberId} canManage={context.role !== "user"} />}
