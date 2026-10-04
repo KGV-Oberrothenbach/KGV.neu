@@ -27,17 +27,11 @@ type Member = { id: number; vorname: string | null; name: string | null };
 function formatDate(value: string | null | undefined) {
   if (!value) return "–";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "–" : new Intl.DateTimeFormat("de-DE").format(date);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("de-DE");
 }
 
 function formatTimeRange(start: string | null | undefined, end: string | null | undefined) {
-  const short = (value: string | null | undefined) => value ? value.slice(0, 5) : "";
-  const from = short(start);
-  const to = short(end);
-  if (from && to) return `${from}–${to} Uhr`;
-  if (from) return `${from} Uhr`;
-  if (to) return `bis ${to} Uhr`;
-  return "–";
+  return [start, end].filter(Boolean).map((value) => String(value).slice(0, 5)).join(" – ");
 }
 
 function plainText(value: string | null) {
