@@ -774,6 +774,8 @@ KGV.Web/
 
 **Erledigt in G3.3:** Die Hauptmitglied-Neuanlage läuft über Member-Service und Repository; das Create-Recht wird auch im Service geprüft. Der Create-Editor umfasst die MAUI-Felder, validiert Vorname, Nachname und Altersregel und setzt das neue Mitglied direkt als Workspace-Kontext. Mitgliedsantrag bleibt G4, Nebenmitglied G3.4 und Mitgliedschaft beenden G3.5.
 
+**Erledigt in G3.4:** Das Nebenmitglied ist aus `MemberStammdaten.tsx` ausgelagert. Laden, Anlegen und Bearbeiten laufen über Secondary-Service und Member-Repository; Adressen können fachlich abgesichert vom Hauptmitglied übernommen werden. Create wird service-seitig validiert, bestehende Nebenmitglieder bearbeiten nur den MAUI-Kontakt-/Adressumfang und Auth-verknüpfte E-Mails bleiben geschützt. **G3.5 Mitgliedschaft beenden bleibt offen.**
+
 ### WPF
 `MemberSearchView.xaml`
 
