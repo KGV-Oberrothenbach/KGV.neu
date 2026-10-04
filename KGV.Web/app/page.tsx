@@ -161,7 +161,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
         setSeasons(items);
         updateWorkspaceContext((current) => {
           const season = selectInitialSeasonFromList(items, current.saisonId);
-          return season ? { ...current, saisonId: season.id, saisonJahr: season.jahr } : { ...current, saisonId: null, saisonJahr: null };
+          return season ? { ...current, saisonId: season.id, saisonJahr: season.jahr } : current;
         });
       })
       .catch(() => { if (active) setSeasonError("Saisons konnten nicht geladen werden."); });
