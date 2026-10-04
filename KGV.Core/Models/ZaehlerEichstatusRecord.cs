@@ -39,6 +39,9 @@ namespace KGV.Core.Models
         [Column("status")]
         public string? Status { get; set; }
 
+        [Column("defekt")]
+        public bool Defekt { get; set; }
+
         [Column("tage_bis_faellig")]
         public int? TageBisFaellig { get; set; }
 
@@ -57,6 +60,8 @@ namespace KGV.Core.Models
             "bald_faellig" => "Bald fällig",
             _ => "OK"
         };
+        public string DefektDisplay => Defekt ? "Defekt – Austausch erforderlich" : string.Empty;
+        public string StatusDisplay => Defekt ? DefektDisplay : EichstatusDisplay;
         public string TageDisplay => TageBisFaellig.HasValue ? TageBisFaellig.Value.ToString() : "—";
         public int SortPriority => NormalizeEichstatus(Eichstatus) switch
         {
@@ -75,6 +80,7 @@ namespace KGV.Core.Models
             EichdatumDisplay,
             EichfaelligDisplay,
             EichstatusDisplay,
+            DefektDisplay,
             TageDisplay
         });
 

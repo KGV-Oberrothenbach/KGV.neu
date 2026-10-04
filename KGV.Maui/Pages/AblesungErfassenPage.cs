@@ -41,6 +41,8 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
     private readonly Border _formSection;
     private readonly DatePicker _ablesedatumPicker;
     private readonly Entry _standEntry;
+    private readonly CheckBox _defektCheckBox;
+    private readonly VerticalStackLayout _defektField;
     private readonly Button _capturePhotoButton;
     private readonly Button _pickPhotoButton;
     private readonly Button _clearPhotoButton;
@@ -93,6 +95,20 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         _photoLabel = new Label { Text = "Noch kein Foto gewählt.", LineBreakMode = LineBreakMode.WordWrap, TextColor = Colors.Gray };
         _ablesedatumPicker = new DatePicker { Date = DateTime.Today };
         _standEntry = new Entry { Placeholder = "Zählerstand", Keyboard = Keyboard.Numeric };
+        _defektCheckBox = new CheckBox();
+        _defektField = new VerticalStackLayout
+        {
+            Spacing = 4,
+            Children =
+            {
+                new Label { Text = "Zählerzustand", FontAttributes = FontAttributes.Bold, FontSize = 12, TextColor = Colors.Gray },
+                new HorizontalStackLayout
+                {
+                    Spacing = 8,
+                    Children = { _defektCheckBox, new Label { Text = "Zähler defekt", VerticalTextAlignment = TextAlignment.Center } }
+                }
+            }
+        };
 
         _capturePhotoButton = new Button { Text = "Foto aufnehmen" };
         _capturePhotoButton.Clicked += async (_, _) => await SelectPhotoAsync(capture: true);
@@ -148,6 +164,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
             _flowHintLabel,
             CreateField("Ablesedatum", _ablesedatumPicker),
             CreateField("Zählerstand", _standEntry),
+            _defektField,
             CreateField(
                 "Foto",
                 new VerticalStackLayout
@@ -311,6 +328,9 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
 
         if (resolution.State == RfidScanContextState.KnownWithActiveMeter && context.AktiverZaehlerId is > 0)
         {
+            _defektField.IsVisible = _currentArt == AblesungArt.Normal;
+            if (!_defektField.IsVisible)
+                _defektCheckBox.IsChecked = false;
             _flowHintLabel.Text = _currentArt switch
             {
                 AblesungArt.Einbau => $"Bitte Anfangsstand und {PhotoRequirementText} erfassen. Der Zähler selbst wurde bereits angelegt; jetzt folgt separat die Anfangsablesung.",
@@ -503,6 +523,10 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
                 return;
             }
 
+            var defectUpdateFailed = _currentArt == AblesungArt.Normal
+                && _defektCheckBox.IsChecked
+                && !await _supabaseService.SetZaehlerDefektAsync(context.AktiverZaehlerId.Value, true);
+
             var successMessage = _currentArt == AblesungArt.Einbau
                 ? "Anfangsablesung gespeichert."
                 : _currentArt == AblesungArt.JahresEnde && savesAsSubmission
@@ -512,6 +536,9 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
                         : savesAsSubmission
                             ? "Ablesung eingereicht. Sie ist noch nicht direkt freigegeben."
                             : "Ablesung gespeichert.";
+
+            if (defectUpdateFailed)
+                successMessage += " Die Defekt-Markierung konnte nicht gespeichert werden.";
 
             await DisplayAlertAsync("OK", successMessage, "OK");
             await ResetAndRestartScanAsync(clearWorkflow: true);
@@ -537,6 +564,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
         _activeResolution = null;
         _ablesedatumPicker.Date = DateTime.Today;
         _standEntry.Text = string.Empty;
+        _defektCheckBox.IsChecked = false;
         ClearPhotoSelection();
         _scanContext.Reset();
         ApplyResolution(null, string.Empty);
@@ -547,6 +575,7 @@ public sealed class AblesungErfassenPage : ContentPage, IQueryAttributable
     {
         _ablesedatumPicker.IsEnabled = !_isBusy;
         _standEntry.IsEnabled = !_isBusy;
+        _defektCheckBox.IsEnabled = !_isBusy;
         _capturePhotoButton.IsEnabled = !_isBusy && MediaPicker.Default.IsCaptureSupported;
         _pickPhotoButton.IsEnabled = !_isBusy;
         _clearPhotoButton.IsEnabled = !_isBusy;

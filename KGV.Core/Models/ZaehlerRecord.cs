@@ -35,6 +35,9 @@ public sealed class ZaehlerRecord : BaseModel
     [Column("status")]
     public string? Status { get; set; }
 
+    [Column("defekt")]
+    public bool Defekt { get; set; }
+
     [Column("einbau_foto_pfad")]
     public string? EinbauFotoPfad { get; set; }
 

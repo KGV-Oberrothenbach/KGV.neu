@@ -1949,6 +1949,24 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
+        public Task<bool> SetZaehlerDefektAsync(long zaehlerId, bool defekt) => ExecuteAsync(
+            "SetZaehlerDefektAsync",
+            async () =>
+            {
+                if (zaehlerId <= 0)
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client
+                    .From<ZaehlerRecord>()
+                    .Where(x => x.Id == zaehlerId)
+                    .Set(x => x.Defekt, defekt)
+                    .Update();
+
+                return true;
+            },
+            false);
+
         public Task<bool> AddAblesungAsync(AblesungInsertRecord request) => ExecuteAsync(
             "AddAblesungAsync",
             async () =>

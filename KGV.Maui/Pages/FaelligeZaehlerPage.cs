@@ -117,7 +117,7 @@ public sealed class FaelligeZaehlerPage : ContentPage
                     CreateDetailRow("Zähler", nameof(KGV.Core.Models.ZaehlerEichstatusRecord.ZaehlerDisplay)),
                     CreateDetailRow("Eichdatum", nameof(KGV.Core.Models.ZaehlerEichstatusRecord.EichdatumDisplay)),
                     CreateDetailRow("Eichfälligkeit", nameof(KGV.Core.Models.ZaehlerEichstatusRecord.EichfaelligDisplay)),
-                    CreateDetailRow("Status", nameof(KGV.Core.Models.ZaehlerEichstatusRecord.EichstatusDisplay)),
+                    CreateDetailRow("Status", nameof(KGV.Core.Models.ZaehlerEichstatusRecord.StatusDisplay)),
                     CreateDetailRow("Tage", nameof(KGV.Core.Models.ZaehlerEichstatusRecord.TageDisplay))
                 }
             }
