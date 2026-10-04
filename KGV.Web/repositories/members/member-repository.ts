@@ -26,3 +26,5 @@ export const getMemberById = (session: BrowserSession, memberId: number) => read
 export const updateMemberStammdaten = (session: BrowserSession, memberId: number, values: Record<string, unknown>) => writeSupabase<Member>(session, "mitglied", "PATCH", values, {
   id: `eq.${memberId}`,
 });
+
+export const createMember = (session: BrowserSession, values: Record<string, unknown>) => writeSupabase<Member>(session, "mitglied", "POST", values);
