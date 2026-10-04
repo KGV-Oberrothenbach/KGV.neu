@@ -9,6 +9,8 @@ type SignInResponse = {
   msg?: string;
 };
 
+export class RefreshSessionRejectedError extends Error {}
+
 type OtpRequestResponse = {
   success?: boolean;
   message?: string;
@@ -53,7 +55,7 @@ export async function refreshBrowserSession(club: ClubContext, refreshToken: str
   });
   const result = await response.json().catch(() => null) as SignInResponse | null;
   if (!response.ok || !result?.access_token || !result.refresh_token || !result.expires_in || !result.user?.id) {
-    throw new Error(result?.error_description ?? result?.msg ?? "Die gespeicherte Anmeldung konnte nicht erneuert werden.");
+    throw new RefreshSessionRejectedError(result?.error_description ?? result?.msg ?? "Die gespeicherte Anmeldung konnte nicht erneuert werden.");
   }
   return result;
 }

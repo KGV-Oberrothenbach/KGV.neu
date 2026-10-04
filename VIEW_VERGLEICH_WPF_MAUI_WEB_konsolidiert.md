@@ -418,11 +418,17 @@ services/auth/
   erneuert werden; neue Tokens werden in derselben BrowserSession gespeichert.
 - Eine ungültige Refresh-Session wird lokal verworfen.
 
+### Erledigt in G1.9c
+- Der Access-Token wird während einer laufenden Sitzung rechtzeitig erneuert.
+- Der React-Session-State erhält die erneuerten Tokens, ohne die
+  15-Minuten-Inaktivitätsfrist zu verlängern.
+- Ungültige Refresh-Tokens führen kontrolliert zu signed-out; transiente
+  Netzwerkfehler löschen die gespeicherte Session nicht sofort.
+
 ### Bewertung
 ✅ Diese Browser-Erweiterungen sollen erhalten bleiben.
 
 ### Offen
-- automatische Token-Erneuerung während einer laufenden angemeldeten Sitzung
 - weiterer zentraler Session-/AuthProvider-Umbau
 
 ### Ziel

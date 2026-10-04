@@ -34,7 +34,7 @@ import { LoginForm } from "../features/auth/LoginForm";
 import { OtpFlow } from "../features/auth/OtpFlow";
 import { resolveClub } from "../services/auth/club-service";
 import { signIn } from "../services/auth/auth-service";
-import { restoreBrowserSession, startInactivityMonitor } from "../services/auth/session-service";
+import { restoreBrowserSession, startInactivityMonitor, startSessionRefreshMonitor } from "../services/auth/session-service";
 import { enqueueMeterPhoto, listPendingMeterPhotos, ndefReaderConstructor, pendingPhotoFile, putPendingMeterPhoto, removePendingMeterPhoto, type PendingMeterPhoto } from "../lib/browser-media";
 import { useEditLock } from "../lib/use-edit-lock";
 import { MemberGardensWorkspace, ParcelProtocolsWorkspace, ParcelWorkspace } from "./parcel-workspaces";
@@ -93,6 +93,16 @@ export default function Home() {
       onTimeout: () => logout("Du wurdest nach 15 Minuten Inaktivität automatisch abgemeldet."),
     });
   }, [status, session, club?.vereinId, logout]);
+
+  useEffect(() => {
+    if (status !== "signed-in" || !session || !club) return;
+    return startSessionRefreshMonitor({
+      club,
+      session,
+      onSessionRefreshed: setSession,
+      onSessionExpired: () => logout(),
+    });
+  }, [status, session, club, logout]);
 
   async function selectClub(code: string) {
     const selectedClub = await resolveClub(code);

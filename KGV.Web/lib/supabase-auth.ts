@@ -24,7 +24,7 @@ export type WorkspaceContext = {
   parzelleId: number | null;
 };
 
-const storageKey = "kgv.browser.session.v1";
+export const browserSessionStorageKey = "kgv.browser.session.v1";
 const clubStorageKey = "kgv.browser.club.v1";
 const workspaceStoragePrefix = "kgv.browser.workspace.v1";
 
@@ -138,7 +138,7 @@ export function loadSession(): BrowserSession | null {
 export function loadStoredSession(): BrowserSession | null {
   if (typeof window === "undefined") return null;
   try {
-    const saved = window.localStorage.getItem(storageKey);
+    const saved = window.localStorage.getItem(browserSessionStorageKey);
     if (!saved) return null;
     const session = JSON.parse(saved) as BrowserSession;
     return typeof session.accessToken === "string" && typeof session.refreshToken === "string" && typeof session.expiresAt === "number" && typeof session.user?.id === "string" ? session : null;
@@ -148,11 +148,11 @@ export function loadStoredSession(): BrowserSession | null {
 }
 
 export function saveSession(session: BrowserSession) {
-  if (typeof window !== "undefined") window.localStorage.setItem(storageKey, JSON.stringify(session));
+  if (typeof window !== "undefined") window.localStorage.setItem(browserSessionStorageKey, JSON.stringify(session));
 }
 
 export function clearSession() {
-  if (typeof window !== "undefined") window.localStorage.removeItem(storageKey);
+  if (typeof window !== "undefined") window.localStorage.removeItem(browserSessionStorageKey);
 }
 
 export async function signOut(session: BrowserSession) {
