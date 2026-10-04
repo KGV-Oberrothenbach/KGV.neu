@@ -1,7 +1,8 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { type BrowserSession } from "../../lib/supabase-auth";
+import HomeDetail from "./HomeDetail";
 import {
   loadHomeDashboard,
   registerForHomeWorkAssignment,
@@ -14,22 +15,6 @@ import {
   type WorkAssignmentRegistration,
 } from "../../services/home/home-service";
 
-export type HomeDashboardDetailProps = {
-  selection: HomeDetailSelection;
-  assignments: HomeWorkAssignment[];
-  appointments: HomeAppointment[];
-  announcements: HomeAnnouncement[];
-  registrations: WorkAssignmentRegistration[];
-  memberId: number | null;
-  isManager: boolean;
-  busy: boolean;
-  onClose: () => void;
-  onSelect: (selection: HomeDetailSelection) => void;
-  onRegister: (assignmentId: number) => Promise<void>;
-  onSignOff: (assignmentId: number) => Promise<void>;
-  onNavigate: (target: string) => void;
-};
-
 type HomeDashboardProps = {
   session: BrowserSession;
   isManager: boolean;
@@ -38,10 +23,9 @@ type HomeDashboardProps = {
   season: number;
   onNavigate: (id: string) => void;
   onOpenWorkHours: () => void;
-  renderDetail: (props: HomeDashboardDetailProps) => ReactNode;
 };
 
-export default function HomeDashboard({ session, isManager, memberId, saisonId, season, onNavigate, onOpenWorkHours, renderDetail }: HomeDashboardProps) {
+export default function HomeDashboard({ session, isManager, memberId, saisonId, season, onNavigate, onOpenWorkHours }: HomeDashboardProps) {
   const [appointments, setAppointments] = useState<HomeAppointment[]>([]);
   const [announcements, setAnnouncements] = useState<HomeAnnouncement[]>([]);
   const [assignments, setAssignments] = useState<HomeWorkAssignment[]>([]);
@@ -124,7 +108,7 @@ export default function HomeDashboard({ session, isManager, memberId, saisonId, 
       <p>{workHoursInfo}</p>
       {memberId !== null && <button onClick={onOpenWorkHours}>Arbeitsstunden erfassen</button>}
     </section>
-    {detail && renderDetail({ selection: detail, assignments, appointments, announcements, registrations, memberId, isManager, busy: registeringId !== null, onClose: () => setDetail(null), onSelect: setDetail, onRegister: registerForAssignment, onSignOff: signOffFromAssignment, onNavigate: (target) => { setDetail(null); onNavigate(target); } })}
+    {detail && <HomeDetail session={session} selection={detail} assignments={assignments} appointments={appointments} announcements={announcements} registrations={registrations} memberId={memberId} isManager={isManager} busy={registeringId !== null} onClose={() => setDetail(null)} onSelect={setDetail} onRegister={registerForAssignment} onSignOff={signOffFromAssignment} onNavigate={(target) => { setDetail(null); onNavigate(target); }} />}
     <div className="home-content-grid">
       <HomeContentSection title="Arbeitseinsätze" empty="Aktuell liegen keine veröffentlichten Arbeitseinsätze vor.">{assignments.map((item) => {
         const registered = registrations.some((entry) => entry.arbeitseinsatz_id === item.id && entry.status === "angemeldet");
