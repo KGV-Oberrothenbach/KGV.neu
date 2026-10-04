@@ -768,6 +768,8 @@ KGV.Web/
 
 ## 3.1 Mitgliedersuche
 
+**Erledigt in G3.1:** `MemberSearch.tsx` ist ausgelagert; `member-service.ts` wurde eingeführt und das vorhandene `member-repository.ts` erweitert. Gartennummern werden nicht mehr in React zusammengesetzt, und der Workspace-Mitgliedsname läuft nicht mehr über einen direkten Supabase-Zugriff. **G3.2 Stammdaten bleibt ausdrücklich offen.**
+
 ### WPF
 `MemberSearchView.xaml`
 
