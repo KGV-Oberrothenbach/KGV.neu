@@ -1,39 +1,13 @@
 import { type BrowserSession } from "../../lib/supabase-auth";
-import {
-  getHomeWorkHours,
-  listHomeAnnouncements,
-  listHomeAppointments,
-  listHomeRegistrations,
-  listHomeWorkAssignments,
-  signOffFromHomeWorkAssignment,
-  signUpForHomeWorkAssignment,
-  type HomeAnnouncement,
-  type HomeAppointment,
-  type HomeWorkAssignment,
-  type HomeWorkHoursSummary,
-  type WorkAssignmentRegistration,
-} from "../../repositories/home/home-repository";
-
+import { listHomeAnnouncements, type HomeAnnouncement } from "../../repositories/announcements/announcement-repository";
+import { listHomeAppointments, type HomeAppointment } from "../../repositories/appointments/appointment-repository";
+import { listMemberNames } from "../../repositories/members/member-repository";
+import { getHomeWorkHours, type HomeWorkHoursSummary } from "../../repositories/work-hours/work-hours-repository";
+import { listAssignmentParticipants, listHomeWorkAssignments, listMemberRegistrations, signOffFromWorkAssignment, signUpForWorkAssignment, type HomeWorkAssignment, type WorkAssignmentRegistration } from "../../repositories/work-assignments/work-assignment-repository";
 export type { HomeAnnouncement, HomeAppointment, HomeWorkAssignment, HomeWorkHoursSummary, WorkAssignmentRegistration };
 export type HomeDetailSelection = { kind: "assignment" | "appointment" | "announcement"; id: number };
 export type HomeDashboardData = { assignments: HomeWorkAssignment[]; appointments: HomeAppointment[]; announcements: HomeAnnouncement[]; workHours: HomeWorkHoursSummary | null; registrations: WorkAssignmentRegistration[] };
-
-export async function loadHomeDashboard(session: BrowserSession, memberId: number | null, saisonId: number | null, season: number): Promise<HomeDashboardData> {
-  const today = new Date().toISOString().slice(0, 10);
-  const [assignments, appointments, announcements, workHours, registrations] = await Promise.all([
-    listHomeWorkAssignments(session, today),
-    listHomeAppointments(session, today),
-    listHomeAnnouncements(session),
-    memberId === null ? Promise.resolve([] as HomeWorkHoursSummary[]) : getHomeWorkHours(session, memberId, saisonId, season),
-    memberId === null ? Promise.resolve([] as WorkAssignmentRegistration[]) : listHomeRegistrations(session, memberId),
-  ]);
-  return { assignments, appointments, announcements, workHours: workHours[0] ?? null, registrations };
-}
-
-export function registerForHomeWorkAssignment(session: BrowserSession, assignmentId: number, memberId: number) {
-  return signUpForHomeWorkAssignment(session, assignmentId, memberId);
-}
-
-export function signOffFromHomeAssignment(session: BrowserSession, assignmentId: number, memberId: number) {
-  return signOffFromHomeWorkAssignment(session, assignmentId, memberId);
-}
+export async function loadHomeDashboard(session: BrowserSession, memberId: number | null, saisonId: number | null, season: number): Promise<HomeDashboardData> { const today = new Date().toISOString().slice(0, 10); const [assignments, appointments, announcements, workHours, registrations] = await Promise.all([listHomeWorkAssignments(session, today), listHomeAppointments(session, today), listHomeAnnouncements(session), memberId === null ? Promise.resolve([] as HomeWorkHoursSummary[]) : getHomeWorkHours(session, memberId, saisonId, season), memberId === null ? Promise.resolve([] as WorkAssignmentRegistration[]) : listMemberRegistrations(session, memberId)]); return { assignments, appointments, announcements, workHours: workHours[0] ?? null, registrations }; }
+export const registerForHomeWorkAssignment = (session: BrowserSession, assignmentId: number, memberId: number) => signUpForWorkAssignment(session, assignmentId, memberId);
+export const signOffFromHomeAssignment = (session: BrowserSession, assignmentId: number, memberId: number) => signOffFromWorkAssignment(session, assignmentId, memberId);
+export async function loadHomeAssignmentParticipants(session: BrowserSession, assignmentId: number) { const registrations = await listAssignmentParticipants(session, assignmentId); const members = await listMemberNames(session, [...new Set(registrations.map((item) => item.mitglied_id))]); const names = new Map(members.map((item) => [item.id, [item.vorname, item.name].filter(Boolean).join(" ") || `Mitglied #${item.id}`])); return registrations.map((item) => ({ ...item, displayName: names.get(item.mitglied_id) ?? `Mitglied #${item.mitglied_id}` })); }

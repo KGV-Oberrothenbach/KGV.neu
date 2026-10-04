@@ -1,0 +1,3 @@
+import { type BrowserSession, readSupabase } from "../../lib/supabase-auth";
+export type HomeAppointment = { id: number; titel: string | null; beschreibung: string | null; datum: string; start_uhrzeit: string | null; end_uhrzeit: string | null; sichtbar_ab: string | null; sichtbar_bis: string | null };
+export const listHomeAppointments = (session: BrowserSession, today: string) => readSupabase<HomeAppointment>(session, "v_startseite_termine", { select: "id,titel,beschreibung,datum,start_uhrzeit,end_uhrzeit,sichtbar_ab,sichtbar_bis", datum: `gte.${today}`, order: "datum.asc,start_uhrzeit.asc", limit: "30" });

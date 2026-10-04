@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { type BrowserSession, readSupabase } from "../../lib/supabase-auth";
-import { type HomeAnnouncement, type HomeAppointment, type HomeDetailSelection, type HomeWorkAssignment, type WorkAssignmentRegistration } from "../../services/home/home-service";
+import { type BrowserSession } from "../../lib/supabase-auth";
+import { loadHomeAssignmentParticipants, type HomeAnnouncement, type HomeAppointment, type HomeDetailSelection, type HomeWorkAssignment, type WorkAssignmentRegistration } from "../../services/home/home-service";
 
 type HomeDetailProps = {
   session: BrowserSession;
@@ -60,18 +60,7 @@ export default function HomeDetail({ session, selection, assignments, appointmen
     setParticipants([]);
     setParticipantError("");
     if (!assignment || !isManager) return () => { active = false; };
-    readSupabase<WorkAssignmentRegistration>(session, "arbeitseinsatz_anmeldung", {
-      select: "id,arbeitseinsatz_id,mitglied_id,status,bemerkung,angemeldet_am,updated_at",
-      arbeitseinsatz_id: `eq.${assignment.id}`,
-      status: "eq.angemeldet",
-      order: "angemeldet_am.asc",
-      limit: "500",
-    }).then(async (rows) => {
-      const ids = [...new Set(rows.map((row) => row.mitglied_id))];
-      const members = ids.length ? await readSupabase<ParticipantMember>(session, "mitglied", { select: "id,vorname,name", id: `in.(${ids.join(",")})`, limit: "500" }) : [];
-      const names = new Map(members.map((item) => [item.id, [item.vorname, item.name].filter(Boolean).join(" ") || `Mitglied #${item.id}`]));
-      if (active) setParticipants(rows.map((row) => ({ ...row, displayName: names.get(row.mitglied_id) ?? `Mitglied #${row.mitglied_id}` })));
-    }).catch((cause: Error) => { if (active) setParticipantError(cause.message); });
+    loadHomeAssignmentParticipants(session, assignment.id).then((rows) => { if (active) setParticipants(rows); }).catch((cause: Error) => { if (active) setParticipantError(cause.message); });
     return () => { active = false; };
   }, [assignment?.id, isManager, registrations, session]);
 
