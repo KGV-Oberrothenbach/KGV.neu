@@ -6,5 +6,6 @@
   </Project>
   <Project Path="KGV.ReleaseManager/KGV.ReleaseManager.csproj" />
   <Project Path="KGV.Wpf/KGV.Wpf.csproj" />
+  <Project Path="KGV.Web/KGV.Web.esproj" />
 </Solution>
 
