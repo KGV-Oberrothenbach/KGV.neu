@@ -47,6 +47,11 @@ export default function Home() {
   const [context, setContext] = useState<AppUserContext | null>(null);
   const [club, setClub] = useState<ClubContext | null>(null);
   const [message, setMessage] = useState("");
+  const sessionRef = useRef<BrowserSession | null>(null);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   async function establishSession(candidate: BrowserSession) {
     const userContext = await loadAppUserContext(candidate);
@@ -77,22 +82,25 @@ export default function Home() {
   }, []);
 
   const logout = useCallback((reason = "") => {
-    if (session) void releaseAllBrowserEditLocks(session).catch(() => undefined).finally(() => signOut(session));
+    const currentSession = sessionRef.current;
+    if (currentSession) void releaseAllBrowserEditLocks(currentSession).catch(() => undefined).finally(() => signOut(currentSession));
     clearSession();
+    sessionRef.current = null;
     setSession(null);
     setContext(null);
     setMessage(reason);
     setStatus("signed-out");
-  }, [session]);
+  }, []);
 
+  const userId = session?.user.id;
   useEffect(() => {
-    if (status !== "signed-in" || !session) return;
+    if (status !== "signed-in" || !userId) return;
     return startInactivityMonitor({
       vereinId: club?.vereinId,
-      userId: session.user.id,
+      userId,
       onTimeout: () => logout("Du wurdest nach 15 Minuten Inaktivität automatisch abgemeldet."),
     });
-  }, [status, session, club?.vereinId, logout]);
+  }, [status, userId, club?.vereinId, logout]);
 
   useEffect(() => {
     if (status !== "signed-in" || !session || !club) return;
