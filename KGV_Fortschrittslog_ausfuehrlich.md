@@ -7,6 +7,12 @@
 - `PUBLIC` und `anon` haben keinen Funktionszugriff; `authenticated` erhält ausschließlich EXECUTE. Eine allgemeine UPDATE-Policy für `public.zaehler` wurde nicht ergänzt. `defekt = false` bleibt im Service bewusst nicht unterstützt.
 - Validierung: `git diff --check` sowie gezielte Builds von `KGV.Core` und `KGV.Infrastructure`.
 
+## 2026-10-04 - Defektmarkierung: Demo-Scope und nullable Belegungsbeginn
+
+- Die Korrekturmigration `20261004150000_secure_zaehler_defekt_demo_scope.sql` ersetzt die RPC erneut per `CREATE OR REPLACE FUNCTION`.
+- Eine aktuelle Belegung akzeptiert nun `von_datum IS NULL` oder einen Beginn bis einschließlich heute.
+- Produktive Admin-/Vorstandsrollen, eingeschränkte Demo-/Reviewer-Admins, normale Mitglieder und Demo-/Reviewer-Mitglieder werden entsprechend den bestehenden Scope-Hilfsfunktionen getrennt behandelt.
+
 Diese Fassung verdichtet das ausführliche Fortschrittslog auf die fachlich tragenden Informationen:
 - **was umgesetzt wurde**
 - **welche Wirkung das hatte**

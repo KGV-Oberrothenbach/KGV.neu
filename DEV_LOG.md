@@ -7,6 +7,12 @@
 - Die RPC-Rechte sind auf `authenticated` begrenzt. Es wurde keine allgemeine UPDATE-Policy für `public.zaehler` ergänzt. Der Service unterstützt weiterhin keinen Defekt-Reset.
 - Validierung: `git diff --check` sowie gezielte Builds von `KGV.Core` und `KGV.Infrastructure`.
 
+## 2026-10-04 - Demo-Scope und nullable Belegungsbeginn korrigiert
+
+- Die RPC `public.mark_meter_defective(bigint)` berücksichtigt nun `von_datum IS NULL` als zulässigen offenen Beginn einer aktuellen Belegung.
+- Produktive Admin-/Vorstandsberechtigungen, eingeschränkte Demo-/Reviewer-Admins und normale Mitglieder werden getrennt auf den bestehenden Produktiv-/Demo-Scope geprüft.
+- Demo-/Reviewer-Mitglieder bleiben auf aktuell eigene Demo-Parzellen begrenzt; eine allgemeine UPDATE-Policy auf `public.zaehler` wurde weiterhin nicht ergänzt.
+
 ---
 
 ## 2026-04-13 – Pachtvertrag produktiv auf HTML-Template umgestellt
