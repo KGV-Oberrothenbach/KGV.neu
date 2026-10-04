@@ -1953,15 +1953,13 @@ namespace KGV.Infrastructure.Services
             "SetZaehlerDefektAsync",
             async () =>
             {
-                if (zaehlerId <= 0)
+                if (zaehlerId <= 0 || !defekt)
                     return false;
 
                 var client = await EnsureClientAsync();
-                await client
-                    .From<ZaehlerRecord>()
-                    .Where(x => x.Id == zaehlerId)
-                    .Set(x => x.Defekt, defekt)
-                    .Update();
+                await client.Rpc<bool>(
+                    "mark_meter_defective",
+                    new { p_zaehler_id = zaehlerId });
 
                 return true;
             },

@@ -1,5 +1,12 @@
 # KGV Entwicklungslog
 
+## 2026-10-04 - Zähler-Defektmarkierung für Mitglieder abgesichert
+
+- Die bestehende Defektmarkierung verwendet für normale Mitglieder jetzt ausschließlich die neue SECURITY-DEFINER-RPC `public.mark_meter_defective(bigint)`.
+- Die RPC prüft Zählerexistenz, aktiven Status, fehlendes `ausgebaut_am` sowie Admin-/Vorstandsrolle oder eine aktuelle eigene `parzellen_belegung`; sie setzt ausschließlich `zaehler.defekt = true`.
+- Die RPC-Rechte sind auf `authenticated` begrenzt. Es wurde keine allgemeine UPDATE-Policy für `public.zaehler` ergänzt. Der Service unterstützt weiterhin keinen Defekt-Reset.
+- Validierung: `git diff --check` sowie gezielte Builds von `KGV.Core` und `KGV.Infrastructure`.
+
 ---
 
 ## 2026-04-13 – Pachtvertrag produktiv auf HTML-Template umgestellt

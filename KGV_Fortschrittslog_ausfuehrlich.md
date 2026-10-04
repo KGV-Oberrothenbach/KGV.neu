@@ -1,5 +1,12 @@
 # KGV_Fortschrittslog_kompakt
 
+## 2026-10-04 - Sichere Zähler-Defektmarkierung für normale Pächter
+
+- Auf `codex/zaehler-defekt` wurde der bestehende direkte Tabellen-UPDATE für `SetZaehlerDefektAsync` durch die abgesicherte RPC `public.mark_meter_defective(bigint)` ersetzt.
+- Die Migration `20261004140000_secure_zaehler_defekt.sql` erlaubt ausschließlich `defekt = true`, prüft aktive und nicht ausgebaute Zähler und berechtigt normale Mitglieder nur bei aktueller eigener Parzellenbelegung; Admin/Vorstand verwenden die bestehende Rollen-Hilfsfunktion.
+- `PUBLIC` und `anon` haben keinen Funktionszugriff; `authenticated` erhält ausschließlich EXECUTE. Eine allgemeine UPDATE-Policy für `public.zaehler` wurde nicht ergänzt. `defekt = false` bleibt im Service bewusst nicht unterstützt.
+- Validierung: `git diff --check` sowie gezielte Builds von `KGV.Core` und `KGV.Infrastructure`.
+
 Diese Fassung verdichtet das ausführliche Fortschrittslog auf die fachlich tragenden Informationen:
 - **was umgesetzt wurde**
 - **welche Wirkung das hatte**
