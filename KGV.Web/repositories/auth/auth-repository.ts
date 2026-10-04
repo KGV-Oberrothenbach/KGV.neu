@@ -44,6 +44,20 @@ export async function signInWithPassword(club: ClubContext, email: string, passw
   return result;
 }
 
+export async function refreshBrowserSession(club: ClubContext, refreshToken: string): Promise<SignInResponse> {
+  const { url, publishableKey } = clubConfig(club);
+  const response = await fetch(`${url}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: { apikey: publishableKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  const result = await response.json().catch(() => null) as SignInResponse | null;
+  if (!response.ok || !result?.access_token || !result.refresh_token || !result.expires_in || !result.user?.id) {
+    throw new Error(result?.error_description ?? result?.msg ?? "Die gespeicherte Anmeldung konnte nicht erneuert werden.");
+  }
+  return result;
+}
+
 export async function requestFirstLoginOtp(club: ClubContext, email: string): Promise<OtpRequestResponse> {
   const { url, publishableKey } = clubConfig(club);
   const response = await fetch(`${url}/functions/v1/kgv-request-first-login-otp`, {

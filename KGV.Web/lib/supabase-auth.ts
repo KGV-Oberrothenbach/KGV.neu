@@ -131,15 +131,24 @@ export function saveWorkspaceContext(context: WorkspaceContext) {
 }
 
 export function loadSession(): BrowserSession | null {
+  const session = loadStoredSession();
+  return session && session.expiresAt > Date.now() ? session : null;
+}
+
+export function loadStoredSession(): BrowserSession | null {
   if (typeof window === "undefined") return null;
   try {
     const saved = window.localStorage.getItem(storageKey);
     if (!saved) return null;
     const session = JSON.parse(saved) as BrowserSession;
-    return session.expiresAt > Date.now() && session.accessToken ? session : null;
+    return typeof session.accessToken === "string" && typeof session.refreshToken === "string" && typeof session.expiresAt === "number" && typeof session.user?.id === "string" ? session : null;
   } catch {
     return null;
   }
+}
+
+export function saveSession(session: BrowserSession) {
+  if (typeof window !== "undefined") window.localStorage.setItem(storageKey, JSON.stringify(session));
 }
 
 export function clearSession() {
@@ -180,7 +189,7 @@ export async function loadAppUserContext(session: BrowserSession): Promise<AppUs
   const role = row.role?.toLowerCase();
   const isDemoAccount = Boolean(row.is_demo_account || row.is_demo);
   session.isDemoAccount = isDemoAccount;
-  if (typeof window !== "undefined") window.localStorage.setItem(storageKey, JSON.stringify(session));
+  saveSession(session);
   return {
     userId: row.user_id,
     role: role === "admin" || role === "vorstand" ? role : "user",

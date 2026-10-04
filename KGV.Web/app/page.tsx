@@ -15,7 +15,6 @@ import {
   inviteAppUser,
   loadClub,
   loadAppUserContext,
-  loadSession,
   loadWorkspaceContext,
   openDriveDocument,
   openMeterPhoto,
@@ -35,7 +34,7 @@ import { LoginForm } from "../features/auth/LoginForm";
 import { OtpFlow } from "../features/auth/OtpFlow";
 import { resolveClub } from "../services/auth/club-service";
 import { signIn } from "../services/auth/auth-service";
-import { startInactivityMonitor } from "../services/auth/session-service";
+import { restoreBrowserSession, startInactivityMonitor } from "../services/auth/session-service";
 import { enqueueMeterPhoto, listPendingMeterPhotos, ndefReaderConstructor, pendingPhotoFile, putPendingMeterPhoto, removePendingMeterPhoto, type PendingMeterPhoto } from "../lib/browser-media";
 import { useEditLock } from "../lib/use-edit-lock";
 import { MemberGardensWorkspace, ParcelProtocolsWorkspace, ParcelWorkspace } from "./parcel-workspaces";
@@ -67,12 +66,10 @@ export default function Home() {
       setStatus("configuration-error");
       return;
     }
-    const existing = loadSession();
-    if (!existing) {
-      setStatus("signed-out");
-      return;
-    }
-    establishSession(existing).catch((error: Error) => {
+    void restoreBrowserSession(selectedClub).then((existing) => {
+      if (!existing) { setStatus("signed-out"); return; }
+      return establishSession(existing);
+    }).catch((error: Error) => {
       clearSession();
       setMessage(error.message);
       setStatus("access-error");

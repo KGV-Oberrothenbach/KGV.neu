@@ -412,12 +412,17 @@ services/auth/
   LocalStorage-Aktualisierung bleiben erhalten.
 - Das bestehende Logout- und Edit-Lock-Verhalten bleibt unverändert.
 
+### Erledigt in G1.9b
+- Ein gespeicherter Refresh-Token wird beim Session-Restore verwendet.
+- Ein abgelaufener oder kurz vor Ablauf stehender Access-Token kann beim Start
+  erneuert werden; neue Tokens werden in derselben BrowserSession gespeichert.
+- Eine ungültige Refresh-Session wird lokal verworfen.
+
 ### Bewertung
 ✅ Diese Browser-Erweiterungen sollen erhalten bleiben.
 
 ### Offen
-- Refresh-Token verwenden
-- ablaufenden Access-Token rechtzeitig erneuern
+- automatische Token-Erneuerung während einer laufenden angemeldeten Sitzung
 - weiterer zentraler Session-/AuthProvider-Umbau
 
 ### Ziel
