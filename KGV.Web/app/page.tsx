@@ -32,6 +32,7 @@ import { MemberGardensWorkspace, ParcelProtocolsWorkspace, ParcelWorkspace } fro
 import Navigation, { type NavigationGroup, type NavigationItem } from "../features/navigation/Navigation";
 import SeasonPicker from "../features/navigation/SeasonPicker";
 import MobileNavigation from "../features/navigation/MobileNavigation";
+import WorkspaceHeader from "../features/navigation/WorkspaceHeader";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -243,7 +244,7 @@ function Workspace({ session, email, club, context, onLogout, onChangeClub }: { 
 
   return (
     <main className="workspace">
-      <header className="workspace-header"><div className="brand"><span className="brand-mark">K</span><span>{club.kurzname || club.vereinsname}</span></div><div className="account"><span>{email}</span><span className="role-pill">{context.role}</span><ChangeClubAction className="text-button" label="Verein wechseln" onConfirm={onChangeClub} /><button className="text-button" onClick={onLogout}>Abmelden</button></div></header>
+      <WorkspaceHeader clubName={club.kurzname || club.vereinsname} email={email} role={context.role} onLogout={onLogout} onChangeClub={onChangeClub} />
       <section className="workspace-body">
         <aside className="sidebar" aria-label="Hauptnavigation">
           <SeasonPicker seasons={seasons} selectedSeasonId={workspaceContext.saisonId} seasonError={seasonError} onChange={selectSeason} />
