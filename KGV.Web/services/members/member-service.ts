@@ -81,6 +81,10 @@ export async function updateExistingMember(session: BrowserSession, memberId: nu
   const current = await getMemberById(session, memberId);
   if (!current) throw new Error("Das Mitglied konnte nicht geladen werden.");
   if (!canEditMember(memberId, permissions)) throw new Error("Für dieses Mitglied besteht keine Bearbeitungsberechtigung.");
+  const vorname = input.vorname?.trim() ?? "";
+  const name = input.name?.trim() ?? "";
+  if (!vorname) throw new Error("Vorname ist erforderlich.");
+  if (!name) throw new Error("Nachname ist erforderlich.");
   if (current.hauptmitglied_id === null && !validArbeitsstundenAltersregelTypen.has(input.arbeitsstunden_altersregel_typ ?? "")) {
     throw new Error("Für Hauptmitglieder ist eine gültige Arbeitsstunden-Altersregel erforderlich.");
   }
@@ -92,8 +96,8 @@ export async function updateExistingMember(session: BrowserSession, memberId: nu
   }
 
   const values = {
-    vorname: input.vorname?.trim() ?? "",
-    name: input.name?.trim() ?? "",
+    vorname,
+    name,
     email: current.auth_user_id === null && permissions.canEditAllMembers ? requestedEmail : current.email,
     geburtsdatum: input.geburtsdatum || null,
     arbeitsstunden_altersregel_typ: current.hauptmitglied_id === null ? input.arbeitsstunden_altersregel_typ : current.arbeitsstunden_altersregel_typ,
