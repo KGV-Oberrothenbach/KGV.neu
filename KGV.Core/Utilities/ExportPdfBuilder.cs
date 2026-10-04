@@ -34,11 +34,21 @@ namespace KGV.Core.Utilities
 
             var doc = new PdfDocument();
             doc.Info.Title = exportKey ?? "export";
+            // set author/creator to club for produced PDFs
+            try
+            {
+                doc.Info.Author = VereinsdokumentBranding.VereinsName;
+                doc.Info.Creator = VereinsdokumentBranding.VereinsName;
+            }
+            catch { }
             var isMitgliederliste = string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase);
 
             var page = doc.AddPage();
             page.Size = PdfSharpCore.PageSize.A4;
-            page.Orientation = PdfSharpCore.PageOrientation.Landscape;
+            // Use portrait for the Eichfälligkeit export, otherwise landscape
+            page.Orientation = string.Equals(exportKey, "zaehler_eichfaelligkeit", StringComparison.OrdinalIgnoreCase)
+                ? PdfSharpCore.PageOrientation.Portrait
+                : PdfSharpCore.PageOrientation.Landscape;
 
             var gfx = XGraphics.FromPdfPage(page);
 
@@ -64,6 +74,38 @@ namespace KGV.Core.Utilities
                 y += 18;
             }
 
+            void DrawVereinskopf()
+            {
+                if (!string.Equals(exportKey, "zaehler_eichfaelligkeit", StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                const double logoSize = 52;
+                var clubFont = new XFont("Arial", 12, XFontStyle.Bold);
+                var metaFont = new XFont("Arial", 8, XFontStyle.Regular);
+                var titleFont = new XFont("Arial", 14, XFontStyle.Bold);
+                var accentPen = new XPen(XColor.FromArgb(46, 125, 50), 1.6);
+
+                using var logo = XImage.FromStream(() => new MemoryStream(VereinsdokumentBranding.GetLogoBytes(), writable: false));
+                gfx.DrawImage(logo, PageMargin, y, logoSize, logoSize);
+                var textX = PageMargin + logoSize + 12;
+                var textWidth = page.Width - textX - PageMargin;
+                gfx.DrawString(VereinsdokumentBranding.VereinsName, clubFont, XBrushes.Black,
+                    new XRect(textX, y + 2, textWidth, 16), XStringFormats.TopLeft);
+                gfx.DrawString(VereinsdokumentBranding.VereinsRegister, metaFont, XBrushes.DimGray,
+                    new XRect(textX, y + 21, textWidth, 12), XStringFormats.TopLeft);
+                gfx.DrawString($"E-Mail: {VereinsdokumentBranding.VereinsEmail}", metaFont, XBrushes.DimGray,
+                    new XRect(textX, y + 36, textWidth, 12), XStringFormats.TopLeft);
+                y += logoSize + 8;
+                gfx.DrawLine(accentPen, PageMargin, y, page.Width - PageMargin, y);
+                y += 14;
+                gfx.DrawString("Zähler – Eichfälligkeit", titleFont, XBrushes.Black,
+                    new XRect(PageMargin, y, page.Width - PageMargin * 2, 20), XStringFormats.TopLeft);
+                y += 21;
+                gfx.DrawString($"Stand: {DateTime.Today:dd.MM.yyyy}", metaFont, XBrushes.DimGray,
+                    new XRect(PageMargin, y, page.Width - PageMargin * 2, 12), XStringFormats.TopLeft);
+                y += 18;
+            }
+
             // prepare effective columns
             var effectiveCols = BuildEffectiveColumns(exportKey, columns);
 
@@ -73,7 +115,11 @@ namespace KGV.Core.Utilities
             if (totalWeight <= 0) totalWeight = 1;
             var colWidths = weights.Select(w => usableWidth * (w / totalWeight)).ToArray();
 
-            DrawMitgliederlistenKopf();
+            // draw header: Vereinskopf for specific export, sonst Mitgliederlisten-kopf
+            if (string.Equals(exportKey, "zaehler_eichfaelligkeit", StringComparison.OrdinalIgnoreCase))
+                DrawVereinskopf();
+            else
+                DrawMitgliederlistenKopf();
             // draw header
             DrawHeaderRow(gfx, headerFont, effectiveCols, colWidths, x, y, exportKey);
             y += HeaderHeight + 6;
@@ -106,12 +152,17 @@ namespace KGV.Core.Utilities
                     willPageBreak = true;
                     page = doc.AddPage();
                     page.Size = PdfSharpCore.PageSize.A4;
-                    page.Orientation = PdfSharpCore.PageOrientation.Landscape;
+                    page.Orientation = string.Equals(exportKey, "zaehler_eichfaelligkeit", StringComparison.OrdinalIgnoreCase)
+                        ? PdfSharpCore.PageOrientation.Portrait
+                        : PdfSharpCore.PageOrientation.Landscape;
                     gfx = XGraphics.FromPdfPage(page);
                     textFormatter = new XTextFormatter(gfx);
                     x = PageMargin;
                     y = PageMargin;
-                    DrawMitgliederlistenKopf();
+                    if (string.Equals(exportKey, "zaehler_eichfaelligkeit", StringComparison.OrdinalIgnoreCase))
+                        DrawVereinskopf();
+                    else
+                        DrawMitgliederlistenKopf();
                     DrawHeaderRow(gfx, headerFont, effectiveCols, colWidths, x, y, exportKey);
                     y += HeaderHeight + 6;
                 }
@@ -452,6 +503,7 @@ namespace KGV.Core.Utilities
         private static List<PdfColumn> BuildEffectiveColumns(string exportKey, IReadOnlyList<AppExportColumnDefinitionRecord> columns)
         {
             var result = new List<PdfColumn>();
+            var skipForEichfaellig = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "rfid", "tage_bis_faellig", "faelligkeitsstatus", "zaehler_id" };
             var addressKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "adresse", "strasse_hsnr", "plz", "ort", "strasse", "hausnummer" };
             var contactKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "telefon", "handy", "mobil" };
 
@@ -470,6 +522,14 @@ namespace KGV.Core.Utilities
                     if (!result.Any(rc => contactKeys.Contains((rc.ColumnKey ?? string.Empty).ToLowerInvariant()) || (rc.ColumnKey ?? string.Empty) == "__pdf_contact__"))
                         result.Add(new PdfColumn("__pdf_contact__", "Kontakt", true, c.Sortierung));
                     continue;
+                }
+
+                // for the Eichfälligkeit export we remove several technical/debug columns from the PDF
+                if (string.Equals(exportKey, "zaehler_eichfaelligkeit", StringComparison.OrdinalIgnoreCase))
+                {
+                    var keyToCheck = (c.ColumnKey ?? c.Name ?? string.Empty).ToLowerInvariant();
+                    if (skipForEichfaellig.Contains(keyToCheck))
+                        continue;
                 }
 
                 result.Add(new PdfColumn(c.ColumnKey ?? c.Name ?? string.Empty, c.LabelLang ?? c.LabelKurz ?? c.ColumnKey ?? string.Empty, c.StandardSichtbar, c.Sortierung));
