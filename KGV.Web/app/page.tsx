@@ -33,6 +33,8 @@ import MobileNavigation from "../features/navigation/MobileNavigation";
 import WorkspaceHeader from "../features/navigation/WorkspaceHeader";
 import { buildNavigation } from "../services/workspace/navigation-service";
 import { useWorkspaceContext, WorkspaceContextProvider } from "../contexts/WorkspaceContext";
+import { listSeasons } from "../repositories/seasons/season-repository";
+import { selectInitialSeasonFromList } from "../services/workspace/workspace-service";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -153,15 +155,13 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
 
   useEffect(() => {
     let active = true;
-    readSupabase<Season>(session, "saison", { select: "id,jahr", order: "jahr.desc" })
+    listSeasons(session)
       .then((items) => {
         if (!active) return;
         setSeasons(items);
         updateWorkspaceContext((current) => {
-          const restored = items.find((item) => item.id === current.saisonId);
-          const fallback = items.find((item) => item.jahr === new Date().getFullYear()) ?? items[0] ?? null;
-          const next = restored ? { ...current, saisonId: restored.id, saisonJahr: restored.jahr } : fallback ? { ...current, saisonId: fallback.id, saisonJahr: fallback.jahr } : current;
-          return next;
+          const season = selectInitialSeasonFromList(items, current.saisonId);
+          return season ? { ...current, saisonId: season.id, saisonJahr: season.jahr } : { ...current, saisonId: null, saisonJahr: null };
         });
       })
       .catch(() => { if (active) setSeasonError("Saisons konnten nicht geladen werden."); });
