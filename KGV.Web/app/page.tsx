@@ -31,6 +31,7 @@ import { useEditLock } from "../lib/use-edit-lock";
 import { MemberGardensWorkspace, ParcelProtocolsWorkspace, ParcelWorkspace } from "./parcel-workspaces";
 import Navigation, { type NavigationGroup, type NavigationItem } from "../features/navigation/Navigation";
 import SeasonPicker from "../features/navigation/SeasonPicker";
+import MobileNavigation from "../features/navigation/MobileNavigation";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -249,7 +250,7 @@ function Workspace({ session, email, club, context, onLogout, onChangeClub }: { 
           <Navigation groups={navigationGroups} activeId={activeId} onNavigate={setActiveId} memberLabel={creatingMember ? "Neues Mitglied" : selectedMemberId ? selectedMemberLabel : null} />
         </aside>
         <article className="content-area">
-          <div className="mobile-navigation"><label htmlFor="mobile-page">Bereich</label><select id="mobile-page" value={activeId} onChange={(event) => setActiveId(event.target.value)}>{navigationGroups.map((group) => group.standalone && group.target ? <option key={group.id} value={group.target.id}>{group.label}</option> : <optgroup key={group.id} label={group.label}>{group.target && <option value={group.target.id}>{group.target.label}</option>}{group.items.map((item) => <option key={item.id} value={item.id}>{item.depth === 2 ? `${selectedMemberLabel}: ${item.label}` : item.label}</option>)}</optgroup>)}</select></div>
+          <MobileNavigation groups={navigationGroups} activeId={activeId} onNavigate={setActiveId} selectedMemberLabel={selectedMemberId ? selectedMemberLabel : null} />
           <p className="eyebrow">Saison {season}</p><h1>{active.label}</h1><p className="content-intro">{active.detail}</p>
           {!new Set(["start", "impressum", "mitglieder", "parzellen", "ablesen", "foto-uploads", "zaehlerwechsel", "arbeitsstunden-pruefen", "arbeitseinsaetze", "wartung", "termine", "bekanntmachungen", "export", "benutzer", "saisons", "verein", "mitglied-arbeitsstunden", "mitglied-wartung", "mitglied-dokumente", "mitglied-admin", "mitglied-gaerten", "mitglied-protokolle", "mitglied-stammdaten"]).has(activeId) && <section className="coming-soon"><span aria-hidden="true">◌</span><div><strong>Bereich vorbereitet</strong><p>Die Navigation und Zugriffsrechte stehen. Die fachliche Oberfläche wird in den nächsten Umsetzungsschritten ergänzt.</p></div></section>}
           {activeId === "start" && <HomeDashboard session={session} isManager={context.role !== "user"} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
