@@ -13,6 +13,9 @@ export type Member = {
   telefon: string | null;
   handy: string | null;
   whatsapp_einwilligung: boolean;
+  email_rechnung_einwilligung: boolean;
+  email_info_einwilligung: boolean;
+  arbeitsstunden_altersregel_typ: string | null;
   mitglied_seit: string | null;
   mitglied_ende: string | null;
   bemerkung: string | null;
