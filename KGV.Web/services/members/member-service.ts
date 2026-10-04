@@ -50,7 +50,7 @@ export async function updateExistingMember(session: BrowserSession, memberId: nu
   }
 
   const requestedEmail = input.email?.trim() || null;
-  const emailChanged = requestedEmail !== current.email;
+  const emailChanged = requestedEmail?.toLocaleLowerCase("de") !== current.email?.toLocaleLowerCase("de");
   if (current.auth_user_id === null && permissions.canEditAllMembers && emailChanged && (!requestedEmail || !emailPattern.test(requestedEmail))) {
     throw new Error("Bitte eine gültige E-Mail-Adresse angeben.");
   }
@@ -72,8 +72,8 @@ export async function updateExistingMember(session: BrowserSession, memberId: nu
     mitglied_seit: input.mitglied_seit || null,
     mitglied_ende: input.mitglied_ende || null,
     bemerkung: input.bemerkung?.trim() || null,
-    aktiv: !input.mitglied_ende && current.aktiv,
   };
   const updated = await updateMemberStammdaten(session, memberId, values);
-  return updated[0] ?? { ...current, ...values };
+  if (!updated[0]) throw new Error("Die Änderung wurde nicht bestätigt.");
+  return updated[0];
 }
