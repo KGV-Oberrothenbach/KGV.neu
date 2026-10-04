@@ -2,8 +2,9 @@
 
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
 import { loadWorkspaceContext, saveWorkspaceContext, type WorkspaceContext as PersistedWorkspaceContext } from "../lib/supabase-auth";
+import { type MemberWorkspaceInfo } from "../models/members/member";
 
-export type WorkspaceMember = Pick<{ id: number; vorname: string | null; name: string | null }, "id" | "vorname" | "name">;
+export type WorkspaceMember = MemberWorkspaceInfo;
 export type WorkspaceSeason = { id: number; jahr: number };
 
 type WorkspaceContextValue = {

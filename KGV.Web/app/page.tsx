@@ -37,6 +37,9 @@ import { listSeasons } from "../repositories/seasons/season-repository";
 import { selectInitialSeasonFromList } from "../services/workspace/workspace-service";
 import HomeDashboard from "../features/home/HomeDashboard";
 import ImprintPage from "../features/imprint/ImprintPage";
+import { MemberSearch } from "../features/members/MemberSearch";
+import { type Member } from "../models/members/member";
+import { loadMemberWorkspaceInfo } from "../services/members/member-service";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -76,7 +79,6 @@ function HomeContent() {
 // Navigation types moved to features/navigation/Navigation.tsx
 type Season = { id: number; jahr: number };
 type SeasonAdmin = Season & { pflichtstunden_soll: number; euro_pro_fehlstunde: number; bemerkung: string | null; pacht_pro_qm: number | null; mitgliedsbeitrag: number | null; mitgliedsbeitrag_nebenmitglied: number | null; aufnahmegebuehr: number | null; gebuehr_bauantrag: number | null };
-type Member = { id: number; vorname: string | null; name: string | null; email: string | null; aktiv: boolean; hauptmitglied_id: number | null; auth_user_id?: string | null; geburtsdatum: string | null; adresse: string | null; plz: string | null; ort: string | null; telefon: string | null; handy: string | null; whatsapp_einwilligung: boolean; mitglied_seit: string | null; mitglied_ende: string | null; bemerkung: string | null };
 type Parcel = { id: number; garten_nr: string; Anlage: string; flaeche_qm: number | null; hat_strom: boolean; hat_wasser: boolean; aktiv: boolean };
 type ParcelAssignment = { id: number; parzelle_id: number; mitglied_id: number; von_datum: string | null; bis_datum: string | null };
 type Meter = { id: number; parzelle_id: number; medium: string; zaehlernummer: string; eingebaut_am: string; ausgebaut_am: string | null; eichfaellig_am: string; status: string | null };
@@ -171,12 +173,8 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
       return () => { active = false; };
     }
     setSelectedMember(null);
-    readSupabase<Pick<Member, "id" | "vorname" | "name">>(session, "mitglied", {
-      select: "id,vorname,name",
-      id: `eq.${selectedMemberId}`,
-      limit: "1",
-    }).then((items) => {
-      if (active) setSelectedMember(items[0] ?? null);
+    loadMemberWorkspaceInfo(session, selectedMemberId).then((member) => {
+      if (active) setSelectedMember(member);
     }).catch(() => {
       if (active) setSelectedMember(null);
     });
@@ -256,43 +254,6 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
       </section>
     </main>
   );
-}
-
-function MemberSearch({ session, selectedMemberId, onSelect, canCreate, onCreate }: { session: BrowserSession; selectedMemberId: number | null; onSelect: (mitgliedId: number) => void; canCreate: boolean; onCreate: () => void }) {
-  const [members, setMembers] = useState<Member[]>([]);
-  const [parcels, setParcels] = useState<Parcel[]>([]);
-  const [assignments, setAssignments] = useState<ParcelAssignment[]>([]);
-  const [query, setQuery] = useState("");
-  const [showInactiveMembers, setShowInactiveMembers] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  const loadMembers = () => {
-    setLoading(true); setError("");
-    return Promise.all([
-      readSupabase<Member>(session, "mitglied", { select: "id,vorname,name,email,aktiv,hauptmitglied_id,geburtsdatum,adresse,plz,ort,telefon,handy,whatsapp_einwilligung,mitglied_seit,mitglied_ende,bemerkung", order: "name.asc,vorname.asc", limit: "1000" }),
-      readSupabase<Parcel>(session, "parzelle", { select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,aktiv", order: "garten_nr.asc", limit: "1000" }),
-      readSupabase<ParcelAssignment>(session, "parzellen_belegung", { select: "id,parzelle_id,mitglied_id,von_datum,bis_datum", order: "von_datum.desc", limit: "3000" }),
-    ]).then(([nextMembers, nextParcels, nextAssignments]) => { setMembers(nextMembers); setParcels(nextParcels); setAssignments(nextAssignments); }).catch((cause: Error) => setError(cause.message)).finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-    loadMembers();
-  }, [session]);
-  const gardenNumbers = (memberId: number) => {
-    const today = new Date().toISOString().slice(0, 10);
-    const parcelIds = new Set(assignments
-      .filter((item) => item.mitglied_id === memberId && (!item.von_datum || item.von_datum <= today) && (!item.bis_datum || item.bis_datum >= today))
-      .map((item) => item.parzelle_id));
-    return parcels.filter((item) => parcelIds.has(item.id)).map((item) => item.garten_nr).sort((a, b) => a.localeCompare(b, "de", { numeric: true })).join(", ");
-  };
-  const normalized = query.trim().toLocaleLowerCase("de");
-  const results = members.filter((member) => (showInactiveMembers || member.aktiv) && (!normalized || [member.name, member.vorname, member.email, String(member.id), gardenNumbers(member.id)].filter(Boolean).join(" ").toLocaleLowerCase("de").includes(normalized)));
-  const selected = members.find((item) => item.id === selectedMemberId) ?? null;
-  return <section className="data-workspace" aria-label="Mitglieder suchen">
-    <div className="data-toolbar"><label>Suche<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, E-Mail, Mitgliedsnummer oder Gartennummer" /></label><label className="filter-check"><input type="checkbox" checked={showInactiveMembers} onChange={(event) => setShowInactiveMembers(event.target.checked)} /> Inaktive Mitglieder anzeigen</label><span>{loading ? "Lädt …" : `${results.length} Mitglieder`}</span>{canCreate && <button onClick={onCreate}>Mitglied anlegen</button>}</div>
-    {error ? <p className="notice" role="alert">{error}</p> : <><div className="data-table-wrap"><table><thead><tr><th>Name</th><th>Garten</th><th>E-Mail</th><th>Status</th></tr></thead><tbody>{results.map((member) => <tr key={member.id} className={selected?.id === member.id ? "selected-row" : ""} onClick={() => onSelect(member.id)}><td><strong>{member.name ?? "–"}</strong>, {member.vorname ?? ""}</td><td>{gardenNumbers(member.id) || "–"}</td><td>{member.email ?? "–"}</td><td>{member.aktiv ? "aktiv" : "inaktiv"}</td></tr>)}</tbody></table></div>{selected && <p className="context-note">{[selected.vorname, selected.name].filter(Boolean).join(" ")} ist ausgewählt. Die zugehörigen Bereiche – einschließlich Stammdaten – stehen nun eingerückt im Menü.</p>}</>}
-  </section>;
 }
 
 function MemberStammdatenPage({ session, memberId, canEdit, canCreate, canManageSecondary, onSaved, onCancel }: { session: BrowserSession; memberId: number | null; canEdit: boolean; canCreate: boolean; canManageSecondary: boolean; onSaved: (member: Member) => void; onCancel: () => void }) {
