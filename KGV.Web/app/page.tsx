@@ -29,6 +29,7 @@ import { OtpFlow } from "../features/auth/OtpFlow";
 import { enqueueMeterPhoto, listPendingMeterPhotos, ndefReaderConstructor, pendingPhotoFile, putPendingMeterPhoto, removePendingMeterPhoto, type PendingMeterPhoto } from "../lib/browser-media";
 import { useEditLock } from "../lib/use-edit-lock";
 import { MemberGardensWorkspace, ParcelProtocolsWorkspace, ParcelWorkspace } from "./parcel-workspaces";
+import Navigation, { type NavigationGroup, type NavigationItem } from "../features/navigation/Navigation";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -65,8 +66,7 @@ function HomeContent() {
   );
 }
 
-type NavigationItem = { id: string; label: string; detail: string; depth?: number };
-type NavigationGroup = { id: string; label: string; items: NavigationItem[]; target?: NavigationItem; standalone?: boolean };
+// Navigation types moved to features/navigation/Navigation.tsx
 type Season = { id: number; jahr: number };
 type SeasonAdmin = Season & { pflichtstunden_soll: number; euro_pro_fehlstunde: number; bemerkung: string | null; pacht_pro_qm: number | null; mitgliedsbeitrag: number | null; mitgliedsbeitrag_nebenmitglied: number | null; aufnahmegebuehr: number | null; gebuehr_bauantrag: number | null };
 type Member = { id: number; vorname: string | null; name: string | null; email: string | null; aktiv: boolean; hauptmitglied_id: number | null; auth_user_id?: string | null; geburtsdatum: string | null; adresse: string | null; plz: string | null; ort: string | null; telefon: string | null; handy: string | null; whatsapp_einwilligung: boolean; mitglied_seit: string | null; mitglied_ende: string | null; bemerkung: string | null };
@@ -459,26 +459,6 @@ function HomeSectionDetail({ session, selection, assignments, appointments, anno
 function HomeContentSection({ title, empty, children }: { title: string; empty: string; children: ReactNode }) {
   const entries = Array.isArray(children) ? children : [children];
   return <section className="home-content-section"><h2>{title}</h2><div className="home-item-list">{entries.length > 0 ? entries : <p className="empty-state">{empty}</p>}</div></section>;
-}
-
-function Navigation({ groups, activeId, onNavigate, memberLabel }: { groups: NavigationGroup[]; activeId: string; onNavigate: (id: string) => void; memberLabel: string | null }) {
-  return <nav className="navigation-list">{groups.map((group) => {
-    const expanded = group.target?.id === activeId || group.items.some((item) => item.id === activeId);
-    const hasMemberChildren = group.id === "members" && group.items.some((item) => item.depth === 2);
-    if (group.standalone && group.target) {
-      return <button key={group.id} className={group.target.id === activeId ? "nav-root-item active" : "nav-root-item"} onClick={() => onNavigate(group.target!.id)}>{group.label}</button>;
-    }
-    const destination = group.target?.id ?? group.items[0]?.id;
-    return <section className={expanded ? "nav-group expanded" : "nav-group"} key={group.id}>
-      <button className={`${group.target?.id === activeId ? "nav-group-toggle active" : "nav-group-toggle"}`} aria-expanded={expanded} onClick={() => destination && onNavigate(destination)}><span>{group.label}</span><span className="nav-chevron" aria-hidden="true">›</span></button>
-      {expanded && <div className="nav-group-items">
-        {group.items.map((item, index) => <div key={item.id}>
-          {hasMemberChildren && item.depth === 2 && (index === 0 || group.items[index - 1]?.depth !== 2) && <p className="nav-member-context">{memberLabel}</p>}
-          <button className={`nav-item nav-depth-${item.depth ?? 1}${item.id === activeId ? " active" : ""}`} onClick={() => onNavigate(item.id)}>{item.label}</button>
-        </div>)}
-      </div>}
-    </section>;
-  })}</nav>;
 }
 
 function MemberSearch({ session, selectedMemberId, onSelect, canCreate, onCreate }: { session: BrowserSession; selectedMemberId: number | null; onSelect: (mitgliedId: number) => void; canCreate: boolean; onCreate: () => void }) {
