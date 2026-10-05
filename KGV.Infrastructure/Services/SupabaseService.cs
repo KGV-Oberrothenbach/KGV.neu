@@ -1018,84 +1018,157 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
-        public Task<MembershipEndResult> EndMembershipAsync(int mainMemberId, DateTime endDate, MembershipEndDecision? secondaryDecision, string userId, int timeoutMinutes = 10) => ExecuteAsync(
-            "EndMembershipAsync",
-            async () =>
+        public async Task<MembershipEndResult> EndMembershipAsync(int mainMemberId, MembershipEndDecision? secondaryDecision)
+        {
+            if (mainMemberId <= 0)
+                return MembershipEndResult.Failure("Hauptmitglied ist ungültig.");
+
+            try
             {
-                if (mainMemberId <= 0)
-                    return MembershipEndResult.Failure("Hauptmitglied ist ungültig.");
-
-                if (!Guid.TryParse(userId, out var userGuid))
-                    return MembershipEndResult.Failure("Aktueller Benutzer ist ungültig.");
-
                 var client = await EnsureClientAsync();
-                var mainMember = await GetMitgliedByIdAsync(mainMemberId);
-                if (mainMember == null)
-                    return MembershipEndResult.Failure("Hauptmitglied konnte nicht geladen werden.");
-
-                if (mainMember.HauptmitgliedId.HasValue && mainMember.HauptmitgliedId.Value > 0)
-                    return MembershipEndResult.Failure("Der Folgeentscheid ist nur für Hauptmitglieder verfügbar.");
-
-                if (mainMember.MitgliedEnde.HasValue)
-                    return MembershipEndResult.Failure("Die Mitgliedschaft ist bereits beendet.");
-
-                if (mainMember.LockedByUserId != userGuid)
-                    return MembershipEndResult.Failure("Kein gültiger Lock auf dem Hauptmitglied.");
-
-                var normalizedEndDate = NormalizeDate(endDate) ?? DateTime.Today;
-                var secondaryMember = await GetNebenmitgliedByHauptmitgliedIdAsync(mainMemberId);
-                if (secondaryMember != null && !secondaryDecision.HasValue)
-                    return MembershipEndResult.Failure("Für das vorhandene Nebenmitglied ist eine Folgeentscheidung erforderlich.");
-
-                if (secondaryMember != null && HasActiveForeignMitgliedLock(secondaryMember, userGuid, timeoutMinutes))
-                    return MembershipEndResult.Failure("Das Nebenmitglied ist aktuell gesperrt.");
-
-                if (secondaryMember != null)
-                {
-                    switch (secondaryDecision)
+                var response = await client.Rpc<JsonElement[]>(
+                    "end_membership",
+                    new
                     {
-                        case MembershipEndDecision.EndSecondaryMember:
-                            await client
-                                .From<MitgliedRecord>()
-                                .Where(x => x.Id == secondaryMember.Id)
-                                .Set(x => x.MitgliedEnde, normalizedEndDate)
-                                .Set(x => x.Aktiv, false)
-                                .Update();
-                            break;
-                        case MembershipEndDecision.PromoteSecondaryMember:
-                            await client
-                                .From<MitgliedRecord>()
-                                .Where(x => x.Id == secondaryMember.Id)
-                                .Set(x => x.HauptmitgliedId, (int?)null)
-                                .Set(x => x.MitgliedEnde, (DateTime?)null)
-                                .Set(x => x.Aktiv, true)
-                                .Update();
-                            break;
+                        p_main_member_id = mainMemberId,
+                        p_secondary_decision = secondaryDecision switch
+                        {
+                            MembershipEndDecision.EndSecondaryMember => "end_secondary",
+                            MembershipEndDecision.PromoteSecondaryMember => "promote_secondary",
+                            _ => null
+                        }
+                    });
+
+                var result = response?.FirstOrDefault();
+                if (result is null || result.Value.ValueKind != JsonValueKind.Object)
+                    return MembershipEndResult.Failure("Die Mitgliedschaft konnte nicht beendet werden.");
+
+                var message = GetMembershipEndJsonString(result.Value, "message") ?? "Mitgliedschaft konnte nicht beendet werden.";
+                if (!GetMembershipEndJsonBoolean(result.Value, "success"))
+                    return MembershipEndResult.Failure(message);
+
+                return MembershipEndResult.SuccessResult(
+                    message,
+                    MapMembershipEndMember(GetMembershipEndJsonValue(result.Value, "updated_main_member")),
+                    MapMembershipEndMember(GetMembershipEndJsonValue(result.Value, "updated_secondary_member")),
+                    MapMembershipEndDecision(GetMembershipEndJsonString(result.Value, "secondary_decision")));
+            }
+            catch (PostgrestException ex)
+            {
+                LogPostgrestFailure("EndMembershipAsync", ex);
+                return MembershipEndResult.Failure(
+                    string.IsNullOrWhiteSpace(ExtractPostgrestRelevantMessage(ex))
+                        ? "Die Mitgliedschaft konnte nicht beendet werden."
+                        : ExtractPostgrestRelevantMessage(ex));
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "EndMembershipAsync failed.");
+                return MembershipEndResult.Failure(
+                    string.IsNullOrWhiteSpace(ex.Message)
+                        ? "Die Mitgliedschaft konnte nicht beendet werden."
+                        : ex.Message);
+            }
+        }
+
+        private static MembershipEndDecision? MapMembershipEndDecision(string? decision)
+            => decision switch
+            {
+                "end_secondary" => MembershipEndDecision.EndSecondaryMember,
+                "promote_secondary" => MembershipEndDecision.PromoteSecondaryMember,
+                _ => null
+            };
+
+        private static MitgliedRecord? MapMembershipEndMember(JsonElement member)
+        {
+            if (member.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined || member.ValueKind != JsonValueKind.Object)
+                return null;
+
+            return new MitgliedRecord
+            {
+                Id = GetMembershipEndJsonInt32(member, "id"),
+                Email = GetMembershipEndJsonString(member, "email"),
+                Vorname = GetMembershipEndJsonString(member, "vorname"),
+                Name = GetMembershipEndJsonString(member, "name"),
+                Role = GetMembershipEndJsonString(member, "role"),
+                AuthUserId = GetMembershipEndJsonGuid(member, "auth_user_id"),
+                IsDemo = GetMembershipEndJsonBoolean(member, "is_demo"),
+                Geburtsdatum = GetMembershipEndJsonDateTime(member, "geburtsdatum"),
+                Adresse = GetMembershipEndJsonString(member, "adresse"),
+                Plz = GetMembershipEndJsonString(member, "plz"),
+                Ort = GetMembershipEndJsonString(member, "ort"),
+                Telefon = GetMembershipEndJsonString(member, "telefon"),
+                Handy = GetMembershipEndJsonString(member, "handy"),
+                Bemerkung = GetMembershipEndJsonString(member, "bemerkung"),
+                WhatsappEinwilligung = GetMembershipEndJsonBoolean(member, "whatsapp_einwilligung"),
+                EmailRechnungEinwilligung = GetMembershipEndJsonBoolean(member, "email_rechnung_einwilligung"),
+                EmailInfoEinwilligung = GetMembershipEndJsonBoolean(member, "email_info_einwilligung"),
+                RegelwerkeVersandtAm = GetMembershipEndJsonDateTime(member, "regelwerke_versandt_am"),
+                ArbeitsstundenAltersregelTyp = GetMembershipEndJsonString(member, "arbeitsstunden_altersregel_typ") ?? "keine",
+                MitgliedSeit = GetMembershipEndJsonDateTime(member, "mitglied_seit"),
+                MitgliedEnde = GetMembershipEndJsonDateTime(member, "mitglied_ende"),
+                Aktiv = GetMembershipEndJsonBoolean(member, "aktiv"),
+                HauptmitgliedId = GetMembershipEndJsonNullableInt32(member, "hauptmitglied_id"),
+                LockedByUserId = GetMembershipEndJsonGuid(member, "lockedbyuserid"),
+                LockedAt = GetMembershipEndJsonDateTime(member, "lockat")
+            };
+        }
+
+        private static JsonElement GetMembershipEndJsonValue(JsonElement element, string propertyName)
+            => TryGetMembershipEndJsonProperty(element, propertyName, out var value) ? value : default;
+
+        private static string? GetMembershipEndJsonString(JsonElement element, string propertyName)
+        {
+            var value = GetMembershipEndJsonValue(element, propertyName);
+            return value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined
+                ? null
+                : value.ValueKind == JsonValueKind.String ? value.GetString() : value.ToString();
+        }
+
+        private static bool GetMembershipEndJsonBoolean(JsonElement element, string propertyName)
+        {
+            var value = GetMembershipEndJsonValue(element, propertyName);
+            return value.ValueKind == JsonValueKind.True
+                || value.ValueKind == JsonValueKind.String && bool.TryParse(value.GetString(), out var parsed) && parsed;
+        }
+
+        private static int GetMembershipEndJsonInt32(JsonElement element, string propertyName)
+            => GetMembershipEndJsonNullableInt32(element, propertyName) ?? 0;
+
+        private static int? GetMembershipEndJsonNullableInt32(JsonElement element, string propertyName)
+        {
+            var value = GetMembershipEndJsonValue(element, propertyName);
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number))
+                return number;
+
+            return value.ValueKind == JsonValueKind.String && int.TryParse(value.GetString(), out var parsed)
+                ? parsed
+                : null;
+        }
+
+        private static Guid? GetMembershipEndJsonGuid(JsonElement element, string propertyName)
+            => Guid.TryParse(GetMembershipEndJsonString(element, propertyName), out var value) ? value : null;
+
+        private static DateTime? GetMembershipEndJsonDateTime(JsonElement element, string propertyName)
+            => DateTime.TryParse(GetMembershipEndJsonString(element, propertyName), out var value) ? value : null;
+
+        private static bool TryGetMembershipEndJsonProperty(JsonElement element, string propertyName, out JsonElement value)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        value = property.Value;
+                        return true;
                     }
                 }
+            }
 
-                await client
-                    .From<MitgliedRecord>()
-                    .Where(x => x.Id == mainMemberId)
-                    .Set(x => x.MitgliedEnde, normalizedEndDate)
-                    .Set(x => x.Aktiv, false)
-                    .Update();
-
-                var updatedMainMember = await GetMitgliedByIdAsync(mainMemberId);
-                MitgliedRecord? updatedSecondaryMember = null;
-                if (secondaryMember != null)
-                    updatedSecondaryMember = await GetMitgliedByIdAsync(secondaryMember.Id);
-
-                var message = secondaryDecision switch
-                {
-                    MembershipEndDecision.EndSecondaryMember => "Haupt- und Nebenmitglied wurden beendet.",
-                    MembershipEndDecision.PromoteSecondaryMember => "Hauptmitglied wurde beendet und das Nebenmitglied zum Hauptmitglied gemacht.",
-                    _ => "Mitgliedschaft wurde beendet."
-                };
-
-                return MembershipEndResult.SuccessResult(message, updatedMainMember, updatedSecondaryMember, secondaryDecision);
-            },
-            MembershipEndResult.Failure("Mitgliedschaft konnte nicht beendet werden."));
+            value = default;
+            return false;
+        }
 
         public Task<bool> GetAllowUserMeterReadingSubmissionsAsync() => ExecuteAsync(
             "GetAllowUserMeterReadingSubmissionsAsync",

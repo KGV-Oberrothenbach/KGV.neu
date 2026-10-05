@@ -26,7 +26,7 @@ namespace KGV.Core.Interfaces
         /// </summary>
         Task<MitgliedRegelwerkeVersandResult> SendMitgliedRegelwerkeAsync(int mitgliedId);
         Task<bool> UpdateMitgliedAsync(MemberDTO dto, string userId);
-        Task<MembershipEndResult> EndMembershipAsync(int mainMemberId, DateTime endDate, MembershipEndDecision? secondaryDecision, string userId, int timeoutMinutes = 10);
+        Task<MembershipEndResult> EndMembershipAsync(int mainMemberId, MembershipEndDecision? secondaryDecision);
 
         Task<ParzelleRecord?> GetParzelleByNumberAsync(string gartenNr);
         Task<List<ParzelleRecord>> GetAllParzellenAsync();
