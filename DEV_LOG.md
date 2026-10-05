@@ -2,6 +2,13 @@
 
 ---
 
+## 2026-10-05 – Vereinszeit Europe/Berlin für fachliche Zeitfelder
+
+- Die fachlichen Zeitfelder `sichtbar_ab`, `sichtbar_bis` und `anmeldung_bis` bleiben als `timestamp without time zone` unverändert gespeichert.
+- Mit `public.kgv_local_now()` werden DB-Views, RLS-Policies und der Anmeldungs-Trigger auf `Europe/Berlin` umgestellt; bestehende Daten werden nicht verschoben.
+- Web, MAUI, und gemeinsame Infrastructure verwenden für diese Fachzeitwerte nun dieselbe Berlin-Zeitbasis. Technische UTC-Zeitpunkte bleiben unverändert.
+- Validiert: `git diff --check`, SQL-Strukturprüfung, Core-/Infrastructure-/MAUI-/Web-Build; WPF bleibt wegen bereits bestehender blockfremder Fehler offen.
+
 ## 2026-04-13 – Pachtvertrag produktiv auf HTML-Template umgestellt
 
 - Den echten lokalen Repo-/Working-Tree-Stand auf `main` geprüft und nur die direkt betroffenen Pachtvertrags-/Template-/Service-/MAUI-Dateien bearbeitet.

@@ -442,9 +442,26 @@ function formatTimeRange(start: string | null | undefined, end: string | null | 
 }
 
 function currentLocalDateTime() {
-  const now = new Date();
-  const offset = now.getTimezoneOffset() * 60_000;
-  return new Date(now.getTime() - offset).toISOString().slice(0, 16);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date()).reduce<Record<string, string>>((result, part) => {
+    result[part.type] = part.value;
+    return result;
+  }, {});
+
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+function addBerlinMonths(value: string, months: number) {
+  const date = new Date(`${value}:00Z`);
+  date.setUTCMonth(date.getUTCMonth() + months);
+  return date.toISOString().slice(0, 16);
 }
 
 function WorkHoursOverview({ session, reviewerMemberId }: { session: BrowserSession; reviewerMemberId: number | null }) {
@@ -482,7 +499,7 @@ function WorkAssignmentsManagement({ session, canEdit, saisonId, onBack }: { ses
   const [saving, setSaving] = useState(false);
 
   function emptyDraft(): Partial<WorkAssignment> {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = currentLocalDateTime().slice(0, 10);
     return { titel: "", beschreibung: "", datum: today, start_uhrzeit: "10:00", end_uhrzeit: "13:00", treffpunkt: "", max_teilnehmer: null, stunden_wert: 0, sichtbar_ab: currentLocalDateTime(), sichtbar_bis: `${today}T23:59`, anmeldung_bis: "", aktiv: true };
   }
 
@@ -582,7 +599,7 @@ function WorkAssignmentParticipants({ session, assignment, saisonId }: { session
   useEffect(() => { load(); }, [session, assignment.id]);
   const activeRegistrations = registrations.filter((item) => item.status === "angemeldet" || item.status === "teilgenommen");
   const capacity = assignment.max_teilnehmer ? Number(assignment.max_teilnehmer) : null;
-  const deadlinePassed = Boolean(assignment.anmeldung_bis && new Date(assignment.anmeldung_bis).getTime() < Date.now());
+  const deadlinePassed = Boolean(assignment.anmeldung_bis && assignment.anmeldung_bis.slice(0, 16) < currentLocalDateTime());
   const registrationBlocked = !assignment.aktiv || deadlinePassed || (capacity !== null && activeRegistrations.length >= capacity);
   async function register() { const id = Number(memberId); if (!id) return; if (registrationBlocked) { setMessage(!assignment.aktiv ? "Der Arbeitseinsatz ist abgesagt." : deadlinePassed ? "Der Anmeldeschluss ist abgelaufen." : "Die Teilnehmerbegrenzung ist erreicht."); return; } setSaving(true); setMessage(""); try { const current = registrations.find((item) => item.mitglied_id === id); if (current) await writeSupabase<WorkAssignmentRegistration>(session, "arbeitseinsatz_anmeldung", "PATCH", { status: "angemeldet" }, { id: `eq.${current.id}` }); else await writeSupabase<WorkAssignmentRegistration>(session, "arbeitseinsatz_anmeldung", "POST", { arbeitseinsatz_id: assignment.id, mitglied_id: id, status: "angemeldet" }); setMemberId(""); await load(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Anmeldung konnte nicht gespeichert werden."); } finally { setSaving(false); } }
   async function setStatus(item: WorkAssignmentRegistration, status: WorkAssignmentRegistration["status"]) { setSaving(true); setMessage(""); try { await writeSupabase<WorkAssignmentRegistration>(session, "arbeitseinsatz_anmeldung", "PATCH", { status }, { id: `eq.${item.id}` }); if (status === "teilgenommen") { if (!saisonId) throw new Error("Für die Übernahme fehlt die aktive Saison."); await writeSupabase<WorkHour>(session, "arbeitsstunde", "POST", { mitglied_id: item.mitglied_id, saison_id: saisonId, datum: assignment.datum, stunden: assignment.stunden_wert, art_der_arbeit: assignment.titel ?? "Arbeitseinsatz", status: "offen", freigegeben: false }); } await load(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Teilnahme konnte nicht gespeichert werden."); } finally { setSaving(false); } }
@@ -689,10 +706,7 @@ function AnnouncementManagement({ session, canEdit, onBack }: { session: Browser
 
   function emptyDraft(): Partial<Announcement> {
     const visibleFrom = currentLocalDateTime();
-    const visibleUntilDate = new Date(`${visibleFrom}:00`);
-    visibleUntilDate.setMonth(visibleUntilDate.getMonth() + 1);
-    const offset = visibleUntilDate.getTimezoneOffset() * 60_000;
-    const visibleUntil = new Date(visibleUntilDate.getTime() - offset).toISOString().slice(0, 16);
+    const visibleUntil = addBerlinMonths(visibleFrom, 1);
     return { titel: "", inhalt_html: "<p></p>", sichtbar_ab: visibleFrom, sichtbar_bis: visibleUntil, sort_order: null, aktiv: true };
   }
 
