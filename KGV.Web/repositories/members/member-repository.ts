@@ -32,6 +32,7 @@ export const createMember = (session: BrowserSession, values: Record<string, unk
 export const getSecondaryMemberByMainMemberId = (session: BrowserSession, mainMemberId: number) => readSupabase<Member>(session, "mitglied", {
   select: memberStammdatenSelect,
   hauptmitglied_id: `eq.${mainMemberId}`,
+  order: "id.asc",
   limit: "1",
 }).then((members) => members[0] ?? null);
 
