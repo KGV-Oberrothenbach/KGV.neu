@@ -1,4 +1,4 @@
-import { type BrowserSession, readSupabase, writeSupabase } from "../../lib/supabase-auth";
+import { callSupabaseRpc, type BrowserSession, readSupabase, writeSupabase } from "../../lib/supabase-auth";
 import { type Member, type MemberSearchResult, type MemberWorkspaceInfo } from "../../models/members/member";
 export type MemberName = { id: number; vorname: string | null; name: string | null };
 export const listMemberNames = (session: BrowserSession, ids: number[]) => ids.length ? readSupabase<MemberName>(session, "mitglied", { select: "id,vorname,name", id: `in.(${ids.join(",")})`, limit: "500" }) : Promise.resolve([] as MemberName[]);
@@ -34,6 +34,23 @@ export const getSecondaryMemberByMainMemberId = (session: BrowserSession, mainMe
   hauptmitglied_id: `eq.${mainMemberId}`,
   limit: "1",
 }).then((members) => members[0] ?? null);
+
+export type MembershipEndDecision = "end_secondary" | "promote_secondary";
+export type MembershipEndRpcRow = {
+  success: boolean;
+  message: string;
+  updated_main_member: Member | null;
+  updated_secondary_member: Member | null;
+  secondary_decision: MembershipEndDecision | null;
+};
+
+export const endMembership = async (session: BrowserSession, mainMemberId: number, decision: MembershipEndDecision | null) => {
+  const rows = await callSupabaseRpc<MembershipEndRpcRow[]>(session, "end_membership", {
+    p_main_member_id: mainMemberId,
+    p_secondary_decision: decision,
+  });
+  return rows[0] ?? null;
+};
 
 export const createSecondaryMember = createMember;
 
