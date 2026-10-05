@@ -776,6 +776,8 @@ KGV.Web/
 
 **Erledigt in G3.4:** Das Nebenmitglied ist aus `MemberStammdaten.tsx` ausgelagert. Laden, Anlegen und Bearbeiten laufen über Secondary-Service und Member-Repository; Adressen können fachlich abgesichert vom Hauptmitglied übernommen werden. Create wird service-seitig validiert, bestehende Nebenmitglieder bearbeiten nur den MAUI-Kontakt-/Adressumfang und Auth-verknüpfte E-Mails bleiben geschützt. **G3.5 Mitgliedschaft beenden bleibt offen.**
 
+**G3.5a Backend-Grundlage:** Eine serverseitige transaktionale RPC für das Beenden von Mitgliedschaften ist angelegt. Haupt- und Nebenmitglied werden gemeinsam verarbeitet; Berechtigung, Demo-Scope und Locks werden serverseitig geprüft. Die Web-Anbindung folgt in G3.5b.
+
 ### WPF
 `MemberSearchView.xaml`
 
