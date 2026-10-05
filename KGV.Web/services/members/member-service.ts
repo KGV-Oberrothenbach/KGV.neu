@@ -1,6 +1,6 @@
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type Member, type MemberSearchResult } from "../../models/members/member";
-import { createMember, getMemberById, getMemberWorkspaceInfo, listMembersForSearch, updateMemberStammdaten } from "../../repositories/members/member-repository";
+import { createMember, endMembership as endMembershipRpc, getMemberById, getMemberWorkspaceInfo, getSecondaryMemberByMainMemberId, listMembersForSearch, type MembershipEndDecision, updateMemberStammdaten } from "../../repositories/members/member-repository";
 import { listCurrentGardenNumbersByMemberId } from "../parcels/parcel-service";
 
 export async function loadMemberSearchResults(session: BrowserSession): Promise<MemberSearchResult[]> {
@@ -42,6 +42,18 @@ export function canEditMember(memberId: number, permissions: MemberEditPermissio
 }
 
 export const getMember = getMemberById;
+export const loadSecondaryMemberForMembershipEnd = getSecondaryMemberByMainMemberId;
+
+export async function endMembership(session: BrowserSession, mainMemberId: number, decision: MembershipEndDecision | null) {
+  if (!Number.isInteger(mainMemberId) || mainMemberId <= 0) throw new Error("Hauptmitglied ist ungültig.");
+
+  const result = await endMembershipRpc(session, mainMemberId, decision);
+  if (!result) throw new Error("Die Mitgliedschaft konnte nicht beendet werden.");
+  if (!result.success) throw new Error(result.message || "Die Mitgliedschaft konnte nicht beendet werden.");
+  if (!result.updated_main_member) throw new Error("Die aktualisierten Mitgliedsdaten fehlen.");
+
+  return result;
+}
 
 export async function createMainMember(session: BrowserSession, input: MemberStammdatenInput, permissions: MemberCreatePermissions) {
   if (!permissions.canCreateMember) throw new Error("Für neue Mitglieder besteht keine Berechtigung.");
