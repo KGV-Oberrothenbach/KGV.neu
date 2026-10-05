@@ -410,8 +410,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
 
     private static DateTime CreateCurrentTimestampDefault()
     {
-        var now = DateTime.Now;
-        return new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0);
+        return Vereinszeit.NowToMinute();
     }
 
     private void SetEnabledState(bool enabled)

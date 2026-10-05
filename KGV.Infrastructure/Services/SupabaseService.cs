@@ -5276,7 +5276,7 @@ namespace KGV.Infrastructure.Services
                     return CreateRegistrationResult(false, "Für diesen Arbeitseinsatz besteht bereits eine Anmeldung.", existingItem);
                 }
 
-                var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+                var now = Vereinszeit.Now;
                 if (arbeitseinsatz.AnmeldungBis.HasValue && arbeitseinsatz.AnmeldungBis.Value < now)
                 {
                     var expiredItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
@@ -5963,8 +5963,7 @@ namespace KGV.Infrastructure.Services
 
         private static DateTime CreateEditorNowDefault()
         {
-            var now = DateTime.Now;
-            return new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0, DateTimeKind.Unspecified);
+            return Vereinszeit.NowToMinute();
         }
 
         private async Task<bool> InsertArbeitseinsatzAsync(ArbeitseinsatzInsertRecord record)
@@ -6135,7 +6134,7 @@ namespace KGV.Infrastructure.Services
 
         private static TimeSpan CreateDefaultTerminStartTime()
         {
-            var now = DateTime.Now;
+            var now = Vereinszeit.Now;
             return new TimeSpan(now.Hour, now.Minute, 0);
         }
 
@@ -7402,7 +7401,7 @@ namespace KGV.Infrastructure.Services
                 ?? new Dictionary<int, List<ArbeitseinsatzAnmeldungRecord>>();
 
             var currentMemberId = TryGetCurrentMitgliedId();
-            var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+            var now = Vereinszeit.Now;
 
             foreach (var record in records)
             {

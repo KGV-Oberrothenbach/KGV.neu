@@ -16,8 +16,14 @@ Nicht mehr einzeln aufgeführt sind die vielen wiederholten Zwischenstände wie:
 
 Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils relevanten Builds abgeschlossen, typischerweise über:
 - `KGV.Core`
-- `KGV.Wpf`
 - `KGV.Maui`
+
+## 2026-10-05 – Vereinszeit Europe/Berlin
+
+- Zentrale DB-Funktion `public.kgv_local_now()` ergänzt; sie liefert `timestamp without time zone` aus `now() AT TIME ZONE 'Europe/Berlin'`.
+- Sichtbarkeitsviews, relevante RLS-Policies und die Anmeldungsvalidierung verwenden die zentrale Vereinszeit.
+- Fachliche Web-, MAUI-,und Infrastructure-Defaults wurden vereinheitlicht; UTC-Felder und bestehende Daten blieben unverändert.
+- Core, Infrastructure, MAUI und Web wurden erfolgreich validiert. Der WPF-Build bleibt wegen bereits bestehender Fehler außerhalb dieses Blocks offen.
 
 ## Aktueller Gesamtstand (Stand 2026-04-08)
 
