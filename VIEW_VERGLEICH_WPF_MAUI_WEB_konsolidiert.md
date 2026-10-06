@@ -778,7 +778,9 @@ KGV.Web/
 
 **G3.5a Backend-Grundlage:** Eine serverseitige transaktionale RPC für das Beenden von Mitgliedschaften ist angelegt. Haupt- und Nebenmitglied werden gemeinsam verarbeitet; Berechtigung, Demo-Scope und Locks werden serverseitig geprüft. Die Web-Anbindung folgt in G3.5b.
 
-**Erledigt in G3.5b:** Die Web-Anbindung verwendet `MembershipEnd.tsx` über Member-Service und Member-Repository ausschließlich mit `end_membership`. Direkte Haupt-/Nebenmitglied-PATCHes entfallen; Datum, Berechtigung und Folgeentscheidung bleiben serverseitig führend. Der Browser-Edit-Lock wird erst im Beendigungsmodus erworben und die RPC-Rückgabe aktualisiert den Member-/Workspace-Zustand. **G3.5c (MAUI-Umstellung auf dieselbe RPC) bleibt offen.**
+**Erledigt in G3.5b:** Die Web-Anbindung verwendet `MembershipEnd.tsx` über Member-Service und Member-Repository ausschließlich mit `end_membership`. Direkte Haupt-/Nebenmitglied-PATCHes entfallen; Datum, Berechtigung und Folgeentscheidung bleiben serverseitig führend. Der Browser-Edit-Lock wird erst im Beendigungsmodus erworben und die RPC-Rückgabe aktualisiert den Member-/Workspace-Zustand.
+
+**Erledigt in G3.5c:** MAUI verwendet für das Beenden der Mitgliedschaft ebenfalls `end_membership` in genau einem atomaren RPC-Aufruf. Es gibt kein lokales Enddatum und keine sequenziellen Mitglieds-Updates mehr; der bestehende MAUI-Hauptmitglied-Lock bleibt vorgeschaltet. Die RPC-Rückgabe wird in `MembershipEndResult` gemappt. **G3.5 ist damit vollständig umgesetzt; G3.6 bleibt offen.**
 
 ### WPF
 `MemberSearchView.xaml`

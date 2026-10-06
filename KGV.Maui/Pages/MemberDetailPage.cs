@@ -483,7 +483,13 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 : MembershipEndDecision.PromoteSecondaryMember;
         }
 
-        var confirmed = await DisplayAlertAsync("Mitgliedschaft beenden", $"Soll die Mitgliedschaft zum {DateTime.Today:dd.MM.yyyy} beendet werden?", "Beenden", "Abbrechen");
+        var confirmationText = decision switch
+        {
+            MembershipEndDecision.EndSecondaryMember => "Sollen Haupt- und Nebenmitglied zum heutigen Vereinsdatum beendet werden?",
+            MembershipEndDecision.PromoteSecondaryMember => "Soll die Mitgliedschaft des Hauptmitglieds beendet und das Nebenmitglied als Hauptmitglied weitergeführt werden?",
+            _ => "Soll die Mitgliedschaft zum heutigen Vereinsdatum beendet werden?"
+        };
+        var confirmed = await DisplayAlertAsync("Mitgliedschaft beenden", confirmationText, "Beenden", "Abbrechen");
         if (!confirmed)
             return;
 
@@ -496,7 +502,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
         try
         {
-            var result = await _supabaseService.EndMembershipAsync(_memberRecord.Id, DateTime.Today, decision, userId);
+            var result = await _supabaseService.EndMembershipAsync(_memberRecord.Id, decision);
             if (!result.Success || result.UpdatedMainMember == null)
             {
                 await DisplayAlertAsync("Fehler", string.IsNullOrWhiteSpace(result.Message) ? "Mitgliedschaft konnte nicht beendet werden." : result.Message, "OK");
