@@ -30,7 +30,7 @@ export type MemberEditPermissions = {
   canEditAllMembers: boolean;
 };
 
-export type MemberStammdatenInput = Pick<Member, "vorname" | "name" | "email" | "geburtsdatum" | "arbeitsstunden_altersregel_typ" | "adresse" | "plz" | "ort" | "telefon" | "handy" | "whatsapp_einwilligung" | "email_rechnung_einwilligung" | "email_info_einwilligung" | "mitglied_seit" | "mitglied_ende" | "bemerkung">;
+export type MemberStammdatenInput = Pick<Member, "vorname" | "name" | "email" | "geburtsdatum" | "arbeitsstunden_altersregel_typ" | "adresse" | "plz" | "ort" | "telefon" | "handy" | "whatsapp_einwilligung" | "email_rechnung_einwilligung" | "email_info_einwilligung" | "mitglied_seit" | "bemerkung">;
 
 export type MemberCreatePermissions = { canCreateMember: boolean };
 
@@ -50,9 +50,10 @@ export async function endMembership(session: BrowserSession, mainMemberId: numbe
   const result = await endMembershipRpc(session, mainMemberId, decision);
   if (!result) throw new Error("Die Mitgliedschaft konnte nicht beendet werden.");
   if (!result.success) throw new Error(result.message || "Die Mitgliedschaft konnte nicht beendet werden.");
-  if (!result.updated_main_member) throw new Error("Die aktualisierten Mitgliedsdaten fehlen.");
+  const updatedMainMember = result.updated_main_member;
+  if (!updatedMainMember) throw new Error("Die aktualisierten Mitgliedsdaten fehlen.");
 
-  return result;
+  return { ...result, updated_main_member: updatedMainMember };
 }
 
 export async function createMainMember(session: BrowserSession, input: MemberStammdatenInput, permissions: MemberCreatePermissions) {
@@ -81,7 +82,7 @@ export async function createMainMember(session: BrowserSession, input: MemberSta
     email_rechnung_einwilligung: Boolean(input.email_rechnung_einwilligung),
     email_info_einwilligung: Boolean(input.email_info_einwilligung),
     mitglied_seit: input.mitglied_seit || null,
-    mitglied_ende: input.mitglied_ende || null,
+    mitglied_ende: null,
     bemerkung: input.bemerkung?.trim() || null,
     aktiv: true,
   });
@@ -122,7 +123,6 @@ export async function updateExistingMember(session: BrowserSession, memberId: nu
     email_rechnung_einwilligung: Boolean(input.email_rechnung_einwilligung),
     email_info_einwilligung: Boolean(input.email_info_einwilligung),
     mitglied_seit: input.mitglied_seit || null,
-    mitglied_ende: input.mitglied_ende || null,
     bemerkung: input.bemerkung?.trim() || null,
   };
   const updated = await updateMemberStammdaten(session, memberId, values);
