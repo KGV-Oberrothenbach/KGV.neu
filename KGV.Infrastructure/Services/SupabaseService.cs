@@ -6789,6 +6789,7 @@ namespace KGV.Infrastructure.Services
         private async Task<HomeWorkHoursSummary?> LoadPflichtstundenSummaryAsync(int mitgliedId, int year)
         {
             var client = await EnsureClientAsync();
+            var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
             var saisons = await GetSaisonRecordsAsync();
             var currentSeason = saisons
                 .OrderByDescending(x => x.Jahr == year)
@@ -6800,11 +6801,11 @@ namespace KGV.Infrastructure.Services
 
             foreach (var saison in GetPflichtstundenCandidateSeasons(saisons, year))
             {
-                var records = await LoadPflichtstundenForSaisonAsync(client, mitgliedId, mitgliedId, saison.Id);
+                var records = await LoadPflichtstundenForSaisonAsync(client, mitgliedId, homeMitgliedId, saison.Id);
                 loadedRecordCount += records.Count;
 
                 record = records
-                    .Where(x => MatchesPflichtstundenMitglied(x, mitgliedId, mitgliedId))
+                    .Where(x => MatchesPflichtstundenMitglied(x, mitgliedId, homeMitgliedId))
                     .OrderByDescending(x => x.SaisonId == currentSeason?.Id)
                     .ThenByDescending(GetPflichtstundenYear)
                     .FirstOrDefault();
@@ -7420,12 +7421,24 @@ namespace KGV.Infrastructure.Services
             int homeMitgliedId,
             int saisonId)
         {
+            var memberFilters = new List<global::Supabase.Postgrest.Interfaces.IPostgrestQueryFilter>
+            {
+                new global::Supabase.Postgrest.QueryFilter("mitglied_id", global::Supabase.Postgrest.Constants.Operator.Equals, mitgliedId),
+                new global::Supabase.Postgrest.QueryFilter("hauptmitglied_id", global::Supabase.Postgrest.Constants.Operator.Equals, mitgliedId)
+            };
+
+            if (homeMitgliedId != mitgliedId)
+            {
+                memberFilters.Add(new global::Supabase.Postgrest.QueryFilter(
+                    "hauptmitglied_id",
+                    global::Supabase.Postgrest.Constants.Operator.Equals,
+                    homeMitgliedId));
+            }
+
             var response = await client
                 .From<PflichtstundenUebersichtRecord>()
-                .Where(x => x.SaisonId == saisonId)
-                .Where(x => x.MitgliedId == mitgliedId
-                    || x.HauptmitgliedId == mitgliedId
-                    || x.HauptmitgliedId == homeMitgliedId)
+                .Filter("saison_id", global::Supabase.Postgrest.Constants.Operator.Equals, saisonId)
+                .Or(memberFilters)
                 .Get();
 
             return response?.Models?.ToList() ?? new List<PflichtstundenUebersichtRecord>();
