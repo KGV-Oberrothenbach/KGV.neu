@@ -3,6 +3,7 @@ import { listSeasons, type Season } from "../../repositories/seasons/season-repo
 import { listMembershipApplicationDocuments, type MembershipApplicationDocument } from "../../repositories/contracts/contract-repository";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type Member } from "../../models/members/member";
+import { determineFormDocumentStatus } from "./form-document-status";
 
 export type MembershipApplicationStatus = "none" | "unsigned" | "signed";
 
@@ -38,19 +39,8 @@ export function calculateMembershipApplicationContribution(annualMemberFee: numb
   return { contributionMonths, proratedMemberFee: roundFee(annualMemberFee * contributionMonths / 12) };
 }
 
-function membershipApplicationStatus(document: MembershipApplicationDocument) {
-  const fileName = (document.dateiname ?? "").trim().split(/[\\/]/).pop() ?? "";
-  const title = (document.titel ?? "").trim();
-  const current = /^.+-\d+-\d{4}-\d{2}-\d{2}-mitgliedsantrag-(signiert|unsigniert)\.pdf$/i.exec(fileName);
-  const legacy = /^mitgliedsantrag-\((signiert|unsigniert)\)_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.pdf$/i.exec(fileName);
-  const definedTitle = /^mitgliedsantrag\s*\((signiert|unsigniert)\)$/i.exec(title);
-  return (current ?? legacy ?? definedTitle)?.[1].toLocaleLowerCase("de") ?? null;
-}
-
 export function determineMembershipApplicationStatus(documents: MembershipApplicationDocument[]): MembershipApplicationStatus {
-  const statuses = documents.map(membershipApplicationStatus).filter((status): status is "signiert" | "unsigniert" => status !== null);
-  if (!statuses.length) return "none";
-  return statuses.includes("signiert") ? "signed" : "unsigned";
+  return determineFormDocumentStatus(documents, "mitgliedsantrag");
 }
 
 export async function loadMembershipApplicationData(session: BrowserSession, memberId: number, today = new Date()): Promise<MembershipApplicationData> {

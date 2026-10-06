@@ -16,6 +16,15 @@ export function listMembershipApplicationDocuments(session: BrowserSession, memb
   });
 }
 
+export function listLeaseContractDocuments(session: BrowserSession, parcelId: number) {
+  return readSupabase<MembershipApplicationDocument>(session, "dokument", {
+    select: "id,titel,dateiname,updated_at",
+    parzelle_id: `eq.${parcelId}`,
+    archiviert_at: "is.null",
+    order: "updated_at.desc",
+  });
+}
+
 export type LegalRepresentativeRelation = { id: number; minderjaehriges_mitglied_id: number; vertreter_mitglied_id: number; gueltig_ab: string; gueltig_bis: string | null; bemerkung: string | null };
 
 export function listLegalRepresentativeRelations(session: BrowserSession, memberId: number) {

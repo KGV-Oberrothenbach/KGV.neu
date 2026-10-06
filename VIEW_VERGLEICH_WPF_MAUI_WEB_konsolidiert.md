@@ -8879,3 +8879,30 @@ Session, gespeicherter Vereinskontext und Vereinswechsel verbleiben zunächst
 unverändert. Die weiteren G1-Bereiche Login, OTP, Passwort-Flow,
 Session-Refresh und AuthProvider wurden anschließend in kontrollierten
 Folgeschnitten abgeschlossen. G12 bleibt ausdrücklich ausgeklammert.
+
+## G4.4 – Pachtvertrag: Fachbasis und Berechtigungsprüfung
+
+Die Web-Fachbasis für Pachtverträge orientiert sich am MAUI-Flow. Ein
+Pachtvertrag setzt einen signierten Mitgliedsantrag voraus und kann nur aus dem
+Kontext eines Hauptmitglieds vorbereitet werden. Mitglied, Parzelle und
+Vertragsbeginn bilden einen festen Kontext: Die Parzellenbelegung muss am
+Vertragsbeginn gültig sein; G4.4 verändert keine Belegung.
+
+Die Saison wird aus dem Vertragsjahr bestimmt. Parzellenfläche und
+`pacht_pro_qm` müssen jeweils größer als null sein. Jahrespacht und Pacht für
+das laufende Jahr werden auf zwei Nachkommastellen berechnet; der Beginnmonat
+wird vollständig gezählt (Januar 12, Juli 6, Dezember 1 Monate).
+
+Minderjährigkeit wird zum Vertragsbeginn bestimmt. Für Minderjährige ist eine
+zu diesem Stichtag aktive gesetzliche Vertreterrelation zwingend; der
+Vertreter wird ausschließlich lesend aus dem signierten Mitgliedsantrag
+übernommen. Bei Volljährigen wird ein Nebenmitglied nur als mögliche zweite
+Vertragspartei bereitgestellt, ohne es bereits auszuwählen.
+
+Der Pachtvertragsstatus (`none`, `unsigned`, `signed`) wird für nicht
+archivierte, parzellenbezogene Dokumente ermittelt. Die gemeinsame
+Formular-Dokumenterkennung akzeptiert nur die definierten aktuellen und Legacy-
+Dateinamen oder exakte Formulartitel; freie Titel werden nicht als Status
+gewertet. Die Edge Function prüft dieselben Voraussetzungen unabhängig vom
+Browser. G4.4 enthält weder Erfassung noch Altvertrag, Pächter-2-Auswahl,
+Preview-, Signatur- oder Finalisierungsflow; diese folgen erst in G4.5/G4.6.
