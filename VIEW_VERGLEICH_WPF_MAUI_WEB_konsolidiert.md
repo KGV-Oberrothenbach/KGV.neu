@@ -1097,6 +1097,8 @@ Der bestehende generische `ContractComposer` bleibt für die anderen Vertragstyp
 
 `repositories/contracts/contract-repository.ts` kapselt den dafür benötigten, auf das Mitglied begrenzten Zugriff auf nicht archivierte Dokumente. Die UI führt für den Mitgliedsantrag keine neuen direkten Supabase-Abfragen aus. Vorschau, Signaturen und das endgültige Ablegen bleiben im vorhandenen G4-/G10-Weg und werden in G4.1 nicht weiter umgebaut.
 
+Nachkorrektur zu G4.1: Der Mitgliedsbeitrag bleibt an die aktuelle Saison gebunden; die Aufnahmegebühr wird dagegen zwingend aus der Saison des tatsächlichen Eintrittsdatums geladen. Fehlende, leere oder negative Aufnahmegebühren sind Fehler und werden nicht als `0` interpretiert. Bei fehlendem `mitglied_seit` wird das lokale Tagesdatum verwendet. Das vorbefüllte Eintrittsdatum ist außerdem vom gemeinsamen Vertragsdatum getrennt, sodass `mitgliedsvertrag` und `pachtvertrag` unverändert bleiben. Formularstatus werden ausschließlich anhand des Core-kompatiblen aktuellen bzw. Legacy-Dateinamensschemas oder des exakt definierten Formular-Titels erkannt; freie Dokumenttitel zählen nicht als Mitgliedsantrag.
+
 ### Offen
 - gesetzlicher Vertreter fachlich korrekt integrieren (G4.2)
 - vollständige Preview- und Signatur-Schichtung aus dem generischen Composer lösen (G4.3)
