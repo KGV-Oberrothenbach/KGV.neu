@@ -4539,16 +4539,25 @@ namespace KGV.Infrastructure.Services
                 if (mitgliedId <= 0)
                     return null;
 
-                var client = await EnsureClientAsync();
-                var response = await client.From<PflichtstundenUebersichtRecord>().Get();
                 var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
+                var client = await EnsureClientAsync();
+                var saisons = await GetSaisonRecordsAsync();
 
-                return response?.Models?
-                    .Where(x => MatchesPflichtstundenMitglied(x, mitgliedId, homeMitgliedId))
-                    .OrderByDescending(x => x.MitgliedId == mitgliedId)
-                    .ThenByDescending(GetPflichtstundenYear)
-                    .ThenByDescending(x => x.SaisonId ?? 0)
-                    .FirstOrDefault();
+                foreach (var saison in GetPflichtstundenCandidateSeasons(saisons, DateTime.Today.Year))
+                {
+                    var records = await LoadPflichtstundenForSaisonAsync(client, mitgliedId, homeMitgliedId, saison.Id);
+                    var record = records
+                        .Where(x => MatchesPflichtstundenMitglied(x, mitgliedId, homeMitgliedId))
+                        .OrderByDescending(x => x.MitgliedId == mitgliedId)
+                        .ThenByDescending(GetPflichtstundenYear)
+                        .ThenByDescending(x => x.SaisonId ?? 0)
+                        .FirstOrDefault();
+
+                    if (record != null)
+                        return record;
+                }
+
+                return null;
             },
             null);
 
@@ -6675,37 +6684,31 @@ namespace KGV.Infrastructure.Services
         private async Task<HomeWorkHoursSummary?> LoadPflichtstundenSummaryAsync(int mitgliedId, int year)
         {
             var client = await EnsureClientAsync();
-            var currentSeason = (await GetSaisonRecordsAsync())
+            var saisons = await GetSaisonRecordsAsync();
+            var currentSeason = saisons
                 .OrderByDescending(x => x.Jahr == year)
                 .ThenByDescending(x => x.Jahr)
                 .FirstOrDefault();
 
-            var allResponse = await client
-                .From<PflichtstundenUebersichtRecord>()
-                .Get();
-
-            var allRecords = allResponse?.Models?.ToList() ?? new List<PflichtstundenUebersichtRecord>();
-            LogHomeLoadInfo("LoadPflichtstundenSummaryAsync", $"Pflichtstunden-View lieferte {allRecords.Count} Datensätze vor dem Home-Filter.");
-
-            var matchingRecords = allRecords
-                .Where(x => MatchesPflichtstundenMitglied(x, mitgliedId, mitgliedId))
-                .ToList();
-
-            LogHomeLoadInfo("LoadPflichtstundenSummaryAsync", $"Pflichtstunden-View lieferte {matchingRecords.Count} Datensätze für Mitglied/Hauptmitglied {mitgliedId}.");
-
             PflichtstundenUebersichtRecord? record = null;
+            var loadedRecordCount = 0;
 
-            if (currentSeason != null)
-                record = matchingRecords.FirstOrDefault(x => x.SaisonId == currentSeason.Id);
+            foreach (var saison in GetPflichtstundenCandidateSeasons(saisons, year))
+            {
+                var records = await LoadPflichtstundenForSaisonAsync(client, mitgliedId, mitgliedId, saison.Id);
+                loadedRecordCount += records.Count;
 
-            record ??= matchingRecords
-                .OrderByDescending(GetPflichtstundenYear)
-                .FirstOrDefault(x => GetPflichtstundenYear(x) == year);
+                record = records
+                    .Where(x => MatchesPflichtstundenMitglied(x, mitgliedId, mitgliedId))
+                    .OrderByDescending(x => x.SaisonId == currentSeason?.Id)
+                    .ThenByDescending(GetPflichtstundenYear)
+                    .FirstOrDefault();
 
-            record ??= matchingRecords
-                .OrderByDescending(x => x.SaisonId == currentSeason?.Id)
-                .ThenByDescending(GetPflichtstundenYear)
-                .FirstOrDefault();
+                if (record != null)
+                    break;
+            }
+
+            LogHomeLoadInfo("LoadPflichtstundenSummaryAsync", $"Pflichtstunden-View lieferte {loadedRecordCount} Datensätze nach Mitglied-/Hauptmitglied- und Saison-Filter.");
 
             if (record == null)
                 return null;
@@ -7296,6 +7299,31 @@ namespace KGV.Infrastructure.Services
             return record.MitgliedId == mitgliedId
                 || record.HauptmitgliedId == mitgliedId
                 || record.HauptmitgliedId == homeMitgliedId;
+        }
+
+        private static IEnumerable<SaisonRecord> GetPflichtstundenCandidateSeasons(IEnumerable<SaisonRecord> saisons, int year)
+        {
+            return saisons
+                .OrderByDescending(x => x.Jahr == year)
+                .ThenByDescending(x => x.Jahr)
+                .ThenByDescending(x => x.Id);
+        }
+
+        private static async Task<List<PflichtstundenUebersichtRecord>> LoadPflichtstundenForSaisonAsync(
+            Client client,
+            int mitgliedId,
+            int homeMitgliedId,
+            int saisonId)
+        {
+            var response = await client
+                .From<PflichtstundenUebersichtRecord>()
+                .Where(x => x.SaisonId == saisonId)
+                .Where(x => x.MitgliedId == mitgliedId
+                    || x.HauptmitgliedId == mitgliedId
+                    || x.HauptmitgliedId == homeMitgliedId)
+                .Get();
+
+            return response?.Models?.ToList() ?? new List<PflichtstundenUebersichtRecord>();
         }
 
         private static int GetPflichtstundenYear(PflichtstundenUebersichtRecord record)
