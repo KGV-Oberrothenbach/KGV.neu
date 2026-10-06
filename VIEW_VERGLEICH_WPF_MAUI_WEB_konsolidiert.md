@@ -1188,7 +1188,7 @@ Eigene Preview-Seite vor der endgültigen Ablage.
 `generateContract(..., action: "preview")` liefert eine Vorschau-URL und öffnet diese in einem neuen Browserfenster/-tab.
 
 ### Bewertung
-✅ technisch sinnvoll, aber aktuell stark an den generischen ContractComposer gekoppelt.
+✅ G4.3: `MembershipApplicationFlow` führt Erfassung, PDF-Vorschau, Rückkehr zur Bearbeitung, getrennte Signaturerfassung und Finalisierung. Erwachsene benötigen Antrag- und Datenschutzsignatur; Minderjährige zusätzlich beide Vertreter-Signaturen. Eine Vereinsunterschrift wird beim Mitgliedsantrag weder verlangt noch in die Vorlage geschrieben. Preview erzeugt nur das PDF. Vertreteranlage und Beziehungsverknüpfung erfolgen weiter erst nach vollständiger serverseitiger Signaturvalidierung bei der Finalisierung. Nach Erfolg werden Signaturen zurückgesetzt und die vorhandene Dokumentliste aktualisiert.
 
 ### Ziel
 ```text
