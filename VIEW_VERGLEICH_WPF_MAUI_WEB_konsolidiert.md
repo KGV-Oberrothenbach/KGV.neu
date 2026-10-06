@@ -2,8 +2,8 @@
 
 ## Grundregeln
 
-- **WPF** ist die Referenz für Darstellung, Seitenaufbau und Bedienkonzept. Das bedeutet keine 1:1-Kopie; dokumentierte webtypische Verbesserungen dürfen bewusst abweichen.
-- **MAUI** ist die Standardreferenz für aktuelle Fachlogik, Berechtigungen, Datenflüsse und Geschäftsregeln.
+- **WPF ist keine Referenz mehr** und wird nur noch als historischer Kontext erwähnt.
+- **MAUI** ist die Referenz für aktuelle Fachlogik, Berechtigungen, Datenflüsse und Geschäftsregeln.
 - **Datenbankregeln, RPCs/Trigger und der gemeinsame `KGV.Core` haben Vorrang**, wenn sie eine Fachregel eindeutig zentral festlegen oder wenn eine Gruppe ausdrücklich feststellt, dass der aktuelle MAUI-Stand noch vorläufig bzw. widersprüchlich ist. Das betrifft insbesondere G12 Jahresabschluss.
 - **Web** wird gegen diese Referenzen geprüft; eine in dieser Analyse ausdrücklich festgelegte Zielregel gilt anschließend gruppenübergreifend.
 - Die bestehende große `KGV.Web/app/page.tsx` ist nur Übergangsstruktur.
@@ -1069,15 +1069,6 @@ endMembership(...)
 
 ## 4.1 Mitgliedsantrag erzeugen
 
-### WPF
-`MitgliedsantragDialog.xaml`
-
-WPF stellt vor der Erzeugung insbesondere dar:
-- Beginn
-- Jahresbeitrag
-- Hinweis auf vollen/halben Beitrag
-- anpassbarer Mitgliedsbeitrag
-
 ### MAUI
 `MitgliedsantragDialogPage.cs` und `MitgliedsantragPreviewPage.cs`
 
@@ -1089,29 +1080,26 @@ MAUI ist hier fachlich führend. Der Ablauf umfasst:
 - signiertes Dokument speichern
 - Dokumentstatus prüfen
 
-### Web aktuell
-Der Webbereich besitzt bereits einen `ContractComposer` innerhalb von `app/page.tsx`.
+### Beitragsanalyse und Korrektur (G4.1)
+`MitgliedsantragBeitragHelper.CreateSuggestion` bestimmt für die aktuelle Saison den **Jahresbeitrag** (Haupt- oder Nebenmitglied) und zusätzlich den **anteiligen Beitrag**: bei Eintritt im Saisonjahr `Restmonate einschließlich Eintrittsmonat / 12`, sonst der volle Jahresbeitrag.
 
-Vorhanden:
-- Dokumenttyp `mitgliedsantrag`
-- Beginn
-- Mitgliedsbeitrag
-- Aufnahmegebühr
-- PDF-Vorschau
-- Unterschrift Mitglied
-- optionale zweite/Vertreter-Unterschrift
-- Unterschrift Verein
-- Finalisieren und Speichern
+`MitgliedsantragDokumentFactory` erwartet dagegen als Eingabewert den Jahresbeitrag und berechnet für die PDF-Felder `mitgliedsbeitrag_anteilig` und `beitragsmonate` selbst denselben Monatsanteil. Der bisherige MAUI-Dialog und der parameterlose Erzeugungsweg übergaben fälschlich `VorgeschlagenerBeitrag` an diese Factory. Damit wurde der Anteil im Aufnahmejahr ein zweites Mal mit dem Monatsfaktor multipliziert; zugleich enthielt das Jahresbeitragsfeld im PDF den bereits anteiligen Wert.
 
-### Bewertung
-🟡 Grundfunktion ist vorhanden, aber der Browser-Flow ist derzeit zu generisch und bildet die aktuelle MAUI-Fachlogik nicht vollständig sichtbar ab.
+G4.1 korrigiert dies minimal: Der editierbare MAUI-Wert ist jetzt der Jahresbeitrag, während der Dialog den daraus abgeleiteten anteiligen Aufnahmebetrag transparent ausweist. Der direkte MAUI-Erzeugungsweg übergibt ebenfalls den Jahresbeitrag. Die Dokumentfactory bleibt die einzige Stelle, die den PDF-Anteil berechnet.
+
+### Web (G4.1)
+Der bestehende generische `ContractComposer` bleibt für die anderen Vertragstypen erhalten. Für `mitgliedsantrag` verwendet er nun die fachliche Vorbereitung aus `services/contracts/membership-application-service.ts`:
+
+- lädt die vorhandenen Mitgliedsstammdaten über den G3-Mitgliederservice,
+- verwendet das vorhandene Saison-Repository für Jahresbeitrag, Nebenmitgliedsbeitrag und Aufnahmegebühr,
+- bestimmt Beginn, Jahresbeitrag, Restmonate und anteiligen Beitrag nach der MAUI-Regel,
+- stellt den Status `kein Antrag`, `unsignierter Antrag` oder `signierter Antrag` bereit.
+
+`repositories/contracts/contract-repository.ts` kapselt den dafür benötigten, auf das Mitglied begrenzten Zugriff auf nicht archivierte Dokumente. Die UI führt für den Mitgliedsantrag keine neuen direkten Supabase-Abfragen aus. Vorschau, Signaturen und das endgültige Ablegen bleiben im vorhandenen G4-/G10-Weg und werden in G4.1 nicht weiter umgebaut.
 
 ### Offen
-- Beitragsermittlung wie MAUI/WPF eindeutig übernehmen
-- Status eines bestehenden signierten/unsignierten Antrags berücksichtigen
-- Dokumentstatus und Wiederaufnahme eines Flows sauber abbilden
-- Logik aus `page.tsx` lösen
-- gesetzlicher Vertreter fachlich korrekt integrieren
+- gesetzlicher Vertreter fachlich korrekt integrieren (G4.2)
+- vollständige Preview- und Signatur-Schichtung aus dem generischen Composer lösen (G4.3)
 
 ### Ziel
 ```text

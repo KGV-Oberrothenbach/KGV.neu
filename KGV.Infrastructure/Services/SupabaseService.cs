@@ -3658,7 +3658,7 @@ namespace KGV.Infrastructure.Services
                 var vorschlag = MitgliedsantragBeitragHelper.CreateSuggestion(member, saisons);
                 return await CreateMitgliedsantragDokumentInternalAsync(
                     member,
-                    MitgliedsantragBeitragHelper.NormalizeBeitrag(vorschlag.VorgeschlagenerBeitrag),
+                    MitgliedsantragBeitragHelper.NormalizeBeitrag(vorschlag.Jahresbeitrag),
                     vorschlag.BeginnDatum,
                     status);
             }
