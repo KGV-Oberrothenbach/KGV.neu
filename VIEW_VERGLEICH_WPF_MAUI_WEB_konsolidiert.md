@@ -768,19 +768,21 @@ KGV.Web/
 
 ## 3.1 Mitgliedersuche
 
-**Erledigt in G3.1:** `MemberSearch.tsx` ist ausgelagert; `member-service.ts` wurde eingeführt und das vorhandene `member-repository.ts` erweitert. Gartennummern werden nicht mehr in React zusammengesetzt, und der Workspace-Mitgliedsname läuft nicht mehr über einen direkten Supabase-Zugriff. **G3.2 Stammdaten bleibt ausdrücklich offen.**
+**Erledigt in G3.1:** `MemberSearch.tsx` ist ausgelagert; `member-service.ts` wurde eingeführt und das vorhandene `member-repository.ts` erweitert. Gartennummern werden nicht mehr in React zusammengesetzt, und der Workspace-Mitgliedsname läuft nicht mehr über einen direkten Supabase-Zugriff.
 
-**Erledigt in G3.2:** Die Stammdaten-UI ist aus `page.tsx` gelöst; Laden und Speichern bestehender Mitglieder laufen über Member-Service und Repository. Die Own-vs-Foreign-Prüfung erfolgt auch im Service, MAUI-Felder einschließlich Arbeitsstunden-Altersregel und E-Mail-Einwilligungen sind ergänzt, und Auth-verknüpfte E-Mails sind geschützt. **G3.3 Create sowie G3.4 Nebenmitglied und G3.5 Mitgliedschaft beenden bleiben offen.**
+**Erledigt in G3.2:** Die Stammdaten-UI ist aus `page.tsx` gelöst; Laden und Speichern bestehender Mitglieder laufen über Member-Service und Repository. Die Own-vs-Foreign-Prüfung erfolgt auch im Service, MAUI-Felder einschließlich Arbeitsstunden-Altersregel und E-Mail-Einwilligungen sind ergänzt, und Auth-verknüpfte E-Mails sind geschützt.
 
-**Erledigt in G3.3:** Die Hauptmitglied-Neuanlage läuft über Member-Service und Repository; das Create-Recht wird auch im Service geprüft. Der Create-Editor umfasst die MAUI-Felder, validiert Vorname, Nachname und Altersregel und setzt das neue Mitglied direkt als Workspace-Kontext. Mitgliedsantrag bleibt G4, Nebenmitglied G3.4 und Mitgliedschaft beenden G3.5.
+**Erledigt in G3.3:** Die Hauptmitglied-Neuanlage läuft über Member-Service und Repository; das Create-Recht wird auch im Service geprüft. Der Create-Editor umfasst die MAUI-Felder, validiert Vorname, Nachname und Altersregel und setzt das neue Mitglied direkt als Workspace-Kontext. Mitgliedsantrag bleibt G4.
 
-**Erledigt in G3.4:** Das Nebenmitglied ist aus `MemberStammdaten.tsx` ausgelagert. Laden, Anlegen und Bearbeiten laufen über Secondary-Service und Member-Repository; Adressen können fachlich abgesichert vom Hauptmitglied übernommen werden. Create wird service-seitig validiert, bestehende Nebenmitglieder bearbeiten nur den MAUI-Kontakt-/Adressumfang und Auth-verknüpfte E-Mails bleiben geschützt. **G3.5 Mitgliedschaft beenden bleibt offen.**
+**Erledigt in G3.4:** Das Nebenmitglied ist aus `MemberStammdaten.tsx` ausgelagert. Laden, Anlegen und Bearbeiten laufen über Secondary-Service und Member-Repository; Adressen können fachlich abgesichert vom Hauptmitglied übernommen werden. Create wird service-seitig validiert, bestehende Nebenmitglieder bearbeiten nur den MAUI-Kontakt-/Adressumfang und Auth-verknüpfte E-Mails bleiben geschützt.
 
-**G3.5a Backend-Grundlage:** Eine serverseitige transaktionale RPC für das Beenden von Mitgliedschaften ist angelegt. Haupt- und Nebenmitglied werden gemeinsam verarbeitet; Berechtigung, Demo-Scope und Locks werden serverseitig geprüft. Die Web-Anbindung folgt in G3.5b.
+**Erledigt in G3.5a:** Eine serverseitige transaktionale RPC für das Beenden von Mitgliedschaften verarbeitet Haupt- und Nebenmitglied gemeinsam; Berechtigung, Demo-Scope und Locks werden serverseitig geprüft.
 
 **Erledigt in G3.5b:** Die Web-Anbindung verwendet `MembershipEnd.tsx` über Member-Service und Member-Repository ausschließlich mit `end_membership`. Direkte Haupt-/Nebenmitglied-PATCHes entfallen; Datum, Berechtigung und Folgeentscheidung bleiben serverseitig führend. Der Browser-Edit-Lock wird erst im Beendigungsmodus erworben und die RPC-Rückgabe aktualisiert den Member-/Workspace-Zustand.
 
-**Erledigt in G3.5c:** MAUI verwendet für das Beenden der Mitgliedschaft ebenfalls `end_membership` in genau einem atomaren RPC-Aufruf. Es gibt kein lokales Enddatum und keine sequenziellen Mitglieds-Updates mehr; der bestehende MAUI-Hauptmitglied-Lock bleibt vorgeschaltet. Die RPC-Rückgabe wird in `MembershipEndResult` gemappt. **G3.5 ist damit vollständig umgesetzt; G3.6 bleibt offen.**
+**Erledigt in G3.5c:** MAUI verwendet für das Beenden der Mitgliedschaft ebenfalls `end_membership` in genau einem atomaren RPC-Aufruf. Es gibt kein lokales Enddatum und keine sequenziellen Mitglieds-Updates mehr; der bestehende MAUI-Hauptmitglied-Lock bleibt vorgeschaltet. Die RPC-Rückgabe wird in `MembershipEndResult` gemappt.
+
+**Erledigt in G3.6:** Der G3-Abschluss prüft die Schichtentrennung, Berechtigungen und Locks. Direkte Änderungen von `mitglied_ende` im normalen Stammdatenpfad sind entfernt; produktiv erfolgt das Beenden der Mitgliedschaft in Web und MAUI ausschließlich über `end_membership`. G3.1 bis G3.6 und damit G3 insgesamt sind abgeschlossen.
 
 ### WPF
 `MemberSearchView.xaml`

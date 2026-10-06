@@ -988,6 +988,9 @@ namespace KGV.Infrastructure.Services
                 if (existing == null || existing.LockedByUserId != userGuid)
                     return false;
 
+                if (NormalizeDate(dto.MitgliedEnde) != NormalizeDate(existing.MitgliedEnde))
+                    return false;
+
                 if (dto.IstHauptmitglied && !MemberDTO.HauptmitgliedArbeitsstundenAltersregelTypOptions.Contains(dto.ArbeitsstundenAltersregelTyp, StringComparer.Ordinal))
                     return false;
 
@@ -1010,8 +1013,6 @@ namespace KGV.Infrastructure.Services
                     .Set(x => x.EmailInfoEinwilligung, dto.EmailInfoEinwilligung)
                     .Set(x => x.ArbeitsstundenAltersregelTyp, dto.IstHauptmitglied ? dto.ArbeitsstundenAltersregelTyp : existing.ArbeitsstundenAltersregelTyp)
                     .Set(x => x.MitgliedSeit, NormalizeDate(dto.MitgliedSeit))
-                    .Set(x => x.MitgliedEnde, NormalizeDate(dto.MitgliedEnde))
-                    .Set(x => x.Aktiv, dto.MitgliedEnde == null)
                     .Update();
 
                 return true;
