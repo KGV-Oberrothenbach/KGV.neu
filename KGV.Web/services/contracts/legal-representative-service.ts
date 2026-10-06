@@ -3,6 +3,7 @@ import { listMembersForSearch } from "../../repositories/members/member-reposito
 import { listLegalRepresentativeRelations } from "../../repositories/contracts/contract-repository";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type Member } from "../../models/members/member";
+import { type LegalRepresentativeRelation } from "../../repositories/contracts/contract-repository";
 
 export type LegalRepresentativeMode = "existing" | "manual";
 export type LegalRepresentativeDraft = { mode: LegalRepresentativeMode; memberId: number | null; vorname: string; nachname: string; adresseAbweichend: boolean; adresse: string; plz: string; ort: string };
@@ -24,10 +25,16 @@ export function validateLegalRepresentative(draft: LegalRepresentativeDraft) {
   if (draft.adresseAbweichend && (!draft.adresse.trim() || !draft.plz.trim() || !draft.ort.trim())) throw new Error("Bitte die abweichende Anschrift des gesetzlichen Vertreters vollständig eingeben.");
 }
 
+export function resolveActiveLegalRepresentativeRelation(relations: LegalRepresentativeRelation[], startDate: string) {
+  return relations
+    .filter((relation) => relation.gueltig_ab <= startDate && (!relation.gueltig_bis || relation.gueltig_bis >= startDate))
+    .sort((left, right) => Number(right.gueltig_bis === null) - Number(left.gueltig_bis === null) || right.gueltig_ab.localeCompare(left.gueltig_ab) || right.id - left.id)[0] ?? null;
+}
+
 export async function loadLegalRepresentativeContext(session: BrowserSession, member: Member, startDate: string) {
   if (!isMinorAtStart(member, startDate)) return { isMinor: false, options: [] as LegalRepresentativeOption[], draft: emptyLegalRepresentativeDraft() };
   const [members, relations] = await Promise.all([listMembersForSearch(session), listLegalRepresentativeRelations(session, member.id)]);
-  const current = relations.find((relation) => relation.gueltig_ab <= startDate && (!relation.gueltig_bis || relation.gueltig_bis >= startDate));
+  const current = resolveActiveLegalRepresentativeRelation(relations, startDate);
   const options = members.filter((item) => item.id !== member.id).map((item) => ({ id: item.id, label: [item.vorname, item.name].filter(Boolean).join(" ") || `Mitglied #${item.id}` })).sort((a, b) => a.label.localeCompare(b.label, "de"));
   if (!current) return { isMinor: true, options, draft: { ...emptyLegalRepresentativeDraft(), mode: (options.length ? "existing" : "manual") as LegalRepresentativeMode } };
   const representative = await getMember(session, current.vertreter_mitglied_id);
