@@ -19,8 +19,6 @@ export function MembershipEnd({ session, mainMember, canManageMembership, onSave
   useEffect(() => {
     if (!ending) return;
     let active = true;
-    setLoadingSecondary(true);
-    setMessage("");
     loadSecondaryMemberForMembershipEnd(session, mainMember.id)
       .then((member) => { if (active) { setSecondary(member); setDecision(""); } })
       .catch((cause: Error) => { if (active) setMessage(cause.message || "Nebenmitglied konnte nicht geladen werden."); })
@@ -33,6 +31,14 @@ export function MembershipEnd({ session, mainMember, canManageMembership, onSave
     setSecondary(null);
     setDecision("");
     setMessage("");
+  }
+
+  function beginMembershipEnd() {
+    setLoadingSecondary(true);
+    setMessage("");
+    setSecondary(null);
+    setDecision("");
+    setEnding(true);
   }
 
   function confirmationText() {
@@ -66,7 +72,7 @@ export function MembershipEnd({ session, mainMember, canManageMembership, onSave
     }
   }
 
-  if (!ending) return <section className="secondary-member membership-end"><h3>Mitgliedschaft beenden</h3>{message && <p className="notice" role="status">{message}</p>}<div className="editor-actions"><button className="reject-action" disabled={!canManageMembership} onClick={() => setEnding(true)}>Mitgliedschaft beenden</button></div></section>;
+  if (!ending) return <section className="secondary-member membership-end"><h3>Mitgliedschaft beenden</h3>{message && <p className="notice" role="status">{message}</p>}<div className="editor-actions"><button className="reject-action" disabled={!canManageMembership} onClick={beginMembershipEnd}>Mitgliedschaft beenden</button></div></section>;
 
   const lockReady = !editLock.checking && editLock.acquired;
   return <section className="secondary-member membership-end"><h3>Mitgliedschaft beenden</h3>{editLock.message && <p className="notice" role="status">{editLock.message}</p>}{message && <p className="notice" role="status">{message}</p>}{loadingSecondary ? <p>Lädt Nebenmitglied …</p> : secondary ? <><p>Nebenmitglied: <strong>{secondary.vorname} {secondary.name}</strong></p><label>Folgeentscheidung<select value={decision} disabled={saving || !lockReady} onChange={(event) => setDecision(event.target.value as MembershipEndDecision | "")}><option value="">Bitte wählen</option><option value="end_secondary">Nebenmitglied ebenfalls beenden</option><option value="promote_secondary">Nebenmitglied zum Hauptmitglied machen</option></select></label></> : <p>Kein Nebenmitglied vorhanden.</p>}<div className="editor-actions"><button className="reject-action" disabled={saving || loadingSecondary || !lockReady || Boolean(secondary && !decision)} onClick={submit}>{saving ? "Beendet …" : editLock.checking ? "Sperre wird geprüft …" : "Endgültig beenden"}</button><button className="secondary-action" disabled={saving} onClick={cancel}>Abbrechen</button></div></section>;
