@@ -1025,10 +1025,13 @@ namespace KGV.Infrastructure.Services
 
             try
             {
-                var client = await EnsureClientAsync();
-                var response = await client.Rpc<JsonElement[]>(
-                    "end_membership",
-                    new
+                var accessToken = await _authService.GetAccessTokenAsync();
+                using var request = new HttpRequestMessage(HttpMethod.Post, BuildPostgrestUri("rpc/end_membership"));
+                request.Headers.Add("apikey", _publishableKey);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", string.IsNullOrWhiteSpace(accessToken) ? _publishableKey : accessToken);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                request.Content = new StringContent(
+                    JsonSerializer.Serialize(new
                     {
                         p_main_member_id = mainMemberId,
                         p_secondary_decision = secondaryDecision switch
@@ -1037,29 +1040,39 @@ namespace KGV.Infrastructure.Services
                             MembershipEndDecision.PromoteSecondaryMember => "promote_secondary",
                             _ => null
                         }
-                    });
+                    }),
+                    Encoding.UTF8,
+                    "application/json");
 
-                var result = response?.FirstOrDefault();
-                if (result is null || result.Value.ValueKind != JsonValueKind.Object)
+                using var response = await _documentUploadHttpClient.SendAsync(request);
+                var responseBody = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger?.LogWarning(
+                        "EndMembershipAsync HTTP RPC failed. Status={StatusCode} Content={Content}",
+                        (int)response.StatusCode,
+                        responseBody);
+                    return MembershipEndResult.Failure(
+                        ExtractMembershipEndHttpErrorMessage(responseBody)
+                        ?? "Die Mitgliedschaft konnte nicht beendet werden.");
+                }
+
+                using var document = JsonDocument.Parse(responseBody);
+                var result = document.RootElement.ValueKind == JsonValueKind.Array
+                    ? document.RootElement.EnumerateArray().FirstOrDefault()
+                    : default;
+                if (result.ValueKind != JsonValueKind.Object)
                     return MembershipEndResult.Failure("Die Mitgliedschaft konnte nicht beendet werden.");
 
-                var message = GetMembershipEndJsonString(result.Value, "message") ?? "Mitgliedschaft konnte nicht beendet werden.";
-                if (!GetMembershipEndJsonBoolean(result.Value, "success"))
+                var message = GetMembershipEndJsonString(result, "message") ?? "Mitgliedschaft konnte nicht beendet werden.";
+                if (!GetMembershipEndJsonBoolean(result, "success"))
                     return MembershipEndResult.Failure(message);
 
                 return MembershipEndResult.SuccessResult(
                     message,
-                    MapMembershipEndMember(GetMembershipEndJsonValue(result.Value, "updated_main_member")),
-                    MapMembershipEndMember(GetMembershipEndJsonValue(result.Value, "updated_secondary_member")),
-                    MapMembershipEndDecision(GetMembershipEndJsonString(result.Value, "secondary_decision")));
-            }
-            catch (PostgrestException ex)
-            {
-                LogPostgrestFailure("EndMembershipAsync", ex);
-                return MembershipEndResult.Failure(
-                    string.IsNullOrWhiteSpace(ExtractPostgrestRelevantMessage(ex))
-                        ? "Die Mitgliedschaft konnte nicht beendet werden."
-                        : ExtractPostgrestRelevantMessage(ex));
+                    MapMembershipEndMember(GetMembershipEndJsonValue(result, "updated_main_member")),
+                    MapMembershipEndMember(GetMembershipEndJsonValue(result, "updated_secondary_member")),
+                    MapMembershipEndDecision(GetMembershipEndJsonString(result, "secondary_decision")));
             }
             catch (Exception ex)
             {
@@ -1068,6 +1081,24 @@ namespace KGV.Infrastructure.Services
                     string.IsNullOrWhiteSpace(ex.Message)
                         ? "Die Mitgliedschaft konnte nicht beendet werden."
                         : ex.Message);
+            }
+        }
+
+        private static string? ExtractMembershipEndHttpErrorMessage(string responseBody)
+        {
+            if (string.IsNullOrWhiteSpace(responseBody))
+                return null;
+
+            try
+            {
+                using var document = JsonDocument.Parse(responseBody);
+                return document.RootElement.ValueKind == JsonValueKind.Object
+                    ? GetMembershipEndJsonString(document.RootElement, "message")
+                    : null;
+            }
+            catch (JsonException)
+            {
+                return null;
             }
         }
 
