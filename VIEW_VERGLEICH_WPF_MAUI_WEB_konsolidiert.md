@@ -8924,3 +8924,21 @@ der gesetzliche Vertreter bleibt read-only und ist fachlich Partei 2.
 Die Statuswerte `none`, `unsigned` und `signed` sperren bei vorhandenem
 Dokument eine neue Erfassung. G4.5 schreibt keine Fachdatensätze. Preview,
 Signaturen, Finalisierung und Dokumentablage bleiben G4.6 vorbehalten.
+
+## G4.6 – Pachtvertrag: Vorschau, Signaturen und Ablage
+
+Der Pachtvertrag nutzt nun den Ablauf Bearbeitung, schreibfreie PDF-Vorschau,
+Signaturen und finale parzellenbezogene Ablage. Nach der Vorschau kann zur
+Bearbeitung zurückgekehrt oder zu den Signaturen fortgesetzt werden. Erwachsene
+ohne zweite Partei unterzeichnen als Pächter/in 1 und Vorstand/Verpächter;
+mit einbezogenem Nebenmitglied kommt Pächter/in 2 hinzu. Bei Minderjährigen
+zeichnet der read-only gesetzliche Vertreter als zweite Partei. Der Vorstand
+ist immer erforderlich.
+
+Die Edge Function validiert Altvertragsentscheidung, tatsächliches
+Kalenderdatum bei Altvertrag, die serverseitig bestimmte zweite Partei sowie
+alle erforderlichen Signaturen. Vorschauen bleiben vollständig schreibfrei.
+Finale Dokumente werden nur parzellenbezogen abgelegt. Nach erfolgreicher
+Finalisierung aktualisiert der Web-Flow den Status auf signiert und lädt die
+Dokumentliste nach; das statusabhängige Öffnen vorhandener Verträge bleibt
+G4.7 vorbehalten.
