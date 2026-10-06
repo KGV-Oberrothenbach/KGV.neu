@@ -8906,3 +8906,21 @@ Dateinamen oder exakte Formulartitel; freie Titel werden nicht als Status
 gewertet. Die Edge Function prüft dieselben Voraussetzungen unabhängig vom
 Browser. G4.4 enthält weder Erfassung noch Altvertrag, Pächter-2-Auswahl,
 Preview-, Signatur- oder Finalisierungsflow; diese folgen erst in G4.5/G4.6.
+
+## G4.5 – Pachtvertrag: Erfassung und Draft
+
+Der Pachtvertrag besitzt mit `LeaseContractFlow` einen eigenen Flow. Er führt
+Vertragsbeginn und konkret gültige Parzelle, lädt die Pachtbasis ausschließlich
+über den G4.4-Service und zeigt Fläche, Preis pro Quadratmeter, Jahrespacht und
+Pacht für das laufende Jahr read-only an.
+
+Der Altvertrag wird ausdrücklich mit Ja oder Nein entschieden. Nur bei Ja ist
+das Datum erforderlich; bei Nein wird kein Altvertragsdatum in den späteren
+Request übernommen. Bei volljährigen Mitgliedern wird ein vorhandenes
+Nebenmitglied standardmäßig als optionale zweite Vertragspartei aktiviert und
+kann abgewählt werden. Bei Minderjährigen ist diese Auswahl ausgeschlossen;
+der gesetzliche Vertreter bleibt read-only und ist fachlich Partei 2.
+
+Die Statuswerte `none`, `unsigned` und `signed` sperren bei vorhandenem
+Dokument eine neue Erfassung. G4.5 schreibt keine Fachdatensätze. Preview,
+Signaturen, Finalisierung und Dokumentablage bleiben G4.6 vorbehalten.

@@ -372,6 +372,9 @@ export type ContractGenerationRequest = {
   signature_application_representative?: string;
   signature_privacy_representative?: string;
   signature_member?: string;
+  has_previous_contract?: boolean;
+  previous_contract_date?: string;
+  include_secondary_member?: boolean;
   signature_secondary?: string;
   signature_board?: string;
   signature_board2?: string;
