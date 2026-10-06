@@ -1150,7 +1150,9 @@ Der generische `ContractComposer` besitzt lediglich eine optionale zweite Unters
 Eine vollständige Vertreterauswahl mit beiden MAUI-Fällen ist in diesem Flow nicht erkennbar.
 
 ### Bewertung
-❌ Fachliche Lücke.
+✅ G4.2 umgesetzt. Minderjährigkeit wird anhand des Geburtsdatums zum Antrag-Beginn bestimmt; fehlendes Geburtsdatum bedeutet wie in MAUI volljährig. Für Minderjährige kann ein bestehendes Mitglied (ohne das Kind selbst) ausgewählt oder ein Vertreter manuell mit Vor- und Nachname erfasst werden. Eine abweichende Anschrift ist nur dann mit Adresse, PLZ und Ort Pflicht.
+
+Preview und Abbrechen bleiben ohne Datenbank-Nebenwirkung. Erst beim Finalisieren legt die Edge Function einen manuellen Vertreter als Nebenmitglied an und speichert anschließend bzw. aktualisiert die Beziehung in `mitglied_gesetzlicher_vertreter`. Bei einem bestehenden Vertreter wird keine neue Mitgliedschaft angelegt. Eine bisher aktive Beziehung wird zum Vortag beendet, wenn ein anderer Vertreter ab Beginn eingesetzt wird; gleiche Vertreterbeziehungen werden aktualisiert. Der Insert überlässt `created_at` dem Datenbankdefault.
 
 ### Ziel
 ```text

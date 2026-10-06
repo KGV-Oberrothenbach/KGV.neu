@@ -366,6 +366,7 @@ export type ContractGenerationRequest = {
   start_date: string;
   member_fee?: number;
   admission_fee?: number;
+  representative?: { mode: "existing" | "manual"; member_id?: number; vorname?: string; nachname?: string; adresse_abweichend?: boolean; adresse?: string; plz?: string; ort?: string };
   signature_member?: string;
   signature_secondary?: string;
   signature_board?: string;
