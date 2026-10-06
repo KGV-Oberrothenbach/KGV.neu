@@ -1,7 +1,7 @@
 export type FormDocumentStatus = "none" | "unsigned" | "signed";
 type FormDocument = { titel: string | null; dateiname: string | null };
 
-function statusOf(document: FormDocument, type: "mitgliedsantrag" | "pachtvertrag") {
+export function getFormDocumentStatus(document: FormDocument, type: "mitgliedsantrag" | "pachtvertrag") {
   const fileName = (document.dateiname ?? "").trim().split(/[\\/]/).pop() ?? "";
   const title = (document.titel ?? "").trim();
   const escapedType = type.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -12,6 +12,6 @@ function statusOf(document: FormDocument, type: "mitgliedsantrag" | "pachtvertra
 }
 
 export function determineFormDocumentStatus(documents: FormDocument[], type: "mitgliedsantrag" | "pachtvertrag"): FormDocumentStatus {
-  const statuses = documents.map((document) => statusOf(document, type)).filter((status): status is "signiert" | "unsigniert" => status !== null);
+  const statuses = documents.map((document) => getFormDocumentStatus(document, type)).filter((status): status is "signiert" | "unsigniert" => status !== null);
   return statuses.length === 0 ? "none" : statuses.includes("signiert") ? "signed" : "unsigned";
 }

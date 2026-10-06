@@ -8942,3 +8942,15 @@ Finale Dokumente werden nur parzellenbezogen abgelegt. Nach erfolgreicher
 Finalisierung aktualisiert der Web-Flow den Status auf signiert und lädt die
 Dokumentliste nach; das statusabhängige Öffnen vorhandener Verträge bleibt
 G4.7 vorbehalten.
+
+## G4.7 – Bestehende Pachtverträge
+
+Der Pacht-Fachservice klassifiziert Formular-Dokumente anhand der definierten
+Dateinamen und Titel und liefert das konkret bevorzugte Dokument: signiert vor
+unsigniert, jeweils das neueste. Bei vorhandenem Vertrag blockiert der Flow die
+Neuerstellung und öffnet ihn über den bestehenden geschützten Drive-/Storage-
+Pfad. Es gibt keinen direkten Verwerfen- oder Archivierungsflow; Archivierung
+erfolgt ausschließlich über die Dokumentverwaltung (G10).
+
+G4 ist damit fachlich umgesetzt und wartet auf die Gesamtprüfung vor einem
+späteren Merge nach main.

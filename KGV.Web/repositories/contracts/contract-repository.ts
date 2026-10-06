@@ -16,9 +16,10 @@ export function listMembershipApplicationDocuments(session: BrowserSession, memb
   });
 }
 
+export type LeaseContractDocument = { id: number; titel: string | null; dateiname: string | null; updated_at: string; bucket: string | null; storage_path: string | null; drive_file_id: string | null; mime_type: string | null; size_bytes: number | null };
 export function listLeaseContractDocuments(session: BrowserSession, parcelId: number) {
-  return readSupabase<MembershipApplicationDocument>(session, "dokument", {
-    select: "id,titel,dateiname,updated_at",
+  return readSupabase<LeaseContractDocument>(session, "dokument", {
+    select: "id,titel,dateiname,updated_at,bucket,storage_path,drive_file_id,mime_type,size_bytes",
     parzelle_id: `eq.${parcelId}`,
     archiviert_at: "is.null",
     order: "updated_at.desc",
