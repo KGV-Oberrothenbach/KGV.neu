@@ -50,9 +50,10 @@ export async function endMembership(session: BrowserSession, mainMemberId: numbe
   const result = await endMembershipRpc(session, mainMemberId, decision);
   if (!result) throw new Error("Die Mitgliedschaft konnte nicht beendet werden.");
   if (!result.success) throw new Error(result.message || "Die Mitgliedschaft konnte nicht beendet werden.");
-  if (!result.updated_main_member) throw new Error("Die aktualisierten Mitgliedsdaten fehlen.");
+  const updatedMainMember = result.updated_main_member;
+  if (!updatedMainMember) throw new Error("Die aktualisierten Mitgliedsdaten fehlen.");
 
-  return result;
+  return { ...result, updated_main_member: updatedMainMember };
 }
 
 export async function createMainMember(session: BrowserSession, input: MemberStammdatenInput, permissions: MemberCreatePermissions) {

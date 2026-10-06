@@ -48,13 +48,14 @@ export function MembershipEnd({ session, mainMember, canManageMembership, onSave
       setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft.");
       return;
     }
-    if (loadingSecondary || (secondary && !decision)) return;
+    const secondaryDecision: MembershipEndDecision | null = secondary && decision ? decision : null;
+    if (loadingSecondary || (secondary && !secondaryDecision)) return;
     if (!window.confirm(confirmationText())) return;
 
     setSaving(true);
     setMessage("");
     try {
-      const result = await endMembership(session, mainMember.id, secondary ? decision : null);
+      const result = await endMembership(session, mainMember.id, secondaryDecision);
       onSaved(result.updated_main_member);
       setMessage(result.message);
       setEnding(false);
