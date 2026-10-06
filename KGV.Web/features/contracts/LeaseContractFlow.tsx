@@ -22,7 +22,7 @@ export function LeaseContractFlow({ session, memberId, onChangeDocumentType }: {
       setParcels(items);
       setDraft((current) => {
         const parcelId = current.parcelId && items.some((item) => item.id === current.parcelId) ? current.parcelId : items.length === 1 ? items[0].id : null;
-        return { ...current, parcelId, includeSecondaryMember: false };
+        return { ...current, parcelId };
       });
     }).catch((error) => active && setMessage(error instanceof Error ? error.message : "Geeignete Parzellen konnten nicht geladen werden."));
     return () => { active = false; };
