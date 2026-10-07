@@ -1,4 +1,4 @@
-import { type BrowserSession, readSupabase } from "../../lib/supabase-auth";
+import { type BrowserSession, readSupabase, writeSupabase } from "../../lib/supabase-auth";
 
 export type ParcelGarden = { id: number; garten_nr: string };
 export type ParcelAssignment = { parzelle_id: number; mitglied_id: number; von_datum: string | null; bis_datum: string | null };
@@ -14,6 +14,7 @@ export type ParcelOverviewParcel = {
   rfid_wasser: string | null;
   aktiv: boolean;
 };
+export type ParcelMasterDataUpdate = Pick<ParcelOverviewParcel, "flaeche_qm" | "hat_strom" | "hat_wasser">;
 export type ParcelOverviewAssignment = ParcelAssignment & { id: number; beendigungsgrund: string | null };
 export type ParcelOverviewMember = {
   id: number;
@@ -63,6 +64,9 @@ export const listParcelOverviewParcels = (session: BrowserSession) => readSupaba
   select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,rfid_strom,rfid_wasser,aktiv",
   limit: "1000",
 });
+
+export const updateParcelMasterData = (session: BrowserSession, parcelId: number, data: ParcelMasterDataUpdate) =>
+  writeSupabase<ParcelOverviewParcel>(session, "parzelle", "PATCH", data, { id: `eq.${parcelId}` });
 
 export const listParcelOverviewAssignments = (session: BrowserSession) => readSupabase<ParcelOverviewAssignment>(session, "parzellen_belegung", {
   select: "id,parzelle_id,mitglied_id,von_datum,bis_datum,beendigungsgrund",

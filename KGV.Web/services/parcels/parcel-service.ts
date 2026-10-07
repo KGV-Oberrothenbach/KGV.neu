@@ -5,10 +5,21 @@ import {
   listParcelOverviewAssignments,
   listParcelOverviewMembers,
   listParcelOverviewParcels,
+  updateParcelMasterData,
   type ParcelOverviewAssignment,
   type ParcelOverviewMember,
   type ParcelOverviewParcel,
 } from "../../repositories/parcels/parcel-repository";
+
+export type ParcelMasterDataSaveInput = {
+  parcelId: number;
+  flaeche_qm: number | null;
+  hat_strom: boolean;
+  hat_wasser: boolean;
+};
+
+export const saveParcelMasterData = (session: BrowserSession, { parcelId, flaeche_qm, hat_strom, hat_wasser }: ParcelMasterDataSaveInput) =>
+  updateParcelMasterData(session, parcelId, { flaeche_qm, hat_strom, hat_wasser });
 
 export type ParcelOverviewItem = {
   parcel: ParcelOverviewParcel;
