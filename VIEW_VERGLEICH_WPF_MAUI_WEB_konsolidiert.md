@@ -8952,5 +8952,9 @@ Neuerstellung und öffnet ihn über den bestehenden geschützten Drive-/Storage-
 Pfad. Es gibt keinen direkten Verwerfen- oder Archivierungsflow; Archivierung
 erfolgt ausschließlich über die Dokumentverwaltung (G10).
 
+Der Dokumentstatus und das Öffnen eines vorhandenen Vertrags werden vor und
+unabhängig von der Neuerstellungs-Eligibility geladen. Gibt es keinen Vertrag,
+greift weiterhin die vollständige G4.4–G4.6-Prüfung.
+
 G4 ist damit fachlich umgesetzt und wartet auf die Gesamtprüfung vor einem
 späteren Merge nach main.
