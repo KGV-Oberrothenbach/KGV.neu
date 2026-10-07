@@ -8,8 +8,8 @@ import { ContractPreview } from "./ContractPreview";
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const name = (m: { vorname: string | null; name: string | null; id: number }) => [m.vorname, m.name].filter(Boolean).join(" ") || `Mitglied #${m.id}`;
 
-export function LeaseContractFlow({ session, memberId, onSaved, onChangeDocumentType }: { session: BrowserSession; memberId: number; onSaved: () => Promise<void>; onChangeDocumentType: (type: "mitgliedsantrag" | "mitgliedsvertrag") => void }) {
-  const [draft, setDraft] = useState<LeaseContractDraft>(() => emptyLeaseContractDraft(today()));
+export function LeaseContractFlow({ session, memberId, onSaved, onChangeDocumentType, initialParcelId, initialStartDate }: { session: BrowserSession; memberId: number; onSaved: () => Promise<void>; onChangeDocumentType: (type: "mitgliedsantrag" | "mitgliedsvertrag") => void; initialParcelId?: number; initialStartDate?: string }) {
+  const [draft, setDraft] = useState<LeaseContractDraft>(() => ({ ...emptyLeaseContractDraft(initialStartDate ?? today()), parcelId: initialParcelId ?? null }));
   const [parcels, setParcels] = useState<LeaseParcel[]>([]); const [data, setData] = useState<LeaseContractData | null>(null); const [documentState, setDocumentState] = useState<LeaseContractDocumentState | null>(null); const [message, setMessage] = useState(""); const [step, setStep] = useState<"edit" | "preview" | "signatures">("edit");
   const [tenant1Signature, setTenant1Signature] = useState(""); const [secondPartySignature, setSecondPartySignature] = useState(""); const [boardSignature, setBoardSignature] = useState(""); const [busy, setBusy] = useState(false); const [opening, setOpening] = useState(false); const choiceContext = useRef<string | null>(null);
   const clearSignatures = () => { setTenant1Signature(""); setSecondPartySignature(""); setBoardSignature(""); };

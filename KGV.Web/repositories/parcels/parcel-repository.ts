@@ -15,6 +15,7 @@ export type ParcelOverviewParcel = {
   aktiv: boolean;
 };
 export type ParcelMasterDataUpdate = Pick<ParcelOverviewParcel, "flaeche_qm" | "hat_strom" | "hat_wasser">;
+export type ParcelAssignmentCreate = { parzelle_id: number; mitglied_id: number; von_datum: string; bis_datum: null };
 export type ParcelOverviewAssignment = ParcelAssignment & { id: number; beendigungsgrund: string | null };
 export type ParcelOverviewMember = {
   id: number;
@@ -83,8 +84,18 @@ export const listMemberParcelAssignments = (session: BrowserSession, memberId: n
 export const updateParcelMasterData = (session: BrowserSession, parcelId: number, data: ParcelMasterDataUpdate) =>
   writeSupabase<ParcelOverviewParcel>(session, "parzelle", "PATCH", data, { id: `eq.${parcelId}` });
 
+export const createParcelAssignment = (session: BrowserSession, data: ParcelAssignmentCreate) =>
+  writeSupabase<ParcelOverviewAssignment>(session, "parzellen_belegung", "POST", data);
+
 export const listParcelOverviewAssignments = (session: BrowserSession) => readSupabase<ParcelOverviewAssignment>(session, "parzellen_belegung", {
   select: "id,parzelle_id,mitglied_id,von_datum,bis_datum,beendigungsgrund",
+  order: "von_datum.desc",
+  limit: "3000",
+});
+
+export const listParcelAssignmentsForParcel = (session: BrowserSession, parcelId: number) => readSupabase<ParcelOverviewAssignment>(session, "parzellen_belegung", {
+  select: "id,parzelle_id,mitglied_id,von_datum,bis_datum,beendigungsgrund",
+  parzelle_id: `eq.${parcelId}`,
   order: "von_datum.desc",
   limit: "3000",
 });

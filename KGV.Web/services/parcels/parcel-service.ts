@@ -7,7 +7,9 @@ import {
   listParcelOverviewParcels,
   listParcelOverviewParcelsByIds,
   listMemberParcelAssignments,
+  listParcelAssignmentsForParcel,
   updateParcelMasterData,
+  createParcelAssignment,
   type ParcelOverviewAssignment,
   type ParcelOverviewMember,
   type ParcelOverviewParcel,
@@ -22,6 +24,26 @@ export type ParcelMasterDataSaveInput = {
 
 export const saveParcelMasterData = (session: BrowserSession, { parcelId, flaeche_qm, hat_strom, hat_wasser }: ParcelMasterDataSaveInput) =>
   updateParcelMasterData(session, parcelId, { flaeche_qm, hat_strom, hat_wasser });
+
+export type ParcelAssignmentInput = { memberId: number; parcelId: number; startDate: string };
+
+export async function listAssignableParcels(session: BrowserSession) {
+  const [parcels, assignments] = await Promise.all([listParcelOverviewParcels(session), listParcelOverviewAssignments(session)]);
+  const occupiedParcelIds = new Set(assignments.filter((assignment) => isParcelAssignmentActiveOn(assignment)).map((assignment) => assignment.parzelle_id));
+  return parcels
+    .filter((parcel) => parcel.aktiv && !occupiedParcelIds.has(parcel.id))
+    .sort((left, right) => gardenNumberSortKey(left.garten_nr).localeCompare(gardenNumberSortKey(right.garten_nr), "de", { sensitivity: "base" }));
+}
+
+export async function assignParcelToMember(session: BrowserSession, { memberId, parcelId, startDate }: ParcelAssignmentInput) {
+  if (!Number.isInteger(memberId) || memberId <= 0 || !Number.isInteger(parcelId) || parcelId <= 0) throw new Error("Mitglied und Parzelle müssen gültig sein.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) throw new Error("Das Zuweisungsdatum ist ungültig.");
+  const date = new Date(`${startDate}T12:00:00`);
+  if (Number.isNaN(date.valueOf()) || `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}` !== startDate) throw new Error("Das Zuweisungsdatum ist ungültig.");
+  const assignments = await listParcelAssignmentsForParcel(session, parcelId);
+  if (assignments.some((assignment) => isParcelAssignmentActiveOn(assignment, startDate))) throw new Error("Die Parzelle ist zum gewählten Datum bereits belegt.");
+  return createParcelAssignment(session, { parzelle_id: parcelId, mitglied_id: memberId, von_datum: startDate, bis_datum: null });
+}
 
 export type MemberParcelItem = {
   assignment: ParcelOverviewAssignment;

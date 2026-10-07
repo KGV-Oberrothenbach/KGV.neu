@@ -43,6 +43,10 @@ export function determineMembershipApplicationStatus(documents: MembershipApplic
   return determineFormDocumentStatus(documents, "mitgliedsantrag");
 }
 
+export async function loadMembershipApplicationStatus(session: BrowserSession, memberId: number): Promise<MembershipApplicationStatus> {
+  return determineMembershipApplicationStatus(await listMembershipApplicationDocuments(session, memberId));
+}
+
 export async function loadMembershipApplicationData(session: BrowserSession, memberId: number, today = new Date()): Promise<MembershipApplicationData> {
   const [member, seasons, documents] = await Promise.all([getMember(session, memberId), listSeasons(session), listMembershipApplicationDocuments(session, memberId)]);
   if (!member) throw new Error("Mitglied konnte nicht geladen werden.");
