@@ -33,7 +33,7 @@ export async function listAssignableParcels(session: BrowserSession) {
   const [parcels, assignments] = await Promise.all([listParcelOverviewParcels(session), listParcelOverviewAssignments(session)]);
   const occupiedParcelIds = new Set(assignments.filter((assignment) => isParcelAssignmentActiveOn(assignment)).map((assignment) => assignment.parzelle_id));
   return parcels
-    .filter((parcel) => parcel.aktiv && !occupiedParcelIds.has(parcel.id))
+    .filter((parcel) => parcel.id > 0 && !occupiedParcelIds.has(parcel.id))
     .sort((left, right) => gardenNumberSortKey(left.garten_nr).localeCompare(gardenNumberSortKey(right.garten_nr), "de", { sensitivity: "base" }));
 }
 
@@ -160,12 +160,11 @@ export async function listCurrentGardenNumbersByMemberId(session: BrowserSession
     listParcelAssignments(session, memberIds),
     listParcelGardens(session),
   ]);
-  const today = new Date().toISOString().slice(0, 10);
   const gardenNumberByParcelId = new Map(parcels.map((parcel) => [parcel.id, parcel.garten_nr]));
   const result = new Map<number, string[]>();
 
   for (const assignment of assignments) {
-    if ((assignment.von_datum && assignment.von_datum > today) || (assignment.bis_datum && assignment.bis_datum < today)) continue;
+    if (!isParcelAssignmentActiveOn(assignment)) continue;
     const gardenNumber = gardenNumberByParcelId.get(assignment.parzelle_id);
     if (!gardenNumber) continue;
     const numbers = result.get(assignment.mitglied_id) ?? [];
