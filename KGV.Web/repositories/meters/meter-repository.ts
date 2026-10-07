@@ -21,22 +21,6 @@ export type MeterOverviewParcel = {
   aktiv: boolean;
 };
 
-export type MeterReading = {
-  id: number;
-  zaehler_id: number;
-  stand: number;
-  ablesedatum: string;
-  art: string;
-  freigegeben: boolean;
-  pruefstatus: string;
-  pruefkommentar: string | null;
-  geprueft_von: number | null;
-  geprueft_am: string | null;
-  foto_pfad?: string | null;
-  foto_drive_file_id?: string | null;
-  foto_dateiname?: string | null;
-};
-
 export type MeterDueStatus = {
   id: number;
   parzelle_id: number;
@@ -61,12 +45,6 @@ export const listMeters = (session: BrowserSession) => readSupabase<Meter>(sessi
 export const listMeterOverviewParcels = (session: BrowserSession) => readSupabase<MeterOverviewParcel>(session, "parzelle", {
   select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,aktiv",
   limit: "500",
-});
-
-export const listMeterReadings = (session: BrowserSession) => readSupabase<MeterReading>(session, "zaehler_ablesung", {
-  select: "id,zaehler_id,stand,ablesedatum,art,freigegeben,pruefstatus,pruefkommentar,geprueft_von,geprueft_am,foto_pfad,foto_drive_file_id,foto_dateiname",
-  order: "ablesedatum.desc",
-  limit: "1000",
 });
 
 export const listMeterDueStatuses = (session: BrowserSession) => readSupabase<MeterDueStatus>(session, "v_zaehler_eichstatus", {

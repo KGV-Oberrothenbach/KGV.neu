@@ -2,18 +2,15 @@ import { type BrowserSession } from "../../lib/supabase-auth";
 import {
   listMeterDueStatuses,
   listMeterOverviewParcels,
-  listMeterReadings,
   listMeters,
   type Meter,
   type MeterDueStatus,
   type MeterOverviewParcel,
-  type MeterReading,
 } from "../../repositories/meters/meter-repository";
 
 export type MeterOverviewData = {
   meters: Meter[];
   parcels: MeterOverviewParcel[];
-  readings: MeterReading[];
   dueStatuses: MeterDueStatus[];
 };
 
@@ -38,12 +35,11 @@ export const meterDueStatusLabel = (status: string | null) => {
 };
 
 export async function loadMeterOverview(session: BrowserSession): Promise<MeterOverviewData> {
-  const [meters, parcels, readings, dueStatuses] = await Promise.all([
+  const [meters, parcels, dueStatuses] = await Promise.all([
     listMeters(session),
     listMeterOverviewParcels(session),
-    listMeterReadings(session),
     listMeterDueStatuses(session),
   ]);
 
-  return { meters, parcels, readings, dueStatuses: [...dueStatuses].sort(compareByGardenNumber) };
+  return { meters, parcels, dueStatuses: [...dueStatuses].sort(compareByGardenNumber) };
 }
