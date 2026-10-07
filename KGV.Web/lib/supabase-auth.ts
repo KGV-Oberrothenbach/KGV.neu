@@ -366,7 +366,15 @@ export type ContractGenerationRequest = {
   start_date: string;
   member_fee?: number;
   admission_fee?: number;
+  representative?: { mode: "existing" | "manual"; member_id?: number; vorname?: string; nachname?: string; adresse_abweichend?: boolean; adresse?: string; plz?: string; ort?: string };
+  signature_application_member?: string;
+  signature_privacy_member?: string;
+  signature_application_representative?: string;
+  signature_privacy_representative?: string;
   signature_member?: string;
+  has_previous_contract?: boolean;
+  previous_contract_date?: string;
+  include_secondary_member?: boolean;
   signature_secondary?: string;
   signature_board?: string;
   signature_board2?: string;

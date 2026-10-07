@@ -64,7 +64,9 @@ public sealed class MitgliedsantragDialogPage : ContentPage
 
         _mitgliedsbeitragEntry = new Entry
         {
-            Text = MitgliedsantragBeitragHelper.NormalizeBeitrag(initialRequest?.Mitgliedsbeitrag ?? vorschlag.VorgeschlagenerBeitrag).ToString("0.00", DeCulture),
+            // Die Dokumentfactory erwartet hier den Jahresbeitrag und ermittelt den
+            // anteiligen Aufnahmebeitrag selbst für das PDF.
+            Text = MitgliedsantragBeitragHelper.NormalizeBeitrag(initialRequest?.Mitgliedsbeitrag ?? vorschlag.Jahresbeitrag).ToString("0.00", DeCulture),
             Keyboard = Microsoft.Maui.Keyboard.Numeric,
             Placeholder = "Mitgliedsbeitrag"
         };
@@ -193,12 +195,10 @@ public sealed class MitgliedsantragDialogPage : ContentPage
                     CreateField("Jahresbeitrag", new Label { Text = FormatCurrency(vorschlag.Jahresbeitrag) }),
                     new Label
                     {
-                        Text = vorschlag.IstHalberBeitrag
-                            ? $"Beginn ab 01.07.{vorschlag.SaisonJahr}: Es wird automatisch der halbe Jahresbeitrag vorgeschlagen. Der Wert kann vor dem Erzeugen angepasst werden."
-                            : $"Beginn vor 01.07.{vorschlag.SaisonJahr}: Es wird automatisch der volle Jahresbeitrag vorgeschlagen. Der Wert kann vor dem Erzeugen angepasst werden.",
+                        Text = $"Für das Aufnahmejahr werden {FormatCurrency(vorschlag.VorgeschlagenerBeitrag)} anteilig berechnet. Der Jahresbeitrag kann vor dem Erzeugen angepasst werden.",
                         TextColor = Colors.Gray
                     },
-                    CreateField("Mitgliedsbeitrag", _mitgliedsbeitragEntry),
+                    CreateField("Mitgliedsbeitrag jährlich", _mitgliedsbeitragEntry),
                     _vertreterRootSection,
                     new HorizontalStackLayout
                     {

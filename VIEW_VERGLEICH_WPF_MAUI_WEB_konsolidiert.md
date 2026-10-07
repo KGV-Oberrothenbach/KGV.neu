@@ -2,8 +2,8 @@
 
 ## Grundregeln
 
-- **WPF** ist die Referenz für Darstellung, Seitenaufbau und Bedienkonzept. Das bedeutet keine 1:1-Kopie; dokumentierte webtypische Verbesserungen dürfen bewusst abweichen.
-- **MAUI** ist die Standardreferenz für aktuelle Fachlogik, Berechtigungen, Datenflüsse und Geschäftsregeln.
+- **WPF ist keine Referenz mehr** und wird nur noch als historischer Kontext erwähnt.
+- **MAUI** ist die Referenz für aktuelle Fachlogik, Berechtigungen, Datenflüsse und Geschäftsregeln.
 - **Datenbankregeln, RPCs/Trigger und der gemeinsame `KGV.Core` haben Vorrang**, wenn sie eine Fachregel eindeutig zentral festlegen oder wenn eine Gruppe ausdrücklich feststellt, dass der aktuelle MAUI-Stand noch vorläufig bzw. widersprüchlich ist. Das betrifft insbesondere G12 Jahresabschluss.
 - **Web** wird gegen diese Referenzen geprüft; eine in dieser Analyse ausdrücklich festgelegte Zielregel gilt anschließend gruppenübergreifend.
 - Die bestehende große `KGV.Web/app/page.tsx` ist nur Übergangsstruktur.
@@ -1069,15 +1069,6 @@ endMembership(...)
 
 ## 4.1 Mitgliedsantrag erzeugen
 
-### WPF
-`MitgliedsantragDialog.xaml`
-
-WPF stellt vor der Erzeugung insbesondere dar:
-- Beginn
-- Jahresbeitrag
-- Hinweis auf vollen/halben Beitrag
-- anpassbarer Mitgliedsbeitrag
-
 ### MAUI
 `MitgliedsantragDialogPage.cs` und `MitgliedsantragPreviewPage.cs`
 
@@ -1089,29 +1080,28 @@ MAUI ist hier fachlich führend. Der Ablauf umfasst:
 - signiertes Dokument speichern
 - Dokumentstatus prüfen
 
-### Web aktuell
-Der Webbereich besitzt bereits einen `ContractComposer` innerhalb von `app/page.tsx`.
+### Beitragsanalyse und Korrektur (G4.1)
+`MitgliedsantragBeitragHelper.CreateSuggestion` bestimmt für die aktuelle Saison den **Jahresbeitrag** (Haupt- oder Nebenmitglied) und zusätzlich den **anteiligen Beitrag**: bei Eintritt im Saisonjahr `Restmonate einschließlich Eintrittsmonat / 12`, sonst der volle Jahresbeitrag.
 
-Vorhanden:
-- Dokumenttyp `mitgliedsantrag`
-- Beginn
-- Mitgliedsbeitrag
-- Aufnahmegebühr
-- PDF-Vorschau
-- Unterschrift Mitglied
-- optionale zweite/Vertreter-Unterschrift
-- Unterschrift Verein
-- Finalisieren und Speichern
+`MitgliedsantragDokumentFactory` erwartet dagegen als Eingabewert den Jahresbeitrag und berechnet für die PDF-Felder `mitgliedsbeitrag_anteilig` und `beitragsmonate` selbst denselben Monatsanteil. Der bisherige MAUI-Dialog und der parameterlose Erzeugungsweg übergaben fälschlich `VorgeschlagenerBeitrag` an diese Factory. Damit wurde der Anteil im Aufnahmejahr ein zweites Mal mit dem Monatsfaktor multipliziert; zugleich enthielt das Jahresbeitragsfeld im PDF den bereits anteiligen Wert.
 
-### Bewertung
-🟡 Grundfunktion ist vorhanden, aber der Browser-Flow ist derzeit zu generisch und bildet die aktuelle MAUI-Fachlogik nicht vollständig sichtbar ab.
+G4.1 korrigiert dies minimal: Der editierbare MAUI-Wert ist jetzt der Jahresbeitrag, während der Dialog den daraus abgeleiteten anteiligen Aufnahmebetrag transparent ausweist. Der direkte MAUI-Erzeugungsweg übergibt ebenfalls den Jahresbeitrag. Die Dokumentfactory bleibt die einzige Stelle, die den PDF-Anteil berechnet.
+
+### Web (G4.1)
+Der bestehende generische `ContractComposer` bleibt für die anderen Vertragstypen erhalten. Für `mitgliedsantrag` verwendet er nun die fachliche Vorbereitung aus `services/contracts/membership-application-service.ts`:
+
+- lädt die vorhandenen Mitgliedsstammdaten über den G3-Mitgliederservice,
+- verwendet das vorhandene Saison-Repository für Jahresbeitrag, Nebenmitgliedsbeitrag und Aufnahmegebühr,
+- bestimmt Beginn, Jahresbeitrag, Restmonate und anteiligen Beitrag nach der MAUI-Regel,
+- stellt den Status `kein Antrag`, `unsignierter Antrag` oder `signierter Antrag` bereit.
+
+`repositories/contracts/contract-repository.ts` kapselt den dafür benötigten, auf das Mitglied begrenzten Zugriff auf nicht archivierte Dokumente. Die UI führt für den Mitgliedsantrag keine neuen direkten Supabase-Abfragen aus. Vorschau, Signaturen und das endgültige Ablegen bleiben im vorhandenen G4-/G10-Weg und werden in G4.1 nicht weiter umgebaut.
+
+Nachkorrektur zu G4.1: Der Mitgliedsbeitrag bleibt an die aktuelle Saison gebunden; die Aufnahmegebühr wird dagegen zwingend aus der Saison des tatsächlichen Eintrittsdatums geladen. Fehlende, leere oder negative Aufnahmegebühren sind Fehler und werden nicht als `0` interpretiert. Bei fehlendem `mitglied_seit` wird das lokale Tagesdatum verwendet. Das vorbefüllte Eintrittsdatum ist außerdem vom gemeinsamen Vertragsdatum getrennt, sodass `mitgliedsvertrag` und `pachtvertrag` unverändert bleiben. Formularstatus werden ausschließlich anhand des Core-kompatiblen aktuellen bzw. Legacy-Dateinamensschemas oder des exakt definierten Formular-Titels erkannt; freie Dokumenttitel zählen nicht als Mitgliedsantrag.
 
 ### Offen
-- Beitragsermittlung wie MAUI/WPF eindeutig übernehmen
-- Status eines bestehenden signierten/unsignierten Antrags berücksichtigen
-- Dokumentstatus und Wiederaufnahme eines Flows sauber abbilden
-- Logik aus `page.tsx` lösen
-- gesetzlicher Vertreter fachlich korrekt integrieren
+- gesetzlicher Vertreter fachlich korrekt integrieren (G4.2)
+- vollständige Preview- und Signatur-Schichtung aus dem generischen Composer lösen (G4.3)
 
 ### Ziel
 ```text
@@ -1160,7 +1150,9 @@ Der generische `ContractComposer` besitzt lediglich eine optionale zweite Unters
 Eine vollständige Vertreterauswahl mit beiden MAUI-Fällen ist in diesem Flow nicht erkennbar.
 
 ### Bewertung
-❌ Fachliche Lücke.
+✅ G4.2 umgesetzt. Minderjährigkeit wird anhand des Geburtsdatums zum Antrag-Beginn bestimmt; fehlendes Geburtsdatum bedeutet wie in MAUI volljährig. Für Minderjährige kann ein bestehendes Mitglied (ohne das Kind selbst) ausgewählt oder ein Vertreter manuell mit Vor- und Nachname erfasst werden. Eine abweichende Anschrift ist nur dann mit Adresse, PLZ und Ort Pflicht.
+
+Preview und Abbrechen bleiben ohne Datenbank-Nebenwirkung. Erst beim Finalisieren legt die Edge Function einen manuellen Vertreter als Nebenmitglied an und speichert anschließend bzw. aktualisiert die Beziehung in `mitglied_gesetzlicher_vertreter`. Bei einem bestehenden Vertreter wird keine neue Mitgliedschaft angelegt. Eine bisher aktive Beziehung wird zum Vortag beendet, wenn ein anderer Vertreter ab Beginn eingesetzt wird; gleiche Vertreterbeziehungen werden aktualisiert. Der Insert überlässt `created_at` dem Datenbankdefault.
 
 ### Ziel
 ```text
@@ -1196,7 +1188,7 @@ Eigene Preview-Seite vor der endgültigen Ablage.
 `generateContract(..., action: "preview")` liefert eine Vorschau-URL und öffnet diese in einem neuen Browserfenster/-tab.
 
 ### Bewertung
-✅ technisch sinnvoll, aber aktuell stark an den generischen ContractComposer gekoppelt.
+✅ G4.3: `MembershipApplicationFlow` führt Erfassung, PDF-Vorschau, Rückkehr zur Bearbeitung, getrennte Signaturerfassung und Finalisierung. Erwachsene benötigen Antrag- und Datenschutzsignatur; Minderjährige zusätzlich beide Vertreter-Signaturen. Eine Vereinsunterschrift wird beim Mitgliedsantrag weder verlangt noch in die Vorlage geschrieben. Preview erzeugt nur das PDF. Vertreteranlage und Beziehungsverknüpfung erfolgen weiter erst nach vollständiger serverseitiger Signaturvalidierung bei der Finalisierung. Nach Erfolg werden Signaturen zurückgesetzt und die vorhandene Dokumentliste aktualisiert.
 
 ### Ziel
 ```text
@@ -8887,3 +8879,82 @@ Session, gespeicherter Vereinskontext und Vereinswechsel verbleiben zunächst
 unverändert. Die weiteren G1-Bereiche Login, OTP, Passwort-Flow,
 Session-Refresh und AuthProvider wurden anschließend in kontrollierten
 Folgeschnitten abgeschlossen. G12 bleibt ausdrücklich ausgeklammert.
+
+## G4.4 – Pachtvertrag: Fachbasis und Berechtigungsprüfung
+
+Die Web-Fachbasis für Pachtverträge orientiert sich am MAUI-Flow. Ein
+Pachtvertrag setzt einen signierten Mitgliedsantrag voraus und kann nur aus dem
+Kontext eines Hauptmitglieds vorbereitet werden. Mitglied, Parzelle und
+Vertragsbeginn bilden einen festen Kontext: Die Parzellenbelegung muss am
+Vertragsbeginn gültig sein; G4.4 verändert keine Belegung.
+
+Die Saison wird aus dem Vertragsjahr bestimmt. Parzellenfläche und
+`pacht_pro_qm` müssen jeweils größer als null sein. Jahrespacht und Pacht für
+das laufende Jahr werden auf zwei Nachkommastellen berechnet; der Beginnmonat
+wird vollständig gezählt (Januar 12, Juli 6, Dezember 1 Monate).
+
+Minderjährigkeit wird zum Vertragsbeginn bestimmt. Für Minderjährige ist eine
+zu diesem Stichtag aktive gesetzliche Vertreterrelation zwingend; der
+Vertreter wird ausschließlich lesend aus dem signierten Mitgliedsantrag
+übernommen. Bei Volljährigen wird ein Nebenmitglied nur als mögliche zweite
+Vertragspartei bereitgestellt, ohne es bereits auszuwählen.
+
+Der Pachtvertragsstatus (`none`, `unsigned`, `signed`) wird für nicht
+archivierte, parzellenbezogene Dokumente ermittelt. Die gemeinsame
+Formular-Dokumenterkennung akzeptiert nur die definierten aktuellen und Legacy-
+Dateinamen oder exakte Formulartitel; freie Titel werden nicht als Status
+gewertet. Die Edge Function prüft dieselben Voraussetzungen unabhängig vom
+Browser. G4.4 enthält weder Erfassung noch Altvertrag, Pächter-2-Auswahl,
+Preview-, Signatur- oder Finalisierungsflow; diese folgen erst in G4.5/G4.6.
+
+## G4.5 – Pachtvertrag: Erfassung und Draft
+
+Der Pachtvertrag besitzt mit `LeaseContractFlow` einen eigenen Flow. Er führt
+Vertragsbeginn und konkret gültige Parzelle, lädt die Pachtbasis ausschließlich
+über den G4.4-Service und zeigt Fläche, Preis pro Quadratmeter, Jahrespacht und
+Pacht für das laufende Jahr read-only an.
+
+Der Altvertrag wird ausdrücklich mit Ja oder Nein entschieden. Nur bei Ja ist
+das Datum erforderlich; bei Nein wird kein Altvertragsdatum in den späteren
+Request übernommen. Bei volljährigen Mitgliedern wird ein vorhandenes
+Nebenmitglied standardmäßig als optionale zweite Vertragspartei aktiviert und
+kann abgewählt werden. Bei Minderjährigen ist diese Auswahl ausgeschlossen;
+der gesetzliche Vertreter bleibt read-only und ist fachlich Partei 2.
+
+Die Statuswerte `none`, `unsigned` und `signed` sperren bei vorhandenem
+Dokument eine neue Erfassung. G4.5 schreibt keine Fachdatensätze. Preview,
+Signaturen, Finalisierung und Dokumentablage bleiben G4.6 vorbehalten.
+
+## G4.6 – Pachtvertrag: Vorschau, Signaturen und Ablage
+
+Der Pachtvertrag nutzt nun den Ablauf Bearbeitung, schreibfreie PDF-Vorschau,
+Signaturen und finale parzellenbezogene Ablage. Nach der Vorschau kann zur
+Bearbeitung zurückgekehrt oder zu den Signaturen fortgesetzt werden. Erwachsene
+ohne zweite Partei unterzeichnen als Pächter/in 1 und Vorstand/Verpächter;
+mit einbezogenem Nebenmitglied kommt Pächter/in 2 hinzu. Bei Minderjährigen
+zeichnet der read-only gesetzliche Vertreter als zweite Partei. Der Vorstand
+ist immer erforderlich.
+
+Die Edge Function validiert Altvertragsentscheidung, tatsächliches
+Kalenderdatum bei Altvertrag, die serverseitig bestimmte zweite Partei sowie
+alle erforderlichen Signaturen. Vorschauen bleiben vollständig schreibfrei.
+Finale Dokumente werden nur parzellenbezogen abgelegt. Nach erfolgreicher
+Finalisierung aktualisiert der Web-Flow den Status auf signiert und lädt die
+Dokumentliste nach; das statusabhängige Öffnen vorhandener Verträge bleibt
+G4.7 vorbehalten.
+
+## G4.7 – Bestehende Pachtverträge
+
+Der Pacht-Fachservice klassifiziert Formular-Dokumente anhand der definierten
+Dateinamen und Titel und liefert das konkret bevorzugte Dokument: signiert vor
+unsigniert, jeweils das neueste. Bei vorhandenem Vertrag blockiert der Flow die
+Neuerstellung und öffnet ihn über den bestehenden geschützten Drive-/Storage-
+Pfad. Es gibt keinen direkten Verwerfen- oder Archivierungsflow; Archivierung
+erfolgt ausschließlich über die Dokumentverwaltung (G10).
+
+Der Dokumentstatus und das Öffnen eines vorhandenen Vertrags werden vor und
+unabhängig von der Neuerstellungs-Eligibility geladen. Gibt es keinen Vertrag,
+greift weiterhin die vollständige G4.4–G4.6-Prüfung.
+
+G4 ist damit fachlich umgesetzt und wartet auf die Gesamtprüfung vor einem
+späteren Merge nach main.
