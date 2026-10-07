@@ -3,6 +3,27 @@ import { type BrowserSession, readSupabase } from "../../lib/supabase-auth";
 export type ParcelGarden = { id: number; garten_nr: string };
 export type ParcelAssignment = { parzelle_id: number; mitglied_id: number; von_datum: string | null; bis_datum: string | null };
 export type LeaseParcel = { id: number; garten_nr: string | null; Anlage: string | null; flaeche_qm: number | null };
+export type ParcelOverviewParcel = {
+  id: number;
+  garten_nr: string;
+  Anlage: string;
+  flaeche_qm: number | null;
+  hat_strom: boolean;
+  hat_wasser: boolean;
+  rfid_strom: string | null;
+  rfid_wasser: string | null;
+  aktiv: boolean;
+};
+export type ParcelOverviewAssignment = ParcelAssignment & { id: number; beendigungsgrund: string | null };
+export type ParcelOverviewMember = {
+  id: number;
+  vorname: string | null;
+  name: string | null;
+  email: string | null;
+  aktiv: boolean;
+  hauptmitglied_id: number | null;
+  role: string | null;
+};
 
 export const listParcelGardens = (session: BrowserSession) => readSupabase<ParcelGarden>(session, "parzelle", {
   select: "id,garten_nr",
@@ -37,3 +58,20 @@ export const listLeaseParcels = (session: BrowserSession, parcelIds: number[]) =
   id: `in.(${parcelIds.join(",")})`,
   order: "garten_nr.asc",
 }) : Promise.resolve([] as LeaseParcel[]);
+
+export const listParcelOverviewParcels = (session: BrowserSession) => readSupabase<ParcelOverviewParcel>(session, "parzelle", {
+  select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,rfid_strom,rfid_wasser,aktiv",
+  limit: "1000",
+});
+
+export const listParcelOverviewAssignments = (session: BrowserSession) => readSupabase<ParcelOverviewAssignment>(session, "parzellen_belegung", {
+  select: "id,parzelle_id,mitglied_id,von_datum,bis_datum,beendigungsgrund",
+  order: "von_datum.desc",
+  limit: "3000",
+});
+
+export const listParcelOverviewMembers = (session: BrowserSession) => readSupabase<ParcelOverviewMember>(session, "mitglied", {
+  select: "id,vorname,name,email,aktiv,hauptmitglied_id,role",
+  order: "name.asc,vorname.asc",
+  limit: "2000",
+});
