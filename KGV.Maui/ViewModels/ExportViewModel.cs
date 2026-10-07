@@ -637,6 +637,9 @@ namespace KGV.Maui.ViewModels
                     sortKey = ss2;
             }
 
+            if (string.IsNullOrWhiteSpace(sortKey))
+                sortKey = SelectedDefinition?.StandardSortierung;
+
             if (!string.IsNullOrWhiteSpace(sortKey))
             {
                 var sortCol = visible.FirstOrDefault(c =>
