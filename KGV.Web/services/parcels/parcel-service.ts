@@ -5,6 +5,8 @@ import {
   listParcelOverviewAssignments,
   listParcelOverviewMembers,
   listParcelOverviewParcels,
+  listParcelOverviewParcelsByIds,
+  listMemberParcelAssignments,
   updateParcelMasterData,
   type ParcelOverviewAssignment,
   type ParcelOverviewMember,
@@ -20,6 +22,21 @@ export type ParcelMasterDataSaveInput = {
 
 export const saveParcelMasterData = (session: BrowserSession, { parcelId, flaeche_qm, hat_strom, hat_wasser }: ParcelMasterDataSaveInput) =>
   updateParcelMasterData(session, parcelId, { flaeche_qm, hat_strom, hat_wasser });
+
+export type MemberParcelItem = {
+  assignment: ParcelOverviewAssignment;
+  parcel: ParcelOverviewParcel | null;
+  isCurrent: boolean;
+};
+
+export async function listMemberParcels(session: BrowserSession, memberId: number): Promise<MemberParcelItem[]> {
+  const assignments = await listMemberParcelAssignments(session, memberId);
+  const parcels = await listParcelOverviewParcelsByIds(session, [...new Set(assignments.map((assignment) => assignment.parzelle_id))]);
+  const parcelsById = new Map(parcels.map((parcel) => [parcel.id, parcel]));
+  return assignments
+    .map((assignment) => ({ assignment, parcel: parcelsById.get(assignment.parzelle_id) ?? null, isCurrent: isParcelAssignmentActiveOn(assignment) }))
+    .sort((left, right) => (right.assignment.von_datum ?? "").localeCompare(left.assignment.von_datum ?? ""));
+}
 
 export type ParcelOverviewItem = {
   parcel: ParcelOverviewParcel;

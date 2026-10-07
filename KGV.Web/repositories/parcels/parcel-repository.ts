@@ -65,6 +65,21 @@ export const listParcelOverviewParcels = (session: BrowserSession) => readSupaba
   limit: "1000",
 });
 
+export const listParcelOverviewParcelsByIds = (session: BrowserSession, parcelIds: number[]) => parcelIds.length
+  ? readSupabase<ParcelOverviewParcel>(session, "parzelle", {
+      select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,rfid_strom,rfid_wasser,aktiv",
+      id: `in.(${parcelIds.join(",")})`,
+      limit: "1000",
+    })
+  : Promise.resolve([] as ParcelOverviewParcel[]);
+
+export const listMemberParcelAssignments = (session: BrowserSession, memberId: number) => readSupabase<ParcelOverviewAssignment>(session, "parzellen_belegung", {
+  select: "id,parzelle_id,mitglied_id,von_datum,bis_datum,beendigungsgrund",
+  mitglied_id: `eq.${memberId}`,
+  order: "von_datum.desc",
+  limit: "3000",
+});
+
 export const updateParcelMasterData = (session: BrowserSession, parcelId: number, data: ParcelMasterDataUpdate) =>
   writeSupabase<ParcelOverviewParcel>(session, "parzelle", "PATCH", data, { id: `eq.${parcelId}` });
 
