@@ -28,7 +28,13 @@ export type ParcelOverview = {
   items: ParcelOverviewItem[];
 };
 
-const localDate = () => new Date().toISOString().slice(0, 10);
+const localDate = () => {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 export const isParcelAssignmentActiveOn = (assignment: Pick<ParcelOverviewAssignment, "von_datum" | "bis_datum">, date = localDate()) =>
   (!assignment.von_datum || assignment.von_datum <= date) && (!assignment.bis_datum || assignment.bis_datum >= date);
