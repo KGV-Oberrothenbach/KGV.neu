@@ -7897,10 +7897,16 @@ Aktueller Plattformstand:
   Vereinsdokumentbranding liefert Logo, Vereinsname, Register, Vereins-E-Mail
   und grüne Linie; Tabellenköpfe werden auf Folgeseiten wiederholt, Ja/Nein-
   Spalten sind kompakt.
+- MAUI verwendet für den PDF-Viewer den dynamischen Titel der gewählten
+  Exportdefinition. Für `zaehler_eichfaelligkeit` liefert die RPC die Daten
+  standardmäßig in natürlicher Gartennummern-Reihenfolge; die zugehörige
+  `standard_sortierung` ist `garten_nr`.
 - Web kann Definition, RPC und Spalten bereits über das metadata-driven
   `ExportCenter` für Anzeige und CSV verwenden. PDF läuft weiterhin über
   `window.print()`; der spezielle .NET-PDF-Builder wird im Browser nicht
   verwendet.
+
+Der Web-Abgleich von `standard_sortierung` bleibt ein offener G14-Punkt.
 
 Offener G14-Punkt: Soll Web später dieselbe deterministische Vereins-PDF
 erzeugen, ist ein sauberer gemeinsamer oder serverseitiger PDF-Weg erforderlich.
