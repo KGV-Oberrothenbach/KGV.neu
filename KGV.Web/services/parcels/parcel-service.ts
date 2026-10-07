@@ -10,6 +10,8 @@ import {
   listParcelAssignmentsForParcel,
   updateParcelMasterData,
   createParcelAssignment,
+  getParcelAssignment,
+  updateParcelAssignmentEnd,
   type ParcelOverviewAssignment,
   type ParcelOverviewMember,
   type ParcelOverviewParcel,
@@ -43,6 +45,19 @@ export async function assignParcelToMember(session: BrowserSession, { memberId, 
   const assignments = await listParcelAssignmentsForParcel(session, parcelId);
   if (assignments.some((assignment) => isParcelAssignmentActiveOn(assignment, startDate))) throw new Error("Die Parzelle ist zum gewählten Datum bereits belegt.");
   return createParcelAssignment(session, { parzelle_id: parcelId, mitglied_id: memberId, von_datum: startDate, bis_datum: null });
+}
+
+export async function endParcelAssignment(session: BrowserSession, { assignmentId, endDate, reason }: { assignmentId: number; endDate: string; reason?: string }) {
+  if (!Number.isInteger(assignmentId) || assignmentId <= 0) throw new Error("Die Belegung ist ungültig.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate)) throw new Error("Das Enddatum ist ungültig.");
+  const date = new Date(`${endDate}T12:00:00`);
+  if (Number.isNaN(date.valueOf()) || `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}` !== endDate) throw new Error("Das Enddatum ist ungültig.");
+  const assignment = await getParcelAssignment(session, assignmentId);
+  if (!assignment) throw new Error("Die Belegung wurde nicht gefunden.");
+  if (assignment.von_datum && endDate < assignment.von_datum) throw new Error("Das Enddatum darf nicht vor dem Beginn liegen.");
+  const normalizedReason = reason?.trim() || null;
+  if (normalizedReason && !["kuendigung", "tod", "wechsel", "sonstiges"].includes(normalizedReason)) throw new Error("Der Beendigungsgrund ist ungültig.");
+  return updateParcelAssignmentEnd(session, assignmentId, { bis_datum: endDate, beendigungsgrund: normalizedReason });
 }
 
 export type MemberParcelItem = {

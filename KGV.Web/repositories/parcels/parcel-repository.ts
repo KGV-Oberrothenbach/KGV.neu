@@ -100,6 +100,15 @@ export const listParcelAssignmentsForParcel = (session: BrowserSession, parcelId
   limit: "3000",
 });
 
+export const getParcelAssignment = (session: BrowserSession, assignmentId: number) => readSupabase<ParcelOverviewAssignment>(session, "parzellen_belegung", {
+  select: "id,parzelle_id,mitglied_id,von_datum,bis_datum,beendigungsgrund",
+  id: `eq.${assignmentId}`,
+  limit: "1",
+}).then((assignments) => assignments[0] ?? null);
+
+export const updateParcelAssignmentEnd = (session: BrowserSession, assignmentId: number, data: Pick<ParcelOverviewAssignment, "bis_datum" | "beendigungsgrund">) =>
+  writeSupabase<ParcelOverviewAssignment>(session, "parzellen_belegung", "PATCH", data, { id: `eq.${assignmentId}` });
+
 export const listParcelOverviewMembers = (session: BrowserSession) => readSupabase<ParcelOverviewMember>(session, "mitglied", {
   select: "id,vorname,name,email,aktiv,hauptmitglied_id,role",
   order: "name.asc,vorname.asc",
