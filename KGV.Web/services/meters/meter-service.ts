@@ -14,6 +14,8 @@ export type MeterOverviewData = {
   dueStatuses: MeterDueStatus[];
 };
 
+export type MeterReferenceData = Pick<MeterOverviewData, "meters" | "parcels">;
+
 const gardenNumberSortKey = (gardenNumber: string | null) => {
   const text = gardenNumber?.trim() ?? "";
   const number = text.match(/^\d+/)?.[0];
@@ -42,4 +44,9 @@ export async function loadMeterOverview(session: BrowserSession): Promise<MeterO
   ]);
 
   return { meters, parcels, dueStatuses: [...dueStatuses].sort(compareByGardenNumber) };
+}
+
+export async function loadMeterReferenceData(session: BrowserSession): Promise<MeterReferenceData> {
+  const [meters, parcels] = await Promise.all([listMeters(session), listMeterOverviewParcels(session)]);
+  return { meters, parcels };
 }
