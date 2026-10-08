@@ -5,7 +5,7 @@ export type PendingMeterPhoto = {
   fileName: string;
   contentType: string;
   content: Blob;
-  details: { datum: string; medium: string; anlage: string; garten: string; zaehlernummer: string };
+  details: { datum: string; medium: string; anlage: string; garten: string; zaehlernummer: string; kind?: "ablesung" | "einbau" };
   status: "pending" | "uploading" | "failed";
   createdAt: string;
   lastAttemptAt: string | null;

@@ -359,7 +359,7 @@ function MeterChange({ session, clubId, canManageMeterChanges }: { session: Brow
     setSaving(true); setMessage("");
     try {
       const reading = await saveMeterInstallationReading(session, { canManageMeterChanges }, { meterId: installedMeter.id, date: installationDate, value });
-      const photo = await handleReadingPhoto(session, { clubId, readingId: reading.id, file, details: { datum: installationDate, medium: installedMeter.medium, anlage: context.anlage, garten: context.gardenNr, zaehlernummer: installedMeter.zaehlernummer }, wifiOnly: typeof window !== "undefined" && window.localStorage.getItem("kgv-meter-photo-wifi-only") === "true" });
+      const photo = await handleReadingPhoto(session, { clubId, readingId: reading.id, file, details: { kind: "einbau", datum: installationDate, medium: installedMeter.medium, anlage: context.anlage, garten: context.gardenNr, zaehlernummer: installedMeter.zaehlernummer }, wifiOnly: typeof window !== "undefined" && window.localStorage.getItem("kgv-meter-photo-wifi-only") === "true" });
       setMessage(`Einbauablesung gespeichert. ${photo.message}`); setInitialValue(""); setFile(null);
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Die Anfangsablesung konnte nicht gespeichert werden."); } finally { setSaving(false); }
   }

@@ -1,6 +1,7 @@
-import { openMeterPhoto, type BrowserSession, uploadMeterPhoto, writeSupabase } from "../../lib/supabase-auth";
+import { openMeterPhoto, type BrowserSession, type MeterPhotoKind, uploadMeterPhoto, writeSupabase } from "../../lib/supabase-auth";
 
-export type ReadingPhotoDetails = { datum: string; medium: string; anlage: string; garten: string; zaehlernummer: string };
+export type ReadingPhotoKind = MeterPhotoKind;
+export type ReadingPhotoDetails = { datum: string; medium: string; anlage: string; garten: string; zaehlernummer: string; kind?: ReadingPhotoKind };
 export type UploadedReadingPhoto = { fileId: string; fileName: string };
 
 export const uploadReadingPhoto = (session: BrowserSession, file: File, details: ReadingPhotoDetails): Promise<UploadedReadingPhoto> => uploadMeterPhoto(session, file, details);

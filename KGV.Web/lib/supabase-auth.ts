@@ -397,9 +397,11 @@ export async function generateContract(session: BrowserSession, request: Contrac
   return { documentId: payload.document_id, message: payload.message };
 }
 
-export async function uploadMeterPhoto(session: BrowserSession, file: File, details: { datum: string; medium: string; anlage: string; garten: string; zaehlernummer: string }) {
+export type MeterPhotoKind = "ablesung" | "einbau";
+
+export async function uploadMeterPhoto(session: BrowserSession, file: File, details: { datum: string; medium: string; anlage: string; garten: string; zaehlernummer: string; kind?: MeterPhotoKind }) {
   const { url, publishableKey } = config();
-  const form = new FormData(); form.set("file", file); form.set("kind", "ablesung"); form.set("datum", details.datum); form.set("medium", details.medium); form.set("anlage", details.anlage); form.set("garten", details.garten); form.set("zaehlernummer", details.zaehlernummer);
+  const form = new FormData(); form.set("file", file); form.set("kind", details.kind ?? "ablesung"); form.set("datum", details.datum); form.set("medium", details.medium); form.set("anlage", details.anlage); form.set("garten", details.garten); form.set("zaehlernummer", details.zaehlernummer);
   const response = await fetch(`${url}/functions/v1/kgv-upload-photo`, { method: "POST", headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}` }, body: form });
   const payload = await response.json().catch(() => null) as { file_id?: string; file_name?: string; message?: string } | null;
   if (!response.ok || !payload?.file_id) throw new Error(payload?.message ?? "Das Ablesefoto konnte nicht hochgeladen werden.");
