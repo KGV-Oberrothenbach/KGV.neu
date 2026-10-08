@@ -84,3 +84,21 @@ export async function saveMeterReading(session: BrowserSession, permissions: Rea
   if (!created[0]) throw new Error("Die Ablesung konnte nicht gespeichert werden.");
   return { reading: created[0], isSubmission };
 }
+
+export async function getMeterInstallationPhotoRequired(session: BrowserSession) {
+  return getBooleanSetting(session, "meter_reading_photo_required", true);
+}
+
+export async function saveMeterInstallationReading(session: BrowserSession, permissions: { canManageMeterChanges: boolean }, input: { meterId: number; date: string; value: number }) {
+  if (!permissions.canManageMeterChanges) throw new Error("Für die Einbauablesung besteht keine Berechtigung.");
+  if (!Number.isInteger(input.meterId) || input.meterId <= 0) throw new Error("Der eingebaute Zähler ist ungültig.");
+  if (!validDate(input.date)) throw new Error("Bitte ein gültiges Ablesedatum eingeben.");
+  if (!Number.isFinite(input.value) || input.value < 0) throw new Error("Bitte einen gültigen nichtnegativen Zählerstand eingeben.");
+  const meter = (await listReadingMeters(session)).find((item) => item.id === input.meterId);
+  if (!meter || !isActiveMeter(meter)) throw new Error("Der eingebaute Zähler ist nicht aktiv.");
+  const readings = await listReadingsForMeter(session, meter.id);
+  if (readings.some((item) => item.ablesedatum.slice(0, 10) === input.date && item.art.toLowerCase() === "einbau")) throw new Error("Für diesen Zähler und dieses Einbaudatum existiert bereits eine Einbauablesung.");
+  const created = await createMeterReading(session, { zaehler_id: meter.id, stand: input.value, ablesedatum: input.date, art: "einbau", freigegeben: true, pruefstatus: "freigegeben" });
+  if (!created[0]) throw new Error("Die Einbauablesung konnte nicht gespeichert werden.");
+  return created[0];
+}
