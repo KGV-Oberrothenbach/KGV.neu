@@ -336,7 +336,7 @@ function MeterChange({ session }: { session: BrowserSession }) {
 }
 
 function MeterReadingEntry({ session, clubId, seasonYear, permissions: { canReadMeters, canSubmitOwnMeterReadings, memberId }, wifiOnly, onSaved }: { session: BrowserSession; clubId: string; seasonYear: number; permissions: ReadingPermissions; wifiOnly: boolean; onSaved: () => void | Promise<void> }) {
-  const [context, setContext] = useState<ReadingCaptureContext | null>(null); const [meterId, setMeterId] = useState(""); const [parcelId, setParcelId] = useState(""); const [medium, setMedium] = useState(""); const [kind, setKind] = useState<"normal" | "jea">("normal"); const [value, setValue] = useState(""); const [date, setDate] = useState(new Date().toISOString().slice(0, 10)); const [file, setFile] = useState<File | null>(null); const [previewUrl, setPreviewUrl] = useState(""); const [message, setMessage] = useState(""); const [saving, setSaving] = useState(false);
+  const [context, setContext] = useState<ReadingCaptureContext | null>(null); const [meterId, setMeterId] = useState(""); const [parcelId, setParcelId] = useState(""); const [medium, setMedium] = useState(""); const [kind, setKind] = useState<"normal" | "jea">("normal"); const [value, setValue] = useState(""); const [date, setDate] = useState(currentLocalDate); const [file, setFile] = useState<File | null>(null); const [previewUrl, setPreviewUrl] = useState(""); const [message, setMessage] = useState(""); const [saving, setSaving] = useState(false);
   const permissions = useMemo<ReadingPermissions>(() => ({ canReadMeters, canSubmitOwnMeterReadings, memberId }), [canReadMeters, canSubmitOwnMeterReadings, memberId]);
   useEffect(() => { let active = true; loadReadingCaptureContext(session, permissions).then((next) => { if (active) { setContext(next); setMessage(next.message ?? ""); } }).catch((cause) => { if (active) setMessage(cause instanceof Error ? cause.message : "Ablesekontext konnte nicht geladen werden."); }); return () => { active = false; }; }, [session, permissions]);
   useEffect(() => { if (!file) { setPreviewUrl(""); return; } const url = URL.createObjectURL(file); setPreviewUrl(url); return () => URL.revokeObjectURL(url); }, [file]);
@@ -412,6 +412,14 @@ function formatTimeRange(start: string | null | undefined, end: string | null | 
   if (from) return `${from} Uhr`;
   if (to) return `bis ${to} Uhr`;
   return "–";
+}
+
+function currentLocalDate() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function currentLocalDateTime() {
