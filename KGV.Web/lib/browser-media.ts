@@ -11,6 +11,8 @@ export type PendingMeterPhoto = {
   lastAttemptAt: string | null;
   attemptCount: number;
   lastError: string | null;
+  uploadedFileId?: string | null;
+  uploadedFileName?: string | null;
 };
 
 const databaseName = "kgv-browser-media-v1";
@@ -37,7 +39,7 @@ function transaction<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore
 }
 
 export async function enqueueMeterPhoto(input: Omit<PendingMeterPhoto, "id" | "status" | "createdAt" | "lastAttemptAt" | "attemptCount" | "lastError">) {
-  const item: PendingMeterPhoto = { ...input, id: crypto.randomUUID(), status: "pending", createdAt: new Date().toISOString(), lastAttemptAt: null, attemptCount: 0, lastError: null };
+  const item: PendingMeterPhoto = { ...input, id: crypto.randomUUID(), status: "pending", createdAt: new Date().toISOString(), lastAttemptAt: null, attemptCount: 0, lastError: null, uploadedFileId: null, uploadedFileName: null };
   await putPendingMeterPhoto(item);
   return item;
 }
