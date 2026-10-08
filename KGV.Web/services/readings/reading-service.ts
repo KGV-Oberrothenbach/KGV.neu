@@ -102,3 +102,16 @@ export async function saveMeterInstallationReading(session: BrowserSession, perm
   if (!created[0]) throw new Error("Die Einbauablesung konnte nicht gespeichert werden.");
   return created[0];
 }
+
+export async function saveMeterRemovalReading(session: BrowserSession, permissions: { canManageMeterChanges: boolean }, input: { meterId: number; date: string; value: number }) {
+  if (!permissions.canManageMeterChanges) throw new Error("Für die Ausbauablesung besteht keine Berechtigung.");
+  if (!Number.isInteger(input.meterId) || input.meterId <= 0 || !validDate(input.date) || !Number.isFinite(input.value) || input.value < 0) throw new Error("Ausbaudatum und Endstand müssen gültig sein.");
+  const meter = (await listReadingMeters(session)).find((item) => item.id === input.meterId);
+  if (!meter || !isActiveMeter(meter)) throw new Error("Der auszubauende Zähler ist nicht aktiv.");
+  const readings = await listReadingsForMeter(session, meter.id);
+  const existing = readings.find((item) => item.ablesedatum.slice(0, 10) === input.date && item.art.toLowerCase() === "ausbau");
+  if (existing) return existing;
+  const created = await createMeterReading(session, { zaehler_id: meter.id, stand: input.value, ablesedatum: input.date, art: "ausbau", freigegeben: true, pruefstatus: "freigegeben" });
+  if (!created[0]) throw new Error("Die Ausbauablesung konnte nicht gespeichert werden.");
+  return created[0];
+}

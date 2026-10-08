@@ -397,7 +397,7 @@ export async function generateContract(session: BrowserSession, request: Contrac
   return { documentId: payload.document_id, message: payload.message };
 }
 
-export type MeterPhotoKind = "ablesung" | "einbau";
+export type MeterPhotoKind = "ablesung" | "einbau" | "ausbau";
 
 export async function uploadMeterPhoto(session: BrowserSession, file: File, details: { datum: string; medium: string; anlage: string; garten: string; zaehlernummer: string; kind?: MeterPhotoKind }) {
   const { url, publishableKey } = config();
