@@ -56,7 +56,7 @@ export async function retryPendingReadingPhoto(session: BrowserSession, clubId: 
     const pending = await getPendingMeterPhoto(item.id);
     if (!pending) return { status: "failed", message: "Das lokale Foto wurde nicht mehr gefunden." };
     if (pending.clubId !== clubId) return { status: "failed", message: "Dieses Foto gehört zu einem anderen Verein und wird nicht hochgeladen." };
-    if (pendingPhotoAttempts.has(pending.id) || pending.status === "uploading") return { status: "already-in-flight", message: "Für dieses Foto läuft bereits ein Upload-Versuch." };
+    if (pendingPhotoAttempts.has(pending.id)) return { status: "already-in-flight", message: "Für dieses Foto läuft bereits ein Upload-Versuch." };
     const decision = uploadDecision(wifiOnly);
     if (!decision.allowed) return { status: "queued", message: decision.reason };
 
