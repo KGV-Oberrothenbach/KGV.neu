@@ -48,6 +48,14 @@ export async function putPendingMeterPhoto(item: PendingMeterPhoto) {
   return transaction<void>("readwrite", (store, resolve, reject) => { const request = store.put(item); request.onsuccess = () => resolve(); request.onerror = () => reject(request.error); });
 }
 
+export async function getPendingMeterPhoto(id: string) {
+  return transaction<PendingMeterPhoto | null>("readonly", (store, resolve, reject) => {
+    const request = store.get(id);
+    request.onsuccess = () => resolve((request.result as PendingMeterPhoto | undefined) ?? null);
+    request.onerror = () => reject(request.error);
+  });
+}
+
 export async function listPendingMeterPhotos(clubId: string) {
   const items = await transaction<PendingMeterPhoto[]>("readonly", (store, resolve, reject) => { const request = store.getAll(); request.onsuccess = () => resolve(request.result as PendingMeterPhoto[]); request.onerror = () => reject(request.error); });
   return items.filter((item) => item.clubId === clubId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
