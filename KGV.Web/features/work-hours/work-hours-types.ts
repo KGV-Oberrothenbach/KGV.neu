@@ -27,6 +27,7 @@ export type WorkHourHistory = {
  * Die View ist die einzige Quelle für Pflichtstunden und Fehlbeträge.
  */
 export type WorkHoursSummary = {
+  mitglied_id: number;
   hauptmitglied_id: number;
   saison_id: number;
   saison_jahr: number;

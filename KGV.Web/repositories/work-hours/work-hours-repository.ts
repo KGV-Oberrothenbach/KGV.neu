@@ -5,7 +5,7 @@ export type HomeWorkHoursSummary = WorkHoursSummary;
 
 const workHourSelect = "id,mitglied_id,saison_id,datum,stunden,art_der_arbeit,status,freigegeben,genehmigt_von,genehmigt_am";
 const workHourHistorySelect = "id,arbeitsstunde_id,aktion,begruendung,geprueft_von,geprueft_am,vorher_snapshot,nachher_snapshot";
-const summarySelect = "hauptmitglied_id,saison_id,saison_jahr,regelgrund,ist_befreit,hat_wartungsvertrag,altersbefreit,eintritt_im_saisonjahr,eintritt_zweites_halbjahr,pflichtstunden_soll,geleistete_stunden,offene_stunden,euro_pro_fehlstunde,fehlbetrag";
+const summarySelect = "mitglied_id,hauptmitglied_id,saison_id,saison_jahr,regelgrund,ist_befreit,hat_wartungsvertrag,altersbefreit,eintritt_im_saisonjahr,eintritt_zweites_halbjahr,pflichtstunden_soll,geleistete_stunden,offene_stunden,euro_pro_fehlstunde,fehlbetrag";
 
 export const listMemberWorkHoursForSeason = (session: BrowserSession, memberId: number, saisonId: number) => readSupabase<WorkHour>(session, "arbeitsstunde", {
   select: workHourSelect,
@@ -32,7 +32,7 @@ export const listWorkHourHistory = (session: BrowserSession, workHourIds: number
 
 export const getWorkHoursSummary = (session: BrowserSession, memberId: number, saisonId: number) => readSupabase<WorkHoursSummary>(session, "v_pflichtstunden_uebersicht", {
   select: summarySelect,
-  hauptmitglied_id: `eq.${memberId}`,
+  mitglied_id: `eq.${memberId}`,
   saison_id: `eq.${saisonId}`,
   limit: "1",
 }).then((rows) => rows[0] ?? null);
