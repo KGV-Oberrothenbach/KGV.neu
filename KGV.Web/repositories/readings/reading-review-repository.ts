@@ -47,7 +47,7 @@ export const listReviewMembers = (session: BrowserSession) => readSupabase<Parce
 export const conditionalUpdateReviewReading = (session: BrowserSession, readingId: number, mutation: ReviewMutation) => writeSupabase<ReviewReadingRecord>(session, "zaehler_ablesung", "PATCH", mutation, {
   id: `eq.${readingId}`,
   freigegeben: "eq.false",
-  or: "(pruefstatus.in.(eingereicht,offen,pending),pruefstatus.is.null)",
+  pruefstatus: "eq.eingereicht",
 });
 
 export type ReviewReferenceData = { meters: Meter[]; parcels: ReviewParcel[]; assignments: ParcelOverviewAssignment[]; members: ParcelOverviewMember[] };
