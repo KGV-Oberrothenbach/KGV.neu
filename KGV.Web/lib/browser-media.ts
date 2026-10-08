@@ -5,12 +5,14 @@ export type PendingMeterPhoto = {
   fileName: string;
   contentType: string;
   content: Blob;
-  details: { datum: string; medium: string; anlage: string; garten: string; zaehlernummer: string };
+  details: { datum: string; medium: string; anlage: string; garten: string; zaehlernummer: string; kind?: "ablesung" | "einbau" | "ausbau" };
   status: "pending" | "uploading" | "failed";
   createdAt: string;
   lastAttemptAt: string | null;
   attemptCount: number;
   lastError: string | null;
+  uploadedFileId?: string | null;
+  uploadedFileName?: string | null;
 };
 
 const databaseName = "kgv-browser-media-v1";
@@ -37,13 +39,21 @@ function transaction<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore
 }
 
 export async function enqueueMeterPhoto(input: Omit<PendingMeterPhoto, "id" | "status" | "createdAt" | "lastAttemptAt" | "attemptCount" | "lastError">) {
-  const item: PendingMeterPhoto = { ...input, id: crypto.randomUUID(), status: "pending", createdAt: new Date().toISOString(), lastAttemptAt: null, attemptCount: 0, lastError: null };
+  const item: PendingMeterPhoto = { ...input, id: crypto.randomUUID(), status: "pending", createdAt: new Date().toISOString(), lastAttemptAt: null, attemptCount: 0, lastError: null, uploadedFileId: null, uploadedFileName: null };
   await putPendingMeterPhoto(item);
   return item;
 }
 
 export async function putPendingMeterPhoto(item: PendingMeterPhoto) {
   return transaction<void>("readwrite", (store, resolve, reject) => { const request = store.put(item); request.onsuccess = () => resolve(); request.onerror = () => reject(request.error); });
+}
+
+export async function getPendingMeterPhoto(id: string) {
+  return transaction<PendingMeterPhoto | null>("readonly", (store, resolve, reject) => {
+    const request = store.get(id);
+    request.onsuccess = () => resolve((request.result as PendingMeterPhoto | undefined) ?? null);
+    request.onerror = () => reject(request.error);
+  });
 }
 
 export async function listPendingMeterPhotos(clubId: string) {
