@@ -5,8 +5,8 @@ language sql stable security definer
 set search_path to 'public', 'pg_temp'
 as $$
   select coalesce((((case au.role
-    when 'admin' then 2097143::bigint
-    when 'vorstand' then 1572343::bigint
+    when 'admin' then 2088951::bigint
+    when 'vorstand' then 1564151::bigint
     else 10::bigint
   end | coalesce(au.permission_grants, 0))
   & ~coalesce(au.permission_revocations, 0)

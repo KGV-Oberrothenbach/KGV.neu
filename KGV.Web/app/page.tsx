@@ -129,12 +129,16 @@ const Permission = {
   manageWorkAssignments: 1 << 20,
 } as const;
 
+const VorstandPermissions = Permission.searchMembers | Permission.viewMembers | Permission.editAllMembers | Permission.manageDocuments | Permission.readMeters | Permission.manageMeterChanges | Permission.approveMeterReadings | Permission.manageWorkHours | Permission.showStammdaten | Permission.readStammdaten | Permission.writeStammdaten | Permission.readParzellen | Permission.writeParzellen | Permission.readDocuments | Permission.readWorkHours | Permission.readRoles | Permission.manageWorkAssignments;
+const AdminPermissions = VorstandPermissions | Permission.manageRoles | Permission.createMember;
+const UserPermissions = Permission.viewMembers | Permission.seeOwnData;
+
 function permissionsFor(context: AppUserContext) {
   const base = context.role === "admin"
-    ? 1048575 | Permission.manageWorkAssignments
+    ? AdminPermissions
     : context.role === "vorstand"
-      ? Permission.searchMembers | Permission.viewMembers | Permission.editAllMembers | Permission.showStammdaten | Permission.readStammdaten | Permission.writeStammdaten | Permission.readParzellen | Permission.readDocuments | Permission.manageDocuments | Permission.readWorkHours | Permission.manageWorkHours | Permission.manageWorkAssignments | Permission.readMeters | Permission.manageMeterChanges | Permission.approveMeterReadings | Permission.readRoles
-      : Permission.viewMembers | Permission.seeOwnData;
+      ? VorstandPermissions
+      : UserPermissions;
   return (base | context.permissionGrants) & ~context.permissionRevocations;
 }
 

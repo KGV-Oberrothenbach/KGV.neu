@@ -62,6 +62,8 @@ Bewusst verbliebene Altlogik sind die vorhandenen Schreibvorgänge für Einsätz
 
 `CanManageWorkAssignments` ist als Bit `1 << 20` (`1048576`) zentral definiert. Admin und Vorstand besitzen es als Basisrecht, Benutzer nicht. Wie bei allen Fachrechten wird die effektive Berechtigung aus Basisrolle, `permission_grants` und `permission_revocations` gebildet; ein Grant ermöglicht die Verwaltung für Benutzer, eine Revocation entzieht sie auch dem Vorstand.
 
+Die zuvor abweichenden serverseitigen Rollenmasken wurden bereinigt: Core, Web und Supabase verwenden nun dieselbe Basis-Permission-Matrix für Admin, Vorstand und Benutzer.
+
 Web und MAUI prüfen die effektive Permission für Verwaltungszugänge, Teilnehmeransicht und Editieren; die normale Startseitenansicht sowie die eigene Anmeldung bleiben davon getrennt. Bestehende Einsätze werden in beiden Clients über den gemeinsamen serverseitigen Bearbeitungs-Lock geöffnet; ohne Permission oder ohne erfolgreich angeforderten Lock ist keine Bearbeitung möglich.
 
 Die Supabase-Policies ersetzen die bisherigen Admin-/Vorstands-Hintertüren für `arbeitseinsatz` und `arbeitseinsatz_anmeldung` durch `has_effective_permission(1048576)` und einen zusätzlichen Produktiv-/Demo-Scope. Demo- und Reviewer-Konten bleiben auf zulässige Demo-Daten beschränkt; Grants erweitern diesen Scope nicht. Die normale Sichtbarkeit aktiver Einsätze und die eigenen An-/Abmeldungen bleiben als getrennte Benutzerpfade erhalten.

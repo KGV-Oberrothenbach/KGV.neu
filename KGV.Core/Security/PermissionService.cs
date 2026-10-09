@@ -54,7 +54,6 @@ namespace KGV.Core.Security
                | PermissionFlags.CanShowStammdaten
                | PermissionFlags.CanReadStammdaten
                | PermissionFlags.CanWriteStammdaten
-               | PermissionFlags.CanShowParzellen
                | PermissionFlags.CanReadParzellen
                | PermissionFlags.CanWriteParzellen
                | PermissionFlags.CanReadDocuments
