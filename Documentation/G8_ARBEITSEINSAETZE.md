@@ -70,6 +70,14 @@ Die Supabase-Policies ersetzen die bisherigen Admin-/Vorstands-Hintertüren für
 
 G8.2 zieht bewusst keine Punkte aus G8.3 bis G8.6 vor: Editor-Defaults, Frist-/Kapazitätsregeln, Teilnehmerstatus und Arbeitsstundenübergabe bleiben unverändert.
 
+## G8.3 – Verwaltung, Editor-Defaults und Validierung
+
+Neue Einsätze verwenden in Web und MAUI Berliner Vereinszeit: `sichtbar_ab` ist der aktuelle Zeitpunkt auf Minute, `anmeldung_bis` zwei Kalendertage vor dem Einsatztag um 00:00 Uhr und `sichtbar_bis` 14 Kalendertage nach dem Einsatztag um 23:59 Uhr. Aktiv ist standardmäßig gesetzt; alle Werte bleiben editierbar. Folgeschichten übernehmen Stammdaten und Schichtdauer, berechnen jedoch Sichtbarkeit und Anmeldeschluss neu.
+
+Die gemeinsame Validierung verlangt Titel und Datum, erlaubt keine negative Stundenzahl oder Teilnehmerzahl unter eins, kein Ende vor Beginn, keinen ungültigen Sichtbarkeitszeitraum und keinen Anmeldeschluss nach Einsatzbeginn. Die Datenbank sichert diese Verwaltungswerte zusätzlich ab.
+
+Web-CRUD folgt nun UI → Service → Repository → Supabase. Absagen bedeutet weiterhin ausschließlich `aktiv = false` und erhält Anmeldungen; endgültiges Löschen bleibt getrennt und weist auf das FK-CASCADE hin. G8.4 bis G8.6 (Benutzer-An-/Abmeldelogik, Teilnehmerstatus und Arbeitsstundenintegration) wurden bewusst nicht vorgezogen.
+
 ## G8.7 – MAUI/Web-Gleichstand und Bereinigung
 
 G8.7 stellt für Web und MAUI dieselben Rechte, Vorgabewerte, Validierungen, Anmeldungen und Abmeldungen, Teilnehmerstatus, Arbeitsstundenerfassung, Demo-Regeln und Lock-Regeln sicher. Alte Rollenprüfungen werden entfernt; überflüssige Methoden und tote Typen werden bereinigt. Direkte G8-Supabase-Zugriffe aus React werden beseitigt und der Startseitenmodell-/View-Mismatch wird korrigiert. Die Web-Zielarchitektur bleibt UI → Service → Repository → Supabase/RPC.

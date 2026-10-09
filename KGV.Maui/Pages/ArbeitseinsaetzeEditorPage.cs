@@ -84,18 +84,19 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
 
         _stundenWertEntry = new Entry { Placeholder = "Stundenwert (optional)", Keyboard = Keyboard.Numeric };
 
-        var defaultVisibleFrom = CreateCurrentTimestampDefault();
+        var defaults = WorkAssignmentRules.CreateDefaults(_datePicker.Date!.Value);
+        var defaultVisibleFrom = defaults.VisibleFrom;
         _sichtbarAbDatePicker = new DatePicker { Date = defaultVisibleFrom.Date };
         _sichtbarAbTimePicker = new TimePicker { Time = defaultVisibleFrom.TimeOfDay };
 
         // DatePicker.Date is nullable under .NET 10 MAUI; date picker initialized to Today so assert non-null
-        var defaultVisibleTo = CreateWorkAssignmentVisibleToDefault(_datePicker.Date!.Value);
+        var defaultVisibleTo = defaults.VisibleUntil;
         _sichtbarBisDatePicker = new DatePicker { Date = defaultVisibleTo.Date };
         _sichtbarBisTimePicker = new TimePicker { Time = defaultVisibleTo.TimeOfDay };
 
-        _hasAnmeldungBisCheckBox = new CheckBox();
-        _anmeldungBisDatePicker = new DatePicker { Date = DateTime.Today, IsEnabled = false };
-        _anmeldungBisTimePicker = new TimePicker { IsEnabled = false };
+        _hasAnmeldungBisCheckBox = new CheckBox { IsChecked = true };
+        _anmeldungBisDatePicker = new DatePicker { Date = defaults.SignUpDeadline, IsEnabled = true };
+        _anmeldungBisTimePicker = new TimePicker { Time = TimeSpan.Zero, IsEnabled = true };
         _hasAnmeldungBisCheckBox.CheckedChanged += (_, e) =>
         {
             _anmeldungBisDatePicker.IsEnabled = e.Value;
@@ -331,14 +332,15 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _hasTeilnehmerbegrenzungCheckBox.IsChecked = false;
         _maxTeilnehmerEntry.Text = string.Empty;
         _stundenWertEntry.Text = string.Empty;
-        var sichtbarAb = CreateCurrentTimestampDefault();
+        var defaults = WorkAssignmentRules.CreateDefaults(_datePicker.Date!.Value);
+        var sichtbarAb = defaults.VisibleFrom;
         _sichtbarAbDatePicker.Date = sichtbarAb.Date;
         _sichtbarAbTimePicker.Time = sichtbarAb.TimeOfDay;
-        var sichtbarBis = CreateWorkAssignmentVisibleToDefault(_datePicker.Date!.Value);
+        var sichtbarBis = defaults.VisibleUntil;
         _sichtbarBisDatePicker.Date = sichtbarBis.Date;
         _sichtbarBisTimePicker.Time = sichtbarBis.TimeOfDay;
-        _hasAnmeldungBisCheckBox.IsChecked = false;
-        _anmeldungBisDatePicker.Date = DateTime.Today;
+        _hasAnmeldungBisCheckBox.IsChecked = true;
+        _anmeldungBisDatePicker.Date = defaults.SignUpDeadline;
         _anmeldungBisTimePicker.Time = TimeSpan.Zero;
         _aktivSwitch.IsToggled = true;
         _statusLabel.IsVisible = false;
@@ -542,6 +544,14 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         if (_editingEntryId.HasValue)
             record.Id = _editingEntryId.Value;
 
+        var validationError = WorkAssignmentRules.Validate(record);
+        if (validationError != null)
+        {
+            ShowValidationError(validationError, _anmeldungBisDatePicker);
+            record = null;
+            return false;
+        }
+
         return true;
     }
 
@@ -620,15 +630,16 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
             ? source.StundenWert.ToString("0.##", CultureInfo.CurrentCulture)
             : string.Empty;
 
-        var sichtbarAb = source.SichtbarAb ?? CreateCurrentTimestampDefault();
+        var defaults = WorkAssignmentRules.CreateDefaults(_datePicker.Date!.Value);
+        var sichtbarAb = defaults.VisibleFrom;
         _sichtbarAbDatePicker.Date = sichtbarAb.Date;
         _sichtbarAbTimePicker.Time = sichtbarAb.TimeOfDay;
-        var sichtbarBis = source.SichtbarBis ?? CreateWorkAssignmentVisibleToDefault(_datePicker.Date!.Value);
+        var sichtbarBis = defaults.VisibleUntil;
         _sichtbarBisDatePicker.Date = sichtbarBis.Date;
         _sichtbarBisTimePicker.Time = sichtbarBis.TimeOfDay;
-        _hasAnmeldungBisCheckBox.IsChecked = source.AnmeldungBis.HasValue;
-        _anmeldungBisDatePicker.Date = source.AnmeldungBis?.Date ?? DateTime.Today;
-        _anmeldungBisTimePicker.Time = source.AnmeldungBis?.TimeOfDay ?? TimeSpan.Zero;
+        _hasAnmeldungBisCheckBox.IsChecked = true;
+        _anmeldungBisDatePicker.Date = defaults.SignUpDeadline;
+        _anmeldungBisTimePicker.Time = TimeSpan.Zero;
         _aktivSwitch.IsToggled = source.Aktiv;
         _statusLabel.Text = "Arbeitseinsatz gespeichert. Folgeschicht ist zur schnellen Mehrschicht-Erfassung vorbefüllt.";
         _statusLabel.TextColor = Colors.Green;
