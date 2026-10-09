@@ -248,7 +248,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           {activeId === "foto-uploads" && <PendingPhotoUploads session={session} clubId={club.vereinId} />}
           {activeId === "zaehlerwechsel" && has(Permission.manageMeterChanges) && <MeterChange session={session} clubId={club.vereinId} canManageMeterChanges={has(Permission.manageMeterChanges)} />}
           {activeId === "arbeitsstunden-pruefen" && <WorkHoursReview session={session} canManageWorkHours={has(Permission.manageWorkHours)} />}
-          {activeId === "arbeitseinsaetze" && <WorkAssignmentsManagement session={session} canEdit={has(Permission.manageWorkAssignments)} saisonId={workspaceContext.saisonId} onBack={() => setActiveId("start")} />}
+          {activeId === "arbeitseinsaetze" && <WorkAssignmentsManagement session={session} canEdit={has(Permission.manageWorkAssignments)} onBack={() => setActiveId("start")} />}
           {activeId === "wartung" && <MaintenanceContracts session={session} canManage={context.role !== "user"} />}
           {activeId === "termine" && <AppointmentManagement session={session} canEdit={context.role !== "user"} onBack={() => setActiveId("start")} />}
           {activeId === "bekanntmachungen" && <AnnouncementManagement session={session} canEdit={context.role !== "user"} onBack={() => setActiveId("start")} />}

@@ -7,6 +7,7 @@ import {
   createWorkAssignment,
   updateWorkAssignment,
   deleteWorkAssignment,
+  manageWorkAssignmentRegistration,
 } from "../../repositories/work-assignments/work-assignment-repository";
 
 export type WorkAssignmentDraft = Partial<WorkAssignment>;
@@ -79,6 +80,7 @@ export async function loadWorkAssignmentParticipants(session: BrowserSession, as
   ]);
   return { registrations, members };
 }
+export const manageParticipant = (session: BrowserSession, assignmentId: number, memberId: number, action: "anmelden" | "absagen" | "nicht_erschienen") => manageWorkAssignmentRegistration(session, assignmentId, memberId, action);
 
 function assignmentSortKey(assignment: { datum: string; start_uhrzeit: string | null; end_uhrzeit: string | null; titel: string | null }) {
   return `${assignment.datum}|${assignment.start_uhrzeit ?? "99:99"}|${assignment.end_uhrzeit ?? "99:99"}|${assignment.titel ?? ""}`;

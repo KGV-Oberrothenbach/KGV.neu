@@ -86,6 +86,16 @@ Signoff setzt den bestehenden Datensatz ausschließlich auf `abgesagt`; es erfol
 
 Direkte Benutzerstatuswechsel sind auf `angemeldet` und `abgesagt` beschränkt; `teilgenommen` und `nicht_erschienen` bleiben Verwaltungslogik. Web und MAUI verwenden dieselben RPCs; die Web-Anzeige verwendet Berliner Zeit und zeigt den Abmeldeweg nach Frist weiterhin bis zum Beginn. G8.5 und G8.6 wurden bewusst nicht vorgezogen.
 
+## G8.5 – Zentrale Teilnehmerverwaltung und Statusführung
+
+Die Verwaltungsansichten in Web und MAUI lesen alle Anmeldungen eines Einsatzes und zeigen sie gruppiert als **Angemeldet**, **Teilgenommen**, **Nicht erschienen** und **Abgesagt**. Für die Kapazität zählen ausschließlich Datensätze mit Status `angemeldet`. Die Teilnehmerliste wird über die gemeinsame Service-/Repository-Schicht bzw. den Shared-Service geladen; die Verwaltung schreibt nicht mehr direkt auf `arbeitseinsatz_anmeldung`.
+
+Die Verwaltungsaktion läuft ausschließlich über `manage_arbeitseinsatz_anmeldung(arbeitseinsatz_id, mitglied_id, action)`. Sie verlangt die effektive Permission `ManageWorkAssignments`, sperrt Einsatz und vorhandene Anmeldung mit `FOR UPDATE` und erzwingt den Produktiv-/Demo-Scope. Sie akzeptiert nur die Aktionen `anmelden`, `absagen` und `nicht_erschienen`; ein manueller Status `teilgenommen` wird nicht angeboten. Direkte RLS-Schreibrechte für administrative Teilnehmeränderungen bestehen nicht.
+
+Eine administrative Anmeldung ist für aktive Mitglieder vor Einsatzbeginn möglich und ignoriert den Anmeldeschluss, nicht jedoch `aktiv`, Beginn oder Kapazität. Ein bestehender Status `angemeldet` bleibt idempotent; `abgesagt` wird im selben historischen Datensatz reaktiviert. `teilgenommen` und `nicht_erschienen` werden nicht wieder geöffnet. Die Verwaltung kann `angemeldet` bis vor Beginn absagen, `abgesagt` idempotent belassen und `nicht_erschienen` als Korrektur auf `abgesagt` setzen; `teilgenommen` bleibt unveränderlich.
+
+`nicht_erschienen` ist erst ab Beginn zulässig (ohne Startzeit ab 23:59 Uhr) und kann nur aus `angemeldet` gesetzt werden; die Wiederholung bleibt idempotent. Damit bleibt die G8.4-Selbstbedienung strikt getrennt: normale Mitglieder dürfen weiterhin nur zwischen `angemeldet` und `abgesagt` wechseln und niemals Verwaltungsstatus überschreiben. Arbeitsstunden werden in G8.5 weder erzeugt noch übernommen; die dafür vorgesehene G8.6-Logik wurde nicht begonnen.
+
 ## G8.7 – MAUI/Web-Gleichstand und Bereinigung
 
 G8.7 stellt für Web und MAUI dieselben Rechte, Vorgabewerte, Validierungen, Anmeldungen und Abmeldungen, Teilnehmerstatus, Arbeitsstundenerfassung, Demo-Regeln und Lock-Regeln sicher. Alte Rollenprüfungen werden entfernt; überflüssige Methoden und tote Typen werden bereinigt. Direkte G8-Supabase-Zugriffe aus React werden beseitigt und der Startseitenmodell-/View-Mismatch wird korrigiert. Die Web-Zielarchitektur bleibt UI → Service → Repository → Supabase/RPC.

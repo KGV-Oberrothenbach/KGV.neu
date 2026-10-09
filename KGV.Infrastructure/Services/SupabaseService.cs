@@ -5062,6 +5062,33 @@ namespace KGV.Infrastructure.Services
             },
             new List<WorkAssignmentParticipantItem>());
 
+        public Task<List<WorkAssignmentManagementParticipantItem>> GetArbeitseinsatzManagementParticipantsAsync(int arbeitseinsatzId) => ExecuteAsync(
+            "GetArbeitseinsatzManagementParticipantsAsync",
+            async () =>
+            {
+                if (arbeitseinsatzId <= 0)
+                    return new List<WorkAssignmentManagementParticipantItem>();
+
+                var client = await EnsureClientAsync();
+                var response = await client.From<ArbeitseinsatzAnmeldungRecord>()
+                    .Filter("arbeitseinsatz_id", global::Supabase.Postgrest.Constants.Operator.Equals, arbeitseinsatzId)
+                    .Get();
+                var membersById = (await GetMitgliederAsync()).ToDictionary(x => x.Id, x => x);
+                return (response?.Models ?? new List<ArbeitseinsatzAnmeldungRecord>())
+                    .Select(x => new WorkAssignmentManagementParticipantItem
+                    {
+                        RegistrationId = x.Id,
+                        MitgliedId = x.MitgliedId,
+                        DisplayName = membersById.TryGetValue(x.MitgliedId, out var member)
+                            ? (FormatMemberName(member) ?? $"Mitglied #{x.MitgliedId}")
+                            : $"Mitglied #{x.MitgliedId}",
+                        Status = x.Status,
+                        AngemeldetAm = x.AngemeldetAm
+                    })
+                    .ToList();
+            },
+            new List<WorkAssignmentManagementParticipantItem>());
+
         public Task<List<HomeAppointmentItem>> GetStartseiteTermineAsync() => ExecuteAsync(
             "GetStartseiteTermineAsync",
             LoadStartseiteTermineAsync,
@@ -5128,6 +5155,29 @@ namespace KGV.Infrastructure.Services
 
                 var updatedItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
                 return CreateRegistrationResult(true, "Die Abmeldung vom Arbeitseinsatz wurde gespeichert.", updatedItem);
+            },
+            new WorkAssignmentRegistrationResult());
+
+        public Task<WorkAssignmentRegistrationResult> ManageArbeitseinsatzParticipantAsync(int arbeitseinsatzId, int mitgliedId, string action) => ExecuteAsync(
+            "ManageArbeitseinsatzParticipantAsync",
+            async () =>
+            {
+                if (arbeitseinsatzId <= 0 || mitgliedId <= 0 || action is not ("anmelden" or "absagen" or "nicht_erschienen"))
+                    return CreateRegistrationResult(false, "Die Teilnehmeraktion enthält ungültige Angaben.");
+
+                var client = await EnsureClientAsync();
+                try
+                {
+                    await client.Rpc<ArbeitseinsatzAnmeldungRecord>(
+                        "manage_arbeitseinsatz_anmeldung",
+                        new { p_arbeitseinsatz_id = arbeitseinsatzId, p_mitglied_id = mitgliedId, p_action = action });
+                    return CreateRegistrationResult(true, "Die Teilnehmeraktion wurde gespeichert.");
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "ManageArbeitseinsatzParticipantAsync RPC failed for arbeitseinsatz {ArbeitseinsatzId}, mitglied {MitgliedId}, action {Action}", arbeitseinsatzId, mitgliedId, action);
+                    return CreateRegistrationResult(false, ex.Message);
+                }
             },
             new WorkAssignmentRegistrationResult());
 

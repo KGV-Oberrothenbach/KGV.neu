@@ -47,6 +47,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
     private readonly Button _cancelButton;
     private readonly Button _previousButton;
     private readonly Button _nextButton;
+    private readonly Button _participantsButton;
 
     private long? _editingEntryId;
     private EditorSnapshot? _initialSnapshot;
@@ -132,6 +133,12 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _nextButton = new Button { Text = "→", WidthRequest = 56, IsVisible = false };
         _nextButton.Clicked += async (_, _) => await MoveNextAsync();
 
+        _participantsButton = new Button { Text = "Teilnehmer verwalten", IsVisible = false };
+        _participantsButton.Clicked += async (_, _) =>
+        {
+            if (_editingEntryId.HasValue) await Shell.Current.GoToAsync($"{nameof(ArbeitseinsatzTeilnehmerPage)}?entryId={_editingEntryId.Value}");
+        };
+
         Content = new ScrollView
         {
             Content = new VerticalStackLayout
@@ -169,7 +176,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
                     {
                         Spacing = 8,
                         Margin = new Thickness(0, 12, 0, 0),
-                        Children = { _cancelButton, _saveAndNextShiftButton, _saveButton }
+                        Children = { _participantsButton, _cancelButton, _saveAndNextShiftButton, _saveButton }
                     },
                     CreateNavigationFooter()
                 }
@@ -252,11 +259,13 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
                 }
                 _hasEditLock = true;
                 Title = "Arbeitseinsatz bearbeiten";
+                _participantsButton.IsVisible = true;
             }
             else
             {
                 ResetEditorForNew();
                 Title = "Neuer Arbeitseinsatz";
+                _participantsButton.IsVisible = false;
             }
 
             _statusLabel.IsVisible = false;

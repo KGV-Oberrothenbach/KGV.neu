@@ -40,6 +40,7 @@ internal static class ShellRouteRegistrar
         Routing.RegisterRoute("management_workassignments", typeof(ArbeitseinsaetzeManagementPage));
         Routing.RegisterRoute(nameof(ArbeitseinsaetzeManagementPage), typeof(ArbeitseinsaetzeManagementPage));
         Routing.RegisterRoute(nameof(ArbeitseinsaetzeEditorPage), typeof(ArbeitseinsaetzeEditorPage));
+        Routing.RegisterRoute(nameof(ArbeitseinsatzTeilnehmerPage), typeof(ArbeitseinsatzTeilnehmerPage));
         Routing.RegisterRoute(nameof(ExportPage), typeof(ExportPage));
         Routing.RegisterRoute(nameof(ImpressumPage), typeof(ImpressumPage));
         Routing.RegisterRoute(nameof(MyArbeitsstundenPage), typeof(MyArbeitsstundenPage));

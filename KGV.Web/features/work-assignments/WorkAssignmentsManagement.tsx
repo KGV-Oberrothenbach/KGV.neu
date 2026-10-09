@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { useEditLock } from "../../lib/use-edit-lock";
 import { deactivateWorkAssignment, loadWorkAssignmentsManagement, normalizeAndValidateWorkAssignment, prepareNextWorkAssignment, removeWorkAssignment, saveWorkAssignment, updateWorkAssignmentDateDefaults, workAssignmentDefaults } from "../../services/work-assignments/work-assignment-service";
@@ -7,19 +7,19 @@ import { WorkAssignmentList } from "./WorkAssignmentList";
 import { WorkAssignmentParticipants } from "./WorkAssignmentParticipants";
 import { type WorkAssignment } from "../../models/work-assignments/work-assignment";
 
-export function WorkAssignmentsManagement({ session, canEdit, saisonId, onBack }: { session: BrowserSession; canEdit: boolean; saisonId: number | null; onBack: () => void }) {
+export function WorkAssignmentsManagement({ session, canEdit, onBack }: { session: BrowserSession; canEdit: boolean; onBack: () => void }) {
   const [items, setItems] = useState<WorkAssignment[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<Partial<WorkAssignment>>({});
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
-  const load = () => loadWorkAssignmentsManagement(session).then(setItems).catch((cause: Error) => {
+  const load = useCallback(() => loadWorkAssignmentsManagement(session).then(setItems).catch((cause: Error) => {
     setMessage(cause.message);
     return [] as WorkAssignment[];
-  });
+  }), [session]);
 
-  useEffect(() => { void load(); }, [session]);
+  useEffect(() => { void load(); }, [load]);
   const selected = items.find((item) => item.id === selectedId) ?? null;
   const selectedIndex = selected ? items.findIndex((item) => item.id === selected.id) : -1;
   const editLock = useEditLock(session, "arbeitseinsatz", selected?.id, Boolean(selected && canEdit && !creating));
@@ -79,5 +79,5 @@ export function WorkAssignmentsManagement({ session, canEdit, saisonId, onBack }
     finally { setSaving(false); }
   }
 
-  return <section className="data-workspace work-assignment-management"><div className="data-toolbar"><div className="editor-actions"><button className="secondary-action" onClick={onBack}>Zur Startseite</button><button className="secondary-action" onClick={() => void load()}>Aktualisieren</button></div><span>{items.length} Arbeitseinsätze</span>{canEdit && <button onClick={startNew}>Arbeitseinsatz anlegen</button>}</div>{message && <p className="notice" role="status">{message}</p>}<div className="split-view"><WorkAssignmentList items={items} selectedId={selected?.id ?? null} creating={creating} onSelect={selectEntry} /><WorkAssignmentEditor selected={selected} selectedIndex={selectedIndex} itemCount={items.length} creating={creating} draft={draft} canEdit={canEdit} saving={saving} onChange={set} onMove={moveSelection} onSave={(prepareNext) => void save(prepareNext)} onCancel={() => void cancelAssignment()} onRemove={() => void removeAssignment()} onClose={() => { setCreating(false); setSelectedId(null); setMessage(""); }}>{selected && canEdit && <WorkAssignmentParticipants session={session} assignment={selected} saisonId={saisonId} />}</WorkAssignmentEditor></div></section>;
+  return <section className="data-workspace work-assignment-management"><div className="data-toolbar"><div className="editor-actions"><button className="secondary-action" onClick={onBack}>Zur Startseite</button><button className="secondary-action" onClick={() => void load()}>Aktualisieren</button></div><span>{items.length} Arbeitseinsätze</span>{canEdit && <button onClick={startNew}>Arbeitseinsatz anlegen</button>}</div>{message && <p className="notice" role="status">{message}</p>}<div className="split-view"><WorkAssignmentList items={items} selectedId={selected?.id ?? null} creating={creating} onSelect={selectEntry} /><WorkAssignmentEditor selected={selected} selectedIndex={selectedIndex} itemCount={items.length} creating={creating} draft={draft} canEdit={canEdit} saving={saving} onChange={set} onMove={moveSelection} onSave={(prepareNext) => void save(prepareNext)} onCancel={() => void cancelAssignment()} onRemove={() => void removeAssignment()} onClose={() => { setCreating(false); setSelectedId(null); setMessage(""); }}>{selected && canEdit && <WorkAssignmentParticipants session={session} assignment={selected} />}</WorkAssignmentEditor></div></section>;
 }
