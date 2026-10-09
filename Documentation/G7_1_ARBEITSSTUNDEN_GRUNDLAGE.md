@@ -47,3 +47,9 @@ Prüfsnapshots liegen migrationssicher als `jsonb` vor. Der Fremdschlüssel mit 
 Web und MAUI stellen Sollstunden, freigegebene Stunden, offene Stunden, Euro je Fehlstunde und Fehlbetrag direkt aus `v_pflichtstunden_uebersicht` dar. Befreiung, Regelgrund, Wartungsvertrag, Altersbefreiung sowie Eintritt im Saisonjahr oder zweiten Halbjahr werden als von der View gelieferter Status erläutert; beide Clients berechnen weder Stunden noch Fehlbeträge selbst.
 
 Die Arbeitsstundenübersicht liest für den gewählten Mitgliedskontext die View-Zeile über `mitglied_id`. Damit erhält ein Nebenmitglied seine eigene Zeile; der Home-Dashboard-Pfad behält seine separate Abfrage über `hauptmitglied_id` bei.
+
+## G7.6 – Integration
+
+Die Web-Oberfläche ist in `MemberWorkHours`, `WorkHoursReview` und `RequiredHoursSummary` getrennt. Komponenten verwenden ausschließlich den Work-Hours-Service; dieser delegiert an das Repository und die zentrale Review-RPC. Die frühere MAUI-Review-Doppel-API und auskommentierte Direktmutationen wurden entfernt. `ReviewArbeitsstundeAsync` ist der alleinige MAUI-Reviewpfad zur RPC.
+
+Bewusste Abgrenzung: Das Home-Dashboard bleibt ein Hauptmitglieds-Dashboard und fragt die Pflichtstunden-View weiterhin über `hauptmitglied_id` ab. Arbeitseinsätze bleiben außerhalb von G7.
