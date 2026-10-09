@@ -58,6 +58,7 @@ begin
      or new.saison_id is distinct from old.saison_id
      or new.status is distinct from old.status
      or new.freigegeben is distinct from old.freigegeben
+     or new.is_demo is distinct from old.is_demo
      or new.genehmigt_von is distinct from old.genehmigt_von
      or new.genehmigt_am is distinct from old.genehmigt_am then
     raise exception 'Nur Datum, Stunden und Art der Arbeit dürfen geändert werden.' using errcode = '42501';
