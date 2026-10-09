@@ -114,11 +114,6 @@ begin
     return new;
   end if;
 
-  if public.is_productive_admin_or_vorstand()
-     or public.is_restricted_demo_admin_or_vorstand() then
-    return new;
-  end if;
-
   if old.mitglied_id <> public.current_mitglied_id()
      or old.status <> 'offen'
      or old.freigegeben <> false
