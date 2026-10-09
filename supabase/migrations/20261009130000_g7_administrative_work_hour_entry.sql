@@ -33,6 +33,8 @@ drop policy if exists arbeitsstunde_manage_work_hours_select on public.arbeitsst
 drop policy if exists arbeitsstunde_manage_work_hours_insert on public.arbeitsstunde;
 drop policy if exists arbeitsstunde_manage_work_hours_update on public.arbeitsstunde;
 drop policy if exists arbeitsstunde_manage_work_hours_delete on public.arbeitsstunde;
+drop policy if exists arbeitsstunde_legacy_review_update on public.arbeitsstunde;
+drop policy if exists arbeitsstunde_legacy_review_delete on public.arbeitsstunde;
 
 create policy arbeitsstunde_manage_work_hours_select on public.arbeitsstunde
   for select to authenticated
@@ -58,30 +60,33 @@ create policy arbeitsstunde_manage_work_hours_insert on public.arbeitsstunde
     and genehmigt_am is not null
   );
 
-create policy arbeitsstunde_manage_work_hours_update on public.arbeitsstunde
+-- Der noch vorhandene Review-Prozess wird erst in G7.4 auf ein eigenes
+-- Permission-Modell umgestellt. Bis dahin bleiben seine bisherigen Rollenrechte
+-- unverändert; ManageWorkHours selbst erhält daraus keine UPDATE-/DELETE-Rechte.
+create policy arbeitsstunde_legacy_review_update on public.arbeitsstunde
   for update to authenticated
   using (
-    public.has_effective_permission(256)
-    and (
-      not public.is_demo_or_reviewer()
-      or public.is_demo_mitglied_id(mitglied_id)
+    public.is_productive_admin_or_vorstand()
+    or (
+      public.is_restricted_demo_admin_or_vorstand()
+      and public.is_demo_mitglied_id(mitglied_id)
     )
   )
   with check (
-    public.has_effective_permission(256)
-    and (
-      not public.is_demo_or_reviewer()
-      or public.is_demo_mitglied_id(mitglied_id)
+    public.is_productive_admin_or_vorstand()
+    or (
+      public.is_restricted_demo_admin_or_vorstand()
+      and public.is_demo_mitglied_id(mitglied_id)
     )
   );
 
-create policy arbeitsstunde_manage_work_hours_delete on public.arbeitsstunde
+create policy arbeitsstunde_legacy_review_delete on public.arbeitsstunde
   for delete to authenticated
   using (
-    public.has_effective_permission(256)
-    and (
-      not public.is_demo_or_reviewer()
-      or public.is_demo_mitglied_id(mitglied_id)
+    public.is_productive_admin_or_vorstand()
+    or (
+      public.is_restricted_demo_admin_or_vorstand()
+      and public.is_demo_mitglied_id(mitglied_id)
     )
   );
 
@@ -153,11 +158,9 @@ security definer
 set search_path = public
 as $$
 begin
-  if public.has_effective_permission(256)
-     and (
-       not public.is_demo_or_reviewer()
-       or public.is_demo_mitglied_id(new.mitglied_id)
-     ) then
+  -- Der Alt-Reviewprozess bleibt bis G7.4 für seine bestehenden Rollen offen.
+  if public.is_productive_admin_or_vorstand()
+     or public.is_restricted_demo_admin_or_vorstand() then
     return new;
   end if;
 
