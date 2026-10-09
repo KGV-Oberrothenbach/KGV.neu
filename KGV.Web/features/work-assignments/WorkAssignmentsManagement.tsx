@@ -5,7 +5,7 @@ import { loadWorkAssignmentsManagement } from "../../services/work-assignments/w
 import { WorkAssignmentEditor } from "./WorkAssignmentEditor";
 import { WorkAssignmentList } from "./WorkAssignmentList";
 import { WorkAssignmentParticipants } from "./WorkAssignmentParticipants";
-import { type WorkAssignment } from "./work-assignment-types";
+import { type WorkAssignment } from "../../models/work-assignments/work-assignment";
 
 export function WorkAssignmentsManagement({ session, canEdit, saisonId, onBack }: { session: BrowserSession; canEdit: boolean; saisonId: number | null; onBack: () => void }) {
   const [items, setItems] = useState<WorkAssignment[]>([]);

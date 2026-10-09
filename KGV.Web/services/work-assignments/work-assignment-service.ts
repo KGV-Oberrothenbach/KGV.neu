@@ -1,16 +1,17 @@
 import { type BrowserSession } from "../../lib/supabase-auth";
+import { type WorkAssignment, type WorkAssignmentMember, type WorkAssignmentRegistration } from "../../models/work-assignments/work-assignment";
 import {
   listActiveWorkAssignmentMembers,
   listManagementAssignmentRegistrations,
   listManagementWorkAssignments,
 } from "../../repositories/work-assignments/work-assignment-repository";
 
-export async function loadWorkAssignmentsManagement(session: BrowserSession) {
+export async function loadWorkAssignmentsManagement(session: BrowserSession): Promise<WorkAssignment[]> {
   const assignments = await listManagementWorkAssignments(session);
   return assignments.sort((left, right) => assignmentSortKey(left).localeCompare(assignmentSortKey(right), "de"));
 }
 
-export async function loadWorkAssignmentParticipants(session: BrowserSession, assignmentId: number) {
+export async function loadWorkAssignmentParticipants(session: BrowserSession, assignmentId: number): Promise<{ registrations: WorkAssignmentRegistration[]; members: WorkAssignmentMember[] }> {
   const [registrations, members] = await Promise.all([
     listManagementAssignmentRegistrations(session, assignmentId),
     listActiveWorkAssignmentMembers(session),

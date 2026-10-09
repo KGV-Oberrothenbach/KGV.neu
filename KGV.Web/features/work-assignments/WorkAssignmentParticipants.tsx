@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { writeSupabase, type BrowserSession } from "../../lib/supabase-auth";
 import { type WorkHour } from "../work-hours/work-hours-types";
 import { loadWorkAssignmentParticipants } from "../../services/work-assignments/work-assignment-service";
-import { type WorkAssignment, type WorkAssignmentMember, type WorkAssignmentRegistration } from "./work-assignment-types";
+import { type WorkAssignment, type WorkAssignmentMember, type WorkAssignmentRegistration } from "../../models/work-assignments/work-assignment";
 
 export function WorkAssignmentParticipants({ session, assignment, saisonId }: { session: BrowserSession; assignment: WorkAssignment; saisonId: number | null }) {
   const [registrations, setRegistrations] = useState<WorkAssignmentRegistration[]>([]);

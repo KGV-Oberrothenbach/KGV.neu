@@ -53,19 +53,3 @@ Die Arbeitsstundenübersicht liest für den gewählten Mitgliedskontext die View
 Die Web-Oberfläche ist in `MemberWorkHours`, `WorkHoursReview` und `RequiredHoursSummary` getrennt. Komponenten verwenden ausschließlich den Work-Hours-Service; dieser delegiert an das Repository und die zentrale Review-RPC. Die frühere MAUI-Review-Doppel-API und auskommentierte Direktmutationen wurden entfernt. `ReviewArbeitsstundeAsync` ist der alleinige MAUI-Reviewpfad zur RPC.
 
 Bewusste Abgrenzung: Das Home-Dashboard bleibt ein Hauptmitglieds-Dashboard und fragt die Pflichtstunden-View weiterhin über `hauptmitglied_id` ab. Arbeitseinsätze bleiben außerhalb von G7.
-
-## G8.1 – Arbeitseinsätze: Web-Grundstruktur, Typen und Lesezugriffe
-
-### Ausgangszustand und Auslagerung
-
-Die Web-Verwaltung für Arbeitseinsätze lag vollständig in `KGV.Web/app/page.tsx`: Verwaltungsübersicht, Editor, Teilnehmerverwaltung, lokale Typen und direkte lesende Supabase-Zugriffe waren dort vermischt. G8.1 verschiebt die UI in `features/work-assignments/` und trennt sie in `WorkAssignmentsManagement`, `WorkAssignmentList`, `WorkAssignmentEditor` und `WorkAssignmentParticipants`.
-
-`WorkAssignment` und `WorkAssignmentRegistration` liegen gemeinsam in `work-assignment-types.ts`; das Repository und die Home-Service-Exports verwenden denselben Registrierungstyp. Die Verwaltungslesevorgänge verlaufen nun über `Work Assignment Service → Work Assignment Repository → Supabase`: Einsatzliste, Teilnehmeranmeldungen und die Auswahlliste aktiver Mitglieder werden nicht mehr direkt aus React gelesen.
-
-### Bewusst verbliebene Altlogik
-
-Die bereits vorhandenen Schreibvorgänge für Einsätze und Anmeldungen sowie die bisherige Übernahme einer Teilnahme als Arbeitsstunde bleiben im Feature unverändert bestehen. Sie sind ausdrücklich Übergangslogik für G8.3–G8.6; G8.1 führt weder neue RPCs noch Regeln, Statusübergänge oder Datenbankmigrationen ein.
-
-### Vorbehaltene Folgegruppen
-
-G8.2 liefert Permission- und Rollenbereinigung. G8.3 behandelt Editor-Vorgaben, G8.4 An- und Abmelderegeln, G8.5 die weitere Teilnehmerverwaltung und G8.6 die fachliche Arbeitsstundenübergabe. MAUI bleibt in G8.1 unverändert.

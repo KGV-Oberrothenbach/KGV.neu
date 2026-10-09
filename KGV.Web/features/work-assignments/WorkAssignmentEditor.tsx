@@ -1,4 +1,4 @@
-import { type WorkAssignment } from "./work-assignment-types";
+import { type WorkAssignment } from "../../models/work-assignments/work-assignment";
 
 type Props = {
   selected: WorkAssignment | null;
