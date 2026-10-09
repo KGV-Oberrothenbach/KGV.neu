@@ -337,6 +337,7 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
                 : "Offener Prüffall";
             _commentEditor.Text = string.Empty;
             _correctionDatePicker.Date = entry.Datum.Date;
+            _correctionDatePicker.IsEnabled = entry.ArbeitseinsatzAnmeldungId == null;
             _correctionHoursEntry.Text = entry.Stunden.ToString("0.##", CultureInfo.CurrentCulture);
             _correctionWorkTypeEditor.Text = entry.Beschreibung ?? string.Empty;
             _positionLabel.Text = $"{_reviewState.CurrentIndex + 1}/{_reviewState.TotalCount}";
@@ -420,7 +421,7 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
         }
 
         await ExecuteReviewActionAsync(
-            async () => await _supabaseService.ReviewArbeitsstundeAsync(entry.Id, "korrigieren", kommentar, _correctionDatePicker.Date!.Value, stunden, _correctionWorkTypeEditor.Text.Trim()),
+            async () => await _supabaseService.ReviewArbeitsstundeAsync(entry.Id, "korrigieren", kommentar, entry.ArbeitseinsatzAnmeldungId == null ? _correctionDatePicker.Date!.Value : entry.Datum.Date, stunden, _correctionWorkTypeEditor.Text.Trim()),
             "Prüffall wurde korrigiert, freigegeben und im Verlauf dokumentiert.");
     }
 
@@ -543,7 +544,7 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
         _previousButton.IsEnabled = _lockAcquired && hasEntry && !_isBusy && _reviewState.CanMovePrevious;
         _nextButton.IsEnabled = _lockAcquired && hasEntry && !_isBusy && _reviewState.CanMoveNext;
         _commentEditor.IsEnabled = _lockAcquired && hasEntry && !_isBusy;
-        _correctionDatePicker.IsEnabled = _lockAcquired && hasEntry && !_isBusy;
+        _correctionDatePicker.IsEnabled = _lockAcquired && hasEntry && !_isBusy && _reviewState.CurrentEntry?.ArbeitseinsatzAnmeldungId == null;
         _correctionHoursEntry.IsEnabled = _lockAcquired && hasEntry && !_isBusy;
         _correctionWorkTypeEditor.IsEnabled = _lockAcquired && hasEntry && !_isBusy;
     }

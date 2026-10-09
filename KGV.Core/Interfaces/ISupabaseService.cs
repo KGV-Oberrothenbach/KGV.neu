@@ -199,6 +199,8 @@ namespace KGV.Core.Interfaces
         Task<WorkAssignmentRegistrationResult> SignUpForArbeitseinsatzAsync(int arbeitseinsatzId, int mitgliedId);
         Task<WorkAssignmentRegistrationResult> SignOffFromArbeitseinsatzAsync(int arbeitseinsatzId, int mitgliedId);
         Task<WorkAssignmentRegistrationResult> ManageArbeitseinsatzParticipantAsync(int arbeitseinsatzId, int mitgliedId, string action);
+        Task<ArbeitseinsatzAnmeldungRecord?> GetOwnArbeitseinsatzRegistrationAsync(int arbeitseinsatzId, int mitgliedId);
+        Task<ArbeitseinsatzRecord?> GetArbeitseinsatzForMemberAsync(int arbeitseinsatzId);
         Task<WorkAssignmentWorkHourResult> SubmitArbeitseinsatzWorkHoursAsync(long registrationId, decimal hours, string? workType);
         Task<WorkAssignmentWorkHourResult> ConfirmArbeitseinsatzWorkHoursAsync(long registrationId, decimal hours, string? workType);
         Task<ArbeitsstundeRecord?> GetLinkedArbeitseinsatzWorkHourAsync(long registrationId);

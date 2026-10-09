@@ -2802,6 +2802,7 @@ namespace KGV.Infrastructure.Services
                         Vorname = mitglied?.Vorname ?? string.Empty,
                         Nachname = mitglied?.Name ?? string.Empty,
                         Datum = record.Datum,
+                        ArbeitseinsatzAnmeldungId = record.ArbeitseinsatzAnmeldungId,
                         SaisonId = record.SaisonId,
                         SaisonJahr = saisonById.TryGetValue(record.SaisonId, out var saison) ? saison.Jahr : 0,
                         Stunden = record.Stunden,
@@ -2911,6 +2912,7 @@ namespace KGV.Infrastructure.Services
                         Vorname = mitglied?.Vorname ?? string.Empty,
                         Nachname = mitglied?.Name ?? string.Empty,
                         Datum = record.Datum,
+                        ArbeitseinsatzAnmeldungId = record.ArbeitseinsatzAnmeldungId,
                         SaisonId = record.SaisonId,
                         SaisonJahr = saisonById.TryGetValue(record.SaisonId, out var saison) ? saison.Jahr : 0,
                         Stunden = record.Stunden,
@@ -5191,6 +5193,31 @@ namespace KGV.Infrastructure.Services
                     .Filter("arbeitseinsatz_anmeldung_id", global::Supabase.Postgrest.Constants.Operator.Equals, registrationId)
                     .Get();
                 return response?.Models?.FirstOrDefault();
+            }, null);
+
+        public Task<ArbeitseinsatzAnmeldungRecord?> GetOwnArbeitseinsatzRegistrationAsync(int arbeitseinsatzId, int mitgliedId) => ExecuteAsync(
+            "GetOwnArbeitseinsatzRegistrationAsync",
+            async () =>
+            {
+                if (arbeitseinsatzId <= 0 || mitgliedId <= 0) return null;
+                var client = await EnsureClientAsync();
+                var response = await client.From<ArbeitseinsatzAnmeldungRecord>()
+                    .Filter("arbeitseinsatz_id", global::Supabase.Postgrest.Constants.Operator.Equals, arbeitseinsatzId)
+                    .Filter("mitglied_id", global::Supabase.Postgrest.Constants.Operator.Equals, mitgliedId)
+                    .Get();
+                return response?.Models?.FirstOrDefault();
+            }, null);
+
+        public Task<ArbeitseinsatzRecord?> GetArbeitseinsatzForMemberAsync(int arbeitseinsatzId) => ExecuteAsync(
+            "GetArbeitseinsatzForMemberAsync",
+            async () =>
+            {
+                if (arbeitseinsatzId <= 0) return null;
+                var client = await EnsureClientAsync();
+                var response = await client.From<ArbeitseinsatzRecord>()
+                    .Filter("id", global::Supabase.Postgrest.Constants.Operator.Equals, arbeitseinsatzId)
+                    .Get();
+                return response?.Models?.Select(NormalizeArbeitseinsatzRecord).FirstOrDefault();
             }, null);
 
         public Task<WorkAssignmentWorkHourResult> SubmitArbeitseinsatzWorkHoursAsync(long registrationId, decimal hours, string? workType) => ExecuteWorkAssignmentWorkHourRpcAsync("submit_arbeitseinsatz_arbeitsstunde", registrationId, hours, workType);

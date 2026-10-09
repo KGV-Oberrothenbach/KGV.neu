@@ -30,6 +30,7 @@ public sealed class ArbeitseinsatzTeilnehmerPage : ContentPage, IQueryAttributab
     private string _defaultWorkType = string.Empty;
     private bool _isBusy;
     private List<MitgliedRecord> _members = new();
+    private readonly Dictionary<long, ArbeitsstundeRecord?> _linkedWorkHours = new();
 
     public ArbeitseinsatzTeilnehmerPage(ISupabaseService supabaseService, UserContextState userContextState)
     {
@@ -67,6 +68,9 @@ public sealed class ArbeitseinsatzTeilnehmerPage : ContentPage, IQueryAttributab
             if (assignment == null) { ShowStatus("Arbeitseinsatz nicht gefunden.", true); return; }
             var participants = (await _supabaseService.GetArbeitseinsatzManagementParticipantsAsync((int)_entryId))
                 .OrderBy(x => StatusRank(x.Status)).ThenBy(x => x.DisplayName, StringComparer.CurrentCulture).ToList();
+            _linkedWorkHours.Clear();
+            foreach (var participant in participants)
+                _linkedWorkHours[participant.RegistrationId] = await _supabaseService.GetLinkedArbeitseinsatzWorkHourAsync(participant.RegistrationId);
             _assignmentActive = assignment.Aktiv;
             _maxParticipants = assignment.MaxTeilnehmer;
             _activeRegistrations = participants.Count(x => x.Status == "angemeldet");
@@ -93,11 +97,29 @@ public sealed class ArbeitseinsatzTeilnehmerPage : ContentPage, IQueryAttributab
     private View CreateParticipantRow(WorkAssignmentManagementParticipantItem item)
     {
         var actions = new HorizontalStackLayout { Spacing = 8 };
+        _linkedWorkHours.TryGetValue(item.RegistrationId, out var linkedWorkHour);
         if (item.Status == "angemeldet") actions.Children.Add(ActionButton(_started ? "Nicht erschienen" : "Abmelden", item.MitgliedId, _started ? "nicht_erschienen" : "absagen"));
         if (item.Status == "abgesagt" && CanRegister) actions.Children.Add(ActionButton("Wieder anmelden", item.MitgliedId, "anmelden"));
         if (item.Status == "nicht_erschienen") actions.Children.Add(ActionButton("Als abgesagt kennzeichnen", item.MitgliedId, "absagen"));
-        if (CanConfirmHours && item.Status != "teilgenommen") actions.Children.Add(ConfirmHoursButton(item));
-        return new VerticalStackLayout { Spacing = 4, Children = { new Label { Text = item.DisplayName, FontAttributes = FontAttributes.Bold }, new Label { Text = StatusLabel(item.Status), TextColor = Colors.DimGray }, actions } };
+        if (linkedWorkHour == null && CanConfirmHours && item.Status != "teilgenommen") actions.Children.Add(ConfirmHoursButton(item));
+        var row = new VerticalStackLayout { Spacing = 4 };
+        row.Children.Add(new Label { Text = item.DisplayName, FontAttributes = FontAttributes.Bold });
+        row.Children.Add(new Label { Text = StatusLabel(item.Status), TextColor = Colors.DimGray });
+        if (linkedWorkHour != null)
+        {
+            row.Children.Add(new Label
+            {
+                Text = linkedWorkHour.Status switch
+                {
+                    "genehmigt" when linkedWorkHour.Freigegeben => "Arbeitsstunden bestätigt",
+                    "abgelehnt" => "Arbeitsstunden abgelehnt",
+                    _ => "Arbeitsstunden eingereicht – G7-Prüfung verwenden"
+                },
+                TextColor = Colors.DarkSlateBlue
+            });
+        }
+        row.Children.Add(actions);
+        return row;
     }
 
     private Button ActionButton(string text, int memberId, string action)

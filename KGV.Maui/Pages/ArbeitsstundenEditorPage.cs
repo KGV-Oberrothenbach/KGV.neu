@@ -276,6 +276,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
         _headlineLabel.Text = "Arbeitsstunde erfassen";
         _descriptionLabel.Text = "Erfasse eine neue Arbeitsstunde in einem eigenen mobilen Schritt statt direkt in der Übersicht.";
         _datePicker.Date = DateTime.Today;
+        _datePicker.IsEnabled = true;
         _hoursEntry.Text = string.Empty;
         _descEditor.Text = string.Empty;
         _forWhomPicker.SelectedItem = _memberOptions.FirstOrDefault();
@@ -291,6 +292,7 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
         _headlineLabel.Text = "Arbeitsstunde bearbeiten";
         _descriptionLabel.Text = "Unbestätigte Einträge werden in einem eigenen mobilen Bearbeitungsschritt geöffnet und nicht mehr direkt in der Übersicht bearbeitet.";
         _datePicker.Date = entry.Datum.Date;
+        _datePicker.IsEnabled = entry.ArbeitseinsatzAnmeldungId == null;
         _hoursEntry.Text = entry.Stunden.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture);
         _descEditor.Text = entry.Beschreibung ?? string.Empty;
         _forWhomPicker.SelectedItem = _memberOptions.FirstOrDefault(x => x.MitgliedId == entry.MitgliedId) ?? _memberOptions.FirstOrDefault();
@@ -379,7 +381,12 @@ public sealed class ArbeitsstundenEditorPage : ContentPage, IQueryAttributable
             };
 
             if (_existingEntry != null)
+            {
                 record.Id = _existingEntry.Id;
+                record.ArbeitseinsatzAnmeldungId = _existingEntry.ArbeitseinsatzAnmeldungId;
+                if (_existingEntry.ArbeitseinsatzAnmeldungId != null)
+                    record.Datum = _existingEntry.Datum.Date;
+            }
 
             // Neue Einträge mit effektiver ManageWorkHours-Permission werden direkt genehmigt.
             if (_existingEntry == null && canManageWorkHours)
