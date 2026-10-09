@@ -1,4 +1,5 @@
 using KGV.Core.Interfaces;
+using KGV.Core.Security;
 using KGV.Maui.State;
 using Microsoft.Maui.Controls;
 using System.Globalization;
@@ -8,11 +9,13 @@ namespace KGV.Maui.Pages;
 public sealed class ArbeitseinsaetzeManagementPage : ManagementOverviewPageBase
 {
     private readonly ArbeitseinsaetzeManagementState _managementState;
+    private readonly UserContextState _userContextState;
 
-    public ArbeitseinsaetzeManagementPage(ISupabaseService supabaseService, ArbeitseinsaetzeManagementState managementState)
+    public ArbeitseinsaetzeManagementPage(ISupabaseService supabaseService, ArbeitseinsaetzeManagementState managementState, UserContextState userContextState)
         : base(supabaseService)
     {
         _managementState = managementState;
+        _userContextState = userContextState;
     }
 
     protected override string PageTitle => "Arbeitseinsätze";
@@ -23,6 +26,7 @@ public sealed class ArbeitseinsaetzeManagementPage : ManagementOverviewPageBase
 
     protected override async Task<IReadOnlyList<ManagementOverviewEntry>> LoadEntriesCoreAsync()
     {
+        EnsureCanManageWorkAssignments();
         return (await LoadRecordsAsync())
             .Select(x => new ManagementOverviewEntry(
                 x.Id,
@@ -33,14 +37,22 @@ public sealed class ArbeitseinsaetzeManagementPage : ManagementOverviewPageBase
 
     protected override async Task OpenNewAsync()
     {
+        EnsureCanManageWorkAssignments();
         _managementState.SetEntries(await LoadRecordsAsync());
         await Shell.Current.GoToAsync(nameof(ArbeitseinsaetzeEditorPage));
     }
 
     protected override async Task OpenExistingAsync(long entryId)
     {
+        EnsureCanManageWorkAssignments();
         _managementState.SetEntries(await LoadRecordsAsync(), entryId);
         await Shell.Current.GoToAsync($"{nameof(ArbeitseinsaetzeEditorPage)}?entryId={entryId}");
+    }
+
+    private void EnsureCanManageWorkAssignments()
+    {
+        if (!PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext))
+            throw new UnauthorizedAccessException("Für die Verwaltung von Arbeitseinsätzen fehlt die Berechtigung.");
     }
 
     private async Task<IReadOnlyList<KGV.Core.Models.ArbeitseinsatzRecord>> LoadRecordsAsync()

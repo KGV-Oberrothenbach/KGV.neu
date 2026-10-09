@@ -75,6 +75,7 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     public bool ShowAppointmentsEmptyState => !HasAppointments;
     public bool IsAdminContext => _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
     public bool ShowManagementSection => IsAdminContext;
+    public bool CanManageWorkAssignments => PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext);
 
     public HomeAnnouncementItem? SelectedAnnouncement
     {
@@ -144,6 +145,7 @@ public sealed class HomeViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(ShowAppointmentsEmptyState));
         OnPropertyChanged(nameof(IsAdminContext));
         OnPropertyChanged(nameof(ShowManagementSection));
+        OnPropertyChanged(nameof(CanManageWorkAssignments));
         OnPropertyChanged(nameof(ManagementTitle));
         OnPropertyChanged(nameof(ManagementHintText));
     }

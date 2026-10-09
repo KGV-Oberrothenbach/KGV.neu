@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import HomeDetail from "./HomeDetail";
 import {
@@ -18,6 +18,7 @@ import {
 type HomeDashboardProps = {
   session: BrowserSession;
   isManager: boolean;
+  canManageWorkAssignments: boolean;
   memberId: number | null;
   saisonId: number | null;
   season: number;
@@ -25,7 +26,7 @@ type HomeDashboardProps = {
   onOpenWorkHours: () => void;
 };
 
-export default function HomeDashboard({ session, isManager, memberId, saisonId, season, onNavigate, onOpenWorkHours }: HomeDashboardProps) {
+export default function HomeDashboard({ session, isManager, canManageWorkAssignments, memberId, saisonId, season, onNavigate, onOpenWorkHours }: HomeDashboardProps) {
   const [appointments, setAppointments] = useState<HomeAppointment[]>([]);
   const [announcements, setAnnouncements] = useState<HomeAnnouncement[]>([]);
   const [assignments, setAssignments] = useState<HomeWorkAssignment[]>([]);
@@ -97,7 +98,7 @@ export default function HomeDashboard({ session, isManager, memberId, saisonId, 
   return <section className="home-dashboard" aria-label="Vereinsübersicht">
     {error && <p className="notice" role="alert">Startseiten-Inhalte konnten nicht geladen werden: {error}</p>}
     {message && <p className="notice" role="status">{message}</p>}
-    {isManager && <section className="home-management"><div><strong>Verwaltung</strong><p>Bearbeitung wird über separate Verwaltungsbereiche geöffnet; die Startseite bleibt eine reine Übersicht.</p></div><div><button className="secondary-action" onClick={() => onNavigate("arbeitseinsaetze")}>Arbeitseinsätze bearbeiten</button><button className="secondary-action" onClick={() => onNavigate("termine")}>Termine bearbeiten</button><button className="secondary-action" onClick={() => onNavigate("bekanntmachungen")}>Bekanntmachungen bearbeiten</button></div></section>}
+    {(isManager || canManageWorkAssignments) && <section className="home-management"><div><strong>Verwaltung</strong><p>Bearbeitung wird über separate Verwaltungsbereiche geöffnet; die Startseite bleibt eine reine Übersicht.</p></div><div>{canManageWorkAssignments && <button className="secondary-action" onClick={() => onNavigate("arbeitseinsaetze")}>Arbeitseinsätze bearbeiten</button>}{isManager && <><button className="secondary-action" onClick={() => onNavigate("termine")}>Termine bearbeiten</button><button className="secondary-action" onClick={() => onNavigate("bekanntmachungen")}>Bekanntmachungen bearbeiten</button></>}</div></section>}
     <section className="home-work-hours" aria-labelledby="home-work-hours-title">
       <h2 id="home-work-hours-title">Meine Arbeitsstunden {workHours?.saison_jahr ?? season}</h2>
       <div className="home-work-hours-grid">
@@ -108,7 +109,7 @@ export default function HomeDashboard({ session, isManager, memberId, saisonId, 
       <p>{workHoursInfo}</p>
       {memberId !== null && <button onClick={onOpenWorkHours}>Arbeitsstunden erfassen</button>}
     </section>
-    {detail && <HomeDetail session={session} selection={detail} assignments={assignments} appointments={appointments} announcements={announcements} registrations={registrations} memberId={memberId} isManager={isManager} busy={registeringId !== null} onClose={() => setDetail(null)} onSelect={setDetail} onRegister={registerForAssignment} onSignOff={signOffFromAssignment} onNavigate={(target) => { setDetail(null); onNavigate(target); }} />}
+    {detail && <HomeDetail session={session} selection={detail} assignments={assignments} appointments={appointments} announcements={announcements} registrations={registrations} memberId={memberId} isManager={isManager} canManageWorkAssignments={canManageWorkAssignments} busy={registeringId !== null} onClose={() => setDetail(null)} onSelect={setDetail} onRegister={registerForAssignment} onSignOff={signOffFromAssignment} onNavigate={(target) => { setDetail(null); onNavigate(target); }} />}
     <div className="home-content-grid">
       <HomeContentSection title="Arbeitseinsätze" empty="Aktuell liegen keine veröffentlichten Arbeitseinsätze vor.">{assignments.map((item) => {
         const registered = registrations.some((entry) => entry.arbeitseinsatz_id === item.id && entry.status === "angemeldet");

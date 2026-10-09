@@ -145,7 +145,7 @@ public class HomePage : ContentPage
         workAssignmentsEmptyLabel.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowWorkAssignmentsEmptyState));
 
         _newWorkAssignmentButton = new Button { Text = "Neu", HorizontalOptions = LayoutOptions.End, IsVisible = false };
-        _newWorkAssignmentButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
+        _newWorkAssignmentButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.CanManageWorkAssignments));
         _newWorkAssignmentButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(ArbeitseinsaetzeEditorPage));
 
         var workAssignmentsSection = CreateSectionCard(

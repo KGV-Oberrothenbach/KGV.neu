@@ -8,7 +8,7 @@ G8 entwickelt Arbeitseinsätze schrittweise weiter und harmonisiert Web und MAUI
 UI → Service → Repository → Supabase/RPC
 ```
 
-Fachliche Änderungen erfolgen ausschließlich in der dafür vorgesehenen Teilgruppe. G8.2 ist noch nicht begonnen.
+Fachliche Änderungen erfolgen ausschließlich in der dafür vorgesehenen Teilgruppe.
 
 ## Teilgruppen
 
@@ -56,7 +56,17 @@ Ausgangszustand war eine monolithische Verwaltungsansicht in `KGV.Web/app/page.t
 
 G8.1 legt die Web-UI unter `KGV.Web/features/work-assignments/` ab und trennt `WorkAssignmentsManagement`, `WorkAssignmentList`, `WorkAssignmentEditor` und `WorkAssignmentParticipants`. Die gemeinsamen Verträge `WorkAssignment`, `WorkAssignmentRegistration` und `WorkAssignmentMember` liegen unter `KGV.Web/models/work-assignments/`. Verwaltungslesevorgänge folgen damit UI → Work-Assignment-Service → Work-Assignment-Repository → Supabase.
 
-Bewusst verbliebene Altlogik sind die vorhandenen Schreibvorgänge für Einsätze und Anmeldungen sowie die bisherige Übernahme einer Teilnahme als Arbeitsstunde. Diese werden erst in G8.3 bis G8.6 fachlich überarbeitet. G8.2 ist noch nicht begonnen.
+Bewusst verbliebene Altlogik sind die vorhandenen Schreibvorgänge für Einsätze und Anmeldungen sowie die bisherige Übernahme einer Teilnahme als Arbeitsstunde. Diese werden erst in G8.3 bis G8.6 fachlich überarbeitet.
+
+## G8.2 – Berechtigungen, RLS, Demo-Scope und Locks
+
+`CanManageWorkAssignments` ist als Bit `1 << 20` (`1048576`) zentral definiert. Admin und Vorstand besitzen es als Basisrecht, Benutzer nicht. Wie bei allen Fachrechten wird die effektive Berechtigung aus Basisrolle, `permission_grants` und `permission_revocations` gebildet; ein Grant ermöglicht die Verwaltung für Benutzer, eine Revocation entzieht sie auch dem Vorstand.
+
+Web und MAUI prüfen die effektive Permission für Verwaltungszugänge, Teilnehmeransicht und Editieren; die normale Startseitenansicht sowie die eigene Anmeldung bleiben davon getrennt. Bestehende Einsätze werden in beiden Clients über den gemeinsamen serverseitigen Bearbeitungs-Lock geöffnet; ohne Permission oder ohne erfolgreich angeforderten Lock ist keine Bearbeitung möglich.
+
+Die Supabase-Policies ersetzen die bisherigen Admin-/Vorstands-Hintertüren für `arbeitseinsatz` und `arbeitseinsatz_anmeldung` durch `has_effective_permission(1048576)` und einen zusätzlichen Produktiv-/Demo-Scope. Demo- und Reviewer-Konten bleiben auf zulässige Demo-Daten beschränkt; Grants erweitern diesen Scope nicht. Die normale Sichtbarkeit aktiver Einsätze und die eigenen An-/Abmeldungen bleiben als getrennte Benutzerpfade erhalten.
+
+G8.2 zieht bewusst keine Punkte aus G8.3 bis G8.6 vor: Editor-Defaults, Frist-/Kapazitätsregeln, Teilnehmerstatus und Arbeitsstundenübergabe bleiben unverändert.
 
 ## G8.7 – MAUI/Web-Gleichstand und Bereinigung
 

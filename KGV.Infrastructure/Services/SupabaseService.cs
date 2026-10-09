@@ -5197,6 +5197,52 @@ namespace KGV.Infrastructure.Services
             },
             new List<ArbeitseinsatzRecord>());
 
+        public Task<BrowserEditLockResult> AcquireBrowserEditLockAsync(string entityType, long entityId, int timeoutSeconds = 600) => ExecuteAsync(
+            "AcquireBrowserEditLockAsync",
+            async () =>
+            {
+                if (string.IsNullOrWhiteSpace(entityType) || entityId <= 0)
+                    return new BrowserEditLockResult(false, "einem anderen Benutzer");
+
+                var client = await EnsureClientAsync();
+                var response = await client.Rpc<System.Text.Json.JsonElement[]>("acquire_browser_edit_lock", new
+                {
+                    p_entity_type = entityType,
+                    p_entity_id = entityId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    p_timeout_seconds = timeoutSeconds
+                });
+                var row = response?.FirstOrDefault() ?? default;
+                var acquired = row.ValueKind == System.Text.Json.JsonValueKind.Object
+                    && row.TryGetProperty("acquired", out var acquiredValue)
+                    && acquiredValue.ValueKind == System.Text.Json.JsonValueKind.True;
+                var displayName = row.ValueKind == System.Text.Json.JsonValueKind.Object
+                    && row.TryGetProperty("locked_by_display_name", out var displayNameValue)
+                    ? displayNameValue.GetString()
+                    : null;
+                return new BrowserEditLockResult(acquired, string.IsNullOrWhiteSpace(displayName) ? "einem anderen Benutzer" : displayName);
+            },
+            new BrowserEditLockResult(false, "einem anderen Benutzer"));
+
+        public async Task ReleaseBrowserEditLockAsync(string entityType, long entityId)
+        {
+            await ExecuteAsync(
+            "ReleaseBrowserEditLockAsync",
+            async () =>
+            {
+                if (!string.IsNullOrWhiteSpace(entityType) && entityId > 0)
+                {
+                    var client = await EnsureClientAsync();
+                    await client.Rpc<bool>("release_browser_edit_lock", new
+                    {
+                        p_entity_type = entityType,
+                        p_entity_id = entityId.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    });
+                }
+                return true;
+            },
+            false);
+        }
+
         public Task<ArbeitseinsatzRecord?> CreateArbeitseinsatzAsync(ArbeitseinsatzInsertRecord request) => ExecuteAsync<ArbeitseinsatzRecord?>(
             "CreateArbeitseinsatzAsync",
             async () =>

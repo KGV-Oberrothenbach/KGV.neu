@@ -126,13 +126,14 @@ const Permission = {
   readWorkHours: 1 << 17,
   readRoles: 1 << 18,
   createMember: 1 << 19,
+  manageWorkAssignments: 1 << 20,
 } as const;
 
 function permissionsFor(context: AppUserContext) {
   const base = context.role === "admin"
-    ? 1048575
+    ? 1048575 | Permission.manageWorkAssignments
     : context.role === "vorstand"
-      ? Permission.searchMembers | Permission.viewMembers | Permission.editAllMembers | Permission.showStammdaten | Permission.readStammdaten | Permission.writeStammdaten | Permission.readParzellen | Permission.readDocuments | Permission.manageDocuments | Permission.readWorkHours | Permission.manageWorkHours | Permission.readMeters | Permission.manageMeterChanges | Permission.approveMeterReadings | Permission.readRoles
+      ? Permission.searchMembers | Permission.viewMembers | Permission.editAllMembers | Permission.showStammdaten | Permission.readStammdaten | Permission.writeStammdaten | Permission.readParzellen | Permission.readDocuments | Permission.manageDocuments | Permission.readWorkHours | Permission.manageWorkHours | Permission.manageWorkAssignments | Permission.readMeters | Permission.manageMeterChanges | Permission.approveMeterReadings | Permission.readRoles
       : Permission.viewMembers | Permission.seeOwnData;
   return (base | context.permissionGrants) & ~context.permissionRevocations;
 }
@@ -235,7 +236,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           <MobileNavigation groups={navigationGroups} activeId={activeId} onNavigate={setActiveId} selectedMemberLabel={selectedMemberId ? selectedMemberLabel : null} />
           <p className="eyebrow">Saison {season}</p><h1>{active.label}</h1><p className="content-intro">{active.detail}</p>
           {!new Set(["start", "impressum", "mitglieder", "parzellen", "ablesen", "foto-uploads", "zaehlerwechsel", "arbeitsstunden-pruefen", "arbeitseinsaetze", "wartung", "termine", "bekanntmachungen", "export", "benutzer", "saisons", "verein", "mitglied-arbeitsstunden", "mitglied-wartung", "mitglied-dokumente", "mitglied-admin", "mitglied-gaerten", "mitglied-protokolle", "mitglied-stammdaten"]).has(activeId) && <section className="coming-soon"><span aria-hidden="true">◌</span><div><strong>Bereich vorbereitet</strong><p>Die Navigation und Zugriffsrechte stehen. Die fachliche Oberfläche wird in den nächsten Umsetzungsschritten ergänzt.</p></div></section>}
-          {activeId === "start" && <HomeDashboard session={session} isManager={context.role !== "user"} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
+          {activeId === "start" && <HomeDashboard session={session} isManager={context.role !== "user"} canManageWorkAssignments={has(Permission.manageWorkAssignments)} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
           {activeId === "mitglieder" && <MemberSearch session={session} selectedMemberId={selectedMemberId} onSelect={selectMember} canCreate={has(Permission.createMember)} onCreate={() => { setCreatingMember(true); setActiveId("mitglied-stammdaten"); }} />}
           {activeId === "parzellen" && <ParcelWorkspace session={session} selectedParcelId={selectedParcelId} onSelect={selectParcel} canEdit={has(Permission.writeParzellen)} onOpenMember={(memberId) => { selectMember(memberId); setActiveId("mitglied-gaerten"); }} />}
           {activeId === "ablesen" && <MeterOverview session={session} clubId={club.vereinId} reviewerMemberId={context.mitgliedId} selectedParcelId={selectedParcelId} seasonYear={season} canReadMeters={has(Permission.readMeters)} canSubmitOwnMeterReadings={context.mitgliedId !== null && has(Permission.seeOwnData)} canApprove={has(Permission.approveMeterReadings)} canManageMeterChanges={has(Permission.manageMeterChanges)} onNavigate={setActiveId} />}
@@ -243,7 +244,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           {activeId === "foto-uploads" && <PendingPhotoUploads session={session} clubId={club.vereinId} />}
           {activeId === "zaehlerwechsel" && has(Permission.manageMeterChanges) && <MeterChange session={session} clubId={club.vereinId} canManageMeterChanges={has(Permission.manageMeterChanges)} />}
           {activeId === "arbeitsstunden-pruefen" && <WorkHoursReview session={session} canManageWorkHours={has(Permission.manageWorkHours)} />}
-          {activeId === "arbeitseinsaetze" && <WorkAssignmentsManagement session={session} canEdit={context.role !== "user"} saisonId={workspaceContext.saisonId} onBack={() => setActiveId("start")} />}
+          {activeId === "arbeitseinsaetze" && <WorkAssignmentsManagement session={session} canEdit={has(Permission.manageWorkAssignments)} saisonId={workspaceContext.saisonId} onBack={() => setActiveId("start")} />}
           {activeId === "wartung" && <MaintenanceContracts session={session} canManage={context.role !== "user"} />}
           {activeId === "termine" && <AppointmentManagement session={session} canEdit={context.role !== "user"} onBack={() => setActiveId("start")} />}
           {activeId === "bekanntmachungen" && <AnnouncementManagement session={session} canEdit={context.role !== "user"} onBack={() => setActiveId("start")} />}

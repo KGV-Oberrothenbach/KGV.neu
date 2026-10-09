@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Core.Utilities;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
@@ -51,6 +52,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
     private EditorSnapshot? _initialSnapshot;
     private bool _isBusy;
     private bool _loadScheduled;
+    private bool _hasEditLock;
 
     public ArbeitseinsaetzeEditorPage(
         ISupabaseService supabaseService,
@@ -211,7 +213,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         {
             await Task.Yield();
 
-            if (_userContextState.CurrentUserContext?.Role is not (KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand))
+            if (!PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext))
             {
                 _statusLabel.Text = "Keine Berechtigung.";
                 _statusLabel.TextColor = Colors.IndianRed;
@@ -234,6 +236,16 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
                 }
 
                 ApplyRecordToForm(_managementState.CurrentEntry);
+                var editLock = await _supabaseService.AcquireBrowserEditLockAsync("arbeitseinsatz", _editingEntryId.Value);
+                if (!editLock.Acquired)
+                {
+                    _statusLabel.Text = $"Dieser Arbeitseinsatz wird gerade von {editLock.LockedByDisplayName} bearbeitet.";
+                    _statusLabel.TextColor = Colors.IndianRed;
+                    _statusLabel.IsVisible = true;
+                    _cancelButton.IsEnabled = true;
+                    return;
+                }
+                _hasEditLock = true;
                 Title = "Arbeitseinsatz bearbeiten";
             }
             else
@@ -690,7 +702,24 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
 
     private Task NavigateToOverviewAsync()
     {
+        _ = ReleaseEditLockAsync();
         return Shell.Current.GoToAsync("//home");
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _ = ReleaseEditLockAsync();
+    }
+
+    private async Task ReleaseEditLockAsync()
+    {
+        if (!_hasEditLock || !_editingEntryId.HasValue)
+            return;
+
+        _hasEditLock = false;
+        try { await _supabaseService.ReleaseBrowserEditLockAsync("arbeitseinsatz", _editingEntryId.Value); }
+        catch (Exception ex) { Debug.WriteLine($"[ArbeitseinsaetzeEditorPage] Lock release failed: {ex}"); }
     }
 
     private static DateTime CreateCurrentTimestampDefault()
