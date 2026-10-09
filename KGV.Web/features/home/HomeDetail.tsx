@@ -53,7 +53,7 @@ export default function HomeDetail({ session, selection, assignments, appointmen
   const registrationOpen = assignment && memberId !== null && !registered && assignment.freie_plaetze !== 0 && (!assignment.anmeldung_bis || assignment.anmeldung_bis >= berlinNow()) && !workAssignmentHasStarted(assignment);
   const canSignOff = assignment && registered && !workAssignmentHasStarted(assignment);
   const ownRegistration = assignment && memberId !== null ? registrations.find((entry) => entry.arbeitseinsatz_id === assignment.id && entry.mitglied_id === memberId) : undefined;
-  const canSubmitWorkHour = Boolean(assignment && ownRegistration?.status === "angemeldet" && workAssignmentHasEnded(assignment) && !linkedWorkHour);
+  const canSubmitWorkHour = Boolean(assignment?.aktiv && ownRegistration?.status === "angemeldet" && workAssignmentHasEnded(assignment) && !linkedWorkHour);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
