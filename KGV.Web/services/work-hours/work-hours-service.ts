@@ -1,5 +1,6 @@
 import { type BrowserSession } from "../../lib/supabase-auth";
 import {
+  createAdministrativeWorkHour,
   createOwnOpenWorkHour,
   getWorkHoursSummary,
   listMemberWorkHoursForSeason,
@@ -36,6 +37,24 @@ export async function createOwnWorkHour(session: BrowserSession, memberId: numbe
     freigegeben: false,
     genehmigt_von: null,
     genehmigt_am: null,
+  });
+  if (!created[0]) throw new Error("Arbeitsstunde konnte nicht gespeichert werden.");
+  return created[0];
+}
+
+export async function createAdministrativeWorkHourEntry(session: BrowserSession, canManageWorkHours: boolean, memberId: number, saisonId: number | null, input: OwnWorkHourInput) {
+  if (!canManageWorkHours) throw new Error("Für die administrative Arbeitsstundenerfassung fehlt ManageWorkHours.");
+  if (!Number.isInteger(memberId) || memberId <= 0) throw new Error("Für die Arbeitsstunde fehlt der Mitgliedskontext.");
+  if (saisonId === null || !Number.isInteger(saisonId) || saisonId <= 0) throw new Error("Für die Arbeitsstunde fehlt die Saison.");
+  validateOwnWorkHourInput(input);
+  const created = await createAdministrativeWorkHour(session, {
+    mitglied_id: memberId,
+    saison_id: saisonId,
+    datum: input.date,
+    stunden: input.hours,
+    art_der_arbeit: input.workType.trim(),
+    status: "genehmigt",
+    freigegeben: true,
   });
   if (!created[0]) throw new Error("Arbeitsstunde konnte nicht gespeichert werden.");
   return created[0];

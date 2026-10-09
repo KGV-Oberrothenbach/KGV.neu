@@ -21,6 +21,16 @@ export type OwnOpenWorkHourCreate = {
 
 export type OwnOpenWorkHourUpdate = Pick<OwnOpenWorkHourCreate, "datum" | "stunden" | "art_der_arbeit">;
 
+export type AdministrativeWorkHourCreate = {
+  mitglied_id: number;
+  saison_id: number;
+  datum: string;
+  stunden: number;
+  art_der_arbeit: string;
+  status: "genehmigt";
+  freigegeben: true;
+};
+
 export const listMemberWorkHoursForSeason = (session: BrowserSession, memberId: number, saisonId: number) => readSupabase<WorkHour>(session, "arbeitsstunde", {
   select: workHourSelect,
   mitglied_id: `eq.${memberId}`,
@@ -36,6 +46,8 @@ export const listWorkHoursForReview = (session: BrowserSession) => readSupabase<
 });
 
 export const createOwnOpenWorkHour = (session: BrowserSession, payload: OwnOpenWorkHourCreate) => writeSupabase<WorkHour>(session, "arbeitsstunde", "POST", payload);
+
+export const createAdministrativeWorkHour = (session: BrowserSession, payload: AdministrativeWorkHourCreate) => writeSupabase<WorkHour>(session, "arbeitsstunde", "POST", payload);
 
 export const updateOwnOpenWorkHour = (session: BrowserSession, workHourId: number, payload: OwnOpenWorkHourUpdate) => writeSupabase<WorkHour>(session, "arbeitsstunde", "PATCH", payload, {
   id: `eq.${workHourId}`,
