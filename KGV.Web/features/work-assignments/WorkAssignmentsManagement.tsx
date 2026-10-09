@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { useEditLock } from "../../lib/use-edit-lock";
-import { deactivateWorkAssignment, loadWorkAssignmentsManagement, normalizeAndValidateWorkAssignment, prepareNextWorkAssignment, removeWorkAssignment, saveWorkAssignment, workAssignmentDefaults } from "../../services/work-assignments/work-assignment-service";
+import { deactivateWorkAssignment, loadWorkAssignmentsManagement, normalizeAndValidateWorkAssignment, prepareNextWorkAssignment, removeWorkAssignment, saveWorkAssignment, updateWorkAssignmentDateDefaults, workAssignmentDefaults } from "../../services/work-assignments/work-assignment-service";
 import { WorkAssignmentEditor } from "./WorkAssignmentEditor";
 import { WorkAssignmentList } from "./WorkAssignmentList";
 import { WorkAssignmentParticipants } from "./WorkAssignmentParticipants";
@@ -28,7 +28,11 @@ export function WorkAssignmentsManagement({ session, canEdit, saisonId, onBack }
   function startNew() { setCreating(true); setSelectedId(null); setDraft(workAssignmentDefaults()); setMessage(""); }
   function selectEntry(id: number) { setCreating(false); setSelectedId(id); setDraft(items.find((item) => item.id === id) ?? workAssignmentDefaults()); setMessage(""); }
   function moveSelection(offset: number) { const target = items[selectedIndex + offset]; if (target) selectEntry(target.id); }
-  function set(key: keyof WorkAssignment, value: string | number | boolean | null) { setDraft({ ...draft, [key]: value }); }
+  function set(key: keyof WorkAssignment, value: string | number | boolean | null) {
+    setDraft((current) => key === "datum" && creating
+      ? updateWorkAssignmentDateDefaults(current, String(value ?? ""))
+      : { ...current, [key]: value });
+  }
 
   function prepareNextShift(source: Omit<WorkAssignment, "id">) {
     setCreating(true); setSelectedId(null); setDraft(prepareNextWorkAssignment(source));

@@ -16,12 +16,28 @@ export function berlinNow(): string {
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
 
-export function workAssignmentDefaults(date = berlinNow().slice(0, 10)): WorkAssignmentDraft {
+export function workAssignmentDateDefaults(date: string): Pick<WorkAssignment, "sichtbar_bis" | "anmeldung_bis"> {
   const assignmentDate = new Date(`${date}T12:00`);
   const signUpDeadline = new Date(assignmentDate); signUpDeadline.setDate(signUpDeadline.getDate() - 2);
   const visibleUntil = new Date(assignmentDate); visibleUntil.setDate(visibleUntil.getDate() + 14);
   const localDate = (value: Date) => `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
-  return { titel: "", beschreibung: "", datum: date, start_uhrzeit: "10:00", end_uhrzeit: "13:00", treffpunkt: "", max_teilnehmer: null, stunden_wert: 0, sichtbar_ab: berlinNow(), sichtbar_bis: `${localDate(visibleUntil)}T23:59`, anmeldung_bis: `${localDate(signUpDeadline)}T00:00`, aktiv: true };
+  return { sichtbar_bis: `${localDate(visibleUntil)}T23:59`, anmeldung_bis: `${localDate(signUpDeadline)}T00:00` };
+}
+
+export function updateWorkAssignmentDateDefaults(draft: WorkAssignmentDraft, date: string): WorkAssignmentDraft {
+  if (!date) return { ...draft, datum: date };
+  const previousDefaults = draft.datum ? workAssignmentDateDefaults(draft.datum) : undefined;
+  const nextDefaults = workAssignmentDateDefaults(date);
+  return {
+    ...draft,
+    datum: date,
+    anmeldung_bis: previousDefaults && draft.anmeldung_bis === previousDefaults.anmeldung_bis ? nextDefaults.anmeldung_bis : draft.anmeldung_bis,
+    sichtbar_bis: previousDefaults && draft.sichtbar_bis === previousDefaults.sichtbar_bis ? nextDefaults.sichtbar_bis : draft.sichtbar_bis,
+  };
+}
+
+export function workAssignmentDefaults(date = berlinNow().slice(0, 10)): WorkAssignmentDraft {
+  return { titel: "", beschreibung: "", datum: date, start_uhrzeit: "10:00", end_uhrzeit: "13:00", treffpunkt: "", max_teilnehmer: null, stunden_wert: 0, sichtbar_ab: berlinNow(), ...workAssignmentDateDefaults(date), aktiv: true };
 }
 
 export function normalizeAndValidateWorkAssignment(draft: WorkAssignmentDraft): { payload?: Omit<WorkAssignment, "id">; error?: string } {

@@ -4,10 +4,29 @@ namespace KGV.Core.Models;
 
 public static class WorkAssignmentRules
 {
-    public static (DateTime VisibleFrom, DateTime VisibleUntil, DateTime SignUpDeadline) CreateDefaults(DateTime assignmentDate)
+    public static (DateTime VisibleUntil, DateTime SignUpDeadline) CreateDateDefaults(DateTime assignmentDate)
     {
         var date = assignmentDate.Date;
-        return (Vereinszeit.NowToMinute(), date.AddDays(14).AddHours(23).AddMinutes(59), date.AddDays(-2));
+        return (date.AddDays(14).AddHours(23).AddMinutes(59), date.AddDays(-2));
+    }
+
+    public static (DateTime VisibleFrom, DateTime VisibleUntil, DateTime SignUpDeadline) CreateDefaults(DateTime assignmentDate)
+    {
+        var dateDefaults = CreateDateDefaults(assignmentDate);
+        return (Vereinszeit.NowToMinute(), dateDefaults.VisibleUntil, dateDefaults.SignUpDeadline);
+    }
+
+    public static (DateTime? VisibleUntil, DateTime? SignUpDeadline) RefreshNewEntryDateDefaults(
+        DateTime previousAssignmentDate,
+        DateTime newAssignmentDate,
+        DateTime? visibleUntil,
+        DateTime? signUpDeadline)
+    {
+        var previousDefaults = CreateDateDefaults(previousAssignmentDate);
+        var nextDefaults = CreateDateDefaults(newAssignmentDate);
+        return (
+            visibleUntil == previousDefaults.VisibleUntil ? nextDefaults.VisibleUntil : visibleUntil,
+            signUpDeadline == previousDefaults.SignUpDeadline ? nextDefaults.SignUpDeadline : signUpDeadline);
     }
 
     public static string? Validate(ArbeitseinsatzRecord record)

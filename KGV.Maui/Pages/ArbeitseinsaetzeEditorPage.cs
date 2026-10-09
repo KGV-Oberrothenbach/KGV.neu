@@ -53,6 +53,8 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
     private bool _isBusy;
     private bool _loadScheduled;
     private bool _hasEditLock;
+    private bool _isApplyingDateDefaults;
+    private DateTime _newEntryDefaultsDate;
 
     public ArbeitseinsaetzeEditorPage(
         ISupabaseService supabaseService,
@@ -102,6 +104,8 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
             _anmeldungBisDatePicker.IsEnabled = e.Value;
             _anmeldungBisTimePicker.IsEnabled = e.Value;
         };
+        _newEntryDefaultsDate = _datePicker.Date!.Value.Date;
+        _datePicker.DateSelected += OnAssignmentDateSelected;
 
         _aktivSwitch = new Switch { IsToggled = true };
         _statusLabel = new Label { TextColor = Colors.IndianRed, LineBreakMode = LineBreakMode.WordWrap, IsVisible = false };
@@ -287,6 +291,9 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
     private void ApplyRecordToForm(ArbeitseinsatzRecord record)
     {
         _editingEntryId = record.Id;
+        _isApplyingDateDefaults = true;
+        try
+        {
         _titleEntry.Text = record.Titel ?? string.Empty;
         _descriptionEditor.Text = record.Beschreibung ?? string.Empty;
         _datePicker.Date = record.Datum == default ? DateTime.Today : record.Datum.Date;
@@ -318,11 +325,19 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _statusLabel.IsVisible = false;
         _saveButton.IsEnabled = true;
         _initialSnapshot = CaptureSnapshot();
+        }
+        finally
+        {
+            _isApplyingDateDefaults = false;
+        }
     }
 
     private void ResetEditorForNew()
     {
         _editingEntryId = null;
+        _isApplyingDateDefaults = true;
+        try
+        {
         _titleEntry.Text = string.Empty;
         _descriptionEditor.Text = string.Empty;
         _datePicker.Date = DateTime.Today;
@@ -346,6 +361,12 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _statusLabel.IsVisible = false;
         _saveButton.IsEnabled = true;
         _initialSnapshot = CaptureSnapshot();
+        _newEntryDefaultsDate = _datePicker.Date!.Value.Date;
+        }
+        finally
+        {
+            _isApplyingDateDefaults = false;
+        }
     }
 
     private async Task<bool> SaveAsync(bool navigateToOverviewAfterSave, bool prepareNextShiftAfterSave)
@@ -617,6 +638,9 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
             nextEnd = maxTime;
 
         _editingEntryId = null;
+        _isApplyingDateDefaults = true;
+        try
+        {
         Title = "Neue Folgeschicht";
         _titleEntry.Text = source.Titel ?? string.Empty;
         _descriptionEditor.Text = source.Beschreibung ?? string.Empty;
@@ -645,7 +669,39 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _statusLabel.TextColor = Colors.Green;
         _statusLabel.IsVisible = true;
         _initialSnapshot = CaptureSnapshot();
+        _newEntryDefaultsDate = _datePicker.Date!.Value.Date;
+        }
+        finally
+        {
+            _isApplyingDateDefaults = false;
+        }
         UpdateNavigationFooter();
+    }
+
+    private void OnAssignmentDateSelected(object? sender, DateChangedEventArgs e)
+    {
+        if (_editingEntryId.HasValue || _isApplyingDateDefaults || !e.NewDate.HasValue)
+            return;
+
+        var newAssignmentDate = e.NewDate.Value;
+        var visibleUntil = _sichtbarBisDatePicker.Date!.Value.Date.Add(_sichtbarBisTimePicker.Time!.Value);
+        DateTime? signUpDeadline = _hasAnmeldungBisCheckBox.IsChecked
+            ? _anmeldungBisDatePicker.Date!.Value.Date.Add(_anmeldungBisTimePicker.Time!.Value)
+            : null;
+        var refreshed = WorkAssignmentRules.RefreshNewEntryDateDefaults(_newEntryDefaultsDate, newAssignmentDate, visibleUntil, signUpDeadline);
+
+        if (refreshed.VisibleUntil.HasValue)
+        {
+            _sichtbarBisDatePicker.Date = refreshed.VisibleUntil.Value.Date;
+            _sichtbarBisTimePicker.Time = refreshed.VisibleUntil.Value.TimeOfDay;
+        }
+        if (refreshed.SignUpDeadline.HasValue)
+        {
+            _anmeldungBisDatePicker.Date = refreshed.SignUpDeadline.Value.Date;
+            _anmeldungBisTimePicker.Time = refreshed.SignUpDeadline.Value.TimeOfDay;
+        }
+
+        _newEntryDefaultsDate = newAssignmentDate.Date;
     }
 
     private bool HasPendingChanges()
