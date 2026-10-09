@@ -19,6 +19,7 @@ public static class InsertRecordMappingExtensions
             Freigegeben = record.Freigegeben,
             GenehmigtAm = record.GenehmigtAm,
             GenehmigtVon = record.GenehmigtVon,
+            ArbeitseinsatzAnmeldungId = record.ArbeitseinsatzAnmeldungId,
             LockedByUserId = record.LockedByUserId,
             LockedAt = record.LockedAt
         };

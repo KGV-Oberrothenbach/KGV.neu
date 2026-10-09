@@ -3,7 +3,7 @@ import { type WorkHour, type WorkHourHistory, type WorkHoursSummary } from "../.
 
 export type HomeWorkHoursSummary = WorkHoursSummary;
 
-const workHourSelect = "id,mitglied_id,saison_id,datum,stunden,art_der_arbeit,status,freigegeben,genehmigt_von,genehmigt_am";
+const workHourSelect = "id,mitglied_id,saison_id,datum,stunden,art_der_arbeit,status,freigegeben,genehmigt_von,genehmigt_am,arbeitseinsatz_anmeldung_id";
 const workHourHistorySelect = "id,arbeitsstunde_id,aktion,begruendung,geprueft_von,geprueft_am,vorher_snapshot,nachher_snapshot";
 const summarySelect = "mitglied_id,hauptmitglied_id,saison_id,jahr,saison_jahr,regelgrund,ist_befreit,hat_wartungsvertrag,altersbefreit,eintritt_im_saisonjahr,eintritt_zweites_halbjahr,pflichtstunden_soll,geleistete_stunden,offene_stunden,euro_pro_fehlstunde,fehlbetrag";
 
@@ -71,6 +71,10 @@ export const reviewWorkHour = (session: BrowserSession, payload: WorkHourReviewP
   p_stunden: payload.hours ?? null,
   p_art_der_arbeit: payload.workType ?? null,
 });
+
+export const getLinkedWorkHour = (session: BrowserSession, registrationId: number) => readSupabase<WorkHour>(session, "arbeitsstunde", { select: workHourSelect, arbeitseinsatz_anmeldung_id: `eq.${registrationId}`, limit: "1" }).then((rows) => rows[0] ?? null);
+export const submitWorkAssignmentWorkHour = (session: BrowserSession, registrationId: number, hours: number, workType: string) => callSupabaseRpc<WorkHour>(session, "submit_arbeitseinsatz_arbeitsstunde", { p_arbeitseinsatz_anmeldung_id: registrationId, p_stunden: hours, p_art_der_arbeit: workType });
+export const confirmWorkAssignmentWorkHour = (session: BrowserSession, registrationId: number, hours: number, workType: string) => callSupabaseRpc<WorkHour>(session, "confirm_arbeitseinsatz_arbeitsstunde", { p_arbeitseinsatz_anmeldung_id: registrationId, p_stunden: hours, p_art_der_arbeit: workType });
 
 export const listWorkHourHistory = (session: BrowserSession, workHourIds: number[]) => workHourIds.length
   ? readSupabase<WorkHourHistory>(session, "arbeitsstunde_pruefverlauf", {

@@ -34,6 +34,9 @@ namespace KGV.Core.Models
         [Column("genehmigt_von")]
         public int? GenehmigtVon { get; set; }
 
+        [Column("arbeitseinsatz_anmeldung_id")]
+        public long? ArbeitseinsatzAnmeldungId { get; set; }
+
         [Column("lockedbyuserid")]
         public string? LockedByUserId { get; set; }
 

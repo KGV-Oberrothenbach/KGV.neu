@@ -96,6 +96,14 @@ Eine administrative Anmeldung ist für aktive Mitglieder vor Einsatzbeginn mögl
 
 `nicht_erschienen` ist erst ab Beginn zulässig (ohne Startzeit ab 23:59 Uhr) und kann nur aus `angemeldet` gesetzt werden; die Wiederholung bleibt idempotent. Damit bleibt die G8.4-Selbstbedienung strikt getrennt: normale Mitglieder dürfen weiterhin nur zwischen `angemeldet` und `abgesagt` wechseln und niemals Verwaltungsstatus überschreiben. Arbeitsstunden werden in G8.5 weder erzeugt noch übernommen; die dafür vorgesehene G8.6-Logik wurde nicht begonnen.
 
+## G8.6 – Arbeitseinsatz → Arbeitsstunden
+
+`arbeitsstunde.arbeitseinsatz_anmeldung_id` verknüpft eine Einsatz-Arbeitsstunde technisch mit genau einer Anmeldung. Der Fremdschlüssel verwendet `ON DELETE SET NULL`; ein partieller Unique-Index verhindert mehr als eine Stunde je Anmeldung. Altbestände bleiben unverknüpft, werden nicht heuristisch migriert und bestehende Stunden werden bei späteren Status- oder Einsatzänderungen nicht automatisch gelöscht.
+
+Der Benutzer reicht nach Einsatzende über einen dedizierten RPC eine offene G7-Arbeitsstunde ein. Einsatzdatum, Mitglied, Saison des Einsatzjahres und Link stammen ausschließlich vom Server; Stunden und Arbeitsart bleiben editierbar. Eine administrative Bestätigung verlangt gleichzeitig `ManageWorkAssignments` und `ManageWorkHours`, erzeugt sofort eine genehmigte G7-Stunde und setzt die Anmeldung atomar auf `teilgenommen`.
+
+Die vorhandene G7-Review bleibt der einzige Prüfpfad: Freigeben und Korrigieren einer verknüpften Stunde bestätigen die Teilnahme innerhalb derselben Transaktion, Ablehnen und Löschen ändern den Teilnehmerstatus nicht. Es gibt keinen manuellen Teilgenommen-Button und keine automatische Stundenanlage durch bloße Teilnahme. Produktiv- und Demo-Scope folgen den G8.5-Grenzen.
+
 ## G8.7 – MAUI/Web-Gleichstand und Bereinigung
 
 G8.7 stellt für Web und MAUI dieselben Rechte, Vorgabewerte, Validierungen, Anmeldungen und Abmeldungen, Teilnehmerstatus, Arbeitsstundenerfassung, Demo-Regeln und Lock-Regeln sicher. Alte Rollenprüfungen werden entfernt; überflüssige Methoden und tote Typen werden bereinigt. Direkte G8-Supabase-Zugriffe aus React werden beseitigt und der Startseitenmodell-/View-Mismatch wird korrigiert. Die Web-Zielarchitektur bleibt UI → Service → Repository → Supabase/RPC.

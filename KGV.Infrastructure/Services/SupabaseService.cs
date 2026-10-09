@@ -5181,6 +5181,40 @@ namespace KGV.Infrastructure.Services
             },
             new WorkAssignmentRegistrationResult());
 
+        public Task<ArbeitsstundeRecord?> GetLinkedArbeitseinsatzWorkHourAsync(long registrationId) => ExecuteAsync(
+            "GetLinkedArbeitseinsatzWorkHourAsync",
+            async () =>
+            {
+                if (registrationId <= 0) return null;
+                var client = await EnsureClientAsync();
+                var response = await client.From<ArbeitsstundeRecord>()
+                    .Filter("arbeitseinsatz_anmeldung_id", global::Supabase.Postgrest.Constants.Operator.Equals, registrationId)
+                    .Get();
+                return response?.Models?.FirstOrDefault();
+            }, null);
+
+        public Task<WorkAssignmentWorkHourResult> SubmitArbeitseinsatzWorkHoursAsync(long registrationId, decimal hours, string? workType) => ExecuteWorkAssignmentWorkHourRpcAsync("submit_arbeitseinsatz_arbeitsstunde", registrationId, hours, workType);
+
+        public Task<WorkAssignmentWorkHourResult> ConfirmArbeitseinsatzWorkHoursAsync(long registrationId, decimal hours, string? workType) => ExecuteWorkAssignmentWorkHourRpcAsync("confirm_arbeitseinsatz_arbeitsstunde", registrationId, hours, workType);
+
+        private Task<WorkAssignmentWorkHourResult> ExecuteWorkAssignmentWorkHourRpcAsync(string rpcName, long registrationId, decimal hours, string? workType) => ExecuteAsync(
+            rpcName,
+            async () =>
+            {
+                if (registrationId <= 0 || hours <= 0) return new WorkAssignmentWorkHourResult { Message = "Anmeldung und Stunden müssen gültig sein." };
+                try
+                {
+                    var client = await EnsureClientAsync();
+                    var response = await client.Rpc<ArbeitsstundeRecord>(rpcName, new { p_arbeitseinsatz_anmeldung_id = registrationId, p_stunden = hours, p_art_der_arbeit = workType });
+                    return new WorkAssignmentWorkHourResult { Success = true, Message = "Die Arbeitsstunden wurden gespeichert.", WorkHour = response };
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "{RpcName} failed for registration {RegistrationId}", rpcName, registrationId);
+                    return new WorkAssignmentWorkHourResult { Message = ex.Message };
+                }
+            }, new WorkAssignmentWorkHourResult());
+
         public Task<List<HomeAnnouncementItem>> GetStartseiteBekanntmachungenAsync() => ExecuteAsync(
             "GetStartseiteBekanntmachungenAsync",
             LoadStartseiteBekanntmachungenAsync,

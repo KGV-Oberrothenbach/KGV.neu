@@ -22,9 +22,12 @@ public sealed class ArbeitseinsatzTeilnehmerPage : ContentPage, IQueryAttributab
     private readonly Button _registerButton = new() { Text = "Anmelden" };
     private long _entryId;
     private bool _started;
+    private bool _ended;
     private bool _assignmentActive;
     private int? _maxParticipants;
     private int _activeRegistrations;
+    private decimal _defaultHours;
+    private string _defaultWorkType = string.Empty;
     private bool _isBusy;
     private List<MitgliedRecord> _members = new();
 
@@ -68,6 +71,9 @@ public sealed class ArbeitseinsatzTeilnehmerPage : ContentPage, IQueryAttributab
             _maxParticipants = assignment.MaxTeilnehmer;
             _activeRegistrations = participants.Count(x => x.Status == "angemeldet");
             _started = Vereinszeit.Now >= assignment.Datum.Date.Add(assignment.StartUhrzeit ?? new TimeSpan(23, 59, 0));
+            _ended = Vereinszeit.Now >= assignment.Datum.Date.Add(assignment.EndUhrzeit ?? assignment.StartUhrzeit ?? new TimeSpan(23, 59, 0));
+            _defaultHours = assignment.StundenWert;
+            _defaultWorkType = assignment.Titel ?? string.Empty;
             var registrationByMemberId = participants.ToDictionary(x => x.MitgliedId, x => x);
             _members = (await _supabaseService.GetMitgliederAsync())
                 .Where(x => x.Aktiv && (!registrationByMemberId.TryGetValue(x.Id, out var registration) || registration.Status == "abgesagt"))
@@ -90,6 +96,7 @@ public sealed class ArbeitseinsatzTeilnehmerPage : ContentPage, IQueryAttributab
         if (item.Status == "angemeldet") actions.Children.Add(ActionButton(_started ? "Nicht erschienen" : "Abmelden", item.MitgliedId, _started ? "nicht_erschienen" : "absagen"));
         if (item.Status == "abgesagt" && CanRegister) actions.Children.Add(ActionButton("Wieder anmelden", item.MitgliedId, "anmelden"));
         if (item.Status == "nicht_erschienen") actions.Children.Add(ActionButton("Als abgesagt kennzeichnen", item.MitgliedId, "absagen"));
+        if (CanConfirmHours && item.Status != "teilgenommen") actions.Children.Add(ConfirmHoursButton(item));
         return new VerticalStackLayout { Spacing = 4, Children = { new Label { Text = item.DisplayName, FontAttributes = FontAttributes.Bold }, new Label { Text = StatusLabel(item.Status), TextColor = Colors.DimGray }, actions } };
     }
 
@@ -98,6 +105,29 @@ public sealed class ArbeitseinsatzTeilnehmerPage : ContentPage, IQueryAttributab
         var button = new Button { Text = text };
         button.Clicked += async (_, _) => await ManageAsync(memberId, action);
         return button;
+    }
+
+    private Button ConfirmHoursButton(WorkAssignmentManagementParticipantItem item)
+    {
+        var button = new Button { Text = "Arbeitsstunden bestätigen" };
+        button.Clicked += async (_, _) => await ConfirmHoursAsync(item);
+        return button;
+    }
+
+    private async Task ConfirmHoursAsync(WorkAssignmentManagementParticipantItem item)
+    {
+        var hoursText = await DisplayPromptAsync("Arbeitsstunden bestätigen", "Stunden", initialValue: _defaultHours.ToString("0.##"));
+        if (!decimal.TryParse(hoursText, out var hours) || hours <= 0) return;
+        var workType = await DisplayPromptAsync("Arbeitsstunden bestätigen", "Art der Arbeit", initialValue: _defaultWorkType);
+        if (_isBusy) return;
+        _isBusy = true;
+        try
+        {
+            var result = await _supabaseService.ConfirmArbeitseinsatzWorkHoursAsync(item.RegistrationId, hours, workType);
+            ShowStatus(result.Message, !result.Success);
+        }
+        finally { _isBusy = false; }
+        await LoadAsync();
     }
 
     private async Task RegisterAsync()
@@ -122,6 +152,7 @@ public sealed class ArbeitseinsatzTeilnehmerPage : ContentPage, IQueryAttributab
 
     private void ShowStatus(string text, bool error) { _status.Text = text; _status.TextColor = error ? Colors.IndianRed : Colors.DarkGreen; _status.IsVisible = true; }
     private bool CanRegister => _assignmentActive && !_started && (!_maxParticipants.HasValue || _activeRegistrations < _maxParticipants.Value);
+    private bool CanConfirmHours => _ended && PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext) && PermissionChecks.CanManageWorkHours(_userContextState.CurrentUserContext);
     private string RegistrationBlockedMessage => !_assignmentActive ? "Der Arbeitseinsatz ist abgesagt." : _started ? "Der Arbeitseinsatz hat bereits begonnen." : "Die Teilnehmerbegrenzung ist erreicht.";
     private static int StatusRank(string status) => status switch { "angemeldet" => 0, "teilgenommen" => 1, "nicht_erschienen" => 2, "abgesagt" => 3, _ => 4 };
     private static string StatusLabel(string status) => status switch { "angemeldet" => "Angemeldet", "teilgenommen" => "Teilgenommen", "nicht_erschienen" => "Nicht erschienen", "abgesagt" => "Abgesagt", _ => status };
