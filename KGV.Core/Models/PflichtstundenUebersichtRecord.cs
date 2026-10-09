@@ -31,6 +31,12 @@ public sealed class PflichtstundenUebersichtRecord : BaseModel
     [Column("offene_stunden")]
     public decimal? OffeneStunden { get; set; }
 
+    [Column("euro_pro_fehlstunde")]
+    public decimal? EuroProFehlstunde { get; set; }
+
+    [Column("fehlbetrag")]
+    public decimal? Fehlbetrag { get; set; }
+
     [Column("hat_wartungsvertrag")]
     public bool HatWartungsvertrag { get; set; }
 
@@ -42,4 +48,10 @@ public sealed class PflichtstundenUebersichtRecord : BaseModel
 
     [Column("regelgrund")]
     public string? Regelgrund { get; set; }
+
+    [Column("eintritt_im_saisonjahr")]
+    public bool EintrittImSaisonjahr { get; set; }
+
+    [Column("eintritt_zweites_halbjahr")]
+    public bool EintrittZweitesHalbjahr { get; set; }
 }

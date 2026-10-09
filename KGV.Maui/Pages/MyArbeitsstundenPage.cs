@@ -24,6 +24,9 @@ public sealed class MyArbeitsstundenPage : ContentPage
     private readonly Label _summarySollLabel;
     private readonly Label _summaryGeleistetLabel;
     private readonly Label _summaryOffenLabel;
+    private readonly Label _summaryEuroProFehlstundeLabel;
+    private readonly Label _summaryFehlbetragLabel;
+    private readonly Label _summaryStatusLabel;
     private readonly Button _newButton;
 
     private readonly List<MemberOption> _options = new();
@@ -43,6 +46,9 @@ public sealed class MyArbeitsstundenPage : ContentPage
         _summarySollLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
         _summaryGeleistetLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
         _summaryOffenLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
+        _summaryEuroProFehlstundeLabel = new Label { FontSize = 20, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
+        _summaryFehlbetragLabel = new Label { FontSize = 20, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
+        _summaryStatusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
 
         _newButton = new Button { Text = "Neu erfassen" };
         _newButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(ArbeitsstundenEditorPage));
@@ -100,14 +106,23 @@ public sealed class MyArbeitsstundenPage : ContentPage
                             new ColumnDefinition(GridLength.Star),
                             new ColumnDefinition(GridLength.Star)
                         },
+                        RowDefinitions = new RowDefinitionCollection
+                        {
+                            new RowDefinition(GridLength.Auto),
+                            new RowDefinition(GridLength.Auto)
+                        },
                         ColumnSpacing = 12,
+                        RowSpacing = 12,
                         Children =
                         {
-                            CreateSummaryCard("Soll", _summarySollLabel, 0),
-                            CreateSummaryCard("Geleistet", _summaryGeleistetLabel, 1),
-                            CreateSummaryCard("Offen", _summaryOffenLabel, 2)
+                            CreateSummaryCard("Soll", _summarySollLabel, 0, 0),
+                            CreateSummaryCard("Geleistet", _summaryGeleistetLabel, 1, 0),
+                            CreateSummaryCard("Offen", _summaryOffenLabel, 2, 0),
+                            CreateSummaryCard("Euro je Fehlstunde", _summaryEuroProFehlstundeLabel, 0, 1),
+                            CreateSummaryCard("Fehlbetrag", _summaryFehlbetragLabel, 1, 1)
                         }
                     },
+                    _summaryStatusLabel,
                     new Label
                     {
                         Text = "Die Übersicht bleibt bewusst ruhig. Erfassen und Bearbeiten öffnen als eigener mobiler Schritt statt im selben Sammelformular.",
@@ -258,9 +273,12 @@ public sealed class MyArbeitsstundenPage : ContentPage
         _summarySollLabel.Text = FormatHours(summary?.PflichtstundenSoll);
         _summaryGeleistetLabel.Text = FormatHours(summary?.GeleisteteStunden);
         _summaryOffenLabel.Text = FormatHours(summary?.OffeneStunden);
+        _summaryEuroProFehlstundeLabel.Text = FormatCurrency(summary?.EuroProFehlstunde);
+        _summaryFehlbetragLabel.Text = FormatCurrency(summary?.Fehlbetrag);
+        _summaryStatusLabel.Text = BuildSummaryStatus(summary);
     }
 
-    private static Border CreateSummaryCard(string title, Label valueLabel, int column)
+    private static Border CreateSummaryCard(string title, Label valueLabel, int column, int row)
     {
         var titleLabel = new Label
         {
@@ -284,6 +302,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
         };
 
         Grid.SetColumn(border, column);
+        Grid.SetRow(border, row);
         return border;
     }
 
@@ -292,6 +311,35 @@ public sealed class MyArbeitsstundenPage : ContentPage
         return value.HasValue
             ? value.Value.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture)
             : "–";
+    }
+
+    private static string FormatCurrency(decimal? value)
+    {
+        return value.HasValue
+            ? value.Value.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("de-DE"))
+            : "–";
+    }
+
+    private static string BuildSummaryStatus(PflichtstundenUebersichtRecord? summary)
+    {
+        if (summary == null)
+            return string.Empty;
+
+        var notes = new List<string>();
+        if (summary.IstBefreit)
+            notes.Add(string.IsNullOrWhiteSpace(summary.Regelgrund) ? "Von Pflichtstunden befreit." : $"Von Pflichtstunden befreit: {summary.Regelgrund}");
+        else if (!string.IsNullOrWhiteSpace(summary.Regelgrund))
+            notes.Add($"Regelgrund: {summary.Regelgrund}");
+        if (summary.HatWartungsvertrag)
+            notes.Add("Ein Wartungsvertrag ist berücksichtigt.");
+        if (summary.Altersbefreit)
+            notes.Add("Altersbefreiung ist berücksichtigt.");
+        if (summary.EintrittImSaisonjahr)
+            notes.Add("Eintritt im Saisonjahr ist berücksichtigt.");
+        if (summary.EintrittZweitesHalbjahr)
+            notes.Add("Eintritt im zweiten Halbjahr ist berücksichtigt.");
+
+        return string.Join(" ", notes);
     }
 
     private int? GetContextMemberId()

@@ -3011,22 +3011,27 @@ namespace KGV.Infrastructure.Services
                 return true;
             },
             false);
-        public Task<bool> DeleteArbeitsstundeAsync(int arbeitsstundeId) => ExecuteAsync(
-            "DeleteArbeitsstundeAsync",
+        public Task<bool> ReviewArbeitsstundeAsync(int arbeitsstundeId, string aktion, string begruendung, DateTime? datum = null, decimal? stunden = null, string? artDerArbeit = null) => ExecuteAsync(
+            "ReviewArbeitsstundeAsync",
             async () =>
             {
-                if (arbeitsstundeId <= 0)
+                if (arbeitsstundeId <= 0 || string.IsNullOrWhiteSpace(aktion) || string.IsNullOrWhiteSpace(begruendung))
                     return false;
 
                 var client = await EnsureClientAsync();
-                await client
-                    .From<ArbeitsstundeRecord>()
-                    .Where(x => x.Id == arbeitsstundeId)
-                    .Delete();
-
+                await client.Rpc<JsonElement>("review_arbeitsstunde", new
+                {
+                    p_arbeitsstunde_id = arbeitsstundeId,
+                    p_aktion = aktion,
+                    p_begruendung = begruendung,
+                    p_datum = datum?.Date,
+                    p_stunden = stunden,
+                    p_art_der_arbeit = artDerArbeit
+                });
                 return true;
             },
             false);
+
         public Task<List<ArbeitsstundenPruefverlaufItem>> GetArbeitsstundenPruefverlaufAsync(int arbeitsstundeId) => ExecuteAsync(
             "GetArbeitsstundenPruefverlaufAsync",
             async () =>
@@ -3035,31 +3040,20 @@ namespace KGV.Infrastructure.Services
                     return new List<ArbeitsstundenPruefverlaufItem>();
 
                 var client = await EnsureClientAsync();
-                var response = await client
-                    .From<ArbeitsstundenPruefverlaufRecord>()
+                var response = await client.From<ArbeitsstundenPruefverlaufRecord>()
                     .Where(x => x.ArbeitsstundeId == arbeitsstundeId)
                     .Get();
-
-                var records = response?.Models?
-                    .OrderByDescending(x => x.GeprueftAm)
-                    .ThenByDescending(x => x.Id)
-                    .ToList()
+                var records = response?.Models?.OrderByDescending(x => x.GeprueftAm).ThenByDescending(x => x.Id).ToList()
                     ?? new List<ArbeitsstundenPruefverlaufRecord>();
-
                 if (records.Count == 0)
                     return new List<ArbeitsstundenPruefverlaufItem>();
 
-                var mitglieder = await GetMitgliederAsync();
-                var mitgliederById = mitglieder.ToDictionary(x => x.Id, x => x);
-
+                var mitgliederById = (await GetMitgliederAsync()).ToDictionary(x => x.Id, x => x);
                 return records.Select(record =>
                 {
                     var vorherSnapshot = DeserializeArbeitsstundenPruefSnapshot(record.VorherSnapshot);
                     var nachherSnapshot = DeserializeArbeitsstundenPruefSnapshot(record.NachherSnapshot);
-                    var vorherName = ResolveArbeitsstundenSnapshotMitgliedName(vorherSnapshot, mitgliederById);
-                    var nachherName = ResolveArbeitsstundenSnapshotMitgliedName(nachherSnapshot, mitgliederById);
                     mitgliederById.TryGetValue(record.GeprueftVon, out var pruefer);
-
                     return new ArbeitsstundenPruefverlaufItem
                     {
                         Id = record.Id,
@@ -3071,220 +3065,12 @@ namespace KGV.Infrastructure.Services
                         GeprueftAm = record.GeprueftAm,
                         VorherSnapshot = vorherSnapshot,
                         NachherSnapshot = nachherSnapshot,
-                        VorherSummary = vorherSnapshot?.ToSummary(vorherName) ?? string.Empty,
-                        NachherSummary = nachherSnapshot?.ToSummary(nachherName)
+                        VorherSummary = vorherSnapshot?.ToSummary(ResolveArbeitsstundenSnapshotMitgliedName(vorherSnapshot, mitgliederById)) ?? string.Empty,
+                        NachherSummary = nachherSnapshot?.ToSummary(ResolveArbeitsstundenSnapshotMitgliedName(nachherSnapshot, mitgliederById))
                     };
                 }).ToList();
             },
             new List<ArbeitsstundenPruefverlaufItem>());
-
-        public Task<bool> ApproveArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null) => ExecuteAsync(
-            "ApproveArbeitsstundeImPruefprozessAsync",
-            async () =>
-            {
-                System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: ApproveArbeitsstundeImPruefprozessAsync START Id={arbeitsstundeId}");
-                Console.WriteLine($"KGV: SupabaseService: ApproveArbeitsstundeImPruefprozessAsync START Id={arbeitsstundeId}");
-                var action = CreateArbeitsstundenPruefaktionRequest(arbeitsstundeId, ArbeitsstundenPruefprozess.AktionFreigegeben, begruendung, geprueftVon, geprueftAm);
-                if (!IsValidArbeitsstundenPruefaktion(action))
-                    return false;
-
-                var client = await EnsureClientAsync();
-                var existing = await GetOffeneArbeitsstundeImPruefprozessAsync(client, arbeitsstundeId);
-                if (existing == null)
-                    return false;
-
-                var normalizedGeprueftAm = NormalizeArbeitsstundenPruefzeitpunkt(action.GeprueftAm);
-                var updatedRecord = CloneArbeitsstundeForReview(existing);
-                updatedRecord.Status = ArbeitsstundenPruefprozess.BuildFreigegebenStatus(action.Kommentar);
-                updatedRecord.Freigegeben = true;
-                updatedRecord.GenehmigtVon = action.GeprueftVon;
-                updatedRecord.GenehmigtAm = normalizedGeprueftAm;
-                updatedRecord.LockedByUserId = null;
-                updatedRecord.LockedAt = null;
-
-                try
-                {
-                    await client
-                        .From<ArbeitsstundeRecord>()
-                        .Where(x => x.Id == arbeitsstundeId)
-                        .Set(x => x.Status, updatedRecord.Status)
-                        .Set(x => x.Freigegeben, updatedRecord.Freigegeben)
-                        .Set(x => x.GenehmigtVon, updatedRecord.GenehmigtVon)
-                        .Set(x => x.GenehmigtAm, updatedRecord.GenehmigtAm)
-                        .Set(x => x.LockedByUserId, (string?)null)
-                        .Set(x => x.LockedAt, (DateTime?)null)
-                        .Update();
-                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: ApproveArbeitsstundeImPruefprozessAsync DB update succeeded Id={arbeitsstundeId}, Status={updatedRecord.Status}, Freigegeben={updatedRecord.Freigegeben}");
-                    Console.WriteLine($"KGV: SupabaseService: ApproveArbeitsstundeImPruefprozessAsync DB update succeeded Id={arbeitsstundeId}, Status={updatedRecord.Status}, Freigegeben={updatedRecord.Freigegeben}");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: ApproveArbeitsstundeImPruefprozessAsync DB update FAILED Id={arbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
-                    Console.WriteLine($"KGV: SupabaseService: ApproveArbeitsstundeImPruefprozessAsync DB update FAILED Id={arbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
-                    throw;
-                }
-
-                await AppendArbeitsstundenPruefverlaufAsync(client, action, existing, updatedRecord, normalizedGeprueftAm);
-                return true;
-            },
-            false);
-
-        public Task<bool> RejectArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null) => ExecuteAsync(
-            "RejectArbeitsstundeImPruefprozessAsync",
-            async () =>
-            {
-                System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: RejectArbeitsstundeImPruefprozessAsync START Id={arbeitsstundeId}");
-                Console.WriteLine($"KGV: SupabaseService: RejectArbeitsstundeImPruefprozessAsync START Id={arbeitsstundeId}");
-                var action = CreateArbeitsstundenPruefaktionRequest(arbeitsstundeId, ArbeitsstundenPruefprozess.AktionAbgelehnt, begruendung, geprueftVon, geprueftAm);
-                if (!IsValidArbeitsstundenPruefaktion(action))
-                    return false;
-
-                var client = await EnsureClientAsync();
-                var existing = await GetOffeneArbeitsstundeImPruefprozessAsync(client, arbeitsstundeId);
-                if (existing == null)
-                    return false;
-
-                var normalizedGeprueftAm = NormalizeArbeitsstundenPruefzeitpunkt(action.GeprueftAm);
-                var updatedRecord = CloneArbeitsstundeForReview(existing);
-                updatedRecord.Status = ArbeitsstundenPruefprozess.BuildAbgelehntStatus(action.Kommentar);
-                updatedRecord.Freigegeben = false;
-                updatedRecord.GenehmigtVon = null;
-                updatedRecord.GenehmigtAm = null;
-                updatedRecord.LockedByUserId = null;
-                updatedRecord.LockedAt = null;
-
-                try
-                {
-                    await client
-                        .From<ArbeitsstundeRecord>()
-                        .Where(x => x.Id == arbeitsstundeId)
-                        .Set(x => x.Status, updatedRecord.Status)
-                        .Set(x => x.Freigegeben, updatedRecord.Freigegeben)
-                        .Set(x => x.GenehmigtVon, (int?)null)
-                        .Set(x => x.GenehmigtAm, (DateTime?)null)
-                        .Set(x => x.LockedByUserId, (string?)null)
-                        .Set(x => x.LockedAt, (DateTime?)null)
-                        .Update();
-                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: RejectArbeitsstundeImPruefprozessAsync DB update succeeded Id={arbeitsstundeId}, Status={updatedRecord.Status}, Freigegeben={updatedRecord.Freigegeben}");
-                    Console.WriteLine($"KGV: SupabaseService: RejectArbeitsstundeImPruefprozessAsync DB update succeeded Id={arbeitsstundeId}, Status={updatedRecord.Status}, Freigegeben={updatedRecord.Freigegeben}");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: RejectArbeitsstundeImPruefprozessAsync DB update FAILED Id={arbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
-                    Console.WriteLine($"KGV: SupabaseService: RejectArbeitsstundeImPruefprozessAsync DB update FAILED Id={arbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
-                    throw;
-                }
-
-                await AppendArbeitsstundenPruefverlaufAsync(client, action, existing, updatedRecord, normalizedGeprueftAm);
-                return true;
-            },
-            false);
-
-        public Task<bool> CorrectArbeitsstundeImPruefprozessAsync(ArbeitsstundenPruefkorrekturRequest request) => ExecuteAsync(
-            "CorrectArbeitsstundeImPruefprozessAsync",
-            async () =>
-            {
-                if (request == null)
-                    return false;
-                System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: CorrectArbeitsstundeImPruefprozessAsync START Id={request.ArbeitsstundeId}");
-                Console.WriteLine($"KGV: SupabaseService: CorrectArbeitsstundeImPruefprozessAsync START Id={request.ArbeitsstundeId}");
-                if (request == null || request.ArbeitsstundeId <= 0 || request.GeprueftVon <= 0 || request.Stunden <= 0 || string.IsNullOrWhiteSpace(request.ArtDerArbeit))
-                    return false;
-
-                var action = CreateArbeitsstundenPruefaktionRequest(
-                    request.ArbeitsstundeId,
-                    ArbeitsstundenPruefprozess.AktionKorrigiert,
-                    request.Begruendung,
-                    request.GeprueftVon,
-                    request.GeprueftAm);
-
-                if (!IsValidArbeitsstundenPruefaktion(action))
-                    return false;
-
-                var client = await EnsureClientAsync();
-                var existing = await GetOffeneArbeitsstundeImPruefprozessAsync(client, request.ArbeitsstundeId);
-                if (existing == null)
-                    return false;
-
-                var normalizedGeprueftAm = NormalizeArbeitsstundenPruefzeitpunkt(action.GeprueftAm);
-                var updatedRecord = CloneArbeitsstundeForReview(existing);
-                updatedRecord.Datum = NormalizeDateOnly(request.Datum);
-                updatedRecord.Stunden = request.Stunden;
-                updatedRecord.ArtDerArbeit = CleanRequiredText(request.ArtDerArbeit);
-                updatedRecord.Status = ArbeitsstundenPruefprozess.BuildKorrigiertStatus(action.Kommentar);
-                updatedRecord.Freigegeben = true;
-                updatedRecord.GenehmigtVon = action.GeprueftVon;
-                updatedRecord.GenehmigtAm = normalizedGeprueftAm;
-                updatedRecord.LockedByUserId = null;
-                updatedRecord.LockedAt = null;
-
-                try
-                {
-                    await client
-                        .From<ArbeitsstundeRecord>()
-                        .Where(x => x.Id == request.ArbeitsstundeId)
-                        .Set(x => x.Datum, updatedRecord.Datum)
-                        .Set(x => x.Stunden, updatedRecord.Stunden)
-                        .Set(x => x.ArtDerArbeit, updatedRecord.ArtDerArbeit)
-                        .Set(x => x.Status, updatedRecord.Status)
-                        .Set(x => x.Freigegeben, updatedRecord.Freigegeben)
-                        .Set(x => x.GenehmigtVon, updatedRecord.GenehmigtVon)
-                        .Set(x => x.GenehmigtAm, updatedRecord.GenehmigtAm)
-                        .Set(x => x.LockedByUserId, (string?)null)
-                        .Set(x => x.LockedAt, (DateTime?)null)
-                        .Update();
-                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: CorrectArbeitsstundeImPruefprozessAsync DB update succeeded Id={request.ArbeitsstundeId}, Status={updatedRecord.Status}, Freigegeben={updatedRecord.Freigegeben}, Datum={updatedRecord.Datum}, Stunden={updatedRecord.Stunden}");
-                    Console.WriteLine($"KGV: SupabaseService: CorrectArbeitsstundeImPruefprozessAsync DB update succeeded Id={request.ArbeitsstundeId}, Status={updatedRecord.Status}, Freigegeben={updatedRecord.Freigegeben}, Datum={updatedRecord.Datum}, Stunden={updatedRecord.Stunden}");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: CorrectArbeitsstundeImPruefprozessAsync DB update FAILED Id={request.ArbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
-                    Console.WriteLine($"KGV: SupabaseService: CorrectArbeitsstundeImPruefprozessAsync DB update FAILED Id={request.ArbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
-                    throw;
-                }
-
-                await AppendArbeitsstundenPruefverlaufAsync(client, action, existing, updatedRecord, normalizedGeprueftAm);
-                return true;
-            },
-            false);
-
-        public Task<bool> DeleteArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null) => ExecuteAsync(
-            "DeleteArbeitsstundeImPruefprozessAsync",
-            async () =>
-            {
-                System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: DeleteArbeitsstundeImPruefprozessAsync START Id={arbeitsstundeId}");
-                Console.WriteLine($"KGV: SupabaseService: DeleteArbeitsstundeImPruefprozessAsync START Id={arbeitsstundeId}");
-                var action = CreateArbeitsstundenPruefaktionRequest(arbeitsstundeId, ArbeitsstundenPruefprozess.AktionGeloescht, begruendung, geprueftVon, geprueftAm);
-                if (!IsValidArbeitsstundenPruefaktion(action))
-                    return false;
-
-                var client = await EnsureClientAsync();
-                var existing = await GetOffeneArbeitsstundeImPruefprozessAsync(client, arbeitsstundeId);
-                if (existing == null)
-                    return false;
-
-                var normalizedGeprueftAm = NormalizeArbeitsstundenPruefzeitpunkt(action.GeprueftAm);
-
-                try
-                {
-                    await client
-                        .From<ArbeitsstundeRecord>()
-                        .Where(x => x.Id == arbeitsstundeId)
-                        .Delete();
-                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: DeleteArbeitsstundeImPruefprozessAsync DB delete succeeded Id={arbeitsstundeId}");
-                    Console.WriteLine($"KGV: SupabaseService: DeleteArbeitsstundeImPruefprozessAsync DB delete succeeded Id={arbeitsstundeId}");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"KGV: SupabaseService: DeleteArbeitsstundeImPruefprozessAsync DB delete FAILED Id={arbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
-                    Console.WriteLine($"KGV: SupabaseService: DeleteArbeitsstundeImPruefprozessAsync DB delete FAILED Id={arbeitsstundeId}: {ex.GetType().Name}: {ex.Message}");
-                    throw;
-                }
-
-                await AppendArbeitsstundenPruefverlaufAsync(client, action, existing, null, normalizedGeprueftAm);
-                return true;
-            },
-            false);
 
         private ArbeitsstundenPruefSnapshot? DeserializeArbeitsstundenPruefSnapshot(string? json)
         {
@@ -3310,94 +3096,6 @@ namespace KGV.Infrastructure.Services
             return mitgliederById.TryGetValue(snapshot.MitgliedId, out var mitglied)
                 ? FormatMemberName(mitglied)
                 : $"Mitglied {snapshot.MitgliedId}";
-        }
-
-        private static ArbeitsstundenPruefaktionRequest CreateArbeitsstundenPruefaktionRequest(int arbeitsstundeId, string aktion, string? kommentar, int geprueftVon, DateTime? geprueftAm)
-        {
-            return new ArbeitsstundenPruefaktionRequest
-            {
-                ArbeitsstundeId = arbeitsstundeId,
-                Aktion = string.IsNullOrWhiteSpace(aktion) ? string.Empty : aktion.Trim(),
-                Kommentar = ArbeitsstundenPruefprozess.NormalizeKommentar(kommentar),
-                GeprueftVon = geprueftVon,
-                GeprueftAm = geprueftAm
-            };
-        }
-
-        private static bool IsValidArbeitsstundenPruefaktion(ArbeitsstundenPruefaktionRequest? action)
-        {
-            if (action == null || action.ArbeitsstundeId <= 0 || action.GeprueftVon <= 0)
-                return false;
-
-            var isKnownAction = string.Equals(action.Aktion, ArbeitsstundenPruefprozess.AktionFreigegeben, StringComparison.Ordinal)
-                || string.Equals(action.Aktion, ArbeitsstundenPruefprozess.AktionAbgelehnt, StringComparison.Ordinal)
-                || string.Equals(action.Aktion, ArbeitsstundenPruefprozess.AktionKorrigiert, StringComparison.Ordinal)
-                || string.Equals(action.Aktion, ArbeitsstundenPruefprozess.AktionGeloescht, StringComparison.Ordinal);
-
-            return isKnownAction
-                && ArbeitsstundenPruefprozess.HasRequiredKommentar(action.Kommentar);
-        }
-
-        private async Task<ArbeitsstundeRecord?> GetOffeneArbeitsstundeImPruefprozessAsync(Client client, int arbeitsstundeId)
-        {
-            if (arbeitsstundeId <= 0)
-                return null;
-
-            var response = await client
-                .From<ArbeitsstundeRecord>()
-                .Where(x => x.Id == arbeitsstundeId)
-                .Get();
-
-            var existing = response?.Models?.FirstOrDefault();
-            return existing != null && ArbeitsstundenPruefprozess.IsOffenerPrueffall(existing.Status, existing.Freigegeben)
-                ? existing
-                : null;
-        }
-
-        private static DateTime NormalizeArbeitsstundenPruefzeitpunkt(DateTime? value)
-        {
-            var timestamp = value ?? DateTime.UtcNow;
-            return NormalizeTimestampWithoutTimeZone(timestamp) ?? DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-        }
-
-        private static ArbeitsstundeRecord CloneArbeitsstundeForReview(ArbeitsstundeRecord source)
-        {
-            return new ArbeitsstundeRecord
-            {
-                Id = source.Id,
-                MitgliedId = source.MitgliedId,
-                SaisonId = source.SaisonId,
-                Datum = NormalizeDateOnly(source.Datum),
-                Stunden = source.Stunden,
-                ArtDerArbeit = source.ArtDerArbeit,
-                Status = source.Status,
-                Freigegeben = source.Freigegeben,
-                GenehmigtVon = source.GenehmigtVon,
-                GenehmigtAm = source.GenehmigtAm,
-                LockedByUserId = source.LockedByUserId,
-                LockedAt = source.LockedAt
-            };
-        }
-
-        private async Task AppendArbeitsstundenPruefverlaufAsync(Client client, ArbeitsstundenPruefaktionRequest action, ArbeitsstundeRecord vorher, ArbeitsstundeRecord? nachher, DateTime geprueftAm)
-        {
-            if (!IsValidArbeitsstundenPruefaktion(action))
-                return;
-
-            var verlaufRecord = new ArbeitsstundenPruefverlaufRecord
-            {
-                ArbeitsstundeId = action.ArbeitsstundeId,
-                Aktion = action.Aktion,
-                Begruendung = action.Kommentar,
-                GeprueftVon = action.GeprueftVon,
-                GeprueftAm = geprueftAm,
-                VorherSnapshot = JsonSerializer.Serialize(ArbeitsstundenPruefSnapshot.FromRecord(vorher)),
-                NachherSnapshot = nachher == null
-                    ? null
-                    : JsonSerializer.Serialize(ArbeitsstundenPruefSnapshot.FromRecord(nachher))
-            };
-
-            await client.From<ArbeitsstundenPruefverlaufRecord>().Insert(verlaufRecord);
         }
 
         public Task<List<(int MitgliedId, string Vorname, string Nachname, int Count)>> GetUnapprovedArbeitsstundenByMitgliedAsync() => ExecuteAsync(
@@ -4644,15 +4342,14 @@ namespace KGV.Infrastructure.Services
                 if (mitgliedId <= 0)
                     return null;
 
-                var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
                 var client = await EnsureClientAsync();
                 var saisons = await GetSaisonRecordsAsync();
 
                 foreach (var saison in GetPflichtstundenCandidateSeasons(saisons, DateTime.Today.Year))
                 {
-                    var records = await LoadPflichtstundenForSaisonAsync(client, homeMitgliedId, saison.Id);
+                    var records = await LoadPflichtstundenForSaisonAsync(client, mitgliedId, saison.Id);
                     var record = records
-                        .Where(x => x.MitgliedId == homeMitgliedId)
+                        .Where(x => x.MitgliedId == mitgliedId)
                         .OrderByDescending(GetPflichtstundenYear)
                         .ThenByDescending(x => x.SaisonId ?? 0)
                         .FirstOrDefault();
