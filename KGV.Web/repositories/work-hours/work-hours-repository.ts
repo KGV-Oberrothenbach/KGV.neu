@@ -1,4 +1,4 @@
-import { type BrowserSession, readSupabase } from "../../lib/supabase-auth";
+import { type BrowserSession, readSupabase, writeSupabase } from "../../lib/supabase-auth";
 import { type WorkHour, type WorkHourHistory, type WorkHoursSummary } from "../../features/work-hours/work-hours-types";
 
 export type HomeWorkHoursSummary = WorkHoursSummary;
@@ -6,6 +6,20 @@ export type HomeWorkHoursSummary = WorkHoursSummary;
 const workHourSelect = "id,mitglied_id,saison_id,datum,stunden,art_der_arbeit,status,freigegeben,genehmigt_von,genehmigt_am";
 const workHourHistorySelect = "id,arbeitsstunde_id,aktion,begruendung,geprueft_von,geprueft_am,vorher_snapshot,nachher_snapshot";
 const summarySelect = "mitglied_id,hauptmitglied_id,saison_id,saison_jahr,regelgrund,ist_befreit,hat_wartungsvertrag,altersbefreit,eintritt_im_saisonjahr,eintritt_zweites_halbjahr,pflichtstunden_soll,geleistete_stunden,offene_stunden,euro_pro_fehlstunde,fehlbetrag";
+
+export type OwnOpenWorkHourCreate = {
+  mitglied_id: number;
+  saison_id: number;
+  datum: string;
+  stunden: number;
+  art_der_arbeit: string;
+  status: "offen";
+  freigegeben: false;
+  genehmigt_von: null;
+  genehmigt_am: null;
+};
+
+export type OwnOpenWorkHourUpdate = Pick<OwnOpenWorkHourCreate, "datum" | "stunden" | "art_der_arbeit">;
 
 export const listMemberWorkHoursForSeason = (session: BrowserSession, memberId: number, saisonId: number) => readSupabase<WorkHour>(session, "arbeitsstunde", {
   select: workHourSelect,
@@ -19,6 +33,12 @@ export const listWorkHoursForReview = (session: BrowserSession) => readSupabase<
   select: workHourSelect,
   order: "datum.desc,id.desc",
   limit: "1000",
+});
+
+export const createOwnOpenWorkHour = (session: BrowserSession, payload: OwnOpenWorkHourCreate) => writeSupabase<WorkHour>(session, "arbeitsstunde", "POST", payload);
+
+export const updateOwnOpenWorkHour = (session: BrowserSession, workHourId: number, payload: OwnOpenWorkHourUpdate) => writeSupabase<WorkHour>(session, "arbeitsstunde", "PATCH", payload, {
+  id: `eq.${workHourId}`,
 });
 
 export const listWorkHourHistory = (session: BrowserSession, workHourIds: number[]) => workHourIds.length
