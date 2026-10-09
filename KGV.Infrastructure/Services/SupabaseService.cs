@@ -5075,29 +5075,6 @@ namespace KGV.Infrastructure.Services
                     return CreateRegistrationResult(false, "Die Anmeldung konnte nicht gestartet werden, weil Arbeitseinsatz oder Mitglied fehlen.");
 
                 var client = await EnsureClientAsync();
-                var arbeitseinsatz = await GetArbeitseinsatzByIdAsync(client, arbeitseinsatzId);
-                if (arbeitseinsatz == null)
-                    return CreateRegistrationResult(false, "Der ausgewählte Arbeitseinsatz konnte nicht geladen werden.");
-
-                var aktiveAnmeldungen = await GetAktiveArbeitseinsatzAnmeldungenAsync(client, arbeitseinsatzId);
-                if (aktiveAnmeldungen.Any(x => x.MitgliedId == mitgliedId))
-                {
-                    var existingItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
-                    return CreateRegistrationResult(false, "Für diesen Arbeitseinsatz besteht bereits eine Anmeldung.", existingItem);
-                }
-
-                var now = Vereinszeit.Now;
-                if (arbeitseinsatz.AnmeldungBis.HasValue && arbeitseinsatz.AnmeldungBis.Value < now)
-                {
-                    var expiredItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
-                    return CreateRegistrationResult(false, "Die Anmeldefrist für diesen Arbeitseinsatz ist bereits abgelaufen.", expiredItem);
-                }
-
-                if (arbeitseinsatz.MaxTeilnehmer.HasValue && aktiveAnmeldungen.Count >= arbeitseinsatz.MaxTeilnehmer.Value)
-                {
-                    var fullItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
-                    return CreateRegistrationResult(false, "Für diesen Arbeitseinsatz sind aktuell keine freien Plätze mehr verfügbar.", fullItem);
-                }
 
                 try
                 {
@@ -5113,13 +5090,8 @@ namespace KGV.Infrastructure.Services
                 {
                     _logger?.LogWarning(ex, "SignUpForArbeitseinsatzAsync RPC failed for arbeitseinsatz {ArbeitseinsatzId} and mitglied {MitgliedId}", arbeitseinsatzId, mitgliedId);
 
-                    var refreshedActiveAnmeldungen = await GetAktiveArbeitseinsatzAnmeldungenAsync(client, arbeitseinsatzId);
                     var refreshedItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
-
-                    if (refreshedActiveAnmeldungen.Any(x => x.MitgliedId == mitgliedId))
-                        return CreateRegistrationResult(false, "Für diesen Arbeitseinsatz besteht bereits eine Anmeldung.", refreshedItem);
-
-                    return CreateRegistrationResult(false, "Die Anmeldung konnte aktuell nicht gespeichert werden. Bitte versuche es erneut.", refreshedItem);
+                    return CreateRegistrationResult(false, ex.Message, refreshedItem);
                 }
 
                 var updatedItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
@@ -5135,16 +5107,6 @@ namespace KGV.Infrastructure.Services
                     return CreateRegistrationResult(false, "Die Abmeldung konnte nicht gestartet werden, weil Arbeitseinsatz oder Mitglied fehlen.");
 
                 var client = await EnsureClientAsync();
-                var arbeitseinsatz = await GetArbeitseinsatzByIdAsync(client, arbeitseinsatzId);
-                if (arbeitseinsatz == null)
-                    return CreateRegistrationResult(false, "Der ausgewählte Arbeitseinsatz konnte nicht geladen werden.");
-
-                var aktiveAnmeldungen = await GetAktiveArbeitseinsatzAnmeldungenAsync(client, arbeitseinsatzId);
-                if (!aktiveAnmeldungen.Any(x => x.MitgliedId == mitgliedId))
-                {
-                    var missingItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
-                    return CreateRegistrationResult(false, "Für dieses Mitglied besteht aktuell keine aktive Anmeldung zu diesem Arbeitseinsatz.", missingItem);
-                }
 
                 try
                 {
@@ -5160,13 +5122,8 @@ namespace KGV.Infrastructure.Services
                 {
                     _logger?.LogWarning(ex, "SignOffFromArbeitseinsatzAsync RPC failed for arbeitseinsatz {ArbeitseinsatzId} and mitglied {MitgliedId}", arbeitseinsatzId, mitgliedId);
 
-                    var refreshedActiveAnmeldungen = await GetAktiveArbeitseinsatzAnmeldungenAsync(client, arbeitseinsatzId);
                     var refreshedItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
-
-                    if (!refreshedActiveAnmeldungen.Any(x => x.MitgliedId == mitgliedId))
-                        return CreateRegistrationResult(true, "Die Abmeldung vom Arbeitseinsatz wurde gespeichert.", refreshedItem);
-
-                    return CreateRegistrationResult(false, "Die Abmeldung konnte aktuell nicht gespeichert werden. Bitte versuche es erneut.", refreshedItem);
+                    return CreateRegistrationResult(false, ex.Message, refreshedItem);
                 }
 
                 var updatedItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);

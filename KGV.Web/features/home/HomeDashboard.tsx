@@ -3,6 +3,7 @@
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import HomeDetail from "./HomeDetail";
+import { workAssignmentHasStarted } from "../../services/work-assignments/work-assignment-service";
 import {
   loadHomeDashboard,
   registerForHomeWorkAssignment,
@@ -113,7 +114,7 @@ export default function HomeDashboard({ session, isManager, canManageWorkAssignm
     <div className="home-content-grid">
       <HomeContentSection title="Arbeitseinsätze" empty="Aktuell liegen keine veröffentlichten Arbeitseinsätze vor.">{assignments.map((item) => {
         const registered = registrations.some((entry) => entry.arbeitseinsatz_id === item.id && entry.status === "angemeldet");
-        const registrationOpen = memberId !== null && !registered && item.freie_plaetze !== 0 && (!item.anmeldung_bis || item.anmeldung_bis >= new Date().toISOString());
+        const registrationOpen = memberId !== null && !registered && item.freie_plaetze !== 0 && (!item.anmeldung_bis || item.anmeldung_bis >= workAssignmentBerlinNow()) && !workAssignmentHasStarted(item);
         return <article key={item.id} className="home-item"><h2>{item.titel ?? "Arbeitseinsatz"}</h2><p>{item.beschreibung || "Keine Beschreibung hinterlegt."}</p><span>Einsatzdatum: {formatDate(item.datum)}</span>{(item.start_uhrzeit || item.end_uhrzeit) && <span>Uhrzeit: {formatTimeRange(item.start_uhrzeit, item.end_uhrzeit)}</span>}{item.treffpunkt && <span>Treffpunkt: {item.treffpunkt}</span>}<strong className="home-registration-state">{registered ? "Du bist angemeldet" : item.freie_plaetze === null ? "Anmeldung möglich" : `${item.freie_plaetze} freie Plätze`}</strong><div className="home-item-actions"><button className="secondary-action" onClick={() => setDetail({ kind: "assignment", id: item.id })}>Details</button>{registrationOpen && <button disabled={registeringId === item.id} onClick={() => registerForAssignment(item.id)}>{registeringId === item.id ? "Wird angemeldet …" : "Anmelden"}</button>}</div></article>;
       })}</HomeContentSection>
       <HomeContentSection title="Termine" empty="Aktuell liegen keine veröffentlichten Termine vor.">{appointments.map((item) => <article key={item.id} className="home-item"><h2>{item.titel ?? "Termin"}</h2><p>{item.beschreibung || "Keine Beschreibung hinterlegt."}</p><span>{formatDate(item.datum)}</span>{(item.start_uhrzeit || item.end_uhrzeit) && <span>Uhrzeit: {formatTimeRange(item.start_uhrzeit, item.end_uhrzeit)}</span>}<button className="secondary-action" onClick={() => setDetail({ kind: "appointment", id: item.id })}>Details</button></article>)}</HomeContentSection>
@@ -121,6 +122,8 @@ export default function HomeDashboard({ session, isManager, canManageWorkAssignm
     </div>
   </section>;
 }
+
+function workAssignmentBerlinNow() { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date()).reduce<Record<string, string>>((value, part) => { value[part.type] = part.value; return value; }, {}); return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`; }
 
 function HomeContentSection({ title, empty, children }: { title: string; empty: string; children: ReactNode }) {
   const entries = Array.isArray(children) ? children : [children];

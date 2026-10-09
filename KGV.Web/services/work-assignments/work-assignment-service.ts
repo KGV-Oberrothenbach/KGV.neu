@@ -36,6 +36,11 @@ export function updateWorkAssignmentDateDefaults(draft: WorkAssignmentDraft, dat
   };
 }
 
+export function workAssignmentHasStarted(assignment: Pick<WorkAssignment, "datum" | "start_uhrzeit">): boolean {
+  const start = `${assignment.datum}T${assignment.start_uhrzeit ?? "23:59"}`;
+  return berlinNow() >= start;
+}
+
 export function workAssignmentDefaults(date = berlinNow().slice(0, 10)): WorkAssignmentDraft {
   return { titel: "", beschreibung: "", datum: date, start_uhrzeit: "10:00", end_uhrzeit: "13:00", treffpunkt: "", max_teilnehmer: null, stunden_wert: 0, sichtbar_ab: berlinNow(), ...workAssignmentDateDefaults(date), aktiv: true };
 }

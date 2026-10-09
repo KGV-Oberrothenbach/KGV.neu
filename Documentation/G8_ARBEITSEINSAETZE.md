@@ -78,6 +78,14 @@ Die gemeinsame Validierung verlangt Titel und Datum, erlaubt keine negative Stun
 
 Web-CRUD folgt nun UI → Service → Repository → Supabase. Absagen bedeutet weiterhin ausschließlich `aktiv = false` und erhält Anmeldungen; endgültiges Löschen bleibt getrennt und weist auf das FK-CASCADE hin. G8.4 bis G8.6 (Benutzer-An-/Abmeldelogik, Teilnehmerstatus und Arbeitsstundenintegration) wurden bewusst nicht vorgezogen.
 
+## G8.4 – Anmeldung, Abmeldung, Fristen und Kapazität
+
+Die normalen Web- und MAUI-Pfade verwenden die serverseitigen Signup- und Signoff-RPCs als fachliche Wahrheit. Signup verlangt eigenes Mitglied, passenden Produktiv-/Demo-Scope, einen aktiven Einsatz, offene Frist, freien Platz und einen Zeitpunkt vor dem Beginn. Der Beginn ist `datum + start_uhrzeit`, ohne Startzeit konsistent `datum 23:59`; alle Zeitvergleiche erfolgen mit `kgv_local_now()` in Berliner Vereinszeit.
+
+Signoff setzt den bestehenden Datensatz ausschließlich auf `abgesagt`; es erfolgt kein Own-DELETE. Eine Abmeldung ist unabhängig vom Anmeldeschluss bis vor Beginn möglich, auch für inzwischen deaktivierte Einsätze. Wiederanmeldung reaktiviert denselben Datensatz. Signup sperrt die Einsatzzeile mit `FOR UPDATE`, sodass parallele Anmeldungen den letzten Platz nicht doppelt erhalten.
+
+Direkte Benutzerstatuswechsel sind auf `angemeldet` und `abgesagt` beschränkt; `teilgenommen` und `nicht_erschienen` bleiben Verwaltungslogik. Web und MAUI verwenden dieselben RPCs; die Web-Anzeige verwendet Berliner Zeit und zeigt den Abmeldeweg nach Frist weiterhin bis zum Beginn. G8.5 und G8.6 wurden bewusst nicht vorgezogen.
+
 ## G8.7 – MAUI/Web-Gleichstand und Bereinigung
 
 G8.7 stellt für Web und MAUI dieselben Rechte, Vorgabewerte, Validierungen, Anmeldungen und Abmeldungen, Teilnehmerstatus, Arbeitsstundenerfassung, Demo-Regeln und Lock-Regeln sicher. Alte Rollenprüfungen werden entfernt; überflüssige Methoden und tote Typen werden bereinigt. Direkte G8-Supabase-Zugriffe aus React werden beseitigt und der Startseitenmodell-/View-Mismatch wird korrigiert. Die Web-Zielarchitektur bleibt UI → Service → Repository → Supabase/RPC.
