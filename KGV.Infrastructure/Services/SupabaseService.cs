@@ -4677,15 +4677,14 @@ namespace KGV.Infrastructure.Services
                 if (mitgliedId <= 0)
                     return null;
 
-                var homeMitgliedId = await ResolveHomeMitgliedIdAsync(mitgliedId);
                 var client = await EnsureClientAsync();
                 var saisons = await GetSaisonRecordsAsync();
 
                 foreach (var saison in GetPflichtstundenCandidateSeasons(saisons, DateTime.Today.Year))
                 {
-                    var records = await LoadPflichtstundenForSaisonAsync(client, homeMitgliedId, saison.Id);
+                    var records = await LoadPflichtstundenForSaisonAsync(client, mitgliedId, saison.Id);
                     var record = records
-                        .Where(x => x.MitgliedId == homeMitgliedId)
+                        .Where(x => x.MitgliedId == mitgliedId)
                         .OrderByDescending(GetPflichtstundenYear)
                         .ThenByDescending(x => x.SaisonId ?? 0)
                         .FirstOrDefault();

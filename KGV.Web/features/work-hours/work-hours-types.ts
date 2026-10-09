@@ -30,6 +30,7 @@ export type WorkHoursSummary = {
   mitglied_id: number;
   hauptmitglied_id: number;
   saison_id: number;
+  jahr: number;
   saison_jahr: number;
   regelgrund: string | null;
   ist_befreit: boolean;

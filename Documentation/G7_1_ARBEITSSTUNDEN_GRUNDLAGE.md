@@ -41,3 +41,9 @@ Web und MAUI verwenden dieselbe effektive Permission. Die administrative Erfassu
 Offene Arbeitsstunden werden ausschließlich über die atomare RPC `review_arbeitsstunde` geprüft. Sie verlangt die effektive Permission `ManageWorkHours`, einen Pflichtkommentar und akzeptiert nur Freigeben, Ablehnen, Korrigieren oder Löschen. Die RPC sperrt den Datensatz mit `FOR UPDATE`, prüft den offenen Vorzustand sowie den Demo-/Reviewer-Scope erneut und schreibt Statusänderung und Audit in derselben Transaktion.
 
 Prüfsnapshots liegen migrationssicher als `jsonb` vor. Der Fremdschlüssel mit `ON DELETE CASCADE` ist entfernt; daher bleibt ein Lösch-Audit mit vollständigem Vorher-Snapshot dauerhaft erhalten. Direkte Audit-INSERTs und freie Review-UPDATE/DELETE-Rechte sind gesperrt. Der Browser-Edit-Lock bleibt für die Web-UX bestehen; der bestehende globale MAUI-Review-Lock bleibt als UX-Koordination erhalten, die Datenintegrität beruht jedoch auf der RPC und der Datenbank-Zeilensperre.
+
+## G7.5 – Pflichtstunden, Befreiung und Fehlbetrag darstellen
+
+Web und MAUI stellen Sollstunden, freigegebene Stunden, offene Stunden, Euro je Fehlstunde und Fehlbetrag direkt aus `v_pflichtstunden_uebersicht` dar. Befreiung, Regelgrund, Wartungsvertrag, Altersbefreiung sowie Eintritt im Saisonjahr oder zweiten Halbjahr werden als von der View gelieferter Status erläutert; beide Clients berechnen weder Stunden noch Fehlbeträge selbst.
+
+Die Arbeitsstundenübersicht liest für den gewählten Mitgliedskontext die View-Zeile über `mitglied_id`. Damit erhält ein Nebenmitglied seine eigene Zeile; der Home-Dashboard-Pfad behält seine separate Abfrage über `hauptmitglied_id` bei.
