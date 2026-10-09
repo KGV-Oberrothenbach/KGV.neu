@@ -380,27 +380,27 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
 
     private async Task FreigebenAsync()
     {
-        if (!TryGetReviewKommentar(out var kommentar) || !TryResolveApproverId(out var approverId))
+        if (!TryGetReviewKommentar(out var kommentar))
             return;
 
         await ExecuteReviewActionAsync(
-            async () => await _supabaseService.ApproveArbeitsstundeImPruefprozessAsync(_reviewState.CurrentEntry!.Id, kommentar, approverId),
+            async () => await _supabaseService.ReviewArbeitsstundeAsync(_reviewState.CurrentEntry!.Id, "freigeben", kommentar),
             "Prüffall wurde freigegeben.");
     }
 
     private async Task AblehnenAsync()
     {
-        if (!TryGetReviewKommentar(out var kommentar) || !TryResolveApproverId(out var approverId))
+        if (!TryGetReviewKommentar(out var kommentar))
             return;
 
         await ExecuteReviewActionAsync(
-            async () => await _supabaseService.RejectArbeitsstundeImPruefprozessAsync(_reviewState.CurrentEntry!.Id, kommentar, approverId),
+            async () => await _supabaseService.ReviewArbeitsstundeAsync(_reviewState.CurrentEntry!.Id, "ablehnen", kommentar),
             "Prüffall wurde abgelehnt und aus der offenen Liste entfernt.");
     }
 
     private async Task KorrigierenAsync()
     {
-        if (!TryGetReviewKommentar(out var kommentar) || !TryResolveApproverId(out var approverId))
+        if (!TryGetReviewKommentar(out var kommentar))
             return;
 
         var entry = _reviewState.CurrentEntry;
@@ -419,24 +419,14 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
             return;
         }
 
-        var request = new ArbeitsstundenPruefkorrekturRequest
-        {
-            ArbeitsstundeId = entry.Id,
-            Datum = _correctionDatePicker.Date!.Value,
-            Stunden = stunden,
-            ArtDerArbeit = _correctionWorkTypeEditor.Text.Trim(),
-            Begruendung = kommentar,
-            GeprueftVon = approverId
-        };
-
         await ExecuteReviewActionAsync(
-            async () => await _supabaseService.CorrectArbeitsstundeImPruefprozessAsync(request),
+            async () => await _supabaseService.ReviewArbeitsstundeAsync(entry.Id, "korrigieren", kommentar, _correctionDatePicker.Date!.Value, stunden, _correctionWorkTypeEditor.Text.Trim()),
             "Prüffall wurde korrigiert, freigegeben und im Verlauf dokumentiert.");
     }
 
     private async Task LoeschenAsync()
     {
-        if (!TryGetReviewKommentar(out var kommentar) || !TryResolveApproverId(out var approverId))
+        if (!TryGetReviewKommentar(out var kommentar))
             return;
 
         var entry = _reviewState.CurrentEntry;
@@ -453,7 +443,7 @@ public sealed class ArbeitsstundenReviewDetailPage : ContentPage
             return;
 
         await ExecuteReviewActionAsync(
-            async () => await _supabaseService.DeleteArbeitsstundeImPruefprozessAsync(entry.Id, kommentar, approverId),
+            async () => await _supabaseService.ReviewArbeitsstundeAsync(entry.Id, "loeschen", kommentar),
             "Prüffall wurde gelöscht. Der Verlauf bleibt nachvollziehbar erhalten.");
     }
 

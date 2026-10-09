@@ -18,8 +18,8 @@ export type WorkHourHistory = {
   begruendung: string;
   geprueft_von: number;
   geprueft_am: string;
-  vorher_snapshot: WorkHour;
-  nachher_snapshot: WorkHour | null;
+  vorher_snapshot: Record<string, unknown>;
+  nachher_snapshot: Record<string, unknown> | null;
 };
 
 /**

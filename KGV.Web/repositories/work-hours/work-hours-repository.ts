@@ -1,4 +1,4 @@
-import { type BrowserSession, readSupabase, writeSupabase } from "../../lib/supabase-auth";
+import { callSupabaseRpc, type BrowserSession, readSupabase, writeSupabase } from "../../lib/supabase-auth";
 import { type WorkHour, type WorkHourHistory, type WorkHoursSummary } from "../../features/work-hours/work-hours-types";
 
 export type HomeWorkHoursSummary = WorkHoursSummary;
@@ -31,6 +31,16 @@ export type AdministrativeWorkHourCreate = {
   freigegeben: true;
 };
 
+export type WorkHourReviewAction = "freigeben" | "ablehnen" | "korrigieren" | "loeschen";
+export type WorkHourReviewPayload = {
+  workHourId: number;
+  action: WorkHourReviewAction;
+  comment: string;
+  date?: string;
+  hours?: number;
+  workType?: string;
+};
+
 export const listMemberWorkHoursForSeason = (session: BrowserSession, memberId: number, saisonId: number) => readSupabase<WorkHour>(session, "arbeitsstunde", {
   select: workHourSelect,
   mitglied_id: `eq.${memberId}`,
@@ -51,6 +61,15 @@ export const createAdministrativeWorkHour = (session: BrowserSession, payload: A
 
 export const updateOwnOpenWorkHour = (session: BrowserSession, workHourId: number, payload: OwnOpenWorkHourUpdate) => writeSupabase<WorkHour>(session, "arbeitsstunde", "PATCH", payload, {
   id: `eq.${workHourId}`,
+});
+
+export const reviewWorkHour = (session: BrowserSession, payload: WorkHourReviewPayload) => callSupabaseRpc<unknown>(session, "review_arbeitsstunde", {
+  p_arbeitsstunde_id: payload.workHourId,
+  p_aktion: payload.action,
+  p_begruendung: payload.comment,
+  p_datum: payload.date ?? null,
+  p_stunden: payload.hours ?? null,
+  p_art_der_arbeit: payload.workType ?? null,
 });
 
 export const listWorkHourHistory = (session: BrowserSession, workHourIds: number[]) => workHourIds.length

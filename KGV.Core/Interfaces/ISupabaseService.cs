@@ -117,6 +117,7 @@ namespace KGV.Core.Interfaces
         Task<bool> AddArbeitsstundeAsync(ArbeitsstundeInsertRecord request);
         Task<bool> UpdateArbeitsstundeAsync(ArbeitsstundeRecord record);
         Task<bool> DeleteArbeitsstundeAsync(int arbeitsstundeId);
+        Task<bool> ReviewArbeitsstundeAsync(int arbeitsstundeId, string aktion, string begruendung, DateTime? datum = null, decimal? stunden = null, string? artDerArbeit = null);
         Task<bool> ApproveArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null);
         Task<bool> RejectArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null);
         Task<bool> CorrectArbeitsstundeImPruefprozessAsync(ArbeitsstundenPruefkorrekturRequest request);

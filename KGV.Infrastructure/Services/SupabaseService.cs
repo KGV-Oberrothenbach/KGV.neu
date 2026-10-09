@@ -3011,22 +3011,8 @@ namespace KGV.Infrastructure.Services
                 return true;
             },
             false);
-        public Task<bool> DeleteArbeitsstundeAsync(int arbeitsstundeId) => ExecuteAsync(
-            "DeleteArbeitsstundeAsync",
-            async () =>
-            {
-                if (arbeitsstundeId <= 0)
-                    return false;
-
-                var client = await EnsureClientAsync();
-                await client
-                    .From<ArbeitsstundeRecord>()
-                    .Where(x => x.Id == arbeitsstundeId)
-                    .Delete();
-
-                return true;
-            },
-            false);
+        // Direkte Löschungen sind ab G7.4 nicht mehr zulässig; Review-Löschungen laufen über ReviewArbeitsstundeAsync.
+        public Task<bool> DeleteArbeitsstundeAsync(int arbeitsstundeId) => Task.FromResult(false);
         public Task<List<ArbeitsstundenPruefverlaufItem>> GetArbeitsstundenPruefverlaufAsync(int arbeitsstundeId) => ExecuteAsync(
             "GetArbeitsstundenPruefverlaufAsync",
             async () =>
@@ -3078,6 +3064,31 @@ namespace KGV.Infrastructure.Services
             },
             new List<ArbeitsstundenPruefverlaufItem>());
 
+        public Task<bool> ReviewArbeitsstundeAsync(int arbeitsstundeId, string aktion, string begruendung, DateTime? datum = null, decimal? stunden = null, string? artDerArbeit = null) => ExecuteAsync(
+            "ReviewArbeitsstundeAsync",
+            async () =>
+            {
+                if (arbeitsstundeId <= 0 || string.IsNullOrWhiteSpace(aktion) || string.IsNullOrWhiteSpace(begruendung))
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client.Rpc<JsonElement>("review_arbeitsstunde", new
+                {
+                    p_arbeitsstunde_id = arbeitsstundeId,
+                    p_aktion = aktion,
+                    p_begruendung = begruendung,
+                    p_datum = datum?.Date,
+                    p_stunden = stunden,
+                    p_art_der_arbeit = artDerArbeit
+                });
+                return true;
+            },
+            false);
+
+        public Task<bool> ApproveArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null)
+            => ReviewArbeitsstundeAsync(arbeitsstundeId, "freigeben", begruendung);
+
+        /*
         public Task<bool> ApproveArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null) => ExecuteAsync(
             "ApproveArbeitsstundeImPruefprozessAsync",
             async () =>
@@ -3129,6 +3140,12 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
+        */
+
+        public Task<bool> RejectArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null)
+            => ReviewArbeitsstundeAsync(arbeitsstundeId, "ablehnen", begruendung);
+
+        /*
         public Task<bool> RejectArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null) => ExecuteAsync(
             "RejectArbeitsstundeImPruefprozessAsync",
             async () =>
@@ -3180,6 +3197,14 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
+        */
+
+        public Task<bool> CorrectArbeitsstundeImPruefprozessAsync(ArbeitsstundenPruefkorrekturRequest request)
+            => request == null
+                ? Task.FromResult(false)
+                : ReviewArbeitsstundeAsync(request.ArbeitsstundeId, "korrigieren", request.Begruendung, request.Datum, request.Stunden, request.ArtDerArbeit);
+
+        /*
         public Task<bool> CorrectArbeitsstundeImPruefprozessAsync(ArbeitsstundenPruefkorrekturRequest request) => ExecuteAsync(
             "CorrectArbeitsstundeImPruefprozessAsync",
             async () =>
@@ -3248,6 +3273,12 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
+        */
+
+        public Task<bool> DeleteArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null)
+            => ReviewArbeitsstundeAsync(arbeitsstundeId, "loeschen", begruendung);
+
+        /*
         public Task<bool> DeleteArbeitsstundeImPruefprozessAsync(int arbeitsstundeId, string begruendung, int geprueftVon, DateTime? geprueftAm = null) => ExecuteAsync(
             "DeleteArbeitsstundeImPruefprozessAsync",
             async () =>
@@ -3285,6 +3316,8 @@ namespace KGV.Infrastructure.Services
                 return true;
             },
             false);
+
+        */
 
         private ArbeitsstundenPruefSnapshot? DeserializeArbeitsstundenPruefSnapshot(string? json)
         {

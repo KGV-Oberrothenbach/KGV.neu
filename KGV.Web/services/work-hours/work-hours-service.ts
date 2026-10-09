@@ -6,11 +6,14 @@ import {
   listMemberWorkHoursForSeason,
   listWorkHourHistory,
   listWorkHoursForReview,
+  reviewWorkHour,
+  type WorkHourReviewAction,
   updateOwnOpenWorkHour,
 } from "../../repositories/work-hours/work-hours-repository";
 import { type WorkHour } from "../../features/work-hours/work-hours-types";
 
 export type OwnWorkHourInput = { date: string; hours: number; workType: string };
+export type WorkHourReviewInput = OwnWorkHourInput & { action: WorkHourReviewAction; comment: string };
 
 const validateOwnWorkHourInput = (input: OwnWorkHourInput) => {
   if (!input.date.trim()) throw new Error("Ein Datum ist erforderlich.");
@@ -70,6 +73,19 @@ export async function updateOwnWorkHour(session: BrowserSession, workHour: WorkH
   });
   if (!updated[0]) throw new Error("Arbeitsstunde konnte nicht gespeichert werden.");
   return updated[0];
+}
+
+export async function reviewOpenWorkHour(session: BrowserSession, canManageWorkHours: boolean, workHour: WorkHour | undefined, input: WorkHourReviewInput) {
+  if (!canManageWorkHours) throw new Error("Für die Prüfung fehlt ManageWorkHours.");
+  if (!workHour || workHour.status !== "offen" || workHour.freigegeben !== false) throw new Error("Diese Arbeitsstunde ist nicht mehr prüfbar.");
+  if (!input.comment.trim()) throw new Error("Für jede Prüfaktion ist eine Begründung erforderlich.");
+  if (input.action === "korrigieren") validateOwnWorkHourInput(input);
+  await reviewWorkHour(session, {
+    workHourId: workHour.id,
+    action: input.action,
+    comment: input.comment.trim(),
+    ...(input.action === "korrigieren" ? { date: input.date, hours: input.hours, workType: input.workType.trim() } : {}),
+  });
 }
 
 export async function loadMemberWorkHoursWorkspace(session: BrowserSession, memberId: number, saisonId: number) {
