@@ -14,4 +14,5 @@ public sealed class IcsCalendarBuilderTests
     [Fact] public void EndOnly_IsAllDay() { var ics = IcsCalendarBuilder.Build(Event(null, new TimeSpan(11, 0, 0)), Stamp); Assert.Contains("DTSTART;VALUE=DATE:20261010", ics); Assert.DoesNotContain("DTEND;TZID", ics); }
     [Fact] public void EscapesText_AndKeepsUmlauts() { var ics = IcsCalendarBuilder.Build(Event(), Stamp); Assert.Contains("SUMMARY:Grüße\\,\\;\\\\", ics); Assert.Contains("DESCRIPTION:Zeile 1\\nZeile 2", ics); }
     [Fact] public void Uid_IsStable() { Assert.Contains("UID:termin-123@kgv-oberrothenbach", IcsCalendarBuilder.Build(Event(), Stamp)); }
+    [Fact] public void EscapesLocation_AndUsesProvidedStamp() { var ics = IcsCalendarBuilder.Build(new CalendarEventData { Uid = "id", Title = "Titel", Date = new DateTime(2026, 10, 10), Location = "Vereinshaus, Eingang; Nord\\West" }, Stamp); Assert.Contains("LOCATION:Vereinshaus\\, Eingang\\; Nord\\\\West", ics); Assert.Contains("DTSTAMP:20261010T095000Z", ics); }
 }

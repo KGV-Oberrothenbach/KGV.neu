@@ -5,6 +5,12 @@ namespace KGV.Tests;
 
 public sealed class PermissionServiceTests
 {
+    [Fact]
+    public void AppointmentAndAnnouncementPermissionBits_AreStable()
+    {
+        Assert.Equal(2097152L, (long)PermissionFlags.CanManageAppointments);
+        Assert.Equal(4194304L, (long)PermissionFlags.CanManageAnnouncements);
+    }
     [Theory]
     [InlineData(UserRole.Admin, 8380407L)]
     [InlineData(UserRole.Vorstand, 7855607L)]
