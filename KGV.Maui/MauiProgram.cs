@@ -118,6 +118,7 @@ public static class MauiProgram
         services.AddSingleton<ArbeitseinsaetzeManagementState>();
         services.AddSingleton<ArbeitseinsaetzeUserState>();
         services.AddSingleton<TermineUserState>();
+        services.AddSingleton<BekanntmachungenUserState>();
         services.AddSingleton<ZaehlerwechselWorkflowState>();
         services.AddSingleton<PendingPhotoQueue>();
         services.AddSingleton<PendingPhotoService>();

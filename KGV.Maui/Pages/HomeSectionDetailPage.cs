@@ -23,6 +23,7 @@ public sealed class HomeSectionDetailPage : ContentPage
     private readonly HomeContextState _homeContextState;
     private readonly ArbeitseinsaetzeUserState _arbeitseinsaetzeUserState;
     private readonly TermineUserState _termineUserState;
+    private readonly BekanntmachungenUserState _bekanntmachungenUserState;
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _userContextState;
     private readonly KGV.Maui.ViewModels.HomeViewModel _homeViewModel;
@@ -55,11 +56,12 @@ public sealed class HomeSectionDetailPage : ContentPage
     private bool _isBusy;
     private bool _loadScheduled;
 
-    public HomeSectionDetailPage(HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, TermineUserState termineUserState, ISupabaseService supabaseService, UserContextState userContextState, KGV.Maui.ViewModels.HomeViewModel homeViewModel)
+    public HomeSectionDetailPage(HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, TermineUserState termineUserState, BekanntmachungenUserState bekanntmachungenUserState, ISupabaseService supabaseService, UserContextState userContextState, KGV.Maui.ViewModels.HomeViewModel homeViewModel)
     {
         _homeContextState = homeContextState;
         _arbeitseinsaetzeUserState = arbeitseinsaetzeUserState;
         _termineUserState = termineUserState;
+        _bekanntmachungenUserState = bekanntmachungenUserState;
         _supabaseService = supabaseService;
         _userContextState = userContextState;
         _homeViewModel = homeViewModel;
@@ -274,7 +276,8 @@ public sealed class HomeSectionDetailPage : ContentPage
                     _calendarButton.IsVisible = true;
                     break;
                 case HomeDetailKind.Announcement when _homeContextState.Announcement != null:
-                    var announcement = _homeContextState.Announcement;
+                    var announcement = _bekanntmachungenUserState.CurrentEntry ?? _homeContextState.Announcement;
+                    _homeContextState.SetAnnouncement(announcement);
                     _sectionLabel.Text = "Bekanntmachung";
                     _titleLabel.Text = announcement.Title;
                     _subtitleLabel.Text = announcement.Subtitle;
@@ -288,6 +291,7 @@ public sealed class HomeSectionDetailPage : ContentPage
                     };
                     _additionalInfoLabel.Text = announcement.DetailInfo;
                     _registrationInfoLabel.Text = string.Empty;
+                    UpdateAnnouncementNavigation();
                     break;
                 default:
                     _sectionLabel.Text = string.Empty;
@@ -501,6 +505,15 @@ public sealed class HomeSectionDetailPage : ContentPage
             : string.Empty;
     }
 
+    private void UpdateAnnouncementNavigation()
+    {
+        var hasNavigation = _bekanntmachungenUserState.TotalCount > 0;
+        _previousButton.IsVisible = _nextButton.IsVisible = _positionLabel.IsVisible = hasNavigation;
+        _previousButton.IsEnabled = _bekanntmachungenUserState.CanMovePrevious;
+        _nextButton.IsEnabled = _bekanntmachungenUserState.CanMoveNext;
+        _positionLabel.Text = hasNavigation ? $"{_bekanntmachungenUserState.CurrentIndex + 1}/{_bekanntmachungenUserState.TotalCount}" : string.Empty;
+    }
+
     private Task MovePreviousAsync()
     {
         switch (_homeContextState.DetailKind)
@@ -517,6 +530,9 @@ public sealed class HomeSectionDetailPage : ContentPage
 
                 _homeContextState.SetAppointment(_termineUserState.CurrentEntry);
                 return LoadAsync();
+            case HomeDetailKind.Announcement:
+                if (!_bekanntmachungenUserState.MovePrevious() || _bekanntmachungenUserState.CurrentEntry == null) return Task.CompletedTask;
+                _homeContextState.SetAnnouncement(_bekanntmachungenUserState.CurrentEntry); return LoadAsync();
             default:
                 return Task.CompletedTask;
         }
@@ -538,6 +554,9 @@ public sealed class HomeSectionDetailPage : ContentPage
 
                 _homeContextState.SetAppointment(_termineUserState.CurrentEntry);
                 return LoadAsync();
+            case HomeDetailKind.Announcement:
+                if (!_bekanntmachungenUserState.MoveNext() || _bekanntmachungenUserState.CurrentEntry == null) return Task.CompletedTask;
+                _homeContextState.SetAnnouncement(_bekanntmachungenUserState.CurrentEntry); return LoadAsync();
             default:
                 return Task.CompletedTask;
         }

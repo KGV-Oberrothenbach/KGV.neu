@@ -14,6 +14,7 @@ public class HomePage : ContentPage
     private readonly HomeContextState _homeContextState;
     private readonly ArbeitseinsaetzeUserState _arbeitseinsaetzeUserState;
     private readonly TermineUserState _termineUserState;
+    private readonly BekanntmachungenUserState _bekanntmachungenUserState;
     private readonly MemberContextState _memberContextState;
     private readonly Label _statusLabel;
     private readonly Button _createWorkHoursEntryButton;
@@ -26,12 +27,13 @@ public class HomePage : ContentPage
     private bool _scheduledForceReload;
     private bool _isSubscribed;
 
-    public HomePage(HomeViewModel viewModel, HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, TermineUserState termineUserState, MemberContextState memberContextState)
+    public HomePage(HomeViewModel viewModel, HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, TermineUserState termineUserState, BekanntmachungenUserState bekanntmachungenUserState, MemberContextState memberContextState)
     {
         _viewModel = viewModel;
         _homeContextState = homeContextState;
         _arbeitseinsaetzeUserState = arbeitseinsaetzeUserState;
         _termineUserState = termineUserState;
+        _bekanntmachungenUserState = bekanntmachungenUserState;
         _memberContextState = memberContextState;
         BindingContext = _viewModel;
         Title = "Startseite";
@@ -198,6 +200,7 @@ public class HomePage : ContentPage
 
         var announcementsView = CreateHomeListView<HomeAnnouncementItem>(item =>
         {
+            _bekanntmachungenUserState.SetEntries(_viewModel.Announcements.ToList(), item.Id);
             _homeContextState.SetAnnouncement(item);
             return Shell.Current.GoToAsync(nameof(HomeSectionDetailPage));
         }, item =>
