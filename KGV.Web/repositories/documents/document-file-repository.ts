@@ -12,6 +12,7 @@ export async function resolveDocumentFileOpenUrl(session: BrowserSession, docume
     const response = await callSupabaseFunctionRaw(session, "kgv-upload-document", {
       method: "POST",
       body: JSON.stringify({ action: "download", document_id: document.id }),
+      contentType: "application/json",
     });
     if (!response.ok) {
       const detail = await response.json().catch(() => null) as { message?: string } | null;
