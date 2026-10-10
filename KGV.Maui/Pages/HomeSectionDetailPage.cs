@@ -5,6 +5,7 @@ using KGV.Core.Security;
 using KGV.Core.Utilities;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
+using KGV.Maui.Utilities;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
@@ -76,6 +77,7 @@ public sealed class HomeSectionDetailPage : ContentPage
             HorizontalOptions = LayoutOptions.Fill,
             VerticalOptions = LayoutOptions.Fill
         };
+        _htmlContentView.Navigating += async (_, e) => await HandleWebNavigationAsync(e.Url, () => e.Cancel = true);
         _additionalInfoLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
         _registrationInfoLabel = new Label { LineBreakMode = LineBreakMode.WordWrap, TextColor = Colors.DarkSlateBlue };
         _workHoursInfoLabel = new Label { LineBreakMode = LineBreakMode.WordWrap, TextColor = Colors.DarkSlateBlue, IsVisible = false };
@@ -282,7 +284,7 @@ public sealed class HomeSectionDetailPage : ContentPage
                     _htmlContentView.IsVisible = true;
                     _htmlContentView.Source = new HtmlWebViewSource
                     {
-                        Html = HtmlContentHelper.BuildHtmlDocument(announcement.HtmlContent)
+                        Html = HtmlContentHelper.BuildHtmlDocument(announcement.HtmlContent, "Kein Inhalt hinterlegt.")
                     };
                     _additionalInfoLabel.Text = announcement.DetailInfo;
                     _registrationInfoLabel.Text = string.Empty;
@@ -619,6 +621,17 @@ public sealed class HomeSectionDetailPage : ContentPage
             HomeDetailKind.Announcement => Shell.Current.GoToAsync($"{nameof(BekanntmachungEditorPage)}?entryId={TryGetCurrentEntryId()}"),
             _ => Shell.Current.GoToAsync("//home")
         };
+    }
+
+    private async Task HandleWebNavigationAsync(string? url, Action cancel)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || SafeWebViewNavigation.IsInternal(uri))
+            return;
+        cancel();
+        if (!SafeWebViewNavigation.IsAllowedExternal(uri))
+            return;
+        try { await Launcher.Default.OpenAsync(uri); }
+        catch { _statusLabel.Text = "Der Link konnte nicht geöffnet werden."; }
     }
 
     private async Task ExportAppointmentCalendarAsync()

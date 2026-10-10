@@ -4,6 +4,7 @@ using KGV.Core.Security;
 using KGV.Core.Utilities;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
+using KGV.Maui.Utilities;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
@@ -89,6 +90,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
             HeightRequest = 260,
             Source = new HtmlWebViewSource { Html = HtmlContentHelper.BuildHtmlDocument(null) }
         };
+        _previewWebView.Navigating += async (_, e) => await HandlePreviewNavigationAsync(e.Url, () => e.Cancel = true);
 
         _htmlEditorSection = new VerticalStackLayout
         {
@@ -486,6 +488,17 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         _previewSection.IsVisible = showPreview;
         if (showPreview)
             RefreshPreview();
+    }
+
+    private async Task HandlePreviewNavigationAsync(string? url, Action cancel)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || SafeWebViewNavigation.IsInternal(uri))
+            return;
+        cancel();
+        if (!SafeWebViewNavigation.IsAllowedExternal(uri))
+            return;
+        try { await Launcher.Default.OpenAsync(uri); }
+        catch { _statusLabel.Text = "Der Link konnte nicht geöffnet werden."; }
     }
 
     private void RefreshPreview()

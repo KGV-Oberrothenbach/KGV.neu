@@ -42,9 +42,6 @@ function formatTimeRange(start: string | null | undefined, end: string | null | 
   return `${String(start).slice(0, 5)} – ${String(end).slice(0, 5)}`;
 }
 
-function plainText(value: string | null) {
-  return (value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-}
 
 export default function HomeDetail({ session, selection, assignments, appointments, announcements, registrations, memberId, canManageWorkAssignments, canManageAppointments, canManageAnnouncements, busy, onClose, onSelect, onRegister, onSignOff, onNavigate }: HomeDetailProps) {
   const [participants, setParticipants] = useState<Array<WorkAssignmentRegistration & { displayName: string }>>([]);
