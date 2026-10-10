@@ -336,8 +336,9 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
             return false;
         }
 
-        // DatePicker.Date is nullable in .NET 10; the timestamp builder expects a DateTime - use the value.
-        if (_useVisibleFrom.IsToggled && !TryBuildOptionalTimestamp(_visibleFromDatePicker.Date!.Value, _visibleFromTimeEntry.Text, out var visibleFrom, out var normalizedVisibleFrom, out var visibleFromError))
+        DateTime? visibleFrom = null;
+        var normalizedVisibleFrom = string.Empty;
+        if (_useVisibleFrom.IsToggled && !TryBuildOptionalTimestamp(_visibleFromDatePicker.Date!.Value, _visibleFromTimeEntry.Text, out visibleFrom, out normalizedVisibleFrom, out var visibleFromError))
         {
             _statusLabel.Text = visibleFromError;
             _visibleFromTimeEntry.Text = normalizedVisibleFrom;
@@ -345,8 +346,9 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
             return false;
         }
 
-        else { visibleFrom = null; normalizedVisibleFrom = string.Empty; visibleFromError = string.Empty; }
-        if (_useVisibleTo.IsToggled && !TryBuildOptionalTimestamp(_visibleToDatePicker.Date!.Value, _visibleToTimeEntry.Text, out var visibleTo, out var normalizedVisibleTo, out var visibleToError))
+        DateTime? visibleTo = null;
+        var normalizedVisibleTo = string.Empty;
+        if (_useVisibleTo.IsToggled && !TryBuildOptionalTimestamp(_visibleToDatePicker.Date!.Value, _visibleToTimeEntry.Text, out visibleTo, out normalizedVisibleTo, out var visibleToError))
         {
             _statusLabel.Text = visibleToError;
             _visibleToTimeEntry.Text = normalizedVisibleTo;
@@ -354,7 +356,6 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
             return false;
         }
 
-        else { visibleTo = null; normalizedVisibleTo = string.Empty; visibleToError = string.Empty; }
         _visibleFromTimeEntry.Text = normalizedVisibleFrom;
         _visibleToTimeEntry.Text = normalizedVisibleTo;
 
