@@ -6,8 +6,8 @@ namespace KGV.Tests;
 public sealed class PermissionServiceTests
 {
     [Theory]
-    [InlineData(UserRole.Admin, 2088951L)]
-    [InlineData(UserRole.Vorstand, 1564151L)]
+    [InlineData(UserRole.Admin, 8380407L)]
+    [InlineData(UserRole.Vorstand, 7855607L)]
     [InlineData(UserRole.User, 10L)]
     public void RolePermissions_MatchSharedEffectivePermissionMasks(UserRole role, long expectedMask)
     {
@@ -49,5 +49,34 @@ public sealed class PermissionServiceTests
 
         Assert.Equal(canManageAssignments, PermissionChecks.CanManageWorkAssignments(context));
         Assert.Equal(canManageHours, PermissionChecks.CanManageWorkHours(context));
+    }
+
+    [Theory]
+    [InlineData(UserRole.Admin, true, true)]
+    [InlineData(UserRole.Vorstand, true, true)]
+    [InlineData(UserRole.User, false, false)]
+    public void RolePermissions_KeepAppointmentAndAnnouncementPermissionsIndependent(UserRole role, bool appointments, bool announcements)
+    {
+        var permissions = PermissionService.GetRolePermissions(role);
+        Assert.Equal(appointments, permissions.HasFlag(PermissionFlags.CanManageAppointments));
+        Assert.Equal(announcements, permissions.HasFlag(PermissionFlags.CanManageAnnouncements));
+    }
+
+    [Fact]
+    public void CreateContext_AppliesAppointmentAndAnnouncementGrantsAndRevocationsIndependently()
+    {
+        var service = new PermissionService();
+        var appointmentUser = service.CreateContext(Guid.NewGuid(), "user", null, (long)PermissionFlags.CanManageAppointments);
+        var announcementUser = service.CreateContext(Guid.NewGuid(), "user", null, (long)PermissionFlags.CanManageAnnouncements);
+        var revokedVorstand = service.CreateContext(Guid.NewGuid(), "vorstand", null, null, (long)PermissionFlags.CanManageAppointments);
+        var revokedAdmin = service.CreateContext(Guid.NewGuid(), "admin", null, null, (long)PermissionFlags.CanManageAnnouncements);
+        Assert.True(PermissionChecks.CanManageAppointments(appointmentUser));
+        Assert.False(PermissionChecks.CanManageAnnouncements(appointmentUser));
+        Assert.True(PermissionChecks.CanManageAnnouncements(announcementUser));
+        Assert.False(PermissionChecks.CanManageAppointments(announcementUser));
+        Assert.False(PermissionChecks.CanManageAppointments(revokedVorstand));
+        Assert.True(PermissionChecks.CanManageAnnouncements(revokedVorstand));
+        Assert.True(PermissionChecks.CanManageAppointments(revokedAdmin));
+        Assert.False(PermissionChecks.CanManageAnnouncements(revokedAdmin));
     }
 }

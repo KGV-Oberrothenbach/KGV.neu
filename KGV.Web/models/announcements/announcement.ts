@@ -6,6 +6,7 @@ export type Announcement = {
   sichtbar_bis: string | null;
   sort_order: number | null;
   aktiv: boolean;
+  is_demo?: boolean;
 };
 
 export type AnnouncementDraft = Partial<Announcement>;

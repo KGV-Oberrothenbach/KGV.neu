@@ -1,4 +1,6 @@
 using KGV.Core.Interfaces;
+using KGV.Core.Security;
+using KGV.Maui.State;
 using Microsoft.Maui.Controls;
 using System.Globalization;
 
@@ -6,9 +8,11 @@ namespace KGV.Maui.Pages;
 
 public sealed class TermineManagementPage : ManagementOverviewPageBase
 {
-    public TermineManagementPage(ISupabaseService supabaseService)
+    private readonly UserContextState _userContextState;
+    public TermineManagementPage(ISupabaseService supabaseService, UserContextState userContextState)
         : base(supabaseService)
     {
+        _userContextState = userContextState;
     }
 
     protected override string PageTitle => "Termine";
@@ -18,6 +22,8 @@ public sealed class TermineManagementPage : ManagementOverviewPageBase
 
     protected override async Task<IReadOnlyList<ManagementOverviewEntry>> LoadEntriesCoreAsync()
     {
+        if (!PermissionChecks.CanManageAppointments(_userContextState.CurrentUserContext))
+            return Array.Empty<ManagementOverviewEntry>();
         return (await SupabaseService.GetTermineVerwaltungAsync())
             .OrderBy(x => x.Datum)
             .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
@@ -34,11 +40,13 @@ public sealed class TermineManagementPage : ManagementOverviewPageBase
 
     protected override Task OpenNewAsync()
     {
+        if (!PermissionChecks.CanManageAppointments(_userContextState.CurrentUserContext)) return Shell.Current.GoToAsync("//home");
         return Shell.Current.GoToAsync(nameof(TermineEditorPage));
     }
 
     protected override Task OpenExistingAsync(long entryId)
     {
+        if (!PermissionChecks.CanManageAppointments(_userContextState.CurrentUserContext)) return Shell.Current.GoToAsync("//home");
         return Shell.Current.GoToAsync($"{nameof(TermineEditorPage)}?entryId={entryId}");
     }
 

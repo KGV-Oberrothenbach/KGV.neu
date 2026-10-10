@@ -127,9 +127,11 @@ const Permission = {
   readRoles: 1 << 18,
   createMember: 1 << 19,
   manageWorkAssignments: 1 << 20,
+  manageAppointments: 1 << 21,
+  manageAnnouncements: 1 << 22,
 } as const;
 
-const VorstandPermissions = Permission.searchMembers | Permission.viewMembers | Permission.editAllMembers | Permission.manageDocuments | Permission.readMeters | Permission.manageMeterChanges | Permission.approveMeterReadings | Permission.manageWorkHours | Permission.showStammdaten | Permission.readStammdaten | Permission.writeStammdaten | Permission.readParzellen | Permission.writeParzellen | Permission.readDocuments | Permission.readWorkHours | Permission.readRoles | Permission.manageWorkAssignments;
+const VorstandPermissions = Permission.searchMembers | Permission.viewMembers | Permission.editAllMembers | Permission.manageDocuments | Permission.readMeters | Permission.manageMeterChanges | Permission.approveMeterReadings | Permission.manageWorkHours | Permission.showStammdaten | Permission.readStammdaten | Permission.writeStammdaten | Permission.readParzellen | Permission.writeParzellen | Permission.readDocuments | Permission.readWorkHours | Permission.readRoles | Permission.manageWorkAssignments | Permission.manageAppointments | Permission.manageAnnouncements;
 const AdminPermissions = VorstandPermissions | Permission.manageRoles | Permission.createMember;
 const UserPermissions = Permission.viewMembers | Permission.seeOwnData;
 
@@ -240,7 +242,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           <MobileNavigation groups={navigationGroups} activeId={activeId} onNavigate={setActiveId} selectedMemberLabel={selectedMemberId ? selectedMemberLabel : null} />
           <p className="eyebrow">Saison {season}</p><h1>{active.label}</h1><p className="content-intro">{active.detail}</p>
           {!new Set(["start", "impressum", "mitglieder", "parzellen", "ablesen", "foto-uploads", "zaehlerwechsel", "arbeitsstunden-pruefen", "arbeitseinsaetze", "wartung", "termine", "bekanntmachungen", "export", "benutzer", "saisons", "verein", "mitglied-arbeitsstunden", "mitglied-wartung", "mitglied-dokumente", "mitglied-admin", "mitglied-gaerten", "mitglied-protokolle", "mitglied-stammdaten"]).has(activeId) && <section className="coming-soon"><span aria-hidden="true">◌</span><div><strong>Bereich vorbereitet</strong><p>Die Navigation und Zugriffsrechte stehen. Die fachliche Oberfläche wird in den nächsten Umsetzungsschritten ergänzt.</p></div></section>}
-          {activeId === "start" && <HomeDashboard session={session} isManager={context.role !== "user"} canManageWorkAssignments={has(Permission.manageWorkAssignments)} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
+          {activeId === "start" && <HomeDashboard session={session} isManager={context.role !== "user"} canManageWorkAssignments={has(Permission.manageWorkAssignments)} canManageAppointments={has(Permission.manageAppointments)} canManageAnnouncements={has(Permission.manageAnnouncements)} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
           {activeId === "mitglieder" && <MemberSearch session={session} selectedMemberId={selectedMemberId} onSelect={selectMember} canCreate={has(Permission.createMember)} onCreate={() => { setCreatingMember(true); setActiveId("mitglied-stammdaten"); }} />}
           {activeId === "parzellen" && <ParcelWorkspace session={session} selectedParcelId={selectedParcelId} onSelect={selectParcel} canEdit={has(Permission.writeParzellen)} onOpenMember={(memberId) => { selectMember(memberId); setActiveId("mitglied-gaerten"); }} />}
           {activeId === "ablesen" && <MeterOverview session={session} clubId={club.vereinId} reviewerMemberId={context.mitgliedId} selectedParcelId={selectedParcelId} seasonYear={season} canReadMeters={has(Permission.readMeters)} canSubmitOwnMeterReadings={context.mitgliedId !== null && has(Permission.seeOwnData)} canApprove={has(Permission.approveMeterReadings)} canManageMeterChanges={has(Permission.manageMeterChanges)} onNavigate={setActiveId} />}
@@ -250,8 +252,8 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           {activeId === "arbeitsstunden-pruefen" && <WorkHoursReview session={session} canManageWorkHours={has(Permission.manageWorkHours)} />}
           {activeId === "arbeitseinsaetze" && <WorkAssignmentsManagement session={session} canEdit={has(Permission.manageWorkAssignments)} canManageWorkHours={has(Permission.manageWorkHours)} onBack={() => setActiveId("start")} />}
           {activeId === "wartung" && <MaintenanceContracts session={session} canManage={context.role !== "user"} />}
-          {activeId === "termine" && <AppointmentManagement session={session} canEdit={context.role !== "user"} onBack={() => setActiveId("start")} />}
-          {activeId === "bekanntmachungen" && <AnnouncementManagement session={session} canEdit={context.role !== "user"} onBack={() => setActiveId("start")} />}
+          {activeId === "termine" && <AppointmentManagement session={session} canEdit={has(Permission.manageAppointments)} onBack={() => setActiveId("start")} />}
+          {activeId === "bekanntmachungen" && <AnnouncementManagement session={session} canEdit={has(Permission.manageAnnouncements)} onBack={() => setActiveId("start")} />}
           {activeId === "impressum" && <ImprintPage session={session} />}
           {activeId === "export" && <ExportCenter session={session} canExport={context.role !== "user"} />}
           {activeId === "benutzer" && <UserRightsAdministration session={session} />}

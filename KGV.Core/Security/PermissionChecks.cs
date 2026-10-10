@@ -115,6 +115,12 @@ namespace KGV.Core.Security
         public static bool CanManageWorkAssignments(UserContext? context)
             => HasPermission(context, PermissionFlags.CanManageWorkAssignments);
 
+        public static bool CanManageAppointments(UserContext? context)
+            => HasPermission(context, PermissionFlags.CanManageAppointments);
+
+        public static bool CanManageAnnouncements(UserContext? context)
+            => HasPermission(context, PermissionFlags.CanManageAnnouncements);
+
         public static bool CanReadWorkHoursForMember(UserContext? context, int? memberId)
             => CanReadWorkHours(context)
                || HasOwnWorkHoursAccessForMember(context, memberId);

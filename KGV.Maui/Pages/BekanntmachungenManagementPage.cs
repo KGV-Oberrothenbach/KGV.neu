@@ -1,4 +1,6 @@
 using KGV.Core.Interfaces;
+using KGV.Core.Security;
+using KGV.Maui.State;
 using Microsoft.Maui.Controls;
 using System.Globalization;
 
@@ -6,9 +8,11 @@ namespace KGV.Maui.Pages;
 
 public sealed class BekanntmachungenManagementPage : ManagementOverviewPageBase
 {
-    public BekanntmachungenManagementPage(ISupabaseService supabaseService)
+    private readonly UserContextState _userContextState;
+    public BekanntmachungenManagementPage(ISupabaseService supabaseService, UserContextState userContextState)
         : base(supabaseService)
     {
+        _userContextState = userContextState;
     }
 
     protected override string PageTitle => "Bekanntmachungen";
@@ -18,6 +22,8 @@ public sealed class BekanntmachungenManagementPage : ManagementOverviewPageBase
 
     protected override async Task<IReadOnlyList<ManagementOverviewEntry>> LoadEntriesCoreAsync()
     {
+        if (!PermissionChecks.CanManageAnnouncements(_userContextState.CurrentUserContext))
+            return Array.Empty<ManagementOverviewEntry>();
         return (await SupabaseService.GetBekanntmachungenVerwaltungAsync())
             .OrderBy(x => x.SortOrder ?? int.MaxValue)
             .ThenByDescending(x => x.SichtbarAb ?? DateTime.MinValue)
@@ -32,11 +38,13 @@ public sealed class BekanntmachungenManagementPage : ManagementOverviewPageBase
 
     protected override Task OpenNewAsync()
     {
+        if (!PermissionChecks.CanManageAnnouncements(_userContextState.CurrentUserContext)) return Shell.Current.GoToAsync("//home");
         return Shell.Current.GoToAsync(nameof(BekanntmachungEditorPage));
     }
 
     protected override Task OpenExistingAsync(long entryId)
     {
+        if (!PermissionChecks.CanManageAnnouncements(_userContextState.CurrentUserContext)) return Shell.Current.GoToAsync("//home");
         return Shell.Current.GoToAsync($"{nameof(BekanntmachungEditorPage)}?entryId={entryId}");
     }
 

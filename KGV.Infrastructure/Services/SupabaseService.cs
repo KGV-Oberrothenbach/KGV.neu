@@ -5458,7 +5458,8 @@ namespace KGV.Infrastructure.Services
                     SichtbarBis = NormalizeTimestampWithoutTimeZone(request.SichtbarBis),
                     Aktiv = request.Aktiv,
                     CreatedAt = now,
-                    UpdatedAt = now
+                    UpdatedAt = now,
+                    IsDemo = request.IsDemo
                 };
 
                 if (!await InsertTerminAsync(insertRecord))
@@ -5477,6 +5478,7 @@ namespace KGV.Infrastructure.Services
                     Aktiv = insertRecord.Aktiv,
                     CreatedAt = insertRecord.CreatedAt,
                     UpdatedAt = insertRecord.UpdatedAt
+                    ,IsDemo = insertRecord.IsDemo
                 };
                 var reloadResponse = await client
                     .From<TerminRecord>()
@@ -5575,7 +5577,8 @@ namespace KGV.Infrastructure.Services
                     SortOrder = request.SortOrder,
                     Aktiv = request.Aktiv,
                     CreatedAt = now,
-                    UpdatedAt = now
+                    UpdatedAt = now,
+                    IsDemo = request.IsDemo
                 };
 
                 await client.From<BekanntmachungInsertRecord>().Insert(insertRecord);
@@ -5589,6 +5592,7 @@ namespace KGV.Infrastructure.Services
                     Aktiv = insertRecord.Aktiv,
                     CreatedAt = insertRecord.CreatedAt,
                     UpdatedAt = insertRecord.UpdatedAt
+                    ,IsDemo = insertRecord.IsDemo
                 };
                 var reloadResponse = await client.From<BekanntmachungRecord>().Get();
                 var reloadItems = reloadResponse?.Models?
@@ -6126,6 +6130,7 @@ namespace KGV.Infrastructure.Services
                 Aktiv = record.Aktiv,
                 CreatedAt = record.CreatedAt,
                 UpdatedAt = record.UpdatedAt
+                ,IsDemo = record.IsDemo
             };
         }
 
@@ -6142,6 +6147,7 @@ namespace KGV.Infrastructure.Services
                 Aktiv = record.Aktiv,
                 CreatedAt = record.CreatedAt,
                 UpdatedAt = record.UpdatedAt
+                ,IsDemo = record.IsDemo
             };
         }
 

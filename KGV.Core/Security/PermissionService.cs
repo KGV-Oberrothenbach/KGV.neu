@@ -61,6 +61,8 @@ namespace KGV.Core.Security
                | PermissionFlags.CanReadWorkHours
                | PermissionFlags.CanManageWorkHours
                | PermissionFlags.CanManageWorkAssignments
+               | PermissionFlags.CanManageAppointments
+               | PermissionFlags.CanManageAnnouncements
                | PermissionFlags.CanReadMeters
                | PermissionFlags.CanManageMeterChanges
                | PermissionFlags.CanApproveMeterReadings

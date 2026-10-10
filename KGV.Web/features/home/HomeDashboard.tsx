@@ -20,6 +20,8 @@ type HomeDashboardProps = {
   session: BrowserSession;
   isManager: boolean;
   canManageWorkAssignments: boolean;
+  canManageAppointments: boolean;
+  canManageAnnouncements: boolean;
   memberId: number | null;
   saisonId: number | null;
   season: number;
@@ -27,7 +29,7 @@ type HomeDashboardProps = {
   onOpenWorkHours: () => void;
 };
 
-export default function HomeDashboard({ session, isManager, canManageWorkAssignments, memberId, saisonId, season, onNavigate, onOpenWorkHours }: HomeDashboardProps) {
+export default function HomeDashboard({ session, isManager, canManageWorkAssignments, canManageAppointments, canManageAnnouncements, memberId, saisonId, season, onNavigate, onOpenWorkHours }: HomeDashboardProps) {
   const [appointments, setAppointments] = useState<HomeAppointment[]>([]);
   const [announcements, setAnnouncements] = useState<HomeAnnouncement[]>([]);
   const [assignments, setAssignments] = useState<HomeWorkAssignment[]>([]);
@@ -99,7 +101,7 @@ export default function HomeDashboard({ session, isManager, canManageWorkAssignm
   return <section className="home-dashboard" aria-label="Vereinsübersicht">
     {error && <p className="notice" role="alert">Startseiten-Inhalte konnten nicht geladen werden: {error}</p>}
     {message && <p className="notice" role="status">{message}</p>}
-    {(isManager || canManageWorkAssignments) && <section className="home-management"><div><strong>Verwaltung</strong><p>Bearbeitung wird über separate Verwaltungsbereiche geöffnet; die Startseite bleibt eine reine Übersicht.</p></div><div>{canManageWorkAssignments && <button className="secondary-action" onClick={() => onNavigate("arbeitseinsaetze")}>Arbeitseinsätze bearbeiten</button>}{isManager && <><button className="secondary-action" onClick={() => onNavigate("termine")}>Termine bearbeiten</button><button className="secondary-action" onClick={() => onNavigate("bekanntmachungen")}>Bekanntmachungen bearbeiten</button></>}</div></section>}
+    {(isManager || canManageWorkAssignments || canManageAppointments || canManageAnnouncements) && <section className="home-management"><div><strong>Verwaltung</strong><p>Bearbeitung wird über separate Verwaltungsbereiche geöffnet; die Startseite bleibt eine reine Übersicht.</p></div><div>{canManageWorkAssignments && <button className="secondary-action" onClick={() => onNavigate("arbeitseinsaetze")}>Arbeitseinsätze bearbeiten</button>}{canManageAppointments && <button className="secondary-action" onClick={() => onNavigate("termine")}>Termine bearbeiten</button>}{canManageAnnouncements && <button className="secondary-action" onClick={() => onNavigate("bekanntmachungen")}>Bekanntmachungen bearbeiten</button>}</div></section>}
     <section className="home-work-hours" aria-labelledby="home-work-hours-title">
       <h2 id="home-work-hours-title">Meine Arbeitsstunden {workHours?.saison_jahr ?? season}</h2>
       <div className="home-work-hours-grid">

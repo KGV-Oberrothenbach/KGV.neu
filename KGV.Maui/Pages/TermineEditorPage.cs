@@ -143,11 +143,11 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
 
         try
         {
-            _isAuthorized = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            _isAuthorized = PermissionChecks.CanManageAppointments(_userContextState.CurrentUserContext);
             if (!_isAuthorized)
             {
                 _headlineLabel.Text = "Termin";
-                _descriptionLabel.Text = "Dieser Editor ist nur für Admin/Vorstand verfügbar.";
+                _descriptionLabel.Text = "Für diesen Editor fehlt die Berechtigung Termine verwalten.";
                 SetEnabledState(false);
                 return;
             }

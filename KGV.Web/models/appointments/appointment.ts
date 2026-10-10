@@ -8,6 +8,7 @@ export type Appointment = {
   sichtbar_ab: string | null;
   sichtbar_bis: string | null;
   aktiv: boolean;
+  is_demo?: boolean;
 };
 
 export type AppointmentDraft = Partial<Appointment>;

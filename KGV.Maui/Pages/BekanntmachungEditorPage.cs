@@ -186,11 +186,11 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
 
         try
         {
-            _isAuthorized = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            _isAuthorized = PermissionChecks.CanManageAnnouncements(_userContextState.CurrentUserContext);
             if (!_isAuthorized)
             {
                 _headlineLabel.Text = "Bekanntmachung";
-                _descriptionLabel.Text = "Dieser Editor ist nur für Admin/Vorstand verfügbar.";
+                _descriptionLabel.Text = "Für diesen Editor fehlt die Berechtigung Bekanntmachungen verwalten.";
                 SetEnabledState(false);
                 return;
             }
