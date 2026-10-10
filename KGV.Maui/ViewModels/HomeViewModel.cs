@@ -182,6 +182,8 @@ public sealed class HomeViewModel : INotifyPropertyChanged
             parts.Add("Der aktuelle Mitgliedskontext ist laut Pflichtstunden-Übersicht befreit.");
         if (summary.HasMaintenanceContract)
             parts.Add("Ein Wartungsvertrag ist in der zentralen Regelbewertung berücksichtigt.");
+        if (!summary.IsExempt && summary.MaintenanceWorkHoursCredit is > 0)
+            parts.Add($"WV-Gutschrift: {FormatHours(summary.MaintenanceWorkHoursCredit)}.");
         if (!string.IsNullOrWhiteSpace(summary.RuleReason))
             parts.Add(summary.RuleReason);
 

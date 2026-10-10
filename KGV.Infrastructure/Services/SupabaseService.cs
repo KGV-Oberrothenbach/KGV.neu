@@ -6640,6 +6640,7 @@ namespace KGV.Infrastructure.Services
                 RequiredHours = record.PflichtstundenSoll,
                 WorkedHours = record.GeleisteteStunden,
                 OpenHours = record.OffeneStunden,
+                MaintenanceWorkHoursCredit = record.WartungsvertragGutschriftStunden,
                 HasMaintenanceContract = record.HatWartungsvertrag,
                 IsAgeExempt = record.Altersbefreit,
                 IsExempt = record.IstBefreit,

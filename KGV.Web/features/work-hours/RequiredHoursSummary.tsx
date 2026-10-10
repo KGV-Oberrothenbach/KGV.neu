@@ -13,6 +13,7 @@ function statusNotes(summary: WorkHoursSummary): string[] {
   if (summary.ist_befreit) notes.push(summary.regelgrund ? `Von Pflichtstunden befreit: ${summary.regelgrund}` : "Von Pflichtstunden befreit.");
   else if (summary.regelgrund) notes.push(`Regelgrund: ${summary.regelgrund}`);
   if (summary.hat_wartungsvertrag) notes.push("Ein Wartungsvertrag ist berücksichtigt.");
+  if (!summary.ist_befreit && summary.wartungsvertrag_gutschrift_stunden > 0) notes.push(`WV-Gutschrift: ${formatHours(summary.wartungsvertrag_gutschrift_stunden)}`);
   if (summary.altersbefreit) notes.push("Altersbefreiung ist berücksichtigt.");
   if (summary.eintritt_im_saisonjahr) notes.push("Eintritt im Saisonjahr ist berücksichtigt.");
   if (summary.eintritt_zweites_halbjahr) notes.push("Eintritt im zweiten Halbjahr ist berücksichtigt.");

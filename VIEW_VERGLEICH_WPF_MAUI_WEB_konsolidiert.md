@@ -5142,6 +5142,10 @@ Eine manuelle, saisonbezogene Vollbefreiung mit verpflichtender Begründung ist 
 
 Prüfpunkt G11.4: Die Migrationshistorie enthält unterschiedliche Fassungen von `validate_wartungsvertrag_zuordnung()` bezüglich der Hauptmitglied-Prüfung. Diese Triggerdiskrepanz wird nicht in G11.1 geändert und ist fachlich zu analysieren.
 
+### G11.1b – zentrale Anrechnung
+
+Die zentrale Pflichtstundenberechnung berücksichtigt Teilgutschriften je Hauptmitglied-Kontext und Saison: verschiedene Verträge werden addiert, derselbe Vertrag höchstens einmal angerechnet, ohne zeitanteilige Kürzung und maximal bis zum wirksamen Soll. Eine Vollbefreiung hat Vorrang. `hat_wartungsvertrag` kennzeichnet jeden saisonal gültigen aktiven Wartungsvertrag; die effektive Teilgutschrift steht getrennt in `wartungsvertrag_gutschrift_stunden`. Die manuelle saisonbezogene Befreiung bleibt ein G7-TODO.
+
 ## 11.1 Globale Wartungsvertragsübersicht
 
 ### WPF

@@ -5,7 +5,7 @@ export type HomeWorkHoursSummary = WorkHoursSummary;
 
 const workHourSelect = "id,mitglied_id,saison_id,datum,stunden,art_der_arbeit,status,freigegeben,genehmigt_von,genehmigt_am,arbeitseinsatz_anmeldung_id";
 const workHourHistorySelect = "id,arbeitsstunde_id,aktion,begruendung,geprueft_von,geprueft_am,vorher_snapshot,nachher_snapshot";
-const summarySelect = "mitglied_id,hauptmitglied_id,saison_id,jahr,saison_jahr,regelgrund,ist_befreit,hat_wartungsvertrag,altersbefreit,eintritt_im_saisonjahr,eintritt_zweites_halbjahr,pflichtstunden_soll,geleistete_stunden,offene_stunden,euro_pro_fehlstunde,fehlbetrag";
+const summarySelect = "mitglied_id,hauptmitglied_id,saison_id,jahr,saison_jahr,regelgrund,ist_befreit,hat_wartungsvertrag,wartungsvertrag_gutschrift_stunden,altersbefreit,eintritt_im_saisonjahr,eintritt_zweites_halbjahr,pflichtstunden_soll,geleistete_stunden,offene_stunden,euro_pro_fehlstunde,fehlbetrag";
 
 export type OwnOpenWorkHourCreate = {
   mitglied_id: number;

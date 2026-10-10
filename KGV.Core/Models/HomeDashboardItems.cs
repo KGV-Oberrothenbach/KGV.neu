@@ -6,6 +6,7 @@ public sealed class HomeWorkHoursSummary
     public decimal? RequiredHours { get; init; }
     public decimal? WorkedHours { get; init; }
     public decimal? OpenHours { get; init; }
+    public decimal? MaintenanceWorkHoursCredit { get; init; }
     public bool HasMaintenanceContract { get; init; }
     public bool IsAgeExempt { get; init; }
     public bool IsExempt { get; init; }

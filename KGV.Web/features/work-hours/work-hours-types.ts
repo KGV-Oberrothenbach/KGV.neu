@@ -36,6 +36,7 @@ export type WorkHoursSummary = {
   regelgrund: string | null;
   ist_befreit: boolean;
   hat_wartungsvertrag: boolean;
+  wartungsvertrag_gutschrift_stunden: number;
   altersbefreit: boolean;
   eintritt_im_saisonjahr: boolean;
   eintritt_zweites_halbjahr: boolean;

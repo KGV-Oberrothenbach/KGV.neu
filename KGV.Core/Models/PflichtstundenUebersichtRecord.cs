@@ -40,6 +40,9 @@ public sealed class PflichtstundenUebersichtRecord : BaseModel
     [Column("hat_wartungsvertrag")]
     public bool HatWartungsvertrag { get; set; }
 
+    [Column("wartungsvertrag_gutschrift_stunden")]
+    public decimal? WartungsvertragGutschriftStunden { get; set; }
+
     [Column("altersbefreit")]
     public bool Altersbefreit { get; set; }
 

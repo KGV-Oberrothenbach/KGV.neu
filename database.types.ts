@@ -830,6 +830,7 @@ export type Database = {
       }
       wartungsvertraege: {
         Row: {
+          arbeitsstunden_gutschrift: number
           aktiv: boolean
           befreit_von_pflichtstunden: boolean
           bemerkung: string | null
@@ -843,6 +844,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          arbeitsstunden_gutschrift?: number
           aktiv?: boolean
           befreit_von_pflichtstunden?: boolean
           bemerkung?: string | null
@@ -856,6 +858,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          arbeitsstunden_gutschrift?: number
           aktiv?: boolean
           befreit_von_pflichtstunden?: boolean
           bemerkung?: string | null
@@ -1079,6 +1082,7 @@ export type Database = {
           fehlbetrag: number | null
           geleistete_stunden: number | null
           hat_wartungsvertrag: boolean | null
+          wartungsvertrag_gutschrift_stunden: number | null
           hauptmitglied_id: number | null
           ist_befreit: boolean | null
           name: string | null
@@ -1339,6 +1343,7 @@ export type Database = {
           fehlbetrag: number
           geleistete_stunden: number
           hat_wartungsvertrag: boolean
+          wartungsvertrag_gutschrift_stunden: number
           hauptmitglied_id: number
           ist_befreit: boolean
           offene_stunden: number

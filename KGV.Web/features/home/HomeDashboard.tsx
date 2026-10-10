@@ -95,7 +95,7 @@ export default function HomeDashboard({ session, isManager, canManageWorkAssignm
 
   const formatHours = (value: number | null | undefined) => value === null || value === undefined ? "–" : `${Number(value).toLocaleString("de-DE", { maximumFractionDigits: 2 })} h`;
   const workHoursInfo = workHours
-    ? [workHours.ist_befreit ? "Dieser Mitgliedskontext ist von Pflichtstunden befreit." : "", workHours.hat_wartungsvertrag ? "Ein Wartungsvertrag ist berücksichtigt." : "", workHours.regelgrund ?? ""].filter(Boolean).join(" ") || "Die Werte stammen aus der zentralen Pflichtstunden-Übersicht."
+    ? [workHours.ist_befreit ? "Dieser Mitgliedskontext ist von Pflichtstunden befreit." : "", workHours.hat_wartungsvertrag ? "Ein Wartungsvertrag ist berücksichtigt." : "", !workHours.ist_befreit && workHours.wartungsvertrag_gutschrift_stunden > 0 ? `WV-Gutschrift: ${formatHours(workHours.wartungsvertrag_gutschrift_stunden)}.` : "", workHours.regelgrund ?? ""].filter(Boolean).join(" ") || "Die Werte stammen aus der zentralen Pflichtstunden-Übersicht."
     : memberId === null ? "Das angemeldete Konto ist keinem Mitglied zugeordnet." : "Für diese Saison ist keine Pflichtstunden-Übersicht verfügbar.";
 
   return <section className="home-dashboard" aria-label="Vereinsübersicht">

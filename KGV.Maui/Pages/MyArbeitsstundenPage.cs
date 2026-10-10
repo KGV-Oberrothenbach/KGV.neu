@@ -24,6 +24,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
     private readonly Label _summarySollLabel;
     private readonly Label _summaryGeleistetLabel;
     private readonly Label _summaryOffenLabel;
+    private readonly Label _summaryWartungsvertragGutschriftLabel;
     private readonly Label _summaryEuroProFehlstundeLabel;
     private readonly Label _summaryFehlbetragLabel;
     private readonly Label _summaryStatusLabel;
@@ -46,6 +47,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
         _summarySollLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
         _summaryGeleistetLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
         _summaryOffenLabel = new Label { FontSize = 24, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
+        _summaryWartungsvertragGutschriftLabel = new Label { FontSize = 20, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
         _summaryEuroProFehlstundeLabel = new Label { FontSize = 20, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
         _summaryFehlbetragLabel = new Label { FontSize = 20, FontAttributes = FontAttributes.Bold, HorizontalTextAlignment = TextAlignment.Center };
         _summaryStatusLabel = new Label { TextColor = Colors.DarkSlateBlue, LineBreakMode = LineBreakMode.WordWrap };
@@ -118,6 +120,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
                             CreateSummaryCard("Soll", _summarySollLabel, 0, 0),
                             CreateSummaryCard("Geleistet", _summaryGeleistetLabel, 1, 0),
                             CreateSummaryCard("Offen", _summaryOffenLabel, 2, 0),
+                            CreateSummaryCard("WV-Gutschrift", _summaryWartungsvertragGutschriftLabel, 2, 1),
                             CreateSummaryCard("Euro je Fehlstunde", _summaryEuroProFehlstundeLabel, 0, 1),
                             CreateSummaryCard("Fehlbetrag", _summaryFehlbetragLabel, 1, 1)
                         }
@@ -273,6 +276,7 @@ public sealed class MyArbeitsstundenPage : ContentPage
         _summarySollLabel.Text = FormatHours(summary?.PflichtstundenSoll);
         _summaryGeleistetLabel.Text = FormatHours(summary?.GeleisteteStunden);
         _summaryOffenLabel.Text = FormatHours(summary?.OffeneStunden);
+        _summaryWartungsvertragGutschriftLabel.Text = summary?.IstBefreit == true ? "–" : FormatHours(summary?.WartungsvertragGutschriftStunden);
         _summaryEuroProFehlstundeLabel.Text = FormatCurrency(summary?.EuroProFehlstunde);
         _summaryFehlbetragLabel.Text = FormatCurrency(summary?.Fehlbetrag);
         _summaryStatusLabel.Text = BuildSummaryStatus(summary);
@@ -332,6 +336,8 @@ public sealed class MyArbeitsstundenPage : ContentPage
             notes.Add($"Regelgrund: {summary.Regelgrund}");
         if (summary.HatWartungsvertrag)
             notes.Add("Ein Wartungsvertrag ist berücksichtigt.");
+        if (!summary.IstBefreit && summary.WartungsvertragGutschriftStunden > 0)
+            notes.Add($"WV-Gutschrift: {FormatHours(summary.WartungsvertragGutschriftStunden)} h.");
         if (summary.Altersbefreit)
             notes.Add("Altersbefreiung ist berücksichtigt.");
         if (summary.EintrittImSaisonjahr)
