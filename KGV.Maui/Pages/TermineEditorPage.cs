@@ -351,8 +351,25 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
 
         if (existingRecord.Aktiv && !await DisplayAlertAsync("Termin deaktivieren", $"Soll der Termin „{existingRecord.Titel ?? "ohne Titel"}“ wirklich deaktiviert werden?", "Deaktivieren", "Abbrechen"))
             return;
-        existingRecord.Aktiv = !existingRecord.Aktiv;
-        _statusLabel.Text = existingRecord.Aktiv ? "Termin wird wieder aktiviert." : "Termin wird deaktiviert.";
+
+        var targetActive = !existingRecord.Aktiv;
+        var lifecycleRecord = new TerminRecord
+        {
+            Id = existingRecord.Id,
+            Titel = existingRecord.Titel,
+            Beschreibung = existingRecord.Beschreibung,
+            Datum = existingRecord.Datum,
+            StartUhrzeit = existingRecord.StartUhrzeit,
+            EndUhrzeit = existingRecord.EndUhrzeit,
+            SichtbarAb = existingRecord.SichtbarAb,
+            SichtbarBis = existingRecord.SichtbarBis,
+            Aktiv = targetActive,
+            CreatedAt = existingRecord.CreatedAt,
+            UpdatedAt = existingRecord.UpdatedAt,
+            IsDemo = existingRecord.IsDemo
+        };
+
+        _statusLabel.Text = targetActive ? "Termin wird wieder aktiviert." : "Termin wird deaktiviert.";
         _statusLabel.TextColor = Colors.DarkSlateBlue;
         SetEnabledState(false);
 
@@ -360,7 +377,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         {
             await Task.Yield();
 
-            var success = await _supabaseService.UpdateTerminAsync(existingRecord);
+            var success = await _supabaseService.UpdateTerminAsync(lifecycleRecord);
             if (!success)
             {
                 _statusLabel.Text = "Termin konnte nicht aktualisiert werden.";
@@ -368,9 +385,9 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
                 return;
             }
 
-            _homeViewModel.Invalidate();
-            _lifecycleButton.Text = existingRecord.Aktiv ? "Deaktivieren" : "Wieder aktivieren";
-            _statusLabel.Text = existingRecord.Aktiv ? "Termin wurde wieder aktiviert." : "Termin wurde deaktiviert.";
+            existingRecord.Aktiv = targetActive;
+            _lifecycleButton.Text = targetActive ? "Deaktivieren" : "Wieder aktivieren";
+            await CompleteSuccessfulSaveAsync(targetActive ? "Termin wurde wieder aktiviert." : "Termin wurde deaktiviert.");
         }
         catch (Exception ex)
         {
