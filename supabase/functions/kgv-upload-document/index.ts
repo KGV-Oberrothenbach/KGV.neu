@@ -63,6 +63,17 @@ type DriveDocumentRecord = {
   mime_type: string | null;
 };
 
+const supportedDocumentTypes: Record<string, readonly string[]> = {
+  ".pdf": ["application/pdf"],
+  ".jpg": ["image/jpeg"],
+  ".jpeg": ["image/jpeg"],
+  ".png": ["image/png"],
+  ".webp": ["image/webp"],
+  ".doc": ["application/msword"],
+  ".docx": ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  ".odt": ["application/vnd.oasis.opendocument.text"],
+};
+
 function logStep(step: string, details?: Record<string, unknown>) {
   if (details) {
     console.log(`[kgv-upload-document] ${step}`, details);
@@ -579,6 +590,21 @@ async function isDocumentInDemoScope(auth: { supabaseAdmin: ReturnType<typeof cr
   return data?.is_demo === true;
 }
 
+async function resolveUploadOwnerScope(auth: { supabaseAdmin: ReturnType<typeof createClient> }, ownerKind: OwnerKind, ownerId: number): Promise<boolean | null> {
+  const table = ownerKind === "mitglied" ? "mitglied" : "parzelle";
+  const { data, error } = await auth.supabaseAdmin.from(table).select("is_demo").eq("id", ownerId).maybeSingle();
+  if (error) throw new Error(`Dokument-Owner konnte nicht geprüft werden: ${error.message}`);
+  return data ? data.is_demo === true : null;
+}
+
+function hasAllowedDocumentType(file: File): boolean {
+  const extension = /\.[^.]+$/.exec(file.name.trim().toLowerCase())?.[0] ?? "";
+  const allowedMimes = supportedDocumentTypes[extension];
+  if (!allowedMimes) return false;
+  const mimeType = file.type.trim().toLowerCase();
+  return !mimeType || mimeType === "application/octet-stream" || allowedMimes.includes(mimeType);
+}
+
 async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin: ReturnType<typeof createClient> }, documentId: number): Promise<DriveDocumentRecord | null> {
   const { data: document, error: documentError } = await auth.supabaseAdmin
     .from("dokument")
@@ -647,6 +673,7 @@ async function downloadDriveDocument(accessToken: string, driveFileId: string): 
 
 Deno.serve(async (req) => {
   const requestId = createRequestId();
+  let uploadedDriveFileId: string | null = null;
   logStep("function start", { method: req.method });
 
   if (req.method === "OPTIONS") {
@@ -789,6 +816,15 @@ Deno.serve(async (req) => {
       return errorResponse(400, "BAD_REQUEST", "Feld 'titel' fehlt.", requestId);
     }
 
+    const ownerIsDemo = await resolveUploadOwnerScope(auth, ownerKind, ownerId);
+    if (ownerIsDemo === null || ownerIsDemo !== auth.isDemoAccount) {
+      return errorResponse(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId);
+    }
+
+    if (!hasAllowedDocumentType(file)) {
+      return errorResponse(400, "BAD_REQUEST", "Der Dateityp wird nicht unterstützt.", requestId);
+    }
+
     const fileName = buildFileName(titel, file);
     const storageSegments = buildStorageSegments(ownerKind, ownerId);
 
@@ -807,16 +843,38 @@ Deno.serve(async (req) => {
       fileName,
       file,
     });
+    uploadedDriveFileId = upload.id;
 
     const storagePath = buildStoragePath(storageSegments, upload.name);
     if (!isGeneratedFileName(upload.name) || !isExpectedStoragePath(storagePath, ownerKind, ownerId, upload.name)) {
       throw new Error("Drive upload returned unexpected document path contract");
     }
 
+    const { data: document, error: documentError } = await auth.supabaseAdmin
+      .from("dokument")
+      .insert({
+        mitglied_id: ownerKind === "mitglied" ? ownerId : null,
+        parzelle_id: ownerKind === "parzelle" ? ownerId : null,
+        bucket: "dokumente",
+        storage_path: storagePath,
+        drive_file_id: upload.id,
+        titel,
+        dateiname: upload.name,
+        mime_type: file.type || "application/octet-stream",
+        size_bytes: file.size,
+        created_by: auth.userId,
+      })
+      .select("id,mitglied_id,parzelle_id,bucket,storage_path,drive_file_id,titel,dateiname,mime_type,size_bytes,created_at,updated_at,created_by,archiviert_at,archiviert_by,archiviert_begruendung")
+      .single();
+    if (documentError || !document) throw new Error(`Dokument-Metadaten konnten nicht gespeichert werden: ${documentError?.message ?? "kein Datensatz"}`);
+    uploadedDriveFileId = null;
+
     logStep("drive upload success", { driveFileId: upload.id, storagePath });
 
     return json(200, {
       success: true,
+      document_id: document.id,
+      document,
       drive_file_id: upload.id,
       fileId: upload.id,
       storage_path: storagePath,
@@ -834,6 +892,14 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (uploadedDriveFileId) {
+      try {
+        await deleteDriveFile(await getGoogleAccessToken(), uploadedDriveFileId);
+        logStep("drive upload compensation success");
+      } catch (rollbackError) {
+        logError("drive upload compensation failed", rollbackError);
+      }
+    }
     logError("return error", error);
 
     if (message.includes("Google-Drive-Secrets fehlen")) {

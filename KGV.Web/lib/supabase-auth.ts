@@ -318,26 +318,13 @@ export async function createStorageSignedUrl(session: BrowserSession, bucket: st
   return signedPath.startsWith("http") ? signedPath : `${url}/storage/v1${signedPath}`;
 }
 
-export async function callSupabaseFunctionRaw(session: BrowserSession, name: string, options: { method: "POST" | "PUT" | "PATCH" | "DELETE"; body?: BodyInit | null }): Promise<Response> {
+export async function callSupabaseFunctionRaw(session: BrowserSession, name: string, options: { method: "POST" | "PUT" | "PATCH" | "DELETE"; body?: BodyInit | null; contentType?: string }): Promise<Response> {
   const { url, publishableKey } = config();
   return fetch(`${url}/functions/v1/${name}`, {
     method: options.method,
-    headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, ...(options.body ? { "Content-Type": "application/json" } : {}) },
+    headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, ...(options.contentType ? { "Content-Type": options.contentType } : {}) },
     body: options.body,
   });
-}
-
-export async function uploadDocument(session: BrowserSession, file: File, owner: { kind: "mitglied" | "parzelle"; id: number; title: string }) {
-  const { url, publishableKey } = config();
-  const form = new FormData();
-  form.set("file", file);
-  form.set("owner_kind", owner.kind);
-  form.set("owner_id", String(owner.id));
-  form.set("titel", owner.title);
-  const response = await fetch(`${url}/functions/v1/kgv-upload-document`, { method: "POST", headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}` }, body: form });
-  const payload = await response.json().catch(() => null) as { drive_file_id?: string; storage_path?: string; dateiname?: string; mime_type?: string; size_bytes?: number; message?: string } | null;
-  if (!response.ok || !payload?.drive_file_id || !payload.storage_path) throw new Error(payload?.message ?? "Das Dokument konnte nicht hochgeladen werden.");
-  return { driveFileId: payload.drive_file_id, storagePath: payload.storage_path, fileName: payload.dateiname ?? file.name, mimeType: payload.mime_type ?? file.type ?? "application/octet-stream", sizeBytes: payload.size_bytes ?? file.size };
 }
 
 export async function archiveDocument(session: BrowserSession, documentId: number, password: string, reason: string) {

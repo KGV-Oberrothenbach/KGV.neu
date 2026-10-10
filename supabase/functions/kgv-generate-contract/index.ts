@@ -84,13 +84,11 @@ async function buildParcelProtocol(member: Record<string, unknown>, parcel: Reco
   return await pdf.save();
 }
 
-async function uploadAndRecord(auth: Awaited<ReturnType<typeof authenticate>>, pdf: Uint8Array, owner: { kind: "mitglied" | "parzelle"; id: number }, title: string, fileName: string) {
+async function uploadContractDocument(auth: Awaited<ReturnType<typeof authenticate>>, pdf: Uint8Array, owner: { kind: "mitglied" | "parzelle"; id: number }, title: string, fileName: string) {
   const form = new FormData(); form.set("file", new File([pdf], fileName, { type: "application/pdf" })); form.set("owner_kind", owner.kind); form.set("owner_id", String(owner.id)); form.set("titel", title);
   const uploadResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/kgv-upload-document`, { method: "POST", headers: { Authorization: auth.authorization, apikey: Deno.env.get("SUPABASE_ANON_KEY") ?? "" }, body: form });
-  const upload = await uploadResponse.json(); if (!uploadResponse.ok || !upload.drive_file_id) throw new Error(upload.message ?? "Drive-Upload fehlgeschlagen.");
-  const record = { mitglied_id: owner.kind === "mitglied" ? owner.id : null, parzelle_id: owner.kind === "parzelle" ? owner.id : null, bucket: "dokumente", storage_path: upload.storage_path, drive_file_id: upload.drive_file_id, titel: title, dateiname: upload.dateiname ?? fileName, mime_type: "application/pdf", size_bytes: pdf.byteLength, created_by: auth.userId };
-  const { data, error } = await auth.admin.from("dokument").insert(record).select("id").single(); if (error) throw error;
-  return data.id as number;
+  const upload = await uploadResponse.json(); if (!uploadResponse.ok || !Number.isSafeInteger(upload.document_id)) throw new Error(upload.message ?? "Dokument-Upload fehlgeschlagen.");
+  return upload.document_id as number;
 }
 
 Deno.serve(async (req) => {
@@ -149,6 +147,6 @@ Deno.serve(async (req) => {
     const memberSegment = `${filenamePart(safe(member.name) || "Mitglied")}_${filenamePart(safe(member.vorname) || "OhneVorname")}`;
     const fileName = `${memberSegment}-${memberId}-${startDate}-${type}-${action === "finalize" ? "signiert" : "unsigniert"}.pdf`;
     if (action === "preview") return new Response(pdf, { headers: { ...cors, "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="${fileName}"`, "Cache-Control": "private, no-store" } });
-    const documentId = await uploadAndRecord(auth, pdf, owner, title, fileName); if (protocolIdToComplete) { const { error } = await auth.admin.from("parzellen_protokoll").update({ status: "abgeschlossen", dokument_id: documentId, abgeschlossen_am: new Date().toISOString(), abgeschlossen_von: auth.userId, updated_at: new Date().toISOString() }).eq("id", protocolIdToComplete); if (error) throw error; } return json(200, { success: true, document_id: documentId, message: protocolIdToComplete ? "Das signierte Protokoll wurde als Mitgliedsdokument abgelegt." : "Signiertes Vertragsdokument wurde sicher abgelegt." });
+    const documentId = await uploadContractDocument(auth, pdf, owner, title, fileName); if (protocolIdToComplete) { const { error } = await auth.admin.from("parzellen_protokoll").update({ status: "abgeschlossen", dokument_id: documentId, abgeschlossen_am: new Date().toISOString(), abgeschlossen_von: auth.userId, updated_at: new Date().toISOString() }).eq("id", protocolIdToComplete); if (error) throw error; } return json(200, { success: true, document_id: documentId, message: protocolIdToComplete ? "Das signierte Protokoll wurde als Mitgliedsdokument abgelegt." : "Signiertes Vertragsdokument wurde sicher abgelegt." });
   } catch (error) { const message = error instanceof Error ? error.message.replace(/^AUTH:/, "") : "Vertragsdokument konnte nicht erzeugt werden."; return json(message.startsWith("Anmeldung") || message.startsWith("Nur Admin") ? 403 : 500, { message }); }
 });

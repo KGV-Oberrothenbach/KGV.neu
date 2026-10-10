@@ -1,10 +1,11 @@
 "use client";
 
 import { type ReactNode, useCallback, useEffect, useState } from "react";
-import { archiveDocument, type BrowserSession, uploadDocument, writeSupabase } from "../../lib/supabase-auth";
+import { archiveDocument, type BrowserSession } from "../../lib/supabase-auth";
 import type { Document, DocumentOwner } from "../../models/documents/document";
 import { resolveDocumentOpenUrl } from "../../services/documents/document-open-service";
 import { loadDocumentsForOwner } from "../../services/documents/document-service";
+import { uploadDocumentForOwner } from "../../services/documents/document-upload-service";
 
 type DocumentListProps = {
   session: BrowserSession;
@@ -85,22 +86,7 @@ export function DocumentList({ session, owner, compact = false, canManage = fals
     setUploading(true);
     setError("");
     try {
-      const uploaded = await uploadDocument(session, file, {
-        kind: owner.kind === "member" ? "mitglied" : "parzelle",
-        id: owner.id,
-        title: title.trim(),
-      });
-      await writeSupabase<Document>(session, "dokument", "POST", {
-        mitglied_id: owner.kind === "member" ? owner.id : null,
-        parzelle_id: owner.kind === "parcel" ? owner.id : null,
-        bucket: "dokumente",
-        storage_path: uploaded.storagePath,
-        drive_file_id: uploaded.driveFileId,
-        titel: title.trim(),
-        dateiname: uploaded.fileName,
-        mime_type: uploaded.mimeType,
-        size_bytes: uploaded.sizeBytes,
-      });
+      await uploadDocumentForOwner(session, owner, file, title);
       setFile(null);
       setTitle("");
       await load();
@@ -132,7 +118,7 @@ export function DocumentList({ session, owner, compact = false, canManage = fals
     {compact ? <h3>Parzellen-Dokumente</h3> : <p className="document-intro">Dokumente werden ausschließlich über den geschützten Vereins-Dokumentendienst geöffnet. Die Browser-App speichert keine Dokumentkopie lokal.</p>}
     {error && <p className="notice" role="alert">{error}</p>}
     {beforeList?.(load)}
-    {canManage && <fieldset className="document-upload" disabled={uploading}><label>Titel<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="z. B. Pachtvertrag 2026" /></label><label>Datei<input type="file" accept="application/pdf,image/*,.doc,.docx,.odt" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label><button type="button" onClick={upload}>{uploading ? "Lädt hoch …" : "Dokument hochladen"}</button></fieldset>}
+    {canManage && <fieldset className="document-upload" disabled={uploading}><label>Titel<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="z. B. Pachtvertrag 2026" /></label><label>Datei<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text,.pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.odt" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label><button type="button" onClick={upload}>{uploading ? "Lädt hoch …" : "Dokument hochladen"}</button></fieldset>}
     {isLoading ? <p className="empty-state">Dokumente werden geladen …</p> : <div className="data-table-wrap"><table><thead><tr><th>Titel</th><th>Datei</th><th>Geändert</th><th>Größe</th><th></th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td><strong>{item.titel ?? "Ohne Titel"}</strong></td><td>{item.dateiname ?? "–"}</td><td>{formatDate(item.updated_at)}</td><td>{formatBytes(item.size_bytes)}</td><td><button className="table-action" disabled={opening === item.id} onClick={() => void openDocument(item)}>{opening === item.id ? "Öffne …" : item.mime_type === "application/pdf" ? "Vorschau" : "Öffnen"}</button>{canManage && <button className="table-action secondary-action" disabled={archiving === item.id} onClick={() => void archive(item)}>{archiving === item.id ? "Archiviert …" : "Archivieren"}</button>}</td></tr>)}</tbody></table>{items.length === 0 && <p className="empty-state">Keine aktiven Dokumente vorhanden.</p>}</div>}
     {!compact && <p className="detail-hint">Mitgliedsantrag und Pachtvertrag verwenden die offiziellen PDF-Vorlagen. Vorschau, Unterschriften und sichere Ablage erfolgen über den geschützten Server-Dienst.</p>}
   </section>;
