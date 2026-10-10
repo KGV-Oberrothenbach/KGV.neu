@@ -62,5 +62,6 @@ drop policy if exists arbeitseinsatz_anmeldung_manage_all on public.arbeitseinsa
 drop policy if exists arbeitseinsatz_anmeldung_delete_own on public.arbeitseinsatz_anmeldung;
 drop policy if exists arbeitseinsatz_anmeldung_insert_own_open on public.arbeitseinsatz_anmeldung;
 drop policy if exists arbeitseinsatz_anmeldung_update_own_open on public.arbeitseinsatz_anmeldung;
+drop policy if exists arbeitseinsatz_anmeldung_manage_select on public.arbeitseinsatz_anmeldung;
 create policy arbeitseinsatz_anmeldung_manage_select on public.arbeitseinsatz_anmeldung for select to authenticated using (
   public.has_effective_permission(1048576) and ((not public.is_demo_or_reviewer() and exists (select 1 from public.arbeitseinsatz a where a.id = arbeitseinsatz_id and coalesce(a.is_demo, false) = false)) or (public.is_demo_or_reviewer() and public.is_demo_member_arbeitseinsatz_scope(mitglied_id, arbeitseinsatz_id))));

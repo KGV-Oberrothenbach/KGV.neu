@@ -19,6 +19,10 @@ $$;
 drop policy if exists arbeitseinsatz_admin_full on public.arbeitseinsatz;
 drop policy if exists arbeitseinsatz_demo_admin_full on public.arbeitseinsatz;
 drop policy if exists arbeitseinsatz_select_visible_authenticated on public.arbeitseinsatz;
+drop policy if exists arbeitseinsatz_manage_select on public.arbeitseinsatz;
+drop policy if exists arbeitseinsatz_manage_insert on public.arbeitseinsatz;
+drop policy if exists arbeitseinsatz_manage_update on public.arbeitseinsatz;
+drop policy if exists arbeitseinsatz_manage_delete on public.arbeitseinsatz;
 
 create policy arbeitseinsatz_manage_select on public.arbeitseinsatz for select to authenticated using (
   public.has_effective_permission(1048576)
@@ -58,15 +62,20 @@ drop policy if exists arbeitseinsatz_anmeldung_delete_own_or_admin on public.arb
 drop policy if exists arbeitseinsatz_anmeldung_insert_own_open on public.arbeitseinsatz_anmeldung;
 drop policy if exists arbeitseinsatz_anmeldung_select_own_or_admin on public.arbeitseinsatz_anmeldung;
 drop policy if exists arbeitseinsatz_anmeldung_update_own_open on public.arbeitseinsatz_anmeldung;
+drop policy if exists arbeitseinsatz_anmeldung_manage_all on public.arbeitseinsatz_anmeldung;
+drop policy if exists arbeitseinsatz_anmeldung_delete_own on public.arbeitseinsatz_anmeldung;
+drop policy if exists arbeitseinsatz_anmeldung_select_own on public.arbeitseinsatz_anmeldung;
 
 create policy arbeitseinsatz_anmeldung_manage_all on public.arbeitseinsatz_anmeldung to authenticated using (
   public.has_effective_permission(1048576)
   and ((not public.is_demo_or_reviewer() and exists (select 1 from public.arbeitseinsatz a where a.id = arbeitseinsatz_id and coalesce(a.is_demo, false) = false))
     or (public.is_demo_or_reviewer() and public.is_demo_member_arbeitseinsatz_scope(mitglied_id, arbeitseinsatz_id))
+  )
 ) with check (
   public.has_effective_permission(1048576)
   and ((not public.is_demo_or_reviewer() and exists (select 1 from public.arbeitseinsatz a where a.id = arbeitseinsatz_id and coalesce(a.is_demo, false) = false))
     or (public.is_demo_or_reviewer() and public.is_demo_member_arbeitseinsatz_scope(mitglied_id, arbeitseinsatz_id))
+  )
 );
 create policy arbeitseinsatz_anmeldung_delete_own on public.arbeitseinsatz_anmeldung for delete to authenticated using (
   mitglied_id = public.current_mitglied_id()
