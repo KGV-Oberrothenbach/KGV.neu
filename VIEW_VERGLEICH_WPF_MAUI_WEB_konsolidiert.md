@@ -5150,6 +5150,10 @@ Die zentrale Pflichtstundenberechnung berücksichtigt Teilgutschriften je Hauptm
 
 Die globale Web-Übersicht und Detailansicht verwenden eigene Maintenance-Komponenten. Belegung/Frei sowie die Einordnung von Zuordnungen in aktiv, zukünftig und historisch kommen aus der Service-Schicht; die UI greift nicht direkt auf Supabase zu.
 
+### G11.3 – Editor
+
+Der Web-Editor ist ausgelagert und verwendet drei eindeutige Arbeitsstundenwirkungen. Neue Verträge starten ohne Anrechnung; Servicevalidierung und Edit-Lock bleiben führend. Es gibt keinen Hard-Delete.
+
 ## 11.1 Globale Wartungsvertragsübersicht
 
 ### WPF
