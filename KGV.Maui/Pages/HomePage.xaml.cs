@@ -184,7 +184,7 @@ public class HomePage : ContentPage
         appointmentsEmptyLabel.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowAppointmentsEmptyState));
 
         _newAppointmentButton = new Button { Text = "Neu", HorizontalOptions = LayoutOptions.End, IsVisible = false };
-        _newAppointmentButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
+        _newAppointmentButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.CanManageAppointments));
         _newAppointmentButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(TermineEditorPage));
 
         var appointmentsSection = CreateSectionCard(

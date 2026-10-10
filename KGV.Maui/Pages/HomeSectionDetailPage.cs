@@ -576,8 +576,20 @@ public sealed class HomeSectionDetailPage : ContentPage
         _deleteButton.IsEnabled = !isBusy;
         _calendarButton.IsEnabled = !isBusy && _calendarButton.IsVisible;
         _backButton.IsEnabled = !isBusy;
-        _previousButton.IsEnabled = !isBusy && _previousButton.IsVisible && _arbeitseinsaetzeUserState.CanMovePrevious;
-        _nextButton.IsEnabled = !isBusy && _nextButton.IsVisible && (_homeContextState.DetailKind == HomeDetailKind.WorkAssignment ? _arbeitseinsaetzeUserState.CanMoveNext : _termineUserState.CanMoveNext);
+        var canMovePrevious = _homeContextState.DetailKind switch
+        {
+            HomeDetailKind.WorkAssignment => _arbeitseinsaetzeUserState.CanMovePrevious,
+            HomeDetailKind.Appointment => _termineUserState.CanMovePrevious,
+            _ => false
+        };
+        var canMoveNext = _homeContextState.DetailKind switch
+        {
+            HomeDetailKind.WorkAssignment => _arbeitseinsaetzeUserState.CanMoveNext,
+            HomeDetailKind.Appointment => _termineUserState.CanMoveNext,
+            _ => false
+        };
+        _previousButton.IsEnabled = !isBusy && _previousButton.IsVisible && canMovePrevious;
+        _nextButton.IsEnabled = !isBusy && _nextButton.IsVisible && canMoveNext;
         if (!string.IsNullOrWhiteSpace(message))
             _statusLabel.Text = message;
     }
