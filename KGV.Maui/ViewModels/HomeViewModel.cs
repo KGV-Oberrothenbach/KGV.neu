@@ -15,7 +15,6 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _userContextState;
     private readonly MemberContextState _memberContextState;
-    private HomeAnnouncementItem? _selectedAnnouncement;
     private HomeOverviewDTO _overview = HomeOverviewFactory.Build(UserRole.User);
     private UserRole? _loadedRole;
     private int? _loadedContextMitgliedId;
@@ -67,9 +66,6 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     public bool HasWorkAssignments => WorkAssignments.Count > 0;
     public bool HasAppointments => Appointments.Count > 0;
     public bool CanCreateOwnWorkHoursEntry => GetOwnHomeWorkHoursContextMemberId() is > 0;
-    public bool ShowAnnouncementDetail => HasAnnouncements;
-    public bool HasSelectedAnnouncement => SelectedAnnouncement != null;
-    public bool ShowAnnouncementHint => HasAnnouncements && !HasSelectedAnnouncement;
     public bool ShowAnnouncementEmptyState => !HasAnnouncements;
     public bool ShowWorkAssignmentsEmptyState => !HasWorkAssignments;
     public bool ShowAppointmentsEmptyState => !HasAppointments;
@@ -78,21 +74,6 @@ public sealed class HomeViewModel : INotifyPropertyChanged
     public bool CanManageAnnouncements => PermissionChecks.CanManageAnnouncements(_userContextState.CurrentUserContext);
     public bool ShowManagementSection => IsAdminContext || CanManageWorkAssignments || CanManageAppointments || CanManageAnnouncements;
     public bool CanManageWorkAssignments => PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext);
-
-    public HomeAnnouncementItem? SelectedAnnouncement
-    {
-        get => _selectedAnnouncement;
-        set
-        {
-            if (_selectedAnnouncement == value)
-                return;
-
-            _selectedAnnouncement = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(HasSelectedAnnouncement));
-            OnPropertyChanged(nameof(ShowAnnouncementHint));
-        }
-    }
 
     public async Task InitializeAsync()
     {
@@ -112,7 +93,6 @@ public sealed class HomeViewModel : INotifyPropertyChanged
         FillCollection(Announcements, _overview.Announcements);
         FillCollection(WorkAssignments, _overview.WorkAssignments);
         FillCollection(Appointments, _overview.Appointments);
-        SelectedAnnouncement = null;
 
         OnPropertyChanged(nameof(Description));
         OnPropertyChanged(nameof(UserContextText));
@@ -132,7 +112,6 @@ public sealed class HomeViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(AppointmentsTitle));
         OnPropertyChanged(nameof(AppointmentsEmptyText));
         OnPropertyChanged(nameof(HasAnnouncements));
-        OnPropertyChanged(nameof(ShowAnnouncementDetail));
         OnPropertyChanged(nameof(HasQuickLinks));
         OnPropertyChanged(nameof(HasOperationalItems));
         OnPropertyChanged(nameof(HasWorkHoursSummary));
@@ -141,7 +120,6 @@ public sealed class HomeViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(ShowOperationalEmptyState));
         OnPropertyChanged(nameof(HasWorkAssignments));
         OnPropertyChanged(nameof(HasAppointments));
-        OnPropertyChanged(nameof(ShowAnnouncementHint));
         OnPropertyChanged(nameof(ShowAnnouncementEmptyState));
         OnPropertyChanged(nameof(ShowWorkAssignmentsEmptyState));
         OnPropertyChanged(nameof(ShowAppointmentsEmptyState));

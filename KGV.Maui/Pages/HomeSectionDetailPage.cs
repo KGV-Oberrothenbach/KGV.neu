@@ -192,7 +192,7 @@ public sealed class HomeSectionDetailPage : ContentPage
                         Children = { _registerButton, _signOffButton, _submitWorkHoursButton, _calendarButton, _newButton, _editButton, _deleteButton }
                     },
                     _participantsSection,
-                    CreateWorkAssignmentNavigationFooter(),
+                    CreateDetailNavigationFooter(),
                     _statusLabel
                 }
             }
@@ -562,7 +562,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         }
     }
 
-    private Grid CreateWorkAssignmentNavigationFooter()
+    private Grid CreateDetailNavigationFooter()
     {
         var grid = new Grid
         {
@@ -601,12 +601,14 @@ public sealed class HomeSectionDetailPage : ContentPage
         {
             HomeDetailKind.WorkAssignment => _arbeitseinsaetzeUserState.CanMovePrevious,
             HomeDetailKind.Appointment => _termineUserState.CanMovePrevious,
+            HomeDetailKind.Announcement => _bekanntmachungenUserState.CanMovePrevious,
             _ => false
         };
         var canMoveNext = _homeContextState.DetailKind switch
         {
             HomeDetailKind.WorkAssignment => _arbeitseinsaetzeUserState.CanMoveNext,
             HomeDetailKind.Appointment => _termineUserState.CanMoveNext,
+            HomeDetailKind.Announcement => _bekanntmachungenUserState.CanMoveNext,
             _ => false
         };
         _previousButton.IsEnabled = !isBusy && _previousButton.IsVisible && canMovePrevious;
@@ -691,17 +693,13 @@ public sealed class HomeSectionDetailPage : ContentPage
 
     private async Task DeleteAsync()
     {
+        if (_homeContextState.DetailKind != HomeDetailKind.WorkAssignment)
+            return;
         var entryId = TryGetCurrentEntryId();
         if (entryId <= 0 || _isBusy)
             return;
 
-        var entityName = _homeContextState.DetailKind switch
-        {
-            HomeDetailKind.WorkAssignment => "Arbeitseinsatz",
-            HomeDetailKind.Appointment => "Termin",
-            HomeDetailKind.Announcement => "Bekanntmachung",
-            _ => "Datensatz"
-        };
+        const string entityName = "Arbeitseinsatz";
 
         var confirmed = await DisplayAlertAsync("Löschen bestätigen", $"{entityName} wirklich löschen?", "Löschen", "Abbrechen");
         if (!confirmed)
@@ -712,13 +710,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         try
         {
             await Task.Yield();
-            var success = _homeContextState.DetailKind switch
-            {
-                HomeDetailKind.WorkAssignment => await _supabaseService.DeleteArbeitseinsatzAsync(entryId),
-                HomeDetailKind.Appointment => false,
-                HomeDetailKind.Announcement => false,
-                _ => false
-            };
+            var success = await _supabaseService.DeleteArbeitseinsatzAsync(entryId);
 
             if (!success)
             {
@@ -728,7 +720,6 @@ public sealed class HomeSectionDetailPage : ContentPage
             }
 
             _arbeitseinsaetzeUserState.Clear();
-            _termineUserState.Clear();
             _homeContextState.Clear();
             await _homeViewModel.ReloadAsync();
             await Shell.Current.GoToAsync("//home");
