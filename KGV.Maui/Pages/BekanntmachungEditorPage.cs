@@ -492,10 +492,9 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
 
     private async Task HandlePreviewNavigationAsync(string? url, Action cancel)
     {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || SafeWebViewNavigation.IsInternal(uri))
-            return;
+        if (SafeWebViewNavigation.IsInternal(url)) return;
         cancel();
-        if (!SafeWebViewNavigation.IsAllowedExternal(uri))
+        if (!SafeWebViewNavigation.TryGetAllowedExternal(url, out var uri) || uri is null)
             return;
         try { await Launcher.Default.OpenAsync(uri); }
         catch { _statusLabel.Text = "Der Link konnte nicht geöffnet werden."; }
