@@ -33,5 +33,6 @@ public sealed class HtmlContentHelperTests
     [InlineData("vbscript:msgbox(1)")]
     public void SanitizeFragment_RemovesUnsafeSchemes(string href) => Assert.DoesNotContain(href, HtmlContentHelper.SanitizeFragment($"<a href=\"{href}\">Link</a>"));
     [Fact] public void BuildHtmlDocument_EncodesFallback() { var html = HtmlContentHelper.BuildHtmlDocument(null, "A < B & C"); Assert.Contains("A &lt; B &amp; C", html); Assert.Contains("Content-Security-Policy", html); }
+    [Fact] public void BuildHtmlDocument_ShowsAnnouncementEmptyFallback() { var html = HtmlContentHelper.BuildHtmlDocument(null, "Kein Inhalt hinterlegt."); Assert.Contains("Kein Inhalt hinterlegt.", html); Assert.Contains("Content-Security-Policy", html); Assert.DoesNotContain("<script", html, StringComparison.OrdinalIgnoreCase); }
     [Fact] public void SanitizeFragment_PreservesTableSpans() { var html = HtmlContentHelper.SanitizeFragment("<table><tbody><tr><td colspan=\"2\" rowspan=\"3\">Text</td></tr></tbody></table>"); Assert.Contains("colspan=\"2\"", html); Assert.Contains("rowspan=\"3\"", html); }
 }
