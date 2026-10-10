@@ -1,4 +1,5 @@
 using KGV.Core.Interfaces;
+using KGV.Core.Calendar;
 using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Core.Utilities;
@@ -9,6 +10,8 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Text;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -39,6 +42,7 @@ public sealed class HomeSectionDetailPage : ContentPage
     private readonly Button _newButton;
     private readonly Button _editButton;
     private readonly Button _deleteButton;
+    private readonly Button _calendarButton;
     private readonly Button _backButton;
     private readonly Button _previousButton;
     private readonly Button _nextButton;
@@ -97,6 +101,9 @@ public sealed class HomeSectionDetailPage : ContentPage
 
         _deleteButton = new Button { Text = "Löschen", IsVisible = false };
         _deleteButton.Clicked += async (_, _) => await DeleteAsync();
+
+        _calendarButton = new Button { Text = "In Kalender übernehmen", IsVisible = false };
+        _calendarButton.Clicked += async (_, _) => await ExportAppointmentCalendarAsync();
 
         _previousButton = new Button { Text = "←", WidthRequest = 56, IsVisible = false };
         _previousButton.Clicked += async (_, _) => await MovePreviousAsync();
@@ -178,7 +185,7 @@ public sealed class HomeSectionDetailPage : ContentPage
                     {
                         Direction = FlexDirection.Row,
                         Wrap = FlexWrap.Wrap,
-                        Children = { _registerButton, _signOffButton, _submitWorkHoursButton, _newButton, _editButton, _deleteButton }
+                        Children = { _registerButton, _signOffButton, _submitWorkHoursButton, _calendarButton, _newButton, _editButton, _deleteButton }
                     },
                     _participantsSection,
                     CreateWorkAssignmentNavigationFooter(),
@@ -223,6 +230,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         _newButton.IsVisible = false;
         _editButton.IsVisible = false;
         _deleteButton.IsVisible = false;
+        _calendarButton.IsVisible = false;
         _previousButton.IsVisible = false;
         _nextButton.IsVisible = false;
         _positionLabel.IsVisible = false;
@@ -261,6 +269,7 @@ public sealed class HomeSectionDetailPage : ContentPage
                     _additionalInfoLabel.Text = appointment.DetailInfo;
                     _registrationInfoLabel.Text = string.Empty;
                     UpdateAppointmentNavigation();
+                    _calendarButton.IsVisible = true;
                     break;
                 case HomeDetailKind.Announcement when _homeContextState.Announcement != null:
                     var announcement = _homeContextState.Announcement;
@@ -565,6 +574,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         _newButton.IsEnabled = !isBusy;
         _editButton.IsEnabled = !isBusy;
         _deleteButton.IsEnabled = !isBusy;
+        _calendarButton.IsEnabled = !isBusy && _calendarButton.IsVisible;
         _backButton.IsEnabled = !isBusy;
         _previousButton.IsEnabled = !isBusy && _previousButton.IsVisible && _arbeitseinsaetzeUserState.CanMovePrevious;
         _nextButton.IsEnabled = !isBusy && _nextButton.IsVisible && (_homeContextState.DetailKind == HomeDetailKind.WorkAssignment ? _arbeitseinsaetzeUserState.CanMoveNext : _termineUserState.CanMoveNext);
@@ -597,6 +607,43 @@ public sealed class HomeSectionDetailPage : ContentPage
             HomeDetailKind.Announcement => Shell.Current.GoToAsync($"{nameof(BekanntmachungEditorPage)}?entryId={TryGetCurrentEntryId()}"),
             _ => Shell.Current.GoToAsync("//home")
         };
+    }
+
+    private async Task ExportAppointmentCalendarAsync()
+    {
+        var appointment = _termineUserState.CurrentEntry ?? _homeContextState.Appointment;
+        if (appointment?.Date is null || appointment.Id <= 0)
+            return;
+
+        try
+        {
+            SetBusyState(true, "Kalenderdatei wird erstellt.");
+            var content = IcsCalendarBuilder.Build(new CalendarEventData
+            {
+                Uid = $"termin-{appointment.Id}@kgv-oberrothenbach",
+                Title = appointment.Title,
+                Description = appointment.Details,
+                Date = appointment.Date.Value,
+                StartTime = appointment.StartTime,
+                EndTime = appointment.EndTime
+            });
+            var path = Path.Combine(FileSystem.CacheDirectory, $"termin-{appointment.Id}.ics");
+            await File.WriteAllTextAsync(path, content, new UTF8Encoding(false));
+            await Share.Default.RequestAsync(new ShareFileRequest
+            {
+                Title = "In Kalender übernehmen",
+                File = new ShareFile(path, "text/calendar")
+            });
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.TextColor = Colors.IndianRed;
+            _statusLabel.Text = ex.Message;
+        }
+        finally
+        {
+            SetBusyState(false);
+        }
     }
 
     private async Task DeleteAsync()

@@ -7,6 +7,7 @@ import { berlinNow, workAssignmentHasStarted } from "../../services/work-assignm
 import { workAssignmentHasEnded } from "../../services/work-assignments/work-assignment-service";
 import { loadLinkedWorkAssignmentWorkHour, submitLinkedWorkAssignmentWorkHour } from "../../services/work-hours/work-hours-service";
 import { type WorkHour } from "../work-hours/work-hours-types";
+import { downloadIcsCalendar } from "../../services/calendar/ics-calendar-service";
 
 type HomeDetailProps = {
   session: BrowserSession;
@@ -34,7 +35,10 @@ function formatDate(value: string | null | undefined) {
 }
 
 function formatTimeRange(start: string | null | undefined, end: string | null | undefined) {
-  return [start, end].filter(Boolean).map((value) => String(value).slice(0, 5)).join(" – ");
+  if (!start && !end) return "Ganztägig";
+  if (!start) return `bis ${String(end).slice(0, 5)}`;
+  if (!end) return `ab ${String(start).slice(0, 5)}`;
+  return `${String(start).slice(0, 5)} – ${String(end).slice(0, 5)}`;
 }
 
 function plainText(value: string | null) {
@@ -107,7 +111,7 @@ export default function HomeDetail({ session, selection, assignments, appointmen
           <div className="home-detail-registration"><strong>{registered ? "Du bist angemeldet." : assignment.freie_plaetze === null ? "Anmeldung möglich." : `${assignment.freie_plaetze} freie Plätze.`}</strong>{registrationOpen && <button disabled={busy} onClick={() => onRegister(assignment.id)}>Anmelden</button>}{canSignOff && <button className="secondary-action" disabled={busy} onClick={() => onSignOff(assignment.id)}>Abmelden</button>}{canSubmitWorkHour && <button disabled={busy} onClick={() => void submitWorkHours()}>Arbeitsstunden erfassen</button>}{linkedWorkHour && <small>{linkedWorkHour.status === "offen" ? "Arbeitsstunden eingereicht – in Prüfung" : linkedWorkHour.status === "abgelehnt" ? "Arbeitsstunden abgelehnt" : "Arbeitsstunden bestätigt"}</small>}</div>
           {canManageWorkAssignments && <section className="home-participants"><div><h3>Angemeldete Teilnehmer</h3><button className="secondary-action" onClick={() => onNavigate("arbeitseinsaetze")}>Teilnehmer verwalten</button></div>{participantError && <p className="notice">{participantError}</p>}{participants.length ? <ul>{participants.map((participant) => <li key={participant.id}><strong>{participant.displayName}</strong><span>{participant.status}</span></li>)}</ul> : !participantError && <p>Aktuell keine angemeldeten Teilnehmer.</p>}</section>}
         </>}
-        {appointment && <><div className="home-detail-facts"><div><span>Datum</span><strong>{formatDate(appointment.datum)}</strong></div><div><span>Beginn und Ende</span><strong>{formatTimeRange(appointment.start_uhrzeit, appointment.end_uhrzeit)}</strong></div><div><span>Sichtbar ab</span><strong>{formatDate(appointment.sichtbar_ab)}</strong></div><div><span>Sichtbar bis</span><strong>{formatDate(appointment.sichtbar_bis)}</strong></div></div><div className="home-detail-content">{appointment.beschreibung || "Keine Beschreibung hinterlegt."}</div></>}
+        {appointment && <><div className="home-detail-facts"><div><span>Datum</span><strong>{formatDate(appointment.datum)}</strong></div><div><span>Beginn und Ende</span><strong>{formatTimeRange(appointment.start_uhrzeit, appointment.end_uhrzeit)}</strong></div><div><span>Sichtbar ab</span><strong>{formatDate(appointment.sichtbar_ab)}</strong></div><div><span>Sichtbar bis</span><strong>{formatDate(appointment.sichtbar_bis)}</strong></div></div><div className="home-detail-content">{appointment.beschreibung || "Keine Beschreibung hinterlegt."}</div><button onClick={() => downloadIcsCalendar({ uid: `termin-${appointment.id}@kgv-oberrothenbach`, title: appointment.titel ?? "Termin", description: appointment.beschreibung, date: appointment.datum, startTime: appointment.start_uhrzeit, endTime: appointment.end_uhrzeit })}>In Kalender übernehmen</button></>}
         {announcement && <><div className="home-detail-facts"><div><span>Veröffentlicht</span><strong>{formatDate(announcement.sichtbar_ab ?? announcement.created_at)}</strong></div><div><span>Sichtbar bis</span><strong>{formatDate(announcement.sichtbar_bis)}</strong></div></div><div className="home-detail-content">{plainText(announcement.inhalt_html) || "Kein Inhalt hinterlegt."}</div></>}
       </div>
       <footer><button className="secondary-action" disabled={index <= 0} onClick={() => move(-1)}>← Vorheriger Eintrag</button><span>{index >= 0 ? `${index + 1} von ${items.length}` : ""}</span><button className="secondary-action" disabled={index < 0 || index >= items.length - 1} onClick={() => move(1)}>Nächster Eintrag →</button>{canManageSelection && <button onClick={() => onNavigate(managementTarget)}>In Verwaltung öffnen</button>}</footer>

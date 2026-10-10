@@ -47,6 +47,9 @@ public sealed class HomeWorkAssignmentItem
 public sealed class HomeAppointmentItem
 {
     public int Id { get; init; }
+    public DateTime? Date { get; init; }
+    public TimeSpan? StartTime { get; init; }
+    public TimeSpan? EndTime { get; init; }
     public string Title { get; init; } = string.Empty;
     public string Subtitle { get; init; } = string.Empty;
     public string StartTimeText { get; init; } = string.Empty;
@@ -62,11 +65,11 @@ public sealed class HomeAppointmentItem
         var hasEnd = !string.IsNullOrWhiteSpace(end);
 
         if (!hasStart && !hasEnd)
-            return string.Empty;
+            return "Ganztägig";
         if (!hasEnd)
-            return start ?? string.Empty;
+            return $"ab {start}";
         if (!hasStart)
-            return end ?? string.Empty;
+            return $"bis {end}";
 
         return $"{start} - {end}";
     }

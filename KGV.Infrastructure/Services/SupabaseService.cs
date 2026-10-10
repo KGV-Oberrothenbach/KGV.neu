@@ -6995,13 +6995,10 @@ namespace KGV.Infrastructure.Services
                 .ToList()
                 ?? new List<StartseiteTerminRecord>();
 
-            await EnrichStartseiteTerminTimesAsync(client, records);
-            records = await FilterVisibleStartseiteTermineAsync(client, records);
-
             return records
                 .OrderBy(x => x.Datum ?? DateTime.MaxValue)
-                .ThenBy(x => NormalizeTimeValue(x.Beginn) ?? "99:99", StringComparer.Ordinal)
-                .ThenBy(x => NormalizeTimeValue(x.Ende) ?? "99:99", StringComparer.Ordinal)
+                .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
+                .ThenBy(x => x.EndUhrzeit ?? TimeSpan.MaxValue)
                 .ThenBy(x => FirstNonEmpty(x.Titel, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                 .ThenBy(x => x.Id)
                 .Select(MapHomeAppointment)
@@ -7141,10 +7138,10 @@ namespace KGV.Infrastructure.Services
         private static HomeAppointmentItem MapHomeAppointment(StartseiteTerminRecord record)
         {
             var title = FirstNonEmpty(record.Titel, record.Thema) ?? "Termin";
-            var details = NormalizeHomeText(FirstNonEmpty(record.Inhalt, record.Beschreibung));
+            var details = NormalizeHomeText(FirstNonEmpty(record.Beschreibung, record.Inhalt));
             var detailInfoLines = new List<string>();
-            var begin = NormalizeTimeValue(record.Beginn);
-            var end = NormalizeTimeValue(record.Ende);
+            var begin = FormatTimeValue(record.StartUhrzeit) ?? NormalizeTimeValue(record.Beginn);
+            var end = FormatTimeValue(record.EndUhrzeit) ?? NormalizeTimeValue(record.Ende);
 
             AddDetailLine(detailInfoLines, "Thema", record.Thema, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase));
             AddDetailLine(detailInfoLines, "Datum", record.Datum?.ToString("dd.MM.yyyy"));
@@ -7153,6 +7150,9 @@ namespace KGV.Infrastructure.Services
             return new HomeAppointmentItem
             {
                 Id = record.Id,
+                Date = record.Datum,
+                StartTime = record.StartUhrzeit ?? ParseTimeValue(record.Beginn),
+                EndTime = record.EndUhrzeit ?? ParseTimeValue(record.Ende),
                 Title = title,
                 Subtitle = record.Datum?.ToString("dd.MM.yyyy") ?? string.Empty,
                 StartTimeText = begin ?? string.Empty,
@@ -7386,6 +7386,11 @@ namespace KGV.Infrastructure.Services
                 : value;
         }
 
+        private static TimeSpan? ParseTimeValue(string? value)
+        {
+            return TimeSpan.TryParse(value, out var time) ? time : null;
+        }
+
         private static string BuildCapacityText(int? angemeldetCount, int? freiePlaetze)
         {
             var parts = new List<string>();
@@ -7468,6 +7473,10 @@ namespace KGV.Infrastructure.Services
                 Titel = record.Titel,
                 Thema = record.Thema,
                 Datum = NormalizeDateOnly(record.Datum),
+                StartUhrzeit = record.StartUhrzeit,
+                EndUhrzeit = record.EndUhrzeit,
+                SichtbarAb = record.SichtbarAb,
+                SichtbarBis = record.SichtbarBis,
                 Beginn = record.Beginn,
                 Ende = record.Ende,
                 Ort = record.Ort,
