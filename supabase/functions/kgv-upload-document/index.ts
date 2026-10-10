@@ -51,6 +51,7 @@ type AuthenticatedDocumentUser = {
   userId: string;
   role: string;
   mitgliedId: number | null;
+  isDemoAccount: boolean;
 };
 
 type DriveDocumentRecord = {
@@ -505,7 +506,7 @@ async function authenticateDocumentUser(authHeader: string) {
 
   const { data: appUser, error: appUserError } = await supabaseAdmin
     .from("app_user")
-    .select("role,mitglied_id")
+    .select("role,mitglied_id,is_demo_account")
     .eq("user_id", userData.user.id)
     .maybeSingle();
 
@@ -519,7 +520,7 @@ async function authenticateDocumentUser(authHeader: string) {
     ? rawMitgliedId
     : null;
 
-  return { ok: true as const, userId: userData.user.id, role, mitgliedId, supabaseAdmin };
+  return { ok: true as const, userId: userData.user.id, role, mitgliedId, isDemoAccount: appUser?.is_demo_account === true, supabaseAdmin };
 }
 
 async function requireAdminOrVorstand(authHeader: string) {
@@ -561,6 +562,23 @@ async function verifyArchivePassword(value: string): Promise<boolean> {
   return (await sha256Hex(value)).toLowerCase() === configuredHash;
 }
 
+async function isDocumentInDemoScope(auth: { supabaseAdmin: ReturnType<typeof createClient> }, document: Pick<DriveDocumentRecord, "mitglied_id" | "parzelle_id">): Promise<boolean> {
+  const owner = document.mitglied_id
+    ? { table: "mitglied", id: document.mitglied_id }
+    : document.parzelle_id
+      ? { table: "parzelle", id: document.parzelle_id }
+      : null;
+  if (!owner) return false;
+
+  const { data, error } = await auth.supabaseAdmin
+    .from(owner.table)
+    .select("is_demo")
+    .eq("id", owner.id)
+    .maybeSingle();
+  if (error) throw new Error(`Dokument-Demo-Scope konnte nicht geprüft werden: ${error.message}`);
+  return data?.is_demo === true;
+}
+
 async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin: ReturnType<typeof createClient> }, documentId: number): Promise<DriveDocumentRecord | null> {
   const { data: document, error: documentError } = await auth.supabaseAdmin
     .from("dokument")
@@ -573,6 +591,10 @@ async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin
   }
 
   if (!document)
+    return null;
+
+  // The service-role client bypasses RLS, so scope parity must precede role checks.
+  if (await isDocumentInDemoScope(auth, document as DriveDocumentRecord) !== auth.isDemoAccount)
     return null;
 
   const isManager = auth.role === "admin" || auth.role === "vorstand";

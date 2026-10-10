@@ -304,7 +304,7 @@ export async function sendPasswordReset(session: BrowserSession, email: string) 
   return await callSupabaseFunction<{ success?: boolean; message?: string }>(session, "kgv-request-first-login-otp", { email: email.trim() });
 }
 
-export async function createDocumentOpenUrl(session: BrowserSession, bucket: string, storagePath: string): Promise<string> {
+export async function createStorageSignedUrl(session: BrowserSession, bucket: string, storagePath: string): Promise<string> {
   const { url, publishableKey } = config();
   const response = await fetch(`${url}/storage/v1/object/sign/${encodeURIComponent(bucket)}/${storagePath.split("/").map(encodeURIComponent).join("/")}`, {
     method: "POST",
@@ -318,18 +318,13 @@ export async function createDocumentOpenUrl(session: BrowserSession, bucket: str
   return signedPath.startsWith("http") ? signedPath : `${url}/storage/v1${signedPath}`;
 }
 
-export async function openDriveDocument(session: BrowserSession, documentId: number): Promise<string> {
+export async function callSupabaseFunctionRaw(session: BrowserSession, name: string, options: { method: "POST" | "PUT" | "PATCH" | "DELETE"; body?: BodyInit | null }): Promise<Response> {
   const { url, publishableKey } = config();
-  const response = await fetch(`${url}/functions/v1/kgv-upload-document`, {
-    method: "POST",
-    headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "download", document_id: documentId }),
+  return fetch(`${url}/functions/v1/${name}`, {
+    method: options.method,
+    headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, ...(options.body ? { "Content-Type": "application/json" } : {}) },
+    body: options.body,
   });
-  if (!response.ok) {
-    const detail = await response.json().catch(() => null) as { message?: string } | null;
-    throw new Error(detail?.message ?? "Das Dokument kann derzeit nicht geöffnet werden.");
-  }
-  return URL.createObjectURL(await response.blob());
 }
 
 export async function uploadDocument(session: BrowserSession, file: File, owner: { kind: "mitglied" | "parzelle"; id: number; title: string }) {

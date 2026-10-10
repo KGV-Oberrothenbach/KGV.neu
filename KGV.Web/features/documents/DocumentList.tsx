@@ -1,8 +1,9 @@
 "use client";
 
 import { type ReactNode, useCallback, useEffect, useState } from "react";
-import { archiveDocument, createDocumentOpenUrl, openDriveDocument, type BrowserSession, uploadDocument, writeSupabase } from "../../lib/supabase-auth";
+import { archiveDocument, type BrowserSession, uploadDocument, writeSupabase } from "../../lib/supabase-auth";
 import type { Document, DocumentOwner } from "../../models/documents/document";
+import { resolveDocumentOpenUrl } from "../../services/documents/document-open-service";
 import { loadDocumentsForOwner } from "../../services/documents/document-service";
 
 type DocumentListProps = {
@@ -67,12 +68,7 @@ export function DocumentList({ session, owner, compact = false, canManage = fals
     setOpening(item.id);
     setError("");
     try {
-      const documentUrl = item.drive_file_id
-        ? await openDriveDocument(session, item.id)
-        : item.bucket && item.storage_path
-          ? await createDocumentOpenUrl(session, item.bucket, item.storage_path)
-          : null;
-      if (!documentUrl) throw new Error("Für dieses Dokument fehlt eine sichere Ablage.");
+      const documentUrl = await resolveDocumentOpenUrl(session, item);
       window.open(documentUrl, "_blank", "noopener,noreferrer");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Das Dokument konnte nicht geöffnet werden.");
@@ -137,7 +133,7 @@ export function DocumentList({ session, owner, compact = false, canManage = fals
     {error && <p className="notice" role="alert">{error}</p>}
     {beforeList?.(load)}
     {canManage && <fieldset className="document-upload" disabled={uploading}><label>Titel<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="z. B. Pachtvertrag 2026" /></label><label>Datei<input type="file" accept="application/pdf,image/*,.doc,.docx,.odt" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label><button type="button" onClick={upload}>{uploading ? "Lädt hoch …" : "Dokument hochladen"}</button></fieldset>}
-    {isLoading ? <p className="empty-state">Dokumente werden geladen …</p> : <div className="data-table-wrap"><table><thead><tr><th>Titel</th><th>Datei</th><th>Geändert</th><th>Größe</th><th></th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td><strong>{item.titel ?? "Ohne Titel"}</strong></td><td>{item.dateiname ?? "–"}</td><td>{formatDate(item.updated_at)}</td><td>{formatBytes(item.size_bytes)}</td><td><button className="table-action" disabled={(!item.drive_file_id && (!item.bucket || !item.storage_path)) || opening === item.id} onClick={() => void openDocument(item)}>{opening === item.id ? "Öffne …" : item.mime_type === "application/pdf" ? "Vorschau" : "Öffnen"}</button>{canManage && <button className="table-action secondary-action" disabled={archiving === item.id} onClick={() => void archive(item)}>{archiving === item.id ? "Archiviert …" : "Archivieren"}</button>}</td></tr>)}</tbody></table>{items.length === 0 && <p className="empty-state">Keine aktiven Dokumente vorhanden.</p>}</div>}
+    {isLoading ? <p className="empty-state">Dokumente werden geladen …</p> : <div className="data-table-wrap"><table><thead><tr><th>Titel</th><th>Datei</th><th>Geändert</th><th>Größe</th><th></th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td><strong>{item.titel ?? "Ohne Titel"}</strong></td><td>{item.dateiname ?? "–"}</td><td>{formatDate(item.updated_at)}</td><td>{formatBytes(item.size_bytes)}</td><td><button className="table-action" disabled={opening === item.id} onClick={() => void openDocument(item)}>{opening === item.id ? "Öffne …" : item.mime_type === "application/pdf" ? "Vorschau" : "Öffnen"}</button>{canManage && <button className="table-action secondary-action" disabled={archiving === item.id} onClick={() => void archive(item)}>{archiving === item.id ? "Archiviert …" : "Archivieren"}</button>}</td></tr>)}</tbody></table>{items.length === 0 && <p className="empty-state">Keine aktiven Dokumente vorhanden.</p>}</div>}
     {!compact && <p className="detail-hint">Mitgliedsantrag und Pachtvertrag verwenden die offiziellen PDF-Vorlagen. Vorschau, Unterschriften und sichere Ablage erfolgen über den geschützten Server-Dienst.</p>}
   </section>;
 }
