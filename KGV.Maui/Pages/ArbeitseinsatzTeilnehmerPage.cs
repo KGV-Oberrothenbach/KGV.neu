@@ -74,8 +74,8 @@ public sealed class ArbeitseinsatzTeilnehmerPage : ContentPage, IQueryAttributab
             _assignmentActive = assignment.Aktiv;
             _maxParticipants = assignment.MaxTeilnehmer;
             _activeRegistrations = participants.Count(x => x.Status == "angemeldet");
-            _started = Vereinszeit.Now >= assignment.Datum.Date.Add(assignment.StartUhrzeit ?? new TimeSpan(23, 59, 0));
-            _ended = Vereinszeit.Now >= assignment.Datum.Date.Add(assignment.EndUhrzeit ?? assignment.StartUhrzeit ?? new TimeSpan(23, 59, 0));
+            _started = WorkAssignmentRules.HasStarted(assignment.Datum, assignment.StartUhrzeit);
+            _ended = WorkAssignmentRules.HasEnded(assignment.Datum, assignment.StartUhrzeit, assignment.EndUhrzeit);
             _defaultHours = assignment.StundenWert;
             _defaultWorkType = assignment.Titel ?? string.Empty;
             var registrationByMemberId = participants.ToDictionary(x => x.MitgliedId, x => x);

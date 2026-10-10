@@ -4,6 +4,18 @@ namespace KGV.Core.Models;
 
 public static class WorkAssignmentRules
 {
+    public static DateTime GetStart(DateTime assignmentDate, TimeSpan? startTime)
+        => assignmentDate.Date.Add(startTime ?? new TimeSpan(23, 59, 0));
+
+    public static DateTime GetEnd(DateTime assignmentDate, TimeSpan? startTime, TimeSpan? endTime)
+        => assignmentDate.Date.Add(endTime ?? startTime ?? new TimeSpan(23, 59, 0));
+
+    public static bool HasStarted(DateTime assignmentDate, TimeSpan? startTime, DateTime? now = null)
+        => (now ?? Vereinszeit.Now) >= GetStart(assignmentDate, startTime);
+
+    public static bool HasEnded(DateTime assignmentDate, TimeSpan? startTime, TimeSpan? endTime, DateTime? now = null)
+        => (now ?? Vereinszeit.Now) >= GetEnd(assignmentDate, startTime, endTime);
+
     public static (DateTime VisibleUntil, DateTime SignUpDeadline) CreateDateDefaults(DateTime assignmentDate)
     {
         var date = assignmentDate.Date;
@@ -35,7 +47,7 @@ public static class WorkAssignmentRules
         if (record.EndUhrzeit.HasValue && record.StartUhrzeit.HasValue && record.EndUhrzeit < record.StartUhrzeit) return "Die Endzeit darf nicht vor der Startzeit liegen.";
         if (record.StundenWert < 0 || record.MaxTeilnehmer is <= 0) return "Stundenwert oder Teilnehmerbegrenzung sind ungültig.";
         if (record.SichtbarAb.HasValue && record.SichtbarBis.HasValue && record.SichtbarBis < record.SichtbarAb) return "Sichtbar bis darf nicht vor Sichtbar ab liegen.";
-        var latestDeadline = record.Datum.Date.Add(record.StartUhrzeit ?? new TimeSpan(23, 59, 0));
+        var latestDeadline = GetStart(record.Datum, record.StartUhrzeit);
         if (record.AnmeldungBis.HasValue && record.AnmeldungBis > latestDeadline) return "Der Anmeldeschluss darf nicht nach Einsatzbeginn liegen.";
         return null;
     }

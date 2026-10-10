@@ -6969,15 +6969,13 @@ namespace KGV.Infrastructure.Services
                 .ToList()
                 ?? new List<StartseiteArbeitseinsatzRecord>();
 
-            await EnrichStartseiteArbeitseinsatzTimesAsync(client, records);
             await EnrichStartseiteArbeitseinsatzRegistrationStateAsync(client, records);
-            records = await FilterVisibleStartseiteArbeitseinsaetzeAsync(client, records);
 
             return records
-                .OrderBy(x => x.Datum ?? DateTime.MaxValue)
-                .ThenBy(x => NormalizeTimeValue(x.Beginn) ?? "99:99")
-                .ThenBy(x => NormalizeTimeValue(x.Ende) ?? "99:99")
-                .ThenBy(x => FirstNonEmpty(x.Titel, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                .OrderBy(x => x.Datum)
+                .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
+                .ThenBy(x => x.EndUhrzeit ?? TimeSpan.MaxValue)
+                .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                 .Select(MapHomeWorkAssignment)
                 .ToList()
                 ?? new List<HomeWorkAssignmentItem>();
@@ -7019,24 +7017,6 @@ namespace KGV.Infrastructure.Services
                 .Select(MapHomeAnnouncement)
                 .ToList()
                 ?? new List<HomeAnnouncementItem>();
-        }
-
-        private async Task<List<StartseiteArbeitseinsatzRecord>> FilterVisibleStartseiteArbeitseinsaetzeAsync(global::Supabase.Client client, List<StartseiteArbeitseinsatzRecord> records)
-        {
-            if (records.Count == 0)
-                return records;
-
-            var response = await client.From<ArbeitseinsatzRecord>().Get();
-            var byId = response?.Models?
-                .Select(NormalizeArbeitseinsatzRecord)
-                .ToDictionary(x => x.Id) ?? new Dictionary<long, ArbeitseinsatzRecord>();
-            var now = CreateEditorNowDefault();
-
-            return records
-                .Where(x => byId.TryGetValue(x.Id, out var record)
-                            && OperationalDataFilter.IsOperationalArbeitseinsatz(record)
-                            && IsCurrentlyVisible(record.Aktiv, record.SichtbarAb, record.SichtbarBis, now))
-                .ToList();
         }
 
         private async Task<List<StartseiteTerminRecord>> FilterVisibleStartseiteTermineAsync(global::Supabase.Client client, List<StartseiteTerminRecord> records)
@@ -7095,38 +7075,44 @@ namespace KGV.Infrastructure.Services
             };
         }
 
-        private static HomeWorkAssignmentItem MapHomeWorkAssignment(StartseiteArbeitseinsatzRecord record)
+        private HomeWorkAssignmentItem MapHomeWorkAssignment(StartseiteArbeitseinsatzRecord record)
         {
             var description = NormalizeHomeText(record.Beschreibung);
             var capacityText = BuildCapacityText(record.AngemeldetCount, record.FreiePlaetze);
-            var title = FirstNonEmpty(record.Titel, record.Thema) ?? "Arbeitseinsatz";
-            var begin = NormalizeTimeValue(record.Beginn);
-            var end = NormalizeTimeValue(record.Ende);
+            var title = record.Titel ?? "Arbeitseinsatz";
+            var begin = FormatTimeValue(record.StartUhrzeit);
+            var end = FormatTimeValue(record.EndUhrzeit);
+            var now = Vereinszeit.Now;
+            var canRegister = TryGetCurrentMitgliedId().HasValue
+                && record.Aktiv
+                && !record.IstAngemeldet
+                && record.FreiePlaetze != 0
+                && (!record.AnmeldungBis.HasValue || record.AnmeldungBis.Value >= now)
+                && !WorkAssignmentRules.HasStarted(record.Datum, record.StartUhrzeit, now);
             var detailInfoLines = new List<string>();
 
-            AddDetailLine(detailInfoLines, "Thema", record.Thema, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase));
-            AddDetailLine(detailInfoLines, "Datum", record.Datum?.ToString("dd.MM.yyyy"));
+            AddDetailLine(detailInfoLines, "Datum", record.Datum.ToString("dd.MM.yyyy"));
             AddDetailLine(detailInfoLines, "Treffpunkt", record.Treffpunkt);
 
-            if (record.AngemeldetCount.HasValue && record.FreiePlaetze.HasValue)
-                AddDetailLine(detailInfoLines, "Max. Teilnehmer", (record.AngemeldetCount.Value + record.FreiePlaetze.Value).ToString());
+            if (record.FreiePlaetze.HasValue)
+                AddDetailLine(detailInfoLines, "Max. Teilnehmer", (record.AngemeldetCount + record.FreiePlaetze.Value).ToString());
 
             return new HomeWorkAssignmentItem
             {
                 Id = record.Id,
                 Title = title,
-                Subtitle = record.Datum?.ToString("dd.MM.yyyy") ?? string.Empty,
+                Subtitle = record.Datum.ToString("dd.MM.yyyy"),
                 StartTimeText = begin ?? string.Empty,
                 EndTimeText = end ?? string.Empty,
                 Details = description,
                 DetailInfo = string.Join(Environment.NewLine, detailInfoLines),
-                RegistrationInfo = BuildWorkAssignmentRegistrationInfo(record, capacityText),
-                CanRegister = record.AnmeldungMoeglich == true,
+                RegistrationInfo = BuildWorkAssignmentRegistrationInfo(record, capacityText, canRegister),
+                CanRegister = canRegister,
                 CanSignOff = record.IstAngemeldet
             };
         }
 
-        private static string BuildWorkAssignmentRegistrationInfo(StartseiteArbeitseinsatzRecord record, string capacityText)
+        private static string BuildWorkAssignmentRegistrationInfo(StartseiteArbeitseinsatzRecord record, string capacityText, bool canRegister)
         {
             if (record.IstAngemeldet)
             {
@@ -7138,7 +7124,7 @@ namespace KGV.Infrastructure.Services
             if (!string.IsNullOrWhiteSpace(capacityText))
                 return capacityText;
 
-            return record.AnmeldungMoeglich == true
+            return canRegister
                 ? "Anmeldung möglich"
                 : string.Empty;
         }
@@ -7289,15 +7275,6 @@ namespace KGV.Infrastructure.Services
 
         private async Task<HomeWorkAssignmentItem?> TryLoadHomeWorkAssignmentItemAsync(global::Supabase.Client client, int arbeitseinsatzId)
         {
-            var arbeitseinsatz = await GetArbeitseinsatzByIdAsync(client, arbeitseinsatzId);
-            var now = CreateEditorNowDefault();
-            if (arbeitseinsatz == null
-                || !OperationalDataFilter.IsOperationalArbeitseinsatz(arbeitseinsatz)
-                || !IsCurrentlyVisible(arbeitseinsatz.Aktiv, arbeitseinsatz.SichtbarAb, arbeitseinsatz.SichtbarBis, now))
-            {
-                return null;
-            }
-
             var response = await client
                 .From<StartseiteArbeitseinsatzRecord>()
                 .Where(x => x.Id == arbeitseinsatzId)
@@ -7307,7 +7284,6 @@ namespace KGV.Infrastructure.Services
             if (record == null)
                 return null;
 
-            await EnrichStartseiteArbeitseinsatzTimesAsync(client, new List<StartseiteArbeitseinsatzRecord> { record });
             await EnrichStartseiteArbeitseinsatzRegistrationStateAsync(client, new List<StartseiteArbeitseinsatzRecord> { record });
             return MapHomeWorkAssignment(record);
         }
@@ -7316,13 +7292,6 @@ namespace KGV.Infrastructure.Services
         {
             if (records.Count == 0)
                 return;
-
-            var arbeitseinsatzResponse = await client.From<ArbeitseinsatzRecord>().Get();
-            var arbeitseinsatzById = arbeitseinsatzResponse?.Models?
-                .Where(x => x.Id > 0)
-                .Select(NormalizeArbeitseinsatzRecord)
-                .ToDictionary(x => (int)x.Id)
-                ?? new Dictionary<int, ArbeitseinsatzRecord>();
 
             var anmeldungenResponse = await client
                 .From<ArbeitseinsatzAnmeldungRecord>()
@@ -7335,31 +7304,11 @@ namespace KGV.Infrastructure.Services
                 ?? new Dictionary<int, List<ArbeitseinsatzAnmeldungRecord>>();
 
             var currentMemberId = TryGetCurrentMitgliedId();
-            var now = Vereinszeit.Now;
-
             foreach (var record in records)
             {
-                if (!arbeitseinsatzById.TryGetValue(record.Id, out var arbeitseinsatz))
-                    continue;
-
                 anmeldungenByArbeitseinsatzId.TryGetValue(record.Id, out var anmeldungen);
                 anmeldungen ??= new List<ArbeitseinsatzAnmeldungRecord>();
-
-                record.AngemeldetCount = anmeldungen.Count;
-
-                if (arbeitseinsatz.MaxTeilnehmer.HasValue)
-                    record.FreiePlaetze = Math.Max(0, arbeitseinsatz.MaxTeilnehmer.Value - anmeldungen.Count);
-
-                var isAlreadyRegistered = currentMemberId.HasValue && anmeldungen.Any(x => x.MitgliedId == currentMemberId.Value);
-                var isDeadlineOpen = !arbeitseinsatz.AnmeldungBis.HasValue || arbeitseinsatz.AnmeldungBis.Value >= now;
-                var hasCapacity = !arbeitseinsatz.MaxTeilnehmer.HasValue || anmeldungen.Count < arbeitseinsatz.MaxTeilnehmer.Value;
-
-                record.IstAngemeldet = isAlreadyRegistered;
-                record.AnmeldungMoeglich = currentMemberId.HasValue
-                    && arbeitseinsatz.Aktiv
-                    && !isAlreadyRegistered
-                    && isDeadlineOpen
-                    && hasCapacity;
+                record.IstAngemeldet = currentMemberId.HasValue && anmeldungen.Any(x => x.MitgliedId == currentMemberId.Value);
             }
         }
 
@@ -7369,27 +7318,6 @@ namespace KGV.Infrastructure.Services
             return userContext?.MitgliedId is > 0 and <= int.MaxValue
                 ? (int)userContext.MitgliedId.Value
                 : null;
-        }
-
-        private static async Task EnrichStartseiteArbeitseinsatzTimesAsync(global::Supabase.Client client, List<StartseiteArbeitseinsatzRecord> records)
-        {
-            if (records.Count == 0 || records.All(HasStartseiteTimeValues))
-                return;
-
-            var response = await client.From<ArbeitseinsatzRecord>().Get();
-            var lookup = response?.Models?
-                .Where(x => x.Id > 0)
-                .ToDictionary(x => (int)x.Id)
-                ?? new Dictionary<int, ArbeitseinsatzRecord>();
-
-            foreach (var record in records)
-            {
-                if (HasStartseiteTimeValues(record) || !lookup.TryGetValue(record.Id, out var source))
-                    continue;
-
-                record.Beginn ??= FormatTimeValue(source.StartUhrzeit);
-                record.Ende ??= FormatTimeValue(source.EndUhrzeit);
-            }
         }
 
         private static async Task EnrichStartseiteTerminTimesAsync(global::Supabase.Client client, List<StartseiteTerminRecord> records)
@@ -7411,11 +7339,6 @@ namespace KGV.Infrastructure.Services
                 record.Beginn ??= FormatTimeValue(source.StartUhrzeit);
                 record.Ende ??= FormatTimeValue(source.EndUhrzeit);
             }
-        }
-
-        private static bool HasStartseiteTimeValues(StartseiteArbeitseinsatzRecord record)
-        {
-            return !string.IsNullOrWhiteSpace(record.Beginn) || !string.IsNullOrWhiteSpace(record.Ende);
         }
 
         private static bool HasStartseiteTimeValues(StartseiteTerminRecord record)
@@ -7550,15 +7473,19 @@ namespace KGV.Infrastructure.Services
             {
                 Id = record.Id,
                 Titel = record.Titel,
-                Thema = record.Thema,
                 Datum = NormalizeDateOnly(record.Datum),
-                Beginn = record.Beginn,
-                Ende = record.Ende,
+                StartUhrzeit = record.StartUhrzeit,
+                EndUhrzeit = record.EndUhrzeit,
                 Treffpunkt = record.Treffpunkt,
                 Beschreibung = record.Beschreibung,
+                MaxTeilnehmer = record.MaxTeilnehmer,
+                StundenWert = record.StundenWert,
+                SichtbarAb = record.SichtbarAb,
+                SichtbarBis = record.SichtbarBis,
+                AnmeldungBis = record.AnmeldungBis,
+                Aktiv = record.Aktiv,
                 FreiePlaetze = record.FreiePlaetze,
                 AngemeldetCount = record.AngemeldetCount,
-                AnmeldungMoeglich = record.AnmeldungMoeglich,
                 IstAngemeldet = record.IstAngemeldet
             };
         }

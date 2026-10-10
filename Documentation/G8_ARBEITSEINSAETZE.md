@@ -106,7 +106,13 @@ Die vorhandene G7-Review bleibt der einzige Prüfpfad: Freigeben und Korrigieren
 
 ## G8.7 – MAUI/Web-Gleichstand und Bereinigung
 
-G8.7 stellt für Web und MAUI dieselben Rechte, Vorgabewerte, Validierungen, Anmeldungen und Abmeldungen, Teilnehmerstatus, Arbeitsstundenerfassung, Demo-Regeln und Lock-Regeln sicher. Alte Rollenprüfungen werden entfernt; überflüssige Methoden und tote Typen werden bereinigt. Direkte G8-Supabase-Zugriffe aus React werden beseitigt und der Startseitenmodell-/View-Mismatch wird korrigiert. Die Web-Zielarchitektur bleibt UI → Service → Repository → Supabase/RPC.
+Das C#-Startseitenmodell entspricht jetzt exakt `v_startseite_arbeitseinsatz`: Titel, Beschreibung, Datum, Start-/Endzeit, Treffpunkt, Kapazität, Stundenwert, Sichtbarkeit, Anmeldeschluss, Aktivstatus und Teilnehmerzahlen. Die alten Übergangsfelder `thema`, `beginn`, `ende` und `anmeldung_moeglich` wurden aus diesem Pfad entfernt.
+
+Die Startseiten-Infrastruktur verwendet die kanonische View direkt. Die früheren Nachlade-/Enrichment-Fallbacks für Einsatzzeiten, Aktivstatus, Sichtbarkeit, Kapazität und Titel/Beschreibung sowie die doppelte Sichtbarkeitsfilterung entfallen. Nur der benutzerspezifische eigene Anmeldestatus wird weiterhin getrennt aus `arbeitseinsatz_anmeldung` gelesen. Die View bleibt `SECURITY INVOKER`; Produktiv-/Demo-Scope wird dadurch nicht umgangen.
+
+`WorkAssignmentRules` bündelt Defaults, Validierung sowie fachlichen Beginn und fachliches Ende mit Vereinszeit. MAUI verwendet diese Regeln in Teilnehmerverwaltung und Startseiten-Detail für die gleichen Grenzen wie Web. Effektive Permissions bleiben die Grundlage für Arbeitseinsatzverwaltung und Stundenbestätigung; die Web-Architektur ist UI → Service → Repository → Supabase/RPC, der MAUI-Pfad Page → ISupabaseService → SupabaseService → Supabase/RPC.
+
+Die Home-Webtypen liegen im gemeinsamen Work-Assignment-Modellbereich statt repository-lokal. G8-Komponenten enthalten keine direkten Supabase-Aufrufe. Web und MAUI wurden für Verwaltung, Locks, Anmeldung/Abmeldung, Teilnehmerstatus, eigene und administrative Arbeitsstunden, Linkstatus, Datumsschutz und Demo-/Produktivscope gegen die bestehenden G8.1–G8.6-Regeln abgeglichen. G8.7 führt keine neuen Fachregeln ein.
 
 ## G8.8 – Regression / technische Abschlussprüfung
 

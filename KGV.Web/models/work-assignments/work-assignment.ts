@@ -14,6 +14,12 @@ export type WorkAssignment = {
   aktiv: boolean;
 };
 
+export type HomeWorkAssignment = WorkAssignment & {
+  max_teilnehmer: number | null;
+  angemeldet_count: number;
+  freie_plaetze: number | null;
+};
+
 export type WorkAssignmentRegistration = {
   id: number;
   arbeitseinsatz_id: number;

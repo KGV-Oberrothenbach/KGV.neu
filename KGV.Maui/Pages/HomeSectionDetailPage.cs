@@ -348,8 +348,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         if (assignment == null || !assignment.Aktiv || registration.Status != "angemeldet")
             return;
 
-        var end = assignment.Datum.Date.Add(assignment.EndUhrzeit ?? assignment.StartUhrzeit ?? new TimeSpan(23, 59, 0));
-        _submitWorkHoursButton.IsVisible = Vereinszeit.Now >= end;
+        _submitWorkHoursButton.IsVisible = WorkAssignmentRules.HasEnded(assignment.Datum, assignment.StartUhrzeit, assignment.EndUhrzeit);
         _submitWorkHoursButton.CommandParameter = new WorkHoursSubmissionContext(registration.Id, assignment.StundenWert, assignment.Titel ?? string.Empty);
     }
 
