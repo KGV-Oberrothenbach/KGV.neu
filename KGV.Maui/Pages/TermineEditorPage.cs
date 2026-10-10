@@ -316,7 +316,8 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
             EndUhrzeit = endTime,
             SichtbarAb = visibleFrom,
             SichtbarBis = visibleTo,
-            Aktiv = _activeSwitch.IsToggled
+            Aktiv = _activeSwitch.IsToggled,
+            IsDemo = _existingRecord?.IsDemo ?? false
         };
 
         if (_existingRecord != null)

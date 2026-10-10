@@ -46,8 +46,12 @@ language plpgsql security definer set search_path = public as $$
 declare v_user_id uuid := auth.uid(); v_now timestamptz := now(); v_timeout integer := greatest(60, least(coalesce(p_timeout_seconds, 600), 1800)); v_locked_by uuid; v_expires_at timestamptz;
 begin
   if v_user_id is null or not exists (select 1 from public.app_user where user_id = v_user_id) then raise exception 'Keine KGV-Berechtigung vorhanden.' using errcode = '42501'; end if;
-  if p_entity_type is null or p_entity_type !~ '^[a-z0-9_]{1,64}$' or p_entity_id is null or p_entity_id !~ '^[0-9]+$' then raise exception 'Ungueltiger Sperrschluessel.' using errcode = '22023'; end if;
-  if p_entity_type = 'arbeitseinsatz' and (not public.has_effective_permission(1048576) or not exists (select 1 from public.arbeitseinsatz a where a.id = p_entity_id::bigint and ((not public.is_demo_or_reviewer() and coalesce(a.is_demo, false) = false) or (public.is_demo_or_reviewer() and coalesce(a.is_demo, false) = true)))) then raise exception 'Arbeitseinsatz liegt außerhalb des zulässigen Scopes.' using errcode = '42501'; end if;
+  if p_entity_type is null or p_entity_type !~ '^[a-z0-9_]{1,64}$' or p_entity_id is null or char_length(p_entity_id) not between 1 and 128 then raise exception 'Ungueltiger Sperrschluessel.' using errcode = '22023'; end if;
+  if p_entity_type in ('arbeitseinsatz', 'arbeitseinsatz_anmeldung') then
+    if not public.has_effective_permission(1048576) or p_entity_id !~ '^[0-9]+$' then raise exception 'Für Arbeitseinsätze fehlt ManageWorkAssignments oder der Schlüssel ist ungültig.' using errcode = '42501'; end if;
+    if p_entity_type = 'arbeitseinsatz' and not exists (select 1 from public.arbeitseinsatz a where a.id = p_entity_id::bigint and ((not public.is_demo_or_reviewer() and coalesce(a.is_demo, false) = false) or (public.is_demo_or_reviewer() and coalesce(a.is_demo, false) = true))) then raise exception 'Arbeitseinsatz liegt außerhalb des zulässigen Scopes.' using errcode = '42501'; end if;
+    if p_entity_type = 'arbeitseinsatz_anmeldung' and not exists (select 1 from public.arbeitseinsatz_anmeldung aa join public.arbeitseinsatz a on a.id = aa.arbeitseinsatz_id where aa.id = p_entity_id::bigint and ((not public.is_demo_or_reviewer() and coalesce(a.is_demo, false) = false) or (public.is_demo_or_reviewer() and public.is_demo_member_arbeitseinsatz_scope(aa.mitglied_id, aa.arbeitseinsatz_id)))) then raise exception 'Anmeldung liegt außerhalb des zulässigen Scopes.' using errcode = '42501'; end if;
+  end if;
   if p_entity_type = 'termin' and (not public.has_effective_permission(2097152) or not exists (select 1 from public.termin t where t.id = p_entity_id::bigint and ((not public.is_demo_or_reviewer() and coalesce(t.is_demo, false) = false) or (public.is_demo_or_reviewer() and coalesce(t.is_demo, false) = true)))) then raise exception 'Termin liegt außerhalb des zulässigen Scopes.' using errcode = '42501'; end if;
   if p_entity_type = 'bekanntmachung' and (not public.has_effective_permission(4194304) or not exists (select 1 from public.bekanntmachung b where b.id = p_entity_id::bigint and ((not public.is_demo_or_reviewer() and coalesce(b.is_demo, false) = false) or (public.is_demo_or_reviewer() and coalesce(b.is_demo, false) = true)))) then raise exception 'Bekanntmachung liegt außerhalb des zulässigen Scopes.' using errcode = '42501'; end if;
   delete from public.browser_edit_lock l where l.expires_at <= v_now;
@@ -56,3 +60,17 @@ begin
   return query select v_locked_by = v_user_id, v_locked_by, coalesce(public.browser_edit_lock_display_name(v_locked_by), 'Ein anderer Benutzer'), v_expires_at;
 end;
 $$;
+
+-- Scope comes from the authenticated session, never from a client-provided is_demo value.
+create or replace function public.enforce_appointment_announcement_demo_scope()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'INSERT' then new.is_demo := public.is_demo_or_reviewer();
+  elsif new.is_demo is distinct from old.is_demo then raise exception 'Der Demo-Scope darf nicht geändert werden.' using errcode = '42501'; end if;
+  return new;
+end;
+$$;
+drop trigger if exists termin_enforce_demo_scope on public.termin;
+create trigger termin_enforce_demo_scope before insert or update on public.termin for each row execute function public.enforce_appointment_announcement_demo_scope();
+drop trigger if exists bekanntmachung_enforce_demo_scope on public.bekanntmachung;
+create trigger bekanntmachung_enforce_demo_scope before insert or update on public.bekanntmachung for each row execute function public.enforce_appointment_announcement_demo_scope();

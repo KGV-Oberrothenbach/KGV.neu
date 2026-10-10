@@ -380,7 +380,8 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
             SichtbarAb = visibleFrom,
             SichtbarBis = visibleTo,
             SortOrder = sortOrder,
-            Aktiv = _activeSwitch.IsToggled
+            Aktiv = _activeSwitch.IsToggled,
+            IsDemo = _existingRecord?.IsDemo ?? false
         };
 
         if (_existingRecord != null)

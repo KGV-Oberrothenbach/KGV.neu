@@ -293,9 +293,13 @@ public sealed class HomeSectionDetailPage : ContentPage
             if (_homeContextState.DetailKind is not HomeDetailKind.Announcement)
                 _contentLabel.IsVisible = !string.IsNullOrWhiteSpace(_contentLabel.Text);
 
-            var canManage = _homeContextState.DetailKind == HomeDetailKind.WorkAssignment
-                ? PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext)
-                : _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            var canManage = _homeContextState.DetailKind switch
+            {
+                HomeDetailKind.WorkAssignment => PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext),
+                HomeDetailKind.Appointment => PermissionChecks.CanManageAppointments(_userContextState.CurrentUserContext),
+                HomeDetailKind.Announcement => PermissionChecks.CanManageAnnouncements(_userContextState.CurrentUserContext),
+                _ => false
+            };
             _newButton.IsVisible = canManage;
             _editButton.IsVisible = canManage && TryGetCurrentEntryId() > 0;
             _deleteButton.IsVisible = _editButton.IsVisible;

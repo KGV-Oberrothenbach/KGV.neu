@@ -5430,7 +5430,6 @@ namespace KGV.Infrastructure.Services
 
                 return response?.Models?
                     .Select(NormalizeTerminRecord)
-                    .Where(OperationalDataFilter.IsOperationalTermin)
                     .OrderBy(x => x.Datum)
                     .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
                     .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
@@ -5550,7 +5549,6 @@ namespace KGV.Infrastructure.Services
 
                 return response?.Models?
                     .Select(NormalizeBekanntmachungRecord)
-                    .Where(OperationalDataFilter.IsOperationalBekanntmachung)
                     .OrderBy(x => x.SortOrder ?? int.MaxValue)
                     .ThenByDescending(x => x.SichtbarAb ?? x.CreatedAt ?? DateTime.MinValue)
                     .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
