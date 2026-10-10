@@ -270,9 +270,12 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
     {
         base.OnAppearing();
 
-        if (_userContextState.CurrentUserContext?.Role is not (UserRole.Admin or UserRole.Vorstand))
+        var canManageCurrentSection = _currentSection == ManagementSection.WorkAssignments
+            ? PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext)
+            : _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+        if (!canManageCurrentSection)
         {
-            _statusLabel.Text = "Diese Verwaltung ist nur für Admin/Vorstand verfügbar.";
+            _statusLabel.Text = "Für diese Verwaltung fehlt die Berechtigung.";
             SetAuthorizedState(false);
             return;
         }
@@ -701,7 +704,9 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
     private void SetBusy(bool busy)
     {
         _isBusy = busy;
-        var isAuthorized = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+        var isAuthorized = _currentSection == ManagementSection.WorkAssignments
+            ? PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext)
+            : _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
         _sectionPicker.IsEnabled = isAuthorized && !busy;
         _refreshButton.IsEnabled = isAuthorized && !busy;
         _newButton.IsEnabled = isAuthorized && !busy;

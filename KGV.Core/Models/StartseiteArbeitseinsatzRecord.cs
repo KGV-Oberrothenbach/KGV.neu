@@ -16,19 +16,16 @@ public sealed class StartseiteArbeitseinsatzRecord : BaseModel
     [Column("titel")]
     public string? Titel { get; set; }
 
-    [Column("thema")]
-    public string? Thema { get; set; }
-
     [Column("datum")]
-    [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftNullablePostgresDateOnlyJsonConverter))]
-    [JsonConverter(typeof(NullablePostgresDateOnlyJsonConverter))]
-    public DateTime? Datum { get; set; }
+    [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftPostgresDateOnlyJsonConverter))]
+    [JsonConverter(typeof(PostgresDateOnlyJsonConverter))]
+    public DateTime Datum { get; set; }
 
-    [Column("beginn")]
-    public string? Beginn { get; set; }
+    [Column("start_uhrzeit")]
+    public TimeSpan? StartUhrzeit { get; set; }
 
-    [Column("ende")]
-    public string? Ende { get; set; }
+    [Column("end_uhrzeit")]
+    public TimeSpan? EndUhrzeit { get; set; }
 
     [Column("treffpunkt")]
     public string? Treffpunkt { get; set; }
@@ -36,14 +33,36 @@ public sealed class StartseiteArbeitseinsatzRecord : BaseModel
     [Column("beschreibung")]
     public string? Beschreibung { get; set; }
 
+    [Column("max_teilnehmer")]
+    public int? MaxTeilnehmer { get; set; }
+
+    [Column("stunden_wert")]
+    public decimal StundenWert { get; set; }
+
+    [Column("sichtbar_ab")]
+    [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftNullablePostgresTimestampWithoutTimeZoneJsonConverter))]
+    [JsonConverter(typeof(NullablePostgresTimestampWithoutTimeZoneJsonConverter))]
+    public DateTime? SichtbarAb { get; set; }
+
+    [Column("sichtbar_bis")]
+    [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftNullablePostgresTimestampWithoutTimeZoneJsonConverter))]
+    [JsonConverter(typeof(NullablePostgresTimestampWithoutTimeZoneJsonConverter))]
+    public DateTime? SichtbarBis { get; set; }
+
+    [Column("anmeldung_bis")]
+    [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftNullablePostgresTimestampWithoutTimeZoneJsonConverter))]
+    [JsonConverter(typeof(NullablePostgresTimestampWithoutTimeZoneJsonConverter))]
+    public DateTime? AnmeldungBis { get; set; }
+
+    [Column("aktiv")]
+    public bool Aktiv { get; set; }
+
     [Column("freie_plaetze")]
     public int? FreiePlaetze { get; set; }
 
     [Column("angemeldet_count")]
-    public int? AngemeldetCount { get; set; }
+    public int AngemeldetCount { get; set; }
 
-    [Column("anmeldung_moeglich")]
-    public bool? AnmeldungMoeglich { get; set; }
-
+    // Benutzerspezifischer UI-Kontext; er kommt bewusst nicht aus der View.
     public bool IstAngemeldet { get; set; }
 }

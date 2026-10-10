@@ -21,6 +21,7 @@ namespace KGV.Core.Security
 
         CanManageReadings = CanReadMeters | CanManageMeterChanges | CanApproveMeterReadings,
         CanManageWorkHours = 1 << 8,
+        CanManageWorkAssignments = 1 << 20,
 
         CanManageRoles = 1 << 9,
 

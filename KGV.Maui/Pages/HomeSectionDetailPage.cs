@@ -31,9 +31,11 @@ public sealed class HomeSectionDetailPage : ContentPage
     private readonly WebView _htmlContentView;
     private readonly Label _additionalInfoLabel;
     private readonly Label _registrationInfoLabel;
+    private readonly Label _workHoursInfoLabel;
     private readonly Label _statusLabel;
     private readonly Button _registerButton;
     private readonly Button _signOffButton;
+    private readonly Button _submitWorkHoursButton;
     private readonly Button _newButton;
     private readonly Button _editButton;
     private readonly Button _deleteButton;
@@ -72,6 +74,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         };
         _additionalInfoLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
         _registrationInfoLabel = new Label { LineBreakMode = LineBreakMode.WordWrap, TextColor = Colors.DarkSlateBlue };
+        _workHoursInfoLabel = new Label { LineBreakMode = LineBreakMode.WordWrap, TextColor = Colors.DarkSlateBlue, IsVisible = false };
         _statusLabel = new Label { LineBreakMode = LineBreakMode.WordWrap, TextColor = Colors.DarkRed };
 
         _registerButton = new Button { Text = "Anmelden", IsVisible = false };
@@ -79,6 +82,9 @@ public sealed class HomeSectionDetailPage : ContentPage
 
         _signOffButton = new Button { Text = "Abmelden", IsVisible = false };
         _signOffButton.Clicked += async (_, _) => await SignOffAsync();
+
+        _submitWorkHoursButton = new Button { Text = "Arbeitsstunden erfassen", IsVisible = false };
+        _submitWorkHoursButton.Clicked += async (_, _) => await SubmitWorkHoursAsync();
 
         _backButton = new Button { Text = "Zur Startseite" };
         _backButton.Clicked += async (_, _) => await Shell.Current.GoToAsync("//home");
@@ -167,11 +173,12 @@ public sealed class HomeSectionDetailPage : ContentPage
                     _htmlContentView,
                     _additionalInfoLabel,
                     _registrationInfoLabel,
+                    _workHoursInfoLabel,
                     new FlexLayout
                     {
                         Direction = FlexDirection.Row,
                         Wrap = FlexWrap.Wrap,
-                        Children = { _registerButton, _signOffButton, _newButton, _editButton, _deleteButton }
+                        Children = { _registerButton, _signOffButton, _submitWorkHoursButton, _newButton, _editButton, _deleteButton }
                     },
                     _participantsSection,
                     CreateWorkAssignmentNavigationFooter(),
@@ -211,6 +218,8 @@ public sealed class HomeSectionDetailPage : ContentPage
         _contentLabel.IsVisible = true;
         _registerButton.IsVisible = false;
         _signOffButton.IsVisible = false;
+        _submitWorkHoursButton.IsVisible = false;
+        _workHoursInfoLabel.IsVisible = false;
         _newButton.IsVisible = false;
         _editButton.IsVisible = false;
         _deleteButton.IsVisible = false;
@@ -239,6 +248,7 @@ public sealed class HomeSectionDetailPage : ContentPage
                     _signOffButton.IsVisible = workAssignment.CanSignOff;
                     UpdateWorkAssignmentNavigation();
                     await LoadParticipantsAsync(workAssignment.Id);
+                    await LoadWorkHoursActionAsync(workAssignment.Id);
                     break;
                 case HomeDetailKind.Appointment when _homeContextState.Appointment != null:
                     var appointment = _termineUserState.CurrentEntry ?? _homeContextState.Appointment;
@@ -283,7 +293,9 @@ public sealed class HomeSectionDetailPage : ContentPage
             if (_homeContextState.DetailKind is not HomeDetailKind.Announcement)
                 _contentLabel.IsVisible = !string.IsNullOrWhiteSpace(_contentLabel.Text);
 
-            var canManage = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            var canManage = _homeContextState.DetailKind == HomeDetailKind.WorkAssignment
+                ? PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext)
+                : _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
             _newButton.IsVisible = canManage;
             _editButton.IsVisible = canManage && TryGetCurrentEntryId() > 0;
             _deleteButton.IsVisible = _editButton.IsVisible;
@@ -297,7 +309,7 @@ public sealed class HomeSectionDetailPage : ContentPage
 
     private async Task LoadParticipantsAsync(int arbeitseinsatzId)
     {
-        if (_userContextState.CurrentUserContext?.Role is not (UserRole.Admin or UserRole.Vorstand))
+        if (!PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext))
             return;
 
         var participants = await _supabaseService.GetArbeitseinsatzParticipantsAsync(arbeitseinsatzId);
@@ -306,6 +318,68 @@ public sealed class HomeSectionDetailPage : ContentPage
 
         _participantsSection.IsVisible = true;
         _participantsEmptyLabel.IsVisible = _participants.Count == 0;
+    }
+
+    private async Task LoadWorkHoursActionAsync(int arbeitseinsatzId)
+    {
+        _submitWorkHoursButton.IsVisible = false;
+        _workHoursInfoLabel.IsVisible = false;
+        if (_userContextState.CurrentMitgliedId is not > 0 or > int.MaxValue)
+            return;
+
+        var registration = await _supabaseService.GetOwnArbeitseinsatzRegistrationAsync(arbeitseinsatzId, (int)_userContextState.CurrentMitgliedId.Value);
+        if (registration == null)
+            return;
+
+        var linkedWorkHour = await _supabaseService.GetLinkedArbeitseinsatzWorkHourAsync(registration.Id);
+        if (linkedWorkHour != null)
+        {
+            _workHoursInfoLabel.Text = linkedWorkHour.Status switch
+            {
+                "genehmigt" when linkedWorkHour.Freigegeben => "Arbeitsstunden bestätigt",
+                "abgelehnt" => "Arbeitsstunden abgelehnt",
+                _ => "Arbeitsstunden eingereicht – in Prüfung"
+            };
+            _workHoursInfoLabel.IsVisible = true;
+            return;
+        }
+
+        var assignment = await _supabaseService.GetArbeitseinsatzForMemberAsync(arbeitseinsatzId);
+        if (assignment == null || !assignment.Aktiv || registration.Status != "angemeldet")
+            return;
+
+        _submitWorkHoursButton.IsVisible = WorkAssignmentRules.HasEnded(assignment.Datum, assignment.StartUhrzeit, assignment.EndUhrzeit);
+        _submitWorkHoursButton.CommandParameter = new WorkHoursSubmissionContext(registration.Id, assignment.StundenWert, assignment.Titel ?? string.Empty);
+    }
+
+    private async Task SubmitWorkHoursAsync()
+    {
+        if (_isBusy || _submitWorkHoursButton.CommandParameter is not WorkHoursSubmissionContext context)
+            return;
+
+        var hoursText = await DisplayPromptAsync("Arbeitsstunden erfassen", "Stunden", initialValue: context.Hours.ToString("0.##"));
+        if (!decimal.TryParse(hoursText, out var hours) || hours <= 0)
+        {
+            _statusLabel.Text = "Stunden müssen als Zahl größer als 0 angegeben werden.";
+            return;
+        }
+
+        var workType = await DisplayPromptAsync("Arbeitsstunden erfassen", "Art der Arbeit", initialValue: context.WorkType);
+        if (string.IsNullOrWhiteSpace(workType))
+            return;
+
+        SetBusyState(true, "Arbeitsstunden werden gespeichert.");
+        try
+        {
+            var result = await _supabaseService.SubmitArbeitseinsatzWorkHoursAsync(context.RegistrationId, hours, workType);
+            _statusLabel.Text = result.Message;
+            if (result.Success && _homeContextState.WorkAssignment != null)
+                await LoadWorkHoursActionAsync(_homeContextState.WorkAssignment.Id);
+        }
+        finally
+        {
+            SetBusyState(false);
+        }
     }
 
     private async Task RegisterAsync()
@@ -483,6 +557,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         _isBusy = isBusy;
         _registerButton.IsEnabled = !isBusy;
         _signOffButton.IsEnabled = !isBusy;
+        _submitWorkHoursButton.IsEnabled = !isBusy;
         _newButton.IsEnabled = !isBusy;
         _editButton.IsEnabled = !isBusy;
         _deleteButton.IsEnabled = !isBusy;
@@ -503,6 +578,8 @@ public sealed class HomeSectionDetailPage : ContentPage
             _ => 0
         };
     }
+
+    private sealed record WorkHoursSubmissionContext(long RegistrationId, decimal Hours, string WorkType);
 
     private Task OpenEditorAsync(bool isNew)
     {

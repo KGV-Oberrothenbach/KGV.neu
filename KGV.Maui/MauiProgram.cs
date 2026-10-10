@@ -147,6 +147,7 @@ public static class MauiProgram
         services.AddTransient<TermineEditorPage>();
         services.AddTransient<ArbeitseinsaetzeManagementPage>();
         services.AddTransient<ArbeitseinsaetzeEditorPage>();
+        services.AddTransient<ArbeitseinsatzTeilnehmerPage>();
         services.AddTransient<ExportPage>();
         services.AddTransient<ExportViewModel>();
         services.AddTransient<ImpressumPage>();

@@ -54,13 +54,13 @@ namespace KGV.Core.Security
                | PermissionFlags.CanShowStammdaten
                | PermissionFlags.CanReadStammdaten
                | PermissionFlags.CanWriteStammdaten
-               | PermissionFlags.CanShowParzellen
                | PermissionFlags.CanReadParzellen
                | PermissionFlags.CanWriteParzellen
                | PermissionFlags.CanReadDocuments
                | PermissionFlags.CanManageDocuments
                | PermissionFlags.CanReadWorkHours
                | PermissionFlags.CanManageWorkHours
+               | PermissionFlags.CanManageWorkAssignments
                | PermissionFlags.CanReadMeters
                | PermissionFlags.CanManageMeterChanges
                | PermissionFlags.CanApproveMeterReadings

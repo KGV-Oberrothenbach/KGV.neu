@@ -7,6 +7,9 @@ import {
   listWorkHourHistory,
   listWorkHoursForReview,
   reviewWorkHour,
+  getLinkedWorkHour,
+  submitWorkAssignmentWorkHour,
+  confirmWorkAssignmentWorkHour,
   type WorkHourReviewAction,
   updateOwnOpenWorkHour,
 } from "../../repositories/work-hours/work-hours-repository";
@@ -98,6 +101,9 @@ export async function loadMemberWorkHoursWorkspace(session: BrowserSession, memb
 }
 
 export const loadWorkHoursReview = (session: BrowserSession) => listWorkHoursForReview(session);
+export const loadLinkedWorkAssignmentWorkHour = (session: BrowserSession, registrationId: number) => getLinkedWorkHour(session, registrationId);
+export const submitLinkedWorkAssignmentWorkHour = (session: BrowserSession, registrationId: number, hours: number, workType: string) => submitWorkAssignmentWorkHour(session, registrationId, hours, workType);
+export const confirmLinkedWorkAssignmentWorkHour = (session: BrowserSession, registrationId: number, hours: number, workType: string) => confirmWorkAssignmentWorkHour(session, registrationId, hours, workType);
 
 export async function loadWorkHourHistory(session: BrowserSession, workHourId: number) {
   return listWorkHourHistory(session, [workHourId]);

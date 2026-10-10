@@ -52,6 +52,7 @@ import { handleReadingPhoto, listPendingReadingPhotos, openStoredReadingPhoto, r
 import { loadReadingReviewData, reviewMeterReading, type ReadingReviewData, type ReadingReviewItem } from "../services/readings/reading-review-service";
 import { MemberWorkHours } from "../features/work-hours/MemberWorkHours";
 import { WorkHoursReview } from "../features/work-hours/WorkHoursReview";
+import { WorkAssignmentsManagement } from "../features/work-assignments/WorkAssignmentsManagement";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -93,7 +94,6 @@ type SeasonAdmin = Season & { pflichtstunden_soll: number; euro_pro_fehlstunde: 
 type Parcel = { id: number; garten_nr: string; Anlage: string; flaeche_qm: number | null; hat_strom: boolean; hat_wasser: boolean; aktiv: boolean };
 type ParcelAssignment = { id: number; parzelle_id: number; mitglied_id: number; von_datum: string | null; bis_datum: string | null };
 type Reading = { id: number; zaehler_id: number; stand: number; ablesedatum: string; art: string; freigegeben: boolean; pruefstatus: string; pruefkommentar: string | null; geprueft_von: number | null; geprueft_am: string | null; foto_pfad?: string | null; foto_drive_file_id?: string | null; foto_dateiname?: string | null };
-type WorkAssignment = { id: number; titel: string | null; beschreibung: string | null; datum: string; start_uhrzeit: string | null; end_uhrzeit?: string | null; treffpunkt: string | null; max_teilnehmer?: number | string | null; stunden_wert: number; sichtbar_ab?: string | null; sichtbar_bis?: string | null; anmeldung_bis?: string | null; aktiv: boolean };
 type Appointment = { id: number; titel: string | null; beschreibung: string | null; datum: string; start_uhrzeit: string | null; end_uhrzeit?: string | null; sichtbar_ab?: string | null; sichtbar_bis?: string | null; aktiv: boolean };
 type Announcement = { id: number; titel: string | null; inhalt_html: string | null; sichtbar_ab: string | null; sichtbar_bis: string | null; sort_order?: number | null; aktiv: boolean };
 type DocumentRecord = { id: number; mitglied_id: number | null; parzelle_id: number | null; bucket: string | null; storage_path: string | null; drive_file_id: string | null; titel: string | null; dateiname: string | null; mime_type: string | null; size_bytes: number | null; updated_at: string; archiviert_at: string | null };
@@ -126,14 +126,19 @@ const Permission = {
   readWorkHours: 1 << 17,
   readRoles: 1 << 18,
   createMember: 1 << 19,
+  manageWorkAssignments: 1 << 20,
 } as const;
+
+const VorstandPermissions = Permission.searchMembers | Permission.viewMembers | Permission.editAllMembers | Permission.manageDocuments | Permission.readMeters | Permission.manageMeterChanges | Permission.approveMeterReadings | Permission.manageWorkHours | Permission.showStammdaten | Permission.readStammdaten | Permission.writeStammdaten | Permission.readParzellen | Permission.writeParzellen | Permission.readDocuments | Permission.readWorkHours | Permission.readRoles | Permission.manageWorkAssignments;
+const AdminPermissions = VorstandPermissions | Permission.manageRoles | Permission.createMember;
+const UserPermissions = Permission.viewMembers | Permission.seeOwnData;
 
 function permissionsFor(context: AppUserContext) {
   const base = context.role === "admin"
-    ? 1048575
+    ? AdminPermissions
     : context.role === "vorstand"
-      ? Permission.searchMembers | Permission.viewMembers | Permission.editAllMembers | Permission.showStammdaten | Permission.readStammdaten | Permission.writeStammdaten | Permission.readParzellen | Permission.readDocuments | Permission.manageDocuments | Permission.readWorkHours | Permission.manageWorkHours | Permission.readMeters | Permission.manageMeterChanges | Permission.approveMeterReadings | Permission.readRoles
-      : Permission.viewMembers | Permission.seeOwnData;
+      ? VorstandPermissions
+      : UserPermissions;
   return (base | context.permissionGrants) & ~context.permissionRevocations;
 }
 
@@ -235,7 +240,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           <MobileNavigation groups={navigationGroups} activeId={activeId} onNavigate={setActiveId} selectedMemberLabel={selectedMemberId ? selectedMemberLabel : null} />
           <p className="eyebrow">Saison {season}</p><h1>{active.label}</h1><p className="content-intro">{active.detail}</p>
           {!new Set(["start", "impressum", "mitglieder", "parzellen", "ablesen", "foto-uploads", "zaehlerwechsel", "arbeitsstunden-pruefen", "arbeitseinsaetze", "wartung", "termine", "bekanntmachungen", "export", "benutzer", "saisons", "verein", "mitglied-arbeitsstunden", "mitglied-wartung", "mitglied-dokumente", "mitglied-admin", "mitglied-gaerten", "mitglied-protokolle", "mitglied-stammdaten"]).has(activeId) && <section className="coming-soon"><span aria-hidden="true">◌</span><div><strong>Bereich vorbereitet</strong><p>Die Navigation und Zugriffsrechte stehen. Die fachliche Oberfläche wird in den nächsten Umsetzungsschritten ergänzt.</p></div></section>}
-          {activeId === "start" && <HomeDashboard session={session} isManager={context.role !== "user"} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
+          {activeId === "start" && <HomeDashboard session={session} isManager={context.role !== "user"} canManageWorkAssignments={has(Permission.manageWorkAssignments)} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
           {activeId === "mitglieder" && <MemberSearch session={session} selectedMemberId={selectedMemberId} onSelect={selectMember} canCreate={has(Permission.createMember)} onCreate={() => { setCreatingMember(true); setActiveId("mitglied-stammdaten"); }} />}
           {activeId === "parzellen" && <ParcelWorkspace session={session} selectedParcelId={selectedParcelId} onSelect={selectParcel} canEdit={has(Permission.writeParzellen)} onOpenMember={(memberId) => { selectMember(memberId); setActiveId("mitglied-gaerten"); }} />}
           {activeId === "ablesen" && <MeterOverview session={session} clubId={club.vereinId} reviewerMemberId={context.mitgliedId} selectedParcelId={selectedParcelId} seasonYear={season} canReadMeters={has(Permission.readMeters)} canSubmitOwnMeterReadings={context.mitgliedId !== null && has(Permission.seeOwnData)} canApprove={has(Permission.approveMeterReadings)} canManageMeterChanges={has(Permission.manageMeterChanges)} onNavigate={setActiveId} />}
@@ -243,7 +248,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           {activeId === "foto-uploads" && <PendingPhotoUploads session={session} clubId={club.vereinId} />}
           {activeId === "zaehlerwechsel" && has(Permission.manageMeterChanges) && <MeterChange session={session} clubId={club.vereinId} canManageMeterChanges={has(Permission.manageMeterChanges)} />}
           {activeId === "arbeitsstunden-pruefen" && <WorkHoursReview session={session} canManageWorkHours={has(Permission.manageWorkHours)} />}
-          {activeId === "arbeitseinsaetze" && <WorkAssignmentsManagement session={session} canEdit={context.role !== "user"} saisonId={workspaceContext.saisonId} onBack={() => setActiveId("start")} />}
+          {activeId === "arbeitseinsaetze" && <WorkAssignmentsManagement session={session} canEdit={has(Permission.manageWorkAssignments)} canManageWorkHours={has(Permission.manageWorkHours)} onBack={() => setActiveId("start")} />}
           {activeId === "wartung" && <MaintenanceContracts session={session} canManage={context.role !== "user"} />}
           {activeId === "termine" && <AppointmentManagement session={session} canEdit={context.role !== "user"} onBack={() => setActiveId("start")} />}
           {activeId === "bekanntmachungen" && <AnnouncementManagement session={session} canEdit={context.role !== "user"} onBack={() => setActiveId("start")} />}
@@ -463,122 +468,6 @@ function addBerlinMonths(value: string, months: number) {
   return date.toISOString().slice(0, 16);
 }
 
-function WorkAssignmentsManagement({ session, canEdit, saisonId, onBack }: { session: BrowserSession; canEdit: boolean; saisonId: number | null; onBack: () => void }) {
-  const [items, setItems] = useState<WorkAssignment[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [draft, setDraft] = useState<Partial<WorkAssignment>>({});
-  const [message, setMessage] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  function emptyDraft(): Partial<WorkAssignment> {
-    const today = currentLocalDateTime().slice(0, 10);
-    return { titel: "", beschreibung: "", datum: today, start_uhrzeit: "10:00", end_uhrzeit: "13:00", treffpunkt: "", max_teilnehmer: null, stunden_wert: 0, sichtbar_ab: currentLocalDateTime(), sichtbar_bis: `${today}T23:59`, anmeldung_bis: "", aktiv: true };
-  }
-
-  const load = () => readSupabase<WorkAssignment>(session, "arbeitseinsatz", {
-    select: "id,titel,beschreibung,datum,start_uhrzeit,end_uhrzeit,treffpunkt,max_teilnehmer,stunden_wert,sichtbar_ab,sichtbar_bis,anmeldung_bis,aktiv",
-    order: "datum.asc",
-    limit: "500",
-  }).then((rows) => {
-    rows.sort((left, right) => `${left.datum}|${left.start_uhrzeit ?? "99:99"}|${left.end_uhrzeit ?? "99:99"}|${left.titel ?? ""}`.localeCompare(`${right.datum}|${right.start_uhrzeit ?? "99:99"}|${right.end_uhrzeit ?? "99:99"}|${right.titel ?? ""}`, "de"));
-    setItems(rows);
-    return rows;
-  }).catch((cause: Error) => { setMessage(cause.message); return [] as WorkAssignment[]; });
-
-  useEffect(() => { void load(); }, [session]);
-  const selected = items.find((item) => item.id === selectedId) ?? null;
-  const selectedIndex = selected ? items.findIndex((item) => item.id === selected.id) : -1;
-  const editLock = useEditLock(session, "arbeitseinsatz", selected?.id, Boolean(selected && canEdit && !creating));
-  useEffect(() => { if (!creating) setDraft(selected ?? emptyDraft()); }, [selectedId, creating]);
-  useEffect(() => { if (editLock.message) queueMicrotask(() => setMessage(editLock.message)); }, [editLock.message]);
-  const set = (key: keyof WorkAssignment, value: string | number | boolean | null) => setDraft({ ...draft, [key]: value });
-
-  function startNew() { setCreating(true); setSelectedId(null); setDraft(emptyDraft()); setMessage(""); }
-  function selectEntry(id: number) { setCreating(false); setSelectedId(id); setMessage(""); }
-  function moveSelection(offset: number) { const target = items[selectedIndex + offset]; if (target) selectEntry(target.id); }
-  function prepareNextShift(source: Partial<WorkAssignment>) {
-    const toMinutes = (value: string | null | undefined, fallback: number) => { if (!value) return fallback; const [hours, minutes] = value.split(":").map(Number); return Number.isFinite(hours + minutes) ? hours * 60 + minutes : fallback; };
-    const toTime = (value: number) => `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
-    const start = toMinutes(source.start_uhrzeit, 600);
-    const end = toMinutes(source.end_uhrzeit, 780);
-    const duration = end > start ? end - start : 180;
-    const nextStart = Math.min(end, 1439);
-    const nextEnd = Math.min(nextStart + duration, 1439);
-    setCreating(true);
-    setSelectedId(null);
-    setDraft({ ...source, id: undefined, start_uhrzeit: toTime(nextStart), end_uhrzeit: toTime(nextEnd) });
-    setMessage("Arbeitseinsatz gespeichert. Die nächste Schicht ist bereits vorbefüllt.");
-  }
-
-  async function save(prepareNext = false) {
-    const hours = Number(draft.stunden_wert ?? 0);
-    const capacity = draft.max_teilnehmer === null || draft.max_teilnehmer === undefined || draft.max_teilnehmer === "" ? null : Number(draft.max_teilnehmer);
-    if (!draft.titel?.trim() || !draft.datum) { setMessage("Titel und Datum sind erforderlich."); return; }
-    if (draft.start_uhrzeit && draft.end_uhrzeit && draft.end_uhrzeit < draft.start_uhrzeit) { setMessage("Das Ende darf nicht vor dem Beginn liegen."); return; }
-    if (draft.sichtbar_ab && draft.sichtbar_bis && draft.sichtbar_bis < draft.sichtbar_ab) { setMessage("Das Sichtbarkeitsende darf nicht vor dem Beginn liegen."); return; }
-    if (draft.anmeldung_bis && draft.anmeldung_bis.slice(0, 10) > draft.datum) { setMessage("Der Anmeldeschluss darf nicht nach dem Einsatztag liegen."); return; }
-    if (!Number.isFinite(hours) || hours < 0 || (capacity !== null && (!Number.isInteger(capacity) || capacity < 1))) { setMessage("Stundenwert und Teilnehmerbegrenzung sind ungültig."); return; }
-    if (!creating && !editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; }
-    setSaving(true); setMessage("");
-    try {
-      const payload: Omit<WorkAssignment, "id"> = { titel: draft.titel.trim(), beschreibung: draft.beschreibung?.trim() || null, datum: draft.datum, start_uhrzeit: draft.start_uhrzeit || null, end_uhrzeit: draft.end_uhrzeit || null, treffpunkt: draft.treffpunkt?.trim() || null, max_teilnehmer: capacity, stunden_wert: hours, sichtbar_ab: draft.sichtbar_ab || null, sichtbar_bis: draft.sichtbar_bis || null, anmeldung_bis: draft.anmeldung_bis || null, aktiv: draft.aktiv !== false };
-      const rows = creating
-        ? await writeSupabase<WorkAssignment>(session, "arbeitseinsatz", "POST", payload)
-        : await writeSupabase<WorkAssignment>(session, "arbeitseinsatz", "PATCH", payload, { id: `eq.${selected?.id}` });
-      const persisted = { ...payload, id: rows[0]?.id ?? selected?.id ?? 0 } as WorkAssignment;
-      await load();
-      if (prepareNext) prepareNextShift(persisted);
-      else { setCreating(false); setSelectedId(persisted.id || null); setMessage("Arbeitseinsatz gespeichert."); }
-    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Arbeitseinsatz konnte nicht gespeichert werden."); }
-    finally { setSaving(false); }
-  }
-
-  async function cancelAssignment() {
-    if (!selected) return;
-    if (!editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; }
-    if (!window.confirm(`Den Arbeitseinsatz „${selected.titel ?? "Ohne Titel"}“ wirklich absagen?`)) return;
-    setSaving(true); setMessage("");
-    try { await writeSupabase<WorkAssignment>(session, "arbeitseinsatz", "PATCH", { aktiv: false }, { id: `eq.${selected.id}` }); await load(); setMessage("Arbeitseinsatz wurde abgesagt."); }
-    catch (cause) { setMessage(cause instanceof Error ? cause.message : "Arbeitseinsatz konnte nicht abgesagt werden."); }
-    finally { setSaving(false); }
-  }
-
-  async function removeAssignment() {
-    if (!selected) return;
-    if (!editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; }
-    if (!window.confirm(`Den Arbeitseinsatz „${selected.titel ?? "Ohne Titel"}“ einschließlich seiner Anmeldungen endgültig löschen?`)) return;
-    setSaving(true); setMessage("");
-    try { await deleteSupabase(session, "arbeitseinsatz", { id: `eq.${selected.id}` }); setSelectedId(null); setCreating(false); await load(); setMessage("Arbeitseinsatz wurde gelöscht."); }
-    catch (cause) { setMessage(cause instanceof Error ? cause.message : "Arbeitseinsatz konnte nicht gelöscht werden."); }
-    finally { setSaving(false); }
-  }
-
-  return <section className="data-workspace work-assignment-management">
-    <div className="data-toolbar"><div className="editor-actions"><button className="secondary-action" onClick={onBack}>Zur Startseite</button><button className="secondary-action" onClick={() => void load()}>Aktualisieren</button></div><span>{items.length} Arbeitseinsätze</span>{canEdit && <button onClick={startNew}>Arbeitseinsatz anlegen</button>}</div>
-    {message && <p className="notice" role="status">{message}</p>}
-    <div className="split-view"><div className="data-table-wrap"><table><thead><tr><th>Datum</th><th>Zeit</th><th>Titel</th><th>Treffpunkt</th><th>Teilnehmer</th><th>Status</th></tr></thead><tbody>{items.map((item) => <tr key={item.id} className={selected?.id === item.id && !creating ? "selected-row" : ""} onClick={() => selectEntry(item.id)}><td>{formatDate(item.datum)}</td><td>{formatTimeRange(item.start_uhrzeit, item.end_uhrzeit)}</td><td><strong>{item.titel}</strong></td><td>{item.treffpunkt ?? "–"}</td><td>{item.max_teilnehmer || "unbegrenzt"}</td><td>{item.aktiv ? "aktiv" : "abgesagt"}</td></tr>)}</tbody></table>{items.length === 0 && <p className="empty-state">Keine Arbeitseinsätze vorhanden.</p>}</div>
-      <aside className="detail-panel member-editor"><div className="detail-title"><div><h2>{creating ? "Neuer Arbeitseinsatz" : selected ? "Arbeitseinsatz bearbeiten" : "Auswahl"}</h2>{selected && <p>{selectedIndex + 1} von {items.length}</p>}</div>{selected && <div className="record-navigation"><button className="secondary-action" disabled={selectedIndex <= 0} onClick={() => moveSelection(-1)} aria-label="Vorheriger Arbeitseinsatz">←</button><button className="secondary-action" disabled={selectedIndex < 0 || selectedIndex >= items.length - 1} onClick={() => moveSelection(1)} aria-label="Nächster Arbeitseinsatz">→</button></div>}</div>
-        {(selected || creating) ? <><fieldset disabled={!canEdit || saving}><label className="wide">Titel *<input value={draft.titel ?? ""} onChange={(e) => set("titel", e.target.value)} /></label><label>Datum *<input type="date" value={draft.datum ?? ""} onChange={(e) => set("datum", e.target.value)} /></label><label>Beginn<input type="time" value={draft.start_uhrzeit ?? ""} onChange={(e) => set("start_uhrzeit", e.target.value)} /></label><label>Ende<input type="time" value={draft.end_uhrzeit ?? ""} onChange={(e) => set("end_uhrzeit", e.target.value)} /></label><label>Treffpunkt<input value={draft.treffpunkt ?? ""} onChange={(e) => set("treffpunkt", e.target.value)} /></label><label>Max. Teilnehmer<input type="number" min="1" value={draft.max_teilnehmer ?? ""} onChange={(e) => set("max_teilnehmer", e.target.value ? Number(e.target.value) : null)} placeholder="unbegrenzt" /></label><label>Stundenwert<input type="number" min="0" step="0.25" value={draft.stunden_wert ?? 0} onChange={(e) => set("stunden_wert", Number(e.target.value))} /></label><label>Sichtbar ab<input type="datetime-local" value={(draft.sichtbar_ab ?? "").slice(0, 16)} onChange={(e) => set("sichtbar_ab", e.target.value)} /></label><label>Sichtbar bis<input type="datetime-local" value={(draft.sichtbar_bis ?? "").slice(0, 16)} onChange={(e) => set("sichtbar_bis", e.target.value)} /></label><label>Anmeldeschluss<input type="datetime-local" value={(draft.anmeldung_bis ?? "").slice(0, 16)} onChange={(e) => set("anmeldung_bis", e.target.value)} /></label><label className="check"><input type="checkbox" checked={draft.aktiv !== false} onChange={(e) => set("aktiv", e.target.checked)} /> Einsatz aktiv</label><label className="wide">Beschreibung<textarea value={draft.beschreibung ?? ""} onChange={(e) => set("beschreibung", e.target.value)} /></label></fieldset>
-          {canEdit && <div className="editor-actions assignment-editor-actions"><button disabled={saving} onClick={() => void save(false)}>Speichern</button><button className="secondary-action" disabled={saving} onClick={() => void save(true)}>Speichern + nächste Schicht</button>{selected?.aktiv && <button className="reject-action" disabled={saving} onClick={() => void cancelAssignment()}>Absagen</button>}{selected && <button className="reject-action" disabled={saving} onClick={() => void removeAssignment()}>Löschen</button>}<button className="secondary-action" onClick={() => { setCreating(false); setSelectedId(null); setMessage(""); }}>Schließen</button></div>}
-          {selected && canEdit && <WorkAssignmentParticipants session={session} assignment={selected} saisonId={saisonId} />}</> : <p>Wähle links einen Arbeitseinsatz aus oder lege einen neuen an.</p>}
-      </aside></div>
-  </section>;
-}
-
-function WorkAssignmentParticipants({ session, assignment, saisonId }: { session: BrowserSession; assignment: WorkAssignment; saisonId: number | null }) {
-  const [registrations, setRegistrations] = useState<WorkAssignmentRegistration[]>([]); const [members, setMembers] = useState<Member[]>([]); const [memberId, setMemberId] = useState(""); const [message, setMessage] = useState(""); const [saving, setSaving] = useState(false);
-  const load = () => Promise.all([readSupabase<WorkAssignmentRegistration>(session, "arbeitseinsatz_anmeldung", { select: "id,arbeitseinsatz_id,mitglied_id,status,bemerkung,angemeldet_am,updated_at", arbeitseinsatz_id: `eq.${assignment.id}`, order: "angemeldet_am.asc", limit: "500" }), readSupabase<Member>(session, "mitglied", { select: "id,vorname,name,email,aktiv,hauptmitglied_id,geburtsdatum,adresse,plz,ort,telefon,handy,whatsapp_einwilligung,mitglied_seit,mitglied_ende,bemerkung", aktiv: "eq.true", order: "name.asc,vorname.asc", limit: "500" })]).then(([nextRegistrations, nextMembers]) => { setRegistrations(nextRegistrations); setMembers(nextMembers); }).catch((cause: Error) => setMessage(cause.message));
-  useEffect(() => { load(); }, [session, assignment.id]);
-  const activeRegistrations = registrations.filter((item) => item.status === "angemeldet" || item.status === "teilgenommen");
-  const capacity = assignment.max_teilnehmer ? Number(assignment.max_teilnehmer) : null;
-  const deadlinePassed = Boolean(assignment.anmeldung_bis && assignment.anmeldung_bis.slice(0, 16) < currentLocalDateTime());
-  const registrationBlocked = !assignment.aktiv || deadlinePassed || (capacity !== null && activeRegistrations.length >= capacity);
-  async function register() { const id = Number(memberId); if (!id) return; if (registrationBlocked) { setMessage(!assignment.aktiv ? "Der Arbeitseinsatz ist abgesagt." : deadlinePassed ? "Der Anmeldeschluss ist abgelaufen." : "Die Teilnehmerbegrenzung ist erreicht."); return; } setSaving(true); setMessage(""); try { const current = registrations.find((item) => item.mitglied_id === id); if (current) await writeSupabase<WorkAssignmentRegistration>(session, "arbeitseinsatz_anmeldung", "PATCH", { status: "angemeldet" }, { id: `eq.${current.id}` }); else await writeSupabase<WorkAssignmentRegistration>(session, "arbeitseinsatz_anmeldung", "POST", { arbeitseinsatz_id: assignment.id, mitglied_id: id, status: "angemeldet" }); setMemberId(""); await load(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Anmeldung konnte nicht gespeichert werden."); } finally { setSaving(false); } }
-  async function setStatus(item: WorkAssignmentRegistration, status: WorkAssignmentRegistration["status"]) { setSaving(true); setMessage(""); try { await writeSupabase<WorkAssignmentRegistration>(session, "arbeitseinsatz_anmeldung", "PATCH", { status }, { id: `eq.${item.id}` }); if (status === "teilgenommen") { if (!saisonId) throw new Error("Für die Übernahme fehlt die aktive Saison."); await writeSupabase<WorkHour>(session, "arbeitsstunde", "POST", { mitglied_id: item.mitglied_id, saison_id: saisonId, datum: assignment.datum, stunden: assignment.stunden_wert, art_der_arbeit: assignment.titel ?? "Arbeitseinsatz", status: "offen", freigegeben: false }); } await load(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Teilnahme konnte nicht gespeichert werden."); } finally { setSaving(false); } }
-  const name = (id: number) => { const member = members.find((item) => item.id === id); return member ? `${member.name ?? ""}, ${member.vorname ?? ""}` : `Mitglied #${id}`; };
-  return <section className="assignment-participants"><div className="detail-title"><div><h3>Teilnehmer</h3><p>{activeRegistrations.length}{capacity ? ` von ${capacity}` : " · unbegrenzt"}</p></div></div>{message && <p className="notice">{message}</p>}{registrationBlocked && <p className="context-note">{!assignment.aktiv ? "Der Einsatz ist abgesagt; neue Anmeldungen sind gesperrt." : deadlinePassed ? "Der Anmeldeschluss ist abgelaufen." : "Die maximale Teilnehmerzahl ist erreicht."}</p>}<div className="participant-add"><select value={memberId} disabled={registrationBlocked} onChange={(event) => setMemberId(event.target.value)}><option value="">Mitglied auswählen</option>{members.filter((member) => !registrations.some((item) => item.mitglied_id === member.id && (item.status === "angemeldet" || item.status === "teilgenommen"))).map((member) => <option key={member.id} value={member.id}>{member.name}, {member.vorname}</option>)}</select><button disabled={saving || !memberId || registrationBlocked} onClick={register}>Anmelden</button></div><ul>{registrations.map((item) => <li key={item.id}><span><strong>{name(item.mitglied_id)}</strong><small>{item.status}</small></span><div>{item.status !== "abgesagt" && <button className="secondary-action" disabled={saving} onClick={() => setStatus(item, "abgesagt")}>Abmelden</button>}<button disabled={saving || item.status === "teilgenommen" || item.status === "abgesagt"} onClick={() => setStatus(item, "teilgenommen")}>Teilnahme übernehmen</button></div></li>)}</ul>{registrations.length === 0 && <p>Noch keine Teilnehmer.</p>}</section>;
-}
 
 function AppointmentManagement({ session, canEdit, onBack }: { session: BrowserSession; canEdit: boolean; onBack: () => void }) {
   const [items, setItems] = useState<Appointment[]>([]);
@@ -768,17 +657,6 @@ function AnnouncementManagement({ session, canEdit, onBack }: { session: Browser
           {canEdit && <div className="editor-actions"><button disabled={saving} onClick={() => void save()}>Speichern</button>{selected?.aktiv && <button className="reject-action" disabled={saving} onClick={() => void deactivate()}>Deaktivieren</button>}{selected && <button className="reject-action" disabled={saving} onClick={() => void remove()}>Löschen</button>}<button className="secondary-action" onClick={() => { setCreating(false); setSelectedId(null); setMessage(""); }}>Schließen</button></div>}</> : <p>Wähle links eine Bekanntmachung aus oder lege eine neue an.</p>}
       </aside></div>
   </section>;
-}
-
-function AssociationManagement({ session, section }: { session: BrowserSession; section: "einsatz" | "termin" | "bekanntmachung" }) {
-  const [items, setItems] = useState<Array<WorkAssignment | Appointment | Announcement>>([]);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    const source = section === "einsatz" ? ["arbeitseinsatz", "id,titel,beschreibung,datum,start_uhrzeit,treffpunkt,stunden_wert,aktiv"] as const : section === "termin" ? ["termin", "id,titel,beschreibung,datum,start_uhrzeit,aktiv"] as const : ["bekanntmachung", "id,titel,inhalt_html,sichtbar_ab,sichtbar_bis,aktiv"] as const;
-    readSupabase<WorkAssignment | Appointment | Announcement>(session, source[0], { select: source[1], order: section === "bekanntmachung" ? "sichtbar_ab.desc" : "datum.asc", limit: "500" }).then(setItems).catch((cause: Error) => setError(cause.message));
-  }, [session, section]);
-  const isAnnouncement = section === "bekanntmachung";
-  return <section className="data-workspace">{error ? <p className="notice">{error}</p> : <div className="management-list">{items.map((item) => { const dated = item as WorkAssignment | Appointment; const announcement = item as Announcement; const description = isAnnouncement ? plainText(announcement.inhalt_html) : dated.beschreibung; return <article key={item.id} className="management-card"><div><h2>{item.titel ?? "Ohne Titel"}</h2><p>{description || "Keine Beschreibung hinterlegt."}</p></div><aside>{isAnnouncement ? <><strong>{announcement.aktiv ? "aktiv" : "inaktiv"}</strong><span>{formatDate(announcement.sichtbar_ab)}{announcement.sichtbar_bis ? ` – ${formatDate(announcement.sichtbar_bis)}` : ""}</span></> : <><strong>{formatDate(dated.datum)}</strong><span>{dated.start_uhrzeit?.slice(0, 5) ?? ""}{"treffpunkt" in dated && dated.treffpunkt ? ` · ${dated.treffpunkt}` : ""}</span></>}</aside></article>; })}</div>}{items.length === 0 && !error && <p className="empty-state">Keine Einträge vorhanden.</p>}<p className="detail-hint">Die Liste verwendet die bestehenden Verwaltungsdaten. Erstellen und Bearbeiten werden als nächster, schreibender Arbeitsschritt ergänzt.</p></section>;
 }
 
 function plainText(value: string | null) {

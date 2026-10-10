@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Security;
 using KGV.Core.Utilities;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
@@ -46,11 +47,15 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
     private readonly Button _cancelButton;
     private readonly Button _previousButton;
     private readonly Button _nextButton;
+    private readonly Button _participantsButton;
 
     private long? _editingEntryId;
     private EditorSnapshot? _initialSnapshot;
     private bool _isBusy;
     private bool _loadScheduled;
+    private bool _hasEditLock;
+    private bool _isApplyingDateDefaults;
+    private DateTime _newEntryDefaultsDate;
 
     public ArbeitseinsaetzeEditorPage(
         ISupabaseService supabaseService,
@@ -82,23 +87,26 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
 
         _stundenWertEntry = new Entry { Placeholder = "Stundenwert (optional)", Keyboard = Keyboard.Numeric };
 
-        var defaultVisibleFrom = CreateCurrentTimestampDefault();
+        var defaults = WorkAssignmentRules.CreateDefaults(_datePicker.Date!.Value);
+        var defaultVisibleFrom = defaults.VisibleFrom;
         _sichtbarAbDatePicker = new DatePicker { Date = defaultVisibleFrom.Date };
         _sichtbarAbTimePicker = new TimePicker { Time = defaultVisibleFrom.TimeOfDay };
 
         // DatePicker.Date is nullable under .NET 10 MAUI; date picker initialized to Today so assert non-null
-        var defaultVisibleTo = CreateWorkAssignmentVisibleToDefault(_datePicker.Date!.Value);
+        var defaultVisibleTo = defaults.VisibleUntil;
         _sichtbarBisDatePicker = new DatePicker { Date = defaultVisibleTo.Date };
         _sichtbarBisTimePicker = new TimePicker { Time = defaultVisibleTo.TimeOfDay };
 
-        _hasAnmeldungBisCheckBox = new CheckBox();
-        _anmeldungBisDatePicker = new DatePicker { Date = DateTime.Today, IsEnabled = false };
-        _anmeldungBisTimePicker = new TimePicker { IsEnabled = false };
+        _hasAnmeldungBisCheckBox = new CheckBox { IsChecked = true };
+        _anmeldungBisDatePicker = new DatePicker { Date = defaults.SignUpDeadline, IsEnabled = true };
+        _anmeldungBisTimePicker = new TimePicker { Time = TimeSpan.Zero, IsEnabled = true };
         _hasAnmeldungBisCheckBox.CheckedChanged += (_, e) =>
         {
             _anmeldungBisDatePicker.IsEnabled = e.Value;
             _anmeldungBisTimePicker.IsEnabled = e.Value;
         };
+        _newEntryDefaultsDate = _datePicker.Date!.Value.Date;
+        _datePicker.DateSelected += OnAssignmentDateSelected;
 
         _aktivSwitch = new Switch { IsToggled = true };
         _statusLabel = new Label { TextColor = Colors.IndianRed, LineBreakMode = LineBreakMode.WordWrap, IsVisible = false };
@@ -124,6 +132,12 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
 
         _nextButton = new Button { Text = "→", WidthRequest = 56, IsVisible = false };
         _nextButton.Clicked += async (_, _) => await MoveNextAsync();
+
+        _participantsButton = new Button { Text = "Teilnehmer verwalten", IsVisible = false };
+        _participantsButton.Clicked += async (_, _) =>
+        {
+            if (_editingEntryId.HasValue) await Shell.Current.GoToAsync($"{nameof(ArbeitseinsatzTeilnehmerPage)}?entryId={_editingEntryId.Value}");
+        };
 
         Content = new ScrollView
         {
@@ -162,7 +176,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
                     {
                         Spacing = 8,
                         Margin = new Thickness(0, 12, 0, 0),
-                        Children = { _cancelButton, _saveAndNextShiftButton, _saveButton }
+                        Children = { _participantsButton, _cancelButton, _saveAndNextShiftButton, _saveButton }
                     },
                     CreateNavigationFooter()
                 }
@@ -211,7 +225,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         {
             await Task.Yield();
 
-            if (_userContextState.CurrentUserContext?.Role is not (KGV.Core.Security.UserRole.Admin or KGV.Core.Security.UserRole.Vorstand))
+            if (!PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext))
             {
                 _statusLabel.Text = "Keine Berechtigung.";
                 _statusLabel.TextColor = Colors.IndianRed;
@@ -234,12 +248,24 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
                 }
 
                 ApplyRecordToForm(_managementState.CurrentEntry);
+                var editLock = await _supabaseService.AcquireBrowserEditLockAsync("arbeitseinsatz", _editingEntryId.Value);
+                if (!editLock.Acquired)
+                {
+                    _statusLabel.Text = $"Dieser Arbeitseinsatz wird gerade von {editLock.LockedByDisplayName} bearbeitet.";
+                    _statusLabel.TextColor = Colors.IndianRed;
+                    _statusLabel.IsVisible = true;
+                    _cancelButton.IsEnabled = true;
+                    return;
+                }
+                _hasEditLock = true;
                 Title = "Arbeitseinsatz bearbeiten";
+                _participantsButton.IsVisible = true;
             }
             else
             {
                 ResetEditorForNew();
                 Title = "Neuer Arbeitseinsatz";
+                _participantsButton.IsVisible = false;
             }
 
             _statusLabel.IsVisible = false;
@@ -274,6 +300,9 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
     private void ApplyRecordToForm(ArbeitseinsatzRecord record)
     {
         _editingEntryId = record.Id;
+        _isApplyingDateDefaults = true;
+        try
+        {
         _titleEntry.Text = record.Titel ?? string.Empty;
         _descriptionEditor.Text = record.Beschreibung ?? string.Empty;
         _datePicker.Date = record.Datum == default ? DateTime.Today : record.Datum.Date;
@@ -305,11 +334,19 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _statusLabel.IsVisible = false;
         _saveButton.IsEnabled = true;
         _initialSnapshot = CaptureSnapshot();
+        }
+        finally
+        {
+            _isApplyingDateDefaults = false;
+        }
     }
 
     private void ResetEditorForNew()
     {
         _editingEntryId = null;
+        _isApplyingDateDefaults = true;
+        try
+        {
         _titleEntry.Text = string.Empty;
         _descriptionEditor.Text = string.Empty;
         _datePicker.Date = DateTime.Today;
@@ -319,19 +356,26 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _hasTeilnehmerbegrenzungCheckBox.IsChecked = false;
         _maxTeilnehmerEntry.Text = string.Empty;
         _stundenWertEntry.Text = string.Empty;
-        var sichtbarAb = CreateCurrentTimestampDefault();
+        var defaults = WorkAssignmentRules.CreateDefaults(_datePicker.Date!.Value);
+        var sichtbarAb = defaults.VisibleFrom;
         _sichtbarAbDatePicker.Date = sichtbarAb.Date;
         _sichtbarAbTimePicker.Time = sichtbarAb.TimeOfDay;
-        var sichtbarBis = CreateWorkAssignmentVisibleToDefault(_datePicker.Date!.Value);
+        var sichtbarBis = defaults.VisibleUntil;
         _sichtbarBisDatePicker.Date = sichtbarBis.Date;
         _sichtbarBisTimePicker.Time = sichtbarBis.TimeOfDay;
-        _hasAnmeldungBisCheckBox.IsChecked = false;
-        _anmeldungBisDatePicker.Date = DateTime.Today;
+        _hasAnmeldungBisCheckBox.IsChecked = true;
+        _anmeldungBisDatePicker.Date = defaults.SignUpDeadline;
         _anmeldungBisTimePicker.Time = TimeSpan.Zero;
         _aktivSwitch.IsToggled = true;
         _statusLabel.IsVisible = false;
         _saveButton.IsEnabled = true;
         _initialSnapshot = CaptureSnapshot();
+        _newEntryDefaultsDate = _datePicker.Date!.Value.Date;
+        }
+        finally
+        {
+            _isApplyingDateDefaults = false;
+        }
     }
 
     private async Task<bool> SaveAsync(bool navigateToOverviewAfterSave, bool prepareNextShiftAfterSave)
@@ -530,6 +574,14 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         if (_editingEntryId.HasValue)
             record.Id = _editingEntryId.Value;
 
+        var validationError = WorkAssignmentRules.Validate(record);
+        if (validationError != null)
+        {
+            ShowValidationError(validationError, _anmeldungBisDatePicker);
+            record = null;
+            return false;
+        }
+
         return true;
     }
 
@@ -595,6 +647,9 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
             nextEnd = maxTime;
 
         _editingEntryId = null;
+        _isApplyingDateDefaults = true;
+        try
+        {
         Title = "Neue Folgeschicht";
         _titleEntry.Text = source.Titel ?? string.Empty;
         _descriptionEditor.Text = source.Beschreibung ?? string.Empty;
@@ -608,21 +663,54 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
             ? source.StundenWert.ToString("0.##", CultureInfo.CurrentCulture)
             : string.Empty;
 
-        var sichtbarAb = source.SichtbarAb ?? CreateCurrentTimestampDefault();
+        var defaults = WorkAssignmentRules.CreateDefaults(_datePicker.Date!.Value);
+        var sichtbarAb = defaults.VisibleFrom;
         _sichtbarAbDatePicker.Date = sichtbarAb.Date;
         _sichtbarAbTimePicker.Time = sichtbarAb.TimeOfDay;
-        var sichtbarBis = source.SichtbarBis ?? CreateWorkAssignmentVisibleToDefault(_datePicker.Date!.Value);
+        var sichtbarBis = defaults.VisibleUntil;
         _sichtbarBisDatePicker.Date = sichtbarBis.Date;
         _sichtbarBisTimePicker.Time = sichtbarBis.TimeOfDay;
-        _hasAnmeldungBisCheckBox.IsChecked = source.AnmeldungBis.HasValue;
-        _anmeldungBisDatePicker.Date = source.AnmeldungBis?.Date ?? DateTime.Today;
-        _anmeldungBisTimePicker.Time = source.AnmeldungBis?.TimeOfDay ?? TimeSpan.Zero;
+        _hasAnmeldungBisCheckBox.IsChecked = true;
+        _anmeldungBisDatePicker.Date = defaults.SignUpDeadline;
+        _anmeldungBisTimePicker.Time = TimeSpan.Zero;
         _aktivSwitch.IsToggled = source.Aktiv;
         _statusLabel.Text = "Arbeitseinsatz gespeichert. Folgeschicht ist zur schnellen Mehrschicht-Erfassung vorbefüllt.";
         _statusLabel.TextColor = Colors.Green;
         _statusLabel.IsVisible = true;
         _initialSnapshot = CaptureSnapshot();
+        _newEntryDefaultsDate = _datePicker.Date!.Value.Date;
+        }
+        finally
+        {
+            _isApplyingDateDefaults = false;
+        }
         UpdateNavigationFooter();
+    }
+
+    private void OnAssignmentDateSelected(object? sender, DateChangedEventArgs e)
+    {
+        if (_editingEntryId.HasValue || _isApplyingDateDefaults || !e.NewDate.HasValue)
+            return;
+
+        var newAssignmentDate = e.NewDate.Value;
+        var visibleUntil = _sichtbarBisDatePicker.Date!.Value.Date.Add(_sichtbarBisTimePicker.Time!.Value);
+        DateTime? signUpDeadline = _hasAnmeldungBisCheckBox.IsChecked
+            ? _anmeldungBisDatePicker.Date!.Value.Date.Add(_anmeldungBisTimePicker.Time!.Value)
+            : null;
+        var refreshed = WorkAssignmentRules.RefreshNewEntryDateDefaults(_newEntryDefaultsDate, newAssignmentDate, visibleUntil, signUpDeadline);
+
+        if (refreshed.VisibleUntil.HasValue)
+        {
+            _sichtbarBisDatePicker.Date = refreshed.VisibleUntil.Value.Date;
+            _sichtbarBisTimePicker.Time = refreshed.VisibleUntil.Value.TimeOfDay;
+        }
+        if (refreshed.SignUpDeadline.HasValue)
+        {
+            _anmeldungBisDatePicker.Date = refreshed.SignUpDeadline.Value.Date;
+            _anmeldungBisTimePicker.Time = refreshed.SignUpDeadline.Value.TimeOfDay;
+        }
+
+        _newEntryDefaultsDate = newAssignmentDate.Date;
     }
 
     private bool HasPendingChanges()
@@ -690,7 +778,24 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
 
     private Task NavigateToOverviewAsync()
     {
+        _ = ReleaseEditLockAsync();
         return Shell.Current.GoToAsync("//home");
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _ = ReleaseEditLockAsync();
+    }
+
+    private async Task ReleaseEditLockAsync()
+    {
+        if (!_hasEditLock || !_editingEntryId.HasValue)
+            return;
+
+        _hasEditLock = false;
+        try { await _supabaseService.ReleaseBrowserEditLockAsync("arbeitseinsatz", _editingEntryId.Value); }
+        catch (Exception ex) { Debug.WriteLine($"[ArbeitseinsaetzeEditorPage] Lock release failed: {ex}"); }
     }
 
     private static DateTime CreateCurrentTimestampDefault()

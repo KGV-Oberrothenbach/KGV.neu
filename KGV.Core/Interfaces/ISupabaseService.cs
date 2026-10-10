@@ -195,14 +195,23 @@ namespace KGV.Core.Interfaces
         Task<List<HomeWorkAssignmentItem>> GetStartseiteArbeitseinsaetzeAsync();
         Task<HomeWorkAssignmentItem?> GetStartseiteArbeitseinsatzByIdAsync(int arbeitseinsatzId);
         Task<List<WorkAssignmentParticipantItem>> GetArbeitseinsatzParticipantsAsync(int arbeitseinsatzId);
+        Task<List<WorkAssignmentManagementParticipantItem>> GetArbeitseinsatzManagementParticipantsAsync(int arbeitseinsatzId);
         Task<WorkAssignmentRegistrationResult> SignUpForArbeitseinsatzAsync(int arbeitseinsatzId, int mitgliedId);
         Task<WorkAssignmentRegistrationResult> SignOffFromArbeitseinsatzAsync(int arbeitseinsatzId, int mitgliedId);
+        Task<WorkAssignmentRegistrationResult> ManageArbeitseinsatzParticipantAsync(int arbeitseinsatzId, int mitgliedId, string action);
+        Task<ArbeitseinsatzAnmeldungRecord?> GetOwnArbeitseinsatzRegistrationAsync(int arbeitseinsatzId, int mitgliedId);
+        Task<ArbeitseinsatzRecord?> GetArbeitseinsatzForMemberAsync(int arbeitseinsatzId);
+        Task<WorkAssignmentWorkHourResult> SubmitArbeitseinsatzWorkHoursAsync(long registrationId, decimal hours, string? workType);
+        Task<WorkAssignmentWorkHourResult> ConfirmArbeitseinsatzWorkHoursAsync(long registrationId, decimal hours, string? workType);
+        Task<ArbeitsstundeRecord?> GetLinkedArbeitseinsatzWorkHourAsync(long registrationId);
         Task<List<HomeAppointmentItem>> GetStartseiteTermineAsync();
         Task<List<HomeAnnouncementItem>> GetStartseiteBekanntmachungenAsync();
 
         // RFID
         Task<List<RfidScanContextRecord>> GetRfidScanContextRecordsAsync();
         Task<List<ArbeitseinsatzRecord>> GetArbeitseinsaetzeVerwaltungAsync();
+        Task<BrowserEditLockResult> AcquireBrowserEditLockAsync(string entityType, long entityId, int timeoutSeconds = 600);
+        Task ReleaseBrowserEditLockAsync(string entityType, long entityId);
         Task<ArbeitseinsatzRecord?> CreateArbeitseinsatzAsync(ArbeitseinsatzInsertRecord request);
         Task<bool> UpdateArbeitseinsatzAsync(ArbeitseinsatzRecord record);
         Task<bool> DeleteArbeitseinsatzAsync(long id);

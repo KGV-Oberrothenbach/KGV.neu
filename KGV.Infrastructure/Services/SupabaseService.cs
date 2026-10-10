@@ -2802,6 +2802,7 @@ namespace KGV.Infrastructure.Services
                         Vorname = mitglied?.Vorname ?? string.Empty,
                         Nachname = mitglied?.Name ?? string.Empty,
                         Datum = record.Datum,
+                        ArbeitseinsatzAnmeldungId = record.ArbeitseinsatzAnmeldungId,
                         SaisonId = record.SaisonId,
                         SaisonJahr = saisonById.TryGetValue(record.SaisonId, out var saison) ? saison.Jahr : 0,
                         Stunden = record.Stunden,
@@ -2911,6 +2912,7 @@ namespace KGV.Infrastructure.Services
                         Vorname = mitglied?.Vorname ?? string.Empty,
                         Nachname = mitglied?.Name ?? string.Empty,
                         Datum = record.Datum,
+                        ArbeitseinsatzAnmeldungId = record.ArbeitseinsatzAnmeldungId,
                         SaisonId = record.SaisonId,
                         SaisonJahr = saisonById.TryGetValue(record.SaisonId, out var saison) ? saison.Jahr : 0,
                         Stunden = record.Stunden,
@@ -5062,6 +5064,33 @@ namespace KGV.Infrastructure.Services
             },
             new List<WorkAssignmentParticipantItem>());
 
+        public Task<List<WorkAssignmentManagementParticipantItem>> GetArbeitseinsatzManagementParticipantsAsync(int arbeitseinsatzId) => ExecuteAsync(
+            "GetArbeitseinsatzManagementParticipantsAsync",
+            async () =>
+            {
+                if (arbeitseinsatzId <= 0)
+                    return new List<WorkAssignmentManagementParticipantItem>();
+
+                var client = await EnsureClientAsync();
+                var response = await client.From<ArbeitseinsatzAnmeldungRecord>()
+                    .Filter("arbeitseinsatz_id", global::Supabase.Postgrest.Constants.Operator.Equals, arbeitseinsatzId)
+                    .Get();
+                var membersById = (await GetMitgliederAsync()).ToDictionary(x => x.Id, x => x);
+                return (response?.Models ?? new List<ArbeitseinsatzAnmeldungRecord>())
+                    .Select(x => new WorkAssignmentManagementParticipantItem
+                    {
+                        RegistrationId = x.Id,
+                        MitgliedId = x.MitgliedId,
+                        DisplayName = membersById.TryGetValue(x.MitgliedId, out var member)
+                            ? (FormatMemberName(member) ?? $"Mitglied #{x.MitgliedId}")
+                            : $"Mitglied #{x.MitgliedId}",
+                        Status = x.Status,
+                        AngemeldetAm = x.AngemeldetAm
+                    })
+                    .ToList();
+            },
+            new List<WorkAssignmentManagementParticipantItem>());
+
         public Task<List<HomeAppointmentItem>> GetStartseiteTermineAsync() => ExecuteAsync(
             "GetStartseiteTermineAsync",
             LoadStartseiteTermineAsync,
@@ -5075,29 +5104,6 @@ namespace KGV.Infrastructure.Services
                     return CreateRegistrationResult(false, "Die Anmeldung konnte nicht gestartet werden, weil Arbeitseinsatz oder Mitglied fehlen.");
 
                 var client = await EnsureClientAsync();
-                var arbeitseinsatz = await GetArbeitseinsatzByIdAsync(client, arbeitseinsatzId);
-                if (arbeitseinsatz == null)
-                    return CreateRegistrationResult(false, "Der ausgewählte Arbeitseinsatz konnte nicht geladen werden.");
-
-                var aktiveAnmeldungen = await GetAktiveArbeitseinsatzAnmeldungenAsync(client, arbeitseinsatzId);
-                if (aktiveAnmeldungen.Any(x => x.MitgliedId == mitgliedId))
-                {
-                    var existingItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
-                    return CreateRegistrationResult(false, "Für diesen Arbeitseinsatz besteht bereits eine Anmeldung.", existingItem);
-                }
-
-                var now = Vereinszeit.Now;
-                if (arbeitseinsatz.AnmeldungBis.HasValue && arbeitseinsatz.AnmeldungBis.Value < now)
-                {
-                    var expiredItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
-                    return CreateRegistrationResult(false, "Die Anmeldefrist für diesen Arbeitseinsatz ist bereits abgelaufen.", expiredItem);
-                }
-
-                if (arbeitseinsatz.MaxTeilnehmer.HasValue && aktiveAnmeldungen.Count >= arbeitseinsatz.MaxTeilnehmer.Value)
-                {
-                    var fullItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
-                    return CreateRegistrationResult(false, "Für diesen Arbeitseinsatz sind aktuell keine freien Plätze mehr verfügbar.", fullItem);
-                }
 
                 try
                 {
@@ -5113,13 +5119,8 @@ namespace KGV.Infrastructure.Services
                 {
                     _logger?.LogWarning(ex, "SignUpForArbeitseinsatzAsync RPC failed for arbeitseinsatz {ArbeitseinsatzId} and mitglied {MitgliedId}", arbeitseinsatzId, mitgliedId);
 
-                    var refreshedActiveAnmeldungen = await GetAktiveArbeitseinsatzAnmeldungenAsync(client, arbeitseinsatzId);
                     var refreshedItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
-
-                    if (refreshedActiveAnmeldungen.Any(x => x.MitgliedId == mitgliedId))
-                        return CreateRegistrationResult(false, "Für diesen Arbeitseinsatz besteht bereits eine Anmeldung.", refreshedItem);
-
-                    return CreateRegistrationResult(false, "Die Anmeldung konnte aktuell nicht gespeichert werden. Bitte versuche es erneut.", refreshedItem);
+                    return CreateRegistrationResult(false, ex.Message, refreshedItem);
                 }
 
                 var updatedItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
@@ -5135,16 +5136,6 @@ namespace KGV.Infrastructure.Services
                     return CreateRegistrationResult(false, "Die Abmeldung konnte nicht gestartet werden, weil Arbeitseinsatz oder Mitglied fehlen.");
 
                 var client = await EnsureClientAsync();
-                var arbeitseinsatz = await GetArbeitseinsatzByIdAsync(client, arbeitseinsatzId);
-                if (arbeitseinsatz == null)
-                    return CreateRegistrationResult(false, "Der ausgewählte Arbeitseinsatz konnte nicht geladen werden.");
-
-                var aktiveAnmeldungen = await GetAktiveArbeitseinsatzAnmeldungenAsync(client, arbeitseinsatzId);
-                if (!aktiveAnmeldungen.Any(x => x.MitgliedId == mitgliedId))
-                {
-                    var missingItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
-                    return CreateRegistrationResult(false, "Für dieses Mitglied besteht aktuell keine aktive Anmeldung zu diesem Arbeitseinsatz.", missingItem);
-                }
 
                 try
                 {
@@ -5160,19 +5151,96 @@ namespace KGV.Infrastructure.Services
                 {
                     _logger?.LogWarning(ex, "SignOffFromArbeitseinsatzAsync RPC failed for arbeitseinsatz {ArbeitseinsatzId} and mitglied {MitgliedId}", arbeitseinsatzId, mitgliedId);
 
-                    var refreshedActiveAnmeldungen = await GetAktiveArbeitseinsatzAnmeldungenAsync(client, arbeitseinsatzId);
                     var refreshedItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
-
-                    if (!refreshedActiveAnmeldungen.Any(x => x.MitgliedId == mitgliedId))
-                        return CreateRegistrationResult(true, "Die Abmeldung vom Arbeitseinsatz wurde gespeichert.", refreshedItem);
-
-                    return CreateRegistrationResult(false, "Die Abmeldung konnte aktuell nicht gespeichert werden. Bitte versuche es erneut.", refreshedItem);
+                    return CreateRegistrationResult(false, ex.Message, refreshedItem);
                 }
 
                 var updatedItem = await TryLoadHomeWorkAssignmentItemAsync(client, arbeitseinsatzId);
                 return CreateRegistrationResult(true, "Die Abmeldung vom Arbeitseinsatz wurde gespeichert.", updatedItem);
             },
             new WorkAssignmentRegistrationResult());
+
+        public Task<WorkAssignmentRegistrationResult> ManageArbeitseinsatzParticipantAsync(int arbeitseinsatzId, int mitgliedId, string action) => ExecuteAsync(
+            "ManageArbeitseinsatzParticipantAsync",
+            async () =>
+            {
+                if (arbeitseinsatzId <= 0 || mitgliedId <= 0 || action is not ("anmelden" or "absagen" or "nicht_erschienen"))
+                    return CreateRegistrationResult(false, "Die Teilnehmeraktion enthält ungültige Angaben.");
+
+                var client = await EnsureClientAsync();
+                try
+                {
+                    await client.Rpc<ArbeitseinsatzAnmeldungRecord>(
+                        "manage_arbeitseinsatz_anmeldung",
+                        new { p_arbeitseinsatz_id = arbeitseinsatzId, p_mitglied_id = mitgliedId, p_action = action });
+                    return CreateRegistrationResult(true, "Die Teilnehmeraktion wurde gespeichert.");
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "ManageArbeitseinsatzParticipantAsync RPC failed for arbeitseinsatz {ArbeitseinsatzId}, mitglied {MitgliedId}, action {Action}", arbeitseinsatzId, mitgliedId, action);
+                    return CreateRegistrationResult(false, ex.Message);
+                }
+            },
+            new WorkAssignmentRegistrationResult());
+
+        public Task<ArbeitsstundeRecord?> GetLinkedArbeitseinsatzWorkHourAsync(long registrationId) => ExecuteAsync(
+            "GetLinkedArbeitseinsatzWorkHourAsync",
+            async () =>
+            {
+                if (registrationId <= 0) return null;
+                var client = await EnsureClientAsync();
+                var response = await client.From<ArbeitsstundeRecord>()
+                    .Filter("arbeitseinsatz_anmeldung_id", global::Supabase.Postgrest.Constants.Operator.Equals, registrationId)
+                    .Get();
+                return response?.Models?.FirstOrDefault();
+            }, null);
+
+        public Task<ArbeitseinsatzAnmeldungRecord?> GetOwnArbeitseinsatzRegistrationAsync(int arbeitseinsatzId, int mitgliedId) => ExecuteAsync(
+            "GetOwnArbeitseinsatzRegistrationAsync",
+            async () =>
+            {
+                if (arbeitseinsatzId <= 0 || mitgliedId <= 0) return null;
+                var client = await EnsureClientAsync();
+                var response = await client.From<ArbeitseinsatzAnmeldungRecord>()
+                    .Filter("arbeitseinsatz_id", global::Supabase.Postgrest.Constants.Operator.Equals, arbeitseinsatzId)
+                    .Filter("mitglied_id", global::Supabase.Postgrest.Constants.Operator.Equals, mitgliedId)
+                    .Get();
+                return response?.Models?.FirstOrDefault();
+            }, null);
+
+        public Task<ArbeitseinsatzRecord?> GetArbeitseinsatzForMemberAsync(int arbeitseinsatzId) => ExecuteAsync(
+            "GetArbeitseinsatzForMemberAsync",
+            async () =>
+            {
+                if (arbeitseinsatzId <= 0) return null;
+                var client = await EnsureClientAsync();
+                var response = await client.From<ArbeitseinsatzRecord>()
+                    .Filter("id", global::Supabase.Postgrest.Constants.Operator.Equals, arbeitseinsatzId)
+                    .Get();
+                return response?.Models?.Select(NormalizeArbeitseinsatzRecord).FirstOrDefault();
+            }, null);
+
+        public Task<WorkAssignmentWorkHourResult> SubmitArbeitseinsatzWorkHoursAsync(long registrationId, decimal hours, string? workType) => ExecuteWorkAssignmentWorkHourRpcAsync("submit_arbeitseinsatz_arbeitsstunde", registrationId, hours, workType);
+
+        public Task<WorkAssignmentWorkHourResult> ConfirmArbeitseinsatzWorkHoursAsync(long registrationId, decimal hours, string? workType) => ExecuteWorkAssignmentWorkHourRpcAsync("confirm_arbeitseinsatz_arbeitsstunde", registrationId, hours, workType);
+
+        private Task<WorkAssignmentWorkHourResult> ExecuteWorkAssignmentWorkHourRpcAsync(string rpcName, long registrationId, decimal hours, string? workType) => ExecuteAsync(
+            rpcName,
+            async () =>
+            {
+                if (registrationId <= 0 || hours <= 0) return new WorkAssignmentWorkHourResult { Message = "Anmeldung und Stunden müssen gültig sein." };
+                try
+                {
+                    var client = await EnsureClientAsync();
+                    var response = await client.Rpc<ArbeitsstundeRecord>(rpcName, new { p_arbeitseinsatz_anmeldung_id = registrationId, p_stunden = hours, p_art_der_arbeit = workType });
+                    return new WorkAssignmentWorkHourResult { Success = true, Message = "Die Arbeitsstunden wurden gespeichert.", WorkHour = response };
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "{RpcName} failed for registration {RegistrationId}", rpcName, registrationId);
+                    return new WorkAssignmentWorkHourResult { Message = ex.Message };
+                }
+            }, new WorkAssignmentWorkHourResult());
 
         public Task<List<HomeAnnouncementItem>> GetStartseiteBekanntmachungenAsync() => ExecuteAsync(
             "GetStartseiteBekanntmachungenAsync",
@@ -5196,6 +5264,52 @@ namespace KGV.Infrastructure.Services
                     ?? new List<ArbeitseinsatzRecord>();
             },
             new List<ArbeitseinsatzRecord>());
+
+        public Task<BrowserEditLockResult> AcquireBrowserEditLockAsync(string entityType, long entityId, int timeoutSeconds = 600) => ExecuteAsync(
+            "AcquireBrowserEditLockAsync",
+            async () =>
+            {
+                if (string.IsNullOrWhiteSpace(entityType) || entityId <= 0)
+                    return new BrowserEditLockResult(false, "einem anderen Benutzer");
+
+                var client = await EnsureClientAsync();
+                var response = await client.Rpc<System.Text.Json.JsonElement[]>("acquire_browser_edit_lock", new
+                {
+                    p_entity_type = entityType,
+                    p_entity_id = entityId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    p_timeout_seconds = timeoutSeconds
+                });
+                var row = response?.FirstOrDefault() ?? default;
+                var acquired = row.ValueKind == System.Text.Json.JsonValueKind.Object
+                    && row.TryGetProperty("acquired", out var acquiredValue)
+                    && acquiredValue.ValueKind == System.Text.Json.JsonValueKind.True;
+                var displayName = row.ValueKind == System.Text.Json.JsonValueKind.Object
+                    && row.TryGetProperty("locked_by_display_name", out var displayNameValue)
+                    ? displayNameValue.GetString()
+                    : null;
+                return new BrowserEditLockResult(acquired, string.IsNullOrWhiteSpace(displayName) ? "einem anderen Benutzer" : displayName);
+            },
+            new BrowserEditLockResult(false, "einem anderen Benutzer"));
+
+        public async Task ReleaseBrowserEditLockAsync(string entityType, long entityId)
+        {
+            await ExecuteAsync(
+            "ReleaseBrowserEditLockAsync",
+            async () =>
+            {
+                if (!string.IsNullOrWhiteSpace(entityType) && entityId > 0)
+                {
+                    var client = await EnsureClientAsync();
+                    await client.Rpc<bool>("release_browser_edit_lock", new
+                    {
+                        p_entity_type = entityType,
+                        p_entity_id = entityId.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    });
+                }
+                return true;
+            },
+            false);
+        }
 
         public Task<ArbeitseinsatzRecord?> CreateArbeitseinsatzAsync(ArbeitseinsatzInsertRecord request) => ExecuteAsync<ArbeitseinsatzRecord?>(
             "CreateArbeitseinsatzAsync",
@@ -6855,15 +6969,13 @@ namespace KGV.Infrastructure.Services
                 .ToList()
                 ?? new List<StartseiteArbeitseinsatzRecord>();
 
-            await EnrichStartseiteArbeitseinsatzTimesAsync(client, records);
             await EnrichStartseiteArbeitseinsatzRegistrationStateAsync(client, records);
-            records = await FilterVisibleStartseiteArbeitseinsaetzeAsync(client, records);
 
             return records
-                .OrderBy(x => x.Datum ?? DateTime.MaxValue)
-                .ThenBy(x => NormalizeTimeValue(x.Beginn) ?? "99:99")
-                .ThenBy(x => NormalizeTimeValue(x.Ende) ?? "99:99")
-                .ThenBy(x => FirstNonEmpty(x.Titel, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                .OrderBy(x => x.Datum)
+                .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
+                .ThenBy(x => x.EndUhrzeit ?? TimeSpan.MaxValue)
+                .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                 .Select(MapHomeWorkAssignment)
                 .ToList()
                 ?? new List<HomeWorkAssignmentItem>();
@@ -6905,24 +7017,6 @@ namespace KGV.Infrastructure.Services
                 .Select(MapHomeAnnouncement)
                 .ToList()
                 ?? new List<HomeAnnouncementItem>();
-        }
-
-        private async Task<List<StartseiteArbeitseinsatzRecord>> FilterVisibleStartseiteArbeitseinsaetzeAsync(global::Supabase.Client client, List<StartseiteArbeitseinsatzRecord> records)
-        {
-            if (records.Count == 0)
-                return records;
-
-            var response = await client.From<ArbeitseinsatzRecord>().Get();
-            var byId = response?.Models?
-                .Select(NormalizeArbeitseinsatzRecord)
-                .ToDictionary(x => x.Id) ?? new Dictionary<long, ArbeitseinsatzRecord>();
-            var now = CreateEditorNowDefault();
-
-            return records
-                .Where(x => byId.TryGetValue(x.Id, out var record)
-                            && OperationalDataFilter.IsOperationalArbeitseinsatz(record)
-                            && IsCurrentlyVisible(record.Aktiv, record.SichtbarAb, record.SichtbarBis, now))
-                .ToList();
         }
 
         private async Task<List<StartseiteTerminRecord>> FilterVisibleStartseiteTermineAsync(global::Supabase.Client client, List<StartseiteTerminRecord> records)
@@ -6981,38 +7075,48 @@ namespace KGV.Infrastructure.Services
             };
         }
 
-        private static HomeWorkAssignmentItem MapHomeWorkAssignment(StartseiteArbeitseinsatzRecord record)
+        private HomeWorkAssignmentItem MapHomeWorkAssignment(StartseiteArbeitseinsatzRecord record)
         {
             var description = NormalizeHomeText(record.Beschreibung);
             var capacityText = BuildCapacityText(record.AngemeldetCount, record.FreiePlaetze);
-            var title = FirstNonEmpty(record.Titel, record.Thema) ?? "Arbeitseinsatz";
-            var begin = NormalizeTimeValue(record.Beginn);
-            var end = NormalizeTimeValue(record.Ende);
+            var title = record.Titel ?? "Arbeitseinsatz";
+            var begin = FormatTimeValue(record.StartUhrzeit);
+            var end = FormatTimeValue(record.EndUhrzeit);
+            var now = Vereinszeit.Now;
+            var canRegister = TryGetCurrentMitgliedId().HasValue
+                && record.Aktiv
+                && !record.IstAngemeldet
+                && record.FreiePlaetze != 0
+                && (!record.AnmeldungBis.HasValue || record.AnmeldungBis.Value >= now)
+                && !WorkAssignmentRules.HasStarted(record.Datum, record.StartUhrzeit, now);
             var detailInfoLines = new List<string>();
 
-            AddDetailLine(detailInfoLines, "Thema", record.Thema, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase));
-            AddDetailLine(detailInfoLines, "Datum", record.Datum?.ToString("dd.MM.yyyy"));
+            AddDetailLine(detailInfoLines, "Datum", record.Datum.ToString("dd.MM.yyyy"));
             AddDetailLine(detailInfoLines, "Treffpunkt", record.Treffpunkt);
 
-            if (record.AngemeldetCount.HasValue && record.FreiePlaetze.HasValue)
-                AddDetailLine(detailInfoLines, "Max. Teilnehmer", (record.AngemeldetCount.Value + record.FreiePlaetze.Value).ToString());
+            if (record.FreiePlaetze.HasValue)
+                AddDetailLine(detailInfoLines, "Max. Teilnehmer", (record.AngemeldetCount + record.FreiePlaetze.Value).ToString());
 
             return new HomeWorkAssignmentItem
             {
                 Id = record.Id,
                 Title = title,
-                Subtitle = record.Datum?.ToString("dd.MM.yyyy") ?? string.Empty,
+                Subtitle = record.Datum.ToString("dd.MM.yyyy"),
                 StartTimeText = begin ?? string.Empty,
                 EndTimeText = end ?? string.Empty,
                 Details = description,
                 DetailInfo = string.Join(Environment.NewLine, detailInfoLines),
-                RegistrationInfo = BuildWorkAssignmentRegistrationInfo(record, capacityText),
-                CanRegister = record.AnmeldungMoeglich == true,
+                RegistrationInfo = BuildWorkAssignmentRegistrationInfo(record, capacityText, canRegister),
+                CanRegister = canRegister,
                 CanSignOff = record.IstAngemeldet
+                    && !WorkAssignmentRules.HasStarted(
+                        record.Datum,
+                        record.StartUhrzeit,
+                        now)
             };
         }
 
-        private static string BuildWorkAssignmentRegistrationInfo(StartseiteArbeitseinsatzRecord record, string capacityText)
+        private static string BuildWorkAssignmentRegistrationInfo(StartseiteArbeitseinsatzRecord record, string capacityText, bool canRegister)
         {
             if (record.IstAngemeldet)
             {
@@ -7024,7 +7128,7 @@ namespace KGV.Infrastructure.Services
             if (!string.IsNullOrWhiteSpace(capacityText))
                 return capacityText;
 
-            return record.AnmeldungMoeglich == true
+            return canRegister
                 ? "Anmeldung möglich"
                 : string.Empty;
         }
@@ -7175,15 +7279,6 @@ namespace KGV.Infrastructure.Services
 
         private async Task<HomeWorkAssignmentItem?> TryLoadHomeWorkAssignmentItemAsync(global::Supabase.Client client, int arbeitseinsatzId)
         {
-            var arbeitseinsatz = await GetArbeitseinsatzByIdAsync(client, arbeitseinsatzId);
-            var now = CreateEditorNowDefault();
-            if (arbeitseinsatz == null
-                || !OperationalDataFilter.IsOperationalArbeitseinsatz(arbeitseinsatz)
-                || !IsCurrentlyVisible(arbeitseinsatz.Aktiv, arbeitseinsatz.SichtbarAb, arbeitseinsatz.SichtbarBis, now))
-            {
-                return null;
-            }
-
             var response = await client
                 .From<StartseiteArbeitseinsatzRecord>()
                 .Where(x => x.Id == arbeitseinsatzId)
@@ -7193,7 +7288,6 @@ namespace KGV.Infrastructure.Services
             if (record == null)
                 return null;
 
-            await EnrichStartseiteArbeitseinsatzTimesAsync(client, new List<StartseiteArbeitseinsatzRecord> { record });
             await EnrichStartseiteArbeitseinsatzRegistrationStateAsync(client, new List<StartseiteArbeitseinsatzRecord> { record });
             return MapHomeWorkAssignment(record);
         }
@@ -7202,13 +7296,6 @@ namespace KGV.Infrastructure.Services
         {
             if (records.Count == 0)
                 return;
-
-            var arbeitseinsatzResponse = await client.From<ArbeitseinsatzRecord>().Get();
-            var arbeitseinsatzById = arbeitseinsatzResponse?.Models?
-                .Where(x => x.Id > 0)
-                .Select(NormalizeArbeitseinsatzRecord)
-                .ToDictionary(x => (int)x.Id)
-                ?? new Dictionary<int, ArbeitseinsatzRecord>();
 
             var anmeldungenResponse = await client
                 .From<ArbeitseinsatzAnmeldungRecord>()
@@ -7221,31 +7308,11 @@ namespace KGV.Infrastructure.Services
                 ?? new Dictionary<int, List<ArbeitseinsatzAnmeldungRecord>>();
 
             var currentMemberId = TryGetCurrentMitgliedId();
-            var now = Vereinszeit.Now;
-
             foreach (var record in records)
             {
-                if (!arbeitseinsatzById.TryGetValue(record.Id, out var arbeitseinsatz))
-                    continue;
-
                 anmeldungenByArbeitseinsatzId.TryGetValue(record.Id, out var anmeldungen);
                 anmeldungen ??= new List<ArbeitseinsatzAnmeldungRecord>();
-
-                record.AngemeldetCount = anmeldungen.Count;
-
-                if (arbeitseinsatz.MaxTeilnehmer.HasValue)
-                    record.FreiePlaetze = Math.Max(0, arbeitseinsatz.MaxTeilnehmer.Value - anmeldungen.Count);
-
-                var isAlreadyRegistered = currentMemberId.HasValue && anmeldungen.Any(x => x.MitgliedId == currentMemberId.Value);
-                var isDeadlineOpen = !arbeitseinsatz.AnmeldungBis.HasValue || arbeitseinsatz.AnmeldungBis.Value >= now;
-                var hasCapacity = !arbeitseinsatz.MaxTeilnehmer.HasValue || anmeldungen.Count < arbeitseinsatz.MaxTeilnehmer.Value;
-
-                record.IstAngemeldet = isAlreadyRegistered;
-                record.AnmeldungMoeglich = currentMemberId.HasValue
-                    && arbeitseinsatz.Aktiv
-                    && !isAlreadyRegistered
-                    && isDeadlineOpen
-                    && hasCapacity;
+                record.IstAngemeldet = currentMemberId.HasValue && anmeldungen.Any(x => x.MitgliedId == currentMemberId.Value);
             }
         }
 
@@ -7255,27 +7322,6 @@ namespace KGV.Infrastructure.Services
             return userContext?.MitgliedId is > 0 and <= int.MaxValue
                 ? (int)userContext.MitgliedId.Value
                 : null;
-        }
-
-        private static async Task EnrichStartseiteArbeitseinsatzTimesAsync(global::Supabase.Client client, List<StartseiteArbeitseinsatzRecord> records)
-        {
-            if (records.Count == 0 || records.All(HasStartseiteTimeValues))
-                return;
-
-            var response = await client.From<ArbeitseinsatzRecord>().Get();
-            var lookup = response?.Models?
-                .Where(x => x.Id > 0)
-                .ToDictionary(x => (int)x.Id)
-                ?? new Dictionary<int, ArbeitseinsatzRecord>();
-
-            foreach (var record in records)
-            {
-                if (HasStartseiteTimeValues(record) || !lookup.TryGetValue(record.Id, out var source))
-                    continue;
-
-                record.Beginn ??= FormatTimeValue(source.StartUhrzeit);
-                record.Ende ??= FormatTimeValue(source.EndUhrzeit);
-            }
         }
 
         private static async Task EnrichStartseiteTerminTimesAsync(global::Supabase.Client client, List<StartseiteTerminRecord> records)
@@ -7297,11 +7343,6 @@ namespace KGV.Infrastructure.Services
                 record.Beginn ??= FormatTimeValue(source.StartUhrzeit);
                 record.Ende ??= FormatTimeValue(source.EndUhrzeit);
             }
-        }
-
-        private static bool HasStartseiteTimeValues(StartseiteArbeitseinsatzRecord record)
-        {
-            return !string.IsNullOrWhiteSpace(record.Beginn) || !string.IsNullOrWhiteSpace(record.Ende);
         }
 
         private static bool HasStartseiteTimeValues(StartseiteTerminRecord record)
@@ -7436,15 +7477,19 @@ namespace KGV.Infrastructure.Services
             {
                 Id = record.Id,
                 Titel = record.Titel,
-                Thema = record.Thema,
                 Datum = NormalizeDateOnly(record.Datum),
-                Beginn = record.Beginn,
-                Ende = record.Ende,
+                StartUhrzeit = record.StartUhrzeit,
+                EndUhrzeit = record.EndUhrzeit,
                 Treffpunkt = record.Treffpunkt,
                 Beschreibung = record.Beschreibung,
+                MaxTeilnehmer = record.MaxTeilnehmer,
+                StundenWert = record.StundenWert,
+                SichtbarAb = record.SichtbarAb,
+                SichtbarBis = record.SichtbarBis,
+                AnmeldungBis = record.AnmeldungBis,
+                Aktiv = record.Aktiv,
                 FreiePlaetze = record.FreiePlaetze,
                 AngemeldetCount = record.AngemeldetCount,
-                AnmeldungMoeglich = record.AnmeldungMoeglich,
                 IstAngemeldet = record.IstAngemeldet
             };
         }

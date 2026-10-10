@@ -12,6 +12,7 @@ namespace KGV.Core.Models
         public string Nachname { get; set; } = string.Empty;
 
         public DateTime Datum { get; set; }
+        public long? ArbeitseinsatzAnmeldungId { get; set; }
 
         public int SaisonId { get; set; }
         public int SaisonJahr { get; set; }

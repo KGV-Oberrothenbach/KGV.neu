@@ -9,6 +9,7 @@ export type WorkHour = {
   freigegeben: boolean;
   genehmigt_von: number | null;
   genehmigt_am: string | null;
+  arbeitseinsatz_anmeldung_id: number | null;
 };
 
 export type WorkHourHistory = {

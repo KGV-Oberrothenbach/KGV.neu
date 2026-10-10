@@ -1,9 +1,10 @@
 import { type BrowserSession } from "../../lib/supabase-auth";
+import { type WorkAssignmentRegistration } from "../../models/work-assignments/work-assignment";
 import { listHomeAnnouncements, type HomeAnnouncement } from "../../repositories/announcements/announcement-repository";
 import { listHomeAppointments, type HomeAppointment } from "../../repositories/appointments/appointment-repository";
 import { listMemberNames } from "../../repositories/members/member-repository";
 import { getHomeWorkHours, type HomeWorkHoursSummary } from "../../repositories/work-hours/work-hours-repository";
-import { listAssignmentParticipants, listHomeWorkAssignments, listMemberRegistrations, signOffFromWorkAssignment, signUpForWorkAssignment, type HomeWorkAssignment, type WorkAssignmentRegistration } from "../../repositories/work-assignments/work-assignment-repository";
+import { listAssignmentParticipants, listHomeWorkAssignments, listMemberRegistrations, signOffFromWorkAssignment, signUpForWorkAssignment, type HomeWorkAssignment } from "../../repositories/work-assignments/work-assignment-repository";
 export type { HomeAnnouncement, HomeAppointment, HomeWorkAssignment, HomeWorkHoursSummary, WorkAssignmentRegistration };
 export type HomeDetailSelection = { kind: "assignment" | "appointment" | "announcement"; id: number };
 export type HomeDashboardData = { assignments: HomeWorkAssignment[]; appointments: HomeAppointment[]; announcements: HomeAnnouncement[]; workHours: HomeWorkHoursSummary | null; registrations: WorkAssignmentRegistration[] };
