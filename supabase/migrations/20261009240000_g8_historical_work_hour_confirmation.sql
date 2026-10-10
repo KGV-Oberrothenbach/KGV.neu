@@ -25,9 +25,10 @@ create or replace view public.v_startseite_arbeitseinsatz
 with (security_invoker = 'true') as
 select a.id, a.titel, a.beschreibung, a.datum, a.start_uhrzeit, a.end_uhrzeit,
   a.treffpunkt, a.max_teilnehmer, a.stunden_wert, a.sichtbar_ab, a.sichtbar_bis,
-  a.anmeldung_bis, a.aktiv,
+  a.anmeldung_bis,
   coalesce(sum(case when aa.status = 'angemeldet'::public.arbeitseinsatz_anmeldung_status then 1 else 0 end), 0)::integer as angemeldet_count,
-  case when a.max_teilnehmer is null then null::integer else greatest(a.max_teilnehmer - coalesce(sum(case when aa.status = 'angemeldet'::public.arbeitseinsatz_anmeldung_status then 1 else 0 end), 0), 0)::integer end as freie_plaetze
+  case when a.max_teilnehmer is null then null::integer else greatest(a.max_teilnehmer - coalesce(sum(case when aa.status = 'angemeldet'::public.arbeitseinsatz_anmeldung_status then 1 else 0 end), 0), 0)::integer end as freie_plaetze,
+  a.aktiv
 from public.arbeitseinsatz a
 left join public.arbeitseinsatz_anmeldung aa on aa.arbeitseinsatz_id = a.id
 where a.aktiv = true
