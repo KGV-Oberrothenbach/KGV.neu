@@ -11,6 +11,7 @@
     <PackageReference Include="Supabase.Postgrest" Version="4.1.0" />
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
     <PackageReference Include="System.IO.Packaging" Version="10.0.12" />
+    <PackageReference Include="HtmlSanitizer" Version="9.2.1039" />
   </ItemGroup>
   <ItemGroup>
     <Compile Update="DEV_LOG.txt">
