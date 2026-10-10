@@ -116,9 +116,13 @@ Die Home-Webtypen liegen im gemeinsamen Work-Assignment-Modellbereich statt repo
 
 ## G8.8 – Regression / technische Abschlussprüfung
 
-Mindestens geprüft werden Admin, Vorstand, User, User mit Grant, Vorstand mit Revocation sowie Demo- und Reviewer-Fälle. Die Regression umfasst Arbeitseinsätze anlegen, bearbeiten, deaktivieren und löschen, Bearbeitungssperren, Folgeschichten, Kapazität, Anmeldeschluss, Abmeldung nach Anmeldeschluss, Verhalten nach Einsatzbeginn, Teilnehmerverwaltung und `nicht_erschienen`.
+G8.1 bis G8.7 wurden als Regression gegen die finale Migrationskette, die Web- und MAUI-Pfade sowie die zentralen Regelhelfer geprüft. Die Permission-Matrix bestätigt: Admin und Vorstand besitzen `ManageWorkAssignments` und `ManageWorkHours`, ein Benutzer mit ausschließlich `ManageWorkAssignments` darf Teilnehmer verwalten, aber nicht administrativ bestätigen, und ein Benutzer mit beiden Grants darf beides. Eine Revocation bleibt wirksam. Die Unit-Tests prüfen die getrennte effektive Berechnung der beiden Rechte zusätzlich.
 
-Ebenfalls geprüft werden eigene Arbeitsstunden des Benutzers, administrative Stunden von Vorstand/Admin, geänderte Stundenanzahl, Schutz vor doppelter Übernahme, abgelehnte Arbeitsstunden und der Erhalt der G7-Historie. Technisch sind TypeScript, Web-Build, Lint, MAUI-Build, Migrationen, RLS/RPC und `git diff --check` Teil der Abschlussprüfung.
+Die statische RPC-/RLS-Prüfung umfasst CRUD-Validierung und Defaults, Browser-Locks, Signup/Signoff, Kapazität ausschließlich für `angemeldet`, Verwaltungsstatus, `nicht_erschienen`, G8.6-Stunden, G7-Review-Synchronisierung, Link-Unique-Index und Einsatzdatumsschutz. Alle G8-RPCs verwenden `SECURITY DEFINER` mit eingeschränktem `search_path`, Auth-/Permission-Prüfungen und `PUBLIC`-/`anon`-Revoke sowie `authenticated`-Grant. Die Startseitenview bleibt `SECURITY INVOKER`; View, C#-Modell und Home-Webmodell verwenden dieselben kanonischen Spalten. React-G8-Komponenten enthalten keine direkten Supabase-/RPC-Aufrufe; MAUI-Pages verwenden den Servicepfad.
+
+Dabei wurde eine Scope-Regression behoben: Die finalen Self-Service-RPCs für Signup und Signoff prüfen im Produktivkontext jetzt – wie Verwaltung und Stunden-RPCs – sowohl einen produktiven Einsatz als auch ein produktives Mitglied. Demo-/Reviewer-Konten bleiben auf `is_demo_member_arbeitseinsatz_scope(...)` beschränkt; Grants erweitern diese Grenze nicht. Die Migrationskette, Migrationsrechte und Funktionsendstände wurden statisch verglichen. DB-Integrationstests konnten lokal nicht ausgeführt werden, weil die Supabase-CLI nicht installiert ist; die entsprechenden Fälle wurden daher vollständig statisch geprüft.
+
+Technisch gehören `git diff --check`, Core-/Infrastructure-Build, relevante Tests, Web-TypeScript, Web-Build, gezielter G8-Lint, vollständiger Lint mit getrennten Altbefunden sowie MAUI-Kompilierung zur Prüfung. G8.8 führt keine neue Fachregel ein und ersetzt weder G8.9 noch G8.10.
 
 ## G8.9 – Dokumentation und G8-Abschluss
 

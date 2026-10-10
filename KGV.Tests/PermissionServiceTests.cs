@@ -37,4 +37,17 @@ public sealed class PermissionServiceTests
         Assert.False(revokedVorstand.Has(PermissionFlags.CanManageWorkAssignments));
         Assert.True(revokedVorstand.Has(PermissionFlags.CanManageWorkHours));
     }
+
+    [Theory]
+    [InlineData((long)PermissionFlags.CanManageWorkAssignments, 0L, true, false)]
+    [InlineData((long)PermissionFlags.CanManageWorkHours, 0L, false, true)]
+    [InlineData((long)(PermissionFlags.CanManageWorkAssignments | PermissionFlags.CanManageWorkHours), 0L, true, true)]
+    [InlineData((long)(PermissionFlags.CanManageWorkAssignments | PermissionFlags.CanManageWorkHours), (long)PermissionFlags.CanManageWorkAssignments, false, true)]
+    public void CreateContext_KeepsWorkAssignmentAndWorkHourPermissionsIndependent(long grants, long revocations, bool canManageAssignments, bool canManageHours)
+    {
+        var context = new PermissionService().CreateContext(Guid.NewGuid(), "user", null, grants, revocations);
+
+        Assert.Equal(canManageAssignments, PermissionChecks.CanManageWorkAssignments(context));
+        Assert.Equal(canManageHours, PermissionChecks.CanManageWorkHours(context));
+    }
 }
