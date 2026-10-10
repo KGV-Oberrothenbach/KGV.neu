@@ -328,7 +328,7 @@ export async function callSupabaseFunctionRaw(session: BrowserSession, name: str
 }
 
 export type ContractGenerationRequest = {
-  action: "preview" | "finalize";
+  action: "preview" | "finalize" | "sign-existing";
   type: "mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag" | "parzellenprotokoll";
   member_id: number;
   parcel_id?: number;
@@ -355,6 +355,7 @@ export type ContractGenerationRequest = {
   board2_id?: number;
   companion_name?: string;
   photos?: string[];
+  source_document_id?: number;
 };
 
 export async function generateContract(session: BrowserSession, request: ContractGenerationRequest): Promise<{ previewUrl?: string; documentId?: number; message?: string }> {
