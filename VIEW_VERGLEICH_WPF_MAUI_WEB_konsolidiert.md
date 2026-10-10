@@ -7208,6 +7208,38 @@ KGV.Web/
 
 ---
 
+## 12.36 Jahresverbrauch für JAE-Export
+
+### Projektentscheidung
+
+Die vollständige Jahresabschlussoberfläche mit Rechnungen, Umlagen,
+Entwurfsberechnung, Prüfung und Finalisierung wird **vorerst zurückgestellt**.
+Sie ist nicht verworfen: Die bereits beschriebenen fachlichen Regeln und die
+spätere vollständige Jahresabschlussabrechnung bleiben Zielbild.
+
+Für Web werden aktuell nur die Saisonverwaltung, die zentrale JEA-Prüfung und
+eine serverseitige Jahresverbrauchsauswertung benötigt. Diese Auswertung ist
+ein eigenständiger, auch ohne spätere Jahresabschlussoberfläche nutzbarer
+Fachpfad.
+
+### Serverseitige Verbrauchsauswertung
+
+Die Datenbank/RPC-Auswertung segmentiert Strom- und Wasserverbrauch bei
+Zählerwechsel und Pächterwechsel. Jedes Segment wird dem im Zeitraum gültigen
+Pächter zugeordnet; sie erkennt Leerstände und berücksichtigt vereinseigene
+Gärten.
+
+Leerstand und vereinseigene Gärten gelten für diesen Export als umlagefähiger
+Verbrauch. Die Segmentierung, Zuordnung und Summenbildung erfolgen vollständig
+serverseitig. React, Excel und eine spätere Jahresabschlussoberfläche dürfen
+diese Verbrauchslogik nicht erneut berechnen.
+
+Die Auswertung ist damit eine stabile G12-Fachquelle für den JAE-Export und
+kann später von einer vollständigen Jahresabschlussabrechnung wiederverwendet
+werden.
+
+---
+
 ## G12 verbindlicher Ablauf
 
 ```text
@@ -7264,6 +7296,9 @@ spätere Änderungen nur über Korrekturabschluss
 18. Ergebnis-Snapshot weiterhin unveränderlich halten.
 19. Quelldaten-Nachvollziehbarkeit nach Abschluss zusätzlich absichern.
 20. Korrekturabschluss als einzigen Weg für nachträgliche finanzielle Änderungen implementieren.
+21. Die vollständige Rechnungs-/Umlage-/Finalisierungsoberfläche vorerst zurückstellen, nicht verwerfen.
+22. Jahresverbrauch für den JAE-Export serverseitig nach Zähler- und Pächterwechsel segmentieren und Pächter, Leerstand sowie vereinseigene Gärten korrekt zuordnen.
+23. Leerstand und vereinseigene Gärten als umlagefähigen Verbrauch ausweisen; diese Fachlogik nicht in React oder Excel duplizieren.
 
 ---
 
@@ -8182,6 +8217,22 @@ KGV.Web/
       export-column.ts
 ```
 
+## 14.13 JAE-Verbrauchsexport XLSX
+
+Die Datenbasis stammt ausschließlich aus der serverseitigen G12-
+Verbrauchsauswertung. G14 berechnet weder Verbrauch noch Pächter- oder
+Leerstandssegmente, sondern formatiert nur die von G12 gelieferten Daten.
+
+Die XLSX-Datei enthält zwei Blätter:
+
+- `Tabelle1` behält die bestehende Struktur möglichst unverändert als Legacy-/Kompatibilitätsblatt.
+- `JAE erweitert` ergänzt Pächtername, getrennte Zeilen bei Zähler- beziehungsweise Pächterwechsel sowie die Summe umlagefähiger Verbräuche.
+
+Umlagefähige Summen werden getrennt für Wasser und Strom ausgegeben. Leerstand
+und vereinseigene Gärten sind dabei bereits in der serverseitigen G12-Auswertung
+als umlagefähig gekennzeichnet. Der Export funktioniert unabhängig von einer
+späteren vollständigen Jahresabschlussoberfläche.
+
 ## G14 wichtigste Korrekturen
 
 1. Vereinskonfiguration aus `page.tsx` herauslösen.
@@ -8193,6 +8244,8 @@ KGV.Web/
 7. Browser-Druck als PDF klar als Browserfunktion behandeln.
 8. Exportnavigation und Exportberechtigung vereinheitlichen.
 9. Export bis zu einem eigenen Permission-Flag konsistent auf Admin/Vorstand begrenzen.
+10. JAE-Verbrauchsexport als XLSX aus der serverseitigen G12-Verbrauchsauswertung erzeugen; keine Verbrauchsberechnung in React oder Excel.
+11. `Tabelle1` als Legacy-/Kompatibilitätsblatt erhalten und `JAE erweitert` mit Pächterwechseln, Zählerwechseln und getrennten umlagefähigen Wasser-/Stromsummen ergänzen.
 
 ---
 
@@ -9017,3 +9070,15 @@ enthält der Abschlussbericht ausdrücklich:
 - `SQL-/Idempotenzprüfung: bestanden/nicht bestanden`
 - `migration list --linked: geprüft/nicht erforderlich`
 - `db push --linked --dry-run: bestanden/nicht erforderlich`
+
+### Aktueller Migrationsbefund G8
+
+- Der produktive Migrationslauf war bis einschließlich
+  `20261009230000_g8_work_hour_sync_alignment.sql` erfolgreich.
+- `20261009240000_g8_historical_work_hour_confirmation.sql` schlug mit
+  SQLSTATE `42P16` fehl, weil `a.aktiv` in der View-Spaltenfolge vor
+  `angemeldet_count` eingefügt war und PostgreSQL dies als Umbenennung einer
+  bestehenden View-Spalte interpretierte.
+- Der Fix erhält die bestehende View-Spaltenreihenfolge und ergänzt `aktiv`
+  ausschließlich am Ende der View.
+- Ein erneuter Migrationstest steht noch aus.
