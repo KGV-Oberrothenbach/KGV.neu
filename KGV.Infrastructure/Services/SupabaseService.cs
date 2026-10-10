@@ -7109,6 +7109,10 @@ namespace KGV.Infrastructure.Services
                 RegistrationInfo = BuildWorkAssignmentRegistrationInfo(record, capacityText, canRegister),
                 CanRegister = canRegister,
                 CanSignOff = record.IstAngemeldet
+                    && !WorkAssignmentRules.HasStarted(
+                        record.Datum,
+                        record.StartUhrzeit,
+                        now)
             };
         }
 
