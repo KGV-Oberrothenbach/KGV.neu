@@ -7038,24 +7038,6 @@ namespace KGV.Infrastructure.Services
                 .ToList();
         }
 
-        private async Task<List<StartseiteBekanntmachungRecord>> FilterVisibleStartseiteBekanntmachungenAsync(global::Supabase.Client client, List<StartseiteBekanntmachungRecord> records)
-        {
-            if (records.Count == 0)
-                return records;
-
-            var response = await client.From<BekanntmachungRecord>().Get();
-            var byId = response?.Models?
-                .Select(NormalizeBekanntmachungRecord)
-                .ToDictionary(x => x.Id) ?? new Dictionary<long, BekanntmachungRecord>();
-            var now = CreateEditorNowDefault();
-
-            return records
-                .Where(x => byId.TryGetValue(x.BekanntmachungId ?? x.Id, out var record)
-                            && OperationalDataFilter.IsOperationalBekanntmachung(record)
-                            && IsCurrentlyVisible(record.Aktiv, record.SichtbarAb, record.SichtbarBis, now))
-                .ToList();
-        }
-
         private static HomeOperationalItem BuildWorkHoursItem(HomeWorkHoursSummary summary)
         {
             var parts = new List<string>();
@@ -7164,13 +7146,15 @@ namespace KGV.Infrastructure.Services
         private static HomeAnnouncementItem MapHomeAnnouncement(StartseiteBekanntmachungRecord record)
         {
             var published = record.SichtbarAb ?? record.CreatedAt ?? record.VeroeffentlichtAm ?? record.Datum ?? record.ErstelltAm ?? record.UpdatedAt;
+            var created = record.CreatedAt ?? record.VeroeffentlichtAm ?? record.Datum ?? record.ErstelltAm ?? record.UpdatedAt;
             var title = FirstNonEmpty(record.Titel, record.Betreff, record.Thema) ?? "Bekanntmachung";
             var detailInfoLines = new List<string>();
 
             AddDetailLine(detailInfoLines, "Betreff", record.Betreff, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase));
             AddDetailLine(detailInfoLines, "Thema", record.Thema, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase) && !string.Equals(value, record.Betreff, StringComparison.CurrentCultureIgnoreCase));
-            AddDetailLine(detailInfoLines, "Veröffentlicht am", published?.ToString("dd.MM.yyyy HH:mm"));
+            AddDetailLine(detailInfoLines, "Sichtbar ab", record.SichtbarAb?.ToString("dd.MM.yyyy HH:mm"));
             AddDetailLine(detailInfoLines, "Sichtbar bis", record.SichtbarBis?.ToString("dd.MM.yyyy HH:mm"));
+            AddDetailLine(detailInfoLines, "Veröffentlicht am", created?.ToString("dd.MM.yyyy HH:mm"));
             AddDetailLine(detailInfoLines, "Kurztext", record.Kurztext);
 
             return new HomeAnnouncementItem
