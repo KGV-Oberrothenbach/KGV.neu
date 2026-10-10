@@ -7011,11 +7011,10 @@ namespace KGV.Infrastructure.Services
             var client = await EnsureClientAsync();
             var response = await client.From<StartseiteBekanntmachungRecord>().Get();
             var records = response?.Models?.ToList() ?? new List<StartseiteBekanntmachungRecord>();
-            records = await FilterVisibleStartseiteBekanntmachungenAsync(client, records);
-
             return records
-                .OrderByDescending(x => x.VeroeffentlichtAm ?? x.UpdatedAt ?? DateTime.MinValue)
-                .ThenBy(x => FirstNonEmpty(x.Titel, x.Betreff, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                .OrderBy(x => x.SortOrder ?? int.MaxValue)
+                .ThenByDescending(x => x.CreatedAt ?? DateTime.MinValue)
+                .ThenByDescending(x => x.Id)
                 .Select(MapHomeAnnouncement)
                 .ToList()
                 ?? new List<HomeAnnouncementItem>();
@@ -7164,13 +7163,14 @@ namespace KGV.Infrastructure.Services
 
         private static HomeAnnouncementItem MapHomeAnnouncement(StartseiteBekanntmachungRecord record)
         {
-            var published = record.VeroeffentlichtAm ?? record.Datum ?? record.ErstelltAm ?? record.UpdatedAt;
+            var published = record.SichtbarAb ?? record.CreatedAt ?? record.VeroeffentlichtAm ?? record.Datum ?? record.ErstelltAm ?? record.UpdatedAt;
             var title = FirstNonEmpty(record.Titel, record.Betreff, record.Thema) ?? "Bekanntmachung";
             var detailInfoLines = new List<string>();
 
             AddDetailLine(detailInfoLines, "Betreff", record.Betreff, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase));
             AddDetailLine(detailInfoLines, "Thema", record.Thema, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase) && !string.Equals(value, record.Betreff, StringComparison.CurrentCultureIgnoreCase));
             AddDetailLine(detailInfoLines, "Veröffentlicht am", published?.ToString("dd.MM.yyyy HH:mm"));
+            AddDetailLine(detailInfoLines, "Sichtbar bis", record.SichtbarBis?.ToString("dd.MM.yyyy HH:mm"));
             AddDetailLine(detailInfoLines, "Kurztext", record.Kurztext);
 
             return new HomeAnnouncementItem
