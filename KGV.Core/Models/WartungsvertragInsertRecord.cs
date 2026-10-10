@@ -22,6 +22,9 @@ public sealed class WartungsvertragInsertRecord : BaseModel
     [Column("befreit_von_pflichtstunden")]
     public bool BefreitVonPflichtstunden { get; set; }
 
+    [Column("arbeitsstunden_gutschrift")]
+    public decimal ArbeitsstundenGutschrift { get; set; }
+
     [Column("aktiv")]
     public bool Aktiv { get; set; }
 

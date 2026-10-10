@@ -5128,6 +5128,20 @@ gemeinsame Dokumentablage
 
 # G11 – Wartungsverträge
 
+## G11.1 Fachmodell: Arbeitsstundenwirkung
+
+Ein Wartungsvertrag hat künftig genau eine der folgenden Arbeitsstundenwirkungen:
+
+- keine Anrechnung (`befreit_von_pflichtstunden = false`, `arbeitsstunden_gutschrift = 0`),
+- feste Stundengutschrift pro Saison (`arbeitsstunden_gutschrift > 0`),
+- Vollbefreiung (`befreit_von_pflichtstunden = true`).
+
+Vollbefreiung und positive Stundengutschrift schließen sich aus. Mehrere später gleichzeitig relevante Gutschriften werden in G11.1b/G7 addiert; eine Vollbefreiung hat Vorrang. Eine innerhalb einer Saison gültige Zuordnung erhält die volle Gutschrift ohne zeitanteilige Kürzung. Die zentrale Pflichtstundenfunktion und `v_pflichtstunden_uebersicht` bleiben bis dahin unverändert.
+
+Eine manuelle, saisonbezogene Vollbefreiung mit verpflichtender Begründung ist ein G7-TODO. Sie wird auf den Hauptmitglied-Kontext wirken und darf keine dauerhafte Mitgliedseigenschaft werden. Finalisierte Jahresabschlüsse bleiben später unverändert.
+
+Prüfpunkt G11.4: Die Migrationshistorie enthält unterschiedliche Fassungen von `validate_wartungsvertrag_zuordnung()` bezüglich der Hauptmitglied-Prüfung. Diese Triggerdiskrepanz wird nicht in G11.1 geändert und ist fachlich zu analysieren.
+
 ## 11.1 Globale Wartungsvertragsübersicht
 
 ### WPF
