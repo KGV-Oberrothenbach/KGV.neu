@@ -4,23 +4,22 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AppUserContext,
   BrowserSession,
-  archiveDocument,
   callSupabaseRpc,
-  createDocumentOpenUrl,
   deleteSupabase,
   generateContract,
   inviteAppUser,
-  openDriveDocument,
   readSupabase,
   sendPasswordReset,
-  uploadDocument,
   writeSupabase,
 } from "../lib/supabase-auth";
 import { type ClubContext } from "../models/auth/club";
+import { memberDocumentOwner } from "../models/documents/document";
 import { AuthProvider, useAuth } from "../features/auth/AuthProvider";
 import { ChangeClubAction } from "../features/auth/ChangeClubAction";
 import { ClubSelection } from "../features/auth/ClubSelection";
 import { LoginForm } from "../features/auth/LoginForm";
+import { DocumentList } from "../features/documents/DocumentList";
+import type { DocumentAccessContext } from "../services/documents/document-access-service";
 import { OtpFlow } from "../features/auth/OtpFlow";
 import { ndefReaderConstructor } from "../lib/browser-media";
 import { useEditLock } from "../lib/use-edit-lock";
@@ -89,14 +88,12 @@ function HomeContent() {
     </main>
   );
 }
-
 // Navigation types moved to features/navigation/Navigation.tsx
 type Season = { id: number; jahr: number };
 type SeasonAdmin = Season & { pflichtstunden_soll: number; euro_pro_fehlstunde: number; bemerkung: string | null; pacht_pro_qm: number | null; mitgliedsbeitrag: number | null; mitgliedsbeitrag_nebenmitglied: number | null; aufnahmegebuehr: number | null; gebuehr_bauantrag: number | null };
 type Parcel = { id: number; garten_nr: string; Anlage: string; flaeche_qm: number | null; hat_strom: boolean; hat_wasser: boolean; aktiv: boolean };
 type ParcelAssignment = { id: number; parzelle_id: number; mitglied_id: number; von_datum: string | null; bis_datum: string | null };
 type Reading = { id: number; zaehler_id: number; stand: number; ablesedatum: string; art: string; freigegeben: boolean; pruefstatus: string; pruefkommentar: string | null; geprueft_von: number | null; geprueft_am: string | null; foto_pfad?: string | null; foto_drive_file_id?: string | null; foto_dateiname?: string | null };
-type DocumentRecord = { id: number; mitglied_id: number | null; parzelle_id: number | null; bucket: string | null; storage_path: string | null; drive_file_id: string | null; titel: string | null; dateiname: string | null; mime_type: string | null; size_bytes: number | null; updated_at: string; archiviert_at: string | null };
 type MaintenanceContract = { id: number; titel: string; beschreibung: string | null; bereich: string | null; max_aktive_zuordnungen: number; befreit_von_pflichtstunden: boolean; aktiv: boolean; bemerkung: string | null; is_demo: boolean };
 type MaintenanceAssignment = { id: number; wartungsvertrag_id: number; hauptmitglied_id: number; gueltig_ab: string; gueltig_bis: string | null; bemerkung: string | null };
 type AppUserAdmin = { user_id: string; mitglied_id: number | null; role: "admin" | "vorstand" | "user"; permission_grants: number; permission_revocations: number; updated_at: string | null };
@@ -156,6 +153,14 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
   const { workspaceContext, selectedMember, creatingMember, setSelectedMember, setCreatingMember, updateWorkspaceContext, selectMember, selectParcel, selectSeason: selectWorkspaceSeason } = useWorkspaceContext();
   const permissions = useMemo(() => permissionsFor(context), [context]);
   const has = (permission: number) => (permissions & permission) === permission;
+  const documentAccessContext: DocumentAccessContext = {
+    role: context.role,
+    memberId: context.mitgliedId,
+    canReadDocuments: has(Permission.readDocuments),
+    canManageDocuments: has(Permission.manageDocuments),
+    canSeeOwnDataOnly: has(Permission.seeOwnData),
+  };
+  useEffect(() => { if (activeId === "mitglied-dokumente" && leaseContractIntent) queueMicrotask(() => setLeaseContractIntent(null)); }, [activeId, leaseContractIntent]);
   const canReadStammdaten = has(Permission.showStammdaten) || has(Permission.readStammdaten) || has(Permission.writeStammdaten);
   const ownContext = context.mitgliedId !== null && has(Permission.seeOwnData);
   const selectedMemberId = workspaceContext.mitgliedId ?? (ownContext ? context.mitgliedId : null);
@@ -244,7 +249,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           {!new Set(["start", "impressum", "mitglieder", "parzellen", "ablesen", "foto-uploads", "zaehlerwechsel", "arbeitsstunden-pruefen", "arbeitseinsaetze", "wartung", "termine", "bekanntmachungen", "export", "benutzer", "saisons", "verein", "mitglied-arbeitsstunden", "mitglied-wartung", "mitglied-dokumente", "mitglied-admin", "mitglied-gaerten", "mitglied-protokolle", "mitglied-stammdaten"]).has(activeId) && <section className="coming-soon"><span aria-hidden="true">◌</span><div><strong>Bereich vorbereitet</strong><p>Die Navigation und Zugriffsrechte stehen. Die fachliche Oberfläche wird in den nächsten Umsetzungsschritten ergänzt.</p></div></section>}
           {activeId === "start" && <HomeDashboard session={session} isManager={context.role !== "user"} canManageWorkAssignments={has(Permission.manageWorkAssignments)} canManageAppointments={has(Permission.manageAppointments)} canManageAnnouncements={has(Permission.manageAnnouncements)} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
           {activeId === "mitglieder" && <MemberSearch session={session} selectedMemberId={selectedMemberId} onSelect={selectMember} canCreate={has(Permission.createMember)} onCreate={() => { setCreatingMember(true); setActiveId("mitglied-stammdaten"); }} />}
-          {activeId === "parzellen" && <ParcelWorkspace session={session} selectedParcelId={selectedParcelId} onSelect={selectParcel} canEdit={has(Permission.writeParzellen)} onOpenMember={(memberId) => { selectMember(memberId); setActiveId("mitglied-gaerten"); }} />}
+          {activeId === "parzellen" && <ParcelWorkspace session={session} selectedParcelId={selectedParcelId} onSelect={selectParcel} canEdit={has(Permission.writeParzellen)} documentAccessContext={documentAccessContext} onOpenMember={(memberId) => { selectMember(memberId); setActiveId("mitglied-gaerten"); }} />}
           {activeId === "ablesen" && <MeterOverview session={session} clubId={club.vereinId} reviewerMemberId={context.mitgliedId} selectedParcelId={selectedParcelId} seasonYear={season} canReadMeters={has(Permission.readMeters)} canSubmitOwnMeterReadings={context.mitgliedId !== null && has(Permission.seeOwnData)} canApprove={has(Permission.approveMeterReadings)} canManageMeterChanges={has(Permission.manageMeterChanges)} onNavigate={setActiveId} />}
           {activeId === "ablesen" && has(Permission.manageMeterChanges) && <RfidAssignmentPanel session={session} selectedParcelId={selectedParcelId} />}
           {activeId === "foto-uploads" && <PendingPhotoUploads session={session} clubId={club.vereinId} />}
@@ -261,7 +266,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           {activeId === "verein" && <ClubConfigurationAdministration session={session} />}
           {activeId === "mitglied-arbeitsstunden" && selectedMemberId && <MemberWorkHours session={session} memberId={selectedMemberId} saisonId={workspaceContext.saisonId} canEditOwn={selectedMemberId === context.mitgliedId} canManageWorkHours={has(Permission.manageWorkHours)} />}
           {activeId === "mitglied-wartung" && selectedMemberId && <MaintenanceContracts session={session} memberId={selectedMemberId} canManage={context.role !== "user"} />}
-          {activeId === "mitglied-dokumente" && selectedMemberId && <DocumentList session={session} memberId={selectedMemberId} canManage={has(Permission.manageDocuments)} leaseContractIntent={leaseContractIntent} onLeaseContractIntentHandled={() => setLeaseContractIntent(null)} />}
+          {activeId === "mitglied-dokumente" && selectedMemberId && <DocumentList session={session} owner={memberDocumentOwner(selectedMemberId)} accessContext={documentAccessContext} beforeList={(reload) => has(Permission.manageDocuments) ? <ContractComposer session={session} memberId={selectedMemberId} onSaved={reload} leaseContractIntent={leaseContractIntent} /> : null} />}
           {activeId === "mitglied-admin" && selectedMemberId && <UserRightsAdministration session={session} fixedMemberId={selectedMemberId} />}
           {activeId === "mitglied-gaerten" && selectedMemberId && <MemberGardensWorkspace session={session} memberId={selectedMemberId} selectedParcelId={selectedParcelId} onSelect={selectParcel} canAssign={has(Permission.createMember)} onOpenDocuments={() => setActiveId("mitglied-dokumente")} onOpenMeters={() => setActiveId("ablesen")} onOpenLeaseContract={(intent) => { if (!has(Permission.manageDocuments)) return false; setLeaseContractIntent(intent); setActiveId("mitglied-dokumente"); return true; }} />}
           {activeId === "mitglied-protokolle" && selectedMemberId && <ParcelProtocolsWorkspace session={session} memberId={selectedMemberId} currentBoardMemberId={context.mitgliedId} />}
@@ -505,29 +510,6 @@ function ContractComposer({ session, memberId, onSaved, leaseContractIntent }: {
   return <details className="contract-composer"><summary>Vertragsdokument erstellen und unterschreiben</summary>{message && <p className="notice" role="status">{message}</p>}<fieldset disabled={busy}><label>Dokumenttyp<select value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="mitgliedsantrag">Mitgliedsantrag</option><option value="mitgliedsvertrag">Mitgliedsvertrag</option><option value="pachtvertrag">Pachtvertrag</option></select></label><label>Beginn<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label></fieldset><div className="signature-grid"><SignaturePad label="Unterschrift Mitglied" value={memberSignature} onChange={setMemberSignature} /><SignaturePad label="Gesetzlicher Vertreter (optional)" value={secondarySignature} onChange={setSecondarySignature} /><SignaturePad label="Unterschrift Verein" value={boardSignature} onChange={setBoardSignature} /></div><div className="editor-actions"><button type="button" className="secondary-action" disabled={busy} onClick={preview}>PDF-Vorschau</button><button type="button" disabled={busy} onClick={finalize}>{busy ? "Verarbeitet …" : "Signiert sicher ablegen"}</button></div></details>;
 }
 
-function DocumentList({ session, memberId, parcelId, compact = false, canManage = false, leaseContractIntent, onLeaseContractIntentHandled }: { session: BrowserSession; memberId?: number; parcelId?: number; compact?: boolean; canManage?: boolean; leaseContractIntent?: { parcelId: number; startDate: string } | null; onLeaseContractIntentHandled?: () => void }) {
-  const [items, setItems] = useState<DocumentRecord[]>([]);
-  const [error, setError] = useState("");
-  const [opening, setOpening] = useState<number | null>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [archiving, setArchiving] = useState<number | null>(null);
-  const ownerKind = memberId ? "mitglied" : "parzelle";
-  const ownerId = memberId ?? parcelId;
-  async function load() { const ownerQuery: Record<string, string> | null = memberId ? { mitglied_id: `eq.${memberId}` } : parcelId ? { parzelle_id: `eq.${parcelId}` } : null; if (!ownerQuery) { setItems([]); return; } try { setItems(await readSupabase<DocumentRecord>(session, "dokument", { select: "id,mitglied_id,parzelle_id,bucket,storage_path,drive_file_id,titel,dateiname,mime_type,size_bytes,updated_at,archiviert_at", ...ownerQuery, order: "updated_at.desc", limit: "500" })); } catch (cause) { setError(cause instanceof Error ? cause.message : "Dokumente konnten nicht geladen werden."); } }
-  useEffect(() => { void load(); }, [session, memberId, parcelId]);
-  useEffect(() => { if (leaseContractIntent) onLeaseContractIntentHandled?.(); }, [leaseContractIntent, onLeaseContractIntentHandled]);
-  async function openDocument(item: DocumentRecord) {
-    setOpening(item.id); setError("");
-    try { const documentUrl = item.drive_file_id ? await openDriveDocument(session, item.id) : item.bucket && item.storage_path ? await createDocumentOpenUrl(session, item.bucket, item.storage_path) : null; if (!documentUrl) throw new Error("Für dieses Dokument fehlt eine sichere Ablage."); window.open(documentUrl, "_blank", "noopener,noreferrer"); } catch (cause) { setError(cause instanceof Error ? cause.message : "Das Dokument konnte nicht geöffnet werden."); } finally { setOpening(null); }
-  }
-  async function upload() { if (!file || !ownerId || !title.trim()) { setError("Titel und Datei sind erforderlich."); return; } setUploading(true); setError(""); try { const uploaded = await uploadDocument(session, file, { kind: ownerKind, id: ownerId, title: title.trim() }); await writeSupabase<DocumentRecord>(session, "dokument", "POST", { mitglied_id: memberId ?? null, parzelle_id: parcelId ?? null, bucket: "dokumente", storage_path: uploaded.storagePath, drive_file_id: uploaded.driveFileId, titel: title.trim(), dateiname: uploaded.fileName, mime_type: uploaded.mimeType, size_bytes: uploaded.sizeBytes }); setFile(null); setTitle(""); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Das Dokument konnte nicht gespeichert werden."); } finally { setUploading(false); } }
-  async function archive(item: DocumentRecord) { const reason = window.prompt("Begründung für die Archivierung (mindestens 3 Zeichen):"); if (!reason) return; const password = window.prompt("Archivpasswort:"); if (!password) return; setArchiving(item.id); setError(""); try { await archiveDocument(session, item.id, password, reason); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Das Dokument konnte nicht archiviert werden."); } finally { setArchiving(null); } }
-  const activeItems = items.filter((item) => !item.archiviert_at);
-  return <section className={compact ? "parcel-documents" : "data-workspace"} aria-label="Dokumente">{compact ? <h3>Parzellen-Dokumente</h3> : <p className="document-intro">Dokumente werden ausschließlich über den geschützten Vereins-Dokumentendienst geöffnet. Die Browser-App speichert keine Dokumentkopie lokal.</p>}{error && <p className="notice" role="alert">{error}</p>}{canManage && memberId && <ContractComposer session={session} memberId={memberId} onSaved={load} leaseContractIntent={leaseContractIntent} />}{canManage && <fieldset className="document-upload" disabled={uploading}><label>Titel<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="z. B. Pachtvertrag 2026" /></label><label>Datei<input type="file" accept="application/pdf,image/*,.doc,.docx,.odt" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label><button type="button" onClick={upload}>{uploading ? "Lädt hoch …" : "Dokument hochladen"}</button></fieldset>}<div className="data-table-wrap"><table><thead><tr><th>Titel</th><th>Datei</th><th>Geändert</th><th>Größe</th><th></th></tr></thead><tbody>{activeItems.map((item) => <tr key={item.id}><td><strong>{item.titel ?? "Ohne Titel"}</strong></td><td>{item.dateiname ?? "–"}</td><td>{formatDate(item.updated_at)}</td><td>{formatBytes(item.size_bytes)}</td><td><button className="table-action" disabled={(!item.drive_file_id && (!item.bucket || !item.storage_path)) || opening === item.id} onClick={() => openDocument(item)}>{opening === item.id ? "Öffne …" : item.mime_type === "application/pdf" ? "Vorschau" : "Öffnen"}</button>{canManage && <button className="table-action secondary-action" disabled={archiving === item.id} onClick={() => archive(item)}>{archiving === item.id ? "Archiviert …" : "Archivieren"}</button>}</td></tr>)}</tbody></table>{activeItems.length === 0 && <p className="empty-state">Keine aktiven Dokumente vorhanden.</p>}</div>{!compact && <p className="detail-hint">Mitgliedsantrag und Pachtvertrag verwenden die offiziellen PDF-Vorlagen. Vorschau, Unterschriften und sichere Ablage erfolgen über den geschützten Server-Dienst.</p>}</section>;
-}
-
 const permissionAreas = [
   { key: "mitgliedaufnahme", label: "Mitglieder aufnehmen / verpachten", all: Permission.createMember, read: Permission.createMember, write: Permission.createMember },
   { key: "stammdaten", label: "Stammdaten", all: Permission.showStammdaten | Permission.readStammdaten | Permission.writeStammdaten, read: Permission.readStammdaten, write: Permission.writeStammdaten },
@@ -707,9 +689,4 @@ function ExportCenter({ session, canExport }: { session: BrowserSession; canExpo
   }
   if (!canExport) return <section className="data-workspace"><p className="notice">Exporte stehen mobil nur Vorstand und Administratoren zur Verfügung.</p></section>;
   return <section className="data-workspace export-center">{message && <p className="notice" role="status">{message}</p>}<div className="export-controls"><label>Exportdefinition<select value={selectedKey} onChange={(event) => setSelectedKey(event.target.value)}>{definitions.map((item) => <option key={item.export_key} value={item.export_key}>{item.titel ?? item.export_key}</option>)}</select></label>{selected?.beschreibung && <p>{selected.beschreibung}</p>}<div className="export-filters">{filters.map((filter) => <label key={filter.filter_key}>{filter.label ?? filter.filter_key}{filter.typ === "boolean" ? <input type="checkbox" checked={Boolean(values[filter.filter_key])} onChange={(event) => setValues({ ...values, [filter.filter_key]: event.target.checked })} /> : options[filter.filter_key]?.length ? <select value={String(values[filter.filter_key] ?? "")} onChange={(event) => setValues({ ...values, [filter.filter_key]: event.target.value })}><option value="">Alle</option>{options[filter.filter_key].map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : <input type={filter.filter_key.includes("jahr") ? "number" : "text"} value={String(values[filter.filter_key] ?? "")} onChange={(event) => setValues({ ...values, [filter.filter_key]: event.target.value })} />}</label>)}</div><div className="editor-actions"><button disabled={busy || !selected} onClick={run}>{busy ? "Wird ausgeführt …" : "Ausführen"}</button><button className="secondary-action" disabled={!rows.length || !selected?.erlaubt_csv} onClick={() => downloadCsv(`${new Date().toISOString().slice(0, 10)}_${selectedKey}.csv`, visibleColumns, rows)}>Als CSV speichern</button><button className="secondary-action" disabled={!rows.length || !selected?.erlaubt_pdf} onClick={() => window.print()}>Drucken / als PDF speichern</button></div></div>{rows.length > 0 && <div className="data-table-wrap export-result"><table><thead><tr>{visibleColumns.map((column) => <th key={column.column_key}>{column.label_kurz ?? column.label_lang ?? column.column_key}</th>)}</tr></thead><tbody>{rows.slice(0, 500).map((row, index) => <tr key={index}>{visibleColumns.map((column) => <td key={column.column_key}>{row[column.column_key] == null ? "" : typeof row[column.column_key] === "boolean" ? row[column.column_key] ? "Ja" : "Nein" : String(row[column.column_key])}</td>)}</tr>)}</tbody></table>{rows.length > 500 && <p className="empty-state">Vorschau zeigt 500 von {rows.length} Datensätzen. CSV enthält alle Datensätze.</p>}</div>}</section>;
-}
-
-function formatBytes(value: number | null) {
-  if (!value) return "–";
-  return value < 1024 * 1024 ? `${Math.round(value / 1024)} KB` : `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }

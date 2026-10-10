@@ -1,29 +1,16 @@
 import { readSupabase, type BrowserSession } from "../../lib/supabase-auth";
+import type { Document } from "../../models/documents/document";
+import { loadMemberDocuments, loadParcelDocuments } from "../../services/documents/document-service";
 
-export type MembershipApplicationDocument = {
-  id: number;
-  titel: string | null;
-  dateiname: string | null;
-  updated_at: string;
-};
+export type MembershipApplicationDocument = Document;
 
 export function listMembershipApplicationDocuments(session: BrowserSession, memberId: number) {
-  return readSupabase<MembershipApplicationDocument>(session, "dokument", {
-    select: "id,titel,dateiname,updated_at",
-    mitglied_id: `eq.${memberId}`,
-    archiviert_at: "is.null",
-    order: "updated_at.desc",
-  });
+  return loadMemberDocuments(session, memberId);
 }
 
-export type LeaseContractDocument = { id: number; titel: string | null; dateiname: string | null; updated_at: string; bucket: string | null; storage_path: string | null; drive_file_id: string | null; mime_type: string | null; size_bytes: number | null };
+export type LeaseContractDocument = Document;
 export function listLeaseContractDocuments(session: BrowserSession, parcelId: number) {
-  return readSupabase<LeaseContractDocument>(session, "dokument", {
-    select: "id,titel,dateiname,updated_at,bucket,storage_path,drive_file_id,mime_type,size_bytes",
-    parzelle_id: `eq.${parcelId}`,
-    archiviert_at: "is.null",
-    order: "updated_at.desc",
-  });
+  return loadParcelDocuments(session, parcelId);
 }
 
 export type LegalRepresentativeRelation = { id: number; minderjaehriges_mitglied_id: number; vertreter_mitglied_id: number; gueltig_ab: string; gueltig_bis: string | null; bemerkung: string | null };

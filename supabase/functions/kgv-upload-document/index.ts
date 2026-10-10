@@ -51,6 +51,7 @@ type AuthenticatedDocumentUser = {
   userId: string;
   role: string;
   mitgliedId: number | null;
+  isDemoAccount: boolean;
 };
 
 type DriveDocumentRecord = {
@@ -60,6 +61,17 @@ type DriveDocumentRecord = {
   drive_file_id: string | null;
   dateiname: string | null;
   mime_type: string | null;
+};
+
+const supportedDocumentTypes: Record<string, readonly string[]> = {
+  ".pdf": ["application/pdf"],
+  ".jpg": ["image/jpeg"],
+  ".jpeg": ["image/jpeg"],
+  ".png": ["image/png"],
+  ".webp": ["image/webp"],
+  ".doc": ["application/msword"],
+  ".docx": ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  ".odt": ["application/vnd.oasis.opendocument.text"],
 };
 
 function logStep(step: string, details?: Record<string, unknown>) {
@@ -505,7 +517,7 @@ async function authenticateDocumentUser(authHeader: string) {
 
   const { data: appUser, error: appUserError } = await supabaseAdmin
     .from("app_user")
-    .select("role,mitglied_id")
+    .select("role,mitglied_id,is_demo_account")
     .eq("user_id", userData.user.id)
     .maybeSingle();
 
@@ -519,7 +531,7 @@ async function authenticateDocumentUser(authHeader: string) {
     ? rawMitgliedId
     : null;
 
-  return { ok: true as const, userId: userData.user.id, role, mitgliedId, supabaseAdmin };
+  return { ok: true as const, userId: userData.user.id, role, mitgliedId, isDemoAccount: appUser?.is_demo_account === true, supabaseAdmin };
 }
 
 async function requireAdminOrVorstand(authHeader: string) {
@@ -561,6 +573,38 @@ async function verifyArchivePassword(value: string): Promise<boolean> {
   return (await sha256Hex(value)).toLowerCase() === configuredHash;
 }
 
+async function isDocumentInDemoScope(auth: { supabaseAdmin: ReturnType<typeof createClient> }, document: Pick<DriveDocumentRecord, "mitglied_id" | "parzelle_id">): Promise<boolean> {
+  const owner = document.mitglied_id
+    ? { table: "mitglied", id: document.mitglied_id }
+    : document.parzelle_id
+      ? { table: "parzelle", id: document.parzelle_id }
+      : null;
+  if (!owner) return false;
+
+  const { data, error } = await auth.supabaseAdmin
+    .from(owner.table)
+    .select("is_demo")
+    .eq("id", owner.id)
+    .maybeSingle();
+  if (error) throw new Error(`Dokument-Demo-Scope konnte nicht geprüft werden: ${error.message}`);
+  return data?.is_demo === true;
+}
+
+async function resolveUploadOwnerScope(auth: { supabaseAdmin: ReturnType<typeof createClient> }, ownerKind: OwnerKind, ownerId: number): Promise<boolean | null> {
+  const table = ownerKind === "mitglied" ? "mitglied" : "parzelle";
+  const { data, error } = await auth.supabaseAdmin.from(table).select("is_demo").eq("id", ownerId).maybeSingle();
+  if (error) throw new Error(`Dokument-Owner konnte nicht geprüft werden: ${error.message}`);
+  return data ? data.is_demo === true : null;
+}
+
+function hasAllowedDocumentType(file: File): boolean {
+  const extension = /\.[^.]+$/.exec(file.name.trim().toLowerCase())?.[0] ?? "";
+  const allowedMimes = supportedDocumentTypes[extension];
+  if (!allowedMimes) return false;
+  const mimeType = file.type.trim().toLowerCase();
+  return !mimeType || mimeType === "application/octet-stream" || allowedMimes.includes(mimeType);
+}
+
 async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin: ReturnType<typeof createClient> }, documentId: number): Promise<DriveDocumentRecord | null> {
   const { data: document, error: documentError } = await auth.supabaseAdmin
     .from("dokument")
@@ -573,6 +617,10 @@ async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin
   }
 
   if (!document)
+    return null;
+
+  // The service-role client bypasses RLS, so scope parity must precede role checks.
+  if (await isDocumentInDemoScope(auth, document as DriveDocumentRecord) !== auth.isDemoAccount)
     return null;
 
   const isManager = auth.role === "admin" || auth.role === "vorstand";
@@ -625,6 +673,7 @@ async function downloadDriveDocument(accessToken: string, driveFileId: string): 
 
 Deno.serve(async (req) => {
   const requestId = createRequestId();
+  let uploadedDriveFileId: string | null = null;
   logStep("function start", { method: req.method });
 
   if (req.method === "OPTIONS") {
@@ -651,6 +700,10 @@ Deno.serve(async (req) => {
         const auth = await requireAdmin(authHeader);
         if (!auth.ok)
           return errorResponse(auth.status, "FORBIDDEN", auth.message, requestId);
+
+        const document = await mayReadDocument(auth, documentId);
+        if (!document)
+          return errorResponse(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId);
 
         if (!await verifyArchivePassword(password))
           return errorResponse(403, "FORBIDDEN", "Das Archivpasswort ist nicht korrekt.", requestId);
@@ -767,6 +820,15 @@ Deno.serve(async (req) => {
       return errorResponse(400, "BAD_REQUEST", "Feld 'titel' fehlt.", requestId);
     }
 
+    const ownerIsDemo = await resolveUploadOwnerScope(auth, ownerKind, ownerId);
+    if (ownerIsDemo === null || ownerIsDemo !== auth.isDemoAccount) {
+      return errorResponse(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId);
+    }
+
+    if (!hasAllowedDocumentType(file)) {
+      return errorResponse(400, "BAD_REQUEST", "Der Dateityp wird nicht unterstützt.", requestId);
+    }
+
     const fileName = buildFileName(titel, file);
     const storageSegments = buildStorageSegments(ownerKind, ownerId);
 
@@ -785,16 +847,38 @@ Deno.serve(async (req) => {
       fileName,
       file,
     });
+    uploadedDriveFileId = upload.id;
 
     const storagePath = buildStoragePath(storageSegments, upload.name);
     if (!isGeneratedFileName(upload.name) || !isExpectedStoragePath(storagePath, ownerKind, ownerId, upload.name)) {
       throw new Error("Drive upload returned unexpected document path contract");
     }
 
+    const { data: document, error: documentError } = await auth.supabaseAdmin
+      .from("dokument")
+      .insert({
+        mitglied_id: ownerKind === "mitglied" ? ownerId : null,
+        parzelle_id: ownerKind === "parzelle" ? ownerId : null,
+        bucket: "dokumente",
+        storage_path: storagePath,
+        drive_file_id: upload.id,
+        titel,
+        dateiname: upload.name,
+        mime_type: file.type || "application/octet-stream",
+        size_bytes: file.size,
+        created_by: auth.userId,
+      })
+      .select("id,mitglied_id,parzelle_id,bucket,storage_path,drive_file_id,titel,dateiname,mime_type,size_bytes,created_at,updated_at,created_by,archiviert_at,archiviert_by,archiviert_begruendung")
+      .single();
+    if (documentError || !document) throw new Error(`Dokument-Metadaten konnten nicht gespeichert werden: ${documentError?.message ?? "kein Datensatz"}`);
+    uploadedDriveFileId = null;
+
     logStep("drive upload success", { driveFileId: upload.id, storagePath });
 
     return json(200, {
       success: true,
+      document_id: document.id,
+      document,
       drive_file_id: upload.id,
       fileId: upload.id,
       storage_path: storagePath,
@@ -812,6 +896,14 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (uploadedDriveFileId) {
+      try {
+        await deleteDriveFile(await getGoogleAccessToken(), uploadedDriveFileId);
+        logStep("drive upload compensation success");
+      } catch (rollbackError) {
+        logError("drive upload compensation failed", rollbackError);
+      }
+    }
     logError("return error", error);
 
     if (message.includes("Google-Drive-Secrets fehlen")) {

@@ -304,7 +304,7 @@ export async function sendPasswordReset(session: BrowserSession, email: string) 
   return await callSupabaseFunction<{ success?: boolean; message?: string }>(session, "kgv-request-first-login-otp", { email: email.trim() });
 }
 
-export async function createDocumentOpenUrl(session: BrowserSession, bucket: string, storagePath: string): Promise<string> {
+export async function createStorageSignedUrl(session: BrowserSession, bucket: string, storagePath: string): Promise<string> {
   const { url, publishableKey } = config();
   const response = await fetch(`${url}/storage/v1/object/sign/${encodeURIComponent(bucket)}/${storagePath.split("/").map(encodeURIComponent).join("/")}`, {
     method: "POST",
@@ -318,48 +318,17 @@ export async function createDocumentOpenUrl(session: BrowserSession, bucket: str
   return signedPath.startsWith("http") ? signedPath : `${url}/storage/v1${signedPath}`;
 }
 
-export async function openDriveDocument(session: BrowserSession, documentId: number): Promise<string> {
+export async function callSupabaseFunctionRaw(session: BrowserSession, name: string, options: { method: "POST" | "PUT" | "PATCH" | "DELETE"; body?: BodyInit | null; contentType?: string }): Promise<Response> {
   const { url, publishableKey } = config();
-  const response = await fetch(`${url}/functions/v1/kgv-upload-document`, {
-    method: "POST",
-    headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "download", document_id: documentId }),
+  return fetch(`${url}/functions/v1/${name}`, {
+    method: options.method,
+    headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, ...(options.contentType ? { "Content-Type": options.contentType } : {}) },
+    body: options.body,
   });
-  if (!response.ok) {
-    const detail = await response.json().catch(() => null) as { message?: string } | null;
-    throw new Error(detail?.message ?? "Das Dokument kann derzeit nicht geöffnet werden.");
-  }
-  return URL.createObjectURL(await response.blob());
-}
-
-export async function uploadDocument(session: BrowserSession, file: File, owner: { kind: "mitglied" | "parzelle"; id: number; title: string }) {
-  const { url, publishableKey } = config();
-  const form = new FormData();
-  form.set("file", file);
-  form.set("owner_kind", owner.kind);
-  form.set("owner_id", String(owner.id));
-  form.set("titel", owner.title);
-  const response = await fetch(`${url}/functions/v1/kgv-upload-document`, { method: "POST", headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}` }, body: form });
-  const payload = await response.json().catch(() => null) as { drive_file_id?: string; storage_path?: string; dateiname?: string; mime_type?: string; size_bytes?: number; message?: string } | null;
-  if (!response.ok || !payload?.drive_file_id || !payload.storage_path) throw new Error(payload?.message ?? "Das Dokument konnte nicht hochgeladen werden.");
-  return { driveFileId: payload.drive_file_id, storagePath: payload.storage_path, fileName: payload.dateiname ?? file.name, mimeType: payload.mime_type ?? file.type ?? "application/octet-stream", sizeBytes: payload.size_bytes ?? file.size };
-}
-
-export async function archiveDocument(session: BrowserSession, documentId: number, password: string, reason: string) {
-  const { url, publishableKey } = config();
-  const response = await fetch(`${url}/functions/v1/kgv-upload-document`, {
-    method: "POST",
-    headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "archive", document_id: documentId, archive_password: password, reason }),
-  });
-  if (!response.ok) {
-    const detail = await response.json().catch(() => null) as { message?: string } | null;
-    throw new Error(detail?.message ?? "Das Dokument konnte nicht archiviert werden.");
-  }
 }
 
 export type ContractGenerationRequest = {
-  action: "preview" | "finalize";
+  action: "preview" | "finalize" | "sign-existing";
   type: "mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag" | "parzellenprotokoll";
   member_id: number;
   parcel_id?: number;
@@ -386,6 +355,7 @@ export type ContractGenerationRequest = {
   board2_id?: number;
   companion_name?: string;
   photos?: string[];
+  source_document_id?: number;
 };
 
 export async function generateContract(session: BrowserSession, request: ContractGenerationRequest): Promise<{ previewUrl?: string; documentId?: number; message?: string }> {
