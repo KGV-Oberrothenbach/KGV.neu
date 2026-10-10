@@ -8976,3 +8976,44 @@ greift weiterhin die vollständige G4.4–G4.6-Prüfung.
 
 G4 ist damit fachlich umgesetzt und wartet auf die Gesamtprüfung vor einem
 späteren Merge nach main.
+
+## Pflichtprüfung vor Merge nach `main`
+
+Wenn ein Web-App-Arbeitsblock Supabase betrifft oder seit dem letzten Merge neue
+Supabase-Migrationen hinzugekommen sind, müssen die Migrationen vor dem Merge
+nach `main` geprüft werden. Dies umfasst mindestens:
+
+- SQL-Syntax und vollständige Klammerung,
+- Reihenfolge und Abhängigkeiten der Migrationen,
+- Wiederholbarkeit/Idempotenz sowie keine unbeabsichtigten Änderungen oder
+  Duplikate bei erneutem Ausführen,
+- `CREATE POLICY` nur mit geeigneter Absicherung, zum Beispiel vorherigem
+  `DROP POLICY IF EXISTS`,
+- `CREATE TRIGGER` mit vorherigem `DROP TRIGGER IF EXISTS`,
+- Constraints mit geeigneter Existenzprüfung beziehungsweise vorherigem
+  Entfernen,
+- Tabellen und Spalten mit `IF NOT EXISTS`, soweit fachlich sinnvoll,
+- Funktionen und Views bevorzugt mit `CREATE OR REPLACE`,
+- Übereinstimmung von lokalem und Remote-Migrationsstand.
+
+Ist das Supabase-Projekt verknüpft, gehören zum verpflichtenden Merge-Check:
+
+```powershell
+npx supabase migration list --linked
+npx supabase db push --linked --dry-run
+```
+
+Ein Merge nach `main` darf erst erfolgen, wenn der Dry-Run erfolgreich ist,
+keine unerwarteten Migrationen angezeigt werden, keine bekannten SQL-Fehler
+vorliegen und keine Migration durch einen möglichen Wiederholungslauf
+unkontrolliert scheitert. Ein echtes `npx supabase db push --linked` ist kein
+automatischer Bestandteil des Merge-Checks und darf nicht ohne ausdrücklichen
+Auftrag gegen die produktive Datenbank ausgeführt werden.
+
+Bei jedem Web-Arbeitsblock, der eine Migration neu anlegt oder verändert,
+enthält der Abschlussbericht ausdrücklich:
+
+- `Migration(en) geändert/neu: ja/nein`
+- `SQL-/Idempotenzprüfung: bestanden/nicht bestanden`
+- `migration list --linked: geprüft/nicht erforderlich`
+- `db push --linked --dry-run: bestanden/nicht erforderlich`
