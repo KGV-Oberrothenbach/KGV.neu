@@ -40,6 +40,19 @@ Dieses Repository ist die aktuelle Arbeitsbasis für den Wiederaufbau und die We
 - Demo-/Play-Store-Testdaten dürfen fachliche Auswertungen nicht verfälschen.
 - Mobile und Desktop sollen fachlich zusammen gedacht werden; WPF und MAUI gelten beide als aktive Zielanwendungen.
 
+## Merge-Gate für Supabase-Migrationen
+
+Vor jedem Merge nach `main` müssen alle vorhandenen und neu hinzugekommenen Supabase-Migrationen geprüft werden: SQL-Syntax, Klammerung, Reihenfolge und Abhängigkeiten, Wiederholbarkeit/Idempotenz, sowie unbeabsichtigte Datenänderungen bei erneutem Ausführen. `CREATE POLICY` benötigt ein geeignetes vorheriges `DROP POLICY IF EXISTS`, Trigger ein `DROP TRIGGER IF EXISTS`, Constraints eine Existenzprüfung bzw. vorheriges Entfernen; Tabellen und Spalten verwenden, wo sinnvoll, `IF NOT EXISTS`, Funktionen und Views möglichst `CREATE OR REPLACE`.
+
+Der reale lokale und Remote-Migrationsstand ist Teil dieses Gates. Ist ein Supabase-Projekt verknüpft, müssen mindestens diese Befehle erfolgreich geprüft werden:
+
+```powershell
+npx supabase migration list --linked
+npx supabase db push --linked --dry-run
+```
+
+Ein Merge nach `main` ist nur zulässig, wenn keine unerwarteten Migrationen auftauchen, neue Migrationen syntaktisch plausibel sind, keine bekannte nicht-idempotente Migration unkontrolliert erneut laufen würde und der Dry-Run erfolgreich ist. Ein echtes `npx supabase db push --linked` gehört ausdrücklich nicht zum automatischen Merge-Check; produktive Migrationen werden bewusst und separat ausgeführt.
+
 ## Dokumente
 - `ARCHITECTURE.md` – reale Projektarchitektur und Rollen der Projekte
 - `DECISIONS.md` – aktuelle technische Leitentscheidungen

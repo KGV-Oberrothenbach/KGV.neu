@@ -37,6 +37,19 @@ dann ist damit genau diese Datei gemeint.
   - committen
   - pushen
 
+### Dauerhafte Merge-Checkliste: Supabase-Migrationen
+
+Vor Merge nach `main`: Supabase-Migrationen prüfen (Syntax, Klammerung, Reihenfolge/Abhängigkeiten, Idempotenz, keine unbeabsichtigten Datenänderungen bei Wiederholung und realen lokalen/Remote-Migrationsstand). Dabei `CREATE POLICY` mit geeignetem vorherigem `DROP POLICY IF EXISTS`, Trigger mit `DROP TRIGGER IF EXISTS`, Constraints mit Existenzprüfung bzw. vorherigem Entfernen, Tabellen/Spalten wo sinnvoll mit `IF NOT EXISTS` sowie Funktionen und Views möglichst mit `CREATE OR REPLACE` absichern.
+
+Bei verknüpftem Supabase-Projekt vor dem Merge ausführen und bewerten:
+
+```powershell
+npx supabase migration list --linked
+npx supabase db push --linked --dry-run
+```
+
+Erst nach `main` mergen, wenn keine unerwarteten Migrationen auftauchen, alle neuen Migrationen syntaktisch plausibel sind, keine bekannte nicht-idempotente Migration unkontrolliert erneut laufen würde und der Dry-Run erfolgreich ist. Ein produktiver `npx supabase db push --linked` ist nicht Teil dieser Checkliste und wird nur bewusst separat ausgeführt.
+
 ### Status-Legende
 - `erledigt` = im Repo fachlich vorhanden und für diesen Punkt aktuell ausreichend abgeschlossen
 - `teilweise` = Teilpfad umgesetzt, Restprüfung oder Folgearbeit offen
