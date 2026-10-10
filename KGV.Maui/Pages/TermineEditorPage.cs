@@ -28,10 +28,10 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
     private readonly TimePicker _visibleFromTimePicker;
     private readonly DatePicker _visibleToDatePicker;
     private readonly TimePicker _visibleToTimePicker;
-    private readonly Switch _activeSwitch;
+    private readonly Switch _useStartTime, _useEndTime, _useVisibleFrom, _useVisibleTo;
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
-    private readonly Button _deleteButton;
+    private readonly Button _lifecycleButton;
 
     private long? _entryId;
     private TerminRecord? _existingRecord;
@@ -71,7 +71,8 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         _visibleToDatePicker = new DatePicker { Date = defaultVisibleTo.Date };
         _visibleToTimePicker = new TimePicker { Time = defaultVisibleTo.TimeOfDay };
 
-        _activeSwitch = new Switch { IsToggled = true };
+        _useStartTime = new Switch { IsToggled = true }; _useEndTime = new Switch { IsToggled = true }; _useVisibleFrom = new Switch { IsToggled = true }; _useVisibleTo = new Switch { IsToggled = true };
+        _useStartTime.Toggled += (_, _) => SetEnabledState(true); _useEndTime.Toggled += (_, _) => SetEnabledState(true); _useVisibleFrom.Toggled += (_, _) => SetEnabledState(true); _useVisibleTo.Toggled += (_, _) => SetEnabledState(true);
 
         _saveButton = new Button { Text = "Speichern" };
         _saveButton.Clicked += async (_, _) => await SaveAsync();
@@ -79,8 +80,8 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         _cancelButton = new Button { Text = "Abbrechen" };
         _cancelButton.Clicked += async (_, _) => await NavigateToOverviewAsync();
 
-        _deleteButton = new Button { Text = "Löschen", IsVisible = false, BackgroundColor = Colors.IndianRed, TextColor = Colors.White };
-        _deleteButton.Clicked += async (_, _) => await DeleteAsync();
+        _lifecycleButton = new Button { IsVisible = false, BackgroundColor = Colors.IndianRed, TextColor = Colors.White };
+        _lifecycleButton.Clicked += async (_, _) => await ToggleActiveAsync();
 
         Content = new ScrollView
         {
@@ -96,15 +97,14 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
                     CreateField("Titel *", _titleEntry),
                     CreateField("Beschreibung", _descriptionEditor),
                     CreateField("Datum *", _datePicker),
-                    CreateField("Startzeit", _startTimePicker),
-                    CreateField("Endzeit", _endTimePicker),
-                    CreateTimestampField("Sichtbar ab", _visibleFromDatePicker, _visibleFromTimePicker),
-                    CreateTimestampField("Sichtbar bis", _visibleToDatePicker, _visibleToTimePicker),
-                    CreateField("Aktiv", _activeSwitch),
+                    CreateField("Startzeit verwenden", _useStartTime), CreateField("Startzeit", _startTimePicker),
+                    CreateField("Endzeit verwenden", _useEndTime), CreateField("Endzeit", _endTimePicker),
+                    CreateField("Sichtbar ab verwenden", _useVisibleFrom), CreateTimestampField("Sichtbar ab", _visibleFromDatePicker, _visibleFromTimePicker),
+                    CreateField("Sichtbar bis verwenden", _useVisibleTo), CreateTimestampField("Sichtbar bis", _visibleToDatePicker, _visibleToTimePicker),
                     new VerticalStackLayout
                     {
                         Spacing = 8,
-                        Children = { _cancelButton, _deleteButton, _saveButton }
+                        Children = { _cancelButton, _lifecycleButton, _saveButton }
                     }
                 }
             }
@@ -196,8 +196,8 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         var visibleTo = _existingRecord.SichtbarBis ?? CreateVisibleUntilEndOfDay(_datePicker.Date!.Value);
         _visibleToDatePicker.Date = visibleTo.Date;
         _visibleToTimePicker.Time = visibleTo.TimeOfDay;
-        _activeSwitch.IsToggled = _existingRecord.Aktiv;
-        _deleteButton.IsVisible = true;
+        _useStartTime.IsToggled = _existingRecord.StartUhrzeit.HasValue; _useEndTime.IsToggled = _existingRecord.EndUhrzeit.HasValue; _useVisibleFrom.IsToggled = _existingRecord.SichtbarAb.HasValue; _useVisibleTo.IsToggled = _existingRecord.SichtbarBis.HasValue;
+        _lifecycleButton.IsVisible = true; _lifecycleButton.Text = _existingRecord.Aktiv ? "Deaktivieren" : "Wieder aktivieren";
         SetEnabledState(true);
     }
 
@@ -219,8 +219,8 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         var visibleTo = CreateVisibleUntilEndOfDay(_datePicker.Date!.Value);
         _visibleToDatePicker.Date = visibleTo.Date;
         _visibleToTimePicker.Time = visibleTo.TimeOfDay;
-        _activeSwitch.IsToggled = true;
-        _deleteButton.IsVisible = false;
+        _useStartTime.IsToggled = _useEndTime.IsToggled = _useVisibleFrom.IsToggled = _useVisibleTo.IsToggled = true;
+        _lifecycleButton.IsVisible = false;
         SetEnabledState(true);
     }
 
@@ -287,9 +287,9 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         }
 
         // TimePicker.Time is nullable under some MAUI/.NET versions; pickers are initialized earlier so these values are expected.
-        var startTime = _startTimePicker.Time!.Value;
-        var endTime = _endTimePicker.Time!.Value;
-        if (endTime < startTime)
+        TimeSpan? startTime = _useStartTime.IsToggled ? _startTimePicker.Time : null;
+        TimeSpan? endTime = _useEndTime.IsToggled ? _endTimePicker.Time : null;
+        if (startTime.HasValue && endTime.HasValue && endTime < startTime)
         {
             _statusLabel.Text = "Die Endzeit darf nicht vor der Startzeit liegen.";
             _endTimePicker.Focus();
@@ -297,10 +297,10 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         }
 
         // DatePicker.Date and TimePicker.Time may be nullable; use .Value as earlier initialization guarantees presence.
-        var visibleFrom = _visibleFromDatePicker.Date!.Value.Date.Add(_visibleFromTimePicker.Time!.Value);
-        var visibleTo = _visibleToDatePicker.Date!.Value.Date.Add(_visibleToTimePicker.Time!.Value);
+        DateTime? visibleFrom = _useVisibleFrom.IsToggled ? _visibleFromDatePicker.Date!.Value.Date.Add(_visibleFromTimePicker.Time!.Value) : null;
+        DateTime? visibleTo = _useVisibleTo.IsToggled ? _visibleToDatePicker.Date!.Value.Date.Add(_visibleToTimePicker.Time!.Value) : null;
 
-        if (visibleTo < visibleFrom)
+        if (visibleFrom.HasValue && visibleTo.HasValue && visibleTo < visibleFrom)
         {
             _statusLabel.Text = "Sichtbar bis darf nicht vor Sichtbar ab liegen.";
             _visibleToTimePicker.Focus();
@@ -316,7 +316,7 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
             EndUhrzeit = endTime,
             SichtbarAb = visibleFrom,
             SichtbarBis = visibleTo,
-            Aktiv = _activeSwitch.IsToggled,
+            Aktiv = _existingRecord?.Aktiv ?? true,
             IsDemo = _existingRecord?.IsDemo ?? false
         };
 
@@ -331,19 +331,16 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         _titleEntry.IsEnabled = enabled;
         _descriptionEditor.IsEnabled = enabled;
         _datePicker.IsEnabled = enabled;
-        _startTimePicker.IsEnabled = enabled;
-        _endTimePicker.IsEnabled = enabled;
-        _visibleFromDatePicker.IsEnabled = enabled;
-        _visibleFromTimePicker.IsEnabled = enabled;
-        _visibleToDatePicker.IsEnabled = enabled;
-        _visibleToTimePicker.IsEnabled = enabled;
-        _activeSwitch.IsEnabled = enabled;
+        _useStartTime.IsEnabled = _useEndTime.IsEnabled = _useVisibleFrom.IsEnabled = _useVisibleTo.IsEnabled = enabled;
+        _startTimePicker.IsEnabled = enabled && _useStartTime.IsToggled; _endTimePicker.IsEnabled = enabled && _useEndTime.IsToggled;
+        _visibleFromDatePicker.IsEnabled = _visibleFromTimePicker.IsEnabled = enabled && _useVisibleFrom.IsToggled;
+        _visibleToDatePicker.IsEnabled = _visibleToTimePicker.IsEnabled = enabled && _useVisibleTo.IsToggled;
         _saveButton.IsEnabled = enabled;
         _cancelButton.IsEnabled = enabled;
-        _deleteButton.IsEnabled = enabled && _existingRecord != null;
+        _lifecycleButton.IsEnabled = enabled && _existingRecord != null;
     }
 
-    private async Task DeleteAsync()
+    private async Task ToggleActiveAsync()
     {
         var existingRecord = _existingRecord;
         if (!_isAuthorized)
@@ -352,15 +349,10 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         if (existingRecord is null || existingRecord.Id <= 0)
             return;
 
-        var titel = string.IsNullOrWhiteSpace(existingRecord.Titel)
-            ? "diesen Termin"
-            : $"den Termin \"{existingRecord.Titel.Trim()}\"";
-
-        var confirmed = await DisplayAlertAsync("Termin löschen", $"Soll {titel} wirklich gelöscht werden?", "Löschen", "Abbrechen");
-        if (!confirmed)
+        if (existingRecord.Aktiv && !await DisplayAlertAsync("Termin deaktivieren", $"Soll der Termin „{existingRecord.Titel ?? "ohne Titel"}“ wirklich deaktiviert werden?", "Deaktivieren", "Abbrechen"))
             return;
-
-        _statusLabel.Text = "Datensatz wird gelöscht.";
+        existingRecord.Aktiv = !existingRecord.Aktiv;
+        _statusLabel.Text = existingRecord.Aktiv ? "Termin wird wieder aktiviert." : "Termin wird deaktiviert.";
         _statusLabel.TextColor = Colors.DarkSlateBlue;
         SetEnabledState(false);
 
@@ -368,17 +360,17 @@ public sealed class TermineEditorPage : ContentPage, IQueryAttributable
         {
             await Task.Yield();
 
-            var success = await _supabaseService.DeleteTerminAsync(existingRecord.Id);
+            var success = await _supabaseService.UpdateTerminAsync(existingRecord);
             if (!success)
             {
-                _statusLabel.Text = "Termin konnte nicht gelöscht werden.";
+                _statusLabel.Text = "Termin konnte nicht aktualisiert werden.";
                 _statusLabel.TextColor = Colors.IndianRed;
                 return;
             }
 
             _homeViewModel.Invalidate();
-            await DisplayAlertAsync("Termin löschen", "Der Termin wurde gelöscht.", "OK");
-            await NavigateToOverviewAsync();
+            _lifecycleButton.Text = existingRecord.Aktiv ? "Deaktivieren" : "Wieder aktivieren";
+            _statusLabel.Text = existingRecord.Aktiv ? "Termin wurde wieder aktiviert." : "Termin wurde deaktiviert.";
         }
         catch (Exception ex)
         {
