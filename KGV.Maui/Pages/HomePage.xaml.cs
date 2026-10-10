@@ -218,7 +218,7 @@ public class HomePage : ContentPage
         announcementEmptyLabel.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowAnnouncementEmptyState));
 
         _newAnnouncementButton = new Button { Text = "Neu", HorizontalOptions = LayoutOptions.End, IsVisible = false };
-        _newAnnouncementButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.ShowManagementSection));
+        _newAnnouncementButton.SetBinding(IsVisibleProperty, nameof(HomeViewModel.CanManageAnnouncements));
         _newAnnouncementButton.Clicked += async (_, _) => await Shell.Current.GoToAsync(nameof(BekanntmachungEditorPage));
 
         var announcementsSection = CreateSectionCard(

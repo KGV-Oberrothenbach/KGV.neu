@@ -311,7 +311,7 @@ public sealed class HomeSectionDetailPage : ContentPage
             };
             _newButton.IsVisible = canManage;
             _editButton.IsVisible = canManage && TryGetCurrentEntryId() > 0;
-            _deleteButton.IsVisible = _editButton.IsVisible && _homeContextState.DetailKind is not HomeDetailKind.Appointment;
+            _deleteButton.IsVisible = _editButton.IsVisible && _homeContextState.DetailKind == HomeDetailKind.WorkAssignment;
             _statusLabel.Text = string.Empty;
         }
         finally
@@ -685,7 +685,7 @@ public sealed class HomeSectionDetailPage : ContentPage
             {
                 HomeDetailKind.WorkAssignment => await _supabaseService.DeleteArbeitseinsatzAsync(entryId),
                 HomeDetailKind.Appointment => false,
-                HomeDetailKind.Announcement => await _supabaseService.DeleteBekanntmachungAsync(entryId),
+                HomeDetailKind.Announcement => false,
                 _ => false
             };
 

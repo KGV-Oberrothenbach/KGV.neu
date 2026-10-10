@@ -27,7 +27,8 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
     private readonly DatePicker _visibleToDatePicker;
     private readonly Entry _visibleToTimeEntry;
     private readonly Entry _sortOrderEntry;
-    private readonly Switch _activeSwitch;
+    private readonly Switch _useVisibleFrom;
+    private readonly Switch _useVisibleTo;
     private readonly Button _htmlTabButton;
     private readonly Button _previewTabButton;
     private readonly VerticalStackLayout _htmlEditorSection;
@@ -35,7 +36,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
     private readonly WebView _previewWebView;
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
-    private readonly Button _deleteButton;
+    private readonly Button _lifecycleButton;
 
     private long? _entryId;
     private BekanntmachungRecord? _existingRecord;
@@ -72,7 +73,10 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         _visibleToDatePicker = new DatePicker { Date = defaultVisibleTo.Date };
         _visibleToTimeEntry = new Entry { Placeholder = "HH:mm", Keyboard = Keyboard.Text, Text = defaultVisibleTo.ToString("HH:mm", CultureInfo.CurrentCulture) };
         _sortOrderEntry = new Entry { Placeholder = "Sortierreihenfolge", Keyboard = Keyboard.Numeric };
-        _activeSwitch = new Switch { IsToggled = true };
+        _useVisibleFrom = new Switch { IsToggled = true };
+        _useVisibleTo = new Switch { IsToggled = true };
+        _useVisibleFrom.Toggled += (_, _) => SetEnabledState(true);
+        _useVisibleTo.Toggled += (_, _) => SetEnabledState(true);
 
         _htmlTabButton = new Button { Text = "HTML" };
         _htmlTabButton.Clicked += (_, _) => SetHtmlMode(showPreview: false);
@@ -118,8 +122,8 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         _cancelButton = new Button { Text = "Abbrechen" };
         _cancelButton.Clicked += async (_, _) => await NavigateToOverviewAsync();
 
-        _deleteButton = new Button { Text = "Löschen", IsVisible = false, BackgroundColor = Colors.IndianRed, TextColor = Colors.White };
-        _deleteButton.Clicked += async (_, _) => await DeleteAsync();
+        _lifecycleButton = new Button { IsVisible = false, BackgroundColor = Colors.IndianRed, TextColor = Colors.White };
+        _lifecycleButton.Clicked += async (_, _) => await ToggleActiveAsync();
 
         Content = new ScrollView
         {
@@ -137,15 +141,14 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
                     new HorizontalStackLayout { Spacing = 8, Children = { _htmlTabButton, _previewTabButton } },
                     _htmlEditorSection,
                     _previewSection,
-                    CreateTimestampField("Sichtbar ab", _visibleFromDatePicker, _visibleFromTimeEntry),
-                    CreateTimestampField("Sichtbar bis", _visibleToDatePicker, _visibleToTimeEntry),
+                    CreateField("Sichtbar ab verwenden", _useVisibleFrom), CreateTimestampField("Sichtbar ab", _visibleFromDatePicker, _visibleFromTimeEntry),
+                    CreateField("Sichtbar bis verwenden", _useVisibleTo), CreateTimestampField("Sichtbar bis", _visibleToDatePicker, _visibleToTimeEntry),
                     CreateField("Sortierreihenfolge", _sortOrderEntry),
-                    CreateField("Aktiv", _activeSwitch),
                     new FlexLayout
                     {
                         Direction = FlexDirection.Row,
                         Wrap = FlexWrap.Wrap,
-                        Children = { _cancelButton, _deleteButton, _saveButton }
+                        Children = { _cancelButton, _lifecycleButton, _saveButton }
                     }
                 }
             }
@@ -235,8 +238,9 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         _visibleToDatePicker.Date = visibleTo.Date;
         _visibleToTimeEntry.Text = visibleTo.ToString("HH:mm", CultureInfo.CurrentCulture);
         _sortOrderEntry.Text = _existingRecord.SortOrder?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
-        _activeSwitch.IsToggled = _existingRecord.Aktiv;
-        _deleteButton.IsVisible = true;
+        _useVisibleFrom.IsToggled = _existingRecord.SichtbarAb.HasValue;
+        _useVisibleTo.IsToggled = _existingRecord.SichtbarBis.HasValue;
+        _lifecycleButton.IsVisible = true; _lifecycleButton.Text = _existingRecord.Aktiv ? "Deaktivieren" : "Wieder aktivieren";
         SetEnabledState(true);
         RefreshPreview();
     }
@@ -256,8 +260,8 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         _visibleToDatePicker.Date = visibleTo.Date;
         _visibleToTimeEntry.Text = visibleTo.ToString("HH:mm", CultureInfo.CurrentCulture);
         _sortOrderEntry.Text = string.Empty;
-        _activeSwitch.IsToggled = true;
-        _deleteButton.IsVisible = false;
+        _useVisibleFrom.IsToggled = _useVisibleTo.IsToggled = true;
+        _lifecycleButton.IsVisible = false;
         SetEnabledState(true);
         RefreshPreview();
     }
@@ -333,7 +337,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         }
 
         // DatePicker.Date is nullable in .NET 10; the timestamp builder expects a DateTime - use the value.
-        if (!TryBuildOptionalTimestamp(_visibleFromDatePicker.Date!.Value, _visibleFromTimeEntry.Text, out var visibleFrom, out var normalizedVisibleFrom, out var visibleFromError))
+        if (_useVisibleFrom.IsToggled && !TryBuildOptionalTimestamp(_visibleFromDatePicker.Date!.Value, _visibleFromTimeEntry.Text, out var visibleFrom, out var normalizedVisibleFrom, out var visibleFromError))
         {
             _statusLabel.Text = visibleFromError;
             _visibleFromTimeEntry.Text = normalizedVisibleFrom;
@@ -341,7 +345,8 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
             return false;
         }
 
-        if (!TryBuildOptionalTimestamp(_visibleToDatePicker.Date!.Value, _visibleToTimeEntry.Text, out var visibleTo, out var normalizedVisibleTo, out var visibleToError))
+        else { visibleFrom = null; normalizedVisibleFrom = string.Empty; visibleFromError = string.Empty; }
+        if (_useVisibleTo.IsToggled && !TryBuildOptionalTimestamp(_visibleToDatePicker.Date!.Value, _visibleToTimeEntry.Text, out var visibleTo, out var normalizedVisibleTo, out var visibleToError))
         {
             _statusLabel.Text = visibleToError;
             _visibleToTimeEntry.Text = normalizedVisibleTo;
@@ -349,6 +354,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
             return false;
         }
 
+        else { visibleTo = null; normalizedVisibleTo = string.Empty; visibleToError = string.Empty; }
         _visibleFromTimeEntry.Text = normalizedVisibleFrom;
         _visibleToTimeEntry.Text = normalizedVisibleTo;
 
@@ -380,7 +386,7 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
             SichtbarAb = visibleFrom,
             SichtbarBis = visibleTo,
             SortOrder = sortOrder,
-            Aktiv = _activeSwitch.IsToggled,
+            Aktiv = _existingRecord?.Aktiv ?? true,
             IsDemo = _existingRecord?.IsDemo ?? false
         };
 
@@ -418,20 +424,18 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
     {
         _titleEntry.IsEnabled = enabled;
         _htmlEditor.IsEnabled = enabled;
-        _visibleFromDatePicker.IsEnabled = enabled;
-        _visibleFromTimeEntry.IsEnabled = enabled;
-        _visibleToDatePicker.IsEnabled = enabled;
-        _visibleToTimeEntry.IsEnabled = enabled;
+        _useVisibleFrom.IsEnabled = _useVisibleTo.IsEnabled = enabled;
+        _visibleFromDatePicker.IsEnabled = _visibleFromTimeEntry.IsEnabled = enabled && _useVisibleFrom.IsToggled;
+        _visibleToDatePicker.IsEnabled = _visibleToTimeEntry.IsEnabled = enabled && _useVisibleTo.IsToggled;
         _sortOrderEntry.IsEnabled = enabled;
-        _activeSwitch.IsEnabled = enabled;
         _htmlTabButton.IsEnabled = enabled;
         _previewTabButton.IsEnabled = enabled;
         _saveButton.IsEnabled = enabled;
         _cancelButton.IsEnabled = enabled;
-        _deleteButton.IsEnabled = enabled && _existingRecord != null;
+        _lifecycleButton.IsEnabled = enabled && _existingRecord != null;
     }
 
-    private async Task DeleteAsync()
+    private async Task ToggleActiveAsync()
     {
         var existingRecord = _existingRecord;
         if (!_isAuthorized)
@@ -440,15 +444,11 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         if (existingRecord is null || existingRecord.Id <= 0)
             return;
 
-        var titel = string.IsNullOrWhiteSpace(existingRecord.Titel)
-            ? "diese Bekanntmachung"
-            : $"die Bekanntmachung \"{existingRecord.Titel.Trim()}\"";
-
-        var confirmed = await DisplayAlertAsync("Bekanntmachung löschen", $"Soll {titel} wirklich gelöscht werden?", "Löschen", "Abbrechen");
-        if (!confirmed)
+        var targetActive = !existingRecord.Aktiv;
+        if (!targetActive && !await DisplayAlertAsync("Bekanntmachung deaktivieren", $"Soll die Bekanntmachung „{existingRecord.Titel ?? "ohne Titel"}“ wirklich deaktiviert werden?", "Deaktivieren", "Abbrechen"))
             return;
-
-        _statusLabel.Text = "Datensatz wird gelöscht.";
+        var updateRecord = new BekanntmachungRecord { Id = existingRecord.Id, Titel = existingRecord.Titel, InhaltHtml = existingRecord.InhaltHtml, SichtbarAb = existingRecord.SichtbarAb, SichtbarBis = existingRecord.SichtbarBis, SortOrder = existingRecord.SortOrder, Aktiv = targetActive, CreatedAt = existingRecord.CreatedAt, UpdatedAt = existingRecord.UpdatedAt, IsDemo = existingRecord.IsDemo };
+        _statusLabel.Text = targetActive ? "Bekanntmachung wird wieder aktiviert." : "Bekanntmachung wird deaktiviert.";
         _statusLabel.TextColor = Colors.DarkSlateBlue;
         SetEnabledState(false);
 
@@ -456,17 +456,17 @@ public sealed class BekanntmachungEditorPage : ContentPage, IQueryAttributable
         {
             await Task.Yield();
 
-            var success = await _supabaseService.DeleteBekanntmachungAsync(existingRecord.Id);
+            var success = await _supabaseService.UpdateBekanntmachungAsync(updateRecord);
             if (!success)
             {
-                _statusLabel.Text = "Bekanntmachung konnte nicht gelöscht werden.";
+                _statusLabel.Text = "Bekanntmachung konnte nicht aktualisiert werden.";
                 _statusLabel.TextColor = Colors.IndianRed;
                 return;
             }
 
-            _homeViewModel.Invalidate();
-            await DisplayAlertAsync("Bekanntmachung löschen", "Die Bekanntmachung wurde gelöscht.", "OK");
-            await NavigateToOverviewAsync();
+            existingRecord.Aktiv = targetActive;
+            _lifecycleButton.Text = targetActive ? "Deaktivieren" : "Wieder aktivieren";
+            await CompleteSuccessfulSaveAsync(targetActive ? "Bekanntmachung wurde wieder aktiviert." : "Bekanntmachung wurde deaktiviert.");
         }
         catch (Exception ex)
         {

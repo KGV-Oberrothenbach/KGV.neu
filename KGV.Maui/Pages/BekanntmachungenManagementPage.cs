@@ -27,6 +27,8 @@ public sealed class BekanntmachungenManagementPage : ManagementOverviewPageBase
         return (await SupabaseService.GetBekanntmachungenVerwaltungAsync())
             .OrderBy(x => x.SortOrder ?? int.MaxValue)
             .ThenByDescending(x => x.SichtbarAb ?? DateTime.MinValue)
+            .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(x => x.Id)
             .Select(x => new ManagementOverviewEntry(
                 x.Id,
                 x.Titel ?? "(ohne Titel)",
