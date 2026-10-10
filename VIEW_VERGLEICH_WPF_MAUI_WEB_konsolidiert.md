@@ -4397,6 +4397,18 @@ KGV.Web/
 
 # G10 – Dokumente
 
+## Abschlussstand G10.1–G10.9
+
+✅ Abgeschlossen. Die gemeinsame Web-Architektur lautet `DocumentList → G10 Services → G10 Repositories → Supabase / Edge / Drive`. G4 erzeugt und signiert Vertragsdokumente; G10 listet, öffnet und speichert sie.
+
+- G10.1–G10.2: Ein `Document` mit exakt einem Member- oder Parcel-Owner sowie eine gemeinsame Liste für beide Kontexte.
+- G10.3–G10.4: Sichere Drive-/Storage-Öffnung, zentraler Upload inklusive serverseitiger Metadatenpersistenz, Typ-Whitelist und technischer Drive-Kompensation.
+- G10.5: Soft-Archive mit Admin-only UI und Serverprüfung; kein fachlicher Hard Delete im neuen Web-Pfad.
+- G10.6: Typ/Status (`mitgliedsantrag`, `mitgliedsvertrag`, `pachtvertrag`; `unsigniert`, `signiert`) werden zentral aus Dateiname, Storage-Pfad oder Titel abgeleitet.
+- G10.7–G10.8: Nur unsignierte Pachtverträge erhalten Scan-/Digital-Signatur-Folgeaktionen. Die Quelle bleibt erhalten; sobald im aktiven Owner-Kontext eine signierte Pachtvertragsfassung vorliegt, gilt Only Show.
+
+Sicherheitsgrenzen: Demo-/Produktiv-Scope gilt auch in Service-Role-Edge-Pfaden; Upload bleibt im bestehenden Admin/Vorstand-Managementpfad, Archivieren ist Admin-only. Legacy-`DeleteDokumentAsync` bleibt außerhalb des neuen Web-G10 und ist ein separater Legacy-Audit. Archivansicht/Restore, zentrale Rollenbasis (G13) sowie Browser-/Offline-Pending-Mechanismen (G15) sind bewusst nicht Teil von G10.
+
 ## 10.1 Gemeinsamer Dokumentbereich
 
 ### WPF
