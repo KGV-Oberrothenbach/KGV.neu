@@ -5259,7 +5259,6 @@ namespace KGV.Infrastructure.Services
                     .Where(OperationalDataFilter.IsOperationalArbeitseinsatz)
                     .OrderBy(x => x.Datum)
                     .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
-                    .ThenBy(x => x.EndUhrzeit ?? TimeSpan.MaxValue)
                     .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                     .ToList()
                     ?? new List<ArbeitseinsatzRecord>();
@@ -5433,6 +5432,7 @@ namespace KGV.Infrastructure.Services
                     .Select(NormalizeTerminRecord)
                     .OrderBy(x => x.Datum)
                     .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
+                    .ThenBy(x => x.EndUhrzeit ?? TimeSpan.MaxValue)
                     .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                     .ToList()
                     ?? new List<TerminRecord>();
