@@ -1,8 +1,11 @@
 "use client";
 
 import { type ReactNode, useCallback, useEffect, useState } from "react";
-import { archiveDocument, type BrowserSession } from "../../lib/supabase-auth";
+import { type BrowserSession } from "../../lib/supabase-auth";
+import { DocumentArchiveDialog } from "./DocumentArchiveDialog";
 import type { Document, DocumentOwner } from "../../models/documents/document";
+import { documentCapabilitiesForOwner, type DocumentAccessContext } from "../../services/documents/document-access-service";
+import { archiveDocument } from "../../services/documents/document-archive-service";
 import { resolveDocumentOpenUrl } from "../../services/documents/document-open-service";
 import { loadDocumentsForOwner } from "../../services/documents/document-service";
 import { uploadDocumentForOwner } from "../../services/documents/document-upload-service";
@@ -11,11 +14,11 @@ type DocumentListProps = {
   session: BrowserSession;
   owner: DocumentOwner;
   compact?: boolean;
-  canManage?: boolean;
+  accessContext: DocumentAccessContext;
   beforeList?: (reload: () => Promise<void>) => ReactNode;
 };
 
-export function DocumentList({ session, owner, compact = false, canManage = false, beforeList }: DocumentListProps) {
+export function DocumentList({ session, owner, compact = false, accessContext, beforeList }: DocumentListProps) {
   const [items, setItems] = useState<Document[]>([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -23,7 +26,9 @@ export function DocumentList({ session, owner, compact = false, canManage = fals
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [archiving, setArchiving] = useState<number | null>(null);
+  const [archiving, setArchiving] = useState(false);
+  const [documentToArchive, setDocumentToArchive] = useState<Document | null>(null);
+  const capabilities = documentCapabilitiesForOwner(accessContext, owner);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -97,20 +102,19 @@ export function DocumentList({ session, owner, compact = false, canManage = fals
     }
   }
 
-  async function archive(item: Document) {
-    const reason = window.prompt("Begründung für die Archivierung (mindestens 3 Zeichen):");
-    if (!reason) return;
-    const password = window.prompt("Archivpasswort:");
-    if (!password) return;
-    setArchiving(item.id);
+  async function archive(reason: string, password: string) {
+    if (!documentToArchive) return;
+    setArchiving(true);
     setError("");
     try {
-      await archiveDocument(session, item.id, password, reason);
+      await archiveDocument(session, documentToArchive.id, reason, password);
       await load();
+      setDocumentToArchive(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Das Dokument konnte nicht archiviert werden.");
+      throw cause;
     } finally {
-      setArchiving(null);
+      setArchiving(false);
     }
   }
 
@@ -118,9 +122,10 @@ export function DocumentList({ session, owner, compact = false, canManage = fals
     {compact ? <h3>Parzellen-Dokumente</h3> : <p className="document-intro">Dokumente werden ausschließlich über den geschützten Vereins-Dokumentendienst geöffnet. Die Browser-App speichert keine Dokumentkopie lokal.</p>}
     {error && <p className="notice" role="alert">{error}</p>}
     {beforeList?.(load)}
-    {canManage && <fieldset className="document-upload" disabled={uploading}><label>Titel<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="z. B. Pachtvertrag 2026" /></label><label>Datei<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text,.pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.odt" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label><button type="button" onClick={upload}>{uploading ? "Lädt hoch …" : "Dokument hochladen"}</button></fieldset>}
-    {isLoading ? <p className="empty-state">Dokumente werden geladen …</p> : <div className="data-table-wrap"><table><thead><tr><th>Titel</th><th>Datei</th><th>Geändert</th><th>Größe</th><th></th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td><strong>{item.titel ?? "Ohne Titel"}</strong></td><td>{item.dateiname ?? "–"}</td><td>{formatDate(item.updated_at)}</td><td>{formatBytes(item.size_bytes)}</td><td><button className="table-action" disabled={opening === item.id} onClick={() => void openDocument(item)}>{opening === item.id ? "Öffne …" : item.mime_type === "application/pdf" ? "Vorschau" : "Öffnen"}</button>{canManage && <button className="table-action secondary-action" disabled={archiving === item.id} onClick={() => void archive(item)}>{archiving === item.id ? "Archiviert …" : "Archivieren"}</button>}</td></tr>)}</tbody></table>{items.length === 0 && <p className="empty-state">Keine aktiven Dokumente vorhanden.</p>}</div>}
+    {capabilities.canUpload && <fieldset className="document-upload" disabled={uploading}><label>Titel<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="z. B. Pachtvertrag 2026" /></label><label>Datei<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text,.pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.odt" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label><button type="button" onClick={upload}>{uploading ? "Lädt hoch …" : "Dokument hochladen"}</button></fieldset>}
+    {isLoading ? <p className="empty-state">Dokumente werden geladen …</p> : <div className="data-table-wrap"><table><thead><tr><th>Titel</th><th>Datei</th><th>Geändert</th><th>Größe</th><th></th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td><strong>{item.titel ?? "Ohne Titel"}</strong></td><td>{item.dateiname ?? "–"}</td><td>{formatDate(item.updated_at)}</td><td>{formatBytes(item.size_bytes)}</td><td><button className="table-action" disabled={opening === item.id} onClick={() => void openDocument(item)}>{opening === item.id ? "Öffne …" : item.mime_type === "application/pdf" ? "Vorschau" : "Öffnen"}</button>{capabilities.canArchive && <button className="table-action secondary-action" disabled={archiving} onClick={() => setDocumentToArchive(item)}>{archiving ? "Archiviert …" : "Archivieren"}</button>}</td></tr>)}</tbody></table>{items.length === 0 && <p className="empty-state">Keine aktiven Dokumente vorhanden.</p>}</div>}
     {!compact && <p className="detail-hint">Mitgliedsantrag und Pachtvertrag verwenden die offiziellen PDF-Vorlagen. Vorschau, Unterschriften und sichere Ablage erfolgen über den geschützten Server-Dienst.</p>}
+    {documentToArchive && <DocumentArchiveDialog document={documentToArchive} busy={archiving} onCancel={() => setDocumentToArchive(null)} onArchive={archive} />}
   </section>;
 }
 

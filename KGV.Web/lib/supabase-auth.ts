@@ -327,19 +327,6 @@ export async function callSupabaseFunctionRaw(session: BrowserSession, name: str
   });
 }
 
-export async function archiveDocument(session: BrowserSession, documentId: number, password: string, reason: string) {
-  const { url, publishableKey } = config();
-  const response = await fetch(`${url}/functions/v1/kgv-upload-document`, {
-    method: "POST",
-    headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "archive", document_id: documentId, archive_password: password, reason }),
-  });
-  if (!response.ok) {
-    const detail = await response.json().catch(() => null) as { message?: string } | null;
-    throw new Error(detail?.message ?? "Das Dokument konnte nicht archiviert werden.");
-  }
-}
-
 export type ContractGenerationRequest = {
   action: "preview" | "finalize";
   type: "mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag" | "parzellenprotokoll";

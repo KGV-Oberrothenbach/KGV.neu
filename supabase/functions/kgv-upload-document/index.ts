@@ -701,6 +701,10 @@ Deno.serve(async (req) => {
         if (!auth.ok)
           return errorResponse(auth.status, "FORBIDDEN", auth.message, requestId);
 
+        const document = await mayReadDocument(auth, documentId);
+        if (!document)
+          return errorResponse(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId);
+
         if (!await verifyArchivePassword(password))
           return errorResponse(403, "FORBIDDEN", "Das Archivpasswort ist nicht korrekt.", requestId);
 
