@@ -5154,6 +5154,10 @@ Die globale Web-Übersicht und Detailansicht verwenden eigene Maintenance-Kompon
 
 Der Web-Editor ist ausgelagert und verwendet drei eindeutige Arbeitsstundenwirkungen. Neue Verträge starten ohne Anrechnung; Servicevalidierung und Edit-Lock bleiben führend. Es gibt keinen Hard-Delete.
 
+### G11.4 – Zuordnungsregeln
+
+Eine Wartungsvertragszuordnung wird immer für den Hauptmitglied-Kontext gespeichert. Der Assignment-Service löst ein ausgewähltes Mitglied über `hauptmitglied_id ?? id` auf und prüft vor dem Schreiben Vertragsexistenz und Aktivstatus, inklusive Zeiträume, doppelte überlappende Zuordnungen und die Spitzenbelegung über den gewählten Zeitraum. Die Datenbank erzwingt dieselben Intervallregeln als letzte Instanz: gespeicherte IDs müssen Hauptmitglieder sein, Enddaten dürfen nicht vor dem Beginn liegen, und inklusive Zeitintervalle dürfen weder doppelt noch über dem Kontingent überlappen. Die Oberfläche darf deshalb auch bei heute voller Belegung speichern lassen; maßgeblich bleibt der gewählte Zeitraum.
+
 ## 11.1 Globale Wartungsvertragsübersicht
 
 ### WPF
