@@ -1,5 +1,8 @@
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type MaintenanceContract, type MaintenanceContractDraft } from "../../models/maintenance/maintenance-contract";
+import { maintenanceWorkHoursEffect } from "../../models/maintenance/maintenance-contract";
+import { type MaintenanceContractOverview } from "../../models/maintenance/maintenance-contract-overview";
+import { type MaintenanceAssignment } from "../../models/maintenance/maintenance-assignment";
 import { createMaintenanceContract, getMaintenanceContract, listMaintenanceContracts, type MaintenanceContractRow, type MaintenanceContractWriteRow, updateMaintenanceContract } from "../../repositories/maintenance/maintenance-contract-repository";
 
 function fromRow(row: MaintenanceContractRow): MaintenanceContract {
@@ -8,6 +11,13 @@ function fromRow(row: MaintenanceContractRow): MaintenanceContract {
 
 export async function loadMaintenanceContracts(session: BrowserSession): Promise<MaintenanceContract[]> {
   return (await listMaintenanceContracts(session)).map(fromRow);
+}
+
+export function buildMaintenanceContractOverview(contracts: MaintenanceContract[], assignments: MaintenanceAssignment[], referenceDate: string): MaintenanceContractOverview[] {
+  return contracts.map((contract) => {
+    const occupied = assignments.filter((assignment) => assignment.maintenanceContractId === contract.id && assignment.validFrom <= referenceDate && (!assignment.validUntil || assignment.validUntil >= referenceDate)).length;
+    return { ...contract, occupied, available: Math.max(0, contract.maxActiveAssignments - occupied), workHoursEffect: maintenanceWorkHoursEffect(contract) };
+  });
 }
 
 export async function loadMaintenanceContract(session: BrowserSession, id: number): Promise<MaintenanceContract | null> {

@@ -6,6 +6,16 @@ function fromRow(row: MaintenanceAssignmentRow): MaintenanceAssignment {
   return { id: row.id, maintenanceContractId: row.wartungsvertrag_id, principalMemberId: row.hauptmitglied_id, validFrom: row.gueltig_ab, validUntil: row.gueltig_bis, note: row.bemerkung };
 }
 
+export type ClassifiedMaintenanceAssignments = { active: MaintenanceAssignment[]; future: MaintenanceAssignment[]; history: MaintenanceAssignment[] };
+export function classifyMaintenanceAssignments(assignments: MaintenanceAssignment[], referenceDate: string): ClassifiedMaintenanceAssignments {
+  return assignments.reduce<ClassifiedMaintenanceAssignments>((result, assignment) => {
+    if (assignment.validFrom > referenceDate) result.future.push(assignment);
+    else if (assignment.validUntil && assignment.validUntil < referenceDate) result.history.push(assignment);
+    else result.active.push(assignment);
+    return result;
+  }, { active: [], future: [], history: [] });
+}
+
 export async function loadMaintenanceAssignments(session: BrowserSession, principalMemberId?: number): Promise<MaintenanceAssignment[]> {
   return (await listMaintenanceAssignments(session, principalMemberId)).map(fromRow);
 }

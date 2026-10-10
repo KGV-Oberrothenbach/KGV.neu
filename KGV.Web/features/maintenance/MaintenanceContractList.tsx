@@ -1,0 +1,6 @@
+import { type MaintenanceContractOverview } from "../../models/maintenance/maintenance-contract-overview";
+
+const effectLabel = (item: MaintenanceContractOverview) => item.workHoursEffect === "exempt" ? "Vollbefreiung" : item.workHoursEffect === "credit" ? `${item.workHoursCredit} h Gutschrift pro Saison` : "Keine Anrechnung";
+export function MaintenanceContractList({ items, selectedId, onSelect }: { items: MaintenanceContractOverview[]; selectedId: number | null; onSelect: (id: number) => void }) {
+  return <div className="data-table-wrap"><table><thead><tr><th>Titel</th><th>Bereich</th><th>Belegung</th><th>Arbeitsstundenwirkung</th><th>Status</th></tr></thead><tbody>{items.map((item) => <tr key={item.id} className={selectedId === item.id ? "selected-row" : ""} onClick={() => onSelect(item.id)}><td><strong>{item.title}</strong><small>{item.description || "Keine Beschreibung"}</small></td><td>{item.area || "–"}</td><td>{item.occupied} von {item.maxActiveAssignments} · {item.available} frei</td><td>{effectLabel(item)}</td><td>{item.active ? "aktiv" : "inaktiv"}</td></tr>)}</tbody></table>{items.length === 0 && <p className="empty-state">Keine Wartungsverträge vorhanden.</p>}</div>;
+}

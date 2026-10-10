@@ -5146,6 +5146,10 @@ Prüfpunkt G11.4: Die Migrationshistorie enthält unterschiedliche Fassungen von
 
 Die zentrale Pflichtstundenberechnung berücksichtigt Teilgutschriften je Hauptmitglied-Kontext und Saison: verschiedene Verträge werden addiert, derselbe Vertrag höchstens einmal angerechnet, ohne zeitanteilige Kürzung und maximal bis zum wirksamen Soll. Eine Vollbefreiung hat Vorrang. `hat_wartungsvertrag` kennzeichnet jeden saisonal gültigen aktiven Wartungsvertrag; die effektive Teilgutschrift steht getrennt in `wartungsvertrag_gutschrift_stunden`. Die manuelle saisonbezogene Befreiung bleibt ein G7-TODO.
 
+### G11.2 – globale Übersicht
+
+Die globale Web-Übersicht und Detailansicht verwenden eigene Maintenance-Komponenten. Belegung/Frei sowie die Einordnung von Zuordnungen in aktiv, zukünftig und historisch kommen aus der Service-Schicht; die UI greift nicht direkt auf Supabase zu.
+
 ## 11.1 Globale Wartungsvertragsübersicht
 
 ### WPF
