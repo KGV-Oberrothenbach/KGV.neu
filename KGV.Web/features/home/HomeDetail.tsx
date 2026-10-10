@@ -16,8 +16,9 @@ type HomeDetailProps = {
   announcements: HomeAnnouncement[];
   registrations: WorkAssignmentRegistration[];
   memberId: number | null;
-  isManager: boolean;
   canManageWorkAssignments: boolean;
+  canManageAppointments: boolean;
+  canManageAnnouncements: boolean;
   busy: boolean;
   onClose: () => void;
   onSelect: (selection: HomeDetailSelection) => void;
@@ -40,7 +41,7 @@ function plainText(value: string | null) {
   return (value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-export default function HomeDetail({ session, selection, assignments, appointments, announcements, registrations, memberId, isManager, canManageWorkAssignments, busy, onClose, onSelect, onRegister, onSignOff, onNavigate }: HomeDetailProps) {
+export default function HomeDetail({ session, selection, assignments, appointments, announcements, registrations, memberId, canManageWorkAssignments, canManageAppointments, canManageAnnouncements, busy, onClose, onSelect, onRegister, onSignOff, onNavigate }: HomeDetailProps) {
   const [participants, setParticipants] = useState<Array<WorkAssignmentRegistration & { displayName: string }>>([]);
   const [participantError, setParticipantError] = useState("");
   const [linkedWorkHour, setLinkedWorkHour] = useState<WorkHour | null>(null);
@@ -94,7 +95,7 @@ export default function HomeDetail({ session, selection, assignments, appointmen
   const sectionTitle = assignment ? "Arbeitseinsatz" : appointment ? "Termin" : "Bekanntmachung";
   const title = assignment?.titel ?? appointment?.titel ?? announcement?.titel ?? sectionTitle;
   const managementTarget = assignment ? "arbeitseinsaetze" : appointment ? "termine" : "bekanntmachungen";
-  const canManageSelection = assignment ? canManageWorkAssignments : isManager;
+  const canManageSelection = assignment ? canManageWorkAssignments : appointment ? canManageAppointments : canManageAnnouncements;
 
   return <div className="home-detail-overlay" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
     <section className="home-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="home-detail-title">

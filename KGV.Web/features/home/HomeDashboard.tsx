@@ -112,7 +112,7 @@ export default function HomeDashboard({ session, isManager, canManageWorkAssignm
       <p>{workHoursInfo}</p>
       {memberId !== null && <button onClick={onOpenWorkHours}>Arbeitsstunden erfassen</button>}
     </section>
-    {detail && <HomeDetail session={session} selection={detail} assignments={assignments} appointments={appointments} announcements={announcements} registrations={registrations} memberId={memberId} isManager={isManager} canManageWorkAssignments={canManageWorkAssignments} busy={registeringId !== null} onClose={() => setDetail(null)} onSelect={setDetail} onRegister={registerForAssignment} onSignOff={signOffFromAssignment} onNavigate={(target) => { setDetail(null); onNavigate(target); }} />}
+    {detail && <HomeDetail session={session} selection={detail} assignments={assignments} appointments={appointments} announcements={announcements} registrations={registrations} memberId={memberId} canManageWorkAssignments={canManageWorkAssignments} canManageAppointments={canManageAppointments} canManageAnnouncements={canManageAnnouncements} busy={registeringId !== null} onClose={() => setDetail(null)} onSelect={setDetail} onRegister={registerForAssignment} onSignOff={signOffFromAssignment} onNavigate={(target) => { setDetail(null); onNavigate(target); }} />}
     <div className="home-content-grid">
       <HomeContentSection title="Arbeitseinsätze" empty="Aktuell liegen keine veröffentlichten Arbeitseinsätze vor.">{assignments.map((item) => {
         const registered = registrations.some((entry) => entry.arbeitseinsatz_id === item.id && entry.status === "angemeldet");
