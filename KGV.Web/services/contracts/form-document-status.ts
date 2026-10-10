@@ -1,14 +1,12 @@
+import type { Document } from "../../models/documents/document";
+import { resolveFormDocumentMetadata } from "../documents/document-metadata-service";
+
 export type FormDocumentStatus = "none" | "unsigned" | "signed";
-type FormDocument = { titel: string | null; dateiname: string | null };
+type FormDocument = Pick<Document, "titel" | "dateiname" | "storage_path">;
 
 export function getFormDocumentStatus(document: FormDocument, type: "mitgliedsantrag" | "pachtvertrag") {
-  const fileName = (document.dateiname ?? "").trim().split(/[\\/]/).pop() ?? "";
-  const title = (document.titel ?? "").trim();
-  const escapedType = type.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const current = new RegExp(`^.+-\\d+-\\d{4}-\\d{2}-\\d{2}-${escapedType}-(signiert|unsigniert)\\.pdf$`, "i").exec(fileName);
-  const legacy = new RegExp(`^${escapedType}-\\((signiert|unsigniert)\\)_\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}\\.pdf$`, "i").exec(fileName);
-  const definedTitle = new RegExp(`^${escapedType}\\s*\\((signiert|unsigniert)\\)$`, "i").exec(title);
-  return (current ?? legacy ?? definedTitle)?.[1].toLocaleLowerCase("de") ?? null;
+  const metadata = resolveFormDocumentMetadata(document);
+  return metadata?.type === type ? metadata.status : null;
 }
 
 export function determineFormDocumentStatus(documents: FormDocument[], type: "mitgliedsantrag" | "pachtvertrag"): FormDocumentStatus {
