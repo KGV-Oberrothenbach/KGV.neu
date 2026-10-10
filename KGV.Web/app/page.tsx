@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AppUserContext,
   BrowserSession,
@@ -53,6 +53,8 @@ import { loadReadingReviewData, reviewMeterReading, type ReadingReviewData, type
 import { MemberWorkHours } from "../features/work-hours/MemberWorkHours";
 import { WorkHoursReview } from "../features/work-hours/WorkHoursReview";
 import { WorkAssignmentsManagement } from "../features/work-assignments/WorkAssignmentsManagement";
+import { AppointmentManagement } from "../features/appointments/AppointmentManagement";
+import { AnnouncementManagement } from "../features/announcements/AnnouncementManagement";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -94,8 +96,6 @@ type SeasonAdmin = Season & { pflichtstunden_soll: number; euro_pro_fehlstunde: 
 type Parcel = { id: number; garten_nr: string; Anlage: string; flaeche_qm: number | null; hat_strom: boolean; hat_wasser: boolean; aktiv: boolean };
 type ParcelAssignment = { id: number; parzelle_id: number; mitglied_id: number; von_datum: string | null; bis_datum: string | null };
 type Reading = { id: number; zaehler_id: number; stand: number; ablesedatum: string; art: string; freigegeben: boolean; pruefstatus: string; pruefkommentar: string | null; geprueft_von: number | null; geprueft_am: string | null; foto_pfad?: string | null; foto_drive_file_id?: string | null; foto_dateiname?: string | null };
-type Appointment = { id: number; titel: string | null; beschreibung: string | null; datum: string; start_uhrzeit: string | null; end_uhrzeit?: string | null; sichtbar_ab?: string | null; sichtbar_bis?: string | null; aktiv: boolean };
-type Announcement = { id: number; titel: string | null; inhalt_html: string | null; sichtbar_ab: string | null; sichtbar_bis: string | null; sort_order?: number | null; aktiv: boolean };
 type DocumentRecord = { id: number; mitglied_id: number | null; parzelle_id: number | null; bucket: string | null; storage_path: string | null; drive_file_id: string | null; titel: string | null; dateiname: string | null; mime_type: string | null; size_bytes: number | null; updated_at: string; archiviert_at: string | null };
 type MaintenanceContract = { id: number; titel: string; beschreibung: string | null; bereich: string | null; max_aktive_zuordnungen: number; befreit_von_pflichtstunden: boolean; aktiv: boolean; bemerkung: string | null; is_demo: boolean };
 type MaintenanceAssignment = { id: number; wartungsvertrag_id: number; hauptmitglied_id: number; gueltig_ab: string; gueltig_bis: string | null; bemerkung: string | null };
@@ -443,224 +443,6 @@ function currentLocalDate() {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
-}
-
-function currentLocalDateTime() {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Berlin",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date()).reduce<Record<string, string>>((result, part) => {
-    result[part.type] = part.value;
-    return result;
-  }, {});
-
-  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
-}
-
-function addBerlinMonths(value: string, months: number) {
-  const date = new Date(`${value}:00Z`);
-  date.setUTCMonth(date.getUTCMonth() + months);
-  return date.toISOString().slice(0, 16);
-}
-
-
-function AppointmentManagement({ session, canEdit, onBack }: { session: BrowserSession; canEdit: boolean; onBack: () => void }) {
-  const [items, setItems] = useState<Appointment[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [draft, setDraft] = useState<Partial<Appointment>>({});
-  const [message, setMessage] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  function emptyDraft(): Partial<Appointment> {
-    const now = currentLocalDateTime();
-    const [hours, minutes] = now.slice(11, 16).split(":").map(Number);
-    const startMinutes = hours * 60 + minutes;
-    const endMinutes = Math.min(startMinutes + 60, 1439);
-    const endTime = `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
-    return { titel: "", beschreibung: "", datum: now.slice(0, 10), start_uhrzeit: now.slice(11, 16), end_uhrzeit: endTime, sichtbar_ab: now, sichtbar_bis: `${now.slice(0, 10)}T23:59`, aktiv: true };
-  }
-
-  const load = () => readSupabase<Appointment>(session, "termin", {
-    select: "id,titel,beschreibung,datum,start_uhrzeit,end_uhrzeit,sichtbar_ab,sichtbar_bis,aktiv",
-    order: "datum.asc",
-    limit: "500",
-  }).then((rows) => {
-    rows.sort((left, right) => `${left.datum}|${left.start_uhrzeit ?? "99:99"}|${left.end_uhrzeit ?? "99:99"}|${left.titel ?? ""}`.localeCompare(`${right.datum}|${right.start_uhrzeit ?? "99:99"}|${right.end_uhrzeit ?? "99:99"}|${right.titel ?? ""}`, "de"));
-    setItems(rows);
-    return rows;
-  }).catch((cause: Error) => { setMessage(cause.message); return [] as Appointment[]; });
-
-  useEffect(() => { void load(); }, [session]);
-  const selected = items.find((item) => item.id === selectedId) ?? null;
-  const selectedIndex = selected ? items.findIndex((item) => item.id === selected.id) : -1;
-  const editLock = useEditLock(session, "termin", selected?.id, Boolean(selected && canEdit && !creating));
-  useEffect(() => { if (!creating) setDraft(selected ?? emptyDraft()); }, [selectedId, creating]);
-  useEffect(() => { if (editLock.message) queueMicrotask(() => setMessage(editLock.message)); }, [editLock.message]);
-  const set = (key: keyof Appointment, value: string | boolean | null) => setDraft({ ...draft, [key]: value });
-  function startNew() { setCreating(true); setSelectedId(null); setDraft(emptyDraft()); setMessage(""); }
-  function selectEntry(id: number) { setCreating(false); setSelectedId(id); setMessage(""); }
-  function moveSelection(offset: number) { const target = items[selectedIndex + offset]; if (target) selectEntry(target.id); }
-
-  async function save() {
-    const title = draft.titel?.trim() ?? "";
-    if (!title || !draft.datum) { setMessage("Titel und Datum sind erforderlich."); return; }
-    if (draft.start_uhrzeit && draft.end_uhrzeit && draft.end_uhrzeit < draft.start_uhrzeit) { setMessage("Das Terminende darf nicht vor dem Beginn liegen."); return; }
-    if (draft.sichtbar_ab && draft.sichtbar_bis && draft.sichtbar_bis < draft.sichtbar_ab) { setMessage("Das Sichtbarkeitsende darf nicht vor dem Beginn liegen."); return; }
-    if (!creating && !editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; }
-    setSaving(true); setMessage("");
-    try {
-      const payload: Omit<Appointment, "id"> = { titel: title, beschreibung: draft.beschreibung?.trim() || null, datum: draft.datum, start_uhrzeit: draft.start_uhrzeit || null, end_uhrzeit: draft.end_uhrzeit || null, sichtbar_ab: draft.sichtbar_ab || null, sichtbar_bis: draft.sichtbar_bis || null, aktiv: draft.aktiv !== false };
-      const rows = creating
-        ? await writeSupabase<Appointment>(session, "termin", "POST", payload)
-        : await writeSupabase<Appointment>(session, "termin", "PATCH", payload, { id: `eq.${selected?.id}` });
-      const savedId = rows[0]?.id ?? selected?.id ?? null;
-      await load(); setCreating(false); setSelectedId(savedId); setMessage("Termin gespeichert.");
-    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Termin konnte nicht gespeichert werden."); }
-    finally { setSaving(false); }
-  }
-
-  async function deactivate() {
-    if (!selected) return;
-    if (!editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; }
-    if (!window.confirm(`Den Termin „${selected.titel ?? "Ohne Titel"}“ wirklich deaktivieren?`)) return;
-    setSaving(true); setMessage("");
-    try { await writeSupabase<Appointment>(session, "termin", "PATCH", { aktiv: false }, { id: `eq.${selected.id}` }); await load(); setMessage("Termin wurde deaktiviert."); }
-    catch (cause) { setMessage(cause instanceof Error ? cause.message : "Termin konnte nicht deaktiviert werden."); }
-    finally { setSaving(false); }
-  }
-
-  async function remove() {
-    if (!selected) return;
-    if (!editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; }
-    if (!window.confirm(`Den Termin „${selected.titel ?? "Ohne Titel"}“ endgültig löschen?`)) return;
-    setSaving(true); setMessage("");
-    try { await deleteSupabase(session, "termin", { id: `eq.${selected.id}` }); setSelectedId(null); setCreating(false); await load(); setMessage("Termin wurde gelöscht."); }
-    catch (cause) { setMessage(cause instanceof Error ? cause.message : "Termin konnte nicht gelöscht werden."); }
-    finally { setSaving(false); }
-  }
-
-  return <section className="data-workspace appointment-management">
-    <div className="data-toolbar"><div className="editor-actions"><button className="secondary-action" onClick={onBack}>Zur Startseite</button><button className="secondary-action" onClick={() => void load()}>Aktualisieren</button></div><span>{items.length} Termine</span>{canEdit && <button onClick={startNew}>Termin anlegen</button>}</div>
-    {message && <p className="notice" role="status">{message}</p>}
-    <div className="split-view"><div className="data-table-wrap"><table><thead><tr><th>Datum</th><th>Zeit</th><th>Titel</th><th>Sichtbarkeit</th><th>Status</th></tr></thead><tbody>{items.map((item) => <tr key={item.id} className={selected?.id === item.id && !creating ? "selected-row" : ""} onClick={() => selectEntry(item.id)}><td>{formatDate(item.datum)}</td><td>{formatTimeRange(item.start_uhrzeit, item.end_uhrzeit)}</td><td><strong>{item.titel}</strong></td><td>{formatDate(item.sichtbar_ab)} – {formatDate(item.sichtbar_bis)}</td><td>{item.aktiv ? "aktiv" : "inaktiv"}</td></tr>)}</tbody></table>{items.length === 0 && <p className="empty-state">Keine Termine vorhanden.</p>}</div>
-      <aside className="detail-panel member-editor"><div className="detail-title"><div><h2>{creating ? "Neuer Termin" : selected ? "Termin bearbeiten" : "Auswahl"}</h2>{selected && <p>{selectedIndex + 1} von {items.length}</p>}</div>{selected && <div className="record-navigation"><button className="secondary-action" disabled={selectedIndex <= 0} onClick={() => moveSelection(-1)} aria-label="Vorheriger Termin">←</button><button className="secondary-action" disabled={selectedIndex < 0 || selectedIndex >= items.length - 1} onClick={() => moveSelection(1)} aria-label="Nächster Termin">→</button></div>}</div>
-        {(selected || creating) ? <><fieldset disabled={!canEdit || saving}><label className="wide">Titel *<input value={draft.titel ?? ""} onChange={(event) => set("titel", event.target.value)} /></label><label>Datum *<input type="date" value={draft.datum ?? ""} onChange={(event) => set("datum", event.target.value)} /></label><label>Beginn<input type="time" value={draft.start_uhrzeit ?? ""} onChange={(event) => set("start_uhrzeit", event.target.value)} /></label><label>Ende<input type="time" value={draft.end_uhrzeit ?? ""} onChange={(event) => set("end_uhrzeit", event.target.value)} /></label><label>Sichtbar ab<input type="datetime-local" value={(draft.sichtbar_ab ?? "").slice(0, 16)} onChange={(event) => set("sichtbar_ab", event.target.value)} /></label><label>Sichtbar bis<input type="datetime-local" value={(draft.sichtbar_bis ?? "").slice(0, 16)} onChange={(event) => set("sichtbar_bis", event.target.value)} /></label><label className="wide">Beschreibung<textarea value={draft.beschreibung ?? ""} onChange={(event) => set("beschreibung", event.target.value)} /></label><label className="check"><input type="checkbox" checked={draft.aktiv !== false} onChange={(event) => set("aktiv", event.target.checked)} /> Termin aktiv</label></fieldset>
-          {canEdit && <div className="editor-actions"><button disabled={saving} onClick={() => void save()}>Speichern</button>{selected?.aktiv && <button className="reject-action" disabled={saving} onClick={() => void deactivate()}>Deaktivieren</button>}{selected && <button className="reject-action" disabled={saving} onClick={() => void remove()}>Löschen</button>}<button className="secondary-action" onClick={() => { setCreating(false); setSelectedId(null); setMessage(""); }}>Schließen</button></div>}</> : <p>Wähle links einen Termin aus oder lege einen neuen an.</p>}
-      </aside></div>
-  </section>;
-}
-
-function AnnouncementManagement({ session, canEdit, onBack }: { session: BrowserSession; canEdit: boolean; onBack: () => void }) {
-  const [items, setItems] = useState<Announcement[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [preview, setPreview] = useState(false);
-  const [draft, setDraft] = useState<Partial<Announcement>>({});
-  const [message, setMessage] = useState("");
-  const [saving, setSaving] = useState(false);
-  const htmlEditorRef = useRef<HTMLTextAreaElement | null>(null);
-
-  function emptyDraft(): Partial<Announcement> {
-    const visibleFrom = currentLocalDateTime();
-    const visibleUntil = addBerlinMonths(visibleFrom, 1);
-    return { titel: "", inhalt_html: "<p></p>", sichtbar_ab: visibleFrom, sichtbar_bis: visibleUntil, sort_order: null, aktiv: true };
-  }
-
-  const load = () => readSupabase<Announcement>(session, "bekanntmachung", {
-    select: "id,titel,inhalt_html,sichtbar_ab,sichtbar_bis,sort_order,aktiv",
-    order: "sort_order.asc",
-    limit: "500",
-  }).then((rows) => {
-    rows.sort((left, right) => {
-      const orderDifference = (left.sort_order ?? Number.MAX_SAFE_INTEGER) - (right.sort_order ?? Number.MAX_SAFE_INTEGER);
-      if (orderDifference) return orderDifference;
-      return String(right.sichtbar_ab ?? "").localeCompare(String(left.sichtbar_ab ?? "")) || String(left.titel ?? "").localeCompare(String(right.titel ?? ""), "de");
-    });
-    setItems(rows);
-    return rows;
-  }).catch((cause: Error) => { setMessage(cause.message); return [] as Announcement[]; });
-
-  useEffect(() => { void load(); }, [session]);
-  const selected = items.find((item) => item.id === selectedId) ?? null;
-  const selectedIndex = selected ? items.findIndex((item) => item.id === selected.id) : -1;
-  const editLock = useEditLock(session, "bekanntmachung", selected?.id, Boolean(selected && canEdit && !creating));
-  useEffect(() => { if (!creating) setDraft(selected ?? emptyDraft()); setPreview(false); }, [selectedId, creating]);
-  useEffect(() => { if (editLock.message) queueMicrotask(() => setMessage(editLock.message)); }, [editLock.message]);
-  const set = (key: keyof Announcement, value: string | number | boolean | null) => setDraft({ ...draft, [key]: value });
-  function startNew() { setCreating(true); setSelectedId(null); setDraft(emptyDraft()); setPreview(false); setMessage(""); }
-  function selectEntry(id: number) { setCreating(false); setSelectedId(id); setPreview(false); setMessage(""); }
-  function moveSelection(offset: number) { const target = items[selectedIndex + offset]; if (target) selectEntry(target.id); }
-  function insertSnippet(snippet: string) {
-    const editor = htmlEditorRef.current;
-    const existing = String(draft.inhalt_html ?? "");
-    const start = editor?.selectionStart ?? existing.length;
-    const end = editor?.selectionEnd ?? start;
-    const next = `${existing.slice(0, start)}${snippet}${existing.slice(end)}`;
-    set("inhalt_html", next);
-    queueMicrotask(() => { if (editor) { editor.focus(); editor.setSelectionRange(start + snippet.length, start + snippet.length); } });
-  }
-  const previewDocument = `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font:16px/1.55 system-ui,sans-serif;color:#172016;margin:24px;overflow-wrap:anywhere}a{color:#52601c}img{max-width:100%;height:auto}table{border-collapse:collapse;max-width:100%}td,th{border:1px solid #ccd2c4;padding:6px}</style></head><body>${String(draft.inhalt_html ?? "")}</body></html>`;
-
-  async function save() {
-    const title = draft.titel?.trim() ?? "";
-    const html = draft.inhalt_html?.trim() ?? "";
-    const sortOrder = draft.sort_order === null || draft.sort_order === undefined ? null : Number(draft.sort_order);
-    if (!title) { setMessage("Titel ist erforderlich."); return; }
-    if (!html) { setMessage("HTML-Inhalt ist erforderlich."); setPreview(false); return; }
-    if (draft.sichtbar_ab && draft.sichtbar_bis && draft.sichtbar_bis < draft.sichtbar_ab) { setMessage("Das Sichtbarkeitsende darf nicht vor dem Beginn liegen."); return; }
-    if (sortOrder !== null && !Number.isInteger(sortOrder)) { setMessage("Die Sortierreihenfolge muss eine ganze Zahl sein."); return; }
-    if (!creating && !editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; }
-    setSaving(true); setMessage("");
-    try {
-      const payload: Omit<Announcement, "id"> = { titel: title, inhalt_html: html, sichtbar_ab: draft.sichtbar_ab || null, sichtbar_bis: draft.sichtbar_bis || null, sort_order: sortOrder, aktiv: draft.aktiv !== false };
-      const rows = creating
-        ? await writeSupabase<Announcement>(session, "bekanntmachung", "POST", payload)
-        : await writeSupabase<Announcement>(session, "bekanntmachung", "PATCH", payload, { id: `eq.${selected?.id}` });
-      const savedId = rows[0]?.id ?? selected?.id ?? null;
-      await load(); setCreating(false); setSelectedId(savedId); setMessage("Bekanntmachung gespeichert.");
-    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Bekanntmachung konnte nicht gespeichert werden."); }
-    finally { setSaving(false); }
-  }
-
-  async function deactivate() {
-    if (!selected) return;
-    if (!editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; }
-    if (!window.confirm(`Die Bekanntmachung „${selected.titel ?? "Ohne Titel"}“ wirklich deaktivieren?`)) return;
-    setSaving(true); setMessage("");
-    try { await writeSupabase<Announcement>(session, "bekanntmachung", "PATCH", { aktiv: false }, { id: `eq.${selected.id}` }); await load(); setMessage("Bekanntmachung wurde deaktiviert."); }
-    catch (cause) { setMessage(cause instanceof Error ? cause.message : "Bekanntmachung konnte nicht deaktiviert werden."); }
-    finally { setSaving(false); }
-  }
-
-  async function remove() {
-    if (!selected) return;
-    if (!editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; }
-    if (!window.confirm(`Die Bekanntmachung „${selected.titel ?? "Ohne Titel"}“ endgültig löschen?`)) return;
-    setSaving(true); setMessage("");
-    try { await deleteSupabase(session, "bekanntmachung", { id: `eq.${selected.id}` }); setSelectedId(null); setCreating(false); await load(); setMessage("Bekanntmachung wurde gelöscht."); }
-    catch (cause) { setMessage(cause instanceof Error ? cause.message : "Bekanntmachung konnte nicht gelöscht werden."); }
-    finally { setSaving(false); }
-  }
-
-  return <section className="data-workspace announcement-management">
-    <div className="data-toolbar"><div className="editor-actions"><button className="secondary-action" onClick={onBack}>Zur Startseite</button><button className="secondary-action" onClick={() => void load()}>Aktualisieren</button></div><span>{items.length} Bekanntmachungen</span>{canEdit && <button onClick={startNew}>Bekanntmachung anlegen</button>}</div>
-    {message && <p className="notice" role="status">{message}</p>}
-    <div className="split-view"><div className="data-table-wrap"><table><thead><tr><th>Sortierung</th><th>Titel</th><th>Sichtbar</th><th>Status</th></tr></thead><tbody>{items.map((item) => <tr key={item.id} className={selected?.id === item.id && !creating ? "selected-row" : ""} onClick={() => selectEntry(item.id)}><td>{item.sort_order ?? "–"}</td><td><strong>{item.titel}</strong><small>{plainText(item.inhalt_html).slice(0, 100)}</small></td><td>{formatDate(item.sichtbar_ab)} – {formatDate(item.sichtbar_bis)}</td><td>{item.aktiv ? "aktiv" : "inaktiv"}</td></tr>)}</tbody></table>{items.length === 0 && <p className="empty-state">Keine Bekanntmachungen vorhanden.</p>}</div>
-      <aside className="detail-panel member-editor"><div className="detail-title"><div><h2>{creating ? "Neue Bekanntmachung" : selected ? "Bekanntmachung bearbeiten" : "Auswahl"}</h2>{selected && <p>{selectedIndex + 1} von {items.length}</p>}</div>{selected && <div className="record-navigation"><button className="secondary-action" disabled={selectedIndex <= 0} onClick={() => moveSelection(-1)} aria-label="Vorherige Bekanntmachung">←</button><button className="secondary-action" disabled={selectedIndex < 0 || selectedIndex >= items.length - 1} onClick={() => moveSelection(1)} aria-label="Nächste Bekanntmachung">→</button></div>}</div>
-        {(selected || creating) ? <><fieldset disabled={!canEdit || saving}><label className="wide">Titel *<input value={draft.titel ?? ""} onChange={(event) => set("titel", event.target.value)} /></label><div className="wide html-editor-tabs"><button type="button" className={!preview ? "active" : "secondary-action"} onClick={() => setPreview(false)}>HTML</button><button type="button" className={preview ? "active" : "secondary-action"} onClick={() => setPreview(true)}>Vorschau</button></div>{!preview ? <div className="wide html-editor-area"><div className="html-snippets"><button type="button" onClick={() => insertSnippet("<p>Text</p>")}>Absatz</button><button type="button" onClick={() => insertSnippet("<h3>Überschrift</h3>")}>Überschrift</button><button type="button" onClick={() => insertSnippet("<strong>Betonung</strong>")}>Fett</button><button type="button" onClick={() => insertSnippet('<a href="https://">Linktext</a>')}>Link</button><button type="button" onClick={() => insertSnippet("<ul>\n  <li>Punkt 1</li>\n  <li>Punkt 2</li>\n</ul>")}>Liste</button></div><label>Inhalt (HTML) *<textarea ref={htmlEditorRef} value={draft.inhalt_html ?? ""} onChange={(event) => set("inhalt_html", event.target.value)} /></label></div> : <div className="wide announcement-preview"><iframe title="Sichere Vorschau der Bekanntmachung" sandbox="" srcDoc={previewDocument} /></div>}<label>Sichtbar ab<input type="datetime-local" value={(draft.sichtbar_ab ?? "").slice(0, 16)} onChange={(event) => set("sichtbar_ab", event.target.value)} /></label><label>Sichtbar bis<input type="datetime-local" value={(draft.sichtbar_bis ?? "").slice(0, 16)} onChange={(event) => set("sichtbar_bis", event.target.value)} /></label><label>Sortierreihenfolge<input type="number" step="1" value={draft.sort_order ?? ""} onChange={(event) => set("sort_order", event.target.value ? Number(event.target.value) : null)} /></label><label className="check"><input type="checkbox" checked={draft.aktiv !== false} onChange={(event) => set("aktiv", event.target.checked)} /> Bekanntmachung aktiv</label></fieldset>
-          {canEdit && <div className="editor-actions"><button disabled={saving} onClick={() => void save()}>Speichern</button>{selected?.aktiv && <button className="reject-action" disabled={saving} onClick={() => void deactivate()}>Deaktivieren</button>}{selected && <button className="reject-action" disabled={saving} onClick={() => void remove()}>Löschen</button>}<button className="secondary-action" onClick={() => { setCreating(false); setSelectedId(null); setMessage(""); }}>Schließen</button></div>}</> : <p>Wähle links eine Bekanntmachung aus oder lege eine neue an.</p>}
-      </aside></div>
-  </section>;
-}
-
-function plainText(value: string | null) {
-  return (value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function MaintenanceContracts({ session, memberId, canManage }: { session: BrowserSession; memberId?: number; canManage: boolean }) {
