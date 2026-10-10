@@ -1,14 +1,18 @@
 using KGV.Core.Interfaces;
+using KGV.Core.Calendar;
 using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Core.Utilities;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
+using KGV.Maui.Utilities;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Text;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -19,6 +23,7 @@ public sealed class HomeSectionDetailPage : ContentPage
     private readonly HomeContextState _homeContextState;
     private readonly ArbeitseinsaetzeUserState _arbeitseinsaetzeUserState;
     private readonly TermineUserState _termineUserState;
+    private readonly BekanntmachungenUserState _bekanntmachungenUserState;
     private readonly ISupabaseService _supabaseService;
     private readonly UserContextState _userContextState;
     private readonly KGV.Maui.ViewModels.HomeViewModel _homeViewModel;
@@ -39,6 +44,7 @@ public sealed class HomeSectionDetailPage : ContentPage
     private readonly Button _newButton;
     private readonly Button _editButton;
     private readonly Button _deleteButton;
+    private readonly Button _calendarButton;
     private readonly Button _backButton;
     private readonly Button _previousButton;
     private readonly Button _nextButton;
@@ -50,11 +56,12 @@ public sealed class HomeSectionDetailPage : ContentPage
     private bool _isBusy;
     private bool _loadScheduled;
 
-    public HomeSectionDetailPage(HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, TermineUserState termineUserState, ISupabaseService supabaseService, UserContextState userContextState, KGV.Maui.ViewModels.HomeViewModel homeViewModel)
+    public HomeSectionDetailPage(HomeContextState homeContextState, ArbeitseinsaetzeUserState arbeitseinsaetzeUserState, TermineUserState termineUserState, BekanntmachungenUserState bekanntmachungenUserState, ISupabaseService supabaseService, UserContextState userContextState, KGV.Maui.ViewModels.HomeViewModel homeViewModel)
     {
         _homeContextState = homeContextState;
         _arbeitseinsaetzeUserState = arbeitseinsaetzeUserState;
         _termineUserState = termineUserState;
+        _bekanntmachungenUserState = bekanntmachungenUserState;
         _supabaseService = supabaseService;
         _userContextState = userContextState;
         _homeViewModel = homeViewModel;
@@ -72,6 +79,7 @@ public sealed class HomeSectionDetailPage : ContentPage
             HorizontalOptions = LayoutOptions.Fill,
             VerticalOptions = LayoutOptions.Fill
         };
+        _htmlContentView.Navigating += async (_, e) => await HandleWebNavigationAsync(e.Url, () => e.Cancel = true);
         _additionalInfoLabel = new Label { LineBreakMode = LineBreakMode.WordWrap };
         _registrationInfoLabel = new Label { LineBreakMode = LineBreakMode.WordWrap, TextColor = Colors.DarkSlateBlue };
         _workHoursInfoLabel = new Label { LineBreakMode = LineBreakMode.WordWrap, TextColor = Colors.DarkSlateBlue, IsVisible = false };
@@ -97,6 +105,9 @@ public sealed class HomeSectionDetailPage : ContentPage
 
         _deleteButton = new Button { Text = "Löschen", IsVisible = false };
         _deleteButton.Clicked += async (_, _) => await DeleteAsync();
+
+        _calendarButton = new Button { Text = "In Kalender übernehmen", IsVisible = false };
+        _calendarButton.Clicked += async (_, _) => await ExportAppointmentCalendarAsync();
 
         _previousButton = new Button { Text = "←", WidthRequest = 56, IsVisible = false };
         _previousButton.Clicked += async (_, _) => await MovePreviousAsync();
@@ -178,10 +189,10 @@ public sealed class HomeSectionDetailPage : ContentPage
                     {
                         Direction = FlexDirection.Row,
                         Wrap = FlexWrap.Wrap,
-                        Children = { _registerButton, _signOffButton, _submitWorkHoursButton, _newButton, _editButton, _deleteButton }
+                        Children = { _registerButton, _signOffButton, _submitWorkHoursButton, _calendarButton, _newButton, _editButton, _deleteButton }
                     },
                     _participantsSection,
-                    CreateWorkAssignmentNavigationFooter(),
+                    CreateDetailNavigationFooter(),
                     _statusLabel
                 }
             }
@@ -223,6 +234,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         _newButton.IsVisible = false;
         _editButton.IsVisible = false;
         _deleteButton.IsVisible = false;
+        _calendarButton.IsVisible = false;
         _previousButton.IsVisible = false;
         _nextButton.IsVisible = false;
         _positionLabel.IsVisible = false;
@@ -261,9 +273,11 @@ public sealed class HomeSectionDetailPage : ContentPage
                     _additionalInfoLabel.Text = appointment.DetailInfo;
                     _registrationInfoLabel.Text = string.Empty;
                     UpdateAppointmentNavigation();
+                    _calendarButton.IsVisible = true;
                     break;
                 case HomeDetailKind.Announcement when _homeContextState.Announcement != null:
-                    var announcement = _homeContextState.Announcement;
+                    var announcement = _bekanntmachungenUserState.CurrentEntry ?? _homeContextState.Announcement;
+                    _homeContextState.SetAnnouncement(announcement);
                     _sectionLabel.Text = "Bekanntmachung";
                     _titleLabel.Text = announcement.Title;
                     _subtitleLabel.Text = announcement.Subtitle;
@@ -273,10 +287,11 @@ public sealed class HomeSectionDetailPage : ContentPage
                     _htmlContentView.IsVisible = true;
                     _htmlContentView.Source = new HtmlWebViewSource
                     {
-                        Html = HtmlContentHelper.BuildHtmlDocument(announcement.HtmlContent)
+                        Html = HtmlContentHelper.BuildHtmlDocument(announcement.HtmlContent, "Kein Inhalt hinterlegt.")
                     };
                     _additionalInfoLabel.Text = announcement.DetailInfo;
                     _registrationInfoLabel.Text = string.Empty;
+                    UpdateAnnouncementNavigation();
                     break;
                 default:
                     _sectionLabel.Text = string.Empty;
@@ -293,12 +308,16 @@ public sealed class HomeSectionDetailPage : ContentPage
             if (_homeContextState.DetailKind is not HomeDetailKind.Announcement)
                 _contentLabel.IsVisible = !string.IsNullOrWhiteSpace(_contentLabel.Text);
 
-            var canManage = _homeContextState.DetailKind == HomeDetailKind.WorkAssignment
-                ? PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext)
-                : _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            var canManage = _homeContextState.DetailKind switch
+            {
+                HomeDetailKind.WorkAssignment => PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext),
+                HomeDetailKind.Appointment => PermissionChecks.CanManageAppointments(_userContextState.CurrentUserContext),
+                HomeDetailKind.Announcement => PermissionChecks.CanManageAnnouncements(_userContextState.CurrentUserContext),
+                _ => false
+            };
             _newButton.IsVisible = canManage;
             _editButton.IsVisible = canManage && TryGetCurrentEntryId() > 0;
-            _deleteButton.IsVisible = _editButton.IsVisible;
+            _deleteButton.IsVisible = _editButton.IsVisible && _homeContextState.DetailKind == HomeDetailKind.WorkAssignment;
             _statusLabel.Text = string.Empty;
         }
         finally
@@ -486,6 +505,15 @@ public sealed class HomeSectionDetailPage : ContentPage
             : string.Empty;
     }
 
+    private void UpdateAnnouncementNavigation()
+    {
+        var hasNavigation = _bekanntmachungenUserState.TotalCount > 0;
+        _previousButton.IsVisible = _nextButton.IsVisible = _positionLabel.IsVisible = hasNavigation;
+        _previousButton.IsEnabled = _bekanntmachungenUserState.CanMovePrevious;
+        _nextButton.IsEnabled = _bekanntmachungenUserState.CanMoveNext;
+        _positionLabel.Text = hasNavigation ? $"{_bekanntmachungenUserState.CurrentIndex + 1}/{_bekanntmachungenUserState.TotalCount}" : string.Empty;
+    }
+
     private Task MovePreviousAsync()
     {
         switch (_homeContextState.DetailKind)
@@ -502,6 +530,9 @@ public sealed class HomeSectionDetailPage : ContentPage
 
                 _homeContextState.SetAppointment(_termineUserState.CurrentEntry);
                 return LoadAsync();
+            case HomeDetailKind.Announcement:
+                if (!_bekanntmachungenUserState.MovePrevious() || _bekanntmachungenUserState.CurrentEntry == null) return Task.CompletedTask;
+                _homeContextState.SetAnnouncement(_bekanntmachungenUserState.CurrentEntry); return LoadAsync();
             default:
                 return Task.CompletedTask;
         }
@@ -523,12 +554,15 @@ public sealed class HomeSectionDetailPage : ContentPage
 
                 _homeContextState.SetAppointment(_termineUserState.CurrentEntry);
                 return LoadAsync();
+            case HomeDetailKind.Announcement:
+                if (!_bekanntmachungenUserState.MoveNext() || _bekanntmachungenUserState.CurrentEntry == null) return Task.CompletedTask;
+                _homeContextState.SetAnnouncement(_bekanntmachungenUserState.CurrentEntry); return LoadAsync();
             default:
                 return Task.CompletedTask;
         }
     }
 
-    private Grid CreateWorkAssignmentNavigationFooter()
+    private Grid CreateDetailNavigationFooter()
     {
         var grid = new Grid
         {
@@ -561,9 +595,24 @@ public sealed class HomeSectionDetailPage : ContentPage
         _newButton.IsEnabled = !isBusy;
         _editButton.IsEnabled = !isBusy;
         _deleteButton.IsEnabled = !isBusy;
+        _calendarButton.IsEnabled = !isBusy && _calendarButton.IsVisible;
         _backButton.IsEnabled = !isBusy;
-        _previousButton.IsEnabled = !isBusy && _previousButton.IsVisible && _arbeitseinsaetzeUserState.CanMovePrevious;
-        _nextButton.IsEnabled = !isBusy && _nextButton.IsVisible && (_homeContextState.DetailKind == HomeDetailKind.WorkAssignment ? _arbeitseinsaetzeUserState.CanMoveNext : _termineUserState.CanMoveNext);
+        var canMovePrevious = _homeContextState.DetailKind switch
+        {
+            HomeDetailKind.WorkAssignment => _arbeitseinsaetzeUserState.CanMovePrevious,
+            HomeDetailKind.Appointment => _termineUserState.CanMovePrevious,
+            HomeDetailKind.Announcement => _bekanntmachungenUserState.CanMovePrevious,
+            _ => false
+        };
+        var canMoveNext = _homeContextState.DetailKind switch
+        {
+            HomeDetailKind.WorkAssignment => _arbeitseinsaetzeUserState.CanMoveNext,
+            HomeDetailKind.Appointment => _termineUserState.CanMoveNext,
+            HomeDetailKind.Announcement => _bekanntmachungenUserState.CanMoveNext,
+            _ => false
+        };
+        _previousButton.IsEnabled = !isBusy && _previousButton.IsVisible && canMovePrevious;
+        _nextButton.IsEnabled = !isBusy && _nextButton.IsVisible && canMoveNext;
         if (!string.IsNullOrWhiteSpace(message))
             _statusLabel.Text = message;
     }
@@ -595,19 +644,62 @@ public sealed class HomeSectionDetailPage : ContentPage
         };
     }
 
+    private async Task HandleWebNavigationAsync(string? url, Action cancel)
+    {
+        if (SafeWebViewNavigation.IsInternal(url)) return;
+        cancel();
+        if (!SafeWebViewNavigation.TryGetAllowedExternal(url, out var uri) || uri is null)
+            return;
+        try { await Launcher.Default.OpenAsync(uri); }
+        catch { _statusLabel.Text = "Der Link konnte nicht geöffnet werden."; }
+    }
+
+    private async Task ExportAppointmentCalendarAsync()
+    {
+        var appointment = _termineUserState.CurrentEntry ?? _homeContextState.Appointment;
+        if (appointment?.Date is null || appointment.Id <= 0)
+            return;
+
+        try
+        {
+            SetBusyState(true, "Kalenderdatei wird erstellt.");
+            var content = IcsCalendarBuilder.Build(new CalendarEventData
+            {
+                Uid = $"termin-{appointment.Id}@kgv-oberrothenbach",
+                Title = appointment.Title,
+                Description = appointment.Details,
+                Date = appointment.Date.Value,
+                StartTime = appointment.StartTime,
+                EndTime = appointment.EndTime
+            });
+            var path = Path.Combine(FileSystem.CacheDirectory, $"termin-{appointment.Id}.ics");
+            await File.WriteAllTextAsync(path, content, new UTF8Encoding(false));
+            await Share.Default.RequestAsync(new ShareFileRequest
+            {
+                Title = "In Kalender übernehmen",
+                File = new ShareFile(path, "text/calendar")
+            });
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.TextColor = Colors.IndianRed;
+            _statusLabel.Text = ex.Message;
+        }
+        finally
+        {
+            SetBusyState(false);
+        }
+    }
+
     private async Task DeleteAsync()
     {
+        if (_homeContextState.DetailKind != HomeDetailKind.WorkAssignment)
+            return;
         var entryId = TryGetCurrentEntryId();
         if (entryId <= 0 || _isBusy)
             return;
 
-        var entityName = _homeContextState.DetailKind switch
-        {
-            HomeDetailKind.WorkAssignment => "Arbeitseinsatz",
-            HomeDetailKind.Appointment => "Termin",
-            HomeDetailKind.Announcement => "Bekanntmachung",
-            _ => "Datensatz"
-        };
+        const string entityName = "Arbeitseinsatz";
 
         var confirmed = await DisplayAlertAsync("Löschen bestätigen", $"{entityName} wirklich löschen?", "Löschen", "Abbrechen");
         if (!confirmed)
@@ -618,13 +710,7 @@ public sealed class HomeSectionDetailPage : ContentPage
         try
         {
             await Task.Yield();
-            var success = _homeContextState.DetailKind switch
-            {
-                HomeDetailKind.WorkAssignment => await _supabaseService.DeleteArbeitseinsatzAsync(entryId),
-                HomeDetailKind.Appointment => await _supabaseService.DeleteTerminAsync(entryId),
-                HomeDetailKind.Announcement => await _supabaseService.DeleteBekanntmachungAsync(entryId),
-                _ => false
-            };
+            var success = await _supabaseService.DeleteArbeitseinsatzAsync(entryId);
 
             if (!success)
             {
@@ -634,7 +720,6 @@ public sealed class HomeSectionDetailPage : ContentPage
             }
 
             _arbeitseinsaetzeUserState.Clear();
-            _termineUserState.Clear();
             _homeContextState.Clear();
             await _homeViewModel.ReloadAsync();
             await Shell.Current.GoToAsync("//home");

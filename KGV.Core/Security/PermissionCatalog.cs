@@ -41,6 +41,8 @@ namespace KGV.Core.Security
             new(PermissionFlags.CanApproveMeterReadings, "Ablesungen freigeben"),
             new(PermissionFlags.CanManageWorkHours, "Arbeitsstunden verwalten"),
             new(PermissionFlags.CanManageWorkAssignments, "Arbeitseinsätze verwalten"),
+            new(PermissionFlags.CanManageAppointments, "Termine verwalten"),
+            new(PermissionFlags.CanManageAnnouncements, "Bekanntmachungen verwalten"),
             new(PermissionFlags.CanReadRoles, "Rollen/Rechte sehen"),
             new(PermissionFlags.CanManageRoles, "Rollen verwalten")
         };
@@ -59,6 +61,8 @@ namespace KGV.Core.Security
             PermissionFlags.CanReadWorkHours,
             PermissionFlags.CanManageWorkHours,
             PermissionFlags.CanManageWorkAssignments,
+            PermissionFlags.CanManageAppointments,
+            PermissionFlags.CanManageAnnouncements,
             PermissionFlags.CanReadMeters,
             PermissionFlags.CanManageMeterChanges,
             PermissionFlags.CanApproveMeterReadings,
@@ -108,6 +112,18 @@ namespace KGV.Core.Security
                 PermissionFlags.CanManageWorkAssignments,
                 PermissionFlags.CanManageWorkAssignments,
                 PermissionFlags.CanManageWorkAssignments),
+            new(
+                "termine",
+                "Termine",
+                PermissionFlags.CanManageAppointments,
+                PermissionFlags.CanManageAppointments,
+                PermissionFlags.CanManageAppointments),
+            new(
+                "bekanntmachungen",
+                "Bekanntmachungen",
+                PermissionFlags.CanManageAnnouncements,
+                PermissionFlags.CanManageAnnouncements,
+                PermissionFlags.CanManageAnnouncements),
             new(
                 "zaehlerwechsel",
                 "Zählerwechsel",

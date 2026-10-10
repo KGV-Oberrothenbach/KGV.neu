@@ -24,6 +24,22 @@ public sealed class StartseiteTerminRecord : BaseModel
     [JsonConverter(typeof(NullablePostgresDateOnlyJsonConverter))]
     public DateTime? Datum { get; set; }
 
+    [Column("start_uhrzeit")]
+    public TimeSpan? StartUhrzeit { get; set; }
+
+    [Column("end_uhrzeit")]
+    public TimeSpan? EndUhrzeit { get; set; }
+
+    [Column("sichtbar_ab")]
+    [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftNullablePostgresTimestampWithoutTimeZoneJsonConverter))]
+    [JsonConverter(typeof(NullablePostgresTimestampWithoutTimeZoneJsonConverter))]
+    public DateTime? SichtbarAb { get; set; }
+
+    [Column("sichtbar_bis")]
+    [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftNullablePostgresTimestampWithoutTimeZoneJsonConverter))]
+    [JsonConverter(typeof(NullablePostgresTimestampWithoutTimeZoneJsonConverter))]
+    public DateTime? SichtbarBis { get; set; }
+
     [Column("beginn")]
     public string? Beginn { get; set; }
 

@@ -270,9 +270,7 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
     {
         base.OnAppearing();
 
-        var canManageCurrentSection = _currentSection == ManagementSection.WorkAssignments
-            ? PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext)
-            : _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+        var canManageCurrentSection = CanManageSection(_currentSection);
         if (!canManageCurrentSection)
         {
             _statusLabel.Text = "Für diese Verwaltung fehlt die Berechtigung.";
@@ -704,15 +702,21 @@ public sealed class HomeManagementPage : ContentPage, IQueryAttributable
     private void SetBusy(bool busy)
     {
         _isBusy = busy;
-        var isAuthorized = _currentSection == ManagementSection.WorkAssignments
-            ? PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext)
-            : _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+        var isAuthorized = CanManageSection(_currentSection);
         _sectionPicker.IsEnabled = isAuthorized && !busy;
         _refreshButton.IsEnabled = isAuthorized && !busy;
         _newButton.IsEnabled = isAuthorized && !busy;
         _entriesView.IsEnabled = isAuthorized && !busy;
         _saveButton.IsEnabled = isAuthorized && !busy;
     }
+
+    private bool CanManageSection(ManagementSection section) => section switch
+    {
+        ManagementSection.WorkAssignments => PermissionChecks.CanManageWorkAssignments(_userContextState.CurrentUserContext),
+        ManagementSection.Appointments => PermissionChecks.CanManageAppointments(_userContextState.CurrentUserContext),
+        ManagementSection.Announcements => PermissionChecks.CanManageAnnouncements(_userContextState.CurrentUserContext),
+        _ => false
+    };
 
     private async Task SaveAnnouncementAsync()
     {

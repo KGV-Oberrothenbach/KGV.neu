@@ -64,7 +64,8 @@ public static class InsertRecordMappingExtensions
             SichtbarBis = record.SichtbarBis,
             Aktiv = record.Aktiv,
             CreatedAt = record.CreatedAt,
-            UpdatedAt = record.UpdatedAt
+            UpdatedAt = record.UpdatedAt,
+            IsDemo = record.IsDemo
         };
     }
 
@@ -81,7 +82,8 @@ public static class InsertRecordMappingExtensions
             SortOrder = record.SortOrder,
             Aktiv = record.Aktiv,
             CreatedAt = record.CreatedAt,
-            UpdatedAt = record.UpdatedAt
+            UpdatedAt = record.UpdatedAt,
+            IsDemo = record.IsDemo
         };
     }
 

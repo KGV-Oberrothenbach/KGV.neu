@@ -5430,9 +5430,9 @@ namespace KGV.Infrastructure.Services
 
                 return response?.Models?
                     .Select(NormalizeTerminRecord)
-                    .Where(OperationalDataFilter.IsOperationalTermin)
                     .OrderBy(x => x.Datum)
                     .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
+                    .ThenBy(x => x.EndUhrzeit ?? TimeSpan.MaxValue)
                     .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                     .ToList()
                     ?? new List<TerminRecord>();
@@ -5458,7 +5458,8 @@ namespace KGV.Infrastructure.Services
                     SichtbarBis = NormalizeTimestampWithoutTimeZone(request.SichtbarBis),
                     Aktiv = request.Aktiv,
                     CreatedAt = now,
-                    UpdatedAt = now
+                    UpdatedAt = now,
+                    IsDemo = request.IsDemo
                 };
 
                 if (!await InsertTerminAsync(insertRecord))
@@ -5477,6 +5478,7 @@ namespace KGV.Infrastructure.Services
                     Aktiv = insertRecord.Aktiv,
                     CreatedAt = insertRecord.CreatedAt,
                     UpdatedAt = insertRecord.UpdatedAt
+                    ,IsDemo = insertRecord.IsDemo
                 };
                 var reloadResponse = await client
                     .From<TerminRecord>()
@@ -5548,7 +5550,6 @@ namespace KGV.Infrastructure.Services
 
                 return response?.Models?
                     .Select(NormalizeBekanntmachungRecord)
-                    .Where(OperationalDataFilter.IsOperationalBekanntmachung)
                     .OrderBy(x => x.SortOrder ?? int.MaxValue)
                     .ThenByDescending(x => x.SichtbarAb ?? x.CreatedAt ?? DateTime.MinValue)
                     .ThenBy(x => x.Titel ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
@@ -5575,7 +5576,8 @@ namespace KGV.Infrastructure.Services
                     SortOrder = request.SortOrder,
                     Aktiv = request.Aktiv,
                     CreatedAt = now,
-                    UpdatedAt = now
+                    UpdatedAt = now,
+                    IsDemo = request.IsDemo
                 };
 
                 await client.From<BekanntmachungInsertRecord>().Insert(insertRecord);
@@ -5589,6 +5591,7 @@ namespace KGV.Infrastructure.Services
                     Aktiv = insertRecord.Aktiv,
                     CreatedAt = insertRecord.CreatedAt,
                     UpdatedAt = insertRecord.UpdatedAt
+                    ,IsDemo = insertRecord.IsDemo
                 };
                 var reloadResponse = await client.From<BekanntmachungRecord>().Get();
                 var reloadItems = reloadResponse?.Models?
@@ -6126,6 +6129,7 @@ namespace KGV.Infrastructure.Services
                 Aktiv = record.Aktiv,
                 CreatedAt = record.CreatedAt,
                 UpdatedAt = record.UpdatedAt
+                ,IsDemo = record.IsDemo
             };
         }
 
@@ -6142,6 +6146,7 @@ namespace KGV.Infrastructure.Services
                 Aktiv = record.Aktiv,
                 CreatedAt = record.CreatedAt,
                 UpdatedAt = record.UpdatedAt
+                ,IsDemo = record.IsDemo
             };
         }
 
@@ -6990,13 +6995,10 @@ namespace KGV.Infrastructure.Services
                 .ToList()
                 ?? new List<StartseiteTerminRecord>();
 
-            await EnrichStartseiteTerminTimesAsync(client, records);
-            records = await FilterVisibleStartseiteTermineAsync(client, records);
-
             return records
                 .OrderBy(x => x.Datum ?? DateTime.MaxValue)
-                .ThenBy(x => NormalizeTimeValue(x.Beginn) ?? "99:99", StringComparer.Ordinal)
-                .ThenBy(x => NormalizeTimeValue(x.Ende) ?? "99:99", StringComparer.Ordinal)
+                .ThenBy(x => x.StartUhrzeit ?? TimeSpan.MaxValue)
+                .ThenBy(x => x.EndUhrzeit ?? TimeSpan.MaxValue)
                 .ThenBy(x => FirstNonEmpty(x.Titel, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
                 .ThenBy(x => x.Id)
                 .Select(MapHomeAppointment)
@@ -7009,11 +7011,10 @@ namespace KGV.Infrastructure.Services
             var client = await EnsureClientAsync();
             var response = await client.From<StartseiteBekanntmachungRecord>().Get();
             var records = response?.Models?.ToList() ?? new List<StartseiteBekanntmachungRecord>();
-            records = await FilterVisibleStartseiteBekanntmachungenAsync(client, records);
-
             return records
-                .OrderByDescending(x => x.VeroeffentlichtAm ?? x.UpdatedAt ?? DateTime.MinValue)
-                .ThenBy(x => FirstNonEmpty(x.Titel, x.Betreff, x.Thema) ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                .OrderBy(x => x.SortOrder ?? int.MaxValue)
+                .ThenByDescending(x => x.CreatedAt ?? DateTime.MinValue)
+                .ThenByDescending(x => x.Id)
                 .Select(MapHomeAnnouncement)
                 .ToList()
                 ?? new List<HomeAnnouncementItem>();
@@ -7033,24 +7034,6 @@ namespace KGV.Infrastructure.Services
             return records
                 .Where(x => byId.TryGetValue(x.Id, out var record)
                             && OperationalDataFilter.IsOperationalTermin(record)
-                            && IsCurrentlyVisible(record.Aktiv, record.SichtbarAb, record.SichtbarBis, now))
-                .ToList();
-        }
-
-        private async Task<List<StartseiteBekanntmachungRecord>> FilterVisibleStartseiteBekanntmachungenAsync(global::Supabase.Client client, List<StartseiteBekanntmachungRecord> records)
-        {
-            if (records.Count == 0)
-                return records;
-
-            var response = await client.From<BekanntmachungRecord>().Get();
-            var byId = response?.Models?
-                .Select(NormalizeBekanntmachungRecord)
-                .ToDictionary(x => x.Id) ?? new Dictionary<long, BekanntmachungRecord>();
-            var now = CreateEditorNowDefault();
-
-            return records
-                .Where(x => byId.TryGetValue(x.BekanntmachungId ?? x.Id, out var record)
-                            && OperationalDataFilter.IsOperationalBekanntmachung(record)
                             && IsCurrentlyVisible(record.Aktiv, record.SichtbarAb, record.SichtbarBis, now))
                 .ToList();
         }
@@ -7136,10 +7119,10 @@ namespace KGV.Infrastructure.Services
         private static HomeAppointmentItem MapHomeAppointment(StartseiteTerminRecord record)
         {
             var title = FirstNonEmpty(record.Titel, record.Thema) ?? "Termin";
-            var details = NormalizeHomeText(FirstNonEmpty(record.Inhalt, record.Beschreibung));
+            var details = NormalizeHomeText(FirstNonEmpty(record.Beschreibung, record.Inhalt));
             var detailInfoLines = new List<string>();
-            var begin = NormalizeTimeValue(record.Beginn);
-            var end = NormalizeTimeValue(record.Ende);
+            var begin = FormatTimeValue(record.StartUhrzeit) ?? NormalizeTimeValue(record.Beginn);
+            var end = FormatTimeValue(record.EndUhrzeit) ?? NormalizeTimeValue(record.Ende);
 
             AddDetailLine(detailInfoLines, "Thema", record.Thema, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase));
             AddDetailLine(detailInfoLines, "Datum", record.Datum?.ToString("dd.MM.yyyy"));
@@ -7148,6 +7131,9 @@ namespace KGV.Infrastructure.Services
             return new HomeAppointmentItem
             {
                 Id = record.Id,
+                Date = record.Datum,
+                StartTime = record.StartUhrzeit ?? ParseTimeValue(record.Beginn),
+                EndTime = record.EndUhrzeit ?? ParseTimeValue(record.Ende),
                 Title = title,
                 Subtitle = record.Datum?.ToString("dd.MM.yyyy") ?? string.Empty,
                 StartTimeText = begin ?? string.Empty,
@@ -7159,13 +7145,16 @@ namespace KGV.Infrastructure.Services
 
         private static HomeAnnouncementItem MapHomeAnnouncement(StartseiteBekanntmachungRecord record)
         {
-            var published = record.VeroeffentlichtAm ?? record.Datum ?? record.ErstelltAm ?? record.UpdatedAt;
+            var published = record.SichtbarAb ?? record.CreatedAt ?? record.VeroeffentlichtAm ?? record.Datum ?? record.ErstelltAm ?? record.UpdatedAt;
+            var created = record.CreatedAt ?? record.VeroeffentlichtAm ?? record.Datum ?? record.ErstelltAm ?? record.UpdatedAt;
             var title = FirstNonEmpty(record.Titel, record.Betreff, record.Thema) ?? "Bekanntmachung";
             var detailInfoLines = new List<string>();
 
             AddDetailLine(detailInfoLines, "Betreff", record.Betreff, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase));
             AddDetailLine(detailInfoLines, "Thema", record.Thema, value => !string.Equals(value, title, StringComparison.CurrentCultureIgnoreCase) && !string.Equals(value, record.Betreff, StringComparison.CurrentCultureIgnoreCase));
-            AddDetailLine(detailInfoLines, "Veröffentlicht am", published?.ToString("dd.MM.yyyy HH:mm"));
+            AddDetailLine(detailInfoLines, "Sichtbar ab", record.SichtbarAb?.ToString("dd.MM.yyyy HH:mm"));
+            AddDetailLine(detailInfoLines, "Sichtbar bis", record.SichtbarBis?.ToString("dd.MM.yyyy HH:mm"));
+            AddDetailLine(detailInfoLines, "Veröffentlicht am", created?.ToString("dd.MM.yyyy HH:mm"));
             AddDetailLine(detailInfoLines, "Kurztext", record.Kurztext);
 
             return new HomeAnnouncementItem
@@ -7381,6 +7370,11 @@ namespace KGV.Infrastructure.Services
                 : value;
         }
 
+        private static TimeSpan? ParseTimeValue(string? value)
+        {
+            return TimeSpan.TryParse(value, out var time) ? time : null;
+        }
+
         private static string BuildCapacityText(int? angemeldetCount, int? freiePlaetze)
         {
             var parts = new List<string>();
@@ -7463,6 +7457,10 @@ namespace KGV.Infrastructure.Services
                 Titel = record.Titel,
                 Thema = record.Thema,
                 Datum = NormalizeDateOnly(record.Datum),
+                StartUhrzeit = record.StartUhrzeit,
+                EndUhrzeit = record.EndUhrzeit,
+                SichtbarAb = record.SichtbarAb,
+                SichtbarBis = record.SichtbarBis,
                 Beginn = record.Beginn,
                 Ende = record.Ende,
                 Ort = record.Ort,
