@@ -6425,6 +6425,21 @@ Ausbauablesung beendet den Zähler
 → keine zusätzliche JEA erforderlich
 ```
 
+### Erledigt in G12.3
+Die Web-Fachbasis verwendet `rpc_export_jahresablesung_status` über
+`repositories/readings/year-end-reading-repository.ts`. Der zentrale
+`services/seasons/jea-readiness-service.ts` bewertet ausschließlich die
+zurückgegebenen Statuszeilen für eine Saison:
+
+- nur `JEA freigegeben` erfüllt die Bereitschaft;
+- `JEA fehlt`, `JEA abgelehnt – neu erfassen` und `JEA eingereicht` blockieren;
+- die RPC bleibt alleinige Definition dafür, welche Zähler JEA-pflichtig sind;
+- ausgebaute Zähler benötigen gemäß RPC keine zusätzliche JEA;
+- ein Pächterwechsel wird als Hinweis, nicht als Blocker weitergegeben.
+
+G12.3 berechnet keinen Verbrauch und enthält keine Jahresabschlussoberfläche.
+G12.4 (serverseitige Verbrauchsauswertung) bleibt offen.
+
 ### Aktueller JahresabschlussService
 `PruefeAsync(...)` prüft dagegen lediglich, ob für das Medium irgendeine Ablesung innerhalb des Saisonjahres existiert.
 
@@ -6438,10 +6453,12 @@ JEA fehlt
 im aktuellen Jahresabschluss-Prüfweg unter Umständen trotzdem als vorhanden gelten.
 
 ### Bewertung
-❌ Jahresabschluss-Prüfung und vorhandene JEA-Fachlogik sind noch nicht vereinheitlicht.
+✅ Die Web-Fachbasis für die JEA-Bereitschaft ist auf die führende DB-RPC
+vereinheitlicht. Der vollständige Jahresabschluss bleibt nicht implementiert.
 
-Die RPC ist aktuell an den Export `jahresablesung_status` angeschlossen. Der
-Web-Jahresabschluss ist nicht implementiert und ruft diese RPC nicht auf.
+Die RPC ist an den Export `jahresablesung_status` und den zentralen
+Web-Readiness-Service angeschlossen. Der Web-Jahresabschluss ist weiterhin
+nicht implementiert.
 
 ### Ziel
 Der Jahresabschluss muss dieselbe zentrale JEA-Regel verwenden wie:
