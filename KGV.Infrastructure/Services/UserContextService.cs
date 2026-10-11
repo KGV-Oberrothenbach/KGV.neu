@@ -9,6 +9,11 @@ using KGV.Core.Interfaces;
 
 namespace KGV.Infrastructure.Services
 {
+    public sealed class KgvAccessDeniedException : Exception
+    {
+        public KgvAccessDeniedException() : base("Für dieses Konto ist kein gültiger KGV-Zugang hinterlegt. Bitte wende dich an den Vorstand.") { }
+    }
+
     public interface IUserContextService
     {
         Task<UserContext> GetUserContextAsync(Guid userId);
@@ -39,28 +44,21 @@ namespace KGV.Infrastructure.Services
             {
                 Client client = await _clientFactory.CreateAsync();
 
-                var resp = await client
-                    .From<AppUserRecord>()
-                    .Where(x => x.UserId == userId)
-                    .Get();
-
-                var list = resp?.Models?.ToList();
-                var record = list?.FirstOrDefault();
+                var record = await client.Rpc<AppUserRecord>("current_app_user_context", new { });
 
                 if (record == null)
                 {
-                    _logger?.LogWarning("No app_user record found for user {UserId}. Falling back to role 'user'.", userId);
-                    return _permissionService.CreateContext(userId, UserRoles.User, mitgliedId: null);
+                    _logger?.LogWarning("No valid app_user context found for user {UserId}.", userId);
+                    throw new KgvAccessDeniedException();
                 }
 
-                if (list != null && list.Count > 1)
-                    _logger?.LogWarning("Multiple app_user records found for user {UserId}. Using the first one.", userId);
+                if (record.UserId != userId || !record.MitgliedId.HasValue || record.MitgliedId <= 0 ||
+                    !string.Equals(record.Role, UserRoles.Admin, StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(record.Role, UserRoles.Vorstand, StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(record.Role, UserRoles.User, StringComparison.OrdinalIgnoreCase))
+                    throw new KgvAccessDeniedException();
 
-                var role = string.IsNullOrWhiteSpace(record.Role)
-                    ? UserRoles.User
-                    : record.Role;
-
-                return _permissionService.CreateContext(userId, role, record.MitgliedId, record.PermissionGrants, record.PermissionRevocations);
+                return _permissionService.CreateContext(userId, record.Role, record.MitgliedId, record.PermissionGrants, record.PermissionRevocations);
             }
             catch (Exception ex)
             {
