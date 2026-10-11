@@ -20,6 +20,9 @@ public sealed class JahresabschlussPage : ContentPage
     private readonly Picker _saisonPicker = new() { Title = "Saison wählen" };
     private readonly Label _status = new() { TextColor = Colors.DarkSlateBlue, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap };
     private readonly ObservableCollection<JahresabschlussRechnungRecord> _rechnungen = new();
+    private readonly Button _neueRechnung;
+    private readonly Button _stammdaten;
+    private readonly Button _pruefen;
     private bool _loading;
 
     public JahresabschlussPage(ISupabaseService supabase, IJahresabschlussService abschluss, UserContextState context)
@@ -53,25 +56,33 @@ public sealed class JahresabschlussPage : ContentPage
             }
         };
 
-        var neueRechnung = new Button { Text = "Rechnung erfassen" };
-        neueRechnung.Clicked += async (_, _) => { if (_saisonPicker.SelectedItem is SaisonRecord saison) await Navigation.PushAsync(new JahresabschlussRechnungEditorPage(_supabase, saison)); };
-        var stammdaten = new Button { Text = "Kosten- und Umlagearten verwalten" };
-        stammdaten.Clicked += async (_, _) => await Navigation.PushAsync(new JahresabschlussStammdatenPage(_supabase));
-        var pruefen = new Button { Text = "Abschluss prüfen" };
-        pruefen.Clicked += async (_, _) => { if (_saisonPicker.SelectedItem is SaisonRecord saison) await Navigation.PushAsync(new JahresabschlussPruefungPage(_abschluss, saison, _context)); };
+        _neueRechnung = new Button { Text = "Rechnung erfassen" };
+        _neueRechnung.Clicked += async (_, _) => { if (CanPerformYearEndClosing && _saisonPicker.SelectedItem is SaisonRecord saison) await Navigation.PushAsync(new JahresabschlussRechnungEditorPage(_supabase, saison)); };
+        _stammdaten = new Button { Text = "Kosten- und Umlagearten verwalten" };
+        _stammdaten.Clicked += async (_, _) => { if (CanPerformYearEndClosing) await Navigation.PushAsync(new JahresabschlussStammdatenPage(_supabase)); };
+        _pruefen = new Button { Text = "Abschluss prüfen" };
+        _pruefen.Clicked += async (_, _) => { if (CanPerformYearEndClosing && _saisonPicker.SelectedItem is SaisonRecord saison) await Navigation.PushAsync(new JahresabschlussPruefungPage(_abschluss, saison, _context)); };
 
         Content = new ScrollView { Content = new VerticalStackLayout { Padding = 24, Spacing = 12, Children =
         {
             new Label { Text = "Jahresabschluss", FontSize = 24, FontAttributes = FontAttributes.Bold },
             new Label { Text = "Rechnungen erfassen und ihre Umlagen vollständig zuordnen.", TextColor = Colors.Gray, LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap },
-            _saisonPicker, neueRechnung, stammdaten, pruefen, _status, rechnungenView
+            _saisonPicker, _neueRechnung, _stammdaten, _pruefen, _status, rechnungenView
         } } };
         Appearing += async (_, _) => await LoadAsync();
     }
 
     private async Task LoadAsync()
     {
-        if (_loading || !PermissionChecks.CanPerformYearEndClosing(_context.CurrentUserContext)) { _status.Text = "Für den Jahresabschluss fehlt die Berechtigung."; return; }
+        if (_loading || !CanPerformYearEndClosing)
+        {
+            _saisonPicker.IsEnabled = false;
+            _neueRechnung.IsEnabled = false;
+            _stammdaten.IsEnabled = false;
+            _pruefen.IsEnabled = false;
+            _status.Text = "Für den Jahresabschluss fehlt die Berechtigung.";
+            return;
+        }
         _loading = true;
         try
         {
@@ -87,11 +98,13 @@ public sealed class JahresabschlussPage : ContentPage
 
     private async Task LoadRechnungenAsync()
     {
-        if (_loading || _saisonPicker.SelectedItem is not SaisonRecord saison) return;
+        if (_loading || !CanPerformYearEndClosing || _saisonPicker.SelectedItem is not SaisonRecord saison) return;
         _rechnungen.Clear();
         foreach (var rechnung in await _supabase.GetJahresabschlussRechnungenAsync(saison.Id)) _rechnungen.Add(rechnung);
         _status.Text = _rechnungen.Count == 0 ? string.Empty : $"{_rechnungen.Count} Rechnung(en) für {saison.Jahr}. Zum Bearbeiten antippen.";
     }
+
+    private bool CanPerformYearEndClosing => PermissionChecks.CanPerformYearEndClosing(_context.CurrentUserContext);
 }
 
 internal sealed class RechnungSummaryConverter : IValueConverter

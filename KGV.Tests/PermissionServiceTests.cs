@@ -140,6 +140,22 @@ public sealed class PermissionServiceTests
     }
 
     [Fact]
+    public void HasAnyManagementWorkspaceAccess_UsesEffectiveCapabilitiesAndFailsClosed()
+    {
+        var service = new PermissionService();
+        var ordinaryUser = service.CreateContext(Guid.NewGuid(), "user", null);
+        var documentReader = service.CreateContext(Guid.NewGuid(), "user", null, (long)PermissionFlags.CanReadDocuments);
+        var yearEndClosingUser = service.CreateContext(Guid.NewGuid(), "user", null, (long)PermissionFlags.CanPerformYearEndClosing);
+        var revokedAdmin = service.CreateContext(Guid.NewGuid(), "admin", null, null, (long)(PermissionFlags.CanPerformYearEndClosing | PermissionFlags.CanManageRoles));
+
+        Assert.False(PermissionChecks.HasAnyManagementWorkspaceAccess(null));
+        Assert.False(PermissionChecks.HasAnyManagementWorkspaceAccess(ordinaryUser));
+        Assert.True(PermissionChecks.HasAnyManagementWorkspaceAccess(documentReader));
+        Assert.True(PermissionChecks.HasAnyManagementWorkspaceAccess(yearEndClosingUser));
+        Assert.True(PermissionChecks.HasAnyManagementWorkspaceAccess(revokedAdmin));
+    }
+
+    [Fact]
     public void PermissionCatalog_ContainsYearEndClosingInKnownAndUserEditablePermissions()
     {
         Assert.True(PermissionCatalog.GetKnownPermissionMask().HasFlag(PermissionFlags.CanPerformYearEndClosing));

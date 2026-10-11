@@ -162,6 +162,14 @@ public sealed class SaisonverwaltungPage : ContentPage
         if (_isBusy)
             return;
 
+        if (!IsAdmin)
+        {
+            _saisons.Clear();
+            SetStatus("Für die Saisonverwaltung fehlt die Berechtigung.", isError: true);
+            ApplyEditorEnabledState();
+            return;
+        }
+
         try
         {
             _isBusy = true;

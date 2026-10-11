@@ -147,6 +147,14 @@ public sealed class VereinskonfigurationPage : ContentPage
         if (_isBusy)
             return;
 
+        if (!IsAdmin)
+        {
+            _currentRecord = null;
+            SetStatus("Für die Vereinskonfiguration fehlt die Berechtigung.", true);
+            ApplyEditorEnabledState();
+            return;
+        }
+
         try
         {
             _isBusy = true;
