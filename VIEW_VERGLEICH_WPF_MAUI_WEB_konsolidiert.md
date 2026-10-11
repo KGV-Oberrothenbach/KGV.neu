@@ -7216,16 +7216,30 @@ nicht bereits vorhandene Webfunktionalität.
 
 ### Serverseitige Verbrauchsauswertung
 
-Im geprüften aktuellen Repo ist `rpc_export_jahresablesung_status` für den
-JEA-Status vorhanden. Eine serverseitige RPC/Serviceauswertung für
-Verbrauchssegmente, Pächterwechsel, Leerstand und umlagefähige Summen wurde
-dagegen nicht gefunden; ebenso kein angebundener JAE-XLSX-Export. Die
-`jahresabschluss_verbrauch`-Tabelle ist als Datenmodell vorhanden, wird aber
-vom aktuellen Jahresabschluss-Service nicht befüllt.
+Erledigt in G12.4: `rpc_jahresverbrauch_segmente(p_jahr integer)` ist die
+zentrale, read-only Serverquelle für physische Strom- und Wasserverbrauchs-
+segmente. `annual-consumption-repository.ts` und
+`annual-consumption-service.ts` laden ausschließlich deren Ergebnis; im Web
+wird kein Verbrauch aus Zählerständen berechnet.
 
-Die festgelegte Zielregel bleibt: Verbrauch segmentieren und zuordnen auf der
-Serverseite; Web/Excel dürfen die Fachberechnung nicht duplizieren. Dieser
-Pfad ist vor produktiver Verwendung noch umzusetzen.
+- Im Normalfall begrenzen freigegebene JEA des Vorjahres und des aktuellen
+  Jahres den Verbrauch. Wasser wird nicht auf den 31.12. hochgerechnet.
+- Freigegebene Einbau- und Ausbauablesungen begrenzen neue bzw. ausgebaute
+  Zähler; dadurch werden Zählerwechsel nicht über verschiedene Zählerstände
+  verrechnet.
+- Pächterwechsel benötigt eine reale, freigegebene Ablesung an einem der
+  angrenzenden Übergangstage. Fehlt sie oder ist sie uneindeutig, wird das
+  Segment nicht berechenbar ausgewiesen; es gibt keine zeitanteilige Schätzung.
+- Leerstand bleibt ein eigenes Segment mit `mitglied_id = NULL` und der
+  Bezeichnung `Leerstand`.
+- Fehlende oder nicht freigegebene Grenzen sowie negative Verbräuche werden
+  mit Berechnungsstatus und Fehlercode zurückgegeben, nicht stillschweigend
+  ersetzt oder auf null gesetzt.
+
+`jahresabschluss_verbrauch` bleibt ein späterer Snapshot und wird nicht
+beschrieben. G14 muss diese G12.4-Quelle später für Export und Auswertung
+wiederverwenden. G12.5 bleibt offen; es wurde weder eine Geld-/Umlage- noch
+eine Jahresabschlussoberfläche umgesetzt.
 
 ---
 
