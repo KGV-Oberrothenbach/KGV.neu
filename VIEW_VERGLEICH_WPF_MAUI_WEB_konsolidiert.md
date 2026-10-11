@@ -1847,7 +1847,8 @@ Bereits vorhanden:
 - Foto
 - Foto-Pflicht über `meter_reading_photo_required`
 - Nutzerfreigabe über `allow_user_meter_reading_submissions`
-- letzte freigegebene Ablesung prüfen
+- Plausibilität gegen vorherige und nachfolgende freigegebene Ablesungen
+- auffällige, aber technisch mögliche Stände vor Ort warnen und bewusst bestätigen
 - Duplikatprüfung
 - direkt freigegeben oder eingereicht speichern
 
@@ -7238,8 +7239,26 @@ wird kein Verbrauch aus Zählerständen berechnet.
 
 `jahresabschluss_verbrauch` bleibt ein späterer Snapshot und wird nicht
 beschrieben. G14 muss diese G12.4-Quelle später für Export und Auswertung
-wiederverwenden. G12.5 bleibt offen; es wurde weder eine Geld-/Umlage- noch
-eine Jahresabschlussoberfläche umgesetzt.
+wiederverwenden. Es wurde weder eine Geld-/Umlage- noch eine
+Jahresabschlussoberfläche umgesetzt.
+
+### G12.5 Plausibilitätswarnungen bei der Erfassung
+
+Die G6-Ableseerfassung prüft vor dem Schreiben ausschließlich innerhalb
+desselben Zählers gegen die zeitlich vorherige und nachfolgende freigegebene
+Ablesung. Ein neuer Stand unter dem vorherigen oder über dem nachfolgenden
+Stand ist eine maschinenlesbare Warnung, keine pauschale Sperre. Die Web-UI
+zeigt die vom Fachservice gelieferte Begründung und verlangt eine bewusste
+Bestätigung; erst danach wird die Ablesung gespeichert. Das gilt für normale
+Ablesungen, JEA und die Ausbauablesung. Einbauwerte werden nicht mit dem
+Vorgängerzähler verglichen.
+
+Ungültige Eingaben, Rechte- und Scope-Verstöße, nicht verwendbare Zähler oder
+Parzellen sowie nicht abgelehnte Duplikate bleiben blockierende Fehler und
+können nicht bestätigt werden. Es gibt keine neuen Verbrauchsgrenzwerte und
+keine Verbrauchsberechnung im Browser. G12.4 bleibt die zentrale
+serverseitige Verbrauchsquelle; negative Segmentdifferenzen bleiben dort
+nicht berechenbar.
 
 ---
 
