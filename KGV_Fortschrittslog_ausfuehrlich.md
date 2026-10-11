@@ -756,3 +756,10 @@ Für die tägliche Arbeit reicht diese Fassung in der Regel aus, weil sie die fo
 - Eine neue Forward-Migration `20261011114000_g7_fix_work_hour_update_trigger.sql` ersetzt nur diese Funktion und entfernt ausschließlich den ungültigen Vergleich `new.is_demo is distinct from old.is_demo`. Eigenmitglied-/Statusprüfungen, unveränderliche Mitglieds-/Saison- und Anmeldungsfelder, G7-Review-Sonderpfad, festes Einsatzdatum, Browser-Lock und bestehende Fehlertexte/SQLSTATEs bleiben erhalten.
 - Der bestehende BEFORE UPDATE Trigger verweist bereits auf dieselbe Funktionssignatur; `CREATE OR REPLACE FUNCTION` aktualisiert den Funktionskörper, ohne eine DROP/CREATE-Kette für den Trigger zu benötigen.
 - Kein `is_demo`-Feld, keine RLS- oder G8-Fachlogikänderung. Demo-Scope bleibt über Mitglieds-ID und vorhandene RLS-Funktionen. Der Migrationstest vergleicht die Forward-Funktion mit der letzten G8-Definition minus genau dem ungültigen Feldvergleich.
+
+## 2026-10-11 - WEB G10 Mitgliedsdokumente
+
+- Die Mitgliedsdokumentenseite verwendet unverändert den Owner `memberDocumentOwner(selectedMemberId)` und lädt über den G10-Service/das Repository nach `mitglied_id` sowie `archiviert_at is null`.
+- Ursache des Ladefehlers war der generische clientseitige `is_demo`-Filter für `dokument`. Schema und Datenbanktypen führen kein `dokument.is_demo`; die RLS bestimmt den erlaubten Scope über Eigentümer (`mitglied_id` beziehungsweise aktive Belegung zur `parzelle_id`) und `is_demo_dokument_scope(...)`.
+- Ausschließlich `dokument` wurde aus `demoScopedTables` entfernt. RLS, Archivfilter, Service-/Repositorypfad und getrennte Mitglieds-/Parzellen-Owner bleiben erhalten. Pachtverträge werden fachlich als Parzellendokumente gespeichert und nicht in die Mitgliedsliste gemischt.
+- Regressionstest sichert tatsächliche G10-Abfragefilter, leere Ergebnisse ohne Shadow-Logik, Ausschluss archivierter Dokumente, getrennte Parzellenabfragen sowie fortbestehenden Demo-Filter für `mitglied`.

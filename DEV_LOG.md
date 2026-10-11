@@ -12079,3 +12079,11 @@ Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implement
 - Der bestehende BEFORE UPDATE Trigger zeigt weiterhin auf dieselbe Funktionssignatur; `CREATE OR REPLACE FUNCTION` erhält die Triggerbindung, daher ist keine Trigger-Neuanlage erforderlich.
 - Regressionstest vergleicht die neue Funktionslogik mit der letzten G8-Fassung und sichert Mitglieds-/Saison-/Anmeldungs-IDs, Review-Sonderpfad, feste Einsatzdaten und Browser-Lock setzen/freigeben.
 - `arbeitsstunde.is_demo` wird nicht eingeführt; Demo-Scope bleibt über `mitglied_id` und RLS. Der zuvor in F4 dokumentierte Folgepunkt ist damit durch eine Forward-Korrektur erledigt.
+
+## 2026-10-11 - WEB G10 Mitgliedsdokumente
+
+- Mitgliedskontext führt über `selectedMemberId` zu `memberDocumentOwner(selectedMemberId)`, `DocumentList`, G10-Service und Repository. Der Repositoryfilter `mitglied_id` sowie `archiviert_at is null` waren fachlich passend; Parzellen-Dokumente bleiben separat über `parzelle_id`.
+- Ursache: `dokument` besitzt laut Datenbanktypen und Migrationen kein eigenes `is_demo`-Feld, war aber in `demoScopedTables`. `readSupabase()` ergänzte einen ungültigen `is_demo=eq.true/false`-Parameter; der REST-Aufruf schlug fehl und `DocumentList` zeigte leere Items mit Ladefehler.
+- `dokument` aus der generischen clientseitigen Scope-Liste entfernt. Demo- und Eigenkontextprüfung verbleiben bei der bestehenden RLS über Mitglieds-/Parzellen-Owner und `is_demo_dokument_scope(...)`. Archivfilter und G10-Service-/Repositoryarchitektur bleiben unverändert.
+- MAUI lädt im Mitgliedskontext ebenfalls nur `mitglied_id` plus nicht archivierte Dokumente. Pachtverträge werden als Parzellendokumente (`parzelle_id`) gespeichert und nicht in die Mitgliedsliste aggregiert. Die G10-Vergleichsdokumentation präzisiert diese bestehende Owner-Regel.
+- Regressionstest prüft die Member-/Parcel-Owner-Filter, aktive Archivselektion, durchgereichte leere Ergebnisse, Abwesenheit des Dokument-`is_demo`-Filters, fortbestehenden Mitglieds-Demo-Filter und Seiten-/Komponentenverdrahtung.

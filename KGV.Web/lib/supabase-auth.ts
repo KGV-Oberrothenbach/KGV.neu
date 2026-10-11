@@ -61,7 +61,6 @@ const demoScopedTables = new Set([
   "app_user",
   "arbeitseinsatz",
   "bekanntmachung",
-  "dokument",
   "mitglied",
   "mitglied_gesetzlicher_vertreter",
   "mitglied_saison",

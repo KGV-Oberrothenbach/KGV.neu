@@ -4473,6 +4473,7 @@ repositories/documents/
 
 ### MAUI
 Mitgliedskontext wird über den ausgewählten Mitgliedsdatensatz bestimmt.
+Die Mitgliedsansicht lädt ausschließlich aktive Dokumente mit der passenden `mitglied_id`. Parzellendokumente, insbesondere Pachtverträge, bleiben im separaten Parzellenkontext (`parzelle_id`) und werden nicht automatisch in die Mitgliedsliste gemischt.
 
 Je nach Recht:
 
@@ -4482,10 +4483,10 @@ Je nach Recht:
 - archivieren
 
 ### Web aktuell
-✅ Mitgliedsdokumente werden anhand `mitglied_id` geladen.
+✅ Mitgliedsdokumente werden anhand `mitglied_id` und `archiviert_at is null` über `DocumentList → document-service → document-repository` geladen. Parzellendokumente werden separat über `parzelle_id` angefragt; der Demo-Scope erfolgt per RLS, da `dokument` kein eigenes `is_demo`-Feld besitzt.
 
 ### Offen
-Die React-Komponente fragt die Tabelle `dokument` direkt ab.
+Keine Abweichung der Mitglieds-/Parzellen-Owner-Regel gegenüber MAUI.
 
 ### Ziel
 ```ts

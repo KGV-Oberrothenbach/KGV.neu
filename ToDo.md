@@ -270,7 +270,9 @@ Nur anfassen, wenn funktional relevant oder im jeweiligen Block direkt betroffen
 - Lösung: Der Slot-Request bleibt dem Datenbank-RLS überlassen. Die verknüpften Mitglieder werden weiterhin über ihren eigenen `is_demo`-Scope geladen; der bestehende Pfad Slot → `mitglied_id` → Mitglied → Vorstand/Bauausschuss bleibt unverändert.
 
 ### Mitglieder
-- Mitglied → Dokumente: Vorhandene Dokumente werden nicht angezeigt.
+- **(erledigt)** Mitglied → Dokumente: Vorhandene Dokumente werden nicht angezeigt.
+  - Ursache: `dokument` besitzt kein eigenes `is_demo`-Feld, war aber in `demoScopedTables`; `readSupabase()` ergänzte einen ungültigen clientseitigen Filter und die Mitglieder-Dokumentabfrage schlug fehl.
+  - Lösung: `dokument` aus `demoScopedTables` entfernt. Demo-/Produktivscope bleibt der RLS über Mitglieds-/Parzellen-Owner überlassen. Mitglieds- und Parzellen-Dokumente bleiben getrennte Owner-Pfade; aktive Mitgliedsdokumente werden weiterhin nach `mitglied_id` und `archiviert_at is null` geladen.
 - Mitglied → Gärten → Ablesen **(erledigt)**: Ursache war der Wechsel in den globalen Ablesemodus, wodurch Mitglieds- und Belegungskontext verloren gingen. Die Historie bleibt jetzt beim aktiven Mitglied und der ausgewählten Parzelle und wird für die konkrete `parzellen_belegung` anhand `von_datum`/`bis_datum` gefiltert. Es wird keine synthetische Pachtbeginn-Ablesung erzeugt.
 
 ### Arbeitsstunden
