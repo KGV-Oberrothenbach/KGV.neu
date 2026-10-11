@@ -36,6 +36,10 @@ dann ist damit genau diese Datei gemeint.
   - Logs pflegen
   - committen
   - pushen
+- Nach jeder Änderung an dieser `ToDo.md`:
+  - Punkte nach Themen gruppieren
+  - committen
+  - pushen
 
 ### Dauerhafte Merge-Checkliste: Supabase-Migrationen
 
@@ -242,6 +246,23 @@ Nur anfassen, wenn funktional relevant oder im jeweiligen Block direkt betroffen
 - `KGV.Maui/Pages/ImpressumPage.cs`
 - WPF-Verwaltungs-ViewModels
 - sonstige bekannte Warnungen
+
+---
+
+## 3a. WEB App – offene Punkte
+
+### Navigation
+- Saison-Auswahl in der Navigationsleiste: Dropdown ohne Funktion.
+
+### Impressum
+- Vorstand und Bauausschuss sind nicht verknüpft.
+
+### Mitglieder
+- Mitglied → Dokumente: Vorhandene Dokumente werden nicht angezeigt.
+- Mitglied → Gärten → Ablesen: Nicht in den normalen Ablesemodus wechseln, sondern die Ablesehistorie der Parzelle innerhalb des aktiven Mitglieds laden; die erste angezeigte Ablesung ist der Pachtbeginn.
+
+### Arbeitsstunden
+- Seite Arbeitsstunden: Keine Daten sichtbar, obwohl Daten erfasst sind.
 
 ---
 
