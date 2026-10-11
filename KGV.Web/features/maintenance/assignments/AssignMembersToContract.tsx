@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { type BrowserSession } from "../../../lib/supabase-auth";
 import { type MaintenanceContract } from "../../../models/maintenance/maintenance-contract";
 import { assignMembersToMaintenanceContract, loadMaintenanceMemberCandidates, type MaintenanceMemberCandidate } from "../../../services/maintenance/maintenance-assignment-service";
@@ -11,8 +11,8 @@ const localDate = () => {
 
 export function AssignMembersToContract({ session, contract, onSaved, onCancel }: { session: BrowserSession; contract: MaintenanceContract; onSaved: (count: number) => Promise<void>; onCancel: () => void }) {
   const [validFrom, setValidFrom] = useState(localDate); const [note, setNote] = useState(""); const [query, setQuery] = useState(""); const [sortBy, setSortBy] = useState<"name" | "garden">("name"); const [candidates, setCandidates] = useState<MaintenanceMemberCandidate[]>([]); const [availableCapacity, setAvailableCapacity] = useState(0); const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set()); const [message, setMessage] = useState(""); const [saving, setSaving] = useState(false); const [loading, setLoading] = useState(true);
-  async function load() { if (!validFrom) return; setLoading(true); setMessage(""); try { const result = await loadMaintenanceMemberCandidates(session, contract.id, validFrom); setCandidates(result.candidates); setAvailableCapacity(result.availableCapacity); setSelectedMemberIds(new Set()); } catch (cause) { setCandidates([]); setMessage(cause instanceof Error ? cause.message : "Mitglieder konnten nicht geladen werden."); } finally { setLoading(false); } }
-  useEffect(() => { void load(); }, [validFrom]);
+  const load = useCallback(async () => { if (!validFrom) return; setLoading(true); setMessage(""); try { const result = await loadMaintenanceMemberCandidates(session, contract.id, validFrom); setCandidates(result.candidates); setAvailableCapacity(result.availableCapacity); setSelectedMemberIds(new Set()); } catch (cause) { setCandidates([]); setMessage(cause instanceof Error ? cause.message : "Mitglieder konnten nicht geladen werden."); } finally { setLoading(false); } }, [session, contract.id, validFrom]);
+  useEffect(() => { void load(); }, [load]);
   const selectedPrincipalIds = useMemo(() => new Set(candidates.filter((candidate) => selectedMemberIds.has(candidate.selectedMemberId)).map((candidate) => candidate.principalMemberId)), [candidates, selectedMemberIds]);
   const visibleCandidates = useMemo(() => {
     const search = query.trim().toLocaleLowerCase("de");

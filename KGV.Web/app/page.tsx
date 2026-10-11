@@ -486,8 +486,6 @@ function GlobalMaintenanceContracts({ session, canManage }: { session: BrowserSe
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Wartungsverträge konnten nicht geladen werden."); }
   }
   useEffect(() => { void load(); }, [session]);
-  const isActive = (item: MaintenanceAssignment) => item.validFrom <= today && (!item.validUntil || item.validUntil >= today);
-  const activeAssignments = assignments.filter(isActive);
   const selected = contracts.find((item) => item.id === selectedId) ?? null;
   const editLock = useEditLock(session, "wartungsvertraege", editingId, Boolean(editing && editingId));
   const selectedAssignments = selected ? assignments.filter((item) => item.maintenanceContractId === selected.id) : [];
@@ -495,7 +493,7 @@ function GlobalMaintenanceContracts({ session, canManage }: { session: BrowserSe
   const memberContext = (id: number) => members.find((item) => item.id === id)?.hauptmitglied_id ? "Nebenmitglied" : "Hauptmitglied";
   const gardenNumbers = (id: number) => { const parcelIds = parcelAssignments.filter((item) => item.mitglied_id === id && (!item.bis_datum || item.bis_datum >= today)).map((item) => item.parzelle_id); return parcels.filter((item) => parcelIds.includes(item.id)).map((item) => item.garten_nr).filter(Boolean).join(", ") || "–"; };
   function startNew() { setEditingId(null); setDraft({ title: "", description: "", area: "", maxActiveAssignments: 1, exemptsFromDutyHours: false, workHoursCredit: 0, active: true, note: "" }); setEditing(true); setMessage(""); }
-  function startEdit() { if (selected) { const { id: _id, ...nextDraft } = selected; setEditingId(selected.id); setDraft(nextDraft); setEditing(true); setMessage(""); } }
+  function startEdit() { if (selected) { const nextDraft = { ...selected }; delete nextDraft.id; setEditingId(selected.id); setDraft(nextDraft); setEditing(true); setMessage(""); } }
   useEffect(() => { if (editing && editLock.message) queueMicrotask(() => setMessage(editLock.message)); }, [editing, editLock.message]);
   async function saveContractWithDraft(nextDraft: MaintenanceContractDraft) { const validation = normalizeAndValidateMaintenanceContract(nextDraft); if (!validation.payload) { setMessage(validation.error ?? "Wartungsvertrag ist ungültig."); return; } if (editingId && !editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; } setSaving(true); setMessage(""); try { const saved = await saveMaintenanceContract(session, editingId, nextDraft); setSelectedId(saved.id); setEditingId(null); setEditing(false); await load(); setMessage("Wartungsvertrag gespeichert."); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Wartungsvertrag konnte nicht gespeichert werden."); } finally { setSaving(false); } }
   async function endAssignment(item: MaintenanceAssignment) { const endDate = endDates[item.id] || today; setSaving(true); setMessage(""); try { await endMaintenanceAssignmentForContract(session, item, endDate); await load(); setMessage("Wartungsvertrag wurde beendet."); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Zuordnung konnte nicht beendet werden."); } finally { setSaving(false); } }
