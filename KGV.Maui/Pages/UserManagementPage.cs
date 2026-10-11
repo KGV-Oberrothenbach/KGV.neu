@@ -134,29 +134,6 @@ public sealed class UserManagementPage : ContentPage
                 await DisplayAlertAsync("OK", "Appuser wurde entfernt.", "OK");
         };
 
-        var changeEmailButton = new Button { Text = "Eigene E-Mail ändern" };
-        changeEmailButton.SetBinding(IsEnabledProperty, nameof(UserManagementViewModel.CanChangeSelectedEmail));
-        changeEmailButton.SetBinding(IsVisibleProperty, nameof(UserManagementViewModel.CanChangeSelectedEmail));
-        changeEmailButton.Clicked += async (_, _) =>
-        {
-            var currentEmail = _viewModel.SelectedUser?.Email ?? string.Empty;
-            var newEmail = await DisplayPromptAsync("E-Mail ändern", "Neue E-Mail-Adresse eingeben", initialValue: currentEmail, keyboard: Keyboard.Email);
-            if (string.IsNullOrWhiteSpace(newEmail))
-                return;
-
-            var requested = await _viewModel.RequestEmailChangeAsync(newEmail);
-            if (!requested)
-                return;
-
-            var otpCode = await DisplayPromptAsync("OTP-Code", "Code aus der neuen E-Mail-Adresse eingeben", keyboard: Keyboard.Numeric);
-            if (string.IsNullOrWhiteSpace(otpCode))
-                return;
-
-            var verified = await _viewModel.VerifyEmailChangeAsync(newEmail, otpCode);
-            if (verified)
-                await DisplayAlertAsync("OK", "Mailadresse erfolgreich geändert.", "OK");
-        };
-
         var emailHintLabel = new Label
         {
             TextColor = Colors.Gray,
@@ -188,7 +165,6 @@ public sealed class UserManagementPage : ContentPage
                     inviteButton,
                     resetButton,
                     removeButton,
-                    changeEmailButton,
                     statusLabel
                 }
             }

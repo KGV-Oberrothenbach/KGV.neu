@@ -622,6 +622,12 @@ namespace KGV.Infrastructure.Authentication
                 if (!ok)
                     return false;
 
+                // G13.5: Auth is authoritative for a linked member's login
+                // address. The RPC reads the authenticated user's actual
+                // address and never accepts a client-supplied member or email.
+                var client = await GetClientAsync();
+                await client.Rpc("sync_current_member_email", new { });
+
                 _pendingEmailChangeTarget = null;
                 return true;
             }
