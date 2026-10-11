@@ -12049,3 +12049,9 @@ Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implement
 - Die Startlogik priorisiert nun die aktuelle Kalender-Saison vor einer im Workspace gespeicherten älteren `saisonId`.
 - Die manuelle Auswahl aktualisiert weiterhin den Workspace nur für die laufende Sitzung; beim nächsten Start wird sie nach dem Laden der Saisonliste durch die aktuelle Saison ersetzt und erneut gespeichert.
 - Bestehende Fallbacks bleiben erhalten: Fehlt die aktuelle Saison in der Liste, wird zuerst die persistierte Saison und danach die erste verfügbare Saison verwendet.
+
+## 2026-10-11 - WEB-F2 Impressum
+
+- Den MAUI-Referenzpfad und den Web-Pfad vom Funktionsslot bis zur Anzeige abgeglichen. Beide lösen `impressum_funktion_slot.mitglied_id` gegen `mitglied.id` auf, trennen Vorstand und Bauausschuss über Slot/Funktion und nehmen den ersten Vorsitzenden aus der dynamischen Liste heraus.
+- Die Web-Regressionsursache lag vor diesem Pfad: `readSupabase` ergänzte für `impressum_funktion_slot` einen `is_demo`-Parameter. Die Tabelle hat kein eigenes `is_demo`; ihr Demo-Scope wird in der Datenbank anhand der verknüpften `mitglied_id` durch RLS bestimmt. Der unzulässige Query-Parameter konnte die komplette Slot-Abfrage fehlschlagen lassen.
+- Den Eintrag deshalb gezielt aus der clientseitigen Tabellen-Scope-Liste entfernt. Mitglieder bleiben weiterhin separat anhand ihres eigenen `is_demo`-Felds gescoped. Es gibt keine Hardcodes, keine Datenmigration und keine Änderung an den statischen Impressumsangaben.

@@ -54,13 +54,15 @@ const protectedEditTables: Record<string, string> = {
 
 // Diese Tabellen enthalten bewusst parallel gehaltene Demo- und Echtdaten.
 // Die MAUI-App blendet die jeweils fremde Datenwelt ebenfalls aus.
+// `impressum_funktion_slot` hat bewusst kein eigenes `is_demo`-Feld. Sein
+// Scope wird in der Datenbank über die zugeordnete `mitglied_id` und die RLS-
+// Funktion `is_demo_impressum_slot_scope(...)` bestimmt.
 const demoScopedTables = new Set([
   "app_user",
   "arbeitseinsatz",
   "arbeitsstunde",
   "bekanntmachung",
   "dokument",
-  "impressum_funktion_slot",
   "mitglied",
   "mitglied_gesetzlicher_vertreter",
   "mitglied_saison",

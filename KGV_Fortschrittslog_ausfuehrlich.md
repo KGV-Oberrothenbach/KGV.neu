@@ -727,3 +727,9 @@ Für die tägliche Arbeit reicht diese Fassung in der Regel aus, weil sie die fo
 - Die persistierte Workspace-Saison hatte beim App-Start bisher Vorrang. Damit konnte eine früher manuell gewählte alte Saison zum Startstandard werden.
 - `selectInitialSeasonFromList(...)` wählt jetzt zuerst die Saison des aktuellen Kalenderjahres. Existiert sie nicht, greift der bestehende Fallback bewusst auf die persistierte und danach auf die erste verfügbare Saison zurück.
 - `WorkspaceContext` und die bestehende Speicherung bleiben unverändert: Während der Sitzung setzt eine manuelle Auswahl `saisonId` und `saisonJahr`; nach dem nächsten Start überschreibt die Initialisierung beides mit der aktuellen Saison, ohne Mitglieds- oder Parzellenkontext zu verändern.
+
+## 2026-10-11 - WEB-F2 Impressum
+
+- MAUI bleibt der fachliche Referenzpfad: Es lädt die Impressums-Funktionsslots, löst eine belegte `mitglied_id` über die Mitgliederliste auf, trennt nach Slot/Funktion Vorstand und Bauausschuss und blendet den ersten Vorsitzenden aus dem dynamischen Kontaktbereich aus.
+- Der Web-Service und die UI setzen denselben Auflösungspfad bereits korrekt um. Die Regression lag in der vorgelagerten gemeinsamen REST-Abfrage: `impressum_funktion_slot` war fälschlich als Tabelle mit direktem `is_demo`-Filter geführt, obwohl die Tabelle diese Spalte nicht besitzt.
+- Das Datenbank-RLS bestimmt den Scope eines Slots absichtlich über `is_demo_impressum_slot_scope(mitglied_id)`. Nach Entfernen des falschen Clientfilters kommen Slots wieder zur Service-Auflösung; `mitglied` wird weiterhin über sein echtes `is_demo`-Feld kontextgerecht geladen. Weder feste Vereins-/Verantwortlichendaten noch Datenschutz oder sonstige Web-Fehler wurden verändert.

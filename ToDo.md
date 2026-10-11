@@ -263,7 +263,10 @@ Nur anfassen, wenn funktional relevant oder im jeweiligen Block direkt betroffen
 - Beim neuen App-Start hat die aktuelle Kalender-Saison nun Vorrang vor einer zuvor gespeicherten manuellen Auswahl. Innerhalb der laufenden Sitzung bleibt die manuelle Saisonwahl weiterhin wirksam.
 
 ### Impressum
-- Vorstand und Bauausschuss sind nicht verknüpft.
+**Status:** erledigt
+- Der frühere offene Punkt „Vorstand und Bauausschuss sind nicht verknüpft“ ist durch den Impressum-Fix behoben.
+- Tatsächliche Ursache: Der zentrale Web-Demo-Filter behandelte `impressum_funktion_slot` wie eine Tabelle mit eigenem `is_demo`-Feld. Die Tabelle wird jedoch über ihre `mitglied_id` per RLS gescoped und besitzt diese Spalte nicht; dadurch konnte die Slot-Abfrage fehlschlagen, bevor die vorhandene Zuordnung zu Mitgliedern aufgelöst wurde.
+- Lösung: Der Slot-Request bleibt dem Datenbank-RLS überlassen. Die verknüpften Mitglieder werden weiterhin über ihren eigenen `is_demo`-Scope geladen; der bestehende Pfad Slot → `mitglied_id` → Mitglied → Vorstand/Bauausschuss bleibt unverändert.
 
 ### Mitglieder
 - Mitglied → Dokumente: Vorhandene Dokumente werden nicht angezeigt.
