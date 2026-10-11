@@ -76,7 +76,7 @@ export async function loadMemberMaintenanceContracts(session: BrowserSession, se
 export async function loadAssignableMaintenanceContractsForMember(session: BrowserSession, selectedMemberId: number, validFrom: string): Promise<MaintenanceContractCandidate[]> {
   const principalMemberId = await resolveMaintenancePrincipalMember(session, selectedMemberId);
   const [contracts, assignments] = await Promise.all([loadMaintenanceContracts(session), loadMaintenanceAssignments(session)]);
-  return contracts.map((contract) => {
+  return contracts.filter((contract) => contract.active).map((contract) => {
     const contractAssignments = assignments.filter((assignment) => assignment.maintenanceContractId === contract.id);
     const alreadyAssignedInPeriod = contractAssignments.some((assignment) => assignment.principalMemberId === principalMemberId && maintenanceAssignmentIntervalsOverlap(assignment.validFrom, assignment.validUntil, validFrom, null));
     const availableInPeriod = calculatePeakMaintenanceOccupancy(contractAssignments, { validFrom, validUntil: null }) <= contract.maxActiveAssignments;

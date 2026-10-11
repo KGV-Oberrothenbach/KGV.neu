@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { type BrowserSession } from "../../../lib/supabase-auth";
 import { assignMaintenanceContractsToMember, loadAssignableMaintenanceContractsForMember, type MaintenanceContractCandidate } from "../../../services/maintenance/maintenance-assignment-service";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const localDate = () => { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; };
 const effect = (candidate: MaintenanceContractCandidate) => candidate.contract.exemptsFromDutyHours ? "Vollständige Befreiung" : candidate.contract.workHoursCredit > 0 ? `${candidate.contract.workHoursCredit} h Gutschrift pro Saison` : "Keine Anrechnung";
 
 export function AssignContractsToMember({ session, memberId, onSaved, onCancel }: { session: BrowserSession; memberId: number; onSaved: (count: number) => Promise<void>; onCancel: () => void }) {
-  const [validFrom, setValidFrom] = useState(today); const [note, setNote] = useState(""); const [candidates, setCandidates] = useState<MaintenanceContractCandidate[]>([]); const [selected, setSelected] = useState<Set<number>>(new Set()); const [message, setMessage] = useState(""); const [saving, setSaving] = useState(false);
+  const [validFrom, setValidFrom] = useState(localDate); const [note, setNote] = useState(""); const [candidates, setCandidates] = useState<MaintenanceContractCandidate[]>([]); const [selected, setSelected] = useState<Set<number>>(new Set()); const [message, setMessage] = useState(""); const [saving, setSaving] = useState(false);
   async function load() { try { const items = await loadAssignableMaintenanceContractsForMember(session, memberId, validFrom); setCandidates(items); setSelected(new Set()); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Vertragskandidaten konnten nicht geladen werden."); } }
   useEffect(() => { void load(); }, [validFrom]);
   async function save() { setSaving(true); setMessage(""); try { const result = await assignMaintenanceContractsToMember(session, { selectedMemberId: memberId, maintenanceContractIds: [...selected], validFrom, validUntil: null, note }); await onSaved(result.length); } catch (cause) { const failure = cause instanceof Error ? cause.message : "Zuordnungen konnten nicht gespeichert werden."; await load(); setMessage(failure); } finally { setSaving(false); } }
