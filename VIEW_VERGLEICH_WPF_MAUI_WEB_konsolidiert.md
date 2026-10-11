@@ -5916,8 +5916,8 @@ Jahr / ID
 ist in MAUI **read-only**.
 
 ### Web aktuell
-`SeasonAdministration` ist bereits umgesetzt und bleibt bis G12.2 in
-`KGV.Web/app/page.tsx`.
+Die Saisonverwaltung ist als `features/seasons/SeasonManagement.tsx`
+ausgelagert und wird von `page.tsx` nur noch eingebunden.
 
 Vorhanden:
 
@@ -5939,10 +5939,14 @@ Erledigt in G12.1:
   Bearbeitbarkeit, Vorjahresvorschlag und Speichern.
 - Workspace, Vertragsservices und die bestehende Saisonverwaltung verwenden
   diese gemeinsame Saisonbasis.
+- Die UI verwendet ausschließlich den Saison-Service und das zentrale
+  Saisonmodell; sie führt keinen direkten Saison-Supabase-Zugriff aus.
+- Bestehende Saisonjahre sind in der UI read-only. Edit-Lock und
+  `onSeasonSaved`-Rückmeldung an den Workspace bleiben erhalten.
 
 ### Bewertung
-✅ insgesamt sehr nah an WPF/MAUI. G12.2 (Herauslösen der
-`SeasonAdministration`) bleibt offen.
+✅ insgesamt sehr nah an WPF/MAUI. G12.2 ist abgeschlossen; G12.3 bleibt
+offen.
 
 ### Konkrete Abweichung
 Im Web ist das Feld:
@@ -5976,9 +5980,10 @@ Nur beim automatisch erzeugten neuen Saisonvorschlag wird das Jahr festgelegt.
 
 ### Web aktuell
 G12.1 hat die gemeinsame Saison-Domain mit Modell, Repository und Service
-umgesetzt. `SeasonAdministration` konsumiert diese Fachbasis, bleibt aber bis
-G12.2 noch in `page.tsx`; die UI wird in diesem Schritt nicht strukturell
-herausgelöst.
+umgesetzt. G12.2 führt die UI als `SeasonManagement.tsx` weiter; die
+Komponente verwendet die Saison-Service-Operationen, das zentrale Modell und
+den bestehenden Edit-Lock. `page.tsx` behält nur die Einbindung und die
+Workspace-Rückmeldung nach dem Speichern.
 
 ### Ziel
 ```text
