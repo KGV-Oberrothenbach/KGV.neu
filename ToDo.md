@@ -189,6 +189,7 @@ Diese Folgeprüfung wurde nach zusätzlicher Nutzerpriorisierung gegen den echte
 - Dokumente
 - Strom/Wasser-Historie
 - Haupt-/Nebenmitgliedswechsel
+- Web-Regressionsfix Mitglied → Gärten → Ablesen abgeschlossen: Mitglieds- und Parzellenkontext bleiben aktiv; G6-Historie ist auf die konkrete `parzellen_belegung` von `von_datum` bis einschließlich `bis_datum` begrenzt. Es werden nur vorhandene Ablesungen angezeigt, keine Pachtbeginn-Ablesung synthetisch erzeugt.
 
 ### 17. MAUI-Realtests weiterführen
 **Status:** offen

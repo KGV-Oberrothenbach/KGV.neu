@@ -18,6 +18,14 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 - `KGV.Core`
 - `KGV.Maui`
 
+## 2026-10-11 – Web: Ablesehistorie im Mitgliedsgarten
+
+- Den Web-Fehler behoben, der aus dem Mitgliedsgarten in den globalen Ablesemodus sprang. Mitglied, Parzelle und konkrete Belegung bleiben im aktiven Workspace.
+- Die Mitgliedsansicht ruft den vorhandenen G6-Reading-Service auf. Dieser lädt die Zähler der gewählten Parzelle und deren Ablesungen über die bereits vorhandenen Meter-/Reading-Repositories.
+- Die Historie wird für aktive und historische Pachten inklusiv auf `von_datum` bis `bis_datum` begrenzt. Dadurch werden Ablesungen außerhalb der konkreten Belegung ausgeschlossen; bei mehreren Zählern bleiben alle zugehörigen tatsächlichen Datensätze sichtbar.
+- Eine gespeicherte Ablesung exakt am Pachtbeginn wird angezeigt, falls vorhanden. Andernfalls ist der früheste sichtbare Datensatz die erste tatsächliche Ablesung ab Pachtbeginn; ein synthetischer Startdatensatz wird nicht erzeugt. MAUI zeigt weiterhin seine bestehende, nach Parzelle/Medium geladene und absteigend sortierte Historie ohne Belegungszeitfilter.
+- Validierung: sieben gezielte Regressionstests, `npx tsc --noEmit`, Web-Produktionsbuild und `git diff --check` erfolgreich. ESLint auf den geänderten Dateien unter Ausschluss der bereits im Bestand verletzten Regel `react-hooks/set-state-in-effect` ohne Fehler (19 Warnungen); die neuen History-/Feature-Dateien bestehen ESLint ohne Override. Der reguläre Lauf bestätigt bestehende Verstöße in nicht angepassten Effect-Callbacks der Workspace-Dateien.
+
 ## 2026-10-05 – Vereinszeit Europe/Berlin
 
 - Zentrale DB-Funktion `public.kgv_local_now()` ergänzt; sie liefert `timestamp without time zone` aus `now() AT TIME ZONE 'Europe/Berlin'`.

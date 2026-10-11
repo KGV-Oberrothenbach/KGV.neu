@@ -1632,6 +1632,10 @@ Die eigentliche Fachlogik gehört zu G6.
 
 G5 stellt nur den Parzellenkontext bereit.
 
+Im Mitglieds-/Gartenkontext bleibt das Mitglied und die konkrete Parzellenbelegung aktiv; G5 übergibt diese Belegung an G6 und wechselt nicht in die globale Ablesen-Übersicht. G6 zeigt nur Zähler der belegten Parzelle und begrenzt echte Ablesungen inklusiv auf `von_datum` bis `bis_datum` (offene Grenzen bleiben offen). Der früheste angezeigte Datensatz ist die erste tatsächlich gespeicherte Ablesung ab Pachtbeginn; ohne gespeicherte Ablesung wird kein synthetischer Eintrag erzeugt.
+
+MAUI öffnet die lesende Historie bereits mit `parzelleId` und Medium und sortiert die gespeicherten Zählerablesungen absteigend. Die MAUI-Historie filtert derzeit nicht zusätzlich nach einer einzelnen `parzellen_belegung`; die Web-Mitgliedsansicht braucht diese zeitliche Eingrenzung ausdrücklich, damit Vor- und Nachpächter ausgeschlossen bleiben.
+
 ---
 
 ## G5 Zielstruktur

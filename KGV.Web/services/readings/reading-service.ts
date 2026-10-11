@@ -11,6 +11,8 @@ import {
   listReadingsForMeter,
   type MeterReading,
 } from "../../repositories/readings/reading-repository";
+import type { ParcelOverviewAssignment } from "../../repositories/parcels/parcel-repository";
+import { filterParcelAssignmentReadings } from "./parcel-reading-history";
 
 export type ReadingPermissions = { canReadMeters: boolean; canSubmitOwnMeterReadings: boolean; memberId: number | null };
 export type ReadingCaptureContext = {
@@ -23,6 +25,13 @@ export type ReadingCaptureContext = {
 };
 export type SaveReadingInput = { meterId: number; date: string; value: number; art: "normal" | "jea" };
 export type SavedReading = { reading: MeterReading; isSubmission: boolean };
+
+export async function loadParcelAssignmentReadingHistory(session: BrowserSession, assignment: ParcelOverviewAssignment) {
+  if (!Number.isInteger(assignment.parzelle_id) || assignment.parzelle_id <= 0) throw new Error("Die Belegung enthält keine gültige Parzelle.");
+  const meters = await listReadingMetersForParcels(session, [assignment.parzelle_id]);
+  const readings = (await Promise.all(meters.map((meter) => listReadingsForMeter(session, meter.id)))).flat();
+  return filterParcelAssignmentReadings(assignment, meters, readings);
+}
 
 const isActiveMeter = (meter: Awaited<ReturnType<typeof listReadingMeters>>[number]) => !meter.ausgebaut_am && (!meter.status || meter.status.toLocaleLowerCase("de") === "aktiv");
 const validDate = (value: string) => {

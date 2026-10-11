@@ -2,6 +2,14 @@
 
 ---
 
+## 2026-10-11 – Web: Ablesehistorie im Mitgliedsgarten
+
+- Ursache: Die Aktion `Mitglied → Gärten → Ablesen` setzte `activeId` auf den globalen Bereich `ablesen`; dadurch gingen Mitglieds- und Belegungskontext verloren.
+- Die Aktion zeigt die Historie jetzt innerhalb des ausgewählten Mitgliedsgartens. Die konkrete `parzellen_belegung` wird bis G6 mitgeführt, damit wiederholte/historische Belegungen derselben Parzelle unterscheidbar bleiben.
+- G6 lädt Zähler und Ablesungen über die vorhandenen Reading-Repositories (`listReadingMetersForParcels`, `listReadingsForMeter`) und filtert tatsächliche Datensätze inklusiv ab `von_datum` bis `bis_datum`. Mehrere Zähler werden berücksichtigt; es wird keine Ablesung synthetisch angelegt.
+- MAUI öffnet die Historie nach Parzellen-ID und Medium und sortiert absteigend; die bestehende MAUI-Historie wendet keine einzelne Pachtzeitspanne an. Die Web-Mitgliedsansicht ergänzt die notwendige Belegungsgrenze, um Vor- und Nachpächter auszuschließen.
+- Validierung: sieben Regressionstests, Web-TypeScript-Check, Web-Produktionsbuild und `git diff --check` erfolgreich. ESLint auf den geänderten Dateien ohne die bereits verletzte Regel `react-hooks/set-state-in-effect`: keine Fehler, 19 Warnungen. Die neuen History-/Feature-Dateien bestehen ESLint ohne Override. Ohne Override meldet ESLint bestehende Regelverstöße in unveränderten Effekten von `app/page.tsx` und `app/parcel-workspaces.tsx`.
+
 ## 2026-10-05 – Vereinszeit Europe/Berlin für fachliche Zeitfelder
 
 - Die fachlichen Zeitfelder `sichtbar_ab`, `sichtbar_bis` und `anmeldung_bis` bleiben als `timestamp without time zone` unverändert gespeichert.
