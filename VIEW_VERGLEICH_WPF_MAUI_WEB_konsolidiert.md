@@ -5179,6 +5179,8 @@ Die mitgliedsbezogene Wartungsvertragsansicht ist aus `page.tsx` in die G3-nahe 
 
 Die kleine Maintenance-Access-Abbildung verwendet ausschließlich die bereits berechnete Capability. Eine Kontingentreduzierung unter die aktuelle heutige Belegung wird im Contract-Service verständlich abgelehnt. Die vorhandenen RLS-Policies erlauben Mutationen nur für `is_admin_or_vorstand()`; deshalb war keine Migration erforderlich.
 
+Der Legacy-Pfad der früher kombinierten globalen/mitgliedsbezogenen React-Komponente wurde entfernt. `GlobalMaintenanceContracts` koordiniert nur noch globale Verträge; die verbleibenden direkten Member-/Parzellen-Reads werden weiterhin für Namen, Kontext und Gartennummern in der globalen Detailansicht benötigt.
+
 ## 11.1 Globale Wartungsvertragsübersicht
 
 ### WPF
