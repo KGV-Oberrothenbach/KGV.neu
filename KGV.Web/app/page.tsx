@@ -5,7 +5,6 @@ import {
   AppUserContext,
   BrowserSession,
   callSupabaseRpc,
-  deleteSupabase,
   generateContract,
   inviteAppUser,
   readSupabase,
@@ -107,7 +106,7 @@ function HomeContent() {
 type Parcel = { id: number; garten_nr: string; Anlage: string; flaeche_qm: number | null; hat_strom: boolean; hat_wasser: boolean; aktiv: boolean };
 type ParcelAssignment = { id: number; parzelle_id: number; mitglied_id: number; von_datum: string | null; bis_datum: string | null };
 type Reading = { id: number; zaehler_id: number; stand: number; ablesedatum: string; art: string; freigegeben: boolean; pruefstatus: string; pruefkommentar: string | null; geprueft_von: number | null; geprueft_am: string | null; foto_pfad?: string | null; foto_drive_file_id?: string | null; foto_dateiname?: string | null };
-type AppUserAdmin = { user_id: string; mitglied_id: number | null; role: "admin" | "vorstand" | "user"; permission_grants: number; permission_revocations: number; updated_at: string | null };
+type AppUserAdmin = { user_id: string; mitglied_id: number | null; role: "admin" | "vorstand" | "user"; permission_grants: number; permission_revocations: number; is_protected: boolean; updated_at: string | null };
 type ClubConfigurationRecord = { id: number; vereinsname: string | null; kurzname: string | null; registerangabe: string | null; strasse: string | null; plz: string | null; ort: string | null; standard_email: string | null; standard_telefon: string | null; website: string | null; kontoinhaber: string | null; bankname: string | null; iban: string | null; bic: string | null; verwendungszweck_mitgliedsantrag: string | null; verwendungszweck_pachtvertrag: string | null; dokument_ort: string | null; standard_hinweistext: string | null; datenschutz_text: string | null; datenschutz_version: string | null; datenschutz_stand: string | null; aktiv: boolean };
 type ExportDefinition = { export_key: string; titel: string | null; beschreibung: string | null; quelle_typ: string | null; quelle_name: string | null; erlaubt_csv: boolean; erlaubt_pdf: boolean };
 type ExportFilterDefinition = { export_key: string; filter_key: string; label: string | null; typ: string | null; optionen_json: unknown; pflicht: boolean; sortierung: number };
@@ -520,7 +519,7 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
     try {
       const [loadedMembers, loadedUsers] = await Promise.all([
         readSupabase<Member>(session, "mitglied", { select: "id,vorname,name,email,aktiv,hauptmitglied_id,auth_user_id", order: "name.asc", limit: "3000" }),
-        readSupabase<AppUserAdmin>(session, "app_user", { select: "user_id,mitglied_id,role,permission_grants,permission_revocations,updated_at", order: "mitglied_id.asc", limit: "3000" }),
+        readSupabase<AppUserAdmin>(session, "app_user", { select: "user_id,mitglied_id,role,permission_grants,permission_revocations,is_protected,updated_at", order: "mitglied_id.asc", limit: "3000" }),
       ]);
       setMembers(loadedMembers); setUsers(loadedUsers);
       setSelectedMemberId((current) => fixedMemberId ?? current ?? loadedMembers[0]?.id ?? null);
@@ -559,7 +558,7 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
     const revocations = preserveUncontrolledPermissions(selectedUser.permission_revocations, calculatedRevocations);
     setSaving(true); setMessage("");
     try {
-      await writeSupabase<AppUserAdmin>(session, "app_user", "PATCH", { mitglied_id: selectedMemberId, role, permission_grants: grants, permission_revocations: revocations, updated_at: new Date().toISOString() }, { user_id: `eq.${selectedUser.user_id}` });
+      await callSupabaseRpc<void>(session, "update_app_user_access", { p_user_id: selectedUser.user_id, p_role: role, p_permission_grants: grants, p_permission_revocations: revocations });
       await load(); setMessage("Rolle und Fachrechte wurden gespeichert.");
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Rolle und Rechte konnten nicht gespeichert werden."); }
     finally { setSaving(false); }
@@ -581,7 +580,7 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
   async function removeUser() {
     if (!selectedUser || !selectedMemberId || !window.confirm(`App-Benutzer von ${selectedMember?.vorname ?? ""} ${selectedMember?.name ?? ""} wirklich entfernen?`)) return;
     setSaving(true); setMessage("");
-    try { await writeSupabase<Member>(session, "mitglied", "PATCH", { auth_user_id: null }, { id: `eq.${selectedMemberId}` }); await deleteSupabase(session, "app_user", { user_id: `eq.${selectedUser.user_id}` }); await load(); setMessage("Die App-Benutzerzuordnung wurde entfernt. Das Auth-Konto bleibt aus Sicherheitsgründen serverseitig bestehen."); }
+    try { await callSupabaseRpc<void>(session, "unlink_app_user", { p_user_id: selectedUser.user_id }); await load(); setMessage("Die App-Benutzerzuordnung wurde entfernt. Das Auth-Konto bleibt aus Sicherheitsgründen serverseitig bestehen."); }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : "App-Benutzer konnte nicht entfernt werden."); }
     finally { setSaving(false); }
   }

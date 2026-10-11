@@ -25,6 +25,9 @@ namespace KGV.Infrastructure.Models
         [Column("permission_revocations")]
         public long PermissionRevocations { get; set; }
 
+        [Column("is_protected")]
+        public bool IsProtected { get; set; }
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
 
