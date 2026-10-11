@@ -10,6 +10,7 @@ export type MaintenanceAssignmentRow = {
 };
 
 export type MaintenanceAssignmentWriteRow = Omit<MaintenanceAssignmentRow, "id">;
+export type MaintenanceAssignmentMemberRow = { id: number; vorname: string | null; name: string | null; aktiv: boolean; hauptmitglied_id: number | null };
 
 const select = "id,wartungsvertrag_id,hauptmitglied_id,gueltig_ab,gueltig_bis,bemerkung";
 
@@ -25,6 +26,14 @@ export const resolveMaintenanceAssignmentPrincipalMember = async (session: Brows
   if (!member) throw new Error("Das ausgewählte Mitglied wurde nicht gefunden.");
   return member.hauptmitglied_id ?? member.id;
 };
+
+export const listMaintenanceAssignmentMembers = (session: BrowserSession) =>
+  readSupabase<MaintenanceAssignmentMemberRow>(session, "mitglied", { select: "id,vorname,name,aktiv,hauptmitglied_id", aktiv: "eq.true", order: "name.asc,vorname.asc", limit: "1000" });
+
+export const resolveMaintenanceAssignmentMembers = (session: BrowserSession, selectedMemberIds: number[]) =>
+  selectedMemberIds.length
+    ? readSupabase<MaintenanceAssignmentMemberRow>(session, "mitglied", { select: "id,vorname,name,aktiv,hauptmitglied_id", id: `in.(${selectedMemberIds.join(",")})`, limit: "1000" })
+    : Promise.resolve([] as MaintenanceAssignmentMemberRow[]);
 
 export const createMaintenanceAssignment = (session: BrowserSession, payload: MaintenanceAssignmentWriteRow) =>
   writeSupabase<MaintenanceAssignmentRow>(session, "wartungsvertrag_zuordnungen", "POST", payload);

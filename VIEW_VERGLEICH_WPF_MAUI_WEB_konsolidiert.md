@@ -5158,6 +5158,10 @@ Der Web-Editor ist ausgelagert und verwendet drei eindeutige Arbeitsstundenwirku
 
 Eine Wartungsvertragszuordnung wird immer für den Hauptmitglied-Kontext gespeichert. Der Assignment-Service löst ein ausgewähltes Mitglied über `hauptmitglied_id ?? id` auf und prüft vor dem Schreiben Vertragsexistenz und Aktivstatus, inklusive Zeiträume, doppelte überlappende Zuordnungen und die Spitzenbelegung über den gewählten Zeitraum. Die Datenbank erzwingt dieselben Intervallregeln als letzte Instanz: gespeicherte IDs müssen Hauptmitglieder sein, Enddaten dürfen nicht vor dem Beginn liegen, und inklusive Zeitintervalle dürfen weder doppelt noch über dem Kontingent überlappen. Die Oberfläche darf deshalb auch bei heute voller Belegung speichern lassen; maßgeblich bleibt der gewählte Zeitraum.
 
+### G11.5 – globale Mehrfachzuweisung
+
+Die globale Detailansicht bietet eine eigene Mehrfachzuweisung mit gemeinsamem Gültig-ab-Datum und Bemerkung. Kandidaten werden serviceseitig nach Name oder Gartennummer bereitgestellt; Haupt- und Nebenmitglieder bleiben sichtbar, teilen aber genau einen Hauptmitglied-Kontext. Bereits überlappend zugeordnete Kontexte sind sichtbar und gesperrt. Die Auswahl und die Anzeige der verbleibenden Plätze beziehen sich auf die Peak-Kapazität im gewählten Zeitraum, nicht auf die heutige Belegung. G11.4-Service- und Datenbankregeln bleiben dabei die verbindliche Absicherung.
+
 ## 11.1 Globale Wartungsvertragsübersicht
 
 ### WPF
