@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+const login = await readFile(new URL("../../KGV.Maui/Pages/LoginPage.xaml.cs", import.meta.url), "utf8");
+const state = await readFile(new URL("../../KGV.Maui/State/UserContextState.cs", import.meta.url), "utf8");
+assert.match(login, /GetUserContextAsync\(userId\)/);
+assert.match(login, /catch \(KgvAccessDeniedException\)/);
+assert.match(login, /LOGIN_ACCESS_DENIED/);
+assert.match(login, /BIOMETRIC_ACCESS_DENIED/);
+assert.match(login, /RejectInvalidAccessAsync[\s\S]*LogoutAsync/);
+assert.match(login, /OfferBiometricsAfterValidatedAccessAsync/);
+assert.ok(login.indexOf("await OfferBiometricsAfterValidatedAccessAsync") > login.indexOf("await SwitchToUserContextAsync"));
+assert.match(login, /_biometricSessionStore\.Clear\(\)/);
+assert.match(state, /void Clear\(\)/);
+assert.match(state, /CurrentUserId = null/);
+assert.match(state, /CurrentMitgliedId = null/);
+assert.match(state, /CurrentNebenMitgliedId = null/);
+assert.match(state, /CurrentUserContext = null/);
+assert.match(state, /CurrentAppMode = null/);

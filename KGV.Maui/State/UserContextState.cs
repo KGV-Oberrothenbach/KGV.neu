@@ -11,4 +11,13 @@ public sealed class UserContextState : IUserContextAccessor
 
     public AppMode? CurrentAppMode { get; set; }
     public UserContext? CurrentUserContext { get; set; }
+
+    public void Clear()
+    {
+        CurrentUserId = null;
+        CurrentMitgliedId = null;
+        CurrentNebenMitgliedId = null;
+        CurrentUserContext = null;
+        CurrentAppMode = null;
+    }
 }
