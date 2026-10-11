@@ -14,6 +14,7 @@
     "test:sql-permissions": "node security/sql-permission-contract.test.mjs",
     "test:capabilities": "node security/capabilities.test.mjs",
     "test:app-user-security": "node security/app-user-security.contract.test.mjs",
+    "test:invite-security": "node security/invite-security.contract.test.mjs",
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"

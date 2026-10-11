@@ -511,6 +511,8 @@ namespace KGV.Infrastructure.Authentication
                     Success = functionResult.LinkPrepared,
                     LinkPrepared = functionResult.LinkPrepared,
                     MailSent = functionResult.MailSent,
+                    Outcome = functionResult.Outcome,
+                    ErrorCode = functionResult.ErrorCode,
                     AuthUserId = functionResult.AuthUserId,
                     Email = email,
                     Message = functionResult.Message
@@ -1331,6 +1333,7 @@ namespace KGV.Infrastructure.Authentication
 
                 var success = TryGetJsonBool(root, "success");
                 var outcome = (TryGetJsonString(root, "outcome") ?? string.Empty).Trim().ToLowerInvariant();
+                var errorCode = (TryGetJsonString(root, "errorCode") ?? string.Empty).Trim();
                 var message = (TryGetJsonString(root, "message") ?? string.Empty).Trim();
                 var mailSent = TryGetJsonBool(root, "mailSent");
                 var authUserId =
@@ -1347,6 +1350,8 @@ namespace KGV.Infrastructure.Authentication
                     Success = success ?? httpSuccess,
                     LinkPrepared = linkPrepared,
                     MailSent = mailSent ?? outcome == "prepared",
+                    Outcome = outcome,
+                    ErrorCode = errorCode,
                     AuthUserId = authUserId,
                     Message = effectiveMessage
                 };
@@ -1690,6 +1695,8 @@ namespace KGV.Infrastructure.Authentication
             public bool Success { get; init; }
             public bool LinkPrepared { get; init; }
             public bool MailSent { get; init; }
+            public string Outcome { get; init; } = string.Empty;
+            public string ErrorCode { get; init; } = string.Empty;
             public Guid? AuthUserId { get; init; }
             public string Message { get; init; } = string.Empty;
 

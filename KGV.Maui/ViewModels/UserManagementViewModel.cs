@@ -219,7 +219,9 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
         try
         {
             var result = await _authService.InviteUserAsync(targetUser);
-            StatusMessage = result.Message ?? (result.Success ? "Einladung angestoßen." : "Einladung fehlgeschlagen.");
+            StatusMessage = result.Success && (!result.MailSent || result.Outcome == "prepared_mail_failed")
+                ? "Nutzerkonto wurde angelegt, die Willkommensmail konnte jedoch nicht versendet werden."
+                : result.Message ?? (result.Success ? "Nutzerkonto wurde angelegt und die Willkommensmail versendet." : "Einladung fehlgeschlagen.");
             await LoadAsync(reselectSelected: targetUser);
             return result.Success;
         }

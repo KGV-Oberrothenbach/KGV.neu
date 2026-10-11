@@ -566,7 +566,7 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
   async function invite() {
     if (!selectedMember?.email || !selectedMemberId) { setMessage("Für die Einladung fehlt eine E-Mail-Adresse."); return; }
     setSaving(true); setMessage("");
-    try { const result = await inviteAppUser(session, selectedMemberId, role); await load(); setMessage(result.message ?? (result.linkPrepared ? "Nutzerkonto wurde vorbereitet." : "Einladung wurde angestoßen.")); }
+    try { const result = await inviteAppUser(session, selectedMemberId, role); await load(); setMessage(result.mailSent === false || result.outcome === "prepared_mail_failed" ? "Nutzerkonto wurde angelegt, die Willkommensmail konnte jedoch nicht versendet werden." : "Nutzerkonto wurde angelegt und die Willkommensmail versendet."); }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : "Einladung konnte nicht gesendet werden."); }
     finally { setSaving(false); }
   }

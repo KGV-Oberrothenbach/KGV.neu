@@ -530,14 +530,14 @@ async function sendWelcomeMail(
   vorname: string,
   requestId?: string,
 ) {
-  const smtpHost = Deno.env.get("SMTP_HOST") ?? "";
+  const smtpHost = Deno.env.get("SMTP_HOST") ?? Deno.env.get("SMTP_Host") ?? "";
   const smtpPort = Number(Deno.env.get("SMTP_PORT") ?? "465");
   const smtpUser = Deno.env.get("SMTP_USER") ?? "";
   const smtpPassword =
     Deno.env.get("SMTP_PASSWORD") ??
     Deno.env.get("smtpPassword") ??
     "";
-  const smtpFrom = Deno.env.get("SMTP_FROM") ?? smtpUser;
+  const smtpFrom = Deno.env.get("SMTP_FROM") ?? Deno.env.get("SMTP_From") ?? smtpUser;
   const playstoreUrl = Deno.env.get("PLAYSTORE_URL") ?? "https://play.google.com/store";
 
   if (!smtpHost || !smtpPort || !smtpUser || !smtpPassword || !smtpFrom) {
@@ -773,52 +773,23 @@ Deno.serve(async (req: Request) => {
 
     const callerUserId = userData.user.id;
 
-    const callerLookupStartedAt = Date.now();
-    const { data: callerAppUser, error: callerAppUserError } = await supabaseAdmin
-      .from("app_user")
-      .select("role, mitglied_id")
-      .eq("user_id", callerUserId)
-      .maybeSingle();
+    // This RPC executes with the caller's JWT, so grants and revocations are
+    // evaluated by the central database permission contract.
+    const { data: canManageRoles, error: permissionError } = await supabaseUser
+      .rpc("has_effective_permission", { p_permission: 512 });
 
-    if (callerAppUserError) {
-      console.log("[kgv-invite-user] caller app_user lookup failed", {
-        requestId,
-        error: safeErrorInfo(callerAppUserError),
-        elapsedMs: Date.now() - callerLookupStartedAt,
-      });
-
-      return json(
-        {
-          success: false,
-          outcome: "error",
-          errorCode: "ServerError",
-          message: "Serverfehler.",
-        },
-        500,
-      );
-    }
-
-    console.log("[kgv-invite-user] caller app_user lookup ok", {
-      requestId,
-      clientRequestId,
-      callerRole: callerAppUser?.role ?? null,
-      callerMitgliedId: callerAppUser?.mitglied_id ?? null,
-      elapsedMs: Date.now() - callerLookupStartedAt,
-    });
-
-    const callerRole = normalizeRole(callerAppUser?.role);
-    if (callerRole !== "admin" && callerRole !== "vorstand") {
-      console.log("[kgv-invite-user] reject403: insufficient role", {
+    if (permissionError || canManageRoles !== true) {
+      console.log("[kgv-invite-user] reject403: missing CanManageRoles", {
         requestId,
         clientRequestId,
-        callerRole,
+        error: safeErrorInfo(permissionError),
       });
 
       return json(
         {
           success: false,
-          outcome: "unauthorized",
-          errorCode: "Unauthorized",
+          outcome: "forbidden",
+          errorCode: "Forbidden",
           message: "Keine Berechtigung.",
         },
         403,
@@ -892,12 +863,19 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (inviteMethod && inviteMethod !== "otp") {
-      console.log("[kgv-invite-user] non-otp inviteMethod requested; prepare-flow remains otp-bootstrap only", {
+    if (inviteMethod !== "otp") {
+      console.log("[kgv-invite-user] reject: unsupported invite method", {
         requestId,
         inviteMethod,
         mitgliedId,
       });
+
+      return json({
+        success: false,
+        outcome: "error",
+        errorCode: "UnsupportedInviteMethod",
+        message: "Nur der OTP-Erstlogin wird unterstützt.",
+      }, 400);
     }
 
     const mitgliedLookupStartedAt = Date.now();
@@ -1196,105 +1174,31 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const linkMitgliedStartedAt = Date.now();
-    const { error: linkMitgliedError } = await supabaseAdmin
-      .from("mitglied")
-      .update({
-        auth_user_id: userId,
-      })
-      .eq("id", mitgliedId);
-
-    if (linkMitgliedError) {
-      console.log("[kgv-invite-user] mitglied link failed", {
-        requestId,
-        mitgliedId,
-        userId,
-        error: safeErrorInfo(linkMitgliedError),
-        elapsedMs: Date.now() - linkMitgliedStartedAt,
-      });
-
-      return json(
-        {
-          success: false,
-          outcome: "error",
-          errorCode: "LinkFailed",
-          message: "Verknüpfung mit Mitglied fehlgeschlagen.",
-          mitgliedId,
-          email,
-          userId,
-        },
-        500,
-      );
-    }
-
-    const memberReadback = await verifyMitgliedLinkPersisted(
-      supabaseAdmin,
-      mitgliedId,
-      userId,
-      requestId,
-    );
-
-    if (!memberReadback.ok) {
-      return json(
-        {
-          success: false,
-          outcome: "error",
-          errorCode: "LinkNotPersisted",
-          message: "Die Verknüpfung zum Mitglied wurde nicht dauerhaft gespeichert.",
-          mitgliedId,
-          email,
-          userId,
-          authUserId: userId,
-        },
-        500,
-      );
-    }
-
-    console.log("[kgv-invite-user] mitglied link verified", {
-      requestId,
-      clientRequestId,
-      mitgliedId,
-      userId,
-      role,
-      elapsedMs: Date.now() - linkMitgliedStartedAt,
+    const provisionStartedAt = Date.now();
+    const { error: provisionError } = await supabaseAdmin.rpc("provision_app_user_link", {
+      p_mitglied_id: mitgliedId,
+      p_user_id: userId,
+      p_role: role,
     });
 
-    const writeAppUserStartedAt = Date.now();
-
-    const { error: upsertAppUserError } = await supabaseAdmin
-      .from("app_user")
-      .upsert(
-        {
-          user_id: userId,
-          mitglied_id: mitgliedId,
-          role,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      );
-
-    if (upsertAppUserError) {
-      console.log("[kgv-invite-user] app_user upsert failed", {
-        requestId,
-        mitgliedId,
-        userId,
-        error: safeErrorInfo(upsertAppUserError),
-        elapsedMs: Date.now() - writeAppUserStartedAt,
+    if (provisionError) {
+      console.log("[kgv-invite-user] atomic provisioning failed", {
+        requestId, mitgliedId, userId, error: safeErrorInfo(provisionError),
+        elapsedMs: Date.now() - provisionStartedAt,
       });
 
-      return json(
-        {
-          success: false,
-          outcome: "error",
-          errorCode: "AppUserUpsertFailed",
-          message: "Nutzerkonto konnte nicht gespeichert werden.",
-          mitgliedId,
-          email,
-          userId,
-          authUserId: userId,
-        },
-        500,
-      );
+      return json({
+        success: false,
+        outcome: "error",
+        errorCode: "ProvisioningFailed",
+        message: "Die Benutzerverknüpfung konnte nicht eingerichtet werden.",
+        mitgliedId, email, userId, authUserId: userId,
+      }, 500);
+    }
+
+    const memberReadback = await verifyMitgliedLinkPersisted(supabaseAdmin, mitgliedId, userId, requestId);
+    if (!memberReadback.ok) {
+      return json({ success: false, outcome: "error", errorCode: "LinkNotPersisted", message: "Die Verknüpfung zum Mitglied wurde nicht dauerhaft gespeichert.", mitgliedId, email, userId, authUserId: userId }, 500);
     }
 
     const appUserReadback = await verifyAppUserPersisted(
@@ -1326,7 +1230,7 @@ Deno.serve(async (req: Request) => {
       clientRequestId,
       mitgliedId,
       userId,
-      elapsedMs: Date.now() - writeAppUserStartedAt,
+      elapsedMs: Date.now() - provisionStartedAt,
     });
 
     let mailSent = false;

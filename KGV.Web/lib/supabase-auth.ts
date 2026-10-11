@@ -287,7 +287,7 @@ async function callSupabaseFunction<T>(session: BrowserSession, name: string, pa
 }
 
 export async function inviteAppUser(session: BrowserSession, memberId: number, role: "admin" | "vorstand" | "user") {
-  return await callSupabaseFunction<{ success?: boolean; linkPrepared?: boolean; mailSent?: boolean; message?: string }>(session, "kgv-invite-user", { mitgliedId: memberId, role, inviteMethod: "otp" });
+  return await callSupabaseFunction<{ success?: boolean; outcome?: string; errorCode?: string; mailSent?: boolean; message?: string; authUserId?: string }>(session, "kgv-invite-user", { mitgliedId: memberId, role, inviteMethod: "otp" });
 }
 
 export async function sendPasswordReset(session: BrowserSession, email: string) {
