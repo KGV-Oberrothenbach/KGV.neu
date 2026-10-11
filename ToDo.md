@@ -271,7 +271,7 @@ Nur anfassen, wenn funktional relevant oder im jeweiligen Block direkt betroffen
 
 ### Mitglieder
 - Mitglied → Dokumente: Vorhandene Dokumente werden nicht angezeigt.
-- Mitglied → Gärten → Ablesen: Nicht in den normalen Ablesemodus wechseln, sondern die Ablesehistorie der Parzelle innerhalb des aktiven Mitglieds laden; die erste angezeigte Ablesung ist der Pachtbeginn.
+- Mitglied → Gärten → Ablesen **(erledigt)**: Ursache war der Wechsel in den globalen Ablesemodus, wodurch Mitglieds- und Belegungskontext verloren gingen. Die Historie bleibt jetzt beim aktiven Mitglied und der ausgewählten Parzelle und wird für die konkrete `parzellen_belegung` anhand `von_datum`/`bis_datum` gefiltert. Es wird keine synthetische Pachtbeginn-Ablesung erzeugt.
 
 ### Arbeitsstunden
 - Seite Arbeitsstunden: Keine Daten sichtbar, obwohl Daten erfasst sind.
