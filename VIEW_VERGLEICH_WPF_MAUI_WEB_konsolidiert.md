@@ -5181,6 +5181,20 @@ Die kleine Maintenance-Access-Abbildung verwendet ausschließlich die bereits be
 
 Der Legacy-Pfad der früher kombinierten globalen/mitgliedsbezogenen React-Komponente wurde entfernt. `GlobalMaintenanceContracts` koordiniert nur noch globale Verträge; die verbleibenden direkten Member-/Parzellen-Reads werden weiterhin für Namen, Kontext und Gartennummern in der globalen Detailansicht benötigt.
 
+### G11.8 – Abschluss
+
+Die globale Overview zeigt Container-Meldungen wieder sichtbar an. Die reale Web-Struktur besteht aus `MaintenanceContractOverview`, `MaintenanceContractList`, `MaintenanceContractDetail`, `MaintenanceContractEditor`, `MemberMaintenanceContracts` sowie den Assignment-Komponenten `AssignMembersToContract`, `AssignContractsToMember` und `MaintenanceMemberSelector`. Die Koordination bleibt bewusst im Workspace-Router `app/page.tsx` (`MaintenanceContracts` → global oder Mitglied); es gibt keine separate Route nur für Wartungsverträge.
+
+Verträge laufen über `maintenance-contract-service` und `maintenance-contract-repository`, Zuordnungen über `maintenance-assignment-service` und `maintenance-assignment-repository` bis zum DB-Trigger. Rechte übernehmen die bestehende Workspace-Capability über `maintenance-access-service`, serverseitig abgesichert durch RLS. Die zentrale G7-Pflichtstundenfunktion berücksichtigt keine Anrechnung, feste Gutschriften und Vollbefreiung; Vollbefreiung hat Vorrang, gleiche Vertrags-IDs zählen saisonal einmal, unterschiedliche Gutschriften addieren sich ohne zeitanteilige Kürzung bis zum wirksamen Soll.
+
+Relevante G11-Migrationen: `20261010130000_g11_maintenance_work_hours_credit.sql` (Fachmodell), `20261010140000_g11_apply_maintenance_work_hours.sql` (zentrale Anrechnung), `20261010141000_g11_fix_work_hours_export_views.sql` (vollständiger Export plus Gutschrift) und `20261011100000_g11_maintenance_assignment_rules.sql` (Hauptmitglied-, Intervall- und Kapazitätsschutz).
+
+## G11 Abschlussstatus
+
+Status: ✅ abgeschlossen.
+
+Außerhalb G11 bleiben die manuelle saisonbezogene Befreiung mit Begründung (G7), eingefrorene Jahresergebnisse (G12) sowie ein möglicher Infrastruktur-Refactor für die globalen Member-/Parzellen-Beschriftungsdaten. Web-TypeScript, Build und Lint sind in einer vollständigen Entwicklungsumgebung erneut auszuführen, da isolierte Worktrees kein `node_modules` enthalten.
+
 ## 11.1 Globale Wartungsvertragsübersicht
 
 ### WPF
