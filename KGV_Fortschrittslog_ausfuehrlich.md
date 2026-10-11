@@ -749,3 +749,10 @@ Für die tägliche Arbeit reicht diese Fassung in der Regel aus, weil sie die fo
 - Ausschließlich `arbeitsstunde` wurde aus der clientseitigen Demo-Scope-Liste entfernt. Die Demo-Grenze bleibt in der vorhandenen RLS über Eigenkontext beziehungsweise `is_demo_mitglied_id(mitglied_id)` wirksam. Mitglieds-/Saisonfilter, Pflichtstunden-View und WEB-F1-Reviewlogik blieben unangetastet.
 - Ein Regressionstest prüft den tatsächlichen Service-/Repository-Request mit `mitglied_id` und `saison_id`, das Fehlen des clientseitigen `is_demo`-Filters sowie den fortbestehenden `is_demo`-Filter für eine Tabelle mit eigener Spalte.
 - Separate technische Auffälligkeit für Folgearbeit festgehalten: G7/G8-Triggerfunktionen referenzieren `NEW.is_demo`/`OLD.is_demo`, obwohl diese Spalte in `arbeitsstunde` fehlt. Ausführung betroffener UPDATE-Triggerpfade kann deshalb scheitern; in diesem Block wurde keine Migration geändert.
+
+## 2026-10-11 - G7/G8 Arbeitsstunden-UPDATE-Trigger
+
+- Die Migrationshistorie weist keine `arbeitsstunde.is_demo`-Spalte aus. Letzte Definition von `public.enforce_own_open_arbeitsstunde_update()` war die G8-Fassung aus `20261009220000_g8_work_assignment_work_hours.sql`; spätere Migrationen korrigierten die Funktion nicht.
+- Eine neue Forward-Migration `20261011114000_g7_fix_work_hour_update_trigger.sql` ersetzt nur diese Funktion und entfernt ausschließlich den ungültigen Vergleich `new.is_demo is distinct from old.is_demo`. Eigenmitglied-/Statusprüfungen, unveränderliche Mitglieds-/Saison- und Anmeldungsfelder, G7-Review-Sonderpfad, festes Einsatzdatum, Browser-Lock und bestehende Fehlertexte/SQLSTATEs bleiben erhalten.
+- Der bestehende BEFORE UPDATE Trigger verweist bereits auf dieselbe Funktionssignatur; `CREATE OR REPLACE FUNCTION` aktualisiert den Funktionskörper, ohne eine DROP/CREATE-Kette für den Trigger zu benötigen.
+- Kein `is_demo`-Feld, keine RLS- oder G8-Fachlogikänderung. Demo-Scope bleibt über Mitglieds-ID und vorhandene RLS-Funktionen. Der Migrationstest vergleicht die Forward-Funktion mit der letzten G8-Definition minus genau dem ungültigen Feldvergleich.

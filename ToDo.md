@@ -277,7 +277,7 @@ Nur anfassen, wenn funktional relevant oder im jeweiligen Block direkt betroffen
 - **(erledigt)** Seite Arbeitsstunden: Keine Daten sichtbar, obwohl Daten erfasst sind.
   - Ursache: `arbeitsstunde` hatte keinen eigenen `is_demo`-Parameter im Schema, stand aber in `demoScopedTables`; dadurch ergänzte `readSupabase()` einen ungültigen clientseitigen Filter.
   - Lösung: `arbeitsstunde` aus `demoScopedTables` entfernt. Der Demo-/Produktiv-Scope bleibt über die RLS anhand `mitglied_id` erhalten; die Mitglieds- und Saisonfilter der Ansicht bleiben unverändert.
-- **Offener technischer G7/G8-Folgepunkt:** `20261009120000_g7_own_work_hour_update.sql`, `20261009130000_g7_administrative_work_hour_entry.sql`, `20261009140000_g7_atomic_work_hour_review.sql` und `20261009220000_g8_work_assignment_work_hours.sql` referenzieren `NEW.is_demo`/`OLD.is_demo`, obwohl `arbeitsstunde` diese Spalte im aktuellen Schema nicht besitzt. Bei Ausführung betroffener UPDATE-Triggerpfade kann das zu einem Laufzeitfehler führen; getrennt prüfen und korrigieren, ohne Änderung in diesem Web-Fix.
+- **(erledigt) Technischer G7/G8-Folgepunkt:** Die letzte wirksame Arbeitsstunden-UPDATE-Triggerfunktion aus `20261009220000_g8_work_assignment_work_hours.sql` verglich `NEW.is_demo`/`OLD.is_demo`, obwohl `arbeitsstunde` diese Spalte nicht besitzt. Die neue Forward-Migration `20261011114000_g7_fix_work_hour_update_trigger.sql` ersetzt nur die Funktion und entfernt ausschließlich diesen ungültigen Vergleich; Mitglieds-/Saison-/Einsatzzuordnungs- und Lock-Schutz bleiben bestehen. Keine Tabellenspalte oder RLS wurde geändert.
 
 ---
 

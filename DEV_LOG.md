@@ -12071,3 +12071,11 @@ Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implement
 - `arbeitsstunde` wurde aus der clientseitigen Demo-Tabellenliste entfernt. Der serverseitige Demo-Scope über RLS und `is_demo_mitglied_id(mitglied_id)` bleibt bestehen; Mitglieds-/Saisonfilter sowie die globale `WorkHoursReview`-Saisonlogik bleiben unberührt.
 - Ein gezielter Regressionstest durchläuft Service und Repository mit abgefangenem REST-Request. Er prüft Mitglieds-/Saisonfilter, fehlendes `is_demo` bei Arbeitsstunden, den fortbestehenden Filter für `mitglied` und die Komponentenverdrahtung.
 - Separater offener Folgepunkt: G7/G8-Triggerfunktionen referenzieren `NEW.is_demo`/`OLD.is_demo`, obwohl `arbeitsstunde` keine solche Spalte besitzt. Bei Ausführung betroffener Triggerpfade kann ein Laufzeitfehler auftreten. Keine Änderung an den Migrationen in diesem Block.
+
+## 2026-10-11 - G7/G8 Arbeitsstunden-UPDATE-Trigger
+
+- Die Migrationshistorie bestätigt: `arbeitsstunde` besitzt kein eigenes `is_demo`; die letzte Definition von `enforce_own_open_arbeitsstunde_update()` stand in `20261009220000_g8_work_assignment_work_hours.sql`, und keine spätere Migration korrigierte sie.
+- Neue Forward-Migration `20261011114000_g7_fix_work_hour_update_trigger.sql` ersetzt ausschließlich die Triggerfunktion. Gegenüber der letzten G8-Definition wurde nur `new.is_demo is distinct from old.is_demo` aus der Unveränderlichkeitsprüfung entfernt. Kein Schema-, RLS-, Trigger- oder G8-Arbeitseinsatzumbau.
+- Der bestehende BEFORE UPDATE Trigger zeigt weiterhin auf dieselbe Funktionssignatur; `CREATE OR REPLACE FUNCTION` erhält die Triggerbindung, daher ist keine Trigger-Neuanlage erforderlich.
+- Regressionstest vergleicht die neue Funktionslogik mit der letzten G8-Fassung und sichert Mitglieds-/Saison-/Anmeldungs-IDs, Review-Sonderpfad, feste Einsatzdaten und Browser-Lock setzen/freigeben.
+- `arbeitsstunde.is_demo` wird nicht eingeführt; Demo-Scope bleibt über `mitglied_id` und RLS. Der zuvor in F4 dokumentierte Folgepunkt ist damit durch eine Forward-Korrektur erledigt.

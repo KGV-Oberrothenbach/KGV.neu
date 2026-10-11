@@ -36,6 +36,8 @@ Die administrative Erfassung ist an die effektive Permission `ManageWorkHours` g
 
 Web und MAUI verwenden dieselbe effektive Permission. Die administrative Erfassung funktioniert für den aktuell ausgewählten Haupt- ebenso wie Nebenmitglied-Kontext. Eigene Einträge ohne `ManageWorkHours` bleiben unverändert offen und nicht freigegeben. Die Pflichtstundenwerte stammen weiterhin ausschließlich aus `v_pflichtstunden_uebersicht`; der Prüfworkflow wird in G7.4 über die zentrale Review-RPC abgesichert.
 
+`arbeitsstunde` besitzt kein eigenes `is_demo`-Feld. Demo- und Produktivscope werden für Arbeitsstunden über die Mitgliedszuordnung und die vorhandenen RLS-/Scope-Funktionen bestimmt. UPDATE-Trigger vergleichen daher keine separate Arbeitsstunden-Demo-Spalte.
+
 ## G7.4 – Prüfung, Audit und Concurrency
 
 Offene Arbeitsstunden werden ausschließlich über die atomare RPC `review_arbeitsstunde` geprüft. Sie verlangt die effektive Permission `ManageWorkHours`, einen Pflichtkommentar und akzeptiert nur Freigeben, Ablehnen, Korrigieren oder Löschen. Die RPC sperrt den Datensatz mit `FOR UPDATE`, prüft den offenen Vorzustand sowie den Demo-/Reviewer-Scope erneut und schreibt Statusänderung und Audit in derselben Transaktion.
