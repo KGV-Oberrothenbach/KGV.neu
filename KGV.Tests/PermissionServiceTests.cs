@@ -5,19 +5,92 @@ namespace KGV.Tests;
 
 public sealed class PermissionServiceTests
 {
-    [Fact]
-    public void AppointmentAndAnnouncementPermissionBits_AreStable()
-    {
-        Assert.Equal(2097152L, (long)PermissionFlags.CanManageAppointments);
-        Assert.Equal(4194304L, (long)PermissionFlags.CanManageAnnouncements);
-    }
     [Theory]
-    [InlineData(UserRole.Admin, 8380407L)]
+    [InlineData(PermissionFlags.CanSearchMembers, 1L)]
+    [InlineData(PermissionFlags.CanViewMembers, 2L)]
+    [InlineData(PermissionFlags.CanEditAllMembers, 4L)]
+    [InlineData(PermissionFlags.CanSeeOwnDataOnly, 8L)]
+    [InlineData(PermissionFlags.CanManageDocuments, 16L)]
+    [InlineData(PermissionFlags.CanReadMeters, 32L)]
+    [InlineData(PermissionFlags.CanManageMeterChanges, 64L)]
+    [InlineData(PermissionFlags.CanApproveMeterReadings, 128L)]
+    [InlineData(PermissionFlags.CanManageWorkHours, 256L)]
+    [InlineData(PermissionFlags.CanManageRoles, 512L)]
+    [InlineData(PermissionFlags.CanShowStammdaten, 1024L)]
+    [InlineData(PermissionFlags.CanReadStammdaten, 2048L)]
+    [InlineData(PermissionFlags.CanWriteStammdaten, 4096L)]
+    [InlineData(PermissionFlags.CanShowParzellen, 8192L)]
+    [InlineData(PermissionFlags.CanReadParzellen, 16384L)]
+    [InlineData(PermissionFlags.CanWriteParzellen, 32768L)]
+    [InlineData(PermissionFlags.CanReadDocuments, 65536L)]
+    [InlineData(PermissionFlags.CanReadWorkHours, 131072L)]
+    [InlineData(PermissionFlags.CanReadRoles, 262144L)]
+    [InlineData(PermissionFlags.CanCreateMitglied, 524288L)]
+    [InlineData(PermissionFlags.CanManageWorkAssignments, 1048576L)]
+    [InlineData(PermissionFlags.CanManageAppointments, 2097152L)]
+    [InlineData(PermissionFlags.CanManageAnnouncements, 4194304L)]
+    public void ExistingPermissionBits_AreStable(PermissionFlags permission, long expectedValue)
+    {
+        Assert.Equal(expectedValue, (long)permission);
+    }
+
+    [Fact]
+    public void YearEndClosingPermissionBit_Is8388608()
+        => Assert.Equal(8388608L, (long)PermissionFlags.CanPerformYearEndClosing);
+
+    [Theory]
+    [InlineData(UserRole.Admin, 16769015L)]
     [InlineData(UserRole.Vorstand, 7855607L)]
     [InlineData(UserRole.User, 10L)]
     public void RolePermissions_MatchSharedEffectivePermissionMasks(UserRole role, long expectedMask)
     {
         Assert.Equal(expectedMask, (long)PermissionService.GetRolePermissions(role));
+    }
+
+    [Theory]
+    [InlineData(UserRole.Admin, true)]
+    [InlineData(UserRole.Vorstand, false)]
+    [InlineData(UserRole.User, false)]
+    public void RolePermissions_ApplyYearEndClosingOnlyToAdminsByDefault(UserRole role, bool expected)
+        => Assert.Equal(expected, PermissionService.GetRolePermissions(role).HasFlag(PermissionFlags.CanPerformYearEndClosing));
+
+    [Fact]
+    public void CreateContext_AppliesYearEndClosingGrantsAndRevocationsWithRevocationWinning()
+    {
+        var service = new PermissionService();
+        var vorstandWithGrant = service.CreateContext(Guid.NewGuid(), "vorstand", null, (long)PermissionFlags.CanPerformYearEndClosing);
+        var adminWithRevocation = service.CreateContext(Guid.NewGuid(), "admin", null, null, (long)PermissionFlags.CanPerformYearEndClosing);
+        var userWithGrantAndRevocation = service.CreateContext(
+            Guid.NewGuid(),
+            "user",
+            null,
+            (long)PermissionFlags.CanPerformYearEndClosing,
+            (long)PermissionFlags.CanPerformYearEndClosing);
+
+        Assert.True(vorstandWithGrant.Has(PermissionFlags.CanPerformYearEndClosing));
+        Assert.False(adminWithRevocation.Has(PermissionFlags.CanPerformYearEndClosing));
+        Assert.False(userWithGrantAndRevocation.Has(PermissionFlags.CanPerformYearEndClosing));
+    }
+
+    [Fact]
+    public void PermissionCatalog_ContainsYearEndClosingInKnownAndUserEditablePermissions()
+    {
+        Assert.True(PermissionCatalog.GetKnownPermissionMask().HasFlag(PermissionFlags.CanPerformYearEndClosing));
+        Assert.Contains(
+            PermissionCatalog.GetUserSpecificEditablePermissions(),
+            permission => permission.Flag == PermissionFlags.CanPerformYearEndClosing
+                          && permission.DisplayName == "Jahresabschluss durchführen");
+    }
+
+    [Fact]
+    public void PermissionCatalog_ExposesYearEndClosingAsAnActionArea()
+    {
+        var area = Assert.Single(PermissionCatalog.GetGlobalEditablePermissionAreas(), area => area.AreaKey == "jahresabschluss");
+
+        Assert.Equal("Jahresabschluss", area.DisplayName);
+        Assert.Equal(PermissionFlags.CanPerformYearEndClosing, area.AllPermissions);
+        Assert.Equal(PermissionFlags.CanPerformYearEndClosing, area.ReadPermissions);
+        Assert.Equal(PermissionFlags.CanPerformYearEndClosing, area.WritePermissions);
     }
 
     [Theory]

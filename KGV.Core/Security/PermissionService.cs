@@ -71,7 +71,8 @@ namespace KGV.Core.Security
         private static PermissionFlags GetAdminPermissions()
             => GetVorstandPermissions()
                | PermissionFlags.CanCreateMitglied
-               | PermissionFlags.CanManageRoles;
+               | PermissionFlags.CanManageRoles
+               | PermissionFlags.CanPerformYearEndClosing;
 
         public UserContext CreateContext(Guid userId, string? role, long? mitgliedId, long? grantedPermissions = null, long? revokedPermissions = null)
         {
