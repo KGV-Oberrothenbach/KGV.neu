@@ -260,6 +260,7 @@ Nur anfassen, wenn funktional relevant oder im jeweiligen Block direkt betroffen
 - Tatsächliche Ursache: Die globale Arbeitsstunden-Freigabe hat die zentrale `saisonId` nicht an ihre Repository-Abfrage übergeben und zeigte daher Einträge aus allen Saisons an.
 - Zusätzlich haben saisonbezogene Exportfilter bisher das aktuelle Kalenderjahr statt der ausgewählten Workspace-Saison vorbelegt.
 - Beide Bereiche verwenden nun die zentrale Saisonwahl und laden bei einem Wechsel erneut; Mitglieds- und Parzellenkontexte bleiben unverändert erhalten.
+- Beim neuen App-Start hat die aktuelle Kalender-Saison nun Vorrang vor einer zuvor gespeicherten manuellen Auswahl. Innerhalb der laufenden Sitzung bleibt die manuelle Saisonwahl weiterhin wirksam.
 
 ### Impressum
 - Vorstand und Bauausschuss sind nicht verknüpft.

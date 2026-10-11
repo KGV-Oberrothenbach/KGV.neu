@@ -721,3 +721,9 @@ Für die tägliche Arbeit reicht diese Fassung in der Regel aus, weil sie die fo
 - Die tatsächliche Lücke lag in der globalen Arbeitsstunden-Freigabe. Ihre Repository-Abfrage hatte keinen `saison_id`-Filter und reagierte deshalb auch nicht auf einen Saisonwechsel. Der Kontext wird nun als `saisonId` übergeben, der Filter gesetzt und der Ladezustand bei Wechsel zurückgesetzt.
 - Exportfilter mit Jahresbezug nutzen für ihre Vorbelegung jetzt die ausgewählte Workspace-Saison statt `new Date().getFullYear()`; beim Wechsel werden Filteroptionen und Ergebnisvorschau erneuert.
 - Es wurden keine parallelen Saison-States eingeführt und keine datumsgesteuerten Zähler-/Arbeitseinsatzpfade künstlich saisongefiltert.
+
+## 2026-10-11 - WEB-F1 Start-Saison
+
+- Die persistierte Workspace-Saison hatte beim App-Start bisher Vorrang. Damit konnte eine früher manuell gewählte alte Saison zum Startstandard werden.
+- `selectInitialSeasonFromList(...)` wählt jetzt zuerst die Saison des aktuellen Kalenderjahres. Existiert sie nicht, greift der bestehende Fallback bewusst auf die persistierte und danach auf die erste verfügbare Saison zurück.
+- `WorkspaceContext` und die bestehende Speicherung bleiben unverändert: Während der Sitzung setzt eine manuelle Auswahl `saisonId` und `saisonJahr`; nach dem nächsten Start überschreibt die Initialisierung beides mit der aktuellen Saison, ohne Mitglieds- oder Parzellenkontext zu verändern.

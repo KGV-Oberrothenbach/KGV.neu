@@ -12043,3 +12043,9 @@ Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implement
 - Die globale Arbeitsstunden-Freigabe übergab die zentrale `saisonId` nicht an ihre Repository-Abfrage und lud deshalb Arbeitsstunden ohne Saisonfilter. Die Abfrage erhält nun den Saisonparameter und lädt bei Saisonwechsel erneut.
 - Saisonbezogene Exportfilter wurden bisher mit dem Kalenderjahr vorbelegt. Sie übernehmen nun die ausgewählte Workspace-Saison und setzen ihre Ergebnisse bei einem Wechsel zurück.
 - Zählerablesungen und Arbeitseinsätze bleiben absichtlich unverändert, da ihre Fachlogik datumsgesteuert ist.
+
+## 2026-10-11 - WEB-F1 Start-Saison
+
+- Die Startlogik priorisiert nun die aktuelle Kalender-Saison vor einer im Workspace gespeicherten älteren `saisonId`.
+- Die manuelle Auswahl aktualisiert weiterhin den Workspace nur für die laufende Sitzung; beim nächsten Start wird sie nach dem Laden der Saisonliste durch die aktuelle Saison ersetzt und erneut gespeichert.
+- Bestehende Fallbacks bleiben erhalten: Fehlt die aktuelle Saison in der Liste, wird zuerst die persistierte Saison und danach die erste verfügbare Saison verwendet.
