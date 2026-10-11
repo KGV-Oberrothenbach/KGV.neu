@@ -63,6 +63,7 @@ import { classifyMaintenanceAssignments } from "../services/maintenance/maintena
 import { MaintenanceContractOverview } from "../features/maintenance/MaintenanceContractOverview";
 import { MaintenanceContractEditor } from "../features/maintenance/MaintenanceContractEditor";
 import { AssignMembersToContract } from "../features/maintenance/assignments/AssignMembersToContract";
+import { MemberMaintenanceContracts } from "../features/maintenance/MemberMaintenanceContracts";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -460,6 +461,11 @@ function currentLocalDate() {
 }
 
 function MaintenanceContracts({ session, memberId, canManage }: { session: BrowserSession; memberId?: number; canManage: boolean }) {
+  return memberId ? <MemberMaintenanceContracts session={session} memberId={memberId} canManage={canManage} /> : <GlobalMaintenanceContracts session={session} canManage={canManage} />;
+}
+
+function GlobalMaintenanceContracts({ session, canManage }: { session: BrowserSession; canManage: boolean }) {
+  const memberId = undefined;
   const [contracts, setContracts] = useState<MaintenanceContract[]>([]); const [assignments, setAssignments] = useState<MaintenanceAssignment[]>([]); const [members, setMembers] = useState<Member[]>([]); const [parcels, setParcels] = useState<Parcel[]>([]); const [parcelAssignments, setParcelAssignments] = useState<ParcelAssignment[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null); const [editing, setEditing] = useState(false); const [editingId, setEditingId] = useState<number | null>(null); const [draft, setDraft] = useState<MaintenanceContractDraft | null>(null); const [message, setMessage] = useState(""); const [saving, setSaving] = useState(false);
   const [assignMemberId, setAssignMemberId] = useState(memberId ? String(memberId) : ""); const [assignContractId, setAssignContractId] = useState(""); const [validFrom, setValidFrom] = useState(new Date().toISOString().slice(0, 10)); const [assignmentNote, setAssignmentNote] = useState(""); const [assigningMembers, setAssigningMembers] = useState(false); const [endDates, setEndDates] = useState<Record<number, string>>({});

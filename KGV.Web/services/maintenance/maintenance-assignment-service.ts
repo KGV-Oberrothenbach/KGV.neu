@@ -1,7 +1,9 @@
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type MaintenanceAssignment } from "../../models/maintenance/maintenance-assignment";
+import { type MaintenanceContract } from "../../models/maintenance/maintenance-contract";
+import { getMember } from "../members/member-service";
 import { listCurrentGardenNumbersByMemberId } from "../parcels/parcel-service";
-import { loadMaintenanceContract } from "./maintenance-contract-service";
+import { loadMaintenanceContract, loadMaintenanceContracts } from "./maintenance-contract-service";
 import { createMaintenanceAssignment, endMaintenanceAssignment, listMaintenanceAssignmentMembers, listMaintenanceAssignments, listMaintenanceAssignmentsForContract, resolveMaintenanceAssignmentMembers, resolveMaintenanceAssignmentPrincipalMember, type MaintenanceAssignmentMemberRow, type MaintenanceAssignmentRow } from "../../repositories/maintenance/maintenance-assignment-repository";
 
 function fromRow(row: MaintenanceAssignmentRow): MaintenanceAssignment {
@@ -12,6 +14,8 @@ export type ClassifiedMaintenanceAssignments = { active: MaintenanceAssignment[]
 export type MaintenanceAssignmentCreateInput = { maintenanceContractId: number; selectedMemberId: number; validFrom: string; validUntil: string | null; note: string | null };
 export type MaintenanceAssignmentBatchInput = { maintenanceContractId: number; selectedMemberIds: number[]; validFrom: string; validUntil: null; note: string | null };
 export type MaintenanceMemberCandidate = { selectedMemberId: number; principalMemberId: number; displayName: string; memberContext: "Hauptmitglied" | "Nebenmitglied"; gardenNumbers: string[]; alreadyAssignedInPeriod: boolean; selectable: boolean; statusText: string | null };
+export type MaintenanceContractCandidate = { contract: MaintenanceContract; principalMemberId: number; alreadyAssignedInPeriod: boolean; availableInPeriod: boolean; selectable: boolean; statusText: string | null };
+export type MaintenanceContractBatchInput = { selectedMemberId: number; maintenanceContractIds: number[]; validFrom: string; validUntil: null; note: string | null };
 
 export function maintenanceAssignmentIntervalsOverlap(aFrom: string, aUntil: string | null, bFrom: string, bUntil: string | null): boolean {
   return aFrom <= (bUntil ?? "9999-12-31") && bFrom <= (aUntil ?? "9999-12-31");
@@ -59,6 +63,27 @@ export async function loadMaintenanceAssignments(session: BrowserSession, princi
   return (await listMaintenanceAssignments(session, principalMemberId)).map(fromRow);
 }
 
+export const resolveMaintenancePrincipalMember = (session: BrowserSession, selectedMemberId: number) => resolveMaintenanceAssignmentPrincipalMember(session, selectedMemberId);
+
+export async function loadMemberMaintenanceContracts(session: BrowserSession, selectedMemberId: number) {
+  const member = await getMember(session, selectedMemberId);
+  if (!member) throw new Error("Das Mitglied wurde nicht gefunden.");
+  const principalMemberId = await resolveMaintenancePrincipalMember(session, selectedMemberId);
+  const [principalMember, assignments, contracts] = await Promise.all([principalMemberId === selectedMemberId ? Promise.resolve(member) : getMember(session, principalMemberId), loadMaintenanceAssignments(session, principalMemberId), loadMaintenanceContracts(session)]);
+  return { member, principalMember, principalMemberId, assignments, contracts };
+}
+
+export async function loadAssignableMaintenanceContractsForMember(session: BrowserSession, selectedMemberId: number, validFrom: string): Promise<MaintenanceContractCandidate[]> {
+  const principalMemberId = await resolveMaintenancePrincipalMember(session, selectedMemberId);
+  const [contracts, assignments] = await Promise.all([loadMaintenanceContracts(session), loadMaintenanceAssignments(session)]);
+  return contracts.map((contract) => {
+    const contractAssignments = assignments.filter((assignment) => assignment.maintenanceContractId === contract.id);
+    const alreadyAssignedInPeriod = contractAssignments.some((assignment) => assignment.principalMemberId === principalMemberId && maintenanceAssignmentIntervalsOverlap(assignment.validFrom, assignment.validUntil, validFrom, null));
+    const availableInPeriod = calculatePeakMaintenanceOccupancy(contractAssignments, { validFrom, validUntil: null }) <= contract.maxActiveAssignments;
+    return { contract, principalMemberId, alreadyAssignedInPeriod, availableInPeriod, selectable: contract.active && !alreadyAssignedInPeriod && availableInPeriod, statusText: alreadyAssignedInPeriod ? "Bereits zugeordnet" : !availableInPeriod ? "Im gewählten Zeitraum ist das Kontingent ausgeschöpft" : null };
+  });
+}
+
 export async function createMaintenanceAssignmentForContract(session: BrowserSession, input: MaintenanceAssignmentCreateInput): Promise<MaintenanceAssignment> {
   if (!input.maintenanceContractId || !input.selectedMemberId || !input.validFrom) throw new Error("Vertrag, Mitglied und Gültigkeitsbeginn sind erforderlich.");
   if (input.validUntil && input.validUntil < input.validFrom) throw new Error("Das Enddatum darf nicht vor dem Beginn liegen.");
@@ -94,6 +119,31 @@ export async function assignMembersToMaintenanceContract(session: BrowserSession
       const inserted = await createMaintenanceAssignment(session, { wartungsvertrag_id: input.maintenanceContractId, hauptmitglied_id: principal, gueltig_ab: input.validFrom, gueltig_bis: null, bemerkung: input.note?.trim() || null });
       if (!inserted[0]) throw new Error("Wartungsvertragszuordnung konnte nicht gespeichert werden.");
       created.push(fromRow(inserted[0]));
+    }
+  } catch (cause) {
+    throw new Error(created.length ? `${created.length} Zuordnung(en) wurden gespeichert. Der Zustand wurde aktualisiert; weitere Zuordnungen konnten nicht gespeichert werden.` : cause instanceof Error ? cause.message : "Zuordnungen konnten nicht gespeichert werden.");
+  }
+  return created;
+}
+
+export async function assignMaintenanceContractsToMember(session: BrowserSession, input: MaintenanceContractBatchInput): Promise<MaintenanceAssignment[]> {
+  if (!input.selectedMemberId || !input.validFrom || input.validUntil !== null || input.maintenanceContractIds.length === 0) throw new Error("Mitglied, mindestens ein Wartungsvertrag und Gültigkeitsbeginn sind erforderlich.");
+  const contractIds = [...new Set(input.maintenanceContractIds)];
+  if (contractIds.length !== input.maintenanceContractIds.length || contractIds.some((id) => !Number.isInteger(id) || id <= 0)) throw new Error("Die Vertragsauswahl ist ungültig.");
+  const principalMemberId = await resolveMaintenancePrincipalMember(session, input.selectedMemberId);
+  const [contracts, assignments] = await Promise.all([Promise.all(contractIds.map((id) => loadMaintenanceContract(session, id))), loadMaintenanceAssignments(session)]);
+  if (contracts.some((contract) => !contract || !contract.active)) throw new Error("Mindestens ein ausgewählter Wartungsvertrag ist nicht aktiv oder wurde nicht gefunden.");
+  for (const contract of contracts as MaintenanceContract[]) {
+    const contractAssignments = assignments.filter((assignment) => assignment.maintenanceContractId === contract.id);
+    if (contractAssignments.some((assignment) => assignment.principalMemberId === principalMemberId && maintenanceAssignmentIntervalsOverlap(assignment.validFrom, assignment.validUntil, input.validFrom, null))) throw new Error("Das Mitglied besitzt mindestens einen Wartungsvertrag im gewählten Zeitraum bereits.");
+    if (calculatePeakMaintenanceOccupancy(contractAssignments, { validFrom: input.validFrom, validUntil: null }) > contract.maxActiveAssignments) throw new Error("Im gewählten Zeitraum ist das Kontingent mindestens eines Wartungsvertrags ausgeschöpft.");
+  }
+  const created: MaintenanceAssignment[] = [];
+  try {
+    for (const contract of contracts as MaintenanceContract[]) {
+      const rows = await createMaintenanceAssignment(session, { wartungsvertrag_id: contract.id, hauptmitglied_id: principalMemberId, gueltig_ab: input.validFrom, gueltig_bis: null, bemerkung: input.note?.trim() || null });
+      if (!rows[0]) throw new Error("Wartungsvertragszuordnung konnte nicht gespeichert werden.");
+      created.push(fromRow(rows[0]));
     }
   } catch (cause) {
     throw new Error(created.length ? `${created.length} Zuordnung(en) wurden gespeichert. Der Zustand wurde aktualisiert; weitere Zuordnungen konnten nicht gespeichert werden.` : cause instanceof Error ? cause.message : "Zuordnungen konnten nicht gespeichert werden.");

@@ -5162,6 +5162,10 @@ Eine Wartungsvertragszuordnung wird immer für den Hauptmitglied-Kontext gespeic
 
 Die globale Detailansicht bietet eine eigene Mehrfachzuweisung mit gemeinsamem Gültig-ab-Datum und Bemerkung. Kandidaten werden serviceseitig nach Name oder Gartennummer bereitgestellt; Haupt- und Nebenmitglieder bleiben sichtbar, teilen aber genau einen Hauptmitglied-Kontext. Bereits überlappend zugeordnete Kontexte sind sichtbar und gesperrt. Die Auswahl und die Anzeige der verbleibenden Plätze beziehen sich auf die Peak-Kapazität im gewählten Zeitraum, nicht auf die heutige Belegung. G11.4-Service- und Datenbankregeln bleiben dabei die verbindliche Absicherung.
 
+### G11.6 – Mitgliedskontext
+
+Die mitgliedsbezogene Wartungsvertragsansicht ist aus `page.tsx` in die G3-nahe Komponente ausgelagert. Der gewählte Haupt- oder Nebenmitglied-Datensatz wird im Service auf seinen Hauptmitglied-Kontext normalisiert; aktive, zukünftige und historische Zuordnungen werden getrennt dargestellt. Berechtigte Nutzer können mehrere aktive Verträge mit gemeinsamem Startdatum zuweisen oder nur aktive Zuordnungen über ein Enddatum beenden. Vertragskandidaten prüfen die Kapazität jeweils im gewählten Zeitraum. Es gibt keinen Hard-Delete und keine neue Datenbankmigration.
+
 ## 11.1 Globale Wartungsvertragsübersicht
 
 ### WPF
