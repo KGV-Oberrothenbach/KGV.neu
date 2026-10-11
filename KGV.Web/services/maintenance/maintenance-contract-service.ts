@@ -4,6 +4,7 @@ import { maintenanceWorkHoursEffect } from "../../models/maintenance/maintenance
 import { type MaintenanceContractOverview } from "../../models/maintenance/maintenance-contract-overview";
 import { type MaintenanceAssignment } from "../../models/maintenance/maintenance-assignment";
 import { createMaintenanceContract, getMaintenanceContract, listMaintenanceContracts, type MaintenanceContractRow, type MaintenanceContractWriteRow, updateMaintenanceContract } from "../../repositories/maintenance/maintenance-contract-repository";
+import { listMaintenanceAssignmentsForContract } from "../../repositories/maintenance/maintenance-assignment-repository";
 
 function fromRow(row: MaintenanceContractRow): MaintenanceContract {
   return { id: row.id, title: row.titel, description: row.beschreibung, area: row.bereich, maxActiveAssignments: row.max_aktive_zuordnungen, exemptsFromDutyHours: row.befreit_von_pflichtstunden, workHoursCredit: Number(row.arbeitsstunden_gutschrift), active: row.aktiv, note: row.bemerkung };
@@ -38,6 +39,13 @@ export function normalizeAndValidateMaintenanceContract(draft: MaintenanceContra
 export async function saveMaintenanceContract(session: BrowserSession, id: number | null, draft: MaintenanceContractDraft): Promise<MaintenanceContract> {
   const result = normalizeAndValidateMaintenanceContract(draft);
   if (!result.payload) throw new Error(result.error);
+  if (id !== null) {
+    const today = new Date();
+    const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const activeAssignments = await listMaintenanceAssignmentsForContract(session, id);
+    const occupiedToday = activeAssignments.filter((assignment) => assignment.gueltig_ab <= localDate && (!assignment.gueltig_bis || assignment.gueltig_bis >= localDate)).length;
+    if (result.payload.max_aktive_zuordnungen < occupiedToday) throw new Error("Das Kontingent kann nicht unter die aktuell belegten Plätze reduziert werden.");
+  }
   const rows = id === null ? await createMaintenanceContract(session, result.payload) : await updateMaintenanceContract(session, id, result.payload);
   const row = rows[0];
   if (!row) throw new Error("Wartungsvertrag konnte nicht gespeichert werden.");

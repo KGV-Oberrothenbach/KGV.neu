@@ -5166,6 +5166,19 @@ Die globale Detailansicht bietet eine eigene Mehrfachzuweisung mit gemeinsamem G
 
 Die mitgliedsbezogene Wartungsvertragsansicht ist aus `page.tsx` in die G3-nahe Komponente ausgelagert. Der gewählte Haupt- oder Nebenmitglied-Datensatz wird im Service auf seinen Hauptmitglied-Kontext normalisiert; aktive, zukünftige und historische Zuordnungen werden getrennt dargestellt. Berechtigte Nutzer können mehrere aktive Verträge mit gemeinsamem Startdatum zuweisen oder nur aktive Zuordnungen über ein Enddatum beenden. Vertragskandidaten prüfen die Kapazität jeweils im gewählten Zeitraum. Es gibt keinen Hard-Delete und keine neue Datenbankmigration.
 
+### G11.7 – Rechte, Lebenszyklus und Regression
+
+| Fall | Status |
+| --- | --- |
+| Vertrag anlegen/bearbeiten, deaktivieren/reaktivieren | bestehende Manage-Capability und RLS |
+| WV-Gutschrift/Vollbefreiung | zentrale G11.1b-Regeln unverändert |
+| Mehrfachzuweisung global und im Mitgliedskontext | Zeitraum-, Hauptmitglied- und Kapazitätsprüfung aktiv |
+| Nebenmitglied, Zukunft, Historie, Beenden | Hauptmitglied-Kontext und inklusive Zeiträume erhalten |
+| Read-only und Demo-Ausschluss | keine Mutationsaktionen; Produktivfilter aktiv |
+| Hard-Delete | nicht vorhanden; Beenden setzt nur `gueltig_bis` |
+
+Die kleine Maintenance-Access-Abbildung verwendet ausschließlich die bereits berechnete Capability. Eine Kontingentreduzierung unter die aktuelle heutige Belegung wird im Contract-Service verständlich abgelehnt. Die vorhandenen RLS-Policies erlauben Mutationen nur für `is_admin_or_vorstand()`; deshalb war keine Migration erforderlich.
+
 ## 11.1 Globale Wartungsvertragsübersicht
 
 ### WPF

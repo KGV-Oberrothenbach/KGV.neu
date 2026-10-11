@@ -64,6 +64,7 @@ import { MaintenanceContractOverview } from "../features/maintenance/Maintenance
 import { MaintenanceContractEditor } from "../features/maintenance/MaintenanceContractEditor";
 import { AssignMembersToContract } from "../features/maintenance/assignments/AssignMembersToContract";
 import { MemberMaintenanceContracts } from "../features/maintenance/MemberMaintenanceContracts";
+import { maintenanceAccess } from "../services/maintenance/maintenance-access-service";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -461,7 +462,8 @@ function currentLocalDate() {
 }
 
 function MaintenanceContracts({ session, memberId, canManage }: { session: BrowserSession; memberId?: number; canManage: boolean }) {
-  return memberId ? <MemberMaintenanceContracts session={session} memberId={memberId} canManage={canManage} /> : <GlobalMaintenanceContracts session={session} canManage={canManage} />;
+  const access = maintenanceAccess(canManage);
+  return memberId ? <MemberMaintenanceContracts session={session} memberId={memberId} canManage={access.canManageAssignments} /> : <GlobalMaintenanceContracts session={session} canManage={access.canManageContracts} />;
 }
 
 function GlobalMaintenanceContracts({ session, canManage }: { session: BrowserSession; canManage: boolean }) {
