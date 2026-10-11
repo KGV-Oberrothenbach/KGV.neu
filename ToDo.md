@@ -252,7 +252,14 @@ Nur anfassen, wenn funktional relevant oder im jeweiligen Block direkt betroffen
 ## 3a. WEB App – offene Punkte
 
 ### Navigation
-- Saison-Auswahl in der Navigationsleiste: Dropdown ohne Funktion.
+- Saison-Auswahl in der Navigationsleiste: Dropdown ohne Funktion (durch den WEB-F1-Saison-Fix behoben; Details siehe erledigten Punkt unten).
+
+### Saison-Auswahl in der Navigationsleiste
+**Status:** erledigt
+- Der `SeasonPicker` und der persistierte Workspace-Kontext waren bereits korrekt verdrahtet und bleiben unverändert.
+- Tatsächliche Ursache: Die globale Arbeitsstunden-Freigabe hat die zentrale `saisonId` nicht an ihre Repository-Abfrage übergeben und zeigte daher Einträge aus allen Saisons an.
+- Zusätzlich haben saisonbezogene Exportfilter bisher das aktuelle Kalenderjahr statt der ausgewählten Workspace-Saison vorbelegt.
+- Beide Bereiche verwenden nun die zentrale Saisonwahl und laden bei einem Wechsel erneut; Mitglieds- und Parzellenkontexte bleiben unverändert erhalten.
 
 ### Impressum
 - Vorstand und Bauausschuss sind nicht verknüpft.

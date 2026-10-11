@@ -49,8 +49,9 @@ export const listMemberWorkHoursForSeason = (session: BrowserSession, memberId: 
   limit: "500",
 });
 
-export const listWorkHoursForReview = (session: BrowserSession) => readSupabase<WorkHour>(session, "arbeitsstunde", {
+export const listWorkHoursForReview = (session: BrowserSession, saisonId: number) => readSupabase<WorkHour>(session, "arbeitsstunde", {
   select: workHourSelect,
+  saison_id: `eq.${saisonId}`,
   order: "datum.desc,id.desc",
   limit: "1000",
 });

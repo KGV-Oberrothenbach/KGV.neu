@@ -100,7 +100,7 @@ export async function loadMemberWorkHoursWorkspace(session: BrowserSession, memb
   return { workHours, summary, history };
 }
 
-export const loadWorkHoursReview = (session: BrowserSession) => listWorkHoursForReview(session);
+export const loadWorkHoursReview = (session: BrowserSession, saisonId: number) => listWorkHoursForReview(session, saisonId);
 export const loadLinkedWorkAssignmentWorkHour = (session: BrowserSession, registrationId: number) => getLinkedWorkHour(session, registrationId);
 export const submitLinkedWorkAssignmentWorkHour = (session: BrowserSession, registrationId: number, hours: number, workType: string) => submitWorkAssignmentWorkHour(session, registrationId, hours, workType);
 export const confirmLinkedWorkAssignmentWorkHour = (session: BrowserSession, registrationId: number, hours: number, workType: string) => confirmWorkAssignmentWorkHour(session, registrationId, hours, workType);

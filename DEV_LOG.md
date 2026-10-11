@@ -12036,3 +12036,10 @@ Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implement
 - Der Erstlogin fordert den Code wieder direkt über `ResetPasswordForEmail` beim jeweils ausgewählten Verein an, statt über eine Edge Function.
 - Das entspricht dem bewährten Ablauf: Die Recovery-Mail verwendet den Supabase-Token, die App prüft ihn und zeigt anschließend den Dialog zum Setzen des Passworts.
 - Die bereitgestellte Edge Function kann zunächst bestehen bleiben, wird von der App aber nicht mehr aufgerufen.
+
+## 2026-10-11 - WEB-F1 Saison-Kontext
+
+- Den Saison-Datenfluss vom `SeasonPicker` über den persistierten Workspace-Kontext bis zu den Web-Abfragen geprüft. Picker, Kontext, Startseite und mitgliedsbezogene Arbeitsstunden waren bereits korrekt angebunden.
+- Die globale Arbeitsstunden-Freigabe übergab die zentrale `saisonId` nicht an ihre Repository-Abfrage und lud deshalb Arbeitsstunden ohne Saisonfilter. Die Abfrage erhält nun den Saisonparameter und lädt bei Saisonwechsel erneut.
+- Saisonbezogene Exportfilter wurden bisher mit dem Kalenderjahr vorbelegt. Sie übernehmen nun die ausgewählte Workspace-Saison und setzen ihre Ergebnisse bei einem Wechsel zurück.
+- Zählerablesungen und Arbeitseinsätze bleiben absichtlich unverändert, da ihre Fachlogik datumsgesteuert ist.

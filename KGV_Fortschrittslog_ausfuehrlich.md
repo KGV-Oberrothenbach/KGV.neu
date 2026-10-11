@@ -714,3 +714,10 @@ Für die tägliche Arbeit reicht diese Fassung in der Regel aus, weil sie die fo
 - Der Aufruf `RequestOtpAsync` verwendet wieder den vorhandenen direkten Supabase-Recovery-Pfad `RequestRecoveryOtpAsync`.
 - Dadurch greift der bereits etablierte Auth-E-Mail-Template-Ablauf mit `{{ .Token }}` wieder unmittelbar: Code anfordern, Code in der App bestätigen, Passwort vergeben.
 - Die App ist für den Erstlogin damit nicht mehr von Deployment, JWT-Konfiguration oder Secrets einer Edge Function abhängig. Die Funktion wird nicht gelöscht, damit ein erfolgreicher Gerätecheck zuerst ohne riskante Datenbankänderung erfolgen kann.
+
+## 2026-10-11 - WEB-F1 Saison-Kontext
+
+- Der durchgehende Saison-Datenfluss wurde im Web geprüft: `SeasonPicker`, `WorkspaceContext` samt Persistierung, Seiteneinstieg und die bestehenden Mitglieds-/Startseitenpfade arbeiten bereits mit der zentralen Auswahl.
+- Die tatsächliche Lücke lag in der globalen Arbeitsstunden-Freigabe. Ihre Repository-Abfrage hatte keinen `saison_id`-Filter und reagierte deshalb auch nicht auf einen Saisonwechsel. Der Kontext wird nun als `saisonId` übergeben, der Filter gesetzt und der Ladezustand bei Wechsel zurückgesetzt.
+- Exportfilter mit Jahresbezug nutzen für ihre Vorbelegung jetzt die ausgewählte Workspace-Saison statt `new Date().getFullYear()`; beim Wechsel werden Filteroptionen und Ergebnisvorschau erneuert.
+- Es wurden keine parallelen Saison-States eingeführt und keine datumsgesteuerten Zähler-/Arbeitseinsatzpfade künstlich saisongefiltert.

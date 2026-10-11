@@ -8,7 +8,7 @@ import { type WorkHour, type WorkHourHistory } from "./work-hours-types";
 
 const formatDate = (value: string) => value ? new Intl.DateTimeFormat("de-DE").format(new Date(`${value.slice(0, 10)}T00:00:00`)) : "–";
 
-export function WorkHoursReview({ session, canManageWorkHours }: { session: BrowserSession; canManageWorkHours: boolean }) {
+export function WorkHoursReview({ session, saisonId, canManageWorkHours }: { session: BrowserSession; saisonId: number | null; canManageWorkHours: boolean }) {
   const [items, setItems] = useState<WorkHour[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [comment, setComment] = useState("");
@@ -19,21 +19,51 @@ export function WorkHoursReview({ session, canManageWorkHours }: { session: Brow
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const load = () => loadWorkHoursReview(session).then(setItems).catch((cause: Error) => setError(cause.message));
-  useEffect(() => { void load(); }, [session]);
+  useEffect(() => {
+    let active = true;
+    const update = (items: WorkHour[]) => {
+      if (!active) return;
+      setSelectedId(null);
+      setHistory([]);
+      setItems(items);
+      setError("");
+    };
+    if (!saisonId) {
+      void Promise.resolve().then(() => update([]));
+    } else {
+      void loadWorkHoursReview(session, saisonId).then(update).catch((cause: Error) => {
+        if (active) setError(cause.message);
+      });
+    }
+    return () => { active = false; };
+  }, [saisonId, session]);
 
   const open = items.filter((item) => !item.freigegeben && item.status !== "abgelehnt");
   const selected = open.find((item) => item.id === selectedId) ?? null;
   const editLock = useEditLock(session, "arbeitsstunde", selected?.id, Boolean(selected));
 
   useEffect(() => {
-    if (!selected) { setHistory([]); return; }
-    setHours(String(selected.stunden));
-    setDate(selected.datum?.slice(0, 10) ?? "");
-    setWorkType(selected.art_der_arbeit);
-    loadWorkHourHistory(session, selected.id).then(setHistory).catch(() => setHistory([]));
-  }, [selectedId]);
+    if (!selected) return;
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      setHours(String(selected.stunden));
+      setDate(selected.datum?.slice(0, 10) ?? "");
+      setWorkType(selected.art_der_arbeit);
+    });
+    void loadWorkHourHistory(session, selected.id).then((next) => { if (active) setHistory(next); }).catch(() => { if (active) setHistory([]); });
+    return () => { active = false; };
+  }, [selected, session]);
   useEffect(() => { if (editLock.message) queueMicrotask(() => setError(editLock.message)); }, [editLock.message]);
+
+  async function reload() {
+    if (!saisonId) { setItems([]); return; }
+    try {
+      setItems(await loadWorkHoursReview(session, saisonId));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Arbeitsstunden konnten nicht geladen werden.");
+    }
+  }
 
   async function decide(action: "freigeben" | "ablehnen" | "korrigieren" | "loeschen") {
     if (!selected || !canManageWorkHours) { setError("Für die Prüfung fehlt ManageWorkHours."); return; }
@@ -49,7 +79,7 @@ export function WorkHoursReview({ session, canManageWorkHours }: { session: Brow
       await reviewOpenWorkHour(session, canManageWorkHours, selected, { action, comment, date, hours: correctedHours, workType });
       setComment("");
       setSelectedId(null);
-      await load();
+      await reload();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Die Entscheidung konnte nicht gespeichert werden.");
     } finally {
