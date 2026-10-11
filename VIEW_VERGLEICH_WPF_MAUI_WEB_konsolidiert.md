@@ -6439,7 +6439,8 @@ zurückgegebenen Statuszeilen für eine Saison:
 - ein Pächterwechsel wird als Hinweis, nicht als Blocker weitergegeben.
 
 G12.3 berechnet keinen Verbrauch und enthält keine Jahresabschlussoberfläche.
-G12.4 (serverseitige Verbrauchsauswertung) bleibt offen.
+G12.4 ergänzt die serverseitige Verbrauchsauswertung; die vollständige
+Jahresabschlussoberfläche bleibt bewusst vertagt.
 
 ### Aktueller JahresabschlussService
 `PruefeAsync(...)` prüft dagegen lediglich, ob für das Medium irgendeine Ablesung innerhalb des Saisonjahres existiert.
@@ -7260,6 +7261,31 @@ keine Verbrauchsberechnung im Browser. G12.4 bleibt die zentrale
 serverseitige Verbrauchsquelle; negative Segmentdifferenzen bleiben dort
 nicht berechenbar.
 
+### G12.6 DB-/Foundation-Audit
+
+Der Audit der Saison-, Zähler-, Ablesungs-, Parzellen-, Belegungs- und
+Mitgliedsgrundlagen sowie der RPCs `rpc_export_jahresablesung_status` und
+`rpc_jahresverbrauch_segmente` ist abgeschlossen. Beide RPCs bleiben
+read-only, `stable`, `security invoker` und für `authenticated` ausführbar.
+Die JEA-RPC fordert nur am Jahresende noch eingebaute Zähler; ausgebaute
+Zähler werden über die Ausbauablesung abgeschlossen. Die Verbrauchs-RPC nutzt
+die bestehenden freigegebenen Ablesungen und führt keine Tabellenänderung aus.
+
+Als einzige technische Korrektur ergänzt die historische-Saisons-Migration
+die fünf optionalen Preisfelder der zentralen Saison-Domain vor ihrer Nutzung.
+Damit ist der versionierte Neuaufbau mit `pacht_pro_qm`,
+`mitgliedsbeitrag`, `mitgliedsbeitrag_nebenmitglied`, `aufnahmegebuehr` und
+`gebuehr_bauantrag` konsistent. Die vorhandenen historischen Vorlagewerte
+bleiben ausdrücklich fachlich ungeprüft.
+
+Umgesetzt bleiben Saisonverwaltung, JEA-Bereitschaft, serverseitige
+Jahresverbrauchssegmente und Erfassungs-Plausibilitätswarnungen. Bewusst
+vertagt bleiben Rechnungen, Kostenarten-/Umlageworkflow, Verteilung,
+Jahresabschlussberechnung, Vorauszahlungen, Abschluss-Warnungsbestätigungen,
+vollständige Snapshots, Finalisierung, Korrekturabschlüsse und die vollständige
+Jahresabschluss-Weboberfläche. G12.6 ergänzt weder einen vollständigen
+Snapshot noch eine Jahresabschlussberechnung.
+
 ---
 
 ## G12 verbindlicher Ablauf
@@ -7319,8 +7345,12 @@ spätere Änderungen nur über Korrekturabschluss
 19. Quelldaten-Nachvollziehbarkeit nach Abschluss zusätzlich absichern.
 20. Korrekturabschluss als einzigen Weg für nachträgliche finanzielle Änderungen implementieren.
 21. Die vollständige Rechnungs-/Umlage-/Finalisierungsoberfläche vorerst zurückstellen, nicht verwerfen.
-22. Die noch fehlende serverseitige Jahresverbrauchsauswertung für den JAE-Export nach Zähler- und Pächterwechsel implementieren; Pächter, Leerstand und vereinseigene Gärten dabei gemäß Zielregel zuordnen.
-23. Leerstand und vereinseigene Gärten in dieser Auswertung als umlagefähigen Verbrauch kennzeichnen; die Fachlogik nicht in React oder Excel duplizieren.
+22. ✅ Erledigt in G12.4: Die serverseitige Jahresverbrauchsauswertung liefert
+    Segmente nach Zähler- und Pächterwechsel einschließlich Leerstand; sie
+    trifft keine Kosten- oder Umlageentscheidung.
+23. Die Zuordnung als umlagefähiger Verbrauch und jede Kosten-/Verteilungslogik
+    bleiben mit dem vollständigen Jahresabschluss bewusst vertagt; die
+    Verbrauchsfachlogik wird nicht in React oder Excel dupliziert.
 
 ---
 
@@ -8982,7 +9012,7 @@ festgestellte Web-Regressionen, ohne G12–G15 neu zu gestalten.
 | WEB-F4b Arbeitsstunden-UPDATE-Trigger | ✅ korrigiert |
 | WEB-F5 Mitglied → Dokumente | ✅ korrigiert |
 | WEB-F6 TS2790 in `page.tsx` | ✅ korrigiert |
-| G12 Saison & Jahresabschluss | 🟡 Saisonverwaltung/JEA-Status relevant; vollständiger Jahresabschluss bewusst zurückgestellt; serverseitige Verbrauchsauswertung noch offen |
+| G12 Saison & Jahresabschluss | 🟡 Saisonverwaltung, JEA-Status, serverseitige Verbrauchssegmente und Erfassungs-Plausibilitätswarnungen umgesetzt; vollständiger Jahresabschluss bewusst zurückgestellt |
 | G13 Benutzer, Rollen & Rechte | 🟡 Rollen-/Permission-Doppelung, ID-7-Sperre, Einstellungsverwaltung und weitere Service-Auslagerung offen |
 | G14 Vereinskonfiguration & Exporte | 🟡 Datenschutz-/Eich- und Metadatenexporte vorhanden; Sortierung, Sonderfälle, Rechte, Konfigurations-Service und JAE-XLSX offen |
 | G15 Browser-/Systemfunktionen | 🟡 Refresh/PWA/Locks/Fotoqueue umgesetzt; weitere technische Entflechtung optional/offen |
