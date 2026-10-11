@@ -178,5 +178,26 @@ namespace KGV.Core.Security
         public static bool HasAnyRoleManagementAccess(UserContext? context)
             => CanReadRoleManagement(context)
                || CanManageRoleManagement(context);
+
+        public static bool HasAnyManagementWorkspaceAccess(UserContext? context)
+            => CanSearchMembers(context)
+               || CanEditAllMembers(context)
+               || CanCreateMitglied(context)
+               || HasGlobalStammdatenAccess(context)
+               || HasGlobalParzellenAccess(context)
+               || CanReadDocuments(context)
+               || CanManageDocuments(context)
+               || CanReadWorkHours(context)
+               || CanManageWorkHours(context)
+               || CanManageWorkAssignments(context)
+               || CanManageAppointments(context)
+               || CanManageAnnouncements(context)
+               || CanReadMeters(context)
+               || CanManageMeterChanges(context)
+               || CanApproveMeterReadings(context)
+               || CanReadRoleManagement(context)
+               || CanPerformYearEndClosing(context)
+               || CanManageClubSeasonConfiguration(context)
+               || CanConfigureUserMeterReadingSubmissions(context);
     }
 }

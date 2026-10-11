@@ -173,10 +173,7 @@ public partial class App : Application
         }
 
         var currentContext = _userContextState.CurrentUserContext;
-        var useAdminShell = currentContext.Role is Core.Security.UserRole.Admin or Core.Security.UserRole.Vorstand
-            || Core.Security.PermissionChecks.CanSearchMembers(currentContext)
-            || Core.Security.PermissionChecks.CanManageWorkHours(currentContext)
-            || Core.Security.PermissionChecks.HasAnyRoleManagementAccess(currentContext);
+        var useAdminShell = Core.Security.PermissionChecks.HasAnyManagementWorkspaceAccess(currentContext);
 
         var shell = useAdminShell
             ? (Shell)_services.GetRequiredService<AdminShell>()

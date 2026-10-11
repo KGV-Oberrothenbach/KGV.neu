@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+const checks = await readFile(new URL("../../KGV.Core/Security/PermissionChecks.cs", import.meta.url), "utf8");
+const app = await readFile(new URL("../../KGV.Maui/App.xaml.cs", import.meta.url), "utf8");
+assert.match(checks, /HasAnyManagementWorkspaceAccess/);
+assert.match(checks, /CanPerformYearEndClosing\(context\)/);
+assert.match(checks, /CanManageAppointments\(context\)/);
+assert.match(checks, /CanManageAnnouncements\(context\)/);
+assert.match(app, /PermissionChecks\.HasAnyManagementWorkspaceAccess\(currentContext\)/);
+assert.doesNotMatch(app, /currentContext\.Role is Core\.Security\.UserRole\.Admin/);
