@@ -202,7 +202,7 @@ public sealed class AdminMenuPage : ContentPage
     {
         var selectedMember = _memberContextState.SelectedMember;
         var currentContext = _userContextState.CurrentUserContext;
-        var isAdmin = currentContext?.Role == UserRole.Admin;
+        var canManageRoleManagement = PermissionChecks.CanManageRoleManagement(currentContext);
         var canReadRoleManagement = PermissionChecks.CanReadRoleManagement(currentContext);
         var canManageMeterReadingSubmissions = PermissionChecks.CanConfigureUserMeterReadingSubmissions(_userContextState.CurrentUserContext);
         var hasSelectedMember = selectedMember?.Id > 0;
@@ -211,14 +211,14 @@ public sealed class AdminMenuPage : ContentPage
             ? $"Ausgewähltes Mitglied: {selectedMember!.DisplayName} (ID: {selectedMember.Id})"
             : "Es wurde aktuell kein Mitglied ausgewählt.";
 
-        _hintLabel.Text = !isAdmin
-            ? "Die Benutzerverwaltung ist nur für Admin sichtbar."
+        _hintLabel.Text = !canManageRoleManagement
+            ? "Für die Benutzerverwaltung ist das Recht „Rollen verwalten“ erforderlich."
             : hasSelectedMember
                 ? "App-User-bezogene Aktionen bleiben an das aktuell ausgewählte Mitglied gebunden."
                 : "Bitte zuerst ein Mitglied auswählen.";
 
-        _userManagementButton.IsVisible = isAdmin;
-        _userManagementButton.IsEnabled = isAdmin && hasSelectedMember;
+        _userManagementButton.IsVisible = canManageRoleManagement;
+        _userManagementButton.IsEnabled = canManageRoleManagement && hasSelectedMember;
 
         await LoadPermissionSettingsAsync(selectedMember, hasSelectedMember);
         UpdateRoleManagementState(selectedMember, hasSelectedMember, canReadRoleManagement);

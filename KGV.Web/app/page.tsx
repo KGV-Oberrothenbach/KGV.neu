@@ -67,7 +67,7 @@ import { AssignMembersToContract } from "../features/maintenance/assignments/Ass
 import { MemberMaintenanceContracts } from "../features/maintenance/MemberMaintenanceContracts";
 import { maintenanceAccess } from "../services/maintenance/maintenance-access-service";
 import { getEffectivePermissions, getRolePermissions, hasPermission, Permission, PermissionAreas, preserveUncontrolledPermissions } from "../security/permissions";
-import { canArchiveDocuments, canManageClubSeasonConfiguration, canManageDocuments, canReadDocuments, createWebCapabilityContext } from "../security/capabilities";
+import { canArchiveDocuments, canManageClubSeasonConfiguration, canManageDocuments, canPerformYearEndClosing, canReadDocuments, createWebCapabilityContext } from "../security/capabilities";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -201,11 +201,16 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
     canManageMaintenance: has(Permission.editAllMembers),
     canApproveWorkHours: has(Permission.manageWorkHours),
     canExport: has(Permission.searchMembers),
-    canManageAdministration: canManageClubSeasonConfiguration(capabilityContext),
+    canManageSeasonConfiguration: canManageClubSeasonConfiguration(capabilityContext),
+    canPerformYearEndClosing: canPerformYearEndClosing(capabilityContext),
+    canManageClubConfiguration: canManageClubSeasonConfiguration(capabilityContext),
     canSearchMembers: has(Permission.searchMembers),
   });
   const allNavigationItems = navigationGroups.flatMap((group) => [...(group.target ? [group.target] : []), ...group.items]);
-  const active = allNavigationItems.find((item) => item.id === activeId) ?? allNavigationItems[0];
+  const allowedNavigationIds = new Set(allNavigationItems.map((item) => item.id));
+  const effectiveActiveId = allowedNavigationIds.has(activeId) ? activeId : "start";
+  const active = allNavigationItems.find((item) => item.id === effectiveActiveId) ?? allNavigationItems[0];
+  useEffect(() => { if (activeId !== effectiveActiveId) setActiveId(effectiveActiveId); }, [activeId, effectiveActiveId]);
 
   return (
     <main className="workspace">
@@ -219,7 +224,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           <MobileNavigation groups={navigationGroups} activeId={activeId} onNavigate={setActiveId} selectedMemberLabel={selectedMemberId ? selectedMemberLabel : null} />
           <p className="eyebrow">Saison {season}</p><h1>{active.label}</h1><p className="content-intro">{active.detail}</p>
           {!new Set(["start", "impressum", "mitglieder", "parzellen", "ablesen", "foto-uploads", "zaehlerwechsel", "arbeitsstunden-pruefen", "arbeitseinsaetze", "wartung", "termine", "bekanntmachungen", "export", "benutzer", "saisons", "verein", "mitglied-arbeitsstunden", "mitglied-wartung", "mitglied-dokumente", "mitglied-admin", "mitglied-gaerten", "mitglied-protokolle", "mitglied-stammdaten"]).has(activeId) && <section className="coming-soon"><span aria-hidden="true">◌</span><div><strong>Bereich vorbereitet</strong><p>Die Navigation und Zugriffsrechte stehen. Die fachliche Oberfläche wird in den nächsten Umsetzungsschritten ergänzt.</p></div></section>}
-          {activeId === "start" && <HomeDashboard session={session} isManager={context.role !== "user"} canManageWorkAssignments={has(Permission.manageWorkAssignments)} canManageAppointments={has(Permission.manageAppointments)} canManageAnnouncements={has(Permission.manageAnnouncements)} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
+          {activeId === "start" && <HomeDashboard session={session} isManager={has(Permission.manageWorkAssignments) || has(Permission.manageAppointments) || has(Permission.manageAnnouncements)} canManageWorkAssignments={has(Permission.manageWorkAssignments)} canManageAppointments={has(Permission.manageAppointments)} canManageAnnouncements={has(Permission.manageAnnouncements)} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
           {activeId === "mitglieder" && <MemberSearch session={session} selectedMemberId={selectedMemberId} onSelect={selectMember} canCreate={has(Permission.createMember)} onCreate={() => { setCreatingMember(true); setActiveId("mitglied-stammdaten"); }} />}
           {activeId === "parzellen" && <ParcelWorkspace session={session} selectedParcelId={selectedParcelId} onSelect={selectParcel} canEdit={has(Permission.writeParzellen)} documentAccessContext={documentAccessContext} onOpenMember={(memberId) => { selectMember(memberId); setActiveId("mitglied-gaerten"); }} />}
           {activeId === "ablesen" && <MeterOverview session={session} clubId={club.vereinId} reviewerMemberId={context.mitgliedId} selectedParcelId={selectedParcelId} seasonYear={season} canReadMeters={has(Permission.readMeters)} canSubmitOwnMeterReadings={context.mitgliedId !== null && has(Permission.seeOwnData)} canApprove={has(Permission.approveMeterReadings)} canManageMeterChanges={has(Permission.manageMeterChanges)} onNavigate={setActiveId} />}
@@ -228,16 +233,16 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           {activeId === "zaehlerwechsel" && has(Permission.manageMeterChanges) && <MeterChange session={session} clubId={club.vereinId} canManageMeterChanges={has(Permission.manageMeterChanges)} />}
           {activeId === "arbeitsstunden-pruefen" && <WorkHoursReview session={session} saisonId={workspaceContext.saisonId} canManageWorkHours={has(Permission.manageWorkHours)} />}
           {activeId === "arbeitseinsaetze" && <WorkAssignmentsManagement session={session} canEdit={has(Permission.manageWorkAssignments)} canManageWorkHours={has(Permission.manageWorkHours)} onBack={() => setActiveId("start")} />}
-          {activeId === "wartung" && <MaintenanceContracts session={session} canManage={context.role !== "user"} />}
+          {activeId === "wartung" && <MaintenanceContracts session={session} canManage={has(Permission.editAllMembers)} />}
           {activeId === "termine" && <AppointmentManagement session={session} canEdit={has(Permission.manageAppointments)} onBack={() => setActiveId("start")} />}
           {activeId === "bekanntmachungen" && <AnnouncementManagement session={session} canEdit={has(Permission.manageAnnouncements)} onBack={() => setActiveId("start")} />}
           {activeId === "impressum" && <ImprintPage session={session} />}
-          {activeId === "export" && <ExportCenter session={session} season={season} canExport={context.role !== "user"} />}
+          {activeId === "export" && <ExportCenter session={session} season={season} canExport={has(Permission.searchMembers)} />}
           {activeId === "benutzer" && <UserRightsAdministration session={session} />}
           {activeId === "saisons" && <SeasonManagement session={session} onSeasonSaved={(saved) => { setSeasons((current) => [...current.filter((item) => item.id !== saved.id), saved].sort((a, b) => b.jahr - a.jahr)); selectWorkspaceSeason(saved); }} />}
           {activeId === "verein" && <ClubConfigurationAdministration session={session} />}
           {activeId === "mitglied-arbeitsstunden" && selectedMemberId && <MemberWorkHours session={session} memberId={selectedMemberId} saisonId={workspaceContext.saisonId} canEditOwn={selectedMemberId === context.mitgliedId} canManageWorkHours={has(Permission.manageWorkHours)} />}
-          {activeId === "mitglied-wartung" && selectedMemberId && <MaintenanceContracts session={session} memberId={selectedMemberId} canManage={context.role !== "user"} />}
+          {activeId === "mitglied-wartung" && selectedMemberId && <MaintenanceContracts session={session} memberId={selectedMemberId} canManage={has(Permission.editAllMembers)} />}
           {activeId === "mitglied-dokumente" && selectedMemberId && <DocumentList session={session} owner={memberDocumentOwner(selectedMemberId)} accessContext={documentAccessContext} beforeList={(reload) => has(Permission.manageDocuments) ? <ContractComposer session={session} memberId={selectedMemberId} onSaved={reload} leaseContractIntent={leaseContractIntent} /> : null} />}
           {activeId === "mitglied-admin" && selectedMemberId && <UserRightsAdministration session={session} fixedMemberId={selectedMemberId} />}
           {activeId === "mitglied-gaerten" && selectedMemberId && <MemberGardensWorkspace session={session} memberId={selectedMemberId} selectedParcelId={selectedParcelId} onSelect={selectParcel} canAssign={has(Permission.createMember)} onOpenDocuments={() => setActiveId("mitglied-dokumente")} onOpenLeaseContract={(intent) => { if (!has(Permission.manageDocuments)) return false; setLeaseContractIntent(intent); setActiveId("mitglied-dokumente"); return true; }} />}
