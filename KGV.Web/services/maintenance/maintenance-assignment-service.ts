@@ -81,7 +81,7 @@ export async function assignMembersToMaintenanceContract(session: BrowserSession
   const [contract, rows, members] = await Promise.all([loadMaintenanceContract(session, input.maintenanceContractId), listMaintenanceAssignmentsForContract(session, input.maintenanceContractId), resolveMaintenanceAssignmentMembers(session, selectedMemberIds)]);
   if (!contract) throw new Error("Der Wartungsvertrag wurde nicht gefunden.");
   if (!contract.active) throw new Error("Dieser Wartungsvertrag ist nicht aktiv.");
-  if (members.length !== selectedMemberIds.length || members.some((member) => !member.aktiv)) throw new Error("Mindestens ein ausgewähltes Mitglied ist nicht aktiv oder wurde nicht gefunden.");
+  if (members.length !== selectedMemberIds.length || members.some((member) => !member.aktiv || member.is_demo)) throw new Error("Mindestens ein ausgewähltes Mitglied ist nicht für die produktive Zuordnung verfügbar.");
   const principalMemberIds = members.map(principalMemberId);
   if (new Set(principalMemberIds).size !== principalMemberIds.length) throw new Error("Pro Hauptmitglied-Kontext kann nur ein Mitglied ausgewählt werden.");
   const assignments = rows.map(fromRow);
