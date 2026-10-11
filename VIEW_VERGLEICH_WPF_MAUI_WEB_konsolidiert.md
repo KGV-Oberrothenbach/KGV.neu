@@ -5196,9 +5196,12 @@ Relevante G11-Migrationen: `20261010130000_g11_maintenance_work_hours_credit.sql
 
 ## G11 Abschlussstatus
 
-Status: ✅ abgeschlossen.
+Status: ✅ fachlich abgeschlossen. Die folgenden Abschnitte geben den
+konsolidierten aktuellen Web-Stand wieder; ältere offene Analysen sind
+entsprechend aktualisiert.
 
-Außerhalb G11 bleiben die manuelle saisonbezogene Befreiung mit Begründung (G7), eingefrorene Jahresergebnisse (G12) sowie ein möglicher Infrastruktur-Refactor für die globalen Member-/Parzellen-Beschriftungsdaten. Web-TypeScript, Build und Lint sind in einer vollständigen Entwicklungsumgebung erneut auszuführen, da isolierte Worktrees kein `node_modules` enthalten.
+Außerhalb G11 bleiben G7-Restpunkte und G12-Revisionsanforderungen; sie sind
+keine offenen Wartungsvertrags-Fachregeln.
 
 ## 11.1 Globale Wartungsvertragsübersicht
 
@@ -5235,39 +5238,21 @@ und öffnet anschließend eine eigene Detailansicht.
 Admin/Vorstand dürfen neue Verträge anlegen und verwalten.
 
 ### Web aktuell
-`MaintenanceContracts` liegt noch in `app/page.tsx`.
-
-Vorhanden:
-
-- globale Liste
-- Titel
-- Bereich
-- Beschreibung
-- Belegung
-- Aktivstatus
-- Detailbereich
-- Bearbeiten
-- neue Verträge
-- Mitgliederzuordnung
+Der Einstieg und die globale Verwaltungsansicht liegen weiterhin in
+`app/page.tsx`. Vertrags- und Zuordnungsdaten laufen über
+`maintenance-contract-service` / `maintenance-assignment-service` und die
+zugehörigen Repositories. Übersicht, Editor, Detail, Mitgliederzuweisung und
+Mitgliedsansicht sind in `features/maintenance` ausgelagert.
 
 ### Bewertung
-✅ funktional bereits umfangreich.
-
-❌ Die gesamte Fachlogik, mehrere Tabellenabfragen und Zuordnungsregeln liegen noch in einer React-Komponente.
+✅ G11-Funktionalität ist umgesetzt und nutzt die Fachservices für Datenzugriff
+und zentrale Zuordnungslogik. Die globale UI ist noch teilweise in `page.tsx`
+integriert; das ist ein verbleibender Strukturpunkt, kein offener G11-Fachfehler.
 
 ### Ziel
-```text
-features/maintenance/
-  MaintenanceContractOverview.tsx
-  MaintenanceContractList.tsx
-  MaintenanceContractDetail.tsx
-
-services/maintenance/
-  maintenance-contract-service.ts
-
-repositories/maintenance/
-  maintenance-contract-repository.ts
-```
+Die globale Container-/UI-Verantwortung kann später vollständig aus
+`page.tsx` herausgelöst werden, ohne die abgeschlossene Fachregel erneut
+aufzubauen.
 
 ---
 
@@ -5301,16 +5286,13 @@ Zusätzlich zeigt Web:
 - beendete Zuordnungen
 
 ### Bewertung
-🟡 Web ist teilweise umfangreicher als WPF/MAUI.
-
-Diese Zusatzinformationen können bleiben, sollen aber fachlich sauber als:
+✅ Die Mitgliedsansicht trennt fachlich:
 
 ```text
 aktive Zuordnungen
-historische Zuordnungen
+zukünftige Zuordnungen
+Historie
 ```
-
-getrennt werden.
 
 ---
 
@@ -5426,31 +5408,17 @@ Admin/Vorstand können:
 - aktive Zuordnung beenden
 
 ### Web aktuell
-Bei `memberId` wird nach allen Zuordnungen des Mitglieds gefiltert:
-
-```ts
-memberAssignments = assignments.filter(...)
-```
-
-`visibleContracts` berücksichtigt danach **jede** historische Zuordnung.
-
-Dadurch können auch bereits beendete Verträge weiterhin in der normalen Mitgliedsansicht erscheinen.
+`MemberMaintenanceContracts` verwendet den ausgewählten Mitgliedskontext.
+Der Service ermittelt den Hauptmitgliedskontext für die fachlich
+hauptmitgliedsbezogene Zuordnung und klassifiziert diese in aktive, zukünftige
+und historische Abschnitte.
 
 ### Bewertung
-❌ Abweichung zu MAUI.
+✅ Aktive, zukünftige und historische Wartungsverträge werden getrennt
+dargestellt; beendete Einträge erscheinen nicht als aktive Zuordnung.
 
 ### Ziel
-Standardansicht:
-
-```ts
-maintenanceService.getActiveContractsForMember(memberId, date)
-```
-
-Historie optional separat:
-
-```ts
-maintenanceService.getContractHistoryForMember(memberId)
-```
+Die vorhandene Trennung beibehalten.
 
 ---
 
@@ -5475,33 +5443,17 @@ Ein Wartungsvertrag gehört fachlich zum Hauptmitgliedskontext.
 Auch die Pflichtstundenbefreiung wird über das Hauptmitglied ausgewertet.
 
 ### Web aktuell
-Im globalen Zuordnungs-Dropdown werden derzeit **alle aktiven Mitglieder** angeboten:
-
-```ts
-members.map(...)
-```
-
-also auch Nebenmitglieder.
-
-Wird eine Nebenmitglied-ID direkt gespeichert, lehnt die Datenbank die Zuordnung ab.
+Der Zuordnungsservice löst eine ausgewählte Haupt- oder Nebenmitglied-ID in
+den Hauptmitgliedskontext auf. Kandidaten und Zuordnungen zeigen den
+Mitgliedskontext; doppelte Auswahl desselben Hauptmitglieds wird verhindert.
 
 ### MAUI
-Auch die globale mobile Auswahlliste kennzeichnet aktuell Haupt- und Nebenmitglieder. Die endgültige Datenbankregel bleibt jedoch eindeutig: gespeichert werden darf nur das Hauptmitglied.
+Auch MAUI kennzeichnet Haupt- und Nebenmitglieder. Die Datenbankregel bleibt
+verbindlich: gespeichert wird ausschließlich das Hauptmitglied.
 
 ### Ziel
-Der Service normalisiert jeden Mitgliedskontext zuerst:
-
-```ts
-resolveMainMemberId(memberId)
-```
-
-danach:
-
-```ts
-assignContract(contractId, mainMemberId, validFrom)
-```
-
-Die UI soll möglichst den Hauptmitgliedskontext anzeigen und nicht erst einen DB-Fehler erzeugen.
+Die bereits vorhandene Normalisierung im Service und die DB-Validierung
+beibehalten.
 
 ---
 
@@ -5530,26 +5482,14 @@ MAUI zeigt:
 Mehrere Mitglieder können in einem Vorgang markiert werden.
 
 ### Web aktuell
-Im globalen Vertrag kann jeweils ein Mitglied aus einem Dropdown zugeordnet werden.
+Der Web-Service unterstützt die Zuweisung mehrerer ausgewählter Mitglieder in
+einem Vorgang; Auswahl und Speicherung verwenden den Hauptmitgliedskontext.
 
 ### Bewertung
-🟡 Grundfunktion vorhanden, aber gegenüber MAUI weniger komfortabel.
+✅ Mehrfachzuweisung ist vorhanden.
 
 ### Ziel
-```text
-features/maintenance/assignments/
-  AssignMembersToContract.tsx
-  MaintenanceMemberSelector.tsx
-```
-
-Service:
-
-```ts
-maintenanceAssignmentService.getAssignableMembers(contractId, validFrom)
-maintenanceAssignmentService.assignMembers(contractId, memberIds, validFrom)
-```
-
-Eine Mehrfachauswahl wie in MAUI ist sinnvoll.
+Die vorhandene Mehrfachauswahl beibehalten.
 
 ---
 
@@ -5575,40 +5515,15 @@ GetAssignableWartungsvertraegeForMitgliedAsync(...)
 und erlaubt ebenfalls mehrere Verträge in einem Speichervorgang.
 
 ### Web aktuell
-Web berechnet selbst:
-
-```ts
-assignableForMember =
-  contracts.filter(
-    aktiv
-    && heutiges Kontingent frei
-    && heute noch nicht zugeordnet
-  )
-```
-
-### Problem
-Diese Browserberechnung betrachtet nur die **heutige** aktive Belegung.
-
-Eine neue Zuordnung kann aber mit:
-
-```text
-Gültig ab = zukünftiges Datum
-```
-
-beginnen.
-
-Die Datenbank prüft Überschneidungen und Kontingent dagegen für den **gesamten betroffenen Zeitraum**.
+Der Service ermittelt verfügbare Verträge für den gewählten Beginn anhand
+zeitlicher Überschneidungen und der Spitzenauslastung im betroffenen Zeitraum.
 
 ### Bewertung
-❌ Kandidatenermittlung im Browser ist fachlich zu einfach.
+✅ Die Zeitraumerkennung liegt im Service; der Datenbanktrigger bleibt die
+verbindliche letzte Prüfung.
 
 ### Ziel
-```ts
-maintenanceAssignmentService.getAssignableContractsForMember(
-  memberId,
-  validFrom
-)
-```
+Keine parallele Kandidatenlogik in UI-Komponenten ergänzen.
 
 Die Fachlogik bestimmt die Kandidaten passend zum gewünschten Gültigkeitsbeginn.
 
@@ -5674,33 +5589,14 @@ Frei
 über die Service-Funktion.
 
 ### Web aktuell
-Web berechnet selbst:
-
-```ts
-occupancy(contractId)
-```
-
-aus den aktuell geladenen Zuordnungen und dem heutigen Datum.
+Der Service liefert die Vertragsübersicht aus Verträgen und Zuordnungen und
+berechnet Belegung/Freiplätze für das Referenzdatum.
 
 ### Bewertung
-🟡 für eine Momentaufnahme brauchbar, aber unnötige Schattenlogik.
+✅ Die Übersichtswerte werden im Fachservice statt in der UI gebildet.
 
 ### Ziel
-```ts
-maintenanceContractService.getOverview()
-```
-
-liefert direkt:
-
-```ts
-{
-  maxCapacity,
-  occupied,
-  free
-}
-```
-
-wie WPF/MAUI.
+Keine zweite Berechnung in React einführen.
 
 ---
 
@@ -5965,22 +5861,6 @@ zentrale Pflichtstundenfunktion aus G7
 keine eigene Berechnung in G11
 ```
 
-## G11 wichtigste Korrekturen für Web
-
-1. `MaintenanceContracts` aus `page.tsx` herauslösen.
-2. Vertragsübersicht und Belegung nicht mehr in React selbst zusammensetzen.
-3. Mitgliedsansicht standardmäßig auf **aktive Zuordnungen** begrenzen.
-4. Historische Zuordnungen separat darstellen.
-5. Haupt-/Nebenmitgliedskontext vor dem Speichern auf Hauptmitglied normalisieren.
-6. Kandidaten für Zuordnungen nicht nur anhand der heutigen Belegung berechnen.
-7. Zeitraum- und Kontingentregeln über den Fachservice vorbereiten; DB-Trigger bleibt führend.
-8. Globalen MAUI-Komfort mit Mehrfachzuweisung als Ziel übernehmen.
-9. `Bereich`, `befreit_von_pflichtstunden` und `Bemerkung` aus dem Web nicht entfernen.
-10. Zuordnungen durch Gültigkeitsende beenden statt löschen.
-11. Demo-Filter in Repository verschieben.
-12. Pflichtstundenbefreiung ausschließlich über die zentrale G7-Fachlogik auswerten.
-13. Auswirkung späterer Vertragsänderungen auf finalisierte Jahresabschlüsse in G12 prüfen.
-
 ---
 
 # G12 – Saison & Jahresabschluss
@@ -6089,6 +5969,10 @@ saison
 ```
 
 über `readSupabase` / `writeSupabase`.
+Die Saisonliste hat zusätzlich ein Repository (`listSeasons`). Eine zentrale
+Saison-Service-Schicht für Verwaltung/Speichern gibt es noch nicht. Beim
+Bearbeiten einer bestehenden aktuellen oder zukünftigen Saison ist das Jahr
+weiter editierbar; das Speichern setzt `id` aus `jahr`.
 
 ### Ziel
 ```text
@@ -6144,7 +6028,9 @@ Bereich vorbereitet
 ```
 
 ### Bewertung
-❌ G12-Jahresabschluss ist im Browser aktuell noch nicht umgesetzt.
+⏸️ Die vollständige Browser-Jahresabschlussoberfläche ist entsprechend der
+Projektentscheidung vorerst zurückgestellt. Der Menüpunkt ist ein Platzhalter,
+keine angeschlossene Jahresabschlussfunktion.
 
 ### Wichtig
 Hier soll nicht einfach der aktuelle MAUI-Code 1:1 nach TypeScript kopiert werden.
@@ -6176,7 +6062,7 @@ is_admin_or_vorstand()
 ```
 
 ### Web aktuell
-Der gesamte Navigationsblock:
+Der Navigationsblock:
 
 ```text
 Verwaltung
@@ -6188,10 +6074,12 @@ inklusive Jahresabschluss wird derzeit nur bei:
 role === admin
 ```
 
-angezeigt.
+angezeigt. Vorstand kann den Bereich daher im Web nicht öffnen.
 
 ### Bewertung
-❌ für den Jahresabschluss zu restriktiv.
+❌ Der Web-Platzhalter ist auf Admin beschränkt. Bei einer späteren
+Jahresabschlussoberfläche muss der Zugang Admin und Vorstand entsprechen;
+Saisonverwaltung bleibt Admin-only.
 
 ### Ziel
 
@@ -6540,6 +6428,9 @@ im aktuellen Jahresabschluss-Prüfweg unter Umständen trotzdem als vorhanden ge
 
 ### Bewertung
 ❌ Jahresabschluss-Prüfung und vorhandene JEA-Fachlogik sind noch nicht vereinheitlicht.
+
+Die RPC ist aktuell an den Export `jahresablesung_status` angeschlossen. Der
+Web-Jahresabschluss ist nicht implementiert und ruft diese RPC nicht auf.
 
 ### Ziel
 Der Jahresabschluss muss dieselbe zentrale JEA-Regel verwenden wie:
@@ -7292,23 +7183,21 @@ spätere vollständige Jahresabschlussabrechnung bleiben Zielbild.
 Für Web werden aktuell nur die Saisonverwaltung, die zentrale JEA-Prüfung und
 eine serverseitige Jahresverbrauchsauswertung benötigt. Diese Auswertung ist
 ein eigenständiger, auch ohne spätere Jahresabschlussoberfläche nutzbarer
-Fachpfad.
+Fachpfad. Das beschreibt die Projektentscheidung und den benötigten Zielstand,
+nicht bereits vorhandene Webfunktionalität.
 
 ### Serverseitige Verbrauchsauswertung
 
-Die Datenbank/RPC-Auswertung segmentiert Strom- und Wasserverbrauch bei
-Zählerwechsel und Pächterwechsel. Jedes Segment wird dem im Zeitraum gültigen
-Pächter zugeordnet; sie erkennt Leerstände und berücksichtigt vereinseigene
-Gärten.
+Im geprüften aktuellen Repo ist `rpc_export_jahresablesung_status` für den
+JEA-Status vorhanden. Eine serverseitige RPC/Serviceauswertung für
+Verbrauchssegmente, Pächterwechsel, Leerstand und umlagefähige Summen wurde
+dagegen nicht gefunden; ebenso kein angebundener JAE-XLSX-Export. Die
+`jahresabschluss_verbrauch`-Tabelle ist als Datenmodell vorhanden, wird aber
+vom aktuellen Jahresabschluss-Service nicht befüllt.
 
-Leerstand und vereinseigene Gärten gelten für diesen Export als umlagefähiger
-Verbrauch. Die Segmentierung, Zuordnung und Summenbildung erfolgen vollständig
-serverseitig. React, Excel und eine spätere Jahresabschlussoberfläche dürfen
-diese Verbrauchslogik nicht erneut berechnen.
-
-Die Auswertung ist damit eine stabile G12-Fachquelle für den JAE-Export und
-kann später von einer vollständigen Jahresabschlussabrechnung wiederverwendet
-werden.
+Die festgelegte Zielregel bleibt: Verbrauch segmentieren und zuordnen auf der
+Serverseite; Web/Excel dürfen die Fachberechnung nicht duplizieren. Dieser
+Pfad ist vor produktiver Verwendung noch umzusetzen.
 
 ---
 
@@ -7369,8 +7258,8 @@ spätere Änderungen nur über Korrekturabschluss
 19. Quelldaten-Nachvollziehbarkeit nach Abschluss zusätzlich absichern.
 20. Korrekturabschluss als einzigen Weg für nachträgliche finanzielle Änderungen implementieren.
 21. Die vollständige Rechnungs-/Umlage-/Finalisierungsoberfläche vorerst zurückstellen, nicht verwerfen.
-22. Jahresverbrauch für den JAE-Export serverseitig nach Zähler- und Pächterwechsel segmentieren und Pächter, Leerstand sowie vereinseigene Gärten korrekt zuordnen.
-23. Leerstand und vereinseigene Gärten als umlagefähigen Verbrauch ausweisen; diese Fachlogik nicht in React oder Excel duplizieren.
+22. Die noch fehlende serverseitige Jahresverbrauchsauswertung für den JAE-Export nach Zähler- und Pächterwechsel implementieren; Pächter, Leerstand und vereinseigene Gärten dabei gemäß Zielregel zuordnen.
+23. Leerstand und vereinseigene Gärten in dieser Auswertung als umlagefähigen Verbrauch kennzeichnen; die Fachlogik nicht in React oder Excel duplizieren.
 
 ---
 
@@ -7406,7 +7295,10 @@ Die wirksamen Rechte werden nach dem bestehenden Core-Modell berechnet:
 
 ## 13.2 Rollenbasis
 
-Die zentrale Core-Definition ist derzeit:
+Die Core-Rollenbasis und der Grant-/Revocation-Mechanismus geben das
+plattformübergreifende Modell vor. Im Web werden Rollenbasis und effektive
+Rechte aktuell jedoch nicht aus einer gemeinsamen Permission-Definition
+bezogen:
 
 ### User
 
@@ -7448,7 +7340,7 @@ Diese Rollenbasis darf im Web nur **ein einziges Mal** definiert sein.
 
 ## 13.3 Kritische Abweichung im Web – zwei Rollenberechnungen
 
-Web besitzt aktuell zwei getrennte Implementierungen:
+Web besitzt weiterhin zwei getrennte Implementierungen in `app/page.tsx`:
 
 ```text
 permissionsFor(context)
@@ -7466,7 +7358,7 @@ Diese sind nicht identisch.
 
 ### Konkretes Beispiel Vorstand
 
-Die Core-Definition und `rolePermissions(...)` enthalten:
+`rolePermissions(...)` enthält für Vorstand:
 
 ```text
 showParzellen
@@ -7474,7 +7366,7 @@ readParzellen
 writeParzellen
 ```
 
-`permissionsFor(...)` enthält für Vorstand dagegen aktuell nur:
+`permissionsFor(...)` enthält für Vorstand dagegen nur:
 
 ```text
 readParzellen
@@ -7577,10 +7469,11 @@ unterstützt bereits:
 - Edit-Lock
 
 ### Bewertung
-✅ Oberfläche und Grundlogik sind bereits gut.
+✅ Oberfläche und Grundlogik sind vorhanden.
 
 ### Ziel
-Aus `page.tsx` herauslösen und vollständig auf den zentralen Permission-Service stellen.
+Aus `page.tsx` herauslösen und vollständig auf einen zentralen
+Permission-Service/Katalog stellen. Dieser Umbau ist noch offen.
 
 ---
 
@@ -7670,7 +7563,7 @@ erreicht wurde.
 Das zugrunde liegende Supabase-Auth-Konto wird in diesem aktuellen Pfad nicht gelöscht.
 
 ### Web aktuell
-Web führt direkt aus:
+Web führt weiterhin direkt aus `page.tsx` aus:
 
 ```text
 PATCH mitglied.auth_user_id = null
@@ -7680,7 +7573,7 @@ DELETE app_user
 ohne vorherige Konsistenzprüfung.
 
 ### Bewertung
-❌ wichtiger Unterschied.
+❌ wichtiger Unterschied; die Konsistenzprüfung vor dem Entfernen fehlt.
 
 ### Ziel
 ```ts
@@ -7721,7 +7614,7 @@ Mitglied ID 7
 ```
 
 ### Web aktuell
-Diese Sperre ist im geprüften Web-Rechteeditor nicht vorhanden.
+Diese Sperre ist im geprüften Web-Rechteeditor weiterhin nicht vorhanden.
 
 ### Bewertung
 ❌ Abweichung.
@@ -7748,12 +7641,13 @@ allow_user_meter_reading_submissions
 Damit wird zentral gesteuert, ob normale Nutzer eigene Ablesungen einreichen dürfen.
 
 ### Web aktuell
-G6 liest diese Einstellung bereits bei der Ablesung.
+G6 liest diese Einstellung bereits bei der Ablesung. Eine Web-Verwaltung
+dieser Einstellung ist im geprüften Adminbereich nicht vorhanden.
 
 Im Web-Rechte-/Adminbereich fehlt aber die Möglichkeit, sie zu ändern.
 
 ### Bewertung
-❌ Verwaltung fehlt.
+❌ Verwaltung fehlt weiterhin.
 
 ### Ziel
 ```text
@@ -7848,10 +7742,12 @@ Enthalten sind:
 ### Web aktuell
 `ClubConfigurationAdministration`
 
-bildet diese Felder bereits nahezu vollständig ab.
+bildet diese Felder ab, liegt aber noch in `app/page.tsx` und greift dort
+direkt über `readSupabase` / `writeSupabase` auf `vereinskonfiguration` zu.
 
 ### Bewertung
-✅ fachlich gut umgesetzt.
+✅ Fachfelder und aktiver Datensatz sind umgesetzt. Service-/Repository-
+Kapselung ist noch offen.
 
 ---
 
@@ -7942,7 +7838,11 @@ Filter und Spalten werden separat konfiguriert.
 ### Ziel
 Neue Exporte sollen möglichst ohne neue React-Sonderlogik angelegt werden können.
 
-## 14.5.1 Datenschutz – aktive Mitglieder
+### 14.5.1 Datenschutz – aktive Mitglieder
+
+**Status:** Exportdefinition und RPC sind vorhanden und werden über die
+metadata-driven Web-Exportseite ausgeführt. Die Exportseite enthält dafür
+keinen expliziten `export_key`-Sonderfall.
 
 Der Datenschutz-Export gehört fachlich zu G14. G3 und G5 liefern dabei lediglich
 Mitglieds- und Parzellendaten.
@@ -7972,7 +7872,11 @@ Datenlogik:
 - E-Mail-Rechnung = `email_rechnung_einwilligung`
 - WhatsApp = `whatsapp_einwilligung`
 
-## 14.5.2 Zähler – Eichfälligkeit
+### 14.5.2 Zähler – Eichfälligkeit
+
+**Status:** Exportdefinition und RPC sind vorhanden und werden über die
+metadata-driven Web-Exportseite ausgeführt. Die Web-Ansicht nutzt die
+gelieferten Ergebnisse und berechnet Eichfälligkeit nicht erneut.
 
 Der Export gehört fachlich zu **G14 – Vereinskonfiguration & Exporte**. Die
 fachliche Quelle bleibt Zähler / Ablesung: `v_zaehler_eichstatus` bestimmt
@@ -8021,7 +7925,9 @@ Aktueller Plattformstand:
   standardmäßig in natürlicher Gartennummern-Reihenfolge; die zugehörige
   `standard_sortierung` ist `garten_nr`.
 - Web kann Definition, RPC und Spalten bereits über das metadata-driven
-  `ExportCenter` für Anzeige und CSV verwenden. PDF läuft weiterhin über
+  `ExportCenter` für Anzeige und CSV verwenden. Die Definition lädt das Web
+  jedoch ohne `standard_sortierung`; nur `standard_sichtbar` wird ausgewertet.
+  PDF läuft weiterhin über
   `window.print()`; der spezielle .NET-PDF-Builder wird im Browser nicht
   verwendet.
 
@@ -8046,7 +7952,10 @@ MAUI unterstützt:
 - Optionen aus RPC
 
 ### Web aktuell
-✅ diese Grundmechanismen sind bereits vorhanden.
+Die Web-Exportseite lädt Definitionen, Filter und Spalten aus
+`app_export_*`; Select-Optionen können statisch oder über RPC geladen werden.
+`standard_sichtbar` steuert die angezeigten Spalten. Datenzugriff und
+Ergebnisverarbeitung enthalten weiterhin Sonderfälle in `page.tsx`.
 
 ---
 
@@ -8140,7 +8049,7 @@ Keine komplizierte PDF-Logik direkt in React.
 
 ## 14.10 Kritischer Punkt – Web ist nicht vollständig metadata-driven
 
-Obwohl die Tabellen `app_export_*` verwendet werden, besitzt Web mehrere Sonderfälle.
+Obwohl Web `app_export_*` verwendet, besitzt die Exportausführung noch mehrere Sonderfälle.
 
 ### Mitgliederliste
 
@@ -8150,7 +8059,7 @@ Bei:
 export_key = mitgliederliste
 ```
 
-lädt React selbst:
+Das `ExportCenter` in `page.tsx` lädt selbst:
 
 - Mitglieder
 - Parzellen
@@ -8185,7 +8094,10 @@ stunden_offen → p_stunden_offen
 ```
 
 ### Bewertung
-❌ widerspricht dem eigentlichen Metadatenprinzip.
+🟡 Metadaten steuern Auswahl, Filter und Spalten, aber Datenquellen-/RPC-
+Sonderwissen bleibt teilweise in React. Mitgliederliste und RFID-Status sind
+explizite Sonderfälle; der Arbeitsstundenexport mappt Filterparameter anhand
+des Exportkeys.
 
 ### Ziel
 Die **React-UI** kennt keine konkreten Exportkeys.
@@ -8229,7 +8141,9 @@ context.role !== "user"
 ```
 
 ### Folge
-Ein User mit zusätzlich gewährtem `searchMembers` kann den Menüpunkt sehen, bekommt danach aber die Meldung, dass Export nur Vorstand/Admin erlaubt ist.
+Ein User mit zusätzlich gewährtem `searchMembers` kann den Menüpunkt sehen,
+während `ExportCenter` für ihn nicht lädt und den Admin-/Vorstandshinweis
+anzeigt. Navigation und effektiver Zugang sind inkonsistent.
 
 ### Bewertung
 ❌ Navigation und Fachzugriff sind inkonsistent.
@@ -8291,33 +8205,41 @@ KGV.Web/
 
 ## 14.13 JAE-Verbrauchsexport XLSX
 
-Die Datenbasis stammt ausschließlich aus der serverseitigen G12-
-Verbrauchsauswertung. G14 berechnet weder Verbrauch noch Pächter- oder
-Leerstandssegmente, sondern formatiert nur die von G12 gelieferten Daten.
+**Aktueller Stand:** Im geprüften Repo wurde kein Web- oder MAUI-XLSX-
+Erzeugungspfad für `Tabelle1` / `JAE erweitert` gefunden. Die zugehörige
+serverseitige Verbrauchsauswertung ist ebenfalls noch nicht vorhanden. Die
+folgenden fachlichen Anforderungen sind Zielbild, keine bereits erledigte
+Exportfunktion.
+
+Nach Umsetzung muss die Datenbasis ausschließlich aus der serverseitigen
+G12-Verbrauchsauswertung stammen. G14 soll weder Verbrauch noch Pächter- oder
+Leerstandssegmente selbst berechnen, sondern nur die gelieferten Daten
+formatieren.
 
 Die XLSX-Datei enthält zwei Blätter:
 
 - `Tabelle1` behält die bestehende Struktur möglichst unverändert als Legacy-/Kompatibilitätsblatt.
 - `JAE erweitert` ergänzt Pächtername, getrennte Zeilen bei Zähler- beziehungsweise Pächterwechsel sowie die Summe umlagefähiger Verbräuche.
 
-Umlagefähige Summen werden getrennt für Wasser und Strom ausgegeben. Leerstand
-und vereinseigene Gärten sind dabei bereits in der serverseitigen G12-Auswertung
-als umlagefähig gekennzeichnet. Der Export funktioniert unabhängig von einer
-späteren vollständigen Jahresabschlussoberfläche.
+Umlagefähige Summen sollen getrennt für Wasser und Strom ausgegeben werden.
+Leerstand und vereinseigene Gärten sollen bereits in der serverseitigen
+G12-Auswertung als umlagefähig gekennzeichnet werden. Der Export soll
+unabhängig von einer späteren vollständigen Jahresabschlussoberfläche
+funktionieren.
 
-## G14 wichtigste Korrekturen
+## G14 Abschluss- und Reststand
 
-1. Vereinskonfiguration aus `page.tsx` herauslösen.
-2. Direkten Tabellenzugriff über Service/Repository kapseln.
-3. Export-UI vollständig metadata-driven machen; notwendige Altfall-Adapter nur im Export-Service kapseln.
-4. Keine `export_key`-Sonderfälle mehr in React.
-5. Dynamische Filter/RPC-Optionen beibehalten.
-6. CSV-Erzeugung in eigenen Service verschieben.
-7. Browser-Druck als PDF klar als Browserfunktion behandeln.
-8. Exportnavigation und Exportberechtigung vereinheitlichen.
-9. Export bis zu einem eigenen Permission-Flag konsistent auf Admin/Vorstand begrenzen.
-10. JAE-Verbrauchsexport als XLSX aus der serverseitigen G12-Verbrauchsauswertung erzeugen; keine Verbrauchsberechnung in React oder Excel.
-11. `Tabelle1` als Legacy-/Kompatibilitätsblatt erhalten und `JAE erweitert` mit Pächterwechseln, Zählerwechseln und getrennten umlagefähigen Wasser-/Stromsummen ergänzen.
+✅ Bereits vorhanden: Vereinskonfiguration mit aktivem Datensatz; metadata-
+gesteuerte Exportdefinitionen, Filter und Spalten; Datenschutz- und
+Eichfälligkeits-RPC-Exporte; dynamische Filteroptionen; CSV-Download und
+Browserdruck/PDF.
+
+🟡 Offen: Service-/Repository-Auslagerung der Vereinskonfiguration und
+Exportausführung; `mitgliederliste`, `rfid_status` und Arbeitsstunden-RPC-
+Mapping aus React herauslösen; `standard_sortierung` berücksichtigen;
+Exportnavigation und Admin-/Vorstandsberechtigung angleichen; gegebenenfalls
+deterministischer Vereins-PDF-Weg; serverseitige G12-Verbrauchsauswertung und
+JAE-XLSX-Export mit den beschriebenen Blättern ergänzen.
 
 ---
 
@@ -8441,32 +8363,24 @@ expiresAt
 User-ID/E-Mail
 ```
 
-### Problem
-Der `refreshToken` wird zwar gespeichert, aber im geprüften Webcode **nirgendwo zum Erneuern einer Session verwendet**.
-
-Es existiert kein:
-
-```text
-grant_type=refresh_token
-```
-
-### Folge
-Ist der Access Token abgelaufen:
-
-- `loadSession()` akzeptiert die Sitzung nicht mehr
-- beim Reload landet der Nutzer wieder beim Login
-- laufende Requests können nach Tokenablauf fehlschlagen
-
-obwohl der Nutzer eventuell die ganze Zeit aktiv war.
+### Aktueller Web-Stand (G1.9a/b/c)
+`restoreBrowserSession(...)` restauriert die gespeicherte Session und
+erneuert sie bei Ablaufnähe. `refreshBrowserSession(...)` verwendet im
+Auth-Repository den Supabase-Endpunkt mit
+`grant_type=refresh_token`; neue Access-/Refresh-Tokens werden gespeichert.
+`startSessionRefreshMonitor(...)` erneuert die Sitzung während des laufenden
+Betriebs und synchronisiert Tokenrotation zwischen Tabs.
 
 ### Bewertung
-❌ wichtige technische Lücke.
+✅ Session-Restore, Token-Refresh und laufender Refresh sind umgesetzt und
+gehören fachlich zu G1. G15 beschreibt hier nur die technische
+Browserintegration; es gibt keine offene Refresh-Lücke.
 
 ---
 
-## 15.6 Ziel Session-Refresh
+## 15.6 Session-Refresh und Inaktivität
 
-Ein zentraler Browser-Session-Service übernimmt:
+Der Browser-Session-Service übernimmt:
 
 ```text
 Access Token gültig
@@ -8478,8 +8392,8 @@ läuft bald ab
 Refresh erfolgreich
 → neue Session speichern
 
-Refresh fehlgeschlagen
-→ sauber abmelden
+Refresh dauerhaft fehlgeschlagen
+→ Session verwerfen und sauber abmelden
 ```
 
 ### Wichtig
@@ -8624,7 +8538,9 @@ Browserunterstützung darf nicht Voraussetzung für die Fachfunktion sein.
 
 ## 15.12 Web-NFC / RFID
 
-Web prüft:
+Der technische Zugriff auf Web-NFC wird in `lib/browser-media.ts`
+gekapselt. Der G6-Wrapper `RfidBrowserScanner` liegt derzeit noch in
+`app/page.tsx` und prüft:
 
 ```text
 NDEFReader
@@ -8649,17 +8565,19 @@ manuelle Auswahl / MAUI-Spezialweg
 
 Web-NFC ist ein optionaler Eingabekanal, nicht Teil der Fachlogik.
 
-Dabei gilt die feste Trennung:
+Aktuell gilt:
 
 ```text
-components/scanner/NfcScanner.tsx
-→ rein technischer Web-NFC-Zugriff
+lib/browser-media.ts
+→ technische NDEFReader-Erkennung
 
-features/meters/rfid/RfidScanner.tsx
-→ fachlicher G6-Wrapper, der UID/Kontext an den rfid-service übergibt
+app/page.tsx: RfidBrowserScanner
+→ G6-UI und Übergabe des gelesenen Kontexts
 ```
 
-Der fachliche RFID-Zustandsautomat bleibt G6.
+Eine separate NFC-Komponente bzw. ein vollständiger ausgelagerter RFID-Wrapper
+ist im aktuellen Dateistand nicht vorhanden. Der fachliche RFID-Zustandsautomat
+bleibt G6.
 
 ---
 
@@ -8813,7 +8731,7 @@ Kein automatisches Löschen beim Logout, da sonst ein fehlgeschlagener Upload ve
 
 ## 15.19 Demo-/Produktivtrennung
 
-`supabase-auth.ts` besitzt bereits eine Liste von Tabellen, bei denen automatisch:
+`supabase-auth.ts` besitzt eine Whitelist von Tabellen, bei denen automatisch:
 
 ```text
 is_demo = true/false
@@ -8821,8 +8739,28 @@ is_demo = true/false
 
 nach dem Kontotyp ergänzt wird.
 
+### Aktueller Stand
+In `demoScopedTables` verbleiben ausschließlich Tabellen mit eigener
+abfragbarer `is_demo`-Spalte:
+
+```text
+arbeitseinsatz
+mitglied
+parzelle
+wartungsvertraege
+termin
+bekanntmachung
+```
+
+`impressum_funktion_slot`, `arbeitsstunde`, `dokument` und weitere Tabellen
+ohne eigene Spalte werden nicht clientseitig über `is_demo` gefiltert. Ihr
+Scope bleibt bei den vorhandenen RLS-/Relationsregeln. Für
+`termin.is_demo` und `bekanntmachung.is_demo` sind die Typ-Exports noch
+nicht vollständig aktualisiert.
+
 ### Bewertung
-✅ wichtige Schutzschicht.
+✅ Der generische Clientfilter ist an echte Tabellenspalten gebunden. Weitere
+Änderungen an Tabellen-/RLS-Scopes sind nicht Teil von G15.
 
 ### Ziel
 Diese technische Filterung gehört in den zentralen Supabase-Repository-Client und nicht in Fachkomponenten.
@@ -8831,21 +8769,16 @@ Diese technische Filterung gehört in den zentralen Supabase-Repository-Client u
 
 ## 15.20 `supabase-auth.ts` ist zu breit
 
-Die Datei enthält aktuell gleichzeitig:
+Die Datei enthält aktuell:
 
-- Vereinsauswahl
-- Session
-- Login
+- Vereins-/Workspace-/Session-Persistenz und Abmeldung
 - AppUser-Kontext
 - generisches REST CRUD
 - RPC-Aufrufe
 - Edit-Locks
 - Einladung
 - Passwort-Reset
-- Dokument-Download
-- Dokument-Upload
-- Archivierung
-- Vertragsgenerierung
+- Storage-URL/Edge-Function-Aufrufe und Vertragsgenerierung
 - Foto-Upload
 
 ### Bewertung
@@ -8921,24 +8854,25 @@ KGV.Web/
 
 ## G15 wichtigste Korrekturen
 
-1. Access-Token-Refresh mit dem bereits gespeicherten Refresh-Token implementieren.
-2. 15-Minuten-Inaktivitätslogout davon getrennt erhalten.
-3. Cross-Tab-Aktivität beibehalten.
-4. PWA weiterhin nur als sichere Offline-Shell verwenden.
-5. Keine pauschale Offline-Kopie von Vereinsdaten anlegen.
-6. Foto-Warteschlange in IndexedDB beibehalten.
-7. WLAN-Erkennung als optionale Browserhilfe behandeln.
-8. QR und Web-NFC als progressive Features mit Fallback behalten.
-9. Edit-Locks beibehalten und zentralisieren.
-10. `supabase-auth.ts` in kleinere technische und fachliche Module zerlegen.
-11. Demo-/Produktivfilter in der Datenzugriffsschicht erhalten.
-12. Optional später einen webtypischen „Neue Version – neu laden“-Hinweis ergänzen.
+1. ✅ Session-Restore, Access-Token-Refresh und Refresh während des Betriebs sind durch G1.9a/b/c umgesetzt; G15 dupliziert keine Auth-Fachzuständigkeit.
+2. ✅ 15-Minuten-Inaktivitätslogout und Cross-Tab-Aktivität bleiben getrennt vom Token-Refresh.
+3. ✅ Vereinswechsel/Logout geben Locks frei und löschen Session-, Vereins- und Workspace-Kontext.
+4. ✅ Saisonkontext bleibt persistiert; beim neuen Start hat die aktuelle Saison Vorrang. Mitglieds- und Parzellenkontext werden nicht persistent gespeichert.
+5. ✅ PWA, sichere Offline-Shell, lokale Foto-Warteschlange und Demo-/Produktivtrennung sind vorhanden.
+6. ✅ Edit-Locks, QR und optionales Web-NFC sind vorhanden; Browserfunktionen bleiben technische Adapter.
+7. 🟡 `supabase-auth.ts` ist weiterhin breit und bündelt generische REST-/RPC-/Storage-/Lock-/Uploadfunktionen. Weitere Extraktion ist ein Strukturpunkt, kein Session-Refresh-Defekt.
+8. Optional bleibt ein webtypischer „Neue Version – neu laden“-Hinweis.
 
 ---
 
-# Gesamtfazit der Analyse G1–G15
+# Gesamtfazit – aktueller Web-Stand G1–G15
 
-Die Browser-App besitzt bereits überraschend viel produktive Funktionalität. Das Hauptproblem ist nicht, dass alles neu gebaut werden müsste, sondern dass viele Fachbereiche derzeit in:
+G1–G11 sind fachlich umgesetzt und abgeschlossen. Die nachgelagerten
+Regressionen F1–F6 wurden anschließend korrigiert. G12–G15 sind die
+verbleibenden Umbau-/Prüfbereiche; nicht jede darin beschriebene Funktion ist
+bereits umgesetzt. Der Schwerpunkt ist je nach Gruppe ein begrenzter
+Fachrestpunkt oder die weitere strukturelle Herauslösung aus den verbleibenden
+Übergangsdateien:
 
 ```text
 KGV.Web/app/page.tsx
@@ -8949,8 +8883,6 @@ und dem sehr breiten:
 ```text
 KGV.Web/lib/supabase-auth.ts
 ```
-
-zusammenlaufen.
 
 Der Umbau soll deshalb überwiegend ein **fachliches Herauslösen und Vereinheitlichen** sein:
 
@@ -8974,25 +8906,27 @@ Die unter **„Gruppenübergreifende Zuständigkeiten“** festgelegte Ownership
 
 # Aktueller Bearbeitungsstand
 
+Die Statusangaben unterscheiden **umgesetzt/abgeschlossen**, **analysiert**
+und **noch offen**. „Abgeschlossen“ bezieht sich bei G1–G11 auf den
+fachlichen Gruppenstand; die nachfolgenden F1–F6-Korrekturen schließen
+festgestellte Web-Regressionen, ohne G12–G15 neu zu gestalten.
+
 | Gruppe | Status |
 |---|---|
-| G1 Anmeldung & Vereinsauswahl | ✅ analysiert |
-| G2 Startseite & Navigation | ✅ analysiert |
-| G3 Mitglieder | ✅ analysiert |
-| G4 Mitgliedsantrag & Verträge | ✅ analysiert |
-| G5 Parzellen | ✅ analysiert |
-| G6 Zähler & Ablesungen | ✅ analysiert |
-| G7 Arbeitsstunden | ✅ analysiert |
-| G8 Arbeitseinsätze | ✅ analysiert |
-| G9 Termine & Bekanntmachungen | ✅ analysiert |
-| G10 Dokumente | ✅ analysiert |
-| G11 Wartungsverträge | ✅ analysiert |
-| G12 Saison & Jahresabschluss | ✅ analysiert |
-| G13 Benutzer, Rollen & Rechte | ✅ analysiert |
-| G14 Vereinskonfiguration & Exporte | ✅ analysiert |
-| G15 Browser-/Systemfunktionen | ✅ analysiert |
+| G1–G11 Fachgruppen | ✅ fachlich umgesetzt und abgeschlossen |
+| WEB-F1 Saisonkontext | ✅ korrigiert |
+| WEB-F2 Impressum | ✅ korrigiert |
+| WEB-F3 Mitglied → Garten → Ablesehistorie | ✅ korrigiert |
+| WEB-F4 Mitglied → Arbeitsstunden | ✅ korrigiert |
+| WEB-F4b Arbeitsstunden-UPDATE-Trigger | ✅ korrigiert |
+| WEB-F5 Mitglied → Dokumente | ✅ korrigiert |
+| WEB-F6 TS2790 in `page.tsx` | ✅ korrigiert |
+| G12 Saison & Jahresabschluss | 🟡 Saisonverwaltung/JEA-Status relevant; vollständiger Jahresabschluss bewusst zurückgestellt; serverseitige Verbrauchsauswertung noch offen |
+| G13 Benutzer, Rollen & Rechte | 🟡 Rollen-/Permission-Doppelung, ID-7-Sperre, Einstellungsverwaltung und weitere Service-Auslagerung offen |
+| G14 Vereinskonfiguration & Exporte | 🟡 Datenschutz-/Eich- und Metadatenexporte vorhanden; Sortierung, Sonderfälle, Rechte, Konfigurations-Service und JAE-XLSX offen |
+| G15 Browser-/Systemfunktionen | 🟡 Refresh/PWA/Locks/Fotoqueue umgesetzt; weitere technische Entflechtung optional/offen |
 
-## Begonnenes Web-Refactoring – architektonisches Grundgerüst
+## Web-Architektur und verbleibende Entflechtung
 
 Für die schrittweise Herauslösung aus der bisherigen Übergangsstruktur wurden in
 `KGV.Web` die Ordner `features`, `services`, `repositories`, `models` und
@@ -9001,27 +8935,23 @@ Fachservices, Datenzugriffe, Fachmodelle und gemeinsamen React-Kontext.
 Ergänzend wurden `lib/supabase` für gemeinsame technische Supabase-Basisfunktionen
 und `lib/browser` für technische Browser-Infrastruktur vorbereitet.
 
-Die bestehenden großen Dateien `app/page.tsx` und `lib/supabase-auth.ts` bleiben
-in diesem Schritt unverändert und dienen weiter als Übergangsstruktur. Es wurde
-noch keine Fachgruppe vollständig migriert und keine Fachlogik verschoben. Die
-Unterordner für einzelne Fachgruppen entstehen erst mit deren kontrollierter
-Migration. G12 (insbesondere Jahresabschluss) bleibt ausdrücklich ausgeklammert.
+`app/page.tsx` und `lib/supabase-auth.ts` bleiben teilweise
+Übergangsstrukturen; zahlreiche Fachgruppen besitzen bereits eigene Features,
+Services und Repositories. Die pauschale frühere Aussage, es sei noch keine
+Fachgruppe vollständig migriert, gilt nicht mehr. G12-Jahresabschluss bleibt
+gemäß Projektentscheidung als vollständige Browseroberfläche vorerst
+zurückgestellt.
 
-## G1 begonnen – erster vertikaler Schnitt ClubSelection
+## G1 aktueller Stand – Vereinsauswahl und Auth
 
-Der erste G1-Schnitt löst die Vereinsauswahl aus `KGV.Web/app/page.tsx` nach
-`features/auth/ClubSelection.tsx`. Der direkt benötigte, generische QR-Scanner
-liegt nun unter `components/scanner/QrScanner.tsx`. Die Auflösung der Vereins-ID
-läuft über `services/auth/club-service.ts`; der darin gekapselte Zugriff auf
-`resolve_vereinscode` liegt in `repositories/auth/club-repository.ts`. Das
-gemeinsame Modell `ClubContext` liegt unter `models/auth/club.ts`.
-
-Aus `page.tsx` wurden die ClubSelection- und QR-Scanner-UI entfernt. Aus
-`lib/supabase-auth.ts` wurde ausschließlich `resolveClub` entfernt; Login,
-Session, gespeicherter Vereinskontext und Vereinswechsel verbleiben zunächst
-unverändert. Die weiteren G1-Bereiche Login, OTP, Passwort-Flow,
-Session-Refresh und AuthProvider wurden anschließend in kontrollierten
-Folgeschnitten abgeschlossen. G12 bleibt ausdrücklich ausgeklammert.
+Die Vereinsauswahl liegt in `features/auth/ClubSelection.tsx`; der QR-Scanner
+liegt in `components/scanner/QrScanner.tsx`. Vereinsauflösung erfolgt über
+`services/auth/club-service.ts` und `repositories/auth/club-repository.ts`.
+Login, OTP/Recovery, Passwortsetzen und Session-Lifecycle sind über Auth-
+Komponenten, Auth-Service/-Repository und `AuthProvider` angebunden.
+`session-service.ts` restauriert Sessions und erneuert Access-Tokens mit dem
+Refresh-Token (G1.9a/b/c). `lib/supabase-auth.ts` stellt weiterhin gemeinsame
+Session-/Workspace-Persistenz und generische Datenzugriffsfunktionen bereit.
 
 ## G4.4 – Pachtvertrag: Fachbasis und Berechtigungsprüfung
 
@@ -9047,8 +8977,8 @@ archivierte, parzellenbezogene Dokumente ermittelt. Die gemeinsame
 Formular-Dokumenterkennung akzeptiert nur die definierten aktuellen und Legacy-
 Dateinamen oder exakte Formulartitel; freie Titel werden nicht als Status
 gewertet. Die Edge Function prüft dieselben Voraussetzungen unabhängig vom
-Browser. G4.4 enthält weder Erfassung noch Altvertrag, Pächter-2-Auswahl,
-Preview-, Signatur- oder Finalisierungsflow; diese folgen erst in G4.5/G4.6.
+Browser. Der vollständige G4-Flow umfasst außerdem Erfassung, Altvertrag,
+optionale zweite Vertragspartei, Vorschau, Signaturen und Finalisierung.
 
 ## G4.5 – Pachtvertrag: Erfassung und Draft
 
@@ -9065,8 +8995,8 @@ kann abgewählt werden. Bei Minderjährigen ist diese Auswahl ausgeschlossen;
 der gesetzliche Vertreter bleibt read-only und ist fachlich Partei 2.
 
 Die Statuswerte `none`, `unsigned` und `signed` sperren bei vorhandenem
-Dokument eine neue Erfassung. G4.5 schreibt keine Fachdatensätze. Preview,
-Signaturen, Finalisierung und Dokumentablage bleiben G4.6 vorbehalten.
+Dokument eine neue Erfassung. Draft und Vorschau bleiben schreibfrei; erst die
+serverseitig validierte Finalisierung legt das finale Dokument ab.
 
 ## G4.6 – Pachtvertrag: Vorschau, Signaturen und Ablage
 
@@ -9083,8 +9013,8 @@ Kalenderdatum bei Altvertrag, die serverseitig bestimmte zweite Partei sowie
 alle erforderlichen Signaturen. Vorschauen bleiben vollständig schreibfrei.
 Finale Dokumente werden nur parzellenbezogen abgelegt. Nach erfolgreicher
 Finalisierung aktualisiert der Web-Flow den Status auf signiert und lädt die
-Dokumentliste nach; das statusabhängige Öffnen vorhandener Verträge bleibt
-G4.7 vorbehalten.
+Dokumentliste nach. Vorhandene Verträge werden über den bestehenden
+Service-/Drive-/Storage-Pfad geöffnet.
 
 ## G4.7 – Bestehende Pachtverträge
 
@@ -9099,8 +9029,7 @@ Der Dokumentstatus und das Öffnen eines vorhandenen Vertrags werden vor und
 unabhängig von der Neuerstellungs-Eligibility geladen. Gibt es keinen Vertrag,
 greift weiterhin die vollständige G4.4–G4.6-Prüfung.
 
-G4 ist damit fachlich umgesetzt und wartet auf die Gesamtprüfung vor einem
-späteren Merge nach main.
+G4 ist fachlich umgesetzt und abgeschlossen.
 
 ## Pflichtprüfung vor Merge nach `main`
 
@@ -9143,14 +9072,11 @@ enthält der Abschlussbericht ausdrücklich:
 - `migration list --linked: geprüft/nicht erforderlich`
 - `db push --linked --dry-run: bestanden/nicht erforderlich`
 
-### Aktueller Migrationsbefund G8
+### G8-Migrationskorrektur
 
-- Der produktive Migrationslauf war bis einschließlich
-  `20261009230000_g8_work_hour_sync_alignment.sql` erfolgreich.
-- `20261009240000_g8_historical_work_hour_confirmation.sql` schlug mit
-  SQLSTATE `42P16` fehl, weil `a.aktiv` in der View-Spaltenfolge vor
-  `angemeldet_count` eingefügt war und PostgreSQL dies als Umbenennung einer
-  bestehenden View-Spalte interpretierte.
-- Der Fix erhält die bestehende View-Spaltenreihenfolge und ergänzt `aktiv`
-  ausschließlich am Ende der View.
-- Ein erneuter Migrationstest steht noch aus.
+Die historische View-Migration mit SQLSTATE `42P16` wurde durch eine spätere
+Korrekturmigration behoben. Unabhängig davon korrigiert
+`20261011114000_g7_fix_work_hour_update_trigger.sql` den G7/G8-Folgefehler
+der Arbeitsstunden-UPDATE-Triggerfunktion. Der lokale Verlauf enthält damit
+Forward-Korrekturen; Remote-Migrationsstand und Dry-Run sind beim nächsten
+Merge-Gate erneut gegen Supabase zu prüfen.
