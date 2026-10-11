@@ -868,7 +868,7 @@ public class DokumentePage : ContentPage, IQueryAttributable
     }
 
     public bool CanManageDocuments => _userContextState.CurrentUserContext?.Has(PermissionFlags.CanManageDocuments) == true;
-    public bool CanArchiveDocuments => _userContextState.CurrentUserContext?.Role == UserRole.Admin;
+    public bool CanArchiveDocuments => PermissionChecks.CanArchiveDocuments(_userContextState.CurrentUserContext);
 
     private bool CanReadMemberDocuments(int? memberId)
     {

@@ -71,7 +71,7 @@ public sealed class JahresabschlussPage : ContentPage
 
     private async Task LoadAsync()
     {
-        if (_loading || _context.CurrentUserContext?.Role is not (UserRole.Admin or UserRole.Vorstand)) { _status.Text = "Der Jahresabschluss ist nur für Vorstand und Admin verfügbar."; return; }
+        if (_loading || !PermissionChecks.CanPerformYearEndClosing(_context.CurrentUserContext)) { _status.Text = "Für den Jahresabschluss fehlt die Berechtigung."; return; }
         _loading = true;
         try
         {

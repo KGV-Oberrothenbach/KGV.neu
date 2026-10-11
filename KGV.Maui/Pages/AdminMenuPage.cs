@@ -204,7 +204,7 @@ public sealed class AdminMenuPage : ContentPage
         var currentContext = _userContextState.CurrentUserContext;
         var isAdmin = currentContext?.Role == UserRole.Admin;
         var canReadRoleManagement = PermissionChecks.CanReadRoleManagement(currentContext);
-        var canManageMeterReadingSubmissions = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+        var canManageMeterReadingSubmissions = PermissionChecks.CanConfigureUserMeterReadingSubmissions(_userContextState.CurrentUserContext);
         var hasSelectedMember = selectedMember?.Id > 0;
 
         _memberInfoLabel.Text = hasSelectedMember
@@ -295,7 +295,7 @@ public sealed class AdminMenuPage : ContentPage
 
     private void UpdateMeterReadingSettingState()
     {
-        var canManageMeterReadingSubmissions = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+        var canManageMeterReadingSubmissions = PermissionChecks.CanConfigureUserMeterReadingSubmissions(_userContextState.CurrentUserContext);
         _saveMeterReadingSubmissionsButton.IsVisible = canManageMeterReadingSubmissions;
         _saveMeterReadingSubmissionsButton.IsEnabled = canManageMeterReadingSubmissions;
         _meterReadingSubmissionsHintLabel.Text = canManageMeterReadingSubmissions
@@ -404,7 +404,7 @@ public sealed class AdminMenuPage : ContentPage
 
     private async Task SaveMeterReadingSubmissionSettingAsync()
     {
-        var canManageMeterReadingSubmissions = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+        var canManageMeterReadingSubmissions = PermissionChecks.CanConfigureUserMeterReadingSubmissions(_userContextState.CurrentUserContext);
         if (!canManageMeterReadingSubmissions)
             return;
 

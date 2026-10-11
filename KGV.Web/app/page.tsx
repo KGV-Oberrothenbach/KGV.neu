@@ -68,6 +68,7 @@ import { AssignMembersToContract } from "../features/maintenance/assignments/Ass
 import { MemberMaintenanceContracts } from "../features/maintenance/MemberMaintenanceContracts";
 import { maintenanceAccess } from "../services/maintenance/maintenance-access-service";
 import { getEffectivePermissions, getRolePermissions, hasPermission, Permission, PermissionAreas, preserveUncontrolledPermissions } from "../security/permissions";
+import { canArchiveDocuments, canManageClubSeasonConfiguration, canManageDocuments, canReadDocuments, createWebCapabilityContext } from "../security/capabilities";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -123,13 +124,14 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
   const [seasonError, setSeasonError] = useState("");
   const { workspaceContext, selectedMember, creatingMember, setSelectedMember, setCreatingMember, updateWorkspaceContext, selectMember, selectParcel, selectSeason: selectWorkspaceSeason } = useWorkspaceContext();
   const permissions = useMemo(() => getEffectivePermissions(context.role, context.permissionGrants, context.permissionRevocations), [context]);
+  const capabilityContext = useMemo(() => createWebCapabilityContext(context.role, context.permissionGrants, context.permissionRevocations), [context]);
   const has = (permission: number) => hasPermission(permissions, permission);
   const documentAccessContext: DocumentAccessContext = {
-    role: context.role,
     memberId: context.mitgliedId,
-    canReadDocuments: has(Permission.readDocuments),
-    canManageDocuments: has(Permission.manageDocuments),
+    canReadDocuments: canReadDocuments(capabilityContext),
+    canManageDocuments: canManageDocuments(capabilityContext),
     canSeeOwnDataOnly: has(Permission.seeOwnData),
+    canArchiveDocuments: canArchiveDocuments(capabilityContext),
   };
   useEffect(() => { if (activeId === "mitglied-dokumente" && leaseContractIntent) queueMicrotask(() => setLeaseContractIntent(null)); }, [activeId, leaseContractIntent]);
   const canReadStammdaten = has(Permission.showStammdaten) || has(Permission.readStammdaten) || has(Permission.writeStammdaten);
@@ -200,7 +202,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
     canManageMaintenance: has(Permission.editAllMembers),
     canApproveWorkHours: has(Permission.manageWorkHours),
     canExport: has(Permission.searchMembers),
-    canManageAdministration: context.role === "admin",
+    canManageAdministration: canManageClubSeasonConfiguration(capabilityContext),
     canSearchMembers: has(Permission.searchMembers),
   });
   const allNavigationItems = navigationGroups.flatMap((group) => [...(group.target ? [group.target] : []), ...group.items]);

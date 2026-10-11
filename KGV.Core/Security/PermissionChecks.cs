@@ -101,6 +101,15 @@ namespace KGV.Core.Security
         public static bool CanManageDocuments(UserContext? context)
             => HasPermission(context, PermissionFlags.CanManageDocuments);
 
+        public static bool CanArchiveDocuments(UserContext? context)
+            => context?.Role == UserRole.Admin;
+
+        public static bool CanManageClubSeasonConfiguration(UserContext? context)
+            => context?.Role == UserRole.Admin;
+
+        public static bool CanConfigureUserMeterReadingSubmissions(UserContext? context)
+            => context?.Role is UserRole.Admin or UserRole.Vorstand;
+
         public static bool CanReadDocumentsForMember(UserContext? context, int? memberId)
             => CanReadDocuments(context)
                || HasOwnDocumentsAccessForMember(context, memberId);
@@ -120,6 +129,9 @@ namespace KGV.Core.Security
 
         public static bool CanManageAnnouncements(UserContext? context)
             => HasPermission(context, PermissionFlags.CanManageAnnouncements);
+
+        public static bool CanPerformYearEndClosing(UserContext? context)
+            => HasPermission(context, PermissionFlags.CanPerformYearEndClosing);
 
         public static bool CanReadWorkHoursForMember(UserContext? context, int? memberId)
             => CanReadWorkHours(context)
