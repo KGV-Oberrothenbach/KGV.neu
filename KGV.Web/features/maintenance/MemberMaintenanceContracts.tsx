@@ -12,7 +12,16 @@ const effect = (contract: MaintenanceContract) => contract.exemptsFromDutyHours 
 export function MemberMaintenanceContracts({ session, memberId, canManage }: { session: BrowserSession; memberId: number; canManage: boolean }) {
   const [data, setData] = useState<Awaited<ReturnType<typeof loadMemberMaintenanceContracts>> | null>(null); const [message, setMessage] = useState(""); const [assigning, setAssigning] = useState(false); const [endDates, setEndDates] = useState<Record<number, string>>({});
   const load = useCallback(async () => { try { setData(await loadMemberMaintenanceContracts(session, memberId)); setMessage(""); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Wartungsverträge konnten nicht geladen werden."); } }, [session, memberId]);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    loadMemberMaintenanceContracts(session, memberId).then((items) => {
+      if (!active) return;
+      setData(items); setMessage("");
+    }).catch((cause) => {
+      if (active) setMessage(cause instanceof Error ? cause.message : "Wartungsverträge konnten nicht geladen werden.");
+    });
+    return () => { active = false; };
+  }, [session, memberId]);
   if (!data) return <section className="data-workspace"><p>{message || "Wartungsverträge werden geladen…"}</p></section>;
   const assignments = classifyMaintenanceAssignments(data.assignments, localDate()); const contracts = new Map(data.contracts.map((contract) => [contract.id, contract]));
   const renderSection = (title: string, items: MaintenanceAssignment[], empty?: string) => <section><h3>{title}</h3>{items.length ? <div className="maintenance-assignments">{items.map((assignment) => { const contract = contracts.get(assignment.maintenanceContractId); return <article key={assignment.id}><div><strong>{contract?.title ?? `Wartungsvertrag #${assignment.maintenanceContractId}`}</strong><span>{contract?.area || "Kein Bereich"} · {contract ? effect(contract) : "Keine Angabe"}</span><span>{formatDate(assignment.validFrom)} – {assignment.validUntil ? formatDate(assignment.validUntil) : "aktiv"}</span>{contract?.description && <small>{contract.description}</small>}</div>{canManage && title === "Aktive Wartungsverträge" && <div><input type="date" min={assignment.validFrom} value={endDates[assignment.id] || localDate()} onChange={(event) => setEndDates({ ...endDates, [assignment.id]: event.target.value })} /><button className="secondary-action" onClick={async () => { try { await endMaintenanceAssignmentForContract(session, assignment, endDates[assignment.id] || localDate()); await load(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Zuordnung konnte nicht beendet werden."); } }}>Beenden</button></div>}</article>; })}</div> : empty && <p>{empty}</p>}</section>;

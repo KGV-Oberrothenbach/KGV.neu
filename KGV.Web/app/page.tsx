@@ -485,7 +485,23 @@ function GlobalMaintenanceContracts({ session, canManage }: { session: BrowserSe
       setSelectedId((current) => current && loadedContracts.some((item) => item.id === current) ? current : loadedContracts[0]?.id ?? null);
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Wartungsverträge konnten nicht geladen werden."); }
   }
-  useEffect(() => { void load(); }, [session]);
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      loadMaintenanceContracts(session),
+      loadMaintenanceAssignments(session),
+      readSupabase<Member>(session, "mitglied", { select: "id,vorname,name,email,aktiv,hauptmitglied_id,geburtsdatum,adresse,plz,ort,telefon,handy,whatsapp_einwilligung,mitglied_seit,mitglied_ende,bemerkung", aktiv: "eq.true", order: "name.asc,vorname.asc", limit: "1000" }),
+      readSupabase<Parcel>(session, "parzelle", { select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,aktiv", limit: "1000" }),
+      readSupabase<ParcelAssignment>(session, "parzellen_belegung", { select: "id,parzelle_id,mitglied_id,von_datum,bis_datum", limit: "2000" }),
+    ]).then(([loadedContracts, loadedAssignments, loadedMembers, loadedParcels, loadedParcelAssignments]) => {
+      if (!active) return;
+      setContracts(loadedContracts); setAssignments(loadedAssignments); setMembers(loadedMembers); setParcels(loadedParcels); setParcelAssignments(loadedParcelAssignments); setMessage("");
+      setSelectedId((current) => current && loadedContracts.some((item) => item.id === current) ? current : loadedContracts[0]?.id ?? null);
+    }).catch((cause) => {
+      if (active) setMessage(cause instanceof Error ? cause.message : "Wartungsverträge konnten nicht geladen werden.");
+    });
+    return () => { active = false; };
+  }, [session]);
   const selected = contracts.find((item) => item.id === selectedId) ?? null;
   const editLock = useEditLock(session, "wartungsvertraege", editingId, Boolean(editing && editingId));
   const selectedAssignments = selected ? assignments.filter((item) => item.maintenanceContractId === selected.id) : [];
