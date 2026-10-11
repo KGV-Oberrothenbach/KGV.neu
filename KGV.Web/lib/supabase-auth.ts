@@ -52,26 +52,17 @@ const protectedEditTables: Record<string, string> = {
   vereinskonfiguration: "id",
 };
 
-// Diese Tabellen enthalten bewusst parallel gehaltene Demo- und Echtdaten.
-// Die MAUI-App blendet die jeweils fremde Datenwelt ebenfalls aus.
+// Diese Tabellen besitzen eine eigene `is_demo`-Spalte.
 // `impressum_funktion_slot` hat bewusst kein eigenes `is_demo`-Feld. Sein
 // Scope wird in der Datenbank über die zugeordnete `mitglied_id` und die RLS-
 // Funktion `is_demo_impressum_slot_scope(...)` bestimmt.
 const demoScopedTables = new Set([
-  "app_user",
   "arbeitseinsatz",
   "bekanntmachung",
   "mitglied",
-  "mitglied_gesetzlicher_vertreter",
-  "mitglied_saison",
   "parzelle",
-  "saison",
   "termin",
-  "vereinskonfiguration",
   "wartungsvertraege",
-  "wartungsvertrag_zuordnungen",
-  "zaehler",
-  "zaehler_ablesung",
 ]);
 
 function workspaceStorageKey() {
@@ -166,7 +157,7 @@ export async function signOut(session: BrowserSession) {
 export async function loadAppUserContext(session: BrowserSession): Promise<AppUserContext> {
   const { url, publishableKey } = config();
   const parameters = new URLSearchParams({
-    select: "user_id,role,mitglied_id,permission_grants,permission_revocations,is_demo,is_demo_account",
+    select: "user_id,role,mitglied_id,permission_grants,permission_revocations,is_demo_account",
     user_id: `eq.${session.user.id}`,
   });
   // Die fachlich führende Rollen-/Rechte-Tabelle heißt in der bestehenden
@@ -181,13 +172,12 @@ export async function loadAppUserContext(session: BrowserSession): Promise<AppUs
     mitglied_id?: number | null;
     permission_grants?: number | null;
     permission_revocations?: number | null;
-    is_demo?: boolean | null;
     is_demo_account?: boolean | null;
   }>;
   const row = rows[0];
   if (!row?.user_id) throw new Error("Für dieses Konto ist keine KGV-Berechtigung hinterlegt.");
   const role = row.role?.toLowerCase();
-  const isDemoAccount = Boolean(row.is_demo_account || row.is_demo);
+  const isDemoAccount = Boolean(row.is_demo_account);
   session.isDemoAccount = isDemoAccount;
   saveSession(session);
   return {

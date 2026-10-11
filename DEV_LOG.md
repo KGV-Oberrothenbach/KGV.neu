@@ -12087,3 +12087,11 @@ Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implement
 - `dokument` aus der generischen clientseitigen Scope-Liste entfernt. Demo- und Eigenkontextprüfung verbleiben bei der bestehenden RLS über Mitglieds-/Parzellen-Owner und `is_demo_dokument_scope(...)`. Archivfilter und G10-Service-/Repositoryarchitektur bleiben unverändert.
 - MAUI lädt im Mitgliedskontext ebenfalls nur `mitglied_id` plus nicht archivierte Dokumente. Pachtverträge werden als Parzellendokumente (`parzelle_id`) gespeichert und nicht in die Mitgliedsliste aggregiert. Die G10-Vergleichsdokumentation präzisiert diese bestehende Owner-Regel.
 - Regressionstest prüft die Member-/Parcel-Owner-Filter, aktive Archivselektion, durchgereichte leere Ergebnisse, Abwesenheit des Dokument-`is_demo`-Filters, fortbestehenden Mitglieds-Demo-Filter und Seiten-/Komponentenverdrahtung.
+
+## 2026-10-11 - WEB G1-G11 technischer Regression-Audit
+
+- `demoScopedTables` gegen `database.types.ts`, `_AI_DB_EXPORT/database.types.ts`, den Schemaexport und Demo-Migrationen geprüft. Eigene `is_demo`-Spalte haben nur `arbeitseinsatz`, `mitglied`, `parzelle`, `wartungsvertraege` sowie laut Additionsmigration `termin` und `bekanntmachung` (die beiden Typ-Exports sind hierfür veraltet).
+- Weitere ungültige Listeneinträge entfernt: `app_user`, `mitglied_gesetzlicher_vertreter`, `mitglied_saison`, `saison`, `vereinskonfiguration`, `wartungsvertrag_zuordnungen`, `zaehler` und `zaehler_ablesung`. Relationale Demo-Prüfung bleibt unverändert in vorhandenen RLS-Pfaden, soweit für Mitgliedssaison, Vertragszuordnung und Zähler belegt; Saison und Vereinskonfiguration sind gemeinsame, nicht demo-markierte Daten.
+- Der Auth-Request für `app_user` selektiert nun nur `is_demo_account` statt der schemafremden Spalte `is_demo`; RLS verwendet weiterhin `is_demo_app_user_row(mitglied_id, is_demo_account)`.
+- Neuer Regressionstest gleicht die Whitelist mit beiden Typdefinitionen und der additiven Termin-/Bekanntmachungs-Migration ab und prüft die tatsächlichen REST-Filter sowie den App-User-Demo-Status.
+- ToDo.md geprüft: die erledigten F1-F5-Punkte sind nicht mehr als offen geführt; kein G12-G15-Inhalt geändert.
