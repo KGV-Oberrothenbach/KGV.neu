@@ -5916,7 +5916,8 @@ Jahr / ID
 ist in MAUI **read-only**.
 
 ### Web aktuell
-`SeasonAdministration` ist bereits umgesetzt.
+`SeasonAdministration` ist bereits umgesetzt und bleibt bis G12.2 in
+`KGV.Web/app/page.tsx`.
 
 Vorhanden:
 
@@ -5928,8 +5929,20 @@ Vorhanden:
 - Speichern
 - Workspace-Saison nach Speichern aktualisieren
 
+Erledigt in G12.1:
+
+- Das gemeinsame Web-Modell liegt in `models/seasons/season.ts` und enthält
+  alle Felder von `SaisonRecord`.
+- `repositories/seasons/season-repository.ts` lädt die vollständigen
+  Saisonfelder und kapselt Liste, Einzelabruf, Anlegen und Aktualisieren.
+- `services/seasons/season-service.ts` zentralisiert ID/Jahr-Normalisierung,
+  Bearbeitbarkeit, Vorjahresvorschlag und Speichern.
+- Workspace, Vertragsservices und die bestehende Saisonverwaltung verwenden
+  diese gemeinsame Saisonbasis.
+
 ### Bewertung
-✅ insgesamt sehr nah an WPF/MAUI.
+✅ insgesamt sehr nah an WPF/MAUI. G12.2 (Herauslösen der
+`SeasonAdministration`) bleibt offen.
 
 ### Konkrete Abweichung
 Im Web ist das Feld:
@@ -5962,17 +5975,10 @@ Nur beim automatisch erzeugten neuen Saisonvorschlag wird das Jahr festgelegt.
 ## 12.2 Saisonwerte nicht in React pflegen
 
 ### Web aktuell
-`SeasonAdministration` liest und schreibt direkt:
-
-```text
-saison
-```
-
-über `readSupabase` / `writeSupabase`.
-Die Saisonliste hat zusätzlich ein Repository (`listSeasons`). Eine zentrale
-Saison-Service-Schicht für Verwaltung/Speichern gibt es noch nicht. Beim
-Bearbeiten einer bestehenden aktuellen oder zukünftigen Saison ist das Jahr
-weiter editierbar; das Speichern setzt `id` aus `jahr`.
+G12.1 hat die gemeinsame Saison-Domain mit Modell, Repository und Service
+umgesetzt. `SeasonAdministration` konsumiert diese Fachbasis, bleibt aber bis
+G12.2 noch in `page.tsx`; die UI wird in diesem Schritt nicht strukturell
+herausgelöst.
 
 ### Ziel
 ```text

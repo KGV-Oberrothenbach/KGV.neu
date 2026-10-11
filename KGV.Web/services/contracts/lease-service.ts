@@ -4,7 +4,8 @@ import { type Member } from "../../models/members/member";
 import { listLeaseContractDocuments, listLegalRepresentativeRelations, listMembershipApplicationDocuments, type LeaseContractDocument } from "../../repositories/contracts/contract-repository";
 import { getSecondaryMemberByMainMemberId } from "../../repositories/members/member-repository";
 import { getLeaseParcel, listLeaseParcels, listLeaseParcelsForMember, type LeaseParcel } from "../../repositories/parcels/parcel-repository";
-import { listSeasons, type Season } from "../../repositories/seasons/season-repository";
+import { getSeasons } from "../seasons/season-service";
+import type { Season } from "../../models/seasons/season";
 import { getMember } from "../members/member-service";
 import { determineFormDocumentStatus, getFormDocumentStatus, type FormDocumentStatus } from "./form-document-status";
 import { isMinorAtStart, resolveActiveLegalRepresentativeRelation } from "./legal-representative-service";
@@ -33,7 +34,7 @@ export async function listEligibleLeaseParcels(session: BrowserSession, memberId
 
 export async function loadLeaseContractData(session: BrowserSession, memberId: number, parcelId: number, startDate: string): Promise<LeaseContractData> {
   const [member, parcel, seasons, membershipDocuments, leaseDocuments, configuration] = await Promise.all([
-    getMember(session, memberId), getLeaseParcel(session, parcelId), listSeasons(session), listMembershipApplicationDocuments(session, memberId), listLeaseContractDocuments(session, parcelId),
+    getMember(session, memberId), getLeaseParcel(session, parcelId), getSeasons(session), listMembershipApplicationDocuments(session, memberId), listLeaseContractDocuments(session, parcelId),
     readSupabase<{ id: number }>(session, "vereinskonfiguration", { select: "id", aktiv: "eq.true", order: "updated_at.desc", limit: "1" }),
   ]);
   if (!member) throw new Error("Mitglied wurde nicht gefunden.");

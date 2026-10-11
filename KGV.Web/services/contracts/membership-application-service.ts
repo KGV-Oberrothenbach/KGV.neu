@@ -1,5 +1,6 @@
 import { getMember } from "../members/member-service";
-import { listSeasons, type Season } from "../../repositories/seasons/season-repository";
+import { getSeasons } from "../seasons/season-service";
+import type { Season } from "../../models/seasons/season";
 import { listMembershipApplicationDocuments, type MembershipApplicationDocument } from "../../repositories/contracts/contract-repository";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type Member } from "../../models/members/member";
@@ -48,7 +49,7 @@ export async function loadMembershipApplicationStatus(session: BrowserSession, m
 }
 
 export async function loadMembershipApplicationData(session: BrowserSession, memberId: number, today = new Date()): Promise<MembershipApplicationData> {
-  const [member, seasons, documents] = await Promise.all([getMember(session, memberId), listSeasons(session), listMembershipApplicationDocuments(session, memberId)]);
+  const [member, seasons, documents] = await Promise.all([getMember(session, memberId), getSeasons(session), listMembershipApplicationDocuments(session, memberId)]);
   if (!member) throw new Error("Mitglied konnte nicht geladen werden.");
   const startDate = member.mitglied_seit || localDateValue(today);
   const seasonYear = today.getFullYear();
