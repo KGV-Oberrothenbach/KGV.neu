@@ -67,6 +67,7 @@ import { MaintenanceContractEditor } from "../features/maintenance/MaintenanceCo
 import { AssignMembersToContract } from "../features/maintenance/assignments/AssignMembersToContract";
 import { MemberMaintenanceContracts } from "../features/maintenance/MemberMaintenanceContracts";
 import { maintenanceAccess } from "../services/maintenance/maintenance-access-service";
+import { getEffectivePermissions, getRolePermissions, hasPermission, Permission, PermissionAreas, preserveUncontrolledPermissions } from "../security/permissions";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -111,45 +112,6 @@ type ExportDefinition = { export_key: string; titel: string | null; beschreibung
 type ExportFilterDefinition = { export_key: string; filter_key: string; label: string | null; typ: string | null; optionen_json: unknown; pflicht: boolean; sortierung: number };
 type ExportColumnDefinition = { export_key: string; column_key: string; label_kurz: string | null; label_lang: string | null; sortierung: number; standard_sichtbar: boolean };
 
-const Permission = {
-  searchMembers: 1 << 0,
-  viewMembers: 1 << 1,
-  editAllMembers: 1 << 2,
-  seeOwnData: 1 << 3,
-  manageDocuments: 1 << 4,
-  readMeters: 1 << 5,
-  manageMeterChanges: 1 << 6,
-  approveMeterReadings: 1 << 7,
-  manageWorkHours: 1 << 8,
-  manageRoles: 1 << 9,
-  showStammdaten: 1 << 10,
-  readStammdaten: 1 << 11,
-  writeStammdaten: 1 << 12,
-  showParzellen: 1 << 13,
-  readParzellen: 1 << 14,
-  writeParzellen: 1 << 15,
-  readDocuments: 1 << 16,
-  readWorkHours: 1 << 17,
-  readRoles: 1 << 18,
-  createMember: 1 << 19,
-  manageWorkAssignments: 1 << 20,
-  manageAppointments: 1 << 21,
-  manageAnnouncements: 1 << 22,
-} as const;
-
-const VorstandPermissions = Permission.searchMembers | Permission.viewMembers | Permission.editAllMembers | Permission.manageDocuments | Permission.readMeters | Permission.manageMeterChanges | Permission.approveMeterReadings | Permission.manageWorkHours | Permission.showStammdaten | Permission.readStammdaten | Permission.writeStammdaten | Permission.readParzellen | Permission.writeParzellen | Permission.readDocuments | Permission.readWorkHours | Permission.readRoles | Permission.manageWorkAssignments | Permission.manageAppointments | Permission.manageAnnouncements;
-const AdminPermissions = VorstandPermissions | Permission.manageRoles | Permission.createMember;
-const UserPermissions = Permission.viewMembers | Permission.seeOwnData;
-
-function permissionsFor(context: AppUserContext) {
-  const base = context.role === "admin"
-    ? AdminPermissions
-    : context.role === "vorstand"
-      ? VorstandPermissions
-      : UserPermissions;
-  return (base | context.permissionGrants) & ~context.permissionRevocations;
-}
-
 function Workspace(props: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; onLogout: () => void; onChangeClub: () => Promise<void> }) {
   return <WorkspaceContextProvider><WorkspaceContent {...props} /></WorkspaceContextProvider>;
 }
@@ -160,8 +122,8 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
   const [leaseContractIntent, setLeaseContractIntent] = useState<{ parcelId: number; startDate: string } | null>(null);
   const [seasonError, setSeasonError] = useState("");
   const { workspaceContext, selectedMember, creatingMember, setSelectedMember, setCreatingMember, updateWorkspaceContext, selectMember, selectParcel, selectSeason: selectWorkspaceSeason } = useWorkspaceContext();
-  const permissions = useMemo(() => permissionsFor(context), [context]);
-  const has = (permission: number) => (permissions & permission) === permission;
+  const permissions = useMemo(() => getEffectivePermissions(context.role, context.permissionGrants, context.permissionRevocations), [context]);
+  const has = (permission: number) => hasPermission(permissions, permission);
   const documentAccessContext: DocumentAccessContext = {
     role: context.role,
     memberId: context.mitgliedId,
@@ -535,25 +497,9 @@ function ContractComposer({ session, memberId, onSaved, leaseContractIntent }: {
   return <details className="contract-composer"><summary>Vertragsdokument erstellen und unterschreiben</summary>{message && <p className="notice" role="status">{message}</p>}<fieldset disabled={busy}><label>Dokumenttyp<select value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="mitgliedsantrag">Mitgliedsantrag</option><option value="mitgliedsvertrag">Mitgliedsvertrag</option><option value="pachtvertrag">Pachtvertrag</option></select></label><label>Beginn<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label></fieldset><div className="signature-grid"><SignaturePad label="Unterschrift Mitglied" value={memberSignature} onChange={setMemberSignature} /><SignaturePad label="Gesetzlicher Vertreter (optional)" value={secondarySignature} onChange={setSecondarySignature} /><SignaturePad label="Unterschrift Verein" value={boardSignature} onChange={setBoardSignature} /></div><div className="editor-actions"><button type="button" className="secondary-action" disabled={busy} onClick={preview}>PDF-Vorschau</button><button type="button" disabled={busy} onClick={finalize}>{busy ? "Verarbeitet …" : "Signiert sicher ablegen"}</button></div></details>;
 }
 
-const permissionAreas = [
-  { key: "mitgliedaufnahme", label: "Mitglieder aufnehmen / verpachten", all: Permission.createMember, read: Permission.createMember, write: Permission.createMember },
-  { key: "stammdaten", label: "Stammdaten", all: Permission.showStammdaten | Permission.readStammdaten | Permission.writeStammdaten, read: Permission.readStammdaten, write: Permission.writeStammdaten },
-  { key: "parzellen", label: "Parzellen", all: Permission.showParzellen | Permission.readParzellen | Permission.writeParzellen, read: Permission.readParzellen, write: Permission.writeParzellen },
-  { key: "dokumente", label: "Dokumente", all: Permission.readDocuments | Permission.manageDocuments, read: Permission.readDocuments, write: Permission.manageDocuments },
-  { key: "arbeitsstunden", label: "Arbeitsstunden", all: Permission.readWorkHours | Permission.manageWorkHours, read: Permission.readWorkHours, write: Permission.manageWorkHours },
-  { key: "zaehlerwechsel", label: "Zählerwechsel", all: Permission.readMeters | Permission.manageMeterChanges, read: Permission.readMeters, write: Permission.manageMeterChanges },
-  { key: "ablesungsfreigaben", label: "Ablesungsfreigaben", all: Permission.readMeters | Permission.approveMeterReadings, read: Permission.readMeters, write: Permission.approveMeterReadings },
-  { key: "rollen", label: "Rollen / Rechte", all: Permission.readRoles | Permission.manageRoles, read: Permission.readRoles, write: Permission.manageRoles },
-] as const;
 type PermissionLevel = "none" | "read" | "write";
 
-function rolePermissions(role: AppUserAdmin["role"]) {
-  if (role === "admin") return 1048575;
-  if (role === "vorstand") return Permission.searchMembers | Permission.viewMembers | Permission.editAllMembers | Permission.showStammdaten | Permission.readStammdaten | Permission.writeStammdaten | Permission.showParzellen | Permission.readParzellen | Permission.writeParzellen | Permission.readDocuments | Permission.manageDocuments | Permission.readWorkHours | Permission.manageWorkHours | Permission.readMeters | Permission.manageMeterChanges | Permission.approveMeterReadings | Permission.readRoles;
-  return Permission.viewMembers | Permission.seeOwnData;
-}
-
-function permissionLevel(mask: number, area: (typeof permissionAreas)[number]): PermissionLevel {
+function permissionLevel(mask: number, area: (typeof PermissionAreas)[number]): PermissionLevel {
   if ((mask & area.write) === area.write) return "write";
   if ((mask & area.read) === area.read) return "read";
   return "none";
@@ -585,28 +531,30 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
   useEffect(() => {
     const nextRole = selectedUser?.role ?? "user";
     setRole(nextRole);
-    const effective = (rolePermissions(nextRole) | (selectedUser?.permission_grants ?? 0)) & ~(selectedUser?.permission_revocations ?? 0);
-    setLevels(Object.fromEntries(permissionAreas.map((area) => [area.key, permissionLevel(effective, area)])));
+    const effective = getEffectivePermissions(nextRole, selectedUser?.permission_grants ?? 0, selectedUser?.permission_revocations ?? 0);
+    setLevels(Object.fromEntries(PermissionAreas.map((area) => [area.key, permissionLevel(effective, area)])));
     setMessage("");
   }, [selectedMemberId, selectedUser?.user_id, selectedUser?.role, selectedUser?.permission_grants, selectedUser?.permission_revocations]);
   function changeRole(nextRole: AppUserAdmin["role"]) {
     setRole(nextRole);
-    const base = rolePermissions(nextRole);
-    setLevels(Object.fromEntries(permissionAreas.map((area) => [area.key, permissionLevel(base, area)])));
+    const base = getRolePermissions(nextRole);
+    setLevels(Object.fromEntries(PermissionAreas.map((area) => [area.key, permissionLevel(base, area)])));
   }
   async function save() {
     if (!selectedUser) { setMessage("Für dieses Mitglied existiert noch kein verknüpfter App-Benutzer. Die Erstanmeldung muss zuerst abgeschlossen werden."); return; }
     if (!editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; }
-    const base = rolePermissions(role);
+    const base = getRolePermissions(role);
     let required = 0; let controllable = 0;
-    for (const area of permissionAreas) {
+    for (const area of PermissionAreas) {
       controllable |= area.all;
       const level = levels[area.key] ?? "none";
       if (level === "read") required |= area.read;
       if (level === "write") required |= area.write;
     }
-    const grants = required & ~base;
-    const revocations = (base & controllable) & ~required;
+    const calculatedGrants = required & ~base;
+    const calculatedRevocations = (base & controllable) & ~required;
+    const grants = preserveUncontrolledPermissions(selectedUser.permission_grants, calculatedGrants);
+    const revocations = preserveUncontrolledPermissions(selectedUser.permission_revocations, calculatedRevocations);
     setSaving(true); setMessage("");
     try {
       await writeSupabase<AppUserAdmin>(session, "app_user", "PATCH", { mitglied_id: selectedMemberId, role, permission_grants: grants, permission_revocations: revocations, updated_at: new Date().toISOString() }, { user_id: `eq.${selectedUser.user_id}` });
@@ -636,7 +584,7 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
     finally { setSaving(false); }
   }
   const visibleMembers = fixedMemberId ? members.filter((item) => item.id === fixedMemberId) : members.filter((item) => `${item.name ?? ""} ${item.vorname ?? ""} ${item.email ?? ""} ${item.id}`.toLowerCase().includes(query.toLowerCase()));
-  return <section className="data-workspace admin-workspace" aria-label="Benutzer und Rechte">{message && <p className="notice" role="status">{message}</p>}<div className={fixedMemberId ? "" : "split-view"}>{!fixedMemberId && <div><div className="data-toolbar"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Mitglied suchen" /><span>{users.length} verknüpfte Benutzer</span></div><div className="data-table-wrap"><table><thead><tr><th>Mitglied</th><th>Konto</th><th>Rolle</th></tr></thead><tbody>{visibleMembers.map((member) => { const user = users.find((item) => item.mitglied_id === member.id); return <tr key={member.id} className={selectedMemberId === member.id ? "selected-row" : ""} onClick={() => setSelectedMemberId(member.id)}><td><strong>{member.name}, {member.vorname}</strong><small>#{member.id} · {member.email || "keine E-Mail"}</small></td><td>{user ? "verknüpft" : "offen"}</td><td>{user?.role ?? "–"}</td></tr>; })}</tbody></table></div></div>}<aside className="detail-panel rights-editor">{selectedMember ? <><div className="detail-title"><div><h2>{selectedMember.name}, {selectedMember.vorname}</h2><p>{selectedUser ? `App-Benutzer ${selectedUser.user_id.slice(0, 8)}…` : "Noch kein App-Benutzer verknüpft"}</p></div></div><div className="account-actions">{!selectedUser && <button disabled={saving || !selectedMember.email} onClick={invite}>Nutzer hinzufügen</button>}{selectedUser && <button className="secondary-action" disabled={saving || !selectedMember.email} onClick={resetPassword}>Passwort-Reset senden</button>}{selectedUser && fixedMemberId && <button className="danger-action" disabled={saving} onClick={removeUser}>Nutzer entfernen</button>}</div>{!selectedUser && <p className="context-note">Mit „Nutzer hinzufügen“ wird der bestehende OTP-/Erstlogin-Ablauf gestartet. Rollen und Fachrechte werden nach erfolgreicher Verknüpfung speicherbar.</p>}<label>Rollenbasis<select value={role} disabled={!selectedUser || saving} onChange={(event) => changeRole(event.target.value as AppUserAdmin["role"])}><option value="user">Mitglied</option><option value="vorstand">Vorstand</option><option value="admin">Administrator</option></select></label><h3>Fachrechte</h3><div className="permission-grid">{permissionAreas.map((area) => <label key={area.key}><span>{area.label}<small>Rollenstandard: {permissionLevel(rolePermissions(role), area) === "write" ? "Bearbeiten" : permissionLevel(rolePermissions(role), area) === "read" ? "Lesen" : "Aus"}</small></span><select value={levels[area.key] ?? "none"} disabled={!selectedUser || saving} onChange={(event) => setLevels({ ...levels, [area.key]: event.target.value as PermissionLevel })}><option value="none">Aus</option><option value="read">Lesen</option><option value="write">Bearbeiten</option></select></label>)}</div><div className="editor-actions"><button disabled={!selectedUser || saving} onClick={save}>{saving ? "Speichert …" : "Rolle und Rechte speichern"}</button><button className="secondary-action" disabled={!selectedUser || saving} onClick={() => changeRole(role)}>Auf Rollenstandard setzen</button></div></> : <><h2>Benutzer auswählen</h2><p>Wähle links ein Mitglied aus.</p></>}</aside></div></section>;
+  return <section className="data-workspace admin-workspace" aria-label="Benutzer und Rechte">{message && <p className="notice" role="status">{message}</p>}<div className={fixedMemberId ? "" : "split-view"}>{!fixedMemberId && <div><div className="data-toolbar"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Mitglied suchen" /><span>{users.length} verknüpfte Benutzer</span></div><div className="data-table-wrap"><table><thead><tr><th>Mitglied</th><th>Konto</th><th>Rolle</th></tr></thead><tbody>{visibleMembers.map((member) => { const user = users.find((item) => item.mitglied_id === member.id); return <tr key={member.id} className={selectedMemberId === member.id ? "selected-row" : ""} onClick={() => setSelectedMemberId(member.id)}><td><strong>{member.name}, {member.vorname}</strong><small>#{member.id} · {member.email || "keine E-Mail"}</small></td><td>{user ? "verknüpft" : "offen"}</td><td>{user?.role ?? "–"}</td></tr>; })}</tbody></table></div></div>}<aside className="detail-panel rights-editor">{selectedMember ? <><div className="detail-title"><div><h2>{selectedMember.name}, {selectedMember.vorname}</h2><p>{selectedUser ? `App-Benutzer ${selectedUser.user_id.slice(0, 8)}…` : "Noch kein App-Benutzer verknüpft"}</p></div></div><div className="account-actions">{!selectedUser && <button disabled={saving || !selectedMember.email} onClick={invite}>Nutzer hinzufügen</button>}{selectedUser && <button className="secondary-action" disabled={saving || !selectedMember.email} onClick={resetPassword}>Passwort-Reset senden</button>}{selectedUser && fixedMemberId && <button className="danger-action" disabled={saving} onClick={removeUser}>Nutzer entfernen</button>}</div>{!selectedUser && <p className="context-note">Mit „Nutzer hinzufügen“ wird der bestehende OTP-/Erstlogin-Ablauf gestartet. Rollen und Fachrechte werden nach erfolgreicher Verknüpfung speicherbar.</p>}<label>Rollenbasis<select value={role} disabled={!selectedUser || saving} onChange={(event) => changeRole(event.target.value as AppUserAdmin["role"])}><option value="user">Mitglied</option><option value="vorstand">Vorstand</option><option value="admin">Administrator</option></select></label><h3>Fachrechte</h3><div className="permission-grid">{PermissionAreas.map((area) => <label key={area.key}><span>{area.label}<small>Rollenstandard: {permissionLevel(getRolePermissions(role), area) === "write" ? "Bearbeiten" : permissionLevel(getRolePermissions(role), area) === "read" ? "Lesen" : "Aus"}</small></span><select value={levels[area.key] ?? "none"} disabled={!selectedUser || saving} onChange={(event) => setLevels({ ...levels, [area.key]: event.target.value as PermissionLevel })}><option value="none">Aus</option><option value="read">Lesen</option><option value="write">Bearbeiten</option></select></label>)}</div><div className="editor-actions"><button disabled={!selectedUser || saving} onClick={save}>{saving ? "Speichert …" : "Rolle und Rechte speichern"}</button><button className="secondary-action" disabled={!selectedUser || saving} onClick={() => changeRole(role)}>Auf Rollenstandard setzen</button></div></> : <><h2>Benutzer auswählen</h2><p>Wähle links ein Mitglied aus.</p></>}</aside></div></section>;
 }
 
 const emptyClubConfiguration: ClubConfigurationRecord = { id: 0, vereinsname: "", kurzname: "", registerangabe: "", strasse: "", plz: "", ort: "", standard_email: "", standard_telefon: "", website: "", kontoinhaber: "", bankname: "", iban: "", bic: "", verwendungszweck_mitgliedsantrag: "", verwendungszweck_pachtvertrag: "", dokument_ort: "", standard_hinweistext: "", datenschutz_text: "", datenschutz_version: "", datenschutz_stand: null, aktiv: true };
