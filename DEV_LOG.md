@@ -12063,3 +12063,11 @@ Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implement
 - Den MAUI-Referenzpfad und den Web-Pfad vom Funktionsslot bis zur Anzeige abgeglichen. Beide lösen `impressum_funktion_slot.mitglied_id` gegen `mitglied.id` auf, trennen Vorstand und Bauausschuss über Slot/Funktion und nehmen den ersten Vorsitzenden aus der dynamischen Liste heraus.
 - Die Web-Regressionsursache lag vor diesem Pfad: `readSupabase` ergänzte für `impressum_funktion_slot` einen `is_demo`-Parameter. Die Tabelle hat kein eigenes `is_demo`; ihr Demo-Scope wird in der Datenbank anhand der verknüpften `mitglied_id` durch RLS bestimmt. Der unzulässige Query-Parameter konnte die komplette Slot-Abfrage fehlschlagen lassen.
 - Den Eintrag deshalb gezielt aus der clientseitigen Tabellen-Scope-Liste entfernt. Mitglieder bleiben weiterhin separat anhand ihres eigenen `is_demo`-Felds gescoped. Es gibt keine Hardcodes, keine Datenmigration und keine Änderung an den statischen Impressumsangaben.
+
+## 2026-10-11 - WEB G7 Mitglieds-Arbeitsstunden
+
+- Die Seite `Mitglied → Arbeitsstunden` verwendete den bestehenden Pfad `MemberWorkHours → loadMemberWorkHoursWorkspace → listMemberWorkHoursForSeason`; Mitglieds- und Saisonfilter waren korrekt.
+- Ursache der leeren Ansicht: `arbeitsstunde` hatte laut beiden Datenbank-Typdefinitionen und Schemaexport keine eigene `is_demo`-Spalte, stand aber in `demoScopedTables`. `readSupabase()` ergänzte dadurch einen ungültigen `is_demo=eq.true/false`-Filter an der REST-Abfrage.
+- `arbeitsstunde` wurde aus der clientseitigen Demo-Tabellenliste entfernt. Der serverseitige Demo-Scope über RLS und `is_demo_mitglied_id(mitglied_id)` bleibt bestehen; Mitglieds-/Saisonfilter sowie die globale `WorkHoursReview`-Saisonlogik bleiben unberührt.
+- Ein gezielter Regressionstest durchläuft Service und Repository mit abgefangenem REST-Request. Er prüft Mitglieds-/Saisonfilter, fehlendes `is_demo` bei Arbeitsstunden, den fortbestehenden Filter für `mitglied` und die Komponentenverdrahtung.
+- Separater offener Folgepunkt: G7/G8-Triggerfunktionen referenzieren `NEW.is_demo`/`OLD.is_demo`, obwohl `arbeitsstunde` keine solche Spalte besitzt. Bei Ausführung betroffener Triggerpfade kann ein Laufzeitfehler auftreten. Keine Änderung an den Migrationen in diesem Block.

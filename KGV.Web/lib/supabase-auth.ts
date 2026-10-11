@@ -60,7 +60,6 @@ const protectedEditTables: Record<string, string> = {
 const demoScopedTables = new Set([
   "app_user",
   "arbeitseinsatz",
-  "arbeitsstunde",
   "bekanntmachung",
   "dokument",
   "mitglied",
