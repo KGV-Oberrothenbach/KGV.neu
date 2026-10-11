@@ -7286,9 +7286,58 @@ vollständige Snapshots, Finalisierung, Korrekturabschlüsse und die vollständi
 Jahresabschluss-Weboberfläche. G12.6 ergänzt weder einen vollständigen
 Snapshot noch eine Jahresabschlussberechnung.
 
+### G12.7 Consumer-/Architektur-Audit
+
+Der abschließende Consumer-Audit bestätigt die fachliche Trennung: G2 lädt den
+Saisonkontext über den G12-`season-service`; direkte Web-Zugriffe auf
+`saison` liegen ausschließlich im G12-Repository. G6 bleibt Eigentümer von
+Zählern, Ablesungen, JEA-Erfassung, Freigabe und Plausibilitätswarnungen.
+`jea-readiness-service` wertet ausschließlich die JEA-Status-RPC aus, während
+`annual-consumption-service` ausschließlich die von
+`rpc_jahresverbrauch_segmente` gelieferten Segmente gruppiert und filtert.
+
+G7 verwendet Saisonparameter nur als Kontext seiner serverseitigen
+Pflichtstundenübersicht und behält die individuelle Arbeitsstundenlogik. G11
+behält Wartungsverträge und deren G7-Anrechnung. G14 enthält derzeit nur den
+JEA-Status-Export und keine Jahresverbrauchsberechnung. Ein späterer
+Jahresverbrauchsexport muss den G12-Annual-Consumption-Zugriff beziehungsweise
+`rpc_jahresverbrauch_segmente` verwenden; er darf keine Zählerstände, JEA,
+Zählerwechsel, Pächterwechsel oder Leerstand selbst berechnen.
+
+### Aktueller G12-Ausbau – abgeschlossen
+
+G12.1 zentrale Saison-Domain, G12.2 ausgelagerte Saisonverwaltung, G12.3
+JEA-Bereitschaft, G12.4 serverseitige Jahresverbrauchssegmente, G12.5
+Plausibilitätswarnungen bei der Erfassung, G12.6 Foundation-Audit und G12.7
+Consumer-/Architektur-Audit sind abgeschlossen.
+
+Der produktive Basisfluss lautet:
+
+```text
+Saison
+↓
+Zähler / Ablesungen aus G6
+↓
+JEA-Bereitschaft
+↓
+serverseitige Verbrauchssegmente
+↓
+Jahresverbrauch
+↓
+später G14-Export / später Jahresabschluss
+```
+
+### Vollständiger Jahresabschluss – bewusst vertagt
+
+Rechnungen, Kostenarten und Umlagearten (U1, U2, U-S, U-W, V-S, V-W,
+Einzelkosten), Vorauszahlungen, Abschlussprüfung, Berechnung, Finalisierung,
+vollständige Snapshots, Korrekturabschlüsse und die Weboberfläche bleiben eine
+spätere Fortsetzung. Die fachliche Abstimmung und Zuarbeit des Kassenwarts
+stehen dafür noch aus.
+
 ---
 
-## G12 verbindlicher Ablauf
+## Spätere Fortsetzung: vollständiger Jahresabschluss
 
 ```text
 Saison auswählen
@@ -7322,7 +7371,7 @@ Snapshot unveränderlich
 spätere Änderungen nur über Korrekturabschluss
 ```
 
-## G12 wichtigste Korrekturen für Web und Fachkern
+## Spätere Roadmap: Jahresabschluss für Web und Fachkern
 
 1. Web-Jahresabschluss überhaupt als Fachbereich implementieren.
 2. Jahresabschluss für **Admin und Vorstand** zugänglich machen; Saisonverwaltung bleibt Admin.
@@ -9012,7 +9061,7 @@ festgestellte Web-Regressionen, ohne G12–G15 neu zu gestalten.
 | WEB-F4b Arbeitsstunden-UPDATE-Trigger | ✅ korrigiert |
 | WEB-F5 Mitglied → Dokumente | ✅ korrigiert |
 | WEB-F6 TS2790 in `page.tsx` | ✅ korrigiert |
-| G12 Saison & Jahresabschluss | 🟡 Saisonverwaltung, JEA-Status, serverseitige Verbrauchssegmente und Erfassungs-Plausibilitätswarnungen umgesetzt; vollständiger Jahresabschluss bewusst zurückgestellt |
+| G12 Saison & Jahresabschluss | ✅ G12.1–G12.7 abgeschlossen: Saisonverwaltung, JEA-Status, serverseitige Verbrauchssegmente und Erfassungs-Plausibilitätswarnungen; vollständiger Jahresabschluss bewusst vertagt |
 | G13 Benutzer, Rollen & Rechte | 🟡 Rollen-/Permission-Doppelung, ID-7-Sperre, Einstellungsverwaltung und weitere Service-Auslagerung offen |
 | G14 Vereinskonfiguration & Exporte | 🟡 Datenschutz-/Eich- und Metadatenexporte vorhanden; Sortierung, Sonderfälle, Rechte, Konfigurations-Service und JAE-XLSX offen |
 | G15 Browser-/Systemfunktionen | 🟡 Refresh/PWA/Locks/Fotoqueue umgesetzt; weitere technische Entflechtung optional/offen |
