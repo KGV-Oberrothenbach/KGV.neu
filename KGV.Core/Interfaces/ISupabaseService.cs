@@ -62,6 +62,7 @@ namespace KGV.Core.Interfaces
 
         Task<bool> SetStromzaehlerAusgebautAmAsync(long stromzaehlerId, DateTime ausgebautAm);
         Task<bool> SetWasserzaehlerAusgebautAmAsync(long wasserzaehlerId, DateTime ausgebautAm);
+        Task<bool> SetZaehlerDefektAsync(long zaehlerId, bool defekt);
 
         Task<bool> AddAblesungAsync(AblesungInsertRecord request);
         Task<bool> UpdateAblesungAsync(long ablesungId, DateTime ablesedatum, decimal stand, string? fotoPfad);

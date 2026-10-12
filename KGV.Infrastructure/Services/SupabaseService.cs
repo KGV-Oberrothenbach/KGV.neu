@@ -2048,6 +2048,22 @@ namespace KGV.Infrastructure.Services
             },
             false);
 
+        public Task<bool> SetZaehlerDefektAsync(long zaehlerId, bool defekt) => ExecuteAsync(
+            "SetZaehlerDefektAsync",
+            async () =>
+            {
+                if (zaehlerId <= 0 || !defekt)
+                    return false;
+
+                var client = await EnsureClientAsync();
+                await client.Rpc<bool>(
+                    "mark_meter_defective",
+                    new { p_zaehler_id = zaehlerId });
+
+                return true;
+            },
+            false);
+
         public Task<bool> AddAblesungAsync(AblesungInsertRecord request) => ExecuteAsync(
             "AddAblesungAsync",
             async () =>
