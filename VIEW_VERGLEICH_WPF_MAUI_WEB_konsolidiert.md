@@ -9396,3 +9396,9 @@ CSV wird im Dienst `export-csv-service.ts` mit UTF-8-BOM, Semikolon und CRLF erz
 `window.print()` ist aus dem Exportfluss entfernt. Die PDF-Ausgabe nutzt die verbindliche generische Dokumentdefinition `ExportPdfDocumentDefinition`/`exportPdfDocumentDefinition`: A4 quer, 28pt Ränder, Arial (Verein 12, Meta 8, Titel 14, Tabelle 8) und grüner Vereinsakzent. MAUI verwendet weiterhin den Core-PDF-Generator; Web verwendet dieselbe Layoutdefinition und lädt den aktiven Vereinsdatensatz für den Briefkopf. Die mobile Web-Darstellung zeigt denselben Result-Satz als blätterbare Datensatzkarte.
 
 G14.6 bleibt ausschließlich für JAE-XLSX reserviert.
+
+## G14.6 – JAE-XLSX
+
+Die Referenz `Diff. Wasser-Strom-Ablesung 10.2026.xlsx` wurde analysiert, aber nicht in das Repository übernommen, da sie Vereinsdaten enthält. Die leere programmgesteuerte Vorlage bildet `Tabelle1` nach: Titel ab `B2`, Kopfzeile `B4:I4`, Querformat und die acht Legacy-Spalten ohne zusätzliche Summen- oder Segmentspalten. ExcelJS erzeugt die Datei clientseitig als `<Jahr>_JAE.xlsx`.
+
+Die Datenquelle ist ausschließlich `rpc_jahresverbrauch_segmente(p_jahr)`. G14 berechnet keine Verbräuche und erkennt keine Wechsel. `JAE erweitert` schreibt jedes gelieferte Segment mit Zeitraum, Pächter, Leerstand, Zähler, Medium, Segmentgrund, Berechenbarkeit und Fehlerstatus in eine eigene Zeile. Gartengrößen werden nur aus vorhandenen Parzellenstammdaten zugespielt. Die Wasser- und Stromsummen summieren ausschließlich als berechenbar gelieferte Segmente. Die Funktion ist im bestehenden, bereits für Vorstand/Admin geschützten Exportbereich verfügbar; MAUI hat noch keinen XLSX-Aufrufpfad.

@@ -1,0 +1,30 @@
+import ExcelJS from "exceljs";
+import type { BrowserSession } from "../../lib/supabase-auth";
+import { listParcelOverviewParcels } from "../../repositories/parcels/parcel-repository";
+import { listAnnualConsumptionSegments, type AnnualConsumptionSegment } from "../../repositories/readings/annual-consumption-repository";
+import { jaeExtendedHeaders, type JaeExportInput } from "../../models/export/jae-export";
+
+const natural = new Intl.Collator("de", { numeric: true, sensitivity: "base" });
+const medium = (value: string) => value.toLocaleLowerCase("de");
+const segmentsSorted = (segments: AnnualConsumptionSegment[]) => [...segments].sort((a, b) => natural.compare(a.parzelle, b.parzelle) || a.von_datum.localeCompare(b.von_datum) || natural.compare(a.medium, b.medium) || natural.compare(a.zaehlernummer, b.zaehlernummer));
+const download = (content: ArrayBuffer, fileName: string) => { const url = URL.createObjectURL(new Blob([content], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })); const link = document.createElement("a"); link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url); };
+
+function createLegacySheet(workbook: ExcelJS.Workbook, input: JaeExportInput) {
+  const sheet = workbook.addWorksheet("Tabelle1", { pageSetup: { orientation: "landscape" } }); sheet.views = [{ showGridLines: true }];
+  sheet.getCell("B2").value = `Ablesedaten ${input.year}`; sheet.getCell("B2").font = { name: "Calibri", size: 11, bold: true }; sheet.getCell("B2").alignment = { horizontal: "center" };
+  const headers = ["Garten", `Wasser ${input.year - 1}`, `Wasser ${input.year}`, "Diff.", `Strom  ${input.year - 1}`, `Strom  ${input.year}`, "Diff.", "Gartengröße"];
+  sheet.getRow(4).height = 20.25; sheet.getRow(3).height = 15.75; headers.forEach((value, index) => { const cell = sheet.getCell(4, index + 2); cell.value = value; cell.font = { name: "Calibri", size: 11, bold: true }; cell.alignment = { horizontal: "center", vertical: "middle" }; cell.border = { top: { style: "medium" }, bottom: { style: "medium" } }; });
+  sheet.getColumn("B").width = 16.42578125; sheet.getColumn("C").width = 13.28515625;
+  const grouped = new Map<number, AnnualConsumptionSegment[]>(); input.segments.forEach((segment) => { const entries = grouped.get(segment.parzelle_id) ?? []; entries.push(segment); grouped.set(segment.parzelle_id, entries); });
+  let row = 5; for (const entries of [...grouped.values()].sort((a, b) => natural.compare(a[0].parzelle, b[0].parzelle))) { const water = entries.find((segment) => medium(segment.medium) === "wasser"); const electricity = entries.find((segment) => medium(segment.medium) === "strom"); const area = input.parcelAreas.get(entries[0].parzelle_id) ?? null; const values = [entries[0].parzelle, water?.startstand ?? null, water?.endstand ?? null, water?.verbrauch ?? null, electricity?.startstand ?? null, electricity?.endstand ?? null, electricity?.verbrauch ?? null, area]; values.forEach((value, index) => { const cell = sheet.getCell(row, index + 2); cell.value = value; cell.alignment = { horizontal: "center" }; cell.border = { bottom: { style: "thin" } }; cell.numFmt = index < 3 ? "0.00" : index < 6 ? "0.0" : "General"; }); row++; }
+}
+
+function createExtendedSheet(workbook: ExcelJS.Workbook, input: JaeExportInput) {
+  const sheet = workbook.addWorksheet("JAE erweitert", { pageSetup: { orientation: "landscape", fitToWidth: 1 } }); sheet.views = [{ state: "frozen", ySplit: 1, showGridLines: false }]; sheet.addRow(jaeExtendedHeaders); const header = sheet.getRow(1); header.font = { bold: true, color: { argb: "FFFFFFFF" } }; header.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2E7D32" } }; header.alignment = { horizontal: "center", vertical: "middle" }; header.height = 24;
+  for (const segment of segmentsSorted(input.segments)) { const empty = segment.pachtbezug === "Leerstand"; const club = /vereinsgarten/i.test(segment.parzelle); const eligible = segment.berechenbar; sheet.addRow([segment.parzelle, `${segment.zaehler_id}:${segment.von_datum}`, segment.von_datum, segment.bis_datum, segment.pachtbezug, empty ? "Ja" : "Nein", club ? "Ja" : "Nein", segment.medium, segment.zaehlernummer, segment.startstand, segment.endstand, segment.verbrauch, segment.grund, segment.berechenbar ? "Ja" : "Nein", segment.fehlercode, segment.fehlertext, eligible ? "Ja" : "Nein", input.parcelAreas.get(segment.parzelle_id) ?? null]); }
+  sheet.columns.forEach((column) => { column.width = 16; }); sheet.getColumn(5).width = 24; sheet.getColumn(16).width = 42; sheet.getColumn(18).width = 14; sheet.getColumn(3).numFmt = "dd.mm.yyyy"; sheet.getColumn(4).numFmt = "dd.mm.yyyy"; [10, 11, 12, 18].forEach((index) => { sheet.getColumn(index).numFmt = "0.00"; });
+  const firstTotal = sheet.rowCount + 2; const usable = input.segments.filter((segment) => segment.berechenbar); [["Wasser gesamt umlagefähig", usable.filter((segment) => medium(segment.medium) === "wasser").reduce((total, segment) => total + (segment.verbrauch ?? 0), 0)], ["Strom gesamt umlagefähig", usable.filter((segment) => medium(segment.medium) === "strom").reduce((total, segment) => total + (segment.verbrauch ?? 0), 0)]].forEach(([label, value], index) => { const labelCell = sheet.getCell(firstTotal + index, 1); const valueCell = sheet.getCell(firstTotal + index, 2); labelCell.value = label; valueCell.value = value as number; labelCell.font = valueCell.font = { bold: true }; valueCell.numFmt = "0.00"; });
+}
+
+export function createJaeWorkbook(input: JaeExportInput) { const workbook = new ExcelJS.Workbook(); createLegacySheet(workbook, input); createExtendedSheet(workbook, input); return workbook; }
+export async function downloadJaeXlsx(session: BrowserSession, year: number) { const [segments, parcels] = await Promise.all([listAnnualConsumptionSegments(session, year), listParcelOverviewParcels(session)]); const workbook = createJaeWorkbook({ year, segments, parcelAreas: new Map(parcels.map((parcel) => [parcel.id, parcel.flaeche_qm])) }); download(await workbook.xlsx.writeBuffer() as ArrayBuffer, `${year}_JAE.xlsx`); }
