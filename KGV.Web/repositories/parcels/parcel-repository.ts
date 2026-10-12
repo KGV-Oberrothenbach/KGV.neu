@@ -13,6 +13,7 @@ export type ParcelOverviewParcel = {
   rfid_strom: string | null;
   rfid_wasser: string | null;
   aktiv: boolean;
+  ist_vereinsgarten: boolean;
 };
 export type ParcelMasterDataUpdate = Pick<ParcelOverviewParcel, "flaeche_qm" | "hat_strom" | "hat_wasser">;
 export type ParcelAssignmentCreate = { parzelle_id: number; mitglied_id: number; von_datum: string; bis_datum: null };
@@ -62,13 +63,13 @@ export const listLeaseParcels = (session: BrowserSession, parcelIds: number[]) =
 }) : Promise.resolve([] as LeaseParcel[]);
 
 export const listParcelOverviewParcels = (session: BrowserSession) => readSupabase<ParcelOverviewParcel>(session, "parzelle", {
-  select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,rfid_strom,rfid_wasser,aktiv",
+  select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,rfid_strom,rfid_wasser,aktiv,ist_vereinsgarten",
   limit: "1000",
 });
 
 export const listParcelOverviewParcelsByIds = (session: BrowserSession, parcelIds: number[]) => parcelIds.length
   ? readSupabase<ParcelOverviewParcel>(session, "parzelle", {
-      select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,rfid_strom,rfid_wasser,aktiv",
+      select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,rfid_strom,rfid_wasser,aktiv,ist_vereinsgarten",
       id: `in.(${parcelIds.join(",")})`,
       limit: "1000",
     })

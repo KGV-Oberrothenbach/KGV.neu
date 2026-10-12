@@ -20,6 +20,9 @@ export type AnnualConsumptionSegment = {
   berechenbar: boolean;
   fehlercode: string | null;
   fehlertext: string | null;
+  bezug_typ: "paechter" | "leerstand" | "verein";
+  ist_vereinsgarten: boolean;
+  umlagefaehig: boolean;
 };
 
 export function listAnnualConsumptionSegments(session: BrowserSession, seasonYear: number) {
