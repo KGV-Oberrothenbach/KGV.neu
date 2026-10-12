@@ -9387,3 +9387,12 @@ Korrekturmigration behoben. Unabhängig davon korrigiert
 der Arbeitsstunden-UPDATE-Triggerfunktion. Der lokale Verlauf enthält damit
 Forward-Korrekturen; Remote-Migrationsstand und Dry-Run sind beim nächsten
 Merge-Gate erneut gegen Supabase zu prüfen.
+## G14.5 – allgemeine Exportausgabe
+
+Die Web-Ausgabe verarbeitet ausschließlich `ExportResult` zusammen mit der gewählten, nach `sortierung` geordneten Spaltenmenge. `standard_sichtbar` ist nur der Startzustand; Benutzer können alle Metadatenspalten auswählen, alle aktivieren oder den Standard wiederherstellen. Die Desktop-Tabelle beschränkt nur die Vorschau auf 500 Zeilen. CSV und PDF erhalten immer alle Zeilen.
+
+CSV wird im Dienst `export-csv-service.ts` mit UTF-8-BOM, Semikolon und CRLF erzeugt; Werte verwenden die gemeinsame Anzeigeformatierung (Boolean `Ja`/`Nein`, null leer). Die Dateinamenregel lautet `YYYY-MM-DD_<bereinigter Exporttitel>.<endung>`.
+
+`window.print()` ist aus dem Exportfluss entfernt. Die PDF-Ausgabe nutzt die verbindliche generische Dokumentdefinition `ExportPdfDocumentDefinition`/`exportPdfDocumentDefinition`: A4 quer, 28pt Ränder, Arial (Verein 12, Meta 8, Titel 14, Tabelle 8) und grüner Vereinsakzent. MAUI verwendet weiterhin den Core-PDF-Generator; Web verwendet dieselbe Layoutdefinition und lädt den aktiven Vereinsdatensatz für den Briefkopf. Die mobile Web-Darstellung zeigt denselben Result-Satz als blätterbare Datensatzkarte.
+
+G14.6 bleibt ausschließlich für JAE-XLSX reserviert.

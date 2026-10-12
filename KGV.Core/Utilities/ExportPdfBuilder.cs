@@ -11,7 +11,7 @@ namespace KGV.Core.Utilities
 {
     public static class ExportPdfBuilder
     {
-        private const double PageMargin = 28;
+        private const double PageMargin = ExportPdfDocumentDefinition.PageMargin;
         private const double HeaderHeight = 28;
 
         private record PdfColumn(string ColumnKey, string Label, bool Visible, int SortOrder);
@@ -52,10 +52,10 @@ namespace KGV.Core.Utilities
 
             var gfx = XGraphics.FromPdfPage(page);
 
-            var titleFont = new XFont("Arial", 15, XFontStyle.Bold);
+            var titleFont = new XFont("Arial", ExportPdfDocumentDefinition.TitleFontSize, XFontStyle.Bold);
             var subtitleFont = new XFont("Arial", 8, XFontStyle.Regular);
-            var headerFont = new XFont("Arial", isMitgliederliste ? 8 : 12, XFontStyle.Bold);
-            var cellFont = new XFont("Arial", isMitgliederliste ? 7.5 : 9, XFontStyle.Regular);
+            var headerFont = new XFont("Arial", ExportPdfDocumentDefinition.HeaderFontSize, XFontStyle.Bold);
+            var cellFont = new XFont("Arial", ExportPdfDocumentDefinition.CellFontSize, XFontStyle.Regular);
 
             double usableWidth = page.Width - PageMargin * 2;
             double x = PageMargin;
