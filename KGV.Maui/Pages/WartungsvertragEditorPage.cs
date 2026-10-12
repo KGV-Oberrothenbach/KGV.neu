@@ -108,7 +108,7 @@ public sealed class WartungsvertragEditorPage : ContentPage, IQueryAttributable
 
         try
         {
-            _isAuthorized = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            _isAuthorized = PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext);
             if (!_isAuthorized)
             {
                 _headlineLabel.Text = "Wartungsvertrag";

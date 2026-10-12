@@ -235,7 +235,7 @@ public sealed class MemberWartungsvertraegePage : ContentPage
         _isBusy = true;
         try
         {
-            _canManage = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            _canManage = PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext);
             _assignButton.IsVisible = _canManage;
             SetBusyState(true);
             _statusLabel.Text = "Wartungsverträge werden geladen.";

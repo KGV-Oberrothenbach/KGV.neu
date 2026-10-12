@@ -133,9 +133,9 @@ public sealed class ExportPage : ContentPage
             {
             }
 
-            if (_userContextState.CurrentUserContext?.Role is not (UserRole.Admin or UserRole.Vorstand))
+            if (!PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
             {
-                _statusLabel.Text = "Export ist mobil nur für Admin/Vorstand verfügbar.";
+                _statusLabel.Text = "Für den Export fehlt die Berechtigung zur Mitgliedersuche.";
                 _definitionPicker.IsVisible = false;
                 _runButton.IsVisible = false;
                 _exportCsvButton.IsVisible = false;

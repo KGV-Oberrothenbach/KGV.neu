@@ -132,7 +132,7 @@ public sealed class WartungsvertragDetailPage : ContentPage, IQueryAttributable
         _isBusy = true;
         try
         {
-            _canManage = _adminModeRequested && (_userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand);
+            _canManage = _adminModeRequested && PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext);
             UpdateActionVisibility();
             SetBusyState(true);
             _statusLabel.Text = "Daten werden geladen.";

@@ -31,6 +31,7 @@ const preservedGrants = preserveUncontrolledPermissions(unknownFutureBit, Permis
 const preservedRevocations = preserveUncontrolledPermissions(unknownFutureBit, Permission.CanManageRoles);
 assert.equal(preservedGrants, unknownFutureBit | Permission.CanManageRoles, "unknown grant bits must survive an editor save");
 assert.equal(preservedRevocations, unknownFutureBit | Permission.CanManageRoles, "unknown revocation bits must survive an editor save");
+assert.equal(preserveUncontrolledPermissions(0, unknownFutureBit), 0, "a stale editor must not introduce unknown bits");
 
 const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 assert.doesNotMatch(pageSource, /const Permission\s*=/);

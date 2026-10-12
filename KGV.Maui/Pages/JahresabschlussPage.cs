@@ -52,6 +52,13 @@ public sealed class JahresabschlussPage : ContentPage
             if (e.CurrentSelection.FirstOrDefault() is JahresabschlussRechnungRecord rechnung && _saisonPicker.SelectedItem is SaisonRecord saison)
             {
                 rechnungenView.SelectedItem = null;
+                if (!CanPerformYearEndClosing)
+                {
+                    _rechnungen.Clear();
+                    ApplyPermissionState();
+                    _status.Text = "Für den Jahresabschluss fehlt die Berechtigung.";
+                    return;
+                }
                 await Navigation.PushAsync(new JahresabschlussRechnungEditorPage(_supabase, saison, rechnung));
             }
         };
@@ -76,16 +83,15 @@ public sealed class JahresabschlussPage : ContentPage
     {
         if (_loading || !CanPerformYearEndClosing)
         {
-            _saisonPicker.IsEnabled = false;
-            _neueRechnung.IsEnabled = false;
-            _stammdaten.IsEnabled = false;
-            _pruefen.IsEnabled = false;
+            _rechnungen.Clear();
+            ApplyPermissionState();
             _status.Text = "Für den Jahresabschluss fehlt die Berechtigung.";
             return;
         }
         _loading = true;
         try
         {
+            ApplyPermissionState();
             var saisons = (await _supabase.GetSaisonRecordsAsync()).OrderByDescending(x => x.Jahr).ToList();
             _saisonPicker.ItemsSource = saisons;
             _saisonPicker.ItemDisplayBinding = new Binding(nameof(SaisonRecord.Jahr));
@@ -93,18 +99,33 @@ public sealed class JahresabschlussPage : ContentPage
             await LoadRechnungenAsync();
         }
         catch (Exception ex) { _status.Text = $"Jahresabschluss konnte nicht geladen werden: {ex.Message}"; }
-        finally { _loading = false; }
+        finally { _loading = false; ApplyPermissionState(); }
     }
 
     private async Task LoadRechnungenAsync()
     {
-        if (_loading || !CanPerformYearEndClosing || _saisonPicker.SelectedItem is not SaisonRecord saison) return;
+        if (_loading || !CanPerformYearEndClosing)
+        {
+            _rechnungen.Clear();
+            ApplyPermissionState();
+            return;
+        }
+        if (_saisonPicker.SelectedItem is not SaisonRecord saison) return;
         _rechnungen.Clear();
         foreach (var rechnung in await _supabase.GetJahresabschlussRechnungenAsync(saison.Id)) _rechnungen.Add(rechnung);
         _status.Text = _rechnungen.Count == 0 ? string.Empty : $"{_rechnungen.Count} Rechnung(en) für {saison.Jahr}. Zum Bearbeiten antippen.";
     }
 
     private bool CanPerformYearEndClosing => PermissionChecks.CanPerformYearEndClosing(_context.CurrentUserContext);
+
+    private void ApplyPermissionState()
+    {
+        var enabled = CanPerformYearEndClosing && !_loading;
+        _saisonPicker.IsEnabled = enabled;
+        _neueRechnung.IsEnabled = enabled;
+        _stammdaten.IsEnabled = enabled;
+        _pruefen.IsEnabled = enabled;
+    }
 }
 
 internal sealed class RechnungSummaryConverter : IValueConverter
