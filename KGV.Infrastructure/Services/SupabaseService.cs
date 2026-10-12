@@ -431,6 +431,14 @@ namespace KGV.Infrastructure.Services
             },
             new List<System.Collections.Generic.Dictionary<string, string>>());
 
+        public Task<List<System.Collections.Generic.Dictionary<string, string>>> RunProtectedExportRpcAsync(string sourceName, object? parameters = null)
+        {
+            if (string.IsNullOrWhiteSpace(sourceName))
+                return Task.FromResult(new List<System.Collections.Generic.Dictionary<string, string>>());
+
+            return RunExportRpcAsync("rpc_execute_export", new { p_source_name = sourceName, p_parameters = parameters ?? new { } });
+        }
+
         // Local small helpers to avoid depending on ViewModel helpers
         private static string TruncateSafe(string? s, int max = 120)
         {

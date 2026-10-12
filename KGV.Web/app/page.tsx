@@ -66,12 +66,9 @@ import { AssignMembersToContract } from "../features/maintenance/assignments/Ass
 import { MemberMaintenanceContracts } from "../features/maintenance/MemberMaintenanceContracts";
 import { maintenanceAccess } from "../services/maintenance/maintenance-access-service";
 import { getEffectivePermissions, getRolePermissions, hasPermission, Permission, PermissionAreas, preserveUncontrolledPermissions } from "../security/permissions";
-import { canArchiveDocuments, canManageClubConfiguration, canManageClubSeasonConfiguration, canManageDocuments, canPerformYearEndClosing, canReadDocuments, createWebCapabilityContext } from "../security/capabilities";
+import { canArchiveDocuments, canExportData, canManageClubConfiguration, canManageClubSeasonConfiguration, canManageDocuments, canPerformYearEndClosing, canReadDocuments, createWebCapabilityContext } from "../security/capabilities";
 import { ClubConfiguration } from "../features/configuration/ClubConfiguration";
-import { type ExportColumn } from "../models/export/export-column";
-import { type ExportDefinition } from "../models/export/export-definition";
-import { type ExportFilter, type ExportFilterValue, type ExportOption } from "../models/export/export-filter";
-import { buildExportRpcPayload, loadExportDefinitions, loadExportMetadata } from "../services/export/export-metadata-service";
+import { ExportCenter } from "../features/export/ExportCenter";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -115,7 +112,6 @@ type AppUserAdmin = { user_id: string; mitglied_id: number | null; role: "admin"
 function Workspace(props: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; onLogout: () => void; onChangeClub: () => Promise<void> }) {
   return <WorkspaceContextProvider><WorkspaceContent {...props} /></WorkspaceContextProvider>;
 }
-
 function WorkspaceContent({ session, email, club, context, onLogout, onChangeClub }: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; onLogout: () => void; onChangeClub: () => Promise<void> }) {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [activeId, setActiveId] = useState("start");
@@ -200,7 +196,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
     canAccessParcels: has(Permission.searchMembers) && has(Permission.readParzellen),
     canManageMaintenance: has(Permission.editAllMembers),
     canApproveWorkHours: has(Permission.manageWorkHours),
-    canExport: has(Permission.searchMembers),
+    canExport: canExportData(capabilityContext),
     canManageSeasonConfiguration: canManageClubSeasonConfiguration(capabilityContext),
     canPerformYearEndClosing: canPerformYearEndClosing(capabilityContext),
     canManageClubConfiguration: canManageClubConfiguration(capabilityContext),
@@ -238,7 +234,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           {effectiveActiveId === "termine" && <AppointmentManagement session={session} canEdit={has(Permission.manageAppointments)} onBack={() => setActiveId("start")} />}
           {effectiveActiveId === "bekanntmachungen" && <AnnouncementManagement session={session} canEdit={has(Permission.manageAnnouncements)} onBack={() => setActiveId("start")} />}
           {effectiveActiveId === "impressum" && <ImprintPage session={session} />}
-          {effectiveActiveId === "export" && <ExportCenter session={session} season={season} canExport={has(Permission.searchMembers)} />}
+          {effectiveActiveId === "export" && <ExportCenter session={session} season={season} canExport={canExportData(capabilityContext)} />}
           {effectiveActiveId === "benutzer" && <UserRightsAdministration session={session} />}
           {effectiveActiveId === "saisons" && <SeasonManagement session={session} onSeasonSaved={(saved) => { setSeasons((current) => [...current.filter((item) => item.id !== saved.id), saved].sort((a, b) => b.jahr - a.jahr)); selectWorkspaceSeason(saved); }} />}
           {effectiveActiveId === "verein" && <ClubConfiguration session={session} canManage={canManageClubConfiguration(capabilityContext)} />}
@@ -592,47 +588,4 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
   }
   const visibleMembers = fixedMemberId ? members.filter((item) => item.id === fixedMemberId) : members.filter((item) => `${item.name ?? ""} ${item.vorname ?? ""} ${item.email ?? ""} ${item.id}`.toLowerCase().includes(query.toLowerCase()));
   return <section className="data-workspace admin-workspace" aria-label="Benutzer und Rechte">{message && <p className="notice" role="status">{message}</p>}<div className={fixedMemberId ? "" : "split-view"}>{!fixedMemberId && <div><div className="data-toolbar"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Mitglied suchen" /><span>{users.length} verknüpfte Benutzer</span></div><div className="data-table-wrap"><table><thead><tr><th>Mitglied</th><th>Konto</th><th>Rolle</th></tr></thead><tbody>{visibleMembers.map((member) => { const user = users.find((item) => item.mitglied_id === member.id); return <tr key={member.id} className={selectedMemberId === member.id ? "selected-row" : ""} onClick={() => setSelectedMemberId(member.id)}><td><strong>{member.name}, {member.vorname}</strong><small>#{member.id} · {member.email || "keine E-Mail"}</small></td><td>{user ? "verknüpft" : "offen"}</td><td>{user?.role ?? "–"}</td></tr>; })}</tbody></table></div></div>}<aside className="detail-panel rights-editor">{selectedMember ? <><div className="detail-title"><div><h2>{selectedMember.name}, {selectedMember.vorname}</h2><p>{selectedUser ? `App-Benutzer ${selectedUser.user_id.slice(0, 8)}…` : "Noch kein App-Benutzer verknüpft"}</p></div></div><div className="account-actions">{!selectedUser && <button disabled={saving || !selectedMember.email} onClick={invite}>Nutzer hinzufügen</button>}{selectedUser && <button className="secondary-action" disabled={saving || !selectedMember.email} onClick={resetPassword}>Passwort-Reset senden</button>}{selectedUser && fixedMemberId && <button className="danger-action" disabled={saving} onClick={removeUser}>Nutzer entfernen</button>}</div>{!selectedUser && <p className="context-note">Mit „Nutzer hinzufügen“ wird der bestehende OTP-/Erstlogin-Ablauf gestartet. Rollen und Fachrechte werden nach erfolgreicher Verknüpfung speicherbar.</p>}<label>Rollenbasis<select value={role} disabled={!selectedUser || saving} onChange={(event) => changeRole(event.target.value as AppUserAdmin["role"])}><option value="user">Mitglied</option><option value="vorstand">Vorstand</option><option value="admin">Administrator</option></select></label><h3>Fachrechte</h3><div className="permission-grid">{PermissionAreas.map((area) => <label key={area.key}><span>{area.label}<small>Rollenstandard: {permissionLevel(getRolePermissions(role), area) === "write" ? "Bearbeiten" : permissionLevel(getRolePermissions(role), area) === "read" ? "Lesen" : "Aus"}</small></span><select value={levels[area.key] ?? "none"} disabled={!selectedUser || saving} onChange={(event) => setLevels({ ...levels, [area.key]: event.target.value as PermissionLevel })}><option value="none">Aus</option><option value="read">Lesen</option><option value="write">Bearbeiten</option></select></label>)}</div><div className="editor-actions"><button disabled={!selectedUser || saving} onClick={save}>{saving ? "Speichert …" : "Rolle und Rechte speichern"}</button><button className="secondary-action" disabled={!selectedUser || saving} onClick={() => changeRole(role)}>Auf Rollenstandard setzen</button></div></> : <><h2>Benutzer auswählen</h2><p>Wähle links ein Mitglied aus.</p></>}</aside></div></section>;
-}
-
-function downloadCsv(fileName: string, columns: ExportColumn[], rows: Array<Record<string, unknown>>) { const escape = (value: unknown) => { const text = value == null ? "" : typeof value === "boolean" ? value ? "Ja" : "Nein" : String(value); return /[;"\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text; }; const content = [columns.map((column) => escape(column.label_lang ?? column.label_kurz ?? column.column_key)).join(";"), ...rows.map((row) => columns.map((column) => escape(row[column.column_key])).join(";"))].join("\r\n"); const url = URL.createObjectURL(new Blob(["\ufeff", content], { type: "text/csv;charset=utf-8" })); const link = document.createElement("a"); link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url); }
-
-function ExportCenter({ session, season, canExport }: { session: BrowserSession; season: number; canExport: boolean }) {
-  const [definitions, setDefinitions] = useState<ExportDefinition[]>([]); const [selectedKey, setSelectedKey] = useState(""); const [filters, setFilters] = useState<ExportFilter[]>([]); const [columns, setColumns] = useState<ExportColumn[]>([]); const [values, setValues] = useState<Record<string, ExportFilterValue>>({}); const [options, setOptions] = useState<Record<string, ExportOption[]>>({}); const [rows, setRows] = useState<Array<Record<string, unknown>>>([]); const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false);
-  useEffect(() => { if (!canExport) return; loadExportDefinitions(session).then((items) => { setDefinitions(items); setSelectedKey((current) => current || items[0]?.export_key || ""); }).catch((cause: Error) => setMessage(cause.message)); }, [session, canExport]);
-  useEffect(() => { if (!selectedKey) return; loadExportMetadata(session, selectedKey, season).then((metadata) => { setRows([]); setMessage(""); setFilters(metadata.filters); setColumns(metadata.columns); setValues(metadata.values); setOptions(metadata.options); }).catch((cause: Error) => setMessage(cause.message)); }, [season, session, selectedKey]);
-  const selected = definitions.find((item) => item.export_key === selectedKey) ?? null;
-  const preferredColumns = columns.filter((column) => column.standard_sichtbar);
-  const visibleColumns = preferredColumns.length ? preferredColumns : columns;
-  function rpcPayload() { return buildExportRpcPayload(filters, values); }
-  async function run() {
-    if (!selected) return;
-    setBusy(true); setMessage("");
-    try {
-      let result: Array<Record<string, unknown>>;
-      if (selected.export_key === "mitgliederliste") {
-        const [memberRows, parcelRows, assignmentRows] = await Promise.all([
-          readSupabase<Record<string, unknown>>(session, "mitglied", { select: "*", order: "name.asc", limit: "5000" }),
-          readSupabase<Parcel>(session, "parzelle", { select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,aktiv", limit: "5000" }),
-          readSupabase<ParcelAssignment>(session, "parzellen_belegung", { select: "id,parzelle_id,mitglied_id,von_datum,bis_datum", limit: "5000" }),
-        ]);
-        const today = new Date().toISOString().slice(0, 10);
-        result = memberRows.map((member) => {
-          const memberId = Number(member.id);
-          const parcelIds = assignmentRows.filter((item) => item.mitglied_id === memberId && (!item.bis_datum || item.bis_datum >= today)).map((item) => item.parzelle_id);
-          const gardens = parcelRows.filter((item) => parcelIds.includes(item.id)).map((item) => item.garten_nr).join(", ");
-          return { ...member, mitgliedsnr: member.mitgliedsnummer ?? member.id, strasse_hsnr: member.adresse ?? "", gaerten: gardens, gartennummern: gardens, pachtgaerten: gardens, re: member.email_rechnung_einwilligung, info: member.email_info_einwilligung, wa: member.whatsapp_einwilligung };
-        });
-      } else if (selected.export_key === "rfid_status") {
-        result = await readSupabase<Record<string, unknown>>(session, "v_rfid_scan_context", { select: "*", limit: "5000" });
-      } else if (selected.quelle_typ === "table" && selected.quelle_name) {
-        result = await readSupabase<Record<string, unknown>>(session, selected.quelle_name, { select: "*", limit: "5000" });
-      } else {
-        result = await callSupabaseRpc<Array<Record<string, unknown>>>(session, selected.quelle_name || selected.export_key, rpcPayload());
-      }
-      setRows(result); setMessage(`${result.length} Datensätze geladen.`);
-    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Export konnte nicht ausgeführt werden."); }
-    finally { setBusy(false); }
-  }
-  if (!canExport) return <section className="data-workspace"><p className="notice">Exporte stehen mobil nur Vorstand und Administratoren zur Verfügung.</p></section>;
-  return <section className="data-workspace export-center">{message && <p className="notice" role="status">{message}</p>}<div className="export-controls"><label>Exportdefinition<select value={selectedKey} onChange={(event) => setSelectedKey(event.target.value)}>{definitions.map((item) => <option key={item.export_key} value={item.export_key}>{item.titel ?? item.export_key}</option>)}</select></label>{selected?.beschreibung && <p>{selected.beschreibung}</p>}<div className="export-filters">{filters.map((filter) => <label key={filter.filter_key}>{filter.label ?? filter.filter_key}{filter.typ === "boolean" ? <input type="checkbox" checked={Boolean(values[filter.filter_key])} onChange={(event) => setValues({ ...values, [filter.filter_key]: event.target.checked })} /> : options[filter.filter_key]?.length ? <select value={String(values[filter.filter_key] ?? "")} onChange={(event) => setValues({ ...values, [filter.filter_key]: event.target.value })}><option value="">Alle</option>{options[filter.filter_key].map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : <input type={filter.filter_key.includes("jahr") ? "number" : "text"} value={String(values[filter.filter_key] ?? "")} onChange={(event) => setValues({ ...values, [filter.filter_key]: event.target.value })} />}</label>)}</div><div className="editor-actions"><button disabled={busy || !selected} onClick={run}>{busy ? "Wird ausgeführt …" : "Ausführen"}</button><button className="secondary-action" disabled={!rows.length || !selected?.erlaubt_csv} onClick={() => downloadCsv(`${new Date().toISOString().slice(0, 10)}_${selectedKey}.csv`, visibleColumns, rows)}>Als CSV speichern</button><button className="secondary-action" disabled={!rows.length || !selected?.erlaubt_pdf} onClick={() => window.print()}>Drucken / als PDF speichern</button></div></div>{rows.length > 0 && <div className="data-table-wrap export-result"><table><thead><tr>{visibleColumns.map((column) => <th key={column.column_key}>{column.label_kurz ?? column.label_lang ?? column.column_key}</th>)}</tr></thead><tbody>{rows.slice(0, 500).map((row, index) => <tr key={index}>{visibleColumns.map((column) => <td key={column.column_key}>{row[column.column_key] == null ? "" : typeof row[column.column_key] === "boolean" ? row[column.column_key] ? "Ja" : "Nein" : String(row[column.column_key])}</td>)}</tr>)}</tbody></table>{rows.length > 500 && <p className="empty-state">Vorschau zeigt 500 von {rows.length} Datensätzen. CSV enthält alle Datensätze.</p>}</div>}</section>;
 }

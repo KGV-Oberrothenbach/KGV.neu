@@ -49,3 +49,7 @@ export function canManageClubConfiguration(context: WebCapabilityContext): boole
 export function canConfigureUserMeterReadingSubmissions(context: WebCapabilityContext): boolean {
   return context?.role === "admin" || context?.role === "vorstand";
 }
+
+export function canExportData(context: WebCapabilityContext): boolean {
+  return context?.role === "admin" || context?.role === "vorstand";
+}

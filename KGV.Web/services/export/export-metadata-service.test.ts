@@ -5,7 +5,7 @@ import { type ExportFilter } from "../../models/export/export-filter";
 import { buildExportRpcPayload, CURRENT_SEASON_DEFAULT, getExportDefaultValue, getExportOptionsSource, getExportParameterName, prepareExportDefinitions, sortExportColumns, sortExportFilters } from "./export-metadata-service";
 
 const definition: ExportDefinition = { export_key: "arbeitsstunden_uebersicht", titel: "Arbeitsstunden", beschreibung: null, quelle_typ: "rpc", quelle_name: "rpc_export_arbeitsstunden_uebersicht", aktiv: true, standard_sortierung: "garten_nr", standard_ausgabe: "csv", erlaubt_csv: true, erlaubt_pdf: true };
-const filter = (overrides: Partial<ExportFilter> = {}): ExportFilter => ({ export_key: definition.export_key, filter_key: "jahr", label: "Jahr", typ: "select", optionen_json: null, parameter_name: null, standardwert_json: null, pflicht: false, sortierung: 20, ...overrides });
+const filter = (overrides: Partial<ExportFilter> = {}): ExportFilter => ({ export_key: definition.export_key, filter_key: "jahr", label: "Jahr", typ: "select", optionen_json: null, parameter_name: null, wert_typ: null, standardwert_json: null, pflicht: false, sortierung: 20, ...overrides });
 
 test("metadata retains definition sorting and orders filters and columns", () => {
   assert.equal(prepareExportDefinitions([definition])[0].standard_sortierung, "garten_nr");
@@ -30,6 +30,6 @@ test("parameter names and defaults are entirely metadata-driven", () => {
 });
 
 test("work-hour payload has no export-key special case", () => {
-  const filters = [filter({ filter_key: "jahr", parameter_name: "p_jahr", standardwert_json: CURRENT_SEASON_DEFAULT }), filter({ filter_key: "stunden_offen", parameter_name: "p_stunden_offen", standardwert_json: false }), filter({ filter_key: "ansicht", parameter_name: "p_ansicht", standardwert_json: "zusammenfassung", pflicht: true })];
+  const filters = [filter({ filter_key: "jahr", parameter_name: "p_jahr", wert_typ: "integer", standardwert_json: CURRENT_SEASON_DEFAULT }), filter({ filter_key: "stunden_offen", parameter_name: "p_stunden_offen", wert_typ: "boolean", standardwert_json: false }), filter({ filter_key: "ansicht", parameter_name: "p_ansicht", wert_typ: "string", standardwert_json: "zusammenfassung", pflicht: true })];
   assert.deepEqual(buildExportRpcPayload(filters, { jahr: "2026", stunden_offen: false, ansicht: "zusammenfassung" }), { p_jahr: 2026, p_stunden_offen: false, p_ansicht: "zusammenfassung" });
 });

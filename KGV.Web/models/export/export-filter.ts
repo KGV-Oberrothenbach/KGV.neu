@@ -5,6 +5,7 @@ export type ExportFilter = {
   typ: string | null;
   optionen_json: unknown;
   parameter_name: string | null;
+  wert_typ: "boolean" | "integer" | "number" | "string" | null;
   standardwert_json: unknown;
   pflicht: boolean;
   sortierung: number;

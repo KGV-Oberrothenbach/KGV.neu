@@ -8238,6 +8238,34 @@ Bewusst bis G14.4 verbleiben die konkrete Ausführung sowie die Altadapter für
 `mitgliederliste`, `rfid_status` und die übrige Arbeitsstunden-Ausführung in
 React. CSV, PDF und JAE-XLSX sind ebenfalls nicht Teil von G14.3.
 
+### 14.6.2 G14.4 – zentrale Ausführung und Zugriffsschutz
+
+`ExportCenter` liegt nun in `features/export/ExportCenter.tsx`. Es lädt
+Metadaten und ruft ausschließlich `executeExport(...)` auf; es kennt weder
+Export-Keys noch Quellen, RPC-Namen, Views oder Datenzusammenführungen.
+`ExportResult` liefert Definition, verwendete Spalten, alle Ergebniszeilen,
+Datensatzanzahl, Filter und `standard_sortierung`. Die UI begrenzt nur die
+Vorschau auf 500 Zeilen; das Ergebnis selbst bleibt vollständig.
+
+`export-service.ts` prüft Pflichtfilter, wandelt Werte über das neue optionale
+Filterfeld `wert_typ` (`boolean`, `integer`, `number`, `string`) und entscheidet
+anhand von `quelle_typ` zwischen RPC und Table/View. Das technische Repository
+führt die bereits aufbereiteten Quellen über die geschützten DB-Gateways aus.
+
+Die Mitgliederliste kommt aus `rpc_export_mitgliederliste`: Die RPC liefert
+Mitgliedsdaten, aktuelle Gartenzuordnungen und die bisherigen Aliasfelder
+serverseitig. RFID-Status bleibt fachlich eine View-Quelle, verwendet aber die
+separate, nicht direkt freigegebene Exportview `v_export_rfid_status`.
+
+`rpc_execute_export` und `rpc_execute_table_or_view_export` sind die gemeinsame
+serverseitige Ausführungsgrenze. Beide verwenden `assert_export_access()`, das
+über den G13-App-Kontext ausschließlich `admin` und `vorstand` zulässt.
+Direkte Ausführung der vier sensiblen vorhandenen Export-RPCs sowie der neuen
+Mitgliederlisten-RPC wurde für `authenticated` entzogen. Die operative
+RFID-Scanview bleibt davon unberührt. Die fachliche Reihenfolge kommt weiter
+von den Quellen; insbesondere wird die natürliche Gartennummernreihenfolge
+der Eichfälligkeits-RPC nicht clientseitig überschrieben.
+
 ---
 
 ## 14.7 Exportergebnis
@@ -8328,9 +8356,10 @@ Keine komplizierte PDF-Logik direkt in React.
 
 ---
 
-## 14.10 Kritischer Punkt – Web ist nicht vollständig metadata-driven
+## 14.10 G14.4 – keine React-Sonderfälle in der Exportausführung
 
-Obwohl Web `app_export_*` verwendet, besitzt die Exportausführung noch mehrere Sonderfälle.
+Die Exportausführung ist in G14.4 aus React entfernt. `ExportCenter` enthält
+keine konkrete Export-Key-Prüfung und keine Datenzusammenführung mehr.
 
 ### Mitgliederliste
 
@@ -8340,13 +8369,8 @@ Bei:
 export_key = mitgliederliste
 ```
 
-Das `ExportCenter` in `page.tsx` lädt selbst:
-
-- Mitglieder
-- Parzellen
-- Belegungen
-
-und baut das Exportergebnis manuell zusammen.
+`rpc_export_mitgliederliste` liefert die benötigten Mitglieds-, Parzellen- und
+Belegungsdaten als fertige Exportzeilen.
 
 ### RFID-Status
 
@@ -8356,13 +8380,14 @@ Bei:
 export_key = rfid_status
 ```
 
-ist:
+war bisher:
 
 ```text
 v_rfid_scan_context
 ```
 
-direkt im React-Code fest verdrahtet.
+direkt im React-Code fest verdrahtet. Der Export verwendet nun die
+Metadatenquelle `v_export_rfid_status` über den zentralen Table/View-Gateway.
 
 ### Arbeitsstundenübersicht
 
@@ -8381,7 +8406,7 @@ Parametername und Standardwert. Datenquellen-/RPC-Sonderwissen bleibt aber
 teilweise in React: Mitgliederliste und RFID-Status sind explizite Sonderfälle;
 die konkrete Arbeitsstunden-Ausführung folgt erst mit G14.4.
 
-### Ziel
+### Ziel erreicht
 Die **React-UI** kennt keine konkreten Exportkeys.
 
 ```ts

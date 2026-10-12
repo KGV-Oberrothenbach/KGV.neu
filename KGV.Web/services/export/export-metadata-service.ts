@@ -39,9 +39,30 @@ export function getExportDefaultValues(filters: ExportFilter[], season: number):
 export function buildExportRpcPayload(filters: ExportFilter[], values: Record<string, ExportFilterValue>): Record<string, ExportFilterValue> {
   return Object.fromEntries(filters.map((filter) => {
     const raw = values[filter.filter_key] ?? null;
-    const value = raw === "" ? null : filter.standardwert_json === CURRENT_SEASON_DEFAULT && typeof raw === "string" ? Number(raw) : raw;
+    const value = normalizeExportFilterValue(filter, raw);
     return [getExportParameterName(filter), value];
   }));
+}
+export function normalizeExportFilterValue(filter: ExportFilter, raw: ExportFilterValue): ExportFilterValue {
+  if (raw === "") return null;
+  if (raw === null) return null;
+  if (filter.wert_typ === "boolean") {
+    if (typeof raw === "boolean") return raw;
+    if (raw === "true") return true;
+    if (raw === "false") return false;
+    throw new Error(`Exportfilter „${filter.filter_key}“ erwartet einen booleschen Wert.`);
+  }
+  if (filter.wert_typ === "integer") {
+    const value = typeof raw === "number" ? raw : Number(raw);
+    if (!Number.isInteger(value)) throw new Error(`Exportfilter „${filter.filter_key}“ erwartet eine ganze Zahl.`);
+    return value;
+  }
+  if (filter.wert_typ === "number") {
+    const value = typeof raw === "number" ? raw : Number(raw);
+    if (!Number.isFinite(value)) throw new Error(`Exportfilter „${filter.filter_key}“ erwartet eine Zahl.`);
+    return value;
+  }
+  return raw;
 }
 export function validateExportDefinition(definition: ExportDefinition): void {
   if (!definition.export_key.trim()) throw new Error("Exportdefinition ohne export_key.");

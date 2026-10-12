@@ -116,6 +116,10 @@ namespace KGV.Core.Models
         [JsonPropertyName("parameter_name")]
         public string? ParameterName { get; set; }
 
+        [Column("wert_typ")]
+        [JsonPropertyName("wert_typ")]
+        public string? WertTyp { get; set; }
+
         [Column("standardwert_json")]
         [JsonProperty("standardwert_json")]
         public JToken? StandardwertJson { get; set; }

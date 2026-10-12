@@ -193,6 +193,7 @@ namespace KGV.Core.Interfaces
         Task<List<AppExportFilterDefinitionRecord>> GetExportFilterDefinitionsAsync(string exportKey);
         Task<List<AppExportColumnDefinitionRecord>> GetExportColumnDefinitionsAsync(string exportKey);
         Task<List<System.Collections.Generic.Dictionary<string, string>>> RunExportRpcAsync(string rpcName, object? parameters = null);
+        Task<List<System.Collections.Generic.Dictionary<string, string>>> RunProtectedExportRpcAsync(string sourceName, object? parameters = null);
         Task<List<HomeWorkAssignmentItem>> GetStartseiteArbeitseinsaetzeAsync();
         Task<HomeWorkAssignmentItem?> GetStartseiteArbeitseinsatzByIdAsync(int arbeitseinsatzId);
         Task<List<WorkAssignmentParticipantItem>> GetArbeitseinsatzParticipantsAsync(int arbeitseinsatzId);

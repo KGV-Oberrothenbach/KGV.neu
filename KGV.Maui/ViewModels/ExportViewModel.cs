@@ -520,7 +520,7 @@ namespace KGV.Maui.ViewModels
 
                 else
                 {
-                    rows = await _supabaseService.RunExportRpcAsync(rpcName ?? string.Empty, minimalParams.Count == 0 ? null : (object)minimalParams);
+                    rows = await _supabaseService.RunProtectedExportRpcAsync(rpcName ?? string.Empty, minimalParams.Count == 0 ? null : (object)minimalParams);
 
                     try
                     {
