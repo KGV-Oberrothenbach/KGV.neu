@@ -173,9 +173,9 @@ with parameter as (
            case when mp.end_ablesung_id is null then mp.end_fehlercode end, 'ende'
     from meter_periods mp
 ), segments as (
-    select bp.*, lead(bp.datum) over w as bis_datum, lead(bp.ablesung_id) over w as end_ablesung_id,
-           lead(bp.stand) over w as endstand, lead(bp.fehlercode) over w as end_fehlercode,
-           lead(bp.art) over w as end_art
+    select bp.*, lead(bp.datum) over w as bis_datum, lead(bp.ablesung_id) over w as segment_end_ablesung_id,
+           lead(bp.stand) over w as segment_endstand, lead(bp.fehlercode) over w as segment_end_fehlercode,
+           lead(bp.art) over w as segment_end_art
     from boundary_points bp
     window w as (partition by bp.zaehler_id order by bp.datum,
                  case bp.art when 'start' then 0 when 'paechterwechsel' then 1 else 2 end)
@@ -200,28 +200,28 @@ select r.jahr,
        case when coalesce(r.belegung_count, 0) = 1 then r.pachtbezug else 'Leerstand' end as pachtbezug,
        case r.medium when 'strom' then 'Strom' when 'wasser' then 'Wasser' else r.medium end as medium,
        r.zaehler_id, r.zaehlernummer, r.datum as von_datum, r.bis_datum,
-       r.ablesung_id as start_ablesung_id, r.end_ablesung_id, r.stand as startstand, r.endstand,
-       case when r.fehlercode is null and r.end_fehlercode is null
-                 and coalesce(r.belegung_count, 0) <= 1 and r.endstand >= r.stand
-            then r.endstand - r.stand else null end as verbrauch,
-       case when r.zaehlerwechsel and (r.art = 'paechterwechsel' or r.end_art = 'paechterwechsel') then 'zaehlerwechsel_und_paechterwechsel'
+       r.ablesung_id as start_ablesung_id, r.segment_end_ablesung_id as end_ablesung_id, r.stand as startstand, r.segment_endstand as endstand,
+       case when r.fehlercode is null and r.segment_end_fehlercode is null
+                 and coalesce(r.belegung_count, 0) <= 1 and r.segment_endstand >= r.stand
+            then r.segment_endstand - r.stand else null end as verbrauch,
+       case when r.zaehlerwechsel and (r.art = 'paechterwechsel' or r.segment_end_art = 'paechterwechsel') then 'zaehlerwechsel_und_paechterwechsel'
             when r.zaehlerwechsel then 'zaehlerwechsel'
-            when r.art = 'paechterwechsel' or r.end_art = 'paechterwechsel' then 'paechterwechsel'
+            when r.art = 'paechterwechsel' or r.segment_end_art = 'paechterwechsel' then 'paechterwechsel'
             else 'normal' end as grund,
-       r.fehlercode is null and r.end_fehlercode is null and coalesce(r.belegung_count, 0) <= 1
-         and r.stand is not null and r.endstand is not null and r.endstand >= r.stand as berechenbar,
+       r.fehlercode is null and r.segment_end_fehlercode is null and coalesce(r.belegung_count, 0) <= 1
+         and r.stand is not null and r.segment_endstand is not null and r.segment_endstand >= r.stand as berechenbar,
        case when coalesce(r.belegung_count, 0) > 1 then 'BELEGUNG_UNEINDEUTIG'
             when r.fehlercode is not null then r.fehlercode
-            when r.end_fehlercode is not null then r.end_fehlercode
-            when r.stand is not null and r.endstand is not null and r.endstand < r.stand then 'NEGATIVER_VERBRAUCH'
+            when r.segment_end_fehlercode is not null then r.segment_end_fehlercode
+            when r.stand is not null and r.segment_endstand is not null and r.segment_endstand < r.stand then 'NEGATIVER_VERBRAUCH'
             else null end as fehlercode,
        case when coalesce(r.belegung_count, 0) > 1 then 'Mehrere Belegungen sind am Segmentbeginn aktiv.'
             when r.fehlercode = 'STARTABLESUNG_FEHLT' then 'Die erforderliche Startablesung fehlt.'
-            when r.fehlercode = 'ENDABLESUNG_FEHLT' or r.end_fehlercode = 'ENDABLESUNG_FEHLT' then 'Die erforderliche Endablesung fehlt.'
-            when r.fehlercode = 'WECHSELABLESUNG_FEHLT' or r.end_fehlercode = 'WECHSELABLESUNG_FEHLT' then 'Die erforderliche Übergangsablesung fehlt.'
-            when r.fehlercode = 'ABLESUNG_NICHT_FREIGEGEBEN' or r.end_fehlercode = 'ABLESUNG_NICHT_FREIGEGEBEN' then 'Eine erforderliche Ablesung ist nicht freigegeben.'
-            when r.fehlercode = 'ABLESUNG_UNEINDEUTIG' or r.end_fehlercode = 'ABLESUNG_UNEINDEUTIG' then 'Mehrere freigegebene Ablesungen passen zur Übergangsgrenze.'
-            when r.stand is not null and r.endstand is not null and r.endstand < r.stand then 'Der Endstand ist kleiner als der Startstand.'
+            when r.fehlercode = 'ENDABLESUNG_FEHLT' or r.segment_end_fehlercode = 'ENDABLESUNG_FEHLT' then 'Die erforderliche Endablesung fehlt.'
+            when r.fehlercode = 'WECHSELABLESUNG_FEHLT' or r.segment_end_fehlercode = 'WECHSELABLESUNG_FEHLT' then 'Die erforderliche Übergangsablesung fehlt.'
+            when r.fehlercode = 'ABLESUNG_NICHT_FREIGEGEBEN' or r.segment_end_fehlercode = 'ABLESUNG_NICHT_FREIGEGEBEN' then 'Eine erforderliche Ablesung ist nicht freigegeben.'
+            when r.fehlercode = 'ABLESUNG_UNEINDEUTIG' or r.segment_end_fehlercode = 'ABLESUNG_UNEINDEUTIG' then 'Mehrere freigegebene Ablesungen passen zur Übergangsgrenze.'
+            when r.stand is not null and r.segment_endstand is not null and r.segment_endstand < r.stand then 'Der Endstand ist kleiner als der Startstand.'
             else null end as fehlertext
 from resolved r
 join public.parzelle p on p.id = r.parzelle_id
