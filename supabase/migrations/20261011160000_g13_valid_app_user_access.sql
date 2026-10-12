@@ -19,8 +19,8 @@ returns bigint language sql stable security definer set search_path = public, pg
 $$;
 
 create or replace function public.current_mitglied_id()
-returns bigint language sql stable security definer set search_path = public, pg_temp as $$
-  select (select c.mitglied_id from public.current_app_user_context() c limit 1);
+returns integer language sql stable security definer set search_path = public, pg_temp as $$
+  select (select c.mitglied_id::integer from public.current_app_user_context() c limit 1);
 $$;
 
 create or replace function public.update_app_user_access(p_user_id uuid, p_role text, p_permission_grants bigint default 0, p_permission_revocations bigint default 0)
