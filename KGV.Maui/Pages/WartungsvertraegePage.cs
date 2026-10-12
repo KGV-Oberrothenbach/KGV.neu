@@ -121,7 +121,7 @@ public sealed class WartungsvertraegePage : ContentPage
         _isBusy = true;
         try
         {
-            _canManage = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            _canManage = PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext);
             _newButton.IsVisible = _canManage;
             SetBusyState(true);
             _statusLabel.Text = "Daten werden geladen.";

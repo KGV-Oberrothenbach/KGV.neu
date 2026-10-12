@@ -149,7 +149,7 @@ public sealed class SaisonverwaltungPage : ContentPage
         Appearing += async (_, _) => await LoadAsync();
     }
 
-    private bool IsAdmin => _userContextState.CurrentUserContext?.Role is UserRole.Admin;
+    private bool IsAdmin => PermissionChecks.CanManageClubSeasonConfiguration(_userContextState.CurrentUserContext);
 
     private bool IsEditable
         => IsAdmin
@@ -161,6 +161,14 @@ public sealed class SaisonverwaltungPage : ContentPage
     {
         if (_isBusy)
             return;
+
+        if (!IsAdmin)
+        {
+            _saisons.Clear();
+            SetStatus("Für die Saisonverwaltung fehlt die Berechtigung.", isError: true);
+            ApplyEditorEnabledState();
+            return;
+        }
 
         try
         {

@@ -1333,13 +1333,13 @@ namespace KGV.Infrastructure.Services
 
                 var normalizedRole = UserRoles.ToStorageValue(UserRoles.Parse(role));
 
-                await client
-                    .From<AppUserRecord>()
-                    .Where(x => x.UserId == appUser.UserId)
-                    .Set(x => x.MitgliedId, mitgliedId)
-                    .Set(x => x.Role, normalizedRole)
-                    .Set(x => x.UpdatedAt, DateTime.UtcNow)
-                    .Update();
+                await client.Rpc("update_app_user_access", new
+                {
+                    p_user_id = appUser.UserId,
+                    p_role = normalizedRole,
+                    p_permission_grants = appUser.PermissionGrants ?? 0,
+                    p_permission_revocations = appUser.PermissionRevocations ?? 0
+                });
 
                 return true;
             },
@@ -1392,11 +1392,7 @@ namespace KGV.Infrastructure.Services
                     var normalizedRole = UserRoles.ToStorageValue(UserRoles.Parse(role));
                     var normalizedGrantedPermissions = (long)PermissionService.NormalizeStoredPermissions(grantedPermissions);
                     var normalizedRevokedPermissions = (long)PermissionService.NormalizeStoredPermissions(revokedPermissions);
-                    long? storedMitgliedId = mitgliedId;
-                    long? storedGrantedPermissions = normalizedGrantedPermissions;
-                    long? storedRevokedPermissions = normalizedRevokedPermissions;
                     var previousUpdatedAt = appUser.UpdatedAt;
-                    var updateTimestamp = DateTime.UtcNow;
 
                     _logger?.LogInformation(
                         "SetUserPermissionSettingsAsync started. MitgliedId={MitgliedId}, AppUserUserId={AppUserUserId}, PreviousUpdatedAt={PreviousUpdatedAt}, Role={Role}, PermissionGrants={PermissionGrants}, PermissionRevocations={PermissionRevocations}",
@@ -1411,15 +1407,13 @@ namespace KGV.Infrastructure.Services
                         "PermissionSettings.Save.Service",
                         $"Update payload prepared. MitgliedId={mitgliedId}, AppUserUserId={appUser.UserId}, Role={normalizedRole}, PermissionGrants={normalizedGrantedPermissions}, PermissionRevocations={normalizedRevokedPermissions}, UpdatedAtBeforeSave={FormatNullableDateTime(previousUpdatedAt)}");
 
-                    await client
-                        .From<AppUserRecord>()
-                        .Where(x => x.UserId == appUser.UserId)
-                        .Set(x => x.MitgliedId, storedMitgliedId)
-                        .Set(x => x.Role, normalizedRole)
-                        .Set(x => x.PermissionGrants, storedGrantedPermissions)
-                        .Set(x => x.PermissionRevocations, storedRevokedPermissions)
-                        .Set(x => x.UpdatedAt, updateTimestamp)
-                        .Update();
+                    await client.Rpc("update_app_user_access", new
+                    {
+                        p_user_id = appUser.UserId,
+                        p_role = normalizedRole,
+                        p_permission_grants = normalizedGrantedPermissions,
+                        p_permission_revocations = normalizedRevokedPermissions
+                    });
 
                     var persistedAppUser = await GetAppUserByUserIdAsync(client, appUser.UserId);
                     if (persistedAppUser == null)

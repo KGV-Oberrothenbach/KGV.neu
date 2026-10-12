@@ -155,34 +155,24 @@ export async function signOut(session: BrowserSession) {
 }
 
 export async function loadAppUserContext(session: BrowserSession): Promise<AppUserContext> {
-  const { url, publishableKey } = config();
-  const parameters = new URLSearchParams({
-    select: "user_id,role,mitglied_id,permission_grants,permission_revocations,is_demo_account",
-    user_id: `eq.${session.user.id}`,
-  });
-  // Die fachlich führende Rollen-/Rechte-Tabelle heißt in der bestehenden
-  // Supabase-Struktur `app_user` (Singular).
-  const response = await fetch(`${url}/rest/v1/app_user?${parameters}`, {
-    headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}` },
-  });
-  if (!response.ok) throw new Error("Die Benutzerberechtigung konnte nicht geprüft werden.");
-  const rows = (await response.json()) as Array<{
+  const rows = await callSupabaseRpc<Array<{
     user_id?: string;
     role?: string;
     mitglied_id?: number | null;
     permission_grants?: number | null;
     permission_revocations?: number | null;
     is_demo_account?: boolean | null;
-  }>;
+  }>>(session, "current_app_user_context", {});
   const row = rows[0];
-  if (!row?.user_id) throw new Error("Für dieses Konto ist keine KGV-Berechtigung hinterlegt.");
+  if (!row?.user_id) throw new Error("Für dieses Konto ist kein gültiger KGV-Zugang hinterlegt. Bitte wende dich an den Vorstand.");
   const role = row.role?.toLowerCase();
+  if (role !== "admin" && role !== "vorstand" && role !== "user") throw new Error("Für dieses Konto ist kein gültiger KGV-Zugang hinterlegt. Bitte wende dich an den Vorstand.");
   const isDemoAccount = Boolean(row.is_demo_account);
   session.isDemoAccount = isDemoAccount;
   saveSession(session);
   return {
     userId: row.user_id,
-    role: role === "admin" || role === "vorstand" ? role : "user",
+    role,
     mitgliedId: row.mitglied_id ?? null,
     permissionGrants: row.permission_grants ?? 0,
     permissionRevocations: row.permission_revocations ?? 0,
@@ -287,7 +277,7 @@ async function callSupabaseFunction<T>(session: BrowserSession, name: string, pa
 }
 
 export async function inviteAppUser(session: BrowserSession, memberId: number, role: "admin" | "vorstand" | "user") {
-  return await callSupabaseFunction<{ success?: boolean; linkPrepared?: boolean; mailSent?: boolean; message?: string }>(session, "kgv-invite-user", { mitgliedId: memberId, role, inviteMethod: "otp" });
+  return await callSupabaseFunction<{ success?: boolean; outcome?: string; errorCode?: string; mailSent?: boolean; message?: string; authUserId?: string }>(session, "kgv-invite-user", { mitgliedId: memberId, role, inviteMethod: "otp" });
 }
 
 export async function sendPasswordReset(session: BrowserSession, email: string) {

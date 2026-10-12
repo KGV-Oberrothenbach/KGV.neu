@@ -434,52 +434,19 @@ public class LoginPage : ContentPage
                 return;
             }
 
-            AppSettings.LastEmail = email;
-            AppSettings.Save();
-            var biometricTokens = await _authService.GetSessionTokensAsync();
-            if (biometricTokens != null && _vereinskontext.Aktuell?.VereinId is { } clubId)
-            {
-                var clubIdText = clubId.ToString();
-                var alreadyEnabled = await _biometricSessionStore.GetAsync(clubIdText) != null;
-                if (!alreadyEnabled && await _biometricAuthenticationService.IsAvailableAsync())
-                {
-                    var enableBiometrics = await DisplayAlertAsync(
-                        "Fingerabdruck-Anmeldung aktivieren?",
-                        "Beim nächsten Start kannst du dich auf diesem Gerät mit deinem Fingerabdruck anmelden. Die Anmeldedaten werden geschützt auf dem Gerät gespeichert.",
-                        "Aktivieren",
-                        "Nicht jetzt");
-
-                    if (enableBiometrics)
-                        await _biometricSessionStore.SaveAsync(clubIdText, biometricTokens);
-                    else
-                        _biometricSessionStore.Clear();
-                }
-            }
-
             if (string.IsNullOrWhiteSpace(_authService.CurrentUserId) || !Guid.TryParse(_authService.CurrentUserId, out var userId))
             {
-                AppFileLog.Error(nameof(LoginPage), "LOGIN_EXCEPTION:INVALID_USER_ID");
-                AppFileLog.Marker("LOGIN_RESULT_FAIL");
-                _statusLabel.Text = "Login ok, aber UserId ist ungültig.";
+                await RejectInvalidAccessAsync("LOGIN_ACCESS_DENIED", "Für dieses Konto ist kein gültiger KGV-Zugang hinterlegt. Bitte wende dich an den Vorstand.");
                 return;
             }
 
-            _userContextState.CurrentUserId = userId;
-
             var userContext = await _userContextService.GetUserContextAsync(userId);
+            _userContextState.CurrentUserId = userId;
             _userContextState.CurrentUserContext = userContext;
             _userContextState.CurrentMitgliedId = userContext.MitgliedId;
             _userContextState.CurrentAppMode = userContext.Role is UserRole.Admin or UserRole.Vorstand
                 ? AppMode.Admin
                 : AppMode.User;
-
-            if (userContext.Role == UserRole.User && userContext.MitgliedId == null)
-            {
-                AppFileLog.Error(nameof(LoginPage), "LOGIN_EXCEPTION:USER_WITHOUT_MITGLIED");
-                AppFileLog.Marker("LOGIN_RESULT_FAIL");
-                _statusLabel.Text = "Account ist keinem Mitglied zugeordnet.";
-                return;
-            }
 
             if (userContext.MitgliedId is > 0 and <= int.MaxValue)
             {
@@ -499,10 +466,19 @@ public class LoginPage : ContentPage
             {
                 AppFileLog.Error(nameof(LoginPage), "LOGIN_EXCEPTION:APP_ROOT_SWITCH_FAILED");
                 AppFileLog.Marker("LOGIN_RESULT_FAIL");
+                await RejectInvalidAccessAsync("LOGIN_ACCESS_DENIED", "Für dieses Konto ist kein gültiger KGV-Zugang hinterlegt. Bitte wende dich an den Vorstand.");
                 return;
             }
 
+            AppSettings.LastEmail = email;
+            AppSettings.Save();
+            await OfferBiometricsAfterValidatedAccessAsync();
+
             AppFileLog.Marker("LOGIN_RESULT_SUCCESS");
+        }
+        catch (KgvAccessDeniedException)
+        {
+            await RejectInvalidAccessAsync("LOGIN_ACCESS_DENIED", "Für dieses Konto ist kein gültiger KGV-Zugang hinterlegt. Bitte wende dich an den Vorstand.");
         }
         catch (Exception ex)
         {
@@ -535,24 +511,50 @@ public class LoginPage : ContentPage
         if (!await _authService.RestoreSessionAsync(tokens))
         {
             _biometricSessionStore.Clear();
+            _userContextState.Clear();
             _statusLabel.Text = "Die gespeicherte Anmeldung ist nicht mehr gültig. Bitte mit Passwort anmelden.";
             return;
         }
         if (!Guid.TryParse(_authService.CurrentUserId, out var userId))
         {
-            _biometricSessionStore.Clear();
-            _statusLabel.Text = "Die gespeicherte Anmeldung ist nicht mehr gültig. Bitte mit Passwort anmelden.";
+            await RejectInvalidAccessAsync("BIOMETRIC_ACCESS_DENIED", "Die gespeicherte Anmeldung besitzt keinen gültigen KGV-Zugang mehr. Bitte normal anmelden.", true);
             return;
         }
-        var userContext = await _userContextService.GetUserContextAsync(userId);
-        if (userContext.Role == UserRole.User && userContext.MitgliedId == null) { _statusLabel.Text = "Account ist keinem Mitglied zugeordnet."; return; }
-        _userContextState.CurrentUserId = userId;
-        _userContextState.CurrentUserContext = userContext;
-        _userContextState.CurrentMitgliedId = userContext.MitgliedId;
-        _userContextState.CurrentAppMode = userContext.Role is UserRole.Admin or UserRole.Vorstand ? AppMode.Admin : AppMode.User;
-        if (userContext.MitgliedId is > 0 and <= int.MaxValue)
-            _userContextState.CurrentNebenMitgliedId = (await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync((int)userContext.MitgliedId.Value))?.Id;
-        await SwitchToUserContextAsync(userContext);
+        try
+        {
+            var userContext = await _userContextService.GetUserContextAsync(userId);
+            _userContextState.CurrentUserId = userId;
+            _userContextState.CurrentUserContext = userContext;
+            _userContextState.CurrentMitgliedId = userContext.MitgliedId;
+            _userContextState.CurrentAppMode = userContext.Role is UserRole.Admin or UserRole.Vorstand ? AppMode.Admin : AppMode.User;
+            if (userContext.MitgliedId is > 0 and <= int.MaxValue)
+                _userContextState.CurrentNebenMitgliedId = (await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync((int)userContext.MitgliedId.Value))?.Id;
+            if (!await SwitchToUserContextAsync(userContext))
+                await RejectInvalidAccessAsync("BIOMETRIC_ACCESS_DENIED", "Die gespeicherte Anmeldung besitzt keinen gültigen KGV-Zugang mehr. Bitte normal anmelden.", true);
+        }
+        catch (KgvAccessDeniedException)
+        {
+            await RejectInvalidAccessAsync("BIOMETRIC_ACCESS_DENIED", "Die gespeicherte Anmeldung besitzt keinen gültigen KGV-Zugang mehr. Bitte normal anmelden.", true);
+        }
+    }
+
+    private async Task RejectInvalidAccessAsync(string marker, string message, bool clearBiometrics = false)
+    {
+        AppFileLog.Marker(marker);
+        if (clearBiometrics) _biometricSessionStore.Clear();
+        _userContextState.Clear();
+        try { await _authService.LogoutAsync(); } catch { /* The local fail-closed state must not depend on logout I/O. */ }
+        _statusLabel.Text = message;
+    }
+
+    private async Task OfferBiometricsAfterValidatedAccessAsync()
+    {
+        var biometricTokens = await _authService.GetSessionTokensAsync();
+        if (biometricTokens == null || _vereinskontext.Aktuell?.VereinId is not { } clubId) return;
+        var clubIdText = clubId.ToString();
+        if (await _biometricSessionStore.GetAsync(clubIdText) != null || !await _biometricAuthenticationService.IsAvailableAsync()) return;
+        if (await DisplayAlertAsync("Fingerabdruck-Anmeldung aktivieren?", "Beim nächsten Start kannst du dich auf diesem Gerät mit deinem Fingerabdruck anmelden. Die Anmeldedaten werden geschützt auf dem Gerät gespeichert.", "Aktivieren", "Nicht jetzt"))
+            await _biometricSessionStore.SaveAsync(clubIdText, biometricTokens);
     }
 
     private static string MaskEmail(string email)

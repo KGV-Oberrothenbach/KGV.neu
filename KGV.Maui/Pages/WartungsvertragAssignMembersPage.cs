@@ -162,7 +162,7 @@ public sealed class WartungsvertragAssignMembersPage : ContentPage, IQueryAttrib
 
         try
         {
-            _isAuthorized = _userContextState.CurrentUserContext?.Role is UserRole.Admin or UserRole.Vorstand;
+            _isAuthorized = PermissionChecks.CanEditAllMembers(_userContextState.CurrentUserContext);
             if (!_isAuthorized)
             {
                 _headlineLabel.Text = "Mitglieder zuweisen";

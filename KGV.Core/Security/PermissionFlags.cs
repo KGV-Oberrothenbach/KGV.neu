@@ -24,6 +24,7 @@ namespace KGV.Core.Security
         CanManageWorkAssignments = 1 << 20,
         CanManageAppointments = 1 << 21,
         CanManageAnnouncements = 1 << 22,
+        CanPerformYearEndClosing = 1 << 23,
 
         CanManageRoles = 1 << 9,
 

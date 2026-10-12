@@ -64,10 +64,10 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
     public bool HasSelectedUser => TargetUser != null;
     public bool HasLinkedUser => TargetUser?.AuthUserId != null;
     public bool ShowInviteAction => TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email) && !HasLinkedUser;
-    public bool CanInvite => !IsBusy && ShowInviteAction && (!IsBoundToMember || BoundMember != null);
-    public bool CanResetPassword => !IsBusy && TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email);
+    public bool CanInvite => CanManageRoleManagement && !IsBusy && ShowInviteAction && (!IsBoundToMember || BoundMember != null);
+    public bool CanResetPassword => CanManageRoleManagement && !IsBusy && TargetUser != null && !string.IsNullOrWhiteSpace(TargetUser.Email);
     public bool CanChangeSelectedEmail => !IsBusy && TargetUser?.AuthUserId?.ToString().Equals(_authService.CurrentUserId, StringComparison.OrdinalIgnoreCase) == true;
-    public bool CanRemoveUser => !IsBusy && IsBoundToMember && TargetUser?.AuthUserId != null;
+    public bool CanRemoveUser => CanManageRoleManagement && !IsBusy && IsBoundToMember && TargetUser?.AuthUserId != null;
     public bool IsRoleEditable => TargetUser?.MitgliedId is > 0 and not 7;
     public bool CanManageRoleManagement => PermissionChecks.CanManageRoleManagement(_userContextState.CurrentUserContext);
     public bool CanEditRole => CanManageRoleManagement && IsRoleEditable;
@@ -209,6 +209,9 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 
     public async Task<bool> InviteAsync()
     {
+        if (!CanInvite)
+            return false;
+
         var targetUser = TargetUser;
         if (targetUser == null)
             return false;
@@ -219,7 +222,9 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
         try
         {
             var result = await _authService.InviteUserAsync(targetUser);
-            StatusMessage = result.Message ?? (result.Success ? "Einladung angestoßen." : "Einladung fehlgeschlagen.");
+            StatusMessage = result.Success && (!result.MailSent || result.Outcome == "prepared_mail_failed")
+                ? "Nutzerkonto wurde angelegt, die Willkommensmail konnte jedoch nicht versendet werden."
+                : result.Message ?? (result.Success ? "Nutzerkonto wurde angelegt und die Willkommensmail versendet." : "Einladung fehlgeschlagen.");
             await LoadAsync(reselectSelected: targetUser);
             return result.Success;
         }
@@ -236,6 +241,9 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 
     public async Task<bool> RemoveUserAsync()
     {
+        if (!CanRemoveUser)
+            return false;
+
         var targetUser = TargetUser;
         if (targetUser?.AuthUserId == null)
         {
@@ -268,6 +276,9 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 
     public async Task<bool> SendPasswordResetAsync()
     {
+        if (!CanResetPassword)
+            return false;
+
         var targetUser = TargetUser;
         if (targetUser == null || string.IsNullOrWhiteSpace(targetUser.Email))
             return false;
@@ -369,6 +380,14 @@ public sealed class UserManagementViewModel : INotifyPropertyChanged
 
     private async Task LoadAsync(AppUserDTO? reselectSelected = null)
     {
+        if (!CanManageRoleManagement)
+        {
+            Users.Clear();
+            SelectedUser = null;
+            StatusMessage = "Für die Benutzerverwaltung ist das Recht „Rollen verwalten“ erforderlich.";
+            return;
+        }
+
         IsBusy = true;
         StatusMessage = string.Empty;
 

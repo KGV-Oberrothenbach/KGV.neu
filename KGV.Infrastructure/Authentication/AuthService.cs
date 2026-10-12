@@ -511,6 +511,8 @@ namespace KGV.Infrastructure.Authentication
                     Success = functionResult.LinkPrepared,
                     LinkPrepared = functionResult.LinkPrepared,
                     MailSent = functionResult.MailSent,
+                    Outcome = functionResult.Outcome,
+                    ErrorCode = functionResult.ErrorCode,
                     AuthUserId = functionResult.AuthUserId,
                     Email = email,
                     Message = functionResult.Message
@@ -619,6 +621,12 @@ namespace KGV.Infrastructure.Authentication
                 var ok = await VerifyOtpInternalAsync(emailTrim, code.Trim(), "EmailChange");
                 if (!ok)
                     return false;
+
+                // G13.5: Auth is authoritative for a linked member's login
+                // address. The RPC reads the authenticated user's actual
+                // address and never accepts a client-supplied member or email.
+                var client = await GetClientAsync();
+                await client.Rpc("sync_current_member_email", new { });
 
                 _pendingEmailChangeTarget = null;
                 return true;
@@ -1331,6 +1339,7 @@ namespace KGV.Infrastructure.Authentication
 
                 var success = TryGetJsonBool(root, "success");
                 var outcome = (TryGetJsonString(root, "outcome") ?? string.Empty).Trim().ToLowerInvariant();
+                var errorCode = (TryGetJsonString(root, "errorCode") ?? string.Empty).Trim();
                 var message = (TryGetJsonString(root, "message") ?? string.Empty).Trim();
                 var mailSent = TryGetJsonBool(root, "mailSent");
                 var authUserId =
@@ -1347,6 +1356,8 @@ namespace KGV.Infrastructure.Authentication
                     Success = success ?? httpSuccess,
                     LinkPrepared = linkPrepared,
                     MailSent = mailSent ?? outcome == "prepared",
+                    Outcome = outcome,
+                    ErrorCode = errorCode,
                     AuthUserId = authUserId,
                     Message = effectiveMessage
                 };
@@ -1690,6 +1701,8 @@ namespace KGV.Infrastructure.Authentication
             public bool Success { get; init; }
             public bool LinkPrepared { get; init; }
             public bool MailSent { get; init; }
+            public string Outcome { get; init; } = string.Empty;
+            public string ErrorCode { get; init; } = string.Empty;
             public Guid? AuthUserId { get; init; }
             public string Message { get; init; } = string.Empty;
 

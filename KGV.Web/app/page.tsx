@@ -5,7 +5,6 @@ import {
   AppUserContext,
   BrowserSession,
   callSupabaseRpc,
-  deleteSupabase,
   generateContract,
   inviteAppUser,
   readSupabase,
@@ -67,6 +66,8 @@ import { MaintenanceContractEditor } from "../features/maintenance/MaintenanceCo
 import { AssignMembersToContract } from "../features/maintenance/assignments/AssignMembersToContract";
 import { MemberMaintenanceContracts } from "../features/maintenance/MemberMaintenanceContracts";
 import { maintenanceAccess } from "../services/maintenance/maintenance-access-service";
+import { getEffectivePermissions, getRolePermissions, hasPermission, Permission, PermissionAreas, preserveUncontrolledPermissions } from "../security/permissions";
+import { canArchiveDocuments, canManageClubSeasonConfiguration, canManageDocuments, canPerformYearEndClosing, canReadDocuments, createWebCapabilityContext } from "../security/capabilities";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -105,50 +106,11 @@ function HomeContent() {
 type Parcel = { id: number; garten_nr: string; Anlage: string; flaeche_qm: number | null; hat_strom: boolean; hat_wasser: boolean; aktiv: boolean };
 type ParcelAssignment = { id: number; parzelle_id: number; mitglied_id: number; von_datum: string | null; bis_datum: string | null };
 type Reading = { id: number; zaehler_id: number; stand: number; ablesedatum: string; art: string; freigegeben: boolean; pruefstatus: string; pruefkommentar: string | null; geprueft_von: number | null; geprueft_am: string | null; foto_pfad?: string | null; foto_drive_file_id?: string | null; foto_dateiname?: string | null };
-type AppUserAdmin = { user_id: string; mitglied_id: number | null; role: "admin" | "vorstand" | "user"; permission_grants: number; permission_revocations: number; updated_at: string | null };
+type AppUserAdmin = { user_id: string; mitglied_id: number | null; role: "admin" | "vorstand" | "user"; permission_grants: number; permission_revocations: number; is_protected: boolean; updated_at: string | null };
 type ClubConfigurationRecord = { id: number; vereinsname: string | null; kurzname: string | null; registerangabe: string | null; strasse: string | null; plz: string | null; ort: string | null; standard_email: string | null; standard_telefon: string | null; website: string | null; kontoinhaber: string | null; bankname: string | null; iban: string | null; bic: string | null; verwendungszweck_mitgliedsantrag: string | null; verwendungszweck_pachtvertrag: string | null; dokument_ort: string | null; standard_hinweistext: string | null; datenschutz_text: string | null; datenschutz_version: string | null; datenschutz_stand: string | null; aktiv: boolean };
 type ExportDefinition = { export_key: string; titel: string | null; beschreibung: string | null; quelle_typ: string | null; quelle_name: string | null; erlaubt_csv: boolean; erlaubt_pdf: boolean };
 type ExportFilterDefinition = { export_key: string; filter_key: string; label: string | null; typ: string | null; optionen_json: unknown; pflicht: boolean; sortierung: number };
 type ExportColumnDefinition = { export_key: string; column_key: string; label_kurz: string | null; label_lang: string | null; sortierung: number; standard_sichtbar: boolean };
-
-const Permission = {
-  searchMembers: 1 << 0,
-  viewMembers: 1 << 1,
-  editAllMembers: 1 << 2,
-  seeOwnData: 1 << 3,
-  manageDocuments: 1 << 4,
-  readMeters: 1 << 5,
-  manageMeterChanges: 1 << 6,
-  approveMeterReadings: 1 << 7,
-  manageWorkHours: 1 << 8,
-  manageRoles: 1 << 9,
-  showStammdaten: 1 << 10,
-  readStammdaten: 1 << 11,
-  writeStammdaten: 1 << 12,
-  showParzellen: 1 << 13,
-  readParzellen: 1 << 14,
-  writeParzellen: 1 << 15,
-  readDocuments: 1 << 16,
-  readWorkHours: 1 << 17,
-  readRoles: 1 << 18,
-  createMember: 1 << 19,
-  manageWorkAssignments: 1 << 20,
-  manageAppointments: 1 << 21,
-  manageAnnouncements: 1 << 22,
-} as const;
-
-const VorstandPermissions = Permission.searchMembers | Permission.viewMembers | Permission.editAllMembers | Permission.manageDocuments | Permission.readMeters | Permission.manageMeterChanges | Permission.approveMeterReadings | Permission.manageWorkHours | Permission.showStammdaten | Permission.readStammdaten | Permission.writeStammdaten | Permission.readParzellen | Permission.writeParzellen | Permission.readDocuments | Permission.readWorkHours | Permission.readRoles | Permission.manageWorkAssignments | Permission.manageAppointments | Permission.manageAnnouncements;
-const AdminPermissions = VorstandPermissions | Permission.manageRoles | Permission.createMember;
-const UserPermissions = Permission.viewMembers | Permission.seeOwnData;
-
-function permissionsFor(context: AppUserContext) {
-  const base = context.role === "admin"
-    ? AdminPermissions
-    : context.role === "vorstand"
-      ? VorstandPermissions
-      : UserPermissions;
-  return (base | context.permissionGrants) & ~context.permissionRevocations;
-}
 
 function Workspace(props: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; onLogout: () => void; onChangeClub: () => Promise<void> }) {
   return <WorkspaceContextProvider><WorkspaceContent {...props} /></WorkspaceContextProvider>;
@@ -160,14 +122,15 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
   const [leaseContractIntent, setLeaseContractIntent] = useState<{ parcelId: number; startDate: string } | null>(null);
   const [seasonError, setSeasonError] = useState("");
   const { workspaceContext, selectedMember, creatingMember, setSelectedMember, setCreatingMember, updateWorkspaceContext, selectMember, selectParcel, selectSeason: selectWorkspaceSeason } = useWorkspaceContext();
-  const permissions = useMemo(() => permissionsFor(context), [context]);
-  const has = (permission: number) => (permissions & permission) === permission;
+  const permissions = useMemo(() => getEffectivePermissions(context.role, context.permissionGrants, context.permissionRevocations), [context]);
+  const capabilityContext = useMemo(() => createWebCapabilityContext(context.role, context.permissionGrants, context.permissionRevocations), [context]);
+  const has = (permission: number) => hasPermission(permissions, permission);
   const documentAccessContext: DocumentAccessContext = {
-    role: context.role,
     memberId: context.mitgliedId,
-    canReadDocuments: has(Permission.readDocuments),
-    canManageDocuments: has(Permission.manageDocuments),
+    canReadDocuments: canReadDocuments(capabilityContext),
+    canManageDocuments: canManageDocuments(capabilityContext),
     canSeeOwnDataOnly: has(Permission.seeOwnData),
+    canArchiveDocuments: canArchiveDocuments(capabilityContext),
   };
   useEffect(() => { if (activeId === "mitglied-dokumente" && leaseContractIntent) queueMicrotask(() => setLeaseContractIntent(null)); }, [activeId, leaseContractIntent]);
   const canReadStammdaten = has(Permission.showStammdaten) || has(Permission.readStammdaten) || has(Permission.writeStammdaten);
@@ -238,11 +201,17 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
     canManageMaintenance: has(Permission.editAllMembers),
     canApproveWorkHours: has(Permission.manageWorkHours),
     canExport: has(Permission.searchMembers),
-    canManageAdministration: context.role === "admin",
+    canManageSeasonConfiguration: canManageClubSeasonConfiguration(capabilityContext),
+    canPerformYearEndClosing: canPerformYearEndClosing(capabilityContext),
+    canManageClubConfiguration: canManageClubSeasonConfiguration(capabilityContext),
     canSearchMembers: has(Permission.searchMembers),
   });
   const allNavigationItems = navigationGroups.flatMap((group) => [...(group.target ? [group.target] : []), ...group.items]);
-  const active = allNavigationItems.find((item) => item.id === activeId) ?? allNavigationItems[0];
+  const allowedNavigationIds = new Set(allNavigationItems.map((item) => item.id));
+  const fallbackActiveId = allowedNavigationIds.has("start") ? "start" : allNavigationItems[0]?.id ?? "";
+  const effectiveActiveId = allowedNavigationIds.has(activeId) ? activeId : fallbackActiveId;
+  const active = allNavigationItems.find((item) => item.id === effectiveActiveId) ?? allNavigationItems[0];
+  useEffect(() => { if (activeId !== effectiveActiveId) setActiveId(effectiveActiveId); }, [activeId, effectiveActiveId]);
 
   return (
     <main className="workspace">
@@ -250,36 +219,36 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
       <section className="workspace-body">
         <aside className="sidebar" aria-label="Hauptnavigation">
           <SeasonPicker seasons={seasons} selectedSeasonId={workspaceContext.saisonId} seasonError={seasonError} onChange={selectSeason} />
-          <Navigation groups={navigationGroups} activeId={activeId} onNavigate={setActiveId} memberLabel={creatingMember ? "Neues Mitglied" : selectedMemberId ? selectedMemberLabel : null} />
+          <Navigation groups={navigationGroups} activeId={effectiveActiveId} onNavigate={setActiveId} memberLabel={creatingMember ? "Neues Mitglied" : selectedMemberId ? selectedMemberLabel : null} />
         </aside>
         <article className="content-area">
-          <MobileNavigation groups={navigationGroups} activeId={activeId} onNavigate={setActiveId} selectedMemberLabel={selectedMemberId ? selectedMemberLabel : null} />
+          <MobileNavigation groups={navigationGroups} activeId={effectiveActiveId} onNavigate={setActiveId} selectedMemberLabel={selectedMemberId ? selectedMemberLabel : null} />
           <p className="eyebrow">Saison {season}</p><h1>{active.label}</h1><p className="content-intro">{active.detail}</p>
-          {!new Set(["start", "impressum", "mitglieder", "parzellen", "ablesen", "foto-uploads", "zaehlerwechsel", "arbeitsstunden-pruefen", "arbeitseinsaetze", "wartung", "termine", "bekanntmachungen", "export", "benutzer", "saisons", "verein", "mitglied-arbeitsstunden", "mitglied-wartung", "mitglied-dokumente", "mitglied-admin", "mitglied-gaerten", "mitglied-protokolle", "mitglied-stammdaten"]).has(activeId) && <section className="coming-soon"><span aria-hidden="true">◌</span><div><strong>Bereich vorbereitet</strong><p>Die Navigation und Zugriffsrechte stehen. Die fachliche Oberfläche wird in den nächsten Umsetzungsschritten ergänzt.</p></div></section>}
-          {activeId === "start" && <HomeDashboard session={session} isManager={context.role !== "user"} canManageWorkAssignments={has(Permission.manageWorkAssignments)} canManageAppointments={has(Permission.manageAppointments)} canManageAnnouncements={has(Permission.manageAnnouncements)} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
-          {activeId === "mitglieder" && <MemberSearch session={session} selectedMemberId={selectedMemberId} onSelect={selectMember} canCreate={has(Permission.createMember)} onCreate={() => { setCreatingMember(true); setActiveId("mitglied-stammdaten"); }} />}
-          {activeId === "parzellen" && <ParcelWorkspace session={session} selectedParcelId={selectedParcelId} onSelect={selectParcel} canEdit={has(Permission.writeParzellen)} documentAccessContext={documentAccessContext} onOpenMember={(memberId) => { selectMember(memberId); setActiveId("mitglied-gaerten"); }} />}
-          {activeId === "ablesen" && <MeterOverview session={session} clubId={club.vereinId} reviewerMemberId={context.mitgliedId} selectedParcelId={selectedParcelId} seasonYear={season} canReadMeters={has(Permission.readMeters)} canSubmitOwnMeterReadings={context.mitgliedId !== null && has(Permission.seeOwnData)} canApprove={has(Permission.approveMeterReadings)} canManageMeterChanges={has(Permission.manageMeterChanges)} onNavigate={setActiveId} />}
-          {activeId === "ablesen" && has(Permission.manageMeterChanges) && <RfidAssignmentPanel session={session} selectedParcelId={selectedParcelId} />}
-          {activeId === "foto-uploads" && <PendingPhotoUploads session={session} clubId={club.vereinId} />}
-          {activeId === "zaehlerwechsel" && has(Permission.manageMeterChanges) && <MeterChange session={session} clubId={club.vereinId} canManageMeterChanges={has(Permission.manageMeterChanges)} />}
-          {activeId === "arbeitsstunden-pruefen" && <WorkHoursReview session={session} saisonId={workspaceContext.saisonId} canManageWorkHours={has(Permission.manageWorkHours)} />}
-          {activeId === "arbeitseinsaetze" && <WorkAssignmentsManagement session={session} canEdit={has(Permission.manageWorkAssignments)} canManageWorkHours={has(Permission.manageWorkHours)} onBack={() => setActiveId("start")} />}
-          {activeId === "wartung" && <MaintenanceContracts session={session} canManage={context.role !== "user"} />}
-          {activeId === "termine" && <AppointmentManagement session={session} canEdit={has(Permission.manageAppointments)} onBack={() => setActiveId("start")} />}
-          {activeId === "bekanntmachungen" && <AnnouncementManagement session={session} canEdit={has(Permission.manageAnnouncements)} onBack={() => setActiveId("start")} />}
-          {activeId === "impressum" && <ImprintPage session={session} />}
-          {activeId === "export" && <ExportCenter session={session} season={season} canExport={context.role !== "user"} />}
-          {activeId === "benutzer" && <UserRightsAdministration session={session} />}
-          {activeId === "saisons" && <SeasonManagement session={session} onSeasonSaved={(saved) => { setSeasons((current) => [...current.filter((item) => item.id !== saved.id), saved].sort((a, b) => b.jahr - a.jahr)); selectWorkspaceSeason(saved); }} />}
-          {activeId === "verein" && <ClubConfigurationAdministration session={session} />}
-          {activeId === "mitglied-arbeitsstunden" && selectedMemberId && <MemberWorkHours session={session} memberId={selectedMemberId} saisonId={workspaceContext.saisonId} canEditOwn={selectedMemberId === context.mitgliedId} canManageWorkHours={has(Permission.manageWorkHours)} />}
-          {activeId === "mitglied-wartung" && selectedMemberId && <MaintenanceContracts session={session} memberId={selectedMemberId} canManage={context.role !== "user"} />}
-          {activeId === "mitglied-dokumente" && selectedMemberId && <DocumentList session={session} owner={memberDocumentOwner(selectedMemberId)} accessContext={documentAccessContext} beforeList={(reload) => has(Permission.manageDocuments) ? <ContractComposer session={session} memberId={selectedMemberId} onSaved={reload} leaseContractIntent={leaseContractIntent} /> : null} />}
-          {activeId === "mitglied-admin" && selectedMemberId && <UserRightsAdministration session={session} fixedMemberId={selectedMemberId} />}
-          {activeId === "mitglied-gaerten" && selectedMemberId && <MemberGardensWorkspace session={session} memberId={selectedMemberId} selectedParcelId={selectedParcelId} onSelect={selectParcel} canAssign={has(Permission.createMember)} onOpenDocuments={() => setActiveId("mitglied-dokumente")} onOpenLeaseContract={(intent) => { if (!has(Permission.manageDocuments)) return false; setLeaseContractIntent(intent); setActiveId("mitglied-dokumente"); return true; }} />}
-          {activeId === "mitglied-protokolle" && selectedMemberId && <ParcelProtocolsWorkspace session={session} memberId={selectedMemberId} currentBoardMemberId={context.mitgliedId} />}
-          {activeId === "mitglied-stammdaten" && (selectedMemberId || creatingMember) && <MemberStammdaten session={session} memberId={creatingMember ? null : selectedMemberId} canEdit={creatingMember || has(Permission.editAllMembers) || (selectedMemberId === context.mitgliedId && has(Permission.seeOwnData))} canCreate={creatingMember} canManageSecondary={has(Permission.editAllMembers)} editPermissions={{ actorMemberId: context.mitgliedId, canEditOwnMember: has(Permission.seeOwnData), canEditAllMembers: has(Permission.editAllMembers) }} createPermissions={{ canCreateMember: has(Permission.createMember) }} onSaved={(member) => { setSelectedMember({ id: member.id, vorname: member.vorname, name: member.name }); selectMember(member.id); setActiveId("mitglied-stammdaten"); }} onCancel={() => { setCreatingMember(false); setActiveId("mitglieder"); }} />}
+          {!new Set(["start", "impressum", "mitglieder", "parzellen", "ablesen", "foto-uploads", "zaehlerwechsel", "arbeitsstunden-pruefen", "arbeitseinsaetze", "wartung", "termine", "bekanntmachungen", "export", "benutzer", "saisons", "verein", "mitglied-arbeitsstunden", "mitglied-wartung", "mitglied-dokumente", "mitglied-admin", "mitglied-gaerten", "mitglied-protokolle", "mitglied-stammdaten"]).has(effectiveActiveId) && <section className="coming-soon"><span aria-hidden="true">◌</span><div><strong>Bereich vorbereitet</strong><p>Die Navigation und Zugriffsrechte stehen. Die fachliche Oberfläche wird in den nächsten Umsetzungsschritten ergänzt.</p></div></section>}
+          {effectiveActiveId === "start" && <HomeDashboard session={session} isManager={has(Permission.manageWorkAssignments) || has(Permission.manageAppointments) || has(Permission.manageAnnouncements)} canManageWorkAssignments={has(Permission.manageWorkAssignments)} canManageAppointments={has(Permission.manageAppointments)} canManageAnnouncements={has(Permission.manageAnnouncements)} memberId={context.mitgliedId} saisonId={workspaceContext.saisonId} season={season} onNavigate={setActiveId} onOpenWorkHours={openOwnWorkHours} />}
+          {effectiveActiveId === "mitglieder" && <MemberSearch session={session} selectedMemberId={selectedMemberId} onSelect={selectMember} canCreate={has(Permission.createMember)} onCreate={() => { setCreatingMember(true); setActiveId("mitglied-stammdaten"); }} />}
+          {effectiveActiveId === "parzellen" && <ParcelWorkspace session={session} selectedParcelId={selectedParcelId} onSelect={selectParcel} canEdit={has(Permission.writeParzellen)} documentAccessContext={documentAccessContext} onOpenMember={(memberId) => { selectMember(memberId); setActiveId("mitglied-gaerten"); }} />}
+          {effectiveActiveId === "ablesen" && <MeterOverview session={session} clubId={club.vereinId} reviewerMemberId={context.mitgliedId} selectedParcelId={selectedParcelId} seasonYear={season} canReadMeters={has(Permission.readMeters)} canSubmitOwnMeterReadings={context.mitgliedId !== null && has(Permission.seeOwnData)} canApprove={has(Permission.approveMeterReadings)} canManageMeterChanges={has(Permission.manageMeterChanges)} onNavigate={setActiveId} />}
+          {effectiveActiveId === "ablesen" && has(Permission.manageMeterChanges) && <RfidAssignmentPanel session={session} selectedParcelId={selectedParcelId} />}
+          {effectiveActiveId === "foto-uploads" && <PendingPhotoUploads session={session} clubId={club.vereinId} />}
+          {effectiveActiveId === "zaehlerwechsel" && has(Permission.manageMeterChanges) && <MeterChange session={session} clubId={club.vereinId} canManageMeterChanges={has(Permission.manageMeterChanges)} />}
+          {effectiveActiveId === "arbeitsstunden-pruefen" && <WorkHoursReview session={session} saisonId={workspaceContext.saisonId} canManageWorkHours={has(Permission.manageWorkHours)} />}
+          {effectiveActiveId === "arbeitseinsaetze" && <WorkAssignmentsManagement session={session} canEdit={has(Permission.manageWorkAssignments)} canManageWorkHours={has(Permission.manageWorkHours)} onBack={() => setActiveId("start")} />}
+          {effectiveActiveId === "wartung" && <MaintenanceContracts session={session} canManage={has(Permission.editAllMembers)} />}
+          {effectiveActiveId === "termine" && <AppointmentManagement session={session} canEdit={has(Permission.manageAppointments)} onBack={() => setActiveId("start")} />}
+          {effectiveActiveId === "bekanntmachungen" && <AnnouncementManagement session={session} canEdit={has(Permission.manageAnnouncements)} onBack={() => setActiveId("start")} />}
+          {effectiveActiveId === "impressum" && <ImprintPage session={session} />}
+          {effectiveActiveId === "export" && <ExportCenter session={session} season={season} canExport={has(Permission.searchMembers)} />}
+          {effectiveActiveId === "benutzer" && <UserRightsAdministration session={session} />}
+          {effectiveActiveId === "saisons" && <SeasonManagement session={session} onSeasonSaved={(saved) => { setSeasons((current) => [...current.filter((item) => item.id !== saved.id), saved].sort((a, b) => b.jahr - a.jahr)); selectWorkspaceSeason(saved); }} />}
+          {effectiveActiveId === "verein" && <ClubConfigurationAdministration session={session} />}
+          {effectiveActiveId === "mitglied-arbeitsstunden" && selectedMemberId && <MemberWorkHours session={session} memberId={selectedMemberId} saisonId={workspaceContext.saisonId} canEditOwn={selectedMemberId === context.mitgliedId} canManageWorkHours={has(Permission.manageWorkHours)} />}
+          {effectiveActiveId === "mitglied-wartung" && selectedMemberId && <MaintenanceContracts session={session} memberId={selectedMemberId} canManage={has(Permission.editAllMembers)} />}
+          {effectiveActiveId === "mitglied-dokumente" && selectedMemberId && <DocumentList session={session} owner={memberDocumentOwner(selectedMemberId)} accessContext={documentAccessContext} beforeList={(reload) => has(Permission.manageDocuments) ? <ContractComposer session={session} memberId={selectedMemberId} onSaved={reload} leaseContractIntent={leaseContractIntent} /> : null} />}
+          {effectiveActiveId === "mitglied-admin" && selectedMemberId && <UserRightsAdministration session={session} fixedMemberId={selectedMemberId} />}
+          {effectiveActiveId === "mitglied-gaerten" && selectedMemberId && <MemberGardensWorkspace session={session} memberId={selectedMemberId} selectedParcelId={selectedParcelId} onSelect={selectParcel} canAssign={has(Permission.createMember)} onOpenDocuments={() => setActiveId("mitglied-dokumente")} onOpenLeaseContract={(intent) => { if (!has(Permission.manageDocuments)) return false; setLeaseContractIntent(intent); setActiveId("mitglied-dokumente"); return true; }} />}
+          {effectiveActiveId === "mitglied-protokolle" && selectedMemberId && <ParcelProtocolsWorkspace session={session} memberId={selectedMemberId} currentBoardMemberId={context.mitgliedId} />}
+          {effectiveActiveId === "mitglied-stammdaten" && (selectedMemberId || creatingMember) && <MemberStammdaten session={session} memberId={creatingMember ? null : selectedMemberId} canEdit={creatingMember || has(Permission.editAllMembers) || (selectedMemberId === context.mitgliedId && has(Permission.seeOwnData))} canCreate={creatingMember} canManageSecondary={has(Permission.editAllMembers)} editPermissions={{ actorMemberId: context.mitgliedId, canEditOwnMember: has(Permission.seeOwnData), canEditAllMembers: has(Permission.editAllMembers) }} createPermissions={{ canCreateMember: has(Permission.createMember) }} onSaved={(member) => { setSelectedMember({ id: member.id, vorname: member.vorname, name: member.name }); selectMember(member.id); setActiveId("mitglied-stammdaten"); }} onCancel={() => { setCreatingMember(false); setActiveId("mitglieder"); }} />}
         </article>
       </section>
     </main>
@@ -535,25 +504,9 @@ function ContractComposer({ session, memberId, onSaved, leaseContractIntent }: {
   return <details className="contract-composer"><summary>Vertragsdokument erstellen und unterschreiben</summary>{message && <p className="notice" role="status">{message}</p>}<fieldset disabled={busy}><label>Dokumenttyp<select value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="mitgliedsantrag">Mitgliedsantrag</option><option value="mitgliedsvertrag">Mitgliedsvertrag</option><option value="pachtvertrag">Pachtvertrag</option></select></label><label>Beginn<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label></fieldset><div className="signature-grid"><SignaturePad label="Unterschrift Mitglied" value={memberSignature} onChange={setMemberSignature} /><SignaturePad label="Gesetzlicher Vertreter (optional)" value={secondarySignature} onChange={setSecondarySignature} /><SignaturePad label="Unterschrift Verein" value={boardSignature} onChange={setBoardSignature} /></div><div className="editor-actions"><button type="button" className="secondary-action" disabled={busy} onClick={preview}>PDF-Vorschau</button><button type="button" disabled={busy} onClick={finalize}>{busy ? "Verarbeitet …" : "Signiert sicher ablegen"}</button></div></details>;
 }
 
-const permissionAreas = [
-  { key: "mitgliedaufnahme", label: "Mitglieder aufnehmen / verpachten", all: Permission.createMember, read: Permission.createMember, write: Permission.createMember },
-  { key: "stammdaten", label: "Stammdaten", all: Permission.showStammdaten | Permission.readStammdaten | Permission.writeStammdaten, read: Permission.readStammdaten, write: Permission.writeStammdaten },
-  { key: "parzellen", label: "Parzellen", all: Permission.showParzellen | Permission.readParzellen | Permission.writeParzellen, read: Permission.readParzellen, write: Permission.writeParzellen },
-  { key: "dokumente", label: "Dokumente", all: Permission.readDocuments | Permission.manageDocuments, read: Permission.readDocuments, write: Permission.manageDocuments },
-  { key: "arbeitsstunden", label: "Arbeitsstunden", all: Permission.readWorkHours | Permission.manageWorkHours, read: Permission.readWorkHours, write: Permission.manageWorkHours },
-  { key: "zaehlerwechsel", label: "Zählerwechsel", all: Permission.readMeters | Permission.manageMeterChanges, read: Permission.readMeters, write: Permission.manageMeterChanges },
-  { key: "ablesungsfreigaben", label: "Ablesungsfreigaben", all: Permission.readMeters | Permission.approveMeterReadings, read: Permission.readMeters, write: Permission.approveMeterReadings },
-  { key: "rollen", label: "Rollen / Rechte", all: Permission.readRoles | Permission.manageRoles, read: Permission.readRoles, write: Permission.manageRoles },
-] as const;
 type PermissionLevel = "none" | "read" | "write";
 
-function rolePermissions(role: AppUserAdmin["role"]) {
-  if (role === "admin") return 1048575;
-  if (role === "vorstand") return Permission.searchMembers | Permission.viewMembers | Permission.editAllMembers | Permission.showStammdaten | Permission.readStammdaten | Permission.writeStammdaten | Permission.showParzellen | Permission.readParzellen | Permission.writeParzellen | Permission.readDocuments | Permission.manageDocuments | Permission.readWorkHours | Permission.manageWorkHours | Permission.readMeters | Permission.manageMeterChanges | Permission.approveMeterReadings | Permission.readRoles;
-  return Permission.viewMembers | Permission.seeOwnData;
-}
-
-function permissionLevel(mask: number, area: (typeof permissionAreas)[number]): PermissionLevel {
+function permissionLevel(mask: number, area: (typeof PermissionAreas)[number]): PermissionLevel {
   if ((mask & area.write) === area.write) return "write";
   if ((mask & area.read) === area.read) return "read";
   return "none";
@@ -572,7 +525,7 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
     try {
       const [loadedMembers, loadedUsers] = await Promise.all([
         readSupabase<Member>(session, "mitglied", { select: "id,vorname,name,email,aktiv,hauptmitglied_id,auth_user_id", order: "name.asc", limit: "3000" }),
-        readSupabase<AppUserAdmin>(session, "app_user", { select: "user_id,mitglied_id,role,permission_grants,permission_revocations,updated_at", order: "mitglied_id.asc", limit: "3000" }),
+        readSupabase<AppUserAdmin>(session, "app_user", { select: "user_id,mitglied_id,role,permission_grants,permission_revocations,is_protected,updated_at", order: "mitglied_id.asc", limit: "3000" }),
       ]);
       setMembers(loadedMembers); setUsers(loadedUsers);
       setSelectedMemberId((current) => fixedMemberId ?? current ?? loadedMembers[0]?.id ?? null);
@@ -585,31 +538,33 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
   useEffect(() => {
     const nextRole = selectedUser?.role ?? "user";
     setRole(nextRole);
-    const effective = (rolePermissions(nextRole) | (selectedUser?.permission_grants ?? 0)) & ~(selectedUser?.permission_revocations ?? 0);
-    setLevels(Object.fromEntries(permissionAreas.map((area) => [area.key, permissionLevel(effective, area)])));
+    const effective = getEffectivePermissions(nextRole, selectedUser?.permission_grants ?? 0, selectedUser?.permission_revocations ?? 0);
+    setLevels(Object.fromEntries(PermissionAreas.map((area) => [area.key, permissionLevel(effective, area)])));
     setMessage("");
   }, [selectedMemberId, selectedUser?.user_id, selectedUser?.role, selectedUser?.permission_grants, selectedUser?.permission_revocations]);
   function changeRole(nextRole: AppUserAdmin["role"]) {
     setRole(nextRole);
-    const base = rolePermissions(nextRole);
-    setLevels(Object.fromEntries(permissionAreas.map((area) => [area.key, permissionLevel(base, area)])));
+    const base = getRolePermissions(nextRole);
+    setLevels(Object.fromEntries(PermissionAreas.map((area) => [area.key, permissionLevel(base, area)])));
   }
   async function save() {
     if (!selectedUser) { setMessage("Für dieses Mitglied existiert noch kein verknüpfter App-Benutzer. Die Erstanmeldung muss zuerst abgeschlossen werden."); return; }
     if (!editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; }
-    const base = rolePermissions(role);
+    const base = getRolePermissions(role);
     let required = 0; let controllable = 0;
-    for (const area of permissionAreas) {
+    for (const area of PermissionAreas) {
       controllable |= area.all;
       const level = levels[area.key] ?? "none";
       if (level === "read") required |= area.read;
       if (level === "write") required |= area.write;
     }
-    const grants = required & ~base;
-    const revocations = (base & controllable) & ~required;
+    const calculatedGrants = required & ~base;
+    const calculatedRevocations = (base & controllable) & ~required;
+    const grants = preserveUncontrolledPermissions(selectedUser.permission_grants, calculatedGrants);
+    const revocations = preserveUncontrolledPermissions(selectedUser.permission_revocations, calculatedRevocations);
     setSaving(true); setMessage("");
     try {
-      await writeSupabase<AppUserAdmin>(session, "app_user", "PATCH", { mitglied_id: selectedMemberId, role, permission_grants: grants, permission_revocations: revocations, updated_at: new Date().toISOString() }, { user_id: `eq.${selectedUser.user_id}` });
+      await callSupabaseRpc<void>(session, "update_app_user_access", { p_user_id: selectedUser.user_id, p_role: role, p_permission_grants: grants, p_permission_revocations: revocations });
       await load(); setMessage("Rolle und Fachrechte wurden gespeichert.");
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Rolle und Rechte konnten nicht gespeichert werden."); }
     finally { setSaving(false); }
@@ -617,7 +572,7 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
   async function invite() {
     if (!selectedMember?.email || !selectedMemberId) { setMessage("Für die Einladung fehlt eine E-Mail-Adresse."); return; }
     setSaving(true); setMessage("");
-    try { const result = await inviteAppUser(session, selectedMemberId, role); await load(); setMessage(result.message ?? (result.linkPrepared ? "Nutzerkonto wurde vorbereitet." : "Einladung wurde angestoßen.")); }
+    try { const result = await inviteAppUser(session, selectedMemberId, role); await load(); setMessage(result.mailSent === false || result.outcome === "prepared_mail_failed" ? "Nutzerkonto wurde angelegt, die Willkommensmail konnte jedoch nicht versendet werden." : "Nutzerkonto wurde angelegt und die Willkommensmail versendet."); }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : "Einladung konnte nicht gesendet werden."); }
     finally { setSaving(false); }
   }
@@ -631,12 +586,12 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
   async function removeUser() {
     if (!selectedUser || !selectedMemberId || !window.confirm(`App-Benutzer von ${selectedMember?.vorname ?? ""} ${selectedMember?.name ?? ""} wirklich entfernen?`)) return;
     setSaving(true); setMessage("");
-    try { await writeSupabase<Member>(session, "mitglied", "PATCH", { auth_user_id: null }, { id: `eq.${selectedMemberId}` }); await deleteSupabase(session, "app_user", { user_id: `eq.${selectedUser.user_id}` }); await load(); setMessage("Die App-Benutzerzuordnung wurde entfernt. Das Auth-Konto bleibt aus Sicherheitsgründen serverseitig bestehen."); }
+    try { await callSupabaseRpc<void>(session, "unlink_app_user", { p_user_id: selectedUser.user_id }); await load(); setMessage("Die App-Benutzerzuordnung wurde entfernt. Das Auth-Konto bleibt aus Sicherheitsgründen serverseitig bestehen."); }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : "App-Benutzer konnte nicht entfernt werden."); }
     finally { setSaving(false); }
   }
   const visibleMembers = fixedMemberId ? members.filter((item) => item.id === fixedMemberId) : members.filter((item) => `${item.name ?? ""} ${item.vorname ?? ""} ${item.email ?? ""} ${item.id}`.toLowerCase().includes(query.toLowerCase()));
-  return <section className="data-workspace admin-workspace" aria-label="Benutzer und Rechte">{message && <p className="notice" role="status">{message}</p>}<div className={fixedMemberId ? "" : "split-view"}>{!fixedMemberId && <div><div className="data-toolbar"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Mitglied suchen" /><span>{users.length} verknüpfte Benutzer</span></div><div className="data-table-wrap"><table><thead><tr><th>Mitglied</th><th>Konto</th><th>Rolle</th></tr></thead><tbody>{visibleMembers.map((member) => { const user = users.find((item) => item.mitglied_id === member.id); return <tr key={member.id} className={selectedMemberId === member.id ? "selected-row" : ""} onClick={() => setSelectedMemberId(member.id)}><td><strong>{member.name}, {member.vorname}</strong><small>#{member.id} · {member.email || "keine E-Mail"}</small></td><td>{user ? "verknüpft" : "offen"}</td><td>{user?.role ?? "–"}</td></tr>; })}</tbody></table></div></div>}<aside className="detail-panel rights-editor">{selectedMember ? <><div className="detail-title"><div><h2>{selectedMember.name}, {selectedMember.vorname}</h2><p>{selectedUser ? `App-Benutzer ${selectedUser.user_id.slice(0, 8)}…` : "Noch kein App-Benutzer verknüpft"}</p></div></div><div className="account-actions">{!selectedUser && <button disabled={saving || !selectedMember.email} onClick={invite}>Nutzer hinzufügen</button>}{selectedUser && <button className="secondary-action" disabled={saving || !selectedMember.email} onClick={resetPassword}>Passwort-Reset senden</button>}{selectedUser && fixedMemberId && <button className="danger-action" disabled={saving} onClick={removeUser}>Nutzer entfernen</button>}</div>{!selectedUser && <p className="context-note">Mit „Nutzer hinzufügen“ wird der bestehende OTP-/Erstlogin-Ablauf gestartet. Rollen und Fachrechte werden nach erfolgreicher Verknüpfung speicherbar.</p>}<label>Rollenbasis<select value={role} disabled={!selectedUser || saving} onChange={(event) => changeRole(event.target.value as AppUserAdmin["role"])}><option value="user">Mitglied</option><option value="vorstand">Vorstand</option><option value="admin">Administrator</option></select></label><h3>Fachrechte</h3><div className="permission-grid">{permissionAreas.map((area) => <label key={area.key}><span>{area.label}<small>Rollenstandard: {permissionLevel(rolePermissions(role), area) === "write" ? "Bearbeiten" : permissionLevel(rolePermissions(role), area) === "read" ? "Lesen" : "Aus"}</small></span><select value={levels[area.key] ?? "none"} disabled={!selectedUser || saving} onChange={(event) => setLevels({ ...levels, [area.key]: event.target.value as PermissionLevel })}><option value="none">Aus</option><option value="read">Lesen</option><option value="write">Bearbeiten</option></select></label>)}</div><div className="editor-actions"><button disabled={!selectedUser || saving} onClick={save}>{saving ? "Speichert …" : "Rolle und Rechte speichern"}</button><button className="secondary-action" disabled={!selectedUser || saving} onClick={() => changeRole(role)}>Auf Rollenstandard setzen</button></div></> : <><h2>Benutzer auswählen</h2><p>Wähle links ein Mitglied aus.</p></>}</aside></div></section>;
+  return <section className="data-workspace admin-workspace" aria-label="Benutzer und Rechte">{message && <p className="notice" role="status">{message}</p>}<div className={fixedMemberId ? "" : "split-view"}>{!fixedMemberId && <div><div className="data-toolbar"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Mitglied suchen" /><span>{users.length} verknüpfte Benutzer</span></div><div className="data-table-wrap"><table><thead><tr><th>Mitglied</th><th>Konto</th><th>Rolle</th></tr></thead><tbody>{visibleMembers.map((member) => { const user = users.find((item) => item.mitglied_id === member.id); return <tr key={member.id} className={selectedMemberId === member.id ? "selected-row" : ""} onClick={() => setSelectedMemberId(member.id)}><td><strong>{member.name}, {member.vorname}</strong><small>#{member.id} · {member.email || "keine E-Mail"}</small></td><td>{user ? "verknüpft" : "offen"}</td><td>{user?.role ?? "–"}</td></tr>; })}</tbody></table></div></div>}<aside className="detail-panel rights-editor">{selectedMember ? <><div className="detail-title"><div><h2>{selectedMember.name}, {selectedMember.vorname}</h2><p>{selectedUser ? `App-Benutzer ${selectedUser.user_id.slice(0, 8)}…` : "Noch kein App-Benutzer verknüpft"}</p></div></div><div className="account-actions">{!selectedUser && <button disabled={saving || !selectedMember.email} onClick={invite}>Nutzer hinzufügen</button>}{selectedUser && <button className="secondary-action" disabled={saving || !selectedMember.email} onClick={resetPassword}>Passwort-Reset senden</button>}{selectedUser && fixedMemberId && <button className="danger-action" disabled={saving} onClick={removeUser}>Nutzer entfernen</button>}</div>{!selectedUser && <p className="context-note">Mit „Nutzer hinzufügen“ wird der bestehende OTP-/Erstlogin-Ablauf gestartet. Rollen und Fachrechte werden nach erfolgreicher Verknüpfung speicherbar.</p>}<label>Rollenbasis<select value={role} disabled={!selectedUser || saving} onChange={(event) => changeRole(event.target.value as AppUserAdmin["role"])}><option value="user">Mitglied</option><option value="vorstand">Vorstand</option><option value="admin">Administrator</option></select></label><h3>Fachrechte</h3><div className="permission-grid">{PermissionAreas.map((area) => <label key={area.key}><span>{area.label}<small>Rollenstandard: {permissionLevel(getRolePermissions(role), area) === "write" ? "Bearbeiten" : permissionLevel(getRolePermissions(role), area) === "read" ? "Lesen" : "Aus"}</small></span><select value={levels[area.key] ?? "none"} disabled={!selectedUser || saving} onChange={(event) => setLevels({ ...levels, [area.key]: event.target.value as PermissionLevel })}><option value="none">Aus</option><option value="read">Lesen</option><option value="write">Bearbeiten</option></select></label>)}</div><div className="editor-actions"><button disabled={!selectedUser || saving} onClick={save}>{saving ? "Speichert …" : "Rolle und Rechte speichern"}</button><button className="secondary-action" disabled={!selectedUser || saving} onClick={() => changeRole(role)}>Auf Rollenstandard setzen</button></div></> : <><h2>Benutzer auswählen</h2><p>Wähle links ein Mitglied aus.</p></>}</aside></div></section>;
 }
 
 const emptyClubConfiguration: ClubConfigurationRecord = { id: 0, vereinsname: "", kurzname: "", registerangabe: "", strasse: "", plz: "", ort: "", standard_email: "", standard_telefon: "", website: "", kontoinhaber: "", bankname: "", iban: "", bic: "", verwendungszweck_mitgliedsantrag: "", verwendungszweck_pachtvertrag: "", dokument_ort: "", standard_hinweistext: "", datenschutz_text: "", datenschutz_version: "", datenschutz_stand: null, aktiv: true };

@@ -101,6 +101,15 @@ namespace KGV.Core.Security
         public static bool CanManageDocuments(UserContext? context)
             => HasPermission(context, PermissionFlags.CanManageDocuments);
 
+        public static bool CanArchiveDocuments(UserContext? context)
+            => context?.Role == UserRole.Admin;
+
+        public static bool CanManageClubSeasonConfiguration(UserContext? context)
+            => context?.Role == UserRole.Admin;
+
+        public static bool CanConfigureUserMeterReadingSubmissions(UserContext? context)
+            => context?.Role is UserRole.Admin or UserRole.Vorstand;
+
         public static bool CanReadDocumentsForMember(UserContext? context, int? memberId)
             => CanReadDocuments(context)
                || HasOwnDocumentsAccessForMember(context, memberId);
@@ -120,6 +129,9 @@ namespace KGV.Core.Security
 
         public static bool CanManageAnnouncements(UserContext? context)
             => HasPermission(context, PermissionFlags.CanManageAnnouncements);
+
+        public static bool CanPerformYearEndClosing(UserContext? context)
+            => HasPermission(context, PermissionFlags.CanPerformYearEndClosing);
 
         public static bool CanReadWorkHoursForMember(UserContext? context, int? memberId)
             => CanReadWorkHours(context)
@@ -166,5 +178,26 @@ namespace KGV.Core.Security
         public static bool HasAnyRoleManagementAccess(UserContext? context)
             => CanReadRoleManagement(context)
                || CanManageRoleManagement(context);
+
+        public static bool HasAnyManagementWorkspaceAccess(UserContext? context)
+            => CanSearchMembers(context)
+               || CanEditAllMembers(context)
+               || CanCreateMitglied(context)
+               || HasGlobalStammdatenAccess(context)
+               || HasGlobalParzellenAccess(context)
+               || CanReadDocuments(context)
+               || CanManageDocuments(context)
+               || CanReadWorkHours(context)
+               || CanManageWorkHours(context)
+               || CanManageWorkAssignments(context)
+               || CanManageAppointments(context)
+               || CanManageAnnouncements(context)
+               || CanReadMeters(context)
+               || CanManageMeterChanges(context)
+               || CanApproveMeterReadings(context)
+               || CanReadRoleManagement(context)
+               || CanPerformYearEndClosing(context)
+               || CanManageClubSeasonConfiguration(context)
+               || CanConfigureUserMeterReadingSubmissions(context);
     }
 }

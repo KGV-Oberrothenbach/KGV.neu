@@ -139,13 +139,21 @@ public sealed class VereinskonfigurationPage : ContentPage
         Appearing += async (_, _) => await LoadAsync();
     }
 
-    private bool IsAdmin => _userContextState.CurrentUserContext?.Role is UserRole.Admin;
+    private bool IsAdmin => PermissionChecks.CanManageClubSeasonConfiguration(_userContextState.CurrentUserContext);
     private bool IsEditable => IsAdmin && !_isBusy;
 
     private async Task LoadAsync()
     {
         if (_isBusy)
             return;
+
+        if (!IsAdmin)
+        {
+            _currentRecord = null;
+            SetStatus("Für die Vereinskonfiguration fehlt die Berechtigung.", true);
+            ApplyEditorEnabledState();
+            return;
+        }
 
         try
         {

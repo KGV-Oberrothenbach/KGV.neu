@@ -176,12 +176,16 @@ public sealed class AdminShell : Shell, IAppShellInitializer
         if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Export", "export", () => _services.GetRequiredService<ExportPage>()));
 
-        if (_userContextState.CurrentUserContext?.Role is UserRole.Admin)
-            Items.Add(CreateManagementItem(
-                "Verwaltung",
-                ("Saisonverwaltung", "season_management", () => _services.GetRequiredService<SaisonverwaltungPage>()),
-                ("Jahresabschluss", "annual_closing", () => _services.GetRequiredService<JahresabschlussPage>()),
-                ("Vereinskonfiguration", "club_configuration", () => _services.GetRequiredService<VereinskonfigurationPage>())));
+        var managementEntries = new List<(string ContentTitle, string Route, Func<Page> PageFactory)>();
+        var managementContext = _userContextState.CurrentUserContext;
+        if (PermissionChecks.CanManageClubSeasonConfiguration(managementContext))
+            managementEntries.Add(("Saisonverwaltung", "season_management", () => _services.GetRequiredService<SaisonverwaltungPage>()));
+        if (PermissionChecks.CanPerformYearEndClosing(managementContext))
+            managementEntries.Add(("Jahresabschluss", "annual_closing", () => _services.GetRequiredService<JahresabschlussPage>()));
+        if (PermissionChecks.CanManageClubSeasonConfiguration(managementContext))
+            managementEntries.Add(("Vereinskonfiguration", "club_configuration", () => _services.GetRequiredService<VereinskonfigurationPage>()));
+        if (managementEntries.Count > 0)
+            Items.Add(CreateManagementItem("Verwaltung", managementEntries.ToArray()));
 
         if (PermissionChecks.CanSearchMembers(_userContextState.CurrentUserContext))
             Items.Add(CreateItem("Mitgliedersuche", "membersearch", () => _services.GetRequiredService<MemberSearchPage>()));

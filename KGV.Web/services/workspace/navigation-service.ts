@@ -18,7 +18,9 @@ export type NavigationCapabilities = {
   canManageMaintenance: boolean;
   canApproveWorkHours: boolean;
   canExport: boolean;
-  canManageAdministration: boolean;
+  canManageSeasonConfiguration: boolean;
+  canPerformYearEndClosing: boolean;
+  canManageClubConfiguration: boolean;
   canSearchMembers: boolean;
 };
 
@@ -58,16 +60,11 @@ export function buildNavigation(capabilities: NavigationCapabilities): Workspace
     { ...navigationConfig.groups.maintenance, items: [], target: capabilities.canManageMaintenance ? navigationConfig.groups.maintenance.target : undefined },
     { ...navigationConfig.groups.workhours, items: [], target: capabilities.canApproveWorkHours ? navigationConfig.groups.workhours.target : undefined },
     { ...navigationConfig.groups.export, items: [], target: capabilities.canExport ? navigationConfig.groups.export.target : undefined },
-    {
-      ...navigationConfig.groups.administration,
-      items: capabilities.canManageAdministration
-        ? [
-            navigationConfig.groups.administration.items.seasons,
-            navigationConfig.groups.administration.items.annualClosing,
-            navigationConfig.groups.administration.items.club,
-          ]
-        : [],
-    },
+    { ...navigationConfig.groups.administration, items: [
+      ...(capabilities.canManageSeasonConfiguration ? [navigationConfig.groups.administration.items.seasons] : []),
+      ...(capabilities.canPerformYearEndClosing ? [navigationConfig.groups.administration.items.annualClosing] : []),
+      ...(capabilities.canManageClubConfiguration ? [navigationConfig.groups.administration.items.club] : []),
+    ] },
     { ...navigationConfig.groups.members, target: capabilities.canSearchMembers ? navigationConfig.groups.members.target : undefined, items: memberItems },
   ] as NavigationGroup[]).filter((group) => Boolean(group.target) || group.items.length > 0);
 

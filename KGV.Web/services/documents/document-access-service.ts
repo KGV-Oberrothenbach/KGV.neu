@@ -1,11 +1,11 @@
 import type { DocumentOwner } from "../../models/documents/document";
 
 export type DocumentAccessContext = {
-  role: "admin" | "vorstand" | "user";
   memberId: number | null;
   canReadDocuments: boolean;
   canManageDocuments: boolean;
   canSeeOwnDataOnly: boolean;
+  canArchiveDocuments: boolean;
 };
 
 export type DocumentCapabilities = {
@@ -23,6 +23,6 @@ export function documentCapabilitiesForOwner(context: DocumentAccessContext, own
     // Like the existing Core PermissionChecks, document management includes reading.
     canRead: context.canReadDocuments || context.canManageDocuments || canReadOwnMemberDocuments,
     canUpload: context.canManageDocuments,
-    canArchive: context.role === "admin",
+    canArchive: context.canArchiveDocuments,
   };
 }

@@ -69,7 +69,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!existing) { setStatus("signed-out"); return; }
       await establishSession(existing);
     }).catch((error: Error) => {
+      const invalidSession = sessionRef.current;
+      if (invalidSession) void signOut(invalidSession);
       clearSession();
+      sessionRef.current = null;
+      setSession(null);
+      setAppUserContext(null);
       setMessage(error.message);
       setStatus("access-error");
     });
@@ -135,7 +140,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await establishSession(await signInWithPassword(club!, email, password));
     } catch (error) {
+      const invalidSession = sessionRef.current;
+      if (invalidSession) void signOut(invalidSession);
       clearSession();
+      sessionRef.current = null;
+      setSession(null);
+      setAppUserContext(null);
       setStatus("access-error");
       throw error;
     }

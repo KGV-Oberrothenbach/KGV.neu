@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+const migration = await readFile(new URL("../../supabase/migrations/20261011170000_g13_email_auth_sync.sql", import.meta.url), "utf8");
+const auth = await readFile(new URL("../../KGV.Infrastructure/Authentication/AuthService.cs", import.meta.url), "utf8");
+const profile = await readFile(new URL("../../KGV.Maui/Pages/MyProfilePage.cs", import.meta.url), "utf8");
+const users = await readFile(new URL("../../KGV.Maui/Pages/UserManagementPage.cs", import.meta.url), "utf8");
+assert.match(migration, /function public\.sync_current_member_email/);
+assert.match(migration, /current_app_user_context/);
+assert.match(migration, /auth\.users/);
+assert.doesNotMatch(migration, /sync_current_member_email\([^)]*p_/);
+assert.match(migration, /guard_linked_member_email/);
+assert.match(migration, /old\.auth_user_id is not null/);
+assert.match(migration, /update public\.mitglied set email = v_email/);
+assert.doesNotMatch(migration, /update auth\.users/);
+assert.match(auth, /sync_current_member_email/);
+assert.match(profile, /VerifyEmailChangeOtpAsync/);
+assert.doesNotMatch(users, /changeEmailButton/);
