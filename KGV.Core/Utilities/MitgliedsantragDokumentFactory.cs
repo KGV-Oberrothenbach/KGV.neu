@@ -89,7 +89,7 @@ namespace KGV.Core.Utilities
             decimal aufnahmegebuehr,
             DateTime beginnDatum,
             MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
-            MitgliedsantragBankverbindungSnapshot? bankverbindungSnapshot,
+            VereinskonfigurationSnapshot? vereinskonfigurationSnapshot,
             string? status = null)
         {
             if (member == null)
@@ -101,7 +101,7 @@ namespace KGV.Core.Utilities
             if (aufnahmegebuehr < 0m)
                 throw new InvalidOperationException("Die Aufnahmegebühr darf nicht negativ sein.");
 
-            if (bankverbindungSnapshot == null)
+            if (vereinskonfigurationSnapshot == null)
                 throw new InvalidOperationException("Es ist keine aktive Vereinskonfiguration mit vollständigen Mitgliedsantragsdaten hinterlegt.");
 
             var normalizedStatus = FormularDokumentStatus.Normalize(status);
@@ -115,7 +115,7 @@ namespace KGV.Core.Utilities
                 aufnahmegebuehr,
                 beginnDatum.Date,
                 gesetzlicherVertreterSnapshot,
-                bankverbindungSnapshot);
+                VereinskonfigurationSnapshotFactory.NormalizeForMembershipApplication(vereinskonfigurationSnapshot));
 
             var pdfTemplate = LoadTemplatePdfBytes();
             var filledPdf = FillAndFlattenPdfForm(pdfTemplate, templateData);
@@ -136,7 +136,7 @@ namespace KGV.Core.Utilities
             decimal aufnahmegebuehr,
             DateTime beginnDatum,
             MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
-            MitgliedsantragBankverbindungSnapshot bankverbindungSnapshot)
+            VereinskonfigurationSnapshot bankverbindungSnapshot)
         {
             var istMinderjaehrig = gesetzlicherVertreterSnapshot != null;
             var beitragsmonate = CalculateBeitragsmonate(beginnDatum);
@@ -471,7 +471,7 @@ namespace KGV.Core.Utilities
             return Math.Max(1, monate);
         }
 
-        private static string ResolveOrt(MitgliedsantragBankverbindungSnapshot snapshot)
+        private static string ResolveOrt(VereinskonfigurationSnapshot snapshot)
         {
             var configuredOrt = Safe(snapshot.DokumentOrt);
             return string.IsNullOrWhiteSpace(configuredOrt) ? DefaultOrt : configuredOrt;
@@ -506,13 +506,13 @@ namespace KGV.Core.Utilities
         private static string SafeContact(string? value)
             => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
 
-        private static string ResolveVereinName(MitgliedsantragBankverbindungSnapshot snapshot)
+        private static string ResolveVereinName(VereinskonfigurationSnapshot snapshot)
         {
             var value = Safe(snapshot.VereinName);
             return string.IsNullOrWhiteSpace(value) ? VereinsdokumentBranding.VereinsName : value;
         }
 
-        private static string BuildDatenschutzMeta(MitgliedsantragBankverbindungSnapshot snapshot)
+        private static string BuildDatenschutzMeta(VereinskonfigurationSnapshot snapshot)
         {
             var parts = new List<string>();
 
@@ -536,7 +536,7 @@ namespace KGV.Core.Utilities
             return $"Jahresbeitrag: {FormatCurrency(jahresbeitrag)} · Aufnahmejahr ({monate} Monate: {beginnDatum:dd.MM.yyyy}–31.12.{beitragsjahr}): anteiliger Beitrag {FormatCurrency(anteil)}.";
         }
 
-        private static string BuildFussnote(MitgliedsantragBankverbindungSnapshot snapshot)
+        private static string BuildFussnote(VereinskonfigurationSnapshot snapshot)
         {
             var parts = new List<string>();
 

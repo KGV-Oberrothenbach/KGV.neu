@@ -66,7 +66,7 @@ namespace KGV.Core.Utilities
             SaisonRecord saison,
             DateTime vertragsbeginn,
             MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
-            MitgliedsantragBankverbindungSnapshot? bankverbindungSnapshot,
+            VereinskonfigurationSnapshot? bankverbindungSnapshot,
             string? status = null,
             MitgliedRecord? paechter2Override = null)
             => CreateUploadRequest(
@@ -89,7 +89,7 @@ namespace KGV.Core.Utilities
             DateTime vertragsbeginn,
             DateTime? altvertragDatum,
             MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
-            MitgliedsantragBankverbindungSnapshot? bankverbindungSnapshot,
+            VereinskonfigurationSnapshot? bankverbindungSnapshot,
             string? status = null,
             MitgliedRecord? paechter2Override = null)
         {
@@ -127,7 +127,7 @@ namespace KGV.Core.Utilities
                 saison,
                 vertragsbeginn.Date,
                 altvertragDatum,
-                bankverbindungSnapshot,
+                VereinskonfigurationSnapshotFactory.NormalizeForLeaseContract(bankverbindungSnapshot),
                 paechter2Override);
 
             var data = PachtvertragTemplateFactory.BuildData(templateContext);
@@ -152,7 +152,7 @@ namespace KGV.Core.Utilities
             SaisonRecord saison,
             DateTime vertragsbeginn,
             DateTime? altvertragDatum,
-            MitgliedsantragBankverbindungSnapshot bankverbindungSnapshot,
+            VereinskonfigurationSnapshot bankverbindungSnapshot,
             MitgliedRecord? paechter2Override = null)
         {
             var paechter2 = paechter2Override ?? nebenmitglied;

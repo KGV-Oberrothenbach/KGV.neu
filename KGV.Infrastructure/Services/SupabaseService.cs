@@ -75,7 +75,7 @@ namespace KGV.Infrastructure.Services
                     context.Vertragsbeginn,
                     altvertragDatum: request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
-                    context.BankverbindungSnapshot,
+                    context.VereinskonfigurationSnapshot,
                     request.Status);
 
                 return await CreateDokumentAsync(uploadRequest);
@@ -3421,7 +3421,7 @@ namespace KGV.Infrastructure.Services
             async () =>
             {
                 var context = await ResolveMitgliedsantragRequestAsync(request);
-                return MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.BankverbindungSnapshot, FormularDokumentStatus.Unsigniert);
+                return MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert);
             },
             null);
 
@@ -3462,8 +3462,8 @@ namespace KGV.Infrastructure.Services
                         return DokumentUploadResult.Fail("Gesetzlicher Vertreter konnte nicht gespeichert werden.", "VALIDATION");
                 }
 
-                var previewUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.BankverbindungSnapshot, FormularDokumentStatus.Unsigniert);
-                var finalUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.BankverbindungSnapshot, FormularDokumentStatus.Signiert);
+                var previewUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert);
+                var finalUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Signiert);
                 var placeholders = MitgliedsantragDokumentFactory.GetSignaturePlaceholders()
                     .ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
                 var signatures = new List<(SignaturePlaceholder placeholder, DigitalSignatureCapture capture)>();
@@ -3495,13 +3495,13 @@ namespace KGV.Infrastructure.Services
         private async Task<DokumentUploadResult> CreateMitgliedsantragDokumentInternalAsync(MitgliedRecord member, decimal mitgliedsbeitrag, DateTime beginnDatum, string? status)
         {
             var gesetzlicherVertreter = await ResolveGesetzlicherVertreterAsync(member.Id, beginnDatum);
-            var bankverbindungSnapshot = await ResolveVereinsBankverbindungSnapshotAsync();
+            var bankverbindungSnapshot = await ResolveVereinskonfigurationSnapshotAsync();
             var aufnahmegebuehr = await ResolveMitgliedsantragAufnahmegebuehrAsync(beginnDatum);
             var uploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreter.IstMinderjaehrig ? BuildMitgliedsantragVertreterSnapshot(gesetzlicherVertreter.Vorbelegung) : null, bankverbindungSnapshot, status);
             return await CreateDokumentAsync(uploadRequest);
         }
 
-        private async Task<(MitgliedRecord Member, decimal Mitgliedsbeitrag, decimal Aufnahmegebuehr, DateTime BeginnDatum, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, MitgliedsantragBankverbindungSnapshot BankverbindungSnapshot)> ResolveMitgliedsantragRequestAsync(MitgliedsantragDokumentRequest request)
+        private async Task<(MitgliedRecord Member, decimal Mitgliedsbeitrag, decimal Aufnahmegebuehr, DateTime BeginnDatum, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, VereinskonfigurationSnapshot VereinskonfigurationSnapshot)> ResolveMitgliedsantragRequestAsync(MitgliedsantragDokumentRequest request)
         {
             if (request == null || request.MitgliedId <= 0)
                 throw new InvalidOperationException("Bitte zuerst ein gültiges Mitglied auswählen.");
@@ -3516,10 +3516,10 @@ namespace KGV.Infrastructure.Services
             var beginnDatum = request.BeginnDatum == default
                 ? (member.MitgliedSeit ?? DateTime.Today)
                 : request.BeginnDatum;
-            var bankverbindungSnapshot = request.BankverbindungSnapshot != null
-                ? NormalizeVereinsBankverbindungSnapshot(request.BankverbindungSnapshot)
-                : await ResolveVereinsBankverbindungSnapshotAsync();
-            request.BankverbindungSnapshot = bankverbindungSnapshot;
+            var bankverbindungSnapshot = request.VereinskonfigurationSnapshot != null
+                ? VereinskonfigurationSnapshotFactory.NormalizeForMembershipApplication(request.VereinskonfigurationSnapshot)
+                : await ResolveVereinskonfigurationSnapshotAsync();
+            request.VereinskonfigurationSnapshot = bankverbindungSnapshot;
             var aufnahmegebuehr = request.Aufnahmegebuehr.HasValue
                 ? MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Aufnahmegebuehr.Value)
                 : await ResolveMitgliedsantragAufnahmegebuehrAsync(beginnDatum);
@@ -3563,7 +3563,7 @@ namespace KGV.Infrastructure.Services
             return (member, MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag), aufnahmegebuehr, beginnDatum, true, vertreterSnapshot, vertreterMitgliedId, bankverbindungSnapshot);
         }
 
-        private async Task<int> EnsureGesetzlicherVertreterMitgliedAsync((MitgliedRecord Member, decimal Mitgliedsbeitrag, decimal Aufnahmegebuehr, DateTime BeginnDatum, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, MitgliedsantragBankverbindungSnapshot BankverbindungSnapshot) context, MitgliedsantragDokumentRequest request)
+        private async Task<int> EnsureGesetzlicherVertreterMitgliedAsync((MitgliedRecord Member, decimal Mitgliedsbeitrag, decimal Aufnahmegebuehr, DateTime BeginnDatum, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, VereinskonfigurationSnapshot VereinskonfigurationSnapshot) context, MitgliedsantragDokumentRequest request)
         {
             if (context.GesetzlicherVertreterMitgliedId is > 0)
                 return context.GesetzlicherVertreterMitgliedId.Value;
@@ -3602,51 +3602,13 @@ namespace KGV.Infrastructure.Services
             return created.Id;
         }
 
-        private async Task<MitgliedsantragBankverbindungSnapshot> ResolveVereinsBankverbindungSnapshotAsync()
+        private async Task<VereinskonfigurationSnapshot> ResolveVereinskonfigurationSnapshotAsync()
         {
             var vereinskonfiguration = await GetAktiveVereinskonfigurationAsync();
             if (vereinskonfiguration == null)
                 throw new InvalidOperationException("Es ist keine aktive Vereinskonfiguration für den Mitgliedsantrag hinterlegt.");
 
-            return new MitgliedsantragBankverbindungSnapshot
-            {
-                VereinName = CleanRequiredText(string.IsNullOrWhiteSpace(vereinskonfiguration.Vereinsname) ? vereinskonfiguration.Kurzname : vereinskonfiguration.Vereinsname),
-                VereinRegisterangabe = CleanRequiredText(vereinskonfiguration.Registerangabe),
-                VereinEmail = CleanRequiredText(vereinskonfiguration.StandardEmail),
-                Kontoinhaber = CleanRequiredText(vereinskonfiguration.Kontoinhaber),
-                Bankname = CleanRequiredText(vereinskonfiguration.Bankname),
-                Iban = CleanRequiredText(vereinskonfiguration.Iban),
-                Bic = CleanRequiredText(vereinskonfiguration.Bic),
-                VerwendungszweckMitgliedsantrag = CleanRequiredText(vereinskonfiguration.VerwendungszweckMitgliedsantrag),
-                DokumentOrt = CleanRequiredText(vereinskonfiguration.DokumentOrt),
-                StandardHinweistext = CleanRequiredText(vereinskonfiguration.StandardHinweistext),
-                DatenschutzText = CleanRequiredText(vereinskonfiguration.DatenschutzText),
-                DatenschutzVersion = CleanRequiredText(vereinskonfiguration.DatenschutzVersion),
-                DatenschutzStand = vereinskonfiguration.DatenschutzStand?.Date
-            };
-        }
-
-        private static MitgliedsantragBankverbindungSnapshot NormalizeVereinsBankverbindungSnapshot(MitgliedsantragBankverbindungSnapshot snapshot)
-        {
-            if (snapshot == null)
-                throw new InvalidOperationException("Es ist keine aktive Vereinskonfiguration für den Mitgliedsantrag hinterlegt.");
-
-            return new MitgliedsantragBankverbindungSnapshot
-            {
-                VereinName = CleanRequiredText(snapshot.VereinName),
-                VereinRegisterangabe = CleanRequiredText(snapshot.VereinRegisterangabe),
-                VereinEmail = CleanRequiredText(snapshot.VereinEmail),
-                Kontoinhaber = CleanRequiredText(snapshot.Kontoinhaber),
-                Bankname = CleanRequiredText(snapshot.Bankname),
-                Iban = CleanRequiredText(snapshot.Iban),
-                Bic = CleanRequiredText(snapshot.Bic),
-                VerwendungszweckMitgliedsantrag = CleanRequiredText(snapshot.VerwendungszweckMitgliedsantrag),
-                DokumentOrt = CleanRequiredText(snapshot.DokumentOrt),
-                StandardHinweistext = CleanRequiredText(snapshot.StandardHinweistext),
-                DatenschutzText = CleanRequiredText(snapshot.DatenschutzText),
-                DatenschutzVersion = CleanRequiredText(snapshot.DatenschutzVersion),
-                DatenschutzStand = snapshot.DatenschutzStand?.Date
-            };
+            return VereinskonfigurationSnapshotFactory.NormalizeForMembershipApplication(VereinskonfigurationSnapshotFactory.FromActiveConfiguration(vereinskonfiguration));
         }
 
         private async Task<decimal> ResolveMitgliedsantragAufnahmegebuehrAsync(DateTime beginnDatum)
@@ -3795,7 +3757,7 @@ namespace KGV.Infrastructure.Services
                     Vertragsbeginn = vertragsbeginnDatum,
                     Status = status
                 });
-                var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(context.Member, context.SecondaryMember, context.Parzelle, context.Saison, context.Vertragsbeginn, altvertragDatum: null, context.GesetzlicherVertreterSnapshot, context.BankverbindungSnapshot, status);
+                var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(context.Member, context.SecondaryMember, context.Parzelle, context.Saison, context.Vertragsbeginn, altvertragDatum: null, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, status);
                 return await CreateDokumentAsync(uploadRequest);
             }
             catch (InvalidOperationException ex)
@@ -3829,7 +3791,7 @@ namespace KGV.Infrastructure.Services
                     context.Vertragsbeginn,
                     altvertragDatum: null,
                     context.GesetzlicherVertreterSnapshot,
-                    context.BankverbindungSnapshot,
+                    context.VereinskonfigurationSnapshot,
                     FormularDokumentStatus.Unsigniert);
             },
             null);
@@ -3848,7 +3810,7 @@ namespace KGV.Infrastructure.Services
                     context.Vertragsbeginn,
                     altvertragDatum: request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
-                    context.BankverbindungSnapshot,
+                    context.VereinskonfigurationSnapshot,
                     FormularDokumentStatus.Unsigniert);
             },
             null);
@@ -3884,7 +3846,7 @@ namespace KGV.Infrastructure.Services
                     context.Vertragsbeginn,
                     altvertragDatum: null,
                     context.GesetzlicherVertreterSnapshot,
-                    context.BankverbindungSnapshot,
+                    context.VereinskonfigurationSnapshot,
                     FormularDokumentStatus.Unsigniert);
                 var finalUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
                     context.Member,
@@ -3894,7 +3856,7 @@ namespace KGV.Infrastructure.Services
                     context.Vertragsbeginn,
                     altvertragDatum: null,
                     context.GesetzlicherVertreterSnapshot,
-                    context.BankverbindungSnapshot,
+                    context.VereinskonfigurationSnapshot,
                     FormularDokumentStatus.Signiert);
                 var sourceDocument = CreatePreviewDocumentInfo(previewUploadRequest, FormularDokumentTyp.Pachtvertrag, FormularDokumentStatus.Unsigniert);
                 finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(
@@ -3937,7 +3899,7 @@ namespace KGV.Infrastructure.Services
                     context.Vertragsbeginn,
                     request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
-                    context.BankverbindungSnapshot,
+                    context.VereinskonfigurationSnapshot,
                     FormularDokumentStatus.Unsigniert);
                 var finalUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
                     context.Member,
@@ -3947,7 +3909,7 @@ namespace KGV.Infrastructure.Services
                     context.Vertragsbeginn,
                     request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
-                    context.BankverbindungSnapshot,
+                    context.VereinskonfigurationSnapshot,
                     FormularDokumentStatus.Signiert);
                 var sourceDocument = CreatePreviewDocumentInfo(previewUploadRequest, FormularDokumentTyp.Pachtvertrag, FormularDokumentStatus.Unsigniert);
                 finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(
@@ -4004,7 +3966,7 @@ namespace KGV.Infrastructure.Services
             return nebenmitglied;
         }
 
-        private async Task<(MitgliedRecord Member, MitgliedRecord? SecondaryMember, ParzelleRecord Parzelle, SaisonRecord Saison, DateTime Vertragsbeginn, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, MitgliedsantragBankverbindungSnapshot BankverbindungSnapshot)> ResolvePachtvertragRequestAsync(PachtvertragDokumentRequest request)
+        private async Task<(MitgliedRecord Member, MitgliedRecord? SecondaryMember, ParzelleRecord Parzelle, SaisonRecord Saison, DateTime Vertragsbeginn, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, VereinskonfigurationSnapshot VereinskonfigurationSnapshot)> ResolvePachtvertragRequestAsync(PachtvertragDokumentRequest request)
         {
             if (request == null)
                 throw new InvalidOperationException("Bitte zuerst einen gültigen Pachtvertrag vorbereiten.");
@@ -4045,10 +4007,10 @@ namespace KGV.Infrastructure.Services
             if (!saison.PachtProQm.HasValue)
                 throw new InvalidOperationException($"Für die Saison {saison.Jahr} fehlt pacht_pro_qm.");
 
-            var bankverbindungSnapshot = request.BankverbindungSnapshot != null
-                ? NormalizeVereinsBankverbindungSnapshot(request.BankverbindungSnapshot)
-                : await ResolveVereinsBankverbindungSnapshotAsync();
-            request.BankverbindungSnapshot = bankverbindungSnapshot;
+            var bankverbindungSnapshot = request.VereinskonfigurationSnapshot != null
+                ? VereinskonfigurationSnapshotFactory.NormalizeForLeaseContract(request.VereinskonfigurationSnapshot)
+                : VereinskonfigurationSnapshotFactory.NormalizeForLeaseContract(await ResolveVereinskonfigurationSnapshotAsync());
+            request.VereinskonfigurationSnapshot = bankverbindungSnapshot;
 
             var secondaryMember = await GetNebenmitgliedByHauptmitgliedIdAsync(member.Id);
             var istMinderjaehrig = GesetzlicherVertreterResolver.IsMinderjaehrig(member, vertragsbeginnDatum);

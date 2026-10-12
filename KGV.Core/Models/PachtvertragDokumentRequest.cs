@@ -9,7 +9,14 @@ public sealed class PachtvertragDokumentRequest
     public DateTime Vertragsbeginn { get; set; }
     public string? Status { get; set; }
     public bool IstMinderjaehrig { get; set; }
-    public MitgliedsantragBankverbindungSnapshot? BankverbindungSnapshot { get; set; }
+    public VereinskonfigurationSnapshot? VereinskonfigurationSnapshot { get; set; }
+
+    [Obsolete("Use VereinskonfigurationSnapshot.")]
+    public MitgliedsantragBankverbindungSnapshot? BankverbindungSnapshot
+    {
+        get => VereinskonfigurationSnapshot as MitgliedsantragBankverbindungSnapshot;
+        set => VereinskonfigurationSnapshot = value;
+    }
     public DateTime? AltvertragDatum { get; set; }
         // If set, controls whether an existing Nebenmitglied should be included as second tenant (Pächter2).
         // null = keep existing default behavior on server (no explicit preference)

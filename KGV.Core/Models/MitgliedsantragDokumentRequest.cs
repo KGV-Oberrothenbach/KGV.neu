@@ -14,6 +14,13 @@ namespace KGV.Core.Models
         public bool GesetzlicherVertreterAdresseAbweichend { get; set; }
         public int? GesetzlicherVertreterMitgliedId { get; set; }
         public MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot { get; set; }
-        public MitgliedsantragBankverbindungSnapshot? BankverbindungSnapshot { get; set; }
+        public VereinskonfigurationSnapshot? VereinskonfigurationSnapshot { get; set; }
+
+        [Obsolete("Use VereinskonfigurationSnapshot.")]
+        public MitgliedsantragBankverbindungSnapshot? BankverbindungSnapshot
+        {
+            get => VereinskonfigurationSnapshot as MitgliedsantragBankverbindungSnapshot;
+            set => VereinskonfigurationSnapshot = value;
+        }
     }
 }

@@ -92,7 +92,7 @@ public static class PachtvertragTemplateFactory
         return Math.Round(result, 2, MidpointRounding.AwayFromZero);
     }
 
-    private static string BuildBankBlock(MitgliedsantragBankverbindungSnapshot config)
+    private static string BuildBankBlock(VereinskonfigurationSnapshot config)
     {
         var lines = new List<string>();
 
@@ -171,7 +171,7 @@ public static class PachtvertragTemplateFactory
 
 public sealed class PachtvertragTemplateContext
 {
-    public MitgliedsantragBankverbindungSnapshot? VereinskonfigurationSnapshot { get; set; }
+    public VereinskonfigurationSnapshot? VereinskonfigurationSnapshot { get; set; }
 
     public MitgliedRecord? Paechter1 { get; set; }
     public MitgliedRecord? Paechter2 { get; set; }

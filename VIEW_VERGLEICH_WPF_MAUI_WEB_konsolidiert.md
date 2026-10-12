@@ -7851,6 +7851,68 @@ KGV.Web/
 
 # G14 – Vereinskonfiguration & Exporte
 
+## 14.2 Vereinsdaten-Snapshot in Dokumenten
+
+### Ausgangslage und Lifecycle
+
+Der bisherige Core-Typ `MitgliedsantragBankverbindungSnapshot` enthielt bereits
+Vereinsname, Register, E-Mail, Bankdaten, Dokument-Ort, Hinweis- und
+Datenschutztexte. Er wurde beim .NET-Dokumentvorgang aus der aktuell aktiven
+`vereinskonfiguration` gebildet und an Mitgliedsantrag- sowie
+Pachtvertragsfactory übergeben. Sein Name war deshalb fachlich zu eng.
+
+Web und Edge Function hatten parallel dazu keinen benannten Vertrag: Die Edge
+Function lud die aktive Konfiguration und las die einzelnen Spalten direkt aus.
+Das finale Ergebnis wird jedoch in beiden Wegen als abgeflachtes PDF gespeichert.
+Späteres Öffnen lädt diese gespeicherte Datei; sie wird nicht aus aktuellen
+Vereinsdaten neu aufgebaut. Das Signieren einer vorhandenen Pachtvertrags-
+Vorschau ergänzt die gespeicherte PDF, statt sie erneut zu generieren.
+
+### Gemeinsamer Vertrag (G14.2)
+
+`KGV.Core.Models.VereinskonfigurationSnapshot` ist jetzt der dokumentbezogene
+Core-Vertrag. Er enthält ausschließlich die dokumentrelevanten Werte:
+
+- Vereinsname und Kurzname, Registerangabe, Anschrift, E-Mail, Telefon, Website
+- Kontoinhaber, Bankname, IBAN, BIC
+- beide Verwendungszwecke und Dokument-Ort
+- Standard-Hinweistext sowie Datenschutztext, -version und -stand
+
+`VereinskonfigurationSnapshotFactory` bildet den Snapshot aus der aktiven
+Konfiguration, kopiert und trimmt die Werte und validiert den jeweils
+erforderlichen Teil für Mitgliedsantrag oder Pachtvertrag. Der alte Typ bleibt
+als obsolete, abwärtskompatible Ableitung erhalten, damit bestehende
+serialisierte Request-Verträge lesbar bleiben. Neue Request-Properties und alle
+Factories verwenden den gemeinsamen Typ.
+
+Die Edge Function verwendet denselben, benannten Transportvertrag in
+camelCase und validiert die G14.1-Pflichtdaten vor der Generierung. Damit gibt
+es dort keine verstreute Felddefinition mehr.
+
+### Zeitpunkt, Vorschau und Persistenz
+
+Für jeden neuen Vorschau- oder Finalisierungsvorgang wird ein Snapshot der dann
+aktiven Konfiguration erzeugt. Eine Vorschau darf daher bis zur Finalisierung
+den aktuellen Stand zeigen. Die Finalisierung verwendet ihren konkreten
+Snapshot und speichert die daraus erzeugte, abgeflachte PDF unveränderlich.
+Eine spätere Konfigurationsänderung kann ein vorhandenes PDF nicht ändern.
+
+Es wurde bewusst keine Snapshot-Tabelle oder Dokumentspalte eingeführt: Der
+historische Vertragsinhalt ist bereits im unveränderlichen finalen PDF
+persistiert; eine zweite Speicherung derselben Daten hätte keinen zusätzlichen
+fachlichen Nutzen. Ein späterer strukturierter Neuaufbau eines historischen
+Dokuments wäre eine separate Anforderung und müsste den Snapshot explizit
+persistieren.
+
+### MAUI, Web und verbleibende Altlasten
+
+MAUI/WPF/.NET nutzen nun denselben Core-Vertrag und dieselben Factories. Das
+Web bleibt beim Edge-Function-Generator, dessen Transport-Snapshot in Bedeutung
+und Pflichtfeldern dem Core-Vertrag entspricht. Die Implementierungen teilen
+nicht denselben Laufzeittyp; eine echte gemeinsame Codebibliothek zwischen .NET
+und Deno besteht nicht. Exportthemen sowie ein möglicher strukturierter
+Reproduktionsworkflow bleiben für spätere G14-Unterpunkte offen.
+
 ## 14.1 Vereinskonfiguration
 
 WPF und MAUI verwenden dieselbe zentrale aktive Vereinskonfiguration.

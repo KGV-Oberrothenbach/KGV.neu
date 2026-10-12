@@ -32,9 +32,11 @@ public sealed class PachtvertragDokumentFactoryTests
             vertragsbeginn: new DateTime(2026, 4, 1),
             altvertragDatum: null,
             gesetzlicherVertreterSnapshot: null,
-            bankverbindungSnapshot: new MitgliedsantragBankverbindungSnapshot
+            bankverbindungSnapshot: new VereinskonfigurationSnapshot
             {
                 VereinName = "KGV Musterverein",
+                VereinRegisterangabe = "VR 123",
+                DokumentOrt = "Musterstadt",
                 Kontoinhaber = "KGV Musterverein",
                 Bankname = "Musterbank",
                 Iban = "DE00123456780000000000",
