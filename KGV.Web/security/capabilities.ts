@@ -39,6 +39,13 @@ export function canManageClubSeasonConfiguration(context: WebCapabilityContext):
   return context?.role === "admin";
 }
 
+// The current permission contract intentionally keeps club and season settings
+// admin-only. This named capability lets feature code express its intent without
+// copying role checks or creating a second permission system.
+export function canManageClubConfiguration(context: WebCapabilityContext): boolean {
+  return canManageClubSeasonConfiguration(context);
+}
+
 export function canConfigureUserMeterReadingSubmissions(context: WebCapabilityContext): boolean {
   return context?.role === "admin" || context?.role === "vorstand";
 }

@@ -7879,15 +7879,30 @@ Enthalten sind:
 - Datenschutz-Stand
 - Aktivstatus
 
-### Web aktuell
-`ClubConfigurationAdministration`
+### Web (G14.1)
 
-bildet diese Felder ab, liegt aber noch in `app/page.tsx` und greift dort
-direkt über `readSupabase` / `writeSupabase` auf `vereinskonfiguration` zu.
+Die Vereinskonfiguration ist aus `app/page.tsx` ausgelagert:
 
-### Bewertung
-✅ Fachfelder und aktiver Datensatz sind umgesetzt. Service-/Repository-
-Kapselung ist noch offen.
+```text
+KGV.Web/
+  features/configuration/ClubConfiguration.tsx
+  models/configuration/club-configuration.ts
+  repositories/configuration/club-configuration-repository.ts
+  services/configuration/club-configuration-service.ts
+```
+
+Die React-Komponente lädt, editiert, zeigt Meldungen und hält den bestehenden
+Edit-Lock. Der Repository-Layer enthält ausschließlich den Supabase-Zugriff;
+der Service normalisiert und validiert fachlich. `page.tsx` bindet nur noch die
+Komponente ein.
+
+Pflicht beim Speichern sind Vereinsname, Registerangabe, Straße, PLZ, Ort,
+Standard-E-Mail, Kontoinhaber, Bankname, IBAN, BIC und Dokument-Ort. Kurzname,
+Telefon, Website, Verwendungszwecke, Hinweistext und Datenschutzfelder bleiben
+optional. Die E-Mail wird formal geprüft; IBAN und BIC werden leerzeichenfrei
+und großgeschrieben gespeichert. Die IBAN-Prüfsumme und das BIC-Format werden
+ohne externe API validiert. `datenschutz_stand` ist optional, aber bei Angabe
+ein valides ISO-Datum.
 
 ---
 
@@ -7906,7 +7921,14 @@ erster Speichervorgang legt sie an
 ```
 
 ### Web
-✅ entsprechend umgesetzt.
+✅ lädt den zuletzt aktualisierten aktiven Datensatz und legt beim ersten
+Speichern einen aktiven Datensatz an.
+
+⚠️ Die geprüften Supabase-Migrationen enthalten keine partielle Unique-Constraint
+oder vergleichbare Datenbankgarantie, die mehrere Datensätze mit `aktiv = true`
+verhindert. Die Auswahl ist daher kompatibel deterministisch (neueste Änderung),
+die Datenintegritätsgarantie bleibt ein offener technischer Punkt. G14.1 legt
+dafür ausdrücklich keine Migration an.
 
 ---
 
@@ -7919,7 +7941,11 @@ nur Admin bearbeitbar
 ```
 
 ### Web
-Der Bereich liegt derzeit im Admin-Verwaltungsblock.
+Der Bereich wird über die zentrale G13-Capability geschützt. G14.1 ergänzt nur
+den sprechenden Alias `canManageClubConfiguration`, der weiterhin die bestehende
+Admin-only-Entscheidung verwendet; es gibt keine neue Rollen- oder
+Permissionlogik. Zusätzlich verweigert die Komponente Laden und Speichern ohne
+Capability, statt allein auf die Navigation zu vertrauen.
 
 ### Bewertung
 ✅ passend.
@@ -7939,16 +7965,19 @@ Datenschutz-Stand
 als optionales Datum.
 
 ### Web
-Verwendet dafür bereits ein HTML-Date-Feld.
+Die Validierung liegt zentral in `club-configuration-service.ts`, nicht nur im
+HTML-Date-Feld.
 
-### Ziel
-Validierung trotzdem zentral:
+### Abgleich MAUI / WPF
+MAUI und WPF sind weiterhin Admin-only und validieren derzeit den optionalen
+Datenschutz-Stand als Datum. Sie normalisieren oder prüfen die nun verbindlichen
+Pflichtfelder, E-Mail, IBAN-Prüfsumme und BIC-Format noch nicht in gleicher
+Weise. Eine gemeinsame Core-Validierung ist ein sinnvoller Folgepunkt, wurde in
+G14.1 aber bewusst nicht als Desktop-Refactoring umgesetzt.
 
-```text
-club-configuration-service.ts
-```
-
-und nicht dauerhaft nur durch Browserfeldtypen.
+Dokument-Snapshots folgen erst in G14.2. Export-Metadaten, Exportausführung,
+CSV, PDF und JAE-XLSX sind ausdrücklich nicht Teil von G14.1 und folgen ab
+G14.3.
 
 ---
 
