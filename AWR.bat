@@ -90,7 +90,8 @@ set "ANDROID_OUT=%VERSION_ROOT%\Android"
 set "ANDROID_UPLOAD_OUT=%ANDROID_OUT%\Upload"
 set "ANDROID_DIAG_OUT=%ANDROID_OUT%\GooglePlay-Diagnose"
 set "WEB_OUT=%VERSION_ROOT%\Web"
-set "WEB_CLIENT_DIST=%WEB_ROOT%\dist\client"
+set "WEB_DIST=%WEB_ROOT%\dist"
+set "WEB_CLIENT_DIST=%WEB_DIST%\client"
 set "WEB_RELEASE_INFO=%WEB_CLIENT_DIST%\release-info.json"
 echo.
 echo Art: %RELEASE_KIND% / Zielversion: %TARGET_VERSION% / Android-Code: %NEW_ANDROID_CODE%
@@ -145,8 +146,13 @@ copy /Y "%APK_FILE%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.apk" >nul || go
 copy /Y "%AAB_FILE%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
 copy /Y "%APK_FILE%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%.apk" >nul || goto BUILD_FAILED
 copy /Y "%AAB_FILE%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
-copy /Y "%WEB_RELEASE_INFO%" "%WEB_OUT%\release-info.json" >nul || goto BUILD_FAILED
-if "%ENABLE_CLOUDFLARE_DEPLOY%"=="1" call :DEPLOY_WEB || goto BUILD_FAILED
+robocopy "%WEB_DIST%" "%WEB_OUT%\dist" /E /NFL /NDL /NJH /NJS /NC /NS >nul
+set "WEB_COPY_RESULT=%ERRORLEVEL%"
+if %WEB_COPY_RESULT% GEQ 8 goto BUILD_FAILED
+if "%ENABLE_CLOUDFLARE_DEPLOY%"=="1" (
+  call :DEPLOY_WEB
+  if errorlevel 1 goto BUILD_FAILED
+)
 
 "%GIT%" -C "%REPO%" add "KGV.Maui/KGV.Maui.csproj"
 "%GIT%" -C "%REPO%" commit -m "%RELEASE_KIND% %TARGET_VERSION% MAUI/Web" || goto BUILD_FAILED
