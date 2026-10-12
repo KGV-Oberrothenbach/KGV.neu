@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const files = [
-  new URL("../../supabase/migrations/20261011120000_rpc_jahresverbrauch_segmente.sql", import.meta.url),
-  new URL("../../supabase/migrations/20261011121000_fix_jahresverbrauch_segmente_ambiguity.sql", import.meta.url),
-];
+const files = [new URL("../../supabase/migrations/20261011120000_rpc_jahresverbrauch_segmente.sql", import.meta.url), new URL("../../supabase/migrations/20261011121000_fix_jahresverbrauch_segmente_ambiguity.sql", import.meta.url)];
 for (const file of files) {
   const source = await readFile(file, "utf8");
   assert.match(source, /rpc_jahresverbrauch_segmente\(p_jahr integer\)|rpc_jahresverbrauch_segmente\(integer\)/);
@@ -19,3 +16,9 @@ for (const file of files) {
 const base = await readFile(files[0], "utf8");
 assert.match(base, /r\.segment_end_ablesung_id as end_ablesung_id/);
 assert.match(base, /r\.segment_endstand as endstand/);
+const repair = await readFile(files[1], "utf8");
+assert.match(repair, /create or replace function public\.rpc_jahresverbrauch_segmente/);
+assert.doesNotMatch(repair, /pg_get_functiondef|replace\(|execute v_definition|do \$\$/i);
+const definition = (source) => source.match(/create or replace function public\.rpc_jahresverbrauch_segmente[\s\S]*?\$\$;/)?.[0];
+assert.ok(definition(base));
+assert.equal(definition(repair), definition(base));
