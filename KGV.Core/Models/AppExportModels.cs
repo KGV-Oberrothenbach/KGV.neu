@@ -112,6 +112,14 @@ namespace KGV.Core.Models
         [JsonProperty("optionen_json")]
         public JToken? OptionenJson { get; set; }
 
+        [Column("parameter_name")]
+        [JsonPropertyName("parameter_name")]
+        public string? ParameterName { get; set; }
+
+        [Column("standardwert_json")]
+        [JsonProperty("standardwert_json")]
+        public JToken? StandardwertJson { get; set; }
+
         [Column("pflicht")]
         [JsonPropertyName("pflicht")]
         public bool Pflicht { get; set; }

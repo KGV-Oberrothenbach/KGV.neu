@@ -8188,6 +8188,56 @@ Die Web-Exportseite lädt Definitionen, Filter und Spalten aus
 `standard_sichtbar` steuert die angezeigten Spalten. Datenzugriff und
 Ergebnisverarbeitung enthalten weiterhin Sonderfälle in `page.tsx`.
 
+### 14.6.1 G14.3 – zentraler Export-Metadatenvertrag
+
+G14.3 zentralisiert die Web-Metadaten in `models/export`,
+`repositories/export/export-definition-repository.ts` und
+`services/export/export-metadata-service.ts`. React lädt Definitionen, Filter
+und Spalten ausschließlich über diesen Service; es parst weder Optionen noch
+interpretiert es RPC-Namen.
+
+`app_export_definition` enthält weiterhin Quelle (`quelle_typ`, `quelle_name`),
+Ausgaberechte und `standard_sortierung`. Die Sortierung gilt immer für genau
+einen Export: Sie beschreibt die fachlich garantierte Standardreihenfolge der
+Quelle. Komplexe Reihenfolgen – insbesondere natürliche Gartennummern – bleiben
+serverseitig in der RPC; das Web sortiert die Ergebnisse nicht allgemein nach
+Name oder Gartennummer um. Name als Standardsortierung ist ausdrücklich ebenso
+zulässig wie natürliche Gartennummer.
+
+`app_export_filter_definition` wurde um zwei optionale Felder ergänzt:
+
+- `parameter_name`: Name des RPC-Parameters; ohne Eintrag gilt kompatibel
+  `filter_key`.
+- `standardwert_json`: expliziter JSON-Startwert. `null` bedeutet kein
+  Startwert, `false`, Zeichenketten und Zahlen bleiben typgetreu erhalten.
+  `$currentSeason` ist das einzige kontrollierte dynamische Symbol und wird zur
+  gewählten Saison aufgelöst; Metadaten führen keinen Code oder SQL aus.
+
+Die Arbeitsstundenfilter sind damit vollständig beschrieben: `jahr` →
+`p_jahr`, `stunden_offen` → `p_stunden_offen`, `stunden_fertig` →
+`p_stunden_fertig`, `wartungsvertraege` → `p_wartungsvertraege` und `ansicht`
+→ `p_ansicht`. Jahresablesung verwendet `p_jahr` direkt; Zähler-Eichfälligkeit
+verwendet `p_medium`. Web benötigt dafür keinen Export-Key-Sonderfall mehr.
+
+`optionen_json` bleibt kompatibel: ein Array (oder dessen JSON-String) liefert
+statische Optionen, ein String `rpc_*` wird durch den Metadaten-Service als
+Options-RPC geladen. Pflicht, Reihenfolge und Beschriftung bleiben Teil der
+Filtermetadaten.
+
+`app_export_column_definition` liefert alle erlaubten Spalten in
+`sortierung`-Reihenfolge. `standard_sichtbar` ist nur die anfängliche Auswahl,
+nicht die Menge der erlaubten Spalten. `ist_sortierspalte` bleibt vollständig
+im Webmodell erhalten und bereitet die spätere Spaltenauswahl vor.
+
+Core kennt die optionalen Felder als `ParameterName` und `StandardwertJson`;
+die bestehenden MAUI-Abfragen bleiben deshalb kompatibel. MAUI nutzt seine
+vorhandene UI noch weiter und übernimmt den neuen Vertrag schrittweise; ein
+MAUI-UI-Umbau ist nicht Teil von G14.3.
+
+Bewusst bis G14.4 verbleiben die konkrete Ausführung sowie die Altadapter für
+`mitgliederliste`, `rfid_status` und die übrige Arbeitsstunden-Ausführung in
+React. CSV, PDF und JAE-XLSX sind ebenfalls nicht Teil von G14.3.
+
 ---
 
 ## 14.7 Exportergebnis
@@ -8316,7 +8366,8 @@ direkt im React-Code fest verdrahtet.
 
 ### Arbeitsstundenübersicht
 
-Filter werden im React-Code manuell auf RPC-Parameter umbenannt:
+G14.3 beschreibt die Parameterzuordnung in den Filtermetadaten statt im
+React-Code:
 
 ```text
 jahr → p_jahr
@@ -8325,10 +8376,10 @@ stunden_offen → p_stunden_offen
 ```
 
 ### Bewertung
-🟡 Metadaten steuern Auswahl, Filter und Spalten, aber Datenquellen-/RPC-
-Sonderwissen bleibt teilweise in React. Mitgliederliste und RFID-Status sind
-explizite Sonderfälle; der Arbeitsstundenexport mappt Filterparameter anhand
-des Exportkeys.
+🟡 Metadaten steuern Auswahl, Filter und Spalten einschließlich RPC-
+Parametername und Standardwert. Datenquellen-/RPC-Sonderwissen bleibt aber
+teilweise in React: Mitgliederliste und RFID-Status sind explizite Sonderfälle;
+die konkrete Arbeitsstunden-Ausführung folgt erst mit G14.4.
 
 ### Ziel
 Die **React-UI** kennt keine konkreten Exportkeys.

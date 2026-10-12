@@ -316,7 +316,10 @@ namespace KGV.Maui.ViewModels
                         val = ts;
                 }
 
-                string paramName = isArbeitsstundenUebersicht
+                var explicitParameterName = (f.ParameterName ?? string.Empty).Trim();
+                string paramName = !string.IsNullOrWhiteSpace(explicitParameterName)
+                    ? explicitParameterName
+                    : isArbeitsstundenUebersicht
                     ? key.ToLowerInvariant() switch
                     {
                         "jahr" => "p_jahr",
