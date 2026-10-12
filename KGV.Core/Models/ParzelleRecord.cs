@@ -36,6 +36,9 @@ namespace KGV.Core.Models
         [Column("aktiv")]
         public bool Aktiv { get; set; }
 
+        [Column("ist_vereinsgarten")]
+        public bool IstVereinsgarten { get; set; }
+
         [Column("is_demo")]
         public bool IsDemo { get; set; }
 

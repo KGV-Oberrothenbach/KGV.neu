@@ -25,6 +25,7 @@ const {
   canArchiveDocuments,
   canManageClubSeasonConfiguration,
   canConfigureUserMeterReadingSubmissions,
+  canExportData,
 } = capabilities;
 
 const admin = createWebCapabilityContext("admin");
@@ -57,8 +58,11 @@ assert.equal(canManageClubSeasonConfiguration(vorstand), false);
 assert.equal(canConfigureUserMeterReadingSubmissions(admin), true);
 assert.equal(canConfigureUserMeterReadingSubmissions(vorstand), true);
 assert.equal(canConfigureUserMeterReadingSubmissions(user), false);
+assert.equal(canExportData(admin), true);
+assert.equal(canExportData(vorstand), true);
+assert.equal(canExportData(user), false);
 
-for (const check of [canReadDocuments, canManageDocuments, canReadRoleManagement, canManageRoleManagement, canPerformYearEndClosing, canArchiveDocuments, canManageClubSeasonConfiguration, canConfigureUserMeterReadingSubmissions]) {
+for (const check of [canReadDocuments, canManageDocuments, canReadRoleManagement, canManageRoleManagement, canPerformYearEndClosing, canArchiveDocuments, canManageClubSeasonConfiguration, canConfigureUserMeterReadingSubmissions, canExportData]) {
   assert.equal(check(null), false, "missing capability context must fail closed");
 }
 

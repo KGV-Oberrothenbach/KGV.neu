@@ -22,3 +22,8 @@ assert.doesNotMatch(repair, /pg_get_functiondef|replace\(|execute v_definition|d
 const definition = (source) => source.match(/create or replace function public\.rpc_jahresverbrauch_segmente[\s\S]*?\$\$;/)?.[0];
 assert.ok(definition(base));
 assert.equal(definition(repair), definition(base));
+const g14 = await readFile(new URL("../../supabase/migrations/20261012233000_g14_jae_segment_contract.sql", import.meta.url), "utf8");
+assert.match(g14, /ist_vereinsgarten boolean not null default false/);
+assert.match(g14, /bezug_typ text, ist_vereinsgarten boolean, umlagefaehig boolean/);
+assert.match(g14, /case when p\.ist_vereinsgarten then 'verein'/);
+assert.match(g14, /true\s*\nfrom public\.rpc_jahresverbrauch_segmente_g12_basis/);

@@ -7851,6 +7851,68 @@ KGV.Web/
 
 # G14 – Vereinskonfiguration & Exporte
 
+## 14.2 Vereinsdaten-Snapshot in Dokumenten
+
+### Ausgangslage und Lifecycle
+
+Der bisherige Core-Typ `MitgliedsantragBankverbindungSnapshot` enthielt bereits
+Vereinsname, Register, E-Mail, Bankdaten, Dokument-Ort, Hinweis- und
+Datenschutztexte. Er wurde beim .NET-Dokumentvorgang aus der aktuell aktiven
+`vereinskonfiguration` gebildet und an Mitgliedsantrag- sowie
+Pachtvertragsfactory übergeben. Sein Name war deshalb fachlich zu eng.
+
+Web und Edge Function hatten parallel dazu keinen benannten Vertrag: Die Edge
+Function lud die aktive Konfiguration und las die einzelnen Spalten direkt aus.
+Das finale Ergebnis wird jedoch in beiden Wegen als abgeflachtes PDF gespeichert.
+Späteres Öffnen lädt diese gespeicherte Datei; sie wird nicht aus aktuellen
+Vereinsdaten neu aufgebaut. Das Signieren einer vorhandenen Pachtvertrags-
+Vorschau ergänzt die gespeicherte PDF, statt sie erneut zu generieren.
+
+### Gemeinsamer Vertrag (G14.2)
+
+`KGV.Core.Models.VereinskonfigurationSnapshot` ist jetzt der dokumentbezogene
+Core-Vertrag. Er enthält ausschließlich die dokumentrelevanten Werte:
+
+- Vereinsname und Kurzname, Registerangabe, Anschrift, E-Mail, Telefon, Website
+- Kontoinhaber, Bankname, IBAN, BIC
+- beide Verwendungszwecke und Dokument-Ort
+- Standard-Hinweistext sowie Datenschutztext, -version und -stand
+
+`VereinskonfigurationSnapshotFactory` bildet den Snapshot aus der aktiven
+Konfiguration, kopiert und trimmt die Werte und validiert den jeweils
+erforderlichen Teil für Mitgliedsantrag oder Pachtvertrag. Der alte Typ bleibt
+als obsolete, abwärtskompatible Ableitung erhalten, damit bestehende
+serialisierte Request-Verträge lesbar bleiben. Neue Request-Properties und alle
+Factories verwenden den gemeinsamen Typ.
+
+Die Edge Function verwendet denselben, benannten Transportvertrag in
+camelCase und validiert die G14.1-Pflichtdaten vor der Generierung. Damit gibt
+es dort keine verstreute Felddefinition mehr.
+
+### Zeitpunkt, Vorschau und Persistenz
+
+Für jeden neuen Vorschau- oder Finalisierungsvorgang wird ein Snapshot der dann
+aktiven Konfiguration erzeugt. Eine Vorschau darf daher bis zur Finalisierung
+den aktuellen Stand zeigen. Die Finalisierung verwendet ihren konkreten
+Snapshot und speichert die daraus erzeugte, abgeflachte PDF unveränderlich.
+Eine spätere Konfigurationsänderung kann ein vorhandenes PDF nicht ändern.
+
+Es wurde bewusst keine Snapshot-Tabelle oder Dokumentspalte eingeführt: Der
+historische Vertragsinhalt ist bereits im unveränderlichen finalen PDF
+persistiert; eine zweite Speicherung derselben Daten hätte keinen zusätzlichen
+fachlichen Nutzen. Ein späterer strukturierter Neuaufbau eines historischen
+Dokuments wäre eine separate Anforderung und müsste den Snapshot explizit
+persistieren.
+
+### MAUI, Web und verbleibende Altlasten
+
+MAUI/WPF/.NET nutzen nun denselben Core-Vertrag und dieselben Factories. Das
+Web bleibt beim Edge-Function-Generator, dessen Transport-Snapshot in Bedeutung
+und Pflichtfeldern dem Core-Vertrag entspricht. Die Implementierungen teilen
+nicht denselben Laufzeittyp; eine echte gemeinsame Codebibliothek zwischen .NET
+und Deno besteht nicht. Exportthemen sowie ein möglicher strukturierter
+Reproduktionsworkflow bleiben für spätere G14-Unterpunkte offen.
+
 ## 14.1 Vereinskonfiguration
 
 WPF und MAUI verwenden dieselbe zentrale aktive Vereinskonfiguration.
@@ -7879,15 +7941,30 @@ Enthalten sind:
 - Datenschutz-Stand
 - Aktivstatus
 
-### Web aktuell
-`ClubConfigurationAdministration`
+### Web (G14.1)
 
-bildet diese Felder ab, liegt aber noch in `app/page.tsx` und greift dort
-direkt über `readSupabase` / `writeSupabase` auf `vereinskonfiguration` zu.
+Die Vereinskonfiguration ist aus `app/page.tsx` ausgelagert:
 
-### Bewertung
-✅ Fachfelder und aktiver Datensatz sind umgesetzt. Service-/Repository-
-Kapselung ist noch offen.
+```text
+KGV.Web/
+  features/configuration/ClubConfiguration.tsx
+  models/configuration/club-configuration.ts
+  repositories/configuration/club-configuration-repository.ts
+  services/configuration/club-configuration-service.ts
+```
+
+Die React-Komponente lädt, editiert, zeigt Meldungen und hält den bestehenden
+Edit-Lock. Der Repository-Layer enthält ausschließlich den Supabase-Zugriff;
+der Service normalisiert und validiert fachlich. `page.tsx` bindet nur noch die
+Komponente ein.
+
+Pflicht beim Speichern sind Vereinsname, Registerangabe, Straße, PLZ, Ort,
+Standard-E-Mail, Kontoinhaber, Bankname, IBAN, BIC und Dokument-Ort. Kurzname,
+Telefon, Website, Verwendungszwecke, Hinweistext und Datenschutzfelder bleiben
+optional. Die E-Mail wird formal geprüft; IBAN und BIC werden leerzeichenfrei
+und großgeschrieben gespeichert. Die IBAN-Prüfsumme und das BIC-Format werden
+ohne externe API validiert. `datenschutz_stand` ist optional, aber bei Angabe
+ein valides ISO-Datum.
 
 ---
 
@@ -7906,7 +7983,14 @@ erster Speichervorgang legt sie an
 ```
 
 ### Web
-✅ entsprechend umgesetzt.
+✅ lädt den zuletzt aktualisierten aktiven Datensatz und legt beim ersten
+Speichern einen aktiven Datensatz an.
+
+⚠️ Die geprüften Supabase-Migrationen enthalten keine partielle Unique-Constraint
+oder vergleichbare Datenbankgarantie, die mehrere Datensätze mit `aktiv = true`
+verhindert. Die Auswahl ist daher kompatibel deterministisch (neueste Änderung),
+die Datenintegritätsgarantie bleibt ein offener technischer Punkt. G14.1 legt
+dafür ausdrücklich keine Migration an.
 
 ---
 
@@ -7919,7 +8003,11 @@ nur Admin bearbeitbar
 ```
 
 ### Web
-Der Bereich liegt derzeit im Admin-Verwaltungsblock.
+Der Bereich wird über die zentrale G13-Capability geschützt. G14.1 ergänzt nur
+den sprechenden Alias `canManageClubConfiguration`, der weiterhin die bestehende
+Admin-only-Entscheidung verwendet; es gibt keine neue Rollen- oder
+Permissionlogik. Zusätzlich verweigert die Komponente Laden und Speichern ohne
+Capability, statt allein auf die Navigation zu vertrauen.
 
 ### Bewertung
 ✅ passend.
@@ -7939,16 +8027,19 @@ Datenschutz-Stand
 als optionales Datum.
 
 ### Web
-Verwendet dafür bereits ein HTML-Date-Feld.
+Die Validierung liegt zentral in `club-configuration-service.ts`, nicht nur im
+HTML-Date-Feld.
 
-### Ziel
-Validierung trotzdem zentral:
+### Abgleich MAUI / WPF
+MAUI und WPF sind weiterhin Admin-only und validieren derzeit den optionalen
+Datenschutz-Stand als Datum. Sie normalisieren oder prüfen die nun verbindlichen
+Pflichtfelder, E-Mail, IBAN-Prüfsumme und BIC-Format noch nicht in gleicher
+Weise. Eine gemeinsame Core-Validierung ist ein sinnvoller Folgepunkt, wurde in
+G14.1 aber bewusst nicht als Desktop-Refactoring umgesetzt.
 
-```text
-club-configuration-service.ts
-```
-
-und nicht dauerhaft nur durch Browserfeldtypen.
+Dokument-Snapshots folgen erst in G14.2. Export-Metadaten, Exportausführung,
+CSV, PDF und JAE-XLSX sind ausdrücklich nicht Teil von G14.1 und folgen ab
+G14.3.
 
 ---
 
@@ -8097,6 +8188,84 @@ Die Web-Exportseite lädt Definitionen, Filter und Spalten aus
 `standard_sichtbar` steuert die angezeigten Spalten. Datenzugriff und
 Ergebnisverarbeitung enthalten weiterhin Sonderfälle in `page.tsx`.
 
+### 14.6.1 G14.3 – zentraler Export-Metadatenvertrag
+
+G14.3 zentralisiert die Web-Metadaten in `models/export`,
+`repositories/export/export-definition-repository.ts` und
+`services/export/export-metadata-service.ts`. React lädt Definitionen, Filter
+und Spalten ausschließlich über diesen Service; es parst weder Optionen noch
+interpretiert es RPC-Namen.
+
+`app_export_definition` enthält weiterhin Quelle (`quelle_typ`, `quelle_name`),
+Ausgaberechte und `standard_sortierung`. Die Sortierung gilt immer für genau
+einen Export: Sie beschreibt die fachlich garantierte Standardreihenfolge der
+Quelle. Komplexe Reihenfolgen – insbesondere natürliche Gartennummern – bleiben
+serverseitig in der RPC; das Web sortiert die Ergebnisse nicht allgemein nach
+Name oder Gartennummer um. Name als Standardsortierung ist ausdrücklich ebenso
+zulässig wie natürliche Gartennummer.
+
+`app_export_filter_definition` wurde um zwei optionale Felder ergänzt:
+
+- `parameter_name`: Name des RPC-Parameters; ohne Eintrag gilt kompatibel
+  `filter_key`.
+- `standardwert_json`: expliziter JSON-Startwert. `null` bedeutet kein
+  Startwert, `false`, Zeichenketten und Zahlen bleiben typgetreu erhalten.
+  `$currentSeason` ist das einzige kontrollierte dynamische Symbol und wird zur
+  gewählten Saison aufgelöst; Metadaten führen keinen Code oder SQL aus.
+
+Die Arbeitsstundenfilter sind damit vollständig beschrieben: `jahr` →
+`p_jahr`, `stunden_offen` → `p_stunden_offen`, `stunden_fertig` →
+`p_stunden_fertig`, `wartungsvertraege` → `p_wartungsvertraege` und `ansicht`
+→ `p_ansicht`. Jahresablesung verwendet `p_jahr` direkt; Zähler-Eichfälligkeit
+verwendet `p_medium`. Web benötigt dafür keinen Export-Key-Sonderfall mehr.
+
+`optionen_json` bleibt kompatibel: ein Array (oder dessen JSON-String) liefert
+statische Optionen, ein String `rpc_*` wird durch den Metadaten-Service als
+Options-RPC geladen. Pflicht, Reihenfolge und Beschriftung bleiben Teil der
+Filtermetadaten.
+
+`app_export_column_definition` liefert alle erlaubten Spalten in
+`sortierung`-Reihenfolge. `standard_sichtbar` ist nur die anfängliche Auswahl,
+nicht die Menge der erlaubten Spalten. `ist_sortierspalte` bleibt vollständig
+im Webmodell erhalten und bereitet die spätere Spaltenauswahl vor.
+
+Core kennt die optionalen Felder als `ParameterName` und `StandardwertJson`;
+die bestehenden MAUI-Abfragen bleiben deshalb kompatibel. MAUI nutzt seine
+vorhandene UI noch weiter und übernimmt den neuen Vertrag schrittweise; ein
+MAUI-UI-Umbau ist nicht Teil von G14.3.
+
+Bewusst bis G14.4 verbleiben die konkrete Ausführung sowie die Altadapter für
+`mitgliederliste`, `rfid_status` und die übrige Arbeitsstunden-Ausführung in
+React. CSV, PDF und JAE-XLSX sind ebenfalls nicht Teil von G14.3.
+
+### 14.6.2 G14.4 – zentrale Ausführung und Zugriffsschutz
+
+`ExportCenter` liegt nun in `features/export/ExportCenter.tsx`. Es lädt
+Metadaten und ruft ausschließlich `executeExport(...)` auf; es kennt weder
+Export-Keys noch Quellen, RPC-Namen, Views oder Datenzusammenführungen.
+`ExportResult` liefert Definition, verwendete Spalten, alle Ergebniszeilen,
+Datensatzanzahl, Filter und `standard_sortierung`. Die UI begrenzt nur die
+Vorschau auf 500 Zeilen; das Ergebnis selbst bleibt vollständig.
+
+`export-service.ts` prüft Pflichtfilter, wandelt Werte über das neue optionale
+Filterfeld `wert_typ` (`boolean`, `integer`, `number`, `string`) und entscheidet
+anhand von `quelle_typ` zwischen RPC und Table/View. Das technische Repository
+führt die bereits aufbereiteten Quellen über die geschützten DB-Gateways aus.
+
+Die Mitgliederliste kommt aus `rpc_export_mitgliederliste`: Die RPC liefert
+Mitgliedsdaten, aktuelle Gartenzuordnungen und die bisherigen Aliasfelder
+serverseitig. RFID-Status bleibt fachlich eine View-Quelle, verwendet aber die
+separate, nicht direkt freigegebene Exportview `v_export_rfid_status`.
+
+`rpc_execute_export` und `rpc_execute_table_or_view_export` sind die gemeinsame
+serverseitige Ausführungsgrenze. Beide verwenden `assert_export_access()`, das
+über den G13-App-Kontext ausschließlich `admin` und `vorstand` zulässt.
+Direkte Ausführung der vier sensiblen vorhandenen Export-RPCs sowie der neuen
+Mitgliederlisten-RPC wurde für `authenticated` entzogen. Die operative
+RFID-Scanview bleibt davon unberührt. Die fachliche Reihenfolge kommt weiter
+von den Quellen; insbesondere wird die natürliche Gartennummernreihenfolge
+der Eichfälligkeits-RPC nicht clientseitig überschrieben.
+
 ---
 
 ## 14.7 Exportergebnis
@@ -8187,9 +8356,10 @@ Keine komplizierte PDF-Logik direkt in React.
 
 ---
 
-## 14.10 Kritischer Punkt – Web ist nicht vollständig metadata-driven
+## 14.10 G14.4 – keine React-Sonderfälle in der Exportausführung
 
-Obwohl Web `app_export_*` verwendet, besitzt die Exportausführung noch mehrere Sonderfälle.
+Die Exportausführung ist in G14.4 aus React entfernt. `ExportCenter` enthält
+keine konkrete Export-Key-Prüfung und keine Datenzusammenführung mehr.
 
 ### Mitgliederliste
 
@@ -8199,13 +8369,8 @@ Bei:
 export_key = mitgliederliste
 ```
 
-Das `ExportCenter` in `page.tsx` lädt selbst:
-
-- Mitglieder
-- Parzellen
-- Belegungen
-
-und baut das Exportergebnis manuell zusammen.
+`rpc_export_mitgliederliste` liefert die benötigten Mitglieds-, Parzellen- und
+Belegungsdaten als fertige Exportzeilen.
 
 ### RFID-Status
 
@@ -8215,17 +8380,19 @@ Bei:
 export_key = rfid_status
 ```
 
-ist:
+war bisher:
 
 ```text
 v_rfid_scan_context
 ```
 
-direkt im React-Code fest verdrahtet.
+direkt im React-Code fest verdrahtet. Der Export verwendet nun die
+Metadatenquelle `v_export_rfid_status` über den zentralen Table/View-Gateway.
 
 ### Arbeitsstundenübersicht
 
-Filter werden im React-Code manuell auf RPC-Parameter umbenannt:
+G14.3 beschreibt die Parameterzuordnung in den Filtermetadaten statt im
+React-Code:
 
 ```text
 jahr → p_jahr
@@ -8234,12 +8401,12 @@ stunden_offen → p_stunden_offen
 ```
 
 ### Bewertung
-🟡 Metadaten steuern Auswahl, Filter und Spalten, aber Datenquellen-/RPC-
-Sonderwissen bleibt teilweise in React. Mitgliederliste und RFID-Status sind
-explizite Sonderfälle; der Arbeitsstundenexport mappt Filterparameter anhand
-des Exportkeys.
+🟡 Metadaten steuern Auswahl, Filter und Spalten einschließlich RPC-
+Parametername und Standardwert. Datenquellen-/RPC-Sonderwissen bleibt aber
+teilweise in React: Mitgliederliste und RFID-Status sind explizite Sonderfälle;
+die konkrete Arbeitsstunden-Ausführung folgt erst mit G14.4.
 
-### Ziel
+### Ziel erreicht
 Die **React-UI** kennt keine konkreten Exportkeys.
 
 ```ts
@@ -9220,3 +9387,18 @@ Korrekturmigration behoben. Unabhängig davon korrigiert
 der Arbeitsstunden-UPDATE-Triggerfunktion. Der lokale Verlauf enthält damit
 Forward-Korrekturen; Remote-Migrationsstand und Dry-Run sind beim nächsten
 Merge-Gate erneut gegen Supabase zu prüfen.
+## G14.5 – allgemeine Exportausgabe
+
+Die Web-Ausgabe verarbeitet ausschließlich `ExportResult` zusammen mit der gewählten, nach `sortierung` geordneten Spaltenmenge. `standard_sichtbar` ist nur der Startzustand; Benutzer können alle Metadatenspalten auswählen, alle aktivieren oder den Standard wiederherstellen. Die Desktop-Tabelle beschränkt nur die Vorschau auf 500 Zeilen. CSV und PDF erhalten immer alle Zeilen.
+
+CSV wird im Dienst `export-csv-service.ts` mit UTF-8-BOM, Semikolon und CRLF erzeugt; Werte verwenden die gemeinsame Anzeigeformatierung (Boolean `Ja`/`Nein`, null leer). Die Dateinamenregel lautet `YYYY-MM-DD_<bereinigter Exporttitel>.<endung>`.
+
+`window.print()` ist aus dem Exportfluss entfernt. Die PDF-Ausgabe nutzt die verbindliche generische Dokumentdefinition `ExportPdfDocumentDefinition`/`exportPdfDocumentDefinition`: A4 quer, 28pt Ränder, Arial (Verein 12, Meta 8, Titel 14, Tabelle 8) und grüner Vereinsakzent. MAUI verwendet weiterhin den Core-PDF-Generator; Web verwendet dieselbe Layoutdefinition und lädt den aktiven Vereinsdatensatz für den Briefkopf. Die mobile Web-Darstellung zeigt denselben Result-Satz als blätterbare Datensatzkarte.
+
+G14.6 bleibt ausschließlich für JAE-XLSX reserviert.
+
+## G14.6 – JAE-XLSX
+
+Die unveränderte Referenz `Diff. Wasser-Strom-Ablesung 10.2026.xlsx` liegt als Repository-Vorlage unter `KGV.Web/public/templates/exports/JAE_Vorlage.xlsx`. ExcelJS lädt sie für jede Ausgabe; `Tabelle1` bleibt dadurch template-basiert. Es werden ausschließlich Titel- und Datenzellen ab Zeile 5 überschrieben, ohne die Legacy-Struktur zu erweitern.
+
+Die Datenquelle ist ausschließlich `rpc_jahresverbrauch_segmente(p_jahr)`. G12 liefert die strukturierten Felder `bezug_typ`, `ist_vereinsgarten` und `umlagefaehig`; `berechenbar` bedeutet ausschließlich, dass ein Verbrauch technisch bestimmt werden kann. `umlagefaehig` bedeutet die fachliche Zugehörigkeit zur JAE und ist für Pächter, Leerstand und Verein serverseitig gesetzt. Die Wasser- und Stromsummen filtern auf `umlagefaehig && berechenbar && verbrauch != null`. `JAE erweitert` bildet jedes Segment ohne Textheuristik ab. Der Contract-Test prüft Spaltenbreiten, Zeilenhöhe, Formatierung, Ausrichtung und Seiteneinstellung der Vorlage. Die Funktion ist im bestehenden, bereits für Vorstand/Admin geschützten Exportbereich verfügbar; MAUI hat noch keinen XLSX-Aufrufpfad.

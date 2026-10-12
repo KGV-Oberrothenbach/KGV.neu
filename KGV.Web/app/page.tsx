@@ -9,7 +9,6 @@ import {
   inviteAppUser,
   readSupabase,
   sendPasswordReset,
-  writeSupabase,
 } from "../lib/supabase-auth";
 import { type ClubContext } from "../models/auth/club";
 import { memberDocumentOwner } from "../models/documents/document";
@@ -67,7 +66,9 @@ import { AssignMembersToContract } from "../features/maintenance/assignments/Ass
 import { MemberMaintenanceContracts } from "../features/maintenance/MemberMaintenanceContracts";
 import { maintenanceAccess } from "../services/maintenance/maintenance-access-service";
 import { getEffectivePermissions, getRolePermissions, hasPermission, Permission, PermissionAreas, preserveUncontrolledPermissions } from "../security/permissions";
-import { canArchiveDocuments, canManageClubSeasonConfiguration, canManageDocuments, canPerformYearEndClosing, canReadDocuments, createWebCapabilityContext } from "../security/capabilities";
+import { canArchiveDocuments, canExportData, canManageClubConfiguration, canManageClubSeasonConfiguration, canManageDocuments, canPerformYearEndClosing, canReadDocuments, createWebCapabilityContext } from "../security/capabilities";
+import { ClubConfiguration } from "../features/configuration/ClubConfiguration";
+import { ExportCenter } from "../features/export/ExportCenter";
 
 export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
@@ -107,15 +108,10 @@ type Parcel = { id: number; garten_nr: string; Anlage: string; flaeche_qm: numbe
 type ParcelAssignment = { id: number; parzelle_id: number; mitglied_id: number; von_datum: string | null; bis_datum: string | null };
 type Reading = { id: number; zaehler_id: number; stand: number; ablesedatum: string; art: string; freigegeben: boolean; pruefstatus: string; pruefkommentar: string | null; geprueft_von: number | null; geprueft_am: string | null; foto_pfad?: string | null; foto_drive_file_id?: string | null; foto_dateiname?: string | null };
 type AppUserAdmin = { user_id: string; mitglied_id: number | null; role: "admin" | "vorstand" | "user"; permission_grants: number; permission_revocations: number; is_protected: boolean; updated_at: string | null };
-type ClubConfigurationRecord = { id: number; vereinsname: string | null; kurzname: string | null; registerangabe: string | null; strasse: string | null; plz: string | null; ort: string | null; standard_email: string | null; standard_telefon: string | null; website: string | null; kontoinhaber: string | null; bankname: string | null; iban: string | null; bic: string | null; verwendungszweck_mitgliedsantrag: string | null; verwendungszweck_pachtvertrag: string | null; dokument_ort: string | null; standard_hinweistext: string | null; datenschutz_text: string | null; datenschutz_version: string | null; datenschutz_stand: string | null; aktiv: boolean };
-type ExportDefinition = { export_key: string; titel: string | null; beschreibung: string | null; quelle_typ: string | null; quelle_name: string | null; erlaubt_csv: boolean; erlaubt_pdf: boolean };
-type ExportFilterDefinition = { export_key: string; filter_key: string; label: string | null; typ: string | null; optionen_json: unknown; pflicht: boolean; sortierung: number };
-type ExportColumnDefinition = { export_key: string; column_key: string; label_kurz: string | null; label_lang: string | null; sortierung: number; standard_sichtbar: boolean };
 
 function Workspace(props: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; onLogout: () => void; onChangeClub: () => Promise<void> }) {
   return <WorkspaceContextProvider><WorkspaceContent {...props} /></WorkspaceContextProvider>;
 }
-
 function WorkspaceContent({ session, email, club, context, onLogout, onChangeClub }: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; onLogout: () => void; onChangeClub: () => Promise<void> }) {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [activeId, setActiveId] = useState("start");
@@ -200,10 +196,10 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
     canAccessParcels: has(Permission.searchMembers) && has(Permission.readParzellen),
     canManageMaintenance: has(Permission.editAllMembers),
     canApproveWorkHours: has(Permission.manageWorkHours),
-    canExport: has(Permission.searchMembers),
+    canExport: canExportData(capabilityContext),
     canManageSeasonConfiguration: canManageClubSeasonConfiguration(capabilityContext),
     canPerformYearEndClosing: canPerformYearEndClosing(capabilityContext),
-    canManageClubConfiguration: canManageClubSeasonConfiguration(capabilityContext),
+    canManageClubConfiguration: canManageClubConfiguration(capabilityContext),
     canSearchMembers: has(Permission.searchMembers),
   });
   const allNavigationItems = navigationGroups.flatMap((group) => [...(group.target ? [group.target] : []), ...group.items]);
@@ -238,10 +234,10 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           {effectiveActiveId === "termine" && <AppointmentManagement session={session} canEdit={has(Permission.manageAppointments)} onBack={() => setActiveId("start")} />}
           {effectiveActiveId === "bekanntmachungen" && <AnnouncementManagement session={session} canEdit={has(Permission.manageAnnouncements)} onBack={() => setActiveId("start")} />}
           {effectiveActiveId === "impressum" && <ImprintPage session={session} />}
-          {effectiveActiveId === "export" && <ExportCenter session={session} season={season} canExport={has(Permission.searchMembers)} />}
+          {effectiveActiveId === "export" && <ExportCenter session={session} season={season} canExport={canExportData(capabilityContext)} />}
           {effectiveActiveId === "benutzer" && <UserRightsAdministration session={session} />}
           {effectiveActiveId === "saisons" && <SeasonManagement session={session} onSeasonSaved={(saved) => { setSeasons((current) => [...current.filter((item) => item.id !== saved.id), saved].sort((a, b) => b.jahr - a.jahr)); selectWorkspaceSeason(saved); }} />}
-          {effectiveActiveId === "verein" && <ClubConfigurationAdministration session={session} />}
+          {effectiveActiveId === "verein" && <ClubConfiguration session={session} canManage={canManageClubConfiguration(capabilityContext)} />}
           {effectiveActiveId === "mitglied-arbeitsstunden" && selectedMemberId && <MemberWorkHours session={session} memberId={selectedMemberId} saisonId={workspaceContext.saisonId} canEditOwn={selectedMemberId === context.mitgliedId} canManageWorkHours={has(Permission.manageWorkHours)} />}
           {effectiveActiveId === "mitglied-wartung" && selectedMemberId && <MaintenanceContracts session={session} memberId={selectedMemberId} canManage={has(Permission.editAllMembers)} />}
           {effectiveActiveId === "mitglied-dokumente" && selectedMemberId && <DocumentList session={session} owner={memberDocumentOwner(selectedMemberId)} accessContext={documentAccessContext} beforeList={(reload) => has(Permission.manageDocuments) ? <ContractComposer session={session} memberId={selectedMemberId} onSaved={reload} leaseContractIntent={leaseContractIntent} /> : null} />}
@@ -592,65 +588,4 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
   }
   const visibleMembers = fixedMemberId ? members.filter((item) => item.id === fixedMemberId) : members.filter((item) => `${item.name ?? ""} ${item.vorname ?? ""} ${item.email ?? ""} ${item.id}`.toLowerCase().includes(query.toLowerCase()));
   return <section className="data-workspace admin-workspace" aria-label="Benutzer und Rechte">{message && <p className="notice" role="status">{message}</p>}<div className={fixedMemberId ? "" : "split-view"}>{!fixedMemberId && <div><div className="data-toolbar"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Mitglied suchen" /><span>{users.length} verknüpfte Benutzer</span></div><div className="data-table-wrap"><table><thead><tr><th>Mitglied</th><th>Konto</th><th>Rolle</th></tr></thead><tbody>{visibleMembers.map((member) => { const user = users.find((item) => item.mitglied_id === member.id); return <tr key={member.id} className={selectedMemberId === member.id ? "selected-row" : ""} onClick={() => setSelectedMemberId(member.id)}><td><strong>{member.name}, {member.vorname}</strong><small>#{member.id} · {member.email || "keine E-Mail"}</small></td><td>{user ? "verknüpft" : "offen"}</td><td>{user?.role ?? "–"}</td></tr>; })}</tbody></table></div></div>}<aside className="detail-panel rights-editor">{selectedMember ? <><div className="detail-title"><div><h2>{selectedMember.name}, {selectedMember.vorname}</h2><p>{selectedUser ? `App-Benutzer ${selectedUser.user_id.slice(0, 8)}…` : "Noch kein App-Benutzer verknüpft"}</p></div></div><div className="account-actions">{!selectedUser && <button disabled={saving || !selectedMember.email} onClick={invite}>Nutzer hinzufügen</button>}{selectedUser && <button className="secondary-action" disabled={saving || !selectedMember.email} onClick={resetPassword}>Passwort-Reset senden</button>}{selectedUser && fixedMemberId && <button className="danger-action" disabled={saving} onClick={removeUser}>Nutzer entfernen</button>}</div>{!selectedUser && <p className="context-note">Mit „Nutzer hinzufügen“ wird der bestehende OTP-/Erstlogin-Ablauf gestartet. Rollen und Fachrechte werden nach erfolgreicher Verknüpfung speicherbar.</p>}<label>Rollenbasis<select value={role} disabled={!selectedUser || saving} onChange={(event) => changeRole(event.target.value as AppUserAdmin["role"])}><option value="user">Mitglied</option><option value="vorstand">Vorstand</option><option value="admin">Administrator</option></select></label><h3>Fachrechte</h3><div className="permission-grid">{PermissionAreas.map((area) => <label key={area.key}><span>{area.label}<small>Rollenstandard: {permissionLevel(getRolePermissions(role), area) === "write" ? "Bearbeiten" : permissionLevel(getRolePermissions(role), area) === "read" ? "Lesen" : "Aus"}</small></span><select value={levels[area.key] ?? "none"} disabled={!selectedUser || saving} onChange={(event) => setLevels({ ...levels, [area.key]: event.target.value as PermissionLevel })}><option value="none">Aus</option><option value="read">Lesen</option><option value="write">Bearbeiten</option></select></label>)}</div><div className="editor-actions"><button disabled={!selectedUser || saving} onClick={save}>{saving ? "Speichert …" : "Rolle und Rechte speichern"}</button><button className="secondary-action" disabled={!selectedUser || saving} onClick={() => changeRole(role)}>Auf Rollenstandard setzen</button></div></> : <><h2>Benutzer auswählen</h2><p>Wähle links ein Mitglied aus.</p></>}</aside></div></section>;
-}
-
-const emptyClubConfiguration: ClubConfigurationRecord = { id: 0, vereinsname: "", kurzname: "", registerangabe: "", strasse: "", plz: "", ort: "", standard_email: "", standard_telefon: "", website: "", kontoinhaber: "", bankname: "", iban: "", bic: "", verwendungszweck_mitgliedsantrag: "", verwendungszweck_pachtvertrag: "", dokument_ort: "", standard_hinweistext: "", datenschutz_text: "", datenschutz_version: "", datenschutz_stand: null, aktiv: true };
-function ClubConfigurationAdministration({ session }: { session: BrowserSession }) {
-  const [draft, setDraft] = useState<ClubConfigurationRecord>(emptyClubConfiguration); const [exists, setExists] = useState(false); const [message, setMessage] = useState(""); const [saving, setSaving] = useState(false);
-  const editLock = useEditLock(session, "vereinskonfiguration", draft.id, Boolean(exists && draft.id));
-  async function load() { try { const rows = await readSupabase<ClubConfigurationRecord>(session, "vereinskonfiguration", { select: "id,vereinsname,kurzname,registerangabe,strasse,plz,ort,standard_email,standard_telefon,website,kontoinhaber,bankname,iban,bic,verwendungszweck_mitgliedsantrag,verwendungszweck_pachtvertrag,dokument_ort,standard_hinweistext,datenschutz_text,datenschutz_version,datenschutz_stand,aktiv", aktiv: "eq.true", order: "updated_at.desc", limit: "1" }); setDraft(rows[0] ?? emptyClubConfiguration); setExists(Boolean(rows[0])); if (!rows[0]) setMessage("Noch keine aktive Vereinskonfiguration vorhanden. Sie wird beim ersten Speichern angelegt."); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Vereinskonfiguration konnte nicht geladen werden."); } }
-  useEffect(() => { void load(); }, [session]);
-  function update(key: keyof ClubConfigurationRecord, value: string | boolean) { setDraft({ ...draft, [key]: value }); }
-  useEffect(() => { if (exists && editLock.message) queueMicrotask(() => setMessage(editLock.message)); }, [exists, editLock.message]);
-  async function save() { if (exists && !editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; } const payload = { ...draft, aktiv: true, datenschutz_stand: draft.datenschutz_stand || null }; if (!exists) delete (payload as Partial<ClubConfigurationRecord>).id; setSaving(true); setMessage(""); try { const rows = exists ? await writeSupabase<ClubConfigurationRecord>(session, "vereinskonfiguration", "PATCH", payload, { id: `eq.${draft.id}` }) : await writeSupabase<ClubConfigurationRecord>(session, "vereinskonfiguration", "POST", payload); setDraft(rows[0] ?? draft); setExists(true); setMessage("Vereinskonfiguration wurde gespeichert."); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Vereinskonfiguration konnte nicht gespeichert werden."); } finally { setSaving(false); } }
-  const fields: Array<[keyof ClubConfigurationRecord, string, string?]> = [["vereinsname", "Vereinsname"], ["kurzname", "Kurzname"], ["registerangabe", "Registerangabe"], ["strasse", "Straße"], ["plz", "PLZ"], ["ort", "Ort"], ["standard_email", "Standard-E-Mail", "email"], ["standard_telefon", "Standard-Telefon"], ["website", "Website", "url"], ["kontoinhaber", "Kontoinhaber"], ["bankname", "Bankname"], ["iban", "IBAN"], ["bic", "BIC"], ["verwendungszweck_mitgliedsantrag", "Verwendungszweck Mitgliedsantrag"], ["verwendungszweck_pachtvertrag", "Verwendungszweck Pachtvertrag"], ["dokument_ort", "Dokumentort"], ["datenschutz_version", "Datenschutz-Version"], ["datenschutz_stand", "Datenschutz-Stand", "date"]];
-  return <section className="data-workspace club-configuration"><p className="document-intro">Diese Angaben werden zentral für Verträge, Anschreiben und Dokumentmetadaten verwendet.</p>{message && <p className="notice" role="status">{message}</p>}<fieldset disabled={saving} className="admin-form-grid">{fields.map(([key, label, type]) => <label key={key}>{label}<input type={type ?? "text"} value={String(draft[key] ?? "")} onChange={(event) => update(key, event.target.value)} /></label>)}<label className="wide">Standard-Hinweistext<textarea value={draft.standard_hinweistext ?? ""} onChange={(event) => update("standard_hinweistext", event.target.value)} /></label><label className="wide">Datenschutztext<textarea value={draft.datenschutz_text ?? ""} onChange={(event) => update("datenschutz_text", event.target.value)} /></label></fieldset><div className="editor-actions"><button disabled={saving} onClick={save}>{saving ? "Speichert …" : "Vereinskonfiguration speichern"}</button></div></section>;
-}
-
-function parseExportOptions(value: unknown): Array<{ label: string; value: string }> {
-  if (Array.isArray(value)) return value.map((item) => typeof item === "object" && item !== null ? { label: String((item as { label?: unknown }).label ?? (item as { value?: unknown }).value ?? ""), value: String((item as { value?: unknown }).value ?? (item as { label?: unknown }).label ?? "") } : { label: String(item), value: String(item) });
-  if (typeof value === "string" && value.trim().startsWith("[")) { try { return parseExportOptions(JSON.parse(value)); } catch { return []; } }
-  return [];
-}
-function downloadCsv(fileName: string, columns: ExportColumnDefinition[], rows: Array<Record<string, unknown>>) { const escape = (value: unknown) => { const text = value == null ? "" : typeof value === "boolean" ? value ? "Ja" : "Nein" : String(value); return /[;"\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text; }; const content = [columns.map((column) => escape(column.label_lang ?? column.label_kurz ?? column.column_key)).join(";"), ...rows.map((row) => columns.map((column) => escape(row[column.column_key])).join(";"))].join("\r\n"); const url = URL.createObjectURL(new Blob(["\ufeff", content], { type: "text/csv;charset=utf-8" })); const link = document.createElement("a"); link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url); }
-
-function ExportCenter({ session, season, canExport }: { session: BrowserSession; season: number; canExport: boolean }) {
-  const [definitions, setDefinitions] = useState<ExportDefinition[]>([]); const [selectedKey, setSelectedKey] = useState(""); const [filters, setFilters] = useState<ExportFilterDefinition[]>([]); const [columns, setColumns] = useState<ExportColumnDefinition[]>([]); const [values, setValues] = useState<Record<string, string | boolean>>({}); const [options, setOptions] = useState<Record<string, Array<{ label: string; value: string }>>>({}); const [rows, setRows] = useState<Array<Record<string, unknown>>>([]); const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false);
-  useEffect(() => { if (!canExport) return; readSupabase<ExportDefinition>(session, "app_export_definition", { select: "export_key,titel,beschreibung,quelle_typ,quelle_name,erlaubt_csv,erlaubt_pdf", aktiv: "eq.true", order: "titel.asc" }).then((items) => { setDefinitions(items); setSelectedKey((current) => current || items[0]?.export_key || ""); }).catch((cause: Error) => setMessage(cause.message)); }, [session, canExport]);
-  useEffect(() => { if (!selectedKey) return; setRows([]); setMessage(""); Promise.all([readSupabase<ExportFilterDefinition>(session, "app_export_filter_definition", { select: "export_key,filter_key,label,typ,optionen_json,pflicht,sortierung", export_key: `eq.${selectedKey}`, order: "sortierung.asc" }), readSupabase<ExportColumnDefinition>(session, "app_export_column_definition", { select: "export_key,column_key,label_kurz,label_lang,sortierung,standard_sichtbar", export_key: `eq.${selectedKey}`, order: "sortierung.asc" })]).then(async ([nextFilters, nextColumns]) => { setFilters(nextFilters); setColumns(nextColumns); const defaults: Record<string, string | boolean> = {}; const nextOptions: Record<string, Array<{ label: string; value: string }>> = {}; for (const filter of nextFilters) { if (filter.typ === "boolean") defaults[filter.filter_key] = false; else if (filter.filter_key.includes("jahr")) defaults[filter.filter_key] = String(season); else defaults[filter.filter_key] = filter.filter_key === "ansicht" ? "zusammenfassung" : ""; const inline = parseExportOptions(filter.optionen_json); if (inline.length) nextOptions[filter.filter_key] = inline; else if (typeof filter.optionen_json === "string" && filter.optionen_json.startsWith("rpc_")) { try { const result = await callSupabaseRpc<Array<{ label: string; value: string }>>(session, filter.optionen_json, {}); nextOptions[filter.filter_key] = result; } catch { nextOptions[filter.filter_key] = []; } } } setValues(defaults); setOptions(nextOptions); }).catch((cause: Error) => setMessage(cause.message)); }, [season, session, selectedKey]);
-  const selected = definitions.find((item) => item.export_key === selectedKey) ?? null;
-  const preferredColumns = columns.filter((column) => column.standard_sichtbar);
-  const visibleColumns = preferredColumns.length ? preferredColumns : columns;
-  function rpcPayload() { const payload: Record<string, unknown> = {}; for (const filter of filters) { const raw = values[filter.filter_key]; let key = filter.filter_key; if (selectedKey === "arbeitsstunden_uebersicht") key = ({ jahr: "p_jahr", stunden_offen: "p_stunden_offen", stunden_fertig: "p_stunden_fertig", wartungsvertraege: "p_wartungsvertraege", ansicht: "p_ansicht" } as Record<string, string>)[key] ?? key; const normalized = typeof raw === "string" && raw === "" ? null : key === "p_jahr" || key === "p_jahr" ? Number(raw) : raw; payload[key] = normalized; } return payload; }
-  async function run() {
-    if (!selected) return;
-    setBusy(true); setMessage("");
-    try {
-      let result: Array<Record<string, unknown>>;
-      if (selected.export_key === "mitgliederliste") {
-        const [memberRows, parcelRows, assignmentRows] = await Promise.all([
-          readSupabase<Record<string, unknown>>(session, "mitglied", { select: "*", order: "name.asc", limit: "5000" }),
-          readSupabase<Parcel>(session, "parzelle", { select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,aktiv", limit: "5000" }),
-          readSupabase<ParcelAssignment>(session, "parzellen_belegung", { select: "id,parzelle_id,mitglied_id,von_datum,bis_datum", limit: "5000" }),
-        ]);
-        const today = new Date().toISOString().slice(0, 10);
-        result = memberRows.map((member) => {
-          const memberId = Number(member.id);
-          const parcelIds = assignmentRows.filter((item) => item.mitglied_id === memberId && (!item.bis_datum || item.bis_datum >= today)).map((item) => item.parzelle_id);
-          const gardens = parcelRows.filter((item) => parcelIds.includes(item.id)).map((item) => item.garten_nr).join(", ");
-          return { ...member, mitgliedsnr: member.mitgliedsnummer ?? member.id, strasse_hsnr: member.adresse ?? "", gaerten: gardens, gartennummern: gardens, pachtgaerten: gardens, re: member.email_rechnung_einwilligung, info: member.email_info_einwilligung, wa: member.whatsapp_einwilligung };
-        });
-      } else if (selected.export_key === "rfid_status") {
-        result = await readSupabase<Record<string, unknown>>(session, "v_rfid_scan_context", { select: "*", limit: "5000" });
-      } else if (selected.quelle_typ === "table" && selected.quelle_name) {
-        result = await readSupabase<Record<string, unknown>>(session, selected.quelle_name, { select: "*", limit: "5000" });
-      } else {
-        result = await callSupabaseRpc<Array<Record<string, unknown>>>(session, selected.quelle_name || selected.export_key, rpcPayload());
-      }
-      setRows(result); setMessage(`${result.length} Datensätze geladen.`);
-    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Export konnte nicht ausgeführt werden."); }
-    finally { setBusy(false); }
-  }
-  if (!canExport) return <section className="data-workspace"><p className="notice">Exporte stehen mobil nur Vorstand und Administratoren zur Verfügung.</p></section>;
-  return <section className="data-workspace export-center">{message && <p className="notice" role="status">{message}</p>}<div className="export-controls"><label>Exportdefinition<select value={selectedKey} onChange={(event) => setSelectedKey(event.target.value)}>{definitions.map((item) => <option key={item.export_key} value={item.export_key}>{item.titel ?? item.export_key}</option>)}</select></label>{selected?.beschreibung && <p>{selected.beschreibung}</p>}<div className="export-filters">{filters.map((filter) => <label key={filter.filter_key}>{filter.label ?? filter.filter_key}{filter.typ === "boolean" ? <input type="checkbox" checked={Boolean(values[filter.filter_key])} onChange={(event) => setValues({ ...values, [filter.filter_key]: event.target.checked })} /> : options[filter.filter_key]?.length ? <select value={String(values[filter.filter_key] ?? "")} onChange={(event) => setValues({ ...values, [filter.filter_key]: event.target.value })}><option value="">Alle</option>{options[filter.filter_key].map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : <input type={filter.filter_key.includes("jahr") ? "number" : "text"} value={String(values[filter.filter_key] ?? "")} onChange={(event) => setValues({ ...values, [filter.filter_key]: event.target.value })} />}</label>)}</div><div className="editor-actions"><button disabled={busy || !selected} onClick={run}>{busy ? "Wird ausgeführt …" : "Ausführen"}</button><button className="secondary-action" disabled={!rows.length || !selected?.erlaubt_csv} onClick={() => downloadCsv(`${new Date().toISOString().slice(0, 10)}_${selectedKey}.csv`, visibleColumns, rows)}>Als CSV speichern</button><button className="secondary-action" disabled={!rows.length || !selected?.erlaubt_pdf} onClick={() => window.print()}>Drucken / als PDF speichern</button></div></div>{rows.length > 0 && <div className="data-table-wrap export-result"><table><thead><tr>{visibleColumns.map((column) => <th key={column.column_key}>{column.label_kurz ?? column.label_lang ?? column.column_key}</th>)}</tr></thead><tbody>{rows.slice(0, 500).map((row, index) => <tr key={index}>{visibleColumns.map((column) => <td key={column.column_key}>{row[column.column_key] == null ? "" : typeof row[column.column_key] === "boolean" ? row[column.column_key] ? "Ja" : "Nein" : String(row[column.column_key])}</td>)}</tr>)}</tbody></table>{rows.length > 500 && <p className="empty-state">Vorschau zeigt 500 von {rows.length} Datensätzen. CSV enthält alle Datensätze.</p>}</div>}</section>;
 }
