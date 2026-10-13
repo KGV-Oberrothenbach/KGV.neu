@@ -379,3 +379,6 @@ _logs/
 
 # Generierte Ausgabedateien
 output/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
