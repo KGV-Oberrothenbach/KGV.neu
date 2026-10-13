@@ -8823,6 +8823,16 @@ Release und ReleaseAll pro Instanz. Die Synchronisierung der Legacy-Felder von
 `mitglied` und `arbeitsstunde` ist dabei wieder Teil des zentralen Vertrags.
 Web- und MAUI-Client-IDs folgen erst in G15.3b.
 
+### G15.3b – Client-Lifecycle
+
+Web verwendet pro Browser-Tab eine in `sessionStorage` gehaltene Client-ID und
+nutzt die client-aware Acquire-/Refresh-/Release-/ReleaseAll-RPCs. Eine kleine
+BroadcastChannel-Prüfung erkennt kopierte Tab-IDs, sofern der Browser sie
+unterstützt. MAUI verwendet eine installationsstabile Preferences-ID, erneuert
+den Arbeitseinsatz-Lock alle vier Minuten und gibt beim Logout, Timeout sowie
+Vereinswechsel nur die Locks dieser Installation frei. WPF bleibt über die
+Legacy-RPCs kompatibel.
+
 ### Zusätzlich
 PATCH/DELETE über die generischen Web-Helfer führen für registrierte Tabellen nochmals eine Lockprüfung durch.
 

@@ -1,6 +1,7 @@
 using KGV.Maui.Pages;
 using KGV.Core.Interfaces;
 using KGV.Maui.State;
+using KGV.Maui.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui;
 using Microsoft.Maui.ApplicationModel;
@@ -19,17 +20,19 @@ public partial class App : Application
     private readonly IServiceProvider _services;
     private readonly UserContextState _userContextState;
     private readonly IVereinskontext _vereinskontext;
+    private readonly IClientInstanceIdProvider _clientInstanceIdProvider;
     private Window? _mainWindow;
     private IDispatcherTimer? _inactivityTimer;
     private DateTime _lastUserActivityUtc = DateTime.UtcNow;
     private string? _pendingLoginMessage;
     private bool _resumeTimeoutResetInProgress;
 
-    public App(IServiceProvider services, UserContextState userContextState, IVereinskontext vereinskontext)
+    public App(IServiceProvider services, UserContextState userContextState, IVereinskontext vereinskontext, IClientInstanceIdProvider clientInstanceIdProvider)
     {
         _services = services;
         _userContextState = userContextState;
         _vereinskontext = vereinskontext;
+        _clientInstanceIdProvider = clientInstanceIdProvider;
     }
 
     protected override Window CreateWindow(IActivationState? activationState)
@@ -92,6 +95,7 @@ public partial class App : Application
 
     public async Task WechselVereinAsync()
     {
+        await ReleaseCurrentClientLocksAsync("Vereinswechsel");
         try
         {
             var authService = _services.GetService<IAuthService>();
@@ -270,6 +274,7 @@ public partial class App : Application
 
     private async Task ClearActiveSessionAsync()
     {
+        await ReleaseCurrentClientLocksAsync("Logout");
         try
         {
             var authService = _services.GetService<IAuthService>();
@@ -279,6 +284,20 @@ public partial class App : Application
         catch (Exception ex)
         {
             Services.Diagnostics.AppFileLog.Warning("KGV.Lifecycle", $"Logout beim Resume-Timeout fehlgeschlagen: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    private async Task ReleaseCurrentClientLocksAsync(string reason)
+    {
+        try
+        {
+            var supabaseService = _services.GetService<ISupabaseService>();
+            if (supabaseService != null)
+                await supabaseService.ReleaseAllBrowserEditLocksAsync(_clientInstanceIdProvider.GetClientInstanceId());
+        }
+        catch (Exception ex)
+        {
+            Services.Diagnostics.AppFileLog.Warning("KGV.Lifecycle", $"Lock-Freigabe bei {reason} fehlgeschlagen: {ex.GetType().Name}: {ex.Message}");
         }
     }
 

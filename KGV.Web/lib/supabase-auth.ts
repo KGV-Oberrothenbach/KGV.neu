@@ -1,4 +1,5 @@
 import type { ClubContext } from "../models/auth/club";
+import { getBrowserClientInstanceId } from "./browser/client-instance";
 
 export type BrowserSession = {
   accessToken: string;
@@ -246,10 +247,11 @@ async function acquireLockForMutation(session: BrowserSession, table: string, qu
 }
 
 export async function acquireBrowserEditLock(session: BrowserSession, entityType: string, entityId: string | number, timeoutSeconds = 600): Promise<BrowserEditLockResult> {
+  const clientInstanceId = await getBrowserClientInstanceId();
   const rows = await callSupabaseRpc<Array<{ acquired?: boolean; locked_by_user_id?: string | null; locked_by_display_name?: string | null; expires_at?: string | null }>>(
     session,
-    "acquire_browser_edit_lock",
-    { p_entity_type: entityType, p_entity_id: String(entityId), p_timeout_seconds: timeoutSeconds },
+    "acquire_browser_edit_lock_for_client",
+    { p_entity_type: entityType, p_entity_id: String(entityId), p_client_instance_id: clientInstanceId, p_timeout_seconds: timeoutSeconds },
   );
   const row = rows[0];
   return {
@@ -261,11 +263,13 @@ export async function acquireBrowserEditLock(session: BrowserSession, entityType
 }
 
 export async function releaseBrowserEditLock(session: BrowserSession, entityType: string, entityId: string | number) {
-  await callSupabaseRpc<boolean>(session, "release_browser_edit_lock", { p_entity_type: entityType, p_entity_id: String(entityId) });
+  const clientInstanceId = await getBrowserClientInstanceId();
+  await callSupabaseRpc<boolean>(session, "release_browser_edit_lock_for_client", { p_entity_type: entityType, p_entity_id: String(entityId), p_client_instance_id: clientInstanceId });
 }
 
 export async function releaseAllBrowserEditLocks(session: BrowserSession) {
-  await callSupabaseRpc<boolean>(session, "release_all_browser_edit_locks", {});
+  const clientInstanceId = await getBrowserClientInstanceId();
+  await callSupabaseRpc<boolean>(session, "release_all_browser_edit_locks_for_client", { p_client_instance_id: clientInstanceId });
 }
 
 async function callSupabaseFunction<T>(session: BrowserSession, name: string, payload: Record<string, unknown>): Promise<T> {

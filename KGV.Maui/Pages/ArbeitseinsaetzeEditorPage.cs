@@ -3,6 +3,7 @@ using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Core.Utilities;
 using KGV.Maui.State;
+using KGV.Maui.Services;
 using KGV.Maui.ViewModels;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
@@ -22,6 +23,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
     private readonly UserContextState _userContextState;
     private readonly ArbeitseinsaetzeManagementState _managementState;
     private readonly KGV.Maui.ViewModels.HomeViewModel _homeViewModel;
+    private readonly IClientInstanceIdProvider _clientInstanceIdProvider;
 
     private readonly Entry _titleEntry;
     private readonly Editor _descriptionEditor;
@@ -55,18 +57,21 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
     private bool _loadScheduled;
     private bool _hasEditLock;
     private bool _isApplyingDateDefaults;
+    private IDispatcherTimer? _editLockRefreshTimer;
     private DateTime _newEntryDefaultsDate;
 
     public ArbeitseinsaetzeEditorPage(
         ISupabaseService supabaseService,
         UserContextState userContextState,
         ArbeitseinsaetzeManagementState managementState,
-        KGV.Maui.ViewModels.HomeViewModel homeViewModel)
+        KGV.Maui.ViewModels.HomeViewModel homeViewModel,
+        IClientInstanceIdProvider clientInstanceIdProvider)
     {
         _supabaseService = supabaseService;
         _userContextState = userContextState;
         _managementState = managementState;
         _homeViewModel = homeViewModel;
+        _clientInstanceIdProvider = clientInstanceIdProvider;
 
         Title = "Arbeitseinsatz";
         BackgroundColor = Color.FromArgb("#F5F5F5");
@@ -248,7 +253,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
                 }
 
                 ApplyRecordToForm(_managementState.CurrentEntry);
-                var editLock = await _supabaseService.AcquireBrowserEditLockAsync("arbeitseinsatz", _editingEntryId.Value);
+                var editLock = await AcquireEditLockAsync();
                 if (!editLock.Acquired)
                 {
                     _statusLabel.Text = $"Dieser Arbeitseinsatz wird gerade von {editLock.LockedByDisplayName} bearbeitet.";
@@ -258,6 +263,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
                     return;
                 }
                 _hasEditLock = true;
+                StartEditLockRefresh();
                 Title = "Arbeitseinsatz bearbeiten";
                 _participantsButton.IsVisible = true;
             }
@@ -788,13 +794,57 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         _ = ReleaseEditLockAsync();
     }
 
+    private Task<BrowserEditLockResult> AcquireEditLockAsync()
+        => _supabaseService.AcquireBrowserEditLockAsync("arbeitseinsatz", _editingEntryId!.Value, _clientInstanceIdProvider.GetClientInstanceId());
+
+    private void StartEditLockRefresh()
+    {
+        _editLockRefreshTimer ??= Dispatcher.CreateTimer();
+        _editLockRefreshTimer.Interval = TimeSpan.FromMinutes(4);
+        _editLockRefreshTimer.Tick -= OnEditLockRefresh;
+        _editLockRefreshTimer.Tick += OnEditLockRefresh;
+        _editLockRefreshTimer.Start();
+    }
+
+    private async void OnEditLockRefresh(object? sender, EventArgs eventArgs)
+    {
+        if (!_hasEditLock || !_editingEntryId.HasValue || _isBusy)
+            return;
+
+        try
+        {
+            var editLock = await AcquireEditLockAsync();
+            if (editLock.Acquired)
+                return;
+
+            _hasEditLock = false;
+            _editLockRefreshTimer?.Stop();
+            SetEnabledState(false);
+            _cancelButton.IsEnabled = true;
+            _statusLabel.Text = $"Die Bearbeitungssperre wurde von {editLock.LockedByDisplayName} übernommen.";
+            _statusLabel.TextColor = Colors.IndianRed;
+            _statusLabel.IsVisible = true;
+        }
+        catch (Exception ex)
+        {
+            _hasEditLock = false;
+            _editLockRefreshTimer?.Stop();
+            SetEnabledState(false);
+            _cancelButton.IsEnabled = true;
+            _statusLabel.Text = $"Die Bearbeitungssperre konnte nicht verlängert werden: {ex.Message}";
+            _statusLabel.TextColor = Colors.IndianRed;
+            _statusLabel.IsVisible = true;
+        }
+    }
+
     private async Task ReleaseEditLockAsync()
     {
         if (!_hasEditLock || !_editingEntryId.HasValue)
             return;
 
         _hasEditLock = false;
-        try { await _supabaseService.ReleaseBrowserEditLockAsync("arbeitseinsatz", _editingEntryId.Value); }
+        _editLockRefreshTimer?.Stop();
+        try { await _supabaseService.ReleaseBrowserEditLockAsync("arbeitseinsatz", _editingEntryId.Value, _clientInstanceIdProvider.GetClientInstanceId()); }
         catch (Exception ex) { Debug.WriteLine($"[ArbeitseinsaetzeEditorPage] Lock release failed: {ex}"); }
     }
 
