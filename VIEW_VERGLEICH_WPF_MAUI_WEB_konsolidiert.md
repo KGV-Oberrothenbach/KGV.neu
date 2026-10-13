@@ -8916,6 +8916,36 @@ Koordination.
 
 ---
 
+## 15.5b Pending Media – Bedienung, Retry-Lease und Aufräumen
+
+Die Web-Oberfläche liegt in `features/readings/PendingPhotoUploads.tsx` und
+zeigt ausschließlich die eigene Kombination aus `clubId` und `ownerUserId`.
+Sie erlaubt Vorschau, gezielten Retry, Retry aller eigenen Fotos und ein
+explizit bestätigtes Löschen. Ist eine hochgeladene Datei noch nicht mit der
+Ablesung verknüpft, weist der Löschdialog darauf hin. Alte Einträge ohne Owner
+bleiben unsichtbar; nur für den aktuellen Verein gibt es eine neutrale,
+ausdrücklich bestätigte Bereinigung. Andere Benutzer- oder Vereinsdaten werden
+weder angezeigt noch gelöscht.
+
+Retry-Koordination nutzt weiterhin dieselbe IndexedDB-Datenbank und denselben
+Store. Jeder Claim erfolgt atomar in genau einer `readwrite`-Transaktion und
+setzt eine Owner-ID des Browser-Clients plus eine 15-Minuten-Lease. Während
+einer aktiven Lease kann weder ein anderer Tab erneut hochladen noch der
+Eintrag gelöscht werden. Nach Ablauf einer verlassenen Lease ist auch ein
+persistiert als `uploading` markierter Eintrag wieder retry-fähig. Über
+`BroadcastChannel` werden nur `{ type: "changed" }`-Signale geteilt; ein
+empfangender Tab lädt stets seine eigene, gefilterte Queue nach.
+
+MAUI verwendet dieselben Besitzgrenzen. Der Sync berücksichtigt `Uploading`
+nach einem Neustart wieder, aber eine laufende bzw. für Löschung reservierte
+ID wird atomar ausgeschlossen. Die Pending-Upload-Seite kann nur eigene,
+nicht laufende Einträge löschen und bietet getrennt eine explizite
+Legacy-Bereinigung. Der manuelle Vereinswechsel in Web und MAUI warnt nur über
+die Anzahl der eigenen offenen Fotos; automatische Logout-, Inaktivitäts- oder
+Session-Abläufe zeigen keinen zusätzlichen Dialog und löschen nichts.
+
+---
+
 ## 15.13 Kamera und Dateiauswahl
 
 Bei Ablesefotos verwendet Web:

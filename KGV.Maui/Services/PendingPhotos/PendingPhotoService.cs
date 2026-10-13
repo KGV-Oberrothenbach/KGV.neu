@@ -104,9 +104,27 @@ public sealed class PendingPhotoService
         _queue.Remove(item.Id);
     }
 
-    public int RemoveForeignOrLegacyItems(Guid vereinId)
+    public PendingPhotoDeleteResult DeleteOwnedPendingPhoto(Guid id, Guid vereinId, Guid ownerUserId)
     {
-        var removed = _queue.RemoveNotForVerein(vereinId);
+        if (!_queue.TryRemoveForOwner(id, vereinId, ownerUserId, out var item) || item == null)
+            return PendingPhotoDeleteResult.NotOwnedOrMissing;
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(item.LocalFilePath) && File.Exists(item.LocalFilePath))
+                File.Delete(item.LocalFilePath);
+        }
+        catch
+        {
+            // Der Queue-Eintrag ist bereits sicher entfernt; ein möglicher Rest wird nicht erneut hochgeladen.
+        }
+
+        return PendingPhotoDeleteResult.Deleted;
+    }
+
+    public int DeleteLegacyPendingPhotos(Guid vereinId)
+    {
+        var removed = _queue.RemoveLegacyForVerein(vereinId);
         foreach (var item in removed)
         {
             try
@@ -116,13 +134,17 @@ public sealed class PendingPhotoService
             }
             catch
             {
-                // Der Queue-Eintrag ist entfernt; verwaiste Dateien werden vom Betriebssystem bereinigt.
+                // Alt-Daten wurden aus der Queue entfernt und werden nicht erneut hochgeladen.
             }
         }
 
         return removed.Count;
     }
 
-    public int CountForeignOrLegacyItems(Guid vereinId)
-        => _queue.CountNotForVerein(vereinId);
+}
+
+public enum PendingPhotoDeleteResult
+{
+    Deleted,
+    NotOwnedOrMissing
 }

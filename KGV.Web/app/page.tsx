@@ -20,6 +20,7 @@ import { DocumentList } from "../features/documents/DocumentList";
 import type { DocumentAccessContext } from "../services/documents/document-access-service";
 import { OtpFlow } from "../features/auth/OtpFlow";
 import { RfidBrowserScanner } from "../features/meters/RfidScanner";
+import { PendingPhotoUploads } from "../features/readings/PendingPhotoUploads";
 import { subscribeConnectivityChanges } from "../lib/browser/connectivity";
 import { getWifiOnlyPreference, setWifiOnlyPreference } from "../lib/browser/storage";
 import { useEditLock } from "../lib/use-edit-lock";
@@ -49,7 +50,7 @@ import { completeMeterRemoval } from "../services/meters/meter-removal-service";
 import { type Meter } from "../repositories/meters/meter-repository";
 import { assignRfid, checkRfidAssignment, listAvailableRfidMediumOptions, listRfidSetupParcels, resolveRfidScanContext, type RfidAssignmentCheck, type RfidMediumOption, type RfidScanResolution } from "../services/rfid/rfid-service";
 import { getMeterInstallationPhotoRequired, loadReadingCaptureContext, saveMeterInstallationReading, saveMeterRemovalReading, saveMeterReading, type ReadingCaptureContext, type ReadingPermissions } from "../services/readings/reading-service";
-import { handleReadingPhoto, listPendingReadingPhotos, openStoredReadingPhoto, retryAllPendingReadingPhotos, retryPendingReadingPhoto, type PendingMeterPhoto } from "../services/readings/reading-photo-service";
+import { countPendingReadingPhotos, handleReadingPhoto, openStoredReadingPhoto, retryAllPendingReadingPhotos } from "../services/readings/reading-photo-service";
 import { loadReadingReviewData, reviewMeterReading, type ReadingReviewData, type ReadingReviewItem } from "../services/readings/reading-review-service";
 import { MemberWorkHours } from "../features/work-hours/MemberWorkHours";
 import { WorkHoursReview } from "../features/work-hours/WorkHoursReview";
@@ -117,6 +118,7 @@ function Workspace(props: { session: BrowserSession; email: string; club: ClubCo
 function WorkspaceContent({ session, email, club, context, onLogout, onChangeClub }: { session: BrowserSession; email: string; club: ClubContext; context: AppUserContext; onLogout: () => void; onChangeClub: () => Promise<void> }) {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [activeId, setActiveId] = useState("start");
+  const [pendingPhotoCount, setPendingPhotoCount] = useState(0);
   const [leaseContractIntent, setLeaseContractIntent] = useState<{ parcelId: number; startDate: string } | null>(null);
   const [seasonError, setSeasonError] = useState("");
   const { workspaceContext, selectedMember, creatingMember, setSelectedMember, setCreatingMember, updateWorkspaceContext, selectMember, selectParcel, selectSeason: selectWorkspaceSeason } = useWorkspaceContext();
@@ -155,6 +157,14 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
       .catch(() => { if (active) setSeasonError("Saisons konnten nicht geladen werden."); });
     return () => { active = false; };
   }, [session, updateWorkspaceContext]);
+
+  useEffect(() => {
+    let active = true;
+    countPendingReadingPhotos(session, club.vereinId)
+      .then((count) => { if (active) setPendingPhotoCount(count); })
+      .catch(() => { if (active) setPendingPhotoCount(0); });
+    return () => { active = false; };
+  }, [session, club.vereinId]);
 
   useEffect(() => {
     let active = true;
@@ -213,7 +223,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
 
   return (
     <main className="workspace">
-      <WorkspaceHeader clubName={club.kurzname || club.vereinsname} email={email} role={context.role} onLogout={onLogout} onChangeClub={onChangeClub} />
+      <WorkspaceHeader clubName={club.kurzname || club.vereinsname} email={email} role={context.role} onLogout={onLogout} onChangeClub={onChangeClub} pendingPhotoCount={pendingPhotoCount} />
       <section className="workspace-body">
         <aside className="sidebar" aria-label="Hauptnavigation">
           <SeasonPicker seasons={seasons} selectedSeasonId={workspaceContext.saisonId} seasonError={seasonError} onChange={selectSeason} />
@@ -354,21 +364,6 @@ function PhotoOpenButton({ session, reading }: { session: BrowserSession; readin
   const [opening, setOpening] = useState(false); const [error, setError] = useState("");
   async function open() { setOpening(true); setError(""); try { const path = reading.foto_pfad ?? reading.fotoPfad; const driveFileId = reading.foto_drive_file_id ?? reading.fotoDriveFileId; if (!driveFileId && path && /^https?:\/\//i.test(path)) { window.open(path, "_blank", "noopener,noreferrer"); return; } const readingId = reading.id ?? reading.readingId; if (!readingId) throw new Error("Die Ablesung ist ungültig."); const url = await openStoredReadingPhoto(session, readingId); window.open(url, "_blank", "noopener,noreferrer"); window.setTimeout(() => URL.revokeObjectURL(url), 60_000); } catch (cause) { setError(cause instanceof Error ? cause.message : "Foto konnte nicht geöffnet werden."); } finally { setOpening(false); } }
   return <span className="photo-open"><button className="table-action" disabled={opening} onClick={open}>{opening ? "Öffnet …" : "Foto anzeigen"}</button>{error && <small>{error}</small>}</span>;
-}
-
-function PendingPhotoUploads({ session, clubId }: { session: BrowserSession; clubId: string }) {
-  const [items, setItems] = useState<PendingMeterPhoto[]>([]); const [busy, setBusy] = useState(false); const [message, setMessage] = useState(""); const [wifiOnly] = useState(getWifiOnlyPreference);
-  async function load() { try { setItems(await listPendingReadingPhotos(session, clubId)); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Lokale Foto-Warteschlange konnte nicht geladen werden."); } }
-  async function retryAll() { if (busy) return; setBusy(true); try { const result = await retryAllPendingReadingPhotos(session, clubId, wifiOnly); await load(); setMessage(result.uploaded || result.failed ? `${result.uploaded} Foto(s) hochgeladen, ${result.failed} fehlgeschlagen.` : result.queued ? "Das aktuelle Netz erlaubt keinen Upload. Fotos bleiben lokal." : "Keine offenen Foto-Uploads vorhanden."); } finally { setBusy(false); } }
-  async function retryOne(item: PendingMeterPhoto) { if (busy) return; setBusy(true); try { const result = await retryPendingReadingPhoto(session, clubId, wifiOnly, item); await load(); setMessage(result.message); } finally { setBusy(false); } }
-  useEffect(() => { void load(); const retryOnConnectivityChange = () => { void retryAll(); }; return subscribeConnectivityChanges(retryOnConnectivityChange); }, [session, clubId, wifiOnly]);
-  function preview(item: PendingMeterPhoto) { const url = URL.createObjectURL(item.content); window.open(url, "_blank", "noopener,noreferrer"); window.setTimeout(() => URL.revokeObjectURL(url), 60_000); }
-  return <section className="data-workspace pending-photos"><div className="data-toolbar"><span>{items.length ? `${items.length} offene Foto-Uploads` : "Keine offenen Foto-Uploads"}</span><button disabled={!items.length || busy} onClick={() => void retryAll()}>{busy ? "Uploads laufen …" : "Alle erneut versuchen"}</button></div><p className="context-note">Fotos bleiben bis zum erfolgreichen Upload ausschließlich in diesem Browser und diesem Vereinskontext gespeichert.</p>{message && <p className="notice" role="status">{message}</p>}<div className="pending-photo-list">{items.map((item) => <article key={item.id}><LocalPhotoThumbnail item={item} /><div><strong>{item.fileName}</strong><span>Garten {item.details.garten} · {item.details.medium} · Ablesung #{item.readingId}</span><span>{new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" }).format(new Date(item.createdAt))} · Versuch {item.attemptCount}</span><small>{item.status === "failed" ? `Fehlgeschlagen: ${item.lastError ?? "erneuter Versuch möglich"}` : item.status === "uploading" ? "Wird hochgeladen …" : "Lokal gespeichert, Upload ausstehend"}</small></div><div><button className="secondary-action" onClick={() => preview(item)}>Anzeigen</button><button disabled={busy} onClick={() => void retryOne(item)}>Erneut versuchen</button></div></article>)}{items.length === 0 && <p className="empty-state">Es sind keine lokalen Ablesefotos vorgemerkt.</p>}</div></section>;
-}
-function LocalPhotoThumbnail({ item }: { item: PendingMeterPhoto }) {
-  const [url, setUrl] = useState("");
-  useEffect(() => { const next = URL.createObjectURL(item.content); setUrl(next); return () => URL.revokeObjectURL(next); }, [item.id, item.content]);
-  return <div className="pending-photo-thumb">{url && <img src={url} alt="Lokale Vorschau des Ablesefotos" />}</div>;
 }
 
 function ReadingReview({ session, reading, history, permissions, onSaved }: { session: BrowserSession; reading: ReadingReviewItem | null; history: ReadingReviewItem[]; permissions: { canApproveMeterReadings: boolean; reviewerMemberId: number | null }; onSaved: () => void }) {

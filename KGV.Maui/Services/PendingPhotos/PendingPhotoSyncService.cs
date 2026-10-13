@@ -30,6 +30,12 @@ public sealed class PendingPhotoSyncService
         _userContextState = userContextState;
     }
 
+    public bool IsInFlight(Guid id) => InFlight.ContainsKey(id);
+
+    public bool TryReserveForDeletion(Guid id) => InFlight.TryAdd(id, 0);
+
+    public void ReleaseDeletionReservation(Guid id) => InFlight.TryRemove(id, out _);
+
     private static string MapUploadKind(string operationType)
     {
         if (string.IsNullOrWhiteSpace(operationType))
@@ -74,7 +80,7 @@ public sealed class PendingPhotoSyncService
 
         var items = _queue
             .GetForOwner(vereinId.Value, ownerUserId.Value)
-            .Where(x => x.Status is PendingPhotoUploadStatus.Pending or PendingPhotoUploadStatus.Failed)
+            .Where(x => x.Status is PendingPhotoUploadStatus.Pending or PendingPhotoUploadStatus.Failed or PendingPhotoUploadStatus.Uploading)
             .OrderBy(x => x.CreatedAtUtc)
             .ToList();
 
@@ -99,12 +105,6 @@ public sealed class PendingPhotoSyncService
 
                 if (latest.VereinId != vereinId.Value || latest.OwnerUserId != ownerUserId.Value)
                 {
-                    continue;
-                }
-
-                if (latest.Status == PendingPhotoUploadStatus.Uploading)
-                {
-                    result.AlreadyInFlight++;
                     continue;
                 }
 

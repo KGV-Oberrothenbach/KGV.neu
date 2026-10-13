@@ -1,4 +1,5 @@
-import { enqueuePendingMeterPhoto, getPendingMeterPhoto, listPendingMeterPhotos, pendingPhotoFile, putPendingMeterPhoto, removePendingMeterPhoto, type PendingMeterPhoto } from "../offline/pending-media-store";
+import { claimPendingMeterPhotoRetry, countLegacyPendingMeterPhotos, countPendingMeterPhotos, enqueuePendingMeterPhoto, getPendingMeterPhoto, listPendingMeterPhotos, pendingPhotoFile, putPendingMeterPhoto, releasePendingMeterPhotoRetryLease, removeLegacyPendingMeterPhotos, removeOwnedPendingMeterPhoto, removePendingMeterPhoto, type PendingMeterPhoto } from "../offline/pending-media-store";
+import { getBrowserClientInstanceId } from "../../lib/browser/client-instance";
 import { getConnectivitySnapshot } from "../../lib/browser/connectivity";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { linkReadingPhoto, openReadingPhoto, uploadReadingPhoto, type ReadingPhotoDetails, type UploadedReadingPhoto } from "../../repositories/readings/reading-photo-repository";
@@ -68,10 +69,14 @@ export async function retryPendingReadingPhoto(session: BrowserSession, clubId: 
     const decision = uploadDecision(wifiOnly);
     if (!decision.allowed) return { status: "queued", message: decision.reason };
 
+    const clientInstanceId = await getBrowserClientInstanceId();
+    const claim = await claimPendingMeterPhotoRetry(pending.id, clubId, owner, clientInstanceId);
+    if (claim.status !== "claimed") return { status: "already-in-flight", message: "Für dieses Foto läuft bereits ein Upload-Versuch." };
+
     pendingPhotoAttempts.add(pending.id);
-    let attempted = pending;
+    let attempted = claim.item;
     try {
-      attempted = { ...pending, status: "uploading" as const, lastError: null, lastAttemptAt: now(), attemptCount: pending.attemptCount + 1 };
+      attempted = { ...claim.item, status: "uploading" as const, lastError: null, lastAttemptAt: now(), attemptCount: claim.item.attemptCount + 1 };
       await putPendingMeterPhoto(attempted);
       const photo = attempted.uploadedFileId ? { fileId: attempted.uploadedFileId, fileName: attempted.uploadedFileName || attempted.fileName } : await uploadReadingPhoto(session, pendingPhotoFile(attempted), attempted.details);
       if (!attempted.uploadedFileId) {
@@ -89,6 +94,7 @@ export async function retryPendingReadingPhoto(session: BrowserSession, clubId: 
       return { status: "failed", message: "Upload fehlgeschlagen. Das Foto bleibt lokal gespeichert." };
     } finally {
       pendingPhotoAttempts.delete(pending.id);
+      await releasePendingMeterPhotoRetryLease(pending.id, clubId, owner, clientInstanceId).catch(() => undefined);
     }
   } catch (cause) {
     return { status: "failed", message: cause instanceof Error ? cause.message : "Lokaler Fotospeicher konnte nicht gelesen werden." };
@@ -118,6 +124,21 @@ export async function retryAllPendingReadingPhotos(session: BrowserSession, club
 
 export function listPendingReadingPhotos(session: BrowserSession, clubId: string) {
   return listPendingMeterPhotos(clubId, ownerUserId(session));
+}
+export function countPendingReadingPhotos(session: BrowserSession, clubId: string) {
+  return countPendingMeterPhotos(clubId, ownerUserId(session));
+}
+export async function deletePendingReadingPhoto(session: BrowserSession, clubId: string, id: string): Promise<ReadingPhotoResult> {
+  const result = await removeOwnedPendingMeterPhoto(id, clubId, ownerUserId(session));
+  if (result.status === "removed") return { status: "uploaded", message: "Lokales Foto wurde endgültig gelöscht." };
+  if (result.status === "in-flight") return { status: "already-in-flight", message: "Foto wird gerade hochgeladen und kann momentan nicht gelöscht werden." };
+  return { status: "failed", message: "Dieses Foto gehört nicht zum aktuellen Benutzer oder Verein." };
+}
+export async function countLegacyPendingReadingPhotos(clubId: string) {
+  return countLegacyPendingMeterPhotos(clubId);
+}
+export async function deleteLegacyPendingReadingPhotos(clubId: string) {
+  return removeLegacyPendingMeterPhotos(clubId);
 }
 export const openStoredReadingPhoto = openReadingPhoto;
 export type { PendingMeterPhoto };
