@@ -10,7 +10,8 @@ function seasonYear(season: Pick<Season, "id" | "jahr">) {
 }
 
 export function canEditSeason(season: Pick<Season, "id" | "jahr"> | null | undefined, today = new Date()) {
-  return Boolean(season) && seasonYear(season) >= today.getFullYear();
+  if (season === null || season === undefined) return false;
+  return seasonYear(season) >= today.getFullYear();
 }
 
 export function createNextSeasonProposal(seasons: Season[] | null | undefined, today = new Date()): Season {

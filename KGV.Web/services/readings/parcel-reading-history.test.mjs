@@ -87,8 +87,9 @@ test("a reading before the assignment start cannot become its first displayed re
 
 test("member-garden reading action keeps the member workspace active", async () => {
   const page = await readFile(new URL("../../app/page.tsx", import.meta.url), "utf8");
-  const memberGardenRoute = page.split(/\r?\n/).find((line) => line.includes('activeId === "mitglied-gaerten"'));
+  const memberGardenRoute = page.split(/\r?\n/).find((line) => line.includes('effectiveActiveId === "mitglied-gaerten"'));
 
   assert.ok(memberGardenRoute, "member-gardens workspace route should exist");
+  assert.match(memberGardenRoute, /selectedParcelId=\{selectedParcelId\}/);
   assert.doesNotMatch(memberGardenRoute, /setActiveId\(["']ablesen["']\)/);
 });
