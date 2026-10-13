@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Maui.Models;
+using KGV.Maui.State;
 
 namespace KGV.Maui.Services.PendingPhotos;
 
@@ -13,17 +14,20 @@ public sealed class PendingPhotoSyncService
     private readonly PendingPhotoService _pendingPhotoService;
     private readonly IPhotoUploadTestService _uploadService;
     private readonly IVereinskontext _vereinskontext;
+    private readonly UserContextState _userContextState;
 
     public PendingPhotoSyncService(
         PendingPhotoQueue queue,
         PendingPhotoService pendingPhotoService,
         IPhotoUploadTestService uploadService,
-        IVereinskontext vereinskontext)
+        IVereinskontext vereinskontext,
+        UserContextState userContextState)
     {
         _queue = queue;
         _pendingPhotoService = pendingPhotoService;
         _uploadService = uploadService;
         _vereinskontext = vereinskontext;
+        _userContextState = userContextState;
     }
 
     private static string MapUploadKind(string operationType)
@@ -55,6 +59,13 @@ public sealed class PendingPhotoSyncService
             return result;
         }
 
+        var ownerUserId = _userContextState.CurrentUserId;
+        if (!ownerUserId.HasValue)
+        {
+            result.SkippedReason = "Kein angemeldeter Benutzer.";
+            return result;
+        }
+
         if (!PendingPhotoUploadDecision.CanUploadNow(out var reason))
         {
             result.SkippedReason = reason;
@@ -62,10 +73,7 @@ public sealed class PendingPhotoSyncService
         }
 
         var items = _queue
-            .GetAll()
-            // Alt-Einträge ohne Vereins-ID und Einträge anderer Vereine dürfen niemals
-            // in das aktuell angemeldete Vereins-Backend hochgeladen werden.
-            .Where(x => x.VereinId == vereinId.Value)
+            .GetForOwner(vereinId.Value, ownerUserId.Value)
             .Where(x => x.Status is PendingPhotoUploadStatus.Pending or PendingPhotoUploadStatus.Failed)
             .OrderBy(x => x.CreatedAtUtc)
             .ToList();
@@ -86,6 +94,11 @@ public sealed class PendingPhotoSyncService
                 if (!_queue.TryGet(item.Id, out var latest) || latest == null)
                 {
                     result.MissingFromQueue++;
+                    continue;
+                }
+
+                if (latest.VereinId != vereinId.Value || latest.OwnerUserId != ownerUserId.Value)
+                {
                     continue;
                 }
 

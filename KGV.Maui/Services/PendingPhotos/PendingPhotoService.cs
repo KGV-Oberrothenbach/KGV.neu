@@ -1,5 +1,6 @@
 using KGV.Maui.Models;
 using KGV.Core.Interfaces;
+using KGV.Maui.State;
 
 namespace KGV.Maui.Services.PendingPhotos;
 
@@ -7,11 +8,13 @@ public sealed class PendingPhotoService
 {
     private readonly PendingPhotoQueue _queue;
     private readonly IVereinskontext _vereinskontext;
+    private readonly UserContextState _userContextState;
 
-    public PendingPhotoService(PendingPhotoQueue queue, IVereinskontext vereinskontext)
+    public PendingPhotoService(PendingPhotoQueue queue, IVereinskontext vereinskontext, UserContextState userContextState)
     {
         _queue = queue;
         _vereinskontext = vereinskontext;
+        _userContextState = userContextState;
     }
 
     public PendingPhotoUpload SaveAndEnqueue(
@@ -27,6 +30,8 @@ public sealed class PendingPhotoService
 
         var vereinId = _vereinskontext.Aktuell?.VereinId
             ?? throw new InvalidOperationException("Foto kann ohne ausgewählten Verein nicht vorgemerkt werden.");
+        var ownerUserId = _userContextState.CurrentUserId
+            ?? throw new InvalidOperationException("Foto kann ohne angemeldeten Benutzer nicht vorgemerkt werden.");
 
         var id = Guid.NewGuid();
         var fileName = PendingPhotoFileNameFactory.Create(operationType, parzelle, medium, now);
@@ -38,6 +43,7 @@ public sealed class PendingPhotoService
         {
             Id = id,
             VereinId = vereinId,
+            OwnerUserId = ownerUserId,
             OperationType = operationType,
             Parzelle = parzelle,
             Medium = medium,

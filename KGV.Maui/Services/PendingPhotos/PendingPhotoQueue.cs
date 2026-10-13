@@ -27,6 +27,22 @@ public sealed class PendingPhotoQueue
         }
     }
 
+    public IReadOnlyList<PendingPhotoUpload> GetForOwner(Guid vereinId, Guid ownerUserId)
+    {
+        lock (_sync)
+        {
+            return LoadInternal().Where(x => x.VereinId == vereinId && x.OwnerUserId == ownerUserId).ToList();
+        }
+    }
+
+    public IReadOnlyList<PendingPhotoUpload> GetOpenForOwner(Guid vereinId, Guid ownerUserId)
+        => GetForOwner(vereinId, ownerUserId)
+            .Where(x => x.Status is PendingPhotoUploadStatus.Pending or PendingPhotoUploadStatus.Failed or PendingPhotoUploadStatus.Uploading)
+            .ToList();
+
+    public int CountOpenForOwner(Guid vereinId, Guid ownerUserId)
+        => GetOpenForOwner(vereinId, ownerUserId).Count;
+
     public PendingPhotoUpload Enqueue(PendingPhotoUpload item)
     {
         lock (_sync)

@@ -1,5 +1,7 @@
 using KGV.Maui.Models;
 using KGV.Maui.Services.PendingPhotos;
+using KGV.Core.Interfaces;
+using KGV.Maui.State;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 
@@ -10,6 +12,8 @@ public sealed class PendingPhotoUploadsPage : ContentPage
     private readonly PendingPhotoQueue _queue;
     private readonly PendingPhotoSyncService _syncService;
     private readonly PendingPhotoMenuState _menuState;
+    private readonly IVereinskontext _vereinskontext;
+    private readonly UserContextState _userContextState;
 
     private readonly Label _statusLabel;
     private readonly Label _emptyLabel;
@@ -17,11 +21,13 @@ public sealed class PendingPhotoUploadsPage : ContentPage
     private readonly Button _retryAllButton;
     private bool _isBusy;
 
-    public PendingPhotoUploadsPage(PendingPhotoQueue queue, PendingPhotoSyncService syncService, PendingPhotoMenuState menuState)
+    public PendingPhotoUploadsPage(PendingPhotoQueue queue, PendingPhotoSyncService syncService, PendingPhotoMenuState menuState, IVereinskontext vereinskontext, UserContextState userContextState)
     {
         _queue = queue;
         _syncService = syncService;
         _menuState = menuState;
+        _vereinskontext = vereinskontext;
+        _userContextState = userContextState;
 
         Title = "Foto-Uploads";
 
@@ -122,11 +128,11 @@ public sealed class PendingPhotoUploadsPage : ContentPage
 
     private void RefreshList()
     {
-        var items = _queue
-            .GetAll()
-            .Where(x => x.Status is PendingPhotoUploadStatus.Pending or PendingPhotoUploadStatus.Failed or PendingPhotoUploadStatus.Uploading)
-            .OrderByDescending(x => x.CreatedAtUtc)
-            .ToList();
+        var vereinId = _vereinskontext.Aktuell?.VereinId;
+        var ownerUserId = _userContextState.CurrentUserId;
+        var items = vereinId.HasValue && ownerUserId.HasValue
+            ? _queue.GetOpenForOwner(vereinId.Value, ownerUserId.Value).OrderByDescending(x => x.CreatedAtUtc).ToList()
+            : new List<PendingPhotoUpload>();
 
         _list.ItemsSource = items;
         _menuState.Refresh();

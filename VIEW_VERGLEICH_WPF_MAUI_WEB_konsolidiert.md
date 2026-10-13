@@ -8894,6 +8894,28 @@ Web-NFC ist ein optionaler Eingabekanal; die manuelle Auswahl bleibt verfügbar.
 
 ---
 
+## 15.5a Pending Media – Besitz und lokale Isolation
+
+Web speichert Pending-Fotos weiterhin in IndexedDB `kgv-browser-media-v1` im
+Store `pending-meter-photos`, ohne Versions- oder Schema-Migration. Die
+technischen IndexedDB-Helfer liegen in `lib/browser/indexed-db.ts`, die
+Zählerfoto-Queue in `services/offline/pending-media-store.ts`. Neue Einträge
+besitzen immer `clubId` und `ownerUserId`; Listen und Retries akzeptieren nur
+die exakte Kombination beider Werte.
+
+MAUI speichert zusätzlich ein nullable `OwnerUserId`. Ein fehlender Owner ist
+bewusst ein Legacy-Eintrag: Er bleibt lokal erhalten, wird weder angezeigt noch
+automatisch hochgeladen oder einem aktuellen Benutzer zugeordnet. Dasselbe
+gilt auf Web für alte IndexedDB-Records ohne Owner. Logout, Vereinswechsel und
+App-/Browser-Neustart löschen keine Queue-Daten.
+
+Ein anderer Benutzer desselben Vereins kann Pending-Fotos eines anderen
+Benutzers weder sehen noch hochladen. G15.5b ergänzt erst danach UI für
+Legacy-Daten, Warnungen, manuelles Löschen und browserübergreifende Retry-
+Koordination.
+
+---
+
 ## 15.13 Kamera und Dateiauswahl
 
 Bei Ablesefotos verwendet Web:
