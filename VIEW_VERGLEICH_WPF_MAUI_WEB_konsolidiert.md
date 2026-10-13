@@ -8859,6 +8859,10 @@ Kamera
 
 und besitzt einen manuellen Fallback.
 
+`QrScanner.tsx` stoppt Kamera-Tracks und den Animations-Frame sowohl beim
+Unmount als auch nach einem erfolgreichen Scan; bei fehlendem BarcodeDetector
+oder `mediaDevices` bleibt die manuelle Vereins-ID-Eingabe verfügbar.
+
 ### Bewertung
 ✅ richtige Weblösung.
 
@@ -8868,46 +8872,25 @@ Browserunterstützung darf nicht Voraussetzung für die Fachfunktion sein.
 
 ## 15.12 Web-NFC / RFID
 
-Der technische Zugriff auf Web-NFC wird in `lib/browser-media.ts`
-gekapselt. Der G6-Wrapper `RfidBrowserScanner` liegt derzeit noch in
-`app/page.tsx` und prüft:
+G15.4 kapselt die Browserfähigkeit in
+`lib/browser/media-capabilities.ts`: `BarcodeDetector`, `NDEFReader`, Secure
+Context und Kamera-Verfügbarkeit werden SSR-sicher technisch erkannt.
+`browser-media.ts` enthält ausschließlich die Pending-Media-/IndexedDB-
+Infrastruktur und bleibt bis G15.5 unverändert in dieser Verantwortung.
 
-```text
-NDEFReader
-+
-Secure Context
-```
+`components/scanner/NfcScanner.tsx` ist rein technisch: Es startet Web-NFC,
+liefert ausschließlich die getrimmte rohe `serialNumber` als UID, behandelt
+fehlende Unterstützung, Lesefehler und Startfehler und beendet den aktiven
+Scan per AbortSignal bei Erfolg oder Unmount.
 
-Ist Web-NFC verfügbar:
+Der G6-Wrapper `features/meters/RfidScanner.tsx` wertet die UID weiterhin mit
+`resolveRfidScanContext` aus und gibt die unveränderte `RfidScanResolution`
+weiter. Die Zustände `Unknown`, `KnownWithoutActiveMeter` und
+`KnownWithActiveMeter` sowie Einrichten, Einbau, Ausbau und Ablesung bleiben
+G6-Fachlogik. `app/page.tsx` besitzt keine direkte NDEFReader-/Web-NFC-Logik
+mehr.
 
-```text
-RFID-UID lesen
-```
-
-Ist es nicht verfügbar:
-
-```text
-manuelle Auswahl / MAUI-Spezialweg
-```
-
-### Bewertung
-✅ sinnvoll.
-
-Web-NFC ist ein optionaler Eingabekanal, nicht Teil der Fachlogik.
-
-Aktuell gilt:
-
-```text
-lib/browser-media.ts
-→ technische NDEFReader-Erkennung
-
-app/page.tsx: RfidBrowserScanner
-→ G6-UI und Übergabe des gelesenen Kontexts
-```
-
-Eine separate NFC-Komponente bzw. ein vollständiger ausgelagerter RFID-Wrapper
-ist im aktuellen Dateistand nicht vorhanden. Der fachliche RFID-Zustandsautomat
-bleibt G6.
+Web-NFC ist ein optionaler Eingabekanal; die manuelle Auswahl bleibt verfügbar.
 
 ---
 

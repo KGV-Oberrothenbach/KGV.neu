@@ -72,17 +72,3 @@ export async function removePendingMeterPhoto(id: string) {
 export function pendingPhotoFile(item: PendingMeterPhoto) {
   return new File([item.content], item.fileName, { type: item.contentType || "image/jpeg", lastModified: Date.now() });
 }
-
-export type BarcodeDetectorLike = { detect(source: ImageBitmapSource): Promise<Array<{ rawValue?: string }>> };
-export type BarcodeDetectorConstructor = new (options?: { formats?: string[] }) => BarcodeDetectorLike;
-
-export function barcodeDetectorConstructor() {
-  return (globalThis as typeof globalThis & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector ?? null;
-}
-
-export type NdefReaderLike = EventTarget & { scan(): Promise<void>; onreading: ((event: Event & { message?: { records?: Array<{ recordType?: string; data?: DataView; encoding?: string }> }; serialNumber?: string }) => void) | null; onreadingerror: ((event: Event) => void) | null };
-export type NdefReaderConstructor = new () => NdefReaderLike;
-
-export function ndefReaderConstructor() {
-  return (globalThis as typeof globalThis & { NDEFReader?: NdefReaderConstructor }).NDEFReader ?? null;
-}
