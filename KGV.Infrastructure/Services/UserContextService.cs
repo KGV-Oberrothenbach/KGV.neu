@@ -44,13 +44,25 @@ namespace KGV.Infrastructure.Services
             {
                 Client client = await _clientFactory.CreateAsync();
 
-                var record = await client.Rpc<AppUserRecord>("current_app_user_context", new { });
+                var records = await client.Rpc<AppUserRecord[]>("current_app_user_context", new { })
+                    ?? Array.Empty<AppUserRecord>();
 
-                if (record == null)
+                if (records.Length == 0)
                 {
                     _logger?.LogWarning("No valid app_user context found for user {UserId}.", userId);
                     throw new KgvAccessDeniedException();
                 }
+
+                if (records.Length > 1)
+                {
+                    _logger?.LogWarning(
+                        "Rejected app_user context for user {UserId}: RPC returned {RecordCount} records.",
+                        userId,
+                        records.Length);
+                    throw new KgvAccessDeniedException();
+                }
+
+                var record = records[0];
 
                 if (record.UserId != userId || !record.MitgliedId.HasValue || record.MitgliedId <= 0 ||
                     !string.Equals(record.Role, UserRoles.Admin, StringComparison.OrdinalIgnoreCase) &&
