@@ -17,9 +17,8 @@ export default function ImprintPage({ session }: { session: BrowserSession }) {
 
   useEffect(() => {
     let active = true;
-    setMessage("");
     loadImprintContacts(club, session).then((next) => {
-      if (active) setContacts(next);
+      if (active) { setContacts(next); setMessage(""); }
     }).catch((cause) => {
       if (active) { setContacts([]); setMessage(cause instanceof Error ? cause.message : "Weitere Impressumskontakte konnten nicht geladen werden."); }
     });

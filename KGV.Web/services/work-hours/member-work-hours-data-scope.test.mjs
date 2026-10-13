@@ -73,5 +73,5 @@ test("member work-hours requests keep member and season filters without bypassin
   const component = await readFile(new URL("../../features/work-hours/MemberWorkHours.tsx", import.meta.url), "utf8");
   assert.match(component, /loadMemberWorkHoursWorkspace\(club, session, memberId, saisonId\)/);
   const page = await readFile(new URL("../../app/page.tsx", import.meta.url), "utf8");
-  assert.match(page, /effectiveActiveId === "mitglied-arbeitsstunden" && selectedMemberId && <MemberWorkHours session=\{session\} memberId=\{selectedMemberId\} saisonId=\{workspaceContext\.saisonId\}/);
+  assert.match(page, /effectiveActiveId === "mitglied-arbeitsstunden" && selectedMemberId && <MemberWorkHours key=\{`\$\{club\.vereinId\}:\$\{session\.user\.id\}:\$\{selectedMemberId\}:\$\{workspaceContext\.saisonId \?\? "none"\}`\} session=\{session\} memberId=\{selectedMemberId\} saisonId=\{workspaceContext\.saisonId\}/);
 });

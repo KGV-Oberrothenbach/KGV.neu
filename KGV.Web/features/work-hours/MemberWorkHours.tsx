@@ -22,20 +22,33 @@ export function MemberWorkHours({ session, memberId, saisonId, canEditOwn, canMa
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const load = async () => {
-    setMessage("");
-    if (!saisonId) { setItems([]); setHistory([]); setSummary(null); return; }
+  async function load() {
+    if (!saisonId) return;
     try {
       const workspace = await loadMemberWorkHoursWorkspace(club, session, memberId, saisonId);
       setItems(workspace.workHours);
       setHistory(workspace.history);
       setSummary(workspace.summary);
+      setMessage("");
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "Arbeitsstunden konnten nicht geladen werden.");
     }
-  };
+  }
 
-  useEffect(() => { void load(); }, [club, session, memberId, saisonId]);
+  useEffect(() => {
+    if (!saisonId) return;
+    let active = true;
+    loadMemberWorkHoursWorkspace(club, session, memberId, saisonId).then((workspace) => {
+      if (!active) return;
+      setItems(workspace.workHours);
+      setHistory(workspace.history);
+      setSummary(workspace.summary);
+      setMessage("");
+    }).catch((cause: unknown) => {
+      if (active) setMessage(cause instanceof Error ? cause.message : "Arbeitsstunden konnten nicht geladen werden.");
+    });
+    return () => { active = false; };
+  }, [club, session, memberId, saisonId]);
   const editLock = useEditLock(club, session, "arbeitsstunde", editingId, editingId !== null);
   useEffect(() => { if (editingId && editLock.message) queueMicrotask(() => setMessage(editLock.message)); }, [editingId, editLock.message]);
 
