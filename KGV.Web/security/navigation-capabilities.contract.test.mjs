@@ -26,5 +26,5 @@ assert.match(page, /activeId=\{effectiveActiveId\}/);
 const workspaceRender = page.slice(page.indexOf('<article className="content-area">'));
 assert.doesNotMatch(workspaceRender, /\{activeId ===/);
 assert.match(workspaceRender, /\.has\(effectiveActiveId\)/);
-assert.match(page, /canExport=\{has\(Permission\.searchMembers\)\}/);
+assert.match(page, /canExport=\{canExportData\(capabilityContext\)\}/);
 assert.doesNotMatch(page, /context\.role !== "user"/);

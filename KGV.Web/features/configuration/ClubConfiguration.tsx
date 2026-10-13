@@ -17,16 +17,19 @@ export function ClubConfiguration({ session, canManage }: { session: BrowserSess
   const [saving, setSaving] = useState(false);
   const editLock = useEditLock(club, session, "vereinskonfiguration", draft.id ?? 0, Boolean(exists && draft.id));
 
-  async function load() {
-    try {
-      const result = await loadClubConfiguration(club, session);
+  useEffect(() => {
+    if (!canManage) return;
+    let active = true;
+    loadClubConfiguration(club, session).then((result) => {
+      if (!active) return;
       setDraft(result.draft);
       setExists(result.exists);
       setMessage(result.exists ? "" : "Noch keine aktive Vereinskonfiguration vorhanden. Sie wird beim ersten Speichern angelegt.");
-    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Vereinskonfiguration konnte nicht geladen werden."); }
-  }
-  useEffect(() => { if (canManage) void load(); }, [session, canManage]);
-  useEffect(() => { if (exists && editLock.message) queueMicrotask(() => setMessage(editLock.message)); }, [exists, editLock.message]);
+    }).catch((cause: unknown) => {
+      if (active) setMessage(cause instanceof Error ? cause.message : "Vereinskonfiguration konnte nicht geladen werden.");
+    });
+    return () => { active = false; };
+  }, [club, session, canManage]);
 
   function update(key: keyof ClubConfigurationDraft, value: string) { setDraft((current) => ({ ...current, [key]: value })); }
   async function save() {
@@ -39,5 +42,6 @@ export function ClubConfiguration({ session, canManage }: { session: BrowserSess
   }
 
   if (!canManage) return <section className="data-workspace club-configuration"><p className="notice" role="alert">Für die Vereinskonfiguration fehlen die erforderlichen Rechte.</p></section>;
-  return <section className="data-workspace club-configuration"><p className="document-intro">Diese Angaben werden zentral für Verträge, Anschreiben und Dokumentmetadaten verwendet.</p>{message && <p className="notice" role="status">{message}</p>}<fieldset disabled={saving} className="admin-form-grid">{fields.map(([key, label, type]) => <label key={key}>{label}<input type={type ?? "text"} value={String(draft[key] ?? "")} onChange={(event) => update(key, event.target.value)} /></label>)}<label className="wide">Standard-Hinweistext<textarea value={draft.standard_hinweistext ?? ""} onChange={(event) => update("standard_hinweistext", event.target.value)} /></label><label className="wide">Datenschutztext<textarea value={draft.datenschutz_text ?? ""} onChange={(event) => update("datenschutz_text", event.target.value)} /></label></fieldset><div className="editor-actions"><button disabled={saving} onClick={save}>{saving ? "Speichert …" : "Vereinskonfiguration speichern"}</button></div></section>;
+  const visibleMessage = message || (exists ? editLock.message : "");
+  return <section className="data-workspace club-configuration"><p className="document-intro">Diese Angaben werden zentral für Verträge, Anschreiben und Dokumentmetadaten verwendet.</p>{visibleMessage && <p className="notice" role="status">{visibleMessage}</p>}<fieldset disabled={saving} className="admin-form-grid">{fields.map(([key, label, type]) => <label key={key}>{label}<input type={type ?? "text"} value={String(draft[key] ?? "")} onChange={(event) => update(key, event.target.value)} /></label>)}<label className="wide">Standard-Hinweistext<textarea value={draft.standard_hinweistext ?? ""} onChange={(event) => update("standard_hinweistext", event.target.value)} /></label><label className="wide">Datenschutztext<textarea value={draft.datenschutz_text ?? ""} onChange={(event) => update("datenschutz_text", event.target.value)} /></label></fieldset><div className="editor-actions"><button disabled={saving} onClick={save}>{saving ? "Speichert …" : "Vereinskonfiguration speichern"}</button></div></section>;
 }

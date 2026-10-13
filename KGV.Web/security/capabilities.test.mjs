@@ -4,9 +4,9 @@ import ts from "typescript";
 
 function compileModule(source, require) {
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-  const module = { exports: {} };
-  new Function("exports", "module", "require", compiled)(module.exports, module, require);
-  return module.exports;
+  const compiledModule = { exports: {} };
+  new Function("exports", "module", "require", compiled)(compiledModule.exports, compiledModule, require);
+  return compiledModule.exports;
 }
 
 const permissionsSource = await readFile(new URL("./permissions.ts", import.meta.url), "utf8");

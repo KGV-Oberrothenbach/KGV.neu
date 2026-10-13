@@ -31,7 +31,8 @@ export function normalizeAndValidateClubConfiguration(draft: ClubConfigurationDr
   if (!isValidBic(normalized.bic!)) return { error: "Der BIC ist ungültig." };
   if (datenschutzStand === undefined) return { error: "Der Datenschutz-Stand muss ein gültiges Datum sein." };
   normalized.datenschutz_stand = datenschutzStand;
-  const { id: _id, ...payload } = normalized;
+  const payload = { ...normalized };
+  Reflect.deleteProperty(payload, "id");
   return { payload: { ...payload, aktiv: true } };
 }
 export async function loadClubConfiguration(club: ClubContext, session: BrowserSession): Promise<{ draft: ClubConfigurationDraft; exists: boolean }> { const record = await getActiveClubConfiguration(club, session); return record ? { draft: clubConfigurationDraft(record), exists: true } : { draft: emptyClubConfiguration(), exists: false }; }

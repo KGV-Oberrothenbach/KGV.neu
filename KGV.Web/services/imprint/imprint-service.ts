@@ -14,6 +14,9 @@ export async function loadImprintContacts(club: ClubContext, session: BrowserSes
     const isChair = combined.includes("vorsitz") && !/stellv|stellvertr|\bstv\b|2\.\s*vorsitz|zweite\s+vorsitz/.test(combined);
     const name = member ? [member.vorname, member.name].filter(Boolean).join(" ").trim() : "Aktuell nicht hinterlegt.";
     const city = member ? [member.plz, member.ort].filter(Boolean).join(" ").trim() : "";
-    return { id: slot.id, functionName: slot.funktion?.trim() || "Funktion", name: name || "Aktuell nicht hinterlegt.", mobile: member?.handy?.trim() || "", address: isChair ? [member?.adresse?.trim(), city].filter(Boolean).join(", ") : "", isConstruction: combined.includes("bauausschuss") || combined.includes("bau-ausschuss") || combined.includes("bau ausschuss") || combined.includes("ausschuss") || (combined.includes("bau") && combined.includes("ausschuss")), isChair };
-  }).filter((item) => !item.isChair && !hasMarker(`${item.name} ${item.mobile} ${item.address}`)).map(({ isChair: _isChair, ...item }) => item);
+    return {
+      contact: { id: slot.id, functionName: slot.funktion?.trim() || "Funktion", name: name || "Aktuell nicht hinterlegt.", mobile: member?.handy?.trim() || "", address: isChair ? [member?.adresse?.trim(), city].filter(Boolean).join(", ") : "", isConstruction: combined.includes("bauausschuss") || combined.includes("bau-ausschuss") || combined.includes("bau ausschuss") || combined.includes("ausschuss") || (combined.includes("bau") && combined.includes("ausschuss")) },
+      isChair,
+    };
+  }).filter((item) => !item.isChair && !hasMarker(`${item.contact.name} ${item.contact.mobile} ${item.contact.address}`)).map((item) => item.contact);
 }

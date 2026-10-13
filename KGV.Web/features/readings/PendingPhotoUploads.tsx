@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import { useSelectedClub } from "../auth/AuthProvider";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -105,5 +106,5 @@ function LocalPhotoThumbnail({ item }: { item: PendingMeterPhoto }) {
     queueMicrotask(() => { if (active) setUrl(next); });
     return () => { active = false; URL.revokeObjectURL(next); };
   }, [item.id, item.content]);
-  return <div className="pending-photo-thumb">{url && <>{/* Blob-Vorschau bleibt lokal und ist nicht über Next Image optimierbar. */}<img src={url} alt="Lokale Vorschau des Ablesefotos" /></>}</div>;
+  return <div className="pending-photo-thumb">{url && <Image src={url} alt="Lokale Vorschau des Ablesefotos" width={112} height={80} unoptimized />}</div>;
 }

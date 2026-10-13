@@ -104,6 +104,8 @@ export async function loadReadingCaptureContext(club: ClubContext, session: Brow
   return { meters: scope.meters.filter((meter) => isActiveMeter(meter) && parcelIds.has(meter.parzelle_id)), parcels, submissionsAllowed: scope.submissionsAllowed, photoRequired: scope.photoRequired, isDirectCapture: scope.isDirectCapture, message: null };
 }
 
+export function saveMeterReading(club: ClubContext, session: BrowserSession, permissions: ReadingPermissions, input: SaveReadingInput & { confirmWarnings: true }): Promise<SavedReading>;
+export function saveMeterReading(club: ClubContext, session: BrowserSession, permissions: ReadingPermissions, input: SaveReadingInput & { confirmWarnings?: boolean }): Promise<SaveMeterReadingResult>;
 export async function saveMeterReading(club: ClubContext, session: BrowserSession, permissions: ReadingPermissions, input: SaveReadingInput & { confirmWarnings?: boolean }): Promise<SaveMeterReadingResult> {
   if (!Number.isInteger(input.meterId) || input.meterId <= 0) throw new Error("Bitte einen aktiven Zähler auswählen.");
   if (!validDate(input.date)) throw new Error("Bitte ein gültiges Ablesedatum eingeben.");
@@ -132,7 +134,11 @@ export async function getMeterInstallationPhotoRequired(club: ClubContext, sessi
   return getBooleanSetting(club, session, "meter_reading_photo_required", true);
 }
 
-export async function saveMeterInstallationReading(club: ClubContext, session: BrowserSession, permissions: { canManageMeterChanges: boolean }, input: { meterId: number; date: string; value: number; confirmWarnings?: boolean }): Promise<SaveMeterInstallationReadingResult> {
+type MeterChangeReadingInput = { meterId: number; date: string; value: number; confirmWarnings?: boolean };
+
+export function saveMeterInstallationReading(club: ClubContext, session: BrowserSession, permissions: { canManageMeterChanges: boolean }, input: MeterChangeReadingInput & { confirmWarnings: true }): Promise<MeterReading>;
+export function saveMeterInstallationReading(club: ClubContext, session: BrowserSession, permissions: { canManageMeterChanges: boolean }, input: MeterChangeReadingInput): Promise<SaveMeterInstallationReadingResult>;
+export async function saveMeterInstallationReading(club: ClubContext, session: BrowserSession, permissions: { canManageMeterChanges: boolean }, input: MeterChangeReadingInput): Promise<SaveMeterInstallationReadingResult> {
   if (!permissions.canManageMeterChanges) throw new Error("Für die Einbauablesung besteht keine Berechtigung.");
   if (!Number.isInteger(input.meterId) || input.meterId <= 0) throw new Error("Der eingebaute Zähler ist ungültig.");
   if (!validDate(input.date)) throw new Error("Bitte ein gültiges Ablesedatum eingeben.");
@@ -149,7 +155,9 @@ export async function saveMeterInstallationReading(club: ClubContext, session: B
   return created[0];
 }
 
-export async function saveMeterRemovalReading(club: ClubContext, session: BrowserSession, permissions: { canManageMeterChanges: boolean }, input: { meterId: number; date: string; value: number; confirmWarnings?: boolean }): Promise<SaveMeterRemovalReadingResult> {
+export function saveMeterRemovalReading(club: ClubContext, session: BrowserSession, permissions: { canManageMeterChanges: boolean }, input: MeterChangeReadingInput & { confirmWarnings: true }): Promise<MeterReading>;
+export function saveMeterRemovalReading(club: ClubContext, session: BrowserSession, permissions: { canManageMeterChanges: boolean }, input: MeterChangeReadingInput): Promise<SaveMeterRemovalReadingResult>;
+export async function saveMeterRemovalReading(club: ClubContext, session: BrowserSession, permissions: { canManageMeterChanges: boolean }, input: MeterChangeReadingInput): Promise<SaveMeterRemovalReadingResult> {
   if (!permissions.canManageMeterChanges) throw new Error("Für die Ausbauablesung besteht keine Berechtigung.");
   if (!Number.isInteger(input.meterId) || input.meterId <= 0 || !validDate(input.date) || !Number.isFinite(input.value) || input.value < 0) throw new Error("Ausbaudatum und Endstand müssen gültig sein.");
   const meter = (await listReadingMeters(club, session)).find((item) => item.id === input.meterId);
