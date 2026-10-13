@@ -20,6 +20,8 @@ import { DocumentList } from "../features/documents/DocumentList";
 import type { DocumentAccessContext } from "../services/documents/document-access-service";
 import { OtpFlow } from "../features/auth/OtpFlow";
 import { ndefReaderConstructor } from "../lib/browser-media";
+import { subscribeConnectivityChanges } from "../lib/browser/connectivity";
+import { getWifiOnlyPreference, setWifiOnlyPreference } from "../lib/browser/storage";
 import { useEditLock } from "../lib/use-edit-lock";
 import { MemberGardensWorkspace, ParcelProtocolsWorkspace, ParcelWorkspace } from "./parcel-workspaces";
 import Navigation from "../features/navigation/Navigation";
@@ -259,11 +261,11 @@ function MeterOverview({ session, clubId, reviewerMemberId, selectedParcelId, se
   const [reviewData, setReviewData] = useState<ReadingReviewData>({ open: [], reviewed: [], historyByReadingId: new Map() });
   const [activeTab, setActiveTab] = useState<"meters" | "due" | "open" | "reviewed" | "entry">(canReadMeters ? "meters" : canApprove ? "open" : "entry");
   const [selectedReadingId, setSelectedReadingId] = useState<number | null>(null);
-  const [wifiOnly, setWifiOnly] = useState(() => typeof window !== "undefined" && window.localStorage.getItem("kgv-meter-photo-wifi-only") === "true");
+  const [wifiOnly, setWifiOnly] = useState(getWifiOnlyPreference);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const onNavigate = (id: string) => { if (id !== "zaehlerwechsel" || canManageMeterChanges) navigate(id); };
-  function changeWifiOnly(value: boolean) { setWifiOnly(value); window.localStorage.setItem("kgv-meter-photo-wifi-only", String(value)); }
+  function changeWifiOnly(value: boolean) { setWifiOnly(value); setWifiOnlyPreference(value); }
   async function load() {
     setLoading(true); setError("");
     try {
@@ -278,7 +280,7 @@ function MeterOverview({ session, clubId, reviewerMemberId, selectedParcelId, se
   useEffect(() => { void load(); }, [session, canReadMeters, canApprove, reviewerMemberId]);
   useEffect(() => {
     const sync = () => { void retryAllPendingReadingPhotos(session, clubId, wifiOnly); };
-    sync(); window.addEventListener("online", sync); return () => window.removeEventListener("online", sync);
+    sync(); return subscribeConnectivityChanges(sync);
   }, [session, clubId, wifiOnly]);
 
   const parcelName = (parcelId: number) => { const parcel = parcels.find((item) => item.id === parcelId); return parcel ? `${parcel.garten_nr} – ${parcel.Anlage}` : "Unbekannte Parzelle"; };
@@ -328,7 +330,7 @@ function confirmReadingWarnings(warnings: Array<{ message: string }>) {
 
 function MeterChange({ session, clubId, canManageMeterChanges }: { session: BrowserSession; clubId: string; canManageMeterChanges: boolean }) {
   const [uid,setUid]=useState(""); const [resolution,setResolution]=useState<RfidScanResolution|null>(null); const [context,setContext]=useState<MeterInstallationContext|null>(null); const [installationDate,setInstallationDate]=useState(currentLocalDate); const [meterNumber,setMeterNumber]=useState(""); const [calibrationYear,setCalibrationYear]=useState(()=>String(new Date().getFullYear())); const [installedMeter,setInstalledMeter]=useState<Meter|null>(null); const [initialValue,setInitialValue]=useState(""); const [file,setFile]=useState<File|null>(null); const [installationPhotoRequired,setInstallationPhotoRequired]=useState(true); const [removedAt,setRemovedAt]=useState(currentLocalDate); const [endValue,setEndValue]=useState(""); const [progress,setProgress]=useState<{readingId:number;removedAt:string;endValue:number;photoHandled:boolean;photoMessage:string}|null>(null); const [message,setMessage]=useState(""); const [saving,setSaving]=useState(false);
-  const wifiOnly=()=>typeof window!=="undefined"&&window.localStorage.getItem("kgv-meter-photo-wifi-only")==="true";
+  const wifiOnly=getWifiOnlyPreference;
   function reset(){setResolution(null);setContext(null);setInstalledMeter(null);setInitialValue("");setFile(null);setMeterNumber("");setCalibrationYear(String(new Date().getFullYear()));setInstallationDate(currentLocalDate());setRemovedAt(currentLocalDate());setEndValue("");setProgress(null);}
   async function resolve(){setSaving(true);try{const next=await resolveRfidScanContext(session,uid);setResolution(next);setUid(next.normalizedUid);setContext(installationContextFromResolution(next));setInstallationPhotoRequired(await getMeterInstallationPhotoRequired(session));setMessage(next.message);}catch(e){setMessage(e instanceof Error?e.message:"RFID-Kontext konnte nicht geladen werden.");}finally{setSaving(false);}}
   async function install(){if(!context)return;setSaving(true);try{const m=await createMeterInstallationForRfid(session,{canManageMeterChanges},context,{meterNumber,installationDate,calibrationYear});setInstalledMeter(m);setMessage("Zähler angelegt. Jetzt folgt die Anfangsablesung.");}catch(e){setMessage(e instanceof Error?e.message:"Zähler konnte nicht angelegt werden.");}finally{setSaving(false);}}
@@ -371,11 +373,11 @@ function PhotoOpenButton({ session, reading }: { session: BrowserSession; readin
 }
 
 function PendingPhotoUploads({ session, clubId }: { session: BrowserSession; clubId: string }) {
-  const [items, setItems] = useState<PendingMeterPhoto[]>([]); const [busy, setBusy] = useState(false); const [message, setMessage] = useState(""); const [wifiOnly] = useState(() => typeof window !== "undefined" && window.localStorage.getItem("kgv-meter-photo-wifi-only") === "true");
+  const [items, setItems] = useState<PendingMeterPhoto[]>([]); const [busy, setBusy] = useState(false); const [message, setMessage] = useState(""); const [wifiOnly] = useState(getWifiOnlyPreference);
   async function load() { try { setItems(await listPendingReadingPhotos(clubId)); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Lokale Foto-Warteschlange konnte nicht geladen werden."); } }
   async function retryAll() { if (busy) return; setBusy(true); try { const result = await retryAllPendingReadingPhotos(session, clubId, wifiOnly); await load(); setMessage(result.uploaded || result.failed ? `${result.uploaded} Foto(s) hochgeladen, ${result.failed} fehlgeschlagen.` : result.queued ? "Das aktuelle Netz erlaubt keinen Upload. Fotos bleiben lokal." : "Keine offenen Foto-Uploads vorhanden."); } finally { setBusy(false); } }
   async function retryOne(item: PendingMeterPhoto) { if (busy) return; setBusy(true); try { const result = await retryPendingReadingPhoto(session, clubId, wifiOnly, item); await load(); setMessage(result.message); } finally { setBusy(false); } }
-  useEffect(() => { void load(); const onOnline = () => { void retryAll(); }; window.addEventListener("online", onOnline); return () => window.removeEventListener("online", onOnline); }, [clubId, wifiOnly]);
+  useEffect(() => { void load(); const retryOnConnectivityChange = () => { void retryAll(); }; return subscribeConnectivityChanges(retryOnConnectivityChange); }, [clubId, wifiOnly]);
   function preview(item: PendingMeterPhoto) { const url = URL.createObjectURL(item.content); window.open(url, "_blank", "noopener,noreferrer"); window.setTimeout(() => URL.revokeObjectURL(url), 60_000); }
   return <section className="data-workspace pending-photos"><div className="data-toolbar"><span>{items.length ? `${items.length} offene Foto-Uploads` : "Keine offenen Foto-Uploads"}</span><button disabled={!items.length || busy} onClick={() => void retryAll()}>{busy ? "Uploads laufen …" : "Alle erneut versuchen"}</button></div><p className="context-note">Fotos bleiben bis zum erfolgreichen Upload ausschließlich in diesem Browser und diesem Vereinskontext gespeichert.</p>{message && <p className="notice" role="status">{message}</p>}<div className="pending-photo-list">{items.map((item) => <article key={item.id}><LocalPhotoThumbnail item={item} /><div><strong>{item.fileName}</strong><span>Garten {item.details.garten} · {item.details.medium} · Ablesung #{item.readingId}</span><span>{new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" }).format(new Date(item.createdAt))} · Versuch {item.attemptCount}</span><small>{item.status === "failed" ? `Fehlgeschlagen: ${item.lastError ?? "erneuter Versuch möglich"}` : item.status === "uploading" ? "Wird hochgeladen …" : "Lokal gespeichert, Upload ausstehend"}</small></div><div><button className="secondary-action" onClick={() => preview(item)}>Anzeigen</button><button disabled={busy} onClick={() => void retryOne(item)}>Erneut versuchen</button></div></article>)}{items.length === 0 && <p className="empty-state">Es sind keine lokalen Ablesefotos vorgemerkt.</p>}</div></section>;
 }

@@ -1,4 +1,5 @@
 import { enqueueMeterPhoto, getPendingMeterPhoto, listPendingMeterPhotos, pendingPhotoFile, putPendingMeterPhoto, removePendingMeterPhoto, type PendingMeterPhoto } from "../../lib/browser-media";
+import { getConnectivitySnapshot } from "../../lib/browser/connectivity";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { linkReadingPhoto, openReadingPhoto, uploadReadingPhoto, type ReadingPhotoDetails, type UploadedReadingPhoto } from "../../repositories/readings/reading-photo-repository";
 
@@ -8,12 +9,12 @@ export type ReadingPhotoInput = { clubId: string; readingId: number; file: File 
 const now = () => new Date().toISOString();
 const pendingPhotoAttempts = new Set<string>();
 const uploadDecision = (wifiOnly: boolean) => {
-  if (typeof navigator === "undefined" || !navigator.onLine) return { allowed: false, reason: "Keine Internetverbindung. Foto bleibt lokal gespeichert." };
+  const connectivity = getConnectivitySnapshot();
+  if (!connectivity.online) return { allowed: false, reason: "Keine Internetverbindung. Foto bleibt lokal gespeichert." };
   if (!wifiOnly) return { allowed: true, reason: "" };
-  const connection = (navigator as Navigator & { connection?: { type?: string } }).connection;
-  return connection?.type === "wifi"
+  return connectivity.wifi === true
     ? { allowed: true, reason: "" }
-    : { allowed: false, reason: connection?.type ? "Upload ist aktuell auf WLAN beschränkt." : "WLAN-Verbindung ist unbekannt. Foto bleibt vorsorglich lokal gespeichert." };
+    : { allowed: false, reason: connectivity.wifi === false ? "Upload ist aktuell auf WLAN beschränkt." : "WLAN-Verbindung ist unbekannt. Foto bleibt vorsorglich lokal gespeichert." };
 };
 
 const failed = async (item: PendingMeterPhoto, error: string, incrementAttempt: boolean) => {

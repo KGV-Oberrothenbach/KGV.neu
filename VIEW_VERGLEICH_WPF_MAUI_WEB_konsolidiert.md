@@ -8964,7 +8964,12 @@ Damit zeigt ein anderer ausgewählter Verein nicht versehentlich die lokale Wart
 
 ## 15.16 Online-/Offline-Erkennung
 
-`PendingPhotoUploads` verwendet:
+Die technische Browser-Schicht kapselt `navigator.onLine`, die soweit
+unterstützte Network Information API sowie die Ereignisse `online`, `offline`
+und `connection.change`. Pending-Photo-Retries verwenden diese zentrale
+Subscription; G6 erhält daraus nur technische Connectivity-Informationen.
+
+Dabei bleibt:
 
 ```text
 navigator.onLine
@@ -8975,6 +8980,7 @@ und Browserereignisse:
 ```text
 online
 offline
+connection.change
 ```
 
 ### Bewertung
@@ -8986,19 +8992,22 @@ Die tatsächliche Uploadantwort bleibt trotzdem entscheidend, da `navigator.onLi
 
 ## 15.17 „Nur WLAN hochladen“
 
-Web besitzt eine lokale Einstellung:
+Die technische Storage-Schicht verwaltet die lokale Einstellung:
 
 ```text
 kgv-meter-photo-wifi-only
 ```
 
-Wenn aktiviert, wird versucht:
+Der bestehende Schlüssel bleibt kompatibel erhalten. Wenn aktiviert, wird versucht:
 
 ```text
 navigator.connection.type === "wifi"
 ```
 
 zu erkennen.
+
+Session- und Vereinskontext-Speicher bleiben bewusst unverändert: Sie gehören zu
+G1 beziehungsweise zur späteren Transport-Entflechtung in G15.6.
 
 ### Besonderheit
 Die Network Information API ist nicht in allen Browsern verfügbar.
