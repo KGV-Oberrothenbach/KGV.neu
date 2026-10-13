@@ -8,7 +8,8 @@ set "MAUI_CSPROJ=%REPO%\KGV.Maui\KGV.Maui.csproj"
 set "WEB_ROOT=%REPO%\KGV.Web"
 set "WEB_PACKAGE=%WEB_ROOT%\package.json"
 set "PUBLISH_ROOT=%REPO%\publish"
-set "ENABLE_CLOUDFLARE_DEPLOY=0"
+set "ENABLE_CLOUDFLARE_TEST_DEPLOY=1"
+set "ENABLE_CLOUDFLARE_PROD_DEPLOY=0"
 set "WEB_PROD_WORKER_NAME=kgv-web"
 set "WEB_TEST_WORKER_NAME=kgv-web-test"
 set "WEB_PROD_HOST=https://app.a-b-i.net"
@@ -95,7 +96,13 @@ set "WEB_CLIENT_DIST=%WEB_DIST%\client"
 set "WEB_RELEASE_INFO=%WEB_CLIENT_DIST%\release-info.json"
 echo.
 echo Art: %RELEASE_KIND% / Zielversion: %TARGET_VERSION% / Android-Code: %NEW_ANDROID_CODE%
-echo Cloudflare-Deployment: deaktiviert
+if /I "%RELEASE_KIND%"=="Release" (
+  set "DEPLOY_WEB=%ENABLE_CLOUDFLARE_PROD_DEPLOY%"
+  echo Cloudflare-Produktiv-Deployment: deaktiviert
+) else (
+  set "DEPLOY_WEB=%ENABLE_CLOUDFLARE_TEST_DEPLOY%"
+  echo Cloudflare-Test-Deployment: aktiviert (https://kgv-web-test.kgv-ob.workers.dev/)
+)
 choice /C JN /N /M "MAUI und Web jetzt bauen? [J/N]"
 if errorlevel 2 goto CANCEL_RELEASE
 
@@ -149,7 +156,7 @@ copy /Y "%AAB_FILE%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%.aab" >nu
 robocopy "%WEB_DIST%" "%WEB_OUT%\dist" /E /NFL /NDL /NJH /NJS /NC /NS >nul
 set "WEB_COPY_RESULT=%ERRORLEVEL%"
 if %WEB_COPY_RESULT% GEQ 8 goto BUILD_FAILED
-if "%ENABLE_CLOUDFLARE_DEPLOY%"=="1" (
+if "%DEPLOY_WEB%"=="1" (
   call :DEPLOY_WEB
   if errorlevel 1 goto BUILD_FAILED
 )
