@@ -23,15 +23,6 @@ export default function RootLayout({
   return (
     <html lang="de">
       <body className="antialiased">
-        {process.env.NODE_ENV !== "production" && <script dangerouslySetInnerHTML={{ __html: `
-          (function () {
-            if (sessionStorage.getItem('kgv-dev-cache-reset') || !('serviceWorker' in navigator)) return;
-            Promise.all([navigator.serviceWorker.getRegistrations(), caches.keys()]).then(function (result) {
-              result[0].forEach(function (registration) { registration.unregister(); });
-              return Promise.all(result[1].filter(function (name) { return name.indexOf('kgv-shell-') === 0; }).map(function (name) { return caches.delete(name); }));
-            }).then(function () { sessionStorage.setItem('kgv-dev-cache-reset', '1'); location.reload(); });
-          }());
-        ` }} />}
         {children}<PwaController />
       </body>
     </html>

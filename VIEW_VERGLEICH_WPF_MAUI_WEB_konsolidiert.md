@@ -8565,6 +8565,10 @@ offline.html
 
 In Produktion wird der Service Worker registriert.
 
+In der Entwicklung übernimmt `PwaController` zentral einmal pro Browser-Session
+das Entfernen alter Service-Worker-Registrierungen und `kgv-shell-*`-Caches und
+lädt anschließend einmal neu. `layout.tsx` enthält dafür keine eigene Bereinigung.
+
 Bei unterstützten Browsern erscheint über:
 
 ```text
