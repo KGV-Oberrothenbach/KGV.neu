@@ -50,7 +50,7 @@ if defined REPO_DIRTY (
 )
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
- "$ErrorActionPreference='Stop';$x=[xml](Get-Content '%MAUI_CSPROJ%');$g=@($x.Project.PropertyGroup ^| Where-Object {$_.ApplicationDisplayVersion -or $_.ApplicationVersion -or $_.AndroidTargetSdkVersion});$d=($g ^| ForEach-Object {if($_.ApplicationDisplayVersion){[string]$_.ApplicationDisplayVersion}} ^| Select-Object -First 1);$c=@($g ^| ForEach-Object {if($_.ApplicationVersion){[int]$_.ApplicationVersion}});$s=($g ^| ForEach-Object {if($_.AndroidTargetSdkVersion){[string]$_.AndroidTargetSdkVersion}} ^| Select-Object -First 1);if(-not $d -or $c.Count -eq 0 -or -not $s -or $d -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$'){throw 'Ungueltige MAUI-Versionseinstellungen'};Write-Output ($d+'|'+(($c ^| Measure-Object -Maximum).Maximum)+'|'+$s)" > "%PS_RESULT%"
+ "$ErrorActionPreference='Stop';$x=[xml](Get-Content '%MAUI_CSPROJ%');$g=@($x.Project.PropertyGroup | Where-Object {$_.ApplicationDisplayVersion -or $_.ApplicationVersion -or $_.AndroidTargetSdkVersion});$d=($g | ForEach-Object {if($_.ApplicationDisplayVersion){[string]$_.ApplicationDisplayVersion}} | Select-Object -First 1);$c=@($g | ForEach-Object {if($_.ApplicationVersion){[int]$_.ApplicationVersion}});$s=($g | ForEach-Object {if($_.AndroidTargetSdkVersion){[string]$_.AndroidTargetSdkVersion}} | Select-Object -First 1);if(-not $d -or $c.Count -eq 0 -or -not $s -or $d -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$'){throw 'Ungueltige MAUI-Versionseinstellungen'};Write-Output ($d+'|'+(($c | Measure-Object -Maximum).Maximum)+'|'+$s)" > "%PS_RESULT%"
 if errorlevel 1 (echo FEHLER: MAUI-Versionen konnten nicht gelesen werden.& goto FAILURE_END)
 set "VERLINE=" & set /p VERLINE=<"%PS_RESULT%"
 for /f "tokens=1,2,3 delims=|" %%A in ("%VERLINE%") do (set "CUR_MAUI_DISPLAY=%%A" & set "CUR_MAUI_CODE=%%B" & set "ANDROID_TARGET_SDK=%%C")
@@ -101,7 +101,7 @@ if errorlevel 2 goto CANCEL_RELEASE
 
 set "VERSION_CHANGED=1"
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
- "$ErrorActionPreference='Stop';$x=[xml](Get-Content '%MAUI_CSPROJ%');$g=@($x.Project.PropertyGroup ^| Where-Object {$_.ApplicationDisplayVersion -or $_.ApplicationVersion});if($g.Count -eq 0){throw 'Versionseinstellungen fehlen'};foreach($p in $g){$p.ApplicationDisplayVersion='%TARGET_VERSION%';$p.ApplicationVersion='%NEW_ANDROID_CODE%'};$x.Save('%MAUI_CSPROJ%')"
+ "$ErrorActionPreference='Stop';$x=[xml](Get-Content '%MAUI_CSPROJ%');$g=@($x.Project.PropertyGroup | Where-Object {$_.ApplicationDisplayVersion -or $_.ApplicationVersion});if($g.Count -eq 0){throw 'Versionseinstellungen fehlen'};foreach($p in $g){$p.ApplicationDisplayVersion='%TARGET_VERSION%';$p.ApplicationVersion='%NEW_ANDROID_CODE%'};$x.Save('%MAUI_CSPROJ%')"
 if errorlevel 1 goto BUILD_FAILED
 
 set "KEYSTORE=%REPO%\_secrets\Android\kgv-upload.keystore"
@@ -136,7 +136,7 @@ set "WEB_BUILD_RESULT=%ERRORLEVEL%"
 popd
 if not "%WEB_BUILD_RESULT%"=="0" goto BUILD_FAILED
 if not exist "%WEB_CLIENT_DIST%" goto BUILD_FAILED
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';[ordered]@{version='%TARGET_VERSION%';branch='%CURRENT_BRANCH%';commit='%CURRENT_COMMIT%';kind='%RELEASE_KIND%';builtAtUtc=[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')} ^| ConvertTo-Json ^| Set-Content -Path '%WEB_RELEASE_INFO%' -Encoding UTF8"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';[ordered]@{version='%TARGET_VERSION%';branch='%CURRENT_BRANCH%';commit='%CURRENT_COMMIT%';kind='%RELEASE_KIND%';builtAtUtc=[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')} | ConvertTo-Json | Set-Content -Path '%WEB_RELEASE_INFO%' -Encoding UTF8"
 if errorlevel 1 goto BUILD_FAILED
 
 if not exist "%ANDROID_UPLOAD_OUT%" mkdir "%ANDROID_UPLOAD_OUT%" || goto BUILD_FAILED
@@ -174,7 +174,7 @@ goto RELEASE_END
 
 :BUILD_FAILED
 echo FEHLER: Release fehlgeschlagen. Setze die MAUI-Version zurueck...
-if defined VERSION_CHANGED powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';$x=[xml](Get-Content '%MAUI_CSPROJ%');foreach($p in @($x.Project.PropertyGroup ^| Where-Object {$_.ApplicationDisplayVersion -or $_.ApplicationVersion})){$p.ApplicationDisplayVersion='%CUR_MAUI_DISPLAY%';$p.ApplicationVersion='%CUR_MAUI_CODE%'};$x.Save('%MAUI_CSPROJ%')"
+if defined VERSION_CHANGED powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';$x=[xml](Get-Content '%MAUI_CSPROJ%');foreach($p in @($x.Project.PropertyGroup | Where-Object {$_.ApplicationDisplayVersion -or $_.ApplicationVersion})){$p.ApplicationDisplayVersion='%CUR_MAUI_DISPLAY%';$p.ApplicationVersion='%CUR_MAUI_CODE%'};$x.Save('%MAUI_CSPROJ%')"
 goto FAILURE_END
 
 :FAILURE_END
