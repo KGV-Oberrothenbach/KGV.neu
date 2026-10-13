@@ -281,6 +281,9 @@ Nur anfassen, wenn funktional relevant oder im jeweiligen Block direkt betroffen
   - Lösung: `arbeitsstunde` aus `demoScopedTables` entfernt. Der Demo-/Produktiv-Scope bleibt über die RLS anhand `mitglied_id` erhalten; die Mitglieds- und Saisonfilter der Ansicht bleiben unverändert.
 - **(erledigt) Technischer G7/G8-Folgepunkt:** Die letzte wirksame Arbeitsstunden-UPDATE-Triggerfunktion aus `20261009220000_g8_work_assignment_work_hours.sql` verglich `NEW.is_demo`/`OLD.is_demo`, obwohl `arbeitsstunde` diese Spalte nicht besitzt. Die neue Forward-Migration `20261011114000_g7_fix_work_hour_update_trigger.sql` ersetzt nur die Funktion und entfernt ausschließlich diesen ungültigen Vergleich; Mitglieds-/Saison-/Einsatzzuordnungs- und Lock-Schutz bleiben bestehen. Keine Tabellenspalte oder RLS wurde geändert.
 
+### Mailversand
+- Mailversand direkt aus der WEB-App ermöglichen.
+
 ---
 
 ## 4. Nächster sinnvoller Umsetzungsblock
