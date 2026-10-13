@@ -50,7 +50,7 @@ security invoker
 set search_path = public, pg_temp
 as $$
   select to_jsonb(m) || jsonb_build_object(
-    'mitgliedsnr', coalesce(m.mitgliedsnummer::text, m.id::text),
+    'mitgliedsnr', m.id::text,
     'strasse_hsnr', coalesce(m.adresse, ''),
     'gaerten', coalesce(g.gaerten, ''),
     'gartennummern', coalesce(g.gaerten, ''),
