@@ -286,6 +286,88 @@ Nur anfassen, wenn funktional relevant oder im jeweiligen Block direkt betroffen
 
 ---
 
+## 3b. Plattformübergreifend – PDF-Vorlagen zentral in Supabase Storage
+
+**Status:** offen
+
+### Ziel
+- Eingebettete PDF-Vorlagen aus dem Anwendungscode entfernen und zentral über Supabase Storage verwalten.
+- MAUI und WEB verwenden dieselben zentralen Vorlagen.
+- Änderungen an Vorlagen sollen ohne neue App-Version und ohne neuen WEB-Deploy möglich sein.
+- Supabase Storage dient ausschließlich der Vorlagenbereitstellung; fertig erzeugte Dokumente bleiben wie bisher auf Google Drive.
+
+### Vorlagentypen und fachliche Trennung
+- Formulare:
+  - `mitgliedsantrag`
+  - `pachtvertrag`
+  - `protokoll`
+- Layoutvorlagen:
+  - `export_kopf` für Listen, Auswertungen und sonstige Exporte (kompakter Vereinskopf mit Logo und erforderlichen Vereinsangaben)
+  - `briefbogen` für Korrespondenz mit Mitgliedern (Vereinslogo/-daten, Absenderzeile, Empfängeranschrift, Datum, Betreff, Brieftext und bei Bedarf Fußbereich)
+- Der bisherige allgemeine Briefkopf wird fachlich in `export_kopf` und `briefbogen` getrennt.
+
+### Privater Supabase-Storage-Bucket und Versionierung
+- Privaten Bucket `pdf-vorlagen` einrichten.
+- Zielstruktur:
+  ```text
+  pdf-vorlagen/
+  ├── formulare/
+  │   ├── mitgliedsantrag/v1.pdf
+  │   ├── pachtvertrag/v1.pdf
+  │   └── protokoll/v1.pdf
+  └── layouts/
+      ├── export_kopf/v1.pdf
+      └── briefbogen/v1.pdf
+  ```
+- Jede Vorlagenänderung wird als neue Version abgelegt (z. B. `v2.pdf`, `v3.pdf`); bereits verwendete Versionen dürfen nie überschrieben werden.
+
+### Zentrale Vorlagenverwaltung
+- Tabelle `pdf_vorlage` für die verfügbaren Vorlagen anlegen.
+- Mindestens abbilden: `id`, `schluessel`, `bezeichnung`, `typ`, `version`, `storage_path`, `aktiv`, `gueltig_ab`, `erstellt_am`, `erstellt_von`, `bemerkung`.
+- `typ` unterscheidet mindestens `formular` und `layout`.
+- Pro `schluessel` muss genau bestimmbar sein, welche Version aktiv ist.
+- Bei Bedarf technische `schema_version` ergänzen, damit inkompatible Formular-/Layoutversionen erkannt werden (z. B. `pachtvertrag-v2`). Rein optische Vorlagenänderungen bleiben ohne Codeänderung möglich.
+
+### Zugriff aus MAUI und WEB
+- Fachlicher Zugriff ausschließlich über stabile Vorlagenschlüssel; keine fachlich verwendeten Dateinamen oder lokalen Ressourcenpfade im Anwendungscode.
+- Zentralen `PdfTemplateService` vorsehen, der:
+  1. den Vorlagenschlüssel entgegennimmt,
+  2. die aktive Version aus Supabase ermittelt,
+  3. die Datei aus dem privaten Storage lädt,
+  4. sie der PDF-Erzeugung bereitstellt und
+  5. bei fehlender oder ungültiger Vorlage einen verständlichen Fehler liefert.
+- Ein dauerhafter Offline-Cache ist nicht erforderlich; ein technischer, temporärer Sitzungscache ist zulässig.
+
+### Briefbogen
+- Briefbogen als variable Layoutgrundlage auslegen: Briefbogen + Empfänger + Datum + Betreff + variabler Brieftext = fertiger Brief.
+- Perspektivisch für Drucken und PDF-Erzeugung geeignet halten; erzeugte PDFs können weiterhin in Google Drive gespeichert und später per E-Mail versandt werden.
+- Die Architektur darf eine spätere Unterscheidung zwischen `briefbogen_seite1` und `briefbogen_folgeseite` für mehrseitige Schreiben nicht verhindern.
+
+### Migration
+1. Alle derzeit im Code vorhandenen PDF-Vorlagen erfassen und den neuen Schlüsseln zuordnen.
+2. Aktuelle Dateien als Version 1 in den privaten Supabase-Storage übernehmen.
+3. Datensätze in `pdf_vorlage` anlegen und aktive Versionen festlegen.
+4. Bestehende PDF-Erzeugungen auf den `PdfTemplateService` umstellen.
+5. Lokale Vorlagenreferenzen entfernen; eingebettete Vorlagendateien erst nach erfolgreicher Umstellung aus dem Projekt löschen.
+6. Die bestehende PDF-Erzeugung darf durch die reine Verlagerung optisch und fachlich zunächst unverändert bleiben.
+
+### Nicht Bestandteil dieses Umbaus
+- Kein grafischer Vorlageneditor in der Anwendung.
+- Keine Upload-/Versionsverwaltung durch normale Vereinsmitglieder.
+- Keine Offline-Verfügbarkeit der Vorlagen.
+- Keine Migration fertiger Dokumente von Google Drive nach Supabase.
+- Kein vollständiger E-Mail-Versand von Briefen und keine frei editierbaren PDF-Formulare durch Benutzer.
+
+### Abnahmekriterien
+- Mitgliedsantrag, Pachtvertrag und Protokoll werden aus Supabase-Vorlagen erzeugt.
+- Exporte verwenden `export_kopf`; ein eigenständiger `briefbogen` ist vorhanden.
+- MAUI und WEB greifen auf dieselben zentralen Vorlagen zu.
+- Keine fachlich verwendete PDF-Vorlage ist mehr fest im Anwendungscode eingebettet.
+- Vorlagen sind versionierbar, alte Versionen werden nicht überschrieben und ein Vorlagenwechsel ist ohne neue App-Version möglich, sofern die technische Befülllogik kompatibel bleibt.
+- Fertige Dokumente werden weiterhin auf Google Drive gespeichert.
+
+---
+
 ## 4. Nächster sinnvoller Umsetzungsblock
 
 Aktueller Block:
