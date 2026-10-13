@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import { claimPendingMeterPhotoRetry, countLegacyPendingMeterPhotos, countPendingMeterPhotos, enqueuePendingMeterPhoto, getPendingMeterPhoto, listPendingMeterPhotos, pendingPhotoFile, putPendingMeterPhoto, releasePendingMeterPhotoRetryLease, removeLegacyPendingMeterPhotos, removeOwnedPendingMeterPhoto, removePendingMeterPhoto, type PendingMeterPhoto } from "../offline/pending-media-store";
 import { getBrowserClientInstanceId } from "../../lib/browser/client-instance";
 import { getConnectivitySnapshot } from "../../lib/browser/connectivity";
@@ -29,12 +30,12 @@ const failed = async (item: PendingMeterPhoto, error: string, incrementAttempt: 
   return next;
 };
 
-const completeLink = async (session: BrowserSession, item: PendingMeterPhoto, photo: UploadedReadingPhoto) => {
-  await linkReadingPhoto(session, item.readingId, photo);
+const completeLink = async (club: ClubContext, session: BrowserSession, item: PendingMeterPhoto, photo: UploadedReadingPhoto) => {
+  await linkReadingPhoto(club, session, item.readingId, photo);
   await removePendingMeterPhoto(item.id);
 };
 
-export async function handleReadingPhoto(session: BrowserSession, input: ReadingPhotoInput): Promise<ReadingPhotoResult> {
+export async function handleReadingPhoto(club: ClubContext, session: BrowserSession, input: ReadingPhotoInput): Promise<ReadingPhotoResult> {
   if (!input.file) return { status: "no-photo", message: "Ablesung wurde ohne Foto gespeichert." };
   const owner = ownerUserId(session);
   const decision = uploadDecision(input.wifiOnly);
@@ -43,9 +44,9 @@ export async function handleReadingPhoto(session: BrowserSession, input: Reading
     return { status: "queued", message: decision.reason };
   }
   try {
-    const photo = await uploadReadingPhoto(session, input.file, input.details);
+    const photo = await uploadReadingPhoto(club, session, input.file, input.details);
     try {
-      await linkReadingPhoto(session, input.readingId, photo);
+      await linkReadingPhoto(club, session, input.readingId, photo);
       return { status: "uploaded", message: "Foto wurde hochgeladen und mit der Ablesung verknüpft." };
     } catch (cause) {
       const item = await enqueuePendingMeterPhoto({ clubId: input.clubId, ownerUserId: owner, readingId: input.readingId, fileName: input.file.name || `ablesung-${input.readingId}.jpg`, contentType: input.file.type || "image/jpeg", content: input.file, details: input.details });
@@ -59,7 +60,7 @@ export async function handleReadingPhoto(session: BrowserSession, input: Reading
   }
 }
 
-export async function retryPendingReadingPhoto(session: BrowserSession, clubId: string, wifiOnly: boolean, item: PendingMeterPhoto): Promise<ReadingPhotoResult> {
+export async function retryPendingReadingPhoto(club: ClubContext, session: BrowserSession, clubId: string, wifiOnly: boolean, item: PendingMeterPhoto): Promise<ReadingPhotoResult> {
   try {
     const owner = ownerUserId(session);
     const pending = await getPendingMeterPhoto(item.id);
@@ -78,12 +79,12 @@ export async function retryPendingReadingPhoto(session: BrowserSession, clubId: 
     try {
       attempted = { ...claim.item, status: "uploading" as const, lastError: null, lastAttemptAt: now(), attemptCount: claim.item.attemptCount + 1 };
       await putPendingMeterPhoto(attempted);
-      const photo = attempted.uploadedFileId ? { fileId: attempted.uploadedFileId, fileName: attempted.uploadedFileName || attempted.fileName } : await uploadReadingPhoto(session, pendingPhotoFile(attempted), attempted.details);
+      const photo = attempted.uploadedFileId ? { fileId: attempted.uploadedFileId, fileName: attempted.uploadedFileName || attempted.fileName } : await uploadReadingPhoto(club, session, pendingPhotoFile(attempted), attempted.details);
       if (!attempted.uploadedFileId) {
         attempted = { ...attempted, uploadedFileId: photo.fileId, uploadedFileName: photo.fileName };
         await putPendingMeterPhoto(attempted);
       }
-      await completeLink(session, attempted, photo);
+      await completeLink(club, session, attempted, photo);
       return { status: "uploaded", message: "Foto wurde hochgeladen und mit der Ablesung verknüpft." };
     } catch (cause) {
       try {
@@ -101,12 +102,12 @@ export async function retryPendingReadingPhoto(session: BrowserSession, clubId: 
   }
 }
 
-export async function retryAllPendingReadingPhotos(session: BrowserSession, clubId: string, wifiOnly: boolean) {
+export async function retryAllPendingReadingPhotos(club: ClubContext, session: BrowserSession, clubId: string, wifiOnly: boolean) {
   try {
     const items = await listPendingMeterPhotos(clubId, ownerUserId(session));
     const results = await Promise.all(items.map(async (pending) => {
       try {
-        return await retryPendingReadingPhoto(session, clubId, wifiOnly, pending);
+        return await retryPendingReadingPhoto(club, session, clubId, wifiOnly, pending);
       } catch {
         return { status: "failed" as const, message: "Upload fehlgeschlagen. Das Foto bleibt lokal gespeichert." };
       }

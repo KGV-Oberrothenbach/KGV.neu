@@ -1,4 +1,7 @@
-import { callSupabaseFunctionRaw, createStorageSignedUrl, type BrowserSession } from "../../lib/supabase-auth";
+import { invokeEdgeFunctionRaw } from "../../lib/supabase/edge-client";
+import { createSignedStorageUrl } from "../../lib/supabase/storage-client";
+import type { ClubContext } from "../../models/auth/club";
+import { type BrowserSession } from "../../lib/supabase-auth";
 
 export type DocumentFileReference = {
   id: number;
@@ -7,9 +10,9 @@ export type DocumentFileReference = {
   storage_path: string | null;
 };
 
-export async function resolveDocumentFileOpenUrl(session: BrowserSession, document: DocumentFileReference): Promise<string> {
+export async function resolveDocumentFileOpenUrl(club: ClubContext, session: BrowserSession, document: DocumentFileReference): Promise<string> {
   if (document.drive_file_id?.trim()) {
-    const response = await callSupabaseFunctionRaw(session, "kgv-upload-document", {
+    const response = await invokeEdgeFunctionRaw({ club, session }, "kgv-upload-document", {
       method: "POST",
       body: JSON.stringify({ action: "download", document_id: document.id }),
       contentType: "application/json",
@@ -22,7 +25,11 @@ export async function resolveDocumentFileOpenUrl(session: BrowserSession, docume
   }
 
   if (document.bucket && document.storage_path) {
-    return createStorageSignedUrl(session, document.bucket, document.storage_path);
+    try {
+      return await createSignedStorageUrl({ club, session }, document.bucket, document.storage_path);
+    } catch {
+      throw new Error("Das Dokument kann derzeit nicht geöffnet werden.");
+    }
   }
 
   throw new Error("Für dieses Dokument fehlt eine sichere Ablage.");

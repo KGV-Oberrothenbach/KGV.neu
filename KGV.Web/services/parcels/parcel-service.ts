@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import {
   listParcelAssignments,
@@ -24,40 +25,40 @@ export type ParcelMasterDataSaveInput = {
   hat_wasser: boolean;
 };
 
-export const saveParcelMasterData = (session: BrowserSession, { parcelId, flaeche_qm, hat_strom, hat_wasser }: ParcelMasterDataSaveInput) =>
-  updateParcelMasterData(session, parcelId, { flaeche_qm, hat_strom, hat_wasser });
+export const saveParcelMasterData = (club: ClubContext, session: BrowserSession, { parcelId, flaeche_qm, hat_strom, hat_wasser }: ParcelMasterDataSaveInput) =>
+  updateParcelMasterData(club, session, parcelId, { flaeche_qm, hat_strom, hat_wasser });
 
 export type ParcelAssignmentInput = { memberId: number; parcelId: number; startDate: string };
 
-export async function listAssignableParcels(session: BrowserSession) {
-  const [parcels, assignments] = await Promise.all([listParcelOverviewParcels(session), listParcelOverviewAssignments(session)]);
+export async function listAssignableParcels(club: ClubContext, session: BrowserSession) {
+  const [parcels, assignments] = await Promise.all([listParcelOverviewParcels(club, session), listParcelOverviewAssignments(club, session)]);
   const occupiedParcelIds = new Set(assignments.filter((assignment) => isParcelAssignmentActiveOn(assignment)).map((assignment) => assignment.parzelle_id));
   return parcels
     .filter((parcel) => parcel.id > 0 && !occupiedParcelIds.has(parcel.id))
     .sort((left, right) => gardenNumberSortKey(left.garten_nr).localeCompare(gardenNumberSortKey(right.garten_nr), "de", { sensitivity: "base" }));
 }
 
-export async function assignParcelToMember(session: BrowserSession, { memberId, parcelId, startDate }: ParcelAssignmentInput) {
+export async function assignParcelToMember(club: ClubContext, session: BrowserSession, { memberId, parcelId, startDate }: ParcelAssignmentInput) {
   if (!Number.isInteger(memberId) || memberId <= 0 || !Number.isInteger(parcelId) || parcelId <= 0) throw new Error("Mitglied und Parzelle müssen gültig sein.");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) throw new Error("Das Zuweisungsdatum ist ungültig.");
   const date = new Date(`${startDate}T12:00:00`);
   if (Number.isNaN(date.valueOf()) || `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}` !== startDate) throw new Error("Das Zuweisungsdatum ist ungültig.");
-  const assignments = await listParcelAssignmentsForParcel(session, parcelId);
+  const assignments = await listParcelAssignmentsForParcel(club, session, parcelId);
   if (assignments.some((assignment) => isParcelAssignmentActiveOn(assignment, startDate))) throw new Error("Die Parzelle ist zum gewählten Datum bereits belegt.");
-  return createParcelAssignment(session, { parzelle_id: parcelId, mitglied_id: memberId, von_datum: startDate, bis_datum: null });
+  return createParcelAssignment(club, session, { parzelle_id: parcelId, mitglied_id: memberId, von_datum: startDate, bis_datum: null });
 }
 
-export async function endParcelAssignment(session: BrowserSession, { assignmentId, endDate, reason }: { assignmentId: number; endDate: string; reason?: string }) {
+export async function endParcelAssignment(club: ClubContext, session: BrowserSession, { assignmentId, endDate, reason }: { assignmentId: number; endDate: string; reason?: string }) {
   if (!Number.isInteger(assignmentId) || assignmentId <= 0) throw new Error("Die Belegung ist ungültig.");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate)) throw new Error("Das Enddatum ist ungültig.");
   const date = new Date(`${endDate}T12:00:00`);
   if (Number.isNaN(date.valueOf()) || `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}` !== endDate) throw new Error("Das Enddatum ist ungültig.");
-  const assignment = await getParcelAssignment(session, assignmentId);
+  const assignment = await getParcelAssignment(club, session, assignmentId);
   if (!assignment) throw new Error("Die Belegung wurde nicht gefunden.");
   if (assignment.von_datum && endDate < assignment.von_datum) throw new Error("Das Enddatum darf nicht vor dem Beginn liegen.");
   const normalizedReason = reason?.trim() || null;
   if (normalizedReason && !["kuendigung", "tod", "wechsel", "sonstiges"].includes(normalizedReason)) throw new Error("Der Beendigungsgrund ist ungültig.");
-  return updateParcelAssignmentEnd(session, assignmentId, { bis_datum: endDate, beendigungsgrund: normalizedReason });
+  return updateParcelAssignmentEnd(club, session, assignmentId, { bis_datum: endDate, beendigungsgrund: normalizedReason });
 }
 
 export type MemberParcelItem = {
@@ -66,9 +67,9 @@ export type MemberParcelItem = {
   isCurrent: boolean;
 };
 
-export async function listMemberParcels(session: BrowserSession, memberId: number): Promise<MemberParcelItem[]> {
-  const assignments = await listMemberParcelAssignments(session, memberId);
-  const parcels = await listParcelOverviewParcelsByIds(session, [...new Set(assignments.map((assignment) => assignment.parzelle_id))]);
+export async function listMemberParcels(club: ClubContext, session: BrowserSession, memberId: number): Promise<MemberParcelItem[]> {
+  const assignments = await listMemberParcelAssignments(club, session, memberId);
+  const parcels = await listParcelOverviewParcelsByIds(club, session, [...new Set(assignments.map((assignment) => assignment.parzelle_id))]);
   const parcelsById = new Map(parcels.map((parcel) => [parcel.id, parcel]));
   return assignments
     .map((assignment) => ({ assignment, parcel: parcelsById.get(assignment.parzelle_id) ?? null, isCurrent: isParcelAssignmentActiveOn(assignment) }))
@@ -121,11 +122,11 @@ export function formatParcelTenantName(member?: ParcelOverviewMember | null) {
   return fullName || member.email?.trim() || `Mitglied #${member.id}`;
 }
 
-export async function listParcelOverview(session: BrowserSession): Promise<ParcelOverview> {
+export async function listParcelOverview(club: ClubContext, session: BrowserSession): Promise<ParcelOverview> {
   const [parcels, assignments, members] = await Promise.all([
-    listParcelOverviewParcels(session),
-    listParcelOverviewAssignments(session),
-    listParcelOverviewMembers(session),
+    listParcelOverviewParcels(club, session),
+    listParcelOverviewAssignments(club, session),
+    listParcelOverviewMembers(club, session),
   ]);
   const membersById = new Map(members.map((member) => [member.id, member]));
   const assignmentsByParcelId = new Map<number, ParcelOverviewAssignment[]>();
@@ -155,10 +156,10 @@ export async function listParcelOverview(session: BrowserSession): Promise<Parce
   return { parcels, assignments, members, items };
 }
 
-export async function listCurrentGardenNumbersByMemberId(session: BrowserSession, memberIds: number[]) {
+export async function listCurrentGardenNumbersByMemberId(club: ClubContext, session: BrowserSession, memberIds: number[]) {
   const [assignments, parcels] = await Promise.all([
-    listParcelAssignments(session, memberIds),
-    listParcelGardens(session),
+    listParcelAssignments(club, session, memberIds),
+    listParcelGardens(club, session),
   ]);
   const gardenNumberByParcelId = new Map(parcels.map((parcel) => [parcel.id, parcel.garten_nr]));
   const result = new Map<number, string[]>();

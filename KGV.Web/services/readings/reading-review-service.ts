@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { loadMeterReferenceData } from "../meters/meter-service";
 import { formatParcelTenantName, isParcelAssignmentActiveOn } from "../parcels/parcel-service";
@@ -69,13 +70,13 @@ function decisionLabel(status: ReadingReviewStatus, comment: string | null) {
   return status;
 }
 
-export async function loadReadingReviewData(session: BrowserSession, permissions: ReadingReviewPermissions): Promise<ReadingReviewData> {
+export async function loadReadingReviewData(club: ClubContext, session: BrowserSession, permissions: ReadingReviewPermissions): Promise<ReadingReviewData> {
   if (!permissions.canApproveMeterReadings) return { open: [], reviewed: [], historyByReadingId: new Map() };
   const [readings, references, assignments, members] = await Promise.all([
-    listReviewReadings(session),
-    loadMeterReferenceData(session),
-    listReviewAssignments(session),
-    listReviewMembers(session),
+    listReviewReadings(club, session),
+    loadMeterReferenceData(club, session),
+    listReviewAssignments(club, session),
+    listReviewMembers(club, session),
   ]);
   const meters = new Map(references.meters.map((meter) => [meter.id, meter]));
   const parcels = new Map(references.parcels.map((parcel) => [parcel.id, parcel]));
@@ -107,13 +108,13 @@ export async function loadReadingReviewData(session: BrowserSession, permissions
   return { open, reviewed, historyByReadingId };
 }
 
-export async function reviewMeterReading(session: BrowserSession, permissions: ReadingReviewPermissions, input: { readingId: number; action: ReadingReviewAction; comment: string; date?: string; value?: number }) {
+export async function reviewMeterReading(club: ClubContext, session: BrowserSession, permissions: ReadingReviewPermissions, input: { readingId: number; action: ReadingReviewAction; comment: string; date?: string; value?: number }) {
   if (!permissions.canApproveMeterReadings) throw new Error("Für die Prüfung besteht keine Berechtigung.");
   if (!Number.isInteger(permissions.reviewerMemberId) || (permissions.reviewerMemberId ?? 0) <= 0) throw new Error("Für die Prüfung ist ein verknüpftes Mitgliedskonto erforderlich.");
   if (!Number.isInteger(input.readingId) || input.readingId <= 0) throw new Error("Die Ablesung ist ungültig.");
   const comment = input.comment.trim();
   if (!comment) throw new Error("Ein Prüfkommentar ist erforderlich.");
-  const existing = await getReviewReading(session, input.readingId);
+  const existing = await getReviewReading(club, session, input.readingId);
   if (!existing || !isOpen(existing)) throw new Error("Ablesung wurde inzwischen bereits bearbeitet.");
   if (input.action === "korrigieren" && (!input.date || !isValidDate(input.date) || !Number.isFinite(input.value) || (input.value ?? -1) < 0)) throw new Error("Für die Korrektur müssen Datum und Zählerstand gültig sein.");
   const rejected = input.action === "ablehnen" || input.action === "entfernen";
@@ -126,7 +127,7 @@ export async function reviewMeterReading(session: BrowserSession, permissions: R
     geprueft_am: new Date().toISOString(),
     freigegeben: !rejected,
   };
-  const updated = await conditionalUpdateReviewReading(session, input.readingId, mutation);
+  const updated = await conditionalUpdateReviewReading(club, session, input.readingId, mutation);
   if (!updated[0]) throw new Error("Ablesung wurde inzwischen bereits bearbeitet.");
   return updated[0];
 }

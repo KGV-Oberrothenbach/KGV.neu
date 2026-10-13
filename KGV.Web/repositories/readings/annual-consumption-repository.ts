@@ -1,4 +1,6 @@
-import { callSupabaseRpc, type BrowserSession } from "../../lib/supabase-auth";
+import { callSupabaseRpc } from "../../lib/supabase/rpc-client";
+import type { ClubContext } from "../../models/auth/club";
+import { type BrowserSession } from "../../lib/supabase-auth";
 
 export type AnnualConsumptionSegment = {
   jahr: number;
@@ -25,6 +27,6 @@ export type AnnualConsumptionSegment = {
   umlagefaehig: boolean;
 };
 
-export function listAnnualConsumptionSegments(session: BrowserSession, seasonYear: number) {
-  return callSupabaseRpc<AnnualConsumptionSegment[]>(session, "rpc_jahresverbrauch_segmente", { p_jahr: seasonYear });
+export function listAnnualConsumptionSegments(club: ClubContext, session: BrowserSession, seasonYear: number) {
+  return callSupabaseRpc<AnnualConsumptionSegment[]>({ club, session }, "rpc_jahresverbrauch_segmente", { p_jahr: seasonYear });
 }

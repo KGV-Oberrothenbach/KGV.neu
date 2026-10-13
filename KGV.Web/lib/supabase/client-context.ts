@@ -10,6 +10,11 @@ export type SupabaseClientContext = {
   session: SupabaseTransportSession;
 };
 
+export type SupabaseEdgeContext = {
+  club: ClubContext;
+  session?: SupabaseTransportSession;
+};
+
 export type SupabaseConfig = {
   url: string;
   publishableKey: string;

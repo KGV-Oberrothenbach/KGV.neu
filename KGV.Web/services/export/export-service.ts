@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type ExportColumn } from "../../models/export/export-column";
 import { type ExportDefinition } from "../../models/export/export-definition";
@@ -26,6 +27,6 @@ export async function executeExportWithDataAccess(dataAccess: ExportDataAccess, 
       : (() => { throw new Error(`Export „${definition.export_key}“ besitzt den unbekannten Quellentyp „${definition.quelle_typ ?? "leer"}“.`); })();
   return { definition, columns, rows, recordCount: rows.length, filters: values, standardSortierung: definition.standard_sortierung };
 }
-export function executeExport(session: BrowserSession, request: ExecuteExportRequest): Promise<ExportResult> {
-  return executeExportWithDataAccess({ executeRpcExport: (sourceName, parameters) => executeRpcExport(session, sourceName, parameters), readTableOrViewExport: (sourceName) => readTableOrViewExport(session, sourceName) }, request);
+export function executeExport(club: ClubContext, session: BrowserSession, request: ExecuteExportRequest): Promise<ExportResult> {
+  return executeExportWithDataAccess({ executeRpcExport: (sourceName, parameters) => executeRpcExport(club, session, sourceName, parameters), readTableOrViewExport: (sourceName) => readTableOrViewExport(club, session, sourceName) }, request);
 }

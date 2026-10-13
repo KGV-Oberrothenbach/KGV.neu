@@ -61,6 +61,7 @@ test("RPC, Edge and Storage transports construct generic endpoints", async () =>
     new Response(JSON.stringify({ ok: true }), { status: 200 }),
     new Response(JSON.stringify({ ok: true }), { status: 200 }),
     new Response("raw", { status: 200 }),
+    new Response("public", { status: 200 }),
     new Response(JSON.stringify({ signedURL: "/object/sign/bucket/path?token=one" }), { status: 200 }),
     new Response(JSON.stringify({ signedUrl: "https://download.example/file" }), { status: 200 }),
   ];
@@ -72,6 +73,7 @@ test("RPC, Edge and Storage transports construct generic endpoints", async () =>
   assert.deepEqual(await callSupabaseRpc(context(), "generic_rpc", { value: 1 }), { ok: true });
   assert.deepEqual(await invokeEdgeFunction(context(), "generic-function", { value: 2 }), { ok: true });
   await invokeEdgeFunctionRaw(context(), "generic-raw", { method: "PUT", body: "raw", contentType: "text/plain" });
+  await invokeEdgeFunctionRaw({ club: context().club }, "public-edge", { method: "POST", body: "{}" });
   assert.equal(await createSignedStorageUrl(context(), "bucket with space", "folder/a b"), "https://example.supabase.co/storage/v1/object/sign/bucket/path?token=one");
   assert.equal(await createSignedStorageUrl(context(), "bucket", "file", 42), "https://download.example/file");
 
@@ -79,9 +81,12 @@ test("RPC, Edge and Storage transports construct generic endpoints", async () =>
   assert.equal(requests[0].init.headers["Content-Type"], "application/json");
   assert.equal(requests[1].url.pathname, "/functions/v1/generic-function");
   assert.equal(requests[2].init.headers["Content-Type"], "text/plain");
-  assert.equal(requests[3].url.pathname, "/storage/v1/object/sign/bucket%20with%20space/folder/a%20b");
-  assert.deepEqual(JSON.parse(requests[3].init.body), { expiresIn: 600 });
-  assert.deepEqual(JSON.parse(requests[4].init.body), { expiresIn: 42 });
+  assert.equal(requests[3].url.pathname, "/functions/v1/public-edge");
+  assert.equal(requests[3].init.headers.Authorization, undefined);
+  assert.equal(requests[3].init.headers.apikey, "public-key");
+  assert.equal(requests[4].url.pathname, "/storage/v1/object/sign/bucket%20with%20space/folder/a%20b");
+  assert.deepEqual(JSON.parse(requests[4].init.body), { expiresIn: 600 });
+  assert.deepEqual(JSON.parse(requests[5].init.body), { expiresIn: 42 });
 });
 
 test("transport clients have no browser club lookup, global context, or upward feature imports", async () => {
@@ -89,7 +94,47 @@ test("transport clients have no browser club lookup, global context, or upward f
   const files = (await readdir(directory)).filter((file) => file.endsWith(".ts"));
   for (const file of files) {
     const source = await readFile(new URL(file, directory), "utf8");
-    assert.doesNotMatch(source, /loadClub\s*\(|localStorage|kgv\.browser\.club|currentClub|SupabaseGlobalContext/);
+    assert.doesNotMatch(source, /loadClub\s*\(|localStorage|kgv\.browser\.club|currentClub|globalClub|setCurrentClub|getCurrentClub|SupabaseSingleton\.club|SupabaseGlobalContext/);
     assert.doesNotMatch(source, /from ["'][^"']*(?:services|repositories|features)\//);
   }
 });
+
+test("repositories and services use explicit transport clients instead of the auth compatibility facade", async () => {
+  const root = new URL("../", import.meta.url);
+  const legacyTransportImports = /import\s*\{[^}]*\b(?:readSupabase|writeSupabase|deleteSupabase|callSupabaseRpc|callSupabaseFunctionRaw|createStorageSignedUrl)\b[^}]*\}\s*from\s*["'][^"']*supabase-auth["']/;
+  for (const directoryName of ["repositories", "services", "features"]) {
+    const directory = new URL(`${directoryName}/`, root);
+    const files = await collectTypeScriptFiles(directory);
+    for (const file of files) {
+      const source = await readFile(file, "utf8");
+      assert.doesNotMatch(source, legacyTransportImports, `${file.pathname} must not import legacy Supabase transport`);
+      if (!file.pathname.endsWith("/features/auth/AuthProvider.tsx")) {
+        assert.doesNotMatch(source, /loadClub\s*\(/, `${file.pathname} must not resolve a club from persistence`);
+      }
+      if (directoryName === "repositories" && /from ["'][^"']*lib\/supabase\/(?:rest|rpc|edge|storage)-client["']/.test(source)) {
+        assert.match(source, /club\s*:\s*ClubContext/, `${file.pathname} must accept an explicit ClubContext`);
+        assert.match(source, /\{\s*club(?:,\s*session)?\s*\}/, `${file.pathname} must pass the explicit club context to its transport`);
+      }
+      if (/\/functions\/v1\//.test(source)) assert.match(file.pathname, /\/lib\/supabase\/edge-client\.ts$/, `${file.pathname} must use the generic Edge transport`);
+    }
+  }
+
+  const authFacade = await readFile(new URL("../lib/supabase-auth.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(authFacade, /legacyTransportContext|export\s+(?:async\s+)?function\s+(?:readSupabase|writeSupabase|deleteSupabase|callSupabaseRpc|callSupabaseFunctionRaw|createStorageSignedUrl|generateContract|uploadMeterPhoto|openMeterPhoto|inviteAppUser|sendPasswordReset|acquireBrowserEditLock|releaseBrowserEditLock|releaseAllBrowserEditLocks)\b/);
+  assert.doesNotMatch(authFacade, /\bcallSupabaseRpc\b/);
+  assert.doesNotMatch(authFacade, /ContractGenerationRequest|MeterPhotoKind/);
+
+  const appUserService = await readFile(new URL("services/users/app-user-service.ts", root), "utf8");
+  assert.match(appUserService, /loadAppUserContext\s*\(\s*club:\s*ClubContext,\s*session:\s*BrowserSession/);
+  assert.match(appUserService, /callSupabaseRpc[\s\S]*?\{\s*club,\s*session\s*\}/);
+});
+
+async function collectTypeScriptFiles(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const nested = await Promise.all(entries.map(async (entry) => {
+    const path = new URL(`${entry.name}${entry.isDirectory() ? "/" : ""}`, directory);
+    if (entry.isDirectory()) return collectTypeScriptFiles(path);
+    return /\.(?:ts|tsx)$/.test(entry.name) ? [path] : [];
+  }));
+  return nested.flat();
+}

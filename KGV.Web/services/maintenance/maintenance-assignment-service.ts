@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type MaintenanceAssignment } from "../../models/maintenance/maintenance-assignment";
 import { type MaintenanceContract } from "../../models/maintenance/maintenance-contract";
@@ -35,11 +36,11 @@ function displayName(member: Pick<MaintenanceAssignmentMemberRow, "id" | "name" 
   return [member.vorname, member.name].filter(Boolean).join(" ") || `Mitglied #${member.id}`;
 }
 
-export async function loadMaintenanceMemberCandidates(session: BrowserSession, maintenanceContractId: number, validFrom: string): Promise<{ candidates: MaintenanceMemberCandidate[]; availableCapacity: number }> {
-  const [contract, rows, members] = await Promise.all([loadMaintenanceContract(session, maintenanceContractId), listMaintenanceAssignmentsForContract(session, maintenanceContractId), listMaintenanceAssignmentMembers(session)]);
+export async function loadMaintenanceMemberCandidates(club: ClubContext, session: BrowserSession, maintenanceContractId: number, validFrom: string): Promise<{ candidates: MaintenanceMemberCandidate[]; availableCapacity: number }> {
+  const [contract, rows, members] = await Promise.all([loadMaintenanceContract(club, session, maintenanceContractId), listMaintenanceAssignmentsForContract(club, session, maintenanceContractId), listMaintenanceAssignmentMembers(club, session)]);
   if (!contract) throw new Error("Der Wartungsvertrag wurde nicht gefunden.");
   const assignments = rows.map(fromRow);
-  const gardenNumbersByMemberId = await listCurrentGardenNumbersByMemberId(session, members.map((member) => member.id));
+  const gardenNumbersByMemberId = await listCurrentGardenNumbersByMemberId(club, session, members.map((member) => member.id));
   const availableCapacity = Math.max(0, contract.maxActiveAssignments - (calculatePeakMaintenanceOccupancy(assignments, { validFrom, validUntil: null }) - 1));
   return {
     availableCapacity,
@@ -59,23 +60,23 @@ export function classifyMaintenanceAssignments(assignments: MaintenanceAssignmen
   }, { active: [], future: [], history: [] });
 }
 
-export async function loadMaintenanceAssignments(session: BrowserSession, principalMemberId?: number): Promise<MaintenanceAssignment[]> {
-  return (await listMaintenanceAssignments(session, principalMemberId)).map(fromRow);
+export async function loadMaintenanceAssignments(club: ClubContext, session: BrowserSession, principalMemberId?: number): Promise<MaintenanceAssignment[]> {
+  return (await listMaintenanceAssignments(club, session, principalMemberId)).map(fromRow);
 }
 
-export const resolveMaintenancePrincipalMember = (session: BrowserSession, selectedMemberId: number) => resolveMaintenanceAssignmentPrincipalMember(session, selectedMemberId);
+export const resolveMaintenancePrincipalMember = (club: ClubContext, session: BrowserSession, selectedMemberId: number) => resolveMaintenanceAssignmentPrincipalMember(club, session, selectedMemberId);
 
-export async function loadMemberMaintenanceContracts(session: BrowserSession, selectedMemberId: number) {
-  const member = await getMember(session, selectedMemberId);
+export async function loadMemberMaintenanceContracts(club: ClubContext, session: BrowserSession, selectedMemberId: number) {
+  const member = await getMember(club, session, selectedMemberId);
   if (!member) throw new Error("Das Mitglied wurde nicht gefunden.");
-  const principalMemberId = await resolveMaintenancePrincipalMember(session, selectedMemberId);
-  const [principalMember, assignments, contracts] = await Promise.all([principalMemberId === selectedMemberId ? Promise.resolve(member) : getMember(session, principalMemberId), loadMaintenanceAssignments(session, principalMemberId), loadMaintenanceContracts(session)]);
+  const principalMemberId = await resolveMaintenancePrincipalMember(club, session, selectedMemberId);
+  const [principalMember, assignments, contracts] = await Promise.all([principalMemberId === selectedMemberId ? Promise.resolve(member) : getMember(club, session, principalMemberId), loadMaintenanceAssignments(club, session, principalMemberId), loadMaintenanceContracts(club, session)]);
   return { member, principalMember, principalMemberId, assignments, contracts };
 }
 
-export async function loadAssignableMaintenanceContractsForMember(session: BrowserSession, selectedMemberId: number, validFrom: string): Promise<MaintenanceContractCandidate[]> {
-  const principalMemberId = await resolveMaintenancePrincipalMember(session, selectedMemberId);
-  const [contracts, assignments] = await Promise.all([loadMaintenanceContracts(session), loadMaintenanceAssignments(session)]);
+export async function loadAssignableMaintenanceContractsForMember(club: ClubContext, session: BrowserSession, selectedMemberId: number, validFrom: string): Promise<MaintenanceContractCandidate[]> {
+  const principalMemberId = await resolveMaintenancePrincipalMember(club, session, selectedMemberId);
+  const [contracts, assignments] = await Promise.all([loadMaintenanceContracts(club, session), loadMaintenanceAssignments(club, session)]);
   return contracts.filter((contract) => contract.active).map((contract) => {
     const contractAssignments = assignments.filter((assignment) => assignment.maintenanceContractId === contract.id);
     const alreadyAssignedInPeriod = contractAssignments.some((assignment) => assignment.principalMemberId === principalMemberId && maintenanceAssignmentIntervalsOverlap(assignment.validFrom, assignment.validUntil, validFrom, null));
@@ -84,26 +85,26 @@ export async function loadAssignableMaintenanceContractsForMember(session: Brows
   });
 }
 
-export async function createMaintenanceAssignmentForContract(session: BrowserSession, input: MaintenanceAssignmentCreateInput): Promise<MaintenanceAssignment> {
+export async function createMaintenanceAssignmentForContract(club: ClubContext, session: BrowserSession, input: MaintenanceAssignmentCreateInput): Promise<MaintenanceAssignment> {
   if (!input.maintenanceContractId || !input.selectedMemberId || !input.validFrom) throw new Error("Vertrag, Mitglied und Gültigkeitsbeginn sind erforderlich.");
   if (input.validUntil && input.validUntil < input.validFrom) throw new Error("Das Enddatum darf nicht vor dem Beginn liegen.");
-  const [contract, principalMemberId, rows] = await Promise.all([loadMaintenanceContract(session, input.maintenanceContractId), resolveMaintenanceAssignmentPrincipalMember(session, input.selectedMemberId), listMaintenanceAssignmentsForContract(session, input.maintenanceContractId)]);
+  const [contract, principalMemberId, rows] = await Promise.all([loadMaintenanceContract(club, session, input.maintenanceContractId), resolveMaintenanceAssignmentPrincipalMember(club, session, input.selectedMemberId), listMaintenanceAssignmentsForContract(club, session, input.maintenanceContractId)]);
   if (!contract) throw new Error("Der Wartungsvertrag wurde nicht gefunden.");
   if (!contract.active) throw new Error("Dieser Wartungsvertrag ist nicht aktiv.");
   const assignments = rows.map(fromRow);
   if (assignments.some((item) => item.principalMemberId === principalMemberId && maintenanceAssignmentIntervalsOverlap(item.validFrom, item.validUntil, input.validFrom, input.validUntil))) throw new Error("Das Mitglied besitzt diesen Wartungsvertrag im gewählten Zeitraum bereits.");
   if (calculatePeakMaintenanceOccupancy(assignments, { validFrom: input.validFrom, validUntil: input.validUntil }) > contract.maxActiveAssignments) throw new Error("Im gewählten Zeitraum ist das Kontingent des Wartungsvertrags ausgeschöpft.");
-  const created = await createMaintenanceAssignment(session, { wartungsvertrag_id: input.maintenanceContractId, hauptmitglied_id: principalMemberId, gueltig_ab: input.validFrom, gueltig_bis: input.validUntil, bemerkung: input.note?.trim() || null });
+  const created = await createMaintenanceAssignment(club, session, { wartungsvertrag_id: input.maintenanceContractId, hauptmitglied_id: principalMemberId, gueltig_ab: input.validFrom, gueltig_bis: input.validUntil, bemerkung: input.note?.trim() || null });
   const row = created[0];
   if (!row) throw new Error("Wartungsvertragszuordnung konnte nicht gespeichert werden.");
   return fromRow(row);
 }
 
-export async function assignMembersToMaintenanceContract(session: BrowserSession, input: MaintenanceAssignmentBatchInput): Promise<MaintenanceAssignment[]> {
+export async function assignMembersToMaintenanceContract(club: ClubContext, session: BrowserSession, input: MaintenanceAssignmentBatchInput): Promise<MaintenanceAssignment[]> {
   if (!input.maintenanceContractId || !input.validFrom || input.validUntil !== null || input.selectedMemberIds.length === 0) throw new Error("Vertrag, mindestens ein Mitglied und Gültigkeitsbeginn sind erforderlich.");
   const selectedMemberIds = [...new Set(input.selectedMemberIds)];
   if (selectedMemberIds.length !== input.selectedMemberIds.length || selectedMemberIds.some((id) => !Number.isInteger(id) || id <= 0)) throw new Error("Die Mitgliedsauswahl ist ungültig.");
-  const [contract, rows, members] = await Promise.all([loadMaintenanceContract(session, input.maintenanceContractId), listMaintenanceAssignmentsForContract(session, input.maintenanceContractId), resolveMaintenanceAssignmentMembers(session, selectedMemberIds)]);
+  const [contract, rows, members] = await Promise.all([loadMaintenanceContract(club, session, input.maintenanceContractId), listMaintenanceAssignmentsForContract(club, session, input.maintenanceContractId), resolveMaintenanceAssignmentMembers(club, session, selectedMemberIds)]);
   if (!contract) throw new Error("Der Wartungsvertrag wurde nicht gefunden.");
   if (!contract.active) throw new Error("Dieser Wartungsvertrag ist nicht aktiv.");
   if (members.length !== selectedMemberIds.length || members.some((member) => !member.aktiv || member.is_demo)) throw new Error("Mindestens ein ausgewähltes Mitglied ist nicht für die produktive Zuordnung verfügbar.");
@@ -116,7 +117,7 @@ export async function assignMembersToMaintenanceContract(session: BrowserSession
   const created: MaintenanceAssignment[] = [];
   try {
     for (const principal of principalMemberIds) {
-      const inserted = await createMaintenanceAssignment(session, { wartungsvertrag_id: input.maintenanceContractId, hauptmitglied_id: principal, gueltig_ab: input.validFrom, gueltig_bis: null, bemerkung: input.note?.trim() || null });
+      const inserted = await createMaintenanceAssignment(club, session, { wartungsvertrag_id: input.maintenanceContractId, hauptmitglied_id: principal, gueltig_ab: input.validFrom, gueltig_bis: null, bemerkung: input.note?.trim() || null });
       if (!inserted[0]) throw new Error("Wartungsvertragszuordnung konnte nicht gespeichert werden.");
       created.push(fromRow(inserted[0]));
     }
@@ -126,12 +127,12 @@ export async function assignMembersToMaintenanceContract(session: BrowserSession
   return created;
 }
 
-export async function assignMaintenanceContractsToMember(session: BrowserSession, input: MaintenanceContractBatchInput): Promise<MaintenanceAssignment[]> {
+export async function assignMaintenanceContractsToMember(club: ClubContext, session: BrowserSession, input: MaintenanceContractBatchInput): Promise<MaintenanceAssignment[]> {
   if (!input.selectedMemberId || !input.validFrom || input.validUntil !== null || input.maintenanceContractIds.length === 0) throw new Error("Mitglied, mindestens ein Wartungsvertrag und Gültigkeitsbeginn sind erforderlich.");
   const contractIds = [...new Set(input.maintenanceContractIds)];
   if (contractIds.length !== input.maintenanceContractIds.length || contractIds.some((id) => !Number.isInteger(id) || id <= 0)) throw new Error("Die Vertragsauswahl ist ungültig.");
-  const principalMemberId = await resolveMaintenancePrincipalMember(session, input.selectedMemberId);
-  const [contracts, assignments] = await Promise.all([Promise.all(contractIds.map((id) => loadMaintenanceContract(session, id))), loadMaintenanceAssignments(session)]);
+  const principalMemberId = await resolveMaintenancePrincipalMember(club, session, input.selectedMemberId);
+  const [contracts, assignments] = await Promise.all([Promise.all(contractIds.map((id) => loadMaintenanceContract(club, session, id))), loadMaintenanceAssignments(club, session)]);
   if (contracts.some((contract) => !contract || !contract.active)) throw new Error("Mindestens ein ausgewählter Wartungsvertrag ist nicht aktiv oder wurde nicht gefunden.");
   for (const contract of contracts as MaintenanceContract[]) {
     const contractAssignments = assignments.filter((assignment) => assignment.maintenanceContractId === contract.id);
@@ -141,7 +142,7 @@ export async function assignMaintenanceContractsToMember(session: BrowserSession
   const created: MaintenanceAssignment[] = [];
   try {
     for (const contract of contracts as MaintenanceContract[]) {
-      const rows = await createMaintenanceAssignment(session, { wartungsvertrag_id: contract.id, hauptmitglied_id: principalMemberId, gueltig_ab: input.validFrom, gueltig_bis: null, bemerkung: input.note?.trim() || null });
+      const rows = await createMaintenanceAssignment(club, session, { wartungsvertrag_id: contract.id, hauptmitglied_id: principalMemberId, gueltig_ab: input.validFrom, gueltig_bis: null, bemerkung: input.note?.trim() || null });
       if (!rows[0]) throw new Error("Wartungsvertragszuordnung konnte nicht gespeichert werden.");
       created.push(fromRow(rows[0]));
     }
@@ -151,9 +152,9 @@ export async function assignMaintenanceContractsToMember(session: BrowserSession
   return created;
 }
 
-export async function endMaintenanceAssignmentForContract(session: BrowserSession, assignment: Pick<MaintenanceAssignment, "id" | "validFrom">, validUntil: string): Promise<MaintenanceAssignment> {
+export async function endMaintenanceAssignmentForContract(club: ClubContext, session: BrowserSession, assignment: Pick<MaintenanceAssignment, "id" | "validFrom">, validUntil: string): Promise<MaintenanceAssignment> {
   if (!validUntil || validUntil < assignment.validFrom) throw new Error("Das Enddatum darf nicht vor dem Beginn liegen.");
-  const rows = await endMaintenanceAssignment(session, assignment.id, validUntil);
+  const rows = await endMaintenanceAssignment(club, session, assignment.id, validUntil);
   const row = rows[0];
   if (!row) throw new Error("Wartungsvertragszuordnung konnte nicht beendet werden.");
   return fromRow(row);

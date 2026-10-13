@@ -1,4 +1,5 @@
 "use client";
+import { useSelectedClub } from "../auth/AuthProvider";
 
 import { useEffect, useState } from "react";
 import { type BrowserSession } from "../../lib/supabase-auth";
@@ -8,23 +9,24 @@ import { endMembership, loadSecondaryMemberForMembershipEnd } from "../../servic
 import { type MembershipEndDecision } from "../../repositories/members/member-repository";
 
 export function MembershipEnd({ session, mainMember, canManageMembership, onSaved }: { session: BrowserSession; mainMember: Member; canManageMembership: boolean; onSaved: (member: Member) => void }) {
+  const club = useSelectedClub();
   const [ending, setEnding] = useState(false);
   const [secondary, setSecondary] = useState<Member | null>(null);
   const [loadingSecondary, setLoadingSecondary] = useState(false);
   const [decision, setDecision] = useState<MembershipEndDecision | "">("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
-  const editLock = useEditLock(session, "mitglied", mainMember.id, ending && canManageMembership);
+  const editLock = useEditLock(club, session, "mitglied", mainMember.id, ending && canManageMembership);
 
   useEffect(() => {
     if (!ending) return;
     let active = true;
-    loadSecondaryMemberForMembershipEnd(session, mainMember.id)
+    loadSecondaryMemberForMembershipEnd(club, session, mainMember.id)
       .then((member) => { if (active) { setSecondary(member); setDecision(""); } })
       .catch((cause: Error) => { if (active) setMessage(cause.message || "Nebenmitglied konnte nicht geladen werden."); })
       .finally(() => { if (active) setLoadingSecondary(false); });
     return () => { active = false; };
-  }, [ending, mainMember.id, session]);
+  }, [ending, mainMember.id, session, club]);
 
   function cancel() {
     setEnding(false);
@@ -61,7 +63,7 @@ export function MembershipEnd({ session, mainMember, canManageMembership, onSave
     setSaving(true);
     setMessage("");
     try {
-      const result = await endMembership(session, mainMember.id, secondaryDecision);
+      const result = await endMembership(club, session, mainMember.id, secondaryDecision);
       onSaved(result.updated_main_member);
       setMessage(result.message);
       setEnding(false);

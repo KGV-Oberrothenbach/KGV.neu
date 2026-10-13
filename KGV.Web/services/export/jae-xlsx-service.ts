@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import ExcelJS from "exceljs";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import { listParcelOverviewParcels } from "../../repositories/parcels/parcel-repository";
@@ -24,4 +25,4 @@ function createExtendedSheet(workbook: ExcelJS.Workbook, input: JaeExportInput) 
 }
 
 export async function createJaeWorkbook(input: JaeExportInput, template: ArrayBuffer) { const workbook = new ExcelJS.Workbook(); await workbook.xlsx.load(template); const legacy = workbook.getWorksheet("Tabelle1"); if (!legacy) throw new Error("JAE-Vorlage enthält Tabelle1 nicht."); fillLegacySheet(legacy, input); if (workbook.getWorksheet("JAE erweitert")) workbook.removeWorksheet("JAE erweitert"); createExtendedSheet(workbook, input); return workbook; }
-export async function downloadJaeXlsx(session: BrowserSession, year: number) { const [segments, parcels, response] = await Promise.all([listAnnualConsumptionSegments(session, year), listParcelOverviewParcels(session), fetch("/templates/exports/JAE_Vorlage.xlsx")]); if (!response.ok) throw new Error("JAE-Vorlage konnte nicht geladen werden."); const workbook = await createJaeWorkbook({ year, segments, parcelAreas: new Map(parcels.map((parcel) => [parcel.id, parcel.flaeche_qm])) }, await response.arrayBuffer()); download(await workbook.xlsx.writeBuffer() as ArrayBuffer, `${year}_JAE.xlsx`); }
+export async function downloadJaeXlsx(club: ClubContext, session: BrowserSession, year: number) { const [segments, parcels, response] = await Promise.all([listAnnualConsumptionSegments(club, session, year), listParcelOverviewParcels(club, session), fetch("/templates/exports/JAE_Vorlage.xlsx")]); if (!response.ok) throw new Error("JAE-Vorlage konnte nicht geladen werden."); const workbook = await createJaeWorkbook({ year, segments, parcelAreas: new Map(parcels.map((parcel) => [parcel.id, parcel.flaeche_qm])) }, await response.arrayBuffer()); download(await workbook.xlsx.writeBuffer() as ArrayBuffer, `${year}_JAE.xlsx`); }

@@ -1,7 +1,10 @@
-import { type BrowserSession, readSupabase, writeSupabase } from "../../lib/supabase-auth";
+import { readSupabaseRest } from "../../lib/supabase/rest-client";
+import { writeWithBrowserEditLock } from "../../services/concurrency/edit-lock-service";
+import type { ClubContext } from "../../models/auth/club";
+import { type BrowserSession } from "../../lib/supabase-auth";
 import { type Appointment } from "../../models/appointments/appointment";
 export type HomeAppointment = { id: number; titel: string | null; beschreibung: string | null; datum: string; start_uhrzeit: string | null; end_uhrzeit: string | null; sichtbar_ab: string | null; sichtbar_bis: string | null };
-export const listHomeAppointments = (session: BrowserSession) => readSupabase<HomeAppointment>(session, "v_startseite_termine", { select: "id,titel,beschreibung,datum,start_uhrzeit,end_uhrzeit,sichtbar_ab,sichtbar_bis", order: "datum.asc,start_uhrzeit.asc,end_uhrzeit.asc,titel.asc,id.asc", limit: "30" });
-export const listManagementAppointments = (session: BrowserSession) => readSupabase<Appointment>(session, "termin", { select: "id,titel,beschreibung,datum,start_uhrzeit,end_uhrzeit,sichtbar_ab,sichtbar_bis,aktiv", order: "datum.asc", limit: "500" });
-export const createAppointment = (session: BrowserSession, payload: Omit<Appointment, "id">) => writeSupabase<Appointment>(session, "termin", "POST", { ...payload, is_demo: session.isDemoAccount });
-export const updateAppointment = (session: BrowserSession, id: number, payload: Omit<Appointment, "id"> | Partial<Pick<Appointment, "aktiv">>) => writeSupabase<Appointment>(session, "termin", "PATCH", payload, { id: `eq.${id}` });
+export const listHomeAppointments = (club: ClubContext, session: BrowserSession) => readSupabaseRest<HomeAppointment>({ club, session }, "v_startseite_termine", { select: "id,titel,beschreibung,datum,start_uhrzeit,end_uhrzeit,sichtbar_ab,sichtbar_bis", order: "datum.asc,start_uhrzeit.asc,end_uhrzeit.asc,titel.asc,id.asc", limit: "30" });
+export const listManagementAppointments = (club: ClubContext, session: BrowserSession) => readSupabaseRest<Appointment>({ club, session }, "termin", { select: "id,titel,beschreibung,datum,start_uhrzeit,end_uhrzeit,sichtbar_ab,sichtbar_bis,aktiv", order: "datum.asc", limit: "500" });
+export const createAppointment = (club: ClubContext, session: BrowserSession, payload: Omit<Appointment, "id">) => writeWithBrowserEditLock<Appointment>({ club, session }, "termin", "POST", { ...payload, is_demo: session.isDemoAccount });
+export const updateAppointment = (club: ClubContext, session: BrowserSession, id: number, payload: Omit<Appointment, "id"> | Partial<Pick<Appointment, "aktiv">>) => writeWithBrowserEditLock<Appointment>({ club, session }, "termin", "PATCH", payload, { id: `eq.${id}` });

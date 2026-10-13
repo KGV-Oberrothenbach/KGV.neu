@@ -14,10 +14,15 @@ Sie lesen weder Browser-Speicher noch `loadClub()` und halten keine globale
 - `edge-client.ts`: generische JSON- und Raw-Aufrufe an Edge Functions.
 - `storage-client.ts`: generische signierte Storage-URLs.
 
-In G15.6a bleibt `lib/supabase-auth.ts` eine Kompatibilitätsfassade für die
-vielen bestehenden Caller. Sie erstellt übergangsweise aus `loadClub()` einen
-expliziten Transportkontext und delegiert an diese Clients. Auth, Session,
-Workspace-Persistenz, Edit-Lock-Orchestrierung und Fachwrapper bleiben dort.
+Alle technischen Clients benötigen einen expliziten `ClubContext`.
+REST-, RPC-, Storage- und authentifizierte Edge-Aufrufe erhalten außerdem eine
+`BrowserSession`; Fachrepositories rufen sie mit `{ club, session }` auf.
+Öffentliche Edge-Aufrufe aus dem Auth-/OTP-Flow übergeben `{ club }` ohne
+Session. Services und Features reichen den bereits im `AuthProvider`
+verfügbaren Verein durch. Kein Transportpfad liest `loadClub()` oder
+Browser-Speicher, und es gibt keine globale Vereinsvariable.
 
-G15.6b migriert die Fachcaller auf einen expliziten `ClubContext` und entfernt
-diese Übergangsbrücke.
+Die Transport-Kompatibilitätsfassade ist entfernt. `lib/supabase-auth.ts`
+enthält nur noch Auth-, Session-, Club- und Workspace-Persistenz-nahe
+Verantwortung. Edit-Lock-Orchestrierung und fachliche Edge-Wrapper liegen in
+ihren jeweiligen Service-/Repository-Schichten.

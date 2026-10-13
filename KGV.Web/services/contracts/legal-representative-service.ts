@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import { getMember } from "../members/member-service";
 import { listMembersForSearch } from "../../repositories/members/member-repository";
 import { listLegalRepresentativeRelations } from "../../repositories/contracts/contract-repository";
@@ -31,12 +32,12 @@ export function resolveActiveLegalRepresentativeRelation(relations: LegalReprese
     .sort((left, right) => Number(right.gueltig_bis === null) - Number(left.gueltig_bis === null) || right.gueltig_ab.localeCompare(left.gueltig_ab) || right.id - left.id)[0] ?? null;
 }
 
-export async function loadLegalRepresentativeContext(session: BrowserSession, member: Member, startDate: string) {
+export async function loadLegalRepresentativeContext(club: ClubContext, session: BrowserSession, member: Member, startDate: string) {
   if (!isMinorAtStart(member, startDate)) return { isMinor: false, options: [] as LegalRepresentativeOption[], draft: emptyLegalRepresentativeDraft() };
-  const [members, relations] = await Promise.all([listMembersForSearch(session), listLegalRepresentativeRelations(session, member.id)]);
+  const [members, relations] = await Promise.all([listMembersForSearch(club, session), listLegalRepresentativeRelations(club, session, member.id)]);
   const current = resolveActiveLegalRepresentativeRelation(relations, startDate);
   const options = members.filter((item) => item.id !== member.id).map((item) => ({ id: item.id, label: [item.vorname, item.name].filter(Boolean).join(" ") || `Mitglied #${item.id}` })).sort((a, b) => a.label.localeCompare(b.label, "de"));
   if (!current) return { isMinor: true, options, draft: { ...emptyLegalRepresentativeDraft(), mode: (options.length ? "existing" : "manual") as LegalRepresentativeMode } };
-  const representative = await getMember(session, current.vertreter_mitglied_id);
+  const representative = await getMember(club, session, current.vertreter_mitglied_id);
   return { isMinor: true, options, draft: representative ? { mode: "existing" as const, memberId: representative.id, vorname: representative.vorname ?? "", nachname: representative.name ?? "", adresseAbweichend: false, adresse: "", plz: "", ort: "" } : emptyLegalRepresentativeDraft() };
 }

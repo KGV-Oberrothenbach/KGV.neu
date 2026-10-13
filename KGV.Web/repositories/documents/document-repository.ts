@@ -1,4 +1,6 @@
-import { readSupabase, type BrowserSession } from "../../lib/supabase-auth";
+import { readSupabaseRest } from "../../lib/supabase/rest-client";
+import type { ClubContext } from "../../models/auth/club";
+import { type BrowserSession } from "../../lib/supabase-auth";
 import { assertDocumentOwner, documentSelect, memberDocumentOwner, parcelDocumentOwner, type Document, type DocumentOwner } from "../../models/documents/document";
 
 const activeDocumentQuery = {
@@ -8,18 +10,18 @@ const activeDocumentQuery = {
   limit: "500",
 };
 
-export function listDocumentsForOwner(session: BrowserSession, owner: DocumentOwner) {
+export function listDocumentsForOwner(club: ClubContext, session: BrowserSession, owner: DocumentOwner) {
   assertDocumentOwner(owner);
-  return readSupabase<Document>(session, "dokument", {
+  return readSupabaseRest<Document>({ club, session }, "dokument", {
     ...activeDocumentQuery,
     [owner.kind === "member" ? "mitglied_id" : "parzelle_id"]: `eq.${owner.id}`,
   });
 }
 
-export function listMemberDocuments(session: BrowserSession, memberId: number) {
-  return listDocumentsForOwner(session, memberDocumentOwner(memberId));
+export function listMemberDocuments(club: ClubContext, session: BrowserSession, memberId: number) {
+  return listDocumentsForOwner(club, session, memberDocumentOwner(memberId));
 }
 
-export function listParcelDocuments(session: BrowserSession, parcelId: number) {
-  return listDocumentsForOwner(session, parcelDocumentOwner(parcelId));
+export function listParcelDocuments(club: ClubContext, session: BrowserSession, parcelId: number) {
+  return listDocumentsForOwner(club, session, parcelDocumentOwner(parcelId));
 }

@@ -1,18 +1,15 @@
 "use client";
+import { readSupabaseRest } from "../lib/supabase/rest-client";
+import { callSupabaseRpc } from "../lib/supabase/rpc-client";
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  AppUserContext,
-  BrowserSession,
-  callSupabaseRpc,
-  generateContract,
-  inviteAppUser,
-  readSupabase,
-  sendPasswordReset,
-} from "../lib/supabase-auth";
+  AppUserContext, BrowserSession } from "../lib/supabase-auth";
+import { generateContract } from "../services/contracts/contract-generation-service";
+import { inviteAppUser, sendPasswordReset } from "../services/users/app-user-service";
 import { type ClubContext } from "../models/auth/club";
 import { memberDocumentOwner } from "../models/documents/document";
-import { AuthProvider, useAuth } from "../features/auth/AuthProvider";
+import { AuthProvider, useAuth, useSelectedClub } from "../features/auth/AuthProvider";
 import { ChangeClubAction } from "../features/auth/ChangeClubAction";
 import { ClubSelection } from "../features/auth/ClubSelection";
 import { LoginForm } from "../features/auth/LoginForm";
@@ -145,7 +142,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
 
   useEffect(() => {
     let active = true;
-    getSeasons(session)
+    getSeasons(club, session)
       .then((items) => {
         if (!active) return;
         setSeasons(items);
@@ -156,7 +153,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
       })
       .catch(() => { if (active) setSeasonError("Saisons konnten nicht geladen werden."); });
     return () => { active = false; };
-  }, [session, updateWorkspaceContext]);
+  }, [session, updateWorkspaceContext, club]);
 
   useEffect(() => {
     let active = true;
@@ -173,13 +170,13 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
       return () => { active = false; };
     }
     setSelectedMember(null);
-    loadMemberWorkspaceInfo(session, selectedMemberId).then((member) => {
+    loadMemberWorkspaceInfo(club, session, selectedMemberId).then((member) => {
       if (active) setSelectedMember(member);
     }).catch(() => {
       if (active) setSelectedMember(null);
     });
     return () => { active = false; };
-  }, [session, selectedMemberId, setSelectedMember]);
+  }, [session, selectedMemberId, setSelectedMember, club]);
 
   function selectSeason(saisonId: number) {
     const nextSeason = seasons.find((item) => item.id === saisonId);
@@ -264,6 +261,7 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
 }
 
 function MeterOverview({ session, clubId, reviewerMemberId, selectedParcelId, seasonYear, canReadMeters, canSubmitOwnMeterReadings, canApprove, canManageMeterChanges, onNavigate: navigate }: { session: BrowserSession; clubId: string; reviewerMemberId: number | null; selectedParcelId: number | null; seasonYear: number; canReadMeters: boolean; canSubmitOwnMeterReadings: boolean; canApprove: boolean; canManageMeterChanges: boolean; onNavigate: (id: string) => void }) {
+  const club = useSelectedClub();
   const [meters, setMeters] = useState<Meter[]>([]);
   const [parcels, setParcels] = useState<Parcel[]>([]);
   const [readings, setReadings] = useState<Reading[]>([]);
@@ -280,18 +278,18 @@ function MeterOverview({ session, clubId, reviewerMemberId, selectedParcelId, se
     setLoading(true); setError("");
     try {
       const [meterOverview, loadedReadings, nextReviewData] = await Promise.all([
-        canReadMeters ? loadMeterOverview(session) : canApprove ? loadMeterReferenceData(session).then((data) => ({ ...data, dueStatuses: [] })) : Promise.resolve({ meters: [], parcels: [], dueStatuses: [] }),
-        canReadMeters ? readSupabase<Reading>(session, "zaehler_ablesung", { select: "id,zaehler_id,stand,ablesedatum,art,freigegeben,pruefstatus,pruefkommentar,geprueft_von,geprueft_am,foto_pfad,foto_drive_file_id,foto_dateiname", order: "ablesedatum.desc", limit: "1000" }) : Promise.resolve([]),
-        canApprove ? loadReadingReviewData(session, { canApproveMeterReadings: canApprove, reviewerMemberId }) : Promise.resolve({ open: [], reviewed: [], historyByReadingId: new Map() }),
+        canReadMeters ? loadMeterOverview(club, session) : canApprove ? loadMeterReferenceData(club, session).then((data) => ({ ...data, dueStatuses: [] })) : Promise.resolve({ meters: [], parcels: [], dueStatuses: [] }),
+        canReadMeters ? readSupabaseRest<Reading>({ club, session }, "zaehler_ablesung", { select: "id,zaehler_id,stand,ablesedatum,art,freigegeben,pruefstatus,pruefkommentar,geprueft_von,geprueft_am,foto_pfad,foto_drive_file_id,foto_dateiname", order: "ablesedatum.desc", limit: "1000" }) : Promise.resolve([]),
+        canApprove ? loadReadingReviewData(club, session, { canApproveMeterReadings: canApprove, reviewerMemberId }) : Promise.resolve({ open: [], reviewed: [], historyByReadingId: new Map() }),
       ]);
       setMeters(meterOverview.meters); setParcels(meterOverview.parcels); setDueStatuses(meterOverview.dueStatuses); setReadings(loadedReadings); setReviewData(nextReviewData);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Ablesungen konnten nicht geladen werden."); } finally { setLoading(false); }
   }
   useEffect(() => { void load(); }, [session, canReadMeters, canApprove, reviewerMemberId]);
   useEffect(() => {
-    const sync = () => { void retryAllPendingReadingPhotos(session, clubId, wifiOnly); };
+    const sync = () => { void retryAllPendingReadingPhotos(club, session, clubId, wifiOnly); };
     sync(); return subscribeConnectivityChanges(sync);
-  }, [session, clubId, wifiOnly]);
+  }, [session, clubId, wifiOnly, club]);
 
   const parcelName = (parcelId: number) => { const parcel = parcels.find((item) => item.id === parcelId); return parcel ? `${parcel.garten_nr} – ${parcel.Anlage}` : "Unbekannte Parzelle"; };
   const meterFor = (meterId: number) => meters.find((item) => item.id === meterId);
@@ -316,6 +314,7 @@ function MeterOverview({ session, clubId, reviewerMemberId, selectedParcelId, se
   </section>;
 }
 function RfidAssignmentPanel({ session, selectedParcelId }: { session: BrowserSession; selectedParcelId: number | null }) {
+  const club = useSelectedClub();
   const [parcels, setParcels] = useState<Awaited<ReturnType<typeof listRfidSetupParcels>>>([]);
   const [parcelId, setParcelId] = useState(selectedParcelId ? String(selectedParcelId) : "");
   const [mediumOptions, setMediumOptions] = useState<RfidMediumOption[]>([]);
@@ -325,11 +324,11 @@ function RfidAssignmentPanel({ session, selectedParcelId }: { session: BrowserSe
   const [check, setCheck] = useState<RfidAssignmentCheck | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  useEffect(() => { listRfidSetupParcels(session).then(setParcels).catch((cause) => setMessage(cause instanceof Error ? cause.message : "Parzellen konnten nicht geladen werden.")); }, [session]);
-  useEffect(() => { let active = true; const id = Number(parcelId); if (!id) return () => { active = false; }; listAvailableRfidMediumOptions(session, id).then((items) => { if (!active) return; setMediumOptions(items); setMedium((current) => items.some((item) => item.key === current) ? current : items[0]?.key ?? ""); }).catch((cause) => { if (active) setMessage(cause instanceof Error ? cause.message : "Medien konnten nicht geladen werden."); }); return () => { active = false; }; }, [session, parcelId]);
-  async function resolve() { setBusy(true); setCheck(null); try { const result = await resolveRfidScanContext(session, uid); setResolution(result); setUid(result.normalizedUid); setMessage(result.message); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "RFID-Kontext konnte nicht geladen werden."); } finally { setBusy(false); } }
-  async function verify() { setBusy(true); try { const result = await checkRfidAssignment(session, Number(parcelId), medium, uid); setCheck(result); setMessage(result.message); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "RFID-Zuordnung konnte nicht geprüft werden."); } finally { setBusy(false); } }
-  async function save(overwriteExisting = false) { setBusy(true); try { const result = await assignRfid(session, Number(parcelId), medium, uid, overwriteExisting); if (result.requiresOverwriteConfirmation) { if (window.confirm(`${result.message}\n\nBestehende RFID-Zuordnung am Ziel wirklich überschreiben?`)) { await save(true); return; } setMessage("Überschreiben wurde abgelehnt."); return; } setMessage(result.message); if (result.success) { setCheck(null); setResolution(null); setUid(""); } } catch (cause) { setMessage(cause instanceof Error ? cause.message : "RFID konnte nicht gespeichert werden."); } finally { setBusy(false); } }
+  useEffect(() => { listRfidSetupParcels(club, session).then(setParcels).catch((cause) => setMessage(cause instanceof Error ? cause.message : "Parzellen konnten nicht geladen werden.")); }, [session, club]);
+  useEffect(() => { let active = true; const id = Number(parcelId); if (!id) return () => { active = false; }; listAvailableRfidMediumOptions(club, session, id).then((items) => { if (!active) return; setMediumOptions(items); setMedium((current) => items.some((item) => item.key === current) ? current : items[0]?.key ?? ""); }).catch((cause) => { if (active) setMessage(cause instanceof Error ? cause.message : "Medien konnten nicht geladen werden."); }); return () => { active = false; }; }, [session, parcelId, club]);
+  async function resolve() { setBusy(true); setCheck(null); try { const result = await resolveRfidScanContext(club, session, uid); setResolution(result); setUid(result.normalizedUid); setMessage(result.message); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "RFID-Kontext konnte nicht geladen werden."); } finally { setBusy(false); } }
+  async function verify() { setBusy(true); try { const result = await checkRfidAssignment(club, session, Number(parcelId), medium, uid); setCheck(result); setMessage(result.message); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "RFID-Zuordnung konnte nicht geprüft werden."); } finally { setBusy(false); } }
+  async function save(overwriteExisting = false) { setBusy(true); try { const result = await assignRfid(club, session, Number(parcelId), medium, uid, overwriteExisting); if (result.requiresOverwriteConfirmation) { if (window.confirm(`${result.message}\n\nBestehende RFID-Zuordnung am Ziel wirklich überschreiben?`)) { await save(true); return; } setMessage("Überschreiben wurde abgelehnt."); return; } setMessage(result.message); if (result.success) { setCheck(null); setResolution(null); setUid(""); } } catch (cause) { setMessage(cause instanceof Error ? cause.message : "RFID konnte nicht gespeichert werden."); } finally { setBusy(false); } }
   const showAssignment = resolution?.state === "Unknown";
   return <section className="detail-panel member-editor" aria-label="RFID einrichten"><div className="detail-title"><div><h2>RFID einrichten</h2><p>RFID-UID prüfen und kontrolliert einer Parzelle zuordnen.</p></div></div>{message && <p className="notice" role="status">{message}</p>}<fieldset disabled={busy}><label className="wide">RFID-UID<input value={uid} onChange={(event) => { setUid(event.target.value); setResolution(null); setCheck(null); }} placeholder="RFID-UID eingeben" /></label></fieldset><div className="editor-actions"><button className="secondary-action" disabled={busy || !uid.trim()} onClick={() => void resolve()}>{busy ? "Prüft …" : "RFID-Kontext auflösen"}</button></div>{resolution && <section className="parcel-section"><h3>{resolution.state}</h3>{resolution.context ? <p><strong>{resolution.context.garten_nr ?? "–"} – {resolution.context.anlage ?? "–"}</strong><br />{resolution.context.medium ?? "–"} · {resolution.context.zaehlernummer ?? "Kein aktiver Zähler"}<br />Status: {resolution.context.status ?? "Kein aktiver Zähler"}</p> : <p>Die UID ist noch keiner Parzelle zugeordnet.</p>}</section>}{showAssignment && <section className="parcel-section"><h3>Neue RFID-Zuordnung</h3><fieldset disabled={busy}><label>Parzelle<select value={parcelId} onChange={(event) => { setParcelId(event.target.value); setCheck(null); }}><option value="">Parzelle wählen</option>{parcels.map((parcel) => <option key={parcel.id} value={parcel.id}>{parcel.garten_nr} – {parcel.Anlage}</option>)}</select></label><label>Medium<select value={medium} onChange={(event) => { setMedium(event.target.value); setCheck(null); }} disabled={!parcelId}><option value="">Medium wählen</option>{mediumOptions.map((item) => <option key={item.key} value={item.key}>{item.displayName}</option>)}</select></label></fieldset><div className="editor-actions"><button className="secondary-action" disabled={busy || !parcelId || !medium} onClick={() => void verify()}>Zuordnung prüfen</button><button disabled={busy || !check?.isValid} onClick={() => void save()}>{busy ? "Speichert …" : "RFID speichern"}</button></div>{check?.conflict && <p className="context-note">Konflikt: bereits bei {check.conflict.garten_nr ?? "–"} – {check.conflict.anlage ?? "–"} für {check.conflict.medium ?? "–"} hinterlegt. Diese Zuordnung wird nicht automatisch geändert.</p>}</section>}</section>;
 }
@@ -339,36 +338,40 @@ function confirmReadingWarnings(warnings: Array<{ message: string }>) {
 }
 
 function MeterChange({ session, clubId, canManageMeterChanges }: { session: BrowserSession; clubId: string; canManageMeterChanges: boolean }) {
+  const club = useSelectedClub();
   const [uid,setUid]=useState(""); const [resolution,setResolution]=useState<RfidScanResolution|null>(null); const [context,setContext]=useState<MeterInstallationContext|null>(null); const [installationDate,setInstallationDate]=useState(currentLocalDate); const [meterNumber,setMeterNumber]=useState(""); const [calibrationYear,setCalibrationYear]=useState(()=>String(new Date().getFullYear())); const [installedMeter,setInstalledMeter]=useState<Meter|null>(null); const [initialValue,setInitialValue]=useState(""); const [file,setFile]=useState<File|null>(null); const [installationPhotoRequired,setInstallationPhotoRequired]=useState(true); const [removedAt,setRemovedAt]=useState(currentLocalDate); const [endValue,setEndValue]=useState(""); const [progress,setProgress]=useState<{readingId:number;removedAt:string;endValue:number;photoHandled:boolean;photoMessage:string}|null>(null); const [message,setMessage]=useState(""); const [saving,setSaving]=useState(false);
   const wifiOnly=getWifiOnlyPreference;
   function reset(){setResolution(null);setContext(null);setInstalledMeter(null);setInitialValue("");setFile(null);setMeterNumber("");setCalibrationYear(String(new Date().getFullYear()));setInstallationDate(currentLocalDate());setRemovedAt(currentLocalDate());setEndValue("");setProgress(null);}
-  async function resolve(){setSaving(true);try{const next=await resolveRfidScanContext(session,uid);setResolution(next);setUid(next.normalizedUid);setContext(installationContextFromResolution(next));setInstallationPhotoRequired(await getMeterInstallationPhotoRequired(session));setMessage(next.message);}catch(e){setMessage(e instanceof Error?e.message:"RFID-Kontext konnte nicht geladen werden.");}finally{setSaving(false);}}
-  async function install(){if(!context)return;setSaving(true);try{const m=await createMeterInstallationForRfid(session,{canManageMeterChanges},context,{meterNumber,installationDate,calibrationYear});setInstalledMeter(m);setMessage("Zähler angelegt. Jetzt folgt die Anfangsablesung.");}catch(e){setMessage(e instanceof Error?e.message:"Zähler konnte nicht angelegt werden.");}finally{setSaving(false);}}
-  async function initial(){if(!installedMeter||!context||!initialValue.trim()||(installationPhotoRequired&&!file)){setMessage(installationPhotoRequired&&!file?"Für die Anfangsablesung ist ein Foto erforderlich.":"Bitte einen Anfangsstand eingeben.");return;}setSaving(true);try{let r=await saveMeterInstallationReading(session,{canManageMeterChanges},{meterId:installedMeter.id,date:installationDate,value:Number(initialValue.replace(",","."))});if("requiresConfirmation" in r){if(!confirmReadingWarnings(r.plausibility.warnings)){setMessage("Einbauablesung wurde nicht gespeichert. Bitte den Zählerstand vor Ort prüfen.");return;}r=await saveMeterInstallationReading(session,{canManageMeterChanges},{meterId:installedMeter.id,date:installationDate,value:Number(initialValue.replace(",",".")),confirmWarnings:true});}const p=await handleReadingPhoto(session,{clubId,readingId:r.id,file,details:{kind:"einbau",datum:installationDate,medium:installedMeter.medium,anlage:context.anlage,garten:context.gardenNr,zaehlernummer:installedMeter.zaehlernummer},wifiOnly:wifiOnly()});reset();setUid("");setMessage(`Einbau erfolgreich abgeschlossen. ${p.message} Bitte RFID erneut scannen.`);}catch(e){setMessage(e instanceof Error?e.message:"Einbauablesung konnte nicht gespeichert werden.");}finally{setSaving(false);}}
-  async function remove(){if(!resolution?.context?.aktiver_zaehler_id)return;if(!progress&&!window.confirm("Wollen Sie den Zähler ausbauen?"))return;if(!progress&&!file){setMessage("Für die Schlussablesung ist ein Foto erforderlich.");return;}setSaving(true);try{let next=progress;if(!next){let r=await saveMeterRemovalReading(session,{canManageMeterChanges},{meterId:resolution.context.aktiver_zaehler_id,date:removedAt,value:Number(endValue.replace(",","."))});if("requiresConfirmation" in r){if(!confirmReadingWarnings(r.plausibility.warnings)){setMessage("Zählerausbau wurde abgebrochen. Bitte den Zählerstand vor Ort prüfen.");return;}r=await saveMeterRemovalReading(session,{canManageMeterChanges},{meterId:resolution.context.aktiver_zaehler_id,date:removedAt,value:Number(endValue.replace(",",".")),confirmWarnings:true});}next={readingId:r.id,removedAt,endValue:Number(endValue.replace(",",".")),photoHandled:false,photoMessage:""};setProgress(next);}if(!next.photoHandled){const p=await handleReadingPhoto(session,{clubId,readingId:next.readingId,file,details:{kind:"ausbau",datum:next.removedAt,medium:resolution.context.medium??"",anlage:resolution.context.anlage??"",garten:resolution.context.garten_nr??"",zaehlernummer:resolution.context.zaehlernummer??""},wifiOnly:wifiOnly()});next={...next,photoHandled:true,photoMessage:p.message};setProgress(next);}await completeMeterRemoval(session,{canManageMeterChanges},{uid:resolution.normalizedUid,meterId:resolution.context.aktiver_zaehler_id,parcelId:resolution.context.parzelle_id,medium:resolution.context.medium??"",removedAt:next.removedAt});const text=next.photoMessage;reset();setUid("");setMessage(`Zähler ausgebaut. ${text} Bitte RFID erneut scannen.`);}catch(e){setMessage(e instanceof Error?e.message:"Zähler konnte nicht ausgebaut werden.");}finally{setSaving(false);}}
+  async function resolve(){setSaving(true);try{const next=await resolveRfidScanContext(club, session,uid);setResolution(next);setUid(next.normalizedUid);setContext(installationContextFromResolution(next));setInstallationPhotoRequired(await getMeterInstallationPhotoRequired(club, session));setMessage(next.message);}catch(e){setMessage(e instanceof Error?e.message:"RFID-Kontext konnte nicht geladen werden.");}finally{setSaving(false);}}
+  async function install(){if(!context)return;setSaving(true);try{const m=await createMeterInstallationForRfid(club, session,{canManageMeterChanges},context,{meterNumber,installationDate,calibrationYear});setInstalledMeter(m);setMessage("Zähler angelegt. Jetzt folgt die Anfangsablesung.");}catch(e){setMessage(e instanceof Error?e.message:"Zähler konnte nicht angelegt werden.");}finally{setSaving(false);}}
+  async function initial(){if(!installedMeter||!context||!initialValue.trim()||(installationPhotoRequired&&!file)){setMessage(installationPhotoRequired&&!file?"Für die Anfangsablesung ist ein Foto erforderlich.":"Bitte einen Anfangsstand eingeben.");return;}setSaving(true);try{let r=await saveMeterInstallationReading(club, session,{canManageMeterChanges},{meterId:installedMeter.id,date:installationDate,value:Number(initialValue.replace(",","."))});if("requiresConfirmation" in r){if(!confirmReadingWarnings(r.plausibility.warnings)){setMessage("Einbauablesung wurde nicht gespeichert. Bitte den Zählerstand vor Ort prüfen.");return;}r=await saveMeterInstallationReading(club, session,{canManageMeterChanges},{meterId:installedMeter.id,date:installationDate,value:Number(initialValue.replace(",",".")),confirmWarnings:true});}const p=await handleReadingPhoto(club, session,{clubId,readingId:r.id,file,details:{kind:"einbau",datum:installationDate,medium:installedMeter.medium,anlage:context.anlage,garten:context.gardenNr,zaehlernummer:installedMeter.zaehlernummer},wifiOnly:wifiOnly()});reset();setUid("");setMessage(`Einbau erfolgreich abgeschlossen. ${p.message} Bitte RFID erneut scannen.`);}catch(e){setMessage(e instanceof Error?e.message:"Einbauablesung konnte nicht gespeichert werden.");}finally{setSaving(false);}}
+  async function remove(){if(!resolution?.context?.aktiver_zaehler_id)return;if(!progress&&!window.confirm("Wollen Sie den Zähler ausbauen?"))return;if(!progress&&!file){setMessage("Für die Schlussablesung ist ein Foto erforderlich.");return;}setSaving(true);try{let next=progress;if(!next){let r=await saveMeterRemovalReading(club, session,{canManageMeterChanges},{meterId:resolution.context.aktiver_zaehler_id,date:removedAt,value:Number(endValue.replace(",","."))});if("requiresConfirmation" in r){if(!confirmReadingWarnings(r.plausibility.warnings)){setMessage("Zählerausbau wurde abgebrochen. Bitte den Zählerstand vor Ort prüfen.");return;}r=await saveMeterRemovalReading(club, session,{canManageMeterChanges},{meterId:resolution.context.aktiver_zaehler_id,date:removedAt,value:Number(endValue.replace(",",".")),confirmWarnings:true});}next={readingId:r.id,removedAt,endValue:Number(endValue.replace(",",".")),photoHandled:false,photoMessage:""};setProgress(next);}if(!next.photoHandled){const p=await handleReadingPhoto(club, session,{clubId,readingId:next.readingId,file,details:{kind:"ausbau",datum:next.removedAt,medium:resolution.context.medium??"",anlage:resolution.context.anlage??"",garten:resolution.context.garten_nr??"",zaehlernummer:resolution.context.zaehlernummer??""},wifiOnly:wifiOnly()});next={...next,photoHandled:true,photoMessage:p.message};setProgress(next);}await completeMeterRemoval(club, session,{canManageMeterChanges},{uid:resolution.normalizedUid,meterId:resolution.context.aktiver_zaehler_id,parcelId:resolution.context.parzelle_id,medium:resolution.context.medium??"",removedAt:next.removedAt});const text=next.photoMessage;reset();setUid("");setMessage(`Zähler ausgebaut. ${text} Bitte RFID erneut scannen.`);}catch(e){setMessage(e instanceof Error?e.message:"Zähler konnte nicht ausgebaut werden.");}finally{setSaving(false);}}
   const active=resolution?.state==="KnownWithActiveMeter"&&resolution.context; const locked=Boolean(installedMeter||progress);
   return <section className="data-workspace"><section className="detail-panel member-editor"><h2>Zählerwechsel</h2>{message&&<p className="notice">{message}</p>}<label>RFID-UID<input value={uid} disabled={locked} onChange={e=>{reset();setUid(e.target.value);}} /></label><button disabled={saving||locked||!uid.trim()} onClick={()=>void resolve()}>RFID-Kontext auflösen</button>{active?<><p>{active.garten_nr} – {active.anlage}<br />{active.medium} · {active.zaehlernummer}</p><fieldset disabled={saving||Boolean(progress)}><label>Ausbaudatum<input type="date" value={progress?.removedAt??removedAt} onChange={e=>setRemovedAt(e.target.value)} /></label><label>Endstand<input value={progress?String(progress.endValue):endValue} onChange={e=>setEndValue(e.target.value)} /></label><label>Foto *<input type="file" disabled={Boolean(progress?.photoHandled)} onChange={e=>setFile(e.target.files?.[0]??null)} /></label></fieldset><button disabled={saving||(!progress&&!endValue.trim())} onClick={()=>void remove()}>{progress?"Ausbau fortsetzen":"Zähler ausbauen"}</button></>:context&&!installedMeter?<><label>Einbaudatum<input type="date" value={installationDate} onChange={e=>setInstallationDate(e.target.value)} /></label><label>Zählernummer<input value={meterNumber} onChange={e=>setMeterNumber(e.target.value)} /></label><label>Eichjahr<input value={calibrationYear} onChange={e=>setCalibrationYear(e.target.value)} /></label><button onClick={()=>void install()}>Zähler anlegen</button></>:installedMeter?<><p>Zähler angelegt: {installedMeter.zaehlernummer}</p><label>Anfangsstand<input value={initialValue} onChange={e=>setInitialValue(e.target.value)} /></label><label>Foto{installationPhotoRequired?" *":""}<input type="file" onChange={e=>setFile(e.target.files?.[0]??null)} /></label><button onClick={()=>void initial()}>Anfangsablesung speichern</button></>:null}</section></section>;
 }
 function MeterReadingEntry({ session, clubId, seasonYear, permissions: { canReadMeters, canSubmitOwnMeterReadings, memberId }, wifiOnly, onSaved }: { session: BrowserSession; clubId: string; seasonYear: number; permissions: ReadingPermissions; wifiOnly: boolean; onSaved: () => void | Promise<void> }) {
+  const club = useSelectedClub();
   const [context, setContext] = useState<ReadingCaptureContext | null>(null); const [meterId, setMeterId] = useState(""); const [parcelId, setParcelId] = useState(""); const [medium, setMedium] = useState(""); const [kind, setKind] = useState<"normal" | "jea">("normal"); const [value, setValue] = useState(""); const [date, setDate] = useState(currentLocalDate); const [file, setFile] = useState<File | null>(null); const [previewUrl, setPreviewUrl] = useState(""); const [message, setMessage] = useState(""); const [saving, setSaving] = useState(false);
   const permissions = useMemo<ReadingPermissions>(() => ({ canReadMeters, canSubmitOwnMeterReadings, memberId }), [canReadMeters, canSubmitOwnMeterReadings, memberId]);
-  useEffect(() => { let active = true; loadReadingCaptureContext(session, permissions).then((next) => { if (active) { setContext(next); setMessage(next.message ?? ""); } }).catch((cause) => { if (active) setMessage(cause instanceof Error ? cause.message : "Ablesekontext konnte nicht geladen werden."); }); return () => { active = false; }; }, [session, permissions]);
+  useEffect(() => { let active = true; loadReadingCaptureContext(club, session, permissions).then((next) => { if (active) { setContext(next); setMessage(next.message ?? ""); } }).catch((cause) => { if (active) setMessage(cause instanceof Error ? cause.message : "Ablesekontext konnte nicht geladen werden."); }); return () => { active = false; }; }, [session, permissions, club]);
   useEffect(() => { if (!file) { setPreviewUrl(""); return; } const url = URL.createObjectURL(file); setPreviewUrl(url); return () => URL.revokeObjectURL(url); }, [file]);
   const meters = context?.meters ?? []; const parcels = context?.parcels ?? []; const selectedParcel = parcels.find((item) => item.id === Number(parcelId)); const filteredMeters = meters.filter((item) => (!parcelId || item.parzelle_id === Number(parcelId)) && (!medium || item.medium.toLocaleLowerCase("de") === medium));
-  async function save() { const stand = Number(value.replace(",", ".")); if (context?.photoRequired && !file) { setMessage("Für diese Ablesung ist ein Foto erforderlich."); return; } setSaving(true); setMessage(""); try { let result = await saveMeterReading(session, permissions, { meterId: Number(meterId), date, value: stand, art: kind }); if ("requiresConfirmation" in result) { if (!confirmReadingWarnings(result.plausibility.warnings)) { setMessage("Ablesung wurde nicht gespeichert. Bitte den Zählerstand vor Ort prüfen."); return; } result = await saveMeterReading(session, permissions, { meterId: Number(meterId), date, value: stand, art: kind, confirmWarnings: true }); } const meter = meters.find((item) => item.id === result.reading.zaehler_id); const parcel = meter && parcels.find((item) => item.id === meter.parzelle_id); const readingMessage = result.isSubmission ? "Ablesung wurde zur Prüfung eingereicht." : "Ablesung wurde direkt freigegeben gespeichert."; if (file && meter && parcel) { const photo = await handleReadingPhoto(session, { clubId, readingId: result.reading.id, file, details: { datum: date, medium: meter.medium, anlage: parcel.Anlage, garten: parcel.garten_nr, zaehlernummer: meter.zaehlernummer }, wifiOnly }); setMessage(`${readingMessage} ${photo.message}`); } else setMessage(readingMessage); setMeterId(""); setValue(""); setFile(null); await onSaved(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Ablesung konnte nicht gespeichert werden."); } finally { setSaving(false); } }
+  async function save() { const stand = Number(value.replace(",", ".")); if (context?.photoRequired && !file) { setMessage("Für diese Ablesung ist ein Foto erforderlich."); return; } setSaving(true); setMessage(""); try { let result = await saveMeterReading(club, session, permissions, { meterId: Number(meterId), date, value: stand, art: kind }); if ("requiresConfirmation" in result) { if (!confirmReadingWarnings(result.plausibility.warnings)) { setMessage("Ablesung wurde nicht gespeichert. Bitte den Zählerstand vor Ort prüfen."); return; } result = await saveMeterReading(club, session, permissions, { meterId: Number(meterId), date, value: stand, art: kind, confirmWarnings: true }); } const meter = meters.find((item) => item.id === result.reading.zaehler_id); const parcel = meter && parcels.find((item) => item.id === meter.parzelle_id); const readingMessage = result.isSubmission ? "Ablesung wurde zur Prüfung eingereicht." : "Ablesung wurde direkt freigegeben gespeichert."; if (file && meter && parcel) { const photo = await handleReadingPhoto(club, session, { clubId, readingId: result.reading.id, file, details: { datum: date, medium: meter.medium, anlage: parcel.Anlage, garten: parcel.garten_nr, zaehlernummer: meter.zaehlernummer }, wifiOnly }); setMessage(`${readingMessage} ${photo.message}`); } else setMessage(readingMessage); setMeterId(""); setValue(""); setFile(null); await onSaved(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Ablesung konnte nicht gespeichert werden."); } finally { setSaving(false); } }
   const enabled = Boolean(context && !context.message); const selectKind = (next: "normal" | "jea") => setKind(next);
   return <section className="detail-panel member-editor meter-entry"><div className="detail-title"><div><h2>{kind === "jea" ? "Jahresendablesung erfassen" : "Ablesung erfassen"}</h2><p>{context?.photoRequired ? "Foto ist erforderlich" : "Foto ist optional"} · {context?.isDirectCapture ? "wird direkt freigegeben" : "wird zur Prüfung eingereicht"}</p></div><div className="reading-kind"><button className={kind === "normal" ? "active" : "secondary-action"} onClick={() => selectKind("normal")}>Normal</button><button className={kind === "jea" ? "active" : "secondary-action"} onClick={() => selectKind("jea")}>JEA {seasonYear}</button></div></div>{message && <p className="notice" role="status">{message}</p>}{context?.isDirectCapture && <RfidBrowserScanner session={session} onResolved={(resolution) => { if (resolution.state === "KnownWithActiveMeter" && resolution.context?.aktiver_zaehler_id) { setParcelId(String(resolution.context.parzelle_id)); setMedium(String(resolution.context.medium ?? "").toLocaleLowerCase("de")); setMeterId(String(resolution.context.aktiver_zaehler_id)); setMessage(`RFID erkannt: Garten ${resolution.context.garten_nr ?? "–"}, ${resolution.context.medium ?? "–"}.`); } else setMessage(resolution.message); }} />}<fieldset disabled={!enabled || saving}><label>Parzelle<select value={parcelId} onChange={(event) => { setParcelId(event.target.value); setMedium(""); setMeterId(""); }}><option value="">Parzelle wählen</option>{parcels.map((parcel) => <option key={parcel.id} value={parcel.id}>{parcel.garten_nr} – {parcel.Anlage}</option>)}</select></label><label>Medium<select value={medium} onChange={(event) => { setMedium(event.target.value); setMeterId(""); }}><option value="">Medium wählen</option>{selectedParcel?.hat_strom && <option value="strom">Strom</option>}{selectedParcel?.hat_wasser && <option value="wasser">Wasser</option>}</select></label><label className="wide">Aktiver Zähler *<select value={meterId} onChange={(event) => setMeterId(event.target.value)}><option value="">Zähler wählen</option>{filteredMeters.map((item) => { const parcel = parcels.find((entry) => entry.id === item.parzelle_id); return <option key={item.id} value={item.id}>Garten {parcel?.garten_nr ?? "?"} · {item.medium} · {item.zaehlernummer}</option>; })}</select></label><label>Datum<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><label>Stand<input inputMode="decimal" value={value} onChange={(event) => setValue(event.target.value)} /></label><label className="wide">Foto aufnehmen oder auswählen<input type="file" accept="image/*" capture="environment" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label></fieldset>{previewUrl && <div className="photo-preview"><img src={previewUrl} alt="Vorschau des ausgewählten Ablesefotos" /><button className="secondary-action" onClick={() => setFile(null)}>Foto entfernen</button></div>}<div className="editor-actions"><button disabled={saving || !enabled} onClick={save}>{saving ? "Speichert …" : context?.isDirectCapture ? "Ablesung speichern" : "Ablesung einreichen"}</button></div></section>;
 }
 
 function PhotoOpenButton({ session, reading }: { session: BrowserSession; reading: { id?: number; readingId?: number; foto_pfad?: string | null; foto_drive_file_id?: string | null; fotoPfad?: string | null; fotoDriveFileId?: string | null } }) {
+  const club = useSelectedClub();
   const [opening, setOpening] = useState(false); const [error, setError] = useState("");
-  async function open() { setOpening(true); setError(""); try { const path = reading.foto_pfad ?? reading.fotoPfad; const driveFileId = reading.foto_drive_file_id ?? reading.fotoDriveFileId; if (!driveFileId && path && /^https?:\/\//i.test(path)) { window.open(path, "_blank", "noopener,noreferrer"); return; } const readingId = reading.id ?? reading.readingId; if (!readingId) throw new Error("Die Ablesung ist ungültig."); const url = await openStoredReadingPhoto(session, readingId); window.open(url, "_blank", "noopener,noreferrer"); window.setTimeout(() => URL.revokeObjectURL(url), 60_000); } catch (cause) { setError(cause instanceof Error ? cause.message : "Foto konnte nicht geöffnet werden."); } finally { setOpening(false); } }
+  async function open() { setOpening(true); setError(""); try { const path = reading.foto_pfad ?? reading.fotoPfad; const driveFileId = reading.foto_drive_file_id ?? reading.fotoDriveFileId; if (!driveFileId && path && /^https?:\/\//i.test(path)) { window.open(path, "_blank", "noopener,noreferrer"); return; } const readingId = reading.id ?? reading.readingId; if (!readingId) throw new Error("Die Ablesung ist ungültig."); const url = await openStoredReadingPhoto(club, session, readingId); window.open(url, "_blank", "noopener,noreferrer"); window.setTimeout(() => URL.revokeObjectURL(url), 60_000); } catch (cause) { setError(cause instanceof Error ? cause.message : "Foto konnte nicht geöffnet werden."); } finally { setOpening(false); } }
   return <span className="photo-open"><button className="table-action" disabled={opening} onClick={open}>{opening ? "Öffnet …" : "Foto anzeigen"}</button>{error && <small>{error}</small>}</span>;
 }
 
 function ReadingReview({ session, reading, history, permissions, onSaved }: { session: BrowserSession; reading: ReadingReviewItem | null; history: ReadingReviewItem[]; permissions: { canApproveMeterReadings: boolean; reviewerMemberId: number | null }; onSaved: () => void }) {
+  const club = useSelectedClub();
   const [comment, setComment] = useState(""); const [date, setDate] = useState(""); const [value, setValue] = useState(""); const [saving, setSaving] = useState(false); const [error, setError] = useState("");
-  const editLock = useEditLock(session, "zaehler_ablesung", reading?.readingId, Boolean(reading));
+  const editLock = useEditLock(club, session, "zaehler_ablesung", reading?.readingId, Boolean(reading));
   useEffect(() => { setComment(""); setDate(reading?.ablesedatum?.slice(0, 10) ?? ""); setValue(reading ? String(reading.stand) : ""); setError(""); }, [reading?.readingId]);
   useEffect(() => { if (editLock.message) queueMicrotask(() => setError(editLock.message)); }, [editLock.message]);
   async function decide(action: "freigeben" | "ablehnen" | "korrigieren" | "entfernen") {
@@ -381,7 +384,7 @@ function ReadingReview({ session, reading, history, permissions, onSaved }: { se
     if (action === "entfernen" && !window.confirm("Die Ablesung mit Begründung aus dem offenen Prüfprozess entfernen?")) return;
     setSaving(true); setError("");
     try {
-      await reviewMeterReading(session, permissions, { readingId: reading.readingId, action, comment, date, value: stand });
+      await reviewMeterReading(club, session, permissions, { readingId: reading.readingId, action, comment, date, value: stand });
       await onSaved();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Die Entscheidung konnte nicht gespeichert werden."); } finally { setSaving(false); }
   }
@@ -417,6 +420,7 @@ function MaintenanceContracts({ session, memberId, canManage }: { session: Brows
 }
 
 function GlobalMaintenanceContracts({ session, canManage }: { session: BrowserSession; canManage: boolean }) {
+  const club = useSelectedClub();
   const [contracts, setContracts] = useState<MaintenanceContract[]>([]); const [assignments, setAssignments] = useState<MaintenanceAssignment[]>([]); const [members, setMembers] = useState<Member[]>([]); const [parcels, setParcels] = useState<Parcel[]>([]); const [parcelAssignments, setParcelAssignments] = useState<ParcelAssignment[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null); const [editing, setEditing] = useState(false); const [editingId, setEditingId] = useState<number | null>(null); const [draft, setDraft] = useState<MaintenanceContractDraft | null>(null); const [message, setMessage] = useState(""); const [saving, setSaving] = useState(false);
   const [assigningMembers, setAssigningMembers] = useState(false); const [endDates, setEndDates] = useState<Record<number, string>>({});
@@ -425,11 +429,11 @@ function GlobalMaintenanceContracts({ session, canManage }: { session: BrowserSe
     setMessage("");
     try {
       const [loadedContracts, loadedAssignments, loadedMembers, loadedParcels, loadedParcelAssignments] = await Promise.all([
-        loadMaintenanceContracts(session),
-        loadMaintenanceAssignments(session),
-        readSupabase<Member>(session, "mitglied", { select: "id,vorname,name,email,aktiv,hauptmitglied_id,geburtsdatum,adresse,plz,ort,telefon,handy,whatsapp_einwilligung,mitglied_seit,mitglied_ende,bemerkung", aktiv: "eq.true", order: "name.asc,vorname.asc", limit: "1000" }),
-        readSupabase<Parcel>(session, "parzelle", { select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,aktiv", limit: "1000" }),
-        readSupabase<ParcelAssignment>(session, "parzellen_belegung", { select: "id,parzelle_id,mitglied_id,von_datum,bis_datum", limit: "2000" }),
+        loadMaintenanceContracts(club, session),
+        loadMaintenanceAssignments(club, session),
+        readSupabaseRest<Member>({ club, session }, "mitglied", { select: "id,vorname,name,email,aktiv,hauptmitglied_id,geburtsdatum,adresse,plz,ort,telefon,handy,whatsapp_einwilligung,mitglied_seit,mitglied_ende,bemerkung", aktiv: "eq.true", order: "name.asc,vorname.asc", limit: "1000" }),
+        readSupabaseRest<Parcel>({ club, session }, "parzelle", { select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,aktiv", limit: "1000" }),
+        readSupabaseRest<ParcelAssignment>({ club, session }, "parzellen_belegung", { select: "id,parzelle_id,mitglied_id,von_datum,bis_datum", limit: "2000" }),
       ]);
       setContracts(loadedContracts); setAssignments(loadedAssignments); setMembers(loadedMembers); setParcels(loadedParcels); setParcelAssignments(loadedParcelAssignments);
       setSelectedId((current) => current && loadedContracts.some((item) => item.id === current) ? current : loadedContracts[0]?.id ?? null);
@@ -438,11 +442,11 @@ function GlobalMaintenanceContracts({ session, canManage }: { session: BrowserSe
   useEffect(() => {
     let active = true;
     Promise.all([
-      loadMaintenanceContracts(session),
-      loadMaintenanceAssignments(session),
-      readSupabase<Member>(session, "mitglied", { select: "id,vorname,name,email,aktiv,hauptmitglied_id,geburtsdatum,adresse,plz,ort,telefon,handy,whatsapp_einwilligung,mitglied_seit,mitglied_ende,bemerkung", aktiv: "eq.true", order: "name.asc,vorname.asc", limit: "1000" }),
-      readSupabase<Parcel>(session, "parzelle", { select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,aktiv", limit: "1000" }),
-      readSupabase<ParcelAssignment>(session, "parzellen_belegung", { select: "id,parzelle_id,mitglied_id,von_datum,bis_datum", limit: "2000" }),
+      loadMaintenanceContracts(club, session),
+      loadMaintenanceAssignments(club, session),
+      readSupabaseRest<Member>({ club, session }, "mitglied", { select: "id,vorname,name,email,aktiv,hauptmitglied_id,geburtsdatum,adresse,plz,ort,telefon,handy,whatsapp_einwilligung,mitglied_seit,mitglied_ende,bemerkung", aktiv: "eq.true", order: "name.asc,vorname.asc", limit: "1000" }),
+      readSupabaseRest<Parcel>({ club, session }, "parzelle", { select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,aktiv", limit: "1000" }),
+      readSupabaseRest<ParcelAssignment>({ club, session }, "parzellen_belegung", { select: "id,parzelle_id,mitglied_id,von_datum,bis_datum", limit: "2000" }),
     ]).then(([loadedContracts, loadedAssignments, loadedMembers, loadedParcels, loadedParcelAssignments]) => {
       if (!active) return;
       setContracts(loadedContracts); setAssignments(loadedAssignments); setMembers(loadedMembers); setParcels(loadedParcels); setParcelAssignments(loadedParcelAssignments); setMessage("");
@@ -451,9 +455,9 @@ function GlobalMaintenanceContracts({ session, canManage }: { session: BrowserSe
       if (active) setMessage(cause instanceof Error ? cause.message : "Wartungsverträge konnten nicht geladen werden.");
     });
     return () => { active = false; };
-  }, [session]);
+  }, [session, club]);
   const selected = contracts.find((item) => item.id === selectedId) ?? null;
-  const editLock = useEditLock(session, "wartungsvertraege", editingId, Boolean(editing && editingId));
+  const editLock = useEditLock(club, session, "wartungsvertraege", editingId, Boolean(editing && editingId));
   const selectedAssignments = selected ? assignments.filter((item) => item.maintenanceContractId === selected.id) : [];
   const memberName = (id: number) => { const member = members.find((item) => item.id === id); return member ? `${member.name ?? ""}, ${member.vorname ?? ""}`.replace(/^, |, $/g, "") || `Mitglied #${id}` : `Mitglied #${id}`; };
   const memberContext = (id: number) => members.find((item) => item.id === id)?.hauptmitglied_id ? "Nebenmitglied" : "Hauptmitglied";
@@ -461,21 +465,22 @@ function GlobalMaintenanceContracts({ session, canManage }: { session: BrowserSe
   function startNew() { setEditingId(null); setDraft({ title: "", description: "", area: "", maxActiveAssignments: 1, exemptsFromDutyHours: false, workHoursCredit: 0, active: true, note: "" }); setEditing(true); setMessage(""); }
   function startEdit() { if (selected) { const { id, ...nextDraft } = selected; setEditingId(id); setDraft(nextDraft); setEditing(true); setMessage(""); } }
   useEffect(() => { if (editing && editLock.message) queueMicrotask(() => setMessage(editLock.message)); }, [editing, editLock.message]);
-  async function saveContractWithDraft(nextDraft: MaintenanceContractDraft) { const validation = normalizeAndValidateMaintenanceContract(nextDraft); if (!validation.payload) { setMessage(validation.error ?? "Wartungsvertrag ist ungültig."); return; } if (editingId && !editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; } setSaving(true); setMessage(""); try { const saved = await saveMaintenanceContract(session, editingId, nextDraft); setSelectedId(saved.id); setEditingId(null); setEditing(false); await load(); setMessage("Wartungsvertrag gespeichert."); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Wartungsvertrag konnte nicht gespeichert werden."); } finally { setSaving(false); } }
-  async function endAssignment(item: MaintenanceAssignment) { const endDate = endDates[item.id] || today; setSaving(true); setMessage(""); try { await endMaintenanceAssignmentForContract(session, item, endDate); await load(); setMessage("Wartungsvertrag wurde beendet."); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Zuordnung konnte nicht beendet werden."); } finally { setSaving(false); } }
+  async function saveContractWithDraft(nextDraft: MaintenanceContractDraft) { const validation = normalizeAndValidateMaintenanceContract(nextDraft); if (!validation.payload) { setMessage(validation.error ?? "Wartungsvertrag ist ungültig."); return; } if (editingId && !editLock.acquired) { setMessage(editLock.message || "Die Bearbeitungssperre wird noch geprüft."); return; } setSaving(true); setMessage(""); try { const saved = await saveMaintenanceContract(club, session, editingId, nextDraft); setSelectedId(saved.id); setEditingId(null); setEditing(false); await load(); setMessage("Wartungsvertrag gespeichert."); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Wartungsvertrag konnte nicht gespeichert werden."); } finally { setSaving(false); } }
+  async function endAssignment(item: MaintenanceAssignment) { const endDate = endDates[item.id] || today; setSaving(true); setMessage(""); try { await endMaintenanceAssignmentForContract(club, session, item, endDate); await load(); setMessage("Wartungsvertrag wurde beendet."); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Zuordnung konnte nicht beendet werden."); } finally { setSaving(false); } }
   const overview = buildMaintenanceContractOverview(contracts, assignments, today);
   if (editing && draft) return <MaintenanceContractEditor draft={draft} existing={Boolean(editingId)} saving={saving} message={message} onSave={(nextDraft) => { setDraft(nextDraft); void saveContractWithDraft(nextDraft); }} onCancel={() => { setEditing(false); setEditingId(null); setDraft(null); }} />;
   return <MaintenanceContractOverview items={overview} selectedId={selectedId} onSelect={setSelectedId} assignments={classifyMaintenanceAssignments(selectedAssignments, today)} memberLabel={memberName} memberContextLabel={memberContext} gardenLabel={gardenNumbers} formatDate={formatDate} endDateForAssignment={(id) => endDates[id] || today} onEndDateChange={(id, value) => setEndDates({ ...endDates, [id]: value })} canManage={canManage} onEdit={startEdit} onEnd={endAssignment} onCreate={startNew} message={message} assignmentPanel={canManage && selected?.active ? assigningMembers ? <AssignMembersToContract session={session} contract={selected} onCancel={() => setAssigningMembers(false)} onSaved={async (count) => { setAssigningMembers(false); await load(); setMessage(`${count} ${count === 1 ? "Mitglied wurde" : "Mitglieder wurden"} zugeordnet.`); }} /> : <div className="maintenance-assignment-form"><button onClick={() => setAssigningMembers(true)}>Mitglieder zuweisen</button></div> : undefined} />;
 }
 
 function ContractComposer({ session, memberId, onSaved, leaseContractIntent }: { session: BrowserSession; memberId: number; onSaved: () => Promise<void>; leaseContractIntent?: { parcelId: number; startDate: string } | null }) {
+  const club = useSelectedClub();
   const [type, setType] = useState<"mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag">(leaseContractIntent ? "pachtvertrag" : "mitgliedsantrag");
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [memberSignature, setMemberSignature] = useState(""); const [secondarySignature, setSecondarySignature] = useState(""); const [boardSignature, setBoardSignature] = useState("");
   const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false);
   function request(action: "preview" | "finalize") { return { action, type: "mitgliedsvertrag" as const, member_id: memberId, start_date: startDate, signature_member: memberSignature || undefined, signature_secondary: secondarySignature || undefined, signature_board: boardSignature || undefined }; }
-  async function preview() { setBusy(true); setMessage(""); try { const result = await generateContract(session, request("preview")); if (result.previewUrl) window.open(result.previewUrl, "_blank", "noopener,noreferrer"); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Vorschau konnte nicht erstellt werden."); } finally { setBusy(false); } }
-  async function finalize() { if (!memberSignature || !boardSignature) { setMessage("Die Unterschriften des Mitglieds und des Vereins sind erforderlich."); return; } setBusy(true); setMessage(""); try { const result = await generateContract(session, request("finalize")); setMessage(result.message ?? "Das signierte Dokument wurde gespeichert."); setMemberSignature(""); setSecondarySignature(""); setBoardSignature(""); await onSaved(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Vertrag konnte nicht gespeichert werden."); } finally { setBusy(false); } }
+  async function preview() { setBusy(true); setMessage(""); try { const result = await generateContract(club, session, request("preview")); if (result.previewUrl) window.open(result.previewUrl, "_blank", "noopener,noreferrer"); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Vorschau konnte nicht erstellt werden."); } finally { setBusy(false); } }
+  async function finalize() { if (!memberSignature || !boardSignature) { setMessage("Die Unterschriften des Mitglieds und des Vereins sind erforderlich."); return; } setBusy(true); setMessage(""); try { const result = await generateContract(club, session, request("finalize")); setMessage(result.message ?? "Das signierte Dokument wurde gespeichert."); setMemberSignature(""); setSecondarySignature(""); setBoardSignature(""); await onSaved(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Vertrag konnte nicht gespeichert werden."); } finally { setBusy(false); } }
   if (type === "mitgliedsantrag") return <MembershipApplicationFlow session={session} memberId={memberId} onSaved={onSaved} onChangeDocumentType={setType} />;
   if (type === "pachtvertrag") return <LeaseContractFlow session={session} memberId={memberId} onSaved={onSaved} onChangeDocumentType={setType} initialParcelId={leaseContractIntent?.parcelId} initialStartDate={leaseContractIntent?.startDate} />;
   return <details className="contract-composer"><summary>Vertragsdokument erstellen und unterschreiben</summary>{message && <p className="notice" role="status">{message}</p>}<fieldset disabled={busy}><label>Dokumenttyp<select value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="mitgliedsantrag">Mitgliedsantrag</option><option value="mitgliedsvertrag">Mitgliedsvertrag</option><option value="pachtvertrag">Pachtvertrag</option></select></label><label>Beginn<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label></fieldset><div className="signature-grid"><SignaturePad label="Unterschrift Mitglied" value={memberSignature} onChange={setMemberSignature} /><SignaturePad label="Gesetzlicher Vertreter (optional)" value={secondarySignature} onChange={setSecondarySignature} /><SignaturePad label="Unterschrift Verein" value={boardSignature} onChange={setBoardSignature} /></div><div className="editor-actions"><button type="button" className="secondary-action" disabled={busy} onClick={preview}>PDF-Vorschau</button><button type="button" disabled={busy} onClick={finalize}>{busy ? "Verarbeitet …" : "Signiert sicher ablegen"}</button></div></details>;
@@ -490,6 +495,7 @@ function permissionLevel(mask: number, area: (typeof PermissionAreas)[number]): 
 }
 
 function UserRightsAdministration({ session, fixedMemberId }: { session: BrowserSession; fixedMemberId?: number }) {
+  const club = useSelectedClub();
   const [members, setMembers] = useState<Member[]>([]);
   const [users, setUsers] = useState<AppUserAdmin[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(fixedMemberId ?? null);
@@ -501,8 +507,8 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
   async function load() {
     try {
       const [loadedMembers, loadedUsers] = await Promise.all([
-        readSupabase<Member>(session, "mitglied", { select: "id,vorname,name,email,aktiv,hauptmitglied_id,auth_user_id", order: "name.asc", limit: "3000" }),
-        readSupabase<AppUserAdmin>(session, "app_user", { select: "user_id,mitglied_id,role,permission_grants,permission_revocations,is_protected,updated_at", order: "mitglied_id.asc", limit: "3000" }),
+        readSupabaseRest<Member>({ club, session }, "mitglied", { select: "id,vorname,name,email,aktiv,hauptmitglied_id,auth_user_id", order: "name.asc", limit: "3000" }),
+        readSupabaseRest<AppUserAdmin>({ club, session }, "app_user", { select: "user_id,mitglied_id,role,permission_grants,permission_revocations,is_protected,updated_at", order: "mitglied_id.asc", limit: "3000" }),
       ]);
       setMembers(loadedMembers); setUsers(loadedUsers);
       setSelectedMemberId((current) => fixedMemberId ?? current ?? loadedMembers[0]?.id ?? null);
@@ -511,7 +517,7 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
   useEffect(() => { void load(); }, [session, fixedMemberId]);
   const selectedMember = members.find((item) => item.id === selectedMemberId) ?? null;
   const selectedUser = users.find((item) => item.mitglied_id === selectedMemberId) ?? null;
-  const editLock = useEditLock(session, "app_user", selectedUser?.user_id, Boolean(selectedUser));
+  const editLock = useEditLock(club, session, "app_user", selectedUser?.user_id, Boolean(selectedUser));
   useEffect(() => {
     const nextRole = selectedUser?.role ?? "user";
     setRole(nextRole);
@@ -541,7 +547,7 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
     const revocations = preserveUncontrolledPermissions(selectedUser.permission_revocations, calculatedRevocations);
     setSaving(true); setMessage("");
     try {
-      await callSupabaseRpc<void>(session, "update_app_user_access", { p_user_id: selectedUser.user_id, p_role: role, p_permission_grants: grants, p_permission_revocations: revocations });
+      await callSupabaseRpc<void>({ club, session }, "update_app_user_access", { p_user_id: selectedUser.user_id, p_role: role, p_permission_grants: grants, p_permission_revocations: revocations });
       await load(); setMessage("Rolle und Fachrechte wurden gespeichert.");
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Rolle und Rechte konnten nicht gespeichert werden."); }
     finally { setSaving(false); }
@@ -549,21 +555,21 @@ function UserRightsAdministration({ session, fixedMemberId }: { session: Browser
   async function invite() {
     if (!selectedMember?.email || !selectedMemberId) { setMessage("Für die Einladung fehlt eine E-Mail-Adresse."); return; }
     setSaving(true); setMessage("");
-    try { const result = await inviteAppUser(session, selectedMemberId, role); await load(); setMessage(result.mailSent === false || result.outcome === "prepared_mail_failed" ? "Nutzerkonto wurde angelegt, die Willkommensmail konnte jedoch nicht versendet werden." : "Nutzerkonto wurde angelegt und die Willkommensmail versendet."); }
+    try { const result = await inviteAppUser(club, session, selectedMemberId, role); await load(); setMessage(result.mailSent === false || result.outcome === "prepared_mail_failed" ? "Nutzerkonto wurde angelegt, die Willkommensmail konnte jedoch nicht versendet werden." : "Nutzerkonto wurde angelegt und die Willkommensmail versendet."); }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : "Einladung konnte nicht gesendet werden."); }
     finally { setSaving(false); }
   }
   async function resetPassword() {
     if (!selectedMember?.email) { setMessage("Für den Passwort-Reset fehlt eine E-Mail-Adresse."); return; }
     setSaving(true); setMessage("");
-    try { const result = await sendPasswordReset(session, selectedMember.email); setMessage(result.message ?? "Passwort-Reset wurde versendet."); }
+    try { const result = await sendPasswordReset(club, session, selectedMember.email); setMessage(result.message ?? "Passwort-Reset wurde versendet."); }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : "Passwort-Reset konnte nicht versendet werden."); }
     finally { setSaving(false); }
   }
   async function removeUser() {
     if (!selectedUser || !selectedMemberId || !window.confirm(`App-Benutzer von ${selectedMember?.vorname ?? ""} ${selectedMember?.name ?? ""} wirklich entfernen?`)) return;
     setSaving(true); setMessage("");
-    try { await callSupabaseRpc<void>(session, "unlink_app_user", { p_user_id: selectedUser.user_id }); await load(); setMessage("Die App-Benutzerzuordnung wurde entfernt. Das Auth-Konto bleibt aus Sicherheitsgründen serverseitig bestehen."); }
+    try { await callSupabaseRpc<void>({ club, session }, "unlink_app_user", { p_user_id: selectedUser.user_id }); await load(); setMessage("Die App-Benutzerzuordnung wurde entfernt. Das Auth-Konto bleibt aus Sicherheitsgründen serverseitig bestehen."); }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : "App-Benutzer konnte nicht entfernt werden."); }
     finally { setSaving(false); }
   }

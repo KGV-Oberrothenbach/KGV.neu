@@ -1,4 +1,5 @@
 "use client";
+import { useSelectedClub } from "../auth/AuthProvider";
 
 import { useEffect, useState } from "react";
 import { type BrowserSession } from "../../lib/supabase-auth";
@@ -44,6 +45,7 @@ function formatTimeRange(start: string | null | undefined, end: string | null | 
 
 
 export default function HomeDetail({ session, selection, assignments, appointments, announcements, registrations, memberId, canManageWorkAssignments, canManageAppointments, canManageAnnouncements, busy, onClose, onSelect, onRegister, onSignOff, onNavigate }: HomeDetailProps) {
+  const club = useSelectedClub();
   const [participants, setParticipants] = useState<Array<WorkAssignmentRegistration & { displayName: string }>>([]);
   const [participantError, setParticipantError] = useState("");
   const [linkedWorkHour, setLinkedWorkHour] = useState<WorkHour | null>(null);
@@ -68,7 +70,7 @@ export default function HomeDetail({ session, selection, assignments, appointmen
     let active = true;
     queueMicrotask(() => { setParticipants([]); setParticipantError(""); });
     if (!assignment || !canManageWorkAssignments) return () => { active = false; };
-    loadHomeAssignmentParticipants(session, assignment.id).then((rows) => { if (active) setParticipants(rows); }).catch((cause: Error) => { if (active) setParticipantError(cause.message); });
+    loadHomeAssignmentParticipants(club, session, assignment.id).then((rows) => { if (active) setParticipants(rows); }).catch((cause: Error) => { if (active) setParticipantError(cause.message); });
     return () => { active = false; };
   // assignment id and session identify the remote participant source.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,7 +78,7 @@ export default function HomeDetail({ session, selection, assignments, appointmen
 
   useEffect(() => {
     if (!ownRegistration) { queueMicrotask(() => setLinkedWorkHour(null)); return; }
-    loadLinkedWorkAssignmentWorkHour(session, ownRegistration.id).then(setLinkedWorkHour).catch(() => setLinkedWorkHour(null));
+    loadLinkedWorkAssignmentWorkHour(club, session, ownRegistration.id).then(setLinkedWorkHour).catch(() => setLinkedWorkHour(null));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ownRegistration?.id, session]);
 
@@ -85,7 +87,7 @@ export default function HomeDetail({ session, selection, assignments, appointmen
     const hours = Number(window.prompt("Stunden", String(assignment.stunden_wert ?? 0)));
     if (!Number.isFinite(hours) || hours <= 0) return;
     const workType = window.prompt("Art der Arbeit", assignment.titel ?? "") ?? "";
-    try { const row = await submitLinkedWorkAssignmentWorkHour(session, ownRegistration.id, hours, workType); setLinkedWorkHour(row); }
+    try { const row = await submitLinkedWorkAssignmentWorkHour(club, session, ownRegistration.id, hours, workType); setLinkedWorkHour(row); }
     catch (cause) { setParticipantError(cause instanceof Error ? cause.message : "Arbeitsstunden konnten nicht eingereicht werden."); }
   }
 

@@ -1,4 +1,6 @@
-import { callSupabaseRpc, type BrowserSession } from "../../lib/supabase-auth";
+import { callSupabaseRpc } from "../../lib/supabase/rpc-client";
+import type { ClubContext } from "../../models/auth/club";
+import { type BrowserSession } from "../../lib/supabase-auth";
 
 export type YearEndReadingStatusRow = {
   jahr: number;
@@ -15,6 +17,6 @@ export type YearEndReadingStatusRow = {
   pachtwechsel_im_jahr: boolean;
 };
 
-export function listYearEndReadingStatus(session: BrowserSession, seasonYear: number) {
-  return callSupabaseRpc<YearEndReadingStatusRow[]>(session, "rpc_export_jahresablesung_status", { p_jahr: seasonYear });
+export function listYearEndReadingStatus(club: ClubContext, session: BrowserSession, seasonYear: number) {
+  return callSupabaseRpc<YearEndReadingStatusRow[]>({ club, session }, "rpc_export_jahresablesung_status", { p_jahr: seasonYear });
 }

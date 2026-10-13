@@ -1,14 +1,17 @@
 "use client";
+import { useSelectedClub } from "../auth/AuthProvider";
 
 import { useEffect, useState } from "react";
 import { SignaturePad } from "../../components/signature/SignaturePad";
-import { generateContract, type BrowserSession } from "../../lib/supabase-auth";
+import type { BrowserSession } from "../../lib/supabase-auth";
 import { emptyLegalRepresentativeDraft, loadLegalRepresentativeContext, validateLegalRepresentative, type LegalRepresentativeDraft, type LegalRepresentativeOption } from "../../services/contracts/legal-representative-service";
 import { loadMembershipApplicationData, type MembershipApplicationData } from "../../services/contracts/membership-application-service";
+import { generateContract } from "../../services/contracts/contract-generation-service";
 import { ContractPreview } from "./ContractPreview";
 import { LegalRepresentativeFields } from "./LegalRepresentativeFields";
 
 export function MembershipApplicationFlow({ session, memberId, onSaved, onChangeDocumentType }: { session: BrowserSession; memberId: number; onSaved: () => Promise<void>; onChangeDocumentType: (type: "mitgliedsvertrag" | "pachtvertrag") => void }) {
+  const club = useSelectedClub();
   const [data, setData] = useState<MembershipApplicationData | null>(null);
   const [startDate, setStartDate] = useState("");
   const [fee, setFee] = useState("");
@@ -26,28 +29,28 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onChange
 
   useEffect(() => {
     let active = true;
-    loadMembershipApplicationData(session, memberId).then((value) => {
+    loadMembershipApplicationData(club, session, memberId).then((value) => {
       if (!active) return;
       setData(value); setStartDate(value.startDate); setFee(String(value.annualMemberFee)); setAdmission(String(value.admissionFee));
     }).catch((error) => active && setMessage(error instanceof Error ? error.message : "Mitgliedsantrag konnte nicht vorbereitet werden."));
     return () => { active = false; };
-  }, [session, memberId]);
+  }, [session, memberId, club]);
 
   useEffect(() => {
     if (!data || !startDate) return;
     let active = true;
-    loadLegalRepresentativeContext(session, data.member, startDate).then((value) => {
+    loadLegalRepresentativeContext(club, session, data.member, startDate).then((value) => {
       if (!active) return;
       setMinor(value.isMinor); setOptions(value.options); setDraft(value.draft);
     }).catch((error) => active && setMessage(error instanceof Error ? error.message : "Vertreter konnte nicht vorbereitet werden."));
     return () => { active = false; };
-  }, [session, data, startDate]);
+  }, [session, data, startDate, club]);
 
   const request = (action: "preview" | "finalize") => ({ action, type: "mitgliedsantrag" as const, member_id: memberId, start_date: startDate, member_fee: Number(fee.replace(",", ".")), admission_fee: Number(admission.replace(",", ".")), representative: minor ? { mode: draft.mode, member_id: draft.memberId ?? undefined, vorname: draft.vorname, nachname: draft.nachname, adresse_abweichend: draft.adresseAbweichend, adresse: draft.adresse, plz: draft.plz, ort: draft.ort } : undefined, signature_application_member: applicationSignature || undefined, signature_privacy_member: privacySignature || undefined, signature_application_representative: representativeApplicationSignature || undefined, signature_privacy_representative: representativePrivacySignature || undefined });
   const validate = () => { if (minor) validateLegalRepresentative(draft); };
 
   const preview = async () => {
-    try { validate(); setBusy(true); setMessage(""); const result = await generateContract(session, request("preview")); if (result.previewUrl) window.open(result.previewUrl, "_blank", "noopener,noreferrer"); setStep("preview"); }
+    try { validate(); setBusy(true); setMessage(""); const result = await generateContract(club, session, request("preview")); if (result.previewUrl) window.open(result.previewUrl, "_blank", "noopener,noreferrer"); setStep("preview"); }
     catch (error) { setMessage(error instanceof Error ? error.message : "Vorschau konnte nicht erstellt werden."); }
     finally { setBusy(false); }
   };
@@ -57,10 +60,10 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onChange
       validate();
       if (!applicationSignature || !privacySignature || (minor && (!representativeApplicationSignature || !representativePrivacySignature))) throw new Error("Alle erforderlichen Signaturen müssen erfasst werden.");
       setBusy(true); setMessage("");
-      const result = await generateContract(session, request("finalize"));
+      const result = await generateContract(club, session, request("finalize"));
       setApplicationSignature(""); setPrivacySignature(""); setRepresentativeApplicationSignature(""); setRepresentativePrivacySignature(""); setStep("edit");
       try {
-        const refreshed = await loadMembershipApplicationData(session, memberId);
+        const refreshed = await loadMembershipApplicationData(club, session, memberId);
         setData(refreshed);
         await onSaved();
         setMessage(result.message ?? "Der signierte Mitgliedsantrag wurde gespeichert.");

@@ -1,4 +1,5 @@
 "use client";
+import { useSelectedClub } from "../auth/AuthProvider";
 
 import { useEffect, useState } from "react";
 import { type BrowserSession } from "../../lib/supabase-auth";
@@ -10,6 +11,7 @@ import { type WorkHour, type WorkHourHistory, type WorkHoursSummary } from "./wo
 const formatDate = (value: string) => value ? new Intl.DateTimeFormat("de-DE").format(new Date(`${value.slice(0, 10)}T00:00:00`)) : "–";
 
 export function MemberWorkHours({ session, memberId, saisonId, canEditOwn, canManageWorkHours }: { session: BrowserSession; memberId: number; saisonId: number | null; canEditOwn: boolean; canManageWorkHours: boolean }) {
+  const club = useSelectedClub();
   const [items, setItems] = useState<WorkHour[]>([]);
   const [history, setHistory] = useState<WorkHourHistory[]>([]);
   const [summary, setSummary] = useState<WorkHoursSummary | null>(null);
@@ -24,7 +26,7 @@ export function MemberWorkHours({ session, memberId, saisonId, canEditOwn, canMa
     setMessage("");
     if (!saisonId) { setItems([]); setHistory([]); setSummary(null); return; }
     try {
-      const workspace = await loadMemberWorkHoursWorkspace(session, memberId, saisonId);
+      const workspace = await loadMemberWorkHoursWorkspace(club, session, memberId, saisonId);
       setItems(workspace.workHours);
       setHistory(workspace.history);
       setSummary(workspace.summary);
@@ -33,8 +35,8 @@ export function MemberWorkHours({ session, memberId, saisonId, canEditOwn, canMa
     }
   };
 
-  useEffect(() => { void load(); }, [session, memberId, saisonId]);
-  const editLock = useEditLock(session, "arbeitsstunde", editingId, editingId !== null);
+  useEffect(() => { void load(); }, [club, session, memberId, saisonId]);
+  const editLock = useEditLock(club, session, "arbeitsstunde", editingId, editingId !== null);
   useEffect(() => { if (editingId && editLock.message) queueMicrotask(() => setMessage(editLock.message)); }, [editingId, editLock.message]);
 
   function resetForm() { setEditingId(null); setDate(new Date().toISOString().slice(0, 10)); setHours(""); setWorkType(""); }
@@ -45,9 +47,9 @@ export function MemberWorkHours({ session, memberId, saisonId, canEditOwn, canMa
     setMessage("");
     try {
       const input = { date, hours: value, workType };
-      if (editingId) await updateOwnWorkHour(session, items.find((item) => item.id === editingId), memberId, input);
-      else if (canManageWorkHours) await createAdministrativeWorkHourEntry(session, canManageWorkHours, memberId, saisonId, input);
-      else await createOwnWorkHour(session, memberId, saisonId, input);
+      if (editingId) await updateOwnWorkHour(club, session, items.find((item) => item.id === editingId), memberId, input);
+      else if (canManageWorkHours) await createAdministrativeWorkHourEntry(club, session, canManageWorkHours, memberId, saisonId, input);
+      else await createOwnWorkHour(club, session, memberId, saisonId, input);
       resetForm();
       await load();
     } catch (cause) {

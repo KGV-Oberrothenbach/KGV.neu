@@ -1,9 +1,11 @@
-import { callSupabaseRpc, type BrowserSession } from "../../lib/supabase-auth";
+import { callSupabaseRpc } from "../../lib/supabase/rpc-client";
+import type { ClubContext } from "../../models/auth/club";
+import { type BrowserSession } from "../../lib/supabase-auth";
 import { type Meter } from "./meter-repository";
 
 export type MeterInstallationInsert = { parcelId: number; medium: "strom" | "wasser"; meterNumber: string; calibrationDate: string; installationDate: string };
 
-export const createMeterInstallation = (session: BrowserSession, input: MeterInstallationInsert) => callSupabaseRpc<Meter>(session, "create_meter_installation", {
+export const createMeterInstallation = (club: ClubContext, session: BrowserSession, input: MeterInstallationInsert) => callSupabaseRpc<Meter>({ club, session }, "create_meter_installation", {
   p_parzelle_id: input.parcelId,
   p_medium: input.medium,
   p_zaehlernummer: input.meterNumber,

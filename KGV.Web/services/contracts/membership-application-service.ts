@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import { getMember } from "../members/member-service";
 import { getSeasons } from "../seasons/season-service";
 import type { Season } from "../../models/seasons/season";
@@ -44,12 +45,12 @@ export function determineMembershipApplicationStatus(documents: MembershipApplic
   return determineFormDocumentStatus(documents, "mitgliedsantrag");
 }
 
-export async function loadMembershipApplicationStatus(session: BrowserSession, memberId: number): Promise<MembershipApplicationStatus> {
-  return determineMembershipApplicationStatus(await listMembershipApplicationDocuments(session, memberId));
+export async function loadMembershipApplicationStatus(club: ClubContext, session: BrowserSession, memberId: number): Promise<MembershipApplicationStatus> {
+  return determineMembershipApplicationStatus(await listMembershipApplicationDocuments(club, session, memberId));
 }
 
-export async function loadMembershipApplicationData(session: BrowserSession, memberId: number, today = new Date()): Promise<MembershipApplicationData> {
-  const [member, seasons, documents] = await Promise.all([getMember(session, memberId), getSeasons(session), listMembershipApplicationDocuments(session, memberId)]);
+export async function loadMembershipApplicationData(club: ClubContext, session: BrowserSession, memberId: number, today = new Date()): Promise<MembershipApplicationData> {
+  const [member, seasons, documents] = await Promise.all([getMember(club, session, memberId), getSeasons(club, session), listMembershipApplicationDocuments(club, session, memberId)]);
   if (!member) throw new Error("Mitglied konnte nicht geladen werden.");
   const startDate = member.mitglied_seit || localDateValue(today);
   const seasonYear = today.getFullYear();

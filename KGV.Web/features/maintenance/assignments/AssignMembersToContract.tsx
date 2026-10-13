@@ -1,3 +1,4 @@
+import { useSelectedClub } from "../../auth/AuthProvider";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { type BrowserSession } from "../../../lib/supabase-auth";
 import { type MaintenanceContract } from "../../../models/maintenance/maintenance-contract";
@@ -10,12 +11,13 @@ const localDate = () => {
 };
 
 export function AssignMembersToContract({ session, contract, onSaved, onCancel }: { session: BrowserSession; contract: MaintenanceContract; onSaved: (count: number) => Promise<void>; onCancel: () => void }) {
+  const club = useSelectedClub();
   const [validFrom, setValidFrom] = useState(localDate); const [note, setNote] = useState(""); const [query, setQuery] = useState(""); const [sortBy, setSortBy] = useState<"name" | "garden">("name"); const [candidates, setCandidates] = useState<MaintenanceMemberCandidate[]>([]); const [availableCapacity, setAvailableCapacity] = useState(0); const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set()); const [message, setMessage] = useState(""); const [saving, setSaving] = useState(false); const [loading, setLoading] = useState(true);
-  const load = useCallback(async () => { if (!validFrom) return; setLoading(true); setMessage(""); try { const result = await loadMaintenanceMemberCandidates(session, contract.id, validFrom); setCandidates(result.candidates); setAvailableCapacity(result.availableCapacity); setSelectedMemberIds(new Set()); } catch (cause) { setCandidates([]); setMessage(cause instanceof Error ? cause.message : "Mitglieder konnten nicht geladen werden."); } finally { setLoading(false); } }, [session, contract.id, validFrom]);
+  const load = useCallback(async () => { if (!validFrom) return; setLoading(true); setMessage(""); try { const result = await loadMaintenanceMemberCandidates(club, session, contract.id, validFrom); setCandidates(result.candidates); setAvailableCapacity(result.availableCapacity); setSelectedMemberIds(new Set()); } catch (cause) { setCandidates([]); setMessage(cause instanceof Error ? cause.message : "Mitglieder konnten nicht geladen werden."); } finally { setLoading(false); } }, [session, contract.id, validFrom, club]);
   useEffect(() => {
     let active = true;
     if (!validFrom) return () => { active = false; };
-    loadMaintenanceMemberCandidates(session, contract.id, validFrom).then((result) => {
+    loadMaintenanceMemberCandidates(club, session, contract.id, validFrom).then((result) => {
       if (!active) return;
       setCandidates(result.candidates); setAvailableCapacity(result.availableCapacity); setSelectedMemberIds(new Set()); setMessage("");
     }).catch((cause) => {
@@ -25,7 +27,7 @@ export function AssignMembersToContract({ session, contract, onSaved, onCancel }
       if (active) setLoading(false);
     });
     return () => { active = false; };
-  }, [session, contract.id, validFrom]);
+  }, [session, contract.id, validFrom, club]);
   const selectedPrincipalIds = useMemo(() => new Set(candidates.filter((candidate) => selectedMemberIds.has(candidate.selectedMemberId)).map((candidate) => candidate.principalMemberId)), [candidates, selectedMemberIds]);
   const visibleCandidates = useMemo(() => {
     const search = query.trim().toLocaleLowerCase("de");
@@ -41,7 +43,7 @@ export function AssignMembersToContract({ session, contract, onSaved, onCancel }
     return null;
   };
   const toggle = (candidate: MaintenanceMemberCandidate) => { if (disabledReason(candidate)) return; setSelectedMemberIds((current) => { const next = new Set(current); if (next.has(candidate.selectedMemberId)) next.delete(candidate.selectedMemberId); else next.add(candidate.selectedMemberId); return next; }); };
-  async function save() { if (!selectedMemberIds.size || saving) return; setSaving(true); setMessage(""); try { const created = await assignMembersToMaintenanceContract(session, { maintenanceContractId: contract.id, selectedMemberIds: [...selectedMemberIds], validFrom, validUntil: null, note }); await onSaved(created.length); } catch (cause) { const failureMessage = cause instanceof Error ? cause.message : "Zuordnungen konnten nicht gespeichert werden."; await load(); setMessage(failureMessage); } finally { setSaving(false); } }
+  async function save() { if (!selectedMemberIds.size || saving) return; setSaving(true); setMessage(""); try { const created = await assignMembersToMaintenanceContract(club, session, { maintenanceContractId: contract.id, selectedMemberIds: [...selectedMemberIds], validFrom, validUntil: null, note }); await onSaved(created.length); } catch (cause) { const failureMessage = cause instanceof Error ? cause.message : "Zuordnungen konnten nicht gespeichert werden."; await load(); setMessage(failureMessage); } finally { setSaving(false); } }
   const remaining = Math.max(0, availableCapacity - selectedPrincipalIds.size);
   return <section className="detail-panel maintenance-assignment-form"><div className="detail-title"><div><h2>Mitglieder zuweisen</h2><p>{contract.title}</p></div><button className="secondary-action" disabled={saving} onClick={onCancel}>Abbrechen</button></div>{message && <p className="notice" role="status">{message}</p>}<label>Gültig ab<input type="date" value={validFrom} disabled={saving} onChange={(event) => { setLoading(true); setValidFrom(event.target.value); }} /></label><label>Bemerkung<input value={note} disabled={saving} onChange={(event) => setNote(event.target.value)} /></label><label>Mitglied suchen<input placeholder="Mitglied suchen…" value={query} disabled={saving} onChange={(event) => setQuery(event.target.value)} /></label><label>Sortierung<select value={sortBy} disabled={saving} onChange={(event) => setSortBy(event.target.value as "name" | "garden")}><option value="name">Name</option><option value="garden">Gartennummer</option></select></label><p className="context-note">Für den gewählten Zeitraum noch {remaining} {remaining === 1 ? "Platz" : "Plätze"} verfügbar.</p>{loading ? <p>Mitglieder werden geladen…</p> : <MaintenanceMemberSelector candidates={visibleCandidates} selectedMemberIds={selectedMemberIds} disabledReason={disabledReason} onToggle={toggle} />}<button disabled={saving || loading || !validFrom || selectedMemberIds.size === 0} onClick={() => void save()}>{saving ? "Zuordnungen werden gespeichert…" : `${selectedMemberIds.size} ${selectedMemberIds.size === 1 ? "Mitglied" : "Mitglieder"} zuordnen`}</button></section>;
 }

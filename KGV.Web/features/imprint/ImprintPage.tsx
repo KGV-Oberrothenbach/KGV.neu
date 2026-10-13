@@ -1,4 +1,5 @@
 "use client";
+import { useSelectedClub } from "../auth/AuthProvider";
 
 import { useEffect, useState } from "react";
 import { type BrowserSession } from "../../lib/supabase-auth";
@@ -9,6 +10,7 @@ function ContactSection({ title, items, fallback }: { title: string; items: Impr
 }
 
 export default function ImprintPage({ session }: { session: BrowserSession }) {
+  const club = useSelectedClub();
   const [contacts, setContacts] = useState<ImprintContact[]>([]);
   const [message, setMessage] = useState("");
   const [privacyOpen, setPrivacyOpen] = useState(false);
@@ -16,13 +18,13 @@ export default function ImprintPage({ session }: { session: BrowserSession }) {
   useEffect(() => {
     let active = true;
     setMessage("");
-    loadImprintContacts(session).then((next) => {
+    loadImprintContacts(club, session).then((next) => {
       if (active) setContacts(next);
     }).catch((cause) => {
       if (active) { setContacts([]); setMessage(cause instanceof Error ? cause.message : "Weitere Impressumskontakte konnten nicht geladen werden."); }
     });
     return () => { active = false; };
-  }, [session]);
+  }, [session, club]);
 
   useEffect(() => { if (!privacyOpen) return; const close = (event: KeyboardEvent) => { if (event.key === "Escape") setPrivacyOpen(false); }; window.addEventListener("keydown", close); return () => window.removeEventListener("keydown", close); }, [privacyOpen]);
   const board = contacts.filter((item) => !item.isConstruction);

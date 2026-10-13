@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type WorkAssignment, type WorkAssignmentMember, type WorkAssignmentRegistration } from "../../models/work-assignments/work-assignment";
 import {
@@ -62,9 +63,9 @@ export function normalizeAndValidateWorkAssignment(draft: WorkAssignmentDraft): 
   return { payload: { titel: title, beschreibung: draft.beschreibung?.trim() || null, datum: draft.datum, start_uhrzeit: draft.start_uhrzeit || null, end_uhrzeit: draft.end_uhrzeit || null, treffpunkt: draft.treffpunkt?.trim() || null, max_teilnehmer: capacity, stunden_wert: hours, sichtbar_ab: draft.sichtbar_ab || null, sichtbar_bis: draft.sichtbar_bis || null, anmeldung_bis: draft.anmeldung_bis || null, aktiv: draft.aktiv !== false } };
 }
 
-export const saveWorkAssignment = (session: BrowserSession, id: number | null, payload: Omit<WorkAssignment, "id">) => id === null ? createWorkAssignment(session, payload) : updateWorkAssignment(session, id, payload);
-export const deactivateWorkAssignment = (session: BrowserSession, id: number) => updateWorkAssignment(session, id, { aktiv: false });
-export const removeWorkAssignment = (session: BrowserSession, id: number) => deleteWorkAssignment(session, id);
+export const saveWorkAssignment = (club: ClubContext, session: BrowserSession, id: number | null, payload: Omit<WorkAssignment, "id">) => id === null ? createWorkAssignment(club, session, payload) : updateWorkAssignment(club, session, id, payload);
+export const deactivateWorkAssignment = (club: ClubContext, session: BrowserSession, id: number) => updateWorkAssignment(club, session, id, { aktiv: false });
+export const removeWorkAssignment = (club: ClubContext, session: BrowserSession, id: number) => deleteWorkAssignment(club, session, id);
 
 export function prepareNextWorkAssignment(source: Omit<WorkAssignment, "id">): WorkAssignmentDraft {
   const defaults = workAssignmentDefaults(source.datum); const start = source.start_uhrzeit ?? "10:00"; const end = source.end_uhrzeit ?? "13:00";
@@ -73,19 +74,19 @@ export function prepareNextWorkAssignment(source: Omit<WorkAssignment, "id">): W
   return { ...defaults, titel: source.titel, beschreibung: source.beschreibung, treffpunkt: source.treffpunkt, max_teilnehmer: source.max_teilnehmer, stunden_wert: source.stunden_wert, aktiv: source.aktiv, start_uhrzeit: toTime(nextStart), end_uhrzeit: toTime(Math.min(nextStart + duration, 1439)) };
 }
 
-export async function loadWorkAssignmentsManagement(session: BrowserSession): Promise<WorkAssignment[]> {
-  const assignments = await listManagementWorkAssignments(session);
+export async function loadWorkAssignmentsManagement(club: ClubContext, session: BrowserSession): Promise<WorkAssignment[]> {
+  const assignments = await listManagementWorkAssignments(club, session);
   return assignments.sort((left, right) => assignmentSortKey(left).localeCompare(assignmentSortKey(right), "de"));
 }
 
-export async function loadWorkAssignmentParticipants(session: BrowserSession, assignmentId: number): Promise<{ registrations: WorkAssignmentRegistration[]; members: WorkAssignmentMember[] }> {
+export async function loadWorkAssignmentParticipants(club: ClubContext, session: BrowserSession, assignmentId: number): Promise<{ registrations: WorkAssignmentRegistration[]; members: WorkAssignmentMember[] }> {
   const [registrations, members] = await Promise.all([
-    listManagementAssignmentRegistrations(session, assignmentId),
-    listActiveWorkAssignmentMembers(session),
+    listManagementAssignmentRegistrations(club, session, assignmentId),
+    listActiveWorkAssignmentMembers(club, session),
   ]);
   return { registrations, members };
 }
-export const manageParticipant = (session: BrowserSession, assignmentId: number, memberId: number, action: "anmelden" | "absagen" | "nicht_erschienen") => manageWorkAssignmentRegistration(session, assignmentId, memberId, action);
+export const manageParticipant = (club: ClubContext, session: BrowserSession, assignmentId: number, memberId: number, action: "anmelden" | "absagen" | "nicht_erschienen") => manageWorkAssignmentRegistration(club, session, assignmentId, memberId, action);
 
 function assignmentSortKey(assignment: { datum: string; start_uhrzeit: string | null; end_uhrzeit: string | null; titel: string | null }) {
   return `${assignment.datum}|${assignment.start_uhrzeit ?? "99:99"}|${assignment.end_uhrzeit ?? "99:99"}|${assignment.titel ?? ""}`;

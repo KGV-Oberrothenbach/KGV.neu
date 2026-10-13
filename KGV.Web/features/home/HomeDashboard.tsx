@@ -1,4 +1,5 @@
 "use client";
+import { useSelectedClub } from "../auth/AuthProvider";
 
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { type BrowserSession } from "../../lib/supabase-auth";
@@ -30,6 +31,7 @@ type HomeDashboardProps = {
 };
 
 export default function HomeDashboard({ session, isManager, canManageWorkAssignments, canManageAppointments, canManageAnnouncements, memberId, saisonId, season, onNavigate, onOpenWorkHours }: HomeDashboardProps) {
+  const club = useSelectedClub();
   const [appointments, setAppointments] = useState<HomeAppointment[]>([]);
   const [announcements, setAnnouncements] = useState<HomeAnnouncement[]>([]);
   const [assignments, setAssignments] = useState<HomeWorkAssignment[]>([]);
@@ -41,13 +43,13 @@ export default function HomeDashboard({ session, isManager, canManageWorkAssignm
   const [detail, setDetail] = useState<HomeDetailSelection | null>(null);
 
   const load = useCallback(async () => {
-    const next = await loadHomeDashboard(session, memberId, saisonId, season);
+    const next = await loadHomeDashboard(club, session, memberId, saisonId, season);
     setAssignments(next.assignments);
     setAppointments(next.appointments);
     setAnnouncements(next.announcements);
     setWorkHours(next.workHours);
     setRegistrations(next.registrations);
-  }, [memberId, saisonId, season, session]);
+  }, [memberId, saisonId, season, session, club]);
 
   useEffect(() => {
     let active = true;
@@ -68,7 +70,7 @@ export default function HomeDashboard({ session, isManager, canManageWorkAssignm
     setRegisteringId(assignmentId);
     setMessage("");
     try {
-      await registerForHomeWorkAssignment(session, assignmentId, memberId);
+      await registerForHomeWorkAssignment(club, session, assignmentId, memberId);
       await load();
       setMessage("Du bist für den Arbeitseinsatz angemeldet.");
     } catch (cause) {
@@ -83,7 +85,7 @@ export default function HomeDashboard({ session, isManager, canManageWorkAssignm
     setRegisteringId(assignmentId);
     setMessage("");
     try {
-      await signOffFromHomeAssignment(session, assignmentId, memberId);
+      await signOffFromHomeAssignment(club, session, assignmentId, memberId);
       await load();
       setMessage("Du wurdest vom Arbeitseinsatz abgemeldet.");
     } catch (cause) {

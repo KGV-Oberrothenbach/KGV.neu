@@ -1,4 +1,5 @@
 "use client";
+import { useSelectedClub } from "../auth/AuthProvider";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BrowserSession } from "../../lib/supabase-auth";
@@ -8,6 +9,7 @@ import { getWifiOnlyPreference } from "../../lib/browser/storage";
 import { subscribeConnectivityChanges } from "../../lib/browser/connectivity";
 
 export function PendingPhotoUploads({ session, clubId }: { session: BrowserSession; clubId: string }) {
+  const club = useSelectedClub();
   const mounted = useRef(true);
   const [items, setItems] = useState<PendingMeterPhoto[]>([]);
   const [legacyCount, setLegacyCount] = useState(0);
@@ -30,25 +32,25 @@ export function PendingPhotoUploads({ session, clubId }: { session: BrowserSessi
     if (busy) return;
     setBusy(true);
     try {
-      const result = await retryAllPendingReadingPhotos(session, clubId, wifiOnly);
+      const result = await retryAllPendingReadingPhotos(club, session, clubId, wifiOnly);
       await load();
       if (mounted.current) setMessage(result.uploaded || result.failed ? `${result.uploaded} Foto(s) hochgeladen, ${result.failed} fehlgeschlagen.` : result.queued ? "Das aktuelle Netz erlaubt keinen Upload. Fotos bleiben lokal." : "Keine offenen Foto-Uploads vorhanden.");
     } finally {
       if (mounted.current) setBusy(false);
     }
-  }, [busy, session, clubId, wifiOnly, load]);
+  }, [busy, session, clubId, wifiOnly, load, club]);
 
   const retryOne = useCallback(async (item: PendingMeterPhoto) => {
     if (busy) return;
     setBusy(true);
     try {
-      const result = await retryPendingReadingPhoto(session, clubId, wifiOnly, item);
+      const result = await retryPendingReadingPhoto(club, session, clubId, wifiOnly, item);
       await load();
       if (mounted.current) setMessage(result.message);
     } finally {
       if (mounted.current) setBusy(false);
     }
-  }, [busy, session, clubId, wifiOnly, load]);
+  }, [busy, session, clubId, wifiOnly, load, club]);
 
   const remove = useCallback(async (item: PendingMeterPhoto) => {
     const warning = item.uploadedFileId

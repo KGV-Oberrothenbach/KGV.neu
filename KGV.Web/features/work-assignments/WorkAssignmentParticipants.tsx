@@ -1,3 +1,4 @@
+import { useSelectedClub } from "../auth/AuthProvider";
 import { useCallback, useEffect, useState } from "react";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { loadWorkAssignmentParticipants, manageParticipant, workAssignmentHasEnded, workAssignmentHasStarted } from "../../services/work-assignments/work-assignment-service";
@@ -6,18 +7,19 @@ import { type WorkHour } from "../work-hours/work-hours-types";
 import { type WorkAssignment, type WorkAssignmentMember, type WorkAssignmentRegistration } from "../../models/work-assignments/work-assignment";
 
 export function WorkAssignmentParticipants({ session, assignment, canManageWorkHours }: { session: BrowserSession; assignment: WorkAssignment; canManageWorkHours: boolean }) {
+  const club = useSelectedClub();
   const [registrations, setRegistrations] = useState<WorkAssignmentRegistration[]>([]);
   const [members, setMembers] = useState<WorkAssignmentMember[]>([]);
   const [memberId, setMemberId] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [linkedHours, setLinkedHours] = useState<Record<number, WorkHour | null>>({});
-  const load = useCallback(() => loadWorkAssignmentParticipants(session, assignment.id).then(async ({ registrations: nextRegistrations, members: nextMembers }) => {
+  const load = useCallback(() => loadWorkAssignmentParticipants(club, session, assignment.id).then(async ({ registrations: nextRegistrations, members: nextMembers }) => {
     setRegistrations(nextRegistrations);
     setMembers(nextMembers);
-    const linked = await Promise.all(nextRegistrations.map(async (item) => [item.id, await loadLinkedWorkAssignmentWorkHour(session, item.id)] as const));
+    const linked = await Promise.all(nextRegistrations.map(async (item) => [item.id, await loadLinkedWorkAssignmentWorkHour(club, session, item.id)] as const));
     setLinkedHours(Object.fromEntries(linked));
-  }).catch((cause: Error) => setMessage(cause.message)), [session, assignment.id]);
+  }).catch((cause: Error) => setMessage(cause.message)), [session, assignment.id, club]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -35,7 +37,7 @@ export function WorkAssignmentParticipants({ session, assignment, canManageWorkH
     setSaving(true);
     setMessage("");
     try {
-      await manageParticipant(session, assignment.id, id, "anmelden");
+      await manageParticipant(club, session, assignment.id, id, "anmelden");
       if (clearSelection) setMemberId("");
       await load();
     } catch (cause) {
@@ -55,7 +57,7 @@ export function WorkAssignmentParticipants({ session, assignment, canManageWorkH
     setSaving(true);
     setMessage("");
     try {
-      await manageParticipant(session, assignment.id, item.mitglied_id, action);
+      await manageParticipant(club, session, assignment.id, item.mitglied_id, action);
       await load();
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "Teilnahme konnte nicht gespeichert werden.");
@@ -69,7 +71,7 @@ export function WorkAssignmentParticipants({ session, assignment, canManageWorkH
     if (!Number.isFinite(hours) || hours <= 0) return;
     const workType = window.prompt("Art der Arbeit", assignment.titel ?? "") ?? "";
     setSaving(true); setMessage("");
-    try { await confirmLinkedWorkAssignmentWorkHour(session, item.id, hours, workType); await load(); }
+    try { await confirmLinkedWorkAssignmentWorkHour(club, session, item.id, hours, workType); await load(); }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : "Arbeitsstunden konnten nicht bestätigt werden."); }
     finally { setSaving(false); }
   }

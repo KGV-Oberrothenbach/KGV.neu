@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 
 const migration = await readFile(new URL("../../supabase/migrations/20261011160000_g13_valid_app_user_access.sql", import.meta.url), "utf8");
 const historicalSchema = await readFile(new URL("../../supabase/migrations/20260323093513_remote_schema.sql", import.meta.url), "utf8");
-const auth = await readFile(new URL("../lib/supabase-auth.ts", import.meta.url), "utf8");
+const appUserService = await readFile(new URL("../services/users/app-user-service.ts", import.meta.url), "utf8");
 const provider = await readFile(new URL("../features/auth/AuthProvider.tsx", import.meta.url), "utf8");
 const contextService = await readFile(new URL("../../KGV.Infrastructure/Services/UserContextService.cs", import.meta.url), "utf8");
 
@@ -18,9 +18,9 @@ assert.match(migration, /function public\.current_mitglied_id\(\)[\s\S]*current_
 assert.doesNotMatch(migration, /function public\.current_mitglied_id\(\)\s*returns bigint/i);
 assert.doesNotMatch(migration, /drop\s+function\s+(if\s+exists\s+)?public\.current_mitglied_id|current_mitglied_id\s*\(\)\s*cascade/i);
 assert.match(migration, /InvalidAppUserLink/);
-assert.match(auth, /current_app_user_context/);
-assert.doesNotMatch(auth, /role === "admin" \|\| role === "vorstand" \? role : "user"/);
-assert.match(auth, /kein gültiger KGV-Zugang/);
+assert.match(appUserService, /current_app_user_context/);
+assert.doesNotMatch(appUserService, /role === "admin" \|\| role === "vorstand" \? role : "user"/);
+assert.match(appUserService, /kein gültiger KGV-Zugang/);
 assert.match(provider, /setStatus\("access-error"\)/);
 assert.match(provider, /setAppUserContext\(null\)/);
 assert.match(contextService, /current_app_user_context/);

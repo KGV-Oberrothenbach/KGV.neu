@@ -1,4 +1,5 @@
 "use client";
+import { useSelectedClub } from "../auth/AuthProvider";
 
 import { useEffect, useState } from "react";
 import { type BrowserSession } from "../../lib/supabase-auth";
@@ -10,25 +11,26 @@ type Draft = SecondaryMemberCreateInput;
 const today = () => new Date().toISOString().slice(0, 10);
 
 export function SecondaryMember({ session, mainMember, canManageSecondary }: { session: BrowserSession; mainMember: Member; canManageSecondary: boolean }) {
+  const club = useSelectedClub();
   const [secondary, setSecondary] = useState<Member | null>(null);
   const [mode, setMode] = useState<"view" | "create" | "edit">("view");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const permissions: SecondaryMemberPermissions = { canManageSecondary };
-  const editLock = useEditLock(session, "mitglied", secondary?.id, Boolean(mode === "edit" && secondary));
+  const editLock = useEditLock(club, session, "mitglied", secondary?.id, Boolean(mode === "edit" && secondary));
 
   async function load() {
-    try { setSecondary(await loadSecondaryMember(session, mainMember.id)); }
+    try { setSecondary(await loadSecondaryMember(club, session, mainMember.id)); }
     catch { setMessage("Nebenmitglied konnte nicht geladen werden."); }
   }
   useEffect(() => {
     let active = true;
-    loadSecondaryMember(session, mainMember.id)
+    loadSecondaryMember(club, session, mainMember.id)
       .then((member) => { if (active) setSecondary(member); })
       .catch(() => { if (active) setMessage("Nebenmitglied konnte nicht geladen werden."); });
     return () => { active = false; };
-  }, [session, mainMember.id]);
+  }, [club, session, mainMember.id]);
 
   function beginCreate() {
     setDraft({ vorname: "", name: mainMember.name ?? "", adresseUebernehmen: true, adresse: mainMember.adresse, plz: mainMember.plz, ort: mainMember.ort, telefon: null, handy: null, email: null, geburtsdatum: null, mitglied_seit: today(), whatsapp_einwilligung: false });
@@ -44,10 +46,10 @@ export function SecondaryMember({ session, mainMember, canManageSecondary }: { s
     if (!draft) return;
     setSaving(true); setMessage("");
     try {
-      if (mode === "create") await createNewSecondaryMember(session, mainMember.id, draft, permissions);
+      if (mode === "create") await createNewSecondaryMember(club, session, mainMember.id, draft, permissions);
       else if (secondary) {
         const updateInput: SecondaryMemberUpdateInput = { adresse: draft.adresse, plz: draft.plz, ort: draft.ort, telefon: draft.telefon, handy: draft.handy, email: draft.email, geburtsdatum: draft.geburtsdatum, mitglied_seit: draft.mitglied_seit, whatsapp_einwilligung: draft.whatsapp_einwilligung };
-        await updateExistingSecondaryMember(session, mainMember.id, secondary.id, updateInput, permissions);
+        await updateExistingSecondaryMember(club, session, mainMember.id, secondary.id, updateInput, permissions);
       }
       await load(); setMode("view");
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Nebenmitglied konnte nicht gespeichert werden."); }

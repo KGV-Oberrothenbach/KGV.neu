@@ -764,6 +764,14 @@ Für die tägliche Arbeit reicht diese Fassung in der Regel aus, weil sie die fo
 - Ausschließlich `dokument` wurde aus `demoScopedTables` entfernt. RLS, Archivfilter, Service-/Repositorypfad und getrennte Mitglieds-/Parzellen-Owner bleiben erhalten. Pachtverträge werden fachlich als Parzellendokumente gespeichert und nicht in die Mitgliedsliste gemischt.
 - Regressionstest sichert tatsächliche G10-Abfragefilter, leere Ergebnisse ohne Shadow-Logik, Ausschluss archivierter Dokumente, getrennte Parzellenabfragen sowie fortbestehenden Demo-Filter für `mitglied`.
 
+## 2026-10-13 – WEB G15.6b Supabase-Transport-Caller
+
+- Auf dem bestehenden G15-Branch wurde die Caller-Migration von der G15.6a-Übergangsfassade zu den technischen Supabase-Clients abgeschlossen. Repositories, Services und Features reichen `ClubContext` aus dem vorhandenen `AuthProvider` explizit zusammen mit `BrowserSession` bis zu REST-, RPC-, Edge- und Storage-Aufrufen durch; keine globale Clubvariable oder erneute Storage-Auflösung wurde eingeführt.
+- `legacyTransportContext`, App-User-RPC und generische Transportfunktionen sind aus `supabase-auth.ts` entfernt. Session-, Club- und Workspace-Persistenz sowie G1-nahe Auth-Helfer bleiben dort. `loadAppUserContext` und App-User-Aktionen liegen im User-Service; Vertragsgenerierung, Fotos und Lock-Orchestrierung in den vorhandenen Fach-/Concurrency-Bereichen. Demo-Filter, RLS-Verhalten und Edit-Lock-Semantik bleiben unverändert.
+- G15-Transport-Contract und Dokument-/Arbeitsstunden-Daten-Scope-Tests verwenden den expliziten Kontext. G15.6 ist in README und Web/WPF/MAUI-Vergleich dokumentiert; G15.7 bleibt unbegonnen.
+- Fokussierte Transport-/OTP-/Daten-Scope-Tests bestehen mit 8/8. Die gesamte Web-Testauswahl besteht 30/32; die beiden Fehlschläge sind nachweislich bereits auf HEAD vorhanden und erwarten einen alten Export-Rechteausdruck beziehungsweise ein altes `activeId`-Routing.
+- Produktionsbuild erfolgreich. TypeScript meldet unverändert sechs HEAD-baseline-Fehler (fünf Reading-Ergebnisfehler in `app/page.tsx`, einer in `services/seasons/season-service.ts`). ESLint auf 97 geänderten TS/TSX-Dateien entspricht exakt der HEAD-Baseline mit 14 Fehlern und 15 Warnungen; keine fehlenden `club`-Hookabhängigkeiten. `git diff --check` sauber.
+
 ## 2026-10-11 - WEB G1-G11 technischer Regression-Audit
 
 - Vollständige Restliste der clientseitig demo-gefilterten Tabellen gegen beide `database.types.ts`-Dateien, den Schemaexport und Migrationen geprüft. Beibehalten wurden ausschließlich Tabellen mit eigener Spalte: `arbeitseinsatz`, `mitglied`, `parzelle`, `wartungsvertraege`, `termin`, `bekanntmachung`. `termin.is_demo` und `bekanntmachung.is_demo` werden durch die Demo-Migration ergänzt, fehlen aber noch in beiden Typ-Exports.

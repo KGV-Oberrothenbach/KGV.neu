@@ -1,4 +1,6 @@
-import { type BrowserSession, readSupabase } from "../../lib/supabase-auth";
+import { readSupabaseRest } from "../../lib/supabase/rest-client";
+import type { ClubContext } from "../../models/auth/club";
+import { type BrowserSession } from "../../lib/supabase-auth";
 
 export type Meter = {
   id: number;
@@ -36,18 +38,18 @@ export type MeterDueStatus = {
   eichstatus: string | null;
 };
 
-export const listMeters = (session: BrowserSession) => readSupabase<Meter>(session, "zaehler", {
+export const listMeters = (club: ClubContext, session: BrowserSession) => readSupabaseRest<Meter>({ club, session }, "zaehler", {
   select: "id,parzelle_id,medium,zaehlernummer,eingebaut_am,ausgebaut_am,eichfaellig_am,status",
   order: "medium.asc,zaehlernummer.asc",
   limit: "1000",
 });
 
-export const listMeterOverviewParcels = (session: BrowserSession) => readSupabase<MeterOverviewParcel>(session, "parzelle", {
+export const listMeterOverviewParcels = (club: ClubContext, session: BrowserSession) => readSupabaseRest<MeterOverviewParcel>({ club, session }, "parzelle", {
   select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,aktiv",
   limit: "500",
 });
 
-export const listMeterDueStatuses = (session: BrowserSession) => readSupabase<MeterDueStatus>(session, "v_zaehler_eichstatus", {
+export const listMeterDueStatuses = (club: ClubContext, session: BrowserSession) => readSupabaseRest<MeterDueStatus>({ club, session }, "v_zaehler_eichstatus", {
   select: "id,parzelle_id,anlage,garten_nr,medium,zaehlernummer,eichdatum,eichfaellig_am,eingebaut_am,status,tage_bis_faellig,eichstatus",
   limit: "1000",
 });

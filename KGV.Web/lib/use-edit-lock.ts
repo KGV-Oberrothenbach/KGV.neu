@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import {
-  acquireBrowserEditLock,
-  releaseBrowserEditLock,
   type BrowserSession,
 } from "./supabase-auth";
+import type { ClubContext } from "../models/auth/club";
+import { acquireBrowserEditLock, releaseBrowserEditLock } from "../services/concurrency/edit-lock-service";
 
 export type EditLockState = {
   checking: boolean;
@@ -14,6 +14,7 @@ export type EditLockState = {
 };
 
 export function useEditLock(
+  club: ClubContext,
   session: BrowserSession,
   entityType: string,
   entityId: string | number | null | undefined,
@@ -30,7 +31,7 @@ export function useEditLock(
     const acquire = async (checking: boolean) => {
       if (checking) setState({ checking: true, acquired: false, message: "Bearbeitungssperre wird geprüft …" });
       try {
-        const result = await acquireBrowserEditLock(session, entityType, entityId);
+        const result = await acquireBrowserEditLock({ club, session }, entityType, entityId);
         if (!active) return;
         acquired = result.acquired;
         setState(result.acquired
@@ -52,9 +53,9 @@ export function useEditLock(
       active = false;
       window.clearInterval(refreshTimer);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
-      if (acquired) void releaseBrowserEditLock(session, entityType, entityId).catch(() => undefined);
+      if (acquired) void releaseBrowserEditLock({ club, session }, entityType, entityId).catch(() => undefined);
     };
-  }, [session, entityType, entityId, activeLock]);
+  }, [club, session, entityType, entityId, activeLock]);
 
   return activeLock ? state : { checking: false, acquired: true, message: "" };
 }

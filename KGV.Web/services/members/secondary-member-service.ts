@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type Member } from "../../models/members/member";
 import { createSecondaryMember, getMemberById, getSecondaryMemberByMainMemberId, updateSecondaryMember } from "../../repositories/members/member-repository";
@@ -31,12 +32,12 @@ function validateContact(input: SecondaryMemberUpdateInput) {
 
 export const loadSecondaryMember = getSecondaryMemberByMainMemberId;
 
-export async function createNewSecondaryMember(session: BrowserSession, mainMemberId: number, input: SecondaryMemberCreateInput, permissions: SecondaryMemberPermissions) {
+export async function createNewSecondaryMember(club: ClubContext, session: BrowserSession, mainMemberId: number, input: SecondaryMemberCreateInput, permissions: SecondaryMemberPermissions) {
   requirePermission(permissions);
-  const mainMember = await getMemberById(session, mainMemberId);
+  const mainMember = await getMemberById(club, session, mainMemberId);
   if (!mainMember) throw new Error("Das Hauptmitglied konnte nicht geladen werden.");
   if (mainMember.hauptmitglied_id !== null) throw new Error("Nebenmitglieder können kein weiteres Nebenmitglied erhalten.");
-  if (await getSecondaryMemberByMainMemberId(session, mainMemberId)) throw new Error("Für dieses Hauptmitglied besteht bereits ein Nebenmitglied.");
+  if (await getSecondaryMemberByMainMemberId(club, session, mainMemberId)) throw new Error("Für dieses Hauptmitglied besteht bereits ein Nebenmitglied.");
   const vorname = input.vorname?.trim() ?? "";
   const name = input.name?.trim() ?? "";
   if (!vorname) throw new Error("Vorname ist erforderlich.");
@@ -45,7 +46,7 @@ export async function createNewSecondaryMember(session: BrowserSession, mainMemb
     ? { ...input, adresse: mainMember.adresse, plz: mainMember.plz, ort: mainMember.ort }
     : input;
   const contact = validateContact(source);
-  const created = await createSecondaryMember(session, {
+  const created = await createSecondaryMember(club, session, {
     hauptmitglied_id: mainMemberId,
     vorname,
     name,
@@ -62,12 +63,12 @@ export async function createNewSecondaryMember(session: BrowserSession, mainMemb
   return created[0];
 }
 
-export async function updateExistingSecondaryMember(session: BrowserSession, mainMemberId: number, secondaryMemberId: number, input: SecondaryMemberUpdateInput, permissions: SecondaryMemberPermissions) {
+export async function updateExistingSecondaryMember(club: ClubContext, session: BrowserSession, mainMemberId: number, secondaryMemberId: number, input: SecondaryMemberUpdateInput, permissions: SecondaryMemberPermissions) {
   requirePermission(permissions);
-  const current = await getMemberById(session, secondaryMemberId);
+  const current = await getMemberById(club, session, secondaryMemberId);
   if (!current || current.hauptmitglied_id !== mainMemberId) throw new Error("Das Nebenmitglied gehört nicht zu diesem Hauptmitglied.");
   const contact = validateContact(input);
-  const updated = await updateSecondaryMember(session, secondaryMemberId, {
+  const updated = await updateSecondaryMember(club, session, secondaryMemberId, {
     ...contact,
     telefon: input.telefon?.trim() || null,
     handy: input.handy?.trim() || null,

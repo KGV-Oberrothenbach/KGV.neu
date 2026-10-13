@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import type { Season } from "../../models/seasons/season";
 import { createSeason, getSeason, listSeasons, updateSeason } from "../../repositories/seasons/season-repository";
@@ -43,19 +44,19 @@ export function normalizeSeasonForSave(season: Season): Season {
   };
 }
 
-export function getSeasons(session: BrowserSession) {
-  return listSeasons(session);
+export function getSeasons(club: ClubContext, session: BrowserSession) {
+  return listSeasons(club, session);
 }
 
-export async function saveSeason(session: BrowserSession, season: Season, options: SeasonSaveOptions = {}) {
+export async function saveSeason(club: ClubContext, session: BrowserSession, season: Season, options: SeasonSaveOptions = {}) {
   const normalized = normalizeSeasonForSave(season);
   if (options.existingSeasonId !== undefined) {
     if (options.existingSeasonId !== normalized.id) throw new Error("Eine bestehende Saison kann nicht in ein anderes Jahr umnummeriert werden.");
-    if (!await getSeason(session, options.existingSeasonId)) throw new Error("Die zu aktualisierende Saison wurde nicht gefunden.");
-    return updateSeason(session, options.existingSeasonId, normalized);
+    if (!await getSeason(club, session, options.existingSeasonId)) throw new Error("Die zu aktualisierende Saison wurde nicht gefunden.");
+    return updateSeason(club, session, options.existingSeasonId, normalized);
   }
 
-  return createSeason(session, normalized);
+  return createSeason(club, session, normalized);
 }
 
 export type { Season } from "../../models/seasons/season";

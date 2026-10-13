@@ -8954,12 +8954,34 @@ Die technische Kommunikation ist in `lib/supabase/` getrennt: Der explizite
 Functions und `storage-client.ts` signierte URLs. Diese Clients lesen weder
 `loadClub()` noch Browser-Speicher und besitzen keine globale Vereinsvariable.
 
-`supabase-auth.ts` bleibt in diesem Zwischenschritt eine klar markierte
-Kompatibilitätsfassade: Bestehende Caller, Auth/Session, Workspace-Speicher,
-Edit-Lock-Orchestrierung und Fachwrapper bleiben unverändert; die Fassade
-bildet nur vorübergehend den Transportkontext aus der gespeicherten
-Vereinsauswahl. Die vollständige Caller-Migration und Entfernung dieses
-Hidden-Club-Zugriffs ist ausschließlich G15.6b.
+`supabase-auth.ts` bleibt in G15.6b auf Auth-/Session-, Club- und
+Workspace-Persistenz-nahe Verantwortung beschränkt. Fachrepositories verwenden
+die technischen Clients explizit mit `ClubContext` und `BrowserSession`;
+Services und Features reichen den vorhandenen Verein aus dem `AuthProvider`
+weiter. Die Kompatibilitätsfassade und `legacyTransportContext` sind entfernt.
+Edit-Lock-Orchestrierung sowie Vertrags-, Foto- und User-Edge-Wrapper liegen in
+ihren Fach-/Concurrency-Schichten. REST-Demo-Filter und Lock-Semantik bleiben
+unverändert.
+
+---
+
+## 15.6b Supabase-Transport – Caller-Migration abgeschlossen
+
+Alle fachlichen Supabase-Pfade reichen `{ club, session }` explizit bis zu
+`lib/supabase/*` durch. Repositories rufen REST-, RPC-, Edge- und Storage-
+Transportclients direkt beziehungsweise über ihre Fachwrapper auf. Features
+verwenden den bestehenden `AuthProvider`-Kontext; kein Transport-, Repository-
+oder Servicepfad liest `loadClub()` und es gibt keine globale Vereinsvariable.
+
+`supabase-auth.ts` enthält weiterhin Session-/Club-/Workspace-Persistenz sowie
+G1-nahe Auth-Helfer. Generische REST-/RPC-/Edge-/Storage-Fassaden,
+`legacyTransportContext`, Vertragsgenerierung und Foto-Fachwrapper sind dort
+entfernt. Verträge, Lesungsfotos, App-User-Aktionen und Edit-Locks liegen in
+den bestehenden Fach- beziehungsweise Concurrency-Bereichen. Die Änderungen
+bleiben ein Dependency-Refactoring; fachliche Regeln, RLS, Demo-Scope und
+Lock-Semantik wurden nicht geändert.
+
+**G15.6 ist abgeschlossen. G15.7 wurde nicht begonnen.**
 
 ---
 
@@ -9315,7 +9337,7 @@ festgestellte Web-Regressionen, ohne G12–G15 neu zu gestalten.
 | G12 Saison & Jahresabschluss | ✅ G12.1–G12.7 abgeschlossen: Saisonverwaltung, JEA-Status, serverseitige Verbrauchssegmente und Erfassungs-Plausibilitätswarnungen; vollständiger Jahresabschluss bewusst vertagt |
 | G13 Benutzer, Rollen & Rechte | 🟡 Rollen-/Permission-Doppelung, ID-7-Sperre, Einstellungsverwaltung und weitere Service-Auslagerung offen |
 | G14 Vereinskonfiguration & Exporte | 🟡 Datenschutz-/Eich- und Metadatenexporte vorhanden; Sortierung, Sonderfälle, Rechte, Konfigurations-Service und JAE-XLSX offen |
-| G15 Browser-/Systemfunktionen | 🟡 Refresh/PWA/Locks/Fotoqueue umgesetzt; weitere technische Entflechtung optional/offen |
+| G15 Browser-/Systemfunktionen | 🟡 Refresh/PWA/Locks/Fotoqueue umgesetzt; G15.6a/b Transportbasis und Caller-Migration abgeschlossen; weitere Folgeblöcke offen |
 
 ## Web-Architektur und verbleibende Entflechtung
 
@@ -9326,12 +9348,13 @@ Fachservices, Datenzugriffe, Fachmodelle und gemeinsamen React-Kontext.
 Ergänzend wurden `lib/supabase` für gemeinsame technische Supabase-Basisfunktionen
 und `lib/browser` für technische Browser-Infrastruktur vorbereitet.
 
-`app/page.tsx` und `lib/supabase-auth.ts` bleiben teilweise
-Übergangsstrukturen; zahlreiche Fachgruppen besitzen bereits eigene Features,
-Services und Repositories. Die pauschale frühere Aussage, es sei noch keine
-Fachgruppe vollständig migriert, gilt nicht mehr. G12-Jahresabschluss bleibt
-gemäß Projektentscheidung als vollständige Browseroberfläche vorerst
-zurückgestellt.
+`app/page.tsx` bleibt teilweise eine Übergangsstruktur; zahlreiche Fachgruppen
+besitzen bereits eigene Features, Services und Repositories.
+`lib/supabase-auth.ts` ist nach G15.6b auf Auth-/Session-/Browserpersistenz-nahe
+Verantwortung begrenzt und stellt keine generischen Datenzugriffsfunktionen
+mehr bereit. Die pauschale frühere Aussage, es sei noch keine Fachgruppe
+vollständig migriert, gilt nicht mehr. G12-Jahresabschluss bleibt gemäß
+Projektentscheidung als vollständige Browseroberfläche vorerst zurückgestellt.
 
 ## G1 aktueller Stand – Vereinsauswahl und Auth
 
