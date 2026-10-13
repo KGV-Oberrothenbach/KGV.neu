@@ -1,6 +1,7 @@
 using KGV.Core.Security;
 using KGV.Infrastructure.Models;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Supabase;
 using System;
 using System.Linq;
@@ -21,6 +22,30 @@ namespace KGV.Infrastructure.Services
 
     public sealed class UserContextService : IUserContextService
     {
+        private sealed class CurrentAppUserContextRecord
+        {
+            [JsonProperty("user_id")]
+            public Guid UserId { get; set; }
+
+            [JsonProperty("mitglied_id")]
+            public long? MitgliedId { get; set; }
+
+            [JsonProperty("role")]
+            public string? Role { get; set; }
+
+            [JsonProperty("permission_grants")]
+            public long? PermissionGrants { get; set; }
+
+            [JsonProperty("permission_revocations")]
+            public long? PermissionRevocations { get; set; }
+
+            [JsonProperty("is_protected")]
+            public bool IsProtected { get; set; }
+
+            [JsonProperty("is_demo_account")]
+            public bool IsDemoAccount { get; set; }
+        }
+
         private readonly ISupabaseClientFactory _clientFactory;
         private readonly IPermissionService _permissionService;
         private readonly ILogger<UserContextService>? _logger;
@@ -44,8 +69,8 @@ namespace KGV.Infrastructure.Services
             {
                 Client client = await _clientFactory.CreateAsync();
 
-                var records = await client.Rpc<AppUserRecord[]>("current_app_user_context", new { })
-                    ?? Array.Empty<AppUserRecord>();
+                var records = await client.Rpc<CurrentAppUserContextRecord[]>("current_app_user_context", new { })
+                    ?? Array.Empty<CurrentAppUserContextRecord>();
 
                 if (records.Length == 0)
                 {
