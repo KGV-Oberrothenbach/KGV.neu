@@ -7,6 +7,7 @@ using KGV.Maui.Services;
 using KGV.Maui.ViewModels;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Dispatching;
 using Microsoft.Maui.Graphics;
 using System;
 using System.Collections.Generic;
@@ -389,6 +390,14 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         if (_isBusy)
             return false;
 
+        if (_editingEntryId.HasValue && !_hasEditLock)
+        {
+            _statusLabel.Text = "Die Bearbeitungssperre ist nicht mehr aktiv. Speichern ist nicht möglich.";
+            _statusLabel.TextColor = Colors.IndianRed;
+            _statusLabel.IsVisible = true;
+            return false;
+        }
+
         _statusLabel.IsVisible = false;
         if (!TryBuildRecord(out var record))
             return false;
@@ -758,28 +767,29 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
 
     private void SetEnabledState(bool enabled)
     {
-        _titleEntry.IsEnabled = enabled;
-        _descriptionEditor.IsEnabled = enabled;
-        _datePicker.IsEnabled = enabled;
-        _startTimePicker.IsEnabled = enabled;
-        _endTimePicker.IsEnabled = enabled;
-        _treffpunktEntry.IsEnabled = enabled;
-        _hasTeilnehmerbegrenzungCheckBox.IsEnabled = enabled;
-        _maxTeilnehmerEntry.IsEnabled = enabled && _hasTeilnehmerbegrenzungCheckBox.IsChecked;
-        _stundenWertEntry.IsEnabled = enabled;
-        _sichtbarAbDatePicker.IsEnabled = enabled;
-        _sichtbarAbTimePicker.IsEnabled = enabled;
-        _sichtbarBisDatePicker.IsEnabled = enabled;
-        _sichtbarBisTimePicker.IsEnabled = enabled;
-        _hasAnmeldungBisCheckBox.IsEnabled = enabled;
-        _anmeldungBisDatePicker.IsEnabled = enabled && _hasAnmeldungBisCheckBox.IsChecked;
-        _anmeldungBisTimePicker.IsEnabled = enabled && _hasAnmeldungBisCheckBox.IsChecked;
-        _aktivSwitch.IsEnabled = enabled;
-        _saveButton.IsEnabled = enabled;
-        _saveAndNextShiftButton.IsEnabled = enabled;
+        var canEdit = enabled && (!_editingEntryId.HasValue || _hasEditLock);
+        _titleEntry.IsEnabled = canEdit;
+        _descriptionEditor.IsEnabled = canEdit;
+        _datePicker.IsEnabled = canEdit;
+        _startTimePicker.IsEnabled = canEdit;
+        _endTimePicker.IsEnabled = canEdit;
+        _treffpunktEntry.IsEnabled = canEdit;
+        _hasTeilnehmerbegrenzungCheckBox.IsEnabled = canEdit;
+        _maxTeilnehmerEntry.IsEnabled = canEdit && _hasTeilnehmerbegrenzungCheckBox.IsChecked;
+        _stundenWertEntry.IsEnabled = canEdit;
+        _sichtbarAbDatePicker.IsEnabled = canEdit;
+        _sichtbarAbTimePicker.IsEnabled = canEdit;
+        _sichtbarBisDatePicker.IsEnabled = canEdit;
+        _sichtbarBisTimePicker.IsEnabled = canEdit;
+        _hasAnmeldungBisCheckBox.IsEnabled = canEdit;
+        _anmeldungBisDatePicker.IsEnabled = canEdit && _hasAnmeldungBisCheckBox.IsChecked;
+        _anmeldungBisTimePicker.IsEnabled = canEdit && _hasAnmeldungBisCheckBox.IsChecked;
+        _aktivSwitch.IsEnabled = canEdit;
+        _saveButton.IsEnabled = canEdit;
+        _saveAndNextShiftButton.IsEnabled = canEdit;
         _cancelButton.IsEnabled = enabled;
-        _previousButton.IsEnabled = enabled && _previousButton.IsVisible && _managementState.CanMovePrevious;
-        _nextButton.IsEnabled = enabled && _nextButton.IsVisible && _managementState.CanMoveNext;
+        _previousButton.IsEnabled = canEdit && _previousButton.IsVisible && _managementState.CanMovePrevious;
+        _nextButton.IsEnabled = canEdit && _nextButton.IsVisible && _managementState.CanMoveNext;
     }
 
     private Task NavigateToOverviewAsync()
@@ -808,7 +818,7 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
 
     private async void OnEditLockRefresh(object? sender, EventArgs eventArgs)
     {
-        if (!_hasEditLock || !_editingEntryId.HasValue || _isBusy)
+        if (!_hasEditLock || !_editingEntryId.HasValue)
             return;
 
         try
@@ -944,4 +954,3 @@ public sealed class ArbeitseinsaetzeEditorPage : ContentPage, IQueryAttributable
         DateTime? RegistrationUntil,
         bool IsActive);
 }
-

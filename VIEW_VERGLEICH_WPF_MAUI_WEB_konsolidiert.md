@@ -8826,12 +8826,15 @@ Web- und MAUI-Client-IDs folgen erst in G15.3b.
 ### G15.3b – Client-Lifecycle
 
 Web verwendet pro Browser-Tab eine in `sessionStorage` gehaltene Client-ID und
-nutzt die client-aware Acquire-/Refresh-/Release-/ReleaseAll-RPCs. Eine kleine
-BroadcastChannel-Prüfung erkennt kopierte Tab-IDs, sofern der Browser sie
-unterstützt. MAUI verwendet eine installationsstabile Preferences-ID, erneuert
-den Arbeitseinsatz-Lock alle vier Minuten und gibt beim Logout, Timeout sowie
-Vereinswechsel nur die Locks dieser Installation frei. WPF bleibt über die
-Legacy-RPCs kompatibel.
+nutzt die client-aware Acquire-/Refresh-/Release-/ReleaseAll-RPCs. Eine
+BroadcastChannel-Prüfung erkennt kopierte Tab-IDs; wenn BroadcastChannel fehlt
+oder nicht erzeugt werden kann, übernimmt ein `storage`-Event-Handshake diese
+Kollisionsprüfung. MAUI verwendet eine installationsstabile Preferences-ID,
+erneuert den Arbeitseinsatz-Lock alle vier Minuten und gibt beim Logout,
+Timeout sowie Vereinswechsel nur die Locks dieser Installation frei. Der
+Arbeitseinsatz-Editor blockiert Eingaben und Speichern nach Lockverlust und
+erneuert den Lease während laufender Saves. WPF bleibt über die Legacy-RPCs
+kompatibel.
 
 ### Zusätzlich
 PATCH/DELETE über die generischen Web-Helfer führen für registrierte Tabellen nochmals eine Lockprüfung durch.
@@ -8981,7 +8984,30 @@ den bestehenden Fach- beziehungsweise Concurrency-Bereichen. Die Änderungen
 bleiben ein Dependency-Refactoring; fachliche Regeln, RLS, Demo-Scope und
 Lock-Semantik wurden nicht geändert.
 
-**G15.6 ist abgeschlossen. G15.7 wurde nicht begonnen.**
+### 15.7 – Abschlussprüfung
+
+Die G15-Abschlussprüfung hat die Browser-API-Grenzen, client-aware Locks,
+Pending-Media-Isolation sowie den expliziten Supabase-Kontext geprüft. Der
+BroadcastChannel-Fallback für kopierte Web-Tab-IDs wurde durch einen
+`storage`-Event-Handshake ergänzt und mit einem Contract-Test abgesichert.
+Der MAUI-Arbeitseinsatzeditor blockiert Eingaben und Speichern nach Lockverlust,
+behält die Sperre auch nach einem fehlgeschlagenen Save bei und erneuert den
+Lease während laufender Saves; ein Lifecycle-Contract deckt dies ab.
+`app/page.tsx` enthält keine direkte Service-Worker-, Connectivity-, Scanner-,
+IndexedDB-, Client-ID-, Lock-RPC- oder Supabase-Konfigurationstechnik.
+
+Die Web-Contractauswahl besteht mit 34/36 Tests; die beiden bekannten,
+unveränderten Baseline-Fehler betreffen Export-Capability-Erwartungen und das
+Parcel-Reading-Route-Muster. TypeScript meldet weiterhin die sechs bekannten
+Fehler in `app/page.tsx` und `services/seasons/season-service.ts`. Der Web-
+Produktionsbuild ist erfolgreich. Core und Infrastructure bauen; der MAUI-
+Build zeigt nach Behebung des G15-eigenen fehlenden Dispatcher-Imports noch
+sieben Fehler in anderen, nicht durch G15 geänderten Dateien. WPF hat sieben
+bekannte, außerhalb G15 liegende Interface-/Aufrufinkonsistenzen. Diese
+fachfremden Baselines wurden nicht geändert; ImageSharp-Warnungen blieben
+unverändert. Es wurde keine Datenbankmigration angewendet.
+
+**G15.1 bis G15.7 sind abgeschlossen.**
 
 ---
 
@@ -9337,7 +9363,7 @@ festgestellte Web-Regressionen, ohne G12–G15 neu zu gestalten.
 | G12 Saison & Jahresabschluss | ✅ G12.1–G12.7 abgeschlossen: Saisonverwaltung, JEA-Status, serverseitige Verbrauchssegmente und Erfassungs-Plausibilitätswarnungen; vollständiger Jahresabschluss bewusst vertagt |
 | G13 Benutzer, Rollen & Rechte | 🟡 Rollen-/Permission-Doppelung, ID-7-Sperre, Einstellungsverwaltung und weitere Service-Auslagerung offen |
 | G14 Vereinskonfiguration & Exporte | 🟡 Datenschutz-/Eich- und Metadatenexporte vorhanden; Sortierung, Sonderfälle, Rechte, Konfigurations-Service und JAE-XLSX offen |
-| G15 Browser-/Systemfunktionen | 🟡 Refresh/PWA/Locks/Fotoqueue umgesetzt; G15.6a/b Transportbasis und Caller-Migration abgeschlossen; weitere Folgeblöcke offen |
+| G15 Browser-/Systemfunktionen | ✅ G15.1–G15.7 abgeschlossen: PWA, Browser-APIs, Locks, Scanner, Pending Media und Supabase-Transport geprüft |
 
 ## Web-Architektur und verbleibende Entflechtung
 
@@ -9365,7 +9391,8 @@ Login, OTP/Recovery, Passwortsetzen und Session-Lifecycle sind über Auth-
 Komponenten, Auth-Service/-Repository und `AuthProvider` angebunden.
 `session-service.ts` restauriert Sessions und erneuert Access-Tokens mit dem
 Refresh-Token (G1.9a/b/c). `lib/supabase-auth.ts` stellt weiterhin gemeinsame
-Session-/Workspace-Persistenz und generische Datenzugriffsfunktionen bereit.
+Session-/Workspace-Persistenz und Auth-nahe Funktionen bereit; generische
+Supabase-Datenzugriffsfunktionen liegen in `lib/supabase/`.
 
 ## G4.4 – Pachtvertrag: Fachbasis und Berechtigungsprüfung
 
