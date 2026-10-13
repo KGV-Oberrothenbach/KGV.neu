@@ -8814,6 +8814,28 @@ Bei belegtem Lock wird angezeigt:
 Dieser Datensatz wird gerade von ... bearbeitet.
 ```
 
+### G15.3a – serverseitiger Vertragsstand
+
+Lock-Besitz wird serverseitig auf Benutzer plus Client-Instanz erweitert.
+Die bisherigen RPCs bleiben während der Umstellung mit einer stabilen
+Legacy-Client-Identität kompatibel; neue client-aware RPCs trennen Acquire,
+Release und ReleaseAll pro Instanz. Die Synchronisierung der Legacy-Felder von
+`mitglied` und `arbeitsstunde` ist dabei wieder Teil des zentralen Vertrags.
+Web- und MAUI-Client-IDs folgen erst in G15.3b.
+
+### G15.3b – Client-Lifecycle
+
+Web verwendet pro Browser-Tab eine in `sessionStorage` gehaltene Client-ID und
+nutzt die client-aware Acquire-/Refresh-/Release-/ReleaseAll-RPCs. Eine
+BroadcastChannel-Prüfung erkennt kopierte Tab-IDs; wenn BroadcastChannel fehlt
+oder nicht erzeugt werden kann, übernimmt ein `storage`-Event-Handshake diese
+Kollisionsprüfung. MAUI verwendet eine installationsstabile Preferences-ID,
+erneuert den Arbeitseinsatz-Lock alle vier Minuten und gibt beim Logout,
+Timeout sowie Vereinswechsel nur die Locks dieser Installation frei. Der
+Arbeitseinsatz-Editor blockiert Eingaben und Speichern nach Lockverlust und
+erneuert den Lease während laufender Saves. WPF bleibt über die Legacy-RPCs
+kompatibel.
+
 ### Zusätzlich
 PATCH/DELETE über die generischen Web-Helfer führen für registrierte Tabellen nochmals eine Lockprüfung durch.
 
@@ -8840,6 +8862,10 @@ Kamera
 
 und besitzt einen manuellen Fallback.
 
+`QrScanner.tsx` stoppt Kamera-Tracks und den Animations-Frame sowohl beim
+Unmount als auch nach einem erfolgreichen Scan; bei fehlendem BarcodeDetector
+oder `mediaDevices` bleibt die manuelle Vereins-ID-Eingabe verfügbar.
+
 ### Bewertung
 ✅ richtige Weblösung.
 
@@ -8849,46 +8875,139 @@ Browserunterstützung darf nicht Voraussetzung für die Fachfunktion sein.
 
 ## 15.12 Web-NFC / RFID
 
-Der technische Zugriff auf Web-NFC wird in `lib/browser-media.ts`
-gekapselt. Der G6-Wrapper `RfidBrowserScanner` liegt derzeit noch in
-`app/page.tsx` und prüft:
+G15.4 kapselt die Browserfähigkeit in
+`lib/browser/media-capabilities.ts`: `BarcodeDetector`, `NDEFReader`, Secure
+Context und Kamera-Verfügbarkeit werden SSR-sicher technisch erkannt.
+`browser-media.ts` enthält ausschließlich die Pending-Media-/IndexedDB-
+Infrastruktur und bleibt bis G15.5 unverändert in dieser Verantwortung.
 
-```text
-NDEFReader
-+
-Secure Context
-```
+`components/scanner/NfcScanner.tsx` ist rein technisch: Es startet Web-NFC,
+liefert ausschließlich die getrimmte rohe `serialNumber` als UID, behandelt
+fehlende Unterstützung, Lesefehler und Startfehler und beendet den aktiven
+Scan per AbortSignal bei Erfolg oder Unmount.
 
-Ist Web-NFC verfügbar:
+Der G6-Wrapper `features/meters/RfidScanner.tsx` wertet die UID weiterhin mit
+`resolveRfidScanContext` aus und gibt die unveränderte `RfidScanResolution`
+weiter. Die Zustände `Unknown`, `KnownWithoutActiveMeter` und
+`KnownWithActiveMeter` sowie Einrichten, Einbau, Ausbau und Ablesung bleiben
+G6-Fachlogik. `app/page.tsx` besitzt keine direkte NDEFReader-/Web-NFC-Logik
+mehr.
 
-```text
-RFID-UID lesen
-```
+Web-NFC ist ein optionaler Eingabekanal; die manuelle Auswahl bleibt verfügbar.
 
-Ist es nicht verfügbar:
+---
 
-```text
-manuelle Auswahl / MAUI-Spezialweg
-```
+## 15.5a Pending Media – Besitz und lokale Isolation
 
-### Bewertung
-✅ sinnvoll.
+Web speichert Pending-Fotos weiterhin in IndexedDB `kgv-browser-media-v1` im
+Store `pending-meter-photos`, ohne Versions- oder Schema-Migration. Die
+technischen IndexedDB-Helfer liegen in `lib/browser/indexed-db.ts`, die
+Zählerfoto-Queue in `services/offline/pending-media-store.ts`. Neue Einträge
+besitzen immer `clubId` und `ownerUserId`; Listen und Retries akzeptieren nur
+die exakte Kombination beider Werte.
 
-Web-NFC ist ein optionaler Eingabekanal, nicht Teil der Fachlogik.
+MAUI speichert zusätzlich ein nullable `OwnerUserId`. Ein fehlender Owner ist
+bewusst ein Legacy-Eintrag: Er bleibt lokal erhalten, wird weder angezeigt noch
+automatisch hochgeladen oder einem aktuellen Benutzer zugeordnet. Dasselbe
+gilt auf Web für alte IndexedDB-Records ohne Owner. Logout, Vereinswechsel und
+App-/Browser-Neustart löschen keine Queue-Daten.
 
-Aktuell gilt:
+Ein anderer Benutzer desselben Vereins kann Pending-Fotos eines anderen
+Benutzers weder sehen noch hochladen. G15.5b ergänzt erst danach UI für
+Legacy-Daten, Warnungen, manuelles Löschen und browserübergreifende Retry-
+Koordination.
 
-```text
-lib/browser-media.ts
-→ technische NDEFReader-Erkennung
+---
 
-app/page.tsx: RfidBrowserScanner
-→ G6-UI und Übergabe des gelesenen Kontexts
-```
+## 15.5b Pending Media – Bedienung, Retry-Lease und Aufräumen
 
-Eine separate NFC-Komponente bzw. ein vollständiger ausgelagerter RFID-Wrapper
-ist im aktuellen Dateistand nicht vorhanden. Der fachliche RFID-Zustandsautomat
-bleibt G6.
+Die Web-Oberfläche liegt in `features/readings/PendingPhotoUploads.tsx` und
+zeigt ausschließlich die eigene Kombination aus `clubId` und `ownerUserId`.
+Sie erlaubt Vorschau, gezielten Retry, Retry aller eigenen Fotos und ein
+explizit bestätigtes Löschen. Ist eine hochgeladene Datei noch nicht mit der
+Ablesung verknüpft, weist der Löschdialog darauf hin. Alte Einträge ohne Owner
+bleiben unsichtbar; nur für den aktuellen Verein gibt es eine neutrale,
+ausdrücklich bestätigte Bereinigung. Andere Benutzer- oder Vereinsdaten werden
+weder angezeigt noch gelöscht.
+
+Retry-Koordination nutzt weiterhin dieselbe IndexedDB-Datenbank und denselben
+Store. Jeder Claim erfolgt atomar in genau einer `readwrite`-Transaktion und
+setzt eine Owner-ID des Browser-Clients plus eine 15-Minuten-Lease. Während
+einer aktiven Lease kann weder ein anderer Tab erneut hochladen noch der
+Eintrag gelöscht werden. Nach Ablauf einer verlassenen Lease ist auch ein
+persistiert als `uploading` markierter Eintrag wieder retry-fähig. Über
+`BroadcastChannel` werden nur `{ type: "changed" }`-Signale geteilt; ein
+empfangender Tab lädt stets seine eigene, gefilterte Queue nach.
+
+MAUI verwendet dieselben Besitzgrenzen. Der Sync berücksichtigt `Uploading`
+nach einem Neustart wieder, aber eine laufende bzw. für Löschung reservierte
+ID wird atomar ausgeschlossen. Die Pending-Upload-Seite kann nur eigene,
+nicht laufende Einträge löschen und bietet getrennt eine explizite
+Legacy-Bereinigung. Der manuelle Vereinswechsel in Web und MAUI warnt nur über
+die Anzahl der eigenen offenen Fotos; automatische Logout-, Inaktivitäts- oder
+Session-Abläufe zeigen keinen zusätzlichen Dialog und löschen nichts.
+
+---
+
+## 15.6a Supabase-Transportbasis
+
+Die technische Kommunikation ist in `lib/supabase/` getrennt: Der explizite
+`SupabaseClientContext` enthält Club und schlanke Access-Token-Session,
+`rest-client.ts` kapselt PostgREST, `rpc-client.ts` RPC, `edge-client.ts` Edge
+Functions und `storage-client.ts` signierte URLs. Diese Clients lesen weder
+`loadClub()` noch Browser-Speicher und besitzen keine globale Vereinsvariable.
+
+`supabase-auth.ts` bleibt in G15.6b auf Auth-/Session-, Club- und
+Workspace-Persistenz-nahe Verantwortung beschränkt. Fachrepositories verwenden
+die technischen Clients explizit mit `ClubContext` und `BrowserSession`;
+Services und Features reichen den vorhandenen Verein aus dem `AuthProvider`
+weiter. Die Kompatibilitätsfassade und `legacyTransportContext` sind entfernt.
+Edit-Lock-Orchestrierung sowie Vertrags-, Foto- und User-Edge-Wrapper liegen in
+ihren Fach-/Concurrency-Schichten. REST-Demo-Filter und Lock-Semantik bleiben
+unverändert.
+
+---
+
+## 15.6b Supabase-Transport – Caller-Migration abgeschlossen
+
+Alle fachlichen Supabase-Pfade reichen `{ club, session }` explizit bis zu
+`lib/supabase/*` durch. Repositories rufen REST-, RPC-, Edge- und Storage-
+Transportclients direkt beziehungsweise über ihre Fachwrapper auf. Features
+verwenden den bestehenden `AuthProvider`-Kontext; kein Transport-, Repository-
+oder Servicepfad liest `loadClub()` und es gibt keine globale Vereinsvariable.
+
+`supabase-auth.ts` enthält weiterhin Session-/Club-/Workspace-Persistenz sowie
+G1-nahe Auth-Helfer. Generische REST-/RPC-/Edge-/Storage-Fassaden,
+`legacyTransportContext`, Vertragsgenerierung und Foto-Fachwrapper sind dort
+entfernt. Verträge, Lesungsfotos, App-User-Aktionen und Edit-Locks liegen in
+den bestehenden Fach- beziehungsweise Concurrency-Bereichen. Die Änderungen
+bleiben ein Dependency-Refactoring; fachliche Regeln, RLS, Demo-Scope und
+Lock-Semantik wurden nicht geändert.
+
+### 15.7 – Abschlussprüfung
+
+Die G15-Abschlussprüfung hat die Browser-API-Grenzen, client-aware Locks,
+Pending-Media-Isolation sowie den expliziten Supabase-Kontext geprüft. Der
+BroadcastChannel-Fallback für kopierte Web-Tab-IDs wurde durch einen
+`storage`-Event-Handshake ergänzt und mit einem Contract-Test abgesichert.
+Der MAUI-Arbeitseinsatzeditor blockiert Eingaben und Speichern nach Lockverlust,
+behält die Sperre auch nach einem fehlgeschlagenen Save bei und erneuert den
+Lease während laufender Saves; ein Lifecycle-Contract deckt dies ab.
+`app/page.tsx` enthält keine direkte Service-Worker-, Connectivity-, Scanner-,
+IndexedDB-, Client-ID-, Lock-RPC- oder Supabase-Konfigurationstechnik.
+
+Die Web-Contractauswahl besteht mit 34/36 Tests; die beiden bekannten,
+unveränderten Baseline-Fehler betreffen Export-Capability-Erwartungen und das
+Parcel-Reading-Route-Muster. TypeScript meldet weiterhin die sechs bekannten
+Fehler in `app/page.tsx` und `services/seasons/season-service.ts`. Der Web-
+Produktionsbuild ist erfolgreich. Core und Infrastructure bauen; der MAUI-
+Build zeigt nach Behebung des G15-eigenen fehlenden Dispatcher-Imports noch
+sieben Fehler in anderen, nicht durch G15 geänderten Dateien. WPF hat sieben
+bekannte, außerhalb G15 liegende Interface-/Aufrufinkonsistenzen. Diese
+fachfremden Baselines wurden nicht geändert; ImageSharp-Warnungen blieben
+unverändert. Es wurde keine Datenbankmigration angewendet.
+
+**G15.1 bis G15.7 sind abgeschlossen.**
 
 ---
 
@@ -8964,7 +9083,12 @@ Damit zeigt ein anderer ausgewählter Verein nicht versehentlich die lokale Wart
 
 ## 15.16 Online-/Offline-Erkennung
 
-`PendingPhotoUploads` verwendet:
+Die technische Browser-Schicht kapselt `navigator.onLine`, die soweit
+unterstützte Network Information API sowie die Ereignisse `online`, `offline`
+und `connection.change`. Pending-Photo-Retries verwenden diese zentrale
+Subscription; G6 erhält daraus nur technische Connectivity-Informationen.
+
+Dabei bleibt:
 
 ```text
 navigator.onLine
@@ -8975,6 +9099,7 @@ und Browserereignisse:
 ```text
 online
 offline
+connection.change
 ```
 
 ### Bewertung
@@ -8986,19 +9111,22 @@ Die tatsächliche Uploadantwort bleibt trotzdem entscheidend, da `navigator.onLi
 
 ## 15.17 „Nur WLAN hochladen“
 
-Web besitzt eine lokale Einstellung:
+Die technische Storage-Schicht verwaltet die lokale Einstellung:
 
 ```text
 kgv-meter-photo-wifi-only
 ```
 
-Wenn aktiviert, wird versucht:
+Der bestehende Schlüssel bleibt kompatibel erhalten. Wenn aktiviert, wird versucht:
 
 ```text
 navigator.connection.type === "wifi"
 ```
 
 zu erkennen.
+
+Session- und Vereinskontext-Speicher bleiben bewusst unverändert: Sie gehören zu
+G1 beziehungsweise zur späteren Transport-Entflechtung in G15.6.
 
 ### Besonderheit
 Die Network Information API ist nicht in allen Browsern verfügbar.
@@ -9235,7 +9363,7 @@ festgestellte Web-Regressionen, ohne G12–G15 neu zu gestalten.
 | G12 Saison & Jahresabschluss | ✅ G12.1–G12.7 abgeschlossen: Saisonverwaltung, JEA-Status, serverseitige Verbrauchssegmente und Erfassungs-Plausibilitätswarnungen; vollständiger Jahresabschluss bewusst vertagt |
 | G13 Benutzer, Rollen & Rechte | 🟡 Rollen-/Permission-Doppelung, ID-7-Sperre, Einstellungsverwaltung und weitere Service-Auslagerung offen |
 | G14 Vereinskonfiguration & Exporte | 🟡 Datenschutz-/Eich- und Metadatenexporte vorhanden; Sortierung, Sonderfälle, Rechte, Konfigurations-Service und JAE-XLSX offen |
-| G15 Browser-/Systemfunktionen | 🟡 Refresh/PWA/Locks/Fotoqueue umgesetzt; weitere technische Entflechtung optional/offen |
+| G15 Browser-/Systemfunktionen | ✅ G15.1–G15.7 abgeschlossen: PWA, Browser-APIs, Locks, Scanner, Pending Media und Supabase-Transport geprüft |
 
 ## Web-Architektur und verbleibende Entflechtung
 
@@ -9246,12 +9374,13 @@ Fachservices, Datenzugriffe, Fachmodelle und gemeinsamen React-Kontext.
 Ergänzend wurden `lib/supabase` für gemeinsame technische Supabase-Basisfunktionen
 und `lib/browser` für technische Browser-Infrastruktur vorbereitet.
 
-`app/page.tsx` und `lib/supabase-auth.ts` bleiben teilweise
-Übergangsstrukturen; zahlreiche Fachgruppen besitzen bereits eigene Features,
-Services und Repositories. Die pauschale frühere Aussage, es sei noch keine
-Fachgruppe vollständig migriert, gilt nicht mehr. G12-Jahresabschluss bleibt
-gemäß Projektentscheidung als vollständige Browseroberfläche vorerst
-zurückgestellt.
+`app/page.tsx` bleibt teilweise eine Übergangsstruktur; zahlreiche Fachgruppen
+besitzen bereits eigene Features, Services und Repositories.
+`lib/supabase-auth.ts` ist nach G15.6b auf Auth-/Session-/Browserpersistenz-nahe
+Verantwortung begrenzt und stellt keine generischen Datenzugriffsfunktionen
+mehr bereit. Die pauschale frühere Aussage, es sei noch keine Fachgruppe
+vollständig migriert, gilt nicht mehr. G12-Jahresabschluss bleibt gemäß
+Projektentscheidung als vollständige Browseroberfläche vorerst zurückgestellt.
 
 ## G1 aktueller Stand – Vereinsauswahl und Auth
 
@@ -9262,7 +9391,8 @@ Login, OTP/Recovery, Passwortsetzen und Session-Lifecycle sind über Auth-
 Komponenten, Auth-Service/-Repository und `AuthProvider` angebunden.
 `session-service.ts` restauriert Sessions und erneuert Access-Tokens mit dem
 Refresh-Token (G1.9a/b/c). `lib/supabase-auth.ts` stellt weiterhin gemeinsame
-Session-/Workspace-Persistenz und generische Datenzugriffsfunktionen bereit.
+Session-/Workspace-Persistenz und Auth-nahe Funktionen bereit; generische
+Supabase-Datenzugriffsfunktionen liegen in `lib/supabase/`.
 
 ## G4.4 – Pachtvertrag: Fachbasis und Berechtigungsprüfung
 

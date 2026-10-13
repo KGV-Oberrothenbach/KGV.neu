@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import {
   assignParcelRfid,
@@ -28,24 +29,24 @@ const mediumName = (medium: string | null) => normalizeMedium(medium) === "wasse
 const parcelName = (parcel: Pick<RfidParcel, "garten_nr" | "Anlage">) => `${parcel.garten_nr} – ${parcel.Anlage}`;
 const contextParcelName = (context: RfidScanContext) => `${context.garten_nr ?? "–"} – ${context.anlage ?? "–"}`;
 
-export async function listRfidSetupParcels(session: BrowserSession) {
-  return (await listRfidParcels(session)).sort((left, right) => left.garten_nr.localeCompare(right.garten_nr, "de", { numeric: true }) || left.Anlage.localeCompare(right.Anlage, "de"));
+export async function listRfidSetupParcels(club: ClubContext, session: BrowserSession) {
+  return (await listRfidParcels(club, session)).sort((left, right) => left.garten_nr.localeCompare(right.garten_nr, "de", { numeric: true }) || left.Anlage.localeCompare(right.Anlage, "de"));
 }
 
-export async function resolveRfidScanContext(session: BrowserSession, uid: string): Promise<RfidScanResolution> {
+export async function resolveRfidScanContext(club: ClubContext, session: BrowserSession, uid: string): Promise<RfidScanResolution> {
   const normalizedUid = normalizeUid(uid);
   if (!normalizedUid) return { normalizedUid: "", state: "Unknown", context: null, message: "Bitte eine RFID-UID eingeben." };
-  const contexts = await listRfidScanContexts(session);
+  const contexts = await listRfidScanContexts(club, session);
   const context = contexts.filter((item) => normalizeUid(item.rfid_tag_uid ?? "") === normalizedUid).sort((left, right) => Number(Boolean(right.aktiver_zaehler_id)) - Number(Boolean(left.aktiver_zaehler_id)))[0] ?? null;
   if (!context) return { normalizedUid, state: "Unknown", context: null, message: `Für die UID ${normalizedUid} wurde kein RFID-Kontext gefunden.` };
   const state: RfidScanState = context.aktiver_zaehler_id ? "KnownWithActiveMeter" : "KnownWithoutActiveMeter";
   return { normalizedUid, state, context, message: state === "KnownWithActiveMeter" ? `RFID-Kontext für ${contextParcelName(context)} mit aktivem ${mediumName(context.medium).toLowerCase()}zähler geladen.` : `RFID-Kontext für ${contextParcelName(context)} geladen, aktuell jedoch ohne aktiven Zähler.` };
 }
 
-export async function listAvailableRfidMediumOptions(session: BrowserSession, parcelId: number): Promise<RfidMediumOption[]> {
-  const parcel = (await listRfidParcels(session)).find((item) => item.id === parcelId);
+export async function listAvailableRfidMediumOptions(club: ClubContext, session: BrowserSession, parcelId: number): Promise<RfidMediumOption[]> {
+  const parcel = (await listRfidParcels(club, session)).find((item) => item.id === parcelId);
   if (!parcel) return [];
-  const activeMeterMedia = new Set((await listActiveMeterMedia(session, parcelId)).map((item) => normalizeMedium(item.medium)));
+  const activeMeterMedia = new Set((await listActiveMeterMedia(club, session, parcelId)).map((item) => normalizeMedium(item.medium)));
   const hasStrom = parcel.hat_strom || Boolean(normalizeUid(parcel.rfid_strom ?? "")) || activeMeterMedia.has("strom");
   const hasWasser = parcel.hat_wasser || Boolean(normalizeUid(parcel.rfid_wasser ?? "")) || activeMeterMedia.has("wasser");
   const options: RfidMediumOption[] = [];
@@ -54,16 +55,16 @@ export async function listAvailableRfidMediumOptions(session: BrowserSession, pa
   return options.length ? options : [{ key: "strom", displayName: "Strom" }, { key: "wasser", displayName: "Wasser" }];
 }
 
-export async function checkRfidAssignment(session: BrowserSession, parcelId: number, medium: string, uid: string): Promise<RfidAssignmentCheck> {
+export async function checkRfidAssignment(club: ClubContext, session: BrowserSession, parcelId: number, medium: string, uid: string): Promise<RfidAssignmentCheck> {
   const normalizedUid = normalizeUid(uid);
   const normalizedMedium = normalizeMedium(medium);
   if (!parcelId) return { isValid: false, requiresOverwriteConfirmation: false, alreadyAssignedToTarget: false, message: "Bitte zuerst eine Parzelle auswählen.", normalizedUid, currentTargetRfid: "", conflict: null };
   if (!normalizedMedium) return { isValid: false, requiresOverwriteConfirmation: false, alreadyAssignedToTarget: false, message: "Bitte ein gültiges Medium auswählen.", normalizedUid, currentTargetRfid: "", conflict: null };
   if (!normalizedUid) return { isValid: false, requiresOverwriteConfirmation: false, alreadyAssignedToTarget: false, message: "Bitte eine RFID-UID eingeben.", normalizedUid, currentTargetRfid: "", conflict: null };
-  const [parcels, contexts] = await Promise.all([listRfidParcels(session), listRfidScanContexts(session)]);
+  const [parcels, contexts] = await Promise.all([listRfidParcels(club, session), listRfidScanContexts(club, session)]);
   const parcel = parcels.find((item) => item.id === parcelId);
   if (!parcel) return { isValid: false, requiresOverwriteConfirmation: false, alreadyAssignedToTarget: false, message: "Die gewählte Parzelle konnte nicht geladen werden.", normalizedUid, currentTargetRfid: "", conflict: null };
-  const options = await listAvailableRfidMediumOptions(session, parcelId);
+  const options = await listAvailableRfidMediumOptions(club, session, parcelId);
   if (!options.some((item) => item.key === normalizedMedium)) return { isValid: false, requiresOverwriteConfirmation: false, alreadyAssignedToTarget: false, message: "Das gewählte Medium ist für diese Parzelle aktuell nicht auswählbar.", normalizedUid, currentTargetRfid: "", conflict: null };
   const conflict = contexts.find((item) => normalizeUid(item.rfid_tag_uid ?? "") === normalizedUid && (item.parzelle_id !== parcelId || normalizeMedium(item.medium) !== normalizedMedium)) ?? null;
   if (conflict) return { isValid: false, requiresOverwriteConfirmation: false, alreadyAssignedToTarget: false, message: `Die UID ${normalizedUid} ist bereits bei ${contextParcelName(conflict)} für ${mediumName(conflict.medium)} hinterlegt.`, normalizedUid, currentTargetRfid: "", conflict };
@@ -73,11 +74,11 @@ export async function checkRfidAssignment(session: BrowserSession, parcelId: num
   return { isValid: true, requiresOverwriteConfirmation: false, alreadyAssignedToTarget: false, message: `Prüfung erfolgreich. Die UID ${normalizedUid} kann für ${mediumName(normalizedMedium)} bei ${parcelName(parcel)} gespeichert werden.`, normalizedUid, currentTargetRfid: "", conflict: null };
 }
 
-export async function assignRfid(session: BrowserSession, parcelId: number, medium: string, uid: string, overwriteExisting = false): Promise<RfidAssignmentResult> {
-  const check = await checkRfidAssignment(session, parcelId, medium, uid);
+export async function assignRfid(club: ClubContext, session: BrowserSession, parcelId: number, medium: string, uid: string, overwriteExisting = false): Promise<RfidAssignmentResult> {
+  const check = await checkRfidAssignment(club, session, parcelId, medium, uid);
   if (!check.isValid) return { success: false, requiresOverwriteConfirmation: false, message: check.message, normalizedUid: check.normalizedUid };
   if (check.requiresOverwriteConfirmation && !overwriteExisting) return { success: false, requiresOverwriteConfirmation: true, message: check.message, normalizedUid: check.normalizedUid };
   if (check.alreadyAssignedToTarget) return { success: true, requiresOverwriteConfirmation: false, message: check.message, normalizedUid: check.normalizedUid };
-  await assignParcelRfid(session, parcelId, normalizeMedium(medium)!, check.normalizedUid);
+  await assignParcelRfid(club, session, parcelId, normalizeMedium(medium)!, check.normalizedUid);
   return { success: true, requiresOverwriteConfirmation: false, message: `Die RFID ${check.normalizedUid} wurde für ${mediumName(medium)} gespeichert.`, normalizedUid: check.normalizedUid };
 }

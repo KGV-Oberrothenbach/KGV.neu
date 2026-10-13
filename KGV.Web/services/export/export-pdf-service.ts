@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import type { ExportColumn } from "../../models/export/export-column";
 import type { ExportResult } from "../../models/export/export-result";
@@ -20,10 +21,10 @@ function createPdf(lines: string[]) {
   return new Blob([pdf], { type: "application/pdf" });
 }
 
-export async function downloadExportPdf(session: BrowserSession, fileName: string, result: ExportResult, columns: ExportColumn[]) {
+export async function downloadExportPdf(club: ClubContext, session: BrowserSession, fileName: string, result: ExportResult, columns: ExportColumn[]) {
   if (!result.definition.erlaubt_pdf) throw new Error("PDF-Ausgabe ist für diesen Export nicht erlaubt.");
-  const { draft } = await loadClubConfiguration(session); const club = [draft.vereinsname, draft.registerangabe, draft.standard_email ? `E-Mail: ${draft.standard_email}` : "", [draft.strasse, [draft.plz, draft.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ")].filter((value): value is string => Boolean(value));
+  const { draft } = await loadClubConfiguration(club, session); const clubHeader = [draft.vereinsname, draft.registerangabe, draft.standard_email ? `E-Mail: ${draft.standard_email}` : "", [draft.strasse, [draft.plz, draft.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ")].filter((value): value is string => Boolean(value));
   const header = columns.map(exportColumnLabel).join(" | ");
-  const lines = [...club, "", result.definition.titel ?? result.definition.export_key, `Stand: ${new Date().toLocaleDateString("de-DE")}`, "", header, ...result.rows.map((row) => columns.map((column) => formatExportValue(row[column.column_key])).join(" | "))];
+  const lines = [...clubHeader, "", result.definition.titel ?? result.definition.export_key, `Stand: ${new Date().toLocaleDateString("de-DE")}`, "", header, ...result.rows.map((row) => columns.map((column) => formatExportValue(row[column.column_key])).join(" | "))];
   const url = URL.createObjectURL(createPdf(lines)); const link = document.createElement("a"); link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url);
 }

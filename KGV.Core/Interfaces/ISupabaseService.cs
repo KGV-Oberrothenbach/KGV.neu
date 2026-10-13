@@ -212,8 +212,9 @@ namespace KGV.Core.Interfaces
         // RFID
         Task<List<RfidScanContextRecord>> GetRfidScanContextRecordsAsync();
         Task<List<ArbeitseinsatzRecord>> GetArbeitseinsaetzeVerwaltungAsync();
-        Task<BrowserEditLockResult> AcquireBrowserEditLockAsync(string entityType, long entityId, int timeoutSeconds = 600);
-        Task ReleaseBrowserEditLockAsync(string entityType, long entityId);
+        Task<BrowserEditLockResult> AcquireBrowserEditLockAsync(string entityType, long entityId, Guid clientInstanceId, int timeoutSeconds = 600);
+        Task ReleaseBrowserEditLockAsync(string entityType, long entityId, Guid clientInstanceId);
+        Task ReleaseAllBrowserEditLocksAsync(Guid clientInstanceId);
         Task<ArbeitseinsatzRecord?> CreateArbeitseinsatzAsync(ArbeitseinsatzInsertRecord request);
         Task<bool> UpdateArbeitseinsatzAsync(ArbeitseinsatzRecord record);
         Task<bool> DeleteArbeitseinsatzAsync(long id);

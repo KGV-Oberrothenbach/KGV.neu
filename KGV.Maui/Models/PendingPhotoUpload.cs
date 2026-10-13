@@ -19,6 +19,12 @@ public sealed class PendingPhotoUpload
     /// </summary>
     public Guid VereinId { get; init; }
 
+    /// <summary>
+    /// Authentifizierter Erzeuger des Fotos. Ein fehlender Wert kennzeichnet
+    /// Legacy-Daten und wird niemals automatisch einem Benutzer zugeordnet.
+    /// </summary>
+    public Guid? OwnerUserId { get; init; }
+
     public string OperationType { get; init; } = string.Empty;
     public string Parzelle { get; init; } = string.Empty;
     public string Medium { get; init; } = string.Empty;

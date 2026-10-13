@@ -1,4 +1,8 @@
-import { callSupabaseRpc, type BrowserSession, readSupabase, writeSupabase } from "../../lib/supabase-auth";
+import { readSupabaseRest } from "../../lib/supabase/rest-client";
+import { writeWithBrowserEditLock } from "../../services/concurrency/edit-lock-service";
+import { callSupabaseRpc } from "../../lib/supabase/rpc-client";
+import type { ClubContext } from "../../models/auth/club";
+import { type BrowserSession } from "../../lib/supabase-auth";
 import { type WorkHour, type WorkHourHistory, type WorkHoursSummary } from "../../features/work-hours/work-hours-types";
 
 export type HomeWorkHoursSummary = WorkHoursSummary;
@@ -41,7 +45,7 @@ export type WorkHourReviewPayload = {
   workType?: string;
 };
 
-export const listMemberWorkHoursForSeason = (session: BrowserSession, memberId: number, saisonId: number) => readSupabase<WorkHour>(session, "arbeitsstunde", {
+export const listMemberWorkHoursForSeason = (club: ClubContext, session: BrowserSession, memberId: number, saisonId: number) => readSupabaseRest<WorkHour>({ club, session }, "arbeitsstunde", {
   select: workHourSelect,
   mitglied_id: `eq.${memberId}`,
   saison_id: `eq.${saisonId}`,
@@ -49,22 +53,22 @@ export const listMemberWorkHoursForSeason = (session: BrowserSession, memberId: 
   limit: "500",
 });
 
-export const listWorkHoursForReview = (session: BrowserSession, saisonId: number) => readSupabase<WorkHour>(session, "arbeitsstunde", {
+export const listWorkHoursForReview = (club: ClubContext, session: BrowserSession, saisonId: number) => readSupabaseRest<WorkHour>({ club, session }, "arbeitsstunde", {
   select: workHourSelect,
   saison_id: `eq.${saisonId}`,
   order: "datum.desc,id.desc",
   limit: "1000",
 });
 
-export const createOwnOpenWorkHour = (session: BrowserSession, payload: OwnOpenWorkHourCreate) => writeSupabase<WorkHour>(session, "arbeitsstunde", "POST", payload);
+export const createOwnOpenWorkHour = (club: ClubContext, session: BrowserSession, payload: OwnOpenWorkHourCreate) => writeWithBrowserEditLock<WorkHour>({ club, session }, "arbeitsstunde", "POST", payload);
 
-export const createAdministrativeWorkHour = (session: BrowserSession, payload: AdministrativeWorkHourCreate) => writeSupabase<WorkHour>(session, "arbeitsstunde", "POST", payload);
+export const createAdministrativeWorkHour = (club: ClubContext, session: BrowserSession, payload: AdministrativeWorkHourCreate) => writeWithBrowserEditLock<WorkHour>({ club, session }, "arbeitsstunde", "POST", payload);
 
-export const updateOwnOpenWorkHour = (session: BrowserSession, workHourId: number, payload: OwnOpenWorkHourUpdate) => writeSupabase<WorkHour>(session, "arbeitsstunde", "PATCH", payload, {
+export const updateOwnOpenWorkHour = (club: ClubContext, session: BrowserSession, workHourId: number, payload: OwnOpenWorkHourUpdate) => writeWithBrowserEditLock<WorkHour>({ club, session }, "arbeitsstunde", "PATCH", payload, {
   id: `eq.${workHourId}`,
 });
 
-export const reviewWorkHour = (session: BrowserSession, payload: WorkHourReviewPayload) => callSupabaseRpc<unknown>(session, "review_arbeitsstunde", {
+export const reviewWorkHour = (club: ClubContext, session: BrowserSession, payload: WorkHourReviewPayload) => callSupabaseRpc<unknown>({ club, session }, "review_arbeitsstunde", {
   p_arbeitsstunde_id: payload.workHourId,
   p_aktion: payload.action,
   p_begruendung: payload.comment,
@@ -73,12 +77,12 @@ export const reviewWorkHour = (session: BrowserSession, payload: WorkHourReviewP
   p_art_der_arbeit: payload.workType ?? null,
 });
 
-export const getLinkedWorkHour = (session: BrowserSession, registrationId: number) => readSupabase<WorkHour>(session, "arbeitsstunde", { select: workHourSelect, arbeitseinsatz_anmeldung_id: `eq.${registrationId}`, limit: "1" }).then((rows) => rows[0] ?? null);
-export const submitWorkAssignmentWorkHour = (session: BrowserSession, registrationId: number, hours: number, workType: string) => callSupabaseRpc<WorkHour>(session, "submit_arbeitseinsatz_arbeitsstunde", { p_arbeitseinsatz_anmeldung_id: registrationId, p_stunden: hours, p_art_der_arbeit: workType });
-export const confirmWorkAssignmentWorkHour = (session: BrowserSession, registrationId: number, hours: number, workType: string) => callSupabaseRpc<WorkHour>(session, "confirm_arbeitseinsatz_arbeitsstunde", { p_arbeitseinsatz_anmeldung_id: registrationId, p_stunden: hours, p_art_der_arbeit: workType });
+export const getLinkedWorkHour = (club: ClubContext, session: BrowserSession, registrationId: number) => readSupabaseRest<WorkHour>({ club, session }, "arbeitsstunde", { select: workHourSelect, arbeitseinsatz_anmeldung_id: `eq.${registrationId}`, limit: "1" }).then((rows) => rows[0] ?? null);
+export const submitWorkAssignmentWorkHour = (club: ClubContext, session: BrowserSession, registrationId: number, hours: number, workType: string) => callSupabaseRpc<WorkHour>({ club, session }, "submit_arbeitseinsatz_arbeitsstunde", { p_arbeitseinsatz_anmeldung_id: registrationId, p_stunden: hours, p_art_der_arbeit: workType });
+export const confirmWorkAssignmentWorkHour = (club: ClubContext, session: BrowserSession, registrationId: number, hours: number, workType: string) => callSupabaseRpc<WorkHour>({ club, session }, "confirm_arbeitseinsatz_arbeitsstunde", { p_arbeitseinsatz_anmeldung_id: registrationId, p_stunden: hours, p_art_der_arbeit: workType });
 
-export const listWorkHourHistory = (session: BrowserSession, workHourIds: number[]) => workHourIds.length
-  ? readSupabase<WorkHourHistory>(session, "arbeitsstunde_pruefverlauf", {
+export const listWorkHourHistory = (club: ClubContext, session: BrowserSession, workHourIds: number[]) => workHourIds.length
+  ? readSupabaseRest<WorkHourHistory>({ club, session }, "arbeitsstunde_pruefverlauf", {
     select: workHourHistorySelect,
     arbeitsstunde_id: `in.(${workHourIds.join(",")})`,
     order: "geprueft_am.desc,id.desc",
@@ -86,14 +90,14 @@ export const listWorkHourHistory = (session: BrowserSession, workHourIds: number
   })
   : Promise.resolve([] as WorkHourHistory[]);
 
-export const getWorkHoursSummary = (session: BrowserSession, memberId: number, saisonId: number) => readSupabase<WorkHoursSummary>(session, "v_pflichtstunden_uebersicht", {
+export const getWorkHoursSummary = (club: ClubContext, session: BrowserSession, memberId: number, saisonId: number) => readSupabaseRest<WorkHoursSummary>({ club, session }, "v_pflichtstunden_uebersicht", {
   select: summarySelect,
   mitglied_id: `eq.${memberId}`,
   saison_id: `eq.${saisonId}`,
   limit: "1",
 }).then((rows) => rows[0] ?? null);
 
-export const getHomeWorkHours = (session: BrowserSession, memberId: number, saisonId: number | null, season: number) => readSupabase<HomeWorkHoursSummary>(session, "v_pflichtstunden_uebersicht", {
+export const getHomeWorkHours = (club: ClubContext, session: BrowserSession, memberId: number, saisonId: number | null, season: number) => readSupabaseRest<HomeWorkHoursSummary>({ club, session }, "v_pflichtstunden_uebersicht", {
   select: summarySelect,
   hauptmitglied_id: `eq.${memberId}`,
   ...(saisonId ? { saison_id: `eq.${saisonId}` } : { saison_jahr: `eq.${season}` }),

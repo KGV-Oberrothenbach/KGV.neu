@@ -1,4 +1,5 @@
 "use client";
+import { useSelectedClub } from "../auth/AuthProvider";
 
 import { useEffect, useState } from "react";
 import { type BrowserSession } from "../../lib/supabase-auth";
@@ -9,6 +10,7 @@ import { type WorkHour, type WorkHourHistory } from "./work-hours-types";
 const formatDate = (value: string) => value ? new Intl.DateTimeFormat("de-DE").format(new Date(`${value.slice(0, 10)}T00:00:00`)) : "–";
 
 export function WorkHoursReview({ session, saisonId, canManageWorkHours }: { session: BrowserSession; saisonId: number | null; canManageWorkHours: boolean }) {
+  const club = useSelectedClub();
   const [items, setItems] = useState<WorkHour[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [comment, setComment] = useState("");
@@ -31,16 +33,16 @@ export function WorkHoursReview({ session, saisonId, canManageWorkHours }: { ses
     if (!saisonId) {
       void Promise.resolve().then(() => update([]));
     } else {
-      void loadWorkHoursReview(session, saisonId).then(update).catch((cause: Error) => {
+      void loadWorkHoursReview(club, session, saisonId).then(update).catch((cause: Error) => {
         if (active) setError(cause.message);
       });
     }
     return () => { active = false; };
-  }, [saisonId, session]);
+  }, [saisonId, session, club]);
 
   const open = items.filter((item) => !item.freigegeben && item.status !== "abgelehnt");
   const selected = open.find((item) => item.id === selectedId) ?? null;
-  const editLock = useEditLock(session, "arbeitsstunde", selected?.id, Boolean(selected));
+  const editLock = useEditLock(club, session, "arbeitsstunde", selected?.id, Boolean(selected));
 
   useEffect(() => {
     if (!selected) return;
@@ -51,15 +53,15 @@ export function WorkHoursReview({ session, saisonId, canManageWorkHours }: { ses
       setDate(selected.datum?.slice(0, 10) ?? "");
       setWorkType(selected.art_der_arbeit);
     });
-    void loadWorkHourHistory(session, selected.id).then((next) => { if (active) setHistory(next); }).catch(() => { if (active) setHistory([]); });
+    void loadWorkHourHistory(club, session, selected.id).then((next) => { if (active) setHistory(next); }).catch(() => { if (active) setHistory([]); });
     return () => { active = false; };
-  }, [selected, session]);
+  }, [selected, session, club]);
   useEffect(() => { if (editLock.message) queueMicrotask(() => setError(editLock.message)); }, [editLock.message]);
 
   async function reload() {
     if (!saisonId) { setItems([]); return; }
     try {
-      setItems(await loadWorkHoursReview(session, saisonId));
+      setItems(await loadWorkHoursReview(club, session, saisonId));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Arbeitsstunden konnten nicht geladen werden.");
     }
@@ -76,7 +78,7 @@ export function WorkHoursReview({ session, saisonId, canManageWorkHours }: { ses
     setSaving(true);
     setError("");
     try {
-      await reviewOpenWorkHour(session, canManageWorkHours, selected, { action, comment, date, hours: correctedHours, workType });
+      await reviewOpenWorkHour(club, session, canManageWorkHours, selected, { action, comment, date, hours: correctedHours, workType });
       setComment("");
       setSelectedId(null);
       await reload();

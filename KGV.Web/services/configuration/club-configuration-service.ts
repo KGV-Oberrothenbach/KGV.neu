@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { clubConfigurationDraft, emptyClubConfiguration, type ClubConfigurationDraft, type ClubConfigurationRecord } from "../../models/configuration/club-configuration";
 import { createClubConfiguration, getActiveClubConfiguration, updateClubConfiguration } from "../../repositories/configuration/club-configuration-repository";
@@ -33,5 +34,5 @@ export function normalizeAndValidateClubConfiguration(draft: ClubConfigurationDr
   const { id: _id, ...payload } = normalized;
   return { payload: { ...payload, aktiv: true } };
 }
-export async function loadClubConfiguration(session: BrowserSession): Promise<{ draft: ClubConfigurationDraft; exists: boolean }> { const record = await getActiveClubConfiguration(session); return record ? { draft: clubConfigurationDraft(record), exists: true } : { draft: emptyClubConfiguration(), exists: false }; }
-export async function saveClubConfiguration(session: BrowserSession, draft: ClubConfigurationDraft): Promise<ClubConfigurationRecord> { const validation = normalizeAndValidateClubConfiguration(draft); if (!validation.payload) throw new Error(validation.error ?? "Vereinskonfiguration ist ungültig."); const rows = draft.id === null ? await createClubConfiguration(session, validation.payload) : await updateClubConfiguration(session, draft.id, validation.payload); if (!rows[0]) throw new Error("Vereinskonfiguration wurde nicht gespeichert."); return rows[0]; }
+export async function loadClubConfiguration(club: ClubContext, session: BrowserSession): Promise<{ draft: ClubConfigurationDraft; exists: boolean }> { const record = await getActiveClubConfiguration(club, session); return record ? { draft: clubConfigurationDraft(record), exists: true } : { draft: emptyClubConfiguration(), exists: false }; }
+export async function saveClubConfiguration(club: ClubContext, session: BrowserSession, draft: ClubConfigurationDraft): Promise<ClubConfigurationRecord> { const validation = normalizeAndValidateClubConfiguration(draft); if (!validation.payload) throw new Error(validation.error ?? "Vereinskonfiguration ist ungültig."); const rows = draft.id === null ? await createClubConfiguration(club, session, validation.payload) : await updateClubConfiguration(club, session, draft.id, validation.payload); if (!rows[0]) throw new Error("Vereinskonfiguration wurde nicht gespeichert."); return rows[0]; }

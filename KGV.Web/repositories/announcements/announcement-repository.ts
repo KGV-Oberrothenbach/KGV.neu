@@ -1,7 +1,10 @@
-import { type BrowserSession, readSupabase, writeSupabase } from "../../lib/supabase-auth";
+import { readSupabaseRest } from "../../lib/supabase/rest-client";
+import { writeWithBrowserEditLock } from "../../services/concurrency/edit-lock-service";
+import type { ClubContext } from "../../models/auth/club";
+import { type BrowserSession } from "../../lib/supabase-auth";
 import { type Announcement } from "../../models/announcements/announcement";
 export type HomeAnnouncement = { id: number; titel: string | null; inhalt_html: string | null; sichtbar_ab: string | null; sichtbar_bis: string | null; sort_order: number | null; created_at: string | null };
-export const listHomeAnnouncements = (session: BrowserSession) => readSupabase<HomeAnnouncement>(session, "v_startseite_bekanntmachungen", { select: "id,titel,inhalt_html,sichtbar_ab,sichtbar_bis,sort_order,created_at", order: "sort_order.asc.nullslast,created_at.desc.nullslast,id.desc", limit: "30" });
-export const listManagementAnnouncements = (session: BrowserSession) => readSupabase<Announcement>(session, "bekanntmachung", { select: "id,titel,inhalt_html,sichtbar_ab,sichtbar_bis,sort_order,aktiv", order: "sort_order.asc", limit: "500" });
-export const createAnnouncement = (session: BrowserSession, payload: Omit<Announcement, "id">) => writeSupabase<Announcement>(session, "bekanntmachung", "POST", { ...payload, is_demo: session.isDemoAccount });
-export const updateAnnouncement = (session: BrowserSession, id: number, payload: Omit<Announcement, "id"> | Partial<Pick<Announcement, "aktiv">>) => writeSupabase<Announcement>(session, "bekanntmachung", "PATCH", payload, { id: `eq.${id}` });
+export const listHomeAnnouncements = (club: ClubContext, session: BrowserSession) => readSupabaseRest<HomeAnnouncement>({ club, session }, "v_startseite_bekanntmachungen", { select: "id,titel,inhalt_html,sichtbar_ab,sichtbar_bis,sort_order,created_at", order: "sort_order.asc.nullslast,created_at.desc.nullslast,id.desc", limit: "30" });
+export const listManagementAnnouncements = (club: ClubContext, session: BrowserSession) => readSupabaseRest<Announcement>({ club, session }, "bekanntmachung", { select: "id,titel,inhalt_html,sichtbar_ab,sichtbar_bis,sort_order,aktiv", order: "sort_order.asc", limit: "500" });
+export const createAnnouncement = (club: ClubContext, session: BrowserSession, payload: Omit<Announcement, "id">) => writeWithBrowserEditLock<Announcement>({ club, session }, "bekanntmachung", "POST", { ...payload, is_demo: session.isDemoAccount });
+export const updateAnnouncement = (club: ClubContext, session: BrowserSession, id: number, payload: Omit<Announcement, "id"> | Partial<Pick<Announcement, "aktiv">>) => writeWithBrowserEditLock<Announcement>({ club, session }, "bekanntmachung", "PATCH", payload, { id: `eq.${id}` });

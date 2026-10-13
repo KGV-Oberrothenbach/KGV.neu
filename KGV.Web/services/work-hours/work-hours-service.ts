@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import {
   createAdministrativeWorkHour,
@@ -29,11 +30,11 @@ export const isOwnOpenWorkHourEditable = (workHour: WorkHour, memberId: number) 
   && workHour.status === "offen"
   && workHour.freigegeben === false;
 
-export async function createOwnWorkHour(session: BrowserSession, memberId: number, saisonId: number | null, input: OwnWorkHourInput) {
+export async function createOwnWorkHour(club: ClubContext, session: BrowserSession, memberId: number, saisonId: number | null, input: OwnWorkHourInput) {
   if (!Number.isInteger(memberId) || memberId <= 0) throw new Error("Für die Arbeitsstunde fehlt der Mitgliedskontext.");
   if (saisonId === null || !Number.isInteger(saisonId) || saisonId <= 0) throw new Error("Für die Arbeitsstunde fehlt die Saison.");
   validateOwnWorkHourInput(input);
-  const created = await createOwnOpenWorkHour(session, {
+  const created = await createOwnOpenWorkHour(club, session, {
     mitglied_id: memberId,
     saison_id: saisonId,
     datum: input.date,
@@ -48,12 +49,12 @@ export async function createOwnWorkHour(session: BrowserSession, memberId: numbe
   return created[0];
 }
 
-export async function createAdministrativeWorkHourEntry(session: BrowserSession, canManageWorkHours: boolean, memberId: number, saisonId: number | null, input: OwnWorkHourInput) {
+export async function createAdministrativeWorkHourEntry(club: ClubContext, session: BrowserSession, canManageWorkHours: boolean, memberId: number, saisonId: number | null, input: OwnWorkHourInput) {
   if (!canManageWorkHours) throw new Error("Für die administrative Arbeitsstundenerfassung fehlt ManageWorkHours.");
   if (!Number.isInteger(memberId) || memberId <= 0) throw new Error("Für die Arbeitsstunde fehlt der Mitgliedskontext.");
   if (saisonId === null || !Number.isInteger(saisonId) || saisonId <= 0) throw new Error("Für die Arbeitsstunde fehlt die Saison.");
   validateOwnWorkHourInput(input);
-  const created = await createAdministrativeWorkHour(session, {
+  const created = await createAdministrativeWorkHour(club, session, {
     mitglied_id: memberId,
     saison_id: saisonId,
     datum: input.date,
@@ -66,10 +67,10 @@ export async function createAdministrativeWorkHourEntry(session: BrowserSession,
   return created[0];
 }
 
-export async function updateOwnWorkHour(session: BrowserSession, workHour: WorkHour | undefined, memberId: number, input: OwnWorkHourInput) {
+export async function updateOwnWorkHour(club: ClubContext, session: BrowserSession, workHour: WorkHour | undefined, memberId: number, input: OwnWorkHourInput) {
   if (!workHour || !isOwnOpenWorkHourEditable(workHour, memberId)) throw new Error("Nur eigene offene Arbeitsstunden können bearbeitet werden.");
   validateOwnWorkHourInput(input);
-  const updated = await updateOwnOpenWorkHour(session, workHour.id, {
+  const updated = await updateOwnOpenWorkHour(club, session, workHour.id, {
     datum: input.date,
     stunden: input.hours,
     art_der_arbeit: input.workType.trim(),
@@ -78,12 +79,12 @@ export async function updateOwnWorkHour(session: BrowserSession, workHour: WorkH
   return updated[0];
 }
 
-export async function reviewOpenWorkHour(session: BrowserSession, canManageWorkHours: boolean, workHour: WorkHour | undefined, input: WorkHourReviewInput) {
+export async function reviewOpenWorkHour(club: ClubContext, session: BrowserSession, canManageWorkHours: boolean, workHour: WorkHour | undefined, input: WorkHourReviewInput) {
   if (!canManageWorkHours) throw new Error("Für die Prüfung fehlt ManageWorkHours.");
   if (!workHour || workHour.status !== "offen" || workHour.freigegeben !== false) throw new Error("Diese Arbeitsstunde ist nicht mehr prüfbar.");
   if (!input.comment.trim()) throw new Error("Für jede Prüfaktion ist eine Begründung erforderlich.");
   if (input.action === "korrigieren") validateOwnWorkHourInput(input);
-  await reviewWorkHour(session, {
+  await reviewWorkHour(club, session, {
     workHourId: workHour.id,
     action: input.action,
     comment: input.comment.trim(),
@@ -91,20 +92,20 @@ export async function reviewOpenWorkHour(session: BrowserSession, canManageWorkH
   });
 }
 
-export async function loadMemberWorkHoursWorkspace(session: BrowserSession, memberId: number, saisonId: number) {
+export async function loadMemberWorkHoursWorkspace(club: ClubContext, session: BrowserSession, memberId: number, saisonId: number) {
   const [workHours, summary] = await Promise.all([
-    listMemberWorkHoursForSeason(session, memberId, saisonId),
-    getWorkHoursSummary(session, memberId, saisonId),
+    listMemberWorkHoursForSeason(club, session, memberId, saisonId),
+    getWorkHoursSummary(club, session, memberId, saisonId),
   ]);
-  const history = await listWorkHourHistory(session, workHours.map((item) => item.id));
+  const history = await listWorkHourHistory(club, session, workHours.map((item) => item.id));
   return { workHours, summary, history };
 }
 
-export const loadWorkHoursReview = (session: BrowserSession, saisonId: number) => listWorkHoursForReview(session, saisonId);
-export const loadLinkedWorkAssignmentWorkHour = (session: BrowserSession, registrationId: number) => getLinkedWorkHour(session, registrationId);
-export const submitLinkedWorkAssignmentWorkHour = (session: BrowserSession, registrationId: number, hours: number, workType: string) => submitWorkAssignmentWorkHour(session, registrationId, hours, workType);
-export const confirmLinkedWorkAssignmentWorkHour = (session: BrowserSession, registrationId: number, hours: number, workType: string) => confirmWorkAssignmentWorkHour(session, registrationId, hours, workType);
+export const loadWorkHoursReview = (club: ClubContext, session: BrowserSession, saisonId: number) => listWorkHoursForReview(club, session, saisonId);
+export const loadLinkedWorkAssignmentWorkHour = (club: ClubContext, session: BrowserSession, registrationId: number) => getLinkedWorkHour(club, session, registrationId);
+export const submitLinkedWorkAssignmentWorkHour = (club: ClubContext, session: BrowserSession, registrationId: number, hours: number, workType: string) => submitWorkAssignmentWorkHour(club, session, registrationId, hours, workType);
+export const confirmLinkedWorkAssignmentWorkHour = (club: ClubContext, session: BrowserSession, registrationId: number, hours: number, workType: string) => confirmWorkAssignmentWorkHour(club, session, registrationId, hours, workType);
 
-export async function loadWorkHourHistory(session: BrowserSession, workHourId: number) {
-  return listWorkHourHistory(session, [workHourId]);
+export async function loadWorkHourHistory(club: ClubContext, session: BrowserSession, workHourId: number) {
+  return listWorkHourHistory(club, session, [workHourId]);
 }

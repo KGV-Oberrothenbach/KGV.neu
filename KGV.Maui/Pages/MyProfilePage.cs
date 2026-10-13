@@ -1,6 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Maui.State;
+using KGV.Maui.Services.PendingPhotos;
 using Microsoft.Maui;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
@@ -19,6 +20,8 @@ public sealed class MyProfilePage : ContentPage
     private readonly ISupabaseService _supabaseService;
     private readonly IAuthService _authService;
     private readonly UserContextState _state;
+    private readonly PendingPhotoQueue _pendingPhotoQueue;
+    private readonly IVereinskontext _vereinskontext;
 
     private MitgliedRecord? _member;
     private bool _loaded;
@@ -47,11 +50,13 @@ public sealed class MyProfilePage : ContentPage
     private bool _isAuthBusy;
     private bool _isEmailOtpRequested;
 
-    public MyProfilePage(ISupabaseService supabaseService, IAuthService authService, UserContextState state)
+    public MyProfilePage(ISupabaseService supabaseService, IAuthService authService, UserContextState state, PendingPhotoQueue pendingPhotoQueue, IVereinskontext vereinskontext)
     {
         _supabaseService = supabaseService;
         _authService = authService;
         _state = state;
+        _pendingPhotoQueue = pendingPhotoQueue;
+        _vereinskontext = vereinskontext;
 
         Title = "Meine Stammdaten";
 
@@ -434,9 +439,17 @@ public sealed class MyProfilePage : ContentPage
 
     private async Task ChangeClubAsync()
     {
+        var vereinId = _vereinskontext.Aktuell?.VereinId;
+        var ownerUserId = _state.CurrentUserId;
+        var pendingPhotoCount = vereinId.HasValue && ownerUserId.HasValue
+            ? _pendingPhotoQueue.CountOpenForOwner(vereinId.Value, ownerUserId.Value)
+            : 0;
+        var pendingPhotoHint = pendingPhotoCount > 0
+            ? $"\n\nEs gibt noch {pendingPhotoCount} eigene lokale Foto-Upload{(pendingPhotoCount == 1 ? string.Empty : "s")}. Sie bleiben diesem Benutzer und Verein zugeordnet, werden nach dem Wechsel aber nicht automatisch hochgeladen."
+            : string.Empty;
         var confirmed = await DisplayAlertAsync(
             "Verein wechseln",
-            "Du wirst abgemeldet. Die Vereinszuordnung und lokale Anmeldedaten werden auf diesem Gerät gelöscht. Danach die App erneut öffnen und die neue Vereins-ID eingeben.",
+            "Du wirst abgemeldet. Die Vereinszuordnung und lokale Anmeldedaten werden auf diesem Gerät gelöscht. Danach die App erneut öffnen und die neue Vereins-ID eingeben." + pendingPhotoHint,
             "Abmelden und wechseln",
             "Abbrechen");
         if (confirmed && Application.Current is App app)

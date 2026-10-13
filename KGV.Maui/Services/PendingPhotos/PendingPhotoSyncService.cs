@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Maui.Models;
+using KGV.Maui.State;
 
 namespace KGV.Maui.Services.PendingPhotos;
 
@@ -13,18 +14,27 @@ public sealed class PendingPhotoSyncService
     private readonly PendingPhotoService _pendingPhotoService;
     private readonly IPhotoUploadTestService _uploadService;
     private readonly IVereinskontext _vereinskontext;
+    private readonly UserContextState _userContextState;
 
     public PendingPhotoSyncService(
         PendingPhotoQueue queue,
         PendingPhotoService pendingPhotoService,
         IPhotoUploadTestService uploadService,
-        IVereinskontext vereinskontext)
+        IVereinskontext vereinskontext,
+        UserContextState userContextState)
     {
         _queue = queue;
         _pendingPhotoService = pendingPhotoService;
         _uploadService = uploadService;
         _vereinskontext = vereinskontext;
+        _userContextState = userContextState;
     }
+
+    public bool IsInFlight(Guid id) => InFlight.ContainsKey(id);
+
+    public bool TryReserveForDeletion(Guid id) => InFlight.TryAdd(id, 0);
+
+    public void ReleaseDeletionReservation(Guid id) => InFlight.TryRemove(id, out _);
 
     private static string MapUploadKind(string operationType)
     {
@@ -55,6 +65,13 @@ public sealed class PendingPhotoSyncService
             return result;
         }
 
+        var ownerUserId = _userContextState.CurrentUserId;
+        if (!ownerUserId.HasValue)
+        {
+            result.SkippedReason = "Kein angemeldeter Benutzer.";
+            return result;
+        }
+
         if (!PendingPhotoUploadDecision.CanUploadNow(out var reason))
         {
             result.SkippedReason = reason;
@@ -62,11 +79,8 @@ public sealed class PendingPhotoSyncService
         }
 
         var items = _queue
-            .GetAll()
-            // Alt-Einträge ohne Vereins-ID und Einträge anderer Vereine dürfen niemals
-            // in das aktuell angemeldete Vereins-Backend hochgeladen werden.
-            .Where(x => x.VereinId == vereinId.Value)
-            .Where(x => x.Status is PendingPhotoUploadStatus.Pending or PendingPhotoUploadStatus.Failed)
+            .GetForOwner(vereinId.Value, ownerUserId.Value)
+            .Where(x => x.Status is PendingPhotoUploadStatus.Pending or PendingPhotoUploadStatus.Failed or PendingPhotoUploadStatus.Uploading)
             .OrderBy(x => x.CreatedAtUtc)
             .ToList();
 
@@ -89,9 +103,8 @@ public sealed class PendingPhotoSyncService
                     continue;
                 }
 
-                if (latest.Status == PendingPhotoUploadStatus.Uploading)
+                if (latest.VereinId != vereinId.Value || latest.OwnerUserId != ownerUserId.Value)
                 {
-                    result.AlreadyInFlight++;
                     continue;
                 }
 

@@ -23,12 +23,18 @@ const noFlagTables = [
   "zaehler_ablesung",
 ];
 
-async function loadTypeScriptModule(path) {
+async function transpile(path) {
   const source = await readFile(new URL(path, import.meta.url), "utf8");
   const { outputText } = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
   });
-  return `data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`;
+  return outputText;
+}
+
+async function loadRestClient() {
+  const clientContext = await transpile("./supabase/client-context.ts");
+  const restClient = (await transpile("./supabase/rest-client.ts")).replace(/^import .*?;\r?\n/m, "");
+  return import(`data:text/javascript;base64,${Buffer.from(`${clientContext}\n${restClient}`).toString("base64")}`);
 }
 
 function rowHasIsDemo(types, table) {
@@ -37,8 +43,8 @@ function rowHasIsDemo(types, table) {
 }
 
 test("demo-scoped tables have their own schema is_demo column", async () => {
-  const authSource = await readFile(new URL("./supabase-auth.ts", import.meta.url), "utf8");
-  const catalog = authSource.match(/const demoScopedTables = new Set\(\[([\s\S]*?)\]\);/)?.[1]
+  const restSource = await readFile(new URL("./supabase/rest-client.ts", import.meta.url), "utf8");
+  const catalog = restSource.match(/export const demoScopedTables = new Set\(\[([\s\S]*?)\]\);/)?.[1]
     .match(/"([^"]+)"/g)
     .map((name) => name.slice(1, -1));
   assert.ok(catalog, "demoScopedTables catalog should exist");
@@ -59,47 +65,26 @@ test("demo-scoped tables have their own schema is_demo column", async () => {
   }
 });
 
-test("readSupabase filters only flagged tables and app_user auth uses its actual demo field", async () => {
-  const supabaseAuthUrl = await loadTypeScriptModule("./supabase-auth.ts");
-  const { loadAppUserContext, readSupabase } = await import(supabaseAuthUrl);
+test("REST transport filters only flagged tables and keeps the auth context query explicit", async () => {
+  const { readSupabaseRest } = await loadRestClient();
   const requests = [];
-  globalThis.window = {
-    localStorage: {
-      getItem(key) {
-        if (key !== "kgv.browser.club.v1") return null;
-        return JSON.stringify({
-          vereinsCode: "test",
-          vereinsname: "Testverein",
-          supabaseUrl: "https://example.supabase.co",
-          supabasePublishableKey: "test-key",
-        });
-      },
-      setItem() {},
-    },
-  };
   globalThis.fetch = async (input) => {
     const url = new URL(input);
     requests.push(url);
-    const body = url.pathname === "/rest/v1/app_user"
-      ? [{ user_id: "test-user", is_demo_account: true }]
-      : [];
-    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify([]), { status: 200, headers: { "content-type": "application/json" } });
   };
 
-  const session = { accessToken: "test-token", refreshToken: "test-refresh", expiresAt: 0, user: { id: "test-user" }, isDemoAccount: false };
+  const context = { club: { vereinId: "club", vereinsCode: "test", vereinsname: "Testverein", supabaseUrl: "https://example.supabase.co/", supabasePublishableKey: "test-key" }, session: { accessToken: "test-token", isDemoAccount: false } };
   for (const table of schemaFlagTables) {
-    await readSupabase(session, table, { select: "id" });
+    await readSupabaseRest(context, table, { select: "id" });
     assert.equal(requests.at(-1).searchParams.get("is_demo"), "eq.false", `${table} should retain its client-side demo filter`);
   }
   for (const table of noFlagTables) {
-    await readSupabase(session, table, { select: "id" });
+    await readSupabaseRest(context, table, { select: "id" });
     assert.equal(requests.at(-1).searchParams.has("is_demo"), false, `${table} must leave demo scope to its schema/RLS path`);
   }
-
-  const context = await loadAppUserContext(session);
-  const authRequest = requests.at(-1);
-  assert.equal(authRequest.pathname, "/rest/v1/app_user");
-  assert.equal(authRequest.searchParams.get("select"), "user_id,role,mitglied_id,permission_grants,permission_revocations,is_demo_account");
-  assert.equal(authRequest.searchParams.get("select").split(",").includes("is_demo"), false);
-  assert.equal(context.isDemoAccount, true);
+  await readSupabaseRest({ ...context, session: { ...context.session, isDemoAccount: true } }, "mitglied", { select: "id" });
+  assert.equal(requests.at(-1).searchParams.get("is_demo"), "eq.true");
+  await readSupabaseRest(context, "mitglied", { select: "id", is_demo: "eq.custom" });
+  assert.equal(requests.at(-1).searchParams.get("is_demo"), "eq.custom");
 });

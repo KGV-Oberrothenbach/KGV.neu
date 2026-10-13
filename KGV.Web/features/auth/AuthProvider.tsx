@@ -4,15 +4,15 @@ import { createContext, type ReactNode, useCallback, useContext, useEffect, useR
 import {
   clearClub,
   clearSession,
-  isConfigured,
-  loadAppUserContext,
   loadClub,
-  releaseAllBrowserEditLocks,
   signOut,
   type AppUserContext,
   type BrowserSession,
 } from "../../lib/supabase-auth";
+import { isSupabaseClubConfigured } from "../../lib/supabase/client-context";
 import type { ClubContext } from "../../models/auth/club";
+import { releaseAllBrowserEditLocks } from "../../services/concurrency/edit-lock-service";
+import { loadAppUserContext } from "../../services/users/app-user-service";
 import { signIn as signInWithPassword } from "../../services/auth/auth-service";
 import { resolveClub } from "../../services/auth/club-service";
 import { restoreBrowserSession, startInactivityMonitor, startSessionRefreshMonitor } from "../../services/auth/session-service";
@@ -45,8 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionRef.current = session;
   }, [session]);
 
-  const establishSession = useCallback(async (candidate: BrowserSession) => {
-    const userContext = await loadAppUserContext(candidate);
+  const establishSession = useCallback(async (candidate: BrowserSession, selectedClub: ClubContext) => {
+    const userContext = await loadAppUserContext(selectedClub, candidate);
     sessionRef.current = candidate;
     setSession(candidate);
     setAppUserContext(userContext);
@@ -54,23 +54,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let selectedClub: ClubContext | null = null;
     void Promise.resolve().then(async () => {
-      const selectedClub = loadClub();
+      selectedClub = loadClub();
       if (!selectedClub) {
         setStatus("club-selection");
         return;
       }
       setClub(selectedClub);
-      if (!isConfigured()) {
+      if (!isSupabaseClubConfigured(selectedClub)) {
         setStatus("configuration-error");
         return;
       }
       const existing = await restoreBrowserSession(selectedClub);
       if (!existing) { setStatus("signed-out"); return; }
-      await establishSession(existing);
+      await establishSession(existing, selectedClub);
     }).catch((error: Error) => {
       const invalidSession = sessionRef.current;
-      if (invalidSession) void signOut(invalidSession);
+      if (invalidSession && selectedClub) void signOut(selectedClub, invalidSession);
       clearSession();
       sessionRef.current = null;
       setSession(null);
@@ -82,14 +83,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback((reason = "") => {
     const currentSession = sessionRef.current;
-    if (currentSession) void releaseAllBrowserEditLocks(currentSession).catch(() => undefined).finally(() => signOut(currentSession));
+    if (currentSession && club) void releaseAllBrowserEditLocks({ club, session: currentSession }).catch(() => undefined).finally(() => signOut(club, currentSession));
     clearSession();
     sessionRef.current = null;
     setSession(null);
     setAppUserContext(null);
     setMessage(reason);
     setStatus("signed-out");
-  }, []);
+  }, [club]);
 
   const userId = session?.user.id;
   useEffect(() => {
@@ -123,8 +124,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const changeClub = useCallback(async () => {
     const currentSession = sessionRef.current;
     if (currentSession) {
-      try { await releaseAllBrowserEditLocks(currentSession); } catch { /* Der lokale Vereinswechsel darf nicht blockiert werden. */ }
-      try { await signOut(currentSession); } catch { /* Der lokale Vereinswechsel darf nicht blockiert werden. */ }
+      if (club) {
+        try { await releaseAllBrowserEditLocks({ club, session: currentSession }); } catch { /* Der lokale Vereinswechsel darf nicht blockiert werden. */ }
+        try { await signOut(club, currentSession); } catch { /* Der lokale Vereinswechsel darf nicht blockiert werden. */ }
+      }
     }
     clearClub();
     sessionRef.current = null;
@@ -133,15 +136,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setClub(null);
     setMessage("");
     setStatus("club-selection");
-  }, []);
+  }, [club]);
 
   const login = useCallback(async (email: string, password: string) => {
     setMessage("");
     try {
-      await establishSession(await signInWithPassword(club!, email, password));
+      if (!club) throw new Error("Bitte zuerst einen Verein auswählen.");
+      await establishSession(await signInWithPassword(club, email, password), club);
     } catch (error) {
       const invalidSession = sessionRef.current;
-      if (invalidSession) void signOut(invalidSession);
+      if (invalidSession && club) void signOut(club, invalidSession);
       clearSession();
       sessionRef.current = null;
       setSession(null);
@@ -158,4 +162,10 @@ export function useAuth() {
   const value = useContext(AuthContext);
   if (!value) throw new Error("useAuth muss innerhalb eines AuthProvider verwendet werden.");
   return value;
+}
+
+export function useSelectedClub(): ClubContext {
+  const { club } = useAuth();
+  if (!club) throw new Error("Bitte zuerst einen Verein auswählen.");
+  return club;
 }

@@ -1,10 +1,11 @@
+import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { listImprintMembers, listImprintSlots } from "../../repositories/imprint/imprint-repository";
 
 export type ImprintContact = { id: number; functionName: string; name: string; mobile: string; address: string; isConstruction: boolean };
 
-export async function loadImprintContacts(session: BrowserSession): Promise<ImprintContact[]> {
-  const [slots, members] = await Promise.all([listImprintSlots(session), listImprintMembers(session)]);
+export async function loadImprintContacts(club: ClubContext, session: BrowserSession): Promise<ImprintContact[]> {
+  const [slots, members] = await Promise.all([listImprintSlots(club, session), listImprintMembers(club, session)]);
   const byId = new Map(members.map((member) => [member.id, member]));
   const hasMarker = (value: string) => /demo|test|play\s*store|example\.(com|org|net)/i.test(value);
   return slots.map((slot) => {

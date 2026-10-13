@@ -1,8 +1,10 @@
-import { type BrowserSession, callSupabaseRpc } from "../../lib/supabase-auth";
+import type { ClubContext } from "../../models/auth/club";
+import { type BrowserSession } from "../../lib/supabase-auth";
 import { type ExportColumn } from "../../models/export/export-column";
 import { type ExportDefinition } from "../../models/export/export-definition";
 import { type ExportFilter, type ExportFilterValue, type ExportOption } from "../../models/export/export-filter";
 import { getActiveExportDefinitions, getExportColumns, getExportFilters } from "../../repositories/export/export-definition-repository";
+import { readExportOptions } from "../../repositories/export/export-data-repository";
 
 export const CURRENT_SEASON_DEFAULT = "$currentSeason";
 export type ExportMetadata = { filters: ExportFilter[]; columns: ExportColumn[]; values: Record<string, ExportFilterValue>; options: Record<string, ExportOption[]> };
@@ -23,10 +25,10 @@ export function getExportOptionsSource(value: unknown): { kind: "static"; option
   if (typeof value === "string" && value.trim().startsWith("rpc_")) return { kind: "rpc", rpcName: value.trim() };
   return { kind: "static", options: [] };
 }
-export async function loadExportFilterOptions(session: BrowserSession, filter: ExportFilter): Promise<ExportOption[]> {
+export async function loadExportFilterOptions(club: ClubContext, session: BrowserSession, filter: ExportFilter): Promise<ExportOption[]> {
   const source = getExportOptionsSource(filter.optionen_json);
   if (source.kind === "static") return source.options;
-  const rows = await callSupabaseRpc<Array<{ label?: unknown; value?: unknown }>>(session, source.rpcName, {});
+  const rows = await readExportOptions(club, session, source.rpcName);
   return rows.map((item) => ({ label: String(item.label ?? item.value ?? ""), value: String(item.value ?? item.label ?? "") }));
 }
 export function getExportDefaultValue(filter: ExportFilter, season: number): ExportFilterValue {
@@ -73,10 +75,10 @@ export function validateExportFilter(filter: ExportFilter): void {
   if (filter.pflicht && !filter.label?.trim()) throw new Error(`Pflichtfilter „${filter.filter_key}“ besitzt keine Beschriftung.`);
 }
 export function prepareExportDefinitions(definitions: ExportDefinition[]): ExportDefinition[] { definitions.forEach(validateExportDefinition); return definitions; }
-export async function loadExportDefinitions(session: BrowserSession): Promise<ExportDefinition[]> { return prepareExportDefinitions(await getActiveExportDefinitions(session)); }
-export async function loadExportMetadata(session: BrowserSession, exportKey: string, season: number): Promise<ExportMetadata> {
-  const [filters, columns] = await Promise.all([getExportFilters(session, exportKey), getExportColumns(session, exportKey)]);
+export async function loadExportDefinitions(club: ClubContext, session: BrowserSession): Promise<ExportDefinition[]> { return prepareExportDefinitions(await getActiveExportDefinitions(club, session)); }
+export async function loadExportMetadata(club: ClubContext, session: BrowserSession, exportKey: string, season: number): Promise<ExportMetadata> {
+  const [filters, columns] = await Promise.all([getExportFilters(club, session, exportKey), getExportColumns(club, session, exportKey)]);
   const orderedFilters = sortExportFilters(filters); const orderedColumns = sortExportColumns(columns); orderedFilters.forEach(validateExportFilter);
-  const loadedOptions = await Promise.all(orderedFilters.map(async (filter) => [filter.filter_key, await loadExportFilterOptions(session, filter)] as const));
+  const loadedOptions = await Promise.all(orderedFilters.map(async (filter) => [filter.filter_key, await loadExportFilterOptions(club, session, filter)] as const));
   return { filters: orderedFilters, columns: orderedColumns, values: getExportDefaultValues(orderedFilters, season), options: Object.fromEntries(loadedOptions) };
 }

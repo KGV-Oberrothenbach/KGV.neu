@@ -1,3 +1,4 @@
+import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import {
   listMeterDueStatuses,
@@ -36,17 +37,17 @@ export const meterDueStatusLabel = (status: string | null) => {
   }
 };
 
-export async function loadMeterOverview(session: BrowserSession): Promise<MeterOverviewData> {
+export async function loadMeterOverview(club: ClubContext, session: BrowserSession): Promise<MeterOverviewData> {
   const [meters, parcels, dueStatuses] = await Promise.all([
-    listMeters(session),
-    listMeterOverviewParcels(session),
-    listMeterDueStatuses(session),
+    listMeters(club, session),
+    listMeterOverviewParcels(club, session),
+    listMeterDueStatuses(club, session),
   ]);
 
   return { meters, parcels, dueStatuses: [...dueStatuses].sort(compareByGardenNumber) };
 }
 
-export async function loadMeterReferenceData(session: BrowserSession): Promise<MeterReferenceData> {
-  const [meters, parcels] = await Promise.all([listMeters(session), listMeterOverviewParcels(session)]);
+export async function loadMeterReferenceData(club: ClubContext, session: BrowserSession): Promise<MeterReferenceData> {
+  const [meters, parcels] = await Promise.all([listMeters(club, session), listMeterOverviewParcels(club, session)]);
   return { meters, parcels };
 }

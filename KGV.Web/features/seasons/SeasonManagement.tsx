@@ -1,4 +1,5 @@
 "use client";
+import { useSelectedClub } from "../auth/AuthProvider";
 
 import { useEffect, useState } from "react";
 import { useEditLock } from "../../lib/use-edit-lock";
@@ -7,6 +8,7 @@ import type { Season } from "../../models/seasons/season";
 import { canEditSeason, createNextSeasonProposal, getSeasons, saveSeason } from "../../services/seasons/season-service";
 
 export default function SeasonManagement({ session, onSeasonSaved }: { session: BrowserSession; onSeasonSaved: (season: Season) => void }) {
+  const club = useSelectedClub();
   const empty = createNextSeasonProposal([]);
   const [items, setItems] = useState<Season[]>([]);
   const [draft, setDraft] = useState<Season>(empty);
@@ -17,7 +19,7 @@ export default function SeasonManagement({ session, onSeasonSaved }: { session: 
 
   async function load(preferredYear?: number) {
     try {
-      const loaded = await getSeasons(session);
+      const loaded = await getSeasons(club, session);
       setItems(loaded);
       const selected = loaded.find((item) => item.jahr === preferredYear) ?? loaded[0];
       if (selected) {
@@ -37,7 +39,7 @@ export default function SeasonManagement({ session, onSeasonSaved }: { session: 
 
   useEffect(() => {
     let active = true;
-    getSeasons(session).then((loaded) => {
+    getSeasons(club, session).then((loaded) => {
       if (!active) return;
       setItems(loaded);
       const selected = loaded[0];
@@ -55,7 +57,7 @@ export default function SeasonManagement({ session, onSeasonSaved }: { session: 
       if (active) setMessage(cause instanceof Error ? cause.message : "Saisons konnten nicht geladen werden.");
     });
     return () => { active = false; };
-  }, [session]);
+  }, [session, club]);
 
   function suggest() {
     setDraft(createNextSeasonProposal(items));
@@ -69,7 +71,7 @@ export default function SeasonManagement({ session, onSeasonSaved }: { session: 
   }
 
   const editable = canEditSeason(draft);
-  const editLock = useEditLock(session, "saison", draft.id, Boolean(!isNew && editable));
+  const editLock = useEditLock(club, session, "saison", draft.id, Boolean(!isNew && editable));
 
   useEffect(() => {
     if (!isNew && editLock.message) queueMicrotask(() => setMessage(editLock.message));
@@ -87,7 +89,7 @@ export default function SeasonManagement({ session, onSeasonSaved }: { session: 
     setSaving(true);
     setMessage("");
     try {
-      const result = await saveSeason(session, draft, isNew ? {} : { existingSeasonId: editingSeasonId ?? draft.id });
+      const result = await saveSeason(club, session, draft, isNew ? {} : { existingSeasonId: editingSeasonId ?? draft.id });
       await load(result.jahr);
       onSeasonSaved(result);
       setMessage(`Saison ${result.jahr} wurde gespeichert.`);

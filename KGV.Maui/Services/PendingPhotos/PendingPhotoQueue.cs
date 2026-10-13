@@ -27,6 +27,30 @@ public sealed class PendingPhotoQueue
         }
     }
 
+    public IReadOnlyList<PendingPhotoUpload> GetForOwner(Guid vereinId, Guid ownerUserId)
+    {
+        lock (_sync)
+        {
+            return LoadInternal().Where(x => x.VereinId == vereinId && x.OwnerUserId == ownerUserId).ToList();
+        }
+    }
+
+    public IReadOnlyList<PendingPhotoUpload> GetOpenForOwner(Guid vereinId, Guid ownerUserId)
+        => GetForOwner(vereinId, ownerUserId)
+            .Where(x => x.Status is PendingPhotoUploadStatus.Pending or PendingPhotoUploadStatus.Failed or PendingPhotoUploadStatus.Uploading)
+            .ToList();
+
+    public int CountOpenForOwner(Guid vereinId, Guid ownerUserId)
+        => GetOpenForOwner(vereinId, ownerUserId).Count;
+
+    public int CountLegacyForVerein(Guid vereinId)
+    {
+        lock (_sync)
+        {
+            return LoadInternal().Count(x => x.VereinId == vereinId && x.OwnerUserId == null);
+        }
+    }
+
     public PendingPhotoUpload Enqueue(PendingPhotoUpload item)
     {
         lock (_sync)
@@ -82,30 +106,38 @@ public sealed class PendingPhotoQueue
         }
     }
 
-    public IReadOnlyList<PendingPhotoUpload> RemoveNotForVerein(Guid vereinId)
+    public bool TryRemoveForOwner(Guid id, Guid vereinId, Guid ownerUserId, out PendingPhotoUpload? removedItem)
     {
         lock (_sync)
         {
             var items = LoadInternal();
-            var removed = items
-                .Where(x => x.VereinId != vereinId)
-                .ToList();
+            var index = items.FindIndex(x => x.Id == id && x.VereinId == vereinId && x.OwnerUserId == ownerUserId);
+            if (index < 0)
+            {
+                removedItem = null;
+                return false;
+            }
 
+            removedItem = items[index];
+            items.RemoveAt(index);
+            SaveInternal(items);
+            return true;
+        }
+    }
+
+    public IReadOnlyList<PendingPhotoUpload> RemoveLegacyForVerein(Guid vereinId)
+    {
+        lock (_sync)
+        {
+            var items = LoadInternal();
+            var removed = items.Where(x => x.VereinId == vereinId && x.OwnerUserId == null).ToList();
             if (removed.Count > 0)
             {
-                items.RemoveAll(x => x.VereinId != vereinId);
+                items.RemoveAll(x => x.VereinId == vereinId && x.OwnerUserId == null);
                 SaveInternal(items);
             }
 
             return removed;
-        }
-    }
-
-    public int CountNotForVerein(Guid vereinId)
-    {
-        lock (_sync)
-        {
-            return LoadInternal().Count(x => x.VereinId != vereinId);
         }
     }
 

@@ -14,13 +14,23 @@ async function loadTypeScriptModule(path, replacements = []) {
   return `data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`;
 }
 
+async function loadTransportModule() {
+  const files = ["client-context.ts", "rest-client.ts", "rpc-client.ts", "edge-client.ts", "storage-client.ts"];
+  const sources = await Promise.all(files.map(async (file) => {
+    const url = `../../lib/supabase/${file}`;
+    const moduleUrl = await loadTypeScriptModule(url);
+    return Buffer.from(moduleUrl.split(",")[1], "base64").toString("utf8").replace(/^import .*?;\r?\n/gm, "");
+  }));
+  return `data:text/javascript;base64,${Buffer.from(sources.join("\n")).toString("base64")}`;
+}
+
 test("member documents request only the selected member's active documents and leave demo scope to RLS", async () => {
-  const supabaseAuthUrl = await loadTypeScriptModule("../../lib/supabase-auth.ts");
+  const transportUrl = await loadTransportModule();
   const documentModelUrl = await loadTypeScriptModule("../../models/documents/document.ts");
   const repositoryUrl = await loadTypeScriptModule(
     "../../repositories/documents/document-repository.ts",
     [
-      ["../../lib/supabase-auth", supabaseAuthUrl],
+      ["../../lib/supabase/rest-client", transportUrl],
       ["../../models/documents/document", documentModelUrl],
     ],
   );
@@ -28,7 +38,7 @@ test("member documents request only the selected member's active documents and l
     "./document-service.ts",
     [["../../repositories/documents/document-repository", repositoryUrl]],
   );
-  const { readSupabase } = await import(supabaseAuthUrl);
+  const { readSupabaseRest } = await import(transportUrl);
   const { loadDocumentsForOwner } = await import(serviceUrl);
   const requests = [];
   const documents = [
@@ -37,19 +47,6 @@ test("member documents request only the selected member's active documents and l
     { id: 12, mitglied_id: null, parzelle_id: 905, archiviert_at: null },
   ];
 
-  globalThis.window = {
-    localStorage: {
-      getItem(key) {
-        assert.equal(key, "kgv.browser.club.v1");
-        return JSON.stringify({
-          vereinsCode: "test",
-          vereinsname: "Testverein",
-          supabaseUrl: "https://example.supabase.co",
-          supabasePublishableKey: "test-key",
-        });
-      },
-    },
-  };
   globalThis.fetch = async (input) => {
     const url = new URL(input);
     requests.push(url);
@@ -66,7 +63,8 @@ test("member documents request only the selected member's active documents and l
   };
 
   const session = { accessToken: "test-token", refreshToken: "test-refresh", expiresAt: 0, user: { id: "test-user" }, isDemoAccount: false };
-  const memberDocuments = await loadDocumentsForOwner(session, { kind: "member", id: 314 });
+  const club = { vereinId: "club-id", vereinsCode: "test", vereinsname: "Testverein", supabaseUrl: "https://example.supabase.co", supabasePublishableKey: "test-key" };
+  const memberDocuments = await loadDocumentsForOwner(club, session, { kind: "member", id: 314 });
   const memberRequest = requests.find((request) => request.pathname === "/rest/v1/dokument");
 
   assert.deepEqual(memberDocuments, [documents[0]], "a listed active member document should reach the caller but archived documents should not");
@@ -75,33 +73,33 @@ test("member documents request only the selected member's active documents and l
   assert.equal(memberRequest.searchParams.has("parzelle_id"), false);
   assert.equal(memberRequest.searchParams.get("archiviert_at"), "is.null");
 
-  const noDocuments = await loadDocumentsForOwner(session, { kind: "member", id: 271 });
+  const noDocuments = await loadDocumentsForOwner(club, session, { kind: "member", id: 271 });
   assert.deepEqual(noDocuments, [], "a member with no documents stays empty");
 
-  await loadDocumentsForOwner({ ...session, isDemoAccount: true }, { kind: "member", id: 314 });
+  await loadDocumentsForOwner(club, { ...session, isDemoAccount: true }, { kind: "member", id: 314 });
   const demoMemberDocumentRequest = requests.filter((request) => request.pathname === "/rest/v1/dokument").at(-1);
   assert.equal(demoMemberDocumentRequest.searchParams.has("is_demo"), false, "demo document scope must also be left to RLS");
 
-  await loadDocumentsForOwner(session, { kind: "parcel", id: 905 });
+  await loadDocumentsForOwner(club, session, { kind: "parcel", id: 905 });
   const parcelRequest = requests.filter((request) => request.pathname === "/rest/v1/dokument").at(-1);
   assert.equal(parcelRequest.searchParams.get("parzelle_id"), "eq.905");
   assert.equal(parcelRequest.searchParams.has("mitglied_id"), false, "parcel documents remain a separate owner scope");
   assert.deepEqual(
-    await loadDocumentsForOwner(session, { kind: "parcel", id: 905 }),
+    await loadDocumentsForOwner(club, session, { kind: "parcel", id: 905 }),
     [documents[2]],
     "parcel-owned documents remain outside the member result and visible in the separate parcel request",
   );
 
-  await readSupabase(session, "mitglied", { select: "id", id: "eq.314" });
+  await readSupabaseRest({ club, session }, "mitglied", { select: "id", id: "eq.314" });
   const memberScopeRequest = requests.find((request) => request.pathname === "/rest/v1/mitglied");
   assert.equal(memberScopeRequest.searchParams.get("is_demo"), "eq.false");
 
-  await readSupabase({ ...session, isDemoAccount: true }, "mitglied", { select: "id", id: "eq.314" });
+  await readSupabaseRest({ club, session: { ...session, isDemoAccount: true } }, "mitglied", { select: "id", id: "eq.314" });
   const demoMemberScopeRequest = requests.filter((request) => request.pathname === "/rest/v1/mitglied").at(-1);
   assert.equal(demoMemberScopeRequest.searchParams.get("is_demo"), "eq.true");
 
   const page = await readFile(new URL("../../app/page.tsx", import.meta.url), "utf8");
-  assert.match(page, /activeId === "mitglied-dokumente" && selectedMemberId && <DocumentList session=\{session\} owner=\{memberDocumentOwner\(selectedMemberId\)\}/);
+  assert.match(page, /effectiveActiveId === "mitglied-dokumente" && selectedMemberId && <DocumentList session=\{session\} owner=\{memberDocumentOwner\(selectedMemberId\)\}/);
   const component = await readFile(new URL("../../features/documents/DocumentList.tsx", import.meta.url), "utf8");
-  assert.match(component, /loadDocumentsForOwner\(session, currentOwner\)/);
+  assert.match(component, /loadDocumentsForOwner\(club, session, currentOwner\)/);
 });

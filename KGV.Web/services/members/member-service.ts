@@ -1,11 +1,12 @@
+import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type Member, type MemberSearchResult } from "../../models/members/member";
 import { createMember, endMembership as endMembershipRpc, getMemberById, getMemberWorkspaceInfo, getSecondaryMemberByMainMemberId, listMembersForSearch, type MembershipEndDecision, updateMemberStammdaten } from "../../repositories/members/member-repository";
 import { listCurrentGardenNumbersByMemberId } from "../parcels/parcel-service";
 
-export async function loadMemberSearchResults(session: BrowserSession): Promise<MemberSearchResult[]> {
-  const members = await listMembersForSearch(session);
-  const gardenNumbersByMemberId = await listCurrentGardenNumbersByMemberId(session, members.map((member) => member.id));
+export async function loadMemberSearchResults(club: ClubContext, session: BrowserSession): Promise<MemberSearchResult[]> {
+  const members = await listMembersForSearch(club, session);
+  const gardenNumbersByMemberId = await listCurrentGardenNumbersByMemberId(club, session, members.map((member) => member.id));
 
   return members.map((member) => ({ ...member, gartenNummern: gardenNumbersByMemberId.get(member.id) ?? [] }));
 }
@@ -44,10 +45,10 @@ export function canEditMember(memberId: number, permissions: MemberEditPermissio
 export const getMember = getMemberById;
 export const loadSecondaryMemberForMembershipEnd = getSecondaryMemberByMainMemberId;
 
-export async function endMembership(session: BrowserSession, mainMemberId: number, decision: MembershipEndDecision | null) {
+export async function endMembership(club: ClubContext, session: BrowserSession, mainMemberId: number, decision: MembershipEndDecision | null) {
   if (!Number.isInteger(mainMemberId) || mainMemberId <= 0) throw new Error("Hauptmitglied ist ungültig.");
 
-  const result = await endMembershipRpc(session, mainMemberId, decision);
+  const result = await endMembershipRpc(club, session, mainMemberId, decision);
   if (!result) throw new Error("Die Mitgliedschaft konnte nicht beendet werden.");
   if (!result.success) throw new Error(result.message || "Die Mitgliedschaft konnte nicht beendet werden.");
   const updatedMainMember = result.updated_main_member;
@@ -56,7 +57,7 @@ export async function endMembership(session: BrowserSession, mainMemberId: numbe
   return { ...result, updated_main_member: updatedMainMember };
 }
 
-export async function createMainMember(session: BrowserSession, input: MemberStammdatenInput, permissions: MemberCreatePermissions) {
+export async function createMainMember(club: ClubContext, session: BrowserSession, input: MemberStammdatenInput, permissions: MemberCreatePermissions) {
   if (!permissions.canCreateMember) throw new Error("Für neue Mitglieder besteht keine Berechtigung.");
   const vorname = input.vorname?.trim() ?? "";
   const name = input.name?.trim() ?? "";
@@ -66,7 +67,7 @@ export async function createMainMember(session: BrowserSession, input: MemberSta
     throw new Error("Für Hauptmitglieder ist eine gültige Arbeitsstunden-Altersregel erforderlich.");
   }
 
-  const created = await createMember(session, {
+  const created = await createMember(club, session, {
     hauptmitglied_id: null,
     vorname,
     name,
@@ -90,8 +91,8 @@ export async function createMainMember(session: BrowserSession, input: MemberSta
   return created[0];
 }
 
-export async function updateExistingMember(session: BrowserSession, memberId: number, input: MemberStammdatenInput, permissions: MemberEditPermissions) {
-  const current = await getMemberById(session, memberId);
+export async function updateExistingMember(club: ClubContext, session: BrowserSession, memberId: number, input: MemberStammdatenInput, permissions: MemberEditPermissions) {
+  const current = await getMemberById(club, session, memberId);
   if (!current) throw new Error("Das Mitglied konnte nicht geladen werden.");
   if (!canEditMember(memberId, permissions)) throw new Error("Für dieses Mitglied besteht keine Bearbeitungsberechtigung.");
   const vorname = input.vorname?.trim() ?? "";
@@ -125,7 +126,7 @@ export async function updateExistingMember(session: BrowserSession, memberId: nu
     mitglied_seit: input.mitglied_seit || null,
     bemerkung: input.bemerkung?.trim() || null,
   };
-  const updated = await updateMemberStammdaten(session, memberId, values);
+  const updated = await updateMemberStammdaten(club, session, memberId, values);
   if (!updated[0]) throw new Error("Die Änderung wurde nicht bestätigt.");
   return updated[0];
 }

@@ -125,6 +125,7 @@ public static class MauiProgram
         services.AddSingleton<PendingPhotoSyncService>();
         services.AddSingleton<PendingPhotoMenuState>();
         services.AddSingleton<BiometricSessionStore>();
+        services.AddSingleton<IClientInstanceIdProvider, ClientInstanceIdProvider>();
         services.AddSingleton<IBiometricAuthenticationService, AndroidBiometricAuthenticationService>();
         services.AddSingleton<INfcScanService, AndroidNfcScanService>();
         services.AddSingleton<IRfidFeedbackService, AndroidRfidFeedbackService>();

@@ -1,3 +1,4 @@
+import { useSelectedClub } from "../auth/AuthProvider";
 import { useCallback, useEffect, useState } from "react";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { useEditLock } from "../../lib/use-edit-lock";
@@ -8,21 +9,22 @@ import { WorkAssignmentParticipants } from "./WorkAssignmentParticipants";
 import { type WorkAssignment } from "../../models/work-assignments/work-assignment";
 
 export function WorkAssignmentsManagement({ session, canEdit, canManageWorkHours, onBack }: { session: BrowserSession; canEdit: boolean; canManageWorkHours: boolean; onBack: () => void }) {
+  const club = useSelectedClub();
   const [items, setItems] = useState<WorkAssignment[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<Partial<WorkAssignment>>({});
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
-  const load = useCallback(() => loadWorkAssignmentsManagement(session).then(setItems).catch((cause: Error) => {
+  const load = useCallback(() => loadWorkAssignmentsManagement(club, session).then(setItems).catch((cause: Error) => {
     setMessage(cause.message);
     return [] as WorkAssignment[];
-  }), [session]);
+  }), [session, club]);
 
   useEffect(() => { void load(); }, [load]);
   const selected = items.find((item) => item.id === selectedId) ?? null;
   const selectedIndex = selected ? items.findIndex((item) => item.id === selected.id) : -1;
-  const editLock = useEditLock(session, "arbeitseinsatz", selected?.id, Boolean(selected && canEdit && !creating));
+  const editLock = useEditLock(club, session, "arbeitseinsatz", selected?.id, Boolean(selected && canEdit && !creating));
   useEffect(() => { if (editLock.message) queueMicrotask(() => setMessage(editLock.message)); }, [editLock.message]);
 
   function startNew() { setCreating(true); setSelectedId(null); setDraft(workAssignmentDefaults()); setMessage(""); }
@@ -45,7 +47,7 @@ export function WorkAssignmentsManagement({ session, canEdit, canManageWorkHours
     setSaving(true);
     setMessage("");
     try {
-      const payload = validation.payload; const rows = await saveWorkAssignment(session, creating ? null : selected?.id ?? null, payload);
+      const payload = validation.payload; const rows = await saveWorkAssignment(club, session, creating ? null : selected?.id ?? null, payload);
       const persisted = { ...payload, id: rows[0]?.id ?? selected?.id ?? 0 } as WorkAssignment;
       await load();
       if (prepareNext) prepareNextShift(persisted);
@@ -63,7 +65,7 @@ export function WorkAssignmentsManagement({ session, canEdit, canManageWorkHours
     if (!window.confirm(`Den Arbeitseinsatz „${selected.titel ?? "Ohne Titel"}“ wirklich absagen?`)) return;
     setSaving(true);
     setMessage("");
-    try { await deactivateWorkAssignment(session, selected.id); await load(); setMessage("Arbeitseinsatz wurde abgesagt."); }
+    try { await deactivateWorkAssignment(club, session, selected.id); await load(); setMessage("Arbeitseinsatz wurde abgesagt."); }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : "Arbeitseinsatz konnte nicht abgesagt werden."); }
     finally { setSaving(false); }
   }
@@ -74,7 +76,7 @@ export function WorkAssignmentsManagement({ session, canEdit, canManageWorkHours
     if (!window.confirm(`Den Arbeitseinsatz „${selected.titel ?? "Ohne Titel"}“ einschließlich seiner Anmeldungen endgültig löschen?`)) return;
     setSaving(true);
     setMessage("");
-    try { await removeWorkAssignment(session, selected.id); setSelectedId(null); setCreating(false); await load(); setMessage("Arbeitseinsatz wurde gelöscht."); }
+    try { await removeWorkAssignment(club, session, selected.id); setSelectedId(null); setCreating(false); await load(); setMessage("Arbeitseinsatz wurde gelöscht."); }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : "Arbeitseinsatz konnte nicht gelöscht werden."); }
     finally { setSaving(false); }
   }

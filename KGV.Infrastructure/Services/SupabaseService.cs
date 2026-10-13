@@ -5245,18 +5245,19 @@ namespace KGV.Infrastructure.Services
             },
             new List<ArbeitseinsatzRecord>());
 
-        public Task<BrowserEditLockResult> AcquireBrowserEditLockAsync(string entityType, long entityId, int timeoutSeconds = 600) => ExecuteAsync(
+        public Task<BrowserEditLockResult> AcquireBrowserEditLockAsync(string entityType, long entityId, Guid clientInstanceId, int timeoutSeconds = 600) => ExecuteAsync(
             "AcquireBrowserEditLockAsync",
             async () =>
             {
-                if (string.IsNullOrWhiteSpace(entityType) || entityId <= 0)
+                if (string.IsNullOrWhiteSpace(entityType) || entityId <= 0 || clientInstanceId == Guid.Empty)
                     return new BrowserEditLockResult(false, "einem anderen Benutzer");
 
                 var client = await EnsureClientAsync();
-                var response = await client.Rpc<System.Text.Json.JsonElement[]>("acquire_browser_edit_lock", new
+                var response = await client.Rpc<System.Text.Json.JsonElement[]>("acquire_browser_edit_lock_for_client", new
                 {
                     p_entity_type = entityType,
                     p_entity_id = entityId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    p_client_instance_id = clientInstanceId,
                     p_timeout_seconds = timeoutSeconds
                 });
                 var row = response?.FirstOrDefault() ?? default;
@@ -5271,20 +5272,37 @@ namespace KGV.Infrastructure.Services
             },
             new BrowserEditLockResult(false, "einem anderen Benutzer"));
 
-        public async Task ReleaseBrowserEditLockAsync(string entityType, long entityId)
+        public async Task ReleaseBrowserEditLockAsync(string entityType, long entityId, Guid clientInstanceId)
         {
             await ExecuteAsync(
             "ReleaseBrowserEditLockAsync",
             async () =>
             {
-                if (!string.IsNullOrWhiteSpace(entityType) && entityId > 0)
+                if (!string.IsNullOrWhiteSpace(entityType) && entityId > 0 && clientInstanceId != Guid.Empty)
                 {
                     var client = await EnsureClientAsync();
-                    await client.Rpc<bool>("release_browser_edit_lock", new
+                    await client.Rpc<bool>("release_browser_edit_lock_for_client", new
                     {
                         p_entity_type = entityType,
-                        p_entity_id = entityId.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                        p_entity_id = entityId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        p_client_instance_id = clientInstanceId
                     });
+                }
+                return true;
+            },
+            false);
+        }
+
+        public async Task ReleaseAllBrowserEditLocksAsync(Guid clientInstanceId)
+        {
+            await ExecuteAsync(
+            "ReleaseAllBrowserEditLocksAsync",
+            async () =>
+            {
+                if (clientInstanceId != Guid.Empty)
+                {
+                    var client = await EnsureClientAsync();
+                    await client.Rpc<bool>("release_all_browser_edit_locks_for_client", new { p_client_instance_id = clientInstanceId });
                 }
                 return true;
             },

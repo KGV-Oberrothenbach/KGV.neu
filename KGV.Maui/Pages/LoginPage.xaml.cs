@@ -31,6 +31,7 @@ public class LoginPage : ContentPage
     private readonly IVereinskontext _vereinskontext;
     private readonly BiometricSessionStore _biometricSessionStore;
     private readonly IBiometricAuthenticationService _biometricAuthenticationService;
+    private readonly IClientInstanceIdProvider _clientInstanceIdProvider;
 
     private readonly Entry _emailEntry;
     private readonly Entry _passwordEntry;
@@ -45,7 +46,7 @@ public class LoginPage : ContentPage
         ISupabaseService supabaseService,
         UserContextState userContextState,
         IUserContextService userContextService,
-        IVereinskontext vereinskontext, BiometricSessionStore biometricSessionStore, IBiometricAuthenticationService biometricAuthenticationService)
+        IVereinskontext vereinskontext, BiometricSessionStore biometricSessionStore, IBiometricAuthenticationService biometricAuthenticationService, IClientInstanceIdProvider clientInstanceIdProvider)
     {
         _authService = authService;
         _supabaseService = supabaseService;
@@ -54,6 +55,7 @@ public class LoginPage : ContentPage
         _vereinskontext = vereinskontext;
         _biometricSessionStore = biometricSessionStore;
         _biometricAuthenticationService = biometricAuthenticationService;
+        _clientInstanceIdProvider = clientInstanceIdProvider;
 
         Title = "Login";
 
@@ -542,6 +544,7 @@ public class LoginPage : ContentPage
     {
         AppFileLog.Marker(marker);
         if (clearBiometrics) _biometricSessionStore.Clear();
+        try { await _supabaseService.ReleaseAllBrowserEditLocksAsync(_clientInstanceIdProvider.GetClientInstanceId()); } catch { /* Fail-closed logout must not depend on lock I/O. */ }
         _userContextState.Clear();
         try { await _authService.LogoutAsync(); } catch { /* The local fail-closed state must not depend on logout I/O. */ }
         _statusLabel.Text = message;

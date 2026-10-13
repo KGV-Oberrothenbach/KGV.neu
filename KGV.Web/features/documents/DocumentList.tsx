@@ -1,4 +1,5 @@
 "use client";
+import { useSelectedClub } from "../auth/AuthProvider";
 
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { type BrowserSession } from "../../lib/supabase-auth";
@@ -22,6 +23,7 @@ type DocumentListProps = {
 };
 
 export function DocumentList({ session, owner, compact = false, accessContext, beforeList }: DocumentListProps) {
+  const club = useSelectedClub();
   const [items, setItems] = useState<Document[]>([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -41,14 +43,14 @@ export function DocumentList({ session, owner, compact = false, accessContext, b
       const currentOwner: DocumentOwner = owner.kind === "member"
         ? { kind: "member", id: owner.id }
         : { kind: "parcel", id: owner.id };
-      setItems(await loadDocumentsForOwner(session, currentOwner));
+      setItems(await loadDocumentsForOwner(club, session, currentOwner));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Dokumente konnten nicht geladen werden.");
       setItems([]);
     } finally {
       setIsLoading(false);
     }
-  }, [session, owner.kind, owner.id]);
+  }, [session, owner.kind, owner.id, club]);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,7 +64,7 @@ export function DocumentList({ session, owner, compact = false, accessContext, b
     const currentOwner: DocumentOwner = owner.kind === "member"
       ? { kind: "member", id: owner.id }
       : { kind: "parcel", id: owner.id };
-    void loadDocumentsForOwner(session, currentOwner)
+    void loadDocumentsForOwner(club, session, currentOwner)
       .then((documents) => { if (!cancelled) setItems(documents); })
       .catch((cause: unknown) => {
         if (!cancelled) {
@@ -72,13 +74,13 @@ export function DocumentList({ session, owner, compact = false, accessContext, b
       })
       .finally(() => { if (!cancelled) setIsLoading(false); });
     return () => { cancelled = true; };
-  }, [session, owner.kind, owner.id]);
+  }, [session, owner.kind, owner.id, club]);
 
   async function openDocument(item: Document) {
     setOpening(item.id);
     setError("");
     try {
-      const documentUrl = await resolveDocumentOpenUrl(session, item);
+      const documentUrl = await resolveDocumentOpenUrl(club, session, item);
       window.open(documentUrl, "_blank", "noopener,noreferrer");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Das Dokument konnte nicht geöffnet werden.");
@@ -95,7 +97,7 @@ export function DocumentList({ session, owner, compact = false, accessContext, b
     setUploading(true);
     setError("");
     try {
-      await uploadDocumentForOwner(session, owner, file, title);
+      await uploadDocumentForOwner(club, session, owner, file, title);
       setFile(null);
       setTitle("");
       await load();
@@ -111,7 +113,7 @@ export function DocumentList({ session, owner, compact = false, accessContext, b
     setArchiving(true);
     setError("");
     try {
-      await archiveDocument(session, documentToArchive.id, reason, password);
+      await archiveDocument(club, session, documentToArchive.id, reason, password);
       await load();
       setDocumentToArchive(null);
     } catch (cause) {

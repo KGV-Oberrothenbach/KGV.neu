@@ -1,4 +1,5 @@
 import type { ClubContext } from "../../models/auth/club";
+import { invokeEdgeFunctionRaw } from "../../lib/supabase/edge-client";
 
 type SignInResponse = {
   access_token?: string;
@@ -61,10 +62,9 @@ export async function refreshBrowserSession(club: ClubContext, refreshToken: str
 }
 
 export async function requestFirstLoginOtp(club: ClubContext, email: string): Promise<OtpRequestResponse> {
-  const { url, publishableKey } = clubConfig(club);
-  const response = await fetch(`${url}/functions/v1/kgv-request-first-login-otp`, {
+  const response = await invokeEdgeFunctionRaw({ club }, "kgv-request-first-login-otp", {
     method: "POST",
-    headers: { apikey: publishableKey, "Content-Type": "application/json" },
+    contentType: "application/json",
     body: JSON.stringify({ email }),
   });
   const result = await response.json() as OtpRequestResponse;
