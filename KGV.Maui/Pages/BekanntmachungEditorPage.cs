@@ -6,6 +6,7 @@ using KGV.Maui.State;
 using KGV.Maui.ViewModels;
 using KGV.Maui.Utilities;
 using Microsoft.Maui;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System.Globalization;
