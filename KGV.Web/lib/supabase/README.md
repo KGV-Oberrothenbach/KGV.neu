@@ -1,10 +1,23 @@
-# Technische Supabase-Basis
+# Technische Supabase-Transportbasis
 
-Dieser Ordner nimmt schrittweise die rein technische Basis aus
-`lib/supabase-auth.ts` auf: Client-Konfiguration, REST-Zugriffe, RPC-Aufrufe
-und die zentrale Demo-/Produktivfilterung. Er enthält keine Fachlogik.
+Die Dateien in diesem Ordner enthalten ausschließlich technischen Transport.
+Sie erhalten Verein und Access Token stets explizit als `SupabaseClientContext`.
+Sie lesen weder Browser-Speicher noch `loadClub()` und halten keine globale
+„aktuelle Verein“-Variable.
 
-`supabase-auth.ts` bleibt während der Migration die kompatible Übergangsfassade.
-Auth-, Session- und fachliche Dateifunktionen werden erst bei der jeweiligen
-Fachgruppenmigration in die dafür vorgesehenen Services und Repositories
-überführt.
+- `client-context.ts`: kleiner Club-/Session-Kontext sowie SSR-taugliche
+  Supabase-Konfigurationsauflösung.
+- `rest-client.ts`: PostgREST für Lesen, Schreiben und Löschen. Die bisherige
+  Demo-Filterliste ist reine Kompatibilitätslogik, keine Sicherheitsgrenze;
+  RLS bleibt verbindlich.
+- `rpc-client.ts`: generische RPC-Aufrufe.
+- `edge-client.ts`: generische JSON- und Raw-Aufrufe an Edge Functions.
+- `storage-client.ts`: generische signierte Storage-URLs.
+
+In G15.6a bleibt `lib/supabase-auth.ts` eine Kompatibilitätsfassade für die
+vielen bestehenden Caller. Sie erstellt übergangsweise aus `loadClub()` einen
+expliziten Transportkontext und delegiert an diese Clients. Auth, Session,
+Workspace-Persistenz, Edit-Lock-Orchestrierung und Fachwrapper bleiben dort.
+
+G15.6b migriert die Fachcaller auf einen expliziten `ClubContext` und entfernt
+diese Übergangsbrücke.

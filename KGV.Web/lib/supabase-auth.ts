@@ -1,5 +1,10 @@
 import type { ClubContext } from "../models/auth/club";
 import { getBrowserClientInstanceId } from "./browser/client-instance";
+import { isSupabaseClubConfigured, resolveSupabaseConfig, type SupabaseClientContext } from "./supabase/client-context";
+import { invokeEdgeFunction, invokeEdgeFunctionRaw, type EdgeRawOptions } from "./supabase/edge-client";
+import { callSupabaseRpc as callSupabaseTransportRpc } from "./supabase/rpc-client";
+import { deleteSupabaseRest, readSupabaseRest, writeSupabaseRest } from "./supabase/rest-client";
+import { createSignedStorageUrl } from "./supabase/storage-client";
 
 export type BrowserSession = {
   accessToken: string;
@@ -53,35 +58,26 @@ const protectedEditTables: Record<string, string> = {
   vereinskonfiguration: "id",
 };
 
-// Diese Tabellen besitzen eine eigene `is_demo`-Spalte.
-// `impressum_funktion_slot` hat bewusst kein eigenes `is_demo`-Feld. Sein
-// Scope wird in der Datenbank über die zugeordnete `mitglied_id` und die RLS-
-// Funktion `is_demo_impressum_slot_scope(...)` bestimmt.
-const demoScopedTables = new Set([
-  "arbeitseinsatz",
-  "bekanntmachung",
-  "mitglied",
-  "parzelle",
-  "termin",
-  "wartungsvertraege",
-]);
-
 function workspaceStorageKey() {
   return `${workspaceStoragePrefix}.${loadClub()?.vereinId ?? "unknown"}`;
 }
 
 function config() {
   const club = loadClub();
-  const url = club?.supabaseUrl?.trim();
-  const publishableKey = club?.supabasePublishableKey?.trim();
-  if (!url || !publishableKey) {
-    throw new Error("Die Browser-App ist noch nicht mit Supabase konfiguriert.");
-  }
-  return { url: url.replace(/\/$/, ""), publishableKey };
+  if (!club) throw new Error("Die Browser-App ist noch nicht mit Supabase konfiguriert.");
+  return resolveSupabaseConfig(club);
+}
+
+// G15.6a migration facade: existing callers still obtain the ClubContext from
+// browser storage. G15.6b moves every caller to an explicit ClubContext.
+function legacyTransportContext(session: BrowserSession): SupabaseClientContext {
+  const club = loadClub();
+  if (!club) throw new Error("Die Browser-App ist noch nicht mit Supabase konfiguriert.");
+  return { club, session };
 }
 
 export function isConfigured() {
-  return Boolean(loadClub()?.supabaseUrl?.trim() && loadClub()?.supabasePublishableKey?.trim());
+  return isSupabaseClubConfigured(loadClub());
 }
 
 export function loadClub(): ClubContext | null {
@@ -182,52 +178,21 @@ export async function loadAppUserContext(session: BrowserSession): Promise<AppUs
 }
 
 export async function readSupabase<T>(session: BrowserSession, table: string, query: Record<string, string>): Promise<T[]> {
-  const { url, publishableKey } = config();
-  const scopedQuery = { ...query };
-  if (demoScopedTables.has(table) && scopedQuery.is_demo === undefined) {
-    scopedQuery.is_demo = session.isDemoAccount ? "eq.true" : "eq.false";
-  }
-  const parameters = new URLSearchParams(scopedQuery);
-  const response = await fetch(`${url}/rest/v1/${table}?${parameters}`, {
-    headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}` },
-  });
-  if (!response.ok) throw new Error("Die Vereinsdaten konnten nicht geladen werden.");
-  return (await response.json()) as T[];
+  return readSupabaseRest<T>(legacyTransportContext(session), table, query);
 }
 
 export async function writeSupabase<T>(session: BrowserSession, table: string, method: "POST" | "PATCH", payload: unknown, query: Record<string, string> = {}): Promise<T[]> {
   if (method === "PATCH") await acquireLockForMutation(session, table, query);
-  const { url, publishableKey } = config();
-  const parameters = new URLSearchParams(query);
-  const response = await fetch(`${url}/rest/v1/${table}?${parameters}`, {
-    method,
-    headers: {
-      apikey: publishableKey,
-      Authorization: `Bearer ${session.accessToken}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation",
-    },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    const detail = await response.json().catch(() => null) as { message?: string } | null;
-    throw new Error(detail?.message ?? "Die Änderung konnte nicht gespeichert werden.");
-  }
-  return (await response.json()) as T[];
+  return writeSupabaseRest<T>(legacyTransportContext(session), table, method, payload, query);
 }
 
 export async function deleteSupabase(session: BrowserSession, table: string, query: Record<string, string>) {
   await acquireLockForMutation(session, table, query);
-  const { url, publishableKey } = config();
-  const response = await fetch(`${url}/rest/v1/${table}?${new URLSearchParams(query)}`, { method: "DELETE", headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}` } });
-  if (!response.ok) throw new Error("Der Eintrag konnte nicht gelöscht werden.");
+  await deleteSupabaseRest(legacyTransportContext(session), table, query);
 }
 
 export async function callSupabaseRpc<T>(session: BrowserSession, name: string, payload: Record<string, unknown>): Promise<T> {
-  const { url, publishableKey } = config();
-  const response = await fetch(`${url}/rest/v1/rpc/${name}`, { method: "POST", headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-  if (!response.ok) { const detail = await response.json().catch(() => null) as { message?: string } | null; throw new Error(detail?.message ?? "Der Vorgang konnte nicht gespeichert werden."); }
-  return await response.json() as T;
+  return callSupabaseTransportRpc<T>(legacyTransportContext(session), name, payload);
 }
 
 function mutationEntityId(table: string, query: Record<string, string>) {
@@ -273,11 +238,7 @@ export async function releaseAllBrowserEditLocks(session: BrowserSession) {
 }
 
 async function callSupabaseFunction<T>(session: BrowserSession, name: string, payload: Record<string, unknown>): Promise<T> {
-  const { url, publishableKey } = config();
-  const response = await fetch(`${url}/functions/v1/${name}`, { method: "POST", headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-  const result = await response.json().catch(() => null) as (T & { message?: string }) | null;
-  if (!response.ok || !result) throw new Error(result?.message ?? "Der Servervorgang konnte nicht ausgeführt werden.");
-  return result;
+  return invokeEdgeFunction<T>(legacyTransportContext(session), name, payload);
 }
 
 export async function inviteAppUser(session: BrowserSession, memberId: number, role: "admin" | "vorstand" | "user") {
@@ -289,26 +250,16 @@ export async function sendPasswordReset(session: BrowserSession, email: string) 
 }
 
 export async function createStorageSignedUrl(session: BrowserSession, bucket: string, storagePath: string): Promise<string> {
-  const { url, publishableKey } = config();
-  const response = await fetch(`${url}/storage/v1/object/sign/${encodeURIComponent(bucket)}/${storagePath.split("/").map(encodeURIComponent).join("/")}`, {
-    method: "POST",
-    headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ expiresIn: 600 }),
-  });
-  if (!response.ok) throw new Error("Das Dokument kann derzeit nicht geöffnet werden.");
-  const payload = (await response.json()) as { signedURL?: string; signedUrl?: string };
-  const signedPath = payload.signedURL ?? payload.signedUrl;
-  if (!signedPath) throw new Error("Für das Dokument konnte kein Zugriffslink erstellt werden.");
-  return signedPath.startsWith("http") ? signedPath : `${url}/storage/v1${signedPath}`;
+  const context = legacyTransportContext(session);
+  try {
+    return await createSignedStorageUrl(context, bucket, storagePath);
+  } catch {
+    throw new Error("Das Dokument kann derzeit nicht geöffnet werden.");
+  }
 }
 
 export async function callSupabaseFunctionRaw(session: BrowserSession, name: string, options: { method: "POST" | "PUT" | "PATCH" | "DELETE"; body?: BodyInit | null; contentType?: string }): Promise<Response> {
-  const { url, publishableKey } = config();
-  return fetch(`${url}/functions/v1/${name}`, {
-    method: options.method,
-    headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, ...(options.contentType ? { "Content-Type": options.contentType } : {}) },
-    body: options.body,
-  });
+  return invokeEdgeFunctionRaw(legacyTransportContext(session), name, options satisfies EdgeRawOptions);
 }
 
 export type ContractGenerationRequest = {
@@ -343,8 +294,7 @@ export type ContractGenerationRequest = {
 };
 
 export async function generateContract(session: BrowserSession, request: ContractGenerationRequest): Promise<{ previewUrl?: string; documentId?: number; message?: string }> {
-  const { url, publishableKey } = config();
-  const response = await fetch(`${url}/functions/v1/kgv-generate-contract`, { method: "POST", headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(request) });
+  const response = await invokeEdgeFunctionRaw(legacyTransportContext(session), "kgv-generate-contract", { method: "POST", contentType: "application/json", body: JSON.stringify(request) });
   if (!response.ok) { const detail = await response.json().catch(() => null) as { message?: string } | null; throw new Error(detail?.message ?? "Das Vertragsdokument konnte nicht erzeugt werden."); }
   if (request.action === "preview") return { previewUrl: URL.createObjectURL(await response.blob()) };
   const payload = await response.json() as { document_id?: number; message?: string };
@@ -354,17 +304,15 @@ export async function generateContract(session: BrowserSession, request: Contrac
 export type MeterPhotoKind = "ablesung" | "einbau" | "ausbau";
 
 export async function uploadMeterPhoto(session: BrowserSession, file: File, details: { datum: string; medium: string; anlage: string; garten: string; zaehlernummer: string; kind?: MeterPhotoKind }) {
-  const { url, publishableKey } = config();
   const form = new FormData(); form.set("file", file); form.set("kind", details.kind ?? "ablesung"); form.set("datum", details.datum); form.set("medium", details.medium); form.set("anlage", details.anlage); form.set("garten", details.garten); form.set("zaehlernummer", details.zaehlernummer);
-  const response = await fetch(`${url}/functions/v1/kgv-upload-photo`, { method: "POST", headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}` }, body: form });
+  const response = await invokeEdgeFunctionRaw(legacyTransportContext(session), "kgv-upload-photo", { method: "POST", body: form });
   const payload = await response.json().catch(() => null) as { file_id?: string; file_name?: string; message?: string } | null;
   if (!response.ok || !payload?.file_id) throw new Error(payload?.message ?? "Das Ablesefoto konnte nicht hochgeladen werden.");
   return { fileId: payload.file_id, fileName: payload.file_name ?? file.name };
 }
 
 export async function openMeterPhoto(session: BrowserSession, readingId: number) {
-  const { url, publishableKey } = config();
-  const response = await fetch(`${url}/functions/v1/kgv-upload-photo`, { method: "POST", headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ action: "download", ablesung_id: readingId }) });
+  const response = await invokeEdgeFunctionRaw(legacyTransportContext(session), "kgv-upload-photo", { method: "POST", contentType: "application/json", body: JSON.stringify({ action: "download", ablesung_id: readingId }) });
   if (!response.ok) { const detail = await response.json().catch(() => null) as { message?: string } | null; throw new Error(detail?.message ?? "Das Ablesungsfoto konnte nicht geladen werden."); }
   return URL.createObjectURL(await response.blob());
 }

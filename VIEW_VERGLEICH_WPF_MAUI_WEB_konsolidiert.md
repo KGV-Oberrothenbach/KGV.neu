@@ -8946,6 +8946,23 @@ Session-Abläufe zeigen keinen zusätzlichen Dialog und löschen nichts.
 
 ---
 
+## 15.6a Supabase-Transportbasis
+
+Die technische Kommunikation ist in `lib/supabase/` getrennt: Der explizite
+`SupabaseClientContext` enthält Club und schlanke Access-Token-Session,
+`rest-client.ts` kapselt PostgREST, `rpc-client.ts` RPC, `edge-client.ts` Edge
+Functions und `storage-client.ts` signierte URLs. Diese Clients lesen weder
+`loadClub()` noch Browser-Speicher und besitzen keine globale Vereinsvariable.
+
+`supabase-auth.ts` bleibt in diesem Zwischenschritt eine klar markierte
+Kompatibilitätsfassade: Bestehende Caller, Auth/Session, Workspace-Speicher,
+Edit-Lock-Orchestrierung und Fachwrapper bleiben unverändert; die Fassade
+bildet nur vorübergehend den Transportkontext aus der gespeicherten
+Vereinsauswahl. Die vollständige Caller-Migration und Entfernung dieses
+Hidden-Club-Zugriffs ist ausschließlich G15.6b.
+
+---
+
 ## 15.13 Kamera und Dateiauswahl
 
 Bei Ablesefotos verwendet Web:

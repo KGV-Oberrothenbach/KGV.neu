@@ -14,8 +14,16 @@ async function loadTypeScriptModule(path, replacements = []) {
   return `data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`;
 }
 
+async function loadSupabaseAuthModule() {
+  const clientContext = await loadTypeScriptModule("../../lib/supabase/client-context.ts");
+  const clientSource = Buffer.from(clientContext.split(",")[1], "base64").toString("utf8");
+  const restSource = Buffer.from((await loadTypeScriptModule("../../lib/supabase/rest-client.ts")).split(",")[1], "base64").toString("utf8").replace(/^import .*?;\r?\n/m, "");
+  const authSource = Buffer.from((await loadTypeScriptModule("../../lib/supabase-auth.ts")).split(",")[1], "base64").toString("utf8").replace(/^import .*?;\r?\n/gm, "");
+  return `data:text/javascript;base64,${Buffer.from(`${clientSource}\n${restSource}\n${authSource}`).toString("base64")}`;
+}
+
 test("member work-hours requests keep member and season filters without bypassing RLS demo scope", async () => {
-  const supabaseAuthUrl = await loadTypeScriptModule("../../lib/supabase-auth.ts");
+  const supabaseAuthUrl = await loadSupabaseAuthModule();
   const repositoryUrl = await loadTypeScriptModule(
     "../../repositories/work-hours/work-hours-repository.ts",
     [["../../lib/supabase-auth", supabaseAuthUrl]],
@@ -70,5 +78,5 @@ test("member work-hours requests keep member and season filters without bypassin
   const component = await readFile(new URL("../../features/work-hours/MemberWorkHours.tsx", import.meta.url), "utf8");
   assert.match(component, /loadMemberWorkHoursWorkspace\(session, memberId, saisonId\)/);
   const page = await readFile(new URL("../../app/page.tsx", import.meta.url), "utf8");
-  assert.match(page, /activeId === "mitglied-arbeitsstunden" && selectedMemberId && <MemberWorkHours session=\{session\} memberId=\{selectedMemberId\} saisonId=\{workspaceContext\.saisonId\}/);
+  assert.match(page, /effectiveActiveId === "mitglied-arbeitsstunden" && selectedMemberId && <MemberWorkHours session=\{session\} memberId=\{selectedMemberId\} saisonId=\{workspaceContext\.saisonId\}/);
 });

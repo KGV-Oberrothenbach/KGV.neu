@@ -14,8 +14,16 @@ async function loadTypeScriptModule(path, replacements = []) {
   return `data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`;
 }
 
+async function loadSupabaseAuthModule() {
+  const clientContext = await loadTypeScriptModule("../../lib/supabase/client-context.ts");
+  const clientSource = Buffer.from(clientContext.split(",")[1], "base64").toString("utf8");
+  const restSource = Buffer.from((await loadTypeScriptModule("../../lib/supabase/rest-client.ts")).split(",")[1], "base64").toString("utf8").replace(/^import .*?;\r?\n/m, "");
+  const authSource = Buffer.from((await loadTypeScriptModule("../../lib/supabase-auth.ts")).split(",")[1], "base64").toString("utf8").replace(/^import .*?;\r?\n/gm, "");
+  return `data:text/javascript;base64,${Buffer.from(`${clientSource}\n${restSource}\n${authSource}`).toString("base64")}`;
+}
+
 test("member documents request only the selected member's active documents and leave demo scope to RLS", async () => {
-  const supabaseAuthUrl = await loadTypeScriptModule("../../lib/supabase-auth.ts");
+  const supabaseAuthUrl = await loadSupabaseAuthModule();
   const documentModelUrl = await loadTypeScriptModule("../../models/documents/document.ts");
   const repositoryUrl = await loadTypeScriptModule(
     "../../repositories/documents/document-repository.ts",
@@ -101,7 +109,7 @@ test("member documents request only the selected member's active documents and l
   assert.equal(demoMemberScopeRequest.searchParams.get("is_demo"), "eq.true");
 
   const page = await readFile(new URL("../../app/page.tsx", import.meta.url), "utf8");
-  assert.match(page, /activeId === "mitglied-dokumente" && selectedMemberId && <DocumentList session=\{session\} owner=\{memberDocumentOwner\(selectedMemberId\)\}/);
+  assert.match(page, /effectiveActiveId === "mitglied-dokumente" && selectedMemberId && <DocumentList session=\{session\} owner=\{memberDocumentOwner\(selectedMemberId\)\}/);
   const component = await readFile(new URL("../../features/documents/DocumentList.tsx", import.meta.url), "utf8");
   assert.match(component, /loadDocumentsForOwner\(session, currentOwner\)/);
 });
