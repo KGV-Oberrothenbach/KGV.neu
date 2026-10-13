@@ -57,7 +57,7 @@ for /f "tokens=1,2,3 delims=|" %%A in ("%VERLINE%") do (set "CUR_MAUI_DISPLAY=%%
 if not defined CUR_MAUI_DISPLAY (echo FEHLER: Ungueltige MAUI-Versionsausgabe.& goto FAILURE_END)
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
- "$ErrorActionPreference='Stop';$p='%CUR_MAUI_DISPLAY%'.Split('.');$a=[int]$p[0];$b=[int]$p[1];$c=[int]$p[2];$test=if($p.Count -eq 3){$a+'.'+$b+'.'+$c+'.1'}else{$a+'.'+$b+'.'+$c+'.'+(([int]$p[3])+1)};$release=$a+'.'+$b+'.'+($c+1);Write-Output ($test+'|'+$release)" > "%PS_RESULT%"
+ "$ErrorActionPreference='Stop';$p='%CUR_MAUI_DISPLAY%'.Split('.');$a=[int]$p[0];$b=[int]$p[1];$c=[int]$p[2];$test=if($p.Count -eq 3){'{0}.{1}.{2}.1' -f $a,$b,$c}else{'{0}.{1}.{2}.{3}' -f $a,$b,$c,(([int]$p[3])+1)};$release='{0}.{1}.{2}' -f $a,$b,($c+1);Write-Output ($test+'|'+$release)" > "%PS_RESULT%"
 if errorlevel 1 (echo FEHLER: Zielversionen konnten nicht berechnet werden.& goto FAILURE_END)
 set "PROPOSALS=" & set /p PROPOSALS=<"%PS_RESULT%"
 for /f "tokens=1,2 delims=|" %%A in ("%PROPOSALS%") do (set "TEST_VERSION=%%A" & set "RELEASE_VERSION=%%B")
