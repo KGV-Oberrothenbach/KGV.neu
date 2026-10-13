@@ -8814,6 +8814,15 @@ Bei belegtem Lock wird angezeigt:
 Dieser Datensatz wird gerade von ... bearbeitet.
 ```
 
+### G15.3a – serverseitiger Vertragsstand
+
+Lock-Besitz wird serverseitig auf Benutzer plus Client-Instanz erweitert.
+Die bisherigen RPCs bleiben während der Umstellung mit einer stabilen
+Legacy-Client-Identität kompatibel; neue client-aware RPCs trennen Acquire,
+Release und ReleaseAll pro Instanz. Die Synchronisierung der Legacy-Felder von
+`mitglied` und `arbeitsstunde` ist dabei wieder Teil des zentralen Vertrags.
+Web- und MAUI-Client-IDs folgen erst in G15.3b.
+
 ### Zusätzlich
 PATCH/DELETE über die generischen Web-Helfer führen für registrierte Tabellen nochmals eine Lockprüfung durch.
 
