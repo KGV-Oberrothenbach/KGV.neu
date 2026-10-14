@@ -1,6 +1,18 @@
 @echo off
-cls
 setlocal EnableExtensions DisableDelayedExpansion
+
+set "SUCCESS_SOUND=C:\Users\Andreas\Music\phantom_oper_benachrichtigung.wav"
+
+call :MAIN
+set "FINAL_EXIT_CODE=%ERRORLEVEL%"
+
+call :PLAY_SOUND
+
+exit /b %FINAL_EXIT_CODE%
+
+
+:MAIN
+cls
 
 REM KGV MAUI + Web Release. Cloudflare deployment remains disabled by default.
 set "REPO=C:\Programmieren\KGV\KGV.neu"
@@ -195,4 +207,19 @@ set "STOREPASS=" & exit /b 0
 :DELETE_TEMP
 if defined GIT_RESULT del /q "%GIT_RESULT%" >nul 2>&1
 if defined PS_RESULT del /q "%PS_RESULT%" >nul 2>&1
+exit /b 0
+
+
+:PLAY_SOUND
+echo.
+echo Spiele Abschlusssound...
+
+if exist "%SUCCESS_SOUND%" (
+  powershell -NoProfile -Command "$player = New-Object System.Media.SoundPlayer '%SUCCESS_SOUND%'; $player.PlaySync()"
+) else (
+  echo HINWEIS: Sounddatei nicht gefunden:
+  echo %SUCCESS_SOUND%
+  powershell -NoProfile -Command "[Console]::Beep(1000,500)"
+)
+
 exit /b 0
