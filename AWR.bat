@@ -20,8 +20,7 @@ set "MAUI_CSPROJ=%REPO%\KGV.Maui\KGV.Maui.csproj"
 set "WEB_ROOT=%REPO%\KGV.Web"
 set "WEB_PACKAGE=%WEB_ROOT%\package.json"
 set "PUBLISH_ROOT=%REPO%\publish"
-set "ENABLE_CLOUDFLARE_TEST_DEPLOY=1"
-set "ENABLE_CLOUDFLARE_PROD_DEPLOY=0"
+set "ENABLE_CLOUDFLARE_DEPLOY=0"
 set "WEB_PROD_WORKER_NAME=kgv-web"
 set "WEB_TEST_WORKER_NAME=kgv-web-test"
 set "WEB_PROD_HOST=https://app.a-b-i.net"
@@ -85,19 +84,52 @@ echo [3] Abbrechen
 choice /C 123 /N /M "Auswahl"
 if errorlevel 3 goto CANCEL_RELEASE
 if errorlevel 2 (set "RELEASE_KIND=Release" & set "SUGGESTED_VERSION=%RELEASE_VERSION%") else (set "RELEASE_KIND=Test / Zwischenstand" & set "SUGGESTED_VERSION=%TEST_VERSION%")
+set "WEB_ONLY="
+set "BUILD_SCOPE=MAUI + Web"
+if /I "%RELEASE_KIND%"=="Test / Zwischenstand" (
+  echo.
+  echo Testumfang:
+  echo [1] MAUI + Web
+  echo [2] Nur Web
+  choice /C 12 /N /M "Auswahl"
+  if errorlevel 2 (set "WEB_ONLY=1" & set "BUILD_SCOPE=Nur Web")
+)
+if defined WEB_ONLY goto CONFIGURE_WEB_ONLY_TEST
+
 set "TARGET_VERSION=" & set /p TARGET_VERSION=Zielversion [%SUGGESTED_VERSION%]:
 if not defined TARGET_VERSION set "TARGET_VERSION=%SUGGESTED_VERSION%"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';$v='%TARGET_VERSION%'.Trim();if($v -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$'){throw 'ungueltig'};Write-Output $v" > "%PS_RESULT%"
 if errorlevel 1 (echo FEHLER: Zielversion muss drei oder vier numerische Teile haben.& goto FAILURE_END)
 set "TARGET_VERSION=" & set /p TARGET_VERSION=<"%PS_RESULT%"
 if not defined TARGET_VERSION goto FAILURE_END
+set "WEB_REVISION=0"
+set "WEB_DISPLAY_VERSION=%TARGET_VERSION%"
+goto CHECK_RELEASE_BRANCH
+
+:CONFIGURE_WEB_ONLY_TEST
+REM A Web-only test never changes the MAUI application version. Its separate
+REM revision is persisted in the copied Web release metadata.
+set "TARGET_VERSION=%CUR_MAUI_DISPLAY%"
+set "WEB_REVISION=1"
+set "EXISTING_WEB_RELEASE_INFO=%PUBLISH_ROOT%\%TARGET_VERSION%\Web\dist\client\release-info.json"
+if not exist "%EXISTING_WEB_RELEASE_INFO%" goto WEB_ONLY_VERSION_READY
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';$r=Get-Content -Raw '%EXISTING_WEB_RELEASE_INFO%' | ConvertFrom-Json;if($null -eq $r.webRevision){Write-Output 1;exit 0};$n=[int]$r.webRevision;if($n -lt 0){throw 'Web-Revision ist ungueltig'};Write-Output ($n + 1)" > "%PS_RESULT%"
+if errorlevel 1 (echo FEHLER: Vorhandene Web-Revision konnte nicht gelesen werden.& goto FAILURE_END)
+set "WEB_REVISION=" & set /p WEB_REVISION=<"%PS_RESULT%"
+if not defined WEB_REVISION (echo FEHLER: Vorhandene Web-Revision ist leer.& goto FAILURE_END)
+:WEB_ONLY_VERSION_READY
+set "WEB_DISPLAY_VERSION=%TARGET_VERSION% / Web %WEB_REVISION%"
+echo.
+echo Web-only-Testversion: %WEB_DISPLAY_VERSION%
+
+:CHECK_RELEASE_BRANCH
 if /I "%RELEASE_KIND%"=="Release" if /I not "%CURRENT_BRANCH%"=="main" (
   echo WARNUNG: Release von "%CURRENT_BRANCH%" statt main.
   choice /C JN /N /M "Trotzdem fortsetzen? [J/N]"
   if errorlevel 2 goto CANCEL_RELEASE
 )
 
-set /a NEW_ANDROID_CODE=%CUR_MAUI_CODE%+1
+if not defined WEB_ONLY set /a NEW_ANDROID_CODE=%CUR_MAUI_CODE%+1
 set "VERSION_ROOT=%PUBLISH_ROOT%\%TARGET_VERSION%"
 set "ANDROID_OUT=%VERSION_ROOT%\Android"
 set "ANDROID_UPLOAD_OUT=%ANDROID_OUT%\Upload"
@@ -107,17 +139,14 @@ set "WEB_DIST=%WEB_ROOT%\dist"
 set "WEB_CLIENT_DIST=%WEB_DIST%\client"
 set "WEB_RELEASE_INFO=%WEB_CLIENT_DIST%\release-info.json"
 echo.
-echo Art: %RELEASE_KIND% / Zielversion: %TARGET_VERSION% / Android-Code: %NEW_ANDROID_CODE%
-if /I "%RELEASE_KIND%"=="Release" (
-  set "DEPLOY_WEB=%ENABLE_CLOUDFLARE_PROD_DEPLOY%"
-  echo Cloudflare-Produktiv-Deployment: deaktiviert
-) else (
-  set "DEPLOY_WEB=%ENABLE_CLOUDFLARE_TEST_DEPLOY%"
-  echo Cloudflare-Test-Deployment: aktiviert (https://kgv-web-test.kgv-ob.workers.dev/)
-)
-choice /C JN /N /M "MAUI und Web jetzt bauen? [J/N]"
+echo Art: %RELEASE_KIND% / Umfang: %BUILD_SCOPE% / Version: %WEB_DISPLAY_VERSION%
+if not defined WEB_ONLY echo Android-Code: %NEW_ANDROID_CODE%
+set "DEPLOY_WEB=%ENABLE_CLOUDFLARE_DEPLOY%"
+if "%DEPLOY_WEB%"=="1" (echo Cloudflare-Deployment: aktiviert) else (echo Cloudflare-Deployment: deaktiviert)
+choice /C JN /N /M "%BUILD_SCOPE% jetzt bauen? [J/N]"
 if errorlevel 2 goto CANCEL_RELEASE
 
+if defined WEB_ONLY goto BUILD_WEB
 set "VERSION_CHANGED=1"
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
  "$ErrorActionPreference='Stop';$x=[xml](Get-Content '%MAUI_CSPROJ%');$g=@($x.Project.PropertyGroup | Where-Object {$_.ApplicationDisplayVersion -or $_.ApplicationVersion});if($g.Count -eq 0){throw 'Versionseinstellungen fehlen'};foreach($p in $g){$p.ApplicationDisplayVersion='%TARGET_VERSION%';$p.ApplicationVersion='%NEW_ANDROID_CODE%'};$x.Save('%MAUI_CSPROJ%')"
@@ -145,19 +174,24 @@ for /f "delims=" %%I in ('dir /b /a-d /o-d "%REPO%\KGV.Maui\bin\Release\net10.0-
 if not defined APK_FILE goto BUILD_FAILED
 if not defined AAB_FILE goto BUILD_FAILED
 
+:BUILD_WEB
 pushd "%WEB_ROOT%" || goto BUILD_FAILED
 set "KGV_RELEASE_VERSION=%TARGET_VERSION%"
+set "KGV_RELEASE_DISPLAY_VERSION=%WEB_DISPLAY_VERSION%"
+set "KGV_WEB_REVISION=%WEB_REVISION%"
 set "KGV_RELEASE_BRANCH=%CURRENT_BRANCH%"
 set "KGV_RELEASE_COMMIT=%CURRENT_COMMIT%"
 set "KGV_RELEASE_KIND=%RELEASE_KIND%"
+set "KGV_RELEASE_SCOPE=%BUILD_SCOPE%"
 call npm run build
 set "WEB_BUILD_RESULT=%ERRORLEVEL%"
 popd
 if not "%WEB_BUILD_RESULT%"=="0" goto BUILD_FAILED
 if not exist "%WEB_CLIENT_DIST%" goto BUILD_FAILED
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';[ordered]@{version='%TARGET_VERSION%';branch='%CURRENT_BRANCH%';commit='%CURRENT_COMMIT%';kind='%RELEASE_KIND%';builtAtUtc=[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')} | ConvertTo-Json | Set-Content -Path '%WEB_RELEASE_INFO%' -Encoding UTF8"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';[ordered]@{version='%TARGET_VERSION%';displayVersion='%WEB_DISPLAY_VERSION%';webRevision='%WEB_REVISION%';branch='%CURRENT_BRANCH%';commit='%CURRENT_COMMIT%';kind='%RELEASE_KIND%';scope='%BUILD_SCOPE%';builtAtUtc=[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')} | ConvertTo-Json | Set-Content -Path '%WEB_RELEASE_INFO%' -Encoding UTF8"
 if errorlevel 1 goto BUILD_FAILED
 
+if defined WEB_ONLY goto COPY_WEB
 if not exist "%ANDROID_UPLOAD_OUT%" mkdir "%ANDROID_UPLOAD_OUT%" || goto BUILD_FAILED
 if not exist "%ANDROID_DIAG_OUT%" mkdir "%ANDROID_DIAG_OUT%" || goto BUILD_FAILED
 if not exist "%WEB_OUT%" mkdir "%WEB_OUT%" || goto BUILD_FAILED
@@ -165,6 +199,8 @@ copy /Y "%APK_FILE%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.apk" >nul || go
 copy /Y "%AAB_FILE%" "%ANDROID_OUT%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
 copy /Y "%APK_FILE%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%.apk" >nul || goto BUILD_FAILED
 copy /Y "%AAB_FILE%" "%ANDROID_UPLOAD_OUT%\KGV-Android-%TARGET_VERSION%.aab" >nul || goto BUILD_FAILED
+:COPY_WEB
+if not exist "%WEB_OUT%" mkdir "%WEB_OUT%" || goto BUILD_FAILED
 robocopy "%WEB_DIST%" "%WEB_OUT%\dist" /E /NFL /NDL /NJH /NJS /NC /NS >nul
 set "WEB_COPY_RESULT=%ERRORLEVEL%"
 if %WEB_COPY_RESULT% GEQ 8 goto BUILD_FAILED
@@ -173,10 +209,16 @@ if "%DEPLOY_WEB%"=="1" (
   if errorlevel 1 goto BUILD_FAILED
 )
 
+if defined WEB_ONLY goto WEB_ONLY_SUCCESS
 "%GIT%" -C "%REPO%" add "KGV.Maui/KGV.Maui.csproj"
 "%GIT%" -C "%REPO%" commit -m "%RELEASE_KIND% %TARGET_VERSION% MAUI/Web" || goto BUILD_FAILED
 "%GIT%" -C "%REPO%" push origin "%CURRENT_BRANCH%" || goto BUILD_FAILED
 echo RELEASE FERTIG: %TARGET_VERSION%
+goto RELEASE_END
+
+:WEB_ONLY_SUCCESS
+echo WEB-ONLY-TEST FERTIG: %WEB_DISPLAY_VERSION%
+echo MAUI-Version unveraendert: %CUR_MAUI_DISPLAY%
 goto RELEASE_END
 
 :DEPLOY_WEB
