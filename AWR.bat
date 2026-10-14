@@ -14,13 +14,12 @@ exit /b %FINAL_EXIT_CODE%
 :MAIN
 cls
 
-REM KGV MAUI + Web Release. Cloudflare deployment remains disabled by default.
+REM KGV MAUI + Web Release. Every successful Web build is deployed to Cloudflare.
 set "REPO=C:\Programmieren\KGV\KGV.neu"
 set "MAUI_CSPROJ=%REPO%\KGV.Maui\KGV.Maui.csproj"
 set "WEB_ROOT=%REPO%\KGV.Web"
 set "WEB_PACKAGE=%WEB_ROOT%\package.json"
 set "PUBLISH_ROOT=%REPO%\publish"
-set "ENABLE_CLOUDFLARE_DEPLOY=0"
 set "WEB_PROD_WORKER_NAME=kgv-web"
 set "WEB_TEST_WORKER_NAME=kgv-web-test"
 set "WEB_PROD_HOST=https://app.a-b-i.net"
@@ -141,8 +140,7 @@ set "WEB_RELEASE_INFO=%WEB_CLIENT_DIST%\release-info.json"
 echo.
 echo Art: %RELEASE_KIND% / Umfang: %BUILD_SCOPE% / Version: %WEB_DISPLAY_VERSION%
 if not defined WEB_ONLY echo Android-Code: %NEW_ANDROID_CODE%
-set "DEPLOY_WEB=%ENABLE_CLOUDFLARE_DEPLOY%"
-if "%DEPLOY_WEB%"=="1" (echo Cloudflare-Deployment: aktiviert) else (echo Cloudflare-Deployment: deaktiviert)
+echo Cloudflare-Deployment: wird nach erfolgreichem Web-Build ausgefuehrt
 choice /C JN /N /M "%BUILD_SCOPE% jetzt bauen? [J/N]"
 if errorlevel 2 goto CANCEL_RELEASE
 
@@ -204,10 +202,8 @@ if not exist "%WEB_OUT%" mkdir "%WEB_OUT%" || goto BUILD_FAILED
 robocopy "%WEB_DIST%" "%WEB_OUT%\dist" /E /NFL /NDL /NJH /NJS /NC /NS >nul
 set "WEB_COPY_RESULT=%ERRORLEVEL%"
 if %WEB_COPY_RESULT% GEQ 8 goto BUILD_FAILED
-if "%DEPLOY_WEB%"=="1" (
-  call :DEPLOY_WEB
-  if errorlevel 1 goto BUILD_FAILED
-)
+call :DEPLOY_WEB
+if errorlevel 1 goto BUILD_FAILED
 
 if defined WEB_ONLY goto WEB_ONLY_SUCCESS
 "%GIT%" -C "%REPO%" add "KGV.Maui/KGV.Maui.csproj"
@@ -222,12 +218,20 @@ echo MAUI-Version unveraendert: %CUR_MAUI_DISPLAY%
 goto RELEASE_END
 
 :DEPLOY_WEB
-if /I "%RELEASE_KIND%"=="Release" (set "WEB_WORKER_NAME=%WEB_PROD_WORKER_NAME%") else (set "WEB_WORKER_NAME=%WEB_TEST_WORKER_NAME%")
+if /I "%RELEASE_KIND%"=="Release" (
+  set "WEB_WORKER_NAME=%WEB_PROD_WORKER_NAME%"
+  set "WEB_DEPLOY_HOST=%WEB_PROD_HOST%"
+) else (
+  set "WEB_WORKER_NAME=%WEB_TEST_WORKER_NAME%"
+  set "WEB_DEPLOY_HOST=%WEB_TEST_HOST%"
+)
 pushd "%WEB_ROOT%" || exit /b 1
 call npx wrangler deploy --config dist\server\wrangler.json --name "%WEB_WORKER_NAME%"
 set "DEPLOY_RESULT=%ERRORLEVEL%"
 popd
-exit /b %DEPLOY_RESULT%
+if not "%DEPLOY_RESULT%"=="0" exit /b %DEPLOY_RESULT%
+echo Web deployed: %WEB_DEPLOY_HOST%
+exit /b 0
 
 :CANCEL_RELEASE
 echo Release abgebrochen. Die Versionsdatei wurde nicht geaendert.
