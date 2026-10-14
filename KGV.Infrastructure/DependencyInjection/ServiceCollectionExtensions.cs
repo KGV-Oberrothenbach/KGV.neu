@@ -34,12 +34,15 @@ namespace KGV.Infrastructure.DependencyInjection
                     sp.GetRequiredService<ISupabaseClientFactory>(),
                     sp.GetService<ILogger<AuthService>>()));
 
+            services.AddSingleton<IPdfTemplateProvider, SupabasePdfTemplateProvider>();
+
             services.AddSingleton<ISupabaseService>(sp =>
                 new SupabaseService(
                     sp.GetRequiredService<ISupabaseClientFactory>(),
                     sp.GetService<ILogger<SupabaseService>>(),
                     () => sp.GetService<IUserContextAccessor>()?.CurrentUserContext,
                     sp.GetRequiredService<IAuthService>(),
+                    sp.GetRequiredService<IPdfTemplateProvider>(),
                     sp.GetRequiredService<ISupabaseClientFactory>().Url,
                     sp.GetRequiredService<ISupabaseClientFactory>().Key));
 

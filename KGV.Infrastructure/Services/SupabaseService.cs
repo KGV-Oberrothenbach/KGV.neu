@@ -32,6 +32,7 @@ namespace KGV.Infrastructure.Services
         private readonly ILogger<SupabaseService>? _logger;
         private readonly Func<UserContext?>? _currentUserContextAccessor;
         private readonly IAuthService _authService;
+        private readonly IPdfTemplateProvider _pdfTemplateProvider;
         private readonly string _supabaseUrl;
         private readonly string _publishableKey;
         private readonly HttpClient _documentUploadHttpClient;
@@ -42,6 +43,7 @@ namespace KGV.Infrastructure.Services
             ILogger<SupabaseService>? logger,
             Func<UserContext?>? currentUserContextAccessor,
             IAuthService authService,
+            IPdfTemplateProvider pdfTemplateProvider,
             string supabaseUrl,
             string publishableKey)
         {
@@ -49,6 +51,7 @@ namespace KGV.Infrastructure.Services
             _logger = logger;
             _currentUserContextAccessor = currentUserContextAccessor;
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+            _pdfTemplateProvider = pdfTemplateProvider ?? throw new ArgumentNullException(nameof(pdfTemplateProvider));
             _supabaseUrl = (supabaseUrl ?? string.Empty).Trim();
             _publishableKey = (publishableKey ?? string.Empty).Trim();
             _documentUploadHttpClient = new HttpClient
@@ -3429,7 +3432,7 @@ namespace KGV.Infrastructure.Services
             async () =>
             {
                 var context = await ResolveMitgliedsantragRequestAsync(request);
-                return MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert);
+                return await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
             },
             null);
 
@@ -3470,8 +3473,8 @@ namespace KGV.Infrastructure.Services
                         return DokumentUploadResult.Fail("Gesetzlicher Vertreter konnte nicht gespeichert werden.", "VALIDATION");
                 }
 
-                var previewUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert);
-                var finalUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Signiert);
+                var previewUploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
+                var finalUploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Signiert, _pdfTemplateProvider);
                 var placeholders = MitgliedsantragDokumentFactory.GetSignaturePlaceholders()
                     .ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
                 var signatures = new List<(SignaturePlaceholder placeholder, DigitalSignatureCapture capture)>();
@@ -3505,7 +3508,7 @@ namespace KGV.Infrastructure.Services
             var gesetzlicherVertreter = await ResolveGesetzlicherVertreterAsync(member.Id, beginnDatum);
             var bankverbindungSnapshot = await ResolveVereinskonfigurationSnapshotAsync();
             var aufnahmegebuehr = await ResolveMitgliedsantragAufnahmegebuehrAsync(beginnDatum);
-            var uploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreter.IstMinderjaehrig ? BuildMitgliedsantragVertreterSnapshot(gesetzlicherVertreter.Vorbelegung) : null, bankverbindungSnapshot, status);
+            var uploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreter.IstMinderjaehrig ? BuildMitgliedsantragVertreterSnapshot(gesetzlicherVertreter.Vorbelegung) : null, bankverbindungSnapshot, status, _pdfTemplateProvider);
             return await CreateDokumentAsync(uploadRequest);
         }
 

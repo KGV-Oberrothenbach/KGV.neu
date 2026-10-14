@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
@@ -91,6 +94,29 @@ namespace KGV.Core.Utilities
             MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
             VereinskonfigurationSnapshot? vereinskonfigurationSnapshot,
             string? status = null)
+            // Compatibility-only fallback for isolated local tests. The production service always uses IPdfTemplateProvider.
+            => CreateUploadRequestCore(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreterSnapshot, vereinskonfigurationSnapshot, status, LoadEmbeddedTemplateAsset());
+
+        public static async Task<DokumentUploadRequest> CreateUploadRequestAsync(
+            MitgliedRecord member, decimal mitgliedsbeitrag, decimal aufnahmegebuehr, DateTime beginnDatum,
+            MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot, VereinskonfigurationSnapshot? vereinskonfigurationSnapshot,
+            string? status, IPdfTemplateProvider templateProvider, CancellationToken cancellationToken = default)
+        {
+            if (templateProvider == null) throw new ArgumentNullException(nameof(templateProvider));
+            var template = await templateProvider.GetActiveAsync("mitgliedsantrag", "mitgliedsantrag-field-spec/v1", "pdfsharpcore-ma/v1", cancellationToken);
+            ValidateTemplate(template);
+            return CreateUploadRequestCore(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreterSnapshot, vereinskonfigurationSnapshot, status, template);
+        }
+
+        private static DokumentUploadRequest CreateUploadRequestCore(
+            MitgliedRecord member,
+            decimal mitgliedsbeitrag,
+            decimal aufnahmegebuehr,
+            DateTime beginnDatum,
+            MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
+            VereinskonfigurationSnapshot? vereinskonfigurationSnapshot,
+            string? status,
+            PdfTemplateAsset template)
         {
             if (member == null)
                 throw new ArgumentNullException(nameof(member));
@@ -117,8 +143,7 @@ namespace KGV.Core.Utilities
                 gesetzlicherVertreterSnapshot,
                 VereinskonfigurationSnapshotFactory.NormalizeForMembershipApplication(vereinskonfigurationSnapshot));
 
-            var pdfTemplate = LoadTemplatePdfBytes();
-            var filledPdf = FillAndFlattenPdfForm(pdfTemplate, templateData);
+            var filledPdf = FillAndFlattenPdfForm(template.PdfBytes, templateData, template.Fields);
 
             return new DokumentUploadRequest
             {
@@ -214,7 +239,7 @@ namespace KGV.Core.Utilities
             };
         }
 
-        private static byte[] LoadTemplatePdfBytes()
+        private static PdfTemplateAsset LoadEmbeddedTemplateAsset()
         {
             var assembly = typeof(MitgliedsantragDokumentFactory).Assembly;
             using var stream = assembly.GetManifestResourceStream(PdfTemplateResourceName)
@@ -222,10 +247,18 @@ namespace KGV.Core.Utilities
 
             using var ms = new MemoryStream();
             stream.CopyTo(ms);
-            return ms.ToArray();
+            return new PdfTemplateAsset
+            {
+                TemplateKey = "mitgliedsantrag",
+                Version = "embedded-development-fallback",
+                FieldSpecVersion = "mitgliedsantrag-field-spec/v1",
+                RendererVersion = "pdfsharpcore-ma/v1",
+                PdfBytes = ms.ToArray(),
+                Fields = FieldSpecs.Select(x => new PdfTemplateFieldSpec(x.Name, x.Kind.ToString(), 1, x.X, x.Y, x.Width, x.Height)).ToArray()
+            };
         }
 
-        private static byte[] FillAndFlattenPdfForm(byte[] pdfBytes, MitgliedsantragTemplateData data)
+        private static byte[] FillAndFlattenPdfForm(byte[] pdfBytes, MitgliedsantragTemplateData data, IReadOnlyList<PdfTemplateFieldSpec> loadedFields)
         {
             if (pdfBytes == null || pdfBytes.Length == 0)
                 throw new InvalidOperationException("Die Mitgliedsantrag-PDF-Vorlage ist leer oder konnte nicht geladen werden.");
@@ -234,7 +267,7 @@ namespace KGV.Core.Utilities
             using var document = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
 
             var map = BuildFieldMap(data);
-            DrawFieldValues(document, map);
+            DrawFieldValues(document, map, loadedFields);
             RemoveFormAnnotations(document);
 
             using var output = new MemoryStream();
@@ -291,7 +324,7 @@ namespace KGV.Core.Utilities
             };
         }
 
-        private static void DrawFieldValues(PdfDocument document, IReadOnlyDictionary<string, string> map)
+        private static void DrawFieldValues(PdfDocument document, IReadOnlyDictionary<string, string> map, IReadOnlyList<PdfTemplateFieldSpec> loadedFields)
         {
             if (document.Pages.Count == 0)
                 return;
@@ -304,7 +337,7 @@ namespace KGV.Core.Utilities
 
             using var graphics = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
 
-            foreach (var field in FieldSpecs)
+            foreach (var field in loadedFields.Select(ToInternalField))
             {
                 if (field.Kind == PdfFormFieldKind.SignaturePlaceholder)
                     continue;
@@ -323,6 +356,23 @@ namespace KGV.Core.Utilities
 
                 DrawTextValue(graphics, valueFont, smallValueFont, field, value);
             }
+        }
+
+        private static PdfFormFieldSpec ToInternalField(PdfTemplateFieldSpec field) => new(field.Name, field.Kind.Trim().ToLowerInvariant() switch
+        {
+            "checkbox" => PdfFormFieldKind.Checkbox,
+            "multiline" => PdfFormFieldKind.MultilineText,
+            "signatureplaceholder" or "signature" => PdfFormFieldKind.SignaturePlaceholder,
+            _ => PdfFormFieldKind.Text
+        }, field.X, field.Y, field.Width, field.Height);
+
+        private static void ValidateTemplate(PdfTemplateAsset template)
+        {
+            if (template.PdfBytes == null || template.PdfBytes.Length == 0) throw new InvalidOperationException("Die zentrale Mitgliedsantrag-Vorlage ist leer.");
+            var expected = FieldSpecs.OrderBy(x => x.Name, StringComparer.Ordinal).ToArray();
+            var actual = template.Fields.OrderBy(x => x.Name, StringComparer.Ordinal).ToArray();
+            if (actual.Length != expected.Length || actual.Where((x, i) => !string.Equals(x.Name, expected[i].Name, StringComparison.OrdinalIgnoreCase) || x.Page != 1 || Math.Abs(x.X - expected[i].X) > 0.01 || Math.Abs(x.Y - expected[i].Y) > 0.01 || Math.Abs(x.Width - expected[i].Width) > 0.01 || Math.Abs(x.Height - expected[i].Height) > 0.01).Any())
+                throw new InvalidOperationException("Die Feldspezifikation der zentralen Mitgliedsantrag-Vorlage ist nicht mit dem unterstützten Renderer kompatibel.");
         }
 
         private static void DrawTextValue(XGraphics graphics, XFont normalFont, XFont smallFont, PdfFormFieldSpec field, string value)
