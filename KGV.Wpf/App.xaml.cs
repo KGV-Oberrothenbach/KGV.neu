@@ -135,7 +135,7 @@ namespace KGV.Wpf
 
             // Services initialisieren
             var authService = new AuthService(clientFactory, null); // Logger optional
-            var pdfTemplateProvider = new SupabasePdfTemplateProvider(clientFactory);
+            var pdfTemplateProvider = new SupabasePdfTemplateProvider(clientFactory, authService);
             var supabaseService = new SupabaseService(
                 clientFactory,
                 null,
