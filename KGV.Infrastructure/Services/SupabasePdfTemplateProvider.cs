@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using KGV.Core.Interfaces;
@@ -16,7 +17,7 @@ namespace KGV.Infrastructure.Services;
 
 public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
 {
-    private static readonly HttpClient TemplateDownloadHttpClient = new() { Timeout = TimeSpan.FromSeconds(45) };
+    private static readonly HttpClient TemplateHttpClient = new() { Timeout = TimeSpan.FromSeconds(45) };
     private readonly ISupabaseClientFactory _clientFactory;
     private readonly IAuthService _authService;
     private readonly ILogger<SupabasePdfTemplateProvider>? _logger;
@@ -34,18 +35,7 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
     public async Task<PdfTemplateAsset> GetActiveAsync(string templateKey, string expectedFieldSpecVersion, string expectedRendererVersion, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(templateKey)) throw new InvalidOperationException("Der PDF-Vorlagenschlüssel fehlt.");
-        var client = await _clientFactory.CreateAsync();
-        PdfTemplateCatalogRecord? record;
-        try
-        {
-            var response = await client.From<PdfTemplateCatalogRecord>().Where(x => x.TemplateKey == templateKey.Trim()).Where(x => x.Aktiv == true).Get();
-            record = response.Models?.Where(x => string.Equals(x.Status, "published", StringComparison.OrdinalIgnoreCase)).OrderByDescending(x => x.CreatedAt).FirstOrDefault();
-        }
-        catch (Exception ex)
-        {
-            LogFailure("catalog-load", templateKey, ex);
-            throw new InvalidOperationException($"Der PDF-Template-Katalog für '{templateKey}' konnte nicht geladen werden.", ex);
-        }
+        var record = await LoadActiveCatalogRecordAsync(templateKey.Trim(), cancellationToken);
 
         if (record == null) throw new InvalidOperationException($"Für die PDF-Vorlage '{templateKey}' ist keine aktive veröffentlichte Version hinterlegt.");
         if (!string.Equals(record.FieldSpecVersion, expectedFieldSpecVersion, StringComparison.Ordinal) || !string.Equals(record.RendererVersion, expectedRendererVersion, StringComparison.Ordinal))
@@ -80,6 +70,50 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
         return new PdfTemplateAsset { TemplateKey = record.TemplateKey, Version = record.Version, FieldSpecVersion = record.FieldSpecVersion, RendererVersion = record.RendererVersion, PdfBytes = pdf, Fields = fields };
     }
 
+    private async Task<PdfTemplateCatalogRecord?> LoadActiveCatalogRecordAsync(string templateKey, CancellationToken cancellationToken)
+    {
+        var accessToken = await _authService.GetAccessTokenAsync();
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            var exception = new InvalidOperationException("Die aktuelle Anmeldung ist abgelaufen. Bitte erneut anmelden.");
+            LogFailure("catalog-load", templateKey, exception);
+            throw exception;
+        }
+
+        const string select = "template_key,version,storage_bucket,storage_path,content_type,checksum,field_spec_path,field_spec_checksum,field_spec_version,renderer_version,status,aktiv,created_at";
+        var query = string.Join("&", new[]
+        {
+            $"select={Uri.EscapeDataString(select)}",
+            $"template_key=eq.{Uri.EscapeDataString(templateKey)}",
+            "aktiv=eq.true",
+            "status=eq.published",
+            "order=created_at.desc",
+            "limit=1"
+        });
+        var endpoint = new Uri(new Uri(_clientFactory.Url.TrimEnd('/') + "/"), $"rest/v1/pdf_template_catalog?{query}");
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            request.Headers.Add("apikey", _clientFactory.Key);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            using var response = await TemplateHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException($"Der PDF-Template-Katalog wurde abgelehnt ({(int)response.StatusCode}): {responseBody}");
+
+            var records = JsonSerializer.Deserialize<List<PdfTemplateCatalogDto>>(responseBody);
+            return records?.FirstOrDefault()?.ToRecord();
+        }
+        catch (Exception ex)
+        {
+            LogFailure("catalog-load", templateKey, ex);
+            throw new InvalidOperationException($"Der PDF-Template-Katalog für '{templateKey}' konnte nicht geladen werden: {ex.Message}", ex);
+        }
+    }
+
     private async Task<byte[]> DownloadPrivateObjectAsync(
         string bucket,
         string storagePath,
@@ -108,7 +142,7 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
             request.Headers.Add("apikey", _clientFactory.Key);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
 
-            using var response = await TemplateDownloadHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            using var response = await TemplateHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -152,5 +186,39 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
             result.Add(new PdfTemplateFieldSpec(field.GetProperty("name").GetString() ?? string.Empty, multiline ? "multiline" : type, field.TryGetProperty("page", out var page) ? page.GetInt32() : 1, rect.GetProperty("x").GetDouble(), rect.GetProperty("y").GetDouble(), rect.GetProperty("w").GetDouble(), rect.GetProperty("h").GetDouble()));
         }
         return result;
+    }
+
+    private sealed class PdfTemplateCatalogDto
+    {
+        [JsonPropertyName("template_key")] public string TemplateKey { get; init; } = string.Empty;
+        [JsonPropertyName("version")] public string Version { get; init; } = string.Empty;
+        [JsonPropertyName("storage_bucket")] public string StorageBucket { get; init; } = string.Empty;
+        [JsonPropertyName("storage_path")] public string StoragePath { get; init; } = string.Empty;
+        [JsonPropertyName("content_type")] public string ContentType { get; init; } = string.Empty;
+        [JsonPropertyName("checksum")] public string Checksum { get; init; } = string.Empty;
+        [JsonPropertyName("field_spec_path")] public string FieldSpecPath { get; init; } = string.Empty;
+        [JsonPropertyName("field_spec_checksum")] public string FieldSpecChecksum { get; init; } = string.Empty;
+        [JsonPropertyName("field_spec_version")] public string FieldSpecVersion { get; init; } = string.Empty;
+        [JsonPropertyName("renderer_version")] public string RendererVersion { get; init; } = string.Empty;
+        [JsonPropertyName("status")] public string Status { get; init; } = string.Empty;
+        [JsonPropertyName("aktiv")] public bool Aktiv { get; init; }
+        [JsonPropertyName("created_at")] public DateTime CreatedAt { get; init; }
+
+        public PdfTemplateCatalogRecord ToRecord() => new()
+        {
+            TemplateKey = TemplateKey,
+            Version = Version,
+            StorageBucket = StorageBucket,
+            StoragePath = StoragePath,
+            ContentType = ContentType,
+            Checksum = Checksum,
+            FieldSpecPath = FieldSpecPath,
+            FieldSpecChecksum = FieldSpecChecksum,
+            FieldSpecVersion = FieldSpecVersion,
+            RendererVersion = RendererVersion,
+            Status = Status,
+            Aktiv = Aktiv,
+            CreatedAt = CreatedAt
+        };
     }
 }
