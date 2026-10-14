@@ -1,6 +1,7 @@
 "use client";
 import { readSupabaseRest } from "../lib/supabase/rest-client";
 import { callSupabaseRpc } from "../lib/supabase/rpc-client";
+import { appVersion } from "../lib/app-version";
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -99,6 +100,7 @@ function HomeContent() {
           </>
         )}
         <p className="fine-print">Der Zugriff wird nach der Anmeldung anhand deiner hinterlegten Vereinsrolle geprüft.</p>
+        <p className="app-version">Version {appVersion}</p>
         <ChangeClubAction className="change-club" label="Anderen Verein auswählen" onConfirm={changeClub} />
       </section>
     </main>
