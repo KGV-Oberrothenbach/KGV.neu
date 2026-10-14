@@ -92,11 +92,11 @@ test("member documents request only the selected member's active documents and l
 
   await readSupabaseRest({ club, session }, "mitglied", { select: "id", id: "eq.314" });
   const memberScopeRequest = requests.find((request) => request.pathname === "/rest/v1/mitglied");
-  assert.equal(memberScopeRequest.searchParams.get("is_demo"), "eq.false");
+  assert.equal(memberScopeRequest.searchParams.has("is_demo"), false);
 
   await readSupabaseRest({ club, session: { ...session, isDemoAccount: true } }, "mitglied", { select: "id", id: "eq.314" });
   const demoMemberScopeRequest = requests.filter((request) => request.pathname === "/rest/v1/mitglied").at(-1);
-  assert.equal(demoMemberScopeRequest.searchParams.get("is_demo"), "eq.true");
+  assert.equal(demoMemberScopeRequest.searchParams.has("is_demo"), false);
 
   const page = await readFile(new URL("../../app/page.tsx", import.meta.url), "utf8");
   assert.match(page, /effectiveActiveId === "mitglied-dokumente" && selectedMemberId && <DocumentList session=\{session\} owner=\{memberDocumentOwner\(selectedMemberId\)\}/);

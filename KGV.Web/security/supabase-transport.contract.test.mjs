@@ -32,7 +32,7 @@ test("client context validates the explicit club configuration", async () => {
   assert.equal(isSupabaseClubConfigured(null), false);
 });
 
-test("REST transport sends explicit credentials, preserves demo scope, and has no lock orchestration", async () => {
+test("REST transport sends explicit credentials without adding a demo scope and has no lock orchestration", async () => {
   const { readSupabaseRest, writeSupabaseRest, deleteSupabaseRest } = await loadTransport();
   const requests = [];
   globalThis.fetch = async (input, init = {}) => {
@@ -44,7 +44,7 @@ test("REST transport sends explicit credentials, preserves demo scope, and has n
   await writeSupabaseRest(context(), "termin", "PATCH", { titel: "Neu" }, { id: "eq.1" });
   await deleteSupabaseRest(context(), "termin", { id: "eq.1" });
 
-  assert.equal(requests[0].url.href, "https://example.supabase.co/rest/v1/mitglied?select=id&is_demo=eq.false");
+  assert.equal(requests[0].url.href, "https://example.supabase.co/rest/v1/mitglied?select=id");
   assert.equal(requests[0].init.headers.apikey, "public-key");
   assert.equal(requests[0].init.headers.Authorization, "Bearer access-token");
   assert.equal(requests[1].init.headers["Content-Type"], "application/json");

@@ -64,11 +64,11 @@ test("member work-hours requests keep member and season filters without bypassin
 
   await readSupabaseRest({ club, session }, "mitglied", { select: "id", id: "eq.314" });
   const memberRequest = requests.find((request) => request.pathname === "/rest/v1/mitglied");
-  assert.equal(memberRequest.searchParams.get("is_demo"), "eq.false");
+  assert.equal(memberRequest.searchParams.has("is_demo"), false);
 
   await readSupabaseRest({ club, session: { ...session, isDemoAccount: true } }, "mitglied", { select: "id", id: "eq.314" });
   const demoMemberRequest = requests.filter((request) => request.pathname === "/rest/v1/mitglied").at(-1);
-  assert.equal(demoMemberRequest.searchParams.get("is_demo"), "eq.true");
+  assert.equal(demoMemberRequest.searchParams.has("is_demo"), false);
 
   const component = await readFile(new URL("../../features/work-hours/MemberWorkHours.tsx", import.meta.url), "utf8");
   assert.match(component, /loadMemberWorkHoursWorkspace\(club, session, memberId, saisonId\)/);
