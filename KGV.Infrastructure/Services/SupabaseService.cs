@@ -3432,7 +3432,7 @@ namespace KGV.Infrastructure.Services
             async () =>
             {
                 var context = await ResolveMitgliedsantragRequestAsync(request);
-                return await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
+                return await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
             },
             null);
 
@@ -3440,8 +3440,9 @@ namespace KGV.Infrastructure.Services
             MitgliedsantragDokumentRequest request,
             DigitalSignatureCapture antragSignatureCapture,
             DigitalSignatureCapture datenschutzSignatureCapture,
-            DigitalSignatureCapture? gesetzlicherVertreterAntragSignatureCapture = null,
-            DigitalSignatureCapture? gesetzlicherVertreterDatenschutzSignatureCapture = null) => ExecuteAsync(
+            DigitalSignatureCapture vereinSignatureCapture,
+            DigitalSignatureCapture? zweitePrivateParteiAntragSignatureCapture = null,
+            DigitalSignatureCapture? zweitePrivateParteiDatenschutzSignatureCapture = null) => ExecuteAsync(
             "CreateSignedMitgliedsantragDokumentAsync",
             async () =>
             {
@@ -3449,13 +3450,16 @@ namespace KGV.Infrastructure.Services
                     return DokumentUploadResult.Fail("Bitte zuerst die Unterschrift zum Mitgliedsantrag erfassen.", "VALIDATION");
                 if (datenschutzSignatureCapture == null || !datenschutzSignatureCapture.HasContent)
                     return DokumentUploadResult.Fail("Bitte zusätzlich die Unterschrift zur Datenschutzerklärung erfassen.", "VALIDATION");
+                if (vereinSignatureCapture == null || !vereinSignatureCapture.HasContent)
+                    return DokumentUploadResult.Fail("Bitte zusätzlich die Unterschrift für den Verein erfassen.", "VALIDATION");
 
                 var context = await ResolveMitgliedsantragRequestAsync(request);
-                if (context.IstMinderjaehrig
-                    && (gesetzlicherVertreterAntragSignatureCapture == null || !gesetzlicherVertreterAntragSignatureCapture.HasContent
-                        || gesetzlicherVertreterDatenschutzSignatureCapture == null || !gesetzlicherVertreterDatenschutzSignatureCapture.HasContent))
+                if (context.ZweitePrivateParteiArt != MitgliedsantragZweitePrivateParteiArt.Keine
+                    && (zweitePrivateParteiAntragSignatureCapture == null || !zweitePrivateParteiAntragSignatureCapture.HasContent
+                        || zweitePrivateParteiDatenschutzSignatureCapture == null || !zweitePrivateParteiDatenschutzSignatureCapture.HasContent))
                 {
-                    return DokumentUploadResult.Fail("Für Minderjährige sind die Unterschriften der gesetzlichen Vertretung für Antrag und Datenschutzerklärung erforderlich.", "VALIDATION");
+                    var rolle = context.ZweitePrivateParteiArt == MitgliedsantragZweitePrivateParteiArt.Nebenmitglied ? "Nebenmitglieds" : "gesetzlichen Vertretung";
+                    return DokumentUploadResult.Fail($"Die Unterschriften des {rolle} für Antrag und Datenschutzerklärung sind erforderlich.", "VALIDATION");
                 }
 
                 if (context.IstMinderjaehrig)
@@ -3473,20 +3477,20 @@ namespace KGV.Infrastructure.Services
                         return DokumentUploadResult.Fail("Gesetzlicher Vertreter konnte nicht gespeichert werden.", "VALIDATION");
                 }
 
-                var previewUploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
-                var finalUploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Signiert, _pdfTemplateProvider);
+                var previewUploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
+                var finalUploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Signiert, _pdfTemplateProvider);
                 var placeholders = MitgliedsantragDokumentFactory.GetSignaturePlaceholders()
                     .ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
                 var signatures = new List<(SignaturePlaceholder placeholder, DigitalSignatureCapture capture)>();
 
                 AddSignature("unterschrift_antragsteller", antragSignatureCapture);
-                AddSignature("datenschutz_unterschrift_antragsteller", datenschutzSignatureCapture);
-
-                if (gesetzlicherVertreterAntragSignatureCapture != null && gesetzlicherVertreterDatenschutzSignatureCapture != null)
+                if (context.ZweitePrivateParteiArt != MitgliedsantragZweitePrivateParteiArt.Keine)
                 {
-                    AddSignature("unterschrift_vertreter", gesetzlicherVertreterAntragSignatureCapture);
-                    AddSignature("datenschutz_unterschrift_vertreter", gesetzlicherVertreterDatenschutzSignatureCapture);
+                    AddSignature("unterschrift_vertreter", zweitePrivateParteiAntragSignatureCapture!);
+                    AddSignature("datenschutz_unterschrift_vertreter", zweitePrivateParteiDatenschutzSignatureCapture!);
                 }
+                AddSignature("unterschrift_verein", vereinSignatureCapture);
+                AddSignature("datenschutz_unterschrift_antragsteller", datenschutzSignatureCapture);
 
                 finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.InsertSignaturesIntoPdf(
                     previewUploadRequest.FileContent,
@@ -3508,11 +3512,14 @@ namespace KGV.Infrastructure.Services
             var gesetzlicherVertreter = await ResolveGesetzlicherVertreterAsync(member.Id, beginnDatum);
             var bankverbindungSnapshot = await ResolveVereinskonfigurationSnapshotAsync();
             var aufnahmegebuehr = await ResolveMitgliedsantragAufnahmegebuehrAsync(beginnDatum);
-            var uploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreter.IstMinderjaehrig ? BuildMitgliedsantragVertreterSnapshot(gesetzlicherVertreter.Vorbelegung) : null, bankverbindungSnapshot, status, _pdfTemplateProvider);
+            var uploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum,
+                gesetzlicherVertreter.IstMinderjaehrig ? BuildMitgliedsantragVertreterSnapshot(gesetzlicherVertreter.Vorbelegung) : null,
+                gesetzlicherVertreter.IstMinderjaehrig ? MitgliedsantragZweitePrivateParteiArt.GesetzlicherVertreter : MitgliedsantragZweitePrivateParteiArt.Keine,
+                bankverbindungSnapshot, status, _pdfTemplateProvider);
             return await CreateDokumentAsync(uploadRequest);
         }
 
-        private async Task<(MitgliedRecord Member, decimal Mitgliedsbeitrag, decimal Aufnahmegebuehr, DateTime BeginnDatum, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, VereinskonfigurationSnapshot VereinskonfigurationSnapshot)> ResolveMitgliedsantragRequestAsync(MitgliedsantragDokumentRequest request)
+        private async Task<(MitgliedRecord Member, decimal Mitgliedsbeitrag, decimal Aufnahmegebuehr, DateTime BeginnDatum, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, MitgliedsantragZweitePrivateParteiArt ZweitePrivateParteiArt, VereinskonfigurationSnapshot VereinskonfigurationSnapshot)> ResolveMitgliedsantragRequestAsync(MitgliedsantragDokumentRequest request)
         {
             if (request == null || request.MitgliedId <= 0)
                 throw new InvalidOperationException("Bitte zuerst ein gültiges Mitglied auswählen.");
@@ -3538,7 +3545,19 @@ namespace KGV.Infrastructure.Services
 
             var istMinderjaehrig = GesetzlicherVertreterResolver.IsMinderjaehrig(member, beginnDatum);
             if (!istMinderjaehrig)
-                return (member, MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag), aufnahmegebuehr, beginnDatum, false, null, null, bankverbindungSnapshot);
+            {
+                if (!request.NebenmitgliedEinbeziehen)
+                    return (member, MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag), aufnahmegebuehr, beginnDatum, false, null, null, MitgliedsantragZweitePrivateParteiArt.Keine, bankverbindungSnapshot);
+
+                var nebenmitglied = await GetNebenmitgliedByHauptmitgliedIdAsync(member.Id);
+                if (nebenmitglied == null)
+                    throw new InvalidOperationException("Das ausgewählte Nebenmitglied ist nicht mehr vorhanden. Bitte den Mitgliedsantrag erneut vorbereiten.");
+                if (request.NebenmitgliedId is > 0 && request.NebenmitgliedId.Value != nebenmitglied.Id)
+                    throw new InvalidOperationException("Das ausgewählte Nebenmitglied passt nicht zum Antragsteller.");
+
+                return (member, MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag), aufnahmegebuehr, beginnDatum, false,
+                    BuildMitgliedsantragVertreterSnapshot(nebenmitglied), null, MitgliedsantragZweitePrivateParteiArt.Nebenmitglied, bankverbindungSnapshot);
+            }
 
             MitgliedsantragVertreterSnapshot? vertreterSnapshot = null;
             int? vertreterMitgliedId = null;
@@ -3571,10 +3590,10 @@ namespace KGV.Infrastructure.Services
             if (vertreterSnapshot == null || string.IsNullOrWhiteSpace(vertreterSnapshot.Vorname) || string.IsNullOrWhiteSpace(vertreterSnapshot.Nachname))
                 throw new InvalidOperationException("Für Minderjährige ist ein gesetzlicher Vertreter mit Vor- und Nachname erforderlich.");
 
-            return (member, MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag), aufnahmegebuehr, beginnDatum, true, vertreterSnapshot, vertreterMitgliedId, bankverbindungSnapshot);
+            return (member, MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag), aufnahmegebuehr, beginnDatum, true, vertreterSnapshot, vertreterMitgliedId, MitgliedsantragZweitePrivateParteiArt.GesetzlicherVertreter, bankverbindungSnapshot);
         }
 
-        private async Task<int> EnsureGesetzlicherVertreterMitgliedAsync((MitgliedRecord Member, decimal Mitgliedsbeitrag, decimal Aufnahmegebuehr, DateTime BeginnDatum, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, VereinskonfigurationSnapshot VereinskonfigurationSnapshot) context, MitgliedsantragDokumentRequest request)
+        private async Task<int> EnsureGesetzlicherVertreterMitgliedAsync((MitgliedRecord Member, decimal Mitgliedsbeitrag, decimal Aufnahmegebuehr, DateTime BeginnDatum, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, MitgliedsantragZweitePrivateParteiArt ZweitePrivateParteiArt, VereinskonfigurationSnapshot VereinskonfigurationSnapshot) context, MitgliedsantragDokumentRequest request)
         {
             if (context.GesetzlicherVertreterMitgliedId is > 0)
                 return context.GesetzlicherVertreterMitgliedId.Value;

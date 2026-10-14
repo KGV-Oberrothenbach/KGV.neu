@@ -594,32 +594,46 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 if (previewDecision != MitgliedsantragPreviewDecision.ContinueToSignature)
                     return;
 
-                var antragSignatureCapture = await CaptureMitgliedsantragSignatureAsync(previewUploadRequest, "Unterschrift Mitgliedsantrag", isLastSignature: false);
+                var zweitePrivateParteiErforderlich = request.IstMinderjaehrig || request.NebenmitgliedEinbeziehen;
+                var antragSignatureCapture = await CaptureMitgliedsantragSignatureAsync(previewUploadRequest, "Unterschrift Antragsteller/in – Mitgliedsantrag", isLastSignature: false);
                 if (antragSignatureCapture == null)
+                    return;
+
+                DigitalSignatureCapture? zweitePrivateParteiAntragSignatureCapture = null;
+                DigitalSignatureCapture? zweitePrivateParteiDatenschutzSignatureCapture = null;
+                if (zweitePrivateParteiErforderlich)
+                {
+                    var zweitePrivateParteiTitel = request.IstMinderjaehrig
+                        ? "Unterschrift gesetzliche/r Vertreter/in – Mitgliedsantrag"
+                        : "Unterschrift Nebenmitglied – Mitgliedsantrag";
+                    zweitePrivateParteiAntragSignatureCapture = await CaptureMitgliedsantragSignatureAsync(
+                        previewUploadRequest,
+                        zweitePrivateParteiTitel,
+                        isLastSignature: false);
+                    if (zweitePrivateParteiAntragSignatureCapture == null)
+                        return;
+                }
+
+                var vereinSignatureCapture = await CaptureMitgliedsantragSignatureAsync(previewUploadRequest, "Unterschrift Für den Verein", isLastSignature: false);
+                if (vereinSignatureCapture == null)
                     return;
 
                 var datenschutzSignatureCapture = await CaptureMitgliedsantragSignatureAsync(
                     previewUploadRequest,
-                    "Unterschrift Datenschutzerklärung",
-                    isLastSignature: !request.IstMinderjaehrig);
+                    "Unterschrift Antragsteller/in – Datenschutzerklärung",
+                    isLastSignature: !zweitePrivateParteiErforderlich);
                 if (datenschutzSignatureCapture == null)
                     return;
 
-                DigitalSignatureCapture? gesetzlicherVertreterAntragSignatureCapture = null;
-                DigitalSignatureCapture? gesetzlicherVertreterDatenschutzSignatureCapture = null;
-                if (request.IstMinderjaehrig)
+                if (zweitePrivateParteiErforderlich)
                 {
-                    gesetzlicherVertreterAntragSignatureCapture = await CaptureMitgliedsantragSignatureAsync(
+                    var zweitePrivateParteiDatenschutzTitel = request.IstMinderjaehrig
+                        ? "Unterschrift gesetzliche/r Vertreter/in – Datenschutzerklärung"
+                        : "Unterschrift Nebenmitglied – Datenschutzerklärung";
+                    zweitePrivateParteiDatenschutzSignatureCapture = await CaptureMitgliedsantragSignatureAsync(
                         previewUploadRequest,
-                        "Unterschrift gesetzliche/r Vertreter/in zum Mitgliedsantrag",
-                        isLastSignature: false);
-                    if (gesetzlicherVertreterAntragSignatureCapture == null)
-                        return;
-
-                    gesetzlicherVertreterDatenschutzSignatureCapture = await CaptureMitgliedsantragSignatureAsync(
-                        previewUploadRequest,
-                        "Unterschrift gesetzliche/r Vertreter/in zur Datenschutzerklärung");
-                    if (gesetzlicherVertreterDatenschutzSignatureCapture == null)
+                        zweitePrivateParteiDatenschutzTitel);
+                    if (zweitePrivateParteiDatenschutzSignatureCapture == null)
                         return;
                 }
 
@@ -627,8 +641,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     request,
                     antragSignatureCapture,
                     datenschutzSignatureCapture,
-                    gesetzlicherVertreterAntragSignatureCapture,
-                    gesetzlicherVertreterDatenschutzSignatureCapture);
+                    vereinSignatureCapture,
+                    zweitePrivateParteiAntragSignatureCapture,
+                    zweitePrivateParteiDatenschutzSignatureCapture);
                 if (!result.Success)
                 {
                     await DisplayAlertAsync("Mitgliedsantrag", result.Message, "OK");
@@ -691,13 +706,31 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         }
 
         var gesetzlicherVertreterAufloesung = await _supabaseService.ResolveGesetzlicherVertreterAsync(mitgliedId, vorschlag.BeginnDatum);
+        var nebenmitglied = gesetzlicherVertreterAufloesung.IstMinderjaehrig
+            ? null
+            : await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(mitgliedId);
+        var nebenmitgliedEinbeziehen = initialRequest?.NebenmitgliedEinbeziehen ?? false;
+        if (!gesetzlicherVertreterAufloesung.IstMinderjaehrig && nebenmitglied != null && initialRequest == null)
+        {
+            nebenmitgliedEinbeziehen = await DisplayAlertAsync(
+                "Nebenmitglied",
+                $"Für {member.Vorname} {member.Name} ist {nebenmitglied.Vorname} {nebenmitglied.Name} als Nebenmitglied hinterlegt. Soll es den Mitgliedsantrag als zweite private Partei mitunterzeichnen?",
+                "Ja",
+                "Nein");
+        }
         var vertreterMitglieder = gesetzlicherVertreterAufloesung.IstMinderjaehrig
             ? await _supabaseService.GetMitgliederAsync()
             : new List<MitgliedRecord>();
 
         var dialogPage = new MitgliedsantragDialogPage(member, vorschlag, gesetzlicherVertreterAufloesung, vertreterMitglieder, initialRequest);
         await Navigation.PushModalAsync(new NavigationPage(dialogPage));
-        return await dialogPage.WaitForResultAsync();
+        var request = await dialogPage.WaitForResultAsync();
+        if (request != null && !gesetzlicherVertreterAufloesung.IstMinderjaehrig)
+        {
+            request.NebenmitgliedEinbeziehen = nebenmitgliedEinbeziehen;
+            request.NebenmitgliedId = nebenmitgliedEinbeziehen ? nebenmitglied?.Id : null;
+        }
+        return request;
     }
 
     private async Task<MitgliedsantragPreviewDecision> ShowMitgliedsantragPreviewAsync(DokumentUploadRequest previewUploadRequest)
