@@ -1,13 +1,23 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { PDFDocument, PDFName, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
+import { PDFDocument, PDFName, PDFFont, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 type ContractType = "mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag" | "parzellenprotokoll";
 type LegalRepresentativeRequest = { mode: "existing" | "manual"; member_id?: number; vorname?: string; nachname?: string; adresse_abweichend?: boolean; adresse?: string; plz?: string; ort?: string };
-type RequestBody = { action?: "preview" | "finalize" | "sign-existing"; type?: ContractType; member_id?: number; parcel_id?: number; start_date?: string; member_fee?: number; admission_fee?: number; representative?: LegalRepresentativeRequest; signature_application_member?: string; signature_privacy_member?: string; signature_application_representative?: string; signature_privacy_representative?: string; signature_member?: string; signature_secondary?: string; signature_board?: string; signature_board2?: string; has_previous_contract?: boolean; previous_contract_date?: string; include_secondary_member?: boolean; protocol_id?: number; protocol_type?: string; protocol_reason?: string; protocol_condition?: string; protocol_agreement?: string; board2_id?: number; companion_name?: string; photos?: string[]; source_document_id?: number };
+type RequestBody = { action?: "preview" | "finalize" | "sign-existing"; type?: ContractType; member_id?: number; parcel_id?: number; start_date?: string; member_fee?: number; admission_fee?: number; representative?: LegalRepresentativeRequest; signature_application_member?: string; signature_privacy_member?: string; signature_application_representative?: string; signature_privacy_representative?: string; signature_application_secondary?: string; signature_privacy_secondary?: string; signature_member?: string; signature_secondary?: string; signature_board?: string; signature_board2?: string; has_previous_contract?: boolean; previous_contract_date?: string; include_secondary_member?: boolean; protocol_id?: number; protocol_type?: string; protocol_reason?: string; protocol_condition?: string; protocol_agreement?: string; board2_id?: number; companion_name?: string; photos?: string[]; source_document_id?: number };
 type ClubConfigurationSnapshot = { vereinName: string; kurzname: string; registerangabe: string; strasse: string; plz: string; ort: string; standardEmail: string; standardTelefon: string; website: string; kontoinhaber: string; bankname: string; iban: string; bic: string; verwendungszweckMitgliedsantrag: string; verwendungszweckPachtvertrag: string; dokumentOrt: string; standardHinweistext: string; datenschutzText: string; datenschutzVersion: string; datenschutzStand: string };
 type FieldSpec = { page: number; type: string; name: string; rect: { x: number; y: number; w: number; h: number } };
+type PdfTemplateCatalogRecord = { template_key: string; version: string; storage_bucket: string; storage_path: string; content_type: string; checksum: string; field_spec_path: string; field_spec_checksum: string; field_spec_version: string; renderer_version: string; status: string; aktiv: boolean; created_at: string };
+type MembershipTemplate = { pdfBytes: Uint8Array; fields: FieldSpec[] };
+
+const membershipApplicationTemplateKey = "mitgliedsantrag";
+const membershipApplicationFieldSpecVersion = "mitgliedsantrag-field-spec/v1";
+// The v1 field spec is expressed in renderer-neutral top-left coordinates. The
+// published MAUI/PdfSharpCore version is therefore the approved source contract
+// for the pdf-lib renderer as well; a different version is rejected explicitly.
+const membershipApplicationRendererVersion = "pdfsharpcore-ma/v1";
+const membershipApplicationRequiredFields = ["ausstellungsdatum", "dokument_ort", "mitglied_name", "mitglied_vorname", "mitglied_geburtsdatum", "mitglied_aufnahme_ab", "mitglied_telefon", "mitglied_mobil", "mitglied_email", "mitglied_anschrift_mehrzeilig", "check_whatsapp", "check_rechnung_mail", "check_info_mail", "vertreter_name", "vertreter_vorname", "vertreter_geburtsdatum", "vertreter_telefon", "vertreter_mobil", "vertreter_email", "vertreter_anschrift_mehrzeilig", "mitgliedsbeitrag_jaehrlich", "mitgliedsbeitrag_anteilig", "beitragsmonate", "aufnahmegebuehr", "bank_kontoinhaber", "bank_name", "bank_iban", "bank_bic", "unterschrift_ort", "unterschrift_datum", "unterschrift_antragsteller", "unterschrift_vertreter", "unterschrift_verein", "datenschutz_unterschrift_antragsteller", "datenschutz_unterschrift_vertreter"];
 
 function formatDate(value?: string | null) { if (!value) return ""; const date = new Date(`${value.slice(0, 10)}T12:00:00Z`); return Number.isNaN(date.valueOf()) ? "" : new Intl.DateTimeFormat("de-DE", { timeZone: "UTC" }).format(date); }
 function money(value: number) { return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(value); }
@@ -47,8 +57,36 @@ async function authenticate(req: Request) {
 async function loadStatic(name: string) { return await Deno.readFile(`./${name}`); }
 async function loadSpecs(name: string): Promise<FieldSpec[]> { const text = await Deno.readTextFile(`./${name}`); return (JSON.parse(text) as { fields: FieldSpec[] }).fields; }
 
-async function drawTemplate(template: string, specFile: string, values: Record<string, string>, signatures: Record<string, string | undefined>) {
-  const pdf = await PDFDocument.load(await loadStatic(template)); const font = await pdf.embedFont(StandardFonts.Helvetica); const specs = await loadSpecs(specFile);
+async function sha256(bytes: Uint8Array) { const digest = await crypto.subtle.digest("SHA-256", bytes); return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join(""); }
+function validFieldSpec(fields: unknown): fields is FieldSpec[] { return Array.isArray(fields) && fields.length > 0 && fields.every((field) => typeof field === "object" && field !== null && Number.isInteger((field as FieldSpec).page) && (field as FieldSpec).page > 0 && typeof (field as FieldSpec).type === "string" && typeof (field as FieldSpec).name === "string" && Number.isFinite((field as FieldSpec).rect?.x) && Number.isFinite((field as FieldSpec).rect?.y) && Number.isFinite((field as FieldSpec).rect?.w) && Number.isFinite((field as FieldSpec).rect?.h)); }
+async function loadMembershipApplicationTemplate(auth: Awaited<ReturnType<typeof authenticate>>): Promise<MembershipTemplate> {
+  const { data, error } = await auth.admin.from("pdf_template_catalog").select("template_key,version,storage_bucket,storage_path,content_type,checksum,field_spec_path,field_spec_checksum,field_spec_version,renderer_version,status,aktiv,created_at").eq("template_key", membershipApplicationTemplateKey).eq("status", "published").eq("aktiv", true).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (error) throw new Error(`PDF-Template-Katalog konnte nicht geladen werden: ${error.message}`);
+  const catalog = data as PdfTemplateCatalogRecord | null;
+  if (!catalog) throw new Error("Für die PDF-Vorlage 'mitgliedsantrag' ist keine aktive veröffentlichte Version hinterlegt.");
+  if (catalog.content_type !== "application/pdf" || catalog.field_spec_version !== membershipApplicationFieldSpecVersion || catalog.renderer_version !== membershipApplicationRendererVersion) throw new Error("Die veröffentlichte Mitgliedsantrag-Vorlage ist nicht mit dem unterstützten Renderer kompatibel.");
+  const [templateResult, fieldSpecResult] = await Promise.all([auth.admin.storage.from(catalog.storage_bucket).download(catalog.storage_path), auth.admin.storage.from(catalog.storage_bucket).download(catalog.field_spec_path)]);
+  if (templateResult.error || !templateResult.data) throw new Error(`Mitgliedsantrag-Vorlage konnte nicht aus dem privaten Template-Bucket geladen werden: ${templateResult.error?.message ?? "keine Daten"}`);
+  if (fieldSpecResult.error || !fieldSpecResult.data) throw new Error(`Mitgliedsantrag-Feldspezifikation konnte nicht aus dem privaten Template-Bucket geladen werden: ${fieldSpecResult.error?.message ?? "keine Daten"}`);
+  const [pdfBytes, fieldSpecBytes] = await Promise.all([templateResult.data.arrayBuffer().then((buffer) => new Uint8Array(buffer)), fieldSpecResult.data.arrayBuffer().then((buffer) => new Uint8Array(buffer))]);
+  if (await sha256(pdfBytes) !== safe(catalog.checksum).toLowerCase()) throw new Error("Die Prüfsumme der Mitgliedsantrag-Vorlage stimmt nicht mit dem Template-Katalog überein.");
+  if (await sha256(fieldSpecBytes) !== safe(catalog.field_spec_checksum).toLowerCase()) throw new Error("Die Prüfsumme der Mitgliedsantrag-Feldspezifikation stimmt nicht mit dem Template-Katalog überein.");
+  let parsed: { settings?: { coordinateOrigin?: string }; fields?: unknown };
+  try { parsed = JSON.parse(new TextDecoder().decode(fieldSpecBytes)) as { settings?: { coordinateOrigin?: string }; fields?: unknown }; } catch { throw new Error("Die Mitgliedsantrag-Feldspezifikation ist ungültig."); }
+  if (parsed.settings?.coordinateOrigin !== "topLeft" || !validFieldSpec(parsed.fields) || membershipApplicationRequiredFields.some((name) => !parsed.fields.some((field) => field.name === name))) throw new Error("Die Mitgliedsantrag-Feldspezifikation ist nicht mit dem unterstützten Renderer kompatibel.");
+  return { pdfBytes, fields: parsed.fields };
+}
+
+function drawSecondPrivatePartyLabels(pdf: PDFDocument, role: "none" | "secondary" | "representative", font: PDFFont) {
+  if (role === "representative") return;
+  const page = pdf.getPages()[0]; if (!page) return;
+  const drawLabel = (x: number, y: number, w: number, h: number, label: string) => { page.drawRectangle({ x, y: page.getHeight() - y - h, width: w, height: h, color: rgb(1, 1, 1) }); if (label) { const size = 7; page.drawText(label, { x: x + (w - font.widthOfTextAtSize(label, size)) / 2, y: page.getHeight() - y - size, size, font, color: rgb(0, 0, 0) }); } };
+  drawLabel(209, 607, 176, 12, role === "secondary" ? "Unterschrift Nebenmitglied" : "");
+  drawLabel(307.682, 782, 260, 12, role === "secondary" ? "Nebenmitglied zur Datenschutzerklärung" : "");
+}
+
+async function drawPdfTemplate(templateBytes: Uint8Array, specs: FieldSpec[], values: Record<string, string>, signatures: Record<string, string | undefined>, secondPrivatePartyRole: "none" | "secondary" | "representative" = "representative") {
+  const pdf = await PDFDocument.load(templateBytes); const font = await pdf.embedFont(StandardFonts.Helvetica);
   // Die WPF-/MAUI-Erzeugung entfernt die Formular-Widgets und zeichnet anschließend
   // die endgültigen Werte ein. Dadurch bleiben keine veränderbaren PDF-Felder zurück.
   pdf.getPages().forEach((page) => page.node.delete(PDFName.of("Annots")));
@@ -64,8 +102,11 @@ async function drawTemplate(template: string, specFile: string, values: Record<s
     const lines = value.split(/\r?\n/); const size = value.length > 55 ? 6.2 : 7.2;
     lines.slice(0, Math.max(1, Math.floor(h / (size + 1)))).forEach((line, index) => page.drawText(line.slice(0, 120), { x: x + 1.8, y: pdfY + h - size - index * (size + 1), size, font, color: rgb(0, 0, 0), maxWidth: Math.max(1, w - 3.6) }));
   }
+  drawSecondPrivatePartyLabels(pdf, secondPrivatePartyRole, font);
   return await pdf.save();
 }
+
+async function drawTemplate(template: string, specFile: string, values: Record<string, string>, signatures: Record<string, string | undefined>) { return await drawPdfTemplate(await loadStatic(template), await loadSpecs(specFile), values, signatures); }
 
 async function buildSimpleContract(member: Record<string, unknown>, startDate: string, signatures: Record<string, string | undefined>) {
   const pdf = await PDFDocument.create(); const page = pdf.addPage([595.28, 841.89]); const font = await pdf.embedFont(StandardFonts.Helvetica); const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -113,13 +154,28 @@ Deno.serve(async (req) => {
     if (action === "finalize" && type !== "mitgliedsantrag" && (!signatures.member || !signatures.board)) return json(400, { message: "Unterschrift des Mitglieds und des Vereins sind erforderlich." });
     let pdf: Uint8Array; let title: string; let owner: { kind: "mitglied" | "parzelle"; id: number }; let protocolIdToComplete: number | null = null; let representativeToSave: LegalRepresentativeRequest | null = null;
     if (type === "mitgliedsantrag") {
+      if (member.hauptmitglied_id !== null && member.hauptmitglied_id !== undefined) throw new Error("Für Nebenmitglieder kann kein eigener Mitgliedsantrag erstellt werden.");
+      const { data: applicationDocuments, error: applicationDocumentsError } = await auth.admin.from("dokument").select("titel,dateiname").eq("mitglied_id", memberId).is("archiviert_at", null);
+      if (applicationDocumentsError) throw applicationDocumentsError;
+      if ((applicationDocuments ?? []).some((document) => documentStatus(document, "mitgliedsantrag") === "signiert")) throw new Error("Für dieses Mitglied liegt bereits ein signierter Mitgliedsantrag vor.");
       const fee = Number(body.member_fee ?? 0); const admission = Number(body.admission_fee ?? 0); const month = new Date(`${startDate}T12:00:00Z`).getUTCMonth() + 1; const months = Math.max(1, 13 - month);
       let representative: Record<string, unknown> | null = null;
       const minor = isMinorAt(member, startDate);
-      if (action === "finalize" && (!body.signature_application_member || !body.signature_privacy_member || (minor && (!body.signature_application_representative || !body.signature_privacy_representative)))) return json(400, { message: "Alle erforderlichen Signaturen zum Mitgliedsantrag fehlen." });
+      let secondaryMember: Record<string, unknown> | null = null;
+      if (!minor && body.include_secondary_member === true) {
+        const { data, error } = await auth.admin.from("mitglied").select("*").eq("hauptmitglied_id", memberId).order("id", { ascending: true }).limit(1).maybeSingle();
+        if (error || !data || Number(data.hauptmitglied_id) !== memberId) throw new Error("Das ausgewählte Nebenmitglied ist nicht mehr dem Antragsteller zugeordnet.");
+        secondaryMember = data;
+      }
+      if (action === "finalize") {
+        const requiredSignatures = [body.signature_application_member, body.signature_board, body.signature_privacy_member, ...(minor ? [body.signature_application_representative, body.signature_privacy_representative] : []), ...(secondaryMember ? [body.signature_application_secondary, body.signature_privacy_secondary] : [])];
+        if (requiredSignatures.some((signature) => !fromDataUrl(signature))) return json(400, { message: "Alle erforderlichen Signaturen zum Mitgliedsantrag fehlen." });
+      }
       if (minor) { validateRepresentative(body.representative); if (body.representative!.mode === "existing") { const { data } = await auth.admin.from("mitglied").select("*").eq("id", body.representative!.member_id!).single(); if (!data || data.id === member.id) throw new Error("Gesetzlicher Vertreter konnte nicht geladen werden."); representative = data; } else { representative = { vorname: safe(body.representative!.vorname), name: safe(body.representative!.nachname), adresse: body.representative!.adresse_abweichend ? safe(body.representative!.adresse) : safe(member.adresse), plz: body.representative!.adresse_abweichend ? safe(body.representative!.plz) : safe(member.plz), ort: body.representative!.adresse_abweichend ? safe(body.representative!.ort) : safe(member.ort) }; } if (action === "finalize") representativeToSave = body.representative!; }
-      const values: Record<string, string> = { ausstellungsdatum: formatDate(new Date().toISOString()), dokument_ort: configurationSnapshot!.dokumentOrt, mitglied_name: safe(member.name), mitglied_vorname: safe(member.vorname), mitglied_geburtsdatum: formatDate(member.geburtsdatum), mitglied_aufnahme_ab: formatDate(startDate), mitglied_telefon: safe(member.telefon), mitglied_mobil: safe(member.handy), mitglied_email: safe(member.email), mitglied_anschrift_mehrzeilig: `${safe(member.adresse)}\n${safe(member.plz)} ${safe(member.ort)}`.trim(), vertreter_name: safe(representative?.name), vertreter_vorname: safe(representative?.vorname), vertreter_anschrift_mehrzeilig: representative ? `${safe(representative.adresse)}\n${safe(representative.plz)} ${safe(representative.ort)}`.trim() : "", check_whatsapp: member.whatsapp_einwilligung ? "true" : "", check_rechnung_mail: member.email_rechnung_einwilligung ? "true" : "", check_info_mail: member.email_info_einwilligung ? "true" : "", mitgliedsbeitrag_jaehrlich: money(fee), mitgliedsbeitrag_anteilig: money(Math.round(fee * months / 12 * 100) / 100), beitragsmonate: String(months), aufnahmegebuehr: money(admission), bank_kontoinhaber: configurationSnapshot!.kontoinhaber, bank_name: configurationSnapshot!.bankname, bank_iban: configurationSnapshot!.iban, bank_bic: configurationSnapshot!.bic, unterschrift_ort: configurationSnapshot!.dokumentOrt, unterschrift_datum: formatDate(new Date().toISOString()) };
-      pdf = await drawTemplate("Mitgliedsantrag_Vorlage.pdf", "mitgliedsantrag-fields.json", values, { unterschrift_antragsteller: body.signature_application_member, datenschutz_unterschrift_antragsteller: body.signature_privacy_member, unterschrift_vertreter: body.signature_application_representative, datenschutz_unterschrift_vertreter: body.signature_privacy_representative }); title = `Mitgliedsantrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "mitglied", id: memberId };
+      const secondPrivateParty = representative ?? secondaryMember;
+      const values: Record<string, string> = { ausstellungsdatum: formatDate(new Date().toISOString()), dokument_ort: configurationSnapshot!.dokumentOrt, mitglied_name: safe(member.name), mitglied_vorname: safe(member.vorname), mitglied_geburtsdatum: formatDate(member.geburtsdatum), mitglied_aufnahme_ab: formatDate(startDate), mitglied_telefon: safe(member.telefon), mitglied_mobil: safe(member.handy), mitglied_email: safe(member.email), mitglied_anschrift_mehrzeilig: `${safe(member.adresse)}\n${safe(member.plz)} ${safe(member.ort)}`.trim(), vertreter_name: safe(secondPrivateParty?.name), vertreter_vorname: safe(secondPrivateParty?.vorname), vertreter_geburtsdatum: formatDate(secondPrivateParty?.geburtsdatum), vertreter_telefon: safe(secondPrivateParty?.telefon), vertreter_mobil: safe(secondPrivateParty?.handy), vertreter_email: safe(secondPrivateParty?.email), vertreter_anschrift_mehrzeilig: secondPrivateParty ? `${safe(secondPrivateParty.adresse)}\n${safe(secondPrivateParty.plz)} ${safe(secondPrivateParty.ort)}`.trim() : "", check_whatsapp: member.whatsapp_einwilligung ? "true" : "", check_rechnung_mail: member.email_rechnung_einwilligung ? "true" : "", check_info_mail: member.email_info_einwilligung ? "true" : "", mitgliedsbeitrag_jaehrlich: money(fee), mitgliedsbeitrag_anteilig: money(Math.round(fee * months / 12 * 100) / 100), beitragsmonate: String(months), aufnahmegebuehr: money(admission), bank_kontoinhaber: configurationSnapshot!.kontoinhaber, bank_name: configurationSnapshot!.bankname, bank_iban: configurationSnapshot!.iban, bank_bic: configurationSnapshot!.bic, unterschrift_ort: configurationSnapshot!.dokumentOrt, unterschrift_datum: formatDate(new Date().toISOString()) };
+      const template = await loadMembershipApplicationTemplate(auth);
+      pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, { unterschrift_antragsteller: body.signature_application_member, unterschrift_vertreter: representative ? body.signature_application_representative : body.signature_application_secondary, unterschrift_verein: body.signature_board, datenschutz_unterschrift_antragsteller: body.signature_privacy_member, datenschutz_unterschrift_vertreter: representative ? body.signature_privacy_representative : body.signature_privacy_secondary }, secondaryMember ? "secondary" : representative ? "representative" : "none"); title = `Mitgliedsantrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "mitglied", id: memberId };
     } else if (type === "parzellenprotokoll") {
       const parcelId = Number(body.parcel_id); const protocolId = Number(body.protocol_id); const board2Id = Number(body.board2_id);
       if (![parcelId, protocolId, board2Id].every((value) => Number.isSafeInteger(value) && value > 0)) return json(400, { message: "Parzelle, Protokollentwurf und zweiter Vorstand sind erforderlich." });

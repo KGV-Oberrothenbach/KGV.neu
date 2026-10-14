@@ -34,6 +34,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly Label _rolleLabel;
     private readonly Label _appUserHintLabel;
     private readonly Label _mitgliedsantragDiagnoseLabel;
+    private readonly Label _mitgliedschaftStatusLabel;
     private readonly Picker _arbeitsstundenAltersregelTypPicker;
     private readonly Entry _vornameEntry;
     private readonly Entry _nachnameEntry;
@@ -56,6 +57,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly Button _nutzerHinzufuegenButton;
     private readonly Button _benutzerverwaltungButton;
     private readonly Button _mitgliedsantragButton;
+    private readonly Button _zuHauptmitgliedMachenButton;
     private readonly Button _cancelMembershipButton;
     private readonly Button _saveButton;
     private readonly Button _cancelButton;
@@ -83,6 +85,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _rolleLabel = CreateReadOnlyLabel();
         _appUserHintLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap };
         _mitgliedsantragDiagnoseLabel = new Label { TextColor = Colors.DarkOrange, LineBreakMode = LineBreakMode.WordWrap, FontSize = 12 };
+        _mitgliedschaftStatusLabel = new Label { TextColor = Colors.Gray, LineBreakMode = LineBreakMode.WordWrap, IsVisible = false };
         _arbeitsstundenAltersregelTypPicker = new Picker { Title = "Altersregel wählen" };
         foreach (var option in MemberDTO.HauptmitgliedArbeitsstundenAltersregelTypOptions)
             _arbeitsstundenAltersregelTypPicker.Items.Add(option);
@@ -125,6 +128,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             if (_memberRecord?.Id is > 0)
                 await CreateMitgliedsantragAsync(_memberRecord.Id);
         };
+
+        _zuHauptmitgliedMachenButton = new Button { Text = "Zu Hauptmitglied machen", IsVisible = false };
+        _zuHauptmitgliedMachenButton.Clicked += async (_, _) => await PromoteNebenmitgliedToHauptmitgliedAsync();
 
         _cancelMembershipButton = new Button { Text = "Mitgliedschaft beenden", IsVisible = false, BackgroundColor = Colors.IndianRed, TextColor = Colors.White };
         _cancelMembershipButton.Clicked += async (_, _) => await CancelMembershipAsync();
@@ -174,7 +180,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     CreateSection("Mitgliedschaft",
                         CreateOptionalDateField("Mitglied seit", _mitgliedSeitEnabledSwitch, _mitgliedSeitPicker),
                         CreateOptionalDateField("Mitglied Ende", _mitgliedEndeEnabledSwitch, _mitgliedEndePicker),
-                        CreateEditorField("Bemerkungen", _bemerkungenEditor)),
+                        CreateEditorField("Bemerkungen", _bemerkungenEditor),
+                        _mitgliedschaftStatusLabel,
+                        _zuHauptmitgliedMachenButton),
                     CreateSection("Admin-Menü",
                         _appUserHintLabel,
                         _nutzerHinzufuegenButton,
@@ -264,6 +272,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
             _memberRecord = member;
             _hasSignedMitgliedsantrag = await _supabaseService.HasSignedMitgliedsantragAsync(member.Id);
+            await UpdateMitgliedschaftStatusAsync(member);
             var memberDto = MapMember(member);
             var permissionSettings = await _supabaseService.GetUserPermissionSettingsAsync(member.Id);
             memberDto.Role = NormalizeRole(permissionSettings?.Role ?? UserRoles.User);
@@ -313,6 +322,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _memberRecord = null;
         _hasLinkedAppUser = false;
         _hasSignedMitgliedsantrag = false;
+        _mitgliedschaftStatusLabel.Text = string.Empty;
+        _mitgliedschaftStatusLabel.IsVisible = false;
+        _zuHauptmitgliedMachenButton.IsVisible = false;
         _nachnameEntry.Text = string.Empty;
         _vornameEntry.Text = string.Empty;
         _emailEntry.Text = string.Empty;
@@ -342,6 +354,9 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _memberRecord = null;
         _hasLinkedAppUser = false;
         _hasSignedMitgliedsantrag = false;
+        _mitgliedschaftStatusLabel.Text = string.Empty;
+        _mitgliedschaftStatusLabel.IsVisible = false;
+        _zuHauptmitgliedMachenButton.IsVisible = false;
         _headlineLabel.Text = "Neues Mitglied";
         _statusLabel.Text = "Neues Mitglied anlegen.";
         _nachnameEntry.Text = string.Empty;
@@ -403,11 +418,76 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         UpdateCancelMembershipButton(member);
     }
 
+    private async Task UpdateMitgliedschaftStatusAsync(MitgliedRecord member)
+    {
+        if (member.HauptmitgliedId is not > 0)
+        {
+            _mitgliedschaftStatusLabel.Text = string.Empty;
+            _mitgliedschaftStatusLabel.IsVisible = false;
+            _zuHauptmitgliedMachenButton.IsVisible = false;
+            return;
+        }
+
+        var hauptmitglied = await _supabaseService.GetMitgliedByIdAsync(member.HauptmitgliedId.Value);
+        var hauptmitgliedName = FormatMemberDisplayName(hauptmitglied, $"Mitglied #{member.HauptmitgliedId.Value}");
+        _mitgliedschaftStatusLabel.Text = $"Nebenmitglied von {hauptmitgliedName}";
+        _mitgliedschaftStatusLabel.IsVisible = true;
+        _zuHauptmitgliedMachenButton.IsVisible = true;
+    }
+
+    private async Task PromoteNebenmitgliedToHauptmitgliedAsync()
+    {
+        if (_isBusy || _isCreateMode || _memberRecord?.Id is not > 0 || _memberRecord.HauptmitgliedId is not > 0)
+            return;
+
+        var nebenmitglied = _memberRecord;
+        var hauptmitglied = await _supabaseService.GetMitgliedByIdAsync(nebenmitglied.HauptmitgliedId.Value);
+        var nebenmitgliedName = FormatMemberDisplayName(nebenmitglied, $"Mitglied #{nebenmitglied.Id}");
+        var hauptmitgliedName = FormatMemberDisplayName(hauptmitglied, $"Mitglied #{nebenmitglied.HauptmitgliedId.Value}");
+        var confirmed = await DisplayAlertAsync(
+            "Zu Hauptmitglied machen",
+            $"{nebenmitgliedName} wird zu einem eigenständigen Hauptmitglied.\nDie Zuordnung zu {hauptmitgliedName} wird aufgehoben.\nDas bisherige Hauptmitglied bleibt unverändert bestehen.\n\nFortfahren?",
+            "Fortfahren",
+            "Abbrechen");
+        if (!confirmed)
+            return;
+
+        _isBusy = true;
+        MitgliedRecord? promoted = null;
+        try
+        {
+            promoted = await _supabaseService.PromoteNebenmitgliedToHauptmitgliedAsync(nebenmitglied.Id);
+            if (promoted == null || promoted.HauptmitgliedId is > 0)
+            {
+                await DisplayAlertAsync("Fehler", "Das Nebenmitglied konnte nicht zu einem Hauptmitglied gemacht werden.", "OK");
+                return;
+            }
+
+            _memberRecord = promoted;
+            _memberContextState.SetSelectedMember(MapMember(promoted));
+            _memberSearchRefreshState.RequestReload();
+            await DisplayAlertAsync("OK", "Das Mitglied ist jetzt ein eigenständiges Hauptmitglied.", "OK");
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlertAsync("Fehler", ex.Message, "OK");
+            return;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+
+        if (promoted != null)
+            await LoadAsync();
+    }
+
     private void UpdateFormActions(MemberDTO? member)
     {
         var canCreateMitglied = PermissionChecks.CanCreateMitglied(_userContextState.CurrentUserContext);
         var canCreateMemberApplication = !_isCreateMode
             && member?.Id is > 0
+            && member.IstHauptmitglied
             && canCreateMitglied
             && !_hasSignedMitgliedsantrag;
 
@@ -416,6 +496,14 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _mitgliedsantragDiagnoseLabel.Text = _hasSignedMitgliedsantrag
             ? "Signierter Mitgliedsantrag liegt vor."
             : string.Empty;
+    }
+
+    private static string FormatMemberDisplayName(MitgliedRecord? member, string fallback)
+    {
+        var name = string.Join(' ', new[] { member?.Vorname, member?.Name }
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!.Trim()));
+        return string.IsNullOrWhiteSpace(name) ? fallback : name;
     }
 
     private string BuildMitgliedsantragDiagnoseText(MemberDTO? member)

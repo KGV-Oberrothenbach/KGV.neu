@@ -11,6 +11,8 @@ type ContractGenerationOptions = {
   signature_privacy_member?: string;
   signature_application_representative?: string;
   signature_privacy_representative?: string;
+  signature_application_secondary?: string;
+  signature_privacy_secondary?: string;
   signature_member?: string;
   has_previous_contract?: boolean;
   previous_contract_date?: string;

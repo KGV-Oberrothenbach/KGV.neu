@@ -1,5 +1,6 @@
 import type { ClubContext } from "../../models/auth/club";
 import { getMember } from "../members/member-service";
+import { getSecondaryMemberByMainMemberId } from "../../repositories/members/member-repository";
 import { getSeasons } from "../seasons/season-service";
 import type { Season } from "../../models/seasons/season";
 import { listMembershipApplicationDocuments, type MembershipApplicationDocument } from "../../repositories/contracts/contract-repository";
@@ -18,6 +19,7 @@ export type MembershipApplicationData = {
   contributionMonths: number;
   admissionFee: number;
   status: MembershipApplicationStatus;
+  secondaryMember: Member | null;
 };
 
 const roundFee = (value: number) => Math.round(value * 100) / 100;
@@ -52,6 +54,9 @@ export async function loadMembershipApplicationStatus(club: ClubContext, session
 export async function loadMembershipApplicationData(club: ClubContext, session: BrowserSession, memberId: number, today = new Date()): Promise<MembershipApplicationData> {
   const [member, seasons, documents] = await Promise.all([getMember(club, session, memberId), getSeasons(club, session), listMembershipApplicationDocuments(club, session, memberId)]);
   if (!member) throw new Error("Mitglied konnte nicht geladen werden.");
+  const secondaryMember = member.hauptmitglied_id === null
+    ? await getSecondaryMemberByMainMemberId(club, session, memberId)
+    : null;
   const startDate = member.mitglied_seit || localDateValue(today);
   const seasonYear = today.getFullYear();
   const contributionSeason = seasons.find((item) => item.jahr === seasonYear);
@@ -72,5 +77,6 @@ export async function loadMembershipApplicationData(club: ClubContext, session: 
     contributionMonths: contribution.contributionMonths,
     admissionFee: roundFee(admissionSeason.aufnahmegebuehr),
     status: determineMembershipApplicationStatus(documents),
+    secondaryMember,
   };
 }

@@ -2376,6 +2376,28 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
+        public Task<MitgliedRecord?> PromoteNebenmitgliedToHauptmitgliedAsync(int mitgliedId) => ExecuteAsync<MitgliedRecord?>(
+            "PromoteNebenmitgliedToHauptmitgliedAsync",
+            async () =>
+            {
+                if (mitgliedId <= 0)
+                    return null;
+
+                var member = await GetMitgliedByIdAsync(mitgliedId);
+                if (member?.HauptmitgliedId is not > 0)
+                    return null;
+
+                var client = await EnsureClientAsync();
+                await client
+                    .From<MitgliedRecord>()
+                    .Where(x => x.Id == mitgliedId)
+                    .Set(x => x.HauptmitgliedId, null)
+                    .Update();
+
+                return await GetMitgliedByIdAsync(mitgliedId);
+            },
+            null);
+
         public Task<string?> ResolveDokumentOpenUrlAsync(DocumentInfo? document, int expiresInSeconds = 3600) => ExecuteAsync<string?>(
             "ResolveDokumentOpenUrlAsync",
             async () =>

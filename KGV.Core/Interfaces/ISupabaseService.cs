@@ -82,6 +82,7 @@ namespace KGV.Core.Interfaces
         // =========================
         Task<MitgliedRecord?> GetNebenmitgliedByHauptmitgliedIdAsync(int hauptmitgliedId);
         Task<MitgliedRecord?> CreateNebenmitgliedAsync(NebenmitgliedCreateDTO request);
+        Task<MitgliedRecord?> PromoteNebenmitgliedToHauptmitgliedAsync(int mitgliedId);
         Task<MitgliedGesetzlicherVertreterRecord?> GetAktivenGesetzlichenVertreterAsync(int minderjaehrigesMitgliedId, DateTime? stichtag = null);
         Task<MitgliedGesetzlicherVertreterRecord?> SaveGesetzlichenVertreterAsync(GesetzlicherVertreterSaveRequest request);
         Task<GesetzlicherVertreterAufloesung> ResolveGesetzlicherVertreterAsync(int mitgliedId, DateTime? stichtag = null);

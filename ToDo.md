@@ -1,16 +1,24 @@
 # ToDo – KGV-Software
 
-Letzte Aktualisierung: 2026-10-13
+Letzte Aktualisierung: 2026-10-14
 
 Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte, historische Abgleiche und frühere Zielbildtexte werden nicht fortgeführt.
 
 ## Pflege der ToDo
 
 - Neue Punkte immer dem passenden Themenbereich zuordnen.
-- Nach jeder Änderung gruppieren, committen und nach `main` pushen.
+- Nach jedem erfolgreich abgeschlossenen Auftrag gruppieren, committen und auf den aktuellen Arbeitsbranch pushen.
 - Keine erledigten Punkte in dieser Liste führen; bei Abschluss entfernen oder in die zugehörige Dokumentation bzw. Release-Notiz übernehmen.
+- Punkte unter „manuell eingetragene Punkte“ fachlich eindeutig einem passenden Themenbereich zuordnen und anschließend den Sammelbereich nur für nicht eindeutig zuordenbare Punkte verwenden.
+
+## manuell eingetragene Punkte
 
 ## WEB App
+
+### Kopfbereich und Markenauftritt
+
+- [ ] App-Version im Login-Fenster und in der Kopfzeile anzeigen.
+- [ ] Das bisherige „K“-Logo durch das echte KGV-Logo ersetzen.
 
 ### Kommunikation
 
@@ -57,6 +65,7 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 ### Abnahme
 
 - [ ] Mitgliedsantrag, Pachtvertrag und Protokoll aus Supabase-Vorlagen erzeugen.
+- [ ] Den Web-Mitgliedsantrag nach dem Edge-Function-Deployment mit zentralem Template-Katalog und allen drei Signaturfällen (3/5/5) praktisch testen.
 - [ ] Exporte mit `export_kopf` erzeugen und einen eigenständigen `briefbogen` bereitstellen.
 - [ ] Versionierung, Schutz alter Versionen und gemeinsamer Zugriff von MAUI und WEB nachweisen.
 
