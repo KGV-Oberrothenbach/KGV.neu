@@ -22,14 +22,7 @@ function createPdf(lines: string[]) {
   return new Blob([pdf], { type: "application/pdf" });
 }
 
-export type MembersListPdfParameters = { aktiv_filter: string; sortierung: string };
-
-export function membersListPdfParameters(values: Record<string, unknown>): MembersListPdfParameters {
-  return {
-    aktiv_filter: typeof values.aktiv_filter === "string" && values.aktiv_filter ? values.aktiv_filter : "aktiv",
-    sortierung: typeof values.sortierung === "string" && values.sortierung ? values.sortierung : "name",
-  };
-}
+export type CentralExportRequest = { export_key: string; format: "pdf" | "csv" | "xlsx"; parameters: Record<string, unknown>; columns: string[]; orientation: "auto" | "portrait" | "landscape" };
 
 function responseFileName(response: Response, fallback: string) {
   const header = response.headers.get("content-disposition") ?? "";
@@ -47,12 +40,12 @@ function downloadBlob(blob: Blob, fileName: string) {
 async function errorMessage(response: Response) {
   const detail = await response.json().catch(() => null) as { message?: string } | null;
   if (response.status === 401) return "Die Anmeldung ist abgelaufen. Bitte erneut anmelden.";
-  if (response.status === 403) return "Sie sind nicht berechtigt, die Mitgliederliste zu exportieren.";
+  if (response.status === 403) return "Sie sind nicht berechtigt, diesen Export zu erzeugen.";
   if (response.status === 400) return detail?.message ?? "Die Exportparameter sind ungültig.";
   return "Der zentrale PDF-Export konnte nicht erzeugt werden. Bitte versuchen Sie es später erneut.";
 }
 
-export async function downloadCentralMembersListPdf(club: ClubContext, session: BrowserSession, parameters: MembersListPdfParameters) {
+export async function generateExportPdf(club: ClubContext, session: BrowserSession, exportRequest: CentralExportRequest) {
   if (!session.accessToken) throw new Error("Die Anmeldung ist abgelaufen. Bitte erneut anmelden.");
   const { url, publishableKey } = resolveSupabaseConfig(club);
   let response: Response;
@@ -60,14 +53,14 @@ export async function downloadCentralMembersListPdf(club: ClubContext, session: 
     response = await fetch(`${url}/functions/v1/kgv-generate-export-pdf`, {
       method: "POST",
       headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json", Accept: "application/pdf" },
-      body: JSON.stringify({ export_key: "mitgliederliste", parameters }),
+      body: JSON.stringify(exportRequest),
     });
   } catch { throw new Error("Der zentrale PDF-Export ist derzeit nicht erreichbar."); }
   if (!response.ok) throw new Error(await errorMessage(response));
   if (response.headers.get("content-type")?.split(";", 1)[0]?.toLowerCase() !== "application/pdf") throw new Error("Der zentrale PDF-Export lieferte keine PDF-Datei.");
   const bytes = await response.arrayBuffer(); const signature = new Uint8Array(bytes);
   if (signature.length < 5 || String.fromCharCode(...signature.slice(0, 5)) !== "%PDF-") throw new Error("Der zentrale PDF-Export lieferte eine ungültige PDF-Datei.");
-  const fallback = `Mitgliederliste_${new Date().toISOString().slice(0, 10)}.pdf`;
+  const fallback = `${exportRequest.export_key || "Export"}_${new Date().toISOString().slice(0, 10)}.pdf`;
   downloadBlob(new Blob([bytes], { type: "application/pdf" }), responseFileName(response, fallback));
 }
 

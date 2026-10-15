@@ -1,22 +1,27 @@
 # Zentraler PDF-Export
 
-`supabase/functions/kgv-generate-export-pdf` ist der serverseitige Einstiegspunkt für PDF-Exporte. MAUI und Web nutzen weiterhin ihre bisherigen PDF-Pfade; die Umstellung ist bewusst nicht Bestandteil von CX1.
+`supabase/functions/kgv-generate-export-pdf` ist der serverseitige Einstiegspunkt für PDF-Exporte. MAUI und Web verwenden dafür denselben generischen Export-Request.
 
 ## Vertrag
 
-Ein authentifizierter `POST` an die Function erwartet derzeit ausschließlich:
+Ein authentifizierter `POST` an die Function verwendet diesen exportunabhängigen Contract:
 
 ```json
 {
-  "export_key": "mitgliederliste",
+  "export_key": "...",
+  "format": "pdf",
   "parameters": {
     "aktiv_filter": "aktiv",
     "sortierung": "name"
-  }
+  },
+  "columns": ["mitgliedsnr", "name", "email"],
+  "orientation": "auto"
 }
 ```
 
-`aktiv_filter` unterstützt `alle`, `aktiv` (Standard) und `inaktiv`. `sortierung` unterstützt `name` (Standard), `mitgliedsnr` und `garten`. Die Berechtigung wird über `rpc_execute_export` und damit `assert_export_access` geprüft; nur Admin/Vorstand erhalten Daten.
+`export_key`, `format`, `parameters`, `columns` und `orientation` sind für alle künftigen Standardexporte gleich. Neue Exporte sollen künftig ausschließlich über Supabase-Metadaten und Datenquellen ergänzt werden können; die Clients benötigen dafür keinen exportspezifischen Request oder Download-Service. Derzeit unterstützt der Server ausschließlich `mitgliederliste` und `format = pdf`. `orientation` akzeptiert `auto` (Standard), `portrait` und `landscape`; die endgültige automatische Ausrichtung entscheidet künftig serverseitig.
+
+Für die Mitgliederliste unterstützt `aktiv_filter` `alle`, `aktiv` (Standard) und `inaktiv`. `sortierung` unterstützt `name` (Standard), `mitgliedsnr` und `garten`. Die Berechtigung wird über `rpc_execute_export` und damit `assert_export_access` geprüft; nur Admin/Vorstand erhalten Daten.
 
 Die Funktion liefert `application/pdf` mit einem datierten Dateinamen. Die Mitgliederliste ist A4 quer, wiederholt Titel und Tabellenkopf auf jeder Seite und fasst Adresse bzw. Telefon/Mobil jeweils mehrzeilig in einer Zelle zusammen. Bemerkungen folgen gegebenenfalls als kompakte Zusatzzeile, damit die Tabelle lesbar bleibt. Kennzeichen sind ausschließlich `X` oder leer.
 

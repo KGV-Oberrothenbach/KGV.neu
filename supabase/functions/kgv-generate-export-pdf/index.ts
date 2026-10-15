@@ -7,8 +7,9 @@ const pageWidth = 841.89;
 const pageHeight = 595.28;
 const margin = 24;
 const contentWidth = pageWidth - margin * 2;
-type ExportRequest = { export_key?: string; parameters?: { aktiv_filter?: string; sortierung?: string } };
+type ExportRequest = { export_key?: string; format?: string; parameters?: Record<string, unknown>; columns?: unknown; orientation?: string };
 type MemberRow = Record<string, unknown>;
+type MemberColumn = { key: string; header: string; baseWidth: number; flexWeight?: number; value: (row: MemberRow) => string };
 
 const text = (value: unknown) => typeof value === "string" ? value.trim() : value === null || value === undefined ? "" : String(value);
 const mark = (value: unknown) => value === true || text(value).toLowerCase() === "true" || text(value) === "1" || text(value).toLowerCase() === "ja" ? "X" : "";
@@ -21,6 +22,29 @@ function normalizeParameters(input: ExportRequest["parameters"]) {
   if (!["alle", "aktiv", "inaktiv"].includes(aktiv)) throw new Error("PARAM:aktiv_filter muss alle, aktiv oder inaktiv sein.");
   if (!["name", "mitgliedsnr", "garten"].includes(sort)) throw new Error("PARAM:sortierung muss name, mitgliedsnr oder garten sein.");
   return { aktiv_filter: aktiv, sortierung: sort };
+}
+
+function isJsonValue(value: unknown): boolean {
+  if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") return true;
+  if (Array.isArray(value)) return value.every(isJsonValue);
+  return typeof value === "object" && Object.values(value as Record<string, unknown>).every(isJsonValue);
+}
+
+function normalizeRequest(body: ExportRequest) {
+  const exportKey = text(body.export_key).toLowerCase();
+  if (!exportKey) throw new Error("PARAM:export_key ist erforderlich.");
+  if (exportKey !== "mitgliederliste") throw new Error("PARAM:Unbekannter export_key. Unterstützt wird derzeit nur mitgliederliste.");
+  const format = text(body.format).toLowerCase() || "pdf";
+  if (format !== "pdf") throw new Error("PARAM:Der zentrale Export unterstützt derzeit nur das Format pdf.");
+  const orientation = text(body.orientation).toLowerCase() || "auto";
+  if (!["auto", "portrait", "landscape"].includes(orientation)) throw new Error("PARAM:orientation muss auto, portrait oder landscape sein.");
+  if (!body.parameters || Array.isArray(body.parameters) || !isJsonValue(body.parameters)) throw new Error("PARAM:parameters muss ein JSON-Objekt sein.");
+  if (!Array.isArray(body.columns) || !body.columns.length) throw new Error("PARAM:Mindestens eine Spalte muss ausgewählt sein.");
+  if (!body.columns.every((column) => typeof column === "string" && column.trim())) throw new Error("PARAM:columns darf nur nichtleere Spaltenschlüssel enthalten.");
+  const columns = [...new Set(body.columns.map((column) => column.trim().toLowerCase()))];
+  const allowed = new Set([...memberColumns.map((column) => column.key), "vorname", "plz", "ort", "handy", "mobil", "bemerkung"]);
+  if (columns.some((column) => !allowed.has(column))) throw new Error("PARAM:columns enthält einen unbekannten Spaltenschlüssel.");
+  return { exportKey, parameters: body.parameters, columns, orientation };
 }
 
 async function authenticate(req: Request) {
@@ -62,13 +86,53 @@ function wrap(value: string, font: PDFFont, size: number, width: number) {
   return lines.length ? lines : [""];
 }
 
-function memberCells(row: MemberRow) {
-  const address = [text(row.strasse_hsnr) || text(row.adresse), [text(row.plz), text(row.ort)].filter(Boolean).join(" ")].filter(Boolean).join("\n");
-  const contact = [text(row.telefon), text(row.handy) || text(row.mobil)].filter(Boolean).join("\n");
-  return [text(row.mitgliedsnr) || text(row.id), [text(row.name), text(row.vorname)].filter(Boolean).join(", "), address, contact, text(row.email), date(row.geburtsdatum), date(row.mitglied_seit), text(row.gartennummern) || text(row.gaerten), mark(row.wa ?? row.whatsapp_einwilligung), mark(row.re ?? row.email_rechnung_einwilligung), mark(row.info ?? row.email_info_einwilligung), mark(row.app_vorhanden ?? row.app), mark(row.aktiv_export)];
+const memberColumns: MemberColumn[] = [
+  { key: "mitgliedsnr", header: "Nr.", baseWidth: 31, value: (row) => text(row.mitgliedsnr) || text(row.id) },
+  { key: "name", header: "Mitglied", baseWidth: 76, flexWeight: 1.25, value: (row) => [text(row.name), text(row.vorname)].filter(Boolean).join(", ") },
+  { key: "strasse_hsnr", header: "Adresse", baseWidth: 100, flexWeight: 1.5, value: (row) => [text(row.strasse_hsnr) || text(row.adresse), [text(row.plz), text(row.ort)].filter(Boolean).join(" ")].filter(Boolean).join("\n") },
+  { key: "telefon", header: "Kontakt", baseWidth: 75, flexWeight: 1, value: (row) => [text(row.telefon), text(row.handy) || text(row.mobil)].filter(Boolean).join("\n") },
+  { key: "email", header: "E-Mail", baseWidth: 104, flexWeight: 1.4, value: (row) => text(row.email) },
+  { key: "geburtsdatum", header: "Geb.", baseWidth: 45, value: (row) => date(row.geburtsdatum) },
+  { key: "mitglied_seit", header: "Seit", baseWidth: 45, value: (row) => date(row.mitglied_seit) },
+  { key: "gartennummern", header: "Garten", baseWidth: 52, flexWeight: 0.75, value: (row) => text(row.gartennummern) || text(row.gaerten) },
+  { key: "wa", header: "WA", baseWidth: 25, value: (row) => mark(row.wa ?? row.whatsapp_einwilligung) },
+  { key: "re", header: "RE", baseWidth: 25, value: (row) => mark(row.re ?? row.email_rechnung_einwilligung) },
+  { key: "info", header: "Info", baseWidth: 28, value: (row) => mark(row.info ?? row.email_info_einwilligung) },
+  { key: "app", header: "App", baseWidth: 27, value: (row) => mark(row.app_vorhanden ?? row.app) },
+  { key: "aktiv_export", header: "Aktiv", baseWidth: 32, value: (row) => mark(row.aktiv_export) },
+];
+
+function selectedMemberColumns(columnKeys: unknown, sortierung: string) {
+  const selected = Array.isArray(columnKeys)
+    ? new Set(columnKeys.filter((key): key is string => typeof key === "string").map((key) => key.trim().toLowerCase()))
+    : null;
+  const sourceKeys: Record<string, string[]> = {
+    name: ["name", "vorname"],
+    strasse_hsnr: ["strasse_hsnr", "plz", "ort"],
+    telefon: ["telefon", "handy", "mobil"],
+  };
+  const columns = selected?.size
+    ? memberColumns.filter((column) => (sourceKeys[column.key] ?? [column.key]).some((key) => selected.has(key)))
+    : [...memberColumns];
+  if (!columns.length) throw new Error("PARAM:Mindestens eine PDF-Spalte muss ausgewählt sein.");
+  const sortColumnKey = sortierung === "mitgliedsnr" ? "mitgliedsnr" : sortierung === "garten" ? "gartennummern" : "name";
+  const sortIndex = columns.findIndex((column) => column.key === sortColumnKey);
+  if (sortIndex > 0) columns.unshift(columns.splice(sortIndex, 1)[0]);
+  return columns;
 }
 
-async function buildMembersPdf(rows: MemberRow[], admin: ReturnType<typeof createClient>) {
+function memberColumnWidths(columns: MemberColumn[]) {
+  const widths = columns.map((column) => column.baseWidth);
+  const flexibleIndexes = columns.flatMap((column, index) => column.flexWeight ? [index] : []);
+  const distributableIndexes = flexibleIndexes.length ? flexibleIndexes : columns.map((_, index) => index);
+  const totalWeight = distributableIndexes.reduce((sum, index) => sum + (columns[index].flexWeight ?? 1), 0);
+  const remaining = contentWidth - widths.reduce((sum, width) => sum + width, 0);
+  distributableIndexes.forEach((index) => { widths[index] += remaining * ((columns[index].flexWeight ?? 1) / totalWeight); });
+  widths[widths.length - 1] += contentWidth - widths.reduce((sum, width) => sum + width, 0);
+  return widths;
+}
+
+async function buildMembersPdf(rows: MemberRow[], admin: ReturnType<typeof createClient>, columnKeys: unknown, sortierung: string) {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -77,8 +141,8 @@ async function buildMembersPdf(rows: MemberRow[], admin: ReturnType<typeof creat
   if (backgroundBytes) {
     try { background = (await pdf.embedPdf(backgroundBytes, [0]))[0] ?? null; } catch { background = null; }
   }
-  const headers = ["Nr.", "Mitglied", "Adresse", "Kontakt", "E-Mail", "Geb.", "Seit", "Garten", "WA", "RE", "Info", "App", "Aktiv"];
-  const widths = [31, 76, 100, 75, 104, 45, 45, 52, 25, 25, 28, 27, 32];
+  const columns = selectedMemberColumns(columnKeys, sortierung);
+  const widths = memberColumnWidths(columns);
   const size = 6.7; const lineHeight = 8.1; const headerHeight = 18;
   let page: PDFPage; let y = 0; let pageNumber = 0;
   const startPage = () => {
@@ -88,12 +152,12 @@ async function buildMembersPdf(rows: MemberRow[], admin: ReturnType<typeof creat
     page.drawText(`Erstellt am ${date(today())}   |   Seite ${pageNumber}`, { x: margin, y: pageHeight - margin - 25, size: 7, font, color: rgb(0.3, 0.3, 0.3) });
     y = pageHeight - margin - 48;
     let x = margin;
-    headers.forEach((header, i) => { page.drawRectangle({ x, y: y - headerHeight, width: widths[i], height: headerHeight, color: rgb(0.9, 0.92, 0.9), borderColor: rgb(0.72, 0.75, 0.72), borderWidth: 0.35 }); page.drawText(header, { x: x + 2, y: y - 12, size: 6.3, font: bold }); x += widths[i]; });
+    columns.forEach((column, i) => { page.drawRectangle({ x, y: y - headerHeight, width: widths[i], height: headerHeight, color: rgb(0.9, 0.92, 0.9), borderColor: rgb(0.72, 0.75, 0.72), borderWidth: 0.35 }); page.drawText(column.header, { x: x + 2, y: y - 12, size: 6.3, font: bold }); x += widths[i]; });
     y -= headerHeight;
   };
   startPage();
   for (const row of rows) {
-    const cells = memberCells(row); const wrapped = cells.map((cell, i) => wrap(cell, font, size, widths[i] - 4));
+    const wrapped = columns.map((column, i) => wrap(column.value(row), font, size, widths[i] - 4));
     const rowHeight = Math.max(14, ...wrapped.map((lines) => lines.length * lineHeight + 5));
     if (y - rowHeight < margin) startPage();
     let x = margin;
@@ -116,15 +180,15 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json(405, { message: "Methode nicht erlaubt." });
   try {
     const body = await req.json() as ExportRequest;
-    if (body.export_key !== "mitgliederliste") return json(400, { message: "Unbekannter export_key. Unterstützt wird derzeit nur mitgliederliste." });
-    const parameters = normalizeParameters(body.parameters);
+    const exportRequest = normalizeRequest(body);
     const auth = await authenticate(req);
+    const parameters = normalizeParameters(exportRequest.parameters);
     const { data, error } = await auth.userClient.rpc("rpc_execute_export", { p_source_name: "rpc_export_mitgliederliste", p_parameters: parameters });
     if (error) {
       if (error.code === "42501") return json(403, { message: "Keine Berechtigung für diesen Export." });
       throw error;
     }
-    const pdf = await buildMembersPdf((data ?? []) as MemberRow[], auth.admin);
+    const pdf = await buildMembersPdf((data ?? []) as MemberRow[], auth.admin, exportRequest.columns, parameters.sortierung);
     const fileName = `Mitgliederliste_${today()}.pdf`;
     return new Response(pdf, { status: 200, headers: { ...cors, "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename=\"${fileName}\"` } });
   } catch (error) {

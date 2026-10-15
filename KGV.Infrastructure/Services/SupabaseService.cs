@@ -443,10 +443,10 @@ namespace KGV.Infrastructure.Services
             return RunExportRpcAsync("rpc_execute_export", new { p_source_name = sourceName, p_parameters = parameters ?? new { } });
         }
 
-        public async Task<byte[]> GenerateExportPdfAsync(string exportKey, IReadOnlyDictionary<string, object?> parameters)
+        public async Task<byte[]> GenerateExportPdfAsync(CentralExportRequest request)
         {
-            if (!string.Equals(exportKey?.Trim(), "mitgliederliste", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Der zentrale PDF-Export unterstützt derzeit nur die Mitgliederliste.");
+            if (request is null || string.IsNullOrWhiteSpace(request.ExportKey))
+                throw new InvalidOperationException("Für den zentralen PDF-Export fehlt der Export-Schlüssel.");
 
             if (string.IsNullOrWhiteSpace(_supabaseUrl) || string.IsNullOrWhiteSpace(_publishableKey))
                 throw new InvalidOperationException("Der zentrale PDF-Export ist nicht konfiguriert.");
@@ -461,7 +461,7 @@ namespace KGV.Infrastructure.Services
                 using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
                 {
                     Content = new StringContent(
-                        JsonSerializer.Serialize(new { export_key = "mitgliederliste", parameters = parameters ?? new Dictionary<string, object?>() }),
+                        JsonSerializer.Serialize(request),
                         Encoding.UTF8,
                         "application/json")
                 };

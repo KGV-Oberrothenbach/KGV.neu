@@ -902,7 +902,7 @@ namespace KGV.Maui.ViewModels
             {
                 // The central path owns member, garden, address/contact and App-user
                 // resolution. Local result shaping remains in place for CSV and preview.
-                var membersPdf = await _supabaseService.GenerateExportPdfAsync(exportKey, BuildMitgliederlistePdfParameters());
+                var membersPdf = await _supabaseService.GenerateExportPdfAsync(BuildCentralExportRequest());
                 var membersFileName = $"Mitgliederliste_{DateTime.Now:yyyy-MM-dd}.pdf";
                 var membersFilePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, membersFileName);
                 await System.IO.File.WriteAllBytesAsync(membersFilePath, membersPdf);
@@ -971,17 +971,29 @@ namespace KGV.Maui.ViewModels
             return filePath;
         }
 
-        private IReadOnlyDictionary<string, object?> BuildMitgliederlistePdfParameters()
+        private CentralExportRequest BuildCentralExportRequest()
         {
-            string GetValue(string key, string fallback)
-                => FilterValues.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value?.ToString())
-                    ? value!.ToString()!.Trim().ToLowerInvariant()
-                    : fallback;
-
-            return new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            var parameters = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            foreach (var filter in Filters)
             {
-                ["aktiv_filter"] = GetValue("aktiv_filter", "aktiv"),
-                ["sortierung"] = GetValue("sortierung", "name")
+                var filterKey = filter.FilterKey;
+                var parameterName = string.IsNullOrWhiteSpace(filter.ParameterName) ? filterKey : filter.ParameterName;
+                if (!string.IsNullOrWhiteSpace(filterKey) && !string.IsNullOrWhiteSpace(parameterName) && FilterValues.TryGetValue(filterKey, out var value))
+                    parameters[parameterName] = value;
+            }
+
+            return new CentralExportRequest
+            {
+                ExportKey = SelectedDefinition?.ExportKey ?? string.Empty,
+                Format = "pdf",
+                Parameters = parameters,
+                Columns = ColumnsVisibleOrdered
+                    .Select(column => column.ColumnKey ?? column.Name)
+                    .Where(columnKey => !string.IsNullOrWhiteSpace(columnKey))
+                    .Select(columnKey => columnKey!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
+                Orientation = "auto"
             };
         }
 
