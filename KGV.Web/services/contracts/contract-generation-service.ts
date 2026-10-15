@@ -17,6 +17,16 @@ type ContractGenerationOptions = {
   has_previous_contract?: boolean;
   previous_contract_date?: string;
   include_secondary_member?: boolean;
+  handover_date?: string;
+  fixed_until?: string;
+  garden_rules_version?: string;
+  garden_rules_handed_over_at?: string;
+  additional_agreements?: string;
+  attachment_1?: boolean;
+  attachment_2?: boolean;
+  attachment_3?: boolean;
+  attachment_4?: boolean;
+  club_signatory?: string;
   signature_secondary?: string;
   signature_board?: string;
   signature_board2?: string;

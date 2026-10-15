@@ -53,6 +53,7 @@ public static class PachtvertragTemplateFactory
             Paechter2Vollname = paechter2 == null ? string.Empty : BuildFullName(paechter2),
             Paechter2Anschrift = paechter2 == null ? string.Empty : BuildAddress(paechter2),
             Paechter2Kontakt = paechter2 == null ? string.Empty : BuildContact(paechter2),
+            ZweiteParteiBezeichnung = paechter2 == null ? string.Empty : context.ZweiteParteiIstGesetzlicherVertreter ? "Gesetzliche/r Vertreter/in" : "Mitpächter/in",
 
             ParzelleNummer = Clean(context.ParzelleNummer),
             ParzelleFlaecheQm = FormatArea(context.ParzelleFlaecheQm),
@@ -61,7 +62,7 @@ public static class PachtvertragTemplateFactory
 
             Pachtbeginn = FormatDate(context.Pachtbeginn),
             Pachtende = context.BefristetBis.HasValue ? FormatDate(context.BefristetBis.Value) : string.Empty,
-            UebergabeDatum = FormatDate(context.Pachtbeginn),
+            UebergabeDatum = FormatDate(context.UebergabeDatum ?? context.Pachtbeginn),
 
             PachtProQm = FormatMoney(context.PachtProQm),
             Jahrespacht = FormatMoney(jahrespacht),
@@ -75,7 +76,15 @@ public static class PachtvertragTemplateFactory
             PachtLaufendesJahr = FormatMoney(pachtLaufendesJahr),
 
             UnterschriftOrt = CleanOrDefault(context.UnterschriftOrt, "Zwickau"),
-            UnterschriftDatum = FormatDate(DateTime.Today)
+            UnterschriftDatum = FormatDate(DateTime.Today),
+            KleingartenordnungFassung = Clean(context.KleingartenordnungFassung),
+            KleingartenordnungAusgehaendigtAm = FormatNullableDate(context.KleingartenordnungAusgehaendigtAm),
+            WeitereVereinbarungen = Clean(context.WeitereVereinbarungen),
+            VereinsUnterzeichner = Clean(context.VereinsUnterzeichner),
+            Anlage1 = context.Anlage1,
+            Anlage2 = context.Anlage2,
+            Anlage3 = context.Anlage3,
+            Anlage4 = context.Anlage4
         };
     }
 
@@ -175,6 +184,7 @@ public sealed class PachtvertragTemplateContext
 
     public MitgliedRecord? Paechter1 { get; set; }
     public MitgliedRecord? Paechter2 { get; set; }
+    public bool ZweiteParteiIstGesetzlicherVertreter { get; set; }
 
     public string? ParzelleNummer { get; set; }
     public decimal ParzelleFlaecheQm { get; set; }
@@ -182,6 +192,15 @@ public sealed class PachtvertragTemplateContext
 
     public DateTime Pachtbeginn { get; set; }
     public DateTime? BefristetBis { get; set; }
+    public DateTime? UebergabeDatum { get; set; }
+    public string? KleingartenordnungFassung { get; set; }
+    public DateTime? KleingartenordnungAusgehaendigtAm { get; set; }
+    public string? WeitereVereinbarungen { get; set; }
+    public bool Anlage1 { get; set; }
+    public bool Anlage2 { get; set; }
+    public bool Anlage3 { get; set; }
+    public bool Anlage4 { get; set; }
+    public string? VereinsUnterzeichner { get; set; }
 
     public decimal PachtProQm { get; set; }
 

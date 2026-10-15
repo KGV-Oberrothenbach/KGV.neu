@@ -47,3 +47,36 @@ values
 ```
 
 MAUI lädt im Produktivpfad ausschließlich die veröffentlichte Katalogversion und behält die eingebettete PDF nur als lokalen Testfallback. Die Web-Edge-Function lädt dieselbe PDF und Field-Spec direkt aus dem privaten Bucket; sie prüft Katalogstatus, Versionen, Prüfsummen und `topLeft`-Koordinatenursprung. Beide Pfade bewahren die bisherige Reihenfolge der digitalen Signaturen (Pächter/in 1, gegebenenfalls zweite Partei bzw. gesetzliche/r Vertreter/in, Vorstand/Verpächter) als nachfolgende Signaturseite. Fertige PDFs bleiben im Google-Drive-/`dokument`-Pfad.
+
+## Pachtvertrag v2 bereitstellen
+
+`v1` bleibt unverändert. `v2` entfernt Gemeinschaftsleistungen und die nicht fachlich definierte Kosten-/Erstattungsposition. Sie verwendet die bestehende Vertreterauflösung und zeichnet alle Signaturen direkt auf Seite 3.
+
+| Wert | Festlegung |
+| --- | --- |
+| `template_key` | `pachtvertrag` |
+| Version | `v2` |
+| PDF-Pfad | `templates/pachtvertrag/v2/template.pdf` |
+| Field-Spec-Pfad | `templates/pachtvertrag/v2/field-spec.json` |
+| `field_spec_version` | `pachtvertrag-field-spec/v2` |
+| `renderer_version` | `top-left/v1` |
+| PDF SHA-256 | `bf97836eda617fc31bac5fee7ee2ddda7b47c60f0b29d8398776be8261db693e` |
+| Field-Spec SHA-256 | `b669d7eee42809079f827fc76f1d03e1cc9bbc2570870e8963de278c99d4330f` |
+
+Nach dem Upload beider Dateien wird v1 deaktiviert und v2 veröffentlicht:
+
+```sql
+update public.pdf_template_catalog
+set aktiv = false
+where template_key = 'pachtvertrag' and aktiv = true;
+
+insert into public.pdf_template_catalog
+  (template_key, version, storage_bucket, storage_path, content_type, checksum,
+   field_spec_path, field_spec_checksum, field_spec_version, renderer_version, status, aktiv)
+values
+  ('pachtvertrag', 'v2', 'pdf-templates', 'templates/pachtvertrag/v2/template.pdf', 'application/pdf',
+   'bf97836eda617fc31bac5fee7ee2ddda7b47c60f0b29d8398776be8261db693e',
+   'templates/pachtvertrag/v2/field-spec.json',
+   'b669d7eee42809079f827fc76f1d03e1cc9bbc2570870e8963de278c99d4330f',
+   'pachtvertrag-field-spec/v2', 'top-left/v1', 'published', true);
+```

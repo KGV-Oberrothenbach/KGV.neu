@@ -22,10 +22,11 @@ namespace KGV.Core.Utilities
             new PdfFormFieldSpec("paechter_anschrift", PdfFormFieldKind.Text, 1, 42, 257, 250.64, 17),
             new PdfFormFieldSpec("paechter_kontakt", PdfFormFieldKind.Text, 1, 302.64, 257, 250.64, 17),
 
-            new PdfFormFieldSpec("paechter2_name", PdfFormFieldKind.Text, 1, 42, 312, 250.64, 17),
-            new PdfFormFieldSpec("paechter2_mitgliedsnummer", PdfFormFieldKind.Text, 1, 302.64, 312, 250.64, 17),
-            new PdfFormFieldSpec("paechter2_anschrift", PdfFormFieldKind.Text, 1, 42, 340, 250.64, 17),
-            new PdfFormFieldSpec("paechter2_kontakt", PdfFormFieldKind.Text, 1, 302.64, 340, 250.64, 17),
+            new PdfFormFieldSpec("zweite_partei_bezeichnung", PdfFormFieldKind.Text, 1, 42, 285, 510, 14),
+            new PdfFormFieldSpec("zweite_partei_name", PdfFormFieldKind.Text, 1, 42, 312, 250.64, 17),
+            new PdfFormFieldSpec("zweite_partei_mitgliedsnummer", PdfFormFieldKind.Text, 1, 302.64, 312, 250.64, 17),
+            new PdfFormFieldSpec("zweite_partei_anschrift", PdfFormFieldKind.Text, 1, 42, 340, 250.64, 17),
+            new PdfFormFieldSpec("zweite_partei_kontakt", PdfFormFieldKind.Text, 1, 302.64, 340, 250.64, 17),
 
             new PdfFormFieldSpec("parzelle_nr", PdfFormFieldKind.Text, 1, 42, 399, 83, 17),
             new PdfFormFieldSpec("lage_anlage", PdfFormFieldKind.Text, 1, 136, 399, 230, 17),
@@ -33,11 +34,23 @@ namespace KGV.Core.Utilities
             new PdfFormFieldSpec("vertragsbeginn", PdfFormFieldKind.Text, 1, 42, 496, 138, 17),
             new PdfFormFieldSpec("uebergabe_datum", PdfFormFieldKind.Text, 1, 192, 496, 138, 17),
             new PdfFormFieldSpec("befristung", PdfFormFieldKind.Text, 1, 342, 496, 149, 17),
-            new PdfFormFieldSpec("pachtzins_jahr", PdfFormFieldKind.Text, 1, 42, 583, 165.1, 17),
-            new PdfFormFieldSpec("faelligkeit", PdfFormFieldKind.Text, 1, 388.18, 583, 165.1, 17),
+            new PdfFormFieldSpec("pachtzins_jahr", PdfFormFieldKind.Text, 1, 42, 583, 250, 17),
+            new PdfFormFieldSpec("faelligkeit", PdfFormFieldKind.Text, 1, 302, 583, 251, 17),
+
+            new PdfFormFieldSpec("kleingartenordnung_fassung", PdfFormFieldKind.Text, 2, 42, 286, 245, 17),
+            new PdfFormFieldSpec("kleingartenordnung_ausgehaendigt_am", PdfFormFieldKind.Text, 2, 316, 286, 170, 17),
 
             new PdfFormFieldSpec("ort_datum", PdfFormFieldKind.Text, 3, 42, 468, 190, 17),
-            new PdfFormFieldSpec("paechter_druckname", PdfFormFieldKind.Text, 3, 252, 468, 239, 17)
+            new PdfFormFieldSpec("paechter_druckname", PdfFormFieldKind.Text, 3, 252, 468, 239, 17),
+            new PdfFormFieldSpec("weitere_vereinbarungen", PdfFormFieldKind.MultilineText, 3, 42, 252, 510, 72),
+            new PdfFormFieldSpec("anlage_1", PdfFormFieldKind.Text, 3, 42, 365, 10, 10),
+            new PdfFormFieldSpec("anlage_2", PdfFormFieldKind.Text, 3, 255, 365, 10, 10),
+            new PdfFormFieldSpec("anlage_3", PdfFormFieldKind.Text, 3, 42, 387, 10, 10),
+            new PdfFormFieldSpec("anlage_4", PdfFormFieldKind.Text, 3, 255, 387, 10, 10),
+            new PdfFormFieldSpec("vereins_unterzeichner", PdfFormFieldKind.Text, 3, 252, 590, 300, 17)
+            ,new PdfFormFieldSpec("unterschrift_paechter", PdfFormFieldKind.SignaturePlaceholder, 3, 42, 516, 190, 35)
+            ,new PdfFormFieldSpec("unterschrift_zweite_partei", PdfFormFieldKind.SignaturePlaceholder, 3, 42, 576, 190, 35)
+            ,new PdfFormFieldSpec("unterschrift_vorstand", PdfFormFieldKind.SignaturePlaceholder, 3, 252, 516, 300, 35)
         };
 
         // Compatibility-only fallback for isolated local tests. Production paths use IPdfTemplateProvider.
@@ -113,7 +126,7 @@ namespace KGV.Core.Utilities
             CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(templateProvider);
-            var template = await templateProvider.GetActiveAsync("pachtvertrag", "pachtvertrag-field-spec/v1", "top-left/v1", cancellationToken);
+            var template = await templateProvider.GetActiveAsync("pachtvertrag", "pachtvertrag-field-spec/v2", "top-left/v1", cancellationToken);
             ValidateTemplate(template);
             return CreateUploadRequestCore(hauptmitglied, nebenmitglied, parzelle, saison, vertragsbeginn,
                 altvertragDatum, gesetzlicherVertreterSnapshot, bankverbindungSnapshot, status, paechter2Override, template);
@@ -201,6 +214,7 @@ namespace KGV.Core.Utilities
                 VereinskonfigurationSnapshot = bankverbindungSnapshot,
                 Paechter1 = hauptmitglied,
                 Paechter2 = paechter2,
+                ZweiteParteiIstGesetzlicherVertreter = gesetzlicherVertreterSnapshot != null && paechter2 != null,
                 ParzelleNummer = string.IsNullOrWhiteSpace(parzelle.GartenNr) ? $"#{parzelle.Id}" : parzelle.GartenNr.Trim(),
                 ParzelleFlaecheQm = parzelle.FlaecheQm!.Value,
                 ParzelleAnlage = parzelle.Anlage,
@@ -224,7 +238,7 @@ namespace KGV.Core.Utilities
             {
                 TemplateKey = "pachtvertrag",
                 Version = "embedded-fallback",
-                FieldSpecVersion = "pachtvertrag-field-spec/v1",
+                FieldSpecVersion = "pachtvertrag-field-spec/v2",
                 RendererVersion = "top-left/v1",
                 PdfBytes = ms.ToArray(),
                 Fields = FieldSpecs.Select(x => new PdfTemplateFieldSpec(x.Name, x.Kind.ToString(), x.Page, x.X, x.Y, x.Width, x.Height)).ToArray()
@@ -257,10 +271,11 @@ namespace KGV.Core.Utilities
                 ["paechter_anschrift"] = data.Paechter1Anschrift,
                 ["paechter_kontakt"] = data.Paechter1Kontakt,
 
-                ["paechter2_name"] = data.Paechter2Vollname,
-                ["paechter2_mitgliedsnummer"] = data.Paechter2Mitgliedsnummer,
-                ["paechter2_anschrift"] = data.Paechter2Anschrift,
-                ["paechter2_kontakt"] = data.Paechter2Kontakt,
+                ["zweite_partei_bezeichnung"] = data.ZweiteParteiBezeichnung,
+                ["zweite_partei_name"] = data.Paechter2Vollname,
+                ["zweite_partei_mitgliedsnummer"] = data.Paechter2Mitgliedsnummer,
+                ["zweite_partei_anschrift"] = data.Paechter2Anschrift,
+                ["zweite_partei_kontakt"] = data.Paechter2Kontakt,
 
                 ["parzelle_nr"] = data.ParzelleNummer,
                 ["lage_anlage"] = data.ParzelleAnlage,
@@ -270,6 +285,14 @@ namespace KGV.Core.Utilities
                 ["befristung"] = data.Pachtende,
                 ["pachtzins_jahr"] = data.Jahrespacht,
                 ["faelligkeit"] = data.PachtzahlungFaelligBis,
+                ["kleingartenordnung_fassung"] = data.KleingartenordnungFassung,
+                ["kleingartenordnung_ausgehaendigt_am"] = data.KleingartenordnungAusgehaendigtAm,
+                ["weitere_vereinbarungen"] = data.WeitereVereinbarungen,
+                ["anlage_1"] = data.Anlage1 ? "X" : string.Empty,
+                ["anlage_2"] = data.Anlage2 ? "X" : string.Empty,
+                ["anlage_3"] = data.Anlage3 ? "X" : string.Empty,
+                ["anlage_4"] = data.Anlage4 ? "X" : string.Empty,
+                ["vereins_unterzeichner"] = data.VereinsUnterzeichner,
 
                 ["ort_datum"] = string.Join(", ", new[] { data.UnterschriftOrt, data.UnterschriftDatum }
                     .Where(value => !string.IsNullOrWhiteSpace(value))),
