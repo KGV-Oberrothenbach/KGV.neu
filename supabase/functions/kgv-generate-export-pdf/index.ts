@@ -10,6 +10,8 @@ const contentWidth = pageWidth - margin * 2;
 type ExportRequest = { export_key?: string; format?: string; parameters?: Record<string, unknown>; columns?: unknown; orientation?: string };
 type MemberRow = Record<string, unknown>;
 type MemberColumn = { key: string; header: string; baseWidth: number; flexWeight?: number; value: (row: MemberRow) => string };
+type ExportDefinition = { export_key: string; titel: string | null; quelle_typ: string | null; quelle_name: string | null; aktiv: boolean; erlaubt_pdf: boolean };
+type ExportColumn = { column_key: string; label_kurz: string | null; label_lang: string | null; sortierung: number; standard_sichtbar: boolean; ist_sortierspalte: boolean };
 
 const text = (value: unknown) => typeof value === "string" ? value.trim() : value === null || value === undefined ? "" : String(value);
 const mark = (value: unknown) => value === true || text(value).toLowerCase() === "true" || text(value) === "1" || text(value).toLowerCase() === "ja" ? "X" : "";
@@ -33,18 +35,56 @@ function isJsonValue(value: unknown): boolean {
 function normalizeRequest(body: ExportRequest) {
   const exportKey = text(body.export_key).toLowerCase();
   if (!exportKey) throw new Error("PARAM:export_key ist erforderlich.");
-  if (exportKey !== "mitgliederliste") throw new Error("PARAM:Unbekannter export_key. Unterstützt wird derzeit nur mitgliederliste.");
   const format = text(body.format).toLowerCase() || "pdf";
   if (format !== "pdf") throw new Error("PARAM:Der zentrale Export unterstützt derzeit nur das Format pdf.");
   const orientation = text(body.orientation).toLowerCase() || "auto";
   if (!["auto", "portrait", "landscape"].includes(orientation)) throw new Error("PARAM:orientation muss auto, portrait oder landscape sein.");
   if (!body.parameters || Array.isArray(body.parameters) || !isJsonValue(body.parameters)) throw new Error("PARAM:parameters muss ein JSON-Objekt sein.");
-  if (!Array.isArray(body.columns) || !body.columns.length) throw new Error("PARAM:Mindestens eine Spalte muss ausgewählt sein.");
+  if (body.columns === undefined || body.columns === null) return { exportKey, parameters: body.parameters, columns: [], orientation };
+  if (!Array.isArray(body.columns)) throw new Error("PARAM:columns muss eine Spaltenliste sein.");
   if (!body.columns.every((column) => typeof column === "string" && column.trim())) throw new Error("PARAM:columns darf nur nichtleere Spaltenschlüssel enthalten.");
   const columns = [...new Set(body.columns.map((column) => column.trim().toLowerCase()))];
-  const allowed = new Set([...memberColumns.map((column) => column.key), "vorname", "plz", "ort", "handy", "mobil", "bemerkung"]);
-  if (columns.some((column) => !allowed.has(column))) throw new Error("PARAM:columns enthält einen unbekannten Spaltenschlüssel.");
   return { exportKey, parameters: body.parameters, columns, orientation };
+}
+
+async function loadExportMetadata(admin: ReturnType<typeof createClient>, exportKey: string) {
+  const { data: definition, error } = await admin.from("app_export_definition").select("export_key,titel,quelle_typ,quelle_name,aktiv,erlaubt_pdf").eq("export_key", exportKey).maybeSingle();
+  if (error || !definition) throw new Error("PARAM:EXPORT_NOT_FOUND");
+  const item = definition as ExportDefinition;
+  if (!item.aktiv || item.quelle_typ !== "rpc" || !item.quelle_name || !item.erlaubt_pdf || !text(item.titel)) throw new Error("PARAM:EXPORT_NOT_AVAILABLE");
+  const { data: columns, error: columnsError } = await admin.from("app_export_column_definition").select("column_key,label_kurz,label_lang,sortierung,standard_sichtbar,ist_sortierspalte").eq("export_key", exportKey).order("sortierung");
+  if (columnsError) throw new Error("PARAM:EXPORT_COLUMNS_NOT_AVAILABLE");
+  return { definition: item, columns: (columns ?? []) as ExportColumn[] };
+}
+
+function selectedColumns(requested: string[], definitions: ExportColumn[]) {
+  const known = new Map(definitions.map((column) => [column.column_key, column]));
+  if (requested.some((key) => !known.has(key))) throw new Error("PARAM:columns enthält einen unbekannten Spaltenschlüssel.");
+  const selected = requested.length ? requested.map((key) => known.get(key)!) : definitions.filter((column) => column.standard_sichtbar);
+  if (!selected.length) throw new Error("PARAM:Keine PDF-Spalten konfiguriert.");
+  return selected;
+}
+
+function genericValue(value: unknown) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "boolean") return value ? "X" : "";
+  const raw = text(value); const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.slice(0, 10));
+  return match ? `${match[3]}.${match[2]}.${match[1]}` : raw;
+}
+
+async function buildGenericTablePdf(rows: MemberRow[], definition: ExportDefinition, columns: ExportColumn[], requestedOrientation: string, admin: ReturnType<typeof createClient>) {
+  const fontProbe = await PDFDocument.create(); const probeFont = await fontProbe.embedFont(StandardFonts.Helvetica);
+  const wishes = columns.map((column) => Math.max(34, probeFont.widthOfTextAtSize(column.label_kurz || column.label_lang || column.column_key, 7) + 10, ...rows.slice(0, 40).map((row) => Math.min(150, probeFont.widthOfTextAtSize(genericValue(row[column.column_key]), 6.7) + 8))));
+  const portraitContent = 595.28 - margin * 2;
+  const orientation = requestedOrientation === "auto" ? (wishes.reduce((sum, width) => sum + width, 0) <= portraitContent ? "portrait" : "landscape") : requestedOrientation;
+  const width = orientation === "portrait" ? 595.28 : 841.89; const height = orientation === "portrait" ? 841.89 : 595.28; const usable = width - margin * 2;
+  const widths = wishes.map((value) => usable * value / wishes.reduce((sum, item) => sum + item, 0)); widths[widths.length - 1] += usable - widths.reduce((sum, item) => sum + item, 0);
+  const pdf = await PDFDocument.create(); const font = await pdf.embedFont(StandardFonts.Helvetica); const bold = await pdf.embedFont(StandardFonts.HelveticaBold); const backgroundBytes = await loadOptionalBackground(admin); let background: PDFEmbeddedPage | null = null;
+  if (backgroundBytes) try { background = (await pdf.embedPdf(backgroundBytes, [0]))[0] ?? null; } catch { background = null; }
+  let page: PDFPage; let y = 0; let pageNumber = 0; const headerHeight = 18; const lineHeight = 8.1;
+  const startPage = () => { pageNumber++; page = pdf.addPage([width, height]); if (background) page.drawPage(background, { x: 0, y: 0, width, height }); page.drawText(definition.titel || definition.export_key, { x: margin, y: height - margin - 12, size: 14, font: bold }); page.drawText(`Erstellt am ${date(today())}   |   Seite ${pageNumber}`, { x: margin, y: height - margin - 25, size: 7, font }); y = height - margin - 48; let x = margin; columns.forEach((column, index) => { page.drawRectangle({ x, y: y - headerHeight, width: widths[index], height: headerHeight, color: rgb(.9, .92, .9), borderColor: rgb(.72, .75, .72), borderWidth: .35 }); page.drawText(column.label_kurz || column.label_lang || column.column_key, { x: x + 2, y: y - 12, size: 6.3, font: bold }); x += widths[index]; }); y -= headerHeight; };
+  startPage(); for (const row of rows) { const cells = columns.map((column, index) => wrap(genericValue(row[column.column_key]), font, 6.7, widths[index] - 4)); const rowHeight = Math.max(14, ...cells.map((lines) => lines.length * lineHeight + 5)); if (y - rowHeight < margin) startPage(); let x = margin; cells.forEach((lines, index) => { page.drawRectangle({ x, y: y - rowHeight, width: widths[index], height: rowHeight, borderColor: rgb(.8, .82, .8), borderWidth: .25 }); lines.forEach((line, lineIndex) => page.drawText(line, { x: x + 2, y: y - 9 - lineIndex * lineHeight, size: 6.7, font })); x += widths[index]; }); y -= rowHeight; }
+  return { pdf: await pdf.save(), orientation };
 }
 
 async function authenticate(req: Request) {
@@ -182,15 +222,19 @@ Deno.serve(async (req) => {
     const body = await req.json() as ExportRequest;
     const exportRequest = normalizeRequest(body);
     const auth = await authenticate(req);
-    const parameters = normalizeParameters(exportRequest.parameters);
+    const metadata = await loadExportMetadata(auth.admin, exportRequest.exportKey);
+    const columns = selectedColumns(exportRequest.columns, metadata.columns);
+    const parameters = exportRequest.exportKey === "mitgliederliste" ? normalizeParameters(exportRequest.parameters) : exportRequest.parameters;
     const { data, error } = await auth.userClient.rpc("rpc_execute_export", { p_export_key: exportRequest.exportKey, p_parameters: parameters });
     if (error) {
       if (error.code === "42501") return json(403, { message: "Keine Berechtigung für diesen Export." });
       throw error;
     }
-    const pdf = await buildMembersPdf((data ?? []) as MemberRow[], auth.admin, exportRequest.columns, parameters.sortierung);
-    const fileName = `Mitgliederliste_${today()}.pdf`;
-    return new Response(pdf, { status: 200, headers: { ...cors, "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename=\"${fileName}\"` } });
+    const rendered = exportRequest.exportKey === "mitgliederliste"
+      ? { pdf: await buildMembersPdf((data ?? []) as MemberRow[], auth.admin, exportRequest.columns, normalizeParameters(parameters).sortierung), orientation: "landscape" }
+      : await buildGenericTablePdf((data ?? []) as MemberRow[], metadata.definition, columns, exportRequest.orientation, auth.admin);
+    const fileName = `${text(metadata.definition.titel).replace(/[^a-z0-9äöüß_-]+/gi, "_") || "Export"}_${today()}.pdf`;
+    return new Response(rendered.pdf, { status: 200, headers: { ...cors, "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename=\"${fileName}\"`, "X-KGV-PDF-Orientation": rendered.orientation, "X-KGV-PDF-Orientation-Requested": exportRequest.orientation } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "PDF-Export konnte nicht erzeugt werden.";
     if (message.startsWith("AUTH:")) return json(401, { message: message.slice(5) });

@@ -34,7 +34,7 @@ test("CX1 keeps members-list filtering, natural gardens and PDF page mechanics s
 test("central export request rejects unsupported generic contract values", () => {
   assert.match(functionSource, /format !== "pdf"/);
   assert.match(functionSource, /orientation muss auto, portrait oder landscape/);
-  assert.match(functionSource, /Mindestens eine Spalte muss ausgewählt sein/);
+  assert.match(functionSource, /Keine PDF-Spalten konfiguriert/);
   assert.match(functionSource, /new Set\(body\.columns/);
   assert.match(functionSource, /unbekannten Spaltenschlüssel/);
   assert.match(functionSource, /isJsonValue/);

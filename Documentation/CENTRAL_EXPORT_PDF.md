@@ -27,6 +27,10 @@ Für die Mitgliederliste unterstützt `aktiv_filter` `alle`, `aktiv` (Standard) 
 
 `rpc_execute_export(p_export_key, p_parameters)` löst die aktive Exportdefinition selbst auf: `export_key` → `app_export_definition.quelle_name` → JSON-Wrapper-RPC. Der Funktionsname stammt ausschließlich aus aktivierter Metadatenkonfiguration und wird als SQL-Identifier quotiert; Parameter werden ausschließlich als `jsonb` gebunden. Neue Standardexporte müssen daher nicht mehr im Gateway registriert werden.
 
+## Standardrenderer
+
+Die Function lädt Definition und Spalten aus den Exportmetadaten. Standardexporte verwenden automatisch den generischen Tabellenrenderer: validierte Spalten, wiederholte Kopfzeilen, Zeilenumbruch und Breiten über die gesamte Nutzbreite. `orientation = auto` wählt anhand einer begrenzten Wertstichprobe Hoch- oder Querformat und gibt die verwendete Orientierung im Header `X-KGV-PDF-Orientation` zurück. Die Mitgliederliste bleibt wegen ihrer zusammengesetzten Fachspalten ein expliziter Sonderrenderer.
+
 Die Funktion liefert `application/pdf` mit einem datierten Dateinamen. Die Mitgliederliste ist A4 quer, wiederholt Titel und Tabellenkopf auf jeder Seite und fasst Adresse bzw. Telefon/Mobil jeweils mehrzeilig in einer Zelle zusammen. Bemerkungen folgen gegebenenfalls als kompakte Zusatzzeile, damit die Tabelle lesbar bleibt. Kennzeichen sind ausschließlich `X` oder leer.
 
 Die Daten kommen aus `rpc_export_mitgliederliste(aktiv_filter, sortierung)`: nicht-Demo-Mitglieder, fachlicher Aktivstatus inklusive `mitglied_ende`, aktuelle `parzellen_belegung`, Einwilligungen und ein boolescher App/Auth-Zugang. UUIDs werden nicht ausgegeben.
