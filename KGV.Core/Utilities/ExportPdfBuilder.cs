@@ -41,8 +41,6 @@ namespace KGV.Core.Utilities
                 doc.Info.Creator = VereinsdokumentBranding.VereinsName;
             }
             catch { }
-            var isMitgliederliste = string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase);
-
             var page = doc.AddPage();
             page.Size = PdfSharpCore.PageSize.A4;
             // Use portrait for the Eichfälligkeit export, otherwise landscape
@@ -52,27 +50,12 @@ namespace KGV.Core.Utilities
 
             var gfx = XGraphics.FromPdfPage(page);
 
-            var titleFont = new XFont("Arial", ExportPdfDocumentDefinition.TitleFontSize, XFontStyle.Bold);
-            var subtitleFont = new XFont("Arial", 8, XFontStyle.Regular);
             var headerFont = new XFont("Arial", ExportPdfDocumentDefinition.HeaderFontSize, XFontStyle.Bold);
             var cellFont = new XFont("Arial", ExportPdfDocumentDefinition.CellFontSize, XFontStyle.Regular);
 
             double usableWidth = page.Width - PageMargin * 2;
             double x = PageMargin;
             double y = PageMargin;
-
-            void DrawMitgliederlistenKopf()
-            {
-                if (!isMitgliederliste)
-                    return;
-
-                gfx.DrawString("Mitgliederliste", titleFont, XBrushes.DarkSlateGray,
-                    new XRect(PageMargin, y, usableWidth, 20), XStringFormats.TopLeft);
-                y += 20;
-                gfx.DrawString($"Erstellt am {DateTime.Now:dd.MM.yyyy HH:mm}", subtitleFont, XBrushes.DimGray,
-                    new XRect(PageMargin, y, usableWidth, 12), XStringFormats.TopLeft);
-                y += 18;
-            }
 
             void DrawVereinskopf()
             {
@@ -115,11 +98,9 @@ namespace KGV.Core.Utilities
             if (totalWeight <= 0) totalWeight = 1;
             var colWidths = weights.Select(w => usableWidth * (w / totalWeight)).ToArray();
 
-            // draw header: Vereinskopf for specific export, sonst Mitgliederlisten-kopf
+            // Only the Eichfälligkeit export has a local club header.
             if (string.Equals(exportKey, "zaehler_eichfaelligkeit", StringComparison.OrdinalIgnoreCase))
                 DrawVereinskopf();
-            else
-                DrawMitgliederlistenKopf();
             // draw header
             DrawHeaderRow(gfx, headerFont, effectiveCols, colWidths, x, y, exportKey);
             y += HeaderHeight + 6;
@@ -135,7 +116,7 @@ namespace KGV.Core.Utilities
                 for (int c = 0; c < effectiveCols.Count; c++)
                 {
                     var col = effectiveCols[c];
-                    var value = GetPdfCellValue(exportKey, col, row);
+                    var value = GetPdfCellValue(col, row);
                     if (IsBooleanLike(value))
                         value = value.Equals("Ja", StringComparison.OrdinalIgnoreCase) || value.Equals("true", StringComparison.OrdinalIgnoreCase) ? "☑" : "☐";
 
@@ -161,8 +142,6 @@ namespace KGV.Core.Utilities
                     y = PageMargin;
                     if (string.Equals(exportKey, "zaehler_eichfaelligkeit", StringComparison.OrdinalIgnoreCase))
                         DrawVereinskopf();
-                    else
-                        DrawMitgliederlistenKopf();
                     DrawHeaderRow(gfx, headerFont, effectiveCols, colWidths, x, y, exportKey);
                     y += HeaderHeight + 6;
                 }
@@ -170,7 +149,7 @@ namespace KGV.Core.Utilities
                 for (int c = 0; c < effectiveCols.Count; c++)
                 {
                     var col = effectiveCols[c];
-                    var value = GetPdfCellValue(exportKey, col, row);
+                    var value = GetPdfCellValue(col, row);
                     if (IsBooleanLike(value))
                         value = value.Equals("Ja", StringComparison.OrdinalIgnoreCase) || value.Equals("true", StringComparison.OrdinalIgnoreCase) ? "☑" : "☐";
 
@@ -504,26 +483,9 @@ namespace KGV.Core.Utilities
         {
             var result = new List<PdfColumn>();
             var skipForEichfaellig = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "rfid", "tage_bis_faellig", "faelligkeitsstatus", "zaehler_id" };
-            var addressKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "adresse", "strasse_hsnr", "plz", "ort", "strasse", "hausnummer" };
-            var contactKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "telefon", "handy", "mobil" };
 
             foreach (var c in columns)
             {
-                var key = (c.ColumnKey ?? c.Name ?? string.Empty).ToLowerInvariant();
-                if (string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase) && addressKeys.Contains(key))
-                {
-                    if (!result.Any(rc => addressKeys.Contains((rc.ColumnKey ?? string.Empty).ToLowerInvariant())))
-                        result.Add(new PdfColumn("__pdf_address__", "Adresse", true, c.Sortierung));
-                    continue;
-                }
-
-                if (string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase) && contactKeys.Contains(key))
-                {
-                    if (!result.Any(rc => contactKeys.Contains((rc.ColumnKey ?? string.Empty).ToLowerInvariant()) || (rc.ColumnKey ?? string.Empty) == "__pdf_contact__"))
-                        result.Add(new PdfColumn("__pdf_contact__", "Kontakt", true, c.Sortierung));
-                    continue;
-                }
-
                 // for the Eichfälligkeit export we remove several technical/debug columns from the PDF
                 if (string.Equals(exportKey, "zaehler_eichfaelligkeit", StringComparison.OrdinalIgnoreCase))
                 {
@@ -541,7 +503,7 @@ namespace KGV.Core.Utilities
         private static double ColumnWeight(PdfColumn col)
         {
             var cn = (col.ColumnKey ?? col.Label ?? string.Empty).ToLowerInvariant();
-            if (cn.StartsWith("nr", StringComparison.OrdinalIgnoreCase) || cn == "__pdf_address__" || cn == "__pdf_contact__")
+            if (cn.StartsWith("nr", StringComparison.OrdinalIgnoreCase))
                 return 2;
             if (IsShortFieldName(cn) || cn == "aktiv" || cn == "wa" || cn == "re" || cn == "info" || cn == "app")
                 return 1;
@@ -555,32 +517,8 @@ namespace KGV.Core.Utilities
             return value.Substring(0, max - 3) + "...";
         }
 
-        private static string GetPdfCellValue(string exportKey, PdfColumn col, Dictionary<string, string> row)
+        private static string GetPdfCellValue(PdfColumn col, Dictionary<string, string> row)
         {
-            var key = (col.ColumnKey ?? string.Empty).ToLowerInvariant();
-            if (key == "__pdf_address__")
-            {
-                row.TryGetValue("strasse_hsnr", out var adr);
-                if (string.IsNullOrWhiteSpace(adr))
-                    row.TryGetValue("adresse", out adr);
-                row.TryGetValue("plz", out var plz);
-                row.TryGetValue("ort", out var ort);
-                var line1 = adr ?? string.Empty;
-                var line2 = string.Join(" ", new[] { plz, ort }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
-                return string.IsNullOrWhiteSpace(line2) ? line1 : line1 + "\n" + line2;
-            }
-
-            if (key == "__pdf_contact__")
-            {
-                row.TryGetValue("telefon", out var tel);
-                row.TryGetValue("mobil", out var mob);
-                if (string.IsNullOrWhiteSpace(mob))
-                    row.TryGetValue("handy", out mob);
-                var line1 = tel ?? string.Empty;
-                var line2 = mob ?? string.Empty;
-                return string.IsNullOrWhiteSpace(line2) ? line1 : line1 + "\n" + line2;
-            }
-
             // Try multiple lookup strategies to be robust against differing keys used in remapped rows:
             // 1. direct ColumnKey
             if (!string.IsNullOrWhiteSpace(col.ColumnKey) && row.TryGetValue(col.ColumnKey, out var val1) && !string.IsNullOrWhiteSpace(val1))
@@ -611,14 +549,6 @@ namespace KGV.Core.Utilities
                     if (normTargets.Contains(nk) && !string.IsNullOrWhiteSpace(kv.Value))
                         return kv.Value;
                 }
-            }
-
-            // 4. fallback to any canonical/common keys used in member export (helpful for mitgliederliste)
-            var commonAliases = new[] { "mitgliedsnummer", "mitgliedsnr", "id", "name", "vorname", "email", "adresse" };
-            foreach (var alias in commonAliases)
-            {
-                if (row.TryGetValue(alias, out var av) && !string.IsNullOrWhiteSpace(av))
-                    return av;
             }
 
             // nothing found -> return empty string
@@ -674,31 +604,6 @@ namespace KGV.Core.Utilities
 
         private static string GetShortHeader(string exportKey, PdfColumn col)
         {
-            if (string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase))
-            {
-                var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    { "nr", "Nr" },
-                    { "nummer", "Nr" },
-                    { "wa", "WA" },
-                    { "re", "RE" },
-                    { "info", "Info" },
-                    { "app", "App" },
-                    { "geb", "Geb." },
-                    { "geburtsdatum", "Geb." },
-                    { "seit", "Seit" },
-                    { "gaerten", "Gärten" },
-                    { "gaerten_count", "Gärten" },
-                    { "garten", "Gärten" },
-                    { "aktiv", "Aktiv" }
-                };
-
-                if (!string.IsNullOrWhiteSpace(col.ColumnKey) && map.TryGetValue(col.ColumnKey, out var s))
-                    return s;
-                if (!string.IsNullOrWhiteSpace(col.Label) && map.TryGetValue(col.Label, out var s2))
-                    return s2;
-            }
-
             if (string.Equals(exportKey, "rfid_status", StringComparison.OrdinalIgnoreCase))
             {
                 var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
