@@ -31,6 +31,8 @@ Für die Mitgliederliste unterstützt `aktiv_filter` `alle`, `aktiv` (Standard) 
 
 Die Function lädt Definition und Spalten aus den Exportmetadaten. Standardexporte verwenden automatisch den generischen Tabellenrenderer: validierte Spalten, wiederholte Kopfzeilen, Zeilenumbruch und Breiten über die gesamte Nutzbreite. `orientation = auto` wählt anhand einer begrenzten Wertstichprobe Hoch- oder Querformat und gibt die verwendete Orientierung im Header `X-KGV-PDF-Orientation` zurück. Die Mitgliederliste bleibt wegen ihrer zusammengesetzten Fachspalten ein expliziter Sonderrenderer.
 
+`parzellenliste` ist der erste produktionsnahe Referenzexport, der ausschließlich aus einer standardisierten Export-RPC und Supabase-Metadaten besteht. Für MAUI, Web, Edge Function und Gateway waren keine Änderungen erforderlich.
+
 Die Funktion liefert `application/pdf` mit einem datierten Dateinamen. Die Mitgliederliste ist A4 quer, wiederholt Titel und Tabellenkopf auf jeder Seite und fasst Adresse bzw. Telefon/Mobil jeweils mehrzeilig in einer Zelle zusammen. Bemerkungen folgen gegebenenfalls als kompakte Zusatzzeile, damit die Tabelle lesbar bleibt. Kennzeichen sind ausschließlich `X` oder leer.
 
 Die Daten kommen aus `rpc_export_mitgliederliste(aktiv_filter, sortierung)`: nicht-Demo-Mitglieder, fachlicher Aktivstatus inklusive `mitglied_ende`, aktuelle `parzellen_belegung`, Einwilligungen und ein boolescher App/Auth-Zugang. UUIDs werden nicht ausgegeben.
