@@ -24,7 +24,9 @@ update public.app_export_definition set quelle_name = case export_key
 end
 where export_key in ('mitgliederliste', 'arbeitsstunden_uebersicht', 'jahresablesung_status', 'datenschutz_aktive_mitglieder', 'zaehler_eichfaelligkeit');
 
-create or replace function public.rpc_execute_export(p_export_key text, p_parameters jsonb default '{}'::jsonb)
+drop function if exists public.rpc_execute_export(text, jsonb);
+
+create function public.rpc_execute_export(p_export_key text, p_parameters jsonb default '{}'::jsonb)
 returns setof jsonb language plpgsql security definer set search_path = public, pg_temp as $$
 declare source_name text;
 begin
