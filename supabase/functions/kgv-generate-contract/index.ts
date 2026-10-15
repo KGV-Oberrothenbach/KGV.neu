@@ -18,6 +18,10 @@ const membershipApplicationFieldSpecVersion = "mitgliedsantrag-field-spec/v1";
 // for the pdf-lib renderer as well; a different version is rejected explicitly.
 const membershipApplicationRendererVersion = "pdfsharpcore-ma/v1";
 const membershipApplicationRequiredFields = ["ausstellungsdatum", "dokument_ort", "mitglied_name", "mitglied_vorname", "mitglied_geburtsdatum", "mitglied_aufnahme_ab", "mitglied_telefon", "mitglied_mobil", "mitglied_email", "mitglied_anschrift_mehrzeilig", "check_whatsapp", "check_rechnung_mail", "check_info_mail", "vertreter_name", "vertreter_vorname", "vertreter_geburtsdatum", "vertreter_telefon", "vertreter_mobil", "vertreter_email", "vertreter_anschrift_mehrzeilig", "mitgliedsbeitrag_jaehrlich", "mitgliedsbeitrag_anteilig", "beitragsmonate", "aufnahmegebuehr", "bank_kontoinhaber", "bank_name", "bank_iban", "bank_bic", "unterschrift_ort", "unterschrift_datum", "unterschrift_antragsteller", "unterschrift_vertreter", "unterschrift_verein", "datenschutz_unterschrift_antragsteller", "datenschutz_unterschrift_vertreter"];
+const leaseTemplateKey = "pachtvertrag";
+const leaseFieldSpecVersion = "pachtvertrag-field-spec/v1";
+const leaseRendererVersion = "top-left/v1";
+const leaseRequiredFields = ["paechter_name", "mitgliedsnummer", "paechter_anschrift", "paechter_kontakt", "paechter2_name", "paechter2_mitgliedsnummer", "paechter2_anschrift", "paechter2_kontakt", "parzelle_nr", "lage_anlage", "flaeche_qm", "vertragsbeginn", "uebergabe_datum", "befristung", "pachtzins_jahr", "faelligkeit", "ort_datum", "paechter_druckname"];
 
 function formatDate(value?: string | null) { if (!value) return ""; const date = new Date(`${value.slice(0, 10)}T12:00:00Z`); return Number.isNaN(date.valueOf()) ? "" : new Intl.DateTimeFormat("de-DE", { timeZone: "UTC" }).format(date); }
 function money(value: number) { return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(value); }
@@ -54,9 +58,6 @@ async function authenticate(req: Request) {
   return { admin, userId: authData.user.id, authorization: req.headers.get("Authorization") ?? "" };
 }
 
-async function loadStatic(name: string) { return await Deno.readFile(`./${name}`); }
-async function loadSpecs(name: string): Promise<FieldSpec[]> { const text = await Deno.readTextFile(`./${name}`); return (JSON.parse(text) as { fields: FieldSpec[] }).fields; }
-
 async function sha256(bytes: Uint8Array) { const digest = await crypto.subtle.digest("SHA-256", bytes); return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join(""); }
 function validFieldSpec(fields: unknown): fields is FieldSpec[] { return Array.isArray(fields) && fields.length > 0 && fields.every((field) => typeof field === "object" && field !== null && Number.isInteger((field as FieldSpec).page) && (field as FieldSpec).page > 0 && typeof (field as FieldSpec).type === "string" && typeof (field as FieldSpec).name === "string" && Number.isFinite((field as FieldSpec).rect?.x) && Number.isFinite((field as FieldSpec).rect?.y) && Number.isFinite((field as FieldSpec).rect?.w) && Number.isFinite((field as FieldSpec).rect?.h)); }
 async function loadMembershipApplicationTemplate(auth: Awaited<ReturnType<typeof authenticate>>): Promise<MembershipTemplate> {
@@ -74,6 +75,24 @@ async function loadMembershipApplicationTemplate(auth: Awaited<ReturnType<typeof
   let parsed: { settings?: { coordinateOrigin?: string }; fields?: unknown };
   try { parsed = JSON.parse(new TextDecoder().decode(fieldSpecBytes)) as { settings?: { coordinateOrigin?: string }; fields?: unknown }; } catch { throw new Error("Die Mitgliedsantrag-Feldspezifikation ist ungültig."); }
   if (parsed.settings?.coordinateOrigin !== "topLeft" || !validFieldSpec(parsed.fields) || membershipApplicationRequiredFields.some((name) => !parsed.fields.some((field) => field.name === name))) throw new Error("Die Mitgliedsantrag-Feldspezifikation ist nicht mit dem unterstützten Renderer kompatibel.");
+  return { pdfBytes, fields: parsed.fields };
+}
+
+async function loadLeaseTemplate(auth: Awaited<ReturnType<typeof authenticate>>): Promise<MembershipTemplate> {
+  const { data, error } = await auth.admin.from("pdf_template_catalog").select("template_key,version,storage_bucket,storage_path,content_type,checksum,field_spec_path,field_spec_checksum,field_spec_version,renderer_version,status,aktiv,created_at").eq("template_key", leaseTemplateKey).eq("status", "published").eq("aktiv", true).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (error) throw new Error(`PDF-Template-Katalog konnte nicht geladen werden: ${error.message}`);
+  const catalog = data as PdfTemplateCatalogRecord | null;
+  if (!catalog) throw new Error("Für die PDF-Vorlage 'pachtvertrag' ist keine aktive veröffentlichte Version hinterlegt.");
+  if (catalog.content_type !== "application/pdf" || catalog.field_spec_version !== leaseFieldSpecVersion || catalog.renderer_version !== leaseRendererVersion) throw new Error("Die veröffentlichte Pachtvertrag-Vorlage ist nicht mit der unterstützten Feldspec- oder Renderer-Version kompatibel.");
+  const [templateResult, fieldSpecResult] = await Promise.all([auth.admin.storage.from(catalog.storage_bucket).download(catalog.storage_path), auth.admin.storage.from(catalog.storage_bucket).download(catalog.field_spec_path)]);
+  if (templateResult.error || !templateResult.data) throw new Error(`Pachtvertrag-Vorlage konnte nicht aus dem privaten Template-Bucket geladen werden: ${templateResult.error?.message ?? "keine Daten"}`);
+  if (fieldSpecResult.error || !fieldSpecResult.data) throw new Error(`Pachtvertrag-Feldspezifikation konnte nicht aus dem privaten Template-Bucket geladen werden: ${fieldSpecResult.error?.message ?? "keine Daten"}`);
+  const [pdfBytes, fieldSpecBytes] = await Promise.all([templateResult.data.arrayBuffer().then((buffer) => new Uint8Array(buffer)), fieldSpecResult.data.arrayBuffer().then((buffer) => new Uint8Array(buffer))]);
+  if (await sha256(pdfBytes) !== safe(catalog.checksum).toLowerCase()) throw new Error("Die Prüfsumme der Pachtvertrag-Vorlage stimmt nicht mit dem Template-Katalog überein.");
+  if (await sha256(fieldSpecBytes) !== safe(catalog.field_spec_checksum).toLowerCase()) throw new Error("Die Prüfsumme der Pachtvertrag-Feldspezifikation stimmt nicht mit dem Template-Katalog überein.");
+  let parsed: { settings?: { coordinateOrigin?: string }; fields?: unknown };
+  try { parsed = JSON.parse(new TextDecoder().decode(fieldSpecBytes)) as { settings?: { coordinateOrigin?: string }; fields?: unknown }; } catch { throw new Error("Die Pachtvertrag-Feldspezifikation ist ungültig."); }
+  if (parsed.settings?.coordinateOrigin !== "topLeft" || !validFieldSpec(parsed.fields) || leaseRequiredFields.some((name) => !parsed.fields.some((field) => field.name === name))) throw new Error("Die Pachtvertrag-Feldspezifikation entspricht nicht der unterstützten v1-Geometrie.");
   return { pdfBytes, fields: parsed.fields };
 }
 
@@ -106,7 +125,17 @@ async function drawPdfTemplate(templateBytes: Uint8Array, specs: FieldSpec[], va
   return await pdf.save();
 }
 
-async function drawTemplate(template: string, specFile: string, values: Record<string, string>, signatures: Record<string, string | undefined>) { return await drawPdfTemplate(await loadStatic(template), await loadSpecs(specFile), values, signatures); }
+async function appendLeaseSignaturePage(pdfBytes: Uint8Array, member: Record<string, unknown>, signatures: Record<string, string | undefined>, secondPartyLabel?: string) {
+  const pdf = await PDFDocument.load(pdfBytes); const page = pdf.addPage([595.28, 841.89]); const font = await pdf.embedFont(StandardFonts.Helvetica); const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  page.drawText("Digitale Signatur", { x: 42, y: 800, size: 18, font: bold });
+  page.drawText("Diese Seite ergänzt die bestehende unsignierte Dokumentfassung.", { x: 42, y: 770, size: 11, font });
+  page.drawText(`Mitglied: ${[safe(member.vorname), safe(member.name)].filter(Boolean).join(" ") || `#${member.id}`}`, { x: 42, y: 746, size: 10.5, font });
+  page.drawText(`Signiert am: ${formatDate(new Date().toISOString())}`, { x: 42, y: 728, size: 10.5, font });
+  const signers = [["Unterschrift Pächter/in", signatures.member], ...(secondPartyLabel ? [[secondPartyLabel, signatures.secondary]] : []), ["Unterschrift Vorstand / Verpächter", signatures.board]] as Array<[string, string | undefined]>;
+  let y = 690; const height = signers.length > 2 ? 155 : 215;
+  for (const [label, signature] of signers) { page.drawRectangle({ x: 42, y: y - height, width: 511, height, borderWidth: .8, borderColor: rgb(.82, .84, .88) }); page.drawText(label, { x: 54, y: y - 22, size: 10, font: bold }); const png = fromDataUrl(signature); if (png) { const image = await pdf.embedPng(png); const maxW = 487, maxH = height - 46, scale = Math.min(maxW / image.width, maxH / image.height); page.drawImage(image, { x: 54 + (maxW - image.width * scale) / 2, y: y - height + 12 + (maxH - image.height * scale) / 2, width: image.width * scale, height: image.height * scale }); } y -= height + 18; }
+  return await pdf.save();
+}
 
 async function buildSimpleContract(member: Record<string, unknown>, startDate: string, signatures: Record<string, string | undefined>) {
   const pdf = await PDFDocument.create(); const page = pdf.addPage([595.28, 841.89]); const font = await pdf.embedFont(StandardFonts.Helvetica); const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -186,6 +215,7 @@ Deno.serve(async (req) => {
       pdf = await buildParcelProtocol(member, parcel, board1, board2, body, signatures); title = `${body.protocol_type === "rueckgabe" ? "Rückgabe" : body.protocol_type === "begehung" ? "Begehung" : "Übernahme"}protokoll Garten ${safe(parcel.garten_nr)}`; owner = { kind: "mitglied", id: memberId }; protocolIdToComplete = protocolId;
     } else if (type === "pachtvertrag") {
       const parcelId = Number(body.parcel_id); if (!Number.isSafeInteger(parcelId) || parcelId <= 0) return json(400, { message: "Für den Pachtvertrag ist eine Parzelle erforderlich." });
+      if (action === "finalize" && (!signatures.member || !signatures.board)) return json(400, { message: "Die Unterschriften von Pächter/in und Vorstand / Verpächter sind erforderlich." });
       if (member.hauptmitglied_id !== null && member.hauptmitglied_id !== undefined) throw new Error("Pachtvertrag kann nur aus dem Hauptmitglied-Kontext erzeugt werden.");
       const [{ data: applicationDocuments }, { data: leaseDocuments }, { data: parcel, error: parcelError }, { data: assignment }, { data: season }] = await Promise.all([
         auth.admin.from("dokument").select("titel,dateiname").eq("mitglied_id", memberId).is("archiviert_at", null),
@@ -203,9 +233,12 @@ Deno.serve(async (req) => {
       let representative: Record<string, unknown> | null = null;
       if (isMinorAt(member, startDate)) { const { data: relations } = await auth.admin.from("mitglied_gesetzlicher_vertreter").select("id,vertreter_mitglied_id,gueltig_ab,gueltig_bis").eq("minderjaehriges_mitglied_id", memberId); const relation = resolveActiveLegalRepresentativeRelation((relations ?? []) as LegalRepresentativeRelation[], startDate); if (!relation) throw new Error("Für dieses minderjährige Mitglied ist im signierten Mitgliedsantrag kein gesetzlicher Vertreter hinterlegt."); const { data } = await auth.admin.from("mitglied").select("*").eq("id", relation.vertreter_mitglied_id).maybeSingle(); if (!data) throw new Error("Für dieses minderjährige Mitglied ist im signierten Mitgliedsantrag kein gesetzlicher Vertreter hinterlegt."); representative = data; }
       if (typeof body.has_previous_contract !== "boolean") throw new Error("Bitte entscheiden Sie, ob ein Altvertrag vorliegt."); if (body.has_previous_contract && !isLocalIsoDate(body.previous_contract_date)) throw new Error("Bitte ein gültiges Datum des Altvertrags angeben.");
-      const { data: secondary } = representative ? { data: null } : await auth.admin.from("mitglied").select("*").eq("hauptmitglied_id", memberId).order("id", { ascending: true }).limit(1).maybeSingle(); if (!representative && body.include_secondary_member === true && !secondary) throw new Error("Für Pächter 2 ist kein Nebenmitglied vorhanden."); const party2 = representative ?? (body.include_secondary_member === false ? null : secondary); if (action === "finalize" && party2 && !signatures.secondary) return json(400, { message: "Unterschrift der zweiten Vertragspartei ist erforderlich." }); const annual = Math.round(area * rate * 100) / 100; const months = Math.max(1, 13 - (new Date(`${startDate}T12:00:00Z`).getUTCMonth() + 1));
-      const values: Record<string, string> = { ausstellungsdatum: formatDate(new Date().toISOString()), paechter1_name: safe(member.name), paechter1_vorname: safe(member.vorname), paechter1_geburtsdatum: formatDate(member.geburtsdatum), paechter1_mitgliedsnummer: String(member.id), paechter2_name: safe(party2?.name), paechter2_vorname: safe(party2?.vorname), paechter2_geburtsdatum: formatDate(party2?.geburtsdatum), paechter2_mitgliedsnummer: party2?.id ? String(party2.id) : "", altvertrag_datum: body.has_previous_contract ? formatDate(body.previous_contract_date) : "", parzelle_nummer: safe(parcel.garten_nr) || `#${parcel.id}`, parzelle_flaeche_qm: String(area).replace(".", ","), parzelle_flaeche_qm_wiederholung: String(area).replace(".", ","), pachtbeginn: formatDate(startDate), pacht_pro_qm: money(rate), jahrespacht: money(annual), pachtzahlung_faellig_bis: `30.11.${startDate.slice(0, 4)}`, bankblock_mehrzeilig: [configurationSnapshot!.kontoinhaber, configurationSnapshot!.bankname, configurationSnapshot!.iban, configurationSnapshot!.bic].join("\n"), pacht_laufendes_jahr: money(Math.round(annual * months / 12 * 100) / 100), unterschrift_ort: configurationSnapshot!.dokumentOrt, unterschrift_datum: formatDate(new Date().toISOString()) };
-      pdf = await drawTemplate("Pachtvertrag_Vorlage.pdf", "pachtvertrag-fields.json", values, { unterschrift_paechter1: signatures.member, anlagen_unterschrift_paechter1: signatures.member, unterschrift_paechter2: signatures.secondary, anlagen_unterschrift_paechter2: signatures.secondary, unterschrift_verpaechter: signatures.board }); title = `Pachtvertrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "parzelle", id: parcelId };
+      const { data: secondary } = representative ? { data: null } : await auth.admin.from("mitglied").select("*").eq("hauptmitglied_id", memberId).order("id", { ascending: true }).limit(1).maybeSingle(); if (!representative && body.include_secondary_member === true && !secondary) throw new Error("Für Pächter 2 ist kein Nebenmitglied vorhanden."); const party2 = representative ?? (body.include_secondary_member === false ? null : secondary); if (action === "finalize" && party2 && !signatures.secondary) return json(400, { message: "Unterschrift der zweiten Vertragspartei ist erforderlich." }); const annual = Math.round(area * rate * 100) / 100;
+      const address = (person: Record<string, unknown> | null | undefined) => [safe(person?.adresse), [safe(person?.plz), safe(person?.ort)].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+      const contact = (person: Record<string, unknown> | null | undefined) => [safe(person?.telefon), safe(person?.handy), safe(person?.email)].filter(Boolean).join(" · ");
+      const fullName = (person: Record<string, unknown> | null | undefined) => [safe(person?.vorname), safe(person?.name)].filter(Boolean).join(" ");
+      const values: Record<string, string> = { paechter_name: fullName(member), mitgliedsnummer: String(member.id), paechter_anschrift: address(member), paechter_kontakt: contact(member), paechter2_name: fullName(party2), paechter2_mitgliedsnummer: party2?.id ? String(party2.id) : "", paechter2_anschrift: address(party2), paechter2_kontakt: contact(party2), parzelle_nr: safe(parcel.garten_nr) || `#${parcel.id}`, lage_anlage: safe(parcel.Anlage), flaeche_qm: String(area).replace(".", ","), vertragsbeginn: formatDate(startDate), uebergabe_datum: formatDate(startDate), befristung: `31.12.${startDate.slice(0, 4)}`, pachtzins_jahr: money(annual), faelligkeit: `30.11.${startDate.slice(0, 4)}`, ort_datum: [configurationSnapshot!.dokumentOrt, formatDate(new Date().toISOString())].filter(Boolean).join(", "), paechter_druckname: fullName(member) };
+      const template = await loadLeaseTemplate(auth); pdf = await drawPdfTemplate(template.pdfBytes, template.fields, values, {}); if (action === "finalize") pdf = await appendLeaseSignaturePage(pdf, member, signatures, party2 ? (representative ? "Unterschrift gesetzliche/r Vertreter/in" : "Unterschrift Pächter/in 2") : undefined); title = `Pachtvertrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "parzelle", id: parcelId };
     } else { pdf = await buildSimpleContract(member, startDate, signatures); title = `Mitgliedsvertrag (${action === "finalize" ? "Signiert" : "Unsigniert"})`; owner = { kind: "mitglied", id: memberId }; }
     if (representativeToSave) { const representative = await resolveRepresentative(auth, member, startDate, representativeToSave); await saveRepresentativeRelation(auth, memberId, Number(representative.id), startDate); }
     const memberSegment = `${filenamePart(safe(member.name) || "Mitglied")}_${filenamePart(safe(member.vorname) || "OhneVorname")}`;

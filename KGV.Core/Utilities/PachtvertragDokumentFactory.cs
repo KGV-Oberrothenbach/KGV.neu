@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
@@ -39,6 +40,7 @@ namespace KGV.Core.Utilities
             new PdfFormFieldSpec("paechter_druckname", PdfFormFieldKind.Text, 3, 252, 468, 239, 17)
         };
 
+        // Compatibility-only fallback for isolated local tests. Production paths use IPdfTemplateProvider.
         public static DokumentUploadRequest CreateUploadRequest(
             MitgliedRecord hauptmitglied,
             MitgliedRecord? nebenmitglied,
@@ -92,6 +94,43 @@ namespace KGV.Core.Utilities
             VereinskonfigurationSnapshot? bankverbindungSnapshot,
             string? status = null,
             MitgliedRecord? paechter2Override = null)
+            => CreateUploadRequestCore(hauptmitglied, nebenmitglied, parzelle, saison, vertragsbeginn,
+                altvertragDatum, gesetzlicherVertreterSnapshot, bankverbindungSnapshot, status, paechter2Override,
+                LoadEmbeddedTemplateAsset());
+
+        public static async Task<DokumentUploadRequest> CreateUploadRequestAsync(
+            MitgliedRecord hauptmitglied,
+            MitgliedRecord? nebenmitglied,
+            ParzelleRecord parzelle,
+            SaisonRecord saison,
+            DateTime vertragsbeginn,
+            DateTime? altvertragDatum,
+            MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
+            VereinskonfigurationSnapshot? bankverbindungSnapshot,
+            string? status,
+            IPdfTemplateProvider templateProvider,
+            MitgliedRecord? paechter2Override = null,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(templateProvider);
+            var template = await templateProvider.GetActiveAsync("pachtvertrag", "pachtvertrag-field-spec/v1", "top-left/v1", cancellationToken);
+            ValidateTemplate(template);
+            return CreateUploadRequestCore(hauptmitglied, nebenmitglied, parzelle, saison, vertragsbeginn,
+                altvertragDatum, gesetzlicherVertreterSnapshot, bankverbindungSnapshot, status, paechter2Override, template);
+        }
+
+        private static DokumentUploadRequest CreateUploadRequestCore(
+            MitgliedRecord hauptmitglied,
+            MitgliedRecord? nebenmitglied,
+            ParzelleRecord parzelle,
+            SaisonRecord saison,
+            DateTime vertragsbeginn,
+            DateTime? altvertragDatum,
+            MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
+            VereinskonfigurationSnapshot? bankverbindungSnapshot,
+            string? status,
+            MitgliedRecord? paechter2Override,
+            PdfTemplateAsset template)
         {
             ArgumentNullException.ThrowIfNull(hauptmitglied);
             ArgumentNullException.ThrowIfNull(parzelle);
@@ -131,7 +170,7 @@ namespace KGV.Core.Utilities
                 paechter2Override);
 
             var data = PachtvertragTemplateFactory.BuildData(templateContext);
-            var content = FillAndFlattenPdfForm(LoadTemplatePdfBytes(), data);
+            var content = FillAndFlattenPdfForm(template.PdfBytes, data, template.Fields);
 
             return new DokumentUploadRequest
             {
@@ -173,7 +212,7 @@ namespace KGV.Core.Utilities
             };
         }
 
-        private static byte[] LoadTemplatePdfBytes()
+        private static PdfTemplateAsset LoadEmbeddedTemplateAsset()
         {
             var assembly = typeof(PachtvertragDokumentFactory).Assembly;
             using var stream = assembly.GetManifestResourceStream(PdfTemplateResourceName)
@@ -181,10 +220,18 @@ namespace KGV.Core.Utilities
 
             using var ms = new MemoryStream();
             stream.CopyTo(ms);
-            return ms.ToArray();
+            return new PdfTemplateAsset
+            {
+                TemplateKey = "pachtvertrag",
+                Version = "embedded-fallback",
+                FieldSpecVersion = "pachtvertrag-field-spec/v1",
+                RendererVersion = "top-left/v1",
+                PdfBytes = ms.ToArray(),
+                Fields = FieldSpecs.Select(x => new PdfTemplateFieldSpec(x.Name, x.Kind.ToString(), x.Page, x.X, x.Y, x.Width, x.Height)).ToArray()
+            };
         }
 
-        private static byte[] FillAndFlattenPdfForm(byte[] pdfBytes, PachtvertragTemplateData data)
+        private static byte[] FillAndFlattenPdfForm(byte[] pdfBytes, PachtvertragTemplateData data, IReadOnlyList<PdfTemplateFieldSpec> loadedFields)
         {
             if (pdfBytes == null || pdfBytes.Length == 0)
                 throw new InvalidOperationException("Die Pachtvertrag-PDF-Vorlage ist leer oder konnte nicht geladen werden.");
@@ -193,7 +240,7 @@ namespace KGV.Core.Utilities
             using var document = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
 
             var map = BuildFieldMap(data);
-            DrawFieldValues(document, map);
+            DrawFieldValues(document, map, loadedFields);
             RemoveFormAnnotations(document);
 
             using var output = new MemoryStream();
@@ -230,12 +277,12 @@ namespace KGV.Core.Utilities
             };
         }
 
-        private static void DrawFieldValues(PdfDocument document, IReadOnlyDictionary<string, string> map)
+        private static void DrawFieldValues(PdfDocument document, IReadOnlyDictionary<string, string> map, IReadOnlyList<PdfTemplateFieldSpec> loadedFields)
         {
             var valueFont = new XFont("Arial", 7.2, XFontStyle.Regular);
             var smallValueFont = new XFont("Arial", 6.4, XFontStyle.Regular);
 
-            foreach (var field in FieldSpecs)
+            foreach (var field in loadedFields.Select(ToInternalField))
             {
                 if (field.Kind == PdfFormFieldKind.SignaturePlaceholder)
                     continue;
@@ -255,6 +302,36 @@ namespace KGV.Core.Utilities
 
                 DrawTextValue(graphics, valueFont, smallValueFont, field, value);
             }
+        }
+
+        private static PdfFormFieldSpec ToInternalField(PdfTemplateFieldSpec field) => new(
+            field.Name,
+            field.Kind.Trim().ToLowerInvariant() switch
+            {
+                "multiline" => PdfFormFieldKind.MultilineText,
+                "signatureplaceholder" or "signature" => PdfFormFieldKind.SignaturePlaceholder,
+                _ => PdfFormFieldKind.Text
+            },
+            field.Page,
+            field.X,
+            field.Y,
+            field.Width,
+            field.Height);
+
+        private static void ValidateTemplate(PdfTemplateAsset template)
+        {
+            if (template.PdfBytes == null || template.PdfBytes.Length == 0)
+                throw new InvalidOperationException("Die zentrale Pachtvertrag-Vorlage ist leer.");
+
+            var expected = FieldSpecs.OrderBy(x => x.Name, StringComparer.Ordinal).ToArray();
+            var actual = template.Fields.Select(ToInternalField).OrderBy(x => x.Name, StringComparer.Ordinal).ToArray();
+            if (expected.Length != actual.Length || expected.Where((field, index) =>
+                    !string.Equals(field.Name, actual[index].Name, StringComparison.Ordinal)
+                    || field.Kind != actual[index].Kind
+                    || field.Page != actual[index].Page
+                    || field.X != actual[index].X || field.Y != actual[index].Y
+                    || field.Width != actual[index].Width || field.Height != actual[index].Height).Any())
+                throw new InvalidOperationException("Die zentrale Pachtvertrag-Feldspezifikation entspricht nicht der unterstützten v1-Geometrie.");
         }
 
         private static void DrawTextValue(XGraphics graphics, XFont normalFont, XFont smallFont, PdfFormFieldSpec field, string value)

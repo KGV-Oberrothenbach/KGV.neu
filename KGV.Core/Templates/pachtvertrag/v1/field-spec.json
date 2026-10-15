@@ -1,0 +1,30 @@
+{
+  "field_spec_version": "pachtvertrag-field-spec/v1",
+  "renderer_version": "top-left/v1",
+  "settings": {
+    "coordinateOrigin": "topLeft",
+    "coordinateUnit": "pt",
+    "pageNumbering": "oneBased",
+    "description": "Renderer-neutrale Top-Left-Koordinaten. PdfSharpCore verwendet sie direkt; pdf-lib rechnet Y anhand der Seitenhöhe um."
+  },
+  "fields": [
+    { "name": "paechter_name", "type": "text", "page": 1, "rect": { "x": 42, "y": 229, "w": 250.64, "h": 17 } },
+    { "name": "mitgliedsnummer", "type": "text", "page": 1, "rect": { "x": 302.64, "y": 229, "w": 250.64, "h": 17 } },
+    { "name": "paechter_anschrift", "type": "text", "page": 1, "rect": { "x": 42, "y": 257, "w": 250.64, "h": 17 } },
+    { "name": "paechter_kontakt", "type": "text", "page": 1, "rect": { "x": 302.64, "y": 257, "w": 250.64, "h": 17 } },
+    { "name": "paechter2_name", "type": "text", "page": 1, "rect": { "x": 42, "y": 312, "w": 250.64, "h": 17 } },
+    { "name": "paechter2_mitgliedsnummer", "type": "text", "page": 1, "rect": { "x": 302.64, "y": 312, "w": 250.64, "h": 17 } },
+    { "name": "paechter2_anschrift", "type": "text", "page": 1, "rect": { "x": 42, "y": 340, "w": 250.64, "h": 17 } },
+    { "name": "paechter2_kontakt", "type": "text", "page": 1, "rect": { "x": 302.64, "y": 340, "w": 250.64, "h": 17 } },
+    { "name": "parzelle_nr", "type": "text", "page": 1, "rect": { "x": 42, "y": 399, "w": 83, "h": 17 } },
+    { "name": "lage_anlage", "type": "text", "page": 1, "rect": { "x": 136, "y": 399, "w": 230, "h": 17 } },
+    { "name": "flaeche_qm", "type": "text", "page": 1, "rect": { "x": 377, "y": 399, "w": 114, "h": 17 } },
+    { "name": "vertragsbeginn", "type": "text", "page": 1, "rect": { "x": 42, "y": 496, "w": 138, "h": 17 } },
+    { "name": "uebergabe_datum", "type": "text", "page": 1, "rect": { "x": 192, "y": 496, "w": 138, "h": 17 } },
+    { "name": "befristung", "type": "text", "page": 1, "rect": { "x": 342, "y": 496, "w": 149, "h": 17 } },
+    { "name": "pachtzins_jahr", "type": "text", "page": 1, "rect": { "x": 42, "y": 583, "w": 165.1, "h": 17 } },
+    { "name": "faelligkeit", "type": "text", "page": 1, "rect": { "x": 388.18, "y": 583, "w": 165.1, "h": 17 } },
+    { "name": "ort_datum", "type": "text", "page": 3, "rect": { "x": 42, "y": 468, "w": 190, "h": 17 } },
+    { "name": "paechter_druckname", "type": "text", "page": 3, "rect": { "x": 252, "y": 468, "w": 239, "h": 17 } }
+  ]
+}

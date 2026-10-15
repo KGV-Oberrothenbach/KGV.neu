@@ -13,3 +13,37 @@ Eine veröffentlichte Version ist durch einen Datenbank-Trigger unveränderlich.
 `SupabasePdfTemplateProvider` lädt nur veröffentlichte aktive Versionen und prüft Renderer-Version, Feldspec-Version und beide Prüfsummen. Der Mitgliedsantrag-Renderer vergleicht außerdem die vollständige Feldgeometrie mit der unterstützten v1-Spezifikation und bricht bei Abweichungen verständlich ab. Damit bleiben die Signaturkoordinaten unverändert abgesichert.
 
 Der eingebettete Mitgliedsantrag bleibt ausschließlich für isolierte lokale Factory-Tests als explizit kommentierter Kompatibilitätsfall erhalten. Die produktiven MA-Pfade in `SupabaseService` verwenden ausschließlich den zentralen Provider und fallen bei einer fehlenden, manipulierten oder inkompatiblen Version nicht stillschweigend zurück.
+
+## Pachtvertrag v1 bereitstellen
+
+Der Pachtvertrag verwendet dieselbe Katalog- und Prüflogik wie der Mitgliedsantrag. Die lokale, hochzuladende Referenz liegt unter `KGV.Core/Templates/pachtvertrag/v1/`:
+
+| Wert | Festlegung |
+| --- | --- |
+| `template_key` | `pachtvertrag` |
+| Version | `v1` |
+| PDF-Pfad | `templates/pachtvertrag/v1/template.pdf` |
+| Field-Spec-Pfad | `templates/pachtvertrag/v1/field-spec.json` |
+| `field_spec_version` | `pachtvertrag-field-spec/v1` |
+| `renderer_version` | `top-left/v1` |
+| PDF SHA-256 | `d532c57f9c7efc0164bbb96d0972d80fb5bb7d1880878cd0ef81e7f1c6f93a8c` |
+| Field-Spec SHA-256 | `10be3daff4f55c1c6691117187f576604c6500676b556fd76622d335492796fd` |
+
+Die Field-Spec ist rendererneutral in Punkten mit Ursprung oben links und einbasierter Seitennummerierung definiert. PdfSharpCore nutzt diese Werte direkt; pdf-lib rechnet `y` gegen die Seitenhöhe um. Die Geometrie stammt unverändert aus dem bisherigen MAUI-Produktivpfad `PachtvertragDokumentFactory`.
+
+1. `template.pdf` und `field-spec.json` in den privaten Bucket `pdf-templates` an den oben genannten Pfaden hochladen.
+2. Den folgenden Katalogeintrag ausführen. Vorher sicherstellen, dass kein anderer aktiver veröffentlichter `pachtvertrag`-Eintrag vorhanden ist.
+
+```sql
+insert into public.pdf_template_catalog
+  (template_key, version, storage_bucket, storage_path, content_type, checksum,
+   field_spec_path, field_spec_checksum, field_spec_version, renderer_version, status, aktiv)
+values
+  ('pachtvertrag', 'v1', 'pdf-templates', 'templates/pachtvertrag/v1/template.pdf', 'application/pdf',
+   'd532c57f9c7efc0164bbb96d0972d80fb5bb7d1880878cd0ef81e7f1c6f93a8c',
+   'templates/pachtvertrag/v1/field-spec.json',
+   '10be3daff4f55c1c6691117187f576604c6500676b556fd76622d335492796fd',
+   'pachtvertrag-field-spec/v1', 'top-left/v1', 'published', true);
+```
+
+MAUI lädt im Produktivpfad ausschließlich die veröffentlichte Katalogversion und behält die eingebettete PDF nur als lokalen Testfallback. Die Web-Edge-Function lädt dieselbe PDF und Field-Spec direkt aus dem privaten Bucket; sie prüft Katalogstatus, Versionen, Prüfsummen und `topLeft`-Koordinatenursprung. Beide Pfade bewahren die bisherige Reihenfolge der digitalen Signaturen (Pächter/in 1, gegebenenfalls zweite Partei bzw. gesetzliche/r Vertreter/in, Vorstand/Verpächter) als nachfolgende Signaturseite. Fertige PDFs bleiben im Google-Drive-/`dokument`-Pfad.

@@ -32,8 +32,8 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 ### Ziel
 
-- [ ] Eingebettete PDF-Vorlagen aus dem Anwendungscode entfernen und zentral über einen privaten Supabase-Storage-Bucket bereitstellen.
-- [ ] MAUI und WEB auf dieselben zentralen Vorlagen umstellen.
+- [ ] Eingebettete PDF-Vorlagen aus dem Anwendungscode entfernen und zentral über einen privaten Supabase-Storage-Bucket bereitstellen. (Pachtvertrag: zentraler Pfad umgesetzt; lokaler Kompatibilitätsfallback bleibt bis zum produktiven Abnahmetest.)
+- [ ] MAUI und WEB auf dieselben zentralen Vorlagen umstellen. (Pachtvertrag: Implementierung abgeschlossen; Storage-Upload, SQL und Edge-Function-Deployment stehen noch aus.)
 - [ ] Vorlagenwechsel ohne neue App-Version oder WEB-Deploy ermöglichen.
 - [ ] Fertig erzeugte Dokumente weiterhin ausschließlich auf Google Drive speichern.
 

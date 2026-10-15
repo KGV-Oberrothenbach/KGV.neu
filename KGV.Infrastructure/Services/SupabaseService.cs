@@ -70,7 +70,7 @@ namespace KGV.Infrastructure.Services
                 var context = await ResolvePachtvertragRequestAsync(request);
                 var paechter2 = ResolvePachtvertragPaechter2(request, context.SecondaryMember, context.IstMinderjaehrig, context.GesetzlicherVertreterSnapshot);
 
-                var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
+                var uploadRequest = await PachtvertragDokumentFactory.CreateUploadRequestAsync(
                     context.Member,
                     paechter2,
                     context.Parzelle,
@@ -79,7 +79,7 @@ namespace KGV.Infrastructure.Services
                     altvertragDatum: request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    request.Status);
+                    request.Status, _pdfTemplateProvider);
 
                 return await CreateDokumentAsync(uploadRequest);
             }
@@ -3809,7 +3809,7 @@ namespace KGV.Infrastructure.Services
                     Vertragsbeginn = vertragsbeginnDatum,
                     Status = status
                 });
-                var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(context.Member, context.SecondaryMember, context.Parzelle, context.Saison, context.Vertragsbeginn, altvertragDatum: null, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, status);
+                var uploadRequest = await PachtvertragDokumentFactory.CreateUploadRequestAsync(context.Member, context.SecondaryMember, context.Parzelle, context.Saison, context.Vertragsbeginn, altvertragDatum: null, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, status, _pdfTemplateProvider);
                 return await CreateDokumentAsync(uploadRequest);
             }
             catch (InvalidOperationException ex)
@@ -3835,7 +3835,7 @@ namespace KGV.Infrastructure.Services
                     Vertragsbeginn = vertragsbeginn,
                     Status = FormularDokumentStatus.Unsigniert
                 });
-                return PachtvertragDokumentFactory.CreateUploadRequest(
+                return await PachtvertragDokumentFactory.CreateUploadRequestAsync(
                     context.Member,
                     context.SecondaryMember,
                     context.Parzelle,
@@ -3844,7 +3844,7 @@ namespace KGV.Infrastructure.Services
                     altvertragDatum: null,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    FormularDokumentStatus.Unsigniert);
+                    FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
             },
             null);
 
@@ -3854,7 +3854,7 @@ namespace KGV.Infrastructure.Services
             {
                 var context = await ResolvePachtvertragRequestAsync(request);
                 var paechter2 = ResolvePachtvertragPaechter2(request, context.SecondaryMember, context.IstMinderjaehrig, context.GesetzlicherVertreterSnapshot);
-                return PachtvertragDokumentFactory.CreateUploadRequest(
+                return await PachtvertragDokumentFactory.CreateUploadRequestAsync(
                     context.Member,
                     paechter2,
                     context.Parzelle,
@@ -3863,7 +3863,7 @@ namespace KGV.Infrastructure.Services
                     altvertragDatum: request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    FormularDokumentStatus.Unsigniert);
+                    FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
             },
             null);
 
@@ -3890,7 +3890,7 @@ namespace KGV.Infrastructure.Services
                 if (context.SecondaryMember != null && (paechter2SignatureCapture == null || !paechter2SignatureCapture.HasContent))
                     return DokumentUploadResult.Fail("Bitte zusätzlich die digitale Unterschrift von Pächter/in 2 erfassen.", "VALIDATION");
 
-                var previewUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
+                var previewUploadRequest = await PachtvertragDokumentFactory.CreateUploadRequestAsync(
                     context.Member,
                     context.SecondaryMember,
                     context.Parzelle,
@@ -3899,8 +3899,8 @@ namespace KGV.Infrastructure.Services
                     altvertragDatum: null,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    FormularDokumentStatus.Unsigniert);
-                var finalUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
+                    FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
+                var finalUploadRequest = await PachtvertragDokumentFactory.CreateUploadRequestAsync(
                     context.Member,
                     context.SecondaryMember,
                     context.Parzelle,
@@ -3909,7 +3909,7 @@ namespace KGV.Infrastructure.Services
                     altvertragDatum: null,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    FormularDokumentStatus.Signiert);
+                    FormularDokumentStatus.Signiert, _pdfTemplateProvider);
                 var sourceDocument = CreatePreviewDocumentInfo(previewUploadRequest, FormularDokumentTyp.Pachtvertrag, FormularDokumentStatus.Unsigniert);
                 finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(
                     context.Member,
@@ -3943,7 +3943,7 @@ namespace KGV.Infrastructure.Services
                 if (!context.IstMinderjaehrig && paechter2 != null && (zweiteParteiSignatureCapture == null || !zweiteParteiSignatureCapture.HasContent))
                     return DokumentUploadResult.Fail("Bitte zusätzlich die digitale Unterschrift von Pächter/in 2 erfassen.", "VALIDATION");
 
-                var previewUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
+                var previewUploadRequest = await PachtvertragDokumentFactory.CreateUploadRequestAsync(
                     context.Member,
                     paechter2,
                     context.Parzelle,
@@ -3952,8 +3952,8 @@ namespace KGV.Infrastructure.Services
                     request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    FormularDokumentStatus.Unsigniert);
-                var finalUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
+                    FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
+                var finalUploadRequest = await PachtvertragDokumentFactory.CreateUploadRequestAsync(
                     context.Member,
                     paechter2,
                     context.Parzelle,
@@ -3962,7 +3962,7 @@ namespace KGV.Infrastructure.Services
                     request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    FormularDokumentStatus.Signiert);
+                    FormularDokumentStatus.Signiert, _pdfTemplateProvider);
                 var sourceDocument = CreatePreviewDocumentInfo(previewUploadRequest, FormularDokumentTyp.Pachtvertrag, FormularDokumentStatus.Unsigniert);
                 finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(
                     context.Member,
