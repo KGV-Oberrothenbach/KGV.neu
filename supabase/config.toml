@@ -418,6 +418,11 @@ verify_jwt = false
 entrypoint = "./functions/kgv-generate-contract/index.ts"
 static_files = [ "./functions/kgv-generate-contract/*.pdf", "./functions/kgv-generate-contract/*.json" ]
 
+[functions.kgv-generate-export-pdf]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/kgv-generate-export-pdf/index.ts"
+
 [functions.kgv-request-first-login-otp]
 enabled = true
 verify_jwt = false
