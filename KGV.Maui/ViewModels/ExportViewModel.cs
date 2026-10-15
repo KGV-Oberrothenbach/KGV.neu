@@ -902,11 +902,11 @@ namespace KGV.Maui.ViewModels
             {
                 // The central path owns member, garden, address/contact and App-user
                 // resolution. Local result shaping remains in place for CSV and preview.
-                var pdf = await _supabaseService.GenerateExportPdfAsync(exportKey, BuildMitgliederlistePdfParameters());
-                var fileName = $"Mitgliederliste_{DateTime.Now:yyyy-MM-dd}.pdf";
-                var filePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, fileName);
-                await System.IO.File.WriteAllBytesAsync(filePath, pdf);
-                return filePath;
+                var membersPdf = await _supabaseService.GenerateExportPdfAsync(exportKey, BuildMitgliederlistePdfParameters());
+                var membersFileName = $"Mitgliederliste_{DateTime.Now:yyyy-MM-dd}.pdf";
+                var membersFilePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, membersFileName);
+                await System.IO.File.WriteAllBytesAsync(membersFilePath, membersPdf);
+                return membersFilePath;
             }
 
             if (ProcessedResults.Count == 0 || ColumnsVisibleOrdered.Count == 0)
