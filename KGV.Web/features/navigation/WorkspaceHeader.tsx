@@ -1,9 +1,11 @@
 "use client";
 
 import { ChangeClubAction } from "../auth/ChangeClubAction";
-import { appVersion } from "../../lib/app-version";
+import { useAppVersion } from "../../lib/app-version";
 
 export default function WorkspaceHeader({ clubName, email, role, onLogout, onChangeClub, pendingPhotoCount }: { clubName: string; email: string; role: string; onLogout: () => void; onChangeClub: () => Promise<void>; pendingPhotoCount?: number }) {
+  const appVersion = useAppVersion();
+
   return (
     <header className="workspace-header">
       <div className="brand"><span className="brand-mark">K</span><span>{clubName}</span><span className="app-version">Version {appVersion}</span></div>

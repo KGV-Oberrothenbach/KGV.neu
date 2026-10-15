@@ -1,7 +1,7 @@
 "use client";
 import { readSupabaseRest } from "../lib/supabase/rest-client";
 import { callSupabaseRpc } from "../lib/supabase/rpc-client";
-import { appVersion } from "../lib/app-version";
+import { useAppVersion } from "../lib/app-version";
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -76,6 +76,7 @@ export default function Home() {
   return <AuthProvider><HomeContent /></AuthProvider>;
 }
 function HomeContent() {
+  const appVersion = useAppVersion();
   const { status, session, appUserContext, club, message, selectClub, login, logout, changeClub } = useAuth();
 
   if (status === "club-selection") return <ClubSelection onSelect={selectClub} />;
