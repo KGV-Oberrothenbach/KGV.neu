@@ -2,6 +2,7 @@ import type { ClubContext } from "../../models/auth/club";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import type { ExportColumn } from "../../models/export/export-column";
 import type { ExportResult } from "../../models/export/export-result";
+import { resolveSupabaseConfig } from "../../lib/supabase/client-context";
 import { loadClubConfiguration } from "../configuration/club-configuration-service";
 import { exportColumnLabel, formatExportValue } from "./export-output-service";
 
@@ -21,10 +22,59 @@ function createPdf(lines: string[]) {
   return new Blob([pdf], { type: "application/pdf" });
 }
 
+export type MembersListPdfParameters = { aktiv_filter: string; sortierung: string };
+
+export function membersListPdfParameters(values: Record<string, unknown>): MembersListPdfParameters {
+  return {
+    aktiv_filter: typeof values.aktiv_filter === "string" && values.aktiv_filter ? values.aktiv_filter : "aktiv",
+    sortierung: typeof values.sortierung === "string" && values.sortierung ? values.sortierung : "name",
+  };
+}
+
+function responseFileName(response: Response, fallback: string) {
+  const header = response.headers.get("content-disposition") ?? "";
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header)?.[1];
+  const quoted = /filename="?([^";]+)"?/i.exec(header)?.[1];
+  let name = fallback;
+  try { name = encoded ? decodeURIComponent(encoded) : quoted || fallback; } catch { name = quoted || fallback; }
+  return name.replace(/[\\/:*?"<>|]/g, "_") || fallback;
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url);
+}
+
+async function errorMessage(response: Response) {
+  const detail = await response.json().catch(() => null) as { message?: string } | null;
+  if (response.status === 401) return "Die Anmeldung ist abgelaufen. Bitte erneut anmelden.";
+  if (response.status === 403) return "Sie sind nicht berechtigt, die Mitgliederliste zu exportieren.";
+  if (response.status === 400) return detail?.message ?? "Die Exportparameter sind ungültig.";
+  return "Der zentrale PDF-Export konnte nicht erzeugt werden. Bitte versuchen Sie es später erneut.";
+}
+
+export async function downloadCentralMembersListPdf(club: ClubContext, session: BrowserSession, parameters: MembersListPdfParameters) {
+  if (!session.accessToken) throw new Error("Die Anmeldung ist abgelaufen. Bitte erneut anmelden.");
+  const { url, publishableKey } = resolveSupabaseConfig(club);
+  let response: Response;
+  try {
+    response = await fetch(`${url}/functions/v1/kgv-generate-export-pdf`, {
+      method: "POST",
+      headers: { apikey: publishableKey, Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json", Accept: "application/pdf" },
+      body: JSON.stringify({ export_key: "mitgliederliste", parameters }),
+    });
+  } catch { throw new Error("Der zentrale PDF-Export ist derzeit nicht erreichbar."); }
+  if (!response.ok) throw new Error(await errorMessage(response));
+  if (response.headers.get("content-type")?.split(";", 1)[0]?.toLowerCase() !== "application/pdf") throw new Error("Der zentrale PDF-Export lieferte keine PDF-Datei.");
+  const bytes = await response.arrayBuffer(); const signature = new Uint8Array(bytes);
+  if (signature.length < 5 || String.fromCharCode(...signature.slice(0, 5)) !== "%PDF-") throw new Error("Der zentrale PDF-Export lieferte eine ungültige PDF-Datei.");
+  const fallback = `Mitgliederliste_${new Date().toISOString().slice(0, 10)}.pdf`;
+  downloadBlob(new Blob([bytes], { type: "application/pdf" }), responseFileName(response, fallback));
+}
+
 export async function downloadExportPdf(club: ClubContext, session: BrowserSession, fileName: string, result: ExportResult, columns: ExportColumn[]) {
   if (!result.definition.erlaubt_pdf) throw new Error("PDF-Ausgabe ist für diesen Export nicht erlaubt.");
   const { draft } = await loadClubConfiguration(club, session); const clubHeader = [draft.vereinsname, draft.registerangabe, draft.standard_email ? `E-Mail: ${draft.standard_email}` : "", [draft.strasse, [draft.plz, draft.ort].filter(Boolean).join(" ")].filter(Boolean).join(", ")].filter((value): value is string => Boolean(value));
   const header = columns.map(exportColumnLabel).join(" | ");
   const lines = [...clubHeader, "", result.definition.titel ?? result.definition.export_key, `Stand: ${new Date().toLocaleDateString("de-DE")}`, "", header, ...result.rows.map((row) => columns.map((column) => formatExportValue(row[column.column_key])).join(" | "))];
-  const url = URL.createObjectURL(createPdf(lines)); const link = document.createElement("a"); link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url);
+  downloadBlob(createPdf(lines), fileName);
 }
