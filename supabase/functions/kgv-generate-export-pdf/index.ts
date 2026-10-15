@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
     const exportRequest = normalizeRequest(body);
     const auth = await authenticate(req);
     const parameters = normalizeParameters(exportRequest.parameters);
-    const { data, error } = await auth.userClient.rpc("rpc_execute_export", { p_source_name: "rpc_export_mitgliederliste", p_parameters: parameters });
+    const { data, error } = await auth.userClient.rpc("rpc_execute_export", { p_export_key: exportRequest.exportKey, p_parameters: parameters });
     if (error) {
       if (error.code === "42501") return json(403, { message: "Keine Berechtigung für diesen Export." });
       throw error;

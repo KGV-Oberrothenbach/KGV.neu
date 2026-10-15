@@ -8,7 +8,7 @@ import { executeRpcExport, readTableOrViewExport } from "../../repositories/expo
 import { buildExportRpcPayload, validateExportDefinition } from "./export-metadata-service";
 
 export type ExecuteExportRequest = { definition: ExportDefinition; filters: ExportFilter[]; columns: ExportColumn[]; values: Record<string, ExportFilterValue> };
-export type ExportDataAccess = { executeRpcExport: (sourceName: string, parameters: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>; readTableOrViewExport: (sourceName: string) => Promise<Array<Record<string, unknown>>> };
+export type ExportDataAccess = { executeRpcExport: (exportKey: string, parameters: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>; readTableOrViewExport: (sourceName: string) => Promise<Array<Record<string, unknown>>> };
 
 function assertRequiredFilters(filters: ExportFilter[], values: Record<string, ExportFilterValue>): void {
   for (const filter of filters) if (filter.pflicht && (values[filter.filter_key] === null || values[filter.filter_key] === undefined || values[filter.filter_key] === "")) throw new Error(`„${filter.label ?? filter.filter_key}“ ist erforderlich.`);
@@ -23,10 +23,10 @@ export async function executeExportWithDataAccess(dataAccess: ExportDataAccess, 
   const rows = isTableOrView(definition.quelle_typ)
     ? await dataAccess.readTableOrViewExport(sourceName)
     : definition.quelle_typ === "rpc"
-      ? await dataAccess.executeRpcExport(sourceName, buildExportRpcPayload(filters, values))
+      ? await dataAccess.executeRpcExport(definition.export_key, buildExportRpcPayload(filters, values))
       : (() => { throw new Error(`Export „${definition.export_key}“ besitzt den unbekannten Quellentyp „${definition.quelle_typ ?? "leer"}“.`); })();
   return { definition, columns, rows, recordCount: rows.length, filters: values, standardSortierung: definition.standard_sortierung };
 }
 export function executeExport(club: ClubContext, session: BrowserSession, request: ExecuteExportRequest): Promise<ExportResult> {
-  return executeExportWithDataAccess({ executeRpcExport: (sourceName, parameters) => executeRpcExport(club, session, sourceName, parameters), readTableOrViewExport: (sourceName) => readTableOrViewExport(club, session, sourceName) }, request);
+  return executeExportWithDataAccess({ executeRpcExport: (exportKey, parameters) => executeRpcExport(club, session, exportKey, parameters), readTableOrViewExport: (sourceName) => readTableOrViewExport(club, session, sourceName) }, request);
 }

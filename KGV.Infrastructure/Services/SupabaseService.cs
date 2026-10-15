@@ -435,12 +435,12 @@ namespace KGV.Infrastructure.Services
             },
             new List<System.Collections.Generic.Dictionary<string, string>>());
 
-        public Task<List<System.Collections.Generic.Dictionary<string, string>>> RunProtectedExportRpcAsync(string sourceName, object? parameters = null)
+        public Task<List<System.Collections.Generic.Dictionary<string, string>>> RunProtectedExportRpcAsync(string exportKey, object? parameters = null)
         {
-            if (string.IsNullOrWhiteSpace(sourceName))
+            if (string.IsNullOrWhiteSpace(exportKey))
                 return Task.FromResult(new List<System.Collections.Generic.Dictionary<string, string>>());
 
-            return RunExportRpcAsync("rpc_execute_export", new { p_source_name = sourceName, p_parameters = parameters ?? new { } });
+            return RunExportRpcAsync("rpc_execute_export", new { p_export_key = exportKey, p_parameters = parameters ?? new { } });
         }
 
         public async Task<byte[]> GenerateExportPdfAsync(CentralExportRequest request)

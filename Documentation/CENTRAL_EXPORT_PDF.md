@@ -23,6 +23,10 @@ Ein authentifizierter `POST` an die Function verwendet diesen exportunabhängige
 
 Für die Mitgliederliste unterstützt `aktiv_filter` `alle`, `aktiv` (Standard) und `inaktiv`. `sortierung` unterstützt `name` (Standard), `mitgliedsnr` und `garten`. Die Berechtigung wird über `rpc_execute_export` und damit `assert_export_access` geprüft; nur Admin/Vorstand erhalten Daten.
 
+## Metadatengesteuertes Gateway
+
+`rpc_execute_export(p_export_key, p_parameters)` löst die aktive Exportdefinition selbst auf: `export_key` → `app_export_definition.quelle_name` → JSON-Wrapper-RPC. Der Funktionsname stammt ausschließlich aus aktivierter Metadatenkonfiguration und wird als SQL-Identifier quotiert; Parameter werden ausschließlich als `jsonb` gebunden. Neue Standardexporte müssen daher nicht mehr im Gateway registriert werden.
+
 Die Funktion liefert `application/pdf` mit einem datierten Dateinamen. Die Mitgliederliste ist A4 quer, wiederholt Titel und Tabellenkopf auf jeder Seite und fasst Adresse bzw. Telefon/Mobil jeweils mehrzeilig in einer Zelle zusammen. Bemerkungen folgen gegebenenfalls als kompakte Zusatzzeile, damit die Tabelle lesbar bleibt. Kennzeichen sind ausschließlich `X` oder leer.
 
 Die Daten kommen aus `rpc_export_mitgliederliste(aktiv_filter, sortierung)`: nicht-Demo-Mitglieder, fachlicher Aktivstatus inklusive `mitglied_ende`, aktuelle `parzellen_belegung`, Einwilligungen und ein boolescher App/Auth-Zugang. UUIDs werden nicht ausgegeben.
