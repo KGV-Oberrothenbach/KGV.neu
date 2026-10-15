@@ -458,18 +458,18 @@ namespace KGV.Infrastructure.Services
             try
             {
                 var endpoint = new Uri(new Uri(_supabaseUrl.TrimEnd('/') + "/"), $"functions/v1/{GenerateExportPdfFunctionName}");
-                using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
                 {
                     Content = new StringContent(
                         JsonSerializer.Serialize(request),
                         Encoding.UTF8,
                         "application/json")
                 };
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                request.Headers.Add("apikey", _publishableKey);
-                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/pdf"));
+                httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                httpRequest.Headers.Add("apikey", _publishableKey);
+                httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/pdf"));
 
-                using var response = await _documentUploadHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                using var response = await _documentUploadHttpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead);
                 if (!response.IsSuccessStatusCode)
                 {
                     var body = await response.Content.ReadAsStringAsync();
