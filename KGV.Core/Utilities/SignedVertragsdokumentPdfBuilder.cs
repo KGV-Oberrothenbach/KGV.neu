@@ -61,15 +61,15 @@ namespace KGV.Core.Utilities
             // never gain a fourth "digitale Signatur" page.
             if (string.Equals(sourceDocument.FormularDokumentTypKey, FormularDokumentTyp.Pachtvertrag, StringComparison.OrdinalIgnoreCase))
             {
-                var signatures = new List<(SignaturePlaceholder placeholder, DigitalSignatureCapture capture)>
+                var embeddedSignatures = new List<(SignaturePlaceholder placeholder, DigitalSignatureCapture capture)>
                 {
                     (new SignaturePlaceholder { Name = "unterschrift_paechter", Page = 3, X = 42, Y = 516, Width = 190, Height = 35 }, signatureCapture)
                 };
                 if (secondarySignatureCapture != null)
-                    signatures.Add((new SignaturePlaceholder { Name = "unterschrift_zweite_partei", Page = 3, X = 42, Y = 576, Width = 190, Height = 35 }, secondarySignatureCapture));
+                    embeddedSignatures.Add((new SignaturePlaceholder { Name = "unterschrift_zweite_partei", Page = 3, X = 42, Y = 576, Width = 190, Height = 35 }, secondarySignatureCapture));
                 if (tertiarySignatureCapture != null)
-                    signatures.Add((new SignaturePlaceholder { Name = "unterschrift_vorstand", Page = 3, X = 252, Y = 516, Width = 300, Height = 35 }, tertiarySignatureCapture));
-                return InsertSignaturesIntoPdf(originalPdfContent, signatures);
+                    embeddedSignatures.Add((new SignaturePlaceholder { Name = "unterschrift_vorstand", Page = 3, X = 252, Y = 516, Width = 300, Height = 35 }, tertiarySignatureCapture));
+                return InsertSignaturesIntoPdf(originalPdfContent, embeddedSignatures);
             }
 
             PdfSharpFontResolverInitializer.EnsureInitialized();

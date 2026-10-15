@@ -180,7 +180,8 @@ namespace KGV.Core.Utilities
                 vertragsbeginn.Date,
                 altvertragDatum,
                 VereinskonfigurationSnapshotFactory.NormalizeForLeaseContract(bankverbindungSnapshot),
-                paechter2Override);
+                paechter2Override,
+                gesetzlicherVertreterSnapshot != null);
 
             var data = PachtvertragTemplateFactory.BuildData(templateContext);
             var content = FillAndFlattenPdfForm(template.PdfBytes, data, template.Fields);
@@ -205,7 +206,8 @@ namespace KGV.Core.Utilities
             DateTime vertragsbeginn,
             DateTime? altvertragDatum,
             VereinskonfigurationSnapshot bankverbindungSnapshot,
-            MitgliedRecord? paechter2Override = null)
+            MitgliedRecord? paechter2Override,
+            bool zweiteParteiIstGesetzlicherVertreter)
         {
             var paechter2 = paechter2Override ?? nebenmitglied;
 
@@ -214,7 +216,7 @@ namespace KGV.Core.Utilities
                 VereinskonfigurationSnapshot = bankverbindungSnapshot,
                 Paechter1 = hauptmitglied,
                 Paechter2 = paechter2,
-                ZweiteParteiIstGesetzlicherVertreter = gesetzlicherVertreterSnapshot != null && paechter2 != null,
+                ZweiteParteiIstGesetzlicherVertreter = zweiteParteiIstGesetzlicherVertreter && paechter2 != null,
                 ParzelleNummer = string.IsNullOrWhiteSpace(parzelle.GartenNr) ? $"#{parzelle.Id}" : parzelle.GartenNr.Trim(),
                 ParzelleFlaecheQm = parzelle.FlaecheQm!.Value,
                 ParzelleAnlage = parzelle.Anlage,
