@@ -196,6 +196,12 @@ namespace KGV.Core.Interfaces
         Task<List<AppExportColumnDefinitionRecord>> GetExportColumnDefinitionsAsync(string exportKey);
         Task<List<System.Collections.Generic.Dictionary<string, string>>> RunExportRpcAsync(string rpcName, object? parameters = null);
         Task<List<System.Collections.Generic.Dictionary<string, string>>> RunProtectedExportRpcAsync(string sourceName, object? parameters = null);
+        /// <summary>
+        /// Erzeugt einen zentralen PDF-Export über die geschützte Supabase Edge Function.
+        /// Der Client übergibt ausschließlich Export-Schlüssel und Filterwerte; die Daten- und
+        /// PDF-Aufbereitung findet serverseitig statt.
+        /// </summary>
+        Task<byte[]> GenerateExportPdfAsync(string exportKey, IReadOnlyDictionary<string, object?> parameters);
         Task<List<HomeWorkAssignmentItem>> GetStartseiteArbeitseinsaetzeAsync();
         Task<HomeWorkAssignmentItem?> GetStartseiteArbeitseinsatzByIdAsync(int arbeitseinsatzId);
         Task<List<WorkAssignmentParticipantItem>> GetArbeitseinsatzParticipantsAsync(int arbeitseinsatzId);

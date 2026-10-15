@@ -896,10 +896,21 @@ namespace KGV.Maui.ViewModels
 
         public async Task<string> ExportToPdfAsync()
         {
+            var exportKey = SelectedDefinition?.ExportKey ?? "export";
+
+            if (string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase))
+            {
+                // The central path owns member, garden, address/contact and App-user
+                // resolution. Local result shaping remains in place for CSV and preview.
+                var pdf = await _supabaseService.GenerateExportPdfAsync(exportKey, BuildMitgliederlistePdfParameters());
+                var fileName = $"Mitgliederliste_{DateTime.Now:yyyy-MM-dd}.pdf";
+                var filePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, fileName);
+                await System.IO.File.WriteAllBytesAsync(filePath, pdf);
+                return filePath;
+            }
+
             if (ProcessedResults.Count == 0 || ColumnsVisibleOrdered.Count == 0)
                 throw new InvalidOperationException("Keine Daten zum Exportieren.");
-
-            var exportKey = SelectedDefinition?.ExportKey ?? "export";
 
             var remappedRows = new List<Dictionary<string, string>>();
             for (var rowIndex = 0; rowIndex < ProcessedResults.Count; rowIndex++)
@@ -958,6 +969,20 @@ namespace KGV.Maui.ViewModels
             var filePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, fileName);
             await System.IO.File.WriteAllBytesAsync(filePath, pdf);
             return filePath;
+        }
+
+        private IReadOnlyDictionary<string, object?> BuildMitgliederlistePdfParameters()
+        {
+            string GetValue(string key, string fallback)
+                => FilterValues.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value?.ToString())
+                    ? value!.ToString()!.Trim().ToLowerInvariant()
+                    : fallback;
+
+            return new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["aktiv_filter"] = GetValue("aktiv_filter", "aktiv"),
+                ["sortierung"] = GetValue("sortierung", "name")
+            };
         }
 
         public bool MoveNext()

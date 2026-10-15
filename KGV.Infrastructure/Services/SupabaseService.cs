@@ -25,6 +25,7 @@ namespace KGV.Infrastructure.Services
     public class SupabaseService : ISupabaseService
     {
         private const string DokumentUploadFunctionName = "kgv-upload-document";
+        private const string GenerateExportPdfFunctionName = "kgv-generate-export-pdf";
         private const string MitgliedRegelwerkeVersandFunctionName = "kgv-send-membership-documents";
         private const string AllowUserMeterReadingSubmissionsSettingKey = "allow_user_meter_reading_submissions";
         private const string MeterReadingPhotoRequiredSettingKey = "meter_reading_photo_required";
@@ -440,6 +441,76 @@ namespace KGV.Infrastructure.Services
                 return Task.FromResult(new List<System.Collections.Generic.Dictionary<string, string>>());
 
             return RunExportRpcAsync("rpc_execute_export", new { p_source_name = sourceName, p_parameters = parameters ?? new { } });
+        }
+
+        public async Task<byte[]> GenerateExportPdfAsync(string exportKey, IReadOnlyDictionary<string, object?> parameters)
+        {
+            if (!string.Equals(exportKey?.Trim(), "mitgliederliste", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Der zentrale PDF-Export unterstützt derzeit nur die Mitgliederliste.");
+
+            if (string.IsNullOrWhiteSpace(_supabaseUrl) || string.IsNullOrWhiteSpace(_publishableKey))
+                throw new InvalidOperationException("Der zentrale PDF-Export ist nicht konfiguriert.");
+
+            var accessToken = await _authService.GetAccessTokenAsync();
+            if (string.IsNullOrWhiteSpace(accessToken))
+                throw new InvalidOperationException("Die aktuelle Anmeldung ist abgelaufen. Bitte erneut anmelden.");
+
+            try
+            {
+                var endpoint = new Uri(new Uri(_supabaseUrl.TrimEnd('/') + "/"), $"functions/v1/{GenerateExportPdfFunctionName}");
+                using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+                {
+                    Content = new StringContent(
+                        JsonSerializer.Serialize(new { export_key = "mitgliederliste", parameters = parameters ?? new Dictionary<string, object?>() }),
+                        Encoding.UTF8,
+                        "application/json")
+                };
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                request.Headers.Add("apikey", _publishableKey);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/pdf"));
+
+                using var response = await _documentUploadHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var body = await response.Content.ReadAsStringAsync();
+                    throw new InvalidOperationException(DescribeExportPdfFailure(response.StatusCode, body));
+                }
+
+                var mediaType = response.Content.Headers.ContentType?.MediaType;
+                if (!string.Equals(mediaType, "application/pdf", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Der zentrale PDF-Export lieferte keine PDF-Datei.");
+
+                var pdf = await response.Content.ReadAsByteArrayAsync();
+                if (pdf.Length < 5 || pdf[0] != (byte)'%' || pdf[1] != (byte)'P' || pdf[2] != (byte)'D' || pdf[3] != (byte)'F' || pdf[4] != (byte)'-')
+                    throw new InvalidOperationException("Der zentrale PDF-Export lieferte eine ungültige PDF-Datei.");
+
+                return pdf;
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger?.LogWarning(ex, "GenerateExportPdfAsync could not reach the Edge Function");
+                throw new InvalidOperationException("Der zentrale PDF-Export ist derzeit nicht erreichbar.", ex);
+            }
+        }
+
+        private static string DescribeExportPdfFailure(System.Net.HttpStatusCode statusCode, string responseBody)
+        {
+            var serverMessage = string.Empty;
+            try
+            {
+                using var document = JsonDocument.Parse(responseBody);
+                if (document.RootElement.TryGetProperty("message", out var message))
+                    serverMessage = message.GetString() ?? string.Empty;
+            }
+            catch { }
+
+            return statusCode switch
+            {
+                System.Net.HttpStatusCode.Unauthorized => "Die Anmeldung ist abgelaufen. Bitte erneut anmelden.",
+                System.Net.HttpStatusCode.Forbidden => "Sie sind nicht berechtigt, die Mitgliederliste zu exportieren.",
+                System.Net.HttpStatusCode.BadRequest => string.IsNullOrWhiteSpace(serverMessage) ? "Die Exportparameter sind ungültig." : serverMessage,
+                _ => "Der zentrale PDF-Export konnte nicht erzeugt werden. Bitte versuchen Sie es später erneut."
+            };
         }
 
         // Local small helpers to avoid depending on ViewModel helpers
