@@ -12,6 +12,20 @@ namespace KGV.Core.Utilities;
 /// <summary>Technical renderer for normalized PDF field specs. Signature fields are intentionally skipped.</summary>
 public static class PdfTemplateRenderer
 {
+    public static IReadOnlyList<PdfTemplateRenderOperation> BuildRenderPlan(IReadOnlyList<PdfTemplateFieldSpec> fields, IReadOnlyDictionary<string, string> values, PdfTemplateRenderOptions? options = null)
+    {
+        options ??= PdfTemplateRenderOptions.Default; var result = new List<PdfTemplateRenderOperation>();
+        foreach (var field in fields)
+        {
+            if (string.Equals(field.Kind, "signature", StringComparison.OrdinalIgnoreCase) || !values.TryGetValue(field.Name, out var value)) continue;
+            if (string.Equals(field.Kind, "checkbox", StringComparison.OrdinalIgnoreCase)) { result.Add(new(field.Page, "checkbox", field.Name, IsTruthy(value) ? options.CheckboxGlyph : string.Empty, field.X, field.Y, field.Width, field.Height, options.FontName, options.CheckboxFontSize)); continue; }
+            if (string.IsNullOrWhiteSpace(value)) continue;
+            var fontSize = options.UseSmallFont(field.Name, value) ? options.SmallFontSize : options.DefaultFontSize;
+            var multiline = string.Equals(field.Kind, "multiline", StringComparison.OrdinalIgnoreCase) || value.Contains('\n'); var y = field.Y + (multiline ? options.MultilineTopPadding : options.SingleLineVerticalOffset); var lineHeight = fontSize * options.LineHeightFactor;
+            foreach (var line in SplitLines(value)) { if (multiline && y + lineHeight > field.Y + field.Height + 1) break; result.Add(new(field.Page, multiline ? "multiline" : "text", field.Name, line, field.X + (multiline ? options.MultilineHorizontalPadding : options.SingleLineHorizontalPadding), y, field.Width - 2 * (multiline ? options.MultilineHorizontalPadding : options.SingleLineHorizontalPadding), lineHeight, options.FontName, fontSize)); y += multiline ? lineHeight : 0; }
+        }
+        return result;
+    }
     public static byte[] Render(byte[] templatePdf, IReadOnlyList<PdfTemplateFieldSpec> fields, IReadOnlyDictionary<string, string> values, PdfTemplateRenderOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(templatePdf);
@@ -26,9 +40,7 @@ public static class PdfTemplateRenderer
         var checkboxFont = new XFont(options.FontName, options.CheckboxFontSize, XFontStyle.Bold);
         foreach (var field in fields)
         {
-            if (string.Equals(field.Kind, "signature", StringComparison.OrdinalIgnoreCase)
-                || field.Page < 1 || field.Page > document.Pages.Count) continue;
-            if (!values.TryGetValue(field.Name, out var value)) continue;
+            if (string.Equals(field.Kind, "signature", StringComparison.OrdinalIgnoreCase) || field.Page < 1 || field.Page > document.Pages.Count || !values.TryGetValue(field.Name, out var value)) continue;
             var page = document.Pages[field.Page - 1];
             using var graphics = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
             var rect = new XRect(field.X, field.Y, field.Width, field.Height);
@@ -51,10 +63,12 @@ public static class PdfTemplateRenderer
     private static bool IsTruthy(string? value) => string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "ja", StringComparison.OrdinalIgnoreCase);
 }
 
-public sealed record PdfTemplateRenderOptions(string FontName, double DefaultFontSize, double SmallFontSize, double CheckboxFontSize, double SingleLineHorizontalPadding, double SingleLineVerticalOffset, double MultilineHorizontalPadding, double MultilineTopPadding, double CheckboxVerticalOffset, string CheckboxGlyph, Func<string, string, bool> UseSmallFont)
+public sealed record PdfTemplateRenderOptions(string FontName, double DefaultFontSize, double SmallFontSize, double CheckboxFontSize, double SingleLineHorizontalPadding, double SingleLineVerticalOffset, double MultilineHorizontalPadding, double MultilineTopPadding, double CheckboxVerticalOffset, string CheckboxGlyph, Func<string, string, bool> UseSmallFont, double LineHeightFactor = 1)
 {
     public static PdfTemplateRenderOptions Default { get; } = new("Arial", 7, 6.4, 7, 1.8, 0, 2, 1, .4, "X", (_, value) => value.Length > 34);
 }
+
+public sealed record PdfTemplateRenderOperation(int Page, string Kind, string FieldName, string Text, double X, double Y, double Width, double Height, string FontName, double FontSize);
 
 public static class PdfTemplateRenderProfiles
 {
