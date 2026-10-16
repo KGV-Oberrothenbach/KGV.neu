@@ -82,6 +82,21 @@ public sealed class DocumentGenerationPipelineTests
         Assert.DoesNotContain("token", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task Template_factories_request_the_supported_field_spec_and_renderer_versions()
+    {
+        var membershipProvider = new FailingTemplateProvider(new InvalidOperationException());
+        await Assert.ThrowsAsync<DocumentPipelineException>(() => MitgliedsantragDokumentFactory.CreateUploadRequestAsync(
+            new MitgliedRecord(), 0m, 0m, DateTime.Today, null,
+            MitgliedsantragZweitePrivateParteiArt.Keine, null, null, membershipProvider));
+        Assert.Equal(new PdfTemplateRequest("mitgliedsantrag", "mitgliedsantrag-field-spec/v1", "pdfsharpcore-ma/v1"), membershipProvider.LastRequest);
+
+        var leaseProvider = new FailingTemplateProvider(new InvalidOperationException());
+        await Assert.ThrowsAsync<DocumentPipelineException>(() => PachtvertragDokumentFactory.CreateUploadRequestAsync(
+            new MitgliedRecord(), null, new ParzelleRecord(), new SaisonRecord(), DateTime.Today, null, null, null, null, leaseProvider));
+        Assert.Equal(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v2", "top-left/v1"), leaseProvider.LastRequest);
+    }
+
     private static DokumentUploadRequest Request(byte[] content) => new()
     {
         MitgliedId = 17,
@@ -110,7 +125,12 @@ public sealed class DocumentGenerationPipelineTests
 
     private sealed class FailingTemplateProvider(Exception exception) : IPdfTemplateProvider
     {
+        public PdfTemplateRequest? LastRequest { get; private set; }
+
         public Task<PdfTemplateAsset> GetActiveAsync(PdfTemplateRequest request, CancellationToken cancellationToken = default)
-            => Task.FromException<PdfTemplateAsset>(exception);
+        {
+            LastRequest = request;
+            return Task.FromException<PdfTemplateAsset>(exception);
+        }
     }
 }
