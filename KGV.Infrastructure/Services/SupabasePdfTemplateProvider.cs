@@ -20,15 +20,18 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
     private static readonly HttpClient TemplateHttpClient = new() { Timeout = TimeSpan.FromSeconds(45) };
     private readonly ISupabaseClientFactory _clientFactory;
     private readonly IAuthService _authService;
+    private readonly PdfTemplateAssetCache _assetCache;
     private readonly ILogger<SupabasePdfTemplateProvider>? _logger;
 
     public SupabasePdfTemplateProvider(
         ISupabaseClientFactory clientFactory,
         IAuthService authService,
+        PdfTemplateAssetCache? assetCache = null,
         ILogger<SupabasePdfTemplateProvider>? logger = null)
     {
         _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+        _assetCache = assetCache ?? new PdfTemplateAssetCache();
         _logger = logger;
     }
 
@@ -40,10 +43,29 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
         var record = await LoadActiveCatalogRecordAsync(templateKey.Trim(), cancellationToken);
 
         if (record == null) throw Fail("catalog-load", templateKey, "Keine aktive veröffentlichte Version ist hinterlegt.");
+        _logger?.LogDebug("PDF template active catalog resolved. templateKey={TemplateKey} version={Version}", record.TemplateKey, record.Version);
         ValidateVersionedPaths(record, templateKey);
         if (!string.Equals(record.FieldSpecVersion, request.ExpectedFieldSpecVersion, StringComparison.Ordinal) || !string.Equals(record.RendererVersion, request.ExpectedRendererVersion, StringComparison.Ordinal))
             throw Fail("compatibility-check", templateKey, $"Die Vorlage '{templateKey}/{record.Version}' ist nicht mit der erwarteten Feldspec- oder Renderer-Version kompatibel.");
         if (!string.Equals(record.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase)) throw Fail("compatibility-check", templateKey, "Die veröffentlichte Vorlagendatei ist keine PDF.");
+
+        var cacheKey = PdfTemplateAssetCacheKey.From(record);
+        _logger?.LogDebug(
+            "PDF template asset cache {CacheState}. templateKey={TemplateKey} version={Version}",
+            _assetCache.Contains(cacheKey) ? "hit" : "miss",
+            record.TemplateKey,
+            record.Version);
+        return await _assetCache.GetOrLoadAsync(
+            cacheKey,
+            _ => LoadAndValidateAssetAsync(record, templateKey, CancellationToken.None),
+            cancellationToken);
+    }
+
+    private async Task<PdfTemplateAsset> LoadAndValidateAssetAsync(
+        PdfTemplateCatalogRecord record,
+        string templateKey,
+        CancellationToken cancellationToken)
+    {
         var pdf = await DownloadPrivateObjectAsync(record.StorageBucket, record.StoragePath, templateKey, "pdf-download", cancellationToken);
         var specBytes = await DownloadPrivateObjectAsync(record.StorageBucket, record.FieldSpecPath, templateKey, "field-spec-download", cancellationToken);
 

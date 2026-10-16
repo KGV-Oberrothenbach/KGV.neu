@@ -1,5 +1,6 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Security;
+using KGV.Core.Utilities;
 using KGV.Infrastructure.Authentication;
 using KGV.Infrastructure.Services;
 using KGV.Infrastructure.Supabase;
@@ -34,6 +35,7 @@ namespace KGV.Infrastructure.DependencyInjection
                     sp.GetRequiredService<ISupabaseClientFactory>(),
                     sp.GetService<ILogger<AuthService>>()));
 
+            services.AddSingleton<PdfTemplateAssetCache>();
             services.AddSingleton<IPdfTemplateProvider, SupabasePdfTemplateProvider>();
 
             services.AddSingleton<ISupabaseService>(sp =>

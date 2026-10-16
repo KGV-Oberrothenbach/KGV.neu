@@ -18,6 +18,8 @@ Eine veröffentlichte Version ist durch einen Datenbank-Trigger unveränderlich.
 
 `SupabasePdfTemplateProvider` lädt nur veröffentlichte aktive Versionen und prüft Renderer-Version, Feldspec-Version und beide Prüfsummen. Der Mitgliedsantrag-Renderer vergleicht außerdem die vollständige Feldgeometrie mit der unterstützten v1-Spezifikation und bricht bei Abweichungen verständlich ab. Damit bleiben die Signaturkoordinaten unverändert abgesichert.
 
+Die aktive Katalogauflösung wird bei jedem Dokument erneut abgefragt, damit ein Aktivwechsel unmittelbar wirksam wird. Bereits vollständig geprüfte Assets werden dagegen pro Prozess anhand von Schlüssel, Version, beiden SHA-256-Prüfsummen sowie Field-Spec- und Renderer-Version geteilt gecacht. Fehlgeschlagene Downloads oder Validierungen werden nicht gecacht.
+
 Der eingebettete Mitgliedsantrag bleibt ausschließlich für isolierte lokale Factory-Tests als explizit kommentierter Kompatibilitätsfall erhalten. Die produktiven MA-Pfade in `SupabaseService` verwenden ausschließlich den zentralen Provider und fallen bei einer fehlenden, manipulierten oder inkompatiblen Version nicht stillschweigend zurück.
 
 ## Pachtvertrag v1 bereitstellen
