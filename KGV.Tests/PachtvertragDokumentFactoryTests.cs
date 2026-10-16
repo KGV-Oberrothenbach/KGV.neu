@@ -1,5 +1,6 @@
 using KGV.Core.Models;
 using KGV.Core.Utilities;
+using PdfSharpCore.Pdf.IO;
 using Xunit;
 
 namespace KGV.Tests;
@@ -47,5 +48,8 @@ public sealed class PachtvertragDokumentFactoryTests
         Assert.Equal(42, request.ParzelleId);
         Assert.Null(request.MitgliedId);
         Assert.NotEmpty(request.FileContent);
+
+        using var pdf = PdfReader.Open(new MemoryStream(request.FileContent), PdfDocumentOpenMode.InformationOnly);
+        Assert.Equal(3, pdf.Pages.Count);
     }
 }

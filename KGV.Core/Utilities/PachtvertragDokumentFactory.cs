@@ -4,10 +4,6 @@ using System.Globalization;
 using System.IO;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.Annotations;
-using PdfSharpCore.Pdf.IO;
 
 namespace KGV.Core.Utilities
 {
@@ -43,10 +39,10 @@ namespace KGV.Core.Utilities
             new PdfFormFieldSpec("ort_datum", PdfFormFieldKind.Text, 3, 42, 468, 190, 17),
             new PdfFormFieldSpec("paechter_druckname", PdfFormFieldKind.Text, 3, 252, 468, 239, 17),
             new PdfFormFieldSpec("weitere_vereinbarungen", PdfFormFieldKind.MultilineText, 3, 42, 252, 510, 72),
-            new PdfFormFieldSpec("anlage_1", PdfFormFieldKind.Text, 3, 42, 365, 10, 10),
-            new PdfFormFieldSpec("anlage_2", PdfFormFieldKind.Text, 3, 255, 365, 10, 10),
-            new PdfFormFieldSpec("anlage_3", PdfFormFieldKind.Text, 3, 42, 387, 10, 10),
-            new PdfFormFieldSpec("anlage_4", PdfFormFieldKind.Text, 3, 255, 387, 10, 10),
+            new PdfFormFieldSpec("anlage_1", PdfFormFieldKind.Checkbox, 3, 42, 365, 10, 10),
+            new PdfFormFieldSpec("anlage_2", PdfFormFieldKind.Checkbox, 3, 255, 365, 10, 10),
+            new PdfFormFieldSpec("anlage_3", PdfFormFieldKind.Checkbox, 3, 42, 387, 10, 10),
+            new PdfFormFieldSpec("anlage_4", PdfFormFieldKind.Checkbox, 3, 255, 387, 10, 10),
             new PdfFormFieldSpec("vereins_unterzeichner", PdfFormFieldKind.Text, 3, 252, 590, 300, 17)
             ,new PdfFormFieldSpec("unterschrift_paechter", PdfFormFieldKind.SignaturePlaceholder, 3, 42, 516, 190, 35)
             ,new PdfFormFieldSpec("unterschrift_zweite_partei", PdfFormFieldKind.SignaturePlaceholder, 3, 42, 576, 190, 35)
@@ -252,16 +248,7 @@ namespace KGV.Core.Utilities
             if (pdfBytes == null || pdfBytes.Length == 0)
                 throw new InvalidOperationException("Die Pachtvertrag-PDF-Vorlage ist leer oder konnte nicht geladen werden.");
 
-            using var input = new MemoryStream(pdfBytes);
-            using var document = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
-
-            var map = BuildFieldMap(data);
-            DrawFieldValues(document, map, loadedFields);
-            RemoveFormAnnotations(document);
-
-            using var output = new MemoryStream();
-            document.Save(output);
-            return output.ToArray();
+            return PdfTemplateRenderer.Render(pdfBytes, loadedFields, BuildFieldMap(data), PdfTemplateRenderProfiles.Pachtvertrag);
         }
 
         private static Dictionary<string, string> BuildFieldMap(PachtvertragTemplateData data)
@@ -302,37 +289,11 @@ namespace KGV.Core.Utilities
             };
         }
 
-        private static void DrawFieldValues(PdfDocument document, IReadOnlyDictionary<string, string> map, IReadOnlyList<PdfTemplateFieldSpec> loadedFields)
-        {
-            var valueFont = new XFont("Arial", 7.2, XFontStyle.Regular);
-            var smallValueFont = new XFont("Arial", 6.4, XFontStyle.Regular);
-
-            foreach (var field in loadedFields.Select(ToInternalField))
-            {
-                if (field.Kind == PdfFormFieldKind.SignaturePlaceholder)
-                    continue;
-
-                var pageIndex = field.Page - 1;
-                if (pageIndex < 0 || pageIndex >= document.Pages.Count)
-                    continue;
-
-                if (!map.TryGetValue(field.Name, out var value))
-                    continue;
-
-                if (string.IsNullOrWhiteSpace(value))
-                    continue;
-
-                var page = document.Pages[pageIndex];
-                using var graphics = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
-
-                DrawTextValue(graphics, valueFont, smallValueFont, field, value);
-            }
-        }
-
         private static PdfFormFieldSpec ToInternalField(PdfTemplateFieldSpec field) => new(
             field.Name,
             field.Kind.Trim().ToLowerInvariant() switch
             {
+                "checkbox" => PdfFormFieldKind.Checkbox,
                 "multiline" => PdfFormFieldKind.MultilineText,
                 "signatureplaceholder" or "signature" => PdfFormFieldKind.SignaturePlaceholder,
                 _ => PdfFormFieldKind.Text
@@ -359,126 +320,11 @@ namespace KGV.Core.Utilities
                 throw new InvalidOperationException("Die zentrale Pachtvertrag-Feldspezifikation entspricht nicht der unterstützten v2-Geometrie.");
         }
 
-        private static void DrawTextValue(XGraphics graphics, XFont normalFont, XFont smallFont, PdfFormFieldSpec field, string value)
-        {
-            var lines = SplitLines(value);
-            if (lines.Count == 0)
-                return;
-
-            var font = ShouldUseSmallFont(field.Name, value) ? smallFont : normalFont;
-
-            if (field.Kind == PdfFormFieldKind.MultilineText || lines.Count > 1)
-            {
-                DrawMultilineText(graphics, font, field.Rect, lines);
-                return;
-            }
-
-            DrawSingleLineText(graphics, font, field.Rect, lines[0]);
-        }
-
-        private static void DrawSingleLineText(XGraphics graphics, XFont font, XRect rect, string value)
-        {
-            const double horizontalPadding = 1.8d;
-            const double verticalOffset = 0d;
-
-            graphics.DrawString(
-                value,
-                font,
-                XBrushes.Black,
-                new XRect(
-                    rect.X + horizontalPadding,
-                    rect.Y + verticalOffset,
-                    Math.Max(0, rect.Width - horizontalPadding * 2),
-                    rect.Height + 2),
-                XStringFormats.TopLeft);
-        }
-
-        private static void DrawMultilineText(XGraphics graphics, XFont font, XRect rect, IReadOnlyList<string> lines)
-        {
-            const double horizontalPadding = 2.0d;
-            const double topPadding = 1.0d;
-
-            var lineHeight = font.GetHeight();
-            var y = rect.Y + topPadding;
-
-            foreach (var line in lines)
-            {
-                if (y + lineHeight > rect.Bottom + 1)
-                    break;
-
-                graphics.DrawString(
-                    line,
-                    font,
-                    XBrushes.Black,
-                    new XRect(
-                        rect.X + horizontalPadding,
-                        y,
-                        Math.Max(0, rect.Width - horizontalPadding * 2),
-                        lineHeight + 1),
-                    XStringFormats.TopLeft);
-
-                y += lineHeight;
-            }
-        }
-
-        private static void RemoveFormAnnotations(PdfDocument document)
-        {
-            for (var pageIndex = 0; pageIndex < document.Pages.Count; pageIndex++)
-            {
-                var page = document.Pages[pageIndex];
-
-                if (page.Annotations == null)
-                    continue;
-
-                var annotationsToRemove = new List<PdfAnnotation>();
-
-                for (var i = 0; i < page.Annotations.Count; i++)
-                {
-                    var annotation = page.Annotations[i];
-                    if (annotation != null)
-                        annotationsToRemove.Add(annotation);
-                }
-
-                foreach (var annotation in annotationsToRemove)
-                {
-                    try
-                    {
-                        page.Annotations.Remove(annotation);
-                    }
-                    catch
-                    {
-                        // Values are already drawn into the page content.
-                    }
-                }
-            }
-
-            try
-            {
-                document.Internals.Catalog.Elements.Remove("/AcroForm");
-            }
-            catch
-            {
-                // Values are already drawn into the page content.
-            }
-        }
-
-        private static bool ShouldUseSmallFont(string fieldName, string value)
-            => fieldName.Equals("bankblock_mehrzeilig", StringComparison.OrdinalIgnoreCase)
-               || value.Length > 34;
-
-        private static List<string> SplitLines(string? text)
-            => (text ?? string.Empty)
-                .Replace("<br />", "\n", StringComparison.OrdinalIgnoreCase)
-                .Replace("<br>", "\n", StringComparison.OrdinalIgnoreCase)
-                .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None)
-                .Select(x => string.IsNullOrWhiteSpace(x) ? string.Empty : x.Trim())
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .ToList();
-
         private enum PdfFormFieldKind
         {
             Text,
             MultilineText,
+            Checkbox,
             SignaturePlaceholder
         }
 
@@ -490,9 +336,7 @@ namespace KGV.Core.Utilities
             double Y,
             double Width,
             double Height)
-        {
-            public XRect Rect => new(X, Y, Width, Height);
-        }
+        { }
 
         public static IReadOnlyList<Models.SignaturePlaceholder> GetSignaturePlaceholders()
         {

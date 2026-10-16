@@ -29,5 +29,34 @@ public sealed class PdfTemplateRendererTests
         Assert.Single(plan); Assert.Equal("one", plan[0].Text);
     }
 
+    [Fact]
+    public void Lease_profile_keeps_attachment_checkboxes_as_legacy_text_x()
+    {
+        var plan = PdfTemplateRenderer.BuildRenderPlan(
+            new[] { Field("anlage_1", "checkbox"), Field("regular_check", "checkbox") },
+            new Dictionary<string, string> { ["anlage_1"] = "true", ["regular_check"] = "true" },
+            PdfTemplateRenderProfiles.Pachtvertrag);
+
+        var legacy = Assert.Single(plan.Where(operation => operation.FieldName == "anlage_1"));
+        Assert.Equal("text", legacy.Kind);
+        Assert.Equal("X", legacy.Text);
+        Assert.Equal(43.8, legacy.X, 6);
+
+        Assert.Equal("checkbox", Assert.Single(plan.Where(operation => operation.FieldName == "regular_check")).Kind);
+    }
+
+    [Fact]
+    public void Lease_profile_skips_signature_placeholders()
+    {
+        var plan = PdfTemplateRenderer.BuildRenderPlan(
+            new[] { Field("unterschrift_paechter", "signature"), Field("weitere_vereinbarungen", "multiline") },
+            new Dictionary<string, string> { ["unterschrift_paechter"] = "never", ["weitere_vereinbarungen"] = "Zeile 1\nZeile 2" },
+            PdfTemplateRenderProfiles.Pachtvertrag);
+
+        Assert.DoesNotContain(plan, operation => operation.FieldName == "unterschrift_paechter");
+        Assert.Equal(2, plan.Count);
+        Assert.All(plan, operation => Assert.Equal("multiline", operation.Kind));
+    }
+
     private static PdfTemplateFieldSpec Field(string name, string kind, double height = 20) => new(name, kind, 1, 0, 0, 100, height);
 }

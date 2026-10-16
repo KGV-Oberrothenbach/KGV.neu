@@ -18,7 +18,15 @@ public static class PdfTemplateRenderer
         foreach (var field in fields)
         {
             if (string.Equals(field.Kind, "signature", StringComparison.OrdinalIgnoreCase) || !values.TryGetValue(field.Name, out var value)) continue;
-            if (string.Equals(field.Kind, "checkbox", StringComparison.OrdinalIgnoreCase)) { result.Add(new(field.Page, "checkbox", field.Name, IsTruthy(value) ? options.CheckboxGlyph : string.Empty, field.X, field.Y, field.Width, field.Height, options.FontName, options.CheckboxFontSize)); continue; }
+            if (string.Equals(field.Kind, "checkbox", StringComparison.OrdinalIgnoreCase))
+            {
+                if (options.UseLegacyTextCheckbox(field.Name))
+                {
+                    if (IsTruthy(value)) result.Add(new(field.Page, "text", field.Name, options.CheckboxGlyph, field.X + options.SingleLineHorizontalPadding, field.Y + options.SingleLineVerticalOffset, field.Width - 2 * options.SingleLineHorizontalPadding, options.DefaultFontSize * options.LineHeightFactor, options.FontName, options.DefaultFontSize));
+                    continue;
+                }
+                result.Add(new(field.Page, "checkbox", field.Name, IsTruthy(value) ? options.CheckboxGlyph : string.Empty, field.X, field.Y, field.Width, field.Height, options.FontName, options.CheckboxFontSize)); continue;
+            }
             if (string.IsNullOrWhiteSpace(value)) continue;
             var fontSize = options.UseSmallFont(field.Name, value) ? options.SmallFontSize : options.DefaultFontSize;
             var multiline = string.Equals(field.Kind, "multiline", StringComparison.OrdinalIgnoreCase) || value.Contains('\n'); var y = field.Y + (multiline ? options.MultilineTopPadding : options.SingleLineVerticalOffset); var lineHeight = fontSize * options.LineHeightFactor;
@@ -46,6 +54,11 @@ public static class PdfTemplateRenderer
             var rect = new XRect(field.X, field.Y, field.Width, field.Height);
             if (string.Equals(field.Kind, "checkbox", StringComparison.OrdinalIgnoreCase))
             {
+                if (options.UseLegacyTextCheckbox(field.Name))
+                {
+                    if (IsTruthy(value)) graphics.DrawString(options.CheckboxGlyph, font, XBrushes.Black, new XRect(rect.X + options.SingleLineHorizontalPadding, rect.Y + options.SingleLineVerticalOffset, Math.Max(0, rect.Width - 2 * options.SingleLineHorizontalPadding), rect.Height + 2), XStringFormats.TopLeft);
+                    continue;
+                }
                 graphics.DrawRectangle(new XPen(XColors.Black, .6), rect);
                 if (IsTruthy(value)) { var size = graphics.MeasureString(options.CheckboxGlyph, checkboxFont); graphics.DrawString(options.CheckboxGlyph, checkboxFont, XBrushes.Black, new XRect(rect.X + (rect.Width - size.Width) / 2, rect.Y + (rect.Height - size.Height) / 2 - options.CheckboxVerticalOffset, size.Width + 1, size.Height + 1), XStringFormats.TopLeft); }
                 continue;
@@ -63,9 +76,10 @@ public static class PdfTemplateRenderer
     private static bool IsTruthy(string? value) => string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "ja", StringComparison.OrdinalIgnoreCase);
 }
 
-public sealed record PdfTemplateRenderOptions(string FontName, double DefaultFontSize, double SmallFontSize, double CheckboxFontSize, double SingleLineHorizontalPadding, double SingleLineVerticalOffset, double MultilineHorizontalPadding, double MultilineTopPadding, double CheckboxVerticalOffset, string CheckboxGlyph, Func<string, string, bool> UseSmallFont, double LineHeightFactor = 1)
+public sealed record PdfTemplateRenderOptions(string FontName, double DefaultFontSize, double SmallFontSize, double CheckboxFontSize, double SingleLineHorizontalPadding, double SingleLineVerticalOffset, double MultilineHorizontalPadding, double MultilineTopPadding, double CheckboxVerticalOffset, string CheckboxGlyph, Func<string, string, bool> UseSmallFont, double LineHeightFactor = 1, Func<string, bool>? LegacyTextCheckbox = null)
 {
     public static PdfTemplateRenderOptions Default { get; } = new("Arial", 7, 6.4, 7, 1.8, 0, 2, 1, .4, "X", (_, value) => value.Length > 34);
+    public bool UseLegacyTextCheckbox(string fieldName) => LegacyTextCheckbox?.Invoke(fieldName) == true;
 }
 
 public sealed record PdfTemplateRenderOperation(int Page, string Kind, string FieldName, string Text, double X, double Y, double Width, double Height, string FontName, double FontSize);
@@ -73,5 +87,10 @@ public sealed record PdfTemplateRenderOperation(int Page, string Kind, string Fi
 public static class PdfTemplateRenderProfiles
 {
     public static PdfTemplateRenderOptions Mitgliedsantrag { get; } = PdfTemplateRenderOptions.Default with { SingleLineVerticalOffset = -1.1, UseSmallFont = (name, value) => name.Equals("bank_iban", StringComparison.OrdinalIgnoreCase) || (name.Equals("mitglied_email", StringComparison.OrdinalIgnoreCase) && value.Length > 30) || (name.Equals("vertreter_email", StringComparison.OrdinalIgnoreCase) && value.Length > 30) || value.Length > 34 };
-    public static PdfTemplateRenderOptions Pachtvertrag { get; } = PdfTemplateRenderOptions.Default with { DefaultFontSize = 7.2, UseSmallFont = (name, value) => name.Equals("bankblock_mehrzeilig", StringComparison.OrdinalIgnoreCase) || value.Length > 34 };
+    public static PdfTemplateRenderOptions Pachtvertrag { get; } = PdfTemplateRenderOptions.Default with
+    {
+        DefaultFontSize = 7.2,
+        UseSmallFont = (name, value) => name.Equals("bankblock_mehrzeilig", StringComparison.OrdinalIgnoreCase) || value.Length > 34,
+        LegacyTextCheckbox = name => name.StartsWith("anlage_", StringComparison.OrdinalIgnoreCase)
+    };
 }
