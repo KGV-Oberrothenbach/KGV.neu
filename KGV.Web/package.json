@@ -18,6 +18,7 @@
     "test:app-user-access": "node security/app-user-access.contract.test.mjs",
     "test:email-auth-sync": "node security/email-auth-sync.contract.test.mjs",
     "test:maui-valid-access": "node security/maui-valid-access.contract.test.mjs",
+    "test:document-proxy": "node security/document-proxy.contract.test.mjs",
     "test:navigation-capabilities": "node security/navigation-capabilities.contract.test.mjs",
     "test:g13-contract": "node security/g13-final-security.contract.test.mjs",
     "test:g13-hardening": "node security/g13-final-security-hardening.contract.test.mjs",

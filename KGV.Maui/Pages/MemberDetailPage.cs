@@ -748,14 +748,14 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     return;
                 }
 
-                var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
-                if (string.IsNullOrWhiteSpace(url))
+                var content = await _supabaseService.DownloadDokumentContentAsync(document);
+                if (content is not { Length: > 0 })
                 {
                     await DisplayAlertAsync("Mitgliedsantrag", "Mitgliedsantrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "OK");
                     return;
                 }
 
-                await Launcher.Default.OpenAsync(url);
+                await Navigation.PushAsync(new PdfViewerPage(document.Titel ?? document.Dateiname, content));
                 return;
             }
         }

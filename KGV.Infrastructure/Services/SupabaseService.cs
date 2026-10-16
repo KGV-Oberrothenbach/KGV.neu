@@ -2478,7 +2478,7 @@ namespace KGV.Infrastructure.Services
 
                 var normalizedDriveFileId = CleanOptionalText(document.DriveFileId);
                 if (!string.IsNullOrWhiteSpace(normalizedDriveFileId))
-                    return BuildGoogleDriveFileViewUrl(normalizedDriveFileId);
+                    return null;
 
                 var storagePath = CleanOptionalText(document.StoragePath);
                 if (Uri.TryCreate(storagePath, UriKind.Absolute, out var absoluteUri)

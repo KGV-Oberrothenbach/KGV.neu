@@ -112,11 +112,11 @@ internal static class PachtvertragFlowHelper
             if (document?.CanOpen != true)
                 return PachtvertragFlowResult.Gespeichert;
 
-            var url = await supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
-            if (string.IsNullOrWhiteSpace(url))
+            var content = await supabaseService.DownloadDokumentContentAsync(document);
+            if (content is not { Length: > 0 })
                 return PachtvertragFlowResult.Gespeichert;
 
-            await Launcher.Default.OpenAsync(url);
+            await navigation.PushAsync(new PdfViewerPage(document.Titel ?? document.Dateiname, content));
             return PachtvertragFlowResult.Gespeichert;
         }
     }

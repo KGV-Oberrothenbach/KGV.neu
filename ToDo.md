@@ -74,6 +74,7 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 ### Mitglieder, Parzellen und Dokumente
 
 - [ ] Dokumente im Mitglieds- und Parzellenkontext praktisch gegenprüfen.
+- [ ] Google Drive ist ausschließlich serverseitige Dateiablage. Clients laden und öffnen Dokumente ausschließlich über authentifizierte Supabase-Endpunkte; direkte Google-Drive-Links sind unzulässig.
 - [ ] Restinkonsistenzen in Stammdaten- und Parzellen-Navigation erfassen und beheben.
 - [ ] Mitglieds-/Parzellenalltag testen: Navigation, Dokumente, Strom-/Wasser-Historie sowie Haupt-/Nebenmitgliedswechsel.
 - [ ] Offenen Altbestand `mitglied.role` fachlich weiter beobachten und über einen späteren physischen Rückbau entscheiden.

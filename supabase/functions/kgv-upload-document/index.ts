@@ -18,7 +18,6 @@ type OwnerKind = "mitglied" | "parzelle";
 type DriveUploadResult = {
   id: string;
   name: string;
-  webViewLink?: string | null;
 };
 
 type ApiErrorCode =
@@ -61,6 +60,7 @@ type DriveDocumentRecord = {
   drive_file_id: string | null;
   dateiname: string | null;
   mime_type: string | null;
+  archiviert_at: string | null;
 };
 
 const supportedDocumentTypes: Record<string, readonly string[]> = {
@@ -468,7 +468,7 @@ async function uploadFileToDrive(params: { accessToken: string; parentId: string
 
   try {
     const res = await fetch(
-      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink",
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name",
       {
         method: "POST",
         headers: {
@@ -488,7 +488,6 @@ async function uploadFileToDrive(params: { accessToken: string; parentId: string
     return {
       id: jsonBody.id as string,
       name: (jsonBody.name as string) ?? params.fileName,
-      webViewLink: (jsonBody.webViewLink as string | null) ?? null,
     };
   } catch (error) {
     throw buildStepError("Drive upload", error);
@@ -608,7 +607,7 @@ function hasAllowedDocumentType(file: File): boolean {
 async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin: ReturnType<typeof createClient> }, documentId: number): Promise<DriveDocumentRecord | null> {
   const { data: document, error: documentError } = await auth.supabaseAdmin
     .from("dokument")
-    .select("id,mitglied_id,parzelle_id,drive_file_id,dateiname,mime_type")
+    .select("id,mitglied_id,parzelle_id,drive_file_id,dateiname,mime_type,archiviert_at")
     .eq("id", documentId)
     .maybeSingle();
 
@@ -617,6 +616,9 @@ async function mayReadDocument(auth: AuthenticatedDocumentUser & { supabaseAdmin
   }
 
   if (!document)
+    return null;
+
+  if (document.archiviert_at)
     return null;
 
   // The service-role client bypasses RLS, so scope parity must precede role checks.
@@ -889,7 +891,6 @@ Deno.serve(async (req) => {
       mimeType: file.type || "application/octet-stream",
       size_bytes: file.size,
       sizeBytes: file.size,
-      web_view_link: upload.webViewLink ?? null,
       uploaded_by_user_id: auth.userId,
       role: auth.role,
       request_id: requestId,

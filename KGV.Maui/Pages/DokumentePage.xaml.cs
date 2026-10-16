@@ -2,6 +2,7 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Maui.State;
+using KGV.Maui.Services.Documents;
 using Microsoft.Maui;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
@@ -579,32 +580,29 @@ public class DokumentePage : ContentPage, IQueryAttributable
                 return;
             }
 
-            if (IsPdfDocument(document) || IsImageDocument(document))
+            _isBusy = true;
+            UpdateUiState();
+            var content = await _supabaseService.DownloadDokumentContentAsync(document);
+            if (content is not { Length: > 0 })
             {
-                _isBusy = true;
-                UpdateUiState();
-                var content = await _supabaseService.DownloadDokumentContentAsync(document);
-                if (content is not { Length: > 0 })
-                {
-                    SetStatus("Dokument konnte nicht geladen werden. Prüfe die Dokumentberechtigung oder den Google-Drive-Zugang.", success: false);
-                    return;
-                }
-
-                if (IsPdfDocument(document))
-                    await Navigation.PushAsync(new PdfViewerPage(GetDocumentDisplayName(document), content));
-                else
-                    await Navigation.PushAsync(new ImageViewerPage(GetDocumentDisplayName(document), content));
+                SetStatus("Dokument konnte nicht geladen werden. Prüfe die Dokumentberechtigung.", success: false);
                 return;
             }
 
-            var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
-            if (string.IsNullOrWhiteSpace(url))
+            if (IsPdfDocument(document))
             {
-                SetStatus("Dokument konnte aktuell nicht geöffnet werden.", success: false);
+                await Navigation.PushAsync(new PdfViewerPage(GetDocumentDisplayName(document), content));
                 return;
             }
 
-            await Launcher.Default.OpenAsync(url);
+            if (IsImageDocument(document))
+            {
+                await Navigation.PushAsync(new ImageViewerPage(GetDocumentDisplayName(document), content));
+                return;
+            }
+
+            if (!await DocumentStorage.OpenTemporaryFileAsync(GetDocumentDisplayName(document), document.MimeType, content))
+                SetStatus("Dokument konnte lokal nicht geöffnet werden.", success: false);
         }
         catch (Exception ex)
         {
