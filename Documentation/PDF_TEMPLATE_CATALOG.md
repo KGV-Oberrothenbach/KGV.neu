@@ -20,6 +20,12 @@ Eine veröffentlichte Version ist durch einen Datenbank-Trigger unveränderlich.
 
 Die aktive Katalogauflösung wird bei jedem Dokument erneut abgefragt, damit ein Aktivwechsel unmittelbar wirksam wird. Bereits vollständig geprüfte Assets werden dagegen pro Prozess anhand von Schlüssel, Version, beiden SHA-256-Prüfsummen sowie Field-Spec- und Renderer-Version geteilt gecacht. Fehlgeschlagene Downloads oder Validierungen werden nicht gecacht.
 
+## Neue Version lokal vorbereiten
+
+`tools/PdfTemplatePublishHelper` erstellt ausschließlich lokal ein Publish-Manifest. Es validiert PDF und Field-Spec mit den bestehenden Parsern, ermittelt SHA-256-Werte, verwendet `PdfTemplateCatalogContract` für die Zielpfade und gibt manuelle Storage- sowie SQL-Befehle aus. Es hat keine Netzwerk-, Datenbank- oder Remote-Schreibfunktion. Die vollständige Bedienung und die verbindliche Reihenfolge DDB vor VDB stehen in der [Helper-Anleitung](../tools/PdfTemplatePublishHelper/README.md).
+
+Die Aktivierungs-Transaktion deaktiviert die bisher aktive Version vor dem Insert der neuen veröffentlichten aktiven Version. Das ist notwendig, weil der Katalog nie zwei aktive veröffentlichte Versionen desselben Schlüssels erlauben darf. Eine neue Version kann direkt als `published` angelegt werden; `published_at` wird dabei explizit gesetzt. Der alternative Draft→Published-Übergang ist zulässig, darf aber keine bereits veröffentlichte Version inhaltlich ändern.
+
 Der eingebettete Mitgliedsantrag bleibt ausschließlich für isolierte lokale Factory-Tests als explizit kommentierter Kompatibilitätsfall erhalten. Die produktiven MA-Pfade in `SupabaseService` verwenden ausschließlich den zentralen Provider und fallen bei einer fehlenden, manipulierten oder inkompatiblen Version nicht stillschweigend zurück.
 
 ## Pachtvertrag v1 bereitstellen

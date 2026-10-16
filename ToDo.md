@@ -1,6 +1,6 @@
 # ToDo – KGV-Software
 
-Letzte Aktualisierung: 2026-10-17 (D8: Technischer Template-Cache abgeschlossen; D11–D12 bleiben offen)
+Letzte Aktualisierung: 2026-10-17 (D11: Lokaler Template-Publish-Helper abgeschlossen; D12 bleibt offen)
 
 Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte, historische Abgleiche und frühere Zielbildtexte werden nicht fortgeführt.
 
@@ -66,6 +66,7 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 - [ ] Mitgliedsantrag, Pachtvertrag und Protokoll aus Supabase-Vorlagen erzeugen.
 - [ ] Den Web-Mitgliedsantrag nach dem Edge-Function-Deployment mit zentralem Template-Katalog und allen drei Signaturfällen (3/5/5) praktisch testen.
+- [ ] Neue PDF-/Template-Pipeline in DDB mit Mitgliedsantrag und Pachtvertrag vollständig praktisch abnehmen, bevor Legacy-Fallbacks entfernt werden.
 - [ ] Exporte mit `export_kopf` erzeugen und einen eigenständigen `briefbogen` bereitstellen.
 - [ ] Versionierung, Schutz alter Versionen und gemeinsamer Zugriff von MAUI und WEB nachweisen.
 
@@ -97,7 +98,6 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 ## Technische Qualität und Release
 
-- [ ] D11: Publish-Helper für Vorlagen und Katalog bereitstellen.
 - [ ] D12: Verbleibende Legacy-Kompatibilität nach produktiver Abnahme bereinigen.
 - [ ] Mitgliedsantrag auf Android praktisch abnehmen; die unterbrochene Signaturlinie beim Nebenmitglied als spätere Layout-/Kosmetikkorrektur behandeln.
 
