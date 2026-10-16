@@ -1,6 +1,6 @@
 # ToDo – KGV-Software
 
-Letzte Aktualisierung: 2026-10-17 (D6: gemeinsame Dokumentfinalisierung abgeschlossen; D7–D12 bleiben offen)
+Letzte Aktualisierung: 2026-10-17 (D9: Dokument-Pipeline-Diagnostik abgeschlossen; D7, D8 und D10–D12 bleiben offen)
 
 Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte, historische Abgleiche und frühere Zielbildtexte werden nicht fortgeführt.
 
@@ -82,6 +82,7 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 - [ ] Wartungsverträge für Nebenmitglieder in WPF und MAUI einschließlich Pflichtstunden-Kontext vollständig prüfen.
 - [ ] Pachtvertrag in MAUI und Web mit Datumsauswahl fachlich beenden können.
 - [ ] WEB-Pachtvertrag im Parzellendetail entsprechend dem MAUI-Ablauf praktisch abnehmen: feste aktive Zuordnung, Vorschau, Einzelsignaturen und sichere Dokumentöffnung.
+- [ ] Pachtvertrag: Probezeit und Kündigung fachlich zu einem späteren Zeitpunkt prüfen und ergänzen.
 - [ ] Bei Kündigung der Mitgliedschaft Datum und bestehenden Pachtvertrag prüfen; erforderliche zweijährige Nachsorge einschließlich Strom, Wasser und Verwaltungspauschale (50 % Jahresbeitrag) fachlich abbilden.
 
 ### Arbeitsstunden
@@ -98,7 +99,6 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 - [ ] D7: Template-Katalog- und Versionsregeln weiter vereinheitlichen.
 - [ ] D8: Technisches Template-Caching ergänzen.
-- [ ] D9: Pipeline-Diagnostik und Logging gezielt ausbauen.
 - [ ] D10: Erzeugungs-, Signatur- und Uploadpipeline systematisch testen.
 - [ ] D11: Publish-Helper für Vorlagen und Katalog bereitstellen.
 - [ ] D12: Verbleibende Legacy-Kompatibilität nach produktiver Abnahme bereinigen.

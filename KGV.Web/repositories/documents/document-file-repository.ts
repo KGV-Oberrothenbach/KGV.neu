@@ -2,6 +2,7 @@ import { invokeEdgeFunctionRaw } from "../../lib/supabase/edge-client";
 import { createSignedStorageUrl } from "../../lib/supabase/storage-client";
 import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
+import { DocumentUploadError } from "./document-upload-repository";
 
 export type DocumentFileReference = {
   id: number;
@@ -18,8 +19,8 @@ export async function resolveDocumentFileOpenUrl(club: ClubContext, session: Bro
       contentType: "application/json",
     });
     if (!response.ok) {
-      const detail = await response.json().catch(() => null) as { message?: string } | null;
-      throw new Error(detail?.message ?? "Das Dokument kann derzeit nicht geöffnet werden.");
+      const detail = await response.json().catch(() => null) as { message?: string; error_code?: string; request_id?: string } | null;
+      throw new DocumentUploadError(response.status, detail ?? { message: "Das Dokument kann derzeit nicht geöffnet werden.", error_code: "DOWNLOAD_HTTP_ERROR" });
     }
     return URL.createObjectURL(await response.blob());
   }

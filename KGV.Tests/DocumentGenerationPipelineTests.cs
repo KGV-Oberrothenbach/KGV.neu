@@ -1,4 +1,5 @@
 using KGV.Core.Models;
+using KGV.Core.Interfaces;
 using KGV.Core.Utilities;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
@@ -54,14 +55,31 @@ public sealed class DocumentGenerationPipelineTests
     public void ApplySignatures_fails_before_final_request_for_missing_placeholder_or_render_input()
     {
         var final = Request(Array.Empty<byte>());
-        var missing = Assert.Throws<InvalidOperationException>(() => DocumentGenerationPipeline.ApplySignatures(
+        var missing = Assert.Throws<DocumentPipelineException>(() => DocumentGenerationPipeline.ApplySignatures(
             Request(CreatePdf(1)), final, new[] { new PdfSignatureCaptureAssignment("missing", Capture()) }));
-        Assert.Contains("fehlt", missing.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("SIGNATURE", missing.Stage);
+        Assert.Equal("PIPELINE_SIGNATURE", missing.DiagnosticCode);
         Assert.Empty(final.FileContent);
 
-        var noPreview = Assert.Throws<InvalidOperationException>(() => DocumentGenerationPipeline.ApplySignatures(
+        var noPreview = Assert.Throws<DocumentPipelineException>(() => DocumentGenerationPipeline.ApplySignatures(
             Request(Array.Empty<byte>()), Request(Array.Empty<byte>()), Array.Empty<PdfSignatureCaptureAssignment>()));
         Assert.Contains("Vorschau", noPreview.Message);
+        Assert.DoesNotContain("unterschrift", missing.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Template_load_failure_has_a_safe_pipeline_stage()
+    {
+        var provider = new FailingTemplateProvider(new InvalidOperationException("token=must-not-reach-the-user"));
+
+        var error = await Assert.ThrowsAsync<DocumentPipelineException>(() => MitgliedsantragDokumentFactory.CreateUploadRequestAsync(
+            new MitgliedRecord(), 0m, 0m, DateTime.Today, null,
+            MitgliedsantragZweitePrivateParteiArt.Keine, null, null, provider));
+
+        Assert.Equal("TEMPLATE_LOAD", error.Stage);
+        Assert.Equal("mitgliedsantrag", error.DocumentType);
+        Assert.Equal("PIPELINE_TEMPLATE_LOAD", error.DiagnosticCode);
+        Assert.DoesNotContain("token", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static DokumentUploadRequest Request(byte[] content) => new()
@@ -89,4 +107,10 @@ public sealed class DocumentGenerationPipelineTests
         CanvasHeight = 30,
         Strokes = new[] { new DigitalSignatureStroke { Points = new[] { new DigitalSignaturePoint { X = 0, Y = 0 }, new DigitalSignaturePoint { X = 100, Y = 30 } } } }
     };
+
+    private sealed class FailingTemplateProvider(Exception exception) : IPdfTemplateProvider
+    {
+        public Task<PdfTemplateAsset> GetActiveAsync(PdfTemplateRequest request, CancellationToken cancellationToken = default)
+            => Task.FromException<PdfTemplateAsset>(exception);
+    }
 }

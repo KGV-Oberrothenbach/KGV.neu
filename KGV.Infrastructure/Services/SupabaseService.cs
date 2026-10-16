@@ -84,6 +84,11 @@ namespace KGV.Infrastructure.Services
 
                 return await CreateDokumentAsync(uploadRequest);
             }
+            catch (DocumentPipelineException ex)
+            {
+                LogDocumentPipelineFailure(ex);
+                return DokumentUploadResult.Fail(ex.Message, ex.DiagnosticCode);
+            }
             catch (InvalidOperationException ex)
             {
                 _logger?.LogWarning(ex, "CreatePachtvertragDokumentAsync(request) validation failed");
@@ -3476,6 +3481,11 @@ namespace KGV.Infrastructure.Services
                     vorschlag.BeginnDatum,
                     status);
             }
+            catch (DocumentPipelineException ex)
+            {
+                LogDocumentPipelineFailure(ex);
+                return DokumentUploadResult.Fail(ex.Message, ex.DiagnosticCode);
+            }
             catch (InvalidOperationException ex)
             {
                 _logger?.LogWarning(ex, "CreateMitgliedsantragDokumentAsync validation failed for MitgliedId={MitgliedId}", mitgliedId);
@@ -3507,6 +3517,11 @@ namespace KGV.Infrastructure.Services
                     : request.BeginnDatum;
                 var mitgliedsbeitrag = MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag);
                 return await CreateMitgliedsantragDokumentInternalAsync(member, mitgliedsbeitrag, beginnDatum, request.Status);
+            }
+            catch (DocumentPipelineException ex)
+            {
+                LogDocumentPipelineFailure(ex);
+                return DokumentUploadResult.Fail(ex.Message, ex.DiagnosticCode);
             }
             catch (InvalidOperationException ex)
             {
@@ -3871,6 +3886,11 @@ namespace KGV.Infrastructure.Services
                 var uploadRequest = await PachtvertragDokumentFactory.CreateUploadRequestAsync(context.Member, context.SecondaryMember, context.Parzelle, context.Saison, context.Vertragsbeginn, altvertragDatum: null, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, status, _pdfTemplateProvider);
                 return await CreateDokumentAsync(uploadRequest);
             }
+            catch (DocumentPipelineException ex)
+            {
+                LogDocumentPipelineFailure(ex);
+                return DokumentUploadResult.Fail(ex.Message, ex.DiagnosticCode);
+            }
             catch (InvalidOperationException ex)
             {
                 _logger?.LogWarning(ex, "CreatePachtvertragDokumentAsync validation failed for MitgliedId={MitgliedId}, ParzelleId={ParzelleId}", mitgliedId, parzelleId);
@@ -4233,9 +4253,27 @@ namespace KGV.Infrastructure.Services
             DokumentUploadRequest final,
             IReadOnlyList<PdfSignatureCaptureAssignment> signatures)
         {
-            var signedRequest = DocumentGenerationPipeline.ApplySignatures(preview, final, signatures);
-            return await CreateDokumentAsync(signedRequest);
+            try
+            {
+                var signedRequest = DocumentGenerationPipeline.ApplySignatures(preview, final, signatures);
+                return await CreateDokumentAsync(signedRequest);
+            }
+            catch (DocumentPipelineException ex)
+            {
+                LogDocumentPipelineFailure(ex);
+                return DokumentUploadResult.Fail(ex.Message, ex.DiagnosticCode);
+            }
         }
+
+        private void LogDocumentPipelineFailure(DocumentPipelineException exception)
+            => _logger?.LogWarning(
+                exception,
+                "Document pipeline failed. Stage={Stage} DocumentType={DocumentType} Operation={Operation} TemplateVersion={TemplateVersion} RendererVersion={RendererVersion}",
+                exception.Stage,
+                exception.DocumentType,
+                exception.Operation,
+                exception.TemplateVersion,
+                exception.RendererVersion);
 
         public async Task<DokumentUploadResult> CreateDokumentAsync(DokumentUploadRequest request)
         {
@@ -4300,12 +4338,12 @@ namespace KGV.Infrastructure.Services
             catch (PostgrestException ex)
             {
                 LogPostgrestFailure("CreateDokumentAsync", ex);
-                return DokumentUploadResult.Fail("Dokumentmetadaten konnten nach dem Upload nicht gespeichert werden.", "POSTGREST");
+                return DokumentUploadResult.Fail("Dokumentmetadaten konnten nach dem Upload nicht gespeichert werden.", "POSTGREST", uploadResult.RequestId);
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "CreateDokumentAsync failed after upload.");
-                return DokumentUploadResult.Fail("Dokument konnte aktuell nicht gespeichert werden.", "UNEXPECTED");
+                return DokumentUploadResult.Fail("Dokument konnte aktuell nicht gespeichert werden.", "UNEXPECTED", uploadResult.RequestId);
             }
         }
 

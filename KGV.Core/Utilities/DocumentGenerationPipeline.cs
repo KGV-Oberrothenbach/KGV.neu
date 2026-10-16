@@ -1,4 +1,5 @@
 using KGV.Core.Models;
+using KGV.Core.Diagnostics;
 
 namespace KGV.Core.Utilities;
 
@@ -15,7 +16,7 @@ public static class DocumentGenerationPipeline
         ArgumentNullException.ThrowIfNull(signatureCaptures);
 
         if (preview.FileContent.Length == 0)
-            throw new InvalidOperationException("Die PDF-Vorschau konnte nicht erzeugt werden.");
+            throw Failure("Die PDF-Vorschau konnte nicht erzeugt werden.");
 
         var placeholders = preview.SignaturePlaceholders
             .ToDictionary(placeholder => placeholder.Name, StringComparer.OrdinalIgnoreCase);
@@ -24,16 +25,26 @@ public static class DocumentGenerationPipeline
         foreach (var assignment in signatureCaptures)
         {
             if (assignment.Capture == null || !assignment.Capture.HasContent)
-                throw new InvalidOperationException($"Die Signatur für '{assignment.PlaceholderName}' ist leer.");
+                throw Failure("Eine erforderliche Signatur ist leer.");
             if (!placeholders.TryGetValue(assignment.PlaceholderName, out var placeholder))
-                throw new InvalidOperationException($"Die Signaturfläche '{assignment.PlaceholderName}' fehlt in der Dokumentvorlage.");
+                throw Failure("Eine erforderliche Signaturfläche fehlt in der Dokumentvorlage.");
 
             signatures.Add((placeholder, assignment.Capture));
         }
 
-        final.FileContent = PdfSignatureRenderer.Render(preview.FileContent, signatures);
+        try
+        {
+            final.FileContent = PdfSignatureRenderer.Render(preview.FileContent, signatures);
+        }
+        catch (Exception ex) when (ex is not DocumentPipelineException)
+        {
+            throw Failure("Die Signaturen konnten nicht in das Dokument eingefügt werden.", ex);
+        }
         return final;
     }
+
+    private static DocumentPipelineException Failure(string message, Exception? innerException = null)
+        => new("SIGNATURE", "generated-document", "final", message, innerException: innerException);
 }
 
 public sealed record PdfSignatureCaptureAssignment(string PlaceholderName, DigitalSignatureCapture Capture);

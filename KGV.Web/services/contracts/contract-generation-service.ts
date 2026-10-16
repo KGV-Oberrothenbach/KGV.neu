@@ -1,6 +1,7 @@
 import type { ClubContext } from "../../models/auth/club";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import { invokeEdgeFunctionRaw } from "../../lib/supabase/edge-client";
+import { DocumentUploadError } from "../../repositories/documents/document-upload-repository";
 
 type ContractGenerationOptions = {
   parcel_id?: number;
@@ -48,8 +49,8 @@ export type ContractGenerationRequest =
 export async function generateContract(club: ClubContext, session: BrowserSession, request: ContractGenerationRequest): Promise<{ previewUrl?: string; documentId?: number; message?: string }> {
   const response = await invokeEdgeFunctionRaw({ club, session }, "kgv-generate-contract", { method: "POST", contentType: "application/json", body: JSON.stringify(request) });
   if (!response.ok) {
-    const detail = await response.json().catch(() => null) as { message?: string } | null;
-    throw new Error(detail?.message ?? "Das Vertragsdokument konnte nicht erzeugt werden.");
+    const detail = await response.json().catch(() => null) as { message?: string; error_code?: string; request_id?: string } | null;
+    throw new DocumentUploadError(response.status, detail ?? { message: "Das Vertragsdokument konnte nicht erzeugt werden.", error_code: "CONTRACT_HTTP_ERROR" });
   }
   if (request.action === "preview") return { previewUrl: URL.createObjectURL(await response.blob()) };
   const payload = await response.json() as { document_id?: number; message?: string };

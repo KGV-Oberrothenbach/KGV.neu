@@ -3,6 +3,8 @@ import { PDFDocument, PDFName, PDFFont, StandardFonts, rgb } from "npm:pdf-lib@1
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+const createRequestId = () => crypto.randomUUID();
+const errorResponse = (status: number, errorCode: string, message: string, requestId: string) => json(status, { success: false, error_code: errorCode, message, request_id: requestId });
 type ContractType = "mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag" | "parzellenprotokoll";
 type LegalRepresentativeRequest = { mode: "existing" | "manual"; member_id?: number; vorname?: string; nachname?: string; adresse_abweichend?: boolean; adresse?: string; plz?: string; ort?: string };
 type RequestBody = { action?: "preview" | "finalize" | "sign-existing"; type?: ContractType; member_id?: number; parcel_id?: number; start_date?: string; member_fee?: number; admission_fee?: number; representative?: LegalRepresentativeRequest; signature_application_member?: string; signature_privacy_member?: string; signature_application_representative?: string; signature_privacy_representative?: string; signature_application_secondary?: string; signature_privacy_secondary?: string; signature_member?: string; signature_secondary?: string; signature_board?: string; signature_board2?: string; has_previous_contract?: boolean; previous_contract_date?: string; include_secondary_member?: boolean; handover_date?: string; fixed_until?: string; garden_rules_version?: string; garden_rules_handed_over_at?: string; additional_agreements?: string; attachment_1?: boolean; attachment_2?: boolean; attachment_3?: boolean; attachment_4?: boolean; club_signatory?: string; protocol_id?: number; protocol_type?: string; protocol_reason?: string; protocol_condition?: string; protocol_agreement?: string; board2_id?: number; companion_name?: string; photos?: string[]; source_document_id?: number };
@@ -161,16 +163,17 @@ async function uploadContractDocument(auth: Awaited<ReturnType<typeof authentica
 }
 
 Deno.serve(async (req) => {
+  const requestId = createRequestId();
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  if (req.method !== "POST") return json(405, { message: "Methode nicht erlaubt." });
+  if (req.method !== "POST") return errorResponse(405, "BAD_REQUEST", "Methode nicht erlaubt.", requestId);
   try {
     const auth = await authenticate(req); const body = await req.json() as RequestBody; if(body.action === "sign-existing") return await signExisting(auth,body); const type = body.type; const memberId = Number(body.member_id); const action = body.action ?? "preview";
-    if (!type || !Number.isSafeInteger(memberId) || memberId <= 0) return json(400, { message: "Dokumenttyp und Mitglied sind erforderlich." });
+    if (!type || !Number.isSafeInteger(memberId) || memberId <= 0) return errorResponse(400, "BAD_REQUEST", "Dokumenttyp und Mitglied sind erforderlich.", requestId);
     const { data: member, error: memberError } = await auth.admin.from("mitglied").select("*").eq("id", memberId).single(); if (memberError || !member) throw new Error("Mitglied wurde nicht gefunden.");
     const { data: config } = await auth.admin.from("vereinskonfiguration").select("*").eq("aktiv", true).order("updated_at", { ascending: false }).limit(1).maybeSingle(); const configurationSnapshot = type === "mitgliedsantrag" || type === "pachtvertrag" ? snapshotFromConfiguration(config) : null;
     const startDate = body.start_date?.slice(0, 10) || (member.mitglied_seit as string | null)?.slice(0, 10) || new Date().toISOString().slice(0, 10);
     const signatures = { member: body.signature_member, secondary: body.signature_secondary, board: body.signature_board, board2: body.signature_board2 };
-    if (action === "finalize" && type !== "mitgliedsantrag" && (!signatures.member || !signatures.board)) return json(400, { message: "Unterschrift des Mitglieds und des Vereins sind erforderlich." });
+    if (action === "finalize" && type !== "mitgliedsantrag" && (!signatures.member || !signatures.board)) return errorResponse(400, "BAD_REQUEST", "Unterschrift des Mitglieds und des Vereins sind erforderlich.", requestId);
     let pdf: Uint8Array; let title: string; let owner: { kind: "mitglied" | "parzelle"; id: number }; let protocolIdToComplete: number | null = null; let representativeToSave: LegalRepresentativeRequest | null = null;
     if (type === "mitgliedsantrag") {
       if (member.hauptmitglied_id !== null && member.hauptmitglied_id !== undefined) throw new Error("Für Nebenmitglieder kann kein eigener Mitgliedsantrag erstellt werden.");
@@ -235,5 +238,5 @@ Deno.serve(async (req) => {
     const fileName = `${memberSegment}-${memberId}-${startDate}-${type}-${action === "finalize" ? "signiert" : "unsigniert"}.pdf`;
     if (action === "preview") return new Response(pdf, { headers: { ...cors, "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="${fileName}"`, "Cache-Control": "private, no-store" } });
     const documentId = await uploadContractDocument(auth, pdf, owner, title, fileName); if (protocolIdToComplete) { const { error } = await auth.admin.from("parzellen_protokoll").update({ status: "abgeschlossen", dokument_id: documentId, abgeschlossen_am: new Date().toISOString(), abgeschlossen_von: auth.userId, updated_at: new Date().toISOString() }).eq("id", protocolIdToComplete); if (error) throw error; } return json(200, { success: true, document_id: documentId, message: protocolIdToComplete ? "Das signierte Protokoll wurde als Mitgliedsdokument abgelegt." : "Signiertes Vertragsdokument wurde sicher abgelegt." });
-  } catch (error) { const message = error instanceof Error ? error.message.replace(/^AUTH:/, "") : "Vertragsdokument konnte nicht erzeugt werden."; return json(message.startsWith("Anmeldung") || message.startsWith("Nur Admin") ? 403 : 500, { message }); }
+  } catch (error) { const message = error instanceof Error ? error.message.replace(/^AUTH:/, "") : "Vertragsdokument konnte nicht erzeugt werden."; const status = message.startsWith("Anmeldung") || message.startsWith("Nur Admin") ? 403 : 500; return errorResponse(status, status === 403 ? "FORBIDDEN" : "INTERNAL_ERROR", message, requestId); }
 });

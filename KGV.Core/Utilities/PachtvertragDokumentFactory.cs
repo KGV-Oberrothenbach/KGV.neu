@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Diagnostics;
 
 namespace KGV.Core.Utilities
 {
@@ -122,10 +123,46 @@ namespace KGV.Core.Utilities
             CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(templateProvider);
-            var template = await templateProvider.GetActiveAsync(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v2", "top-left/v1"), cancellationToken);
-            ValidateTemplate(template);
-            return CreateUploadRequestCore(hauptmitglied, nebenmitglied, parzelle, saison, vertragsbeginn,
-                altvertragDatum, gesetzlicherVertreterSnapshot, bankverbindungSnapshot, status, paechter2Override, template);
+            const string documentType = "pachtvertrag";
+            const string operation = "preview";
+            const string fieldSpecVersion = "pachtvertrag-field-spec/v2";
+            const string rendererVersion = "top-left/v1";
+            PdfTemplateAsset template;
+            try
+            {
+                template = await templateProvider.GetActiveAsync(new PdfTemplateRequest(documentType, fieldSpecVersion, rendererVersion), cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                throw new DocumentPipelineException("TEMPLATE_LOAD", documentType, operation, "Die Pachtvertrag-Vorlage konnte nicht geladen werden.", innerException: ex);
+            }
+
+            try
+            {
+                ValidateTemplate(template);
+            }
+            catch (Exception ex)
+            {
+                throw new DocumentPipelineException("FIELD_SPEC", documentType, operation, "Die Feldspezifikation der Pachtvertrag-Vorlage ist nicht kompatibel.", template.Version, rendererVersion, ex);
+            }
+
+            try
+            {
+                return CreateUploadRequestCore(hauptmitglied, nebenmitglied, parzelle, saison, vertragsbeginn,
+                    altvertragDatum, gesetzlicherVertreterSnapshot, bankverbindungSnapshot, status, paechter2Override, template);
+            }
+            catch (DocumentPipelineException)
+            {
+                throw;
+            }
+            catch (InvalidOperationException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new DocumentPipelineException("RENDER", documentType, operation, "Der Pachtvertrag konnte nicht gerendert werden.", template.Version, rendererVersion, ex);
+            }
         }
 
         private static DokumentUploadRequest CreateUploadRequestCore(

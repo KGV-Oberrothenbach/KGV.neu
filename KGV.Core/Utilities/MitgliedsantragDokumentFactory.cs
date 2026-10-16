@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Diagnostics;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
@@ -105,9 +106,45 @@ namespace KGV.Core.Utilities
             string? status, IPdfTemplateProvider templateProvider, CancellationToken cancellationToken = default)
         {
             if (templateProvider == null) throw new ArgumentNullException(nameof(templateProvider));
-            var template = await templateProvider.GetActiveAsync(new PdfTemplateRequest("mitgliedsantrag", "mitgliedsantrag-field-spec/v1", "pdfsharpcore-ma/v1"), cancellationToken);
-            ValidateTemplate(template);
-            return CreateUploadRequestCore(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreterSnapshot, zweitePrivateParteiArt, vereinskonfigurationSnapshot, status, template);
+            const string documentType = "mitgliedsantrag";
+            const string operation = "preview";
+            const string fieldSpecVersion = "mitgliedsantrag-field-spec/v1";
+            const string rendererVersion = "pdfsharpcore-ma/v1";
+            PdfTemplateAsset template;
+            try
+            {
+                template = await templateProvider.GetActiveAsync(new PdfTemplateRequest(documentType, fieldSpecVersion, rendererVersion), cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                throw new DocumentPipelineException("TEMPLATE_LOAD", documentType, operation, "Die Mitgliedsantrag-Vorlage konnte nicht geladen werden.", innerException: ex);
+            }
+
+            try
+            {
+                ValidateTemplate(template);
+            }
+            catch (Exception ex)
+            {
+                throw new DocumentPipelineException("FIELD_SPEC", documentType, operation, "Die Feldspezifikation der Mitgliedsantrag-Vorlage ist nicht kompatibel.", template.Version, rendererVersion, ex);
+            }
+
+            try
+            {
+                return CreateUploadRequestCore(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreterSnapshot, zweitePrivateParteiArt, vereinskonfigurationSnapshot, status, template);
+            }
+            catch (DocumentPipelineException)
+            {
+                throw;
+            }
+            catch (InvalidOperationException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new DocumentPipelineException("RENDER", documentType, operation, "Der Mitgliedsantrag konnte nicht gerendert werden.", template.Version, rendererVersion, ex);
+            }
         }
 
         private static DokumentUploadRequest CreateUploadRequestCore(

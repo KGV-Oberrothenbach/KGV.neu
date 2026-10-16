@@ -30,3 +30,26 @@ test("edge upload scope remains a strict demo parity check", async () => {
   assert.match(edge, /ownerIsDemo === null \|\| ownerIsDemo !== auth\.isDemoAccount/);
   assert.match(edge, /errorResponse\(403, "FORBIDDEN", "Dieses Dokument ist für den aktuellen Benutzer nicht freigegeben.", requestId\)/);
 });
+
+test("document download and contract generation retain an edge Support-ID", async () => {
+  const [downloadRepository, contractService, contractEdge] = await Promise.all([
+    readFile(new URL("./document-file-repository.ts", import.meta.url), "utf8"),
+    readFile(new URL("../../services/contracts/contract-generation-service.ts", import.meta.url), "utf8"),
+    readFile(new URL("../../../supabase/functions/kgv-generate-contract/index.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(downloadRepository, /new DocumentUploadError\(response\.status, detail/);
+  assert.match(contractService, /new DocumentUploadError\(response\.status, detail/);
+  assert.match(contractService, /request_id\?: string/);
+  assert.match(contractEdge, /error_code: errorCode, message, request_id: requestId/);
+  assert.match(contractEdge, /errorResponse\(status, status === 403 \? "FORBIDDEN" : "INTERNAL_ERROR", message, requestId\)/);
+});
+
+test("edge upload preserves meaningful authorization and Drive failure codes", async () => {
+  const edge = await readFile(new URL("../../../supabase/functions/kgv-upload-document/index.ts", import.meta.url), "utf8");
+
+  assert.match(edge, /errorResponse\(403, "FORBIDDEN"/);
+  assert.match(edge, /errorResponse\(502, "GOOGLE_DRIVE_ERROR"/);
+  assert.match(edge, /errorResponse\(503, "GOOGLE_AUTH_ERROR"/);
+  assert.match(edge, /request_id: requestId/);
+});
