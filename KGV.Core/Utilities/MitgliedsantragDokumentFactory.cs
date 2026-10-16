@@ -9,7 +9,6 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.Annotations;
 using PdfSharpCore.Pdf.IO;
 
 namespace KGV.Core.Utilities
@@ -327,40 +326,6 @@ namespace KGV.Core.Utilities
             };
         }
 
-        private static void DrawFieldValues(PdfDocument document, IReadOnlyDictionary<string, string> map, IReadOnlyList<PdfTemplateFieldSpec> loadedFields)
-        {
-            if (document.Pages.Count == 0)
-                return;
-
-            var page = document.Pages[0];
-
-            var valueFont = new XFont("Arial", 7.0, XFontStyle.Regular);
-            var smallValueFont = new XFont("Arial", 6.4, XFontStyle.Regular);
-            var checkboxFont = new XFont("Arial", 7.0, XFontStyle.Bold);
-
-            using var graphics = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
-
-            foreach (var field in loadedFields.Select(ToInternalField))
-            {
-                if (field.Kind == PdfFormFieldKind.SignaturePlaceholder)
-                    continue;
-
-                if (!map.TryGetValue(field.Name, out var value))
-                    continue;
-
-                if (field.Kind == PdfFormFieldKind.Checkbox)
-                {
-                    DrawCheckbox(graphics, checkboxFont, field.Rect, IsTruthy(value));
-                    continue;
-                }
-
-                if (string.IsNullOrWhiteSpace(value))
-                    continue;
-
-                DrawTextValue(graphics, valueFont, smallValueFont, field, value);
-            }
-        }
-
         private static void DrawSecondPrivateSignerLabels(PdfDocument document, MitgliedsantragZweitePrivateParteiArt zweitePrivateParteiArt)
         {
             if (zweitePrivateParteiArt == MitgliedsantragZweitePrivateParteiArt.GesetzlicherVertreter || document.Pages.Count == 0)
@@ -401,146 +366,6 @@ namespace KGV.Core.Utilities
             if (actual.Length != expected.Length || actual.Where((x, i) => !string.Equals(x.Name, expected[i].Name, StringComparison.OrdinalIgnoreCase) || x.Page != 1 || Math.Abs(x.X - expected[i].X) > 0.01 || Math.Abs(x.Y - expected[i].Y) > 0.01 || Math.Abs(x.Width - expected[i].Width) > 0.01 || Math.Abs(x.Height - expected[i].Height) > 0.01).Any())
                 throw new InvalidOperationException("Die Feldspezifikation der zentralen Mitgliedsantrag-Vorlage ist nicht mit dem unterstützten Renderer kompatibel.");
         }
-
-        private static void DrawTextValue(XGraphics graphics, XFont normalFont, XFont smallFont, PdfFormFieldSpec field, string value)
-        {
-            var lines = SplitLines(value);
-            if (lines.Count == 0)
-                return;
-
-            var font = ShouldUseSmallFont(field.Name, value) ? smallFont : normalFont;
-
-            if (field.Kind == PdfFormFieldKind.MultilineText || lines.Count > 1)
-            {
-                DrawMultilineText(graphics, font, field.Rect, lines);
-                return;
-            }
-
-            DrawSingleLineText(graphics, font, field.Rect, lines[0]);
-        }
-
-        private static void DrawSingleLineText(XGraphics graphics, XFont font, XRect rect, string value)
-        {
-            const double horizontalPadding = 1.8d;
-            const double verticalOffset = -1.1d;
-
-            graphics.DrawString(
-                value,
-                font,
-                XBrushes.Black,
-                new XRect(
-                    rect.X + horizontalPadding,
-                    rect.Y + verticalOffset,
-                    Math.Max(0, rect.Width - horizontalPadding * 2),
-                    rect.Height + 2),
-                XStringFormats.TopLeft);
-        }
-
-        private static void DrawMultilineText(XGraphics graphics, XFont font, XRect rect, IReadOnlyList<string> lines)
-        {
-            const double horizontalPadding = 2.0d;
-            const double topPadding = 1.0d;
-
-            var lineHeight = font.GetHeight();
-            var y = rect.Y + topPadding;
-
-            foreach (var line in lines)
-            {
-                if (y + lineHeight > rect.Bottom + 1)
-                    break;
-
-                graphics.DrawString(
-                    line,
-                    font,
-                    XBrushes.Black,
-                    new XRect(
-                        rect.X + horizontalPadding,
-                        y,
-                        Math.Max(0, rect.Width - horizontalPadding * 2),
-                        lineHeight + 1),
-                    XStringFormats.TopLeft);
-
-                y += lineHeight;
-            }
-        }
-
-        private static void DrawCheckbox(XGraphics graphics, XFont font, XRect rect, bool isChecked)
-        {
-            var boxPen = new XPen(XColors.Black, 0.6);
-
-            // Rahmen immer zeichnen, weil die PDF-Formular-Annotation später entfernt wird.
-            graphics.DrawRectangle(boxPen, rect);
-
-            if (!isChecked)
-                return;
-
-            var text = "X";
-            var size = graphics.MeasureString(text, font);
-
-            var x = rect.X + (rect.Width - size.Width) / 2d;
-            var y = rect.Y + (rect.Height - size.Height) / 2d - 0.4d;
-
-            graphics.DrawString(
-                text,
-                font,
-                XBrushes.Black,
-                new XRect(x, y, size.Width + 1, size.Height + 1),
-                XStringFormats.TopLeft);
-        }
-
-        private static void RemoveFormAnnotations(PdfDocument document)
-        {
-            for (var pageIndex = 0; pageIndex < document.Pages.Count; pageIndex++)
-            {
-                var page = document.Pages[pageIndex];
-
-                if (page.Annotations == null)
-                    continue;
-
-                var annotationsToRemove = new List<PdfAnnotation>();
-
-                for (var i = 0; i < page.Annotations.Count; i++)
-                {
-                    var annotation = page.Annotations[i];
-                    if (annotation != null)
-                        annotationsToRemove.Add(annotation);
-                }
-
-                foreach (var annotation in annotationsToRemove)
-                {
-                    try
-                    {
-                        page.Annotations.Remove(annotation);
-                    }
-                    catch
-                    {
-                        // Ignore cleanup failures. Values are already drawn into the page content.
-                    }
-                }
-            }
-
-            try
-            {
-                document.Internals.Catalog.Elements.Remove("/AcroForm");
-            }
-            catch
-            {
-                // Ignore cleanup failures. Values are already drawn into the page content.
-            }
-        }
-
-        private static bool ShouldUseSmallFont(string fieldName, string value)
-            => fieldName.Equals("bank_iban", StringComparison.OrdinalIgnoreCase)
-               || fieldName.Equals("mitglied_email", StringComparison.OrdinalIgnoreCase) && value.Length > 30
-               || fieldName.Equals("vertreter_email", StringComparison.OrdinalIgnoreCase) && value.Length > 30
-               || value.Length > 34;
-
-        private static bool IsTruthy(string? value)
-            => string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value, "ja", StringComparison.OrdinalIgnoreCase);
 
         private static int CalculateBeitragsmonate(DateTime beginnDatum)
         {
@@ -623,15 +448,6 @@ namespace KGV.Core.Utilities
             return parts.Count == 0 ? "Mitgliedsantrag des Vereins" : string.Join(" · ", parts);
         }
 
-        private static List<string> SplitLines(string? text)
-            => (text ?? string.Empty)
-                .Replace("<br />", "\n", StringComparison.OrdinalIgnoreCase)
-                .Replace("<br>", "\n", StringComparison.OrdinalIgnoreCase)
-                .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None)
-                .Select(x => string.IsNullOrWhiteSpace(x) ? string.Empty : x.Trim())
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .ToList();
-
         private static string JoinParagraphs(IEnumerable<string?> parts)
             => string.Join("\n\n", parts
                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -652,9 +468,7 @@ namespace KGV.Core.Utilities
             double Y,
             double Width,
             double Height)
-        {
-            public XRect Rect => new(X, Y, Width, Height);
-        }
+        { }
 
         public static IReadOnlyList<Models.SignaturePlaceholder> GetSignaturePlaceholders()
         {
