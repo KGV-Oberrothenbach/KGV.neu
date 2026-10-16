@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Utilities;
 using KGV.Infrastructure.Supabase;
 using Microsoft.Extensions.Logging;
 
@@ -39,6 +40,7 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
         var record = await LoadActiveCatalogRecordAsync(templateKey.Trim(), cancellationToken);
 
         if (record == null) throw Fail("catalog-load", templateKey, "Keine aktive veröffentlichte Version ist hinterlegt.");
+        ValidateVersionedPaths(record, templateKey);
         if (!string.Equals(record.FieldSpecVersion, request.ExpectedFieldSpecVersion, StringComparison.Ordinal) || !string.Equals(record.RendererVersion, request.ExpectedRendererVersion, StringComparison.Ordinal))
             throw Fail("compatibility-check", templateKey, $"Die Vorlage '{templateKey}/{record.Version}' ist nicht mit der erwarteten Feldspec- oder Renderer-Version kompatibel.");
         if (!string.Equals(record.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase)) throw Fail("compatibility-check", templateKey, "Die veröffentlichte Vorlagendatei ist keine PDF.");
@@ -168,6 +170,12 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
         var exception = new InvalidOperationException($"PDF-Vorlage '{templateKey}' – Stage '{stage}': {message}", innerException);
         LogFailure(stage, templateKey, exception);
         return exception;
+    }
+
+    private void ValidateVersionedPaths(PdfTemplateCatalogRecord record, string requestedTemplateKey)
+    {
+        if (!PdfTemplateCatalogContract.HasVersionedPaths(record, requestedTemplateKey))
+            throw Fail("catalog-path", requestedTemplateKey, "Die Katalogpfade passen nicht zur veröffentlichten Template-Version.");
     }
 
     private static void VerifyChecksum(byte[] bytes, string checksum, string label)

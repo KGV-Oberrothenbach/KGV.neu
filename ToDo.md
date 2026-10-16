@@ -1,6 +1,6 @@
 # ToDo – KGV-Software
 
-Letzte Aktualisierung: 2026-10-17 (D10: Dokument-Pipeline-Regressionstests abgeschlossen; D7, D8 und D11–D12 bleiben offen)
+Letzte Aktualisierung: 2026-10-17 (D7: Template-Katalog-Vertrag abgeschlossen; D8 und D11–D12 bleiben offen)
 
 Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte, historische Abgleiche und frühere Zielbildtexte werden nicht fortgeführt.
 
@@ -97,7 +97,6 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 ## Technische Qualität und Release
 
-- [ ] D7: Template-Katalog- und Versionsregeln weiter vereinheitlichen.
 - [ ] D8: Technisches Template-Caching ergänzen.
 - [ ] D11: Publish-Helper für Vorlagen und Katalog bereitstellen.
 - [ ] D12: Verbleibende Legacy-Kompatibilität nach produktiver Abnahme bereinigen.
