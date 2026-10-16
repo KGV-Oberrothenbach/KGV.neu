@@ -11,3 +11,7 @@ Koordinaten sind PDF-Points mit Ursprung links oben; `x` wächst nach rechts, `y
 Specs ohne `schema_version` bleiben als Legacy lesbar. `text` mit `flags.multiline: true` wird zu `multiline` normalisiert. Unbekannte explizite Schema-Versionen werden abgelehnt. Layout- oder Geometrieänderungen veröffentlichter Templates erfordern weiterhin eine neue Dokumentversion.
 
 Die Field-Spec beschreibt nur Technik. Dokumentbezogene `requiredFields` gehören in den Descriptor; ob Nutzende einen Wert eingeben müssen, bleibt Fach-/UI-Validierung.
+
+## Renderer-Vorbereitung (D3a)
+
+`PdfTemplateRenderer` bündelt das technische Öffnen, Annotation-Entfernen und Zeichnen normalisierter `text`, `multiline` und `checkbox`-Felder. `signature` wird bewusst erkannt und übersprungen. Mitgliedsantrag und Pachtvertrag verwenden bis D3b weiter ihre bewährten spezifischen Renderpfade: Sie unterscheiden sich derzeit bei Schriftgrößen, Small-Text-Logik, Umbruch/Clipping und MA-spezifischen Beschriftungen. FieldMap bleibt dokumentfachlich, der Renderer kennt nur Feldname, Typ, Rechteck und Wert.

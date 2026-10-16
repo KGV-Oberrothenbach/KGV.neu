@@ -1,6 +1,6 @@
 # ToDo – KGV-Software
 
-Letzte Aktualisierung: 2026-10-16 (D2: gemeinsames Field-Spec-Schema dokumentiert)
+Letzte Aktualisierung: 2026-10-16 (D3a: gemeinsamer Renderer vorbereitet; D3b-Migration offen)
 
 Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte, historische Abgleiche und frühere Zielbildtexte werden nicht fortgeführt.
 
@@ -88,6 +88,8 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 - [ ] Allgemeine mobile UX anhand realer Auffälligkeiten glätten.
 
 ## Technische Qualität und Release
+
+- [ ] D3b: Mitgliedsantrag und Pachtvertrag nach abgesicherten Layout-Regressionstests auf `PdfTemplateRenderer` migrieren; Signatur-Engine bleibt separat.
 
 - [ ] Funktional relevante technische Restwarnungen nachziehen, insbesondere in `SupabaseService`, `HomeManagementPage`, `ImpressumPage` und WPF-Verwaltungs-ViewModels.
 - [ ] Google-Play-Test- und Release-Reife prüfen und fehlende Anforderungen ergänzen.
