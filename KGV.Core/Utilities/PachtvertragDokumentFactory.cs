@@ -126,7 +126,7 @@ namespace KGV.Core.Utilities
             CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(templateProvider);
-            var template = await templateProvider.GetActiveAsync("pachtvertrag", "pachtvertrag-field-spec/v2", "top-left/v1", cancellationToken);
+            var template = await templateProvider.GetActiveAsync(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v2", "top-left/v1"), cancellationToken);
             ValidateTemplate(template);
             return CreateUploadRequestCore(hauptmitglied, nebenmitglied, parzelle, saison, vertragsbeginn,
                 altvertragDatum, gesetzlicherVertreterSnapshot, bankverbindungSnapshot, status, paechter2Override, template);
@@ -356,7 +356,7 @@ namespace KGV.Core.Utilities
                     || field.Page != actual[index].Page
                     || field.X != actual[index].X || field.Y != actual[index].Y
                     || field.Width != actual[index].Width || field.Height != actual[index].Height).Any())
-                throw new InvalidOperationException("Die zentrale Pachtvertrag-Feldspezifikation entspricht nicht der unterstützten v1-Geometrie.");
+                throw new InvalidOperationException("Die zentrale Pachtvertrag-Feldspezifikation entspricht nicht der unterstützten v2-Geometrie.");
         }
 
         private static void DrawTextValue(XGraphics graphics, XFont normalFont, XFont smallFont, PdfFormFieldSpec field, string value)

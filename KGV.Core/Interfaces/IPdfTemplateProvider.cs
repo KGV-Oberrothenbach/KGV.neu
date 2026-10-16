@@ -6,5 +6,5 @@ namespace KGV.Core.Interfaces;
 
 public interface IPdfTemplateProvider
 {
-    Task<PdfTemplateAsset> GetActiveAsync(string templateKey, string expectedFieldSpecVersion, string expectedRendererVersion, CancellationToken cancellationToken = default);
+    Task<PdfTemplateAsset> GetActiveAsync(PdfTemplateRequest request, CancellationToken cancellationToken = default);
 }

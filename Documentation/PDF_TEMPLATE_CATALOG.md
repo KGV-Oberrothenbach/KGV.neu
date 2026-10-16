@@ -2,6 +2,12 @@
 
 Der Katalog `pdf_template_catalog` und der private Storage-Bucket `pdf-templates` trennen Vorlagen vollständig von fertigen Dokumenten im Google-Drive-/`dokument`-Pfad.
 
+## Einheitlicher technischer Ladeweg (D1)
+
+`IPdfTemplateProvider` beziehungsweise `SupabasePdfTemplateProvider` ist der einzige produktive .NET-Ladeweg für katalogbasierte PDF-Vorlagen. Er lädt die aktive veröffentlichte Katalogversion sowie die beiden privaten Storage-Objekte, prüft Content-Type und SHA-256-Prüfsummen und parst die grundlegende Field-Spec einschließlich des `topLeft`-Koordinatenursprungs. Die Edge-Function `kgv-generate-contract` verwendet für Mitgliedsantrag und Pachtvertrag denselben generischen `loadPublishedPdfTemplate`-Loader mit denselben Stages: `catalog-load`, `pdf-download`, `field-spec-download`, `checksum`, `field-spec-parse` und `compatibility-check`.
+
+Die dokumentbezogenen Descriptors bzw. Aufrufer bestimmen ausschließlich erwartete Field-Spec-/Renderer-Versionen und erforderliche Felder. Vollständige Feldgeometrie, Fachlogik, Signaturablauf und Rendering bleiben bewusst in den jeweiligen Dokumentfactories beziehungsweise Erzeugungspfaden. Eingebettete Vorlagen bleiben nur als expliziter lokaler Test-Kompatibilitätsfallback vorhanden; ein Produktionsfehler im Katalog löst keinen Fallback aus.
+
 ## Mitgliedsantrag v1 bereitstellen
 
 1. Die unveränderte PDF nach `templates/mitgliedsantrag/v1/template.pdf` und die zugehörige Feldspec nach `templates/mitgliedsantrag/v1/field-spec.json` in den privaten Bucket laden.

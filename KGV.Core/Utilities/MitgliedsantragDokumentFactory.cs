@@ -106,7 +106,7 @@ namespace KGV.Core.Utilities
             string? status, IPdfTemplateProvider templateProvider, CancellationToken cancellationToken = default)
         {
             if (templateProvider == null) throw new ArgumentNullException(nameof(templateProvider));
-            var template = await templateProvider.GetActiveAsync("mitgliedsantrag", "mitgliedsantrag-field-spec/v1", "pdfsharpcore-ma/v1", cancellationToken);
+            var template = await templateProvider.GetActiveAsync(new PdfTemplateRequest("mitgliedsantrag", "mitgliedsantrag-field-spec/v1", "pdfsharpcore-ma/v1"), cancellationToken);
             ValidateTemplate(template);
             return CreateUploadRequestCore(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreterSnapshot, zweitePrivateParteiArt, vereinskonfigurationSnapshot, status, template);
         }

@@ -32,15 +32,17 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
         _logger = logger;
     }
 
-    public async Task<PdfTemplateAsset> GetActiveAsync(string templateKey, string expectedFieldSpecVersion, string expectedRendererVersion, CancellationToken cancellationToken = default)
+    public async Task<PdfTemplateAsset> GetActiveAsync(PdfTemplateRequest request, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
+        var templateKey = request.TemplateKey;
         if (string.IsNullOrWhiteSpace(templateKey)) throw new InvalidOperationException("Der PDF-Vorlagenschlüssel fehlt.");
         var record = await LoadActiveCatalogRecordAsync(templateKey.Trim(), cancellationToken);
 
-        if (record == null) throw new InvalidOperationException($"Für die PDF-Vorlage '{templateKey}' ist keine aktive veröffentlichte Version hinterlegt.");
-        if (!string.Equals(record.FieldSpecVersion, expectedFieldSpecVersion, StringComparison.Ordinal) || !string.Equals(record.RendererVersion, expectedRendererVersion, StringComparison.Ordinal))
-            throw new InvalidOperationException($"Die Vorlage '{templateKey}/{record.Version}' ist nicht mit der erwarteten Feldspec- oder Renderer-Version kompatibel.");
-        if (!string.Equals(record.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Die veröffentlichte Vorlagendatei ist keine PDF.");
+        if (record == null) throw Fail("catalog-load", templateKey, "Keine aktive veröffentlichte Version ist hinterlegt.");
+        if (!string.Equals(record.FieldSpecVersion, request.ExpectedFieldSpecVersion, StringComparison.Ordinal) || !string.Equals(record.RendererVersion, request.ExpectedRendererVersion, StringComparison.Ordinal))
+            throw Fail("compatibility-check", templateKey, $"Die Vorlage '{templateKey}/{record.Version}' ist nicht mit der erwarteten Feldspec- oder Renderer-Version kompatibel.");
+        if (!string.Equals(record.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase)) throw Fail("compatibility-check", templateKey, "Die veröffentlichte Vorlagendatei ist keine PDF.");
         var pdf = await DownloadPrivateObjectAsync(record.StorageBucket, record.StoragePath, templateKey, "pdf-download", cancellationToken);
         var specBytes = await DownloadPrivateObjectAsync(record.StorageBucket, record.FieldSpecPath, templateKey, "field-spec-download", cancellationToken);
 
@@ -51,8 +53,7 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
         }
         catch (Exception ex)
         {
-            LogFailure("checksum", templateKey, ex);
-            throw;
+            throw Fail("checksum", templateKey, "Die Prüfsumme stimmt nicht mit dem Template-Katalog überein.", ex);
         }
 
         IReadOnlyList<PdfTemplateFieldSpec> fields;
@@ -62,11 +63,10 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
         }
         catch (Exception ex)
         {
-            LogFailure("field-spec-parse", templateKey, ex);
-            throw new InvalidOperationException($"Die Feldspezifikation für die PDF-Vorlage '{templateKey}' ist ungültig.", ex);
+            throw Fail("field-spec-parse", templateKey, "Die Feldspezifikation ist ungültig.", ex);
         }
 
-        if (fields.Count == 0) throw new InvalidOperationException("Die Feldspezifikation der PDF-Vorlage enthält keine Felder.");
+        if (fields.Count == 0) throw Fail("field-spec-parse", templateKey, "Die Feldspezifikation der PDF-Vorlage enthält keine Felder.");
         return new PdfTemplateAsset { TemplateKey = record.TemplateKey, Version = record.Version, FieldSpecVersion = record.FieldSpecVersion, RendererVersion = record.RendererVersion, PdfBytes = pdf, Fields = fields };
     }
 
@@ -75,9 +75,7 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
         var accessToken = await _authService.GetAccessTokenAsync();
         if (string.IsNullOrWhiteSpace(accessToken))
         {
-            var exception = new InvalidOperationException("Die aktuelle Anmeldung ist abgelaufen. Bitte erneut anmelden.");
-            LogFailure("catalog-load", templateKey, exception);
-            throw exception;
+            throw Fail("catalog-load", templateKey, "Die aktuelle Anmeldung ist abgelaufen. Bitte erneut anmelden.");
         }
 
         const string select = "template_key,version,storage_bucket,storage_path,content_type,checksum,field_spec_path,field_spec_checksum,field_spec_version,renderer_version,status,aktiv,created_at";
@@ -109,8 +107,7 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
         }
         catch (Exception ex)
         {
-            LogFailure("catalog-load", templateKey, ex);
-            throw new InvalidOperationException($"Der PDF-Template-Katalog für '{templateKey}' konnte nicht geladen werden: {ex.Message}", ex);
+            throw Fail("catalog-load", templateKey, "Der PDF-Template-Katalog konnte nicht geladen werden.", ex);
         }
     }
 
@@ -124,9 +121,7 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
         var accessToken = await _authService.GetAccessTokenAsync();
         if (string.IsNullOrWhiteSpace(accessToken))
         {
-            var exception = new InvalidOperationException("Die aktuelle Anmeldung ist abgelaufen. Bitte erneut anmelden.");
-            LogFailure(stage, templateKey, exception);
-            throw exception;
+            throw Fail(stage, templateKey, "Die aktuelle Anmeldung ist abgelaufen. Bitte erneut anmelden.");
         }
 
         var objectPath = string.Join("/", (storagePath ?? string.Empty)
@@ -157,8 +152,7 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
         }
         catch (Exception ex)
         {
-            LogFailure(stage, templateKey, ex);
-            throw new InvalidOperationException($"Die PDF-Vorlage '{templateKey}' konnte nicht geladen werden ({stage}).", ex);
+            throw Fail(stage, templateKey, "Die private Vorlagendatei konnte nicht geladen werden.", ex);
         }
     }
 
@@ -170,6 +164,13 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
             templateKey,
             exception.GetType().FullName);
 
+    private InvalidOperationException Fail(string stage, string templateKey, string message, Exception? innerException = null)
+    {
+        var exception = new InvalidOperationException($"PDF-Vorlage '{templateKey}' – Stage '{stage}': {message}", innerException);
+        LogFailure(stage, templateKey, exception);
+        return exception;
+    }
+
     private static void VerifyChecksum(byte[] bytes, string checksum, string label)
     {
         var actual = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
@@ -178,8 +179,15 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
 
     private static IReadOnlyList<PdfTemplateFieldSpec> ParseFieldSpec(byte[] bytes)
     {
-        using var doc = JsonDocument.Parse(bytes); var result = new List<PdfTemplateFieldSpec>();
-        foreach (var field in doc.RootElement.GetProperty("fields").EnumerateArray())
+        using var doc = JsonDocument.Parse(bytes);
+        if (!doc.RootElement.TryGetProperty("settings", out var settings)
+            || !settings.TryGetProperty("coordinateOrigin", out var coordinateOrigin)
+            || !string.Equals(coordinateOrigin.GetString(), "topLeft", StringComparison.Ordinal))
+            throw new InvalidOperationException("Die Feldspezifikation verwendet keinen unterstützten Koordinatenursprung.");
+        if (!doc.RootElement.TryGetProperty("fields", out var fields) || fields.ValueKind != JsonValueKind.Array)
+            throw new InvalidOperationException("Die Feldspezifikation enthält kein Feld-Array.");
+        var result = new List<PdfTemplateFieldSpec>();
+        foreach (var field in fields.EnumerateArray())
         {
             var rect = field.GetProperty("rect"); var type = field.GetProperty("type").GetString() ?? "text";
             var multiline = field.TryGetProperty("flags", out var flags) && flags.TryGetProperty("multiline", out var ml) && ml.ValueKind == JsonValueKind.True;

@@ -1,6 +1,6 @@
 # ToDo – KGV-Software
 
-Letzte Aktualisierung: 2026-10-14 23:02
+Letzte Aktualisierung: 2026-10-16
 
 Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte, historische Abgleiche und frühere Zielbildtexte werden nicht fortgeführt.
 
@@ -54,7 +54,6 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 ### Gemeinsamer Zugriff und Migration
 
-- [ ] Zentralen `PdfTemplateService` für Vorlagenschlüssel, aktive Version, privaten Storage-Download und verständliche Fehler vorsehen.
 - [ ] Keine fachlich verwendeten lokalen PDF-Dateinamen oder Ressourcenpfade im Anwendungscode belassen.
 - [ ] Bestehende Vorlagen vollständig erfassen, den Schlüsseln zuordnen und als Version 1 übernehmen.
 - [ ] Aktive `pdf_vorlage`-Datensätze anlegen und bestehende PDF-Erzeugungen auf den zentralen Service umstellen.
