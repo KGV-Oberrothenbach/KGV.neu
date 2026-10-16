@@ -26,3 +26,9 @@ test("membership application signatures follow the MAUI order and require every 
   assert.equal(canFinalizeMembershipApplication("preview", alone, { applicationMember: "a", board: "b", privacyMember: "c" }), false);
   assert.equal(canFinalizeMembershipApplication("signatures", alone, { applicationMember: "a", board: "b", privacyMember: "c" }), true);
 });
+
+test("the current signer receives a fresh signature pad while completed signatures remain in flow state", async () => {
+  const flow = await readFile(new URL("../../features/contracts/MembershipApplicationFlow.tsx", import.meta.url), "utf8");
+  assert.match(flow, /<SignaturePad key=\{currentSignatureStep\.key\}/);
+  assert.match(flow, /setSignatures\(\(current\) => \(\{ \.\.\.current, \[currentSignatureStep\.key\]: value \}\)\)/);
+});

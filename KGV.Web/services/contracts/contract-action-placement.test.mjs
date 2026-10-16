@@ -15,4 +15,5 @@ test("membership and lease actions are limited to their domain views", async () 
   assert.match(memberMasterData, /member && !member\.hauptmitglied_id && <>\s*<MembershipApplicationAction/);
   assert.match(memberParcelDetail, /selected\.isCurrent && assignment\.von_datum && <LeaseContractAction/);
   assert.match(leaseFlow, /!fixedParcel && <fieldset/);
+  assert.match(page, /<MemberSearch session=\{session\} selectedMemberId=\{selectedMemberId\} onSelect=\{\(memberId\) => \{ selectMember\(memberId\); setActiveId\("mitglied-stammdaten"\); \}\}/);
 });

@@ -101,7 +101,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved }: { sess
     {step === "signatures" && <section className="signature-grid">
       {currentSignatureStep ? <>
         <p className="detail-hint wide">Signatur {signatureIndex + 1} von {signatureSteps.length}: {currentSignatureStep.label}</p>
-        <SignaturePad label={currentSignatureStep.label} value={signatures[currentSignatureStep.key] ?? ""} onChange={(value) => setSignatures((current) => ({ ...current, [currentSignatureStep.key]: value }))} />
+        <SignaturePad key={currentSignatureStep.key} label={currentSignatureStep.label} value={signatures[currentSignatureStep.key] ?? ""} onChange={(value) => setSignatures((current) => ({ ...current, [currentSignatureStep.key]: value }))} />
         <div className="editor-actions"><button disabled={busy || !signatures[currentSignatureStep.key]} onClick={advanceSignature}>{signatureIndex + 1 === signatureSteps.length ? "Signatur übernehmen" : "Speichern und Weiter"}</button></div>
       </> : <>
         <p className="detail-hint wide">Alle {signatureSteps.length} erforderlichen Signaturen wurden erfasst.</p>

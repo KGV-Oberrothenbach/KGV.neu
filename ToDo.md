@@ -27,6 +27,7 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 - [ ] Nur funktional relevante WEB-Warnungen und Restfehler nachziehen; keine unnötigen Großumbauten.
 - [ ] Nach Auswahl eines Mitglieds den Bereich „Gärten“ im Web vollständig erreichbar halten.
 - [ ] Nach Auswahl eines Mitglieds in der Web-Mitgliedersuche direkt zu dessen Stammdatenansicht wechseln.
+- [ ] Im Web-MA-Signaturablauf die Zeichenfläche beim Wechsel zum nächsten Unterzeichner automatisch leeren, ohne bereits übernommene Signaturen zu verlieren.
 - [ ] Übersicht der Wartungsverträge im Web als anklickbare Tabelle mit Titel, möglicher und tatsächlich vergebener Anzahl darstellen.
 
 ## PDF-Vorlagen – zentral in Supabase Storage
