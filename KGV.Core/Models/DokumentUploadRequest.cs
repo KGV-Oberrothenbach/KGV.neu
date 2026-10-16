@@ -10,5 +10,6 @@ namespace KGV.Core.Models
         public string FileName { get; set; } = string.Empty;
         public string MimeType { get; set; } = "application/octet-stream";
         public byte[] FileContent { get; set; } = Array.Empty<byte>();
+        public IReadOnlyList<SignaturePlaceholder> SignaturePlaceholders { get; set; } = Array.Empty<SignaturePlaceholder>();
     }
 }

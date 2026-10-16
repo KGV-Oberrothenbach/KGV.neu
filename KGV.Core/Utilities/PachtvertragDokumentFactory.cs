@@ -190,7 +190,8 @@ namespace KGV.Core.Utilities
                 Titel = title,
                 FileName = fileName,
                 MimeType = "application/pdf",
-                FileContent = content
+                FileContent = content,
+                SignaturePlaceholders = GetSignaturePlaceholders(template.Fields)
             };
         }
 
@@ -353,5 +354,19 @@ namespace KGV.Core.Utilities
                 })
                 .ToArray();
         }
+
+        private static IReadOnlyList<Models.SignaturePlaceholder> GetSignaturePlaceholders(IReadOnlyList<PdfTemplateFieldSpec> fields)
+            => fields
+                .Where(field => string.Equals(field.Kind, "signature", StringComparison.OrdinalIgnoreCase))
+                .Select(field => new Models.SignaturePlaceholder
+                {
+                    Name = field.Name,
+                    Page = field.Page,
+                    X = field.X,
+                    Y = field.Y,
+                    Width = field.Width,
+                    Height = field.Height
+                })
+                .ToArray();
     }
 }

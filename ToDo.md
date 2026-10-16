@@ -1,6 +1,6 @@
 # ToDo – KGV-Software
 
-Letzte Aktualisierung: 2026-10-16 (D3: gemeinsame Renderer-Migration abgeschlossen; D4 bleibt offen)
+Letzte Aktualisierung: 2026-10-16 (D4: gemeinsame Signaturplatzierung abgeschlossen; D5 bleibt offen)
 
 Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte, historische Abgleiche und frühere Zielbildtexte werden nicht fortgeführt.
 
@@ -96,6 +96,7 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 ## Technische Qualität und Release
 
+- [ ] D5: Fachliche Signaturzuordnung aus den Service-/Dokumentflüssen weiter vom technischen Renderer trennen.
 - [ ] Mitgliedsantrag auf Android praktisch abnehmen; die unterbrochene Signaturlinie beim Nebenmitglied als spätere Layout-/Kosmetikkorrektur behandeln.
 
 - [ ] Funktional relevante technische Restwarnungen nachziehen, insbesondere in `SupabaseService`, `HomeManagementPage`, `ImpressumPage` und WPF-Verwaltungs-ViewModels.

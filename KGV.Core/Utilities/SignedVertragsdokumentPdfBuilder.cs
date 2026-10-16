@@ -57,21 +57,6 @@ namespace KGV.Core.Utilities
             if (tertiarySignatureCapture != null && !tertiarySignatureCapture.HasContent)
                 throw new InvalidOperationException("Die weitere digitale Signatur konnte nicht übernommen werden.");
 
-            // Pachtvertrag v2 reserves its signature areas on page 3.  It must
-            // never gain a fourth "digitale Signatur" page.
-            if (string.Equals(sourceDocument.FormularDokumentTypKey, FormularDokumentTyp.Pachtvertrag, StringComparison.OrdinalIgnoreCase))
-            {
-                var embeddedSignatures = new List<(SignaturePlaceholder placeholder, DigitalSignatureCapture capture)>
-                {
-                    (new SignaturePlaceholder { Name = "unterschrift_paechter", Page = 3, X = 42, Y = 516, Width = 190, Height = 35 }, signatureCapture)
-                };
-                if (secondarySignatureCapture != null)
-                    embeddedSignatures.Add((new SignaturePlaceholder { Name = "unterschrift_zweite_partei", Page = 3, X = 42, Y = 576, Width = 190, Height = 35 }, secondarySignatureCapture));
-                if (tertiarySignatureCapture != null)
-                    embeddedSignatures.Add((new SignaturePlaceholder { Name = "unterschrift_vorstand", Page = 3, X = 252, Y = 516, Width = 300, Height = 35 }, tertiarySignatureCapture));
-                return InsertSignaturesIntoPdf(originalPdfContent, embeddedSignatures);
-            }
-
             PdfSharpFontResolverInitializer.EnsureInitialized();
 
             using var inputStream = new MemoryStream(originalPdfContent, writable: false);
@@ -187,36 +172,6 @@ namespace KGV.Core.Utilities
         }
 
         public static byte[] InsertSignaturesIntoPdf(byte[] originalPdfContent, IReadOnlyList<(Models.SignaturePlaceholder placeholder, DigitalSignatureCapture capture)> signatures)
-        {
-            if ((originalPdfContent?.Length ?? 0) <= 0)
-                throw new InvalidOperationException("Die Dokumentfassung konnte nicht geladen werden.");
-
-            PdfSharpFontResolverInitializer.EnsureInitialized();
-
-            using var inputStream = new MemoryStream(originalPdfContent, writable: false);
-            using var document = PdfReader.Open(inputStream, PdfDocumentOpenMode.Modify);
-
-            foreach (var item in signatures)
-            {
-                var placeholder = item.placeholder;
-                var capture = item.capture;
-                if (capture == null || !capture.HasContent)
-                    continue;
-
-                var pageIndex = Math.Max(1, placeholder.Page) - 1;
-                if (pageIndex < 0 || pageIndex >= document.Pages.Count)
-                    continue;
-
-                var page = document.Pages[pageIndex];
-                using var gfx = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Prepend);
-                var targetRect = new XRect(placeholder.X, placeholder.Y, placeholder.Width, placeholder.Height);
-                var signaturePen = new XPen(XColor.FromArgb(33, 33, 33), 2.2);
-                DrawSignature(gfx, targetRect, capture, signaturePen);
-            }
-
-            using var output = new MemoryStream();
-            document.Save(output);
-            return output.ToArray();
-        }
+            => PdfSignatureRenderer.Render(originalPdfContent, signatures);
     }
 }
