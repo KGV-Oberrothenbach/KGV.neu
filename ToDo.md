@@ -1,6 +1,6 @@
 # ToDo – KGV-Software
 
-Letzte Aktualisierung: 2026-10-16
+Letzte Aktualisierung: 2026-10-16 (D2: gemeinsames Field-Spec-Schema dokumentiert)
 
 Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte, historische Abgleiche und frühere Zielbildtexte werden nicht fortgeführt.
 

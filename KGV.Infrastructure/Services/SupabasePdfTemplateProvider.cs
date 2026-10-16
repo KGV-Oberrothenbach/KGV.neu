@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -179,21 +178,7 @@ public sealed class SupabasePdfTemplateProvider : IPdfTemplateProvider
 
     private static IReadOnlyList<PdfTemplateFieldSpec> ParseFieldSpec(byte[] bytes)
     {
-        using var doc = JsonDocument.Parse(bytes);
-        if (!doc.RootElement.TryGetProperty("settings", out var settings)
-            || !settings.TryGetProperty("coordinateOrigin", out var coordinateOrigin)
-            || !string.Equals(coordinateOrigin.GetString(), "topLeft", StringComparison.Ordinal))
-            throw new InvalidOperationException("Die Feldspezifikation verwendet keinen unterstützten Koordinatenursprung.");
-        if (!doc.RootElement.TryGetProperty("fields", out var fields) || fields.ValueKind != JsonValueKind.Array)
-            throw new InvalidOperationException("Die Feldspezifikation enthält kein Feld-Array.");
-        var result = new List<PdfTemplateFieldSpec>();
-        foreach (var field in fields.EnumerateArray())
-        {
-            var rect = field.GetProperty("rect"); var type = field.GetProperty("type").GetString() ?? "text";
-            var multiline = field.TryGetProperty("flags", out var flags) && flags.TryGetProperty("multiline", out var ml) && ml.ValueKind == JsonValueKind.True;
-            result.Add(new PdfTemplateFieldSpec(field.GetProperty("name").GetString() ?? string.Empty, multiline ? "multiline" : type, field.TryGetProperty("page", out var page) ? page.GetInt32() : 1, rect.GetProperty("x").GetDouble(), rect.GetProperty("y").GetDouble(), rect.GetProperty("w").GetDouble(), rect.GetProperty("h").GetDouble()));
-        }
-        return result;
+        return PdfTemplateFieldSpecParser.Parse(bytes);
     }
 
     private sealed class PdfTemplateCatalogDto
