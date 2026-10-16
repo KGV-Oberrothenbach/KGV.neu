@@ -80,6 +80,7 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 - [ ] Offenen Altbestand `mitglied.role` fachlich weiter beobachten und über einen späteren physischen Rückbau entscheiden.
 - [ ] Wartungsverträge für Nebenmitglieder in WPF und MAUI einschließlich Pflichtstunden-Kontext vollständig prüfen.
 - [ ] Pachtvertrag in MAUI und Web mit Datumsauswahl fachlich beenden können.
+- [ ] WEB-Pachtvertrag im Parzellendetail entsprechend dem MAUI-Ablauf praktisch abnehmen: feste aktive Zuordnung, Vorschau, Einzelsignaturen und sichere Dokumentöffnung.
 - [ ] Bei Kündigung der Mitgliedschaft Datum und bestehenden Pachtvertrag prüfen; erforderliche zweijährige Nachsorge einschließlich Strom, Wasser und Verwaltungspauschale (50 % Jahresbeitrag) fachlich abbilden.
 
 ### Arbeitsstunden
