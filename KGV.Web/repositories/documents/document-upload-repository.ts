@@ -3,6 +3,29 @@ import type { ClubContext } from "../../models/auth/club";
 import { type BrowserSession } from "../../lib/supabase-auth";
 import type { Document, DocumentOwner } from "../../models/documents/document";
 
+type DocumentUploadResponse = {
+  document?: Document;
+  message?: string;
+  error_code?: string;
+  request_id?: string;
+};
+
+export class DocumentUploadError extends Error {
+  readonly status: number;
+  readonly errorCode: string | null;
+  readonly requestId: string | null;
+
+  constructor(status: number, response: DocumentUploadResponse | null) {
+    const message = response?.message?.trim() || `Dokument-Upload wurde mit HTTP ${status} abgelehnt.`;
+    const requestId = response?.request_id?.trim() || null;
+    super(requestId ? `${message} Support-ID: ${requestId}` : message);
+    this.name = "DocumentUploadError";
+    this.status = status;
+    this.errorCode = response?.error_code?.trim() || null;
+    this.requestId = requestId;
+  }
+}
+
 export async function uploadDocumentForOwnerRequest(club: ClubContext, session: BrowserSession, owner: DocumentOwner, file: File, title: string): Promise<Document> {
   const form = new FormData();
   form.set("file", file);
@@ -11,7 +34,8 @@ export async function uploadDocumentForOwnerRequest(club: ClubContext, session: 
   form.set("titel", title);
 
   const response = await invokeEdgeFunctionRaw({ club, session }, "kgv-upload-document", { method: "POST", body: form });
-  const payload = await response.json().catch(() => null) as { document?: Document; message?: string } | null;
-  if (!response.ok || !payload?.document) throw new Error(payload?.message ?? "Das Dokument konnte nicht hochgeladen werden.");
+  const payload = await response.json().catch(() => null) as DocumentUploadResponse | null;
+  if (!response.ok) throw new DocumentUploadError(response.status, payload);
+  if (!payload?.document) throw new DocumentUploadError(response.status, { ...payload, error_code: payload?.error_code ?? "UPLOAD_RESPONSE_INVALID", message: payload?.message ?? "Der Server lieferte keinen Dokumentdatensatz." });
   return payload.document;
 }
