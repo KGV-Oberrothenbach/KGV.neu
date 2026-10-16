@@ -3572,31 +3572,19 @@ namespace KGV.Infrastructure.Services
 
                 var previewUploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
                 var finalUploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Signiert, _pdfTemplateProvider);
-                var placeholders = previewUploadRequest.SignaturePlaceholders
-                    .ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
-                var signatures = new List<(SignaturePlaceholder placeholder, DigitalSignatureCapture capture)>();
-
-                AddSignature("unterschrift_antragsteller", antragSignatureCapture);
+                var signatures = new List<PdfSignatureCaptureAssignment>
+                {
+                    new("unterschrift_antragsteller", antragSignatureCapture)
+                };
                 if (context.ZweitePrivateParteiArt != MitgliedsantragZweitePrivateParteiArt.Keine)
                 {
-                    AddSignature("unterschrift_vertreter", zweitePrivateParteiAntragSignatureCapture!);
-                    AddSignature("datenschutz_unterschrift_vertreter", zweitePrivateParteiDatenschutzSignatureCapture!);
+                    signatures.Add(new PdfSignatureCaptureAssignment("unterschrift_vertreter", zweitePrivateParteiAntragSignatureCapture!));
+                    signatures.Add(new PdfSignatureCaptureAssignment("datenschutz_unterschrift_vertreter", zweitePrivateParteiDatenschutzSignatureCapture!));
                 }
-                AddSignature("unterschrift_verein", vereinSignatureCapture);
-                AddSignature("datenschutz_unterschrift_antragsteller", datenschutzSignatureCapture);
+                signatures.Add(new PdfSignatureCaptureAssignment("unterschrift_verein", vereinSignatureCapture));
+                signatures.Add(new PdfSignatureCaptureAssignment("datenschutz_unterschrift_antragsteller", datenschutzSignatureCapture));
 
-                finalUploadRequest.FileContent = PdfSignatureRenderer.Render(
-                    previewUploadRequest.FileContent,
-                    signatures);
-                return await CreateDokumentAsync(finalUploadRequest);
-
-                void AddSignature(string placeholderName, DigitalSignatureCapture capture)
-                {
-                    if (!placeholders.TryGetValue(placeholderName, out var placeholder))
-                        throw new InvalidOperationException($"Die Signaturfläche '{placeholderName}' fehlt in der Mitgliedsantragvorlage.");
-
-                    signatures.Add((placeholder, capture));
-                }
+                return await FinalizeAndStoreGeneratedDocumentAsync(previewUploadRequest, finalUploadRequest, signatures);
             },
             DokumentUploadResult.Fail("Mitgliedsantrag konnte aktuell nicht signiert gespeichert werden.", "UNEXPECTED"));
 
@@ -3981,24 +3969,15 @@ namespace KGV.Infrastructure.Services
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
                     FormularDokumentStatus.Signiert, _pdfTemplateProvider);
-                var placeholders = previewUploadRequest.SignaturePlaceholders
-                    .ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
-                var signatures = new List<(SignaturePlaceholder placeholder, DigitalSignatureCapture capture)>();
-                AddSignature("unterschrift_paechter", paechterSignatureCapture);
-                if (paechter2SignatureCapture != null)
-                    AddSignature("unterschrift_zweite_partei", paechter2SignatureCapture);
-                AddSignature("unterschrift_vorstand", vorstandSignatureCapture);
-
-                finalUploadRequest.FileContent = PdfSignatureRenderer.Render(previewUploadRequest.FileContent, signatures);
-                return await CreateDokumentAsync(finalUploadRequest);
-
-                void AddSignature(string placeholderName, DigitalSignatureCapture capture)
+                var signatures = new List<PdfSignatureCaptureAssignment>
                 {
-                    if (!placeholders.TryGetValue(placeholderName, out var placeholder))
-                        throw new InvalidOperationException($"Die Signaturfläche '{placeholderName}' fehlt in der Pachtvertragvorlage.");
+                    new("unterschrift_paechter", paechterSignatureCapture)
+                };
+                if (paechter2SignatureCapture != null)
+                    signatures.Add(new PdfSignatureCaptureAssignment("unterschrift_zweite_partei", paechter2SignatureCapture));
+                signatures.Add(new PdfSignatureCaptureAssignment("unterschrift_vorstand", vorstandSignatureCapture));
 
-                    signatures.Add((placeholder, capture));
-                }
+                return await FinalizeAndStoreGeneratedDocumentAsync(previewUploadRequest, finalUploadRequest, signatures);
             },
             DokumentUploadResult.Fail("Pachtvertrag konnte aktuell nicht signiert gespeichert werden.", "UNEXPECTED"));
 
@@ -4040,24 +4019,15 @@ namespace KGV.Infrastructure.Services
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
                     FormularDokumentStatus.Signiert, _pdfTemplateProvider);
-                var placeholders = previewUploadRequest.SignaturePlaceholders
-                    .ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
-                var signatures = new List<(SignaturePlaceholder placeholder, DigitalSignatureCapture capture)>();
-                AddSignature("unterschrift_paechter", paechterSignatureCapture);
-                if (zweiteParteiSignatureCapture != null)
-                    AddSignature("unterschrift_zweite_partei", zweiteParteiSignatureCapture);
-                AddSignature("unterschrift_vorstand", vorstandSignatureCapture);
-
-                finalUploadRequest.FileContent = PdfSignatureRenderer.Render(previewUploadRequest.FileContent, signatures);
-                return await CreateDokumentAsync(finalUploadRequest);
-
-                void AddSignature(string placeholderName, DigitalSignatureCapture capture)
+                var signatures = new List<PdfSignatureCaptureAssignment>
                 {
-                    if (!placeholders.TryGetValue(placeholderName, out var placeholder))
-                        throw new InvalidOperationException($"Die Signaturfläche '{placeholderName}' fehlt in der Pachtvertragvorlage.");
+                    new("unterschrift_paechter", paechterSignatureCapture)
+                };
+                if (zweiteParteiSignatureCapture != null)
+                    signatures.Add(new PdfSignatureCaptureAssignment("unterschrift_zweite_partei", zweiteParteiSignatureCapture));
+                signatures.Add(new PdfSignatureCaptureAssignment("unterschrift_vorstand", vorstandSignatureCapture));
 
-                    signatures.Add((placeholder, capture));
-                }
+                return await FinalizeAndStoreGeneratedDocumentAsync(previewUploadRequest, finalUploadRequest, signatures);
             },
             DokumentUploadResult.Fail("Pachtvertrag konnte aktuell nicht signiert gespeichert werden.", "UNEXPECTED"));
 
@@ -4256,6 +4226,15 @@ namespace KGV.Infrastructure.Services
                 _logger?.LogError(ex, "CreateSignedVertragsdokumentAsync failed for MitgliedId={MitgliedId}, SourceDocumentId={DokumentId}", mitgliedId, sourceDocument.Id);
                 return DokumentUploadResult.Fail("Digital signierte Vertragsfassung konnte aktuell nicht erzeugt werden.", "UNEXPECTED");
             }
+        }
+
+        private async Task<DokumentUploadResult> FinalizeAndStoreGeneratedDocumentAsync(
+            DokumentUploadRequest preview,
+            DokumentUploadRequest final,
+            IReadOnlyList<PdfSignatureCaptureAssignment> signatures)
+        {
+            var signedRequest = DocumentGenerationPipeline.ApplySignatures(preview, final, signatures);
+            return await CreateDokumentAsync(signedRequest);
         }
 
         public async Task<DokumentUploadResult> CreateDokumentAsync(DokumentUploadRequest request)

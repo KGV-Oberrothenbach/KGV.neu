@@ -1,6 +1,6 @@
 # ToDo – KGV-Software
 
-Letzte Aktualisierung: 2026-10-17 (D5: Fachlogik und Renderer getrennt; D6 bleibt offen)
+Letzte Aktualisierung: 2026-10-17 (D6: gemeinsame Dokumentfinalisierung abgeschlossen; D7–D12 bleiben offen)
 
 Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte, historische Abgleiche und frühere Zielbildtexte werden nicht fortgeführt.
 
@@ -96,7 +96,12 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 ## Technische Qualität und Release
 
-- [ ] D6: Einheitliche Dokument-Pipeline für Erzeugung, Signierung und Ablage planen und umsetzen.
+- [ ] D7: Template-Katalog- und Versionsregeln weiter vereinheitlichen.
+- [ ] D8: Technisches Template-Caching ergänzen.
+- [ ] D9: Pipeline-Diagnostik und Logging gezielt ausbauen.
+- [ ] D10: Erzeugungs-, Signatur- und Uploadpipeline systematisch testen.
+- [ ] D11: Publish-Helper für Vorlagen und Katalog bereitstellen.
+- [ ] D12: Verbleibende Legacy-Kompatibilität nach produktiver Abnahme bereinigen.
 - [ ] Mitgliedsantrag auf Android praktisch abnehmen; die unterbrochene Signaturlinie beim Nebenmitglied als spätere Layout-/Kosmetikkorrektur behandeln.
 
 - [ ] Funktional relevante technische Restwarnungen nachziehen, insbesondere in `SupabaseService`, `HomeManagementPage`, `ImpressumPage` und WPF-Verwaltungs-ViewModels.
