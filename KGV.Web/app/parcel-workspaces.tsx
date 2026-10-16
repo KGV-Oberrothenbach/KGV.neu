@@ -39,8 +39,20 @@ async function loadParcelData(club: ClubContext, session: BrowserSession) {
   return { ...overview, meters, readings };
 }
 
-async function loadMemberGardenData(club: ClubContext, session: BrowserSession, memberId: number) {
-  return Promise.all([listAssignableParcels(club, session), listMemberParcels(club, session, memberId)]);
+async function loadMemberGardenData(club: ClubContext, session: BrowserSession, memberId: number, includeAssignableParcels: boolean) {
+  const [assignableResult, memberParcelsResult] = await Promise.allSettled([
+    includeAssignableParcels ? listAssignableParcels(club, session) : Promise.resolve([]),
+    listMemberParcels(club, session, memberId),
+  ]);
+  if (assignableResult.status === "rejected") {
+    console.error("Member gardens: assignable parcels could not be loaded.", assignableResult.reason);
+    throw new Error("Freie Parzellen konnten nicht geladen werden.");
+  }
+  if (memberParcelsResult.status === "rejected") {
+    console.error("Member gardens: member parcel assignments could not be loaded.", memberParcelsResult.reason);
+    throw new Error("Parzellenzuordnungen des Mitglieds konnten nicht geladen werden.");
+  }
+  return [assignableResult.value, memberParcelsResult.value] as const;
 }
 
 async function loadParcelProtocolData(club: ClubContext, session: BrowserSession, memberId: number) {
@@ -106,10 +118,10 @@ const localAssignmentDate = () => { const date = new Date(); return `${date.getF
 export function MemberGardensWorkspace({ session, memberId, selectedParcelId, onSelect, canAssign, canCreateLeaseContract }: { session: BrowserSession; memberId: number; selectedParcelId: number | null; onSelect: (id: number) => void; canAssign: boolean; canCreateLeaseContract: boolean }) {
   const club = useSelectedClub();
   const [assignableParcels, setAssignableParcels] = useState<Awaited<ReturnType<typeof listAssignableParcels>>>([]); const [memberParcels, setMemberParcels] = useState<Awaited<ReturnType<typeof listMemberParcels>>>([]); const [showHistory, setShowHistory] = useState(true); const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null); const [readingHistory, setReadingHistory] = useState<{ assignmentId: number; entries: ParcelReadingHistoryEntry<MeterReading>[]; loading: boolean; message: string | null } | null>(null); const [freeParcelId, setFreeParcelId] = useState(""); const [start, setStart] = useState(localAssignmentDate()); const [message, setMessage] = useState(""); const [saving, setSaving] = useState(false);
-  const load = async () => { try { const [nextAssignableParcels, nextMemberParcels] = await loadMemberGardenData(club, session, memberId); setAssignableParcels(nextAssignableParcels); setMemberParcels(nextMemberParcels); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Gärten konnten nicht geladen werden."); } };
+  const load = async () => { try { const [nextAssignableParcels, nextMemberParcels] = await loadMemberGardenData(club, session, memberId, canAssign); setAssignableParcels(nextAssignableParcels); setMemberParcels(nextMemberParcels); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Gärten konnten nicht geladen werden."); } };
   useEffect(() => {
     let active = true;
-    loadMemberGardenData(club, session, memberId).then(([nextAssignableParcels, nextMemberParcels]) => {
+    loadMemberGardenData(club, session, memberId, canAssign).then(([nextAssignableParcels, nextMemberParcels]) => {
       if (!active) return;
       setAssignableParcels(nextAssignableParcels);
       setMemberParcels(nextMemberParcels);
@@ -117,7 +129,7 @@ export function MemberGardensWorkspace({ session, memberId, selectedParcelId, on
       if (active) setMessage(cause instanceof Error ? cause.message : "Gärten konnten nicht geladen werden.");
     });
     return () => { active = false; };
-  }, [club, session, memberId]);
+  }, [club, session, memberId, canAssign]);
   const visibleMemberParcels = memberParcels.filter((item) => showHistory || item.isCurrent); const selectedByAssignment = visibleMemberParcels.find((item) => item.assignment.id === selectedAssignmentId); const selected = selectedByAssignment?.assignment.parzelle_id === selectedParcelId ? selectedByAssignment : visibleMemberParcels.find((item) => item.assignment.parzelle_id === selectedParcelId) ?? visibleMemberParcels[0] ?? null;
   useEffect(() => { if ((!selectedParcelId || !visibleMemberParcels.some((item) => item.assignment.parzelle_id === selectedParcelId)) && selected) onSelect(selected.assignment.parzelle_id); }, [selectedParcelId, selected, visibleMemberParcels, onSelect]);
   function selectAssignment(assignmentId: number) { const item = visibleMemberParcels.find((candidate) => candidate.assignment.id === assignmentId); if (!item) return; setSelectedAssignmentId(assignmentId); onSelect(item.assignment.parzelle_id); }

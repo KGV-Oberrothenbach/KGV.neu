@@ -1,6 +1,6 @@
 # ToDo – KGV-Software
 
-Letzte Aktualisierung: 2026-10-17 (D11: Lokaler Template-Publish-Helper abgeschlossen; D12 bleibt offen)
+Letzte Aktualisierung: 2026-10-17 (Web: Mitgliedsgärten-Laden stabilisiert; D12 bleibt offen)
 
 Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte, historische Abgleiche und frühere Zielbildtexte werden nicht fortgeführt.
 
@@ -25,7 +25,6 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 - [ ] Kleine sichtbare UI-Fehler (Beschriftungen, Abstände, Darstellung und ähnliche Auffälligkeiten) gesammelt aufnehmen und priorisiert bereinigen.
 - [ ] Nur funktional relevante WEB-Warnungen und Restfehler nachziehen; keine unnötigen Großumbauten.
-- [ ] Nach Auswahl eines Mitglieds den Bereich „Gärten“ im Web vollständig erreichbar halten.
 - [ ] Nach Auswahl eines Mitglieds in der Web-Mitgliedersuche direkt zu dessen Stammdatenansicht wechseln.
 - [ ] Im Web-MA-Signaturablauf die Zeichenfläche beim Wechsel zum nächsten Unterzeichner automatisch leeren, ohne bereits übernommene Signaturen zu verlieren.
 - [ ] Übersicht der Wartungsverträge im Web als anklickbare Tabelle mit Titel, möglicher und tatsächlich vergebener Anzahl darstellen.
