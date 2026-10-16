@@ -1,0 +1,28 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+import ts from "typescript";
+
+async function loadFlowService() {
+  const source = await readFile(new URL("./membership-application-flow-service.ts", import.meta.url), "utf8");
+  const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } });
+  return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
+}
+
+test("membership application signatures follow the MAUI order and require every signature", async () => {
+  const { buildMembershipApplicationSignatureSteps, canFinalizeMembershipApplication, canStartMembershipApplicationSignatures, hasCompletedMembershipApplicationSignatures } = await loadFlowService();
+  const alone = buildMembershipApplicationSignatureSteps({ isMinor: false, includeSecondaryMember: false });
+  const withSecondary = buildMembershipApplicationSignatureSteps({ isMinor: false, includeSecondaryMember: true });
+  const minor = buildMembershipApplicationSignatureSteps({ isMinor: true, includeSecondaryMember: false });
+
+  assert.deepEqual(alone.map((step) => step.key), ["applicationMember", "board", "privacyMember"]);
+  assert.deepEqual(withSecondary.map((step) => step.key), ["applicationMember", "applicationSecondParty", "board", "privacyMember", "privacySecondParty"]);
+  assert.deepEqual(minor.map((step) => step.key), withSecondary.map((step) => step.key));
+  assert.match(minor[1].label, /gesetzliche\/r Vertreter\/in/);
+  assert.equal(hasCompletedMembershipApplicationSignatures(alone, { applicationMember: "a", board: "b" }), false);
+  assert.equal(hasCompletedMembershipApplicationSignatures(alone, { applicationMember: "a", board: "b", privacyMember: "c" }), true);
+  assert.equal(canStartMembershipApplicationSignatures("edit"), false);
+  assert.equal(canStartMembershipApplicationSignatures("preview"), true);
+  assert.equal(canFinalizeMembershipApplication("preview", alone, { applicationMember: "a", board: "b", privacyMember: "c" }), false);
+  assert.equal(canFinalizeMembershipApplication("signatures", alone, { applicationMember: "a", board: "b", privacyMember: "c" }), true);
+});

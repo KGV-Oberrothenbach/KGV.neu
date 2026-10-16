@@ -26,8 +26,8 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 - [ ] Kleine sichtbare UI-Fehler (Beschriftungen, Abstände, Darstellung und ähnliche Auffälligkeiten) gesammelt aufnehmen und priorisiert bereinigen.
 - [ ] Nur funktional relevante WEB-Warnungen und Restfehler nachziehen; keine unnötigen Großumbauten.
 - [ ] Nach Auswahl eines Mitglieds den Bereich „Gärten“ im Web vollständig erreichbar halten.
+- [ ] Nach Auswahl eines Mitglieds in der Web-Mitgliedersuche direkt zu dessen Stammdatenansicht wechseln.
 - [ ] Übersicht der Wartungsverträge im Web als anklickbare Tabelle mit Titel, möglicher und tatsächlich vergebener Anzahl darstellen.
-- [ ] Mitgliedsantrag in den Mitglied-Stammdaten erstellen; Pachtvertrag ausschließlich an der konkret zugeteilten Parzelle erstellen. Die Dokumentübersicht bleibt Archiv- und Verwaltungsansicht, nicht primärer Erstellungseinstieg.
 
 ## PDF-Vorlagen – zentral in Supabase Storage
 
