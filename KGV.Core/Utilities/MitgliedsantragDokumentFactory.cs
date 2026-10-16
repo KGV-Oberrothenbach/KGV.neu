@@ -371,9 +371,13 @@ namespace KGV.Core.Utilities
             var font = new XFont("Arial", 7.0, XFontStyle.Regular);
 
             // The template shares these physical slots between guardian and secondary member.
-            // Only its role-specific captions are replaced; geometry remains unchanged.
+            // Only its role-specific captions are replaced. Repaint the signature
+            // rules after the white caption masks so the mask cannot cut them off.
             graphics.DrawRectangle(XBrushes.White, 209.0, 607.0, 176.0, 12.0);
             graphics.DrawRectangle(XBrushes.White, 307.682, 782.0, 260.0, 12.0);
+            var signatureLinePen = new XPen(XColors.Black, 0.6);
+            graphics.DrawLine(signatureLinePen, 209.0, 604.0, 385.0, 604.0);
+            graphics.DrawLine(signatureLinePen, 307.682, 781.0, 567.682, 781.0);
             if (!string.IsNullOrEmpty(label))
                 graphics.DrawString(label, font, XBrushes.Black, new XRect(209.0, 609.0, 176.0, 9.0), XStringFormats.TopCenter);
             if (!string.IsNullOrEmpty(datenschutzLabel))
