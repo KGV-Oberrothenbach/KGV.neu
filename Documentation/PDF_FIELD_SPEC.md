@@ -21,3 +21,5 @@ Die Field-Spec beschreibt nur Technik. Dokumentbezogene `requiredFields` gehöre
 `PdfTemplateRenderOptions` bildet die tatsächlich vorhandenen technischen Unterschiede ab: Schriftgrößen, Small-Font-Regel, Single-Line-Offset, Text- und Multiline-Padding sowie Checkbox-Glyphenposition. Die Profile `Mitgliedsantrag` und `Pachtvertrag` reproduzieren die bisherigen Fontgrößen und Regeln; sie liegen außerhalb des Renderers, der keine Dokumentschlüssel kennt. Beide Factories bleiben bis D3b1/D3b2 unverändert auf dem Referenzpfad.
 
 Der bestätigte Migrationsplan lautet: (1) Renderer/Profile testen, (2) MA migrieren, (3) MA manuell abnehmen, (4) PV-Anlagen als Text-`X` explizit kompatibel behandeln, (5) PV migrieren. Der aktuelle PV-Anlagenpfad darf nicht versehentlich zu einer gerahmten Checkbox werden.
+
+Der Mitgliedsantrag verwendet seit D3 Schritt 2 `PdfTemplateRenderer` mit `PdfTemplateRenderProfiles.Mitgliedsantrag`; die dokumentbezogene Beschriftung der zweiten privaten Partei bleibt als Nachzeichnung in der Factory. Die manuelle MA-Abnahme und die PV-Migration stehen weiterhin aus.

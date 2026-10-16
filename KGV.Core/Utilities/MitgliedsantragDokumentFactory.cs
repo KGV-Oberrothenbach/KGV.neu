@@ -267,13 +267,10 @@ namespace KGV.Core.Utilities
             if (pdfBytes == null || pdfBytes.Length == 0)
                 throw new InvalidOperationException("Die Mitgliedsantrag-PDF-Vorlage ist leer oder konnte nicht geladen werden.");
 
-            using var input = new MemoryStream(pdfBytes);
+            var renderedPdf = PdfTemplateRenderer.Render(pdfBytes, loadedFields, BuildFieldMap(data), PdfTemplateRenderProfiles.Mitgliedsantrag);
+            using var input = new MemoryStream(renderedPdf);
             using var document = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
-
-            var map = BuildFieldMap(data);
-            DrawFieldValues(document, map, loadedFields);
             DrawSecondPrivateSignerLabels(document, zweitePrivateParteiArt);
-            RemoveFormAnnotations(document);
 
             using var output = new MemoryStream();
             document.Save(output);

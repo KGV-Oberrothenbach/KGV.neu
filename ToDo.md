@@ -89,7 +89,7 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 ## Technische Qualität und Release
 
-- [ ] D3b: Mitgliedsantrag und Pachtvertrag nach abgesicherten Layout-Regressionstests auf `PdfTemplateRenderer` migrieren; Signatur-Engine bleibt separat.
+- [ ] D3: Mitgliedsantrag manuell auf Android abnehmen sowie PV-Anlagen-Text-`X` kompatibel entscheiden und anschließend Pachtvertrag auf `PdfTemplateRenderer` migrieren; Signatur-Engine bleibt separat.
 
 - [ ] Funktional relevante technische Restwarnungen nachziehen, insbesondere in `SupabaseService`, `HomeManagementPage`, `ImpressumPage` und WPF-Verwaltungs-ViewModels.
 - [ ] Google-Play-Test- und Release-Reife prüfen und fehlende Anforderungen ergänzen.
