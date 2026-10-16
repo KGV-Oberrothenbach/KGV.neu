@@ -15,3 +15,7 @@ Die Field-Spec beschreibt nur Technik. Dokumentbezogene `requiredFields` gehöre
 ## Renderer-Vorbereitung (D3a)
 
 `PdfTemplateRenderer` bündelt das technische Öffnen, Annotation-Entfernen und Zeichnen normalisierter `text`, `multiline` und `checkbox`-Felder. `signature` wird bewusst erkannt und übersprungen. Mitgliedsantrag und Pachtvertrag verwenden bis D3b weiter ihre bewährten spezifischen Renderpfade: Sie unterscheiden sich derzeit bei Schriftgrößen, Small-Text-Logik, Umbruch/Clipping und MA-spezifischen Beschriftungen. FieldMap bleibt dokumentfachlich, der Renderer kennt nur Feldname, Typ, Rechteck und Wert.
+
+## D3a2: Renderprofile
+
+`PdfTemplateRenderOptions` bildet die tatsächlich vorhandenen technischen Unterschiede ab: Schriftgrößen, Small-Font-Regel, Single-Line-Offset, Text- und Multiline-Padding sowie Checkbox-Glyphenposition. Die Profile `Mitgliedsantrag` und `Pachtvertrag` reproduzieren die bisherigen Fontgrößen und Regeln; sie liegen außerhalb des Renderers, der keine Dokumentschlüssel kennt. Beide Factories bleiben bis D3b1/D3b2 unverändert auf dem Referenzpfad.
