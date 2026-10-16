@@ -1,6 +1,6 @@
 # ToDo – KGV-Software
 
-Letzte Aktualisierung: 2026-10-17 (Web: Mitgliedsgärten-Laden stabilisiert; D12 bleibt offen)
+Letzte Aktualisierung: 2026-10-17 (Web: Mitgliedsgärten-Renderzustand abgesichert; D12 bleibt offen)
 
 Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte, historische Abgleiche und frühere Zielbildtexte werden nicht fortgeführt.
 
