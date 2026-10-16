@@ -7,7 +7,6 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AppUserContext, BrowserSession } from "../lib/supabase-auth";
-import { generateContract } from "../services/contracts/contract-generation-service";
 import { inviteAppUser, sendPasswordReset } from "../services/users/app-user-service";
 import { type ClubContext } from "../models/auth/club";
 import { memberDocumentOwner } from "../models/documents/document";
@@ -40,9 +39,6 @@ import { MemberSearch } from "../features/members/MemberSearch";
 import { MemberStammdaten } from "../features/members/MemberStammdaten";
 import { type Member } from "../models/members/member";
 import { loadMemberWorkspaceInfo } from "../services/members/member-service";
-import { SignaturePad } from "../components/signature/SignaturePad";
-import { MembershipApplicationFlow } from "../features/contracts/MembershipApplicationFlow";
-import { LeaseContractFlow } from "../features/contracts/LeaseContractFlow";
 import { loadMeterOverview, loadMeterReferenceData, meterDueStatusLabel } from "../services/meters/meter-service";
 import { createMeterInstallationForRfid, installationContextFromResolution, type MeterInstallationContext } from "../services/meters/meter-installation-service";
 import { completeMeterRemoval } from "../services/meters/meter-removal-service";
@@ -120,7 +116,6 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [activeId, setActiveId] = useState("start");
   const [pendingPhotoCount, setPendingPhotoCount] = useState(0);
-  const [leaseContractIntent, setLeaseContractIntent] = useState<{ parcelId: number; startDate: string } | null>(null);
   const [seasonError, setSeasonError] = useState("");
   const { workspaceContext, selectedMember, creatingMember, setSelectedMember, setCreatingMember, updateWorkspaceContext, selectMember, selectParcel, selectSeason: selectWorkspaceSeason } = useWorkspaceContext();
   const permissions = useMemo(() => getEffectivePermissions(context.role, context.permissionGrants, context.permissionRevocations), [context]);
@@ -133,7 +128,6 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
     canSeeOwnDataOnly: has(Permission.seeOwnData),
     canArchiveDocuments: canArchiveDocuments(capabilityContext),
   };
-  useEffect(() => { if (activeId === "mitglied-dokumente" && leaseContractIntent) queueMicrotask(() => setLeaseContractIntent(null)); }, [activeId, leaseContractIntent]);
   const canReadStammdaten = has(Permission.showStammdaten) || has(Permission.readStammdaten) || has(Permission.writeStammdaten);
   const ownContext = context.mitgliedId !== null && has(Permission.seeOwnData);
   const selectedMemberId = workspaceContext.mitgliedId ?? (ownContext ? context.mitgliedId : null);
@@ -251,11 +245,11 @@ function WorkspaceContent({ session, email, club, context, onLogout, onChangeClu
           {effectiveActiveId === "verein" && <ClubConfiguration key={club.vereinId} session={session} canManage={canManageClubConfiguration(capabilityContext)} />}
           {effectiveActiveId === "mitglied-arbeitsstunden" && selectedMemberId && <MemberWorkHours key={`${club.vereinId}:${session.user.id}:${selectedMemberId}:${workspaceContext.saisonId ?? "none"}`} session={session} memberId={selectedMemberId} saisonId={workspaceContext.saisonId} canEditOwn={selectedMemberId === context.mitgliedId} canManageWorkHours={has(Permission.manageWorkHours)} />}
           {effectiveActiveId === "mitglied-wartung" && selectedMemberId && <MaintenanceContracts session={session} memberId={selectedMemberId} canManage={has(Permission.editAllMembers)} />}
-          {effectiveActiveId === "mitglied-dokumente" && selectedMemberId && <DocumentList session={session} owner={memberDocumentOwner(selectedMemberId)} accessContext={documentAccessContext} beforeList={(reload) => has(Permission.manageDocuments) ? <ContractComposer key={`${club.vereinId}:${selectedMemberId}`} session={session} memberId={selectedMemberId} onSaved={reload} leaseContractIntent={leaseContractIntent} /> : null} />}
+          {effectiveActiveId === "mitglied-dokumente" && selectedMemberId && <DocumentList session={session} owner={memberDocumentOwner(selectedMemberId)} accessContext={documentAccessContext} />}
           {effectiveActiveId === "mitglied-admin" && selectedMemberId && <UserRightsAdministration key={`${club.vereinId}:${session.user.id}:${selectedMemberId}`} session={session} fixedMemberId={selectedMemberId} />}
-          {effectiveActiveId === "mitglied-gaerten" && selectedMemberId && <MemberGardensWorkspace key={`${club.vereinId}:${selectedMemberId}`} session={session} memberId={selectedMemberId} selectedParcelId={selectedParcelId} onSelect={selectParcel} canAssign={has(Permission.createMember)} onOpenDocuments={() => setActiveId("mitglied-dokumente")} onOpenLeaseContract={(intent) => { if (!has(Permission.manageDocuments)) return false; setLeaseContractIntent(intent); setActiveId("mitglied-dokumente"); return true; }} />}
+          {effectiveActiveId === "mitglied-gaerten" && selectedMemberId && <MemberGardensWorkspace key={`${club.vereinId}:${selectedMemberId}`} session={session} memberId={selectedMemberId} selectedParcelId={selectedParcelId} onSelect={selectParcel} canAssign={has(Permission.createMember)} canCreateLeaseContract={has(Permission.manageDocuments)} />}
           {effectiveActiveId === "mitglied-protokolle" && selectedMemberId && <ParcelProtocolsWorkspace session={session} memberId={selectedMemberId} currentBoardMemberId={context.mitgliedId} />}
-          {effectiveActiveId === "mitglied-stammdaten" && (selectedMemberId || creatingMember) && <MemberStammdaten session={session} memberId={creatingMember ? null : selectedMemberId} canEdit={creatingMember || has(Permission.editAllMembers) || (selectedMemberId === context.mitgliedId && has(Permission.seeOwnData))} canCreate={creatingMember} canManageSecondary={has(Permission.editAllMembers)} editPermissions={{ actorMemberId: context.mitgliedId, canEditOwnMember: has(Permission.seeOwnData), canEditAllMembers: has(Permission.editAllMembers) }} createPermissions={{ canCreateMember: has(Permission.createMember) }} onSaved={(member) => { setSelectedMember({ id: member.id, vorname: member.vorname, name: member.name }); selectMember(member.id); setActiveId("mitglied-stammdaten"); }} onCancel={() => { setCreatingMember(false); setActiveId("mitglieder"); }} />}
+          {effectiveActiveId === "mitglied-stammdaten" && (selectedMemberId || creatingMember) && <MemberStammdaten session={session} memberId={creatingMember ? null : selectedMemberId} canEdit={creatingMember || has(Permission.editAllMembers) || (selectedMemberId === context.mitgliedId && has(Permission.seeOwnData))} canCreate={creatingMember} canManageSecondary={has(Permission.editAllMembers)} canManageDocuments={has(Permission.manageDocuments)} editPermissions={{ actorMemberId: context.mitgliedId, canEditOwnMember: has(Permission.seeOwnData), canEditAllMembers: has(Permission.editAllMembers) }} createPermissions={{ canCreateMember: has(Permission.createMember) }} onSaved={(member) => { setSelectedMember({ id: member.id, vorname: member.vorname, name: member.name }); selectMember(member.id); setActiveId("mitglied-stammdaten"); }} onCancel={() => { setCreatingMember(false); setActiveId("mitglieder"); }} />}
         </article>
       </section>
     </main>
@@ -485,20 +479,6 @@ function GlobalMaintenanceContracts({ session, canManage }: { session: BrowserSe
   const overview = buildMaintenanceContractOverview(contracts, assignments, today);
   if (editing && draft) return <MaintenanceContractEditor draft={draft} existing={Boolean(editingId)} saving={saving} message={message} onSave={(nextDraft) => { setDraft(nextDraft); void saveContractWithDraft(nextDraft); }} onCancel={() => { setEditing(false); setEditingId(null); setDraft(null); }} />;
   return <MaintenanceContractOverview items={overview} selectedId={selectedId} onSelect={setSelectedId} assignments={classifyMaintenanceAssignments(selectedAssignments, today)} memberLabel={memberName} memberContextLabel={memberContext} gardenLabel={gardenNumbers} formatDate={formatDate} endDateForAssignment={(id) => endDates[id] || today} onEndDateChange={(id, value) => setEndDates({ ...endDates, [id]: value })} canManage={canManage} onEdit={startEdit} onEnd={endAssignment} onCreate={startNew} message={message} assignmentPanel={canManage && selected?.active ? assigningMembers ? <AssignMembersToContract session={session} contract={selected} onCancel={() => setAssigningMembers(false)} onSaved={async (count) => { setAssigningMembers(false); await load(); setMessage(`${count} ${count === 1 ? "Mitglied wurde" : "Mitglieder wurden"} zugeordnet.`); }} /> : <div className="maintenance-assignment-form"><button onClick={() => setAssigningMembers(true)}>Mitglieder zuweisen</button></div> : undefined} />;
-}
-
-function ContractComposer({ session, memberId, onSaved, leaseContractIntent }: { session: BrowserSession; memberId: number; onSaved: () => Promise<void>; leaseContractIntent?: { parcelId: number; startDate: string } | null }) {
-  const club = useSelectedClub();
-  const [type, setType] = useState<"mitgliedsantrag" | "mitgliedsvertrag" | "pachtvertrag">(leaseContractIntent ? "pachtvertrag" : "mitgliedsantrag");
-  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
-  const [memberSignature, setMemberSignature] = useState(""); const [secondarySignature, setSecondarySignature] = useState(""); const [boardSignature, setBoardSignature] = useState("");
-  const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false);
-  function request(action: "preview" | "finalize") { return { action, type: "mitgliedsvertrag" as const, member_id: memberId, start_date: startDate, signature_member: memberSignature || undefined, signature_secondary: secondarySignature || undefined, signature_board: boardSignature || undefined }; }
-  async function preview() { setBusy(true); setMessage(""); try { const result = await generateContract(club, session, request("preview")); if (result.previewUrl) window.open(result.previewUrl, "_blank", "noopener,noreferrer"); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Vorschau konnte nicht erstellt werden."); } finally { setBusy(false); } }
-  async function finalize() { if (!memberSignature || !boardSignature) { setMessage("Die Unterschriften des Mitglieds und des Vereins sind erforderlich."); return; } setBusy(true); setMessage(""); try { const result = await generateContract(club, session, request("finalize")); setMessage(result.message ?? "Das signierte Dokument wurde gespeichert."); setMemberSignature(""); setSecondarySignature(""); setBoardSignature(""); await onSaved(); } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Vertrag konnte nicht gespeichert werden."); } finally { setBusy(false); } }
-  if (type === "mitgliedsantrag") return <MembershipApplicationFlow session={session} memberId={memberId} onSaved={onSaved} onChangeDocumentType={setType} />;
-  if (type === "pachtvertrag") return <LeaseContractFlow session={session} memberId={memberId} onSaved={onSaved} onChangeDocumentType={setType} initialParcelId={leaseContractIntent?.parcelId} initialStartDate={leaseContractIntent?.startDate} />;
-  return <details className="contract-composer"><summary>Vertragsdokument erstellen und unterschreiben</summary>{message && <p className="notice" role="status">{message}</p>}<fieldset disabled={busy}><label>Dokumenttyp<select value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="mitgliedsantrag">Mitgliedsantrag</option><option value="mitgliedsvertrag">Mitgliedsvertrag</option><option value="pachtvertrag">Pachtvertrag</option></select></label><label>Beginn<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label></fieldset><div className="signature-grid"><SignaturePad label="Unterschrift Mitglied" value={memberSignature} onChange={setMemberSignature} /><SignaturePad label="Gesetzlicher Vertreter (optional)" value={secondarySignature} onChange={setSecondarySignature} /><SignaturePad label="Unterschrift Verein" value={boardSignature} onChange={setBoardSignature} /></div><div className="editor-actions"><button type="button" className="secondary-action" disabled={busy} onClick={preview}>PDF-Vorschau</button><button type="button" disabled={busy} onClick={finalize}>{busy ? "Verarbeitet …" : "Signiert sicher ablegen"}</button></div></details>;
 }
 
 type PermissionLevel = "none" | "read" | "write";

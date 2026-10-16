@@ -7,6 +7,8 @@ import { listMembershipApplicationDocuments, type MembershipApplicationDocument 
 import { type BrowserSession } from "../../lib/supabase-auth";
 import { type Member } from "../../models/members/member";
 import { determineFormDocumentStatus } from "./form-document-status";
+import { getFormDocumentStatus, type FormDocumentStatus } from "./form-document-status";
+import { resolveDocumentOpenUrl } from "../documents/document-open-service";
 
 export type MembershipApplicationStatus = "none" | "unsigned" | "signed";
 
@@ -47,6 +49,23 @@ export function determineMembershipApplicationStatus(documents: MembershipApplic
   return determineFormDocumentStatus(documents, "mitgliedsantrag");
 }
 
+export type MembershipApplicationDocumentState = { status: FormDocumentStatus; existingDocument: MembershipApplicationDocument | null };
+
+export function resolveMembershipApplicationDocument(documents: MembershipApplicationDocument[]) {
+  return documents.find((document) => getFormDocumentStatus(document, "mitgliedsantrag") === "signiert")
+    ?? documents.find((document) => getFormDocumentStatus(document, "mitgliedsantrag") === "unsigniert")
+    ?? null;
+}
+
+export async function loadMembershipApplicationDocumentState(club: ClubContext, session: BrowserSession, memberId: number): Promise<MembershipApplicationDocumentState> {
+  const documents = await listMembershipApplicationDocuments(club, session, memberId);
+  return { status: determineMembershipApplicationStatus(documents), existingDocument: resolveMembershipApplicationDocument(documents) };
+}
+
+export function openMembershipApplicationDocument(club: ClubContext, session: BrowserSession, document: MembershipApplicationDocument) {
+  return resolveDocumentOpenUrl(club, session, document);
+}
+
 export async function loadMembershipApplicationStatus(club: ClubContext, session: BrowserSession, memberId: number): Promise<MembershipApplicationStatus> {
   return determineMembershipApplicationStatus(await listMembershipApplicationDocuments(club, session, memberId));
 }
@@ -54,6 +73,7 @@ export async function loadMembershipApplicationStatus(club: ClubContext, session
 export async function loadMembershipApplicationData(club: ClubContext, session: BrowserSession, memberId: number, today = new Date()): Promise<MembershipApplicationData> {
   const [member, seasons, documents] = await Promise.all([getMember(club, session, memberId), getSeasons(club, session), listMembershipApplicationDocuments(club, session, memberId)]);
   if (!member) throw new Error("Mitglied konnte nicht geladen werden.");
+  if (member.hauptmitglied_id !== null) throw new Error("Für Nebenmitglieder kann kein eigener Mitgliedsantrag erstellt werden.");
   const secondaryMember = member.hauptmitglied_id === null
     ? await getSecondaryMemberByMainMemberId(club, session, memberId)
     : null;

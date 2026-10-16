@@ -11,8 +11,6 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 - Keine erledigten Punkte in dieser Liste führen; bei Abschluss entfernen oder in die zugehörige Dokumentation bzw. Release-Notiz übernehmen.
 - Punkte unter „manuell eingetragene Punkte“ fachlich eindeutig einem passenden Themenbereich zuordnen und anschließend den Sammelbereich nur für nicht eindeutig zuordenbare Punkte verwenden.
 
-## manuell eingetragene Punkte
-
 ## WEB App
 
 ### Kopfbereich und Markenauftritt
@@ -27,6 +25,9 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 - [ ] Kleine sichtbare UI-Fehler (Beschriftungen, Abstände, Darstellung und ähnliche Auffälligkeiten) gesammelt aufnehmen und priorisiert bereinigen.
 - [ ] Nur funktional relevante WEB-Warnungen und Restfehler nachziehen; keine unnötigen Großumbauten.
+- [ ] Nach Auswahl eines Mitglieds den Bereich „Gärten“ im Web vollständig erreichbar halten.
+- [ ] Übersicht der Wartungsverträge im Web als anklickbare Tabelle mit Titel, möglicher und tatsächlich vergebener Anzahl darstellen.
+- [ ] Mitgliedsantrag in den Mitglied-Stammdaten erstellen; Pachtvertrag ausschließlich an der konkret zugeteilten Parzelle erstellen. Die Dokumentübersicht bleibt Archiv- und Verwaltungsansicht, nicht primärer Erstellungseinstieg.
 
 ## PDF-Vorlagen – zentral in Supabase Storage
 
@@ -76,6 +77,8 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 - [ ] Mitglieds-/Parzellenalltag testen: Navigation, Dokumente, Strom-/Wasser-Historie sowie Haupt-/Nebenmitgliedswechsel.
 - [ ] Offenen Altbestand `mitglied.role` fachlich weiter beobachten und über einen späteren physischen Rückbau entscheiden.
 - [ ] Wartungsverträge für Nebenmitglieder in WPF und MAUI einschließlich Pflichtstunden-Kontext vollständig prüfen.
+- [ ] Pachtvertrag in MAUI und Web mit Datumsauswahl fachlich beenden können.
+- [ ] Bei Kündigung der Mitgliedschaft Datum und bestehenden Pachtvertrag prüfen; erforderliche zweijährige Nachsorge einschließlich Strom, Wasser und Verwaltungspauschale (50 % Jahresbeitrag) fachlich abbilden.
 
 ### Arbeitsstunden
 
