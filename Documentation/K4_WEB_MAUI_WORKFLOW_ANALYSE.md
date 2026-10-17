@@ -17,6 +17,10 @@ Das vorherige Workload-Problem wurde mit `dotnet workload restore` behoben
 Build ist erfolgreich. K4b ist vollständig validiert. K4 insgesamt bleibt offen;
 K4c ist der nächste Teil.
 
+## K4c-Status
+
+MAUI kann Mitgliedsanträge als Prepared-Vorgänge erstellen sowie vorhandene Vorgänge claimen, wiederaufnehmen und revisionssicher speichern. Die Vorschau stammt zentral aus `kgv-generate-contract`; Vorschau-PDFs und Signaturen werden nicht im Draft gespeichert. K4c endet bei `vorbereitet`; Signaturstart und Finalize folgen in K4e.
+
 ## 1. Ist-Zustand WEB
 
 K3 verwendet `kommunikationsvorgang` als serverseitigen Source of Truth. Der strukturierte Draft ist `kgv-prepared-contract/v1`:

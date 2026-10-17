@@ -12,7 +12,8 @@ internal enum MitgliedsantragPreviewDecision
 {
     Cancel,
     BackToEditor,
-    ContinueToSignature
+    ContinueToSignature,
+    SavePrepared
 }
 
 public sealed class MitgliedsantragPreviewPage : ContentPage
@@ -24,7 +25,7 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
     private readonly bool _persistForSignature;
     private bool _previewOpenedOnce;
 
-    public MitgliedsantragPreviewPage(DokumentUploadRequest previewUploadRequest, bool persistForSignature = true)
+    public MitgliedsantragPreviewPage(DokumentUploadRequest previewUploadRequest, bool persistForSignature = true, string? preparedActionLabel = null)
     {
         _previewUploadRequest = previewUploadRequest ?? throw new ArgumentNullException(nameof(previewUploadRequest));
         if ((_previewUploadRequest.FileContent?.Length ?? 0) <= 0)
@@ -47,6 +48,8 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
 
         var continueButton = new Button { Text = "Weiter zur Unterschrift", IsVisible = persistForSignature };
         continueButton.Clicked += async (_, _) => await CloseAsync(MitgliedsantragPreviewDecision.ContinueToSignature);
+        var savePreparedButton = new Button { Text = preparedActionLabel ?? string.Empty, IsVisible = !persistForSignature && !string.IsNullOrWhiteSpace(preparedActionLabel) };
+        savePreparedButton.Clicked += async (_, _) => await CloseAsync(MitgliedsantragPreviewDecision.SavePrepared);
 
         Content = new ScrollView
         {
@@ -93,7 +96,8 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
                         {
                             backButton,
                             cancelButton,
-                            continueButton
+                            continueButton,
+                            savePreparedButton
                         }
                     }
                 }
@@ -141,6 +145,8 @@ public sealed class MitgliedsantragPreviewPage : ContentPage
     private async Task CloseAsync(MitgliedsantragPreviewDecision decision)
     {
         if (!_persistForSignature && decision == MitgliedsantragPreviewDecision.ContinueToSignature)
+            decision = MitgliedsantragPreviewDecision.Cancel;
+        if (_persistForSignature && decision == MitgliedsantragPreviewDecision.SavePrepared)
             decision = MitgliedsantragPreviewDecision.Cancel;
         TryDeleteTempFile();
         // Do not delete the legacy persistent copy; it is kept for signing.

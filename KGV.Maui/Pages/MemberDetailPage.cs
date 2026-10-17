@@ -21,6 +21,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly IAuthService _authService;
     private readonly PreparedMembershipApplicationResumeService _preparedMembershipApplicationResumeService;
     private readonly IContractGenerationClient _contractGenerationClient;
+    private readonly IPreparedContractRepository _preparedContractRepository;
     private readonly MemberSearchRefreshState _memberSearchRefreshState;
     private readonly UserContextState _userContextState;
     private readonly MemberContextState _memberContextState;
@@ -71,6 +72,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         IAuthService authService,
         PreparedMembershipApplicationResumeService preparedMembershipApplicationResumeService,
         IContractGenerationClient contractGenerationClient,
+        IPreparedContractRepository preparedContractRepository,
         MemberSearchRefreshState memberSearchRefreshState,
         UserContextState userContextState,
         MemberContextState memberContextState)
@@ -79,6 +81,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _authService = authService;
         _preparedMembershipApplicationResumeService = preparedMembershipApplicationResumeService;
         _contractGenerationClient = contractGenerationClient;
+        _preparedContractRepository = preparedContractRepository;
         _memberSearchRefreshState = memberSearchRefreshState;
         _userContextState = userContextState;
         _memberContextState = memberContextState;
@@ -675,7 +678,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             switch (resumeResult.Decision)
             {
                 case PreparedMembershipApplicationResumeDecision.New:
-                    break;
+                    await ResumePreparedMitgliedsantragAsync(mitgliedId, null);
+                    return;
                 case PreparedMembershipApplicationResumeDecision.ResumeOwn:
                 case PreparedMembershipApplicationResumeDecision.ResumeClaimed:
                     await ResumePreparedMitgliedsantragAsync(mitgliedId, resumeResult.Contract);
@@ -697,106 +701,6 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     return;
             }
 
-            MitgliedsantragDokumentRequest? initialRequest = null;
-            while (true)
-            {
-                var request = await PromptMitgliedsantragRequestAsync(mitgliedId, initialRequest);
-                if (request == null)
-                    return;
-
-                var previewUploadRequest = await _supabaseService.BuildMitgliedsantragPreviewAsync(request);
-                if (previewUploadRequest == null || (previewUploadRequest.FileContent?.Length ?? 0) <= 0)
-                {
-                    await DisplayAlertAsync("Mitgliedsantrag", "Mitgliedsantrag-Vorschau konnte nicht erzeugt werden.", "OK");
-                    return;
-                }
-
-                var previewDecision = await ShowMitgliedsantragPreviewAsync(previewUploadRequest);
-                if (previewDecision == MitgliedsantragPreviewDecision.BackToEditor)
-                {
-                    initialRequest = request;
-                    continue;
-                }
-
-                if (previewDecision != MitgliedsantragPreviewDecision.ContinueToSignature)
-                    return;
-
-                var zweitePrivateParteiErforderlich = request.IstMinderjaehrig || request.NebenmitgliedEinbeziehen;
-                var antragSignatureCapture = await CaptureMitgliedsantragSignatureAsync(previewUploadRequest, "Unterschrift Antragsteller/in – Mitgliedsantrag", isLastSignature: false);
-                if (antragSignatureCapture == null)
-                    return;
-
-                DigitalSignatureCapture? zweitePrivateParteiAntragSignatureCapture = null;
-                DigitalSignatureCapture? zweitePrivateParteiDatenschutzSignatureCapture = null;
-                if (zweitePrivateParteiErforderlich)
-                {
-                    var zweitePrivateParteiTitel = request.IstMinderjaehrig
-                        ? "Unterschrift gesetzliche/r Vertreter/in – Mitgliedsantrag"
-                        : "Unterschrift Nebenmitglied – Mitgliedsantrag";
-                    zweitePrivateParteiAntragSignatureCapture = await CaptureMitgliedsantragSignatureAsync(
-                        previewUploadRequest,
-                        zweitePrivateParteiTitel,
-                        isLastSignature: false);
-                    if (zweitePrivateParteiAntragSignatureCapture == null)
-                        return;
-                }
-
-                var vereinSignatureCapture = await CaptureMitgliedsantragSignatureAsync(previewUploadRequest, "Unterschrift Für den Verein", isLastSignature: false);
-                if (vereinSignatureCapture == null)
-                    return;
-
-                var datenschutzSignatureCapture = await CaptureMitgliedsantragSignatureAsync(
-                    previewUploadRequest,
-                    "Unterschrift Antragsteller/in – Datenschutzerklärung",
-                    isLastSignature: !zweitePrivateParteiErforderlich);
-                if (datenschutzSignatureCapture == null)
-                    return;
-
-                if (zweitePrivateParteiErforderlich)
-                {
-                    var zweitePrivateParteiDatenschutzTitel = request.IstMinderjaehrig
-                        ? "Unterschrift gesetzliche/r Vertreter/in – Datenschutzerklärung"
-                        : "Unterschrift Nebenmitglied – Datenschutzerklärung";
-                    zweitePrivateParteiDatenschutzSignatureCapture = await CaptureMitgliedsantragSignatureAsync(
-                        previewUploadRequest,
-                        zweitePrivateParteiDatenschutzTitel);
-                    if (zweitePrivateParteiDatenschutzSignatureCapture == null)
-                        return;
-                }
-
-                var result = await _supabaseService.CreateSignedMitgliedsantragDokumentAsync(
-                    request,
-                    antragSignatureCapture,
-                    datenschutzSignatureCapture,
-                    vereinSignatureCapture,
-                    zweitePrivateParteiAntragSignatureCapture,
-                    zweitePrivateParteiDatenschutzSignatureCapture);
-                if (!result.Success)
-                {
-                    await DisplayAlertAsync("Mitgliedsantrag", result.Message, "OK");
-                    return;
-                }
-
-                _hasSignedMitgliedsantrag = true;
-                UpdateFormActions(_memberContextState.SelectedMember);
-
-                var document = result.Document;
-                if (document?.CanOpen != true)
-                {
-                    await DisplayAlertAsync("Mitgliedsantrag", "Mitgliedsantrag wurde nach der Unterschrift als Dokument abgelegt.", "OK");
-                    return;
-                }
-
-                var content = await _supabaseService.DownloadDokumentContentAsync(document);
-                if (content is not { Length: > 0 })
-                {
-                    await DisplayAlertAsync("Mitgliedsantrag", "Mitgliedsantrag wurde gespeichert, konnte aber nicht direkt geöffnet werden.", "OK");
-                    return;
-                }
-
-                await Navigation.PushAsync(new PdfViewerPage(document.Title ?? document.Dateiname, content));
-                return;
-            }
         }
         catch (Exception ex)
         {
@@ -863,30 +767,32 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         return request;
     }
 
-    private async Task<MitgliedsantragPreviewDecision> ShowMitgliedsantragPreviewAsync(DokumentUploadRequest previewUploadRequest, bool persistForSignature = true)
+    private async Task<MitgliedsantragPreviewDecision> ShowMitgliedsantragPreviewAsync(DokumentUploadRequest previewUploadRequest, bool persistForSignature = true, string? preparedActionLabel = null)
     {
-        var previewPage = new MitgliedsantragPreviewPage(previewUploadRequest, persistForSignature);
+        var previewPage = new MitgliedsantragPreviewPage(previewUploadRequest, persistForSignature, preparedActionLabel);
         await Navigation.PushModalAsync(new NavigationPage(previewPage));
         return await previewPage.WaitForResultAsync();
     }
 
     private async Task ResumePreparedMitgliedsantragAsync(int mitgliedId, KommunikationsvorgangDto? contract)
     {
-        if (contract is null) throw new PreparedContractValidationException("Der vorbereitete Mitgliedsantrag konnte nicht geladen werden.");
-        if (PreparedContractDraftParser.Parse(contract.EntwurfDaten) is not PreparedMembershipApplicationDraft draft || draft.MemberId != mitgliedId)
-            throw new PreparedContractValidationException("Der vorbereitete Mitgliedsantrag passt nicht zum geöffneten Mitglied.");
-        if (!DateTime.TryParseExact(draft.StartDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
-            throw new PreparedContractValidationException("Das gespeicherte Startdatum des Mitgliedsantrags ist ungültig.");
-
-        var resolution = await _supabaseService.ResolveGesetzlicherVertreterAsync(mitgliedId, DateTime.ParseExact(draft.StartDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
-        var original = PreparedMembershipApplicationMapper.ToDocumentRequest(draft, resolution.IstMinderjaehrig);
-        MitgliedsantragDokumentRequest? initial = original;
+        GesetzlicherVertreterAufloesung? resolution = null;
+        MitgliedsantragDokumentRequest? initial = null;
+        if (contract is not null)
+        {
+            if (PreparedContractDraftParser.Parse(contract.EntwurfDaten) is not PreparedMembershipApplicationDraft draft || draft.MemberId != mitgliedId)
+                throw new PreparedContractValidationException("Der vorbereitete Mitgliedsantrag passt nicht zum geöffneten Mitglied.");
+            if (!DateTime.TryParseExact(draft.StartDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var startDate))
+                throw new PreparedContractValidationException("Das gespeicherte Startdatum des Mitgliedsantrags ist ungültig.");
+            resolution = await _supabaseService.ResolveGesetzlicherVertreterAsync(mitgliedId, startDate);
+            initial = PreparedMembershipApplicationMapper.ToDocumentRequest(draft, resolution.IstMinderjaehrig);
+        }
         while (true)
         {
-            var request = await PromptMitgliedsantragRequestAsync(mitgliedId, initial, current =>
+            var request = await PromptMitgliedsantragRequestAsync(mitgliedId, initial, contract is null ? null : current =>
             {
                 if (current is null) return true;
-                try { return !PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, PreparedContractDraftParser.Serialize(PreparedMembershipApplicationMapper.ToPreparedDraft(current, resolution.IstMinderjaehrig))); }
+                try { return !PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, PreparedContractDraftParser.Serialize(PreparedMembershipApplicationMapper.ToPreparedDraft(current, resolution!.IstMinderjaehrig))); }
                 catch (PreparedContractValidationException) { return true; }
             });
             if (request is null)
@@ -895,9 +801,26 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             var saison = saisons.FirstOrDefault(x => SaisonverwaltungHelper.GetSaisonJahr(x) == request.BeginnDatum.Year);
             if (saison?.Aufnahmegebuehr is not >= 0) throw new InvalidOperationException($"Für die Saison {request.BeginnDatum.Year} fehlt eine gültige Aufnahmegebühr.");
             var pdf = await _contractGenerationClient.PreviewMembershipApplicationAsync(request, decimal.Round(saison.Aufnahmegebuehr.Value, 2, MidpointRounding.AwayFromZero));
-            var decision = await ShowMitgliedsantragPreviewAsync(new DokumentUploadRequest { MitgliedId = mitgliedId, Titel = "Mitgliedsantrag – Vorschau", FileName = "Mitgliedsantrag_Vorschau.pdf", MimeType = "application/pdf", FileContent = pdf }, persistForSignature: false);
+            var decision = await ShowMitgliedsantragPreviewAsync(new DokumentUploadRequest { MitgliedId = mitgliedId, Titel = "Mitgliedsantrag – Vorschau", FileName = "Mitgliedsantrag_Vorschau.pdf", MimeType = "application/pdf", FileContent = pdf }, persistForSignature: false, preparedActionLabel: contract is null ? "Zur Signatur vorbereiten" : "Änderungen speichern");
             if (decision == MitgliedsantragPreviewDecision.BackToEditor) { initial = request; continue; }
-            if (!PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, PreparedContractDraftParser.Serialize(PreparedMembershipApplicationMapper.ToPreparedDraft(request, resolution.IstMinderjaehrig))))
+            if (decision == MitgliedsantragPreviewDecision.SavePrepared)
+            {
+                var serialized = PreparedContractDraftParser.Serialize(PreparedMembershipApplicationMapper.ToPreparedDraft(request, resolution?.IstMinderjaehrig ?? request.IstMinderjaehrig));
+                if (contract is null)
+                {
+                    await _preparedContractRepository.CreateAsync(PreparedContractConstants.MembershipApplication, mitgliedId, null, serialized);
+                    await DisplayAlertAsync("Mitgliedsantrag", "Der Mitgliedsantrag wurde zur Signatur vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert.", "OK");
+                }
+                else if (PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, serialized))
+                    await DisplayAlertAsync("Mitgliedsantrag", "Änderungen sind bereits gespeichert.", "OK");
+                else
+                {
+                    await _preparedContractRepository.UpdateDraftAsync(contract.Id, contract.Revision, serialized);
+                    await DisplayAlertAsync("Mitgliedsantrag", "Änderungen wurden gespeichert.", "OK");
+                }
+                return;
+            }
+            if (contract is not null && !PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, PreparedContractDraftParser.Serialize(PreparedMembershipApplicationMapper.ToPreparedDraft(request, resolution!.IstMinderjaehrig))))
                 await DisplayAlertAsync("Ungespeicherte Änderungen", "Ihre Änderungen am vorbereiteten Mitgliedsantrag wurden nicht gespeichert.", "OK");
             return;
         }
