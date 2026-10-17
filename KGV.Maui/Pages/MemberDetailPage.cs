@@ -20,6 +20,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     private readonly ISupabaseService _supabaseService;
     private readonly IAuthService _authService;
     private readonly PreparedMembershipApplicationResumeService _preparedMembershipApplicationResumeService;
+    private readonly IContractGenerationClient _contractGenerationClient;
     private readonly MemberSearchRefreshState _memberSearchRefreshState;
     private readonly UserContextState _userContextState;
     private readonly MemberContextState _memberContextState;
@@ -69,6 +70,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         ISupabaseService supabaseService,
         IAuthService authService,
         PreparedMembershipApplicationResumeService preparedMembershipApplicationResumeService,
+        IContractGenerationClient contractGenerationClient,
         MemberSearchRefreshState memberSearchRefreshState,
         UserContextState userContextState,
         MemberContextState memberContextState)
@@ -76,6 +78,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         _supabaseService = supabaseService;
         _authService = authService;
         _preparedMembershipApplicationResumeService = preparedMembershipApplicationResumeService;
+        _contractGenerationClient = contractGenerationClient;
         _memberSearchRefreshState = memberSearchRefreshState;
         _userContextState = userContextState;
         _memberContextState = memberContextState;
@@ -674,10 +677,8 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                 case PreparedMembershipApplicationResumeDecision.New:
                     break;
                 case PreparedMembershipApplicationResumeDecision.ResumeOwn:
-                    await DisplayAlertAsync("Mitgliedsantrag", "Für dieses Mitglied liegt bereits ein vorbereiteter Mitgliedsantrag vor. Die mobile Fortsetzung ist in diesem Schritt noch nicht verfügbar.", "OK");
-                    return;
                 case PreparedMembershipApplicationResumeDecision.ResumeClaimed:
-                    await DisplayAlertAsync("Mitgliedsantrag", "Der vorbereitete Mitgliedsantrag wurde für Sie übernommen. Die mobile Fortsetzung ist in diesem Schritt noch nicht verfügbar.", "OK");
+                    await ResumePreparedMitgliedsantragAsync(mitgliedId, resumeResult.Contract);
                     return;
                 case PreparedMembershipApplicationResumeDecision.ForeignAssigned:
                     await DisplayAlertAsync("Mitgliedsantrag", "Der vorbereitete Mitgliedsantrag ist bereits einem anderen Benutzer zugewiesen und kann hier nicht bearbeitet werden.", "OK");
@@ -808,7 +809,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         }
     }
 
-    private async Task<MitgliedsantragDokumentRequest?> PromptMitgliedsantragRequestAsync(int mitgliedId, MitgliedsantragDokumentRequest? initialRequest = null)
+    private async Task<MitgliedsantragDokumentRequest?> PromptMitgliedsantragRequestAsync(int mitgliedId, MitgliedsantragDokumentRequest? initialRequest = null, Func<MitgliedsantragDokumentRequest?, bool>? hasPreparedUnsavedChanges = null)
     {
         var member = _memberRecord?.Id == mitgliedId
             ? _memberRecord
@@ -831,7 +832,10 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             return null;
         }
 
-        var gesetzlicherVertreterAufloesung = await _supabaseService.ResolveGesetzlicherVertreterAsync(mitgliedId, vorschlag.BeginnDatum);
+        var effectiveBeginnDatum = initialRequest?.BeginnDatum.Date ?? vorschlag.BeginnDatum;
+        if (initialRequest != null)
+            vorschlag = vorschlag with { BeginnDatum = effectiveBeginnDatum };
+        var gesetzlicherVertreterAufloesung = await _supabaseService.ResolveGesetzlicherVertreterAsync(mitgliedId, effectiveBeginnDatum);
         var nebenmitglied = gesetzlicherVertreterAufloesung.IstMinderjaehrig
             ? null
             : await _supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(mitgliedId);
@@ -848,7 +852,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
             ? await _supabaseService.GetMitgliederAsync()
             : new List<MitgliedRecord>();
 
-        var dialogPage = new MitgliedsantragDialogPage(member, vorschlag, gesetzlicherVertreterAufloesung, vertreterMitglieder, initialRequest);
+        var dialogPage = new MitgliedsantragDialogPage(member, vorschlag, gesetzlicherVertreterAufloesung, vertreterMitglieder, initialRequest, hasPreparedUnsavedChanges);
         await Navigation.PushModalAsync(new NavigationPage(dialogPage));
         var request = await dialogPage.WaitForResultAsync();
         if (request != null && !gesetzlicherVertreterAufloesung.IstMinderjaehrig)
@@ -859,11 +863,44 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
         return request;
     }
 
-    private async Task<MitgliedsantragPreviewDecision> ShowMitgliedsantragPreviewAsync(DokumentUploadRequest previewUploadRequest)
+    private async Task<MitgliedsantragPreviewDecision> ShowMitgliedsantragPreviewAsync(DokumentUploadRequest previewUploadRequest, bool persistForSignature = true)
     {
-        var previewPage = new MitgliedsantragPreviewPage(previewUploadRequest);
+        var previewPage = new MitgliedsantragPreviewPage(previewUploadRequest, persistForSignature);
         await Navigation.PushModalAsync(new NavigationPage(previewPage));
         return await previewPage.WaitForResultAsync();
+    }
+
+    private async Task ResumePreparedMitgliedsantragAsync(int mitgliedId, KommunikationsvorgangDto? contract)
+    {
+        if (contract is null) throw new PreparedContractValidationException("Der vorbereitete Mitgliedsantrag konnte nicht geladen werden.");
+        if (PreparedContractDraftParser.Parse(contract.EntwurfDaten) is not PreparedMembershipApplicationDraft draft || draft.MemberId != mitgliedId)
+            throw new PreparedContractValidationException("Der vorbereitete Mitgliedsantrag passt nicht zum geöffneten Mitglied.");
+        if (!DateTime.TryParseExact(draft.StartDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
+            throw new PreparedContractValidationException("Das gespeicherte Startdatum des Mitgliedsantrags ist ungültig.");
+
+        var resolution = await _supabaseService.ResolveGesetzlicherVertreterAsync(mitgliedId, DateTime.ParseExact(draft.StartDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+        var original = PreparedMembershipApplicationMapper.ToDocumentRequest(draft, resolution.IstMinderjaehrig);
+        MitgliedsantragDokumentRequest? initial = original;
+        while (true)
+        {
+            var request = await PromptMitgliedsantragRequestAsync(mitgliedId, initial, current =>
+            {
+                if (current is null) return true;
+                try { return !PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, PreparedContractDraftParser.Serialize(PreparedMembershipApplicationMapper.ToPreparedDraft(current, resolution.IstMinderjaehrig))); }
+                catch (PreparedContractValidationException) { return true; }
+            });
+            if (request is null)
+                return;
+            var saisons = await _supabaseService.GetSaisonRecordsAsync();
+            var saison = saisons.FirstOrDefault(x => SaisonverwaltungHelper.GetSaisonJahr(x) == request.BeginnDatum.Year);
+            if (saison?.Aufnahmegebuehr is not >= 0) throw new InvalidOperationException($"Für die Saison {request.BeginnDatum.Year} fehlt eine gültige Aufnahmegebühr.");
+            var pdf = await _contractGenerationClient.PreviewMembershipApplicationAsync(request, decimal.Round(saison.Aufnahmegebuehr.Value, 2, MidpointRounding.AwayFromZero));
+            var decision = await ShowMitgliedsantragPreviewAsync(new DokumentUploadRequest { MitgliedId = mitgliedId, Titel = "Mitgliedsantrag – Vorschau", FileName = "Mitgliedsantrag_Vorschau.pdf", MimeType = "application/pdf", FileContent = pdf }, persistForSignature: false);
+            if (decision == MitgliedsantragPreviewDecision.BackToEditor) { initial = request; continue; }
+            if (!PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, PreparedContractDraftParser.Serialize(PreparedMembershipApplicationMapper.ToPreparedDraft(request, resolution.IstMinderjaehrig))))
+                await DisplayAlertAsync("Ungespeicherte Änderungen", "Ihre Änderungen am vorbereiteten Mitgliedsantrag wurden nicht gespeichert.", "OK");
+            return;
+        }
     }
 
     private async Task<DigitalSignatureCapture?> CaptureMitgliedsantragSignatureAsync(DokumentUploadRequest previewUploadRequest, string unterschriftTitel, bool isLastSignature = true)

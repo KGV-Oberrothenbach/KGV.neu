@@ -32,13 +32,17 @@ public sealed class MitgliedsantragDialogPage : ContentPage
     private readonly Entry _vertreterPlzEntry;
     private readonly Entry _vertreterOrtEntry;
     private readonly List<MitgliedOption> _mitgliedOptionen;
+    private readonly Func<MitgliedsantragDokumentRequest?, bool>? _hasPreparedUnsavedChanges;
+    private readonly bool _initialNebenmitgliedEinbeziehen;
+    private readonly int? _initialNebenmitgliedId;
 
     public MitgliedsantragDialogPage(
         MitgliedRecord member,
         MitgliedsantragBeitragVorschlag vorschlag,
         GesetzlicherVertreterAufloesung? gesetzlicherVertreterAufloesung,
         IReadOnlyCollection<MitgliedRecord>? vertreterMitglieder,
-        MitgliedsantragDokumentRequest? initialRequest = null)
+        MitgliedsantragDokumentRequest? initialRequest = null,
+        Func<MitgliedsantragDokumentRequest?, bool>? hasPreparedUnsavedChanges = null)
     {
         _member = member ?? throw new ArgumentNullException(nameof(member));
         _vorschlag = vorschlag ?? throw new ArgumentNullException(nameof(vorschlag));
@@ -48,6 +52,9 @@ public sealed class MitgliedsantragDialogPage : ContentPage
             .Select(x => new MitgliedOption(x))
             .OrderBy(x => x.DisplayName, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
+        _hasPreparedUnsavedChanges = hasPreparedUnsavedChanges;
+        _initialNebenmitgliedEinbeziehen = initialRequest?.NebenmitgliedEinbeziehen ?? false;
+        _initialNebenmitgliedId = initialRequest?.NebenmitgliedId;
 
         var activeVertreter = gesetzlicherVertreterAufloesung?.VertreterMitglied;
         if (activeVertreter != null && activeVertreter.Id > 0 && _mitgliedOptionen.All(x => x.MitgliedId != activeVertreter.Id))
@@ -219,8 +226,8 @@ public sealed class MitgliedsantragDialogPage : ContentPage
 
     protected override bool OnBackButtonPressed()
     {
-        _resultSource.TrySetResult(null);
-        return base.OnBackButtonPressed();
+        _ = CancelAsync();
+        return true;
     }
 
     private void ApplyInitialVertreterState(MitgliedsantragDokumentRequest? initialRequest, GesetzlicherVertreterAufloesung? gesetzlicherVertreterAufloesung)
@@ -360,8 +367,34 @@ public sealed class MitgliedsantragDialogPage : ContentPage
 
     private async Task CancelAsync()
     {
+        if (_hasPreparedUnsavedChanges?.Invoke(TryCreateCurrentRequest()) == true
+            && !await DisplayAlertAsync("Ungespeicherte Änderungen", "Die Änderungen wurden noch nicht gespeichert. Änderungen verwerfen?", "Verwerfen", "Weiter bearbeiten"))
+            return;
         _resultSource.TrySetResult(null);
         await Navigation.PopModalAsync();
+    }
+
+    private MitgliedsantragDokumentRequest? TryCreateCurrentRequest()
+    {
+        if (!TryParseBeitrag(_mitgliedsbeitragEntry.Text, out var beitrag) || beitrag < 0m)
+            return null;
+        var request = new MitgliedsantragDokumentRequest { MitgliedId = _member.Id, BeginnDatum = _vorschlag.BeginnDatum, Mitgliedsbeitrag = MitgliedsantragBeitragHelper.NormalizeBeitrag(beitrag), IstMinderjaehrig = _istMinderjaehrig };
+        if (!_istMinderjaehrig)
+        {
+            request.NebenmitgliedEinbeziehen = _initialNebenmitgliedEinbeziehen;
+            request.NebenmitgliedId = _initialNebenmitgliedId;
+            return request;
+        }
+        if (_vertreterModusPicker.SelectedIndex != 1)
+        {
+            if (_bestehendesMitgliedPicker.SelectedItem is not MitgliedOption option) return null;
+            request.GesetzlicherVertreterAusBestehendemMitglied = true; request.GesetzlicherVertreterMitgliedId = option.MitgliedId; return request;
+        }
+        var vorname = (_vertreterVornameEntry.Text ?? string.Empty).Trim(); var nachname = (_vertreterNachnameEntry.Text ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(vorname) || string.IsNullOrWhiteSpace(nachname)) return null;
+        request.GesetzlicherVertreterAdresseAbweichend = _vertreterAdresseAbweichendCheckBox.IsChecked;
+        request.GesetzlicherVertreterSnapshot = new MitgliedsantragVertreterSnapshot { Vorname = vorname, Nachname = nachname, Adresse = (_vertreterAdresseEntry.Text ?? string.Empty).Trim(), Plz = (_vertreterPlzEntry.Text ?? string.Empty).Trim(), Ort = (_vertreterOrtEntry.Text ?? string.Empty).Trim() };
+        return !request.GesetzlicherVertreterAdresseAbweichend || (!string.IsNullOrWhiteSpace(request.GesetzlicherVertreterSnapshot.Adresse) && !string.IsNullOrWhiteSpace(request.GesetzlicherVertreterSnapshot.Plz) && !string.IsNullOrWhiteSpace(request.GesetzlicherVertreterSnapshot.Ort)) ? request : null;
     }
 
     private static View CreateField(string title, View content)
