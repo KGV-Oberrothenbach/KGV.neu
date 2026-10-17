@@ -25,7 +25,7 @@ public sealed class PdfTemplateFieldSpecParserTests
     [InlineData("a", "text", 0, 0, 0, 1, 1)]
     [InlineData("a", "text", 1, -1, 0, 1, 1)]
     [InlineData("a", "text", 1, 0, 0, 0, 1)]
-    public void Rejects_invalid_field(string name, string type, int page, double x, double y, double w, double h) => Assert.Throws<InvalidOperationException>(() => PdfTemplateFieldSpecParser.Parse(Bytes($$"""{"settings":{"coordinateOrigin":"topLeft"},"fields":[{"name":"{{name}}","type":"{{type}}","page":{{page}},"rect":{"x":{{x}},"y":{{y}},"w":{{w}},"h":{{h}}}},{"name":"{{name}}","type":"{{type}}","page":{{page}},"rect":{"x":{{x}},"y":{{y}},"w":{{w}},"h":{{h}}}}]}""")));
+    public void Rejects_invalid_field(string name, string type, int page, double x, double y, double w, double h) => Assert.Throws<InvalidOperationException>(() => PdfTemplateFieldSpecParser.Parse(Bytes($$$"""{"settings":{"coordinateOrigin":"topLeft"},"fields":[{"name":"{{{name}}}","type":"{{{type}}}","page":{{{page}}},"rect":{"x":{{{x}}},"y":{{{y}}},"w":{{{w}}},"h":{{{h}}}}},{"name":"{{{name}}}","type":"{{{type}}}","page":{{{page}}},"rect":{"x":{{{x}}},"y":{{{y}}},"w":{{{w}}},"h":{{{h}}}}}]}""")));
 
     private static byte[] Bytes(string value) => Encoding.UTF8.GetBytes(value);
 }

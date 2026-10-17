@@ -17,9 +17,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="Xunit" />
     <ProjectReference Include="..\KGV.Core\KGV.Core.csproj" />
     <ProjectReference Include="..\KGV.Infrastructure\KGV.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(IncludeWpfTests)' == 'true'">
     <ProjectReference Include="..\KGV.Wpf\KGV.Wpf.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(IncludeWpfTests)' != 'true'">
+    <Compile Remove="ExportViewModelTests.cs" />
   </ItemGroup>
 
   <ItemGroup>

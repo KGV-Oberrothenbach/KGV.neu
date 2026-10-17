@@ -15,7 +15,7 @@ internal sealed class CanonicalPdfTemplateProvider : IPdfTemplateProvider
             _ => throw new InvalidOperationException($"Unexpected template key '{request.TemplateKey}'.")
         };
 
-        if (request.FieldSpecVersion != fieldSpecVersion || request.RendererVersion != rendererVersion)
+        if (request.ExpectedFieldSpecVersion != fieldSpecVersion || request.ExpectedRendererVersion != rendererVersion)
             throw new InvalidOperationException("The requested template contract does not match the canonical source asset.");
 
         var directory = Path.Combine(AppContext.BaseDirectory, "Templates", request.TemplateKey, version);

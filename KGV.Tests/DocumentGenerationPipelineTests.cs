@@ -1,5 +1,6 @@
 using KGV.Core.Models;
 using KGV.Core.Interfaces;
+using KGV.Core.Diagnostics;
 using KGV.Core.Utilities;
 using PdfSharpCore.Pdf;
 using PdfSharpCore.Pdf.IO;
