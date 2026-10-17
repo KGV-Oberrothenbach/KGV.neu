@@ -25,3 +25,26 @@ test("selected maintenance contracts open the existing read-only detail view wit
   }
   assert.match(detail, /\{canManage && <button onClick=\{onEdit\}>Bearbeiten<\/button>\}/);
 });
+
+test("member assignment stays in the selected contract detail and reuses the existing assignment flow", async () => {
+  const [overview, detail, assignmentForm, assignmentService, page] = await Promise.all([
+    readFile(new URL("./MaintenanceContractOverview.tsx", import.meta.url), "utf8"),
+    readFile(new URL("./MaintenanceContractDetail.tsx", import.meta.url), "utf8"),
+    readFile(new URL("./assignments/AssignMembersToContract.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../../services/maintenance/maintenance-assignment-service.ts", import.meta.url), "utf8"),
+    readFile(new URL("../../app/page.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(overview, /memberAssignmentPanel=\{assignmentPanel\}/);
+  assert.match(detail, /<h3>Mitgliederzuordnung<\/h3>/);
+  assert.match(detail, /title="Aktuell zugeordnet"/);
+  assert.match(detail, /canManage && title === "Aktuell zugeordnet"/);
+  assert.match(detail, /memberAssignmentPanel/);
+  assert.match(assignmentForm, /assignMembersToMaintenanceContract/);
+  assert.match(assignmentService, /resolveMaintenanceAssignmentMembers/);
+  assert.match(assignmentService, /calculatePeakMaintenanceOccupancy[\s\S]*?maxActiveAssignments/);
+  assert.match(assignmentService, /endMaintenanceAssignmentForContract/);
+  assert.match(page, /assignmentPanel=\{canManage && selected\?\.active/);
+  assert.match(page, /onSaved=\{async \(count\) => \{ setAssigningMembers\(false\); await load\(\);/);
+  assert.match(page, /await endMaintenanceAssignmentForContract\(club, session, item, endDate\); await load\(\);/);
+});

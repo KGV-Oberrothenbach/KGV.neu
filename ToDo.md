@@ -33,7 +33,6 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 ### Wartungsverträge
 
-- [ ] Im Detail-View Mitglieder einem Wartungsvertrag zuordnen oder abwählen können.
 - [ ] Wartungsvertrag optional auf eine Saison befristen können.
 - [ ] Signaturpfad einführen: Für jedes zugeordnete Mitglied ein eigenes unterschreibbares Dokument erzeugen, auch bei demselben Wartungsvertrag.
 
