@@ -1,6 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
+using KGV.Core.Services;
 using KGV.Core.Utilities;
 using KGV.Maui.State;
 using Microsoft.Maui;
@@ -18,6 +19,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 {
     private readonly ISupabaseService _supabaseService;
     private readonly IAuthService _authService;
+    private readonly PreparedMembershipApplicationResumeService _preparedMembershipApplicationResumeService;
     private readonly MemberSearchRefreshState _memberSearchRefreshState;
     private readonly UserContextState _userContextState;
     private readonly MemberContextState _memberContextState;
@@ -66,12 +68,14 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
     public MemberDetailPage(
         ISupabaseService supabaseService,
         IAuthService authService,
+        PreparedMembershipApplicationResumeService preparedMembershipApplicationResumeService,
         MemberSearchRefreshState memberSearchRefreshState,
         UserContextState userContextState,
         MemberContextState memberContextState)
     {
         _supabaseService = supabaseService;
         _authService = authService;
+        _preparedMembershipApplicationResumeService = preparedMembershipApplicationResumeService;
         _memberSearchRefreshState = memberSearchRefreshState;
         _userContextState = userContextState;
         _memberContextState = memberContextState;
@@ -658,6 +662,40 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
 
         try
         {
+            if (!Guid.TryParse(_authService.CurrentUserId, out var currentUserId))
+            {
+                await DisplayAlertAsync("Mitgliedsantrag", "Der angemeldete Benutzer konnte nicht eindeutig bestimmt werden. Bitte erneut anmelden und den Vorgang wiederholen.", "OK");
+                return;
+            }
+
+            var resumeResult = await _preparedMembershipApplicationResumeService.ResolveAsync(mitgliedId, currentUserId);
+            switch (resumeResult.Decision)
+            {
+                case PreparedMembershipApplicationResumeDecision.New:
+                    break;
+                case PreparedMembershipApplicationResumeDecision.ResumeOwn:
+                    await DisplayAlertAsync("Mitgliedsantrag", "Für dieses Mitglied liegt bereits ein vorbereiteter Mitgliedsantrag vor. Die mobile Fortsetzung ist in diesem Schritt noch nicht verfügbar.", "OK");
+                    return;
+                case PreparedMembershipApplicationResumeDecision.ResumeClaimed:
+                    await DisplayAlertAsync("Mitgliedsantrag", "Der vorbereitete Mitgliedsantrag wurde für Sie übernommen. Die mobile Fortsetzung ist in diesem Schritt noch nicht verfügbar.", "OK");
+                    return;
+                case PreparedMembershipApplicationResumeDecision.ForeignAssigned:
+                    await DisplayAlertAsync("Mitgliedsantrag", "Der vorbereitete Mitgliedsantrag ist bereits einem anderen Benutzer zugewiesen und kann hier nicht bearbeitet werden.", "OK");
+                    return;
+                case PreparedMembershipApplicationResumeDecision.SignatureLocked:
+                    await DisplayAlertAsync("Mitgliedsantrag", "Der Vorgang ist bereits zur Signatur vorbereitet oder gestartet. Der Entwurf darf nicht mehr bearbeitet werden.", "OK");
+                    return;
+                case PreparedMembershipApplicationResumeDecision.ClaimConflict:
+                    await DisplayAlertAsync("Mitgliedsantrag", "Der Vorgang wurde zwischenzeitlich geändert oder übernommen. Bitte laden Sie neu und versuchen Sie es erneut.", "OK");
+                    return;
+                case PreparedMembershipApplicationResumeDecision.InvalidStatus:
+                    await DisplayAlertAsync("Mitgliedsantrag", "Der vorbereitete Mitgliedsantrag befindet sich in einem ungültigen Workflow-Status und kann hier nicht bearbeitet werden.", "OK");
+                    return;
+                default:
+                    await DisplayAlertAsync("Mitgliedsantrag", "Der Status des vorbereiteten Mitgliedsantrags konnte nicht verarbeitet werden.", "OK");
+                    return;
+            }
+
             MitgliedsantragDokumentRequest? initialRequest = null;
             while (true)
             {
