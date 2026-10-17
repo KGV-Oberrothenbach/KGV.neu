@@ -1,6 +1,6 @@
 # ToDo – KGV-Software
 
-Letzte Aktualisierung: 2026-10-17 (offene WEB-Arbeitsstunden- und Wartungsvertragsthemen konsolidiert)
+Letzte Aktualisierung: 2026-10-17 (zentrale V1-PDF-Vorlagen für Zähler-Eichfälligkeit in WEB und MAUI abgeschlossen)
 
 Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte, historische Abgleiche und frühere Zielbildtexte werden nicht fortgeführt.
 

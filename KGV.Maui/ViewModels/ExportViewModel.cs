@@ -898,15 +898,16 @@ namespace KGV.Maui.ViewModels
         {
             var exportKey = SelectedDefinition?.ExportKey ?? "export";
 
-            if (string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(exportKey, "zaehler_eichfaelligkeit", StringComparison.OrdinalIgnoreCase))
             {
-                // The central path owns member, garden, address/contact and App-user
-                // resolution. Local result shaping remains in place for CSV and preview.
-                var membersPdf = await _supabaseService.GenerateExportPdfAsync(BuildCentralExportRequest());
-                var membersFileName = $"Mitgliederliste_{DateTime.Now:yyyy-MM-dd}.pdf";
-                var membersFilePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, membersFileName);
-                await System.IO.File.WriteAllBytesAsync(membersFilePath, membersPdf);
-                return membersFilePath;
+                // Central renderer owns data, orientation, catalog template and layout.
+                var centralPdf = await _supabaseService.GenerateExportPdfAsync(BuildCentralExportRequest());
+                var fallbackName = $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{exportKey}.pdf";
+                var fileName = string.IsNullOrWhiteSpace(centralPdf.FileName) ? fallbackName : centralPdf.FileName;
+                var filePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, fileName);
+                await System.IO.File.WriteAllBytesAsync(filePath, centralPdf.Content);
+                return filePath;
             }
 
             if (ProcessedResults.Count == 0 || ColumnsVisibleOrdered.Count == 0)

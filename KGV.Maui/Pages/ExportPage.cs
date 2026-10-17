@@ -769,14 +769,13 @@ public sealed class ExportPage : ContentPage
             }
 
             var filePath = await _vm.ExportToPdfAsync();
-            var pdfContent = await File.ReadAllBytesAsync(filePath);
             var definition = _vm.SelectedDefinition;
             var viewerTitle = !string.IsNullOrWhiteSpace(definition?.Titel)
                 ? definition.Titel
                 : !string.IsNullOrWhiteSpace(definition?.DisplayText)
                     ? definition.DisplayText
                     : definition?.ExportKey;
-            await Navigation.PushAsync(new PdfViewerPage(viewerTitle, pdfContent));
+            await Navigation.PushAsync(new PdfViewerPage(viewerTitle, filePath));
             _statusLabel.Text = "PDF wird in der App angezeigt.";
         }
         catch (Exception ex)

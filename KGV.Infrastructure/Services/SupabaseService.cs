@@ -448,7 +448,7 @@ namespace KGV.Infrastructure.Services
             return RunExportRpcAsync("rpc_execute_export", new { p_export_key = exportKey, p_parameters = parameters ?? new { } });
         }
 
-        public async Task<byte[]> GenerateExportPdfAsync(CentralExportRequest request)
+        public async Task<CentralExportPdfResult> GenerateExportPdfAsync(CentralExportRequest request)
         {
             if (request is null || string.IsNullOrWhiteSpace(request.ExportKey))
                 throw new InvalidOperationException("Für den zentralen PDF-Export fehlt der Export-Schlüssel.");
@@ -489,13 +489,27 @@ namespace KGV.Infrastructure.Services
                 if (pdf.Length < 5 || pdf[0] != (byte)'%' || pdf[1] != (byte)'P' || pdf[2] != (byte)'D' || pdf[3] != (byte)'F' || pdf[4] != (byte)'-')
                     throw new InvalidOperationException("Der zentrale PDF-Export lieferte eine ungültige PDF-Datei.");
 
-                return pdf;
+                return new CentralExportPdfResult
+                {
+                    Content = pdf,
+                    FileName = GetExportPdfFileName(response.Content.Headers.ContentDisposition?.FileNameStar
+                        ?? response.Content.Headers.ContentDisposition?.FileName)
+                };
             }
             catch (HttpRequestException ex)
             {
                 _logger?.LogWarning(ex, "GenerateExportPdfAsync could not reach the Edge Function");
                 throw new InvalidOperationException("Der zentrale PDF-Export ist derzeit nicht erreichbar.", ex);
             }
+        }
+
+        private static string? GetExportPdfFileName(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            var fileName = value.Trim().Trim('"');
+            try { fileName = Uri.UnescapeDataString(fileName); } catch { }
+            fileName = string.Concat(fileName.Select(ch => Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch));
+            return string.IsNullOrWhiteSpace(fileName) ? null : fileName;
         }
 
         private static string DescribeExportPdfFailure(System.Net.HttpStatusCode statusCode, string responseBody)

@@ -201,7 +201,7 @@ namespace KGV.Core.Interfaces
         /// Der Client übergibt Export-Schlüssel, Format, Filterwerte, Spalten und Orientierung; die Daten- und
         /// PDF-Aufbereitung findet serverseitig statt.
         /// </summary>
-        Task<byte[]> GenerateExportPdfAsync(CentralExportRequest request);
+        Task<CentralExportPdfResult> GenerateExportPdfAsync(CentralExportRequest request);
         Task<List<HomeWorkAssignmentItem>> GetStartseiteArbeitseinsaetzeAsync();
         Task<HomeWorkAssignmentItem?> GetStartseiteArbeitseinsatzByIdAsync(int arbeitseinsatzId);
         Task<List<WorkAssignmentParticipantItem>> GetArbeitseinsatzParticipantsAsync(int arbeitseinsatzId);

@@ -21,4 +21,11 @@ namespace KGV.Core.Models
         [JsonPropertyName("orientation")]
         public string Orientation { get; set; } = "auto";
     }
+
+    /// <summary>Validated response from the central PDF renderer.</summary>
+    public sealed class CentralExportPdfResult
+    {
+        public byte[] Content { get; init; } = Array.Empty<byte>();
+        public string? FileName { get; init; }
+    }
 }

@@ -12,6 +12,9 @@ type MemberRow = Record<string, unknown>;
 type MemberColumn = { key: string; header: string; baseWidth: number; flexWeight?: number; value: (row: MemberRow) => string };
 type ExportDefinition = { export_key: string; titel: string | null; quelle_typ: string | null; quelle_name: string | null; aktiv: boolean; erlaubt_pdf: boolean };
 type ExportColumn = { column_key: string; label_kurz: string | null; label_lang: string | null; sortierung: number; standard_sichtbar: boolean; ist_sortierspalte: boolean };
+type PdfTemplateCatalogRecord = { template_key: string; version: string; storage_bucket: string; storage_path: string; content_type: string; checksum: string; field_spec_path: string; field_spec_checksum: string; field_spec_version: string; renderer_version: string; status: string; aktiv: boolean; created_at: string };
+type TemplateField = { name: string; type: "text" | "multiline"; page: number; rect: { x: number; y: number; w: number; h: number } };
+type LoadedPdfTemplate = { pdfBytes: Uint8Array; fields: TemplateField[] };
 
 const text = (value: unknown) => typeof value === "string" ? value.trim() : value === null || value === undefined ? "" : String(value);
 const mark = (value: unknown) => value === true || text(value).toLowerCase() === "true" || text(value) === "1" || text(value).toLowerCase() === "ja" ? "X" : "";
@@ -72,6 +75,66 @@ function genericValue(value: unknown) {
   return match ? `${match[3]}.${match[2]}.${match[1]}` : raw;
 }
 
+function templateKeyForExport(exportKey: string, orientation: string) {
+  // `export_mitgliederliste` was the former single-template integration. New
+  // template-backed exports are registered in this orientation-aware catalog.
+  const mappings: Record<string, Record<string, string>> = {
+    zaehler_eichfaelligkeit: {
+      portrait: "export-zaehler-eichfaelligkeit-hoch",
+      landscape: "export-zaehler-eichfaelligkeit-quer",
+    },
+  };
+  return mappings[exportKey]?.[orientation] ?? null;
+}
+
+async function sha256(bytes: Uint8Array) {
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+function parseTemplateFields(input: unknown): TemplateField[] | null {
+  const spec = input as { schema_version?: unknown; coordinate_system?: unknown; settings?: { coordinateOrigin?: unknown }; fields?: unknown };
+  if (spec.schema_version !== "kgv-pdf-field-spec/v1" || spec.coordinate_system !== "top-left-points" || spec.settings?.coordinateOrigin !== "topLeft" || !Array.isArray(spec.fields)) return null;
+  const names = new Set<string>(); const fields: TemplateField[] = [];
+  for (const candidate of spec.fields) {
+    const field = candidate as TemplateField;
+    const name = text(field?.name); const rect = field?.rect;
+    if (!name || names.has(name) || !["text", "multiline"].includes(field?.type) || !Number.isInteger(field?.page) || field.page !== 1 || !rect || ![rect.x, rect.y, rect.w, rect.h].every(Number.isFinite) || rect.x < 0 || rect.y < 0 || rect.w <= 0 || rect.h <= 0) return null;
+    names.add(name); fields.push({ name, type: field.type, page: field.page, rect });
+  }
+  return fields;
+}
+
+async function loadPublishedTemplate(admin: ReturnType<typeof createClient>, templateKey: string): Promise<LoadedPdfTemplate> {
+  const { data, error } = await admin.from("pdf_template_catalog").select("template_key,version,storage_bucket,storage_path,content_type,checksum,field_spec_path,field_spec_checksum,field_spec_version,renderer_version,status,aktiv,created_at").eq("template_key", templateKey).eq("status", "published").eq("aktiv", true).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (error) throw new Error(`TEMPLATE:Katalog konnte nicht geladen werden: ${error.message}`);
+  const catalog = data as PdfTemplateCatalogRecord | null;
+  if (!catalog) throw new Error(`TEMPLATE:Keine aktive veröffentlichte Vorlage für ${templateKey}.`);
+  if (catalog.content_type !== "application/pdf" || catalog.renderer_version !== "top-left/v1") throw new Error(`TEMPLATE:Vorlage ${templateKey} ist nicht renderer-kompatibel.`);
+  const [templateResult, fieldSpecResult] = await Promise.all([admin.storage.from(catalog.storage_bucket).download(catalog.storage_path), admin.storage.from(catalog.storage_bucket).download(catalog.field_spec_path)]);
+  if (templateResult.error || !templateResult.data || fieldSpecResult.error || !fieldSpecResult.data) throw new Error(`TEMPLATE:Vorlage ${templateKey} konnte nicht vollständig geladen werden.`);
+  const [pdfBytes, fieldSpecBytes] = await Promise.all([templateResult.data.arrayBuffer().then((value) => new Uint8Array(value)), fieldSpecResult.data.arrayBuffer().then((value) => new Uint8Array(value))]);
+  if ((await sha256(pdfBytes)) !== text(catalog.checksum).toLowerCase() || (await sha256(fieldSpecBytes)) !== text(catalog.field_spec_checksum).toLowerCase()) throw new Error(`TEMPLATE:Prüfsumme der Vorlage ${templateKey} stimmt nicht.`);
+  let fields: TemplateField[] | null = null;
+  try { fields = parseTemplateFields(JSON.parse(new TextDecoder().decode(fieldSpecBytes))); } catch { /* handled below */ }
+  if (!fields || ["exporttitel", "stand", "exporttabelle"].some((name) => !fields!.some((field) => field.name === name))) throw new Error(`TEMPLATE:Feldspezifikation der Vorlage ${templateKey} ist ungültig.`);
+  return { pdfBytes, fields };
+}
+
+async function buildTemplateTablePdf(rows: MemberRow[], definition: ExportDefinition, columns: ExportColumn[], orientation: string, template: LoadedPdfTemplate) {
+  const pdf = await PDFDocument.create(); const font = await pdf.embedFont(StandardFonts.Helvetica); const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const background = (await pdf.embedPdf(template.pdfBytes, [0]))[0]; const width = background.width; const height = background.height;
+  const titleField = template.fields.find((field) => field.name === "exporttitel")!; const standField = template.fields.find((field) => field.name === "stand")!; const tableField = template.fields.find((field) => field.name === "exporttabelle")!;
+  const wishes = columns.map((column) => Math.max(34, font.widthOfTextAtSize(column.label_kurz || column.label_lang || column.column_key, 7) + 10, ...rows.slice(0, 40).map((row) => Math.min(150, font.widthOfTextAtSize(genericValue(row[column.column_key]), 6.7) + 8))));
+  const widths = wishes.map((value) => tableField.rect.w * value / wishes.reduce((sum, item) => sum + item, 0)); widths[widths.length - 1] += tableField.rect.w - widths.reduce((sum, item) => sum + item, 0);
+  const toPdfY = (field: TemplateField) => height - field.rect.y - field.rect.h;
+  let page: PDFPage; let y = 0; let pageNumber = 0; const headerHeight = 18; const lineHeight = 8.1; const tableBottom = toPdfY(tableField);
+  const startPage = () => { pageNumber++; page = pdf.addPage([width, height]); page.drawPage(background, { x: 0, y: 0, width, height }); page.drawText(definition.titel || definition.export_key, { x: titleField.rect.x, y: toPdfY(titleField) + 4, size: 14, font: bold }); page.drawText(`Erstellt am ${date(today())}   |   Seite ${pageNumber}`, { x: standField.rect.x, y: toPdfY(standField) + 3, size: 7, font }); y = height - tableField.rect.y; let x = tableField.rect.x; columns.forEach((column, index) => { page.drawRectangle({ x, y: y - headerHeight, width: widths[index], height: headerHeight, color: rgb(.9, .92, .9), borderColor: rgb(.72, .75, .72), borderWidth: .35 }); page.drawText(column.label_kurz || column.label_lang || column.column_key, { x: x + 2, y: y - 12, size: 6.3, font: bold }); x += widths[index]; }); y -= headerHeight; };
+  startPage();
+  for (const row of rows) { const cells = columns.map((column, index) => wrap(genericValue(row[column.column_key]), font, 6.7, widths[index] - 4)); const rowHeight = Math.max(14, ...cells.map((lines) => lines.length * lineHeight + 5)); if (y - rowHeight < tableBottom) startPage(); let x = tableField.rect.x; cells.forEach((lines, index) => { page.drawRectangle({ x, y: y - rowHeight, width: widths[index], height: rowHeight, borderColor: rgb(.8, .82, .8), borderWidth: .25 }); lines.forEach((line, lineIndex) => page.drawText(line, { x: x + 2, y: y - 9 - lineIndex * lineHeight, size: 6.7, font })); x += widths[index]; }); y -= rowHeight; }
+  return { pdf: await pdf.save(), orientation };
+}
+
 async function buildGenericTablePdf(rows: MemberRow[], definition: ExportDefinition, columns: ExportColumn[], requestedOrientation: string, admin: ReturnType<typeof createClient>) {
   const fontProbe = await PDFDocument.create(); const probeFont = await fontProbe.embedFont(StandardFonts.Helvetica);
   const wishes = columns.map((column) => Math.max(34, probeFont.widthOfTextAtSize(column.label_kurz || column.label_lang || column.column_key, 7) + 10, ...rows.slice(0, 40).map((row) => Math.min(150, probeFont.widthOfTextAtSize(genericValue(row[column.column_key]), 6.7) + 8))));
@@ -79,10 +142,11 @@ async function buildGenericTablePdf(rows: MemberRow[], definition: ExportDefinit
   const orientation = requestedOrientation === "auto" ? (wishes.reduce((sum, width) => sum + width, 0) <= portraitContent ? "portrait" : "landscape") : requestedOrientation;
   const width = orientation === "portrait" ? 595.28 : 841.89; const height = orientation === "portrait" ? 841.89 : 595.28; const usable = width - margin * 2;
   const widths = wishes.map((value) => usable * value / wishes.reduce((sum, item) => sum + item, 0)); widths[widths.length - 1] += usable - widths.reduce((sum, item) => sum + item, 0);
-  const pdf = await PDFDocument.create(); const font = await pdf.embedFont(StandardFonts.Helvetica); const bold = await pdf.embedFont(StandardFonts.HelveticaBold); const backgroundBytes = await loadOptionalBackground(admin); let background: PDFEmbeddedPage | null = null;
-  if (backgroundBytes) try { background = (await pdf.embedPdf(backgroundBytes, [0]))[0] ?? null; } catch { background = null; }
+  const templateKey = templateKeyForExport(definition.export_key, orientation);
+  if (templateKey) return buildTemplateTablePdf(rows, definition, columns, orientation, await loadPublishedTemplate(admin, templateKey));
+  const pdf = await PDFDocument.create(); const font = await pdf.embedFont(StandardFonts.Helvetica); const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   let page: PDFPage; let y = 0; let pageNumber = 0; const headerHeight = 18; const lineHeight = 8.1;
-  const startPage = () => { pageNumber++; page = pdf.addPage([width, height]); if (background) page.drawPage(background, { x: 0, y: 0, width, height }); page.drawText(definition.titel || definition.export_key, { x: margin, y: height - margin - 12, size: 14, font: bold }); page.drawText(`Erstellt am ${date(today())}   |   Seite ${pageNumber}`, { x: margin, y: height - margin - 25, size: 7, font }); y = height - margin - 48; let x = margin; columns.forEach((column, index) => { page.drawRectangle({ x, y: y - headerHeight, width: widths[index], height: headerHeight, color: rgb(.9, .92, .9), borderColor: rgb(.72, .75, .72), borderWidth: .35 }); page.drawText(column.label_kurz || column.label_lang || column.column_key, { x: x + 2, y: y - 12, size: 6.3, font: bold }); x += widths[index]; }); y -= headerHeight; };
+  const startPage = () => { pageNumber++; page = pdf.addPage([width, height]); page.drawText(definition.titel || definition.export_key, { x: margin, y: height - margin - 12, size: 14, font: bold }); page.drawText(`Erstellt am ${date(today())}   |   Seite ${pageNumber}`, { x: margin, y: height - margin - 25, size: 7, font }); y = height - margin - 48; let x = margin; columns.forEach((column, index) => { page.drawRectangle({ x, y: y - headerHeight, width: widths[index], height: headerHeight, color: rgb(.9, .92, .9), borderColor: rgb(.72, .75, .72), borderWidth: .35 }); page.drawText(column.label_kurz || column.label_lang || column.column_key, { x: x + 2, y: y - 12, size: 6.3, font: bold }); x += widths[index]; }); y -= headerHeight; };
   startPage(); for (const row of rows) { const cells = columns.map((column, index) => wrap(genericValue(row[column.column_key]), font, 6.7, widths[index] - 4)); const rowHeight = Math.max(14, ...cells.map((lines) => lines.length * lineHeight + 5)); if (y - rowHeight < margin) startPage(); let x = margin; cells.forEach((lines, index) => { page.drawRectangle({ x, y: y - rowHeight, width: widths[index], height: rowHeight, borderColor: rgb(.8, .82, .8), borderWidth: .25 }); lines.forEach((line, lineIndex) => page.drawText(line, { x: x + 2, y: y - 9 - lineIndex * lineHeight, size: 6.7, font })); x += widths[index]; }); y -= rowHeight; }
   return { pdf: await pdf.save(), orientation };
 }
@@ -101,15 +165,14 @@ async function authenticate(req: Request) {
   return { admin, userClient };
 }
 
+// Retained for the older members-list export until it is migrated to a field-spec
+// template. Template-backed exports added above always use loadPublishedTemplate.
 async function loadOptionalBackground(admin: ReturnType<typeof createClient>): Promise<Uint8Array | null> {
-  // This is a deliberately optional extension point. No catalog entry or an
-  // unusable template always results in the normal white A4 page.
   try {
     const { data } = await admin.from("pdf_template_catalog").select("storage_bucket,storage_path").eq("template_key", "export_mitgliederliste").eq("status", "published").eq("aktiv", true).limit(1).maybeSingle();
     if (!data) return null;
     const { data: blob, error } = await admin.storage.from(data.storage_bucket).download(data.storage_path);
-    if (error || !blob) return null;
-    return new Uint8Array(await blob.arrayBuffer());
+    return error || !blob ? null : new Uint8Array(await blob.arrayBuffer());
   } catch { return null; }
 }
 
@@ -178,9 +241,7 @@ async function buildMembersPdf(rows: MemberRow[], admin: ReturnType<typeof creat
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const backgroundBytes = await loadOptionalBackground(admin);
   let background: PDFEmbeddedPage | null = null;
-  if (backgroundBytes) {
-    try { background = (await pdf.embedPdf(backgroundBytes, [0]))[0] ?? null; } catch { background = null; }
-  }
+  if (backgroundBytes) try { background = (await pdf.embedPdf(backgroundBytes, [0]))[0] ?? null; } catch { background = null; }
   const columns = selectedMemberColumns(columnKeys, sortierung);
   const widths = memberColumnWidths(columns);
   const size = 6.7; const lineHeight = 8.1; const headerHeight = 18;

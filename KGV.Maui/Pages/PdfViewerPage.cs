@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.ApplicationModel.DataTransfer;
 using Microsoft.Maui.Storage;
 
 #if ANDROID
@@ -14,19 +15,21 @@ using Android.OS;
 namespace KGV.Maui.Pages;
 
 /// <summary>
-/// Zeigt ein bereits autorisiert geladenes PDF an. Die Datei wird ausschließlich
-/// im App-Cache abgelegt und beim Verlassen der Seite wieder entfernt.
+/// Zeigt ein bereits autorisiert geladenes PDF an. Zentral erzeugte Exporte bleiben
+/// im App-Cache verfügbar, damit sie unverändert über den nativen Share-Dialog
+/// weitergegeben werden können.
 /// </summary>
 public sealed class PdfViewerPage : ContentPage
 {
     private readonly string _cachePath;
-    private readonly Image _pageImage;
-    private readonly Label _pageLabel;
-    private readonly Button _previousButton;
-    private readonly Button _nextButton;
-    private readonly Button _zoomOutButton;
-    private readonly Button _zoomInButton;
-    private readonly Button _resetZoomButton;
+    private readonly bool _deleteCacheOnClose;
+    private Image _pageImage = null!;
+    private Label _pageLabel = null!;
+    private Button _previousButton = null!;
+    private Button _nextButton = null!;
+    private Button _zoomOutButton = null!;
+    private Button _zoomInButton = null!;
+    private Button _resetZoomButton = null!;
     private int _currentPageIndex;
     private int _pageCount;
     private double _zoomStartScale = 1d;
@@ -56,7 +59,25 @@ public sealed class PdfViewerPage : ContentPage
 
         Title = string.IsNullOrWhiteSpace(title) ? "Dokument" : title.Trim();
         _cachePath = System.IO.Path.Combine(FileSystem.CacheDirectory, $"kgv-pdf-{Guid.NewGuid():N}.pdf");
+        _deleteCacheOnClose = true;
         File.WriteAllBytes(_cachePath, pdfContent);
+
+        InitializePage();
+    }
+
+    /// <summary>Shows a validated cache file and keeps it available for native sharing.</summary>
+    public PdfViewerPage(string? title, string cachePath)
+    {
+        if (string.IsNullOrWhiteSpace(cachePath) || !File.Exists(cachePath))
+            throw new ArgumentException("Für die PDF-Ansicht fehlt die Cache-Datei.", nameof(cachePath));
+        Title = string.IsNullOrWhiteSpace(title) ? "Dokument" : title.Trim();
+        _cachePath = cachePath;
+        _deleteCacheOnClose = false;
+        InitializePage();
+    }
+
+    private void InitializePage()
+    {
 
         _pageImage = new Image
         {
@@ -73,11 +94,17 @@ public sealed class PdfViewerPage : ContentPage
         _zoomOutButton = new Button { Text = "−", WidthRequest = 48 };
         _zoomInButton = new Button { Text = "+", WidthRequest = 48 };
         _resetZoomButton = new Button { Text = "Ansicht zurücksetzen", IsVisible = false };
+        var shareButton = new Button { Text = "Teilen / Drucken" };
         _previousButton.Clicked += async (_, _) => await ShowPageAsync(_currentPageIndex - 1);
         _nextButton.Clicked += async (_, _) => await ShowPageAsync(_currentPageIndex + 1);
         _zoomOutButton.Clicked += (_, _) => ChangeZoom(-0.5d);
         _zoomInButton.Clicked += (_, _) => ChangeZoom(0.5d);
         _resetZoomButton.Clicked += (_, _) => ResetZoom();
+        shareButton.Clicked += async (_, _) => await Share.Default.RequestAsync(new ShareFileRequest
+        {
+            Title = Title,
+            File = new ShareFile(_cachePath, "application/pdf")
+        });
 
         var pinch = new PinchGestureRecognizer();
         pinch.PinchUpdated += OnPinchUpdated;
@@ -130,10 +157,13 @@ public sealed class PdfViewerPage : ContentPage
                 documentViewport,
                 navigationBar,
                 _resetZoomButton,
+                shareButton,
             },
         };
         Grid.SetRow(_resetZoomButton, 2);
         _resetZoomButton.HorizontalOptions = LayoutOptions.Center;
+        Grid.SetRow(shareButton, 2);
+        shareButton.HorizontalOptions = LayoutOptions.End;
     }
 
     protected override async void OnAppearing()
@@ -163,7 +193,7 @@ public sealed class PdfViewerPage : ContentPage
         {
             try
             {
-                if (File.Exists(_cachePath))
+                if (_deleteCacheOnClose && File.Exists(_cachePath))
                     File.Delete(_cachePath);
             }
             catch
