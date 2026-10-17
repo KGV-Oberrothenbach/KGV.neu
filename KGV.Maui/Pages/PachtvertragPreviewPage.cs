@@ -12,7 +12,8 @@ internal enum PachtvertragPreviewDecision
 {
     Cancel,
     BackToEditor,
-    ContinueToSignature
+    ContinueToSignature,
+    SavePrepared
 }
 
 public sealed class PachtvertragPreviewPage : ContentPage
@@ -20,10 +21,11 @@ public sealed class PachtvertragPreviewPage : ContentPage
     private readonly TaskCompletionSource<PachtvertragPreviewDecision> _resultSource = new();
     private readonly DokumentUploadRequest _previewUploadRequest;
     private readonly string _tempFilePath;
-    private readonly string _persistentFilePath;
+    private readonly string? _persistentFilePath;
+    private readonly bool _persistForSignature;
     private bool _previewOpenedOnce;
 
-    public PachtvertragPreviewPage(DokumentUploadRequest previewUploadRequest)
+    public PachtvertragPreviewPage(DokumentUploadRequest previewUploadRequest, bool persistForSignature = true, string? preparedActionLabel = null)
     {
         _previewUploadRequest = previewUploadRequest ?? throw new ArgumentNullException(nameof(previewUploadRequest));
         if ((_previewUploadRequest.FileContent?.Length ?? 0) <= 0)
@@ -32,7 +34,8 @@ public sealed class PachtvertragPreviewPage : ContentPage
         Title = "Pachtvertrag prüfen";
         BackgroundColor = Colors.White;
         _tempFilePath = Path.Combine(FileSystem.CacheDirectory, _previewUploadRequest.FileName);
-        _persistentFilePath = KGV.Maui.Services.Documents.DocumentStorage.GetPersistentFilePath(_previewUploadRequest.FileName);
+        _persistForSignature = persistForSignature;
+        _persistentFilePath = persistForSignature ? KGV.Maui.Services.Documents.DocumentStorage.GetPersistentFilePath(_previewUploadRequest.FileName) : null;
 
         var openPreviewButton = new Button { Text = "Dokumentvorschau öffnen" };
         openPreviewButton.Clicked += async (_, _) => await OpenPreviewAsync();
@@ -43,8 +46,10 @@ public sealed class PachtvertragPreviewPage : ContentPage
         var cancelButton = new Button { Text = "Abbrechen" };
         cancelButton.Clicked += async (_, _) => await CloseAsync(PachtvertragPreviewDecision.Cancel);
 
-        var continueButton = new Button { Text = "Weiter zur Unterschrift" };
+        var continueButton = new Button { Text = "Weiter zur Unterschrift", IsVisible = persistForSignature };
         continueButton.Clicked += async (_, _) => await CloseAsync(PachtvertragPreviewDecision.ContinueToSignature);
+        var saveButton = new Button { Text = preparedActionLabel ?? "", IsVisible = !persistForSignature && !string.IsNullOrWhiteSpace(preparedActionLabel) };
+        saveButton.Clicked += async (_, _) => await CloseAsync(PachtvertragPreviewDecision.SavePrepared);
 
         Content = new ScrollView
         {
@@ -62,7 +67,7 @@ public sealed class PachtvertragPreviewPage : ContentPage
                     },
                     new Label
                     {
-                        Text = "Vor dem finalen Speichern wird der vollständige Pachtvertrag zuerst nur temporär als PDF-Vorschau geöffnet. Bitte das vollständige Dokument prüfen und danach zur Unterschrift zurückkehren.",
+                        Text = persistForSignature ? "Vor dem finalen Speichern wird der vollständige Pachtvertrag zuerst nur temporär als PDF-Vorschau geöffnet. Bitte das vollständige Dokument prüfen und danach zur Unterschrift zurückkehren." : "Diese Vorschau ist flüchtig; Änderungen sind noch nicht gespeichert und es erfolgt keine Signatur.",
                         TextColor = Colors.Gray,
                         LineBreakMode = Microsoft.Maui.LineBreakMode.WordWrap
                     },
@@ -91,7 +96,7 @@ public sealed class PachtvertragPreviewPage : ContentPage
                         {
                             backButton,
                             cancelButton,
-                            continueButton
+                            continueButton, saveButton
                         }
                     }
                 }
@@ -122,22 +127,23 @@ public sealed class PachtvertragPreviewPage : ContentPage
     private async Task OpenPreviewAsync()
     {
         // Die Kopie bleibt für den nachfolgenden Signaturvorgang erhalten.
-        try
+        if (_persistForSignature && _persistentFilePath is { } persistentFilePath)
         {
-            var persistentDir = Path.GetDirectoryName(_persistentFilePath)!;
-            Directory.CreateDirectory(persistentDir);
-            await File.WriteAllBytesAsync(_persistentFilePath, _previewUploadRequest.FileContent);
+            try
+            {
+                var persistentDir = Path.GetDirectoryName(persistentFilePath)!;
+                Directory.CreateDirectory(persistentDir);
+                await File.WriteAllBytesAsync(persistentFilePath, _previewUploadRequest.FileContent);
+            }
+            catch { }
         }
-        catch
-        {
-            // Ignore persistent write failures; preview still works
-        }
-
         await Navigation.PushAsync(new PdfViewerPage(_previewUploadRequest.Titel, _previewUploadRequest.FileContent));
     }
 
     private async Task CloseAsync(PachtvertragPreviewDecision decision)
     {
+        if (!_persistForSignature && decision == PachtvertragPreviewDecision.ContinueToSignature) decision = PachtvertragPreviewDecision.Cancel;
+        if (_persistForSignature && decision == PachtvertragPreviewDecision.SavePrepared) decision = PachtvertragPreviewDecision.Cancel;
         TryDeleteTempFile();
         // persistent file kept for signing
         await Navigation.PopModalAsync();

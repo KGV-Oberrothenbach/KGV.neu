@@ -1,6 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
+using KGV.Core.Services;
 using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.State;
 using Microsoft.Maui;
@@ -17,6 +18,10 @@ namespace KGV.Maui.Pages;
 public sealed class MemberGardensPage : ContentPage
 {
     private readonly ISupabaseService _supabaseService;
+    private readonly IAuthService _authService;
+    private readonly PreparedLeaseContractResumeService _preparedLeaseContractResumeService;
+    private readonly IPreparedContractRepository _preparedContractRepository;
+    private readonly IContractGenerationClient _contractGenerationClient;
     private readonly UserContextState _userContextState;
     private readonly MemberContextState _memberContextState;
     private readonly ParzellenContextState _parzellenContextState;
@@ -33,11 +38,19 @@ public sealed class MemberGardensPage : ContentPage
 
     public MemberGardensPage(
         ISupabaseService supabaseService,
+        IAuthService authService,
+        PreparedLeaseContractResumeService preparedLeaseContractResumeService,
+        IPreparedContractRepository preparedContractRepository,
+        IContractGenerationClient contractGenerationClient,
         UserContextState userContextState,
         MemberContextState memberContextState,
         ParzellenContextState parzellenContextState)
     {
         _supabaseService = supabaseService;
+        _authService = authService;
+        _preparedLeaseContractResumeService = preparedLeaseContractResumeService;
+        _preparedContractRepository = preparedContractRepository;
+        _contractGenerationClient = contractGenerationClient;
         _userContextState = userContextState;
         _memberContextState = memberContextState;
         _parzellenContextState = parzellenContextState;
@@ -245,7 +258,7 @@ public sealed class MemberGardensPage : ContentPage
             return;
         }
 
-        await Navigation.PushAsync(new MemberGardenAssignPage(_supabaseService, _memberContextState, _userContextState));
+        await Navigation.PushAsync(new MemberGardenAssignPage(_supabaseService, _authService, _preparedLeaseContractResumeService, _preparedContractRepository, _contractGenerationClient, _memberContextState, _userContextState));
     }
 
     private void UpdateAssignGardenButtonVisibility(int mitgliedId)

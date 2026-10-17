@@ -13,6 +13,24 @@
 | K7 | Druck und Archivierung | Offen |
 | K8 | Weitere Dokumenttypen | Offen |
 
+### K4-Teilstatus
+
+| Teil | Stand |
+| --- | --- |
+| K4a | ✅ |
+| K4b | ✅ |
+| K4c | ✅ |
+| K4d | ✅ |
+| K4e | Offen |
+| K4f | Offen |
+
+K4 insgesamt bleibt **offen**. K4d schließt den MAUI-Pachtvertrag bis zum
+Status `vorbereitet` ab: Mapper, Resume/Claim, vollständiger Editor,
+semantischer Unsaved-Guard, zentrale flüchtige `kgv-generate-contract`-Preview
+und revisionssicheres Create/Update sind umgesetzt. Beide MAUI-Einstiege
+verwenden denselben Prepared-Flow. Lokale Pachtvertrag-Signatur- und
+Finalize-Schritte gehören nicht mehr zu diesem Flow; sie folgen erst in K4e.
+
 ## K1-Entscheidungen
 
 `public.kommunikationsvorgang` ist die zentrale, vereinsbezogene Vorgangstabelle. Es gibt bewusst kein `verein_id`, weil die Vereinsauswahl außerhalb der einzelnen Vereinsdatenbank erfolgt.

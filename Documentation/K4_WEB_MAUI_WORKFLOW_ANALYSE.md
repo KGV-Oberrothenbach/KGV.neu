@@ -21,6 +21,30 @@ K4c ist der nächste Teil.
 
 MAUI kann Mitgliedsanträge als Prepared-Vorgänge erstellen sowie vorhandene Vorgänge claimen, wiederaufnehmen und revisionssicher speichern. Die Vorschau stammt zentral aus `kgv-generate-contract`; Vorschau-PDFs und Signaturen werden nicht im Draft gespeichert. K4c endet bei `vorbereitet`; Signaturstart und Finalize folgen in K4e.
 
+## K4d-Status
+
+K4d ist abgeschlossen: MAUI behandelt Pachtverträge jetzt als
+`kgv-prepared-contract/v1`-Entwürfe. `PreparedLeaseContractMapper` normalisiert
+alle Pachtvertragsfelder, insbesondere ISO-Daten und die explizite
+Altvertragsentscheidung. Der `PreparedLeaseContractResumeService` öffnet eigene
+Vorgänge wieder oder übernimmt unzugeordnete Vorgänge atomar; fremde,
+gesperrte und konfliktbehaftete Vorgänge bleiben gesperrt.
+
+`PachtvertragDialogPage` bearbeitet vollständig die v1-Felder einschließlich
+Altvertrag, Übergabe, Befristung, Gartenordnung, Aushändigung, Vereinbarungen,
+Anlagen und Vereinsunterzeichner. Der Unsaved-Guard vergleicht beim Resume den
+serialisierten Draft semantisch mit dem gespeicherten Vorgang. Die Vorschau wird
+zentral von `kgv-generate-contract` erzeugt und bleibt flüchtig: weder
+Preview-PDF noch Signatur- oder Storage-Daten werden im Draft persistiert.
+
+Beide MAUI-Einstiege verwenden denselben Prepared-Flow. Ein neuer Draft wird
+mit `CreateAsync` angelegt; ein geänderter wiederaufgenommener Draft wird mit
+der geladenen `contract.Revision` per `UpdateDraftAsync` gespeichert. Der Flow
+endet ausschließlich bei `vorbereitet`. Der frühere lokale Signatur- und
+Finalize-Pfad ist aus `PachtvertragFlowHelper` entfernt. Die 41
+K4d-spezifischen Mapper-, Resume- und HTTP-Tests sind grün. Signaturstart,
+Signaturerfassung und Finalize bleiben ausdrücklich Bestandteil von K4e.
+
 ## 1. Ist-Zustand WEB
 
 K3 verwendet `kommunikationsvorgang` als serverseitigen Source of Truth. Der strukturierte Draft ist `kgv-prepared-contract/v1`:

@@ -74,6 +74,38 @@ public sealed class ContractGenerationClient : IContractGenerationClient
         return pdf.Length > 0 ? pdf : throw new InvalidOperationException("Die Vertragsvorschau hat keine PDF-Daten geliefert.");
     }
 
+    public async Task<byte[]> PreviewLeaseContractAsync(PachtvertragDokumentRequest request, CancellationToken cancellationToken = default)
+    {
+        var draft = PreparedLeaseContractMapper.ToPreparedDraft(request).Draft;
+        var payload = new Dictionary<string, object?>
+        {
+            ["action"] = "preview", ["type"] = "pachtvertrag", ["member_id"] = request.MitgliedId, ["parcel_id"] = request.ParzelleId,
+            ["start_date"] = draft.StartDate, ["has_previous_contract"] = draft.HasPreviousContract,
+            ["include_secondary_member"] = draft.IncludeSecondaryMember, ["handover_date"] = draft.HandoverDate,
+            ["attachment_1"] = draft.Attachment1, ["attachment_2"] = draft.Attachment2, ["attachment_3"] = draft.Attachment3, ["attachment_4"] = draft.Attachment4
+        };
+        if (draft.HasPreviousContract == true) payload["previous_contract_date"] = draft.PreviousContractDate;
+        if (!string.IsNullOrWhiteSpace(draft.FixedUntil)) payload["fixed_until"] = draft.FixedUntil;
+        if (!string.IsNullOrWhiteSpace(draft.GardenRulesVersion)) payload["garden_rules_version"] = draft.GardenRulesVersion;
+        if (!string.IsNullOrWhiteSpace(draft.GardenRulesHandedOverAt)) payload["garden_rules_handed_over_at"] = draft.GardenRulesHandedOverAt;
+        if (!string.IsNullOrWhiteSpace(draft.AdditionalAgreements)) payload["additional_agreements"] = draft.AdditionalAgreements;
+        if (!string.IsNullOrWhiteSpace(draft.ClubSignatory)) payload["club_signatory"] = draft.ClubSignatory;
+        return await SendPreviewAsync(payload, cancellationToken);
+    }
+
+    private async Task<byte[]> SendPreviewAsync(object payload, CancellationToken cancellationToken)
+    {
+        var token = await _auth.GetAccessTokenAsync();
+        if (string.IsNullOrWhiteSpace(token)) throw new InvalidOperationException("Für die Vertragsvorschau ist eine gültige Anmeldung erforderlich.");
+        using var client = _httpClientFactory(); using var message = new HttpRequestMessage(HttpMethod.Post, $"{_clientFactory.Url.TrimEnd('/')}/functions/v1/kgv-generate-contract");
+        message.Headers.Add("apikey", _clientFactory.Key); message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token); message.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        using var response = await client.SendAsync(message, cancellationToken);
+        if (!response.IsSuccessStatusCode) throw new InvalidOperationException($"Die Vertragsvorschau konnte nicht erzeugt werden ({(int)response.StatusCode}): {await ReadErrorMessageAsync(response, cancellationToken)}");
+        var contentType = response.Content.Headers.ContentType?.MediaType;
+        if (!string.IsNullOrWhiteSpace(contentType) && !string.Equals(contentType, "application/pdf", StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException($"Die Vertragsvorschau lieferte einen unerwarteten Inhaltstyp '{contentType}'.");
+        var pdf = await response.Content.ReadAsByteArrayAsync(cancellationToken); return pdf.Length > 0 ? pdf : throw new InvalidOperationException("Die Vertragsvorschau hat keine PDF-Daten geliefert.");
+    }
+
     private static async Task<string> ReadErrorMessageAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         var content = await response.Content.ReadAsStringAsync(cancellationToken);

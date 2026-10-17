@@ -18,6 +18,7 @@ public sealed class PachtvertragDokumentRequest
         set => VereinskonfigurationSnapshot = value;
     }
     public DateTime? AltvertragDatum { get; set; }
+    public bool? HasPreviousContract { get; set; }
     public DateTime? UebergabeDatum { get; set; }
     public DateTime? BefristetBis { get; set; }
     public string? KleingartenordnungFassung { get; set; }

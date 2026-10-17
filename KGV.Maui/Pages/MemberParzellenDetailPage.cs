@@ -1,6 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
+using KGV.Core.Services;
 using KGV.Maui.Services.Diagnostics;
 using KGV.Maui.State;
 using KGV.Maui.ViewModels;
@@ -16,6 +17,10 @@ namespace KGV.Maui.Pages;
 public sealed class MemberParzellenDetailPage : ContentPage
 {
     private readonly ISupabaseService _supabaseService;
+    private readonly IAuthService _authService;
+    private readonly PreparedLeaseContractResumeService _preparedLeaseContractResumeService;
+    private readonly IPreparedContractRepository _preparedContractRepository;
+    private readonly IContractGenerationClient _contractGenerationClient;
     private readonly ParzellenViewModel _viewModel;
     private readonly ParzellenContextState _parzellenContextState;
     private readonly UserContextState _userContextState;
@@ -30,9 +35,13 @@ public sealed class MemberParzellenDetailPage : ContentPage
     private bool _mitgliedsantragStatusGeprueft;
     private bool _hasSignedMitgliedsantrag;
 
-    public MemberParzellenDetailPage(ISupabaseService supabaseService, ParzellenViewModel viewModel, ParzellenContextState parzellenContextState, UserContextState userContextState)
+    public MemberParzellenDetailPage(ISupabaseService supabaseService, IAuthService authService, PreparedLeaseContractResumeService preparedLeaseContractResumeService, IPreparedContractRepository preparedContractRepository, IContractGenerationClient contractGenerationClient, ParzellenViewModel viewModel, ParzellenContextState parzellenContextState, UserContextState userContextState)
     {
         _supabaseService = supabaseService;
+        _authService = authService;
+        _preparedLeaseContractResumeService = preparedLeaseContractResumeService;
+        _preparedContractRepository = preparedContractRepository;
+        _contractGenerationClient = contractGenerationClient;
         _viewModel = viewModel;
         _parzellenContextState = parzellenContextState;
         _userContextState = userContextState;
@@ -476,9 +485,19 @@ public sealed class MemberParzellenDetailPage : ContentPage
             var flowResult = await PachtvertragFlowHelper.RunAsync(
                 Navigation,
                 _supabaseService,
+                _authService,
+                _preparedLeaseContractResumeService,
+                _preparedContractRepository,
+                _contractGenerationClient,
                 _parzellenContextState.ContextMitgliedId.Value,
                 detail.ParzelleId,
                 detail.VonDatum.Value.Date);
+
+            if (flowResult == PachtvertragFlowResult.Vorbereitet)
+            {
+                await DisplayAlertAsync("Pachtvertrag", "Der Pachtvertrag wurde zur Signatur vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert.", "OK");
+                return;
+            }
 
             if (flowResult != PachtvertragFlowResult.Gespeichert)
                 return;

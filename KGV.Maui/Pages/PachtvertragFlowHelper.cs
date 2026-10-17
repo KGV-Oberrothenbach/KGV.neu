@@ -1,153 +1,132 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
-using Microsoft.Maui.ApplicationModel;
+using KGV.Core.Services;
 using Microsoft.Maui.Controls;
 
 namespace KGV.Maui.Pages;
 
 internal static class PachtvertragFlowHelper
 {
-    public static async Task<PachtvertragFlowResult> RunAsync(INavigation navigation, ISupabaseService supabaseService, int mitgliedId, int parzelleId, DateTime vertragsbeginn)
+    public static async Task<PachtvertragFlowResult> RunAsync(
+        INavigation navigation,
+        ISupabaseService supabaseService,
+        IAuthService authService,
+        PreparedLeaseContractResumeService resumeService,
+        IPreparedContractRepository preparedContractRepository,
+        IContractGenerationClient contractGenerationClient,
+        int mitgliedId,
+        int parzelleId,
+        DateTime vertragsbeginn)
     {
         ArgumentNullException.ThrowIfNull(navigation);
         ArgumentNullException.ThrowIfNull(supabaseService);
+        ArgumentNullException.ThrowIfNull(authService);
+        ArgumentNullException.ThrowIfNull(resumeService);
+        ArgumentNullException.ThrowIfNull(preparedContractRepository);
+        ArgumentNullException.ThrowIfNull(contractGenerationClient);
 
         if (!await supabaseService.HasSignedMitgliedsantragAsync(mitgliedId))
             throw new InvalidOperationException("Ein Pachtvertrag kann erst nach dem signierten Mitgliedsantrag erstellt werden.");
+        if (!Guid.TryParse(authService.CurrentUserId, out var currentUserId) || currentUserId == Guid.Empty)
+            throw new InvalidOperationException("Die aktuelle Benutzer-ID konnte nicht bestimmt werden.");
+
+        var resume = await resumeService.ResolveAsync(mitgliedId, parzelleId, currentUserId);
+        var contract = resume.Contract;
+        switch (resume.Decision)
+        {
+            case PreparedLeaseContractResumeDecision.New:
+                contract = null;
+                break;
+            case PreparedLeaseContractResumeDecision.ResumeOwn:
+            case PreparedLeaseContractResumeDecision.ResumeClaimed:
+                if (contract == null) throw new InvalidOperationException("Der vorbereitete Pachtvertrag konnte nicht geladen werden.");
+                break;
+            case PreparedLeaseContractResumeDecision.ForeignAssigned:
+                throw new InvalidOperationException("Der vorbereitete Pachtvertrag wird bereits von einer anderen Person bearbeitet.");
+            case PreparedLeaseContractResumeDecision.SignatureLocked:
+                throw new InvalidOperationException("Der Pachtvertrag ist bereits zur Signatur vorbereitet oder gestartet und kann nicht mehr bearbeitet werden.");
+            case PreparedLeaseContractResumeDecision.ClaimConflict:
+                throw new InvalidOperationException("Der vorbereitete Pachtvertrag konnte nicht übernommen werden, da er inzwischen einer anderen Person zugewiesen wurde.");
+            default:
+                throw new InvalidOperationException("Der vorbereitete Pachtvertrag hat einen nicht bearbeitbaren Status.");
+        }
 
         PachtvertragDokumentRequest? initialRequest = null;
+        if (contract != null)
+        {
+            var parsed = PreparedContractDraftParser.Parse(contract.EntwurfDaten);
+            if (parsed is not PreparedLeaseContractDraft draft
+                || draft.DocumentType != PreparedContractConstants.LeaseContract
+                || draft.MemberId != mitgliedId
+                || draft.Draft.ParcelId != parzelleId)
+                throw new PreparedContractValidationException("Der gespeicherte Pachtvertragsentwurf passt nicht zum aktuellen Mitglied oder zur aktuellen Parzelle.");
+
+            if (!DateTime.TryParseExact(draft.Draft.StartDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var savedStartDate))
+                throw new PreparedContractValidationException("Der gespeicherte Pachtvertrag enthält ein ungültiges Vertragsbeginn-Datum.");
+            var resolution = await supabaseService.ResolveGesetzlicherVertreterAsync(mitgliedId, savedStartDate);
+            initialRequest = PreparedLeaseContractMapper.ToDocumentRequest(draft, resolution.IstMinderjaehrig);
+            vertragsbeginn = initialRequest.Vertragsbeginn;
+        }
+
         while (true)
         {
-            var request = await PromptPachtvertragRequestAsync(navigation, supabaseService, mitgliedId, parzelleId, vertragsbeginn, initialRequest);
-            if (request == null)
-                return PachtvertragFlowResult.Abgebrochen;
+            var request = await PromptPachtvertragRequestAsync(navigation, supabaseService, mitgliedId, parzelleId, vertragsbeginn, initialRequest, contract);
+            if (request == null) return PachtvertragFlowResult.Abgebrochen;
 
-            DokumentUploadRequest? previewUploadRequest;
-            try
-            {
-                previewUploadRequest = await supabaseService.BuildPachtvertragPreviewAsync(request);
-            }
-            catch (Exception ex)
-            {
-                // provide more context for UI error messages
-                throw new InvalidOperationException($"Pachtvertrag-Vorschau konnte nicht erzeugt werden: {ex.Message}", ex);
-            }
+            byte[] pdf;
+            try { pdf = await contractGenerationClient.PreviewLeaseContractAsync(request); }
+            catch (Exception ex) { throw new InvalidOperationException($"Pachtvertrag-Vorschau konnte nicht erzeugt werden: {ex.Message}", ex); }
+            if (pdf.Length == 0) throw new InvalidOperationException("Pachtvertrag-Vorschau konnte nicht erzeugt werden.");
 
-            if (previewUploadRequest == null || (previewUploadRequest.FileContent?.Length ?? 0) <= 0)
-                throw new InvalidOperationException("Pachtvertrag-Vorschau konnte nicht erzeugt werden.");
+            var preview = new PachtvertragPreviewPage(
+                new DokumentUploadRequest { Titel = "Pachtvertrag – Vorschau", MimeType = "application/pdf", FileName = $"pachtvertrag-vorschau-{mitgliedId}-{parzelleId}.pdf", FileContent = pdf },
+                persistForSignature: false,
+                preparedActionLabel: contract == null ? "Zur Signatur vorbereiten" : "Änderungen speichern");
+            await navigation.PushModalAsync(new NavigationPage(preview));
+            var decision = await preview.WaitForResultAsync();
+            if (decision == PachtvertragPreviewDecision.BackToEditor) { initialRequest = request; continue; }
+            if (decision == PachtvertragPreviewDecision.Cancel) return PachtvertragFlowResult.Abgebrochen;
+            if (decision != PachtvertragPreviewDecision.SavePrepared)
+                throw new InvalidOperationException("Der Pachtvertrag kann in diesem Schritt nicht zur Signatur weitergeleitet werden.");
 
-            var previewPage = new PachtvertragPreviewPage(previewUploadRequest);
-            await navigation.PushModalAsync(new NavigationPage(previewPage));
-            var previewDecision = await previewPage.WaitForResultAsync();
-            if (previewDecision == PachtvertragPreviewDecision.BackToEditor)
-            {
-                initialRequest = request;
-                continue;
-            }
+            var serialized = PreparedContractDraftParser.Serialize(PreparedLeaseContractMapper.ToPreparedDraft(request));
+            if (contract == null)
+                await preparedContractRepository.CreateAsync(PreparedContractConstants.LeaseContract, mitgliedId, parzelleId, serialized);
+            else if (!PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, serialized))
+                await preparedContractRepository.UpdateDraftAsync(contract.Id, contract.Revision, serialized);
 
-            if (previewDecision != PachtvertragPreviewDecision.ContinueToSignature)
-                return PachtvertragFlowResult.Abgebrochen;
-
-            var sourceDocument = new DocumentInfo
-            {
-                Title = previewUploadRequest.Titel,
-                Dateiname = previewUploadRequest.FileName,
-                Name = previewUploadRequest.FileName,
-                MimeType = previewUploadRequest.MimeType,
-                // provide persistent local preview path for signing
-                StoragePath = KGV.Maui.Services.Documents.DocumentStorage.GetPersistentFilePath(previewUploadRequest.FileName)
-            };
-
-            var signatureCapture = await SignatureFlowHelper.CaptureSignatureAsync(navigation, sourceDocument, "Unterschrift Pächter/in", isLastSignature: false, forceLandscape: false);
-            if (signatureCapture == null)
-                return PachtvertragFlowResult.Abgebrochen;
-
-            DigitalSignatureCapture? zweiteParteiSignatureCapture = null;
-            if (request.IstMinderjaehrig)
-            {
-                zweiteParteiSignatureCapture = await SignatureFlowHelper.CaptureSignatureAsync(navigation, sourceDocument, "Unterschrift gesetzliche/r Vertreter/in", isLastSignature: false, forceLandscape: false);
-                if (zweiteParteiSignatureCapture == null)
-                    return PachtvertragFlowResult.Abgebrochen;
-            }
-            else if (request.IncludeSecondaryMember == true)
-            {
-                zweiteParteiSignatureCapture = await SignatureFlowHelper.CaptureSignatureAsync(navigation, sourceDocument, "Unterschrift Pächter/in 2", isLastSignature: false, forceLandscape: false);
-                if (zweiteParteiSignatureCapture == null)
-                    return PachtvertragFlowResult.Abgebrochen;
-            }
-
-            var vorstandSignatureCapture = await SignatureFlowHelper.CaptureSignatureAsync(
-                navigation,
-                sourceDocument,
-                "Unterschrift Vorstand / Verpächter",
-                isLastSignature: true,
-                forceLandscape: false);
-            if (vorstandSignatureCapture == null)
-                return PachtvertragFlowResult.Abgebrochen;
-
-            DokumentUploadResult? result = null;
-            try
-            {
-                try { System.Diagnostics.Debug.WriteLine($"[PachtvertragFlow] signatureCapture present={signatureCapture != null}, hasContent={signatureCapture?.HasContent}, strokes={(signatureCapture?.Strokes?.Count ?? 0)}"); } catch { }
-                try { System.Diagnostics.Debug.WriteLine($"[PachtvertragFlow] zweitePartei present={zweiteParteiSignatureCapture != null}, hasContent={zweiteParteiSignatureCapture?.HasContent}, strokes={(zweiteParteiSignatureCapture?.Strokes?.Count ?? 0)}"); } catch { }
-                try { System.Diagnostics.Debug.WriteLine($"[PachtvertragFlow] vorstand present={vorstandSignatureCapture != null}, hasContent={vorstandSignatureCapture?.HasContent}, strokes={(vorstandSignatureCapture?.Strokes?.Count ?? 0)}"); } catch { }
-
-                result = await supabaseService.CreateSignedPachtvertragDokumentAsync(request, signatureCapture!, vorstandSignatureCapture!, zweiteParteiSignatureCapture);
-                try { System.Diagnostics.Debug.WriteLine($"[PachtvertragFlow] CreateSignedPachtvertragDokumentAsync result: Success={result?.Success}, Message={result?.Message}"); } catch { }
-
-                if (result == null || !result.Success)
-                    throw new InvalidOperationException(result?.Message ?? "Unbekannter Fehler beim Speichern des signierten Pachtvertrags.");
-            }
-            catch (Exception ex)
-            {
-                try { System.Diagnostics.Debug.WriteLine($"[PachtvertragFlow] Create signed failed: {ex}"); } catch { }
-                throw;
-            }
-
-            var document = result.Document;
-            if (document?.CanOpen != true)
-                return PachtvertragFlowResult.Gespeichert;
-
-            var content = await supabaseService.DownloadDokumentContentAsync(document);
-            if (content is not { Length: > 0 })
-                return PachtvertragFlowResult.Gespeichert;
-
-            await navigation.PushAsync(new PdfViewerPage(document.Title ?? document.Dateiname, content));
-            return PachtvertragFlowResult.Gespeichert;
+            return PachtvertragFlowResult.Vorbereitet;
         }
     }
 
-    private static async Task<PachtvertragDokumentRequest?> PromptPachtvertragRequestAsync(INavigation navigation, ISupabaseService supabaseService, int mitgliedId, int parzelleId, DateTime vertragsbeginn, PachtvertragDokumentRequest? initialRequest)
+    private static async Task<PachtvertragDokumentRequest?> PromptPachtvertragRequestAsync(
+        INavigation navigation, ISupabaseService supabaseService, int mitgliedId, int parzelleId, DateTime vertragsbeginn,
+        PachtvertragDokumentRequest? initialRequest, KommunikationsvorgangDto? contract)
     {
-        var member = await supabaseService.GetMitgliedByIdAsync(mitgliedId);
-        if (member == null)
-            throw new InvalidOperationException("Mitglied konnte nicht geladen werden.");
-
-        var parzelle = (await supabaseService.GetAllParzellenAsync()).FirstOrDefault(x => x.Id == parzelleId);
-        if (parzelle == null)
-            throw new InvalidOperationException("Parzelle konnte nicht geladen werden.");
-
-        var gesetzlicherVertreterAufloesung = await supabaseService.ResolveGesetzlicherVertreterAsync(mitgliedId, vertragsbeginn);
-        if (gesetzlicherVertreterAufloesung.IstMinderjaehrig && !gesetzlicherVertreterAufloesung.HatAktivenGesetzlichenVertreter)
-        {
-            throw new InvalidOperationException(
-                "Für dieses minderjährige Mitglied ist im signierten Mitgliedsantrag kein gesetzlicher Vertreter hinterlegt.");
-        }
-
+        var member = await supabaseService.GetMitgliedByIdAsync(mitgliedId) ?? throw new InvalidOperationException("Mitglied konnte nicht geladen werden.");
+        var parzelle = (await supabaseService.GetAllParzellenAsync()).FirstOrDefault(x => x.Id == parzelleId) ?? throw new InvalidOperationException("Parzelle konnte nicht geladen werden.");
+        var representative = await supabaseService.ResolveGesetzlicherVertreterAsync(mitgliedId, vertragsbeginn);
+        if (representative.IstMinderjaehrig && !representative.HatAktivenGesetzlichenVertreter)
+            throw new InvalidOperationException("Für dieses minderjährige Mitglied ist im signierten Mitgliedsantrag kein gesetzlicher Vertreter hinterlegt.");
         var nebenmitglied = await supabaseService.GetNebenmitgliedByHauptmitgliedIdAsync(mitgliedId);
-
-        var dialogPage = new PachtvertragDialogPage(member, parzelle, vertragsbeginn, gesetzlicherVertreterAufloesung, nebenmitglied, initialRequest);
-        await navigation.PushModalAsync(new NavigationPage(dialogPage));
-        return await dialogPage.WaitForResultAsync();
+        Func<PachtvertragDokumentRequest?, bool>? unsaved = contract == null ? null : request =>
+        {
+            if (request == null) return true;
+            try { return !PreparedContractDraftParser.AreEquivalent(contract.EntwurfDaten, PreparedContractDraftParser.Serialize(PreparedLeaseContractMapper.ToPreparedDraft(request))); }
+            catch { return true; }
+        };
+        var dialog = new PachtvertragDialogPage(member, parzelle, vertragsbeginn, representative, nebenmitglied, initialRequest, unsaved);
+        await navigation.PushModalAsync(new NavigationPage(dialog));
+        return await dialog.WaitForResultAsync();
     }
 }
 
 internal enum PachtvertragFlowResult
 {
     Abgebrochen,
+    Vorbereitet,
     Gespeichert
 }

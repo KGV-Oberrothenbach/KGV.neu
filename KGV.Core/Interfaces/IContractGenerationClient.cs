@@ -8,4 +8,6 @@ public interface IContractGenerationClient
         MitgliedsantragDokumentRequest request,
         decimal admissionFee,
         CancellationToken cancellationToken = default);
+
+    Task<byte[]> PreviewLeaseContractAsync(PachtvertragDokumentRequest request, CancellationToken cancellationToken = default);
 }

@@ -69,10 +69,121 @@ public sealed class ContractGenerationClientHttpTests
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => Client(handler).PreviewMembershipApplicationAsync(Request(), 0)); Assert.Contains("400", ex.Message); Assert.Contains("Ungültiger Antrag", ex.Message);
     }
 
+    [Fact]
+    public async Task Lease_preview_sends_complete_payload()
+    {
+        var handler = new RecordingHandler(Pdf());
+
+        await Client(handler).PreviewLeaseContractAsync(LeaseRequest());
+
+        using var body = JsonDocument.Parse(Assert.Single(handler.Requests).Body); var root = body.RootElement;
+        Assert.Equal("preview", root.GetProperty("action").GetString()); Assert.Equal("pachtvertrag", root.GetProperty("type").GetString());
+        Assert.Equal(101, root.GetProperty("member_id").GetInt32()); Assert.Equal(202, root.GetProperty("parcel_id").GetInt32()); Assert.Equal("2026-11-01", root.GetProperty("start_date").GetString());
+        Assert.True(root.GetProperty("has_previous_contract").GetBoolean()); Assert.Equal("2020-02-03", root.GetProperty("previous_contract_date").GetString()); Assert.True(root.GetProperty("include_secondary_member").GetBoolean());
+        Assert.Equal("2026-11-04", root.GetProperty("handover_date").GetString()); Assert.Equal("2027-05-06", root.GetProperty("fixed_until").GetString()); Assert.Equal("Fassung 2026", root.GetProperty("garden_rules_version").GetString());
+        Assert.Equal("2026-07-08", root.GetProperty("garden_rules_handed_over_at").GetString()); Assert.Equal("Zusatz", root.GetProperty("additional_agreements").GetString());
+        Assert.True(root.GetProperty("attachment_1").GetBoolean()); Assert.False(root.GetProperty("attachment_2").GetBoolean()); Assert.True(root.GetProperty("attachment_3").GetBoolean()); Assert.True(root.GetProperty("attachment_4").GetBoolean()); Assert.Equal("Vorstand", root.GetProperty("club_signatory").GetString());
+    }
+
+    [Fact]
+    public async Task Lease_without_previous_contract_omits_previous_contract_date()
+    {
+        var handler = new RecordingHandler(Pdf()); var request = LeaseRequest(); request.HasPreviousContract = false; request.AltvertragDatum = new DateTime(2020, 2, 3);
+
+        await Client(handler).PreviewLeaseContractAsync(request);
+
+        using var body = JsonDocument.Parse(handler.Requests.Single().Body); var root = body.RootElement;
+        Assert.False(root.GetProperty("has_previous_contract").GetBoolean()); Assert.False(root.TryGetProperty("previous_contract_date", out _));
+    }
+
+    [Fact]
+    public async Task Lease_empty_optional_values_are_omitted()
+    {
+        var handler = new RecordingHandler(Pdf()); var request = LeaseRequest(); request.UebergabeDatum = null; request.BefristetBis = null; request.KleingartenordnungFassung = null; request.KleingartenordnungAusgehaendigtAm = null; request.WeitereVereinbarungen = null; request.VereinsUnterzeichner = null;
+
+        await Client(handler).PreviewLeaseContractAsync(request);
+
+        using var body = JsonDocument.Parse(handler.Requests.Single().Body); var root = body.RootElement;
+        Assert.Equal("2026-11-01", root.GetProperty("handover_date").GetString());
+        foreach (var name in new[] { "fixed_until", "garden_rules_version", "garden_rules_handed_over_at", "additional_agreements", "club_signatory" }) Assert.False(root.TryGetProperty(name, out _));
+    }
+
+    [Fact]
+    public async Task Lease_minor_forces_secondary_member_false()
+    {
+        var handler = new RecordingHandler(Pdf()); var request = LeaseRequest(); request.IstMinderjaehrig = true; request.IncludeSecondaryMember = true;
+
+        await Client(handler).PreviewLeaseContractAsync(request);
+
+        using var body = JsonDocument.Parse(handler.Requests.Single().Body); Assert.False(body.RootElement.GetProperty("include_secondary_member").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Lease_preview_uses_apikey_and_bearer_token()
+    {
+        var handler = new RecordingHandler(Pdf());
+
+        await Client(handler).PreviewLeaseContractAsync(LeaseRequest());
+
+        var sent = Assert.Single(handler.Requests);
+        Assert.Equal("anon", sent.ApiKey); Assert.Equal("Bearer token", sent.Authorization); Assert.DoesNotContain("service_role", sent.Headers, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Lease_preview_without_token_does_not_send_request()
+    {
+        var handler = new RecordingHandler(Pdf());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Client(handler, null).PreviewLeaseContractAsync(LeaseRequest()));
+
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task Lease_preview_rejects_empty_pdf()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent([]) }; response.Content.Headers.ContentType = new("application/pdf");
+        var handler = new RecordingHandler(response);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Client(handler).PreviewLeaseContractAsync(LeaseRequest()));
+    }
+
+    [Fact]
+    public async Task Lease_preview_rejects_wrong_content_type()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent([1]) }; response.Content.Headers.ContentType = new("application/json");
+        var handler = new RecordingHandler(response);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Client(handler).PreviewLeaseContractAsync(LeaseRequest()));
+    }
+
+    [Fact]
+    public async Task Lease_preview_reads_json_error_message()
+    {
+        var handler = new RecordingHandler(new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = new StringContent("{\"message\":\"Pachtvertrag ungültig.\"}", Encoding.UTF8, "application/json") });
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => Client(handler).PreviewLeaseContractAsync(LeaseRequest()));
+
+        Assert.Contains("Pachtvertrag ungültig.", exception.Message);
+    }
+
+    [Fact]
+    public async Task Lease_preview_contains_no_signature_fields()
+    {
+        var handler = new RecordingHandler(Pdf());
+
+        await Client(handler).PreviewLeaseContractAsync(LeaseRequest());
+
+        using var body = JsonDocument.Parse(handler.Requests.Single().Body);
+        Assert.DoesNotContain(PropertyNames(body.RootElement), name => name.Contains("signature", StringComparison.OrdinalIgnoreCase) || name.Contains("signatur", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static ContractGenerationClient Client(RecordingHandler handler, string? token = "token") => new(new Factory(), new Auth(token), () => new HttpClient(handler, false));
     private static MitgliedsantragDokumentRequest Request() => new() { MitgliedId = 101, BeginnDatum = new DateTime(2026, 11, 1), Mitgliedsbeitrag = 42.5m, NebenmitgliedEinbeziehen = true };
+    private static PachtvertragDokumentRequest LeaseRequest() => new() { MitgliedId = 101, ParzelleId = 202, Vertragsbeginn = new DateTime(2026, 11, 1, 12, 0, 0), HasPreviousContract = true, AltvertragDatum = new DateTime(2020, 2, 3, 12, 0, 0), UebergabeDatum = new DateTime(2026, 11, 4, 12, 0, 0), BefristetBis = new DateTime(2027, 5, 6, 12, 0, 0), KleingartenordnungFassung = "Fassung 2026", KleingartenordnungAusgehaendigtAm = new DateTime(2026, 7, 8, 12, 0, 0), WeitereVereinbarungen = "Zusatz", Anlage1 = true, Anlage2 = false, Anlage3 = true, Anlage4 = true, VereinsUnterzeichner = "Vorstand", IncludeSecondaryMember = true, IstMinderjaehrig = false };
     private static HttpResponseMessage Pdf() => new(HttpStatusCode.OK) { Content = new ByteArrayContent([1, 2, 3]) { Headers = { ContentType = new("application/pdf") } } };
-    private sealed class RecordingHandler(params HttpResponseMessage[] responses) : HttpMessageHandler { public List<(HttpMethod Method, string Uri, string Authorization, string Headers, string ContentType, string Body)> Requests { get; } = []; private int _index; protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) { Requests.Add((request.Method, request.RequestUri!.PathAndQuery, request.Headers.Authorization?.ToString() ?? "", string.Join(';', request.Headers.Select(x => x.Key)), request.Content?.Headers.ContentType?.MediaType ?? "", request.Content is null ? "" : await request.Content.ReadAsStringAsync(ct))); return responses[_index++]; } }
+    private static IEnumerable<string> PropertyNames(JsonElement value) => value.ValueKind == JsonValueKind.Object ? value.EnumerateObject().SelectMany(property => new[] { property.Name }.Concat(PropertyNames(property.Value))) : value.ValueKind == JsonValueKind.Array ? value.EnumerateArray().SelectMany(PropertyNames) : [];
+    private sealed class RecordingHandler(params HttpResponseMessage[] responses) : HttpMessageHandler { public List<(HttpMethod Method, string Uri, string Authorization, string ApiKey, string Headers, string ContentType, string Body)> Requests { get; } = []; private int _index; protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) { Requests.Add((request.Method, request.RequestUri!.PathAndQuery, request.Headers.Authorization?.ToString() ?? "", request.Headers.TryGetValues("apikey", out var apiKey) ? apiKey.Single() : "", string.Join(';', request.Headers.Select(x => x.Key)), request.Content?.Headers.ContentType?.MediaType ?? "", request.Content is null ? "" : await request.Content.ReadAsStringAsync(ct))); return responses[_index++]; } }
     private sealed class Factory : ISupabaseClientFactory { public string Url => "https://test.supabase.co"; public string Key => "anon"; public Task<Client> CreateAsync() => throw new NotSupportedException(); }
     private sealed class Auth(string? token) : IAuthService { public bool IsVorstand => false; public bool IsAdmin => false; public string? CurrentUserId => null; public Task<string?> GetAccessTokenAsync() => Task.FromResult(token); public Task<Client> GetClientAsync()=>throw new NotSupportedException(); public Task<bool> LoginAsync(string a,string b)=>throw new NotSupportedException(); public Task<List<AppUserDTO>> GetAppUsersAsync()=>throw new NotSupportedException(); public Task<List<MemberUserLinkStatusDto>> GetMemberUserLinkStatusesAsync()=>throw new NotSupportedException(); public Task<MemberUserLinkStatusDto?> GetMemberUserLinkStatusAsync(int x)=>throw new NotSupportedException(); public Task<InviteUserAccountResult> InviteUserAsync(AppUserDTO x)=>throw new NotSupportedException(); public Task<bool> RemoveUserAsync(AppUserDTO x)=>throw new NotSupportedException(); public Task<bool> ChangeEmailAsync(string x)=>throw new NotSupportedException(); public Task<bool> RequestEmailChangeAsync(string x)=>throw new NotSupportedException(); public Task<bool> VerifyEmailChangeOtpAsync(string a,string b)=>throw new NotSupportedException(); public Task<bool> SendPasswordResetEmailAsync(string x)=>throw new NotSupportedException(); public Task<bool> RequestOtpAsync(string x)=>throw new NotSupportedException(); public Task<bool> VerifyOtpAsync(string a,string b)=>throw new NotSupportedException(); public Task<bool> SetPasswordWithOtpAsync(string a,string b,string c)=>throw new NotSupportedException(); public Task<BiometricSessionTokens?> GetSessionTokensAsync()=>throw new NotSupportedException(); public Task<bool> RestoreSessionAsync(BiometricSessionTokens x)=>throw new NotSupportedException(); public Task LogoutAsync()=>throw new NotSupportedException(); }
 }

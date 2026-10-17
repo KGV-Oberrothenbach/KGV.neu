@@ -1,6 +1,7 @@
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
+using KGV.Core.Services;
 using KGV.Maui.State;
 using Microsoft.Maui;
 using Microsoft.Maui.ApplicationModel;
@@ -16,6 +17,10 @@ namespace KGV.Maui.Pages;
 public sealed class MemberGardenAssignPage : ContentPage
 {
     private readonly ISupabaseService _supabaseService;
+    private readonly IAuthService _authService;
+    private readonly PreparedLeaseContractResumeService _preparedLeaseContractResumeService;
+    private readonly IPreparedContractRepository _preparedContractRepository;
+    private readonly IContractGenerationClient _contractGenerationClient;
     private readonly MemberContextState _memberContextState;
     private readonly UserContextState _userContextState;
     private readonly Label _headlineLabel;
@@ -32,10 +37,18 @@ public sealed class MemberGardenAssignPage : ContentPage
 
     public MemberGardenAssignPage(
         ISupabaseService supabaseService,
+        IAuthService authService,
+        PreparedLeaseContractResumeService preparedLeaseContractResumeService,
+        IPreparedContractRepository preparedContractRepository,
+        IContractGenerationClient contractGenerationClient,
         MemberContextState memberContextState,
         UserContextState userContextState)
     {
         _supabaseService = supabaseService;
+        _authService = authService;
+        _preparedLeaseContractResumeService = preparedLeaseContractResumeService;
+        _preparedContractRepository = preparedContractRepository;
+        _contractGenerationClient = contractGenerationClient;
         _memberContextState = memberContextState;
         _userContextState = userContextState;
 
@@ -245,7 +258,8 @@ public sealed class MemberGardenAssignPage : ContentPage
             _isBusy = true;
             try
             {
-                await PachtvertragFlowHelper.RunAsync(Navigation, _supabaseService, mitgliedId, parzelleId, vertragsbeginn);
+                var result = await PachtvertragFlowHelper.RunAsync(Navigation, _supabaseService, _authService, _preparedLeaseContractResumeService, _preparedContractRepository, _contractGenerationClient, mitgliedId, parzelleId, vertragsbeginn);
+                if (result == PachtvertragFlowResult.Vorbereitet) await DisplayAlertAsync("Pachtvertrag", "Der Pachtvertrag wurde zur Signatur vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert.", "OK");
             }
             finally
             {
@@ -255,7 +269,8 @@ public sealed class MemberGardenAssignPage : ContentPage
         }
         else
         {
-            await PachtvertragFlowHelper.RunAsync(Navigation, _supabaseService, mitgliedId, parzelleId, vertragsbeginn);
+            var result = await PachtvertragFlowHelper.RunAsync(Navigation, _supabaseService, _authService, _preparedLeaseContractResumeService, _preparedContractRepository, _contractGenerationClient, mitgliedId, parzelleId, vertragsbeginn);
+            if (result == PachtvertragFlowResult.Vorbereitet) await DisplayAlertAsync("Pachtvertrag", "Der Pachtvertrag wurde zur Signatur vorbereitet und unter Kommunikation > Zur Signatur > Meine gespeichert.", "OK");
         }
     }
 
