@@ -33,7 +33,6 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 ### Wartungsverträge
 
-- [ ] WEB-Wartungsvertragsübersicht vereinfachen: Startansicht nur `Titel | Belegung | Arbeitsstundenwirkung`.
 - [ ] Klick auf einen Wartungsvertrag öffnet denselben Detail-View wie beim Bearbeiten, zunächst ohne Bearbeitungsfunktion.
 - [ ] Im Detail-View Mitglieder einem Wartungsvertrag zuordnen oder abwählen können.
 - [ ] Wartungsvertrag optional auf eine Saison befristen können.
