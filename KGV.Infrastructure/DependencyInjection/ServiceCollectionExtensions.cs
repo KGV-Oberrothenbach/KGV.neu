@@ -35,6 +35,8 @@ namespace KGV.Infrastructure.DependencyInjection
                     sp.GetRequiredService<ISupabaseClientFactory>(),
                     sp.GetService<ILogger<AuthService>>()));
 
+            services.AddSingleton<IPreparedContractRepository, PreparedContractRepository>();
+
             services.AddSingleton<PdfTemplateAssetCache>();
             services.AddSingleton<IPdfTemplateProvider, SupabasePdfTemplateProvider>();
 

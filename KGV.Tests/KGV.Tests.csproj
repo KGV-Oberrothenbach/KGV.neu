@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\KGV.Core\KGV.Core.csproj" />
+    <ProjectReference Include="..\KGV.Infrastructure\KGV.Infrastructure.csproj" />
     <ProjectReference Include="..\KGV.Wpf\KGV.Wpf.csproj" />
   </ItemGroup>
 
