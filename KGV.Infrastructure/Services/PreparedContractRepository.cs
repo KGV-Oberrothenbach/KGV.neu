@@ -23,7 +23,7 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
     public PreparedContractRepository(ISupabaseClientFactory clientFactory, IAuthService auth, Func<HttpClient> httpClientFactory)
     { _clientFactory = clientFactory; _auth = auth; _httpClientFactory = httpClientFactory; }
 
-    public async Task<KommunikationsvorgangDto> LoadAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<KommunikationsvorgangDto> LoadAsync(long id, CancellationToken cancellationToken = default)
     {
         var item = (await SendAsync(HttpMethod.Get, $"kommunikationsvorgang?id=eq.{id}&select=*", null, cancellationToken)).FirstOrDefault()
             ?? throw new PreparedContractNotFoundException("Der Vertragsvorgang wurde nicht gefunden.");
@@ -41,39 +41,41 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
         return Single(await SendAsync(HttpMethod.Post, "kommunikationsvorgang", body, cancellationToken), "Der Vertragsvorgang konnte nicht angelegt werden.");
     }
 
-    public async Task<KommunikationsvorgangDto> ClaimAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<KommunikationsvorgangDto> ClaimAsync(long id, CancellationToken cancellationToken = default)
         => Single(await PatchAsync($"kommunikationsvorgang?id=eq.{id}&zugewiesen_an=is.null", new { zugewiesen_an = CurrentUserId() }, cancellationToken), "Der Vorgang wurde bereits zugewiesen.");
 
-    public async Task ReleaseAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task ReleaseAsync(long id, CancellationToken cancellationToken = default)
     {
         var records = await PatchAsync($"kommunikationsvorgang?id=eq.{id}&zugewiesen_an=eq.{CurrentUserId()}", new { zugewiesen_an = (Guid?)null }, cancellationToken);
         if (records.Count == 0) throw new PreparedContractConflictException("Der Vorgang ist nicht Ihnen zugewiesen.");
     }
 
-    public async Task<KommunikationsvorgangDto> UpdateDraftAsync(Guid id, int expectedRevision, JsonElement draft, CancellationToken cancellationToken = default)
+    public async Task<KommunikationsvorgangDto> UpdateDraftAsync(long id, int expectedRevision, JsonElement draft, CancellationToken cancellationToken = default)
     {
         var current = await LoadRequiredAsync(id, cancellationToken);
         EnsureEditable(current, expectedRevision);
         ValidateDraft(current.Dokumenttyp, current.MitgliedId, current.ParzelleId, draft);
         if (PreparedContractDraftParser.AreEquivalent(current.EntwurfDaten, draft)) return current;
-        return Single(await PatchAsync($"kommunikationsvorgang?id=eq.{id}&revision=eq.{expectedRevision}&status=eq.{PreparedContractConstants.Prepared}&signatur_gestartet_am=is.null&zugewiesen_an=eq.{CurrentUserId()}", new { entwurf_daten = draft }, cancellationToken), "Der Vertragsentwurf wurde zwischenzeitlich geändert.");
+        var updated = Single(await PatchAsync($"kommunikationsvorgang?id=eq.{id}&revision=eq.{expectedRevision}&status=eq.{PreparedContractConstants.Prepared}&signatur_gestartet_am=is.null&signatur_revision=is.null&zugewiesen_an=eq.{CurrentUserId()}", new { entwurf_daten = draft, revision = expectedRevision + 1 }, cancellationToken), "Der Vertragsentwurf wurde zwischenzeitlich geändert.");
+        if (updated.Revision != expectedRevision + 1) throw new PreparedContractConflictException("Der Server hat die Entwurfsrevision nicht erhöht.");
+        return updated;
     }
 
-    public async Task<KommunikationsvorgangDto> StartSignatureAsync(Guid id, int expectedRevision, CancellationToken cancellationToken = default)
+    public async Task<KommunikationsvorgangDto> StartSignatureAsync(long id, int expectedRevision, CancellationToken cancellationToken = default)
     {
-        var updated = Single(await PatchAsync($"kommunikationsvorgang?id=eq.{id}&revision=eq.{expectedRevision}&status=eq.{PreparedContractConstants.Prepared}&signatur_gestartet_am=is.null&signatur_revision=is.null&zugewiesen_an=eq.{CurrentUserId()}", new { status = PreparedContractConstants.ReadyForSignature }, cancellationToken), "Die Signatur kann nicht gestartet werden.");
+        var updated = Single(await PatchAsync($"kommunikationsvorgang?id=eq.{id}&revision=eq.{expectedRevision}&status=eq.{PreparedContractConstants.Prepared}&signatur_gestartet_am=is.null&signatur_revision=is.null&zugewiesen_an=eq.{CurrentUserId()}", new { status = PreparedContractConstants.ReadyForSignature, signatur_gestartet_am = DateTimeOffset.UtcNow }, cancellationToken), "Die Signatur kann nicht gestartet werden.");
         var loaded = await LoadRequiredAsync(updated.Id, cancellationToken);
         if (loaded.Status != PreparedContractConstants.ReadyForSignature || loaded.SignaturRevision != loaded.Revision || loaded.SignaturGestartetAm is null) throw new PreparedContractConflictException("Der Server hat den Signaturstart nicht bestätigt.");
         return loaded;
     }
 
-    public async Task<KommunikationsvorgangDto> CompleteAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<KommunikationsvorgangDto> CompleteAsync(long id, CancellationToken cancellationToken = default)
     {
         var current = await LoadRequiredAsync(id, cancellationToken);
-        return Single(await PatchAsync($"kommunikationsvorgang?id=eq.{id}&status=eq.{PreparedContractConstants.ReadyForSignature}&signatur_revision=eq.{current.Revision}&zugewiesen_an=eq.{CurrentUserId()}", new { status = PreparedContractConstants.Completed }, cancellationToken), "Der Vertragsvorgang kann nicht abgeschlossen werden.");
+        return Single(await PatchAsync($"kommunikationsvorgang?id=eq.{id}&status=eq.{PreparedContractConstants.ReadyForSignature}&revision=eq.{current.Revision}&signatur_revision=eq.{current.Revision}&zugewiesen_an=eq.{CurrentUserId()}", new { status = PreparedContractConstants.Completed }, cancellationToken), "Der Vertragsvorgang kann nicht abgeschlossen werden.");
     }
 
-    private async Task<KommunikationsvorgangDto> LoadRequiredAsync(Guid id, CancellationToken ct) => await LoadAsync(id, ct);
+    private async Task<KommunikationsvorgangDto> LoadRequiredAsync(long id, CancellationToken ct) => await LoadAsync(id, ct);
     private void EnsureEditable(KommunikationsvorgangDto item, int revision)
     {
         if (item.Revision != revision) throw new PreparedContractConflictException("Der Vertragsentwurf wurde zwischenzeitlich geändert.");

@@ -16,7 +16,7 @@ public static class PreparedContractConstants
 
 public sealed record KommunikationsvorgangDto
 {
-    [JsonPropertyName("id")] public Guid Id { get; init; }
+    [JsonPropertyName("id")] public long Id { get; init; }
     [JsonPropertyName("vorgangstyp")] public string Vorgangstyp { get; init; } = "";
     [JsonPropertyName("dokumenttyp")] public string Dokumenttyp { get; init; } = "";
     [JsonPropertyName("status")] public string Status { get; init; } = "";
