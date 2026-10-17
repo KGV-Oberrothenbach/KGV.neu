@@ -17,6 +17,7 @@
     "test:invite-security": "node security/invite-security.contract.test.mjs",
     "test:app-user-access": "node security/app-user-access.contract.test.mjs",
     "test:email-auth-sync": "node security/email-auth-sync.contract.test.mjs",
+    "test:communication-workflow": "node security/communication-workflow.contract.test.mjs",
     "test:maui-valid-access": "node security/maui-valid-access.contract.test.mjs",
     "test:document-proxy": "node security/document-proxy.contract.test.mjs",
     "test:navigation-capabilities": "node security/navigation-capabilities.contract.test.mjs",

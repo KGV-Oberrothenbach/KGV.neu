@@ -1,6 +1,6 @@
 # ToDo – KGV-Software
 
-Letzte Aktualisierung: 2026-10-17 (zentrale V1-PDF-Vorlagen für Zähler-Eichfälligkeit in WEB und MAUI abgeschlossen)
+Letzte Aktualisierung: 2026-10-17 (K1 der Kommunikations-/Dokumentvorgangs-Zentrale abgeschlossen)
 
 Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte, historische Abgleiche und frühere Zielbildtexte werden nicht fortgeführt.
 
@@ -20,6 +20,7 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 ### Kommunikation
 
 - [ ] Mailversand direkt aus der WEB-App ermöglichen.
+- [ ] Kommunikations-/Dokumentvorgangs-Zentrale weiterführen: K2 WEB-Kommunikationsmenü, K3 MA/PV vorbereiten und parken, K4 gemeinsamer WEB-/MAUI-Workflow, K5 Mail-/Druckentscheidung, K6 Mailversand, K7 Druck/Archivierung, K8 weitere Dokumenttypen (Grundlage: `Documentation/KOMMUNIKATIONS_WORKFLOW.md`).
 
 ### Kleine UI- und Kosmetikfehler
 
