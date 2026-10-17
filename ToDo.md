@@ -20,7 +20,7 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 ### Kommunikation
 
 - [ ] Mailversand direkt aus der WEB-App ermöglichen.
-- [ ] Kommunikations-/Dokumentvorgangs-Zentrale weiterführen: K2 WEB-Kommunikationsmenü, K3 MA/PV vorbereiten und parken, K4 gemeinsamer WEB-/MAUI-Workflow, K5 Mail-/Druckentscheidung, K6 Mailversand, K7 Druck/Archivierung, K8 weitere Dokumenttypen (Grundlage: `Documentation/KOMMUNIKATIONS_WORKFLOW.md`).
+- [ ] Kommunikations-/Dokumentvorgangs-Zentrale weiterführen: K3 MA/PV vorbereiten und parken, K4 gemeinsamer WEB-/MAUI-Workflow, K5 Mail-/Druckentscheidung, K6 Mailversand, K7 Druck/Archivierung, K8 weitere Dokumenttypen (Grundlage: `Documentation/KOMMUNIKATIONS_WORKFLOW.md`).
 
 ### Kleine UI- und Kosmetikfehler
 

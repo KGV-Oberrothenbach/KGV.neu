@@ -45,6 +45,12 @@ export const navigationConfig = {
       standalone: true,
       target: { id: "export", label: "Export", detail: "Listen und Auswertungen exportieren" },
     },
+    communication: {
+      id: "communication",
+      label: "Kommunikation",
+      standalone: true,
+      target: { id: "kommunikation", label: "Kommunikation", detail: "Dokumentvorgänge, Mailausgang und Druckausgabe" },
+    },
     administration: {
       id: "administration",
       label: "Verwaltung",
