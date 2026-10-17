@@ -6,6 +6,7 @@ namespace KGV.Core.Interfaces;
 public interface IPreparedContractRepository
 {
     Task<KommunikationsvorgangDto> LoadAsync(long id, CancellationToken cancellationToken = default);
+    Task<KommunikationsvorgangDto?> FindActiveAsync(string documentType, int memberId, int? parcelId, CancellationToken cancellationToken = default);
     Task<KommunikationsvorgangDto> CreateAsync(string documentType, int memberId, int? parcelId, JsonElement draft, CancellationToken cancellationToken = default);
     Task<KommunikationsvorgangDto> ClaimAsync(long id, CancellationToken cancellationToken = default);
     Task ReleaseAsync(long id, CancellationToken cancellationToken = default);

@@ -18,7 +18,7 @@ public sealed class PreparedContractRepositoryHttpTests
     {
         var handler = new RecordingHandler(Response(Item(7)));
         var repository = Repository(handler);
-        await repository.CreateAsync(PreparedContractConstants.LeaseContract, 101, 22, LeaseDraft(), TestContext.Current.CancellationToken);
+        await repository.CreateAsync(PreparedContractConstants.LeaseContract, 101, 22, LeaseDraft(), CancellationToken.None);
         var request = Assert.Single(handler.Requests);
         Assert.Equal(HttpMethod.Post, request.Method); Assert.Contains("kommunikationsvorgang", request.Uri);
         Assert.Equal("Bearer token", request.Authorization); Assert.Equal("return=representation", request.Prefer);
@@ -27,7 +27,7 @@ public sealed class PreparedContractRepositoryHttpTests
         Assert.Equal("vertrag_signatur", root.GetProperty("vorgangstyp").GetString()); Assert.Equal("vorbereitet", root.GetProperty("status").GetString());
         Assert.Equal(UserId, root.GetProperty("zugewiesen_an").GetGuid()); Assert.Equal(22, root.GetProperty("parzelle_id").GetInt32());
         Assert.False(root.GetProperty("entwurf_daten").GetRawText().Contains("signature", StringComparison.OrdinalIgnoreCase));
-}
+    }
     [Fact]
     public async Task ClaimAndRelease_AreAtomicallyFiltered()
     {
@@ -63,11 +63,52 @@ public sealed class PreparedContractRepositoryHttpTests
         Assert.Contains("status=eq.zur_signatur&revision=eq.6&signatur_revision=eq.6", handler.Requests[1].Uri);
     }
 
+    [Fact]
+    public async Task FindActive_UsesServerFiltersAndReadsRawNumericResponse()
+    {
+        var handler = new RecordingHandler(RawMembershipRow());
+        var result = await Repository(handler).FindActiveAsync("mitgliedsantrag", 101, null);
+        var request = Assert.Single(handler.Requests);
+        Assert.NotNull(result); Assert.Equal(123L, result.Id); Assert.Equal("Bearer token", request.Authorization);
+        Assert.Contains("vorgangstyp=eq.vertrag_signatur", request.Uri); Assert.Contains("dokumenttyp=eq.mitgliedsantrag", request.Uri); Assert.Contains("mitglied_id=eq.101", request.Uri); Assert.Contains("parzelle_id=is.null", request.Uri); Assert.Contains("vorbereitet", request.Uri); Assert.Contains("zur_signatur", request.Uri);
+        Assert.Contains("apikey", request.Headers, StringComparison.OrdinalIgnoreCase); Assert.DoesNotContain("service_role", request.Headers, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task FindActive_EmptyAndMultipleRows_AreHandledSafely()
+    {
+        Assert.Null(await Repository(new RecordingHandler("[]")).FindActiveAsync("mitgliedsantrag", 101, null));
+        await Assert.ThrowsAsync<PreparedContractConflictException>(() => Repository(new RecordingHandler("[" + RawMembershipRow()[1..^1] + "," + RawMembershipRow()[1..^1] + "]")).FindActiveAsync("mitgliedsantrag", 101, null));
+    }
+
+    [Fact]
+    public async Task FindActive_ReadsPreparedAndSignatureRows()
+    {
+        var prepared = await Repository(new RecordingHandler(RawMembershipRow())).FindActiveAsync("mitgliedsantrag", 101, null);
+        Assert.NotNull(prepared); Assert.Equal(123L, prepared.Id); Assert.Equal(101, prepared.MitgliedId); Assert.Null(prepared.ParzelleId); Assert.Equal("vorbereitet", prepared.Status); Assert.Equal(2, prepared.Revision);
+        var signed = await Repository(new RecordingHandler(RawMembershipRow().Replace("\"status\":\"vorbereitet\",\"mitglied_id\"", "\"status\":\"zur_signatur\",\"mitglied_id\"").Replace("\"revision\":2,\"signatur_revision\":null,\"signatur_gestartet_am\":null", "\"revision\":3,\"signatur_revision\":3,\"signatur_gestartet_am\":\"2026-10-17T12:00:00Z\""))).FindActiveAsync("mitgliedsantrag", 101, null);
+        Assert.Equal("zur_signatur", signed!.Status); Assert.Equal(3, signed.SignaturRevision);
+    }
+
+    [Theory]
+    [InlineData("kgv-prepared-contract/v1", "mitgliedsantrag", "101", "null", "vertrag_signatur", false)]
+    [InlineData("unknown", "mitgliedsantrag", "101", "null", "vertrag_signatur", true)]
+    [InlineData("kgv-prepared-contract/v1", "pachtvertrag", "101", "null", "vertrag_signatur", true)]
+    [InlineData("kgv-prepared-contract/v1", "mitgliedsantrag", "999", "null", "vertrag_signatur", true)]
+    [InlineData("kgv-prepared-contract/v1", "mitgliedsantrag", "101", "22", "vertrag_signatur", true)]
+    [InlineData("kgv-prepared-contract/v1", "mitgliedsantrag", "101", "null", "mail", true)]
+    public async Task FindActive_RejectsInvalidRawServerData(string schema, string draftType, string draftMember, string parcel, string process, bool invalid)
+    {
+        var json = RawMembershipRow().Replace("kgv-prepared-contract/v1", schema).Replace("\"document_type\":\"mitgliedsantrag\"", $"\"document_type\":\"{draftType}\"").Replace("\"memberId\":101", $"\"memberId\":{draftMember}").Replace("\"parzelle_id\":null", $"\"parzelle_id\":{parcel}").Replace("\"vorgangstyp\":\"vertrag_signatur\"", $"\"vorgangstyp\":\"{process}\"");
+        if (invalid) await Assert.ThrowsAsync<PreparedContractValidationException>(() => Repository(new RecordingHandler(json)).FindActiveAsync("mitgliedsantrag", 101, null));
+    }
+
     private static PreparedContractRepository Repository(RecordingHandler handler) => new(new Factory(), new Auth(), () => new HttpClient(handler, false));
     private static JsonElement LeaseDraft() => JsonSerializer.SerializeToElement(new PreparedLeaseContractDraft { MemberId = 101, Draft = new LeaseContractDraft { StartDate = "2026-11-01", ParcelId = 22, HasPreviousContract = false, IncludeSecondaryMember = false, HandoverDate = "2026-11-01", FixedUntil = "", GardenRulesVersion = "2026", GardenRulesHandedOverAt = "2026-11-01", AdditionalAgreements = "", ClubSignatory = "" } });
     private static JsonElement MembershipDraft() => JsonSerializer.SerializeToElement(new PreparedMembershipApplicationDraft { MemberId = 101, StartDate = "2026-11-01", MemberFee = 1, IncludeSecondaryMember = false });
     private static JsonElement ChangedLeaseDraft() => JsonSerializer.SerializeToElement(new PreparedLeaseContractDraft { MemberId = 101, Draft = new LeaseContractDraft { StartDate = "2026-11-02", ParcelId = 22, HasPreviousContract = false, IncludeSecondaryMember = false, HandoverDate = "2026-11-01", FixedUntil = "", GardenRulesVersion = "2026", GardenRulesHandedOverAt = "2026-11-01", AdditionalAgreements = "", ClubSignatory = "" } });
     private static string Response(KommunikationsvorgangDto? item = null) => JsonSerializer.Serialize(item is null ? Array.Empty<KommunikationsvorgangDto>() : new[] { item });
+    private static string RawMembershipRow() => "[{\"id\":123,\"vorgangstyp\":\"vertrag_signatur\",\"dokumenttyp\":\"mitgliedsantrag\",\"status\":\"vorbereitet\",\"mitglied_id\":101,\"parzelle_id\":null,\"entwurf_daten\":{\"schema_version\":\"kgv-prepared-contract/v1\",\"document_type\":\"mitgliedsantrag\",\"memberId\":101,\"startDate\":\"2026-11-01\",\"memberFee\":42.5,\"representative\":null,\"includeSecondaryMember\":false},\"revision\":2,\"signatur_revision\":null,\"signatur_gestartet_am\":null,\"zugewiesen_an\":null,\"erstellt_am\":\"2026-10-17T12:00:00Z\",\"bearbeitet_am\":\"2026-10-17T12:00:00Z\"}]";
     private static KommunikationsvorgangDto Item(int revision, string status = "vorbereitet", int? signatureRevision = null, DateTimeOffset? started = null) => new() { Id = ItemId, Vorgangstyp = "vertrag_signatur", Dokumenttyp = "pachtvertrag", Status = status, MitgliedId = 101, ParzelleId = 22, EntwurfDaten = LeaseDraft(), Revision = revision, SignaturRevision = signatureRevision, SignaturGestartetAm = started, ZugewiesenAn = UserId, ErstelltAm = DateTimeOffset.UtcNow, BearbeitetAm = DateTimeOffset.UtcNow };
 
     private sealed class RecordingHandler(params string[] responses) : HttpMessageHandler
@@ -75,7 +116,6 @@ public sealed class PreparedContractRepositoryHttpTests
       protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) { Requests.Add((request.Method, request.RequestUri!.PathAndQuery, request.Headers.Authorization?.ToString() ?? "", string.Join(",", request.Headers.GetValues("Prefer")), request.Content is null ? "" : await request.Content.ReadAsStringAsync(ct), string.Join(";", request.Headers.Select(x => x.Key)))); return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(responses[_index++], Encoding.UTF8, "application/json") }; } }
     private sealed class Factory : ISupabaseClientFactory { public string Url => "https://test.supabase.co"; public string Key => "anon"; public Task<Client> CreateAsync() => throw new NotSupportedException(); }
     private sealed class Auth : IAuthService { public bool IsVorstand => false; public bool IsAdmin => false; public string? CurrentUserId => UserId.ToString(); public Task<string?> GetAccessTokenAsync() => Task.FromResult<string?>("token"); public Task<Client> GetClientAsync() => throw new NotSupportedException(); public Task<bool> LoginAsync(string a,string b)=>throw new NotSupportedException(); public Task<List<AppUserDTO>> GetAppUsersAsync()=>throw new NotSupportedException(); public Task<List<MemberUserLinkStatusDto>> GetMemberUserLinkStatusesAsync()=>throw new NotSupportedException(); public Task<MemberUserLinkStatusDto?> GetMemberUserLinkStatusAsync(int x)=>throw new NotSupportedException(); public Task<InviteUserAccountResult> InviteUserAsync(AppUserDTO x)=>throw new NotSupportedException(); public Task<bool> RemoveUserAsync(AppUserDTO x)=>throw new NotSupportedException(); public Task<bool> ChangeEmailAsync(string x)=>throw new NotSupportedException(); public Task<bool> RequestEmailChangeAsync(string x)=>throw new NotSupportedException(); public Task<bool> VerifyEmailChangeOtpAsync(string a,string b)=>throw new NotSupportedException(); public Task<bool> SendPasswordResetEmailAsync(string x)=>throw new NotSupportedException(); public Task<bool> RequestOtpAsync(string x)=>throw new NotSupportedException(); public Task<bool> VerifyOtpAsync(string a,string b)=>throw new NotSupportedException(); public Task<bool> SetPasswordWithOtpAsync(string a,string b,string c)=>throw new NotSupportedException(); public Task<BiometricSessionTokens?> GetSessionTokensAsync()=>throw new NotSupportedException(); public Task<bool> RestoreSessionAsync(BiometricSessionTokens x)=>throw new NotSupportedException(); public Task LogoutAsync()=>throw new NotSupportedException(); }
-}
     [Fact]
     public async Task Load_ValidatesDraftAndUsesBearerAuthorization()
     {
@@ -98,4 +138,5 @@ public sealed class PreparedContractRepositoryHttpTests
         var mismatch = Item(2) with { EntwurfDaten = MembershipDraft() };
         await Assert.ThrowsAsync<PreparedContractValidationException>(() => Repository(new RecordingHandler(Response(mismatch))).LoadAsync(ItemId));
     }
+}
 

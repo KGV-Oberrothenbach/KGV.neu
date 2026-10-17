@@ -33,6 +33,18 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
         return item;
     }
 
+    public async Task<KommunikationsvorgangDto?> FindActiveAsync(string documentType, int memberId, int? parcelId, CancellationToken cancellationToken = default)
+    {
+        var parcelFilter = parcelId is null ? "parzelle_id=is.null" : $"parzelle_id=eq.{parcelId}";
+        var rows = await SendAsync(HttpMethod.Get, $"kommunikationsvorgang?vorgangstyp=eq.{PreparedContractConstants.ContractSignatureProcess}&dokumenttyp=eq.{documentType}&mitglied_id=eq.{memberId}&{parcelFilter}&status=in.(vorbereitet,zur_signatur)&select=*", null, cancellationToken);
+        if (rows.Count == 0) return null;
+        if (rows.Count != 1) throw new PreparedContractConflictException("Es wurden mehrere aktive Vertragsvorgänge gefunden.");
+        var item = rows[0];
+        if (item.Vorgangstyp != PreparedContractConstants.ContractSignatureProcess || item.Dokumenttyp != documentType || item.MitgliedId != memberId || item.ParzelleId != parcelId)
+            throw new PreparedContractValidationException("Der aktive Vertragsvorgang passt nicht zur angeforderten Vertragsbindung.");
+        ValidateDraft(documentType, memberId, parcelId, item.EntwurfDaten); return item;
+    }
+
     public async Task<KommunikationsvorgangDto> CreateAsync(string documentType, int memberId, int? parcelId, JsonElement draft, CancellationToken cancellationToken = default)
     {
         ValidateDraft(documentType, memberId, parcelId, draft);
@@ -106,7 +118,3 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
     }
     private static KommunikationsvorgangDto Single(List<KommunikationsvorgangDto> records, string message) => records.Count == 1 ? records[0] : throw new PreparedContractConflictException(message);
 }
-
-public class PreparedContractRepositoryException : Exception { public PreparedContractRepositoryException(string message) : base(message) { } }
-public sealed class PreparedContractNotFoundException : PreparedContractRepositoryException { public PreparedContractNotFoundException(string message) : base(message) { } }
-public sealed class PreparedContractConflictException : PreparedContractRepositoryException { public PreparedContractConflictException(string message) : base(message) { } }
