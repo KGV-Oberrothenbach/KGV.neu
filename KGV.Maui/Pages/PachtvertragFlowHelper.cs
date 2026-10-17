@@ -116,7 +116,7 @@ internal static class PachtvertragFlowHelper
             if (content is not { Length: > 0 })
                 return PachtvertragFlowResult.Gespeichert;
 
-            await navigation.PushAsync(new PdfViewerPage(document.Titel ?? document.Dateiname, content));
+            await navigation.PushAsync(new PdfViewerPage(document.Title ?? document.Dateiname, content));
             return PachtvertragFlowResult.Gespeichert;
         }
     }

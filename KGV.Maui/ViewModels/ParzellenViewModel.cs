@@ -469,7 +469,7 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
             return;
         }
 
-        if (!await DocumentStorage.OpenTemporaryFileAsync(document.Dateiname ?? document.Titel, document.MimeType, content))
+        if (!await DocumentStorage.OpenTemporaryFileAsync(document.Dateiname ?? document.Title, document.MimeType, content))
             StatusMessage = "Dokument konnte lokal nicht geöffnet werden.";
     }
 

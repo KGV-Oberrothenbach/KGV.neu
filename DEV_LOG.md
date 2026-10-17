@@ -2,6 +2,11 @@
 
 ---
 
+## 2026-10-17 – MAUI: Android-PDF-Buildfehler behoben
+
+- `DocumentInfo` wird in den drei MAUI-PDF-Aufrufstellen über `Title` statt des nicht vorhandenen `Titel` angesprochen. Die lokalen Variablen im zentralen PDF-Exportzweig sind eindeutig benannt; dessen Server-/Cache-Verhalten bleibt unverändert.
+- Validierung: Android-Release-Build für `net10.0-android` erfolgreich, 0 Fehler und 26 bestehende Warnungen.
+
 ## 2026-10-11 – Web: Ablesehistorie im Mitgliedsgarten
 
 - Ursache: Die Aktion `Mitglied → Gärten → Ablesen` setzte `activeId` auf den globalen Bereich `ablesen`; dadurch gingen Mitglieds- und Belegungskontext verloren.

@@ -755,7 +755,7 @@ public sealed class MemberDetailPage : ContentPage, IQueryAttributable
                     return;
                 }
 
-                await Navigation.PushAsync(new PdfViewerPage(document.Titel ?? document.Dateiname, content));
+                await Navigation.PushAsync(new PdfViewerPage(document.Title ?? document.Dateiname, content));
                 return;
             }
         }

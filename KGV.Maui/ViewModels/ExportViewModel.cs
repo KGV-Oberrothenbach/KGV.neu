@@ -904,10 +904,10 @@ namespace KGV.Maui.ViewModels
                 // Central renderer owns data, orientation, catalog template and layout.
                 var centralPdf = await _supabaseService.GenerateExportPdfAsync(BuildCentralExportRequest());
                 var fallbackName = $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{exportKey}.pdf";
-                var fileName = string.IsNullOrWhiteSpace(centralPdf.FileName) ? fallbackName : centralPdf.FileName;
-                var filePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, fileName);
-                await System.IO.File.WriteAllBytesAsync(filePath, centralPdf.Content);
-                return filePath;
+                var centralFileName = string.IsNullOrWhiteSpace(centralPdf.FileName) ? fallbackName : centralPdf.FileName;
+                var centralFilePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, centralFileName);
+                await System.IO.File.WriteAllBytesAsync(centralFilePath, centralPdf.Content);
+                return centralFilePath;
             }
 
             if (ProcessedResults.Count == 0 || ColumnsVisibleOrdered.Count == 0)

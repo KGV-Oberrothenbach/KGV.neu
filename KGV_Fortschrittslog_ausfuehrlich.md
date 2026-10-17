@@ -18,6 +18,12 @@ Sofern nicht anders erwähnt, wurden die betroffenen Blöcke mit den jeweils rel
 - `KGV.Core`
 - `KGV.Maui`
 
+## 2026-10-17 – MAUI: Android-PDF-Buildfehler
+
+- Die drei fehlerhaften `DocumentInfo.Titel`-Verwendungen auf `DocumentInfo.Title` korrigiert; keine zweite Modelleigenschaft ergänzt.
+- Die Variablen des zentralen PDF-Exportzweigs (`centralFileName`/`centralFilePath`) umbenannt, ohne Download-, Cache- oder Rückgabeverhalten zu ändern.
+- Validierung: `dotnet build .\KGV.Maui\KGV.Maui.csproj -c Release -f net10.0-android` erfolgreich mit 0 Fehlern und 26 bestehenden Warnungen.
+
 ## 2026-10-11 – Web: Ablesehistorie im Mitgliedsgarten
 
 - Den Web-Fehler behoben, der aus dem Mitgliedsgarten in den globalen Ablesemodus sprang. Mitglied, Parzelle und konkrete Belegung bleiben im aktiven Workspace.
