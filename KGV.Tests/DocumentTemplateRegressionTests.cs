@@ -6,13 +6,13 @@ using Xunit;
 
 namespace KGV.Tests;
 
-/// <summary>Regression checks for the production fallback assets and their public field contracts.</summary>
+/// <summary>Regression checks for the canonical published template source assets and their field contracts.</summary>
 public sealed class DocumentTemplateRegressionTests
 {
     [Fact]
-    public void Membership_application_adult_preview_and_final_keep_one_page_and_expected_signers()
+    public async Task Membership_application_adult_preview_and_final_keep_one_page_and_expected_signers()
     {
-        var preview = MitgliedsantragDokumentFactory.CreateUploadRequest(Member(), 120m, 25m, new DateTime(2026, 4, 1), null, Club(), FormularDokumentStatus.Unsigniert);
+        var preview = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(Member(), 120m, 25m, new DateTime(2026, 4, 1), null, MitgliedsantragZweitePrivateParteiArt.Keine, Club(), FormularDokumentStatus.Unsigniert, Provider);
 
         AssertValidPdf(preview.FileContent, 1);
         Assert.Equal(5, preview.SignaturePlaceholders.Count);
@@ -30,10 +30,10 @@ public sealed class DocumentTemplateRegressionTests
     }
 
     [Fact]
-    public void Membership_application_guardian_keeps_all_secondary_signers_on_the_template_page()
+    public async Task Membership_application_guardian_keeps_all_secondary_signers_on_the_template_page()
     {
         var guardian = new MitgliedsantragVertreterSnapshot { Vorname = "Erika", Nachname = "Musterfrau", Adresse = "Nebenweg 2", Plz = "08000", Ort = "Zwickau" };
-        var request = MitgliedsantragDokumentFactory.CreateUploadRequest(Member(), 120m, 25m, new DateTime(2026, 4, 1), guardian, Club(), FormularDokumentStatus.Unsigniert);
+        var request = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(Member(), 120m, 25m, new DateTime(2026, 4, 1), guardian, MitgliedsantragZweitePrivateParteiArt.GesetzlicherVertreter, Club(), FormularDokumentStatus.Unsigniert, Provider);
 
         AssertValidPdf(request.FileContent, 1);
         Assert.All(request.SignaturePlaceholders, placeholder => Assert.Equal(1, placeholder.Page));
@@ -45,12 +45,12 @@ public sealed class DocumentTemplateRegressionTests
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(false, true)]
-    public void Lease_contract_scenarios_keep_three_pages_and_template_signature_contract(bool secondaryMember, bool guardian)
+    public async Task Lease_contract_scenarios_keep_three_pages_and_template_signature_contract(bool secondaryMember, bool guardian)
     {
         var secondParty = secondaryMember ? new MitgliedRecord { Id = 18, Vorname = "Erika", Name = "Musterfrau" } : null;
         var guardianSnapshot = guardian ? new MitgliedsantragVertreterSnapshot { Vorname = "Eva", Nachname = "Vertreterin" } : null;
-        var request = PachtvertragDokumentFactory.CreateUploadRequest(
-            Member(), secondParty, Parcel(), Season(), new DateTime(2026, 4, 1), null, guardianSnapshot, Club(), FormularDokumentStatus.Unsigniert,
+        var request = await PachtvertragDokumentFactory.CreateUploadRequestAsync(
+            Member(), secondParty, Parcel(), Season(), new DateTime(2026, 4, 1), null, guardianSnapshot, Club(), FormularDokumentStatus.Unsigniert, Provider,
             paechter2Override: guardian ? new MitgliedRecord { Id = 19, Vorname = "Eva", Name = "Vertreterin" } : null);
 
         AssertValidPdf(request.FileContent, 3);
@@ -60,10 +60,12 @@ public sealed class DocumentTemplateRegressionTests
     }
 
     [Fact]
-    public void Public_signature_placeholders_are_unique_positive_and_inside_their_production_templates()
+    public async Task Canonical_signature_placeholders_are_unique_positive_and_inside_their_production_templates()
     {
-        AssertPlaceholders(MitgliedsantragDokumentFactory.GetSignaturePlaceholders(), 1);
-        AssertPlaceholders(PachtvertragDokumentFactory.GetSignaturePlaceholders(), 3);
+        var membership = await Provider.GetActiveAsync(new PdfTemplateRequest("mitgliedsantrag", "mitgliedsantrag-field-spec/v1", "pdfsharpcore-ma/v1"));
+        var lease = await Provider.GetActiveAsync(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v2", "top-left/v1"));
+        AssertPlaceholders(ToPlaceholders(membership.Fields), 1);
+        AssertPlaceholders(ToPlaceholders(lease.Fields), 3);
     }
 
     private static void AssertPlaceholders(IReadOnlyList<SignaturePlaceholder> placeholders, int expectedPage)
@@ -76,6 +78,13 @@ public sealed class DocumentTemplateRegressionTests
             Assert.True(placeholder.Width > 0 && placeholder.Height > 0);
         });
     }
+
+    private static IReadOnlyList<SignaturePlaceholder> ToPlaceholders(IReadOnlyList<PdfTemplateFieldSpec> fields) => fields
+        .Where(field => string.Equals(field.Kind, "signature", StringComparison.OrdinalIgnoreCase))
+        .Select(field => new SignaturePlaceholder { Name = field.Name, Page = field.Page, X = field.X, Y = field.Y, Width = field.Width, Height = field.Height })
+        .ToArray();
+
+    private static readonly CanonicalPdfTemplateProvider Provider = new();
 
     private static void AssertValidPdf(byte[] content, int pages)
     {

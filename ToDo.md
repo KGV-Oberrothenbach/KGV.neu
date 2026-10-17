@@ -1,6 +1,6 @@
 # ToDo – KGV-Software
 
-Letzte Aktualisierung: 2026-10-17 (Web: Mitgliedsgärten-Renderzustand abgesichert; D12 bleibt offen)
+Letzte Aktualisierung: 2026-10-17 (D12: MA-/PV-Legacypfade nach DDB-Abnahme bereinigt)
 
 Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte, historische Abgleiche und frühere Zielbildtexte werden nicht fortgeführt.
 
@@ -33,8 +33,8 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 ### Ziel
 
-- [ ] Eingebettete PDF-Vorlagen aus dem Anwendungscode entfernen und zentral über einen privaten Supabase-Storage-Bucket bereitstellen. (Pachtvertrag: zentraler Pfad umgesetzt; lokaler Kompatibilitätsfallback bleibt bis zum produktiven Abnahmetest.)
-- [ ] MAUI und WEB auf dieselben zentralen Vorlagen umstellen. (Pachtvertrag v2: Template, Field-Spec, SHA-256 und Aktivierungs-SQL liegen vor; Storage-Upload und Edge-Function-Deployment stehen noch aus.)
+- [ ] Eingebettete PDF-Vorlagen aus dem Anwendungscode entfernen und zentral über einen privaten Supabase-Storage-Bucket bereitstellen. (Mitgliedsantrag und Pachtvertrag: zentraler Pfad ohne lokalen Laufzeitfallback; weitere Vorlagentypen offen.)
+- [ ] MAUI und WEB auf dieselben zentralen Vorlagen umstellen. (Mitgliedsantrag v1 und Pachtvertrag v2 sind zentral aktiv; weitere Vorlagentypen offen.)
 - [ ] Vorlagenwechsel ohne neue App-Version oder WEB-Deploy ermöglichen.
 - [ ] Fertig erzeugte Dokumente weiterhin ausschließlich auf Google Drive speichern.
 
@@ -65,7 +65,6 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 - [ ] Mitgliedsantrag, Pachtvertrag und Protokoll aus Supabase-Vorlagen erzeugen.
 - [ ] Den Web-Mitgliedsantrag nach dem Edge-Function-Deployment mit zentralem Template-Katalog und allen drei Signaturfällen (3/5/5) praktisch testen.
-- [ ] Neue PDF-/Template-Pipeline in DDB mit Mitgliedsantrag und Pachtvertrag vollständig praktisch abnehmen, bevor Legacy-Fallbacks entfernt werden.
 - [ ] Exporte mit `export_kopf` erzeugen und einen eigenständigen `briefbogen` bereitstellen.
 - [ ] Versionierung, Schutz alter Versionen und gemeinsamer Zugriff von MAUI und WEB nachweisen.
 
@@ -83,6 +82,7 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 - [ ] Pachtvertrag in MAUI und Web mit Datumsauswahl fachlich beenden können.
 - [ ] WEB-Pachtvertrag im Parzellendetail entsprechend dem MAUI-Ablauf praktisch abnehmen: feste aktive Zuordnung, Vorschau, Einzelsignaturen und sichere Dokumentöffnung.
 - [ ] Pachtvertrag: Probezeit und Kündigung fachlich zu einem späteren Zeitpunkt prüfen und ergänzen.
+- [ ] PV-Endfassung erst nach Abschluss von Statut und KGO/Gartenordnung fachlich festlegen.
 - [ ] Bei Kündigung der Mitgliedschaft Datum und bestehenden Pachtvertrag prüfen; erforderliche zweijährige Nachsorge einschließlich Strom, Wasser und Verwaltungspauschale (50 % Jahresbeitrag) fachlich abbilden.
 
 ### Arbeitsstunden
@@ -97,7 +97,6 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 ## Technische Qualität und Release
 
-- [ ] D12: Verbleibende Legacy-Kompatibilität nach produktiver Abnahme bereinigen.
 - [ ] Mitgliedsantrag auf Android praktisch abnehmen; die unterbrochene Signaturlinie beim Nebenmitglied als spätere Layout-/Kosmetikkorrektur behandeln.
 
 - [ ] Funktional relevante technische Restwarnungen nachziehen, insbesondere in `SupabaseService`, `HomeManagementPage`, `ImpressumPage` und WPF-Verwaltungs-ViewModels.

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Diagnostics;
@@ -10,8 +9,6 @@ namespace KGV.Core.Utilities
 {
     public static class PachtvertragDokumentFactory
     {
-        private const string PdfTemplateResourceName = "KGV.Core.Templates.Pachtvertrag_KGV_Oberrothenbach_neu.pdf";
-
         private static readonly IReadOnlyList<PdfFormFieldSpec> FieldSpecs = new[]
         {
             new PdfFormFieldSpec("paechter_name", PdfFormFieldKind.Text, 1, 42, 229, 250.64, 17),
@@ -49,64 +46,6 @@ namespace KGV.Core.Utilities
             ,new PdfFormFieldSpec("unterschrift_zweite_partei", PdfFormFieldKind.SignaturePlaceholder, 3, 42, 576, 190, 35)
             ,new PdfFormFieldSpec("unterschrift_vorstand", PdfFormFieldKind.SignaturePlaceholder, 3, 252, 516, 300, 35)
         };
-
-        // Compatibility-only fallback for isolated local tests. Production paths use IPdfTemplateProvider.
-        public static DokumentUploadRequest CreateUploadRequest(
-            MitgliedRecord hauptmitglied,
-            MitgliedRecord? nebenmitglied,
-            ParzelleRecord parzelle,
-            SaisonRecord saison,
-            DateTime vertragsbeginn,
-            string? status = null,
-            MitgliedRecord? paechter2Override = null)
-            => CreateUploadRequest(
-                hauptmitglied,
-                nebenmitglied,
-                parzelle,
-                saison,
-                vertragsbeginn,
-                altvertragDatum: null,
-                gesetzlicherVertreterSnapshot: null,
-                bankverbindungSnapshot: null,
-                status: status,
-                paechter2Override: paechter2Override);
-
-        public static DokumentUploadRequest CreateUploadRequest(
-            MitgliedRecord hauptmitglied,
-            MitgliedRecord? nebenmitglied,
-            ParzelleRecord parzelle,
-            SaisonRecord saison,
-            DateTime vertragsbeginn,
-            MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
-            VereinskonfigurationSnapshot? bankverbindungSnapshot,
-            string? status = null,
-            MitgliedRecord? paechter2Override = null)
-            => CreateUploadRequest(
-                hauptmitglied,
-                nebenmitglied,
-                parzelle,
-                saison,
-                vertragsbeginn,
-                altvertragDatum: null,
-                gesetzlicherVertreterSnapshot,
-                bankverbindungSnapshot,
-                status,
-                paechter2Override: paechter2Override);
-
-        public static DokumentUploadRequest CreateUploadRequest(
-            MitgliedRecord hauptmitglied,
-            MitgliedRecord? nebenmitglied,
-            ParzelleRecord parzelle,
-            SaisonRecord saison,
-            DateTime vertragsbeginn,
-            DateTime? altvertragDatum,
-            MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
-            VereinskonfigurationSnapshot? bankverbindungSnapshot,
-            string? status = null,
-            MitgliedRecord? paechter2Override = null)
-            => CreateUploadRequestCore(hauptmitglied, nebenmitglied, parzelle, saison, vertragsbeginn,
-                altvertragDatum, gesetzlicherVertreterSnapshot, bankverbindungSnapshot, status, paechter2Override,
-                LoadEmbeddedTemplateAsset());
 
         public static async Task<DokumentUploadRequest> CreateUploadRequestAsync(
             MitgliedRecord hauptmitglied,
@@ -262,25 +201,6 @@ namespace KGV.Core.Utilities
             };
         }
 
-        private static PdfTemplateAsset LoadEmbeddedTemplateAsset()
-        {
-            var assembly = typeof(PachtvertragDokumentFactory).Assembly;
-            using var stream = assembly.GetManifestResourceStream(PdfTemplateResourceName)
-                ?? throw new InvalidOperationException("Die Pachtvertrag-PDF-Vorlage ist nicht im Projekt eingebunden.");
-
-            using var ms = new MemoryStream();
-            stream.CopyTo(ms);
-            return new PdfTemplateAsset
-            {
-                TemplateKey = "pachtvertrag",
-                Version = "embedded-fallback",
-                FieldSpecVersion = "pachtvertrag-field-spec/v2",
-                RendererVersion = "top-left/v1",
-                PdfBytes = ms.ToArray(),
-                Fields = FieldSpecs.Select(x => new PdfTemplateFieldSpec(x.Name, x.Kind.ToString(), x.Page, x.X, x.Y, x.Width, x.Height)).ToArray()
-            };
-        }
-
         private static byte[] FillAndFlattenPdfForm(byte[] pdfBytes, PachtvertragTemplateData data, IReadOnlyList<PdfTemplateFieldSpec> loadedFields)
         {
             if (pdfBytes == null || pdfBytes.Length == 0)
@@ -375,22 +295,6 @@ namespace KGV.Core.Utilities
             double Width,
             double Height)
         { }
-
-        public static IReadOnlyList<Models.SignaturePlaceholder> GetSignaturePlaceholders()
-        {
-            return FieldSpecs
-                .Where(f => f.Kind == PdfFormFieldKind.SignaturePlaceholder)
-                .Select(f => new Models.SignaturePlaceholder
-                {
-                    Name = f.Name,
-                    Page = f.Page,
-                    X = f.X,
-                    Y = f.Y,
-                    Width = f.Width,
-                    Height = f.Height
-                })
-                .ToArray();
-        }
 
         private static IReadOnlyList<Models.SignaturePlaceholder> GetSignaturePlaceholders(IReadOnlyList<PdfTemplateFieldSpec> fields)
             => fields

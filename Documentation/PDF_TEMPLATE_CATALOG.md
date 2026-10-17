@@ -6,7 +6,7 @@ Der Katalog `pdf_template_catalog` und der private Storage-Bucket `pdf-templates
 
 `IPdfTemplateProvider` beziehungsweise `SupabasePdfTemplateProvider` ist der einzige produktive .NET-Ladeweg für katalogbasierte PDF-Vorlagen. Er lädt die aktive veröffentlichte Katalogversion sowie die beiden privaten Storage-Objekte, prüft Content-Type und SHA-256-Prüfsummen und parst die grundlegende Field-Spec einschließlich des `topLeft`-Koordinatenursprungs. Die Edge-Function `kgv-generate-contract` verwendet für Mitgliedsantrag und Pachtvertrag denselben generischen `loadPublishedPdfTemplate`-Loader mit denselben Stages: `catalog-load`, `pdf-download`, `field-spec-download`, `checksum`, `field-spec-parse` und `compatibility-check`.
 
-Die dokumentbezogenen Descriptors bzw. Aufrufer bestimmen ausschließlich erwartete Field-Spec-/Renderer-Versionen und erforderliche Felder. Vollständige Feldgeometrie, Fachlogik, Signaturablauf und Rendering bleiben bewusst in den jeweiligen Dokumentfactories beziehungsweise Erzeugungspfaden. Eingebettete Vorlagen bleiben nur als expliziter lokaler Test-Kompatibilitätsfallback vorhanden; ein Produktionsfehler im Katalog löst keinen Fallback aus.
+Die dokumentbezogenen Descriptors bzw. Aufrufer bestimmen ausschließlich erwartete Field-Spec-/Renderer-Versionen und erforderliche Felder. Vollständige Feldgeometrie, Fachlogik, Signaturablauf und Rendering bleiben bewusst in den jeweiligen Dokumentfactories beziehungsweise Erzeugungspfaden. Es gibt keinen eingebetteten Laufzeit- oder Testfallback; ein Fehler im Katalog löst keinen Ersatzpfad aus.
 
 ## Mitgliedsantrag v1 bereitstellen
 
@@ -26,7 +26,7 @@ Die aktive Katalogauflösung wird bei jedem Dokument erneut abgefragt, damit ein
 
 Die Aktivierungs-Transaktion deaktiviert die bisher aktive Version vor dem Insert der neuen veröffentlichten aktiven Version. Das ist notwendig, weil der Katalog nie zwei aktive veröffentlichte Versionen desselben Schlüssels erlauben darf. Eine neue Version kann direkt als `published` angelegt werden; `published_at` wird dabei explizit gesetzt. Der alternative Draft→Published-Übergang ist zulässig, darf aber keine bereits veröffentlichte Version inhaltlich ändern.
 
-Der eingebettete Mitgliedsantrag bleibt ausschließlich für isolierte lokale Factory-Tests als explizit kommentierter Kompatibilitätsfall erhalten. Die produktiven MA-Pfade in `SupabaseService` verwenden ausschließlich den zentralen Provider und fallen bei einer fehlenden, manipulierten oder inkompatiblen Version nicht stillschweigend zurück.
+Die kanonischen lokalen Publish- und Testquellen liegen unter `KGV.Core/Templates/mitgliedsantrag/v1/`. Die produktiven MA-Pfade in `SupabaseService` verwenden ausschließlich den zentralen Provider und fallen bei einer fehlenden, manipulierten oder inkompatiblen Version nicht stillschweigend zurück.
 
 ## Pachtvertrag v1 bereitstellen
 
@@ -60,7 +60,7 @@ values
    'pachtvertrag-field-spec/v1', 'top-left/v1', 'published', true);
 ```
 
-MAUI lädt im Produktivpfad ausschließlich die veröffentlichte Katalogversion und behält die eingebettete PDF nur als lokalen Testfallback. Die Web-Edge-Function lädt dieselbe PDF und Field-Spec direkt aus dem privaten Bucket; sie prüft Katalogstatus, Versionen, Prüfsummen und `topLeft`-Koordinatenursprung. Beide Pfade bewahren die bisherige Reihenfolge der digitalen Signaturen (Pächter/in 1, gegebenenfalls zweite Partei bzw. gesetzliche/r Vertreter/in, Vorstand/Verpächter) als nachfolgende Signaturseite. Fertige PDFs bleiben im Google-Drive-/`dokument`-Pfad.
+MAUI lädt im Produktivpfad ausschließlich die veröffentlichte Katalogversion. Die Web-Edge-Function lädt dieselbe PDF und Field-Spec direkt aus dem privaten Bucket; sie prüft Katalogstatus, Versionen, Prüfsummen und `topLeft`-Koordinatenursprung. Beide Pfade bewahren die bisherige Reihenfolge der digitalen Signaturen (Pächter/in 1, gegebenenfalls zweite Partei bzw. gesetzliche/r Vertreter/in, Vorstand/Verpächter) als nachfolgende Signaturseite. Fertige PDFs bleiben im Google-Drive-/`dokument`-Pfad.
 
 ## Pachtvertrag v2 bereitstellen
 

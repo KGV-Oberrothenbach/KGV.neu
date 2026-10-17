@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,7 +15,6 @@ namespace KGV.Core.Utilities
 {
     public static class MitgliedsantragDokumentFactory
     {
-        private const string PdfTemplateResourceName = "KGV.Core.Templates.Mitgliedsantrag_Vorlage.pdf";
         private const string DefaultOrt = "Zwickau";
 
         private static readonly IReadOnlyList<PdfFormFieldSpec> FieldSpecs = new[]
@@ -70,34 +68,6 @@ namespace KGV.Core.Utilities
             new PdfFormFieldSpec("datenschutz_unterschrift_antragsteller", PdfFormFieldKind.SignaturePlaceholder, 28.3, 733.824, 260.0, 47.176),
             new PdfFormFieldSpec("datenschutz_unterschrift_vertreter", PdfFormFieldKind.SignaturePlaceholder, 307.682, 733.824, 260.0, 47.176)
         };
-
-        public static DokumentUploadRequest CreateUploadRequest(
-            MitgliedRecord member,
-            decimal mitgliedsbeitrag,
-            DateTime beginnDatum,
-            string? status = null)
-            => CreateUploadRequest(member, mitgliedsbeitrag, 0m, beginnDatum, null, null, status);
-
-        public static DokumentUploadRequest CreateUploadRequest(
-            MitgliedRecord member,
-            decimal mitgliedsbeitrag,
-            DateTime beginnDatum,
-            MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
-            string? status = null)
-            => CreateUploadRequest(member, mitgliedsbeitrag, 0m, beginnDatum, gesetzlicherVertreterSnapshot, null, status);
-
-        public static DokumentUploadRequest CreateUploadRequest(
-            MitgliedRecord member,
-            decimal mitgliedsbeitrag,
-            decimal aufnahmegebuehr,
-            DateTime beginnDatum,
-            MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
-            VereinskonfigurationSnapshot? vereinskonfigurationSnapshot,
-            string? status = null)
-            // Compatibility-only fallback for isolated local tests. The production service always uses IPdfTemplateProvider.
-            => CreateUploadRequestCore(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreterSnapshot,
-                gesetzlicherVertreterSnapshot == null ? MitgliedsantragZweitePrivateParteiArt.Keine : MitgliedsantragZweitePrivateParteiArt.GesetzlicherVertreter,
-                vereinskonfigurationSnapshot, status, LoadEmbeddedTemplateAsset());
 
         public static async Task<DokumentUploadRequest> CreateUploadRequestAsync(
             MitgliedRecord member, decimal mitgliedsbeitrag, decimal aufnahmegebuehr, DateTime beginnDatum,
@@ -277,25 +247,6 @@ namespace KGV.Core.Utilities
                 Erklaerungstext = JoinParagraphs(erklaerungsteile),
                 Datenschutztext = JoinParagraphs(datenschutzteile),
                 Fussnote = BuildFussnote(bankverbindungSnapshot)
-            };
-        }
-
-        private static PdfTemplateAsset LoadEmbeddedTemplateAsset()
-        {
-            var assembly = typeof(MitgliedsantragDokumentFactory).Assembly;
-            using var stream = assembly.GetManifestResourceStream(PdfTemplateResourceName)
-                ?? throw new InvalidOperationException("Die Mitgliedsantrag-PDF-Vorlage ist nicht im Projekt eingebunden.");
-
-            using var ms = new MemoryStream();
-            stream.CopyTo(ms);
-            return new PdfTemplateAsset
-            {
-                TemplateKey = "mitgliedsantrag",
-                Version = "embedded-development-fallback",
-                FieldSpecVersion = "mitgliedsantrag-field-spec/v1",
-                RendererVersion = "pdfsharpcore-ma/v1",
-                PdfBytes = ms.ToArray(),
-                Fields = FieldSpecs.Select(x => new PdfTemplateFieldSpec(x.Name, x.Kind.ToString(), 1, x.X, x.Y, x.Width, x.Height)).ToArray()
             };
         }
 
@@ -506,22 +457,6 @@ namespace KGV.Core.Utilities
             double Width,
             double Height)
         { }
-
-        public static IReadOnlyList<Models.SignaturePlaceholder> GetSignaturePlaceholders()
-        {
-            return FieldSpecs
-                .Where(f => f.Kind == PdfFormFieldKind.SignaturePlaceholder)
-                .Select(f => new Models.SignaturePlaceholder
-                {
-                    Name = f.Name,
-                    Page = 1,
-                    X = f.X,
-                    Y = f.Y,
-                    Width = f.Width,
-                    Height = f.Height
-                })
-                .ToArray();
-        }
 
         private static IReadOnlyList<Models.SignaturePlaceholder> GetSignaturePlaceholders(IReadOnlyList<PdfTemplateFieldSpec> fields)
             => fields

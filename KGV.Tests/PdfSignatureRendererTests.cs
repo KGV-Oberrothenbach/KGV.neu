@@ -38,10 +38,11 @@ public sealed class PdfSignatureRendererTests
     }
 
     [Fact]
-    public void Template_placeholders_cover_membership_and_lease_signature_counts()
+    public async Task Canonical_template_placeholders_cover_membership_and_lease_signature_counts()
     {
-        var membership = MitgliedsantragDokumentFactory.GetSignaturePlaceholders();
-        var lease = PachtvertragDokumentFactory.GetSignaturePlaceholders();
+        var provider = new CanonicalPdfTemplateProvider();
+        var membership = ToPlaceholders((await provider.GetActiveAsync(new PdfTemplateRequest("mitgliedsantrag", "mitgliedsantrag-field-spec/v1", "pdfsharpcore-ma/v1"))).Fields);
+        var lease = ToPlaceholders((await provider.GetActiveAsync(new PdfTemplateRequest("pachtvertrag", "pachtvertrag-field-spec/v2", "top-left/v1"))).Fields);
 
         var membershipAlone = new[] { "unterschrift_antragsteller", "unterschrift_verein", "datenschutz_unterschrift_antragsteller" };
         var membershipWithSecondParty = membershipAlone.Concat(new[] { "unterschrift_vertreter", "datenschutz_unterschrift_vertreter" }).ToArray();
@@ -74,6 +75,11 @@ public sealed class PdfSignatureRendererTests
         var map = placeholders.ToDictionary(placeholder => placeholder.Name, StringComparer.OrdinalIgnoreCase);
         return PdfSignatureRenderer.BuildRenderPlan(names.Select(name => (map[name], Capture(100, 50))).ToArray());
     }
+
+    private static IReadOnlyList<SignaturePlaceholder> ToPlaceholders(IReadOnlyList<PdfTemplateFieldSpec> fields) => fields
+        .Where(field => string.Equals(field.Kind, "signature", StringComparison.OrdinalIgnoreCase))
+        .Select(field => new SignaturePlaceholder { Name = field.Name, Page = field.Page, X = field.X, Y = field.Y, Width = field.Width, Height = field.Height })
+        .ToArray();
 
     private static byte[] CreatePdf(int pageCount)
     {
