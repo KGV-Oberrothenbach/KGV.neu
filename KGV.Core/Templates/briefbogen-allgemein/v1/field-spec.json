@@ -1,0 +1,15 @@
+{
+  "schema_version": "kgv-pdf-field-spec/v1",
+  "coordinate_system": "top-left-points",
+  "settings": {
+    "coordinateOrigin": "topLeft"
+  },
+  "fields": [
+    { "name": "empfaenger_block", "type": "multiline", "page": 1, "rect": { "x": 87.9, "y": 188.0, "w": 215.0, "h": 74.0 } },
+    { "name": "datum", "type": "text", "page": 1, "rect": { "x": 390.0, "y": 238.0, "w": 118.0, "h": 16.0 } },
+    { "name": "betreff", "type": "text", "page": 1, "rect": { "x": 87.9, "y": 314.0, "w": 420.0, "h": 18.0 } },
+    { "name": "anrede", "type": "text", "page": 1, "rect": { "x": 87.9, "y": 360.0, "w": 300.0, "h": 16.0 } },
+    { "name": "brieftext", "type": "multiline", "page": 1, "rect": { "x": 87.9, "y": 389.0, "w": 420.0, "h": 142.0 } },
+    { "name": "abschluss", "type": "multiline", "page": 1, "rect": { "x": 87.9, "y": 545.0, "w": 260.0, "h": 52.0 } }
+  ]
+}
