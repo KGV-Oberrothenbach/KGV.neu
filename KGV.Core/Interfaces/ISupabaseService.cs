@@ -82,6 +82,7 @@ namespace KGV.Core.Interfaces
         // =========================
         Task<MitgliedRecord?> GetNebenmitgliedByHauptmitgliedIdAsync(int hauptmitgliedId);
         Task<MitgliedRecord?> CreateNebenmitgliedAsync(NebenmitgliedCreateDTO request);
+        Task<MitgliedRecord?> PromoteNebenmitgliedToHauptmitgliedAsync(int mitgliedId);
         Task<MitgliedGesetzlicherVertreterRecord?> GetAktivenGesetzlichenVertreterAsync(int minderjaehrigesMitgliedId, DateTime? stichtag = null);
         Task<MitgliedGesetzlicherVertreterRecord?> SaveGesetzlichenVertreterAsync(GesetzlicherVertreterSaveRequest request);
         Task<GesetzlicherVertreterAufloesung> ResolveGesetzlicherVertreterAsync(int mitgliedId, DateTime? stichtag = null);
@@ -150,8 +151,9 @@ namespace KGV.Core.Interfaces
             MitgliedsantragDokumentRequest request,
             DigitalSignatureCapture antragSignatureCapture,
             DigitalSignatureCapture datenschutzSignatureCapture,
-            DigitalSignatureCapture? gesetzlicherVertreterAntragSignatureCapture = null,
-            DigitalSignatureCapture? gesetzlicherVertreterDatenschutzSignatureCapture = null);
+            DigitalSignatureCapture vereinSignatureCapture,
+            DigitalSignatureCapture? zweitePrivateParteiAntragSignatureCapture = null,
+            DigitalSignatureCapture? zweitePrivateParteiDatenschutzSignatureCapture = null);
         Task<DokumentUploadResult> CreateMitgliedsvertragDokumentAsync(int mitgliedId, string status = FormularDokumentStatus.Unsigniert);
         Task<DokumentUploadResult> CreatePachtvertragDokumentAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn, string status = FormularDokumentStatus.Unsigniert);
         Task<DokumentUploadRequest?> BuildPachtvertragPreviewAsync(int mitgliedId, int parzelleId, DateTime vertragsbeginn);
@@ -194,6 +196,12 @@ namespace KGV.Core.Interfaces
         Task<List<AppExportColumnDefinitionRecord>> GetExportColumnDefinitionsAsync(string exportKey);
         Task<List<System.Collections.Generic.Dictionary<string, string>>> RunExportRpcAsync(string rpcName, object? parameters = null);
         Task<List<System.Collections.Generic.Dictionary<string, string>>> RunProtectedExportRpcAsync(string sourceName, object? parameters = null);
+        /// <summary>
+        /// Erzeugt einen zentralen PDF-Export über die geschützte Supabase Edge Function.
+        /// Der Client übergibt Export-Schlüssel, Format, Filterwerte, Spalten und Orientierung; die Daten- und
+        /// PDF-Aufbereitung findet serverseitig statt.
+        /// </summary>
+        Task<byte[]> GenerateExportPdfAsync(CentralExportRequest request);
         Task<List<HomeWorkAssignmentItem>> GetStartseiteArbeitseinsaetzeAsync();
         Task<HomeWorkAssignmentItem?> GetStartseiteArbeitseinsatzByIdAsync(int arbeitseinsatzId);
         Task<List<WorkAssignmentParticipantItem>> GetArbeitseinsatzParticipantsAsync(int arbeitseinsatzId);

@@ -1,5 +1,6 @@
 using KGV.Core.Models;
 using KGV.Core.Utilities;
+using PdfSharpCore.Pdf.IO;
 using Xunit;
 
 namespace KGV.Tests;
@@ -7,9 +8,9 @@ namespace KGV.Tests;
 public sealed class PachtvertragDokumentFactoryTests
 {
     [Fact]
-    public void CreateUploadRequest_AssignsPachtvertragToParzelle()
+    public async Task CreateUploadRequest_AssignsPachtvertragToParzelle()
     {
-        var request = PachtvertragDokumentFactory.CreateUploadRequest(
+        var request = await PachtvertragDokumentFactory.CreateUploadRequestAsync(
             hauptmitglied: new MitgliedRecord
             {
                 Id = 17,
@@ -42,10 +43,14 @@ public sealed class PachtvertragDokumentFactoryTests
                 Iban = "DE00123456780000000000",
                 Bic = "MUSTDEFFXXX"
             },
-            status: FormularDokumentStatus.Signiert);
+            status: FormularDokumentStatus.Signiert,
+            templateProvider: new CanonicalPdfTemplateProvider());
 
         Assert.Equal(42, request.ParzelleId);
         Assert.Null(request.MitgliedId);
         Assert.NotEmpty(request.FileContent);
+
+        using var pdf = PdfReader.Open(new MemoryStream(request.FileContent), PdfDocumentOpenMode.InformationOnly);
+        Assert.Equal(3, pdf.Pages.Count);
     }
 }

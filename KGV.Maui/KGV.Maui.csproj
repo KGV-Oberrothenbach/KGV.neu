@@ -15,8 +15,8 @@
     <AndroidMinSdkVersion>24</AndroidMinSdkVersion>
     <AndroidTargetSdkVersion>36</AndroidTargetSdkVersion>
     <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
-    <ApplicationDisplayVersion>0.7.24.2</ApplicationDisplayVersion>
-    <ApplicationVersion>183</ApplicationVersion>
+    <ApplicationDisplayVersion>0.7.24.14</ApplicationDisplayVersion>
+    <ApplicationVersion>193</ApplicationVersion>
     <TargetFrameworks>net10.0-android</TargetFrameworks>
   </PropertyGroup>
   <!-- Debug stability settings -->

@@ -2,6 +2,7 @@ using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Security;
 using KGV.Maui.State;
+using KGV.Maui.Services.Documents;
 using Microsoft.Maui.ApplicationModel;
 using System;
 using System.Collections.Generic;
@@ -461,14 +462,15 @@ public sealed class ParzellenViewModel : INotifyPropertyChanged
         if (document == null)
             return;
 
-        var url = await _supabaseService.ResolveDokumentOpenUrlAsync(document, 3600);
-        if (string.IsNullOrWhiteSpace(url))
+        var content = await _supabaseService.DownloadDokumentContentAsync(document);
+        if (content is not { Length: > 0 })
         {
             StatusMessage = "Dokument konnte nicht geöffnet werden.";
             return;
         }
 
-        await Launcher.Default.OpenAsync(url);
+        if (!await DocumentStorage.OpenTemporaryFileAsync(document.Dateiname ?? document.Titel, document.MimeType, content))
+            StatusMessage = "Dokument konnte lokal nicht geöffnet werden.";
     }
 
     public async Task<bool> SaveStromReadingAsync(DateTime ablesedatum, decimal stand, string? fotoPfad, ZaehlerAblesungDTO? existing = null)

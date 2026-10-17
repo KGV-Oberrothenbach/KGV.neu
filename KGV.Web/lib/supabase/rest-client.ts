@@ -3,26 +3,9 @@ import { resolveSupabaseConfig, type SupabaseClientContext } from "./client-cont
 export type SupabaseQuery = Record<string, string>;
 export type SupabaseWriteMethod = "POST" | "PATCH";
 
-// Diese Liste ist Kompatibilitätsverhalten der bisherigen Fassade, keine
-// Sicherheitsgrenze. Die verbindliche Mandanten- und Demo-Trennung liegt in RLS.
-export const demoScopedTables = new Set([
-  "arbeitseinsatz",
-  "bekanntmachung",
-  "mitglied",
-  "parzelle",
-  "termin",
-  "wartungsvertraege",
-]);
-
-function scopedQuery(context: SupabaseClientContext, table: string, query: SupabaseQuery) {
-  const next = { ...query };
-  if (demoScopedTables.has(table) && next.is_demo === undefined) next.is_demo = context.session.isDemoAccount ? "eq.true" : "eq.false";
-  return new URLSearchParams(next);
-}
-
 function restUrl(context: SupabaseClientContext, table: string, query: SupabaseQuery) {
   const { url } = resolveSupabaseConfig(context.club);
-  return `${url}/rest/v1/${encodeURIComponent(table)}?${scopedQuery(context, table, query)}`;
+  return `${url}/rest/v1/${encodeURIComponent(table)}?${new URLSearchParams(query)}`;
 }
 
 function headers(context: SupabaseClientContext, contentType = false, representation = false) {

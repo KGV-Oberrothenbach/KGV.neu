@@ -21,4 +21,11 @@
     <ProjectReference Include="..\KGV.Wpf\KGV.Wpf.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\KGV.Core\Templates\mitgliedsantrag\v1\template.pdf" Link="Templates\mitgliedsantrag\v1\template.pdf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\KGV.Core\Templates\mitgliedsantrag\v1\field-spec.json" Link="Templates\mitgliedsantrag\v1\field-spec.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\KGV.Core\Templates\pachtvertrag\v2\template.pdf" Link="Templates\pachtvertrag\v2\template.pdf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\KGV.Core\Templates\pachtvertrag\v2\field-spec.json" Link="Templates\pachtvertrag\v2\field-spec.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

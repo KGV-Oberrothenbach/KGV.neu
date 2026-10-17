@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KGV PDF Field Spec v1",
+  "type": "object",
+  "required": ["schema_version", "coordinate_system", "settings", "fields"],
+  "properties": {
+    "schema_version": { "const": "kgv-pdf-field-spec/v1" },
+    "coordinate_system": { "const": "top-left-points" },
+    "settings": { "type": "object", "required": ["coordinateOrigin"], "properties": { "coordinateOrigin": { "const": "topLeft" } } },
+    "fields": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["name", "type", "page", "rect"], "properties": { "name": { "type": "string", "minLength": 1 }, "type": { "enum": ["text", "multiline", "checkbox", "signature"] }, "page": { "type": "integer", "minimum": 1 }, "rect": { "type": "object", "required": ["x", "y", "w", "h"], "properties": { "x": { "type": "number", "minimum": 0 }, "y": { "type": "number", "minimum": 0 }, "w": { "type": "number", "exclusiveMinimum": 0 }, "h": { "type": "number", "exclusiveMinimum": 0 } } } } } }
+  }
+}

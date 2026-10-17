@@ -12133,3 +12133,15 @@ Note: PdfSharpCore bietet eingeschränkte AcroForm-Unterstützung; die Implement
 - Ausgangsbuild auf `fix/maui-build-baseline`: sieben Compilerfehler. `ArbeitseinsatzTeilnehmerPage` konnte `LineBreakMode` nicht auflösen; `HomeSectionDetailPage` konnte `Launcher`, `FileSystem`, `Share`, `ShareFileRequest` und `ShareFile` nicht auflösen; `BekanntmachungEditorPage` konnte `Launcher` nicht auflösen.
 - Ursache waren fehlende aktuelle MAUI-Namespaceimporte, nicht geänderte oder entfernte APIs. Ergänzt wurden nur `Microsoft.Maui`, `Microsoft.Maui.ApplicationModel`, `Microsoft.Maui.Storage` und `Microsoft.Maui.ApplicationModel.DataTransfer`. Die bestehenden plattformübergreifenden MAUI-Aufrufe `Launcher.Default.OpenAsync`, `FileSystem.CacheDirectory` und `Share.Default.RequestAsync` bleiben unverändert.
 - `dotnet build KGV.Maui/KGV.Maui.csproj --no-restore` ist erfolgreich mit 0 Compilerfehlern. Bestehende Warnungen (ImageSharp/NU1902/NU1903 sowie Nullbarkeitswarnungen) wurden bewusst nicht im S2-Scope bereinigt. Keine Web-, WPF-, DB-/Migrations- oder Fachlogikänderungen; keine Paket-/Framework-Downgrades und keine Funktionen deaktiviert.
+
+## 2026-10-13 – MAUI UserContext RPC-Ergebnismenge
+
+- `current_app_user_context` ist eine PostgreSQL-`returns table`-RPC und wird über PostgREST als JSON-Array geliefert. Der MAUI-Client erwartete bisher fälschlich ein einzelnes `AppUserRecord`, wodurch die erfolgreiche Anmeldung bei der Deserialisierung scheiterte.
+- `UserContextService` liest die RPC nun als `AppUserRecord[]`, akzeptiert exakt einen Datensatz und übernimmt nur diesen. Keine Rückgabe sowie mehrere Rückgaben werden mit einem Protokolleintrag als ungültiger Kontext behandelt und mit `KgvAccessDeniedException` abgewiesen.
+- Bestehende Validierung von Auth-User-ID, Mitglieds-ID, erlaubter Rolle sowie Permission-Grants/-Revocations ist unverändert. SQL, Web, WPF und Sicherheitsregeln wurden nicht geändert.
+
+## 2026-10-15 – Export-PDF-Build und Web-Versionsanzeige
+
+- Der Export-PDF-Pfad in `SupabaseService.GenerateExportPdfAsync` verwendet im geprüften Arbeitsstand bereits `httpRequest`; Serialisierung des Parameters `request`, Header und `SendAsync` sind korrekt der jeweiligen Variable zugeordnet. Export-Contract unverändert.
+- Die Web-Versionsanzeige lädt zentral `/release-info.json` mit `cache: "no-store"` und zeigt ausdrücklich `displayVersion` vollständig an. Bei fehlender, fehlerhafter oder unvollständiger Datei erscheint „Version unbekannt“; ein Ladefehler verhindert nicht die App-Nutzung. Login- und Workspace-Anzeige verwenden denselben Loader.
+- `dotnet build KGV.Infrastructure`, Android-Build von `KGV.Maui` und `npm run build` in `KGV.Web` erfolgreich; `git diff --check` ohne Befund. Builds melden bestehende NuGet-/Nullbarkeits- und Web-Chunk-Warnungen.

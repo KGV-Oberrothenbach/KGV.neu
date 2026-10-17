@@ -1,6 +1,7 @@
 using KGV.Core.Security;
 using KGV.Infrastructure.Models;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Supabase;
 using System;
 using System.Linq;
@@ -21,6 +22,30 @@ namespace KGV.Infrastructure.Services
 
     public sealed class UserContextService : IUserContextService
     {
+        private sealed class CurrentAppUserContextRecord
+        {
+            [JsonProperty("user_id")]
+            public Guid UserId { get; set; }
+
+            [JsonProperty("mitglied_id")]
+            public long? MitgliedId { get; set; }
+
+            [JsonProperty("role")]
+            public string? Role { get; set; }
+
+            [JsonProperty("permission_grants")]
+            public long? PermissionGrants { get; set; }
+
+            [JsonProperty("permission_revocations")]
+            public long? PermissionRevocations { get; set; }
+
+            [JsonProperty("is_protected")]
+            public bool IsProtected { get; set; }
+
+            [JsonProperty("is_demo_account")]
+            public bool IsDemoAccount { get; set; }
+        }
+
         private readonly ISupabaseClientFactory _clientFactory;
         private readonly IPermissionService _permissionService;
         private readonly ILogger<UserContextService>? _logger;
@@ -44,13 +69,25 @@ namespace KGV.Infrastructure.Services
             {
                 Client client = await _clientFactory.CreateAsync();
 
-                var record = await client.Rpc<AppUserRecord>("current_app_user_context", new { });
+                var records = await client.Rpc<CurrentAppUserContextRecord[]>("current_app_user_context", new { })
+                    ?? Array.Empty<CurrentAppUserContextRecord>();
 
-                if (record == null)
+                if (records.Length == 0)
                 {
                     _logger?.LogWarning("No valid app_user context found for user {UserId}.", userId);
                     throw new KgvAccessDeniedException();
                 }
+
+                if (records.Length > 1)
+                {
+                    _logger?.LogWarning(
+                        "Rejected app_user context for user {UserId}: RPC returned {RecordCount} records.",
+                        userId,
+                        records.Length);
+                    throw new KgvAccessDeniedException();
+                }
+
+                var record = records[0];
 
                 if (record.UserId != userId || !record.MitgliedId.HasValue || record.MitgliedId <= 0 ||
                     !string.Equals(record.Role, UserRoles.Admin, StringComparison.OrdinalIgnoreCase) &&

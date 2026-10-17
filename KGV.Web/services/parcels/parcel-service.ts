@@ -7,7 +7,8 @@ import {
   listParcelOverviewMembers,
   listParcelOverviewParcels,
   listParcelOverviewParcelsByIds,
-  listMemberParcelAssignments,
+  listMemberParcelOccupancies,
+  listParcelOccupancies,
   listParcelAssignmentsForParcel,
   updateParcelMasterData,
   createParcelAssignment,
@@ -31,7 +32,7 @@ export const saveParcelMasterData = (club: ClubContext, session: BrowserSession,
 export type ParcelAssignmentInput = { memberId: number; parcelId: number; startDate: string };
 
 export async function listAssignableParcels(club: ClubContext, session: BrowserSession) {
-  const [parcels, assignments] = await Promise.all([listParcelOverviewParcels(club, session), listParcelOverviewAssignments(club, session)]);
+  const [parcels, assignments] = await Promise.all([listParcelOverviewParcels(club, session), listParcelOccupancies(club, session)]);
   const occupiedParcelIds = new Set(assignments.filter((assignment) => isParcelAssignmentActiveOn(assignment)).map((assignment) => assignment.parzelle_id));
   return parcels
     .filter((parcel) => parcel.id > 0 && !occupiedParcelIds.has(parcel.id))
@@ -68,11 +69,11 @@ export type MemberParcelItem = {
 };
 
 export async function listMemberParcels(club: ClubContext, session: BrowserSession, memberId: number): Promise<MemberParcelItem[]> {
-  const assignments = await listMemberParcelAssignments(club, session, memberId);
+  const assignments = await listMemberParcelOccupancies(club, session, memberId);
   const parcels = await listParcelOverviewParcelsByIds(club, session, [...new Set(assignments.map((assignment) => assignment.parzelle_id))]);
   const parcelsById = new Map(parcels.map((parcel) => [parcel.id, parcel]));
   return assignments
-    .map((assignment) => ({ assignment, parcel: parcelsById.get(assignment.parzelle_id) ?? null, isCurrent: isParcelAssignmentActiveOn(assignment) }))
+    .map((assignment) => ({ assignment: { ...assignment, beendigungsgrund: null }, parcel: parcelsById.get(assignment.parzelle_id) ?? null, isCurrent: isParcelAssignmentActiveOn(assignment) }))
     .sort((left, right) => (right.assignment.von_datum ?? "").localeCompare(left.assignment.von_datum ?? ""));
 }
 

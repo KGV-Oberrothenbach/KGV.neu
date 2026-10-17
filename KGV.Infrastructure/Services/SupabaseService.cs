@@ -25,6 +25,7 @@ namespace KGV.Infrastructure.Services
     public class SupabaseService : ISupabaseService
     {
         private const string DokumentUploadFunctionName = "kgv-upload-document";
+        private const string GenerateExportPdfFunctionName = "kgv-generate-export-pdf";
         private const string MitgliedRegelwerkeVersandFunctionName = "kgv-send-membership-documents";
         private const string AllowUserMeterReadingSubmissionsSettingKey = "allow_user_meter_reading_submissions";
         private const string MeterReadingPhotoRequiredSettingKey = "meter_reading_photo_required";
@@ -32,6 +33,7 @@ namespace KGV.Infrastructure.Services
         private readonly ILogger<SupabaseService>? _logger;
         private readonly Func<UserContext?>? _currentUserContextAccessor;
         private readonly IAuthService _authService;
+        private readonly IPdfTemplateProvider _pdfTemplateProvider;
         private readonly string _supabaseUrl;
         private readonly string _publishableKey;
         private readonly HttpClient _documentUploadHttpClient;
@@ -42,6 +44,7 @@ namespace KGV.Infrastructure.Services
             ILogger<SupabaseService>? logger,
             Func<UserContext?>? currentUserContextAccessor,
             IAuthService authService,
+            IPdfTemplateProvider pdfTemplateProvider,
             string supabaseUrl,
             string publishableKey)
         {
@@ -49,6 +52,7 @@ namespace KGV.Infrastructure.Services
             _logger = logger;
             _currentUserContextAccessor = currentUserContextAccessor;
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+            _pdfTemplateProvider = pdfTemplateProvider ?? throw new ArgumentNullException(nameof(pdfTemplateProvider));
             _supabaseUrl = (supabaseUrl ?? string.Empty).Trim();
             _publishableKey = (publishableKey ?? string.Empty).Trim();
             _documentUploadHttpClient = new HttpClient
@@ -67,7 +71,7 @@ namespace KGV.Infrastructure.Services
                 var context = await ResolvePachtvertragRequestAsync(request);
                 var paechter2 = ResolvePachtvertragPaechter2(request, context.SecondaryMember, context.IstMinderjaehrig, context.GesetzlicherVertreterSnapshot);
 
-                var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
+                var uploadRequest = await PachtvertragDokumentFactory.CreateUploadRequestAsync(
                     context.Member,
                     paechter2,
                     context.Parzelle,
@@ -76,9 +80,14 @@ namespace KGV.Infrastructure.Services
                     altvertragDatum: request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    request.Status);
+                    request.Status, _pdfTemplateProvider);
 
                 return await CreateDokumentAsync(uploadRequest);
+            }
+            catch (DocumentPipelineException ex)
+            {
+                LogDocumentPipelineFailure(ex);
+                return DokumentUploadResult.Fail(ex.Message, ex.DiagnosticCode);
             }
             catch (InvalidOperationException ex)
             {
@@ -431,12 +440,82 @@ namespace KGV.Infrastructure.Services
             },
             new List<System.Collections.Generic.Dictionary<string, string>>());
 
-        public Task<List<System.Collections.Generic.Dictionary<string, string>>> RunProtectedExportRpcAsync(string sourceName, object? parameters = null)
+        public Task<List<System.Collections.Generic.Dictionary<string, string>>> RunProtectedExportRpcAsync(string exportKey, object? parameters = null)
         {
-            if (string.IsNullOrWhiteSpace(sourceName))
+            if (string.IsNullOrWhiteSpace(exportKey))
                 return Task.FromResult(new List<System.Collections.Generic.Dictionary<string, string>>());
 
-            return RunExportRpcAsync("rpc_execute_export", new { p_source_name = sourceName, p_parameters = parameters ?? new { } });
+            return RunExportRpcAsync("rpc_execute_export", new { p_export_key = exportKey, p_parameters = parameters ?? new { } });
+        }
+
+        public async Task<byte[]> GenerateExportPdfAsync(CentralExportRequest request)
+        {
+            if (request is null || string.IsNullOrWhiteSpace(request.ExportKey))
+                throw new InvalidOperationException("Für den zentralen PDF-Export fehlt der Export-Schlüssel.");
+
+            if (string.IsNullOrWhiteSpace(_supabaseUrl) || string.IsNullOrWhiteSpace(_publishableKey))
+                throw new InvalidOperationException("Der zentrale PDF-Export ist nicht konfiguriert.");
+
+            var accessToken = await _authService.GetAccessTokenAsync();
+            if (string.IsNullOrWhiteSpace(accessToken))
+                throw new InvalidOperationException("Die aktuelle Anmeldung ist abgelaufen. Bitte erneut anmelden.");
+
+            try
+            {
+                var endpoint = new Uri(new Uri(_supabaseUrl.TrimEnd('/') + "/"), $"functions/v1/{GenerateExportPdfFunctionName}");
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
+                {
+                    Content = new StringContent(
+                        JsonSerializer.Serialize(request),
+                        Encoding.UTF8,
+                        "application/json")
+                };
+                httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                httpRequest.Headers.Add("apikey", _publishableKey);
+                httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/pdf"));
+
+                using var response = await _documentUploadHttpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var body = await response.Content.ReadAsStringAsync();
+                    throw new InvalidOperationException(DescribeExportPdfFailure(response.StatusCode, body));
+                }
+
+                var mediaType = response.Content.Headers.ContentType?.MediaType;
+                if (!string.Equals(mediaType, "application/pdf", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Der zentrale PDF-Export lieferte keine PDF-Datei.");
+
+                var pdf = await response.Content.ReadAsByteArrayAsync();
+                if (pdf.Length < 5 || pdf[0] != (byte)'%' || pdf[1] != (byte)'P' || pdf[2] != (byte)'D' || pdf[3] != (byte)'F' || pdf[4] != (byte)'-')
+                    throw new InvalidOperationException("Der zentrale PDF-Export lieferte eine ungültige PDF-Datei.");
+
+                return pdf;
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger?.LogWarning(ex, "GenerateExportPdfAsync could not reach the Edge Function");
+                throw new InvalidOperationException("Der zentrale PDF-Export ist derzeit nicht erreichbar.", ex);
+            }
+        }
+
+        private static string DescribeExportPdfFailure(System.Net.HttpStatusCode statusCode, string responseBody)
+        {
+            var serverMessage = string.Empty;
+            try
+            {
+                using var document = JsonDocument.Parse(responseBody);
+                if (document.RootElement.TryGetProperty("message", out var message))
+                    serverMessage = message.GetString() ?? string.Empty;
+            }
+            catch { }
+
+            return statusCode switch
+            {
+                System.Net.HttpStatusCode.Unauthorized => "Die Anmeldung ist abgelaufen. Bitte erneut anmelden.",
+                System.Net.HttpStatusCode.Forbidden => "Sie sind nicht berechtigt, die Mitgliederliste zu exportieren.",
+                System.Net.HttpStatusCode.BadRequest => string.IsNullOrWhiteSpace(serverMessage) ? "Die Exportparameter sind ungültig." : serverMessage,
+                _ => "Der zentrale PDF-Export konnte nicht erzeugt werden. Bitte versuchen Sie es später erneut."
+            };
         }
 
         // Local small helpers to avoid depending on ViewModel helpers
@@ -2373,6 +2452,28 @@ namespace KGV.Infrastructure.Services
             },
             null);
 
+        public Task<MitgliedRecord?> PromoteNebenmitgliedToHauptmitgliedAsync(int mitgliedId) => ExecuteAsync<MitgliedRecord?>(
+            "PromoteNebenmitgliedToHauptmitgliedAsync",
+            async () =>
+            {
+                if (mitgliedId <= 0)
+                    return null;
+
+                var member = await GetMitgliedByIdAsync(mitgliedId);
+                if (member?.HauptmitgliedId is not > 0)
+                    return null;
+
+                var client = await EnsureClientAsync();
+                await client
+                    .From<MitgliedRecord>()
+                    .Where(x => x.Id == mitgliedId)
+                    .Set(x => x.HauptmitgliedId, null)
+                    .Update();
+
+                return await GetMitgliedByIdAsync(mitgliedId);
+            },
+            null);
+
         public Task<string?> ResolveDokumentOpenUrlAsync(DocumentInfo? document, int expiresInSeconds = 3600) => ExecuteAsync<string?>(
             "ResolveDokumentOpenUrlAsync",
             async () =>
@@ -2382,7 +2483,7 @@ namespace KGV.Infrastructure.Services
 
                 var normalizedDriveFileId = CleanOptionalText(document.DriveFileId);
                 if (!string.IsNullOrWhiteSpace(normalizedDriveFileId))
-                    return BuildGoogleDriveFileViewUrl(normalizedDriveFileId);
+                    return null;
 
                 var storagePath = CleanOptionalText(document.StoragePath);
                 if (Uri.TryCreate(storagePath, UriKind.Absolute, out var absoluteUri)
@@ -3380,6 +3481,11 @@ namespace KGV.Infrastructure.Services
                     vorschlag.BeginnDatum,
                     status);
             }
+            catch (DocumentPipelineException ex)
+            {
+                LogDocumentPipelineFailure(ex);
+                return DokumentUploadResult.Fail(ex.Message, ex.DiagnosticCode);
+            }
             catch (InvalidOperationException ex)
             {
                 _logger?.LogWarning(ex, "CreateMitgliedsantragDokumentAsync validation failed for MitgliedId={MitgliedId}", mitgliedId);
@@ -3412,6 +3518,11 @@ namespace KGV.Infrastructure.Services
                 var mitgliedsbeitrag = MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag);
                 return await CreateMitgliedsantragDokumentInternalAsync(member, mitgliedsbeitrag, beginnDatum, request.Status);
             }
+            catch (DocumentPipelineException ex)
+            {
+                LogDocumentPipelineFailure(ex);
+                return DokumentUploadResult.Fail(ex.Message, ex.DiagnosticCode);
+            }
             catch (InvalidOperationException ex)
             {
                 _logger?.LogWarning(ex, "CreateMitgliedsantragDokumentAsync(request) validation failed for MitgliedId={MitgliedId}", request?.MitgliedId);
@@ -3429,7 +3540,7 @@ namespace KGV.Infrastructure.Services
             async () =>
             {
                 var context = await ResolveMitgliedsantragRequestAsync(request);
-                return MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert);
+                return await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
             },
             null);
 
@@ -3437,8 +3548,9 @@ namespace KGV.Infrastructure.Services
             MitgliedsantragDokumentRequest request,
             DigitalSignatureCapture antragSignatureCapture,
             DigitalSignatureCapture datenschutzSignatureCapture,
-            DigitalSignatureCapture? gesetzlicherVertreterAntragSignatureCapture = null,
-            DigitalSignatureCapture? gesetzlicherVertreterDatenschutzSignatureCapture = null) => ExecuteAsync(
+            DigitalSignatureCapture vereinSignatureCapture,
+            DigitalSignatureCapture? zweitePrivateParteiAntragSignatureCapture = null,
+            DigitalSignatureCapture? zweitePrivateParteiDatenschutzSignatureCapture = null) => ExecuteAsync(
             "CreateSignedMitgliedsantragDokumentAsync",
             async () =>
             {
@@ -3446,13 +3558,16 @@ namespace KGV.Infrastructure.Services
                     return DokumentUploadResult.Fail("Bitte zuerst die Unterschrift zum Mitgliedsantrag erfassen.", "VALIDATION");
                 if (datenschutzSignatureCapture == null || !datenschutzSignatureCapture.HasContent)
                     return DokumentUploadResult.Fail("Bitte zusätzlich die Unterschrift zur Datenschutzerklärung erfassen.", "VALIDATION");
+                if (vereinSignatureCapture == null || !vereinSignatureCapture.HasContent)
+                    return DokumentUploadResult.Fail("Bitte zusätzlich die Unterschrift für den Verein erfassen.", "VALIDATION");
 
                 var context = await ResolveMitgliedsantragRequestAsync(request);
-                if (context.IstMinderjaehrig
-                    && (gesetzlicherVertreterAntragSignatureCapture == null || !gesetzlicherVertreterAntragSignatureCapture.HasContent
-                        || gesetzlicherVertreterDatenschutzSignatureCapture == null || !gesetzlicherVertreterDatenschutzSignatureCapture.HasContent))
+                if (context.ZweitePrivateParteiArt != MitgliedsantragZweitePrivateParteiArt.Keine
+                    && (zweitePrivateParteiAntragSignatureCapture == null || !zweitePrivateParteiAntragSignatureCapture.HasContent
+                        || zweitePrivateParteiDatenschutzSignatureCapture == null || !zweitePrivateParteiDatenschutzSignatureCapture.HasContent))
                 {
-                    return DokumentUploadResult.Fail("Für Minderjährige sind die Unterschriften der gesetzlichen Vertretung für Antrag und Datenschutzerklärung erforderlich.", "VALIDATION");
+                    var rolle = context.ZweitePrivateParteiArt == MitgliedsantragZweitePrivateParteiArt.Nebenmitglied ? "Nebenmitglieds" : "gesetzlichen Vertretung";
+                    return DokumentUploadResult.Fail($"Die Unterschriften des {rolle} für Antrag und Datenschutzerklärung sind erforderlich.", "VALIDATION");
                 }
 
                 if (context.IstMinderjaehrig)
@@ -3470,33 +3585,21 @@ namespace KGV.Infrastructure.Services
                         return DokumentUploadResult.Fail("Gesetzlicher Vertreter konnte nicht gespeichert werden.", "VALIDATION");
                 }
 
-                var previewUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert);
-                var finalUploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Signiert);
-                var placeholders = MitgliedsantragDokumentFactory.GetSignaturePlaceholders()
-                    .ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
-                var signatures = new List<(SignaturePlaceholder placeholder, DigitalSignatureCapture capture)>();
-
-                AddSignature("unterschrift_antragsteller", antragSignatureCapture);
-                AddSignature("datenschutz_unterschrift_antragsteller", datenschutzSignatureCapture);
-
-                if (gesetzlicherVertreterAntragSignatureCapture != null && gesetzlicherVertreterDatenschutzSignatureCapture != null)
+                var previewUploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
+                var finalUploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(context.Member, context.Mitgliedsbeitrag, context.Aufnahmegebuehr, context.BeginnDatum, context.GesetzlicherVertreterSnapshot, context.ZweitePrivateParteiArt, context.VereinskonfigurationSnapshot, FormularDokumentStatus.Signiert, _pdfTemplateProvider);
+                var signatures = new List<PdfSignatureCaptureAssignment>
                 {
-                    AddSignature("unterschrift_vertreter", gesetzlicherVertreterAntragSignatureCapture);
-                    AddSignature("datenschutz_unterschrift_vertreter", gesetzlicherVertreterDatenschutzSignatureCapture);
-                }
-
-                finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.InsertSignaturesIntoPdf(
-                    previewUploadRequest.FileContent,
-                    signatures);
-                return await CreateDokumentAsync(finalUploadRequest);
-
-                void AddSignature(string placeholderName, DigitalSignatureCapture capture)
+                    new("unterschrift_antragsteller", antragSignatureCapture)
+                };
+                if (context.ZweitePrivateParteiArt != MitgliedsantragZweitePrivateParteiArt.Keine)
                 {
-                    if (!placeholders.TryGetValue(placeholderName, out var placeholder))
-                        throw new InvalidOperationException($"Die Signaturfläche '{placeholderName}' fehlt in der Mitgliedsantragvorlage.");
-
-                    signatures.Add((placeholder, capture));
+                    signatures.Add(new PdfSignatureCaptureAssignment("unterschrift_vertreter", zweitePrivateParteiAntragSignatureCapture!));
+                    signatures.Add(new PdfSignatureCaptureAssignment("datenschutz_unterschrift_vertreter", zweitePrivateParteiDatenschutzSignatureCapture!));
                 }
+                signatures.Add(new PdfSignatureCaptureAssignment("unterschrift_verein", vereinSignatureCapture));
+                signatures.Add(new PdfSignatureCaptureAssignment("datenschutz_unterschrift_antragsteller", datenschutzSignatureCapture));
+
+                return await FinalizeAndStoreGeneratedDocumentAsync(previewUploadRequest, finalUploadRequest, signatures);
             },
             DokumentUploadResult.Fail("Mitgliedsantrag konnte aktuell nicht signiert gespeichert werden.", "UNEXPECTED"));
 
@@ -3505,11 +3608,14 @@ namespace KGV.Infrastructure.Services
             var gesetzlicherVertreter = await ResolveGesetzlicherVertreterAsync(member.Id, beginnDatum);
             var bankverbindungSnapshot = await ResolveVereinskonfigurationSnapshotAsync();
             var aufnahmegebuehr = await ResolveMitgliedsantragAufnahmegebuehrAsync(beginnDatum);
-            var uploadRequest = MitgliedsantragDokumentFactory.CreateUploadRequest(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreter.IstMinderjaehrig ? BuildMitgliedsantragVertreterSnapshot(gesetzlicherVertreter.Vorbelegung) : null, bankverbindungSnapshot, status);
+            var uploadRequest = await MitgliedsantragDokumentFactory.CreateUploadRequestAsync(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum,
+                gesetzlicherVertreter.IstMinderjaehrig ? BuildMitgliedsantragVertreterSnapshot(gesetzlicherVertreter.Vorbelegung) : null,
+                gesetzlicherVertreter.IstMinderjaehrig ? MitgliedsantragZweitePrivateParteiArt.GesetzlicherVertreter : MitgliedsantragZweitePrivateParteiArt.Keine,
+                bankverbindungSnapshot, status, _pdfTemplateProvider);
             return await CreateDokumentAsync(uploadRequest);
         }
 
-        private async Task<(MitgliedRecord Member, decimal Mitgliedsbeitrag, decimal Aufnahmegebuehr, DateTime BeginnDatum, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, VereinskonfigurationSnapshot VereinskonfigurationSnapshot)> ResolveMitgliedsantragRequestAsync(MitgliedsantragDokumentRequest request)
+        private async Task<(MitgliedRecord Member, decimal Mitgliedsbeitrag, decimal Aufnahmegebuehr, DateTime BeginnDatum, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, MitgliedsantragZweitePrivateParteiArt ZweitePrivateParteiArt, VereinskonfigurationSnapshot VereinskonfigurationSnapshot)> ResolveMitgliedsantragRequestAsync(MitgliedsantragDokumentRequest request)
         {
             if (request == null || request.MitgliedId <= 0)
                 throw new InvalidOperationException("Bitte zuerst ein gültiges Mitglied auswählen.");
@@ -3535,7 +3641,19 @@ namespace KGV.Infrastructure.Services
 
             var istMinderjaehrig = GesetzlicherVertreterResolver.IsMinderjaehrig(member, beginnDatum);
             if (!istMinderjaehrig)
-                return (member, MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag), aufnahmegebuehr, beginnDatum, false, null, null, bankverbindungSnapshot);
+            {
+                if (!request.NebenmitgliedEinbeziehen)
+                    return (member, MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag), aufnahmegebuehr, beginnDatum, false, null, null, MitgliedsantragZweitePrivateParteiArt.Keine, bankverbindungSnapshot);
+
+                var nebenmitglied = await GetNebenmitgliedByHauptmitgliedIdAsync(member.Id);
+                if (nebenmitglied == null)
+                    throw new InvalidOperationException("Das ausgewählte Nebenmitglied ist nicht mehr vorhanden. Bitte den Mitgliedsantrag erneut vorbereiten.");
+                if (request.NebenmitgliedId is > 0 && request.NebenmitgliedId.Value != nebenmitglied.Id)
+                    throw new InvalidOperationException("Das ausgewählte Nebenmitglied passt nicht zum Antragsteller.");
+
+                return (member, MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag), aufnahmegebuehr, beginnDatum, false,
+                    BuildMitgliedsantragVertreterSnapshot(nebenmitglied), null, MitgliedsantragZweitePrivateParteiArt.Nebenmitglied, bankverbindungSnapshot);
+            }
 
             MitgliedsantragVertreterSnapshot? vertreterSnapshot = null;
             int? vertreterMitgliedId = null;
@@ -3568,10 +3686,10 @@ namespace KGV.Infrastructure.Services
             if (vertreterSnapshot == null || string.IsNullOrWhiteSpace(vertreterSnapshot.Vorname) || string.IsNullOrWhiteSpace(vertreterSnapshot.Nachname))
                 throw new InvalidOperationException("Für Minderjährige ist ein gesetzlicher Vertreter mit Vor- und Nachname erforderlich.");
 
-            return (member, MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag), aufnahmegebuehr, beginnDatum, true, vertreterSnapshot, vertreterMitgliedId, bankverbindungSnapshot);
+            return (member, MitgliedsantragBeitragHelper.NormalizeBeitrag(request.Mitgliedsbeitrag), aufnahmegebuehr, beginnDatum, true, vertreterSnapshot, vertreterMitgliedId, MitgliedsantragZweitePrivateParteiArt.GesetzlicherVertreter, bankverbindungSnapshot);
         }
 
-        private async Task<int> EnsureGesetzlicherVertreterMitgliedAsync((MitgliedRecord Member, decimal Mitgliedsbeitrag, decimal Aufnahmegebuehr, DateTime BeginnDatum, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, VereinskonfigurationSnapshot VereinskonfigurationSnapshot) context, MitgliedsantragDokumentRequest request)
+        private async Task<int> EnsureGesetzlicherVertreterMitgliedAsync((MitgliedRecord Member, decimal Mitgliedsbeitrag, decimal Aufnahmegebuehr, DateTime BeginnDatum, bool IstMinderjaehrig, MitgliedsantragVertreterSnapshot? GesetzlicherVertreterSnapshot, int? GesetzlicherVertreterMitgliedId, MitgliedsantragZweitePrivateParteiArt ZweitePrivateParteiArt, VereinskonfigurationSnapshot VereinskonfigurationSnapshot) context, MitgliedsantragDokumentRequest request)
         {
             if (context.GesetzlicherVertreterMitgliedId is > 0)
                 return context.GesetzlicherVertreterMitgliedId.Value;
@@ -3765,8 +3883,13 @@ namespace KGV.Infrastructure.Services
                     Vertragsbeginn = vertragsbeginnDatum,
                     Status = status
                 });
-                var uploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(context.Member, context.SecondaryMember, context.Parzelle, context.Saison, context.Vertragsbeginn, altvertragDatum: null, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, status);
+                var uploadRequest = await PachtvertragDokumentFactory.CreateUploadRequestAsync(context.Member, context.SecondaryMember, context.Parzelle, context.Saison, context.Vertragsbeginn, altvertragDatum: null, context.GesetzlicherVertreterSnapshot, context.VereinskonfigurationSnapshot, status, _pdfTemplateProvider);
                 return await CreateDokumentAsync(uploadRequest);
+            }
+            catch (DocumentPipelineException ex)
+            {
+                LogDocumentPipelineFailure(ex);
+                return DokumentUploadResult.Fail(ex.Message, ex.DiagnosticCode);
             }
             catch (InvalidOperationException ex)
             {
@@ -3791,7 +3914,7 @@ namespace KGV.Infrastructure.Services
                     Vertragsbeginn = vertragsbeginn,
                     Status = FormularDokumentStatus.Unsigniert
                 });
-                return PachtvertragDokumentFactory.CreateUploadRequest(
+                return await PachtvertragDokumentFactory.CreateUploadRequestAsync(
                     context.Member,
                     context.SecondaryMember,
                     context.Parzelle,
@@ -3800,7 +3923,7 @@ namespace KGV.Infrastructure.Services
                     altvertragDatum: null,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    FormularDokumentStatus.Unsigniert);
+                    FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
             },
             null);
 
@@ -3810,7 +3933,7 @@ namespace KGV.Infrastructure.Services
             {
                 var context = await ResolvePachtvertragRequestAsync(request);
                 var paechter2 = ResolvePachtvertragPaechter2(request, context.SecondaryMember, context.IstMinderjaehrig, context.GesetzlicherVertreterSnapshot);
-                return PachtvertragDokumentFactory.CreateUploadRequest(
+                return await PachtvertragDokumentFactory.CreateUploadRequestAsync(
                     context.Member,
                     paechter2,
                     context.Parzelle,
@@ -3819,7 +3942,7 @@ namespace KGV.Infrastructure.Services
                     altvertragDatum: request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    FormularDokumentStatus.Unsigniert);
+                    FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
             },
             null);
 
@@ -3846,7 +3969,7 @@ namespace KGV.Infrastructure.Services
                 if (context.SecondaryMember != null && (paechter2SignatureCapture == null || !paechter2SignatureCapture.HasContent))
                     return DokumentUploadResult.Fail("Bitte zusätzlich die digitale Unterschrift von Pächter/in 2 erfassen.", "VALIDATION");
 
-                var previewUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
+                var previewUploadRequest = await PachtvertragDokumentFactory.CreateUploadRequestAsync(
                     context.Member,
                     context.SecondaryMember,
                     context.Parzelle,
@@ -3855,8 +3978,8 @@ namespace KGV.Infrastructure.Services
                     altvertragDatum: null,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    FormularDokumentStatus.Unsigniert);
-                var finalUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
+                    FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
+                var finalUploadRequest = await PachtvertragDokumentFactory.CreateUploadRequestAsync(
                     context.Member,
                     context.SecondaryMember,
                     context.Parzelle,
@@ -3865,19 +3988,16 @@ namespace KGV.Infrastructure.Services
                     altvertragDatum: null,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    FormularDokumentStatus.Signiert);
-                var sourceDocument = CreatePreviewDocumentInfo(previewUploadRequest, FormularDokumentTyp.Pachtvertrag, FormularDokumentStatus.Unsigniert);
-                finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(
-                    context.Member,
-                    sourceDocument,
-                    previewUploadRequest.FileContent,
-                    paechterSignatureCapture,
-                    paechter2SignatureCapture,
-                    vorstandSignatureCapture,
-                    "Unterschrift Pächter/in",
-                    context.SecondaryMember != null ? "Unterschrift Pächter/in 2" : null,
-                    "Unterschrift Vorstand / Verpächter");
-                return await CreateDokumentAsync(finalUploadRequest);
+                    FormularDokumentStatus.Signiert, _pdfTemplateProvider);
+                var signatures = new List<PdfSignatureCaptureAssignment>
+                {
+                    new("unterschrift_paechter", paechterSignatureCapture)
+                };
+                if (paechter2SignatureCapture != null)
+                    signatures.Add(new PdfSignatureCaptureAssignment("unterschrift_zweite_partei", paechter2SignatureCapture));
+                signatures.Add(new PdfSignatureCaptureAssignment("unterschrift_vorstand", vorstandSignatureCapture));
+
+                return await FinalizeAndStoreGeneratedDocumentAsync(previewUploadRequest, finalUploadRequest, signatures);
             },
             DokumentUploadResult.Fail("Pachtvertrag konnte aktuell nicht signiert gespeichert werden.", "UNEXPECTED"));
 
@@ -3899,7 +4019,7 @@ namespace KGV.Infrastructure.Services
                 if (!context.IstMinderjaehrig && paechter2 != null && (zweiteParteiSignatureCapture == null || !zweiteParteiSignatureCapture.HasContent))
                     return DokumentUploadResult.Fail("Bitte zusätzlich die digitale Unterschrift von Pächter/in 2 erfassen.", "VALIDATION");
 
-                var previewUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
+                var previewUploadRequest = await PachtvertragDokumentFactory.CreateUploadRequestAsync(
                     context.Member,
                     paechter2,
                     context.Parzelle,
@@ -3908,8 +4028,8 @@ namespace KGV.Infrastructure.Services
                     request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    FormularDokumentStatus.Unsigniert);
-                var finalUploadRequest = PachtvertragDokumentFactory.CreateUploadRequest(
+                    FormularDokumentStatus.Unsigniert, _pdfTemplateProvider);
+                var finalUploadRequest = await PachtvertragDokumentFactory.CreateUploadRequestAsync(
                     context.Member,
                     paechter2,
                     context.Parzelle,
@@ -3918,21 +4038,16 @@ namespace KGV.Infrastructure.Services
                     request.AltvertragDatum,
                     context.GesetzlicherVertreterSnapshot,
                     context.VereinskonfigurationSnapshot,
-                    FormularDokumentStatus.Signiert);
-                var sourceDocument = CreatePreviewDocumentInfo(previewUploadRequest, FormularDokumentTyp.Pachtvertrag, FormularDokumentStatus.Unsigniert);
-                finalUploadRequest.FileContent = SignedVertragsdokumentPdfBuilder.Build(
-                    context.Member,
-                    sourceDocument,
-                    previewUploadRequest.FileContent,
-                    paechterSignatureCapture,
-                    zweiteParteiSignatureCapture,
-                    vorstandSignatureCapture,
-                    "Unterschrift Pächter/in",
-                    context.IstMinderjaehrig
-                        ? "Unterschrift gesetzliche/r Vertreter/in"
-                        : paechter2 != null ? "Unterschrift Pächter/in 2" : null,
-                    "Unterschrift Vorstand / Verpächter");
-                return await CreateDokumentAsync(finalUploadRequest);
+                    FormularDokumentStatus.Signiert, _pdfTemplateProvider);
+                var signatures = new List<PdfSignatureCaptureAssignment>
+                {
+                    new("unterschrift_paechter", paechterSignatureCapture)
+                };
+                if (zweiteParteiSignatureCapture != null)
+                    signatures.Add(new PdfSignatureCaptureAssignment("unterschrift_zweite_partei", zweiteParteiSignatureCapture));
+                signatures.Add(new PdfSignatureCaptureAssignment("unterschrift_vorstand", vorstandSignatureCapture));
+
+                return await FinalizeAndStoreGeneratedDocumentAsync(previewUploadRequest, finalUploadRequest, signatures);
             },
             DokumentUploadResult.Fail("Pachtvertrag konnte aktuell nicht signiert gespeichert werden.", "UNEXPECTED"));
 
@@ -4133,6 +4248,33 @@ namespace KGV.Infrastructure.Services
             }
         }
 
+        private async Task<DokumentUploadResult> FinalizeAndStoreGeneratedDocumentAsync(
+            DokumentUploadRequest preview,
+            DokumentUploadRequest final,
+            IReadOnlyList<PdfSignatureCaptureAssignment> signatures)
+        {
+            try
+            {
+                var signedRequest = DocumentGenerationPipeline.ApplySignatures(preview, final, signatures);
+                return await CreateDokumentAsync(signedRequest);
+            }
+            catch (DocumentPipelineException ex)
+            {
+                LogDocumentPipelineFailure(ex);
+                return DokumentUploadResult.Fail(ex.Message, ex.DiagnosticCode);
+            }
+        }
+
+        private void LogDocumentPipelineFailure(DocumentPipelineException exception)
+            => _logger?.LogWarning(
+                exception,
+                "Document pipeline failed. Stage={Stage} DocumentType={DocumentType} Operation={Operation} TemplateVersion={TemplateVersion} RendererVersion={RendererVersion}",
+                exception.Stage,
+                exception.DocumentType,
+                exception.Operation,
+                exception.TemplateVersion,
+                exception.RendererVersion);
+
         public async Task<DokumentUploadResult> CreateDokumentAsync(DokumentUploadRequest request)
         {
             if (request == null)
@@ -4196,12 +4338,12 @@ namespace KGV.Infrastructure.Services
             catch (PostgrestException ex)
             {
                 LogPostgrestFailure("CreateDokumentAsync", ex);
-                return DokumentUploadResult.Fail("Dokumentmetadaten konnten nach dem Upload nicht gespeichert werden.", "POSTGREST");
+                return DokumentUploadResult.Fail("Dokumentmetadaten konnten nach dem Upload nicht gespeichert werden.", "POSTGREST", uploadResult.RequestId);
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "CreateDokumentAsync failed after upload.");
-                return DokumentUploadResult.Fail("Dokument konnte aktuell nicht gespeichert werden.", "UNEXPECTED");
+                return DokumentUploadResult.Fail("Dokument konnte aktuell nicht gespeichert werden.", "UNEXPECTED", uploadResult.RequestId);
             }
         }
 

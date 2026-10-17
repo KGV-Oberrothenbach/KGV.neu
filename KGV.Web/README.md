@@ -57,11 +57,10 @@ Im Arbeitskontext zeigt die App den Vor- und Nachnamen des ausgewaehlten oder
 angemeldeten Mitglieds. Die technische Mitgliedsnummer erscheint nur noch als
 Rueckfall, falls die Namensdaten nicht geladen werden koennen.
 
-Demo- und Echtdaten bleiben getrennt: Ein regulaeres Vereinskonto laedt aus
-allen entsprechend gekennzeichneten Fachtabellen ausschliesslich Datensaetze
-mit `is_demo = false`. Nur ein ausdruecklich als Demo-Konto markierter Zugang
-erhaelt stattdessen die Demodatensaetze. Damit entspricht die Browser-App dem
-Filterverhalten der MAUI-App.
+Die jeweilige Supabase-Datenbank ist der Datenbestand des ausgewaehlten
+Vereins. Die Browser-App setzt keinen zusaetzlichen `is_demo`-Zeilenfilter;
+Zugriffsrechte und Mandantentrennung werden durch die konfigurierte Datenbank
+und deren RLS-Regeln durchgesetzt.
 
 Die Desktop-Navigation folgt der Reihenfolge der MAUI-`AdminShell`:
 `Startseite`, `Impressum`, `Ablesen`, `Parzellenverwaltung`,

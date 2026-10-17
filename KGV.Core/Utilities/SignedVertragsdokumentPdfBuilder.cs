@@ -172,36 +172,6 @@ namespace KGV.Core.Utilities
         }
 
         public static byte[] InsertSignaturesIntoPdf(byte[] originalPdfContent, IReadOnlyList<(Models.SignaturePlaceholder placeholder, DigitalSignatureCapture capture)> signatures)
-        {
-            if ((originalPdfContent?.Length ?? 0) <= 0)
-                throw new InvalidOperationException("Die Dokumentfassung konnte nicht geladen werden.");
-
-            PdfSharpFontResolverInitializer.EnsureInitialized();
-
-            using var inputStream = new MemoryStream(originalPdfContent, writable: false);
-            using var document = PdfReader.Open(inputStream, PdfDocumentOpenMode.Modify);
-
-            foreach (var item in signatures)
-            {
-                var placeholder = item.placeholder;
-                var capture = item.capture;
-                if (capture == null || !capture.HasContent)
-                    continue;
-
-                var pageIndex = Math.Max(1, placeholder.Page) - 1;
-                if (pageIndex < 0 || pageIndex >= document.Pages.Count)
-                    continue;
-
-                var page = document.Pages[pageIndex];
-                using var gfx = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Prepend);
-                var targetRect = new XRect(placeholder.X, placeholder.Y, placeholder.Width, placeholder.Height);
-                var signaturePen = new XPen(XColor.FromArgb(33, 33, 33), 2.2);
-                DrawSignature(gfx, targetRect, capture, signaturePen);
-            }
-
-            using var output = new MemoryStream();
-            document.Save(output);
-            return output.ToArray();
-        }
+            => PdfSignatureRenderer.Render(originalPdfContent, signatures);
     }
 }

@@ -19,6 +19,7 @@ public sealed class PachtvertragTemplateData
     public string Paechter2Vollname { get; set; } = string.Empty;
     public string Paechter2Anschrift { get; set; } = string.Empty;
     public string Paechter2Kontakt { get; set; } = string.Empty;
+    public string ZweiteParteiBezeichnung { get; set; } = string.Empty;
 
     public string ParzelleNummer { get; set; } = string.Empty;
     public string ParzelleFlaecheQm { get; set; } = string.Empty;
@@ -40,4 +41,12 @@ public sealed class PachtvertragTemplateData
 
     public string UnterschriftOrt { get; set; } = "Zwickau";
     public string UnterschriftDatum { get; set; } = string.Empty;
+    public string KleingartenordnungFassung { get; set; } = string.Empty;
+    public string KleingartenordnungAusgehaendigtAm { get; set; } = string.Empty;
+    public string WeitereVereinbarungen { get; set; } = string.Empty;
+    public string VereinsUnterzeichner { get; set; } = string.Empty;
+    public bool Anlage1 { get; set; }
+    public bool Anlage2 { get; set; }
+    public bool Anlage3 { get; set; }
+    public bool Anlage4 { get; set; }
 }

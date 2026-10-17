@@ -811,3 +811,15 @@ Für die tägliche Arbeit reicht diese Fassung in der Regel aus, weil sie die fo
 - Analyse: Bei MAUI 10 liegen die verwendeten APIs weiterhin in den bestehenden Cross-Platform-APIs, jedoch in getrennten Namespacebereichen. `LineBreakMode` benötigt `Microsoft.Maui`; `Launcher` `Microsoft.Maui.ApplicationModel`; `FileSystem` `Microsoft.Maui.Storage`; Share-Typen `Microsoft.Maui.ApplicationModel.DataTransfer`. Es handelte sich daher um fehlende Imports, nicht um eine Signatur- oder Plattformänderung.
 - Es wurden ausschließlich diese Imports in den drei betroffenen MAUI-Dateien ergänzt. Die UI-Darstellung, Linköffnung, Kalenderdateierzeugung und Dateifreigabe sind funktional unverändert; insbesondere keine Plattformsonderimplementierung, keine Hardcodes und keine Deaktivierung.
 - Finaler MAUI-Build (`--no-restore`) erfolgreich mit 0 Fehlern. Bekannte Warnungen bleiben außerhalb des S2-Scopes: ImageSharp 2.1.13 (NU1902/NU1903, fünf Advisory-IDs) und bestehende Nullbarkeitswarnungen, darunter CS8625 in `VereinskonfigurationPage.cs`. Keine Web-/WPF-/DB-/Migrationsdateien und keine Paket- oder Frameworkversionen geändert.
+
+## 2026-10-13 – MAUI UserContext RPC-Ergebnismenge
+
+- Ursache des Loginfehlers: PostgreSQL-RPC `current_app_user_context` ist als `returns table(...)` definiert, daher liefert PostgREST ein JSON-Array. `UserContextService` deserialisierte zuvor direkt in ein einzelnes `AppUserRecord`; dies erzeugte die JsonSerializationException beim erfolgreichen Supabase-Login.
+- Die RPC wird jetzt als `AppUserRecord[]` verarbeitet. Bei null beziehungsweise 0 Datensätzen wird der Zugriff wie bisher mit `KgvAccessDeniedException` verweigert. Exakt ein Datensatz wird verwendet. Bei mehr als einem Datensatz protokolliert der Service die inkonsistente Ergebnismenge und verweigert ebenfalls den Zugriff; es wird kein beliebiger Kontext ausgewählt.
+- Die nachgelagerte Identitäts-, Mitglieds-, Rollen- und Permission-Prüfung bleibt identisch. Keine SQL-Funktion, Migration, Web-/WPF-Datei oder Auth-/Security-Regel wurde geändert.
+
+## 2026-10-15 – Export-PDF-Build und Web-Versionsanzeige
+
+- Prüfung auf `feature/pdf-template-provider`: `GenerateExportPdfAsync(CentralExportRequest request)` enthält bereits die kollisionsfreie lokale Variable `httpRequest`. Der Request-Body bleibt `JsonSerializer.Serialize(request)`; Authorization-, API-Key- und Accept-Header sowie `SendAsync` beziehen sich auf `httpRequest`. Es war keine Änderung am Export-Contract erforderlich.
+- Die beiden Web-Verwendungen der Versionsanzeige beziehen ihren Wert nun über `useAppVersion`. Der zentrale Client-Loader fordert `/release-info.json` mit `cache: "no-store"` an, liest explizit das vollständige Feld `displayVersion` und verwendet bei HTTP-/JSON-/Inhaltsfehlern den neutralen Fallback „Version unbekannt“. Der Fehler wird protokolliert; die App bleibt nutzbar.
+- `dotnet build KGV.Infrastructure`, `dotnet build KGV.Maui/KGV.Maui.csproj -f net10.0-android` und `npm run build` in `KGV.Web` erfolgreich; `git diff --check` ohne Befund. Gemeldet wurden bestehende NuGet-/Nullbarkeits- und Web-Chunk-Warnungen.

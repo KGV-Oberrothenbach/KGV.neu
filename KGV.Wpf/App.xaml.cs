@@ -2,6 +2,7 @@ using KGV;
 using KGV.Core.Diagnostics;
 using KGV.Core.Interfaces;
 using KGV.Core.Security;
+using KGV.Core.Utilities;
 using KGV.Infrastructure.Authentication;
 using KGV.Infrastructure.Services;
 using KGV.Infrastructure.Supabase;
@@ -135,11 +136,13 @@ namespace KGV.Wpf
 
             // Services initialisieren
             var authService = new AuthService(clientFactory, null); // Logger optional
+            var pdfTemplateProvider = new SupabasePdfTemplateProvider(clientFactory, authService, new PdfTemplateAssetCache());
             var supabaseService = new SupabaseService(
                 clientFactory,
                 null,
                 () => AppState.CurrentUserContext,
                 authService,
+                pdfTemplateProvider,
                 supabaseUrl,
                 supabasePublishableKey);
             var photoUploadTestService = new PhotoUploadTestService(authService, config, null);

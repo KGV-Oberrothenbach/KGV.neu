@@ -16,11 +16,11 @@ export type ParcelOverviewParcel = {
   rfid_strom: string | null;
   rfid_wasser: string | null;
   aktiv: boolean;
-  ist_vereinsgarten: boolean;
 };
 export type ParcelMasterDataUpdate = Pick<ParcelOverviewParcel, "flaeche_qm" | "hat_strom" | "hat_wasser">;
 export type ParcelAssignmentCreate = { parzelle_id: number; mitglied_id: number; von_datum: string; bis_datum: null };
 export type ParcelOverviewAssignment = ParcelAssignment & { id: number; beendigungsgrund: string | null };
+export type ParcelOccupancy = ParcelAssignment & { id: number };
 export type ParcelOverviewMember = {
   id: number;
   vorname: string | null;
@@ -66,13 +66,13 @@ export const listLeaseParcels = (club: ClubContext, session: BrowserSession, par
 }) : Promise.resolve([] as LeaseParcel[]);
 
 export const listParcelOverviewParcels = (club: ClubContext, session: BrowserSession) => readSupabaseRest<ParcelOverviewParcel>({ club, session }, "parzelle", {
-  select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,rfid_strom,rfid_wasser,aktiv,ist_vereinsgarten",
+  select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,rfid_strom,rfid_wasser,aktiv",
   limit: "1000",
 });
 
 export const listParcelOverviewParcelsByIds = (club: ClubContext, session: BrowserSession, parcelIds: number[]) => parcelIds.length
   ? readSupabaseRest<ParcelOverviewParcel>({ club, session }, "parzelle", {
-      select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,rfid_strom,rfid_wasser,aktiv,ist_vereinsgarten",
+      select: "id,garten_nr,Anlage,flaeche_qm,hat_strom,hat_wasser,rfid_strom,rfid_wasser,aktiv",
       id: `in.(${parcelIds.join(",")})`,
       limit: "1000",
     })
@@ -81,6 +81,19 @@ export const listParcelOverviewParcelsByIds = (club: ClubContext, session: Brows
 export const listMemberParcelAssignments = (club: ClubContext, session: BrowserSession, memberId: number) => readSupabaseRest<ParcelOverviewAssignment>({ club, session }, "parzellen_belegung", {
   select: "id,parzelle_id,mitglied_id,von_datum,bis_datum,beendigungsgrund",
   mitglied_id: `eq.${memberId}`,
+  order: "von_datum.desc",
+  limit: "3000",
+});
+
+export const listMemberParcelOccupancies = (club: ClubContext, session: BrowserSession, memberId: number) => readSupabaseRest<ParcelOccupancy>({ club, session }, "parzellen_belegung", {
+  select: "id,parzelle_id,mitglied_id,von_datum,bis_datum",
+  mitglied_id: `eq.${memberId}`,
+  order: "von_datum.desc",
+  limit: "3000",
+});
+
+export const listParcelOccupancies = (club: ClubContext, session: BrowserSession) => readSupabaseRest<ParcelOccupancy>({ club, session }, "parzellen_belegung", {
+  select: "id,parzelle_id,mitglied_id,von_datum,bis_datum",
   order: "von_datum.desc",
   limit: "3000",
 });

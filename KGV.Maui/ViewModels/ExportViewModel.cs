@@ -520,7 +520,7 @@ namespace KGV.Maui.ViewModels
 
                 else
                 {
-                    rows = await _supabaseService.RunProtectedExportRpcAsync(rpcName ?? string.Empty, minimalParams.Count == 0 ? null : (object)minimalParams);
+                    rows = await _supabaseService.RunProtectedExportRpcAsync(SelectedDefinition?.ExportKey ?? string.Empty, minimalParams.Count == 0 ? null : (object)minimalParams);
 
                     try
                     {
@@ -896,10 +896,21 @@ namespace KGV.Maui.ViewModels
 
         public async Task<string> ExportToPdfAsync()
         {
+            var exportKey = SelectedDefinition?.ExportKey ?? "export";
+
+            if (string.Equals(exportKey, "mitgliederliste", StringComparison.OrdinalIgnoreCase))
+            {
+                // The central path owns member, garden, address/contact and App-user
+                // resolution. Local result shaping remains in place for CSV and preview.
+                var membersPdf = await _supabaseService.GenerateExportPdfAsync(BuildCentralExportRequest());
+                var membersFileName = $"Mitgliederliste_{DateTime.Now:yyyy-MM-dd}.pdf";
+                var membersFilePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, membersFileName);
+                await System.IO.File.WriteAllBytesAsync(membersFilePath, membersPdf);
+                return membersFilePath;
+            }
+
             if (ProcessedResults.Count == 0 || ColumnsVisibleOrdered.Count == 0)
                 throw new InvalidOperationException("Keine Daten zum Exportieren.");
-
-            var exportKey = SelectedDefinition?.ExportKey ?? "export";
 
             var remappedRows = new List<Dictionary<string, string>>();
             for (var rowIndex = 0; rowIndex < ProcessedResults.Count; rowIndex++)
@@ -958,6 +969,32 @@ namespace KGV.Maui.ViewModels
             var filePath = System.IO.Path.Combine(Microsoft.Maui.Storage.FileSystem.CacheDirectory, fileName);
             await System.IO.File.WriteAllBytesAsync(filePath, pdf);
             return filePath;
+        }
+
+        private CentralExportRequest BuildCentralExportRequest()
+        {
+            var parameters = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            foreach (var filter in Filters)
+            {
+                var filterKey = filter.FilterKey;
+                var parameterName = string.IsNullOrWhiteSpace(filter.ParameterName) ? filterKey : filter.ParameterName;
+                if (!string.IsNullOrWhiteSpace(filterKey) && !string.IsNullOrWhiteSpace(parameterName) && FilterValues.TryGetValue(filterKey, out var value))
+                    parameters[parameterName] = value;
+            }
+
+            return new CentralExportRequest
+            {
+                ExportKey = SelectedDefinition?.ExportKey ?? string.Empty,
+                Format = "pdf",
+                Parameters = parameters,
+                Columns = ColumnsVisibleOrdered
+                    .Select(column => column.ColumnKey ?? column.Name)
+                    .Where(columnKey => !string.IsNullOrWhiteSpace(columnKey))
+                    .Select(columnKey => columnKey!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
+                Orientation = "auto"
+            };
         }
 
         public bool MoveNext()

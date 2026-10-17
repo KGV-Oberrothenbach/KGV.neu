@@ -1,19 +1,20 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using KGV.Core.Interfaces;
 using KGV.Core.Models;
+using KGV.Core.Diagnostics;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.Annotations;
 using PdfSharpCore.Pdf.IO;
 
 namespace KGV.Core.Utilities
 {
     public static class MitgliedsantragDokumentFactory
     {
-        private const string PdfTemplateResourceName = "KGV.Core.Templates.Mitgliedsantrag_Vorlage.pdf";
         private const string DefaultOrt = "Zwickau";
 
         private static readonly IReadOnlyList<PdfFormFieldSpec> FieldSpecs = new[]
@@ -68,29 +69,64 @@ namespace KGV.Core.Utilities
             new PdfFormFieldSpec("datenschutz_unterschrift_vertreter", PdfFormFieldKind.SignaturePlaceholder, 307.682, 733.824, 260.0, 47.176)
         };
 
-        public static DokumentUploadRequest CreateUploadRequest(
-            MitgliedRecord member,
-            decimal mitgliedsbeitrag,
-            DateTime beginnDatum,
-            string? status = null)
-            => CreateUploadRequest(member, mitgliedsbeitrag, 0m, beginnDatum, null, null, status);
+        public static async Task<DokumentUploadRequest> CreateUploadRequestAsync(
+            MitgliedRecord member, decimal mitgliedsbeitrag, decimal aufnahmegebuehr, DateTime beginnDatum,
+            MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot, MitgliedsantragZweitePrivateParteiArt zweitePrivateParteiArt,
+            VereinskonfigurationSnapshot? vereinskonfigurationSnapshot,
+            string? status, IPdfTemplateProvider templateProvider, CancellationToken cancellationToken = default)
+        {
+            if (templateProvider == null) throw new ArgumentNullException(nameof(templateProvider));
+            const string documentType = "mitgliedsantrag";
+            const string operation = "preview";
+            const string fieldSpecVersion = "mitgliedsantrag-field-spec/v1";
+            const string rendererVersion = "pdfsharpcore-ma/v1";
+            PdfTemplateAsset template;
+            try
+            {
+                template = await templateProvider.GetActiveAsync(new PdfTemplateRequest(documentType, fieldSpecVersion, rendererVersion), cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                throw new DocumentPipelineException("TEMPLATE_LOAD", documentType, operation, "Die Mitgliedsantrag-Vorlage konnte nicht geladen werden.", innerException: ex);
+            }
 
-        public static DokumentUploadRequest CreateUploadRequest(
-            MitgliedRecord member,
-            decimal mitgliedsbeitrag,
-            DateTime beginnDatum,
-            MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
-            string? status = null)
-            => CreateUploadRequest(member, mitgliedsbeitrag, 0m, beginnDatum, gesetzlicherVertreterSnapshot, null, status);
+            try
+            {
+                ValidateTemplate(template);
+            }
+            catch (Exception ex)
+            {
+                throw new DocumentPipelineException("FIELD_SPEC", documentType, operation, "Die Feldspezifikation der Mitgliedsantrag-Vorlage ist nicht kompatibel.", template.Version, rendererVersion, ex);
+            }
 
-        public static DokumentUploadRequest CreateUploadRequest(
+            try
+            {
+                return CreateUploadRequestCore(member, mitgliedsbeitrag, aufnahmegebuehr, beginnDatum, gesetzlicherVertreterSnapshot, zweitePrivateParteiArt, vereinskonfigurationSnapshot, status, template);
+            }
+            catch (DocumentPipelineException)
+            {
+                throw;
+            }
+            catch (InvalidOperationException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new DocumentPipelineException("RENDER", documentType, operation, "Der Mitgliedsantrag konnte nicht gerendert werden.", template.Version, rendererVersion, ex);
+            }
+        }
+
+        private static DokumentUploadRequest CreateUploadRequestCore(
             MitgliedRecord member,
             decimal mitgliedsbeitrag,
             decimal aufnahmegebuehr,
             DateTime beginnDatum,
             MitgliedsantragVertreterSnapshot? gesetzlicherVertreterSnapshot,
+            MitgliedsantragZweitePrivateParteiArt zweitePrivateParteiArt,
             VereinskonfigurationSnapshot? vereinskonfigurationSnapshot,
-            string? status = null)
+            string? status,
+            PdfTemplateAsset template)
         {
             if (member == null)
                 throw new ArgumentNullException(nameof(member));
@@ -117,8 +153,7 @@ namespace KGV.Core.Utilities
                 gesetzlicherVertreterSnapshot,
                 VereinskonfigurationSnapshotFactory.NormalizeForMembershipApplication(vereinskonfigurationSnapshot));
 
-            var pdfTemplate = LoadTemplatePdfBytes();
-            var filledPdf = FillAndFlattenPdfForm(pdfTemplate, templateData);
+            var filledPdf = FillAndFlattenPdfForm(template.PdfBytes, templateData, template.Fields, zweitePrivateParteiArt);
 
             return new DokumentUploadRequest
             {
@@ -126,7 +161,8 @@ namespace KGV.Core.Utilities
                 Titel = title,
                 FileName = fileName,
                 MimeType = "application/pdf",
-                FileContent = filledPdf
+                FileContent = filledPdf,
+                SignaturePlaceholders = GetSignaturePlaceholders(template.Fields)
             };
         }
 
@@ -214,28 +250,15 @@ namespace KGV.Core.Utilities
             };
         }
 
-        private static byte[] LoadTemplatePdfBytes()
-        {
-            var assembly = typeof(MitgliedsantragDokumentFactory).Assembly;
-            using var stream = assembly.GetManifestResourceStream(PdfTemplateResourceName)
-                ?? throw new InvalidOperationException("Die Mitgliedsantrag-PDF-Vorlage ist nicht im Projekt eingebunden.");
-
-            using var ms = new MemoryStream();
-            stream.CopyTo(ms);
-            return ms.ToArray();
-        }
-
-        private static byte[] FillAndFlattenPdfForm(byte[] pdfBytes, MitgliedsantragTemplateData data)
+        private static byte[] FillAndFlattenPdfForm(byte[] pdfBytes, MitgliedsantragTemplateData data, IReadOnlyList<PdfTemplateFieldSpec> loadedFields, MitgliedsantragZweitePrivateParteiArt zweitePrivateParteiArt)
         {
             if (pdfBytes == null || pdfBytes.Length == 0)
                 throw new InvalidOperationException("Die Mitgliedsantrag-PDF-Vorlage ist leer oder konnte nicht geladen werden.");
 
-            using var input = new MemoryStream(pdfBytes);
+            var renderedPdf = PdfTemplateRenderer.Render(pdfBytes, loadedFields, BuildFieldMap(data), PdfTemplateRenderProfiles.Mitgliedsantrag);
+            using var input = new MemoryStream(renderedPdf);
             using var document = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
-
-            var map = BuildFieldMap(data);
-            DrawFieldValues(document, map);
-            RemoveFormAnnotations(document);
+            DrawSecondPrivateSignerLabels(document, zweitePrivateParteiArt);
 
             using var output = new MemoryStream();
             document.Save(output);
@@ -291,179 +314,46 @@ namespace KGV.Core.Utilities
             };
         }
 
-        private static void DrawFieldValues(PdfDocument document, IReadOnlyDictionary<string, string> map)
+        private static void DrawSecondPrivateSignerLabels(PdfDocument document, MitgliedsantragZweitePrivateParteiArt zweitePrivateParteiArt)
         {
-            if (document.Pages.Count == 0)
+            if (zweitePrivateParteiArt == MitgliedsantragZweitePrivateParteiArt.GesetzlicherVertreter || document.Pages.Count == 0)
                 return;
 
-            var page = document.Pages[0];
+            var label = zweitePrivateParteiArt == MitgliedsantragZweitePrivateParteiArt.Nebenmitglied ? "Unterschrift Nebenmitglied" : string.Empty;
+            var datenschutzLabel = zweitePrivateParteiArt == MitgliedsantragZweitePrivateParteiArt.Nebenmitglied ? "Nebenmitglied zur Datenschutzerklärung" : string.Empty;
+            using var graphics = XGraphics.FromPdfPage(document.Pages[0], XGraphicsPdfPageOptions.Append);
+            var font = new XFont("Arial", 7.0, XFontStyle.Regular);
 
-            var valueFont = new XFont("Arial", 7.0, XFontStyle.Regular);
-            var smallValueFont = new XFont("Arial", 6.4, XFontStyle.Regular);
-            var checkboxFont = new XFont("Arial", 7.0, XFontStyle.Bold);
-
-            using var graphics = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
-
-            foreach (var field in FieldSpecs)
-            {
-                if (field.Kind == PdfFormFieldKind.SignaturePlaceholder)
-                    continue;
-
-                if (!map.TryGetValue(field.Name, out var value))
-                    continue;
-
-                if (field.Kind == PdfFormFieldKind.Checkbox)
-                {
-                    DrawCheckbox(graphics, checkboxFont, field.Rect, IsTruthy(value));
-                    continue;
-                }
-
-                if (string.IsNullOrWhiteSpace(value))
-                    continue;
-
-                DrawTextValue(graphics, valueFont, smallValueFont, field, value);
-            }
+            // The template shares these physical slots between guardian and secondary member.
+            // Only its role-specific captions are replaced. Repaint the signature
+            // rules after the white caption masks so the mask cannot cut them off.
+            graphics.DrawRectangle(XBrushes.White, 209.0, 607.0, 176.0, 12.0);
+            graphics.DrawRectangle(XBrushes.White, 307.682, 782.0, 260.0, 12.0);
+            var signatureLinePen = new XPen(XColors.Black, 0.6);
+            graphics.DrawLine(signatureLinePen, 209.0, 604.0, 385.0, 604.0);
+            graphics.DrawLine(signatureLinePen, 307.682, 781.0, 567.682, 781.0);
+            if (!string.IsNullOrEmpty(label))
+                graphics.DrawString(label, font, XBrushes.Black, new XRect(209.0, 609.0, 176.0, 9.0), XStringFormats.TopCenter);
+            if (!string.IsNullOrEmpty(datenschutzLabel))
+                graphics.DrawString(datenschutzLabel, font, XBrushes.Black, new XRect(307.682, 784.0, 260.0, 9.0), XStringFormats.TopCenter);
         }
 
-        private static void DrawTextValue(XGraphics graphics, XFont normalFont, XFont smallFont, PdfFormFieldSpec field, string value)
+        private static PdfFormFieldSpec ToInternalField(PdfTemplateFieldSpec field) => new(field.Name, field.Kind.Trim().ToLowerInvariant() switch
         {
-            var lines = SplitLines(value);
-            if (lines.Count == 0)
-                return;
+            "checkbox" => PdfFormFieldKind.Checkbox,
+            "multiline" => PdfFormFieldKind.MultilineText,
+            "signatureplaceholder" or "signature" => PdfFormFieldKind.SignaturePlaceholder,
+            _ => PdfFormFieldKind.Text
+        }, field.X, field.Y, field.Width, field.Height);
 
-            var font = ShouldUseSmallFont(field.Name, value) ? smallFont : normalFont;
-
-            if (field.Kind == PdfFormFieldKind.MultilineText || lines.Count > 1)
-            {
-                DrawMultilineText(graphics, font, field.Rect, lines);
-                return;
-            }
-
-            DrawSingleLineText(graphics, font, field.Rect, lines[0]);
-        }
-
-        private static void DrawSingleLineText(XGraphics graphics, XFont font, XRect rect, string value)
+        private static void ValidateTemplate(PdfTemplateAsset template)
         {
-            const double horizontalPadding = 1.8d;
-            const double verticalOffset = -1.1d;
-
-            graphics.DrawString(
-                value,
-                font,
-                XBrushes.Black,
-                new XRect(
-                    rect.X + horizontalPadding,
-                    rect.Y + verticalOffset,
-                    Math.Max(0, rect.Width - horizontalPadding * 2),
-                    rect.Height + 2),
-                XStringFormats.TopLeft);
+            if (template.PdfBytes == null || template.PdfBytes.Length == 0) throw new InvalidOperationException("Die zentrale Mitgliedsantrag-Vorlage ist leer.");
+            var expected = FieldSpecs.OrderBy(x => x.Name, StringComparer.Ordinal).ToArray();
+            var actual = template.Fields.OrderBy(x => x.Name, StringComparer.Ordinal).ToArray();
+            if (actual.Length != expected.Length || actual.Where((x, i) => !string.Equals(x.Name, expected[i].Name, StringComparison.OrdinalIgnoreCase) || x.Page != 1 || Math.Abs(x.X - expected[i].X) > 0.01 || Math.Abs(x.Y - expected[i].Y) > 0.01 || Math.Abs(x.Width - expected[i].Width) > 0.01 || Math.Abs(x.Height - expected[i].Height) > 0.01).Any())
+                throw new InvalidOperationException("Die Feldspezifikation der zentralen Mitgliedsantrag-Vorlage ist nicht mit dem unterstützten Renderer kompatibel.");
         }
-
-        private static void DrawMultilineText(XGraphics graphics, XFont font, XRect rect, IReadOnlyList<string> lines)
-        {
-            const double horizontalPadding = 2.0d;
-            const double topPadding = 1.0d;
-
-            var lineHeight = font.GetHeight();
-            var y = rect.Y + topPadding;
-
-            foreach (var line in lines)
-            {
-                if (y + lineHeight > rect.Bottom + 1)
-                    break;
-
-                graphics.DrawString(
-                    line,
-                    font,
-                    XBrushes.Black,
-                    new XRect(
-                        rect.X + horizontalPadding,
-                        y,
-                        Math.Max(0, rect.Width - horizontalPadding * 2),
-                        lineHeight + 1),
-                    XStringFormats.TopLeft);
-
-                y += lineHeight;
-            }
-        }
-
-        private static void DrawCheckbox(XGraphics graphics, XFont font, XRect rect, bool isChecked)
-        {
-            var boxPen = new XPen(XColors.Black, 0.6);
-
-            // Rahmen immer zeichnen, weil die PDF-Formular-Annotation später entfernt wird.
-            graphics.DrawRectangle(boxPen, rect);
-
-            if (!isChecked)
-                return;
-
-            var text = "X";
-            var size = graphics.MeasureString(text, font);
-
-            var x = rect.X + (rect.Width - size.Width) / 2d;
-            var y = rect.Y + (rect.Height - size.Height) / 2d - 0.4d;
-
-            graphics.DrawString(
-                text,
-                font,
-                XBrushes.Black,
-                new XRect(x, y, size.Width + 1, size.Height + 1),
-                XStringFormats.TopLeft);
-        }
-
-        private static void RemoveFormAnnotations(PdfDocument document)
-        {
-            for (var pageIndex = 0; pageIndex < document.Pages.Count; pageIndex++)
-            {
-                var page = document.Pages[pageIndex];
-
-                if (page.Annotations == null)
-                    continue;
-
-                var annotationsToRemove = new List<PdfAnnotation>();
-
-                for (var i = 0; i < page.Annotations.Count; i++)
-                {
-                    var annotation = page.Annotations[i];
-                    if (annotation != null)
-                        annotationsToRemove.Add(annotation);
-                }
-
-                foreach (var annotation in annotationsToRemove)
-                {
-                    try
-                    {
-                        page.Annotations.Remove(annotation);
-                    }
-                    catch
-                    {
-                        // Ignore cleanup failures. Values are already drawn into the page content.
-                    }
-                }
-            }
-
-            try
-            {
-                document.Internals.Catalog.Elements.Remove("/AcroForm");
-            }
-            catch
-            {
-                // Ignore cleanup failures. Values are already drawn into the page content.
-            }
-        }
-
-        private static bool ShouldUseSmallFont(string fieldName, string value)
-            => fieldName.Equals("bank_iban", StringComparison.OrdinalIgnoreCase)
-               || fieldName.Equals("mitglied_email", StringComparison.OrdinalIgnoreCase) && value.Length > 30
-               || fieldName.Equals("vertreter_email", StringComparison.OrdinalIgnoreCase) && value.Length > 30
-               || value.Length > 34;
-
-        private static bool IsTruthy(string? value)
-            => string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value, "ja", StringComparison.OrdinalIgnoreCase);
 
         private static int CalculateBeitragsmonate(DateTime beginnDatum)
         {
@@ -546,15 +436,6 @@ namespace KGV.Core.Utilities
             return parts.Count == 0 ? "Mitgliedsantrag des Vereins" : string.Join(" · ", parts);
         }
 
-        private static List<string> SplitLines(string? text)
-            => (text ?? string.Empty)
-                .Replace("<br />", "\n", StringComparison.OrdinalIgnoreCase)
-                .Replace("<br>", "\n", StringComparison.OrdinalIgnoreCase)
-                .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None)
-                .Select(x => string.IsNullOrWhiteSpace(x) ? string.Empty : x.Trim())
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .ToList();
-
         private static string JoinParagraphs(IEnumerable<string?> parts)
             => string.Join("\n\n", parts
                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -575,24 +456,20 @@ namespace KGV.Core.Utilities
             double Y,
             double Width,
             double Height)
-        {
-            public XRect Rect => new(X, Y, Width, Height);
-        }
+        { }
 
-        public static IReadOnlyList<Models.SignaturePlaceholder> GetSignaturePlaceholders()
-        {
-            return FieldSpecs
-                .Where(f => f.Kind == PdfFormFieldKind.SignaturePlaceholder)
-                .Select(f => new Models.SignaturePlaceholder
+        private static IReadOnlyList<Models.SignaturePlaceholder> GetSignaturePlaceholders(IReadOnlyList<PdfTemplateFieldSpec> fields)
+            => fields
+                .Where(field => string.Equals(field.Kind, "signature", StringComparison.OrdinalIgnoreCase))
+                .Select(field => new Models.SignaturePlaceholder
                 {
-                    Name = f.Name,
-                    Page = 1,
-                    X = f.X,
-                    Y = f.Y,
-                    Width = f.Width,
-                    Height = f.Height
+                    Name = field.Name,
+                    Page = field.Page,
+                    X = field.X,
+                    Y = field.Y,
+                    Width = field.Width,
+                    Height = field.Height
                 })
                 .ToArray();
-        }
     }
 }
