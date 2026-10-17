@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | K1 | Datenmodell und serverseitige Statuslogik | Erledigt |
 | K2 | WEB-Kommunikationsmenü | Erledigt |
-| K3 | MA/PV vorbereiten und parken | Offen |
+| K3 | MA/PV vorbereiten, parken, bearbeiten und signieren | Erledigt |
 | K4 | Gemeinsamer WEB-/MAUI-Workflow | Offen |
 | K5 | Mail-/Druckentscheidung | Offen |
 | K6 | Mailversand | Offen |
@@ -26,3 +26,9 @@ Ein Storage-Bucket wird in K1 noch nicht angelegt. Die Tabellenfelder für tempo
 Der Menüpunkt **Kommunikation** ist ausschließlich für Admin und Vorstand sichtbar. Die gemeinsame Arbeitszentrale enthält die Ansichten **Zur Signatur**, **Mailausgang**, **Druckausgabe** und **Erledigt**. Jede Ansicht hat die Arbeitsfilter **Meine**, **Unzugeordnet** und **Alle**; standardmäßig ist Unzugeordnet aktiv.
 
 Die Liste lädt die fachlichen Verknüpfungen zu Mitglied und Parzelle gemeinsam mit dem Vorgang. Admin und Vorstand können einen unzugeordneten Vorgang atomar übernehmen oder ihre eigene Zuweisung freigeben. Die Detailansicht ist bewusst nur lesend; weder Storage-Pfade noch öffentliche URLs werden angezeigt.
+
+## K3 Vertragsentwürfe und Signaturen
+
+Mitgliedsanträge und Pachtverträge werden als versionierter Entwurf vorbereitet. Bis zum Signaturstart kann ausschließlich die zugewiesene Person den Entwurf revisionssicher bearbeiten. Der Start friert die aktuelle Revision serverseitig ein; Signaturen bleiben ausschließlich im flüchtigen Client-State. Wird eine gestartete Signatur erneut geöffnet, beginnt ihre Reihenfolge ohne zuvor erfasste Teil-Signaturen von vorn. Das finale Dokument wird vor dem Statuswechsel des Kommunikationsvorgangs nach `erledigt` erzeugt.
+
+Falls die Dokumenterzeugung erfolgreich war, der anschließende Abschluss des Kommunikationsvorgangs jedoch fehlschlägt, kann innerhalb derselben Sitzung ausschließlich der Workflow-Abschluss erneut versucht werden; ein zweites Finalize wird nicht ausgelöst. Nach einem vollständigen Neuöffnen gibt es dafür bewusst keine automatische Recovery-Heuristik: Aus dem vorhandenen Dokumentstatus ist nicht sicher ableitbar, ob genau dieser Kommunikationsvorgang bereits finalisiert wurde.

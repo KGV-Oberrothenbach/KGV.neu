@@ -27,14 +27,14 @@ test("lease flow stays bound to its parcel, previews inline and mounts one fresh
   const flow = await readFile(new URL("../../features/contracts/LeaseContractFlow.tsx", import.meta.url), "utf8");
   const action = await readFile(new URL("../../features/contracts/LeaseContractAction.tsx", import.meta.url), "utf8");
   const generator = await readFile(new URL("../../../supabase/functions/kgv-generate-contract/index.ts", import.meta.url), "utf8");
-  assert.match(flow, /parcelId: number; startDate: string/);
+  assert.match(flow, /parcelId:\s*number;\s*startDate:\s*string/);
   assert.doesNotMatch(flow, /listEligibleLeaseParcels|fixedParcel/);
   assert.match(flow, /<LeaseContractPreview previewUrl=\{previewUrl\}/);
   assert.match(flow, /onBack=\{\(\) => setStep\("edit"\)\}/);
   assert.match(flow, /<SignaturePad key=\{currentSignatureStep\.key\}/);
-  assert.match(flow, /clearSignatures\(\); setStep\("signatures"\)/);
-  assert.match(flow, /step !== "signatures" \|\| !hasCompletedLeaseContractSignatures/);
-  assert.match(action, /await load\(\); setCreating\(false\)/);
+  assert.match(flow, /clearSignatures\(\);\s*setStep\("signatures"\)/);
+  assert.match(flow, /step\s*!==\s*"signatures"\s*\|\|\s*!hasCompletedLeaseContractSignatures/);
+  assert.match(action, /await load\(\);\s*setCreating\(false\)/);
   assert.match(generator, /documentStatus\(document, "mitgliedsantrag"\) === "signiert"/);
   assert.match(generator, /from\("parzellen_belegung"\)[\s\S]*eq\("mitglied_id", memberId\)[\s\S]*eq\("parzelle_id", parcelId\)/);
 });

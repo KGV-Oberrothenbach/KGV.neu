@@ -19,6 +19,7 @@
     "test:email-auth-sync": "node security/email-auth-sync.contract.test.mjs",
     "test:communication-workflow": "node security/communication-workflow.contract.test.mjs",
     "test:communication-center": "node features/communication/communication-center.contract.test.mjs",
+    "test:prepared-contract": "node --test services/communication/prepared-contract-service.test.mjs services/communication/prepared-contract-resume.test.mjs services/communication/prepared-contract-signature.test.mjs",
     "test:maui-valid-access": "node security/maui-valid-access.contract.test.mjs",
     "test:document-proxy": "node security/document-proxy.contract.test.mjs",
     "test:navigation-capabilities": "node security/navigation-capabilities.contract.test.mjs",
