@@ -53,3 +53,17 @@ test("forward migration only removes the nonexistent is_demo comparison from the
   assert.match(workAssignmentMigration, /public\.submit_arbeitseinsatz_arbeitsstunde/);
   assert.match(workAssignmentMigration, /arbeitseinsatz_anmeldung_id IS DISTINCT FROM old\.arbeitseinsatz_anmeldung_id/i);
 });
+
+test("review locks for other members are accepted before the own-work-hour guard", async () => {
+  const forward = await readMigration("../../../supabase/migrations/20261017123000_fix_work_hour_review_edit_lock.sql");
+  const forwardBody = forward.match(functionPattern)?.[1];
+
+  assert.ok(forwardBody, "the review-lock forward migration should define the update trigger function");
+  const lockGuard = forwardBody.indexOf("if new.lockedbyuserid is distinct from old.lockedbyuserid");
+  const ownWorkHourGuard = forwardBody.indexOf("if old.mitglied_id <> public.current_mitglied_id()");
+  assert.ok(lockGuard >= 0 && lockGuard < ownWorkHourGuard, "lock-only mutations must be handled before the own-work-hour guard");
+  assert.match(forwardBody, /to_jsonb\(new\) - 'lockedbyuserid' - 'lockat'[\s\S]*?to_jsonb\(old\) - 'lockedbyuserid' - 'lockat'/i);
+  assert.match(forwardBody, /old\.mitglied_id <> public\.current_mitglied_id\(\)[\s\S]*?not public\.has_effective_permission\(256\)/i);
+  assert.match(forwardBody, /entity_type = 'arbeitsstunde'[\s\S]*?locked_by_user_id = auth\.uid\(\)[\s\S]*?expires_at > now\(\)/i);
+  assert.match(forwardBody, /current_setting\('app\.g7_work_hour_review', true\)[\s\S]*?has_effective_permission\(256\)/i);
+});

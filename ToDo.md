@@ -41,7 +41,6 @@ Diese Datei enthält ausschließlich offene, aktuelle Aufgaben. Erledigte Punkte
 
 ### Arbeitsstunden
 
-- [ ] **Priorität hoch – Fehler:** In „Arbeitsstunden freigeben“ erscheint trotz berechtigtem Prüf-/Freigabe-Kontext „Nur eigene offene Arbeitsstunden dürfen bearbeitet werden.“ Prüfen, warum der Prüf-/Freigabe-View offenbar den falschen Besitz-/Berechtigungskontext verwendet.
 - [ ] Arbeitsstunden-Prüfprozess im Realbetrieb weiter absichern.
 
 ## Technische Qualität und Release
