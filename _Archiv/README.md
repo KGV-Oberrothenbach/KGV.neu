@@ -9,5 +9,5 @@ Dieser Ordner bündelt Bereiche, die nicht mehr zur aktiven Entwicklungsbasis im
 - weitere historische Root-Hilfsdateien, die nicht mehr als aktive Einstiegspunkte dienen
 
 ## Hinweis
-- Die aktive Root-Basis besteht aus `KGV.Core`, `KGV.Infrastructure`, `KGV.Wpf`, `KGV.Maui`, `supabase` und den zugehörigen Meta-Dateien.
+- Die aktive Root-Basis besteht aus `KGV.Core`, `KGV.Infrastructure`, `KGV.Maui`, `KGV.Web`, `supabase` und den zugehörigen Meta-Dateien.
 - Archivmaterial bleibt bewusst im Repository, soll aber später leicht als kompletter `_Archiv`-Ordner ausgelagert werden können.

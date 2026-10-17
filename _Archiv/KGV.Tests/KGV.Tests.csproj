@@ -14,7 +14,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\KGV.Wpf\KGV.Wpf.csproj" />
   </ItemGroup>
 
 </Project>

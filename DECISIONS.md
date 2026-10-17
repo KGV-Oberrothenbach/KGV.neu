@@ -13,9 +13,9 @@ Gründe:
 - klare ViewModel-Struktur
 - bereits in der aktiven Codebasis verankert
 
-## Navigation in WPF
+## Ehemalige Desktop-Navigation (historisch)
 
-WPF bleibt bei `ContentControl` plus ViewModel-Switching statt Frame-basierter Navigation.
+Die frühere Desktop-Anwendung verwendete `ContentControl` plus ViewModel-Switching statt Frame-basierter Navigation. Diese Entscheidung ist nur noch historisch dokumentiert.
 
 Gründe:
 - bestehende aktive Basis arbeitet bereits so
@@ -27,7 +27,7 @@ Die aktive Arbeitsbasis wird ausdrücklich als Mehrprojektstruktur geführt:
 
 - `KGV.Core`
 - `KGV.Infrastructure`
-- `KGV.Wpf`
+- `KGV.Web`
 - `KGV.Maui`
 
 Grund:
@@ -48,7 +48,7 @@ Gründe:
 `KGV.Tests` ist auf Wunsch nicht mehr Teil der aktiven Root-Basis, sondern nach `_Archiv/KGV.Tests` verschoben.
 
 Grund:
-- der aktuelle Fokus liegt auf der aktiven Entwicklungsbasis aus `KGV.Core`, `KGV.Infrastructure`, `KGV.Wpf` und `KGV.Maui`
+- der aktuelle Fokus liegt auf der aktiven Entwicklungsbasis aus `KGV.Core`, `KGV.Infrastructure`, `KGV.Maui` und `KGV.Web`
 - das Testprojekt soll leicht separat auslagerbar bleiben
 - Lösung und CI sollen nur noch die nicht archivierte Basis abbilden
 

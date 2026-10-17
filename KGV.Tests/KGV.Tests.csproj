@@ -22,14 +22,6 @@
     <ProjectReference Include="..\KGV.Infrastructure\KGV.Infrastructure.csproj" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(IncludeWpfTests)' == 'true'">
-    <ProjectReference Include="..\KGV.Wpf\KGV.Wpf.csproj" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(IncludeWpfTests)' != 'true'">
-    <Compile Remove="ExportViewModelTests.cs" />
-  </ItemGroup>
-
   <ItemGroup>
     <None Include="..\KGV.Core\Templates\mitgliedsantrag\v1\template.pdf" Link="Templates\mitgliedsantrag\v1\template.pdf" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\KGV.Core\Templates\mitgliedsantrag\v1\field-spec.json" Link="Templates\mitgliedsantrag\v1\field-spec.json" CopyToOutputDirectory="PreserveNewest" />

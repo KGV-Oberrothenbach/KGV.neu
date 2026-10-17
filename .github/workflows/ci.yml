@@ -22,7 +22,3 @@ jobs:
 
       - name: Build Infrastructure
         run: dotnet build KGV.Infrastructure/KGV.Infrastructure.csproj -c Release
-
-      - name: Build WPF
-        run: dotnet build KGV.Wpf/KGV.Wpf.csproj -c Release
-

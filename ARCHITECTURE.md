@@ -1,76 +1,63 @@
-# KGV – aktuelle Architekturübersicht
+# Architektur
 
 ## Zweck dieses Dokuments
 
-Dieses Dokument beschreibt den realen aktuellen Repository-Stand. Es ist keine historische Soll-Architektur und keine Ein-Projekt-WPF-Beschreibung mehr.
+Dieses Dokument beschreibt den aktuellen Repository- und Architekturstand des KGV-Projekts.
 
 ## Aktive Projektstruktur
 
 - `KGV.Core`
-  - gemeinsame Modelle, DTOs, Interfaces und Sicherheits-/Rechtegrundlagen
+  - gemeinsame .NET-Modelle, Interfaces, Regeln und Sicherheitsgrundlagen
 - `KGV.Infrastructure`
-  - konkrete technische Anbindung, insbesondere Auth- und Supabase-Zugriffe
-- `KGV.Wpf`
-  - aktive Windows-Desktop-Anwendung auf WPF
+  - technische Infrastruktur, Authentifizierung und Supabase-Anbindung
 - `KGV.Maui`
   - aktive mobile Anwendung auf .NET MAUI
+- `KGV.Web`
+  - aktive Browser-Anwendung
+- `KGV.Tests`
+  - automatisierte Tests für Core-, Infrastructure- und Workflowlogik
+- `supabase`
+  - Migrationen, Datenbank- und serverseitige Bestandteile
 
-## Nicht-produktive Referenzbereiche
+## Architekturprinzipien
 
-- `_Archiv/_Recovery`
-  - PDB-Dokumentlisten, Recovery-Metadaten, Missing-Listen und weitere Wiederaufbauhilfen
-- `_Archiv/_RecoveredArtifacts`
-  - wiedergefundene WPF-/Android-Artefakte
-- `_Archiv/KGV.Tests`
-  - auf Wunsch archiviertes Testprojekt; nicht Teil der aktiven Root-Basis, Lösung oder CI
+- Fachlogik möglichst zentral und unabhängig von der Oberfläche halten.
+- MAUI und Web fachlich konsistent entwickeln.
+- Supabase ist das gemeinsame Backend.
+- UI-spezifische Logik bleibt in der jeweiligen Anwendung.
+- Bestehende gemeinsame Verträge und Serverregeln sollen nicht in einzelnen Clients dupliziert werden.
+- Kleine, überprüfbare und buildfähige Änderungen bevorzugen.
 
-Diese Bereiche sind Archiv-/Referenzmaterial und nicht Teil der produktiven Laufzeitbasis.
+## MAUI
 
-## Architekturrichtung
+Die mobile Anwendung nutzt `KGV.Core` und `KGV.Infrastructure` als gemeinsame .NET-Basis.
 
-- Mehrprojektstruktur statt Monolith
-- Trennung zwischen fachlichen Verträgen (`KGV.Core`) und technischer Infrastruktur (`KGV.Infrastructure`)
-- UI-spezifische Umsetzung getrennt für Desktop (`KGV.Wpf`) und mobil (`KGV.Maui`)
-- WPF und MAUI werden parallel gedacht; mobile Wege sind nicht nur Nebenprodukt
-- Recovery-Material wird als Quelle für Rekonstruktion genutzt, aber nicht als aktive Produktstruktur dargestellt
+Aktives Ziel ist insbesondere Android auf .NET 10.
 
-## Technologiestand
+## Web
 
-- .NET 8 für zentrale Bibliotheken und WPF
-- .NET 9 / .NET MAUI für die mobile App
-- CommunityToolkit.Mvvm in der bestehenden MVVM-Basis
-- Microsoft.Extensions.DependencyInjection / Configuration
-- Supabase .NET SDK
+`KGV.Web` bildet die Browser-Oberfläche ab.
 
-## Grober Datenfluss
+Die Web-Anwendung soll dieselben fachlichen Serververträge, Statusmodelle und Supabase-Regeln verwenden wie die mobile Anwendung, auch wenn die technische Clientstruktur unterschiedlich ist.
 
-`UI (WPF/MAUI) -> ViewModel -> Interface aus KGV.Core -> Implementierung in KGV.Infrastructure -> Supabase`
+## Datenfluss
 
-## Rolle der UI-Projekte
+MAUI:
 
-### `KGV.Wpf`
-- derzeit die belastbarere Desktop-Arbeitsoberfläche
-- enthält weiterhin den größten Teil der rekonstruierbaren Verwaltungsoberfläche
+`KGV.Maui -> KGV.Core / KGV.Infrastructure -> Supabase`
 
-### `KGV.Maui`
-- aktive mobile Arbeitsoberfläche
-- wird bewusst parallel mitgeführt und lokal mitgebaut
-- enthält weiterhin rekonstruierte bzw. schrittweise angeglichene Pfade; nicht jede Funktion ist bereits auf dem gleichen Reifegrad wie in WPF
+Web:
+
+`KGV.Web -> Web-Services / Supabase-API -> Supabase`
 
 ## Tests
 
-- `KGV.Tests` wurde auf Wunsch in `_Archiv/KGV.Tests` verschoben.
-- Die aktive Root-Basis und der aktuelle CI-Lauf bauen deshalb nur noch `KGV.Core`, `KGV.Infrastructure`, `KGV.Wpf` und `KGV.Maui`.
-- Fehlende oder künftig wieder aktivierte Tests sollen weiterhin offen benannt werden.
+`KGV.Tests` ist das aktive Testprojekt.
 
-## Offene Unsicherheiten
+Tests sollen insbesondere gemeinsame Geschäftslogik, Repository-Verträge, Parser, Mapper und Workflowregeln absichern.
 
-- Nicht alle ursprünglich vorhandenen fachlichen Bereiche sind bereits vollständig rekonstruiert.
-- Teile der heutigen Basis stammen aus kontrolliertem Wiederaufbau und nicht aus einem vollständig erhaltenen Original-Repository.
-- Recovery-Listen und Artefakte bleiben deshalb relevant, sind aber bewusst vom aktiven Code getrennt.
+## Archiv
 
-## Praktischer Einstieg
+`_Archiv` enthält historische Recovery- und Referenzdaten.
 
-- `README.md` als zentraler Einstieg
-- `Documentation/DEVELOPMENT.md` für lokalen Build und Entwicklungsablauf
-- `DEV_LOG.md` für den tatsächlichen Arbeitsfortschritt
+Archivmaterial gehört nicht zur aktiven Produktstruktur und darf keine aktive Build- oder Projektabhängigkeit erzeugen.

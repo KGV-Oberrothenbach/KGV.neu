@@ -1,9 +1,0 @@
-bin/
-obj/
-.vs/
-*.user
-*.suo
-*.nupkg
-*.snupkg
-appsettings.json
-ReleaseOutput/

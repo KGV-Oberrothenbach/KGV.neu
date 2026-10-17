@@ -7,9 +7,9 @@ Dieses Repository ist die aktuelle Arbeitsbasis für den Wiederaufbau und die We
 ### Aktive Projekte
 - `KGV.Core` – gemeinsame Modelle, Interfaces, Sicherheits-/Rechtebasis
 - `KGV.Infrastructure` – Supabase-, Auth- und Infrastruktur-Anbindung
-- `KGV.Wpf` – Windows-Desktop-App auf WPF
 - `KGV.Maui` – mobile App auf .NET MAUI
-- `KGV.Tests` – vorhandenes Testprojekt im Root, aktuell nicht Teil von `KGV.slnx` und nicht im aktiven Build-/CI-Pfad
+- `KGV.Web` – Browser-Anwendung
+- `KGV.Tests` – reguläres Testprojekt für Core-, Infrastructure- und Workflowtests
 
 ### Archiv- und Referenzbereiche
 - `_Archiv` – gebündelter Archivbereich für nicht mehr aktive Root-Bereiche
@@ -26,19 +26,18 @@ Dieses Repository ist die aktuelle Arbeitsbasis für den Wiederaufbau und die We
    - `Documentation/DEVELOPMENT.md`
    - `DEV_LOG.md`
 3. Danach lokal mindestens diese Builds prüfen:
-   - `dotnet build KGV.Wpf/KGV.Wpf.csproj -c Debug`
    - `dotnet build KGV.Maui/KGV.Maui.csproj -c Debug`
 
 ## Aktueller Stand
-- WPF und MAUI sind beide Teil der aktiven Arbeitsbasis.
-- `KGV.Core` und `KGV.Infrastructure` werden von beiden UI-Projekten mitgetragen.
+- MAUI und Web sind die aktiven Benutzeroberflächen.
+- `KGV.Core` und `KGV.Infrastructure` bilden die gemeinsame .NET- und Supabase-Basis der MAUI-Anwendung.
 - Archiv- und Recovery-Material bleibt bewusst im Repository, ist aber nur Referenz für Wiederaufbau und Abgleich.
 - Nicht alle ursprünglich vorhandenen Funktionen sind bereits belastbar rekonstruiert; offene Stellen werden im `DEV_LOG.md` dokumentiert.
 
 ## Wichtige Hinweise
 - Im Auth-/Supabase-Kontext wird mit `sb_publishable` bzw. Publishable Key gearbeitet; alte `anon key`-Annahmen sollen nicht wieder eingeführt werden.
 - Demo-/Play-Store-Testdaten dürfen fachliche Auswertungen nicht verfälschen.
-- Mobile und Desktop sollen fachlich zusammen gedacht werden; WPF und MAUI gelten beide als aktive Zielanwendungen.
+- MAUI und Web sollen fachlich konsistent auf derselben Vereinslogik und demselben Supabase-Backend aufbauen.
 
 ## Merge-Gate für Supabase-Migrationen
 

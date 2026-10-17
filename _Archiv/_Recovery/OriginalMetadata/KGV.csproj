@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -35,16 +35,9 @@
     <Compile Remove="KGV.Core\bin\**\*.cs" />
     <Compile Remove="KGV.Infrastructure\obj\**\*.cs" />
     <Compile Remove="KGV.Infrastructure\bin\**\*.cs" />
-    <Compile Remove="KGV.Wpf\obj\**\*.cs" />
-    <Compile Remove="KGV.Wpf\bin\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Das neue Host-Projekt `KGV.Wpf` liegt als Unterordner im Repo.
-         Damit `KGV` nicht versehentlich dessen Quellen/XAML kompiliert, schließen wir es hier aus. -->
-    <Compile Remove="KGV.Wpf\**\*.cs" />
-    <Page Remove="KGV.Wpf\**\*.xaml" />
-    <ApplicationDefinition Remove="KGV.Wpf\**\*.xaml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -89,7 +82,6 @@
 
   <ItemGroup>
     <None Include="KGV.Infrastructure\KGV.Infrastructure.csproj" />
-    <None Include="KGV.Wpf\KGV.Wpf.csproj" />
   </ItemGroup>
 
   <ItemGroup>

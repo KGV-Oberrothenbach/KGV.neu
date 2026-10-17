@@ -15,10 +15,8 @@
   "missing_from_current_pdb": {
     "KGV.Core": 32,
     "KGV.Infrastructure": 5,
-    "KGV.Wpf": 64
   },
   "wpf_deps_libraries": {
-    "KGV.Wpf/0.2.7": "project",
     "CommunityToolkit.Mvvm/8.4.0": "package",
     "Microsoft.Extensions.Configuration/10.0.3": "package",
     "Microsoft.Extensions.Configuration.Abstractions/10.0.3": "package",
