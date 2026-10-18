@@ -14,6 +14,8 @@ public interface IPreparedContractRepository
     Task ReleaseAsync(long id, CancellationToken cancellationToken = default);
     Task<KommunikationsvorgangDto> UpdateDraftAsync(long id, int expectedRevision, JsonElement draft, CancellationToken cancellationToken = default);
     Task<KommunikationsvorgangDto> StartSignatureAsync(long id, int expectedRevision, CancellationToken cancellationToken = default);
+    Task<FinalDocumentProvenance?> FindFinalDocumentByProvenanceAsync(long sourceKommunikationsvorgangId, int sourceRevision, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException();
     Task<KommunikationsvorgangDto> MarkFinalDocumentReadyForReviewAsync(long id, int expectedRevision, long finalDocumentId, CancellationToken cancellationToken = default)
         => throw new NotSupportedException();
     Task<KommunikationsvorgangDto> CompleteAsync(long id, CancellationToken cancellationToken = default);

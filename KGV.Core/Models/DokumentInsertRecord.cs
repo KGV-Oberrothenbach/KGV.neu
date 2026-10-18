@@ -40,6 +40,12 @@ namespace KGV.Core.Models
         [Column("created_by")]
         public Guid? CreatedBy { get; set; }
 
+        [Column("source_kommunikationsvorgang_id")]
+        public long? SourceKommunikationsvorgangId { get; set; }
+
+        [Column("source_revision")]
+        public int? SourceRevision { get; set; }
+
         [Column("drive_file_id")]
         public string? DriveFileId { get; set; }
     }

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Services;
@@ -92,6 +93,22 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
         return loaded;
     }
 
+    public async Task<FinalDocumentProvenance?> FindFinalDocumentByProvenanceAsync(long sourceKommunikationsvorgangId, int sourceRevision, CancellationToken cancellationToken = default)
+    {
+        if (sourceKommunikationsvorgangId <= 0 || sourceRevision < 1) throw new ArgumentOutOfRangeException(nameof(sourceKommunikationsvorgangId));
+        var token = await _auth.GetAccessTokenAsync() ?? throw new PreparedContractConflictException("Die Anmeldung ist abgelaufen.");
+        using var client = _httpClientFactory();
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"{_clientFactory.Url.TrimEnd('/')}/rest/v1/dokument?select=id,source_kommunikationsvorgang_id,source_revision&source_kommunikationsvorgang_id=eq.{sourceKommunikationsvorgangId}&source_revision=eq.{sourceRevision}&archiviert_at=is.null");
+        request.Headers.Add("apikey", _clientFactory.Key); request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await client.SendAsync(request, cancellationToken);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode) throw new PreparedContractRepositoryException($"Finales Dokument konnte nicht geladen werden ({(int)response.StatusCode}).");
+        var records = JsonSerializer.Deserialize<List<FinalDocumentProvenanceRecord>>(content, Json) ?? [];
+        if (records.Count > 1) throw new PreparedContractConflictException("Für den Kommunikationsvorgang existieren mehrere finale Dokumente.");
+        var record = records.SingleOrDefault();
+        return record is null ? null : new FinalDocumentProvenance(record.Id, record.SourceKommunikationsvorgangId, record.SourceRevision);
+    }
+
     public async Task<KommunikationsvorgangDto> MarkFinalDocumentReadyForReviewAsync(long id, int expectedRevision, long finalDocumentId, CancellationToken cancellationToken = default)
     {
         if (id <= 0) throw new ArgumentOutOfRangeException(nameof(id));
@@ -145,4 +162,10 @@ public sealed class PreparedContractRepository : IPreparedContractRepository
         return JsonSerializer.Deserialize<List<KommunikationsvorgangDto>>(content, Json) ?? [];
     }
     private static KommunikationsvorgangDto Single(List<KommunikationsvorgangDto> records, string message) => records.Count == 1 ? records[0] : throw new PreparedContractConflictException(message);
+    private sealed class FinalDocumentProvenanceRecord
+    {
+        [JsonPropertyName("id")] public long Id { get; init; }
+        [JsonPropertyName("source_kommunikationsvorgang_id")] public long SourceKommunikationsvorgangId { get; init; }
+        [JsonPropertyName("source_revision")] public int SourceRevision { get; init; }
+    }
 }

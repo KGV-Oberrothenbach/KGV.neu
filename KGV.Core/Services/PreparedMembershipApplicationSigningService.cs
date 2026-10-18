@@ -163,6 +163,8 @@ public sealed class PreparedMembershipApplicationSigningService
         return new MembershipApplicationFinalizeRequest
         {
             Application = application,
+            SourceKommunikationsvorgangId = _contract!.Id,
+            SourceRevision = _contract.Revision,
             AdmissionFee = draft.MemberFee,
             ApplicationMemberSignature = Signature(MembershipApplicationSignatureKeys.MemberApplication),
             PrivacyMemberSignature = Signature(MembershipApplicationSignatureKeys.MemberPrivacy),

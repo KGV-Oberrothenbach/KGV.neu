@@ -2,7 +2,7 @@ import type { ClubContext } from "../../models/auth/club";
 import type { BrowserSession } from "../../lib/supabase-auth";
 import { parsePreparedContractDraft, type PreparedContractDraft } from "../../models/communication/prepared-contract-draft";
 import type { CommunicationItem } from "../../models/communication/communication-item";
-import { completePreparedContract, createPreparedContract, findActivePreparedContract, getCommunicationContractDraft, markPreparedContractFinalDocument, startPreparedContractSignature, updatePreparedContractDraft } from "../../repositories/communication/communication-repository";
+import { completePreparedContract, createPreparedContract, findActivePreparedContract, findFinalDocumentByProvenance, getCommunicationContractDraft, markPreparedContractFinalDocument, startPreparedContractSignature, updatePreparedContractDraft } from "../../repositories/communication/communication-repository";
 import { getActiveDocumentById } from "../../repositories/documents/document-repository";
 import { resolveDocumentOpenUrl } from "../documents/document-open-service";
 
@@ -89,6 +89,7 @@ export async function markPreparedContractReadyForReview(club: ClubContext, sess
   const updated = await markPreparedContractFinalDocument(club, session, context.id, context.revision, userId, finalDocumentId);
   return toResumeContext(updated, context.dokumenttyp, userId, "letzte_pruefung");
 }
+export async function recoverPreparedContractFinalDocument(club: ClubContext, session: BrowserSession, context: PreparedContractResumeContext, userId: string) { if (context.status !== "zur_signatur") return null; const document = await findFinalDocumentByProvenance(club, session, context.id, context.revision); if (!document) return null; if (document.source_kommunikationsvorgang_id !== context.id || document.source_revision !== context.revision) throw new Error("Das gefundene finale Dokument passt nicht zum Kommunikationsvorgang."); return markPreparedContractReadyForReview(club, session, context, userId, document.id); }
 
 export async function completePreparedContractFinalReview(club: ClubContext, session: BrowserSession, context: PreparedContractResumeContext, userId: string) {
   if (context.status !== "letzte_pruefung" || context.final_dokument_id === null) throw new Error("Der Vorgang ist nicht zur letzten Prüfung bereit.");

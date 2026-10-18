@@ -10,12 +10,10 @@ public sealed class PreparedMembershipApplicationRecoveryServiceTests
     [Fact]
     public async Task Signed_membership_application_is_moved_to_final_review_without_starting_signatures()
     {
-        var repository = new Repository();
+        var repository = new Repository { Document = new(42, 7, 3) };
         var service = new PreparedMembershipApplicationRecoveryService(repository);
 
-        var result = await service.RecoverAsync(ReadyContract(), [
-            new DocumentInfo { Id = 42, Dateiname = "Muster-9-2026-10-18-mitgliedsantrag-signiert.pdf", CreatedAt = DateTime.UtcNow }
-        ]);
+        var result = await service.RecoverAsync(ReadyContract(), []);
 
         Assert.NotNull(result);
         Assert.Equal(PreparedContractConstants.FinalReview, result.Status);
@@ -30,9 +28,7 @@ public sealed class PreparedMembershipApplicationRecoveryServiceTests
         var repository = new Repository();
         var service = new PreparedMembershipApplicationRecoveryService(repository);
 
-        var result = await service.RecoverAsync(ReadyContract(), [
-            new DocumentInfo { Id = 42, Dateiname = "Muster-9-2026-10-18-mitgliedsantrag-unsigniert.pdf" }
-        ]);
+        var result = await service.RecoverAsync(ReadyContract(), []);
 
         Assert.Null(result);
         Assert.Equal(0, repository.MarkCalls);
@@ -42,12 +38,10 @@ public sealed class PreparedMembershipApplicationRecoveryServiceTests
     [Fact]
     public async Task Existing_final_document_is_not_recovered_again()
     {
-        var repository = new Repository();
+        var repository = new Repository { Document = new(42, 7, 3) };
         var service = new PreparedMembershipApplicationRecoveryService(repository);
 
-        var result = await service.RecoverAsync(ReadyContract() with { FinalDokumentId = 41 }, [
-            new DocumentInfo { Id = 42, Dateiname = "Muster-9-2026-10-18-mitgliedsantrag-signiert.pdf" }
-        ]);
+        var result = await service.RecoverAsync(ReadyContract() with { FinalDokumentId = 41 }, []);
 
         Assert.Null(result);
         Assert.Equal(0, repository.MarkCalls);
@@ -66,6 +60,7 @@ public sealed class PreparedMembershipApplicationRecoveryServiceTests
 
     private sealed class Repository : IPreparedContractRepository
     {
+        public FinalDocumentProvenance? Document { get; init; }
         public int MarkCalls { get; private set; }
         public int StartCalls { get; private set; }
         public Task<KommunikationsvorgangDto> MarkFinalDocumentReadyForReviewAsync(long id, int expectedRevision, long finalDocumentId, CancellationToken cancellationToken = default)
@@ -74,6 +69,7 @@ public sealed class PreparedMembershipApplicationRecoveryServiceTests
             return Task.FromResult(ReadyContract() with { Id = id, Revision = expectedRevision, Status = PreparedContractConstants.FinalReview, FinalDokumentId = finalDocumentId });
         }
         public Task<KommunikationsvorgangDto> StartSignatureAsync(long id, int expectedRevision, CancellationToken cancellationToken = default) { StartCalls++; throw new InvalidOperationException(); }
+        public Task<FinalDocumentProvenance?> FindFinalDocumentByProvenanceAsync(long sourceKommunikationsvorgangId, int sourceRevision, CancellationToken cancellationToken = default) => Task.FromResult(Document);
         public Task<KommunikationsvorgangDto> LoadAsync(long id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<KommunikationsvorgangDto?> FindActiveAsync(string documentType, int memberId, int? parcelId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<KommunikationsvorgangDto> CreateAsync(string documentType, int memberId, int? parcelId, JsonElement draft, CancellationToken cancellationToken = default) => throw new NotSupportedException();

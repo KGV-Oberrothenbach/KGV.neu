@@ -10,7 +10,7 @@ import { buildMembershipApplicationSignatureSteps, canFinalizeMembershipApplicat
 import { generateContract } from "../../services/contracts/contract-generation-service";
 import { ContractPreview } from "./ContractPreview";
 import { LegalRepresentativeFields } from "./LegalRepresentativeFields";
-import { loadPreparedContractForEditing, loadPreparedContractForFinalReview, loadPreparedContractForSignature, markPreparedContractReadyForReview, parkPreparedContract, savePreparedContractIfChanged, startPreparedContractSigning, type PreparedContractResumeContext } from "../../services/communication/prepared-contract-service";
+import { loadPreparedContractForEditing, loadPreparedContractForFinalReview, loadPreparedContractForSignature, markPreparedContractReadyForReview, parkPreparedContract, recoverPreparedContractFinalDocument, savePreparedContractIfChanged, startPreparedContractSigning, type PreparedContractResumeContext } from "../../services/communication/prepared-contract-service";
 import { preparedContractSchemaVersion, type PreparedMembershipApplicationDraft } from "../../models/communication/prepared-contract-draft";
 import { PreparedFinalReview } from "./PreparedFinalReview";
 
@@ -59,9 +59,8 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
       const saved = context.entwurf_daten as PreparedMembershipApplicationDraft;
       if (saved.memberId !== memberId) throw new Error("Der gespeicherte Mitgliedsantrag passt nicht zum Mitglied.");
       if (resumeMode === "signatures" && context.status === "zur_signatur") {
-        const documentState = await loadMembershipApplicationDocumentState(club, session, memberId);
-        if (documentState.status === "signed" && documentState.existingDocument) {
-          const review = await markPreparedContractReadyForReview(club, session, context, session.user.id, documentState.existingDocument.id);
+        const review = await recoverPreparedContractFinalDocument(club, session, context, session.user.id);
+        if (review) {
           if (!active) return;
           setResumeContext(review); setStartDate(saved.startDate); setFee(String(saved.memberFee)); setDraft(saved.representative ?? emptyLegalRepresentativeDraft()); setIncludeSecondaryMember(saved.includeSecondaryMember); setSignatures({}); setSignatureIndex(0); setStep("review"); setMessage("Das bereits erstellte finale Dokument wurde zur letzten Prüfung übernommen."); await onSaved(); return;
         }
@@ -71,7 +70,7 @@ export function MembershipApplicationFlow({ session, memberId, onSaved, onPrepar
     return () => { active = false; };
   }, [club, session, preparedContractId, memberId, data, resumeMode]);
 
-  const request = (action: "preview" | "finalize") => ({ action, type: "mitgliedsantrag" as const, member_id: memberId, start_date: startDate, member_fee: Number(fee.replace(",", ".")), admission_fee: data?.admissionFee, representative: minor ? { mode: draft.mode, member_id: draft.memberId ?? undefined, vorname: draft.vorname, nachname: draft.nachname, adresse_abweichend: draft.adresseAbweichend, adresse: draft.adresse, plz: draft.plz, ort: draft.ort } : undefined, include_secondary_member: !minor && includeSecondaryMember, signature_application_member: signatures.applicationMember || undefined, signature_privacy_member: signatures.privacyMember || undefined, signature_application_representative: minor ? signatures.applicationSecondParty || undefined : undefined, signature_privacy_representative: minor ? signatures.privacySecondParty || undefined : undefined, signature_application_secondary: !minor ? signatures.applicationSecondParty || undefined : undefined, signature_privacy_secondary: !minor ? signatures.privacySecondParty || undefined : undefined, signature_board: signatures.board || undefined });
+  const request = (action: "preview" | "finalize") => ({ action, type: "mitgliedsantrag" as const, member_id: memberId, start_date: startDate, member_fee: Number(fee.replace(",", ".")), admission_fee: data?.admissionFee, ...(action === "finalize" && resumeContext ? { source_kommunikationsvorgang_id: resumeContext.id, source_revision: resumeContext.revision } : {}), representative: minor ? { mode: draft.mode, member_id: draft.memberId ?? undefined, vorname: draft.vorname, nachname: draft.nachname, adresse_abweichend: draft.adresseAbweichend, adresse: draft.adresse, plz: draft.plz, ort: draft.ort } : undefined, include_secondary_member: !minor && includeSecondaryMember, signature_application_member: signatures.applicationMember || undefined, signature_privacy_member: signatures.privacyMember || undefined, signature_application_representative: minor ? signatures.applicationSecondParty || undefined : undefined, signature_privacy_representative: minor ? signatures.privacySecondParty || undefined : undefined, signature_application_secondary: !minor ? signatures.applicationSecondParty || undefined : undefined, signature_privacy_secondary: !minor ? signatures.privacySecondParty || undefined : undefined, signature_board: signatures.board || undefined });
   const validate = () => { if (minor) validateLegalRepresentative(draft); };
   const preparedDraft = (): PreparedMembershipApplicationDraft => ({ schema_version: preparedContractSchemaVersion, document_type: "mitgliedsantrag", memberId, startDate, memberFee: Number(fee.replace(",", ".")), representative: minor ? draft : null, includeSecondaryMember: !minor && includeSecondaryMember });
   const savePrepared = async () => {

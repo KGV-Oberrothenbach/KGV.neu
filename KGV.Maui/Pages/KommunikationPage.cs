@@ -148,9 +148,8 @@ public sealed class KommunikationPage : ContentPage
         {
             try
             {
-                var memberDocuments = await _supabaseService.GetMitgliedDokumenteAsync(item.Contract.MitgliedId);
-                var recovered = await new PreparedMembershipApplicationRecoveryService(_repository)
-                    .RecoverAsync(item.Contract, memberDocuments);
+                var recovered = await new PreparedFinalDocumentRecoveryService(_repository)
+                    .RecoverAsync(item.Contract);
                 if (recovered is not null)
                 {
                     var review = new PreparedFinalDocumentReviewFlow(this, _repository, _supabaseService);

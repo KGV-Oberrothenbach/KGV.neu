@@ -33,6 +33,8 @@ public sealed record KommunikationsvorgangDto
     [JsonPropertyName("bearbeitet_am")] public DateTimeOffset BearbeitetAm { get; init; }
 }
 
+public sealed record FinalDocumentProvenance(long DocumentId, long SourceKommunikationsvorgangId, int SourceRevision);
+
 public sealed record LegalRepresentativeDraft
 {
     [JsonPropertyName("mode")] public string Mode { get; init; } = "existing";

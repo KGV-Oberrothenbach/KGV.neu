@@ -97,8 +97,10 @@ public sealed class ContractGenerationClient : IContractGenerationClient
     {
         ArgumentNullException.ThrowIfNull(request); ArgumentNullException.ThrowIfNull(request.Application);
         var application = request.Application;
+        if (request.SourceKommunikationsvorgangId <= 0 || request.SourceRevision < 1)
+            throw new ArgumentException("Kommunikationsvorgang und Revision sind für die Finalisierung erforderlich.", nameof(request));
         var draft = PreparedMembershipApplicationMapper.ToPreparedDraft(application, application.IstMinderjaehrig);
-        var payload = new Dictionary<string, object?> { ["action"] = "finalize", ["type"] = "mitgliedsantrag", ["member_id"] = draft.MemberId, ["start_date"] = draft.StartDate, ["member_fee"] = draft.MemberFee, ["admission_fee"] = request.AdmissionFee, ["include_secondary_member"] = !application.IstMinderjaehrig && application.NebenmitgliedEinbeziehen };
+        var payload = new Dictionary<string, object?> { ["action"] = "finalize", ["type"] = "mitgliedsantrag", ["member_id"] = draft.MemberId, ["start_date"] = draft.StartDate, ["member_fee"] = draft.MemberFee, ["admission_fee"] = request.AdmissionFee, ["include_secondary_member"] = !application.IstMinderjaehrig && application.NebenmitgliedEinbeziehen, ["source_kommunikationsvorgang_id"] = request.SourceKommunikationsvorgangId, ["source_revision"] = request.SourceRevision };
         if (application.IstMinderjaehrig && draft.Representative is { } representative)
             payload["representative"] = representative.Mode == "existing" ? new Dictionary<string, object?> { ["mode"] = "existing", ["member_id"] = representative.MemberId, ["adresse_abweichend"] = false } : new Dictionary<string, object?> { ["mode"] = "manual", ["vorname"] = representative.Vorname, ["nachname"] = representative.Nachname, ["adresse_abweichend"] = representative.AdresseAbweichend, ["adresse"] = representative.Adresse, ["plz"] = representative.Plz, ["ort"] = representative.Ort };
         Add(payload, "signature_application_member", request.ApplicationMemberSignature); Add(payload, "signature_privacy_member", request.PrivacyMemberSignature); Add(payload, "signature_board", request.BoardSignature);

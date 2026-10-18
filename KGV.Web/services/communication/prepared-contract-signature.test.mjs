@@ -49,5 +49,6 @@ test("final document enters final review before it can be completed", async () =
   assert.match(center, /Letzte Prüfung/);
   assert.doesNotMatch(center, /letzte_pruefung[\s\S]*Signatur fortsetzen/);
   assert.match(membership, /bereits erstellte finale Dokument wurde zur letzten Prüfung übernommen/);
-  assert.match(membership, /documentState\.status === "signed"[\s\S]*markPreparedContractReadyForReview/);
+  assert.match(membership, /recoverPreparedContractFinalDocument/);
+  assert.doesNotMatch(membership, /documentState\.status === "signed"/);
 });

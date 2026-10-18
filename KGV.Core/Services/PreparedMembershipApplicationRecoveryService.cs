@@ -4,16 +4,15 @@ using KGV.Core.Models;
 namespace KGV.Core.Services;
 
 /// <summary>
-/// Repairs an interrupted membership-application finalization after the final
-/// signed document was persisted but the communication status was not.
+/// Compatibility facade for callers from before provenance-based recovery.
 /// </summary>
 public sealed class PreparedMembershipApplicationRecoveryService
 {
-    private readonly IPreparedContractRepository _repository;
+    private readonly PreparedFinalDocumentRecoveryService _recovery;
 
     public PreparedMembershipApplicationRecoveryService(IPreparedContractRepository repository)
     {
-        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _recovery = new PreparedFinalDocumentRecoveryService(repository);
     }
 
     public async Task<KommunikationsvorgangDto?> RecoverAsync(
@@ -22,32 +21,9 @@ public sealed class PreparedMembershipApplicationRecoveryService
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(contract);
-        ArgumentNullException.ThrowIfNull(memberDocuments);
-
-        if (contract.Dokumenttyp != PreparedContractConstants.MembershipApplication ||
-            contract.Status != PreparedContractConstants.ReadyForSignature ||
-            contract.FinalDokumentId is not null)
-            return null;
-
-        var finalDocument = memberDocuments
-            .Where(document => document.Id > 0 &&
-                string.Equals(document.FormularDokumentTypKey, FormularDokumentTyp.Mitgliedsantrag, StringComparison.Ordinal) &&
-                string.Equals(document.FormularDokumentStatusKey, FormularDokumentStatus.Signiert, StringComparison.Ordinal))
-            .OrderByDescending(document => document.UpdatedAt ?? document.CreatedAt ?? DateTime.MinValue)
-            .FirstOrDefault();
-        if (finalDocument is null)
-            return null;
-
-        var reviewed = await _repository.MarkFinalDocumentReadyForReviewAsync(
-            contract.Id,
-            contract.Revision,
-            finalDocument.Id,
-            cancellationToken);
-        if (reviewed.Id != contract.Id ||
-            reviewed.Status != PreparedContractConstants.FinalReview ||
-            reviewed.FinalDokumentId != finalDocument.Id)
-            throw new PreparedContractValidationException("Der Server hat den vorhandenen signierten Mitgliedsantrag nicht korrekt zur letzten Prüfung übernommen.");
-
-        return reviewed;
+        ArgumentNullException.ThrowIfNull(memberDocuments); // Kept for source compatibility; recovery no longer uses document heuristics.
+        return contract.Dokumenttyp == PreparedContractConstants.MembershipApplication
+            ? await _recovery.RecoverAsync(contract, cancellationToken)
+            : null;
     }
 }

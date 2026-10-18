@@ -3,6 +3,8 @@ namespace KGV.Core.Models;
 public sealed class MembershipApplicationFinalizeRequest
 {
     public required MitgliedsantragDokumentRequest Application { get; init; }
+    public long SourceKommunikationsvorgangId { get; init; }
+    public int SourceRevision { get; init; }
     public decimal AdmissionFee { get; init; }
     public string? ApplicationMemberSignature { get; init; }
     public string? PrivacyMemberSignature { get; init; }
