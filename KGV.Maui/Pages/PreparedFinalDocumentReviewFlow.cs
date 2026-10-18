@@ -1,3 +1,4 @@
+using Microsoft.Maui;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
 using KGV.Core.Services;
@@ -147,3 +148,4 @@ internal sealed class PreparedFinalDocumentReviewPage : ContentPage
         base.OnDisappearing();
     }
 }
+

@@ -1,3 +1,4 @@
+using Microsoft.Maui;
 using System.Collections.ObjectModel;
 using KGV.Core.Interfaces;
 using KGV.Core.Models;
@@ -259,3 +260,4 @@ public sealed class KommunikationPage : ContentPage
         public string Assignment => IsMine ? "Mir zugewiesen" : IsUnassigned ? "Unzugeordnet" : "Anderem Bearbeiter zugewiesen";
     }
 }
+

@@ -1,3 +1,4 @@
+using Microsoft.Maui;
 using System;
 using System.Globalization;
 using System.Linq;
@@ -176,3 +177,4 @@ public sealed class PachtvertragDialogPage : ContentPage
     private static string BuildMemberDisplayName(MitgliedRecord member) { var name = string.Join(" ", new[] { member.Vorname, member.Name }.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())); return string.IsNullOrWhiteSpace(name) ? $"Mitglied #{member.Id}" : $"{name} · #{member.Id}"; }
     private static string BuildParzelleDisplayName(ParzelleRecord parzelle) { var gartenNr = string.IsNullOrWhiteSpace(parzelle.GartenNr) ? $"#{parzelle.Id}" : parzelle.GartenNr.Trim(); var anlage = string.IsNullOrWhiteSpace(parzelle.Anlage) ? null : parzelle.Anlage.Trim(); return string.IsNullOrWhiteSpace(anlage) ? $"Garten {gartenNr}" : $"Garten {gartenNr} ({anlage})"; }
 }
+
