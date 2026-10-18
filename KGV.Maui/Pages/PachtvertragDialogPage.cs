@@ -158,10 +158,10 @@ public sealed class PachtvertragDialogPage : ContentPage
         request = new PachtvertragDokumentRequest
         {
             MitgliedId = _member.Id, ParzelleId = _parzelle.Id, Vertragsbeginn = _vertragsbeginn,
-            HasPreviousContract = _hasPreviousContract, AltvertragDatum = _hasPreviousContract == true ? _altvertragDatePicker.Date.Date : null,
-            UebergabeDatum = _uebergabeDatePicker.Date.Date, BefristetBis = _befristetCheckBox.IsChecked ? _befristetDatePicker.Date.Date : null,
+            HasPreviousContract = _hasPreviousContract, AltvertragDatum = _hasPreviousContract == true ? _altvertragDatePicker.Date?.Date : null,
+            UebergabeDatum = _uebergabeDatePicker.Date?.Date, BefristetBis = _befristetCheckBox.IsChecked ? _befristetDatePicker.Date?.Date : null,
             KleingartenordnungFassung = (_kleingartenordnungEntry.Text ?? "").Trim(),
-            KleingartenordnungAusgehaendigtAm = _kleingartenordnungAusgehaendigtCheckBox.IsChecked ? _kleingartenordnungAusgehaendigtDatePicker.Date.Date : null,
+            KleingartenordnungAusgehaendigtAm = _kleingartenordnungAusgehaendigtCheckBox.IsChecked ? _kleingartenordnungAusgehaendigtDatePicker.Date?.Date : null,
             WeitereVereinbarungen = (_weitereVereinbarungenEditor.Text ?? "").Trim(),
             Anlage1 = _anlage1CheckBox.IsChecked, Anlage2 = _anlage2CheckBox.IsChecked, Anlage3 = _anlage3CheckBox.IsChecked, Anlage4 = _anlage4CheckBox.IsChecked,
             VereinsUnterzeichner = (_vereinsunterzeichnerEntry.Text ?? "").Trim(),
